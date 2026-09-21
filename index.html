@@ -35,7 +35,10 @@
     <meta name="theme-color" content="#050a10">
 
     <!-- Effekt-Stufe früh setzen, damit beim Start nichts flackert -->
-    <script>document.documentElement.dataset.fx = (function () { try { return localStorage.getItem('fx_mode') || 'calm'; } catch (e) { return 'calm'; } })();</script>
+    <script>
+        document.documentElement.dataset.fx = (function () { try { return localStorage.getItem('fx_mode') || 'calm'; } catch (e) { return 'calm'; } })();
+        (function () { try { JSON.parse(localStorage.getItem('fx_flags') || '[]').forEach(function (f) { document.documentElement.classList.add('nofx-' + f); }); } catch (e) {} })();
+    </script>
     <link rel="stylesheet" href="./style.css">
 </head>
 <body class="bg-[#050a10] text-slate-100 min-h-screen flex flex-col justify-between">
@@ -241,6 +244,43 @@
                             <option value="off">Aus (Ringe und Hintergrund stehen still)</option>
                         </select>
                         <p class="text-xs text-[#5d7e91]">Flackert es auf deinem Handy, nimm „Ruhig" oder „Aus". Die Einstellung gilt nur für dieses Gerät.</p>
+                    </div>
+                </details>
+
+                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
+                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
+                        <span>🔧 Flacker-Test</span>
+                    </summary>
+                    <div class="p-4 space-y-3">
+                        <p class="text-xs text-[#5d7e91]">Schalte Effekte einzeln aus und schau, wann das Flackern aufhört. Sag mir dann, welcher Schalter es war. Gilt nur für dieses Gerät.</p>
+                        <div class="flex gap-2">
+                            <button onclick="playUiBeep(); setAllFxFlags(true)" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Alles aus</button>
+                            <button onclick="playUiBeep(); setAllFxFlags(false)" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Alles an</button>
+                        </div>
+                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
+                            <input type="checkbox" data-fxflag="gif" onchange="setFxFlag('gif', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
+                            <span>Ring-Bild als Standbild</span>
+                        </label>
+                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
+                            <input type="checkbox" data-fxflag="scan" onchange="setFxFlag('scan', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
+                            <span>Streifen-Muster über dem Bild aus</span>
+                        </label>
+                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
+                            <input type="checkbox" data-fxflag="glow" onchange="setFxFlag('glow', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
+                            <span>Leuchten und Schatten aus</span>
+                        </label>
+                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
+                            <input type="checkbox" data-fxflag="bg" onchange="setFxFlag('bg', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
+                            <span>Hintergrund aus (Punkte und Raster)</span>
+                        </label>
+                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
+                            <input type="checkbox" data-fxflag="pulse" onchange="setFxFlag('pulse', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
+                            <span>Pulsierende Punkte und Balken aus</span>
+                        </label>
+                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
+                            <input type="checkbox" data-fxflag="motion" onchange="setFxFlag('motion', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
+                            <span>Alle Bewegungen aus (Ringe stehen, keine Übergänge)</span>
+                        </label>
                     </div>
                 </details>
 

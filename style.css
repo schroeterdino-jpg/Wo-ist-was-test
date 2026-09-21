@@ -283,7 +283,11 @@ h1, h2, .jarvis-font {
 }
 
 /* --- Fenster (panels.js): fliegen ins Bild, Scan-Linie, Zeilen laufen nacheinander ein --- */
-body.panel-open { overflow: hidden; }
+/* Solange ein Fenster offen ist, stehen die Ring-Animationen dahinter still (weniger Arbeit für die Grafik, kein Flackern) */
+body.panel-open .holo-ring-1,
+body.panel-open .holo-ring-2,
+body.panel-open #waveform span,
+body.panel-open .animate-pulse { animation-play-state: paused !important; }
 
 #panelLayer {
     position: fixed;
@@ -346,15 +350,22 @@ body.panel-open { overflow: hidden; }
 }
 #panelBody > section { padding: 0; }   /* verschobene Bereiche (Listen, Gedächtnis ...) */
 
+/* Scan-Linie: ein Rahmen in Fenstergröße, dessen unterer Rand leuchtet. Er wird per transform von oben nach unten geschoben. */
 .panel-scan {
     position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 2px;
+    inset: 0;
     z-index: 3;
     pointer-events: none;
     opacity: 0;
+    transform: translateY(-100%);
+}
+.panel-scan::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
     background: linear-gradient(90deg, transparent, var(--cyan), transparent);
     box-shadow: 0 0 16px 5px rgba(73, 215, 255, .55);
 }
@@ -363,7 +374,6 @@ body.panel-open { overflow: hidden; }
 #panelLayer.open #panelBackdrop { animation: panel-backdrop-in .35s ease both; }
 #panelLayer.open #panel { animation: panel-in .65s cubic-bezier(.16, 1, .3, 1) both; }
 #panelLayer.open .panel-scan { animation: panel-scan .95s cubic-bezier(.4, 0, .2, 1) .12s both; }
-#panelLayer.open #panelBody.animate { animation: panel-reveal .95s cubic-bezier(.4, 0, .2, 1) .12s both; }
 #panelBody.animate .panel-row {
     animation: panel-row-in .55s cubic-bezier(.16, 1, .3, 1) both;
     animation-delay: calc(var(--i, 0) * 70ms + 300ms);
@@ -376,25 +386,21 @@ body.panel-open { overflow: hidden; }
 @keyframes panel-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes panel-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes panel-in {
-    0%   { opacity: 0; transform: perspective(900px) translateY(110px) rotateX(26deg) scale(.9); filter: blur(7px); }
-    55%  { opacity: 1; filter: blur(0); }
-    100% { opacity: 1; transform: perspective(900px) translateY(0) rotateX(0) scale(1); filter: blur(0); }
+    0%   { opacity: 0; transform: perspective(900px) translateY(110px) rotateX(26deg) scale(.9); }
+    55%  { opacity: 1; }
+    100% { opacity: 1; transform: perspective(900px) translateY(0) rotateX(0) scale(1); }
 }
 @keyframes panel-out {
-    to { opacity: 0; transform: perspective(900px) translateY(-70px) rotateX(-16deg) scale(.94); filter: blur(5px); }
+    to { opacity: 0; transform: perspective(900px) translateY(-70px) rotateX(-16deg) scale(.94); }
 }
 @keyframes panel-scan {
-    0%   { top: 0; opacity: 1; }
+    0%   { transform: translateY(-100%); opacity: 1; }
     88%  { opacity: 1; }
-    100% { top: calc(100% - 2px); opacity: 0; }
-}
-@keyframes panel-reveal {
-    from { clip-path: inset(0 0 100% 0); }
-    to   { clip-path: inset(0 0 0 0); }
+    100% { transform: translateY(0); opacity: 0; }
 }
 @keyframes panel-row-in {
-    from { opacity: 0; transform: translateX(-26px); filter: blur(4px); }
-    to   { opacity: 1; transform: none; filter: none; }
+    from { opacity: 0; transform: translateX(-26px); }
+    to   { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -402,8 +408,83 @@ body.panel-open { overflow: hidden; }
     #panelLayer.open #panelBackdrop,
     #panelLayer.closing #panel,
     #panelLayer.closing #panelBackdrop,
-    #panelLayer.open #panelBody.animate,
     #panelBody.animate .panel-row { animation: panel-fade .2s ease both; }
     #panelLayer.open .panel-scan { animation: none; }
 }
 @keyframes panel-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Übersichtszeile: Text darf über zwei Zeilen laufen, danach wird abgeschnitten */
+.clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ============================================================
+   Effekt-Stufen (Einstellungen → Effekte), gesetzt als html[data-fx]
+   voll  = alles wie bisher
+   calm  = ruhig (Standard): keine Unschärfe, keine 3D-Kippung, keine Aufdeck-Animation, ruhigerer Hintergrund
+   off   = aus: zusätzlich stehen Ringe und Hintergrund still
+   Unschärfe-Filter über bewegten Flächen sind die häufigste Ursache für Flackern auf Handys.
+   ============================================================ */
+html[data-fx="calm"] .backdrop-blur,
+html[data-fx="off"] .backdrop-blur,
+html[data-fx="calm"] .hud-panel,
+html[data-fx="off"] .hud-panel,
+html[data-fx="calm"] #panelBackdrop,
+html[data-fx="off"] #panelBackdrop {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+html[data-fx="calm"] #panelBackdrop,
+html[data-fx="off"] #panelBackdrop { background: rgba(2, 5, 10, .82); }
+
+html[data-fx="calm"] #grid-canvas::before,
+html[data-fx="off"] #grid-canvas::before { animation: none; }
+
+html[data-fx="calm"] #panelLayer.open #panel { animation-name: panel-in-calm; animation-duration: .45s; }
+html[data-fx="calm"] #panelLayer.closing #panel { animation-name: panel-out-calm; animation-duration: .25s; }
+html[data-fx="calm"] #panelBody.animate .panel-row { animation-name: panel-row-in-calm; animation-duration: .35s; }
+@keyframes panel-in-calm  { from { opacity: 0; transform: translateY(60px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes panel-out-calm { to { opacity: 0; transform: translateY(40px) scale(.97); } }
+@keyframes panel-row-in-calm { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+html[data-fx="off"] #panelLayer.open #panel,
+html[data-fx="off"] #panelLayer.closing #panel,
+html[data-fx="off"] #panelBody.animate .panel-row { animation: panel-fade .15s ease both; }
+html[data-fx="off"] .panel-scan,
+html[data-fx="calm"] .panel-scan { display: none; }
+html[data-fx="off"] .holo-ring-1,
+html[data-fx="off"] .holo-ring-2,
+html[data-fx="off"] #waveform.speaking span,
+html[data-fx="off"] .jarvis-scanner-container.speaking #waveform span { animation: none !important; }
+html[data-fx="off"] #bg-particles,
+html[data-fx="off"] .scanline-overlay { display: none; }
+
+/* Ebenen vorab anlegen, damit die Grafik das Fenster nur noch verschiebt und nicht neu zeichnen muss */
+#panelLayer.open #panel,
+#panelLayer.closing #panel { will-change: transform, opacity; backface-visibility: hidden; }
+#panelLayer.open #panelBackdrop,
+#panelLayer.closing #panelBackdrop { will-change: opacity; }
+#panelBackdrop { touch-action: none; }
+#panelBody { overscroll-behavior: contain; }
+
+/* ============================================================
+   Flacker-Test (Einstellungen → 🔧 Flacker-Test): einzelne Effekte ausschalten, gesetzt als html.nofx-...
+   ============================================================ */
+html.nofx-scan .scanline-overlay { display: none; }
+html.nofx-glow *, html.nofx-glow *::before, html.nofx-glow *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+}
+html.nofx-bg #bg-particles,
+html.nofx-bg #grid-canvas::before,
+html.nofx-bg #grid-canvas::after { display: none; }
+html.nofx-pulse .animate-pulse,
+html.nofx-pulse #waveform span { animation: none !important; }
+html.nofx-motion *, html.nofx-motion *::before, html.nofx-motion *::after {
+    animation: none !important;
+    transition: none !important;
+}
