@@ -1,0 +1,20 @@
+{
+  "name": "Mein Alltags-Helfer",
+  "short_name": "Helfer",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#1d4ed8",
+  "icons": [
+    {
+      "src": "./dino.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./dino.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
