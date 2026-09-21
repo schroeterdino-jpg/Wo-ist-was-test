@@ -338,3 +338,13 @@ function isCloseCommand(text) {
     if (!t || t.length > 40) return false;
     return /^(bitte )?(schlie(ß|ss)\w*|zurück|zumachen|zu machen|mach\w*( das| die| es)?( fenster| liste| anzeige)?( zu)?|blende\w*( das| die| es)?( fenster| liste| anzeige)?( aus)?|das reicht( mir)?|weg damit|verschwinde\w*)( das| die| es| den)?( fenster| liste| anzeige| ansicht)?( bitte| zu| weg| wieder)?$/.test(t);
 }
+
+/* Tipp auf die Übersichtszeile oben: Ist der Google Kalender nicht (mehr) verbunden, startet er die Anmeldung
+   (der Tipp ist die Bedienung, die der Browser dafür verlangt). Sonst öffnet er die Termine. */
+function overviewTap() {
+    if (typeof isGoogleAuthorized === 'function' && !isGoogleAuthorized()) {
+        loginWithGoogle(false);
+        return;
+    }
+    openPanel('termine', { range: 'alle' });
+}

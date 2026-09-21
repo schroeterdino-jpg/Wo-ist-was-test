@@ -14,7 +14,10 @@ function getAssistantOverview(now = new Date()) {
         .sort((a, b) => a.date - b.date)[0];
 
     let nextText = 'Keine anstehenden Termine';
-    if (next) {
+    const disconnected = typeof isGoogleAuthorized === 'function' && !isGoogleAuthorized();
+    if (disconnected) {
+        nextText = 'Kalender nicht verbunden. Tippen zum Verbinden.';
+    } else if (next) {
         const tag = relativeDayLabel(next.date, todayStart);
         nextText = next.allDay
             ? `${next.text}, ${tag}, ganztägig`

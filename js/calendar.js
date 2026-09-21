@@ -39,7 +39,34 @@ setInterval(() => {
 /* --- Google Login --- */
 let tokenClient = null;
 let accessToken = getPersistentData('google_access_token', '');
+let googleTokenExpiresAt = Number(getPersistentData('google_token_expires_at', '0')) || 0;
 let pendingAction = null;
+let pendingFail = null;
+let lastSilentAuth = 0;
+
+/* Ein Google-Token gilt nur etwa eine Stunde. Ohne gespeicherte Ablaufzeit (alte Sitzung) gilt er als abgelaufen. */
+function isGoogleAuthorized() {
+    return !!accessToken && Date.now() < googleTokenExpiresAt;
+}
+
+function updateGoogleStatus() {
+    if (connectionStatus) {
+        if (!accessToken) connectionStatus.textContent = "Nicht verbunden. Klicke auf Verbinden.";
+        else if (!isGoogleAuthorized()) connectionStatus.textContent = "⚠️ Verbindung abgelaufen. Klicke auf Verbinden.";
+        else connectionStatus.textContent = "✅ Verbunden";
+    }
+    if (typeof renderAssistantOverview === 'function') renderAssistantOverview();
+}
+
+function markGoogleExpired() {
+    googleTokenExpiresAt = 0;
+    updateGoogleStatus();
+}
+
+/* Karte "Google Kalender verbinden": Erst der Fingertipp darauf erlaubt dem Browser das Anmelde-Fenster. */
+function googleReconnectCard() {
+    return { icon: '📅', title: 'Google Kalender verbinden', subtitle: 'Tippen, um die Verbindung zu erneuern', onclick: 'loginWithGoogle(false)' };
+}
 
 function initTokenClient(callbackAction) {
     const clientId = getPersistentData('google_client_id', DEFAULT_CLIENT_ID);
@@ -48,19 +75,26 @@ function initTokenClient(callbackAction) {
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly',
+        error_callback: (err) => {
+            console.error("OAuth Fehler:", err);
+            updateGoogleStatus();
+            if (pendingFail) { const f = pendingFail; pendingFail = null; pendingAction = null; f(); }
+        },
         callback: (response) => {
             if (response.error) {
                 console.error("OAuth Fehler:", response);
-                if (response.error === 'interaction_required' || response.error === 'login_required') {
-                    tokenClient.requestAccessToken({ prompt: 'consent' });
-                }
-                return;
+                updateGoogleStatus();
+                if (pendingFail) { const f = pendingFail; pendingFail = null; pendingAction = null; f(); }
+                return;   // kein automatisches Nachfragen ohne Fingertipp (der Browser würde es blockieren)
             }
             if (response.access_token) {
                 accessToken = response.access_token;
+                googleTokenExpiresAt = Date.now() + Math.max(120, Number(response.expires_in) || 3600) * 1000 - 60000;
                 setPersistentData('google_access_token', accessToken);
-                if (connectionStatus) connectionStatus.textContent = "✅ Verbunden (Token erneuert)";
+                setPersistentData('google_token_expires_at', String(googleTokenExpiresAt));
+                updateGoogleStatus();
 
+                pendingFail = null;
                 if (pendingAction) {
                     const act = pendingAction;
                     pendingAction = null;
@@ -76,6 +110,7 @@ function initTokenClient(callbackAction) {
 
 function loginWithGoogle(silent = false, onComplete = null) {
     if (onComplete) pendingAction = onComplete;
+    if (silent) lastSilentAuth = Date.now();
 
     if (!tokenClient) {
         const ok = initTokenClient();
@@ -85,23 +120,45 @@ function loginWithGoogle(silent = false, onComplete = null) {
     tokenClient.requestAccessToken({ prompt: silent ? 'none' : 'consent' });
 }
 
+/* Ein stiller Versuch, die Verbindung zu erneuern (ohne Fenster). Wartet kurz auf das Ergebnis. */
+function ensureGoogleAuth(timeoutMs = 4000) {
+    if (isGoogleAuthorized()) return Promise.resolve(true);
+    return new Promise(resolve => {
+        let done = false;
+        const waiter = () => finish(true);
+        const finish = ok => { if (!done) { done = true; clearTimeout(timer); resolve(ok); } };
+        const timer = setTimeout(() => { if (pendingAction === waiter) { pendingAction = null; pendingFail = null; } finish(isGoogleAuthorized()); }, timeoutMs);
+        pendingFail = () => finish(false);
+        try { loginWithGoogle(true, waiter); } catch (e) { pendingFail = null; finish(false); }
+    });
+}
+
 window.addEventListener('load', () => {
-    if (accessToken) {
-        if (connectionStatus) connectionStatus.textContent = "✅ Verbunden (Sitzung aktiv)";
+    updateGoogleStatus();
+    if (isGoogleAuthorized()) {
         fetchGoogleCalendarEvents();
-    } else {
-        if (connectionStatus) connectionStatus.textContent = "Nicht verbunden. Klicke auf Verbinden.";
+    } else if (accessToken) {
+        try { loginWithGoogle(true); } catch (e) {}
     }
 });
 
+// Verbindung rechtzeitig erneuern, solange die App offen ist
 setInterval(() => {
     if (accessToken) {
-        loginWithGoogle(true);
+        try { loginWithGoogle(true); } catch (e) {}
     }
 }, 50 * 60 * 1000);
 
+// Beim Zurückkehren zur App: ist die Verbindung abgelaufen, einmal still erneuern (höchstens alle 2 Minuten)
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && accessToken && !isGoogleAuthorized() && Date.now() - lastSilentAuth > 120000) {
+        try { loginWithGoogle(true); } catch (e) {}
+    }
+});
+
+// Termine nur laden, solange die Verbindung gültig ist (sonst hagelt es alle 30 Sekunden Fehler)
 setInterval(() => {
-    if (accessToken) {
+    if (isGoogleAuthorized()) {
         fetchGoogleCalendarEvents();
     }
 }, 30000);
@@ -118,9 +175,9 @@ async function addGoogleCalendarEvent(text, isoStartString) {
         end: { dateTime: endDate.toISOString() }
     };
 
-    let createdId = 'local_' + Date.now();
+    const createdId = 'local_' + Date.now();
 
-    if (accessToken) {
+    if (isGoogleAuthorized()) {
         try {
             const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
                 method: 'POST',
@@ -131,18 +188,17 @@ async function addGoogleCalendarEvent(text, isoStartString) {
                 body: JSON.stringify(eventData)
             });
             if (res.status === 401) {
-                loginWithGoogle(true, () => addGoogleCalendarEvent(text, isoStartString));
-                return;
-            }
-            if (res.ok) {
+                markGoogleExpired();
+            } else if (res.ok) {
                 fetchGoogleCalendarEvents();
-                return;
+                return true;
             }
         } catch (e) {
             console.error("Google Sync Fehler", e);
         }
     }
 
+    // Google nicht verbunden oder nicht erreichbar: der Termin wird nur in der App gemerkt
     calendarEntries.unshift({
         id: createdId,
         text: text,
@@ -151,6 +207,7 @@ async function addGoogleCalendarEvent(text, isoStartString) {
     });
     setPersistentData('helfer_calendar_entries', JSON.stringify(calendarEntries));
     renderAllLists();
+    return false;
 }
 
 async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString) {
@@ -158,7 +215,7 @@ async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString) {
     if (isNaN(eventDate.getTime())) eventDate = new Date();
     const endDate = new Date(eventDate.getTime() + 60 * 60000);
 
-    if (accessToken && eventId && !eventId.startsWith('local_')) {
+    if (isGoogleAuthorized() && eventId && !String(eventId).startsWith('local_')) {
         try {
             const patchData = {
                 start: { dateTime: eventDate.toISOString() },
@@ -175,12 +232,10 @@ async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString) {
                 body: JSON.stringify(patchData)
             });
             if (res.status === 401) {
-                loginWithGoogle(true, () => updateGoogleCalendarEvent(eventId, newText, newIsoStartString));
-                return;
-            }
-            if (res.ok) {
+                markGoogleExpired();
+            } else if (res.ok) {
                 fetchGoogleCalendarEvents();
-                return;
+                return true;
             }
         } catch (e) {
             console.error("Google Update Fehler", e);
@@ -195,6 +250,7 @@ async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString) {
         setPersistentData('helfer_calendar_entries', JSON.stringify(calendarEntries));
         renderAllLists();
     }
+    return false;
 }
 
 /* --- Erinnerungen anlegen --- */
@@ -210,7 +266,7 @@ async function addGoogleCalendarReminder(text, isoTimeString) {
         end: { dateTime: new Date(remDate.getTime() + 30 * 60000).toISOString() }
     };
 
-    if (accessToken) {
+    if (isGoogleAuthorized()) {
         try {
             const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
                 method: 'POST',
@@ -218,10 +274,8 @@ async function addGoogleCalendarReminder(text, isoTimeString) {
                 body: JSON.stringify(eventData)
             });
             if (res.status === 401) {
-                loginWithGoogle(true, () => addGoogleCalendarReminder(text, isoTimeString));
-                return;
-            }
-            if (res.ok) {
+                markGoogleExpired();
+            } else if (res.ok) {
                 const data = await res.json();
                 googleEventId = data.id;
             }
@@ -232,6 +286,7 @@ async function addGoogleCalendarReminder(text, isoTimeString) {
     setPersistentData('helfer_reminders', JSON.stringify(reminderEntries));
     renderAllLists();
     fetchGoogleCalendarEvents();
+    return googleEventId !== null;   // false = nur in der App gemerkt, das Handy klingelt dazu nicht
 }
 
 async function addManualReminder() {
@@ -242,16 +297,16 @@ async function addManualReminder() {
     const time = timeEl.value;
     if (text && time) {
         const isoTime = new Date(time).toISOString();
-        await addGoogleCalendarReminder(text, isoTime);
+        const synced = await addGoogleCalendarReminder(text, isoTime);
         textEl.value = '';
         timeEl.value = '';
-        speak(`Sehr wohl, ${currentUserName}, ich habe mir diese Erinnerung notiert.`);
+        speak(synced ? 'Erinnerung notiert.' : 'Erinnerung notiert, aber nur in der App: Der Google Kalender ist nicht verbunden.');
     }
 }
 
 /* --- Google Kalender abrufen --- */
 async function fetchGoogleCalendarEvents() {
-    if (!accessToken) return;
+    if (!isGoogleAuthorized()) return;
     const nowIso = new Date().toISOString();
 
     const futureDate = new Date();
@@ -263,7 +318,7 @@ async function fetchGoogleCalendarEvents() {
     try {
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
         if (res.status === 401) {
-            loginWithGoogle(true, fetchGoogleCalendarEvents);
+            markGoogleExpired();
             return;
         }
         if (res.ok) {
@@ -279,7 +334,8 @@ async function fetchGoogleCalendarEvents() {
                     return !summary.includes('🔔') && !summary.includes('erinnerung');
                 });
 
-                calendarEntries = calItems.map(item => {
+                const localOnly = calendarEntries.filter(e => String(e.id).startsWith('local_'));   // nur in der App gemerkte Termine bleiben erhalten
+                const mappedEntries = calItems.map(item => {
                     const d = new Date(item.start.dateTime || item.start.date);
                     return {
                         id: item.id,
@@ -290,6 +346,7 @@ async function fetchGoogleCalendarEvents() {
                         recurring: !!item.recurringEventId
                     };
                 });
+                calendarEntries = [...localOnly, ...mappedEntries];
                 setPersistentData('helfer_calendar_entries', JSON.stringify(calendarEntries));
 
                 const googleReminders = validItems.filter(item => {
@@ -330,27 +387,30 @@ async function fetchGoogleCalendarEvents() {
     }
 }
 
-/* --- Löschen --- */
+/* --- Löschen (liefern false, wenn nur die App-Kopie gelöscht werden konnte und der Eintrag bei Google bleibt) --- */
 async function deleteCalendarEntry(id) {
-    if (accessToken && id && typeof id === 'string' && !id.startsWith('local_')) {
-        const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(id)}`;
-        try {
-            const res = await fetch(url, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            if (res.status === 401) {
-                loginWithGoogle(true, () => deleteCalendarEntry(id));
-                return;
+    let googleDone = true;
+    if (id && typeof id === 'string' && !id.startsWith('local_')) {
+        googleDone = false;
+        if (isGoogleAuthorized()) {
+            const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(id)}`;
+            try {
+                const res = await fetch(url, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (res.status === 401) markGoogleExpired();
+                else googleDone = res.ok || res.status === 404 || res.status === 410;
+            } catch (e) {
+                console.error("Fehler beim Löschen im Google Kalender", e);
             }
-        } catch (e) {
-            console.error("Fehler beim Löschen im Google Kalender", e);
         }
     }
 
     calendarEntries = calendarEntries.filter(e => e.id !== id);
     setPersistentData('helfer_calendar_entries', JSON.stringify(calendarEntries));
     renderAllLists();
+    return googleDone;
 }
 
 async function deleteReminderEntry(id) {
@@ -360,43 +420,102 @@ async function deleteReminderEntry(id) {
     setPersistentData('helfer_reminders', JSON.stringify(reminderEntries));
     renderAllLists();
 
-    if (rem && accessToken) {
-        let targetGoogleId = rem.googleId;
+    if (!rem) return true;
+    if (!isGoogleAuthorized()) return !rem.googleId;   // war die Erinnerung schon bei Google, bleibt sie dort bestehen
 
-        if (!targetGoogleId) {
-            try {
-                const nowIso = new Date().toISOString();
-                const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${nowIso}&singleEvents=true`;
-                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                if (res.status === 401) {
-                    loginWithGoogle(true, () => deleteReminderEntry(id));
-                    return;
-                }
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.items) {
-                        const match = data.items.find(item => item.summary && item.summary.includes(rem.text));
-                        if (match) targetGoogleId = match.id;
-                    }
-                }
-            } catch (e) {}
-        }
+    let targetGoogleId = rem.googleId;
 
-        if (targetGoogleId) {
-            try {
-                await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(targetGoogleId)}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-            } catch (e) {
-                console.error("Fehler beim Löschen der Erinnerung aus Google", e);
+    if (!targetGoogleId) {
+        try {
+            const nowIso = new Date().toISOString();
+            const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${nowIso}&singleEvents=true`;
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+            if (res.status === 401) { markGoogleExpired(); return false; }
+            if (res.ok) {
+                const data = await res.json();
+                if (data.items) {
+                    const match = data.items.find(item => item.summary && item.summary.includes(rem.text));
+                    if (match) targetGoogleId = match.id;
+                }
             }
+        } catch (e) {}
+    }
+
+    if (targetGoogleId) {
+        try {
+            const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(targetGoogleId)}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            if (res.status === 401) { markGoogleExpired(); return false; }
+            return true;
+        } catch (e) {
+            console.error("Fehler beim Löschen der Erinnerung aus Google", e);
+            return false;
         }
     }
+    return true;
 }
 
 /* --- Kalender durchsuchen (für Fragen wie "Wann hat Victoria Geburtstag?") ---
    Durchsucht alle sichtbaren Google-Kalender (auch den Geburtstags-Kalender), 1 Jahr zurück bis 14 Monate voraus. */
+const BIRTHDAY_CALENDAR_ID = 'addressbook#contacts@group.v.calendar.google.com';
+
+/* Welche Kalender werden durchsucht: alle sichtbaren (bis 25), der Geburtstags-Kalender immer dabei */
+function pickCalendars(listItems) {
+    const cals = (listItems || []).filter(c => c.selected !== false || c.primary || c.id === BIRTHDAY_CALENDAR_ID).slice(0, 25);
+    if (!cals.some(c => c.id === BIRTHDAY_CALENDAR_ID)) cals.push({ id: BIRTHDAY_CALENDAR_ID, summary: 'Geburtstage', _optional: true });
+    return cals;
+}
+
+/* Holt die Termine eines Kalenders. Manche Kalender (z. B. "Geburtstage") lehnen einzelne Parameter ab.
+   Deshalb werden nacheinander drei Varianten probiert. Ein Fehler wird gemeldet statt verschluckt. */
+async function fetchCalendarItems(calId, from, to, headers, q, maxPages) {
+    const range = `timeMin=${encodeURIComponent(from.toISOString())}&timeMax=${encodeURIComponent(to.toISOString())}`;
+    const variants = [
+        { expanded: true, params: 'singleEvents=true&orderBy=startTime&maxResults=250' },
+        { expanded: true, params: 'singleEvents=true&maxResults=250' },
+        { expanded: false, params: 'maxResults=250' }
+    ];
+    let lastError = null;
+    for (let vi = 0; vi < variants.length; vi++) {
+        const v = variants[vi];
+        const items = [];
+        let pageToken = null, failed = false;
+        for (let page = 0; page < maxPages; page++) {
+            let res;
+            try {
+                res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?${range}&${v.params}` +
+                    `${q ? '&q=' + encodeURIComponent(q) : ''}${pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : ''}`, { headers });
+            } catch (e) { lastError = 'keine Verbindung'; failed = true; break; }
+            if (res.status === 401) return { unauthorized: true, items: [], error: 'abgelaufen' };
+            if (!res.ok) { lastError = 'Fehler ' + res.status; failed = true; break; }
+            const d = await res.json();
+            (d.items || []).forEach(i => items.push(i));
+            pageToken = d.nextPageToken;
+            if (!pageToken) break;
+        }
+        if (!failed) return { items, expanded: v.expanded, variant: vi + 1, error: null };
+        if (lastError === 'keine Verbindung') break;
+    }
+    return { items: [], error: lastError };
+}
+
+/* Wiederkehrende Termine, die Google nicht aufgeklappt hat (Variante 3): jährliche (Geburtstage) auf die Jahre im Zeitraum verteilen */
+function expandYearlyItem(item, from, to) {
+    const startDate = item.start && item.start.date;
+    const yearly = item.eventType === 'birthday' || (Array.isArray(item.recurrence) && item.recurrence.some(r => /FREQ=YEARLY/i.test(r)));
+    if (!startDate || !yearly) return [item];
+    const [, mm, dd] = startDate.split('-');
+    const out = [];
+    for (let y = from.getFullYear(); y <= to.getFullYear(); y++) {
+        const d = `${y}-${mm}-${dd}`;
+        const t = new Date(d + 'T12:00:00').getTime();
+        if (t >= from.getTime() && t <= to.getTime()) out.push({ ...item, id: (item.id || item.summary) + '_' + y, start: { date: d } });
+    }
+    return out;
+}
+
 async function searchGoogleCalendar(query) {
     const q = String(query || '').trim();
     if (!q) return { fehler: 'Kein Suchbegriff angegeben.' };
@@ -424,65 +543,80 @@ async function searchGoogleCalendar(query) {
 
     const found = [];
     const seen = new Set();
-    const add = (item, calName) => {
+    const addOne = (item, calName) => {
         if (!item || item.status === 'cancelled' || !item.start) return;
         const startRaw = item.start.dateTime || item.start.date;
         const key = (item.id || item.summary) + '|' + startRaw;
         if (seen.has(key)) return;
         seen.add(key);
-        found.push(describe(item.summary, startRaw, calName, item.location, !!item.recurringEventId));
+        found.push(describe(item.summary, startRaw, calName, item.location, !!item.recurringEventId || !!item.recurrence || item.eventType === 'birthday'));
+    };
+    const add = (item, calName, expanded = true) => {
+        (expanded ? [item] : expandYearlyItem(item, from, to)).forEach(o => addOne(o, calName));
     };
 
     let hinweis = null;
+    let verbindung = 'ok';
+    const probleme = [];
 
-    if (!accessToken) {
-        hinweis = 'Der Google Kalender ist nicht verbunden. Es wurden nur zwischengespeicherte Termine durchsucht.';
+    // Erst einmal still versuchen, eine abgelaufene Verbindung zu erneuern, bevor wir aufgeben
+    let authorized = isGoogleAuthorized();
+    if (!authorized && accessToken) authorized = await ensureGoogleAuth(4000);
+
+    if (!authorized) {
+        verbindung = 'getrennt';
+        hinweis = (accessToken ? 'Der Google Kalender ist nicht mehr verbunden (die Anmeldung ist abgelaufen). ' : 'Der Google Kalender ist nicht verbunden. ') +
+            'Es wurden nur zwischengespeicherte Termine der nächsten drei Monate durchsucht. Bitte auf die Karte unten tippen, um neu zu verbinden.';
     } else {
         try {
             const headers = { 'Authorization': `Bearer ${accessToken}` };
             const listRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader', { headers });
             if (listRes.status === 401) {
-                hinweis = 'Die Google-Anmeldung ist abgelaufen. Es wurden nur zwischengespeicherte Termine durchsucht.';
-                loginWithGoogle(true);
-            } else if (listRes.ok) {
-                const list = await listRes.json();
-                const cals = (list.items || []).filter(c => c.selected !== false || c.primary).slice(0, 12);
+                markGoogleExpired();
+                verbindung = 'getrennt';
+                hinweis = 'Die Google-Anmeldung ist abgelaufen. Es wurden nur zwischengespeicherte Termine der nächsten drei Monate durchsucht. Bitte auf die Karte unten tippen, um neu zu verbinden.';
+            } else {
+                let listItems;
+                if (listRes.ok) {
+                    listItems = (await listRes.json()).items || [];
+                } else {
+                    // Kalenderliste nicht lesbar: trotzdem den Hauptkalender und die Geburtstage durchsuchen
+                    listItems = [{ id: 'primary', summary: 'Hauptkalender', primary: true }];
+                    probleme.push(`die Kalenderliste (Fehler ${listRes.status})`);
+                }
+                const cals = pickCalendars(listItems);
+                const calName = (cal) => cal.summaryOverride || cal.summary || cal.id;
+                let expired = false;
 
-                const base = (cal) => `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(from.toISOString())}&timeMax=${encodeURIComponent(to.toISOString())}&singleEvents=true&orderBy=startTime`;
-                const calName = (cal) => cal.summaryOverride || cal.summary;
-
-                // 1) Suche über Google (schnell)
                 await Promise.all(cals.map(async cal => {
+                    const name = calName(cal);
                     try {
-                        const r = await fetch(`${base(cal)}&maxResults=100&q=${encodeURIComponent(q)}`, { headers });
-                        if (!r.ok) return;
-                        const d = await r.json();
-                        (d.items || []).forEach(item => add(item, calName(cal)));
-                    } catch (e) {}
+                        // 1) Suche über Google (schnell)
+                        const r1 = await fetchCalendarItems(cal.id, from, to, headers, q, 1);
+                        if (r1.unauthorized) { expired = true; return; }
+                        r1.items.forEach(item => add(item, name, r1.expanded));
+                        // 2) Immer zusätzlich: Google sucht nur nach ganzen Wörtern ("Helmut" findet "Helmuts" nicht).
+                        //    Deshalb werden die Termine geholt und hier nach Wortteilen gefiltert.
+                        const r2 = await fetchCalendarItems(cal.id, from, to, headers, null, 4);
+                        if (r2.unauthorized) { expired = true; return; }
+                        r2.items.forEach(item => {
+                            const hay = normalizeKey((item.summary || '') + ' ' + (item.location || ''));
+                            if (hay.includes(nq)) add(item, name, r2.expanded);
+                        });
+                        const err = r1.error && r2.error ? r2.error : null;
+                        if (err && !(cal._optional && /404|403/.test(err))) probleme.push(`${name} (${err})`);
+                    } catch (e) {
+                        probleme.push(`${name} (unbekannter Fehler)`);
+                    }
                 }));
 
-                // 2) Nichts gefunden? Google sucht nur nach ganzen Wörtern ("Victoria" findet "Victorias" nicht).
-                //    Dann werden die Termine geholt und hier nach Wortteilen gefiltert.
-                if (found.length === 0) {
-                    await Promise.all(cals.map(async cal => {
-                        try {
-                            let pageToken = null;
-                            for (let page = 0; page < 3; page++) {
-                                const r = await fetch(`${base(cal)}&maxResults=500${pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : ''}`, { headers });
-                                if (!r.ok) return;
-                                const d = await r.json();
-                                (d.items || []).forEach(item => {
-                                    const hay = normalizeKey((item.summary || '') + ' ' + (item.location || ''));
-                                    if (hay.includes(nq)) add(item, calName(cal));
-                                });
-                                pageToken = d.nextPageToken;
-                                if (!pageToken) break;
-                            }
-                        } catch (e) {}
-                    }));
+                if (expired) {
+                    markGoogleExpired();
+                    verbindung = 'getrennt';
+                    hinweis = 'Die Google-Anmeldung ist abgelaufen. Es wurden nur zwischengespeicherte Termine der nächsten drei Monate durchsucht. Bitte auf die Karte unten tippen, um neu zu verbinden.';
+                } else if (probleme.length > 0) {
+                    hinweis = 'Nicht lesbar waren: ' + probleme.join(', ') + '.';
                 }
-            } else {
-                hinweis = 'Der Google Kalender konnte nicht abgefragt werden. Es wurden nur zwischengespeicherte Termine durchsucht.';
             }
         } catch (e) {
             hinweis = 'Der Google Kalender konnte nicht abgefragt werden. Es wurden nur zwischengespeicherte Termine durchsucht.';
@@ -503,5 +637,63 @@ async function searchGoogleCalendar(query) {
 
     const result = { anzahl_treffer: found.length, kommende, vergangene };
     if (hinweis) result.hinweis = hinweis;
+    if (verbindung === 'getrennt') result.verbindung = 'getrennt';
     return result;
+}
+
+/* --- Kalender-Test für die Einstellungen: zeigt Schritt für Schritt, was Google liefert --- */
+async function diagnoseGoogleCalendar(query, log) {
+    const q = String(query || '').trim() || 'Geburtstag';
+    const nq = normalizeKey(q);
+    const now = new Date();
+    const from = new Date(now); from.setFullYear(from.getFullYear() - 1);
+    const to = new Date(now); to.setMonth(to.getMonth() + 14);
+
+    log(`Suchbegriff: ${q}`);
+    let ok = isGoogleAuthorized();
+    if (!ok && accessToken) { log('Verbindung abgelaufen, erneuere still ...'); ok = await ensureGoogleAuth(4000); }
+    if (!ok) { log(accessToken ? '❌ Verbindung abgelaufen. Oben auf "Mit Google Kalender verbinden" tippen.' : '❌ Nicht verbunden. Oben auf "Mit Google Kalender verbinden" tippen.'); return; }
+    log('✅ Verbindung gültig');
+
+    const headers = { 'Authorization': `Bearer ${accessToken}` };
+    try {
+        const r = await fetch('https://oauth2.googleapis.com/tokeninfo?access_token=' + encodeURIComponent(accessToken));
+        const d = await r.json();
+        const scopes = String(d.scope || '').split(' ');
+        const canRead = scopes.some(x => /\/auth\/calendar(\.readonly)?$/.test(x));
+        log(canRead ? '✅ Berechtigung "Kalender lesen" vorhanden' : '❌ Berechtigung "Kalender lesen" FEHLT. Bitte neu verbinden und alle Häkchen setzen.');
+    } catch (e) { log('Berechtigungen: nicht prüfbar'); }
+
+    let listItems = [];
+    try {
+        const r = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader', { headers });
+        if (r.ok) {
+            listItems = (await r.json()).items || [];
+            log(`Kalender in deinem Konto: ${listItems.length}`);
+            listItems.forEach(c => log(`  • ${c.summaryOverride || c.summary}${c.selected === false ? ' (ausgeblendet)' : ''}`));
+        } else log(`❌ Kalenderliste: Fehler ${r.status}`);
+    } catch (e) { log('❌ Kalenderliste: keine Verbindung'); }
+
+    const cals = pickCalendars(listItems.length ? listItems : [{ id: 'primary', summary: 'Hauptkalender', primary: true }]);
+    log(`Durchsucht werden ${cals.length} Kalender:`);
+    for (const cal of cals) {
+        const name = cal.summaryOverride || cal.summary || cal.id;
+        const r = await fetchCalendarItems(cal.id, from, to, headers, null, 4);
+        if (r.error) { log(`❌ ${name}: ${r.error}${cal._optional ? ' (gibt es bei dir evtl. nicht)' : ''}`); continue; }
+        const hits = r.items.filter(i => normalizeKey((i.summary || '') + ' ' + (i.location || '')).includes(nq));
+        log(`${hits.length > 0 ? '✅' : '–'} ${name}: ${r.items.length} Termine gelesen (Weg ${r.variant}), ${hits.length} Treffer`);
+        hits.slice(0, 4).forEach(i => log(`     → ${i.summary} · ${(i.start && (i.start.date || i.start.dateTime) || '').slice(0, 10)}`));
+    }
+    const cached = (calendarEntries || []).filter(e => normalizeKey(e.text).includes(nq));
+    log(`Zwischenspeicher (nächste 3 Monate): ${cached.length} Treffer`);
+    log('Fertig.');
+}
+
+async function runCalendarDiagnosis() {
+    const out = document.getElementById('calendarDiagOutput');
+    const input = document.getElementById('calendarDiagInput');
+    const lines = [];
+    const log = (t) => { lines.push(t); if (out) { out.textContent = lines.join('\n'); out.classList.remove('hidden'); } };
+    try { await diagnoseGoogleCalendar(input ? input.value : '', log); }
+    catch (e) { log('❌ Unerwarteter Fehler: ' + (e && e.message ? e.message : e)); }
 }

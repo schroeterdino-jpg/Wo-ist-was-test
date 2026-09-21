@@ -41,6 +41,49 @@ function formatCalendarSearchFallback(results) {
     return parts.join('. ') + '.';
 }
 
+/* Der Google Kalender war nicht verbunden: Die Änderung gilt nur in der App. Das sagt J.A.R.V.I.S. ehrlich und zeigt die Karte zum Verbinden. */
+function googleNotSynced(ctx, what) {
+    ctx.notes.push(`Der Google Kalender ist nicht verbunden. ${what}.`);
+    if (!ctx.cards.some(c => c.onclick === 'loginWithGoogle(false)')) ctx.cards.push(googleReconnectCard());
+}
+
+/* ---- Fragen wie "Wann hat Schatz Geburtstag?" werden sofort im Kalender nachgeschlagen, ohne dass die KI die Suche erst anfordern muss ---- */
+const CALENDAR_LOOKUP_TRIGGER = /geburtstag|hochzeitstag|jubiläum/i;
+const LOOKUP_STOPWORDS = new Set(('wann wer was wie wo welche welcher welchen welches hat haben hab habe hatte hatten ist sind war waren wird werden ' +
+    'mein meine meiner meinem meinen meines dein deine unser unsere der die das dem den des ein eine einen einem einer von vom am im in an auf zu zum zur ' +
+    'für mit bei nach mir mich uns dir sag sage sagen kannst kann du ich wir sie er es alt bald nächste nächsten nächster nächstes wieder schon noch mal ' +
+    'bitte gleich eigentlich doch denn und oder jetzt heute morgen gestern übermorgen diese dieser diesen dieses woche monat jahr genau nochmal kennst ' +
+    'weißt weisst frag frage nenn nenne nennen suche such suchen finde finden ob dass damit falls dann also so sehr ganz gerade').split(' '));
+
+function extractCalendarLookupTerms(text) {
+    if (!CALENDAR_LOOKUP_TRIGGER.test(text)) return [];
+    // Anzeigen ("Zeige meine Geburtstage") und Änderungen ("Lösche ...") laufen über eigene Aktionen
+    if (/^\s*(zeig|öffne|lösch|entfern|streich|änder|verschieb|leg|erstell|trag)/i.test(text)) return [];
+    const words = String(text).toLowerCase().replace(/[^a-zäöüß\s-]/g, ' ').split(/\s+/).filter(Boolean);
+    const terms = words.filter(w => w.length >= 3 && !LOOKUP_STOPWORDS.has(w) && !/^(geburtstag|hochzeitstag|jubiläum)/.test(w));
+    return [...new Set(terms)].slice(0, 3);
+}
+
+async function lookupCalendar(terms) {
+    const phrase = terms.join(' ');
+    const queries = [phrase, ...terms].filter((q, i, arr) => q.length >= 3 && arr.indexOf(q) === i).slice(0, 4);
+    const combined = { suchbegriffe: [], anzahl_treffer: 0, kommende: [], vergangene: [] };
+    const seen = new Set();
+    for (const q of queries) {
+        const r = await searchGoogleCalendar(q);
+        combined.suchbegriffe.push(q);
+        if (r.hinweis) combined.hinweis = r.hinweis;
+        if (r.verbindung) combined.verbindung = r.verbindung;
+        ['kommende', 'vergangene'].forEach(k => (r[k] || []).forEach(t => {
+            const key = t.titel + '|' + t.datum;
+            if (!seen.has(key)) { seen.add(key); combined[k].push(t); }
+        }));
+        combined.anzahl_treffer = combined.kommende.length + combined.vergangene.length;
+        if (combined.anzahl_treffer > 0 || r.verbindung === 'getrennt') break;   // Gesamtsuche oder erster Treffer genügt
+    }
+    return combined;
+}
+
 /* Führt EINE Aktion der KI aus (Einkauf, Termin, Erinnerung ...).
    ctx.counter sorgt dafür, dass mehrere neue Einträge aus einer Äußerung eindeutige IDs bekommen. */
 async function executeAction(action, text, ctx) {
@@ -97,25 +140,30 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'memory_search') {
         // Die Suche selbst und die Antwort dazu passieren in sendToGroqSmart
     } else if (action.type === 'reminder') {
-        await addGoogleCalendarReminder(action.reminder_text || text, action.reminder_time);
+        const remSynced = await addGoogleCalendarReminder(action.reminder_text || text, action.reminder_time);
+        if (remSynced === false) googleNotSynced(ctx, 'Die Erinnerung ist nur in der App gespeichert, das Handy klingelt dazu nicht');
         updateTerminalStream("REMINDER: CREATED");
     } else if (action.type === 'reminder_delete') {
         const q = (action.reminder_query || text).toLowerCase();
         const found = reminderEntries.find(r => r.text.toLowerCase().includes(q) || q.includes(r.text.toLowerCase()));
+        let remDone = true;
         if (found) {
-            await deleteReminderEntry(found.id);
+            remDone = await deleteReminderEntry(found.id);
         } else if (reminderEntries.length > 0) {
-            await deleteReminderEntry(reminderEntries[0].id);
+            remDone = await deleteReminderEntry(reminderEntries[0].id);
         }
+        if (remDone === false) googleNotSynced(ctx, 'Die Erinnerung ist in der App gelöscht, bei Google steht sie noch');
         updateTerminalStream("REMINDER: DELETED");
     } else if (action.type === 'calendar_delete') {
         const q = (action.calendar_query || text).toLowerCase();
         const found = calendarEntries.find(c => c.text.toLowerCase().includes(q) || q.includes(c.text.toLowerCase()));
+        let calDone = true;
         if (found) {
-            await deleteCalendarEntry(found.id);
+            calDone = await deleteCalendarEntry(found.id);
         } else if (calendarEntries.length > 0) {
-            await deleteCalendarEntry(calendarEntries[0].id);
+            calDone = await deleteCalendarEntry(calendarEntries[0].id);
         }
+        if (calDone === false) googleNotSynced(ctx, 'Der Termin ist in der App gelöscht, bei Google steht er noch');
         updateTerminalStream("CALENDAR: EVENT_DELETED");
     } else if (action.type === 'calendar_update') {
         let targetId = action.calendar_id;
@@ -127,11 +175,13 @@ async function executeAction(action, text, ctx) {
         if (!targetId && calendarEntries.length > 0) {
             targetId = calendarEntries[0].id;
         }
+        let updDone;
         if (targetId) {
-            await updateGoogleCalendarEvent(targetId, action.calendar_text, action.calendar_time);
+            updDone = await updateGoogleCalendarEvent(targetId, action.calendar_text, action.calendar_time);
         } else {
-            await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time);
+            updDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time);
         }
+        if (updDone === false) googleNotSynced(ctx, 'Die Änderung gilt nur in der App');
         updateTerminalStream("CALENDAR: EVENT_UPDATED");
     } else if (action.type === 'parking_save') {
         const accuracy = await saveParkingSpot(String(action.parking_note || '').trim());
@@ -181,7 +231,8 @@ async function executeAction(action, text, ctx) {
         if (removed === 0) throw userError('Im Briefing habe ich dazu keinen passenden Eintrag gefunden.');
         updateTerminalStream("BRIEFING: WISH_DELETED");
     } else if (action.type === 'calendar' || action.calendar_text) {
-        await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time);
+        const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time);
+        if (addDone === false) googleNotSynced(ctx, 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht');
         updateTerminalStream("CALENDAR: EVENT_ADDED");
     }
 }
@@ -228,6 +279,14 @@ async function sendToGroqSmart(text) {
         liveLocation = await fetchUserLocationData();
     }
 
+    let calendarLookup = null;
+    const lookupTerms = extractCalendarLookupTerms(text);
+    if (lookupTerms.length > 0) {
+        typeWriterStatus("Durchsuche den Kalender...");
+        updateTerminalStream("API_FETCH: CALENDAR_LOOKUP", "FETCHING");
+        try { calendarLookup = await lookupCalendar(lookupTerms); } catch (e) { calendarLookup = null; }
+    }
+
     const now = new Date();
     const nowGermanIso = now.toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).replace(' ', 'T');
 
@@ -241,6 +300,7 @@ async function sendToGroqSmart(text) {
         parkplatz: describeParking(),
         standort: liveLocation,
         tankstellen: await tankFuerFrage(text),
+        kalendersuche: calendarLookup,
         gedächtnis: memoryItems,
         kontakte: savedContacts,
         // die nächsten 60 Termine (mit sich wiederholenden Terminen wären es sonst zu viele)
@@ -259,7 +319,9 @@ async function sendToGroqSmart(text) {
     "- Zum Löschen, Ändern oder Leeren von Einkaufsliste, Aufgaben, Gedächtnis und Kontakten nutze IMMER 'list_edit'. Zum Hinzufügen darfst du weiterhin 'shopping', 'todo' und 'memory_store' nutzen.\n" +
     "- 'list_edit': 'list_name' ist 'einkauf', 'aufgaben', 'gedaechtnis' oder 'kontakte'. 'list_op' ist 'add', 'remove', 'clear' oder 'replace'. 'list_items' ist eine Liste von Texten: bei Einkauf und Aufgaben die Einträge, beim Gedächtnis der Begriff, bei Kontakten der Name. 'list_new_value' brauchst du bei 'replace' (neuer Text, neuer Wert bzw. neue Nummer) und beim Hinzufügen zum Gedächtnis (der Wert) oder zu den Kontakten (die Telefonnummer). Nimm die Einträge so, wie sie im Kontext stehen.\n\n" +
     "WICHTIG für Fragen nach Terminen und Geburtstagen im Kalender:\n" +
-    "- Im Kontext unter 'termine' stehen nur die nächsten drei Monate. Fragt der User nach einem Termin, Geburtstag oder Ereignis (z.B. 'Wann hat Victoria Geburtstag?', 'Wann ist mein Zahnarzttermin?'), das dort nicht eindeutig steht, nutze die Aktion 'calendar_search' mit dem Kernbegriff (z.B. nur der Name 'Victoria') in 'calendar_search_query'. Schreibe in 'reply' nur einen ganz kurzen Satz wie 'Ich schaue nach.'. Du bekommst danach das Ergebnis der Suche im Google Kalender und antwortest damit.\n\n" +
+    "- Im Kontext unter 'termine' stehen nur die nächsten drei Monate. Fragt der User nach einem Termin, Geburtstag oder Ereignis (z.B. 'Wann hat Victoria Geburtstag?', 'Wann ist mein Zahnarzttermin?'), das dort nicht eindeutig steht, nutze die Aktion 'calendar_search' mit dem Kernbegriff (z.B. nur der Name 'Victoria') in 'calendar_search_query'. Schreibe in 'reply' nur einen ganz kurzen Satz wie 'Ich schaue nach.'. Du bekommst danach das Ergebnis der Suche im Google Kalender und antwortest damit.\n" +
+    "- Steht im Kontext unter 'kalendersuche' ein Ergebnis, wurde der Kalender für diese Frage schon durchsucht. Beantworte die Frage damit und nutze keine Aktion 'calendar_search'. 'kommende' sind die nächsten Termine (der erste ist der nächste Geburtstag oder Termin), 'vergangene' die letzten davor. Nenne das Datum genau so wie im Feld 'datum'. Ist 'anzahl_treffer' 0 und gibt es keinen 'hinweis', sage ehrlich, dass du dazu keinen Eintrag gefunden hast, und nenne die Suchbegriffe. Gibt es einen 'hinweis', nenne ihn kurz und ehrlich (zum Beispiel welche Kalender nicht lesbar waren). Steht 'verbindung' auf 'getrennt', sage zusätzlich, dass unten eine Karte zum erneuten Verbinden steht.\n" +
+    "- Antworte auf Fragen nach Terminen, Geburtstagen oder Ereignissen niemals mit 'nicht gefunden', ohne dass 'kalendersuche' ein Ergebnis enthält oder du 'calendar_search' genutzt hast.\n\n" +
     "WICHTIG fürs Anzeigen von Terminen, Erinnerungen und Listen:\n" +
     "- Sagt der User 'zeige', 'zeig mir' oder 'öffne' (Termine, Erinnerungen, Einkaufsliste, Aufgaben, Gedächtnis, Kontakte, Parkplatz, Briefing-Wünsche, Planer, Einstellungen), nutze die Aktion 'show_panel'. Dann fliegt ein Fenster ins Bild. 'panel' ist 'termine', 'erinnerungen', 'einkauf', 'aufgaben', 'gedaechtnis', 'kontakte', 'parkplatz', 'briefing', 'planer' oder 'settings'.\n" +
     "- Bei 'termine' und 'erinnerungen' gib den Zeitraum in 'panel_range' an: 'heute', 'morgen', 'diese_woche', 'naechste_woche', 'naechste_7_tage', 'naechste_30_tage' oder 'alle'. Ohne Angabe nimm bei Terminen 'naechste_7_tage' und bei Erinnerungen 'alle'. Für andere Zeiträume (z.B. 'im November') gib 'panel_from' und 'panel_to' als Datum im Format YYYY-MM-DD an.\n" +
@@ -352,6 +414,7 @@ async function sendToGroqSmart(text) {
 
         // Alle Aktionen nacheinander ausführen; eine kaputte Aktion stoppt die anderen nicht
         const ctx = { counter: 0, cards: [], notes: [], panel: null };
+        if (calendarLookup && calendarLookup.verbindung === 'getrennt') ctx.cards.push(googleReconnectCard());
         let okCount = 0;
         const errors = [];
         for (const action of actions) {
@@ -376,6 +439,7 @@ async function sendToGroqSmart(text) {
                 const query = a.calendar_search_query || '';
                 results.push({ suchbegriff: query, ...(await searchGoogleCalendar(query)) });
             }
+            if (results.some(r => r.verbindung === 'getrennt') && !ctx.cards.some(c => c.onclick === 'loginWithGoogle(false)')) ctx.cards.push(googleReconnectCard());
             searchReply = await answerWithCalendarResults(messagesPayload, ai, results) || formatCalendarSearchFallback(results);
         }
 

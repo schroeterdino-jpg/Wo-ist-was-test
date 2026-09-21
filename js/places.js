@@ -12,12 +12,18 @@ function showActionCards(cards) {
     const box = document.getElementById('actionCards');
     if (!box) return;
     setHtmlIfChanged(box, (cards || []).map(c => {
-        const external = /^https?:/.test(c.href) ? ' target="_blank" rel="noopener"' : '';
-        return `<a href="${escapeHtml(c.href)}"${external} onclick="playUiBeep()" class="flex items-center gap-3 bg-[#0a1621]/90 backdrop-blur border border-[#49d7ff]/60 border-glow-cyan rounded-xl p-3 font-mono">` +
+        const inner =
             `<span class="text-2xl">${c.icon}</span>` +
             `<span class="flex-1 min-w-0"><b class="block text-[#49d7ff] text-sm">${escapeHtml(c.title)}</b>` +
             `<span class="block text-xs text-slate-400 truncate">${escapeHtml(c.subtitle || '')}</span></span>` +
-            `<span class="text-[#49d7ff] text-lg">›</span></a>`;
+            `<span class="text-[#49d7ff] text-lg">›</span>`;
+        const cls = 'flex items-center gap-3 bg-[#0a1621]/90 backdrop-blur border border-[#49d7ff]/60 border-glow-cyan rounded-xl p-3 font-mono';
+        // Karte mit Tipp-Aktion (z.B. "Google Kalender verbinden"): ein Knopf, kein Link
+        if (c.onclick) {
+            return `<button type="button" onclick="playUiBeep(); ${escapeHtml(c.onclick)}" class="${cls} w-full text-left">${inner}</button>`;
+        }
+        const external = /^https?:/.test(c.href) ? ' target="_blank" rel="noopener"' : '';
+        return `<a href="${escapeHtml(c.href)}"${external} onclick="playUiBeep()" class="${cls}">${inner}</a>`;
     }).join(''));
 }
 
