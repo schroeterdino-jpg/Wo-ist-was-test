@@ -145,6 +145,8 @@
     /* Läuft die Animation gerade? Nicht, wenn die App unsichtbar ist, ein Fenster offen ist (außer "full") oder die Stufe "off" gilt */
     function shouldRun() {
         if (cfg().fps === 0 || reduceMotion) return false;
+        const cl = document.documentElement.classList;
+        if (cl && cl.contains('nofx-bg')) return false;   // Flacker-Test: Hintergrund aus
         if (document.hidden) return false;
         if (cfg().pauseWithPanel && document.body && document.body.classList.contains('panel-open')) return false;
         return true;

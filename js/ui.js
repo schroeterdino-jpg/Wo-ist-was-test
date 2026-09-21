@@ -90,10 +90,69 @@ function applyFxMode(mode) {
     if (typeof setBackgroundMode === 'function') setBackgroundMode(m);
 }
 
+/* Flacker-Test: einzelne Effekte ausschalten. Jeder Schalter setzt html.nofx-<name> (siehe style.css). */
+const FX_FLAGS = ['gif', 'scan', 'glow', 'bg', 'pulse', 'motion'];
+
+function readFxFlags() {
+    try {
+        const f = JSON.parse(localStorage.getItem('fx_flags') || '[]');
+        return Array.isArray(f) ? f.filter(x => FX_FLAGS.includes(x)) : [];
+    } catch (e) { return []; }
+}
+
+/* Friert das Ring-Bild auf dem aktuellen Bild ein (oder gibt es wieder frei) */
+function freezeRingImage(freeze) {
+    const img = document.getElementById('assistant-gif');
+    if (!img) return;
+    if (!img.dataset.orig) img.dataset.orig = img.getAttribute('src');
+    if (!freeze) {
+        if (img.dataset.frozen) { delete img.dataset.frozen; img.src = img.dataset.orig; }
+        return;
+    }
+    if (img.dataset.frozen) return;
+    const doFreeze = () => {
+        try {
+            const c = document.createElement('canvas');
+            c.width = img.naturalWidth || 270;
+            c.height = img.naturalHeight || 270;
+            c.getContext('2d').drawImage(img, 0, 0);
+            const url = c.toDataURL('image/png');
+            img.dataset.frozen = '1';
+            img.src = url;
+        } catch (e) { /* Standbild nicht möglich: Bild läuft einfach weiter */ }
+    };
+    if (img.complete && img.naturalWidth) doFreeze();
+    else img.addEventListener('load', doFreeze, { once: true });
+}
+
+function applyFxFlags() {
+    const flags = readFxFlags();
+    FX_FLAGS.forEach(f => document.documentElement.classList.toggle('nofx-' + f, flags.includes(f)));
+    if (document.querySelectorAll) {
+        document.querySelectorAll('[data-fxflag]').forEach(cb => { cb.checked = flags.includes(cb.dataset.fxflag); });
+    }
+    freezeRingImage(flags.includes('gif'));
+    if (typeof setBackgroundMode === 'function') setBackgroundMode(document.documentElement.dataset.fx || 'calm');
+}
+
+function setFxFlag(flag, on) {
+    if (!FX_FLAGS.includes(flag)) return;
+    const flags = readFxFlags().filter(f => f !== flag);
+    if (on) flags.push(flag);
+    try { localStorage.setItem('fx_flags', JSON.stringify(flags)); } catch (e) {}
+    applyFxFlags();
+}
+
+function setAllFxFlags(on) {
+    try { localStorage.setItem('fx_flags', JSON.stringify(on ? FX_FLAGS : [])); } catch (e) {}
+    applyFxFlags();
+}
+
 /* --- Start: Boot-Sound, Terminal-Meldung, erste Darstellung der Listen --- */
 window.addEventListener('DOMContentLoaded', () => {
     playJarvisSound();
     updateTerminalStream("SYS_BOOT: COMPLETE", "ONLINE");
+    applyFxFlags();
     const fxSelect = document.getElementById('fxSelect');
     if (fxSelect) fxSelect.value = document.documentElement.dataset.fx || 'calm';
     renderAllLists();
