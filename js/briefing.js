@@ -34,6 +34,9 @@ async function fetchUserLocationData() {
                     }
 
                     resolve({
+                        latitude: lat,
+                        longitude: lon,
+                        genauigkeit: pos.coords.accuracy,
                         lat: lat.toFixed(4),
                         lon: lon.toFixed(4),
                         ort: ort,
@@ -45,6 +48,9 @@ async function fetchUserLocationData() {
                     });
                 } catch (e) {
                     resolve({
+                        latitude: lat,
+                        longitude: lon,
+                        genauigkeit: pos.coords.accuracy,
                         lat: lat.toFixed(4),
                         lon: lon.toFixed(4),
                         ort: "Koordinaten ermittelt",
@@ -119,7 +125,122 @@ async function fetchWeatherData() {
     });
 }
 
-const IMPORTANT_ITEM_KEYWORDS = ['schlüssel', 'brille', 'sonnenbrille', 'geldbeutel', 'portemonnaie', 'papiere', 'ausweis'];
+
+/* --- Wettervorhersage: heute + 6 Tage (Open-Meteo) --- */
+function weatherCodeText(code) {
+    const map = {
+        0: 'klar', 1: 'überwiegend klar', 2: 'teils bewölkt', 3: 'bedeckt', 45: 'Nebel', 48: 'Nebel mit Reif',
+        51: 'leichter Nieselregen', 53: 'Nieselregen', 55: 'starker Nieselregen', 56: 'gefrierender Nieselregen', 57: 'starker gefrierender Nieselregen',
+        61: 'leichter Regen', 63: 'Regen', 65: 'starker Regen', 66: 'gefrierender Regen', 67: 'starker gefrierender Regen',
+        71: 'leichter Schneefall', 73: 'Schneefall', 75: 'starker Schneefall', 77: 'Schneegriesel',
+        80: 'leichte Regenschauer', 81: 'Regenschauer', 82: 'heftige Regenschauer', 85: 'leichte Schneeschauer', 86: 'Schneeschauer',
+        95: 'Gewitter', 96: 'Gewitter mit Hagel', 99: 'schweres Gewitter mit Hagel'
+    };
+    return map[code] || 'wechselhaft';
+}
+
+/* Empfehlungen für einen Tag (gleiche Grenzen wie beim aktuellen Wetter, aber mit dem Tageshöchstwert) */
+function getDailyAdvice(day) {
+    const rain = day.regenwahrscheinlichkeit_prozent >= 50 || day.niederschlag_mm >= 1;
+    const wind = Math.max(day.wind_max_kmh || 0, day.boeen_max_kmh || 0);
+    const t = day.hoechstwert_grad;
+    let jacke;
+    if (t < 5) jacke = 'Dicke Winterjacke anziehen';
+    else if (t < 12) jacke = 'Warme Jacke anziehen';
+    else if (t < 18) jacke = 'Leichte Jacke mitnehmen';
+    else if (wind > 35) jacke = 'Windjacke anziehen';
+    else if (t < 21) jacke = 'Leichte Jacke zur Sicherheit mitnehmen';
+    else jacke = 'Keine Jacke nötig';
+    return {
+        regenschirm_empfehlung: rain ? 'Regenschirm mitnehmen' : 'Kein Regenschirm nötig',
+        jacken_empfehlung: jacke,
+        sturm_hinweis: wind > 35 ? `Kräftige Windböen bis ${Math.round(wind)} Kilometer pro Stunde` : null
+    };
+}
+
+async function fetchWeatherForecast() {
+    try {
+        const pos = await new Promise((ok, err) =>
+            navigator.geolocation.getCurrentPosition(ok, err, { timeout: 7000, maximumAge: 300000 }));
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max&timezone=Europe%2FBerlin&forecast_days=7`);
+        const data = await res.json();
+        const d = data.daily;
+        if (!d || !d.time) return { fehler: 'Die Vorhersage konnte nicht geladen werden.' };
+
+        const todayIso = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
+        const rel = ['heute', 'morgen', 'übermorgen'];
+        const tage = d.time.map((iso, i) => {
+            const day = {
+                datum: iso,
+                wochentag: new Date(`${iso}T12:00:00`).toLocaleDateString('de-DE', { weekday: 'long' }),
+                tag: iso === todayIso ? 'heute' : (i > 0 && d.time[0] === todayIso && rel[i]) || '',
+                wetter: weatherCodeText(d.weather_code[i]),
+                tiefstwert_grad: Math.round(d.temperature_2m_min[i]),
+                hoechstwert_grad: Math.round(d.temperature_2m_max[i]),
+                niederschlag_mm: Math.round((d.precipitation_sum[i] || 0) * 10) / 10,
+                regenwahrscheinlichkeit_prozent: d.precipitation_probability_max ? (d.precipitation_probability_max[i] || 0) : 0,
+                wind_max_kmh: Math.round(d.wind_speed_10m_max[i] || 0),
+                boeen_max_kmh: Math.round(d.wind_gusts_10m_max[i] || 0)
+            };
+            return { ...day, ...getDailyAdvice(day) };
+        });
+        return { tage };
+    } catch (e) {
+        return { fehler: 'Die Wettervorhersage ist gerade nicht verfügbar.' };
+    }
+}
+
+/* Schreibweisen vereinheitlichen: "Schlüssel", "Schluessel" und "mein schlüssel" werden gleich behandelt */
+function normalizeKey(s) {
+    return String(s).toLowerCase()
+        .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+        .replace(/[^a-z0-9]/g, '');
+}
+
+/* Wichtige Gegenstände, die im Briefing immer genannt werden. Hier kannst du Wörter ergänzen. */
+const IMPORTANT_ITEM_KEYWORDS = [
+    'schlüssel', 'autoschlüssel', 'brille', 'sonnenbrille', 'lesebrille',
+    'geldbeutel', 'geldbörse', 'portemonnaie', 'portmonee', 'portemonaie', 'brieftasche',
+    'papiere', 'dokumente', 'ausweis', 'personalausweis', 'reisepass', 'führerschein', 'fahrzeugschein'
+].map(normalizeKey);
+
+function isImportantItem(key) {
+    const k = normalizeKey(key);
+    if (IMPORTANT_ITEM_KEYWORDS.some(kw => k.includes(kw))) return true;
+    // Begriffe, die der User selbst ins Briefing aufgenommen hat
+    return (briefingWishes || []).some(w => {
+        if (w.type !== 'item') return false;
+        const t = normalizeKey(w.text);
+        return t && k.includes(t);
+    });
+}
+
+/* Wünsche mit Wochentag ("Montags: Mülltonne raus") gelten nur an diesem Tag */
+function wishAppliesToday(text, wochentag) {
+    const days = ['montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag'];
+    const t = String(text).toLowerCase();
+    const mentioned = days.filter(d => t.includes(d));
+    return mentioned.length === 0 || mentioned.includes(String(wochentag).toLowerCase());
+}
+
+/* Ein Gegenstand als Satz: "schlüssel liegt in der Schublade" */
+function itemSentence(g) {
+    const v = String(g.wert).toLowerCase();
+    const isPlace = /^(auf|in|im|an|am|bei|unter|neben|hinter|vor|über)\b/.test(v);
+    return isPlace ? `${g.gegenstand} liegt ${g.wert}` : `${g.gegenstand}: ${g.wert}`;
+}
+
+/* Sicherheitsnetz: Fehlt ein wichtiger Gegenstand im Text der KI, wird er hinten angehängt. */
+function ensureItemsMentioned(text, data) {
+    const norm = normalizeKey(text);
+    const missing = (data.wichtige_gegenstaende || []).filter(g => {
+        const words = String(g.gegenstand).trim().split(/\s+/);
+        const core = normalizeKey(words[words.length - 1]);
+        return core && !norm.includes(core);
+    });
+    if (missing.length === 0) return text;
+    return text.trim() + ' Noch zur Erinnerung: ' + missing.map(itemSentence).join('. ') + '.';
+}
 
 function getWeatherAdvice(weather) {
     const feels = weather.gefuehlteTemperatur;
@@ -180,7 +301,7 @@ function buildBriefingData(now, weather) {
         const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
         return Math.round((dayStart - todayStart) / 86400000) === 0 ? 'heute' : 'morgen';
     };
-    const timeLabel = (date, allDay) => allDay ? 'ganztägig' : date.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
+    const timeLabel = (date, allDay) => allDay ? 'ganztägig' : formatSpokenTime(date);
 
     const termine = (calendarEntries || [])
         .filter(e => e.isoDate)
@@ -197,8 +318,14 @@ function buildBriefingData(now, weather) {
         .map(r => ({ text: r.text, tag: dayLabel(r.date), uhrzeit: timeLabel(r.date, r.allDay) }));
 
     const gegenstaende = Object.keys(memoryItems || {})
-        .filter(k => IMPORTANT_ITEM_KEYWORDS.some(kw => k.toLowerCase().includes(kw)))
+        .filter(k => isImportantItem(k))
         .map(k => ({ gegenstand: k, wert: parseMemoryValue(memoryItems[k]) }));
+
+    const wochentag = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long' }).format(now);
+    const wuensche = (briefingWishes || [])
+        .filter(w => w.type === 'text')
+        .map(w => w.text)
+        .filter(t => wishAppliesToday(t, wochentag));
 
     let wetter = null;
     if (weather && !weather.fehler) {
@@ -222,25 +349,27 @@ function buildBriefingData(now, weather) {
         wetter,
         termine_heute_und_morgen: termine,
         erinnerungen_heute_und_morgen: erinnerungen,
+        zusaetzliche_wuensche: wuensche,
         wichtige_gegenstaende: gegenstaende
     };
 }
 
 async function composeBriefingWithModel(data) {
-    const systemPrompt = "Du bist J.A.R.V.I.S., der persönliche Butler von " + data.name + ". Formuliere ein gesprochenes Tages-Briefing auf Deutsch: höflich, ruhig, trocken im Stil eines britischen Butlers, ohne Markdown, ohne Aufzählungszeichen, in fließenden Sätzen. Es wird laut vorgelesen und soll etwa 60 bis 90 Wörter lang sein.\n\n" +
-    "Reihenfolge: 1. kurze Begrüßung mit der genauen Uhrzeit (übernimm 'uhrzeit_gesprochen' wörtlich, z.B. 'Es ist 16 Uhr 17'), 2. Wetter mit klarer Aussage zu Regenschirm und Jacke, 3. Termine, 4. Erinnerungen, 5. wichtige Gegenstände.\n\n" +
+    const systemPrompt = "Du bist J.A.R.V.I.S., der persönliche Butler von " + data.name + ". Formuliere ein gesprochenes Tages-Briefing auf Deutsch: höflich, ruhig, trocken im Stil eines britischen Butlers, ohne Markdown, ohne Aufzählungszeichen, in fließenden Sätzen. Es wird laut vorgelesen und soll etwa 60 bis 90 Wörter lang sein (bei vielen Terminen oder Gegenständen darf es länger sein).\n\n" +
+    "Reihenfolge: 1. kurze Begrüßung mit der genauen Uhrzeit (übernimm 'uhrzeit_gesprochen' wörtlich, z.B. 'Es ist 16 Uhr 17'), 2. Wetter mit klarer Aussage zu Regenschirm und Jacke, 3. Termine, 4. Erinnerungen, 5. zusätzliche Wünsche, 6. wichtige Gegenstände.\n\n" +
     "Regeln:\n" +
     "- Uhrzeiten: Nenne jede Uhrzeit exakt und in 24-Stunden-Zählung, so wie sie in den Daten steht (z.B. 'um 16 Uhr 17' oder 'um 14 Uhr 30'). Runde niemals und verwende keine Ausdrücke wie 'kurz nach', 'kurz vor', 'halb' oder 'Viertel'. Zähle nie in 12 Stunden (16 Uhr ist nicht 'vier').\n" +
     "- Wetter: Übernimm 'regenschirm_empfehlung' und 'jacken_empfehlung' inhaltlich exakt und widersprich ihnen nie. Nenne die Temperatur nur knapp. Gibt es einen 'sturm_hinweis', erwähne ihn. Ist 'wetter' null, sage in einem Halbsatz, dass keine Wetterdaten vorliegen.\n" +
-    "- Termine und Erinnerungen: Nenne Text, Tag (heute oder morgen) und Uhrzeit natürlich ('um 14 Uhr 30'). Ganztägige nur mit Tag. Gibt es keine Termine, genügt ein Halbsatz wie 'Ihr Kalender ist frei'. Gibt es keine Erinnerungen, lass sie weg.\n" +
-    "- Wichtige Gegenstände: Formuliere jeden als natürlichen Satz mit korrektem Artikel und Präposition ('Ihr Schlüssel liegt unter der Fußmatte'). Verwende niemals das Wort 'Ort' und wiederhole den Begriff nicht doppelt. Gibt es keine, lass den Teil weg.\n" +
+    "- Termine und Erinnerungen: Nenne Text, Tag (heute oder morgen) und Uhrzeit. Die Uhrzeit steht schon gesprochen in den Daten (z.B. '14 Uhr' oder '14 Uhr 30'): Übernimm sie wörtlich und sprich niemals 'null null'. Ganztägige nur mit Tag. Gibt es keine Termine, genügt ein Halbsatz wie 'Ihr Kalender ist frei'. Gibt es keine Erinnerungen, lass sie weg.\n" +
+    "- Zusätzliche Wünsche: Steht etwas in 'zusaetzliche_wuensche', nimm JEDEN dieser Wünsche im Briefing auf, sinngemäß und in einem natürlichen Satz. Erfinde nichts dazu. Enthält ein Wunsch eine weitere Bedingung (z.B. 'wenn es regnet'), prüfe sie anhand der Daten und lass den Wunsch weg, wenn sie nicht zutrifft. Gibt es keine Wünsche, lass den Teil weg.\n" +
+    "- Wichtige Gegenstände: Das ist ein wichtiger Teil, denn der User verlässt danach das Haus. Nenne JEDEN Eintrag aus 'wichtige_gegenstaende' mit Begriff und Platz und lass keinen aus, auch wenn das Briefing dadurch länger wird. Formuliere jeden als natürlichen Satz mit korrektem Artikel und Präposition ('Ihr Schlüssel liegt in der Schublade'). Verwende niemals das Wort 'Ort' und wiederhole den Begriff nicht doppelt. Gibt es keine Einträge, lass den Teil weg.\n" +
     "- Erfinde nichts, was nicht in den Daten steht. Sprich den User sparsam mit 'Sir' oder seinem Namen an.\n\n" +
     "Antworte ausschließlich mit einem JSON-Objekt der Form {\"briefing\": \"...\"}.";
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
     try {
-        const res = await fetch('/api/groq', {
+        const res = await apiFetch('/api/groq', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal: controller.signal,
@@ -278,21 +407,21 @@ function buildFallbackBriefing(data) {
     }
 
     if (data.termine_heute_und_morgen.length > 0) {
-        text += "Ihre Termine: " + data.termine_heute_und_morgen.map(t => `${t.tag} ${t.uhrzeit === 'ganztägig' ? 'ganztägig' : 'um ' + t.uhrzeit + ' Uhr'} ${t.text}`).join(', ') + ". ";
+        text += "Ihre Termine: " + data.termine_heute_und_morgen.map(t => `${t.tag} ${t.uhrzeit === 'ganztägig' ? 'ganztägig' : 'um ' + t.uhrzeit} ${t.text}`).join(', ') + ". ";
     } else {
         text += "Ihr Kalender ist für heute und morgen frei. ";
     }
 
     if (data.erinnerungen_heute_und_morgen.length > 0) {
-        text += "Erinnerungen: " + data.erinnerungen_heute_und_morgen.map(r => `${r.text} ${r.tag}${r.uhrzeit === 'ganztägig' ? '' : ' um ' + r.uhrzeit + ' Uhr'}`).join(' sowie ') + ". ";
+        text += "Erinnerungen: " + data.erinnerungen_heute_und_morgen.map(r => `${r.text} ${r.tag}${r.uhrzeit === 'ganztägig' ? '' : ' um ' + r.uhrzeit}`).join(' sowie ') + ". ";
+    }
+
+    if ((data.zusaetzliche_wuensche || []).length > 0) {
+        text += data.zusaetzliche_wuensche.map(w => { const t = w.trim(); return /[.!?]$/.test(t) ? t : t + '.'; }).join(' ') + ' ';
     }
 
     if (data.wichtige_gegenstaende.length > 0) {
-        text += data.wichtige_gegenstaende.map(g => {
-            const v = String(g.wert).toLowerCase();
-            const isPlace = /^(auf|in|im|an|am|bei|unter|neben|hinter|vor|über)\b/.test(v);
-            return isPlace ? `${g.gegenstand} liegt ${g.wert}` : `${g.gegenstand}: ${g.wert}`;
-        }).join('. ') + ". ";
+        text += data.wichtige_gegenstaende.map(itemSentence).join('. ') + ". ";
     }
 
     return text;
@@ -317,6 +446,7 @@ async function triggerDailyBriefing() {
         typeWriterStatus("Stelle Briefing zusammen...");
         let text = await composeBriefingWithModel(data);
         if (!text) text = buildFallbackBriefing(data);
+        else text = ensureItemsMentioned(text, data);
 
         chatHistory.push({ role: "assistant", content: JSON.stringify({ type: "chat", reply: text }) });
 

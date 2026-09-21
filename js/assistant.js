@@ -3,6 +3,44 @@
    Braucht: alle anderen Dateien (muss als LETZTE geladen werden)
    ============================================================ */
 
+/* Zweiter Durchgang: Die KI bekommt das Ergebnis der Kalendersuche und formuliert die Antwort. */
+async function answerWithCalendarResults(messages, firstAi, results) {
+    try {
+        const res = await apiFetch('/api/groq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: "openai/gpt-oss-120b",
+                response_format: { type: "json_object" },
+                messages: [
+                    ...messages,
+                    { role: "assistant", content: JSON.stringify(firstAi) },
+                    { role: "user", content: "Ergebnis deiner Kalendersuche (JSON): " + JSON.stringify(results) +
+                        "\n\nBeantworte damit jetzt die Frage des Users im Feld 'reply': kurz, mit Wochentag, Tag und Monat, bei Terminen mit Uhrzeit (die Uhrzeit steht schon gesprochen im Feld 'zeit', übernimm sie wörtlich). 'kommende' sind die nächsten Termine, 'vergangene' die letzten davor. Nutze nur diese Ergebnisse und erfinde nichts. Gibt es keinen Treffer, sage das ehrlich, und wenn ein 'hinweis' vorhanden ist, erwähne ihn kurz. 'actions' bleibt leer." }
+                ]
+            })
+        });
+        const data = await res.json();
+        const parsed = JSON.parse(data.choices[0].message.content);
+        return (parsed.reply || '').trim() || null;
+    } catch (e) {
+        console.error("Antwort zur Kalendersuche fehlgeschlagen", e);
+        return null;
+    }
+}
+
+/* Ersatzantwort, falls die KI beim zweiten Durchgang ausfällt */
+function formatCalendarSearchFallback(results) {
+    const parts = results.map(r => {
+        const next = (r.kommende || [])[0];
+        if (next) return `${next.titel}: ${next.datum}${next.zeit && next.zeit !== 'ganztägig' ? ' um ' + next.zeit : ''}`;
+        const past = (r.vergangene || [])[0];
+        if (past) return `${past.titel}: zuletzt ${past.datum}`;
+        return `Zu „${r.suchbegriff}" habe ich im Kalender nichts gefunden${r.hinweis ? ' (' + r.hinweis + ')' : ''}`;
+    });
+    return parts.join('. ') + '.';
+}
+
 /* Führt EINE Aktion der KI aus (Einkauf, Termin, Erinnerung ...).
    ctx.counter sorgt dafür, dass mehrere neue Einträge aus einer Äußerung eindeutige IDs bekommen. */
 async function executeAction(action, text, ctx) {
@@ -93,6 +131,48 @@ async function executeAction(action, text, ctx) {
             await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time);
         }
         updateTerminalStream("CALENDAR: EVENT_UPDATED");
+    } else if (action.type === 'parking_save') {
+        const accuracy = await saveParkingSpot(String(action.parking_note || '').trim());
+        if (accuracy && accuracy > 60) ctx.notes.push(`Der Standort ist nur auf etwa ${Math.round(accuracy)} Meter genau.`);
+        updateTerminalStream("PARKING: SAVED");
+    } else if (action.type === 'parking_clear') {
+        if (!parkingSpot) throw userError('Es ist kein Parkplatz gespeichert.');
+        clearParkingSpot(false);
+        updateTerminalStream("PARKING: CLEARED");
+    } else if (action.type === 'navigate') {
+        ctx.cards.push(buildNavigationCard(action));
+        updateTerminalStream("NAVIGATION: LINK_READY");
+    } else if (action.type === 'call') {
+        ctx.cards.push(buildCallCard(action));
+        updateTerminalStream("CALL: LINK_READY");
+    } else if (action.type === 'whatsapp') {
+        ctx.cards.push(buildWhatsAppCard(action));
+        updateTerminalStream("WHATSAPP: LINK_READY");
+    } else if (action.type === 'list_edit') {
+        executeListEdit(action, ctx);
+        updateTerminalStream("LISTS: EDITED");
+    } else if (action.type === 'calendar_search') {
+        // Die Suche selbst und die Antwort dazu passieren in sendToGroqSmart
+    } else if (action.type === 'briefing_add') {
+        const item = String(action.briefing_item || '').trim();
+        const wish = String(action.briefing_text || '').trim();
+        if (!item && !wish) throw userError('Für das Briefing fehlt mir dazu ein Inhalt.');
+        if (item) {
+            const ni = normalizeKey(item);
+            const inMemory = Object.keys(memoryItems).some(k => {
+                const nk = normalizeKey(k);
+                return nk && ni && (nk.includes(ni) || ni.includes(nk));
+            });
+            // Steht der Gegenstand im Gedächtnis, wird er mit Platz genannt; sonst als einfacher Hinweis
+            if (inMemory) addBriefingWish('item', item, Date.now() + ctx.counter++);
+            else addBriefingWish('text', `Denken Sie an: ${item}.`, Date.now() + ctx.counter++);
+        }
+        if (wish) addBriefingWish('text', wish, Date.now() + ctx.counter++);
+        updateTerminalStream("BRIEFING: WISH_ADDED");
+    } else if (action.type === 'briefing_delete') {
+        const removed = deleteBriefingWishesByQuery(action.briefing_query || '');
+        if (removed === 0) throw userError('Im Briefing habe ich dazu keinen passenden Eintrag gefunden.');
+        updateTerminalStream("BRIEFING: WISH_DELETED");
     } else if (action.type === 'calendar' || action.calendar_text) {
         await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time);
         updateTerminalStream("CALENDAR: EVENT_ADDED");
@@ -101,6 +181,7 @@ async function executeAction(action, text, ctx) {
 
 async function sendToGroqSmart(text) {
     isProcessing = true;
+    clearActionCards();
     startThinkingSound();
     typeWriterStatus("Verarbeite Anweisung, Sir...");
     updateTerminalStream("CPU_LOAD: PROCESSING_NLP...", "PROCESSING");
@@ -113,10 +194,12 @@ async function sendToGroqSmart(text) {
     }, ACK_DELAY_MS);
 
     let liveWeather = null;
-    if (/wetter|regen|regnet|regenschirm|temperatur|grad|jacke|kalt|warm|sonne|wind/i.test(text)) {
+    let liveForecast = null;
+    if (/wetter|regen|regnet|regenschirm|schirm|temperatur|grad|jacke|kalt|warm|sonne|wind|schnee|gewitter|sturm|vorhersage/i.test(text)) {
         typeWriterStatus("Rufe aktuelle Wetterdaten ab...");
         updateTerminalStream("API_FETCH: WEATHER_DATA", "FETCHING");
-        const rawWeather = await fetchWeatherData();
+        const [rawWeather, forecast] = await Promise.all([fetchWeatherData(), fetchWeatherForecast()]);
+        liveForecast = forecast;
         if (rawWeather && !rawWeather.fehler) {
             const advice = getWeatherAdvice(rawWeather);
             liveWeather = {
@@ -146,6 +229,8 @@ async function sendToGroqSmart(text) {
         uhrzeit_jetzt: formatSpokenTime(now),
         aktuelles_jahr: now.getFullYear(),
         wetter: liveWeather,
+        wettervorhersage: liveForecast,
+        parkplatz: describeParking(),
         standort: liveLocation,
         tankstellen: await tankFuerFrage(text),
         gedächtnis: memoryItems,
@@ -153,11 +238,31 @@ async function sendToGroqSmart(text) {
         termine: calendarEntries.map(c => ({ id: c.id, text: c.text, datum: c.date, isoDate: c.isoDate })),
         erinnerungen: reminderEntries.map(r => ({ id: r.id, text: r.text, zeit: r.time })),
         einkauf: shoppingEntries.map(s => s.text),
-        aufgaben_und_notizen: todoEntries.map(t => t.text)
+        aufgaben_und_notizen: todoEntries.map(t => t.text),
+        briefing_wuensche: briefingWishes.map(w => ({ id: w.id, art: w.type === 'item' ? 'gegenstand' : 'hinweis', text: w.text }))
     };
 
     const systemPrompt = "Du bist J.A.R.V.I.S., eine hochintelligente KI und der persönliche Butler von " + currentUserName + ". Deine Sprache ist durchgehend höflich, ruhig, distanziert und im Stile eines britischen Butlers gehalten. Du bist knapp: Deine Antworten werden laut vorgelesen und bestehen in der Regel aus einem, höchstens zwei kurzen Sätzen. Du nutzt trockenen, subtilen Sarkasmus, bist aber nie geschwätzig und wiederholst nicht, was der User gerade gesagt hat. Du sprichst den User mit 'Sir' oder '" + currentUserName + "' an, aber sparsam und nicht in jedem Satz. Du beantwortest alle Anfragen präzise, effizient und ohne Markdown-Formatierung.\n\n" +
     "Aktueller Kontext: " + JSON.stringify(contextData) + "\n\n" +
+    "WICHTIG: Ehrlichkeit bei Aktionen:\n" +
+    "- Melde nur dann, dass etwas erledigt, hinzugefügt, gelöscht, geändert oder notiert ist, wenn du dafür in 'actions' die passende Aktion angelegt hast. Ohne Aktion ändert sich nichts.\n" +
+    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern. Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
+    "- Zum Löschen, Ändern oder Leeren von Einkaufsliste, Aufgaben, Gedächtnis und Kontakten nutze IMMER 'list_edit'. Zum Hinzufügen darfst du weiterhin 'shopping', 'todo' und 'memory_store' nutzen.\n" +
+    "- 'list_edit': 'list_name' ist 'einkauf', 'aufgaben', 'gedaechtnis' oder 'kontakte'. 'list_op' ist 'add', 'remove', 'clear' oder 'replace'. 'list_items' ist eine Liste von Texten: bei Einkauf und Aufgaben die Einträge, beim Gedächtnis der Begriff, bei Kontakten der Name. 'list_new_value' brauchst du bei 'replace' (neuer Text, neuer Wert bzw. neue Nummer) und beim Hinzufügen zum Gedächtnis (der Wert) oder zu den Kontakten (die Telefonnummer). Nimm die Einträge so, wie sie im Kontext stehen.\n\n" +
+    "WICHTIG für Fragen nach Terminen und Geburtstagen im Kalender:\n" +
+    "- Im Kontext unter 'termine' stehen nur die nächsten drei Monate. Fragt der User nach einem Termin, Geburtstag oder Ereignis (z.B. 'Wann hat Victoria Geburtstag?', 'Wann ist mein Zahnarzttermin?'), das dort nicht eindeutig steht, nutze die Aktion 'calendar_search' mit dem Kernbegriff (z.B. nur der Name 'Victoria') in 'calendar_search_query'. Schreibe in 'reply' nur einen ganz kurzen Satz wie 'Ich schaue nach, Sir.'. Du bekommst danach das Ergebnis der Suche im Google Kalender und antwortest damit.\n\n" +
+    "WICHTIG für Parkplatz, Navigation, Anrufe und WhatsApp:\n" +
+    "- 'Merk dir, wo ich geparkt habe' (oder ähnlich): Aktion 'parking_save'. Nennt der User dazu Details wie 'Ebene 2, Platz 34', schreibe sie in 'parking_note'. Der Standort wird automatisch ermittelt. Soll der Parkplatz vergessen oder gelöscht werden: 'parking_clear'.\n" +
+    "- Fragt der User, wo er geparkt hat, antworte mit den Daten aus 'parkplatz' im Kontext (Adresse, Notiz, wann gespeichert). Ist 'parkplatz' leer, sage ehrlich, dass nichts gespeichert ist. Will er dorthin, nutze zusätzlich 'navigate' mit 'nav_to' = 'parkplatz'.\n" +
+    "- 'navigate' liefert dem User eine Karte mit Link zu Google Maps. 'nav_to' ist das Ziel als Text (Ort, Adresse oder Name). 'nav_from' nur angeben, wenn der User einen anderen Startpunkt nennt; sonst weglassen, dann gilt sein Standort ('von hier'). 'nav_mode' ist 'transit' (Bus und Bahn, z.B. bei 'Verbindung', 'mit dem HVV', 'mit Bus und Bahn'), 'walking' (zu Fuß), 'bicycling' (Fahrrad) oder 'driving' (Auto, Standard). Du bekommst keine Fahrzeiten zurück und darfst keine nennen. Sage nur kurz, dass die Verbindung auf der Karte unten steht.\n" +
+    "- 'call': 'contact_name' ist der Name aus 'kontakte' im Kontext. 'whatsapp': dazu 'contact_name' und optional 'message_text' (der Text der Nachricht, wie ihn der User diktiert). Du rufst nicht selbst an und schickst nichts ab, du bereitest es nur vor: Sage, dass der User auf die Karte unten tippen muss. Steht der Kontakt nicht in 'kontakte', lege die Aktion trotzdem an; sie meldet dann selbst, dass er fehlt.\n\n" +
+    "WICHTIG für die Wettervorhersage (morgen, übermorgen, Wochentage, ganze Woche):\n" +
+    "- Im Kontext steht unter 'wettervorhersage' eine Liste 'tage' mit den nächsten sieben Tagen (Wochentag, Höchst- und Tiefstwert, Niederschlag, Regenwahrscheinlichkeit, Empfehlungen). Nutze sie für alle Fragen zu morgen, übermorgen, bestimmten Wochentagen oder der Woche. Übernimm 'regenschirm_empfehlung' und 'jacken_empfehlung' exakt.\n" +
+    "- Bei 'die ganze Woche' oder 'am Wochenende' fasse in höchstens drei bis vier kurzen Sätzen zusammen (Trend, Regentage, wärmster und kältester Tag). Nenne Temperaturen als ganze Grad. Enthält 'wettervorhersage' einen Fehler, sage das ehrlich.\n\n" +
+    "WICHTIG für das Tages-Briefing:\n" +
+    "- Will der User etwas dauerhaft im Briefing genannt haben (z.B. 'Erwähne im Briefing immer, dass ich die Tabletten nehmen soll' oder 'Sag mir im Briefing auch, wo mein Ladekabel ist'), nutze die Aktion 'briefing_add'. Ist es ein Gegenstand aus dem Gedächtnis, gib den Begriff in 'briefing_item' an, er wird dann immer mit seinem Platz genannt. Ist es ein anderer Hinweis oder eine Bitte, formuliere ihn als kurzen Satz in 'briefing_text', so wie er im Briefing gesagt werden soll (z.B. 'Denken Sie an Ihre Tabletten.'). Bedingungen wie 'nur montags' gehören in den Satz (z.B. 'Montags: Die Mülltonne rausstellen.').\n" +
+    "- Will der User etwas wieder aus dem Briefing nehmen, nutze 'briefing_delete' mit einem Suchbegriff in 'briefing_query'.\n" +
+    "- Die aktuellen Briefing-Wünsche stehen im Kontext unter 'briefing_wuensche'. Fragt der User, was im Briefing steht, zähle sie mit dem Typ 'chat' auf.\n\n" +
     "WICHTIG für Uhrzeiten:\n" +
     "- Nenne Uhrzeiten immer exakt und in 24-Stunden-Zählung. Für die aktuelle Uhrzeit nutze 'uhrzeit_jetzt' wörtlich (z.B. 'Es ist 16 Uhr 17, Sir.'). Runde nie und verwende keine Ausdrücke wie 'kurz nach', 'kurz vor', 'halb' oder 'Viertel'.\n\n" +
     "WICHTIG für Fragen zu Standort & Aufenthaltsort:\n" +
@@ -184,13 +289,13 @@ async function sendToGroqSmart(text) {
     "Gib IMMER ein valides JSON-Objekt zurück mit folgenden Feldern:\n" +
     "- reply: Kurze, trockene J.A.R.V.I.S.-Antwort ohne Markdown, meist ein Satz, höchstens zwei. Aktionen bestätigst du knapp (z.B. 'Erledigt, Sir.' oder 'Notiert.'). Nur beim Vorlesen von Listen (Einkauf, Termine, Aufgaben) darf die Antwort länger sein.\n" +
     "- actions: Liste (Array) der auszuführenden Aktionen. Jede Aktion ist ein Objekt mit dem Feld 'type' und den dazu passenden Feldern (siehe unten). Bei reiner Unterhaltung, Auskünften oder dem Vorlesen von Listen ist 'actions' eine leere Liste.\n" +
-    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\"\n" +
+    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"navigate\", \"call\", \"whatsapp\"\n" +
     "Die folgenden Felder gehören in die jeweilige Aktion, nicht auf die oberste Ebene:\n" +
     "- calendar_text: (bei calendar oder calendar_update) Titel des Termins.\n" +
     "- calendar_time: (bei calendar oder calendar_update) ISO-Zeitstempel.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name.";
+    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, nav_to, nav_from, nav_mode, contact_name, message_text.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -200,7 +305,7 @@ async function sendToGroqSmart(text) {
     ];
 
     try {
-        const res = await fetch('/api/groq', {
+        const res = await apiFetch('/api/groq', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -227,18 +332,35 @@ async function sendToGroqSmart(text) {
         const wantsSearch = !!searchAction || (onlyChat && /suche|wo ist/i.test(text));
 
         // Alle Aktionen nacheinander ausführen; eine kaputte Aktion stoppt die anderen nicht
-        const ctx = { counter: 0 };
-        let failed = 0;
+        const ctx = { counter: 0, cards: [], notes: [] };
+        let okCount = 0;
+        const errors = [];
         for (const action of actions) {
+            if (action.type === 'calendar_search') continue; // kommt gleich
             try {
                 await executeAction(action, text, ctx);
+                okCount++;
             } catch (err) {
-                failed++;
                 console.error("Aktion fehlgeschlagen:", action, err);
+                errors.push(err.userMessage || "Einen Teil davon konnte ich leider nicht ausführen.");
             }
         }
 
-        let replyText = ai.reply;
+        // Kalendersuche: Ergebnis holen und die KI damit antworten lassen (zweiter Durchgang)
+        let searchReply = null;
+        const searchActions = actions.filter(a => a.type === 'calendar_search');
+        if (searchActions.length > 0) {
+            typeWriterStatus("Durchsuche den Kalender...");
+            updateTerminalStream("API_FETCH: CALENDAR_SEARCH", "FETCHING");
+            const results = [];
+            for (const a of searchActions) {
+                const query = a.calendar_search_query || '';
+                results.push({ suchbegriff: query, ...(await searchGoogleCalendar(query)) });
+            }
+            searchReply = await answerWithCalendarResults(messagesPayload, ai, results) || formatCalendarSearchFallback(results);
+        }
+
+        let replyText = searchReply || ai.reply;
         if (!replyText) {
             if (wantsSearch) {
                 const results = searchMemory((searchAction && searchAction.memory_search_query) || text);
@@ -249,7 +371,16 @@ async function sendToGroqSmart(text) {
                 replyText = `Zu Ihren Diensten, ${currentUserName}. Es ist erledigt.`;
             }
         }
-        if (failed > 0) replyText += " Einen Teil davon konnte ich leider nicht ausführen.";
+
+        // Ehrlich bleiben: Was nicht geklappt hat, sagt J.A.R.V.I.S. auch so
+        if (errors.length > 0) {
+            if (searchReply) replyText = `${searchReply} ${errors.join(' ')}`;
+            else if (okCount > 0) replyText = `Das meiste ist erledigt, aber: ${errors.join(' ')}`;
+            else replyText = errors.join(' ');
+        }
+
+        if (ctx.notes.length > 0 && errors.length === 0) replyText += ' ' + ctx.notes.join(' ');
+        showActionCards(ctx.cards);
 
         renderAllLists();
         stopThinkingSound();
@@ -259,7 +390,7 @@ async function sendToGroqSmart(text) {
         renderAllLists();
         stopThinkingSound();
         updateTerminalStream("SYS_ERR: COMMS_FAILURE", "ERROR");
-        speak(`Verzeihen Sie, ${currentUserName}, bei der Übertragung gab es eine kleine Störung.`);
+        speak((e && e.auth) ? e.userMessage : `Verzeihen Sie, ${currentUserName}, bei der Übertragung gab es eine kleine Störung.`);
     } finally {
         clearTimeout(ackTimer);
         stopThinkingSound();
@@ -275,7 +406,7 @@ async function tankFuerFrage(text) {
     try {
         const pos = await new Promise((ok, err) =>
             navigator.geolocation.getCurrentPosition(ok, err, { timeout: 7000, maximumAge: 60000 }));
-        const r = await fetch(`/api/tank?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}&rad=5`);
+        const r = await apiFetch(`/api/tank?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}&rad=5`);
         const d = await r.json();
         if (!d.stations || d.stations.length === 0) {
             return { fehler: "Keine geöffneten Tankstellen in der Nähe gefunden." };

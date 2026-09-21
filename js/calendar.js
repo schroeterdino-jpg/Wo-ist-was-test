@@ -394,3 +394,114 @@ async function deleteReminderEntry(id) {
         }
     }
 }
+
+/* --- Kalender durchsuchen (für Fragen wie "Wann hat Victoria Geburtstag?") ---
+   Durchsucht alle sichtbaren Google-Kalender (auch den Geburtstags-Kalender), 1 Jahr zurück bis 14 Monate voraus. */
+async function searchGoogleCalendar(query) {
+    const q = String(query || '').trim();
+    if (!q) return { fehler: 'Kein Suchbegriff angegeben.' };
+
+    const now = new Date();
+    const from = new Date(now); from.setFullYear(from.getFullYear() - 1);
+    const to = new Date(now); to.setMonth(to.getMonth() + 14);
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const nq = normalizeKey(q);
+
+    const describe = (summary, startRaw, calName, location, recurring) => {
+        const parsed = parseEventDate(startRaw);
+        const opts = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+        if (!parsed.allDay) opts.timeZone = 'Europe/Berlin';
+        return {
+            titel: summary || 'Ohne Titel',
+            kalender: calName || undefined,
+            datum: parsed.date.toLocaleDateString('de-DE', opts),
+            zeit: parsed.allDay ? 'ganztägig' : formatSpokenTime(parsed.date),
+            ort: location || undefined,
+            wiederkehrend: recurring || undefined,
+            _ts: parsed.date.getTime()
+        };
+    };
+
+    const found = [];
+    const seen = new Set();
+    const add = (item, calName) => {
+        if (!item || item.status === 'cancelled' || !item.start) return;
+        const startRaw = item.start.dateTime || item.start.date;
+        const key = (item.id || item.summary) + '|' + startRaw;
+        if (seen.has(key)) return;
+        seen.add(key);
+        found.push(describe(item.summary, startRaw, calName, item.location, !!item.recurringEventId));
+    };
+
+    let hinweis = null;
+
+    if (!accessToken) {
+        hinweis = 'Der Google Kalender ist nicht verbunden. Es wurden nur zwischengespeicherte Termine durchsucht.';
+    } else {
+        try {
+            const headers = { 'Authorization': `Bearer ${accessToken}` };
+            const listRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader', { headers });
+            if (listRes.status === 401) {
+                hinweis = 'Die Google-Anmeldung ist abgelaufen. Es wurden nur zwischengespeicherte Termine durchsucht.';
+                loginWithGoogle(true);
+            } else if (listRes.ok) {
+                const list = await listRes.json();
+                const cals = (list.items || []).filter(c => c.selected !== false || c.primary).slice(0, 12);
+
+                const base = (cal) => `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(from.toISOString())}&timeMax=${encodeURIComponent(to.toISOString())}&singleEvents=true&orderBy=startTime`;
+                const calName = (cal) => cal.summaryOverride || cal.summary;
+
+                // 1) Suche über Google (schnell)
+                await Promise.all(cals.map(async cal => {
+                    try {
+                        const r = await fetch(`${base(cal)}&maxResults=100&q=${encodeURIComponent(q)}`, { headers });
+                        if (!r.ok) return;
+                        const d = await r.json();
+                        (d.items || []).forEach(item => add(item, calName(cal)));
+                    } catch (e) {}
+                }));
+
+                // 2) Nichts gefunden? Google sucht nur nach ganzen Wörtern ("Victoria" findet "Victorias" nicht).
+                //    Dann werden die Termine geholt und hier nach Wortteilen gefiltert.
+                if (found.length === 0) {
+                    await Promise.all(cals.map(async cal => {
+                        try {
+                            let pageToken = null;
+                            for (let page = 0; page < 3; page++) {
+                                const r = await fetch(`${base(cal)}&maxResults=500${pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : ''}`, { headers });
+                                if (!r.ok) return;
+                                const d = await r.json();
+                                (d.items || []).forEach(item => {
+                                    const hay = normalizeKey((item.summary || '') + ' ' + (item.location || ''));
+                                    if (hay.includes(nq)) add(item, calName(cal));
+                                });
+                                pageToken = d.nextPageToken;
+                                if (!pageToken) break;
+                            }
+                        } catch (e) {}
+                    }));
+                }
+            } else {
+                hinweis = 'Der Google Kalender konnte nicht abgefragt werden. Es wurden nur zwischengespeicherte Termine durchsucht.';
+            }
+        } catch (e) {
+            hinweis = 'Der Google Kalender konnte nicht abgefragt werden. Es wurden nur zwischengespeicherte Termine durchsucht.';
+        }
+    }
+
+    // Zwischengespeicherte Termine ergänzen, falls online nichts gefunden wurde
+    if (found.length === 0) {
+        (calendarEntries || []).forEach(e => {
+            if (!e.isoDate || !normalizeKey(e.text).includes(nq)) return;
+            add({ id: e.id, summary: e.text, start: /^\d{4}-\d{2}-\d{2}$/.test(e.isoDate) ? { date: e.isoDate } : { dateTime: e.isoDate } }, 'zwischengespeichert');
+        });
+    }
+
+    const strip = ({ _ts, ...rest }) => rest;
+    const kommende = found.filter(t => t._ts >= todayStart).sort((a, b) => a._ts - b._ts).slice(0, 6).map(strip);
+    const vergangene = found.filter(t => t._ts < todayStart).sort((a, b) => b._ts - a._ts).slice(0, 3).map(strip);
+
+    const result = { anzahl_treffer: found.length, kommende, vergangene };
+    if (hinweis) result.hinweis = hinweis;
+    return result;
+}
