@@ -1,7 +1,103 @@
 /* ============================================================
-   ASSISTANT: Sprachbefehl an die KI senden, Antwort verarbeiten
+   ASSISTANT: Sprachbefehl an die KI senden, Aktionen ausführen
    Braucht: alle anderen Dateien (muss als LETZTE geladen werden)
    ============================================================ */
+
+/* Führt EINE Aktion der KI aus (Einkauf, Termin, Erinnerung ...).
+   ctx.counter sorgt dafür, dass mehrere neue Einträge aus einer Äußerung eindeutige IDs bekommen. */
+async function executeAction(action, text, ctx) {
+    if (action.type === 'name_change' && action.new_name) {
+        currentUserName = action.new_name.trim();
+        setPersistentData('user_custom_name', currentUserName);
+        if (userNameInput) userNameInput.value = currentUserName;
+        updateUserGreeting();
+        updateTerminalStream(`USER_NAME_UPDATED: ${currentUserName}`);
+    } else if (action.type === 'shopping') {
+        const addIntent = /(füg|fueg|pack|setz|schreib|hinzu|nimm|notier|brauch|kauf|besorg)/i.test(text);
+        const isAskingForList = !addIntent && /\b(was|welche|zeig\w*|steht|stehen|wie viele)\b/i.test(text);
+
+        if (!isAskingForList) {
+            let items = [];
+            if (Array.isArray(action.shopping_items)) items = action.shopping_items;
+            if (action.shopping_item) items.push(action.shopping_item);
+
+            if (items.length === 0) {
+                items = [text.replace(/bitte|füge|hinzu|auf|die|einkaufsliste/gi, '').trim() || text];
+            }
+
+            items.forEach((item) => {
+                let cleanItem = item ? String(item).trim() : '';
+                if (cleanItem && cleanItem.length < 40 && 
+                    cleanItem.toLowerCase() !== 'ja' && 
+                    cleanItem.toLowerCase() !== 'nein' && 
+                    !cleanItem.toLowerCase().includes('einkaufsliste') &&
+                    !cleanItem.toLowerCase().includes('was steht')) {
+
+                    const alreadyExists = shoppingEntries.some(e => e.text.toLowerCase() === cleanItem.toLowerCase());
+                    if (!alreadyExists) {
+                        shoppingEntries.unshift({ id: Date.now() + ctx.counter++, text: cleanItem });
+                    }
+                }
+            });
+            setPersistentData('helfer_shopping', JSON.stringify(shoppingEntries));
+            updateTerminalStream("SHOPPING_LIST: ITEM_ADDED");
+        }
+    } else if (action.type === 'todo') {
+        const items = action.todo_items || (action.todo_text ? [action.todo_text] : []);
+        items.forEach((item) => {
+            if (item && item.trim()) todoEntries.unshift({ id: Date.now() + ctx.counter++, text: item.trim(), createdDate: 'Per Sprache' });
+        });
+        setPersistentData('helfer_todo_entries', JSON.stringify(todoEntries));
+        updateTerminalStream("TASKS: ENTRY_ADDED");
+    } else if (action.type === 'memory_store' && action.memory_key) {
+        let val = action.memory_value || "gespeichert";
+        memoryItems[action.memory_key.toLowerCase()] = String(parseMemoryValue(val));
+        setPersistentData('helfer_memory', JSON.stringify(memoryItems));
+        updateTerminalStream(`MEMORY_WRITE: KEY_${action.memory_key.toUpperCase()}`);
+    } else if (action.type === 'memory_search') {
+        // Die Suche selbst und die Antwort dazu passieren in sendToGroqSmart
+    } else if (action.type === 'reminder') {
+        await addGoogleCalendarReminder(action.reminder_text || text, action.reminder_time);
+        updateTerminalStream("REMINDER: CREATED");
+    } else if (action.type === 'reminder_delete') {
+        const q = (action.reminder_query || text).toLowerCase();
+        const found = reminderEntries.find(r => r.text.toLowerCase().includes(q) || q.includes(r.text.toLowerCase()));
+        if (found) {
+            await deleteReminderEntry(found.id);
+        } else if (reminderEntries.length > 0) {
+            await deleteReminderEntry(reminderEntries[0].id);
+        }
+        updateTerminalStream("REMINDER: DELETED");
+    } else if (action.type === 'calendar_delete') {
+        const q = (action.calendar_query || text).toLowerCase();
+        const found = calendarEntries.find(c => c.text.toLowerCase().includes(q) || q.includes(c.text.toLowerCase()));
+        if (found) {
+            await deleteCalendarEntry(found.id);
+        } else if (calendarEntries.length > 0) {
+            await deleteCalendarEntry(calendarEntries[0].id);
+        }
+        updateTerminalStream("CALENDAR: EVENT_DELETED");
+    } else if (action.type === 'calendar_update') {
+        let targetId = action.calendar_id;
+        if (!targetId && action.calendar_query) {
+            const q = action.calendar_query.toLowerCase();
+            const found = calendarEntries.find(c => c.text.toLowerCase().includes(q) || q.includes(c.text.toLowerCase()));
+            if (found) targetId = found.id;
+        }
+        if (!targetId && calendarEntries.length > 0) {
+            targetId = calendarEntries[0].id;
+        }
+        if (targetId) {
+            await updateGoogleCalendarEvent(targetId, action.calendar_text, action.calendar_time);
+        } else {
+            await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time);
+        }
+        updateTerminalStream("CALENDAR: EVENT_UPDATED");
+    } else if (action.type === 'calendar' || action.calendar_text) {
+        await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time);
+        updateTerminalStream("CALENDAR: EVENT_ADDED");
+    }
+}
 
 async function sendToGroqSmart(text) {
     isProcessing = true;
@@ -47,6 +143,7 @@ async function sendToGroqSmart(text) {
 
     const contextData = {
         heute_datum: nowGermanIso,
+        uhrzeit_jetzt: formatSpokenTime(now),
         aktuelles_jahr: now.getFullYear(),
         wetter: liveWeather,
         standort: liveLocation,
@@ -61,6 +158,8 @@ async function sendToGroqSmart(text) {
 
     const systemPrompt = "Du bist J.A.R.V.I.S., eine hochintelligente KI und der persönliche Butler von " + currentUserName + ". Deine Sprache ist durchgehend höflich, ruhig, distanziert und im Stile eines britischen Butlers gehalten. Du bist knapp: Deine Antworten werden laut vorgelesen und bestehen in der Regel aus einem, höchstens zwei kurzen Sätzen. Du nutzt trockenen, subtilen Sarkasmus, bist aber nie geschwätzig und wiederholst nicht, was der User gerade gesagt hat. Du sprichst den User mit 'Sir' oder '" + currentUserName + "' an, aber sparsam und nicht in jedem Satz. Du beantwortest alle Anfragen präzise, effizient und ohne Markdown-Formatierung.\n\n" +
     "Aktueller Kontext: " + JSON.stringify(contextData) + "\n\n" +
+    "WICHTIG für Uhrzeiten:\n" +
+    "- Nenne Uhrzeiten immer exakt und in 24-Stunden-Zählung. Für die aktuelle Uhrzeit nutze 'uhrzeit_jetzt' wörtlich (z.B. 'Es ist 16 Uhr 17, Sir.'). Runde nie und verwende keine Ausdrücke wie 'kurz nach', 'kurz vor', 'halb' oder 'Viertel'.\n\n" +
     "WICHTIG für Fragen zu Standort & Aufenthaltsort:\n" +
     "- Dir stehen im Kontext unter 'standort' aktuelle Daten zur Verfügung. Nutze Ort, Land oder Adresse, um Fragen wie 'Wo bin ich?' oder 'Sag mir meinen Standort' präzise zu beantworten (z.B. 'Sie befinden sich derzeit in [Ort], [Land], Sir.').\n" +
     "- Falls 'standort' einen Fehler hat, teile höflich mit, dass der Zugriff verweigert oder nicht verfügbar ist.\n\n" +
@@ -77,14 +176,21 @@ async function sendToGroqSmart(text) {
     "- Wenn der User einen Termin ändern möchte ('calendar_update'), ermittle die korrekte 'calendar_id' aus dem Kontext ('termine'), den neuen Titel in 'calendar_text' (falls geändert) und den neuen Ziel-Zeitpunkt als ISO-String in 'calendar_time'.\n" +
     "- Wenn der User einen Termin löschen möchte ('calendar_delete'), gib den Suchbegriff oder die ID in 'calendar_query' an.\n" +
     "- Wenn Angaben für einen neuen Termin oder eine Änderung unvollständig sind (z.B. Uhrzeit fehlt), antworte im 'chat'-Modus und stelle genau eine kurze Rückfrage nach den fehlenden Details. Das Gespräch geht danach automatisch weiter.\n\n" +
+    "WICHTIG bei mehreren Aufträgen in einem Satz:\n" +
+    "- Enthält eine Äußerung mehrere Aufträge (z.B. 'Setz Milch auf die Einkaufsliste und erinnere mich morgen um 8 Uhr an den Arzt'), lege für JEDEN Auftrag eine eigene Aktion im Feld 'actions' an, in der Reihenfolge der Äußerung. Lass keinen Auftrag aus und erfinde keinen dazu.\n" +
+    "- Deine 'reply' bestätigt alles zusammen in höchstens zwei kurzen Sätzen (z.B. 'Erledigt, Sir. Milch steht auf der Liste, und der Arzt ist für morgen um acht vorgemerkt.').\n" +
+    "- Fehlen bei einem Auftrag Angaben (z.B. die Uhrzeit), führe die übrigen Aufträge trotzdem aus, lass den unvollständigen weg und frage in 'reply' kurz nach den fehlenden Angaben.\n" +
+    "- Sätze mit Wörtern wie 'suchen' oder 'wo' sind nicht automatisch eine Gedächtnis-Suche. 'Erinnere mich daran, die Brille zu suchen' ist eine Erinnerung ('reminder').\n\n" +
     "Gib IMMER ein valides JSON-Objekt zurück mit folgenden Feldern:\n" +
-    "- type: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\"\n" +
     "- reply: Kurze, trockene J.A.R.V.I.S.-Antwort ohne Markdown, meist ein Satz, höchstens zwei. Aktionen bestätigst du knapp (z.B. 'Erledigt, Sir.' oder 'Notiert.'). Nur beim Vorlesen von Listen (Einkauf, Termine, Aufgaben) darf die Antwort länger sein.\n" +
+    "- actions: Liste (Array) der auszuführenden Aktionen. Jede Aktion ist ein Objekt mit dem Feld 'type' und den dazu passenden Feldern (siehe unten). Bei reiner Unterhaltung, Auskünften oder dem Vorlesen von Listen ist 'actions' eine leere Liste.\n" +
+    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\"\n" +
+    "Die folgenden Felder gehören in die jeweilige Aktion, nicht auf die oberste Ebene:\n" +
     "- calendar_text: (bei calendar oder calendar_update) Titel des Termins.\n" +
     "- calendar_time: (bei calendar oder calendar_update) ISO-Zeitstempel.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, new_name.";
+    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -109,107 +215,46 @@ async function sendToGroqSmart(text) {
 
         chatHistory.push({ role: "assistant", content: JSON.stringify(ai) });
 
-        if (ai.type === 'name_change' && ai.new_name) {
-            currentUserName = ai.new_name.trim();
-            setPersistentData('user_custom_name', currentUserName);
-            if (userNameInput) userNameInput.value = currentUserName;
-            updateUserGreeting();
-            updateTerminalStream(`USER_NAME_UPDATED: ${currentUserName}`);
-        } else if (ai.type === 'shopping') {
-            const addIntent = /(füg|fueg|pack|setz|schreib|hinzu|nimm|notier|brauch|kauf|besorg)/i.test(text);
-            const isAskingForList = !addIntent && /\b(was|welche|zeig\w*|steht|stehen|wie viele)\b/i.test(text);
+        // Neues Format: ai.actions ist eine Liste. Altes Format (type auf oberster Ebene) geht weiterhin.
+        const actions = Array.isArray(ai.actions)
+            ? ai.actions.filter(a => a && typeof a === 'object')
+            : [ai];
 
-            if (!isAskingForList) {
-                let items = [];
-                if (Array.isArray(ai.shopping_items)) items = ai.shopping_items;
-                if (ai.shopping_item) items.push(ai.shopping_item);
+        // Gedächtnis-Suche nur, wenn die KI es so will, oder wenn sie nur geantwortet hat
+        // und der Satz nach einer Suche klingt. Echte Aufträge (Erinnerung, Termin ...) gehen vor.
+        const onlyChat = actions.every(a => !a.type || a.type === 'chat');
+        const searchAction = actions.find(a => a.type === 'memory_search');
+        const wantsSearch = !!searchAction || (onlyChat && /suche|wo ist/i.test(text));
 
-                if (items.length === 0) {
-                    items = [text.replace(/bitte|füge|hinzu|auf|die|einkaufsliste/gi, '').trim() || text];
-                }
-
-                items.forEach((item, index) => {
-                    let cleanItem = item ? item.trim() : '';
-                    if (cleanItem && cleanItem.length < 40 && 
-                        cleanItem.toLowerCase() !== 'ja' && 
-                        cleanItem.toLowerCase() !== 'nein' && 
-                        !cleanItem.toLowerCase().includes('einkaufsliste') &&
-                        !cleanItem.toLowerCase().includes('was steht')) {
-
-                        const alreadyExists = shoppingEntries.some(e => e.text.toLowerCase() === cleanItem.toLowerCase());
-                        if (!alreadyExists) {
-                            shoppingEntries.unshift({ id: Date.now() + index, text: cleanItem });
-                        }
-                    }
-                });
-                setPersistentData('helfer_shopping', JSON.stringify(shoppingEntries));
-                updateTerminalStream("SHOPPING_LIST: ITEM_ADDED");
+        // Alle Aktionen nacheinander ausführen; eine kaputte Aktion stoppt die anderen nicht
+        const ctx = { counter: 0 };
+        let failed = 0;
+        for (const action of actions) {
+            try {
+                await executeAction(action, text, ctx);
+            } catch (err) {
+                failed++;
+                console.error("Aktion fehlgeschlagen:", action, err);
             }
-        } else if (ai.type === 'todo') {
-            const items = ai.todo_items || (ai.todo_text ? [ai.todo_text] : []);
-            items.forEach((item, index) => {
-                if (item && item.trim()) todoEntries.unshift({ id: Date.now() + index, text: item.trim(), createdDate: 'Per Sprache' });
-            });
-            setPersistentData('helfer_todo_entries', JSON.stringify(todoEntries));
-            updateTerminalStream("TASKS: ENTRY_ADDED");
-        } else if (ai.type === 'memory_store' && ai.memory_key) {
-            let val = ai.memory_value || "gespeichert";
-            memoryItems[ai.memory_key.toLowerCase()] = String(parseMemoryValue(val));
-            setPersistentData('helfer_memory', JSON.stringify(memoryItems));
-            updateTerminalStream(`MEMORY_WRITE: KEY_${ai.memory_key.toUpperCase()}`);
-        } else if (ai.type === 'memory_search' || text.toLowerCase().includes('suche') || text.toLowerCase().includes('wo ist')) {
-            const results = searchMemory(ai.memory_search_query || text);
-            let responseText = ai.reply || (results.length > 0 ? `Ich habe Folgendes in meinen Registern gefunden: ${results.map(r => `${r.key}:${r.value}`).join(', ')}` : `Dazu konnte ich in meinen Datenbanken leider keinen Eintrag finden, Sir.`);
-            renderAllLists();
-            stopThinkingSound();
-            updateTerminalStream("MEMORY_READ: QUERY_EXEC");
-            speak(responseText, continueConversation);
-            return;
-        } else if (ai.type === 'reminder') {
-            await addGoogleCalendarReminder(ai.reminder_text || text, ai.reminder_time);
-            updateTerminalStream("REMINDER: CREATED");
-        } else if (ai.type === 'reminder_delete') {
-            const q = (ai.reminder_query || text).toLowerCase();
-            const found = reminderEntries.find(r => r.text.toLowerCase().includes(q) || q.includes(r.text.toLowerCase()));
-            if (found) {
-                await deleteReminderEntry(found.id);
-            } else if (reminderEntries.length > 0) {
-                await deleteReminderEntry(reminderEntries[0].id);
-            }
-            updateTerminalStream("REMINDER: DELETED");
-        } else if (ai.type === 'calendar_delete') {
-            const q = (ai.calendar_query || text).toLowerCase();
-            const found = calendarEntries.find(c => c.text.toLowerCase().includes(q) || q.includes(c.text.toLowerCase()));
-            if (found) {
-                await deleteCalendarEntry(found.id);
-            } else if (calendarEntries.length > 0) {
-                await deleteCalendarEntry(calendarEntries[0].id);
-            }
-            updateTerminalStream("CALENDAR: EVENT_DELETED");
-        } else if (ai.type === 'calendar_update') {
-            let targetId = ai.calendar_id;
-            if (!targetId && ai.calendar_query) {
-                const q = ai.calendar_query.toLowerCase();
-                const found = calendarEntries.find(c => c.text.toLowerCase().includes(q) || q.includes(c.text.toLowerCase()));
-                if (found) targetId = found.id;
-            }
-            if (!targetId && calendarEntries.length > 0) {
-                targetId = calendarEntries[0].id;
-            }
-            if (targetId) {
-                await updateGoogleCalendarEvent(targetId, ai.calendar_text, ai.calendar_time);
-            } else {
-                await addGoogleCalendarEvent(ai.calendar_text || text, ai.calendar_time);
-            }
-            updateTerminalStream("CALENDAR: EVENT_UPDATED");
-        } else if (ai.type === 'calendar' || ai.calendar_text) {
-            await addGoogleCalendarEvent(ai.calendar_text || text, ai.calendar_time);
-            updateTerminalStream("CALENDAR: EVENT_ADDED");
         }
+
+        let replyText = ai.reply;
+        if (!replyText) {
+            if (wantsSearch) {
+                const results = searchMemory((searchAction && searchAction.memory_search_query) || text);
+                replyText = results.length > 0
+                    ? `Ich habe Folgendes in meinen Registern gefunden: ${results.map(r => `${r.key}:${r.value}`).join(', ')}`
+                    : `Dazu konnte ich in meinen Datenbanken leider keinen Eintrag finden, Sir.`;
+            } else {
+                replyText = `Zu Ihren Diensten, ${currentUserName}. Es ist erledigt.`;
+            }
+        }
+        if (failed > 0) replyText += " Einen Teil davon konnte ich leider nicht ausführen.";
 
         renderAllLists();
         stopThinkingSound();
-        speak(ai.reply || `Zu Ihren Diensten, ${currentUserName}. Es ist erledigt.`, continueConversation);
+        if (wantsSearch) updateTerminalStream("MEMORY_READ: QUERY_EXEC");
+        speak(replyText, continueConversation);
     } catch (e) {
         renderAllLists();
         stopThinkingSound();
