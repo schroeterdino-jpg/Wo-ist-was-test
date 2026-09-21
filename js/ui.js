@@ -87,7 +87,17 @@ function applyFxMode(mode) {
     const m = ['full', 'calm', 'off'].includes(mode) ? mode : 'calm';
     document.documentElement.dataset.fx = m;
     try { localStorage.setItem('fx_mode', m); } catch (e) {}
+    updateRingMotion();
     if (typeof setBackgroundMode === 'function') setBackgroundMode(m);
+}
+
+/* Ringe anhalten, wenn die Stufe "Aus" oder der Schalter "Alle Bewegungen aus" gilt.
+   Das passiert hier direkt am Element und hängt damit nicht davon ab, ob das Stylesheet die neueste Fassung ist. */
+function updateRingMotion() {
+    const root = document.documentElement;
+    const stop = root.dataset.fx === 'off' || (root.classList && root.classList.contains('nofx-motion'));
+    if (!document.querySelectorAll) return;
+    document.querySelectorAll('.holo-svg, .holo-ring').forEach(el => { el.style.animationPlayState = stop ? 'paused' : ''; });
 }
 
 /* Flacker-Test: einzelne Effekte ausschalten. Jeder Schalter setzt html.nofx-<name> (siehe style.css). */
@@ -128,6 +138,7 @@ function freezeRingImage(freeze) {
 function applyFxFlags() {
     const flags = readFxFlags();
     FX_FLAGS.forEach(f => document.documentElement.classList.toggle('nofx-' + f, flags.includes(f)));
+    updateRingMotion();
     if (document.querySelectorAll) {
         document.querySelectorAll('[data-fxflag]').forEach(cb => { cb.checked = flags.includes(cb.dataset.fxflag); });
     }
