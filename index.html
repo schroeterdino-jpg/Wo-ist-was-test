@@ -73,7 +73,7 @@
                 
                 <!-- Schlanke Übersicht: Tipp links öffnet die Termine, Tipp rechts die Erinnerungen -->
                 <div id="overviewLine" class="w-full flex items-stretch gap-2 font-mono text-xs">
-                    <button onclick="playUiBeep(); openPanel('termine', { range: 'alle' })" class="flex-1 min-w-0 text-left px-4 py-2.5 rounded-xl bg-[#0a1621]/80 backdrop-blur border border-[rgba(93,209,255,.25)] border-glow-cyan">
+                    <button onclick="playUiBeep(); overviewTap()" class="flex-1 min-w-0 text-left px-4 py-2.5 rounded-xl bg-[#0a1621]/80 backdrop-blur border border-[rgba(93,209,255,.25)] border-glow-cyan">
                         <span class="block text-[10px] uppercase tracking-widest text-[#49d7ff]/80">📅 Nächster Termin</span>
                         <span id="ovNext" class="block text-sm text-slate-100 leading-snug break-words clamp-2">Lädt...</span>
                     </button>
@@ -309,6 +309,12 @@
                             </button>
                         </div>
                         <p id="connectionStatus" class="text-xs text-[#5d7e91] font-medium break-all"></p>
+                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Kalender-Suche testen (Suchbegriff):</label>
+                            <input type="text" id="calendarDiagInput" value="Helmut" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                            <button onclick="playUiBeep(); runCalendarDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🔍 Kalender prüfen</button>
+                            <pre id="calendarDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
+                        </div>
                         <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
                             <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">App-Code (schützt deine Schnittstellen):</label>
                             <input type="password" id="appSecretInput" placeholder="Geheimer App-Code..." autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
