@@ -271,8 +271,6 @@ async function fetchGoogleCalendarEvents() {
             if (data.items) {
                 const validItems = data.items.filter(item => {
                     if (item.status === 'cancelled') return false;
-                    const id = (item.id || '');
-                    if (id.includes('_R') || item.recurringEventId) return false;
                     return true;
                 });
 
@@ -288,7 +286,8 @@ async function fetchGoogleCalendarEvents() {
                         text: item.summary || 'Termin',
                         date: d.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: item.start.dateTime ? 'short' : undefined }),
                         isoDate: item.start.dateTime || item.start.date,
-                        eventType: item.eventType || 'default'
+                        eventType: item.eventType || 'default',
+                        recurring: !!item.recurringEventId
                     };
                 });
                 setPersistentData('helfer_calendar_entries', JSON.stringify(calendarEntries));

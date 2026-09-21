@@ -115,3 +115,25 @@ function stopThinkingSound() {
         thinkingGain = null;
     }
 }
+
+/* Kurzes Rauschen-Zischen: steigend beim Öffnen eines Fensters, fallend beim Schließen */
+function playPanelSound(opening = true) {
+    try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        const from = opening ? 180 : 1100;
+        const to = opening ? 1300 : 160;
+        osc.frequency.setValueAtTime(from, now);
+        osc.frequency.exponentialRampToValueAtTime(to, now + 0.32);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.045, now + 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.36);
+    } catch (e) {}
+}

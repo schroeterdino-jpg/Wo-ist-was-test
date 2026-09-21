@@ -150,6 +150,11 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'whatsapp') {
         ctx.cards.push(buildWhatsAppCard(action));
         updateTerminalStream("WHATSAPP: LINK_READY");
+    } else if (action.type === 'show_panel') {
+        const name = String(action.panel || '').toLowerCase().trim();
+        if (!VALID_PANELS.includes(name) || name === 'menu') throw userError('Dieses Fenster kenne ich nicht.');
+        ctx.panel = { range: action.panel_range, from: action.panel_from, to: action.panel_to, name };
+        updateTerminalStream("PANEL: REQUESTED");
     } else if (action.type === 'list_edit') {
         executeListEdit(action, ctx);
         updateTerminalStream("LISTS: EDITED");
@@ -237,7 +242,8 @@ async function sendToGroqSmart(text) {
         tankstellen: await tankFuerFrage(text),
         gedächtnis: memoryItems,
         kontakte: savedContacts,
-        termine: calendarEntries.map(c => ({ id: c.id, text: c.text, datum: c.date, isoDate: c.isoDate })),
+        // die nächsten 60 Termine (mit sich wiederholenden Terminen wären es sonst zu viele)
+        termine: [...calendarEntries].sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate)).slice(0, 60).map(c => ({ id: c.id, text: c.text, datum: c.date, isoDate: c.isoDate })),
         erinnerungen: reminderEntries.map(r => ({ id: r.id, text: r.text, zeit: r.time })),
         einkauf: shoppingEntries.map(s => s.text),
         aufgaben_und_notizen: todoEntries.map(t => t.text),
@@ -248,11 +254,15 @@ async function sendToGroqSmart(text) {
     "Aktueller Kontext: " + JSON.stringify(contextData) + "\n\n" +
     "WICHTIG: Ehrlichkeit bei Aktionen:\n" +
     "- Melde nur dann, dass etwas erledigt, hinzugefügt, gelöscht, geändert oder notiert ist, wenn du dafür in 'actions' die passende Aktion angelegt hast. Ohne Aktion ändert sich nichts.\n" +
-    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern. Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
+    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; Termine, Erinnerungen und Listen in einem Fenster anzeigen ('show_panel'); im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern. Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
     "- Zum Löschen, Ändern oder Leeren von Einkaufsliste, Aufgaben, Gedächtnis und Kontakten nutze IMMER 'list_edit'. Zum Hinzufügen darfst du weiterhin 'shopping', 'todo' und 'memory_store' nutzen.\n" +
     "- 'list_edit': 'list_name' ist 'einkauf', 'aufgaben', 'gedaechtnis' oder 'kontakte'. 'list_op' ist 'add', 'remove', 'clear' oder 'replace'. 'list_items' ist eine Liste von Texten: bei Einkauf und Aufgaben die Einträge, beim Gedächtnis der Begriff, bei Kontakten der Name. 'list_new_value' brauchst du bei 'replace' (neuer Text, neuer Wert bzw. neue Nummer) und beim Hinzufügen zum Gedächtnis (der Wert) oder zu den Kontakten (die Telefonnummer). Nimm die Einträge so, wie sie im Kontext stehen.\n\n" +
     "WICHTIG für Fragen nach Terminen und Geburtstagen im Kalender:\n" +
     "- Im Kontext unter 'termine' stehen nur die nächsten drei Monate. Fragt der User nach einem Termin, Geburtstag oder Ereignis (z.B. 'Wann hat Victoria Geburtstag?', 'Wann ist mein Zahnarzttermin?'), das dort nicht eindeutig steht, nutze die Aktion 'calendar_search' mit dem Kernbegriff (z.B. nur der Name 'Victoria') in 'calendar_search_query'. Schreibe in 'reply' nur einen ganz kurzen Satz wie 'Ich schaue nach, Sir.'. Du bekommst danach das Ergebnis der Suche im Google Kalender und antwortest damit.\n\n" +
+    "WICHTIG fürs Anzeigen von Terminen, Erinnerungen und Listen:\n" +
+    "- Sagt der User 'zeige', 'zeig mir' oder 'öffne' (Termine, Erinnerungen, Einkaufsliste, Aufgaben, Gedächtnis, Kontakte, Parkplatz, Briefing-Wünsche, Planer, Einstellungen), nutze die Aktion 'show_panel'. Dann fliegt ein Fenster ins Bild. 'panel' ist 'termine', 'erinnerungen', 'einkauf', 'aufgaben', 'gedaechtnis', 'kontakte', 'parkplatz', 'briefing', 'planer' oder 'settings'.\n" +
+    "- Bei 'termine' und 'erinnerungen' gib den Zeitraum in 'panel_range' an: 'heute', 'morgen', 'diese_woche', 'naechste_woche', 'naechste_7_tage', 'naechste_30_tage' oder 'alle'. Ohne Angabe nimm bei Terminen 'naechste_7_tage' und bei Erinnerungen 'alle'. Für andere Zeiträume (z.B. 'im November') gib 'panel_from' und 'panel_to' als Datum im Format YYYY-MM-DD an.\n" +
+    "- Schreibe in 'reply' nur einen ganz kurzen Satz wie 'Bitte sehr, Sir.' und lies die Einträge nicht vor, sie stehen im Fenster. Fragt der User dagegen mit 'sag mir', 'lies vor' oder 'was steht ...', antworte gesprochen ohne 'show_panel'.\n\n" +
     "WICHTIG fürs Merken von Dingen im Gedächtnis:\n" +
     "- Bei 'memory_store' (und bei 'list_edit' im Gedächtnis) ist der Begriff nur der Gegenstand, kurz und in der Grundform (z.B. 'schlüssel', 'brille', 'portemonnaie'), niemals mit Zusatz wie 'ort' oder 'platz' ('schlüsselort' ist falsch). 'memory_value' ist der Platz vollständig mit Präposition, genau wie der User ihn gesagt hat (z.B. 'auf dem Küchenschrank', 'in der Schublade'). Lass die Präposition nie weg.\n\n" +
     "WICHTIG für Parkplatz, Navigation, Anrufe und WhatsApp:\n" +
@@ -277,7 +287,7 @@ async function sendToGroqSmart(text) {
     "- Sage NIEMALS, dass du keine Wetterdaten hast, wenn das Feld 'wetter' im Kontext befüllt ist.\n" +
     "- Übernimm die Empfehlungen ('regenschirm_empfehlung', 'jacken_empfehlung') stets exakt.\n\n" +
     "WICHTIG für die Einkaufsliste:\n" +
-    "- Wenn der User nach dem Inhalt der Einkaufsliste fragt (z.B. 'Was steht auf meiner Einkaufsliste?', 'Was ist auf meiner Einkaufsliste?', 'Zeig mir die Einkaufsliste'), nutze AUSSCHLIESSLICH den Typ 'chat' und zähle die Artikel aus dem Kontext ('einkauf') in deiner 'reply' auf. Verwende in diesem Fall NIEMALS den Typ 'shopping'.\n" +
+    "- Wenn der User nach dem Inhalt der Einkaufsliste fragt (z.B. 'Was steht auf meiner Einkaufsliste?', 'Was ist auf meiner Einkaufsliste?'), nutze AUSSCHLIESSLICH den Typ 'chat' und zähle die Artikel aus dem Kontext ('einkauf') in deiner 'reply' auf. Verwende in diesem Fall NIEMALS den Typ 'shopping'.\n" +
     "- Zähle bei einer Abfrage der Einkaufsliste jeden Artikel aus dem 'einkauf'-Array exakt nur einmal auf und nenne ihn niemals doppelt in deiner 'reply'.\n" +
     "- Verwende den Typ 'shopping' NUR, wenn der User explizit etwas hinzufügen möchte (z.B. 'Füge X hinzu', 'Packe Y auf die Einkaufsliste').\n\n" +
     "WICHTIG für Termine & Kalender:\n" +
@@ -293,13 +303,13 @@ async function sendToGroqSmart(text) {
     "Gib IMMER ein valides JSON-Objekt zurück mit folgenden Feldern:\n" +
     "- reply: Kurze, trockene J.A.R.V.I.S.-Antwort ohne Markdown, meist ein Satz, höchstens zwei. Aktionen bestätigst du knapp (z.B. 'Erledigt, Sir.' oder 'Notiert.'). Nur beim Vorlesen von Listen (Einkauf, Termine, Aufgaben) darf die Antwort länger sein.\n" +
     "- actions: Liste (Array) der auszuführenden Aktionen. Jede Aktion ist ein Objekt mit dem Feld 'type' und den dazu passenden Feldern (siehe unten). Bei reiner Unterhaltung, Auskünften oder dem Vorlesen von Listen ist 'actions' eine leere Liste.\n" +
-    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"navigate\", \"call\", \"whatsapp\"\n" +
+    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\"\n" +
     "Die folgenden Felder gehören in die jeweilige Aktion, nicht auf die oberste Ebene:\n" +
     "- calendar_text: (bei calendar oder calendar_update) Titel des Termins.\n" +
     "- calendar_time: (bei calendar oder calendar_update) ISO-Zeitstempel.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, nav_to, nav_from, nav_mode, contact_name, message_text.";
+    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -336,7 +346,7 @@ async function sendToGroqSmart(text) {
         const wantsSearch = !!searchAction || (onlyChat && /suche|wo ist/i.test(text));
 
         // Alle Aktionen nacheinander ausführen; eine kaputte Aktion stoppt die anderen nicht
-        const ctx = { counter: 0, cards: [], notes: [] };
+        const ctx = { counter: 0, cards: [], notes: [], panel: null };
         let okCount = 0;
         const errors = [];
         for (const action of actions) {
@@ -385,6 +395,8 @@ async function sendToGroqSmart(text) {
 
         if (ctx.notes.length > 0 && errors.length === 0) replyText += ' ' + ctx.notes.join(' ');
         showActionCards(ctx.cards);
+        if (ctx.panel) openPanel(ctx.panel.name, ctx.panel);
+        else if (ctx.cards.length > 0) closePanel();   // Karten (Anruf, Route ...) sollen nicht hinter einem Fenster stecken
 
         renderAllLists();
         stopThinkingSound();

@@ -266,7 +266,16 @@ if (SpeechRecognition) {
         typeWriterStatus(`Verstanden: "${text}"`);
         setHudSubtitle(`User: "${text}"`);
 
+        // Fenster offen und "Schließen" gesagt: nur schließen, kein Aufruf an die KI
+        if (isPanelOpen() && isCloseCommand(text)) {
+            closePanel();
+            typeWriterStatus("Klicken zum Sprechen...");
+            speak(pickRandom(["Sehr wohl, Sir.", "Zu Diensten."]), continueConversation);
+            return;
+        }
+
         if (isEndPhrase(text)) {
+            closePanel();
             typeWriterStatus("Klicken zum Sprechen...");
             speak(pickRandom(["Sehr wohl, Sir.", "Jederzeit, Sir.", "Zu Diensten."]));
             return;

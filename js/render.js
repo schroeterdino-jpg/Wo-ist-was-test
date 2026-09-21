@@ -82,6 +82,7 @@ function renderAllLists() {
     }
 
     if (typeof renderParkingCard === 'function') renderParkingCard();
+    if (typeof refreshOpenPanel === 'function') refreshOpenPanel();
 
     renderAssistantOverview();
 }

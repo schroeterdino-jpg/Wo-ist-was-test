@@ -74,21 +74,12 @@ function typeWriterStatus(text) {
     type();
 }
 
+/* Die Reiter gibt es nicht mehr. Alles, was früher ein Reiter war, öffnet jetzt als Fenster (panels.js). */
 function switchSection(sectionId) {
-    const sections = ['speak', 'planner', 'lists', 'memory', 'settings'];
-    sections.forEach(s => {
-        const el = document.getElementById(`sec-${s}`);
-        if (el) el.classList.add('hidden');
-        const navBtn = document.getElementById(`nav${s.charAt(0).toUpperCase() + s.slice(1)}`);
-        if (navBtn) navBtn.className = "flex-1 py-2.5 px-1 rounded-lg text-[#5d7e91] hover:bg-[#0a1621] hover:text-[#49d7ff] transition text-center border border-transparent";
-    });
-
-    const targetSec = document.getElementById(`sec-${sectionId}`);
-    if (targetSec) targetSec.classList.remove('hidden');
-    const activeNav = document.getElementById(`nav${sectionId.charAt(0).toUpperCase() + sectionId.slice(1)}`);
-    if (activeNav) activeNav.className = "flex-1 py-2.5 px-1 rounded-lg bg-[#49d7ff] text-[#050a10] shadow-lg border border-[#49d7ff] transition text-center font-bold";
-
-    updateTerminalStream(`NAV_CHANGE: ${sectionId.toUpperCase()}`);
+    const map = { speak: null, planner: 'planer', lists: 'einkauf', memory: 'gedaechtnis', settings: 'settings' };
+    const panel = sectionId in map ? map[sectionId] : sectionId;
+    if (!panel) { closePanel(); return; }
+    openPanel(panel);
 }
 
 function toggleOverviewDetails() {
