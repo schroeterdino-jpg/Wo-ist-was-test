@@ -36,6 +36,17 @@ function searchMemory(query) {
         .map(key => ({ key, value: parseMemoryValue(memoryItems[key]) }));
 }
 
+/* Gleicher Gegenstand mit angehängtem "ort" ("schlüsselort" = "schlüssel"): Der alte Eintrag wird ersetzt,
+   statt doppelt im Gedächtnis zu bleiben. */
+function removeKeyVariants(newKey) {
+    const b = normalizeKey(newKey);
+    if (!b) return;
+    Object.keys(memoryItems).forEach(k => {
+        const a = normalizeKey(k);
+        if (k !== newKey && (a === b + 'ort' || b === a + 'ort')) delete memoryItems[k];
+    });
+}
+
 /* --- Manuell hinzufügen --- */
 function addManualTodo() {
     const inputEl = document.getElementById('manualTodoInput');
@@ -70,6 +81,7 @@ function addManualMemoryItem() {
     const key = keyEl.value.trim().toLowerCase();
     const val = valEl.value.trim();
     if (key && val) {
+        removeKeyVariants(key);
         memoryItems[key] = val;
         setPersistentData('helfer_memory', JSON.stringify(memoryItems));
         keyEl.value = '';
@@ -282,6 +294,7 @@ function executeListEdit(action, ctx) {
             if (items.length === 0 || !newValue) throw userError('Mir fehlt der Begriff oder der Wert fürs Gedächtnis.');
             let key = items[0].toLowerCase();
             if (op === 'replace') key = resolveListTargets(keys(), items[0], place)[0].text;
+            removeKeyVariants(key);
             memoryItems[key] = newValue;
         } else if (op === 'remove') {
             if (items.length === 0) throw userError('Mir fehlt, was ich aus dem Gedächtnis löschen soll.');

@@ -215,6 +215,16 @@ function isImportantItem(key) {
     });
 }
 
+/* "schlüsselort" heißt für die Ansage einfach "schlüssel": Das Wort "ort" hängt die KI beim Speichern manchmal an. */
+function displayItemName(key) {
+    const k = String(key).trim();
+    if (/ort$/i.test(k) && k.length > 4) {
+        const base = k.slice(0, -3);
+        if (isImportantItem(base)) return base;
+    }
+    return k;
+}
+
 /* Wünsche mit Wochentag ("Montags: Mülltonne raus") gelten nur an diesem Tag */
 function wishAppliesToday(text, wochentag) {
     const days = ['montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag'];
@@ -227,16 +237,19 @@ function wishAppliesToday(text, wochentag) {
 function itemSentence(g) {
     const v = String(g.wert).toLowerCase();
     const isPlace = /^(auf|in|im|an|am|bei|unter|neben|hinter|vor|über)\b/.test(v);
-    return isPlace ? `${g.gegenstand} liegt ${g.wert}` : `${g.gegenstand}: ${g.wert}`;
+    const name = g.gegenstand.charAt(0).toUpperCase() + g.gegenstand.slice(1);
+    return isPlace ? `${name} liegt ${g.wert}` : `${name}: ${g.wert}`;
 }
 
 /* Sicherheitsnetz: Fehlt ein wichtiger Gegenstand im Text der KI, wird er hinten angehängt. */
 function ensureItemsMentioned(text, data) {
     const norm = normalizeKey(text);
     const missing = (data.wichtige_gegenstaende || []).filter(g => {
-        const words = String(g.gegenstand).trim().split(/\s+/);
-        const core = normalizeKey(words[words.length - 1]);
-        return core && !norm.includes(core);
+        const lastWord = s => { const w = String(s).trim().split(/\s+/); return normalizeKey(w[w.length - 1]); };
+        const nameCore = lastWord(g.gegenstand);
+        const placeCore = lastWord(g.wert);
+        const mentioned = (nameCore && norm.includes(nameCore)) || (placeCore && placeCore.length > 3 && norm.includes(placeCore));
+        return !mentioned;
     });
     if (missing.length === 0) return text;
     return text.trim() + ' Noch zur Erinnerung: ' + missing.map(itemSentence).join('. ') + '.';
@@ -319,7 +332,7 @@ function buildBriefingData(now, weather) {
 
     const gegenstaende = Object.keys(memoryItems || {})
         .filter(k => isImportantItem(k))
-        .map(k => ({ gegenstand: k, wert: parseMemoryValue(memoryItems[k]) }));
+        .map(k => ({ gegenstand: displayItemName(k), wert: parseMemoryValue(memoryItems[k]) }));
 
     const wochentag = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long' }).format(now);
     const wuensche = (briefingWishes || [])
@@ -362,7 +375,7 @@ async function composeBriefingWithModel(data) {
     "- Wetter: Übernimm 'regenschirm_empfehlung' und 'jacken_empfehlung' inhaltlich exakt und widersprich ihnen nie. Nenne die Temperatur nur knapp. Gibt es einen 'sturm_hinweis', erwähne ihn. Ist 'wetter' null, sage in einem Halbsatz, dass keine Wetterdaten vorliegen.\n" +
     "- Termine und Erinnerungen: Nenne Text, Tag (heute oder morgen) und Uhrzeit. Die Uhrzeit steht schon gesprochen in den Daten (z.B. '14 Uhr' oder '14 Uhr 30'): Übernimm sie wörtlich und sprich niemals 'null null'. Ganztägige nur mit Tag. Gibt es keine Termine, genügt ein Halbsatz wie 'Ihr Kalender ist frei'. Gibt es keine Erinnerungen, lass sie weg.\n" +
     "- Zusätzliche Wünsche: Steht etwas in 'zusaetzliche_wuensche', nimm JEDEN dieser Wünsche im Briefing auf, sinngemäß und in einem natürlichen Satz. Erfinde nichts dazu. Enthält ein Wunsch eine weitere Bedingung (z.B. 'wenn es regnet'), prüfe sie anhand der Daten und lass den Wunsch weg, wenn sie nicht zutrifft. Gibt es keine Wünsche, lass den Teil weg.\n" +
-    "- Wichtige Gegenstände: Das ist ein wichtiger Teil, denn der User verlässt danach das Haus. Nenne JEDEN Eintrag aus 'wichtige_gegenstaende' mit Begriff und Platz und lass keinen aus, auch wenn das Briefing dadurch länger wird. Formuliere jeden als natürlichen Satz mit korrektem Artikel und Präposition ('Ihr Schlüssel liegt in der Schublade'). Verwende niemals das Wort 'Ort' und wiederhole den Begriff nicht doppelt. Gibt es keine Einträge, lass den Teil weg.\n" +
+    "- Wichtige Gegenstände: Das ist ein wichtiger Teil, denn der User verlässt danach das Haus. Nenne JEDEN Eintrag aus 'wichtige_gegenstaende' mit Begriff und Platz und lass keinen aus, auch wenn das Briefing dadurch länger wird. Formuliere jeden als natürlichen Satz mit korrektem Artikel und Präposition ('Ihr Schlüssel liegt in der Schublade'). Steht im Wert nur ein Platz ohne Präposition (z.B. 'Küchenschrank'), erfinde keine wie 'im' oder 'auf', sondern sage 'Ihr Schlüssel ist beim Küchenschrank'. Verwende niemals das Wort 'Ort' und wiederhole den Begriff nicht doppelt. Gibt es keine Einträge, lass den Teil weg.\n" +
     "- Erfinde nichts, was nicht in den Daten steht. Sprich den User sparsam mit 'Sir' oder seinem Namen an.\n\n" +
     "Antworte ausschließlich mit einem JSON-Objekt der Form {\"briefing\": \"...\"}.";
 
