@@ -11,14 +11,14 @@
 function showActionCards(cards) {
     const box = document.getElementById('actionCards');
     if (!box) return;
-    box.innerHTML = (cards || []).map(c => {
+    setHtmlIfChanged(box, (cards || []).map(c => {
         const external = /^https?:/.test(c.href) ? ' target="_blank" rel="noopener"' : '';
         return `<a href="${escapeHtml(c.href)}"${external} onclick="playUiBeep()" class="flex items-center gap-3 bg-[#0a1621]/90 backdrop-blur border border-[#49d7ff]/60 border-glow-cyan rounded-xl p-3 font-mono">` +
             `<span class="text-2xl">${c.icon}</span>` +
             `<span class="flex-1 min-w-0"><b class="block text-[#49d7ff] text-sm">${escapeHtml(c.title)}</b>` +
             `<span class="block text-xs text-slate-400 truncate">${escapeHtml(c.subtitle || '')}</span></span>` +
             `<span class="text-[#49d7ff] text-lg">›</span></a>`;
-    }).join('');
+    }).join(''));
 }
 
 function clearActionCards() {
@@ -168,16 +168,16 @@ function renderParkingCard() {
     const box = document.getElementById('parkingBox');
     if (!box) return;
     if (!parkingSpot) {
-        box.innerHTML = '<p class="text-slate-500 italic">Kein Parkplatz gespeichert.</p>';
+        setHtmlIfChanged(box, '<p class="text-slate-500 italic">Kein Parkplatz gespeichert.</p>');
         return;
     }
     const d = describeParking();
-    box.innerHTML =
+    setHtmlIfChanged(box,
         `<div class="bg-black p-3 rounded-lg border border-[rgba(93,209,255,.2)]">` +
         `<p class="text-slate-200">🚗 ${escapeHtml(d.adresse)}</p>` +
         (d.notiz ? `<p class="text-slate-400">${escapeHtml(d.notiz)}</p>` : '') +
         `<p class="text-[#5d7e91]">Gespeichert ${escapeHtml(d.gespeichert_vor)}</p></div>` +
         `<div class="flex gap-2">` +
         `<a href="${escapeHtml(buildMapsLink(parkingSpot.lat + ',' + parkingSpot.lon, '', 'walking'))}" target="_blank" rel="noopener" onclick="playUiBeep()" class="flex-1 text-center bg-[#49d7ff] text-[#050a10] py-2 rounded-lg font-bold uppercase">🚶 Zum Auto</a>` +
-        `<button onclick="playUiBeep(); clearParkingSpot()" class="text-[#49d7ff] font-bold uppercase px-3">Löschen</button></div>`;
+        `<button onclick="playUiBeep(); clearParkingSpot()" class="text-[#49d7ff] font-bold uppercase px-3">Löschen</button></div>`);
 }

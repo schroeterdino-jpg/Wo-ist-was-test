@@ -114,7 +114,7 @@ function deleteContact(key) {
 function renderContactList() {
     if (!contactListDisplay) return;
     const keys = Object.keys(savedContacts);
-    contactListDisplay.innerHTML = keys.length === 0 ? 'Keine Kontakte.' : keys.map(k => `<div class="flex justify-between items-center bg-black p-2 rounded border border-[rgba(93,209,255,.2)] my-1"><span>${savedContacts[k].originalName}:${savedContacts[k].phone}</span><button onclick="playUiBeep(); deleteContact('${k}')" class="text-[#49d7ff] font-bold">Löschen</button></div>`).join('');
+    setHtmlIfChanged(contactListDisplay, keys.length === 0 ? 'Keine Kontakte.' : keys.map(k => `<div class="flex justify-between items-center bg-black p-2 rounded border border-[rgba(93,209,255,.2)] my-1"><span>${savedContacts[k].originalName}:${savedContacts[k].phone}</span><button onclick="playUiBeep(); deleteContact('${k}')" class="text-[#49d7ff] font-bold">Löschen</button></div>`).join(''));
 }
 
 /* --- Löschen --- */

@@ -82,10 +82,20 @@ function switchSection(sectionId) {
     openPanel(panel);
 }
 
+/* Effekt-Stufe: "calm" (Standard), "full" oder "off". Das Aussehen steuert style.css über html[data-fx]. */
+function applyFxMode(mode) {
+    const m = ['full', 'calm', 'off'].includes(mode) ? mode : 'calm';
+    document.documentElement.dataset.fx = m;
+    try { localStorage.setItem('fx_mode', m); } catch (e) {}
+    if (typeof setBackgroundMode === 'function') setBackgroundMode(m);
+}
+
 /* --- Start: Boot-Sound, Terminal-Meldung, erste Darstellung der Listen --- */
 window.addEventListener('DOMContentLoaded', () => {
     playJarvisSound();
     updateTerminalStream("SYS_BOOT: COMPLETE", "ONLINE");
+    const fxSelect = document.getElementById('fxSelect');
+    if (fxSelect) fxSelect.value = document.documentElement.dataset.fx || 'calm';
     renderAllLists();
     renderContactList();
     // Die Übersichtszeile rückt weiter, wenn ein Termin vorbei ist

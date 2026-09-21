@@ -34,6 +34,9 @@ const PANEL_DYNAMIC = ['termine', 'erinnerungen', 'menu'];
 const VALID_PANELS = Object.keys(PANEL_TITLES);
 
 const PANEL_CLOSE_MS = 300;
+const PANEL_MAX_STAGGER = 10;   // ab der elften Zeile laufen alle gleichzeitig ein (sonst dauert es bei langen Listen zu lange)
+const PANEL_FLY_MS = 900;       // so lange dauert das Einfliegen ungefähr; erst danach wird nachgeladen und gescrollt
+const PANEL_ANIM_MS = 2600;     // so lange gilt die Einlauf-Animation
 const PANEL_HORIZON_DAYS = 93;   // so weit im Voraus lädt die App Termine aus dem Google Kalender
 
 let currentPanel = null;      // { name, options } solange ein Fenster offen ist
@@ -110,10 +113,10 @@ function panelRowsGrouped(items, todayStart, renderRow) {
         const d = item.date;
         const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
         if (key !== lastKey) {
-            html += `<h3 class="panel-row text-xs font-bold text-[#5d7e91] uppercase tracking-wider mt-3 mb-1" style="--i:${i++}">${escapeHtml(panelDayHeader(d, todayStart))}</h3>`;
+            html += `<h3 class="panel-row text-xs font-bold text-[#5d7e91] uppercase tracking-wider mt-3 mb-1" style="--i:${Math.min(i++, PANEL_MAX_STAGGER)}">${escapeHtml(panelDayHeader(d, todayStart))}</h3>`;
             lastKey = key;
         }
-        html += renderRow(item, i++);
+        html += renderRow(item, Math.min(i++, PANEL_MAX_STAGGER));
     });
     return html;
 }
@@ -237,8 +240,9 @@ function openPanel(name, options = {}) {
         body.innerHTML = built.html;
         panelLastHtml = built.html;
         // Google-Kalender im Hintergrund auffrischen; refreshOpenPanel() zeichnet dann ohne Animation neu
+        // erst NACH dem Einfliegen, sonst ruckelt die Animation, wenn die Daten mitten drin ankommen
         if (name !== 'menu' && typeof accessToken !== 'undefined' && accessToken && typeof fetchGoogleCalendarEvents === 'function') {
-            fetchGoogleCalendarEvents();
+            setTimeout(() => { if (isPanelOpen()) fetchGoogleCalendarEvents(); }, PANEL_FLY_MS);
         }
     } else {
         titleEl.textContent = PANEL_TITLES[name];
@@ -257,7 +261,7 @@ function openPanel(name, options = {}) {
             setTimeout(() => {
                 const card = (target.closest && (target.closest('.hud-panel') || target.closest('details'))) || target;
                 if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 450);
+            }, PANEL_FLY_MS);
         }
     }
 
@@ -271,7 +275,7 @@ function openPanel(name, options = {}) {
     if (typeof updateTerminalStream === 'function') updateTerminalStream(`PANEL_OPEN: ${name.toUpperCase()}`);
 
     // Nach dem Einlaufen läuft nichts mehr an, damit spätere Aktualisierungen nicht flackern
-    panelAnimTimer = setTimeout(() => body.classList.remove('animate'), 1800);
+    panelAnimTimer = setTimeout(() => body.classList.remove('animate'), PANEL_ANIM_MS);
     return true;
 }
 
@@ -311,6 +315,8 @@ function refreshOpenPanel() {
     const built = buildDynamicPanel(currentPanel.name, currentPanel.options);
     if (built.html === panelLastHtml) return;
     const scroll = body.scrollTop;
+    // Neue Zeilen sofort zeigen: Sonst würde die Einlauf-Animation mitten drin noch einmal starten und flackern
+    body.classList.remove('animate');
     body.innerHTML = built.html;
     body.scrollTop = scroll;
     panelLastHtml = built.html;
