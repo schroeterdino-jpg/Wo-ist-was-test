@@ -26,7 +26,7 @@ setInterval(() => {
             if ('Notification' in window && Notification.permission === 'granted') {
                 new Notification(`Erinnerung für ${currentUserName}`, { body: rem.text, icon: './dino.png' });
             }
-            speak(`Sir, ich darf Sie daran erinnern: ${rem.text}`);
+            speak(`Zur Erinnerung: ${rem.text}`);
         }
     });
 

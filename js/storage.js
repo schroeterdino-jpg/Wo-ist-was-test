@@ -24,7 +24,7 @@ async function apiFetch(url, options = {}) {
     if (res.status === 401) {
         const err = new Error('Nicht erlaubt');
         err.auth = true;
-        err.userMessage = 'Der App-Code fehlt oder stimmt nicht, Sir. Bitte tragen Sie ihn in den Einstellungen ein.';
+        err.userMessage = 'Der App-Code fehlt oder stimmt nicht. Bitte tragen Sie ihn in den Einstellungen ein.';
         throw err;
     }
     return res;

@@ -57,7 +57,7 @@ function addManualTodo() {
         setPersistentData('helfer_todo_entries', JSON.stringify(todoEntries));
         inputEl.value = '';
         renderAllLists();
-        speak(`Aufgabe hinzugefügt, Sir.`);
+        speak(`Aufgabe hinzugefügt.`);
     }
 }
 
@@ -122,7 +122,7 @@ function deleteTodoEntry(id) {
     todoEntries = todoEntries.filter(e => e.id !== id);
     setPersistentData('helfer_todo_entries', JSON.stringify(todoEntries));
     renderAllLists();
-    speak("Als erledigt markiert, Sir.");
+    speak("Als erledigt markiert.");
 }
 
 function deleteShoppingEntry(id) {

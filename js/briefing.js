@@ -307,6 +307,19 @@ function isBirthdayEntry(e) {
     return e.eventType === 'birthday' || BIRTHDAY_PATTERN.test(e.text || '');
 }
 
+/* "Samstag, 11. April 2026" plus Uhrzeit ("14 Uhr 30" oder "ganztägig") für die KI.
+   Der Monat steht immer ausgeschrieben: Zahlenformate wie 11.04. werden sonst leicht vertauscht (4.11.). */
+function describeEventDate(iso) {
+    const parsed = parseEventDate(iso);
+    if (isNaN(parsed.date.getTime())) return { datum: '', zeit: '' };
+    const opts = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+    if (!parsed.allDay) opts.timeZone = 'Europe/Berlin';
+    return {
+        datum: parsed.date.toLocaleDateString('de-DE', opts),
+        zeit: parsed.allDay ? 'ganztägig' : formatSpokenTime(parsed.date)
+    };
+}
+
 /* "heute", "morgen", "übermorgen", "am Freitag" oder "am Freitag, 3. Oktober" (für Briefing und Übersichtszeile) */
 function relativeDayLabel(date, todayStart) {
     const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -396,7 +409,7 @@ async function composeBriefingWithModel(data) {
     "- Termine und Erinnerungen: Nenne Text, Tag und Uhrzeit. Der Tag steht schon passend formuliert in den Daten (z.B. 'heute', 'morgen', 'am Freitag', 'am Freitag, 3. Oktober'): Übernimm ihn wörtlich. Es sind nur die nächsten Termine enthalten (Geburtstage gehören absichtlich nicht dazu): Nenne nichts darüber hinaus. Die Uhrzeit steht schon gesprochen in den Daten (z.B. '14 Uhr' oder '14 Uhr 30'): Übernimm sie wörtlich und sprich niemals 'null null'. Ganztägige nur mit Tag. Gibt es keine Termine, genügt ein Halbsatz wie 'Ihr Kalender ist frei'. Gibt es keine Erinnerungen, lass sie weg.\n" +
     "- Zusätzliche Wünsche: Steht etwas in 'zusaetzliche_wuensche', nimm JEDEN dieser Wünsche im Briefing auf, sinngemäß und in einem natürlichen Satz. Erfinde nichts dazu. Enthält ein Wunsch eine weitere Bedingung (z.B. 'wenn es regnet'), prüfe sie anhand der Daten und lass den Wunsch weg, wenn sie nicht zutrifft. Gibt es keine Wünsche, lass den Teil weg.\n" +
     "- Wichtige Gegenstände: Das ist ein wichtiger Teil, denn der User verlässt danach das Haus. Nenne JEDEN Eintrag aus 'wichtige_gegenstaende' mit Begriff und Platz und lass keinen aus, auch wenn das Briefing dadurch länger wird. Formuliere jeden als natürlichen Satz mit korrektem Artikel und Präposition ('Ihr Schlüssel liegt in der Schublade'). Steht im Wert nur ein Platz ohne Präposition (z.B. 'Küchenschrank'), erfinde keine wie 'im' oder 'auf', sondern sage 'Ihr Schlüssel ist beim Küchenschrank'. Verwende niemals das Wort 'Ort' und wiederhole den Begriff nicht doppelt. Gibt es keine Einträge, lass den Teil weg.\n" +
-    "- Erfinde nichts, was nicht in den Daten steht. Sprich den User sparsam mit 'Sir' oder seinem Namen an.\n\n" +
+    "- Erfinde nichts, was nicht in den Daten steht. Sprich den User höchstens einmal mit seinem Namen an ('name' in den Daten). Das Wort 'Sir' benutzt du nur, wenn der Name 'Sir' lautet.\n\n" +
     "Antworte ausschließlich mit einem JSON-Objekt der Form {\"briefing\": \"...\"}.";
 
     const controller = new AbortController();

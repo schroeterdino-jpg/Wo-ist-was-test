@@ -131,7 +131,7 @@ function clearParkingSpot(announce = true) {
     parkingSpot = null;
     setPersistentData('helfer_parking', 'null');
     renderAllLists();
-    if (announce) speak('Parkplatz gelöscht, Sir.');
+    if (announce) speak('Parkplatz gelöscht.');
 }
 
 async function saveParkingManual() {

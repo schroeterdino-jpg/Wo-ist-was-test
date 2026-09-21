@@ -120,6 +120,19 @@ if (conversationToggleEl) {
 }
 
 /* --- Sprechen --- */
+const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+/* "11.04." oder "11.04.2026" wird als "11. April" bzw. "11. April 2026" gesprochen und angezeigt.
+   So kann die Stimme Tag und Monat nicht vertauschen. Uhrzeiten wie "18.34" und Preise bleiben unberührt. */
+function speakableDates(text) {
+    return String(text).replace(/(?<![\d.])(\d{1,2})\.(\d{1,2})\.(?:(\d{4})|(\d{2})(?!\d))?(?!\d)/g, (m, d, mo, y4, y2) => {
+        const day = Number(d), month = Number(mo);
+        if (day < 1 || day > 31 || month < 1 || month > 12) return m;
+        const year = y4 || (y2 ? `20${y2}` : '');
+        return `${day}. ${MONTHS_DE[month - 1]}${year ? ' ' + year : ''}`;
+    });
+}
+
 function speak(text, onComplete) {
     stopThinkingSound();
 
@@ -141,6 +154,7 @@ function speak(text, onComplete) {
 
     let cleanText = text.replace(/[*_#`~]/g, '');
     cleanText = cleanText.replace(/Schluessel/g, 'Schlüssel').replace(/schluessel/g, 'schlüssel');
+    cleanText = speakableDates(cleanText);
 
     setHudSubtitle(cleanText);
 
@@ -216,7 +230,7 @@ function setListeningUi(followUp) {
         recordBtn.classList.add('recording');
     }
     if (recordText) recordText.textContent = "J.A.R.V.I.S. / HÖRE...";
-    typeWriterStatus(followUp ? "Ich höre weiter zu, Sir..." : "Höre zu, Sir...");
+    typeWriterStatus(followUp ? "Ich höre weiter zu..." : "Höre zu...");
     setHudSubtitle(followUp ? "Höre weiter zu..." : "Aktiviert. Ich höre zu...");
     updateTerminalStream("VOICE_RECOGNITION: ACTIVE", "LISTENING");
 }
@@ -270,14 +284,14 @@ if (SpeechRecognition) {
         if (isPanelOpen() && isCloseCommand(text)) {
             closePanel();
             typeWriterStatus("Klicken zum Sprechen...");
-            speak(pickRandom(["Sehr wohl, Sir.", "Zu Diensten."]), continueConversation);
+            speak(pickRandom(["Sehr wohl.", "Zu Diensten."]), continueConversation);
             return;
         }
 
         if (isEndPhrase(text)) {
             closePanel();
             typeWriterStatus("Klicken zum Sprechen...");
-            speak(pickRandom(["Sehr wohl, Sir.", "Jederzeit, Sir.", "Zu Diensten."]));
+            speak(pickRandom(["Sehr wohl.", "Jederzeit.", "Zu Diensten."]));
             return;
         }
         sendToGroqSmart(text);
