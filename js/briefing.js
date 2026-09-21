@@ -153,6 +153,17 @@ function parseEventDate(iso) {
     return { date: new Date(iso), allDay: false };
 }
 
+/* Uhrzeit so, wie man sie sagt: "16 Uhr 17" (24-Stunden-Zählung, exakt, Berliner Zeit).
+   Wird an die KI übergeben, damit sie die Zeit nicht selbst umrechnet oder rundet. */
+function formatSpokenTime(date) {
+    const parts = new Intl.DateTimeFormat('de-DE', {
+        timeZone: 'Europe/Berlin', hour: 'numeric', minute: 'numeric', hourCycle: 'h23'
+    }).formatToParts(date);
+    const hh = parseInt(parts.find(p => p.type === 'hour').value, 10);
+    const mm = parseInt(parts.find(p => p.type === 'minute').value, 10);
+    return mm === 0 ? `${hh} Uhr` : `${hh} Uhr ${mm}`;
+}
+
 function buildBriefingData(now, weather) {
     const hour = parseInt(now.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', hour12: false }), 10);
     const uhrzeit = now.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
@@ -207,6 +218,7 @@ function buildBriefingData(now, weather) {
         name: currentUserName,
         begruessung,
         uhrzeit,
+        uhrzeit_gesprochen: formatSpokenTime(now),
         wetter,
         termine_heute_und_morgen: termine,
         erinnerungen_heute_und_morgen: erinnerungen,
@@ -216,8 +228,9 @@ function buildBriefingData(now, weather) {
 
 async function composeBriefingWithModel(data) {
     const systemPrompt = "Du bist J.A.R.V.I.S., der persönliche Butler von " + data.name + ". Formuliere ein gesprochenes Tages-Briefing auf Deutsch: höflich, ruhig, trocken im Stil eines britischen Butlers, ohne Markdown, ohne Aufzählungszeichen, in fließenden Sätzen. Es wird laut vorgelesen und soll etwa 60 bis 90 Wörter lang sein.\n\n" +
-    "Reihenfolge: 1. kurze Begrüßung mit Uhrzeit (natürlich gesprochen, z.B. 'kurz nach sieben'), 2. Wetter mit klarer Aussage zu Regenschirm und Jacke, 3. Termine, 4. Erinnerungen, 5. wichtige Gegenstände.\n\n" +
+    "Reihenfolge: 1. kurze Begrüßung mit der genauen Uhrzeit (übernimm 'uhrzeit_gesprochen' wörtlich, z.B. 'Es ist 16 Uhr 17'), 2. Wetter mit klarer Aussage zu Regenschirm und Jacke, 3. Termine, 4. Erinnerungen, 5. wichtige Gegenstände.\n\n" +
     "Regeln:\n" +
+    "- Uhrzeiten: Nenne jede Uhrzeit exakt und in 24-Stunden-Zählung, so wie sie in den Daten steht (z.B. 'um 16 Uhr 17' oder 'um 14 Uhr 30'). Runde niemals und verwende keine Ausdrücke wie 'kurz nach', 'kurz vor', 'halb' oder 'Viertel'. Zähle nie in 12 Stunden (16 Uhr ist nicht 'vier').\n" +
     "- Wetter: Übernimm 'regenschirm_empfehlung' und 'jacken_empfehlung' inhaltlich exakt und widersprich ihnen nie. Nenne die Temperatur nur knapp. Gibt es einen 'sturm_hinweis', erwähne ihn. Ist 'wetter' null, sage in einem Halbsatz, dass keine Wetterdaten vorliegen.\n" +
     "- Termine und Erinnerungen: Nenne Text, Tag (heute oder morgen) und Uhrzeit natürlich ('um 14 Uhr 30'). Ganztägige nur mit Tag. Gibt es keine Termine, genügt ein Halbsatz wie 'Ihr Kalender ist frei'. Gibt es keine Erinnerungen, lass sie weg.\n" +
     "- Wichtige Gegenstände: Formuliere jeden als natürlichen Satz mit korrektem Artikel und Präposition ('Ihr Schlüssel liegt unter der Fußmatte'). Verwende niemals das Wort 'Ort' und wiederhole den Begriff nicht doppelt. Gibt es keine, lass den Teil weg.\n" +
@@ -253,7 +266,7 @@ async function composeBriefingWithModel(data) {
 }
 
 function buildFallbackBriefing(data) {
-    let text = `${data.begruessung}, ${data.name}. Es ist ${data.uhrzeit} Uhr. `;
+    let text = `${data.begruessung}, ${data.name}. Es ist ${data.uhrzeit_gesprochen}. `;
 
     if (data.wetter) {
         const w = data.wetter;
