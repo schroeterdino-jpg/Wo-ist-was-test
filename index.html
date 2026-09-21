@@ -128,6 +128,8 @@
                     <p id="statusMessage" class="text-center font-semibold text-[#49d7ff] h-6 tracking-wide text-sm font-mono">Klicken zum Sprechen...</p>
                 </div>
 
+                <div id="actionCards" class="w-full space-y-2"></div>
+
                 <button onclick="playUiBeep(); triggerDailyBriefing()" class="w-full bg-gradient-to-r from-cyan-950 to-blue-900 hover:from-cyan-900 hover:to-blue-800 text-white py-3.5 px-4 rounded-xl shadow-lg font-bold text-base flex items-center justify-center gap-2 border border-[#49d7ff]/50 uppercase tracking-wider transition font-mono">
                     🌅 Tages-Briefing starten
                 </button>
@@ -201,6 +203,25 @@
                         <p class="text-slate-500 italic text-xs">Noch nichts im Gedächtnis gespeichert.</p>
                     </div>
                 </div>
+                <div class="bg-[#0a1621]/90 backdrop-blur p-5 rounded-xl shadow-lg border border-[rgba(93,209,255,.18)] space-y-3 hud-panel">
+                    <h2 class="text-lg font-bold text-[#49d7ff] uppercase tracking-wide border-b border-[rgba(93,209,255,.18)] pb-2">🌅 Briefing-Wünsche:</h2>
+                    <p class="text-xs text-[#5d7e91] font-mono">Sag zum Beispiel: „Erwähne im Briefing immer, dass ich die Tabletten nehmen soll." Oder trag es hier ein.</p>
+                    <div class="flex gap-2 font-mono">
+                        <input type="text" id="manualBriefingInput" placeholder="Neuer Wunsch..." class="flex-grow p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-[#49d7ff]">
+                        <button onclick="playUiBeep(); addManualBriefingWish()" class="bg-[#49d7ff] text-[#050a10] px-4 py-2 rounded-lg text-lg font-bold">＋</button>
+                    </div>
+                    <ul id="briefingList" class="space-y-2 mt-2 font-mono text-xs">
+                        <li class="text-slate-500 italic">Keine Wünsche eingetragen.</li>
+                    </ul>
+                </div>
+                <div class="bg-[#0a1621]/90 backdrop-blur p-5 rounded-xl shadow-lg border border-[rgba(93,209,255,.18)] space-y-3 hud-panel">
+                    <h2 class="text-lg font-bold text-[#49d7ff] uppercase tracking-wide border-b border-[rgba(93,209,255,.18)] pb-2">🚗 Parkplatz:</h2>
+                    <p class="text-xs text-[#5d7e91] font-mono">Sag: „Merk dir, wo ich geparkt habe." Später fragst du: „Wo habe ich geparkt?"</p>
+                    <div id="parkingBox" class="font-mono text-xs space-y-2">
+                        <p class="text-slate-500 italic">Kein Parkplatz gespeichert.</p>
+                    </div>
+                    <button onclick="playUiBeep(); saveParkingManual()" class="w-full bg-[#49d7ff]/20 text-[#49d7ff] border border-[#49d7ff] py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider shadow font-mono">📍 Hier geparkt speichern</button>
+                </div>
             </section>
 
             <section id="sec-settings" class="hidden space-y-3 font-mono">
@@ -252,6 +273,12 @@
                             </button>
                         </div>
                         <p id="connectionStatus" class="text-xs text-[#5d7e91] font-medium break-all"></p>
+                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">App-Code (schützt deine Schnittstellen):</label>
+                            <input type="password" id="appSecretInput" placeholder="Geheimer App-Code..." autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                            <button onclick="playUiBeep(); syncNow(true)" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">☁️ Jetzt synchronisieren</button>
+                            <p id="syncStatus" class="text-xs text-[#5d7e91] font-medium break-all">Synchronisierung: noch nicht gestartet.</p>
+                        </div>
                     </div>
                 </details>
 
@@ -284,7 +311,9 @@
     <script src="./js/storage.js"></script>
     <script src="./js/render.js"></script>
     <script src="./js/lists.js"></script>
+    <script src="./js/places.js"></script>
     <script src="./js/calendar.js"></script>
+    <script src="./js/sync.js"></script>
     <script src="./js/voice.js"></script>
     <script src="./js/briefing.js"></script>
     <script src="./js/assistant.js"></script>
