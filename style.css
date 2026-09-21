@@ -238,3 +238,46 @@ h1, h2, .jarvis-font {
 ::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 3px; }
 
 .app-shell { position: relative; z-index: 1; }
+
+/* --- Hintergrund: feines Raster, leichter Rand-Schatten, Partikel-Canvas --- */
+#grid-canvas {
+    overflow: hidden;
+}
+
+/* Raster driftet langsam (nur transform, daher flüssig und akkuschonend) */
+#grid-canvas::before {
+    content: '';
+    position: absolute;
+    inset: -64px;
+    background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    animation: grid-drift 16s linear infinite;
+}
+
+@keyframes grid-drift {
+    from { transform: translate(0, 0); }
+    to   { transform: translate(64px, 64px); }
+}
+
+/* Partikel liegen über dem Raster */
+#bg-particles {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* Dunkler Rand, damit der Blick in der Mitte beim Ring bleibt */
+#grid-canvas::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(2, 5, 10, .8) 100%);
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #grid-canvas::before { animation: none; }
+}
