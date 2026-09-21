@@ -89,7 +89,9 @@ async function executeAction(action, text, ctx) {
         updateTerminalStream("TASKS: ENTRY_ADDED");
     } else if (action.type === 'memory_store' && action.memory_key) {
         let val = action.memory_value || "gespeichert";
-        memoryItems[action.memory_key.toLowerCase()] = String(parseMemoryValue(val));
+        const newKey = action.memory_key.toLowerCase().trim();
+        removeKeyVariants(newKey);
+        memoryItems[newKey] = String(parseMemoryValue(val));
         setPersistentData('helfer_memory', JSON.stringify(memoryItems));
         updateTerminalStream(`MEMORY_WRITE: KEY_${action.memory_key.toUpperCase()}`);
     } else if (action.type === 'memory_search') {
@@ -251,6 +253,8 @@ async function sendToGroqSmart(text) {
     "- 'list_edit': 'list_name' ist 'einkauf', 'aufgaben', 'gedaechtnis' oder 'kontakte'. 'list_op' ist 'add', 'remove', 'clear' oder 'replace'. 'list_items' ist eine Liste von Texten: bei Einkauf und Aufgaben die Einträge, beim Gedächtnis der Begriff, bei Kontakten der Name. 'list_new_value' brauchst du bei 'replace' (neuer Text, neuer Wert bzw. neue Nummer) und beim Hinzufügen zum Gedächtnis (der Wert) oder zu den Kontakten (die Telefonnummer). Nimm die Einträge so, wie sie im Kontext stehen.\n\n" +
     "WICHTIG für Fragen nach Terminen und Geburtstagen im Kalender:\n" +
     "- Im Kontext unter 'termine' stehen nur die nächsten drei Monate. Fragt der User nach einem Termin, Geburtstag oder Ereignis (z.B. 'Wann hat Victoria Geburtstag?', 'Wann ist mein Zahnarzttermin?'), das dort nicht eindeutig steht, nutze die Aktion 'calendar_search' mit dem Kernbegriff (z.B. nur der Name 'Victoria') in 'calendar_search_query'. Schreibe in 'reply' nur einen ganz kurzen Satz wie 'Ich schaue nach, Sir.'. Du bekommst danach das Ergebnis der Suche im Google Kalender und antwortest damit.\n\n" +
+    "WICHTIG fürs Merken von Dingen im Gedächtnis:\n" +
+    "- Bei 'memory_store' (und bei 'list_edit' im Gedächtnis) ist der Begriff nur der Gegenstand, kurz und in der Grundform (z.B. 'schlüssel', 'brille', 'portemonnaie'), niemals mit Zusatz wie 'ort' oder 'platz' ('schlüsselort' ist falsch). 'memory_value' ist der Platz vollständig mit Präposition, genau wie der User ihn gesagt hat (z.B. 'auf dem Küchenschrank', 'in der Schublade'). Lass die Präposition nie weg.\n\n" +
     "WICHTIG für Parkplatz, Navigation, Anrufe und WhatsApp:\n" +
     "- 'Merk dir, wo ich geparkt habe' (oder ähnlich): Aktion 'parking_save'. Nennt der User dazu Details wie 'Ebene 2, Platz 34', schreibe sie in 'parking_note'. Der Standort wird automatisch ermittelt. Soll der Parkplatz vergessen oder gelöscht werden: 'parking_clear'.\n" +
     "- Fragt der User, wo er geparkt hat, antworte mit den Daten aus 'parkplatz' im Kontext (Adresse, Notiz, wann gespeichert). Ist 'parkplatz' leer, sage ehrlich, dass nichts gespeichert ist. Will er dorthin, nutze zusätzlich 'navigate' mit 'nav_to' = 'parkplatz'.\n" +
