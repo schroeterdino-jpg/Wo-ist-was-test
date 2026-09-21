@@ -298,6 +298,15 @@ function formatSpokenTime(date) {
     return mm === 0 ? `${hh} Uhr` : `${hh} Uhr ${mm}`;
 }
 
+/* Einstellungen fürs Briefing: hier kannst du die Zahlen ändern */
+const BRIEFING_MAX_APPOINTMENTS = 4;   // so viele der nächsten Termine werden genannt
+const BRIEFING_REMINDER_DAYS = 4;      // Erinnerungen für heute und die folgenden Tage (zusammen 4 Tage)
+const BIRTHDAY_PATTERN = /geburtstag|birthday|bday/i;   // solche Einträge zählen im Briefing nicht als Termin
+
+function isBirthdayEntry(e) {
+    return e.eventType === 'birthday' || BIRTHDAY_PATTERN.test(e.text || '');
+}
+
 function buildBriefingData(now, weather) {
     const hour = parseInt(now.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', hour12: false }), 10);
     const uhrzeit = now.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
@@ -307,26 +316,35 @@ function buildBriefingData(now, weather) {
     if (hour >= 18) begruessung = "Guten Abend";
 
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const limitDate = new Date(todayStart);
-    limitDate.setDate(todayStart.getDate() + 2);
+    const remindersUntil = new Date(todayStart);
+    remindersUntil.setDate(todayStart.getDate() + BRIEFING_REMINDER_DAYS);
 
+    // "heute", "morgen", "übermorgen", "am Freitag" oder "am Freitag, 3. Oktober"
     const dayLabel = (date) => {
         const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        return Math.round((dayStart - todayStart) / 86400000) === 0 ? 'heute' : 'morgen';
+        const diff = Math.round((dayStart - todayStart) / 86400000);
+        if (diff <= 0) return 'heute';
+        if (diff === 1) return 'morgen';
+        if (diff === 2) return 'übermorgen';
+        if (diff <= 6) return 'am ' + date.toLocaleDateString('de-DE', { weekday: 'long' });
+        return 'am ' + date.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
     };
     const timeLabel = (date, allDay) => allDay ? 'ganztägig' : formatSpokenTime(date);
 
+    // Die nächsten Termine (Geburtstage zählen nicht als Termin)
     const termine = (calendarEntries || [])
-        .filter(e => e.isoDate)
+        .filter(e => e.isoDate && !isBirthdayEntry(e))
         .map(e => ({ text: e.text, ...parseEventDate(e.isoDate) }))
-        .filter(e => !isNaN(e.date.getTime()) && e.date < limitDate && (e.allDay ? e.date >= todayStart : e.date >= now))
+        .filter(e => !isNaN(e.date.getTime()) && (e.allDay ? e.date >= todayStart : e.date >= now))
         .sort((a, b) => a.date - b.date)
+        .slice(0, BRIEFING_MAX_APPOINTMENTS)
         .map(e => ({ text: e.text, tag: dayLabel(e.date), uhrzeit: timeLabel(e.date, e.allDay) }));
 
+    // Erinnerungen für heute und die folgenden Tage
     const erinnerungen = (reminderEntries || [])
         .filter(r => r.time && !r.triggered)
         .map(r => ({ text: r.text, ...parseEventDate(r.time) }))
-        .filter(r => !isNaN(r.date.getTime()) && r.date >= todayStart && r.date < limitDate)
+        .filter(r => !isNaN(r.date.getTime()) && r.date >= todayStart && r.date < remindersUntil)
         .sort((a, b) => a.date - b.date)
         .map(r => ({ text: r.text, tag: dayLabel(r.date), uhrzeit: timeLabel(r.date, r.allDay) }));
 
@@ -360,8 +378,8 @@ function buildBriefingData(now, weather) {
         uhrzeit,
         uhrzeit_gesprochen: formatSpokenTime(now),
         wetter,
-        termine_heute_und_morgen: termine,
-        erinnerungen_heute_und_morgen: erinnerungen,
+        naechste_termine: termine,
+        erinnerungen_naechste_tage: erinnerungen,
         zusaetzliche_wuensche: wuensche,
         wichtige_gegenstaende: gegenstaende
     };
@@ -373,7 +391,7 @@ async function composeBriefingWithModel(data) {
     "Regeln:\n" +
     "- Uhrzeiten: Nenne jede Uhrzeit exakt und in 24-Stunden-Zählung, so wie sie in den Daten steht (z.B. 'um 16 Uhr 17' oder 'um 14 Uhr 30'). Runde niemals und verwende keine Ausdrücke wie 'kurz nach', 'kurz vor', 'halb' oder 'Viertel'. Zähle nie in 12 Stunden (16 Uhr ist nicht 'vier').\n" +
     "- Wetter: Übernimm 'regenschirm_empfehlung' und 'jacken_empfehlung' inhaltlich exakt und widersprich ihnen nie. Nenne die Temperatur nur knapp. Gibt es einen 'sturm_hinweis', erwähne ihn. Ist 'wetter' null, sage in einem Halbsatz, dass keine Wetterdaten vorliegen.\n" +
-    "- Termine und Erinnerungen: Nenne Text, Tag (heute oder morgen) und Uhrzeit. Die Uhrzeit steht schon gesprochen in den Daten (z.B. '14 Uhr' oder '14 Uhr 30'): Übernimm sie wörtlich und sprich niemals 'null null'. Ganztägige nur mit Tag. Gibt es keine Termine, genügt ein Halbsatz wie 'Ihr Kalender ist frei'. Gibt es keine Erinnerungen, lass sie weg.\n" +
+    "- Termine und Erinnerungen: Nenne Text, Tag und Uhrzeit. Der Tag steht schon passend formuliert in den Daten (z.B. 'heute', 'morgen', 'am Freitag', 'am Freitag, 3. Oktober'): Übernimm ihn wörtlich. Es sind nur die nächsten Termine enthalten (Geburtstage gehören absichtlich nicht dazu): Nenne nichts darüber hinaus. Die Uhrzeit steht schon gesprochen in den Daten (z.B. '14 Uhr' oder '14 Uhr 30'): Übernimm sie wörtlich und sprich niemals 'null null'. Ganztägige nur mit Tag. Gibt es keine Termine, genügt ein Halbsatz wie 'Ihr Kalender ist frei'. Gibt es keine Erinnerungen, lass sie weg.\n" +
     "- Zusätzliche Wünsche: Steht etwas in 'zusaetzliche_wuensche', nimm JEDEN dieser Wünsche im Briefing auf, sinngemäß und in einem natürlichen Satz. Erfinde nichts dazu. Enthält ein Wunsch eine weitere Bedingung (z.B. 'wenn es regnet'), prüfe sie anhand der Daten und lass den Wunsch weg, wenn sie nicht zutrifft. Gibt es keine Wünsche, lass den Teil weg.\n" +
     "- Wichtige Gegenstände: Das ist ein wichtiger Teil, denn der User verlässt danach das Haus. Nenne JEDEN Eintrag aus 'wichtige_gegenstaende' mit Begriff und Platz und lass keinen aus, auch wenn das Briefing dadurch länger wird. Formuliere jeden als natürlichen Satz mit korrektem Artikel und Präposition ('Ihr Schlüssel liegt in der Schublade'). Steht im Wert nur ein Platz ohne Präposition (z.B. 'Küchenschrank'), erfinde keine wie 'im' oder 'auf', sondern sage 'Ihr Schlüssel ist beim Küchenschrank'. Verwende niemals das Wort 'Ort' und wiederhole den Begriff nicht doppelt. Gibt es keine Einträge, lass den Teil weg.\n" +
     "- Erfinde nichts, was nicht in den Daten steht. Sprich den User sparsam mit 'Sir' oder seinem Namen an.\n\n" +
@@ -419,14 +437,14 @@ function buildFallbackBriefing(data) {
         text += "Wetterdaten liegen leider nicht vor. ";
     }
 
-    if (data.termine_heute_und_morgen.length > 0) {
-        text += "Ihre Termine: " + data.termine_heute_und_morgen.map(t => `${t.tag} ${t.uhrzeit === 'ganztägig' ? 'ganztägig' : 'um ' + t.uhrzeit} ${t.text}`).join(', ') + ". ";
+    if (data.naechste_termine.length > 0) {
+        text += "Ihre nächsten Termine: " + data.naechste_termine.map(t => `${t.tag} ${t.uhrzeit === 'ganztägig' ? 'ganztägig' : 'um ' + t.uhrzeit} ${t.text}`).join(', ') + ". ";
     } else {
-        text += "Ihr Kalender ist für heute und morgen frei. ";
+        text += "Sie haben keine anstehenden Termine. ";
     }
 
-    if (data.erinnerungen_heute_und_morgen.length > 0) {
-        text += "Erinnerungen: " + data.erinnerungen_heute_und_morgen.map(r => `${r.text} ${r.tag}${r.uhrzeit === 'ganztägig' ? '' : ' um ' + r.uhrzeit}`).join(' sowie ') + ". ";
+    if (data.erinnerungen_naechste_tage.length > 0) {
+        text += "Erinnerungen: " + data.erinnerungen_naechste_tage.map(r => `${r.text} ${r.tag}${r.uhrzeit === 'ganztägig' ? '' : ' um ' + r.uhrzeit}`).join(' sowie ') + ". ";
     }
 
     if ((data.zusaetzliche_wuensche || []).length > 0) {

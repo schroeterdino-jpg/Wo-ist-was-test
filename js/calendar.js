@@ -287,7 +287,8 @@ async function fetchGoogleCalendarEvents() {
                         id: item.id,
                         text: item.summary || 'Termin',
                         date: d.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: item.start.dateTime ? 'short' : undefined }),
-                        isoDate: item.start.dateTime || item.start.date
+                        isoDate: item.start.dateTime || item.start.date,
+                        eventType: item.eventType || 'default'
                     };
                 });
                 setPersistentData('helfer_calendar_entries', JSON.stringify(calendarEntries));
