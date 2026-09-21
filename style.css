@@ -1,0 +1,240 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+    --bg: #050a10;
+    --bg-deep: #02050a;
+    --panel: rgba(10, 22, 33, .55);
+    --panel-solid: #0a1621;
+    --grid-line: rgba(93, 209, 255, .07);
+    --hairline: rgba(93, 209, 255, .18);
+    --cyan: #49d7ff;
+    --cyan-dim: rgba(73, 215, 255, .35);
+    --amber: #ff9a44;
+    --amber-dim: rgba(255, 154, 68, .35);
+    --text: #d9e9f2;
+    --muted: #5d7e91;
+    --danger: #ff5d6c;
+    --good: #57e0a1;
+    --font-display: 'Rajdhani', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --radius-sm: 3px;
+}
+
+body { 
+    font-family: var(--font-display);
+    font-size: 1.15rem; 
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* Upgrade 3: Scanline Overlay über das gesamte UI */
+.scanline-overlay {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 99;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.15),
+        rgba(0, 0, 0, 0.15) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+    opacity: 0.75;
+}
+
+#grid-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    background:
+        radial-gradient(ellipse at 50% 20%, rgba(73, 215, 255, .07), transparent 55%),
+        var(--bg-deep);
+    pointer-events: none;
+}
+
+h1, h2, .jarvis-font {
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 0.08em;
+}
+
+.glow-cyan {
+    text-shadow: 0 0 8px rgba(73, 215, 255, 0.7), 0 0 15px rgba(73, 215, 255, 0.4);
+}
+
+.border-glow-cyan {
+    box-shadow: 0 0 12px rgba(73, 215, 255, 0.35), inset 0 0 8px rgba(73, 215, 255, 0.15);
+}
+
+/* Upgrade 3: Glassy Neon-Kanten & Backdrop Blur */
+.hud-panel {
+    position: relative;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.12), inset 0 0 10px rgba(0, 210, 255, 0.05);
+}
+.hud-panel::before,
+.hud-panel::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--cyan-dim);
+    opacity: .6;
+    pointer-events: none;
+}
+.hud-panel::before {
+    top: 6px;
+    left: 6px;
+    border-right: none;
+    border-bottom: none;
+}
+.hud-panel::after {
+    bottom: 6px;
+    right: 6px;
+    border-left: none;
+    border-top: none;
+}
+
+#reactor-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px 0;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+
+.holo-container {
+    position: relative;
+    width: 290px;
+    height: 290px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.holo-ring {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    transition: all 0.5s ease;
+}
+
+/* --- Angepasste Holografische Blaue Ringe --- */
+.holo-ring-1 {
+    width: 300px;
+    height: 300px;
+    border: 2px dashed #00d2ff;
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.6), inset 0 0 10px rgba(0, 210, 255, 0.3);
+    animation: spin 12s linear infinite;
+}
+
+.holo-ring-2 {
+    width: 315px;
+    height: 315px;
+    border: 1px solid rgba(0, 102, 255, 0.4);
+    border-top: 2px solid #00d2ff;
+    border-bottom: 2px solid #0066ff;
+    box-shadow: 0 0 20px rgba(0, 210, 255, 0.5);
+    animation: spin-reverse 8s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes spin-reverse {
+    from { transform: rotate(360deg); }
+    to { transform: rotate(0deg); }
+}
+
+#assistant-gif {
+    width: 270px;
+    height: 270px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(73, 215, 255, 0.3);
+    box-shadow: 0 0 20px rgba(73, 215, 255, 0.2), inset 0 0 15px rgba(73, 215, 255, 0.1);
+    transition: all 0.3s ease;
+    z-index: 2;
+}
+
+.jarvis-scanner-container.recording .holo-ring-1,
+.jarvis-scanner-container.recording .holo-ring-2 {
+    border-color: var(--cyan) !important;
+    box-shadow: 0 0 25px rgba(73, 215, 255, 0.8);
+}
+
+.jarvis-scanner-container.speaking .holo-ring-1,
+.jarvis-scanner-container.speaking .holo-ring-2 {
+    border-color: var(--good) !important;
+    box-shadow: 0 0 25px rgba(87, 224, 161, 0.8);
+}
+
+.jarvis-scanner-container.recording #assistant-gif {
+    border-color: var(--cyan);
+    box-shadow: 0 0 30px rgba(73, 215, 255, 0.6), inset 0 0 20px rgba(73, 215, 255, 0.4);
+}
+
+.jarvis-scanner-container.speaking #assistant-gif {
+    border-color: var(--good);
+    box-shadow: 0 0 35px rgba(87, 224, 161, 0.7), inset 0 0 20px rgba(87, 224, 161, 0.4);
+}
+
+.jarvis-scanner-container.speaking #waveform span {
+    background: var(--good) !important;
+}
+
+#waveform {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 18px;
+    margin-top: 14px;
+    opacity: .35;
+}
+
+#waveform span {
+    width: 3px;
+    background: var(--cyan);
+    border-radius: 2px;
+    height: 4px;
+    transition: height .12s ease;
+}
+
+#waveform.active {
+    opacity: 1;
+}
+
+/* Upgrade 2: Reaktive Wellenform & Organische Frequenz-Animation */
+.jarvis-scanner-container.speaking #waveform span,
+#waveform.speaking span {
+    animation: waveformPulse 0.4s infinite alternate ease-in-out;
+}
+#waveform.speaking span:nth-child(1) { animation-delay: 0.05s; }
+#waveform.speaking span:nth-child(2) { animation-delay: 0.15s; }
+#waveform.speaking span:nth-child(3) { animation-delay: 0.25s; }
+#waveform.speaking span:nth-child(4) { animation-delay: 0.10s; }
+#waveform.speaking span:nth-child(5) { animation-delay: 0.30s; }
+#waveform.speaking span:nth-child(6) { animation-delay: 0.20s; }
+#waveform.speaking span:nth-child(7) { animation-delay: 0.08s; }
+
+@keyframes waveformPulse {
+    0% { height: 4px; }
+    100% { height: 18px; }
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 3px; }
+
+.app-shell { position: relative; z-index: 1; }
