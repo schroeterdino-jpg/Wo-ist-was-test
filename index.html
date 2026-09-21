@@ -66,35 +66,12 @@
 
             <section id="sec-speak" class="flex flex-col items-center justify-between space-y-4 my-auto py-2">
                 
-                <div id="overviewCard" class="w-full bg-[#0a1621]/80 backdrop-blur rounded-xl shadow-xl border border-[rgba(93,209,255,.18)] overflow-hidden text-sm transition-all border-glow-cyan hud-panel">
-                    <button onclick="playUiBeep(); toggleOverviewDetails()" class="w-full bg-black/40 p-3.5 border-b border-[rgba(93,209,255,.18)] font-bold text-[#49d7ff] flex justify-between items-center text-left tracking-wide uppercase font-mono">
-                        <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-[#49d7ff]"></span> Tages-Übersicht <span class="text-[10px] font-normal text-[#49d7ff]/80">(Live)</span></span>
-                        <span id="overviewToggleIcon" class="text-xs text-[#49d7ff]">▼ Klappen</span>
+                <!-- Schlanke Übersicht: Tipp links öffnet die Termine, Tipp rechts die Erinnerungen -->
+                <div id="overviewLine" class="w-full flex items-stretch gap-2 font-mono text-xs">
+                    <button onclick="playUiBeep(); openPanel('termine', { range: 'alle' })" class="flex-1 min-w-0 text-left px-4 py-3 rounded-xl bg-[#0a1621]/80 backdrop-blur border border-[rgba(93,209,255,.25)] border-glow-cyan truncate">
+                        <span>📅</span> <b class="text-[#49d7ff]">Nächster Termin:</b> <span id="ovNext" class="text-slate-300">Lädt...</span>
                     </button>
-                    <div id="overviewDetails" class="p-4 space-y-2.5 text-slate-200 bg-black/20 font-mono text-xs">
-                        <p class="flex items-start gap-2">
-                            <span>📅</span> 
-                            <span><b class="text-[#49d7ff]">Nächster Termin:</b> <span id="ovNextCalendar" class="text-slate-300">Lädt...</span></span>
-                        </p>
-                        <p class="flex items-start gap-2">
-                            <span>🔔</span> 
-                            <span><b class="text-[#49d7ff]">Nächste Erinnerung:</b> <span id="ovNextReminder" class="text-slate-300">Lädt...</span></span>
-                        </p>
-                        <div class="grid grid-cols-3 gap-2 pt-2 border-t border-[rgba(93,209,255,.18)] text-center text-xs font-semibold">
-                            <div class="bg-black/60 p-2 rounded-lg border border-[rgba(93,209,255,.1)]">
-                                <span class="block text-[#5d7e91] text-[9px] uppercase tracking-wider">Aufgaben</span>
-                                <span id="ovCountTodos" class="text-[#49d7ff] text-base font-bold font-mono">0</span>
-                            </div>
-                            <div class="bg-black/60 p-2 rounded-lg border border-[rgba(93,209,255,.1)]">
-                                <span class="block text-[#5d7e91] text-[9px] uppercase tracking-wider">Einkauf</span>
-                                <span id="ovCountShopping" class="text-[#ff9a44] text-base font-bold font-mono">0</span>
-                            </div>
-                            <div class="bg-black/60 p-2 rounded-lg border border-[rgba(93,209,255,.1)]">
-                                <span class="block text-[#5d7e91] text-[9px] uppercase tracking-wider">Gedächtnis</span>
-                                <span id="ovCountMemory" class="text-[#57e0a1] text-base font-bold font-mono">0</span>
-                            </div>
-                        </div>
-                    </div>
+                    <button id="ovReminders" onclick="playUiBeep(); openPanel('erinnerungen')" class="shrink-0 px-3 py-3 rounded-xl bg-[#0a1621]/80 backdrop-blur border border-[rgba(255,154,68,.35)] text-[#ff9a44] font-bold" aria-label="Erinnerungen">🔔 0</button>
                 </div>
 
                 <div class="my-auto flex flex-col items-center space-y-4 py-4 w-full">
