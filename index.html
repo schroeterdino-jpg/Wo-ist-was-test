@@ -34,6 +34,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#050a10">
 
+    <!-- Effekt-Stufe früh setzen, damit beim Start nichts flackert -->
+    <script>document.documentElement.dataset.fx = (function () { try { return localStorage.getItem('fx_mode') || 'calm'; } catch (e) { return 'calm'; } })();</script>
     <link rel="stylesheet" href="./style.css">
 </head>
 <body class="bg-[#050a10] text-slate-100 min-h-screen flex flex-col justify-between">
@@ -46,7 +48,7 @@
             <div class="flex justify-between items-center max-w-md mx-auto">
                 <button onclick="playUiBeep(); openPanel('menu')" aria-label="Menü" class="bg-[#0a1621] hover:bg-cyan-950/50 text-[#49d7ff] p-2.5 rounded-lg text-sm shadow flex items-center justify-center border border-[rgba(93,209,255,.18)] transition w-10">☰</button>
                 <div>
-                    <h1 class="text-2xl font-black text-[#49d7ff] glow-cyan tracking-wider">MEIN ALLTAGS-HELFER</h1>
+                    <h1 class="text-base font-black text-[#49d7ff] glow-cyan tracking-wider leading-tight">MEIN<br><span class="whitespace-nowrap">ALLTAGS-HELFER</span></h1>
                     <p id="userNameDisplay" class="text-xs font-bold text-[#49d7ff]/80 tracking-widest uppercase mt-0.5 font-mono">Hallo, Dino!</p>
                 </div>
                 <button onclick="playUiBeep(); openPanel('settings')" class="bg-[#0a1621] hover:bg-cyan-950/50 text-[#49d7ff] p-2.5 rounded-lg text-sm shadow flex items-center justify-center border border-[rgba(93,209,255,.18)] transition">
@@ -68,8 +70,9 @@
                 
                 <!-- Schlanke Übersicht: Tipp links öffnet die Termine, Tipp rechts die Erinnerungen -->
                 <div id="overviewLine" class="w-full flex items-stretch gap-2 font-mono text-xs">
-                    <button onclick="playUiBeep(); openPanel('termine', { range: 'alle' })" class="flex-1 min-w-0 text-left px-4 py-3 rounded-xl bg-[#0a1621]/80 backdrop-blur border border-[rgba(93,209,255,.25)] border-glow-cyan truncate">
-                        <span>📅</span> <b class="text-[#49d7ff]">Nächster Termin:</b> <span id="ovNext" class="text-slate-300">Lädt...</span>
+                    <button onclick="playUiBeep(); openPanel('termine', { range: 'alle' })" class="flex-1 min-w-0 text-left px-4 py-2.5 rounded-xl bg-[#0a1621]/80 backdrop-blur border border-[rgba(93,209,255,.25)] border-glow-cyan">
+                        <span class="block text-[10px] uppercase tracking-widest text-[#49d7ff]/80">📅 Nächster Termin</span>
+                        <span id="ovNext" class="block text-sm text-slate-100 leading-snug break-words clamp-2">Lädt...</span>
                     </button>
                     <button id="ovReminders" onclick="playUiBeep(); openPanel('erinnerungen')" class="shrink-0 px-3 py-3 rounded-xl bg-[#0a1621]/80 backdrop-blur border border-[rgba(255,154,68,.35)] text-[#ff9a44] font-bold" aria-label="Erinnerungen">🔔 0</button>
                 </div>
@@ -223,6 +226,21 @@
                             <input type="checkbox" id="conversationModeToggle" class="w-5 h-5 accent-[#49d7ff]">
                             <span>Gesprächsmodus: nach jeder Antwort weiterhören</span>
                         </label>
+                    </div>
+                </details>
+
+                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
+                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
+                        <span>✨ Effekte</span>
+                    </summary>
+                    <div class="p-4 space-y-3">
+                        <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Animationen:</label>
+                        <select id="fxSelect" onchange="applyFxMode(this.value)" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                            <option value="calm">Ruhig (empfohlen)</option>
+                            <option value="full">Voll (mit Unschärfe und mehr Bewegung)</option>
+                            <option value="off">Aus (Ringe und Hintergrund stehen still)</option>
+                        </select>
+                        <p class="text-xs text-[#5d7e91]">Flackert es auf deinem Handy, nimm „Ruhig" oder „Aus". Die Einstellung gilt nur für dieses Gerät.</p>
                     </div>
                 </details>
 
