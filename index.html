@@ -44,12 +44,12 @@
     <div class="app-shell flex flex-col min-h-screen justify-between">
         <header class="bg-[#081424]/90 backdrop-blur text-white p-4 text-center border-b border-[rgba(93,209,255,.18)] relative shadow-lg">
             <div class="flex justify-between items-center max-w-md mx-auto">
-                <div class="w-8 font-mono text-xs text-[#5d7e91]">SYS.01</div>
+                <button onclick="playUiBeep(); openPanel('menu')" aria-label="Menü" class="bg-[#0a1621] hover:bg-cyan-950/50 text-[#49d7ff] p-2.5 rounded-lg text-sm shadow flex items-center justify-center border border-[rgba(93,209,255,.18)] transition w-10">☰</button>
                 <div>
                     <h1 class="text-2xl font-black text-[#49d7ff] glow-cyan tracking-wider">MEIN ALLTAGS-HELFER</h1>
                     <p id="userNameDisplay" class="text-xs font-bold text-[#49d7ff]/80 tracking-widest uppercase mt-0.5 font-mono">Hallo, Dino!</p>
                 </div>
-                <button onclick="playUiBeep(); switchSection('settings')" class="bg-[#0a1621] hover:bg-cyan-950/50 text-[#49d7ff] p-2.5 rounded-lg text-sm shadow flex items-center justify-center border border-[rgba(93,209,255,.18)] transition">
+                <button onclick="playUiBeep(); openPanel('settings')" class="bg-[#0a1621] hover:bg-cyan-950/50 text-[#49d7ff] p-2.5 rounded-lg text-sm shadow flex items-center justify-center border border-[rgba(93,209,255,.18)] transition">
                     ⚙️
                 </button>
             </div>
@@ -61,15 +61,6 @@
                 </span>
             </div>
         </header>
-
-        <nav class="bg-[#081424]/90 backdrop-blur border-b border-[rgba(93,209,255,.18)] shadow-md sticky top-0 z-50">
-            <div class="flex max-w-md mx-auto px-1 py-2 gap-1 text-xs font-bold uppercase tracking-wider font-mono">
-                <button id="navSpeak" onclick="playUiBeep(); switchSection('speak')" class="flex-1 py-2.5 px-1 rounded-lg bg-[#49d7ff] text-[#050a10] shadow-lg border border-[#49d7ff] transition text-center font-bold">🎙️ Sprechen</button>
-                <button id="navPlanner" onclick="playUiBeep(); switchSection('planner')" class="flex-1 py-2.5 px-1 rounded-lg text-[#5d7e91] hover:bg-[#0a1621] hover:text-[#49d7ff] transition text-center border border-transparent">📅 Planer</button>
-                <button id="navLists" onclick="playUiBeep(); switchSection('lists')" class="flex-1 py-2.5 px-1 rounded-lg text-[#5d7e91] hover:bg-[#0a1621] hover:text-[#49d7ff] transition text-center border border-transparent">📝 Listen</button>
-                <button id="navMemory" onclick="playUiBeep(); switchSection('memory')" class="flex-1 py-2.5 px-1 rounded-lg text-[#5d7e91] hover:bg-[#0a1621] hover:text-[#49d7ff] transition text-center border border-transparent">🧠 Gedächtnis</button>
-            </div>
-        </nav>
 
         <main class="container mx-auto p-4 max-w-md flex-grow flex flex-col space-y-4">
 
@@ -282,7 +273,7 @@
                     </div>
                 </details>
 
-                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
+                <details id="contactsDetails" class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
                     <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
                         <span>📞 Schnell-Anruf Kontakte</span>
                     </summary>
@@ -305,6 +296,19 @@
         </footer>
     </div>
 
+    <!-- Fenster, die ins Bild fliegen (Termine, Erinnerungen, Listen, Einstellungen ...) -->
+    <div id="panelLayer" class="hidden" aria-hidden="true">
+        <div id="panelBackdrop" onclick="closePanel()"></div>
+        <div id="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle" class="hud-panel">
+            <div class="panel-scan"></div>
+            <div class="panel-header">
+                <h2 id="panelTitle" class="text-lg font-bold text-[#49d7ff] uppercase tracking-wide">Fenster</h2>
+                <button onclick="playUiBeep(); closePanel()" aria-label="Schließen" class="panel-close">✕</button>
+            </div>
+            <div id="panelBody"></div>
+        </div>
+    </div>
+
     <!-- Reihenfolge ist wichtig: Jede Datei darf nur Dinge nutzen, die weiter oben geladen wurden. -->
     <script src="./js/ui.js"></script>
     <script src="./js/audio.js"></script>
@@ -312,6 +316,7 @@
     <script src="./js/render.js"></script>
     <script src="./js/lists.js"></script>
     <script src="./js/places.js"></script>
+    <script src="./js/panels.js"></script>
     <script src="./js/calendar.js"></script>
     <script src="./js/sync.js"></script>
     <script src="./js/voice.js"></script>

@@ -281,3 +281,129 @@ h1, h2, .jarvis-font {
 @media (prefers-reduced-motion: reduce) {
     #grid-canvas::before { animation: none; }
 }
+
+/* --- Fenster (panels.js): fliegen ins Bild, Scan-Linie, Zeilen laufen nacheinander ein --- */
+body.panel-open { overflow: hidden; }
+
+#panelLayer {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px));
+}
+#panelLayer.hidden { display: none; }
+
+#panelBackdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(2, 5, 10, .6);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+#panel {
+    position: relative;
+    width: 100%;
+    max-width: 30rem;
+    max-height: 84vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid var(--hairline);
+    background: linear-gradient(180deg, rgba(10, 22, 33, .97), rgba(4, 9, 15, .98));
+    box-shadow: 0 0 34px rgba(73, 215, 255, .28), inset 0 0 22px rgba(73, 215, 255, .07);
+    transform-origin: 50% 100%;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--hairline);
+    flex-shrink: 0;
+}
+.panel-close {
+    color: var(--cyan);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    width: 38px;
+    height: 38px;
+    font-size: 16px;
+    background: rgba(0, 0, 0, .35);
+}
+
+#panelBody {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    flex: 1 1 auto;
+}
+#panelBody > section { padding: 0; }   /* verschobene Bereiche (Listen, Gedächtnis ...) */
+
+.panel-scan {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 2px;
+    z-index: 3;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    box-shadow: 0 0 16px 5px rgba(73, 215, 255, .55);
+}
+
+/* Öffnen: Backdrop blendet ein, das Fenster fliegt von unten heran und richtet sich auf */
+#panelLayer.open #panelBackdrop { animation: panel-backdrop-in .35s ease both; }
+#panelLayer.open #panel { animation: panel-in .65s cubic-bezier(.16, 1, .3, 1) both; }
+#panelLayer.open .panel-scan { animation: panel-scan .95s cubic-bezier(.4, 0, .2, 1) .12s both; }
+#panelLayer.open #panelBody.animate { animation: panel-reveal .95s cubic-bezier(.4, 0, .2, 1) .12s both; }
+#panelBody.animate .panel-row {
+    animation: panel-row-in .55s cubic-bezier(.16, 1, .3, 1) both;
+    animation-delay: calc(var(--i, 0) * 70ms + 300ms);
+}
+
+/* Schließen: schnell wieder nach oben weg */
+#panelLayer.closing #panelBackdrop { animation: panel-backdrop-out .3s ease both; }
+#panelLayer.closing #panel { animation: panel-out .3s cubic-bezier(.5, 0, .75, 0) both; }
+
+@keyframes panel-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes panel-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes panel-in {
+    0%   { opacity: 0; transform: perspective(900px) translateY(110px) rotateX(26deg) scale(.9); filter: blur(7px); }
+    55%  { opacity: 1; filter: blur(0); }
+    100% { opacity: 1; transform: perspective(900px) translateY(0) rotateX(0) scale(1); filter: blur(0); }
+}
+@keyframes panel-out {
+    to { opacity: 0; transform: perspective(900px) translateY(-70px) rotateX(-16deg) scale(.94); filter: blur(5px); }
+}
+@keyframes panel-scan {
+    0%   { top: 0; opacity: 1; }
+    88%  { opacity: 1; }
+    100% { top: calc(100% - 2px); opacity: 0; }
+}
+@keyframes panel-reveal {
+    from { clip-path: inset(0 0 100% 0); }
+    to   { clip-path: inset(0 0 0 0); }
+}
+@keyframes panel-row-in {
+    from { opacity: 0; transform: translateX(-26px); filter: blur(4px); }
+    to   { opacity: 1; transform: none; filter: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #panelLayer.open #panel,
+    #panelLayer.open #panelBackdrop,
+    #panelLayer.closing #panel,
+    #panelLayer.closing #panelBackdrop,
+    #panelLayer.open #panelBody.animate,
+    #panelBody.animate .panel-row { animation: panel-fade .2s ease both; }
+    #panelLayer.open .panel-scan { animation: none; }
+}
+@keyframes panel-fade { from { opacity: 0; } to { opacity: 1; } }
