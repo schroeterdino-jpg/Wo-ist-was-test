@@ -78,7 +78,7 @@ function resolvePanelRange(range, from, to, now = new Date(), defaultRange = 'na
             naechstewoche:  [nextMonday, panelAddDays(nextMonday, 7), 'Nächste Woche'],
             naechste7tage:  [todayStart, panelAddDays(todayStart, 7), 'Nächste 7 Tage'],
             naechste30tage: [todayStart, panelAddDays(todayStart, 30), 'Nächste 30 Tage'],
-            alle:           [todayStart, panelAddDays(todayStart, PANEL_HORIZON_DAYS), 'Alle']
+            alle:           [todayStart, panelAddDays(todayStart, PANEL_HORIZON_DAYS), 'Alle anstehenden']
         };
         const hit = table[key] || table[defaultRange];
         [start, end, title] = hit;

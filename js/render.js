@@ -3,57 +3,36 @@
    Braucht: ui.js, storage.js, lists.js (parseMemoryValue)
    ============================================================ */
 
-function getAssistantOverview() {
-    const now = new Date();
+/* Schlanke Zeile oben: nächster Termin (ohne Geburtstage) und Zahl der anstehenden Erinnerungen */
+function getAssistantOverview(now = new Date()) {
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    let nextCal = "Keine anstehenden Termine";
-    if (calendarEntries && calendarEntries.length > 0) {
-        const validCal = calendarEntries
-            .filter(c => c.isoDate && new Date(c.isoDate) >= now)
-            .sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate));
-        if (validCal.length > 0) {
-            const topCal = validCal[0];
-            const dateFormatted = new Date(topCal.isoDate).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'short' });
-            nextCal = `${topCal.text} (${dateFormatted})`;
-        } else if (calendarEntries[0].text) {
-            nextCal = calendarEntries[0].text;
-        }
+    const next = (calendarEntries || [])
+        .filter(c => c.isoDate && !isBirthdayEntry(c))
+        .map(c => ({ text: c.text, ...parseEventDate(c.isoDate) }))
+        .filter(c => !isNaN(c.date.getTime()) && (c.allDay ? c.date >= todayStart : c.date >= now))
+        .sort((a, b) => a.date - b.date)[0];
+
+    let nextText = 'Keine anstehenden Termine';
+    if (next) {
+        const tag = relativeDayLabel(next.date, todayStart);
+        nextText = next.allDay
+            ? `${next.text}, ${tag}, ganztägig`
+            : `${next.text}, ${tag} ${next.date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' })}`;
     }
 
-    let nextRem = "Keine aktiven Erinnerungen";
-    if (reminderEntries && reminderEntries.length > 0) {
-        const validRem = reminderEntries
-            .filter(r => !r.triggered && r.time && new Date(r.time) >= now)
-            .sort((a, b) => new Date(a.time) - new Date(b.time));
-        if (validRem.length > 0) {
-            const topRem = validRem[0];
-            const remFormatted = new Date(topRem.time).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'short' });
-            nextRem = `${topRem.text} (${remFormatted})`;
-        }
-    }
+    const reminderCount = (reminderEntries || [])
+        .filter(r => !r.triggered && r.time && new Date(r.time) >= now).length;
 
-    return {
-        nextCalendar: nextCal,
-        nextReminder: nextRem,
-        todoCount: todoEntries ? todoEntries.length : 0,
-        shoppingCount: shoppingEntries ? shoppingEntries.length : 0,
-        memoryCount: memoryItems ? Object.keys(memoryItems).length : 0
-    };
+    return { nextText, reminderCount };
 }
 
 function renderAssistantOverview() {
     const ov = getAssistantOverview();
-    const elCal = document.getElementById('ovNextCalendar');
-    const elRem = document.getElementById('ovNextReminder');
-    const elTodos = document.getElementById('ovCountTodos');
-    const elShopping = document.getElementById('ovCountShopping');
-    const elMemory = document.getElementById('ovCountMemory');
-
-    if (elCal) elCal.textContent = ov.nextCalendar;
-    if (elRem) elRem.textContent = ov.nextReminder;
-    if (elTodos) elTodos.textContent = ov.todoCount;
-    if (elShopping) elShopping.textContent = ov.shoppingCount;
-    if (elMemory) elMemory.textContent = ov.memoryCount;
+    const elNext = document.getElementById('ovNext');
+    const elRem = document.getElementById('ovReminders');
+    if (elNext) elNext.textContent = ov.nextText;
+    if (elRem) elRem.textContent = `🔔 ${ov.reminderCount}`;
 }
 
 function escapeHtml(s) {

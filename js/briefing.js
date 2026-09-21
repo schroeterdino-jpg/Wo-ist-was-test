@@ -307,6 +307,17 @@ function isBirthdayEntry(e) {
     return e.eventType === 'birthday' || BIRTHDAY_PATTERN.test(e.text || '');
 }
 
+/* "heute", "morgen", "übermorgen", "am Freitag" oder "am Freitag, 3. Oktober" (für Briefing und Übersichtszeile) */
+function relativeDayLabel(date, todayStart) {
+    const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diff = Math.round((dayStart - todayStart) / 86400000);
+    if (diff <= 0) return 'heute';
+    if (diff === 1) return 'morgen';
+    if (diff === 2) return 'übermorgen';
+    if (diff <= 6) return 'am ' + date.toLocaleDateString('de-DE', { weekday: 'long' });
+    return 'am ' + date.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
 function buildBriefingData(now, weather) {
     const hour = parseInt(now.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', hour12: false }), 10);
     const uhrzeit = now.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
@@ -319,16 +330,7 @@ function buildBriefingData(now, weather) {
     const remindersUntil = new Date(todayStart);
     remindersUntil.setDate(todayStart.getDate() + BRIEFING_REMINDER_DAYS);
 
-    // "heute", "morgen", "übermorgen", "am Freitag" oder "am Freitag, 3. Oktober"
-    const dayLabel = (date) => {
-        const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        const diff = Math.round((dayStart - todayStart) / 86400000);
-        if (diff <= 0) return 'heute';
-        if (diff === 1) return 'morgen';
-        if (diff === 2) return 'übermorgen';
-        if (diff <= 6) return 'am ' + date.toLocaleDateString('de-DE', { weekday: 'long' });
-        return 'am ' + date.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
-    };
+    const dayLabel = (date) => relativeDayLabel(date, todayStart);
     const timeLabel = (date, allDay) => allDay ? 'ganztägig' : formatSpokenTime(date);
 
     // Die nächsten Termine (Geburtstage zählen nicht als Termin)

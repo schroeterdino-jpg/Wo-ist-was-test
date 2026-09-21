@@ -82,22 +82,12 @@ function switchSection(sectionId) {
     openPanel(panel);
 }
 
-function toggleOverviewDetails() {
-    const details = document.getElementById('overviewDetails');
-    const icon = document.getElementById('overviewToggleIcon');
-    if (details.classList.contains('hidden')) {
-        details.classList.remove('hidden');
-        icon.textContent = "▼ Klappen";
-    } else {
-        details.classList.add('hidden');
-        icon.textContent = "▲ Zeigen";
-    }
-}
-
 /* --- Start: Boot-Sound, Terminal-Meldung, erste Darstellung der Listen --- */
 window.addEventListener('DOMContentLoaded', () => {
     playJarvisSound();
     updateTerminalStream("SYS_BOOT: COMPLETE", "ONLINE");
     renderAllLists();
     renderContactList();
+    // Die Übersichtszeile rückt weiter, wenn ein Termin vorbei ist
+    setInterval(() => renderAssistantOverview(), 60000);
 });
