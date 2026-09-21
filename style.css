@@ -121,31 +121,27 @@ h1, h2, .jarvis-font {
     justify-content: center;
 }
 
-.holo-ring {
+/* --- Holografische Ringe als SVG: einmal gezeichnet, danach dreht die Grafikkarte nur noch die fertige Ebene --- */
+.jarvis-scanner-container { --ring-a: #00d2ff; --ring-b: #0066ff; }
+.jarvis-scanner-container.recording { --ring-a: var(--cyan); --ring-b: var(--cyan); }
+.jarvis-scanner-container.speaking { --ring-a: var(--good); --ring-b: var(--good); }
+
+.holo-svg {
     position: absolute;
-    border-radius: 50%;
     pointer-events: none;
-    transition: all 0.5s ease;
+    overflow: visible;
+    will-change: transform;
+    backface-visibility: hidden;
 }
-
-/* --- Angepasste Holografische Blaue Ringe --- */
-.holo-ring-1 {
-    width: 300px;
-    height: 300px;
-    border: 2px dashed #00d2ff;
-    box-shadow: 0 0 15px rgba(0, 210, 255, 0.6), inset 0 0 10px rgba(0, 210, 255, 0.3);
-    animation: spin 12s linear infinite;
-}
-
-.holo-ring-2 {
-    width: 315px;
-    height: 315px;
-    border: 1px solid rgba(0, 102, 255, 0.4);
-    border-top: 2px solid #00d2ff;
-    border-bottom: 2px solid #0066ff;
-    box-shadow: 0 0 20px rgba(0, 210, 255, 0.5);
-    animation: spin-reverse 8s linear infinite;
-}
+.holo-svg-1 { width: 300px; height: 300px; animation: spin 12s linear infinite; }
+.holo-svg-2 { width: 315px; height: 315px; animation: spin-reverse 8s linear infinite; }
+.holo-svg circle, .holo-svg path { fill: none; }
+.holo-svg .ring-a { stroke: var(--ring-a); }
+.holo-svg .ring-b { stroke: var(--ring-b); }
+.holo-svg .ring-base { stroke: rgba(0, 102, 255, .4); }
+.holo-svg .glow { opacity: .2; }
+.jarvis-scanner-container.recording .holo-svg .glow,
+.jarvis-scanner-container.speaking .holo-svg .glow { opacity: .45; }
 
 @keyframes spin {
     from { transform: rotate(0deg); }
@@ -164,20 +160,7 @@ h1, h2, .jarvis-font {
     object-fit: cover;
     border: 1px solid rgba(73, 215, 255, 0.3);
     box-shadow: 0 0 20px rgba(73, 215, 255, 0.2), inset 0 0 15px rgba(73, 215, 255, 0.1);
-    transition: all 0.3s ease;
     z-index: 2;
-}
-
-.jarvis-scanner-container.recording .holo-ring-1,
-.jarvis-scanner-container.recording .holo-ring-2 {
-    border-color: var(--cyan) !important;
-    box-shadow: 0 0 25px rgba(73, 215, 255, 0.8);
-}
-
-.jarvis-scanner-container.speaking .holo-ring-1,
-.jarvis-scanner-container.speaking .holo-ring-2 {
-    border-color: var(--good) !important;
-    box-shadow: 0 0 25px rgba(87, 224, 161, 0.8);
 }
 
 .jarvis-scanner-container.recording #assistant-gif {
@@ -284,8 +267,7 @@ h1, h2, .jarvis-font {
 
 /* --- Fenster (panels.js): fliegen ins Bild, Scan-Linie, Zeilen laufen nacheinander ein --- */
 /* Solange ein Fenster offen ist, stehen die Ring-Animationen dahinter still (weniger Arbeit für die Grafik, kein Flackern) */
-body.panel-open .holo-ring-1,
-body.panel-open .holo-ring-2,
+body.panel-open .holo-svg,
 body.panel-open #waveform span,
 body.panel-open .animate-pulse { animation-play-state: paused !important; }
 
@@ -455,8 +437,7 @@ html[data-fx="off"] #panelLayer.closing #panel,
 html[data-fx="off"] #panelBody.animate .panel-row { animation: panel-fade .15s ease both; }
 html[data-fx="off"] .panel-scan,
 html[data-fx="calm"] .panel-scan { display: none; }
-html[data-fx="off"] .holo-ring-1,
-html[data-fx="off"] .holo-ring-2,
+html[data-fx="off"] .holo-svg,
 html[data-fx="off"] #waveform.speaking span,
 html[data-fx="off"] .jarvis-scanner-container.speaking #waveform span { animation: none !important; }
 html[data-fx="off"] #bg-particles,
@@ -488,3 +469,6 @@ html.nofx-motion *, html.nofx-motion *::before, html.nofx-motion *::after {
     animation: none !important;
     transition: none !important;
 }
+
+/* Stufe "aus": Ringe stehen still (bleiben an ihrer Stelle stehen, springen also nicht zurück) */
+html[data-fx="off"] .holo-svg { animation-play-state: paused !important; }

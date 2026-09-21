@@ -84,8 +84,18 @@
                     <div id="recordBtn" onclick="toggleSpeechRecognition()" class="jarvis-scanner-container flex flex-col items-center justify-center p-3 rounded-xl bg-transparent border-none transition-all cursor-pointer">
                         <div id="reactor-wrap">
                             <div class="holo-container">
-                                <div class="holo-ring holo-ring-1"></div>
-                                <div class="holo-ring holo-ring-2"></div>
+                                <!-- Die zwei Ringe sind Vektorgrafiken: Sie werden einmal gezeichnet und dann nur noch gedreht (kein Flimmern) -->
+                                <svg class="holo-svg holo-svg-1" viewBox="0 0 300 300" aria-hidden="true">
+                                    <circle class="ring-a glow" cx="150" cy="150" r="148" stroke-width="7" stroke-dasharray="9.1 7.5"/>
+                                    <circle class="ring-a" cx="150" cy="150" r="148" stroke-width="2" stroke-dasharray="9.1 7.5"/>
+                                </svg>
+                                <svg class="holo-svg holo-svg-2" viewBox="0 0 315 315" aria-hidden="true">
+                                    <circle class="ring-base" cx="157.5" cy="157.5" r="156" stroke-width="1"/>
+                                    <path class="ring-a glow" d="M 1.5 157.5 A 156 156 0 0 1 313.5 157.5" stroke-width="7"/>
+                                    <path class="ring-b glow" d="M 313.5 157.5 A 156 156 0 0 1 1.5 157.5" stroke-width="7"/>
+                                    <path class="ring-a" d="M 1.5 157.5 A 156 156 0 0 1 313.5 157.5" stroke-width="2"/>
+                                    <path class="ring-b" d="M 313.5 157.5 A 156 156 0 0 1 1.5 157.5" stroke-width="2"/>
+                                </svg>
                                 <img id="assistant-gif" src="./jarvis.gif" alt="J.A.R.V.I.S. Assistant">
                             </div>
                             <div id="waveform" class="active">
