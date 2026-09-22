@@ -1,539 +1,101 @@
 <!DOCTYPE html>
-<html lang="de" class="dark">
+<html lang="de" class="h-full bg-slate-950 text-slate-100">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mein Alltags-Helfer (J.A.R.V.I.S. Edition)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        jarvis: {
-                            black: '#040b14',
-                            dark: '#081424',
-                            card: '#0f2238',
-                            cyan: '#00d2ff',
-                            cyanglow: '#00d2ffaa',
-                            blue: '#0066ff',
-                            amber: '#ffb700',
-                            green: '#00ff66'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <link rel="icon" type="image/png" href="./dino.png">
-    <link rel="apple-touch-icon" href="./dino.png">
-    <link rel="manifest" href="./manifest.json">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#050a10">
-
-    <!-- Effekt-Stufe früh setzen, damit beim Start nichts flackert -->
-    <script>
-        document.documentElement.dataset.fx = (function () { try { return localStorage.getItem('fx_mode') || 'calm'; } catch (e) { return 'calm'; } })();
-        (function () { try { JSON.parse(localStorage.getItem('fx_flags') || '[]').forEach(function (f) { document.documentElement.classList.add('nofx-' + f); }); } catch (e) {} })();
-    </script>
-    <link rel="stylesheet" href="./style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>JARVIS System UI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./style.css">
 </head>
-<body class="bg-[#050a10] text-slate-100 min-h-screen flex flex-col justify-between">
+<body class="h-full flex flex-col justify-between overflow-x-hidden relative bg-black text-cyan-400 font-mono select-none">
 
-    <div class="scanline-overlay"></div>
-    <div id="grid-canvas"></div>
+  <!-- HUD Scanlines & Grid background -->
+  <div class="scanline-overlay pointer-events-none fixed inset-0 z-50"></div>
+  <canvas id="grid-canvas" class="fixed inset-0 pointer-events-none z-0 opacity-40"></canvas>
 
-    <!-- HUD-Zierrahmen und kleine Anzeigen: rein dekorativ, feste Position, liegen hinter den Fenstern -->
-    <div id="hudDecor" class="hud-decor" aria-hidden="true">
-        <div class="hud-corner hud-corner-tl"></div>
-        <div class="hud-corner hud-corner-tr"></div>
-        <div class="hud-corner hud-corner-bl"></div>
-        <div class="hud-corner hud-corner-br"></div>
-        <div class="hud-badge hud-badge-tl">
-            <span class="hud-dot"></span>
-            <span>J.A.R.V.I.S. <span class="hud-badge-sub">ONLINE</span></span>
-        </div>
-        <div class="hud-badge hud-badge-tr">
-            <span id="hudClock">--:--</span>
-            <span id="hudTemp" class="hud-badge-sub"></span>
-        </div>
+  <!-- HEADER / SYS_INIT BAR -->
+  <header class="relative z-10 w-full p-4 flex justify-between items-center border-b border-cyan-500/30 bg-black/60 backdrop-blur-md">
+    <div class="flex items-center gap-2">
+      <span class="inline-block w-3 h-3 bg-cyan-400 rounded-full animate-pulse"></span>
+      <span class="text-xs font-bold tracking-widest text-cyan-400">SYS_INIT: READY</span>
+    </div>
+    <div class="text-xs text-cyan-500/70 tracking-wider" id="clock-display">00:00:00</div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="relative z-10 flex-1 flex flex-col items-center justify-center p-4">
+
+    <!-- TOP BRIEFING / REMINDER BADGE -->
+    <div class="hud-panel p-3 rounded-lg border border-cyan-500/30 bg-slate-900/50 backdrop-blur-sm max-w-sm w-full mb-6 text-center shadow-[0_0_15px_rgba(0,240,255,0.15)]">
+      <div class="text-[10px] text-cyan-500 uppercase tracking-widest mb-1">Status & Briefing</div>
+      <div id="briefing-summary" class="text-xs text-slate-200">Bereit für Spracheingabe...</div>
     </div>
 
-    <div class="app-shell flex flex-col min-h-screen justify-between">
-        <header class="bg-[#081424]/90 backdrop-blur text-white p-4 text-center border-b border-[rgba(93,209,255,.18)] relative shadow-lg">
-            <div class="flex justify-between items-center max-w-md mx-auto">
-                <button onclick="playUiBeep(); openPanel('menu')" aria-label="Menü" class="bg-[#0a1621] hover:bg-cyan-950/50 text-[#49d7ff] p-2.5 rounded-lg text-sm shadow flex items-center justify-center border border-[rgba(93,209,255,.18)] transition w-10">☰</button>
-                <div>
-                    <h1 class="text-base font-black text-[#49d7ff] glow-cyan tracking-wider leading-tight">MEIN<br><span class="whitespace-nowrap">ALLTAGS-HELFER</span></h1>
-                    <p id="userNameDisplay" class="text-xs font-bold text-[#49d7ff]/80 tracking-widest uppercase mt-0.5 font-mono">Hallo, Dino!</p>
-                </div>
-                <button onclick="playUiBeep(); openPanel('settings')" class="bg-[#0a1621] hover:bg-cyan-950/50 text-[#49d7ff] p-2.5 rounded-lg text-sm shadow flex items-center justify-center border border-[rgba(93,209,255,.18)] transition">
-                    ⚙️
-                </button>
-            </div>
-            <div class="mt-2 text-[10px] font-mono text-[#49d7ff]/80 bg-black/60 py-1 px-3 rounded border border-[rgba(93,209,255,.15)] flex justify-between items-center max-w-md mx-auto">
-                <span class="truncate" id="terminalLog">SYS_INIT: READY</span>
-                <span class="flex items-center gap-1.5 shrink-0 pl-2">
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#00ff66] animate-pulse"></span>
-                    <span id="terminalStatus" class="text-slate-400">ONLINE</span>
-                </span>
-            </div>
-        </header>
-
-        <main class="container mx-auto p-4 max-w-md flex-grow flex flex-col space-y-4">
-
-            <section id="sec-speak" class="flex flex-col items-center justify-between space-y-4 my-auto py-2">
-                
-                <!-- Schlanke Übersicht: Tipp links öffnet die Termine, Tipp rechts die Erinnerungen -->
-                <div id="overviewLine" class="w-full flex items-stretch gap-2 font-mono text-xs">
-                    <button onclick="playUiBeep(); overviewTap()" class="flex-1 min-w-0 text-left px-4 py-2.5 rounded-xl bg-[#0a1621]/80 backdrop-blur border border-[rgba(93,209,255,.25)] border-glow-cyan">
-                        <span class="block text-[10px] uppercase tracking-widest text-[#49d7ff]/80">📅 Nächster Termin</span>
-                        <span id="ovNext" class="block text-sm text-slate-100 leading-snug break-words clamp-2">Lädt...</span>
-                    </button>
-                    <button id="ovReminders" onclick="playUiBeep(); openPanel('erinnerungen')" class="shrink-0 px-3 py-3 rounded-xl bg-[#0a1621]/80 backdrop-blur border border-[rgba(255,154,68,.35)] text-[#ff9a44] font-bold" aria-label="Erinnerungen">🔔 0</button>
-                </div>
-
-                <div class="my-auto flex flex-col items-center space-y-4 py-4 w-full">
-                    <div id="recordBtn" onclick="toggleSpeechRecognition()" class="jarvis-scanner-container flex flex-col items-center justify-center p-3 rounded-xl bg-transparent border-none transition-all cursor-pointer">
-                        <div id="reactor-wrap">
-                            <div class="holo-container">
-                                <!-- Die zwei Ringe sind Vektorgrafiken: Sie werden einmal gezeichnet und dann nur noch gedreht (kein Flimmern) -->
-                                <svg class="holo-svg holo-svg-1" viewBox="0 0 300 300" aria-hidden="true">
-                                    <circle class="ring-a glow" cx="150" cy="150" r="148" stroke-width="7" stroke-dasharray="9.1 7.5"/>
-                                    <circle class="ring-a" cx="150" cy="150" r="148" stroke-width="2" stroke-dasharray="9.1 7.5"/>
-                                </svg>
-                                <svg class="holo-svg holo-svg-ticks" viewBox="0 0 330 330" aria-hidden="true">
-                                    <line x1="301.0" y1="165.0" x2="313.0" y2="165.0" class="tick-major"/>
-                                    <line x1="300.3" y1="179.2" x2="312.2" y2="180.5" class="tick-minor"/>
-                                    <line x1="298.0" y1="193.3" x2="309.8" y2="195.8" class="tick-minor"/>
-                                    <line x1="294.3" y1="207.0" x2="305.8" y2="210.7" class="tick-minor"/>
-                                    <line x1="289.2" y1="220.3" x2="300.2" y2="225.2" class="tick-minor"/>
-                                    <line x1="282.8" y1="233.0" x2="293.2" y2="239.0" class="tick-major"/>
-                                    <line x1="275.0" y1="244.9" x2="284.7" y2="252.0" class="tick-minor"/>
-                                    <line x1="266.1" y1="256.0" x2="275.0" y2="264.0" class="tick-minor"/>
-                                    <line x1="256.0" y1="266.1" x2="264.0" y2="275.0" class="tick-minor"/>
-                                    <line x1="244.9" y1="275.0" x2="252.0" y2="284.7" class="tick-minor"/>
-                                    <line x1="233.0" y1="282.8" x2="239.0" y2="293.2" class="tick-major"/>
-                                    <line x1="220.3" y1="289.2" x2="225.2" y2="300.2" class="tick-minor"/>
-                                    <line x1="207.0" y1="294.3" x2="210.7" y2="305.8" class="tick-minor"/>
-                                    <line x1="193.3" y1="298.0" x2="195.8" y2="309.8" class="tick-minor"/>
-                                    <line x1="179.2" y1="300.3" x2="180.5" y2="312.2" class="tick-minor"/>
-                                    <line x1="165.0" y1="301.0" x2="165.0" y2="313.0" class="tick-major"/>
-                                    <line x1="150.8" y1="300.3" x2="149.5" y2="312.2" class="tick-minor"/>
-                                    <line x1="136.7" y1="298.0" x2="134.2" y2="309.8" class="tick-minor"/>
-                                    <line x1="123.0" y1="294.3" x2="119.3" y2="305.8" class="tick-minor"/>
-                                    <line x1="109.7" y1="289.2" x2="104.8" y2="300.2" class="tick-minor"/>
-                                    <line x1="97.0" y1="282.8" x2="91.0" y2="293.2" class="tick-major"/>
-                                    <line x1="85.1" y1="275.0" x2="78.0" y2="284.7" class="tick-minor"/>
-                                    <line x1="74.0" y1="266.1" x2="66.0" y2="275.0" class="tick-minor"/>
-                                    <line x1="63.9" y1="256.0" x2="55.0" y2="264.0" class="tick-minor"/>
-                                    <line x1="55.0" y1="244.9" x2="45.3" y2="252.0" class="tick-minor"/>
-                                    <line x1="47.2" y1="233.0" x2="36.8" y2="239.0" class="tick-major"/>
-                                    <line x1="40.8" y1="220.3" x2="29.8" y2="225.2" class="tick-minor"/>
-                                    <line x1="35.7" y1="207.0" x2="24.2" y2="210.7" class="tick-minor"/>
-                                    <line x1="32.0" y1="193.3" x2="20.2" y2="195.8" class="tick-minor"/>
-                                    <line x1="29.7" y1="179.2" x2="17.8" y2="180.5" class="tick-minor"/>
-                                    <line x1="29.0" y1="165.0" x2="17.0" y2="165.0" class="tick-major"/>
-                                    <line x1="29.7" y1="150.8" x2="17.8" y2="149.5" class="tick-minor"/>
-                                    <line x1="32.0" y1="136.7" x2="20.2" y2="134.2" class="tick-minor"/>
-                                    <line x1="35.7" y1="123.0" x2="24.2" y2="119.3" class="tick-minor"/>
-                                    <line x1="40.8" y1="109.7" x2="29.8" y2="104.8" class="tick-minor"/>
-                                    <line x1="47.2" y1="97.0" x2="36.8" y2="91.0" class="tick-major"/>
-                                    <line x1="55.0" y1="85.1" x2="45.3" y2="78.0" class="tick-minor"/>
-                                    <line x1="63.9" y1="74.0" x2="55.0" y2="66.0" class="tick-minor"/>
-                                    <line x1="74.0" y1="63.9" x2="66.0" y2="55.0" class="tick-minor"/>
-                                    <line x1="85.1" y1="55.0" x2="78.0" y2="45.3" class="tick-minor"/>
-                                    <line x1="97.0" y1="47.2" x2="91.0" y2="36.8" class="tick-major"/>
-                                    <line x1="109.7" y1="40.8" x2="104.8" y2="29.8" class="tick-minor"/>
-                                    <line x1="123.0" y1="35.7" x2="119.3" y2="24.2" class="tick-minor"/>
-                                    <line x1="136.7" y1="32.0" x2="134.2" y2="20.2" class="tick-minor"/>
-                                    <line x1="150.8" y1="29.7" x2="149.5" y2="17.8" class="tick-minor"/>
-                                    <line x1="165.0" y1="29.0" x2="165.0" y2="17.0" class="tick-major"/>
-                                    <line x1="179.2" y1="29.7" x2="180.5" y2="17.8" class="tick-minor"/>
-                                    <line x1="193.3" y1="32.0" x2="195.8" y2="20.2" class="tick-minor"/>
-                                    <line x1="207.0" y1="35.7" x2="210.7" y2="24.2" class="tick-minor"/>
-                                    <line x1="220.3" y1="40.8" x2="225.2" y2="29.8" class="tick-minor"/>
-                                    <line x1="233.0" y1="47.2" x2="239.0" y2="36.8" class="tick-major"/>
-                                    <line x1="244.9" y1="55.0" x2="252.0" y2="45.3" class="tick-minor"/>
-                                    <line x1="256.0" y1="63.9" x2="264.0" y2="55.0" class="tick-minor"/>
-                                    <line x1="266.1" y1="74.0" x2="275.0" y2="66.0" class="tick-minor"/>
-                                    <line x1="275.0" y1="85.1" x2="284.7" y2="78.0" class="tick-minor"/>
-                                    <line x1="282.8" y1="97.0" x2="293.2" y2="91.0" class="tick-major"/>
-                                    <line x1="289.2" y1="109.7" x2="300.2" y2="104.8" class="tick-minor"/>
-                                    <line x1="294.3" y1="123.0" x2="305.8" y2="119.3" class="tick-minor"/>
-                                    <line x1="298.0" y1="136.7" x2="309.8" y2="134.2" class="tick-minor"/>
-                                    <line x1="300.3" y1="150.8" x2="312.2" y2="149.5" class="tick-minor"/>
-                                </svg>
-                                <svg class="holo-svg holo-svg-2" viewBox="0 0 315 315" aria-hidden="true">
-                                    <circle class="ring-base" cx="157.5" cy="157.5" r="156" stroke-width="1"/>
-                                    <path class="ring-a glow" d="M 1.5 157.5 A 156 156 0 0 1 313.5 157.5" stroke-width="7"/>
-                                    <path class="ring-b glow" d="M 313.5 157.5 A 156 156 0 0 1 1.5 157.5" stroke-width="7"/>
-                                    <path class="ring-a" d="M 1.5 157.5 A 156 156 0 0 1 313.5 157.5" stroke-width="2"/>
-                                    <path class="ring-b" d="M 313.5 157.5 A 156 156 0 0 1 1.5 157.5" stroke-width="2"/>
-                                </svg>
-                                <svg id="reactorCore" class="reactor-core" viewBox="0 0 220 220" aria-hidden="true">
-                                    <defs>
-                                        <radialGradient id="reactorGlow" cx="50%" cy="50%" r="55%">
-                                            <stop offset="0%" stop-color="#ffffff"/>
-                                            <stop offset="35%" stop-color="#bdf3ff"/>
-                                            <stop offset="72%" stop-color="#49d7ff"/>
-                                            <stop offset="100%" stop-color="#0a2733" stop-opacity="0"/>
-                                        </radialGradient>
-                                    </defs>
-                                    <g class="reactor-housing">
-                    <polygon points="210.0,113.2 210.0,106.8 228.0,106.8 228.0,113.2" class="reactor-fin"/>
-                    <polygon points="198.7,156.3 201.5,150.5 217.7,158.3 214.9,164.1" class="reactor-fin"/>
-                    <polygon points="169.8,190.2 174.9,186.2 186.1,200.3 181.1,204.3" class="reactor-fin"/>
-                    <polygon points="129.1,208.2 135.4,206.8 139.4,224.3 133.1,225.8" class="reactor-fin"/>
-                    <polygon points="84.6,206.8 90.9,208.2 86.9,225.8 80.6,224.3" class="reactor-fin"/>
-                    <polygon points="45.1,186.2 50.2,190.2 38.9,204.3 33.9,200.3" class="reactor-fin"/>
-                    <polygon points="18.5,150.5 21.3,156.3 5.1,164.1 2.3,158.3" class="reactor-fin"/>
-                    <polygon points="10.0,106.8 10.0,113.2 -8.0,113.2 -8.0,106.8" class="reactor-fin"/>
-                    <polygon points="21.3,63.7 18.5,69.5 2.3,61.7 5.1,55.9" class="reactor-fin"/>
-                    <polygon points="50.2,29.8 45.1,33.8 33.9,19.7 38.9,15.7" class="reactor-fin"/>
-                    <polygon points="90.9,11.8 84.6,13.2 80.6,-4.3 86.9,-5.8" class="reactor-fin"/>
-                    <polygon points="135.4,13.2 129.1,11.8 133.1,-5.8 139.4,-4.3" class="reactor-fin"/>
-                    <polygon points="174.9,33.8 169.8,29.8 181.1,15.7 186.1,19.7" class="reactor-fin"/>
-                    <polygon points="201.5,69.5 198.7,63.7 214.9,55.9 217.7,61.7" class="reactor-fin"/>
-                                    </g>
-                                    <circle cx="110" cy="110" r="102" class="reactor-housing-ring"/>
-                                    <circle cx="110" cy="110" r="92" class="reactor-outline"/>
-                                    <circle cx="110" cy="110" r="86" class="reactor-glow-disc" fill="url(#reactorGlow)"/>
-                                    <g class="reactor-pattern">
-                                        <polygon points="110,32 180,150 40,150" class="reactor-tri reactor-tri-a"/>
-                                        <polygon points="110,188 40,70 180,70" class="reactor-tri reactor-tri-b"/>
-                                    </g>
-                                    <circle cx="110" cy="110" r="13" class="reactor-core-dot"/>
-                                </svg>
-                            </div>
-                            <div id="waveform" class="active">
-                                <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="hudSubtitleBox" class="w-full bg-[#0a1621]/90 backdrop-blur rounded-lg p-3 border border-[rgba(93,209,255,.25)] border-glow-cyan font-mono text-xs text-center min-h-[48px] flex items-center justify-center text-[#49d7ff] transition-all">
-                        <span id="hudSubtitleText" class="tracking-wide">System bereit. Warte auf Spracheingabe...</span>
-                    </div>
-
-                    <span id="recordText" class="font-mono text-xs tracking-widest text-[#49d7ff]">J.A.R.V.I.S. / BEREIT</span>
-                    <p id="statusMessage" class="text-center font-semibold text-[#49d7ff] h-6 tracking-wide text-sm font-mono">Klicken zum Sprechen...</p>
-                </div>
-
-                <div id="actionCards" class="w-full space-y-2"></div>
-
-                <button onclick="playUiBeep(); triggerDailyBriefing()" class="w-full bg-gradient-to-r from-cyan-950 to-blue-900 hover:from-cyan-900 hover:to-blue-800 text-white py-3.5 px-4 rounded-xl shadow-lg font-bold text-base flex items-center justify-center gap-2 border border-[#49d7ff]/50 uppercase tracking-wider transition font-mono">
-                    🌅 Tages-Briefing starten
-                </button>
-            </section>
-
-            <section id="sec-planner" class="hidden space-y-4">
-                <div class="bg-[#0a1621]/90 backdrop-blur p-5 rounded-xl shadow-lg border border-[rgba(93,209,255,.18)] hud-panel">
-                    <h2 class="text-lg font-bold text-[#49d7ff] mb-3 uppercase tracking-wide border-b border-[rgba(93,209,255,.18)] pb-2">📅 Termine (14 Tage):</h2>
-                    <ul id="calendarList" class="space-y-2 text-base font-mono text-xs">
-                        <li class="text-slate-500 italic">Keine Termine eingetragen.</li>
-                    </ul>
-                </div>
-
-                <div class="bg-[#0a1621]/90 backdrop-blur p-5 rounded-xl shadow-lg border border-[rgba(93,209,255,.18)] space-y-3 hud-panel">
-                    <div class="flex justify-between items-center border-b border-[rgba(93,209,255,.18)] pb-2">
-                        <h2 class="text-lg font-bold text-[#49d7ff] uppercase tracking-wide">🔔 Aktive Erinnerungen:</h2>
-                        <button onclick="playUiBeep(); requestNotificationPermission()" class="bg-[#081424] hover:bg-cyan-900 text-[#49d7ff] border border-[rgba(93,209,255,.3)] text-xs px-2.5 py-1.5 rounded-lg font-semibold uppercase font-mono">Erlauben</button>
-                    </div>
-                    <div class="flex flex-col gap-2 font-mono">
-                        <input type="text" id="manualReminderText" placeholder="Was soll erinnert werden?" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-[#49d7ff]">
-                        <input type="datetime-local" id="manualReminderTime" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                    </div>
-                    <button onclick="playUiBeep(); addManualReminder()" class="w-full bg-[#49d7ff]/20 hover:bg-[#49d7ff]/30 text-[#49d7ff] border border-[#49d7ff] py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider shadow font-mono">Erinnerung speichern</button>
-                    <ul id="reminderList" class="space-y-2 text-sm mt-3 font-mono text-xs">
-                        <li class="text-slate-500 italic">Keine aktiven Erinnerungen.</li>
-                    </ul>
-                </div>
-            </section>
-
-            <section id="sec-lists" class="hidden space-y-4">
-                <div class="bg-[#0a1621]/90 backdrop-blur p-5 rounded-xl shadow-lg border border-[rgba(93,209,255,.18)] space-y-3 hud-panel">
-                    <h2 class="text-lg font-bold text-[#49d7ff] uppercase tracking-wide border-b border-[rgba(93,209,255,.18)] pb-2">📝 Aufgaben & Notizen:</h2>
-                    <div class="flex gap-2 font-mono">
-                        <input type="text" id="manualTodoInput" placeholder="Neue Aufgabe..." class="flex-grow p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-[#49d7ff]">
-                        <button onclick="playUiBeep(); addManualTodo()" class="bg-[#49d7ff] text-[#050a10] px-4 py-2 rounded-lg text-lg font-bold">＋</button>
-                    </div>
-                    <ul id="todoList" class="space-y-2 text-base mt-2 font-mono text-xs">
-                        <li class="text-slate-500 italic">Keine offenen To-Dos.</li>
-                    </ul>
-                </div>
-
-                <div class="bg-[#0a1621]/90 backdrop-blur p-5 rounded-xl shadow-lg border border-[rgba(93,209,255,.18)] space-y-3 hud-panel">
-                    <h2 class="text-lg font-bold text-[#49d7ff] uppercase tracking-wide border-b border-[rgba(93,209,255,.18)] pb-2">🛒 Einkaufsliste:</h2>
-                    <div class="flex gap-2 font-mono">
-                        <input type="text" id="manualShoppingInput" placeholder="Artikel hinzufügen..." class="flex-grow p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-[#49d7ff]">
-                        <button onclick="playUiBeep(); addManualShoppingItem()" class="bg-[#ff9a44] text-[#050a10] px-4 py-2 rounded-lg text-lg font-bold">＋</button>
-                    </div>
-                    <ul id="shoppingList" class="space-y-2 text-base mt-2 font-mono text-xs">
-                        <li class="text-slate-500 italic">Einkaufsliste ist leer.</li>
-                    </ul>
-                </div>
-            </section>
-
-            <section id="sec-memory" class="hidden space-y-4">
-                <div class="bg-[#0a1621]/90 backdrop-blur p-5 rounded-xl shadow-lg border border-[rgba(93,209,255,.18)] space-y-3 hud-panel">
-                    <div class="flex justify-between items-center border-b border-[rgba(93,209,255,.18)] pb-2">
-                        <h2 class="text-lg font-bold text-[#49d7ff] uppercase tracking-wide">🧠 Digitales Gedächtnis:</h2>
-                        <button onclick="playUiBeep(); clearAllMemory()" class="bg-cyan-950 hover:bg-cyan-900 border border-[rgba(93,209,255,.3)] text-[#49d7ff] px-2.5 py-1 rounded-lg text-xs font-bold uppercase font-mono">🗑️ Leeren</button>
-                    </div>
-                    <p class="text-xs text-[#5d7e91] font-mono">Erzähl mir beliebige Fakten, Orte oder Notizen (z.B. „Der Ersatzschlüssel hängt am Klemmbrett").</p>
-                    
-                    <div class="flex flex-col gap-2 pt-1 font-mono">
-                        <div class="flex gap-2">
-                            <input type="text" id="manualMemoryKeyInput" placeholder="Begriff..." class="w-1/3 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-[#49d7ff]">
-                            <input type="text" id="manualMemoryValInput" placeholder="Ort/Wert..." class="w-2/3 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-[#49d7ff]">
-                        </div>
-                        <button onclick="playUiBeep(); addManualMemoryItem()" class="w-full bg-[#49d7ff]/20 text-[#49d7ff] border border-[#49d7ff] py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider shadow">Gedächtnis-Eintrag speichern</button>
-                    </div>
-
-                    <div id="categoryContainer" class="space-y-2 text-sm bg-black p-3 rounded-lg border border-[rgba(93,209,255,.2)] max-h-80 overflow-y-auto mt-2 font-mono text-xs">
-                        <p class="text-slate-500 italic text-xs">Noch nichts im Gedächtnis gespeichert.</p>
-                    </div>
-                </div>
-                <div class="bg-[#0a1621]/90 backdrop-blur p-5 rounded-xl shadow-lg border border-[rgba(93,209,255,.18)] space-y-3 hud-panel">
-                    <h2 class="text-lg font-bold text-[#49d7ff] uppercase tracking-wide border-b border-[rgba(93,209,255,.18)] pb-2">🌅 Briefing-Wünsche:</h2>
-                    <p class="text-xs text-[#5d7e91] font-mono">Sag zum Beispiel: „Erwähne im Briefing immer, dass ich die Tabletten nehmen soll." Oder trag es hier ein.</p>
-                    <div class="flex gap-2 font-mono">
-                        <input type="text" id="manualBriefingInput" placeholder="Neuer Wunsch..." class="flex-grow p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-[#49d7ff]">
-                        <button onclick="playUiBeep(); addManualBriefingWish()" class="bg-[#49d7ff] text-[#050a10] px-4 py-2 rounded-lg text-lg font-bold">＋</button>
-                    </div>
-                    <ul id="briefingList" class="space-y-2 mt-2 font-mono text-xs">
-                        <li class="text-slate-500 italic">Keine Wünsche eingetragen.</li>
-                    </ul>
-                </div>
-                <div class="bg-[#0a1621]/90 backdrop-blur p-5 rounded-xl shadow-lg border border-[rgba(93,209,255,.18)] space-y-3 hud-panel">
-                    <h2 class="text-lg font-bold text-[#49d7ff] uppercase tracking-wide border-b border-[rgba(93,209,255,.18)] pb-2">🚗 Parkplatz:</h2>
-                    <p class="text-xs text-[#5d7e91] font-mono">Sag: „Merk dir, wo ich geparkt habe." Später fragst du: „Wo habe ich geparkt?"</p>
-                    <div id="parkingBox" class="font-mono text-xs space-y-2">
-                        <p class="text-slate-500 italic">Kein Parkplatz gespeichert.</p>
-                    </div>
-                    <button onclick="playUiBeep(); saveParkingManual()" class="w-full bg-[#49d7ff]/20 text-[#49d7ff] border border-[#49d7ff] py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider shadow font-mono">📍 Hier geparkt speichern</button>
-                </div>
-                <div class="bg-[#0a1621]/90 backdrop-blur p-5 rounded-xl shadow-lg border border-[rgba(93,209,255,.18)] space-y-3 hud-panel">
-                    <h2 class="text-lg font-bold text-[#49d7ff] uppercase tracking-wide border-b border-[rgba(93,209,255,.18)] pb-2">🏠 Heimatadresse:</h2>
-                    <p class="text-xs text-[#5d7e91] font-mono">Sag: „Merk dir meine Heimatadresse: Musterstraße 5, Musterstadt." Später sagst du: „Bring mich nach Hause." Wird nie automatisch überschrieben.</p>
-                    <div id="homeBox" class="font-mono text-xs space-y-2">
-                        <p class="text-slate-500 italic">Keine Heimatadresse gespeichert.</p>
-                    </div>
-                    <div class="flex gap-2 font-mono">
-                        <input type="text" id="homeAddressInput" placeholder="Straße, Hausnummer, Ort..." autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                    </div>
-                    <button onclick="playUiBeep(); saveHomeManual()" class="w-full bg-[#49d7ff]/20 text-[#49d7ff] border border-[#49d7ff] py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider shadow font-mono">🏠 Adresse speichern</button>
-                </div>
-            </section>
-
-            <section id="sec-settings" class="hidden space-y-3 font-mono">
-                <h2 class="text-xl font-bold text-[#49d7ff] px-1 uppercase tracking-wider">⚙️ Einstellungen</h2>
-
-                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden" open>
-                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
-                        <span>👤 Profil & Anrede</span>
-                    </summary>
-                    <div class="p-4 space-y-3">
-                        <div>
-                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Wie soll ich dich nennen?:</label>
-                            <input type="text" id="userNameInput" placeholder="Dein Name..." class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                        </div>
-                    </div>
-                </details>
-
-                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
-                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
-                        <span>🔊 Stimme & Gespräch</span>
-                    </summary>
-                    <div class="p-4 space-y-3">
-                        <div>
-                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Stimme:</label>
-                            <select id="voiceSelect" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                                <option value="">Automatisch</option>
-                            </select>
-                        </div>
-                        <button onclick="playUiBeep(); testVoice()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Stimme testen</button>
-                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer pt-1">
-                            <input type="checkbox" id="conversationModeToggle" class="w-5 h-5 accent-[#49d7ff]">
-                            <span>Gesprächsmodus: nach jeder Antwort weiterhören</span>
-                        </label>
-                    </div>
-                </details>
-
-                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
-                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
-                        <span>✨ Effekte</span>
-                    </summary>
-                    <div class="p-4 space-y-3">
-                        <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Animationen:</label>
-                        <select id="fxSelect" onchange="applyFxMode(this.value)" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                            <option value="calm">Ruhig (empfohlen)</option>
-                            <option value="full">Voll (mit Unschärfe und mehr Bewegung)</option>
-                            <option value="off">Aus (Ringe und Hintergrund stehen still)</option>
-                        </select>
-                        <p class="text-xs text-[#5d7e91]">Flackert es auf deinem Handy, nimm „Ruhig" oder „Aus". Die Einstellung gilt nur für dieses Gerät.</p>
-                    </div>
-                </details>
-
-                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
-                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
-                        <span>🔧 Flacker-Test</span>
-                    </summary>
-                    <div class="p-4 space-y-3">
-                        <p class="text-xs text-[#5d7e91]">Schalte Effekte einzeln aus und schau, wann das Flackern aufhört. Sag mir dann, welcher Schalter es war. Gilt nur für dieses Gerät.</p>
-                        <div class="flex gap-2">
-                            <button onclick="playUiBeep(); setAllFxFlags(true)" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Alles aus</button>
-                            <button onclick="playUiBeep(); setAllFxFlags(false)" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Alles an</button>
-                        </div>
-                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
-                            <input type="checkbox" data-fxflag="gif" onchange="setFxFlag('gif', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
-                            <span>Ring-Bild als Standbild</span>
-                        </label>
-                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
-                            <input type="checkbox" data-fxflag="scan" onchange="setFxFlag('scan', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
-                            <span>Streifen-Muster über dem Bild aus</span>
-                        </label>
-                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
-                            <input type="checkbox" data-fxflag="glow" onchange="setFxFlag('glow', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
-                            <span>Leuchten und Schatten aus</span>
-                        </label>
-                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
-                            <input type="checkbox" data-fxflag="bg" onchange="setFxFlag('bg', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
-                            <span>Hintergrund aus (Punkte und Raster)</span>
-                        </label>
-                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
-                            <input type="checkbox" data-fxflag="pulse" onchange="setFxFlag('pulse', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
-                            <span>Pulsierende Punkte und Balken aus</span>
-                        </label>
-                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
-                            <input type="checkbox" data-fxflag="motion" onchange="setFxFlag('motion', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
-                            <span>Alle Bewegungen aus (Ringe stehen, keine Übergänge)</span>
-                        </label>
-                    </div>
-                </details>
-
-                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
-                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
-                        <span>🔑 Schnittstellen & Konten</span>
-                    </summary>
-                    <div class="p-4 space-y-3">
-                        <div>
-                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Google Client-ID:</label>
-                            <input type="text" id="googleClientIdInput" placeholder="Client ID..." class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                        </div>
-                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)]">
-                            <button onclick="playUiBeep(); loginWithGoogle(false)" class="w-full bg-[#49d7ff] text-[#050a10] hover:bg-[#49d7ff]/80 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2">
-                                📅 Mit Google Kalender verbinden
-                            </button>
-                        </div>
-                        <p id="connectionStatus" class="text-xs text-[#5d7e91] font-medium break-all"></p>
-                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)]">
-                            <button onclick="playUiBeep(); document.getElementById('diagToolsBox').classList.toggle('hidden')" class="w-full bg-slate-900 hover:bg-slate-800 text-[#5d7e91] py-2 rounded-lg text-xs font-bold border border-slate-700 uppercase tracking-wide">🔧 Diagnose-Werkzeuge (nur bei Problemen)</button>
-                        </div>
-                        <div id="diagToolsBox" class="hidden space-y-3">
-                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Kalender-Suche testen (Suchbegriff):</label>
-                                <input type="text" id="calendarDiagInput" value="Helmut" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                                <button onclick="playUiBeep(); runCalendarDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🔍 Kalender prüfen</button>
-                                <pre id="calendarDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                            </div>
-                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Internet-Suche testen (Frage):</label>
-                                <input type="text" id="webDiagInput" value="Was läuft heute Abend im Fernsehen?" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                                <button onclick="playUiBeep(); runWebDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🌐 Internet prüfen</button>
-                                <pre id="webDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                            </div>
-                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Gmail testen (nur lesen, ungelesene E-Mails):</label>
-                                <button onclick="playUiBeep(); runGmailDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">📧 Gmail prüfen</button>
-                                <pre id="gmailDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                            </div>
-                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Fahrzeit testen (Ziel):</label>
-                                <input type="text" id="travelDiagInput" value="Hans-Dewitz-Ring" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                                <button onclick="playUiBeep(); runTravelDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🚗 Route prüfen</button>
-                                <pre id="travelDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                            </div>
-                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Restaurants in der Nähe testen (Küche, optional):</label>
-                                <input type="text" id="nearbyDiagInput" placeholder="z.B. Chinesisch, leer = alle" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                                <button onclick="playUiBeep(); runNearbyDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🍽️ Restaurants prüfen</button>
-                                <pre id="nearbyDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                            </div>
-                        </div>
-                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Datensicherung:</label>
-                            <p class="text-xs text-[#5d7e91] font-mono">Speichert Listen, Termine, Gedächtnis, Parkplatz und Heimatadresse als Datei. Auch per Sprache: „Sichere meine Daten."</p>
-                            <button onclick="playUiBeep(); exportAllData()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">💾 Daten sichern (Download)</button>
-                            <input type="file" id="backupRestoreInput" accept="application/json" class="hidden" onchange="handleImportFile(this)">
-                            <button onclick="playUiBeep(); document.getElementById('backupRestoreInput').click()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">📂 Sicherung wiederherstellen</button>
-                        </div>
-                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">App-Code (schützt deine Schnittstellen):</label>
-                            <input type="password" id="appSecretInput" placeholder="Geheimer App-Code..." autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                            <button onclick="playUiBeep(); syncNow(true)" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">☁️ Jetzt synchronisieren</button>
-                            <p id="syncStatus" class="text-xs text-[#5d7e91] font-medium break-all">Synchronisierung: noch nicht gestartet.</p>
-                        </div>
-                    </div>
-                </details>
-
-                <details id="contactsDetails" class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
-                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
-                        <span>📞 Schnell-Anruf Kontakte</span>
-                    </summary>
-                    <div class="p-4 space-y-3">
-                        <div class="flex gap-2">
-                            <input type="text" id="contactNameInput" placeholder="Name..." class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                            <input type="text" id="contactPhoneInput" placeholder="Nummer..." class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                        </div>
-                        <button onclick="playUiBeep(); saveContact()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Kontakt hinzufügen</button>
-                        <div id="contactListDisplay" class="mt-2 text-xs text-[#5d7e91] space-y-1"></div>
-                    </div>
-                </details>
-            </section>
-
-        </main>
-
-        <footer class="bg-[#081424]/90 backdrop-blur border-t border-[rgba(93,209,255,.18)] text-center p-3 text-xs text-[#49d7ff]/80 flex justify-between items-center px-6 font-mono">
-            <span>J.A.R.V.I.S. HUD SHELL</span>
-            <span class="font-bold">v13.1 (Marvel Edition)</span>
-        </footer>
+    <!-- CENTER ARC REACTOR / JARVIS ORB BUTTON -->
+    <div class="relative flex flex-col items-center justify-center my-4">
+      <button id="orb-button" onclick="if(typeof toggleVoiceInput === 'function') toggleVoiceInput();" class="relative group outline-none focus:outline-none border-none bg-transparent cursor-pointer">
+        <!-- Pulse Rings behind Orb -->
+        <div class="absolute -inset-4 rounded-full bg-cyan-500/20 blur-md group-hover:bg-cyan-400/30 transition-all duration-300 pointer-events-none"></div>
+        
+        <!-- Animated JARVIS Orb GIF -->
+        <img src="./jarvis-orb.gif" alt="JARVIS Orb" class="relative z-10 w-36 h-36 md:w-44 md:h-44 object-cover rounded-full border-2 border-cyan-400/50 shadow-[0_0_25px_rgba(0,240,255,0.5)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95">
+      </button>
+      
+      <div class="text-xs text-cyan-400/80 mt-4 tracking-widest uppercase animate-pulse">
+        [ Zum Sprechen tippen ]
+      </div>
     </div>
 
-    <!-- Fenster, die ins Bild fliegen (Termine, Erinnerungen, Listen, Einstellungen ...) -->
-    <div id="panelLayer" class="hidden" aria-hidden="true">
-        <div id="panelBackdrop" onclick="closePanel()"></div>
-        <div id="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle" class="hud-panel">
-            <div class="panel-scan"></div>
-            <div class="panel-header">
-                <h2 id="panelTitle" class="text-lg font-bold text-[#49d7ff] uppercase tracking-wide">Fenster</h2>
-                <button onclick="playUiBeep(); closePanel()" aria-label="Schließen" class="panel-close">✕</button>
-            </div>
-            <div id="panelBody"></div>
-        </div>
-    </div>
+    <!-- DYNAMIC PANELS & SECTIONS LAYER -->
+    <section id="sec-planner" class="hidden w-full max-w-md my-2"></section>
+    <section id="sec-lists" class="hidden w-full max-w-md my-2"></section>
+    <section id="sec-memory" class="hidden w-full max-w-md my-2"></section>
+    <section id="sec-settings" class="hidden w-full max-w-md my-2"></section>
 
-    <!-- Reihenfolge ist wichtig: Jede Datei darf nur Dinge nutzen, die weiter oben geladen wurden. -->
-    <script src="./js/ui.js"></script>
-    <script src="./js/audio.js"></script>
-    <script src="./js/storage.js"></script>
-    <script src="./js/render.js"></script>
-    <script src="./js/lists.js"></script>
-    <script src="./js/places.js"></script>
-    <script src="./js/panels.js"></script>
-    <script src="./js/calendar.js"></script>
-    <script src="./js/mail.js"></script>
-    <script src="./js/travel.js"></script>
-    <script src="./js/nearby.js"></script>
-    <script src="./js/sync.js"></script>
-    <script src="./js/voice.js"></script>
-    <script src="./js/briefing.js"></script>
-    <script src="./js/assistant.js"></script>
-    <script src="./js/background.js"></script>
-    <script src="./js/matrix.js"></script>
+  </main>
+
+  <!-- SYSTEM CHECK HUD MONITOR (Unten Rechts) -->
+  <aside id="system-check-widget" class="fixed bottom-4 right-4 z-40 pointer-events-none flex flex-col items-end">
+    <div class="hud-panel p-1.5 rounded border border-cyan-500/40 bg-black/75 backdrop-blur-md shadow-[0_0_12px_rgba(0,240,255,0.2)]">
+      <img src="./system-check.gif" alt="System Check" class="w-28 md:w-36 h-auto opacity-85 rounded-xs">
+      <div class="text-[9px] font-mono text-cyan-400 mt-1 text-right tracking-widest uppercase px-1">
+        SYS_MONITOR // ONLINE
+      </div>
+    </div>
+  </aside>
+
+  <!-- OVERLAY PANEL LAYER -->
+  <div id="panelLayer" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div id="panel" class="hud-panel w-full max-w-lg p-6 rounded-lg border border-cyan-500/50 bg-slate-900 text-slate-100 relative max-h-[85vh] overflow-y-auto">
+      <!-- Dynamic Panel Content Loaded Here -->
+    </div>
+  </div>
+
+  <!-- JS MODULE SCRIPTS -->
+  <script src="./js/ui.js"></script>
+  <script src="./js/storage.js"></script>
+  <script src="./js/audio.js"></script>
+  <script src="./js/voice.js"></script>
+  <script src="./js/assistant.js"></script>
+  <script src="./js/background.js"></script>
+  <script src="./js/briefing.js"></script>
+  <script src="./js/calendar.js"></script>
+  <script src="./js/lists.js"></script>
+  <script src="./js/nearby.js"></script>
+  <script src="./js/places.js"></script>
+  <script src="./js/render.js"></script>
+  <script src="./js/travel.js"></script>
+  <script src="./js/panels.js"></script>
+
+  <!-- Clock Script -->
+  <script>
+    function updateClock() {
+      const now = new Date();
+      const el = document.getElementById('clock-display');
+      if (el) el.innerText = now.toLocaleTimeString('de-DE');
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+  </script>
 </body>
 </html>
