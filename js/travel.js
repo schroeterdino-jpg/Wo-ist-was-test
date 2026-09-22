@@ -9,27 +9,27 @@ const TRAVEL_BUFFER_MINUTES = 10;   // Puffer, damit man nicht auf die Minute ge
 
 async function geocodeAddress(address) {
     try {
-        const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address);
-        const res = await fetch(url, { headers: { 'Accept-Language': 'de' } });
+        const res = await apiFetch('/api/geocode?q=' + encodeURIComponent(address));
         if (!res.ok) return null;
         const data = await res.json();
         if (!data || !data[0]) return null;
         return { lat: Number(data[0].lat), lon: Number(data[0].lon) };
     } catch (e) {
+        if (e && e.auth) throw e;
         return null;
     }
 }
 
 async function routeDurationSeconds(fromLat, fromLon, toLat, toLon) {
     try {
-        const url = `https://router.project-osrm.org/route/v1/driving/${fromLon},${fromLat};${toLon},${toLat}?overview=false`;
-        const res = await fetch(url);
+        const res = await apiFetch(`/api/route?fromLat=${fromLat}&fromLon=${fromLon}&toLat=${toLat}&toLon=${toLon}`);
         if (!res.ok) return null;
         const data = await res.json();
         const r = data && data.routes && data.routes[0];
         if (!r) return null;
         return { seconds: r.duration, meters: r.distance };
     } catch (e) {
+        if (e && e.auth) throw e;
         return null;
     }
 }
