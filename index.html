@@ -206,6 +206,17 @@
                     </div>
                     <button onclick="playUiBeep(); saveParkingManual()" class="w-full bg-[#49d7ff]/20 text-[#49d7ff] border border-[#49d7ff] py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider shadow font-mono">📍 Hier geparkt speichern</button>
                 </div>
+                <div class="bg-[#0a1621]/90 backdrop-blur p-5 rounded-xl shadow-lg border border-[rgba(93,209,255,.18)] space-y-3 hud-panel">
+                    <h2 class="text-lg font-bold text-[#49d7ff] uppercase tracking-wide border-b border-[rgba(93,209,255,.18)] pb-2">🏠 Heimatadresse:</h2>
+                    <p class="text-xs text-[#5d7e91] font-mono">Sag: „Merk dir meine Heimatadresse: Musterstraße 5, Musterstadt." Später sagst du: „Bring mich nach Hause." Wird nie automatisch überschrieben.</p>
+                    <div id="homeBox" class="font-mono text-xs space-y-2">
+                        <p class="text-slate-500 italic">Keine Heimatadresse gespeichert.</p>
+                    </div>
+                    <div class="flex gap-2 font-mono">
+                        <input type="text" id="homeAddressInput" placeholder="Straße, Hausnummer, Ort..." autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                    </div>
+                    <button onclick="playUiBeep(); saveHomeManual()" class="w-full bg-[#49d7ff]/20 text-[#49d7ff] border border-[#49d7ff] py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider shadow font-mono">🏠 Adresse speichern</button>
+                </div>
             </section>
 
             <section id="sec-settings" class="hidden space-y-3 font-mono">
