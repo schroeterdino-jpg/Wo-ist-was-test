@@ -66,7 +66,7 @@ function formatEmailFallback(data) {
 }
 
 /* Solche Fragen gehen immer an die Internet-Suche */
-const WEB_TRIGGER = /fernseh|tv[- ]?programm|tv[- ]?tipp|was läuft|kinoprogramm|im kino|kinofilm|streaming[- ]?tipp/i;
+const WEB_TRIGGER = /fernseh|tv[- ]?programm|tv[- ]?tipp|was läuft|kinoprogramm|im kino|kinofilm|streaming[- ]?tipp|paket|sendungsnummer|sendungsverfolgung|paketverfolgung/i;
 
 /* Ersatzantwort, falls die KI beim zweiten Durchgang ausfällt */
 function formatCalendarSearchFallback(results) {
@@ -341,6 +341,9 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'home_save') {
         saveHomeAddress(String(action.home_address || '').trim());
         updateTerminalStream("HOME: SAVED");
+    } else if (action.type === 'backup_export') {
+        exportAllData();
+        updateTerminalStream("BACKUP: EXPORTED");
     } else if (action.type === 'parking_clear') {
         if (!parkingSpot) throw userError('Es ist kein Parkplatz gespeichert.');
         clearParkingSpot(false);
@@ -470,7 +473,7 @@ async function sendToGroqSmart(text) {
     "Aktueller Kontext: " + JSON.stringify(contextData) + "\n\n" +
     "WICHTIG: Ehrlichkeit bei Aktionen:\n" +
     "- Melde nur dann, dass etwas erledigt, hinzugefügt, gelöscht, geändert oder notiert ist, wenn du dafür in 'actions' die passende Aktion angelegt hast. Ohne Aktion ändert sich nichts.\n" +
-    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; Termine, Erinnerungen und Listen in einem Fenster anzeigen ('show_panel'); im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; E-Mails prüfen und vorlesen ('email_check', 'email_read'); im Internet nachschlagen ('web_lookup': Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse und andere aktuelle Fakten); den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern. Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
+    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; Termine, Erinnerungen und Listen in einem Fenster anzeigen ('show_panel'); im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; E-Mails prüfen und vorlesen ('email_check', 'email_read'); die Abfahrtszeit für einen Termin berechnen ('travel_time'); alle Daten als Datei sichern ('backup_export'); im Internet nachschlagen ('web_lookup': Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse und andere aktuelle Fakten); den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern. Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
     "- Zum Löschen, Ändern oder Leeren von Einkaufsliste, Aufgaben, Gedächtnis und Kontakten nutze IMMER 'list_edit'. Zum Hinzufügen darfst du weiterhin 'shopping', 'todo' und 'memory_store' nutzen.\n" +
     "- 'list_edit': 'list_name' ist 'einkauf', 'aufgaben', 'gedaechtnis' oder 'kontakte'. 'list_op' ist 'add', 'remove', 'clear' oder 'replace'. 'list_items' ist eine Liste von Texten: bei Einkauf und Aufgaben die Einträge, beim Gedächtnis der Begriff, bei Kontakten der Name. 'list_new_value' brauchst du bei 'replace' (neuer Text, neuer Wert bzw. neue Nummer) und beim Hinzufügen zum Gedächtnis (der Wert) oder zu den Kontakten (die Telefonnummer). Nimm die Einträge so, wie sie im Kontext stehen.\n\n" +
     "WICHTIG für Fragen nach Terminen und Geburtstagen im Kalender:\n" +
@@ -501,7 +504,16 @@ async function sendToGroqSmart(text) {
     "- Fragt der User, ob er E-Mails hat, oder bittet um eine Übersicht ('Habe ich E-Mails?', 'Was ist Neues im Postfach?'), nutze 'email_check'. Ohne andere Angabe gilt nur ungelesen; will er ausdrücklich alle/gelesene sehen, setze 'email_unread_only' auf false. Sucht er nach einem Absender oder Wort, setze es in 'email_query'.\n" +
     "- Bittet der User, eine E-Mail vorzulesen ('lies mir die erste vor', 'lies die von Peter vor', 'was steht in der E-Mail von der Bank'), nutze 'email_read' mit 'email_ref' = die Nummer aus der zuletzt gezeigten Liste (z.B. '1' für die erste) oder der Name/das Stichwort, das der User nennt. Ohne vorherige Übersicht in diesem Gespräch frag ihn stattdessen, ob du zuerst nachsehen sollst, oder nutze 'email_check'.\n" +
     "- Schreibe in 'reply' nur 'Ich schaue nach.'. Die eigentliche Antwort wird automatisch aus den echten Daten ergänzt. Erfinde niemals Absender, Betreffs oder Inhalte von E-Mails.\n\n" +
+    "WICHTIG für die Abfahrtszeit ('Wann muss ich losfahren?', 'Wie lange dauert die Fahrt zu ...'):\n" +
+    "- Nutze 'travel_time'. Drei Fälle:\n" +
+    "  1) Der User nennt einen Termin aus seinem Kalender (z.B. 'wann muss ich zum Zahnarzt los'): 'travel_query' = Stichwort des Termins.\n" +
+    "  2) Ohne jede Angabe ('Wann muss ich losfahren?'): weder 'travel_query' noch 'travel_destination' setzen; es wird automatisch der nächste anstehende Termin mit hinterlegtem Ort genommen.\n" +
+    "  3) Der User nennt ein Ziel, das kein Termin aus seinem Kalender ist (eine Adresse, ein Ort, ein Name wie 'Hans-Dewitz-Ring'): 'travel_destination' = genau dieses Ziel als Text. Nennt er dazu eine Ankunftszeit ('ich muss um 14 Uhr da sein', 'bis 14 Uhr'), setze 'travel_arrival_time' im Format 'HH:MM' (24-Stunden). Ohne Ankunftszeit wird nur die Fahrzeit genannt, ohne Abfahrtsempfehlung.\n" +
+    "- Schreibe in 'reply' nur 'Ich schaue nach.'; die genaue Antwort mit Uhrzeiten wird automatisch berechnet.\n\n" +
+    "WICHTIG für Datensicherung:\n" +
+    "- Sagt der User 'Sichere meine Daten' oder 'Exportiere meine Daten', nutze 'backup_export'. Das lädt eine Datei mit allen Listen, Terminen, dem Gedächtnis, Parkplatz und der Heimatadresse herunter.\n\n" +
     "WICHTIG für Fragen nach aktuellem Wissen aus dem Internet:\n" +
+    "- Fragt der User nach einem Paket oder einer Sendung ('Wo ist mein Paket?', 'Sendungsnummer ...'), nutze 'web_lookup' mit der Sendungsnummer (falls genannt) und dem Paketdienst (falls genannt, z.B. DHL) in 'web_query'.\n" +
     "- Braucht die Frage aktuelle Informationen aus dem Internet (Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse, aktuelle Fakten), nutze die Aktion 'web_lookup' mit 'web_query' = kurze Suchanfrage auf Deutsch, z.B. 'Fernsehprogramm heute Abend Horrorfilme Actionfilme'. Bei Fragen nach Fernsehen, Filmen oder Serien nimm die Vorlieben aus dem Gedächtnis (z.B. Genres) in die Suchanfrage auf. Schreibe in 'reply' nur 'Ich schaue nach.'. Die Antwort wird danach automatisch ergänzt. Erfinde niemals selbst Sendungen, Sender oder Uhrzeiten.\n\n" +
     "WICHTIG für die Anrede:\n" +
     "- Der Name des Users ist im Kontext dieser Anweisung angegeben. Sagt der User 'Nenn mich X' oder 'Sprich mich mit X an', nutze die Aktion 'name_change' mit 'new_name' = X. Sagt er 'Hör auf, mich Sir zu nennen' oder 'Nenn mich nicht Sir', nutze 'name_change' mit 'new_name' = 'Dino'. Nach einer Änderung sprichst du ihn so an, wie er es wünscht.\n\n" +
@@ -533,13 +545,13 @@ async function sendToGroqSmart(text) {
     "Gib IMMER ein valides JSON-Objekt zurück mit folgenden Feldern:\n" +
     "- reply: Kurze, trockene J.A.R.V.I.S.-Antwort ohne Markdown, meist ein Satz, höchstens zwei. Aktionen bestätigst du knapp (z.B. 'Erledigt.' oder 'Notiert.'). Nur beim Vorlesen von Listen (Einkauf, Termine, Aufgaben) darf die Antwort länger sein.\n" +
     "- actions: Liste (Array) der auszuführenden Aktionen. Jede Aktion ist ein Objekt mit dem Feld 'type' und den dazu passenden Feldern (siehe unten). Bei reiner Unterhaltung, Auskünften oder dem Vorlesen von Listen ist 'actions' eine leere Liste.\n" +
-    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"home_save\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\", \"web_lookup\", \"email_check\", \"email_read\"\n" +
+    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"home_save\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\", \"web_lookup\", \"email_check\", \"email_read\", \"travel_time\", \"backup_export\"\n" +
     "Die folgenden Felder gehören in die jeweilige Aktion, nicht auf die oberste Ebene:\n" +
     "- calendar_text: (bei calendar oder calendar_update) Titel des Termins.\n" +
     "- calendar_time: (bei calendar oder calendar_update) ISO-Zeitstempel.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_ref.";
+    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_ref, travel_query, travel_destination, travel_arrival_time.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -590,7 +602,7 @@ async function sendToGroqSmart(text) {
         let okCount = 0;
         const errors = [];
         for (const action of actions) {
-            if (action.type === 'calendar_search' || action.type === 'web_lookup' || action.type === 'email_check' || action.type === 'email_read') continue; // kommen gleich
+            if (action.type === 'calendar_search' || action.type === 'web_lookup' || action.type === 'email_check' || action.type === 'email_read' || action.type === 'travel_time') continue; // kommen gleich
             try {
                 await executeAction(action, text, ctx);
                 okCount++;
@@ -641,6 +653,26 @@ async function sendToGroqSmart(text) {
             }
         }
 
+        // Abfahrtszeit berechnen ("Wann muss ich losfahren?")
+        let travelReply = null;
+        const travelAction = actions.find(a => a.type === 'travel_time');
+        if (travelAction) {
+            typeWriterStatus("Berechne Fahrzeit...");
+            updateTerminalStream("API_FETCH: ROUTE", "FETCHING");
+            try {
+                const res = await computeDepartureAdvice({
+                    query: travelAction.travel_query || '',
+                    destination: travelAction.travel_destination || '',
+                    arrivalTime: travelAction.travel_arrival_time || ''
+                });
+                travelReply = res.reply;
+                ctx.cards.push(res.card);
+            } catch (e) {
+                travelReply = e.userMessage || 'Die Fahrzeit konnte gerade nicht berechnet werden.';
+                if (e.verbindung === 'getrennt' && !ctx.cards.some(c => c.onclick === 'loginWithGoogle(false)')) ctx.cards.push(googleReconnectCard());
+            }
+        }
+
         // Internet-Auskunft (Fernsehprogramm, Nachrichten ...): eigener Aufruf mit Websuche
         let webReply = null;
         const webAction = actions.find(a => a.type === 'web_lookup');
@@ -651,7 +683,7 @@ async function sendToGroqSmart(text) {
             if (!webReply) webReply = "Die Suche im Internet hat gerade nicht geklappt. Versuchen Sie es bitte gleich noch einmal.";
         }
 
-        let replyText = searchReply || webReply || emailReply || ai.reply;
+        let replyText = searchReply || webReply || emailReply || travelReply || ai.reply;
         if (!replyText) {
             if (wantsSearch) {
                 const results = searchMemory((searchAction && searchAction.memory_search_query) || text);

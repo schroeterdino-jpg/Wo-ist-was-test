@@ -77,6 +77,58 @@ let briefingWishes = JSON.parse(getPersistentData('helfer_briefing_wishes', '[]'
 let parkingSpot = JSON.parse(getPersistentData('helfer_parking', 'null')) || null;
 let homeAddress = getPersistentData('helfer_home_address', '') || '';
 
+/* --- Datensicherung: alles als Datei herunterladen bzw. wieder einlesen --- */
+function exportAllData() {
+    const data = {
+        version: 1,
+        exportiert_am: new Date().toISOString(),
+        currentUserName, calendarEntries, reminderEntries, shoppingEntries, todoEntries,
+        memoryItems, savedContacts, briefingWishes, parkingSpot, homeAddress
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `alltags-helfer-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function importAllData(jsonText) {
+    let data;
+    try { data = JSON.parse(jsonText); } catch (e) { throw userError('Die Datei ist keine gültige Sicherung (kein lesbares JSON).'); }
+    if (!data || typeof data !== 'object') throw userError('Die Datei ist keine gültige Sicherung.');
+
+    if (Array.isArray(data.calendarEntries)) { calendarEntries = data.calendarEntries; setPersistentData('helfer_calendar_entries', JSON.stringify(calendarEntries)); }
+    if (Array.isArray(data.reminderEntries)) { reminderEntries = data.reminderEntries; setPersistentData('helfer_reminders', JSON.stringify(reminderEntries)); }
+    if (Array.isArray(data.shoppingEntries)) { shoppingEntries = data.shoppingEntries; setPersistentData('helfer_shopping', JSON.stringify(shoppingEntries)); }
+    if (Array.isArray(data.todoEntries)) { todoEntries = data.todoEntries; setPersistentData('helfer_todo_entries', JSON.stringify(todoEntries)); }
+    if (data.memoryItems && typeof data.memoryItems === 'object') { memoryItems = data.memoryItems; setPersistentData('helfer_memory', JSON.stringify(memoryItems)); }
+    if (data.savedContacts && typeof data.savedContacts === 'object') { savedContacts = data.savedContacts; setPersistentData('helfer_contacts', JSON.stringify(savedContacts)); }
+    if (Array.isArray(data.briefingWishes)) { briefingWishes = data.briefingWishes; setPersistentData('helfer_briefing_wishes', JSON.stringify(briefingWishes)); }
+    if (data.parkingSpot && typeof data.parkingSpot === 'object') { parkingSpot = data.parkingSpot; setPersistentData('helfer_parking', JSON.stringify(parkingSpot)); }
+    if (typeof data.homeAddress === 'string') { homeAddress = data.homeAddress; setPersistentData('helfer_home_address', homeAddress); }
+    if (typeof data.currentUserName === 'string' && data.currentUserName.trim()) { currentUserName = data.currentUserName; setPersistentData('user_custom_name', currentUserName); }
+
+    if (typeof renderAllLists === 'function') renderAllLists();
+}
+
+async function handleImportFile(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    try {
+        const text = await file.text();
+        importAllData(text);
+        alert('Die Sicherung wurde wiederhergestellt.');
+    } catch (e) {
+        alert(e.userMessage || 'Die Sicherung konnte nicht eingelesen werden.');
+    } finally {
+        input.value = '';
+    }
+}
+
 /* --- Gesprächsverlauf (nur für die laufende Sitzung; von briefing.js und assistant.js genutzt) --- */
 let chatHistory = [];
 
