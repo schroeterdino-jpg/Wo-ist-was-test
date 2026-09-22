@@ -29,6 +29,9 @@ async function answerWithCalendarResults(messages, firstAi, results) {
     }
 }
 
+/* Solche Fragen gehen immer an die Internet-Suche */
+const WEB_TRIGGER = /fernseh|tv[- ]?programm|tv[- ]?tipp|was läuft|kinoprogramm|im kino|kinofilm|streaming[- ]?tipp/i;
+
 /* Ersatzantwort, falls die KI beim zweiten Durchgang ausfällt */
 function formatCalendarSearchFallback(results) {
     const parts = results.map(r => {
@@ -39,6 +42,118 @@ function formatCalendarSearchFallback(results) {
         return `Zu „${r.suchbegriff}" habe ich im Kalender nichts gefunden${r.hinweis ? ' (' + r.hinweis + ')' : ''}`;
     });
     return parts.join('. ') + '.';
+}
+
+/* ---- Internet-Auskunft (Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten ...) ----
+   Zweiter, eigener KI-Aufruf mit der eingebauten Websuche von Groq. Die Vorlieben aus dem Gedächtnis werden mitgegeben. */
+function cleanWebAnswer(raw) {
+    let t = String(raw || '')
+        .replace(/【[^】]*】/g, '')                 // Quellenmarker der Websuche
+        .replace(/https?:\/\/\S+/g, '')             // Links werden nicht vorgelesen
+        .replace(/\[\d+\]/g, '')
+        .replace(/[*_`#>|]+/g, ' ')                 // Markdown
+        .replace(/^\s*[-•]\s+/gm, '')               // Aufzählungszeichen
+        .replace(/\s*\n+\s*/g, '. ')
+        .replace(/\.\s*\./g, '.')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    if (t.length > 900) {                           // zu lang zum Vorlesen: am Satzende kürzen
+        const cut = t.slice(0, 900);
+        const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+        t = end > 300 ? cut.slice(0, end + 1) : cut;
+    }
+    return t;
+}
+
+function buildWebSearchBody(userText, query) {
+    const now = new Date();
+    const today = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' });
+    const memory = JSON.stringify(memoryItems || {});
+    const system = "Du bist J.A.R.V.I.S., der persönliche Butler von " + currentUserName + ". Antworte auf Deutsch, höflich, knapp und trocken. " +
+        "Nutze die Websuche, um die Frage mit aktuellen Informationen zu beantworten. Heute ist " + today + ". " +
+        "Das Gedächtnis des Users (seine Vorlieben und Notizen, als JSON): " + memory + ". " +
+        "Bei Fragen nach Fernsehprogramm, Filmen, Serien oder Kino wählst du nur Sendungen aus, die zu seinen Vorlieben im Gedächtnis passen (zum Beispiel Genres), und nennst höchstens drei mit Sender und Uhrzeit. " +
+        "Steht nichts Passendes im Gedächtnis, nenne die Highlights des Abends. " +
+        "Schreibe Uhrzeiten ausgeschrieben, zum Beispiel '20 Uhr 15'. Schreibe ohne Markdown, ohne Aufzählungszeichen, ohne Links und ohne Quellenangaben, höchstens vier kurze Sätze, weil deine Antwort laut vorgelesen wird. " +
+        "Erfinde nichts. Findest du nichts Verlässliches, sage das ehrlich.";
+    return {
+        model: "openai/gpt-oss-120b",
+        tools: [{ type: "browser_search" }],
+        reasoning_effort: "low",
+        messages: [
+            { role: "system", content: system },
+            { role: "user", content: String(userText) + ((query && query !== userText) ? "\n(Suchanfrage: " + query + ")" : '') }
+        ]
+    };
+}
+
+async function answerWithWebSearch(userText, query) {
+    try {
+        const res = await apiFetch('/api/groq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildWebSearchBody(userText, query))
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+        const cleaned = cleanWebAnswer(content);
+        return cleaned || null;
+    } catch (e) {
+        if (e && e.auth) throw e;
+        console.error("Internet-Auskunft fehlgeschlagen", e);
+        return null;
+    }
+}
+
+/* Internet-Test für die Einstellungen: zeigt, was zwischen App, Server und Groq wirklich passiert */
+async function diagnoseWebSearch(query, log) {
+    const q = String(query || '').trim() || 'Was läuft heute Abend im Fernsehen?';
+    log('Frage: ' + q);
+    log('Bitte warten, die Suche kann bis zu einer Minute dauern ...');
+    const started = Date.now();
+    let res;
+    try {
+        res = await apiFetch('/api/groq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildWebSearchBody(q, ''))
+        });
+    } catch (e) {
+        log('❌ ' + ((e && e.userMessage) ? e.userMessage : 'Keine Verbindung zum Server.'));
+        return;
+    }
+    const secs = ((Date.now() - started) / 1000).toFixed(1);
+    const raw = await res.text();
+    log(`Antwort nach ${secs} Sekunden, Status ${res.status}`);
+    let data = null;
+    try { data = JSON.parse(raw); } catch (e) { /* kein JSON */ }
+    if (!data) {
+        log('❌ Die Antwort war kein JSON: ' + raw.slice(0, 150).replace(/\s+/g, ' '));
+        if (res.status === 504 || /timeout|FUNCTION_INVOCATION/i.test(raw)) log('→ Vermutlich Zeitüberschreitung bei Vercel (Suche dauert zu lange).');
+        return;
+    }
+    if (!res.ok || data.error) {
+        const em = data.error && (data.error.message || data.error);
+        log('❌ Fehler: ' + String(em || res.status).slice(0, 300));
+        return;
+    }
+    const choice = (data.choices && data.choices[0]) || {};
+    const msg = choice.message || {};
+    const used = Array.isArray(msg.executed_tools) ? msg.executed_tools.length : null;
+    log(used === null ? 'Websuche benutzt: nicht erkennbar' : (used > 0 ? `✅ Websuche wurde ${used}-mal benutzt` : '❌ Die KI hat die Websuche NICHT benutzt'));
+    const content = cleanWebAnswer(msg.content);
+    log(content ? '✅ Antwort: ' + content.slice(0, 500) : '❌ Die Antwort war leer' + (choice.finish_reason ? ' (Grund: ' + choice.finish_reason + ')' : ''));
+    log('Fertig.');
+}
+
+async function runWebDiagnosis() {
+    const out = document.getElementById('webDiagOutput');
+    const input = document.getElementById('webDiagInput');
+    const lines = [];
+    const log = (t) => { lines.push(t); if (out) { out.textContent = lines.join('\n'); out.classList.remove('hidden'); } };
+    try { await diagnoseWebSearch(input ? input.value : '', log); }
+    catch (e) { log('❌ Unerwarteter Fehler: ' + (e && e.message ? e.message : e)); }
 }
 
 /* Der Google Kalender war nicht verbunden: Die Änderung gilt nur in der App. Das sagt J.A.R.V.I.S. ehrlich und zeigt die Karte zum Verbinden. */
@@ -315,7 +430,7 @@ async function sendToGroqSmart(text) {
     "Aktueller Kontext: " + JSON.stringify(contextData) + "\n\n" +
     "WICHTIG: Ehrlichkeit bei Aktionen:\n" +
     "- Melde nur dann, dass etwas erledigt, hinzugefügt, gelöscht, geändert oder notiert ist, wenn du dafür in 'actions' die passende Aktion angelegt hast. Ohne Aktion ändert sich nichts.\n" +
-    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; Termine, Erinnerungen und Listen in einem Fenster anzeigen ('show_panel'); im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern. Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
+    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; Termine, Erinnerungen und Listen in einem Fenster anzeigen ('show_panel'); im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; im Internet nachschlagen ('web_lookup': Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse und andere aktuelle Fakten); den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern. Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
     "- Zum Löschen, Ändern oder Leeren von Einkaufsliste, Aufgaben, Gedächtnis und Kontakten nutze IMMER 'list_edit'. Zum Hinzufügen darfst du weiterhin 'shopping', 'todo' und 'memory_store' nutzen.\n" +
     "- 'list_edit': 'list_name' ist 'einkauf', 'aufgaben', 'gedaechtnis' oder 'kontakte'. 'list_op' ist 'add', 'remove', 'clear' oder 'replace'. 'list_items' ist eine Liste von Texten: bei Einkauf und Aufgaben die Einträge, beim Gedächtnis der Begriff, bei Kontakten der Name. 'list_new_value' brauchst du bei 'replace' (neuer Text, neuer Wert bzw. neue Nummer) und beim Hinzufügen zum Gedächtnis (der Wert) oder zu den Kontakten (die Telefonnummer). Nimm die Einträge so, wie sie im Kontext stehen.\n\n" +
     "WICHTIG für Fragen nach Terminen und Geburtstagen im Kalender:\n" +
@@ -340,6 +455,8 @@ async function sendToGroqSmart(text) {
     "- Will der User etwas dauerhaft im Briefing genannt haben (z.B. 'Erwähne im Briefing immer, dass ich die Tabletten nehmen soll' oder 'Sag mir im Briefing auch, wo mein Ladekabel ist'), nutze die Aktion 'briefing_add'. Ist es ein Gegenstand aus dem Gedächtnis, gib den Begriff in 'briefing_item' an, er wird dann immer mit seinem Platz genannt. Ist es ein anderer Hinweis oder eine Bitte, formuliere ihn als kurzen Satz in 'briefing_text', so wie er im Briefing gesagt werden soll (z.B. 'Denken Sie an Ihre Tabletten.'). Bedingungen wie 'nur montags' gehören in den Satz (z.B. 'Montags: Die Mülltonne rausstellen.').\n" +
     "- Will der User etwas wieder aus dem Briefing nehmen, nutze 'briefing_delete' mit einem Suchbegriff in 'briefing_query'.\n" +
     "- Die aktuellen Briefing-Wünsche stehen im Kontext unter 'briefing_wuensche'. Fragt der User, was im Briefing steht, zähle sie mit dem Typ 'chat' auf.\n\n" +
+    "WICHTIG für Fragen nach aktuellem Wissen aus dem Internet:\n" +
+    "- Braucht die Frage aktuelle Informationen aus dem Internet (Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse, aktuelle Fakten), nutze die Aktion 'web_lookup' mit 'web_query' = kurze Suchanfrage auf Deutsch, z.B. 'Fernsehprogramm heute Abend Horrorfilme Actionfilme'. Bei Fragen nach Fernsehen, Filmen oder Serien nimm die Vorlieben aus dem Gedächtnis (z.B. Genres) in die Suchanfrage auf. Schreibe in 'reply' nur 'Ich schaue nach.'. Die Antwort wird danach automatisch ergänzt. Erfinde niemals selbst Sendungen, Sender oder Uhrzeiten.\n\n" +
     "WICHTIG für die Anrede:\n" +
     "- Der Name des Users ist im Kontext dieser Anweisung angegeben. Sagt der User 'Nenn mich X' oder 'Sprich mich mit X an', nutze die Aktion 'name_change' mit 'new_name' = X. Sagt er 'Hör auf, mich Sir zu nennen' oder 'Nenn mich nicht Sir', nutze 'name_change' mit 'new_name' = 'Dino'. Nach einer Änderung sprichst du ihn so an, wie er es wünscht.\n\n" +
     "WICHTIG für Datumsangaben:\n" +
@@ -370,13 +487,13 @@ async function sendToGroqSmart(text) {
     "Gib IMMER ein valides JSON-Objekt zurück mit folgenden Feldern:\n" +
     "- reply: Kurze, trockene J.A.R.V.I.S.-Antwort ohne Markdown, meist ein Satz, höchstens zwei. Aktionen bestätigst du knapp (z.B. 'Erledigt.' oder 'Notiert.'). Nur beim Vorlesen von Listen (Einkauf, Termine, Aufgaben) darf die Antwort länger sein.\n" +
     "- actions: Liste (Array) der auszuführenden Aktionen. Jede Aktion ist ein Objekt mit dem Feld 'type' und den dazu passenden Feldern (siehe unten). Bei reiner Unterhaltung, Auskünften oder dem Vorlesen von Listen ist 'actions' eine leere Liste.\n" +
-    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\"\n" +
+    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\", \"web_lookup\"\n" +
     "Die folgenden Felder gehören in die jeweilige Aktion, nicht auf die oberste Ebene:\n" +
     "- calendar_text: (bei calendar oder calendar_update) Titel des Termins.\n" +
     "- calendar_time: (bei calendar oder calendar_update) ISO-Zeitstempel.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to.";
+    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -406,6 +523,15 @@ async function sendToGroqSmart(text) {
             ? ai.actions.filter(a => a && typeof a === 'object')
             : [ai];
 
+        // Fragen nach Fernsehen, Kino usw. werden IMMER im Internet nachgeschlagen, auch wenn die KI behauptet, sie hätte keinen Zugriff
+        if (WEB_TRIGGER.test(text) && !actions.some(a => a.type === 'web_lookup') &&
+            actions.every(a => !a.type || a.type === 'chat' || a.type === 'memory_search')) {
+            actions.length = 0;
+            actions.push({ type: 'web_lookup', web_query: text });
+            ai.reply = 'Ich schaue nach.';
+            chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: ai.reply, actions }) };
+        }
+
         // Gedächtnis-Suche nur, wenn die KI es so will, oder wenn sie nur geantwortet hat
         // und der Satz nach einer Suche klingt. Echte Aufträge (Erinnerung, Termin ...) gehen vor.
         const onlyChat = actions.every(a => !a.type || a.type === 'chat');
@@ -418,7 +544,7 @@ async function sendToGroqSmart(text) {
         let okCount = 0;
         const errors = [];
         for (const action of actions) {
-            if (action.type === 'calendar_search') continue; // kommt gleich
+            if (action.type === 'calendar_search' || action.type === 'web_lookup') continue; // kommen gleich
             try {
                 await executeAction(action, text, ctx);
                 okCount++;
@@ -443,7 +569,17 @@ async function sendToGroqSmart(text) {
             searchReply = await answerWithCalendarResults(messagesPayload, ai, results) || formatCalendarSearchFallback(results);
         }
 
-        let replyText = searchReply || ai.reply;
+        // Internet-Auskunft (Fernsehprogramm, Nachrichten ...): eigener Aufruf mit Websuche
+        let webReply = null;
+        const webAction = actions.find(a => a.type === 'web_lookup');
+        if (webAction && !searchReply) {
+            typeWriterStatus("Durchsuche das Internet...");
+            updateTerminalStream("API_FETCH: WEB_SEARCH", "FETCHING");
+            webReply = await answerWithWebSearch(text, webAction.web_query || '');
+            if (!webReply) webReply = "Die Suche im Internet hat gerade nicht geklappt. Versuchen Sie es bitte gleich noch einmal.";
+        }
+
+        let replyText = searchReply || webReply || ai.reply;
         if (!replyText) {
             if (wantsSearch) {
                 const results = searchMemory((searchAction && searchAction.memory_search_query) || text);
