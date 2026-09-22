@@ -338,6 +338,19 @@
                             <pre id="gmailDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
                         </div>
                         <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Fahrzeit testen (Ziel):</label>
+                            <input type="text" id="travelDiagInput" value="Hans-Dewitz-Ring" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                            <button onclick="playUiBeep(); runTravelDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🚗 Route prüfen</button>
+                            <pre id="travelDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
+                        </div>
+                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Datensicherung:</label>
+                            <p class="text-xs text-[#5d7e91] font-mono">Speichert Listen, Termine, Gedächtnis, Parkplatz und Heimatadresse als Datei. Auch per Sprache: „Sichere meine Daten."</p>
+                            <button onclick="playUiBeep(); exportAllData()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">💾 Daten sichern (Download)</button>
+                            <input type="file" id="backupRestoreInput" accept="application/json" class="hidden" onchange="handleImportFile(this)">
+                            <button onclick="playUiBeep(); document.getElementById('backupRestoreInput').click()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">📂 Sicherung wiederherstellen</button>
+                        </div>
+                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
                             <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">App-Code (schützt deine Schnittstellen):</label>
                             <input type="password" id="appSecretInput" placeholder="Geheimer App-Code..." autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
                             <button onclick="playUiBeep(); syncNow(true)" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">☁️ Jetzt synchronisieren</button>
@@ -392,6 +405,7 @@
     <script src="./js/panels.js"></script>
     <script src="./js/calendar.js"></script>
     <script src="./js/mail.js"></script>
+    <script src="./js/travel.js"></script>
     <script src="./js/sync.js"></script>
     <script src="./js/voice.js"></script>
     <script src="./js/briefing.js"></script>
