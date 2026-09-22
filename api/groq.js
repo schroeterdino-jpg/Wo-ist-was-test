@@ -1,3 +1,6 @@
+// Die Internet-Suche kann länger dauern: Vercel darf diese Funktion bis zu 60 Sekunden laufen lassen
+export const config = { maxDuration: 60 };
+
 export default async function handler(req, res) {
   // --- Schutz: nur die App mit dem richtigen Code darf diese Schnittstelle nutzen ---
   const expected = process.env.APP_SECRET;
@@ -22,7 +25,13 @@ export default async function handler(req, res) {
       body: JSON.stringify(req.body)
     });
 
-    const data = await response.json();
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      return res.status(502).json({ error: 'Groq antwortete nicht mit JSON: ' + text.slice(0, 200) });
+    }
     return res.status(response.status).json(data);
   } catch (err) {
     return res.status(500).json({ error: 'Proxy-Fehler: ' + err.message });
