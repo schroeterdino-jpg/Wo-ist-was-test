@@ -157,3 +157,67 @@ async function computeDepartureAdvice(opts) {
         card: { icon: '🚗', title: 'Route zu ' + target.titel, subtitle, href: buildMapsLink(target.ort, '', 'driving') }
     };
 }
+
+/* --- Fahrzeit-Test für die Einstellungen: zeigt Schritt für Schritt, woran es liegt --- */
+async function diagnoseTravel(destination, log) {
+    const dest = String(destination || '').trim() || 'Hans-Dewitz-Ring';
+    log('Ziel: ' + dest);
+
+    log('Standort wird ermittelt ...');
+    const loc = await fetchUserLocationData();
+    if (!loc || loc.fehler || loc.latitude === undefined) {
+        log('❌ Standort nicht verfügbar: ' + (loc && loc.fehler ? loc.fehler : 'unbekannter Fehler') + '. Ist der Standortzugriff im Browser erlaubt?');
+        return;
+    }
+    log(`✅ Standort: ${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}${loc.ort ? ' (' + loc.ort + ')' : ''}`);
+
+    log('Adress-Suche wird aufgerufen (/api/geocode) ...');
+    let res;
+    try {
+        res = await apiFetch('/api/geocode?q=' + encodeURIComponent(dest));
+    } catch (e) {
+        log('❌ ' + (e && e.userMessage ? e.userMessage : 'Keine Verbindung zum Server.'));
+        return;
+    }
+    const rawGeo = await res.text();
+    log(`Antwort: Status ${res.status}`);
+    let geoData;
+    try { geoData = JSON.parse(rawGeo); } catch (e) {
+        log('❌ Die Antwort war kein JSON: ' + rawGeo.slice(0, 200).replace(/\s+/g, ' '));
+        return;
+    }
+    if (!res.ok) { log('❌ Fehler: ' + (geoData.error || JSON.stringify(geoData)).toString().slice(0, 250)); return; }
+    if (!geoData[0]) { log('❌ Keine Adresse gefunden für "' + dest + '".'); return; }
+    const dLat = Number(geoData[0].lat), dLon = Number(geoData[0].lon);
+    log(`✅ Adresse gefunden: ${dLat}, ${dLon}`);
+
+    log('Fahrzeit wird berechnet (/api/route) ...');
+    let res2;
+    try {
+        res2 = await apiFetch(`/api/route?fromLat=${loc.latitude}&fromLon=${loc.longitude}&toLat=${dLat}&toLon=${dLon}`);
+    } catch (e) {
+        log('❌ ' + (e && e.userMessage ? e.userMessage : 'Keine Verbindung zum Server.'));
+        return;
+    }
+    const rawRoute = await res2.text();
+    log(`Antwort: Status ${res2.status}`);
+    let routeData;
+    try { routeData = JSON.parse(rawRoute); } catch (e) {
+        log('❌ Die Antwort war kein JSON: ' + rawRoute.slice(0, 200).replace(/\s+/g, ' '));
+        return;
+    }
+    if (!res2.ok) { log('❌ Fehler: ' + (routeData.error || JSON.stringify(routeData)).toString().slice(0, 250)); return; }
+    const r = routeData.routes && routeData.routes[0];
+    if (!r) { log('❌ Keine Route gefunden. Antwort: ' + JSON.stringify(routeData).slice(0, 250)); return; }
+    log(`✅ Fahrzeit: ${Math.round(r.duration / 60)} Minuten, ${(r.distance / 1000).toFixed(1)} km`);
+    log('Fertig.');
+}
+
+async function runTravelDiagnosis() {
+    const out = document.getElementById('travelDiagOutput');
+    const input = document.getElementById('travelDiagInput');
+    const lines = [];
+    const log = (t) => { lines.push(t); if (out) { out.textContent = lines.join('\n'); out.classList.remove('hidden'); } };
+    try { await diagnoseTravel(input ? input.value : '', log); }
+    catch (e) { log('❌ Unerwarteter Fehler: ' + (e && e.message ? e.message : e)); }
+}
