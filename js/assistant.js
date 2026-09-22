@@ -67,6 +67,7 @@ function formatEmailFallback(data) {
 
 /* Solche Fragen gehen immer an die Internet-Suche */
 const WEB_TRIGGER = /fernseh|tv[- ]?programm|tv[- ]?tipp|was läuft|kinoprogramm|im kino|kinofilm|streaming[- ]?tipp|paket|sendungsnummer|sendungsverfolgung|paketverfolgung/i;
+const NEARBY_TRIGGER = /restaurant|lokal\b|imbiss|dönerladen|doenerladen|pizzeria|kneipe|(in der nähe|hier in der nähe).*(essen|zu essen)|(essen|zu essen).*(in der nähe|hier in der nähe)|lust auf.*(chinesisch|italienisch|griechisch|türkisch|indisch|thai|japanisch|vietnamesisch|mexikanisch|döner|pizza|sushi|burger|asiatisch)/i;
 
 /* Ersatzantwort, falls die KI beim zweiten Durchgang ausfällt */
 function formatCalendarSearchFallback(results) {
@@ -474,7 +475,7 @@ async function sendToGroqSmart(text) {
     "WICHTIG für das Sprachverständnis: Achte auf die ABSICHT hinter dem Satz, nicht auf die exakte Formulierung. Ein und dieselbe Absicht kann ganz unterschiedlich klingen, z.B. 'Setz Milch auf die Liste', 'Ich brauche noch Milch' und 'Schreib Milch auf' meinen alle dasselbe; 'Wo ist mein Auto?', 'Ich will zu meinem Auto' und 'Hast du mein Auto gesehen?' drehen sich alle um den gespeicherten Parkplatz. Das gilt in JEDER Kategorie (Termine, Listen, Erinnerungen, Gedächtnis, Navigation, Parkplatz, E-Mails, Fahrzeit usw.), nicht nur bei den Beispielsätzen in dieser Anleitung - die Beispiele zeigen die Aktion, nicht die einzig erlaubte Formulierung. Bist du dir bei der Absicht unsicher, frage lieber knapp nach, statt zu raten oder nichts zu tun.\n\n" +
     "WICHTIG: Ehrlichkeit bei Aktionen:\n" +
     "- Melde nur dann, dass etwas erledigt, hinzugefügt, gelöscht, geändert oder notiert ist, wenn du dafür in 'actions' die passende Aktion angelegt hast. Ohne Aktion ändert sich nichts.\n" +
-    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; Termine, Erinnerungen und Listen in einem Fenster anzeigen ('show_panel'); im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; E-Mails prüfen und vorlesen ('email_check', 'email_read'); die Abfahrtszeit für einen Termin berechnen ('travel_time'); alle Daten als Datei sichern ('backup_export'); im Internet nachschlagen ('web_lookup': Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse und andere aktuelle Fakten); den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern. Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
+    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; Termine, Erinnerungen und Listen in einem Fenster anzeigen ('show_panel'); im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; E-Mails prüfen und vorlesen ('email_check', 'email_read'); die Abfahrtszeit für einen Termin berechnen ('travel_time'); Restaurants und Lokale in der Nähe finden ('nearby_places'); alle Daten als Datei sichern ('backup_export'); im Internet nachschlagen ('web_lookup': Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse und andere aktuelle Fakten); den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern. Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
     "- Zum Löschen, Ändern oder Leeren von Einkaufsliste, Aufgaben, Gedächtnis und Kontakten nutze IMMER 'list_edit'. Zum Hinzufügen darfst du weiterhin 'shopping', 'todo' und 'memory_store' nutzen.\n" +
     "- 'list_edit': 'list_name' ist 'einkauf', 'aufgaben', 'gedaechtnis' oder 'kontakte'. 'list_op' ist 'add', 'remove', 'clear' oder 'replace'. 'list_items' ist eine Liste von Texten: bei Einkauf und Aufgaben die Einträge, beim Gedächtnis der Begriff, bei Kontakten der Name. 'list_new_value' brauchst du bei 'replace' (neuer Text, neuer Wert bzw. neue Nummer) und beim Hinzufügen zum Gedächtnis (der Wert) oder zu den Kontakten (die Telefonnummer). Nimm die Einträge so, wie sie im Kontext stehen.\n\n" +
     "WICHTIG für Fragen nach Terminen und Geburtstagen im Kalender:\n" +
@@ -513,6 +514,8 @@ async function sendToGroqSmart(text) {
     "- Schreibe in 'reply' nur 'Ich schaue nach.'; die genaue Antwort mit Uhrzeiten wird automatisch berechnet.\n\n" +
     "WICHTIG für Datensicherung:\n" +
     "- Sagt der User 'Sichere meine Daten' oder 'Exportiere meine Daten', nutze 'backup_export'. Das lädt eine Datei mit allen Listen, Terminen, dem Gedächtnis, Parkplatz und der Heimatadresse herunter.\n\n" +
+    "WICHTIG für Restaurants/Lokale in der Nähe ('Zeig mir Restaurants in der Nähe', 'Ich habe Lust auf Chinesisch, gibt es was in der Nähe?'):\n" +
+    "- Nutze 'nearby_places'. Nennt der User eine Küche oder Art (z.B. 'Chinesisch', 'Pizza', 'Döner'), setze sie in 'places_query'. Ohne genaue Angabe ('Restaurants in der Nähe', 'Ich habe Hunger') lasse 'places_query' leer. Schreibe in 'reply' nur 'Ich schaue nach.'; die echten Ergebnisse werden automatisch ergänzt. Erfinde niemals Namen oder Adressen von Restaurants.\n\n" +
     "WICHTIG für Fragen nach aktuellem Wissen aus dem Internet:\n" +
     "- Fragt der User nach einem Paket oder einer Sendung ('Wo ist mein Paket?', 'Sendungsnummer ...'), nutze 'web_lookup' mit der Sendungsnummer (falls genannt) und dem Paketdienst (falls genannt, z.B. DHL) in 'web_query'.\n" +
     "- Braucht die Frage aktuelle Informationen aus dem Internet (Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse, aktuelle Fakten), nutze die Aktion 'web_lookup' mit 'web_query' = kurze Suchanfrage auf Deutsch, z.B. 'Fernsehprogramm heute Abend Horrorfilme Actionfilme'. Bei Fragen nach Fernsehen, Filmen oder Serien nimm die Vorlieben aus dem Gedächtnis (z.B. Genres) in die Suchanfrage auf. Schreibe in 'reply' nur 'Ich schaue nach.'. Die Antwort wird danach automatisch ergänzt. Erfinde niemals selbst Sendungen, Sender oder Uhrzeiten.\n\n" +
@@ -546,13 +549,13 @@ async function sendToGroqSmart(text) {
     "Gib IMMER ein valides JSON-Objekt zurück mit folgenden Feldern:\n" +
     "- reply: Kurze, trockene J.A.R.V.I.S.-Antwort ohne Markdown, meist ein Satz, höchstens zwei. Aktionen bestätigst du knapp (z.B. 'Erledigt.' oder 'Notiert.'). Nur beim Vorlesen von Listen (Einkauf, Termine, Aufgaben) darf die Antwort länger sein.\n" +
     "- actions: Liste (Array) der auszuführenden Aktionen. Jede Aktion ist ein Objekt mit dem Feld 'type' und den dazu passenden Feldern (siehe unten). Bei reiner Unterhaltung, Auskünften oder dem Vorlesen von Listen ist 'actions' eine leere Liste.\n" +
-    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"home_save\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\", \"web_lookup\", \"email_check\", \"email_read\", \"travel_time\", \"backup_export\"\n" +
+    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"home_save\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\", \"web_lookup\", \"email_check\", \"email_read\", \"travel_time\", \"backup_export\", \"nearby_places\"\n" +
     "Die folgenden Felder gehören in die jeweilige Aktion, nicht auf die oberste Ebene:\n" +
     "- calendar_text: (bei calendar oder calendar_update) Titel des Termins.\n" +
     "- calendar_time: (bei calendar oder calendar_update) ISO-Zeitstempel.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_ref, travel_query, travel_destination, travel_arrival_time.";
+    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -591,6 +594,15 @@ async function sendToGroqSmart(text) {
             chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: ai.reply, actions }) };
         }
 
+        // Fragen nach Restaurants/Lokalen in der Nähe werden IMMER als "nearby_places" behandelt, auch wenn die KI stattdessen einfach etwas erfindet
+        if (NEARBY_TRIGGER.test(text) && !actions.some(a => a.type === 'nearby_places') &&
+            actions.every(a => !a.type || a.type === 'chat' || a.type === 'memory_search')) {
+            actions.length = 0;
+            actions.push({ type: 'nearby_places', places_query: extractCuisineKeyword(text) });
+            ai.reply = 'Ich schaue nach.';
+            chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: ai.reply, actions }) };
+        }
+
         // Gedächtnis-Suche nur, wenn die KI es so will, oder wenn sie nur geantwortet hat
         // und der Satz nach einer Suche klingt. Echte Aufträge (Erinnerung, Termin ...) gehen vor.
         const onlyChat = actions.every(a => !a.type || a.type === 'chat');
@@ -603,7 +615,7 @@ async function sendToGroqSmart(text) {
         let okCount = 0;
         const errors = [];
         for (const action of actions) {
-            if (action.type === 'calendar_search' || action.type === 'web_lookup' || action.type === 'email_check' || action.type === 'email_read' || action.type === 'travel_time') continue; // kommen gleich
+            if (action.type === 'calendar_search' || action.type === 'web_lookup' || action.type === 'email_check' || action.type === 'email_read' || action.type === 'travel_time' || action.type === 'nearby_places') continue; // kommen gleich
             try {
                 await executeAction(action, text, ctx);
                 okCount++;
@@ -674,6 +686,21 @@ async function sendToGroqSmart(text) {
             }
         }
 
+        // Restaurants/Lokale in der Nähe
+        let nearbyReply = null;
+        const nearbyAction = actions.find(a => a.type === 'nearby_places');
+        if (nearbyAction) {
+            typeWriterStatus("Suche in der Nähe...");
+            updateTerminalStream("API_FETCH: NEARBY", "FETCHING");
+            try {
+                const res = await findNearbyRestaurants(nearbyAction.places_query || '');
+                nearbyReply = res.reply;
+                res.cards.forEach(c => ctx.cards.push(c));
+            } catch (e) {
+                nearbyReply = e.userMessage || 'Die Suche in der Nähe konnte gerade nicht durchgeführt werden.';
+            }
+        }
+
         // Internet-Auskunft (Fernsehprogramm, Nachrichten ...): eigener Aufruf mit Websuche
         let webReply = null;
         const webAction = actions.find(a => a.type === 'web_lookup');
@@ -684,7 +711,7 @@ async function sendToGroqSmart(text) {
             if (!webReply) webReply = "Die Suche im Internet hat gerade nicht geklappt. Versuchen Sie es bitte gleich noch einmal.";
         }
 
-        let replyText = searchReply || webReply || emailReply || travelReply || ai.reply;
+        let replyText = searchReply || webReply || emailReply || travelReply || nearbyReply || ai.reply;
         if (!replyText) {
             if (wantsSearch) {
                 const results = searchMemory((searchAction && searchAction.memory_search_query) || text);
