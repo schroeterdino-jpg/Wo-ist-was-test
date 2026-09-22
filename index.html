@@ -320,28 +320,39 @@
                             </button>
                         </div>
                         <p id="connectionStatus" class="text-xs text-[#5d7e91] font-medium break-all"></p>
-                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Kalender-Suche testen (Suchbegriff):</label>
-                            <input type="text" id="calendarDiagInput" value="Helmut" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                            <button onclick="playUiBeep(); runCalendarDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🔍 Kalender prüfen</button>
-                            <pre id="calendarDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
+                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)]">
+                            <button onclick="playUiBeep(); document.getElementById('diagToolsBox').classList.toggle('hidden')" class="w-full bg-slate-900 hover:bg-slate-800 text-[#5d7e91] py-2 rounded-lg text-xs font-bold border border-slate-700 uppercase tracking-wide">🔧 Diagnose-Werkzeuge (nur bei Problemen)</button>
                         </div>
-                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Internet-Suche testen (Frage):</label>
-                            <input type="text" id="webDiagInput" value="Was läuft heute Abend im Fernsehen?" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                            <button onclick="playUiBeep(); runWebDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🌐 Internet prüfen</button>
-                            <pre id="webDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                        </div>
-                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Gmail testen (nur lesen, ungelesene E-Mails):</label>
-                            <button onclick="playUiBeep(); runGmailDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">📧 Gmail prüfen</button>
-                            <pre id="gmailDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                        </div>
-                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Fahrzeit testen (Ziel):</label>
-                            <input type="text" id="travelDiagInput" value="Hans-Dewitz-Ring" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                            <button onclick="playUiBeep(); runTravelDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🚗 Route prüfen</button>
-                            <pre id="travelDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
+                        <div id="diagToolsBox" class="hidden space-y-3">
+                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Kalender-Suche testen (Suchbegriff):</label>
+                                <input type="text" id="calendarDiagInput" value="Helmut" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                                <button onclick="playUiBeep(); runCalendarDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🔍 Kalender prüfen</button>
+                                <pre id="calendarDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
+                            </div>
+                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Internet-Suche testen (Frage):</label>
+                                <input type="text" id="webDiagInput" value="Was läuft heute Abend im Fernsehen?" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                                <button onclick="playUiBeep(); runWebDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🌐 Internet prüfen</button>
+                                <pre id="webDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
+                            </div>
+                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Gmail testen (nur lesen, ungelesene E-Mails):</label>
+                                <button onclick="playUiBeep(); runGmailDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">📧 Gmail prüfen</button>
+                                <pre id="gmailDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
+                            </div>
+                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Fahrzeit testen (Ziel):</label>
+                                <input type="text" id="travelDiagInput" value="Hans-Dewitz-Ring" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                                <button onclick="playUiBeep(); runTravelDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🚗 Route prüfen</button>
+                                <pre id="travelDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
+                            </div>
+                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Restaurants in der Nähe testen (Küche, optional):</label>
+                                <input type="text" id="nearbyDiagInput" placeholder="z.B. Chinesisch, leer = alle" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                                <button onclick="playUiBeep(); runNearbyDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🍽️ Restaurants prüfen</button>
+                                <pre id="nearbyDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
+                            </div>
                         </div>
                         <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
                             <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Datensicherung:</label>
@@ -406,6 +417,7 @@
     <script src="./js/calendar.js"></script>
     <script src="./js/mail.js"></script>
     <script src="./js/travel.js"></script>
+    <script src="./js/nearby.js"></script>
     <script src="./js/sync.js"></script>
     <script src="./js/voice.js"></script>
     <script src="./js/briefing.js"></script>

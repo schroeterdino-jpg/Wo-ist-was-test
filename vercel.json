@@ -1,5 +1,6 @@
 {
   "functions": {
-    "api/groq.js": { "maxDuration": 60 }
+    "api/groq.js": { "maxDuration": 60 },
+    "api/overpass.js": { "maxDuration": 30 }
   }
 }
