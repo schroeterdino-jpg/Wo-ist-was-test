@@ -158,40 +158,28 @@ h1, h2, .jarvis-font {
     to { transform: rotate(0deg); }
 }
 
-/* --- Arc-Reaktor-Core (ersetzt das GIF, das für das Flackern verantwortlich war) --- */
-.reactor-core {
-    width: 236px;
-    height: 236px;
-    overflow: visible;
+/* --- Jarvis-Kugel (eigenes GIF), ersetzt den vorherigen Arc-Reaktor --- */
+.jarvis-orb {
+    width: 220px;
+    height: 220px;
+    object-fit: contain;
     z-index: 2;
-    border-radius: 50%;
-    will-change: transform, opacity;
+    will-change: transform;
     backface-visibility: hidden;
 }
-.reactor-fin { fill: #16222c; stroke: var(--metal); stroke-width: .6; opacity: .85; }
-.reactor-housing-ring { fill: none; stroke: var(--metal); stroke-width: 2; opacity: .75; }
-.reactor-outline { fill: none; stroke: var(--metal); stroke-width: 1.4; opacity: .55; }
-.reactor-glow-disc { opacity: .55; transform-origin: 110px 110px; }
-.reactor-tri { fill: none; stroke: var(--ring-a); stroke-width: 3.2; opacity: .9; stroke-linejoin: round; }
-.reactor-tri-b { stroke: var(--ring-b); stroke-width: 2; opacity: .55; }
-.reactor-core-dot { fill: #ffffff; opacity: .95; }
-
-.jarvis-scanner-container.recording .reactor-core,
-.jarvis-scanner-container.speaking .reactor-core {
+.jarvis-scanner-container.recording .jarvis-orb,
+.jarvis-scanner-container.speaking .jarvis-orb {
     animation: reactor-pulse 0.85s ease-in-out infinite;
 }
+@media (prefers-reduced-motion: reduce) {
+    .jarvis-scanner-container.recording .jarvis-orb,
+    .jarvis-scanner-container.speaking .jarvis-orb { animation: none; }
+}
+html[data-fx="off"] .jarvis-orb { animation: none !important; }
 @keyframes reactor-pulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.04); }
 }
-.jarvis-scanner-container.recording .reactor-glow-disc,
-.jarvis-scanner-container.speaking .reactor-glow-disc { opacity: .8; }
-
-@media (prefers-reduced-motion: reduce) {
-    .jarvis-scanner-container.recording .reactor-core,
-    .jarvis-scanner-container.speaking .reactor-core { animation: none; }
-}
-html[data-fx="off"] .reactor-core { animation: none !important; }
 
 .jarvis-scanner-container.speaking #waveform span {
     background: var(--good) !important;
@@ -565,4 +553,18 @@ body.panel-open .hud-decor { opacity: 0; transition: opacity .2s ease; }
 @media (max-width: 380px) {
     .hud-corner { width: 30px; height: 30px; }
     .hud-badge { font-size: 9px; }
+}
+
+/* System-Check-Anzeige unten links (eigenes GIF) */
+.hud-system-check {
+    position: absolute;
+    bottom: 60px;
+    left: 14px;
+    width: 190px;
+    max-width: 40vw;
+    height: auto;
+    opacity: .8;
+}
+@media (max-width: 380px) {
+    .hud-system-check { width: 150px; bottom: 54px; }
 }
