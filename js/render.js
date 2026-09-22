@@ -36,6 +36,7 @@ function renderAssistantOverview() {
     const elRem = document.getElementById('ovReminders');
     if (elNext) elNext.textContent = ov.nextText;
     if (elRem) elRem.textContent = `🔔 ${ov.reminderCount}`;
+    if (typeof updateHudClock === 'function') updateHudClock();
 }
 
 /* Schreibt nur, wenn sich der Inhalt wirklich geändert hat: spart Arbeit und verhindert Flackern beim Auffrischen */

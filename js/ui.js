@@ -74,7 +74,27 @@ function typeWriterStatus(text) {
     type();
 }
 
-/* Tippt einen Text zeichenweise in ein beliebiges Element, wie ein Terminal. Respektiert die Effekt-Stufe "aus". */
+/* Kleine HUD-Anzeige oben rechts: Uhrzeit und Temperatur */
+function updateHudClock() {
+    const el = document.getElementById('hudClock');
+    if (!el) return;
+    el.textContent = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+
+let hudTempLoading = false;
+async function updateHudTemp() {
+    const el = document.getElementById('hudTemp');
+    if (!el || hudTempLoading || typeof fetchWeatherData !== 'function') return;
+    hudTempLoading = true;
+    try {
+        const w = await fetchWeatherData();
+        el.textContent = (w && !w.fehler) ? `${w.temperatur}°C` : '';
+    } catch (e) {
+        // still, kein Fehler-Popup für eine Nebensächlichkeit
+    } finally {
+        hudTempLoading = false;
+    }
+}
 let panelTitleTypeTimer = null;
 function typeWriterInto(el, text, speedMs = 18) {
     if (!el) return;
@@ -189,6 +209,10 @@ window.addEventListener('DOMContentLoaded', () => {
     if (fxSelect) fxSelect.value = document.documentElement.dataset.fx || 'calm';
     renderAllLists();
     renderContactList();
-    // Die Übersichtszeile rückt weiter, wenn ein Termin vorbei ist
+    if (typeof updateHudClock === 'function') updateHudClock();
+    if (typeof updateHudTemp === 'function') updateHudTemp();
+    // Die Übersichtszeile rückt weiter, wenn ein Termin vorbei ist; die Uhr läuft im selben Takt mit
     setInterval(() => renderAssistantOverview(), 60000);
+    // Temperatur seltener auffrischen, die ändert sich nicht minütlich
+    setInterval(() => { if (typeof updateHudTemp === 'function') updateHudTemp(); }, 900000);
 });
