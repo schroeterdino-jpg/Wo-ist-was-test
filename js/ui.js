@@ -74,6 +74,25 @@ function typeWriterStatus(text) {
     type();
 }
 
+/* Tippt einen Text zeichenweise in ein beliebiges Element, wie ein Terminal. Respektiert die Effekt-Stufe "aus". */
+let panelTitleTypeTimer = null;
+function typeWriterInto(el, text, speedMs = 18) {
+    if (!el) return;
+    if (panelTitleTypeTimer) clearTimeout(panelTitleTypeTimer);
+    const off = document.documentElement.dataset.fx === 'off';
+    if (off) { el.textContent = text; return; }
+    el.textContent = '';
+    let i = 0;
+    function type() {
+        if (i < text.length) {
+            el.textContent += text.charAt(i);
+            i++;
+            panelTitleTypeTimer = setTimeout(type, speedMs);
+        }
+    }
+    type();
+}
+
 /* Die Reiter gibt es nicht mehr. Alles, was früher ein Reiter war, öffnet jetzt als Fenster (panels.js). */
 function switchSection(sectionId) {
     const map = { speak: null, planner: 'planer', lists: 'einkauf', memory: 'gedaechtnis', settings: 'settings' };
@@ -89,6 +108,7 @@ function applyFxMode(mode) {
     try { localStorage.setItem('fx_mode', m); } catch (e) {}
     updateRingMotion();
     if (typeof setBackgroundMode === 'function') setBackgroundMode(m);
+    if (typeof setMatrixRainMode === 'function') setMatrixRainMode();
 }
 
 /* Ringe anhalten, wenn die Stufe "Aus" oder der Schalter "Alle Bewegungen aus" gilt.
@@ -144,6 +164,7 @@ function applyFxFlags() {
     }
     freezeRingImage(flags.includes('gif'));
     if (typeof setBackgroundMode === 'function') setBackgroundMode(document.documentElement.dataset.fx || 'calm');
+    if (typeof setMatrixRainMode === 'function') setMatrixRainMode();
 }
 
 function setFxFlag(flag, on) {
