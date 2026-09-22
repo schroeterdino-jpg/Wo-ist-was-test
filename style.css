@@ -158,25 +158,40 @@ h1, h2, .jarvis-font {
     to { transform: rotate(0deg); }
 }
 
-#assistant-gif {
-    width: 270px;
-    height: 270px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid rgba(73, 215, 255, 0.3);
-    box-shadow: 0 0 20px rgba(73, 215, 255, 0.2), inset 0 0 15px rgba(73, 215, 255, 0.1);
+/* --- Arc-Reaktor-Core (ersetzt das GIF, das für das Flackern verantwortlich war) --- */
+.reactor-core {
+    width: 236px;
+    height: 236px;
+    overflow: visible;
     z-index: 2;
+    border-radius: 50%;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
 }
+.reactor-fin { fill: #16222c; stroke: var(--metal); stroke-width: .6; opacity: .85; }
+.reactor-housing-ring { fill: none; stroke: var(--metal); stroke-width: 2; opacity: .75; }
+.reactor-outline { fill: none; stroke: var(--metal); stroke-width: 1.4; opacity: .55; }
+.reactor-glow-disc { opacity: .55; transform-origin: 110px 110px; }
+.reactor-tri { fill: none; stroke: var(--ring-a); stroke-width: 3.2; opacity: .9; stroke-linejoin: round; }
+.reactor-tri-b { stroke: var(--ring-b); stroke-width: 2; opacity: .55; }
+.reactor-core-dot { fill: #ffffff; opacity: .95; }
 
-.jarvis-scanner-container.recording #assistant-gif {
-    border-color: var(--cyan);
-    box-shadow: 0 0 30px rgba(73, 215, 255, 0.6), inset 0 0 20px rgba(73, 215, 255, 0.4);
+.jarvis-scanner-container.recording .reactor-core,
+.jarvis-scanner-container.speaking .reactor-core {
+    animation: reactor-pulse 0.85s ease-in-out infinite;
 }
+@keyframes reactor-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+}
+.jarvis-scanner-container.recording .reactor-glow-disc,
+.jarvis-scanner-container.speaking .reactor-glow-disc { opacity: .8; }
 
-.jarvis-scanner-container.speaking #assistant-gif {
-    border-color: var(--good);
-    box-shadow: 0 0 35px rgba(87, 224, 161, 0.7), inset 0 0 20px rgba(87, 224, 161, 0.4);
+@media (prefers-reduced-motion: reduce) {
+    .jarvis-scanner-container.recording .reactor-core,
+    .jarvis-scanner-container.speaking .reactor-core { animation: none; }
 }
+html[data-fx="off"] .reactor-core { animation: none !important; }
 
 .jarvis-scanner-container.speaking #waveform span {
     background: var(--good) !important;
