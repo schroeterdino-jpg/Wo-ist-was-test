@@ -14,7 +14,10 @@ export default async function handler(req, res) {
   try {
     const response = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'MeinAlltagsHelfer/1.0 (privates Projekt, kein kommerzieller Einsatz)'
+      },
       body: 'data=' + encodeURIComponent(query)
     });
     const text = await response.text();
