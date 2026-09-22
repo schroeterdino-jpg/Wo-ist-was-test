@@ -26,7 +26,8 @@ const CUISINE_MAP = {
     franzoesisch: 'french',
     libanesisch: 'lebanese',
     arabisch: 'arabic',
-    koreanisch: 'korean'
+    koreanisch: 'korean',
+    mongolisch: 'mongolian'
 };
 
 /* Aus einem Satz das erste passende Küchen-Stichwort herausziehen (für den erzwungenen Sprachbefehl-Trigger) */
