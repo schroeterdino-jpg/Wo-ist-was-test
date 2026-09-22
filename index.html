@@ -316,6 +316,12 @@
                             <pre id="calendarDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
                         </div>
                         <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Internet-Suche testen (Frage):</label>
+                            <input type="text" id="webDiagInput" value="Was läuft heute Abend im Fernsehen?" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                            <button onclick="playUiBeep(); runWebDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🌐 Internet prüfen</button>
+                            <pre id="webDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
+                        </div>
+                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
                             <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">App-Code (schützt deine Schnittstellen):</label>
                             <input type="password" id="appSecretInput" placeholder="Geheimer App-Code..." autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
                             <button onclick="playUiBeep(); syncNow(true)" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">☁️ Jetzt synchronisieren</button>
