@@ -1,101 +1,29 @@
-<!DOCTYPE html>
-<html lang="de" class="h-full bg-slate-950 text-slate-100">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>JARVIS System UI</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="./style.css">
-</head>
-<body class="h-full flex flex-col justify-between overflow-x-hidden relative bg-black text-cyan-400 font-mono select-none">
+<!-- CENTER ARC REACTOR / LARGE JARVIS ORB BUTTON -->
+<div class="relative flex flex-col items-center justify-center my-6">
+  <button id="orb-button" onclick="if(typeof toggleVoiceInput === 'function') toggleVoiceInput();" class="relative group outline-none focus:outline-none border-none bg-transparent cursor-pointer flex items-center justify-center">
+    
+    <!-- Rotierender Außenring -->
+    <div class="orb-rotating-ring absolute w-[260px] h-[260px] md:w-[320px] md:h-[320px] rounded-full border-2 border-dashed border-cyan-400/40 pointer-events-none"></div>
+    <div class="orb-rotating-ring-reverse absolute w-[280px] h-[280px] md:w-[340px] md:h-[340px] rounded-full border border-cyan-500/20 border-t-cyan-400 pointer-events-none"></div>
 
-  <!-- HUD Scanlines & Grid background -->
-  <div class="scanline-overlay pointer-events-none fixed inset-0 z-50"></div>
-  <canvas id="grid-canvas" class="fixed inset-0 pointer-events-none z-0 opacity-40"></canvas>
+    <!-- Pulsierender Leuchteffekt im Hintergrund -->
+    <div class="orb-glow-bg absolute w-[220px] h-[220px] md:w-[280px] md:h-[280px] rounded-full bg-cyan-500/20 blur-xl group-hover:bg-cyan-400/40 transition-all duration-300 pointer-events-none"></div>
+    
+    <!-- Haupt-GIF (Gefüllte Größe) -->
+    <img src="./jarvis-orb.gif" alt="JARVIS Orb" class="jarvis-orb-main relative z-10 w-[220px] h-[220px] md:w-[280px] md:h-[280px] object-cover rounded-full border-2 border-cyan-400/60 shadow-[0_0_35px_rgba(0,240,255,0.6)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95">
+  </button>
+  
+  <div class="text-xs text-cyan-400/90 mt-6 tracking-widest uppercase animate-pulse font-bold">
+    [ Zum Sprechen tippen ]
+  </div>
+</div>
 
-  <!-- HEADER / SYS_INIT BAR -->
-  <header class="relative z-10 w-full p-4 flex justify-between items-center border-b border-cyan-500/30 bg-black/60 backdrop-blur-md">
-    <div class="flex items-center gap-2">
-      <span class="inline-block w-3 h-3 bg-cyan-400 rounded-full animate-pulse"></span>
-      <span class="text-xs font-bold tracking-widest text-cyan-400">SYS_INIT: READY</span>
-    </div>
-    <div class="text-xs text-cyan-500/70 tracking-wider" id="clock-display">00:00:00</div>
-  </header>
-
-  <!-- MAIN CONTENT CONTAINER -->
-  <main class="relative z-10 flex-1 flex flex-col items-center justify-center p-4">
-
-    <!-- TOP BRIEFING / REMINDER BADGE -->
-    <div class="hud-panel p-3 rounded-lg border border-cyan-500/30 bg-slate-900/50 backdrop-blur-sm max-w-sm w-full mb-6 text-center shadow-[0_0_15px_rgba(0,240,255,0.15)]">
-      <div class="text-[10px] text-cyan-500 uppercase tracking-widest mb-1">Status & Briefing</div>
-      <div id="briefing-summary" class="text-xs text-slate-200">Bereit für Spracheingabe...</div>
-    </div>
-
-    <!-- CENTER ARC REACTOR / JARVIS ORB BUTTON -->
-    <div class="relative flex flex-col items-center justify-center my-4">
-      <button id="orb-button" onclick="if(typeof toggleVoiceInput === 'function') toggleVoiceInput();" class="relative group outline-none focus:outline-none border-none bg-transparent cursor-pointer">
-        <!-- Pulse Rings behind Orb -->
-        <div class="absolute -inset-4 rounded-full bg-cyan-500/20 blur-md group-hover:bg-cyan-400/30 transition-all duration-300 pointer-events-none"></div>
-        
-        <!-- Animated JARVIS Orb GIF -->
-        <img src="./jarvis-orb.gif" alt="JARVIS Orb" class="relative z-10 w-36 h-36 md:w-44 md:h-44 object-cover rounded-full border-2 border-cyan-400/50 shadow-[0_0_25px_rgba(0,240,255,0.5)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95">
-      </button>
-      
-      <div class="text-xs text-cyan-400/80 mt-4 tracking-widest uppercase animate-pulse">
-        [ Zum Sprechen tippen ]
-      </div>
-    </div>
-
-    <!-- DYNAMIC PANELS & SECTIONS LAYER -->
-    <section id="sec-planner" class="hidden w-full max-w-md my-2"></section>
-    <section id="sec-lists" class="hidden w-full max-w-md my-2"></section>
-    <section id="sec-memory" class="hidden w-full max-w-md my-2"></section>
-    <section id="sec-settings" class="hidden w-full max-w-md my-2"></section>
-
-  </main>
-
-  <!-- SYSTEM CHECK HUD MONITOR (Unten Rechts) -->
-  <aside id="system-check-widget" class="fixed bottom-4 right-4 z-40 pointer-events-none flex flex-col items-end">
-    <div class="hud-panel p-1.5 rounded border border-cyan-500/40 bg-black/75 backdrop-blur-md shadow-[0_0_12px_rgba(0,240,255,0.2)]">
-      <img src="./system-check.gif" alt="System Check" class="w-28 md:w-36 h-auto opacity-85 rounded-xs">
-      <div class="text-[9px] font-mono text-cyan-400 mt-1 text-right tracking-widest uppercase px-1">
-        SYS_MONITOR // ONLINE
-      </div>
-    </div>
-  </aside>
-
-  <!-- OVERLAY PANEL LAYER -->
-  <div id="panelLayer" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-    <div id="panel" class="hud-panel w-full max-w-lg p-6 rounded-lg border border-cyan-500/50 bg-slate-900 text-slate-100 relative max-h-[85vh] overflow-y-auto">
-      <!-- Dynamic Panel Content Loaded Here -->
+<!-- SYSTEM CHECK HUD MONITOR (Unten Links & Deutlich Größer) -->
+<aside id="system-check-widget" class="fixed bottom-4 left-4 z-40 pointer-events-none flex flex-col items-start">
+  <div class="hud-panel p-2 rounded-lg border border-cyan-500/50 bg-black/80 backdrop-blur-md shadow-[0_0_20px_rgba(0,240,255,0.3)]">
+    <img src="./system-check.gif" alt="System Check" class="w-48 md:w-64 h-auto opacity-90 rounded-sm">
+    <div class="text-[11px] font-mono text-cyan-400 mt-1.5 text-left tracking-widest uppercase px-1 font-semibold">
+      SYS_MONITOR // ONLINE
     </div>
   </div>
-
-  <!-- JS MODULE SCRIPTS -->
-  <script src="./js/ui.js"></script>
-  <script src="./js/storage.js"></script>
-  <script src="./js/audio.js"></script>
-  <script src="./js/voice.js"></script>
-  <script src="./js/assistant.js"></script>
-  <script src="./js/background.js"></script>
-  <script src="./js/briefing.js"></script>
-  <script src="./js/calendar.js"></script>
-  <script src="./js/lists.js"></script>
-  <script src="./js/nearby.js"></script>
-  <script src="./js/places.js"></script>
-  <script src="./js/render.js"></script>
-  <script src="./js/travel.js"></script>
-  <script src="./js/panels.js"></script>
-
-  <!-- Clock Script -->
-  <script>
-    function updateClock() {
-      const now = new Date();
-      const el = document.getElementById('clock-display');
-      if (el) el.innerText = now.toLocaleTimeString('de-DE');
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
-  </script>
-</body>
-</html>
+</aside>
