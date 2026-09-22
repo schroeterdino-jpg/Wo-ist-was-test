@@ -197,7 +197,7 @@ function readFxFlags() {
 
 /* Friert das Ring-Bild auf dem aktuellen Bild ein (oder gibt es wieder frei) */
 function freezeRingImage(freeze) {
-    const img = document.getElementById('assistant-gif');
+    const img = document.getElementById('jarvisOrb');
     if (!img) return;
     if (!img.dataset.orig) img.dataset.orig = img.getAttribute('src');
     if (!freeze) {
