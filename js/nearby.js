@@ -55,7 +55,7 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 
 function buildOverpassQuery(lat, lon, radiusM, cuisine) {
     const c = cuisine ? `["cuisine"~"${cuisine}",i]` : '';
-    return `[out:json][timeout:20];(node["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon});way["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon}););out center 25;`;
+    return `[out:json][timeout:12];(node["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon});way["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon}););out center 20;`;
 }
 
 async function overpassSearch(lat, lon, radiusM, cuisine) {

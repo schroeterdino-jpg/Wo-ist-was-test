@@ -18,13 +18,15 @@
     const CHARS = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789';
     const FONT_SIZE = 16;
     const FPS = 15;
+    const SPEED_MIN = 0.12;   // Zeilen pro Bild, langsamste Spalte
+    const SPEED_MAX = 0.32;   // schnellste Spalte
     const TRAIL_COLOR = 'rgba(2, 8, 14, 0.18)';   // löscht nicht sofort, das gibt den "Nachzieh"-Schweif
     const HEAD_COLOR = 'rgba(160, 255, 210, 0.75)';
     const BODY_COLOR = 'rgba(87, 224, 161, 0.4)';
 
     const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    let w = 0, h = 0, dpr = 1, columns = 0, drops = [];
+    let w = 0, h = 0, dpr = 1, columns = 0, drops = [], speeds = [];
     let rafId = null, lastDraw = 0;
 
     function resize() {
@@ -36,6 +38,7 @@
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         columns = Math.ceil(w / FONT_SIZE);
         drops = new Array(columns).fill(0).map(() => Math.random() * -60);
+        speeds = new Array(columns).fill(0).map(() => SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN));
         ctx.clearRect(0, 0, w, h);
     }
 
@@ -56,8 +59,8 @@
                     ctx.fillText(CHARS[Math.floor(Math.random() * CHARS.length)], x, y - FONT_SIZE);
                 }
             }
-            drops[i]++;
-            if (drops[i] * FONT_SIZE > h && Math.random() > 0.975) drops[i] = Math.random() * -20;
+            drops[i] += speeds[i];
+            if (drops[i] * FONT_SIZE > h && Math.random() > 0.99) drops[i] = Math.random() * -20;
         }
     }
 
