@@ -37,10 +37,12 @@ function updateTerminalStream(logMsg, statusMsg = null) {
 
 /* --- Helper für Typewriter HUD Subtitle Upgrade --- */
 let subtitleTypewriterTimeout = null;
+let subtitleBoundaryFallback = null;
 function setHudSubtitle(text) {
     const el = document.getElementById('hudSubtitleText');
     if (!el) return;
     if (subtitleTypewriterTimeout) clearTimeout(subtitleTypewriterTimeout);
+    if (subtitleBoundaryFallback) clearTimeout(subtitleBoundaryFallback);
 
     el.textContent = '';
     let i = 0;
@@ -53,6 +55,49 @@ function setHudSubtitle(text) {
         }
     }
     type();
+}
+
+/* Mitschreiben im Takt der echten Sprachausgabe: nutzt die "boundary"-Ereignisse der Sprachsynthese
+   (feuert pro gesprochenem Wort). Feuert der Browser/die Stimme keine Ereignisse, weicht die Funktion
+   nach kurzer Wartezeit auf ein geschätztes, gleichmäßiges Tempo aus - lieber ungefähr synchron als gar nicht sichtbar. */
+function setHudSubtitleSynced(text, utterance) {
+    const el = document.getElementById('hudSubtitleText');
+    if (!el) return;
+    if (subtitleTypewriterTimeout) clearTimeout(subtitleTypewriterTimeout);
+    if (subtitleBoundaryFallback) clearTimeout(subtitleBoundaryFallback);
+    el.textContent = '';
+
+    if (!utterance) { setHudSubtitle(text); return; }
+
+    let revealed = 0;
+    let gotBoundary = false;
+    const reveal = (upTo) => {
+        if (upTo > revealed) { revealed = Math.min(upTo, text.length); el.textContent = text.slice(0, revealed); }
+    };
+
+    utterance.onboundary = (event) => {
+        gotBoundary = true;
+        if (subtitleTypewriterTimeout) { clearTimeout(subtitleTypewriterTimeout); subtitleTypewriterTimeout = null; }
+        const idx = typeof event.charIndex === 'number' ? event.charIndex : revealed;
+        reveal(idx + 1);
+    };
+
+    // Kurz abwarten: feuert nichts, schätzen wir das Tempo aus Textlänge und Sprechrate
+    subtitleBoundaryFallback = setTimeout(() => {
+        if (gotBoundary) return;
+        const charsPerSecond = 13 * (typeof SPEECH_RATE === 'number' ? SPEECH_RATE : 1);
+        const perChar = Math.max(18, 1000 / charsPerSecond);
+        let i = revealed;
+        function tick() {
+            if (i >= text.length) return;
+            i++;
+            reveal(i);
+            subtitleTypewriterTimeout = setTimeout(tick, perChar);
+        }
+        tick();
+    }, 350);
+
+    return () => reveal(text.length);   // vom Aufrufer bei Sprechende aufgerufen, damit garantiert alles dasteht
 }
 
 let typewriterTimeout = null;
