@@ -46,6 +46,22 @@
     <div class="scanline-overlay"></div>
     <div id="grid-canvas"></div>
 
+    <!-- HUD-Zierrahmen und kleine Anzeigen: rein dekorativ, feste Position, liegen hinter den Fenstern -->
+    <div id="hudDecor" class="hud-decor" aria-hidden="true">
+        <div class="hud-corner hud-corner-tl"></div>
+        <div class="hud-corner hud-corner-tr"></div>
+        <div class="hud-corner hud-corner-bl"></div>
+        <div class="hud-corner hud-corner-br"></div>
+        <div class="hud-badge hud-badge-tl">
+            <span class="hud-dot"></span>
+            <span>J.A.R.V.I.S. <span class="hud-badge-sub">ONLINE</span></span>
+        </div>
+        <div class="hud-badge hud-badge-tr">
+            <span id="hudClock">--:--</span>
+            <span id="hudTemp" class="hud-badge-sub"></span>
+        </div>
+    </div>
+
     <div class="app-shell flex flex-col min-h-screen justify-between">
         <header class="bg-[#081424]/90 backdrop-blur text-white p-4 text-center border-b border-[rgba(93,209,255,.18)] relative shadow-lg">
             <div class="flex justify-between items-center max-w-md mx-auto">
@@ -88,6 +104,68 @@
                                 <svg class="holo-svg holo-svg-1" viewBox="0 0 300 300" aria-hidden="true">
                                     <circle class="ring-a glow" cx="150" cy="150" r="148" stroke-width="7" stroke-dasharray="9.1 7.5"/>
                                     <circle class="ring-a" cx="150" cy="150" r="148" stroke-width="2" stroke-dasharray="9.1 7.5"/>
+                                </svg>
+                                <svg class="holo-svg holo-svg-ticks" viewBox="0 0 330 330" aria-hidden="true">
+                                    <line x1="301.0" y1="165.0" x2="313.0" y2="165.0" class="tick-major"/>
+                                    <line x1="300.3" y1="179.2" x2="312.2" y2="180.5" class="tick-minor"/>
+                                    <line x1="298.0" y1="193.3" x2="309.8" y2="195.8" class="tick-minor"/>
+                                    <line x1="294.3" y1="207.0" x2="305.8" y2="210.7" class="tick-minor"/>
+                                    <line x1="289.2" y1="220.3" x2="300.2" y2="225.2" class="tick-minor"/>
+                                    <line x1="282.8" y1="233.0" x2="293.2" y2="239.0" class="tick-major"/>
+                                    <line x1="275.0" y1="244.9" x2="284.7" y2="252.0" class="tick-minor"/>
+                                    <line x1="266.1" y1="256.0" x2="275.0" y2="264.0" class="tick-minor"/>
+                                    <line x1="256.0" y1="266.1" x2="264.0" y2="275.0" class="tick-minor"/>
+                                    <line x1="244.9" y1="275.0" x2="252.0" y2="284.7" class="tick-minor"/>
+                                    <line x1="233.0" y1="282.8" x2="239.0" y2="293.2" class="tick-major"/>
+                                    <line x1="220.3" y1="289.2" x2="225.2" y2="300.2" class="tick-minor"/>
+                                    <line x1="207.0" y1="294.3" x2="210.7" y2="305.8" class="tick-minor"/>
+                                    <line x1="193.3" y1="298.0" x2="195.8" y2="309.8" class="tick-minor"/>
+                                    <line x1="179.2" y1="300.3" x2="180.5" y2="312.2" class="tick-minor"/>
+                                    <line x1="165.0" y1="301.0" x2="165.0" y2="313.0" class="tick-major"/>
+                                    <line x1="150.8" y1="300.3" x2="149.5" y2="312.2" class="tick-minor"/>
+                                    <line x1="136.7" y1="298.0" x2="134.2" y2="309.8" class="tick-minor"/>
+                                    <line x1="123.0" y1="294.3" x2="119.3" y2="305.8" class="tick-minor"/>
+                                    <line x1="109.7" y1="289.2" x2="104.8" y2="300.2" class="tick-minor"/>
+                                    <line x1="97.0" y1="282.8" x2="91.0" y2="293.2" class="tick-major"/>
+                                    <line x1="85.1" y1="275.0" x2="78.0" y2="284.7" class="tick-minor"/>
+                                    <line x1="74.0" y1="266.1" x2="66.0" y2="275.0" class="tick-minor"/>
+                                    <line x1="63.9" y1="256.0" x2="55.0" y2="264.0" class="tick-minor"/>
+                                    <line x1="55.0" y1="244.9" x2="45.3" y2="252.0" class="tick-minor"/>
+                                    <line x1="47.2" y1="233.0" x2="36.8" y2="239.0" class="tick-major"/>
+                                    <line x1="40.8" y1="220.3" x2="29.8" y2="225.2" class="tick-minor"/>
+                                    <line x1="35.7" y1="207.0" x2="24.2" y2="210.7" class="tick-minor"/>
+                                    <line x1="32.0" y1="193.3" x2="20.2" y2="195.8" class="tick-minor"/>
+                                    <line x1="29.7" y1="179.2" x2="17.8" y2="180.5" class="tick-minor"/>
+                                    <line x1="29.0" y1="165.0" x2="17.0" y2="165.0" class="tick-major"/>
+                                    <line x1="29.7" y1="150.8" x2="17.8" y2="149.5" class="tick-minor"/>
+                                    <line x1="32.0" y1="136.7" x2="20.2" y2="134.2" class="tick-minor"/>
+                                    <line x1="35.7" y1="123.0" x2="24.2" y2="119.3" class="tick-minor"/>
+                                    <line x1="40.8" y1="109.7" x2="29.8" y2="104.8" class="tick-minor"/>
+                                    <line x1="47.2" y1="97.0" x2="36.8" y2="91.0" class="tick-major"/>
+                                    <line x1="55.0" y1="85.1" x2="45.3" y2="78.0" class="tick-minor"/>
+                                    <line x1="63.9" y1="74.0" x2="55.0" y2="66.0" class="tick-minor"/>
+                                    <line x1="74.0" y1="63.9" x2="66.0" y2="55.0" class="tick-minor"/>
+                                    <line x1="85.1" y1="55.0" x2="78.0" y2="45.3" class="tick-minor"/>
+                                    <line x1="97.0" y1="47.2" x2="91.0" y2="36.8" class="tick-major"/>
+                                    <line x1="109.7" y1="40.8" x2="104.8" y2="29.8" class="tick-minor"/>
+                                    <line x1="123.0" y1="35.7" x2="119.3" y2="24.2" class="tick-minor"/>
+                                    <line x1="136.7" y1="32.0" x2="134.2" y2="20.2" class="tick-minor"/>
+                                    <line x1="150.8" y1="29.7" x2="149.5" y2="17.8" class="tick-minor"/>
+                                    <line x1="165.0" y1="29.0" x2="165.0" y2="17.0" class="tick-major"/>
+                                    <line x1="179.2" y1="29.7" x2="180.5" y2="17.8" class="tick-minor"/>
+                                    <line x1="193.3" y1="32.0" x2="195.8" y2="20.2" class="tick-minor"/>
+                                    <line x1="207.0" y1="35.7" x2="210.7" y2="24.2" class="tick-minor"/>
+                                    <line x1="220.3" y1="40.8" x2="225.2" y2="29.8" class="tick-minor"/>
+                                    <line x1="233.0" y1="47.2" x2="239.0" y2="36.8" class="tick-major"/>
+                                    <line x1="244.9" y1="55.0" x2="252.0" y2="45.3" class="tick-minor"/>
+                                    <line x1="256.0" y1="63.9" x2="264.0" y2="55.0" class="tick-minor"/>
+                                    <line x1="266.1" y1="74.0" x2="275.0" y2="66.0" class="tick-minor"/>
+                                    <line x1="275.0" y1="85.1" x2="284.7" y2="78.0" class="tick-minor"/>
+                                    <line x1="282.8" y1="97.0" x2="293.2" y2="91.0" class="tick-major"/>
+                                    <line x1="289.2" y1="109.7" x2="300.2" y2="104.8" class="tick-minor"/>
+                                    <line x1="294.3" y1="123.0" x2="305.8" y2="119.3" class="tick-minor"/>
+                                    <line x1="298.0" y1="136.7" x2="309.8" y2="134.2" class="tick-minor"/>
+                                    <line x1="300.3" y1="150.8" x2="312.2" y2="149.5" class="tick-minor"/>
                                 </svg>
                                 <svg class="holo-svg holo-svg-2" viewBox="0 0 315 315" aria-hidden="true">
                                     <circle class="ring-base" cx="157.5" cy="157.5" r="156" stroke-width="1"/>
