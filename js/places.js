@@ -48,18 +48,65 @@ function buildNavigationCard(action) {
     let to = rawTo;
 
     const isCar = ['parkplatz', 'meinparkplatz', 'auto', 'meinauto', 'geparktesauto'].includes(normalizeKey(rawTo));
+    const isHome = ['zuhause', 'nachhause', 'zuhauseadresse', 'meinzuhause', 'heim', 'heimat', 'heimatadresse', 'meineheimatadresse'].includes(normalizeKey(rawTo));
     if (isCar) {
         if (!parkingSpot) throw userError('Ich habe keinen gespeicherten Parkplatz. Sagen Sie „Merk dir, wo ich geparkt habe", dann speichere ich ihn.');
         to = `${parkingSpot.lat},${parkingSpot.lon}`;
         if (!NAV_MODES[mode]) mode = 'walking';
+    } else if (isHome) {
+        if (!homeAddress) throw userError('Ich habe keine Heimatadresse gespeichert. Sagen Sie „Merk dir meine Heimatadresse: ...", dann speichere ich sie.');
+        to = homeAddress;
+        if (!NAV_MODES[mode]) mode = 'driving';
     } else if (!NAV_MODES[mode]) {
         mode = 'driving';
     }
 
-    const icon = mode === 'transit' ? '🚆' : mode === 'walking' ? '🚶' : mode === 'bicycling' ? '🚲' : '🚗';
-    const title = isCar ? 'Zum Auto' : (mode === 'transit' ? `Verbindung nach ${rawTo}` : `Route nach ${rawTo}`);
+    const icon = isHome ? '🏠' : (mode === 'transit' ? '🚆' : mode === 'walking' ? '🚶' : mode === 'bicycling' ? '🚲' : '🚗');
+    const title = isCar ? 'Zum Auto' : isHome ? 'Nach Hause' : (mode === 'transit' ? `Verbindung nach ${rawTo}` : `Route nach ${rawTo}`);
     const subtitle = `${NAV_MODES[mode]}, ${from ? 'von ' + from : 'von Ihrem Standort'}`;
     return { icon, title, subtitle, href: buildMapsLink(to, from, mode) };
+}
+
+/* --- Heimatadresse (nur einmal gesetzt, wird nie durch den Parkplatz überschrieben) --- */
+function saveHomeAddress(address) {
+    const a = String(address || '').trim();
+    if (!a) throw userError('Mir fehlt die Adresse. Sagen Sie zum Beispiel „Merk dir meine Heimatadresse: Musterstraße 5, Musterstadt".');
+    homeAddress = a;
+    setPersistentData('helfer_home_address', homeAddress);
+    renderHomeCard();
+}
+
+function clearHomeAddress(announce = true) {
+    homeAddress = '';
+    setPersistentData('helfer_home_address', '');
+    renderHomeCard();
+    if (announce) speak('Heimatadresse gelöscht.');
+}
+
+function saveHomeManual() {
+    const input = document.getElementById('homeAddressInput');
+    try {
+        saveHomeAddress(input ? input.value : '');
+        speak('Heimatadresse gespeichert.');
+    } catch (e) {
+        speak(e.userMessage || 'Die Heimatadresse konnte nicht gespeichert werden.');
+    }
+}
+
+function renderHomeCard() {
+    const box = document.getElementById('homeBox');
+    const input = document.getElementById('homeAddressInput');
+    if (input && document.activeElement !== input) input.value = homeAddress || '';
+    if (!box) return;
+    if (!homeAddress) {
+        setHtmlIfChanged(box, '<p class="text-slate-500 italic">Keine Heimatadresse gespeichert.</p>');
+        return;
+    }
+    setHtmlIfChanged(box,
+        `<div class="bg-black p-3 rounded-lg border border-[rgba(93,209,255,.2)]"><p class="text-slate-200">🏠 ${escapeHtml(homeAddress)}</p></div>` +
+        `<div class="flex gap-2">` +
+        `<a href="${escapeHtml(buildMapsLink(homeAddress, '', 'driving'))}" target="_blank" rel="noopener" onclick="playUiBeep()" class="flex-1 text-center bg-[#49d7ff] text-[#050a10] py-2 rounded-lg font-bold uppercase text-xs">Route</a>` +
+        `<button onclick="playUiBeep(); clearHomeAddress()" class="text-[#49d7ff] font-bold uppercase px-3">Löschen</button></div>`);
 }
 
 /* --- Anrufen und WhatsApp --- */

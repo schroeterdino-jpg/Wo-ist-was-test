@@ -16,6 +16,7 @@ const SYNC_KEYS = [
     'helfer_contacts',
     'helfer_briefing_wishes',
     'helfer_parking',
+    'helfer_home_address',
     'user_custom_name'
 ];
 const SYNC_META_KEY = 'helfer_sync_meta';
@@ -64,6 +65,7 @@ function applyRemoteValue(key, valueString) {
                 case 'helfer_contacts': savedContacts = JSON.parse(valueString) || {}; break;
                 case 'helfer_briefing_wishes': briefingWishes = JSON.parse(valueString) || []; break;
                 case 'helfer_parking': parkingSpot = JSON.parse(valueString) || null; break;
+                case 'helfer_home_address': homeAddress = valueString || ''; break;
                 case 'user_custom_name':
                     currentUserName = valueString || 'Dino';
                     if (userNameInput) userNameInput.value = currentUserName;

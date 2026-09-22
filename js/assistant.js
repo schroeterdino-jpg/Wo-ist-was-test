@@ -302,6 +302,9 @@ async function executeAction(action, text, ctx) {
         const accuracy = await saveParkingSpot(String(action.parking_note || '').trim());
         if (accuracy && accuracy > 60) ctx.notes.push(`Der Standort ist nur auf etwa ${Math.round(accuracy)} Meter genau.`);
         updateTerminalStream("PARKING: SAVED");
+    } else if (action.type === 'home_save') {
+        saveHomeAddress(String(action.home_address || '').trim());
+        updateTerminalStream("HOME: SAVED");
     } else if (action.type === 'parking_clear') {
         if (!parkingSpot) throw userError('Es ist kein Parkplatz gespeichert.');
         clearParkingSpot(false);
@@ -413,6 +416,7 @@ async function sendToGroqSmart(text) {
         wetter: liveWeather,
         wettervorhersage: liveForecast,
         parkplatz: describeParking(),
+        zuhause: homeAddress || null,
         standort: liveLocation,
         tankstellen: await tankFuerFrage(text),
         kalendersuche: calendarLookup,
@@ -446,6 +450,8 @@ async function sendToGroqSmart(text) {
     "WICHTIG für Parkplatz, Navigation, Anrufe und WhatsApp:\n" +
     "- 'Merk dir, wo ich geparkt habe' (oder ähnlich): Aktion 'parking_save'. Nennt der User dazu Details wie 'Ebene 2, Platz 34', schreibe sie in 'parking_note'. Der Standort wird automatisch ermittelt. Soll der Parkplatz vergessen oder gelöscht werden: 'parking_clear'.\n" +
     "- Fragt der User, wo er geparkt hat, antworte mit den Daten aus 'parkplatz' im Kontext (Adresse, Notiz, wann gespeichert). Ist 'parkplatz' leer, sage ehrlich, dass nichts gespeichert ist. Will er dorthin, nutze zusätzlich 'navigate' mit 'nav_to' = 'parkplatz'.\n" +
+    "- 'Merk dir meine Heimatadresse: ...' (oder 'Das ist meine Zuhause-Adresse'): Aktion 'home_save' mit 'home_address' = genau die genannte Adresse. Anders als der Parkplatz wird sie NICHT überschrieben, außer der User nennt ausdrücklich eine neue Heimatadresse.\n" +
+    "- Sagt der User 'Bring mich nach Hause' oder 'Navigiere mich nach Hause', nutze 'navigate' mit 'nav_to' = 'zuhause'. Ist im Kontext unter 'zuhause' keine Adresse gespeichert, sage ehrlich, dass er sie erst nennen muss ('Merk dir meine Heimatadresse: ...').\n" +
     "- 'navigate' liefert dem User eine Karte mit Link zu Google Maps. 'nav_to' ist das Ziel als Text (Ort, Adresse oder Name). 'nav_from' nur angeben, wenn der User einen anderen Startpunkt nennt; sonst weglassen, dann gilt sein Standort ('von hier'). 'nav_mode' ist 'transit' (Bus und Bahn, z.B. bei 'Verbindung', 'mit dem HVV', 'mit Bus und Bahn'), 'walking' (zu Fuß), 'bicycling' (Fahrrad) oder 'driving' (Auto, Standard). Du bekommst keine Fahrzeiten zurück und darfst keine nennen. Sage nur kurz, dass die Verbindung auf der Karte unten steht.\n" +
     "- 'call': 'contact_name' ist der Name aus 'kontakte' im Kontext. 'whatsapp': dazu 'contact_name' und optional 'message_text' (der Text der Nachricht, wie ihn der User diktiert). Du rufst nicht selbst an und schickst nichts ab, du bereitest es nur vor: Sage, dass der User auf die Karte unten tippen muss. Steht der Kontakt nicht in 'kontakte', lege die Aktion trotzdem an; sie meldet dann selbst, dass er fehlt.\n\n" +
     "WICHTIG für die Wettervorhersage (morgen, übermorgen, Wochentage, ganze Woche):\n" +
@@ -487,13 +493,13 @@ async function sendToGroqSmart(text) {
     "Gib IMMER ein valides JSON-Objekt zurück mit folgenden Feldern:\n" +
     "- reply: Kurze, trockene J.A.R.V.I.S.-Antwort ohne Markdown, meist ein Satz, höchstens zwei. Aktionen bestätigst du knapp (z.B. 'Erledigt.' oder 'Notiert.'). Nur beim Vorlesen von Listen (Einkauf, Termine, Aufgaben) darf die Antwort länger sein.\n" +
     "- actions: Liste (Array) der auszuführenden Aktionen. Jede Aktion ist ein Objekt mit dem Feld 'type' und den dazu passenden Feldern (siehe unten). Bei reiner Unterhaltung, Auskünften oder dem Vorlesen von Listen ist 'actions' eine leere Liste.\n" +
-    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\", \"web_lookup\"\n" +
+    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"home_save\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\", \"web_lookup\"\n" +
     "Die folgenden Felder gehören in die jeweilige Aktion, nicht auf die oberste Ebene:\n" +
     "- calendar_text: (bei calendar oder calendar_update) Titel des Termins.\n" +
     "- calendar_time: (bei calendar oder calendar_update) ISO-Zeitstempel.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query.";
+    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query.";
 
     chatHistory.push({ role: "user", content: text });
 

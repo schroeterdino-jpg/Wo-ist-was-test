@@ -75,6 +75,7 @@ let savedContacts = JSON.parse(getPersistentData('helfer_contacts', '{}')) || {}
 let briefingWishes = JSON.parse(getPersistentData('helfer_briefing_wishes', '[]')) || [];
 /* Geparktes Auto: { lat, lon, adresse, notiz, gespeichert (ISO) } oder null */
 let parkingSpot = JSON.parse(getPersistentData('helfer_parking', 'null')) || null;
+let homeAddress = getPersistentData('helfer_home_address', '') || '';
 
 /* --- Gesprächsverlauf (nur für die laufende Sitzung; von briefing.js und assistant.js genutzt) --- */
 let chatHistory = [];
