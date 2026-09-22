@@ -74,7 +74,7 @@ function initTokenClient(callbackAction) {
 
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: clientId,
-        scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly',
+        scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/gmail.readonly',
         error_callback: (err) => {
             console.error("OAuth Fehler:", err);
             updateGoogleStatus();
