@@ -160,8 +160,8 @@ h1, h2, .jarvis-font {
 
 /* --- Jarvis-Kugel (eigenes GIF), ersetzt den vorherigen Arc-Reaktor --- */
 .jarvis-orb {
-    width: 305px;
-    height: 305px;
+    width: 265px;
+    height: 265px;
     border-radius: 50%;
     object-fit: cover;
     z-index: 2;
