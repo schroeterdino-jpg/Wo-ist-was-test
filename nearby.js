@@ -8,9 +8,9 @@ const CUISINE_MAP = {
     chinesisch: 'chinese', chinesische: 'chinese', china: 'chinese',
     italienisch: 'italian', italienische: 'italian',
     griechisch: 'greek', griechische: 'greek',
-    tuerkisch: 'turkish', türkisch: 'turkish',
+    tuerkisch: 'turkish',
     indisch: 'indian', indische: 'indian',
-    thailaendisch: 'thai', thailändisch: 'thai', thai: 'thai',
+    thailaendisch: 'thai', thai: 'thai',
     japanisch: 'japanese', sushi: 'japanese|sushi',
     vietnamesisch: 'vietnamese',
     mexikanisch: 'mexican',
@@ -19,15 +19,23 @@ const CUISINE_MAP = {
     vegan: 'vegan',
     vegetarisch: 'vegetarian',
     pizza: 'pizza',
-    doener: 'kebab', döner: 'kebab', kebab: 'kebab',
+    doener: 'kebab', kebab: 'kebab',
     burger: 'burger',
     asiatisch: 'asian',
     spanisch: 'spanish',
-    franzoesisch: 'french', französisch: 'french',
+    franzoesisch: 'french',
     libanesisch: 'lebanese',
     arabisch: 'arabic',
-    koreanisch: 'korean'
+    koreanisch: 'korean',
+    mongolisch: 'mongolian'
 };
+
+/* Aus einem Satz das erste passende Küchen-Stichwort herausziehen (für den erzwungenen Sprachbefehl-Trigger) */
+function extractCuisineKeyword(text) {
+    const nk = normalizeKey(text || '');
+    const hit = Object.keys(CUISINE_MAP).find(k => nk.includes(k));
+    return hit || '';
+}
 const NEARBY_GENERIC_WORDS = ['restaurant', 'restaurants', 'essen', 'food', 'lokal', 'gaststaette', 'gaststätte', 'imbiss', 'was', 'etwas', 'lokale'];
 
 /* Aus dem Suchbegriff einen Overpass-Filter machen: bekannte Küche -> passendes OSM-Tag, sonst der Begriff selbst */
@@ -35,7 +43,7 @@ function cuisineFilterFor(query) {
     const key = normalizeKey(query || '');
     if (!key || NEARBY_GENERIC_WORDS.includes(key)) return null;
     if (CUISINE_MAP[key]) return CUISINE_MAP[key];
-    const safe = String(query).replace(/[^\p{L}0-9 ]/gu, '').trim();
+    const safe = String(query).replace(/[^a-zA-Z0-9äöüÄÖÜß ]/g, '').trim();
     return safe || null;
 }
 
@@ -48,7 +56,7 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 
 function buildOverpassQuery(lat, lon, radiusM, cuisine) {
     const c = cuisine ? `["cuisine"~"${cuisine}",i]` : '';
-    return `[out:json][timeout:20];(node["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon});way["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon}););out center 25;`;
+    return `[out:json][timeout:12];(node["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon});way["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon}););out center 20;`;
 }
 
 async function overpassSearch(lat, lon, radiusM, cuisine) {

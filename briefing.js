@@ -3,67 +3,74 @@
    Braucht: storage.js, lists.js (parseMemoryValue), voice.js
    ============================================================ */
 
-/* --- Standortermittlung mit Geocoding (inkl. Straße & Hausnummer) --- */
-async function fetchUserLocationData() {
-    return new Promise((resolve) => {
-        if (!navigator.geolocation) {
-            resolve({ fehler: "Geolokalisierung nicht unterstützt." });
-            return;
-        }
-        navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-                const lat = pos.coords.latitude;
-                const lon = pos.coords.longitude;
-                try {
-                    // Zoom 18 erzwingt die genaue Auflösung bis auf Gebäudeebene
-                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`);
-                    const data = await res.json();
-                    const addr = data.address || {};
-
-                    const ort = addr.city || addr.town || addr.village || addr.municipality || addr.county || "Unbekannter Ort";
-                    const land = addr.country || "Unbekanntes Land";
-
-                    // Straße & Hausnummer ermitteln
-                    const strasse = addr.road || addr.pedestrian || addr.footway || addr.path || "";
-                    const hausnummer = addr.house_number || "";
-
-                    // Exakten Adress-String zusammensetzen
-                    let straßenAdresse = "";
-                    if (strasse) {
-                        straßenAdresse = hausnummer ? `${strasse} ${hausnummer}` : strasse;
-                    }
-
-                    resolve({
-                        latitude: lat,
-                        longitude: lon,
-                        genauigkeit: pos.coords.accuracy,
-                        lat: lat.toFixed(4),
-                        lon: lon.toFixed(4),
-                        ort: ort,
-                        land: land,
-                        strasse: strasse,
-                        hausnummer: hausnummer,
-                        straßenAdresse: straßenAdresse,
-                        volstaendigeAdresse: data.display_name || `${straßenAdresse}, ${ort}`
-                    });
-                } catch (e) {
-                    resolve({
-                        latitude: lat,
-                        longitude: lon,
-                        genauigkeit: pos.coords.accuracy,
-                        lat: lat.toFixed(4),
-                        lon: lon.toFixed(4),
-                        ort: "Koordinaten ermittelt",
-                        land: ""
-                    });
-                }
-            },
-            (err) => {
-                resolve({ fehler: "Standort-Zugriff verweigert oder nicht verfügbar." });
-            },
-            { timeout: 7000, enableHighAccuracy: true }
-        );
+/* --- Standortermittlung mit Geocoding (inkl. Straße & Hausnummer) ---
+   Erst mit GPS (genau, aber in Tiefgaragen/Gebäuden oft ohne Empfang), bei Fehlschlag
+   automatisch ein zweiter Versuch mit ungenauerer, aber zuverlässigerer WLAN/Mobilfunk-Ortung. */
+function getPosition(opts) {
+    return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, opts);
     });
+}
+
+async function fetchUserLocationData() {
+    if (!navigator.geolocation) return { fehler: "Geolokalisierung nicht unterstützt." };
+
+    let pos;
+    try {
+        pos = await getPosition({ timeout: 8000, enableHighAccuracy: true });
+    } catch (e) {
+        try {
+            pos = await getPosition({ timeout: 12000, enableHighAccuracy: false });
+        } catch (e2) {
+            return { fehler: "Standort-Zugriff verweigert oder nicht verfügbar." };
+        }
+    }
+
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    try {
+        // Zoom 18 erzwingt die genaue Auflösung bis auf Gebäudeebene
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`);
+        const data = await res.json();
+        const addr = data.address || {};
+
+        const ort = addr.city || addr.town || addr.village || addr.municipality || addr.county || "Unbekannter Ort";
+        const land = addr.country || "Unbekanntes Land";
+
+        // Straße & Hausnummer ermitteln
+        const strasse = addr.road || addr.pedestrian || addr.footway || addr.path || "";
+        const hausnummer = addr.house_number || "";
+
+        // Exakten Adress-String zusammensetzen
+        let straßenAdresse = "";
+        if (strasse) {
+            straßenAdresse = hausnummer ? `${strasse} ${hausnummer}` : strasse;
+        }
+
+        return {
+            latitude: lat,
+            longitude: lon,
+            genauigkeit: pos.coords.accuracy,
+            lat: lat.toFixed(4),
+            lon: lon.toFixed(4),
+            ort: ort,
+            land: land,
+            strasse: strasse,
+            hausnummer: hausnummer,
+            straßenAdresse: straßenAdresse,
+            volstaendigeAdresse: data.display_name || `${straßenAdresse}, ${ort}`
+        };
+    } catch (e) {
+        return {
+            latitude: lat,
+            longitude: lon,
+            genauigkeit: pos.coords.accuracy,
+            lat: lat.toFixed(4),
+            lon: lon.toFixed(4),
+            ort: "Koordinaten ermittelt",
+            land: ""
+        };
+    }
 }
 
 /* --- Wetter --- */
@@ -473,6 +480,53 @@ function buildFallbackBriefing(data) {
     return text;
 }
 
+/* --- Automatisches Lernen: bei jedem Briefing sucht die KI im bisherigen Gesprächsverlauf
+   nach neuen, dauerhaft merkenswerten Fakten über den User und trägt sie ins Gedächtnis ein.
+   Läuft im Hintergrund, ohne nachzufragen; sichtbar/löschbar bleibt alles im Gedächtnis-Tab. */
+async function learnFromConversations() {
+    if (!chatHistory || chatHistory.length < 4) return;   // zu wenig Gesprächsstoff, um sich zu lohnen
+    try {
+        const verlauf = chatHistory.slice(-40).map(m => {
+            const c = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+            return `${m.role === 'user' ? 'User' : 'Jarvis'}: ${c}`;
+        }).join('\n');
+
+        const res = await apiFetch('/api/groq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: "openai/gpt-oss-120b",
+                response_format: { type: "json_object" },
+                messages: [
+                    { role: "system", content:
+                        "Du liest einen Gesprächsverlauf zwischen einem User und seinem persönlichen Assistenten J.A.R.V.I.S. Suche darin nach NEUEN, dauerhaft " +
+                        "merkenswerten Fakten über den User: Vorlieben, Gewohnheiten, wiederkehrende Aktivitäten, persönliche Details, die er von sich aus erwähnt hat. " +
+                        "Ignoriere einmalige Aufträge (einzelne Einkaufslisten-Einträge, einzelne Termine, Small Talk, Testfragen). " +
+                        "Bereits im Gedächtnis gespeichert ist: " + JSON.stringify(memoryItems || {}) + ". Nenne NUR wirklich neue Fakten, keine Wiederholungen von bereits Bekanntem. " +
+                        "Erfinde nichts, übernimm nur, was der User tatsächlich gesagt hat. " +
+                        "Antworte NUR mit JSON in dieser Form: {\"fakten\": [{\"schluessel\": \"kurzer Begriff in Grundform, z.B. 'lieblingsfilm'\", \"wert\": \"was gemerkt werden soll\"}]}. Ist nichts Neues dabei, gib eine leere Liste zurück." },
+                    { role: "user", content: "Gesprächsverlauf:\n" + verlauf }
+                ]
+            })
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const parsed = JSON.parse(data.choices[0].message.content);
+        const fakten = Array.isArray(parsed.fakten) ? parsed.fakten : [];
+        let changed = false;
+        fakten.forEach(f => {
+            const key = String(f && f.schluessel || '').trim().toLowerCase();
+            const val = String(f && f.wert || '').trim();
+            if (!key || !val) return;
+            memoryItems[key] = val;
+            changed = true;
+        });
+        if (changed) setPersistentData('helfer_memory', JSON.stringify(memoryItems));
+    } catch (e) {
+        console.error('Automatisches Lernen fehlgeschlagen', e);
+    }
+}
+
 async function triggerDailyBriefing() {
     if (isProcessing) return;
     if (isSpeaking()) interruptSpeaking();
@@ -498,6 +552,7 @@ async function triggerDailyBriefing() {
 
         typeWriterStatus("Klicken zum Sprechen...");
         speak(text, continueConversation);
+        learnFromConversations();   // nebenher, blockiert das Briefing nicht
     } finally {
         stopThinkingSound();
         isProcessing = false;

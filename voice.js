@@ -156,8 +156,6 @@ function speak(text, onComplete) {
     cleanText = cleanText.replace(/Schluessel/g, 'Schlüssel').replace(/schluessel/g, 'schlüssel');
     cleanText = speakableDates(cleanText);
 
-    setHudSubtitle(cleanText);
-
     if ('speechSynthesis' in window) {
         if (!ackActive) window.speechSynthesis.cancel();
 
@@ -173,9 +171,12 @@ function speak(text, onComplete) {
         utterance.pitch = SPEECH_PITCH;
         currentUtterance = utterance;
 
+        const revealRest = setHudSubtitleSynced(cleanText, utterance);
+
         const finish = (completed) => {
             if (utterance !== currentUtterance) return;
             currentUtterance = null;
+            if (revealRest) revealRest();
             setIdleUi();
             if (completed && onComplete) onComplete();
         };
@@ -184,6 +185,7 @@ function speak(text, onComplete) {
 
         window.speechSynthesis.speak(utterance);
     } else {
+        setHudSubtitle(cleanText);
         if (currentAudio) { currentAudio.pause(); currentAudio = null; }
         currentAudio = new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=de&client=tw-ob`);
         currentAudio.playbackRate = 1.1;
@@ -284,14 +286,14 @@ if (SpeechRecognition) {
         if (isPanelOpen() && isCloseCommand(text)) {
             closePanel();
             typeWriterStatus("Klicken zum Sprechen...");
-            speak(pickRandom(["Sehr wohl.", "Zu Diensten."]), continueConversation);
+            speak(pickRandom(["Sehr wohl.", "Zu Diensten.", "Wird geschlossen.", "Gerne."]), continueConversation);
             return;
         }
 
         if (isEndPhrase(text)) {
             closePanel();
             typeWriterStatus("Klicken zum Sprechen...");
-            speak(pickRandom(["Sehr wohl.", "Jederzeit.", "Zu Diensten."]));
+            speak(pickRandom(["Sehr wohl.", "Jederzeit.", "Zu Diensten.", "Bis gleich.", "Ich bin für Sie da."]));
             return;
         }
         sendToGroqSmart(text);

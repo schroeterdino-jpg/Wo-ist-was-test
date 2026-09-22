@@ -236,7 +236,7 @@ function openPanel(name, options = {}) {
 
     if (PANEL_DYNAMIC.includes(name)) {
         const built = buildDynamicPanel(name, options);
-        titleEl.textContent = built.title;
+        if (typeof typeWriterInto === 'function') typeWriterInto(titleEl, built.title); else titleEl.textContent = built.title;
         body.innerHTML = built.html;
         panelLastHtml = built.html;
         // Google-Kalender im Hintergrund auffrischen; refreshOpenPanel() zeichnet dann ohne Animation neu
@@ -245,7 +245,7 @@ function openPanel(name, options = {}) {
             setTimeout(() => { if (isPanelOpen()) fetchGoogleCalendarEvents(); }, PANEL_FLY_MS);
         }
     } else {
-        titleEl.textContent = PANEL_TITLES[name];
+        if (typeof typeWriterInto === 'function') typeWriterInto(titleEl, PANEL_TITLES[name]); else titleEl.textContent = PANEL_TITLES[name];
         const section = document.getElementById(PANEL_SECTIONS[name]);
         if (section) {
             section.classList.remove('hidden');

@@ -37,10 +37,12 @@ function updateTerminalStream(logMsg, statusMsg = null) {
 
 /* --- Helper für Typewriter HUD Subtitle Upgrade --- */
 let subtitleTypewriterTimeout = null;
+let subtitleBoundaryFallback = null;
 function setHudSubtitle(text) {
     const el = document.getElementById('hudSubtitleText');
     if (!el) return;
     if (subtitleTypewriterTimeout) clearTimeout(subtitleTypewriterTimeout);
+    if (subtitleBoundaryFallback) clearTimeout(subtitleBoundaryFallback);
 
     el.textContent = '';
     let i = 0;
@@ -53,6 +55,49 @@ function setHudSubtitle(text) {
         }
     }
     type();
+}
+
+/* Mitschreiben im Takt der echten Sprachausgabe: nutzt die "boundary"-Ereignisse der Sprachsynthese
+   (feuert pro gesprochenem Wort). Feuert der Browser/die Stimme keine Ereignisse, weicht die Funktion
+   nach kurzer Wartezeit auf ein geschätztes, gleichmäßiges Tempo aus - lieber ungefähr synchron als gar nicht sichtbar. */
+function setHudSubtitleSynced(text, utterance) {
+    const el = document.getElementById('hudSubtitleText');
+    if (!el) return;
+    if (subtitleTypewriterTimeout) clearTimeout(subtitleTypewriterTimeout);
+    if (subtitleBoundaryFallback) clearTimeout(subtitleBoundaryFallback);
+    el.textContent = '';
+
+    if (!utterance) { setHudSubtitle(text); return; }
+
+    let revealed = 0;
+    let gotBoundary = false;
+    const reveal = (upTo) => {
+        if (upTo > revealed) { revealed = Math.min(upTo, text.length); el.textContent = text.slice(0, revealed); }
+    };
+
+    utterance.onboundary = (event) => {
+        gotBoundary = true;
+        if (subtitleTypewriterTimeout) { clearTimeout(subtitleTypewriterTimeout); subtitleTypewriterTimeout = null; }
+        const idx = typeof event.charIndex === 'number' ? event.charIndex : revealed;
+        reveal(idx + 1);
+    };
+
+    // Kurz abwarten: feuert nichts, schätzen wir das Tempo aus Textlänge und Sprechrate
+    subtitleBoundaryFallback = setTimeout(() => {
+        if (gotBoundary) return;
+        const charsPerSecond = 13 * (typeof SPEECH_RATE === 'number' ? SPEECH_RATE : 1);
+        const perChar = Math.max(18, 1000 / charsPerSecond);
+        let i = revealed;
+        function tick() {
+            if (i >= text.length) return;
+            i++;
+            reveal(i);
+            subtitleTypewriterTimeout = setTimeout(tick, perChar);
+        }
+        tick();
+    }, 350);
+
+    return () => reveal(text.length);   // vom Aufrufer bei Sprechende aufgerufen, damit garantiert alles dasteht
 }
 
 let typewriterTimeout = null;
@@ -74,6 +119,45 @@ function typeWriterStatus(text) {
     type();
 }
 
+/* Kleine HUD-Anzeige oben rechts: Uhrzeit und Temperatur */
+function updateHudClock() {
+    const el = document.getElementById('hudClock');
+    if (!el) return;
+    el.textContent = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+
+let hudTempLoading = false;
+async function updateHudTemp() {
+    const el = document.getElementById('hudTemp');
+    if (!el || hudTempLoading || typeof fetchWeatherData !== 'function') return;
+    hudTempLoading = true;
+    try {
+        const w = await fetchWeatherData();
+        el.textContent = (w && !w.fehler) ? `${w.temperatur}°C` : '';
+    } catch (e) {
+        // still, kein Fehler-Popup für eine Nebensächlichkeit
+    } finally {
+        hudTempLoading = false;
+    }
+}
+let panelTitleTypeTimer = null;
+function typeWriterInto(el, text, speedMs = 18) {
+    if (!el) return;
+    if (panelTitleTypeTimer) clearTimeout(panelTitleTypeTimer);
+    const off = document.documentElement.dataset.fx === 'off';
+    if (off) { el.textContent = text; return; }
+    el.textContent = '';
+    let i = 0;
+    function type() {
+        if (i < text.length) {
+            el.textContent += text.charAt(i);
+            i++;
+            panelTitleTypeTimer = setTimeout(type, speedMs);
+        }
+    }
+    type();
+}
+
 /* Die Reiter gibt es nicht mehr. Alles, was früher ein Reiter war, öffnet jetzt als Fenster (panels.js). */
 function switchSection(sectionId) {
     const map = { speak: null, planner: 'planer', lists: 'einkauf', memory: 'gedaechtnis', settings: 'settings' };
@@ -89,6 +173,7 @@ function applyFxMode(mode) {
     try { localStorage.setItem('fx_mode', m); } catch (e) {}
     updateRingMotion();
     if (typeof setBackgroundMode === 'function') setBackgroundMode(m);
+    if (typeof setMatrixRainMode === 'function') setMatrixRainMode();
 }
 
 /* Ringe anhalten, wenn die Stufe "Aus" oder der Schalter "Alle Bewegungen aus" gilt.
@@ -112,7 +197,7 @@ function readFxFlags() {
 
 /* Friert das Ring-Bild auf dem aktuellen Bild ein (oder gibt es wieder frei) */
 function freezeRingImage(freeze) {
-    const img = document.getElementById('assistant-gif');
+    const img = document.getElementById('jarvisOrb');
     if (!img) return;
     if (!img.dataset.orig) img.dataset.orig = img.getAttribute('src');
     if (!freeze) {
@@ -144,6 +229,7 @@ function applyFxFlags() {
     }
     freezeRingImage(flags.includes('gif'));
     if (typeof setBackgroundMode === 'function') setBackgroundMode(document.documentElement.dataset.fx || 'calm');
+    if (typeof setMatrixRainMode === 'function') setMatrixRainMode();
 }
 
 function setFxFlag(flag, on) {
@@ -168,6 +254,10 @@ window.addEventListener('DOMContentLoaded', () => {
     if (fxSelect) fxSelect.value = document.documentElement.dataset.fx || 'calm';
     renderAllLists();
     renderContactList();
-    // Die Übersichtszeile rückt weiter, wenn ein Termin vorbei ist
+    if (typeof updateHudClock === 'function') updateHudClock();
+    if (typeof updateHudTemp === 'function') updateHudTemp();
+    // Die Übersichtszeile rückt weiter, wenn ein Termin vorbei ist; die Uhr läuft im selben Takt mit
     setInterval(() => renderAssistantOverview(), 60000);
+    // Temperatur seltener auffrischen, die ändert sich nicht minütlich
+    setInterval(() => { if (typeof updateHudTemp === 'function') updateHudTemp(); }, 900000);
 });

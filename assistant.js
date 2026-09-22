@@ -67,6 +67,7 @@ function formatEmailFallback(data) {
 
 /* Solche Fragen gehen immer an die Internet-Suche */
 const WEB_TRIGGER = /fernseh|tv[- ]?programm|tv[- ]?tipp|was läuft|kinoprogramm|im kino|kinofilm|streaming[- ]?tipp|paket|sendungsnummer|sendungsverfolgung|paketverfolgung/i;
+const NEARBY_TRIGGER = /restaurant|lokal\b|imbiss|dönerladen|doenerladen|pizzeria|kneipe|(in der nähe|hier in der nähe).*(essen|zu essen)|(essen|zu essen).*(in der nähe|hier in der nähe)|lust auf.*(chinesisch|italienisch|griechisch|türkisch|indisch|thai|japanisch|vietnamesisch|mexikanisch|döner|pizza|sushi|burger|asiatisch)/i;
 
 /* Ersatzantwort, falls die KI beim zweiten Durchgang ausfällt */
 function formatCalendarSearchFallback(results) {
@@ -405,7 +406,11 @@ async function sendToGroqSmart(text) {
     if (recordText) recordText.textContent = "J.A.R.V.I.S. / VERARBEITET...";
 
     const ackTimer = setTimeout(() => {
-        speakAck(pickRandom(["Einen Augenblick.", "Ich kümmere mich darum.", "Einen Moment."]));
+        speakAck(pickRandom([
+            "Einen Augenblick.", "Ich kümmere mich darum.", "Sofort.", "Wird erledigt.",
+            "Gebe ich sofort ein.", "Verstanden.", "Ich sehe nach.", "Bin schon dabei.",
+            "Kommt sofort.", "Erledige ich."
+        ]));
     }, ACK_DELAY_MS);
 
     let liveWeather = null;
@@ -589,6 +594,15 @@ async function sendToGroqSmart(text) {
             actions.every(a => !a.type || a.type === 'chat' || a.type === 'memory_search')) {
             actions.length = 0;
             actions.push({ type: 'web_lookup', web_query: text });
+            ai.reply = 'Ich schaue nach.';
+            chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: ai.reply, actions }) };
+        }
+
+        // Fragen nach Restaurants/Lokalen in der Nähe werden IMMER als "nearby_places" behandelt, auch wenn die KI stattdessen einfach etwas erfindet
+        if (NEARBY_TRIGGER.test(text) && !actions.some(a => a.type === 'nearby_places') &&
+            actions.every(a => !a.type || a.type === 'chat' || a.type === 'memory_search')) {
+            actions.length = 0;
+            actions.push({ type: 'nearby_places', places_query: extractCuisineKeyword(text) });
             ai.reply = 'Ich schaue nach.';
             chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: ai.reply, actions }) };
         }
