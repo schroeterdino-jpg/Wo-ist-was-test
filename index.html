@@ -60,6 +60,7 @@
             <span id="hudClock">--:--</span>
             <span id="hudTemp" class="hud-badge-sub"></span>
         </div>
+        <img id="systemCheckGif" class="hud-system-check" src="./system-check.gif" alt="System Check">
     </div>
 
     <div class="app-shell flex flex-col min-h-screen justify-between">
@@ -174,40 +175,7 @@
                                     <path class="ring-a" d="M 1.5 157.5 A 156 156 0 0 1 313.5 157.5" stroke-width="2"/>
                                     <path class="ring-b" d="M 313.5 157.5 A 156 156 0 0 1 1.5 157.5" stroke-width="2"/>
                                 </svg>
-                                <svg id="reactorCore" class="reactor-core" viewBox="0 0 220 220" aria-hidden="true">
-                                    <defs>
-                                        <radialGradient id="reactorGlow" cx="50%" cy="50%" r="55%">
-                                            <stop offset="0%" stop-color="#ffffff"/>
-                                            <stop offset="35%" stop-color="#bdf3ff"/>
-                                            <stop offset="72%" stop-color="#49d7ff"/>
-                                            <stop offset="100%" stop-color="#0a2733" stop-opacity="0"/>
-                                        </radialGradient>
-                                    </defs>
-                                    <g class="reactor-housing">
-                    <polygon points="210.0,113.2 210.0,106.8 228.0,106.8 228.0,113.2" class="reactor-fin"/>
-                    <polygon points="198.7,156.3 201.5,150.5 217.7,158.3 214.9,164.1" class="reactor-fin"/>
-                    <polygon points="169.8,190.2 174.9,186.2 186.1,200.3 181.1,204.3" class="reactor-fin"/>
-                    <polygon points="129.1,208.2 135.4,206.8 139.4,224.3 133.1,225.8" class="reactor-fin"/>
-                    <polygon points="84.6,206.8 90.9,208.2 86.9,225.8 80.6,224.3" class="reactor-fin"/>
-                    <polygon points="45.1,186.2 50.2,190.2 38.9,204.3 33.9,200.3" class="reactor-fin"/>
-                    <polygon points="18.5,150.5 21.3,156.3 5.1,164.1 2.3,158.3" class="reactor-fin"/>
-                    <polygon points="10.0,106.8 10.0,113.2 -8.0,113.2 -8.0,106.8" class="reactor-fin"/>
-                    <polygon points="21.3,63.7 18.5,69.5 2.3,61.7 5.1,55.9" class="reactor-fin"/>
-                    <polygon points="50.2,29.8 45.1,33.8 33.9,19.7 38.9,15.7" class="reactor-fin"/>
-                    <polygon points="90.9,11.8 84.6,13.2 80.6,-4.3 86.9,-5.8" class="reactor-fin"/>
-                    <polygon points="135.4,13.2 129.1,11.8 133.1,-5.8 139.4,-4.3" class="reactor-fin"/>
-                    <polygon points="174.9,33.8 169.8,29.8 181.1,15.7 186.1,19.7" class="reactor-fin"/>
-                    <polygon points="201.5,69.5 198.7,63.7 214.9,55.9 217.7,61.7" class="reactor-fin"/>
-                                    </g>
-                                    <circle cx="110" cy="110" r="102" class="reactor-housing-ring"/>
-                                    <circle cx="110" cy="110" r="92" class="reactor-outline"/>
-                                    <circle cx="110" cy="110" r="86" class="reactor-glow-disc" fill="url(#reactorGlow)"/>
-                                    <g class="reactor-pattern">
-                                        <polygon points="110,32 180,150 40,150" class="reactor-tri reactor-tri-a"/>
-                                        <polygon points="110,188 40,70 180,70" class="reactor-tri reactor-tri-b"/>
-                                    </g>
-                                    <circle cx="110" cy="110" r="13" class="reactor-core-dot"/>
-                                </svg>
+                                <img id="jarvisOrb" class="jarvis-orb" src="./jarvis-orb.gif" alt="J.A.R.V.I.S.">
                             </div>
                             <div id="waveform" class="active">
                                 <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
