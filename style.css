@@ -134,9 +134,9 @@ h1, h2, .jarvis-font {
     will-change: transform;
     backface-visibility: hidden;
 }
-.holo-svg-1 { width: 300px; height: 300px; animation: spin 12s linear infinite; }
-.holo-svg-2 { width: 315px; height: 315px; animation: spin-reverse 8s linear infinite; }
-.holo-svg-ticks { width: 330px; height: 330px; animation: spin 140s linear infinite; }
+.holo-svg-1 { width: 280px; height: 280px; animation: spin 12s linear infinite; }
+.holo-svg-2 { width: 293px; height: 293px; animation: spin-reverse 8s linear infinite; }
+.holo-svg-ticks { width: 306px; height: 306px; animation: spin 140s linear infinite; }
 .holo-svg-ticks .tick-minor { stroke: var(--metal); opacity: .35; stroke-width: 1; }
 .holo-svg-ticks .tick-major { stroke: var(--metal); opacity: .65; stroke-width: 1.6; }
 .holo-svg circle, .holo-svg path { fill: none; }
@@ -160,9 +160,10 @@ h1, h2, .jarvis-font {
 
 /* --- Jarvis-Kugel (eigenes GIF), ersetzt den vorherigen Arc-Reaktor --- */
 .jarvis-orb {
-    width: 290px;
-    height: 290px;
-    object-fit: contain;
+    width: 305px;
+    height: 305px;
+    border-radius: 50%;
+    object-fit: cover;
     z-index: 2;
     will-change: transform;
     backface-visibility: hidden;
