@@ -7,7 +7,7 @@
   "crons": [
     {
       "path": "/api/check-fuel",
-      "schedule": "0 7,16 * * *"
+      "schedule": "0 7 * * *"
     }
   ]
 }
