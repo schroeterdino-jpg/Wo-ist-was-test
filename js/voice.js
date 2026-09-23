@@ -12,10 +12,14 @@ let followUpTimer = null;
 let conversationMode = getPersistentData('conversation_mode', '1') === '1';
 let selectedVoiceURI = getPersistentData('tts_voice_uri', '');
 let availableVoices = [];
+let wakeWordEnabled = getPersistentData('wake_word_enabled', '0') === '1';
+let wakeWordListening = false;
 
 const SPEECH_RATE = 1.0;
 const SPEECH_PITCH = 0.92;
 const FOLLOW_UP_WINDOW_MS = 9000;
+const ACK_DELAY_MS = 1500;
+const WAKE_WORD_REGEX = /\bhe?y?\s*jarvis\b/i;
 
 function pickRandom(list) {
     return list[Math.floor(Math.random() * list.length)];
@@ -39,6 +43,7 @@ function setIdleUi() {
 
     if (recordText) recordText.textContent = "J.A.R.V.I.S. / BEREIT";
     updateTerminalStream("SYS_IDLE: AWAITING_INPUT", "ONLINE");
+    if (wakeWordEnabled) startWakeWordListening();
 }
 
 /* --- Stimmen-Auswahl --- */
@@ -92,7 +97,7 @@ function populateVoiceSelect() {
 }
 
 function testVoice() {
-    speak(`Guten Tag, Dino. Sämtliche Systeme arbeiten einwandfrei.`);
+    speak(`Guten Tag, ${currentUserName}. Sämtliche Systeme arbeiten einwandfrei.`);
 }
 
 if ('speechSynthesis' in window) {
@@ -118,9 +123,14 @@ if (conversationToggleEl) {
     });
 }
 
+const wakeWordToggleEl = document.getElementById('wakeWordToggle');
+if (wakeWordToggleEl) wakeWordToggleEl.checked = wakeWordEnabled;
+
 /* --- Sprechen --- */
 const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
+/* "11.04." oder "11.04.2026" wird als "11. April" bzw. "11. April 2026" gesprochen und angezeigt.
+   So kann die Stimme Tag und Monat nicht vertauschen. Uhrzeiten wie "18.34" und Preise bleiben unberührt. */
 function speakableDates(text) {
     return String(text).replace(/(?<![\d.])(\d{1,2})\.(\d{1,2})\.(?:(\d{4})|(\d{2})(?!\d))?(?!\d)/g, (m, d, mo, y4, y2) => {
         const day = Number(d), month = Number(mo);
@@ -196,6 +206,19 @@ function speak(text, onComplete) {
     }
 }
 
+function speakAck(text) {
+    if (!('speechSynthesis' in window) || isRecording) return;
+    const u = new SpeechSynthesisUtterance(text);
+    const voice = getActiveVoice();
+    if (voice) { u.voice = voice; u.lang = voice.lang; } else { u.lang = 'de-DE'; }
+    u.rate = SPEECH_RATE;
+    u.pitch = SPEECH_PITCH;
+    ackActive = true;
+    u.onend = () => { ackActive = false; };
+    u.onerror = () => { ackActive = false; };
+    window.speechSynthesis.speak(u);
+}
+
 function interruptSpeaking() {
     stopThinkingSound();
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
@@ -222,9 +245,7 @@ function setListeningUi(followUp) {
 }
 
 function startListening(followUp = false) {
-    if (!recognition) return;
-    if (isRecording) return;
-    
+    if (!recognition || isRecording) return;
     recognition.continuous = false;
     isFollowUp = followUp;
     clearFollowUpTimer();
@@ -258,25 +279,43 @@ function isEndPhrase(text) {
 if (SpeechRecognition) {
     recognition = new SpeechRecognition();
     recognition.lang = 'de-DE';
-    
     recognition.onstart = () => {
         isRecording = true;
         setListeningUi(isFollowUp);
     };
-
     recognition.onresult = (event) => {
-        const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
+        const text = event.results[event.results.length - 1][0].transcript;
+
+        if (wakeWordListening) {
+            const m = text.match(WAKE_WORD_REGEX);
+            if (!m) return;   // kein Weckwort erkannt: einfach weiter zuhören, nichts an die KI schicken
+            wakeWordListening = false;
+            recognition.continuous = false;
+            const rest = text.slice(m.index + m[0].length).replace(/^[,.:\s]+/, '').trim();
+            if (rest) {
+                handleRecognizedText(rest);
+            } else {
+                isRecording = false;   // sonst würde speakAck() das "Ja?" für sich stumm verschlucken (isRecording ist im Dauerzuhören-Modus noch true)
+                speakAck('Ja?');
+                isFollowUp = true;
+                clearFollowUpTimer();
+                followUpTimer = setTimeout(() => { isFollowUp = false; setIdleUi(); }, FOLLOW_UP_WINDOW_MS);
+                setListeningUi(true);
+                try { recognition.start(); } catch (e) {}
+            }
+            return;
+        }
+
         handleRecognizedText(text);
     };
 
     function handleRecognizedText(text) {
-        isRecording = false;
-        ackActive = false;
         isFollowUp = false;
         clearFollowUpTimer();
         typeWriterStatus(`Verstanden: "${text}"`);
         setHudSubtitle(`User: "${text}"`);
 
+        // Fenster offen und "Schließen" gesagt: nur schließen, kein Aufruf an die KI
         if (isPanelOpen() && isCloseCommand(text)) {
             closePanel();
             typeWriterStatus("Klicken zum Sprechen...");
@@ -292,26 +331,75 @@ if (SpeechRecognition) {
         }
         sendToGroqSmart(text);
     }
-
     recognition.onerror = (event) => {
         const wasFollowUp = isFollowUp;
         isFollowUp = false;
         clearFollowUpTimer();
-        ackActive = false;
-
+        const wasWake = wakeWordListening;
+        wakeWordListening = false;
         if (event && (event.error === 'not-allowed' || event.error === 'service-not-allowed')) {
             typeWriterStatus("Mikrofon-Zugriff blockiert.");
             setHudSubtitle("Mikrofon-Zugriff blockiert.");
+            wakeWordEnabled = false;   // Zugriff verweigert: Weckwort-Modus lässt sich nicht sinnvoll fortsetzen
+        } else if (wasFollowUp && !isProcessing && !isSpeaking()) {
+            typeWriterStatus("Klicken zum Sprechen...");
+        } else if (wasWake && wakeWordEnabled && !isProcessing && !isSpeaking()) {
+            setTimeout(() => startWakeWordListening(), 800);   // z.B. Stille-Zeitüberschreitung: einfach neu starten
         }
         resetRecordingState();
     };
-
     recognition.onend = () => {
+        const wasFollowUp = isFollowUp;
+        const wasWake = wakeWordListening;
         isFollowUp = false;
+        wakeWordListening = false;
         clearFollowUpTimer();
-        ackActive = false;
+        if (wasFollowUp && !isProcessing && !isSpeaking()) {
+            typeWriterStatus("Klicken zum Sprechen...");
+        }
         resetRecordingState();
+        if (pendingManualListen) {
+            pendingManualListen = false;
+            startListening(false);
+        } else if (wasWake && wakeWordEnabled && !isProcessing && !isSpeaking()) {
+            setTimeout(() => startWakeWordListening(), 400);   // Sitzung von selbst beendet (Browser-Limit): weiterlauschen
+        }
     };
+}
+
+/* --- Weckwort-Modus: hört dauerhaft zu, solange die App offen ist, und reagiert nur auf "Hey Jarvis" --- */
+function startWakeWordListening() {
+    if (!recognition || !wakeWordEnabled) return;
+    if (isRecording || isSpeaking() || isProcessing || wakeWordListening) return;
+    if (document.hidden) return;   // App im Hintergrund: nicht versuchen, spart Akku und vermeidet Fehler
+    wakeWordListening = true;
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    try {
+        recognition.start();
+        if (recordText) recordText.textContent = "J.A.R.V.I.S. / WARTET AUF „HEY JARVIS\"...";
+    } catch (e) {
+        wakeWordListening = false;
+    }
+}
+
+function stopWakeWordListening() {
+    wakeWordListening = false;
+    if (recognition && isRecording) { try { recognition.stop(); } catch (e) {} }
+}
+
+function setWakeWordEnabled(on) {
+    wakeWordEnabled = !!on;
+    setPersistentData('wake_word_enabled', wakeWordEnabled ? '1' : '0');
+    if (wakeWordEnabled) startWakeWordListening();
+    else stopWakeWordListening();
+}
+
+if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopWakeWordListening();
+        else if (wakeWordEnabled && !isRecording && !isSpeaking() && !isProcessing) startWakeWordListening();
+    });
 }
 
 let pendingManualListen = false;
@@ -325,6 +413,13 @@ function toggleSpeechRecognition() {
     if (isSpeaking()) {
         interruptSpeaking();
         setTimeout(() => startListening(false), 200);
+        return;
+    }
+    if (wakeWordListening) {
+        // Man will jetzt sofort reden, statt erst "Hey Jarvis" zu sagen: umschalten auf normales Zuhören
+        wakeWordListening = false;
+        pendingManualListen = true;
+        try { recognition.stop(); } catch (e) { pendingManualListen = false; startListening(false); }
         return;
     }
     if (isRecording) {
