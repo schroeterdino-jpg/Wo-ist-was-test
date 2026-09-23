@@ -329,9 +329,9 @@ async function executeAction(action, text, ctx) {
         }
         let updDone;
         if (targetId) {
-            updDone = await updateGoogleCalendarEvent(targetId, action.calendar_text, action.calendar_time);
+            updDone = await updateGoogleCalendarEvent(targetId, action.calendar_text, action.calendar_time, action.calendar_location);
         } else {
-            updDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time);
+            updDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, action.calendar_location);
         }
         if (updDone === false) googleNotSynced(ctx, 'Die Änderung gilt nur in der App');
         updateTerminalStream("CALENDAR: EVENT_UPDATED");
@@ -389,7 +389,7 @@ async function executeAction(action, text, ctx) {
         if (removed === 0) throw userError('Im Briefing habe ich dazu keinen passenden Eintrag gefunden.');
         updateTerminalStream("BRIEFING: WISH_DELETED");
     } else if (action.type === 'calendar' || action.calendar_text) {
-        const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time);
+        const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, action.calendar_location);
         if (addDone === false) googleNotSynced(ctx, 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht');
         updateTerminalStream("CALENDAR: EVENT_ADDED");
     }
@@ -542,8 +542,8 @@ async function sendToGroqSmart(text) {
     "- Zähle bei einer Abfrage der Einkaufsliste jeden Artikel aus dem 'einkauf'-Array exakt nur einmal auf und nenne ihn niemals doppelt in deiner 'reply'.\n" +
     "- Verwende den Typ 'shopping' NUR, wenn der User explizit etwas hinzufügen möchte (z.B. 'Füge X hinzu', 'Packe Y auf die Einkaufsliste').\n\n" +
     "WICHTIG für Termine & Kalender:\n" +
-    "- Wenn der User einen neuen Termin anlegt ('calendar'), berechne den exakten ISO-Zeitstempel (ISO 8601 im Format YYYY-MM-DDTHH:mm:ss) in 'calendar_time' basierend auf dem aktuellen Datum (" + nowGermanIso + ").\n" +
-    "- Wenn der User einen Termin ändern möchte ('calendar_update'), ermittle die korrekte 'calendar_id' aus dem Kontext ('termine'), den neuen Titel in 'calendar_text' (falls geändert) und den neuen Ziel-Zeitpunkt als ISO-String in 'calendar_time'.\n" +
+    "- Wenn der User einen neuen Termin anlegt ('calendar'), berechne den exakten ISO-Zeitstempel (ISO 8601 im Format YYYY-MM-DDTHH:mm:ss) in 'calendar_time' basierend auf dem aktuellen Datum (" + nowGermanIso + "). Nennt er dabei einen Ort ('Ort Schwarzenbeck', 'in Hamburg', 'bei Rossmann'), trage NUR den Ort in 'calendar_location' ein - nicht im Titel ('calendar_text') wiederholen.\n" +
+    "- Wenn der User einen Termin ändern möchte ('calendar_update'), ermittle die korrekte 'calendar_id' aus dem Kontext ('termine'), den neuen Titel in 'calendar_text' (falls geändert), den neuen Ziel-Zeitpunkt als ISO-String in 'calendar_time' und einen neuen/nachträglichen Ort in 'calendar_location' (falls genannt).\n" +
     "- Wenn der User einen Termin löschen möchte ('calendar_delete'), gib den Suchbegriff oder die ID in 'calendar_query' an.\n" +
     "- Wenn Angaben für einen neuen Termin oder eine Änderung unvollständig sind (z.B. Uhrzeit fehlt), antworte im 'chat'-Modus und stelle genau eine kurze Rückfrage nach den fehlenden Details. Das Gespräch geht danach automatisch weiter.\n\n" +
     "WICHTIG bei mehreren Aufträgen in einem Satz:\n" +
@@ -558,6 +558,7 @@ async function sendToGroqSmart(text) {
     "Die folgenden Felder gehören in die jeweilige Aktion, nicht auf die oberste Ebene:\n" +
     "- calendar_text: (bei calendar oder calendar_update) Titel des Termins.\n" +
     "- calendar_time: (bei calendar oder calendar_update) ISO-Zeitstempel.\n" +
+    "- calendar_location: (bei calendar oder calendar_update) Ort des Termins, falls genannt - wichtig für die Abfahrtszeit-Berechnung.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
     "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query.";
