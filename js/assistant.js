@@ -406,7 +406,11 @@ async function sendToGroqSmart(text) {
     if (recordText) recordText.textContent = "J.A.R.V.I.S. / VERARBEITET...";
 
     const ackTimer = setTimeout(() => {
-        speakAck(pickRandom(["Einen Augenblick.", "Ich kümmere mich darum.", "Einen Moment."]));
+        speakAck(pickRandom([
+            "Einen Augenblick.", "Ich kümmere mich darum.", "Sofort.", "Wird erledigt.",
+            "Gebe ich sofort ein.", "Verstanden.", "Ich sehe nach.", "Bin schon dabei.",
+            "Kommt sofort.", "Erledige ich."
+        ]));
     }, ACK_DELAY_MS);
 
     let liveWeather = null;
@@ -752,8 +756,17 @@ async function sendToGroqSmart(text) {
 }
 
 /* --- Spritpreise (Tankerkönig über /api/tank) --- */
+let lastTankCache = null;   // { time, data } - hilft bei Folgefragen ohne Tank-Stichwort ("und die Classic?")
+const TANK_CACHE_MS = 15 * 60000;
+
 async function tankFuerFrage(text) {
-    if (!/benzin|diesel|sprit|tank|e10|kraftstoff/i.test(text)) return null;
+    const passtThema = /benzin|diesel|sprit|tank|e10|kraftstoff|günstig|kostet|teuer|preis/i.test(text);
+    const cacheFrisch = lastTankCache && (Date.now() - lastTankCache.time) < TANK_CACHE_MS;
+
+    if (!passtThema) {
+        return cacheFrisch ? lastTankCache.data : null;   // Folgefrage ohne Stichwort: letzten Stand weiterverwenden
+    }
+
     typeWriterStatus("Rufe Spritpreise ab...");
     updateTerminalStream("API_FETCH: FUEL_PRICES", "FETCHING");
     try {
@@ -762,13 +775,19 @@ async function tankFuerFrage(text) {
         const r = await apiFetch(`/api/tank?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}&rad=5`);
         const d = await r.json();
         if (!d.stations || d.stations.length === 0) {
-            return { fehler: "Keine geöffneten Tankstellen in der Nähe gefunden." };
+            const result = { fehler: "Keine geöffneten Tankstellen in der Nähe gefunden." };
+            lastTankCache = { time: Date.now(), data: result };
+            return result;
         }
-        return {
-            hinweis: "Preise in Euro pro Liter, nach Entfernung sortiert. Nenne die drei günstigsten Tankstellen für die erfragte Sorte, beginnend mit der günstigsten, jeweils mit Name, Straße und Preis. Bei 'Benzin' ohne Angabe nimm E10. Sprich Preise als Euro und Cent, z.B. 'zwei Euro zweiundzwanzig'. Das ist eine Liste, die Antwort darf daher länger sein.",
+        const result = {
+            hinweis: "Preise in Euro pro Liter, nach Entfernung sortiert. Nenne die drei günstigsten Tankstellen für die erfragte Sorte, beginnend mit der günstigsten, jeweils mit Name, Straße und Preis. Bei 'Benzin' ohne Angabe nimm E10. Sprich Preise als Euro und Cent, z.B. 'zwei Euro zweiundzwanzig'. Das ist eine Liste, die Antwort darf daher länger sein. Fragt der User gezielt nach einer bestimmten Tankstelle aus dieser Liste, nenne nur deren Preis(e).",
             stationen: d.stations
         };
+        lastTankCache = { time: Date.now(), data: result };
+        return result;
     } catch (e) {
-        return { fehler: "Standort oder Spritpreise nicht verfügbar." };
+        const result = { fehler: "Standort oder Spritpreise nicht verfügbar." };
+        lastTankCache = { time: Date.now(), data: result };
+        return result;
     }
 }
