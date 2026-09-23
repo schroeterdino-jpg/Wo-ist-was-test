@@ -43,7 +43,9 @@ function setIdleUi() {
 
     if (recordText) recordText.textContent = "J.A.R.V.I.S. / BEREIT";
     updateTerminalStream("SYS_IDLE: AWAITING_INPUT", "ONLINE");
-    if (wakeWordEnabled) startWakeWordListening();
+    if (wakeWordEnabled && !wakeWordListening) {
+        setTimeout(() => startWakeWordListening(), 500);
+    }
 }
 
 /* --- Stimmen-Auswahl --- */
@@ -97,7 +99,7 @@ function populateVoiceSelect() {
 }
 
 function testVoice() {
-    speak(`Guten Tag, ${currentUserName}. Sämtliche Systeme arbeiten einwandfrei.`);
+    speak(`Guten Tag, Dino. Sämtliche Systeme arbeiten einwandfrei.`);
 }
 
 if ('speechSynthesis' in window) {
@@ -140,6 +142,7 @@ function speakableDates(text) {
 
 function speak(text, onComplete) {
     stopThinkingSound();
+    stopWakeWordListening();
 
     if (isRecording && recognition) {
         isFollowUp = false;
@@ -205,7 +208,7 @@ function speak(text, onComplete) {
 }
 
 function speakAck(text) {
-    if (!('speechSynthesis' in window) || isRecording) return;
+    if (!('speechSynthesis' in window)) return;
     const u = new SpeechSynthesisUtterance(text);
     const voice = getActiveVoice();
     if (voice) { u.voice = voice; u.lang = voice.lang; } else { u.lang = 'de-DE'; }
@@ -243,7 +246,10 @@ function setListeningUi(followUp) {
 }
 
 function startListening(followUp = false) {
-    if (!recognition || isRecording) return;
+    if (!recognition) return;
+    stopWakeWordListening();
+    if (isRecording) return;
+    
     recognition.continuous = false;
     isFollowUp = followUp;
     clearFollowUpTimer();
@@ -277,16 +283,20 @@ function isEndPhrase(text) {
 if (SpeechRecognition) {
     recognition = new SpeechRecognition();
     recognition.lang = 'de-DE';
+    
     recognition.onstart = () => {
         isRecording = true;
-        setListeningUi(isFollowUp);
+        if (!wakeWordListening) {
+            setListeningUi(isFollowUp);
+        }
     };
+
     recognition.onresult = (event) => {
         const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
 
         if (wakeWordListening) {
             const m = text.match(WAKE_WORD_REGEX);
-            if (!m) return;   
+            if (!m) return;   // Ignorieren, wenn Weckwort nicht gefallen ist
             
             wakeWordListening = false;
             try { recognition.stop(); } catch (e) {}
@@ -295,9 +305,10 @@ if (SpeechRecognition) {
             if (rest) {
                 handleRecognizedText(rest);
             } else {
-                isrecoActiveForPrompt();
+                ackActive = true;
                 speakAck('Ja?');
                 setTimeout(() => {
+                    ackActive = false;
                     isFollowUp = true;
                     clearFollowUpTimer();
                     followUpTimer = setTimeout(() => { isFollowUp = false; setIdleUi(); }, FOLLOW_UP_WINDOW_MS);
@@ -310,12 +321,8 @@ if (SpeechRecognition) {
         handleRecognizedText(text);
     };
 
-    function isrecoActiveForPrompt() {
-        isRecording = false;
-        ackActive = true;
-    }
-
     function handleRecognizedText(text) {
+        isRecording = false;
         ackActive = false;
         isFollowUp = false;
         clearFollowUpTimer();
@@ -337,24 +344,27 @@ if (SpeechRecognition) {
         }
         sendToGroqSmart(text);
     }
+
     recognition.onerror = (event) => {
         const wasFollowUp = isFollowUp;
-        isFollowUp = false;
-        clearFollowUpTimer();
         const wasWake = wakeWordListening;
+        isFollowUp = false;
         wakeWordListening = false;
         ackActive = false;
+        clearFollowUpTimer();
+
         if (event && (event.error === 'not-allowed' || event.error === 'service-not-allowed')) {
             typeWriterStatus("Mikrofon-Zugriff blockiert.");
             setHudSubtitle("Mikrofon-Zugriff blockiert.");
             wakeWordEnabled = false;
-        } else if (wasFollowUp && !isProcessing && !isSpeaking()) {
-            typeWriterStatus("Klicken zum Sprechen...");
-        } else if (wasWake && wakeWordEnabled && !isProcessing && !isSpeaking()) {
-            setTimeout(() => startWakeWordListening(), 1000);
         }
         resetRecordingState();
+
+        if (wasWake && wakeWordEnabled && !isProcessing && !isSpeaking()) {
+            setTimeout(() => startWakeWordListening(), 1500);
+        }
     };
+
     recognition.onend = () => {
         const wasFollowUp = isFollowUp;
         const wasWake = wakeWordListening;
@@ -362,15 +372,14 @@ if (SpeechRecognition) {
         wakeWordListening = false;
         clearFollowUpTimer();
         ackActive = false;
-        if (wasFollowUp && !isProcessing && !isSpeaking()) {
-            typeWriterStatus("Klicken zum Sprechen...");
-        }
+        
         resetRecordingState();
+
         if (pendingManualListen) {
             pendingManualListen = false;
             startListening(false);
         } else if (wasWake && wakeWordEnabled && !isProcessing && !isSpeaking()) {
-            setTimeout(() => startWakeWordListening(), 600);
+            setTimeout(() => startWakeWordListening(), 800);
         }
     };
 }
@@ -380,12 +389,14 @@ function startWakeWordListening() {
     if (!recognition || !wakeWordEnabled || ackActive) return;
     if (isRecording || isSpeaking() || isProcessing || wakeWordListening) return;
     if (document.hidden) return;
+    
     wakeWordListening = true;
     recognition.continuous = true;
     recognition.interimResults = false;
     try {
         recognition.start();
         if (recordText) recordText.textContent = "J.A.R.V.I.S. / WARTET AUF „HEY JARVIS\"...";
+        updateTerminalStream("SYS_WAKEWORD: LISTENING", "STANDBY");
     } catch (e) {
         wakeWordListening = false;
     }
@@ -393,7 +404,9 @@ function startWakeWordListening() {
 
 function stopWakeWordListening() {
     wakeWordListening = false;
-    if (recognition && isRecording) { try { recognition.stop(); } catch (e) {} }
+    if (recognition && isRecording) { 
+        try { recognition.stop(); } catch (e) {} 
+    }
 }
 
 function setWakeWordEnabled(on) {
@@ -424,9 +437,14 @@ function toggleSpeechRecognition() {
         return;
     }
     if (wakeWordListening) {
-        wakeWordListening = false;
+        stopWakeWordListening();
         pendingManualListen = true;
-        try { recognition.stop(); } catch (e) { pendingManualListen = false; startListening(false); }
+        setTimeout(() => {
+            if (pendingManualListen) {
+                pendingManualListen = false;
+                startListening(false);
+            }
+        }, 300);
         return;
     }
     if (isRecording) {
