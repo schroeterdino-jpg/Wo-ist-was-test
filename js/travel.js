@@ -27,11 +27,27 @@ async function routeDurationSeconds(fromLat, fromLon, toLat, toLon) {
         const data = await res.json();
         const r = data && data.routes && data.routes[0];
         if (!r) return null;
-        return { seconds: r.duration, meters: r.distance };
+        return { seconds: r.duration, meters: r.distance, autobahnen: extractAutobahnRefs(r) };
     } catch (e) {
         if (e && e.auth) throw e;
         return null;
     }
+}
+
+/* Aus den Fahrspuren-Namen der Route ("A7", "BAB 1" usw.) die benutzten Autobahn-Nummern herausziehen */
+function extractAutobahnRefs(route) {
+    const refs = new Set();
+    const addFrom = (text) => {
+        String(text || '').split(/[;,\/]/).forEach(part => {
+            const m = part.trim().match(/^(?:A|BAB)\s?(\d+)$/i);
+            if (m) refs.add('A' + m[1]);
+        });
+    };
+    (route.legs || []).forEach(leg => (leg.steps || []).forEach(step => {
+        addFrom(step.ref);
+        addFrom(step.name);
+    }));
+    return Array.from(refs);
 }
 
 /* Ohne Angabe eines Termins: der nächste anstehende Termin mit einem hinterlegten Ort (Hauptkalender, nächste 36 Std.) */
@@ -136,6 +152,7 @@ async function computeDepartureAdvice(opts) {
     const fahrtMin = Math.round(route.seconds / 60);
     const km = route.meters / 1000;
     const kmText = km >= 10 ? Math.round(km) + ' Kilometer' : km.toFixed(1).replace('.', ',') + ' Kilometer';
+    const staumeldung = await describeAutobahnStau(route.autobahnen);
 
     let reply, subtitle;
     if (target.keinFesterTermin) {
@@ -151,11 +168,41 @@ async function computeDepartureAdvice(opts) {
             : `Um pünktlich da zu sein, sollten Sie spätestens um ${formatSpokenTime(losfahren)} losfahren.`;
         subtitle = `${fahrtMin} Min. Fahrt · Abfahrt bis ${formatSpokenTime(losfahren)}`;
     }
+    reply += staumeldung;
 
     return {
         reply,
         card: { icon: '🚗', title: 'Route zu ' + target.titel, subtitle, href: buildMapsLink(target.ort, '', 'driving') }
     };
+}
+
+/* --- Live-Stau-/Baustellen-Meldungen der genutzten Autobahnen (offizielle, kostenlose Bund-API) --- */
+async function fetchAutobahnStau(road) {
+    try {
+        const res = await apiFetch('/api/stau?road=' + encodeURIComponent(road));
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.warning || [];
+    } catch (e) {
+        return null;
+    }
+}
+
+async function describeAutobahnStau(autobahnen) {
+    if (!autobahnen || autobahnen.length === 0) return '';
+    const relevant = autobahnen.slice(0, 2);   // nicht zu viele Abfragen bei langen Strecken mit vielen Autobahnen
+    const meldungen = [];
+    for (const road of relevant) {
+        const warnings = await fetchAutobahnStau(road);
+        if (!warnings) continue;   // Dienst gerade nicht erreichbar: einfach nichts dazu sagen, kein Fehler-Lärm
+        warnings.slice(0, 2).forEach(w => {
+            const kurz = (w.title || '').split('|').pop().trim();
+            const grund = (w.description || []).find(d => /stau|verengung|sperr|stockend|zähfließend/i.test(d));
+            meldungen.push(`${road}${kurz ? ': ' + kurz : ''}${grund ? ' (' + grund + ')' : ''}`);
+        });
+    }
+    if (meldungen.length === 0) return '';
+    return ' Achtung, auf der Strecke aktuell gemeldet: ' + meldungen.join('; ') + '.';
 }
 
 /* --- Fahrzeit-Test für die Einstellungen: zeigt Schritt für Schritt, woran es liegt --- */
@@ -210,6 +257,23 @@ async function diagnoseTravel(destination, log) {
     const r = routeData.routes && routeData.routes[0];
     if (!r) { log('❌ Keine Route gefunden. Antwort: ' + JSON.stringify(routeData).slice(0, 250)); return; }
     log(`✅ Fahrzeit: ${Math.round(r.duration / 60)} Minuten, ${(r.distance / 1000).toFixed(1)} km`);
+
+    const autobahnen = extractAutobahnRefs(r);
+    log(autobahnen.length ? `Genutzte Autobahnen: ${autobahnen.join(', ')}` : 'Keine Autobahn auf der Strecke erkannt.');
+    for (const road of autobahnen.slice(0, 2)) {
+        log(`Stau-Abfrage für ${road} (/api/stau) ...`);
+        try {
+            const res3 = await apiFetch('/api/stau?road=' + encodeURIComponent(road));
+            const raw3 = await res3.text();
+            let d3;
+            try { d3 = JSON.parse(raw3); } catch (e) { log('❌ Antwort war kein JSON: ' + raw3.slice(0, 150)); continue; }
+            if (!res3.ok) { log('❌ Fehler: ' + (d3.error || JSON.stringify(d3)).toString().slice(0, 200)); continue; }
+            log(`✅ ${road}: ${(d3.warning || []).length} Meldungen, ${(d3.roadworks || []).length} Baustellen`);
+            (d3.warning || []).slice(0, 2).forEach(w => log('  • ' + (w.title || '(ohne Titel)')));
+        } catch (e) {
+            log('❌ ' + (e && e.userMessage ? e.userMessage : 'Keine Verbindung zum Server.'));
+        }
+    }
     log('Fertig.');
 }
 
