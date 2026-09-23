@@ -152,7 +152,7 @@ async function computeDepartureAdvice(opts) {
     const fahrtMin = Math.round(route.seconds / 60);
     const km = route.meters / 1000;
     const kmText = km >= 10 ? Math.round(km) + ' Kilometer' : km.toFixed(1).replace('.', ',') + ' Kilometer';
-    const staumeldung = await describeAutobahnStau(route.autobahnen);
+    const staumeldung = await describeAutobahnStau(route.autobahnen, loc.latitude, loc.longitude, dest.lat, dest.lon);
 
     let reply, subtitle;
     if (target.keinFesterTermin) {
@@ -188,14 +188,25 @@ async function fetchAutobahnStau(road) {
     }
 }
 
-async function describeAutobahnStau(autobahnen) {
+async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) {
     if (!autobahnen || autobahnen.length === 0) return '';
+    // Grober Fahrschlauch um Start und Ziel, mit etwas Puffer für Umwege - nur Meldungen darin sind wirklich relevant
+    const padding = 0.35;   // ca. 30-35 km, verhindert genau den Fehler "A1 bei Köln" auf einer Fahrt in Schleswig-Holstein
+    const minLat = Math.min(fromLat, toLat) - padding, maxLat = Math.max(fromLat, toLat) + padding;
+    const minLon = Math.min(fromLon, toLon) - padding, maxLon = Math.max(fromLon, toLon) + padding;
+    const relevanteMeldung = (w) => {
+        const lat = w.coordinate && Number(w.coordinate.lat);
+        const lon = w.coordinate && Number(w.coordinate.long);
+        if (!isFinite(lat) || !isFinite(lon)) return false;
+        return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+    };
+
     const relevant = autobahnen.slice(0, 2);   // nicht zu viele Abfragen bei langen Strecken mit vielen Autobahnen
     const meldungen = [];
     for (const road of relevant) {
         const warnings = await fetchAutobahnStau(road);
         if (!warnings) continue;   // Dienst gerade nicht erreichbar: einfach nichts dazu sagen, kein Fehler-Lärm
-        warnings.slice(0, 2).forEach(w => {
+        warnings.filter(relevanteMeldung).slice(0, 2).forEach(w => {
             const kurz = (w.title || '').split('|').pop().trim();
             const grund = (w.description || []).find(d => /stau|verengung|sperr|stockend|zähfließend/i.test(d));
             meldungen.push(`${road}${kurz ? ': ' + kurz : ''}${grund ? ' (' + grund + ')' : ''}`);
@@ -260,6 +271,9 @@ async function diagnoseTravel(destination, log) {
 
     const autobahnen = extractAutobahnRefs(r);
     log(autobahnen.length ? `Genutzte Autobahnen: ${autobahnen.join(', ')}` : 'Keine Autobahn auf der Strecke erkannt.');
+    const padding = 0.35;
+    const minLat = Math.min(loc.latitude, dLat) - padding, maxLat = Math.max(loc.latitude, dLat) + padding;
+    const minLon = Math.min(loc.longitude, dLon) - padding, maxLon = Math.max(loc.longitude, dLon) + padding;
     for (const road of autobahnen.slice(0, 2)) {
         log(`Stau-Abfrage für ${road} (/api/stau) ...`);
         try {
@@ -268,8 +282,13 @@ async function diagnoseTravel(destination, log) {
             let d3;
             try { d3 = JSON.parse(raw3); } catch (e) { log('❌ Antwort war kein JSON: ' + raw3.slice(0, 150)); continue; }
             if (!res3.ok) { log('❌ Fehler: ' + (d3.error || JSON.stringify(d3)).toString().slice(0, 200)); continue; }
-            log(`✅ ${road}: ${(d3.warning || []).length} Meldungen, ${(d3.roadworks || []).length} Baustellen`);
-            (d3.warning || []).slice(0, 2).forEach(w => log('  • ' + (w.title || '(ohne Titel)')));
+            const alle = d3.warning || [];
+            const relevant = alle.filter(w => {
+                const wl = w.coordinate && Number(w.coordinate.lat), wo = w.coordinate && Number(w.coordinate.long);
+                return isFinite(wl) && isFinite(wo) && wl >= minLat && wl <= maxLat && wo >= minLon && wo <= maxLon;
+            });
+            log(`✅ ${road}: ${alle.length} Meldungen insgesamt, davon ${relevant.length} in der Nähe der Strecke, ${(d3.roadworks || []).length} Baustellen`);
+            relevant.slice(0, 2).forEach(w => log('  • ' + (w.title || '(ohne Titel)')));
         } catch (e) {
             log('❌ ' + (e && e.userMessage ? e.userMessage : 'Keine Verbindung zum Server.'));
         }
