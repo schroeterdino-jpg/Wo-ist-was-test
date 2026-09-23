@@ -329,6 +329,11 @@
                             <input type="checkbox" id="conversationModeToggle" class="w-5 h-5 accent-[#49d7ff]">
                             <span>Gesprächsmodus: nach jeder Antwort weiterhören</span>
                         </label>
+                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer pt-1">
+                            <input type="checkbox" id="wakeWordToggle" class="w-5 h-5 accent-[#49d7ff]" onchange="setWakeWordEnabled(this.checked)">
+                            <span>Weckwort-Modus: hört auf „Hey Jarvis", solange die App offen ist</span>
+                        </label>
+                        <p class="text-xs text-[#5d7e91] font-mono pl-8">Braucht dauerhaften Mikrofon-Zugriff, zeigt dafür das Mikro-Symbol von Android permanent an und verbraucht etwas mehr Akku. Funktioniert nur, solange die App im Vordergrund ist.</p>
                     </div>
                 </details>
 
