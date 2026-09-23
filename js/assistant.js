@@ -68,6 +68,7 @@ function formatEmailFallback(data) {
 /* Solche Fragen gehen immer an die Internet-Suche */
 const WEB_TRIGGER = /fernseh|tv[- ]?programm|tv[- ]?tipp|was läuft|kinoprogramm|im kino|kinofilm|streaming[- ]?tipp|paket|sendungsnummer|sendungsverfolgung|paketverfolgung/i;
 const NEARBY_TRIGGER = /restaurant|lokal\b|imbiss|dönerladen|doenerladen|pizzeria|kneipe|(in der nähe|hier in der nähe).*(essen|zu essen)|(essen|zu essen).*(in der nähe|hier in der nähe)|lust auf.*(chinesisch|italienisch|griechisch|türkisch|indisch|thai|japanisch|vietnamesisch|mexikanisch|döner|pizza|sushi|burger|asiatisch)/i;
+const STAU_TRIGGER = /\bstau\b|\bverkehr\b|zähfließend|stockend|staumeldung/i;
 
 /* Ersatzantwort, falls die KI beim zweiten Durchgang ausfällt */
 function formatCalendarSearchFallback(results) {
@@ -525,12 +526,13 @@ async function sendToGroqSmart(text) {
     "- Will der User nur wirklich wichtige E-Mails, keine Werbung/Newsletter ('nur wichtige E-Mails', 'keine Werbe-Mails', 'ohne Newsletter'), setze 'email_important_only' auf true - das blendet automatisch Werbung, Social-Media- und automatische Benachrichtigungs-Mails aus.\n" +
     "- Bittet der User, eine E-Mail vorzulesen ('lies mir die erste vor', 'lies die von Peter vor', 'was steht in der E-Mail von der Bank'), nutze 'email_read' mit 'email_ref' = die Nummer aus der zuletzt gezeigten Liste (z.B. '1' für die erste) oder der Name/das Stichwort, das der User nennt. Ohne vorherige Übersicht in diesem Gespräch frag ihn stattdessen, ob du zuerst nachsehen sollst, oder nutze 'email_check'.\n" +
     "- Schreibe in 'reply' nur 'Ich schaue nach.'. Die eigentliche Antwort wird automatisch aus den echten Daten ergänzt. Erfinde niemals Absender, Betreffs oder Inhalte von E-Mails.\n\n" +
-    "WICHTIG für die Abfahrtszeit ('Wann muss ich losfahren?', 'Wie lange dauert die Fahrt zu ...'):\n" +
-    "- Nutze 'travel_time'. Drei Fälle:\n" +
+    "WICHTIG für die Abfahrtszeit ('Wann muss ich losfahren?', 'Wie lange dauert die Fahrt zu ...', 'Ist Stau auf meiner Strecke?'):\n" +
+    "- Nutze 'travel_time' (nicht 'navigate') - das berechnet die echte Fahrzeit UND prüft aktuelle Stau-/Baustellenmeldungen auf der Strecke. 'navigate' liefert nur einen Kartenlink ohne Fahrzeit oder Verkehrsinfo. Fragt der User nach Fahrzeit, Ankunft, Losfahren, Stau oder Verkehr zu einem Ziel, immer 'travel_time' verwenden, auch wenn der Satz wie eine einfache Navigations-Anfrage klingt ('Ich muss zum X, ist da Stau?').\n" +
+    "- Drei Fälle:\n" +
     "  1) Der User nennt einen Termin aus seinem Kalender (z.B. 'wann muss ich zum Zahnarzt los'): 'travel_query' = Stichwort des Termins.\n" +
     "  2) Ohne jede Angabe ('Wann muss ich losfahren?'): weder 'travel_query' noch 'travel_destination' setzen; es wird automatisch der nächste anstehende Termin mit hinterlegtem Ort genommen.\n" +
     "  3) Der User nennt ein Ziel, das kein Termin aus seinem Kalender ist (eine Adresse, ein Ort, ein Name wie 'Hans-Dewitz-Ring'): 'travel_destination' = genau dieses Ziel als Text. Nennt er dazu eine Ankunftszeit ('ich muss um 14 Uhr da sein', 'bis 14 Uhr'), setze 'travel_arrival_time' im Format 'HH:MM' (24-Stunden). Ohne Ankunftszeit wird nur die Fahrzeit genannt, ohne Abfahrtsempfehlung.\n" +
-    "- Schreibe in 'reply' nur 'Ich schaue nach.'; die genaue Antwort mit Uhrzeiten wird automatisch berechnet.\n\n" +
+    "- Schreibe in 'reply' nur 'Ich schaue nach.'; die genaue Antwort mit Uhrzeiten und Stau-Hinweisen wird automatisch berechnet.\n\n" +
     "WICHTIG für Datensicherung:\n" +
     "- Sagt der User 'Sichere meine Daten' oder 'Exportiere meine Daten', nutze 'backup_export'. Das lädt eine Datei mit allen Listen, Terminen, dem Gedächtnis, Parkplatz und der Heimatadresse herunter.\n\n" +
     "WICHTIG für Restaurants/Lokale in der Nähe ('Zeig mir Restaurants in der Nähe', 'Ich habe Lust auf Chinesisch, gibt es was in der Nähe?'):\n" +
@@ -621,6 +623,19 @@ async function sendToGroqSmart(text) {
             actions.push({ type: 'nearby_places', places_query: extractCuisineKeyword(text) });
             ai.reply = 'Ich schaue nach.';
             chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: ai.reply, actions }) };
+        }
+
+        // "Ist Stau auf meiner Strecke?" wird IMMER mit der echten Fahrzeit-/Stau-Berechnung beantwortet,
+        // auch wenn die KI stattdessen nur eine einfache Navigation vorgeschlagen hat
+        if (STAU_TRIGGER.test(text) && !actions.some(a => a.type === 'travel_time')) {
+            const navAction = actions.find(a => a.type === 'navigate' && a.nav_to);
+            const spezialZiel = navAction && ['parkplatz', 'meinparkplatz', 'auto', 'meinauto', 'geparktesauto', 'zuhause', 'nachhause', 'heim', 'heimat'].includes(normalizeKey(navAction.nav_to));
+            if (navAction && !spezialZiel) {
+                actions.length = 0;
+                actions.push({ type: 'travel_time', travel_destination: navAction.nav_to });
+                ai.reply = 'Ich schaue nach.';
+                chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: ai.reply, actions }) };
+            }
         }
 
         // Gedächtnis-Suche nur, wenn die KI es so will, oder wenn sie nur geantwortet hat
