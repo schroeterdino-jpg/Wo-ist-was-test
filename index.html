@@ -34,7 +34,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#050a10">
 
-    <!-- Effekt-Stufe früh setzen, damit beim Start nichts flackert -->
     <script>
         document.documentElement.dataset.fx = (function () { try { return localStorage.getItem('fx_mode') || 'calm'; } catch (e) { return 'calm'; } })();
         (function () { try { JSON.parse(localStorage.getItem('fx_flags') || '[]').forEach(function (f) { document.documentElement.classList.add('nofx-' + f); }); } catch (e) {} })();
@@ -46,7 +45,6 @@
     <div class="scanline-overlay"></div>
     <div id="grid-canvas"></div>
 
-    <!-- HUD-Zierrahmen und kleine Anzeigen: rein dekorativ, feste Position, liegen hinter den Fenstern -->
     <div id="hudDecor" class="hud-decor" aria-hidden="true">
         <div class="hud-corner hud-corner-tl"></div>
         <div class="hud-corner hud-corner-tr"></div>
@@ -88,7 +86,6 @@
 
             <section id="sec-speak" class="flex flex-col items-center justify-between space-y-4 my-auto py-2">
                 
-                <!-- Schlanke Übersicht: Tipp links öffnet die Termine, Tipp rechts die Erinnerungen -->
                 <div id="overviewLine" class="w-full flex items-stretch gap-2 font-mono text-xs">
                     <button onclick="playUiBeep(); overviewTap()" class="flex-1 min-w-0 text-left px-4 py-2.5 rounded-xl bg-[#0a1621]/80 backdrop-blur border border-[rgba(93,209,255,.25)] border-glow-cyan">
                         <span class="block text-[10px] uppercase tracking-widest text-[#49d7ff]/80">📅 Nächster Termin</span>
@@ -101,7 +98,6 @@
                     <div id="recordBtn" onclick="toggleSpeechRecognition()" class="jarvis-scanner-container flex flex-col items-center justify-center p-3 rounded-xl bg-transparent border-none transition-all cursor-pointer">
                         <div id="reactor-wrap">
                             <div class="holo-container">
-                                <!-- Die zwei Ringe sind Vektorgrafiken: Sie werden einmal gezeichnet und dann nur noch gedreht (kein Flimmern) -->
                                 <svg class="holo-svg holo-svg-1" viewBox="0 0 300 300" aria-hidden="true">
                                     <circle class="ring-a glow" cx="150" cy="150" r="148" stroke-width="7" stroke-dasharray="9.1 7.5"/>
                                     <circle class="ring-a" cx="150" cy="150" r="148" stroke-width="2" stroke-dasharray="9.1 7.5"/>
@@ -343,7 +339,7 @@
                             <option value="full">Voll (mit Unschärfe und mehr Bewegung)</option>
                             <option value="off">Aus (Ringe und Hintergrund stehen still)</option>
                         </select>
-                        <p class="text-xs text-[#5d7e91]">Flackert es auf deinem Handy, nimm „Ruhig“ oder „Aus“. Die Einstellung gilt nur für dieses Gerät.</p>
+                        <p class="text-xs text-[#5d7e91]">Flackert es auf deinem Handy, nimm „Ruhig" oder „Aus". Die Einstellung gilt nur für dieses Gerät.</p>
                     </div>
                 </details>
 
@@ -472,7 +468,6 @@
         </footer>
     </div>
 
-    <!-- Fenster, die ins Bild fliegen (Termine, Erinnerungen, Listen, Einstellungen ...) -->
     <div id="panelLayer" class="hidden" aria-hidden="true">
         <div id="panelBackdrop" onclick="closePanel()"></div>
         <div id="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle" class="hud-panel">
@@ -485,7 +480,6 @@
         </div>
     </div>
 
-    <!-- Reihenfolge ist wichtig: Jede Datei darf nur Dinge nutzen, die weiter oben geladen wurden. -->
     <script src="./js/ui.js"></script>
     <script src="./js/audio.js"></script>
     <script src="./js/storage.js"></script>
