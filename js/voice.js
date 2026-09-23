@@ -19,7 +19,7 @@ const SPEECH_RATE = 1.0;
 const SPEECH_PITCH = 0.92;
 const FOLLOW_UP_WINDOW_MS = 9000;
 const ACK_DELAY_MS = 1500;
-const WAKE_WORD_REGEX = /\bhe?y?\s*jarvis\b/i;
+const WAKE_WORD_REGEX = /\bhe?y?[\s,.-]*jarvis\b/i;
 
 function pickRandom(list) {
     return list[Math.floor(Math.random() * list.length)];
@@ -282,7 +282,7 @@ if (SpeechRecognition) {
         setListeningUi(isFollowUp);
     };
     recognition.onresult = (event) => {
-        const text = event.results[event.results.length - 1][0].transcript;
+        const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
 
         if (wakeWordListening) {
             const m = text.match(WAKE_WORD_REGEX);
