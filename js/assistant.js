@@ -238,6 +238,19 @@ async function lookupCalendar(terms) {
 
 /* Führt EINE Aktion der KI aus (Einkauf, Termin, Erinnerung ...).
    ctx.counter sorgt dafür, dass mehrere neue Einträge aus einer Äußerung eindeutige IDs bekommen. */
+/* Feste Rückfall-Erkennung für den Ort eines Termins, falls die KI ihn trotz Anweisung mal nicht in
+   'calendar_location' einträgt: sucht im Originalsatz nach "in/bei/im/Ort <Ort>". Nicht perfekt, aber
+   besser als gar kein Ort. */
+const LOCATION_STOPWORDS = new Set(['ordnung', 'ordner', 'kürze', 'zukunft', 'wirklich', 'ruhe']);
+function extractLocationFallback(text) {
+    const matches = [...String(text || '').matchAll(/\b(?:in|bei|im|Ort)\s+([A-ZÄÖÜ][a-zA-Zäöüß\-]+(?:\s+[A-ZÄÖÜ][a-zA-Zäöüß\-]+){0,2})/g)];
+    for (const m of matches) {
+        const candidate = m[1].trim();
+        if (!LOCATION_STOPWORDS.has(candidate.toLowerCase())) return candidate;
+    }
+    return '';
+}
+
 async function executeAction(action, text, ctx) {
     if (action.type === 'name_change' && action.new_name) {
         currentUserName = action.new_name.trim();
@@ -331,7 +344,7 @@ async function executeAction(action, text, ctx) {
         if (targetId) {
             updDone = await updateGoogleCalendarEvent(targetId, action.calendar_text, action.calendar_time, action.calendar_location);
         } else {
-            updDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, action.calendar_location);
+            updDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, action.calendar_location || extractLocationFallback(text));
         }
         if (updDone === false) googleNotSynced(ctx, 'Die Änderung gilt nur in der App');
         updateTerminalStream("CALENDAR: EVENT_UPDATED");
@@ -389,7 +402,8 @@ async function executeAction(action, text, ctx) {
         if (removed === 0) throw userError('Im Briefing habe ich dazu keinen passenden Eintrag gefunden.');
         updateTerminalStream("BRIEFING: WISH_DELETED");
     } else if (action.type === 'calendar' || action.calendar_text) {
-        const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, action.calendar_location);
+        const ort = action.calendar_location || extractLocationFallback(text);
+        const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort);
         if (addDone === false) googleNotSynced(ctx, 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht');
         updateTerminalStream("CALENDAR: EVENT_ADDED");
     }
