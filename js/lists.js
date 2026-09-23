@@ -17,6 +17,23 @@ function parseMemoryValue(rawVal) {
     return String(rawVal);
 }
 
+/* Wie unterschiedlich sind zwei Wörter? (Levenshtein-Distanz: Anzahl der Änderungen, um von a zu b zu kommen) */
+function levenshteinDistance(a, b) {
+    const m = a.length, n = b.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    let prev = Array.from({ length: n + 1 }, (_, i) => i);
+    for (let i = 1; i <= m; i++) {
+        const row = [i];
+        for (let j = 1; j <= n; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            row[j] = Math.min(row[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+        }
+        prev = row;
+    }
+    return prev[n];
+}
+
 function searchMemory(query) {
     if (!query || typeof memoryItems !== 'object') return [];
     const lowerQuery = query.toLowerCase().trim();
@@ -28,12 +45,30 @@ function searchMemory(query) {
         return normalizedText.includes(normalizedQ) || normalizedQ.includes(normalizedText);
     };
 
-    return Object.keys(memoryItems)
+    const exact = Object.keys(memoryItems)
         .filter(key => {
             const cleanVal = parseMemoryValue(memoryItems[key]).toLowerCase();
             return matchesQuery(key.toLowerCase(), lowerQuery) || matchesQuery(cleanVal, lowerQuery);
         })
         .map(key => ({ key, value: parseMemoryValue(memoryItems[key]) }));
+    if (exact.length > 0) return exact;
+
+    // Nichts gefunden: bei einzelnen Wörtern (z.B. ein Name, den die Spracherkennung verhört hat)
+    // nach dem ähnlichsten gespeicherten Namen suchen, statt "nichts gefunden" zu melden.
+    if (lowerQuery.split(/\s+/).length > 3) return [];   // ganze Sätze nicht fuzzy vergleichen, zu unscharf
+    const nq = normalizeKey(lowerQuery);
+    if (nq.length < 3) return [];
+
+    let best = null, bestDist = Infinity;
+    Object.keys(memoryItems).forEach(key => {
+        const nk = normalizeKey(key);
+        if (nk.length < 3) return;
+        const dist = levenshteinDistance(nq, nk);
+        const maxLen = Math.max(nq.length, nk.length);
+        const erlaubt = Math.max(2, Math.floor(maxLen * 0.4));   // z.B. bis zu 40% der Buchstaben dürfen abweichen
+        if (dist <= erlaubt && dist < bestDist) { best = key; bestDist = dist; }
+    });
+    return best ? [{ key: best, value: parseMemoryValue(memoryItems[best]), unscharf: true }] : [];
 }
 
 /* Gleicher Gegenstand mit angehängtem "ort" ("schlüsselort" = "schlüssel"): Der alte Eintrag wird ersetzt,

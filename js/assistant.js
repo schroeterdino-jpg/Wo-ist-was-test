@@ -508,6 +508,7 @@ async function sendToGroqSmart(text) {
     "- Die aktuellen Briefing-Wünsche stehen im Kontext unter 'briefing_wuensche'. Fragt der User, was im Briefing steht, zähle sie mit dem Typ 'chat' auf.\n\n" +
     "WICHTIG für E-Mails (nur lesen, es wird nie etwas verschickt, beantwortet oder gelöscht):\n" +
     "- Fragt der User, ob er E-Mails hat, oder bittet um eine Übersicht ('Habe ich E-Mails?', 'Was ist Neues im Postfach?'), nutze 'email_check'. Ohne andere Angabe gilt nur ungelesen; will er ausdrücklich alle/gelesene sehen, setze 'email_unread_only' auf false. Sucht er nach einem Absender oder Wort, setze es in 'email_query'.\n" +
+    "- Will der User nur wirklich wichtige E-Mails, keine Werbung/Newsletter ('nur wichtige E-Mails', 'keine Werbe-Mails', 'ohne Newsletter'), setze 'email_important_only' auf true - das blendet automatisch Werbung, Social-Media- und automatische Benachrichtigungs-Mails aus.\n" +
     "- Bittet der User, eine E-Mail vorzulesen ('lies mir die erste vor', 'lies die von Peter vor', 'was steht in der E-Mail von der Bank'), nutze 'email_read' mit 'email_ref' = die Nummer aus der zuletzt gezeigten Liste (z.B. '1' für die erste) oder der Name/das Stichwort, das der User nennt. Ohne vorherige Übersicht in diesem Gespräch frag ihn stattdessen, ob du zuerst nachsehen sollst, oder nutze 'email_check'.\n" +
     "- Schreibe in 'reply' nur 'Ich schaue nach.'. Die eigentliche Antwort wird automatisch aus den echten Daten ergänzt. Erfinde niemals Absender, Betreffs oder Inhalte von E-Mails.\n\n" +
     "WICHTIG für die Abfahrtszeit ('Wann muss ich losfahren?', 'Wie lange dauert die Fahrt zu ...'):\n" +
@@ -559,7 +560,7 @@ async function sendToGroqSmart(text) {
     "- calendar_time: (bei calendar oder calendar_update) ISO-Zeitstempel.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query.";
+    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -658,7 +659,7 @@ async function sendToGroqSmart(text) {
                     if (!id) throw userError("Ich weiß nicht genau, welche E-Mail Sie meinen. Fragen Sie mich zuerst, ob Sie E-Mails haben.");
                     data = { email_inhalt: await fetchEmailFullText(id) };
                 } else {
-                    const overview = await fetchEmailOverview({ onlyUnread: emailCheckAction.email_unread_only !== false, max: 8, query: emailCheckAction.email_query || '' });
+                    const overview = await fetchEmailOverview({ onlyUnread: emailCheckAction.email_unread_only !== false, max: 8, query: emailCheckAction.email_query || '', importantOnly: !!emailCheckAction.email_important_only });
                     if (overview.verbindung === 'getrennt' && !ctx.cards.some(c => c.onclick === 'loginWithGoogle(false)')) ctx.cards.push(googleReconnectCard());
                     if (overview.hinweis && overview.verbindung !== 'getrennt') throw userError(overview.hinweis);
                     if (overview.verbindung === 'getrennt') { emailReply = overview.hinweis; data = null; }
@@ -719,9 +720,13 @@ async function sendToGroqSmart(text) {
         if (!replyText) {
             if (wantsSearch) {
                 const results = searchMemory((searchAction && searchAction.memory_search_query) || text);
-                replyText = results.length > 0
-                    ? `Ich habe Folgendes in meinen Registern gefunden: ${results.map(r => `${r.key}:${r.value}`).join(', ')}`
-                    : `Dazu konnte ich in meinen Datenbanken leider keinen Eintrag finden.`;
+                if (results.length === 0) {
+                    replyText = `Dazu konnte ich in meinen Datenbanken leider keinen Eintrag finden.`;
+                } else if (results[0].unscharf) {
+                    replyText = `Meinten Sie vielleicht "${results[0].key}"? Dazu habe ich: ${results[0].value}`;
+                } else {
+                    replyText = `Ich habe Folgendes in meinen Registern gefunden: ${results.map(r => `${r.key}:${r.value}`).join(', ')}`;
+                }
             } else {
                 replyText = `Zu Ihren Diensten, ${currentUserName}. Es ist erledigt.`;
             }

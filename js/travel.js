@@ -221,3 +221,73 @@ async function runTravelDiagnosis() {
     try { await diagnoseTravel(input ? input.value : '', log); }
     catch (e) { log('❌ Unerwarteter Fehler: ' + (e && e.message ? e.message : e)); }
 }
+
+/* ============================================================
+   ABFAHRTS-WARNUNG: "Sie sollten jetzt losfahren" - prüft automatisch, ob ein Termin
+   mit hinterlegtem Ort bevorsteht und die Zeit zum Losfahren gekommen ist.
+   Läuft wie die Termin-Tipps: nur während die App offen ist, alle 60s geprüft,
+   die eigentliche Fahrzeit-Berechnung aber nur EINMAL pro Termin (nicht bei jedem Tick).
+   ============================================================ */
+
+const DEPARTURE_WARN_BUFFER_MIN = 5;    // Puffer, damit man nicht auf die Minute losfahren muss
+const DEPARTURE_CHECK_WINDOW_MIN = 150; // erst ab 2,5 Std. vorher wird überhaupt gerechnet
+const departureCache = {};              // eventId -> { deadline, titel, zeit } oder { skip: true }, nur im Speicher (nicht dauerhaft)
+
+function loadWarnedEventIds() {
+    try { return new Set(JSON.parse(getPersistentData('helfer_departure_warned', '[]'))); }
+    catch (e) { return new Set(); }
+}
+function saveWarnedEventIds(set) {
+    setPersistentData('helfer_departure_warned', JSON.stringify(Array.from(set).slice(-100)));
+}
+
+async function checkDepartureWarning() {
+    if (!calendarEntries || calendarEntries.length === 0) return;
+    const now = new Date();
+    const warned = loadWarnedEventIds();
+
+    const upcoming = calendarEntries
+        .filter(e => e.isoDate && !warned.has(String(e.id)))
+        .map(e => ({ id: e.id, text: e.text, _t: new Date(e.isoDate) }))
+        .filter(e => !isNaN(e._t.getTime()) && e._t > now && (e._t - now) / 60000 <= DEPARTURE_CHECK_WINDOW_MIN)
+        .sort((a, b) => a._t - b._t)[0];
+    if (!upcoming) return;
+
+    const key = String(upcoming.id);
+    let cached = departureCache[key];
+
+    if (!cached) {
+        let appt;
+        try { appt = await findAppointmentByQuery(upcoming.text); }
+        catch (e) { return; }   // z.B. Google nicht verbunden - kein Fehler-Lärm, einfach beim nächsten Mal wieder versuchen
+        if (!appt || Math.abs(appt.start.getTime() - upcoming._t.getTime()) > 5 * 60000 || !appt.ort) {
+            departureCache[key] = { skip: true };   // kein Ort oder falscher Treffer -> für diesen Termin nichts weiter tun
+            return;
+        }
+
+        let loc;
+        try { loc = await fetchUserLocationData(); } catch (e) { return; }
+        if (!loc || loc.fehler) return;   // Standort mal nicht verfügbar: beim nächsten Tick nochmal versuchen
+
+        let dest = await geocodeAddress(appt.ort);
+        if (!dest && loc.ort) dest = await geocodeAddress(appt.ort + ', ' + loc.ort);
+        if (!dest) { departureCache[key] = { skip: true }; return; }
+
+        const route = await routeDurationSeconds(loc.latitude, loc.longitude, dest.lat, dest.lon);
+        if (!route) return;
+
+        const fahrtMin = Math.round(route.seconds / 60);
+        const deadline = new Date(appt.start.getTime() - (fahrtMin + DEPARTURE_WARN_BUFFER_MIN) * 60000);
+        cached = { deadline, titel: appt.titel, zeit: appt.start };
+        departureCache[key] = cached;
+    }
+
+    if (cached.skip) return;
+    if (now.getTime() >= cached.deadline.getTime()) {
+        warned.add(key);
+        saveWarnedEventIds(warned);
+        speak(`Sie sollten jetzt losfahren, sonst schaffen Sie es nicht rechtzeitig zu ${cached.titel} um ${formatSpokenTime(cached.zeit)}.`);
+    }
+}
+
+setInterval(() => { checkDepartureWarning(); }, 60000);
