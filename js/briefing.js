@@ -3,67 +3,74 @@
    Braucht: storage.js, lists.js (parseMemoryValue), voice.js
    ============================================================ */
 
-/* --- Standortermittlung mit Geocoding (inkl. Straße & Hausnummer) --- */
-async function fetchUserLocationData() {
-    return new Promise((resolve) => {
-        if (!navigator.geolocation) {
-            resolve({ fehler: "Geolokalisierung nicht unterstützt." });
-            return;
-        }
-        navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-                const lat = pos.coords.latitude;
-                const lon = pos.coords.longitude;
-                try {
-                    // Zoom 18 erzwingt die genaue Auflösung bis auf Gebäudeebene
-                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`);
-                    const data = await res.json();
-                    const addr = data.address || {};
-
-                    const ort = addr.city || addr.town || addr.village || addr.municipality || addr.county || "Unbekannter Ort";
-                    const land = addr.country || "Unbekanntes Land";
-
-                    // Straße & Hausnummer ermitteln
-                    const strasse = addr.road || addr.pedestrian || addr.footway || addr.path || "";
-                    const hausnummer = addr.house_number || "";
-
-                    // Exakten Adress-String zusammensetzen
-                    let straßenAdresse = "";
-                    if (strasse) {
-                        straßenAdresse = hausnummer ? `${strasse} ${hausnummer}` : strasse;
-                    }
-
-                    resolve({
-                        latitude: lat,
-                        longitude: lon,
-                        genauigkeit: pos.coords.accuracy,
-                        lat: lat.toFixed(4),
-                        lon: lon.toFixed(4),
-                        ort: ort,
-                        land: land,
-                        strasse: strasse,
-                        hausnummer: hausnummer,
-                        straßenAdresse: straßenAdresse,
-                        volstaendigeAdresse: data.display_name || `${straßenAdresse}, ${ort}`
-                    });
-                } catch (e) {
-                    resolve({
-                        latitude: lat,
-                        longitude: lon,
-                        genauigkeit: pos.coords.accuracy,
-                        lat: lat.toFixed(4),
-                        lon: lon.toFixed(4),
-                        ort: "Koordinaten ermittelt",
-                        land: ""
-                    });
-                }
-            },
-            (err) => {
-                resolve({ fehler: "Standort-Zugriff verweigert oder nicht verfügbar." });
-            },
-            { timeout: 7000, enableHighAccuracy: true }
-        );
+/* --- Standortermittlung mit Geocoding (inkl. Straße & Hausnummer) ---
+   Erst mit GPS (genau, aber in Tiefgaragen/Gebäuden oft ohne Empfang), bei Fehlschlag
+   automatisch ein zweiter Versuch mit ungenauerer, aber zuverlässigerer WLAN/Mobilfunk-Ortung. */
+function getPosition(opts) {
+    return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, opts);
     });
+}
+
+async function fetchUserLocationData() {
+    if (!navigator.geolocation) return { fehler: "Geolokalisierung nicht unterstützt." };
+
+    let pos;
+    try {
+        pos = await getPosition({ timeout: 8000, enableHighAccuracy: true });
+    } catch (e) {
+        try {
+            pos = await getPosition({ timeout: 12000, enableHighAccuracy: false });
+        } catch (e2) {
+            return { fehler: "Standort-Zugriff verweigert oder nicht verfügbar." };
+        }
+    }
+
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    try {
+        // Zoom 18 erzwingt die genaue Auflösung bis auf Gebäudeebene
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`);
+        const data = await res.json();
+        const addr = data.address || {};
+
+        const ort = addr.city || addr.town || addr.village || addr.municipality || addr.county || "Unbekannter Ort";
+        const land = addr.country || "Unbekanntes Land";
+
+        // Straße & Hausnummer ermitteln
+        const strasse = addr.road || addr.pedestrian || addr.footway || addr.path || "";
+        const hausnummer = addr.house_number || "";
+
+        // Exakten Adress-String zusammensetzen
+        let straßenAdresse = "";
+        if (strasse) {
+            straßenAdresse = hausnummer ? `${strasse} ${hausnummer}` : strasse;
+        }
+
+        return {
+            latitude: lat,
+            longitude: lon,
+            genauigkeit: pos.coords.accuracy,
+            lat: lat.toFixed(4),
+            lon: lon.toFixed(4),
+            ort: ort,
+            land: land,
+            strasse: strasse,
+            hausnummer: hausnummer,
+            straßenAdresse: straßenAdresse,
+            volstaendigeAdresse: data.display_name || `${straßenAdresse}, ${ort}`
+        };
+    } catch (e) {
+        return {
+            latitude: lat,
+            longitude: lon,
+            genauigkeit: pos.coords.accuracy,
+            lat: lat.toFixed(4),
+            lon: lon.toFixed(4),
+            ort: "Koordinaten ermittelt",
+            land: ""
+        };
+    }
 }
 
 /* --- Wetter --- */
@@ -387,7 +394,7 @@ function buildBriefingData(now, weather) {
         };
     }
 
-    return {
+    const briefingData = {
         name: currentUserName,
         begruessung,
         uhrzeit,
@@ -398,6 +405,11 @@ function buildBriefingData(now, weather) {
         zusaetzliche_wuensche: wuensche,
         wichtige_gegenstaende: gegenstaende
     };
+    // Nur mitgeben, wenn wirklich ein Parkplatz gespeichert ist - eine leere/null-Angabe
+    // verleitet die KI trotz Anweisung manchmal dazu, das unpassend zu kommentieren.
+    const parkInfo = (typeof describeParking === 'function') ? describeParking() : null;
+    if (parkInfo) briefingData.parkplatz = parkInfo;
+    return briefingData;
 }
 
 async function composeBriefingWithModel(data) {
@@ -406,6 +418,7 @@ async function composeBriefingWithModel(data) {
     "Regeln:\n" +
     "- Uhrzeiten: Nenne jede Uhrzeit exakt und in 24-Stunden-Zählung, so wie sie in den Daten steht (z.B. 'um 16 Uhr 17' oder 'um 14 Uhr 30'). Runde niemals und verwende keine Ausdrücke wie 'kurz nach', 'kurz vor', 'halb' oder 'Viertel'. Zähle nie in 12 Stunden (16 Uhr ist nicht 'vier').\n" +
     "- Wetter: Übernimm 'regenschirm_empfehlung' und 'jacken_empfehlung' inhaltlich exakt und widersprich ihnen nie. Nenne die Temperatur nur knapp. Gibt es einen 'sturm_hinweis', erwähne ihn. Ist 'wetter' null, sage in einem Halbsatz, dass keine Wetterdaten vorliegen.\n" +
+    "- Parkplatz: Ist 'parkplatz' gesetzt (Adresse vorhanden), erwähne kurz und beiläufig, wo das Auto steht (nur die Adresse, keine Uhrzeit nötig). Ist 'parkplatz' null, sage dazu GAR NICHTS - kein 'ich weiß nicht, wo Ihr Auto steht' und nichts Ähnliches, das Thema kommt dann einfach nicht vor.\n" +
     "- Termine und Erinnerungen: Nenne Text, Tag und Uhrzeit. Der Tag steht schon passend formuliert in den Daten (z.B. 'heute', 'morgen', 'am Freitag', 'am Freitag, 3. Oktober'): Übernimm ihn wörtlich. Es sind nur die nächsten Termine enthalten (Geburtstage gehören absichtlich nicht dazu): Nenne nichts darüber hinaus. Die Uhrzeit steht schon gesprochen in den Daten (z.B. '14 Uhr' oder '14 Uhr 30'): Übernimm sie wörtlich und sprich niemals 'null null'. Ganztägige nur mit Tag. Gibt es keine Termine, genügt ein Halbsatz wie 'Ihr Kalender ist frei'. Gibt es keine Erinnerungen, lass sie weg.\n" +
     "- Zusätzliche Wünsche: Steht etwas in 'zusaetzliche_wuensche', nimm JEDEN dieser Wünsche im Briefing auf, sinngemäß und in einem natürlichen Satz. Erfinde nichts dazu. Enthält ein Wunsch eine weitere Bedingung (z.B. 'wenn es regnet'), prüfe sie anhand der Daten und lass den Wunsch weg, wenn sie nicht zutrifft. Gibt es keine Wünsche, lass den Teil weg.\n" +
     "- Wichtige Gegenstände: Das ist ein wichtiger Teil, denn der User verlässt danach das Haus. Nenne JEDEN Eintrag aus 'wichtige_gegenstaende' mit Begriff und Platz und lass keinen aus, auch wenn das Briefing dadurch länger wird. Formuliere jeden als natürlichen Satz mit korrektem Artikel und Präposition ('Ihr Schlüssel liegt in der Schublade'). Steht im Wert nur ein Platz ohne Präposition (z.B. 'Küchenschrank'), erfinde keine wie 'im' oder 'auf', sondern sage 'Ihr Schlüssel ist beim Küchenschrank'. Verwende niemals das Wort 'Ort' und wiederhole den Begriff nicht doppelt. Gibt es keine Einträge, lass den Teil weg.\n" +
@@ -430,7 +443,8 @@ async function composeBriefingWithModel(data) {
         });
         const json = await res.json();
         const parsed = JSON.parse(json.choices[0].message.content);
-        const text = (parsed.briefing || '').trim();
+        let text = (parsed.briefing || '').trim();
+        if (!data.parkplatz) text = stripUnwantedParkingRemark(text);
         return text.length > 0 ? text : null;
     } catch (e) {
         console.error("Briefing-Formulierung fehlgeschlagen", e);
@@ -438,6 +452,17 @@ async function composeBriefingWithModel(data) {
     } finally {
         clearTimeout(timeout);
     }
+}
+
+/* Sicherheitsnetz: Ist kein Parkplatz gespeichert, darf im Briefing kein "ich weiß nicht, wo Ihr Auto steht"
+   vorkommen - das verwirrt nur. Entfernt so einen Satz notfalls nachträglich, falls die KI die Anweisung
+   trotzdem mal ignoriert (bei einem so langen Prompt kommt das vor). */
+function stripUnwantedParkingRemark(text) {
+    return text
+        .replace(/[^.!?]*\b(auto|wagen|fahrzeug)\b[^.!?]*\b(geparkt|parkplatz)\b[^.!?]*[.!?]\s*/gi, '')
+        .replace(/[^.!?]*\bparkplatz\b[^.!?]*\b(keine|nicht bekannt|unbekannt)\b[^.!?]*[.!?]\s*/gi, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
 }
 
 function buildFallbackBriefing(data) {
@@ -470,7 +495,58 @@ function buildFallbackBriefing(data) {
         text += data.wichtige_gegenstaende.map(itemSentence).join('. ') + ". ";
     }
 
+    if (data.parkplatz && data.parkplatz.adresse) {
+        text += `Ihr Auto steht in ${data.parkplatz.adresse}. `;
+    }
+
     return text;
+}
+
+/* --- Automatisches Lernen: bei jedem Briefing sucht die KI im bisherigen Gesprächsverlauf
+   nach neuen, dauerhaft merkenswerten Fakten über den User und trägt sie ins Gedächtnis ein.
+   Läuft im Hintergrund, ohne nachzufragen; sichtbar/löschbar bleibt alles im Gedächtnis-Tab. */
+async function learnFromConversations() {
+    if (!chatHistory || chatHistory.length < 4) return;   // zu wenig Gesprächsstoff, um sich zu lohnen
+    try {
+        const verlauf = chatHistory.slice(-40).map(m => {
+            const c = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+            return `${m.role === 'user' ? 'User' : 'Jarvis'}: ${c}`;
+        }).join('\n');
+
+        const res = await apiFetch('/api/groq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: "openai/gpt-oss-120b",
+                response_format: { type: "json_object" },
+                messages: [
+                    { role: "system", content:
+                        "Du liest einen Gesprächsverlauf zwischen einem User und seinem persönlichen Assistenten J.A.R.V.I.S. Suche darin nach NEUEN, dauerhaft " +
+                        "merkenswerten Fakten über den User: Vorlieben, Gewohnheiten, wiederkehrende Aktivitäten, persönliche Details, die er von sich aus erwähnt hat. " +
+                        "Ignoriere einmalige Aufträge (einzelne Einkaufslisten-Einträge, einzelne Termine, Small Talk, Testfragen). " +
+                        "Bereits im Gedächtnis gespeichert ist: " + JSON.stringify(memoryItems || {}) + ". Nenne NUR wirklich neue Fakten, keine Wiederholungen von bereits Bekanntem. " +
+                        "Erfinde nichts, übernimm nur, was der User tatsächlich gesagt hat. " +
+                        "Antworte NUR mit JSON in dieser Form: {\"fakten\": [{\"schluessel\": \"kurzer Begriff in Grundform, z.B. 'lieblingsfilm'\", \"wert\": \"was gemerkt werden soll\"}]}. Ist nichts Neues dabei, gib eine leere Liste zurück." },
+                    { role: "user", content: "Gesprächsverlauf:\n" + verlauf }
+                ]
+            })
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const parsed = JSON.parse(data.choices[0].message.content);
+        const fakten = Array.isArray(parsed.fakten) ? parsed.fakten : [];
+        let changed = false;
+        fakten.forEach(f => {
+            const key = String(f && f.schluessel || '').trim().toLowerCase();
+            const val = String(f && f.wert || '').trim();
+            if (!key || !val) return;
+            memoryItems[key] = val;
+            changed = true;
+        });
+        if (changed) setPersistentData('helfer_memory', JSON.stringify(memoryItems));
+    } catch (e) {
+        console.error('Automatisches Lernen fehlgeschlagen', e);
+    }
 }
 
 async function triggerDailyBriefing() {
@@ -498,6 +574,7 @@ async function triggerDailyBriefing() {
 
         typeWriterStatus("Klicken zum Sprechen...");
         speak(text, continueConversation);
+        learnFromConversations();   // nebenher, blockiert das Briefing nicht
     } finally {
         stopThinkingSound();
         isProcessing = false;
