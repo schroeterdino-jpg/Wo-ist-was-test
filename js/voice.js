@@ -12,14 +12,10 @@ let followUpTimer = null;
 let conversationMode = getPersistentData('conversation_mode', '1') === '1';
 let selectedVoiceURI = getPersistentData('tts_voice_uri', '');
 let availableVoices = [];
-let wakeWordEnabled = getPersistentData('wake_word_enabled', '0') === '1';
-let wakeWordListening = false;
 
 const SPEECH_RATE = 1.0;
 const SPEECH_PITCH = 0.92;
 const FOLLOW_UP_WINDOW_MS = 9000;
-const ACK_DELAY_MS = 1500;
-const WAKE_WORD_REGEX = /\bhe?y?[\s,.-]*jarvis\b/i;
 
 function pickRandom(list) {
     return list[Math.floor(Math.random() * list.length)];
@@ -43,9 +39,6 @@ function setIdleUi() {
 
     if (recordText) recordText.textContent = "J.A.R.V.I.S. / BEREIT";
     updateTerminalStream("SYS_IDLE: AWAITING_INPUT", "ONLINE");
-    if (wakeWordEnabled && !wakeWordListening) {
-        setTimeout(() => startWakeWordListening(), 500);
-    }
 }
 
 /* --- Stimmen-Auswahl --- */
@@ -125,9 +118,6 @@ if (conversationToggleEl) {
     });
 }
 
-const wakeWordToggleEl = document.getElementById('wakeWordToggle');
-if (wakeWordToggleEl) wakeWordToggleEl.checked = wakeWordEnabled;
-
 /* --- Sprechen --- */
 const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
@@ -142,7 +132,6 @@ function speakableDates(text) {
 
 function speak(text, onComplete) {
     stopThinkingSound();
-    stopWakeWordListening();
 
     if (isRecording && recognition) {
         isFollowUp = false;
@@ -207,19 +196,6 @@ function speak(text, onComplete) {
     }
 }
 
-function speakAck(text) {
-    if (!('speechSynthesis' in window)) return;
-    const u = new SpeechSynthesisUtterance(text);
-    const voice = getActiveVoice();
-    if (voice) { u.voice = voice; u.lang = voice.lang; } else { u.lang = 'de-DE'; }
-    u.rate = SPEECH_RATE;
-    u.pitch = SPEECH_PITCH;
-    ackActive = true;
-    u.onend = () => { ackActive = false; };
-    u.onerror = () => { ackActive = false; };
-    window.speechSynthesis.speak(u);
-}
-
 function interruptSpeaking() {
     stopThinkingSound();
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
@@ -247,7 +223,6 @@ function setListeningUi(followUp) {
 
 function startListening(followUp = false) {
     if (!recognition) return;
-    stopWakeWordListening();
     if (isRecording) return;
     
     recognition.continuous = false;
@@ -286,38 +261,11 @@ if (SpeechRecognition) {
     
     recognition.onstart = () => {
         isRecording = true;
-        if (!wakeWordListening) {
-            setListeningUi(isFollowUp);
-        }
+        setListeningUi(isFollowUp);
     };
 
     recognition.onresult = (event) => {
         const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
-
-        if (wakeWordListening) {
-            const m = text.match(WAKE_WORD_REGEX);
-            if (!m) return;   // Ignorieren, wenn Weckwort nicht gefallen ist
-            
-            wakeWordListening = false;
-            try { recognition.stop(); } catch (e) {}
-
-            const rest = text.slice(m.index + m[0].length).replace(/^[,.:\s]+/, '').trim();
-            if (rest) {
-                handleRecognizedText(rest);
-            } else {
-                ackActive = true;
-                speakAck('Ja?');
-                setTimeout(() => {
-                    ackActive = false;
-                    isFollowUp = true;
-                    clearFollowUpTimer();
-                    followUpTimer = setTimeout(() => { isFollowUp = false; setIdleUi(); }, FOLLOW_UP_WINDOW_MS);
-                    startListening(true);
-                }, ACK_DELAY_MS);
-            }
-            return;
-        }
-
         handleRecognizedText(text);
     };
 
@@ -347,80 +295,23 @@ if (SpeechRecognition) {
 
     recognition.onerror = (event) => {
         const wasFollowUp = isFollowUp;
-        const wasWake = wakeWordListening;
         isFollowUp = false;
-        wakeWordListening = false;
-        ackActive = false;
         clearFollowUpTimer();
+        ackActive = false;
 
         if (event && (event.error === 'not-allowed' || event.error === 'service-not-allowed')) {
             typeWriterStatus("Mikrofon-Zugriff blockiert.");
             setHudSubtitle("Mikrofon-Zugriff blockiert.");
-            wakeWordEnabled = false;
         }
         resetRecordingState();
-
-        if (wasWake && wakeWordEnabled && !isProcessing && !isSpeaking()) {
-            setTimeout(() => startWakeWordListening(), 1500);
-        }
     };
 
     recognition.onend = () => {
-        const wasFollowUp = isFollowUp;
-        const wasWake = wakeWordListening;
         isFollowUp = false;
-        wakeWordListening = false;
         clearFollowUpTimer();
         ackActive = false;
-        
         resetRecordingState();
-
-        if (pendingManualListen) {
-            pendingManualListen = false;
-            startListening(false);
-        } else if (wasWake && wakeWordEnabled && !isProcessing && !isSpeaking()) {
-            setTimeout(() => startWakeWordListening(), 800);
-        }
     };
-}
-
-/* --- Weckwort-Modus --- */
-function startWakeWordListening() {
-    if (!recognition || !wakeWordEnabled || ackActive) return;
-    if (isRecording || isSpeaking() || isProcessing || wakeWordListening) return;
-    if (document.hidden) return;
-    
-    wakeWordListening = true;
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    try {
-        recognition.start();
-        if (recordText) recordText.textContent = "J.A.R.V.I.S. / WARTET AUF „HEY JARVIS\"...";
-        updateTerminalStream("SYS_WAKEWORD: LISTENING", "STANDBY");
-    } catch (e) {
-        wakeWordListening = false;
-    }
-}
-
-function stopWakeWordListening() {
-    wakeWordListening = false;
-    if (recognition && isRecording) { 
-        try { recognition.stop(); } catch (e) {} 
-    }
-}
-
-function setWakeWordEnabled(on) {
-    wakeWordEnabled = !!on;
-    setPersistentData('wake_word_enabled', wakeWordEnabled ? '1' : '0');
-    if (wakeWordEnabled) startWakeWordListening();
-    else stopWakeWordListening();
-}
-
-if (typeof document !== 'undefined' && document.addEventListener) {
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) stopWakeWordListening();
-        else if (wakeWordEnabled && !isRecording && !isSpeaking() && !isProcessing) startWakeWordListening();
-    });
 }
 
 let pendingManualListen = false;
@@ -434,17 +325,6 @@ function toggleSpeechRecognition() {
     if (isSpeaking()) {
         interruptSpeaking();
         setTimeout(() => startListening(false), 200);
-        return;
-    }
-    if (wakeWordListening) {
-        stopWakeWordListening();
-        pendingManualListen = true;
-        setTimeout(() => {
-            if (pendingManualListen) {
-                pendingManualListen = false;
-                startListening(false);
-            }
-        }, 300);
         return;
     }
     if (isRecording) {
