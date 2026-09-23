@@ -286,14 +286,14 @@ if (SpeechRecognition) {
         if (isPanelOpen() && isCloseCommand(text)) {
             closePanel();
             typeWriterStatus("Klicken zum Sprechen...");
-            speak(pickRandom(["Sehr wohl.", "Zu Diensten."]), continueConversation);
+            speak(pickRandom(["Sehr wohl.", "Zu Diensten.", "Wird geschlossen.", "Gerne."]), continueConversation);
             return;
         }
 
         if (isEndPhrase(text)) {
             closePanel();
             typeWriterStatus("Klicken zum Sprechen...");
-            speak(pickRandom(["Sehr wohl.", "Jederzeit.", "Zu Diensten."]));
+            speak(pickRandom(["Sehr wohl.", "Jederzeit.", "Zu Diensten.", "Bis gleich.", "Ich bin für Sie da."]));
             return;
         }
         sendToGroqSmart(text);

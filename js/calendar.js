@@ -164,7 +164,7 @@ setInterval(() => {
 }, 30000);
 
 /* --- Termine anlegen / ändern --- */
-async function addGoogleCalendarEvent(text, isoStartString) {
+async function addGoogleCalendarEvent(text, isoStartString, location) {
     let eventDate = isoStartString ? new Date(isoStartString) : new Date();
     if (isNaN(eventDate.getTime())) eventDate = new Date();
 
@@ -174,6 +174,7 @@ async function addGoogleCalendarEvent(text, isoStartString) {
         start: { dateTime: eventDate.toISOString() },
         end: { dateTime: endDate.toISOString() }
     };
+    if (location) eventData.location = location;
 
     const createdId = 'local_' + Date.now();
 
@@ -210,7 +211,7 @@ async function addGoogleCalendarEvent(text, isoStartString) {
     return false;
 }
 
-async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString) {
+async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString, newLocation) {
     let eventDate = newIsoStartString ? new Date(newIsoStartString) : new Date();
     if (isNaN(eventDate.getTime())) eventDate = new Date();
     const endDate = new Date(eventDate.getTime() + 60 * 60000);
@@ -222,6 +223,7 @@ async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString) {
                 end: { dateTime: endDate.toISOString() }
             };
             if (newText) patchData.summary = newText;
+            if (newLocation) patchData.location = newLocation;
 
             const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, {
                 method: 'PATCH',

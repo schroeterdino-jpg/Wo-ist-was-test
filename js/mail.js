@@ -83,6 +83,7 @@ async function fetchEmailOverview(opts = {}) {
 
     const headers = { 'Authorization': `Bearer ${accessToken}` };
     let q = onlyUnread ? 'is:unread' : 'in:inbox';
+    if (opts.importantOnly) q += ' -category:promotions -category:social -category:forums -category:updates';
     if (searchTerm) q += ' ' + searchTerm;
 
     const list = await gmailFetch('messages?maxResults=' + max + '&q=' + encodeURIComponent(q), headers);
