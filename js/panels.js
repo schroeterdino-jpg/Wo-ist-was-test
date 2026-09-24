@@ -882,7 +882,7 @@ function weltRenderNews(place, news) {
     const list = ((news && news.articles) || []).filter(a => /^https?:\/\//i.test(a.url || '')).slice(0, WELT_MAX_ARTICLES);
     if (!list.length) {
         box.innerHTML = '';
-        weltStatus(news && news.fehler ? 'Der Nachrichtendienst antwortet gerade nicht.' : `Keine aktuellen Meldungen zu ${place} gefunden.`);
+        weltStatus(news && news.fehler ? `Der Nachrichtendienst antwortet gerade nicht (${String(news.fehler).slice(0, 110)}).` : `Keine aktuellen Meldungen zu ${place} gefunden.`);
         return;
     }
     weltStatus(`Aktuelle Meldungen zu ${place}`);
