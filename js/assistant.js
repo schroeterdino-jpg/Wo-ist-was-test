@@ -512,7 +512,7 @@ async function sendToGroqSmart(text, opts = {}) {
     "WICHTIG für das Sprachverständnis: Achte auf die ABSICHT hinter dem Satz, nicht auf die exakte Formulierung. Ein und dieselbe Absicht kann ganz unterschiedlich klingen, z.B. 'Setz Milch auf die Liste', 'Ich brauche noch Milch' und 'Schreib Milch auf' meinen alle dasselbe; 'Wo ist mein Auto?', 'Ich will zu meinem Auto' und 'Hast du mein Auto gesehen?' drehen sich alle um den gespeicherten Parkplatz. Das gilt in JEDER Kategorie (Termine, Listen, Erinnerungen, Gedächtnis, Navigation, Parkplatz, E-Mails, Fahrzeit usw.), nicht nur bei den Beispielsätzen in dieser Anleitung - die Beispiele zeigen die Aktion, nicht die einzig erlaubte Formulierung. Bist du dir bei der Absicht unsicher, frage lieber knapp nach, statt zu raten oder nichts zu tun.\n\n" +
     "WICHTIG: Ehrlichkeit bei Aktionen:\n" +
     "- Melde nur dann, dass etwas erledigt, hinzugefügt, gelöscht, geändert oder notiert ist, wenn du dafür in 'actions' die passende Aktion angelegt hast. Ohne Aktion ändert sich nichts.\n" +
-    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; Termine, Erinnerungen und Listen in einem Fenster anzeigen ('show_panel'); im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; E-Mails prüfen und vorlesen ('email_check', 'email_read'); die Abfahrtszeit für einen Termin berechnen ('travel_time'); Restaurants und Lokale in der Nähe finden ('nearby_places'); alle Daten als Datei sichern ('backup_export'); im Internet nachschlagen ('web_lookup': Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse und andere aktuelle Fakten); den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern; Protokolle anlegen und löschen ('protocol_save', 'protocol_delete'); die Karte zeigen ('show_panel' mit 'karte'); die Weltkugel mit aktuellen Nachrichten, Bildern und Videos zu einem Land oder Ort zeigen ('world_news'); die aktuelle Position der ISS oder die Erdbeben der letzten 24 Stunden auf der Weltkugel zeigen ('world_live'); Live-Kameras ausgewählter Städte zeigen ('world_live' mit 'kamera'; die App erkennt \"Zeig mir New York live\" auch selbst); das Regenradar auf der Karte zeigen ('show_panel' mit 'karte'; die App erkennt \"Regenradar\" auch selbst). Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
+    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; Termine, Erinnerungen und Listen in einem Fenster anzeigen ('show_panel'); im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; E-Mails prüfen und vorlesen ('email_check', 'email_read'); die Abfahrtszeit für einen Termin berechnen ('travel_time'); Restaurants und Lokale in der Nähe finden ('nearby_places'); alle Daten als Datei sichern ('backup_export'); im Internet nachschlagen ('web_lookup': Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse und andere aktuelle Fakten); den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern; Protokolle anlegen und löschen ('protocol_save', 'protocol_delete'); die Karte zeigen ('show_panel' mit 'karte'); die Weltkugel mit aktuellen Nachrichten, Bildern und Videos zu einem Land oder Ort zeigen ('world_news'); die aktuelle Position der ISS oder die Erdbeben der letzten 24 Stunden auf der Weltkugel zeigen ('world_live'); Tankstellen mit den günstigsten Preisen entlang der Fahrstrecke zeigen ('fuel_route'); Live-Kameras ausgewählter Städte zeigen ('world_live' mit 'kamera'; die App erkennt \"Zeig mir New York live\" auch selbst); das Regenradar auf der Karte zeigen ('show_panel' mit 'karte'; die App erkennt \"Regenradar\" auch selbst). Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
     "- Zum Löschen, Ändern oder Leeren von Einkaufsliste, Aufgaben, Gedächtnis und Kontakten nutze IMMER 'list_edit'. Zum Hinzufügen darfst du weiterhin 'shopping', 'todo' und 'memory_store' nutzen.\n" +
     "- 'list_edit': 'list_name' ist 'einkauf', 'aufgaben', 'gedaechtnis' oder 'kontakte'. 'list_op' ist 'add', 'remove', 'clear' oder 'replace'. 'list_items' ist eine Liste von Texten: bei Einkauf und Aufgaben die Einträge, beim Gedächtnis der Begriff, bei Kontakten der Name. 'list_new_value' brauchst du bei 'replace' (neuer Text, neuer Wert bzw. neue Nummer) und beim Hinzufügen zum Gedächtnis (der Wert) oder zu den Kontakten (die Telefonnummer). Nimm die Einträge so, wie sie im Kontext stehen.\n\n" +
     "WICHTIG für Fragen nach Terminen und Geburtstagen im Kalender:\n" +
@@ -556,6 +556,8 @@ async function sendToGroqSmart(text, opts = {}) {
     "- Legt der User ein Protokoll an ('Lege ein Protokoll Feierabend an: Fahrzeit nach Hause, Wetter und Spritpreise'), nutze 'protocol_save' mit 'protocol_name' (nur der Name, z.B. 'Feierabend') und 'protocol_steps': eine Liste vollständiger deutscher Sätze, die jeweils wie ein eigener Sprachbefehl funktionieren (z.B. 'Wie lange dauert die Fahrt nach Hause?', 'Wie ist das Wetter?', 'Was kosten Benzin und Diesel in der Nähe?'). Höchstens 8 Schritte. Gibt es das Protokoll schon, wird es ersetzt.\n" +
     "- Will der User ein Protokoll löschen, nutze 'protocol_delete' mit 'protocol_name'. Die vorhandenen Protokolle stehen im Kontext unter 'protokolle'; danach gefragt, zähle Name und Schritte kurz auf.\n" +
     "- Das Starten eines Protokolls ('Starte Protokoll Feierabend') übernimmt die App selbst; dafür legst du keine Aktion an.\n\n" +
+    "WICHTIG für Tankstellen entlang der Fahrstrecke:\n" +
+    "- Fragt der User nach günstigem Tanken, Tankstellen oder Spritpreisen AUF DEM WEG, ENTLANG DER STRECKE oder UNTERWEGS zu einem Ziel ('Wo tanke ich günstig auf meinem Weg zur Arbeit?', 'Tankstellen auf dem Weg nach Hause', 'Wo ist Diesel am billigsten auf der Strecke nach Hamburg?'), nutze 'fuel_route' mit 'fuel_destination' (Ziel unverändert: 'Arbeit', 'Zuhause' oder der genannte Ort, NIEMALS eine Adresse aus dem Gedächtnis) und 'fuel_type' ('diesel', 'e10' oder 'e5'; ohne Angabe 'diesel'). Schreibe in 'reply' nur 'Ich schaue nach.'. Fragt er nur nach Spritpreisen in seiner Nähe, nutzt du weiter die Daten unter 'tankstellen' und keine Aktion.\n\n" +
     "WICHTIG für die Weltkugel und Nachrichten zu einem Land, einer Region oder einer Stadt:\n" +
     "- Fragt der User, was gerade irgendwo los ist ('Was ist gerade in Spanien los?', 'Wie sieht es in Griechenland aus?', 'Nachrichten aus Japan'), nutze 'world_news' mit 'news_place' = der Ort in der Grundform ohne Artikel (z.B. 'Spanien', 'Türkei', 'New York'). Will er nur die Weltkugel sehen ('Zeig mir, was auf der Welt los ist'), nutze 'world_news' mit leerem 'news_place'. Dafür kein 'web_lookup'. Die Kugel dreht sich zum Ort, zeigt Meldungen mit Bildern, und J.A.R.V.I.S. liest eine Zusammenfassung selbst vor; schreibe in 'reply' nur 'Ich schaue nach.'.\n\n" +
     "- Fragt der User nach der ISS oder der Raumstation, oder nach Erdbeben ('Wo ist die ISS?', 'Zeig mir die Erdbeben von heute'), nutze 'world_live' mit 'live_type' = 'iss' oder 'erdbeben'. Will der User einen Ort live sehen ('Zeig mir New York live', 'Ich möchte Florida sehen'), nutze 'world_live' mit 'live_type' = 'kamera' und 'news_place' = der Ort. Schreibe in 'reply' nur 'Ich schaue nach.'.\n\n" +
@@ -596,14 +598,14 @@ async function sendToGroqSmart(text, opts = {}) {
     "Gib IMMER ein valides JSON-Objekt zurück mit folgenden Feldern:\n" +
     "- reply: Kurze, trockene J.A.R.V.I.S.-Antwort ohne Markdown, meist ein Satz, höchstens zwei. Aktionen bestätigst du knapp (z.B. 'Erledigt.' oder 'Notiert.'). Nur beim Vorlesen von Listen (Einkauf, Termine, Aufgaben) darf die Antwort länger sein.\n" +
     "- actions: Liste (Array) der auszuführenden Aktionen. Jede Aktion ist ein Objekt mit dem Feld 'type' und den dazu passenden Feldern (siehe unten). Bei reiner Unterhaltung, Auskünften oder dem Vorlesen von Listen ist 'actions' eine leere Liste.\n" +
-    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"home_save\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\", \"web_lookup\", \"email_check\", \"email_read\", \"travel_time\", \"backup_export\", \"nearby_places\", \"protocol_save\", \"protocol_delete\", \"world_news\", \"world_live\"\n" +
+    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"home_save\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\", \"web_lookup\", \"email_check\", \"email_read\", \"travel_time\", \"backup_export\", \"nearby_places\", \"protocol_save\", \"protocol_delete\", \"world_news\", \"world_live\", \"fuel_route\"\n" +
     "Die folgenden Felder gehören in die jeweilige Aktion, nicht auf die oberste Ebene:\n" +
     "- calendar_text: (bei calendar oder calendar_update) Titel des Termins.\n" +
     "- calendar_time: (bei calendar oder calendar_update) ISO-Zeitstempel.\n" +
     "- calendar_location: (bei calendar oder calendar_update) Ort des Termins, falls genannt - wichtig für die Abfahrtszeit-Berechnung.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query, protocol_name, protocol_steps, news_place, live_type.";
+    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query, protocol_name, protocol_steps, news_place, live_type, fuel_destination, fuel_type.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -651,6 +653,15 @@ async function sendToGroqSmart(text, opts = {}) {
             chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: ai.reply, actions }) };
         }
 
+        // "Wo tanke ich günstig auf meinem Weg zur Arbeit?" wird IMMER mit der Strecken-Abfrage beantwortet
+        if (isFuelRouteQuestion(text) && !actions.some(a => a.type === 'fuel_route') &&
+            actions.every(a => !a.type || ['chat', 'memory_search', 'navigate', 'travel_time', 'nearby_places'].includes(a.type))) {
+            actions.length = 0;
+            actions.push({ type: 'fuel_route', fuel_destination: fuelDestFromText(text).dest, fuel_type: fuelTypeFromText(text) });
+            ai.reply = 'Ich schaue nach.';
+            chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: ai.reply, actions }) };
+        }
+
         // "Ist Stau auf meiner Strecke?" wird IMMER mit der echten Fahrzeit-/Stau-Berechnung beantwortet,
         // auch wenn die KI stattdessen nur eine einfache Navigation vorgeschlagen hat
         if (STAU_TRIGGER.test(text) && !actions.some(a => a.type === 'travel_time')) {
@@ -676,7 +687,7 @@ async function sendToGroqSmart(text, opts = {}) {
         let okCount = 0;
         const errors = [];
         for (const action of actions) {
-            if (action.type === 'calendar_search' || action.type === 'web_lookup' || action.type === 'email_check' || action.type === 'email_read' || action.type === 'travel_time' || action.type === 'nearby_places') continue; // kommen gleich
+            if (action.type === 'calendar_search' || action.type === 'web_lookup' || action.type === 'email_check' || action.type === 'email_read' || action.type === 'travel_time' || action.type === 'nearby_places' || action.type === 'fuel_route') continue; // kommen gleich
             try {
                 await executeAction(action, text, ctx);
                 okCount++;
@@ -764,6 +775,28 @@ async function sendToGroqSmart(text, opts = {}) {
             }
         }
 
+        // Tankstellen entlang der Strecke (günstigste zuerst, mit Karten und Markierungen auf der Neon-Karte)
+        let fuelReply = null;
+        const fuelAction = actions.find(a => a.type === 'fuel_route');
+        if (fuelAction) {
+            typeWriterStatus("Suche Tankstellen an der Strecke...");
+            updateTerminalStream("API_FETCH: FUEL_ROUTE", "FETCHING");
+            try {
+                const fromText = fuelDestFromText(text);
+                const rawDest = fuelAction.fuel_destination || fromText.dest;
+                const res = await fuelAlongRouteAdvice({
+                    destination: resolveTravelDestination(text, rawDest),
+                    destLabel: fromText.label || fuelLabelFor(rawDest),
+                    fuelType: String(fuelAction.fuel_type || fuelTypeFromText(text)).toLowerCase()
+                });
+                fuelReply = res.reply;
+                res.cards.forEach(c => ctx.cards.push(c));
+                if (!opts.collect && res.map && res.map.coords) ctx.panel = { name: 'karte', mapData: res.map, fuel: res.fuel, fuelLabel: res.label };
+            } catch (e) {
+                fuelReply = e.userMessage || 'Die Tankstellen an der Strecke konnte ich gerade nicht ermitteln.';
+            }
+        }
+
         // Internet-Auskunft (Fernsehprogramm, Nachrichten ...): eigener Aufruf mit Websuche
         let webReply = null;
         const webAction = actions.find(a => a.type === 'web_lookup');
@@ -774,7 +807,7 @@ async function sendToGroqSmart(text, opts = {}) {
             if (!webReply) webReply = "Die Suche im Internet hat gerade nicht geklappt. Versuchen Sie es bitte gleich noch einmal.";
         }
 
-        let replyText = searchReply || webReply || emailReply || travelReply || nearbyReply || ai.reply;
+        let replyText = searchReply || webReply || emailReply || travelReply || nearbyReply || fuelReply || ai.reply;
         if (!replyText) {
             if (wantsSearch) {
                 const results = searchMemory((searchAction && searchAction.memory_search_query) || text);
@@ -831,11 +864,45 @@ async function sendToGroqSmart(text, opts = {}) {
     }
 }
 
+/* --- Tankstellen entlang der Strecke: Erkennung --- */
+const FUEL_WORDS_RE = /tank\w*|sprit|diesel|benzin|\be10\b|\be5\b|kraftstoff/i;
+const ROUTE_WORDS_RE = /\b(weg|strecke|route|unterwegs|entlang)\b/i;
+function isFuelRouteQuestion(text) { return FUEL_WORDS_RE.test(text) && ROUTE_WORDS_RE.test(text); }
+
+function fuelTypeFromText(text) {
+    const t = String(text || '').toLowerCase();
+    if (/\be10\b/.test(t)) return 'e10';
+    if (/\be5\b|\bsuper\b/.test(t)) return 'e5';
+    if (/benzin/.test(t)) return 'e10';   // wie bei den Preisen in der Nähe: "Benzin" heißt E10
+    return 'diesel';
+}
+
+/* Ziel aus dem Satz: { dest: 'Arbeit', label: 'zur Arbeit' }; dest bleibt leer, wenn keins genannt wurde */
+function fuelDestFromText(text) {
+    const t = String(text || '');
+    const low = t.toLowerCase();
+    const work = /\b(arbeit|arbeitsweg|arbeitsstelle|arbeitsplatz)\b/.test(low);
+    const home = /(nach hause|nachhause|zuhause|zu hause|heimweg)/.test(low);
+    if (work && !home) return { dest: 'Arbeit', label: 'zur Arbeit' };
+    if (home && !work) return { dest: 'Zuhause', label: 'nach Hause' };
+    const m = t.match(/\b(?:nach|zu|zum|zur|bis)\s+(?:dem\s+|der\s+)?([A-ZÄÖÜ][\wäöüß-]*(?:\s+[A-ZÄÖÜ][\wäöüß-]*){0,2})/);
+    if (m) return { dest: m[1].trim(), label: `nach ${m[1].trim()}` };
+    return { dest: '', label: '' };
+}
+
+function fuelLabelFor(dest) {
+    const k = plainKey(dest);
+    if (/^(arbeit|zurarbeit)$/.test(k)) return 'zur Arbeit';
+    if (/^(zuhause|nachhause|hause)$/.test(k)) return 'nach Hause';
+    return dest ? `nach ${dest}` : '';
+}
+
 /* --- Spritpreise (Tankerkönig über /api/tank) --- */
 let lastTankCache = null;   // { time, data } - hilft bei Folgefragen ohne Tank-Stichwort ("und die Classic?")
 const TANK_CACHE_MS = 15 * 60000;
 
 async function tankFuerFrage(text) {
+    if (isFuelRouteQuestion(text)) return null;   // Fragen "auf dem Weg zu ..." beantwortet die Strecken-Abfrage, keine Anfrage in der Nähe (Tankerkönig erlaubt nur etwa eine pro Minute)
     const passtThema = /benzin|diesel|sprit|tank|e10|kraftstoff|günstig|kostet|teuer|preis/i.test(text);
     const cacheFrisch = lastTankCache && (Date.now() - lastTankCache.time) < TANK_CACHE_MS;
 

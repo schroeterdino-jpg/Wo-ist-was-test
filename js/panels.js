@@ -414,9 +414,10 @@ const HUD_ROAD_TIERS = [
 
 let hudMap = null;
 let hudMapMe = null;                       // [Breite, Länge]
-let hudMapMarkers = { route: [], stau: [] };
+let hudMapMarkers = { route: [], stau: [], tank: [] };
+let hudFuelPresent = false;                // sind Tankstellen auf der Karte (dann gibt es den Schalter "Tanken")
 let hudMapRouteIds = [];
-let hudMapVisible = { route: true, stau: true };
+let hudMapVisible = { route: true, stau: true, tank: true };
 let hudMapBase = null;
 let mapLibrePromise = null;
 let hudMapPre = null;                      // { locP, dataP }: schon beim Öffnen angestoßene Abfragen
@@ -566,6 +567,8 @@ function injectHudMapStyles() {
 ${HUD_MAP_PULSE ? `@media (prefers-reduced-motion:no-preference){.hud-me::after{content:'';position:absolute;inset:-12px;border-radius:50%;border:2px solid rgba(73,215,255,.7);animation:hudPulse 2.6s ease-out infinite}}
 @keyframes hudPulse{0%{transform:scale(.5);opacity:.9}100%{transform:scale(1.5);opacity:0}}` : ''}
 .hud-dest{width:22px;height:22px;border-radius:50%;border:2px solid ${HUD_ROUTE_COLOR};background:rgba(73,215,255,.18);box-shadow:0 0 12px 2px rgba(73,215,255,.8);display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff}
+.hud-fuel{padding:2px 8px;border-radius:999px;border:1px solid #ffd166;background:rgba(0,10,20,.92);color:#ffe9a8;font:700 11px monospace;white-space:nowrap;box-shadow:0 0 10px rgba(255,209,102,.7)}
+.hud-fuel.best{border-color:#3ddc97;color:#c8ffe6;box-shadow:0 0 12px rgba(61,220,151,.85)}
 .hud-warn{width:26px;height:26px;border-radius:50%;border:2px solid ${HUD_WARN_COLOR};background:rgba(255,154,68,.22);box-shadow:0 0 12px 3px rgba(255,154,68,.85);display:flex;align-items:center;justify-content:center;font-size:14px}
 .hud-map-chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 6px}
 .hud-chip{border:1px solid rgba(73,215,255,.55);color:#49d7ff;border-radius:999px;padding:5px 13px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:rgba(0,0,0,.55)}
@@ -574,11 +577,29 @@ ${HUD_MAP_PULSE ? `@media (prefers-reduced-motion:no-preference){.hud-me::after{
     document.head.appendChild(st);
 }
 
+/* Karten mit den günstigsten Tankstellen unter der Neon-Karte (nur bei der Streckenabfrage) */
+function hudFuelListHtml(options = {}) {
+    const list = Array.isArray(options.fuel) ? options.fuel.slice(0, 5) : [];
+    if (!list.length) return '';
+    injectWeltStyles();
+    const km = (v) => (v < 10 ? v.toFixed(1) : String(Math.round(v))).replace('.', ',');
+    const cards = list.map((st, i) => {
+        const href = (typeof buildMapsLink === 'function') ? buildMapsLink(`${st.strasse || ''}, ${st.ort || ''}`.replace(/^, /, ''), '', 'driving') : '';
+        const off = st.off < 0.2 ? 'direkt an der Strecke' : `${km(st.off)} km abseits`;
+        const inner = `<div><b>${i + 1}. ${escapeHtml(st.name || '')} · ${st.preis.toFixed(3).replace('.', ',')} €</b>` +
+            `<span>${escapeHtml(st.strasse || '')}${st.ort ? ', ' + escapeHtml(st.ort) : ''} · ${off} · Streckenkm ${Math.round(st.along)}</span></div>`;
+        return /^https?:\/\//i.test(href) ? `<a class="welt-card" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${inner}</a>` : `<div class="welt-card">${inner}</div>`;
+    }).join('');
+    return `<p class="text-[#49d7ff] mt-4 mb-2" style="letter-spacing:.06em;text-transform:uppercase">${escapeHtml(options.fuelLabel || 'Kraftstoff')} entlang der Strecke, günstigste zuerst</p>` +
+        cards + `<p class="text-[#5d7e91]" style="font-size:10px">Preise: Tankerkönig.de (CC BY 4.0), Stand der Abfrage.</p>`;
+}
+
 function buildKartePanel(options = {}) {
     const html = `<div class="font-mono text-xs">` +
         `<div class="hud-map-wrap"><div id="hudMap"></div></div>` +
         `<div id="hudMapChips" class="hud-map-chips"></div>` +
         `<p id="hudMapStatus" class="text-[#5d7e91]">Karte wird geladen ...</p>` +
+        hudFuelListHtml(options) +
         `<p class="text-[#5d7e91] mt-4">Sag „Schließen", um das Fenster zu schließen.</p></div>`;
     return { title: PANEL_TITLES.karte, html };
 }
@@ -666,9 +687,10 @@ function hudMapDestroy() {
     if (hudMap) { try { hudMap.remove(); } catch (e) {} }
     hudMap = null;
     hudMapMe = null;
-    hudMapMarkers = { route: [], stau: [] };
+    hudMapMarkers = { route: [], stau: [], tank: [] };
+    hudFuelPresent = false;
     hudMapRouteIds = [];
-    hudMapVisible = { route: true, stau: true };
+    hudMapVisible = { route: true, stau: true, tank: true };
 }
 
 function hudMapRenderChips() {
@@ -677,6 +699,7 @@ function hudMapRenderChips() {
     const chip = (label, action, off) => `<button class="hud-chip${off ? ' off' : ''}" onclick="playUiBeep(); ${action}">${label}</button>`;
     el.innerHTML = chip('Route', "hudMapToggle('route')", !hudMapVisible.route) +
         chip('Stau', "hudMapToggle('stau')", !hudMapVisible.stau) +
+        (hudFuelPresent ? chip('Tanken', "hudMapToggle('tank')", !hudMapVisible.tank) : '') +
         chip('Radar', "hudMapToggle('radar')", !hudRadar.on) +
         chip('Mein Standort', 'hudMapCenter()', false);
 }
@@ -801,11 +824,20 @@ async function initHudMap(options = {}) {
         const txt = `<b>${escapeHtml(w.road || '')}</b> ${escapeHtml(w.title || '')}` + (w.text ? `<br>${escapeHtml(w.text)}` : '');
         hudAddMarker('hud-warn', '⚠', w.lat, w.lon, txt, 'stau');
     });
+    // Tankstellen entlang der Strecke: Preisschilder, die drei günstigsten leuchten grün
+    const fuelList = Array.isArray(options.fuel) ? options.fuel : [];
+    fuelList.forEach((st, i) => {
+        const price = st.preis.toFixed(3).replace('.', ',');
+        const pop = `<b>${escapeHtml(st.name || '')}</b> ${price} €<br>${escapeHtml(st.strasse || '')}${st.ort ? ', ' + escapeHtml(st.ort) : ''}`;
+        hudAddMarker(i < 3 ? 'hud-fuel best' : 'hud-fuel', price, st.lat, st.lng, pop, 'tank');
+    });
+    if (fuelList.length) { hudFuelPresent = true; hudMapRenderChips(); }
 
     const bounds = new maplibregl.LngLatBounds(line[0], line[0]);
     line.forEach(pt => bounds.extend(pt));
     if (hudMapMe) bounds.extend([hudMapMe[1], hudMapMe[0]]);
     (data.warnings || []).forEach(w => bounds.extend([w.lon, w.lat]));
+    (Array.isArray(options.fuel) ? options.fuel : []).forEach(st => bounds.extend([st.lng, st.lat]));
     if (!options.radar) map.fitBounds(bounds, { padding: 32, maxZoom: 15, duration: 0 });
 
     const km = data.km >= 10 ? Math.round(data.km) : Number(data.km).toFixed(1).replace('.', ',');

@@ -262,6 +262,123 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
     return '';
 }
 
+/* ============================================================
+   TANKSTELLEN ENTLANG DER STRECKE ("Wo tanke ich günstig auf meinem Weg zur Arbeit?")
+   Tankerkönig kann nur im Kreis suchen, darum: EINE Anfrage im Kreis um die Streckenmitte (Tankerkönig erlaubt nur etwa eine Anfrage pro Minute),
+   danach werden hier die Tankstellen behalten, die höchstens FUEL_ROUTE_MAX_OFF_KM von der Fahrstrecke entfernt liegen, und nach Preis sortiert.
+   Braucht: api/tankroute.js, buildMapsLink (places.js)
+   ============================================================ */
+const FUEL_ROUTE_MAX_OFF_KM = 3;      // so weit darf eine Tankstelle von der Strecke entfernt sein
+const FUEL_ROUTE_LABELS = { diesel: 'Diesel', e10: 'E10', e5: 'Super E5' };
+
+function fuelKmBetween(lat1, lon1, lat2, lon2) {
+    const R = 6371, rad = Math.PI / 180;
+    const dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/* Länge der Strecke bis zu jedem Punkt in km */
+function fuelRouteCumKm(coords) {
+    const cum = [0];
+    for (let i = 1; i < coords.length; i++) cum.push(cum[i - 1] + fuelKmBetween(coords[i - 1][0], coords[i - 1][1], coords[i][0], coords[i][1]));
+    return cum;
+}
+
+/* Punkt auf der Strecke nach "km" Kilometern */
+function fuelPointAlongRoute(coords, cum, km) {
+    if (km <= 0) return { lat: coords[0][0], lon: coords[0][1] };
+    for (let i = 1; i < coords.length; i++) {
+        if (cum[i] >= km) {
+            const seg = cum[i] - cum[i - 1] || 1;
+            const t = (km - cum[i - 1]) / seg;
+            return { lat: coords[i - 1][0] + (coords[i][0] - coords[i - 1][0]) * t, lon: coords[i - 1][1] + (coords[i][1] - coords[i - 1][1]) * t };
+        }
+    }
+    const last = coords[coords.length - 1];
+    return { lat: last[0], lon: last[1] };
+}
+
+/* Wie weit ist ein Punkt von der Strecke entfernt (km), und bei welchem Streckenkilometer liegt die nächste Stelle? */
+function fuelNearestOnRoute(coords, cum, lat, lon) {
+    const kx = 111.32 * Math.cos(lat * Math.PI / 180), ky = 110.57;
+    let best = { off: Infinity, along: 0 };
+    for (let i = 1; i < coords.length; i++) {
+        const ax = (coords[i - 1][1] - lon) * kx, ay = (coords[i - 1][0] - lat) * ky;
+        const bx = (coords[i][1] - lon) * kx, by = (coords[i][0] - lat) * ky;
+        const dx = bx - ax, dy = by - ay;
+        const len2 = dx * dx + dy * dy;
+        let t = len2 > 0 ? -(ax * dx + ay * dy) / len2 : 0;
+        t = Math.max(0, Math.min(1, t));
+        const off = Math.hypot(ax + dx * t, ay + dy * t);
+        if (off < best.off) best = { off, along: cum[i - 1] + t * (cum[i] - cum[i - 1]) };
+    }
+    return best;
+}
+
+function fuelRoutePriceText(p) { return p.toFixed(3).replace('.', ',') + ' €'; }
+function fuelRoutePriceSpoken(p) {
+    let euro = Math.floor(p), cent = Math.round((p - euro) * 100);
+    if (cent === 100) { euro += 1; cent = 0; }
+    return cent === 0 ? `${euro} Euro` : `${euro} Euro ${cent}`;
+}
+function fuelRouteKmText(km) { return (km < 10 ? km.toFixed(1) : String(Math.round(km))).replace('.', ','); }
+
+/* Ergebnis: { reply, cards, map, fuel, label }. Wirft userError mit verständlichem Text, wenn etwas nicht klappt. */
+async function fuelAlongRouteAdvice(opts) {
+    const fuelType = ['diesel', 'e10', 'e5'].includes(opts.fuelType) ? opts.fuelType : 'diesel';
+    const label = FUEL_ROUTE_LABELS[fuelType];
+    const destLabel = opts.destLabel || 'zum Ziel';
+    if (!opts.destination) throw userError('Wohin fahren Sie? Nennen Sie mir das Ziel, zum Beispiel: Wo tanke ich günstig auf meinem Weg zur Arbeit?');
+
+    const loc = await fetchUserLocationData();
+    if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
+    const adv = await computeDepartureAdvice({ destination: opts.destination, loc });   // wirft verständliche Fehler (Adresse nicht gefunden usw.)
+    const map = adv.map;
+    if (!map || !map.coords || map.coords.length < 2) throw userError('Die Strecke konnte ich gerade nicht berechnen.');
+
+    const coords = map.coords, cum = fuelRouteCumKm(coords), total = cum[cum.length - 1];
+    // Ein Kreis (max. 25 km) um die Streckenmitte; bei langen Strecken um einen Punkt bei 22 km, dann deckt er den Anfang der Strecke ab
+    const center = fuelPointAlongRoute(coords, cum, Math.min(total / 2, 22));
+    let far = 0, coveredKm = total;
+    for (let i = 0; i < coords.length; i++) {
+        const d = fuelKmBetween(center.lat, center.lon, coords[i][0], coords[i][1]);
+        if (d > 22 && coveredKm === total) coveredKm = cum[Math.max(0, i - 1)];   // ab hier reicht der Kreis nicht mehr
+        far = Math.max(far, d);
+    }
+    const rad = Math.min(25, Math.max(6, Math.ceil(Math.min(far, 22) + 3)));
+
+    let d;
+    const r = await apiFetch(`/api/tankroute?lat=${center.lat.toFixed(5)}&lng=${center.lon.toFixed(5)}&rad=${rad}`);
+    try { d = await r.json(); } catch (e) { d = {}; }
+    if (!r.ok || d.error) throw userError('Die Spritpreise sind gerade nicht verfügbar: ' + (d.error || ('Status ' + r.status)));
+
+    const found = [];
+    for (const st of (d.stations || [])) {
+        const price = st[fuelType];
+        if (!(price > 0)) continue;
+        const near = fuelNearestOnRoute(coords, cum, st.lat, st.lng);
+        if (near.off > FUEL_ROUTE_MAX_OFF_KM) continue;
+        found.push({ ...st, preis: price, off: near.off, along: near.along });
+    }
+    found.sort((a, b) => a.preis - b.preis || a.off - b.off);
+    const top = found.slice(0, 3);
+    const teil = coveredKm < total - 1 ? ` Hinweis: Ich konnte nur die ersten ${Math.round(coveredKm)} Kilometer der Strecke abdecken.` : '';
+
+    if (top.length === 0) {
+        return { reply: `Entlang der Strecke ${destLabel} habe ich keine geöffnete Tankstelle mit ${label}-Preis innerhalb von ${FUEL_ROUTE_MAX_OFF_KM} Kilometern gefunden.${teil}`, cards: [], map, fuel: [], label };
+    }
+    const offSpoken = (o) => o < 0.2 ? 'direkt an der Strecke' : `${fuelRouteKmText(o)} Kilometer abseits der Strecke`;
+    const parts = top.map((st, i) => `${i === 0 ? `Auf dem Weg ${destLabel} ist ${label} am günstigsten bei` : (i === 1 ? 'Danach' : 'Und')} ${st.name}${st.strasse ? ', ' + st.strasse : ''}${st.ort ? ' in ' + st.ort : ''}, ${fuelRoutePriceSpoken(st.preis)}, ${offSpoken(st.off)}, nach etwa ${Math.round(st.along)} Kilometern.`);
+    const cards = top.map(st => ({
+        icon: '⛽',
+        title: `${st.name} · ${fuelRoutePriceText(st.preis)}`,
+        subtitle: `${st.strasse}${st.ort ? ', ' + st.ort : ''} · ${st.off < 0.2 ? 'direkt an der Strecke' : fuelRouteKmText(st.off) + ' km abseits'} · Streckenkm ${Math.round(st.along)}`,
+        href: buildMapsLink(`${st.strasse}, ${st.ort}`.replace(/^, /, ''), '', 'driving')
+    }));
+    return { reply: parts.join(' ') + teil, cards, map, fuel: found.slice(0, 15), label };
+}
+
 /* --- Fahrzeit-Test für die Einstellungen: zeigt Schritt für Schritt, woran es liegt --- */
 async function diagnoseTravel(destination, log) {
     const dest = String(destination || '').trim() || 'Hans-Dewitz-Ring';

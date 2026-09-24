@@ -153,6 +153,16 @@ function speakableDates(text) {
     });
 }
 
+/* Straßen-Abkürzungen ausschreiben, sonst liest die Stimme "Str" buchstabierend vor: "Hauptstr. 12" -> "Hauptstraße 12" */
+function speakableAbbreviations(text) {
+    const end = '(?=[\\s,;:)!?]|$)';
+    return String(text)
+        .replace(new RegExp('([A-Za-zÄÖÜäöüß])str\\.' + end, 'g'), '$1straße')   // Hauptstr. / Karl-Marx-Str.
+        .replace(new RegExp('\\bStr\\.' + end, 'g'), 'Straße')                  // Str. des 17. Juni
+        .replace(new RegExp('\\bstr\\.' + end, 'g'), 'straße')
+        .replace(/([A-Za-zÄÖÜäöüß])str(?=\s+\d)/g, '$1straße');                   // Hauptstr 12 (ohne Punkt)
+}
+
 function speak(text, onComplete, langCode) {
     stopThinkingSound();
 
@@ -174,7 +184,7 @@ function speak(text, onComplete, langCode) {
 
     let cleanText = text.replace(/[*_#`~]/g, '');
     cleanText = cleanText.replace(/Schluessel/g, 'Schlüssel').replace(/schluessel/g, 'schlüssel');
-    if (!langCode) cleanText = speakableDates(cleanText);   // deutsche Monatsnamen nur für deutschen Text
+    if (!langCode) cleanText = speakableAbbreviations(speakableDates(cleanText));   // deutsche Monatsnamen und Abkürzungen nur für deutschen Text
 
     if ('speechSynthesis' in window) {
         if (!ackActive) window.speechSynthesis.cancel();
