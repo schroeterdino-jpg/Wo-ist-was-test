@@ -356,6 +356,9 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'home_save') {
         saveHomeAddress(String(action.home_address || '').trim());
         updateTerminalStream("HOME: SAVED");
+    } else if (action.type === 'world_news') {
+        ctx.panel = { name: 'welt', place: String(action.news_place || '').trim() };
+        updateTerminalStream("WORLD: NEWS_REQUESTED");
     } else if (action.type === 'protocol_save') {
         const err = saveProtocol(action.protocol_name, action.protocol_steps);
         if (err) throw userError(err);
@@ -504,7 +507,7 @@ async function sendToGroqSmart(text, opts = {}) {
     "WICHTIG für das Sprachverständnis: Achte auf die ABSICHT hinter dem Satz, nicht auf die exakte Formulierung. Ein und dieselbe Absicht kann ganz unterschiedlich klingen, z.B. 'Setz Milch auf die Liste', 'Ich brauche noch Milch' und 'Schreib Milch auf' meinen alle dasselbe; 'Wo ist mein Auto?', 'Ich will zu meinem Auto' und 'Hast du mein Auto gesehen?' drehen sich alle um den gespeicherten Parkplatz. Das gilt in JEDER Kategorie (Termine, Listen, Erinnerungen, Gedächtnis, Navigation, Parkplatz, E-Mails, Fahrzeit usw.), nicht nur bei den Beispielsätzen in dieser Anleitung - die Beispiele zeigen die Aktion, nicht die einzig erlaubte Formulierung. Bist du dir bei der Absicht unsicher, frage lieber knapp nach, statt zu raten oder nichts zu tun.\n\n" +
     "WICHTIG: Ehrlichkeit bei Aktionen:\n" +
     "- Melde nur dann, dass etwas erledigt, hinzugefügt, gelöscht, geändert oder notiert ist, wenn du dafür in 'actions' die passende Aktion angelegt hast. Ohne Aktion ändert sich nichts.\n" +
-    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; Termine, Erinnerungen und Listen in einem Fenster anzeigen ('show_panel'); im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; E-Mails prüfen und vorlesen ('email_check', 'email_read'); die Abfahrtszeit für einen Termin berechnen ('travel_time'); Restaurants und Lokale in der Nähe finden ('nearby_places'); alle Daten als Datei sichern ('backup_export'); im Internet nachschlagen ('web_lookup': Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse und andere aktuelle Fakten); den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern; Protokolle anlegen und löschen ('protocol_save', 'protocol_delete'); die Karte zeigen ('show_panel' mit 'karte'). Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
+    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; Termine, Erinnerungen und Listen in einem Fenster anzeigen ('show_panel'); im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; E-Mails prüfen und vorlesen ('email_check', 'email_read'); die Abfahrtszeit für einen Termin berechnen ('travel_time'); Restaurants und Lokale in der Nähe finden ('nearby_places'); alle Daten als Datei sichern ('backup_export'); im Internet nachschlagen ('web_lookup': Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse und andere aktuelle Fakten); den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern; Protokolle anlegen und löschen ('protocol_save', 'protocol_delete'); die Karte zeigen ('show_panel' mit 'karte'); die Weltkugel mit aktuellen Nachrichten und Bildern zu einem Land oder Ort zeigen ('world_news'). Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
     "- Zum Löschen, Ändern oder Leeren von Einkaufsliste, Aufgaben, Gedächtnis und Kontakten nutze IMMER 'list_edit'. Zum Hinzufügen darfst du weiterhin 'shopping', 'todo' und 'memory_store' nutzen.\n" +
     "- 'list_edit': 'list_name' ist 'einkauf', 'aufgaben', 'gedaechtnis' oder 'kontakte'. 'list_op' ist 'add', 'remove', 'clear' oder 'replace'. 'list_items' ist eine Liste von Texten: bei Einkauf und Aufgaben die Einträge, beim Gedächtnis der Begriff, bei Kontakten der Name. 'list_new_value' brauchst du bei 'replace' (neuer Text, neuer Wert bzw. neue Nummer) und beim Hinzufügen zum Gedächtnis (der Wert) oder zu den Kontakten (die Telefonnummer). Nimm die Einträge so, wie sie im Kontext stehen.\n\n" +
     "WICHTIG für Fragen nach Terminen und Geburtstagen im Kalender:\n" +
@@ -548,6 +551,8 @@ async function sendToGroqSmart(text, opts = {}) {
     "- Legt der User ein Protokoll an ('Lege ein Protokoll Feierabend an: Fahrzeit nach Hause, Wetter und Spritpreise'), nutze 'protocol_save' mit 'protocol_name' (nur der Name, z.B. 'Feierabend') und 'protocol_steps': eine Liste vollständiger deutscher Sätze, die jeweils wie ein eigener Sprachbefehl funktionieren (z.B. 'Wie lange dauert die Fahrt nach Hause?', 'Wie ist das Wetter?', 'Was kosten Benzin und Diesel in der Nähe?'). Höchstens 8 Schritte. Gibt es das Protokoll schon, wird es ersetzt.\n" +
     "- Will der User ein Protokoll löschen, nutze 'protocol_delete' mit 'protocol_name'. Die vorhandenen Protokolle stehen im Kontext unter 'protokolle'; danach gefragt, zähle Name und Schritte kurz auf.\n" +
     "- Das Starten eines Protokolls ('Starte Protokoll Feierabend') übernimmt die App selbst; dafür legst du keine Aktion an.\n\n" +
+    "WICHTIG für die Weltkugel und Nachrichten zu einem Land, einer Region oder einer Stadt:\n" +
+    "- Fragt der User, was gerade irgendwo los ist ('Was ist gerade in Spanien los?', 'Wie sieht es in Griechenland aus?', 'Nachrichten aus Japan'), nutze 'world_news' mit 'news_place' = der Ort in der Grundform ohne Artikel (z.B. 'Spanien', 'Türkei', 'New York'). Will er nur die Weltkugel sehen ('Zeig mir, was auf der Welt los ist'), nutze 'world_news' mit leerem 'news_place'. Dafür kein 'web_lookup'. Die Kugel dreht sich zum Ort, zeigt Meldungen mit Bildern, und J.A.R.V.I.S. liest eine Zusammenfassung selbst vor; schreibe in 'reply' nur 'Ich schaue nach.'.\n\n" +
     "WICHTIG für Datensicherung:\n" +
     "- Sagt der User 'Sichere meine Daten' oder 'Exportiere meine Daten', nutze 'backup_export'. Das lädt eine Datei mit allen Listen, Terminen, dem Gedächtnis, Parkplatz und der Heimatadresse herunter.\n\n" +
     "WICHTIG für Restaurants/Lokale in der Nähe ('Zeig mir Restaurants in der Nähe', 'Ich habe Lust auf Chinesisch, gibt es was in der Nähe?'):\n" +
@@ -585,14 +590,14 @@ async function sendToGroqSmart(text, opts = {}) {
     "Gib IMMER ein valides JSON-Objekt zurück mit folgenden Feldern:\n" +
     "- reply: Kurze, trockene J.A.R.V.I.S.-Antwort ohne Markdown, meist ein Satz, höchstens zwei. Aktionen bestätigst du knapp (z.B. 'Erledigt.' oder 'Notiert.'). Nur beim Vorlesen von Listen (Einkauf, Termine, Aufgaben) darf die Antwort länger sein.\n" +
     "- actions: Liste (Array) der auszuführenden Aktionen. Jede Aktion ist ein Objekt mit dem Feld 'type' und den dazu passenden Feldern (siehe unten). Bei reiner Unterhaltung, Auskünften oder dem Vorlesen von Listen ist 'actions' eine leere Liste.\n" +
-    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"home_save\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\", \"web_lookup\", \"email_check\", \"email_read\", \"travel_time\", \"backup_export\", \"nearby_places\", \"protocol_save\", \"protocol_delete\"\n" +
+    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"home_save\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\", \"web_lookup\", \"email_check\", \"email_read\", \"travel_time\", \"backup_export\", \"nearby_places\", \"protocol_save\", \"protocol_delete\", \"world_news\"\n" +
     "Die folgenden Felder gehören in die jeweilige Aktion, nicht auf die oberste Ebene:\n" +
     "- calendar_text: (bei calendar oder calendar_update) Titel des Termins.\n" +
     "- calendar_time: (bei calendar oder calendar_update) ISO-Zeitstempel.\n" +
     "- calendar_location: (bei calendar oder calendar_update) Ort des Termins, falls genannt - wichtig für die Abfahrtszeit-Berechnung.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query, protocol_name, protocol_steps.";
+    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query, protocol_name, protocol_steps, news_place.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -793,6 +798,12 @@ async function sendToGroqSmart(text, opts = {}) {
             stopThinkingSound();
             return;
         }
+        if (ctx.panel && ctx.panel.name === 'welt') {   // die Weltkugel liest die Meldungen selbst vor
+            openWelt(ctx.panel.place);
+            renderAllLists();
+            stopThinkingSound();
+            return;
+        }
         showActionCards(ctx.cards);
         if (ctx.panel) openPanel(ctx.panel.name, ctx.panel);
         else if (ctx.cards.length > 0) closePanel();   // Karten (Anruf, Route ...) sollen nicht hinter einem Fenster stecken
@@ -982,7 +993,39 @@ function isMapCommand(text) {
     return /(zeig|öffne|öffnen|anzeig|blende|starte|mach\b|mal\b)/.test(t);
 }
 
+/* "Was ist gerade in Spanien los?", "Nachrichten aus Japan", "Zeig mir, was auf der Welt los ist"
+   -> { place: 'Spanien' } bzw. { place: '' } (nur die Kugel); sonst null */
+function matchWorldCommand(text) {
+    const t = String(text || '').trim().replace(/[?!.]+$/, '');
+    const low = t.toLowerCase();
+    if (!t || t.length > 90) return null;
+    if (/\b(weltkugel|globus)\b/.test(low) || /(auf|in) der welt\b|weltweit|zeig\w*\s+(mir\s+)?(bitte\s+)?die welt\b/.test(low)) return { place: '' };
+    if (!/(\blos\b|passiert|geschieht|nachrichten|\bnews\b|neuigkeiten|\bneues\b|\blage\b|sieht es .* aus|was läuft|was geht)/.test(low)) return null;
+    if (/\b(wetter|regen|regenschirm|temperatur|grad|sprit|benzin|diesel|preise?|fahrzeit|fahrt|stau|restaurants?|essen|hotels?|termine?|kalender|listen?|einkaufsliste|gedächtnis|erinnerung(?:en)?|paket|mails?|briefing|parkplatz)\b/.test(low)) return null;
+    const m = t.match(/(?:^|\s)(?:in|aus|von|über|mit|um)\s+(?:(?:der|dem|den|die|das)\s+)?(.+?)(?:\s+(?:gerade|aktuell|jetzt|heute|los|neu|neues|passiert|geschieht|aus|denn|eigentlich))*$/i);
+    if (!m) return null;
+    const place = m[1].trim();
+    if (place.length < 3 || place.length > 40 || /^(mein|dein|unser|hier|dieser|diesem|dieser|meiner|deiner)/i.test(place)) return null;
+    return { place };
+}
+
+/* Ist die Weltkugel offen, genügt ein Ortsname: "Portugal", "Und in Japan?" */
+function placeFromFollowUp(text) {
+    let t = String(text || '').trim().replace(/[?!.,]+$/, '');
+    if (!t || t.split(/\s+/).length > 5 || t.length > 40) return null;
+    t = t.replace(/^(und|was ist|wie ist|wie sieht es|nachrichten|news)\s+/i, '').replace(/^(?:in|aus|von|über)\s+/i, '').replace(/^(?:der|dem|den|die|das)\s+/i, '');
+    t = t.replace(/\s+(?:los|passiert|aus)$/i, '').trim();
+    if (t.length < 3 || /^(ja|nein|ok|okay|gut|super|danke|stopp|stop|weiter|zurück|schließen|fenster)$/i.test(t)) return null;
+    return t;
+}
+
 function handleLocalCommand(text) {
+    const worldCmd = matchWorldCommand(text);
+    if (worldCmd) { openWelt(worldCmd.place); return true; }
+    if (typeof isPanelOpen === 'function' && isPanelOpen() && currentPanel && currentPanel.name === 'welt') {
+        const followPlace = placeFromFollowUp(text);
+        if (followPlace) { openWelt(followPlace); return true; }
+    }
     const addr = matchWorkAddressCommand(text);
     if (addr) {
         saveWorkAddress(addr);

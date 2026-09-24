@@ -11,13 +11,19 @@ const TRAVEL_BUFFER_MINUTES = 10;   // Puffer, damit man nicht auf die Minute ge
 let lastStauWarnings = [];
 let lastRouteMapData = null;
 
+const geocodeCache = {};   // nur im Speicher: Adresse -> { lat, lon }
+
 async function geocodeAddress(address) {
+    const cacheKey = String(address || '').trim().toLowerCase();
+    if (geocodeCache[cacheKey]) return geocodeCache[cacheKey];
     try {
         const res = await apiFetch('/api/geocode?q=' + encodeURIComponent(address));
         if (!res.ok) return null;
         const data = await res.json();
         if (!data || !data[0]) return null;
-        return { lat: Number(data[0].lat), lon: Number(data[0].lon) };
+        const found = { lat: Number(data[0].lat), lon: Number(data[0].lon) };
+        if (cacheKey && isFinite(found.lat) && isFinite(found.lon)) geocodeCache[cacheKey] = found;
+        return found;
     } catch (e) {
         if (e && e.auth) throw e;
         return null;
@@ -147,7 +153,7 @@ async function computeDepartureAdvice(opts) {
     if (typeof opts === 'string') opts = { query: opts };   // Rückwärtskompatibel
     const target = await resolveTravelTarget(opts);
 
-    const loc = await fetchUserLocationData();
+    const loc = opts.loc || await fetchUserLocationData();
     if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
 
     let dest = await geocodeAddress(target.ort);
@@ -196,9 +202,9 @@ async function computeDepartureAdvice(opts) {
 }
 
 /* Für die HUD-Karte: Route und Staumeldungen zu einem Ziel holen (null, wenn etwas nicht klappt) */
-async function fetchRouteMapData(destText) {
+async function fetchRouteMapData(destText, loc) {
     lastRouteMapData = null;
-    try { await computeDepartureAdvice({ destination: destText }); } catch (e) { return null; }
+    try { await computeDepartureAdvice({ destination: destText, loc: loc || null }); } catch (e) { return null; }
     return lastRouteMapData;
 }
 
@@ -231,8 +237,10 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
     const relevant = autobahnen.slice(0, 2);   // nicht zu viele Abfragen bei langen Strecken mit vielen Autobahnen
     const meldungen = [];
     const geprueft = [];   // Autobahnen, deren Abfrage wirklich geklappt hat
-    for (const road of relevant) {
-        const warnings = await fetchAutobahnStau(road);
+    const alleMeldungen = await Promise.all(relevant.map(road => fetchAutobahnStau(road)));   // gleichzeitig statt nacheinander
+    for (let i = 0; i < relevant.length; i++) {
+        const road = relevant[i];
+        const warnings = alleMeldungen[i];
         if (!warnings) continue;   // Dienst gerade nicht erreichbar: nichts behaupten, kein Fehler-Lärm
         geprueft.push(road);
         const nahe = warnings.filter(relevanteMeldung);
