@@ -21,7 +21,8 @@ const PANEL_TITLES = {
     menu: '☰ Menü',
     karte: '🗺️ Karte',
     welt: '🌍 Welt',
-    protokolle: '📋 Protokolle'
+    protokolle: '📋 Protokolle',
+    adressen: '📍 Adressen'
 };
 
 /* Diese Fenster zeigen einen bestehenden Bereich der Seite (wird ins Fenster geschoben und danach zurückgelegt) */
@@ -33,7 +34,7 @@ const PANEL_SECTIONS = {
 const PANEL_SCROLL_TARGETS = {
     einkauf: 'shoppingList', aufgaben: 'todoList', parkplatz: 'parkingBox', briefing: 'briefingList', gedaechtnis: 'categoryContainer'
 };
-const PANEL_DYNAMIC = ['termine', 'erinnerungen', 'menu', 'karte', 'welt', 'protokolle'];
+const PANEL_DYNAMIC = ['termine', 'erinnerungen', 'menu', 'karte', 'welt', 'protokolle', 'adressen'];
 const VALID_PANELS = Object.keys(PANEL_TITLES);
 
 const PANEL_CLOSE_MS = 300;
@@ -192,6 +193,7 @@ function buildMenuPanel() {
         ['🗺️', 'Karte', 'Standort, Route zur Arbeit, Stau', "openPanel('karte')"],
         ['🌍', 'Welt', 'Weltkugel mit Nachrichten', "openPanel('welt')"],
         ['📋', 'Protokolle', 'Abläufe tippen, ändern, löschen', "openPanel('protokolle')"],
+        ['📍', 'Adressen', 'Arbeit und Zuhause tippen', "openPanel('adressen')"],
         ['🗓️', 'Planer', 'Erinnerung anlegen', "openPanel('planer')"],
         ['⚙️', 'Einstellungen', 'Konto, Stimme, Kontakte', "openPanel('settings')"]
     ];
@@ -208,6 +210,7 @@ function buildDynamicPanel(name, options) {
     if (name === 'karte') return buildKartePanel(options);
     if (name === 'welt') return buildWeltPanel(options);
     if (name === 'protokolle') return buildProtokollePanel(options);
+    if (name === 'adressen') return buildAdressenPanel(options);
     return buildMenuPanel();
 }
 
@@ -256,7 +259,7 @@ function openPanel(name, options = {}) {
         if (name === 'welt') { weltPrefetch(options); setTimeout(() => initWelt(options), PANEL_FLY_MS); }
         // Google-Kalender im Hintergrund auffrischen; refreshOpenPanel() zeichnet dann ohne Animation neu
         // erst NACH dem Einfliegen, sonst ruckelt die Animation, wenn die Daten mitten drin ankommen
-        if (name !== 'menu' && name !== 'karte' && name !== 'welt' && name !== 'protokolle' && typeof accessToken !== 'undefined' && accessToken && typeof fetchGoogleCalendarEvents === 'function') {
+        if (name !== 'menu' && name !== 'karte' && name !== 'welt' && name !== 'protokolle' && name !== 'adressen' && typeof accessToken !== 'undefined' && accessToken && typeof fetchGoogleCalendarEvents === 'function') {
             setTimeout(() => { if (isPanelOpen()) fetchGoogleCalendarEvents(); }, PANEL_FLY_MS);
         }
     } else {
@@ -1638,4 +1641,59 @@ function installParkButton() {
 if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installParkButton);
     else installParkButton();
+}
+
+
+/* ============================================================
+   ADRESSEN PER TIPPEN: Arbeits- und Heimatadresse (Menü ☰ > Adressen)
+   Umgeht die Spracherkennung, die Straßennamen oft falsch schreibt ("Neu Galina Ring" statt "Neu-Galliner-Ring").
+   Die App prüft beim Speichern, ob die Adresse auf der Karte gefunden wird.
+   Braucht: travel.js (geocodeAddress), assistant.js (saveWorkAddress, workAddress, saveHomeAddress, homeAddress)
+   ============================================================ */
+let addrForce = { work: null, home: null };   // Adresse, die trotz "nicht gefunden" gespeichert werden darf (zweiter Tipp)
+
+function addrCurrent(kind) {
+    if (kind === 'work') return (typeof workAddress === 'string') ? workAddress : '';
+    if (typeof homeAddress === 'string') return homeAddress;
+    return (homeAddress && (homeAddress.address || homeAddress.text || homeAddress.label)) || '';
+}
+
+function addrMsg(kind, text) {
+    const el = document.getElementById(kind === 'work' ? 'addrMsgWork' : 'addrMsgHome');
+    if (el) el.textContent = text;
+}
+
+function buildAdressenPanel(options = {}) {
+    injectProtStyles();
+    addrForce = { work: null, home: null };
+    const stop = 'onkeydown="event.stopPropagation()" onkeyup="event.stopPropagation()" onkeypress="event.stopPropagation()"';
+    const block = (kind, title, id, ph) => `<label for="${id}">${title}</label>` +
+        `<input id="${id}" type="text" maxlength="120" value="${escapeHtml(addrCurrent(kind))}" placeholder="${ph}" autocomplete="off" ${stop}>` +
+        `<div class="prot-btns" style="margin-top:8px"><button type="button" class="prot-btn" onclick="playUiBeep(); addrSave('${kind}')">Speichern</button></div>` +
+        `<p id="${kind === 'work' ? 'addrMsgWork' : 'addrMsgHome'}" style="min-height:16px;margin-top:6px;color:#5d7e91"></p>`;
+    const html = `<div class="font-mono text-xs">` +
+        `<p class="text-[#5d7e91] mb-2">Tippe die Adresse so ein, wie sie auf der Karte steht: Straße, Hausnummer und Ort, zum Beispiel „Neu-Galliner-Ring 6, Gallin". Beim Speichern prüft die App, ob sie die Adresse findet.</p>` +
+        `<div class="prot-form">` +
+        block('work', 'Arbeitsadresse', 'addrWork', 'Straße Nr, Ort') +
+        block('home', 'Heimatadresse', 'addrHome', 'Straße Nr, Ort') +
+        `</div></div>`;
+    return { title: PANEL_TITLES.adressen, html };
+}
+
+async function addrSave(kind) {
+    const input = document.getElementById(kind === 'work' ? 'addrWork' : 'addrHome');
+    if (!input) return;
+    const text = String(input.value || '').trim().replace(/\s+/g, ' ');
+    if (text.length < 4) { addrMsg(kind, 'Bitte gib eine Adresse ein.'); return; }
+    addrMsg(kind, 'Prüfe die Adresse ...');
+    let found = null;
+    try { if (typeof geocodeAddress === 'function') found = await geocodeAddress(text); } catch (e) { found = null; }
+    if (!found && addrForce[kind] !== text) {
+        addrForce[kind] = text;
+        addrMsg(kind, 'Diese Adresse habe ich auf der Karte nicht gefunden. Prüfe die Schreibweise und ergänze den Ort, zum Beispiel „..., Gallin". Tippe noch einmal auf Speichern, um sie trotzdem zu speichern.');
+        return;
+    }
+    if (kind === 'work') saveWorkAddress(text); else saveHomeAddress(text);
+    addrForce[kind] = null;
+    addrMsg(kind, found ? `Gespeichert. Die Adresse wurde auf der Karte gefunden.` : 'Gespeichert (nicht auf der Karte geprüft).');
 }

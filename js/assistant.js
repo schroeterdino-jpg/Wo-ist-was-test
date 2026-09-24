@@ -546,7 +546,7 @@ async function sendToGroqSmart(text, opts = {}) {
     "- Schreibe in 'reply' nur 'Ich schaue nach.'. Die eigentliche Antwort wird automatisch aus den echten Daten ergänzt. Erfinde niemals Absender, Betreffs oder Inhalte von E-Mails.\n\n" +
     "WICHTIG für die Abfahrtszeit ('Wann muss ich losfahren?', 'Wie lange dauert die Fahrt zu ...', 'Ist Stau auf meiner Strecke?'):\n" +
     "- Nutze 'travel_time' (nicht 'navigate') - das berechnet die echte Fahrzeit UND prüft aktuelle Stau-/Baustellenmeldungen auf der Strecke. 'navigate' liefert nur einen Kartenlink ohne Fahrzeit oder Verkehrsinfo. Fragt der User nach Fahrzeit, Ankunft, Losfahren, Stau oder Verkehr zu einem Ziel, immer 'travel_time' verwenden, auch wenn der Satz wie eine einfache Navigations-Anfrage klingt ('Ich muss zum X, ist da Stau?').\n" +
-    "- Ziele wie 'Arbeit', 'zur Arbeit' oder 'nach Hause' gibst du unverändert als 'travel_destination' an (z.B. 'Arbeit' oder 'Zuhause'); die App kennt die gespeicherten Adressen. Die Adressen stehen im Kontext unter 'arbeit' und 'zuhause'. Ist die gewünschte Adresse leer, sage kurz, dass der User sie erst nennen muss ('Merk dir meine Arbeitsadresse: ...' bzw. 'Merk dir meine Heimatadresse: ...').\n" +
+    "- Ziele wie 'Arbeit', 'zur Arbeit' oder 'nach Hause' gibst du unverändert als 'travel_destination' an (z.B. 'Arbeit' oder 'Zuhause'), NIEMALS eine Adresse aus dem Gedächtnis oder dem Kontext; die App kennt die gespeicherten Adressen. Die Adressen stehen im Kontext unter 'arbeit' und 'zuhause'. Ist die gewünschte Adresse leer, sage kurz, dass der User sie erst nennen muss ('Merk dir meine Arbeitsadresse: ...' bzw. 'Merk dir meine Heimatadresse: ...').\n" +
     "- Drei Fälle:\n" +
     "  1) Der User nennt einen Termin aus seinem Kalender (z.B. 'wann muss ich zum Zahnarzt los'): 'travel_query' = Stichwort des Termins.\n" +
     "  2) Ohne jede Angabe ('Wann muss ich losfahren?'): weder 'travel_query' noch 'travel_destination' setzen; es wird automatisch der nächste anstehende Termin mit hinterlegtem Ort genommen.\n" +
@@ -736,7 +736,7 @@ async function sendToGroqSmart(text, opts = {}) {
             try {
                 const res = await computeDepartureAdvice({
                     query: travelAction.travel_query || '',
-                    destination: resolvePersonalPlace(travelAction.travel_destination || ''),
+                    destination: resolveTravelDestination(text, travelAction.travel_destination || ''),
                     arrivalTime: travelAction.travel_arrival_time || ''
                 });
                 travelReply = res.reply;
@@ -896,6 +896,17 @@ function matchWorkAddressCommand(text) {
 
 function plainKey(s) {
     return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss').replace(/[^a-z0-9]/g, '');
+}
+
+/* Sagt der Satz selbst "zur Arbeit" bzw. "nach Hause", gilt immer die gespeicherte Adresse - egal, was die KI als Ziel eingesetzt hat
+   (sie nimmt sonst manchmal eine ältere, falsch geschriebene Adresse aus dem Gedächtnis). */
+function resolveTravelDestination(userText, dest) {
+    const t = String(userText || '').toLowerCase();
+    const wantsWork = /\b(arbeit|arbeitsweg|arbeitsstelle|arbeitsplatz)\b/.test(t);
+    const wantsHome = /(nach hause|nachhause|zuhause|zu hause|heimweg)/.test(t);
+    if (wantsWork && !wantsHome) return resolvePersonalPlace('Arbeit');
+    if (wantsHome && !wantsWork) return resolvePersonalPlace('Zuhause');
+    return resolvePersonalPlace(dest);
 }
 
 /* "Arbeit", "zur Arbeit", "nach Hause" ... -> gespeicherte Adresse. Alle anderen Ziele bleiben unverändert. */
