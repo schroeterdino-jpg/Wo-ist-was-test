@@ -203,17 +203,20 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
 
     const relevant = autobahnen.slice(0, 2);   // nicht zu viele Abfragen bei langen Strecken mit vielen Autobahnen
     const meldungen = [];
+    const geprueft = [];   // Autobahnen, deren Abfrage wirklich geklappt hat
     for (const road of relevant) {
         const warnings = await fetchAutobahnStau(road);
-        if (!warnings) continue;   // Dienst gerade nicht erreichbar: einfach nichts dazu sagen, kein Fehler-Lärm
+        if (!warnings) continue;   // Dienst gerade nicht erreichbar: nichts behaupten, kein Fehler-Lärm
+        geprueft.push(road);
         warnings.filter(relevanteMeldung).slice(0, 2).forEach(w => {
             const kurz = (w.title || '').split('|').pop().trim();
             const grund = (w.description || []).find(d => /stau|verengung|sperr|stockend|zähfließend/i.test(d));
             meldungen.push(`${road}${kurz ? ': ' + kurz : ''}${grund ? ' (' + grund + ')' : ''}`);
         });
     }
-    if (meldungen.length === 0) return '';
-    return ' Achtung, auf der Strecke aktuell gemeldet: ' + meldungen.join('; ') + '.';
+    if (meldungen.length > 0) return ' Achtung, auf der Strecke aktuell gemeldet: ' + meldungen.join('; ') + '.';
+    if (geprueft.length > 0) return ` Auf der ${geprueft.join(' und ')} sind aktuell keine Staumeldungen bekannt.`;
+    return '';
 }
 
 /* --- Fahrzeit-Test für die Einstellungen: zeigt Schritt für Schritt, woran es liegt --- */
