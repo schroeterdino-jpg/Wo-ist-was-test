@@ -873,6 +873,7 @@ let weltTimers = [];               // Aktualisierung der ISS-Position
 let weltFollow = true;             // die Kugel folgt der ISS, bis du sie selbst anfasst
 let weltPins = { place: null, iss: null };
 let weltVideoEl = null;            // gerade eingeblendetes Video-Fenster
+let weltMicTimer = null;           // zeigt am Mikrofon-Knopf, ob gerade zugehört wird
 let weltYtPlayer = null;           // YouTube-Player der Live-Kamera (meldet Fehler, dann geht es mit der nächsten Kamera weiter)
 let ytApiPromise = null;
 
@@ -904,6 +905,8 @@ function injectWeltStyles() {
 .welt-pin{display:flex;flex-direction:column;align-items:center;pointer-events:none;transform:translate(-50%,-100%)}
 .welt-pin span{font-family:monospace;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#dffaff;text-shadow:0 0 8px #00d9ff,0 0 16px #00d9ff;white-space:nowrap}
 .welt-pin i{display:block;width:10px;height:10px;margin-top:3px;border-radius:50%;background:#fff;box-shadow:0 0 10px 3px #00d9ff}
+.welt-mic{position:absolute;top:10px;right:10px;z-index:8;width:50px;height:50px;border-radius:50%;border:1.5px solid rgba(73,215,255,.85);background:rgba(0,10,20,.88);color:#fff;font-size:22px;line-height:1;padding:0;box-shadow:0 0 14px rgba(73,215,255,.5);-webkit-tap-highlight-color:transparent}
+.welt-mic.on{border-color:#ff6b6b;box-shadow:0 0 18px rgba(255,107,107,.85);background:rgba(60,0,10,.85)}
 .welt-pin.iss span{color:#ffe9a8;text-shadow:0 0 8px #ffb703,0 0 16px #ffb703}
 .welt-pin.iss i{background:#ffe9a8;box-shadow:0 0 10px 3px #ffb703}
 .welt-video{position:absolute;left:8px;right:8px;bottom:8px;z-index:6;background:rgba(0,10,20,.94);border:1px solid rgba(73,215,255,.65);border-radius:12px;box-shadow:0 0 24px rgba(73,215,255,.35);overflow:hidden}
@@ -925,11 +928,12 @@ function injectWeltStyles() {
 }
 
 function buildWeltPanel(options = {}) {
+    injectWeltStyles();
     const html = `<div class="font-mono text-xs">` +
-        `<div class="hud-globe-wrap"><div id="hudGlobe"></div></div>` +
+        `<div class="hud-globe-wrap"><div id="hudGlobe"></div><button id="weltMic" class="welt-mic" type="button" aria-label="Mit Jarvis sprechen" onclick="weltMicTap()">🎤</button></div>` +
         `<p id="weltStatus" class="text-[#5d7e91] mt-3">Weltkugel wird geladen ...</p>` +
         `<div id="weltNews" class="mt-3"></div>` +
-        `<p class="text-[#5d7e91] mt-4">Nenne ein Land oder eine Region, frag nach der ISS oder den Erdbeben, oder sag „Zeig mir New York live". Sag „Schließen", um das Fenster zu schließen.</p></div>`;
+        `<p class="text-[#5d7e91] mt-4">Tippe auf das Mikrofon oben rechts an der Kugel (es unterbricht Jarvis und startet das Zuhören) und nenne ein Land oder eine Region, frag nach der ISS oder den Erdbeben, oder sag „Zeig mir Rom live". Sag „Schließen", um das Fenster zu schließen.</p></div>`;
     return { title: PANEL_TITLES.welt, html };
 }
 
@@ -971,7 +975,22 @@ function weltCloseVideo() {
     weltVideoEl = null;
 }
 
+/* Mikrofon-Knopf: beendet laufende Videos, unterbricht Jarvis beim Vorlesen und startet das Zuhören (oder beendet es, wenn er gerade zuhört) */
+function weltMicTap() {
+    weltCloseVideo();
+    if (typeof toggleSpeechRecognition === 'function') toggleSpeechRecognition();
+    weltMicSync();
+}
+
+function weltMicSync() {
+    const b = document.getElementById('weltMic');
+    if (!b || !b.classList) return;
+    const listening = (typeof isRecording !== 'undefined') && isRecording;
+    if (listening) b.classList.add('on'); else b.classList.remove('on');
+}
+
 function weltDestroy() {
+    if (weltMicTimer) { clearInterval(weltMicTimer); weltMicTimer = null; }
     weltToken++;
     weltClearTimers();
     weltCloseVideo();
@@ -1030,6 +1049,7 @@ async function initWelt(options = {}) {
     const my = weltToken;
     injectWeltStyles();
     weltStatus('Lade Weltkugel ...');
+    if (!weltMicTimer) weltMicTimer = setInterval(weltMicSync, 400);
     let libOk = true;
     try {
         const loaded = await weltWithTimeout(ensureGlobeGl().then(() => true), 6000, false);
@@ -1408,7 +1428,7 @@ function weltOpenLivePlayer(cam, startIndex, token) {
     injectWeltStyles();
     const box = document.createElement('div');
     box.className = 'welt-video';
-    box.innerHTML = `<div class="welt-video-bar"><span>${escapeHtml(cam.title)} · LIVE</span>` +
+    box.innerHTML = `<div class="welt-video-bar"><span class="live-title">${escapeHtml(cam.title)} · LIVE</span>` +
         `<span class="btns"><button type="button" data-act="next" aria-label="Nächste Kamera">⏭</button><button type="button" data-act="close" aria-label="Schließen">✕</button></span></div>` +
         `<div class="live-frame"></div>`;
     wrap.appendChild(box);
@@ -1430,7 +1450,10 @@ function weltOpenLivePlayer(cam, startIndex, token) {
         const url = weltLiveEmbedUrl(src);
         if (!url) { advance(); return; }
         frame.innerHTML = `<iframe src="${escapeHtml(url)}" title="${escapeHtml(cam.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
-        weltStatus(`${cam.title} · Kamera ${(i % cam.sources.length) + 1} von ${cam.sources.length}`);
+        const srcTitle = src.title ? String(src.title).slice(0, 60) : '';
+        weltStatus(`${cam.title} · Kamera ${(i % cam.sources.length) + 1} von ${cam.sources.length}${srcTitle ? ': ' + srcTitle : ''}`);
+        const titleEl = box.querySelector('.live-title');
+        if (titleEl) titleEl.textContent = `${srcTitle || cam.title} · LIVE`;
         const iframe = frame.querySelector('iframe');
         ensureYouTubeApi().then(() => {
             if (!stillActive() || !iframe) return;
@@ -1457,27 +1480,54 @@ function weltOpenLivePlayer(cam, startIndex, token) {
     load(index);
 }
 
+/* Live-Kameras zu einem beliebigen Ort: Die YouTube-Suche (/api/youtubelive) liefert einbettbare Live-Streams, die Ergebnisse kommen sechs Stunden lang aus dem Zwischenspeicher */
+const weltLiveCache = {};
+async function fetchLiveCams(place) {
+    const k = place.toLowerCase();
+    const hit = weltLiveCache[k];
+    if (hit && Date.now() - hit.t < 6 * 3600000) return { items: hit.items, fehler: null };
+    try {
+        const res = await apiFetch('/api/youtubelive?q=' + encodeURIComponent(place));
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok || d.error) return { items: [], fehler: d.error || ('Status ' + res.status) };
+        const items = Array.isArray(d.items) ? d.items.filter(i => /^[\w-]{11}$/.test(i.videoId || '')) : [];
+        if (items.length) weltLiveCache[k] = { t: Date.now(), items };
+        return { items, fehler: null };
+    } catch (e) {
+        return { items: [], fehler: 'keine Verbindung' };
+    }
+}
+
 async function weltShowLive(nameOrKey) {
     if (!isPanelOpen() || currentPanel.name !== 'welt') return;
     const token = ++weltToken;
     const q = String(nameOrKey || '').trim();
-    const cam = weltFindCam(q);
+    const cam = weltFindCam(q);                    // bekannte Namen ("newyork" -> "New York"), sonst der genannte Ort
+    const place = cam ? cam.short : q;
     weltResetLive();
-    if (!cam) {
-        // Kein fester Ort: Karte mit der YouTube-Suche nach Live-Kameras bereitlegen
-        weltStatus(`Für ${q || 'diesen Ort'} ist keine Live-Kamera fest hinterlegt.`);
-        const box = document.getElementById('weltNews');
-        if (box && q) box.innerHTML = `<a class="welt-card" href="${escapeHtml(weltLiveSearchUrl(q))}" target="_blank" rel="noopener noreferrer"><div><b>Live-Kameras für ${escapeHtml(q)} auf YouTube suchen</b><span>öffnet die Suche mit dem Filter „Live"</span></div></a>`;
-        speak(`Für ${q || 'diesen Ort'} habe ich keine Live-Kamera fest hinterlegt. Unten habe ich Ihnen die YouTube-Suche nach Live-Kameras bereitgelegt.`, continueConversation);
+    if (!place) {
+        weltStatus('Sag zum Beispiel: „Zeig mir Rom live".');
+        speak('Welchen Ort möchten Sie live sehen?', continueConversation);
         return;
     }
-    const geoP = weltGeocode(cam.where);
-    weltStatus(`${cam.title} · Live`);
-    speak(`${cam.short}, live.`);
-    weltOpenLivePlayer(cam, 0, token);
-    const geo = await geoP;
+    weltStatus(`Suche Live-Kameras für ${place} ...`);
+    const geoP = weltWithTimeout(weltGeocode(cam ? cam.where : place), 8000, null);
+    const resP = weltWithTimeout(fetchLiveCams(place), 15000, { items: [], fehler: 'Zeitüberschreitung' });
+    const [geo, res] = await Promise.all([geoP, resP]);
     if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
-    if (geo && weltGlobe) weltFlyTo(geo.lat, geo.lon, cam.short);
+    if (geo && weltGlobe) weltFlyTo(geo.lat, geo.lon, place);
+
+    if (!res.items.length) {
+        const grund = res.fehler ? `Die Live-Suche ist gerade nicht verfügbar: ${res.fehler}` : `Für ${place} habe ich gerade keinen Live-Stream gefunden.`;
+        weltStatus(grund);
+        const box = document.getElementById('weltNews');
+        if (box) box.innerHTML = `<a class="welt-card" href="${escapeHtml(weltLiveSearchUrl(place))}" target="_blank" rel="noopener noreferrer"><div><b>Live-Kameras für ${escapeHtml(place)} auf YouTube suchen</b><span>öffnet die Suche mit dem Filter „Live"</span></div></a>`;
+        speak(res.fehler ? 'Die Live-Suche ist gerade nicht verfügbar. Der Grund steht unter der Kugel.' : `Für ${place} habe ich gerade keinen Live-Stream gefunden. Unten liegt die YouTube-Suche bereit.`, continueConversation);
+        return;
+    }
+    const camObj = { title: place, short: place, sources: res.items.map(i => ({ v: i.videoId, title: i.title })) };
+    speak(`${place}, live.`);
+    weltOpenLivePlayer(camObj, 0, token);
 }
 
 
