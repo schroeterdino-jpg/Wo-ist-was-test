@@ -1037,17 +1037,41 @@ function matchLiveCamCommand(text) {
     return null;
 }
 
-/* Ist die Weltkugel offen, genügt ein Ortsname: "Portugal", "Und in Japan?" */
+/* Ist die Weltkugel offen, genügt ein Ortsname: "Und in Portugal?", "In Spanien", "Japan".
+   Bewusst streng: Alles andere (z.B. "Setz Milch auf die Einkaufsliste") geht ganz normal an J.A.R.V.I.S. */
 function placeFromFollowUp(text) {
-    let t = String(text || '').trim().replace(/[?!.,]+$/, '');
-    if (!t || t.split(/\s+/).length > 5 || t.length > 40) return null;
-    t = t.replace(/^(und|was ist|wie ist|wie sieht es|nachrichten|news)\s+/i, '').replace(/^(?:in|aus|von|über)\s+/i, '').replace(/^(?:der|dem|den|die|das)\s+/i, '');
-    t = t.replace(/\s+(?:los|passiert|aus)$/i, '').trim();
-    if (t.length < 3 || /^(ja|nein|ok|okay|gut|super|danke|stopp|stop|weiter|zurück|schließen|fenster)$/i.test(t)) return null;
-    return t;
+    const t = String(text || '').trim().replace(/[?!.,]+$/, '');
+    if (!t || t.length > 40 || t.split(/\s+/).length > 7) return null;
+    const stop = /^(jarvis|danke|bitte|hallo|hey|okay|ok|ja|nein|weiter|stopp|stop|schließen|zurück|wetter|karte|radar|liste|termine|kalender|hilfe|mehr|nochmal|wiederholen|gut|super|genau|richtig|falsch|morgen|abend|nacht|heute|jetzt|später|alles|nichts|nix|dann|noch|auch|wieder|wie|was|wo|wer|wann|warum|nähe|umgebung|einkaufsliste|aufgaben|aufgabenliste|erinnerungen|termin|kontakte|gedächtnis|briefing|parkplatz|einstellungen|menü|mir|mich|dir|uns|ich|du|wir|sie|es)$/i;
+    const article = '(?:(?:der|dem|den|die|das)\\s+)?';
+    let place = null;
+    // 1) mit Einleitung: "Und in Portugal", "In Spanien", "Was ist in Italien", "Und Japan"
+    let m = t.match(new RegExp('^(?:und\\s+)?(?:was\\s+ist\\s+|wie\\s+ist\\s+es\\s+|wie\\s+sieht\\s+es\\s+)?(?:in|aus|von|über|nach)\\s+' + article + '(.+?)(?:\\s+(?:los|aus|denn))*$', 'i'));
+    if (m) place = m[1];
+    else {
+        m = t.match(new RegExp('^und\\s+' + article + '(.+)$', 'i'));
+        if (m) place = m[1];
+        // 2) ein einzelnes großgeschriebenes Wort: "Portugal"
+        else if (!/\s/.test(t) && /^[A-ZÄÖÜ]/.test(t) && t.length >= 4) place = t;
+    }
+    if (!place) return null;
+    place = place.trim();
+    const words = place.split(/\s+/);
+    if (words.length > 3 || place.length < 3 || place.length > 30 || /\d/.test(place) || stop.test(place) || stop.test(words[0])) return null;
+    return place;
 }
 
+/* Ein Fehler in den festen Befehlen darf nie dazu führen, dass Jarvis gar nichts mehr sagt: dann geht der Satz normal an die KI */
 function handleLocalCommand(text) {
+    try {
+        return handleLocalCommandInner(text);
+    } catch (e) {
+        console.error('Fester Sprachbefehl fehlgeschlagen', e);
+        return false;
+    }
+}
+
+function handleLocalCommandInner(text) {
     const worldCmd = matchWorldCommand(text);
     if (worldCmd) { openWelt(worldCmd.place, worldCmd.mode); return true; }
     const liveCmd = matchLiveCamCommand(text);
