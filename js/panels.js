@@ -413,6 +413,15 @@ let hudMapBase = null;
 let mapLibrePromise = null;
 let hudMapPre = null;                      // { locP, dataP }: schon beim Öffnen angestoßene Abfragen
 
+/* Regenradar (RainViewer, kostenlos für den privaten Gebrauch, seit 2026 nur grobe Auflösung und ohne Vorhersage):
+   die letzte Stunde als kleine Animation über der Karte. Quelle wird laut Bedingungen genannt. */
+const RAINVIEWER_URL = 'https://api.rainviewer.com/public/weather-maps.json';
+const RADAR_FRAMES = 6;            // so viele Bilder der letzten Stunde
+const RADAR_STEP_MS = 650;         // Zeit pro Bild
+const RADAR_LAST_HOLD_MS = 1600;   // das aktuellste Bild bleibt etwas länger stehen
+const RADAR_OPACITY = 0.8;
+let hudRadar = { on: false, ready: false, loading: false, ids: [], timer: null, current: 0 };
+
 /* Standort und Route zur Arbeit sofort holen (noch während das Fenster einfliegt), damit später nichts wartet */
 function hudMapPrefetch(options = {}) {
     const locP = fetchUserLocationData().catch(() => null);
@@ -571,7 +580,81 @@ function hudMapStatus(text) {
     if (el) el.textContent = text;
 }
 
+function hudRadarStop() {
+    if (hudRadar.timer) clearTimeout(hudRadar.timer);
+    hudRadar = { on: false, ready: false, loading: false, ids: [], timer: null, current: 0 };
+}
+
+function hudRadarShowFrame(i) {
+    if (!hudMap) return;
+    hudRadar.ids.forEach((id, k) => { if (hudMap.getLayer(id)) hudMap.setPaintProperty(id, 'raster-opacity', k === i ? RADAR_OPACITY : 0); });
+}
+
+function hudRadarStep() {
+    if (!hudMap || !hudRadar.on || !hudRadar.ids.length) return;
+    hudRadar.current = (hudRadar.current + 1) % hudRadar.ids.length;
+    hudRadarShowFrame(hudRadar.current);
+    const last = hudRadar.current === hudRadar.ids.length - 1;
+    hudRadar.timer = setTimeout(hudRadarStep, last ? RADAR_LAST_HOLD_MS : RADAR_STEP_MS);
+}
+
+/* Bilder laden (einmal) und die Animation starten */
+async function hudRadarEnable(map) {
+    if (!map || hudMap !== map || hudRadar.loading) return;
+    if (!hudRadar.ready) {
+        hudRadar.loading = true;
+        hudMapStatus('Lade Regenradar ...');
+        try {
+            const res = await fetch(RAINVIEWER_URL);
+            const data = await res.json();
+            const frames = ((data.radar && data.radar.past) || []).slice(-RADAR_FRAMES);
+            if (!frames.length) throw new Error('keine Radarbilder');
+            if (hudMap !== map) return;
+            const before = map.getLayer('hud-route-glow') ? 'hud-route-glow' : (map.getLayer('hud-labels-road') ? 'hud-labels-road' : undefined);
+            frames.forEach((f, i) => {
+                const id = 'hud-radar-' + i;
+                map.addSource(id, { type: 'raster', tileSize: 256, maxzoom: 7,
+                    tiles: [`${data.host}${f.path}/256/{z}/{x}/{y}/1/1_1.png`],
+                    attribution: '<a href="https://www.rainviewer.com/" target="_blank" rel="noopener">Radar: RainViewer</a>' });
+                map.addLayer({ id, type: 'raster', source: id,
+                    paint: { 'raster-opacity': 0, 'raster-fade-duration': 0, 'raster-saturation': 0.25, 'raster-contrast': 0.25, 'raster-brightness-min': 0.05 } }, before);
+                hudRadar.ids.push(id);
+            });
+            hudRadar.ready = true;
+        } catch (e) {
+            console.error('Regenradar', e);
+            hudRadar.loading = false;
+            if (hudMap === map) hudMapStatus('Das Regenradar ist gerade nicht erreichbar.');
+            return;
+        }
+        hudRadar.loading = false;
+    }
+    if (hudMap !== map) return;
+    hudRadar.on = true;
+    hudRadar.current = hudRadar.ids.length - 1;
+    hudRadarShowFrame(hudRadar.current);
+    hudRadar.timer = setTimeout(hudRadarStep, RADAR_LAST_HOLD_MS);
+    hudMapStatus('Regenradar der letzten Stunde (grobe Auflösung). Blau bis Rot: leichter bis starker Regen.');
+    hudMapRenderChips();
+}
+
+function hudRadarDisable() {
+    if (hudRadar.timer) clearTimeout(hudRadar.timer);
+    hudRadar.timer = null;
+    hudRadar.on = false;
+    hudRadar.ids.forEach(id => { if (hudMap && hudMap.getLayer(id)) hudMap.setPaintProperty(id, 'raster-opacity', 0); });
+    hudMapRenderChips();
+}
+
+/* Für Sprachbefehle: Radar auf der offenen Karte einschalten */
+function hudMapSetRadar(on) {
+    if (!hudMap) return;
+    if (on && !hudRadar.on) hudRadarEnable(hudMap);
+    else if (!on && hudRadar.on) hudRadarDisable();
+}
+
 function hudMapDestroy() {
+    hudRadarStop();
     if (hudMap) { try { hudMap.remove(); } catch (e) {} }
     hudMap = null;
     hudMapMe = null;
@@ -586,10 +669,12 @@ function hudMapRenderChips() {
     const chip = (label, action, off) => `<button class="hud-chip${off ? ' off' : ''}" onclick="playUiBeep(); ${action}">${label}</button>`;
     el.innerHTML = chip('Route', "hudMapToggle('route')", !hudMapVisible.route) +
         chip('Stau', "hudMapToggle('stau')", !hudMapVisible.stau) +
+        chip('Radar', "hudMapToggle('radar')", !hudRadar.on) +
         chip('Mein Standort', 'hudMapCenter()', false);
 }
 
 function hudMapToggle(name) {
+    if (name === 'radar') { hudMapSetRadar(!hudRadar.on); return; }
     if (!hudMap || !(name in hudMapVisible)) return;
     hudMapVisible[name] = !hudMapVisible[name];
     if (name === 'route') {
@@ -652,6 +737,7 @@ async function initHudMap(options = {}) {
     hudMapRenderChips();
     let ready = false;
     const loaded = new Promise(resolve => map.once('load', () => { ready = true; resolve(); }));
+    if (options.radar) loaded.then(() => { if (hudMap === map) hudRadarEnable(map); });   // Regenradar läuft parallel zur Route
     setTimeout(() => { if (hudMap === map && !ready) hudMapStatus('Die Karte lädt nur langsam. Besteht eine Internetverbindung?'); }, 12000);
 
     // 1) Standort
@@ -660,7 +746,7 @@ async function initHudMap(options = {}) {
     if (loc && !loc.fehler && loc.latitude !== undefined) {
         hudMapMe = [loc.latitude, loc.longitude];
         hudAddMarker('hud-me', '', loc.latitude, loc.longitude, null, null);
-        map.jumpTo({ center: [loc.longitude, loc.latitude], zoom: 13 });
+        map.jumpTo({ center: [loc.longitude, loc.latitude], zoom: options.radar ? 7 : 13 });   // das Radar ist grob, darum weiter herausgezoomt
     }
 
     // 2) Route und Staumeldungen: entweder von der Fahrzeit-Berechnung mitgeliefert oder die Route zur Arbeit
@@ -712,7 +798,7 @@ async function initHudMap(options = {}) {
     line.forEach(pt => bounds.extend(pt));
     if (hudMapMe) bounds.extend([hudMapMe[1], hudMapMe[0]]);
     (data.warnings || []).forEach(w => bounds.extend([w.lon, w.lat]));
-    map.fitBounds(bounds, { padding: 32, maxZoom: 15, duration: 0 });
+    if (!options.radar) map.fitBounds(bounds, { padding: 32, maxZoom: 15, duration: 0 });
 
     const km = data.km >= 10 ? Math.round(data.km) : Number(data.km).toFixed(1).replace('.', ',');
     const road = (data.autobahnen && data.autobahnen.length) ? ' · ' + data.autobahnen.join(', ') : '';
@@ -721,7 +807,7 @@ async function initHudMap(options = {}) {
         : n === 0 ? 'Keine Staumeldungen auf der Strecke.'
         : n === 1 ? '1 Verkehrsmeldung an der Strecke, tippe auf das Warnsymbol.'
         : `${n} Verkehrsmeldungen an der Strecke, tippe auf die Warnsymbole.`;
-    hudMapStatus(`${data.fahrtMin} Min. · ${km} km${road} — ${stau}`);
+    if (!hudRadar.on && !hudRadar.loading) hudMapStatus(`${data.fahrtMin} Min. · ${km} km${road} — ${stau}`);
 }
 
 
@@ -743,6 +829,16 @@ let weltGlobe = null;
 let weltPre = null;                // { place, geoP, newsP }: schon beim Öffnen angestoßene Abfragen
 let weltToken = 0;                 // wird bei jedem neuen Ort und beim Schließen erhöht, damit alte Antworten verworfen werden
 let globePromise = null;
+let weltTimers = [];               // Aktualisierung der ISS-Position
+let weltFollow = true;             // die Kugel folgt der ISS, bis du sie selbst anfasst
+let weltPins = { place: null, iss: null };
+let weltVideoEl = null;            // gerade eingeblendetes Video-Fenster
+let weltYtPlayer = null;           // YouTube-Player der Live-Kamera (meldet Fehler, dann geht es mit der nächsten Kamera weiter)
+let ytApiPromise = null;
+
+const ISS_URL = 'https://api.wheretheiss.at/v1/satellites/25544';
+const ISS_POLL_MS = 5000;
+const QUAKES_URL = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
 
 function ensureGlobeGl() {
     if (window.Globe) return Promise.resolve();
@@ -768,6 +864,18 @@ function injectWeltStyles() {
 .welt-pin{display:flex;flex-direction:column;align-items:center;pointer-events:none;transform:translate(-50%,-100%)}
 .welt-pin span{font-family:monospace;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#dffaff;text-shadow:0 0 8px #00d9ff,0 0 16px #00d9ff;white-space:nowrap}
 .welt-pin i{display:block;width:10px;height:10px;margin-top:3px;border-radius:50%;background:#fff;box-shadow:0 0 10px 3px #00d9ff}
+.welt-pin.iss span{color:#ffe9a8;text-shadow:0 0 8px #ffb703,0 0 16px #ffb703}
+.welt-pin.iss i{background:#ffe9a8;box-shadow:0 0 10px 3px #ffb703}
+.welt-video{position:absolute;left:8px;right:8px;bottom:8px;z-index:6;background:rgba(0,10,20,.94);border:1px solid rgba(73,215,255,.65);border-radius:12px;box-shadow:0 0 24px rgba(73,215,255,.35);overflow:hidden}
+.welt-video-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 10px;font-family:monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#49d7ff}
+.welt-video-bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.welt-video-bar button{border:1px solid rgba(73,215,255,.55);color:#49d7ff;border-radius:6px;padding:0 8px;font-size:12px;background:rgba(0,0,0,.5)}
+.welt-video video{display:block;width:100%;max-height:32vh;background:#000}
+.welt-video .live-frame{position:relative;width:100%;padding-top:56.25%;background:#000}
+.welt-video .live-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.welt-video .live-msg{padding:14px 12px;font-family:monospace;font-size:11px;line-height:1.5;color:#cfefff}
+.welt-video .live-msg a{color:#49d7ff;text-decoration:underline}
+.welt-video-bar .btns{display:flex;gap:6px;flex:none}
 .welt-card{display:flex;gap:10px;align-items:flex-start;background:rgba(0,0,0,.6);border:1px solid rgba(93,209,255,.2);border-radius:10px;padding:8px;margin-bottom:8px;text-decoration:none;color:#e2e8f0}
 .welt-card img{width:96px;height:64px;object-fit:cover;border-radius:6px;flex:none;background:#020a12}
 .welt-card b{display:block;font-size:12px;line-height:1.35;color:#e2e8f0;font-weight:600}
@@ -781,7 +889,7 @@ function buildWeltPanel(options = {}) {
         `<div class="hud-globe-wrap"><div id="hudGlobe"></div></div>` +
         `<p id="weltStatus" class="text-[#5d7e91] mt-3">Weltkugel wird geladen ...</p>` +
         `<div id="weltNews" class="mt-3"></div>` +
-        `<p class="text-[#5d7e91] mt-4">Nenne ein Land oder eine Region. Sag „Schließen", um das Fenster zu schließen.</p></div>`;
+        `<p class="text-[#5d7e91] mt-4">Nenne ein Land oder eine Region, frag nach der ISS oder den Erdbeben, oder sag „Zeig mir New York live". Sag „Schließen", um das Fenster zu schließen.</p></div>`;
     return { title: PANEL_TITLES.welt, html };
 }
 
@@ -790,8 +898,26 @@ function weltStatus(text) {
     if (el) el.textContent = text;
 }
 
+function weltClearTimers() {
+    weltTimers.forEach(t => clearInterval(t));
+    weltTimers = [];
+}
+
+function weltCloseVideo() {
+    if (weltYtPlayer) { try { weltYtPlayer.destroy(); } catch (e) {} weltYtPlayer = null; }
+    if (weltVideoEl) {
+        try { const v = weltVideoEl.querySelector('video'); if (v) { v.pause(); v.removeAttribute('src'); v.load(); } } catch (e) {}
+        try { weltVideoEl.remove(); } catch (e) {}
+    }
+    weltVideoEl = null;
+}
+
 function weltDestroy() {
     weltToken++;
+    weltClearTimers();
+    weltCloseVideo();
+    weltPins = { place: null, iss: null };
+    weltFollow = true;
     if (weltGlobe) {
         try { weltGlobe.controls().autoRotate = false; } catch (e) {}
         try { if (typeof weltGlobe._destructor === 'function') weltGlobe._destructor(); } catch (e) {}
@@ -809,7 +935,7 @@ async function fetchWorldNews(place) {
         const res = await apiFetch('/api/news?q=' + encodeURIComponent(place));
         const d = await res.json().catch(() => ({}));
         if (!res.ok) return { articles: [], fehler: d.error || ('Status ' + res.status) };
-        return { articles: Array.isArray(d.articles) ? d.articles : [], fehler: d.fehler || null };
+        return { articles: Array.isArray(d.articles) ? d.articles : [], video: d.video || null, fehler: d.fehler || null };
     } catch (e) {
         return { articles: [], fehler: 'keine Verbindung' };
     }
@@ -817,7 +943,7 @@ async function fetchWorldNews(place) {
 
 /* Geocoding und Nachrichten schon beim Öffnen starten, während das Fenster einfliegt */
 function weltPrefetch(options = {}) {
-    const place = String(options.place || '').trim();
+    const place = options.mode ? '' : String(options.place || '').trim();
     weltPre = place ? { place, geoP: weltGeocode(place), newsP: fetchWorldNews(place) } : null;
 }
 
@@ -830,11 +956,13 @@ function weltCreateGlobe() {
         .showAtmosphere(true).atmosphereColor(GLOBE_ATMOSPHERE).atmosphereAltitude(0.22)
         .ringsData([]).ringColor(() => t => `rgba(73,215,255,${1 - t})`).ringMaxRadius(5).ringPropagationSpeed(2.2).ringRepeatPeriod(1200)
         .htmlElementsData([]).htmlLat('lat').htmlLng('lng').htmlAltitude(0.01).htmlElement(d => d.el)
+        .pointsData([]).pointLat('lat').pointLng('lng').pointAltitude(d => d.alt).pointRadius(d => d.r).pointColor(d => d.color)
         .pointOfView({ lat: 30, lng: 10, altitude: 2.4 }, 0);
     const c = g.controls();
     c.autoRotate = true;
     c.autoRotateSpeed = GLOBE_SPIN_SPEED;
     c.enableZoom = false;
+    try { c.addEventListener('start', () => { weltFollow = false; }); } catch (e) {}   // wer die Kugel anfasst, dem folgt sie nicht mehr
     weltGlobe = g;
 }
 
@@ -851,8 +979,9 @@ async function initWelt(options = {}) {
         catch (e) { console.error('Weltkugel konnte nicht gestartet werden', e); weltStatus('Die Weltkugel konnte nicht aufgebaut werden. Unterstützt der Browser WebGL?'); }
     }
     const place = String(options.place || '').trim();
-    if (place) weltShowPlace(place);
-    else if (weltGlobe) weltStatus('Nenne ein Land oder eine Region, zum Beispiel: „Was ist gerade in Spanien los?"');
+    const mode = String(options.mode || '');
+    if (mode || place) weltDispatch(place, mode);
+    else if (weltGlobe) weltStatus('Nenne ein Land oder eine Region, zum Beispiel: „Was ist gerade in Spanien los?" Oder frag nach der ISS und den Erdbeben.');
 }
 
 function weltFlyTo(lat, lng, name) {
@@ -861,10 +990,26 @@ function weltFlyTo(lat, lng, name) {
     const pin = document.createElement('div');
     pin.className = 'welt-pin';
     pin.innerHTML = `<span>${escapeHtml(name)}</span><i></i>`;
+    weltPins = { place: { lat, lng, el: pin }, iss: null };
     g.controls().autoRotate = false;
-    g.htmlElementsData([{ lat, lng, el: pin }]);
+    g.pointsData([]);
+    g.htmlElementsData([weltPins.place]);
     g.ringsData([{ lat, lng }]);
     g.pointOfView({ lat, lng, altitude: 1.5 }, 2200);
+}
+
+/* Alles zurücksetzen, was von der vorigen Ansicht (Ort, ISS, Erdbeben) auf der Kugel stand */
+function weltResetLive() {
+    weltClearTimers();
+    weltCloseVideo();
+    weltPins = { place: null, iss: null };
+    weltFollow = true;
+    if (weltGlobe) {
+        weltGlobe.pointsData([]).ringsData([]).htmlElementsData([]);
+        weltGlobe.controls().autoRotate = true;
+    }
+    const box = document.getElementById('weltNews');
+    if (box) box.innerHTML = '';
 }
 
 function weltAgo(iso) {
@@ -931,9 +1076,7 @@ async function weltShowPlace(place) {
     const newsP = pre ? pre.newsP : fetchWorldNews(place);
 
     weltStatus(`Suche Nachrichten zu ${place} ...`);
-    const box = document.getElementById('weltNews');
-    if (box) box.innerHTML = '';
-    if (weltGlobe) weltGlobe.controls().autoRotate = true;
+    weltResetLive();
 
     const [geo, news] = await Promise.all([geoP, newsP]);
     if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
@@ -943,16 +1086,316 @@ async function weltShowPlace(place) {
     let spoken = await weltSummary(place, news.articles);
     if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
     if (!spoken) spoken = news.fehler ? 'Der Nachrichtendienst antwortet gerade nicht.' : `Zu ${place} habe ich gerade keine aktuellen Meldungen gefunden.`;
-    speak(spoken, continueConversation);
+    // Gibt es ein Video, startet es nach der Zusammenfassung (das Mikrofon bleibt währenddessen aus, sonst hört es das Video mit)
+    const video = news && news.video && /^https:\/\//i.test(news.video.url || '') ? news.video : null;
+    if (video) speak(spoken, () => { if (token === weltToken && isPanelOpen() && currentPanel.name === 'welt') weltPlayVideo(video, token); else continueConversation(); });
+    else speak(spoken, continueConversation);
+}
+
+/* Video-Einblick über der Weltkugel; nach dem Ende (oder Schließen) hört Jarvis wieder zu */
+function weltPlayVideo(video, token) {
+    const wrap = document.querySelector('.hud-globe-wrap');
+    if (!wrap) { continueConversation(); return; }
+    weltCloseVideo();
+    const box = document.createElement('div');
+    box.className = 'welt-video';
+    const poster = video.poster && /^https:\/\//i.test(video.poster) ? ` poster="${escapeHtml(video.poster)}"` : '';
+    box.innerHTML = `<div class="welt-video-bar"><span>${escapeHtml(video.title || 'Video')}</span><button type="button" aria-label="Video schließen">✕</button></div>` +
+        `<video playsinline controls preload="auto"${poster}><source src="${escapeHtml(video.url)}" type="${escapeHtml(video.type || 'video/mp4')}"></video>`;
+    wrap.appendChild(box);
+    weltVideoEl = box;
+    let done = false;
+    const finish = () => {
+        if (done) return;
+        done = true;
+        if (weltVideoEl === box) weltCloseVideo();
+        if (token === weltToken && isPanelOpen() && currentPanel.name === 'welt') continueConversation();
+    };
+    const v = box.querySelector('video');
+    v.addEventListener('ended', finish);
+    v.addEventListener('error', finish);
+    box.querySelector('button').addEventListener('click', finish);
+    const src = v.querySelector('source');
+    if (src) src.addEventListener('error', finish);
+    const started = v.play();
+    if (started && typeof started.catch === 'function') started.catch(() => { /* Autoplay blockiert: das Video bleibt stehen, Tippen auf Play startet es */ });
+}
+
+/* ---------- ISS live ---------- */
+async function fetchIss() {
+    try {
+        const r = await fetch(ISS_URL);
+        if (!r.ok) return null;
+        const d = await r.json();
+        return (isFinite(d.latitude) && isFinite(d.longitude)) ? d : null;
+    } catch (e) { return null; }
+}
+
+function weltNum(n) { return Number(n).toLocaleString('de-DE'); }
+
+/* Grober Ort für die Ansage: Land (deutscher Name) oder Ozean */
+async function weltIssPlaceName(p) {
+    try {
+        const r = await fetch(`https://api.wheretheiss.at/v1/coordinates/${p.latitude},${p.longitude}`);
+        const d = r.ok ? await r.json() : null;
+        const cc = d && d.country_code;
+        if (cc && cc !== '??') {
+            try { const n = new Intl.DisplayNames(['de'], { type: 'region' }).of(cc); if (n) return `über ${n}`; } catch (e) {}
+        }
+    } catch (e) {}
+    const lon = Number(p.longitude);
+    if (lon > -70 && lon < 20) return 'über dem Atlantik';
+    if (lon >= 20 && lon < 105) return 'über dem Indischen Ozean';
+    return 'über dem Pazifik';
+}
+
+function weltIssUpdate(p, fly) {
+    const g = weltGlobe;
+    const lat = Number(p.latitude), lng = Number(p.longitude);
+    if (g) {
+        if (!weltPins.iss) {
+            const el = document.createElement('div');
+            el.className = 'welt-pin iss';
+            el.innerHTML = '<span>ISS</span><i></i>';
+            weltPins.iss = { lat, lng, el };
+        } else { weltPins.iss.lat = lat; weltPins.iss.lng = lng; }
+        g.htmlElementsData([weltPins.iss]);
+        g.ringsData([{ lat, lng }]);
+        if (fly) { g.controls().autoRotate = false; g.pointOfView({ lat, lng, altitude: 1.9 }, 2200); }
+        else if (weltFollow) g.pointOfView({ lat, lng }, 4500);
+    }
+    weltStatus(`ISS live · Höhe ${weltNum(Math.round(p.altitude))} km · ${weltNum(Math.round(p.velocity / 100) * 100)} km/h`);
+}
+
+async function weltShowIss() {
+    if (!isPanelOpen() || currentPanel.name !== 'welt') return;
+    const token = ++weltToken;
+    weltStatus('Suche die ISS ...');
+    weltResetLive();
+    const p = await fetchIss();
+    if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (!p) {
+        weltStatus('Die ISS-Daten sind gerade nicht erreichbar.');
+        speak('Die Positionsdaten der ISS sind gerade nicht erreichbar.', continueConversation);
+        return;
+    }
+    weltIssUpdate(p, true);
+    const where = await weltIssPlaceName(p);
+    if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    const km = weltNum(Math.round(p.altitude));
+    const speed = weltNum(Math.round(p.velocity / 100) * 100);
+    speak(`Die Internationale Raumstation befindet sich gerade ${where}, in ${km} Kilometern Höhe, mit etwa ${speed} Kilometern pro Stunde.`, continueConversation);
+    const timer = setInterval(async () => {
+        if (token !== weltToken) { clearInterval(timer); return; }
+        const q = await fetchIss();
+        if (q && token === weltToken) weltIssUpdate(q, false);
+    }, ISS_POLL_MS);
+    weltTimers.push(timer);
+}
+
+/* ---------- Erdbeben der letzten 24 Stunden ---------- */
+function quakeColor(m) { return m >= 6 ? '#ff3b3b' : m >= 5 ? '#ff7a1a' : m >= 4 ? '#ffb703' : '#ffe08a'; }
+
+async function weltShowQuakes() {
+    if (!isPanelOpen() || currentPanel.name !== 'welt') return;
+    const token = ++weltToken;
+    weltStatus('Lade Erdbebendaten ...');
+    weltResetLive();
+    let list = null;
+    try {
+        const r = await fetch(QUAKES_URL);
+        const d = await r.json();
+        list = (d.features || []).map(f => ({
+            mag: Number(f.properties.mag), place: String(f.properties.place || ''), time: f.properties.time,
+            lat: Number(f.geometry.coordinates[1]), lng: Number(f.geometry.coordinates[0]), url: f.properties.url
+        })).filter(q => isFinite(q.mag) && isFinite(q.lat) && isFinite(q.lng)).sort((a, b) => b.mag - a.mag);
+    } catch (e) { list = null; }
+    if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (!list || !list.length) {
+        weltStatus(list ? 'In den letzten 24 Stunden gab es keine Beben ab Stärke 2,5.' : 'Die Erdbebendaten sind gerade nicht erreichbar.');
+        speak(list ? 'In den letzten 24 Stunden gab es keine Erdbeben ab Stärke 2,5.' : 'Die Erdbebendaten sind gerade nicht erreichbar.', continueConversation);
+        return;
+    }
+    const top = list[0];
+    if (weltGlobe) {
+        weltGlobe.pointsData(list.map(q => ({ lat: q.lat, lng: q.lng, alt: 0.01 + q.mag * 0.004, r: 0.15 + q.mag * 0.06, color: quakeColor(q.mag) })));
+        weltGlobe.ringsData(list.filter(q => q.mag >= 4.5).slice(0, 6).map(q => ({ lat: q.lat, lng: q.lng })));
+        weltGlobe.controls().autoRotate = false;
+        weltGlobe.pointOfView({ lat: top.lat, lng: top.lng, altitude: 2.0 }, 2400);
+    }
+    const magText = (m) => m.toFixed(1).replace('.', ',');
+    weltStatus(`${list.length} Beben ab Stärke 2,5 in den letzten 24 Stunden`);
+    const box = document.getElementById('weltNews');
+    if (box) {
+        box.innerHTML = list.slice(0, WELT_MAX_ARTICLES).map(q => {
+            const href = /^https:\/\//i.test(q.url || '') ? q.url : '';
+            const inner = `<div><b>Stärke ${magText(q.mag)} · ${escapeHtml(q.place || 'unbekannt')}</b><span>${escapeHtml(weltAgo(new Date(q.time).toISOString()))}</span></div>`;
+            return href ? `<a class="welt-card" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${inner}</a>` : `<div class="welt-card">${inner}</div>`;
+        }).join('');
+    }
+    const region = top.place.includes(',') ? top.place.split(',').pop().trim() : top.place;
+    speak(`In den letzten 24 Stunden gab es ${weltNum(list.length)} Erdbeben ab Stärke 2,5. Das stärkste hatte Stärke ${magText(top.mag)}, ${region ? 'Region ' + region : 'an einem entlegenen Ort'}.`, continueConversation);
+}
+
+/* Verteilt eine Anfrage auf Ort, ISS oder Erdbeben */
+function weltDispatch(place, mode) {
+    if (mode === 'iss') weltShowIss();
+    else if (mode === 'quakes') weltShowQuakes();
+    else if (mode === 'live') weltShowLive(place);
+    else if (place) weltShowPlace(place);
 }
 
 /* Einstieg für Sprachbefehle: Fenster öffnen bzw. den Ort im offenen Fenster wechseln */
-function openWelt(place) {
+function openWelt(place, mode) {
     place = String(place || '').trim();
+    mode = String(mode || '');
     if (isPanelOpen() && currentPanel.name === 'welt') {
-        if (place) weltShowPlace(place);
+        if (place || mode) weltDispatch(place, mode);
         return;
     }
-    openPanel('welt', { place });
-    if (!place) speak('Bitte sehr. Nennen Sie mir ein Land oder eine Region.', continueConversation);
+    openPanel('welt', { place, mode });
+    if (!place && !mode) speak('Bitte sehr. Nennen Sie mir ein Land oder eine Region.', continueConversation);
+}
+
+
+/* ============================================================
+   LIVE-KAMERAS: "Zeig mir New York live"
+   Echte Live-Streams (YouTube) bekannter Orte, eingeblendet über der Weltkugel.
+   Zu jedem Ort gibt es mehrere Kameras. Ist eine offline oder darf nicht eingebettet werden, springt die App zur nächsten.
+   Für Orte, die hier nicht stehen, gibt es eine Karte mit der YouTube-Suche nach Live-Kameras.
+
+   NEUE KAMERA EINTRAGEN: Videonummer ({ v: '...' }, die 11 Zeichen hinter "watch?v=") oder Kanalnummer ({ c: 'UC...' },
+   zeigt den gerade laufenden Live-Stream des Kanals) in "sources" ergänzen. Neue Orte als weiteren Eintrag anlegen.
+   ============================================================ */
+const LIVE_CAMS = [
+    { key: 'newyork', title: 'New York · Times Square', short: 'New York', where: 'Times Square, New York',
+      names: ['new york', 'newyork', 'nyc', 'manhattan', 'times square'],
+      sources: [{ v: 'JQ_jwk_7OVE' }, { v: 'VjSIXFwB_WQ' }, { v: 'VGnFLdQW39A' }] },
+    { key: 'florida', title: 'Miami Beach · Collins Avenue', short: 'Florida', where: 'Miami Beach, Florida',
+      names: ['florida', 'miami', 'miami beach', 'south beach'],
+      sources: [{ v: 'jwpfPq8TU8c' }, { v: 'IG04qlJFiz8' }, { v: 'cmkAbDUEoyA' }] },
+    { key: 'lasvegas', title: 'Las Vegas · Strip', short: 'Las Vegas', where: 'Las Vegas Strip, Nevada',
+      names: ['las vegas', 'vegas'],
+      sources: [{ v: 'mmSKBT_nTfY' }, { v: 'ZvYvZLfPatQ' }, { v: '_XJa-HI33ss' }] },
+    { key: 'tokyo', title: 'Tokio · Shibuya Crossing', short: 'Tokio', where: 'Shibuya, Tokyo',
+      names: ['tokio', 'tokyo', 'shibuya'],
+      sources: [{ v: 'dfVK7ld38Ys' }, { v: 'tujkoXI8rWM' }] },
+    { key: 'hamburg', title: 'Hamburg · Hafen und Landungsbrücken', short: 'Hamburg', where: 'Landungsbrücken, Hamburg',
+      names: ['hamburg'],
+      sources: [{ v: '5Gc4DXp8GJc' }, { v: 'mfpdquRilCk' }] },
+    { key: 'paris', title: 'Paris · Eiffelturm', short: 'Paris', where: 'Eiffelturm, Paris',
+      names: ['paris', 'eiffelturm'],
+      sources: [{ c: 'UCMPbcIpNDqQCrqJ0Tf_QpAg' }] }
+];
+
+function weltFindCam(nameOrKey) {
+    const q = String(nameOrKey || '').trim().toLowerCase();
+    if (!q) return null;
+    return LIVE_CAMS.find(c => c.key === q || c.names.some(n => n === q || q.includes(n))) || null;
+}
+
+function ensureYouTubeApi() {
+    if (window.YT && window.YT.Player) return Promise.resolve();
+    if (ytApiPromise) return ytApiPromise;
+    ytApiPromise = new Promise((resolve, reject) => {
+        const prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => { if (typeof prev === 'function') prev(); resolve(); };
+        const sc = document.createElement('script');
+        sc.src = 'https://www.youtube.com/iframe_api';
+        sc.onerror = () => { ytApiPromise = null; reject(new Error('youtube')); };
+        document.head.appendChild(sc);
+    });
+    return ytApiPromise;
+}
+
+function weltLiveEmbedUrl(src) {
+    const origin = encodeURIComponent((typeof location !== 'undefined' && location.origin) || '');
+    const common = `autoplay=1&playsinline=1&rel=0&enablejsapi=1&origin=${origin}`;
+    if (src.v && /^[\w-]{11}$/.test(src.v)) return `https://www.youtube.com/embed/${src.v}?${common}`;
+    if (src.c && /^UC[\w-]{22}$/.test(src.c)) return `https://www.youtube.com/embed/live_stream?channel=${src.c}&${common}`;
+    return null;
+}
+
+function weltLiveSearchUrl(place) {
+    return `https://www.youtube.com/results?search_query=${encodeURIComponent(place + ' live cam')}&sp=EgJAAQ%253D%253D`;
+}
+
+/* Live-Fenster über der Kugel; Fehler oder Ende des Streams -> nächste Kamera des Ortes */
+function weltOpenLivePlayer(cam, startIndex, token) {
+    const wrap = document.querySelector('.hud-globe-wrap');
+    if (!wrap) return;
+    weltCloseVideo();
+    injectWeltStyles();
+    const box = document.createElement('div');
+    box.className = 'welt-video';
+    box.innerHTML = `<div class="welt-video-bar"><span>${escapeHtml(cam.title)} · LIVE</span>` +
+        `<span class="btns"><button type="button" data-act="next" aria-label="Nächste Kamera">⏭</button><button type="button" data-act="close" aria-label="Schließen">✕</button></span></div>` +
+        `<div class="live-frame"></div>`;
+    wrap.appendChild(box);
+    weltVideoEl = box;
+    let index = startIndex;
+    let tried = 0;
+
+    const stillActive = () => token === weltToken && weltVideoEl === box && isPanelOpen() && currentPanel.name === 'welt';
+    const showFailure = () => {
+        weltStatus(`Keine Live-Kamera für ${cam.short} erreichbar.`);
+        const frame = box.querySelector('.live-frame');
+        if (frame) { frame.style.paddingTop = '0'; frame.innerHTML = `<div class="live-msg">Im Moment ist keine Kamera für ${escapeHtml(cam.short)} erreichbar. <a href="${escapeHtml(weltLiveSearchUrl(cam.short))}" target="_blank" rel="noopener noreferrer">Auf YouTube nach Live-Kameras suchen</a></div>`; }
+    };
+    const load = (i) => {
+        if (!stillActive()) return;
+        if (weltYtPlayer) { try { weltYtPlayer.destroy(); } catch (e) {} weltYtPlayer = null; }
+        const frame = box.querySelector('.live-frame');
+        const src = cam.sources[i % cam.sources.length];
+        const url = weltLiveEmbedUrl(src);
+        if (!url) { advance(); return; }
+        frame.innerHTML = `<iframe src="${escapeHtml(url)}" title="${escapeHtml(cam.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+        weltStatus(`${cam.title} · Kamera ${(i % cam.sources.length) + 1} von ${cam.sources.length}`);
+        const iframe = frame.querySelector('iframe');
+        ensureYouTubeApi().then(() => {
+            if (!stillActive() || !iframe) return;
+            try {
+                weltYtPlayer = new window.YT.Player(iframe, { events: {
+                    onError: () => { if (stillActive()) advance(); },
+                    onStateChange: (e) => { if (e && e.data === 0 && stillActive()) advance(); }   // 0 = Ende: ein beendeter Live-Stream
+                } });
+            } catch (e) { /* ohne Fehlermeldungen des Players läuft der Stream trotzdem, nur ohne automatischen Wechsel */ }
+        }).catch(() => {});
+    };
+    const advance = () => {
+        tried++;
+        if (tried >= cam.sources.length) { weltCloseVideoKeepBox(); showFailure(); return; }
+        index++;
+        load(index);
+    };
+    const weltCloseVideoKeepBox = () => { if (weltYtPlayer) { try { weltYtPlayer.destroy(); } catch (e) {} weltYtPlayer = null; } };
+    box.querySelector('[data-act="next"]').addEventListener('click', () => { tried = 0; index++; load(index); });
+    box.querySelector('[data-act="close"]').addEventListener('click', () => {
+        weltCloseVideo();
+        if (token === weltToken && isPanelOpen() && currentPanel.name === 'welt') continueConversation();
+    });
+    load(index);
+}
+
+async function weltShowLive(nameOrKey) {
+    if (!isPanelOpen() || currentPanel.name !== 'welt') return;
+    const token = ++weltToken;
+    const q = String(nameOrKey || '').trim();
+    const cam = weltFindCam(q);
+    weltResetLive();
+    if (!cam) {
+        // Kein fester Ort: Karte mit der YouTube-Suche nach Live-Kameras bereitlegen
+        weltStatus(`Für ${q || 'diesen Ort'} ist keine Live-Kamera fest hinterlegt.`);
+        const box = document.getElementById('weltNews');
+        if (box && q) box.innerHTML = `<a class="welt-card" href="${escapeHtml(weltLiveSearchUrl(q))}" target="_blank" rel="noopener noreferrer"><div><b>Live-Kameras für ${escapeHtml(q)} auf YouTube suchen</b><span>öffnet die Suche mit dem Filter „Live"</span></div></a>`;
+        speak(`Für ${q || 'diesen Ort'} habe ich keine Live-Kamera fest hinterlegt. Unten habe ich Ihnen die YouTube-Suche nach Live-Kameras bereitgelegt.`, continueConversation);
+        return;
+    }
+    const geoP = weltGeocode(cam.where);
+    weltStatus(`${cam.title} · Live`);
+    speak(`${cam.short}, live.`);
+    weltOpenLivePlayer(cam, 0, token);
+    const geo = await geoP;
+    if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (geo && weltGlobe) weltFlyTo(geo.lat, geo.lon, cam.short);
 }
