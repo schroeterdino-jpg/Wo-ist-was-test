@@ -7,6 +7,10 @@
 
 const TRAVEL_BUFFER_MINUTES = 10;   // Puffer, damit man nicht auf die Minute genau losfahren muss
 
+// Daten der zuletzt berechneten Route, damit die HUD-Karte sie ohne zweite Abfrage zeichnen kann
+let lastStauWarnings = [];
+let lastRouteMapData = null;
+
 async function geocodeAddress(address) {
     try {
         const res = await apiFetch('/api/geocode?q=' + encodeURIComponent(address));
@@ -22,12 +26,16 @@ async function geocodeAddress(address) {
 
 async function routeDurationSeconds(fromLat, fromLon, toLat, toLon) {
     try {
-        const res = await apiFetch(`/api/route?fromLat=${fromLat}&fromLon=${fromLon}&toLat=${toLat}&toLon=${toLon}`);
+        const res = await apiFetch(`/api/route?fromLat=${fromLat}&fromLon=${fromLon}&toLat=${toLat}&toLon=${toLon}&geometry=1`);
         if (!res.ok) return null;
         const data = await res.json();
         const r = data && data.routes && data.routes[0];
         if (!r) return null;
-        return { seconds: r.duration, meters: r.distance, autobahnen: extractAutobahnRefs(r) };
+        // Linienverlauf für die HUD-Karte: OSRM liefert [Länge, Breite], die Karte braucht [Breite, Länge]
+        const coords = (r.geometry && Array.isArray(r.geometry.coordinates))
+            ? r.geometry.coordinates.map(c => [c[1], c[0]])
+            : null;
+        return { seconds: r.duration, meters: r.distance, autobahnen: extractAutobahnRefs(r), coords };
     } catch (e) {
         if (e && e.auth) throw e;
         return null;
@@ -170,10 +178,28 @@ async function computeDepartureAdvice(opts) {
     }
     reply += staumeldung;
 
+    const mapData = {
+        from: { lat: loc.latitude, lon: loc.longitude },
+        to: { lat: dest.lat, lon: dest.lon, label: target.titel },
+        coords: route.coords,
+        warnings: lastStauWarnings.slice(),
+        autobahnen: route.autobahnen || [],
+        fahrtMin, km
+    };
+    lastRouteMapData = mapData;
+
     return {
         reply,
-        card: { icon: '🚗', title: 'Route zu ' + target.titel, subtitle, href: buildMapsLink(target.ort, '', 'driving') }
+        card: { icon: '🚗', title: 'Route zu ' + target.titel, subtitle, href: buildMapsLink(target.ort, '', 'driving') },
+        map: mapData
     };
+}
+
+/* Für die HUD-Karte: Route und Staumeldungen zu einem Ziel holen (null, wenn etwas nicht klappt) */
+async function fetchRouteMapData(destText) {
+    lastRouteMapData = null;
+    try { await computeDepartureAdvice({ destination: destText }); } catch (e) { return null; }
+    return lastRouteMapData;
 }
 
 /* --- Live-Stau-/Baustellen-Meldungen der genutzten Autobahnen (offizielle, kostenlose Bund-API) --- */
@@ -189,6 +215,7 @@ async function fetchAutobahnStau(road) {
 }
 
 async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) {
+    lastStauWarnings = [];
     if (!autobahnen || autobahnen.length === 0) return '';
     // Grober Fahrschlauch um Start und Ziel, mit etwas Puffer für Umwege - nur Meldungen darin sind wirklich relevant
     const padding = 0.35;   // ca. 30-35 km, verhindert genau den Fehler "A1 bei Köln" auf einer Fahrt in Schleswig-Holstein
@@ -208,7 +235,15 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
         const warnings = await fetchAutobahnStau(road);
         if (!warnings) continue;   // Dienst gerade nicht erreichbar: nichts behaupten, kein Fehler-Lärm
         geprueft.push(road);
-        warnings.filter(relevanteMeldung).slice(0, 2).forEach(w => {
+        const nahe = warnings.filter(relevanteMeldung);
+        nahe.slice(0, 6).forEach(w => {
+            const titel = (w.title || '').split('|').pop().trim() || 'Verkehrsmeldung';
+            lastStauWarnings.push({
+                lat: Number(w.coordinate.lat), lon: Number(w.coordinate.long), road, title: titel,
+                text: (w.description || []).slice(0, 3).join(' · ')
+            });
+        });
+        nahe.slice(0, 2).forEach(w => {
             const kurz = (w.title || '').split('|').pop().trim();
             const grund = (w.description || []).find(d => /stau|verengung|sperr|stockend|zähfließend/i.test(d));
             meldungen.push(`${road}${kurz ? ': ' + kurz : ''}${grund ? ' (' + grund + ')' : ''}`);

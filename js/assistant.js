@@ -356,6 +356,13 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'home_save') {
         saveHomeAddress(String(action.home_address || '').trim());
         updateTerminalStream("HOME: SAVED");
+    } else if (action.type === 'protocol_save') {
+        const err = saveProtocol(action.protocol_name, action.protocol_steps);
+        if (err) throw userError(err);
+        updateTerminalStream("PROTOCOL: SAVED");
+    } else if (action.type === 'protocol_delete') {
+        if (!deleteProtocol(action.protocol_name)) throw userError('Ein Protokoll mit diesem Namen habe ich nicht gefunden.');
+        updateTerminalStream("PROTOCOL: DELETED");
     } else if (action.type === 'backup_export') {
         exportAllData();
         updateTerminalStream("BACKUP: EXPORTED");
@@ -410,7 +417,7 @@ async function executeAction(action, text, ctx) {
     }
 }
 
-async function sendToGroqSmart(text) {
+async function sendToGroqSmart(text, opts = {}) {
     isProcessing = true;
     clearActionCards();
     startThinkingSound();
@@ -421,6 +428,7 @@ async function sendToGroqSmart(text) {
     if (recordText) recordText.textContent = "J.A.R.V.I.S. / VERARBEITET...";
 
     const ackTimer = setTimeout(() => {
+        if (opts.collect) return;   // im Protokoll wird nicht zwischendurch gesprochen
         speakAck(pickRandom([
             "Einen Augenblick.", "Ich kümmere mich darum.", "Sofort.", "Wird erledigt.",
             "Gebe ich sofort ein.", "Verstanden.", "Ich sehe nach.", "Bin schon dabei.",
@@ -476,6 +484,8 @@ async function sendToGroqSmart(text) {
         wettervorhersage: liveForecast,
         parkplatz: describeParking(),
         zuhause: homeAddress || null,
+        arbeit: workAddress || null,
+        protokolle: Object.values(protocols).map(p => ({ name: p.name, schritte: p.steps })),
         standort: liveLocation,
         tankstellen: await tankFuerFrage(text),
         kalendersuche: calendarLookup,
@@ -494,7 +504,7 @@ async function sendToGroqSmart(text) {
     "WICHTIG für das Sprachverständnis: Achte auf die ABSICHT hinter dem Satz, nicht auf die exakte Formulierung. Ein und dieselbe Absicht kann ganz unterschiedlich klingen, z.B. 'Setz Milch auf die Liste', 'Ich brauche noch Milch' und 'Schreib Milch auf' meinen alle dasselbe; 'Wo ist mein Auto?', 'Ich will zu meinem Auto' und 'Hast du mein Auto gesehen?' drehen sich alle um den gespeicherten Parkplatz. Das gilt in JEDER Kategorie (Termine, Listen, Erinnerungen, Gedächtnis, Navigation, Parkplatz, E-Mails, Fahrzeit usw.), nicht nur bei den Beispielsätzen in dieser Anleitung - die Beispiele zeigen die Aktion, nicht die einzig erlaubte Formulierung. Bist du dir bei der Absicht unsicher, frage lieber knapp nach, statt zu raten oder nichts zu tun.\n\n" +
     "WICHTIG: Ehrlichkeit bei Aktionen:\n" +
     "- Melde nur dann, dass etwas erledigt, hinzugefügt, gelöscht, geändert oder notiert ist, wenn du dafür in 'actions' die passende Aktion angelegt hast. Ohne Aktion ändert sich nichts.\n" +
-    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; Termine, Erinnerungen und Listen in einem Fenster anzeigen ('show_panel'); im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; E-Mails prüfen und vorlesen ('email_check', 'email_read'); die Abfahrtszeit für einen Termin berechnen ('travel_time'); Restaurants und Lokale in der Nähe finden ('nearby_places'); alle Daten als Datei sichern ('backup_export'); im Internet nachschlagen ('web_lookup': Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse und andere aktuelle Fakten); den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern. Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
+    "- Das kannst du wirklich: Einkaufsliste, Aufgabenliste, Gedächtnis und Kontakte hinzufügen, ändern und löschen ('list_edit'); Termine und Erinnerungen anlegen, ändern und löschen; Briefing-Wünsche verwalten; Termine, Erinnerungen und Listen in einem Fenster anzeigen ('show_panel'); im Google Kalender nach Terminen und Geburtstagen suchen; Auskunft zu Wetter (auch die Vorhersage für 7 Tage), Standort und Spritpreisen geben; E-Mails prüfen und vorlesen ('email_check', 'email_read'); die Abfahrtszeit für einen Termin berechnen ('travel_time'); Restaurants und Lokale in der Nähe finden ('nearby_places'); alle Daten als Datei sichern ('backup_export'); im Internet nachschlagen ('web_lookup': Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten, Ergebnisse und andere aktuelle Fakten); den Parkplatz des Autos merken und dorthin navigieren; Routen und Bus-und-Bahn-Verbindungen als Karte mit Link bereitstellen; Anrufe und WhatsApp-Nachrichten vorbereiten (der User tippt dann auf die Karte); den Namen des Users ändern; Protokolle anlegen und löschen ('protocol_save', 'protocol_delete'); die Karte zeigen ('show_panel' mit 'karte'). Alles andere kannst du nicht (z.B. selbst anrufen, Nachrichten abschicken, Musik, Geräte steuern). Sage dann ehrlich, dass du das nicht kannst, und lege keine Aktion an.\n" +
     "- Zum Löschen, Ändern oder Leeren von Einkaufsliste, Aufgaben, Gedächtnis und Kontakten nutze IMMER 'list_edit'. Zum Hinzufügen darfst du weiterhin 'shopping', 'todo' und 'memory_store' nutzen.\n" +
     "- 'list_edit': 'list_name' ist 'einkauf', 'aufgaben', 'gedaechtnis' oder 'kontakte'. 'list_op' ist 'add', 'remove', 'clear' oder 'replace'. 'list_items' ist eine Liste von Texten: bei Einkauf und Aufgaben die Einträge, beim Gedächtnis der Begriff, bei Kontakten der Name. 'list_new_value' brauchst du bei 'replace' (neuer Text, neuer Wert bzw. neue Nummer) und beim Hinzufügen zum Gedächtnis (der Wert) oder zu den Kontakten (die Telefonnummer). Nimm die Einträge so, wie sie im Kontext stehen.\n\n" +
     "WICHTIG für Fragen nach Terminen und Geburtstagen im Kalender:\n" +
@@ -502,7 +512,7 @@ async function sendToGroqSmart(text) {
     "- Steht im Kontext unter 'kalendersuche' ein Ergebnis, wurde der Kalender für diese Frage schon durchsucht. Beantworte die Frage damit und nutze keine Aktion 'calendar_search'. 'kommende' sind die nächsten Termine (der erste ist der nächste Geburtstag oder Termin), 'vergangene' die letzten davor. Nenne das Datum genau so wie im Feld 'datum'. Ist 'anzahl_treffer' 0 und gibt es keinen 'hinweis', sage ehrlich, dass du dazu keinen Eintrag gefunden hast, und nenne die Suchbegriffe. Gibt es einen 'hinweis', nenne ihn kurz und ehrlich (zum Beispiel welche Kalender nicht lesbar waren). Steht 'verbindung' auf 'getrennt', sage zusätzlich, dass unten eine Karte zum erneuten Verbinden steht.\n" +
     "- Antworte auf Fragen nach Terminen, Geburtstagen oder Ereignissen niemals mit 'nicht gefunden', ohne dass 'kalendersuche' ein Ergebnis enthält oder du 'calendar_search' genutzt hast.\n\n" +
     "WICHTIG fürs Anzeigen von Terminen, Erinnerungen und Listen:\n" +
-    "- Sagt der User 'zeige', 'zeig mir' oder 'öffne' (Termine, Erinnerungen, Einkaufsliste, Aufgaben, Gedächtnis, Kontakte, Parkplatz, Briefing-Wünsche, Planer, Einstellungen), nutze die Aktion 'show_panel'. Dann fliegt ein Fenster ins Bild. 'panel' ist 'termine', 'erinnerungen', 'einkauf', 'aufgaben', 'gedaechtnis', 'kontakte', 'parkplatz', 'briefing', 'planer' oder 'settings'.\n" +
+    "- Sagt der User 'zeige', 'zeig mir' oder 'öffne' (Termine, Erinnerungen, Einkaufsliste, Aufgaben, Gedächtnis, Kontakte, Parkplatz, Briefing-Wünsche, Planer, Einstellungen), nutze die Aktion 'show_panel'. Dann fliegt ein Fenster ins Bild. 'panel' ist 'termine', 'erinnerungen', 'einkauf', 'aufgaben', 'gedaechtnis', 'kontakte', 'parkplatz', 'briefing', 'planer', 'settings' oder 'karte' (dunkle HUD-Karte mit Standort, Route zur Arbeit und Staumeldungen).\n" +
     "- Bei 'termine' und 'erinnerungen' gib den Zeitraum in 'panel_range' an: 'heute', 'morgen', 'diese_woche', 'naechste_woche', 'naechste_7_tage', 'naechste_30_tage' oder 'alle'. Ohne Angabe nimm bei Terminen 'naechste_7_tage' und bei Erinnerungen 'alle'. Für andere Zeiträume (z.B. 'im November') gib 'panel_from' und 'panel_to' als Datum im Format YYYY-MM-DD an.\n" +
     "- Schreibe in 'reply' nur einen ganz kurzen Satz wie 'Bitte sehr.' und lies die Einträge nicht vor, sie stehen im Fenster. Fragt der User dagegen mit 'sag mir', 'lies vor' oder 'was steht ...', antworte gesprochen ohne 'show_panel'.\n\n" +
     "WICHTIG fürs Merken von Dingen im Gedächtnis:\n" +
@@ -528,11 +538,16 @@ async function sendToGroqSmart(text) {
     "- Schreibe in 'reply' nur 'Ich schaue nach.'. Die eigentliche Antwort wird automatisch aus den echten Daten ergänzt. Erfinde niemals Absender, Betreffs oder Inhalte von E-Mails.\n\n" +
     "WICHTIG für die Abfahrtszeit ('Wann muss ich losfahren?', 'Wie lange dauert die Fahrt zu ...', 'Ist Stau auf meiner Strecke?'):\n" +
     "- Nutze 'travel_time' (nicht 'navigate') - das berechnet die echte Fahrzeit UND prüft aktuelle Stau-/Baustellenmeldungen auf der Strecke. 'navigate' liefert nur einen Kartenlink ohne Fahrzeit oder Verkehrsinfo. Fragt der User nach Fahrzeit, Ankunft, Losfahren, Stau oder Verkehr zu einem Ziel, immer 'travel_time' verwenden, auch wenn der Satz wie eine einfache Navigations-Anfrage klingt ('Ich muss zum X, ist da Stau?').\n" +
+    "- Ziele wie 'Arbeit', 'zur Arbeit' oder 'nach Hause' gibst du unverändert als 'travel_destination' an (z.B. 'Arbeit' oder 'Zuhause'); die App kennt die gespeicherten Adressen. Die Adressen stehen im Kontext unter 'arbeit' und 'zuhause'. Ist die gewünschte Adresse leer, sage kurz, dass der User sie erst nennen muss ('Merk dir meine Arbeitsadresse: ...' bzw. 'Merk dir meine Heimatadresse: ...').\n" +
     "- Drei Fälle:\n" +
     "  1) Der User nennt einen Termin aus seinem Kalender (z.B. 'wann muss ich zum Zahnarzt los'): 'travel_query' = Stichwort des Termins.\n" +
     "  2) Ohne jede Angabe ('Wann muss ich losfahren?'): weder 'travel_query' noch 'travel_destination' setzen; es wird automatisch der nächste anstehende Termin mit hinterlegtem Ort genommen.\n" +
     "  3) Der User nennt ein Ziel, das kein Termin aus seinem Kalender ist (eine Adresse, ein Ort, ein Name wie 'Hans-Dewitz-Ring'): 'travel_destination' = genau dieses Ziel als Text. Nennt er dazu eine Ankunftszeit ('ich muss um 14 Uhr da sein', 'bis 14 Uhr'), setze 'travel_arrival_time' im Format 'HH:MM' (24-Stunden). Ohne Ankunftszeit wird nur die Fahrzeit genannt, ohne Abfahrtsempfehlung.\n" +
     "- Schreibe in 'reply' nur 'Ich schaue nach.'; die genaue Antwort mit Uhrzeiten und Stau-Hinweisen wird automatisch berechnet.\n\n" +
+    "WICHTIG für Protokolle (mehrere Befehle unter einem Namen, z.B. 'Feierabend'):\n" +
+    "- Legt der User ein Protokoll an ('Lege ein Protokoll Feierabend an: Fahrzeit nach Hause, Wetter und Spritpreise'), nutze 'protocol_save' mit 'protocol_name' (nur der Name, z.B. 'Feierabend') und 'protocol_steps': eine Liste vollständiger deutscher Sätze, die jeweils wie ein eigener Sprachbefehl funktionieren (z.B. 'Wie lange dauert die Fahrt nach Hause?', 'Wie ist das Wetter?', 'Was kosten Benzin und Diesel in der Nähe?'). Höchstens 8 Schritte. Gibt es das Protokoll schon, wird es ersetzt.\n" +
+    "- Will der User ein Protokoll löschen, nutze 'protocol_delete' mit 'protocol_name'. Die vorhandenen Protokolle stehen im Kontext unter 'protokolle'; danach gefragt, zähle Name und Schritte kurz auf.\n" +
+    "- Das Starten eines Protokolls ('Starte Protokoll Feierabend') übernimmt die App selbst; dafür legst du keine Aktion an.\n\n" +
     "WICHTIG für Datensicherung:\n" +
     "- Sagt der User 'Sichere meine Daten' oder 'Exportiere meine Daten', nutze 'backup_export'. Das lädt eine Datei mit allen Listen, Terminen, dem Gedächtnis, Parkplatz und der Heimatadresse herunter.\n\n" +
     "WICHTIG für Restaurants/Lokale in der Nähe ('Zeig mir Restaurants in der Nähe', 'Ich habe Lust auf Chinesisch, gibt es was in der Nähe?'):\n" +
@@ -570,14 +585,14 @@ async function sendToGroqSmart(text) {
     "Gib IMMER ein valides JSON-Objekt zurück mit folgenden Feldern:\n" +
     "- reply: Kurze, trockene J.A.R.V.I.S.-Antwort ohne Markdown, meist ein Satz, höchstens zwei. Aktionen bestätigst du knapp (z.B. 'Erledigt.' oder 'Notiert.'). Nur beim Vorlesen von Listen (Einkauf, Termine, Aufgaben) darf die Antwort länger sein.\n" +
     "- actions: Liste (Array) der auszuführenden Aktionen. Jede Aktion ist ein Objekt mit dem Feld 'type' und den dazu passenden Feldern (siehe unten). Bei reiner Unterhaltung, Auskünften oder dem Vorlesen von Listen ist 'actions' eine leere Liste.\n" +
-    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"home_save\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\", \"web_lookup\", \"email_check\", \"email_read\", \"travel_time\", \"backup_export\", \"nearby_places\"\n" +
+    "- type einer Aktion: \"chat\", \"memory_store\", \"memory_search\", \"todo\", \"calendar\", \"calendar_delete\", \"calendar_update\", \"reminder\", \"reminder_delete\", \"shopping\", \"name_change\", \"briefing_add\", \"briefing_delete\", \"list_edit\", \"calendar_search\", \"parking_save\", \"parking_clear\", \"home_save\", \"navigate\", \"call\", \"whatsapp\", \"show_panel\", \"web_lookup\", \"email_check\", \"email_read\", \"travel_time\", \"backup_export\", \"nearby_places\", \"protocol_save\", \"protocol_delete\"\n" +
     "Die folgenden Felder gehören in die jeweilige Aktion, nicht auf die oberste Ebene:\n" +
     "- calendar_text: (bei calendar oder calendar_update) Titel des Termins.\n" +
     "- calendar_time: (bei calendar oder calendar_update) ISO-Zeitstempel.\n" +
     "- calendar_location: (bei calendar oder calendar_update) Ort des Termins, falls genannt - wichtig für die Abfahrtszeit-Berechnung.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query.";
+    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query, protocol_name, protocol_steps.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -710,11 +725,13 @@ async function sendToGroqSmart(text) {
             try {
                 const res = await computeDepartureAdvice({
                     query: travelAction.travel_query || '',
-                    destination: travelAction.travel_destination || '',
+                    destination: resolvePersonalPlace(travelAction.travel_destination || ''),
                     arrivalTime: travelAction.travel_arrival_time || ''
                 });
                 travelReply = res.reply;
                 ctx.cards.push(res.card);
+                // Bei Stau-Fragen öffnet sich zusätzlich die HUD-Karte mit Route und Meldungen
+                if (!opts.collect && res.map && res.map.coords && STAU_TRIGGER.test(text)) ctx.panel = { name: 'karte', mapData: res.map };
             } catch (e) {
                 travelReply = e.userMessage || 'Die Fahrzeit konnte gerade nicht berechnet werden.';
                 if (e.verbindung === 'getrennt' && !ctx.cards.some(c => c.onclick === 'loginWithGoogle(false)')) ctx.cards.push(googleReconnectCard());
@@ -770,6 +787,12 @@ async function sendToGroqSmart(text) {
         }
 
         if (ctx.notes.length > 0 && errors.length === 0) replyText += ' ' + ctx.notes.join(' ');
+        if (opts.collect) {   // Protokoll-Lauf: Antwort und Karten abgeben, gesprochen wird am Ende alles zusammen
+            opts.collect(replyText, ctx.cards);
+            renderAllLists();
+            stopThinkingSound();
+            return;
+        }
         showActionCards(ctx.cards);
         if (ctx.panel) openPanel(ctx.panel.name, ctx.panel);
         else if (ctx.cards.length > 0) closePanel();   // Karten (Anruf, Route ...) sollen nicht hinter einem Fenster stecken
@@ -782,7 +805,8 @@ async function sendToGroqSmart(text) {
         renderAllLists();
         stopThinkingSound();
         updateTerminalStream("SYS_ERR: COMMS_FAILURE", "ERROR");
-        speak((e && e.auth) ? e.userMessage : `Verzeihen Sie, ${currentUserName}, bei der Übertragung gab es eine kleine Störung.`);
+        const failText = (e && e.auth) ? e.userMessage : `Verzeihen Sie, ${currentUserName}, bei der Übertragung gab es eine kleine Störung.`;
+        if (opts.collect) opts.collect(failText, []); else speak(failText);
     } finally {
         clearTimeout(ackTimer);
         stopThinkingSound();
@@ -825,4 +849,155 @@ async function tankFuerFrage(text) {
         lastTankCache = { time: Date.now(), data: result };
         return result;
     }
+}
+
+
+/* ============================================================
+   ARBEITSADRESSE, PROTOKOLLE UND FESTE SPRACHBEFEHLE
+   - Arbeitsadresse: "Merk dir meine Arbeitsadresse: ..." (wie die Heimatadresse, wird nicht überschrieben)
+   - Ziele wie "Arbeit" und "Zuhause" werden in die gespeicherten Adressen umgewandelt
+   - Protokolle: mehrere Befehle unter einem Namen ("Starte Protokoll Feierabend")
+   - Karte: "Zeig mir die Karte"
+   ============================================================ */
+
+let workAddress = getPersistentData('helfer_work_address', '') || '';
+
+function saveWorkAddress(addr) {
+    workAddress = String(addr || '').trim();
+    setPersistentData('helfer_work_address', workAddress);
+    updateTerminalStream("WORK: SAVED");
+}
+
+/* "Merk dir meine Arbeitsadresse Neu-Galliner-Ring 6" -> die Adresse, sonst null */
+function matchWorkAddressCommand(text) {
+    const m = String(text || '').match(/(?:^|\s)(?:merk\w*|speicher\w*|notier\w*|hinterleg\w*|trag\w*|änder\w*|aktualisier\w*)\s.*?\b(?:arbeitsadresse|arbeitsstelle|arbeitsplatz|adresse\s+(?:von|meiner)\s+(?:meiner\s+)?arbeit|adresse\s+(?:der|meiner)\s+arbeit)\b\s*(?:ist|lautet|liegt)?\s*[:,]?\s*(.+)$/i);
+    if (!m) return null;
+    let addr = m[1].replace(/[.!?]+$/, '').trim();
+    if (/(änder|aktualisier)/i.test(text)) addr = addr.replace(/^auf\s+(?!dem\b|der\b|den\b)/i, '');   // "Ändere ... auf Hauptstraße 12"
+    return addr.length >= 4 ? addr : null;
+}
+
+function plainKey(s) {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss').replace(/[^a-z0-9]/g, '');
+}
+
+/* "Arbeit", "zur Arbeit", "nach Hause" ... -> gespeicherte Adresse. Alle anderen Ziele bleiben unverändert. */
+function resolvePersonalPlace(dest) {
+    const raw = String(dest || '').trim();
+    if (!raw) return raw;
+    const k = plainKey(raw);
+    if (/^(zu|zur|zum|nach|in|ins|auf)?(meine|meiner|mein|meinem)?(arbeit|arbeitsstelle|arbeitsplatz|firma|buro|buero)$/.test(k)) {
+        if (!workAddress) throw userError('Ihre Arbeitsadresse kenne ich noch nicht. Sagen Sie: Merk dir meine Arbeitsadresse, und dann die Adresse.');
+        return workAddress;
+    }
+    if (/^(nach|zu|in|ins|auf)?(meine|mein)?(hause|zuhause|heim|heimat|heimatadresse|wohnung)$/.test(k)) {
+        const home = (typeof homeAddress === 'string') ? homeAddress : (homeAddress && (homeAddress.address || homeAddress.text || homeAddress.label)) || '';
+        if (!home) throw userError('Ihre Heimatadresse kenne ich noch nicht. Sagen Sie: Merk dir meine Heimatadresse, und dann die Adresse.');
+        return home;
+    }
+    return raw;
+}
+
+/* ---------- Protokolle ---------- */
+const DEFAULT_PROTOCOLS = {
+    feierabend: {
+        name: 'Feierabend',
+        steps: ['Wie lange dauert die Fahrt nach Hause?', 'Wie ist das Wetter?', 'Was kosten Benzin und Diesel in der Nähe?']
+    }
+};
+let protocols = {};
+(function loadProtocols() {
+    const raw = getPersistentData('helfer_protocols', '');
+    if (!raw) {
+        protocols = JSON.parse(JSON.stringify(DEFAULT_PROTOCOLS));   // erster Start: "Feierabend" ist schon vorbereitet
+        setPersistentData('helfer_protocols', JSON.stringify(protocols));
+        return;
+    }
+    try { protocols = JSON.parse(raw) || {}; } catch (e) { protocols = {}; }
+})();
+let protocolRunning = false;
+
+/* Fehlertext bei Problemen, sonst null */
+function saveProtocol(name, steps) {
+    const cleanName = String(name || '').replace(/^protokoll\s+/i, '').trim();
+    const key = plainKey(cleanName);
+    if (!key) return 'Mir fehlt der Name für das Protokoll.';
+    const list = (Array.isArray(steps) ? steps : []).map(x => String(x || '').trim()).filter(Boolean).slice(0, 8);
+    if (list.length === 0) return 'Mir fehlen die Schritte für das Protokoll.';
+    protocols[key] = { name: cleanName, steps: list };
+    setPersistentData('helfer_protocols', JSON.stringify(protocols));
+    return null;
+}
+
+function deleteProtocol(name) {
+    const key = plainKey(String(name || '').replace(/^protokoll\s+/i, ''));
+    if (!key || !protocols[key]) return false;
+    delete protocols[key];
+    setPersistentData('helfer_protocols', JSON.stringify(protocols));
+    return true;
+}
+
+/* Sagt der Satz "Starte Protokoll Feierabend" (oder nur "Feierabend")? Gibt den Schlüssel des Protokolls zurück. */
+function findProtocolToRun(text) {
+    const raw = String(text || '');
+    if (/\b(lege|leg|erstelle|erstell\w*|anlegen|speichere|lösche|löschen|entferne|vergiss|neues|neu)\b/i.test(raw)) return null;   // Anlegen/Löschen macht die KI
+    const t = plainKey(raw);
+    const hasWord = t.includes('protokoll');
+    for (const k of Object.keys(protocols)) {
+        const nk = plainKey(protocols[k].name);
+        if (!nk) continue;
+        if (t === nk || (hasWord && t.includes(nk))) return k;
+    }
+    return null;
+}
+
+async function runProtocol(key) {
+    const p = protocols[key];
+    if (!p || protocolRunning) return;
+    protocolRunning = true;
+    isProcessing = true;
+    typeWriterStatus(`Protokoll ${p.name} läuft...`);
+    updateTerminalStream(`PROTOCOL: RUN_${plainKey(p.name).toUpperCase()}`, "PROCESSING");
+    clearActionCards();
+    const replies = [];
+    const cards = [];
+    try {
+        for (const step of p.steps) {
+            await sendToGroqSmart(step, { collect: (r, c) => { if (r) replies.push(r); (c || []).forEach(x => cards.push(x)); } });
+        }
+    } finally {
+        protocolRunning = false;
+        isProcessing = false;
+    }
+    if (isPanelOpen()) closePanel();
+    showActionCards(cards);
+    speak(`Protokoll ${p.name}. ` + (replies.length ? replies.join(' ') : 'Ich konnte dazu leider nichts ermitteln.'), continueConversation);
+}
+
+/* ---------- Feste Sprachbefehle (ohne Umweg über die KI) ----------
+   Gibt true zurück, wenn der Satz hier behandelt wurde. */
+function isMapCommand(text) {
+    const t = String(text || '').toLowerCase().replace(/[.,!?]/g, '').trim();
+    if (t.length > 70 || !/\b(karte|landkarte|kartenansicht)\b/.test(t)) return false;
+    return /(zeig|öffne|öffnen|anzeig|blende|starte|mach\b|mal\b)/.test(t);
+}
+
+function handleLocalCommand(text) {
+    const addr = matchWorkAddressCommand(text);
+    if (addr) {
+        saveWorkAddress(addr);
+        speak(`Arbeitsadresse gespeichert: ${addr}.`, continueConversation);
+        return true;
+    }
+    if (isMapCommand(text)) {
+        openPanel('karte', {});
+        speak(pickRandom(['Bitte sehr.', 'Karte wird aufgebaut.', 'Sehr wohl.']), continueConversation);
+        return true;
+    }
+    const pk = findProtocolToRun(text);
+    if (pk) {
+        runProtocol(pk).catch(e => { console.error('Protokoll fehlgeschlagen', e); speak('Das Protokoll ist leider fehlgeschlagen.'); });
+        return true;
+    }
+    return false;
 }
