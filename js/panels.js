@@ -237,6 +237,7 @@ function openPanel(name, options = {}) {
     panelRestoreSection();
     hudMapDestroy();
     weltDestroy();
+    parkButtonVisible(false);
 
     panelClosing = false;
     currentPanel = { name, options };
@@ -311,6 +312,7 @@ function closePanel() {
         panelRestoreSection();
         hudMapDestroy();
         weltDestroy();
+        parkButtonVisible(true);
         body.innerHTML = '';
         body.classList.remove('animate');
         currentPanel = null;
@@ -1563,4 +1565,77 @@ function protDelete(key) {
     if (protEditingKey === key) protNew();
     protRefresh();
     protMsg(`Gelöscht: „${p.name}".`);
+}
+
+
+/* ============================================================
+   PARK-KNOPF: ein Tipp auf das Auto-Symbol speichert den Standort als Parkplatz (ohne Sprechen)
+   Nutzt dieselbe Funktion wie "Merk dir, wo ich geparkt habe" (saveParkingSpot). Bei offenem Fenster ist der Knopf versteckt.
+   Position ändern: PARK_BUTTON_SIDE ('left' oder 'right') und PARK_BUTTON_BOTTOM_PX.
+   ============================================================ */
+const PARK_BUTTON_SIDE = 'right';
+const PARK_BUTTON_BOTTOM_PX = 18;
+let parkBusy = false;
+
+function parkButtonVisible(visible) {
+    const b = document.getElementById('parkButton');
+    if (b && b.classList) { if (visible) b.classList.remove('hidden'); else b.classList.add('hidden'); }
+}
+
+async function parkButtonTap() {
+    if (parkBusy) return;
+    parkBusy = true;
+    const b = document.getElementById('parkButton');
+    const car = b && b.querySelector ? b.querySelector('.pk-car') : null;
+    const reset = () => { if (b) { b.classList.remove('busy', 'ok', 'err'); } if (car) car.textContent = '🚗'; parkBusy = false; };
+    try { playUiBeep(); } catch (e) {}
+    if (b) b.classList.add('busy');
+    try {
+        if (typeof saveParkingSpot !== 'function') throw new Error('Die Parkplatz-Funktion ist nicht geladen.');
+        const accuracy = await saveParkingSpot('');
+        if (b) { b.classList.remove('busy'); b.classList.add('ok'); }
+        if (car) car.textContent = '✓';
+        try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) {}
+        try { if (typeof updateTerminalStream === 'function') updateTerminalStream('PARKING: SAVED'); } catch (e) {}
+        try { if (typeof renderAllLists === 'function') renderAllLists(); } catch (e) {}
+        let msg = 'Parkplatz gespeichert.';
+        if (accuracy && accuracy > 60) msg += ` Der Standort ist nur auf etwa ${Math.round(accuracy)} Meter genau.`;
+        speak(msg);
+    } catch (e) {
+        if (b) { b.classList.remove('busy'); b.classList.add('err'); }
+        if (car) car.textContent = '!';
+        speak((e && e.userMessage) ? e.userMessage : 'Der Standort konnte gerade nicht gespeichert werden. Ist der Standortzugriff erlaubt?');
+    }
+    setTimeout(reset, 1800);
+}
+
+function installParkButton() {
+    try {
+        if (document.getElementById('parkButton')) return;
+        const st = document.createElement('style');
+        st.id = 'parkButtonStyles';
+        st.textContent = `
+#parkButton{position:fixed;${PARK_BUTTON_SIDE === 'left' ? 'left' : 'right'}:14px;bottom:calc(${PARK_BUTTON_BOTTOM_PX}px + env(safe-area-inset-bottom,0px));z-index:40;width:56px;height:56px;border-radius:50%;border:1.5px solid rgba(73,215,255,.75);background:rgba(0,10,20,.85);box-shadow:0 0 14px rgba(73,215,255,.45),inset 0 0 10px rgba(73,215,255,.15);display:flex;align-items:center;justify-content:center;font-size:26px;line-height:1;color:#fff;padding:0;-webkit-tap-highlight-color:transparent}
+#parkButton .pk-p{position:absolute;top:-3px;right:-3px;width:20px;height:20px;border-radius:50%;background:#49d7ff;color:#02121c;font:700 12px monospace;display:flex;align-items:center;justify-content:center}
+#parkButton.busy{opacity:.6}
+#parkButton.ok{border-color:#3ddc97;box-shadow:0 0 16px rgba(61,220,151,.7)}
+#parkButton.ok .pk-p{background:#3ddc97}
+#parkButton.err{border-color:#ff7a7a;box-shadow:0 0 16px rgba(255,122,122,.7)}
+#parkButton.err .pk-p{background:#ff7a7a}
+#parkButton.hidden{display:none}
+`;
+        document.head.appendChild(st);
+        const b = document.createElement('button');
+        b.id = 'parkButton';
+        b.type = 'button';
+        b.setAttribute('aria-label', 'Parkplatz speichern');
+        b.innerHTML = '<span class="pk-car">🚗</span><span class="pk-p">P</span>';
+        b.addEventListener('click', parkButtonTap);
+        document.body.appendChild(b);
+    } catch (e) { console.error('Park-Knopf konnte nicht angelegt werden', e); }
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installParkButton);
+    else installParkButton();
 }
