@@ -379,6 +379,101 @@ async function fuelAlongRouteAdvice(opts) {
     return { reply: parts.join(' ') + teil, cards, map, fuel: found.slice(0, 15), label };
 }
 
+/* ============================================================
+   BAHN- UND BUS-AUSKUNFT: "Such mir die Bahnverbindung von A nach B raus" und
+   "Meine Tochter soll um 16 Uhr hier sein - wann muss sie die Bahn nehmen?"
+   Zeiten kommen über /api/bahn (freier Community-Dienst v6.db.transport.rest, nicht offiziell).
+   Klappt die Abfrage nicht, bleibt ein Link zu Google Maps mit der Verbindung.
+   ============================================================ */
+function bahnHHMM(iso) {
+    const d = new Date(iso);
+    return isNaN(d) ? '' : d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+
+function bahnUmstiegeText(n) { return n <= 0 ? 'ohne Umstieg' : (n === 1 ? 'mit einem Umstieg' : `mit ${n} Umstiegen`); }
+
+function bahnIsHere(raw) {
+    const t = String(raw || '').trim();
+    return !t || /^(hier|hierher|meinstandort|standort|vonhier|beimir|beiuns|hierbeimir)$/.test(t.toLowerCase().replace(/[^a-zäöüß]/g, ''));
+}
+
+/* Ort für die Abfrage: "hier" = aktueller Standort (als Koordinaten), "Zuhause"/"Arbeit" = gespeicherte Adresse, sonst der Text */
+async function bahnPlaceText(raw) {
+    const t = String(raw || '').trim();
+    const k = t.toLowerCase().replace(/[^a-zäöüß]/g, '');
+    if (!t || /^(hier|hierher|meinstandort|standort|vonhier|beimir|beiuns|hierbeimir)$/.test(k)) {
+        const loc = await fetchUserLocationData();
+        if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
+        return `${loc.latitude.toFixed(5)},${loc.longitude.toFixed(5)}`;
+    }
+    if (typeof resolvePersonalPlace === 'function') return resolvePersonalPlace(t);   // "Arbeit"/"Zuhause" -> gespeicherte Adresse
+    return t;
+}
+
+/* Ergebnis: { reply, cards }. opts: { from, to, time ("HH:MM" oder ISO), timeType ('ankunft' | 'abfahrt') } */
+async function bahnAuskunft(opts) {
+    if (!String(opts.to || '').trim()) throw userError('Wohin soll die Reise gehen?');
+    if (bahnIsHere(opts.from) && bahnIsHere(opts.to)) throw userError('Von wo startet die Reise? Nennen Sie mir den Startort, zum Beispiel: von Hamburg Hauptbahnhof.');
+    const fromText = await bahnPlaceText(opts.from);
+    const toText = await bahnPlaceText(opts.to);
+    const now = new Date();
+    let when = null;
+    if (opts.time) {
+        when = parseArrivalTime(opts.time, now);
+        if (when === undefined || when === null) throw userError('Die genannte Uhrzeit konnte ich nicht verstehen.');
+    }
+    const isArrival = when && String(opts.timeType || '').toLowerCase().startsWith('ank');
+    const params = new URLSearchParams({ from: fromText, to: toText });
+    if (when) params.set(isArrival ? 'arrival' : 'departure', when.toISOString());
+
+    const mapsLink = () => buildMapsLink(toText, fromText, 'transit');
+    const fallbackCard = { icon: '🚆', title: 'Verbindung in Google Maps öffnen', subtitle: 'Bus und Bahn, mit aktuellen Zeiten', href: mapsLink() };
+    let d;
+    try {
+        const r = await apiFetch('/api/bahn?' + params.toString());
+        try { d = await r.json(); } catch (e) { d = {}; }
+        if (!r.ok || d.error) throw new Error(d.error || ('Status ' + r.status));
+    } catch (e) {
+        if (e && e.auth) throw e;
+        const err = userError(`Die Bahn-Auskunft hat gerade nicht geantwortet (${String(e.message || e).slice(0, 90)}). Ich habe Ihnen die Verbindung in Google Maps bereitgelegt.`);
+        err.fallbackCard = fallbackCard;
+        throw err;
+    }
+
+    const list = Array.isArray(d.journeys) ? d.journeys : [];
+    const nach = d.nach || String(opts.to);
+    if (!list.length) {
+        return { reply: isArrival
+            ? `Ich habe keine Verbindung gefunden, die bis ${formatSpokenTime(when)} in ${nach} ankommt. Ich habe Ihnen Google Maps bereitgelegt.`
+            : `Ich habe gerade keine Verbindung nach ${nach} gefunden. Ich habe Ihnen Google Maps bereitgelegt.`, cards: [fallbackCard] };
+    }
+
+    const say = (j) => {
+        let t = '';
+        const walk = (new Date(j.abfahrt) - new Date(j.start)) / 60000;
+        if (walk >= 4) t += `Losgehen um ${formatSpokenTime(new Date(j.start))}, `;
+        t += `Abfahrt ab ${j.haltVon || 'der ersten Haltestelle'}${j.gleis ? ', Gleis ' + j.gleis : ''} um ${formatSpokenTime(new Date(j.abfahrt))} mit ${j.linien.join(', dann ')}, Ankunft um ${formatSpokenTime(new Date(j.ankunft))} in ${j.haltNach || nach}, ${bahnUmstiegeText(j.umstiege)}.`;
+        if (j.faelltAus) t += ' Achtung, diese Verbindung fällt aus.';
+        else if (j.verspaetungMin >= 3) t += ` Aktuell ${j.verspaetungMin} Minuten Verspätung.`;
+        return t;
+    };
+    let reply;
+    if (isArrival) {
+        reply = `Um ${formatSpokenTime(when)} in ${nach} zu sein: ${say(list[0])}`;
+        if (list[1]) reply += ` Eine frühere Möglichkeit: Abfahrt um ${formatSpokenTime(new Date(list[1].abfahrt))}, Ankunft um ${formatSpokenTime(new Date(list[1].ankunft))}.`;
+    } else {
+        reply = `Die nächste Verbindung nach ${nach}: ${say(list[0])}`;
+        if (list[1]) reply += ` Danach um ${formatSpokenTime(new Date(list[1].abfahrt))}.`;
+    }
+    const cards = list.slice(0, 3).map(j => ({
+        icon: '🚆',
+        title: `${bahnHHMM(j.abfahrt)} → ${bahnHHMM(j.ankunft)} · ${j.linien.join(' › ')}`,
+        subtitle: `${j.haltVon || ''}${j.gleis ? ' · Gl. ' + j.gleis : ''} · ${bahnUmstiegeText(j.umstiege)} · ${j.dauerMin} Min.${j.faelltAus ? ' · fällt aus' : (j.verspaetungMin >= 3 ? ' · +' + j.verspaetungMin + ' Min.' : '')}`,
+        href: mapsLink()
+    }));
+    return { reply, cards };
+}
+
 /* --- Fahrzeit-Test für die Einstellungen: zeigt Schritt für Schritt, woran es liegt --- */
 async function diagnoseTravel(destination, log) {
     const dest = String(destination || '').trim() || 'Hans-Dewitz-Ring';

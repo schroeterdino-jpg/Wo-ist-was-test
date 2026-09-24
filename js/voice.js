@@ -36,6 +36,7 @@ function clearFollowUpTimer() {
 }
 
 function setIdleUi() {
+    jvListenIndicator(false);
     if (recordBtn) {
         recordBtn.classList.remove('recording');
         recordBtn.classList.remove('speaking');
@@ -172,6 +173,7 @@ function speak(text, onComplete, langCode) {
         try { recognition.abort(); } catch (e) {}
     }
 
+    jvListenIndicator(false);
     if (recordBtn) {
         recordBtn.classList.remove('recording');
         recordBtn.classList.add('speaking');
@@ -378,6 +380,78 @@ async function interpretOnce(text, lang) {
     speak(translated, undefined, lang.code);
 }
 
+/* --- Zuhör-Anzeige: sichtbar, dass Jarvis dich hört ---
+   Oben erscheint die Leiste "ICH HÖRE" mit Pegelbalken (sie bewegen sich, sobald Sprache erkannt wird),
+   die Kugel bekommt einen grünen Schimmer und ihr Rahmen leuchtet atmend grün.
+   Ohne Mikrofon-Mitschnitt: die Balken folgen den Sprach-Ereignissen der Spracherkennung (kein zweiter Mikrofonzugriff). */
+const LISTEN_INDICATOR = true;
+const LISTEN_RING_BREATHING = true;   // Rahmen atmet langsam; auf false = ruhiges Dauerleuchten
+let jvHearingTimer = null;
+let jvRingEl = null;
+
+function jvEnsureListenIndicator() {
+    if (document.getElementById('jvListen')) return document.getElementById('jvListen');
+    const st = document.createElement('style');
+    st.id = 'jvListenStyles';
+    st.textContent = `
+#jvListen{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:2147483000;display:none;align-items:center;gap:10px;padding:7px 16px;border-radius:999px;border:1.5px solid #3ddc97;background:rgba(0,16,10,.9);color:#c8ffe6;font:700 13px monospace;letter-spacing:.12em;box-shadow:0 0 16px rgba(61,220,151,.55);pointer-events:none}
+#jvListen.on{display:flex}
+#jvListen .jv-dot{width:10px;height:10px;border-radius:50%;background:#3ddc97}
+#jvListen .jv-bars{display:flex;align-items:center;gap:3px;height:18px}
+#jvListen .jv-bars i{display:block;width:3px;height:100%;background:#3ddc97;border-radius:2px;transform:scaleY(.2)}
+@media (prefers-reduced-motion:no-preference){
+#jvListen .jv-dot{animation:jvBreath 2s ease-in-out infinite}
+#jvListen.hearing .jv-bars i{animation:jvBar .7s ease-in-out infinite}
+#jvListen .jv-bars i:nth-child(2){animation-delay:.12s}#jvListen .jv-bars i:nth-child(3){animation-delay:.24s}#jvListen .jv-bars i:nth-child(4){animation-delay:.36s}#jvListen .jv-bars i:nth-child(5){animation-delay:.48s}
+}
+#jvListen.hearing .jv-bars i{transform:scaleY(.8)}
+@keyframes jvBar{0%,100%{transform:scaleY(.2)}50%{transform:scaleY(1)}}
+@keyframes jvBreath{0%,100%{opacity:.4;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+body.jv-listening img[src*="jarvis-orb"]{filter:hue-rotate(40deg) saturate(1.3) drop-shadow(0 0 14px rgba(61,220,151,.75))}
+.jv-ring-listening{box-shadow:0 0 26px 3px rgba(61,220,151,.65),inset 0 0 24px rgba(61,220,151,.25)!important;border-color:#3ddc97!important}
+${LISTEN_RING_BREATHING ? `@media (prefers-reduced-motion:no-preference){.jv-ring-listening{animation:jvRing 3s ease-in-out infinite}}
+@keyframes jvRing{0%,100%{box-shadow:0 0 12px 1px rgba(61,220,151,.35),inset 0 0 12px rgba(61,220,151,.15)}50%{box-shadow:0 0 30px 4px rgba(61,220,151,.75),inset 0 0 26px rgba(61,220,151,.3)}}` : ''}
+`;
+    document.head.appendChild(st);
+    const el = document.createElement('div');
+    el.id = 'jvListen';
+    el.setAttribute('aria-live', 'polite');
+    el.innerHTML = '<span class="jv-dot"></span><span>ICH HÖRE</span><span class="jv-bars"><i></i><i></i><i></i><i></i><i></i></span>';
+    document.body.appendChild(el);
+    return el;
+}
+
+/* Rahmen der Kugel: das Element um das Kugelbild, sonst gar keiner */
+function jvOrbRing() {
+    if (jvRingEl && jvRingEl.isConnected !== false) return jvRingEl;
+    const orb = document.querySelector('img[src*="jarvis-orb"]');
+    jvRingEl = orb ? orb.parentElement : null;
+    return jvRingEl;
+}
+
+function jvListenIndicator(on) {
+    if (!LISTEN_INDICATOR) return;
+    try {
+        const el = jvEnsureListenIndicator();
+        if (on) el.classList.add('on'); else { el.classList.remove('on'); el.classList.remove('hearing'); }
+        document.body.classList.toggle('jv-listening', !!on);
+        const ring = jvOrbRing();
+        if (ring) ring.classList.toggle('jv-ring-listening', !!on);
+    } catch (e) { /* die Anzeige ist nur Zugabe und darf nie die Spracherkennung stören */ }
+}
+
+/* Sprache erkannt: Balken bewegen sich (kurz nachlaufen lassen, damit sie nicht flackern) */
+function jvHearing(on) {
+    if (!LISTEN_INDICATOR) return;
+    try {
+        const el = document.getElementById('jvListen');
+        if (!el) return;
+        if (jvHearingTimer) { clearTimeout(jvHearingTimer); jvHearingTimer = null; }
+        if (on) el.classList.add('hearing');
+        else jvHearingTimer = setTimeout(() => el.classList.remove('hearing'), 450);
+    } catch (e) {}
+}
+
 /* --- Spracherkennung --- */
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
@@ -389,6 +463,7 @@ function setListeningUi(followUp) {
         recordBtn.classList.add('recording');
     }
     if (recordText) recordText.textContent = "J.A.R.V.I.S. / HÖRE...";
+    if (!wakeWordListening) jvListenIndicator(true);   // im stillen Weckwort-Modus keine Anzeige
     typeWriterStatus(followUp ? "Ich höre weiter zu..." : "Höre zu...");
     setHudSubtitle(followUp ? "Höre weiter zu..." : "Aktiviert. Ich höre zu...");
     updateTerminalStream("VOICE_RECOGNITION: ACTIVE", "LISTENING");
@@ -436,6 +511,10 @@ if (SpeechRecognition) {
         isRecording = true;
         setListeningUi(isFollowUp);
     };
+    recognition.onsoundstart = () => jvHearing(true);
+    recognition.onspeechstart = () => jvHearing(true);
+    recognition.onspeechend = () => jvHearing(false);
+    recognition.onsoundend = () => jvHearing(false);
     recognition.onresult = (event) => {
         const text = event.results[event.results.length - 1][0].transcript;
 
@@ -593,6 +672,7 @@ function toggleSpeechRecognition() {
 
 function resetRecordingState() {
     isRecording = false;
+    jvListenIndicator(false);
     if (!isSpeaking() && !isProcessing) {
         setIdleUi();
     }
