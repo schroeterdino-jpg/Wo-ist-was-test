@@ -390,6 +390,14 @@ function bahnHHMM(iso) {
     return isNaN(d) ? '' : d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
 }
 
+/* Google-Maps-Link für Bus und Bahn MIT Uhrzeit ("Ankunft bis 16:00"). Die Zeit steckt im "data"-Teil des Links; das ist nicht offiziell
+   dokumentiert, funktioniert aber in der Regel. Ohne Uhrzeit: der normale Link. */
+function bahnMapsLink(to, from, when, isArrival) {
+    if (!when || isNaN(when.getTime())) return buildMapsLink(to, from, 'transit');
+    const enc = (t) => encodeURIComponent(String(t));
+    return `https://www.google.com/maps/dir/${enc(from)}/${enc(to)}/data=!4m6!4m5!2m3!6e${isArrival ? 1 : 0}!7e2!8j${Math.floor(when.getTime() / 1000)}!3e3`;
+}
+
 function bahnUmstiegeText(n) { return n <= 0 ? 'ohne Umstieg' : (n === 1 ? 'mit einem Umstieg' : `mit ${n} Umstiegen`); }
 
 function bahnIsHere(raw) {
@@ -426,8 +434,9 @@ async function bahnAuskunft(opts) {
     const params = new URLSearchParams({ from: fromText, to: toText });
     if (when) params.set(isArrival ? 'arrival' : 'departure', when.toISOString());
 
-    const mapsLink = () => buildMapsLink(toText, fromText, 'transit');
-    const fallbackCard = { icon: '🚆', title: 'Verbindung in Google Maps öffnen', subtitle: 'Bus und Bahn, mit aktuellen Zeiten', href: mapsLink() };
+    const mapsLink = () => bahnMapsLink(toText, fromText, when, isArrival);
+    const timeNote = when ? (isArrival ? `Ankunft bis ${bahnHHMM(when.toISOString())}` : `Abfahrt ab ${bahnHHMM(when.toISOString())}`) : 'mit aktuellen Zeiten';
+    const fallbackCard = { icon: '🚆', title: 'Verbindung in Google Maps öffnen', subtitle: `Bus und Bahn, ${timeNote}`, href: mapsLink() };
     let d;
     try {
         const r = await apiFetch('/api/bahn?' + params.toString());
@@ -435,7 +444,7 @@ async function bahnAuskunft(opts) {
         if (!r.ok || d.error) throw new Error(d.error || ('Status ' + r.status));
     } catch (e) {
         if (e && e.auth) throw e;
-        const err = userError(`Die Bahn-Auskunft hat gerade nicht geantwortet (${String(e.message || e).slice(0, 90)}). Ich habe Ihnen die Verbindung in Google Maps bereitgelegt.`);
+        const err = userError(`Die Bahn-Auskunft hat gerade nicht geantwortet (${String(e.message || e).slice(0, 90)}). Ich habe Ihnen die Verbindung in Google Maps bereitgelegt${when ? ' (' + timeNote + ')' : ''}.`);
         err.fallbackCard = fallbackCard;
         throw err;
     }
@@ -471,6 +480,7 @@ async function bahnAuskunft(opts) {
         subtitle: `${j.haltVon || ''}${j.gleis ? ' · Gl. ' + j.gleis : ''} · ${bahnUmstiegeText(j.umstiege)} · ${j.dauerMin} Min.${j.faelltAus ? ' · fällt aus' : (j.verspaetungMin >= 3 ? ' · +' + j.verspaetungMin + ' Min.' : '')}`,
         href: mapsLink()
     }));
+    if (d.quelle) cards.push({ icon: 'ℹ️', title: `Fahrplandaten: ${d.quelle}`, subtitle: 'Quellen und Lizenzen der Daten', href: 'https://transitous.org/sources/' });   // Transitous verlangt die sichtbare Nennung
     return { reply, cards };
 }
 
