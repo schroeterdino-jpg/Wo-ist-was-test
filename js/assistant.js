@@ -850,6 +850,9 @@ async function tankFuerFrage(text) {
             navigator.geolocation.getCurrentPosition(ok, err, { timeout: 7000, maximumAge: 60000 }));
         const r = await apiFetch(`/api/tank?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}&rad=5`);
         const d = await r.json();
+        if (!r.ok || d.error) {   // echter Fehler vom Server: nicht als "keine Tankstellen" ausgeben und nicht zwischenspeichern
+            return { fehler: "Die Spritpreise sind gerade nicht verfügbar: " + (d.error || ('Status ' + r.status)) };
+        }
         if (!d.stations || d.stations.length === 0) {
             const result = { fehler: "Keine geöffneten Tankstellen in der Nähe gefunden." };
             lastTankCache = { time: Date.now(), data: result };
