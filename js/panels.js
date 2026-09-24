@@ -20,7 +20,8 @@ const PANEL_TITLES = {
     settings: '⚙️ Einstellungen',
     menu: '☰ Menü',
     karte: '🗺️ Karte',
-    welt: '🌍 Welt'
+    welt: '🌍 Welt',
+    protokolle: '📋 Protokolle'
 };
 
 /* Diese Fenster zeigen einen bestehenden Bereich der Seite (wird ins Fenster geschoben und danach zurückgelegt) */
@@ -32,7 +33,7 @@ const PANEL_SECTIONS = {
 const PANEL_SCROLL_TARGETS = {
     einkauf: 'shoppingList', aufgaben: 'todoList', parkplatz: 'parkingBox', briefing: 'briefingList', gedaechtnis: 'categoryContainer'
 };
-const PANEL_DYNAMIC = ['termine', 'erinnerungen', 'menu', 'karte', 'welt'];
+const PANEL_DYNAMIC = ['termine', 'erinnerungen', 'menu', 'karte', 'welt', 'protokolle'];
 const VALID_PANELS = Object.keys(PANEL_TITLES);
 
 const PANEL_CLOSE_MS = 300;
@@ -190,6 +191,7 @@ function buildMenuPanel() {
         ['🧠', 'Gedächtnis', 'mit Parkplatz und Briefing-Wünschen', "openPanel('gedaechtnis')"],
         ['🗺️', 'Karte', 'Standort, Route zur Arbeit, Stau', "openPanel('karte')"],
         ['🌍', 'Welt', 'Weltkugel mit Nachrichten', "openPanel('welt')"],
+        ['📋', 'Protokolle', 'Abläufe tippen, ändern, löschen', "openPanel('protokolle')"],
         ['🗓️', 'Planer', 'Erinnerung anlegen', "openPanel('planer')"],
         ['⚙️', 'Einstellungen', 'Konto, Stimme, Kontakte', "openPanel('settings')"]
     ];
@@ -205,6 +207,7 @@ function buildDynamicPanel(name, options) {
     if (name === 'erinnerungen') return buildErinnerungenPanel(options);
     if (name === 'karte') return buildKartePanel(options);
     if (name === 'welt') return buildWeltPanel(options);
+    if (name === 'protokolle') return buildProtokollePanel(options);
     return buildMenuPanel();
 }
 
@@ -252,7 +255,7 @@ function openPanel(name, options = {}) {
         if (name === 'welt') { weltPrefetch(options); setTimeout(() => initWelt(options), PANEL_FLY_MS); }
         // Google-Kalender im Hintergrund auffrischen; refreshOpenPanel() zeichnet dann ohne Animation neu
         // erst NACH dem Einfliegen, sonst ruckelt die Animation, wenn die Daten mitten drin ankommen
-        if (name !== 'menu' && name !== 'karte' && name !== 'welt' && typeof accessToken !== 'undefined' && accessToken && typeof fetchGoogleCalendarEvents === 'function') {
+        if (name !== 'menu' && name !== 'karte' && name !== 'welt' && name !== 'protokolle' && typeof accessToken !== 'undefined' && accessToken && typeof fetchGoogleCalendarEvents === 'function') {
             setTimeout(() => { if (isPanelOpen()) fetchGoogleCalendarEvents(); }, PANEL_FLY_MS);
         }
     } else {
@@ -1438,4 +1441,126 @@ async function weltShowLive(nameOrKey) {
     const geo = await geoP;
     if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
     if (geo && weltGlobe) weltFlyTo(geo.lat, geo.lon, cam.short);
+}
+
+
+/* ============================================================
+   PROTOKOLLE PER TIPPEN: anlegen, ändern und löschen (Menü ☰ > Protokolle)
+   Ein Protokoll ist eine Liste von Sätzen, die J.A.R.V.I.S. nacheinander wie normale Sprachbefehle ausführt.
+   Gestartet wird es weiter per Sprache: "Starte Protokoll Feierabend".
+   Braucht: assistant.js (protocols, saveProtocol, deleteProtocol, plainKey)
+   ============================================================ */
+const PROT_MAX_STEPS = 8;
+let protEditingKey = null;      // Schlüssel des gerade geänderten Protokolls (null = neues)
+
+function injectProtStyles() {
+    if (document.getElementById('protStyles')) return;
+    const st = document.createElement('style');
+    st.id = 'protStyles';
+    st.textContent = `
+.prot-card{background:rgba(0,0,0,.6);border:1px solid rgba(93,209,255,.2);border-radius:10px;padding:10px;margin-bottom:8px}
+.prot-card b{display:block;color:#49d7ff;font-size:13px;margin-bottom:4px}
+.prot-card ol{margin:0 0 8px 18px;padding:0;color:#cbd5e1;font-size:11px;line-height:1.5}
+.prot-btns{display:flex;gap:8px}
+.prot-btn{border:1px solid rgba(73,215,255,.55);color:#49d7ff;border-radius:8px;padding:6px 14px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:rgba(0,0,0,.55)}
+.prot-btn.del{border-color:rgba(255,120,120,.6);color:#ff9a9a}
+.prot-form label{display:block;margin:10px 0 4px;color:#5d7e91;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.prot-form input,.prot-form textarea{width:100%;box-sizing:border-box;background:rgba(0,10,20,.8);border:1px solid rgba(73,215,255,.45);border-radius:8px;color:#e2e8f0;padding:9px 10px;font-family:inherit;font-size:16px;line-height:1.4;outline:none}
+.prot-form input:focus,.prot-form textarea:focus{border-color:#49d7ff;box-shadow:0 0 10px rgba(73,215,255,.35)}
+#protMsg{min-height:16px;margin-top:8px;color:#5d7e91}
+`;
+    document.head.appendChild(st);
+}
+
+function protList() {
+    return (typeof protocols === 'object' && protocols) ? protocols : {};
+}
+
+function protListHtml() {
+    const keys = Object.keys(protList());
+    if (!keys.length) return '<p class="text-[#5d7e91] mb-3">Noch keine Protokolle. Lege unten das erste an.</p>';
+    return keys.map(k => {
+        const p = protList()[k];
+        const steps = (p.steps || []).map(x => `<li>${escapeHtml(x)}</li>`).join('');
+        return `<div class="prot-card"><b>${escapeHtml(p.name)}</b><ol>${steps}</ol>` +
+            `<div class="prot-btns"><button type="button" class="prot-btn" onclick="playUiBeep(); protEdit('${escapeHtml(k)}')">Ändern</button>` +
+            `<button type="button" class="prot-btn del" onclick="playUiBeep(); protDelete('${escapeHtml(k)}')">Löschen</button></div></div>`;
+    }).join('');
+}
+
+function buildProtokollePanel(options = {}) {
+    injectProtStyles();
+    protEditingKey = null;
+    const stop = 'onkeydown="event.stopPropagation()" onkeyup="event.stopPropagation()" onkeypress="event.stopPropagation()"';   // Leertaste und Co. sollen hier nicht die App steuern
+    const html = `<div class="font-mono text-xs">` +
+        `<p class="text-[#5d7e91] mb-3">Ein Protokoll führt mehrere Sätze nacheinander aus. Schreibe jeden Schritt so, wie du ihn J.A.R.V.I.S. sagen würdest. Gestartet wird es per Sprache: „Starte Protokoll Name".</p>` +
+        `<div id="protList">${protListHtml()}</div>` +
+        `<div class="prot-form">` +
+        `<label for="protName" id="protFormTitle">Neues Protokoll</label>` +
+        `<input id="protName" type="text" maxlength="30" placeholder="Name, zum Beispiel Feierabend" autocomplete="off" ${stop}>` +
+        `<label for="protSteps">Schritte (einer pro Zeile, höchstens ${PROT_MAX_STEPS})</label>` +
+        `<textarea id="protSteps" rows="6" placeholder="Wo steht mein Auto?&#10;Wie lange dauert die Fahrt nach Hause?&#10;Wie ist das Wetter?" ${stop}></textarea>` +
+        `<div class="prot-btns" style="margin-top:12px"><button type="button" class="prot-btn" onclick="playUiBeep(); protSave()">Speichern</button>` +
+        `<button type="button" class="prot-btn" onclick="playUiBeep(); protNew()">Leeren</button></div>` +
+        `<p id="protMsg"></p></div></div>`;
+    return { title: PANEL_TITLES.protokolle, html };
+}
+
+function protMsg(text) {
+    const el = document.getElementById('protMsg');
+    if (el) el.textContent = text;
+}
+
+function protRefresh() {
+    const el = document.getElementById('protList');
+    if (el) el.innerHTML = protListHtml();
+}
+
+function protNew() {
+    protEditingKey = null;
+    const n = document.getElementById('protName'), st = document.getElementById('protSteps'), t = document.getElementById('protFormTitle');
+    if (n) n.value = '';
+    if (st) st.value = '';
+    if (t) t.textContent = 'Neues Protokoll';
+    protMsg('');
+}
+
+function protEdit(key) {
+    const p = protList()[key];
+    if (!p) return;
+    protEditingKey = key;
+    const n = document.getElementById('protName'), st = document.getElementById('protSteps'), t = document.getElementById('protFormTitle');
+    if (n) n.value = p.name;
+    if (st) st.value = (p.steps || []).join('\n');
+    if (t) t.textContent = `Protokoll „${p.name}" ändern`;
+    protMsg('Ändere die Schritte und tippe auf Speichern.');
+    if (n && typeof n.scrollIntoView === 'function') n.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function protSave() {
+    const nameEl = document.getElementById('protName'), stepsEl = document.getElementById('protSteps');
+    if (!nameEl || !stepsEl) return;
+    const name = String(nameEl.value || '').trim();
+    const steps = String(stepsEl.value || '').split('\n').map(x => x.trim()).filter(Boolean);
+    if (!name) { protMsg('Bitte gib dem Protokoll einen Namen.'); return; }
+    if (!steps.length) { protMsg('Bitte schreibe mindestens einen Schritt.'); return; }
+    if (steps.length > PROT_MAX_STEPS) { protMsg(`Es sind höchstens ${PROT_MAX_STEPS} Schritte möglich, du hast ${steps.length}.`); return; }
+    const err = saveProtocol(name, steps);
+    if (err) { protMsg(err); return; }
+    // Wurde der Name geändert, verschwindet das Protokoll unter dem alten Namen
+    const newKey = plainKey(name);
+    if (protEditingKey && protEditingKey !== newKey) deleteProtocol(protEditingKey);
+    protNew();
+    protRefresh();
+    protMsg(`Gespeichert: „${name}". Starte es mit „Starte Protokoll ${name}".`);
+}
+
+function protDelete(key) {
+    const p = protList()[key];
+    if (!p) return;
+    if (typeof confirm === 'function' && !confirm(`Protokoll „${p.name}" wirklich löschen?`)) return;
+    deleteProtocol(key);
+    if (protEditingKey === key) protNew();
+    protRefresh();
+    protMsg(`Gelöscht: „${p.name}".`);
 }
