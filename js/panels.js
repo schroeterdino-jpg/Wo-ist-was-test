@@ -358,47 +358,160 @@ function overviewTap() {
 
 
 /* ============================================================
-   HUD-KARTE: dunkle, leicht durchsichtige Karte im Jarvis-Look
+   HUD-KARTE: Vektorkarte mit leuchtenden Neon-Straßen im Jarvis-Look
    Zeigt deinen Standort, die Route zur Arbeit und Staumeldungen auf der Strecke.
-   Kartenmaterial: OpenStreetMap über CARTO (kostenlos, ohne Schlüssel), Darstellung: Leaflet.
+   Kartendaten: OpenFreeMap / OpenStreetMap (kostenlos, ohne Schlüssel), Darstellung: MapLibre GL.
+   Die Farben und Leuchtstärken stehen in HUD_THEME und HUD_ROAD_TIERS und lassen sich dort ändern.
    Braucht: travel.js (fetchRouteMapData), briefing.js (fetchUserLocationData)
    ============================================================ */
 
-const HUD_MAP_TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-// Färbt die dunklen Straßen leuchtend cyan. Gefällt dir die Farbe nicht: hier ändern (leer lassen = Originalfarben).
-const HUD_MAP_TILE_FILTER = 'sepia(1) hue-rotate(150deg) saturate(3.2) brightness(1.55) contrast(1.15)';
-const HUD_MAP_TILE_OPACITY = 0.9;
+const MAPLIBRE_VERSION = '4.7.1';
+const MAPLIBRE_JS = `https://cdn.jsdelivr.net/npm/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.js`;
+const MAPLIBRE_CSS = `https://cdn.jsdelivr.net/npm/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css`;
+const OFM_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';   // wird nur gelesen, um Schriften und Kachel-Adresse zu übernehmen
+const OFM_TILES_URL = 'https://tiles.openfreemap.org/planet';
+const OFM_GLYPHS = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
+
 const HUD_MAP_PULSE = true;    // sanft pulsierender Punkt für den eigenen Standort
 const HUD_ROUTE_COLOR = '#49d7ff';
 const HUD_WARN_COLOR = '#ff9a44';
-const LEAFLET_JS = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-const LEAFLET_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+
+const HUD_THEME = {
+    background: '#020a12', backgroundOpacity: 0.9,          // Grundfläche (etwas durchsichtig)
+    land: '#061421', park: '#041c22',
+    water: '#04202e', waterLine: '#0d5573',
+    building: '#062431', buildingLine: '#0e5a78',
+    glow: '#00d9ff',            // Leuchten um die Straßen
+    core: '#b4f6ff',            // helle Mitte der großen Straßen
+    coreDim: '#3fb9d6',         // Mitte der kleinen Straßen
+    label: '#8eeeff', labelHalo: '#020a12',
+    routeGlow: '#00e5ff', routeCore: '#ffffff'
+};
+
+/* Straßenklassen: je Stufe ein Leuchten (breit, weich) und eine helle Linie darüber. Zahlen = [Zoomstufe, Breite in Pixel]. */
+const HUD_ROAD_TIERS = [
+    { key: 'minor', classes: ['tertiary', 'minor', 'service', 'busway', 'bus_guideway'], minzoom: 11,
+      glow: [[11, 1.5], [14, 5], [17, 14]], core: [[11, 0.35], [14, 1], [17, 4.5]], glowOpacity: 0.16, color: 'coreDim' },
+    { key: 'mid', classes: ['primary', 'secondary'], minzoom: 8,
+      glow: [[8, 2], [12, 7], [17, 20]], core: [[8, 0.5], [12, 1.5], [17, 7]], glowOpacity: 0.26, color: 'core' },
+    { key: 'major', classes: ['motorway', 'trunk'], minzoom: 4,
+      glow: [[4, 2], [9, 7], [13, 15], [17, 32]], core: [[4, 0.5], [9, 1.4], [13, 3.4], [17, 10]], glowOpacity: 0.4, color: 'core' }
+];
 
 let hudMap = null;
-let hudMapLayers = {};
-let hudMapMe = null;
-let leafletPromise = null;
+let hudMapMe = null;                       // [Breite, Länge]
+let hudMapMarkers = { route: [], stau: [] };
+let hudMapRouteIds = [];
+let hudMapVisible = { route: true, stau: true };
+let hudMapBase = null;
+let mapLibrePromise = null;
 
-function ensureLeaflet() {
-    if (window.L && window.L.map) return Promise.resolve();
-    if (leafletPromise) return leafletPromise;
+function ensureMapLibre() {
+    if (window.maplibregl && window.maplibregl.Map) return Promise.resolve();
+    if (mapLibrePromise) return mapLibrePromise;
     const cssReady = new Promise((resolve) => {
         const css = document.createElement('link');
         css.rel = 'stylesheet';
-        css.href = LEAFLET_CSS;
+        css.href = MAPLIBRE_CSS;
         css.onload = () => resolve();
-        css.onerror = () => resolve();   // ohne Stylesheet sieht es nur schlechter aus, geht aber
+        css.onerror = () => resolve();
         document.head.appendChild(css);
     });
     const jsReady = new Promise((resolve, reject) => {
         const sc = document.createElement('script');
-        sc.src = LEAFLET_JS;
+        sc.src = MAPLIBRE_JS;
         sc.onload = () => resolve();
-        sc.onerror = () => reject(new Error('leaflet'));
+        sc.onerror = () => reject(new Error('maplibre'));
         document.head.appendChild(sc);
     });
-    leafletPromise = Promise.all([cssReady, jsReady]).catch(err => { leafletPromise = null; throw err; });
-    return leafletPromise;
+    mapLibrePromise = Promise.all([cssReady, jsReady]).catch(err => { mapLibrePromise = null; throw err; });
+    return mapLibrePromise;
+}
+
+/* Kachel-Adresse und Schriften von OpenFreeMap übernehmen; ohne Antwort gelten feste Ersatzwerte */
+async function loadOfmBase() {
+    if (hudMapBase) return hudMapBase;
+    const base = { source: { type: 'vector', url: OFM_TILES_URL }, glyphs: OFM_GLYPHS, font: ['Noto Sans Regular'] };
+    try {
+        const res = await fetch(OFM_STYLE_URL);
+        if (res.ok) {
+            const st = await res.json();
+            if (st.glyphs) base.glyphs = st.glyphs;
+            const src = st.sources && (st.sources.openmaptiles || Object.values(st.sources).find(x => x && x.type === 'vector'));
+            if (src && (src.url || src.tiles)) base.source = src;
+            const exprWords = ['literal', 'get', 'case', 'match', 'step', 'interpolate', 'coalesce'];
+            for (const l of (st.layers || [])) {
+                const tf = l.layout && l.layout['text-font'];
+                if (Array.isArray(tf) && tf.length && tf.every(x => typeof x === 'string') && !exprWords.includes(tf[0])) { base.font = tf; break; }
+            }
+        }
+    } catch (e) { /* Ersatzwerte bleiben */ }
+    hudMapBase = base;
+    return base;
+}
+
+function hudZoomWidth(stops) {
+    return ['interpolate', ['exponential', 1.4], ['zoom'], ...stops.flat()];
+}
+
+/* Baut den kompletten Kartenstil: dunkle Fläche, leuchtende Straßen, cyanfarbene Beschriftung */
+function buildHudStyle(base) {
+    const T = HUD_THEME;
+    const font = base.font;
+    const src = 'openmaptiles';
+    const layers = [
+        { id: 'hud-bg', type: 'background', paint: { 'background-color': T.background, 'background-opacity': T.backgroundOpacity } },
+        { id: 'hud-landuse', type: 'fill', source: src, 'source-layer': 'landuse', paint: { 'fill-color': T.land, 'fill-opacity': 0.6 } },
+        { id: 'hud-landcover', type: 'fill', source: src, 'source-layer': 'landcover', paint: { 'fill-color': T.park, 'fill-opacity': 0.8 } },
+        { id: 'hud-park', type: 'fill', source: src, 'source-layer': 'park', paint: { 'fill-color': T.park, 'fill-opacity': 0.7 } },
+        { id: 'hud-water', type: 'fill', source: src, 'source-layer': 'water', paint: { 'fill-color': T.water } },
+        { id: 'hud-water-line', type: 'line', source: src, 'source-layer': 'water', paint: { 'line-color': T.waterLine, 'line-width': 0.8, 'line-opacity': 0.8 } },
+        { id: 'hud-waterway', type: 'line', source: src, 'source-layer': 'waterway', paint: { 'line-color': T.waterLine, 'line-width': hudZoomWidth([[8, 0.4], [14, 1.6]]), 'line-opacity': 0.8 } },
+        { id: 'hud-building', type: 'fill', source: src, 'source-layer': 'building', minzoom: 14, paint: { 'fill-color': T.building, 'fill-outline-color': T.buildingLine, 'fill-opacity': 0.75 } },
+        { id: 'hud-boundary', type: 'line', source: src, 'source-layer': 'boundary', filter: ['<=', ['get', 'admin_level'], 4],
+          paint: { 'line-color': T.waterLine, 'line-width': 0.9, 'line-dasharray': [3, 2], 'line-opacity': 0.6 } },
+        { id: 'hud-rail', type: 'line', source: src, 'source-layer': 'transportation', minzoom: 8,
+          filter: ['==', ['get', 'class'], 'rail'], paint: { 'line-color': T.waterLine, 'line-width': 1, 'line-dasharray': [3, 3], 'line-opacity': 0.8 } }
+    ];
+
+    const tierFilter = (t) => ['match', ['get', 'class'], t.classes, true, false];
+    // erst alle Leucht-Schichten, dann alle hellen Linien, damit kein Leuchten eine Straße überdeckt
+    HUD_ROAD_TIERS.forEach(t => layers.push({
+        id: `hud-road-glow-${t.key}`, type: 'line', source: src, 'source-layer': 'transportation', minzoom: t.minzoom, filter: tierFilter(t),
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': T.glow, 'line-width': hudZoomWidth(t.glow), 'line-blur': hudZoomWidth(t.glow.map(([z, w]) => [z, w * 0.7])), 'line-opacity': t.glowOpacity }
+    }));
+    HUD_ROAD_TIERS.forEach(t => layers.push({
+        id: `hud-road-core-${t.key}`, type: 'line', source: src, 'source-layer': 'transportation', minzoom: t.minzoom, filter: tierFilter(t),
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': T[t.color], 'line-width': hudZoomWidth(t.core), 'line-opacity': 1 }
+    }));
+    layers.push({
+        id: 'hud-road-path', type: 'line', source: src, 'source-layer': 'transportation', minzoom: 15,
+        filter: ['match', ['get', 'class'], ['path', 'track'], true, false],
+        paint: { 'line-color': T.coreDim, 'line-width': hudZoomWidth([[15, 0.5], [17, 1.5]]), 'line-dasharray': [2, 2], 'line-opacity': 0.6 }
+    });
+
+    const nameField = ['coalesce', ['get', 'name:de'], ['get', 'name']];
+    const labelPaint = { 'text-color': T.label, 'text-halo-color': T.labelHalo, 'text-halo-width': 1.6 };
+    layers.push({
+        id: 'hud-labels-road', type: 'symbol', source: src, 'source-layer': 'transportation_name', minzoom: 12,
+        layout: { 'symbol-placement': 'line', 'text-field': ['coalesce', ['get', 'name:de'], ['get', 'name'], ['get', 'ref']], 'text-font': font,
+                  'text-size': ['interpolate', ['linear'], ['zoom'], 12, 9, 17, 13], 'text-max-angle': 30 },
+        paint: labelPaint
+    });
+    const place = (id, cls, minzoom, sizeStops, upper) => layers.push({
+        id, type: 'symbol', source: src, 'source-layer': 'place', minzoom, filter: ['==', ['get', 'class'], cls],
+        layout: { 'text-field': nameField, 'text-font': font, 'text-size': ['interpolate', ['linear'], ['zoom'], ...sizeStops.flat()],
+                  'text-transform': upper ? 'uppercase' : 'none', 'text-letter-spacing': upper ? 0.12 : 0, 'text-max-width': 8 },
+        paint: labelPaint
+    });
+    place('hud-place-city', 'city', 4, [[4, 11], [12, 20]], true);
+    place('hud-place-town', 'town', 8, [[8, 10], [14, 16]], false);
+    place('hud-place-village', 'village', 10, [[10, 9], [15, 13]], false);
+    place('hud-place-suburb', 'suburb', 11, [[11, 9], [15, 12]], false);
+
+    return { version: 8, name: 'hud-neon', glyphs: base.glyphs, sources: { [src]: base.source }, layers };
 }
 
 function injectHudMapStyles() {
@@ -407,14 +520,13 @@ function injectHudMapStyles() {
     st.id = 'hudMapStyles';
     st.textContent = `
 .hud-map-wrap{position:relative;border:1px solid rgba(73,215,255,.4);border-radius:14px;overflow:hidden;background:rgba(0,10,20,.45);box-shadow:0 0 22px rgba(73,215,255,.18),inset 0 0 30px rgba(73,215,255,.08)}
-.hud-map-wrap::after{content:'';position:absolute;inset:0;z-index:900;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(73,215,255,.04) 0,rgba(73,215,255,.04) 1px,transparent 1px,transparent 3px),radial-gradient(ellipse at center,transparent 55%,rgba(0,8,16,.55) 100%)}
+.hud-map-wrap::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(73,215,255,.035) 0,rgba(73,215,255,.035) 1px,transparent 1px,transparent 3px),radial-gradient(ellipse at center,transparent 60%,rgba(0,8,16,.5) 100%)}
 #hudMap{height:58vh;min-height:300px;background:transparent}
-#hudMap.leaflet-container{background:transparent;font-family:inherit}
-#hudMap .leaflet-tile-pane{${HUD_MAP_TILE_FILTER ? 'filter:' + HUD_MAP_TILE_FILTER + ';' : ''}opacity:${HUD_MAP_TILE_OPACITY}}
-#hudMap .leaflet-control-attribution{background:rgba(0,0,0,.55);color:#5d7e91;font-size:9px}
-#hudMap .leaflet-control-attribution a{color:#5d7e91}
-#hudMap .leaflet-popup-content-wrapper,#hudMap .leaflet-popup-tip{background:rgba(0,12,24,.94);color:#cfefff;border:1px solid rgba(73,215,255,.5)}
-#hudMap .leaflet-popup-content{margin:8px 12px;font-size:12px;line-height:1.4}
+#hudMap .maplibregl-canvas{outline:none}
+#hudMap .maplibregl-ctrl-attrib{background:rgba(0,0,0,.55);color:#5d7e91;font-size:9px}
+#hudMap .maplibregl-ctrl-attrib a{color:#5d7e91}
+#hudMap .maplibregl-popup-content{background:rgba(0,12,24,.94);color:#cfefff;border:1px solid rgba(73,215,255,.5);border-radius:8px;padding:8px 12px;font-size:12px;line-height:1.4}
+#hudMap .maplibregl-popup-tip{border-top-color:rgba(0,12,24,.94)!important;border-bottom-color:rgba(0,12,24,.94)!important}
 .hud-me{position:relative;width:16px;height:16px;border-radius:50%;background:${HUD_ROUTE_COLOR};border:2px solid #fff;box-shadow:0 0 0 4px rgba(73,215,255,.25),0 0 14px 4px rgba(73,215,255,.9)}
 ${HUD_MAP_PULSE ? `@media (prefers-reduced-motion:no-preference){.hud-me::after{content:'';position:absolute;inset:-12px;border-radius:50%;border:2px solid rgba(73,215,255,.7);animation:hudPulse 2.6s ease-out infinite}}
 @keyframes hudPulse{0%{transform:scale(.5);opacity:.9}100%{transform:scale(1.5);opacity:0}}` : ''}
@@ -444,29 +556,47 @@ function hudMapStatus(text) {
 function hudMapDestroy() {
     if (hudMap) { try { hudMap.remove(); } catch (e) {} }
     hudMap = null;
-    hudMapLayers = {};
     hudMapMe = null;
+    hudMapMarkers = { route: [], stau: [] };
+    hudMapRouteIds = [];
+    hudMapVisible = { route: true, stau: true };
 }
 
 function hudMapRenderChips() {
     const el = document.getElementById('hudMapChips');
     if (!el || !hudMap) return;
     const chip = (label, action, off) => `<button class="hud-chip${off ? ' off' : ''}" onclick="playUiBeep(); ${action}">${label}</button>`;
-    const on = (name) => hudMapLayers[name] && hudMap.hasLayer(hudMapLayers[name]);
-    el.innerHTML = chip('Route', "hudMapToggle('route')", !on('route')) +
-        chip('Stau', "hudMapToggle('stau')", !on('stau')) +
+    el.innerHTML = chip('Route', "hudMapToggle('route')", !hudMapVisible.route) +
+        chip('Stau', "hudMapToggle('stau')", !hudMapVisible.stau) +
         chip('Mein Standort', 'hudMapCenter()', false);
 }
 
 function hudMapToggle(name) {
-    const layer = hudMapLayers[name];
-    if (!hudMap || !layer) return;
-    if (hudMap.hasLayer(layer)) hudMap.removeLayer(layer); else hudMap.addLayer(layer);
+    if (!hudMap || !(name in hudMapVisible)) return;
+    hudMapVisible[name] = !hudMapVisible[name];
+    if (name === 'route') {
+        hudMapRouteIds.forEach(id => { if (hudMap.getLayer(id)) hudMap.setLayoutProperty(id, 'visibility', hudMapVisible.route ? 'visible' : 'none'); });
+    }
+    (hudMapMarkers[name] || []).forEach(m => { m.getElement().style.display = hudMapVisible[name] ? '' : 'none'; });
     hudMapRenderChips();
 }
 
 function hudMapCenter() {
-    if (hudMap && hudMapMe) hudMap.setView(hudMapMe, Math.max(hudMap.getZoom(), 13));
+    if (hudMap && hudMapMe) hudMap.easeTo({ center: [hudMapMe[1], hudMapMe[0]], zoom: Math.max(hudMap.getZoom(), 13) });
+}
+
+/* Punkt auf der Karte; der äußere Kasten gehört MapLibre (Position), der innere ist das Leucht-Symbol */
+function hudAddMarker(cls, inner, lat, lon, popupHtml, group) {
+    const el = document.createElement('div');
+    const dot = document.createElement('div');
+    dot.className = cls;
+    dot.innerHTML = inner;
+    el.appendChild(dot);
+    const m = new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([lon, lat]);
+    if (popupHtml) m.setPopup(new maplibregl.Popup({ offset: 16, closeButton: false }).setHTML(popupHtml));
+    m.addTo(hudMap);
+    if (group) hudMapMarkers[group].push(m);
+    return m;
 }
 
 async function initHudMap(options = {}) {
@@ -474,21 +604,34 @@ async function initHudMap(options = {}) {
     hudMapDestroy();
     hudMapStatus('Lade Karte ...');
     try {
-        await ensureLeaflet();
+        await ensureMapLibre();
     } catch (e) {
-        hudMapStatus('Das Kartenmaterial konnte nicht geladen werden. Besteht eine Internetverbindung?');
+        hudMapStatus('Das Kartenprogramm konnte nicht geladen werden. Besteht eine Internetverbindung?');
         return;
     }
+    const base = await loadOfmBase();
     const el = document.getElementById('hudMap');
     if (!el || !isPanelOpen() || currentPanel.name !== 'karte') return;
     injectHudMapStyles();
 
-    const map = L.map(el, { zoomControl: false, zoomSnap: 0.5 }).setView([53.55, 10.0], 11);
+    let map;
+    try {
+        map = new maplibregl.Map({
+            container: el, style: buildHudStyle(base), center: [10.0, 53.55], zoom: 10,
+            attributionControl: false, dragRotate: false, pitchWithRotate: false, touchPitch: false, fadeDuration: 0
+        });
+        map.addControl(new maplibregl.AttributionControl({ compact: true }));
+        map.touchZoomRotate.disableRotation();
+    } catch (e) {
+        console.error('Karte konnte nicht gestartet werden', e);
+        hudMapStatus('Die Karte konnte nicht aufgebaut werden. Unterstützt der Browser WebGL?');
+        return;
+    }
     hudMap = map;
-    L.tileLayer(HUD_MAP_TILE_URL, { subdomains: 'abcd', maxZoom: 19, attribution: '© OpenStreetMap · © CARTO' }).addTo(map);
-    hudMapLayers = { route: L.layerGroup().addTo(map), stau: L.layerGroup().addTo(map) };
     hudMapRenderChips();
-    setTimeout(() => { if (hudMap === map) map.invalidateSize(); }, 250);
+    let ready = false;
+    const loaded = new Promise(resolve => map.once('load', () => { ready = true; resolve(); }));
+    setTimeout(() => { if (hudMap === map && !ready) hudMapStatus('Die Karte lädt nur langsam. Besteht eine Internetverbindung?'); }, 12000);
 
     // 1) Standort
     let loc = null;
@@ -496,8 +639,8 @@ async function initHudMap(options = {}) {
     if (hudMap !== map) return;
     if (loc && !loc.fehler && loc.latitude !== undefined) {
         hudMapMe = [loc.latitude, loc.longitude];
-        L.marker(hudMapMe, { interactive: false, icon: L.divIcon({ className: '', html: '<div class="hud-me"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }) }).addTo(map);
-        map.setView(hudMapMe, 13);
+        hudAddMarker('hud-me', '', loc.latitude, loc.longitude, null, null);
+        map.jumpTo({ center: [loc.longitude, loc.latitude], zoom: 13 });
     }
 
     // 2) Route und Staumeldungen: entweder von der Fahrzeit-Berechnung mitgeliefert oder die Route zur Arbeit
@@ -519,23 +662,37 @@ async function initHudMap(options = {}) {
         return;
     }
 
-    // Route: breite, blasse Linie darunter und schmale, helle darüber - das wirkt wie ein Leuchten
-    L.polyline(data.coords, { color: HUD_ROUTE_COLOR, weight: 11, opacity: 0.16, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(hudMapLayers.route);
-    L.polyline(data.coords, { color: HUD_ROUTE_COLOR, weight: 3.5, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(hudMapLayers.route);
-    if (data.to) {
-        L.marker([data.to.lat, data.to.lon], { icon: L.divIcon({ className: '', html: '<div class="hud-dest">◎</div>', iconSize: [22, 22], iconAnchor: [11, 11] }) })
-            .bindPopup(escapeHtml(String(data.to.label || 'Ziel'))).addTo(hudMapLayers.route);
+    await Promise.race([loaded, new Promise(r => setTimeout(r, 15000))]);
+    if (hudMap !== map) return;
+    if (!ready) { hudMapStatus('Die Karte konnte nicht geladen werden. Besteht eine Internetverbindung?'); return; }
+
+    // Route: breites weiches Leuchten, engere Glut und eine weiße Mitte - wie ein Neonrohr
+    const line = data.coords.map(c => [c[1], c[0]]);   // Karte will [Länge, Breite]
+    try {
+        map.addSource('hud-route', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: line } } });
+        const before = map.getLayer('hud-labels-road') ? 'hud-labels-road' : undefined;
+        [['hud-route-glow', 20, 12, 0.5, HUD_THEME.routeGlow], ['hud-route-mid', 8, 3, 0.85, HUD_THEME.routeGlow], ['hud-route-core', 3.2, 0, 1, HUD_THEME.routeCore]]
+            .forEach(([id, w, b, o, c]) => {
+                map.addLayer({ id, type: 'line', source: 'hud-route', layout: { 'line-cap': 'round', 'line-join': 'round' },
+                               paint: { 'line-color': c, 'line-width': w, 'line-blur': b, 'line-opacity': o } }, before);
+                hudMapRouteIds.push(id);
+            });
+    } catch (e) {
+        console.error('Route konnte nicht gezeichnet werden', e);
+        hudMapStatus('Die Route konnte nicht gezeichnet werden.');
+        return;
     }
+    if (data.to) hudAddMarker('hud-dest', '◎', data.to.lat, data.to.lon, escapeHtml(String(data.to.label || 'Ziel')), 'route');
     (data.warnings || []).forEach(w => {
         const txt = `<b>${escapeHtml(w.road || '')}</b> ${escapeHtml(w.title || '')}` + (w.text ? `<br>${escapeHtml(w.text)}` : '');
-        L.marker([w.lat, w.lon], { icon: L.divIcon({ className: '', html: '<div class="hud-warn">⚠</div>', iconSize: [26, 26], iconAnchor: [13, 13] }) })
-            .bindPopup(txt).addTo(hudMapLayers.stau);
+        hudAddMarker('hud-warn', '⚠', w.lat, w.lon, txt, 'stau');
     });
 
-    const bounds = L.latLngBounds(data.coords);
-    if (hudMapMe) bounds.extend(hudMapMe);
-    (data.warnings || []).forEach(w => bounds.extend([w.lat, w.lon]));
-    map.fitBounds(bounds, { padding: [28, 28], maxZoom: 15 });
+    const bounds = new maplibregl.LngLatBounds(line[0], line[0]);
+    line.forEach(pt => bounds.extend(pt));
+    if (hudMapMe) bounds.extend([hudMapMe[1], hudMapMe[0]]);
+    (data.warnings || []).forEach(w => bounds.extend([w.lon, w.lat]));
+    map.fitBounds(bounds, { padding: 32, maxZoom: 15, duration: 0 });
 
     const km = data.km >= 10 ? Math.round(data.km) : Number(data.km).toFixed(1).replace('.', ',');
     const road = (data.autobahnen && data.autobahnen.length) ? ' · ' + data.autobahnen.join(', ') : '';
