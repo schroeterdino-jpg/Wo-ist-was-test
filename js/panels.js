@@ -1484,9 +1484,15 @@ function weltOpenLivePlayer(cam, startIndex, token) {
             if (!stillActive() || !iframe) return;
             try {
                 weltYtPlayer = new window.YT.Player(iframe, { events: {
-                    onReady: (e) => { try { e.target.unMute(); e.target.setVolume(100); e.target.playVideo(); } catch (err) {} },
                     onError: () => { if (stillActive()) advance(); },
-                    onStateChange: (e) => { if (e && e.data === 0 && stillActive()) advance(); }   // 0 = Ende: ein beendeter Live-Stream
+                    onStateChange: (e) => {
+                        if (!e) return;
+                        // Erst entstummen, wenn das Video WIRKLICH läuft (state 1) - autoplay startet es selbst,
+                        // ein zusätzlicher eigener "abspielen"-Befehl hatte den Player vorher durcheinandergebracht
+                        // und eine Dauerschleife aus Fehlversuchen ausgelöst.
+                        if (e.data === 1) { try { e.target.unMute(); e.target.setVolume(100); } catch (err) {} }
+                        if (e.data === 0 && stillActive()) advance();   // 0 = Ende: ein beendeter Live-Stream
+                    }
                 } });
             } catch (e) { /* ohne Fehlermeldungen des Players läuft der Stream trotzdem, nur ohne automatischen Wechsel */ }
         }).catch(() => {});
