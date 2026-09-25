@@ -22,7 +22,8 @@ const PANEL_TITLES = {
     karte: '🗺️ Karte',
     welt: '🌍 Welt',
     protokolle: '📋 Protokolle',
-    adressen: '📍 Adressen'
+    adressen: '📍 Adressen',
+    dashboard: '🖥️ Dashboard'
 };
 
 /* Diese Fenster zeigen einen bestehenden Bereich der Seite (wird ins Fenster geschoben und danach zurückgelegt) */
@@ -34,7 +35,7 @@ const PANEL_SECTIONS = {
 const PANEL_SCROLL_TARGETS = {
     einkauf: 'shoppingList', aufgaben: 'todoList', parkplatz: 'parkingBox', briefing: 'briefingList', gedaechtnis: 'categoryContainer'
 };
-const PANEL_DYNAMIC = ['termine', 'erinnerungen', 'menu', 'karte', 'welt', 'protokolle', 'adressen'];
+const PANEL_DYNAMIC = ['termine', 'erinnerungen', 'menu', 'karte', 'welt', 'protokolle', 'adressen', 'dashboard'];
 const VALID_PANELS = Object.keys(PANEL_TITLES);
 
 const PANEL_CLOSE_MS = 300;
@@ -194,6 +195,7 @@ function buildMenuPanel() {
         ['🌍', 'Welt', 'Weltkugel mit Nachrichten', "openPanel('welt')"],
         ['📋', 'Protokolle', 'Abläufe tippen, ändern, löschen', "openPanel('protokolle')"],
         ['📍', 'Adressen', 'Arbeit und Zuhause tippen', "openPanel('adressen')"],
+        ['🖥️', 'Dashboard', 'Termine, Parkplatz, Sprit, Wetter', "openPanel('dashboard')"],
         ['🗓️', 'Planer', 'Erinnerung anlegen', "openPanel('planer')"],
         ['⚙️', 'Einstellungen', 'Konto, Stimme, Kontakte', "openPanel('settings')"]
     ];
@@ -211,6 +213,7 @@ function buildDynamicPanel(name, options) {
     if (name === 'welt') return buildWeltPanel(options);
     if (name === 'protokolle') return buildProtokollePanel(options);
     if (name === 'adressen') return buildAdressenPanel(options);
+    if (name === 'dashboard') return buildDashboardPanel(options);
     return buildMenuPanel();
 }
 
@@ -257,6 +260,7 @@ function openPanel(name, options = {}) {
         // Die Karte wird erst nach dem Einfliegen aufgebaut (sonst ruckelt die Animation)
         if (name === 'karte') { hudMapPrefetch(options); setTimeout(() => initHudMap(options), PANEL_FLY_MS); }
         if (name === 'welt') { weltPrefetch(options); setTimeout(() => initWelt(options), PANEL_FLY_MS); }
+        if (name === 'dashboard') setTimeout(() => initDashboard(), PANEL_FLY_MS);
         // Google-Kalender im Hintergrund auffrischen; refreshOpenPanel() zeichnet dann ohne Animation neu
         // erst NACH dem Einfliegen, sonst ruckelt die Animation, wenn die Daten mitten drin ankommen
         if (name !== 'menu' && name !== 'karte' && name !== 'welt' && name !== 'protokolle' && name !== 'adressen' && typeof accessToken !== 'undefined' && accessToken && typeof fetchGoogleCalendarEvents === 'function') {
@@ -1778,4 +1782,246 @@ async function addrSave(kind) {
     if (kind === 'work') saveWorkAddress(text); else saveHomeAddress(text);
     addrForce[kind] = null;
     addrMsg(kind, found ? `Gespeichert. Die Adresse wurde auf der Karte gefunden.` : 'Gespeichert (nicht auf der Karte geprüft).');
+}
+
+
+/* ============================================================
+   DASHBOARD: "Zeig mir mein Dashboard" - eine Übersicht mit Kacheln, die einzeln ins Bild fliegen.
+   Im Bearbeiten-Modus lassen sich Kacheln ein-/ausblenden und in der Reihenfolge verschieben.
+   Braucht (je Kachel, zur Laufzeit vorhanden, auch wenn die Datei später als panels.js geladen wird):
+   describeParking() (places.js), fetchWeatherData()/weatherCodeText() (briefing.js),
+   calendarEntries/reminderEntries + parseEventDate/relativeDayLabel/isBirthdayEntry (briefing.js)
+   ============================================================ */
+const DASHBOARD_ALL_TILES = [
+    { key: 'parkplatz', icon: '🚗', label: 'Parkplatz' },
+    { key: 'sprit', icon: '⛽', label: 'Sprit in der Nähe' },
+    { key: 'wetter', icon: '🌤️', label: 'Wetter' },
+    { key: 'termine', icon: '📅', label: 'Termine' },
+    { key: 'erinnerungen', icon: '🔔', label: 'Erinnerungen' },
+    { key: 'einkauf', icon: '🛒', label: 'Einkaufsliste' },
+];
+const DASHBOARD_DEFAULT_VISIBLE = ['parkplatz', 'sprit', 'wetter', 'termine', 'erinnerungen'];   // Einkaufsliste ist verfügbar, aber anfangs aus
+let dashboardConfig = null;   // [{ key, visible }, ...] in Anzeige-Reihenfolge
+let dashboardEditing = false;
+let dashboardToken = 0;
+
+function dashboardTileMeta(key) {
+    return DASHBOARD_ALL_TILES.find(t => t.key === key) || { key, icon: '❔', label: key };
+}
+
+function loadDashboardConfig() {
+    if (dashboardConfig) return dashboardConfig;
+    let cfg = null;
+    try { const raw = getPersistentData('helfer_dashboard', ''); cfg = raw ? JSON.parse(raw) : null; } catch (e) { cfg = null; }
+    if (!Array.isArray(cfg) || cfg.length === 0) {
+        cfg = DASHBOARD_ALL_TILES.map(t => ({ key: t.key, visible: DASHBOARD_DEFAULT_VISIBLE.includes(t.key) }))
+            .sort((a, b) => DASHBOARD_DEFAULT_VISIBLE.indexOf(a.key) - DASHBOARD_DEFAULT_VISIBLE.indexOf(b.key) || 0);
+        // nicht-sichtbare (einkauf) ans Ende
+        cfg.sort((a, b) => (b.visible - a.visible));
+    }
+    // Kacheln, die es inzwischen gibt, aber noch nicht gespeichert wurden, hinten anhängen (unsichtbar)
+    DASHBOARD_ALL_TILES.forEach(t => { if (!cfg.some(c => c.key === t.key)) cfg.push({ key: t.key, visible: false }); });
+    cfg = cfg.filter(c => DASHBOARD_ALL_TILES.some(t => t.key === c.key));   // veraltete Einträge entfernen
+    dashboardConfig = cfg;
+    return cfg;
+}
+
+function saveDashboardConfig() {
+    setPersistentData('helfer_dashboard', JSON.stringify(dashboardConfig));
+}
+
+function injectDashboardStyles() {
+    if (document.getElementById('dashStyles')) return;
+    const st = document.createElement('style');
+    st.id = 'dashStyles';
+    st.textContent = `
+.dash-tile{position:relative;background:rgba(10,22,33,.85);border:1px solid rgba(73,215,255,.35);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 0 16px rgba(73,215,255,.15),inset 0 0 10px rgba(73,215,255,.06);overflow:hidden}
+.dash-tile::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#49d7ff,transparent)}
+.dash-tile b{display:block;color:#49d7ff;font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+.dash-tile .dash-val{color:#e2e8f0;font-size:14px;line-height:1.4}
+.dash-tile .dash-sub{color:#5d7e91;font-size:11px;margin-top:2px}
+.dash-edit-row{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.5);border:1px solid rgba(93,209,255,.2);border-radius:10px;padding:8px 10px;margin-bottom:6px}
+.dash-edit-row .dash-arrows{display:flex;flex-direction:column;gap:2px}
+.dash-edit-row button{border:1px solid rgba(73,215,255,.5);color:#49d7ff;background:rgba(0,0,0,.5);border-radius:6px;font-size:11px;line-height:1;padding:3px 7px}
+.dash-edit-row button:disabled{opacity:.25}
+`;
+    document.head.appendChild(st);
+}
+
+function buildDashboardPanel(options = {}) {
+    injectDashboardStyles();
+    dashboardEditing = false;
+    const cfg = loadDashboardConfig();
+    const visible = cfg.filter(c => c.visible);
+    const html = `<div class="font-mono text-xs">` +
+        `<div id="dashTiles">${visible.length ? visible.map((c, i) => dashboardTileSkeleton(c.key, i)).join('') : '<p class="panel-row text-slate-500 italic" style="--i:0">Keine Kacheln ausgewählt. Tippe unten auf Bearbeiten.</p>'}</div>` +
+        `<button type="button" class="panel-row w-full mt-2 bg-black/60 border border-[rgba(93,209,255,.3)] text-[#49d7ff] font-bold uppercase tracking-wide rounded-lg p-3" style="--i:${visible.length}" onclick="playUiBeep(); dashboardToggleEdit()">✏️ Bearbeiten</button>` +
+        `</div>`;
+    return { title: PANEL_TITLES.dashboard, html };
+}
+
+/* Kachel-Hülle, die gleich mit "Lädt ..." erscheint (sofortiges Einfliegen), Inhalt kommt kurz danach nach */
+function dashboardTileSkeleton(key, i) {
+    const meta = dashboardTileMeta(key);
+    return `<div class="dash-tile panel-row" style="--i:${i}" id="dashTile-${meta.key}"><b>${meta.icon} ${meta.label}</b><div class="dash-val">Lädt ...</div></div>`;
+}
+
+function dashboardSetTile(key, valueHtml, subHtml) {
+    const el = document.getElementById('dashTile-' + key);
+    if (!el) return;
+    const meta = dashboardTileMeta(key);
+    el.innerHTML = `<b>${meta.icon} ${meta.label}</b><div class="dash-val">${valueHtml}</div>` + (subHtml ? `<div class="dash-sub">${subHtml}</div>` : '');
+}
+
+/* ---------- Inhalte der einzelnen Kacheln ---------- */
+async function dashboardFillParkplatz() {
+    const p = (typeof describeParking === 'function') ? describeParking() : null;
+    if (!p) return dashboardSetTile('parkplatz', 'Kein Parkplatz gespeichert.');
+    dashboardSetTile('parkplatz', escapeHtml(p.adresse), 'Gespeichert ' + escapeHtml(p.gespeichert_vor));
+}
+
+async function dashboardFillWetter() {
+    try {
+        const w = await fetchWeatherData();
+        if (!w || w.fehler) return dashboardSetTile('wetter', 'Wetterdaten gerade nicht verfügbar.');
+        const text = (typeof weatherCodeText === 'function') ? weatherCodeText(w.wettercode) : '';
+        dashboardSetTile('wetter', `${w.temperatur}° · gefühlt ${w.gefuehlteTemperatur}°`, text ? text.charAt(0).toUpperCase() + text.slice(1) : '');
+    } catch (e) {
+        dashboardSetTile('wetter', 'Wetterdaten gerade nicht verfügbar.');
+    }
+}
+
+async function dashboardFillTermine() {
+    try {
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const upcoming = (calendarEntries || [])
+            .filter(e => e.isoDate && !(typeof isBirthdayEntry === 'function' && isBirthdayEntry(e)))
+            .map(e => ({ text: e.text, ...parseEventDate(e.isoDate) }))
+            .filter(e => !isNaN(e.date.getTime()) && (e.allDay ? e.date >= todayStart : e.date >= now))
+            .sort((a, b) => a.date - b.date)
+            .slice(0, 2);
+        if (!upcoming.length) return dashboardSetTile('termine', 'Keine anstehenden Termine.');
+        const lines = upcoming.map(e => `${escapeHtml(e.text)} · ${relativeDayLabel(e.date, todayStart)}${e.allDay ? '' : ', ' + formatSpokenTime(e.date)}`).join('<br>');
+        dashboardSetTile('termine', lines);
+    } catch (e) {
+        dashboardSetTile('termine', 'Termine gerade nicht verfügbar.');
+    }
+}
+
+async function dashboardFillErinnerungen() {
+    try {
+        const now = new Date();
+        const upcoming = (reminderEntries || [])
+            .filter(r => r.time && !r.triggered && new Date(r.time) >= now)
+            .sort((a, b) => new Date(a.time) - new Date(b.time))
+            .slice(0, 2);
+        if (!upcoming.length) return dashboardSetTile('erinnerungen', 'Keine anstehenden Erinnerungen.');
+        const lines = upcoming.map(r => `${escapeHtml(r.text)} · ${new Date(r.time).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'short' })}`).join('<br>');
+        dashboardSetTile('erinnerungen', lines);
+    } catch (e) {
+        dashboardSetTile('erinnerungen', 'Erinnerungen gerade nicht verfügbar.');
+    }
+}
+
+async function dashboardFillEinkauf() {
+    const items = (shoppingEntries || []).slice(0, 4).map(e => escapeHtml(e.text));
+    if (!items.length) return dashboardSetTile('einkauf', 'Einkaufsliste ist leer.');
+    const rest = shoppingEntries.length - items.length;
+    dashboardSetTile('einkauf', items.join(', ') + (rest > 0 ? ` … und ${rest} weitere` : ''));
+}
+
+async function dashboardFillSprit() {
+    try {
+        const pos = await new Promise((ok, err) => navigator.geolocation.getCurrentPosition(ok, err, { timeout: 7000, maximumAge: 120000 }));
+        const r = await apiFetch(`/api/tank?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}&rad=5`);
+        const d = await r.json();
+        if (!r.ok || d.error) return dashboardSetTile('sprit', 'Spritpreise gerade nicht verfügbar.');
+        const rows = (d.stations || []).filter(s => typeof s.diesel === 'number' && s.diesel > 0).sort((a, b) => a.diesel - b.diesel);
+        if (!rows.length) return dashboardSetTile('sprit', 'Keine geöffneten Tankstellen gefunden.');
+        const best = rows[0];
+        dashboardSetTile('sprit', `Diesel ab ${best.diesel.toFixed(3).replace('.', ',')} €`, escapeHtml(best.name || '') + (best.strasse ? ' · ' + escapeHtml(best.strasse) : ''));
+    } catch (e) {
+        dashboardSetTile('sprit', 'Standort für Spritpreise nicht verfügbar.');
+    }
+}
+
+const DASHBOARD_FILLERS = {
+    parkplatz: dashboardFillParkplatz, wetter: dashboardFillWetter, termine: dashboardFillTermine,
+    erinnerungen: dashboardFillErinnerungen, einkauf: dashboardFillEinkauf, sprit: dashboardFillSprit,
+};
+
+/* Alle sichtbaren Kacheln gleichzeitig befüllen; ein Fehler in einer Kachel darf die anderen nicht stoppen */
+async function initDashboard() {
+    if (!isPanelOpen() || currentPanel.name !== 'dashboard') return;
+    const token = ++dashboardToken;
+    const visible = loadDashboardConfig().filter(c => c.visible);
+    await Promise.all(visible.map(c => {
+        const fn = DASHBOARD_FILLERS[c.key];
+        if (!fn) return Promise.resolve();
+        return fn().catch(() => { if (token === dashboardToken) dashboardSetTile(c.key, 'Gerade nicht verfügbar.'); });
+    }));
+}
+
+/* ---------- Bearbeiten: Kacheln ein-/ausblenden und verschieben ---------- */
+/* Nur die Zeilen (ohne Rahmen drumherum) - eigene Funktion, damit dashboardMove() sie direkt neu zeichnen kann,
+   ohne das HTML nachträglich per Regex aus dem Text herausschneiden zu müssen (fehleranfällig). */
+function dashboardEditRowsHtml() {
+    const cfg = loadDashboardConfig();
+    return cfg.map((c, i) => {
+        const meta = dashboardTileMeta(c.key);
+        return `<div class="dash-edit-row panel-row" style="--i:${i}">` +
+            `<label class="flex items-center gap-2 flex-1"><input type="checkbox" ${c.visible ? 'checked' : ''} class="w-4 h-4 accent-[#49d7ff]" onchange="dashboardToggleVisible('${meta.key}', this.checked)"><span>${meta.icon} ${meta.label}</span></label>` +
+            `<span class="dash-arrows"><button type="button" ${i === 0 ? 'disabled' : ''} onclick="playUiBeep(); dashboardMove('${meta.key}', -1)">▲</button><button type="button" ${i === cfg.length - 1 ? 'disabled' : ''} onclick="playUiBeep(); dashboardMove('${meta.key}', 1)">▼</button></span>` +
+            `</div>`;
+    }).join('');
+}
+
+function dashboardEditHtml() {
+    const cfg = loadDashboardConfig();
+    return `<p class="text-[#5d7e91] mb-2">Häkchen: Kachel anzeigen. Pfeile: Reihenfolge ändern.</p>` +
+        `<div id="dashEditRows">${dashboardEditRowsHtml()}</div>` +
+        `<button type="button" class="panel-row w-full mt-2 bg-black/60 border border-[rgba(93,209,255,.3)] text-[#49d7ff] font-bold uppercase tracking-wide rounded-lg p-3" style="--i:${cfg.length}" onclick="playUiBeep(); dashboardToggleEdit()">✓ Fertig</button>`;
+}
+
+function dashboardToggleEdit() {
+    dashboardEditing = !dashboardEditing;
+    const body = document.getElementById('panelBody');
+    if (!body || !currentPanel || currentPanel.name !== 'dashboard') return;
+    if (dashboardEditing) {
+        body.innerHTML = `<div class="font-mono text-xs">${dashboardEditHtml()}</div>`;
+    } else {
+        saveDashboardConfig();
+        const cfg = loadDashboardConfig();
+        const visible = cfg.filter(c => c.visible);
+        body.innerHTML = `<div class="font-mono text-xs">` +
+            `<div id="dashTiles">${visible.length ? visible.map((c, i) => dashboardTileSkeleton(c.key, i)).join('') : '<p class="panel-row text-slate-500 italic" style="--i:0">Keine Kacheln ausgewählt. Tippe unten auf Bearbeiten.</p>'}</div>` +
+            `<button type="button" class="panel-row w-full mt-2 bg-black/60 border border-[rgba(93,209,255,.3)] text-[#49d7ff] font-bold uppercase tracking-wide rounded-lg p-3" style="--i:${visible.length}" onclick="playUiBeep(); dashboardToggleEdit()">✏️ Bearbeiten</button></div>`;
+        initDashboard();
+    }
+    body.classList.remove('animate');
+    void body.offsetWidth;   // erzwingt einen Reflow, damit die Einfliegen-Animation erneut abspielt
+    body.classList.add('animate');
+}
+
+function dashboardToggleVisible(key, checked) {
+    const cfg = loadDashboardConfig();
+    const row = cfg.find(c => c.key === key);
+    if (row) row.visible = checked;
+}
+
+function dashboardMove(key, dir) {
+    const cfg = loadDashboardConfig();
+    const i = cfg.findIndex(c => c.key === key);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= cfg.length) return;
+    [cfg[i], cfg[j]] = [cfg[j], cfg[i]];
+    const rows = document.getElementById('dashEditRows');
+    if (rows) rows.innerHTML = dashboardEditRowsHtml();
+}
+
+/* Einstieg für Sprachbefehle: "Zeig mir mein Dashboard" */
+function openDashboard() {
+    if (isPanelOpen() && currentPanel.name === 'dashboard') return;
+    openPanel('dashboard', {});
 }

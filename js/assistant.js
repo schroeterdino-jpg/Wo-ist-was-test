@@ -521,7 +521,7 @@ async function sendToGroqSmart(text, opts = {}) {
     "- Steht im Kontext unter 'kalendersuche' ein Ergebnis, wurde der Kalender für diese Frage schon durchsucht. Beantworte die Frage damit und nutze keine Aktion 'calendar_search'. 'kommende' sind die nächsten Termine (der erste ist der nächste Geburtstag oder Termin), 'vergangene' die letzten davor. Nenne das Datum genau so wie im Feld 'datum'. Ist 'anzahl_treffer' 0 und gibt es keinen 'hinweis', sage ehrlich, dass du dazu keinen Eintrag gefunden hast, und nenne die Suchbegriffe. Gibt es einen 'hinweis', nenne ihn kurz und ehrlich (zum Beispiel welche Kalender nicht lesbar waren). Steht 'verbindung' auf 'getrennt', sage zusätzlich, dass unten eine Karte zum erneuten Verbinden steht.\n" +
     "- Antworte auf Fragen nach Terminen, Geburtstagen oder Ereignissen niemals mit 'nicht gefunden', ohne dass 'kalendersuche' ein Ergebnis enthält oder du 'calendar_search' genutzt hast.\n\n" +
     "WICHTIG fürs Anzeigen von Terminen, Erinnerungen und Listen:\n" +
-    "- Sagt der User 'zeige', 'zeig mir' oder 'öffne' (Termine, Erinnerungen, Einkaufsliste, Aufgaben, Gedächtnis, Kontakte, Parkplatz, Briefing-Wünsche, Planer, Einstellungen), nutze die Aktion 'show_panel'. Dann fliegt ein Fenster ins Bild. 'panel' ist 'termine', 'erinnerungen', 'einkauf', 'aufgaben', 'gedaechtnis', 'kontakte', 'parkplatz', 'briefing', 'planer', 'settings' oder 'karte' (dunkle HUD-Karte mit Standort, Route zur Arbeit und Staumeldungen).\n" +
+    "- Sagt der User 'zeige', 'zeig mir' oder 'öffne' (Termine, Erinnerungen, Einkaufsliste, Aufgaben, Gedächtnis, Kontakte, Parkplatz, Briefing-Wünsche, Planer, Einstellungen, Dashboard), nutze die Aktion 'show_panel'. Dann fliegt ein Fenster ins Bild. 'panel' ist 'termine', 'erinnerungen', 'einkauf', 'aufgaben', 'gedaechtnis', 'kontakte', 'parkplatz', 'briefing', 'planer', 'settings' oder 'karte' (dunkle HUD-Karte mit Standort, Route zur Arbeit und Staumeldungen).\n" +
     "- Bei 'termine' und 'erinnerungen' gib den Zeitraum in 'panel_range' an: 'heute', 'morgen', 'diese_woche', 'naechste_woche', 'naechste_7_tage', 'naechste_30_tage' oder 'alle'. Ohne Angabe nimm bei Terminen 'naechste_7_tage' und bei Erinnerungen 'alle'. Für andere Zeiträume (z.B. 'im November') gib 'panel_from' und 'panel_to' als Datum im Format YYYY-MM-DD an.\n" +
     "- Schreibe in 'reply' nur einen ganz kurzen Satz wie 'Bitte sehr.' und lies die Einträge nicht vor, sie stehen im Fenster. Fragt der User dagegen mit 'sag mir', 'lies vor' oder 'was steht ...', antworte gesprochen ohne 'show_panel'.\n\n" +
     "WICHTIG fürs Merken von Dingen im Gedächtnis:\n" +
@@ -1188,6 +1188,13 @@ function isMapCommand(text) {
     return /(zeig|öffne|öffnen|anzeig|blende|starte|mach\b|mal\b)/.test(t);
 }
 
+/* "Zeig mir mein Dashboard", "Dashboard öffnen", "Übersicht anzeigen" */
+function isDashboardCommand(text) {
+    const t = String(text || '').toLowerCase().replace(/[.,!?]/g, '').trim();
+    if (t.length > 70 || !/(?:^|[^a-zäöüß])(dashboard|übersicht|cockpit)(?:$|[^a-zäöüß])/.test(t)) return false;
+    return /(zeig|öffne|öffnen|anzeig|blende|starte|mach\b|mal\b)/.test(t);
+}
+
 /* "Was ist gerade in Spanien los?", "Nachrichten aus Japan", "Zeig mir, was auf der Welt los ist"
    -> { place: 'Spanien' } bzw. { place: '' } (nur die Kugel); sonst null */
 function matchWorldCommand(text) {
@@ -1284,6 +1291,12 @@ function handleLocalCommandInner(text) {
     if (isMapCommand(text)) {
         openPanel('karte', {});
         speak(pickRandom(['Bitte sehr.', 'Karte wird aufgebaut.', 'Sehr wohl.']), continueConversation);
+        return true;
+    }
+    if (isDashboardCommand(text)) {
+        if (typeof openDashboard === 'function') openDashboard();
+        else openPanel('dashboard', {});
+        speak(pickRandom(['Bitte sehr.', 'Dashboard wird aufgebaut.', 'Sehr wohl.']), continueConversation);
         return true;
     }
     const pk = findProtocolToRun(text);
