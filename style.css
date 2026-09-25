@@ -1,113 +1,138 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 :root {
-    --bg: #050a10;
-    --bg-deep: #02050a;
-    --panel: rgba(10, 22, 33, .55);
-    --panel-solid: #0a1621;
-    --grid-line: rgba(93, 209, 255, .12);
-    --hairline: rgba(93, 209, 255, .18);
-    --cyan: #49d7ff;
-    --cyan-dim: rgba(73, 215, 255, .35);
+    --bg: #03080e;
+    --bg-deep: #010408;
+    --panel: rgba(5, 15, 26, 0.75);
+    --panel-solid: #051322;
+    --cyan: #00d2ff;
+    --cyan-glow: rgba(0, 210, 255, 0.4);
+    --cyan-dim: rgba(0, 210, 255, 0.2);
+    --border-cyan: rgba(0, 210, 255, 0.35);
     --amber: #ff9a44;
-    --amber-dim: rgba(255, 154, 68, .35);
-    --text: #d9e9f2;
-    --muted: #5d7e91;
-    --danger: #ff5d6c;
-    --good: #57e0a1;
+    --text: #ffffff;
+    --text-muted: #62829d;
+    --good: #00ffaa;
     --font-display: 'Rajdhani', sans-serif;
+    --font-orbitron: 'Orbitron', sans-serif;
     --font-mono: 'IBM Plex Mono', monospace;
-    --radius-sm: 3px;
-    --metal: rgba(203, 217, 226, .75);
 }
 
 body { 
     font-family: var(--font-display);
-    font-size: 1.15rem; 
-    background: var(--bg);
+    font-size: 1.1rem; 
+    background-color: var(--bg);
     color: var(--text);
     overflow-x: hidden;
     position: relative;
+    margin: 0;
+    padding: 0;
 }
 
-/* Upgrade 3: Scanline Overlay über das gesamte UI */
+/* ============================================================
+   HEADER & HUD DEKORATION
+   ============================================================ */
+header {
+    background: rgba(3, 10, 18, 0.85) !important;
+    border-bottom: 1px solid var(--border-cyan) !important;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 4px 20px rgba(0, 210, 255, 0.15) !important;
+}
+
+header h1 {
+    font-family: var(--font-orbitron) !important;
+    letter-spacing: 0.15em !important;
+    color: var(--cyan) !important;
+    text-shadow: 0 0 10px var(--cyan-glow);
+}
+
 .scanline-overlay {
     position: fixed;
     inset: 0;
-    width: 100%;
-    height: 100%;
     pointer-events: none;
     z-index: 99;
     background: repeating-linear-gradient(
         0deg,
-        rgba(0, 0, 0, 0.15),
-        rgba(0, 0, 0, 0.15) 1px,
+        rgba(0, 0, 0, 0.12),
+        rgba(0, 0, 0, 0.12) 1px,
         transparent 1px,
         transparent 3px
     );
-    opacity: 0.75;
+    opacity: 0.6;
 }
 
 #grid-canvas {
     position: fixed;
     inset: 0;
-    width: 100%;
-    height: 100%;
     z-index: 0;
-    background:
-        radial-gradient(ellipse at 50% 20%, rgba(73, 215, 255, .07), transparent 55%),
-        var(--bg-deep);
+    background: radial-gradient(ellipse at 50% 30%, rgba(0, 210, 255, 0.08), transparent 70%), var(--bg-deep);
     pointer-events: none;
 }
 
-h1, h2, .jarvis-font {
-    font-family: 'Orbitron', sans-serif;
-    letter-spacing: 0.08em;
+/* ============================================================
+   KACHELN & CARD DESIGN (NÄCHSTER TERMIN / SYSTEM STATUS)
+   ============================================================ */
+#overviewLine button, 
+.hud-panel,
+#sec-planner > div,
+#sec-lists > div,
+#sec-memory > div,
+#sec-settings details {
+    background: rgba(5, 18, 32, 0.65) !important;
+    border: 1px solid var(--border-cyan) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.08), inset 0 0 10px rgba(0, 210, 255, 0.03) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
-.glow-cyan {
-    text-shadow: 0 0 8px rgba(73, 215, 255, 0.7), 0 0 15px rgba(73, 215, 255, 0.4);
+/* Kachel-Header / Beschriftungen */
+#overviewLine span.uppercase,
+.hud-panel h2 {
+    font-family: var(--font-orbitron) !important;
+    letter-spacing: 0.1em !important;
+    color: var(--cyan) !important;
+    text-shadow: 0 0 8px var(--cyan-glow);
 }
 
-.border-glow-cyan {
-    box-shadow: 0 0 12px rgba(73, 215, 255, 0.35), inset 0 0 8px rgba(73, 215, 255, 0.15);
+#ovNext {
+    font-family: var(--font-orbitron) !important;
+    font-size: 1.1rem !important;
+    font-weight: 700 !important;
+    color: #ffffff !important;
 }
 
-/* Upgrade 3: Glassy Neon-Kanten & Backdrop Blur */
-.hud-panel {
-    position: relative;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 0 15px rgba(0, 210, 255, 0.12), inset 0 0 10px rgba(0, 210, 255, 0.05);
-}
-.hud-panel::before,
-.hud-panel::after {
-    content: '';
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    border: 1px solid var(--cyan-dim);
-    opacity: .6;
-    pointer-events: none;
-}
-.hud-panel::before {
-    top: 6px;
-    left: 6px;
-    border-right: none;
-    border-bottom: none;
-}
-.hud-panel::after {
-    bottom: 6px;
-    right: 6px;
-    border-left: none;
-    border-top: none;
+/* ============================================================
+   HAUPT-BUTTON ("ZUHÖREN BEENDEN" / BRIEFING)
+   ============================================================ */
+#sec-speak button.bg-gradient-to-r {
+    background: transparent !important;
+    border: 1.5px solid var(--cyan) !important;
+    color: var(--cyan) !important;
+    font-family: var(--font-orbitron) !important;
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.12em !important;
+    border-radius: 10px !important;
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.3), inset 0 0 12px rgba(0, 210, 255, 0.15) !important;
+    transition: all 0.2s ease-in-out !important;
+    text-shadow: 0 0 8px var(--cyan-glow) !important;
 }
 
+#sec-speak button.bg-gradient-to-r:active {
+    transform: scale(0.98);
+    background: rgba(0, 210, 255, 0.15) !important;
+    box-shadow: 0 0 25px rgba(0, 210, 255, 0.6) !important;
+}
+
+/* ============================================================
+   REAKTOR / ORB CONTAINER
+   ============================================================ */
 #reactor-wrap {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 15px 0;
+    justify-content: center;
     position: relative;
     cursor: pointer;
     user-select: none;
@@ -115,86 +140,35 @@ h1, h2, .jarvis-font {
 
 .holo-container {
     position: relative;
-    width: 306px;
-    height: 306px;
+    width: 290px;
+    height: 290px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-/* --- Holografische Ringe als SVG: einmal gezeichnet, danach dreht die Grafikkarte nur noch die fertige Ebene --- */
-.jarvis-scanner-container { --ring-a: #00d2ff; --ring-b: #0066ff; }
-.jarvis-scanner-container.recording { --ring-a: var(--cyan); --ring-b: var(--cyan); }
-.jarvis-scanner-container.speaking { --ring-a: var(--good); --ring-b: var(--good); }
+.jarvis-orb {
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    object-fit: cover;
+    z-index: 2;
+    filter: drop-shadow(0 0 15px rgba(0, 210, 255, 0.4));
+}
 
+/* Ringe um die Kugel */
 .holo-svg {
     position: absolute;
     pointer-events: none;
-    overflow: visible;
     will-change: transform;
-    backface-visibility: hidden;
 }
-.holo-svg-1 { width: 280px; height: 280px; animation: spin 12s linear infinite; }
-.holo-svg-2 { width: 293px; height: 293px; animation: spin-reverse 8s linear infinite; }
-.holo-svg-ticks { width: 306px; height: 306px; animation: spin 140s linear infinite; }
-.holo-svg-3 { width: 322px; height: 322px; animation: spin-reverse 22s linear infinite; }
-.holo-svg-3 .ring-outer { stroke: var(--metal); opacity: .3; }
 
-/* Kleine Lichtpunkte, die dauerhaft um den Ring kreisen (unterschiedliche Bahnen und Geschwindigkeiten) */
-.holo-orbit { position: absolute; inset: 0; pointer-events: none; }
-.holo-orbit-a { animation: spin 9s linear infinite; }
-.holo-orbit-b { animation: spin-reverse 15s linear infinite; }
-.holo-orbit-c { animation: spin 24s linear infinite; }
-.holo-blip {
-    position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; border-radius: 50%;
-    background: var(--cyan); box-shadow: 0 0 9px 2px rgba(73, 215, 255, .85);
-    transform: translate(-50%, -50%) translateY(-153px);
-}
-.holo-blip-amber {
-    width: 4.5px; height: 4.5px; background: var(--amber);
-    box-shadow: 0 0 8px 2px rgba(255, 154, 68, .85);
-    transform: translate(-50%, -50%) translateY(-168px);
-}
-.holo-blip-dim {
-    width: 3.5px; height: 3.5px; opacity: .55;
-    transform: translate(-50%, -50%) translateY(-144px);
-}
-html[data-fx="off"] .holo-orbit { animation-play-state: paused !important; }
-/* Sechseck-Eckklammern (Ring C "Hologramm") statt der vorherigen Strichskala */
-.holo-svg-ticks .hex-bracket path { fill: none; }
-.holo-svg-ticks .tick-minor path { stroke: var(--metal); opacity: .4; stroke-width: 1.4; }
-.holo-svg-ticks .tick-major path { stroke: var(--metal); opacity: .7; stroke-width: 2; }
-.holo-svg circle, .holo-svg path, .holo-svg polygon { fill: none; }
-.holo-svg .ring-a { stroke: var(--ring-a); }
-.holo-svg .ring-b { stroke: var(--ring-b); }
-.holo-svg .ring-a:not(.glow), .holo-svg .ring-b:not(.glow) { stroke: var(--metal); opacity: .8; }
-.holo-svg .ring-base { stroke: var(--metal); opacity: .5; }
-.holo-svg .glow { opacity: .2; }
-.jarvis-scanner-container.recording .holo-svg .glow,
-.jarvis-scanner-container.speaking .holo-svg .glow { opacity: .45; }
+.holo-svg-1 { width: 275px; height: 275px; animation: spin 14s linear infinite; }
+.holo-svg-2 { width: 285px; height: 285px; animation: spin-reverse 10s linear infinite; }
+.holo-svg-ticks { width: 295px; height: 295px; animation: spin 120s linear infinite; }
 
-/* Deutlicher Puls, solange Jarvis spricht: zwei versetzte, auslaufende Ringe um die Kugel - nicht zu übersehen */
-.jarvis-scanner-container.speaking .holo-container::before,
-.jarvis-scanner-container.speaking .holo-container::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    border: 2.5px solid var(--good);
-    box-shadow: 0 0 14px rgba(87, 224, 161, .8);
-    animation: speak-pulse 1.5s cubic-bezier(.2, .7, .3, 1) infinite;
-}
-.jarvis-scanner-container.speaking .holo-container::after { animation-delay: .75s; }
-@keyframes speak-pulse {
-    0% { transform: scale(.82); opacity: .95; }
-    100% { transform: scale(1.4); opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-    .jarvis-scanner-container.speaking .holo-container::before,
-    .jarvis-scanner-container.speaking .holo-container::after { animation: none; opacity: .5; }
-}
-html[data-fx="off"] .jarvis-scanner-container.speaking .holo-container::before,
-html[data-fx="off"] .jarvis-scanner-container.speaking .holo-container::after { animation: none; opacity: .5; }
+.holo-svg .ring-a { stroke: var(--cyan); }
+.holo-svg .ring-b { stroke: var(--cyan); }
 
 @keyframes spin {
     from { transform: rotate(0deg); }
@@ -206,166 +180,17 @@ html[data-fx="off"] .jarvis-scanner-container.speaking .holo-container::after { 
     to { transform: rotate(0deg); }
 }
 
-/* --- Jarvis-Kugel (eigenes GIF), ersetzt den vorherigen Arc-Reaktor --- */
-.jarvis-orb {
-    width: 290px;
-    height: 290px;
-    border-radius: 50%;
-    object-fit: cover;
-    z-index: 2;
-    will-change: transform;
-    backface-visibility: hidden;
-}
-.jarvis-scanner-container.recording .jarvis-orb,
-.jarvis-scanner-container.speaking .jarvis-orb {
-    animation: reactor-pulse 0.85s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-    .jarvis-scanner-container.recording .jarvis-orb,
-    .jarvis-scanner-container.speaking .jarvis-orb { animation: none; }
-}
-html[data-fx="off"] .jarvis-orb { animation: none !important; }
-@keyframes reactor-pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.04); }
+/* Status-Text unter der Kugel */
+#statusMessage, #recordText {
+    font-family: var(--font-orbitron) !important;
+    letter-spacing: 0.15em !important;
+    color: var(--cyan) !important;
+    text-shadow: 0 0 8px var(--cyan-glow);
 }
 
-.jarvis-scanner-container.speaking #waveform span {
-    background: var(--good) !important;
-}
-
-/* Kleine, technisch wirkende Messwert-Anzeigen in den vier Ecken um den Ring - rein dekorativ */
-.hud-readout {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-family: var(--font-mono);
-    font-size: 9px;
-    letter-spacing: .06em;
-    color: var(--cyan);
-    opacity: .55;
-    text-shadow: 0 0 6px rgba(73, 215, 255, .5);
-    white-space: nowrap;
-    pointer-events: none;
-}
-.hud-ro-tl { top: 6px; left: -6px; }
-.hud-ro-tr { top: 6px; right: -6px; }
-.hud-ro-bl { bottom: 30px; left: -10px; }
-.hud-ro-br { bottom: 30px; right: -10px; }
-.hud-ro-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--good); box-shadow: 0 0 5px var(--good); flex: none; }
-.hud-ro-bar { display: inline-block; width: 26px; height: 4px; border: 1px solid rgba(73, 215, 255, .5); border-radius: 2px; overflow: hidden; vertical-align: middle; }
-.hud-ro-bar i { display: block; height: 100%; background: var(--cyan); box-shadow: 0 0 4px var(--cyan); }
-@media (max-width: 380px) {
-    .hud-readout { font-size: 8px; }
-    .hud-ro-tl, .hud-ro-tr { top: 2px; }
-}
-/* Bei ausgeschalteten Effekten (Einstellungen -> Aus) lieber ganz weg als halbfertig stehen zu bleiben */
-html[data-fx="off"] .hud-readout { display: none; }
-
-#waveform {
-    display: flex;
-    align-items: flex-end;
-    gap: 3px;
-    height: 18px;
-    margin-top: 14px;
-    opacity: .35;
-}
-
-#waveform span {
-    width: 3px;
-    background: var(--cyan);
-    border-radius: 2px;
-    height: 4px;
-    transition: height .12s ease;
-}
-
-#waveform.active {
-    opacity: 1;
-}
-
-/* Upgrade 2: Reaktive Wellenform & Organische Frequenz-Animation */
-.jarvis-scanner-container.speaking #waveform span,
-#waveform.speaking span {
-    animation: waveformPulse 0.4s infinite alternate ease-in-out;
-}
-#waveform.speaking span:nth-child(1) { animation-delay: 0.05s; }
-#waveform.speaking span:nth-child(2) { animation-delay: 0.15s; }
-#waveform.speaking span:nth-child(3) { animation-delay: 0.25s; }
-#waveform.speaking span:nth-child(4) { animation-delay: 0.10s; }
-#waveform.speaking span:nth-child(5) { animation-delay: 0.30s; }
-#waveform.speaking span:nth-child(6) { animation-delay: 0.20s; }
-#waveform.speaking span:nth-child(7) { animation-delay: 0.08s; }
-
-@keyframes waveformPulse {
-    0% { height: 4px; }
-    100% { height: 18px; }
-}
-
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bg-deep); }
-::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 3px; }
-
-.app-shell { position: relative; z-index: 1; }
-
-/* --- Hintergrund: feines Raster, leichter Rand-Schatten, Partikel-Canvas --- */
-#grid-canvas {
-    overflow: hidden;
-}
-
-/* Raster driftet langsam (nur transform, daher flüssig und akkuschonend) */
-#grid-canvas::before {
-    content: '';
-    position: absolute;
-    inset: -64px;
-    background-image:
-        linear-gradient(var(--grid-line) 1px, transparent 1px),
-        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
-        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><path d='M20 20 H70 V60 H140 M140 20 V90 H100 V140' fill='none' stroke='%2349d7ff' stroke-width='1.2' opacity='0.4'/><circle cx='20' cy='20' r='3' fill='%2349d7ff' opacity='0.5'/><circle cx='140' cy='90' r='3' fill='%2349d7ff' opacity='0.5'/><circle cx='100' cy='140' r='3' fill='%2349d7ff' opacity='0.5'/></svg>");
-    background-size: 64px 64px, 64px 64px, 320px 320px;
-    animation: grid-drift 16s linear infinite;
-}
-
-@keyframes grid-drift {
-    from { transform: translate(0, 0); }
-    to   { transform: translate(64px, 64px); }
-}
-
-/* Matrix-Regen liegt unter den Partikeln, nur in der Stufe "Voll" sichtbar (matrix.js schaltet sie an/aus) */
-#matrix-rain {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-}
-
-/* Partikel liegen über dem Raster */
-#bg-particles {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-}
-
-/* Dunkler Rand, damit der Blick in der Mitte beim Ring bleibt */
-#grid-canvas::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(2, 5, 10, .8) 100%);
-    pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    #grid-canvas::before { animation: none; }
-}
-
-/* --- Fenster (panels.js): fliegen ins Bild, Scan-Linie, Zeilen laufen nacheinander ein --- */
-/* Solange ein Fenster offen ist, stehen die Ring-Animationen dahinter still (weniger Arbeit für die Grafik, kein Flackern) */
-body.panel-open .holo-svg,
-body.panel-open #waveform span,
-body.panel-open .animate-pulse { animation-play-state: paused !important; }
-
+/* ============================================================
+   FENSTER / PANELS (FLY-IN MODALS)
+   ============================================================ */
 #panelLayer {
     position: fixed;
     inset: 0;
@@ -375,14 +200,13 @@ body.panel-open .animate-pulse { animation-play-state: paused !important; }
     justify-content: center;
     padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px));
 }
-#panelLayer.hidden { display: none; }
 
 #panelBackdrop {
     position: absolute;
     inset: 0;
-    background: rgba(2, 5, 10, .6);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
+    background: rgba(1, 4, 8, 0.75);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
 }
 
 #panel {
@@ -394,243 +218,25 @@ body.panel-open .animate-pulse { animation-play-state: paused !important; }
     flex-direction: column;
     overflow: hidden;
     border-radius: 14px;
-    border: 1px solid var(--hairline);
-    background: linear-gradient(180deg, rgba(10, 22, 33, .97), rgba(4, 9, 15, .98));
-    box-shadow: 0 0 34px rgba(73, 215, 255, .28), inset 0 0 22px rgba(73, 215, 255, .07);
-    transform-origin: 50% 100%;
+    border: 1px solid var(--cyan);
+    background: rgba(4, 14, 25, 0.95);
+    box-shadow: 0 0 30px rgba(0, 210, 255, 0.3), inset 0 0 15px rgba(0, 210, 255, 0.1);
 }
 
 .panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 16px 18px 12px;
-    border-bottom: 1px solid var(--hairline);
-    flex-shrink: 0;
-}
-.panel-close {
-    color: var(--cyan);
-    border: 1px solid var(--hairline);
-    border-radius: 8px;
-    width: 38px;
-    height: 38px;
-    font-size: 16px;
-    background: rgba(0, 0, 0, .35);
+    padding: 16px;
+    border-bottom: 1px solid var(--border-cyan);
 }
 
-#panelBody {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px));
-    flex: 1 1 auto;
-}
-#panelBody > section { padding: 0; }   /* verschobene Bereiche (Listen, Gedächtnis ...) */
-
-/* Scan-Linie: ein Rahmen in Fenstergröße, dessen unterer Rand leuchtet. Er wird per transform von oben nach unten geschoben. */
-.panel-scan {
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-    pointer-events: none;
-    opacity: 0;
-    transform: translateY(-100%);
-}
-.panel-scan::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
-    box-shadow: 0 0 16px 5px rgba(73, 215, 255, .55);
+.panel-header h2 {
+    font-family: var(--font-orbitron) !important;
+    color: var(--cyan) !important;
 }
 
-/* Öffnen: Backdrop blendet ein, das Fenster materialisiert sich an Ort und Stelle (kein Reinfliegen mehr) */
-#panelLayer.open #panelBackdrop { animation: panel-backdrop-in .35s ease both; }
-#panelLayer.open #panel { animation: panel-in .4s cubic-bezier(.16, 1, .3, 1) both; }
-#panelLayer.open .panel-scan { animation: panel-scan .95s cubic-bezier(.4, 0, .2, 1) .1s both; }
-#panelBody.animate .panel-row {
-    animation: panel-row-in .55s cubic-bezier(.16, 1, .3, 1) both;
-    animation-delay: calc(var(--i, 0) * 70ms + 300ms);
-}
-
-/* Schließen: schnell wieder weg */
-#panelLayer.closing #panelBackdrop { animation: panel-backdrop-out .3s ease both; }
-#panelLayer.closing #panel { animation: panel-out .25s cubic-bezier(.5, 0, .75, 0) both; }
-
-@keyframes panel-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes panel-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
-@keyframes panel-in {
-    0%   { opacity: 0; transform: scale(.94); }
-    60%  { opacity: 1; }
-    100% { opacity: 1; transform: scale(1); }
-}
-@keyframes panel-out {
-    to { opacity: 0; transform: scale(.96); }
-}
-@keyframes panel-scan {
-    0%   { transform: translateY(-100%); opacity: 1; }
-    88%  { opacity: 1; }
-    100% { transform: translateY(0); opacity: 0; }
-}
-@keyframes panel-row-in {
-    from { opacity: 0; transform: translateX(-26px); }
-    to   { opacity: 1; transform: none; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    #panelLayer.open #panel,
-    #panelLayer.open #panelBackdrop,
-    #panelLayer.closing #panel,
-    #panelLayer.closing #panelBackdrop,
-    #panelBody.animate .panel-row { animation: panel-fade .2s ease both; }
-    #panelLayer.open .panel-scan { animation: none; }
-}
-@keyframes panel-fade { from { opacity: 0; } to { opacity: 1; } }
-
-/* Übersichtszeile: Text darf über zwei Zeilen laufen, danach wird abgeschnitten */
-.clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-/* ============================================================
-   Effekt-Stufen (Einstellungen → Effekte), gesetzt als html[data-fx]
-   voll  = alles wie bisher
-   calm  = ruhig (Standard): keine Unschärfe, keine 3D-Kippung, keine Aufdeck-Animation, ruhigerer Hintergrund
-   off   = aus: zusätzlich stehen Ringe und Hintergrund still
-   Unschärfe-Filter über bewegten Flächen sind die häufigste Ursache für Flackern auf Handys.
-   ============================================================ */
-html[data-fx="calm"] .backdrop-blur,
-html[data-fx="off"] .backdrop-blur,
-html[data-fx="calm"] .hud-panel,
-html[data-fx="off"] .hud-panel,
-html[data-fx="calm"] #panelBackdrop,
-html[data-fx="off"] #panelBackdrop {
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-}
-html[data-fx="calm"] #panelBackdrop,
-html[data-fx="off"] #panelBackdrop { background: rgba(2, 5, 10, .82); }
-
-html[data-fx="calm"] #grid-canvas::before,
-html[data-fx="off"] #grid-canvas::before { animation: none; }
-
-html[data-fx="calm"] #panelLayer.open #panel { animation-name: panel-in-calm; animation-duration: .3s; }
-html[data-fx="calm"] #panelLayer.closing #panel { animation-name: panel-out-calm; animation-duration: .2s; }
-html[data-fx="calm"] #panelBody.animate .panel-row { animation-name: panel-row-in-calm; animation-duration: .35s; }
-@keyframes panel-in-calm  { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
-@keyframes panel-out-calm { to { opacity: 0; transform: scale(.98); } }
-@keyframes panel-row-in-calm { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-
-html[data-fx="off"] #panelLayer.open #panel,
-html[data-fx="off"] #panelLayer.closing #panel,
-html[data-fx="off"] #panelBody.animate .panel-row { animation: panel-fade .15s ease both; }
-html[data-fx="off"] .panel-scan,
-html[data-fx="calm"] .panel-scan { display: none; }
-html[data-fx="off"] .holo-svg,
-html[data-fx="off"] #waveform.speaking span,
-html[data-fx="off"] .jarvis-scanner-container.speaking #waveform span { animation: none !important; }
-html[data-fx="off"] #bg-particles,
-html[data-fx="off"] .scanline-overlay { display: none; }
-
-/* Ebenen vorab anlegen, damit die Grafik das Fenster nur noch verschiebt und nicht neu zeichnen muss */
-#panelLayer.open #panel,
-#panelLayer.closing #panel { will-change: transform, opacity; backface-visibility: hidden; }
-#panelLayer.open #panelBackdrop,
-#panelLayer.closing #panelBackdrop { will-change: opacity; }
-#panelBackdrop { touch-action: none; }
-#panelBody { overscroll-behavior: contain; }
-
-/* ============================================================
-   Flacker-Test (Einstellungen → 🔧 Flacker-Test): einzelne Effekte ausschalten, gesetzt als html.nofx-...
-   ============================================================ */
-html.nofx-scan .scanline-overlay { display: none; }
-html.nofx-glow *, html.nofx-glow *::before, html.nofx-glow *::after {
-    box-shadow: none !important;
-    text-shadow: none !important;
-    filter: none !important;
-}
-html.nofx-bg #bg-particles,
-html.nofx-bg #matrix-rain,
-html.nofx-bg #grid-canvas::before,
-html.nofx-bg #grid-canvas::after { display: none; }
-html.nofx-pulse .animate-pulse,
-html.nofx-pulse #waveform span { animation: none !important; }
-html.nofx-motion *, html.nofx-motion *::before, html.nofx-motion *::after {
-    animation: none !important;
-    transition: none !important;
-}
-
-/* Stufe "aus": Ringe stehen still (bleiben an ihrer Stelle stehen, springen also nicht zurück) */
-html[data-fx="off"] .holo-svg { animation-play-state: paused !important; }
-
-/* ============================================================
-   HUD-Zierrahmen: Ecken-Klammern und kleine Anzeigen im Hintergrund,
-   angelehnt an klassische J.A.R.V.I.S.-Desktop-HUDs. Rein dekorativ
-   bzw. leichte Text-Updates - keine schweren Animationen, kein Risiko fürs Flackern.
-   ============================================================ */
-.hud-decor {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    overflow: hidden;
-}
-.app-shell { position: relative; z-index: 1; }
-
-.hud-corner {
-    position: absolute;
-    width: 46px;
-    height: 46px;
-    border: 1px solid var(--hairline);
-    opacity: .55;
-}
-.hud-corner-tl { top: 14px; left: 14px; border-right: none; border-bottom: none; }
-.hud-corner-tr { top: 14px; right: 14px; border-left: none; border-bottom: none; }
-.hud-corner-bl { bottom: 14px; left: 14px; border-right: none; border-top: none; }
-.hud-corner-br { bottom: 14px; right: 14px; border-left: none; border-top: none; }
-
-.hud-badge {
-    position: absolute;
-    top: 16px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: .08em;
-    color: var(--cyan);
-    opacity: .8;
-}
-.hud-badge-tl { left: 24px; }
-.hud-badge-tr { right: 24px; flex-direction: column; align-items: flex-end; gap: 1px; }
-.hud-badge-sub { color: var(--muted); }
-.hud-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--good);
-    box-shadow: 0 0 6px var(--good);
-    animation: hud-dot-pulse 2.4s ease-in-out infinite;
-}
-@keyframes hud-dot-pulse {
-    0%, 100% { opacity: .4; }
-    50% { opacity: 1; }
-}
-
-/* In der Stufe "Aus" bleibt die Anzeige, aber ohne Puls-Animation */
-html[data-fx="off"] .hud-dot { animation: none; opacity: 1; }
-/* Während ein Fenster offen ist, nicht ablenken */
-body.panel-open .hud-decor { opacity: 0; transition: opacity .2s ease; }
-.hud-decor { transition: opacity .2s ease; }
-
-@media (max-width: 380px) {
-    .hud-corner { width: 30px; height: 30px; }
-    .hud-badge { font-size: 9px; }
-}
-
+/* Scrollbar Anpassung */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 2px; }
