@@ -3,6 +3,8 @@
    Reine Optik, per <canvas id="jarvisSphere"> in index.html, unabhängig von den anderen Skripten.
    Farbe: Blau in Ruhe/beim Zuhören, Grün während Jarvis spricht - liest dafür nur die vorhandenen
    CSS-Klassen "speaking"/"recording" am Element #recordBtn mit, die voice.js sowieso schon setzt.
+   Pausiert außerdem, sobald ein Panel (z.B. die Weltkugel) offen ist - siehe pauseJarvisSphere()/
+   resumeJarvisSphere() unten, aufgerufen von panels.js (openPanel/closePanel).
    ============================================================ */
 (function () {
     function start() {
@@ -68,15 +70,25 @@
         let angle = 0;
         let time = 0;
         let running = true;
+        let panelPaused = false;   // true, solange ein Panel (Termine, Welt, Karte ...) offen ist
         const BREATHE_SPEED = 0.02;     // wie schnell sie "atmet" (auseinander- und wieder zusammenzieht)
         const BREATHE_AMOUNT = 0.04;    // wie stark - 0.04 = bis zu 4% größer/kleiner als die Grundgröße (dezentes Pulsieren statt starkem Pump)
 
+        function isRunning() {
+            return running && !panelPaused;
+        }
+
         // Pausiert, sobald die Seite/Karte nicht sichtbar ist (Akku sparen) - reagiert dieselbe Grundidee wie die
         // anderen Animationen in der App, die bei ausgeblendeten Fenstern anhalten.
-        document.addEventListener('visibilitychange', () => { running = !document.hidden; if (running) requestAnimationFrame(frame); });
+        document.addEventListener('visibilitychange', () => { running = !document.hidden; if (isRunning()) requestAnimationFrame(frame); });
+
+        // Von panels.js aufgerufen: Panel offen -> Kugel anhalten (spart Rechenzeit, verhindert Ruckeln bei anderen
+        // Animationen wie der Weltkugel), Panel geschlossen -> Kugel läuft weiter.
+        window.pauseJarvisSphere = function () { panelPaused = true; };
+        window.resumeJarvisSphere = function () { const was = panelPaused; panelPaused = false; if (was) requestAnimationFrame(frame); };
 
         function frame() {
-            if (!running) return;
+            if (!isRunning()) return;
             angle += ROTATE_SPEED;
             time += 1;
             const cosA = Math.cos(angle), sinA = Math.sin(angle);

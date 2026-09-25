@@ -200,7 +200,7 @@ function buildMenuPanel() {
         ['⚙️', 'Einstellungen', 'Konto, Stimme, Kontakte', "openPanel('settings')"]
     ];
     const html = '<div class="font-mono">' + entries.map(([icon, name, sub, action], i) =>
-        `<button class="panel-row w-full flex items-center gap-3 text-left bg-black/60 border border-[rgba(93,209,255,.2)] rounded-lg p-3 mb-2" style="--i:${i}" onclick="playUiBeep(); ${action}">` +
+        `<button class="panel-row w-full flex items-center gap-3 text-left bg-black/60 border border-[rgba(73,215,255,.2)] rounded-lg p-3 mb-2" style="--i:${i}" onclick="playUiBeep(); ${action}">` +
         `<span class="text-2xl">${icon}</span><span class="flex-1"><b class="block text-[#49d7ff] text-sm">${name}</b><span class="text-xs text-slate-400">${sub}</span></span><span class="text-[#49d7ff]">›</span></button>`
     ).join('') + '</div>';
     return { title: PANEL_TITLES.menu, html };
@@ -293,6 +293,7 @@ function openPanel(name, options = {}) {
     layer.classList.add('open');
     layer.setAttribute('aria-hidden', 'false');
     document.body.classList.add('panel-open');
+    if (typeof window.pauseJarvisSphere === 'function') window.pauseJarvisSphere();
     if (typeof playPanelSound === 'function') playPanelSound(true);
     if (typeof updateTerminalStream === 'function') updateTerminalStream(`PANEL_OPEN: ${name.toUpperCase()}`);
 
@@ -326,6 +327,7 @@ function closePanel() {
         panelClosing = false;
         panelLastHtml = '';
         document.body.classList.remove('panel-open');
+        if (typeof window.resumeJarvisSphere === 'function') window.resumeJarvisSphere();
         if (typeof updateTerminalStream === 'function') updateTerminalStream('PANEL_CLOSED');
     }, PANEL_CLOSE_MS);
     return true;
