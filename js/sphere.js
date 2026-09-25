@@ -54,6 +54,17 @@
             return 'idle';
         }
 
+        // Welche Punkte verbunden werden, steht schon vorher fest (ändert sich durch Drehen/Atmen nicht,
+        // weil beides die ganze Kugel gleichmäßig bewegt) - das spart auf jedem Bild ~4000 Abstandsberechnungen.
+        const links = [];
+        for (let i = 0; i < POINT_COUNT; i++) {
+            for (let j = i + 1; j < POINT_COUNT; j++) {
+                const dx = points[i].x - points[j].x, dy = points[i].y - points[j].y, dz = points[i].z - points[j].z;
+                const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                if (d < LINK_DIST) links.push([i, j, 1 - d / LINK_DIST]);
+            }
+        }
+
         let angle = 0;
         let time = 0;
         let running = true;
@@ -82,25 +93,20 @@
 
             // Weiches Neon-Schimmern um die ganze Kugel (CSS-Glow auf dem <canvas> selbst, güns­tiger als
             // ein Schatten je Linie/Punkt und zieht die Farbe automatisch mit, wenn sie zwischen Blau/Grün wechselt)
-            canvas.style.filter = `drop-shadow(0 0 9px rgba(${rgb},.6)) drop-shadow(0 0 22px rgba(${rgb},.3))`;
+            canvas.style.filter = `drop-shadow(0 0 6px rgba(${rgb},.9)) drop-shadow(0 0 16px rgba(${rgb},.7)) drop-shadow(0 0 34px rgba(${rgb},.4))`;
 
             ctx.clearRect(0, 0, SIZE, SIZE);
 
             ctx.lineWidth = 1;
-            for (let i = 0; i < POINT_COUNT; i++) {
-                for (let j = i + 1; j < POINT_COUNT; j++) {
-                    const dx = points[i].x - points[j].x, dy = points[i].y - points[j].y, dz = points[i].z - points[j].z;
-                    const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                    if (d < LINK_DIST) {
-                        const a = projected[i], b = projected[j];
-                        const opacity = (1 - d / LINK_DIST) * 0.5 * ((a.scale + b.scale) / 2);
-                        ctx.strokeStyle = `rgba(${rgb},${opacity.toFixed(3)})`;
-                        ctx.beginPath();
-                        ctx.moveTo(a.sx, a.sy);
-                        ctx.lineTo(b.sx, b.sy);
-                        ctx.stroke();
-                    }
-                }
+            for (let k = 0; k < links.length; k++) {
+                const [i, j, closeness] = links[k];
+                const a = projected[i], b = projected[j];
+                const opacity = closeness * 0.5 * ((a.scale + b.scale) / 2);
+                ctx.strokeStyle = `rgba(${rgb},${opacity.toFixed(3)})`;
+                ctx.beginPath();
+                ctx.moveTo(a.sx, a.sy);
+                ctx.lineTo(b.sx, b.sy);
+                ctx.stroke();
             }
 
             projected.forEach(p => {
