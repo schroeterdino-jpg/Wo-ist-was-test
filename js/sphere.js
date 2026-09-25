@@ -68,8 +68,8 @@
         let angle = 0;
         let time = 0;
         let running = true;
-        const BREATHE_SPEED = 0.028;    // wie schnell sie "atmet" (auseinander- und wieder zusammenzieht)
-        const BREATHE_AMOUNT = 0.16;    // wie stark - 0.16 = bis zu 16% größer/kleiner als die Grundgröße
+        const BREATHE_SPEED = 0.02;     // wie schnell sie "atmet" (auseinander- und wieder zusammenzieht)
+        const BREATHE_AMOUNT = 0.04;    // wie stark - 0.04 = bis zu 4% größer/kleiner als die Grundgröße (dezentes Pulsieren statt starkem Pump)
 
         // Pausiert, sobald die Seite/Karte nicht sichtbar ist (Akku sparen) - reagiert dieselbe Grundidee wie die
         // anderen Animationen in der App, die bei ausgeblendeten Fenstern anhalten.
