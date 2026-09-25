@@ -87,7 +87,7 @@
         <main class="container mx-auto p-4 max-w-md flex-grow flex flex-col space-y-4">
 
             <section id="sec-speak" class="flex flex-col items-center justify-between space-y-4 my-auto py-2">
-                
+
                 <!-- Schlanke Übersicht: Tipp links öffnet die Termine, Tipp rechts die Erinnerungen -->
                 <div id="overviewLine" class="w-full flex items-stretch gap-2 font-mono text-xs">
                     <button onclick="playUiBeep(); overviewTap()" class="flex-1 min-w-0 text-left px-4 py-2.5 rounded-xl bg-[#0a1621]/80 backdrop-blur border border-[rgba(93,209,255,.25)] border-glow-cyan">
@@ -102,78 +102,32 @@
                         <div id="reactor-wrap">
                             <div class="holo-container">
                                 <!-- Die zwei Ringe sind Vektorgrafiken: Sie werden einmal gezeichnet und dann nur noch gedreht (kein Flimmern) -->
+                                <!-- Ring C "Hologramm": Sechseck-Kontur statt Kreis, dazu feine Eckklammern statt Strichskala -->
                                 <svg class="holo-svg holo-svg-1" viewBox="0 0 300 300" aria-hidden="true">
-                                    <circle class="ring-a glow" cx="150" cy="150" r="148" stroke-width="7" stroke-dasharray="9.1 7.5"/>
-                                    <circle class="ring-a" cx="150" cy="150" r="148" stroke-width="2" stroke-dasharray="9.1 7.5"/>
+                                    <polygon class="ring-a glow" points="298,150 224,278.2 76,278.2 2,150 76,21.8 224,21.8" stroke-width="7" stroke-dasharray="9.1 7.5"/>
+                                    <polygon class="ring-a" points="298,150 224,278.2 76,278.2 2,150 76,21.8 224,21.8" stroke-width="2" stroke-dasharray="9.1 7.5"/>
                                 </svg>
                                 <svg class="holo-svg holo-svg-ticks" viewBox="0 0 330 330" aria-hidden="true">
-                                    <line x1="301.0" y1="165.0" x2="313.0" y2="165.0" class="tick-major"/>
-                                    <line x1="300.3" y1="179.2" x2="312.2" y2="180.5" class="tick-minor"/>
-                                    <line x1="298.0" y1="193.3" x2="309.8" y2="195.8" class="tick-minor"/>
-                                    <line x1="294.3" y1="207.0" x2="305.8" y2="210.7" class="tick-minor"/>
-                                    <line x1="289.2" y1="220.3" x2="300.2" y2="225.2" class="tick-minor"/>
-                                    <line x1="282.8" y1="233.0" x2="293.2" y2="239.0" class="tick-major"/>
-                                    <line x1="275.0" y1="244.9" x2="284.7" y2="252.0" class="tick-minor"/>
-                                    <line x1="266.1" y1="256.0" x2="275.0" y2="264.0" class="tick-minor"/>
-                                    <line x1="256.0" y1="266.1" x2="264.0" y2="275.0" class="tick-minor"/>
-                                    <line x1="244.9" y1="275.0" x2="252.0" y2="284.7" class="tick-minor"/>
-                                    <line x1="233.0" y1="282.8" x2="239.0" y2="293.2" class="tick-major"/>
-                                    <line x1="220.3" y1="289.2" x2="225.2" y2="300.2" class="tick-minor"/>
-                                    <line x1="207.0" y1="294.3" x2="210.7" y2="305.8" class="tick-minor"/>
-                                    <line x1="193.3" y1="298.0" x2="195.8" y2="309.8" class="tick-minor"/>
-                                    <line x1="179.2" y1="300.3" x2="180.5" y2="312.2" class="tick-minor"/>
-                                    <line x1="165.0" y1="301.0" x2="165.0" y2="313.0" class="tick-major"/>
-                                    <line x1="150.8" y1="300.3" x2="149.5" y2="312.2" class="tick-minor"/>
-                                    <line x1="136.7" y1="298.0" x2="134.2" y2="309.8" class="tick-minor"/>
-                                    <line x1="123.0" y1="294.3" x2="119.3" y2="305.8" class="tick-minor"/>
-                                    <line x1="109.7" y1="289.2" x2="104.8" y2="300.2" class="tick-minor"/>
-                                    <line x1="97.0" y1="282.8" x2="91.0" y2="293.2" class="tick-major"/>
-                                    <line x1="85.1" y1="275.0" x2="78.0" y2="284.7" class="tick-minor"/>
-                                    <line x1="74.0" y1="266.1" x2="66.0" y2="275.0" class="tick-minor"/>
-                                    <line x1="63.9" y1="256.0" x2="55.0" y2="264.0" class="tick-minor"/>
-                                    <line x1="55.0" y1="244.9" x2="45.3" y2="252.0" class="tick-minor"/>
-                                    <line x1="47.2" y1="233.0" x2="36.8" y2="239.0" class="tick-major"/>
-                                    <line x1="40.8" y1="220.3" x2="29.8" y2="225.2" class="tick-minor"/>
-                                    <line x1="35.7" y1="207.0" x2="24.2" y2="210.7" class="tick-minor"/>
-                                    <line x1="32.0" y1="193.3" x2="20.2" y2="195.8" class="tick-minor"/>
-                                    <line x1="29.7" y1="179.2" x2="17.8" y2="180.5" class="tick-minor"/>
-                                    <line x1="29.0" y1="165.0" x2="17.0" y2="165.0" class="tick-major"/>
-                                    <line x1="29.7" y1="150.8" x2="17.8" y2="149.5" class="tick-minor"/>
-                                    <line x1="32.0" y1="136.7" x2="20.2" y2="134.2" class="tick-minor"/>
-                                    <line x1="35.7" y1="123.0" x2="24.2" y2="119.3" class="tick-minor"/>
-                                    <line x1="40.8" y1="109.7" x2="29.8" y2="104.8" class="tick-minor"/>
-                                    <line x1="47.2" y1="97.0" x2="36.8" y2="91.0" class="tick-major"/>
-                                    <line x1="55.0" y1="85.1" x2="45.3" y2="78.0" class="tick-minor"/>
-                                    <line x1="63.9" y1="74.0" x2="55.0" y2="66.0" class="tick-minor"/>
-                                    <line x1="74.0" y1="63.9" x2="66.0" y2="55.0" class="tick-minor"/>
-                                    <line x1="85.1" y1="55.0" x2="78.0" y2="45.3" class="tick-minor"/>
-                                    <line x1="97.0" y1="47.2" x2="91.0" y2="36.8" class="tick-major"/>
-                                    <line x1="109.7" y1="40.8" x2="104.8" y2="29.8" class="tick-minor"/>
-                                    <line x1="123.0" y1="35.7" x2="119.3" y2="24.2" class="tick-minor"/>
-                                    <line x1="136.7" y1="32.0" x2="134.2" y2="20.2" class="tick-minor"/>
-                                    <line x1="150.8" y1="29.7" x2="149.5" y2="17.8" class="tick-minor"/>
-                                    <line x1="165.0" y1="29.0" x2="165.0" y2="17.0" class="tick-major"/>
-                                    <line x1="179.2" y1="29.7" x2="180.5" y2="17.8" class="tick-minor"/>
-                                    <line x1="193.3" y1="32.0" x2="195.8" y2="20.2" class="tick-minor"/>
-                                    <line x1="207.0" y1="35.7" x2="210.7" y2="24.2" class="tick-minor"/>
-                                    <line x1="220.3" y1="40.8" x2="225.2" y2="29.8" class="tick-minor"/>
-                                    <line x1="233.0" y1="47.2" x2="239.0" y2="36.8" class="tick-major"/>
-                                    <line x1="244.9" y1="55.0" x2="252.0" y2="45.3" class="tick-minor"/>
-                                    <line x1="256.0" y1="63.9" x2="264.0" y2="55.0" class="tick-minor"/>
-                                    <line x1="266.1" y1="74.0" x2="275.0" y2="66.0" class="tick-minor"/>
-                                    <line x1="275.0" y1="85.1" x2="284.7" y2="78.0" class="tick-minor"/>
-                                    <line x1="282.8" y1="97.0" x2="293.2" y2="91.0" class="tick-major"/>
-                                    <line x1="289.2" y1="109.7" x2="300.2" y2="104.8" class="tick-minor"/>
-                                    <line x1="294.3" y1="123.0" x2="305.8" y2="119.3" class="tick-minor"/>
-                                    <line x1="298.0" y1="136.7" x2="309.8" y2="134.2" class="tick-minor"/>
-                                    <line x1="300.3" y1="150.8" x2="312.2" y2="149.5" class="tick-minor"/>
+                                    <!-- 6 feine Eckklammern an den Sechseck-Spitzen, statt der vorherigen Strichskala -->
+                                    <g class="hex-bracket tick-major" transform="rotate(0 165 165)"><path d="M312,153 L326,165 L312,177"/></g>
+                                    <g class="hex-bracket tick-major" transform="rotate(60 165 165)"><path d="M312,153 L326,165 L312,177"/></g>
+                                    <g class="hex-bracket tick-major" transform="rotate(120 165 165)"><path d="M312,153 L326,165 L312,177"/></g>
+                                    <g class="hex-bracket tick-major" transform="rotate(180 165 165)"><path d="M312,153 L326,165 L312,177"/></g>
+                                    <g class="hex-bracket tick-major" transform="rotate(240 165 165)"><path d="M312,153 L326,165 L312,177"/></g>
+                                    <g class="hex-bracket tick-major" transform="rotate(300 165 165)"><path d="M312,153 L326,165 L312,177"/></g>
+                                    <g class="hex-bracket tick-minor" transform="rotate(30 165 165)"><path d="M316,159 L326,165 L316,171"/></g>
+                                    <g class="hex-bracket tick-minor" transform="rotate(90 165 165)"><path d="M316,159 L326,165 L316,171"/></g>
+                                    <g class="hex-bracket tick-minor" transform="rotate(150 165 165)"><path d="M316,159 L326,165 L316,171"/></g>
+                                    <g class="hex-bracket tick-minor" transform="rotate(210 165 165)"><path d="M316,159 L326,165 L316,171"/></g>
+                                    <g class="hex-bracket tick-minor" transform="rotate(270 165 165)"><path d="M316,159 L326,165 L316,171"/></g>
+                                    <g class="hex-bracket tick-minor" transform="rotate(330 165 165)"><path d="M316,159 L326,165 L316,171"/></g>
                                 </svg>
                                 <svg class="holo-svg holo-svg-2" viewBox="0 0 315 315" aria-hidden="true">
-                                    <circle class="ring-base" cx="157.5" cy="157.5" r="156" stroke-width="1"/>
-                                    <path class="ring-a glow" d="M 1.5 157.5 A 156 156 0 0 1 313.5 157.5" stroke-width="7"/>
-                                    <path class="ring-b glow" d="M 313.5 157.5 A 156 156 0 0 1 1.5 157.5" stroke-width="7"/>
-                                    <path class="ring-a" d="M 1.5 157.5 A 156 156 0 0 1 313.5 157.5" stroke-width="2"/>
-                                    <path class="ring-b" d="M 313.5 157.5 A 156 156 0 0 1 1.5 157.5" stroke-width="2"/>
+                                    <polygon class="ring-base" points="307.5,157.5 232.5,287.4 82.5,287.4 7.5,157.5 82.5,27.6 232.5,27.6" stroke-width="1"/>
+                                    <path class="ring-a glow" d="M7.5,157.5 L82.5,27.6 L232.5,27.6 L307.5,157.5" stroke-width="7"/>
+                                    <path class="ring-b glow" d="M307.5,157.5 L232.5,287.4 L82.5,287.4 L7.5,157.5" stroke-width="7"/>
+                                    <path class="ring-a" d="M7.5,157.5 L82.5,27.6 L232.5,27.6 L307.5,157.5" stroke-width="2"/>
+                                    <path class="ring-b" d="M307.5,157.5 L232.5,287.4 L82.5,287.4 L7.5,157.5" stroke-width="2"/>
                                 </svg>
                                 <img id="jarvisOrb" class="jarvis-orb" src="./jarvis-orb.gif" alt="J.A.R.V.I.S.">
                             </div>
@@ -253,7 +207,7 @@
                         <button onclick="playUiBeep(); clearAllMemory()" class="bg-cyan-950 hover:bg-cyan-900 border border-[rgba(93,209,255,.3)] text-[#49d7ff] px-2.5 py-1 rounded-lg text-xs font-bold uppercase font-mono">🗑️ Leeren</button>
                     </div>
                     <p class="text-xs text-[#5d7e91] font-mono">Erzähl mir beliebige Fakten, Orte oder Notizen (z.B. „Der Ersatzschlüssel hängt am Klemmbrett").</p>
-                    
+
                     <div class="flex flex-col gap-2 pt-1 font-mono">
                         <div class="flex gap-2">
                             <input type="text" id="manualMemoryKeyInput" placeholder="Begriff..." class="w-1/3 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-[#49d7ff]">
