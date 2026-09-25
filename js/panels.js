@@ -1201,7 +1201,7 @@ async function weltShowPlace(place) {
    in demselben Player wie die Live-Kameras ab (weltOpenLivePlayer), nur ohne den "· LIVE"-Zusatz. */
 async function weltTryNewsVideoFallback(place, token) {
     try {
-        const res = await apiFetch('/api/newsvideo?q=' + encodeURIComponent(place));
+        const res = await apiFetch('/api/youtubelive?type=news&q=' + encodeURIComponent(place));
         const d = await res.json().catch(() => ({}));
         const items = (res.ok && Array.isArray(d.items)) ? d.items.filter(i => /^[\w-]{11}$/.test(i.videoId || '')) : [];
         if (items.length && token === weltToken && isPanelOpen() && currentPanel.name === 'welt') {
