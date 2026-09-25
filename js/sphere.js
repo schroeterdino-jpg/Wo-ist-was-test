@@ -24,7 +24,9 @@
         canvas.style.height = SIZE + 'px';
         ctx.scale(DPR, DPR);
 
-        // Fibonacci-Kugel: verteilt die Punkte gleichmäßig über die Kugeloberfläche, ohne Häufung an den Polen
+        // Fibonacci-Kugel als Grundgerüst (gleichmäßige Verteilung), aber mit etwas Unschärfe/Versatz je Punkt,
+        // damit es wie ein organisches Punktenetz wirkt statt wie ein exaktes, geometrisches Gebilde.
+        const JITTER = 16;
         const points = [];
         const golden = Math.PI * (3 - Math.sqrt(5));
         for (let i = 0; i < POINT_COUNT; i++) {
@@ -32,9 +34,9 @@
             const r = Math.sqrt(Math.max(0, 1 - y * y));
             const theta = golden * i;
             points.push({
-                x: Math.cos(theta) * r * SPHERE_RADIUS,
-                y: y * SPHERE_RADIUS,
-                z: Math.sin(theta) * r * SPHERE_RADIUS
+                x: Math.cos(theta) * r * SPHERE_RADIUS + (Math.random() - 0.5) * JITTER,
+                y: y * SPHERE_RADIUS + (Math.random() - 0.5) * JITTER,
+                z: Math.sin(theta) * r * SPHERE_RADIUS + (Math.random() - 0.5) * JITTER
             });
         }
 
@@ -53,7 +55,10 @@
         }
 
         let angle = 0;
+        let time = 0;
         let running = true;
+        const BREATHE_SPEED = 0.028;    // wie schnell sie "atmet" (auseinander- und wieder zusammenzieht)
+        const BREATHE_AMOUNT = 0.16;    // wie stark - 0.16 = bis zu 16% größer/kleiner als die Grundgröße
 
         // Pausiert, sobald die Seite/Karte nicht sichtbar ist (Akku sparen) - reagiert dieselbe Grundidee wie die
         // anderen Animationen in der App, die bei ausgeblendeten Fenstern anhalten.
@@ -62,15 +67,22 @@
         function frame() {
             if (!running) return;
             angle += ROTATE_SPEED;
+            time += 1;
             const cosA = Math.cos(angle), sinA = Math.sin(angle);
+            const breathe = 1 + BREATHE_AMOUNT * Math.sin(time * BREATHE_SPEED);   // atmet gleichmäßig auf und ab
             const rgb = COLORS[currentColorKey()];
 
             const projected = points.map(p => {
-                const x = p.x * cosA - p.z * sinA;
-                const z = p.x * sinA + p.z * cosA;
+                const bx = p.x * breathe, by = p.y * breathe, bz = p.z * breathe;
+                const x = bx * cosA - bz * sinA;
+                const z = bx * sinA + bz * cosA;
                 const scale = FOCAL / (FOCAL + z + SPHERE_RADIUS);
-                return { sx: SIZE / 2 + x * scale, sy: SIZE / 2 + p.y * scale, z, scale };
+                return { sx: SIZE / 2 + x * scale, sy: SIZE / 2 + p.y * breathe * scale, z, scale };
             });
+
+            // Weiches Neon-Schimmern um die ganze Kugel (CSS-Glow auf dem <canvas> selbst, güns­tiger als
+            // ein Schatten je Linie/Punkt und zieht die Farbe automatisch mit, wenn sie zwischen Blau/Grün wechselt)
+            canvas.style.filter = `drop-shadow(0 0 9px rgba(${rgb},.6)) drop-shadow(0 0 22px rgba(${rgb},.3))`;
 
             ctx.clearRect(0, 0, SIZE, SIZE);
 
