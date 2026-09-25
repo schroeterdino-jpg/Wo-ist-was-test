@@ -1193,7 +1193,24 @@ async function weltShowPlace(place) {
     // Gibt es ein Video, startet es nach der Zusammenfassung (das Mikrofon bleibt währenddessen aus, sonst hört es das Video mit)
     const video = news && news.video && /^https:\/\//i.test(news.video.url || '') ? news.video : null;
     if (video) speak(spoken, () => { if (token === weltToken && isPanelOpen() && currentPanel.name === 'welt') weltPlayVideo(video, token); else continueConversation(); });
-    else speak(spoken, continueConversation);
+    // Tagesschau hat zu dem Ort kein eigenes Video (kommt oft vor) - als Rückfall ein YouTube-Nachrichtenvideo suchen
+    else speak(spoken, () => { if (token === weltToken && isPanelOpen() && currentPanel.name === 'welt') weltTryNewsVideoFallback(place, token); else continueConversation(); });
+}
+
+/* Rückfall, wenn Tagesschau kein Video zum Ort hat: sucht ein aktuelles YouTube-Nachrichtenvideo und spielt es
+   in demselben Player wie die Live-Kameras ab (weltOpenLivePlayer), nur ohne den "· LIVE"-Zusatz. */
+async function weltTryNewsVideoFallback(place, token) {
+    try {
+        const res = await apiFetch('/api/newsvideo?q=' + encodeURIComponent(place));
+        const d = await res.json().catch(() => ({}));
+        const items = (res.ok && Array.isArray(d.items)) ? d.items.filter(i => /^[\w-]{11}$/.test(i.videoId || '')) : [];
+        if (items.length && token === weltToken && isPanelOpen() && currentPanel.name === 'welt') {
+            const camObj = { title: `${place} · Nachrichtenvideo`, short: place, live: false, sources: items.map(i => ({ v: i.videoId, title: i.title })) };
+            weltOpenLivePlayer(camObj, 0, token);
+            return;
+        }
+    } catch (e) { /* dann eben kein Video */ }
+    if (token === weltToken && isPanelOpen() && currentPanel.name === 'welt') continueConversation();
 }
 
 /* Video-Einblick über der Weltkugel; nach dem Ende (oder Schließen) hört Jarvis wieder zu */
@@ -1432,7 +1449,8 @@ function weltOpenLivePlayer(cam, startIndex, token) {
     injectWeltStyles();
     const box = document.createElement('div');
     box.className = 'welt-video';
-    box.innerHTML = `<div class="welt-video-bar"><span class="live-title">${escapeHtml(cam.title)} · LIVE</span>` +
+    const liveSuffix = cam.live === false ? '' : ' · LIVE';
+    box.innerHTML = `<div class="welt-video-bar"><span class="live-title">${escapeHtml(cam.title)}${liveSuffix}</span>` +
         `<span class="btns"><button type="button" data-act="next" aria-label="Nächste Kamera">⏭</button><button type="button" data-act="close" aria-label="Schließen">✕</button></span></div>` +
         `<div class="live-frame"></div>`;
     wrap.appendChild(box);
@@ -1457,7 +1475,7 @@ function weltOpenLivePlayer(cam, startIndex, token) {
         const srcTitle = src.title ? String(src.title).slice(0, 60) : '';
         weltStatus(`${cam.title} · Kamera ${(i % cam.sources.length) + 1} von ${cam.sources.length}${srcTitle ? ': ' + srcTitle : ''}`);
         const titleEl = box.querySelector('.live-title');
-        if (titleEl) titleEl.textContent = `${srcTitle || cam.title} · LIVE`;
+        if (titleEl) titleEl.textContent = `${srcTitle || cam.title}${liveSuffix}`;
         const iframe = frame.querySelector('iframe');
         ensureYouTubeApi().then(() => {
             if (!stillActive() || !iframe) return;
