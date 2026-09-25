@@ -139,6 +139,27 @@ h1, h2, .jarvis-font {
 .holo-svg-ticks { width: 306px; height: 306px; animation: spin 140s linear infinite; }
 .holo-svg-3 { width: 322px; height: 322px; animation: spin-reverse 22s linear infinite; }
 .holo-svg-3 .ring-outer { stroke: var(--metal); opacity: .3; }
+
+/* Kleine Lichtpunkte, die dauerhaft um den Ring kreisen (unterschiedliche Bahnen und Geschwindigkeiten) */
+.holo-orbit { position: absolute; inset: 0; pointer-events: none; }
+.holo-orbit-a { animation: spin 9s linear infinite; }
+.holo-orbit-b { animation: spin-reverse 15s linear infinite; }
+.holo-orbit-c { animation: spin 24s linear infinite; }
+.holo-blip {
+    position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--cyan); box-shadow: 0 0 9px 2px rgba(73, 215, 255, .85);
+    transform: translate(-50%, -50%) translateY(-153px);
+}
+.holo-blip-amber {
+    width: 4.5px; height: 4.5px; background: var(--amber);
+    box-shadow: 0 0 8px 2px rgba(255, 154, 68, .85);
+    transform: translate(-50%, -50%) translateY(-168px);
+}
+.holo-blip-dim {
+    width: 3.5px; height: 3.5px; opacity: .55;
+    transform: translate(-50%, -50%) translateY(-144px);
+}
+html[data-fx="off"] .holo-orbit { animation-play-state: paused !important; }
 /* Sechseck-Eckklammern (Ring C "Hologramm") statt der vorherigen Strichskala */
 .holo-svg-ticks .hex-bracket path { fill: none; }
 .holo-svg-ticks .tick-minor path { stroke: var(--metal); opacity: .4; stroke-width: 1.4; }
@@ -151,6 +172,29 @@ h1, h2, .jarvis-font {
 .holo-svg .glow { opacity: .2; }
 .jarvis-scanner-container.recording .holo-svg .glow,
 .jarvis-scanner-container.speaking .holo-svg .glow { opacity: .45; }
+
+/* Deutlicher Puls, solange Jarvis spricht: zwei versetzte, auslaufende Ringe um die Kugel - nicht zu übersehen */
+.jarvis-scanner-container.speaking .holo-container::before,
+.jarvis-scanner-container.speaking .holo-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2.5px solid var(--good);
+    box-shadow: 0 0 14px rgba(87, 224, 161, .8);
+    animation: speak-pulse 1.5s cubic-bezier(.2, .7, .3, 1) infinite;
+}
+.jarvis-scanner-container.speaking .holo-container::after { animation-delay: .75s; }
+@keyframes speak-pulse {
+    0% { transform: scale(.82); opacity: .95; }
+    100% { transform: scale(1.4); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .jarvis-scanner-container.speaking .holo-container::before,
+    .jarvis-scanner-container.speaking .holo-container::after { animation: none; opacity: .5; }
+}
+html[data-fx="off"] .jarvis-scanner-container.speaking .holo-container::before,
+html[data-fx="off"] .jarvis-scanner-container.speaking .holo-container::after { animation: none; opacity: .5; }
 
 @keyframes spin {
     from { transform: rotate(0deg); }
