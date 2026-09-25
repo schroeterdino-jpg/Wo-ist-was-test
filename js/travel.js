@@ -434,7 +434,12 @@ async function bahnAuskunft(opts) {
     const params = new URLSearchParams({ from: fromText, to: toText });
     if (when) params.set(isArrival ? 'arrival' : 'departure', when.toISOString());
 
-    const mapsLink = () => bahnMapsLink(toText, fromText, when, isArrival);
+    // Für erfolgreiche Verbindungen: ein normaler, offiziell unterstützter Maps-Link ohne Uhrzeit.
+    // Der Zeit-Trick (data=...!8j...) ist von Google nicht dokumentiert und wird von manchen Maps-Versionen
+    // ignoriert - Maps zeigt dann seine eigenen, aktuellen Verbindungen statt der hier gefundenen Zeit.
+    // Das sorgt für Verwirrung ("Jarvis sagt andere Zeiten als Maps"), darum hier bewusst ohne Zeitangabe:
+    // die Karte dient nur zum Ansehen der Route, die Zeit sagt allein Jarvis.
+    const mapsLink = () => buildMapsLink(toText, fromText, 'transit');
     const timeNote = when ? (isArrival ? `Ankunft bis ${bahnHHMM(when.toISOString())}` : `Abfahrt ab ${bahnHHMM(when.toISOString())}`) : 'mit aktuellen Zeiten';
     const fallbackCard = { icon: '🚆', title: 'Verbindung in Google Maps öffnen', subtitle: `Bus und Bahn, ${timeNote}`, href: mapsLink() };
     let d;
