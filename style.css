@@ -115,8 +115,8 @@ h1, h2, .jarvis-font {
 
 .holo-container {
     position: relative;
-    width: 290px;
-    height: 290px;
+    width: 306px;
+    height: 306px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -137,9 +137,11 @@ h1, h2, .jarvis-font {
 .holo-svg-1 { width: 280px; height: 280px; animation: spin 12s linear infinite; }
 .holo-svg-2 { width: 293px; height: 293px; animation: spin-reverse 8s linear infinite; }
 .holo-svg-ticks { width: 306px; height: 306px; animation: spin 140s linear infinite; }
-.holo-svg-ticks .tick-minor { stroke: var(--metal); opacity: .35; stroke-width: 1; }
-.holo-svg-ticks .tick-major { stroke: var(--metal); opacity: .65; stroke-width: 1.6; }
-.holo-svg circle, .holo-svg path { fill: none; }
+/* Sechseck-Eckklammern (Ring C "Hologramm") statt der vorherigen Strichskala */
+.holo-svg-ticks .hex-bracket path { fill: none; }
+.holo-svg-ticks .tick-minor path { stroke: var(--metal); opacity: .4; stroke-width: 1.4; }
+.holo-svg-ticks .tick-major path { stroke: var(--metal); opacity: .7; stroke-width: 2; }
+.holo-svg circle, .holo-svg path, .holo-svg polygon { fill: none; }
 .holo-svg .ring-a { stroke: var(--ring-a); }
 .holo-svg .ring-b { stroke: var(--ring-b); }
 .holo-svg .ring-a:not(.glow), .holo-svg .ring-b:not(.glow) { stroke: var(--metal); opacity: .8; }
@@ -160,8 +162,8 @@ h1, h2, .jarvis-font {
 
 /* --- Jarvis-Kugel (eigenes GIF), ersetzt den vorherigen Arc-Reaktor --- */
 .jarvis-orb {
-    width: 265px;
-    height: 265px;
+    width: 290px;
+    height: 290px;
     border-radius: 50%;
     object-fit: cover;
     z-index: 2;
