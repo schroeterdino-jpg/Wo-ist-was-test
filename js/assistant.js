@@ -482,6 +482,7 @@ async function sendToGroqSmart(text, opts = {}) {
 
     const now = new Date();
     const nowGermanIso = now.toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).replace(' ', 'T');
+    const nearbyFuelData = await tankFuerFrage(text);   // auch für die HUD-Karten unten genutzt
 
     const contextData = {
         heute_datum: nowGermanIso,
@@ -495,7 +496,7 @@ async function sendToGroqSmart(text, opts = {}) {
         arbeit: workAddress || null,
         protokolle: Object.values(protocols).map(p => ({ name: p.name, schritte: p.steps })),
         standort: liveLocation,
-        tankstellen: await tankFuerFrage(text),
+        tankstellen: nearbyFuelData,
         kalendersuche: calendarLookup,
         gedächtnis: memoryItems,
         kontakte: savedContacts,
@@ -795,6 +796,11 @@ async function sendToGroqSmart(text, opts = {}) {
             }
         }
 
+        // Spritpreise in der Nähe als HUD-Karten (nicht entlang einer Strecke): die drei günstigsten der erfragten Sorte, günstigste grün markiert
+        if (nearbyFuelData && Array.isArray(nearbyFuelData.stationen) && nearbyFuelData.stationen.length) {
+            buildNearbyFuelCards(nearbyFuelData.stationen, fuelTypeFromText(text)).forEach(c => ctx.cards.push(c));
+        }
+
         // Tankstellen entlang der Strecke (günstigste zuerst, mit Karten und Markierungen auf der Neon-Karte)
         let fuelReply = null;
         const fuelAction = actions.find(a => a.type === 'fuel_route');
@@ -916,7 +922,9 @@ function isBahnQuestion(text) {
     const t = String(text || '');
     const strong = /\b(bahnverbindung|zugverbindung|bahn|zug|züge|s-?bahn|u-?bahn|hvv|öpnv|regionalbahn|regionalexpress|nahverkehr)\b/i.test(t);
     const conn = /\bverbindung\b/i.test(t) && /\bvon\b.+\bnach\b/i.test(t);
-    if (!strong && !conn) return false;
+    // Bus und Straßenbahn: nur, wenn es um Fahren/Verbindungen geht (nicht z.B. "Bus" als Wort in einem anderen Zusammenhang)
+    const weak = /\b(bus|busse|busverbindung|buslinie|buslinien|straßenbahn|strassenbahn|tram)\b/i.test(t) && /(mit dem|mit der|nehmen|nimmt|fährt|fahren|verbindung|linie|\bvon\b.+\bnach\b)/i.test(t);
+    if (!strong && !conn && !weak) return false;
     if (/(internet|wlan|bluetooth|handy|netz|server|kalender)/i.test(t)) return false;
     return /\b(von|nach|zu|zum|zur|bei mir|hier|pünktlich|ankommen|sein)\b/i.test(t);
 }
@@ -977,6 +985,22 @@ function fuelLabelFor(dest) {
 /* --- Spritpreise (Tankerkönig über /api/tank) --- */
 let lastTankCache = null;   // { time, data } - hilft bei Folgefragen ohne Tank-Stichwort ("und die Classic?")
 const TANK_CACHE_MS = 15 * 60000;
+
+/* HUD-Karten für die drei günstigsten Tankstellen einer Sorte in der Nähe; die günstigste bekommt eine grüne Markierung */
+const NEARBY_FUEL_LABELS = { diesel: 'Diesel', e10: 'E10', e5: 'Super E5' };
+function buildNearbyFuelCards(stations, fuelType) {
+    const label = NEARBY_FUEL_LABELS[fuelType] || 'Diesel';
+    const rows = (stations || [])
+        .map(s => ({ name: s.name || 'Tankstelle', strasse: s.strasse || '', preis: s[fuelType] }))
+        .filter(r => typeof r.preis === 'number' && r.preis > 0);
+    rows.sort((a, b) => a.preis - b.preis);
+    return rows.slice(0, 3).map((r, i) => ({
+        icon: i === 0 ? '🟢' : '⛽',
+        title: `${i === 0 ? '🟢 GÜNSTIGSTER PREIS · ' : ''}${r.name} · ${r.preis.toFixed(3).replace('.', ',')} €`,
+        subtitle: `${label}${r.strasse ? ' · ' + r.strasse : ''}`,
+        href: typeof buildMapsLink === 'function' ? buildMapsLink(r.strasse || r.name, '', 'driving') : undefined
+    }));
+}
 
 async function tankFuerFrage(text) {
     if (isFuelRouteQuestion(text)) return null;   // Fragen "auf dem Weg zu ..." beantwortet die Strecken-Abfrage, keine Anfrage in der Nähe (Tankerkönig erlaubt nur etwa eine pro Minute)
