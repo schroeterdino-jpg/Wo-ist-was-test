@@ -158,15 +158,32 @@ function buildWhatsAppCard(action) {
     };
 }
 
+/* Straße MIT Hausnummer zu Koordinaten (Nominatim reverse, über den Server). Gibt null zurück, wenn es nicht klappt,
+   dann greift beim Parkplatz die bisherige, gröbere Adresse aus fetchUserLocationData() als Rückfalllösung. */
+async function reverseGeocodeWithHouseNumber(lat, lon) {
+    try {
+        const r = await apiFetch(`/api/reverse?lat=${lat}&lon=${lon}`);
+        if (!r.ok) return null;
+        const d = await r.json();
+        return (d && d.adresse) ? d.adresse : null;
+    } catch (e) {
+        return null;
+    }
+}
+
 /* --- Parkplatz --- */
 async function saveParkingSpot(note) {
     const loc = await fetchUserLocationData();
     if (!loc || loc.fehler || loc.latitude === undefined) {
         throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
     }
-    const street = loc.straßenAdresse ? loc.straßenAdresse + ', ' : '';
-    const place = loc.ort && loc.ort !== 'Koordinaten ermittelt' ? loc.ort : '';
-    const address = (street + place).trim() || `Koordinaten ${Number(loc.latitude).toFixed(5)}, ${Number(loc.longitude).toFixed(5)}`;
+    // Erst versuchen, Straße MIT Hausnummer zu bekommen; klappt das nicht, die gröbere Adresse aus fetchUserLocationData() nehmen
+    let address = await reverseGeocodeWithHouseNumber(loc.latitude, loc.longitude);
+    if (!address) {
+        const street = loc.straßenAdresse ? loc.straßenAdresse + ', ' : '';
+        const place = loc.ort && loc.ort !== 'Koordinaten ermittelt' ? loc.ort : '';
+        address = (street + place).trim() || `Koordinaten ${Number(loc.latitude).toFixed(5)}, ${Number(loc.longitude).toFixed(5)}`;
+    }
 
     parkingSpot = {
         lat: loc.latitude,
