@@ -1836,16 +1836,18 @@ function injectDashboardStyles() {
     st.id = 'dashStyles';
     st.textContent = `
 /* Hologramm-Kachel: transparent (der Hintergrund der App scheint durch), leuchtender Rand, Eckklammern wie ein HUD-Fenster */
-.dash-tile{position:relative;background:linear-gradient(160deg,rgba(10,25,38,.38),rgba(4,10,16,.5));backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);border:1px solid rgba(73,215,255,.5);border-radius:14px;padding:16px 16px 14px;margin-bottom:14px;box-shadow:0 0 24px rgba(73,215,255,.22),inset 0 0 20px rgba(73,215,255,.07);overflow:hidden}
+#dashTiles{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.dash-tile{position:relative;background:linear-gradient(160deg,rgba(10,25,38,.38),rgba(4,10,16,.5));backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);border:1px solid rgba(73,215,255,.5);border-radius:14px;padding:12px 12px 11px;box-shadow:0 0 24px rgba(73,215,255,.22),inset 0 0 20px rgba(73,215,255,.07);overflow:hidden;min-height:78px}
 .dash-tile::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#49d7ff,transparent);box-shadow:0 0 10px #49d7ff}
 .dash-tile::after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;
   background-image:
     linear-gradient(90deg, rgba(73,215,255,.9) 0 8px, transparent 8px), linear-gradient(180deg, rgba(73,215,255,.9) 0 8px, transparent 8px),
     linear-gradient(270deg, rgba(73,215,255,.9) 0 8px, transparent 8px), linear-gradient(180deg, rgba(73,215,255,.9) 0 8px, transparent 8px);
   background-position: top left, top left, top right, bottom right; background-repeat:no-repeat; background-size:16px 2px,2px 16px,16px 2px,2px 16px; opacity:.85}
-.dash-tile b{display:block;color:#8eeeff;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;text-shadow:0 0 8px rgba(73,215,255,.7)}
-.dash-tile .dash-val{color:#eaf7ff;font-size:14px;line-height:1.4}
-.dash-tile .dash-sub{color:#7fa8bb;font-size:11px;margin-top:3px}
+.dash-tile b{display:block;color:#8eeeff;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;text-shadow:0 0 8px rgba(73,215,255,.7)}
+.dash-tile .dash-val{color:#eaf7ff;font-size:12.5px;line-height:1.35}
+.dash-tile .dash-sub{color:#7fa8bb;font-size:10px;margin-top:3px}
+.dash-tile.dash-wide{grid-column:1 / -1}
 .dash-edit-row{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.5);border:1px solid rgba(93,209,255,.2);border-radius:10px;padding:8px 10px;margin-bottom:6px}
 .dash-edit-row .dash-arrows{display:flex;flex-direction:column;gap:2px}
 .dash-edit-row button{border:1px solid rgba(73,215,255,.5);color:#49d7ff;background:rgba(0,0,0,.5);border-radius:6px;font-size:11px;line-height:1;padding:3px 7px}
@@ -1884,9 +1886,25 @@ function buildDashboardPanel(options = {}) {
 }
 
 /* Kachel-Hülle, die gleich mit "Lädt ..." erscheint (sofortiges Einfliegen), Inhalt kommt kurz danach nach */
-function dashboardTileSkeleton(key) {
+function dashboardTileSkeleton(key, gridIndex, wide) {
     const meta = dashboardTileMeta(key);
-    return `<div class="dash-tile panel-row dash-late" id="dashTile-${meta.key}"><b>${meta.icon} ${meta.label}</b><div class="dash-val">Lädt ...</div></div>`;
+    const pos = gridIndex == null ? '' : ` style="grid-column:${(gridIndex % 2) + 1};grid-row:${Math.floor(gridIndex / 2) + 1}"`;
+    return `<div class="dash-tile panel-row dash-late${wide ? ' dash-wide' : ''}" id="dashTile-${meta.key}"${pos}><b>${meta.icon} ${meta.label}</b><div class="dash-val">Lädt ...</div></div>`;
+}
+
+/* Reihenfolge, in der die Kacheln EINZELN erscheinen: nicht der Reihe nach, sondern kreuz und quer über das Raster
+   verteilt (erste, letzte, zweite, vorletzte, ...), damit sich das Bild wie ein Mosaik zusammensetzt. Die feste
+   Position jeder Kachel im Raster (oben links, unten rechts ...) bleibt dabei unverändert - nur die REIHENFOLGE
+   des Erscheinens ändert sich. */
+function dashboardZigzagOrder(n) {
+    const order = [];
+    let lo = 0, hi = n - 1;
+    while (lo <= hi) {
+        order.push(lo);
+        if (hi !== lo) order.push(hi);
+        lo++; hi--;
+    }
+    return order;
 }
 
 function dashboardSetTile(key, valueHtml, subHtml) {
@@ -1991,16 +2009,20 @@ async function initDashboard() {
         if (editBtn) editBtn.classList.remove('hidden');
         return;
     }
-    for (let i = 0; i < visible.length; i++) {
+    // Bei ungerader Kachelzahl bekommt die zeitlich letzte Kachel die volle Breite (füllt die letzte, sonst halbleere Zeile)
+    const wideIndex = visible.length % 2 === 1 ? visible.length - 1 : -1;
+    const reveal = dashboardZigzagOrder(visible.length);   // z.B. bei 5 Kacheln: 0, 4, 1, 3, 2 - kreuz und quer statt der Reihe nach
+    for (let n = 0; n < reveal.length; n++) {
         if (token !== dashboardToken || !isPanelOpen() || currentPanel.name !== 'dashboard') return;
-        const c = visible[i];
+        const gridIndex = reveal[n];
+        const c = visible[gridIndex];
         const wrap = document.createElement('div');
-        wrap.innerHTML = dashboardTileSkeleton(c.key);
+        wrap.innerHTML = dashboardTileSkeleton(c.key, gridIndex, gridIndex === wideIndex);
         const tile = wrap.firstElementChild;
         container.appendChild(tile);   // erst JETZT existiert die Kachel im Bild - das macht das Nacheinander eindeutig
         const fn = DASHBOARD_FILLERS[c.key];
         if (fn) fn().catch(() => { if (token === dashboardToken) dashboardSetTile(c.key, 'Gerade nicht verfügbar.'); });
-        if (i < visible.length - 1) await new Promise(r => setTimeout(r, DASHBOARD_REVEAL_MS));
+        if (n < reveal.length - 1) await new Promise(r => setTimeout(r, DASHBOARD_REVEAL_MS));
     }
     if (token === dashboardToken && editBtn) editBtn.classList.remove('hidden');
 }
