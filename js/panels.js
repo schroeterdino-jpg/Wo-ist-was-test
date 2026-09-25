@@ -1853,7 +1853,7 @@ function injectDashboardStyles() {
 
 /* Kacheln materialisieren klar NACHEINANDER, mit HUD-Flackern statt der üblichen, dezenten Fenster-Animation.
    Höhere Feststehen-Zeit pro Kachel (220ms Abstand) macht das Nacheinander gut sichtbar, keine Kachel gleichzeitig. */
-#panelBody.animate .dash-tile.panel-row{animation:dash-materialize .75s cubic-bezier(.2,.9,.25,1) both;animation-delay:calc(var(--i,0) * 220ms + 150ms)}
+#panelBody.animate .dash-tile.panel-row,.dash-tile.panel-row.dash-late{animation:dash-materialize .6s cubic-bezier(.2,.9,.25,1) both}
 @keyframes dash-materialize{
   0%{opacity:0;transform:translateY(22px) scale(.9);filter:brightness(2.6) blur(3px)}
   14%{opacity:.9;transform:translateY(4px) scale(1.01);filter:brightness(2.2) blur(0)}
@@ -1863,10 +1863,10 @@ function injectDashboardStyles() {
   62%{opacity:1;transform:translateY(0) scale(1);filter:brightness(1.3)}
   100%{opacity:1;transform:none;filter:none}
 }
-html[data-fx="calm"] #panelBody.animate .dash-tile.panel-row{animation:dash-materialize-calm .4s ease both;animation-delay:calc(var(--i,0) * 160ms + 120ms)}
+html[data-fx="calm"] #panelBody.animate .dash-tile.panel-row,html[data-fx="calm"] .dash-tile.panel-row.dash-late{animation:dash-materialize-calm .35s ease both}
 @keyframes dash-materialize-calm{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-html[data-fx="off"] #panelBody.animate .dash-tile.panel-row{animation:panel-fade .15s ease both;animation-delay:0s}
-@media (prefers-reduced-motion: reduce){#panelBody.animate .dash-tile.panel-row{animation:panel-fade .15s ease both!important;animation-delay:0s!important}}
+html[data-fx="off"] #panelBody.animate .dash-tile.panel-row,html[data-fx="off"] .dash-tile.panel-row.dash-late{animation:panel-fade .15s ease both;animation-delay:0s}
+@media (prefers-reduced-motion: reduce){#panelBody.animate .dash-tile.panel-row,.dash-tile.panel-row.dash-late{animation:panel-fade .15s ease both!important;animation-delay:0s!important}}
 `;
     document.head.appendChild(st);
 }
@@ -1877,16 +1877,16 @@ function buildDashboardPanel(options = {}) {
     const cfg = loadDashboardConfig();
     const visible = cfg.filter(c => c.visible);
     const html = `<div class="font-mono text-xs">` +
-        `<div id="dashTiles">${visible.length ? visible.map((c, i) => dashboardTileSkeleton(c.key, i)).join('') : '<p class="panel-row text-slate-500 italic" style="--i:0">Keine Kacheln ausgewählt. Tippe unten auf Bearbeiten.</p>'}</div>` +
-        `<button type="button" class="panel-row w-full mt-2 bg-black/60 border border-[rgba(93,209,255,.3)] text-[#49d7ff] font-bold uppercase tracking-wide rounded-lg p-3" style="--i:${visible.length}" onclick="playUiBeep(); dashboardToggleEdit()">✏️ Bearbeiten</button>` +
+        `<div id="dashTiles">${visible.length ? '' : '<p class="panel-row text-slate-500 italic" style="--i:0">Keine Kacheln ausgewählt. Tippe unten auf Bearbeiten.</p>'}</div>` +
+        `<button type="button" id="dashEditBtn" class="panel-row w-full mt-2 bg-black/60 border border-[rgba(93,209,255,.3)] text-[#49d7ff] font-bold uppercase tracking-wide rounded-lg p-3 hidden" style="--i:${visible.length}" onclick="playUiBeep(); dashboardToggleEdit()">✏️ Bearbeiten</button>` +
         `</div>`;
     return { title: PANEL_TITLES.dashboard, html };
 }
 
 /* Kachel-Hülle, die gleich mit "Lädt ..." erscheint (sofortiges Einfliegen), Inhalt kommt kurz danach nach */
-function dashboardTileSkeleton(key, i) {
+function dashboardTileSkeleton(key) {
     const meta = dashboardTileMeta(key);
-    return `<div class="dash-tile panel-row" style="--i:${i}" id="dashTile-${meta.key}"><b>${meta.icon} ${meta.label}</b><div class="dash-val">Lädt ...</div></div>`;
+    return `<div class="dash-tile panel-row dash-late" id="dashTile-${meta.key}"><b>${meta.icon} ${meta.label}</b><div class="dash-val">Lädt ...</div></div>`;
 }
 
 function dashboardSetTile(key, valueHtml, subHtml) {
@@ -1974,16 +1974,35 @@ const DASHBOARD_FILLERS = {
     erinnerungen: dashboardFillErinnerungen, einkauf: dashboardFillEinkauf, sprit: dashboardFillSprit,
 };
 
-/* Alle sichtbaren Kacheln gleichzeitig befüllen; ein Fehler in einer Kachel darf die anderen nicht stoppen */
+const DASHBOARD_REVEAL_MS = 260;   // Abstand, mit dem jede Kachel EINZELN im Bild erscheint (siehe initDashboard unten)
+
+/* Kacheln erscheinen nacheinander im DOM (nicht nur zeitversetzt animiert, sondern wirklich erst eine, dann die nächste) -
+   das Laden der Daten je Kachel läuft parallel im Hintergrund und darf die anderen Kacheln nicht aufhalten. */
 async function initDashboard() {
     if (!isPanelOpen() || currentPanel.name !== 'dashboard') return;
     const token = ++dashboardToken;
+    const container = document.getElementById('dashTiles');
+    if (!container) return;
+    container.innerHTML = '';
     const visible = loadDashboardConfig().filter(c => c.visible);
-    await Promise.all(visible.map(c => {
+    const editBtn = document.getElementById('dashEditBtn');
+    if (!visible.length) {
+        container.innerHTML = '<p class="panel-row text-slate-500 italic" style="--i:0">Keine Kacheln ausgewählt. Tippe unten auf Bearbeiten.</p>';
+        if (editBtn) editBtn.classList.remove('hidden');
+        return;
+    }
+    for (let i = 0; i < visible.length; i++) {
+        if (token !== dashboardToken || !isPanelOpen() || currentPanel.name !== 'dashboard') return;
+        const c = visible[i];
+        const wrap = document.createElement('div');
+        wrap.innerHTML = dashboardTileSkeleton(c.key);
+        const tile = wrap.firstElementChild;
+        container.appendChild(tile);   // erst JETZT existiert die Kachel im Bild - das macht das Nacheinander eindeutig
         const fn = DASHBOARD_FILLERS[c.key];
-        if (!fn) return Promise.resolve();
-        return fn().catch(() => { if (token === dashboardToken) dashboardSetTile(c.key, 'Gerade nicht verfügbar.'); });
-    }));
+        if (fn) fn().catch(() => { if (token === dashboardToken) dashboardSetTile(c.key, 'Gerade nicht verfügbar.'); });
+        if (i < visible.length - 1) await new Promise(r => setTimeout(r, DASHBOARD_REVEAL_MS));
+    }
+    if (token === dashboardToken && editBtn) editBtn.classList.remove('hidden');
 }
 
 /* ---------- Bearbeiten: Kacheln ein-/ausblenden und verschieben ---------- */
@@ -2016,10 +2035,9 @@ function dashboardToggleEdit() {
     } else {
         saveDashboardConfig();
         const cfg = loadDashboardConfig();
-        const visible = cfg.filter(c => c.visible);
         body.innerHTML = `<div class="font-mono text-xs">` +
-            `<div id="dashTiles">${visible.length ? visible.map((c, i) => dashboardTileSkeleton(c.key, i)).join('') : '<p class="panel-row text-slate-500 italic" style="--i:0">Keine Kacheln ausgewählt. Tippe unten auf Bearbeiten.</p>'}</div>` +
-            `<button type="button" class="panel-row w-full mt-2 bg-black/60 border border-[rgba(93,209,255,.3)] text-[#49d7ff] font-bold uppercase tracking-wide rounded-lg p-3" style="--i:${visible.length}" onclick="playUiBeep(); dashboardToggleEdit()">✏️ Bearbeiten</button></div>`;
+            `<div id="dashTiles"></div>` +
+            `<button type="button" id="dashEditBtn" class="panel-row w-full mt-2 bg-black/60 border border-[rgba(93,209,255,.3)] text-[#49d7ff] font-bold uppercase tracking-wide rounded-lg p-3 hidden" style="--i:${cfg.length}" onclick="playUiBeep(); dashboardToggleEdit()">✏️ Bearbeiten</button></div>`;
         initDashboard();
     }
     body.classList.remove('animate');
