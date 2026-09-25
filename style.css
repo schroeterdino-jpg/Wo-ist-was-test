@@ -606,6 +606,12 @@ html[data-fx="off"] .holo-svg { animation-play-state: paused !important; }
     letter-spacing: .08em;
     color: var(--cyan);
     opacity: .8;
+    text-shadow: 0 0 6px rgba(73, 215, 255, .6);
+}
+
+/* Etwas Leuchten für die Schrift direkt um die Kugel herum (Statuszeile, "J.A.R.V.I.S. / BEREIT", Klicken-zum-Sprechen-Text) */
+#hudSubtitleText, #recordText, #statusMessage {
+    text-shadow: 0 0 6px rgba(73, 215, 255, .55), 0 0 14px rgba(73, 215, 255, .25);
 }
 .hud-badge-tl { left: 24px; }
 .hud-badge-tr { right: 24px; flex-direction: column; align-items: flex-end; gap: 1px; }
