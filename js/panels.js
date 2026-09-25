@@ -41,7 +41,7 @@ const VALID_PANELS = Object.keys(PANEL_TITLES);
 const PANEL_CLOSE_MS = 300;
 const PANEL_MAX_STAGGER = 10;   // ab der elften Zeile laufen alle gleichzeitig ein (sonst dauert es bei langen Listen zu lange)
 const PANEL_FLY_MS = 900;       // so lange dauert das Einfliegen ungefähr; erst danach wird nachgeladen und gescrollt
-const PANEL_ANIM_MS = 2600;     // so lange gilt die Einlauf-Animation
+const PANEL_ANIM_MS = 36000;    // so lange gilt die Einlauf-Animation (reicht auch für das sehr langsame Dashboard-Nacheinander)
 const PANEL_HORIZON_DAYS = 93;   // so weit im Voraus lädt die App Termine aus dem Google Kalender
 
 let currentPanel = null;      // { name, options } solange ein Fenster offen ist
@@ -1836,7 +1836,7 @@ function injectDashboardStyles() {
     st.id = 'dashStyles';
     st.textContent = `
 /* Hologramm-Kachel: transparent (der Hintergrund der App scheint durch), leuchtender Rand, Eckklammern wie ein HUD-Fenster */
-#dashTiles{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+#dashTiles{display:grid;grid-template-columns:1fr 1fr;gap:11px;perspective:900px}
 .dash-tile{position:relative;background:linear-gradient(160deg,rgba(10,25,38,.38),rgba(4,10,16,.5));backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);border:1px solid rgba(73,215,255,.5);border-radius:14px;padding:12px 12px 11px;box-shadow:0 0 24px rgba(73,215,255,.22),inset 0 0 20px rgba(73,215,255,.07);overflow:hidden;min-height:78px}
 .dash-tile::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#49d7ff,transparent);box-shadow:0 0 10px #49d7ff}
 .dash-tile::after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;
@@ -1853,20 +1853,26 @@ function injectDashboardStyles() {
 .dash-edit-row button{border:1px solid rgba(73,215,255,.5);color:#49d7ff;background:rgba(0,0,0,.5);border-radius:6px;font-size:11px;line-height:1;padding:3px 7px}
 .dash-edit-row button:disabled{opacity:.25}
 
-/* Kacheln materialisieren klar NACHEINANDER, mit HUD-Flackern statt der üblichen, dezenten Fenster-Animation.
-   Höhere Feststehen-Zeit pro Kachel (220ms Abstand) macht das Nacheinander gut sichtbar, keine Kachel gleichzeitig. */
-#panelBody.animate .dash-tile.panel-row,.dash-tile.panel-row.dash-late{animation:dash-materialize .6s cubic-bezier(.2,.9,.25,1) both}
+/* Kacheln materialisieren klar NACHEINANDER, mit HUD-Flackern und einer echten Drehung aus dem Raum heraus, statt
+   der üblichen, dezenten Fenster-Animation. Den ZEITABSTAND zwischen den Kacheln bestimmt DASHBOARD_REVEAL_MS oben
+   (JavaScript, per setTimeout beim Einfügen jeder Kachel) - hier unten geht es nur um das Aussehen jeder einzelnen. */
+#panelBody.animate .dash-tile.panel-row,.dash-tile.panel-row.dash-late{animation:dash-materialize 2s cubic-bezier(.22,.85,.2,1) both;transform-style:preserve-3d}
 @keyframes dash-materialize{
-  0%{opacity:0;transform:translateY(22px) scale(.9);filter:brightness(2.6) blur(3px)}
-  14%{opacity:.9;transform:translateY(4px) scale(1.01);filter:brightness(2.2) blur(0)}
-  24%{opacity:.2;filter:brightness(1)}
-  34%{opacity:1;filter:brightness(1.6)}
-  48%{opacity:.45;filter:brightness(.9)}
-  62%{opacity:1;transform:translateY(0) scale(1);filter:brightness(1.3)}
+  0%{opacity:0;transform:translateY(50px) translateZ(-320px) rotateX(38deg) rotateY(-42deg) scale(.55);filter:brightness(2.6) blur(4px)}
+  16%{opacity:.9;filter:brightness(2.1) blur(0)}
+  27%{opacity:.25;filter:brightness(1)}
+  38%{opacity:1;transform:translateY(14px) translateZ(-90px) rotateX(14deg) rotateY(-16deg) scale(.85);filter:brightness(1.6)}
+  52%{opacity:.5;filter:brightness(.9)}
+  68%{opacity:1;transform:translateY(-4px) translateZ(20px) rotateX(-6deg) rotateY(8deg) scale(1.04);filter:brightness(1.25)}
+  84%{transform:translateY(1px) translateZ(0) rotateX(2deg) rotateY(-2deg) scale(.99)}
   100%{opacity:1;transform:none;filter:none}
 }
-html[data-fx="calm"] #panelBody.animate .dash-tile.panel-row,html[data-fx="calm"] .dash-tile.panel-row.dash-late{animation:dash-materialize-calm .35s ease both}
-@keyframes dash-materialize-calm{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+html[data-fx="calm"] #panelBody.animate .dash-tile.panel-row,html[data-fx="calm"] .dash-tile.panel-row.dash-late{animation:dash-materialize-calm 1.1s cubic-bezier(.22,.85,.2,1) both}
+@keyframes dash-materialize-calm{
+  0%{opacity:0;transform:translateY(26px) rotateY(-24deg) scale(.85)}
+  55%{opacity:1;transform:translateY(-3px) rotateY(6deg) scale(1.02)}
+  100%{opacity:1;transform:none}
+}
 html[data-fx="off"] #panelBody.animate .dash-tile.panel-row,html[data-fx="off"] .dash-tile.panel-row.dash-late{animation:panel-fade .15s ease both;animation-delay:0s}
 @media (prefers-reduced-motion: reduce){#panelBody.animate .dash-tile.panel-row,.dash-tile.panel-row.dash-late{animation:panel-fade .15s ease both!important;animation-delay:0s!important}}
 `;
@@ -1992,7 +1998,7 @@ const DASHBOARD_FILLERS = {
     erinnerungen: dashboardFillErinnerungen, einkauf: dashboardFillEinkauf, sprit: dashboardFillSprit,
 };
 
-const DASHBOARD_REVEAL_MS = 260;   // Abstand, mit dem jede Kachel EINZELN im Bild erscheint (siehe initDashboard unten)
+const DASHBOARD_REVEAL_MS = 5500;  // Abstand, mit dem jede Kachel EINZELN im Bild erscheint (siehe initDashboard unten)
 
 /* Kacheln erscheinen nacheinander im DOM (nicht nur zeitversetzt animiert, sondern wirklich erst eine, dann die nächste) -
    das Laden der Daten je Kachel läuft parallel im Hintergrund und darf die anderen Kacheln nicht aufhalten. */
