@@ -1,8 +1,13 @@
-// Live-Kameras zu einem Ort: sucht bei YouTube nach Live-Streams ("Rom live cam") und gibt die einbettbaren zurück.
+// YouTube-Suche für zwei Zwecke in einer Datei, damit Vercel nicht die Grenze von 12 Serverless Functions
+// im kostenlosen Hobby-Tarif reißt (jede Datei im Ordner "api" zählt als eine Funktion):
+//   ?type=live  (Standard) - Live-Kameras zu einem Ort ("Rom live cam")
+//   ?type=news  - aktuelle Nachrichtenvideos zu einem Ort (Rückfall, wenn Tagesschau keins hat)
 // Braucht bei Vercel die Variable YOUTUBE_API_KEY (Google-Konsole, YouTube Data API v3).
-// Google erlaubt in der kostenlosen Stufe nur etwa 100 Suchen pro Tag - darum werden Ergebnisse 6 Stunden zwischengespeichert.
+// Google erlaubt in der kostenlosen Stufe nur etwa 100 Suchen pro Tag - darum werden Ergebnisse zwischengespeichert.
 const cache = new Map();
-const CACHE_MS = 6 * 60 * 60 * 1000;
+const CACHE_MS_LIVE = 6 * 60 * 60 * 1000;
+const CACHE_MS_NEWS = 6 * 60 * 60 * 1000;
+const NEWS_MAX_AGE_DAYS = 4;   // nur wirklich aktuelle Nachrichten-Clips, sonst lieber keiner
 
 const GOOD = /cam|webcam|kamera|skyline|panorama|livestream|live ?stream|view|city|stadt|beach|strand|harbou?r|hafen|street|square|platz|bridge|brücke|airport|flughafen|port\b/i;
 const BAD = /news|nachrichten|radio|music|musik|lofi|lo-fi|gaming|game|casino|slots|podcast|church|sermon|gottesdienst|reaction|tv\b/i;
@@ -18,8 +23,58 @@ function niceError(err) {
   return 'YouTube meldet: ' + msg.slice(0, 160);
 }
 
+async function searchLive(q, key) {
+  const params = new URLSearchParams({
+    part: 'snippet', type: 'video', eventType: 'live', videoEmbeddable: 'true', maxResults: '12',
+    safeSearch: 'moderate', q: `${q} live cam`, key
+  });
+  const r = await fetch('https://www.googleapis.com/youtube/v3/search?' + params.toString(), { signal: AbortSignal.timeout(8000) });
+  const d = await r.json();
+  if (d.error) return { error: niceError(d.error) };
+
+  const words = q.toLowerCase().split(' ').filter(w => w.length > 2);
+  const items = (d.items || [])
+    .filter(i => i.id && i.id.videoId && i.snippet && i.snippet.liveBroadcastContent === 'live')
+    .map((i, idx) => {
+      const title = String(i.snippet.title || '').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+      const channel = String(i.snippet.channelTitle || '');
+      const hay = `${title} ${channel}`;
+      let score = 0;
+      if (GOOD.test(hay)) score += 2;
+      if (words.some(w => hay.toLowerCase().includes(w))) score += 1;
+      if (BAD.test(hay)) score -= 3;
+      const t = i.snippet.thumbnails || {};
+      return { videoId: i.id.videoId, title, channel, thumb: (t.medium || t.default || {}).url || '', score, idx };
+    })
+    .sort((a, b) => b.score - a.score || a.idx - b.idx);
+  // Nachrichten, Musik und Ähnliches nur zeigen, wenn es sonst gar nichts gibt
+  const brauchbar = items.filter(i => i.score >= 0);
+  const finale = (brauchbar.length ? brauchbar : items).slice(0, 8).map(({ videoId, title, channel, thumb }) => ({ videoId, title, channel, thumb }));
+  return { items: finale };
+}
+
+async function searchNews(q, key) {
+  const publishedAfter = new Date(Date.now() - NEWS_MAX_AGE_DAYS * 86400000).toISOString();
+  const params = new URLSearchParams({
+    part: 'snippet', type: 'video', videoEmbeddable: 'true', order: 'date', maxResults: '10',
+    relevanceLanguage: 'de', safeSearch: 'moderate', publishedAfter, q: `${q} Nachrichten aktuell`, key
+  });
+  const r = await fetch('https://www.googleapis.com/youtube/v3/search?' + params.toString(), { signal: AbortSignal.timeout(8000) });
+  const d = await r.json();
+  if (d.error) return { error: niceError(d.error) };
+
+  const items = (d.items || [])
+    .filter(i => i.id && i.id.videoId && i.snippet)
+    .map(i => {
+      const title = String(i.snippet.title || '').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+      const channel = String(i.snippet.channelTitle || '');
+      const t = i.snippet.thumbnails || {};
+      return { videoId: i.id.videoId, title, channel, thumb: (t.medium || t.default || {}).url || '', publishedAt: i.snippet.publishedAt || null };
+    });
+  return { items };
+}
+
 export default async function handler(req, res) {
-  // --- Schutz: nur die App mit dem richtigen Code darf diese Schnittstelle nutzen ---
   const expected = process.env.APP_SECRET;
   if (!expected) return res.status(500).json({ error: 'Server: APP_SECRET fehlt' });
   if ((req.headers['x-app-key'] || '') !== expected) return res.status(401).json({ error: 'Nicht erlaubt' });
@@ -27,43 +82,20 @@ export default async function handler(req, res) {
   const key = process.env.YOUTUBE_API_KEY;
   if (!key) return res.status(500).json({ error: 'Server: YouTube-Schlüssel fehlt (Variable YOUTUBE_API_KEY)' });
 
+  const type = req.query.type === 'news' ? 'news' : 'live';
   const q = String(req.query.q || '').replace(/["()<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
   if (q.length < 2) return res.status(400).json({ error: 'Ort fehlt' });
 
-  const cacheKey = q.toLowerCase();
+  const cacheKey = type + ':' + q.toLowerCase();
+  const cacheMs = type === 'news' ? CACHE_MS_NEWS : CACHE_MS_LIVE;
   const hit = cache.get(cacheKey);
-  if (hit && Date.now() - hit.t < CACHE_MS) return res.status(200).json({ items: hit.items, zwischengespeichert: true });
+  if (hit && Date.now() - hit.t < cacheMs) return res.status(200).json({ items: hit.items, zwischengespeichert: true });
 
   try {
-    const params = new URLSearchParams({
-      part: 'snippet', type: 'video', eventType: 'live', videoEmbeddable: 'true', maxResults: '12',
-      safeSearch: 'moderate', q: `${q} live cam`, key
-    });
-    const r = await fetch('https://www.googleapis.com/youtube/v3/search?' + params.toString(), { signal: AbortSignal.timeout(8000) });
-    const d = await r.json();
-    if (d.error) return res.status(502).json({ error: niceError(d.error) });
-
-    const words = q.toLowerCase().split(' ').filter(w => w.length > 2);
-    const items = (d.items || [])
-      .filter(i => i.id && i.id.videoId && i.snippet && i.snippet.liveBroadcastContent === 'live')
-      .map((i, idx) => {
-        const title = String(i.snippet.title || '').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
-        const channel = String(i.snippet.channelTitle || '');
-        const hay = `${title} ${channel}`;
-        let score = 0;
-        if (GOOD.test(hay)) score += 2;
-        if (words.some(w => hay.toLowerCase().includes(w))) score += 1;
-        if (BAD.test(hay)) score -= 3;
-        const t = i.snippet.thumbnails || {};
-        return { videoId: i.id.videoId, title, channel, thumb: (t.medium || t.default || {}).url || '', score, idx };
-      })
-      .sort((a, b) => b.score - a.score || a.idx - b.idx);
-    // Nachrichten, Musik und Ähnliches nur zeigen, wenn es sonst gar nichts gibt
-    const brauchbar = items.filter(i => i.score >= 0);
-    const finale = (brauchbar.length ? brauchbar : items).slice(0, 8).map(({ videoId, title, channel, thumb }) => ({ videoId, title, channel, thumb }));
-
-    if (finale.length) cache.set(cacheKey, { t: Date.now(), items: finale });
-    res.status(200).json({ items: finale });
+    const result = type === 'news' ? await searchNews(q, key) : await searchLive(q, key);
+    if (result.error) return res.status(502).json({ error: result.error });
+    if (result.items.length) cache.set(cacheKey, { t: Date.now(), items: result.items });
+    res.status(200).json({ items: result.items });
   } catch (e) {
     res.status(502).json({ error: 'YouTube nicht erreichbar: ' + e.message });
   }
