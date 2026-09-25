@@ -1431,7 +1431,10 @@ function ensureYouTubeApi() {
 
 function weltLiveEmbedUrl(src) {
     const origin = encodeURIComponent((typeof location !== 'undefined' && location.origin) || '');
-    const common = `autoplay=1&playsinline=1&rel=0&enablejsapi=1&origin=${origin}`;
+    // Stumm starten (mute=1): Handy-Browser blockieren sonst fast immer das automatische Abspielen mit Ton,
+    // dann muss man erst selbst auf Play tippen. Sobald das Video läuft, schaltet weltOpenLivePlayer unten
+    // den Ton per YouTube-API wieder an (das erlauben die Browser, weil das Video ja schon lief).
+    const common = `autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1&origin=${origin}`;
     if (src.v && /^[\w-]{11}$/.test(src.v)) return `https://www.youtube.com/embed/${src.v}?${common}`;
     if (src.c && /^UC[\w-]{22}$/.test(src.c)) return `https://www.youtube.com/embed/live_stream?channel=${src.c}&${common}`;
     return null;
@@ -1481,6 +1484,7 @@ function weltOpenLivePlayer(cam, startIndex, token) {
             if (!stillActive() || !iframe) return;
             try {
                 weltYtPlayer = new window.YT.Player(iframe, { events: {
+                    onReady: (e) => { try { e.target.unMute(); e.target.setVolume(100); e.target.playVideo(); } catch (err) {} },
                     onError: () => { if (stillActive()) advance(); },
                     onStateChange: (e) => { if (e && e.data === 0 && stillActive()) advance(); }   // 0 = Ende: ein beendeter Live-Stream
                 } });
