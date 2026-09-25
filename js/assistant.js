@@ -107,17 +107,17 @@ function buildWebSearchBody(userText, query) {
     const now = new Date();
     const today = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' });
     const memory = JSON.stringify(memoryItems || {});
-    const system = "Du bist J.A.R.V.I.S., der persönliche Butler von " + currentUserName + ". Antworte auf Deutsch, höflich, knapp und trocken. " +
-        "Nutze die Websuche, um die Frage mit aktuellen Informationen zu beantworten. Heute ist " + today + ". " +
+    const system = "Du bist J.A.R.V.I.S., ein belesener, hochintelligenter Butler von " + currentUserName + ". Antworte auf Deutsch, in deinem eigenen, lebendigen Ton - wie in einem echten Gespräch, nicht wie eine auswendig gelernte Standardantwort. Formuliere jedes Mal neu, auch bei ähnlichen Fragen: keine Textbausteine, keine feste Einleitungsfloskel, die du immer wiederholst. Zeig, dass du das Thema wirklich verstehst: ordne die Information kurz ein, statt nur Fakten aufzuzählen, wenn das dem User weiterhilft. " +
+        "Nutze die Websuche, um die Frage mit aktuellen, verlässlichen Informationen zu beantworten. Heute ist " + today + ". " +
         "Das Gedächtnis des Users (seine Vorlieben und Notizen, als JSON): " + memory + ". " +
         "Bei Fragen nach Fernsehprogramm, Filmen, Serien oder Kino wählst du nur Sendungen aus, die zu seinen Vorlieben im Gedächtnis passen (zum Beispiel Genres), und nennst höchstens drei mit Sender und Uhrzeit. " +
         "Steht nichts Passendes im Gedächtnis, nenne die Highlights des Abends. " +
-        "Schreibe Uhrzeiten ausgeschrieben, zum Beispiel '20 Uhr 15'. Schreibe ohne Markdown, ohne Aufzählungszeichen, ohne Links und ohne Quellenangaben, höchstens vier kurze Sätze, weil deine Antwort laut vorgelesen wird. " +
-        "Erfinde nichts. Findest du nichts Verlässliches, sage das ehrlich.";
+        "Schreibe Uhrzeiten ausgeschrieben, zum Beispiel '20 Uhr 15'. Schreibe ohne Markdown, ohne Aufzählungszeichen, ohne Links und ohne Quellenangaben, weil deine Antwort laut vorgelesen wird - meist reichen zwei bis vier Sätze, bei einer Frage, die wirklich mehr Tiefe verdient, darf es auch etwas mehr sein. " +
+        "Erfinde nichts. Findest du nichts Verlässliches, sage das ehrlich, aber genauso natürlich formuliert wie der Rest deiner Antworten.";
     return {
         model: "openai/gpt-oss-120b",
         tools: [{ type: "browser_search" }],
-        reasoning_effort: "low",
+        reasoning_effort: "medium",
         messages: [
             { role: "system", content: system },
             { role: "user", content: String(userText) + ((query && query !== userText) ? "\n(Suchanfrage: " + query + ")" : '') }
@@ -1285,18 +1285,18 @@ function handleLocalCommandInner(text) {
     if (/\b(regenradar|niederschlagsradar|wetterradar|radar)\b/i.test(text) && String(text).length <= 70) {
         if (isPanelOpen() && currentPanel && currentPanel.name === 'karte') hudMapSetRadar(true);
         else openPanel('karte', { radar: true });
-        speak(pickRandom(['Hier das Regenradar.', 'Das Radar wird geladen.', 'Sehr wohl, das Regenradar.']), continueConversation);
+        speak(pickRandom(['Hier das Regenradar.', 'Das Radar wird geladen.', 'Sehr wohl, das Regenradar.', 'Einen Blick auf den Himmel, sofort.', 'Ich hole die aktuellen Regendaten.', 'Kommt sogleich.']), continueConversation);
         return true;
     }
     if (isMapCommand(text)) {
         openPanel('karte', {});
-        speak(pickRandom(['Bitte sehr.', 'Karte wird aufgebaut.', 'Sehr wohl.']), continueConversation);
+        speak(pickRandom(['Bitte sehr.', 'Karte wird aufgebaut.', 'Sehr wohl.', 'Einen Moment, ich lege die Karte auf.', 'Ich rufe die Route ab.', 'Wird sofort aufgebaut.']), continueConversation);
         return true;
     }
     if (isDashboardCommand(text)) {
         if (typeof openDashboard === 'function') openDashboard();
         else openPanel('dashboard', {});
-        speak(pickRandom(['Bitte sehr.', 'Dashboard wird aufgebaut.', 'Sehr wohl.']), continueConversation);
+        speak(pickRandom(['Bitte sehr.', 'Dashboard wird aufgebaut.', 'Sehr wohl.', 'Ich stelle die Übersicht zusammen.', 'Einen Augenblick, alles auf einen Blick.', 'Wird sofort zusammengestellt.']), continueConversation);
         return true;
     }
     const pk = findProtocolToRun(text);

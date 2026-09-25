@@ -385,9 +385,7 @@ async function interpretOnce(text, lang) {
    die Kugel bekommt einen grünen Schimmer und ihr Rahmen leuchtet atmend grün.
    Ohne Mikrofon-Mitschnitt: die Balken folgen den Sprach-Ereignissen der Spracherkennung (kein zweiter Mikrofonzugriff). */
 const LISTEN_INDICATOR = true;
-const LISTEN_RING_BREATHING = true;   // Rahmen atmet langsam; auf false = ruhiges Dauerleuchten
 let jvHearingTimer = null;
-let jvRingEl = null;
 
 function jvEnsureListenIndicator() {
     if (document.getElementById('jvListen')) return document.getElementById('jvListen');
@@ -407,10 +405,6 @@ function jvEnsureListenIndicator() {
 #jvListen.hearing .jv-bars i{transform:scaleY(.8)}
 @keyframes jvBar{0%,100%{transform:scaleY(.2)}50%{transform:scaleY(1)}}
 @keyframes jvBreath{0%,100%{opacity:.4;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
-body.jv-listening img[src*="jarvis-orb"]{filter:hue-rotate(40deg) saturate(1.3) drop-shadow(0 0 14px rgba(61,220,151,.75))}
-.jv-ring-listening{box-shadow:0 0 26px 3px rgba(61,220,151,.65),inset 0 0 24px rgba(61,220,151,.25)!important;border-color:#3ddc97!important}
-${LISTEN_RING_BREATHING ? `@media (prefers-reduced-motion:no-preference){.jv-ring-listening{animation:jvRing 3s ease-in-out infinite}}
-@keyframes jvRing{0%,100%{box-shadow:0 0 12px 1px rgba(61,220,151,.35),inset 0 0 12px rgba(61,220,151,.15)}50%{box-shadow:0 0 30px 4px rgba(61,220,151,.75),inset 0 0 26px rgba(61,220,151,.3)}}` : ''}
 `;
     document.head.appendChild(st);
     const el = document.createElement('div');
@@ -421,22 +415,12 @@ ${LISTEN_RING_BREATHING ? `@media (prefers-reduced-motion:no-preference){.jv-rin
     return el;
 }
 
-/* Rahmen der Kugel: das Element um das Kugelbild, sonst gar keiner */
-function jvOrbRing() {
-    if (jvRingEl && jvRingEl.isConnected !== false) return jvRingEl;
-    const orb = document.querySelector('img[src*="jarvis-orb"]');
-    jvRingEl = orb ? orb.parentElement : null;
-    return jvRingEl;
-}
-
 function jvListenIndicator(on) {
     if (!LISTEN_INDICATOR) return;
     try {
         const el = jvEnsureListenIndicator();
         if (on) el.classList.add('on'); else { el.classList.remove('on'); el.classList.remove('hearing'); }
         document.body.classList.toggle('jv-listening', !!on);
-        const ring = jvOrbRing();
-        if (ring) ring.classList.toggle('jv-ring-listening', !!on);
     } catch (e) { /* die Anzeige ist nur Zugabe und darf nie die Spracherkennung stören */ }
 }
 
@@ -451,6 +435,60 @@ function jvHearing(on) {
         else jvHearingTimer = setTimeout(() => el.classList.remove('hearing'), 450);
     } catch (e) {}
 }
+
+
+/* ============================================================
+   HOLOGRAMM-RAHMEN (Entwurf C): Sechseck mit Eckmarken statt der drehenden Ringe, dazu eine größere Kugel, die bis an den Rahmen reicht.
+   Ohne Bewegung (ruhig, kein Flackern). Farben je nach Zustand: Cyan = bereit, Grün (atmend) = Jarvis hört zu, Orange = Jarvis spricht.
+   Wird beim Laden einmal in den vorhandenen Ring-Bereich (.holo-container) eingesetzt; index.html und style.css bleiben unverändert.
+   ============================================================ */
+const JV_HOLO_ON = true;        // false = alte Ringe behalten
+const JV_HOLO_SIZE = 300;          // Größe des Rahmens in Pixeln
+const JV_HOLO_ORB_SIZE = 380;      // Größe des Kugelbilds (größer = Kugel füllt mehr vom Rahmen; das Bild wird rund abgeschnitten)
+const JV_HOLO_ORB_CLIP = 120;      // Radius des sichtbaren Kreises der Kugel in Pixeln (der Innenkreis des Rahmens hat ca. 126)
+
+function jvInstallHoloFrame() {
+    if (!JV_HOLO_ON) return;
+    try {
+        const cont = document.querySelector('.holo-container');
+        if (!cont || cont.querySelector('.holo-frame')) return;
+        cont.querySelectorAll('.holo-svg').forEach(el => el.remove());   // die alten drehenden Ringe
+        const hex = '150,4 276.4,77 276.4,223 150,296 23.6,223 23.6,77';
+        const inner = '150,12 269.5,81 269.5,219 150,288 30.5,219 30.5,81';
+        cont.insertAdjacentHTML('afterbegin',
+            `<svg class="holo-frame" viewBox="0 0 300 300" aria-hidden="true">` +
+            `<polygon class="frame-glow" points="${hex}" stroke-width="8"/>` +
+            `<polygon class="frame-line" points="${hex}" stroke-width="2"/>` +
+            `<polygon class="frame-thin" points="${inner}" stroke-width="1"/>` +
+            `<circle class="frame-dash" cx="150" cy="150" r="126" stroke-width="1.2" stroke-dasharray="3 5"/>` +
+            `<path class="frame-bracket" d="M8 46 V8 H46 M254 8 H292 V46 M292 254 V292 H254 M46 292 H8 V254" stroke-width="2.5"/>` +
+            `</svg>`);
+        const st = document.createElement('style');
+        st.id = 'holoFrameStyles';
+        st.textContent = `
+#reactor-wrap .holo-container{width:${JV_HOLO_SIZE}px;height:${JV_HOLO_SIZE}px}
+.holo-frame{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.holo-frame polygon,.holo-frame circle,.holo-frame path{fill:none}
+.jarvis-scanner-container{--frame:#49d7ff;--bracket:#ff9a44}
+.jarvis-scanner-container.recording{--frame:#3ddc97;--bracket:#3ddc97}
+.jarvis-scanner-container.speaking{--frame:#ff9a44;--bracket:#ff9a44}
+.holo-frame .frame-line{stroke:var(--frame)}
+.holo-frame .frame-glow{stroke:var(--frame);opacity:.22}
+.holo-frame .frame-thin{stroke:rgba(203,217,226,.75);opacity:.3}
+.holo-frame .frame-dash{stroke:rgba(203,217,226,.75);opacity:.45}
+.holo-frame .frame-bracket{stroke:var(--bracket);stroke-linecap:square;opacity:.9}
+.jarvis-scanner-container.recording .frame-glow{opacity:.55}
+.jarvis-scanner-container.speaking .frame-glow{opacity:.4}
+@media (prefers-reduced-motion:no-preference){.jarvis-scanner-container.recording .frame-glow{animation:holoBreathe 3s ease-in-out infinite}}
+@keyframes holoBreathe{0%,100%{opacity:.25}50%{opacity:.7}}
+html[data-fx="off"] .frame-glow{animation:none!important}
+#reactor-wrap .jarvis-orb{position:absolute;left:50%;top:50%;width:${JV_HOLO_ORB_SIZE}px;height:${JV_HOLO_ORB_SIZE}px;margin:${-JV_HOLO_ORB_SIZE / 2}px 0 0 ${-JV_HOLO_ORB_SIZE / 2}px;border-radius:0;object-fit:cover;clip-path:circle(${JV_HOLO_ORB_CLIP}px at 50% 50%)}
+body.jv-listening #reactor-wrap .jarvis-orb{filter:hue-rotate(40deg) saturate(1.3)}
+`;
+        document.head.appendChild(st);
+    } catch (e) { /* die Optik darf nie die App stören */ }
+}
+jvInstallHoloFrame();
 
 /* --- Spracherkennung --- */
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -554,14 +592,14 @@ if (SpeechRecognition) {
         if (isPanelOpen() && isCloseCommand(text)) {
             closePanel();
             typeWriterStatus("Klicken zum Sprechen...");
-            speak(pickRandom(["Sehr wohl.", "Zu Diensten.", "Wird geschlossen.", "Gerne."]), continueConversation);
+            speak(pickRandom(["Sehr wohl.", "Zu Diensten.", "Wird geschlossen.", "Gerne.", "Ist erledigt.", "Fenster zu."]), continueConversation);
             return;
         }
 
         if (isEndPhrase(text)) {
             closePanel();
             typeWriterStatus("Klicken zum Sprechen...");
-            speak(pickRandom(["Sehr wohl.", "Jederzeit.", "Zu Diensten.", "Bis gleich.", "Ich bin für Sie da."]));
+            speak(pickRandom(["Sehr wohl.", "Jederzeit.", "Zu Diensten.", "Bis gleich.", "Ich bin für Sie da.", "Melden Sie sich, wann immer Sie mögen.", "Ganz wie Sie wünschen."]));
             return;
         }
         // Feste Sprachbefehle (Karte, Arbeitsadresse, Protokolle) ohne Umweg über die KI
