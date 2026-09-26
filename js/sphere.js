@@ -38,7 +38,9 @@
             points.push({
                 x: Math.cos(theta) * r * SPHERE_RADIUS + (Math.random() - 0.5) * JITTER,
                 y: y * SPHERE_RADIUS + (Math.random() - 0.5) * JITTER,
-                z: Math.sin(theta) * r * SPHERE_RADIUS + (Math.random() - 0.5) * JITTER
+                z: Math.sin(theta) * r * SPHERE_RADIUS + (Math.random() - 0.5) * JITTER,
+                phase: Math.random() * Math.PI * 2,     // eigener Versatz je Punkt fürs Sprechen-Pulsieren
+                speedMul: 0.75 + Math.random() * 0.7    // eigenes Tempo je Punkt (nicht alle exakt synchron)
             });
         }
 
@@ -82,6 +84,18 @@
         const SPEAK_BREATHE_B = 0.05;
         const SPEAK_BREATHE_B_SPEED = 0.13;
 
+        // Zusätzlich zur Gesamt-Atmung bewegt sich beim SPRECHEN jeder Punkt für sich: er zieht sich einzeln
+        // etwas zur Mitte oder nach außen, mit eigenem Tempo/Versatz (siehe phase/speedMul oben bei den Punkten).
+        // Dadurch verändert sich die Netz-Struktur selbst (Verbindungslinien strecken/stauchen sich unregelmäßig),
+        // statt dass nur die ganze Kugel gleichmäßig größer/kleiner wird.
+        const SPEAK_POINT_AMOUNT = 0.16;
+        const SPEAK_POINT_SPEED = 0.09;
+
+        function pointPulse(p, t, speaking) {
+            if (!speaking) return 1;
+            return 1 + SPEAK_POINT_AMOUNT * Math.sin(t * SPEAK_POINT_SPEED * p.speedMul + p.phase);
+        }
+
         function currentBreathe(t, speaking) {
             if (speaking) {
                 return 1 + SPEAK_BREATHE_A * Math.sin(t * SPEAK_BREATHE_A_SPEED) + SPEAK_BREATHE_B * Math.sin(t * SPEAK_BREATHE_B_SPEED);
@@ -111,12 +125,14 @@
             const breathe = currentBreathe(time, colorKey === 'speaking');
             const rgb = COLORS[colorKey];
 
+            const speaking = colorKey === 'speaking';
             const projected = points.map(p => {
-                const bx = p.x * breathe, by = p.y * breathe, bz = p.z * breathe;
+                const total = breathe * pointPulse(p, time, speaking);
+                const bx = p.x * total, by = p.y * total, bz = p.z * total;
                 const x = bx * cosA - bz * sinA;
                 const z = bx * sinA + bz * cosA;
                 const scale = FOCAL / (FOCAL + z + SPHERE_RADIUS);
-                return { sx: SIZE / 2 + x * scale, sy: SIZE / 2 + p.y * breathe * scale, z, scale };
+                return { sx: SIZE / 2 + x * scale, sy: SIZE / 2 + by * scale, z, scale };
             });
 
             // Weiches Neon-Schimmern um die ganze Kugel (CSS-Glow auf dem <canvas> selbst, güns­tiger als
