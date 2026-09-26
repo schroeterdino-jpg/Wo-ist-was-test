@@ -30,7 +30,6 @@ body {
     position: relative;
 }
 
-/* Upgrade 3: Scanline Overlay über das gesamte UI */
 .scanline-overlay {
     position: fixed;
     inset: 0;
@@ -73,7 +72,6 @@ h1, h2, .jarvis-font {
     box-shadow: 0 0 12px rgba(73, 215, 255, 0.35), inset 0 0 8px rgba(73, 215, 255, 0.15);
 }
 
-/* Upgrade 3: Glassy Neon-Kanten & Backdrop Blur */
 .hud-panel {
     position: relative;
     backdrop-filter: blur(8px);
@@ -122,7 +120,6 @@ h1, h2, .jarvis-font {
     justify-content: center;
 }
 
-/* --- Holografische Ringe als SVG: einmal gezeichnet, danach dreht die Grafikkarte nur noch die fertige Ebene --- */
 .jarvis-scanner-container { --ring-a: #00d2ff; --ring-b: #0066ff; }
 .jarvis-scanner-container.recording { --ring-a: var(--cyan); --ring-b: var(--cyan); }
 .jarvis-scanner-container.speaking { --ring-a: var(--good); --ring-b: var(--good); }
@@ -140,7 +137,6 @@ h1, h2, .jarvis-font {
 .holo-svg-3 { width: 322px; height: 322px; animation: spin-reverse 22s linear infinite; }
 .holo-svg-3 .ring-outer { stroke: var(--metal); opacity: .3; }
 
-/* Kleine Lichtpunkte, die dauerhaft um den Ring kreisen (unterschiedliche Bahnen und Geschwindigkeiten) */
 .holo-orbit { position: absolute; inset: 0; pointer-events: none; }
 .holo-orbit-a { animation: spin 9s linear infinite; }
 .holo-orbit-b { animation: spin-reverse 15s linear infinite; }
@@ -160,7 +156,6 @@ h1, h2, .jarvis-font {
     transform: translate(-50%, -50%) translateY(-144px);
 }
 html[data-fx="off"] .holo-orbit { animation-play-state: paused !important; }
-/* Sechseck-Eckklammern (Ring C "Hologramm") statt der vorherigen Strichskala */
 .holo-svg-ticks .hex-bracket path { fill: none; }
 .holo-svg-ticks .tick-minor path { stroke: var(--metal); opacity: .4; stroke-width: 1.4; }
 .holo-svg-ticks .tick-major path { stroke: var(--metal); opacity: .7; stroke-width: 2; }
@@ -173,28 +168,9 @@ html[data-fx="off"] .holo-orbit { animation-play-state: paused !important; }
 .jarvis-scanner-container.recording .holo-svg .glow,
 .jarvis-scanner-container.speaking .holo-svg .glow { opacity: .45; }
 
-/* Deutlicher Puls, solange Jarvis spricht: zwei versetzte, auslaufende Ringe um die Kugel - nicht zu übersehen */
-.jarvis-scanner-container.speaking .holo-container::before,
-.jarvis-scanner-container.speaking .holo-container::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    border: 2.5px solid var(--good);
-    box-shadow: 0 0 14px rgba(87, 224, 161, .8);
-    animation: speak-pulse 1.5s cubic-bezier(.2, .7, .3, 1) infinite;
-}
-.jarvis-scanner-container.speaking .holo-container::after { animation-delay: .75s; }
-@keyframes speak-pulse {
-    0% { transform: scale(.82); opacity: .95; }
-    100% { transform: scale(1.4); opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-    .jarvis-scanner-container.speaking .holo-container::before,
-    .jarvis-scanner-container.speaking .holo-container::after { animation: none; opacity: .5; }
-}
-html[data-fx="off"] .jarvis-scanner-container.speaking .holo-container::before,
-html[data-fx="off"] .jarvis-scanner-container.speaking .holo-container::after { animation: none; opacity: .5; }
+/* Der grüne Puls-Ring beim Sprechen (zwei auslaufende Kreise um die Kugel) wurde auf Wunsch entfernt.
+   Beim Sprechen färbt sich weiterhin nur der Sechseck-Rahmen selbst (siehe die von voice.js injizierten
+   Styles), aber ohne den zusätzlichen, pulsierenden Kreis. */
 
 @keyframes spin {
     from { transform: rotate(0deg); }
@@ -206,7 +182,6 @@ html[data-fx="off"] .jarvis-scanner-container.speaking .holo-container::after { 
     to { transform: rotate(0deg); }
 }
 
-/* --- Jarvis-Kugel (eigenes GIF), ersetzt den vorherigen Arc-Reaktor --- */
 .jarvis-orb {
     width: 290px;
     height: 290px;
@@ -234,7 +209,6 @@ html[data-fx="off"] .jarvis-orb { animation: none !important; }
     background: var(--good) !important;
 }
 
-/* Kleine, technisch wirkende Messwert-Anzeigen in den vier Ecken um den Ring - rein dekorativ */
 .hud-readout {
     position: absolute;
     display: flex;
@@ -260,7 +234,6 @@ html[data-fx="off"] .jarvis-orb { animation: none !important; }
     .hud-readout { font-size: 8px; }
     .hud-ro-tl, .hud-ro-tr { top: 2px; }
 }
-/* Bei ausgeschalteten Effekten (Einstellungen -> Aus) lieber ganz weg als halbfertig stehen zu bleiben */
 html[data-fx="off"] .hud-readout { display: none; }
 
 #waveform {
@@ -284,7 +257,6 @@ html[data-fx="off"] .hud-readout { display: none; }
     opacity: 1;
 }
 
-/* Upgrade 2: Reaktive Wellenform & Organische Frequenz-Animation */
 .jarvis-scanner-container.speaking #waveform span,
 #waveform.speaking span {
     animation: waveformPulse 0.4s infinite alternate ease-in-out;
@@ -308,12 +280,10 @@ html[data-fx="off"] .hud-readout { display: none; }
 
 .app-shell { position: relative; z-index: 1; }
 
-/* --- Hintergrund: feines Raster, leichter Rand-Schatten, Partikel-Canvas --- */
 #grid-canvas {
     overflow: hidden;
 }
 
-/* Raster driftet langsam (nur transform, daher flüssig und akkuschonend) */
 #grid-canvas::before {
     content: '';
     position: absolute;
@@ -331,7 +301,6 @@ html[data-fx="off"] .hud-readout { display: none; }
     to   { transform: translate(64px, 64px); }
 }
 
-/* Matrix-Regen liegt unter den Partikeln, nur in der Stufe "Voll" sichtbar (matrix.js schaltet sie an/aus) */
 #matrix-rain {
     position: absolute;
     inset: 0;
@@ -339,7 +308,6 @@ html[data-fx="off"] .hud-readout { display: none; }
     height: 100%;
 }
 
-/* Partikel liegen über dem Raster */
 #bg-particles {
     position: absolute;
     inset: 0;
@@ -347,7 +315,6 @@ html[data-fx="off"] .hud-readout { display: none; }
     height: 100%;
 }
 
-/* Dunkler Rand, damit der Blick in der Mitte beim Ring bleibt */
 #grid-canvas::after {
     content: '';
     position: absolute;
@@ -360,8 +327,6 @@ html[data-fx="off"] .hud-readout { display: none; }
     #grid-canvas::before { animation: none; }
 }
 
-/* --- Fenster (panels.js): fliegen ins Bild, Scan-Linie, Zeilen laufen nacheinander ein --- */
-/* Solange ein Fenster offen ist, stehen die Ring-Animationen dahinter still (weniger Arbeit für die Grafik, kein Flackern) */
 body.panel-open .holo-svg,
 body.panel-open #waveform span,
 body.panel-open .animate-pulse { animation-play-state: paused !important; }
@@ -425,9 +390,8 @@ body.panel-open .animate-pulse { animation-play-state: paused !important; }
     padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px));
     flex: 1 1 auto;
 }
-#panelBody > section { padding: 0; }   /* verschobene Bereiche (Listen, Gedächtnis ...) */
+#panelBody > section { padding: 0; }
 
-/* Scan-Linie: ein Rahmen in Fenstergröße, dessen unterer Rand leuchtet. Er wird per transform von oben nach unten geschoben. */
 .panel-scan {
     position: absolute;
     inset: 0;
@@ -447,7 +411,6 @@ body.panel-open .animate-pulse { animation-play-state: paused !important; }
     box-shadow: 0 0 16px 5px rgba(73, 215, 255, .55);
 }
 
-/* Öffnen: Backdrop blendet ein, das Fenster materialisiert sich an Ort und Stelle (kein Reinfliegen mehr) */
 #panelLayer.open #panelBackdrop { animation: panel-backdrop-in .35s ease both; }
 #panelLayer.open #panel { animation: panel-in .4s cubic-bezier(.16, 1, .3, 1) both; }
 #panelLayer.open .panel-scan { animation: panel-scan .95s cubic-bezier(.4, 0, .2, 1) .1s both; }
@@ -456,7 +419,6 @@ body.panel-open .animate-pulse { animation-play-state: paused !important; }
     animation-delay: calc(var(--i, 0) * 70ms + 300ms);
 }
 
-/* Schließen: schnell wieder weg */
 #panelLayer.closing #panelBackdrop { animation: panel-backdrop-out .3s ease both; }
 #panelLayer.closing #panel { animation: panel-out .25s cubic-bezier(.5, 0, .75, 0) both; }
 
@@ -490,7 +452,6 @@ body.panel-open .animate-pulse { animation-play-state: paused !important; }
 }
 @keyframes panel-fade { from { opacity: 0; } to { opacity: 1; } }
 
-/* Übersichtszeile: Text darf über zwei Zeilen laufen, danach wird abgeschnitten */
 .clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -498,13 +459,6 @@ body.panel-open .animate-pulse { animation-play-state: paused !important; }
     overflow: hidden;
 }
 
-/* ============================================================
-   Effekt-Stufen (Einstellungen → Effekte), gesetzt als html[data-fx]
-   voll  = alles wie bisher
-   calm  = ruhig (Standard): keine Unschärfe, keine 3D-Kippung, keine Aufdeck-Animation, ruhigerer Hintergrund
-   off   = aus: zusätzlich stehen Ringe und Hintergrund still
-   Unschärfe-Filter über bewegten Flächen sind die häufigste Ursache für Flackern auf Handys.
-   ============================================================ */
 html[data-fx="calm"] .backdrop-blur,
 html[data-fx="off"] .backdrop-blur,
 html[data-fx="calm"] .hud-panel,
@@ -538,7 +492,6 @@ html[data-fx="off"] .jarvis-scanner-container.speaking #waveform span { animatio
 html[data-fx="off"] #bg-particles,
 html[data-fx="off"] .scanline-overlay { display: none; }
 
-/* Ebenen vorab anlegen, damit die Grafik das Fenster nur noch verschiebt und nicht neu zeichnen muss */
 #panelLayer.open #panel,
 #panelLayer.closing #panel { will-change: transform, opacity; backface-visibility: hidden; }
 #panelLayer.open #panelBackdrop,
@@ -546,9 +499,6 @@ html[data-fx="off"] .scanline-overlay { display: none; }
 #panelBackdrop { touch-action: none; }
 #panelBody { overscroll-behavior: contain; }
 
-/* ============================================================
-   Flacker-Test (Einstellungen → 🔧 Flacker-Test): einzelne Effekte ausschalten, gesetzt als html.nofx-...
-   ============================================================ */
 html.nofx-scan .scanline-overlay { display: none; }
 html.nofx-glow *, html.nofx-glow *::before, html.nofx-glow *::after {
     box-shadow: none !important;
@@ -566,14 +516,8 @@ html.nofx-motion *, html.nofx-motion *::before, html.nofx-motion *::after {
     transition: none !important;
 }
 
-/* Stufe "aus": Ringe stehen still (bleiben an ihrer Stelle stehen, springen also nicht zurück) */
 html[data-fx="off"] .holo-svg { animation-play-state: paused !important; }
 
-/* ============================================================
-   HUD-Zierrahmen: Ecken-Klammern und kleine Anzeigen im Hintergrund,
-   angelehnt an klassische J.A.R.V.I.S.-Desktop-HUDs. Rein dekorativ
-   bzw. leichte Text-Updates - keine schweren Animationen, kein Risiko fürs Flackern.
-   ============================================================ */
 .hud-decor {
     position: fixed;
     inset: 0;
@@ -609,7 +553,6 @@ html[data-fx="off"] .holo-svg { animation-play-state: paused !important; }
     text-shadow: 0 0 6px rgba(73, 215, 255, .6);
 }
 
-/* Etwas Leuchten für die Schrift direkt um die Kugel herum (Statuszeile, "J.A.R.V.I.S. / BEREIT", Klicken-zum-Sprechen-Text) */
 #hudSubtitleText, #recordText, #statusMessage {
     text-shadow: 0 0 6px rgba(73, 215, 255, .55), 0 0 14px rgba(73, 215, 255, .25);
 }
@@ -629,9 +572,7 @@ html[data-fx="off"] .holo-svg { animation-play-state: paused !important; }
     50% { opacity: 1; }
 }
 
-/* In der Stufe "Aus" bleibt die Anzeige, aber ohne Puls-Animation */
 html[data-fx="off"] .hud-dot { animation: none; opacity: 1; }
-/* Während ein Fenster offen ist, nicht ablenken */
 body.panel-open .hud-decor { opacity: 0; transition: opacity .2s ease; }
 .hud-decor { transition: opacity .2s ease; }
 
@@ -639,4 +580,3 @@ body.panel-open .hud-decor { opacity: 0; transition: opacity .2s ease; }
     .hud-corner { width: 30px; height: 30px; }
     .hud-badge { font-size: 9px; }
 }
-
