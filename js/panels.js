@@ -1473,7 +1473,28 @@ function weltDispatch(place, mode) {
     if (mode === 'iss') weltGuard('ISS', () => weltShowIss());
     else if (mode === 'quakes') weltGuard('Erdbeben', () => weltShowQuakes());
     else if (mode === 'live') weltGuard('Live-Kamera', () => weltShowLive(place));
+    else if (mode === 'mystandort') weltGuard('Mein Standort', () => weltShowMyLocation());
     else if (place) weltGuard('Nachrichten', () => weltShowPlace(place));
+}
+
+/* "Wo befinde ich mich?" auf der Weltkugel: zoomt zum eigenen, aktuellen Standort (keine Nachrichten dazu, nur die Position) */
+async function weltShowMyLocation() {
+    if (!isPanelOpen() || currentPanel.name !== 'welt') return;
+    const token = ++weltToken;
+    weltStatus('Ermittle Standort ...');
+    weltResetLive();
+    let loc;
+    try { loc = await fetchUserLocationData(); } catch (e) { loc = null; }
+    if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (!loc || loc.fehler || loc.latitude === undefined) {
+        weltStatus('Standort nicht verfügbar. Ist der Standortzugriff erlaubt?');
+        speak('Ihren Standort konnte ich gerade nicht ermitteln.', continueConversation);
+        return;
+    }
+    const label = (loc.ort && loc.ort !== 'Koordinaten ermittelt') ? loc.ort : 'Mein Standort';
+    if (weltGlobe) weltFlyTo(loc.latitude, loc.longitude, label);
+    weltStatus(`Das ist Ihr aktueller Standort: ${label}`);
+    speak(`Sie befinden sich gerade in ${label}.`, continueConversation);
 }
 
 /* Einstieg für Sprachbefehle: Fenster öffnen bzw. den Ort im offenen Fenster wechseln */
