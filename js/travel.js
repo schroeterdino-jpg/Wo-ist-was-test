@@ -11,6 +11,7 @@ const TRAVEL_BUFFER_MINUTES = 10;   // Puffer, damit man nicht auf die Minute ge
 let lastStauWarnings = [];
 let lastRouteMapData = null;
 let lastWebcamCards = [];   // Webcam-Bildkarten der zuletzt berechneten Route (siehe describeAutobahnStau)
+let lastStauCards = [];     // Verkehrsmeldungs-Karten der zuletzt berechneten Route (siehe describeAutobahnStau)
 
 const geocodeCache = {};   // nur im Speicher: Adresse -> { lat, lon }
 
@@ -261,7 +262,8 @@ async function computeDepartureAdvice(opts) {
         reply,
         card: { icon: '🚗', title: 'Route zu ' + target.titel, subtitle, href: buildMapsLink(target.ort, '', 'driving') },
         map: mapData,
-        webcamCards: lastWebcamCards.slice()
+        webcamCards: lastWebcamCards.slice(),
+        stauCards: lastStauCards.slice()
     };
 }
 
@@ -311,9 +313,18 @@ function classifyWarning(w) {
     return 'Verkehrsstörung';
 }
 
+/* Passendes Symbol je klassifizierter Art (siehe classifyWarning oben) - rein optisch für die Karten */
+const WARNING_ICONS = {
+    'Unfall': '🚨', 'Falschfahrer-Warnung': '🚫', 'Pannenfahrzeug': '🚗',
+    'Hindernis auf der Fahrbahn': '⚠️', 'Glätte': '❄️', 'Nebel': '🌫️',
+    'Sperrung': '⛔', 'Baustelle': '🚧', 'Fahrstreifenverengung': '⚠️',
+    'Stau': '🚦', 'Gefahrenstelle': '⚠️', 'Kurzzeitbaustelle': '🚧', 'Verkehrsstörung': '⚠️'
+};
+
 async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) {
     lastStauWarnings = [];
     lastWebcamCards = [];
+    lastStauCards = [];
     if (!autobahnen || autobahnen.length === 0) return '';
     // Grober Fahrschlauch um Start und Ziel, mit etwas Puffer für Umwege - nur Meldungen darin sind wirklich relevant
     const padding = 0.35;   // ca. 30-35 km, verhindert genau den Fehler "A1 bei Köln" auf einer Fahrt in Schleswig-Holstein
@@ -349,6 +360,14 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
             const kurz = (w.title || '').split('|').pop().trim();
             const art = classifyWarning(w);
             meldungen.push(`${road}${kurz ? ': ' + kurz : ''} (${art})`);
+            const lat = w.coordinate && Number(w.coordinate.lat), lon = w.coordinate && Number(w.coordinate.long);
+            const beschreibung = (w.description || []).slice(0, 2).join(' · ');
+            lastStauCards.push({
+                icon: WARNING_ICONS[art] || '⚠️',
+                title: `${art} · ${road}`,
+                subtitle: (kurz || 'Verkehrsmeldung') + (beschreibung ? ' · ' + beschreibung : ''),
+                href: (isFinite(lat) && isFinite(lon)) ? `https://www.google.com/maps?q=${lat},${lon}` : undefined
+            });
         });
 
         // Webcams auf derselben Autobahn, die im Fahrschlauch liegen - höchstens 2 pro Autobahn, damit es nicht zu viele werden
