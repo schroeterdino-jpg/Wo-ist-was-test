@@ -17,7 +17,7 @@
         const ctx = canvas.getContext('2d');
 
         const SIZE = 290;                 // muss zur width/height des <canvas> in index.html passen
-        const POINT_COUNT = 240;          // deutlich mehr als beim früheren Netz, für eine dichte Wolke
+        const POINT_COUNT = 420;          // sehr viele, aber kleine Partikel für einen feinen Sprenkel-Effekt
         const SPHERE_RADIUS = 116;
         const FOCAL = 340;                 // größer = flachere, kleiner = stärkere Perspektive
         const ROTATE_SPEED = 0.0055;       // Bogenmaß pro Bild
@@ -42,7 +42,7 @@
                 x: r * Math.sin(phi) * Math.cos(theta),
                 y: r * Math.cos(phi),
                 z: r * Math.sin(phi) * Math.sin(theta),
-                size: 0.7 + Math.random() * 1.9,        // unterschiedliche Partikelgröße für Tiefenwirkung
+                size: 0.35 + Math.random() * 1.0,        // klein und fein, wie Sternenstaub statt einzelner Blobs
                 twinklePhase: Math.random() * Math.PI * 2,
                 twinkleSpeed: 0.02 + Math.random() * 0.035,
                 phase: Math.random() * Math.PI * 2,     // eigener Versatz je Punkt fürs Sprechen-Pulsieren
@@ -137,22 +137,35 @@
 
             ctx.clearRect(0, 0, SIZE, SIZE);
 
+            // Weicher Grundschimmer: eine große, sehr weiche Leuchtkugel im Hintergrund, VOR den einzelnen
+            // Partikeln gezeichnet - das ist der "glühende Kern", der im Referenzbild die Mitte der Wolke
+            // hell und massiv wirken lässt, statt dass es nur einzelne Punkte ohne Zusammenhalt sind.
+            const coreRadius = SPHERE_RADIUS * breathe * (FOCAL / (FOCAL + SPHERE_RADIUS));
+            const coreGrad = ctx.createRadialGradient(SIZE / 2, SIZE / 2, 0, SIZE / 2, SIZE / 2, coreRadius * 1.15);
+            coreGrad.addColorStop(0, `rgba(${rgb},.32)`);
+            coreGrad.addColorStop(0.4, `rgba(${rgb},.16)`);
+            coreGrad.addColorStop(1, `rgba(${rgb},0)`);
+            ctx.fillStyle = coreGrad;
+            ctx.beginPath();
+            ctx.arc(SIZE / 2, SIZE / 2, coreRadius * 1.15, 0, Math.PI * 2);
+            ctx.fill();
+
             projected.forEach(p => {
-                const rad = Math.max(0.4, p.size * p.scale * 1.6);
+                const rad = Math.max(0.3, p.size * p.scale * 1.4);
                 const op = Math.min(1, p.scale * p.twinkle);
                 // Weicher Glow-Punkt statt scharfem Kreis: Farbe in der Mitte, transparent am Rand
-                const grad = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, rad * 2.4);
+                const grad = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, rad * 1.8);
                 grad.addColorStop(0, `rgba(${rgb},${op.toFixed(3)})`);
                 grad.addColorStop(0.5, `rgba(${rgb},${(op * 0.35).toFixed(3)})`);
                 grad.addColorStop(1, `rgba(${rgb},0)`);
                 ctx.fillStyle = grad;
                 ctx.beginPath();
-                ctx.arc(p.sx, p.sy, rad * 2.4, 0, Math.PI * 2);
+                ctx.arc(p.sx, p.sy, rad * 1.8, 0, Math.PI * 2);
                 ctx.fill();
                 // Heller, kleiner Kern in der Mitte jedes Partikels (macht die Wolke funkelnder)
-                ctx.fillStyle = `rgba(255,255,255,${(op * 0.55).toFixed(3)})`;
+                ctx.fillStyle = `rgba(255,255,255,${(op * 0.6).toFixed(3)})`;
                 ctx.beginPath();
-                ctx.arc(p.sx, p.sy, rad * 0.4, 0, Math.PI * 2);
+                ctx.arc(p.sx, p.sy, rad * 0.35, 0, Math.PI * 2);
                 ctx.fill();
             });
 
