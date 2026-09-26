@@ -586,7 +586,16 @@ if (SpeechRecognition) {
         handleRecognizedText(text);
     };
 
+    /* Die Spracherkennung verhört sich beim Namen "Alyssa" konsequent zu ähnlich klingenden Namen
+       (Alicia, Alissa, Alisha) - das lässt sich an der Erkennung selbst nicht ändern (keine eigenen
+       Wörterbücher in der Web-Spracherkennung), darum wird der erkannte Text hier vor der Weiterverarbeitung
+       korrigiert, ganz am Anfang, damit Kalender-Namenssuche und die KI immer "Alyssa" bekommen. */
+    function fixKnownMishearings(text) {
+        return String(text || '').replace(/\b(Alicia|Alissa|Alisha)\b/gi, 'Alyssa');
+    }
+
     function handleRecognizedText(text) {
+        text = fixKnownMishearings(text);
         isFollowUp = false;
         clearFollowUpTimer();
         typeWriterStatus(`Verstanden: "${text}"`);
