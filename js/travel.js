@@ -30,6 +30,29 @@ async function geocodeAddress(address) {
     }
 }
 
+/* Findet ein Ziel, das nicht unbedingt eine Straßenadresse ist (z.B. "Penny in Schwarzenbek", "Aldi Hamburg"):
+   1) erst wörtlich versuchen, 2) "X in Y" -> "X, Y" (Komma statt "in" hilft Nominatim, Geschäft + Ort statt
+   eine einzelne Adresse zu erkennen), 3) mit dem aktuellen Ort des Users ergänzen. Gibt null zurück, wenn
+   wirklich nichts gefunden wurde. */
+async function geocodeDestination(text, userPlace) {
+    const raw = String(text || '').trim();
+    if (!raw) return null;
+    let found = await geocodeAddress(raw);
+    if (found) return found;
+
+    const m = raw.match(/^(.+?)\s+(?:in|bei|im|am|an der|auf der)\s+(.+)$/i);
+    if (m) {
+        found = await geocodeAddress(`${m[1].trim()}, ${m[2].trim()}`);
+        if (found) return found;
+    }
+
+    if (userPlace) {
+        found = await geocodeAddress(`${raw}, ${userPlace}`);
+        if (found) return found;
+    }
+    return null;
+}
+
 async function routeDurationSeconds(fromLat, fromLon, toLat, toLon) {
     try {
         const res = await apiFetch(`/api/route?fromLat=${fromLat}&fromLon=${fromLon}&toLat=${toLat}&toLon=${toLon}&geometry=1`);
@@ -156,8 +179,9 @@ async function computeDepartureAdvice(opts) {
     const loc = opts.loc || await fetchUserLocationData();
     if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
 
-    let dest = await geocodeAddress(target.ort);
-    if (!dest && loc.ort) dest = await geocodeAddress(target.ort + ', ' + loc.ort);   // ohne Ortsangabe: mit dem aktuellen Ort versuchen
+    // Ziel kann eine Straßenadresse, aber auch ein Geschäft/eine Sehenswürdigkeit ohne Adresse sein
+    // (z.B. "Penny in Schwarzenbek") - geocodeDestination probiert dafür mehrere Schreibweisen.
+    const dest = await geocodeDestination(target.ort, loc.ort);
     if (!dest) throw userError(`Die Adresse "${target.ort}" konnte ich nicht finden.`);
 
     const route = await routeDurationSeconds(loc.latitude, loc.longitude, dest.lat, dest.lon);
@@ -625,8 +649,7 @@ async function checkDepartureWarning() {
         try { loc = await fetchUserLocationData(); } catch (e) { return; }
         if (!loc || loc.fehler) return;   // Standort mal nicht verfügbar: beim nächsten Tick nochmal versuchen
 
-        let dest = await geocodeAddress(appt.ort);
-        if (!dest && loc.ort) dest = await geocodeAddress(appt.ort + ', ' + loc.ort);
+        const dest = await geocodeDestination(appt.ort, loc.ort);
         if (!dest) { departureCache[key] = { skip: true }; return; }
 
         const route = await routeDurationSeconds(loc.latitude, loc.longitude, dest.lat, dest.lon);

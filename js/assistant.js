@@ -435,12 +435,14 @@ async function sendToGroqSmart(text, opts = {}) {
     if (recordBtn) recordBtn.classList.remove('recording');
     if (recordText) recordText.textContent = "J.A.R.V.I.S. / VERARBEITET...";
 
+    // Zwischenbescheid während der Wartezeit auf die KI: bewusst NEUTRALE Formulierungen, die sowohl zu
+    // einem Befehl ("Termin eintragen") als auch zu einer normalen Gesprächsfrage ("Wie geht's dir?") passen.
+    // Früher standen hier Sätze wie "Wird erledigt." oder "Gebe ich sofort ein." - die klangen bei einer reinen
+    // Unterhaltungsfrage unpassend, weil sie eine Aktion ankündigten, die es dort gar nicht gibt.
     const ackTimer = setTimeout(() => {
         if (opts.collect) return;   // im Protokoll wird nicht zwischendurch gesprochen
         speakAck(pickRandom([
-            "Einen Augenblick.", "Ich kümmere mich darum.", "Sofort.", "Wird erledigt.",
-            "Gebe ich sofort ein.", "Verstanden.", "Ich sehe nach.", "Bin schon dabei.",
-            "Kommt sofort.", "Erledige ich."
+            "Einen Moment.", "Einen Augenblick.", "Ich denke nach.", "Moment.", "Sofort.", "Verstanden."
         ]));
     }, ACK_DELAY_MS);
 
@@ -551,7 +553,7 @@ async function sendToGroqSmart(text, opts = {}) {
     "- Drei Fälle:\n" +
     "  1) Der User nennt einen Termin aus seinem Kalender (z.B. 'wann muss ich zum Zahnarzt los'): 'travel_query' = Stichwort des Termins.\n" +
     "  2) Ohne jede Angabe ('Wann muss ich losfahren?'): weder 'travel_query' noch 'travel_destination' setzen; es wird automatisch der nächste anstehende Termin mit hinterlegtem Ort genommen.\n" +
-    "  3) Der User nennt ein Ziel, das kein Termin aus seinem Kalender ist (eine Adresse, ein Ort, ein Name wie 'Hans-Dewitz-Ring'): 'travel_destination' = genau dieses Ziel als Text. Nennt er dazu eine Ankunftszeit ('ich muss um 14 Uhr da sein', 'bis 14 Uhr'), setze 'travel_arrival_time' im Format 'HH:MM' (24-Stunden). Ohne Ankunftszeit wird nur die Fahrzeit genannt, ohne Abfahrtsempfehlung.\n" +
+    "  3) Der User nennt ein Ziel, das kein Termin aus seinem Kalender ist - das kann eine Adresse, ein Ort ODER auch ein Geschäft/eine Firma/eine Sehenswürdigkeit sein, egal ob mit oder ohne Straßenname (z.B. 'Hans-Dewitz-Ring', 'Penny in Schwarzenbek', 'der Bahnhof', 'Aldi'): 'travel_destination' = genau dieses Ziel als Text, unverändert. Lehne solche Ziele NIEMALS mit der Begründung ab, es sei 'keine Straße' oder 'keine Adresse' - die App sucht den Ort automatisch, auch Geschäftsnamen. Nennt er dazu eine Ankunftszeit ('ich muss um 14 Uhr da sein', 'bis 14 Uhr'), setze 'travel_arrival_time' im Format 'HH:MM' (24-Stunden). Ohne Ankunftszeit wird nur die Fahrzeit genannt, ohne Abfahrtsempfehlung.\n" +
     "- Schreibe in 'reply' nur 'Ich schaue nach.'; die genaue Antwort mit Uhrzeiten und Stau-Hinweisen wird automatisch berechnet.\n\n" +
     "WICHTIG für Protokolle (mehrere Befehle unter einem Namen, z.B. 'Feierabend'):\n" +
     "- Legt der User ein Protokoll an ('Lege ein Protokoll Feierabend an: Fahrzeit nach Hause, Wetter und Spritpreise'), nutze 'protocol_save' mit 'protocol_name' (nur der Name, z.B. 'Feierabend') und 'protocol_steps': eine Liste vollständiger deutscher Sätze, die jeweils wie ein eigener Sprachbefehl funktionieren (z.B. 'Wie lange dauert die Fahrt nach Hause?', 'Wie ist das Wetter?', 'Was kosten Benzin und Diesel in der Nähe?'). Höchstens 8 Schritte. Gibt es das Protokoll schon, wird es ersetzt.\n" +
