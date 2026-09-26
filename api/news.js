@@ -18,6 +18,14 @@ const MAX_AGE_DAYS = 7;          // ältere Meldungen nur, wenn es sonst kaum et
 const CACHE_MS = 10 * 60 * 1000; // gleiche Frage innerhalb von 10 Minuten wird nicht neu abgefragt (schont die Dienste)
 const cache = new Map();
 
+/* Bekannte Redewendungen, die zufällig einen Ortsnamen enthalten, aber nichts mit dem Ort selbst zu tun haben
+   (z.B. "Stockholm-Syndrom" bei einer Suche nach "Stockholm"). Ergänzbar, falls noch mehr auffallen. */
+const FALSE_FRIEND_PATTERNS = [/stockholm[\s-]?syndrom/i];
+
+function isFalseFriend(title) {
+  return FALSE_FRIEND_PATTERNS.some(re => re.test(title));
+}
+
 /* ---------- tagesschau.de ---------- */
 const MAX_VIDEO_AGE_DAYS = 10;   // ältere Videos wären keine "aktuelle Lage" mehr
 
@@ -46,6 +54,7 @@ async function fetchTagesschau(q) {
     const title = decodeEntities(it.title);
     const link = it.shareURL || it.detailsweb;
     if (!title || !/^https?:\/\//i.test(link || '')) continue;
+    if (isFalseFriend(title)) continue;   // z.B. "Stockholm-Syndrom" bei einer Suche nach "Stockholm" aussortieren
     const variants = (it.teaserImage && it.teaserImage.imageVariants) || {};
     const image = variants['16x9-384'] || variants['16x9-256'] || variants['16x9-512'] || Object.values(variants).find(v => /^https:\/\//.test(v)) || '';
     const d = it.date ? new Date(it.date) : null;
@@ -88,7 +97,8 @@ function tagContent(block, name) {
 }
 
 async function fetchGoogleNews(q) {
-  const url = 'https://news.google.com/rss/search?q=' + encodeURIComponent(q + ' when:2d') + '&hl=de&gl=DE&ceid=DE:de';
+  // "-syndrom" schließt Treffer wie "Stockholm-Syndrom" bei einer Suche nach "Stockholm" aus (Google versteht "-wort" als Ausschluss)
+  const url = 'https://news.google.com/rss/search?q=' + encodeURIComponent(q + ' -syndrom when:2d') + '&hl=de&gl=DE&ceid=DE:de';
   const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AlltagsHelfer/1.0)' }, signal: AbortSignal.timeout(6000) });
   if (!r.ok) throw new Error('Google News Status ' + r.status);
   const xml = await r.text();
@@ -100,6 +110,7 @@ async function fetchGoogleNews(q) {
     const source = decodeEntities(tagContent(block, 'source'));
     if (source && title.endsWith(' - ' + source)) title = title.slice(0, -(source.length + 3)).trim();
     if (!title || !/^https?:\/\//i.test(link)) continue;
+    if (isFalseFriend(title)) continue;   // doppelt hält besser, falls das "-syndrom" in der Anfrage nicht gegriffen hat
     const d = new Date(tagContent(block, 'pubDate'));
     out.push({ title, url: link, domain: source || 'news.google.com', date: isNaN(d) ? null : d.toISOString(), image: '' });
   }
