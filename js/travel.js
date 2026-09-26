@@ -177,6 +177,28 @@ async function resolveTravelTarget(opts) {
 /* Ist unter dem Zielnamen (z.B. "Alyssa") eine Adresse im Gedächtnis gespeichert (z.B. per
    "Merk dir Alyssas Adresse: ..."), nutzt die App die - statt den bloßen Namen wörtlich als Ort zu
    suchen (das findet sonst im schlimmsten Fall einen zufälligen, weit entfernten Ort gleichen Namens). */
+/* Adresse eines gespeicherten Kontakts (aus dem Kontakte-Bereich, siehe lists.js) - dieselbe Genitiv-"s"-
+   und Teilwort-Toleranz wie bei findMemoryAddressFor, damit "zu Matze fahren" auch "Matzes" im Namen findet. */
+function findContactAddressFor(text) {
+    if (typeof savedContacts !== 'object' || !savedContacts) return null;
+    const clean = s => String(s || '').toLowerCase().trim();
+    const target = clean(text);
+    if (!target) return null;
+    const stripS = k => (k.length > 3 && k.endsWith('s')) ? k.slice(0, -1) : k;
+    const targetBase = stripS(target);
+    let fallback = null;
+    for (const k of Object.keys(savedContacts)) {
+        const contact = savedContacts[k];
+        if (!contact || !contact.address) continue;
+        const nk = clean(contact.originalName || k);
+        if (nk === target || stripS(nk) === targetBase) return contact.address;
+        const words = nk.split(/\s+/).map(stripS);
+        if (words.includes(target) || words.includes(targetBase)) return contact.address;
+        if (!fallback && Math.min(nk.length, target.length) >= 3 && (nk.includes(target) || target.includes(nk))) fallback = contact.address;
+    }
+    return fallback;
+}
+
 function findMemoryAddressFor(text) {
     if (typeof memoryItems !== 'object' || !memoryItems) return null;
     const clean = s => String(s || '').toLowerCase().trim();
@@ -207,12 +229,13 @@ async function computeDepartureAdvice(opts) {
 
     // Ziel kann eine Straßenadresse, aber auch ein Geschäft/eine Sehenswürdigkeit ohne Adresse sein
     // (z.B. "Penny in Schwarzenbek") - geocodeDestination probiert dafür mehrere Schreibweisen.
-    // Erst im Gedächtnis nachsehen, ob zu diesem Namen schon eine Adresse gespeichert ist.
-    const memAddr = findMemoryAddressFor(target.ort);
+    // Erst bei den Kontakten nachsehen (dort gehören Adressen am ehesten hin), dann im Gedächtnis.
+    const contactAddr = findContactAddressFor(target.ort);
+    const memAddr = contactAddr || findMemoryAddressFor(target.ort);
     const dest = await geocodeDestination(memAddr || target.ort, loc.ort);
     if (!dest) {
         throw userError(`Die Adresse "${target.ort}" konnte ich nicht finden.` +
-            (memAddr ? '' : ` Ist dazu keine Adresse gespeichert? Sagen Sie zum Beispiel "Merk dir ${target.ort}s Adresse: ..."`));
+            (memAddr ? '' : ` Ist dazu keine Adresse gespeichert? Tragen Sie sie bei den Kontakten ein, oder sagen Sie "Merk dir ${target.ort}s Adresse: ..."`));
     }
 
     const route = await routeDurationSeconds(loc.latitude, loc.longitude, dest.lat, dest.lon);

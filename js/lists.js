@@ -126,18 +126,34 @@ function addManualMemoryItem() {
     }
 }
 
-/* --- Kontakte --- */
+/* --- Kontakte ---
+   Jeder Kontakt kann Telefonnummer und/oder Adresse haben - eins von beiden reicht zum Speichern.
+   Die Adresse wird von travel.js genutzt, damit "Ich möchte zu [Name] fahren" die Fahrzeit findet. */
 function saveContact() {
-    const name = contactNameInput.value.trim();
-    const phone = contactPhoneInput.value.trim();
-    if (name && phone) {
-        savedContacts[name.toLowerCase()] = { originalName: name, phone: phone };
-        setPersistentData('helfer_contacts', JSON.stringify(savedContacts));
-        contactNameInput.value = '';
-        contactPhoneInput.value = '';
-        renderContactList();
-        speak(`Kontakt ${name} wurde ins Verzeichnis aufgenommen.`);
+    const nameEl = document.getElementById('contactNameInput');
+    const phoneEl = document.getElementById('contactPhoneInput');
+    const addressEl = document.getElementById('contactAddressInput');
+    if (!nameEl) return;
+    const name = nameEl.value.trim();
+    const phone = phoneEl ? phoneEl.value.trim() : '';
+    const address = addressEl ? addressEl.value.trim() : '';
+    if (!name || (!phone && !address)) {
+        speak('Mir fehlt der Name und mindestens Telefonnummer oder Adresse.');
+        return;
     }
+    const key = name.toLowerCase();
+    const existing = savedContacts[key] || {};
+    savedContacts[key] = {
+        originalName: name,
+        phone: phone || existing.phone || '',
+        address: address || existing.address || ''
+    };
+    setPersistentData('helfer_contacts', JSON.stringify(savedContacts));
+    nameEl.value = '';
+    if (phoneEl) phoneEl.value = '';
+    if (addressEl) addressEl.value = '';
+    renderContactList();
+    speak(`Kontakt ${name} wurde gespeichert.`);
 }
 
 function deleteContact(key) {
@@ -149,7 +165,14 @@ function deleteContact(key) {
 function renderContactList() {
     if (!contactListDisplay) return;
     const keys = Object.keys(savedContacts);
-    setHtmlIfChanged(contactListDisplay, keys.length === 0 ? 'Keine Kontakte.' : keys.map(k => `<div class="flex justify-between items-center bg-black p-2 rounded border border-[rgba(93,209,255,.2)] my-1"><span>${savedContacts[k].originalName}:${savedContacts[k].phone}</span><button onclick="playUiBeep(); deleteContact('${k}')" class="text-[#49d7ff] font-bold">Löschen</button></div>`).join(''));
+    setHtmlIfChanged(contactListDisplay, keys.length === 0 ? 'Keine Kontakte.' : keys.map(k => {
+        const c = savedContacts[k];
+        const parts = [];
+        if (c.phone) parts.push(`📞 ${c.phone}`);
+        if (c.address) parts.push(`📍 ${escapeHtml(c.address)}`);
+        const details = parts.length ? parts.join(' · ') : '<span class="italic text-slate-600">keine Nummer/Adresse</span>';
+        return `<div class="flex justify-between items-center bg-black p-2 rounded border border-[rgba(93,209,255,.2)] my-1"><span><b>${escapeHtml(c.originalName)}</b>: ${details}</span><button onclick="playUiBeep(); deleteContact('${k}')" class="text-[#49d7ff] font-bold">Löschen</button></div>`;
+    }).join(''));
 }
 
 /* --- Löschen --- */
@@ -355,13 +378,15 @@ function executeListEdit(action, ctx) {
         return;
     }
 
-    /* ---------- Kontakte (Name -> Nummer) ---------- */
+    /* ---------- Kontakte (Name -> Nummer/Adresse) ---------- */
     if (list === 'kontakte') {
         if (op === 'clear') throw userError('Alle Kontakte auf einmal lösche ich nicht per Sprache.');
         const names = () => Object.keys(savedContacts).map(k => ({ text: savedContacts[k].originalName, key: k }));
         if (op === 'add') {
             if (items.length === 0 || !newValue) throw userError('Mir fehlt der Name oder die Telefonnummer.');
-            savedContacts[items[0].toLowerCase()] = { originalName: items[0], phone: newValue };
+            const k = items[0].toLowerCase();
+            const existing = savedContacts[k] || {};
+            savedContacts[k] = { originalName: items[0], phone: newValue, address: existing.address || '' };
         } else if (op === 'replace') {
             if (items.length === 0 || !newValue) throw userError('Mir fehlt der Name oder die neue Telefonnummer.');
             const t = resolveListTargets(names(), items[0], place)[0];
