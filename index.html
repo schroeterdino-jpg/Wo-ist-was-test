@@ -96,6 +96,10 @@
                         <span class="block text-[10px] uppercase tracking-widest text-[#49d7ff]/80">📅 Nächster Termin</span>
                         <span id="ovNext" class="block text-sm text-slate-100 leading-snug break-words clamp-2">Lädt...</span>
                     </button>
+                    <div id="ovWeather" class="shrink-0 flex flex-col items-center justify-center px-3 py-2 rounded-xl bg-[#0a1621]/80 backdrop-blur border border-[rgba(93,209,255,.25)] border-glow-cyan min-w-[58px]" aria-label="Wetter">
+                        <span id="ovWeatherIcon" class="text-xl leading-none">🌡️</span>
+                        <span id="ovWeatherTemp" class="text-xs text-slate-100 mt-0.5">--°</span>
+                    </div>
                     <button id="ovReminders" onclick="playUiBeep(); openPanel('erinnerungen')" class="shrink-0 px-3 py-3 rounded-xl bg-[#0a1621]/80 backdrop-blur border border-[rgba(255,154,68,.35)] text-[#ff9a44] font-bold" aria-label="Erinnerungen">🔔 0</button>
                 </div>
 
