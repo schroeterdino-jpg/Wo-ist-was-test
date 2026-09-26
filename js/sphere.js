@@ -74,6 +74,21 @@
         const BREATHE_SPEED = 0.02;     // wie schnell sie "atmet" (auseinander- und wieder zusammenzieht)
         const BREATHE_AMOUNT = 0.04;    // wie stark - 0.04 = bis zu 4% größer/kleiner als die Grundgröße (dezentes Pulsieren statt starkem Pump)
 
+        // Während Jarvis SPRICHT: zwei überlagerte Wellen mit unterschiedlicher Geschwindigkeit statt einer
+        // einzelnen, sauberen Sinuskurve - das wirkt unregelmäßiger und organischer, eher wie echtes Sprechen,
+        // statt wie ein gleichmäßiges Ein- und Ausatmen.
+        const SPEAK_BREATHE_A = 0.10;
+        const SPEAK_BREATHE_A_SPEED = 0.05;
+        const SPEAK_BREATHE_B = 0.05;
+        const SPEAK_BREATHE_B_SPEED = 0.13;
+
+        function currentBreathe(t, speaking) {
+            if (speaking) {
+                return 1 + SPEAK_BREATHE_A * Math.sin(t * SPEAK_BREATHE_A_SPEED) + SPEAK_BREATHE_B * Math.sin(t * SPEAK_BREATHE_B_SPEED);
+            }
+            return 1 + BREATHE_AMOUNT * Math.sin(t * BREATHE_SPEED);
+        }
+
         function isRunning() {
             return running && !panelPaused;
         }
@@ -92,8 +107,9 @@
             angle += ROTATE_SPEED;
             time += 1;
             const cosA = Math.cos(angle), sinA = Math.sin(angle);
-            const breathe = 1 + BREATHE_AMOUNT * Math.sin(time * BREATHE_SPEED);   // atmet gleichmäßig auf und ab
-            const rgb = COLORS[currentColorKey()];
+            const colorKey = currentColorKey();
+            const breathe = currentBreathe(time, colorKey === 'speaking');
+            const rgb = COLORS[colorKey];
 
             const projected = points.map(p => {
                 const bx = p.x * breathe, by = p.y * breathe, bz = p.z * breathe;
