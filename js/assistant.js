@@ -782,6 +782,7 @@ async function sendToGroqSmart(text, opts = {}) {
                 });
                 travelReply = res.reply;
                 ctx.cards.push(res.card);
+                (res.webcamCards || []).forEach(c => ctx.cards.push(c));
                 // Bei Stau-Fragen öffnet sich zusätzlich die HUD-Karte mit Route und Meldungen
                 if (!opts.collect && res.map && res.map.coords && STAU_TRIGGER.test(text)) ctx.panel = { name: 'karte', mapData: res.map };
             } catch (e) {

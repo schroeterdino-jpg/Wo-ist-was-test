@@ -10,6 +10,7 @@ const TRAVEL_BUFFER_MINUTES = 10;   // Puffer, damit man nicht auf die Minute ge
 // Daten der zuletzt berechneten Route, damit die HUD-Karte sie ohne zweite Abfrage zeichnen kann
 let lastStauWarnings = [];
 let lastRouteMapData = null;
+let lastWebcamCards = [];   // Webcam-Bildkarten der zuletzt berechneten Route (siehe describeAutobahnStau)
 
 const geocodeCache = {};   // nur im Speicher: Adresse -> { lat, lon }
 
@@ -221,7 +222,8 @@ async function computeDepartureAdvice(opts) {
     return {
         reply,
         card: { icon: '🚗', title: 'Route zu ' + target.titel, subtitle, href: buildMapsLink(target.ort, '', 'driving') },
-        map: mapData
+        map: mapData,
+        webcamCards: lastWebcamCards.slice()
     };
 }
 
@@ -244,8 +246,21 @@ async function fetchAutobahnStau(road) {
     }
 }
 
+/* Webcams einer Autobahn (offizielle Autobahn-API, über /api/webcam geleitet - siehe api/webcam.js) */
+async function fetchAutobahnWebcams(road) {
+    try {
+        const res = await apiFetch('/api/webcam?road=' + encodeURIComponent(road));
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.webcam || [];
+    } catch (e) {
+        return null;
+    }
+}
+
 async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) {
     lastStauWarnings = [];
+    lastWebcamCards = [];
     if (!autobahnen || autobahnen.length === 0) return '';
     // Grober Fahrschlauch um Start und Ziel, mit etwas Puffer für Umwege - nur Meldungen darin sind wirklich relevant
     const padding = 0.35;   // ca. 30-35 km, verhindert genau den Fehler "A1 bei Köln" auf einer Fahrt in Schleswig-Holstein
@@ -261,7 +276,11 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
     const relevant = autobahnen.slice(0, 2);   // nicht zu viele Abfragen bei langen Strecken mit vielen Autobahnen
     const meldungen = [];
     const geprueft = [];   // Autobahnen, deren Abfrage wirklich geklappt hat
-    const alleMeldungen = await Promise.all(relevant.map(road => fetchAutobahnStau(road)));   // gleichzeitig statt nacheinander
+    // Stau-/Baustellenmeldungen UND Webcams gleichzeitig abfragen (nicht nacheinander, spart Zeit)
+    const [alleMeldungen, alleWebcams] = await Promise.all([
+        Promise.all(relevant.map(road => fetchAutobahnStau(road))),
+        Promise.all(relevant.map(road => fetchAutobahnWebcams(road)))
+    ]);
     for (let i = 0; i < relevant.length; i++) {
         const road = relevant[i];
         const warnings = alleMeldungen[i];
@@ -280,6 +299,20 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
             const grund = (w.description || []).find(d => /stau|verengung|sperr|stockend|zähfließend/i.test(d));
             meldungen.push(`${road}${kurz ? ': ' + kurz : ''}${grund ? ' (' + grund + ')' : ''}`);
         });
+
+        // Webcams auf derselben Autobahn, die im Fahrschlauch liegen - höchstens 2 pro Autobahn, damit es nicht zu viele werden
+        const cams = alleWebcams[i];
+        if (cams) {
+            cams.filter(relevanteMeldung).slice(0, 2).forEach(w => {
+                if (!w.imageurl) return;   // ohne Bild-Link nichts anzubieten, das ins Leere führt
+                lastWebcamCards.push({
+                    icon: '📷',
+                    title: `Webcam ${road}${w.subtitle ? ' · ' + w.subtitle : ''}`,
+                    subtitle: (w.title || '').replace(/^A\d+\s*\|\s*/, '') || 'Standbild antippen',
+                    href: w.imageurl
+                });
+            });
+        }
     }
     if (meldungen.length > 0) return ' Achtung, auf der Strecke aktuell gemeldet: ' + meldungen.join('; ') + '.';
     if (geprueft.length > 0) return ` Auf der ${geprueft.join(' und ')} sind aktuell keine Staumeldungen bekannt.`;
