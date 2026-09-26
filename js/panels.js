@@ -1937,6 +1937,8 @@ const DASHBOARD_ALL_TILES = [
     { key: 'termine', icon: '📅', label: 'Termine' },
     { key: 'erinnerungen', icon: '🔔', label: 'Erinnerungen' },
     { key: 'einkauf', icon: '🛒', label: 'Einkaufsliste' },
+    { key: 'aufgaben', icon: '📝', label: 'Notizen' },
+    { key: 'standort', icon: '📍', label: 'Mein Standort' },
 ];
 const DASHBOARD_DEFAULT_VISIBLE = ['parkplatz', 'sprit', 'wetter', 'termine', 'erinnerungen'];   // Einkaufsliste ist verfügbar, aber anfangs aus
 let dashboardConfig = null;   // [{ key, visible }, ...] in Anzeige-Reihenfolge
@@ -2113,6 +2115,26 @@ async function dashboardFillEinkauf() {
     dashboardSetTile('einkauf', items.join(', ') + (rest > 0 ? ` … und ${rest} weitere` : ''));
 }
 
+async function dashboardFillAufgaben() {
+    const items = (todoEntries || []).slice(0, 4).map(e => escapeHtml(e.text));
+    if (!items.length) return dashboardSetTile('aufgaben', 'Keine Notizen.');
+    const rest = todoEntries.length - items.length;
+    dashboardSetTile('aufgaben', items.join(', ') + (rest > 0 ? ` … und ${rest} weitere` : ''));
+}
+
+async function dashboardFillStandort() {
+    try {
+        const loc = await fetchUserLocationData();
+        if (!loc || loc.fehler || loc.latitude === undefined) return dashboardSetTile('standort', 'Standort nicht verfügbar.');
+        const strasse = loc.straßenAdresse ? String(loc.straßenAdresse) : '';
+        const ort = (loc.ort && loc.ort !== 'Koordinaten ermittelt') ? String(loc.ort) : '';
+        const haupt = [strasse, ort].filter(Boolean).join(', ') || `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`;
+        dashboardSetTile('standort', escapeHtml(haupt), loc.genauigkeit ? `± ${Math.round(loc.genauigkeit)} m genau` : '');
+    } catch (e) {
+        dashboardSetTile('standort', 'Standort nicht verfügbar.');
+    }
+}
+
 async function dashboardFillSprit() {
     try {
         const pos = await new Promise((ok, err) => navigator.geolocation.getCurrentPosition(ok, err, { timeout: 7000, maximumAge: 120000 }));
@@ -2131,6 +2153,7 @@ async function dashboardFillSprit() {
 const DASHBOARD_FILLERS = {
     parkplatz: dashboardFillParkplatz, wetter: dashboardFillWetter, termine: dashboardFillTermine,
     erinnerungen: dashboardFillErinnerungen, einkauf: dashboardFillEinkauf, sprit: dashboardFillSprit,
+    aufgaben: dashboardFillAufgaben, standort: dashboardFillStandort,
 };
 
 const DASHBOARD_REVEAL_MS = 1050;  // Abstand, mit dem jede Kachel EINZELN im Bild erscheint - macht in Summe ca. 4-5s fürs ganze Dashboard
