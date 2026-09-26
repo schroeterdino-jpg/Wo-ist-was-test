@@ -449,7 +449,7 @@ function jvHearing(on) {
    Ohne Bewegung (ruhig, kein Flackern). Farben je nach Zustand: Cyan = bereit, Grün (atmend) = Jarvis hört zu, Orange = Jarvis spricht.
    Wird beim Laden einmal in den vorhandenen Ring-Bereich (.holo-container) eingesetzt; index.html und style.css bleiben unverändert.
    ============================================================ */
-const JV_HOLO_ON = true;        // false = alte Ringe behalten
+const JV_HOLO_ON = false;       // Auf Wunsch abgeschaltet: nur noch die reine Kugel, kein Sechseck-Rahmen mehr
 const JV_HOLO_SIZE = 300;          // Größe des Rahmens in Pixeln
 const JV_HOLO_ORB_SIZE = 380;      // Größe des Kugelbilds (größer = Kugel füllt mehr vom Rahmen; das Bild wird rund abgeschnitten)
 const JV_HOLO_ORB_CLIP = 120;      // Radius des sichtbaren Kreises der Kugel in Pixeln (der Innenkreis des Rahmens hat ca. 126)
