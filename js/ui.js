@@ -59,12 +59,23 @@ function setHudSubtitle(text) {
 
 /* Mitschreiben im Takt der echten Sprachausgabe: nutzt die "boundary"-Ereignisse der Sprachsynthese
    (feuert pro gesprochenem Wort). Feuert der Browser/die Stimme keine Ereignisse, weicht die Funktion
-   nach kurzer Wartezeit auf ein geschätztes, gleichmäßiges Tempo aus - lieber ungefähr synchron als gar nicht sichtbar. */
+   nach kurzer Wartezeit auf ein geschätztes, gleichmäßiges Tempo aus - lieber ungefähr synchron als gar nicht sichtbar.
+   Ist dabei ein Fenster (Panel, z.B. die Weltkugel) offen, liegt dieses Textfeld ohnehin verdeckt darunter -
+   dann wird der Text einmal komplett gesetzt statt laufend Wort für Wort bzw. Buchstabe für Buchstabe
+   nachzuzeichnen. Das spart genau die Extra-Arbeit, die zusammen mit einer laufenden 3D-Ansicht (Weltkugel)
+   zum Ruckeln geführt hat. */
 function setHudSubtitleSynced(text, utterance) {
     const el = document.getElementById('hudSubtitleText');
     if (!el) return;
     if (subtitleTypewriterTimeout) clearTimeout(subtitleTypewriterTimeout);
     if (subtitleBoundaryFallback) clearTimeout(subtitleBoundaryFallback);
+
+    // Panel offen -> Textfeld ist verdeckt: einmal komplett setzen, keine laufenden Updates während des Sprechens
+    if (typeof isPanelOpen === 'function' && isPanelOpen()) {
+        el.textContent = text;
+        return () => { el.textContent = text; };
+    }
+
     el.textContent = '';
 
     if (!utterance) { setHudSubtitle(text); return; }
