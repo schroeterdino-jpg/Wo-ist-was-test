@@ -1080,11 +1080,18 @@ function plainKey(s) {
 }
 
 /* Sagt der Satz selbst "zur Arbeit" bzw. "nach Hause", gilt immer die gespeicherte Adresse - egal, was die KI als Ziel eingesetzt hat
-   (sie nimmt sonst manchmal eine ältere, falsch geschriebene Adresse aus dem Gedächtnis). */
+   (sie nimmt sonst manchmal eine ältere, falsch geschriebene Adresse aus dem Gedächtnis).
+   Ausnahme: "zu Alissa nach Hause" heißt "zu Alissas Zuhause", nicht zum eigenen Zuhause - das darf die
+   feste Regel unten nicht überschreiben, sonst navigiert die App fälschlich zur eigenen Adresse. */
+function mentionsVisitingSomeonesHome(text) {
+    return /\bzu\s+[A-ZÄÖÜ][\wäöüß]{2,}\b[^.!?]{0,30}\b(nach\s*hause|zuhause|zu\s*hause)\b/i.test(String(text || ''));
+}
+
 function resolveTravelDestination(userText, dest) {
     const t = String(userText || '').toLowerCase();
+    const visitingSomeoneElse = mentionsVisitingSomeonesHome(userText);
     const wantsWork = /\b(arbeit|arbeitsweg|arbeitsstelle|arbeitsplatz)\b/.test(t);
-    const wantsHome = /(nach hause|nachhause|zuhause|zu hause|heimweg)/.test(t);
+    const wantsHome = /(nach hause|nachhause|zuhause|zu hause|heimweg)/.test(t) && !visitingSomeoneElse;
     if (wantsWork && !wantsHome) return resolvePersonalPlace('Arbeit');
     if (wantsHome && !wantsWork) return resolvePersonalPlace('Zuhause');
     return resolvePersonalPlace(dest);
