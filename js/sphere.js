@@ -1,10 +1,14 @@
 /* ============================================================
-   JARVIS-KUGEL: Netzwerk aus Punkten und Verbindungslinien, dreht sich langsam.
+   JARVIS-KUGEL: dichte Wolke aus weichen Leuchtpunkten (Partikel-Stil), dreht sich langsam.
    Reine Optik, per <canvas id="jarvisSphere"> in index.html, unabhängig von den anderen Skripten.
    Farbe: Blau in Ruhe/beim Zuhören, Grün während Jarvis spricht - liest dafür nur die vorhandenen
    CSS-Klassen "speaking"/"recording" am Element #recordBtn mit, die voice.js sowieso schon setzt.
    Pausiert außerdem, sobald ein Panel (z.B. die Weltkugel) offen ist - siehe pauseJarvisSphere()/
    resumeJarvisSphere() unten, aufgerufen von panels.js (openPanel/closePanel).
+
+   Auf Wunsch umgebaut: früher ein Punkte-Netz MIT Verbindungslinien, jetzt eine reine Partikelwolke
+   ohne Linien - viele weiche, unterschiedlich große Leuchtpunkte, im Kugelvolumen verteilt (nicht nur
+   auf der Oberfläche), damit die Mitte dichter/heller wirkt als der Rand.
    ============================================================ */
 (function () {
     function start() {
@@ -13,9 +17,8 @@
         const ctx = canvas.getContext('2d');
 
         const SIZE = 290;                 // muss zur width/height des <canvas> in index.html passen
-        const POINT_COUNT = 90;
-        const SPHERE_RADIUS = 108;
-        const LINK_DIST = 52;             // höchstens dieser 3D-Abstand zwischen zwei Punkten -> Linie dazwischen
+        const POINT_COUNT = 240;          // deutlich mehr als beim früheren Netz, für eine dichte Wolke
+        const SPHERE_RADIUS = 116;
         const FOCAL = 340;                 // größer = flachere, kleiner = stärkere Perspektive
         const ROTATE_SPEED = 0.0055;       // Bogenmaß pro Bild
 
@@ -26,25 +29,28 @@
         canvas.style.height = SIZE + 'px';
         ctx.scale(DPR, DPR);
 
-        // Fibonacci-Kugel als Grundgerüst (gleichmäßige Verteilung), aber mit etwas Unschärfe/Versatz je Punkt,
-        // damit es wie ein organisches Punktenetz wirkt statt wie ein exaktes, geometrisches Gebilde.
-        const JITTER = 16;
+        // Punkte im GESAMTEN Kugelvolumen verteilen (nicht nur auf der Oberfläche wie beim alten Netz):
+        // zufällige Richtung + eine mit Kubikwurzel gestauchte Zufallslänge füllt eine Kugel gleichmäßig
+        // nach Volumen, wodurch die Mitte spürbar dichter wirkt als der Rand - wie eine Partikelwolke.
         const points = [];
-        const golden = Math.PI * (3 - Math.sqrt(5));
         for (let i = 0; i < POINT_COUNT; i++) {
-            const y = 1 - (i / (POINT_COUNT - 1)) * 2;
-            const r = Math.sqrt(Math.max(0, 1 - y * y));
-            const theta = golden * i;
+            const u = Math.random(), v = Math.random();
+            const theta = u * Math.PI * 2;
+            const phi = Math.acos(2 * v - 1);
+            const r = SPHERE_RADIUS * Math.cbrt(Math.random());
             points.push({
-                x: Math.cos(theta) * r * SPHERE_RADIUS + (Math.random() - 0.5) * JITTER,
-                y: y * SPHERE_RADIUS + (Math.random() - 0.5) * JITTER,
-                z: Math.sin(theta) * r * SPHERE_RADIUS + (Math.random() - 0.5) * JITTER,
+                x: r * Math.sin(phi) * Math.cos(theta),
+                y: r * Math.cos(phi),
+                z: r * Math.sin(phi) * Math.sin(theta),
+                size: 0.7 + Math.random() * 1.9,        // unterschiedliche Partikelgröße für Tiefenwirkung
+                twinklePhase: Math.random() * Math.PI * 2,
+                twinkleSpeed: 0.02 + Math.random() * 0.035,
                 phase: Math.random() * Math.PI * 2,     // eigener Versatz je Punkt fürs Sprechen-Pulsieren
                 speedMul: 0.75 + Math.random() * 0.7    // eigenes Tempo je Punkt (nicht alle exakt synchron)
             });
         }
 
-        // Farbpaare (Linie/Punkt) je Zustand - dieselben Grundfarben wie der Rest der App (--cyan, --good)
+        // Farben je Zustand - dieselben Grundfarben wie der Rest der App (--cyan, --good)
         const COLORS = {
             speaking: '87,224,161',   // Grün, siehe --good in style.css
             recording: '73,215,255',  // Cyan, siehe --cyan in style.css
@@ -56,17 +62,6 @@
             if (btn && btn.classList.contains('speaking')) return 'speaking';
             if (btn && btn.classList.contains('recording')) return 'recording';
             return 'idle';
-        }
-
-        // Welche Punkte verbunden werden, steht schon vorher fest (ändert sich durch Drehen/Atmen nicht,
-        // weil beides die ganze Kugel gleichmäßig bewegt) - das spart auf jedem Bild ~4000 Abstandsberechnungen.
-        const links = [];
-        for (let i = 0; i < POINT_COUNT; i++) {
-            for (let j = i + 1; j < POINT_COUNT; j++) {
-                const dx = points[i].x - points[j].x, dy = points[i].y - points[j].y, dz = points[i].z - points[j].z;
-                const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                if (d < LINK_DIST) links.push([i, j, 1 - d / LINK_DIST]);
-            }
         }
 
         let angle = 0;
@@ -84,10 +79,9 @@
         const SPEAK_BREATHE_B = 0.05;
         const SPEAK_BREATHE_B_SPEED = 0.13;
 
-        // Zusätzlich zur Gesamt-Atmung bewegt sich beim SPRECHEN jeder Punkt für sich: er zieht sich einzeln
-        // etwas zur Mitte oder nach außen, mit eigenem Tempo/Versatz (siehe phase/speedMul oben bei den Punkten).
-        // Dadurch verändert sich die Netz-Struktur selbst (Verbindungslinien strecken/stauchen sich unregelmäßig),
-        // statt dass nur die ganze Kugel gleichmäßig größer/kleiner wird.
+        // Zusätzlich zur Gesamt-Atmung bewegt sich beim SPRECHEN jeder Partikel für sich: er zieht sich
+        // einzeln etwas zur Mitte oder nach außen, mit eigenem Tempo/Versatz - dadurch wirkt die Wolke
+        // beim Sprechen lebendig/brodelnd statt nur gleichmäßig zu pulsieren.
         const SPEAK_POINT_AMOUNT = 0.16;
         const SPEAK_POINT_SPEED = 0.09;
 
@@ -124,41 +118,41 @@
             const colorKey = currentColorKey();
             const breathe = currentBreathe(time, colorKey === 'speaking');
             const rgb = COLORS[colorKey];
-
             const speaking = colorKey === 'speaking';
+
             const projected = points.map(p => {
                 const total = breathe * pointPulse(p, time, speaking);
                 const bx = p.x * total, by = p.y * total, bz = p.z * total;
                 const x = bx * cosA - bz * sinA;
                 const z = bx * sinA + bz * cosA;
                 const scale = FOCAL / (FOCAL + z + SPHERE_RADIUS);
-                return { sx: SIZE / 2 + x * scale, sy: SIZE / 2 + by * scale, z, scale };
+                const twinkle = 0.65 + 0.35 * Math.sin(time * p.twinkleSpeed + p.twinklePhase);
+                return { sx: SIZE / 2 + x * scale, sy: SIZE / 2 + by * scale, scale, size: p.size, twinkle };
             });
+            // Von hinten nach vorne zeichnen (weiter weg zuerst), damit nähere Partikel vorne sichtbar bleiben
+            projected.sort((a, b) => a.scale - b.scale);
 
-            // Weiches Neon-Schimmern um die ganze Kugel (CSS-Glow auf dem <canvas> selbst, güns­tiger als
-            // ein Schatten je Linie/Punkt und zieht die Farbe automatisch mit, wenn sie zwischen Blau/Grün wechselt)
+            // Weiches Neon-Schimmern um die ganze Kugel (CSS-Glow auf dem <canvas> selbst)
             canvas.style.filter = `drop-shadow(0 0 6px rgba(${rgb},.9)) drop-shadow(0 0 16px rgba(${rgb},.7)) drop-shadow(0 0 34px rgba(${rgb},.4))`;
 
             ctx.clearRect(0, 0, SIZE, SIZE);
 
-            ctx.lineWidth = 1;
-            for (let k = 0; k < links.length; k++) {
-                const [i, j, closeness] = links[k];
-                const a = projected[i], b = projected[j];
-                const opacity = closeness * 0.5 * ((a.scale + b.scale) / 2);
-                ctx.strokeStyle = `rgba(${rgb},${opacity.toFixed(3)})`;
-                ctx.beginPath();
-                ctx.moveTo(a.sx, a.sy);
-                ctx.lineTo(b.sx, b.sy);
-                ctx.stroke();
-            }
-
             projected.forEach(p => {
-                const rad = 1.1 * p.scale + 0.4;
-                const op = Math.min(1, p.scale * 0.9);
-                ctx.fillStyle = `rgba(${rgb},${op.toFixed(3)})`;
+                const rad = Math.max(0.4, p.size * p.scale * 1.6);
+                const op = Math.min(1, p.scale * p.twinkle);
+                // Weicher Glow-Punkt statt scharfem Kreis: Farbe in der Mitte, transparent am Rand
+                const grad = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, rad * 2.4);
+                grad.addColorStop(0, `rgba(${rgb},${op.toFixed(3)})`);
+                grad.addColorStop(0.5, `rgba(${rgb},${(op * 0.35).toFixed(3)})`);
+                grad.addColorStop(1, `rgba(${rgb},0)`);
+                ctx.fillStyle = grad;
                 ctx.beginPath();
-                ctx.arc(p.sx, p.sy, rad, 0, Math.PI * 2);
+                ctx.arc(p.sx, p.sy, rad * 2.4, 0, Math.PI * 2);
+                ctx.fill();
+                // Heller, kleiner Kern in der Mitte jedes Partikels (macht die Wolke funkelnder)
+                ctx.fillStyle = `rgba(255,255,255,${(op * 0.55).toFixed(3)})`;
+                ctx.beginPath();
+                ctx.arc(p.sx, p.sy, rad * 0.4, 0, Math.PI * 2);
                 ctx.fill();
             });
 
