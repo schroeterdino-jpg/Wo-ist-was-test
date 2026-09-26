@@ -1025,10 +1025,83 @@ async function fetchWorldNews(place) {
     }
 }
 
+/* ---- Tagesschau-API (offiziell, direkt vom Browser aus abrufbar) für "Deutschland" ----
+   Anders als die allgemeine Nachrichtenquelle (fetchWorldNews/GDELT + YouTube-Suche als Video-Rückfall)
+   gibt es hier bei fehlendem eigenem Video KEINEN YouTube-Rückfall - dann eben nur Text und Bild. */
+const TAGESSCHAU_API = 'https://www.tagesschau.de/api2u/news/';
+
+/* Sucht rekursiv nach dem ersten String-Wert, der auf "test" passt - robust gegenüber der genauen
+   Feldstruktur der Tagesschau-API (z.B. verschachtelte Bild-/Video-Varianten), ohne dass wir jedes
+   Feld einzeln kennen müssen. */
+function tagesschauFindMatch(obj, test, seen) {
+    seen = seen || new Set();
+    if (!obj || typeof obj !== 'object' || seen.has(obj)) return null;
+    seen.add(obj);
+    for (const key of Object.keys(obj)) {
+        const val = obj[key];
+        if (typeof val === 'string' && test(val)) return val;
+        if (val && typeof val === 'object') {
+            const found = tagesschauFindMatch(val, test, seen);
+            if (found) return found;
+        }
+    }
+    return null;
+}
+
+function tagesschauImageUrl(item) {
+    return tagesschauFindMatch(item, v => /^https?:\/\/\S+\.(jpe?g|png|webp)(\?.*)?$/i.test(v));
+}
+
+/* Ein Artikel-Detail (eigene JSON-URL im Feld "details") nach einem eingebetteten Video durchsuchen */
+async function tagesschauVideoFromDetail(detailUrl) {
+    if (!detailUrl) return null;
+    try {
+        const res = await fetch(detailUrl);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const url = tagesschauFindMatch(data, v => /^https?:\/\/\S+\.(mp4|m3u8)(\?.*)?$/i.test(v));
+        if (!url) return null;
+        return { url, type: /\.m3u8/i.test(url) ? 'application/x-mpegURL' : 'video/mp4' };
+    } catch (e) {
+        return null;
+    }
+}
+
+async function fetchGermanyNewsViaTagesschau() {
+    try {
+        const res = await fetch(TAGESSCHAU_API);
+        if (!res.ok) return { articles: [], fehler: 'Status ' + res.status, source: 'tagesschau' };
+        const data = await res.json();
+        const items = Array.isArray(data.news) ? data.news : [];
+        if (!items.length) return { articles: [], fehler: 'keine Meldungen', source: 'tagesschau' };
+
+        const articles = items.slice(0, WELT_MAX_ARTICLES).map(it => ({
+            title: it.title || it.topline || '',
+            url: it.shareURL || it.detailsweb || '',
+            image: tagesschauImageUrl(it),
+            domain: 'tagesschau.de',
+            date: it.date || null
+        }));
+
+        // Nur beim ERSTEN Artikel nach einem eigenen Video suchen (ein Aufruf genügt, kein Video-Rückfall über YouTube)
+        let video = null;
+        const first = items[0];
+        if (first && first.details) {
+            const v = await tagesschauVideoFromDetail(first.details);
+            if (v) video = { ...v, title: first.title || 'Tagesschau', poster: tagesschauImageUrl(first) };
+        }
+        return { articles, video, fehler: null, source: 'tagesschau' };
+    } catch (e) {
+        return { articles: [], fehler: 'keine Verbindung', source: 'tagesschau' };
+    }
+}
+
 /* Geocoding und Nachrichten schon beim Öffnen starten, während das Fenster einfliegt */
 function weltPrefetch(options = {}) {
     const place = options.mode ? '' : String(options.place || '').trim();
-    weltPre = place ? { place, geoP: weltGeocode(place), newsP: fetchWorldNews(place) } : null;
+    if (!place) { weltPre = null; return; }
+    const isGermany = normalizeKey(place) === 'deutschland';
+    weltPre = { place, geoP: weltGeocode(place), newsP: isGermany ? fetchGermanyNewsViaTagesschau() : fetchWorldNews(place) };
 }
 
 function weltCreateGlobe() {
@@ -1179,7 +1252,8 @@ async function weltShowPlace(place) {
     const pre = (weltPre && weltPre.place.toLowerCase() === place.toLowerCase()) ? weltPre : null;
     weltPre = null;
     const geoP = weltWithTimeout(pre ? pre.geoP : weltGeocode(place), 8000, null);
-    const newsP = weltWithTimeout(pre ? pre.newsP : fetchWorldNews(place), 15000, { articles: [], video: null, fehler: 'Zeitüberschreitung' });
+    const isGermany = normalizeKey(place) === 'deutschland';
+    const newsP = weltWithTimeout(pre ? pre.newsP : (isGermany ? fetchGermanyNewsViaTagesschau() : fetchWorldNews(place)), 15000, { articles: [], video: null, fehler: 'Zeitüberschreitung' });
 
     weltStatus(`Suche Nachrichten zu ${place} ...`);
     weltResetLive();
@@ -1195,7 +1269,9 @@ async function weltShowPlace(place) {
     // Gibt es ein Video, startet es nach der Zusammenfassung (das Mikrofon bleibt währenddessen aus, sonst hört es das Video mit)
     const video = news && news.video && /^https:\/\//i.test(news.video.url || '') ? news.video : null;
     if (video) speak(spoken, () => { if (token === weltToken && isPanelOpen() && currentPanel.name === 'welt') weltPlayVideo(video, token); else continueConversation(); });
-    // Tagesschau hat zu dem Ort kein eigenes Video (kommt oft vor) - als Rückfall ein YouTube-Nachrichtenvideo suchen
+    // Offizielle Tagesschau-API (nur bei "Deutschland"): ohne eigenes Video bewusst KEIN YouTube-Rückfall, nur Text/Bilder
+    else if (news && news.source === 'tagesschau') speak(spoken, continueConversation);
+    // Sonst (andere Länder/Orte): als Rückfall ein passendes YouTube-Nachrichtenvideo suchen
     else speak(spoken, () => { if (token === weltToken && isPanelOpen() && currentPanel.name === 'welt') weltTryNewsVideoFallback(place, token); else continueConversation(); });
 }
 
