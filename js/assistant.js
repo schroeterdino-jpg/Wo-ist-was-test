@@ -596,8 +596,9 @@ async function sendToGroqSmart(text, opts = {}) {
     "- Wenn der User einen Termin löschen möchte ('calendar_delete'), gib den Suchbegriff oder die ID in 'calendar_query' an.\n" +
     "- Wenn Angaben für einen neuen Termin oder eine Änderung unvollständig sind (z.B. Uhrzeit fehlt), antworte im 'chat'-Modus und stelle genau eine kurze Rückfrage nach den fehlenden Details. Das Gespräch geht danach automatisch weiter.\n\n" +
     "WICHTIG für beiläufige Notizen (Kontext-Erkennung im normalen Gespräch):\n" +
-    "- Manche Äußerungen sind weder eine Frage noch ein direkter Befehl an dich, sondern ein Gedanke, den sich der User nur merken will, oft beiläufig eingeworfen: 'Ach übrigens, ...', 'Wenn ich das nächste Mal im Baumarkt bin, muss ich noch Kabelschuhe mitnehmen', 'Ich muss unbedingt noch daran denken, dass ...', 'Notiere mal, dass ...'.\n" +
-    "- Erkennst du eine solche Notiz, wähle selbst die passende Liste, ohne nachzufragen: etwas zum Kaufen oder Mitbringen -> 'shopping' (Einkaufsliste); eine Aufgabe oder ein Vorhaben -> 'todo' (Aufgabenliste); ein reiner Fakt, Ort oder Wert zum Nachschlagen -> 'memory_store' (Gedächtnis).\n" +
+    "- Manche Äußerungen sind weder eine Frage noch ein direkter Befehl an dich, sondern ein Gedanke, den sich der User nur merken will, oft beiläufig eingeworfen: 'Ach übrigens, ...', 'Wenn ich das nächste Mal im Baumarkt bin, muss ich noch Kabelschuhe mitnehmen', 'Ich muss unbedingt noch daran denken, dass ...', 'Notiere mal, dass ...', 'Ich wollte nachher noch mal schauen, ob wir bei Action Weihnachtsdeko finden'.\n" +
+    "- Erkennst du eine solche Notiz, wähle selbst die passende Liste, ohne nachzufragen: etwas zum Kaufen oder Mitbringen -> 'shopping' (Einkaufsliste); eine Aufgabe oder ein VORHABEN, auch ein unsicheres/vages ('vielleicht', 'mal schauen, ob ...', 'wollte noch ...') -> 'todo' (Aufgabenliste); ein reiner Fakt, Ort oder Wert zum Nachschlagen (z.B. eine Adresse, wo etwas liegt, eine Telefonnummer) -> 'memory_store' (Gedächtnis).\n" +
+    "- 'memory_store' ist NUR für nachschlagbare Fakten (Ort/Wert zu einem Begriff), NIEMALS für Pläne, Vorhaben oder Termine, auch wenn sie unsicher formuliert sind ('vielleicht gehe ich nachher...', 'ich wollte mal schauen, ob...') - solche Sätze sind immer 'todo', nicht 'memory_store'.\n" +
     "- Nennt der User dabei einen Zusammenhang oder Anlass (z.B. 'wenn ich im Baumarkt bin', 'für das neue Projekt'), hänge ihn in Klammern an den gespeicherten Text an, z.B. 'Kabelschuhe (nächstes Mal im Baumarkt)'.\n" +
     "- Deine 'reply' ist dann NUR eine sehr kurze Bestätigung im Jarvis-Ton, z.B. 'Ist notiert.', 'Notiert, " + currentUserName + ".' oder 'Habe ich vermerkt.' - keine Rückfragen, keine weiteren Erklärungen, keine Wiederholung des Inhalts.\n" +
     "- Diese Regel gilt NICHT, wenn die Äußerung tatsächlich eine Frage ist (z.B. 'Was steht auf meiner Einkaufsliste?') oder ein direkter, expliziter Befehl (z.B. 'Setz Milch auf die Liste') - dort antwortest du wie in den übrigen Regeln gewohnt.\n" +
@@ -638,6 +639,7 @@ async function sendToGroqSmart(text, opts = {}) {
         });
 
         const data = await res.json();
+        trackGroqUsage(data);
         const ai = JSON.parse(data.choices[0].message.content);
 
         chatHistory.push({ role: "assistant", content: JSON.stringify(ai) });
