@@ -639,7 +639,6 @@ async function sendToGroqSmart(text, opts = {}) {
         });
 
         const data = await res.json();
-        trackGroqUsage(data);
         const ai = JSON.parse(data.choices[0].message.content);
 
         chatHistory.push({ role: "assistant", content: JSON.stringify(ai) });
