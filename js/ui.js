@@ -151,6 +151,45 @@ async function updateHudTemp() {
         hudTempLoading = false;
     }
 }
+
+/* Wetter-Symbol für einen Open-Meteo/WMO-Wettercode - grobe, aber ausreichende Zuordnung fürs kleine Icon */
+function weatherEmojiForCode(code) {
+    const c = Number(code);
+    if (c === 0) return '☀️';
+    if (c === 1 || c === 2) return '🌤️';
+    if (c === 3) return '☁️';
+    if (c === 45 || c === 48) return '🌫️';
+    if (c >= 51 && c <= 57) return '🌦️';
+    if (c >= 61 && c <= 67) return '🌧️';
+    if (c >= 71 && c <= 77) return '🌨️';
+    if (c >= 80 && c <= 82) return '🌦️';
+    if (c >= 85 && c <= 86) return '🌨️';
+    if (c >= 95) return '⛈️';
+    return '🌡️';
+}
+
+/* Sichtbare Wetter-Kachel neben "Nächster Termin" auf dem Hauptbildschirm (nicht die versteckte Ecken-Anzeige) */
+let ovWeatherLoading = false;
+async function updateOverviewWeather() {
+    const iconEl = document.getElementById('ovWeatherIcon');
+    const tempEl = document.getElementById('ovWeatherTemp');
+    if (!iconEl || !tempEl || ovWeatherLoading || typeof fetchWeatherData !== 'function') return;
+    ovWeatherLoading = true;
+    try {
+        const w = await fetchWeatherData();
+        if (!w || w.fehler) { tempEl.textContent = '–'; ovWeatherLoading = false; return; }
+        tempEl.textContent = `${w.temperatur}°`;
+        iconEl.textContent = weatherEmojiForCode(w.wettercode);
+        if (typeof weatherCodeText === 'function') {
+            const desc = weatherCodeText(w.wettercode);
+            if (desc) iconEl.title = desc.charAt(0).toUpperCase() + desc.slice(1);
+        }
+    } catch (e) {
+        // still, kein Fehler-Popup für eine Nebensächlichkeit
+    } finally {
+        ovWeatherLoading = false;
+    }
+}
 let panelTitleTypeTimer = null;
 function typeWriterInto(el, text, speedMs = 18) {
     if (!el) return;
@@ -267,8 +306,10 @@ window.addEventListener('DOMContentLoaded', () => {
     renderContactList();
     if (typeof updateHudClock === 'function') updateHudClock();
     if (typeof updateHudTemp === 'function') updateHudTemp();
+    if (typeof updateOverviewWeather === 'function') updateOverviewWeather();
     // Die Übersichtszeile rückt weiter, wenn ein Termin vorbei ist; die Uhr läuft im selben Takt mit
     setInterval(() => renderAssistantOverview(), 60000);
     // Temperatur seltener auffrischen, die ändert sich nicht minütlich
     setInterval(() => { if (typeof updateHudTemp === 'function') updateHudTemp(); }, 900000);
+    setInterval(() => { if (typeof updateOverviewWeather === 'function') updateOverviewWeather(); }, 900000);
 });
