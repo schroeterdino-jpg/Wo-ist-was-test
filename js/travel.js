@@ -287,6 +287,30 @@ async function fetchAutobahnData(road) {
     }
 }
 
+/* Ordnet einer Verkehrsmeldung eine gesprochene Art zu (Unfall, Stau, Baustelle ...), statt nur den
+   rohen Titel vorzulesen. Prüft zuerst Titel/Beschreibung auf typische Wörter, dann als Rückfall den
+   "icon"-Code der API (siehe Doku: 101=Gefahr, 123=Bauarbeiten, 250=Sperrung, warnkegel=Kurzzeitbaustelle).
+   Ohne jeden Treffer bleibt es bei "Verkehrsstörung" - nie ganz ohne Angabe der Art. */
+function classifyWarning(w) {
+    const text = ((w.title || '') + ' ' + (w.description || []).join(' ')).toLowerCase();
+    if (/unfall/.test(text)) return 'Unfall';
+    if (/geisterfahrer|falschfahrer/.test(text)) return 'Falschfahrer-Warnung';
+    if (/liegengeblieben|pannenfahrzeug|panne\b/.test(text)) return 'Pannenfahrzeug';
+    if (/ladung|gegenstand auf der fahrbahn|hindernis/.test(text)) return 'Hindernis auf der Fahrbahn';
+    if (/glätte|glatteis|schnee|eisglätte/.test(text)) return 'Glätte';
+    if (/nebel|sichtbehinderung/.test(text)) return 'Nebel';
+    if (/vollsperr|gesperrt|sperrung/.test(text)) return 'Sperrung';
+    if (/baustelle|bauarbeiten/.test(text)) return 'Baustelle';
+    if (/verengung|fahrstreifen/.test(text)) return 'Fahrstreifenverengung';
+    if (/rückstau|stockend|zähfließend|stau\b/.test(text)) return 'Stau';
+    const icon = String(w.icon || '').trim();
+    if (icon === '101') return 'Gefahrenstelle';
+    if (icon === '123') return 'Baustelle';
+    if (icon === '250') return 'Sperrung';
+    if (icon === 'warnkegel') return 'Kurzzeitbaustelle';
+    return 'Verkehrsstörung';
+}
+
 async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) {
     lastStauWarnings = [];
     lastWebcamCards = [];
@@ -323,8 +347,8 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
         });
         nahe.slice(0, 2).forEach(w => {
             const kurz = (w.title || '').split('|').pop().trim();
-            const grund = (w.description || []).find(d => /stau|verengung|sperr|stockend|zähfließend/i.test(d));
-            meldungen.push(`${road}${kurz ? ': ' + kurz : ''}${grund ? ' (' + grund + ')' : ''}`);
+            const art = classifyWarning(w);
+            meldungen.push(`${road}${kurz ? ': ' + kurz : ''} (${art})`);
         });
 
         // Webcams auf derselben Autobahn, die im Fahrschlauch liegen - höchstens 2 pro Autobahn, damit es nicht zu viele werden
