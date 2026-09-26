@@ -235,24 +235,15 @@ async function fetchRouteMapData(destText, loc) {
 }
 
 /* --- Live-Stau-/Baustellen-Meldungen der genutzten Autobahnen (offizielle, kostenlose Bund-API) --- */
-async function fetchAutobahnStau(road) {
+/* --- Live-Stau-/Baustellen-Meldungen UND Webcams der genutzten Autobahnen (offizielle, kostenlose Bund-API) ---
+   Alles kommt aus EINEM Aufruf an /api/stau (siehe api/stau.js) - spart eine eigene Datei/Funktion, die
+   Vercel im kostenlosen Plan (max. 12 Serverless Functions) sonst nicht mehr zugelassen hätte. */
+async function fetchAutobahnData(road) {
     try {
         const res = await apiFetch('/api/stau?road=' + encodeURIComponent(road));
         if (!res.ok) return null;
         const data = await res.json();
-        return data.warning || [];
-    } catch (e) {
-        return null;
-    }
-}
-
-/* Webcams einer Autobahn (offizielle Autobahn-API, über /api/webcam geleitet - siehe api/webcam.js) */
-async function fetchAutobahnWebcams(road) {
-    try {
-        const res = await apiFetch('/api/webcam?road=' + encodeURIComponent(road));
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data.webcam || [];
+        return { warning: data.warning || [], webcam: data.webcam || [] };
     } catch (e) {
         return null;
     }
@@ -276,16 +267,14 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
     const relevant = autobahnen.slice(0, 2);   // nicht zu viele Abfragen bei langen Strecken mit vielen Autobahnen
     const meldungen = [];
     const geprueft = [];   // Autobahnen, deren Abfrage wirklich geklappt hat
-    // Stau-/Baustellenmeldungen UND Webcams gleichzeitig abfragen (nicht nacheinander, spart Zeit)
-    const [alleMeldungen, alleWebcams] = await Promise.all([
-        Promise.all(relevant.map(road => fetchAutobahnStau(road))),
-        Promise.all(relevant.map(road => fetchAutobahnWebcams(road)))
-    ]);
+    // Ein Aufruf pro Autobahn liefert Stau-/Baustellenmeldungen UND Webcams zusammen
+    const alleDaten = await Promise.all(relevant.map(road => fetchAutobahnData(road)));
     for (let i = 0; i < relevant.length; i++) {
         const road = relevant[i];
-        const warnings = alleMeldungen[i];
-        if (!warnings) continue;   // Dienst gerade nicht erreichbar: nichts behaupten, kein Fehler-Lärm
+        const data = alleDaten[i];
+        if (!data) continue;   // Dienst gerade nicht erreichbar: nichts behaupten, kein Fehler-Lärm
         geprueft.push(road);
+        const warnings = data.warning;
         const nahe = warnings.filter(relevanteMeldung);
         nahe.slice(0, 6).forEach(w => {
             const titel = (w.title || '').split('|').pop().trim() || 'Verkehrsmeldung';
@@ -301,18 +290,15 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
         });
 
         // Webcams auf derselben Autobahn, die im Fahrschlauch liegen - höchstens 2 pro Autobahn, damit es nicht zu viele werden
-        const cams = alleWebcams[i];
-        if (cams) {
-            cams.filter(relevanteMeldung).slice(0, 2).forEach(w => {
-                if (!w.imageurl) return;   // ohne Bild-Link nichts anzubieten, das ins Leere führt
-                lastWebcamCards.push({
-                    icon: '📷',
-                    title: `Webcam ${road}${w.subtitle ? ' · ' + w.subtitle : ''}`,
-                    subtitle: (w.title || '').replace(/^A\d+\s*\|\s*/, '') || 'Standbild antippen',
-                    href: w.imageurl
-                });
+        (data.webcam || []).filter(relevanteMeldung).slice(0, 2).forEach(w => {
+            if (!w.imageurl) return;   // ohne Bild-Link nichts anzubieten, das ins Leere führt
+            lastWebcamCards.push({
+                icon: '📷',
+                title: `Webcam ${road}${w.subtitle ? ' · ' + w.subtitle : ''}`,
+                subtitle: (w.title || '').replace(/^A\d+\s*\|\s*/, '') || 'Standbild antippen',
+                href: w.imageurl
             });
-        }
+        });
     }
     if (meldungen.length > 0) return ' Achtung, auf der Strecke aktuell gemeldet: ' + meldungen.join('; ') + '.';
     if (geprueft.length > 0) return ` Auf der ${geprueft.join(' und ')} sind aktuell keine Staumeldungen bekannt.`;
