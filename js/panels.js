@@ -1067,12 +1067,42 @@ async function tagesschauVideoFromDetail(detailUrl) {
     }
 }
 
-async function fetchGermanyNewsViaTagesschau() {
+/* Die 16 Bundesländer -> regions-Parameter der Tagesschau-API (siehe API-Doku).
+   normalizeKey entfernt Leerzeichen/Bindestriche/Umlaute, darum genügt hier die "glatte" Schreibweise. */
+const GERMAN_REGIONS = {
+    badenwuerttemberg: 1, badenwurttemberg: 1, bawue: 1,
+    bayern: 2,
+    berlin: 3,
+    brandenburg: 4,
+    bremen: 5,
+    hamburg: 6,
+    hessen: 7,
+    mecklenburgvorpommern: 8,
+    niedersachsen: 9,
+    nordrheinwestfalen: 10, nrw: 10,
+    rheinlandpfalz: 11,
+    saarland: 12,
+    sachsenanhalt: 14,   // vor "sachsen" prüfen (siehe germanRegionId), sonst würde "sachsen" zuerst zuschlagen
+    sachsen: 13,
+    schleswigholstein: 15,
+    thueringen: 16, thuringen: 16
+};
+
+/* Nur EXAKTE Treffer ("Bayern", nicht "Bayerischer Wald") - Ortsnamen sollen weiterhin normal durchgehen */
+function germanRegionId(place) {
+    const k = normalizeKey(place);
+    return GERMAN_REGIONS[k] || null;
+}
+
+async function fetchGermanyNewsViaTagesschau(regionId) {
     try {
-        const res = await fetch(TAGESSCHAU_API);
+        const url = TAGESSCHAU_API + (regionId ? '?regions=' + regionId : '');
+        const res = await fetch(url);
         if (!res.ok) return { articles: [], fehler: 'Status ' + res.status, source: 'tagesschau' };
         const data = await res.json();
-        const items = Array.isArray(data.news) ? data.news : [];
+        // Bei einem Bundesland stehen die passenden Meldungen unter "regional"; ohne regions-Filter unter "news"
+        const items = (regionId && Array.isArray(data.regional) && data.regional.length) ? data.regional
+            : (Array.isArray(data.news) ? data.news : []);
         if (!items.length) return { articles: [], fehler: 'keine Meldungen', source: 'tagesschau' };
 
         const articles = items.slice(0, WELT_MAX_ARTICLES).map(it => ({
@@ -1101,7 +1131,8 @@ function weltPrefetch(options = {}) {
     const place = options.mode ? '' : String(options.place || '').trim();
     if (!place) { weltPre = null; return; }
     const isGermany = normalizeKey(place) === 'deutschland';
-    weltPre = { place, geoP: weltGeocode(place), newsP: isGermany ? fetchGermanyNewsViaTagesschau() : fetchWorldNews(place) };
+    const regionId = germanRegionId(place);
+    weltPre = { place, geoP: weltGeocode(place), newsP: (isGermany || regionId) ? fetchGermanyNewsViaTagesschau(regionId) : fetchWorldNews(place) };
 }
 
 function weltCreateGlobe() {
@@ -1253,7 +1284,8 @@ async function weltShowPlace(place) {
     weltPre = null;
     const geoP = weltWithTimeout(pre ? pre.geoP : weltGeocode(place), 8000, null);
     const isGermany = normalizeKey(place) === 'deutschland';
-    const newsP = weltWithTimeout(pre ? pre.newsP : (isGermany ? fetchGermanyNewsViaTagesschau() : fetchWorldNews(place)), 15000, { articles: [], video: null, fehler: 'Zeitüberschreitung' });
+    const regionId = germanRegionId(place);
+    const newsP = weltWithTimeout(pre ? pre.newsP : ((isGermany || regionId) ? fetchGermanyNewsViaTagesschau(regionId) : fetchWorldNews(place)), 15000, { articles: [], video: null, fehler: 'Zeitüberschreitung' });
 
     weltStatus(`Suche Nachrichten zu ${place} ...`);
     weltResetLive();
