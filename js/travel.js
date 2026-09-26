@@ -605,6 +605,20 @@ async function diagnoseTravel(destination, log) {
             });
             log(`✅ ${road}: ${alle.length} Meldungen insgesamt, davon ${relevant.length} in der Nähe der Strecke, ${(d3.roadworks || []).length} Baustellen`);
             relevant.slice(0, 2).forEach(w => log('  • ' + (w.title || '(ohne Titel)')));
+
+            // Webcam-Diagnose: zeigt, ob es überhaupt Webcams auf dieser Autobahn gibt, und ob sie im
+            // geprüften Streckenbereich liegen - hilft zu unterscheiden zwischen "keine Kamera vorhanden"
+            // und "Kamera liegt außerhalb des geprüften Umkreises".
+            const allCams = d3.webcam || [];
+            const camsNearby = allCams.filter(w => {
+                const wl = w.coordinate && Number(w.coordinate.lat), wo = w.coordinate && Number(w.coordinate.long);
+                return isFinite(wl) && isFinite(wo) && wl >= minLat && wl <= maxLat && wo >= minLon && wo <= maxLon;
+            });
+            log(`📷 ${road}: ${allCams.length} Webcams auf der ganzen Autobahn, davon ${camsNearby.length} im geprüften Streckenbereich`);
+            allCams.slice(0, 5).forEach(w => {
+                const lat = w.coordinate ? w.coordinate.lat : '?', lon = w.coordinate ? w.coordinate.long : '?';
+                log(`  📷 ${w.title || '(ohne Titel)'} · ${lat}, ${lon} · Bild: ${w.imageurl ? 'ja' : 'NEIN'}`);
+            });
         } catch (e) {
             log('❌ ' + (e && e.userMessage ? e.userMessage : 'Keine Verbindung zum Server.'));
         }
