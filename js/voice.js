@@ -14,6 +14,8 @@ let selectedVoiceURI = getPersistentData('tts_voice_uri', '');
 let availableVoices = [];
 let allVoicesList = [];      // alle Stimmen des Geräts (für den Dolmetscher-Modus), nicht nur die deutschen
 let interpreter = null;      // Dolmetscher-Modus: { lang, turn } solange er aktiv ist
+let interpFailCount = 0;     // wie oft die Spracherkennung in dieser Dolmetscher-Runde schon nichts verstanden hat
+const INTERP_MAX_RETRIES = 2;   // so oft hört er in derselben Runde automatisch weiter, bevor er zurück auf Deutsch wechselt
 let wakeWordEnabled = getPersistentData('wake_word_enabled', '0') === '1';
 let wakeWordListening = false;
 
@@ -186,6 +188,9 @@ function speak(text, onComplete, langCode) {
 
     let cleanText = text.replace(/[*_#`~]/g, '');
     cleanText = cleanText.replace(/Schluessel/g, 'Schlüssel').replace(/schluessel/g, 'schlüssel');
+    // Namens-Aussprache: "Alyssa" soll wie "Alicia" (z.B. Alicia Keys) klingen, nicht wie geschrieben.
+    // Nur beim Sprechen umgeschrieben - überall sonst in der App bleibt der Name "Alyssa".
+    cleanText = cleanText.replace(/\bAlyssa\b/g, 'Alischa');
     if (!langCode) cleanText = speakableAbbreviations(speakableDates(cleanText));   // deutsche Monatsnamen und Abkürzungen nur für deutschen Text
 
     if ('speechSynthesis' in window) {
@@ -331,6 +336,7 @@ async function translateText(text, fromName, toName) {
 
 function startInterpreter(lang) {
     interpreter = { lang, turn: 'de' };
+    interpFailCount = 0;
     typeWriterStatus(`Dolmetscher: ${lang.name}`);
     updateTerminalStream(`INTERPRETER: DE <-> ${lang.code}`);
     speak(`Dolmetscher-Modus, ${lang.name}. Sprechen Sie einfach, ich übersetze.`, () => interpreterListen('de'));
@@ -353,6 +359,7 @@ function interpreterListen(turn) {
 async function interpretTurn(text) {
     const it = interpreter;
     if (!it) return;
+    interpFailCount = 0;   // etwas wurde erkannt - der Zähler für gescheiterte Versuche gilt nur für Stille/Fehler
     const toForeign = it.turn === 'de';
     const fromName = toForeign ? 'Deutsch' : it.lang.name;
     const toName = toForeign ? it.lang.name : 'Deutsch';
@@ -616,6 +623,21 @@ if (SpeechRecognition) {
             typeWriterStatus("Mikrofon-Zugriff blockiert.");
             setHudSubtitle("Mikrofon-Zugriff blockiert.");
             wakeWordEnabled = false;   // Zugriff verweigert: Weckwort-Modus lässt sich nicht sinnvoll fortsetzen
+        } else if (interpreter && wasFollowUp && !isProcessing && !isSpeaking()) {
+            // Dolmetscher-Modus: nichts verstanden (z.B. "no-speech", weil das Gegenüber erst zögert) -
+            // in DERSELBEN Runde automatisch weiterhören, statt einfach zu verstummen. Erst nach mehreren
+            // Fehlversuchen hintereinander wechselt er zurück auf Deutsch (nur wenn er gerade Fremdsprache erwartet hatte).
+            interpFailCount++;
+            const it = interpreter;
+            resetRecordingState();
+            if (interpFailCount <= INTERP_MAX_RETRIES) {
+                setTimeout(() => interpreterListen(it.turn), 400);
+            } else {
+                interpFailCount = 0;
+                if (it.turn === 'foreign') speak('Ich habe leider nichts verstanden. Ich höre wieder auf Deutsch.', () => interpreterListen('de'));
+                else typeWriterStatus("Klicken zum Sprechen...");
+            }
+            return;   // eigene Behandlung - der allgemeine Reset unten gilt hier nicht noch einmal
         } else if (wasFollowUp && !isProcessing && !isSpeaking()) {
             typeWriterStatus("Klicken zum Sprechen...");
         } else if (wasWake && wakeWordEnabled && !isProcessing && !isSpeaking()) {
