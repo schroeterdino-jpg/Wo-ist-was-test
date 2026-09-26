@@ -173,6 +173,30 @@ async function resolveTravelTarget(opts) {
     return { ...appt, keinFesterTermin: false };
 }
 
+/* Ist unter dem Zielnamen (z.B. "Alyssa") eine Adresse im Gedächtnis gespeichert (z.B. per
+   "Merk dir Alyssas Adresse: ..."), nutzt die App die - statt den bloßen Namen wörtlich als Ort zu
+   suchen (das findet sonst im schlimmsten Fall einen zufälligen, weit entfernten Ort gleichen Namens). */
+function findMemoryAddressFor(text) {
+    if (typeof memoryItems !== 'object' || !memoryItems) return null;
+    const clean = s => String(s || '').toLowerCase().trim();
+    const target = clean(text);
+    if (!target) return null;
+    // Genitiv-"s" tolerant behandeln: "Merk dir Matzes Adresse" speichert oft unter "matzes",
+    // "zu Matze fahren" sucht aber nach "matze" - beides soll zueinander passen.
+    const stripS = k => (k.length > 3 && k.endsWith('s')) ? k.slice(0, -1) : k;
+    const targetBase = stripS(target);
+    let fallback = null;
+    for (const k of Object.keys(memoryItems)) {
+        const nk = clean(k);
+        if (nk === target || stripS(nk) === targetBase) return memoryItems[k];
+        // Wortweise vergleichen: "matze" soll "matze wohnort" treffen, egal welche Zusatzwörter dabeistehen
+        const words = nk.split(/\s+/).map(stripS);
+        if (words.includes(target) || words.includes(targetBase)) return memoryItems[k];
+        if (!fallback && Math.min(nk.length, target.length) >= 3 && (nk.includes(target) || target.includes(nk))) fallback = memoryItems[k];
+    }
+    return fallback;
+}
+
 async function computeDepartureAdvice(opts) {
     if (typeof opts === 'string') opts = { query: opts };   // Rückwärtskompatibel
     const target = await resolveTravelTarget(opts);
@@ -182,14 +206,28 @@ async function computeDepartureAdvice(opts) {
 
     // Ziel kann eine Straßenadresse, aber auch ein Geschäft/eine Sehenswürdigkeit ohne Adresse sein
     // (z.B. "Penny in Schwarzenbek") - geocodeDestination probiert dafür mehrere Schreibweisen.
-    const dest = await geocodeDestination(target.ort, loc.ort);
-    if (!dest) throw userError(`Die Adresse "${target.ort}" konnte ich nicht finden.`);
+    // Erst im Gedächtnis nachsehen, ob zu diesem Namen schon eine Adresse gespeichert ist.
+    const memAddr = findMemoryAddressFor(target.ort);
+    const dest = await geocodeDestination(memAddr || target.ort, loc.ort);
+    if (!dest) {
+        throw userError(`Die Adresse "${target.ort}" konnte ich nicht finden.` +
+            (memAddr ? '' : ` Ist dazu keine Adresse gespeichert? Sagen Sie zum Beispiel "Merk dir ${target.ort}s Adresse: ..."`));
+    }
 
     const route = await routeDurationSeconds(loc.latitude, loc.longitude, dest.lat, dest.lon);
     if (!route) throw userError('Die Fahrzeit konnte gerade nicht berechnet werden. Bitte versuchen Sie es gleich noch einmal.');
 
     const fahrtMin = Math.round(route.seconds / 60);
     const km = route.meters / 1000;
+
+    // Plausibilitäts-Check: Ein Ziel, das angeblich Stunden entfernt liegt, aber heute/kurzfristig
+    // erreicht werden soll, ist fast sicher ein Verwechsler bei der Ortssuche (z.B. ein Name wie "Alyssa",
+    // der zufällig auch irgendwo auf der Welt ein Ortsname ist) - dann lieber ehrlich nachfragen, statt
+    // eine mit Sicherheit falsche Fahrzeit als Tatsache zu verkaufen.
+    if (!target.keinFesterTermin && fahrtMin > 600 && (target.start.getTime() - Date.now()) / 3600000 < 24) {
+        throw userError(`Die gefundene Adresse für "${target.ort}" liegt ungewöhnlich weit entfernt (${Math.round(km)} Kilometer, etwa ${Math.round(fahrtMin / 60)} Stunden Fahrt) - das kann für heute kaum richtig sein. Vermutlich habe ich den falschen Ort gefunden. Nennen Sie mir die genaue Adresse, oder merken Sie sie mir mit "Merk dir ${target.ort}s Adresse: ...".`);
+    }
+
     const kmText = km >= 10 ? Math.round(km) + ' Kilometer' : km.toFixed(1).replace('.', ',') + ' Kilometer';
     const staumeldung = await describeAutobahnStau(route.autobahnen, loc.latitude, loc.longitude, dest.lat, dest.lon);
 
