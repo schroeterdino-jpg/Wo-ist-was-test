@@ -392,7 +392,11 @@ async function executeAction(action, text, ctx) {
         if (mode && navCard && navCard.href) {
             try {
                 const dest = new URL(navCard.href, window.location.href).searchParams.get('destination');
-                if (dest) { window.location.href = 'google.navigation:q=' + encodeURIComponent(dest) + '&mode=' + mode; opened = true; }
+                // window.open statt location.href: location.href würde die App-Seite selbst wegnavigieren
+                // und dabei die laufende Mikrofon-Sitzung kaputt machen ("Mikrofon-Zugriff blockiert"),
+                // auch wenn Android die Navigation zu Maps umleitet. window.open lässt die App-Seite
+                // unberührt im Hintergrund bestehen.
+                if (dest) { window.open('google.navigation:q=' + encodeURIComponent(dest) + '&mode=' + mode, '_blank'); opened = true; }
             } catch (e) {}
         }
         if (!opened && navCard && navCard.href) {
