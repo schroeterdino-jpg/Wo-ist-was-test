@@ -552,7 +552,8 @@ function bahnIsHere(raw) {
     return !t || /^(hier|hierher|meinstandort|standort|vonhier|beimir|beiuns|hierbeimir)$/.test(t.toLowerCase().replace(/[^a-zäöüß]/g, ''));
 }
 
-/* Ort für die Abfrage: "hier" = aktueller Standort (als Koordinaten), "Zuhause"/"Arbeit" = gespeicherte Adresse, sonst der Text */
+/* Ort für die Abfrage: "hier" = aktueller Standort (als Koordinaten), "Zuhause"/"Arbeit" = gespeicherte Adresse
+   des Users selbst, ein Personenname = dessen gespeicherte Adresse (Kontakte/Gedächtnis), sonst der Text */
 async function bahnPlaceText(raw) {
     const t = String(raw || '').trim();
     const k = t.toLowerCase().replace(/[^a-zäöüß]/g, '');
@@ -561,7 +562,12 @@ async function bahnPlaceText(raw) {
         if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
         return `${loc.latitude.toFixed(5)},${loc.longitude.toFixed(5)}`;
     }
-    if (typeof resolvePersonalPlace === 'function') return resolvePersonalPlace(t);   // "Arbeit"/"Zuhause" -> gespeicherte Adresse
+    // Erst prüfen, ob es sich um eine Person handelt (Kontakt oder Gedächtnis-Eintrag mit Adresse) -
+    // wichtig, damit "zu meiner Tochter" nicht mit "Zuhause" (= das eigene Zuhause des Users) verwechselt wird.
+    const personAddr = (typeof findContactAddressFor === 'function' ? findContactAddressFor(t) : null) ||
+                        (typeof findMemoryAddressFor === 'function' ? findMemoryAddressFor(t) : null);
+    if (personAddr) return personAddr;
+    if (typeof resolvePersonalPlace === 'function') return resolvePersonalPlace(t);   // "Arbeit"/"Zuhause" -> gespeicherte Adresse des Users selbst
     return t;
 }
 
