@@ -308,7 +308,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof updateHudTemp === 'function') updateHudTemp();
     if (typeof updateOverviewWeather === 'function') updateOverviewWeather();
     // Die Übersichtszeile rückt weiter, wenn ein Termin vorbei ist; die Uhr läuft im selben Takt mit
-    setInterval(() => renderAssistantOverview(), 60000);
+    setInterval(() => { renderAssistantOverview(); if (typeof updateUserGreeting === 'function') updateUserGreeting(); }, 60000);
     // Temperatur seltener auffrischen, die ändert sich nicht minütlich
     setInterval(() => { if (typeof updateHudTemp === 'function') updateHudTemp(); }, 900000);
     setInterval(() => { if (typeof updateOverviewWeather === 'function') updateOverviewWeather(); }, 900000);
