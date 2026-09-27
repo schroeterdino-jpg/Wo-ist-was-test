@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "msedge-tts": "^1.5.1"
+    "msedge-tts": "^2.0.0"
   }
 }
