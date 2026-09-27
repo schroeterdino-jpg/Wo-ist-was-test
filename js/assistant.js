@@ -381,25 +381,12 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'navigate') {
         const navCard = buildNavigationCard(action);
         ctx.cards.push(navCard);
-        // Für Auto/Fuß/Fahrrad direkt per Android-Navigations-Befehl starten (google.navigation:) - das
-        // öffnet die Maps-App sofort, OHNE über die google.com-Zwischenseite zu gehen, die fragt "In der
-        // App öffnen?". Für Bus/Bahn gibt es diesen Befehl nicht, da bleibt der normale Maps-Link.
-        // Das Ziel wird aus dem bereits aufgelösten Karten-Link übernommen (dort steckt die echte Adresse
-        // drin, auch bei "Zuhause"/Kontakten/Gedächtnis-Einträgen), nicht aus dem rohen 'nav_to'-Text.
-        const androidModeMap = { driving: 'd', walking: 'w', bicycling: 'b' };
-        const mode = androidModeMap[String(action.nav_mode || 'driving').toLowerCase()];
-        let opened = false;
-        if (mode && navCard && navCard.href) {
-            try {
-                const dest = new URL(navCard.href, window.location.href).searchParams.get('destination');
-                // window.open statt location.href: location.href würde die App-Seite selbst wegnavigieren
-                // und dabei die laufende Mikrofon-Sitzung kaputt machen ("Mikrofon-Zugriff blockiert"),
-                // auch wenn Android die Navigation zu Maps umleitet. window.open lässt die App-Seite
-                // unberührt im Hintergrund bestehen.
-                if (dest) { window.open('google.navigation:q=' + encodeURIComponent(dest) + '&mode=' + mode, '_blank'); opened = true; }
-            } catch (e) {}
-        }
-        if (!opened && navCard && navCard.href) {
+        // Versucht, Maps direkt zu öffnen. Der Spezial-Befehl "google.navigation:" wurde wieder entfernt:
+        // per window.open() löst er gar keinen App-Sprung aus (nur eine leere Fehlerseite), per location.href
+        // hat er die laufende Mikrofon-Sitzung zerstört - keine der beiden Varianten war brauchbar. Der
+        // normale Maps-Link über window.open() ist der einzige Weg, der bei beidem zuverlässig funktioniert
+        // hat, auch wenn dabei einmal die Google-Zwischenfrage "Weiter zu Maps?" erscheint.
+        if (navCard && navCard.href) {
             try { window.open(navCard.href, '_blank', 'noopener'); } catch (e) {}
         }
         updateTerminalStream("NAVIGATION: LINK_READY");
