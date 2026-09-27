@@ -381,10 +381,21 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'navigate') {
         const navCard = buildNavigationCard(action);
         ctx.cards.push(navCard);
-        // Versucht, Maps direkt zu öffnen (z.B. bei "Öffne Maps und zeig mir den Weg"). Manche Browser
-        // blocken automatisches Öffnen als Popup, wenn kein direkter Fingertipp dahintersteckt (z.B. im
-        // Dauer-Zuhör-Modus) - die Karte oben bleibt für den Fall als Rückfalloption zum Antippen bestehen.
-        if (navCard && navCard.href) {
+        // Für Auto/Fuß/Fahrrad direkt per Android-Navigations-Befehl starten (google.navigation:) - das
+        // öffnet die Maps-App sofort, OHNE über die google.com-Zwischenseite zu gehen, die fragt "In der
+        // App öffnen?". Für Bus/Bahn gibt es diesen Befehl nicht, da bleibt der normale Maps-Link.
+        // Das Ziel wird aus dem bereits aufgelösten Karten-Link übernommen (dort steckt die echte Adresse
+        // drin, auch bei "Zuhause"/Kontakten/Gedächtnis-Einträgen), nicht aus dem rohen 'nav_to'-Text.
+        const androidModeMap = { driving: 'd', walking: 'w', bicycling: 'b' };
+        const mode = androidModeMap[String(action.nav_mode || 'driving').toLowerCase()];
+        let opened = false;
+        if (mode && navCard && navCard.href) {
+            try {
+                const dest = new URL(navCard.href, window.location.href).searchParams.get('destination');
+                if (dest) { window.location.href = 'google.navigation:q=' + encodeURIComponent(dest) + '&mode=' + mode; opened = true; }
+            } catch (e) {}
+        }
+        if (!opened && navCard && navCard.href) {
             try { window.open(navCard.href, '_blank', 'noopener'); } catch (e) {}
         }
         updateTerminalStream("NAVIGATION: LINK_READY");
