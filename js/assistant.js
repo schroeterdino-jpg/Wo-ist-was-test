@@ -379,7 +379,14 @@ async function executeAction(action, text, ctx) {
         clearParkingSpot(false);
         updateTerminalStream("PARKING: CLEARED");
     } else if (action.type === 'navigate') {
-        ctx.cards.push(buildNavigationCard(action));
+        const navCard = buildNavigationCard(action);
+        ctx.cards.push(navCard);
+        // Versucht, Maps direkt zu öffnen (z.B. bei "Öffne Maps und zeig mir den Weg"). Manche Browser
+        // blocken automatisches Öffnen als Popup, wenn kein direkter Fingertipp dahintersteckt (z.B. im
+        // Dauer-Zuhör-Modus) - die Karte oben bleibt für den Fall als Rückfalloption zum Antippen bestehen.
+        if (navCard && navCard.href) {
+            try { window.open(navCard.href, '_blank', 'noopener'); } catch (e) {}
+        }
         updateTerminalStream("NAVIGATION: LINK_READY");
     } else if (action.type === 'call') {
         ctx.cards.push(buildCallCard(action));
@@ -534,7 +541,7 @@ async function sendToGroqSmart(text, opts = {}) {
     "- Fragt der User nach seinem Auto oder seinem Parkplatz - egal wie ('Wo ist mein Auto?', 'Wo habe ich geparkt?', 'Hast du mein Auto gesehen?', 'Ich will zu meinem Auto') - antworte mit den Daten aus 'parkplatz' im Kontext (Adresse, Notiz, wann gespeichert). Ist 'parkplatz' leer, sage ehrlich, dass nichts gespeichert ist. Will er sichtbar dorthin (z.B. 'ich will zu meinem Auto', 'bring mich hin'), nutze zusätzlich 'navigate' mit 'nav_to' = 'parkplatz'.\n" +
     "- 'Merk dir meine Heimatadresse: ...' (oder 'Das ist meine Zuhause-Adresse'): Aktion 'home_save' mit 'home_address' = genau die genannte Adresse. Anders als der Parkplatz wird sie NICHT überschrieben, außer der User nennt ausdrücklich eine neue Heimatadresse.\n" +
     "- Sagt der User 'Bring mich nach Hause' oder 'Navigiere mich nach Hause', nutze 'navigate' mit 'nav_to' = 'zuhause'. Ist im Kontext unter 'zuhause' keine Adresse gespeichert, sage ehrlich, dass er sie erst nennen muss ('Merk dir meine Heimatadresse: ...').\n" +
-    "- 'navigate' liefert dem User eine Karte mit Link zu Google Maps. 'nav_to' ist das Ziel als Text (Ort, Adresse oder Name). 'nav_from' nur angeben, wenn der User einen anderen Startpunkt nennt; sonst weglassen, dann gilt sein Standort ('von hier'). 'nav_mode' ist 'transit' (Bus und Bahn; will der User Verbindungen mit Zeiten wissen, nutzt du stattdessen 'bahn'), 'walking' (zu Fuß), 'bicycling' (Fahrrad) oder 'driving' (Auto, Standard). Du bekommst keine Fahrzeiten zurück und darfst keine nennen. Sage nur kurz, dass die Verbindung auf der Karte unten steht.\n" +
+    "- 'navigate' öffnet Maps automatisch UND liefert dem User zusätzlich eine Karte mit Link (falls der Browser das automatische Öffnen blockiert). 'nav_to' ist das Ziel als Text (Ort, Adresse oder Name). 'nav_from' nur angeben, wenn der User einen anderen Startpunkt nennt; sonst weglassen, dann gilt sein Standort ('von hier'). 'nav_mode' ist 'transit' (Bus und Bahn; will der User Verbindungen mit Zeiten wissen, nutzt du stattdessen 'bahn'), 'walking' (zu Fuß), 'bicycling' (Fahrrad) oder 'driving' (Auto, Standard). Du bekommst keine Fahrzeiten zurück und darfst keine nennen. Sage nur kurz, dass du die Route öffnest.\n" +
     "- 'call': 'contact_name' ist der Name aus 'kontakte' im Kontext. 'whatsapp': dazu 'contact_name' und optional 'message_text' (der Text der Nachricht, wie ihn der User diktiert). Du rufst nicht selbst an und schickst nichts ab, du bereitest es nur vor: Sage, dass der User auf die Karte unten tippen muss. Steht der Kontakt nicht in 'kontakte', lege die Aktion trotzdem an; sie meldet dann selbst, dass er fehlt.\n\n" +
     "WICHTIG für die Wettervorhersage (morgen, übermorgen, Wochentage, ganze Woche):\n" +
     "- Im Kontext steht unter 'wettervorhersage' eine Liste 'tage' mit den nächsten sieben Tagen (Wochentag, Höchst- und Tiefstwert, Niederschlag, Regenwahrscheinlichkeit, Empfehlungen). Nutze sie für alle Fragen zu morgen, übermorgen, bestimmten Wochentagen oder der Woche. Übernimm 'regenschirm_empfehlung' und 'jacken_empfehlung' exakt.\n" +
