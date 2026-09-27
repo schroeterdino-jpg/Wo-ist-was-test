@@ -315,6 +315,28 @@ function speakBrowser(cleanText, onComplete, langCode) {
 }
 
 function speakAck(text) {
+    if (isRecording) return;
+    const tryCloud = getTtsEngine() !== 'browser' && ttsCloudFailCount < TTS_CLOUD_MAX_FAILS;
+    if (tryCloud) {
+        ackActive = true;
+        fetchCloudSpeechBlob(text, getEdgeVoice()).then(blob => {
+            if (!blob) { ttsCloudFailCount++; ackActive = false; speakAckBrowser(text); return; }
+            ttsCloudFailCount = 0;
+            if (currentAckAudio) { try { currentAckAudio.pause(); } catch (e) {} }
+            const url = URL.createObjectURL(blob);
+            currentAckAudio = new Audio(url);
+            const finish = () => { URL.revokeObjectURL(url); ackActive = false; currentAckAudio = null; };
+            currentAckAudio.onended = finish;
+            currentAckAudio.onerror = () => { finish(); };
+            currentAckAudio.play().catch(() => { finish(); });
+        });
+        return;
+    }
+    speakAckBrowser(text);
+}
+
+/* Bisherige, rein im Browser laufende Zwischenansage - jetzt der automatische Rückfall */
+function speakAckBrowser(text) {
     if (!('speechSynthesis' in window) || isRecording) return;
     const u = new SpeechSynthesisUtterance(text);
     const voice = getActiveVoice();
@@ -326,10 +348,12 @@ function speakAck(text) {
     u.onerror = () => { ackActive = false; };
     window.speechSynthesis.speak(u);
 }
+let currentAckAudio = null;
 
 function interruptSpeaking() {
     stopThinkingSound();
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    if (currentAckAudio) { try { currentAckAudio.pause(); } catch (e) {} currentAckAudio = null; }
     currentUtterance = null;
     ackActive = false;
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
