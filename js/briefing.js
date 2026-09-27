@@ -327,6 +327,14 @@ function relativeDayLabel(date, todayStart) {
     return 'am ' + date.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
+/* Erkennt Briefing-Wünsche, die sich um Sprit-/Dieselpreise drehen - für die wird unten der ECHTE, aktuelle
+   Preis abgerufen (fetchCheapestDieselNearby), statt nur den gespeicherten Wunschtext vorzulesen. */
+const FUEL_WISH_KEYWORDS = ['diesel', 'benzin', 'sprit', 'tanken', 'tankstelle', 'kraftstoff', 'spritpreis', 'dieselpreis', 'benzinpreis', 'super', 'e10'].map(normalizeKey);
+function isFuelWish(text) {
+    const nk = normalizeKey(text);
+    return FUEL_WISH_KEYWORDS.some(k => nk.includes(k));
+}
+
 function buildBriefingData(now, weather) {
     const hour = parseInt(now.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', hour12: false }), 10);
     const uhrzeit = now.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
@@ -362,10 +370,14 @@ function buildBriefingData(now, weather) {
         .map(k => ({ gegenstand: displayItemName(k), wert: parseMemoryValue(memoryItems[k]) }));
 
     const wochentag = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long' }).format(now);
-    const wuensche = (briefingWishes || [])
+    const alleTextWuensche = (briefingWishes || [])
         .filter(w => w.type === 'text')
         .map(w => w.text)
         .filter(t => wishAppliesToday(t, wochentag));
+    // Wünsche zu Sprit-/Dieselpreisen sind ein Sonderfall: die App soll den ECHTEN, aktuellen Preis abrufen
+    // (siehe fetchCheapestDieselNearby unten), statt nur den gespeicherten Wunschtext selbst vorzulesen.
+    const wunschDieselAngefordert = alleTextWuensche.some(isFuelWish);
+    const wuensche = alleTextWuensche.filter(t => !isFuelWish(t));
 
     let wetter = null;
     if (weather && !weather.fehler) {
@@ -390,7 +402,8 @@ function buildBriefingData(now, weather) {
         naechste_termine: termine,
         erinnerungen_naechste_tage: erinnerungen,
         zusaetzliche_wuensche: wuensche,
-        wichtige_gegenstaende: gegenstaende
+        wichtige_gegenstaende: gegenstaende,
+        wunsch_dieselpreis_angefordert: wunschDieselAngefordert
     };
 
     const parkInfo = (typeof describeParking === 'function') ? describeParking() : null;
@@ -398,13 +411,35 @@ function buildBriefingData(now, weather) {
     return briefingData;
 }
 
+/* Günstigster Diesel in der Nähe - dieselbe Quelle wie die Dashboard-Kachel "Sprit in der Nähe" (api/tank.js).
+   null bei jedem Fehler (kein Standort, keine Tankstellen, Server nicht erreichbar) - das Briefing sagt dann
+   einfach kurz, dass der Preis gerade nicht abrufbar war, statt abzustürzen. */
+async function fetchCheapestDieselNearby() {
+    try {
+        const pos = await new Promise((ok, err) =>
+            navigator.geolocation.getCurrentPosition(ok, err, { timeout: 7000, maximumAge: 120000 }));
+        const r = await apiFetch(`/api/tank?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}&rad=8`);
+        const d = await r.json();
+        if (!r.ok || d.error) return null;
+        const rows = (d.stations || []).filter(s => typeof s.diesel === 'number' && s.diesel > 0).sort((a, b) => a.diesel - b.diesel);
+        if (!rows.length) return null;
+        const best = rows[0];
+        return { preis: best.diesel, name: best.name || '', strasse: best.strasse || '' };
+    } catch (e) {
+        return null;
+    }
+}
+
 async function composeBriefingWithModel(data) {
     const systemPrompt = "Du bist J.A.R.V.I.S., der hochintelligente, charmante und aufmerksame persönliche Assistent von " + data.name + ". Formuliere ein gesprochenes Tages-Briefing auf Deutsch. Es soll natürlich, flüssig, menschlich und elegant klingen – wie ein echter Butler, der spricht, nicht wie ein Roboter, der eine Liste vorliest. Verzichte komplett auf Aufzählungszeichen, Tabellen oder Markdown-Formatierungen.\n\n" +
     "Ablauf & Tonfall:\n" +
     "1. Begrüßung & Uhrzeit: Begrüße ihn herzlich und verbinde die Uhrzeit ganz natürlich (z. B. 'Guten Morgen, Dino. Es ist jetzt genau 16 Uhr 17...'). Nutze dafür 'uhrzeit_gesprochen'.\n" +
-    "2. Wetter: Bette das Wetter in einen flüssigen, menschlichen Satz ein. Statt nur trocken '16 Grad' zu sagen, beschreibe es charmant und passend (z. B. 'Draußen erwarten Sie heute milde 16 Grad, gefühlt etwa 15...'). Flechte die Empfehlungen zu Jacke und Regenschirm sympathisch in den Satz ein. Gibt es einen 'sturm_hinweis', erwähne ihn beiläufig. Fehlen Wetterdaten, erwähne das kurz nebensächlich.\n" +
+    "2. Wetter: Bette das Wetter in einen flüssigen, menschlichen Satz ein. Statt nur trocken '16 Grad' zu sagen, beschreibe es charmant und passend (z. B. 'Draußen erwarten Sie heute milde 16 Grad, gefühlt etwa 15...'). Flechte die Empfehlungen zu Jacke und Regenschirm sympathisch in den Satz ein. Gibt es einen 'sturm_hinweis', erwähne ihn beiläufig. Fehlen Wetterdaten, erwähne das kurz nebensächlich. WICHTIG: Nenne die Windgeschwindigkeit als Zahl NUR, wenn 'sturm_hinweis' vorhanden ist - sonst fließt Wind höchstens als Eindruck ein ('ein spürbarer Wind weht'), nie als reine Kennzahl. Insgesamt reichen für das Wetter EIN bis höchstens ZWEI Sätze, keine Aneinanderreihung von Einzelfakten.\n" +
+    "  SCHLECHT (nicht so, klingt wie eine Aufzählung): 'Aktuell beträgt die Temperatur 16 Grad, fühlt sich mit 14 Grad an, der Wind weht mit 30 km/h, kein Regen wird erwartet, daher kein Regenschirm nötig, leichte Jacke mitnehmen.'\n" +
+    "  GUT (so): 'Draußen sind es angenehme 16 Grad, gefühlt eher 14 bei dem spürbaren Wind - eine leichte Jacke reicht aber völlig, einen Schirm brauchen Sie heute nicht.'\n" +
     "3. Termine & Erinnerungen: Flechte anstehende Termine und Erinnerungen naturgemäß in den Redefluss ein (Tag und Uhrzeit exakt nennen, aber in fließender Sprache, z. B. 'Was Ihren Kalender betrifft...'). Ist der Kalender frei, sag ihm das auf eine entspannte, nette Art.\n" +
     "4. Wünsche & Gegenstände: Wenn wichtige Gegenstände (Schlüssel, Portemonnaie etc.) oder Wünsche in den Daten stehen, erinnere ihn daran so, wie es ein aufmerksamer Assistent beim Verlassen des Hauses tun würde. Formuliere vollständige, harmonische Sätze mit passenden Präpositionen (z. B. 'Bevor Sie gehen: Ihr Schlüssel liegt wie gewohnt in der Schublade').\n" +
+    "4b. Dieselpreis: Ist 'dieselpreis' vorhanden (nicht null), nenne den aktuellen Preis und die Tankstelle beiläufig in einem natürlichen Satz (z. B. 'Der günstigste Diesel in Ihrer Nähe kostet aktuell 1,679 Euro bei der Aral in der Lauenburger Straße'). Ist 'wunsch_dieselpreis_angefordert' true, aber 'dieselpreis' null, erwähne kurz, dass der aktuelle Preis gerade nicht abrufbar war. Ist 'wunsch_dieselpreis_angefordert' false, sag dazu gar nichts.\n" +
     "5. Parkplatz: Wenn ein Parkplatz angegeben ist, erwähne beiläufig, wo der Wagen steht. Wenn nicht ('parkplatz' ist null), verliere KEIN EINZIGES WORT darüber.\n\n" +
     "Sprach-Regeln:\n" +
     "- Uhrzeiten immer exakt in 24-Stunden-Zählung nennen (z. B. '16 Uhr 17'), niemals runden, aber natürlich einbetten.\n" +
@@ -473,6 +508,15 @@ function buildFallbackBriefing(data) {
 
     if ((data.zusaetzliche_wuensche || []).length > 0) {
         text += data.zusaetzliche_wuensche.map(w => { const t = w.trim(); return /[.!?]$/.test(t) ? t : t + '.'; }).join(' ') + ' ';
+    }
+
+    if (data.wunsch_dieselpreis_angefordert) {
+        if (data.dieselpreis) {
+            const p = data.dieselpreis;
+            text += `Der günstigste Diesel in Ihrer Nähe kostet aktuell ${p.preis.toFixed(3).replace('.', ',')} Euro` + (p.name ? ` bei ${p.name}` : '') + (p.strasse ? `, ${p.strasse}` : '') + '. ';
+        } else {
+            text += 'Den aktuellen Dieselpreis konnte ich gerade leider nicht abrufen. ';
+        }
     }
 
     if (data.wichtige_gegenstaende.length > 0) {
@@ -545,6 +589,11 @@ async function triggerDailyBriefing() {
         setHudSubtitle("Lade Wetterdaten & Termine...");
         const weather = await fetchWeatherData();
         const data = buildBriefingData(new Date(), weather);
+
+        if (data.wunsch_dieselpreis_angefordert) {
+            typeWriterStatus("Prüfe Dieselpreise in der Nähe...");
+            data.dieselpreis = await fetchCheapestDieselNearby();
+        }
 
         typeWriterStatus("Stelle Briefing zusammen...");
         let text = await composeBriefingWithModel(data);
