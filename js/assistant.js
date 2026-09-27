@@ -200,6 +200,17 @@ function googleNotSynced(ctx, what) {
     if (!ctx.cards.some(c => c.onclick === 'loginWithGoogle(false)')) ctx.cards.push(googleReconnectCard());
 }
 
+/* Öffnet den ECHTEN Google Kalender (App oder Web) am Tag des gerade angelegten/geänderten Termins, als
+   sichtbare Bestätigung, dass er wirklich eingetragen wurde. Normaler https-Link über window.open() -
+   genau der Weg, der sich beim Maps-Öffnen als zuverlässig herausgestellt hat (im Gegensatz zu
+   Spezial-Befehlen wie "google.navigation:", die das Mikrofon zerschossen bzw. gar nicht ausgelöst haben). */
+function openGoogleCalendarApp(isoTimeString) {
+    let d = isoTimeString ? new Date(isoTimeString) : new Date();
+    if (isNaN(d.getTime())) d = new Date();
+    const url = `https://calendar.google.com/calendar/u/0/r/day/${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+    try { window.open(url, '_blank', 'noopener'); } catch (e) {}
+}
+
 /* ---- Fragen wie "Wann hat Schatz Geburtstag?" werden sofort im Kalender nachgeschlagen, ohne dass die KI die Suche erst anfordern muss ---- */
 const CALENDAR_LOOKUP_TRIGGER = /geburtstag|hochzeitstag|jubiläum/i;
 const LOOKUP_STOPWORDS = new Set(('wann wer was wie wo welche welcher welchen welches hat haben hab habe hatte hatten ist sind war waren wird werden ' +
@@ -348,7 +359,7 @@ async function executeAction(action, text, ctx) {
             updDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, action.calendar_location || extractLocationFallback(text));
         }
         if (updDone === false) googleNotSynced(ctx, 'Die Änderung gilt nur in der App');
-        ctx.panel = { range: 'naechste_7_tage', name: 'termine' };
+        if (updDone !== false) openGoogleCalendarApp(action.calendar_time);
         updateTerminalStream("CALENDAR: EVENT_UPDATED");
     } else if (action.type === 'parking_save') {
         const accuracy = await saveParkingSpot(String(action.parking_note || '').trim());
@@ -431,9 +442,10 @@ async function executeAction(action, text, ctx) {
         const ort = action.calendar_location || extractLocationFallback(text);
         const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort);
         if (addDone === false) googleNotSynced(ctx, 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht');
-        // Termine-Fenster als Bestätigung zeigen, damit sichtbar ist, dass der Termin wirklich eingetragen
-        // wurde, statt es dem User nur zu sagen - er kann es danach einfach wieder wegklicken.
-        ctx.panel = { range: 'naechste_7_tage', name: 'termine' };
+        // Den ECHTEN Google Kalender öffnen (nicht das eigene Termine-Fenster), als sichtbare Bestätigung,
+        // dass der Termin wirklich eingetragen wurde. Nur wenn er tatsächlich bei Google gelandet ist -
+        // bei einem rein lokalen Termin (addDone === false) gibt es dort ja nichts zu sehen.
+        if (addDone !== false) openGoogleCalendarApp(action.calendar_time);
         updateTerminalStream("CALENDAR: EVENT_ADDED");
     }
 }
