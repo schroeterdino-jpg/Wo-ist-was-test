@@ -130,6 +130,15 @@ if (voiceSelectEl) {
     });
 }
 
+const ttsEngineSelectEl = document.getElementById('ttsEngineSelect');
+if (ttsEngineSelectEl) {
+    ttsEngineSelectEl.value = getTtsEngine();
+    const edgeRow = document.getElementById('edgeVoiceRow');
+    if (edgeRow) edgeRow.classList.toggle('hidden', ttsEngineSelectEl.value === 'browser');
+}
+const edgeVoiceSelectEl = document.getElementById('edgeVoiceSelect');
+if (edgeVoiceSelectEl) edgeVoiceSelectEl.value = getEdgeVoice();
+
 const conversationToggleEl = document.getElementById('conversationModeToggle');
 if (conversationToggleEl) {
     conversationToggleEl.checked = conversationMode;
@@ -166,6 +175,46 @@ function speakableAbbreviations(text) {
         .replace(/([A-Za-zÄÖÜäöüß])str(?=\s+\d)/g, '$1straße');                   // Hauptstr 12 (ohne Punkt)
 }
 
+/* Welche Sprachausgabe genutzt wird: 'auto' (Edge-Cloud-Stimme, fällt bei Problemen automatisch auf die
+   Handy-Stimme zurück) oder 'browser' (nur die eingebaute Handy-Stimme, nie die Cloud-Stimme versuchen). */
+function getTtsEngine() {
+    return getPersistentData('tts_engine', 'auto');
+}
+function setTtsEngine(val) {
+    setPersistentData('tts_engine', val === 'browser' ? 'browser' : 'auto');
+}
+function getEdgeVoice() {
+    return getPersistentData('tts_edge_voice', 'de-DE-ConradNeural');
+}
+function setEdgeVoice(val) {
+    setPersistentData('tts_edge_voice', String(val || 'de-DE-ConradNeural'));
+}
+
+// Nach ein paar Fehlschlägen hintereinander (z.B. wenn Edge-TTS gerade nicht erreichbar ist) für den Rest
+// der Sitzung nicht mehr jedes Mal neu versuchen und warten, sondern gleich auf die Handy-Stimme gehen -
+// die App merkt sich das nur im Speicher, beim nächsten App-Start wird es wieder neu versucht.
+let ttsCloudFailCount = 0;
+const TTS_CLOUD_MAX_FAILS = 2;
+const TTS_CLOUD_TIMEOUT_MS = 6000;
+
+/* Holt die fertige MP3 vom Server (Edge-TTS); null bei jedem Fehler oder Zeitüberschreitung - nie eine Ausnahme werfen,
+   das würde sonst die ganze Sprachausgabe zum Absturz bringen, statt einfach auf die Handy-Stimme auszuweichen. */
+async function fetchCloudSpeechBlob(text, voice) {
+    if (typeof AbortController === 'undefined') return null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TTS_CLOUD_TIMEOUT_MS);
+    try {
+        const res = await apiFetch(`/api/stau?tts=1&text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}`, { signal: controller.signal });
+        clearTimeout(timer);
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        return blob && blob.size > 0 ? blob : null;
+    } catch (e) {
+        clearTimeout(timer);
+        return null;
+    }
+}
+
 function speak(text, onComplete, langCode) {
     stopThinkingSound();
 
@@ -193,6 +242,35 @@ function speak(text, onComplete, langCode) {
     cleanText = cleanText.replace(/\bAlyssa\b/g, 'Alischa');
     if (!langCode) cleanText = speakableAbbreviations(speakableDates(cleanText));   // deutsche Monatsnamen und Abkürzungen nur für deutschen Text
 
+    // Nur für normalen deutschen Text die Cloud-Stimme versuchen (der Dolmetscher-Modus mit langCode
+    // bleibt bei der Handy-Stimme, die die Fremdsprachen-Stimmen schon mitbringt).
+    const tryCloud = !langCode && getTtsEngine() !== 'browser' && ttsCloudFailCount < TTS_CLOUD_MAX_FAILS;
+    if (tryCloud) {
+        fetchCloudSpeechBlob(cleanText, getEdgeVoice()).then(blob => {
+            if (!blob) { ttsCloudFailCount++; speakBrowser(cleanText, onComplete, langCode); return; }
+            ttsCloudFailCount = 0;
+            setHudSubtitle(cleanText);   // kein Wort-für-Wort-Timing wie bei der Browser-Stimme möglich, daher direkt ganz anzeigen
+            if (currentAudio) { try { currentAudio.pause(); } catch (e) {} currentAudio = null; }
+            const url = URL.createObjectURL(blob);
+            currentAudio = new Audio(url);
+            const finish = (completed) => {
+                URL.revokeObjectURL(url);
+                if (currentAudio && currentAudio.src === url) currentAudio = null;
+                setIdleUi();
+                if (completed && onComplete) onComplete();
+            };
+            currentAudio.onended = () => finish(true);
+            currentAudio.onerror = () => { finish(false); speakBrowser(cleanText, onComplete, langCode); };
+            currentAudio.play().catch(() => { finish(false); speakBrowser(cleanText, onComplete, langCode); });
+        });
+        return;
+    }
+    speakBrowser(cleanText, onComplete, langCode);
+}
+
+/* Die bisherige, rein im Browser laufende Sprachausgabe - unverändert, dient jetzt als Grundeinstellung
+   ("Nur Handy-Stimme") und als automatischer Rückfall, wenn die Cloud-Stimme mal nicht erreichbar ist. */
+function speakBrowser(cleanText, onComplete, langCode) {
     if ('speechSynthesis' in window) {
         if (!ackActive) window.speechSynthesis.cancel();
 
