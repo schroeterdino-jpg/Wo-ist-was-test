@@ -146,7 +146,7 @@ function weatherCodeText(code) {
     return map[code] || 'wechselhaft';
 }
 
-/* Empfehlungen für einen Tag (gleiche Grenzen wie beim aktuellen Wetter, aber mit dem Tageshöchstwert) */
+/* Empfehlungen für einen Tag */
 function getDailyAdvice(day) {
     const rain = day.regenwahrscheinlichkeit_prozent >= 50 || day.niederschlag_mm >= 1;
     const wind = Math.max(day.wind_max_kmh || 0, day.boeen_max_kmh || 0);
@@ -197,14 +197,14 @@ async function fetchWeatherForecast() {
     }
 }
 
-/* Schreibweisen vereinheitlichen: "Schlüssel", "Schluessel" und "mein schlüssel" werden gleich behandelt */
+/* Schreibweisen vereinheitlichen */
 function normalizeKey(s) {
     return String(s).toLowerCase()
         .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
         .replace(/[^a-z0-9]/g, '');
 }
 
-/* Wichtige Gegenstände, die im Briefing immer genannt werden. Hier kannst du Wörter ergänzen. */
+/* Wichtige Gegenstände */
 const IMPORTANT_ITEM_KEYWORDS = [
     'schlüssel', 'autoschlüssel', 'brille', 'sonnenbrille', 'lesebrille',
     'geldbeutel', 'geldbörse', 'portemonnaie', 'portmonee', 'portemonaie', 'brieftasche',
@@ -214,7 +214,6 @@ const IMPORTANT_ITEM_KEYWORDS = [
 function isImportantItem(key) {
     const k = normalizeKey(key);
     if (IMPORTANT_ITEM_KEYWORDS.some(kw => k.includes(kw))) return true;
-    // Begriffe, die der User selbst ins Briefing aufgenommen hat
     return (briefingWishes || []).some(w => {
         if (w.type !== 'item') return false;
         const t = normalizeKey(w.text);
@@ -222,7 +221,6 @@ function isImportantItem(key) {
     });
 }
 
-/* "schlüsselort" heißt für die Ansage einfach "schlüssel": Das Wort "ort" hängt die KI beim Speichern manchmal an. */
 function displayItemName(key) {
     const k = String(key).trim();
     if (/ort$/i.test(k) && k.length > 4) {
@@ -232,7 +230,6 @@ function displayItemName(key) {
     return k;
 }
 
-/* Wünsche mit Wochentag ("Montags: Mülltonne raus") gelten nur an diesem Tag */
 function wishAppliesToday(text, wochentag) {
     const days = ['montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag'];
     const t = String(text).toLowerCase();
@@ -240,7 +237,6 @@ function wishAppliesToday(text, wochentag) {
     return mentioned.length === 0 || mentioned.includes(String(wochentag).toLowerCase());
 }
 
-/* Ein Gegenstand als Satz: "schlüssel liegt in der Schublade" */
 function itemSentence(g) {
     const v = String(g.wert).toLowerCase();
     const isPlace = /^(auf|in|im|an|am|bei|unter|neben|hinter|vor|über)\b/.test(v);
@@ -248,7 +244,6 @@ function itemSentence(g) {
     return isPlace ? `${name} liegt ${g.wert}` : `${name}: ${g.wert}`;
 }
 
-/* Sicherheitsnetz: Fehlt ein wichtiger Gegenstand im Text der KI, wird er hinten angehängt. */
 function ensureItemsMentioned(text, data) {
     const norm = normalizeKey(text);
     const missing = (data.wichtige_gegenstaende || []).filter(g => {
@@ -294,8 +289,6 @@ function parseEventDate(iso) {
     return { date: new Date(iso), allDay: false };
 }
 
-/* Uhrzeit so, wie man sie sagt: "16 Uhr 17" (24-Stunden-Zählung, exakt, Berliner Zeit).
-   Wird an die KI übergeben, damit sie die Zeit nicht selbst umrechnet oder rundet. */
 function formatSpokenTime(date) {
     const parts = new Intl.DateTimeFormat('de-DE', {
         timeZone: 'Europe/Berlin', hour: 'numeric', minute: 'numeric', hourCycle: 'h23'
@@ -305,17 +298,14 @@ function formatSpokenTime(date) {
     return mm === 0 ? `${hh} Uhr` : `${hh} Uhr ${mm}`;
 }
 
-/* Einstellungen fürs Briefing: hier kannst du die Zahlen ändern */
-const BRIEFING_MAX_APPOINTMENTS = 4;   // so viele der nächsten Termine werden genannt
-const BRIEFING_REMINDER_DAYS = 4;      // Erinnerungen für heute und die folgenden Tage (zusammen 4 Tage)
-const BIRTHDAY_PATTERN = /geburtstag|birthday|bday/i;   // solche Einträge zählen im Briefing nicht als Termin
+const BRIEFING_MAX_APPOINTMENTS = 4;
+const BRIEFING_REMINDER_DAYS = 4;
+const BIRTHDAY_PATTERN = /geburtstag|birthday|bday/i;
 
 function isBirthdayEntry(e) {
     return e.eventType === 'birthday' || BIRTHDAY_PATTERN.test(e.text || '');
 }
 
-/* "Samstag, 11. April 2026" plus Uhrzeit ("14 Uhr 30" oder "ganztägig") für die KI.
-   Der Monat steht immer ausgeschrieben: Zahlenformate wie 11.04. werden sonst leicht vertauscht (4.11.). */
 function describeEventDate(iso) {
     const parsed = parseEventDate(iso);
     if (isNaN(parsed.date.getTime())) return { datum: '', zeit: '' };
@@ -327,7 +317,6 @@ function describeEventDate(iso) {
     };
 }
 
-/* "heute", "morgen", "übermorgen", "am Freitag" oder "am Freitag, 3. Oktober" (für Briefing und Übersichtszeile) */
 function relativeDayLabel(date, todayStart) {
     const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const diff = Math.round((dayStart - todayStart) / 86400000);
@@ -353,7 +342,6 @@ function buildBriefingData(now, weather) {
     const dayLabel = (date) => relativeDayLabel(date, todayStart);
     const timeLabel = (date, allDay) => allDay ? 'ganztägig' : formatSpokenTime(date);
 
-    // Die nächsten Termine (Geburtstage zählen nicht als Termin)
     const termine = (calendarEntries || [])
         .filter(e => e.isoDate && !isBirthdayEntry(e))
         .map(e => ({ text: e.text, ...parseEventDate(e.isoDate) }))
@@ -362,7 +350,6 @@ function buildBriefingData(now, weather) {
         .slice(0, BRIEFING_MAX_APPOINTMENTS)
         .map(e => ({ text: e.text, tag: dayLabel(e.date), uhrzeit: timeLabel(e.date, e.allDay) }));
 
-    // Erinnerungen für heute und die folgenden Tage
     const erinnerungen = (reminderEntries || [])
         .filter(r => r.time && !r.triggered)
         .map(r => ({ text: r.text, ...parseEventDate(r.time) }))
@@ -405,24 +392,24 @@ function buildBriefingData(now, weather) {
         zusaetzliche_wuensche: wuensche,
         wichtige_gegenstaende: gegenstaende
     };
-    // Nur mitgeben, wenn wirklich ein Parkplatz gespeichert ist - eine leere/null-Angabe
-    // verleitet die KI trotz Anweisung manchmal dazu, das unpassend zu kommentieren.
+
     const parkInfo = (typeof describeParking === 'function') ? describeParking() : null;
     if (parkInfo) briefingData.parkplatz = parkInfo;
     return briefingData;
 }
 
 async function composeBriefingWithModel(data) {
-    const systemPrompt = "Du bist J.A.R.V.I.S., der persönliche Butler von " + data.name + ". Formuliere ein gesprochenes Tages-Briefing auf Deutsch: höflich, ruhig, trocken im Stil eines britischen Butlers, ohne Markdown, ohne Aufzählungszeichen, in fließenden Sätzen. Es wird laut vorgelesen und soll etwa 60 bis 90 Wörter lang sein (bei vielen Terminen oder Gegenständen darf es länger sein).\n\n" +
-    "Reihenfolge: 1. kurze Begrüßung mit der genauen Uhrzeit (übernimm 'uhrzeit_gesprochen' wörtlich, z.B. 'Es ist 16 Uhr 17'), 2. Wetter mit klarer Aussage zu Regenschirm und Jacke, 3. Termine, 4. Erinnerungen, 5. zusätzliche Wünsche, 6. wichtige Gegenstände.\n\n" +
-    "Regeln:\n" +
-    "- Uhrzeiten: Nenne jede Uhrzeit exakt und in 24-Stunden-Zählung, so wie sie in den Daten steht (z.B. 'um 16 Uhr 17' oder 'um 14 Uhr 30'). Runde niemals und verwende keine Ausdrücke wie 'kurz nach', 'kurz vor', 'halb' oder 'Viertel'. Zähle nie in 12 Stunden (16 Uhr ist nicht 'vier').\n" +
-    "- Wetter: Übernimm 'regenschirm_empfehlung' und 'jacken_empfehlung' inhaltlich exakt und widersprich ihnen nie. Nenne die Temperatur nur knapp. Gibt es einen 'sturm_hinweis', erwähne ihn. Ist 'wetter' null, sage in einem Halbsatz, dass keine Wetterdaten vorliegen.\n" +
-    "- Parkplatz: Ist 'parkplatz' gesetzt (Adresse vorhanden), erwähne kurz und beiläufig, wo das Auto steht (nur die Adresse, keine Uhrzeit nötig). Ist 'parkplatz' null, sage dazu GAR NICHTS - kein 'ich weiß nicht, wo Ihr Auto steht' und nichts Ähnliches, das Thema kommt dann einfach nicht vor.\n" +
-    "- Termine und Erinnerungen: Nenne Text, Tag und Uhrzeit. Der Tag steht schon passend formuliert in den Daten (z.B. 'heute', 'morgen', 'am Freitag', 'am Freitag, 3. Oktober'): Übernimm ihn wörtlich. Es sind nur die nächsten Termine enthalten (Geburtstage gehören absichtlich nicht dazu): Nenne nichts darüber hinaus. Die Uhrzeit steht schon gesprochen in den Daten (z.B. '14 Uhr' oder '14 Uhr 30'): Übernimm sie wörtlich und sprich niemals 'null null'. Ganztägige nur mit Tag. Gibt es keine Termine, genügt ein Halbsatz wie 'Ihr Kalender ist frei'. Gibt es keine Erinnerungen, lass sie weg.\n" +
-    "- Zusätzliche Wünsche: Steht etwas in 'zusaetzliche_wuensche', nimm JEDEN dieser Wünsche im Briefing auf, sinngemäß und in einem natürlichen Satz. Erfinde nichts dazu. Enthält ein Wunsch eine weitere Bedingung (z.B. 'wenn es regnet'), prüfe sie anhand der Daten und lass den Wunsch weg, wenn sie nicht zutrifft. Gibt es keine Wünsche, lass den Teil weg.\n" +
-    "- Wichtige Gegenstände: Das ist ein wichtiger Teil, denn der User verlässt danach das Haus. Nenne JEDEN Eintrag aus 'wichtige_gegenstaende' mit Begriff und Platz und lass keinen aus, auch wenn das Briefing dadurch länger wird. Formuliere jeden als natürlichen Satz mit korrektem Artikel und Präposition ('Ihr Schlüssel liegt in der Schublade'). Steht im Wert nur ein Platz ohne Präposition (z.B. 'Küchenschrank'), erfinde keine wie 'im' oder 'auf', sondern sage 'Ihr Schlüssel ist beim Küchenschrank'. Verwende niemals das Wort 'Ort' und wiederhole den Begriff nicht doppelt. Gibt es keine Einträge, lass den Teil weg.\n" +
-    "- Erfinde nichts, was nicht in den Daten steht. Sprich den User höchstens einmal mit seinem Namen an ('name' in den Daten). Das Wort 'Sir' benutzt du nur, wenn der Name 'Sir' lautet.\n\n" +
+    const systemPrompt = "Du bist J.A.R.V.I.S., der hochintelligente, charmante und aufmerksame persönliche Assistent von " + data.name + ". Formuliere ein gesprochenes Tages-Briefing auf Deutsch. Es soll natürlich, flüssig, menschlich und elegant klingen – wie ein echter Butler, der spricht, nicht wie ein Roboter, der eine Liste vorliest. Verzichte komplett auf Aufzählungszeichen, Tabellen oder Markdown-Formatierungen.\n\n" +
+    "Ablauf & Tonfall:\n" +
+    "1. Begrüßung & Uhrzeit: Begrüße ihn herzlich und verbinde die Uhrzeit ganz natürlich (z. B. 'Guten Morgen, Dino. Es ist jetzt genau 16 Uhr 17...'). Nutze dafür 'uhrzeit_gesprochen'.\n" +
+    "2. Wetter: Bette das Wetter in einen flüssigen, menschlichen Satz ein. Statt nur trocken '16 Grad' zu sagen, beschreibe es charmant und passend (z. B. 'Draußen erwarten Sie heute milde 16 Grad, gefühlt etwa 15...'). Flechte die Empfehlungen zu Jacke und Regenschirm sympathisch in den Satz ein. Gibt es einen 'sturm_hinweis', erwähne ihn beiläufig. Fehlen Wetterdaten, erwähne das kurz nebensächlich.\n" +
+    "3. Termine & Erinnerungen: Flechte anstehende Termine und Erinnerungen naturgemäß in den Redefluss ein (Tag und Uhrzeit exakt nennen, aber in fließender Sprache, z. B. 'Was Ihren Kalender betrifft...'). Ist der Kalender frei, sag ihm das auf eine entspannte, nette Art.\n" +
+    "4. Wünsche & Gegenstände: Wenn wichtige Gegenstände (Schlüssel, Portemonnaie etc.) oder Wünsche in den Daten stehen, erinnere ihn daran so, wie es ein aufmerksamer Assistent beim Verlassen des Hauses tun würde. Formuliere vollständige, harmonische Sätze mit passenden Präpositionen (z. B. 'Bevor Sie gehen: Ihr Schlüssel liegt wie gewohnt in der Schublade').\n" +
+    "5. Parkplatz: Wenn ein Parkplatz angegeben ist, erwähne beiläufig, wo der Wagen steht. Wenn nicht ('parkplatz' ist null), verliere KEIN EINZIGES WORT darüber.\n\n" +
+    "Sprach-Regeln:\n" +
+    "- Uhrzeiten immer exakt in 24-Stunden-Zählung nennen (z. B. '16 Uhr 17'), niemals runden, aber natürlich einbetten.\n" +
+    "- Vermeide hölzerne Aufzählungen oder stakkatoartige Abfolgen. Verbinde die Informationen mit natürlichen Übergängen ('Übrigens', 'Werfen wir einen Blick auf Ihren Tag', 'Was Ihre Termine angeht').\n" +
+    "- Sprich ihn gerne gelegentlich persönlich an.\n\n" +
     "Antworte ausschließlich mit einem JSON-Objekt der Form {\"briefing\": \"...\"}.";
 
     const controller = new AbortController();
@@ -454,9 +441,6 @@ async function composeBriefingWithModel(data) {
     }
 }
 
-/* Sicherheitsnetz: Ist kein Parkplatz gespeichert, darf im Briefing kein "ich weiß nicht, wo Ihr Auto steht"
-   vorkommen - das verwirrt nur. Entfernt so einen Satz notfalls nachträglich, falls die KI die Anweisung
-   trotzdem mal ignoriert (bei einem so langen Prompt kommt das vor). */
 function stripUnwantedParkingRemark(text) {
     return text
         .replace(/[^.!?]*\b(auto|wagen|fahrzeug)\b[^.!?]*\b(geparkt|parkplatz)\b[^.!?]*[.!?]\s*/gi, '')
@@ -470,21 +454,21 @@ function buildFallbackBriefing(data) {
 
     if (data.wetter) {
         const w = data.wetter;
-        text += `Draußen sind es ${w.temperatur_grad} Grad, gefühlt ${w.gefuehlt_grad}. `;
+        text += `Draußen erwarten Sie aktuell ${w.temperatur_grad} Grad, gefühlt liegt die Temperatur bei etwa ${w.gefuehlt_grad} Grad. `;
         if (w.sturm_hinweis) text += `${w.sturm_hinweis}. `;
         text += `${w.regenschirm_empfehlung}. ${w.jacken_empfehlung}. `;
     } else {
-        text += "Wetterdaten liegen leider nicht vor. ";
+        text += "Wetterdaten liegen zurzeit leider nicht vor. ";
     }
 
     if (data.naechste_termine.length > 0) {
-        text += "Ihre nächsten Termine: " + data.naechste_termine.map(t => `${t.tag} ${t.uhrzeit === 'ganztägig' ? 'ganztägig' : 'um ' + t.uhrzeit} ${t.text}`).join(', ') + ". ";
+        text += "Werfen wir einen Blick auf Ihre nächsten Termine: " + data.naechste_termine.map(t => `${t.tag} ${t.uhrzeit === 'ganztägig' ? 'ganztägig' : 'um ' + t.uhrzeit} ${t.text}`).join(', ') + ". ";
     } else {
-        text += "Sie haben keine anstehenden Termine. ";
+        text += "Ihr Kalender ist für heute vollkommen frei. ";
     }
 
     if (data.erinnerungen_naechste_tage.length > 0) {
-        text += "Erinnerungen: " + data.erinnerungen_naechste_tage.map(r => `${r.text} ${r.tag}${r.uhrzeit === 'ganztägig' ? '' : ' um ' + r.uhrzeit}`).join(' sowie ') + ". ";
+        text += "Hier noch Ihre Erinnerungen: " + data.erinnerungen_naechste_tage.map(r => `${r.text} ${r.tag}${r.uhrzeit === 'ganztägig' ? '' : ' um ' + r.uhrzeit}`).join(' sowie ') + ". ";
     }
 
     if ((data.zusaetzliche_wuensche || []).length > 0) {
@@ -492,21 +476,18 @@ function buildFallbackBriefing(data) {
     }
 
     if (data.wichtige_gegenstaende.length > 0) {
-        text += data.wichtige_gegenstaende.map(itemSentence).join('. ') + ". ";
+        text += "Noch ein kurzer Hinweis zum Schluss: " + data.wichtige_gegenstaende.map(itemSentence).join('. ') + ". ";
     }
 
     if (data.parkplatz && data.parkplatz.adresse) {
-        text += `Ihr Auto steht in ${data.parkplatz.adresse}. `;
+        text += `Ihr Auto steht übrigens in ${data.parkplatz.adresse}. `;
     }
 
     return text;
 }
 
-/* --- Automatisches Lernen: bei jedem Briefing sucht die KI im bisherigen Gesprächsverlauf
-   nach neuen, dauerhaft merkenswerten Fakten über den User und trägt sie ins Gedächtnis ein.
-   Läuft im Hintergrund, ohne nachzufragen; sichtbar/löschbar bleibt alles im Gedächtnis-Tab. */
 async function learnFromConversations() {
-    if (!chatHistory || chatHistory.length < 4) return;   // zu wenig Gesprächsstoff, um sich zu lohnen
+    if (!chatHistory || chatHistory.length < 4) return;
     try {
         const verlauf = chatHistory.slice(-40).map(m => {
             const c = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
@@ -574,7 +555,7 @@ async function triggerDailyBriefing() {
 
         typeWriterStatus("Klicken zum Sprechen...");
         speak(text, continueConversation);
-        learnFromConversations();   // nebenher, blockiert das Briefing nicht
+        learnFromConversations();
     } finally {
         stopThinkingSound();
         isProcessing = false;
