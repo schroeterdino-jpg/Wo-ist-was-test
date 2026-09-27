@@ -938,9 +938,39 @@ function buildWeltPanel(options = {}) {
     const html = `<div class="font-mono text-xs">` +
         `<div class="hud-globe-wrap"><div id="hudGlobe"></div><button id="weltMic" class="welt-mic" type="button" aria-label="Mit Jarvis sprechen" onclick="weltMicTap()">🎤</button></div>` +
         `<p id="weltStatus" class="text-[#5d7e91] mt-3">Weltkugel wird geladen ...</p>` +
+        `<div id="weltWiki" class="mt-2"></div>` +
         `<div id="weltNews" class="mt-3"></div>` +
         `<p class="text-[#5d7e91] mt-4">Tippe auf das Mikrofon oben rechts an der Kugel (es unterbricht Jarvis und startet das Zuhören) und nenne ein Land oder eine Region, frag nach der ISS oder den Erdbeben, oder sag „Zeig mir Rom live". Sag „Schließen", um das Fenster zu schließen.</p></div>`;
     return { title: PANEL_TITLES.welt, html };
+}
+
+/* ---- Wikipedia-Hintergrundinfo zum abgefragten Ort (kurzer Absatz + Bild, falls vorhanden) ----
+   Deutsche Wikipedia-REST-API, kein Schlüssel nötig, direkt aus dem Browser abrufbar (CORS erlaubt). */
+async function fetchWikipediaSummary(place) {
+    try {
+        const res = await fetch('https://de.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(place), {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (!res.ok) return null;
+        const d = await res.json();
+        if (!d || d.type === 'disambiguation' || !d.extract) return null;
+        return {
+            title: d.title || place,
+            extract: d.extract,
+            image: (d.thumbnail && d.thumbnail.source) || '',
+            url: (d.content_urls && d.content_urls.desktop && d.content_urls.desktop.page) || ''
+        };
+    } catch (e) {
+        return null;   // kein Wikipedia-Artikel zu genau diesem Namen, oder Dienst gerade nicht erreichbar - kein Problem, einfach weglassen
+    }
+}
+
+function renderWeltWiki(wiki) {
+    const box = document.getElementById('weltWiki');
+    if (!box) return;
+    if (!wiki) { box.innerHTML = ''; return; }
+    const img = wiki.image ? `<img src="${escapeHtml(wiki.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : '';
+    box.innerHTML = `<a class="welt-card" href="${escapeHtml(wiki.url || '#')}" target="_blank" rel="noopener noreferrer">${img}<div><b>📖 ${escapeHtml(wiki.title)}</b><span>${escapeHtml(wiki.extract)}</span></div></a>`;
 }
 
 /* Wartet höchstens "ms" Millisekunden; danach gilt "fallback" (damit nichts ewig hängen bleibt und Jarvis stumm bleibt) */
@@ -1206,6 +1236,8 @@ function weltResetLive() {
     }
     const box = document.getElementById('weltNews');
     if (box) box.innerHTML = '';
+    const wikiBox = document.getElementById('weltWiki');
+    if (wikiBox) wikiBox.innerHTML = '';
 }
 
 function weltAgo(iso) {
@@ -1286,13 +1318,16 @@ async function weltShowPlace(place) {
     const isGermany = normalizeKey(place) === 'deutschland';
     const regionId = germanRegionId(place);
     const newsP = weltWithTimeout(pre ? pre.newsP : ((isGermany || regionId) ? fetchGermanyNewsViaTagesschau(regionId) : fetchWorldNews(place)), 15000, { articles: [], video: null, fehler: 'Zeitüberschreitung' });
+    const wikiP = weltWithTimeout(fetchWikipediaSummary(place), 6000, null);   // reiner Zusatz, darf die Nachrichten nie ausbremsen
 
     weltStatus(`Suche Nachrichten zu ${place} ...`);
     weltResetLive();
+    renderWeltWiki(null);   // alten Absatz vom vorigen Ort sofort weg, statt kurz stehen zu lassen
 
-    const [geo, news] = await Promise.all([geoP, newsP]);
+    const [geo, news, wiki] = await Promise.all([geoP, newsP, wikiP]);
     if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
     if (geo && weltGlobe) weltFlyTo(geo.lat, geo.lon, place);
+    renderWeltWiki(wiki);
     weltRenderNews(place, news);
 
     let spoken = await weltWithTimeout(weltSummary(place, news.articles), 14000, (news.articles || []).length ? `Zu ${place}: ${news.articles.slice(0, 2).map(a => a.title).join('. ')}.` : '');
