@@ -218,6 +218,11 @@ async function fetchCloudSpeechBlob(text, voice) {
 function speak(text, onComplete, langCode) {
     stopThinkingSound();
 
+    // Eine laufende "Einen Moment"-Zwischenansage (Cloud-Audio) sofort stoppen, bevor die eigentliche
+    // Antwort startet - sonst können beide gleichzeitig laufen und man hört zwei Stimmen übereinander.
+    if (currentAckAudio) { try { currentAckAudio.pause(); } catch (e) {} currentAckAudio = null; }
+    ackActive = false;
+
     if (isRecording && recognition) {
         isFollowUp = false;
         clearFollowUpTimer();
