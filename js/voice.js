@@ -215,7 +215,14 @@ async function fetchCloudSpeechBlob(text, voice) {
     }
 }
 
+/* Steigt bei jeder echten Sprachausgabe (speak()); eine Zwischenansage merkt sich beim Start ihren Stand.
+   Ist der Zähler beim Fertigwerden der Zwischenansage (z.B. nach dem Abrufen der Cloud-Stimme, das
+   1-2 Sekunden dauern kann) nicht mehr derselbe, kam die echte Antwort inzwischen dazwischen - dann wird
+   die verspätete Zwischenansage gar nicht erst abgespielt, statt zwei Stimmen gleichzeitig zu hören. */
+let speechGeneration = 0;
+
 function speak(text, onComplete, langCode) {
+    speechGeneration++;
     stopThinkingSound();
 
     // Eine laufende "Einen Moment"-Zwischenansage (Cloud-Audio) sofort stoppen, bevor die eigentliche
@@ -321,11 +328,13 @@ function speakBrowser(cleanText, onComplete, langCode) {
 
 function speakAck(text) {
     if (isRecording) return;
+    const myGen = speechGeneration;   // Stand merken, bevor die (evtl. langsame) Cloud-Abfrage losgeht
     const tryCloud = getTtsEngine() !== 'browser' && ttsCloudFailCount < TTS_CLOUD_MAX_FAILS;
     if (tryCloud) {
         ackActive = true;
         fetchCloudSpeechBlob(text, getEdgeVoice()).then(blob => {
-            if (!blob) { ttsCloudFailCount++; ackActive = false; speakAckBrowser(text); return; }
+            if (myGen !== speechGeneration) { ackActive = false; return; }   // echte Antwort kam inzwischen dazwischen - verworfen, nicht abspielen
+            if (!blob) { ttsCloudFailCount++; ackActive = false; speakAckBrowser(text, myGen); return; }
             ttsCloudFailCount = 0;
             if (currentAckAudio) { try { currentAckAudio.pause(); } catch (e) {} }
             const url = URL.createObjectURL(blob);
@@ -337,12 +346,16 @@ function speakAck(text) {
         });
         return;
     }
-    speakAckBrowser(text);
+    speakAckBrowser(text, myGen);
 }
 
-/* Bisherige, rein im Browser laufende Zwischenansage - jetzt der automatische Rückfall */
-function speakAckBrowser(text) {
+/* Bisherige, rein im Browser laufende Zwischenansage - jetzt der automatische Rückfall.
+   'gen' (optional): Stand von speechGeneration beim ursprünglichen Aufruf von speakAck(), falls diese
+   Funktion verzögert (nach einer gescheiterten Cloud-Abfrage) aufgerufen wird - fehlt er, wird der
+   aktuelle Stand genommen (direkter Aufruf ohne Cloud-Umweg). */
+function speakAckBrowser(text, gen) {
     if (!('speechSynthesis' in window) || isRecording) return;
+    if (typeof gen === 'number' && gen !== speechGeneration) return;   // echte Antwort kam inzwischen dazwischen
     const u = new SpeechSynthesisUtterance(text);
     const voice = getActiveVoice();
     if (voice) { u.voice = voice; u.lang = voice.lang; } else { u.lang = 'de-DE'; }
@@ -356,6 +369,7 @@ function speakAckBrowser(text) {
 let currentAckAudio = null;
 
 function interruptSpeaking() {
+    speechGeneration++;
     stopThinkingSound();
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     if (currentAckAudio) { try { currentAckAudio.pause(); } catch (e) {} currentAckAudio = null; }
