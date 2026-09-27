@@ -37,7 +37,12 @@ if (userNameInput) userNameInput.value = currentUserName;
 /* Tageszeit-abhängige Anrede für die feste Begrüßung oben in der App ("Guten Morgen, Dino!" statt immer "Hallo, ...").
    Nutzt die Uhrzeit des Geräts in Berlin-Zeit, dieselbe Einteilung wie im KI-Prompt (assistant.js). */
 function greetingForTime(now = new Date()) {
-    const h = Number(now.toLocaleString('de-DE', { hour: '2-digit', hour12: false, timeZone: 'Europe/Berlin' }));
+    // formatToParts statt toLocaleString: liefert die Stunde als reine Zahl, unabhängig davon, ob die
+    // deutsche Formatierung "08" oder "08 Uhr" o.ä. ausgibt (das hatte Number() vorher zu NaN gemacht,
+    // wodurch fälschlich immer "Gute Nacht" herauskam).
+    const parts = new Intl.DateTimeFormat('de-DE', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Europe/Berlin' }).formatToParts(now);
+    const hourPart = parts.find(p => p.type === 'hour');
+    const h = hourPart ? Number(hourPart.value) : now.getHours();
     if (h >= 5 && h < 11) return 'Guten Morgen';
     if (h >= 11 && h < 14) return 'Mahlzeit';
     if (h >= 14 && h < 18) return 'Guten Tag';
