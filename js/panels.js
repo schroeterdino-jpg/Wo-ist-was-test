@@ -1995,8 +1995,9 @@ const DASHBOARD_ALL_TILES = [
     { key: 'einkauf', icon: '🛒', label: 'Einkaufsliste' },
     { key: 'aufgaben', icon: '📝', label: 'Notizen' },
     { key: 'standort', icon: '📍', label: 'Mein Standort' },
+    { key: 'nachrichten', icon: '📰', label: 'Nachrichten' },
 ];
-const DASHBOARD_DEFAULT_VISIBLE = ['parkplatz', 'sprit', 'wetter', 'termine', 'erinnerungen'];   // Einkaufsliste ist verfügbar, aber anfangs aus
+const DASHBOARD_DEFAULT_VISIBLE = ['nachrichten', 'parkplatz', 'sprit', 'wetter', 'termine', 'erinnerungen'];   // Einkaufsliste ist verfügbar, aber anfangs aus
 let dashboardConfig = null;   // [{ key, visible }, ...] in Anzeige-Reihenfolge
 let dashboardEditing = false;
 let dashboardToken = 0;
@@ -2206,10 +2207,33 @@ async function dashboardFillSprit() {
     }
 }
 
+/* Aktuelle Tagesnachrichten: nutzt die vorhandene Nachrichten-Quelle der App (/api/news,
+   tagesschau.de + Google News). Zeigt die drei neuesten Schlagzeilen, tippen öffnet den Artikel. */
+async function dashboardFillNachrichten() {
+    try {
+        const r = await apiFetch('/api/news?q=' + encodeURIComponent('Deutschland aktuell'));
+        const d = await r.json();
+        if (!r.ok || !d || !Array.isArray(d.articles) || !d.articles.length) {
+            return dashboardSetTile('nachrichten', 'Keine aktuellen Nachrichten gefunden.');
+        }
+        const heute = new Date().toDateString();
+        const top = d.articles.slice(0, 3);
+        const lines = top.map(a => {
+            const zeit = a.date ? new Date(a.date).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) : '';
+            const istHeute = a.date && new Date(a.date).toDateString() === heute;
+            return `<a href="${a.url}" target="_blank" rel="noopener" class="block hover:text-[#8eeeff]">${istHeute ? '🔴 ' : ''}${escapeHtml(a.title)}</a>` +
+                `<span class="dash-sub">${escapeHtml(a.domain || '')}${zeit ? ' · ' + zeit + ' Uhr' : ''}</span>`;
+        }).join('');
+        dashboardSetTile('nachrichten', lines, 'Quellen: tagesschau.de, Google News');
+    } catch (e) {
+        dashboardSetTile('nachrichten', 'Nachrichten gerade nicht verfügbar.');
+    }
+}
+
 const DASHBOARD_FILLERS = {
     parkplatz: dashboardFillParkplatz, wetter: dashboardFillWetter, termine: dashboardFillTermine,
     erinnerungen: dashboardFillErinnerungen, einkauf: dashboardFillEinkauf, sprit: dashboardFillSprit,
-    aufgaben: dashboardFillAufgaben, standort: dashboardFillStandort,
+    aufgaben: dashboardFillAufgaben, standort: dashboardFillStandort, nachrichten: dashboardFillNachrichten,
 };
 
 const DASHBOARD_REVEAL_MS = 1050;  // Abstand, mit dem jede Kachel EINZELN im Bild erscheint - macht in Summe ca. 4-5s fürs ganze Dashboard
