@@ -105,11 +105,11 @@
 
                 <div class="my-auto flex flex-col items-center space-y-4 py-4 w-full">
                     <div id="recordBtn" onclick="toggleSpeechRecognition()" class="jarvis-scanner-container flex flex-col items-center justify-center p-3 rounded-xl bg-transparent border-none transition-all cursor-pointer">
-                        <div id="reactor-wrap">
-                            <div class="holo-container">
+                        <div id="reactor-wrap" class="flex items-center justify-center w-[290px] h-[290px] relative">
+                            <div class="holo-container flex items-center justify-center w-[290px] h-[290px] relative">
                                 <!-- Netzwerk-Kugel: Punkte und Verbindungslinien, per Canvas/JavaScript gezeichnet und gedreht (js/sphere.js).
                                      Blau in Ruhe/beim Zuhören, Grün während Jarvis spricht (siehe .jarvis-scanner-container.speaking/.recording). -->
-                                <canvas id="jarvisSphere" width="290" height="290" aria-hidden="true"></canvas>
+                                <canvas id="jarvisSphere" class="w-[290px] h-[290px] block" aria-hidden="true"></canvas>
                             </div>
                             <div id="waveform" class="active">
                                 <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
@@ -343,7 +343,7 @@
                             <span>Hintergrund aus (Punkte und Raster)</span>
                         </label>
                         <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
-                            <input type="checkbox" data-fxflag="pulse" onchange="setFxFlag('pulse', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
+                            <input type="checkbox" data-[#pulse] onchange="setFxFlag('pulse', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
                             <span>Pulsierende Punkte und Balken aus</span>
                         </label>
                         <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
