@@ -348,6 +348,7 @@ async function executeAction(action, text, ctx) {
             updDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, action.calendar_location || extractLocationFallback(text));
         }
         if (updDone === false) googleNotSynced(ctx, 'Die Änderung gilt nur in der App');
+        ctx.panel = { range: 'naechste_7_tage', name: 'termine' };
         updateTerminalStream("CALENDAR: EVENT_UPDATED");
     } else if (action.type === 'parking_save') {
         const accuracy = await saveParkingSpot(String(action.parking_note || '').trim());
@@ -430,6 +431,9 @@ async function executeAction(action, text, ctx) {
         const ort = action.calendar_location || extractLocationFallback(text);
         const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort);
         if (addDone === false) googleNotSynced(ctx, 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht');
+        // Termine-Fenster als Bestätigung zeigen, damit sichtbar ist, dass der Termin wirklich eingetragen
+        // wurde, statt es dem User nur zu sagen - er kann es danach einfach wieder wegklicken.
+        ctx.panel = { range: 'naechste_7_tage', name: 'termine' };
         updateTerminalStream("CALENDAR: EVENT_ADDED");
     }
 }
