@@ -750,9 +750,19 @@ if (SpeechRecognition) {
         const wasWake = wakeWordListening;
         wakeWordListening = false;
         if (event && (event.error === 'not-allowed' || event.error === 'service-not-allowed')) {
-            typeWriterStatus("Mikrofon-Zugriff blockiert.");
-            setHudSubtitle("Mikrofon-Zugriff blockiert.");
-            wakeWordEnabled = false;   // Zugriff verweigert: Weckwort-Modus lässt sich nicht sinnvoll fortsetzen
+            if (document.hidden) {
+                // Die Seite war gerade im Hintergrund (z.B. weil Maps oder der Kalender sich geöffnet
+                // hat) - Chrome meldet dann fälschlich "not-allowed", obwohl der Zugriff eigentlich in
+                // Ordnung ist. NICHT dauerhaft abschalten; visibilitychange startet das Weckwort automatisch
+                // neu, sobald die App wieder sichtbar ist.
+                typeWriterStatus("Klicken zum Sprechen...");
+            } else {
+                // Die Seite war sichtbar/im Vordergrund und trotzdem "not-allowed" - das ist die echte,
+                // dauerhafte Zugriffsverweigerung (User hat das Mikrofon-Recht tatsächlich verweigert).
+                typeWriterStatus("Mikrofon-Zugriff blockiert.");
+                setHudSubtitle("Mikrofon-Zugriff blockiert.");
+                wakeWordEnabled = false;   // Zugriff verweigert: Weckwort-Modus lässt sich nicht sinnvoll fortsetzen
+            }
         } else if (interpreter && wasFollowUp && !isProcessing && !isSpeaking()) {
             // Dolmetscher-Modus: nichts verstanden (z.B. "no-speech", weil das Gegenüber erst zögert) -
             // in DERSELBEN Runde automatisch weiterhören, statt einfach zu verstummen. Erst nach mehreren
