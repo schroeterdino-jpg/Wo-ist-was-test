@@ -1,7 +1,7 @@
 {
   "name": "Jarvis",
   "short_name": "Jarvis",
-  "start_url": "./index.html",
+  "start_url": "https://wo-ist-was-test.vercel.app/",
   "display": "standalone",
   "background_color": "#050a10",
   "theme_color": "#050a10",
