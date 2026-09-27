@@ -30,6 +30,9 @@
         }
     </script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Three.js Library für die 3D Jarvis-Kugel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
     <link rel="icon" type="image/png" href="./icon-192.png">
     <link rel="apple-touch-icon" href="./icon-192.png">
     <link rel="manifest" href="./manifest.json">
@@ -105,11 +108,11 @@
 
                 <div class="my-auto flex flex-col items-center space-y-4 py-4 w-full">
                     <!-- Jarvis Sprach-Kugel / Sprach-Interface -->
-                    <div id="recordBtn" onclick="toggleSpeechRecognition()" class="jarvis-scanner-container flex flex-col items-center justify-center p-3 rounded-xl bg-transparent border-none transition-all cursor-pointer">
-                        <div id="reactor-wrap" class="relative flex items-center justify-center">
-                            <div class="holo-container">
+                    <div id="recordBtn" onclick="toggleSpeechRecognition()" class="jarvis-scanner-container flex flex-col items-center justify-center p-3 rounded-xl bg-transparent border-none transition-all cursor-pointer min-h-[290px] w-full">
+                        <div id="reactor-wrap" class="relative flex items-center justify-center w-[290px] h-[290px]">
+                            <div class="holo-container w-full h-full">
                                 <!-- Das Canvas-Element für die 3D Jarvis-Kugel -->
-                                <canvas id="jarvisSphere" width="290" height="290" aria-hidden="true"></canvas>
+                                <canvas id="jarvisSphere" width="290" height="290" class="w-[290px] h-[290px] block mx-auto pointer-events-none" aria-hidden="true"></canvas>
                             </div>
                             <!-- Container für zusätzliche Effekte oder Sprachanzeigen direkt an der Kugel -->
                             <div id="hudGlobe" class="absolute inset-0 pointer-events-none"></div>
