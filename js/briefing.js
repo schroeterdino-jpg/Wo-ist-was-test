@@ -1,218 +1,123 @@
 // js/briefing.js
 /* ============================================================
-   BRIEFING: Standort, Wetter, Tages-Briefing
-   Braucht: storage.js, lists.js (parseMemoryValue), voice.js
+   BRIEFING: Standort, Wetter, Tages-Briefing & KI-Lernen
    ============================================================ */
 
-/* --- Standortermittlung mit Geocoding (inkl. Straße & Hausnummer) --- */
-function getPosition(opts) {
-    return new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, opts);
-    });
-}
+function getPosition(opts) { return new Promise((ok, err) => navigator.geolocation.getCurrentPosition(ok, err, opts)); }
 
 async function fetchUserLocationData() {
     if (!navigator.geolocation) return { fehler: "Geolokalisierung nicht unterstützt." };
-
-    let pos;
     try {
-        pos = await getPosition({ timeout: 8000, enableHighAccuracy: true });
-    } catch (e) {
-        try {
-            pos = await getPosition({ timeout: 12000, enableHighAccuracy: false });
-        } catch (e2) {
-            return { fehler: "Standort-Zugriff verweigert oder nicht verfügbar." };
-        }
-    }
-
-    const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
-    try {
-        const res = await fetch(`https://openstreetmap.org{lat}&lon=${lon}&zoom=18&addressdetails=1`);
-        const data = await res.json();
-        const addr = data.address || {};
-
-        const ort = addr.city || addr.town || addr.village || addr.municipality || addr.county || "Unbekannter Ort";
-        const land = addr.country || "Unbekanntes Land";
-
-        const strasse = addr.road || addr.pedestrian || addr.footway || addr.path || "";
-        const hausnummer = addr.house_number || "";
-
-        let straßenAdresse = "";
-        if (strasse) {
-            straßenAdresse = hausnummer ? `${strasse} ${hausnummer}` : strasse;
-        }
-
-        return {
-            latitude: lat,
-            longitude: lon,
-            genauigkeit: pos.coords.accuracy,
-            lat: lat.toFixed(4),
-            lon: lon.toFixed(4),
-            ort: ort,
-            land: land,
-            strasse: strasse,
-            hausnummer: hausnummer,
-            straßenAdresse: straßenAdresse,
-            volstaendigeAdresse: data.display_name || `${straßenAdresse}, ${ort}`
-        };
-    } catch (e) {
-        return {
-            latitude: lat,
-            longitude: lon,
-            genauigkeit: pos.coords.accuracy,
-            lat: lat.toFixed(4),
-            lon: lon.toFixed(4),
-            ort: "Koordinaten ermittelt",
-            land: ""
-        };
-    }
+        let pos = await getPosition({ timeout: 8000, enableHighAccuracy: true }).catch(() => getPosition({ timeout: 12000, enableHighAccuracy: false }));
+        const res = await fetch(`https://openstreetmap.org{pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=18&addressdetails=1`);
+        const d = await res.json();
+        const a = d.address || {};
+        const ort = a.city || a.town || a.village || "Unbekannter Ort";
+        const str = a.road || "";
+        const nr = a.house_number || "";
+        return { latitude: pos.coords.latitude, longitude: pos.coords.longitude, ort, strasse: str, hausnummer: nr, volstaendigeAdresse: d.display_name || ort };
+    } catch (e) { return { fehler: "Standort nicht verfügbar." }; }
 }
 
-/* --- Wetter --- */
 async function fetchWeatherData() {
     return new Promise((resolve) => {
-        const getMeteo = async (lat, lon) => {
+        if (!navigator.geolocation) return resolve({ fehler: "Kein GPS" });
+        navigator.geolocation.getCurrentPosition(async (pos) => {
             try {
-                const res = await fetch(`https://open-meteo.com{lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,windgusts_10m,apparent_temperature&hourly=precipitation,weather_code`);
-                const data = await res.json();
-
-                let upcomingRain = false;
-                let upcomingWeatherCode = data.current.weather_code;
-                let maxUpcomingPrecipitation = data.current.precipitation;
-
-                if (data.hourly && data.hourly.precipitation && data.hourly.time) {
-                    const nowHourIndex = data.hourly.time.findIndex(t => new Date(t) >= new Date());
-                    if (nowHourIndex !== -1) {
-                        for (let i = 0; i <= 3; i++) {
-                            const idx = nowHourIndex + i;
-                            if (idx < data.hourly.precipitation.length) {
-                                const precip = data.hourly.precipitation[idx];
-                                const code = data.hourly.weather_code[idx];
-                                if (precip > 0 || (code >= 51 && code <= 67) || (code >= 80 && code <= 99)) {
-                                    upcomingRain = true;
-                                    if (precip > maxUpcomingPrecipitation) maxUpcomingPrecipitation = precip;
-                                    upcomingWeatherCode = code;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                resolve({
-                    temperatur: Math.round(data.current.temperature_2m),
-                    gefuehlteTemperatur: Math.round(data.current.apparent_temperature),
-                    einheit: data.current_units.temperature_2m,
-                    niederschlag: data.current.precipitation,
-                    forecastNiederschlag: maxUpcomingPrecipitation,
-                    baldRegen: upcomingRain,
-                    windstaerke: data.current.wind_speed_10m,
-                    boeen: data.current.windgusts_10m,
-                    wettercode: upcomingWeatherCode,
-                    koordinaten: { lat, lon }
-                });
-            } catch (e) {
-                resolve({ fehler: "Wetterdaten konnten nicht geladen werden." });
-            }
-        };
-
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => getMeteo(pos.coords.latitude, pos.coords.longitude),
-                () => resolve({ fehler: "Standort für Wetterabfrage nicht verfügbar." }),
-                { timeout: 5000, enableHighAccuracy: true }
-            );
-        } else {
-            resolve({ fehler: "Geolokalisierung nicht unterstützt." });
-        }
+                const res = await fetch(`https://open-meteo.com{pos.coords.latitude}&longitude=${pos.coords.longitude}&current=temperature_2m,weather_code,apparent_temperature`);
+                const d = await res.json();
+                resolve({ temperatur: Math.round(d.current.temperature_2m), gefuehlteTemperatur: Math.round(d.current.apparent_temperature), wettercode: d.current.weather_code });
+            } catch (e) { resolve({ fehler: "Fehler" }); }
+        }, () => resolve({ fehler: "Kein GPS-Signal" }), { timeout: 5000 });
     });
 }
 
-/* --- Wettervorhersage: heute + 6 Tage (Open-Meteo) --- */
-function weatherCodeText(code) {
-    const map = {
-        0: 'klar', 1: 'überwiegend klar', 2: 'teils bewölkt', 3: 'bedeckt', 45: 'Nebel', 48: 'Nebel mit Reif',
-        51: 'leichter Nieselregen', 53: 'Nieselregen', 55: 'starker Nieselregen', 56: 'gefrierender Nieselregen', 57: 'starker gefrierender Nieselregen',
-        61: 'leichter Regen', 63: 'Regen', 65: 'starker Regen', 66: 'gefrierender Regen', 67: 'starker gefrierender Regen',
-        71: 'leichter Schneefall', 73: 'Schneefall', 75: 'starker Schneefall', 77: 'Schneegriesel',
-        80: 'leichte Regenschauer', 81: 'Regenschauer', 82: 'heftige Regenschauer', 85: 'leichte Schneeschauer', 86: 'Schneeschauer',
-        95: 'Gewitter', 96: 'Gewitter mit Hagel', 99: 'schweres Gewitter mit Hagel'
-    };
-    return map[code] || 'wechselhaft';
+async function fetchWeatherForecast() { return { tage: [] }; }
+function normalizeKey(s) { return String(s || '').toLowerCase().replace(/[äöüß]/g, m => ({'ä':'ae','ö':'oe','ü':'ue','ß':'ss'}[m])).replace(/[^a-z0-9]/g, ''); }
+function isImportantItem(k) { return ['schlüssel', 'geldbeutel', 'brille', 'ausweis'].some(w => normalizeKey(k).includes(w)); }
+function displayItemName(k) { return String(k).trim(); }
+function getWeatherAdvice(w) { return { rain: w.wettercode > 50, schirm: w.wettercode > 50 ? "Schirm mitnehmen" : "Kein Schirm nötig", jacke: w.temperatur < 12 ? "Warme Jacke" : "Leichte Jacke" }; }
+
+function buildBriefingData(now, weather) {
+    let hour = now.getHours();
+    let begruessung = hour < 12 ? "Guten Morgen" : (hour < 18 ? "Guten Tag" : "Guten Abend");
+    let gegenstaende = Object.keys(memoryItems || {}).filter(isImportantItem).map(k => ({ gegenstand: displayItemName(k), wert: parseMemoryValue(memoryItems[k]) }));
+    return { name: currentUserName, begruessung, uhrzeit_gesprochen: now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }), wetter: weather ? { temperatur_grad: weather.temperatur, regen_erwartet: weather.wettercode > 50, regenschirm_empfehlung: weather.wettercode > 50 ? "Schirm mitnehmen" : "Kein Schirm", jacken_empfehlung: weather.temperatur < 12 ? "Warme Jacke" : "Leichte Jacke" } : null, naechste_termine: [], erinnerungen_naechste_tage: [], zusaetzliche_wuensche: [], wichtige_gegenstaende: gegenstaende };
 }
 
-function getDailyAdvice(day) {
-    const rain = day.regenwahrscheinlichkeit_prozent >= 50 || day.niederschlag_mm >= 1;
-    const wind = Math.max(day.wind_max_kmh || 0, day.boeen_max_kmh || 0);
-    const t = day.hoechstwert_grad;
-    let jacke;
-    if (t < 5) jacke = 'Dicke Winterjacke anziehen';
-    else if (t < 12) jacke = 'Warme Jacke anziehen';
-    else if (t < 18) jacke = 'Leichte Jacke mitnehmen';
-    else if (wind > 35) jacke = 'Windjacke anziehen';
-    else if (t < 21) jacke = 'Leichte Jacke zur Sicherheit mitnehmen';
-    else jacke = 'Keine Jacke nötig';
-    return {
-        regenschirm_empfehlung: rain ? 'Regenschirm mitnehmen' : 'Kein Regenschirm nötig',
-        jacken_empfehlung: jacke,
-        sturm_hinweis: wind > 35 ? `Kräftige Windböen bis ${Math.round(wind)} Kilometer pro Stunde` : null
-    };
-}
-
-async function fetchWeatherForecast() {
+async function composeBriefingWithModel(data) {
     try {
-        const pos = await new Promise((ok, err) =>
-            navigator.geolocation.getCurrentPosition(ok, err, { timeout: 7000, maximumAge: 300000 }));
-        const res = await fetch(`https://open-meteo.com{pos.coords.latitude}&longitude=${pos.coords.longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max&timezone=Europe%2FBerlin&forecast_days=7`);
-        const data = await res.json();
-        const d = data.daily;
-        if (!d || !d.time) return { fehler: 'Die Vorhersage konnte nicht geladen werden.' };
-
-        const todayIso = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
-        const rel = ['heute', 'morgen', 'übermorgen'];
-        const tage = d.time.map((iso, i) => {
-            const day = {
-                datum: iso,
-                wochentag: new Date(`${iso}T12:00:00`).toLocaleDateString('de-DE', { weekday: 'long' }),
-                tag: iso === todayIso ? 'heute' : (i > 0 && d.time[0] === todayIso && rel[i]) || '',
-                wetter: weatherCodeText(d.weather_code[i]),
-                tiefstwert_grad: Math.round(d.temperature_2m_min[i]),
-                hoechstwert_grad: Math.round(d.temperature_2m_max[i]),
-                niederschlag_mm: Math.round((d.precipitation_sum[i] || 0) * 10) / 10,
-                regenwahrscheinlichkeit_prozent: d.precipitation_probability_max ? (d.precipitation_probability_max[i] || 0) : 0,
-                wind_max_kmh: Math.round(d.wind_speed_10m_max[i] || 0),
-                boeen_max_kmh: Math.round(d.wind_gusts_10m_max[i] || 0)
-            };
-            return { ...day, ...getDailyAdvice(day) };
+        const res = await apiFetch('/api/groq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: "openai/gpt-oss-120b",
+                response_format: { type: "json_object" },
+                messages: [
+                    { role: "system", content: "Du bist J.A.R.V.I.S., der Butler von " + data.name + ". Sprich ein flüssiges Tagesbriefing ohne Markdown als JSON: {\"briefing\": \"...\"}." },
+                    { role: "user", content: "Daten: " + JSON.stringify(data) }
+                ]
+            })
         });
-        return { tage };
-    } catch (e) {
-        return { fehler: 'Die Wettervorhersage ist gerade nicht verfügbar.' };
+        const json = await res.json();
+        return JSON.parse(json.choices.message.content).briefing || null;
+    } catch (e) { return null; }
+}
+
+function buildFallbackBriefing(data) { return `${data.begruessung}, ${data.name}. Es ist ${data.uhrzeit_gesprochen}.`; }
+
+/* --- AUTOMATISCHES LERNEN: SPEICHERT JETZT ALS VEKTOR ÜBER api/groq --- */
+async function learnFromConversations() {
+    if (!chatHistory || chatHistory.length < 4) return;
+    try {
+        const verlauf = chatHistory.slice(-40).map(m => `${m.role === 'user' ? 'User' : 'Jarvis'}: ${m.content}`).join('\n');
+        const res = await apiFetch('/api/groq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: "openai/gpt-oss-120b",
+                response_format: { type: "json_object" },
+                messages: [
+                    { role: "system", content: "Suche im Gespräch nach neuen, dauerhaften Fakten über den User. Antworte NUR als JSON: {\"fakten\": [{\"schluessel\": \"begriff\", \"wert\": \"inhalt\"}]}" },
+                    { role: "user", content: "Verlauf:\n" + verlauf }
+                ]
+            })
+        });
+        if (!res.ok) return;
+        const d = await res.json();
+        const fakten = JSON.parse(d.choices.message.content).fakten || [];
+        
+        for (const f of fakten) {
+            const k = String(f.schluessel || '').trim().toLowerCase();
+            const v = String(f.wert || '').trim();
+            if (!k || !v) continue;
+
+            try {
+                // Funkt direkt an /api/groq mit der action "store" für Upstash
+                await apiFetch('/api/groq', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'store', text: `${k}: ${v}` })
+                });
+                updateTerminalStream(`MEMORY_VECTOR_WRITE: ${k.toUpperCase()}`);
+            } catch (err) { console.error(err); }
+        }
+    } catch (e) { console.error(e); }
+}
+
+async function triggerDailyBriefing() {
+    if (isProcessing) return;
+    isProcessing = true;
+    startThinkingSound();
+    try {
+        const weather = await fetchWeatherData();
+        const data = buildBriefingData(new Date(), weather);
+        let text = await composeBriefingWithModel(data) || buildFallbackBriefing(data);
+        chatHistory.push({ role: "assistant", content: JSON.stringify({ type: "chat", reply: text }) });
+        speak(text, continueConversation);
+        learnFromConversations();
+    } finally {
+        stopThinkingSound();
+        isProcessing = false;
     }
 }
-
-function normalizeKey(s) {
-    return String(s).toLowerCase()
-        .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
-        .replace(/[^a-z0-9]/g, '');
-}
-
-const IMPORTANT_ITEM_KEYWORDS = [
-    'schlüssel', 'autoschlüssel', 'brille', 'sonnenbrille', 'lesebrille',
-    'geldbeutel', 'geldbörse', 'portemonnaie', 'portmonee', 'portemonaie', 'brieftasche',
-    'papiere', 'dokumente', 'ausweis', 'personalausweis', 'reisepass', 'führerschein', 'fahrzeugschein'
-].map(normalizeKey);
-
-function isImportantItem(key) {
-    const k = normalizeKey(key);
-    if (IMPORTANT_ITEM_KEYWORDS.some(kw => k.includes(kw))) return true;
-    return (briefingWishes || []).some(w => {
-        if (w.type !== 'item') return false;
-        const t = normalizeKey(w.text);
-        return t && k.includes(t);
-    });
-}
-
-function displayItemName(key) {
-    const k = String(key).trim();
-    if (/ort$/i.test(k) && k.length > 4) {
