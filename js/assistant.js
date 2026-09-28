@@ -124,7 +124,14 @@ async function sendToGroqSmart(text, opts = {}) {
         });
 
         const data = await res.json();
-        const ai = JSON.parse(data.choices.message.content);
+        
+        // HIER GEFIXT: Absolut sicherer Zugriff auf das verschachtelte Choices-Array der Groq-API
+        const choice = data && data.choices && data.choices[0];
+        const msgContent = choice && choice.message && choice.message.content;
+        
+        if (!msgContent) throw new Error("Ungültige oder leere API-Antwort von Groq erhalten.");
+        
+        const ai = JSON.parse(msgContent);
         chatHistory.push({ role: "assistant", content: JSON.stringify(ai) });
 
         const actions = Array.isArray(ai.actions) ? ai.actions : [ai];
@@ -144,9 +151,9 @@ async function sendToGroqSmart(text, opts = {}) {
             speak(replyText, continueConversation);
         }
     } catch (e) {
-        console.error(e);
-        if (opts.collect) opts.collect("Fehler", []); else speak("Es gab eine Störung.");
-    } finally { // HIER GEFIXT: Endlich richtig geschrieben!
+        console.error("Fehler bei sendToGroqSmart:", e);
+        if (opts.collect) opts.collect("Fehler", []); else speak("Es gab eine Störung bei der Verarbeitung.");
+    } finally {
         clearTimeout(ackTimer);
         stopThinkingSound();
         isProcessing = false;
