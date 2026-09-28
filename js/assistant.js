@@ -106,8 +106,10 @@ async function sendToGroqSmart(text, opts = {}) {
         aufgaben_und_notizen: Array.isArray(todoEntries) ? todoEntries.map(t => t.text) : []
     };
 
-    const systemPrompt = "Du bist J.A.R.V.I.S., der Butler von " + currentUserName + ". Antworte im Format {\"reply\": \"deine antwort\", \"actions\": []} als JSON. Antworte kurz in 1-2 Sätzen ohne Markdown.\n\n" +
-    "Aktueller Kontext: " + JSON.stringify(contextData);
+    // HIER OPTIMIERT: Der Prompt zwingt das Modell nun unmissverständlich zur Einhaltung des JSON-Formats
+    const systemPrompt = "Du bist J.A.R.V.I.S., der persönliche Butler von " + currentUserName + ". Antworte AUSSCHLIESSLICH im gültigen JSON-Format. Erzeuge keine Einleitungen oder Formatierungen außerhalb des JSON-Objekts. Deine Antwort MUSS exakt diese Struktur haben: {\"reply\": \"Deine gesprochene Antwort in 1-2 Sätzen ohne Markdown\", \"actions\": []}.\n\n" +
+    "Aktueller Kontext zur Person und Umgebung: " + JSON.stringify(contextData) + "\n\n" +
+    "Nutze das Feld 'relevante_langzeit_erinnerungen', um deine Antwort diskret anzupassen, falls dort Informationen liegen, die thematisch zur Anfrage passen.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -123,14 +125,13 @@ async function sendToGroqSmart(text, opts = {}) {
         });
 
         const rawText = await res.text();
-        console.log("ROHER SERVER-TEXT:", rawText); // Das wird uns die Wahrheit verraten!
+        console.log("ROHER SERVER-TEXT:", rawText);
 
         let data;
         try { data = JSON.parse(rawText); } catch(jsonErr) {
             throw new Error("Server lieferte kein gültiges JSON: " + rawText.slice(0, 100));
         }
         
-        // Flexibler Parser, falls das Objekt flacher strukturiert ist
         let msgContent = null;
         if (data.choices && data.choices[0] && data.choices[0].message) {
             msgContent = data.choices[0].message.content;
@@ -142,7 +143,14 @@ async function sendToGroqSmart(text, opts = {}) {
         
         if (!msgContent) throw new Error("Nachrichteninhalt in Server-Antwort nicht gefunden.");
         
-        const ai = JSON.parse(msgContent);
+        let ai;
+        try {
+            ai = JSON.parse(msgContent);
+        } catch (e) {
+            // Falls das Modell den Text nicht sauber in das JSON-Objekt gepackt hat, fangen wir es ab
+            ai = { reply: msgContent, actions: [] };
+        }
+        
         chatHistory.push({ role: "assistant", content: JSON.stringify(ai) });
 
         const actions = Array.isArray(ai.actions) ? ai.actions : [ai];
