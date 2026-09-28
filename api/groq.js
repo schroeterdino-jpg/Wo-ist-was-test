@@ -23,7 +23,7 @@ export default async function handler(req, res) {
   if ((req.headers['x-app-key'] || '') !== expected) return res.status(401).json({ error: 'Nicht erlaubt' });
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // --- Gedächtnis-Aktionen (store / retrieve) ---
+  // Gedächtnis-Aktionen (store / retrieve)
   if (req.body && req.body.action) {
     const { action, text, id } = req.body;
     try {
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // --- Normale KI-Abfrage an Groq ---
+  // Normale KI-Abfrage an Groq
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'Server: GROQ_API_KEY fehlt' });
 
@@ -58,18 +58,24 @@ export default async function handler(req, res) {
 
     const rawText = await response.text();
     
-    // Falls Groq direkt JSON liefert, leiten wir es einfach weiter
+    // Sicherheitsnetz: Egal was Groq antwortet, wir parsen es sauber und zwingen es in die richtige App-Struktur
     try {
       const parsedData = JSON.parse(rawText);
-      return res.status(response.status).json(parsedData);
+      const content = parsedData.choices[0].message.content;
+      
+      // Falls Groq doch JSON geliefert hat, leiten wir es weiter
+      try {
+        JSON.parse(content);
+        return res.status(response.status).json(parsedData);
+      } catch(e) {
+        // Falls Groq reinen Text geschickt hat, verpacken wir ihn sauber als JSON-String
+        parsedData.choices[0].message.content = JSON.stringify({ reply: content.trim(), actions: [] });
+        return res.status(response.status).json(parsedData);
+      }
     } catch (e) {
-      // Sicherheitsnetz: Falls Groq rohen Text statt JSON gesendet hat, verpacken wir ihn sauber
+      // Absoluter Fallback, falls die gesamte API-Antwort unsauber war
       return res.status(200).json({
-        choices: [{
-          message: {
-            content: JSON.stringify({ reply: rawText.trim(), actions: [] })
-          }
-        }]
+        choices: [{ message: { content: JSON.stringify({ reply: rawText.replace(/<\/?[^>]+(>|\$)/g, "").trim(), actions: [] }) } }]
       });
     }
   } catch (err) {
