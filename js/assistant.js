@@ -6,161 +6,68 @@
 
 function formatSpokenTime(date) {
     const parts = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(date);
-    const hh = parseInt(parts.find(p => p.type === 'hour').value, 10);
-    const mm = parseInt(parts.find(p => p.type === 'minute').value, 10);
-    return mm === 0 ? `${hh} Uhr` : `${hh} Uhr ${mm}`;
+    return `${parseInt(parts.find(p => p.type === 'hour').value, 10)} Uhr ${parts.find(p => p.type === 'minute').value}`;
 }
-function plainKey(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss').replace(/[^a-z0-9]/g, ''); }
+function plainKey(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
 
 async function executeAction(action, text, ctx) {
     if (action.type === 'shopping') {
         let items = Array.isArray(action.shopping_items) ? action.shopping_items : (action.shopping_item ? [action.shopping_item] : []);
-        if (items.length === 0) items = [text.replace(/bitte|füge|hinzu|auf|die|einkaufsliste/gi, '').trim()];
-        items.forEach(item => {
-            let cleanItem = String(item || '').trim();
-            if (cleanItem && !shoppingEntries.some(e => e.text.toLowerCase() === cleanItem.toLowerCase())) {
-                shoppingEntries.unshift({ id: Date.now() + ctx.counter++, text: cleanItem });
-            }
-        });
+        items.forEach(item => { if (item && !shoppingEntries.some(e => e.text.toLowerCase() === String(item).toLowerCase())) shoppingEntries.unshift({ id: Date.now() + ctx.counter++, text: String(item).trim() }); });
         setPersistentData('helfer_shopping', JSON.stringify(shoppingEntries));
     } else if (action.type === 'todo') {
-        const items = action.todo_items || (action.todo_text ? [action.todo_text] : []);
-        items.forEach(item => {
-            if (item && item.trim()) todoEntries.unshift({ id: Date.now() + ctx.counter++, text: item.trim(), createdDate: 'Per Sprache' });
-        });
+        let items = action.todo_items || (action.todo_text ? [action.todo_text] : []);
+        items.forEach(item => { if (item) todoEntries.unshift({ id: Date.now() + ctx.counter++, text: String(item).trim(), createdDate: 'Per Sprache' }); });
         setPersistentData('helfer_todo_entries', JSON.stringify(todoEntries));
     } else if (action.type === 'memory_store' && action.memory_key) {
-        removeKeyVariants(action.memory_key);
-        memoryItems[action.memory_key.toLowerCase().trim()] = String(parseMemoryValue(action.memory_value || "gespeichert"));
+        memoryItems[action.memory_key.toLowerCase().trim()] = String(action.memory_value || "gespeichert");
         setPersistentData('helfer_memory', JSON.stringify(memoryItems));
     } else if (action.type === 'parking_save') {
-        await saveParkingSpot(String(action.parking_note || '').trim());
-    } else if (action.type === 'show_panel') {
-        ctx.panel = { name: String(action.panel).toLowerCase().trim() };
-    } else if (action.type === 'navigate') {
-        const navCard = buildNavigationCard(action);
-        ctx.cards.push(navCard);
-        if (navCard && navCard.href) window.open(navCard.href, '_blank', 'noopener');
+        if (typeof saveParkingSpot === 'function') await saveParkingSpot(String(action.parking_note || '').trim());
+    } else if (action.type === 'show_panel' && typeof openPanel === 'function') {
+        openPanel(String(action.panel).toLowerCase().trim());
     }
 }
 
 async function sendToGroqSmart(text, opts = {}) {
-    isProcessing = true;
-    clearActionCards();
-    startThinkingSound();
-    typeWriterStatus("Verarbeite Anweisung...");
+    isProcessing = true; clearActionCards(); startThinkingSound(); typeWriterStatus("Verarbeite Anweisung...");
+    const ackTimer = setTimeout(() => { if (!opts.collect) speakAck(pickRandom(["Einen Moment.", "Ich denke nach.", "Sofort.", "Verstanden."])); }, ACK_DELAY_MS);
 
-    const ackTimer = setTimeout(() => {
-        if (opts.collect) return;
-        speakAck(pickRandom(["Einen Moment.", "Ich denke nach.", "Sofort.", "Verstanden."]));
-    }, ACK_DELAY_MS);
-
-    // --- LANGZEITGEDÄCHTNIS ABFRAGEN ---
     let longTermMemories = [];
     try {
-        const memRes = await apiFetch('/api/groq', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'retrieve', text: text })
-        });
-        if (memRes.ok) {
-            const memData = await memRes.json();
-            longTermMemories = memData.memories || [];
-        }
-    } catch (e) {
-        console.error("Gedächtnis Abruf fehlgeschlagen", e);
-    }
+        const memRes = await apiFetch('/api/groq', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'retrieve', text: text }) });
+        if (memRes.ok) { longTermMemories = (await memRes.json()).memories || []; }
+    } catch (e) { console.error(e); }
 
-    let liveWeather = null;
-    let liveForecast = null;
-    if (/wetter|regen|temperatur|grad|vorhersage/i.test(text)) {
-        const [rawWeather, forecast] = await Promise.all([fetchWeatherData(), fetchWeatherForecast()]);
-        liveForecast = forecast;
-        if (rawWeather && !rawWeather.fehler) {
-            const advice = getWeatherAdvice(rawWeather);
-            liveWeather = { temperatur_grad: rawWeather.temperatur, gefuehlt_grad: rawWeather.gefuehlteTemperatur, regenschirm_empfehlung: advice.schirm, jacken_empfehlung: advice.jacke };
-        }
-    }
-
-    let liveLocation = null;
-    if (/standort|wo bin ich/i.test(text)) liveLocation = await fetchUserLocationData();
-
+    let liveWeather = typeof currentWeatherData !== 'undefined' ? currentWeatherData : null;
+    let liveLocation = typeof fetchUserLocationData === 'function' ? await fetchUserLocationData() : null;
     const now = new Date();
-    const nowGermanIso = now.toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).replace(' ', 'T');
 
     const contextData = {
-        heute_datum: nowGermanIso,
-        heute_lesbar: now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' }),
-        uhrzeit_jetzt: formatSpokenTime(now),
-        wetter: liveWeather,
-        wettervorhersage: liveForecast,
-        parkplatz: typeof describeParking === 'function' ? describeParking() : null,
-        relevante_langzeit_erinnerungen: longTermMemories,
-        zuhause: typeof homeAddress !== 'undefined' ? homeAddress : null,
-        standort: liveLocation,
-        gedächtnis: memoryItems,
-        kontakte: typeof savedContacts !== 'undefined' ? savedContacts : [],
-        termine: Array.isArray(calendarEntries) ? [...calendarEntries].sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate)).slice(0, 60).map(c => ({ id: c.id, text: c.text, isoDate: c.isoDate })) : [],
-        erinnerungen: Array.isArray(reminderEntries) ? reminderEntries.map(r => ({ id: r.id, text: r.text, iso: r.time })) : [],
-        einkauf: Array.isArray(shoppingEntries) ? shoppingEntries.map(s => s.text) : [],
-        aufgaben_und_notizen: Array.isArray(todoEntries) ? todoEntries.map(t => t.text) : []
+        heute_datum: now.toISOString(), uhrzeit_jetzt: formatSpokenTime(now),
+        wetter: liveWeather, relevantes_gedaechnis: longTermMemories, standort: liveLocation,
+        gedächtnis: memoryItems, einkauf: shoppingEntries.map(s => s.text), aufgaben_und_notizen: todoEntries.map(t => t.text)
     };
 
-    // HIER KORRIGIERT: Freie, natürliche Textausgabe erzwungen. Kein JSON-Zwang mehr für Groq!
-    const systemPrompt = "Du bist J.A.R.V.I.S., der persönliche Butler von " + currentUserName + ". Antworte frei, lebendig und charmant auf Deutsch. Formuliere eine direkte Antwort in ein oder zwei kurzen Sätzen, da deine Antwort laut vorgelesen wird. Nutze kein Markdown.\n\n" +
-    "Aktueller Kontext: " + JSON.stringify(contextData) + "\n\n" +
-    "Nutze das Feld 'relevante_langzeit_erinnerungen', um dich unauffällig auf alte Fakten des Users zu beziehen, falls sie zum Thema passen.";
-
+    const systemPrompt = "Du bist J.A.RV.I.S., Butler von " + currentUserName + ". Antworte frei und charmant in 1-2 kurzen Sätzen auf Deutsch. Kein Markdown. Wenn du Aktionen ausführen sollst, nenne sie im Text.\n\nKontext: " + JSON.stringify(contextData);
     chatHistory.push({ role: "user", content: text });
 
     try {
         const res = await apiFetch('/api/groq', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: "openai/gpt-oss-120b",
-                messages: [{ role: "system", content: systemPrompt }, ...chatHistory.slice(-6)]
-            })
+            body: JSON.stringify({ model: "openai/gpt-oss-120b", messages: [{ role: "system", content: systemPrompt }, ...chatHistory.slice(-6)] })
         });
-
-        const rawText = await res.text();
-        let data = JSON.parse(rawText);
-        let msgContent = data.choices[0].message.content;
+        const d = await res.json(); const msgContent = d.choices[0].message.content;
         
-        // Unser Sicherheitsnetz entpackt die Server-Antwort vollautomatisch
-        let ai;
-        try {
-            ai = JSON.parse(msgContent);
-        } catch (e) {
-            ai = { reply: msgContent.trim(), actions: [] };
-        }
-        
+        let ai = { reply: msgContent.trim(), actions: [] };
         chatHistory.push({ role: "assistant", content: JSON.stringify(ai) });
 
-        const actions = Array.isArray(ai.actions) ? ai.actions : [ai];
-        const ctx = { counter: 0, cards: [], notes: [], panel: null };
+        const ctx = { counter: 0, cards: [] };
+        await executeAction(ai, text, ctx);
 
-        for (const action of actions) {
-            await executeAction(action, text, ctx);
-        }
-
-        let replyText = ai.reply || `Zu Ihren Diensten, Master.`;
-        if (opts.collect) {
-            opts.collect(replyText, ctx.cards);
-        } else {
-            showActionCards(ctx.cards);
-            if (ctx.panel) openPanel(ctx.panel.name, ctx.panel);
-            renderAllLists();
-            speak(replyText, continueConversation);
-        }
-    } catch (e) {
-        console.error("Fehler:", e.message || e);
-        if (opts.collect) opts.collect("Fehler", []); else speak("Zu Ihren Diensten, Master. Es gab eine Störung.");
-    } finally {
-        clearTimeout(ackTimer);
-        stopThinkingSound();
-        isProcessing = false;
-    }
+        if (opts.collect) { opts.collect(ai.reply, ctx.cards); } else { if (typeof showActionCards === 'function') showActionCards(ctx.cards); if (typeof renderAllLists === 'function') renderAllLists(); speak(ai.reply, continueConversation); }
+    } catch (e) { console.error(e); if (opts.collect) opts.collect("Fehler", []); else speak("Es gab eine kleine Störung."); } finally { clearTimeout(ackTimer); stopThinkingSound(); isProcessing = false; }
 }
 
 const BAHN_WORDS_RE = /\b(bahn|zug|bus)\b/i;
