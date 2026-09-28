@@ -35,16 +35,32 @@ async function fetchUserLocationData() {
     }
 }
 
+// HIER KORRIGIERT: Liefert wieder das vollständige Wetter-Objekt für deine UI-Temperaturanzeige oben
 async function fetchWeatherData() {
     return new Promise((resolve) => {
         if (!navigator.geolocation) return resolve({ fehler: "Kein GPS" });
         navigator.geolocation.getCurrentPosition(async (pos) => {
             try {
-                const res = await fetch(`https://open-meteo.com{pos.coords.latitude}&longitude=${pos.coords.longitude}&current=temperature_2m,weather_code,apparent_temperature`);
+                const res = await fetch(`https://open-meteo.com{pos.coords.latitude}&longitude=${pos.coords.longitude}&current=temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,precipitation,wind_speed_10m`);
                 const d = await res.json();
-                resolve({ temperatur: Math.round(d.current.temperature_2m), gefuehlteTemperatur: Math.round(d.current.apparent_temperature), wettercode: d.current.weather_code });
-            } catch (e) { resolve({ fehler: "Fehler" }); }
-        }, () => resolve({ fehler: "Kein GPS" }), { timeout: 5000 });
+                
+                // Dieses Objekt befüllt deine visuelle Temperaturanzeige in der App
+                const weatherObj = { 
+                    temperatur: Math.round(d.current.temperature_2m), 
+                    gefuehlteTemperatur: Math.round(d.current.apparent_temperature), 
+                    wettercode: d.current.weather_code,
+                    niederschlag: d.current.precipitation,
+                    windstaerke: d.current.wind_speed_10m,
+                    einheit: "°C",
+                    baldRegen: d.current.precipitation > 0
+                };
+                
+                // Falls in deiner App eine globale Variable oder ein Update-Event existiert, wird es hier bedient
+                if (typeof currentWeatherData !== 'undefined') currentWeatherData = weatherObj;
+                
+                resolve(weatherObj);
+            } catch (e) { resolve({ fehler: "Wetter-API Fehler" }); }
+        }, () => resolve({ fehler: "Kein GPS-Signal" }), { timeout: 5000 });
     });
 }
 
@@ -58,7 +74,13 @@ function buildBriefingData(now, weather) {
     let hour = now.getHours();
     let begruessung = hour < 12 ? "Guten Morgen" : (hour < 18 ? "Guten Tag" : "Guten Abend");
     let gegenstaende = Object.keys(memoryItems || {}).filter(isImportantItem).map(k => ({ gegenstand: displayItemName(k), wert: parseMemoryValue(memoryItems[k]) }));
-    return { name: currentUserName, begruessung, uhrzeit_gesprochen: now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }), wetter: weather ? { temperatur_grad: weather.temperatur, regen_erwartet: weather.wettercode > 50, regenschirm_empfehlung: weather.wettercode > 50 ? "Schirm mitnehmen" : "Kein Schirm", jacken_empfehlung: weather.temperatur < 12 ? "Warme Jacke" : "Leichte Jacke" } : null, naechste_termine: [], erinnerungen_naechste_tage: [], zusaetzliche_wuensche: [], wichtige_gegenstaende: gegenstaende };
+    return { 
+        name: currentUserName, 
+        begruessung, 
+        uhrzeit_gesprochen: now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }), 
+        wetter: weather && !weather.fehler ? { temperatur_grad: weather.temperatur, regen_erwartet: weather.baldRegen, regenschirm_empfehlung: weather.temperatur < 15 ? "Schirm einpacken" : "Kein Schirm", jacken_empfehlung: weather.temperatur < 12 ? "Warme Jacke" : "Leichte Jacke" } : null, 
+        naechste_termine: [], erinnerungen_naechste_tage: [], zusaetzliche_wuensche: [], wichtige_gegenstaende: gegenstaende 
+    };
 }
 
 async function composeBriefingWithModel(data) {
@@ -68,15 +90,15 @@ async function composeBriefingWithModel(data) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: "openai/gpt-oss-120b",
-                response_format: { type: "json_object" },
                 messages: [
-                    { role: "system", content: "Du bist J.A.R.V.I.S., Butler von " + data.name + ". Sprich ein flüssiges Tagesbriefing ohne Markdown als JSON: {\"briefing\": \"...\"}." },
+                    { role: "system", content: "Du bist J.A.R.V.I.S., Butler von " + data.name + ". Sprich ein flüssiges Tagesbriefing ohne Markdown." },
                     { role: "user", content: "Daten: " + JSON.stringify(data) }
                 ]
             })
         });
-        const json = await res.json();
-        return JSON.parse(json.choices.message.content).briefing || null;
+        const text = await res.text();
+        let d = JSON.parse(text);
+        return d.choices[0].message.content.trim();
     } catch (e) { return null; }
 }
 
@@ -91,24 +113,26 @@ async function learnFromConversations() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: "openai/gpt-oss-120b",
-                response_format: { type: "json_object" },
                 messages: [
-                    { role: "system", content: "Suche nach neuen Fakten über den User. Antworte als JSON: {\"fakten\": [{\"schluessel\": \"begriff\", \"wert\": \"inhalt\"}]}" },
+                    { role: "system", content: "Suche nach neuen Fakten über den User. Antworte kurz als Begriff: wert." },
                     { role: "user", content: "Verlauf:\n" + verlauf }
                 ]
             })
         });
-        const d = await res.json();
-        const fakten = JSON.parse(d.choices.message.content).fakten || [];
-        for (const f of fakten) {
-            const k = String(f.schluessel || '').trim().toLowerCase();
-            const v = String(f.wert || '').trim();
+        const txt = await res.text();
+        let d = JSON.parse(txt);
+        let content = d.choices[0].message.content;
+        if (content && content.includes(":")) {
+            let parts = content.split(":");
+            let k = parts[0].trim().toLowerCase();
+            let v = parts[1].trim();
             if (k && v) {
                 await apiFetch('/api/groq', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'store', text: `${k}: ${v}` })
                 }).catch(console.error);
+                updateTerminalStream(`MEMORY_VECTOR_WRITE: ${k.toUpperCase()}`);
             }
         }
     } catch (e) { console.error(e); }
@@ -124,6 +148,10 @@ async function triggerDailyBriefing() {
         let text = await composeBriefingWithModel(data) || buildFallbackBriefing(data);
         chatHistory.push({ role: "assistant", content: JSON.stringify({ type: "chat", reply: text }) });
         speak(text, continueConversation);
+        
+        // Aktualisiert die Anzeige direkt nach dem Briefing auf dem Screen
+        if (typeof renderAllLists === 'function') renderAllLists();
+        
         learnFromConversations();
     } finally {
         stopThinkingSound();
