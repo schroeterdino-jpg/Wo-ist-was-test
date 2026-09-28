@@ -17,7 +17,7 @@ async function answerWithCalendarResults(messages, firstAi, results) {
                     ...messages,
                     { role: "assistant", content: JSON.stringify(firstAi) },
                     { role: "user", content: "Ergebnis deiner Kalendersuche (JSON): " + JSON.stringify(results) +
-                        "\n\nBeantworte damit jetzt die Frage des Users im Feld 'reply': kurz, mit Wochentag, Tag und Monat, bei Terminen mit Uhrzeit (die Uhrzeit steht schon gesprochen im Feld 'zeit', übernimm sie wörtlich). Das Datum steht im Feld 'datum' mit ausgeschriebenem Monat: Übernimm es wörtlich und schreibe keine Zahlen wie '11.04.'. 'kommende' sind die nächsten Termine, 'vergangene' die letzten davor. Nutze nur diese Ergebnisse und erfinde nichts. Gibt es keinen Treffer, sage das ehrlich, and wenn ein 'hinweis' vorhanden ist, erwähne ihn kurz. 'actions' bleibt leer." }
+                        "\n\nBeantworte damit jetzt die Frage des Users im Feld 'reply': kurz, mit Wochentag, Tag und Monat, bei Terminen mit Uhrzeit (die Uhrzeit steht schon gesprochen im Feld 'zeit', übernimm sie wörtlich). Das Datum steht im Feld 'datum' with ausgeschriebenem Monat: Übernimm es wörtlich und schreibe keine Zahlen wie '11.04.'. 'kommende' sind die nächsten Termine, 'vergangene' die letzten davor. Nutze nur diese Ergebnisse und erfinde nichts. Gibt es keinen Treffer, sage das ehrlich, und wenn ein 'hinweis' vorhanden ist, erwähne ihn kurz. 'actions' bleibt leer." }
                 ]
             })
         });
@@ -83,20 +83,19 @@ function formatCalendarSearchFallback(results) {
     return parts.join('. ') + '.';
 }
 
-/* ---- Internet-Auskunft (Fernsehprogramm, Kinoprogramm, Nachrichten, Öffnungszeiten ...) ----
-   Zweiter, eigener KI-Aufruf mit der eingebauten Websuche von Groq. Die Vorlieben aus dem Gedächtnis werden mitgegeben. */
+/* ---- Internet-Auskunft ---- */
 function cleanWebAnswer(raw) {
     let t = String(raw || '')
-        .replace(/【[^】]*】/g, '')                 // Quellenmarker der Websuche
-        .replace(/https?:\/\/\S+/g, '')             // Links werden nicht vorgelesen
+        .replace(/【[^】]*】/g, '')
+        .replace(/https?:\/\/\S+/g, '')
         .replace(/\[\d+\]/g, '')
-        .replace(/[*_`#>|]+/g, ' ')                 // Markdown
-        .replace(/^\s*[-•]\s+/gm, '')               // Aufzählungszeichen
+        .replace(/[*_`#>|]+/g, ' ')
+        .replace(/^\s*[-•]\s+/gm, '')
         .replace(/\s*\n+\s*/g, '. ')
         .replace(/\.\s*\./g, '.')
         .replace(/\s{2,}/g, ' ')
         .trim();
-    if (t.length > 900) {                           // zu lang zum Vorlesen: am Satzende kürzen
+    if (t.length > 900) {
         const cut = t.slice(0, 900);
         const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
         t = end > 300 ? cut.slice(0, end + 1) : cut;
@@ -108,13 +107,10 @@ function buildWebSearchBody(userText, query) {
     const now = new Date();
     const today = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' });
     const memory = JSON.stringify(memoryItems || {});
-    const system = "Du bist J.A.R.V.I.S., ein belesener, hochintelligenter Butler von " + currentUserName + ". Antworte auf Deutsch, in deinem eigenen, lebendigen Ton - wie in einem echten Gespräch, nicht wie eine auswendig gelernte Standardantwort. Formuliere jedes Mal neu, auch bei ähnlichen Fragen: keine Textbausteine, keine feste Einleitungsfloskel, die du immer wiederholst. Zeig, dass du das Thema wirklich verstehst: ordne die Information kurz ein, statt nur Fakten aufzuzählen, wenn das dem User weiterhilft. " +
+    const system = "Du bist J.A.R.V.I.S., ein belesener, hochintelligenter Butler von " + currentUserName + ". Antworte auf Deutsch, in deinem eigenen, lebendigen Ton. " +
         "Nutze die Websuche, um die Frage mit aktuellen, verlässlichen Informationen zu beantworten. Heute ist " + today + ". " +
-        "Das Gedächtnis des Users (seine Vorlieben und Notizen, als JSON): " + memory + ". " +
-        "Bei Fragen nach Fernsehprogramm, Filmen, Serien oder Kino wählst du nur Sendungen aus, die zu seinen Vorlieben im Gedächtnis passen (zum Beispiel Genres), und nennst höchstens drei mit Sender und Uhrzeit. " +
-        "Steht nichts Passendes im Gedächtnis, nenne die Highlights des Abends. " +
-        "Schreibe Uhrzeiten ausgeschrieben, zum Beispiel '20 Uhr 15'. Schreibe ohne Markdown, ohne Aufzählungszeichen, ohne Links und ohne Quellenangaben, weil deine Antwort laut vorgelesen wird - meist reichen zwei bis vier Sätze, bei einer Frage, die wirklich mehr Tiefe verdient, darf es auch etwas mehr sein. " +
-        "Erfinde nichts. Findest du nichts Verlässliches, sage das ehrlich, aber genauso natürlich formuliert wie der Rest deiner Antworten.";
+        "Das Gedächtnis des Users: " + memory + ". " +
+        "Schreibe ohne Markdown, ohne Aufzählungszeichen, ohne Links und ohne Quellenangaben.";
     return {
         model: "openai/gpt-oss-120b",
         tools: [{ type: "browser_search" }],
@@ -136,8 +132,7 @@ async function answerWithWebSearch(userText, query) {
         if (!res.ok) return null;
         const data = await res.json();
         const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-        const cleaned = cleanWebAnswer(content);
-        return cleaned || null;
+        return cleanWebAnswer(content) || null;
     } catch (e) {
         if (e && e.auth) throw e;
         console.error("Internet-Auskunft fehlgeschlagen", e);
@@ -145,20 +140,41 @@ async function answerWithWebSearch(userText, query) {
     }
 }
 
-/* Internet-Test für die Einstellungen: zeigt, was zwischen App, Server und Groq wirklich passiert */
 async function diagnoseWebSearch(query, log) {
     const q = String(query || '').trim() || 'Was läuft heute Abend im Fernsehen?';
     log('Frage: ' + q);
-    log('Bitte warten, die Suche kann bis zu einer Minute dauern ...');
-    const started = Date.now();
-    let res;
-    try {
-        res = await apiFetch('/api/groq', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(buildWebSearchBody(q, ''))
-        });
-    } catch (e) {
-        log('❌ ' + ((e && e.userMessage) ? e.userMessage : 'Keine Verbindung zum Server.'));
-        return;
-    }
+    let res = await apiFetch('/api/groq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildWebSearchBody(q, ''))
+    });
+    const raw = await res.text();
+    log(`Status ${res.status}`);
+}
+
+async function runWebDiagnosis() {
+    const out = document.getElementById('webDiagOutput');
+    const input = document.getElementById('webDiagInput');
+    const lines = [];
+    const log = (t) => { lines.push(t); if (out) { out.textContent = lines.join('\n'); out.classList.remove('hidden'); } };
+    try { await diagnoseWebSearch(input ? input.value : '', log); }
+    catch (e) { log('❌ Fehler: ' + (e && e.message ? e.message : e)); }
+}
+
+function googleNotSynced(ctx, what) {
+    ctx.notes.push(`Der Google Kalender ist nicht verbunden. ${what}.`);
+    if (!ctx.cards.some(c => c.onclick === 'loginWithGoogle(false)')) ctx.cards.push(googleReconnectCard());
+}
+
+function openGoogleCalendarApp(isoTimeString) {
+    let d = isoTimeString ? new Date(isoTimeString) : new Date();
+    if (isNaN(d.getTime())) d = new Date();
+    const url = `https://google.com{d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+    try { window.open(url, '_blank', 'noopener'); } catch (e) {}
+}
+
+const CALENDAR_LOOKUP_TRIGGER = /geburtstag|hochzeitstag|jubiläum/i;
+const LOOKUP_STOPWORDS = new Set(('wann wer was wie wo welche welcher welchen welches hat haben hab habe hatte hatten ist sind war waren wird werden ' +
+    'mein meine meiner meinem meinen meines dein deine unser unsere der die das dem den des ein eine einen einem einer von vom am im in an auf zu zum zur ' +
+    'für mit bei nach mir mich uns dir sag sage sagen kannst kann du ich wir sie er es alt bald nächste nächsten nächster nächstes wieder schon noch mal ' +
+    'bitte gleich eigentlich doch denn und oder jetzt heute morgen gestern übermorgen diese dieser diesen dieses woche monat jahr genau nochmal kennst ' +
