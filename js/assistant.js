@@ -55,7 +55,7 @@ async function sendToGroqSmart(text, opts = {}) {
         speakAck(pickRandom(["Einen Moment.", "Ich denke nach.", "Sofort.", "Verstanden."]));
     }, ACK_DELAY_MS);
 
-    // --- LANGZEITGEDÄCHTNIS (UPSTASH VECTOR ÜBER api/groq) ABFRAGEN ---
+    // --- LANGZEITGEDÄCHTNIS ABFRAGEN ---
     let longTermMemories = [];
     try {
         const memRes = await apiFetch('/api/groq', {
@@ -106,9 +106,8 @@ async function sendToGroqSmart(text, opts = {}) {
         aufgaben_und_notizen: Array.isArray(todoEntries) ? todoEntries.map(t => t.text) : []
     };
 
-    const systemPrompt = "Du bist J.A.R.V.I.S., der Butler von " + currentUserName + ". Antworte kurz in 1-2 Sätzen ohne Markdown.\n\n" +
-    "Aktueller Kontext: " + JSON.stringify(contextData) + "\n\n" +
-    "Nutze das Feld 'relevante_langzeit_erinnerungen', um dich an Vorlieben des Users zu erinnern.";
+    const systemPrompt = "Du bist J.A.R.V.I.S., der Butler von " + currentUserName + ". Antworte im Format {\"reply\": \"deine antwort\", \"actions\": []} als JSON. Antworte kurz in 1-2 Sätzen ohne Markdown.\n\n" +
+    "Aktueller Kontext: " + JSON.stringify(contextData);
 
     chatHistory.push({ role: "user", content: text });
 
@@ -123,13 +122,25 @@ async function sendToGroqSmart(text, opts = {}) {
             })
         });
 
-        const data = await res.json();
+        const rawText = await res.text();
+        console.log("ROHER SERVER-TEXT:", rawText); // Das wird uns die Wahrheit verraten!
+
+        let data;
+        try { data = JSON.parse(rawText); } catch(jsonErr) {
+            throw new Error("Server lieferte kein gültiges JSON: " + rawText.slice(0, 100));
+        }
         
-        // HIER GEFIXT: Absolut sicherer Zugriff auf das verschachtelte Choices-Array der Groq-API
-        const choice = data && data.choices && data.choices[0];
-        const msgContent = choice && choice.message && choice.message.content;
+        // Flexibler Parser, falls das Objekt flacher strukturiert ist
+        let msgContent = null;
+        if (data.choices && data.choices[0] && data.choices[0].message) {
+            msgContent = data.choices[0].message.content;
+        } else if (data.choices && data.choices.message) {
+            msgContent = data.choices.message.content;
+        } else if (data.content) {
+            msgContent = data.content;
+        }
         
-        if (!msgContent) throw new Error("Ungültige oder leere API-Antwort von Groq erhalten.");
+        if (!msgContent) throw new Error("Nachrichteninhalt in Server-Antwort nicht gefunden.");
         
         const ai = JSON.parse(msgContent);
         chatHistory.push({ role: "assistant", content: JSON.stringify(ai) });
@@ -151,7 +162,7 @@ async function sendToGroqSmart(text, opts = {}) {
             speak(replyText, continueConversation);
         }
     } catch (e) {
-        console.error("Fehler bei sendToGroqSmart:", e);
+        console.error("Detaillierter Fehler bei sendToGroqSmart:", e.message || e);
         if (opts.collect) opts.collect("Fehler", []); else speak("Es gab eine Störung bei der Verarbeitung.");
     } finally {
         clearTimeout(ackTimer);
