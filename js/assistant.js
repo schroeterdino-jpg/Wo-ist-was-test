@@ -106,9 +106,10 @@ async function sendToGroqSmart(text, opts = {}) {
         aufgaben_und_notizen: Array.isArray(todoEntries) ? todoEntries.map(t => t.text) : []
     };
 
-    // HIER OPTIMIERT: Klare und strikte Anweisung für die JSON-Struktur
-    const systemPrompt = "Du bist J.A.R.V.I.S., der persönliche Butler von " + currentUserName + ". Antworte AUSSCHLIESSLICH im gültigen JSON-Format. Deine Antwort MUSS exakt dieses Schema erfüllen: {\"reply\": \"Deine Antwort als Text in ein oder zwei kurzen Sätzen\", \"actions\": []}. Erfinde keine Erklärungen außerhalb des JSON.\n\n" +
-    "Kontext: " + JSON.stringify(contextData);
+    // HIER KORRIGIERT: Freie, natürliche Textausgabe erzwungen. Kein JSON-Zwang mehr für Groq!
+    const systemPrompt = "Du bist J.A.R.V.I.S., der persönliche Butler von " + currentUserName + ". Antworte frei, lebendig und charmant auf Deutsch. Formuliere eine direkte Antwort in ein oder zwei kurzen Sätzen, da deine Antwort laut vorgelesen wird. Nutze kein Markdown.\n\n" +
+    "Aktueller Kontext: " + JSON.stringify(contextData) + "\n\n" +
+    "Nutze das Feld 'relevante_langzeit_erinnerungen', um dich unauffällig auf alte Fakten des Users zu beziehen, falls sie zum Thema passen.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -118,27 +119,22 @@ async function sendToGroqSmart(text, opts = {}) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: "openai/gpt-oss-120b",
-                response_format: { type: "json_object" },
                 messages: [{ role: "system", content: systemPrompt }, ...chatHistory.slice(-6)]
             })
         });
 
         const rawText = await res.text();
-        console.log("ROHER SERVER-TEXT:", rawText);
-
         let data = JSON.parse(rawText);
+        let msgContent = data.choices[0].message.content;
         
-        // HIER KORRIGIERT: Richtiger Array-Zugriff choices[0] hinzugefügt!
-        let msgContent = null;
-        if (data.choices && data.choices[0] && data.choices[0].message) {
-            msgContent = data.choices[0].message.content;
-        } else if (data.content) {
-            msgContent = data.content;
+        // Unser Sicherheitsnetz entpackt die Server-Antwort vollautomatisch
+        let ai;
+        try {
+            ai = JSON.parse(msgContent);
+        } catch (e) {
+            ai = { reply: msgContent.trim(), actions: [] };
         }
         
-        if (!msgContent) throw new Error("Nachrichteninhalt nicht in Server-Antwort gefunden.");
-        
-        let ai = JSON.parse(msgContent);
         chatHistory.push({ role: "assistant", content: JSON.stringify(ai) });
 
         const actions = Array.isArray(ai.actions) ? ai.actions : [ai];
@@ -159,7 +155,7 @@ async function sendToGroqSmart(text, opts = {}) {
         }
     } catch (e) {
         console.error("Fehler:", e.message || e);
-        if (opts.collect) opts.collect("Fehler", []); else speak("Es gab eine kleine Störung.");
+        if (opts.collect) opts.collect("Fehler", []); else speak("Zu Ihren Diensten, Master. Es gab eine Störung.");
     } finally {
         clearTimeout(ackTimer);
         stopThinkingSound();
