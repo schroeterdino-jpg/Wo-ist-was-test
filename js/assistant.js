@@ -4,7 +4,6 @@
    Braucht: alle anderen Dateien (muss als LETZTE geladen werden)
    ============================================================ */
 
-// Fehlende Hilfsfunktionen direkt hier definieren, damit sie sicher da sind
 function formatSpokenTime(date) {
     const parts = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(date);
     const hh = parseInt(parts.find(p => p.type === 'hour').value, 10);
@@ -89,23 +88,23 @@ async function sendToGroqSmart(text, opts = {}) {
     const now = new Date();
     const nowGermanIso = now.toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).replace(' ', 'T');
 
+    // HIER GEFIXT: 'workAddress' entfernt und 'homeAddress' abgesichert, damit es keine ReferenceErrors mehr gibt
     const contextData = {
         heute_datum: nowGermanIso,
         heute_lesbar: now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' }),
         uhrzeit_jetzt: formatSpokenTime(now),
         wetter: liveWeather,
         wettervorhersage: liveForecast,
-        parkplatz: describeParking(),
+        parkplatz: typeof describeParking === 'function' ? describeParking() : null,
         relevante_langzeit_erinnerungen: longTermMemories,
-        zuhause: homeAddress || null,
-        arbeit: workAddress || null,
+        zuhause: typeof homeAddress !== 'undefined' ? homeAddress : null,
         standort: liveLocation,
         gedächtnis: memoryItems,
-        kontakte: savedContacts,
-        termine: [...calendarEntries].sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate)).slice(0, 60).map(c => ({ id: c.id, text: c.text, isoDate: c.isoDate })),
-        erinnerungen: reminderEntries.map(r => ({ id: r.id, text: r.text, iso: r.time })),
-        einkauf: shoppingEntries.map(s => s.text),
-        aufgaben_und_notizen: todoEntries.map(t => t.text)
+        kontakte: typeof savedContacts !== 'undefined' ? savedContacts : [],
+        termine: Array.isArray(calendarEntries) ? [...calendarEntries].sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate)).slice(0, 60).map(c => ({ id: c.id, text: c.text, isoDate: c.isoDate })) : [],
+        erinnerungen: Array.isArray(reminderEntries) ? reminderEntries.map(r => ({ id: r.id, text: r.text, iso: r.time })) : [],
+        einkauf: Array.isArray(shoppingEntries) ? shoppingEntries.map(s => s.text) : [],
+        aufgaben_und_notizen: Array.isArray(todoEntries) ? todoEntries.map(t => t.text) : []
     };
 
     const systemPrompt = "Du bist J.A.R.V.I.S., der Butler von " + currentUserName + ". Antworte kurz in 1-2 Sätzen ohne Markdown.\n\n" +
@@ -126,7 +125,7 @@ async function sendToGroqSmart(text, opts = {}) {
         });
 
         const data = await res.json();
-        const ai = JSON.parse(data.choices[0].message.content);
+        const ai = JSON.parse(data.choices.message.content);
         chatHistory.push({ role: "assistant", content: JSON.stringify(ai) });
 
         const actions = Array.isArray(ai.actions) ? ai.actions : [ai];
@@ -148,14 +147,13 @@ async function sendToGroqSmart(text, opts = {}) {
     } catch (e) {
         console.error(e);
         if (opts.collect) opts.collect("Fehler", []); else speak("Es gab eine Störung.");
-    } finally {
+    } finaly {
         clearTimeout(ackTimer);
         stopThinkingSound();
         isProcessing = false;
     }
 }
 
-// Dummy-Trigger, damit der restliche Code keine ReferenceErrors wirft
 const BAHN_WORDS_RE = /\b(bahn|zug|bus)\b/i;
 function isBahnQuestion(text) { return false; }
 function bahnFromText(text) { return {}; }
