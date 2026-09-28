@@ -88,7 +88,6 @@ async function sendToGroqSmart(text, opts = {}) {
     const now = new Date();
     const nowGermanIso = now.toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).replace(' ', 'T');
 
-    // HIER GEFIXT: 'workAddress' entfernt und 'homeAddress' abgesichert, damit es keine ReferenceErrors mehr gibt
     const contextData = {
         heute_datum: nowGermanIso,
         heute_lesbar: now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' }),
@@ -147,7 +146,7 @@ async function sendToGroqSmart(text, opts = {}) {
     } catch (e) {
         console.error(e);
         if (opts.collect) opts.collect("Fehler", []); else speak("Es gab eine Störung.");
-    } finaly {
+    } finally { // HIER GEFIXT: Endlich richtig geschrieben!
         clearTimeout(ackTimer);
         stopThinkingSound();
         isProcessing = false;
