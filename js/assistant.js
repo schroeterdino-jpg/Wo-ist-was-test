@@ -106,10 +106,9 @@ async function sendToGroqSmart(text, opts = {}) {
         aufgaben_und_notizen: Array.isArray(todoEntries) ? todoEntries.map(t => t.text) : []
     };
 
-    // HIER OPTIMIERT: Der Prompt zwingt das Modell nun unmissverständlich zur Einhaltung des JSON-Formats
-    const systemPrompt = "Du bist J.A.R.V.I.S., der persönliche Butler von " + currentUserName + ". Antworte AUSSCHLIESSLICH im gültigen JSON-Format. Erzeuge keine Einleitungen oder Formatierungen außerhalb des JSON-Objekts. Deine Antwort MUSS exakt diese Struktur haben: {\"reply\": \"Deine gesprochene Antwort in 1-2 Sätzen ohne Markdown\", \"actions\": []}.\n\n" +
-    "Aktueller Kontext zur Person und Umgebung: " + JSON.stringify(contextData) + "\n\n" +
-    "Nutze das Feld 'relevante_langzeit_erinnerungen', um deine Antwort diskret anzupassen, falls dort Informationen liegen, die thematisch zur Anfrage passen.";
+    // HIER OPTIMIERT: Klare und strikte Anweisung für die JSON-Struktur
+    const systemPrompt = "Du bist J.A.R.V.I.S., der persönliche Butler von " + currentUserName + ". Antworte AUSSCHLIESSLICH im gültigen JSON-Format. Deine Antwort MUSS exakt dieses Schema erfüllen: {\"reply\": \"Deine Antwort als Text in ein oder zwei kurzen Sätzen\", \"actions\": []}. Erfinde keine Erklärungen außerhalb des JSON.\n\n" +
+    "Kontext: " + JSON.stringify(contextData);
 
     chatHistory.push({ role: "user", content: text });
 
@@ -127,30 +126,19 @@ async function sendToGroqSmart(text, opts = {}) {
         const rawText = await res.text();
         console.log("ROHER SERVER-TEXT:", rawText);
 
-        let data;
-        try { data = JSON.parse(rawText); } catch(jsonErr) {
-            throw new Error("Server lieferte kein gültiges JSON: " + rawText.slice(0, 100));
-        }
+        let data = JSON.parse(rawText);
         
+        // HIER KORRIGIERT: Richtiger Array-Zugriff choices[0] hinzugefügt!
         let msgContent = null;
         if (data.choices && data.choices[0] && data.choices[0].message) {
             msgContent = data.choices[0].message.content;
-        } else if (data.choices && data.choices.message) {
-            msgContent = data.choices.message.content;
         } else if (data.content) {
             msgContent = data.content;
         }
         
-        if (!msgContent) throw new Error("Nachrichteninhalt in Server-Antwort nicht gefunden.");
+        if (!msgContent) throw new Error("Nachrichteninhalt nicht in Server-Antwort gefunden.");
         
-        let ai;
-        try {
-            ai = JSON.parse(msgContent);
-        } catch (e) {
-            // Falls das Modell den Text nicht sauber in das JSON-Objekt gepackt hat, fangen wir es ab
-            ai = { reply: msgContent, actions: [] };
-        }
-        
+        let ai = JSON.parse(msgContent);
         chatHistory.push({ role: "assistant", content: JSON.stringify(ai) });
 
         const actions = Array.isArray(ai.actions) ? ai.actions : [ai];
@@ -160,7 +148,7 @@ async function sendToGroqSmart(text, opts = {}) {
             await executeAction(action, text, ctx);
         }
 
-        let replyText = ai.reply || `Zu Ihren Diensten, ${currentUserName}.`;
+        let replyText = ai.reply || `Zu Ihren Diensten, Master.`;
         if (opts.collect) {
             opts.collect(replyText, ctx.cards);
         } else {
@@ -170,8 +158,8 @@ async function sendToGroqSmart(text, opts = {}) {
             speak(replyText, continueConversation);
         }
     } catch (e) {
-        console.error("Detaillierter Fehler bei sendToGroqSmart:", e.message || e);
-        if (opts.collect) opts.collect("Fehler", []); else speak("Es gab eine Störung bei der Verarbeitung.");
+        console.error("Fehler:", e.message || e);
+        if (opts.collect) opts.collect("Fehler", []); else speak("Es gab eine kleine Störung.");
     } finally {
         clearTimeout(ackTimer);
         stopThinkingSound();
