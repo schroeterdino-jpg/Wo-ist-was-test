@@ -131,7 +131,7 @@ function buildWebSearchBody(userText, query) {
     const now = new Date();
     const today = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' });
     const memory = JSON.stringify(memoryItems || {});
-        const system = "Du bist J.A.R.V.I.S., ein belesener, hochintelligenter Butler von " + currentUserName + ". Antworte auf Deutsch, in deinem eigenen, lebendigen Ton - wie in einem echten Gespräch, nicht wie eine auswendig gelernte Standardantwort. Formuliere jedes Mal neu, auch bei ähnlichen Fragen: keine Textbausteine, keine feste Einleitungsfloskel, die du immer wiederholst. Zeig, dass du das Thema wirklich verstehst: ordne die Information kurz ein, statt nur Fakten aufzuzählen, wenn das dem User weiterhilft. " +
+            const system = "Du bist J.A.R.V.I.S., ein belesener, hochintelligenter Butler von " + currentUserName + ". Antworte auf Deutsch, in deinem eigenen, lebendigen Ton - wie in einem echten Gespräch, nicht wie eine auswendig gelernte Standardantwort. Formuliere jedes Mal neu, auch bei ähnlichen Fragen: keine Textbausteine, keine feste Einleitungsfloskel, die du immer wiederholst. Zeig, dass du das Thema wirklich verstehst: ordne die Information kurz ein, statt nur Fakten aufzuzählen, wenn das dem User weiterhilft. " +
         "Nutze die Websuche, um die Frage mit aktuellen, verlässlichen Informationen zu beantworten. Heute ist " + today + ". " +
         "Das Gedächtnis des Users (seine Vorlieben und Notizen, als JSON): " + memory + ". " +
         "Bei Fragen nach Fernsehprogramm, Filmen, Serien oder Kino wählst du nur Sendungen aus, die zu seinen Vorlieben im Gedächtnis passen (zum Beispiel Genres), und nennst höchstens drei mit Sender und Uhrzeit. " +
@@ -139,7 +139,7 @@ function buildWebSearchBody(userText, query) {
         "Schreibe Uhrzeiten ausgeschrieben, zum Beispiel '20 Uhr 15'. Schreibe ohne Markdown, ohne Aufzählungszeichen, ohne Links und ohne Quellenangaben, weil deine Antwort laut vorgelesen wird - meist reichen zwei bis vier Sätze, bei einer Frage, die wirklich mehr Tiefe verdient, darf es auch etwas mehr sein. " +
         "Erfinde nichts. Findest du nichts Verlässliches, sage das ehrlich, aber genauso natürlich formuliert wie der Rest deiner Antworten.";
     return {
-        model: "openai/gpt-oss-120b",
+        model: "llama-3.3-70b-versatile", // Stabilisiert für den Web-Modus auf Groq
         messages: [{ role: "system", content: system }, { role: "user", content: userText }]
     };
 }
@@ -149,11 +149,14 @@ async function processUserCommand(textInput) {
     if (!textInput || isProcessing) return;
     isProcessing = true;
     
-    if (window.recordBtn) window.recordBtn.classList.add('recording');
-    if (window.recordText) window.recordText.textContent = "J.A.R.V.I.S. / DENKT...";
+    // UI auf Laden umschalten
+    const rBtn = window.recordBtn || document.getElementById('recordBtn');
+    const rTxt = window.recordText || document.getElementById('recordText');
+    
+    if (rBtn) rBtn.classList.add('recording');
+    if (rTxt) rTxt.textContent = "J.A.R.V.I.S. / DENKT...";
 
     try {
-        // Kern-Logik deiner App zum Senden an die API
         const response = await apiFetch('/api/groq', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -164,36 +167,57 @@ async function processUserCommand(textInput) {
         });
         
         const resData = await response.json();
-        const contentStr = resData.choices[0].message.content;
-        const parsedJson = JSON.parse(contentStr);
+        
+        // --- ABSOLUTES SICHERHEITSNETZ BEIM AUSLESEN ---
+        let rawContent = "";
+        if (resData && resData.choices && resData.choices[0] && resData.choices[0].message) {
+            rawContent = resData.choices[0].message.content;
+        } else if (resData && resData.reply) {
+            rawContent = resData.reply;
+        } else {
+            throw new Error("Unerwartete API-Struktur");
+        }
+        
+        let finalReply = "";
+        try {
+            const parsedJson = JSON.parse(rawContent);
+            finalReply = parsedJson.reply || rawContent;
+        } catch (e) {
+            // Falls es kein JSON-String war, nehmen wir den rohen Text
+            finalReply = rawContent;
+        }
         
         if (typeof speak === 'function') {
-            await speak(parsedJson.reply || "Befehl ausgeführt.");
+            await speak(finalReply || "Ich habe Ihren Befehl verarbeitet, Master.");
         }
     } catch (err) {
         console.error("Fehler bei Befehlsverarbeitung:", err);
         if (typeof speak === 'function') {
-            await speak("Es gab einen Fehler beim Verarbeiten Ihres Befehls, Master.");
+            await speak("Es gab ein Problem bei der Verarbeitung der Daten, Master.");
         }
     } finally {
         isProcessing = false;
-        setIdleUi();
+        if (typeof setIdleUi === 'function') {
+            setIdleUi();
+        }
     }
 }
 
-// Event Listener an den Button binden, falls das UI geladen ist
-if (window.recordBtn) {
-    window.recordBtn.addEventListener('click', () => {
-        if (isSpeaking()) {
-            stopSpeaking();
+// Event Listener an den Button binden
+const actionButton = window.recordBtn || document.getElementById('recordBtn');
+if (actionButton) {
+    actionButton.addEventListener('click', () => {
+        if (typeof isSpeaking === 'function' && isSpeaking()) {
+            if (typeof stopSpeaking === 'function') stopSpeaking();
         } else {
-            // Hier deine Funktion zum Starten der Aufnahme aufrufen (z.B. toggleRecording())
+            // Versucht die passenden Rekorder-Funktionen deiner App anzusprechen
             if (typeof toggleRecording === 'function') {
                 toggleRecording();
             } else if (typeof startVoiceRecognition === 'function') {
                 startVoiceRecognition();
+            } else if (window.Recognition && typeof window.Recognition.start === 'function') {
+                window.Recognition.start();
             }
         }
     });
 }
-
