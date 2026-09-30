@@ -23,7 +23,11 @@ const SPEECH_RATE = 1.0;
 const SPEECH_PITCH = 0.92;
 const FOLLOW_UP_WINDOW_MS = 9000;
 const ACK_DELAY_MS = 1500;
-const WAKE_WORD_REGEX = /\bhe?y?\s*jarvis\b/i;
+// Deutlich toleranter als vorher: "Jarvis" wird von der deutschen Spracherkennung oft als "Jarwis"
+// verschriftlicht (das englische "v" klingt wie ein deutsches "w") - beides wird jetzt erkannt. Satzzeichen
+// zwischen "Hey" und "Jarvis" (z.B. "Hey, Jarvis") stören nicht mehr, und "Hey" selbst ist nur noch optional -
+// hört die App nur "Jarvis" (weil "Hey" mal verschluckt wurde), reicht das im Weckwort-Modus auch.
+const WAKE_WORD_REGEX = /\b(?:hey?[\s,]*)?jar[vw]is\b/i;
 
 function pickRandom(list) {
     return list[Math.floor(Math.random() * list.length)];
