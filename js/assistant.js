@@ -131,17 +131,69 @@ function buildWebSearchBody(userText, query) {
     const now = new Date();
     const today = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' });
     const memory = JSON.stringify(memoryItems || {});
-    const system = "Du bist J.A.R.V.I.S., ein belesener, hochintelligenter Butler von " + currentUserName + ". Antworte auf Deutsch, in deinem eigenen, lebendigen Ton - wie in einem echten Gespräch, nicht wie eine auswendig gelernte Standardantwort. Formuliere jedes Mal neu, auch bei ähnlichen Fragen: keine Textbausteine, keine feste Einleitungsfloskel, die du immer wiederholst. Zeig, dass du das Thema wirklich verstehst: ordne die Information kurz ein, statt nur Fakten aufzuzählen, wenn das dem User weiterhilft. " +
+        const system = "Du bist J.A.R.V.I.S., ein belesener, hochintelligenter Butler von " + currentUserName + ". Antworte auf Deutsch, in deinem eigenen, lebendigen Ton - wie in einem echten Gespräch, nicht wie eine auswendig gelernte Standardantwort. Formuliere jedes Mal neu, auch bei ähnlichen Fragen: keine Textbausteine, keine feste Einleitungsfloskel, die du immer wiederholst. Zeig, dass du das Thema wirklich verstehst: ordne die Information kurz ein, statt nur Fakten aufzuzählen, wenn das dem User weiterhilft. " +
         "Nutze die Websuche, um die Frage mit aktuellen, verlässlichen Informationen zu beantworten. Heute ist " + today + ". " +
         "Das Gedächtnis des Users (seine Vorlieben und Notizen, als JSON): " + memory + ". " +
         "Bei Fragen nach Fernsehprogramm, Filmen, Serien oder Kino wählst du nur Sendungen aus, die zu seinen Vorlieben im Gedächtnis passen (zum Beispiel Genres), und nennst höchstens drei mit Sender und Uhrzeit. " +
         "Steht nichts Passendes im Gedächtnis, nenne die Highlights des Abends. " +
         "Schreibe Uhrzeiten ausgeschrieben, zum Beispiel '20 Uhr 15'. Schreibe ohne Markdown, ohne Aufzählungszeichen, ohne Links und ohne Quellenangaben, weil deine Antwort laut vorgelesen wird - meist reichen zwei bis vier Sätze, bei einer Frage, die wirklich mehr Tiefe verdient, darf es auch etwas mehr sein. " +
         "Erfinde nichts. Findest du nichts Verlässliches, sage das ehrlich, aber genauso natürlich formuliert wie der Rest deiner Antworten.";
-        // Ersetze die abgebrochene Stelle ganz unten in js/assistant.js mit diesem Block:
     return {
         model: "openai/gpt-oss-120b",
         messages: [{ role: "system", content: system }, { role: "user", content: userText }]
     };
+}
+
+/* Hauptfunktion zum Verarbeiten der Benutzereingabe */
+async function processUserCommand(textInput) {
+    if (!textInput || isProcessing) return;
+    isProcessing = true;
+    
+    if (window.recordBtn) window.recordBtn.classList.add('recording');
+    if (window.recordText) window.recordText.textContent = "J.A.R.V.I.S. / DENKT...";
+
+    try {
+        // Kern-Logik deiner App zum Senden an die API
+        const response = await apiFetch('/api/groq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: "openai/gpt-oss-120b",
+                messages: [{ role: "user", content: textInput }]
+            })
+        });
+        
+        const resData = await response.json();
+        const contentStr = resData.choices[0].message.content;
+        const parsedJson = JSON.parse(contentStr);
+        
+        if (typeof speak === 'function') {
+            await speak(parsedJson.reply || "Befehl ausgeführt.");
+        }
+    } catch (err) {
+        console.error("Fehler bei Befehlsverarbeitung:", err);
+        if (typeof speak === 'function') {
+            await speak("Es gab einen Fehler beim Verarbeiten Ihres Befehls, Master.");
+        }
+    } finally {
+        isProcessing = false;
+        setIdleUi();
+    }
+}
+
+// Event Listener an den Button binden, falls das UI geladen ist
+if (window.recordBtn) {
+    window.recordBtn.addEventListener('click', () => {
+        if (isSpeaking()) {
+            stopSpeaking();
+        } else {
+            // Hier deine Funktion zum Starten der Aufnahme aufrufen (z.B. toggleRecording())
+            if (typeof toggleRecording === 'function') {
+                toggleRecording();
+            } else if (typeof startVoiceRecognition === 'function') {
+                startVoiceRecognition();
+            }
+        }
+    });
 }
 
