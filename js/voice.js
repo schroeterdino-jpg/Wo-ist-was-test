@@ -804,13 +804,32 @@ if (SpeechRecognition) {
     };
 }
 
-/* --- Weckwort-Modus: hört dauerhaft zu, solange die App offen ist, und reagiert nur auf "Hey Jarvis" --- */
+/* --- Weckwort-Modus: hört dauerhaft zu, solange die App offen ist, und reagiert nur auf "Hey Jarvis" ---
+   Wake Lock: hält den Bildschirm wach, solange gelauscht wird. Ohne das dimmt/sperrt Android den Bildschirm
+   nach einer Weile von selbst - dabei killt das Betriebssystem die laufende Mikrofon-Sitzung oft, BEVOR
+   unsere Neustart-Logik (recognition.onend/onerror) überhaupt greifen kann. Das war vermutlich die
+   Hauptursache dafür, dass der Weckwort-Modus nach einiger Zeit "einfach aufhörte". */
+let wakeLockHandle = null;
+async function acquireWakeLock() {
+    if (!('wakeLock' in navigator) || wakeLockHandle) return;
+    try {
+        wakeLockHandle = await navigator.wakeLock.request('screen');
+        wakeLockHandle.addEventListener('release', () => { wakeLockHandle = null; });
+    } catch (e) {
+        wakeLockHandle = null;   // z.B. Akkusparmodus verweigert es - kein Grund, den Weckwort-Modus deswegen abzubrechen
+    }
+}
+function releaseWakeLock() {
+    if (wakeLockHandle) { try { wakeLockHandle.release(); } catch (e) {} wakeLockHandle = null; }
+}
+
 function startWakeWordListening() {
     if (!recognition || !wakeWordEnabled) return;
     if (interpreter) return;   // im Dolmetscher-Modus wird nicht auf "Hey Jarvis" gewartet
     if (isRecording || isSpeaking() || isProcessing || wakeWordListening) return;
     if (document.hidden) return;   // App im Hintergrund: nicht versuchen, spart Akku und vermeidet Fehler
     wakeWordListening = true;
+    acquireWakeLock();
     recognition.lang = 'de-DE';
     recognition.continuous = true;
     recognition.interimResults = false;
@@ -819,11 +838,15 @@ function startWakeWordListening() {
         if (recordText) recordText.textContent = "J.A.R.V.I.S. / WARTET AUF „HEY JARVIS\"...";
     } catch (e) {
         wakeWordListening = false;
+        // Meist "InvalidStateError", weil die vorige Sitzung noch nicht ganz beendet ist - kurz warten und
+        // selbst nochmal versuchen, statt stillschweigend aufzugeben.
+        setTimeout(() => { if (wakeWordEnabled && !wakeWordListening) startWakeWordListening(); }, 1200);
     }
 }
 
 function stopWakeWordListening() {
     wakeWordListening = false;
+    releaseWakeLock();
     if (recognition && isRecording) { try { recognition.stop(); } catch (e) {} }
 }
 
@@ -832,6 +855,23 @@ function setWakeWordEnabled(on) {
     setPersistentData('wake_word_enabled', wakeWordEnabled ? '1' : '0');
     if (wakeWordEnabled) startWakeWordListening();
     else stopWakeWordListening();
+}
+
+/* Selbstheilung: falls der Weckwort-Modus aus irgendeinem Grund "hängen bleibt" (z.B. ein Neustart-Pfad
+   wurde verpasst), prüft dieser Wächter alle 20 Sekunden nach und startet notfalls selbst neu. Reines
+   Sicherheitsnetz zusätzlich zu den Neustarts in recognition.onend/onerror, kein Ersatz dafür. */
+setInterval(() => {
+    if (wakeWordEnabled && !wakeWordListening && !isRecording && !isSpeaking() && !isProcessing && !document.hidden && !interpreter) {
+        startWakeWordListening();
+    }
+}, 20000);
+
+// Wake Lock geht beim Wechsel in den Hintergrund automatisch verloren - beim Zurückkommen neu anfordern,
+// solange noch gelauscht werden soll (stopWakeWordListening() beim Verstecken gibt es ja ohnehin frei).
+if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && wakeWordListening) acquireWakeLock();
+    });
 }
 
 if (typeof document !== 'undefined' && document.addEventListener) {
