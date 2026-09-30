@@ -153,8 +153,51 @@ function buildTerminePanel(options = {}, now = new Date()) {
         `<p class="panel-row text-[#49d7ff] font-bold text-sm" style="--i:0">${escapeHtml(r.title)}</p>` +
         `<p class="text-[#5d7e91]">${escapeHtml(r.subtitle)}, ${count}</p>` +
         (items.length ? rows : empty) + note +
+        `<div id="terminRouteBox" class="mt-2"></div>` +
         `<p class="text-[#5d7e91] mt-4">Sag „Schließen", um das Fenster zu schließen.</p></div>`;
     return { title: `📅 Termine – ${r.title}`, html };
+}
+
+/* Termin- & Routen-Kopplung: Beim Öffnen des Termine-Fensters für anstehende Termine mit Ort automatisch
+   Abfahrtszeit, Verkehr und günstigsten Sprit ermitteln (siehe appointmentDepartureSummaries in travel.js),
+   als Karten im Fenster zeigen UND einmal laut vorlesen. */
+let terminRouteToken = 0;
+async function initTerminRouteSummaries() {
+    if (!isPanelOpen() || currentPanel.name !== 'termine') return;
+    const box = document.getElementById('terminRouteBox');
+    if (!box || typeof appointmentDepartureSummaries !== 'function') return;
+    const token = ++terminRouteToken;
+
+    box.innerHTML = `<p class="text-[#5d7e91] mt-2">Route &amp; Verkehr werden geprüft ...</p>`;
+    let result;
+    try { result = await appointmentDepartureSummaries(); } catch (e) { result = null; }
+    if (token !== terminRouteToken || !isPanelOpen() || currentPanel.name !== 'termine') return;
+
+    if (!result || (!result.termine.length && !result.sprit)) { box.innerHTML = ''; return; }
+
+    let html = '';
+    result.termine.forEach(t => {
+        html += `<div class="bg-black/60 border border-[rgba(93,209,255,.15)] rounded-lg p-3 mb-2">` +
+            `<b class="text-[#49d7ff]">🚗 ${escapeHtml(t.text)}</b>` +
+            `<p class="text-slate-100 mt-1">${escapeHtml(t.reply)}</p></div>`;
+    });
+    if (result.sprit) {
+        const s = result.sprit;
+        html += `<div class="bg-black/60 border border-[rgba(93,209,255,.15)] rounded-lg p-3 mb-2">` +
+            `<b class="text-[#49d7ff]">⛽ Sprit in der Nähe</b>` +
+            `<p class="text-slate-100 mt-1">Günstigster Diesel gerade: ${s.preis.toFixed(3).replace('.', ',')} € bei ${escapeHtml(s.name || 'einer Tankstelle in der Nähe')}${s.strasse ? ', ' + escapeHtml(s.strasse) : ''}</p></div>`;
+    }
+    box.innerHTML = html;
+
+    // Einmalig laut vorlesen, wenn Jarvis gerade nicht schon anderweitig beschäftigt ist
+    if (typeof isSpeaking === 'function' && !isSpeaking() && !isProcessing) {
+        let spoken = result.termine.map(t => `Für ${t.text}: ${t.reply}`).join(' ');
+        if (result.sprit) {
+            const s = result.sprit;
+            spoken += ` Günstigster Diesel gerade: ${s.preis.toFixed(3).replace('.', ',')} Euro bei ${s.name || 'einer Tankstelle in der Nähe'}.`;
+        }
+        if (spoken.trim() && typeof speak === 'function') speak(spoken);
+    }
 }
 
 function buildErinnerungenPanel(options = {}, now = new Date()) {
@@ -261,6 +304,7 @@ function openPanel(name, options = {}) {
         if (name === 'karte') { hudMapPrefetch(options); setTimeout(() => initHudMap(options), PANEL_FLY_MS); }
         if (name === 'welt') { weltPrefetch(options); setTimeout(() => initWelt(options), PANEL_FLY_MS); }
         if (name === 'dashboard') setTimeout(() => initDashboard(), PANEL_FLY_MS);
+        if (name === 'termine') setTimeout(() => initTerminRouteSummaries(), PANEL_FLY_MS);
         // Google-Kalender im Hintergrund auffrischen; refreshOpenPanel() zeichnet dann ohne Animation neu
         // erst NACH dem Einfliegen, sonst ruckelt die Animation, wenn die Daten mitten drin ankommen
         if (name !== 'menu' && name !== 'karte' && name !== 'welt' && name !== 'protokolle' && name !== 'adressen' && typeof accessToken !== 'undefined' && accessToken && typeof fetchGoogleCalendarEvents === 'function') {

@@ -220,6 +220,45 @@ function findMemoryAddressFor(text) {
     return fallback;
 }
 
+/* ============================================================
+   TERMIN-ROUTEN-KOPPLUNG: Für anstehende Termine mit Ort (innerhalb der nächsten 36 Stunden) automatisch
+   Abfahrtszeit, Verkehrslage und den günstigsten Sprit in der Nähe ermitteln. Wird von panels.js aufgerufen,
+   sobald das Termine-Fenster geöffnet wird (siehe initTerminRouteSummaries).
+   Weiter als 36 Stunden im Voraus macht das keinen Sinn - Verkehr und Spritpreise lassen sich für einen
+   Termin in einer Woche ohnehin nicht sinnvoll vorhersagen.
+   ============================================================ */
+async function appointmentDepartureSummaries() {
+    const now = new Date();
+    const horizon = new Date(now.getTime() + 36 * 3600000);
+
+    const relevant = (calendarEntries || [])
+        .filter(e => e.isoDate && e.location && !isBirthdayEntry(e))
+        .map(e => ({ ...e, ...parseEventDate(e.isoDate) }))
+        .filter(e => !e.allDay && !isNaN(e.date.getTime()) && e.date > now && e.date <= horizon)
+        .sort((a, b) => a.date - b.date)
+        .slice(0, 3);   // höchstens 3 gleichzeitig, sonst zu viele Anfragen auf einmal
+
+    const termine = [];
+    for (const e of relevant) {
+        try {
+            const hh = String(e.date.getHours()).padStart(2, '0');
+            const mm = String(e.date.getMinutes()).padStart(2, '0');
+            const res = await computeDepartureAdvice({ destination: e.location, arrivalTime: `${hh}:${mm}` });
+            termine.push({ text: e.text, reply: res.reply, cards: [...(res.stauCards || []), ...(res.webcamCards || [])] });
+        } catch (err) {
+            // Kein Fehler-Popup: manche Termin-Orte lassen sich nicht sauber finden (z.B. Tippfehler),
+            // dann wird dieser eine Termin einfach übersprungen statt das ganze Feature zu blockieren.
+        }
+    }
+
+    let sprit = null;
+    if (termine.length > 0 && typeof fetchCheapestDieselNearby === 'function') {
+        try { sprit = await fetchCheapestDieselNearby(); } catch (e) {}
+    }
+
+    return { termine, sprit };
+}
+
 async function computeDepartureAdvice(opts) {
     if (typeof opts === 'string') opts = { query: opts };   // Rückwärtskompatibel
     const target = await resolveTravelTarget(opts);

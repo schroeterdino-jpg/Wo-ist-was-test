@@ -204,7 +204,8 @@ async function addGoogleCalendarEvent(text, isoStartString, location) {
         id: createdId,
         text: text,
         date: eventDate.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' }),
-        isoDate: eventDate.toISOString()
+        isoDate: eventDate.toISOString(),
+        location: location || ''   // fürs Fahrzeit/Verkehr-Feature (siehe travel.js appointmentDepartureSummaries) nötig
     });
     setPersistentData('helfer_calendar_entries', JSON.stringify(calendarEntries));
     renderAllLists();
@@ -247,6 +248,7 @@ async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString, ne
     const target = calendarEntries.find(e => e.id === eventId);
     if (target) {
         if (newText) target.text = newText;
+        if (newLocation) target.location = newLocation;
         target.isoDate = eventDate.toISOString();
         target.date = eventDate.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' });
         setPersistentData('helfer_calendar_entries', JSON.stringify(calendarEntries));
@@ -345,7 +347,8 @@ async function fetchGoogleCalendarEvents() {
                         date: d.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: item.start.dateTime ? 'short' : undefined }),
                         isoDate: item.start.dateTime || item.start.date,
                         eventType: item.eventType || 'default',
-                        recurring: !!item.recurringEventId
+                        recurring: !!item.recurringEventId,
+                        location: item.location || ''   // fürs Fahrzeit/Verkehr-Feature (siehe travel.js appointmentDepartureSummaries) nötig
                     };
                 });
                 calendarEntries = [...localOnly, ...mappedEntries];
