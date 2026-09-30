@@ -105,11 +105,11 @@
 
                 <div class="my-auto flex flex-col items-center space-y-4 py-4 w-full">
                     <div id="recordBtn" onclick="toggleSpeechRecognition()" class="jarvis-scanner-container flex flex-col items-center justify-center p-3 rounded-xl bg-transparent border-none transition-all cursor-pointer">
-                        <div id="reactor-wrap" class="flex items-center justify-center w-[290px] h-[290px] relative">
-                            <div class="holo-container flex items-center justify-center w-[290px] h-[290px] relative">
+                        <div id="reactor-wrap">
+                            <div class="holo-container">
                                 <!-- Netzwerk-Kugel: Punkte und Verbindungslinien, per Canvas/JavaScript gezeichnet und gedreht (js/sphere.js).
                                      Blau in Ruhe/beim Zuhören, Grün während Jarvis spricht (siehe .jarvis-scanner-container.speaking/.recording). -->
-                                <canvas id="jarvisSphere" class="w-[290px] h-[290px] block" aria-hidden="true"></canvas>
+                                <canvas id="jarvisSphere" width="290" height="290" aria-hidden="true"></canvas>
                             </div>
                             <div id="waveform" class="active">
                                 <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
@@ -343,7 +343,7 @@
                             <span>Hintergrund aus (Punkte und Raster)</span>
                         </label>
                         <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
-                            <input type="checkbox" data-[#pulse] onchange="setFxFlag('pulse', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
+                            <input type="checkbox" data-fxflag="pulse" onchange="setFxFlag('pulse', this.checked)" class="w-5 h-5 accent-[#49d7ff]">
                             <span>Pulsierende Punkte und Balken aus</span>
                         </label>
                         <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
@@ -394,6 +394,12 @@
                                 <input type="text" id="travelDiagInput" value="Hans-Dewitz-Ring" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
                                 <button onclick="playUiBeep(); runTravelDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🚗 Route prüfen</button>
                                 <pre id="travelDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
+                            </div>
+                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Sprit auf der Strecke testen (Ziel):</label>
+                                <input type="text" id="tankRouteDiagInput" value="Hans-Dewitz-Ring" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                                <button onclick="playUiBeep(); runTankRouteDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">⛽ Sprit-Route prüfen</button>
+                                <pre id="tankRouteDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
                             </div>
                             <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
                                 <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Restaurants in der Nähe testen (Küche, optional):</label>
