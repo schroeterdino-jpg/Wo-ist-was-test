@@ -138,5 +138,10 @@ function buildWebSearchBody(userText, query) {
         "Steht nichts Passendes im Gedächtnis, nenne die Highlights des Abends. " +
         "Schreibe Uhrzeiten ausgeschrieben, zum Beispiel '20 Uhr 15'. Schreibe ohne Markdown, ohne Aufzählungszeichen, ohne Links und ohne Quellenangaben, weil deine Antwort laut vorgelesen wird - meist reichen zwei bis vier Sätze, bei einer Frage, die wirklich mehr Tiefe verdient, darf es auch etwas mehr sein. " +
         "Erfinde nichts. Findest du nichts Verlässliches, sage das ehrlich, aber genauso natürlich formuliert wie der Rest deiner Antworten.";
+        // Ersetze die abgebrochene Stelle ganz unten in js/assistant.js mit diesem Block:
     return {
-        mode: "search", // Rest des originalen Objekts wird hier fortgeführt
+        model: "openai/gpt-oss-120b",
+        messages: [{ role: "system", content: system }, { role: "user", content: userText }]
+    };
+}
+
