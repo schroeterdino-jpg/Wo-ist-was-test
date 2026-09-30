@@ -472,6 +472,7 @@ async function searchSemanticMemory(text) {
     }
 }
 
+let lastLearnAt = 0;   // chatHistory.length beim letzten automatischen Lern-Durchlauf (siehe sendToGroqSmart)
 async function sendToGroqSmart(text, opts = {}) {
     isProcessing = true;
     clearActionCards();
@@ -973,6 +974,13 @@ async function sendToGroqSmart(text, opts = {}) {
         if (wantsSearch) updateTerminalStream("MEMORY_READ: QUERY_EXEC");
         clearTimeout(ackTimer);   // VOR speak(), nicht erst im finally-Block - schließt das Zeitfenster für eine überlappende Zwischenansage ganz
         speak(replyText, continueConversation);
+        // Alle paar Austausche im Hintergrund fürs Langzeitgedächtnis lernen (nicht bei jedem einzelnen
+        // Satz - das würde unnötig oft die Lern-KI aufrufen). Läuft nebenbei (nicht abgewartet), damit
+        // Jarvis währenddessen normal weiterspricht.
+        if (typeof learnFromConversations === 'function' && chatHistory.length - lastLearnAt >= 6) {
+            lastLearnAt = chatHistory.length;
+            learnFromConversations();
+        }
     } catch (e) {
         renderAllLists();
         stopThinkingSound();
