@@ -185,8 +185,8 @@ async function initTerminRouteSummaries() {
     if (result.sprit) {
         const s = result.sprit;
         html += `<div class="bg-black/60 border border-[rgba(93,209,255,.15)] rounded-lg p-3 mb-2">` +
-            `<b class="text-[#49d7ff]">⛽ Sprit in der Nähe</b>` +
-            `<p class="text-slate-100 mt-1">Günstigster Diesel gerade: ${s.preis.toFixed(3).replace('.', ',')} € bei ${escapeHtml(s.name || 'einer Tankstelle in der Nähe')}${s.strasse ? ', ' + escapeHtml(s.strasse) : ''}</p></div>`;
+            `<b class="text-[#49d7ff]">⛽ Sprit auf dem Weg</b>` +
+            `<p class="text-slate-100 mt-1">Günstigster Diesel auf der Strecke: ${s.preis.toFixed(3).replace('.', ',')} € bei ${escapeHtml(s.name || 'einer Tankstelle unterwegs')}${s.strasse ? ', ' + escapeHtml(s.strasse) : ''}</p></div>`;
     }
     box.innerHTML = html;
 
@@ -195,7 +195,7 @@ async function initTerminRouteSummaries() {
         let spoken = result.termine.map(t => `Für ${t.text}: ${t.reply}`).join(' ');
         if (result.sprit) {
             const s = result.sprit;
-            spoken += ` Günstigster Diesel gerade: ${s.preis.toFixed(3).replace('.', ',')} Euro bei ${s.name || 'einer Tankstelle in der Nähe'}.`;
+            spoken += ` Günstigster Diesel auf der Strecke: ${s.preis.toFixed(3).replace('.', ',')} Euro bei ${s.name || 'einer Tankstelle unterwegs'}.`;
         }
         if (spoken.trim() && typeof speak === 'function') speak(spoken);
     }

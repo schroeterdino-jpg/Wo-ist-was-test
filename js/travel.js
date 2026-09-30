@@ -239,24 +239,77 @@ async function appointmentDepartureSummaries() {
         .slice(0, 3);   // höchstens 3 gleichzeitig, sonst zu viele Anfragen auf einmal
 
     const termine = [];
-    for (const e of relevant) {
+    let sprit = null;
+    for (let i = 0; i < relevant.length; i++) {
+        const e = relevant[i];
         try {
             const hh = String(e.date.getHours()).padStart(2, '0');
             const mm = String(e.date.getMinutes()).padStart(2, '0');
-            const res = await computeDepartureAdvice({ destination: e.location, arrivalTime: `${hh}:${mm}` });
+            // Sprit ENTLANG der Strecke nur für den nächsten der Termine anfragen - Tankerkönig erlaubt nur
+            // etwa eine Anfrage pro Minute, mehrere gleichzeitig wären zu viel.
+            const res = await computeDepartureAdvice({ destination: e.location, arrivalTime: `${hh}:${mm}`, wantFuel: i === 0 });
             termine.push({ text: e.text, reply: res.reply, cards: [...(res.stauCards || []), ...(res.webcamCards || [])] });
+            if (i === 0 && res.sprit) sprit = res.sprit;
         } catch (err) {
             // Kein Fehler-Popup: manche Termin-Orte lassen sich nicht sauber finden (z.B. Tippfehler),
             // dann wird dieser eine Termin einfach übersprungen statt das ganze Feature zu blockieren.
         }
     }
 
-    let sprit = null;
-    if (termine.length > 0 && typeof fetchCheapestDieselNearby === 'function') {
-        try { sprit = await fetchCheapestDieselNearby(); } catch (e) {}
-    }
-
     return { termine, sprit };
+}
+
+/* Abstand zweier Punkte in km (Luftlinie) */
+function haversineKm(lat1, lon1, lat2, lon2) {
+    const R = 6371, toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+/* Abstand eines Punktes zur direkten Luftlinien-Strecke zwischen a und b, in km. Reicht als grobe Näherung
+   für "liegt ungefähr auf dem Weg" - die tatsächliche Straße kennt die App nicht, nur Start und Ziel. */
+function pointToRouteKm(lat, lon, aLat, aLon, bLat, bLon) {
+    // Grad in der Region grob als flache x/y-Ebene behandeln (für kurze/mittlere Strecken ausreichend genau)
+    const toXY = (la, lo) => ({ x: (lo - aLon) * Math.cos(aLat * Math.PI / 180), y: la - aLat });
+    const A = { x: 0, y: 0 };
+    const B = toXY(bLat, bLon);
+    const P = toXY(lat, lon);
+    const abLenSq = B.x * B.x + B.y * B.y;
+    let t = abLenSq > 0 ? (P.x * B.x + P.y * B.y) / abLenSq : 0;
+    t = Math.max(0, Math.min(1, t));
+    const closest = { x: A.x + t * (B.x - A.x), y: A.y + t * (B.y - A.y) };
+    const closestLat = aLat + closest.y;
+    const closestLon = aLon + closest.x / Math.cos(aLat * Math.PI / 180);
+    return haversineKm(lat, lon, closestLat, closestLon);
+}
+
+/* Günstigster Diesel ENTLANG der Strecke (nicht nur "in der Nähe des Users") - fragt einen Umkreis um die
+   Streckenmitte ab (Tankerkönig kann nur im Kreis suchen) und behält nur Tankstellen, die grob auf der
+   Luftlinie zwischen Start und Ziel liegen (Korridor-Breite KORRIDOR_KM). Wegen der strengen Tankerkönig-
+   Begrenzung (nur ca. 1 Anfrage pro Minute) NUR sparsam aufrufen - z.B. einmal pro Termine-Fenster, nicht
+   pro Termin. Gibt null zurück, wenn nichts Passendes gefunden wurde (dann lieber nichts vorschlagen als
+   eine Tankstelle, die in Wahrheit weit abseits der Strecke liegt). */
+async function fetchCheapestDieselOnRoute(fromLat, fromLon, toLat, toLon) {
+    const KORRIDOR_KM = 3;
+    const midLat = (fromLat + toLat) / 2, midLon = (fromLon + toLon) / 2;
+    const halfStreckeKm = haversineKm(fromLat, fromLon, toLat, toLon) / 2;
+    const radius = Math.min(25, Math.max(3, Math.round(halfStreckeKm + KORRIDOR_KM + 1)));
+    try {
+        const res = await apiFetch(`/api/tank?lat=${midLat}&lng=${midLon}&rad=${radius}`);
+        if (!res.ok) return null;
+        const d = await res.json();
+        const onRoute = (d.stations || [])
+            .filter(s => typeof s.diesel === 'number' && s.diesel > 0)
+            .map(s => ({ ...s, korridorAbstandKm: pointToRouteKm(s.lat, s.lng, fromLat, fromLon, toLat, toLon) }))
+            .filter(s => s.korridorAbstandKm <= KORRIDOR_KM)
+            .sort((a, b) => a.diesel - b.diesel);
+        if (!onRoute.length) return null;
+        const best = onRoute[0];
+        return { preis: best.diesel, name: best.name || '', strasse: [best.strasse, best.ort].filter(Boolean).join(', ') };
+    } catch (e) {
+        return null;
+    }
 }
 
 async function computeDepartureAdvice(opts) {
@@ -320,12 +373,18 @@ async function computeDepartureAdvice(opts) {
     };
     lastRouteMapData = mapData;
 
+    let sprit = null;
+    if (opts.wantFuel) {
+        try { sprit = await fetchCheapestDieselOnRoute(loc.latitude, loc.longitude, dest.lat, dest.lon); } catch (e) {}
+    }
+
     return {
         reply,
         card: { icon: '🚗', title: 'Route zu ' + target.titel, subtitle, href: buildMapsLink(target.ort, '', 'driving') },
         map: mapData,
         webcamCards: lastWebcamCards.slice(),
-        stauCards: lastStauCards.slice()
+        stauCards: lastStauCards.slice(),
+        sprit
     };
 }
 
