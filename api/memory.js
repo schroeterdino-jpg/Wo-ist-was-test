@@ -41,7 +41,10 @@ export default async function handler(req, res) {
     if (action === 'search') {
       const query = String(body.query || '').trim().slice(0, 500);
       if (!query) return res.status(400).json({ error: 'Suchtext fehlt' });
-      const topK = Math.min(10, Math.max(1, Number(body.topK) || 5));
+      const topK = Math.min(20, Math.max(1, Number(body.topK) || 5));
+      // Normalerweise nur eng passende Treffer (0.75) - bei pauschalen Fragen ("Was weißt du über mich?")
+      // kann der Aufrufer per 'minScore' eine niedrigere Schwelle verlangen, um mehr/alles zu bekommen.
+      const minScore = Math.min(0.95, Math.max(0, typeof body.minScore === 'number' ? body.minScore : 0.75));
 
       const r = await fetch(`${url}/query-data`, {
         method: 'POST', headers,
@@ -51,10 +54,8 @@ export default async function handler(req, res) {
       const d = await r.json();
       if (!r.ok) return res.status(502).json({ error: 'Upstash meldet: ' + (d.error || JSON.stringify(d)) });
 
-      // Nur wirklich ähnliche Treffer durchlassen (Cosine-Ähnlichkeit, 1.0 = identisch) - sonst kämen bei
-      // jeder Anfrage auch völlig unpassende, zufällig "nächstgelegene" Erinnerungen mit
       const treffer = (d.result || [])
-        .filter(x => typeof x.score === 'number' && x.score >= 0.75)
+        .filter(x => typeof x.score === 'number' && x.score >= minScore)
         .map(x => ({ text: x.data, score: x.score, metadata: x.metadata || {} }));
       return res.status(200).json({ treffer });
     }
