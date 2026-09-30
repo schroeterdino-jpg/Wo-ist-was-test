@@ -80,11 +80,11 @@ async function answerWithEmailResults(messages, firstAi, data) {
 
 /* Ersatzantwort, falls die KI beim zweiten Durchgang für E-Mails ausfällt */
 function formatEmailFallback(data) {
-    if (data.email_inhalt) return `\${data.email_inhalt.betreff}, von \({data.email_inhalt.von}:\){data.email_inhalt.text}`;
+    if (data.email_inhalt) return `${data.email_inhalt.betreff}, von ${data.email_inhalt.von}: ${data.email_inhalt.text}`;
     const ov = data.uebersicht;
     if (!ov || ov.emails.length === 0) return ov && ov.anzahl_ungelesen === 0 ? 'Sie haben keine ungelesenen E-Mails.' : 'Ich habe dazu keine E-Mails gefunden.';
-    const teile = ov.emails.slice(0, 5).map(e => `\({e.von}:\){e.betreff}`);
-    const anzahl = ov.anzahl_ungelesen !== null ? `\${ov.anzahl_ungelesen} ungelesene E-Mails. ` : '';
+    const teile = ov.emails.slice(0, 5).map(e => `${e.von}: ${e.betreff}`);
+    const anzahl = ov.anzahl_ungelesen !== null ? `${ov.anzahl_ungelesen} ungelesene E-Mails. ` : '';
     return anzahl + teile.join('. ');
 }
 
@@ -98,10 +98,10 @@ function formatCalendarSearchFallback(results) {
     if (!Array.isArray(results)) return 'Ich konnte keine Kalendereinträge laden.';
     const parts = results.map(r => {
         const next = (r.kommende || [])[0];
-        if (next) return `\${next.titel}: \({next.datum}\){next.zeit && next.zeit !== 'ganztägig' ? ' um ' + next.zeit : ''}`;
+        if (next) return `${next.titel}: ${next.datum}${next.zeit && next.zeit !== 'ganztägig' ? ' um ' + next.zeit : ''}`;
         const past = (r.vergangene || [])[0];
-        if (past) return `\({past.titel}: zuletzt\){past.datum}`;
-        return `Zu „\${r.suchbegriff}" habe ich im Kalender nichts gefunden\${r.hinweis ? ' (' + r.hinweis + ')' : ''}`;
+        if (past) return `${past.titel}: zuletzt ${past.datum}`;
+        return `Zu „${r.suchbegriff}" habe ich im Kalender nichts gefunden${r.hinweis ? ' (' + r.hinweis + ')' : ''}`;
     });
     return parts.join('. ') + '.';
 }
@@ -130,8 +130,8 @@ function cleanWebAnswer(raw) {
 function buildWebSearchBody(userText, query) {
     const now = new Date();
     const today = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' });
-    const memory = JSON.stringify(memoryItems || {});
-            const system = "Du bist J.A.R.V.I.S., ein belesener, hochintelligenter Butler von " + currentUserName + ". Antworte auf Deutsch, in deinem eigenen, lebendigen Ton - wie in einem echten Gespräch, nicht wie eine auswendig gelernte Standardantwort. Formuliere jedes Mal neu, auch bei ähnlichen Fragen: keine Textbausteine, keine feste Einleitungsfloskel, die du immer wiederholst. Zeig, dass du das Thema wirklich verstehst: ordne die Information kurz ein, statt nur Fakten aufzuzählen, wenn das dem User weiterhilft. " +
+    const memory = JSON.stringify(typeof memoryItems !== 'undefined' ? memoryItems : {});
+    const system = "Du bist J.A.R.V.I.S., ein belesener, hochintelligenter Butler von " + (typeof currentUserName !== 'undefined' ? currentUserName : 'Master') + ". Antworte auf Deutsch, in deinem eigenen, lebendigen Ton - wie in einem echten Gespräch, nicht wie eine auswendig gelernte Standardantwort. Formuliere jedes Mal neu, auch bei ähnlichen Fragen: keine Textbausteine, keine feste Einleitungsfloskel, die du immer wiederholst. Zeig, dass du das Thema wirklich verstehst: ordne die Information kurz ein, statt nur Fakten aufzuzählen, wenn das dem User weiterhilft. " +
         "Nutze die Websuche, um die Frage mit aktuellen, verlässlichen Informationen zu beantworten. Heute ist " + today + ". " +
         "Das Gedächtnis des Users (seine Vorlieben und Notizen, als JSON): " + memory + ". " +
         "Bei Fragen nach Fernsehprogramm, Filmen, Serien oder Kino wählst du nur Sendungen aus, die zu seinen Vorlieben im Gedächtnis passen (zum Beispiel Genres), und nennst höchstens drei mit Sender und Uhrzeit. " +
@@ -139,85 +139,13 @@ function buildWebSearchBody(userText, query) {
         "Schreibe Uhrzeiten ausgeschrieben, zum Beispiel '20 Uhr 15'. Schreibe ohne Markdown, ohne Aufzählungszeichen, ohne Links und ohne Quellenangaben, weil deine Antwort laut vorgelesen wird - meist reichen zwei bis vier Sätze, bei einer Frage, die wirklich mehr Tiefe verdient, darf es auch etwas mehr sein. " +
         "Erfinde nichts. Findest du nichts Verlässliches, sage das ehrlich, aber genauso natürlich formuliert wie der Rest deiner Antworten.";
     return {
-        model: "llama-3.3-70b-versatile", // Stabilisiert für den Web-Modus auf Groq
+        model: "openai/gpt-oss-120b",
         messages: [{ role: "system", content: system }, { role: "user", content: userText }]
     };
 }
 
 /* Hauptfunktion zum Verarbeiten der Benutzereingabe */
 async function processUserCommand(textInput) {
-    if (!textInput || isProcessing) return;
-    isProcessing = true;
+    if (!textInput || (typeof isProcessing !== 'undefined' && isProcessing)) return;
+    if (typeof isProcessing !== 'undefined') isProcessing = true;
     
-    // UI auf Laden umschalten
-    const rBtn = window.recordBtn || document.getElementById('recordBtn');
-    const rTxt = window.recordText || document.getElementById('recordText');
-    
-    if (rBtn) rBtn.classList.add('recording');
-    if (rTxt) rTxt.textContent = "J.A.R.V.I.S. / DENKT...";
-
-    try {
-        const response = await apiFetch('/api/groq', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: "openai/gpt-oss-120b",
-                messages: [{ role: "user", content: textInput }]
-            })
-        });
-        
-        const resData = await response.json();
-        
-        // --- ABSOLUTES SICHERHEITSNETZ BEIM AUSLESEN ---
-        let rawContent = "";
-        if (resData && resData.choices && resData.choices[0] && resData.choices[0].message) {
-            rawContent = resData.choices[0].message.content;
-        } else if (resData && resData.reply) {
-            rawContent = resData.reply;
-        } else {
-            throw new Error("Unerwartete API-Struktur");
-        }
-        
-        let finalReply = "";
-        try {
-            const parsedJson = JSON.parse(rawContent);
-            finalReply = parsedJson.reply || rawContent;
-        } catch (e) {
-            // Falls es kein JSON-String war, nehmen wir den rohen Text
-            finalReply = rawContent;
-        }
-        
-        if (typeof speak === 'function') {
-            await speak(finalReply || "Ich habe Ihren Befehl verarbeitet, Master.");
-        }
-    } catch (err) {
-        console.error("Fehler bei Befehlsverarbeitung:", err);
-        if (typeof speak === 'function') {
-            await speak("Es gab ein Problem bei der Verarbeitung der Daten, Master.");
-        }
-    } finally {
-        isProcessing = false;
-        if (typeof setIdleUi === 'function') {
-            setIdleUi();
-        }
-    }
-}
-
-// Event Listener an den Button binden
-const actionButton = window.recordBtn || document.getElementById('recordBtn');
-if (actionButton) {
-    actionButton.addEventListener('click', () => {
-        if (typeof isSpeaking === 'function' && isSpeaking()) {
-            if (typeof stopSpeaking === 'function') stopSpeaking();
-        } else {
-            // Versucht die passenden Rekorder-Funktionen deiner App anzusprechen
-            if (typeof toggleRecording === 'function') {
-                toggleRecording();
-            } else if (typeof startVoiceRecognition === 'function') {
-                startVoiceRecognition();
-            } else if (window.Recognition && typeof window.Recognition.start === 'function') {
-                window.Recognition.start();
-            }
-        }
-    });
-}
