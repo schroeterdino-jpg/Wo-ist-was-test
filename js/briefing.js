@@ -567,11 +567,27 @@ async function learnFromConversations() {
             if (!key || !val) return;
             memoryItems[key] = val;
             changed = true;
+            // Zusätzlich ins semantische Gedächtnis (Upstash Vector) - findbar auch bei Umschreibungen,
+            // nicht nur bei exakten/ähnlichen Wörtern wie beim normalen Gedächtnis. Läuft nebenbei im
+            // Hintergrund (nicht abgewartet) - ein Fehlschlag hier darf das normale Speichern nicht stören.
+            storeSemanticMemory(`${key}: ${val}`);
         });
         if (changed) setPersistentData('helfer_memory', JSON.stringify(memoryItems));
     } catch (e) {
         console.error('Automatisches Lernen fehlgeschlagen', e);
     }
+}
+
+/* Speichert einen Fakt im semantischen Gedächtnis (api/memory.js -> Upstash Vector). Bewusst "fire and
+   forget": läuft im Hintergrund, ein Fehler hier (z.B. Upstash gerade nicht erreichbar) darf nirgendwo
+   sonst in der App auffallen oder etwas blockieren. */
+function storeSemanticMemory(text, metadata) {
+    if (!text || typeof apiFetch !== 'function') return;
+    apiFetch('/api/memory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'store', text, metadata })
+    }).catch(() => {});
 }
 
 async function triggerDailyBriefing() {

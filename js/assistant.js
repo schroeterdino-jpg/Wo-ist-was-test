@@ -450,6 +450,27 @@ async function executeAction(action, text, ctx) {
     }
 }
 
+/* Durchsucht das semantische Gedächtnis (api/memory.js -> Upstash Vector) nach Erinnerungen, die
+   inhaltlich zur aktuellen Frage passen - findet auch Umschreibungen, nicht nur ähnliche Wörter wie das
+   normale Gedächtnis (searchMemory). Kein Fehler-Popup bei Problemen: liefert dann einfach eine leere
+   Liste, die App funktioniert auch ganz ohne semantisches Gedächtnis weiter. */
+async function searchSemanticMemory(text) {
+    const q = String(text || '').trim();
+    if (!q || q.length < 4) return [];
+    try {
+        const res = await apiFetch('/api/memory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'search', query: q, topK: 5 })
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data.treffer) ? data.treffer.map(t => t.text) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
 async function sendToGroqSmart(text, opts = {}) {
     isProcessing = true;
     clearActionCards();
@@ -510,6 +531,7 @@ async function sendToGroqSmart(text, opts = {}) {
     const now = new Date();
     const nowGermanIso = now.toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).replace(' ', 'T');
     const nearbyFuelData = await tankFuerFrage(text);   // auch für die HUD-Karten unten genutzt
+    const semanticMemoryHits = await searchSemanticMemory(text);   // bedeutungsähnliche Erinnerungen zur aktuellen Frage
 
     const contextData = {
         heute_datum: nowGermanIso,
@@ -526,6 +548,7 @@ async function sendToGroqSmart(text, opts = {}) {
         tankstellen: nearbyFuelData,
         kalendersuche: calendarLookup,
         gedächtnis: memoryItems,
+        gedächtnis_semantisch: semanticMemoryHits,
         kontakte: savedContacts,
         // die nächsten 60 Termine (mit sich wiederholenden Terminen wären es sonst zu viele)
         termine: [...calendarEntries].sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate)).slice(0, 60).map(c => ({ id: c.id, text: c.text, ...describeEventDate(c.isoDate), isoDate: c.isoDate })),
@@ -553,7 +576,8 @@ async function sendToGroqSmart(text, opts = {}) {
     "- Bei 'termine' und 'erinnerungen' gib den Zeitraum in 'panel_range' an: 'heute', 'morgen', 'diese_woche', 'naechste_woche', 'naechste_7_tage', 'naechste_30_tage' oder 'alle'. Ohne Angabe nimm bei Terminen 'naechste_7_tage' und bei Erinnerungen 'alle'. Für andere Zeiträume (z.B. 'im November') gib 'panel_from' und 'panel_to' als Datum im Format YYYY-MM-DD an.\n" +
     "- Schreibe in 'reply' nur einen ganz kurzen Satz wie 'Bitte sehr.' und lies die Einträge nicht vor, sie stehen im Fenster. Fragt der User dagegen mit 'sag mir', 'lies vor' oder 'was steht ...', antworte gesprochen ohne 'show_panel'.\n\n" +
     "WICHTIG fürs Merken von Dingen im Gedächtnis:\n" +
-    "- Bei 'memory_store' (und bei 'list_edit' im Gedächtnis) ist der Begriff nur der Gegenstand, kurz und in der Grundform (z.B. 'schlüssel', 'brille', 'portemonnaie'), niemals mit Zusatz wie 'ort' oder 'platz' ('schlüsselort' ist falsch). 'memory_value' ist der Platz vollständig mit Präposition, genau wie der User ihn gesagt hat (z.B. 'auf dem Küchenschrank', 'in der Schublade'). Lass die Präposition nie weg.\n\n" +
+    "- Bei 'memory_store' (und bei 'list_edit' im Gedächtnis) ist der Begriff nur der Gegenstand, kurz und in der Grundform (z.B. 'schlüssel', 'brille', 'portemonnaie'), niemals mit Zusatz wie 'ort' oder 'platz' ('schlüsselort' ist falsch). 'memory_value' ist der Platz vollständig mit Präposition, genau wie der User ihn gesagt hat (z.B. 'auf dem Küchenschrank', 'in der Schublade'). Lass die Präposition nie weg.\n" +
+    "- Im Kontext gibt es zusätzlich zu 'gedächtnis' (den genauen, vom User selbst eingetragenen Begriffen) noch 'gedächtnis_semantisch': eine automatisch ermittelte Liste bedeutungsähnlicher Erinnerungen aus früheren Gesprächen zur AKTUELLEN Frage (kann leer sein). Nutze diese Einträge ganz selbstverständlich, wenn sie zur Frage passen - auch wenn der User seine Frage anders formuliert hat als damals. Erwähne nie, dass es 'zwei Gedächtnisse' gibt oder woher genau ein Fakt stammt - für den User ist das einfach alles 'Jarvis' Gedächtnis'.\n\n" +
     "WICHTIG für Parkplatz, Navigation, Anrufe und WhatsApp:\n" +
     "- 'Merk dir, wo ich geparkt habe' (oder ähnlich): Aktion 'parking_save'. Nennt der User dazu Details wie 'Ebene 2, Platz 34', schreibe sie in 'parking_note'. Der Standort wird automatisch ermittelt. Soll der Parkplatz vergessen oder gelöscht werden: 'parking_clear'.\n" +
     "- Fragt der User nach seinem Auto oder seinem Parkplatz - egal wie ('Wo ist mein Auto?', 'Wo habe ich geparkt?', 'Hast du mein Auto gesehen?', 'Ich will zu meinem Auto') - antworte mit den Daten aus 'parkplatz' im Kontext (Adresse, Notiz, wann gespeichert). Ist 'parkplatz' leer, sage ehrlich, dass nichts gespeichert ist. Will er sichtbar dorthin (z.B. 'ich will zu meinem Auto', 'bring mich hin'), nutze zusätzlich 'navigate' mit 'nav_to' = 'parkplatz'.\n" +
@@ -1411,11 +1435,33 @@ function describeBundesligaMatch(hit) {
     return `${heim} gegen ${gast} (${liga}) läuft gerade oder das Ergebnis ist noch nicht eingetragen, angesetzt für ${zeitText}.`;
 }
 
+/* Kleine Karte fürs Einzelspiel (unter der Kugel auf dem Hauptbildschirm), zusätzlich zur gesprochenen Antwort */
+function bundesligaMatchCard(hit) {
+    const m = hit.match;
+    const heim = m.team1.teamName, gast = m.team2.teamName;
+    const kickoff = new Date(m.matchDateTime);
+    const finished = !!m.matchIsFinished;
+    const liga = hit.liga === 'bl2' ? '2. Bundesliga' : '1. Bundesliga';
+    let ergebnis = null;
+    if (finished && Array.isArray(m.matchResults) && m.matchResults.length) {
+        const endResult = m.matchResults.find(r => r.resultTypeID === 2) || m.matchResults[m.matchResults.length - 1];
+        ergebnis = `${endResult.pointsTeam1}:${endResult.pointsTeam2}`;
+    }
+    const zeitText = kickoff.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    return {
+        icon: finished ? '⚽' : '🕒',
+        title: `${heim} – ${gast}`,
+        subtitle: (finished && ergebnis ? ergebnis + ' · ' : '') + zeitText + ' · ' + liga
+    };
+}
+
 async function handleBundesligaQuery(teamNamePart) {
     speakAck(pickRandom(['Ich schaue nach.', 'Einen Moment, ich prüfe die Bundesliga.', 'Ich sehe nach.']));
     try {
         const hit = await fetchBundesligaTeamStatus(teamNamePart);
         if (!hit) { speak(`Zum aktuellen Spieltag habe ich für ${teamNamePart} leider kein Spiel gefunden.`, continueConversation); return; }
+        if (typeof clearActionCards === 'function') clearActionCards();
+        if (typeof showActionCards === 'function') showActionCards([bundesligaMatchCard(hit)]);
         speak(describeBundesligaMatch(hit), continueConversation);
     } catch (e) {
         speak('Die Bundesliga-Daten konnte ich gerade nicht abrufen.', continueConversation);
