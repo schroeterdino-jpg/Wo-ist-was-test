@@ -291,7 +291,7 @@ function pointToRouteKm(lat, lon, aLat, aLon, bLat, bLon) {
    pro Termin. Gibt null zurück, wenn nichts Passendes gefunden wurde (dann lieber nichts vorschlagen als
    eine Tankstelle, die in Wahrheit weit abseits der Strecke liegt). */
 async function fetchCheapestDieselOnRoute(fromLat, fromLon, toLat, toLon) {
-    const KORRIDOR_KM = 3;
+    const KORRIDOR_KM = 5;   // war 3 km - bei längeren/kurvigen Strecken lag die echte Straße oft außerhalb
     const midLat = (fromLat + toLat) / 2, midLon = (fromLon + toLon) / 2;
     const halfStreckeKm = haversineKm(fromLat, fromLon, toLat, toLon) / 2;
     const radius = Math.min(25, Math.max(3, Math.round(halfStreckeKm + KORRIDOR_KM + 1)));
@@ -310,6 +310,64 @@ async function fetchCheapestDieselOnRoute(fromLat, fromLon, toLat, toLon) {
     } catch (e) {
         return null;
     }
+}
+
+/* --- Diagnose für die Einstellungen: zeigt Schritt für Schritt, warum keine Tankstelle gefunden wurde --- */
+async function diagnoseTankRoute(destText, log) {
+    const KORRIDOR_KM = 5;
+    log('Ziel: ' + (destText || '(keins angegeben)'));
+    log('Standort wird ermittelt ...');
+    let loc;
+    try { loc = await fetchUserLocationData(); } catch (e) { log('❌ Standort-Fehler: ' + e.message); return; }
+    if (!loc || loc.fehler || loc.latitude === undefined) { log('❌ Standort nicht verfügbar' + (loc && loc.fehler ? ': ' + loc.fehler : '')); return; }
+    log(`✅ Standort: ${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`);
+
+    log('Ziel wird gesucht ...');
+    const dest = await geocodeDestination(destText, loc.ort);
+    if (!dest) { log('❌ Zieladresse "' + destText + '" konnte nicht gefunden werden.'); return; }
+    log(`✅ Ziel: ${dest.lat.toFixed(4)}, ${dest.lon.toFixed(4)}`);
+
+    const midLat = (loc.latitude + dest.lat) / 2, midLon = (loc.longitude + dest.lon) / 2;
+    const halfStreckeKm = haversineKm(loc.latitude, loc.longitude, dest.lat, dest.lon) / 2;
+    const radius = Math.min(25, Math.max(3, Math.round(halfStreckeKm + KORRIDOR_KM + 1)));
+    log(`Luftlinien-Entfernung: ${(halfStreckeKm * 2).toFixed(1)} km`);
+    log(`Tankerkönig-Anfrage: Umkreis ${radius} km um die Streckenmitte (Tankerkönig erlaubt max. 25 km)`);
+
+    let res;
+    try {
+        res = await apiFetch(`/api/tank?lat=${midLat}&lng=${midLon}&rad=${radius}`);
+    } catch (e) {
+        log('❌ ' + (e && e.userMessage ? e.userMessage : 'Keine Verbindung zum Server.'));
+        return;
+    }
+    const raw = await res.text();
+    log('Antwort: Status ' + res.status);
+    let d;
+    try { d = JSON.parse(raw); } catch (e) { log('❌ Antwort war kein JSON: ' + raw.slice(0, 200)); return; }
+    if (!res.ok) { log('❌ Fehler vom Server: ' + (d.error || JSON.stringify(d)).toString().slice(0, 250)); return; }
+    if (d.error) { log('❌ Tankerkönig meldet: ' + d.error); return; }
+
+    const alle = d.stations || [];
+    log(`✅ ${alle.length} geöffnete Tankstellen im Umkreis gefunden`);
+    const mitDiesel = alle.filter(s => typeof s.diesel === 'number' && s.diesel > 0);
+    log(`  davon ${mitDiesel.length} mit Dieselpreis gemeldet`);
+    const mitAbstand = mitDiesel.map(s => ({ ...s, korridorAbstandKm: pointToRouteKm(s.lat, s.lng, loc.latitude, loc.longitude, dest.lat, dest.lon) }));
+    mitAbstand.sort((a, b) => a.korridorAbstandKm - b.korridorAbstandKm);
+    mitAbstand.slice(0, 5).forEach(s => log(`    ${s.korridorAbstandKm <= KORRIDOR_KM ? '✅' : '–'} ${s.name || '?'} · ${s.korridorAbstandKm.toFixed(1)} km von der Luftlinie · ${s.diesel.toFixed(3)} €`));
+    const imKorridor = mitAbstand.filter(s => s.korridorAbstandKm <= KORRIDOR_KM);
+    log(imKorridor.length > 0
+        ? `✅ ${imKorridor.length} davon im ${KORRIDOR_KM}-km-Korridor - günstigste: ${imKorridor[0].name} zu ${imKorridor[0].diesel.toFixed(3)} €`
+        : `❌ Keine Tankstelle im ${KORRIDOR_KM}-km-Korridor gefunden (nächste liegt ${mitAbstand[0] ? mitAbstand[0].korridorAbstandKm.toFixed(1) + ' km entfernt' : 'unbekannt'}) - bei kurvigen Strecken weicht die echte Straße oft von der Luftlinie ab.`);
+    log('Fertig.');
+}
+
+async function runTankRouteDiagnosis() {
+    const out = document.getElementById('tankRouteDiagOutput');
+    const input = document.getElementById('tankRouteDiagInput');
+    const lines = [];
+    const log = (t) => { lines.push(t); if (out) { out.textContent = lines.join('\n'); out.classList.remove('hidden'); } };
+    try { await diagnoseTankRoute(input ? input.value : '', log); }
+    catch (e) { log('❌ Unerwarteter Fehler: ' + (e && e.message ? e.message : e)); }
 }
 
 async function computeDepartureAdvice(opts) {
