@@ -1387,7 +1387,12 @@ const BUNDESLIGA_TEAM_ALIASES = {
    (nicht nur ein gesprochenes Ergebnis wie bei matchBundesligaCommand). Gibt 'bl1' oder 'bl2' zurück, oder null. */
 function matchBundesligaTableCommand(text) {
     const low = String(text || '').toLowerCase();
-    if (low.length > 60 || !/\btabelle\b/.test(low)) return null;
+    if (low.length > 60) return null;
+    // Kein Wortgrenzen-Zwang mehr bei "tabelle" - erkennt so auch "Tabellenstand", "Tabellenplatz" usw.,
+    // nicht nur das isolierte Wort "Tabelle" selbst.
+    const hasTableWord = /tabelle|rangliste/.test(low);
+    const hasStandingsPhrase = /wie steht/.test(low) && /bundesliga/.test(low);
+    if (!hasTableWord && !hasStandingsPhrase) return null;
     return /\b(2\.\s*bundesliga|zweite(n)?\s*liga)\b/.test(low) ? 'bl2' : 'bl1';
 }
 
