@@ -9,14 +9,14 @@ let ackActive = false;
 let isProcessing = false;
 let isFollowUp = false;
 let followUpTimer = null;
-let conversationMode = getPersistentData('conversation_mode', '1') === '1';
-let selectedVoiceURI = getPersistentData('tts_voice_uri', '');
+let conversationMode = typeof getPersistentData === 'function' ? getPersistentData('conversation_mode', '1') === '1' : true;
+let selectedVoiceURI = typeof getPersistentData === 'function' ? getPersistentData('tts_voice_uri', '') : '';
 let availableVoices = [];
 let allVoicesList = [];      // alle Stimmen des Geräts (für den Dolmetscher-Modus), nicht nur die deutschen
 let interpreter = null;      // Dolmetscher-Modus: { lang, turn } solange er aktiv ist
 let interpFailCount = 0;     // wie oft die Spracherkennung in dieser Dolmetscher-Runde schon nichts verstanden hat
 const INTERP_MAX_RETRIES = 2;   // so oft hört er in derselben Runde automatisch weiter, bevor er zurück auf Deutsch wechselt
-let wakeWordEnabled = getPersistentData('wake_word_enabled', '0') === '1';
+let wakeWordEnabled = typeof getPersistentData === 'function' ? getPersistentData('wake_word_enabled', '0') === '1' : false;
 let wakeWordListening = false;
 
 const SPEECH_RATE = 1.0;
@@ -152,7 +152,7 @@ if (conversationToggleEl) {
 const wakeWordToggleEl = document.getElementById('wakeWordToggle');
 if (wakeWordToggleEl) wakeWordToggleEl.checked = wakeWordEnabled;
 
-/* --- Sprechen --- */
+/* --- Sprechen Formatierungen --- */
 const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
 function speakableDates(text) {
@@ -186,14 +186,11 @@ function setEdgeVoice(val) {
     if (typeof setPersistentData === 'function') setPersistentData('tts_edge_voice', String(val || 'de-DE-ConradNeural'));
 }
 
-let ttsCloudFailCount = 0;
-const TTS_CLOUD_MAX_FAILS = 2;
-
 /* ============================================================
-   NEUER AP-TTS AUDIO STREAM (ERSETZT DIE ALTE WEB SPEECH API)
+   SPRACHAUSGABE (TTS)
    ============================================================ */
 
-    async function speak(text, options = {}) {
+async function speak(text, options = {}) {
     stopSpeaking(); // Laufende Sprachausgaben sofort unterbrechen
     if (!text) return;
 
@@ -255,3 +252,137 @@ const TTS_CLOUD_MAX_FAILS = 2;
     }
 }
 
+function fallbackBrowserSpeak(text) {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang = 'de-DE';
+    utt.rate = SPEECH_RATE;
+    utt.pitch = SPEECH_PITCH;
+    const voice = getActiveVoice();
+    if (voice) utt.voice = voice;
+
+    utt.onend = () => {
+        currentUtterance = null;
+        if (conversationMode) {
+            clearFollowUpTimer();
+            followUpTimer = setTimeout(() => {
+                if (typeof startVoiceRecognition === 'function') startVoiceRecognition();
+            }, 400);
+        } else {
+            setIdleUi();
+        }
+    };
+    currentUtterance = utt;
+    window.speechSynthesis.speak(utt);
+}
+
+function stopSpeaking() {
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+    }
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+    }
+    currentUtterance = null;
+    setIdleUi();
+}
+
+/* ============================================================
+   SPRACHERKENNUNG (STT) - FEHLTE FÜR DEN SPRECHBALL
+   ============================================================ */
+
+let recognition = null;
+let isRecording = false;
+
+function initSpeechRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        console.error("SpeechRecognition wird von diesem Browser nicht unterstützt.");
+        if (typeof showToast === 'function') showToast("Spracherkennung wird nicht unterstützt.");
+        return null;
+    }
+
+    const rec = new SpeechRecognition();
+    rec.lang = 'de-DE';
+    rec.continuous = false;
+    rec.interimResults = false;
+
+    rec.onstart = () => {
+        isRecording = true;
+        if (window.recordBtn) {
+            window.recordBtn.classList.remove('speaking');
+            window.recordBtn.classList.add('recording');
+        }
+        if (typeof jvListenIndicator === 'function') jvListenIndicator(true);
+        if (window.recordText) window.recordText.textContent = "J.A.R.V.I.S. / HÖRT ZU...";
+        if (typeof updateTerminalStream === 'function') updateTerminalStream("SYS_AUDIO: INPUT_STREAM_ACTIVE", "LISTENING");
+    };
+
+    rec.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        console.log("Erkannt:", transcript);
+        if (typeof processCommand === 'function') {
+            processCommand(transcript);
+        } else if (typeof handleUserInput === 'function') {
+            handleUserInput(transcript);
+        } else if (typeof sendUserMessage === 'function') {
+            sendUserMessage(transcript);
+        }
+    };
+
+    rec.onerror = (event) => {
+        console.error("Spracherkennungsfehler:", event.error);
+        stopSpeaking();
+        setIdleUi();
+    };
+
+    rec.onend = () => {
+        isRecording = false;
+        if (!isSpeaking() && !isProcessing) {
+            setIdleUi();
+        }
+    };
+
+    return rec;
+}
+
+function startVoiceRecognition() {
+    stopSpeaking();
+    if (!recognition) recognition = initSpeechRecognition();
+    if (recognition && !isRecording) {
+        try {
+            recognition.start();
+        } catch (e) {
+            console.warn("Recognition bereits aktiv:", e);
+        }
+    }
+}
+
+function stopVoiceRecognition() {
+    if (recognition && isRecording) {
+        recognition.stop();
+        isRecording = false;
+    }
+}
+
+function toggleSpeechRecognition() {
+    if (isSpeaking()) {
+        stopSpeaking();
+        return;
+    }
+    if (isRecording) {
+        stopVoiceRecognition();
+        setIdleUi();
+    } else {
+        startVoiceRecognition();
+    }
+}
+
+/* --- Globale Verfügbarkeit für HTML-Events (onclick) --- */
+window.toggleSpeechRecognition = toggleSpeechRecognition;
+window.startVoiceRecognition = startVoiceRecognition;
+window.stopVoiceRecognition = stopVoiceRecognition;
+window.stopSpeaking = stopSpeaking;
+window.speak = speak;
