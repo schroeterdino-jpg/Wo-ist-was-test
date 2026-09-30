@@ -833,9 +833,14 @@ async function sendToGroqSmart(text, opts = {}) {
                 const res = await computeDepartureAdvice({
                     query: travelAction.travel_query || '',
                     destination: resolveTravelDestination(text, travelAction.travel_destination || ''),
-                    arrivalTime: travelAction.travel_arrival_time || ''
+                    arrivalTime: travelAction.travel_arrival_time || '',
+                    wantFuel: true
                 });
                 travelReply = res.reply;
+                if (res.sprit) {
+                    const s = res.sprit;
+                    travelReply += ` Übrigens, der günstigste Diesel auf der Strecke kostet gerade ${s.preis.toFixed(3).replace('.', ',')} Euro bei ${s.name || 'einer Tankstelle unterwegs'}.`;
+                }
                 ctx.cards.push(res.card);
                 (res.stauCards || []).forEach(c => ctx.cards.push(c));
                 (res.webcamCards || []).forEach(c => ctx.cards.push(c));

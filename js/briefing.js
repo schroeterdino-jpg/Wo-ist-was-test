@@ -560,19 +560,16 @@ async function learnFromConversations() {
         const data = await res.json();
         const parsed = JSON.parse(data.choices[0].message.content);
         const fakten = Array.isArray(parsed.fakten) ? parsed.fakten : [];
-        let changed = false;
+        // WICHTIG: Automatisch aus Gesprächen gelernte Fakten landen jetzt NUR NOCH im Langzeitgedächtnis
+        // (Upstash Vector), nicht mehr zusätzlich in der sichtbaren Gedächtnis-Liste - die würde sonst mit
+        // der Zeit immer voller werden. Die sichtbare Liste bleibt für das, was der User BEWUSST sagt
+        // ("Merk dir, dass...") - das läuft weiterhin ganz normal über memory_store/list_edit.
         fakten.forEach(f => {
             const key = String(f && f.schluessel || '').trim().toLowerCase();
             const val = String(f && f.wert || '').trim();
             if (!key || !val) return;
-            memoryItems[key] = val;
-            changed = true;
-            // Zusätzlich ins semantische Gedächtnis (Upstash Vector) - findbar auch bei Umschreibungen,
-            // nicht nur bei exakten/ähnlichen Wörtern wie beim normalen Gedächtnis. Läuft nebenbei im
-            // Hintergrund (nicht abgewartet) - ein Fehlschlag hier darf das normale Speichern nicht stören.
             storeSemanticMemory(`${key}: ${val}`);
         });
-        if (changed) setPersistentData('helfer_memory', JSON.stringify(memoryItems));
     } catch (e) {
         console.error('Automatisches Lernen fehlgeschlagen', e);
     }
