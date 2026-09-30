@@ -23,7 +23,8 @@ const PANEL_TITLES = {
     welt: '🌍 Welt',
     protokolle: '📋 Protokolle',
     adressen: '📍 Adressen',
-    dashboard: '🖥️ Dashboard'
+    dashboard: '🖥️ Dashboard',
+    nachrichten: '📰 Nachrichten'
 };
 
 /* Diese Fenster zeigen einen bestehenden Bereich der Seite (wird ins Fenster geschoben und danach zurückgelegt) */
@@ -35,7 +36,7 @@ const PANEL_SECTIONS = {
 const PANEL_SCROLL_TARGETS = {
     einkauf: 'shoppingList', aufgaben: 'todoList', parkplatz: 'parkingBox', briefing: 'briefingList', gedaechtnis: 'categoryContainer'
 };
-const PANEL_DYNAMIC = ['termine', 'erinnerungen', 'menu', 'karte', 'welt', 'protokolle', 'adressen', 'dashboard'];
+const PANEL_DYNAMIC = ['termine', 'erinnerungen', 'menu', 'karte', 'welt', 'protokolle', 'adressen', 'dashboard', 'nachrichten'];
 const VALID_PANELS = Object.keys(PANEL_TITLES);
 
 const PANEL_CLOSE_MS = 300;
@@ -257,6 +258,7 @@ function buildDynamicPanel(name, options) {
     if (name === 'protokolle') return buildProtokollePanel(options);
     if (name === 'adressen') return buildAdressenPanel(options);
     if (name === 'dashboard') return buildDashboardPanel(options);
+    if (name === 'nachrichten') return buildNachrichtenPanel(options);
     return buildMenuPanel();
 }
 
@@ -305,6 +307,7 @@ function openPanel(name, options = {}) {
         if (name === 'welt') { weltPrefetch(options); setTimeout(() => initWelt(options), PANEL_FLY_MS); }
         if (name === 'dashboard') setTimeout(() => initDashboard(), PANEL_FLY_MS);
         if (name === 'termine') setTimeout(() => initTerminRouteSummaries(), PANEL_FLY_MS);
+        if (name === 'nachrichten') setTimeout(() => initNachrichtenPanel(options), PANEL_FLY_MS);
         // Google-Kalender im Hintergrund auffrischen; refreshOpenPanel() zeichnet dann ohne Animation neu
         // erst NACH dem Einfliegen, sonst ruckelt die Animation, wenn die Daten mitten drin ankommen
         if (name !== 'menu' && name !== 'karte' && name !== 'welt' && name !== 'protokolle' && name !== 'adressen' && typeof accessToken !== 'undefined' && accessToken && typeof fetchGoogleCalendarEvents === 'function') {
@@ -1034,6 +1037,37 @@ async function weltGuard(label, fn) {
         weltStatus(`Fehler (${label}): ${String((e && e.message) || e).slice(0, 140)}`);
         speak('Dabei ist ein Fehler aufgetreten. Der Grund steht unter der Kugel.', continueConversation);
     }
+}
+
+/* ---- Nachrichten-Panel: dieselbe Bild-Karten-Ansicht wie bei der Weltkugel (weltStatus/weltRenderNews
+   arbeiten nur über die Element-IDs #weltStatus/#weltNews, lassen sich also 1:1 wiederverwenden), aber
+   OHNE die 3D-Kugel - direkt auf dem Hauptbildschirm als eigenes Fenster, z.B. für "Zeig mir die
+   Nachrichten von heute" oder "Nachrichten für Hamburg". Die Weltkugel selbst bleibt für "Zeig mir die
+   Weltkugel"/ISS/Erdbeben/Live-Kameras weiterhin die richtige Anlaufstelle. ---- */
+function buildNachrichtenPanel(options = {}) {
+    injectWeltStyles();
+    const place = options.place || '';
+    const html = `<div class="font-mono text-xs">` +
+        `<p id="weltStatus" class="text-[#5d7e91]">Nachrichten werden geladen ...</p>` +
+        `<div id="weltNews" class="mt-3"></div>` +
+        `<p class="text-[#5d7e91] mt-4">Sag „Schließen", um das Fenster zu schließen.</p></div>`;
+    return { title: '📰 Nachrichten' + (place ? ' – ' + place : ''), html };
+}
+
+async function initNachrichtenPanel(options = {}) {
+    if (!isPanelOpen() || currentPanel.name !== 'nachrichten') return;
+    const place = options.place || 'Deutschland';
+    weltStatus(`Suche Nachrichten zu ${place} ...`);
+    const isGermany = normalizeKey(place) === 'deutschland';
+    const regionId = germanRegionId(place);
+    let news;
+    try {
+        news = (isGermany || regionId) ? await fetchGermanyNewsViaTagesschau(regionId) : await fetchWorldNews(place);
+    } catch (e) {
+        news = { articles: [], video: null, fehler: 'Nachrichten gerade nicht verfügbar.' };
+    }
+    if (!isPanelOpen() || currentPanel.name !== 'nachrichten') return;
+    weltRenderNews(place, news);
 }
 
 function weltStatus(text) {
