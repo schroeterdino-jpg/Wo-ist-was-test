@@ -193,7 +193,7 @@ const TTS_CLOUD_MAX_FAILS = 2;
    NEUER AP-TTS AUDIO STREAM (ERSETZT DIE ALTE WEB SPEECH API)
    ============================================================ */
 
-export async function speak(text, options = {}) {
+    async function speak(text, options = {}) {
     stopSpeaking(); // Laufende Sprachausgaben sofort unterbrechen
     if (!text) return;
 
