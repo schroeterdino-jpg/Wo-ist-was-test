@@ -1359,6 +1359,14 @@ const BUNDESLIGA_TEAM_ALIASES = {
     ulm: 'Ulm'
 };
 
+/* "Zeig mir die Tabelle" / "Wie ist die Tabelle?" -> öffnet die Bundesliga-Tabelle als eigenes Fenster
+   (nicht nur ein gesprochenes Ergebnis wie bei matchBundesligaCommand). Gibt 'bl1' oder 'bl2' zurück, oder null. */
+function matchBundesligaTableCommand(text) {
+    const low = String(text || '').toLowerCase();
+    if (low.length > 60 || !/\btabelle\b/.test(low)) return null;
+    return /\b(2\.\s*bundesliga|zweite(n)?\s*liga)\b/.test(low) ? 'bl2' : 'bl1';
+}
+
 function matchBundesligaCommand(text) {
     const low = String(text || '').toLowerCase();
     if (low.length > 90) return null;
@@ -1422,6 +1430,8 @@ function handleLocalCommandInner(text) {
 
     const blTeam = matchBundesligaCommand(text);
     if (blTeam) { handleBundesligaQuery(blTeam); return true; }
+    const blTable = matchBundesligaTableCommand(text);
+    if (blTable) { openPanel('tabelle', { liga: blTable }); return true; }
 
     const worldCmd = matchWorldCommand(text);
     if (worldCmd) { openWelt(worldCmd.place, worldCmd.mode); return true; }

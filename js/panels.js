@@ -24,7 +24,8 @@ const PANEL_TITLES = {
     protokolle: '📋 Protokolle',
     adressen: '📍 Adressen',
     dashboard: '🖥️ Dashboard',
-    nachrichten: '📰 Nachrichten'
+    nachrichten: '📰 Nachrichten',
+    tabelle: '⚽ Tabelle'
 };
 
 /* Diese Fenster zeigen einen bestehenden Bereich der Seite (wird ins Fenster geschoben und danach zurückgelegt) */
@@ -36,7 +37,7 @@ const PANEL_SECTIONS = {
 const PANEL_SCROLL_TARGETS = {
     einkauf: 'shoppingList', aufgaben: 'todoList', parkplatz: 'parkingBox', briefing: 'briefingList', gedaechtnis: 'categoryContainer'
 };
-const PANEL_DYNAMIC = ['termine', 'erinnerungen', 'menu', 'karte', 'welt', 'protokolle', 'adressen', 'dashboard', 'nachrichten'];
+const PANEL_DYNAMIC = ['termine', 'erinnerungen', 'menu', 'karte', 'welt', 'protokolle', 'adressen', 'dashboard', 'nachrichten', 'tabelle'];
 const VALID_PANELS = Object.keys(PANEL_TITLES);
 
 const PANEL_CLOSE_MS = 300;
@@ -259,6 +260,7 @@ function buildDynamicPanel(name, options) {
     if (name === 'adressen') return buildAdressenPanel(options);
     if (name === 'dashboard') return buildDashboardPanel(options);
     if (name === 'nachrichten') return buildNachrichtenPanel(options);
+    if (name === 'tabelle') return buildTabellePanel(options);
     return buildMenuPanel();
 }
 
@@ -308,6 +310,7 @@ function openPanel(name, options = {}) {
         if (name === 'dashboard') setTimeout(() => initDashboard(), PANEL_FLY_MS);
         if (name === 'termine') setTimeout(() => initTerminRouteSummaries(), PANEL_FLY_MS);
         if (name === 'nachrichten') setTimeout(() => initNachrichtenPanel(options), PANEL_FLY_MS);
+        if (name === 'tabelle') setTimeout(() => initTabellePanel(options), PANEL_FLY_MS);
         // Google-Kalender im Hintergrund auffrischen; refreshOpenPanel() zeichnet dann ohne Animation neu
         // erst NACH dem Einfliegen, sonst ruckelt die Animation, wenn die Daten mitten drin ankommen
         if (name !== 'menu' && name !== 'karte' && name !== 'welt' && name !== 'protokolle' && name !== 'adressen' && typeof accessToken !== 'undefined' && accessToken && typeof fetchGoogleCalendarEvents === 'function') {
@@ -1068,6 +1071,54 @@ async function initNachrichtenPanel(options = {}) {
     }
     if (!isPanelOpen() || currentPanel.name !== 'nachrichten') return;
     weltRenderNews(place, news);
+}
+
+/* ---- Bundesliga-Tabelle (OpenLigaDB, kostenlos, kein Schlüssel, direkt aus dem Browser) ---- */
+function bundesligaSeasonYear(d = new Date()) {
+    // Die Saison läuft grob von August bis Mai - vor Juli zählt noch die VORjahres-Saison
+    const m = d.getMonth() + 1;
+    return m >= 7 ? d.getFullYear() : d.getFullYear() - 1;
+}
+
+function buildTabellePanel(options = {}) {
+    const liga = options.liga === 'bl2' ? 'bl2' : 'bl1';
+    const html = `<div class="font-mono text-xs">` +
+        `<p id="tabelleStatus" class="text-[#5d7e91]">Tabelle wird geladen ...</p>` +
+        `<div id="tabelleBox" class="mt-3 space-y-1"></div>` +
+        `<p class="text-[#5d7e91] mt-4">Sag „Schließen", um das Fenster zu schließen.</p></div>`;
+    return { title: liga === 'bl2' ? '⚽ 2. Bundesliga – Tabelle' : '⚽ Bundesliga – Tabelle', html };
+}
+
+async function initTabellePanel(options = {}) {
+    if (!isPanelOpen() || currentPanel.name !== 'tabelle') return;
+    const liga = options.liga === 'bl2' ? 'bl2' : 'bl1';
+    const statusEl = document.getElementById('tabelleStatus');
+    const box = document.getElementById('tabelleBox');
+    if (!box) return;
+    const season = bundesligaSeasonYear();
+    try {
+        const res = await fetch(`https://api.openligadb.de/getbltable/${liga}/${season}`);
+        if (!isPanelOpen() || currentPanel.name !== 'tabelle') return;
+        if (!res.ok) throw new Error('Status ' + res.status);
+        const table = await res.json();
+        if (!Array.isArray(table) || !table.length) {
+            if (statusEl) statusEl.textContent = 'Zu dieser Tabelle liegen gerade keine Daten vor.';
+            return;
+        }
+        if (statusEl) statusEl.textContent = '';
+        box.innerHTML = table.map((row, i) => {
+            const icon = row.teamIconUrl ? `<img src="${escapeHtml(row.teamIconUrl)}" style="width:20px;height:20px;object-fit:contain" onerror="this.remove()">` : '';
+            return `<div class="flex items-center gap-2 bg-black/60 border border-[rgba(93,209,255,.15)] rounded-lg px-3 py-2">` +
+                `<span class="text-[#49d7ff] font-bold w-5 text-right">${i + 1}.</span>` +
+                icon +
+                `<span class="flex-1 min-w-0 text-slate-100 truncate">${escapeHtml(row.teamName || '')}</span>` +
+                `<span class="text-[#5d7e91] w-16 text-right shrink-0">${row.goals ?? 0}:${row.opponentGoals ?? 0}</span>` +
+                `<span class="text-[#49d7ff] font-bold w-14 text-right shrink-0">${row.points ?? 0} Pkt</span>` +
+                `</div>`;
+        }).join('');
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Die Tabelle konnte gerade nicht abgerufen werden.';
+    }
 }
 
 function weltStatus(text) {
