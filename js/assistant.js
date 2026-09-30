@@ -455,21 +455,34 @@ async function executeAction(action, text, ctx) {
    inhaltlich zur aktuellen Frage passen - findet auch Umschreibungen, nicht nur ähnliche Wörter wie das
    normale Gedächtnis (searchMemory). Kein Fehler-Popup bei Problemen: liefert dann einfach eine leere
    Liste, die App funktioniert auch ganz ohne semantisches Gedächtnis weiter. */
+/* Sucht bei JEDER Anfrage zweigleisig, statt zu raten, wie eine "pauschale" Frage aussehen könnte:
+   1) eng passend zur genauen Frage (für konkrete Fragen wie "Was hab ich in Berlin gegessen?")
+   2) breit nach allgemeinen Fakten über den User (greift auch bei vagen Fragen wie "Weißt du was über mich?")
+   Die Ergebnisse werden zusammengeführt (doppelte raus), damit die KI in jedem Fall eine vernünftige
+   Auswahl hat und selbst entscheiden kann, was zur Frage passt - statt dass die App vorher schon rät,
+   welche Art Frage das wohl ist. */
 async function searchSemanticMemory(text) {
     const q = String(text || '').trim();
     if (!q || q.length < 4) return [];
-    try {
-        const res = await apiFetch('/api/memory', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'search', query: q, topK: 5 })
-        });
-        if (!res.ok) return [];
-        const data = await res.json();
-        return Array.isArray(data.treffer) ? data.treffer.map(t => t.text) : [];
-    } catch (e) {
-        return [];
-    }
+    const eineSuche = async (query, topK, minScore) => {
+        try {
+            const res = await apiFetch('/api/memory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'search', query, topK, minScore })
+            });
+            if (!res.ok) return [];
+            const data = await res.json();
+            return Array.isArray(data.treffer) ? data.treffer.map(t => t.text) : [];
+        } catch (e) {
+            return [];
+        }
+    };
+    const [eng, breit] = await Promise.all([
+        eineSuche(q, 5, 0.75),
+        eineSuche('Fakten und Vorlieben des Users', 8, 0.2)
+    ]);
+    return [...new Set([...eng, ...breit])].slice(0, 10);
 }
 
 let lastLearnAt = 0;   // chatHistory.length beim letzten automatischen Lern-Durchlauf (siehe sendToGroqSmart)
