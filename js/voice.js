@@ -330,7 +330,7 @@ function speakBrowser(cleanText, onComplete, langCode) {
     }
 }
 
-function speakAck(text) {
+function speakAck(text, onComplete) {
     if (isRecording) return;
     const myGen = speechGeneration;   // Stand merken, bevor die (evtl. langsame) Cloud-Abfrage losgeht
     const tryCloud = getTtsEngine() !== 'browser' && ttsCloudFailCount < TTS_CLOUD_MAX_FAILS;
@@ -338,36 +338,38 @@ function speakAck(text) {
         ackActive = true;
         fetchCloudSpeechBlob(text, getEdgeVoice()).then(blob => {
             if (myGen !== speechGeneration) { ackActive = false; return; }   // echte Antwort kam inzwischen dazwischen - verworfen, nicht abspielen
-            if (!blob) { ttsCloudFailCount++; ackActive = false; speakAckBrowser(text, myGen); return; }
+            if (!blob) { ttsCloudFailCount++; ackActive = false; speakAckBrowser(text, myGen, onComplete); return; }
             ttsCloudFailCount = 0;
             if (currentAckAudio) { try { currentAckAudio.pause(); } catch (e) {} }
             const url = URL.createObjectURL(blob);
             currentAckAudio = new Audio(url);
-            const finish = () => { URL.revokeObjectURL(url); ackActive = false; currentAckAudio = null; };
+            const finish = () => { URL.revokeObjectURL(url); ackActive = false; currentAckAudio = null; if (onComplete) onComplete(); };
             currentAckAudio.onended = finish;
             currentAckAudio.onerror = () => { finish(); };
             currentAckAudio.play().catch(() => { finish(); });
         });
         return;
     }
-    speakAckBrowser(text, myGen);
+    speakAckBrowser(text, myGen, onComplete);
 }
 
 /* Bisherige, rein im Browser laufende Zwischenansage - jetzt der automatische Rückfall.
    'gen' (optional): Stand von speechGeneration beim ursprünglichen Aufruf von speakAck(), falls diese
    Funktion verzögert (nach einer gescheiterten Cloud-Abfrage) aufgerufen wird - fehlt er, wird der
-   aktuelle Stand genommen (direkter Aufruf ohne Cloud-Umweg). */
-function speakAckBrowser(text, gen) {
-    if (!('speechSynthesis' in window) || isRecording) return;
-    if (typeof gen === 'number' && gen !== speechGeneration) return;   // echte Antwort kam inzwischen dazwischen
+   aktuelle Stand genommen (direkter Aufruf ohne Cloud-Umweg). 'onComplete' (optional): wird aufgerufen,
+   sobald die Ansage fertig ist (egal ob erfolgreich oder mit Fehler) - z.B. um danach erst das Mikrofon
+   für die Anschlussfrage zu starten, statt es gleichzeitig zur Ansage zu versuchen. */
+function speakAckBrowser(text, gen, onComplete) {
+    if (!('speechSynthesis' in window) || isRecording) { if (onComplete) onComplete(); return; }
+    if (typeof gen === 'number' && gen !== speechGeneration) { if (onComplete) onComplete(); return; }   // echte Antwort kam inzwischen dazwischen
     const u = new SpeechSynthesisUtterance(text);
     const voice = getActiveVoice();
     if (voice) { u.voice = voice; u.lang = voice.lang; } else { u.lang = 'de-DE'; }
     u.rate = SPEECH_RATE;
     u.pitch = SPEECH_PITCH;
     ackActive = true;
-    u.onend = () => { ackActive = false; };
-    u.onerror = () => { ackActive = false; };
+    u.onend = () => { ackActive = false; if (onComplete) onComplete(); };
+    u.onerror = () => { ackActive = false; if (onComplete) onComplete(); };
     window.speechSynthesis.speak(u);
 }
 let currentAckAudio = null;
@@ -698,12 +700,18 @@ if (SpeechRecognition) {
                 handleRecognizedText(rest);
             } else {
                 isRecording = false;   // sonst würde speakAck() das "Ja?" für sich stumm verschlucken (isRecording ist im Dauerzuhören-Modus noch true)
-                speakAck('Ja?');
                 isFollowUp = true;
                 clearFollowUpTimer();
                 followUpTimer = setTimeout(() => { isFollowUp = false; setIdleUi(); }, FOLLOW_UP_WINDOW_MS);
-                setListeningUi(true);
-                try { recognition.start(); } catch (e) {}
+                // Erst NACH der "Ja?"-Ansage das Mikrofon neu starten, nicht währenddessen: die alte,
+                // fortlaufende Aufnahme-Sitzung ist an dieser Stelle technisch noch nicht ganz beendet
+                // (nur continuous wurde auf false gesetzt) - ein sofortiger neuer recognition.start()-Versuch
+                // hier würde einen stillen Fehler werfen und wurde nie erfolgreich neu gestartet.
+                speakAck('Ja?', () => {
+                    if (!isFollowUp) return;   // Zeitfenster ist inzwischen schon abgelaufen
+                    setListeningUi(true);
+                    try { recognition.start(); } catch (e) {}
+                });
             }
             return;
         }
