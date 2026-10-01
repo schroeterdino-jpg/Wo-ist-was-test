@@ -56,7 +56,10 @@ export default async function handler(req, res) {
       // ("Was weißt du über mich?"), bei denen es keinen inhaltlichen Anhaltspunkt zum Vergleichen gibt.
       // Optional 'prefix': nur Einträge mit diesem ID-Präfix (z.B. 'insight_' für die täglichen Erkenntnisse).
       const limit = Math.min(30, Math.max(1, Number(body.limit) || 15));
-      const rangeBody = { cursor: '0', limit, includeMetadata: true, includeData: true };
+      // Großzügiger abfragen als angefordert (range liefert nicht zwingend die neuesten zuerst), dann nach
+      // Datum sortiert die gewünschte Anzahl zurückgeben - sonst würden mit der Zeit ältere Fakten die
+      // neueren aus der Liste verdrängen.
+      const rangeBody = { cursor: '0', limit: Math.max(limit, 60), includeMetadata: true, includeData: true };
       if (body.prefix) rangeBody.prefix = String(body.prefix);
       const r = await fetch(`${url}/range`, {
         method: 'POST', headers,
@@ -65,7 +68,10 @@ export default async function handler(req, res) {
       });
       const d = await r.json();
       if (!r.ok) return res.status(502).json({ error: 'Upstash meldet: ' + (d.error || JSON.stringify(d)) });
-      const treffer = ((d.result && d.result.vectors) || []).map(v => ({ text: v.data, metadata: v.metadata || {} }));
+      const treffer = ((d.result && d.result.vectors) || [])
+        .map(v => ({ text: v.data, metadata: v.metadata || {} }))
+        .sort((a, b) => new Date(b.metadata.datum || 0) - new Date(a.metadata.datum || 0))
+        .slice(0, limit);
       return res.status(200).json({ treffer });
     }
 
