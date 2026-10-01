@@ -283,6 +283,8 @@
                                 <option value="nova">Nova (weiblich)</option>
                                 <option value="shimmer">Shimmer (weiblich, hell)</option>
                             </select>
+                            <button onclick="playUiBeep(); runTtsDiagnosis()" class="w-full mt-2 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🔊 OpenAI-Stimme testen</button>
+                            <pre id="ttsDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words mt-2"></pre>
                         </div>
                         <div id="edgeVoiceRow" class="hidden">
                             <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Cloud-Stimme:</label>
