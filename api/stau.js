@@ -29,7 +29,10 @@ export default async function handler(req, res) {
 
     if (engine === 'openai') {
       const openaiKey = process.env.OPENAI_API_KEY;
-      if (openaiKey) {
+      const diag = req.query.diag === '1';
+      if (!openaiKey) {
+        if (diag) return res.status(200).json({ engineUsed: 'none', error: 'Server: OPENAI_API_KEY fehlt - fällt normalerweise lautlos auf Edge-TTS zurück' });
+      } else {
         try {
           const openaiVoice = String(req.query.openaiVoice || 'alloy').replace(/[^a-zA-Z]/g, '');
           const oaRes = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -41,13 +44,21 @@ export default async function handler(req, res) {
           if (oaRes.ok) {
             const buf = Buffer.from(await oaRes.arrayBuffer());
             if (buf.length) {
+              if (diag) return res.status(200).json({ engineUsed: 'openai', ok: true, bytes: buf.length });
               res.setHeader('Content-Type', 'audio/mpeg');
               res.setHeader('Cache-Control', 'no-store');
               return res.status(200).send(buf);
             }
+            if (diag) return res.status(200).json({ engineUsed: 'none', error: 'OpenAI lieferte eine leere Antwort' });
+          } else {
+            const errText = await oaRes.text().catch(() => '');
+            if (diag) return res.status(200).json({ engineUsed: 'none', error: `OpenAI meldet Status ${oaRes.status}: ${errText.slice(0, 300)}` });
           }
-          // Antwort nicht ok oder leer -> unten automatisch auf Edge-TTS weiter
-        } catch (e) { /* OpenAI nicht erreichbar/Timeout -> unten automatisch auf Edge-TTS weiter */ }
+          // Antwort nicht ok oder leer -> unten automatisch auf Edge-TTS weiter (nur im Normalbetrieb, nicht im Diagnose-Modus)
+        } catch (e) {
+          if (diag) return res.status(200).json({ engineUsed: 'none', error: 'OpenAI nicht erreichbar: ' + String(e && e.message || e) });
+          /* OpenAI nicht erreichbar/Timeout -> unten automatisch auf Edge-TTS weiter */
+        }
       }
       // Kein Schlüssel gesetzt oder OpenAI fehlgeschlagen: fällt durch zu Edge-TTS unten, kein Fehler nach außen
     }
