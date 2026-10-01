@@ -200,6 +200,18 @@
 
             ctx.clearRect(0, 0, SIZE, SIZE);
 
+            // Weicher Grundschimmer in der Mitte - der "glühende Kern", der im Vorbild die Mitte hell und
+            // massiv wirken lässt, statt dass es nur Linien und einzelne Punkte ohne Zusammenhalt sind.
+            const coreRadius = SPHERE_RADIUS * breathe * (FOCAL / (FOCAL + SPHERE_RADIUS));
+            const coreGrad = ctx.createRadialGradient(SIZE / 2, SIZE / 2, 0, SIZE / 2, SIZE / 2, coreRadius * 1.15);
+            coreGrad.addColorStop(0, `rgba(${rgb},.32)`);
+            coreGrad.addColorStop(0.4, `rgba(${rgb},.16)`);
+            coreGrad.addColorStop(1, `rgba(${rgb},0)`);
+            ctx.fillStyle = coreGrad;
+            ctx.beginPath();
+            ctx.arc(SIZE / 2, SIZE / 2, coreRadius * 1.15, 0, Math.PI * 2);
+            ctx.fill();
+
             // Goldener Staub zuerst (liegt optisch hinter/um das Netz herum) - dreht sich etwas langsamer
             // als das Netz selbst, damit beide Schichten nicht starr zusammenkleben
             const dustAngle = angle * 0.6;
@@ -234,11 +246,21 @@
             }
 
             projected.forEach(p => {
-                const rad = 1.1 * p.scale + 0.4;
-                const op = Math.min(1, p.scale * 0.9);
-                ctx.fillStyle = `rgba(${rgb},${op.toFixed(3)})`;
+                const rad = Math.max(0.6, 1.3 * p.scale + 0.4);
+                const op = Math.min(1, p.scale * 0.95);
+                // Weicher Glow-Punkt statt scharfem Kreis: Farbe in der Mitte, transparent am Rand
+                const grad = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, rad * 2.2);
+                grad.addColorStop(0, `rgba(${rgb},${op.toFixed(3)})`);
+                grad.addColorStop(0.5, `rgba(${rgb},${(op * 0.4).toFixed(3)})`);
+                grad.addColorStop(1, `rgba(${rgb},0)`);
+                ctx.fillStyle = grad;
                 ctx.beginPath();
-                ctx.arc(p.sx, p.sy, rad, 0, Math.PI * 2);
+                ctx.arc(p.sx, p.sy, rad * 2.2, 0, Math.PI * 2);
+                ctx.fill();
+                // Heller, kleiner Kern in der Mitte jedes Punktes (macht das Netz funkelnder)
+                ctx.fillStyle = `rgba(255,255,255,${(op * 0.55).toFixed(3)})`;
+                ctx.beginPath();
+                ctx.arc(p.sx, p.sy, rad * 0.4, 0, Math.PI * 2);
                 ctx.fill();
             });
 
