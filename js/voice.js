@@ -285,7 +285,6 @@ function speak(text, onComplete, langCode) {
             if (currentAudio) { try { currentAudio.pause(); } catch (e) {} currentAudio = null; }
             const url = URL.createObjectURL(blob);
             currentAudio = new Audio(url);
-            if (typeof window.jvSphereConnectAudio === 'function') window.jvSphereConnectAudio(currentAudio);
             const finish = (completed) => {
                 URL.revokeObjectURL(url);
                 if (currentAudio && currentAudio.src === url) currentAudio = null;
