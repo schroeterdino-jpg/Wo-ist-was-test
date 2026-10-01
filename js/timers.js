@@ -144,6 +144,13 @@ function parseAlarmTime(text) {
     return { hour, minute };
 }
 
+/* Karte, die beim Antippen die Uhr-App startet. Als onclick statt als Link: der Aufruf geschieht so direkt im Fingertipp,
+   was Chrome für Android-"Intents" verlangt (ein normaler Link öffnet sie oft nicht). */
+function clockCard(icon, title, subtitle, url) {
+    const safe = String(url).replace(/'/g, '%27');
+    return { icon, title, subtitle, onclick: `window.location.href='${safe}'` };
+}
+
 function showClockCards(cards) {
     try {
         if (typeof clearActionCards === 'function') clearActionCards();
@@ -161,6 +168,12 @@ function handleTimerCommand(text) {
         speak(msg, typeof continueConversation === 'function' ? continueConversation : undefined);
         return true;
     };
+
+    // Ein Timer klingelt gerade: "Stopp", "Danke", "Genug", "Timer aus" beendet ihn
+    if (anyTimerRinging() && /^(?:jarvis[, ]+)?(?:timer\s+)?(?:stopp?|stop|aus|ruhe|genug|ok|okay|danke|schon gut|ist gut|erledigt)(?:\s+jarvis)?$/.test(t)) {
+        stopRingingTimers();
+        return done(pickRandom(['Sehr wohl.', 'Ruhe ist wiederhergestellt.', 'Wie Sie wünschen.']));
+    }
 
     const alarmWord = /\bwecker\b|\bweck\w*\s+mich\b/.test(t);
     const durationMs = parseDurationMs(raw);
@@ -182,7 +195,7 @@ function handleTimerCommand(text) {
         if (!at) { alarmQuestionAt = Date.now(); return done('Für wie viel Uhr soll ich den Wecker stellen?'); }
         const hh = String(at.hour).padStart(2, '0'), mm = String(at.minute).padStart(2, '0');
         return done(`Wecker für ${at.hour} Uhr${at.minute ? ' ' + at.minute : ''}. Tippen Sie unten auf die Karte, dann stellt Ihre Uhr-App ihn ein und klingelt auch bei geschlossener App.`,
-            [{ icon: '⏰', title: `Wecker ${hh}:${mm} stellen`, subtitle: 'Tippen: Ihre Uhr-App stellt ihn ein', href: nativeClockUrl('alarm', { hour: at.hour, minute: at.minute }) }]);
+            [clockCard('⏰', `Wecker ${hh}:${mm} stellen`, 'Tippen: Ihre Uhr-App stellt ihn ein', nativeClockUrl('alarm', { hour: at.hour, minute: at.minute }))]);
     }
 
     // Abbrechen: "Timer abbrechen", "Stopp den Timer", "Lösche den Timer für die Nudeln"
@@ -221,15 +234,17 @@ function handleTimerCommand(text) {
     activeTimers.push({ id: Date.now() + Math.floor(Math.random() * 1000), label, endAt: Date.now() + ms, createdAt: Date.now(), ringing: false, ringCount: 0, nextRingAt: 0 });
     saveTimers(); updateTimerChip();
     return done(`Timer gestellt: ${speakableDuration(ms)}${label ? ' für ' + label : ''}. Tippen Sie auf die Karte, dann klingelt er auch bei geschlossener App.`,
-        [{ icon: '⏱', title: `Timer ${speakableDuration(ms)}${label ? ' · ' + label : ''} in der Uhr-App`, subtitle: 'Tippen: klingelt auch bei geschlossener App', href: nativeClockUrl('timer', { seconds: ms / 1000, label }) }]);
+        [clockCard('⏱', `Timer ${speakableDuration(ms)}${label ? ' · ' + label : ''} in der Uhr-App`, 'Tippen: klingelt auch bei geschlossener App', nativeClockUrl('timer', { seconds: ms / 1000, label }))]);
 }
 
 /* ---------- Ablauf, Anzeige ---------- */
 function ringTimer(t, now) {
     t.ringCount = (t.ringCount || 0) + 1;
     const what = t.label ? `${t.label}: Die Zeit ist um.` : 'Der Timer ist abgelaufen.';
-    if (t.ringCount === 1) speak(`${what} Sagen Sie Stopp, wenn ich still sein soll.`);
-    else speak(`${what}`);
+    // Nach der Ansage hört Jarvis kurz zu, damit "Stopp" ankommt (sonst wäre das Mikrofon aus); alternativ auf den Zähler tippen
+    const listenForStop = () => { try { if (typeof startListening === 'function') startListening(true, 8000); } catch (e) {} };
+    if (t.ringCount === 1) speak(`${what} Sagen Sie Stopp oder tippen Sie auf den Zähler.`, listenForStop);
+    else speak(`${what}`, listenForStop);
     try { if (navigator.vibrate) navigator.vibrate([300, 150, 300]); } catch (e) {}
     try { if ('Notification' in window && Notification.permission === 'granted') new Notification('Timer', { body: t.label || 'Die Zeit ist um.', icon: './dino.png' }); } catch (e) {}
     if (t.ringCount >= TIMER_RING_MAX) t.finished = true;
@@ -260,7 +275,14 @@ function ensureTimerChip() {
     if (!anchor || !anchor.parentNode) return null;
     el = document.createElement('div');
     el.id = 'timerChip';
-    el.className = 'hidden px-4 py-1.5 rounded-full border border-[rgba(255,154,68,.45)] bg-[#0a1621]/80 text-[#ff9a44] text-[12px] font-mono tracking-wider';
+    el.className = 'hidden px-4 py-1.5 rounded-full border border-[rgba(255,154,68,.45)] bg-[#0a1621]/80 text-[#ff9a44] text-[12px] font-mono tracking-wider cursor-pointer';
+    // Tippen auf den Zähler beendet einen klingelnden Timer (auch dann, wenn die Spracherkennung nichts versteht)
+    el.addEventListener('click', () => {
+        if (anyTimerRinging()) {
+            stopRingingTimers();
+            try { if (typeof interruptSpeaking === 'function') interruptSpeaking(); } catch (e) {}
+        }
+    });
     anchor.parentNode.insertBefore(el, anchor.nextSibling);
     return el;
 }
@@ -268,13 +290,19 @@ function ensureTimerChip() {
 function updateTimerChip() {
     const el = ensureTimerChip();
     if (!el) return;
+    const ringing = activeTimers.filter(t => t.ringing);
+    if (ringing.length) {
+        el.textContent = `🔔 ${ringing[0].label || 'Timer'} abgelaufen · Antippen zum Stoppen`;
+        el.classList.remove('hidden');
+        return;
+    }
     const waiting = activeTimers.filter(t => !t.ringing).sort((a, b) => a.endAt - b.endAt);
     if (waiting.length === 0) { el.classList.add('hidden'); return; }
     const t = waiting[0];
     const left = Math.max(0, Math.round((t.endAt - Date.now()) / 1000));
-    const mm = String(Math.floor(left / 60)).padStart(2, '0'), ss = String(left % 60).padStart(2, '0');
+    const mm = String(Math.floor((left % 3600) / 60)).padStart(2, '0'), ss = String(left % 60).padStart(2, '0');
     const hh = Math.floor(left / 3600);
-    const clock = hh > 0 ? `${hh}:${String(Math.floor((left % 3600) / 60)).padStart(2, '0')}:${ss}` : `${mm}:${ss}`;
+    const clock = hh > 0 ? `${hh}:${mm}:${ss}` : `${String(Math.floor(left / 60)).padStart(2, '0')}:${ss}`;
     el.textContent = `⏱ ${clock}${t.label ? ' ' + t.label : ''}${waiting.length > 1 ? ' (+' + (waiting.length - 1) + ')' : ''}`;
     el.classList.remove('hidden');
 }
