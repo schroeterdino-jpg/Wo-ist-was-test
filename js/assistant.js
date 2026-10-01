@@ -145,6 +145,9 @@ async function sendToGroqSmart(text, opts = {}) {
             ? ai.actions.filter(a => a && typeof a === 'object')
             : [ai];
 
+        // Fahrziele, die ein gespeicherter Kontakt sind ("zu Alyssa", "zu meiner Tochter"), werden durch dessen Adresse ersetzt
+        resolveContactsInActions(actions, text);
+
         // Fragen nach Fernsehen, Kino usw. werden IMMER im Internet nachgeschlagen, auch wenn die KI behauptet, sie hätte keinen Zugriff
         if (WEB_TRIGGER.test(text) && !actions.some(a => a.type === 'web_lookup') &&
             actions.every(a => !a.type || a.type === 'chat' || a.type === 'memory_search')) {

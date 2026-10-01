@@ -192,3 +192,79 @@ function resolvePersonalPlace(dest) {
     }
     return raw;
 }
+
+
+/* ============================================================
+   KONTAKTE ALS FAHRZIEL: "Ich möchte zu Alyssa fahren" -> die gespeicherte Adresse des Kontakts
+   Vorher ging der bloße Name an Google Maps, und Maps fand irgendein Geschäft mit diesem Namen (z.B. eine Praxis).
+   Jetzt wird erst in den Kontakten nachgesehen; nur was kein Kontakt ist (z.B. "Penny in Schwarzenbek"), wird weiter gesucht.
+   ============================================================ */
+
+/* Kontakte als einheitliche Liste [{ name, address }], egal ob savedContacts eine Liste oder eine Zuordnung ist */
+function contactList() {
+    const raw = (typeof savedContacts !== 'undefined') ? savedContacts : null;
+    if (!raw) return [];
+    const pick = (v, fallbackName) => {
+        if (!v || typeof v !== 'object') return { name: fallbackName || '', address: '' };
+        return { name: v.name || v.key || v.label || fallbackName || '', address: v.address || v.adresse || v.addr || v.ort || v.location || '' };
+    };
+    if (Array.isArray(raw)) return raw.map(v => pick(v, ''));
+    return Object.keys(raw).map(k => pick(raw[k], k));
+}
+
+/* Namen vergleichbar machen: ohne Satzzeichen/Umlaut-Unterschiede; die Schreibweisen, die die Spracherkennung durcheinanderbringt,
+   und gängige Anreden werden gleichgesetzt ("Mutter" = "Mama", "Alicia" = "Alyssa") */
+function contactKey(s) {
+    // Erst in Wörter zerlegen und führende Füllwörter entfernen ("zu meiner Tochter" -> "Tochter"); zusammengeklebt wäre "zumeiner" nicht mehr trennbar
+    const filler = new Set(['zu', 'zur', 'zum', 'nach', 'bei', 'von', 'vom', 'meiner', 'meinem', 'meinen', 'meine', 'mein', 'der', 'dem', 'die', 'den']);
+    const words = String(s || '').toLowerCase().split(/\s+/).filter(Boolean);
+    while (words.length > 1 && filler.has(words[0])) words.shift();
+    let k = plainKey(words.join(' '));
+    k = k.replace(/alicia|alissa|alisha|alysa/g, 'alyssa');
+    return { mutter: 'mama', mutti: 'mama', mami: 'mama', mum: 'mama', vater: 'papa', vati: 'papa' }[k] || k;
+}
+
+/* Hat die Adresse keinen Ort, wird der Ort der Heimatadresse ergänzt - sonst muss der Kartendienst raten, welcher
+   "Hans-Dewitz-Ring" gemeint ist. Adressen mit Komma oder Postleitzahl bleiben unberührt. */
+function withDefaultRegion(address) {
+    const addr = String(address || '').trim();
+    if (!addr || /\d{5}/.test(addr) || addr.includes(',')) return addr;
+    const home = (typeof homeAddress === 'string') ? homeAddress : (homeAddress && (homeAddress.address || homeAddress.text || homeAddress.label)) || '';
+    if (!home) return addr;
+    const plz = home.match(/\b(\d{5})\s+([A-ZÄÖÜ][\wäöüß.-]*(?:\s+[A-ZÄÖÜ][\wäöüß.-]*)?)/);
+    if (plz) return `${addr}, ${plz[1]} ${plz[2]}`;
+    const parts = home.split(',').map(x => x.trim()).filter(Boolean);
+    if (parts.length > 1 && !/\d/.test(parts[parts.length - 1])) return `${addr}, ${parts[parts.length - 1]}`;
+    return addr;
+}
+
+/* Gibt die Adresse des Kontakts zurück, dessen Name dem Ziel entspricht; sonst null (dann ist es ein normaler Ort) */
+function resolveContactDestination(dest) {
+    const d = contactKey(dest);
+    if (!d) return null;
+    const hit = contactList().find(c => c.address && contactKey(c.name) === d);
+    return hit ? withDefaultRegion(hit.address) : null;
+}
+
+/* Wendet das auf die Aktionen der KI an: Fahrziele, die ein Kontakt sind, werden durch die Adresse ersetzt.
+   Fehlt eine Fahr-Aktion ganz ("Ich möchte zu Alyssa fahren" nur als Antwort), wird eine Fahrzeit-Abfrage ergänzt. */
+function resolveContactsInActions(actions, text) {
+    const fields = { navigate: ['nav_to', 'nav_from'], travel_time: ['travel_destination'], bahn: ['bahn_to', 'bahn_from'], fuel_route: ['fuel_destination'] };
+    actions.forEach(a => {
+        (fields[a.type] || []).forEach(f => {
+            if (!a[f]) return;
+            const addr = resolveContactDestination(a[f]);
+            if (addr) a[f] = addr;
+        });
+    });
+
+    const hasRoute = actions.some(a => fields[a.type]);
+    const onlyChat = actions.every(a => !a.type || a.type === 'chat' || a.type === 'memory_search');
+    if (!hasRoute && onlyChat && /\b(fahren|fahr|hinfahren|hin\s*fahren|navigier\w*|bring mich|weg zu|route zu)\b/i.test(String(text || ''))) {
+        const t = String(text || '');
+        const hit = contactList().find(c => c.address && contactKey(c.name) &&
+            new RegExp('\\b(?:zu|nach|bei)\\s+(?:meiner\\s+|meinem\\s+|meinen\\s+)?' + String(c.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(t));
+        if (hit) { actions.length = 0; actions.push({ type: 'travel_time', travel_destination: withDefaultRegion(hit.address) }); }
+    }
+    return actions;
+}
