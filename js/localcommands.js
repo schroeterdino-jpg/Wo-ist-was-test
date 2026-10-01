@@ -307,7 +307,6 @@ async function handleBundesligaQuery(teamNamePart) {
 }
 
 function handleLocalCommandInner(text) {
-    if (typeof handleTimerCommand === 'function' && handleTimerCommand(text)) return true;
     if (typeof handleTankbuchCommand === 'function' && handleTankbuchCommand(text)) return true;
     if (handleGreeting(text)) return true;
     if (typeof handlePronunciationCommand === 'function' && handlePronunciationCommand(text)) return true;
