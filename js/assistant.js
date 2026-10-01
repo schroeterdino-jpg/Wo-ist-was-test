@@ -503,6 +503,32 @@ function recurrenceFromText(text) {
     return null;
 }
 
+/* ---------- Begrüßung: "Hallo Jarvis", "Guten Abend", "Na Jarvis" ----------
+   Beantwortet J.A.R.V.I.S. selbst, ohne Umweg über die KI: sofort, ohne "Einen Moment" und mit der Anrede,
+   die wirklich zur Uhrzeit passt (die KI hat nachts manchmal "Guten Tag" gesagt). */
+function isGreetingOnly(text) {
+    const t = String(text || '').toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!t || t.length > 30) return false;
+    return /^(?:(?:na|hey|hi|hallo|moin|servus|guten morgen|guten tag|guten abend|gute nacht)\s*)+(?:jarvis)?$/.test(t) || t === 'jarvis';
+}
+
+function greetingForHour(hour) {
+    if (hour >= 5 && hour < 11) return 'Guten Morgen';
+    if (hour >= 11 && hour < 18) return 'Guten Tag';
+    if (hour >= 18 && hour < 23) return 'Guten Abend';
+    return pickRandom(['Noch wach?', 'Auch so spät noch auf?']);   // nachts: kein "Guten Tag" und kein "Gute Nacht" zur Begrüßung
+}
+
+function handleGreeting(text) {
+    if (!isGreetingOnly(text)) return false;
+    const hour = parseInt(new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin', hour: 'numeric', hour12: false }), 10);
+    const greet = greetingForHour(isNaN(hour) ? new Date().getHours() : hour);
+    const closing = pickRandom(['Wie kann ich helfen?', 'Was kann ich für Sie tun?', 'Ich höre.', 'Womit kann ich dienen?']);
+    const named = Math.random() < 0.33 && !/[?]$/.test(greet);
+    speak(`${greet}${named ? ', ' + currentUserName : ''}. ${closing}`.replace('?.', '?'), continueConversation);
+    return true;
+}
+
 /* Zahlen als Wort oder Ziffer ("zehn", "10", "eine") -> Zahl; sonst null */
 function parseGermanNumber(w) {
     const word = String(w || '').toLowerCase().trim();
@@ -640,7 +666,7 @@ async function sendToGroqSmart(text, opts = {}) {
     // die neutrale Zwischenansage noch unpassend - niemand braucht "einen Moment", um sowas zu beantworten.
     // Dafür komplett weggelassen, auch wenn die Antwort mal etwas länger braucht (z.B. durch die
     // Gedächtnis-Suche im Hintergrund) - dann wartet man eben kurz in Stille statt eine seltsame Floskel zu hören.
-    const SMALLTALK_NO_ACK = /^(na|hey|hi|hallo|moin)?[,\s]*(wie geht('?s| es)( dir| ihnen)?[?!.]?|alles (klar|gut|ok|okay)( bei dir| bei ihnen)?[?!.]?|was machst du( gerade| so)?[?!.]?|wie läuft'?s( bei dir)?[?!.]?)\s*$/i;
+    const SMALLTALK_NO_ACK = /^(?:(?:na|hey|hi|hallo|moin|servus)[,\s]*)?(?:(?:guten (?:morgen|tag|abend)|gute nacht)[,\s]*)?(?:jarvis[,\s]*)?(?:wie geht(?:'?s| es)(?: dir| ihnen)?|alles (?:klar|gut|ok|okay)(?: bei dir| bei ihnen)?|was machst du(?: gerade| so)?|wie läuft'?s(?: bei dir)?)?[?!.\s]*$/i;
     const ackTimer = SMALLTALK_NO_ACK.test(text.trim()) ? null : setTimeout(() => {
         if (opts.collect) return;   // im Protokoll wird nicht zwischendurch gesprochen
         speakAck(pickRandom([
@@ -1646,6 +1672,7 @@ async function handleBundesligaQuery(teamNamePart) {
 }
 
 function handleLocalCommandInner(text) {
+    if (handleGreeting(text)) return true;
     if (typeof handlePronunciationCommand === 'function' && handlePronunciationCommand(text)) return true;
     if (isSystemCheckCommand(text)) { runSystemCheckSpoken(); return true; }
     // Wichtige Erinnerungen: "erledigt" beendet das Nachfassen, "in zehn Minuten nochmal" verschiebt sie
