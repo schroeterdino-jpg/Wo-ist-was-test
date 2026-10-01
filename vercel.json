@@ -1,6 +1,5 @@
 {
-  "functions": {
-    "api/groq.js": { "maxDuration": 60 },
-    "api/overpass.js": { "maxDuration": 45 }
-  }
+  "crons": [
+    { "path": "/api/memory?action=reflect", "schedule": "0 3 * * *" }
+  ]
 }
