@@ -268,12 +268,23 @@
                     <div class="p-4 space-y-3">
                         <div>
                             <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Sprachausgabe:</label>
-                            <select id="ttsEngineSelect" onchange="setTtsEngine(this.value); document.getElementById('edgeVoiceRow').classList.toggle('hidden', this.value === 'browser')" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                                <option value="auto">Natürlicher (Cloud-Stimme, fällt bei Problemen automatisch auf Handy-Stimme zurück)</option>
+                            <select id="ttsEngineSelect" onchange="setTtsEngine(this.value); document.getElementById('edgeVoiceRow').classList.toggle('hidden', this.value !== 'edge'); document.getElementById('openaiVoiceRow').classList.toggle('hidden', this.value !== 'openai')" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                                <option value="openai">Sehr natürlich (OpenAI, kostenpflichtig - fällt bei Problemen automatisch auf die kostenlose Cloud-Stimme zurück)</option>
+                                <option value="edge">Natürlicher (kostenlose Cloud-Stimme, fällt bei Problemen automatisch auf Handy-Stimme zurück)</option>
                                 <option value="browser">Nur Handy-Stimme (Browser)</option>
                             </select>
                         </div>
-                        <div id="edgeVoiceRow">
+                        <div id="openaiVoiceRow">
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">OpenAI-Stimme:</label>
+                            <select id="openaiVoiceSelect" onchange="setOpenaiVoice(this.value)" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                                <option value="onyx">Onyx (männlich, tief)</option>
+                                <option value="echo">Echo (männlich)</option>
+                                <option value="alloy">Alloy (neutral)</option>
+                                <option value="nova">Nova (weiblich)</option>
+                                <option value="shimmer">Shimmer (weiblich, hell)</option>
+                            </select>
+                        </div>
+                        <div id="edgeVoiceRow" class="hidden">
                             <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Cloud-Stimme:</label>
                             <select id="edgeVoiceSelect" onchange="setEdgeVoice(this.value)" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
                                 <option value="de-DE-ConradNeural">Conrad (männlich)</option>
