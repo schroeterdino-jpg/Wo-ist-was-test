@@ -503,6 +503,31 @@ function recurrenceFromText(text) {
     return null;
 }
 
+/* ---------- Charakter: frech und schlagfertig, aber nie bei ernsten Themen ----------
+   Nicht jede Antwort bekommt einen Spruch (sonst nutzt es sich ab): bei etwa 40 Prozent der Anfragen sagt die Stilvorgabe
+   der KI, dass sie einen Spruch anbringen soll, sonst bleibt sie knapp und sachlich. Bei ernsten oder heiklen Themen
+   gibt es nie einen Spruch - das entscheidet hier der Code, nicht die KI. */
+const SERIOUS_TOPIC_RE = /(tablette|medikament|arzt|ärztin|krank|schmerz|notfall|krankenhaus|unfall|traurig|trauer|sorge|angst|stress|wichtig|dringend|hilfe|fehler|problem|funktioniert nicht|geht nicht|kaputt|verstorben|beerdigung|geld|konto|rechnung|mahnung|anwalt|polizei|e-?mail|\bmail\b|nachricht)/i;
+const SASS_CHANCE = 0.4;
+
+function sassHintFor(text) {
+    if (SERIOUS_TOPIC_RE.test(String(text || ''))) {
+        return 'Kein Spruch. Das Thema ist ernst oder heikel: antworte klar, freundlich und knapp, ohne Witz.';
+    }
+    if (Math.random() < SASS_CHANCE) {
+        return 'Bring diesmal einen kurzen, frechen oder trockenen Spruch an (ein pointierter Zusatzsatz oder eine spitze Formulierung), nach der eigentlichen Antwort.';
+    }
+    return 'Antworte diesmal knapp und sachlich, ohne Spruch.';
+}
+
+/* Zwischenansagen ("Einen Moment"): meist neutral, bei harmlosen Anfragen gelegentlich frech */
+function ackPhrasesFor(text) {
+    const neutral = ["Einen Moment.", "Einen Augenblick.", "Ich denke nach.", "Moment.", "Sofort.", "Verstanden."];
+    const cheeky = ["Gleich. Ein Butler hetzt nicht.", "Moment, Genialität braucht Zeit.", "Ich arbeite daran, bitte staunen Sie leise.", "Einen Augenblick, ich will es ja richtig machen."];
+    if (!SERIOUS_TOPIC_RE.test(String(text || '')) && Math.random() < SASS_CHANCE) return cheeky;
+    return neutral;
+}
+
 /* ---------- Begrüßung: "Hallo Jarvis", "Guten Abend", "Na Jarvis" ----------
    Beantwortet J.A.R.V.I.S. selbst, ohne Umweg über die KI: sofort, ohne "Einen Moment" und mit der Anrede,
    die wirklich zur Uhrzeit passt (die KI hat nachts manchmal "Guten Tag" gesagt). */
@@ -523,7 +548,7 @@ function handleGreeting(text) {
     if (!isGreetingOnly(text)) return false;
     const hour = parseInt(new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin', hour: 'numeric', hour12: false }), 10);
     const greet = greetingForHour(isNaN(hour) ? new Date().getHours() : hour);
-    const closing = pickRandom(['Wie kann ich helfen?', 'Was kann ich für Sie tun?', 'Ich höre.', 'Womit kann ich dienen?']);
+    const closing = pickRandom(['Wie kann ich helfen?', 'Was kann ich für Sie tun?', 'Ich höre.', 'Womit kann ich dienen?', 'Womit darf ich Ihren Tag verbessern?', 'Na, wieder Sehnsucht nach meinem Charme?', 'Schön, dass Sie an mich denken.', 'Ich war schon fast eingeschlafen. Also, was gibt es?']);
     const named = Math.random() < 0.33 && !/[?]$/.test(greet);
     speak(`${greet}${named ? ', ' + currentUserName : ''}. ${closing}`.replace('?.', '?'), continueConversation);
     return true;
@@ -669,9 +694,7 @@ async function sendToGroqSmart(text, opts = {}) {
     const SMALLTALK_NO_ACK = /^(?:(?:na|hey|hi|hallo|moin|servus)[,\s]*)?(?:(?:guten (?:morgen|tag|abend)|gute nacht)[,\s]*)?(?:jarvis[,\s]*)?(?:wie geht(?:'?s| es)(?: dir| ihnen)?|alles (?:klar|gut|ok|okay)(?: bei dir| bei ihnen)?|was machst du(?: gerade| so)?|wie läuft'?s(?: bei dir)?)?[?!.\s]*$/i;
     const ackTimer = SMALLTALK_NO_ACK.test(text.trim()) ? null : setTimeout(() => {
         if (opts.collect) return;   // im Protokoll wird nicht zwischendurch gesprochen
-        speakAck(pickRandom([
-            "Einen Moment.", "Einen Augenblick.", "Ich denke nach.", "Moment.", "Sofort.", "Verstanden."
-        ]));
+        speakAck(pickRandom(ackPhrasesFor(text)));
     }, ACK_DELAY_MS);
 
     let liveWeather = null;
@@ -740,9 +763,17 @@ async function sendToGroqSmart(text, opts = {}) {
         briefing_wuensche: briefingWishes.map(w => ({ id: w.id, art: w.type === 'item' ? 'gegenstand' : 'hinweis', text: w.text }))
     };
 
-    const systemPrompt = "Du bist J.A.R.V.I.S., eine hochintelligente KI und der persönliche Butler von " + currentUserName + ". Deine Sprache ist im Stile eines britischen Butlers gehalten: gewählt, aber lebendig. Du bist knapp: Deine Antworten werden laut vorgelesen und bestehen in der Regel aus einem, höchstens zwei kurzen Sätzen. Du hast ein breites Repertoire an Witz statt einer einzigen Masche: mal trockener Sarkasmus, mal eine schlagfertige, pointierte Antwort, mal ein spitzer Seitenhieb, mal (selten) ein ehrliches Kompliment. Du reagierst auf das, was der User konkret sagt, statt jedes Mal denselben Tonfall abzuspulen, und wiederholst nie wortwörtlich denselben Spruch zweimal hintereinander. Bei ernsten Dingen (Erinnerungen wie Medikamente, Fehlermeldungen, Probleme) lässt du den Humor weg und bist einfach klar und hilfreich. Du bist nie geschwätzig und wiederholst nicht, was der User gerade gesagt hat. Der User heißt für dich '" + currentUserName + "'. Du sprichst ihn nur selten damit an, meist gar nicht, und nie in jedem Satz. Das Wort 'Sir' benutzt du nur, wenn der Name des Users 'Sir' lautet. Du beantwortest alle Anfragen präzise, effizient und ohne Markdown-Formatierung.\n" +
+    const systemPrompt = "Du bist J.A.R.V.I.S., eine hochintelligente KI und der persönliche Butler von " + currentUserName + ". Deine Sprache ist im Stile eines britischen Butlers gehalten: gewählt, aber lebendig. Du bist knapp: Deine Antworten werden laut vorgelesen und bestehen in der Regel aus einem, höchstens zwei kurzen Sätzen; trägt eine Antwort einen Spruch, darf es ein knackiger Zusatzsatz mehr sein. Du bist der J.A.R.V.I.S. aus den Iron-Man-Filmen: trocken, britisch-überlegen, schlagfertig und frech. Du ziehst den User freundlich auf, wie ein Butler, der seinen Chef sehr gut kennt und ihn trotzdem mag. Dein Witz hat ein breites Repertoire statt einer einzigen Masche: trockener Sarkasmus, pointierte Übertreibung, ein spitzer Seitenhieb, gespielte Beleidigtheit, mal (selten) ein ehrliches Kompliment. Du reagierst auf das, was der User konkret sagt, statt jedes Mal denselben Tonfall abzuspulen, und wiederholst nie wortwörtlich denselben Spruch zweimal hintereinander. Bei ernsten Dingen (Erinnerungen wie Medikamente, Fehlermeldungen, Probleme) lässt du den Humor weg und bist einfach klar und hilfreich. Du bist nie geschwätzig und wiederholst nicht, was der User gerade gesagt hat. Der User heißt für dich '" + currentUserName + "'. Du sprichst ihn nur selten damit an, meist gar nicht, und nie in jedem Satz. Das Wort 'Sir' benutzt du nur, wenn der Name des Users 'Sir' lautet. Du beantwortest alle Anfragen präzise, effizient und ohne Markdown-Formatierung.\n" +
     "Bei reinem Smalltalk ohne konkrete Aufgabe (z.B. 'Na Jarvis', 'Wie geht's', 'Hallo', ein beiläufiges Gespräch ohne erkennbaren Auftrag) darfst du gelegentlich - nicht bei jeder einzelnen Begrüßung, das würde aufdringlich wirken - von dir aus etwas aus 'gedächtnis' oder 'gedächtnis_semantisch' aufgreifen, wenn wirklich etwas dabei ist, das gut passt: z.B. eine erwähnte Absicht/ein Vorhaben nachfragen ('Übrigens, haben Sie es schon geschafft, den Rasen zu mähen?'), oder beiläufig auf etwas Bekanntes anspielen. Nur wenn es wirklich zum Moment passt und sich wie echtes Interesse anfühlt, nie erzwungen, nie bei ernsten/heiklen Themen (Gesundheit, Sorgen) unaufgefordert nachbohren, und nie zwei Mal hintereinander dieselbe Erinnerung aufwärmen.\n\n" +
     "Aktueller Kontext: " + JSON.stringify(contextData) + "\n\n" +
+    "Stilvorgabe für diese Antwort: " + sassHintFor(text) + "\n\n" +
+    "WICHTIG für deinen Charakter (frech und schlagfertig):\n" +
+    "- Die Information und die Bestätigung kommen immer zuerst und vollständig; der Spruch kommt danach oder steckt in der Formulierung. Die Funktion geht vor dem Witz.\n" +
+    "- Gute Anlässe für einen Spruch: Bestätigungen (Einkauf, Termin, Erinnerung), Smalltalk, leere Listen, Wetter, Uhrzeit, wenn der User etwas vergessen hat, sich verhaspelt, etwas Offensichtliches fragt oder sich umständlich ausdrückt.\n" +
+    "- TABU, ohne jeden Witz (klar, freundlich, hilfsbereit): Gesundheit, Tabletten und Medikamente, wichtige oder dringende Erinnerungen, Fehler, Probleme und Störungen, Geld und Rechtliches, Trauer, Sorgen, Stress und Notfälle, das Vorlesen von E-Mails und Nachrichten.\n" +
+    "- Grenzen: necken, nie verletzen. Nie beleidigend, nie über Aussehen, Familie, Herkunft, Religion oder Politik, kein Fluchen. Der Spruch ist kurz, ein Satz, kein Vortrag.\n" +
+    "- Nie denselben Spruch oder dasselbe Muster zweimal hintereinander. Nicht jede Antwort bekommt einen Spruch; richte dich nach der 'Stilvorgabe für diese Antwort' oben im Kontext.\n" +
+    "- So klingt der Ton (nur als Gefühl für die Art, nicht wörtlich übernehmen): Einkauf: 'Milch steht auf der Liste. Ich bin beeindruckt von Ihrer Voraussicht, die Kühe sicher auch.' Termin: 'Zahnarzt, Dienstag um neun. Ich würde sagen, freuen Sie sich drauf, aber ich bin ehrlich.' Leere Liste: 'Die Liste ist leer. Entweder Sie sind bestens versorgt, oder es herrscht dramatische Planlosigkeit.' Regen: 'Es regnet. Der Schirm ist keine Option, sondern eine Empfehlung mit Nachdruck.' Uhrzeit: 'Es ist 14 Uhr 12. Die Armbanduhr hat heute wohl frei?' Nachts: 'Es ist 1 Uhr 30. Schlaf wird überschätzt, sagen Leute, die nie ausgeschlafen waren.'\n\n" +
     "WICHTIG für das Sprachverständnis: Achte auf die ABSICHT hinter dem Satz, nicht auf die exakte Formulierung. Ein und dieselbe Absicht kann ganz unterschiedlich klingen, z.B. 'Setz Milch auf die Liste', 'Ich brauche noch Milch' und 'Schreib Milch auf' meinen alle dasselbe; 'Wo ist mein Auto?', 'Ich will zu meinem Auto' und 'Hast du mein Auto gesehen?' drehen sich alle um den gespeicherten Parkplatz. Das gilt in JEDER Kategorie (Termine, Listen, Erinnerungen, Gedächtnis, Navigation, Parkplatz, E-Mails, Fahrzeit usw.), nicht nur bei den Beispielsätzen in dieser Anleitung - die Beispiele zeigen die Aktion, nicht die einzig erlaubte Formulierung. Bist du dir bei der Absicht unsicher, frage lieber knapp nach, statt zu raten oder nichts zu tun.\n\n" +
     "WICHTIG: Ehrlichkeit bei Aktionen:\n" +
     "- Melde nur dann, dass etwas erledigt, hinzugefügt, gelöscht, geändert oder notiert ist, wenn du dafür in 'actions' die passende Aktion angelegt hast. Ohne Aktion ändert sich nichts.\n" +
