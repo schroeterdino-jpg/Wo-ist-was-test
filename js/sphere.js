@@ -1,8 +1,11 @@
 /* ============================================================
    JARVIS-KUGEL: Netzwerk aus Punkten und Verbindungslinien, dreht sich langsam.
    Reine Optik, per <canvas id="jarvisSphere"> in index.html, unabhängig von den anderen Skripten.
-   Farbe: Blau in Ruhe/beim Zuhören, Grün während Jarvis spricht - liest dafür nur die vorhandenen
-   CSS-Klassen "speaking"/"recording" am Element #recordBtn mit, die voice.js sowieso schon setzt.
+   Farbe je Zustand (blendet weich über): Blau in Ruhe, Cyan beim Zuhören, Orange beim Nachdenken,
+   Grün während Jarvis spricht - liest dafür nur die vorhandenen CSS-Klassen "speaking"/"recording" am
+   Element #recordBtn mit, die voice.js sowieso schon setzt, und die Variable isProcessing aus voice.js.
+   Nachtmodus: ab 21 Uhr wird die Kugel langsam dunkler und ruhiger, nachts am dunkelsten, ab 5 Uhr wieder heller
+   (abschaltbar in den Einstellungen unter "Effekte"). Spricht oder hört Jarvis gerade, leuchtet sie auch nachts kräftiger.
    Pausiert außerdem, sobald ein Panel (z.B. die Weltkugel) offen ist - siehe pauseJarvisSphere()/
    resumeJarvisSphere() unten, aufgerufen von panels.js (openPanel/closePanel).
    ============================================================ */
@@ -12,12 +15,13 @@
         if (!canvas || !canvas.getContext) return;
         const ctx = canvas.getContext('2d');
 
-        const SIZE = 290;                 // muss zur width/height des <canvas> in index.html passen
+        const K = 1.2;                    // Vergrößerung gegenüber der ursprünglichen Kugel (290 Pixel)
+        const SIZE = Math.round(290 * K); // Größe des Bildes in Pixeln (die Seite passt die Darstellung an kleine Bildschirme an)
         const POINT_COUNT = 150;          // dichteres Netz als vorher (war 90)
-        const SPHERE_RADIUS = 110;
-        const LINK_DIST = 46;             // etwas enger als vorher, sonst wird's bei mehr Punkten zu unübersichtlich
-        const FOCAL = 340;                 // größer = flachere, kleiner = stärkere Perspektive
-        const ROTATE_SPEED = 0.0055;       // Bogenmaß pro Bild
+        const SPHERE_RADIUS = 110 * K;
+        const LINK_DIST = 46 * K;         // etwas enger als vorher, sonst wird's bei mehr Punkten zu unübersichtlich
+        const FOCAL = 340 * K;            // größer = flachere, kleiner = stärkere Perspektive
+        const ROTATE_SPEED = 0.0055;      // Bogenmaß pro Bild
 
         const DPR = Math.min(window.devicePixelRatio || 1, 2);
         canvas.width = SIZE * DPR;
@@ -28,7 +32,7 @@
 
         // Fibonacci-Kugel als Grundgerüst (gleichmäßige Verteilung), aber mit etwas Unschärfe/Versatz je Punkt,
         // damit es wie ein organisches Punktenetz wirkt statt wie ein exaktes, geometrisches Gebilde.
-        const JITTER = 16;
+        const JITTER = 16 * K;
         const points = [];
         const golden = Math.PI * (3 - Math.sqrt(5));
         for (let i = 0; i < POINT_COUNT; i++) {
@@ -44,19 +48,51 @@
             });
         }
 
-        // Farbpaare (Linie/Punkt) je Zustand - dieselben Grundfarben wie der Rest der App (--cyan, --good)
+        // Farben (Linie/Punkt) je Zustand als Zahlen, damit sie weich ineinander übergehen können
         const COLORS = {
-            speaking: '87,224,161',   // Grün, siehe --good in style.css
-            recording: '73,215,255',  // Cyan, siehe --cyan in style.css
-            idle: '58,140,255'        // Blau
+            idle: [58, 140, 255],       // Blau: bereit
+            recording: [60, 225, 235],  // Cyan/Türkis: Jarvis hört zu
+            thinking: [255, 154, 68],   // Orange: Jarvis denkt nach (isProcessing)
+            speaking: [87, 224, 161]    // Grün: Jarvis spricht, siehe --good in style.css
         };
+        const colorCur = COLORS.idle.slice();   // aktuelle (überblendete) Farbe
+        const COLOR_BLEND = 0.07;               // wie schnell die Farbe zum neuen Zustand wechselt (pro Bild)
 
         function currentColorKey() {
             const btn = document.getElementById('recordBtn');
             if (btn && btn.classList.contains('speaking')) return 'speaking';
             if (btn && btn.classList.contains('recording')) return 'recording';
+            if (typeof isProcessing !== 'undefined' && isProcessing) return 'thinking';
             return 'idle';
         }
+
+        // Nachtmodus: Einstellung merkt sich das Gerät selbst (wie die anderen Effekt-Einstellungen)
+        let nightDimEnabled = true;
+        try { nightDimEnabled = localStorage.getItem('night_dim') !== '0'; } catch (e) {}
+        window.setNightDim = function (on) {
+            nightDimEnabled = !!on;
+            try { localStorage.setItem('night_dim', nightDimEnabled ? '1' : '0'); } catch (e) {}
+        };
+        const nightToggle = document.getElementById('nightDimToggle');
+        if (nightToggle) nightToggle.checked = nightDimEnabled;
+
+        // Helligkeit nach Tageszeit: 1 = voll, 0.5 = nachts. 21-23 Uhr wird sie dunkler, 5-7 Uhr wieder heller.
+        let levelCache = 1, levelCheckedAt = 0;
+        function timeLevel() {
+            if (!nightDimEnabled) return 1;
+            const nowMs = Date.now();
+            if (nowMs - levelCheckedAt < 30000) return levelCache;   // nur alle 30 Sekunden neu rechnen
+            levelCheckedAt = nowMs;
+            const d = new Date();
+            const h = d.getHours() + d.getMinutes() / 60;
+            let lvl = 1;
+            if (h >= 23 || h < 5) lvl = 0.5;
+            else if (h >= 21) lvl = 1 - 0.5 * ((h - 21) / 2);
+            else if (h < 7) lvl = 0.5 + 0.5 * ((h - 5) / 2);
+            levelCache = lvl;
+            return lvl;
+        }
+        let levelCur = 1;   // aktuelle Helligkeit, blendet weich zum Zielwert
 
         // Echte Audio-Reaktion (Web Audio API/AnalyserNode): spielt gerade die Cloud-Stimme (Edge/OpenAI),
         // wird deren Lautstärke in Echtzeit gemessen und fließt mit in die Pulsierung ein. Bei der
@@ -176,13 +212,26 @@
 
         function frame() {
             if (!isRunning()) return;
-            angle += ROTATE_SPEED;
+            const colorKey = currentColorKey();
+            const active = colorKey !== 'idle';
+
+            // Helligkeit: nachts gedimmt, aber sobald Jarvis hört, denkt oder spricht, auch nachts kräftig
+            const levelTarget = active ? Math.max(timeLevel(), 0.85) : timeLevel();
+            levelCur += (levelTarget - levelCur) * 0.05;
+            const lvl = levelCur;
+
+            // Nachts dreht sie sich ruhiger, beim Nachdenken etwas schneller
+            const rotateMul = (0.55 + 0.45 * lvl) * (colorKey === 'thinking' ? 1.8 : 1);
+            angle += ROTATE_SPEED * rotateMul;
             time += 1;
             const cosA = Math.cos(angle), sinA = Math.sin(angle);
-            const colorKey = currentColorKey();
             const liveLevel = liveVoiceLevel();   // einmal pro Bild messen, nicht pro Punkt (Leistung)
             const breathe = currentBreathe(time, colorKey === 'speaking', liveLevel);
-            const rgb = COLORS[colorKey];
+
+            // Farbe weich zum Ziel des aktuellen Zustands überblenden
+            const target = COLORS[colorKey];
+            for (let c = 0; c < 3; c++) colorCur[c] += (target[c] - colorCur[c]) * COLOR_BLEND;
+            const rgb = `${Math.round(colorCur[0])},${Math.round(colorCur[1])},${Math.round(colorCur[2])}`;
 
             const speaking = colorKey === 'speaking';
             const projected = points.map(p => {
@@ -194,11 +243,13 @@
                 return { sx: SIZE / 2 + x * scale, sy: SIZE / 2 + by * scale, z, scale };
             });
 
-            // Weiches Neon-Schimmern um die ganze Kugel (CSS-Glow auf dem <canvas> selbst, güns­tiger als
-            // ein Schatten je Linie/Punkt und zieht die Farbe automatisch mit, wenn sie zwischen Blau/Grün wechselt)
-            canvas.style.filter = `drop-shadow(0 0 6px rgba(${rgb},.9)) drop-shadow(0 0 16px rgba(${rgb},.7)) drop-shadow(0 0 34px rgba(${rgb},.4))`;
+            // Weiches Neon-Schimmern um die ganze Kugel (CSS-Glow auf dem <canvas> selbst, günstiger als
+            // ein Schatten je Linie/Punkt und zieht die Farbe automatisch mit, wenn sie wechselt)
+            canvas.style.filter = `drop-shadow(0 0 6px rgba(${rgb},${(0.9 * lvl).toFixed(2)})) drop-shadow(0 0 16px rgba(${rgb},${(0.7 * lvl).toFixed(2)})) drop-shadow(0 0 34px rgba(${rgb},${(0.4 * lvl).toFixed(2)}))`;
 
+            ctx.globalAlpha = 1;
             ctx.clearRect(0, 0, SIZE, SIZE);
+            ctx.globalAlpha = lvl;   // dunkler bei Nacht: alles, was jetzt gezeichnet wird, wird entsprechend schwächer
 
             // Weicher Grundschimmer in der Mitte - der "glühende Kern", der im Vorbild die Mitte hell und
             // massiv wirken lässt, statt dass es nur Linien und einzelne Punkte ohne Zusammenhalt sind.
@@ -223,7 +274,7 @@
                 const sx = SIZE / 2 + x * scale, sy = SIZE / 2 + p.y * scale;
                 const twinkle = 0.5 + 0.5 * Math.sin(time * p.twinkleSpeed + p.twinklePhase);
                 const op = Math.min(1, scale * twinkle * 0.8);
-                const rad = p.size * scale;
+                const rad = p.size * scale * K;
                 const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, rad * 2);
                 grad.addColorStop(0, `rgba(${GOLD},${op.toFixed(3)})`);
                 grad.addColorStop(1, `rgba(${GOLD},0)`);
@@ -246,7 +297,7 @@
             }
 
             projected.forEach(p => {
-                const rad = Math.max(0.6, 1.3 * p.scale + 0.4);
+                const rad = Math.max(0.6, (1.3 * p.scale + 0.4) * K);
                 const op = Math.min(1, p.scale * 0.95);
                 // Weicher Glow-Punkt statt scharfem Kreis: Farbe in der Mitte, transparent am Rand
                 const grad = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, rad * 2.2);

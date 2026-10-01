@@ -1646,6 +1646,7 @@ async function handleBundesligaQuery(teamNamePart) {
 }
 
 function handleLocalCommandInner(text) {
+    if (typeof handlePronunciationCommand === 'function' && handlePronunciationCommand(text)) return true;
     if (isSystemCheckCommand(text)) { runSystemCheckSpoken(); return true; }
     // Wichtige Erinnerungen: "erledigt" beendet das Nachfassen, "in zehn Minuten nochmal" verschiebt sie
     if (handleAcknowledgeCommand(text)) return true;
