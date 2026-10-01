@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    { "source": "/api/geocode", "destination": "/api/maps?action=geocode" },
+    { "source": "/api/reverse", "destination": "/api/maps?action=reverse" },
+    { "source": "/api/route", "destination": "/api/maps?action=route" },
+    { "source": "/api/overpass", "destination": "/api/maps?action=overpass" }
+  ],
   "crons": [
     { "path": "/api/memory?action=reflect", "schedule": "0 3 * * *" }
   ]
