@@ -32,10 +32,27 @@ function fixStreetGrammar(text) {
 }
 
 (function hookVoiceFix() {
+    /* Läuft gerade eine Zwischenansage ("Einen Moment") hörbar? Dann nicht mitten im Wort abbrechen, sondern ausreden lassen.
+       (Eine Zwischenansage, deren Audio noch lädt, wird von voice.js weiterhin verworfen - die hört man ja gar nicht.) */
+    function ackIsPlaying() {
+        const cloud = typeof currentAckAudio !== 'undefined' && currentAckAudio && !currentAckAudio.paused && !currentAckAudio.ended;
+        const browser = typeof ackActive !== 'undefined' && ackActive && 'speechSynthesis' in window && window.speechSynthesis.speaking;
+        return !!(cloud || browser);
+    }
+    function waitForAckEnd(callback) {
+        const startedAt = Date.now();
+        const check = () => {
+            if (ackIsPlaying() && Date.now() - startedAt < 2000) setTimeout(check, 60);
+            else callback();
+        };
+        check();
+    }
+
     if (typeof speak === 'function') {
         const origSpeak = speak;
-        speak = function (text, onComplete, langCode) {
-            if (typeof text === 'string') text = fixStreetGrammar(text);
+
+        /* Spricht wirklich: erst jede noch laufende Stimme beenden, dann die Original-Funktion aus voice.js aufrufen */
+        const runSpeak = function (self, text, onComplete, langCode) {
             try {
                 if (typeof currentAudio !== 'undefined' && currentAudio) {
                     try { currentAudio.pause(); } catch (e) {}
@@ -49,7 +66,18 @@ function fixStreetGrammar(text) {
                     window.speechSynthesis.cancel();
                 }
             } catch (e) { /* die Korrektur darf das Sprechen nie verhindern */ }
-            return origSpeak.call(this, text, onComplete, langCode);
+            return origSpeak.call(self, text, onComplete, langCode);
+        };
+
+        speak = function (text, onComplete, langCode) {
+            if (typeof text === 'string') text = fixStreetGrammar(text);
+            if (ackIsPlaying()) {
+                // Zwischenansage ausreden lassen (höchstens 2 Sekunden), dann antworten - in jedem Fall, auch wenn sie hängen sollte
+                const self = this;
+                waitForAckEnd(() => runSpeak(self, text, onComplete, langCode));
+                return;
+            }
+            return runSpeak(this, text, onComplete, langCode);
         };
     }
     if (typeof speakAck === 'function') {

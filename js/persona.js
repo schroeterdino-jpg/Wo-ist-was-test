@@ -10,6 +10,10 @@
 const SERIOUS_TOPIC_RE = /(tablette|medikament|arzt|ärztin|krank|schmerz|notfall|krankenhaus|unfall|traurig|trauer|sorge|angst|stress|wichtig|dringend|hilfe|fehler|problem|funktioniert nicht|geht nicht|kaputt|verstorben|beerdigung|geld|konto|rechnung|mahnung|anwalt|polizei|e-?mail|\bmail\b|nachricht)/i;
 const SASS_CHANCE = 0.4;
 
+/* Nach so vielen Millisekunden Wartezeit sagt Jarvis "Einen Moment". Früher 1,5 Sekunden (ACK_DELAY_MS in voice.js): da lief die Zwischenansage
+   oft gerade an, wenn die Antwort kam, und wurde mitten im Wort abgeschnitten. Mit 3 Sekunden fällt sie bei normalen Fragen ganz weg. */
+const ACK_START_MS = 3000;
+
 function sassHintFor(text) {
     if (SERIOUS_TOPIC_RE.test(String(text || ''))) {
         return 'Kein Spruch. Das Thema ist ernst oder heikel: antworte klar, freundlich und knapp, ohne Witz.';

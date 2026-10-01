@@ -47,7 +47,7 @@ async function sendToGroqSmart(text, opts = {}) {
     const ackTimer = SMALLTALK_NO_ACK.test(text.trim()) ? null : setTimeout(() => {
         if (opts.collect) return;   // im Protokoll wird nicht zwischendurch gesprochen
         speakAck(pickRandom(ackPhrasesFor(text)));
-    }, ACK_DELAY_MS);
+    }, ACK_START_MS);
 
     let liveWeather = null;
     let liveForecast = null;
