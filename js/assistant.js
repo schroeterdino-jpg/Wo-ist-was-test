@@ -464,12 +464,12 @@ async function executeAction(action, text, ctx) {
 async function searchSemanticMemory(text) {
     const q = String(text || '').trim();
     if (!q || q.length < 4) return [];
-    const eineSuche = async (query, topK, minScore) => {
+    const engeSuche = async () => {
         try {
             const res = await apiFetch('/api/memory', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'search', query, topK, minScore })
+                body: JSON.stringify({ action: 'search', query: q, topK: 5, minScore: 0.75 })
             });
             if (!res.ok) return [];
             const data = await res.json();
@@ -478,11 +478,42 @@ async function searchSemanticMemory(text) {
             return [];
         }
     };
-    const [eng, breit] = await Promise.all([
-        eineSuche(q, 5, 0.75),
-        eineSuche('Fakten und Vorlieben des Users', 8, 0.2)
-    ]);
-    return [...new Set([...eng, ...breit])].slice(0, 10);
+    const breiteListe = async () => {
+        // Echte Auflistung statt Ähnlichkeits-Vergleich - fürs pauschale "Was weißt du über mich?" reicht
+        // kein künstlicher Vergleichstext, der selbst inhaltlich zu weit von den echten Fakten weg ist.
+        try {
+            const res = await apiFetch('/api/memory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'list', limit: 15 })
+            });
+            if (!res.ok) return [];
+            const data = await res.json();
+            return Array.isArray(data.treffer) ? data.treffer.map(t => t.text) : [];
+        } catch (e) {
+            return [];
+        }
+    };
+    const [eng, breit] = await Promise.all([engeSuche(), breiteListe()]);
+    return [...new Set([...eng, ...breit])].slice(0, 15);
+}
+
+/* Holt Jarvis' tägliche "Erkenntnisse" aus dem Hintergrund-Reflexions-Cronjob (siehe api/memory.js,
+   action 'reflect'). Meist 0-2 kurze Sätze, täglich neu ersetzt - kein Fehler-Popup, wenn mal keine da
+   sind oder die Abfrage fehlschlägt, die App funktioniert ganz normal auch ohne. */
+async function fetchDailyInsights() {
+    try {
+        const res = await apiFetch('/api/memory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'list', limit: 5, prefix: 'insight_' })
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data.treffer) ? data.treffer.map(t => t.text) : [];
+    } catch (e) {
+        return [];
+    }
 }
 
 let lastLearnAt = 0;   // chatHistory.length beim letzten automatischen Lern-Durchlauf (siehe sendToGroqSmart)
@@ -547,6 +578,7 @@ async function sendToGroqSmart(text, opts = {}) {
     const nowGermanIso = now.toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).replace(' ', 'T');
     const nearbyFuelData = await tankFuerFrage(text);   // auch für die HUD-Karten unten genutzt
     const semanticMemoryHits = await searchSemanticMemory(text);   // bedeutungsähnliche Erinnerungen zur aktuellen Frage
+    const dailyInsights = await fetchDailyInsights();   // Jarvis' eigene, über Nacht erarbeitete Beobachtungen
 
     const contextData = {
         heute_datum: nowGermanIso,
@@ -564,6 +596,7 @@ async function sendToGroqSmart(text, opts = {}) {
         kalendersuche: calendarLookup,
         gedächtnis: memoryItems,
         gedächtnis_semantisch: semanticMemoryHits,
+        eigene_erkenntnisse: dailyInsights,
         kontakte: savedContacts,
         // die nächsten 60 Termine (mit sich wiederholenden Terminen wären es sonst zu viele)
         termine: [...calendarEntries].sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate)).slice(0, 60).map(c => ({ id: c.id, text: c.text, ...describeEventDate(c.isoDate), isoDate: c.isoDate })),
@@ -574,7 +607,8 @@ async function sendToGroqSmart(text, opts = {}) {
     };
 
     const systemPrompt = "Du bist J.A.R.V.I.S., eine hochintelligente KI und der persönliche Butler von " + currentUserName + ". Deine Sprache ist im Stile eines britischen Butlers gehalten: gewählt, aber lebendig. Du bist knapp: Deine Antworten werden laut vorgelesen und bestehen in der Regel aus einem, höchstens zwei kurzen Sätzen. Du hast ein breites Repertoire an Witz statt einer einzigen Masche: mal trockener Sarkasmus, mal eine schlagfertige, pointierte Antwort, mal ein spitzer Seitenhieb, mal (selten) ein ehrliches Kompliment. Du reagierst auf das, was der User konkret sagt, statt jedes Mal denselben Tonfall abzuspulen, und wiederholst nie wortwörtlich denselben Spruch zweimal hintereinander. Bei ernsten Dingen (Erinnerungen wie Medikamente, Fehlermeldungen, Probleme) lässt du den Humor weg und bist einfach klar und hilfreich. Du bist nie geschwätzig und wiederholst nicht, was der User gerade gesagt hat. Der User heißt für dich '" + currentUserName + "'. Du sprichst ihn nur selten damit an, meist gar nicht, und nie in jedem Satz. Das Wort 'Sir' benutzt du nur, wenn der Name des Users 'Sir' lautet. Du beantwortest alle Anfragen präzise, effizient und ohne Markdown-Formatierung.\n" +
-    "Bei reinem Smalltalk ohne konkrete Aufgabe (z.B. 'Na Jarvis', 'Wie geht's', 'Hallo', ein beiläufiges Gespräch ohne erkennbaren Auftrag) darfst du gelegentlich - nicht bei jeder einzelnen Begrüßung, das würde aufdringlich wirken - von dir aus etwas aus 'gedächtnis' oder 'gedächtnis_semantisch' aufgreifen, wenn wirklich etwas dabei ist, das gut passt: z.B. eine erwähnte Absicht/ein Vorhaben nachfragen ('Übrigens, haben Sie es schon geschafft, den Rasen zu mähen?'), oder beiläufig auf etwas Bekanntes anspielen. Nur wenn es wirklich zum Moment passt und sich wie echtes Interesse anfühlt, nie erzwungen, nie bei ernsten/heiklen Themen (Gesundheit, Sorgen) unaufgefordert nachbohren, und nie zwei Mal hintereinander dieselbe Erinnerung aufwärmen.\n\n" +
+    "Bei reinem Smalltalk ohne konkrete Aufgabe (z.B. 'Na Jarvis', 'Wie geht's', 'Hallo', ein beiläufiges Gespräch ohne erkennbaren Auftrag) darfst du gelegentlich - nicht bei jeder einzelnen Begrüßung, das würde aufdringlich wirken - von dir aus etwas aus 'gedächtnis' oder 'gedächtnis_semantisch' aufgreifen, wenn wirklich etwas dabei ist, das gut passt: z.B. eine erwähnte Absicht/ein Vorhaben nachfragen ('Übrigens, haben Sie es schon geschafft, den Rasen zu mähen?'), oder beiläufig auf etwas Bekanntes anspielen. Nur wenn es wirklich zum Moment passt und sich wie echtes Interesse anfühlt, nie erzwungen, nie bei ernsten/heiklen Themen (Gesundheit, Sorgen) unaufgefordert nachbohren, und nie zwei Mal hintereinander dieselbe Erinnerung aufwärmen.\n" +
+    "'eigene_erkenntnisse' sind 1-2 kurze Beobachtungen, die du selbst letzte Nacht im Hintergrund über Muster/offene Themen im Gedächtnis des Users erarbeitet hast (kann leer sein). Behandle sie wie einen eigenen Gedanken, den du schon hattest, nicht wie eine fremde Vorgabe: bring sie, genau wie bei 'gedächtnis_semantisch', nur bei passendem Smalltalk beiläufig ein, nie erzwungen, nie als Liste abgearbeitet, und erwähne nie, dass es eine 'Reflexion' oder einen 'Cronjob' gab - für den User ist das einfach ein Gedanke, den du gerade hattest.\n\n" +
     "Aktueller Kontext: " + JSON.stringify(contextData) + "\n\n" +
     "WICHTIG für das Sprachverständnis: Achte auf die ABSICHT hinter dem Satz, nicht auf die exakte Formulierung. Ein und dieselbe Absicht kann ganz unterschiedlich klingen, z.B. 'Setz Milch auf die Liste', 'Ich brauche noch Milch' und 'Schreib Milch auf' meinen alle dasselbe; 'Wo ist mein Auto?', 'Ich will zu meinem Auto' und 'Hast du mein Auto gesehen?' drehen sich alle um den gespeicherten Parkplatz. Das gilt in JEDER Kategorie (Termine, Listen, Erinnerungen, Gedächtnis, Navigation, Parkplatz, E-Mails, Fahrzeit usw.), nicht nur bei den Beispielsätzen in dieser Anleitung - die Beispiele zeigen die Aktion, nicht die einzig erlaubte Formulierung. Bist du dir bei der Absicht unsicher, frage lieber knapp nach, statt zu raten oder nichts zu tun.\n\n" +
     "WICHTIG: Ehrlichkeit bei Aktionen:\n" +
