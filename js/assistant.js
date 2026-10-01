@@ -318,7 +318,7 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'memory_search') {
         // Die Suche selbst und die Antwort dazu passieren in sendToGroqSmart
     } else if (action.type === 'reminder') {
-        const rrule = buildRecurrenceRule(action.reminder_recurrence_unit, action.reminder_recurrence_interval);
+        const rrule = buildRecurrenceRule(action.reminder_recurrence_unit, action.reminder_recurrence_interval) || recurrenceFromText(text);
         const remResult = await addGoogleCalendarReminder(action.reminder_text || text, action.reminder_time, rrule);
         if (!remResult.synced) {
             const grund = remResult.errorDetail === 'nicht angemeldet'
@@ -447,7 +447,7 @@ async function executeAction(action, text, ctx) {
         updateTerminalStream("BRIEFING: WISH_DELETED");
     } else if (action.type === 'calendar' || action.calendar_text) {
         const ort = action.calendar_location || extractLocationFallback(text);
-        const rrule = buildRecurrenceRule(action.calendar_recurrence_unit, action.calendar_recurrence_interval);
+        const rrule = buildRecurrenceRule(action.calendar_recurrence_unit, action.calendar_recurrence_interval) || recurrenceFromText(text);
         const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort, rrule);
         if (addDone === false) googleNotSynced(ctx, 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht');
         // Den ECHTEN Google Kalender öffnen (nicht das eigene Termine-Fenster), als sichtbare Bestätigung,
@@ -472,6 +472,25 @@ function buildRecurrenceRule(unit, interval) {
     if (!freq) return null;
     const n = Math.max(1, Math.min(52, Number(interval) || 1));
     return `RRULE:FREQ=${freq}${n > 1 ? ';INTERVAL=' + n : ''}`;
+}
+
+/* Feste Rückfall-Erkennung für Wiederholungen direkt im gesagten Satz ("alle zwei Wochen", "jede Woche",
+   "jeden Monat" ...), falls die KI die Wiederholungs-Felder mal nicht ausfüllt. Gibt eine RRULE oder null zurück. */
+function recurrenceFromText(text) {
+    const t = String(text || '').toLowerCase();
+    const nums = { ein: 1, eine: 1, zwei: 2, drei: 3, vier: 4, fünf: 5, sechs: 6 };
+    const m = t.match(/\balle[nr]?\s+(\d{1,2}|ein|eine|zwei|drei|vier|fünf|sechs)\s+(tag|woche|monat|jahr)/);
+    if (m) {
+        const n = /^\d/.test(m[1]) ? Number(m[1]) : nums[m[1]];
+        const unit = { tag: 'TAG', woche: 'WOCHE', monat: 'MONAT', jahr: 'JAHR' }[m[2]];
+        return buildRecurrenceRule(unit, n);
+    }
+    if (/zweiwöchentlich|vierzehntägig|alle vierzehn tage/.test(t)) return buildRecurrenceRule('WOCHE', 2);
+    if (/jede woche|wöchentlich/.test(t)) return buildRecurrenceRule('WOCHE', 1);
+    if (/jeden tag|täglich/.test(t)) return buildRecurrenceRule('TAG', 1);
+    if (/jeden monat|monatlich/.test(t)) return buildRecurrenceRule('MONAT', 1);
+    if (/jedes jahr|jährlich/.test(t)) return buildRecurrenceRule('JAHR', 1);
+    return null;
 }
 
 async function searchSemanticMemory(text) {

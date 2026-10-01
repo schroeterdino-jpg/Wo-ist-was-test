@@ -178,6 +178,8 @@ async function addGoogleCalendarEvent(text, isoStartString, location, recurrence
     };
     if (location) eventData.location = location;
     if (recurrenceRule) eventData.recurrence = [recurrenceRule];
+    // Google verlangt bei Wiederholungen eine Zeitzone in Start und Ende, sonst wird der Eintrag abgelehnt
+    if (recurrenceRule) { eventData.start.timeZone = 'Europe/Berlin'; eventData.end.timeZone = 'Europe/Berlin'; }
 
     const createdId = 'local_' + Date.now();
 
@@ -277,6 +279,8 @@ async function addGoogleCalendarReminder(text, isoTimeString, recurrenceRule) {
         end: { dateTime: new Date(remDate.getTime() + 30 * 60000).toISOString() }
     };
     if (recurrenceRule) eventData.recurrence = [recurrenceRule];
+    // Google verlangt bei Wiederholungen eine Zeitzone in Start und Ende, sonst wird der Eintrag abgelehnt
+    if (recurrenceRule) { eventData.start.timeZone = 'Europe/Berlin'; eventData.end.timeZone = 'Europe/Berlin'; }
 
     if (isGoogleAuthorized()) {
         try {
