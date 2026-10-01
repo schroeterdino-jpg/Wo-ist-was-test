@@ -269,6 +269,7 @@ async function addGoogleCalendarReminder(text, isoTimeString, recurrenceRule) {
     if (isNaN(remDate.getTime())) remDate = new Date();
 
     let googleEventId = null;
+    let googleErrorDetail = null;   // echter Grund, falls Google den Eintrag ablehnt (z.B. ungültige Wiederholungsregel) - statt pauschal "nicht verbunden" zu vermuten
 
     const eventData = {
         summary: `🔔 ${text}`,
@@ -289,15 +290,24 @@ async function addGoogleCalendarReminder(text, isoTimeString, recurrenceRule) {
             } else if (res.ok) {
                 const data = await res.json();
                 googleEventId = data.id;
+            } else {
+                const errBody = await res.text().catch(() => '');
+                googleErrorDetail = `Status ${res.status}: ${errBody.slice(0, 200)}`;
+                console.error('Google-Kalender lehnte die Erinnerung ab:', googleErrorDetail);
             }
-        } catch (e) {}
+        } catch (e) { googleErrorDetail = 'Netzwerkfehler: ' + e.message; }
+    } else {
+        googleErrorDetail = 'nicht angemeldet';
     }
 
     reminderEntries.unshift({ id: Date.now(), googleId: googleEventId, text, time: remDate.toISOString(), triggered: false, recurrence: recurrenceRule || null });
     setPersistentData('helfer_reminders', JSON.stringify(reminderEntries));
     renderAllLists();
     fetchGoogleCalendarEvents();
-    return googleEventId !== null;   // false = nur in der App gemerkt, das Handy klingelt dazu nicht
+    // Objekt statt reinem true/false, damit der Aufrufer bei einem Fehlschlag den ECHTEN Grund kennt,
+    // statt pauschal "nicht verbunden" zu vermuten (die Verbindung kann ja durchaus stehen, aber Google
+    // lehnt z.B. eine fehlerhafte Wiederholungsregel ab).
+    return { synced: googleEventId !== null, errorDetail: googleErrorDetail };
 }
 
 async function addManualReminder() {
@@ -308,10 +318,10 @@ async function addManualReminder() {
     const time = timeEl.value;
     if (text && time) {
         const isoTime = new Date(time).toISOString();
-        const synced = await addGoogleCalendarReminder(text, isoTime);
+        const result = await addGoogleCalendarReminder(text, isoTime);
         textEl.value = '';
         timeEl.value = '';
-        speak(synced ? 'Erinnerung notiert.' : 'Erinnerung notiert, aber nur in der App: Der Google Kalender ist nicht verbunden.');
+        speak(result.synced ? 'Erinnerung notiert.' : 'Erinnerung notiert, aber nur in der App: Der Google Kalender ist nicht verbunden.');
     }
 }
 

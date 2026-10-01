@@ -319,8 +319,13 @@ async function executeAction(action, text, ctx) {
         // Die Suche selbst und die Antwort dazu passieren in sendToGroqSmart
     } else if (action.type === 'reminder') {
         const rrule = buildRecurrenceRule(action.reminder_recurrence_unit, action.reminder_recurrence_interval);
-        const remSynced = await addGoogleCalendarReminder(action.reminder_text || text, action.reminder_time, rrule);
-        if (remSynced === false) googleNotSynced(ctx, 'Die Erinnerung ist nur in der App gespeichert, das Handy klingelt dazu nicht');
+        const remResult = await addGoogleCalendarReminder(action.reminder_text || text, action.reminder_time, rrule);
+        if (!remResult.synced) {
+            const grund = remResult.errorDetail === 'nicht angemeldet'
+                ? 'das Handy klingelt dazu nicht, weil der Google-Kalender nicht verbunden ist'
+                : `Google hat den Eintrag abgelehnt (${remResult.errorDetail || 'unbekannter Grund'})`;
+            googleNotSynced(ctx, `Die Erinnerung ist nur in der App gespeichert, ${grund}`);
+        }
         updateTerminalStream("REMINDER: CREATED");
     } else if (action.type === 'reminder_delete') {
         const q = (action.reminder_query || text).toLowerCase();
