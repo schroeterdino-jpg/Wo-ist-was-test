@@ -455,58 +455,14 @@ async function executeAction(action, text, ctx) {
    inhaltlich zur aktuellen Frage passen - findet auch Umschreibungen, nicht nur ähnliche Wörter wie das
    normale Gedächtnis (searchMemory). Kein Fehler-Popup bei Problemen: liefert dann einfach eine leere
    Liste, die App funktioniert auch ganz ohne semantisches Gedächtnis weiter. */
-/* Sucht bei JEDER Anfrage zweigleisig, statt zu raten, wie eine "pauschale" Frage aussehen könnte:
-   1) eng passend zur genauen Frage (für konkrete Fragen wie "Was hab ich in Berlin gegessen?")
-   2) breit nach allgemeinen Fakten über den User (greift auch bei vagen Fragen wie "Weißt du was über mich?")
-   Die Ergebnisse werden zusammengeführt (doppelte raus), damit die KI in jedem Fall eine vernünftige
-   Auswahl hat und selbst entscheiden kann, was zur Frage passt - statt dass die App vorher schon rät,
-   welche Art Frage das wohl ist. */
 async function searchSemanticMemory(text) {
     const q = String(text || '').trim();
     if (!q || q.length < 4) return [];
-    const engeSuche = async () => {
-        try {
-            const res = await apiFetch('/api/memory', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'search', query: q, topK: 5, minScore: 0.75 })
-            });
-            if (!res.ok) return [];
-            const data = await res.json();
-            return Array.isArray(data.treffer) ? data.treffer.map(t => t.text) : [];
-        } catch (e) {
-            return [];
-        }
-    };
-    const breiteListe = async () => {
-        // Echte Auflistung statt Ähnlichkeits-Vergleich - fürs pauschale "Was weißt du über mich?" reicht
-        // kein künstlicher Vergleichstext, der selbst inhaltlich zu weit von den echten Fakten weg ist.
-        try {
-            const res = await apiFetch('/api/memory', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'list', limit: 15 })
-            });
-            if (!res.ok) return [];
-            const data = await res.json();
-            return Array.isArray(data.treffer) ? data.treffer.map(t => t.text) : [];
-        } catch (e) {
-            return [];
-        }
-    };
-    const [eng, breit] = await Promise.all([engeSuche(), breiteListe()]);
-    return [...new Set([...eng, ...breit])].slice(0, 15);
-}
-
-/* Holt Jarvis' tägliche "Erkenntnisse" aus dem Hintergrund-Reflexions-Cronjob (siehe api/memory.js,
-   action 'reflect'). Meist 0-2 kurze Sätze, täglich neu ersetzt - kein Fehler-Popup, wenn mal keine da
-   sind oder die Abfrage fehlschlägt, die App funktioniert ganz normal auch ohne. */
-async function fetchDailyInsights() {
     try {
         const res = await apiFetch('/api/memory', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'list', limit: 5, prefix: 'insight_' })
+            body: JSON.stringify({ action: 'search', query: q, topK: 5 })
         });
         if (!res.ok) return [];
         const data = await res.json();
@@ -516,55 +472,6 @@ async function fetchDailyInsights() {
     }
 }
 
-/* --- Diagnose für die Einstellungen: zeigt roh, was die Vektordatenbank zurückgibt - sowohl die
-   "breite" Liste (für pauschale Fragen) als auch eine gezielte Suche, ganz ohne den Umweg über die
-   KI-Antwort. Damit lässt sich genau unterscheiden: liegt's an den Daten selbst, oder daran, dass die
-   KI die Daten zwar bekommt, aber nicht nutzt. --- */
-async function runMemoryDiagnosis() {
-    const out = document.getElementById('memoryDiagOutput');
-    const input = document.getElementById('memoryDiagInput');
-    const lines = [];
-    const log = (t) => { lines.push(t); if (out) { out.textContent = lines.join('\n'); out.classList.remove('hidden'); } };
-    try {
-        log('Breite Liste wird abgefragt (bis zu 15 neueste Einträge) ...');
-        const listRes = await apiFetch('/api/memory', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'list', limit: 15 })
-        });
-        const listData = await listRes.json();
-        if (!listRes.ok) { log('❌ Fehler: ' + (listData.error || JSON.stringify(listData))); }
-        else {
-            const treffer = listData.treffer || [];
-            log(`✅ ${treffer.length} Einträge zurückbekommen:`);
-            treffer.forEach((t, i) => log(`  ${i + 1}. ${t.text}${t.metadata && t.metadata.datum ? '  (' + t.metadata.datum.slice(0, 16).replace('T', ' ') + ')' : ''}`));
-            if (!treffer.length) log('  (leer - entweder ist noch nichts gespeichert, oder die Abfrage liefert nichts zurück)');
-        }
-
-        const q = (input && input.value || '').trim();
-        if (q) {
-            log('');
-            log('Gezielte Suche zu "' + q + '" ...');
-            const searchRes = await apiFetch('/api/memory', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'search', query: q, topK: 5, minScore: 0 })
-            });
-            const searchData = await searchRes.json();
-            if (!searchRes.ok) { log('❌ Fehler: ' + (searchData.error || JSON.stringify(searchData))); }
-            else {
-                const treffer = searchData.treffer || [];
-                log(`✅ ${treffer.length} Treffer (minScore 0, also wirklich alle, auch schwach passende):`);
-                treffer.forEach((t, i) => log(`  ${i + 1}. [${t.score.toFixed(3)}] ${t.text}`));
-                if (!treffer.length) log('  (keine Treffer - der Eintrag existiert dann vermutlich gar nicht in der Datenbank)');
-            }
-        }
-        log('');
-        log('Fertig.');
-    } catch (e) {
-        log('❌ Unerwarteter Fehler: ' + (e && e.message ? e.message : e));
-    }
-}
-
-let lastLearnAt = 0;   // chatHistory.length beim letzten automatischen Lern-Durchlauf (siehe sendToGroqSmart)
 async function sendToGroqSmart(text, opts = {}) {
     isProcessing = true;
     clearActionCards();
@@ -579,7 +486,12 @@ async function sendToGroqSmart(text, opts = {}) {
     // einem Befehl ("Termin eintragen") als auch zu einer normalen Gesprächsfrage ("Wie geht's dir?") passen.
     // Früher standen hier Sätze wie "Wird erledigt." oder "Gebe ich sofort ein." - die klangen bei einer reinen
     // Unterhaltungsfrage unpassend, weil sie eine Aktion ankündigten, die es dort gar nicht gibt.
-    const ackTimer = setTimeout(() => {
+    // Bei reinem Smalltalk/einer kurzen Höflichkeitsfrage ("Wie geht's dir?", "Alles klar bei dir?") ist selbst
+    // die neutrale Zwischenansage noch unpassend - niemand braucht "einen Moment", um sowas zu beantworten.
+    // Dafür komplett weggelassen, auch wenn die Antwort mal etwas länger braucht (z.B. durch die
+    // Gedächtnis-Suche im Hintergrund) - dann wartet man eben kurz in Stille statt eine seltsame Floskel zu hören.
+    const SMALLTALK_NO_ACK = /^(na|hey|hi|hallo|moin)?[,\s]*(wie geht('?s| es)( dir| ihnen)?[?!.]?|alles (klar|gut|ok|okay)( bei dir| bei ihnen)?[?!.]?|was machst du( gerade| so)?[?!.]?|wie läuft'?s( bei dir)?[?!.]?)\s*$/i;
+    const ackTimer = SMALLTALK_NO_ACK.test(text.trim()) ? null : setTimeout(() => {
         if (opts.collect) return;   // im Protokoll wird nicht zwischendurch gesprochen
         speakAck(pickRandom([
             "Einen Moment.", "Einen Augenblick.", "Ich denke nach.", "Moment.", "Sofort.", "Verstanden."
@@ -626,7 +538,6 @@ async function sendToGroqSmart(text, opts = {}) {
     const nowGermanIso = now.toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).replace(' ', 'T');
     const nearbyFuelData = await tankFuerFrage(text);   // auch für die HUD-Karten unten genutzt
     const semanticMemoryHits = await searchSemanticMemory(text);   // bedeutungsähnliche Erinnerungen zur aktuellen Frage
-    const dailyInsights = await fetchDailyInsights();   // Jarvis' eigene, über Nacht erarbeitete Beobachtungen
 
     const contextData = {
         heute_datum: nowGermanIso,
@@ -644,7 +555,6 @@ async function sendToGroqSmart(text, opts = {}) {
         kalendersuche: calendarLookup,
         gedächtnis: memoryItems,
         gedächtnis_semantisch: semanticMemoryHits,
-        eigene_erkenntnisse: dailyInsights,
         kontakte: savedContacts,
         // die nächsten 60 Termine (mit sich wiederholenden Terminen wären es sonst zu viele)
         termine: [...calendarEntries].sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate)).slice(0, 60).map(c => ({ id: c.id, text: c.text, ...describeEventDate(c.isoDate), isoDate: c.isoDate })),
@@ -655,8 +565,7 @@ async function sendToGroqSmart(text, opts = {}) {
     };
 
     const systemPrompt = "Du bist J.A.R.V.I.S., eine hochintelligente KI und der persönliche Butler von " + currentUserName + ". Deine Sprache ist im Stile eines britischen Butlers gehalten: gewählt, aber lebendig. Du bist knapp: Deine Antworten werden laut vorgelesen und bestehen in der Regel aus einem, höchstens zwei kurzen Sätzen. Du hast ein breites Repertoire an Witz statt einer einzigen Masche: mal trockener Sarkasmus, mal eine schlagfertige, pointierte Antwort, mal ein spitzer Seitenhieb, mal (selten) ein ehrliches Kompliment. Du reagierst auf das, was der User konkret sagt, statt jedes Mal denselben Tonfall abzuspulen, und wiederholst nie wortwörtlich denselben Spruch zweimal hintereinander. Bei ernsten Dingen (Erinnerungen wie Medikamente, Fehlermeldungen, Probleme) lässt du den Humor weg und bist einfach klar und hilfreich. Du bist nie geschwätzig und wiederholst nicht, was der User gerade gesagt hat. Der User heißt für dich '" + currentUserName + "'. Du sprichst ihn nur selten damit an, meist gar nicht, und nie in jedem Satz. Das Wort 'Sir' benutzt du nur, wenn der Name des Users 'Sir' lautet. Du beantwortest alle Anfragen präzise, effizient und ohne Markdown-Formatierung.\n" +
-    "Bei reinem Smalltalk ohne konkrete Aufgabe (z.B. 'Na Jarvis', 'Wie geht's', 'Hallo', ein beiläufiges Gespräch ohne erkennbaren Auftrag) darfst du gelegentlich - nicht bei jeder einzelnen Begrüßung, das würde aufdringlich wirken - von dir aus etwas aus 'gedächtnis' oder 'gedächtnis_semantisch' aufgreifen, wenn wirklich etwas dabei ist, das gut passt: z.B. eine erwähnte Absicht/ein Vorhaben nachfragen ('Übrigens, haben Sie es schon geschafft, den Rasen zu mähen?'), oder beiläufig auf etwas Bekanntes anspielen. Nur wenn es wirklich zum Moment passt und sich wie echtes Interesse anfühlt, nie erzwungen, nie bei ernsten/heiklen Themen (Gesundheit, Sorgen) unaufgefordert nachbohren, und nie zwei Mal hintereinander dieselbe Erinnerung aufwärmen.\n" +
-    "'eigene_erkenntnisse' sind 1-2 kurze Beobachtungen, die du selbst letzte Nacht im Hintergrund über Muster/offene Themen im Gedächtnis des Users erarbeitet hast (kann leer sein). Behandle sie wie einen eigenen Gedanken, den du schon hattest, nicht wie eine fremde Vorgabe: bring sie, genau wie bei 'gedächtnis_semantisch', nur bei passendem Smalltalk beiläufig ein, nie erzwungen, nie als Liste abgearbeitet, und erwähne nie, dass es eine 'Reflexion' oder einen 'Cronjob' gab - für den User ist das einfach ein Gedanke, den du gerade hattest.\n\n" +
+    "Bei reinem Smalltalk ohne konkrete Aufgabe (z.B. 'Na Jarvis', 'Wie geht's', 'Hallo', ein beiläufiges Gespräch ohne erkennbaren Auftrag) darfst du gelegentlich - nicht bei jeder einzelnen Begrüßung, das würde aufdringlich wirken - von dir aus etwas aus 'gedächtnis' oder 'gedächtnis_semantisch' aufgreifen, wenn wirklich etwas dabei ist, das gut passt: z.B. eine erwähnte Absicht/ein Vorhaben nachfragen ('Übrigens, haben Sie es schon geschafft, den Rasen zu mähen?'), oder beiläufig auf etwas Bekanntes anspielen. Nur wenn es wirklich zum Moment passt und sich wie echtes Interesse anfühlt, nie erzwungen, nie bei ernsten/heiklen Themen (Gesundheit, Sorgen) unaufgefordert nachbohren, und nie zwei Mal hintereinander dieselbe Erinnerung aufwärmen.\n\n" +
     "Aktueller Kontext: " + JSON.stringify(contextData) + "\n\n" +
     "WICHTIG für das Sprachverständnis: Achte auf die ABSICHT hinter dem Satz, nicht auf die exakte Formulierung. Ein und dieselbe Absicht kann ganz unterschiedlich klingen, z.B. 'Setz Milch auf die Liste', 'Ich brauche noch Milch' und 'Schreib Milch auf' meinen alle dasselbe; 'Wo ist mein Auto?', 'Ich will zu meinem Auto' und 'Hast du mein Auto gesehen?' drehen sich alle um den gespeicherten Parkplatz. Das gilt in JEDER Kategorie (Termine, Listen, Erinnerungen, Gedächtnis, Navigation, Parkplatz, E-Mails, Fahrzeit usw.), nicht nur bei den Beispielsätzen in dieser Anleitung - die Beispiele zeigen die Aktion, nicht die einzig erlaubte Formulierung. Bist du dir bei der Absicht unsicher, frage lieber knapp nach, statt zu raten oder nichts zu tun.\n\n" +
     "WICHTIG: Ehrlichkeit bei Aktionen:\n" +
@@ -747,8 +656,8 @@ async function sendToGroqSmart(text, opts = {}) {
     "- Wenn Angaben für einen neuen Termin oder eine Änderung unvollständig sind (z.B. Uhrzeit fehlt), antworte im 'chat'-Modus und stelle genau eine kurze Rückfrage nach den fehlenden Details. Das Gespräch geht danach automatisch weiter.\n\n" +
     "WICHTIG für beiläufige Notizen (Kontext-Erkennung im normalen Gespräch):\n" +
     "- Manche Äußerungen sind weder eine Frage noch ein direkter Befehl an dich, sondern ein Gedanke, den sich der User nur merken will, oft beiläufig eingeworfen: 'Ach übrigens, ...', 'Wenn ich das nächste Mal im Baumarkt bin, muss ich noch Kabelschuhe mitnehmen', 'Ich muss unbedingt noch daran denken, dass ...', 'Notiere mal, dass ...', 'Ich wollte nachher noch mal schauen, ob wir bei Action Weihnachtsdeko finden'.\n" +
-    "- Erkennst du eine solche Notiz, wähle selbst die passende Liste, ohne nachzufragen: etwas zum Kaufen oder Mitbringen -> 'shopping' (Einkaufsliste); eine Aufgabe oder ein VORHABEN, auch ein unsicheres/vages ('vielleicht', 'mal schauen, ob ...', 'wollte noch ...') -> 'todo' (Aufgabenliste); WO etwas liegt/ist oder ein Wert zu einem Gegenstand, den man später nachschlagen will (z.B. 'Der Ersatzschlüssel liegt im Auto', eine Telefonnummer) -> 'memory_store' (Gedächtnis).\n" +
-    "- 'memory_store' ist NUR für 'wo liegt/ist etwas'-Fakten zu einem GEGENSTAND, NIEMALS für Pläne, Vorhaben oder Termine (die sind 'todo'), und NIEMALS für persönliche Fakten, Vorlieben oder Erlebnisse über den User selbst ('Ich war heute in Berlin', 'Ich esse gerne Currywurst', 'Mein Lieblingsfilm ist...', 'Ich hasse Montage'). Solche persönlichen Bemerkungen bekommen KEINE Aktion - bleib einfach im 'chat'-Modus und geh kurz, natürlich darauf ein, so wie ein Mensch im Gespräch reagieren würde. Diese Fakten merkt sich die App automatisch im Hintergrund fürs Langzeitgedächtnis - du musst und sollst dafür live keine Aktion auslösen, sonst wird die sichtbare Gedächtnis-Liste mit Dingen zugemüllt, die dort nicht hingehören.\n" +
+    "- Erkennst du eine solche Notiz, wähle selbst die passende Liste, ohne nachzufragen: etwas zum Kaufen oder Mitbringen -> 'shopping' (Einkaufsliste); eine Aufgabe oder ein VORHABEN, auch ein unsicheres/vages ('vielleicht', 'mal schauen, ob ...', 'wollte noch ...') -> 'todo' (Aufgabenliste); ein reiner Fakt, Ort oder Wert zum Nachschlagen (z.B. eine Adresse, wo etwas liegt, eine Telefonnummer) -> 'memory_store' (Gedächtnis).\n" +
+    "- 'memory_store' ist NUR für nachschlagbare Fakten (Ort/Wert zu einem Begriff), NIEMALS für Pläne, Vorhaben oder Termine, auch wenn sie unsicher formuliert sind ('vielleicht gehe ich nachher...', 'ich wollte mal schauen, ob...') - solche Sätze sind immer 'todo', nicht 'memory_store'.\n" +
     "- Nennt der User dabei einen Zusammenhang oder Anlass (z.B. 'wenn ich im Baumarkt bin', 'für das neue Projekt'), hänge ihn in Klammern an den gespeicherten Text an, z.B. 'Kabelschuhe (nächstes Mal im Baumarkt)'.\n" +
     "- Deine 'reply' ist dann NUR eine sehr kurze Bestätigung im Jarvis-Ton, z.B. 'Ist notiert.', 'Notiert, " + currentUserName + ".' oder 'Habe ich vermerkt.' - keine Rückfragen, keine weiteren Erklärungen, keine Wiederholung des Inhalts.\n" +
     "- Diese Regel gilt NICHT, wenn die Äußerung tatsächlich eine Frage ist (z.B. 'Was steht auf meiner Einkaufsliste?') oder ein direkter, expliziter Befehl (z.B. 'Setz Milch auf die Liste') - dort antwortest du wie in den übrigen Regeln gewohnt.\n" +
@@ -1069,13 +978,6 @@ async function sendToGroqSmart(text, opts = {}) {
         if (wantsSearch) updateTerminalStream("MEMORY_READ: QUERY_EXEC");
         clearTimeout(ackTimer);   // VOR speak(), nicht erst im finally-Block - schließt das Zeitfenster für eine überlappende Zwischenansage ganz
         speak(replyText, continueConversation);
-        // Alle paar Austausche im Hintergrund fürs Langzeitgedächtnis lernen (nicht bei jedem einzelnen
-        // Satz - das würde unnötig oft die Lern-KI aufrufen). Läuft nebenbei (nicht abgewartet), damit
-        // Jarvis währenddessen normal weiterspricht.
-        if (typeof learnFromConversations === 'function' && chatHistory.length - lastLearnAt >= 6) {
-            lastLearnAt = chatHistory.length;
-            learnFromConversations();
-        }
     } catch (e) {
         renderAllLists();
         stopThinkingSound();
