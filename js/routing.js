@@ -49,7 +49,7 @@ function fuelTypeFromText(text) {
     if (/\be5\b|\bsuper\b/.test(t)) return 'e5';
     if (/benzin/.test(t)) return 'e10';   // wie bei den Preisen in der Nähe: "Benzin" heißt E10
     if (/diesel/.test(t)) return 'diesel';
-    return (typeof getPreferredFuel === 'function') ? getPreferredFuel() : 'diesel';   // keine Sorte genannt: die gespeicherte (tankbuch.js)
+    return 'diesel';
 }
 
 /* Ziel aus dem Satz: { dest: 'Arbeit', label: 'zur Arbeit' }; dest bleibt leer, wenn keins genannt wurde */
