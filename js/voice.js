@@ -285,6 +285,7 @@ function speak(text, onComplete, langCode) {
             if (currentAudio) { try { currentAudio.pause(); } catch (e) {} currentAudio = null; }
             const url = URL.createObjectURL(blob);
             currentAudio = new Audio(url);
+            if (typeof window.jvSphereConnectAudio === 'function') window.jvSphereConnectAudio(currentAudio);
             const finish = (completed) => {
                 URL.revokeObjectURL(url);
                 if (currentAudio && currentAudio.src === url) currentAudio = null;
@@ -943,28 +944,5 @@ function resetRecordingState() {
     jvListenIndicator(false);
     if (!isSpeaking() && !isProcessing) {
         setIdleUi();
-    }
-}
-
-/* --- Diagnose für die Einstellungen: ruft OpenAI-TTS direkt im Diagnose-Modus auf (?diag=1), bei dem der
-   Server den echten Fehler zurückgibt statt lautlos auf Edge-TTS auszuweichen. Zeigt genau, ob/warum
-   OpenAI gerade nicht genutzt wird, statt dass man es nur am "falschen" Klang der Stimme vermutet. --- */
-async function runTtsDiagnosis() {
-    const out = document.getElementById('ttsDiagOutput');
-    const lines = [];
-    const log = (t) => { lines.push(t); if (out) { out.textContent = lines.join('\n'); out.classList.remove('hidden'); } };
-    try {
-        log('OpenAI-Stimme "' + getOpenaiVoice() + '" wird direkt getestet (ohne automatischen Rückfall) ...');
-        const res = await apiFetch(`/api/stau?tts=1&text=${encodeURIComponent('Das ist ein Test.')}&engine=openai&openaiVoice=${encodeURIComponent(getOpenaiVoice())}&diag=1`);
-        const data = await res.json();
-        if (data.ok) {
-            log(`✅ OpenAI hat erfolgreich geantwortet (${data.bytes} Bytes Audio). Die Stimme sollte also eigentlich genutzt werden.`);
-            log('Falls du sie trotzdem nicht hörst: prüf, ob in den Einstellungen wirklich "Sehr natürlich (OpenAI)" ausgewählt ist, und lad die App einmal komplett neu (Cache leeren).');
-        } else {
-            log('❌ ' + (data.error || 'Unbekannter Fehler'));
-            log('Die App fällt in diesem Fall automatisch auf die kostenlose Cloud-Stimme zurück - deshalb hörst du trotzdem eine Antwort, nur nicht die OpenAI-Stimme.');
-        }
-    } catch (e) {
-        log('❌ Unerwarteter Fehler: ' + (e && e.message ? e.message : e));
     }
 }

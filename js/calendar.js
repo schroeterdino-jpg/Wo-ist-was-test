@@ -163,8 +163,10 @@ setInterval(() => {
     }
 }, 30000);
 
-/* --- Termine anlegen / ändern --- */
-async function addGoogleCalendarEvent(text, isoStartString, location) {
+/* --- Termine anlegen / ändern ---
+   'recurrenceRule' (optional): siehe addGoogleCalendarReminder() oben - dieselbe RRULE-Logik, nur hier für
+   normale Termine statt Erinnerungen (z.B. "Trag jeden Montag Müll rausbringen ein"). */
+async function addGoogleCalendarEvent(text, isoStartString, location, recurrenceRule) {
     let eventDate = isoStartString ? new Date(isoStartString) : new Date();
     if (isNaN(eventDate.getTime())) eventDate = new Date();
 
@@ -175,6 +177,7 @@ async function addGoogleCalendarEvent(text, isoStartString, location) {
         end: { dateTime: endDate.toISOString() }
     };
     if (location) eventData.location = location;
+    if (recurrenceRule) eventData.recurrence = [recurrenceRule];
 
     const createdId = 'local_' + Date.now();
 
@@ -257,8 +260,11 @@ async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString, ne
     return false;
 }
 
-/* --- Erinnerungen anlegen --- */
-async function addGoogleCalendarReminder(text, isoTimeString) {
+/* --- Erinnerungen anlegen ---
+   'recurrenceRule' (optional): eine Google-Kalender-RRULE wie 'RRULE:FREQ=WEEKLY;INTERVAL=2' für "alle 2
+   Wochen" - siehe buildRecurrenceRule() in assistant.js, die aus Formulierungen wie "alle 2 Wochen",
+   "jede Woche" oder "jeden Monat" automatisch die passende Regel baut. Ohne Angabe: einmaliger Termin wie bisher. */
+async function addGoogleCalendarReminder(text, isoTimeString, recurrenceRule) {
     let remDate = isoTimeString ? new Date(isoTimeString) : new Date();
     if (isNaN(remDate.getTime())) remDate = new Date();
 
@@ -269,6 +275,7 @@ async function addGoogleCalendarReminder(text, isoTimeString) {
         start: { dateTime: remDate.toISOString() },
         end: { dateTime: new Date(remDate.getTime() + 30 * 60000).toISOString() }
     };
+    if (recurrenceRule) eventData.recurrence = [recurrenceRule];
 
     if (isGoogleAuthorized()) {
         try {
@@ -286,7 +293,7 @@ async function addGoogleCalendarReminder(text, isoTimeString) {
         } catch (e) {}
     }
 
-    reminderEntries.unshift({ id: Date.now(), googleId: googleEventId, text, time: remDate.toISOString(), triggered: false });
+    reminderEntries.unshift({ id: Date.now(), googleId: googleEventId, text, time: remDate.toISOString(), triggered: false, recurrence: recurrenceRule || null });
     setPersistentData('helfer_reminders', JSON.stringify(reminderEntries));
     renderAllLists();
     fetchGoogleCalendarEvents();

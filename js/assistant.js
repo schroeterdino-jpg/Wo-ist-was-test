@@ -318,7 +318,8 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'memory_search') {
         // Die Suche selbst und die Antwort dazu passieren in sendToGroqSmart
     } else if (action.type === 'reminder') {
-        const remSynced = await addGoogleCalendarReminder(action.reminder_text || text, action.reminder_time);
+        const rrule = buildRecurrenceRule(action.reminder_recurrence_unit, action.reminder_recurrence_interval);
+        const remSynced = await addGoogleCalendarReminder(action.reminder_text || text, action.reminder_time, rrule);
         if (remSynced === false) googleNotSynced(ctx, 'Die Erinnerung ist nur in der App gespeichert, das Handy klingelt dazu nicht');
         updateTerminalStream("REMINDER: CREATED");
     } else if (action.type === 'reminder_delete') {
@@ -441,7 +442,8 @@ async function executeAction(action, text, ctx) {
         updateTerminalStream("BRIEFING: WISH_DELETED");
     } else if (action.type === 'calendar' || action.calendar_text) {
         const ort = action.calendar_location || extractLocationFallback(text);
-        const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort);
+        const rrule = buildRecurrenceRule(action.calendar_recurrence_unit, action.calendar_recurrence_interval);
+        const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort, rrule);
         if (addDone === false) googleNotSynced(ctx, 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht');
         // Den ECHTEN Google Kalender öffnen (nicht das eigene Termine-Fenster), als sichtbare Bestätigung,
         // dass der Termin wirklich eingetragen wurde. Nur wenn er tatsächlich bei Google gelandet ist -
@@ -455,6 +457,18 @@ async function executeAction(action, text, ctx) {
    inhaltlich zur aktuellen Frage passen - findet auch Umschreibungen, nicht nur ähnliche Wörter wie das
    normale Gedächtnis (searchMemory). Kein Fehler-Popup bei Problemen: liefert dann einfach eine leere
    Liste, die App funktioniert auch ganz ohne semantisches Gedächtnis weiter. */
+/* Baut aus einer KI-erkannten Wiederholungsangabe eine Google-Kalender-RRULE. 'unit' ist 'TAG'/'WOCHE'/
+   'MONAT'/'JAHR' (von der KI als action.reminder_recurrence_unit bzw. calendar_recurrence_unit gesetzt),
+   'interval' die Zahl davor (z.B. 2 bei "alle 2 Wochen", Standard 1 bei "jede Woche"/"täglich"). Gibt null
+   zurück, wenn keine Wiederholung gewünscht ist (unit fehlt). */
+function buildRecurrenceRule(unit, interval) {
+    const map = { TAG: 'DAILY', WOCHE: 'WEEKLY', MONAT: 'MONTHLY', JAHR: 'YEARLY' };
+    const freq = map[String(unit || '').toUpperCase()];
+    if (!freq) return null;
+    const n = Math.max(1, Math.min(52, Number(interval) || 1));
+    return `RRULE:FREQ=${freq}${n > 1 ? ';INTERVAL=' + n : ''}`;
+}
+
 async function searchSemanticMemory(text) {
     const q = String(text || '').trim();
     if (!q || q.length < 4) return [];
@@ -651,6 +665,7 @@ async function sendToGroqSmart(text, opts = {}) {
     "- Verwende den Typ 'shopping', wenn der User ausdrücklich etwas hinzufügen möchte (z.B. 'Füge X hinzu', 'Packe Y auf die Einkaufsliste') ODER beiläufig erwähnt, dass er etwas kaufen oder mitbringen muss (siehe 'WICHTIG für beiläufige Notizen' unten).\n\n" +
     "WICHTIG für Termine & Kalender:\n" +
     "- Wenn der User einen neuen Termin anlegt ('calendar'), berechne den exakten ISO-Zeitstempel (ISO 8601 im Format YYYY-MM-DDTHH:mm:ss) in 'calendar_time' basierend auf dem aktuellen Datum (" + nowGermanIso + "). Nennt er dabei einen Ort ('Ort Schwarzenbeck', 'in Hamburg', 'bei Rossmann'), trage NUR den Ort in 'calendar_location' ein - nicht im Titel ('calendar_text') wiederholen.\n" +
+    "- Soll sich ein Termin WIEDERHOLEN ('jede Woche', 'alle 2 Wochen', 'jeden Monat', 'jährlich', 'täglich'), setze zusätzlich 'calendar_recurrence_unit' ('TAG', 'WOCHE', 'MONAT' oder 'JAHR') und bei 'alle X ...' auch 'calendar_recurrence_interval' (die Zahl X, z.B. 2 bei 'alle 2 Wochen'; ohne Zahl - 'jede Woche' - einfach weglassen, dann gilt 1). Ohne erkennbare Wiederholung beide Felder weglassen.\n" +
     "- Wenn der User einen Termin ändern möchte ('calendar_update'), ermittle die korrekte 'calendar_id' aus dem Kontext ('termine'), den neuen Titel in 'calendar_text' (falls geändert), den neuen Ziel-Zeitpunkt als ISO-String in 'calendar_time' und einen neuen/nachträglichen Ort in 'calendar_location' (falls genannt).\n" +
     "- Wenn der User einen Termin löschen möchte ('calendar_delete'), gib den Suchbegriff oder die ID in 'calendar_query' an.\n" +
     "- Wenn Angaben für einen neuen Termin oder eine Änderung unvollständig sind (z.B. Uhrzeit fehlt), antworte im 'chat'-Modus und stelle genau eine kurze Rückfrage nach den fehlenden Details. Das Gespräch geht danach automatisch weiter.\n\n" +
@@ -666,7 +681,8 @@ async function sendToGroqSmart(text, opts = {}) {
     "- Enthält eine Äußerung mehrere Aufträge (z.B. 'Setz Milch auf die Einkaufsliste und erinnere mich morgen um 8 Uhr an den Arzt'), lege für JEDEN Auftrag eine eigene Aktion im Feld 'actions' an, in der Reihenfolge der Äußerung. Lass keinen Auftrag aus und erfinde keinen dazu.\n" +
     "- Deine 'reply' bestätigt alles zusammen in höchstens zwei kurzen Sätzen (z.B. 'Erledigt. Milch steht auf der Liste, und der Arzt ist für morgen um acht vorgemerkt.').\n" +
     "- Fehlen bei einem Auftrag Angaben (z.B. die Uhrzeit), führe die übrigen Aufträge trotzdem aus, lass den unvollständigen weg und frage in 'reply' kurz nach den fehlenden Angaben.\n" +
-    "- Sätze mit Wörtern wie 'suchen' oder 'wo' sind nicht automatisch eine Gedächtnis-Suche. 'Erinnere mich daran, die Brille zu suchen' ist eine Erinnerung ('reminder').\n\n" +
+    "- Sätze mit Wörtern wie 'suchen' oder 'wo' sind nicht automatisch eine Gedächtnis-Suche. 'Erinnere mich daran, die Brille zu suchen' ist eine Erinnerung ('reminder').\n" +
+    "- Soll sich eine Erinnerung WIEDERHOLEN ('jede Woche', 'alle 2 Wochen', 'jeden Monat', 'jährlich', 'täglich'), setze genau wie bei Terminen 'reminder_recurrence_unit' ('TAG', 'WOCHE', 'MONAT' oder 'JAHR') und bei 'alle X ...' zusätzlich 'reminder_recurrence_interval' (die Zahl X). Ohne erkennbare Wiederholung beide Felder weglassen.\n\n" +
     "Gib IMMER ein valides JSON-Objekt zurück mit folgenden Feldern:\n" +
     "- reply: Kurze, trockene J.A.R.V.I.S.-Antwort ohne Markdown, meist ein Satz, höchstens zwei. Aktionen bestätigst du knapp (z.B. 'Erledigt.' oder 'Notiert.'). Nur beim Vorlesen von Listen (Einkauf, Termine, Aufgaben) darf die Antwort länger sein.\n" +
     "- actions: Liste (Array) der auszuführenden Aktionen. Jede Aktion ist ein Objekt mit dem Feld 'type' und den dazu passenden Feldern (siehe unten). Bei reiner Unterhaltung, Auskünften oder dem Vorlesen von Listen ist 'actions' eine leere Liste.\n" +
@@ -677,7 +693,7 @@ async function sendToGroqSmart(text, opts = {}) {
     "- calendar_location: (bei calendar oder calendar_update) Ort des Termins, falls genannt - wichtig für die Abfahrtszeit-Berechnung.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query, protocol_name, protocol_steps, news_place, live_type, fuel_destination, fuel_type, bahn_from, bahn_to, bahn_time, bahn_time_type.";
+    "- reminder_text, reminder_time, reminder_query, reminder_recurrence_unit, reminder_recurrence_interval, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, calendar_recurrence_unit, calendar_recurrence_interval, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query, protocol_name, protocol_steps, news_place, live_type, fuel_destination, fuel_type, bahn_from, bahn_to, bahn_time, bahn_time_type.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -916,7 +932,7 @@ async function sendToGroqSmart(text, opts = {}) {
                 bahnReply = res.reply;
                 res.cards.forEach(c => ctx.cards.push(c));
             } catch (e) {
-                bahnReply = e.userMessage || 'Die Verbindung konnte ich gerade nicht abfragen.';
+                bahnReply = e.userMessage || pickRandom(['Die Bahn-Daten wollen gerade nicht zu mir durchdringen.', 'Da streikt gerade die Verbindung, nicht die Bahn selbst.']);
                 if (e.fallbackCard) ctx.cards.push(e.fallbackCard);
                 // Fehlt Start oder Ziel, merkt sich die KI ihre Rückfrage, damit die nächste Antwort ("von Hamburg Hauptbahnhof") dazu passt
                 if (/^(Von wo|Wohin)/.test(bahnReply)) chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: bahnReply, actions: [] }) };
@@ -982,7 +998,12 @@ async function sendToGroqSmart(text, opts = {}) {
         renderAllLists();
         stopThinkingSound();
         updateTerminalStream("SYS_ERR: COMMS_FAILURE", "ERROR");
-        const failText = (e && e.auth) ? e.userMessage : `Verzeihen Sie, ${currentUserName}, bei der Übertragung gab es eine kleine Störung.`;
+        const failText = (e && e.auth) ? e.userMessage : pickRandom([
+            `Verzeihen Sie, ${currentUserName}, meine Sensoren scheinen gerade blockiert zu sein.`,
+            `Da hakt es gerade irgendwo in der Leitung, ${currentUserName}. Nochmal, bitte.`,
+            `Entschuldigung, die Verbindung ist mir kurz weggebrochen. Versuchen Sie es noch einmal.`,
+            `Hm, da war wohl gerade niemand zu Hause am anderen Ende. Einen Moment, und nochmal bitte.`
+        ]);
         clearTimeout(ackTimer);
         if (opts.collect) opts.collect(failText, []); else speak(failText);
     } finally {
