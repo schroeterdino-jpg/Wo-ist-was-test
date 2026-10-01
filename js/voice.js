@@ -23,7 +23,11 @@ const SPEECH_RATE = 1.0;
 const SPEECH_PITCH = 0.92;
 const FOLLOW_UP_WINDOW_MS = 9000;
 const ACK_DELAY_MS = 1500;
-const WAKE_WORD_REGEX = /\bhe?y?\s*jarvis\b/i;
+// Deutlich toleranter als vorher: "Jarvis" wird von der deutschen Spracherkennung oft als "Jarwis"
+// verschriftlicht (das englische "v" klingt wie ein deutsches "w") - beides wird jetzt erkannt. Satzzeichen
+// zwischen "Hey" und "Jarvis" (z.B. "Hey, Jarvis") stören nicht mehr, und "Hey" selbst ist nur noch optional -
+// hört die App nur "Jarvis" (weil "Hey" mal verschluckt wurde), reicht das im Weckwort-Modus auch.
+const WAKE_WORD_REGEX = /\b(?:hey?[\s,]*)?jar[vw]is\b/i;
 
 function pickRandom(list) {
     return list[Math.floor(Math.random() * list.length)];
@@ -134,10 +138,14 @@ const ttsEngineSelectEl = document.getElementById('ttsEngineSelect');
 if (ttsEngineSelectEl) {
     ttsEngineSelectEl.value = getTtsEngine();
     const edgeRow = document.getElementById('edgeVoiceRow');
-    if (edgeRow) edgeRow.classList.toggle('hidden', ttsEngineSelectEl.value === 'browser');
+    const openaiRow = document.getElementById('openaiVoiceRow');
+    if (edgeRow) edgeRow.classList.toggle('hidden', ttsEngineSelectEl.value !== 'edge');
+    if (openaiRow) openaiRow.classList.toggle('hidden', ttsEngineSelectEl.value !== 'openai');
 }
 const edgeVoiceSelectEl = document.getElementById('edgeVoiceSelect');
 if (edgeVoiceSelectEl) edgeVoiceSelectEl.value = getEdgeVoice();
+const openaiVoiceSelectEl = document.getElementById('openaiVoiceSelect');
+if (openaiVoiceSelectEl) openaiVoiceSelectEl.value = getOpenaiVoice();
 
 const conversationToggleEl = document.getElementById('conversationModeToggle');
 if (conversationToggleEl) {
@@ -178,10 +186,18 @@ function speakableAbbreviations(text) {
 /* Welche Sprachausgabe genutzt wird: 'auto' (Edge-Cloud-Stimme, fällt bei Problemen automatisch auf die
    Handy-Stimme zurück) oder 'browser' (nur die eingebaute Handy-Stimme, nie die Cloud-Stimme versuchen). */
 function getTtsEngine() {
-    return getPersistentData('tts_engine', 'auto');
+    // 'openai' (sehr natürlich, kostenpflichtig), 'edge' (kostenlos, wie bisher), 'browser' (Handy-Stimme)
+    const v = getPersistentData('tts_engine', 'openai');
+    return (v === 'browser' || v === 'edge' || v === 'openai') ? v : 'openai';
 }
 function setTtsEngine(val) {
-    setPersistentData('tts_engine', val === 'browser' ? 'browser' : 'auto');
+    setPersistentData('tts_engine', (val === 'browser' || val === 'edge') ? val : 'openai');
+}
+function getOpenaiVoice() {
+    return getPersistentData('tts_openai_voice', 'alloy');
+}
+function setOpenaiVoice(val) {
+    setPersistentData('tts_openai_voice', String(val || 'alloy').replace(/[^a-zA-Z]/g, ''));
 }
 function getEdgeVoice() {
     return getPersistentData('tts_edge_voice', 'de-DE-ConradNeural');
@@ -197,14 +213,18 @@ let ttsCloudFailCount = 0;
 const TTS_CLOUD_MAX_FAILS = 2;
 const TTS_CLOUD_TIMEOUT_MS = 6000;
 
-/* Holt die fertige MP3 vom Server (Edge-TTS); null bei jedem Fehler oder Zeitüberschreitung - nie eine Ausnahme werfen,
-   das würde sonst die ganze Sprachausgabe zum Absturz bringen, statt einfach auf die Handy-Stimme auszuweichen. */
+/* Holt die fertige MP3 vom Server (OpenAI oder Edge-TTS, je nach Einstellung - der Server selbst fällt bei
+   OpenAI-Problemen schon automatisch auf Edge-TTS zurück); null bei jedem Fehler oder Zeitüberschreitung -
+   nie eine Ausnahme werfen, das würde sonst die ganze Sprachausgabe zum Absturz bringen, statt einfach auf
+   die Handy-Stimme auszuweichen. */
 async function fetchCloudSpeechBlob(text, voice) {
     if (typeof AbortController === 'undefined') return null;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TTS_CLOUD_TIMEOUT_MS);
     try {
-        const res = await apiFetch(`/api/stau?tts=1&text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}`, { signal: controller.signal });
+        const engine = getTtsEngine();
+        const engineParam = engine === 'openai' ? `&engine=openai&openaiVoice=${encodeURIComponent(getOpenaiVoice())}` : '';
+        const res = await apiFetch(`/api/stau?tts=1&text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}${engineParam}`, { signal: controller.signal });
         clearTimeout(timer);
         if (!res.ok) return null;
         const blob = await res.blob();
@@ -326,7 +346,7 @@ function speakBrowser(cleanText, onComplete, langCode) {
     }
 }
 
-function speakAck(text) {
+function speakAck(text, onComplete) {
     if (isRecording) return;
     const myGen = speechGeneration;   // Stand merken, bevor die (evtl. langsame) Cloud-Abfrage losgeht
     const tryCloud = getTtsEngine() !== 'browser' && ttsCloudFailCount < TTS_CLOUD_MAX_FAILS;
@@ -334,36 +354,38 @@ function speakAck(text) {
         ackActive = true;
         fetchCloudSpeechBlob(text, getEdgeVoice()).then(blob => {
             if (myGen !== speechGeneration) { ackActive = false; return; }   // echte Antwort kam inzwischen dazwischen - verworfen, nicht abspielen
-            if (!blob) { ttsCloudFailCount++; ackActive = false; speakAckBrowser(text, myGen); return; }
+            if (!blob) { ttsCloudFailCount++; ackActive = false; speakAckBrowser(text, myGen, onComplete); return; }
             ttsCloudFailCount = 0;
             if (currentAckAudio) { try { currentAckAudio.pause(); } catch (e) {} }
             const url = URL.createObjectURL(blob);
             currentAckAudio = new Audio(url);
-            const finish = () => { URL.revokeObjectURL(url); ackActive = false; currentAckAudio = null; };
+            const finish = () => { URL.revokeObjectURL(url); ackActive = false; currentAckAudio = null; if (onComplete) onComplete(); };
             currentAckAudio.onended = finish;
             currentAckAudio.onerror = () => { finish(); };
             currentAckAudio.play().catch(() => { finish(); });
         });
         return;
     }
-    speakAckBrowser(text, myGen);
+    speakAckBrowser(text, myGen, onComplete);
 }
 
 /* Bisherige, rein im Browser laufende Zwischenansage - jetzt der automatische Rückfall.
    'gen' (optional): Stand von speechGeneration beim ursprünglichen Aufruf von speakAck(), falls diese
    Funktion verzögert (nach einer gescheiterten Cloud-Abfrage) aufgerufen wird - fehlt er, wird der
-   aktuelle Stand genommen (direkter Aufruf ohne Cloud-Umweg). */
-function speakAckBrowser(text, gen) {
-    if (!('speechSynthesis' in window) || isRecording) return;
-    if (typeof gen === 'number' && gen !== speechGeneration) return;   // echte Antwort kam inzwischen dazwischen
+   aktuelle Stand genommen (direkter Aufruf ohne Cloud-Umweg). 'onComplete' (optional): wird aufgerufen,
+   sobald die Ansage fertig ist (egal ob erfolgreich oder mit Fehler) - z.B. um danach erst das Mikrofon
+   für die Anschlussfrage zu starten, statt es gleichzeitig zur Ansage zu versuchen. */
+function speakAckBrowser(text, gen, onComplete) {
+    if (!('speechSynthesis' in window) || isRecording) { if (onComplete) onComplete(); return; }
+    if (typeof gen === 'number' && gen !== speechGeneration) { if (onComplete) onComplete(); return; }   // echte Antwort kam inzwischen dazwischen
     const u = new SpeechSynthesisUtterance(text);
     const voice = getActiveVoice();
     if (voice) { u.voice = voice; u.lang = voice.lang; } else { u.lang = 'de-DE'; }
     u.rate = SPEECH_RATE;
     u.pitch = SPEECH_PITCH;
     ackActive = true;
-    u.onend = () => { ackActive = false; };
-    u.onerror = () => { ackActive = false; };
+    u.onend = () => { ackActive = false; if (onComplete) onComplete(); };
+    u.onerror = () => { ackActive = false; if (onComplete) onComplete(); };
     window.speechSynthesis.speak(u);
 }
 let currentAckAudio = null;
@@ -694,12 +716,18 @@ if (SpeechRecognition) {
                 handleRecognizedText(rest);
             } else {
                 isRecording = false;   // sonst würde speakAck() das "Ja?" für sich stumm verschlucken (isRecording ist im Dauerzuhören-Modus noch true)
-                speakAck('Ja?');
                 isFollowUp = true;
                 clearFollowUpTimer();
                 followUpTimer = setTimeout(() => { isFollowUp = false; setIdleUi(); }, FOLLOW_UP_WINDOW_MS);
-                setListeningUi(true);
-                try { recognition.start(); } catch (e) {}
+                // Erst NACH der "Ja?"-Ansage das Mikrofon neu starten, nicht währenddessen: die alte,
+                // fortlaufende Aufnahme-Sitzung ist an dieser Stelle technisch noch nicht ganz beendet
+                // (nur continuous wurde auf false gesetzt) - ein sofortiger neuer recognition.start()-Versuch
+                // hier würde einen stillen Fehler werfen und wurde nie erfolgreich neu gestartet.
+                speakAck('Ja?', () => {
+                    if (!isFollowUp) return;   // Zeitfenster ist inzwischen schon abgelaufen
+                    setListeningUi(true);
+                    try { recognition.start(); } catch (e) {}
+                });
             }
             return;
         }
@@ -804,13 +832,32 @@ if (SpeechRecognition) {
     };
 }
 
-/* --- Weckwort-Modus: hört dauerhaft zu, solange die App offen ist, und reagiert nur auf "Hey Jarvis" --- */
+/* --- Weckwort-Modus: hört dauerhaft zu, solange die App offen ist, und reagiert nur auf "Hey Jarvis" ---
+   Wake Lock: hält den Bildschirm wach, solange gelauscht wird. Ohne das dimmt/sperrt Android den Bildschirm
+   nach einer Weile von selbst - dabei killt das Betriebssystem die laufende Mikrofon-Sitzung oft, BEVOR
+   unsere Neustart-Logik (recognition.onend/onerror) überhaupt greifen kann. Das war vermutlich die
+   Hauptursache dafür, dass der Weckwort-Modus nach einiger Zeit "einfach aufhörte". */
+let wakeLockHandle = null;
+async function acquireWakeLock() {
+    if (!('wakeLock' in navigator) || wakeLockHandle) return;
+    try {
+        wakeLockHandle = await navigator.wakeLock.request('screen');
+        wakeLockHandle.addEventListener('release', () => { wakeLockHandle = null; });
+    } catch (e) {
+        wakeLockHandle = null;   // z.B. Akkusparmodus verweigert es - kein Grund, den Weckwort-Modus deswegen abzubrechen
+    }
+}
+function releaseWakeLock() {
+    if (wakeLockHandle) { try { wakeLockHandle.release(); } catch (e) {} wakeLockHandle = null; }
+}
+
 function startWakeWordListening() {
     if (!recognition || !wakeWordEnabled) return;
     if (interpreter) return;   // im Dolmetscher-Modus wird nicht auf "Hey Jarvis" gewartet
     if (isRecording || isSpeaking() || isProcessing || wakeWordListening) return;
     if (document.hidden) return;   // App im Hintergrund: nicht versuchen, spart Akku und vermeidet Fehler
     wakeWordListening = true;
+    acquireWakeLock();
     recognition.lang = 'de-DE';
     recognition.continuous = true;
     recognition.interimResults = false;
@@ -819,11 +866,15 @@ function startWakeWordListening() {
         if (recordText) recordText.textContent = "J.A.R.V.I.S. / WARTET AUF „HEY JARVIS\"...";
     } catch (e) {
         wakeWordListening = false;
+        // Meist "InvalidStateError", weil die vorige Sitzung noch nicht ganz beendet ist - kurz warten und
+        // selbst nochmal versuchen, statt stillschweigend aufzugeben.
+        setTimeout(() => { if (wakeWordEnabled && !wakeWordListening) startWakeWordListening(); }, 1200);
     }
 }
 
 function stopWakeWordListening() {
     wakeWordListening = false;
+    releaseWakeLock();
     if (recognition && isRecording) { try { recognition.stop(); } catch (e) {} }
 }
 
@@ -832,6 +883,23 @@ function setWakeWordEnabled(on) {
     setPersistentData('wake_word_enabled', wakeWordEnabled ? '1' : '0');
     if (wakeWordEnabled) startWakeWordListening();
     else stopWakeWordListening();
+}
+
+/* Selbstheilung: falls der Weckwort-Modus aus irgendeinem Grund "hängen bleibt" (z.B. ein Neustart-Pfad
+   wurde verpasst), prüft dieser Wächter alle 20 Sekunden nach und startet notfalls selbst neu. Reines
+   Sicherheitsnetz zusätzlich zu den Neustarts in recognition.onend/onerror, kein Ersatz dafür. */
+setInterval(() => {
+    if (wakeWordEnabled && !wakeWordListening && !isRecording && !isSpeaking() && !isProcessing && !document.hidden && !interpreter) {
+        startWakeWordListening();
+    }
+}, 20000);
+
+// Wake Lock geht beim Wechsel in den Hintergrund automatisch verloren - beim Zurückkommen neu anfordern,
+// solange noch gelauscht werden soll (stopWakeWordListening() beim Verstecken gibt es ja ohnehin frei).
+if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && wakeWordListening) acquireWakeLock();
+    });
 }
 
 if (typeof document !== 'undefined' && document.addEventListener) {
