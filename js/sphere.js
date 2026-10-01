@@ -103,6 +103,10 @@
         }
 
 
+        let angle = 0;
+        let time = 0;
+        let running = true;
+        let panelPaused = false;   // true, solange ein Panel (Termine, Welt, Karte ...) offen ist
         const BREATHE_SPEED = 0.02;     // wie schnell sie "atmet" (auseinander- und wieder zusammenzieht)
         const BREATHE_AMOUNT = 0.04;    // wie stark - 0.04 = bis zu 4% größer/kleiner als die Grundgröße (dezentes Pulsieren statt starkem Pump)
 
