@@ -163,6 +163,59 @@ setInterval(() => {
     }
 }, 30000);
 
+/* --- Warum hat Google etwas nicht angenommen? ---
+   Jede Google-Funktion unten merkt sich den ECHTEN Grund in lastGoogleProblem, damit J.A.R.V.I.S. nicht bei
+   jedem Fehler pauschal "nicht verbunden" sagt. Der technische Text (Status und Antwort von Google) steht
+   nur in der Konsole, vorgelesen wird eine kurze, verständliche Erklärung. */
+let lastGoogleProblem = null;   // { kind, status, detail } oder null, wenn der letzte Vorgang geklappt hat
+
+function clearGoogleProblem() { lastGoogleProblem = null; }
+
+function setGoogleProblem(kind, status, detail) {
+    lastGoogleProblem = { kind, status: status || null, detail: detail || '' };
+    if (status || detail) console.error('Google-Problem:', kind, status || '', detail || '');
+}
+
+/* Nicht (mehr) angemeldet: ohne gespeichertes Token "nicht angemeldet", sonst "abgelaufen" */
+function notAuthorizedKind() { return accessToken ? 'abgelaufen' : 'nicht_angemeldet'; }
+
+function classifyGoogleError(status, body) {
+    const b = String(body || '').toLowerCase();
+    if (status === 401) return 'abgelaufen';
+    if (status === 429 || /ratelimit|quota/.test(b)) return 'zu_viele';
+    if (status === 403) return 'berechtigung';
+    if (status >= 500) return 'google_stoerung';
+    if (status === 404 || status === 410) return 'nicht_gefunden';
+    return 'abgelehnt';
+}
+
+/* Liest die Antwort von Google bei einem Fehler und merkt sich den Grund */
+async function recordGoogleHttpError(res) {
+    let body = '';
+    try { body = await res.text(); } catch (e) {}
+    setGoogleProblem(classifyGoogleError(res.status, body), res.status, body.slice(0, 300));
+}
+
+function googleProblemText(p) {
+    switch (p && p.kind) {
+        case 'nicht_angemeldet': return 'Der Google Kalender ist nicht verbunden.';
+        case 'abgelaufen': return 'Die Google-Anmeldung ist abgelaufen.';
+        case 'berechtigung': return 'Google verweigert den Zugriff, es fehlt eine Berechtigung.';
+        case 'zu_viele': return 'Google meldet zu viele Anfragen, bitte versuchen Sie es gleich noch einmal.';
+        case 'abgelehnt': return 'Google hat den Eintrag abgelehnt, die Angaben passten nicht.';
+        case 'google_stoerung': return 'Google hat gerade selbst ein Problem, bitte versuchen Sie es gleich noch einmal.';
+        case 'netz': return 'Google ist gerade nicht erreichbar, vermutlich fehlt die Internetverbindung.';
+        case 'nicht_gefunden': return 'Google kennt diesen Eintrag nicht mehr.';
+        case 'lokal': return 'Dieser Termin liegt nur in der App.';
+        default: return 'Google hat den Eintrag nicht angenommen.';
+    }
+}
+
+/* Nur bei diesen Gründen hilft die Karte "Google Kalender verbinden" */
+function googleNeedsReconnect(p) {
+    return !!p && (p.kind === 'nicht_angemeldet' || p.kind === 'abgelaufen' || p.kind === 'berechtigung');
+}
+
 /* --- Termine anlegen / ändern ---
    'recurrenceRule' (optional): siehe addGoogleCalendarReminder() oben - dieselbe RRULE-Logik, nur hier für
    normale Termine statt Erinnerungen (z.B. "Trag jeden Montag Müll rausbringen ein"). */
@@ -183,6 +236,7 @@ async function addGoogleCalendarEvent(text, isoStartString, location, recurrence
 
     const createdId = 'local_' + Date.now();
 
+    clearGoogleProblem();
     if (isGoogleAuthorized()) {
         try {
             const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
@@ -195,13 +249,19 @@ async function addGoogleCalendarEvent(text, isoStartString, location, recurrence
             });
             if (res.status === 401) {
                 markGoogleExpired();
+                setGoogleProblem('abgelaufen', 401);
             } else if (res.ok) {
                 fetchGoogleCalendarEvents();
                 return true;
+            } else {
+                await recordGoogleHttpError(res);
             }
         } catch (e) {
             console.error("Google Sync Fehler", e);
+            setGoogleProblem('netz', null, e.message);
         }
+    } else {
+        setGoogleProblem(notAuthorizedKind());
     }
 
     // Google nicht verbunden oder nicht erreichbar: der Termin wird nur in der App gemerkt
@@ -222,7 +282,9 @@ async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString, ne
     if (isNaN(eventDate.getTime())) eventDate = new Date();
     const endDate = new Date(eventDate.getTime() + 60 * 60000);
 
-    if (isGoogleAuthorized() && eventId && !String(eventId).startsWith('local_')) {
+    clearGoogleProblem();
+    const isLocalEvent = String(eventId || '').startsWith('local_');
+    if (isGoogleAuthorized() && eventId && !isLocalEvent) {
         try {
             const patchData = {
                 start: { dateTime: eventDate.toISOString() },
@@ -241,13 +303,21 @@ async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString, ne
             });
             if (res.status === 401) {
                 markGoogleExpired();
+                setGoogleProblem('abgelaufen', 401);
             } else if (res.ok) {
                 fetchGoogleCalendarEvents();
                 return true;
+            } else {
+                await recordGoogleHttpError(res);
             }
         } catch (e) {
             console.error("Google Update Fehler", e);
+            setGoogleProblem('netz', null, e.message);
         }
+    } else if (!eventId || isLocalEvent) {
+        setGoogleProblem('lokal');
+    } else {
+        setGoogleProblem(notAuthorizedKind());
     }
 
     const target = calendarEntries.find(e => e.id === eventId);
@@ -282,6 +352,7 @@ async function addGoogleCalendarReminder(text, isoTimeString, recurrenceRule) {
     // Google verlangt bei Wiederholungen eine Zeitzone in Start und Ende, sonst wird der Eintrag abgelehnt
     if (recurrenceRule) { eventData.start.timeZone = 'Europe/Berlin'; eventData.end.timeZone = 'Europe/Berlin'; }
 
+    clearGoogleProblem();
     if (isGoogleAuthorized()) {
         try {
             const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
@@ -291,17 +362,24 @@ async function addGoogleCalendarReminder(text, isoTimeString, recurrenceRule) {
             });
             if (res.status === 401) {
                 markGoogleExpired();
+                googleErrorDetail = 'Anmeldung abgelaufen';
+                setGoogleProblem('abgelaufen', 401);
             } else if (res.ok) {
                 const data = await res.json();
                 googleEventId = data.id;
             } else {
                 const errBody = await res.text().catch(() => '');
                 googleErrorDetail = `Status ${res.status}: ${errBody.slice(0, 200)}`;
+                setGoogleProblem(classifyGoogleError(res.status, errBody), res.status, errBody.slice(0, 300));
                 console.error('Google-Kalender lehnte die Erinnerung ab:', googleErrorDetail);
             }
-        } catch (e) { googleErrorDetail = 'Netzwerkfehler: ' + e.message; }
+        } catch (e) {
+            googleErrorDetail = 'Netzwerkfehler: ' + e.message;
+            setGoogleProblem('netz', null, e.message);
+        }
     } else {
         googleErrorDetail = 'nicht angemeldet';
+        setGoogleProblem(notAuthorizedKind());
     }
 
     reminderEntries.unshift({ id: Date.now(), googleId: googleEventId, text, time: remDate.toISOString(), triggered: false, recurrence: recurrenceRule || null });
@@ -311,7 +389,7 @@ async function addGoogleCalendarReminder(text, isoTimeString, recurrenceRule) {
     // Objekt statt reinem true/false, damit der Aufrufer bei einem Fehlschlag den ECHTEN Grund kennt,
     // statt pauschal "nicht verbunden" zu vermuten (die Verbindung kann ja durchaus stehen, aber Google
     // lehnt z.B. eine fehlerhafte Wiederholungsregel ab).
-    return { synced: googleEventId !== null, errorDetail: googleErrorDetail };
+    return { synced: googleEventId !== null, errorDetail: googleErrorDetail, problem: lastGoogleProblem };
 }
 
 async function addManualReminder() {
@@ -325,7 +403,7 @@ async function addManualReminder() {
         const result = await addGoogleCalendarReminder(text, isoTime);
         textEl.value = '';
         timeEl.value = '';
-        speak(result.synced ? 'Erinnerung notiert.' : 'Erinnerung notiert, aber nur in der App: Der Google Kalender ist nicht verbunden.');
+        speak(result.synced ? 'Erinnerung notiert.' : 'Erinnerung notiert, aber nur in der App. ' + googleProblemText(lastGoogleProblem));
     }
 }
 
@@ -416,6 +494,7 @@ async function fetchGoogleCalendarEvents() {
 
 /* --- Löschen (liefern false, wenn nur die App-Kopie gelöscht werden konnte und der Eintrag bei Google bleibt) --- */
 async function deleteCalendarEntry(id) {
+    clearGoogleProblem();
     let googleDone = true;
     if (id && typeof id === 'string' && !id.startsWith('local_')) {
         googleDone = false;
@@ -426,11 +505,19 @@ async function deleteCalendarEntry(id) {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
-                if (res.status === 401) markGoogleExpired();
-                else googleDone = res.ok || res.status === 404 || res.status === 410;
+                if (res.status === 401) {
+                    markGoogleExpired();
+                    setGoogleProblem('abgelaufen', 401);
+                } else {
+                    googleDone = res.ok || res.status === 404 || res.status === 410;
+                    if (!googleDone) await recordGoogleHttpError(res);
+                }
             } catch (e) {
                 console.error("Fehler beim Löschen im Google Kalender", e);
+                setGoogleProblem('netz', null, e.message);
             }
+        } else {
+            setGoogleProblem(notAuthorizedKind());
         }
     }
 
@@ -441,6 +528,7 @@ async function deleteCalendarEntry(id) {
 }
 
 async function deleteReminderEntry(id) {
+    clearGoogleProblem();
     const rem = reminderEntries.find(e => e.id === id);
 
     // Gehört die Erinnerung zu einer Serie ("alle 2 Wochen"), verschwinden alle Termine dieser Serie aus der App
@@ -450,7 +538,10 @@ async function deleteReminderEntry(id) {
     renderAllLists();
 
     if (!rem) return true;
-    if (!isGoogleAuthorized()) return !rem.googleId;   // war die Erinnerung schon bei Google, bleibt sie dort bestehen
+    if (!isGoogleAuthorized()) {   // war die Erinnerung schon bei Google, bleibt sie dort bestehen
+        if (rem.googleId) { setGoogleProblem(notAuthorizedKind()); return false; }
+        return true;
+    }
 
     // Bei einer Serie wird die Serie selbst gelöscht, nicht nur der einzelne Termin
     let targetGoogleId = seriesId || rem.googleId;
@@ -460,7 +551,7 @@ async function deleteReminderEntry(id) {
             const nowIso = new Date().toISOString();
             const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${nowIso}&singleEvents=true`;
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-            if (res.status === 401) { markGoogleExpired(); return false; }
+            if (res.status === 401) { markGoogleExpired(); setGoogleProblem('abgelaufen', 401); return false; }
             if (res.ok) {
                 const data = await res.json();
                 if (data.items) {
@@ -477,10 +568,13 @@ async function deleteReminderEntry(id) {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
-            if (res.status === 401) { markGoogleExpired(); return false; }
-            return res.ok || res.status === 404 || res.status === 410;   // 404/410: bei Google schon weg
+            if (res.status === 401) { markGoogleExpired(); setGoogleProblem('abgelaufen', 401); return false; }
+            if (res.ok || res.status === 404 || res.status === 410) return true;   // 404/410: bei Google schon weg
+            await recordGoogleHttpError(res);
+            return false;
         } catch (e) {
             console.error("Fehler beim Löschen der Erinnerung aus Google", e);
+            setGoogleProblem('netz', null, e.message);
             return false;
         }
     }

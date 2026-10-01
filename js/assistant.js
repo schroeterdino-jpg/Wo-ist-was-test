@@ -195,10 +195,12 @@ async function runWebDiagnosis() {
     catch (e) { log('❌ Unerwarteter Fehler: ' + (e && e.message ? e.message : e)); }
 }
 
-/* Der Google Kalender war nicht verbunden: Die Änderung gilt nur in der App. Das sagt J.A.R.V.I.S. ehrlich und zeigt die Karte zum Verbinden. */
+/* Etwas hat bei Google nicht geklappt: Die Änderung gilt nur in der App. J.A.R.V.I.S. nennt den ECHTEN Grund
+   (siehe lastGoogleProblem in calendar.js) und zeigt die Karte zum erneuten Verbinden nur, wenn das wirklich hilft. */
 function googleNotSynced(ctx, what) {
-    ctx.notes.push(`Der Google Kalender ist nicht verbunden. ${what}.`);
-    if (!ctx.cards.some(c => c.onclick === 'loginWithGoogle(false)')) ctx.cards.push(googleReconnectCard());
+    const problem = (typeof lastGoogleProblem !== 'undefined' && lastGoogleProblem) || null;
+    ctx.notes.push(`${googleProblemText(problem)} ${what}.`);
+    if (googleNeedsReconnect(problem) && !ctx.cards.some(c => c.onclick === 'loginWithGoogle(false)')) ctx.cards.push(googleReconnectCard());
 }
 
 /* Öffnet den ECHTEN Google Kalender (App oder Web) am Tag des gerade angelegten/geänderten Termins, als
@@ -320,12 +322,7 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'reminder') {
         const rrule = buildRecurrenceRule(action.reminder_recurrence_unit, action.reminder_recurrence_interval) || recurrenceFromText(text);
         const remResult = await addGoogleCalendarReminder(action.reminder_text || text, action.reminder_time, rrule);
-        if (!remResult.synced) {
-            const grund = remResult.errorDetail === 'nicht angemeldet'
-                ? 'das Handy klingelt dazu nicht, weil der Google-Kalender nicht verbunden ist'
-                : `Google hat den Eintrag abgelehnt (${remResult.errorDetail || 'unbekannter Grund'})`;
-            googleNotSynced(ctx, `Die Erinnerung ist nur in der App gespeichert, ${grund}`);
-        }
+        if (!remResult.synced) googleNotSynced(ctx, 'Die Erinnerung ist nur in der App gespeichert, das Handy klingelt dazu nicht');
         updateTerminalStream("REMINDER: CREATED");
     } else if (action.type === 'reminder_delete') {
         const q = String(action.reminder_query || '').toLowerCase().trim();
