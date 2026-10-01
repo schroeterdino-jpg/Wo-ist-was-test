@@ -49,6 +49,8 @@
         #hudSubtitleBox, #recordText, #statusMessage { opacity: 0; transition: opacity .45s ease; pointer-events: none; }
         body.show-sub #hudSubtitleBox, body.show-sub #recordText, body.show-sub #statusMessage { opacity: 1; }
         #briefingBtn { -webkit-tap-highlight-color: transparent; }
+        /* Unten Platz lassen: sonst liegt die Antwort-Box hinter dem schwebenden P-Knopf (Parkplatz) */
+        main.container { padding-bottom: 9.5rem; }
     </style>
 </head>
 <body class="bg-[#050a10] text-slate-100 min-h-screen flex flex-col justify-between">
@@ -388,6 +390,11 @@
                             </button>
                         </div>
                         <p id="connectionStatus" class="text-xs text-[#5d7e91] font-medium break-all"></p>
+                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                            <button onclick="playUiBeep(); runSystemCheck()" class="w-full bg-slate-800 hover:bg-slate-700 text-[#49d7ff] py-2.5 rounded-lg text-sm font-bold border border-[#49d7ff]/40 uppercase tracking-wide">✅ Alles prüfen</button>
+                            <p class="text-xs text-[#5d7e91] font-mono">Prüft Google Kalender, Gmail, Wetter, Spritpreise, Karten und die KI auf einmal. Auch per Sprache: „Systemcheck."</p>
+                            <pre id="systemCheckOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
+                        </div>
                         <div class="pt-2 border-t border-[rgba(93,209,255,.18)]">
                             <button onclick="playUiBeep(); document.getElementById('diagToolsBox').classList.toggle('hidden')" class="w-full bg-slate-900 hover:bg-slate-800 text-[#5d7e91] py-2 rounded-lg text-xs font-bold border border-slate-700 uppercase tracking-wide">🔧 Diagnose-Werkzeuge (nur bei Problemen)</button>
                         </div>
