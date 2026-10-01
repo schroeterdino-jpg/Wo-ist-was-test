@@ -516,6 +516,54 @@ async function fetchDailyInsights() {
     }
 }
 
+/* --- Diagnose für die Einstellungen: zeigt roh, was die Vektordatenbank zurückgibt - sowohl die
+   "breite" Liste (für pauschale Fragen) als auch eine gezielte Suche, ganz ohne den Umweg über die
+   KI-Antwort. Damit lässt sich genau unterscheiden: liegt's an den Daten selbst, oder daran, dass die
+   KI die Daten zwar bekommt, aber nicht nutzt. --- */
+async function runMemoryDiagnosis() {
+    const out = document.getElementById('memoryDiagOutput');
+    const input = document.getElementById('memoryDiagInput');
+    const lines = [];
+    const log = (t) => { lines.push(t); if (out) { out.textContent = lines.join('\n'); out.classList.remove('hidden'); } };
+    try {
+        log('Breite Liste wird abgefragt (bis zu 15 neueste Einträge) ...');
+        const listRes = await apiFetch('/api/memory', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'list', limit: 15 })
+        });
+        const listData = await listRes.json();
+        if (!listRes.ok) { log('❌ Fehler: ' + (listData.error || JSON.stringify(listData))); }
+        else {
+            const treffer = listData.treffer || [];
+            log(`✅ ${treffer.length} Einträge zurückbekommen:`);
+            treffer.forEach((t, i) => log(`  ${i + 1}. ${t.text}${t.metadata && t.metadata.datum ? '  (' + t.metadata.datum.slice(0, 16).replace('T', ' ') + ')' : ''}`));
+            if (!treffer.length) log('  (leer - entweder ist noch nichts gespeichert, oder die Abfrage liefert nichts zurück)');
+        }
+
+        const q = (input && input.value || '').trim();
+        if (q) {
+            log('');
+            log('Gezielte Suche zu "' + q + '" ...');
+            const searchRes = await apiFetch('/api/memory', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'search', query: q, topK: 5, minScore: 0 })
+            });
+            const searchData = await searchRes.json();
+            if (!searchRes.ok) { log('❌ Fehler: ' + (searchData.error || JSON.stringify(searchData))); }
+            else {
+                const treffer = searchData.treffer || [];
+                log(`✅ ${treffer.length} Treffer (minScore 0, also wirklich alle, auch schwach passende):`);
+                treffer.forEach((t, i) => log(`  ${i + 1}. [${t.score.toFixed(3)}] ${t.text}`));
+                if (!treffer.length) log('  (keine Treffer - der Eintrag existiert dann vermutlich gar nicht in der Datenbank)');
+            }
+        }
+        log('');
+        log('Fertig.');
+    } catch (e) {
+        log('❌ Unerwarteter Fehler: ' + (e && e.message ? e.message : e));
+    }
+}
+
 let lastLearnAt = 0;   // chatHistory.length beim letzten automatischen Lern-Durchlauf (siehe sendToGroqSmart)
 async function sendToGroqSmart(text, opts = {}) {
     isProcessing = true;
