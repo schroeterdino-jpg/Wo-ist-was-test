@@ -320,8 +320,9 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'memory_search') {
         // Die Suche selbst und die Antwort dazu passieren in sendToGroqSmart
     } else if (action.type === 'reminder') {
-        const rrule = buildRecurrenceRule(action.reminder_recurrence_unit, action.reminder_recurrence_interval) || recurrenceFromText(text);
-        const remResult = await addGoogleCalendarReminder(action.reminder_text || text, action.reminder_time, rrule);
+        const rrule = weekdayRuleFromText(text) || buildRecurrenceRule(action.reminder_recurrence_unit, action.reminder_recurrence_interval) || recurrenceFromText(text);
+        const important = action.reminder_important === true || action.reminder_important === 'true' || importantFromText(text);
+        const remResult = await addGoogleCalendarReminder(action.reminder_text || text, action.reminder_time, rrule, important);
         if (!remResult.synced) googleNotSynced(ctx, 'Die Erinnerung ist nur in der App gespeichert, das Handy klingelt dazu nicht');
         updateTerminalStream("REMINDER: CREATED");
     } else if (action.type === 'reminder_delete') {
@@ -456,7 +457,7 @@ async function executeAction(action, text, ctx) {
         updateTerminalStream("BRIEFING: WISH_DELETED");
     } else if (action.type === 'calendar' || action.calendar_text) {
         const ort = action.calendar_location || extractLocationFallback(text);
-        const rrule = buildRecurrenceRule(action.calendar_recurrence_unit, action.calendar_recurrence_interval) || recurrenceFromText(text);
+        const rrule = weekdayRuleFromText(text) || buildRecurrenceRule(action.calendar_recurrence_unit, action.calendar_recurrence_interval) || recurrenceFromText(text);
         const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort, rrule);
         if (addDone === false) googleNotSynced(ctx, 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht');
         // Den ECHTEN Google Kalender öffnen (nicht das eigene Termine-Fenster), als sichtbare Bestätigung,
@@ -500,6 +501,108 @@ function recurrenceFromText(text) {
     if (/jeden monat|monatlich/.test(t)) return buildRecurrenceRule('MONAT', 1);
     if (/jedes jahr|jährlich/.test(t)) return buildRecurrenceRule('JAHR', 1);
     return null;
+}
+
+/* Zahlen als Wort oder Ziffer ("zehn", "10", "eine") -> Zahl; sonst null */
+function parseGermanNumber(w) {
+    const word = String(w || '').toLowerCase().trim();
+    if (/^\d{1,3}$/.test(word)) return Number(word);
+    const map = { ein: 1, eine: 1, einer: 1, einen: 1, zwei: 2, drei: 3, vier: 4, fünf: 5, sechs: 6, sieben: 7, acht: 8, neun: 9, zehn: 10,
+        elf: 11, zwölf: 12, fünfzehn: 15, zwanzig: 20, dreißig: 30, vierzig: 40, fünfundvierzig: 45, sechzig: 60 };
+    return map[word] || null;
+}
+
+/* Wiederholung mit Wochentag direkt aus dem Satz: "jeden Montag", "dienstags und donnerstags", "alle zwei Wochen
+   freitags", "jeden ersten Freitag im Monat", "jeden letzten Freitag im Monat", "werktags", "jedes Wochenende".
+   Gibt eine RRULE oder null zurück. Hat Vorrang vor den allgemeinen Wiederholungen ("jede Woche"). */
+function weekdayRuleFromText(text) {
+    const t = String(text || '').toLowerCase();
+    const wd = { montag: 'MO', dienstag: 'DI', mittwoch: 'MI', donnerstag: 'DO', freitag: 'FR', samstag: 'SA', sonnabend: 'SA', sonntag: 'SO' };
+    const code = { MO: 'MO', DI: 'TU', MI: 'WE', DO: 'TH', FR: 'FR', SA: 'SA', SO: 'SU' };
+    const nums = { ein: 1, eine: 1, zwei: 2, drei: 3, vier: 4 };
+    const dayWords = 'montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag';
+
+    // jeden ersten/zweiten/dritten/vierten/letzten <Wochentag> im Monat
+    const nth = { ersten: '1', zweiten: '2', dritten: '3', vierten: '4', letzten: '-1' };
+    let m = t.match(new RegExp('\\b(?:jeden|jeder|an jedem)\\s+(ersten|zweiten|dritten|vierten|letzten)\\s+(' + dayWords + ')\\s+(?:im|des)\\s+monat'));
+    if (m) return `RRULE:FREQ=MONTHLY;BYDAY=${nth[m[1]]}${code[wd[m[2]]]}`;
+
+    if (/\b(werktags|jeden werktag|montags? bis freitags?|von montag bis freitag)\b/.test(t)) return 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR';
+    if (/\bjedes wochenende\b/.test(t)) return 'RRULE:FREQ=WEEKLY;BYDAY=SA,SU';
+
+    const days = [];
+    const re = new RegExp('\\b(' + dayWords + ')s?\\b', 'g');
+    let dm;
+    while ((dm = re.exec(t)) !== null) {
+        const c = code[wd[dm[1]]];
+        if (!days.includes(c)) days.push(c);
+    }
+    if (days.length === 0) return null;
+
+    const im = t.match(/\balle[nr]?\s+(\d{1,2}|ein|eine|zwei|drei|vier)\s+wochen\b/);
+    const interval = im ? (/^\d/.test(im[1]) ? Number(im[1]) : nums[im[1]]) : (/zweiwöchentlich|vierzehntägig/.test(t) ? 2 : 1);
+    const signal = !!im || /\b(jeden|jede|jedes|wöchentlich|zweiwöchentlich|vierzehntägig)\b/.test(t)
+        || new RegExp('\\b(' + dayWords + ')s\\b').test(t);   // "montags" = jeden Montag
+    if (!signal) return null;
+    return `RRULE:FREQ=WEEKLY${interval > 1 ? ';INTERVAL=' + interval : ''};BYDAY=${days.join(',')}`;
+}
+
+/* Hat der User gesagt, dass die Erinnerung WICHTIG ist bzw. dass Jarvis nachhaken soll? (Rückfall, falls die KI das Feld vergisst) */
+function importantFromText(text) {
+    return /\b(wichtig\w*|unbedingt|nachhak\w*|nachfass\w*|frag\w*\s+(?:mich\s+)?(?:so lange\s+)?nach|bis ich (?:es |das )?(?:bestätig\w*|erledigt|abhak\w*))\b/i.test(String(text || ''));
+}
+
+/* "Erledigt", "habe ich genommen" ... beendet das Nachfassen bei wichtigen Erinnerungen. Gibt true zurück, wenn behandelt. */
+function handleAcknowledgeCommand(text) {
+    const t = String(text || '').toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!t || t.length > 60) return false;
+    if (!/\b(erledigt|gemacht|genommen|getan|abgehakt)\b/.test(t)) return false;
+    if (/\b(nicht|kein|keine|nie|wie|wann|was|warum|wo|welche)\b/.test(t)) return false;
+    const active = reminderEntries.filter(r => r.important && r.triggered && !r.done);
+    if (active.length === 0) return false;
+
+    const ignore = new Set(['erledigt', 'gemacht', 'genommen', 'getan', 'abgehakt', 'danke', 'habe', 'schon', 'bereits', 'jetzt']);
+    const words = t.split(' ').filter(w => w.length >= 4 && !ignore.has(w));
+    let targets = words.length ? active.filter(r => words.some(w => r.text.toLowerCase().includes(w))) : [];
+    if (targets.length === 0) targets = active;
+
+    targets.forEach(r => { r.done = true; });
+    setPersistentData('helfer_reminders', JSON.stringify(reminderEntries));
+    renderAllLists();
+    speak(pickRandom(['Sehr gut, ich frage nicht mehr nach.', 'Notiert, ich lasse Sie in Ruhe.', 'Wunderbar, abgehakt.']), continueConversation);
+    return true;
+}
+
+/* "Erinnere mich in zehn Minuten nochmal" / "in einer halben Stunde wieder" / "später nochmal erinnern":
+   legt die zuletzt ausgelöste Erinnerung neu an. Gibt true zurück, wenn behandelt. */
+function handleSnoozeCommand(text) {
+    const t = String(text || '').toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!t || t.length > 70) return false;
+    if (!lastFiredReminder || Date.now() - lastFiredReminderAt > 2 * 3600000) return false;
+    if (!/(nochmal|noch einmal|erneut|wieder)/.test(t) && !/erinner/.test(t)) return false;
+
+    let minutes = null;
+    if (/halbe[nr]? stunde/.test(t)) minutes = 30;
+    const m = t.match(/\b(?:in|nach)\s+(\d{1,3}|[a-zäöüß]+)\s*(minuten|minute|min|stunden|stunde|std)\b/);
+    if (m) {
+        const n = parseGermanNumber(m[1]);
+        if (n) minutes = /^(stunde|stunden|std)$/.test(m[2]) ? n * 60 : n;
+    }
+    if (minutes === null && /(später|spaeter)/.test(t) && /erinner/.test(t)) minutes = 10;
+    if (minutes === null) return false;
+    // Nur, wenn "nochmal"/"wieder" oder "später" dabei steht - "Erinnere mich in 10 Minuten an die Wäsche" ist eine neue Erinnerung
+    if (!/(nochmal|noch einmal|erneut|wieder|später|spaeter)/.test(t)) return false;
+
+    const rem = lastFiredReminder;
+    rem.done = true;
+    setPersistentData('helfer_reminders', JSON.stringify(reminderEntries));
+    const when = minutes % 60 === 0 ? (minutes === 60 ? 'einer Stunde' : (minutes / 60) + ' Stunden') : minutes + ' Minuten';
+    addGoogleCalendarReminder(rem.text, new Date(Date.now() + minutes * 60000).toISOString(), null, !!rem.important).then(res => {
+        speak(res.synced
+            ? `Gut, ich erinnere Sie in ${when} noch einmal.`
+            : `Ich erinnere Sie in ${when} noch einmal, aber nur in der App. ${googleProblemText(lastGoogleProblem)}`, continueConversation);
+    }).catch(() => speak('Das Verschieben hat leider nicht geklappt.'));
+    return true;
 }
 
 async function searchSemanticMemory(text) {
@@ -716,6 +819,8 @@ async function sendToGroqSmart(text, opts = {}) {
     "- Fehlen bei einem Auftrag Angaben (z.B. die Uhrzeit), führe die übrigen Aufträge trotzdem aus, lass den unvollständigen weg und frage in 'reply' kurz nach den fehlenden Angaben.\n" +
     "- Sätze mit Wörtern wie 'suchen' oder 'wo' sind nicht automatisch eine Gedächtnis-Suche. 'Erinnere mich daran, die Brille zu suchen' ist eine Erinnerung ('reminder').\n" +
     "- Will der User ALLE Erinnerungen löschen ('Lösche alle meine Erinnerungen'), nutze 'reminder_delete' mit 'reminder_delete_all' = true und lass 'reminder_query' leer. Nennt er einen Namen ('Lösche alle Erinnerungen mit Tablette'), setze zusätzlich 'reminder_query' = das Stichwort, dann werden alle passenden gelöscht. Eine sich wiederholende Erinnerung wird immer komplett als Serie gelöscht.\n" +
+    "- Wochentage: Sagt der User 'jeden Montag', 'dienstags und donnerstags' oder 'jeden ersten Freitag im Monat', setze trotzdem nur 'reminder_recurrence_unit' ('WOCHE' bzw. 'MONAT'); die App erkennt den Wochentag selbst aus dem Satz. 'reminder_time' ist die Uhrzeit am nächsten passenden Tag.\n" +
+    "- Wichtige Erinnerungen: Sagt der User, dass eine Erinnerung WICHTIG ist oder dass du nachhaken/nachfragen sollst, bis er sie erledigt hat ('wichtige Erinnerung', 'unbedingt', 'frag nach, bis ich es bestätige'), setze 'reminder_important' = true. Jarvis fragt dann alle 10 Minuten nach, bis der User 'erledigt' sagt. Ohne so eine Ansage lässt du das Feld weg.\n" +
     "- Soll sich eine Erinnerung WIEDERHOLEN ('jede Woche', 'alle 2 Wochen', 'jeden Monat', 'jährlich', 'täglich'), setze genau wie bei Terminen 'reminder_recurrence_unit' ('TAG', 'WOCHE', 'MONAT' oder 'JAHR') und bei 'alle X ...' zusätzlich 'reminder_recurrence_interval' (die Zahl X). Ohne erkennbare Wiederholung beide Felder weglassen.\n\n" +
     "Gib IMMER ein valides JSON-Objekt zurück mit folgenden Feldern:\n" +
     "- reply: Kurze, trockene J.A.R.V.I.S.-Antwort ohne Markdown, meist ein Satz, höchstens zwei. Aktionen bestätigst du knapp (z.B. 'Erledigt.' oder 'Notiert.'). Nur beim Vorlesen von Listen (Einkauf, Termine, Aufgaben) darf die Antwort länger sein.\n" +
@@ -727,7 +832,7 @@ async function sendToGroqSmart(text, opts = {}) {
     "- calendar_location: (bei calendar oder calendar_update) Ort des Termins, falls genannt - wichtig für die Abfahrtszeit-Berechnung.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, reminder_delete_all, reminder_recurrence_unit, reminder_recurrence_interval, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, calendar_recurrence_unit, calendar_recurrence_interval, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query, protocol_name, protocol_steps, news_place, live_type, fuel_destination, fuel_type, bahn_from, bahn_to, bahn_time, bahn_time_type.";
+    "- reminder_text, reminder_time, reminder_query, reminder_delete_all, reminder_important, reminder_recurrence_unit, reminder_recurrence_interval, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, calendar_recurrence_unit, calendar_recurrence_interval, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query, protocol_name, protocol_steps, news_place, live_type, fuel_destination, fuel_type, bahn_from, bahn_to, bahn_time, bahn_time_type.";
 
     chatHistory.push({ role: "user", content: text });
 
@@ -1541,6 +1646,10 @@ async function handleBundesligaQuery(teamNamePart) {
 }
 
 function handleLocalCommandInner(text) {
+    // Wichtige Erinnerungen: "erledigt" beendet das Nachfassen, "in zehn Minuten nochmal" verschiebt sie
+    if (handleAcknowledgeCommand(text)) return true;
+    if (handleSnoozeCommand(text)) return true;
+
     // "Zeig mir die Nachrichten von heute" / "Nachrichten für Hamburg" -> eigenes Panel mit Bild-Karten,
     // OHNE die 3D-Weltkugel. Die Weltkugel selbst bleibt für "Zeig mir die Weltkugel"/ISS/Erdbeben/Live-Kameras da.
     const newsCmd = matchNachrichtenPanelCommand(text);

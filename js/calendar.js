@@ -11,7 +11,20 @@ function requestNotificationPermission() {
     }
 }
 
-/* --- Erinnerungen: jede Sekunde prüfen, ob eine fällig ist --- */
+/* --- Erinnerungen: jede Sekunde prüfen, ob eine fällig ist ---
+   WICHTIGE Erinnerungen (rem.important) werden alle 10 Minuten wiederholt, bis der User "erledigt" sagt
+   (siehe handleAcknowledgeCommand in assistant.js), höchstens NAG_MAX-mal. Danach hört Jarvis auf. */
+const NAG_INTERVAL_MS = 10 * 60000;
+const NAG_MAX = 6;
+let lastFiredReminder = null;   // zuletzt ausgelöste Erinnerung (für "in zehn Minuten nochmal")
+let lastFiredReminderAt = 0;
+
+/* Zwei Zeitangaben (ISO-Text, ggf. mit anderer Schreibweise) meinen denselben Zeitpunkt? */
+function sameTime(a, b) {
+    const x = new Date(a).getTime(), y = new Date(b).getTime();
+    return !isNaN(x) && !isNaN(y) && x === y;
+}
+
 setInterval(() => {
     if (reminderEntries.length === 0) return;
     const now = new Date();
@@ -22,11 +35,40 @@ setInterval(() => {
         if (!rem.triggered && remTime <= now) {
             rem.triggered = true;
             updated = true;
+            lastFiredReminder = rem;
+            lastFiredReminderAt = now.getTime();
 
             if ('Notification' in window && Notification.permission === 'granted') {
                 new Notification(`Erinnerung für ${currentUserName}`, { body: rem.text, icon: './dino.png' });
             }
-            speak(`Zur Erinnerung: ${rem.text}`);
+            if (rem.important) {
+                rem.nagCount = 0;
+                rem.nextNagAt = now.getTime() + NAG_INTERVAL_MS;
+                rem.done = false;
+                speak(`Zur Erinnerung: ${rem.text}. Sagen Sie erledigt, sobald Sie es getan haben, sonst frage ich nach.`);
+            } else {
+                speak(`Zur Erinnerung: ${rem.text}`);
+            }
+        } else if (rem.triggered && rem.important && !rem.done && rem.nextNagAt) {
+            if (now.getTime() - rem.nextNagAt > 3 * NAG_INTERVAL_MS) {   // App war lange zu: nicht plötzlich alte Erinnerungen nachholen
+                rem.done = true;
+                updated = true;
+            } else if (now.getTime() >= rem.nextNagAt) {
+                rem.nagCount = (rem.nagCount || 0) + 1;
+                updated = true;
+                lastFiredReminder = rem;
+                lastFiredReminderAt = now.getTime();
+                if (rem.nagCount >= NAG_MAX) {
+                    rem.done = true;
+                    speak(`Letzte Erinnerung: ${rem.text}. Ich frage nicht weiter nach.`);
+                } else {
+                    rem.nextNagAt = now.getTime() + NAG_INTERVAL_MS;
+                    speak(`Noch einmal zur Erinnerung: ${rem.text}. Haben Sie das erledigt?`);
+                }
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification(`Erinnerung für ${currentUserName}`, { body: rem.text, icon: './dino.png' });
+                }
+            }
         }
     });
 
@@ -35,6 +77,47 @@ setInterval(() => {
         renderAllLists();
     }
 }, 1000);
+
+/* Bei Wiederholungen mit Wochentag ("jeden Montag", "jeden ersten Freitag im Monat") muss der erste Termin selbst
+   auf einen passenden Tag fallen, sonst legt Google einen zusätzlichen Termin am falschen Tag an. Diese Funktion
+   schiebt den Start auf den nächsten passenden Tag (Uhrzeit bleibt, nie in der Vergangenheit). */
+function alignStartToRule(date, rule) {
+    const bm = /BYDAY=([^;]+)/.exec(rule || '');
+    if (!bm) return date;
+    const now = new Date();
+    const dayIdx = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+    const codes = bm[1].split(',');
+    let d = new Date(date);
+
+    if (!/FREQ=MONTHLY/.test(rule)) {
+        const set = new Set(codes.map(c => dayIdx[c.replace(/^[-+]?\d+/, '')]));
+        for (let i = 0; i < 400; i++) {
+            if (set.has(d.getDay()) && d.getTime() >= now.getTime() - 60000) return d;
+            d = new Date(d.getTime());
+            d.setDate(d.getDate() + 1);
+        }
+        return date;
+    }
+
+    // monatlich: n-ter (oder letzter) Wochentag, z.B. 1FR oder -1FR
+    const m = /^(-?\d+)([A-Z]{2})$/.exec(codes[0]);
+    if (!m) return date;
+    const n = Number(m[1]), wd = dayIdx[m[2]];
+    for (let k = 0; k < 14; k++) {
+        let cand;
+        if (n > 0) {
+            const first = new Date(d.getFullYear(), d.getMonth() + k, 1, d.getHours(), d.getMinutes(), 0, 0);
+            cand = new Date(first);
+            cand.setDate(1 + ((wd - first.getDay() + 7) % 7) + (n - 1) * 7);
+        } else {
+            const last = new Date(d.getFullYear(), d.getMonth() + k + 1, 0, d.getHours(), d.getMinutes(), 0, 0);
+            cand = new Date(last);
+            cand.setDate(last.getDate() - ((last.getDay() - wd + 7) % 7) - (-n - 1) * 7);
+        }
+        if (cand.getTime() >= d.getTime() && cand.getTime() >= now.getTime() - 60000) return cand;
+    }
+    return date;
+}
 
 /* --- Google Login --- */
 let tokenClient = null;
@@ -222,6 +305,7 @@ function googleNeedsReconnect(p) {
 async function addGoogleCalendarEvent(text, isoStartString, location, recurrenceRule) {
     let eventDate = isoStartString ? new Date(isoStartString) : new Date();
     if (isNaN(eventDate.getTime())) eventDate = new Date();
+    if (recurrenceRule) eventDate = alignStartToRule(eventDate, recurrenceRule);
 
     const endDate = new Date(eventDate.getTime() + 60 * 60000);
     const eventData = {
@@ -336,15 +420,16 @@ async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString, ne
    'recurrenceRule' (optional): eine Google-Kalender-RRULE wie 'RRULE:FREQ=WEEKLY;INTERVAL=2' für "alle 2
    Wochen" - siehe buildRecurrenceRule() in assistant.js, die aus Formulierungen wie "alle 2 Wochen",
    "jede Woche" oder "jeden Monat" automatisch die passende Regel baut. Ohne Angabe: einmaliger Termin wie bisher. */
-async function addGoogleCalendarReminder(text, isoTimeString, recurrenceRule) {
+async function addGoogleCalendarReminder(text, isoTimeString, recurrenceRule, important) {
     let remDate = isoTimeString ? new Date(isoTimeString) : new Date();
     if (isNaN(remDate.getTime())) remDate = new Date();
+    if (recurrenceRule) remDate = alignStartToRule(remDate, recurrenceRule);
 
     let googleEventId = null;
     let googleErrorDetail = null;   // echter Grund, falls Google den Eintrag ablehnt (z.B. ungültige Wiederholungsregel) - statt pauschal "nicht verbunden" zu vermuten
 
     const eventData = {
-        summary: `🔔 ${text}`,
+        summary: `🔔 ${important ? '❗ ' : ''}${text}`,   // das ❗ merkt sich bei Google, dass die Erinnerung wichtig ist (gilt dann auch für jede Wiederholung)
         start: { dateTime: remDate.toISOString() },
         end: { dateTime: new Date(remDate.getTime() + 30 * 60000).toISOString() }
     };
@@ -382,7 +467,7 @@ async function addGoogleCalendarReminder(text, isoTimeString, recurrenceRule) {
         setGoogleProblem(notAuthorizedKind());
     }
 
-    reminderEntries.unshift({ id: Date.now(), googleId: googleEventId, text, time: remDate.toISOString(), triggered: false, recurrence: recurrenceRule || null });
+    reminderEntries.unshift({ id: Date.now(), googleId: googleEventId, text, time: remDate.toISOString(), triggered: false, recurrence: recurrenceRule || null, important: !!important, nagCount: 0, nextNagAt: null, done: false });
     setPersistentData('helfer_reminders', JSON.stringify(reminderEntries));
     renderAllLists();
     fetchGoogleCalendarEvents();
@@ -460,10 +545,12 @@ async function fetchGoogleCalendarEvents() {
 
                 const newReminderEntries = [];
                 googleReminders.forEach(gItem => {
-                    const cleanText = (gItem.summary || '').replace(/^🔔\s*/, '').trim();
+                    const rawSummary = gItem.summary || '';
+                    const cleanText = rawSummary.replace(/^🔔\s*/, '').replace(/^❗\s*/, '').trim();
+                    const isImportant = /^🔔\s*❗/.test(rawSummary);
                     const isoTime = gItem.start.dateTime || gItem.start.date;
 
-                    const existing = reminderEntries.find(r => r.googleId === gItem.id || (r.text === cleanText && r.time === isoTime));
+                    const existing = reminderEntries.find(r => r.googleId === gItem.id || (r.text === cleanText && sameTime(r.time, isoTime)));
 
                     newReminderEntries.push({
                         id: existing ? existing.id : Date.now() + Math.floor(Math.random() * 1000),
@@ -471,12 +558,20 @@ async function fetchGoogleCalendarEvents() {
                         text: cleanText,
                         time: isoTime,
                         triggered: existing ? existing.triggered : false,
-                        seriesId: gItem.recurringEventId || null   // gehört der Termin zu einer Serie, steht hier die Serien-ID
+                        seriesId: gItem.recurringEventId || null,   // gehört der Termin zu einer Serie, steht hier die Serien-ID
+                        important: isImportant || !!(existing && existing.important),
+                        nagCount: existing ? (existing.nagCount || 0) : 0,
+                        nextNagAt: existing ? (existing.nextNagAt || null) : null,
+                        done: existing ? !!existing.done : false
                     });
                 });
 
                 reminderEntries.forEach(r => {
-                    if (!r.googleId && !newReminderEntries.some(nr => nr.text === r.text && nr.time === r.time)) {
+                    if (!r.googleId && !newReminderEntries.some(nr => nr.text === r.text && sameTime(nr.time, r.time))) {
+                        newReminderEntries.push(r);
+                    }
+                    // Wichtige Erinnerung, die gerade nachfasst: bleibt, auch wenn der Termin bei Google schon vorbei ist
+                    else if (r.googleId && r.important && r.triggered && !r.done && !newReminderEntries.some(nr => nr.googleId === r.googleId)) {
                         newReminderEntries.push(r);
                     }
                 });
