@@ -51,6 +51,9 @@
         #briefingBtn { -webkit-tap-highlight-color: transparent; }
         /* Unten Platz lassen: sonst liegt die Antwort-Box hinter dem schwebenden P-Knopf (Parkplatz) */
         main.container { padding-bottom: 9.5rem; }
+        /* Größere Kugel (js/sphere.js zeichnet sie 348 Pixel groß); auf schmalen Bildschirmen schrumpft sie mit */
+        .holo-container { width: min(348px, 88vw); height: min(348px, 88vw); }
+        #jarvisSphere { max-width: 100% !important; height: auto !important; }
     </style>
 </head>
 <body class="bg-[#050a10] text-slate-100 min-h-screen flex flex-col justify-between">
@@ -320,6 +323,16 @@
                             <span>Weckwort-Modus: hört auf „Hey Jarvis", solange die App offen ist</span>
                         </label>
                         <p class="text-xs text-[#5d7e91] font-mono pl-8">Braucht dauerhaften Mikrofon-Zugriff, zeigt dafür das Mikro-Symbol von Android permanent an und verbraucht etwas mehr Akku. Funktioniert nur, solange die App im Vordergrund ist.</p>
+                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Aussprache-Liste:</label>
+                            <p class="text-xs text-[#5d7e91] font-mono">Wie soll Jarvis ein Wort oder einen Namen sprechen? Per Sprache: „Sprich Alyssa so aus: Alischa." Oder hier eintragen. Angezeigt wird weiter die normale Schreibweise.</p>
+                            <div class="flex gap-2">
+                                <input type="text" id="pronWordInput" placeholder="Wort, z.B. Alyssa" autocomplete="off" class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                                <input type="text" id="pronSpokenInput" placeholder="So sprechen, z.B. Alischa" autocomplete="off" class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                            </div>
+                            <button onclick="playUiBeep(); savePronunciationManual()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Aussprache speichern</button>
+                            <div id="pronunciationList" class="text-xs font-mono"></div>
+                        </div>
                     </div>
                 </details>
 
@@ -335,6 +348,10 @@
                             <option value="off">Aus (Ringe und Hintergrund stehen still)</option>
                         </select>
                         <p class="text-xs text-[#5d7e91]">Flackert es auf deinem Handy, nimm „Ruhig" oder „Aus". Die Einstellung gilt nur für dieses Gerät.</p>
+                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer pt-1">
+                            <input type="checkbox" id="nightDimToggle" onchange="setNightDim(this.checked)" class="w-5 h-5 accent-[#49d7ff]" checked>
+                            <span>Nachts: Kugel dunkler und ruhiger (ab 21 Uhr, nachts am dunkelsten, ab 5 Uhr wieder heller)</span>
+                        </label>
                     </div>
                 </details>
 
@@ -512,6 +529,7 @@
     <script src="./js/smarttips.js"></script>
     <script src="./js/sync.js"></script>
     <script src="./js/voice.js"></script>
+    <script src="./js/pronunciation.js"></script>
     <script src="./js/briefing.js"></script>
     <script src="./js/assistant.js"></script>
     <script src="./js/background.js"></script>
