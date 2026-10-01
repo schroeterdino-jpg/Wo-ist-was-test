@@ -392,7 +392,8 @@ async function fetchGoogleCalendarEvents() {
                         googleId: gItem.id,
                         text: cleanText,
                         time: isoTime,
-                        triggered: existing ? existing.triggered : false
+                        triggered: existing ? existing.triggered : false,
+                        seriesId: gItem.recurringEventId || null   // gehört der Termin zu einer Serie, steht hier die Serien-ID
                     });
                 });
 
@@ -442,14 +443,17 @@ async function deleteCalendarEntry(id) {
 async function deleteReminderEntry(id) {
     const rem = reminderEntries.find(e => e.id === id);
 
-    reminderEntries = reminderEntries.filter(e => e.id !== id);
+    // Gehört die Erinnerung zu einer Serie ("alle 2 Wochen"), verschwinden alle Termine dieser Serie aus der App
+    const seriesId = rem && rem.seriesId;
+    reminderEntries = reminderEntries.filter(e => e.id !== id && !(seriesId && e.seriesId === seriesId));
     setPersistentData('helfer_reminders', JSON.stringify(reminderEntries));
     renderAllLists();
 
     if (!rem) return true;
     if (!isGoogleAuthorized()) return !rem.googleId;   // war die Erinnerung schon bei Google, bleibt sie dort bestehen
 
-    let targetGoogleId = rem.googleId;
+    // Bei einer Serie wird die Serie selbst gelöscht, nicht nur der einzelne Termin
+    let targetGoogleId = seriesId || rem.googleId;
 
     if (!targetGoogleId) {
         try {
@@ -461,7 +465,7 @@ async function deleteReminderEntry(id) {
                 const data = await res.json();
                 if (data.items) {
                     const match = data.items.find(item => item.summary && item.summary.includes(rem.text));
-                    if (match) targetGoogleId = match.id;
+                    if (match) targetGoogleId = match.recurringEventId || match.id;
                 }
             }
         } catch (e) {}
@@ -474,7 +478,7 @@ async function deleteReminderEntry(id) {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
             if (res.status === 401) { markGoogleExpired(); return false; }
-            return true;
+            return res.ok || res.status === 404 || res.status === 410;   // 404/410: bei Google schon weg
         } catch (e) {
             console.error("Fehler beim Löschen der Erinnerung aus Google", e);
             return false;

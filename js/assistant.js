@@ -328,13 +328,25 @@ async function executeAction(action, text, ctx) {
         }
         updateTerminalStream("REMINDER: CREATED");
     } else if (action.type === 'reminder_delete') {
-        const q = (action.reminder_query || text).toLowerCase();
-        const found = reminderEntries.find(r => r.text.toLowerCase().includes(q) || q.includes(r.text.toLowerCase()));
+        const q = String(action.reminder_query || '').toLowerCase().trim();
+        const genericQuery = !q || /^(alle|alles|alle erinnerungen|erinnerungen|meine erinnerungen|alle meine erinnerungen)$/.test(q);
+        const wantsAll = action.reminder_delete_all === true || action.reminder_delete_all === 'true' ||
+            /\balle[nr]?\s+(?:meine\s+|die\s+)?erinnerungen?\b/i.test(text);
+        let targets = [];
+        if (wantsAll && genericQuery) {
+            targets = [...reminderEntries];                       // wirklich alle
+        } else if (wantsAll) {
+            targets = reminderEntries.filter(r => r.text.toLowerCase().includes(q) || q.includes(r.text.toLowerCase()));   // alle mit diesem Namen
+        } else {
+            const qq = (q || text).toLowerCase();
+            const found = reminderEntries.find(r => r.text.toLowerCase().includes(qq) || qq.includes(r.text.toLowerCase()));
+            if (found) targets = [found];
+            else if (reminderEntries.length > 0) targets = [reminderEntries[0]];
+        }
         let remDone = true;
-        if (found) {
-            remDone = await deleteReminderEntry(found.id);
-        } else if (reminderEntries.length > 0) {
-            remDone = await deleteReminderEntry(reminderEntries[0].id);
+        for (const t of targets) {   // eine Serie wird beim ersten Treffer komplett gelöscht, die übrigen Termine daraus sind dann schon weg
+            if (!reminderEntries.some(r => r.id === t.id)) continue;
+            if ((await deleteReminderEntry(t.id)) === false) remDone = false;
         }
         if (remDone === false) googleNotSynced(ctx, 'Die Erinnerung ist in der App gelöscht, bei Google steht sie noch');
         updateTerminalStream("REMINDER: DELETED");
@@ -706,6 +718,7 @@ async function sendToGroqSmart(text, opts = {}) {
     "- Deine 'reply' bestätigt alles zusammen in höchstens zwei kurzen Sätzen (z.B. 'Erledigt. Milch steht auf der Liste, und der Arzt ist für morgen um acht vorgemerkt.').\n" +
     "- Fehlen bei einem Auftrag Angaben (z.B. die Uhrzeit), führe die übrigen Aufträge trotzdem aus, lass den unvollständigen weg und frage in 'reply' kurz nach den fehlenden Angaben.\n" +
     "- Sätze mit Wörtern wie 'suchen' oder 'wo' sind nicht automatisch eine Gedächtnis-Suche. 'Erinnere mich daran, die Brille zu suchen' ist eine Erinnerung ('reminder').\n" +
+    "- Will der User ALLE Erinnerungen löschen ('Lösche alle meine Erinnerungen'), nutze 'reminder_delete' mit 'reminder_delete_all' = true und lass 'reminder_query' leer. Nennt er einen Namen ('Lösche alle Erinnerungen mit Tablette'), setze zusätzlich 'reminder_query' = das Stichwort, dann werden alle passenden gelöscht. Eine sich wiederholende Erinnerung wird immer komplett als Serie gelöscht.\n" +
     "- Soll sich eine Erinnerung WIEDERHOLEN ('jede Woche', 'alle 2 Wochen', 'jeden Monat', 'jährlich', 'täglich'), setze genau wie bei Terminen 'reminder_recurrence_unit' ('TAG', 'WOCHE', 'MONAT' oder 'JAHR') und bei 'alle X ...' zusätzlich 'reminder_recurrence_interval' (die Zahl X). Ohne erkennbare Wiederholung beide Felder weglassen.\n\n" +
     "Gib IMMER ein valides JSON-Objekt zurück mit folgenden Feldern:\n" +
     "- reply: Kurze, trockene J.A.R.V.I.S.-Antwort ohne Markdown, meist ein Satz, höchstens zwei. Aktionen bestätigst du knapp (z.B. 'Erledigt.' oder 'Notiert.'). Nur beim Vorlesen von Listen (Einkauf, Termine, Aufgaben) darf die Antwort länger sein.\n" +
@@ -717,7 +730,7 @@ async function sendToGroqSmart(text, opts = {}) {
     "- calendar_location: (bei calendar oder calendar_update) Ort des Termins, falls genannt - wichtig für die Abfahrtszeit-Berechnung.\n" +
     "- calendar_id: (bei calendar_update or calendar_delete) ID des betroffenen Termins aus dem Kontext.\n" +
     "- calendar_query: (bei calendar_delete) Suchbegriff des Termins.\n" +
-    "- reminder_text, reminder_time, reminder_query, reminder_recurrence_unit, reminder_recurrence_interval, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, calendar_recurrence_unit, calendar_recurrence_interval, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query, protocol_name, protocol_steps, news_place, live_type, fuel_destination, fuel_type, bahn_from, bahn_to, bahn_time, bahn_time_type.";
+    "- reminder_text, reminder_time, reminder_query, reminder_delete_all, reminder_recurrence_unit, reminder_recurrence_interval, shopping_items, todo_items, memory_key, memory_value, memory_search_query, new_name, briefing_text, briefing_item, briefing_query, list_name, list_op, list_items, list_new_value, calendar_search_query, calendar_recurrence_unit, calendar_recurrence_interval, parking_note, home_address, nav_to, nav_from, nav_mode, contact_name, message_text, panel, panel_range, panel_from, panel_to, web_query, email_query, email_unread_only, email_important_only, email_ref, travel_query, travel_destination, travel_arrival_time, places_query, protocol_name, protocol_steps, news_place, live_type, fuel_destination, fuel_type, bahn_from, bahn_to, bahn_time, bahn_time_type.";
 
     chatHistory.push({ role: "user", content: text });
 
