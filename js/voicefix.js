@@ -80,6 +80,12 @@ function fixStreetGrammar(text) {
             return runSpeak(this, text, onComplete, langCode);
         };
     }
+    /* Das Brummen beim Nachdenken ist abgeschaltet: startThinkingSound() (audio.js) macht jetzt nichts mehr.
+       stopThinkingSound() bleibt unverändert und ist ungefährlich, wenn nie etwas gestartet wurde. */
+    try {
+        if (typeof startThinkingSound === 'function') startThinkingSound = function () {};
+    } catch (e) { /* sollte die Funktion nicht überschreibbar sein, bleibt alles wie vorher */ }
+
     if (typeof speakAck === 'function') {
         const origAck = speakAck;
         speakAck = function (text, onComplete) {
