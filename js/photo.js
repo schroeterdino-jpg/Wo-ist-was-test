@@ -100,13 +100,12 @@ function openPhotoGallery() {
     if (el) el.click();
 }
 
-function showPhotoCards() {
+function showPhotoCards(galleryFirst) {
     if (typeof clearActionCards === 'function') clearActionCards();
     if (typeof showActionCards === 'function') {
-        showActionCards([
-            { icon: '📷', title: 'Foto aufnehmen', subtitle: 'Tippen, dann öffnet sich die Kamera', onclick: 'openPhotoCamera()' },
-            { icon: '🖼️', title: 'Bild aus der Galerie', subtitle: 'Ein vorhandenes Foto auswählen', onclick: 'openPhotoGallery()' }
-        ]);
+        const cam = { icon: '📷', title: 'Foto aufnehmen', subtitle: 'Tippen, dann öffnet sich die Kamera', onclick: 'openPhotoCamera()' };
+        const pick = { icon: '📁', title: 'Bild aus den Dateien', subtitle: 'Ein vorhandenes Bild vom Handy auswählen', onclick: 'openPhotoGallery()' };
+        showActionCards(galleryFirst ? [pick, cam] : [cam, pick]);
     }
 }
 
@@ -538,6 +537,25 @@ function handlePhotoCommand(text) {
         askVision(photoSystemPrompt('describe'), `Frage des Nutzers zum Foto: "${follow[1]}"`, lastPhoto.dataUrl, false)
             .then(a => photoSay(photoCleanAnswer(a) || 'Dazu sehe ich auf dem Foto nichts.'))
             .catch(() => photoSay('Die Auswertung hat gerade nicht geklappt.'));
+        return true;
+    }
+
+    // Vorhandenes Bild vom Handy nehmen: "Ich möchte ein Bild aus meinem Dateiordner hinzufügen", "Foto aus der Galerie", "Bild hochladen"
+    if ((/(?<![\wäöüß])(?:öffne|öffnen|zeig|zeige)\w*\s+(?:mir\s+)?(?:bitte\s+)?(?:meinen|meine|den|die)\s+(?:dateiordner|dateien|datei-?manager)\b/.test(t) || /\b(?:dateiordner|dateien|datei-?manager)\s+(?:öffnen|aufmachen)\b/.test(t))
+        || /\b(bild\w*|foto\w*|datei\w*|screenshot\w*)\b/.test(t)
+        && (/\b(?:aus|von)\s+(?:der|dem|den|meiner|meinem|meinen)\s+(?:galerie|dateien|dateiordner|ordner|speicher|downloads?|handy|telefon)\b/.test(t)
+            || /\b(?:hinzufügen|hochladen|auswählen|einfügen|importieren|öffnen|laden|hineinladen)\b/.test(t) && /\b(bild\w*|foto\w*|screenshot\w*|datei\w*)\b/.test(t) && !/\bnotiz|dokument|pdf\b/.test(t)
+            || /\b(?:schon|bereits)\s+(?:auf dem handy|gespeichert|vorhanden)\b/.test(t))) {
+        // Aufgabe merken, wenn sie schon im Satz steht ("Setz die Liste aus meinem Dateiordner auf die Einkaufsliste")
+        let task = (parsePhotoRequest(raw) || {}).task;
+        if (!task || task === 'describe') {
+            if (/\b(einkaufsliste|einkaufszettel|liste)\b/.test(t) && /\b(setz\w*|trag\w*|schreib\w*|übernehm\w*|füg\w*|pack\w*)\b/.test(t)) task = 'shopping';
+            else if (/\b(termin\w*|kalender)\b/.test(t) && /\b(trag\w*|eintrag\w*|übernehm\w*)\b/.test(t)) task = 'events';
+            else if (/\b(kontakt\w*|visitenkarte)\b/.test(t)) task = 'contact';
+        }
+        photoIntent = task && task !== 'describe' ? { task, question: raw, at: Date.now() } : null;
+        showPhotoCards(true);
+        photoSay('Tippen Sie unten auf die Karte, dann öffnet sich Ihr Dateiordner. Wählen Sie dort das Bild aus.');
         return true;
     }
 
