@@ -25,7 +25,7 @@ const HELP_TOPICS = [
     { key: 'tanken', icon: '⛽', title: 'Tanken & Essen', words: /tank|sprit|diesel|benzin|restaurant|essen|hunger|pizza/, examples: [
         'Wo tanke ich günstig auf meinem Weg zur Arbeit?', 'Was kostet Diesel in der Nähe?', 'Ich habe Lust auf Pizza, gibt es was in der Nähe?'] },
     { key: 'wetter', icon: '🌦️', title: 'Wetter', words: /wetter|regen|schirm|jacke/, examples: [
-        'Wie wird das Wetter morgen?', 'Brauche ich einen Regenschirm?', 'Wie wird das Wetter am Wochenende?', 'Zeig das Regenradar'] },
+        'Wie wird das Wetter morgen?', 'Brauche ich einen Regenschirm?', 'Zeig mir das Wetter in Istanbul (mit Wetterkarte)', 'Wie wird das Wetter morgen in Wien?', 'Zeig das Regenradar'] },
     { key: 'mail', icon: '📧', title: 'E-Mails (nur lesen)', words: /mail|post/, examples: [
         'Habe ich neue E-Mails?', 'Nur wichtige E-Mails, keine Werbung', 'Lies mir die erste vor'] },
     { key: 'kontakte', icon: '📞', title: 'Anrufen & WhatsApp', words: /kontakt|anruf|ruf\b|whatsapp|telefon/, examples: [
