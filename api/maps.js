@@ -1,5 +1,5 @@
 // Karten-Dienste in EINER Serverless Function (Vercel Hobby erlaubt höchstens 12 Functions).
-// Ersetzt die früheren Dateien geocode.js, reverse.js, route.js und overpass.js.
+// Ersetzt die früheren Dateien geocode.js, reverse.js, route.js und overpass.js; dazu kommt 'holidays' (Schulferien/Feiertage).
 // Die alten Adressen /api/geocode, /api/reverse, /api/route und /api/overpass werden in vercel.json
 // auf diese Datei umgeleitet (mit ?action=geocode|reverse|route|overpass), die App merkt davon nichts.
 //
@@ -58,7 +58,7 @@ async function reverse(req, res) {
     const ort = a.city || a.town || a.village || a.municipality || a.suburb || a.county || '';
     const strasse = strasseName ? (strasseName + (hausnummer ? ' ' + hausnummer : '')).trim() : '';
     const adresse = [strasse, ort].filter(Boolean).join(', ');
-    return res.status(200).json({ adresse: adresse || null, strasse: strasse || null, hausnummer: !!hausnummer, ort: ort || null });
+    return res.status(200).json({ adresse: adresse || null, strasse: strasse || null, hausnummer: !!hausnummer, ort: ort || null, bundesland: a.state || null });
   } catch (e) {
     return res.status(502).json({ error: 'Adress-Suche nicht erreichbar: ' + e.message });
   }
@@ -147,9 +147,35 @@ async function overpass(req, res) {
 }
 
 /* ------------------------------------------------------------------
+   holidays: Schulferien (kind=school, Standard) oder Feiertage (kind=public) aller Bundesländer von OpenHolidays (openholidaysapi.org, offen und kostenlos).
+   Läuft über den Server, damit der Browser nicht an Fremdserver-Regeln (CORS) scheitert; das Ergebnis darf einen Tag zwischengespeichert werden.
+   Aufruf: /api/maps?action=holidays&kind=school&from=2026-09-01&to=2028-12-31
+   ------------------------------------------------------------------ */
+async function holidays(req, res) {
+  const kind = req.query.kind === 'public' ? 'PublicHolidays' : 'SchoolHolidays';
+  const from = String(req.query.from || ''), to = String(req.query.to || '');
+  const isDay = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(new Date(v + 'T12:00:00Z').getTime());
+  if (!isDay(from) || !isDay(to) || from > to) return res.status(400).json({ error: 'Zeitraum fehlt oder ist ungültig (from/to als JJJJ-MM-TT)' });
+  try {
+    const url = `https://openholidaysapi.org/${kind}?countryIsoCode=DE&languageIsoCode=DE&validFrom=${from}&validTo=${to}`;
+    const r = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'MeinAlltagsHelfer/1.0 (privates Projekt, kein kommerzieller Einsatz)' },
+      signal: AbortSignal.timeout(15000)
+    });
+    if (!r.ok) return res.status(502).json({ error: 'Ferien-Dienst antwortet mit Status ' + r.status });
+    const data = await r.json();
+    if (!Array.isArray(data)) return res.status(502).json({ error: 'Ferien-Dienst lieferte unerwartete Daten' });
+    res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=604800');
+    return res.status(200).json(data);
+  } catch (e) {
+    return res.status(502).json({ error: 'Ferien-Dienst nicht erreichbar: ' + e.message });
+  }
+}
+
+/* ------------------------------------------------------------------
    Verteiler: prüft zuerst den App-Code (wie bisher in jeder der vier Dateien) und ruft dann die passende Funktion auf
    ------------------------------------------------------------------ */
-const ACTIONS = { geocode, reverse, route, overpass };
+const ACTIONS = { geocode, reverse, route, overpass, holidays };
 
 export default async function handler(req, res) {
   const expected = process.env.APP_SECRET;
