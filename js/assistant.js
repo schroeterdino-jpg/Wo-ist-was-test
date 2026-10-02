@@ -25,8 +25,28 @@ async function searchSemanticMemory(text) {
     }
 }
 
+/* Schutzhülle: Ein Fehler VOR dem eigentlichen KI-Aufruf (zum Beispiel beim Zusammenbau der Anweisung, wenn eine js-Datei fehlt oder
+   nicht zur anderen passt) darf die App nie auf "VERARBEITET" hängen lassen. Dann wird aufgeräumt, der Grund erscheint in der
+   Fehleranzeige (roter Streifen) und Jarvis sagt, dass intern etwas nicht stimmt. */
 async function sendToGroqSmart(text, opts = {}) {
+    try {
+        return await sendToGroqSmartCore(text, opts);
+    } catch (e) {
+        console.error('Ablauf vor dem KI-Aufruf fehlgeschlagen', e);
+        try { clearTimeout(window.__groqAckTimer); } catch (x) {}
+        try { stopThinkingSound(); } catch (x) {}
+        isProcessing = false;
+        try { renderAllLists(); } catch (x) {}
+        try { if (typeof diagError === 'function') diagError(e); } catch (x) {}
+        try { window.dispatchEvent(new ErrorEvent('error', { message: 'KI-Ablauf: ' + ((e && e.message) || e), filename: 'js/assistant.js', lineno: 0 })); } catch (x) {}
+        const failText = 'Da ist bei mir intern etwas nicht in Ordnung, wahrscheinlich passt eine Programmdatei nicht zur anderen. Den Grund sehen Sie unten im Bild.';
+        if (opts && opts.collect) opts.collect(failText, []); else speak(failText);
+    }
+}
+
+async function sendToGroqSmartCore(text, opts = {}) {
     isProcessing = true;
+    try { if (typeof diagStart === 'function') diagStart(text); } catch (e) {}   // Diagnose-Fenster (nur wenn eingeschaltet)
     clearActionCards();
     startThinkingSound();
     typeWriterStatus("Verarbeite Anweisung...");
@@ -48,6 +68,7 @@ async function sendToGroqSmart(text, opts = {}) {
         if (opts.collect) return;   // im Protokoll wird nicht zwischendurch gesprochen
         speakAck(pickRandom(ackPhrasesFor(text)));
     }, ACK_START_MS);
+    window.__groqAckTimer = ackTimer;   // damit die Schutzhülle (sendToGroqSmart) ihn bei einem frühen Fehler stoppen kann
 
     let liveWeather = null;
     let liveForecast = null;
@@ -116,6 +137,7 @@ async function sendToGroqSmart(text, opts = {}) {
     };
 
     const systemPrompt = buildSystemPrompt(text, contextData, nowGermanIso);
+    try { if (typeof diagPromptSize === 'function') diagPromptSize(systemPrompt); } catch (e) {}
 
     chatHistory.push({ role: "user", content: text });
 
@@ -136,7 +158,9 @@ async function sendToGroqSmart(text, opts = {}) {
         });
 
         const data = await res.json();
+        try { if (typeof diagApi === 'function') diagApi(res, data); } catch (e) {}
         const ai = JSON.parse(data.choices[0].message.content);
+        try { if (typeof diagShow === 'function') diagShow(text, ai); } catch (e) {}
 
         chatHistory.push({ role: "assistant", content: JSON.stringify(ai) });
 
@@ -386,7 +410,9 @@ async function sendToGroqSmart(text, opts = {}) {
                     replyText = `Ich habe Folgendes in meinen Registern gefunden: ${results.map(r => `${r.key}:${r.value}`).join(', ')}`;
                 }
             } else {
-                replyText = `Zu Ihren Diensten, ${currentUserName}. Es ist erledigt.`;
+                replyText = sassLevel() >= 3 ? pickRandom([`Erledigt, ${currentUserName}. Sie dürfen jetzt klatschen.`, `Ist passiert. Ihre Dankbarkeit nehme ich bar entgegen.`, `Fertig. Das war leichter als Ihr Gesichtsausdruck vermuten ließ.`])
+                    : sassLevel() >= 2 ? pickRandom([`Erledigt, ${currentUserName}. Applaus ist optional.`, `Ist passiert. Sie müssen nichts weiter tun.`, `Fertig. Das ging schneller als Ihr Gedanke dazu.`])
+                    : `Zu Ihren Diensten, ${currentUserName}. Es ist erledigt.`;
             }
         }
 
@@ -423,6 +449,7 @@ async function sendToGroqSmart(text, opts = {}) {
         renderAllLists();
         stopThinkingSound();
         updateTerminalStream("SYS_ERR: COMMS_FAILURE", "ERROR");
+        try { if (typeof diagError === 'function') diagError(e); } catch (x) {}
         const failText = (e && e.auth) ? e.userMessage : pickRandom([
             `Verzeihen Sie, ${currentUserName}, meine Sensoren scheinen gerade blockiert zu sein.`,
             `Da hakt es gerade irgendwo in der Leitung, ${currentUserName}. Nochmal, bitte.`,
