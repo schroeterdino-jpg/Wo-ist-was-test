@@ -272,10 +272,15 @@ async function handlePhotoFile(file) {
         photoSay(answer || 'Dazu konnte ich auf dem Foto nichts Brauchbares erkennen.');
     } catch (e) {
         console.error('Foto-Auswertung fehlgeschlagen:', e && e.message);
-        const m = String((e && e.message) || '');
+        const m = String((e && e.message) || 'unbekannter Fehler');
+        // Den echten Grund als Karte zeigen (eine Konsole gibt es in der App nicht): so lässt sich der Fehler gezielt beheben
+        try {
+            if (typeof clearActionCards === 'function') clearActionCards();
+            if (typeof showActionCards === 'function') showActionCards([{ icon: '⚠️', title: 'Foto-Auswertung: Fehler der KI-Verbindung', subtitle: m.slice(0, 220) }]);
+        } catch (e2) {}
         photoSay(/image|vision|content|model|multimodal/i.test(m)
-            ? 'Meine KI-Verbindung nimmt gerade keine Bilder an. Der genaue Grund steht in der Konsole.'
-            : 'Die Auswertung des Fotos hat gerade nicht geklappt. Versuchen Sie es bitte noch einmal.');
+            ? 'Meine KI-Verbindung nimmt gerade keine Bilder an. Den genauen Grund sehen Sie unten auf der Karte.'
+            : 'Die Auswertung des Fotos hat gerade nicht geklappt. Den Grund sehen Sie unten auf der Karte.');
     }
 }
 
