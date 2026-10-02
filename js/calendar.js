@@ -302,7 +302,7 @@ function googleNeedsReconnect(p) {
 /* --- Termine anlegen / ändern ---
    'recurrenceRule' (optional): siehe addGoogleCalendarReminder() oben - dieselbe RRULE-Logik, nur hier für
    normale Termine statt Erinnerungen (z.B. "Trag jeden Montag Müll rausbringen ein"). */
-async function addGoogleCalendarEvent(text, isoStartString, location, recurrenceRule) {
+async function addGoogleCalendarEvent(text, isoStartString, location, recurrenceRule, allDay) {   // allDay: ganztägiger Termin (nur das Datum zählt)
     let eventDate = isoStartString ? new Date(isoStartString) : new Date();
     if (isNaN(eventDate.getTime())) eventDate = new Date();
     if (recurrenceRule) eventDate = alignStartToRule(eventDate, recurrenceRule);
@@ -317,6 +317,18 @@ async function addGoogleCalendarEvent(text, isoStartString, location, recurrence
     if (recurrenceRule) eventData.recurrence = [recurrenceRule];
     // Google verlangt bei Wiederholungen eine Zeitzone in Start und Ende, sonst wird der Eintrag abgelehnt
     if (recurrenceRule) { eventData.start.timeZone = 'Europe/Berlin'; eventData.end.timeZone = 'Europe/Berlin'; }
+
+    // Ganztägig: Google erwartet nur Datumsangaben (Ende = Folgetag)
+    let allDayIso = null;
+    if (allDay) {
+        const pad = (n) => String(n).padStart(2, '0');
+        const isoDay = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        const d0 = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+        const d1 = new Date(d0); d1.setDate(d1.getDate() + 1);
+        allDayIso = isoDay(d0);
+        eventData.start = { date: allDayIso };
+        eventData.end = { date: isoDay(d1) };
+    }
 
     const createdId = 'local_' + Date.now();
 
@@ -352,8 +364,8 @@ async function addGoogleCalendarEvent(text, isoStartString, location, recurrence
     calendarEntries.unshift({
         id: createdId,
         text: text,
-        date: eventDate.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' }),
-        isoDate: eventDate.toISOString(),
+        date: allDayIso ? eventDate.toLocaleDateString('de-DE', { dateStyle: 'medium' }) : eventDate.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' }),
+        isoDate: allDayIso || eventDate.toISOString(),
         location: location || ''   // fürs Fahrzeit/Verkehr-Feature (siehe travel.js appointmentDepartureSummaries) nötig
     });
     setPersistentData('helfer_calendar_entries', JSON.stringify(calendarEntries));
