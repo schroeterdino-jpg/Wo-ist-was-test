@@ -3,6 +3,8 @@
    Aufrufen: Knopf 📷 unter der Kugel, oder per Sprache: "Mach ein Foto", "Übersetze dieses Schild", "Lies mir den Brief vor",
    "Erkläre mir diese Warnleuchte", "Trag die Termine von diesem Foto in meinen Kalender ein", "Was für ein Vogel ist das?" (Kamera öffnet sich nach einem Tipp
    auf die Karte, weil Chrome die Kamera nur nach einem Fingertipp erlaubt).
+   Weitere Aufgaben: Visitenkarte -> Kontakt anlegen, handgeschriebener Zettel -> Einkaufsliste, Plakat/Flyer -> Termin, Parkschild ("Darf ich hier parken?"),
+   Zutaten -> Rezeptidee ("Was kann ich damit kochen?"). Kontakt und Einkaufszettel werden erst nach deinem "Ja" gespeichert.
    Danach Fragen zum selben Foto: "Zum Foto: Was kostet das?" (10 Minuten lang).
    TERMINE AUS EINEM FOTO: Jarvis liest sie heraus und zeigt sie als Karten; eingetragen wird erst nach deinem "Ja" (oder Tipp auf die Karten),
    weil eine KI Handschrift und Datum auch mal falsch liest. Termine ohne Uhrzeit werden ganztägig eingetragen, schon vorhandene übersprungen.
@@ -35,6 +37,16 @@ function parsePhotoRequest(text) {
     if (/\b(termine?|kalender|terminplan|kalenderblatt|wochenplan)\b/.test(t) && photoWord && /(eintrag|trag|schreib|übernehm|erkenn|lies|übertrag|hinzu|aus dem|vom|von diesem|von dem)/.test(t)) {
         return { task: 'events', question: t };
     }
+    // Plakat, Flyer, Einladung -> Termin
+    if (/\b(plakat|flyer|einladung|aushang|veranstaltung\w*)\b/.test(t) && /\b(termin\w*|veranstaltung\w*|kalender)\b/.test(t) && /(eintrag|trag|schreib|übernehm|übernimm|erkenn|hinzu)/.test(t)) return { task: 'events', question: t };
+    // Visitenkarte -> Kontakt anlegen
+    if (/\b(visitenkarte|kontaktkarte)\b/.test(t) || (/\bkontakt\w*\b/.test(t) && photoWord && /(anleg|erstell|speicher|übernehm|trag|eintrag|neu)/.test(t))) return { task: 'contact', question: t };
+    // Einkaufszettel -> Einkaufsliste
+    if (/\b(einkaufszettel|einkaufsliste|zettel|handgeschrieben\w*)\b/.test(t) && (photoWord || /zettel/.test(t)) && /(setz|trag|schreib|übernehm|übernimm|füg|hinzu|abschreib|auf die liste|in die liste|einkaufsliste)/.test(t)) return { task: 'shopping', question: t };
+    // Parkschild
+    if (/\b(darf|kann|muss)\s+ich\s+hier\s+(parken|stehen|halten)\b/.test(t) || /\b(parkschild|parkverbot|halteverbot|parkscheibe|parkregelung|parkordnung)\b/.test(t)) return { task: 'parking', question: t };
+    // Zutaten -> Rezept
+    if (/\bwas kann ich (?:damit|hieraus|daraus|mit (?:diesen|den)\s+(?:zutaten|sachen|lebensmitteln))\s*(?:kochen|machen|zubereiten)\b/.test(t) || (/\b(zutaten|kühlschrank|vorräte|vorrat)\b/.test(t) && /\b(koch\w*|rezept\w*|gericht)\b/.test(t))) return { task: 'cook', question: t };
     if (/\b(warnleuchte|kontrollleuchte|warnlampe|warnsymbol|kontrolllampe|warnanzeige)\b/.test(t)) return { task: 'car', question: t };
     if (/(?<![\wäöüß])übersetz\w*/.test(t) && /\b(schild|foto|bild|speisekarte|karte|etikett|brief|seite|text|verpackung|zettel|aushang|dokument|menü|beschreibung)\b/.test(t)) return { task: 'translate', question: t };
     if (/\b(lies|les|lese|vorlesen)\b/.test(t) && (photoWord || /\b(schild|brief|zettel|etikett|speisekarte|aushang|dokument|verpackung|beipackzettel|rechnung)\b/.test(t))) return { task: 'read', question: t };
@@ -49,12 +61,31 @@ function parsePhotoRequest(text) {
 const PHOTO_SYSTEM_BASE = 'Du bist J.A.R.V.I.S., ein Assistent, der ein Foto auswertet. Antworte auf Deutsch, knapp und so, dass man es gut vorlesen kann: höchstens vier kurze Sätze, ohne Aufzählungszeichen, ohne Markdown, ohne Links. ' +
     'Erfinde nichts. Ist etwas nicht erkennbar oder nicht lesbar, sage das ehrlich, statt zu raten.';
 
+/* Wochentag, Datum und Uhrzeit für Fragen, bei denen die Zeit zählt (z.B. Parkschilder) */
+function photoNowText() {
+    const d = new Date();
+    return 'Heute ist ' + d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + ', es ist ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr.';
+}
+
+function photoContactPrompt() {
+    return 'Du liest die Kontaktdaten von einem Foto einer Visitenkarte, eines Briefkopfs oder Stempels. Antworte NUR mit einem JSON-Objekt: ' +
+        '{"kontakt":{"name":"Vor- und Nachname oder Firmenname","telefon":"Nummer oder null","adresse":"Straße Hausnummer, PLZ Ort oder null","firma":"Firma oder null","email":"Adresse oder null"}}. ' +
+        'Nimm bei mehreren Nummern die Mobilnummer, sonst die erste. Erfinde nichts; was nicht zu lesen ist, setze auf null.';
+}
+
+function photoShoppingPrompt() {
+    return 'Du liest einen Einkaufszettel oder eine Liste von einem Foto (oft handgeschrieben). Antworte NUR mit einem JSON-Objekt: {"artikel":["Milch","Brot"]}. ' +
+        'Jeder Eintrag ist ein kurzer Artikelname mit Menge, falls dabei (zum Beispiel "2 Liter Milch"). Durchgestrichene oder abgehakte Einträge lässt du weg. Erfinde nichts; was nicht lesbar ist, lässt du weg.';
+}
+
 function photoSystemPrompt(task) {
     switch (task) {
         case 'read': return PHOTO_SYSTEM_BASE + ' Lies den sichtbaren Text vor. Bei langen Texten nenne nur das Wichtigste (Absender, Anliegen, Fristen, Beträge). Ist der Text nicht deutsch, übersetze ihn ins Deutsche.';
         case 'translate': return PHOTO_SYSTEM_BASE + ' Übersetze den sichtbaren Text ins Deutsche. Sage zuerst kurz, was es ist (Schild, Speisekarte, Etikett ...), dann die Übersetzung.';
         case 'car': return PHOTO_SYSTEM_BASE + ' Auf dem Foto sind Anzeigen oder Kontrollleuchten eines Autos (es kann ein Diesel-SUV sein). Nenne, welche Leuchte oder Anzeige du erkennst, was sie bedeutet und ob man weiterfahren kann oder anhalten bzw. in die Werkstatt muss. Bist du unsicher, sage das und empfehle einen Blick in die Bedienungsanleitung.';
         case 'identify': return PHOTO_SYSTEM_BASE + ' Sage, was zu sehen ist. Bei Pflanzen, Tieren und Pilzen nenne die wahrscheinlichste Art mit deiner Sicherheit und weise darauf hin, dass man Pilze und Pflanzen nie allein nach einem Foto essen sollte.';
+        case 'parking': return PHOTO_SYSTEM_BASE + ' ' + photoNowText() + ' Auf dem Foto sind Verkehrsschilder oder Parkregeln. Sage, ob man hier jetzt parken darf, wie lange, ob Parkscheibe oder Gebühr nötig ist und ab wann sich etwas ändert. Bist du unsicher oder ist ein Schild nicht lesbar, sage es und rate dazu, im Zweifel nicht zu parken.';
+        case 'cook': return 'Du bist J.A.R.V.I.S. und siehst ein Foto von Zutaten oder einem Kühlschrank. Antworte auf Deutsch, ohne Aufzählungszeichen, ohne Markdown, gut vorlesbar. Nenne kurz, welche Zutaten du erkennst, schlage dann EIN passendes Gericht vor und nenne die Zubereitung in höchstens sechs kurzen Sätzen. Sage, welche gewöhnlichen Zutaten du voraussetzt (zum Beispiel Salz und Öl). Erfinde keine Zutaten, die nicht zu sehen sind.';
         default: return PHOTO_SYSTEM_BASE + ' Beschreibe kurz, was zu sehen ist. Ist Text sichtbar, nenne das Wichtigste daraus und übersetze ihn ins Deutsche, falls er nicht deutsch ist.';
     }
 }
@@ -164,6 +195,104 @@ function photoEventsPrompt() {
         'Antworte NUR mit einem JSON-Objekt: {"termine":[{"titel":"kurzer Titel","datum":"JJJJ-MM-TT","uhrzeit":"HH:MM oder null","ort":"Ort oder null","unsicher":true oder false}],"hinweis":"ein kurzer Satz oder leer"}. ' +
         'Regeln: Nimm nur Einträge, die wirklich als Termin dastehen. Steht Monat oder Jahr nur als Überschrift auf dem Blatt, übernimm es für die Einträge darunter. Fehlt das Jahr, nimm das Jahr, bei dem der Termin heute oder in der Zukunft liegt. ' +
         'Gibt es keine Uhrzeit, setze "uhrzeit" auf null. Ist Handschrift, Datum oder Titel schwer lesbar, setze "unsicher" auf true. Erfinde nichts. Sind keine Termine erkennbar, gib eine leere Liste zurück.';
+}
+
+/* JSON aus der KI-Antwort holen (auch wenn Text drumherum steht); null, wenn keins da ist */
+function photoJsonObject(content) {
+    try { return JSON.parse(content); } catch (e) {}
+    const m = String(content || '').match(/\{[\s\S]*\}/);
+    if (m) { try { return JSON.parse(m[0]); } catch (e2) {} }
+    return null;
+}
+
+/* Telefonnummer ohne Leerzeichen und Zeichen, "(0)" entfällt, 0049 wird +49 */
+function photoNormalizePhone(p) {
+    let n = String(p || '').replace(/\(0\)/g, '').replace(/[^\d+]/g, '');
+    if (n.startsWith('00')) n = '+' + n.slice(2);
+    return n.length >= 5 ? n : '';
+}
+
+function parsePhotoContact(content) {
+    const obj = photoJsonObject(content);
+    const k = obj && (obj.kontakt || obj);
+    if (!k || typeof k !== 'object') return null;
+    const clean = (v) => (v == null || String(v).trim().toLowerCase() === 'null') ? '' : String(v).trim();
+    let name = clean(k.name) || clean(k.firma);
+    if (!name) return null;
+    return { name: name.slice(0, 60), telefon: photoNormalizePhone(clean(k.telefon)), adresse: clean(k.adresse).slice(0, 100), email: clean(k.email) };
+}
+
+function parsePhotoShopping(content) {
+    const obj = photoJsonObject(content);
+    const list = obj && Array.isArray(obj.artikel) ? obj.artikel : [];
+    const seen = new Set();
+    return list.map(x => String(x || '').trim().slice(0, 40)).filter(x => { const k = x.toLowerCase(); if (!x || seen.has(k)) return false; seen.add(k); return true; }).slice(0, 30);
+}
+
+/* Etwas, das erst nach "Ja" gespeichert wird: { type: 'contact'|'shopping', data, at } */
+let photoPending = null;
+
+function contactExists(name) {
+    try {
+        const key = normalizeKey(name);
+        return typeof contactList === 'function' && contactList().some(c => normalizeKey(c.name) === key);
+    } catch (e) { return false; }
+}
+
+/* Speichert über die vorhandene Kontakt-Funktion der App (füllt deren Eingabefelder und ruft saveContact() auf) */
+function savePhotoContact(c) {
+    const n = document.getElementById('contactNameInput'), p = document.getElementById('contactPhoneInput'), a = document.getElementById('contactAddressInput');
+    if (!n || !p || !a || typeof saveContact !== 'function') return 'fehlt';
+    n.value = c.name; p.value = c.telefon || ''; a.value = c.adresse || '';
+    saveContact();
+    return 'ok';
+}
+
+function addPhotoShopping(items) {
+    let added = 0;
+    items.forEach(it => {
+        const t = String(it).trim();
+        if (!t || (shoppingEntries || []).some(e => String(e.text).toLowerCase() === t.toLowerCase())) return;
+        shoppingEntries.unshift({ id: Date.now() + added, text: t });
+        added++;
+    });
+    setPersistentData('helfer_shopping', JSON.stringify(shoppingEntries));
+    try { renderAllLists(); } catch (e) {}
+    return added;
+}
+
+function showPhotoPendingCards() {
+    if (!photoPending) return;
+    let cards;
+    if (photoPending.type === 'contact') {
+        const c = photoPending.data;
+        cards = [{ icon: '👤', title: c.name, subtitle: [c.telefon, c.adresse, c.email].filter(Boolean).join(' · ') || 'keine Nummer oder Adresse erkannt' },
+                 { icon: '➕', title: 'Kontakt speichern', subtitle: 'In die Kontaktliste', onclick: 'confirmPhotoPending()' }];
+    } else {
+        const items = photoPending.data;
+        cards = items.slice(0, 8).map(x => ({ icon: '🛒', title: x, subtitle: 'Einkaufsliste' }));
+        if (items.length > 8) cards.push({ icon: '🛒', title: `… und ${items.length - 8} weitere`, subtitle: 'Einkaufsliste' });
+        cards.push({ icon: '➕', title: `Alle ${items.length} auf die Liste`, subtitle: 'Zur Einkaufsliste hinzufügen', onclick: 'confirmPhotoPending()' });
+    }
+    if (typeof clearActionCards === 'function') clearActionCards();
+    if (typeof showActionCards === 'function') showActionCards(cards);
+}
+
+async function confirmPhotoPending() {
+    const pend = photoPending;
+    if (!pend || Date.now() - pend.at > PHOTO_EVENTS_MS) { photoSay('Es gibt gerade nichts zu speichern.'); return; }
+    photoPending = null;
+    try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) {}
+    if (pend.type === 'contact') {
+        const c = pend.data;
+        if (!c.telefon && !c.adresse) { photoSay(`Bei ${c.name} habe ich weder Nummer noch Adresse erkannt. Tragen Sie ihn bitte in den Einstellungen unter Kontakte ein.`); return; }
+        if (contactExists(c.name)) { photoSay(`${c.name} gibt es schon in Ihren Kontakten. Ich lasse ihn unverändert.`); return; }
+        try { photoSay(savePhotoContact(c) === 'ok' ? `${c.name} ist in Ihren Kontakten gespeichert.` : 'Das Speichern der Kontakte ist in dieser Version nicht erreichbar.'); }
+        catch (e) { photoSay('Das Speichern hat nicht geklappt.'); }
+    } else {
+        const n = addPhotoShopping(pend.data);
+        photoSay(n ? `${n} ${n === 1 ? 'Artikel steht' : 'Artikel stehen'} auf der Einkaufsliste.${n < pend.data.length ? ' Der Rest war schon drauf.' : ''}` : 'Alles stand schon auf der Einkaufsliste.');
+    }
 }
 
 function parsePhotoEvents(content) {
@@ -280,6 +409,22 @@ async function handlePhotoFile(file) {
                 (unsure ? ` Bei ${unsure} bin ich nicht sicher.` : '') + ` Soll ich ${events.length === 1 ? 'ihn' : 'sie'} eintragen? Sagen Sie Ja, oder tippen Sie unten auf ${events.length === 1 ? 'die Karte' : 'die Karten'}.`);
             return;
         }
+        if (intent.task === 'contact') {
+            const c = parsePhotoContact(await askVision(photoContactPrompt(), 'Lies die Kontaktdaten von diesem Foto.', dataUrl, true));
+            if (!c) { photoSay('Ich konnte auf dem Foto keinen Namen und keine Kontaktdaten erkennen. Ist die Karte scharf und gerade im Bild?'); return; }
+            photoPending = { type: 'contact', data: c, at: Date.now() };
+            showPhotoPendingCards();
+            photoSay(`Ich habe gelesen: ${c.name}${c.telefon ? ', Nummer ' + c.telefon.split('').join(' ') : ''}${c.adresse ? ', ' + c.adresse : ''}. Soll ich ihn in Ihre Kontakte speichern? Sagen Sie Ja, oder tippen Sie unten auf die Karte.`);
+            return;
+        }
+        if (intent.task === 'shopping') {
+            const items = parsePhotoShopping(await askVision(photoShoppingPrompt(), 'Lies die Einkaufsliste von diesem Foto.', dataUrl, true));
+            if (!items.length) { photoSay('Ich konnte auf dem Zettel keine Artikel lesen. Ist er scharf und gut beleuchtet?'); return; }
+            photoPending = { type: 'shopping', data: items, at: Date.now() };
+            showPhotoPendingCards();
+            photoSay(`Ich habe ${items.length} ${items.length === 1 ? 'Artikel' : 'Artikel'} gelesen: ${items.slice(0, 5).join(', ')}${items.length > 5 ? ' und weitere' : ''}. Soll ich ${items.length === 1 ? 'ihn' : 'sie'} auf die Einkaufsliste setzen? Sagen Sie Ja, oder tippen Sie unten auf die Karte.`);
+            return;
+        }
         const q = intent.question ? `Der Nutzer sagte: "${intent.question}". Mach, was er möchte.` : 'Was ist auf dem Foto?';
         const content = await askVision(photoSystemPrompt(intent.task), q, dataUrl, false);
         const answer = photoCleanAnswer(content);
@@ -303,6 +448,20 @@ function handlePhotoCommand(text) {
     const raw = String(text || '').trim();
     const t = raw.toLowerCase().replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (!t) return false;
+
+    // Erkannter Kontakt oder Einkaufszettel: "Ja" speichert, "Nein" verwirft
+    if (photoPending && Date.now() - photoPending.at < PHOTO_EVENTS_MS) {
+        if (/^(?:ja|jawohl|jo|gerne|bitte|okay|ok|klar|los|mach das|mach es|speichern|speicher ihn|speicher sie|ja bitte|ja gerne|trag(?:e)? (?:ihn|sie|es|alle|alles)(?: alle)? ein|übernehmen|setz (?:sie|es|alles) auf die liste|auf die liste)$/.test(t)) {
+            confirmPhotoPending().catch(() => photoSay('Das Speichern hat nicht geklappt.'));
+            return true;
+        }
+        if (/^(?:nein|nee|nicht|lieber nicht|abbrechen|vergiss es|lass (?:es|das)|verwerfen)$/.test(t)) {
+            photoPending = null;
+            try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) {}
+            photoSay('Gut, ich habe nichts gespeichert.');
+            return true;
+        }
+    }
 
     // Erkannte Termine: "Ja" trägt sie ein, "Nein" verwirft sie
     if (photoEvents.some(e => !e.done) && Date.now() - photoEventsAt < PHOTO_EVENTS_MS) {
@@ -333,7 +492,7 @@ function handlePhotoCommand(text) {
     if (!req) return false;
     photoIntent = { task: req.task, question: raw, at: Date.now() };
     showPhotoCards();
-    const what = req.task === 'events' ? 'Fotografieren Sie den Kalender' : req.task === 'translate' ? 'Fotografieren Sie, was ich übersetzen soll' : req.task === 'read' ? 'Fotografieren Sie, was ich vorlesen soll' : 'Halten Sie die Kamera darauf';
+    const what = req.task === 'contact' ? 'Fotografieren Sie die Visitenkarte' : req.task === 'shopping' ? 'Fotografieren Sie den Zettel' : req.task === 'parking' ? 'Fotografieren Sie das Schild' : req.task === 'cook' ? 'Fotografieren Sie die Zutaten' : req.task === 'events' ? 'Fotografieren Sie den Termin' : req.task === 'translate' ? 'Fotografieren Sie, was ich übersetzen soll' : req.task === 'read' ? 'Fotografieren Sie, was ich vorlesen soll' : 'Halten Sie die Kamera darauf';
     photoSay(`${what}. Tippen Sie unten auf die Karte, dann öffnet sich die Kamera.`);
     return true;
 }

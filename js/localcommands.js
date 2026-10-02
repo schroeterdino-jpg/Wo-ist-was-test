@@ -313,6 +313,7 @@ function handleLocalCommandInner(text) {
     if (typeof handleSpeechRateCommand === 'function' && handleSpeechRateCommand(text)) return true;
     if (typeof handleWeatherMapCommand === 'function' && handleWeatherMapCommand(text)) return true;
     if (typeof handleCurrencyCommand === 'function' && handleCurrencyCommand(text)) return true;
+    if (typeof handlePlacesCommand === 'function' && handlePlacesCommand(text)) return true;
     if (typeof handlePronunciationCommand === 'function' && handlePronunciationCommand(text)) return true;
     if (isSystemCheckCommand(text)) { runSystemCheckSpoken(); return true; }
     // Wichtige Erinnerungen: "erledigt" beendet das Nachfassen, "in zehn Minuten nochmal" verschiebt sie
