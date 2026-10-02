@@ -33,7 +33,7 @@ const HELP_TOPICS = [
     { key: 'kontakte', icon: '📞', title: 'Anrufen & WhatsApp', words: /kontakt|anruf|ruf\b|whatsapp|telefon/, examples: [
         'Ruf Mama an', 'Schick Schatz eine WhatsApp: Bin gleich da', '(Jarvis bereitet es vor, du tippst auf die Karte)'] },
     { key: 'welt', icon: '🌍', title: 'Welt, Nachrichten & Sport', words: /welt|nachricht|sport|bundesliga|iss\b|erdbeb|live/, examples: [
-        'Was ist gerade in Spanien los?', 'Zeig mir die Nachrichten von heute', 'Wo ist die ISS?', 'Zeig mir New York live', 'Wie hat der HSV gespielt?', 'Wie ist die Tabelle?'] },
+        'Was ist gerade in Spanien los?', 'Zeig mir, was in Hamburg los ist (die Kugel zoomt heran und blendet in die Neon-Karte über; „Zurück zur Kugel“ bringt dich wieder hoch)', 'Zeig mir die Nachrichten von heute', 'Wo ist die ISS?', 'Zeig mir New York live', 'Wie hat der HSV gespielt?', 'Wie ist die Tabelle?', 'Anflug aus (oder: Anflug an)'] },
     { key: 'ferien', icon: '🏖️', title: 'Schulferien', words: /ferien|ferienkalender|schulferien|bundesland/, examples: [
         'Wann sind die Herbstferien in Hamburg?', 'Wann sind die nächsten Ferien?', 'Zeig mir den Ferienkalender', 'Sommerferien 2027 in allen Bundesländern', 'Wann sind die Osterferien in Bayern und Hessen?', 'Mein Bundesland ist Schleswig-Holstein'] },
     { key: 'ueberblick', icon: '🌅', title: 'Tagesüberblick', words: /überblick|ueberblick|tagesplan|morgen|mein tag/, examples: [
