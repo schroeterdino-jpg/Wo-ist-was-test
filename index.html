@@ -315,6 +315,29 @@
 
                 <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
                     <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
+                        <span>🌅 Morgen-Überblick</span>
+                    </summary>
+                    <div class="p-4 space-y-3">
+                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
+                            <input type="checkbox" id="ueberblickToggle" class="w-5 h-5 accent-[#49d7ff]" checked>
+                            <span>Beim ersten Öffnen am Morgen den Tagesüberblick zeigen</span>
+                        </label>
+                        <div class="flex gap-3">
+                            <div class="flex-1">
+                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Von:</label>
+                                <select id="ueberblickFrom" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]"><option value="5">5 Uhr</option><option value="6">6 Uhr</option><option value="7">7 Uhr</option><option value="8">8 Uhr</option><option value="9">9 Uhr</option><option value="10">10 Uhr</option></select>
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Bis:</label>
+                                <select id="ueberblickTo" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]"><option value="8">8 Uhr</option><option value="9">9 Uhr</option><option value="10">10 Uhr</option><option value="11">11 Uhr</option><option value="12">12 Uhr</option><option value="13">13 Uhr</option></select>
+                            </div>
+                        </div>
+                        <p class="text-xs text-[#5d7e91] font-mono">Kacheln mit Terminen, Erinnerungen, Aufgaben und Einkaufsliste, einmal pro Tag und ohne Ton. Jederzeit per Sprache: „Tagesüberblick" oder „Zeig mir meinen Tag".</p>
+                    </div>
+                </details>
+
+                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
+                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
                         <span>🔊 Stimme & Gespräch</span>
                     </summary>
                     <div class="p-4 space-y-3">
@@ -596,6 +619,7 @@
     <script src="./js/charakter.js"></script>
     <script src="./js/mitdenken.js"></script>
     <script src="./js/wachter.js"></script>
+    <script src="./js/tagesueberblick.js"></script>
     <script src="./js/photo.js"></script>
     <script src="./js/nearbymore.js"></script>
     <script src="./js/assistant.js"></script>
