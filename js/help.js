@@ -36,6 +36,8 @@ const HELP_TOPICS = [
         'Was ist gerade in Spanien los?', 'Zeig mir die Nachrichten von heute', 'Wo ist die ISS?', 'Zeig mir New York live', 'Wie hat der HSV gespielt?', 'Wie ist die Tabelle?'] },
     { key: 'ferien', icon: '🏖️', title: 'Schulferien', words: /ferien|ferienkalender|schulferien|bundesland/, examples: [
         'Wann sind die Herbstferien in Hamburg?', 'Wann sind die nächsten Ferien?', 'Zeig mir den Ferienkalender', 'Sommerferien 2027 in allen Bundesländern', 'Wann sind die Osterferien in Bayern und Hessen?', 'Mein Bundesland ist Schleswig-Holstein'] },
+    { key: 'ueberblick', icon: '🌅', title: 'Tagesüberblick', words: /überblick|ueberblick|tagesplan|morgen|mein tag/, examples: [
+        'Tagesüberblick (zeigt Termine, Erinnerungen, Aufgaben und Einkaufsliste als Kacheln)', 'Zeig mir meinen Tag', 'Kommt morgens von selbst beim ersten Öffnen, einstellbar unter Einstellungen > Morgen-Überblick'] },
     { key: 'charakter', icon: '🎭', title: 'Charakter & Mitdenken', words: /charakter|frech|witz|humor|anrede|sprüche|spruch|mitdenk|von selbst|meldung|fakt/, examples: [
         'Sei frecher (oder: Sei höflicher, Keine Sprüche mehr)', 'Nenn mich Boss', 'Erzähl einen Witz', 'Erzähl mir was Interessantes', 'Bist du da?',
         'Melde dich nicht mehr von selbst (Abfahrt, Regen, Geburtstage)', 'Beim Termin eintragen prüft Jarvis Überschneidungen, Feiertage, Wetter und Fahrzeit'] },

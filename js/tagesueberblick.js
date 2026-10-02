@@ -1,0 +1,245 @@
+/* ============================================================
+   TAGESÜBERBLICK: Öffnest du die App morgens (Standard 7 bis 10 Uhr) zum ersten Mal am Tag, erscheint ein Fenster im HUD-Stil mit Kacheln:
+   📅 Termine heute · 🔔 Erinnerungen (heute und überfällige) · ✅ Aufgaben · 🛒 Einkaufsliste · 🎂 Geburtstage heute.
+   Es kommt ohne Ton (Chrome erlaubt beim Start keinen); der Knopf "Vorlesen" liest den Überblick vor. Ein Tipp auf eine Kachel öffnet das passende Fenster.
+   Ist nichts offen, erscheint kurz "Heute ist nichts offen" und verschwindet von selbst.
+   Einmal pro Tag: Wer es geschlossen hat, sieht es erst am nächsten Morgen wieder; per Sprache ("Tagesüberblick", "Zeig mir meinen Tag") jederzeit.
+   Läuft die App über Nacht weiter (Wechsel von einer anderen App), erscheint der Überblick beim ersten Zurückkommen im Zeitfenster.
+   Ein-/Ausschalten und Zeitfenster: Einstellungen > Morgen-Überblick. Braucht: calendarEntries, reminderEntries, todoEntries, shoppingEntries,
+   briefing.js (isBirthdayEntry, formatSpokenTime), birthdays.js (fetchUpcomingBirthdays), voice.js (speak). Fehlt etwas, entfällt nur die jeweilige Kachel.
+   ============================================================ */
+
+const UEB_ON_KEY = 'helfer_morning_overview';
+const UEB_FROM_KEY = 'helfer_morning_from';
+const UEB_TO_KEY = 'helfer_morning_to';
+const UEB_DAY_KEY = 'ueberblick_day';
+const UEB_START_DELAY_MS = 1500;
+const UEB_MAX_LINES = 4;
+
+let uebEl = null;
+let uebAutoCloseTimer = null;
+
+function uebEnabled() { return getPersistentData(UEB_ON_KEY, '1') !== '0'; }
+function uebFrom() { const v = Number(getPersistentData(UEB_FROM_KEY, '7')); return (v >= 0 && v <= 23) ? v : 7; }
+function uebTo() { const v = Number(getPersistentData(UEB_TO_KEY, '10')); return (v >= 1 && v <= 24) ? v : 10; }
+function uebHour() { const h = parseInt(new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin', hour: 'numeric', hour12: false }), 10); return isNaN(h) ? new Date().getHours() : h; }
+function uebDayKey() { return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }); }
+function uebInWindow() { const h = uebHour(); return h >= uebFrom() && h < uebTo(); }
+function uebShownToday() { try { return localStorage.getItem(UEB_DAY_KEY) === uebDayKey(); } catch (e) { return false; } }
+function uebMarkShown() { try { localStorage.setItem(UEB_DAY_KEY, uebDayKey()); } catch (e) {} }
+function uebAddress() { return (typeof charAddress === 'function') ? charAddress() : ((typeof currentUserName !== 'undefined' && currentUserName) || 'Sir'); }
+
+function uebLocalDay(d) { return d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }); }
+function uebClock(d) { return d.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }); }
+function uebTimeout(p, ms) { return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('Zeitüberschreitung')), ms))]); }
+
+/* ---------- Daten sammeln ---------- */
+async function uebGather() {
+    const today = uebLocalDay(new Date());
+    const out = { termine: [], erinnerungen: [], aufgaben: [], einkauf: [], geburtstage: [] };
+
+    (typeof calendarEntries !== 'undefined' ? calendarEntries : []).forEach(e => {
+        if (!e || !e.isoDate) return;
+        try { if (typeof isBirthdayEntry === 'function' && isBirthdayEntry(e)) return; } catch (x) {}
+        const allDay = /^\d{4}-\d{2}-\d{2}$/.test(String(e.isoDate));
+        const d = allDay ? new Date(e.isoDate + 'T12:00:00') : new Date(e.isoDate);
+        if (isNaN(d.getTime()) || uebLocalDay(d) !== today) return;
+        out.termine.push({ sort: allDay ? 0 : d.getTime(), time: allDay ? null : d, text: String(e.text || 'Termin') });
+    });
+    out.termine.sort((a, b) => a.sort - b.sort);
+
+    const startOfToday = new Date(today + 'T00:00:00').getTime() - 6 * 3600000;   // grobe Untergrenze, genau wird unten per Tag verglichen
+    (typeof reminderEntries !== 'undefined' ? reminderEntries : []).forEach(r => {
+        if (!r || !r.time || r.triggered) return;
+        const d = new Date(r.time);
+        if (isNaN(d.getTime())) return;
+        const day = uebLocalDay(d);
+        if (day === today) out.erinnerungen.push({ sort: d.getTime(), time: d, text: String(r.text || 'Erinnerung'), overdue: false, important: !!r.important });
+        else if (day < today && d.getTime() > startOfToday - 14 * 86400000) out.erinnerungen.push({ sort: d.getTime(), time: d, text: String(r.text || 'Erinnerung'), overdue: true, important: !!r.important });
+    });
+    out.erinnerungen.sort((a, b) => (b.overdue - a.overdue) || a.sort - b.sort);
+
+    out.aufgaben = (typeof todoEntries !== 'undefined' ? todoEntries : []).map(t => String(t.text || '')).filter(Boolean);
+    out.einkauf = (typeof shoppingEntries !== 'undefined' ? shoppingEntries : []).map(t => String(t.text || '')).filter(Boolean);
+
+    if (typeof fetchUpcomingBirthdays === 'function') {
+        try { out.geburtstage = (await uebTimeout(fetchUpcomingBirthdays(0), 6000)).filter(b => b.tag === 'heute').map(b => String(b.titel)); } catch (e) { out.geburtstage = []; }
+    }
+    return out;
+}
+
+function uebIsEmpty(d) { return !d.termine.length && !d.erinnerungen.length && !d.aufgaben.length && !d.einkauf.length && !d.geburtstage.length; }
+
+/* ---------- Vorlesen ---------- */
+function uebSpeechText(d) {
+    const a = uebAddress();
+    const t = (x) => (typeof formatSpokenTime === 'function') ? formatSpokenTime(x) : uebClock(x);
+    if (uebIsEmpty(d)) return `Guten Morgen, ${a}. Heute ist nichts offen.`;
+    const parts = [`Guten Morgen, ${a}.`];
+    if (d.termine.length) parts.push(`Heute ${d.termine.length === 1 ? 'steht ein Termin' : 'stehen ' + d.termine.length + ' Termine'} an: ` + d.termine.slice(0, 5).map(e => e.time ? `${e.text} um ${t(e.time)}` : `${e.text}, ganztägig`).join('; ') + '.');
+    if (d.erinnerungen.length) parts.push(`Erinnerungen: ` + d.erinnerungen.slice(0, 5).map(r => r.overdue ? `${r.text}, überfällig` : `${r.text} um ${t(r.time)}`).join('; ') + '.');
+    if (d.aufgaben.length) parts.push(`${d.aufgaben.length === 1 ? 'Eine Aufgabe ist' : d.aufgaben.length + ' Aufgaben sind'} offen: ` + d.aufgaben.slice(0, 4).join(', ') + (d.aufgaben.length > 4 ? ' und weitere' : '') + '.');
+    if (d.einkauf.length) parts.push(`Auf der Einkaufsliste ${d.einkauf.length === 1 ? 'steht ein Artikel' : 'stehen ' + d.einkauf.length + ' Artikel'}: ` + d.einkauf.slice(0, 5).join(', ') + (d.einkauf.length > 5 ? ' und weitere' : '') + '.');
+    if (d.geburtstage.length) parts.push(`Heute ${d.geburtstage.length === 1 ? (/geburtstag/i.test(d.geburtstage[0]) ? 'ist ' + d.geburtstage[0] : 'hat ' + d.geburtstage[0] + ' Geburtstag') : 'haben mehrere Geburtstag'}.`);
+    return parts.join(' ');
+}
+
+/* ---------- Fenster ---------- */
+function uebEnsureStyle() {
+    if (document.getElementById('uebStyle')) return;
+    const st = document.createElement('style');
+    st.id = 'uebStyle';
+    st.textContent =
+        '#uebMap{position:fixed;inset:0;z-index:92;background:rgba(4,9,15,.97);color:#d9e9f2;display:flex;flex-direction:column;font-family:"Rajdhani",sans-serif;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);animation:uebIn .35s ease-out}' +
+        '@keyframes uebIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}' +
+        '#uebMap .ub-frame{position:absolute;inset:8px;pointer-events:none;border:1px solid rgba(93,209,255,.12)}' +
+        '#uebMap .ub-frame i{position:absolute;width:22px;height:22px;border:2px solid #49d7ff;opacity:.85}' +
+        '#uebMap .ub-frame i:nth-child(1){left:-1px;top:-1px;border-right:0;border-bottom:0}#uebMap .ub-frame i:nth-child(2){right:-1px;top:-1px;border-left:0;border-bottom:0}' +
+        '#uebMap .ub-frame i:nth-child(3){left:-1px;bottom:-1px;border-right:0;border-top:0}#uebMap .ub-frame i:nth-child(4){right:-1px;bottom:-1px;border-left:0;border-top:0}' +
+        '#uebMap .ub-head{padding:18px 18px 8px;text-align:center}' +
+        '#uebMap .ub-title{font:700 17px "Orbitron",sans-serif;letter-spacing:.14em;color:#49d7ff}' +
+        '#uebMap .ub-date{font:500 13px "IBM Plex Mono",monospace;color:#7fb8cf;margin-top:4px;letter-spacing:.08em}' +
+        '#uebMap .ub-grid{flex:1 1 auto;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:8px 16px;align-content:start}' +
+        '#uebMap .ub-tile{border:1px solid rgba(93,209,255,.3);border-radius:10px;background:rgba(10,22,33,.88);padding:10px 11px;min-height:96px;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+        '#uebMap .ub-tile.wide{grid-column:1 / -1;min-height:0}#uebMap .ub-tile.empty{opacity:.45}' +
+        '#uebMap .ub-th{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px}' +
+        '#uebMap .ub-tt{font:700 12px "IBM Plex Mono",monospace;letter-spacing:.08em;color:#49d7ff;text-transform:uppercase}' +
+        '#uebMap .ub-badge{min-width:22px;text-align:center;padding:1px 7px;border-radius:999px;background:rgba(73,215,255,.18);border:1px solid rgba(73,215,255,.5);font:700 12px "IBM Plex Mono",monospace;color:#fff}' +
+        '#uebMap .ub-line{font-size:14px;line-height:1.25;color:#e8f3f9;margin:3px 0;word-break:break-word}#uebMap .ub-line b{font:600 12px "IBM Plex Mono",monospace;color:#ffb347;margin-right:5px}' +
+        '#uebMap .ub-line.od b{color:#ff6b6b}#uebMap .ub-more{font:500 12px "IBM Plex Mono",monospace;color:#7fb8cf;margin-top:4px}#uebMap .ub-none{font-size:13px;color:#7fb8cf}' +
+        '#uebMap .ub-bar{display:flex;gap:10px;padding:8px 16px 14px}' +
+        '#uebMap .ub-btn{flex:1;padding:11px 8px;border-radius:10px;border:1px solid rgba(93,209,255,.4);background:rgba(10,22,33,.95);color:#49d7ff;font:700 13px "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase}' +
+        '#uebMap .ub-btn.primary{background:rgba(73,215,255,.2);color:#fff}';
+    document.head.appendChild(st);
+}
+
+function closeUeberblick() {
+    if (uebAutoCloseTimer) { clearTimeout(uebAutoCloseTimer); uebAutoCloseTimer = null; }
+    if (!uebEl) return false;
+    try { uebEl.remove(); } catch (e) {}
+    uebEl = null;
+    try { document.body.classList.remove('panel-open'); } catch (e) {}
+    try { if (typeof window.resumeJarvisSphere === 'function') window.resumeJarvisSphere(); } catch (e) {}
+    return true;
+}
+
+/* Tipp auf eine Kachel öffnet das passende Fenster (nur, wenn die App ein Fenster dieses Namens kennt) */
+function uebOpenPanelFor(candidates) {
+    closeUeberblick();
+    try {
+        const valid = (typeof VALID_PANELS !== 'undefined') ? VALID_PANELS : null;
+        const name = candidates.find(c => !valid || valid.includes(c));
+        if (name && typeof openPanel === 'function') openPanel(name);
+    } catch (e) {}
+}
+
+function uebRender(d) {
+    uebEnsureStyle();
+    closeUeberblick();
+    const mk = (parent, tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text !== undefined) x.textContent = text; parent.appendChild(x); return x; };
+    const el = document.createElement('div');
+    el.id = 'uebMap';
+    const frame = mk(el, 'div', 'ub-frame'); for (let i = 0; i < 4; i++) frame.appendChild(document.createElement('i'));
+
+    const head = mk(el, 'div', 'ub-head');
+    mk(head, 'div', 'ub-title', 'TAGESÜBERBLICK');
+    mk(head, 'div', 'ub-date', new Date().toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+
+    const grid = mk(el, 'div', 'ub-grid');
+    const tile = (icon, title, items, opts) => {
+        const o = opts || {};
+        const t = mk(grid, 'div', 'ub-tile' + (o.wide ? ' wide' : '') + (items.length ? '' : ' empty'));
+        const th = mk(t, 'div', 'ub-th'); mk(th, 'div', 'ub-tt', `${icon} ${title}`); mk(th, 'div', 'ub-badge', String(items.length));
+        if (!items.length) mk(t, 'div', 'ub-none', o.none || 'nichts offen');
+        items.slice(0, o.max || UEB_MAX_LINES).forEach(it => {
+            const line = mk(t, 'div', 'ub-line' + (it.od ? ' od' : ''));
+            if (it.lead) mk(line, 'b', '', it.lead);
+            line.appendChild(document.createTextNode(it.text));
+        });
+        if (items.length > (o.max || UEB_MAX_LINES)) mk(t, 'div', 'ub-more', `+ ${items.length - (o.max || UEB_MAX_LINES)} weitere`);
+        if (o.panel) t.addEventListener('click', () => uebOpenPanelFor(o.panel));
+        return t;
+    };
+    tile('📅', 'Termine heute', d.termine.map(e => ({ lead: e.time ? uebClock(e.time) : 'ganztägig', text: e.text })), { panel: ['termine', 'kalender'], none: 'heute frei' });
+    tile('🔔', 'Erinnerungen', d.erinnerungen.map(r => ({ lead: r.overdue ? 'überfällig' : uebClock(r.time), text: r.text, od: r.overdue })), { panel: ['erinnerungen'] });
+    tile('✅', 'Aufgaben', d.aufgaben.map(t => ({ text: t })), { panel: ['aufgaben', 'todo', 'notizen'] });
+    tile('🛒', 'Einkauf', d.einkauf.map(t => ({ text: t })), { panel: ['einkauf', 'einkaufsliste'], max: 5 });
+    if (d.geburtstage.length) tile('🎂', 'Geburtstage heute', d.geburtstage.map(t => ({ text: t })), { wide: true });
+
+    const bar = mk(el, 'div', 'ub-bar');
+    const speakBtn = mk(bar, 'button', 'ub-btn primary', '🔊 Vorlesen');
+    speakBtn.addEventListener('click', () => { try { speak(uebSpeechText(d)); } catch (e) {} });
+    const closeBtn = mk(bar, 'button', 'ub-btn', 'Schließen');
+    closeBtn.addEventListener('click', () => closeUeberblick());
+
+    document.body.appendChild(el);
+    uebEl = el;
+    try { document.body.classList.add('panel-open'); } catch (e) {}
+    try { if (typeof window.pauseJarvisSphere === 'function') window.pauseJarvisSphere(); } catch (e) {}
+}
+
+function uebRenderEmpty() {
+    uebEnsureStyle();
+    closeUeberblick();
+    const el = document.createElement('div');
+    el.id = 'uebMap';
+    const head = document.createElement('div'); head.className = 'ub-head'; head.style.margin = 'auto 0';
+    const t = document.createElement('div'); t.className = 'ub-title'; t.textContent = 'TAGESÜBERBLICK'; head.appendChild(t);
+    const m = document.createElement('div'); m.className = 'ub-date'; m.style.fontSize = '15px'; m.textContent = 'Heute ist nichts offen. ✓'; head.appendChild(m);
+    el.appendChild(head);
+    el.addEventListener('click', () => closeUeberblick());
+    document.body.appendChild(el);
+    uebEl = el;
+    uebAutoCloseTimer = setTimeout(() => closeUeberblick(), 6000);
+}
+
+/* ---------- Ablauf ---------- */
+async function showUeberblick(markShown) {
+    try { if (uebEl) closeUeberblick(); } catch (e) {}
+    const d = await uebGather();
+    if (markShown) uebMarkShown();
+    if (uebIsEmpty(d)) { uebRenderEmpty(); return; }
+    uebRender(d);
+}
+
+function uebMaybeShow() {
+    try {
+        if (!uebEnabled() || uebShownToday() || !uebInWindow()) return;
+        if (typeof document !== 'undefined' && document.hidden) return;
+        if (typeof isProcessing !== 'undefined' && isProcessing) return;
+        showUeberblick(true).catch(() => {});
+    } catch (e) { /* der Überblick ist Zugabe und darf den Start der App nie stören */ }
+}
+
+function handleUeberblickCommand(text) {
+    const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!t || t.length > 50) return false;
+    if (/^(?:zeig(?:e)?(?: mir)?|öffne|mach)?\s*(?:mir\s+)?(?:bitte\s+)?(?:den |meinen |mal )*(?:tagesüberblick|tagesplan|tagesübersicht|morgenüberblick|überblick|mein tag|meinen tag|tagesablauf)(?: bitte)?$/.test(t)
+        || /^(?:zeig|zeige) mir (?:mal )?meinen tag$/.test(t) || /^was liegt heute an$/.test(t)) {
+        showUeberblick(false).catch(() => {});
+        return true;
+    }
+    return false;
+}
+
+/* ---------- Einstellungen und Start ---------- */
+(function initUeberblick() {
+    try {
+        const on = document.getElementById('ueberblickToggle');
+        if (on) { on.checked = uebEnabled(); on.addEventListener('change', () => setPersistentData(UEB_ON_KEY, on.checked ? '1' : '0')); }
+        const from = document.getElementById('ueberblickFrom'), to = document.getElementById('ueberblickTo');
+        if (from) { from.value = String(uebFrom()); from.addEventListener('change', () => setPersistentData(UEB_FROM_KEY, from.value)); }
+        if (to) { to.value = String(uebTo()); to.addEventListener('change', () => setPersistentData(UEB_TO_KEY, to.value)); }
+    } catch (e) {}
+    try {
+        // "Schließen" per Sprache und andere Fenster arbeiten mit dem Überblick zusammen
+        if (typeof isPanelOpen === 'function') { const o = isPanelOpen; isPanelOpen = function () { return !!uebEl || o.apply(this, arguments); }; }
+        if (typeof closePanel === 'function') { const o = closePanel; closePanel = function () { closeUeberblick(); return o.apply(this, arguments); }; }
+        if (typeof openPanel === 'function') { const o = openPanel; openPanel = function () { closeUeberblick(); return o.apply(this, arguments); }; }
+    } catch (e) {}
+    try {
+        const go = () => setTimeout(uebMaybeShow, UEB_START_DELAY_MS);
+        if (document.readyState === 'complete') go(); else window.addEventListener('load', go, { once: true });
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(uebMaybeShow, 800); });
+    } catch (e) {}
+})();
