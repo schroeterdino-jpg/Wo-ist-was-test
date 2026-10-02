@@ -134,6 +134,7 @@
                     <div class="flex items-center gap-2">
                         <button id="briefingBtn" onclick="playUiBeep(); triggerDailyBriefing()" class="px-4 py-1.5 rounded-full bg-[#0a1621]/80 border border-[rgba(93,209,255,.3)] text-[#49d7ff] text-[11px] font-mono uppercase tracking-wider hover:bg-cyan-950/50 transition">🌅 Briefing</button>
                         <button id="photoBtn" onclick="playUiBeep(); openPhotoCamera(true)" aria-label="Foto aufnehmen" class="px-3 py-1.5 rounded-full bg-[#0a1621]/80 border border-[rgba(93,209,255,.3)] text-[#49d7ff] text-[13px] hover:bg-cyan-950/50 transition">📷</button>
+                        <button id="photoPickBtn" onclick="playUiBeep(); openPhotoGallery()" aria-label="Bild aus den Dateien wählen" class="px-3 py-1.5 rounded-full bg-[#0a1621]/80 border border-[rgba(93,209,255,.3)] text-[#49d7ff] text-[13px] hover:bg-cyan-950/50 transition">📁</button>
                     </div>
                     <!-- Foto-Eingaben (versteckt): Kamera und Galerie; werden von js/photo.js benutzt -->
                     <input type="file" id="photoInput" accept="image/*" capture="environment" class="hidden">
@@ -558,6 +559,7 @@
     <script src="./js/birthdays.js"></script>
     <script src="./js/weathermap.js"></script>
     <script src="./js/waehrung.js"></script>
+    <script src="./js/ferien.js"></script>
     <script src="./js/photo.js"></script>
     <script src="./js/nearbymore.js"></script>
     <script src="./js/assistant.js"></script>
