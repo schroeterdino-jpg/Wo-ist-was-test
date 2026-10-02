@@ -401,6 +401,7 @@ function buildBriefingData(now, weather) {
         wetter,
         naechste_termine: termine,
         erinnerungen_naechste_tage: erinnerungen,
+        geburtstage: [],   // wird in triggerDailyBriefing aus dem Geburtstags-Kalender gefüllt (birthdays.js)
         zusaetzliche_wuensche: wuensche,
         wichtige_gegenstaende: gegenstaende,
         wunsch_dieselpreis_angefordert: wunschDieselAngefordert
@@ -438,6 +439,7 @@ async function composeBriefingWithModel(data) {
     "  SCHLECHT (nicht so, klingt wie eine Aufzählung): 'Aktuell beträgt die Temperatur 16 Grad, fühlt sich mit 14 Grad an, der Wind weht mit 30 km/h, kein Regen wird erwartet, daher kein Regenschirm nötig, leichte Jacke mitnehmen.'\n" +
     "  GUT (so): 'Draußen sind es angenehme 16 Grad, gefühlt eher 14 bei dem spürbaren Wind - eine leichte Jacke reicht aber völlig, einen Schirm brauchen Sie heute nicht.'\n" +
     "3. Termine & Erinnerungen: Flechte anstehende Termine und Erinnerungen naturgemäß in den Redefluss ein (Tag und Uhrzeit exakt nennen, aber in fließender Sprache, z. B. 'Was Ihren Kalender betrifft...'). Ist der Kalender frei, sag ihm das auf eine entspannte, nette Art.\n" +
+    "3b. Geburtstage: Steht etwas in 'geburtstage' (Liste mit 'titel' und 'tag'), erwähne die Geburtstage herzlich und natürlich in einem Satz, zum Beispiel 'Übrigens: Morgen hat Julia Geburtstag, vielleicht eine kleine Gratulation?' oder 'Heute hat Peter Geburtstag.'. Der 'titel' kann 'Julias Geburtstag' oder nur ein Name sein; mache daraus einen natürlichen Satz und nenne den Tag so, wie er in 'tag' steht. Ist die Liste leer, sag dazu gar nichts.\n" +
     "4. Wünsche & Gegenstände: Wenn wichtige Gegenstände (Schlüssel, Portemonnaie etc.) oder Wünsche in den Daten stehen, erinnere ihn daran so, wie es ein aufmerksamer Assistent beim Verlassen des Hauses tun würde. Formuliere vollständige, harmonische Sätze mit passenden Präpositionen (z. B. 'Bevor Sie gehen: Ihr Schlüssel liegt wie gewohnt in der Schublade').\n" +
     "4b. Dieselpreis: Ist 'dieselpreis' vorhanden (nicht null), nenne den aktuellen Preis und die Tankstelle beiläufig in einem natürlichen Satz (z. B. 'Der günstigste Diesel in Ihrer Nähe kostet aktuell 1,679 Euro bei der Aral in der Lauenburger Straße'). Ist 'wunsch_dieselpreis_angefordert' true, aber 'dieselpreis' null, erwähne kurz, dass der aktuelle Preis gerade nicht abrufbar war. Ist 'wunsch_dieselpreis_angefordert' false, sag dazu gar nichts.\n" +
     "5. Parkplatz: Wenn ein Parkplatz angegeben ist, erwähne beiläufig, wo der Wagen steht. Wenn nicht ('parkplatz' ist null), verliere KEIN EINZIGES WORT darüber.\n\n" +
@@ -504,6 +506,10 @@ function buildFallbackBriefing(data) {
 
     if (data.erinnerungen_naechste_tage.length > 0) {
         text += "Hier noch Ihre Erinnerungen: " + data.erinnerungen_naechste_tage.map(r => `${r.text} ${r.tag}${r.uhrzeit === 'ganztägig' ? '' : ' um ' + r.uhrzeit}`).join(' sowie ') + ". ";
+    }
+
+    if ((data.geburtstage || []).length > 0) {
+        text += "Zu den Geburtstagen: " + data.geburtstage.map(birthdayPhrase).join(', ') + ". ";
     }
 
     if ((data.zusaetzliche_wuensche || []).length > 0) {
@@ -608,10 +614,21 @@ async function triggerDailyBriefing() {
             data.dieselpreis = await fetchCheapestDieselNearby();
         }
 
+        // Geburtstage der nächsten 7 Tage (birthdays.js); ein Fehler dort lässt sie einfach weg
+        try {
+            if (typeof fetchUpcomingBirthdays === 'function') {
+                typeWriterStatus("Prüfe Geburtstage...");
+                data.geburtstage = await fetchUpcomingBirthdays(7);
+            }
+        } catch (e) { data.geburtstage = []; }
+
         typeWriterStatus("Stelle Briefing zusammen...");
         let text = await composeBriefingWithModel(data);
         if (!text) text = buildFallbackBriefing(data);
-        else text = ensureItemsMentioned(text, data);
+        else {
+            text = ensureItemsMentioned(text, data);
+            if (typeof ensureBirthdaysMentioned === 'function') text = ensureBirthdaysMentioned(text, data);
+        }
 
         chatHistory.push({ role: "assistant", content: JSON.stringify({ type: "chat", reply: text }) });
 
