@@ -38,7 +38,12 @@
         window.addEventListener('error', function (e) {
             try {
                 var t = e && e.target;
-                if (t && t !== window && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) { add('DATEI NICHT GELADEN: ' + short(t.src || t.href)); return; }
+                if (t && t !== window && t.tagName) {
+                    // Nur fehlende Programm- und Stildateien sind ein Problem; Bilder (zum Beispiel Vereinswappen), Videos usw. dürfen fehlen
+                    if (t.tagName === 'SCRIPT' || t.tagName === 'LINK') add('DATEI NICHT GELADEN: ' + short(t.src || t.href));
+                    return;
+                }
+                if (!e.message && !e.filename) return;   // ohne Meldung und ohne Stelle: kein Programmfehler
                 add('FEHLER: ' + (e.message || 'unbekannt') + (e.filename ? '  [' + short(e.filename) + ':' + e.lineno + ']' : ''));
             } catch (x) {}
         }, true);
