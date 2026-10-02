@@ -313,6 +313,13 @@
                                 <option value="">Automatisch</option>
                             </select>
                         </div>
+                        <div>
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Sprechtempo: <span id="speechRateValue" class="normal-case text-slate-300">normal (1,00×)</span></label>
+                            <input type="range" id="speechRateSlider" min="0.7" max="1.4" step="0.05" value="1" oninput="setSpeechRate(this.value)" class="w-full accent-[#49d7ff]">
+                            <div class="flex justify-between text-xs text-[#5d7e91]"><span>langsamer</span><span>schneller</span></div>
+                            <button onclick="playUiBeep(); testSpeechRate()" class="w-full mt-2 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Tempo testen</button>
+                            <p class="text-xs text-[#5d7e91] font-mono mt-1">Auch per Sprache: „Sprich langsamer", „Sprich schneller", „Sprich normal".</p>
+                        </div>
                         <button onclick="playUiBeep(); testVoice()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Stimme testen</button>
                         <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer pt-1">
                             <input type="checkbox" id="conversationModeToggle" class="w-5 h-5 accent-[#49d7ff]">
@@ -531,6 +538,7 @@
     <script src="./js/voice.js"></script>
     <script src="./js/pronunciation.js"></script>
     <script src="./js/voicefix.js"></script>
+    <script src="./js/speechrate.js"></script>
     <script src="./js/briefing.js"></script>
     <script src="./js/answers.js"></script>
     <script src="./js/actions.js"></script>
@@ -540,6 +548,7 @@
     <script src="./js/routing.js"></script>
     <script src="./js/localcommands.js"></script>
     <script src="./js/systemcheck.js"></script>
+    <script src="./js/help.js"></script>
     <script src="./js/assistant.js"></script>
     <script src="./js/background.js"></script>
     <script src="./js/matrix.js"></script>
