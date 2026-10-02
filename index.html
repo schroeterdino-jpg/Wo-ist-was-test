@@ -4,6 +4,66 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jarvis</title>
+    <!-- FEHLERANZEIGE (steht absichtlich ganz vorn und unabhängig von allen js-Dateien): zeigt Programmfehler, nicht ladbare Dateien und fehlende Funktionen als roten Streifen unten -->
+    <script>
+    (function () {
+        var errs = [], box = null, body = null;
+        function esc(t) { return String(t).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+        function short(u) { return String(u || '').replace(/^.*\/(js|api)\//, '$1/').replace(/^https?:\/\/[^\/]+\//, ''); }
+        function render() {
+            try {
+                if (!box) {
+                    box = document.createElement('div');
+                    box.id = 'fehlerBox';
+                    box.style.cssText = 'position:fixed;left:6px;right:6px;bottom:6px;z-index:2147483647;max-height:45vh;overflow:auto;background:rgba(40,0,6,.96);border:1px solid #ff5a6a;border-radius:10px;color:#ffd3d8;font:11px/1.45 monospace;padding:8px 10px;word-break:break-word';
+                    var x = document.createElement('button');
+                    x.textContent = '✕';
+                    x.style.cssText = 'float:right;margin:0 0 4px 8px;border:1px solid #ff5a6a;border-radius:6px;background:#2a0006;color:#ff9aa5;font:700 12px monospace;padding:1px 9px';
+                    x.onclick = function () { box.style.display = 'none'; };
+                    box.appendChild(x);
+                    body = document.createElement('div');
+                    box.appendChild(body);
+                    (document.body || document.documentElement).appendChild(box);
+                }
+                box.style.display = '';
+                body.innerHTML = '<b>⚠ Fehleranzeige</b> (schick mir einen Screenshot davon)<br>' + errs.slice(-6).map(esc).join('<br>');
+            } catch (e) {}
+        }
+        function add(msg) {
+            if (errs.indexOf(msg) !== -1) return;
+            errs.push(msg);
+            if (document.body) render(); else document.addEventListener('DOMContentLoaded', render);
+        }
+        // Programmfehler (mit Datei und Zeile) und Dateien, die gar nicht geladen werden konnten (404, kein Netz)
+        window.addEventListener('error', function (e) {
+            try {
+                var t = e && e.target;
+                if (t && t !== window && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) { add('DATEI NICHT GELADEN: ' + short(t.src || t.href)); return; }
+                add('FEHLER: ' + (e.message || 'unbekannt') + (e.filename ? '  [' + short(e.filename) + ':' + e.lineno + ']' : ''));
+            } catch (x) {}
+        }, true);
+        window.addEventListener('unhandledrejection', function (e) {
+            try { var r = e && e.reason; add('FEHLER (Anfrage): ' + ((r && r.message) || String(r)).slice(0, 200)); } catch (x) {}
+        });
+        // Nach dem Start prüfen, ob die wichtigsten Funktionen aus den js-Dateien da sind (fehlt eine Datei, fehlt ihre Funktion)
+        var EXPECT = {
+            'voice.js': 'speak', 'assistant.js': 'sendToGroqSmart', 'localcommands.js': 'handleLocalCommand', 'panels.js': 'openPanel', 'actions.js': 'executeAction',
+            'persona.js': 'sassLevel', 'prompt.js': 'buildSystemPrompt', 'help.js': 'handleHelpCommand', 'charakter.js': 'handleCharacterCommand', 'mitdenken.js': 'thoughtsForNewEvent',
+            'wachter.js': 'handleWachterCommand', 'tagesueberblick.js': 'handleUeberblickCommand', 'welt_anflug.js': 'handleAnflugCommand', 'diagnose.js': 'handleDiagCommand',
+            'photo.js': 'handlePhotoCommand', 'ferien.js': 'handleFerienCommand', 'waehrung.js': 'handleCurrencyCommand', 'weathermap.js': 'handleWeatherMapCommand', 'nearbymore.js': 'handlePlacesCommand',
+            'calendar.js': 'addGoogleCalendarEvent', 'briefing.js': 'triggerDailyBriefing', 'speechrate.js': 'handleSpeechRateCommand', 'birthdays.js': 'fetchUpcomingBirthdays', 'routing.js': 'resolveContactsInActions'
+        };
+        window.addEventListener('load', function () {
+            setTimeout(function () {
+                try {
+                    var missing = [];
+                    Object.keys(EXPECT).forEach(function (f) { if (typeof window[EXPECT[f]] !== 'function') missing.push(f + ' (' + EXPECT[f] + ')'); });
+                    if (missing.length) add('FEHLT NACH DEM START: ' + missing.join(', ') + '. Diese Dateien fehlen im Ordner js oder enthalten einen Fehler.');
+                } catch (x) {}
+            }, 2500);
+        });
+    })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -634,6 +694,7 @@
     <script src="./js/wachter.js"></script>
     <script src="./js/tagesueberblick.js"></script>
     <script src="./js/welt_anflug.js"></script>
+    <script src="./js/diagnose.js"></script>
     <script src="./js/photo.js"></script>
     <script src="./js/nearbymore.js"></script>
     <script src="./js/assistant.js"></script>
