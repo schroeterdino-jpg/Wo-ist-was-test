@@ -282,6 +282,39 @@
 
                 <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
                     <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
+                        <span>🎭 Charakter & Mitdenken</span>
+                    </summary>
+                    <div class="p-4 space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Frechheitsgrad:</label>
+                            <select id="sassLevelSelect" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                                <option value="0">Höflich (keine Sprüche)</option>
+                                <option value="1">Trocken (selten ein Spruch)</option>
+                                <option value="2" selected>Frech (Standard)</option>
+                                <option value="3">Sehr frech</option>
+                            </select>
+                            <p class="text-xs text-[#5d7e91] font-mono mt-1">Auch per Sprache: „Sei frecher", „Sei höflicher", „Keine Sprüche mehr". Bei ernsten Themen gibt es nie Sprüche.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Anrede (Schnellwahl):</label>
+                            <div class="flex gap-2 flex-wrap">
+                                <button onclick="playUiBeep(); setAddress('Sir')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-bold border border-slate-700">Sir</button>
+                                <button onclick="playUiBeep(); setAddress('Boss')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-bold border border-slate-700">Boss</button>
+                                <button onclick="playUiBeep(); setAddress('Chef')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-bold border border-slate-700">Chef</button>
+                                <button onclick="playUiBeep(); setAddress('Captain')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-bold border border-slate-700">Captain</button>
+                            </div>
+                            <p class="text-xs text-[#5d7e91] font-mono mt-1">Oder oben im Feld einen eigenen Namen eintragen. Per Sprache: „Nenn mich Boss".</p>
+                        </div>
+                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer pt-1">
+                            <input type="checkbox" id="proactiveToggle" class="w-5 h-5 accent-[#49d7ff]" checked>
+                            <span>Jarvis meldet sich von selbst (Abfahrtszeit, Regen, Geburtstage)</span>
+                        </label>
+                        <p class="text-xs text-[#5d7e91] font-mono pl-8">Nur solange die App offen ist, nie zwischen 22 und 7 Uhr. Per Sprache: „Melde dich nicht mehr von selbst" / „Melde dich von selbst".</p>
+                    </div>
+                </details>
+
+                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
+                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
                         <span>🔊 Stimme & Gespräch</span>
                     </summary>
                     <div class="p-4 space-y-3">
@@ -560,6 +593,9 @@
     <script src="./js/weathermap.js"></script>
     <script src="./js/waehrung.js"></script>
     <script src="./js/ferien.js"></script>
+    <script src="./js/charakter.js"></script>
+    <script src="./js/mitdenken.js"></script>
+    <script src="./js/wachter.js"></script>
     <script src="./js/photo.js"></script>
     <script src="./js/nearbymore.js"></script>
     <script src="./js/assistant.js"></script>
