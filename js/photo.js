@@ -92,7 +92,6 @@ function photoSystemPrompt(task) {
 
 /* ---------- Kamera öffnen, Foto vorbereiten ---------- */
 function openPhotoCamera(fromButton) {
-    if (fromButton && (!photoIntent || Date.now() - photoIntent.at > PHOTO_INTENT_MS)) photoIntent = { task: 'describe', question: '', at: Date.now() };
     const el = document.getElementById('photoInput');
     if (el) el.click();
 }
@@ -389,13 +388,19 @@ async function addAllPhotoEvents() {
 /* ---------- Foto ist da ---------- */
 async function handlePhotoFile(file) {
     if (!file) return;
-    const intent = (photoIntent && Date.now() - photoIntent.at < PHOTO_INTENT_MS) ? photoIntent : { task: 'describe', question: '' };
+    const intent = (photoIntent && Date.now() - photoIntent.at < PHOTO_INTENT_MS) ? photoIntent : { task: 'wait', question: '' };   // kein Sprachbefehl vorher: erst Foto, dann sagen, was damit passieren soll
     photoIntent = null;
     try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Werte das Foto aus...'); } catch (e) {}
     try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) {}
     let dataUrl;
     try { dataUrl = await preparePhoto(file); } catch (e) { photoSay('Das Foto konnte ich nicht lesen.'); return; }
     lastPhoto = { dataUrl, at: Date.now() };
+    if (intent.task === 'wait') { photoAskWhatToDo(); return; }
+    await processPhoto(intent, dataUrl);
+}
+
+/* Wertet ein Foto für eine Aufgabe aus (events, contact, shopping, read, translate, car, parking, cook, identify, describe) */
+async function processPhoto(intent, dataUrl) {
     try {
         if (intent.task === 'events') {
             const content = await askVision(photoEventsPrompt(), 'Lies die Termine aus diesem Foto.', dataUrl, true);
@@ -443,6 +448,54 @@ async function handlePhotoFile(file) {
     }
 }
 
+/* ---------- Erst Foto, dann sagen, was damit passieren soll ---------- */
+function photoAskWhatToDo() {
+    try {
+        if (typeof clearActionCards === 'function') clearActionCards();
+        if (typeof showActionCards === 'function') {
+            showActionCards([
+                { icon: '🛒', title: 'Auf die Einkaufsliste', subtitle: 'Zettel lesen, Artikel eintragen', onclick: "runLastPhotoTask('shopping')" },
+                { icon: '📅', title: 'Termine eintragen', subtitle: 'Kalender, Plakat, Einladung', onclick: "runLastPhotoTask('events')" },
+                { icon: '👤', title: 'Kontakt anlegen', subtitle: 'Visitenkarte', onclick: "runLastPhotoTask('contact')" },
+                { icon: '🔤', title: 'Vorlesen / übersetzen', subtitle: 'Text auf dem Foto', onclick: "runLastPhotoTask('read')" },
+                { icon: '🔍', title: 'Beschreiben', subtitle: 'Was ist zu sehen?', onclick: "runLastPhotoTask('describe')" }
+            ]);
+        }
+    } catch (e) {}
+    photoSay('Das Foto ist da. Was soll ich damit tun?');
+}
+
+/* Führt eine Aufgabe mit dem zuletzt aufgenommenen Foto aus (ohne neues Foto) */
+async function runLastPhotoTask(task, question) {
+    if (!lastPhoto || Date.now() - lastPhoto.at > PHOTO_FOLLOWUP_MS) { photoSay('Ich habe gerade kein Foto. Tippen Sie auf die Kamera, um eins aufzunehmen.'); return; }
+    try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Werte das Foto aus...'); } catch (e) {}
+    try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) {}
+    await processPhoto({ task, question: question || '' }, lastPhoto.dataUrl);
+}
+
+/* Sätze, die sich auf das letzte Foto beziehen ("Setz das auf die Einkaufsliste"). Gilt nur kurz nach einem Foto, und nur mit
+   Wörtern wie "das/alles/davon" direkt beim Verb, damit "Setz Milch auf die Einkaufsliste" oder "Trag morgen einen Termin ein" normal bleiben. */
+function parseFollowupTask(text) {
+    const t = String(text || '').toLowerCase().replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!t || t.length > 100) return null;
+    const THIS = '(?:das|dies\\w*|alles|alle|davon|daraus|hiervon|sie|ihn|es|die sachen|die artikel|die dinge|die termine|den termin|die daten)';
+    if (new RegExp('\\b(?:setz|setze|trag|trage|schreib|schreibe|pack|packe|füg|füge|übernimm|übernehme|nimm)\\w*\\s+(?:mir\\s+)?' + THIS + '\\s+(?:bitte\\s+)?(?:alle\\s+)?(?:auf|in|zu|zur)\\s+(?:die|der|meine|meiner)\\s+(?:einkaufsliste|liste|einkaufszettel)\\b').test(t)
+        || /\b(?:einkaufsliste|einkaufszettel)\b.*\b(?:davon|daraus)\b|\b(?:davon|daraus)\b.*\bauf die (?:einkaufs)?liste\b/.test(t)) return { task: 'shopping' };
+    if (!/\d|\bmorgen\b|\bheute\b|\bfür\b|\buhr\b/.test(t)) {
+        if (new RegExp('\\b(?:trag|trage|übernimm|übernehme|schreib|schreibe)\\w*\\s+(?:mir\\s+)?' + THIS + '\\s+(?:bitte\\s+)?(?:alle\\s+)?(?:in|im|auf|zum|zu)\\s+(?:meinen?|den|dem)?\\s*kalender\\b').test(t)
+            || /\b(?:termine?|den termin|die termine)\b.*\b(?:davon|daraus|aus dem foto|vom foto)\b.*\b(?:eintrag\w*|übernehm\w*)\b/.test(t)
+            || /\b(?:trag|trage)\s+(?:davon|daraus)\s+(?:die\s+|den\s+)?termine?\s+ein\b/.test(t)
+            || /\b(?:trag|trage)\w*\s+(?:mir\s+)?(?:die\s+|den\s+)?termine?\s+(?:davon\s+|daraus\s+|von dem foto\s+|vom foto\s+|aus dem foto\s+)?(?:bitte\s+)?ein\b/.test(t)) return { task: 'events' };
+        if (/\bkontakt\w*\b/.test(t) && (/\b(?:anleg\w*|speicher\w*|übernehm\w*|übernimm|erstell\w*)\b/.test(t) || /\b(?:leg|lege)\b.*\ban\b/.test(t)) && new RegExp('\\b' + THIS + '\\b|\\bvisitenkarte\\b|\\bkarte\\b').test(t)) return { task: 'contact' };
+    }
+    if (/\b(?:darf|kann)\s+ich\s+hier\s+(?:parken|stehen|halten)\b/.test(t)) return { task: 'parking' };
+    if (/\bwas kann ich\s+(?:damit|daraus|hieraus|davon)\s+(?:kochen|machen|zubereiten)\b/.test(t)) return { task: 'cook' };
+    if (/(?<![\wäöüß])übersetz\w*\s+(?:mir\s+)?(?:das|dies\w*|es)\b/.test(t)) return { task: 'translate' };
+    if (/\b(?:lies|les|lese)\s+(?:mir\s+)?(?:das|dies\w*|es)\b.*\bvor\b|\b(?:das|dies\w*)\s+(?:bitte\s+)?vorlesen\b/.test(t)) return { task: 'read' };
+    if (/\b(?:beschreib\w*)\s+(?:mir\s+)?(?:das|dies\w*|es)\b|\bwas ist (?:das|darauf zu sehen)\b|\bwas steht (?:da|darauf)\b|\bwas siehst du\b/.test(t)) return { task: 'describe' };
+    return null;
+}
+
 /* ---------- Sprachbefehle ---------- */
 function handlePhotoCommand(text) {
     const raw = String(text || '').trim();
@@ -486,6 +539,16 @@ function handlePhotoCommand(text) {
             .then(a => photoSay(photoCleanAnswer(a) || 'Dazu sehe ich auf dem Foto nichts.'))
             .catch(() => photoSay('Die Auswertung hat gerade nicht geklappt.'));
         return true;
+    }
+
+    // Direkt nach einem Foto: "Setz das auf die Einkaufsliste", "Übersetze das", "Was ist das?"
+    if (lastPhoto && Date.now() - lastPhoto.at < PHOTO_FOLLOWUP_MS) {
+        const f2 = parseFollowupTask(raw);
+        if (f2) {
+            photoPending = null; photoEvents = []; photoEventsAt = 0;   // es ist immer nur eine Rückfrage offen
+            runLastPhotoTask(f2.task, raw).catch(() => photoSay('Die Auswertung hat gerade nicht geklappt.'));
+            return true;
+        }
     }
 
     const req = parsePhotoRequest(raw);
