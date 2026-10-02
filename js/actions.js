@@ -266,7 +266,11 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'calendar' || action.calendar_text) {
         const ort = action.calendar_location || extractLocationFallback(text);
         const rrule = weekdayRuleFromText(text) || buildRecurrenceRule(action.calendar_recurrence_unit, action.calendar_recurrence_interval) || recurrenceFromText(text);
+        // Mitdenken: vor dem Eintragen prüfen (Überschneidung, Feiertag, Wetter, Fahrzeit ...); die Hinweise hängen an der gesprochenen Antwort
+        let thoughts = [];
+        try { if (typeof thoughtsForNewEvent === 'function' && !rrule) thoughts = await thoughtsForNewEvent(action.calendar_text || text, action.calendar_time, ort); } catch (e) { thoughts = []; }
         const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort, rrule);
+        thoughts.forEach(n => ctx.notes.push(n));
         if (addDone === false) googleNotSynced(ctx, 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht');
         // Den ECHTEN Google Kalender öffnen (nicht das eigene Termine-Fenster), als sichtbare Bestätigung,
         // dass der Termin wirklich eingetragen wurde. Nur wenn er tatsächlich bei Google gelandet ist -

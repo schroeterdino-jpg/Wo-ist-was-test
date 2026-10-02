@@ -307,7 +307,11 @@ async function handleBundesligaQuery(teamNamePart) {
 }
 
 function handleLocalCommandInner(text) {
+    // Dieselbe Frage zum dritten Mal: kurzer Kommentar als Zwischenansage, danach kommt die normale Antwort
+    try { if (typeof charNoteQuestion === 'function') { const q = charNoteQuestion(text); if (q && typeof speakAck === 'function') speakAck(q); } } catch (e) {}
     if (handleGreeting(text)) return true;
+    if (typeof handleCharacterCommand === 'function' && handleCharacterCommand(text)) return true;
+    if (typeof handleWachterCommand === 'function' && handleWachterCommand(text)) return true;
     if (typeof handlePhotoCommand === 'function' && handlePhotoCommand(text)) return true;
     if (typeof handleHelpCommand === 'function' && handleHelpCommand(text)) return true;
     if (typeof handleSpeechRateCommand === 'function' && handleSpeechRateCommand(text)) return true;
