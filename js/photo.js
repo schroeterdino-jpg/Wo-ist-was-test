@@ -11,9 +11,10 @@
    Wird von localcommands.js aufgerufen.
    ============================================================ */
 
-/* Bild-fähige KI-Modelle bei Groq; das erste ist die Wahl, das zweite die Ersatzwahl, falls das erste nicht (mehr) angeboten wird.
-   Ändern sich die Modellnamen, genügt es, sie hier zu tauschen. */
-const PHOTO_MODELS = ['meta-llama/llama-4-scout-17b-16e-instruct', 'meta-llama/llama-4-maverick-17b-128e-instruct'];
+/* Bild-fähige KI-Modelle bei Groq (laut Groq-Dokumentation "Images and Vision", Stand 2026). Das erste ist die Wahl, das zweite die Ersatzwahl,
+   falls das erste nicht (mehr) angeboten wird. Die früheren Llama-4-Modelle gibt es dort nicht mehr. Ändern sich die Namen, genügt es, sie hier zu tauschen.
+   gpt-oss-120b (das Standard-Modell der App) versteht nur Text, deshalb braucht die Foto-Funktion eigene Modelle. */
+const PHOTO_MODELS = ['qwen/qwen3.8-27b', 'qwen/qwen3.6-27b'];
 const PHOTO_MAX_SIDE = 1600;        // längste Seite nach dem Verkleinern, in Pixeln
 const PHOTO_JPEG_QUALITY = 0.82;
 const PHOTO_INTENT_MS = 3 * 60000;  // so lange gilt "Übersetze dieses Schild", bis das Foto da ist
@@ -109,10 +110,21 @@ function photoTimeout(promise, ms) {
     return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('Zeitüberschreitung')), ms))]);
 }
 
+/* Entfernt Denk-Abschnitte, falls das Modell welche mitschickt */
+function stripThinking(text) {
+    return String(text || '').replace(/<think>[\s\S]*?<\/think>/gi, ' ').replace(/<\/?think>/gi, ' ').trim();
+}
+
+/* Fragt ein bildfähiges Modell. Probiert nacheinander die Modelle und je Modell mehrere Varianten der Anfrage:
+   1) Denken aus + (bei Terminen) JSON-Modus, 2) ohne "Denken aus", 3) ohne JSON-Modus.
+   Das macht den Aufruf unempfindlich gegen Eigenheiten einzelner Modelle oder des Servers. */
 async function askVision(system, userText, dataUrl, wantJson) {
+    const variants = wantJson ? [{ think: true, json: true }, { think: false, json: true }, { think: false, json: false }] : [{ think: true, json: false }, { think: false, json: false }];
+    const started = Date.now();
     let lastErr = null;
     for (const model of PHOTO_MODELS) {
-        for (const withJsonMode of (wantJson ? [true, false] : [false])) {   // manche Modelle verweigern den JSON-Modus mit Bildern: dann ohne versuchen
+        for (const v of variants) {
+            if (Date.now() - started > 70000) throw new Error(String(lastErr || 'Zeitüberschreitung'));
             try {
                 const body = {
                     model, temperature: 0.2,
@@ -121,12 +133,14 @@ async function askVision(system, userText, dataUrl, wantJson) {
                         { role: 'user', content: [{ type: 'text', text: userText }, { type: 'image_url', image_url: { url: dataUrl } }] }
                     ]
                 };
-                if (withJsonMode) body.response_format = { type: 'json_object' };
+                if (v.think) body.reasoning_effort = 'none';
+                if (v.json) body.response_format = { type: 'json_object' };
                 const res = await photoTimeout(apiFetch('/api/groq', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), 45000);
                 const data = await res.json().catch(() => null);
-                if (res.ok && data && data.choices && data.choices[0]) return String(data.choices[0].message.content || '');
+                if (res.ok && data && data.choices && data.choices[0]) return stripThinking(data.choices[0].message.content);
                 lastErr = (data && data.error && (data.error.message || data.error)) || ('Status ' + res.status);
-                console.error('Foto-KI (' + model + (withJsonMode ? ', JSON-Modus' : '') + '):', lastErr);
+                console.error('Foto-KI (' + model + (v.think ? ', Denken aus' : '') + (v.json ? ', JSON' : '') + '):', lastErr);
+                if (/does not exist|not found|decommission|do not have access|unknown model|no longer/i.test(String(lastErr))) break;   // Modell gibt es nicht: gleich das nächste
             } catch (e) {
                 lastErr = e.message;
                 console.error('Foto-KI (' + model + '):', e.message);
