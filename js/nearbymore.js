@@ -37,7 +37,9 @@ const PLACE_CATEGORIES = [
     { key: 'friseur', label: 'Friseur', art: 'der', icon: '💇', words: /friseur\w*|frisör\w*/, sel: ['["shop"="hairdresser"]'], radius: [2500, 10000] },
     { key: 'optiker', label: 'Optiker', art: 'der', icon: '👓', words: /\boptiker\b/, sel: ['["shop"="optician"]'], radius: [4000, 15000] },
     { key: 'spielplatz', label: 'Spielplatz', art: 'der', icon: '🛝', words: /spielplatz|spielplätze/, sel: ['["leisure"="playground"]'], radius: [2000, 8000] },
-    { key: 'schwimmbad', label: 'Schwimmbad', art: 'das', icon: '🏊', words: /schwimmbad|schwimmbäder|schwimmhalle|freibad|hallenbad/, sel: ['["leisure"="swimming_pool"]["name"]', '["leisure"="sports_centre"]["sport"="swimming"]'], radius: [10000, 30000] }
+    { key: 'schwimmbad', label: 'Schwimmbad', art: 'das', icon: '🏊', words: /schwimmbad|schwimmbäder|schwimmhalle|freibad|hallenbad/, sel: ['["leisure"="swimming_pool"]["name"]', '["leisure"="sports_centre"]["sport"="swimming"]'], radius: [10000, 30000] },
+    { key: 'werkstatt', label: 'Autowerkstatt', art: 'die', icon: '🔧', words: /\bautowerkstatt\w*|kfz[- ]?werkstatt\w*|\bwerkstatt\b|\bwerkstätte\b/, sel: ['["shop"="car_repair"]'], radius: [5000, 20000] },
+    { key: 'waschanlage', label: 'Waschanlage', art: 'die', icon: '🚿', words: /waschanlage\w*|waschstraße\w*|autowäsche|autowaschanlage\w*/, sel: ['["amenity"="car_wash"]'], radius: [5000, 20000] }
 ];
 
 const PLACE_NEAR_PHRASE = /\b(?:nächste[nrms]?|nächst\w*|in der nähe|um die ecke|hier in der gegend|wo ist|wo sind|wo gibt es|wo finde ich|wo kann ich|ich suche|ich brauche|gibt es hier|gibt es (?:eine|einen|ein)|zeig mir|finde mir|such mir|wo ist hier)\b/;
