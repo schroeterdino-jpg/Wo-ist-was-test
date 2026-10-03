@@ -1,7 +1,7 @@
 /* ============================================================
    ERWEITERUNGEN: hängt die neuen Funktionen in die bestehende App ein, ohne localcommands.js und wachter.js zu verändern.
    Neu: Feiertage und Brückentage (feiertage.js), Sonne und Mond (sonnemond.js), gemeinsames Fenster dafür (extrafenster.js), Weltzeit (weltzeit.js),
-        Unwetterwarnungen (unwetter.js), Filmtipps (filme.js).
+        Unwetterwarnungen (unwetter.js), Filmtipps (filme.js), Ortssuche (ortsuche.js, erst nach den bisherigen Befehlen).
    1) Sprachbefehle: Der Satz wird zuerst diesen Funktionen angeboten; erkennt keine ihn, geht er unverändert an die bisherigen festen Befehle
       (localcommands.js) und danach an die KI. Ein Fehler in einer neuen Funktion kann nichts anderes lahmlegen.
    2) Wächter: Unwetterwarnungen werden zu den Meldungen des Wächters (wachter.js) hinzugefügt.
@@ -9,6 +9,8 @@
    ============================================================ */
 (function () {
     const HANDLERS = ['handleExtraWindowCommand', 'handleUnwetterCommand', 'handleFeiertageCommand', 'handleSonneMondCommand', 'handleWeltzeitCommand', 'handleFilmCommand'];
+    // Diese kommen erst dran, wenn die bisherigen festen Befehle (localcommands.js, nearbymore.js ...) den Satz nicht erkannt haben, vor der KI
+    const AFTER_HANDLERS = ['handleOrtsucheCommand'];
 
     // 1) Sprachbefehle
     if (typeof window.handleLocalCommand === 'function') {
@@ -19,7 +21,14 @@
                     if (typeof window[name] === 'function' && window[name](text)) return true;
                 }
             } catch (e) { console.error('Erweiterung fehlgeschlagen', e); }
-            return original.apply(this, arguments);
+            const handled = original.apply(this, arguments);
+            if (handled) return handled;
+            try {
+                for (const name of AFTER_HANDLERS) {
+                    if (typeof window[name] === 'function' && window[name](text)) return true;
+                }
+            } catch (e) { console.error('Erweiterung fehlgeschlagen', e); }
+            return handled;
         };
     }
 

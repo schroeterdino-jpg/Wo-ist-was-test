@@ -23,7 +23,7 @@ const HELP_TOPICS = [
     { key: 'bahn', icon: '🚆', title: 'Bahn & Bus', words: /\bbahn|\bzug\b|\bzüge\b|\bbus\b|verbindung/, examples: [
         'Wann fährt der nächste Zug nach Hamburg?', 'Such mir die Bahnverbindung von Schwarzenbek nach Hamburg raus', 'Meine Tochter soll um 16 Uhr hier sein, wann muss sie los?'] },
     { key: 'orte', icon: '📍', title: 'Orte in der Nähe', words: /apothek|geldautomat|supermarkt|toilette|parkplatz|parkhaus|café|cafe|bäcker|drogerie|krankenhaus|ladestation|werkstatt|waschanlage|orte|nähe/, examples: [
-        'Wo ist die nächste Apotheke?', 'Wo kann ich Geld abheben?', 'Wo gibt es einen Supermarkt, der noch offen hat?', 'Wo ist die nächste Toilette?', 'Wo kann ich parken?', 'Wo finde ich eine Ladestation?', 'Wo ist eine Autowerkstatt?', 'Apotheke in Hamburg'] },
+        'Wo ist der nächste Penny? (auch Aldi, Lidl, Rewe, Rossmann, McDonald\'s, Baumarkt, Werkstatt, Tankstelle, Bäcker ... Jarvis nennt den nächsten mit Entfernung und Öffnungszeit; ein Tipp auf die Karte öffnet die Route)', 'Navigiere mich zum nächsten Rossmann', 'Gibt es hier einen Baumarkt?', 'Wo ist die nächste Apotheke?', 'Wo kann ich Geld abheben?', 'Wo gibt es einen Supermarkt, der noch offen hat?', 'Wo ist die nächste Toilette?', 'Wo kann ich parken?', 'Wo finde ich eine Ladestation?', 'Wo ist eine Autowerkstatt?', 'Apotheke in Hamburg'] },
     { key: 'tanken', icon: '⛽', title: 'Tanken & Essen', words: /tank|sprit|diesel|benzin|restaurant|essen|hunger|pizza/, examples: [
         'Wo tanke ich günstig auf meinem Weg zur Arbeit?', 'Was kostet Diesel in der Nähe?', 'Ich habe Lust auf Pizza, gibt es was in der Nähe?'] },
     { key: 'wetter', icon: '🌦️', title: 'Wetter & Unwetter', words: /wetter|regen|schirm|jacke|warnung/, examples: [

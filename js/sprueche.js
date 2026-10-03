@@ -32,6 +32,8 @@
         fahrt_lang: ['Packen Sie Snacks ein, das ist praktisch eine Expedition.', 'Das ist weniger eine Fahrt als ein Ausflug.', 'Auf der Strecke wachsen Ihnen fast Wurzeln.', 'Tanken Sie lieber vorher, ich kann Sie leider nicht abschleppen.'],
         bahn: ['Ich drücke der Bahn die Daumen. Ich habe zwar keine, aber die Absicht zählt.', 'Pünktlich ist bei der Bahn eher eine Anregung.', 'Planen Sie vorsichtshalber einen Puffer und gute Laune ein.', 'Möge das Gleis mit Ihnen sein.'],
         sprit: ['Tanken: die moderne Form von Geld verbrennen.', 'Der Preis tut weh, aber das Auto kann nichts dafür.', 'Man sagt ja, Geld macht nicht glücklich. Sprit auch nicht, aber er bringt Sie hin.', 'Ich würde ja Alternativen vorschlagen, aber Laufen dauert.'],
+        ort_nah: ['Näher geht es kaum. Wenn Sie ihn verfehlen, liegt es nicht an der Entfernung.', 'Das ist praktisch um die Ecke.', 'Da brauchen Sie kaum Schuhe, aber nehmen Sie trotzdem welche.'],
+        ort_weit: ['Das ist weniger um die Ecke als um die Welt.', 'Eine kleine Expedition, aber Sie schaffen das.', 'Tanken Sie lieber vorher, ich kann Sie leider nicht abschleppen.'],
         essen: ['Mahlzeit! Beim Essen kann ich leider nur beim Aussuchen helfen.', 'Hunger ist der beste Koch, und die haben auch einen.', 'Guten Appetit. Ich nehme nur Strom, falls es jemand wissen will.', 'Ein hungriger Mensch ist ein gefährlicher Mensch. Gehen Sie los.'],
         eingetragen: ['Eingetragen. Jetzt müssen Sie nur noch hingehen.', 'Der Kalender ist beeindruckt von Ihrer Voraussicht.', 'Notiert. Ausreden gelten ab sofort nicht mehr.', 'Erledigt. Ich war dabei fast ein bisschen stolz.'],
         liste: ['Hoffentlich vergessen Sie die Liste nicht im Auto.', 'Einkaufen: die Kunst, mit drei Artikeln und sieben Extras zurückzukommen.', 'Stehen drauf. Ob sie auch im Wagen landen, liegt bei Ihnen.'],
@@ -97,6 +99,10 @@
 
         // Sprit entlang der Strecke
         if (/\b(diesel|benzin|e10|super e5|e5)\b/.test(t) && /(euro|cent|\d[,.]\d{2,3})/.test(t) && /(tankstelle|günstig|billig|entlang|strecke|am günstigsten)/.test(t)) return { cat: 'sprit' };
+
+        // Ortssuche (ortsuche.js): "Am nächsten ist ..., rund 200 Meter entfernt"
+        const ort = t.match(/am nächsten ist .*?(?:rund )?(\d+(?:,\d+)?) (meter|kilometer) entfernt/);
+        if (ort) { const v = Number(ort[1].replace(',', '.')); const km = ort[2] === 'kilometer' ? v : v / 1000; return { cat: km <= 0.6 ? 'ort_nah' : km >= 3 ? 'ort_weit' : null }; }
 
         // Restaurants in der Nähe
         if (/(restaurant|pizzeria|imbiss|döner|chinesisch|italienisch|burger|bistro|gasthaus)/.test(t) && /(meter|km|entfernt|geöffnet|bewertung|sterne)/.test(t)) return { cat: 'essen' };
