@@ -7,7 +7,7 @@
    zusätzlich selbst geöffnet, sofern der Browser das ohne Fingertipp erlaubt.
    Läuft NACH den bisherigen festen Befehlen (nearbymore.js usw.): Was dort schon klappt, bleibt, und alles, was dort nicht erkannt wird, landet hier,
    statt bei der KI und der Restaurantsuche. Bewusst NICHT hier: Tankstellen mit Spritpreisen, Restaurants, Pizza, Döner, Imbiss und Fragen wie
-   "Was kostet Diesel in der Nähe?"; die bleiben bei der KI und den bisherigen Funktionen. Wird von erweiterungen.js eingehängt.
+   "Was kostet Diesel in der Nähe?"; die bleiben bei der KI und den bisherigen Funktionen. Hängt sich selbst ein (siehe unten), braucht dafür nicht erweiterungen.js.
    Braucht: speak (voice.js), showActionCards/clearActionCards. Grenzen: OpenStreetMap kennt nicht jedes Geschäft, Öffnungszeiten sind nicht überall eingetragen.
    ============================================================ */
 (function () {
@@ -173,7 +173,11 @@
                 if (res.ok) { const d = await res.json(); if (d && Array.isArray(d.elements)) return d.elements; }
             } catch (e) { /* dann direkt versuchen */ }
         }
-        // 2) direkt bei den Kartenservern
+        return directOverpass(query);
+    }
+
+    /* Direkt bei den Kartenservern (ohne den Server der App) */
+    async function directOverpass(query) {
         let lastErr = null;
         for (const url of ENDPOINTS) {
             try {
@@ -362,24 +366,34 @@
         return true;
     }
 
-    /* Sicherheitsnetz: Hat erweiterungen.js die Ortssuche nicht eingehängt (zum Beispiel, weil dort noch eine ältere Version liegt),
-       hängt sie sich nach dem Laden der Seite selbst ein, direkt nach den bisherigen festen Befehlen und vor der KI. */
-    function selfInstall() {
-        try {
-            const cur = window.handleLocalCommand;
-            if (typeof cur !== 'function' || cur._hasAfter || cur._ortsuche) return;
-            const wrapped = function (text) {
-                const handled = cur.apply(this, arguments);
-                if (handled) return handled;
-                try { if (handleOrtsucheCommand(text)) return true; } catch (e) { console.error('Ortssuche', e); }
-                return handled;
-            };
-            wrapped._ortsuche = true;
-            wrapped._hasAfter = true;
-            window.handleLocalCommand = wrapped;
-        } catch (e) { /* ohne Einhängen bleibt alles wie vorher */ }
+    /* ---------- Einhängen ---------- */
+    /* Reserve für die bisherige Orte-Suche (nearbymore.js): Antwortet der Server der App nicht, wird direkt bei den Kartenservern nachgefragt.
+       nearbymore.js wird nach dieser Datei geladen, deshalb wird das erst beim ersten Sprachbefehl eingehängt. */
+    let oldFetchPatched = false;
+    function patchOldPlacesFetch() {
+        if (oldFetchPatched || typeof window.plFetchElements !== 'function') return;
+        oldFetchPatched = true;
+        const orig = window.plFetchElements;
+        window.plFetchElements = async function () {
+            try { return await orig.apply(this, arguments); }
+            catch (e) { return await directOverpass(arguments[0]); }
+        };
     }
-    if (document.readyState === 'complete') selfInstall(); else window.addEventListener('load', selfInstall);
+
+    /* Die Ortssuche hängt sich selbst hinter die bisherigen festen Befehle (localcommands.js, nearbymore.js ...) und vor die KI.
+       Was dort erkannt wird, bleibt dort; alles andere (Penny, Edeka, McDonald's ...) landet hier. */
+    if (typeof window.handleLocalCommand === 'function' && !window.handleLocalCommand._ortsuche) {
+        const originalLocal = window.handleLocalCommand;
+        const hooked = function (text) {
+            try { patchOldPlacesFetch(); } catch (e) {}
+            const handled = originalLocal.apply(this, arguments);
+            if (handled) return handled;
+            try { if (handleOrtsucheCommand(text)) return true; } catch (e) { console.error('Ortssuche', e); }
+            return handled;
+        };
+        hooked._ortsuche = true;
+        window.handleLocalCommand = hooked;
+    }
 
     window.handleOrtsucheCommand = handleOrtsucheCommand;
     window._ortsucheTest = { extract, resolve, openNow, buildQuery, toPlaces, norm };   // nur zum Testen

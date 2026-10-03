@@ -1,7 +1,7 @@
 /* ============================================================
    ERWEITERUNGEN: hängt die neuen Funktionen in die bestehende App ein, ohne localcommands.js und wachter.js zu verändern.
    Neu: Feiertage und Brückentage (feiertage.js), Sonne und Mond (sonnemond.js), gemeinsames Fenster dafür (extrafenster.js), Weltzeit (weltzeit.js),
-        Unwetterwarnungen (unwetter.js), Filmtipps (filme.js), Ortssuche (ortsuche.js, erst nach den bisherigen Befehlen).
+        Unwetterwarnungen (unwetter.js), Filmtipps (filme.js). Die Ortssuche (ortsuche.js) hängt sich selbst ein.
    1) Sprachbefehle: Der Satz wird zuerst diesen Funktionen angeboten; erkennt keine ihn, geht er unverändert an die bisherigen festen Befehle
       (localcommands.js) und danach an die KI. Ein Fehler in einer neuen Funktion kann nichts anderes lahmlegen.
    2) Wächter: Unwetterwarnungen werden zu den Meldungen des Wächters (wachter.js) hinzugefügt.
@@ -10,7 +10,7 @@
 (function () {
     const HANDLERS = ['handleExtraWindowCommand', 'handleUnwetterCommand', 'handleFeiertageCommand', 'handleSonneMondCommand', 'handleWeltzeitCommand', 'handleFilmCommand'];
     // Diese kommen erst dran, wenn die bisherigen festen Befehle (localcommands.js, nearbymore.js ...) den Satz nicht erkannt haben, vor der KI
-    const AFTER_HANDLERS = ['handleOrtsucheCommand'];
+    const AFTER_HANDLERS = [];   // (Die Ortssuche hängt sich in ortsuche.js selbst hinter die bisherigen Befehle.)
 
     // 1) Sprachbefehle
     if (typeof window.handleLocalCommand === 'function') {
@@ -30,7 +30,6 @@
             } catch (e) { console.error('Erweiterung fehlgeschlagen', e); }
             return handled;
         };
-        window.handleLocalCommand._hasAfter = true;   // ortsuche.js erkennt daran, dass es hier schon eingehängt wird
     }
 
     // 2) Wächter: Unwetterwarnungen dazunehmen
