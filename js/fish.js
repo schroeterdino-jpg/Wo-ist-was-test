@@ -54,18 +54,27 @@
     // ---------- Preise mit drei Nachkommastellen auf Cent runden ----------
     // Spritpreise stehen mit drei Stellen im Text ("2,193 Euro"). Gesprochen werden sie auf den Cent gerundet: "2,19 Euro", "1,679 Euro" -> "1,68 Euro".
     // Betrifft nur gesprochenen Text und die Anzeige des gesprochenen Satzes; die Karten mit den Preisen behalten die drei Stellen.
+    const FUEL_WORDS = /(diesel|super|e10|e5|benzin|sprit|kraftstoff|tankstelle|liter|preis|kostet|kosten|zapfsäule)/i;
     function roundPrices(t) {
-        return String(t).replace(/(?<![\d,.])(\d{1,2}),(\d{3})(?!\d)(?=\s*(?:Euro|€))/g, (m, a, b) => {
-            const v = Math.round(parseFloat(a + '.' + b) * 100) / 100;
-            return v.toFixed(2).replace('.', ',');
+        return String(t).replace(/(?<![\d,.])(\d{1,2}),(\d{3})(?!\d)/g, (m, a, b, off, str) => {
+            const value = parseFloat(a + '.' + b);
+            const after = str.slice(off + m.length, off + m.length + 30);
+            const before = str.slice(Math.max(0, off - 90), off);
+            const money = /^\s*(?:Euro|€|EUR)/i.test(after) || /^\s*(?:pro|je|den|das)\s+Liter/i.test(after);   // "2,183 Euro", "2,183 € pro Liter"
+            const isMeasure = /^\s*(?:Grad|°|Kilometer|km|Meter|Prozent|%|Minuten|Stunden|Sekunden|Liter\b(?!\s*$))/i.test(after) && !money;   // Maßangaben sind keine Preise
+            const fuelPrice = !isMeasure && FUEL_WORDS.test(before) && value >= 0.9 && value < 4;               // "Diesel kostet aktuell 2,183 bei Aral"
+            if (!money && !fuelPrice) return m;
+            return (Math.round(value * 100) / 100).toFixed(2).replace('.', ',');
         });
     }
+    // alles, was vor dem Sprechen aufgeräumt wird (Gedankenstriche, Preise)
+    function normalizeSpoken(t) { return roundPrices(fixDashes(t)); }
     window.jvRoundPrices = roundPrices;
     if (typeof window.speak === 'function' && !window.speak._dash) {
         const originalSpeak = window.speak;
         const wrappedSpeak = function () {
             const a = Array.prototype.slice.call(arguments);
-            if (typeof a[0] === 'string') a[0] = roundPrices(fixDashes(a[0]));
+            if (typeof a[0] === 'string') a[0] = normalizeSpoken(a[0]);
             return originalSpeak.apply(this, a);
         };
         wrappedSpeak._dash = true;
@@ -185,7 +194,7 @@
     // Handy-Stimme (Browser): das Zeichen nie mit vorlesen lassen
     if (typeof window.speakBrowser === 'function' && !window.speakBrowser._jv) {
         const originalBrowser = window.speakBrowser;
-        const wrappedBrowser = function () { const a = Array.prototype.slice.call(arguments); a[0] = strip(a[0]); return originalBrowser.apply(this, a); };
+        const wrappedBrowser = function () { const a = Array.prototype.slice.call(arguments); a[0] = normalizeSpoken(strip(a[0])); return originalBrowser.apply(this, a); };
         wrappedBrowser._jv = true;
         window.speakBrowser = wrappedBrowser;
     }
@@ -383,13 +392,13 @@
     window.fetchCloudSpeechBlob = async function (text, voice) {
         const isAck = window.__jvAck === true;   // wird synchron gelesen, bevor irgendetwas wartet
         if (window.getTtsEngine() !== 'fish') {
-            const other = await originalFetch.call(this, strip(text), voice);
+            const other = await originalFetch.call(this, normalizeSpoken(strip(text)), voice);
             try { if (other && typeof other === 'object') other.__jvSpeech = true; } catch (e) {}
             return other;
         }
         if (typeof AbortController === 'undefined') return null;
         const started = Date.now();
-        const full = humanize(spellAbbreviations(numbersToWords(text)));
+        const full = humanize(spellAbbreviations(numbersToWords(normalizeSpoken(text))));
         const chunks = splitForFish(full);
 
         if (isAck) {
