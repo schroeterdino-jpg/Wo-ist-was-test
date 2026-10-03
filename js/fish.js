@@ -38,6 +38,40 @@
     window.getFishVoice = function () { return store('tts_fish_voice', '').replace(/[^a-zA-Z0-9_-]/g, ''); };
     window.setFishVoice = function (val) { put('tts_fish_voice', String(val || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64)); };
 
+    // ---------- Gedankenstriche nicht als "minus" sprechen ----------
+    // Die KI schreibt gern "14 Grad - gefühlt wie 13 Grad" mit einem Bindestrich als Gedankenstrich. Zwischen Zahlen liest die Stimme den als "minus".
+    // Darum wird jeder Strich mit Leerzeichen davor und danach vor dem Sprechen zu einem Komma (zwischen zwei Zahlen zu "bis"). Ein echtes Minus direkt an der Zahl
+    // ("-3 Grad") bleibt, wie es ist. Gilt für alle Stimmen, auch für die Anzeige.
+    function fixDashes(t) {
+        return String(t)
+            .replace(/(\d)\s+[-–—]\s+(\d)/g, '$1 bis $2')
+            .replace(/\s+[-–—]\s+/g, ', ')
+            .replace(/,\s*,/g, ',')
+            .replace(/,\s*([.!?])/g, '$1');
+    }
+    window.jvFixDashes = fixDashes;
+
+    // ---------- Preise mit drei Nachkommastellen auf Cent runden ----------
+    // Spritpreise stehen mit drei Stellen im Text ("2,193 Euro"). Gesprochen werden sie auf den Cent gerundet: "2,19 Euro", "1,679 Euro" -> "1,68 Euro".
+    // Betrifft nur gesprochenen Text und die Anzeige des gesprochenen Satzes; die Karten mit den Preisen behalten die drei Stellen.
+    function roundPrices(t) {
+        return String(t).replace(/(?<![\d,.])(\d{1,2}),(\d{3})(?!\d)(?=\s*(?:Euro|€))/g, (m, a, b) => {
+            const v = Math.round(parseFloat(a + '.' + b) * 100) / 100;
+            return v.toFixed(2).replace('.', ',');
+        });
+    }
+    window.jvRoundPrices = roundPrices;
+    if (typeof window.speak === 'function' && !window.speak._dash) {
+        const originalSpeak = window.speak;
+        const wrappedSpeak = function () {
+            const a = Array.prototype.slice.call(arguments);
+            if (typeof a[0] === 'string') a[0] = roundPrices(fixDashes(a[0]));
+            return originalSpeak.apply(this, a);
+        };
+        wrappedSpeak._dash = true;
+        window.speak = wrappedSpeak;
+    }
+
     // ---------- Zahlen und Uhrzeiten als Wörter ----------
     // Fish Audio liest "Es ist 21 Uhr 40." als "... vierzigste", weil es "40." am Satzende für eine Ordnungszahl hält (so ähnlich wie "der 40."). Darum werden
     // Uhrzeiten und Zahlen direkt vor einem Satzpunkt vor dem Senden in Wörter geschrieben: "Es ist einundzwanzig Uhr vierzig."
@@ -213,18 +247,30 @@
         } catch (e) {}
     }
 
+    // Das eingestellte Sprechtempo (speechrate.js). Bei Fish Audio wird es direkt bei der Erzeugung der Sprache eingestellt (Fish kann 0,5 bis 2,0),
+    // bei den anderen Stimmen und als Ersatz stellt die App das Abspielen schneller oder langsamer.
+    function speechRate() {
+        try { const v = typeof window.getSpeechRateFactor === 'function' ? Number(window.getSpeechRateFactor()) : 1; return (v >= 0.5 && v <= 2) ? v : 1; } catch (e) { return 1; }
+    }
+
     async function requestOne(text, voice, opts) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), opts.timeout);
         try {
             const oaVoice = typeof getOpenaiVoice === 'function' ? getOpenaiVoice() : 'alloy';
-            const url = `/api/stau?tts=1&text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}&engine=${opts.noFish ? 'openai' : 'fish'}&fishVoice=${encodeURIComponent(window.getFishVoice())}&openaiVoice=${encodeURIComponent(oaVoice)}${opts.fishOnly ? '&fishOnly=1' : ''}`;
+            const sp = speechRate();
+            const speedParam = (!opts.noFish && Math.abs(sp - 1) > 0.01) ? `&fishSpeed=${sp.toFixed(2)}` : '';
+            const url = `/api/stau?tts=1&text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}&engine=${opts.noFish ? 'openai' : 'fish'}&fishVoice=${encodeURIComponent(window.getFishVoice())}&openaiVoice=${encodeURIComponent(oaVoice)}${opts.fishOnly ? '&fishOnly=1' : ''}${speedParam}`;
             const res = await apiFetch(url, { signal: controller.signal });
             clearTimeout(timer);
             if (!res.ok) return null;
             const blob = await res.blob();
             if (!blob || blob.size === 0) return null;
-            return { blob, engine: (res.headers && res.headers.get && res.headers.get('x-voice-engine')) || 'fish' };
+            const h = (name) => (res.headers && res.headers.get && res.headers.get(name)) || null;
+            const engine = h('x-voice-engine') || 'fish';
+            blob.__jvSpeech = true;                                                    // Sprach-Datei (für das Tempo beim Abspielen)
+            blob.__jvFish = engine === 'fish' && (sp === 1 || h('x-fish-speed') === 'applied');   // Tempo schon von Fish Audio eingebaut: beim Abspielen nicht noch einmal
+            return { blob, engine };
         } catch (e) {
             clearTimeout(timer);
             return null;
@@ -257,14 +303,28 @@
 
     // Abspielen: voice.js spielt das erste Stück ab; endet es, kommt das nächste. voice.js bekommt erst Bescheid, wenn alle Stücke gespielt sind.
     const queues = {};
+    const speechUrls = {};   // blob-Adressen von Sprach-Dateien: Tempo schon von Fish eingebaut (true) oder beim Abspielen einstellen (false)
     try {
         const origCreate = URL.createObjectURL.bind(URL);
-        URL.createObjectURL = function (obj) { const u = origCreate(obj); try { if (obj && obj.__jvQ) queues[u] = obj.__jvQ; } catch (e) {} return u; };
+        URL.createObjectURL = function (obj) {
+            const u = origCreate(obj);
+            try { if (obj && obj.__jvQ) queues[u] = obj.__jvQ; } catch (e) {}
+            try { if (obj && obj.__jvSpeech) speechUrls[u] = { fishSpeed: !!obj.__jvFish }; } catch (e) {}
+            return u;
+        };
         const proto = window.HTMLMediaElement && window.HTMLMediaElement.prototype;
         if (proto && !proto._jvChainPatched) {
             const prevPlay = proto.play;
             proto.play = function () {
                 try {
+                    // Sprechtempo sicherstellen (unabhängig davon, wie voice.js das Audio-Element anlegt)
+                    const sInfo = speechUrls[this.src];
+                    if (sInfo) {
+                        const r = sInfo.fishSpeed ? 1 : speechRate();
+                        this.defaultPlaybackRate = r;
+                        this.playbackRate = r;
+                        try { this.preservesPitch = true; this.webkitPreservesPitch = true; } catch (e) {}
+                    }
                     const q = queues[this.src];
                     if (q && !this.__jvChained) { this.__jvChained = true; delete queues[this.src]; chainPlayback(this, q); }
                 } catch (e) {}
@@ -277,7 +337,7 @@
     function chainPlayback(el, q) {
         const origEnded = el.onended;
         const urls = [];
-        const rate = el.playbackRate;                       // das eingestellte Sprechtempo (voice.js setzt es vor dem Abspielen)
+        let rate = el.playbackRate;                         // aktuelles Abspiel-Tempo; je nach Stück neu bestimmt (Fish hat das Tempo schon eingebaut)
         const keepPitch = el.preservesPitch;
         el.onended = async function (ev) {
             try {
@@ -285,6 +345,7 @@
                 if (blob) {
                     const u = URL.createObjectURL(blob);
                     urls.push(u);
+                    rate = blob.__jvFish ? 1 : speechRate();
                     // Wichtig: Ein neues src setzt das Tempo im Browser auf Normal zurück. Darum Tempo ausdrücklich beibehalten, sonst spricht Jarvis ab dem zweiten Stück schneller/langsamer als eingestellt.
                     try { el.defaultPlaybackRate = rate; } catch (e) {}
                     el.src = u;
@@ -321,7 +382,11 @@
     const originalFetch = window.fetchCloudSpeechBlob;
     window.fetchCloudSpeechBlob = async function (text, voice) {
         const isAck = window.__jvAck === true;   // wird synchron gelesen, bevor irgendetwas wartet
-        if (window.getTtsEngine() !== 'fish') return originalFetch.call(this, strip(text), voice);
+        if (window.getTtsEngine() !== 'fish') {
+            const other = await originalFetch.call(this, strip(text), voice);
+            try { if (other && typeof other === 'object') other.__jvSpeech = true; } catch (e) {}
+            return other;
+        }
         if (typeof AbortController === 'undefined') return null;
         const started = Date.now();
         const full = humanize(spellAbbreviations(numbersToWords(text)));
