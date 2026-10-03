@@ -6,6 +6,7 @@
    - Menschliche Laute (Seufzen, Einatmen, Räuspern, Lachen, Pausen): siehe unten bei humanize(). Stufe in den Einstellungen oder per Sprache. Bei allen anderen Stimmen
      wird nichts davon gesprochen oder angezeigt.
    - Der Schlüssel steht nur auf dem Server (Vercel: FISH_AUDIO_API_KEY; optional FISH_AUDIO_VOICE_ID und FISH_AUDIO_MODEL), nie im Browser.
+   Lange Texte (Briefing) gehen in Stücken an Fish Audio, damit die Stimme nicht wechselt und nichts in die Zeitüberschreitung läuft.
    Muss nach voice.js geladen werden. Fehlt die Datei, läuft alles wie vorher.
    ============================================================ */
 (function () {
@@ -98,26 +99,108 @@
         window.speakBrowser = wrappedBrowser;
     }
 
-    // Holt die MP3 vom Server; für Fish Audio mit Stimmen-ID, sonst wie bisher (voice.js)
-    const originalFetch = window.fetchCloudSpeechBlob;
-    window.fetchCloudSpeechBlob = async function (text, voice) {
-        if (window.getTtsEngine() !== 'fish') return originalFetch.call(this, strip(text), voice);
-        text = humanize(text);
-        if (typeof AbortController === 'undefined') return null;
+    // ---------- Abruf vom Server ----------
+    // Kurze Texte: eine Anfrage (der Server weicht bei Problemen selbst auf OpenAI/Edge aus).
+    // Lange Texte (Briefing!): in Stücke von höchstens ~280 Zeichen an Satzenden geteilt, bis zu drei Stücke gleichzeitig, jedes mit derselben Fish-Stimme.
+    // Hakt ein Stück (auch nach einem zweiten Versuch), wird NICHT mitten im Text die Stimme gewechselt: dann wird der ganze Text auf einmal angefragt
+    // und von EINER Ersatzstimme gesprochen. So gibt es keinen Wechsel zwischen zwei Stimmen innerhalb einer Ansage.
+    const CHUNK_MAX = 280, PARALLEL = 3, SINGLE_MAX = 320;
+
+    function splitForFish(text) {
+        const t = String(text).replace(/\s+/g, ' ').trim();
+        if (t.length <= SINGLE_MAX) return [t];
+        const sentences = t.split(/(?<=[.!?…])\s+/);
+        const chunks = [];
+        let cur = '';
+        const push = () => { if (cur.trim()) chunks.push(cur.trim()); cur = ''; };
+        sentences.forEach(sn => {
+            if (sn.length > CHUNK_MAX) {                       // sehr langer Satz: an Kommas oder Leerzeichen teilen
+                push();
+                let rest = sn;
+                while (rest.length > CHUNK_MAX) {
+                    let cut = rest.lastIndexOf(', ', CHUNK_MAX);
+                    if (cut < 80) cut = rest.lastIndexOf(' ', CHUNK_MAX);
+                    if (cut < 40) cut = CHUNK_MAX;
+                    chunks.push(rest.slice(0, cut + 1).trim());
+                    rest = rest.slice(cut + 1).trim();
+                }
+                cur = rest;
+            } else if ((cur + ' ' + sn).trim().length > CHUNK_MAX) { push(); cur = sn; }
+            else cur = (cur + ' ' + sn).trim();
+        });
+        push();
+        return chunks;
+    }
+
+    function setLastVoice(engine, ms, chars, parts) {
+        window.jvLastVoice = { engine, ms, chars, parts, at: Date.now() };
+        try {
+            const el = document.getElementById('fishLastVoice');
+            if (el) {
+                const name = { fish: 'Fish Audio', openai: 'OpenAI', edge: 'Edge', gemischt: 'gemischt' }[engine] || engine;
+                el.textContent = `Zuletzt gesprochen mit: ${name} (${chars} Zeichen${parts > 1 ? ', ' + parts + ' Stücke' : ''}, ${(ms / 1000).toFixed(1)} s)`;
+                el.style.color = engine === 'fish' ? '#7fe3b0' : '#ffb870';
+            }
+        } catch (e) {}
+    }
+
+    async function requestOne(text, voice, opts) {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 10000);
+        const timer = setTimeout(() => controller.abort(), opts.timeout);
         try {
             const oaVoice = typeof getOpenaiVoice === 'function' ? getOpenaiVoice() : 'alloy';
-            const url = `/api/stau?tts=1&text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}&engine=fish&fishVoice=${encodeURIComponent(window.getFishVoice())}&openaiVoice=${encodeURIComponent(oaVoice)}`;
+            const url = `/api/stau?tts=1&text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}&engine=fish&fishVoice=${encodeURIComponent(window.getFishVoice())}&openaiVoice=${encodeURIComponent(oaVoice)}${opts.fishOnly ? '&fishOnly=1' : ''}`;
             const res = await apiFetch(url, { signal: controller.signal });
             clearTimeout(timer);
             if (!res.ok) return null;
             const blob = await res.blob();
-            return blob && blob.size > 0 ? blob : null;
+            if (!blob || blob.size === 0) return null;
+            return { blob, engine: (res.headers && res.headers.get && res.headers.get('x-voice-engine')) || 'fish' };
         } catch (e) {
             clearTimeout(timer);
             return null;
         }
+    }
+
+    const originalFetch = window.fetchCloudSpeechBlob;
+    window.fetchCloudSpeechBlob = async function (text, voice) {
+        if (window.getTtsEngine() !== 'fish') return originalFetch.call(this, strip(text), voice);
+        if (typeof AbortController === 'undefined') return null;
+        const started = Date.now();
+        const full = humanize(text);
+        const chunks = splitForFish(full);
+
+        if (chunks.length === 1) {
+            const r = await requestOne(chunks[0], voice, { timeout: 10000 });
+            if (!r) return null;
+            setLastVoice(r.engine, Date.now() - started, chunks[0].length, 1);
+            return r.blob;
+        }
+
+        // Lange Texte: alle Stücke von Fish Audio (zwei Versuche je Stück)
+        const results = new Array(chunks.length);
+        let next = 0, failed = false;
+        async function worker() {
+            while (!failed) {
+                const i = next++;
+                if (i >= chunks.length) return;
+                let r = await requestOne(chunks[i], voice, { timeout: 12000, fishOnly: true });
+                if (!r && !failed) r = await requestOne(chunks[i], voice, { timeout: 12000, fishOnly: true });
+                if (!r) { failed = true; return; }
+                results[i] = r;
+            }
+        }
+        await Promise.all(Array.from({ length: Math.min(PARALLEL, chunks.length) }, worker));
+        if (!failed && results.every(Boolean)) {
+            setLastVoice('fish', Date.now() - started, full.length, chunks.length);
+            return new Blob(results.map(r => r.blob), { type: 'audio/mpeg' });
+        }
+
+        // Fish Audio hakt: den ganzen Text einheitlich von der Ersatzstimme sprechen lassen (kein Wechsel mitten im Text)
+        const r = await requestOne(full.length > 2300 ? full.slice(0, 2300) : full, voice, { timeout: 20000 });
+        if (!r) return null;
+        setLastVoice(r.engine, Date.now() - started, full.length, 1);
+        return r.blob;
     };
 
     // Test: fragt den Server, ob Fish Audio antwortet, und spielt dann einen Satz
@@ -130,7 +213,8 @@
             const res = await apiFetch(url);
             const d = await res.json();
             if (d && d.ok && d.engineUsed === 'fish') {
-                show(`✅ Fish Audio antwortet (Modell ${d.model}, Stimme ${d.voice}).`);
+                const noId = /keine Stimmen-ID/.test(String(d.voice || ''));
+                show(`✅ Fish Audio antwortet (Modell ${d.model}, Stimme ${d.voice}).` + (noId ? '\n⚠️ Ohne feste Stimmen-ID kann die Stimme von Satz zu Satz wechseln. Trage oben eine ID von fish.audio ein.' : ''));
                 if (typeof testVoice === 'function') testVoice();
             } else {
                 show('❌ ' + ((d && d.error) || ('Antwort: ' + JSON.stringify(d))) + '\nJarvis spricht in dem Fall mit der nächsten Stimme (OpenAI oder Edge).');
@@ -176,8 +260,8 @@
             const sync = () => {
                 if (!sel) return;
                 if (row) row.classList.toggle('hidden', sel.value !== 'fish');
-                if (edgeRow) edgeRow.classList.toggle('hidden', sel.value !== 'edge');
-                if (openaiRow) openaiRow.classList.toggle('hidden', sel.value !== 'openai');
+                if (edgeRow) edgeRow.classList.toggle('hidden', sel.value !== 'edge' && sel.value !== 'fish');       // bei Fish: Rückfall-Stimmen
+                if (openaiRow) openaiRow.classList.toggle('hidden', sel.value !== 'openai' && sel.value !== 'fish');
             };
             if (sel) {
                 sel.value = window.getTtsEngine();
