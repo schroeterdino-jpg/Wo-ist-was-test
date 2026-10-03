@@ -50,7 +50,7 @@ const HELP_TOPICS = [
     { key: 'ueberblick', icon: '🌅', title: 'Tagesüberblick', words: /überblick|ueberblick|tagesplan|morgen|mein tag/, examples: [
         'Tagesüberblick (zeigt Termine, Erinnerungen, Aufgaben und Einkaufsliste als Kacheln)', 'Zeig mir meinen Tag', 'Kommt morgens von selbst beim ersten Öffnen, einstellbar unter Einstellungen > Morgen-Überblick'] },
     { key: 'charakter', icon: '🎭', title: 'Charakter & Mitdenken', words: /charakter|frech|witz|humor|anrede|sprüche|spruch|mitdenk|von selbst|meldung|fakt/, examples: [
-        'Sei frecher (oder: Sei höflicher, Keine Sprüche mehr)', 'Nenn mich Boss', 'Erzähl einen Witz', 'Erzähl mir was Interessantes', 'Bist du da?',
+        'Sei frecher (oder: Sei höflicher, Keine Sprüche mehr). Fast jede Antwort bekommt einen Spruch, auch Stau, Fahrzeit, Bahn, Sprit, Mond und Filmtipps; bei Warnungen, Fehlern, Erinnerungen und E-Mails gibt es nie einen', 'Nenn mich Boss', 'Erzähl einen Witz', 'Erzähl mir was Interessantes', 'Bist du da?',
         'Melde dich nicht mehr von selbst (Abfahrt, Regen, Unwetter, Geburtstage)', 'Beim Termin eintragen prüft Jarvis Überschneidungen, Feiertage, Wetter und Fahrzeit'] },
     { key: 'waehrung', icon: '💶', title: 'Währung umrechnen', words: /währung|waehrung|lira|dollar|kurs|umrechn|euro/, examples: [
         'Was sind 100 Euro in Lira?', 'Wie viel sind 50 Dollar in Euro?', 'Wie viel Lira sind 200 Euro?', 'Wie ist der Kurs von Euro zu Pfund?'] },
