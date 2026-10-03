@@ -11,7 +11,7 @@
    Braucht: speak (voice.js), showActionCards/clearActionCards. Grenzen: OpenStreetMap kennt nicht jedes Geschäft, Öffnungszeiten sind nicht überall eingetragen.
    ============================================================ */
 (function () {
-    const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+    const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
     const RADII = [3000, 10000, 20000];
 
     function say(msg) { speak(msg, typeof continueConversation === 'function' ? continueConversation : undefined); }
@@ -160,38 +160,49 @@
             const rx = res.entry.rx.replace(/"/g, '\\"');
             body = `nwr${around}["name"~"${rx}",i];nwr${around}["brand"~"${rx}",i];`;
         } else body = res.entry.f.map(f => `nwr${around}${f};`).join('');
-        return `[out:json][timeout:25];(${body});out center 120;`;
+        return `[out:json][timeout:20];(${body});out center 60;`;
     }
 
     function withTimeout(p, ms) { return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('Zeitüberschreitung')), ms))]); }
 
-    async function overpass(query) {
-        // 1) über den Server der App (/api/overpass, wie die bisherige Orte-Suche in nearbymore.js)
-        if (typeof apiFetch === 'function') {
-            try {
-                const res = await withTimeout(apiFetch('/api/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }), 28000);
-                if (res.ok) { const d = await res.json(); if (d && Array.isArray(d.elements)) return d.elements; }
-            } catch (e) { /* dann direkt versuchen */ }
-        }
-        return directOverpass(query);
+    /* Fragt den Server der App (/api/overpass, wie die bisherige Orte-Suche in nearbymore.js) UND die öffentlichen Kartenserver gleichzeitig.
+       Die erste brauchbare Antwort gewinnt, die anderen Anfragen werden abgebrochen. Das ist wichtig, weil die Kartenserver oft ausgelastet sind
+       und der Server der App bei Vercel nach etwa 10 Sekunden aufgibt. Schlägt alles fehl, steht in der Fehlermeldung, woran es bei jedem lag. */
+    function raceOverpass(query, useAppServer) {
+        return new Promise((resolve, reject) => {
+            const errors = [], controllers = [];
+            let pending = 0, done = false;
+            const fail = (who, e) => {
+                errors.push(`${who}: ${String((e && e.message) || e).replace(/signal is aborted without reason/i, 'Zeitüberschreitung').slice(0, 60)}`);
+                if (--pending === 0 && !done) reject(new Error(errors.join(' · ')));
+            };
+            const win = (elements) => {
+                if (done) return;
+                done = true;
+                controllers.forEach(c => { try { c.abort(); } catch (e) {} });
+                resolve(elements);
+            };
+            if (useAppServer && typeof apiFetch === 'function') {
+                pending++;
+                withTimeout(apiFetch('/api/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }), 28000)
+                    .then(async res => { if (!res.ok) throw new Error('Status ' + res.status); const d = await res.json(); if (!d || !Array.isArray(d.elements)) throw new Error('keine Daten'); win(d.elements); })
+                    .catch(e => fail('App-Server', e));
+            }
+            ENDPOINTS.forEach(url => {
+                pending++;
+                const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+                if (ctl) controllers.push(ctl);
+                const timer = setTimeout(() => { if (ctl) ctl.abort(); }, 25000);
+                fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(query), signal: ctl ? ctl.signal : undefined })
+                    .then(async r => { clearTimeout(timer); if (!r.ok) throw new Error('Status ' + r.status); const d = await r.json(); if (!d || !Array.isArray(d.elements)) throw new Error('keine Daten'); win(d.elements); })
+                    .catch(e => { clearTimeout(timer); if (!done) fail(url.replace(/^https:\/\//, '').split('/')[0], e); else if (--pending === 0 && !done) reject(new Error(errors.join(' · '))); });
+            });
+            if (pending === 0) reject(new Error('keine Verbindung möglich'));
+        });
     }
 
-    /* Direkt bei den Kartenservern (ohne den Server der App) */
-    async function directOverpass(query) {
-        let lastErr = null;
-        for (const url of ENDPOINTS) {
-            try {
-                const ctl = typeof AbortController === 'function' ? new AbortController() : null;
-                const timer = setTimeout(() => { if (ctl) ctl.abort(); }, 15000);
-                const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(query), signal: ctl ? ctl.signal : undefined });
-                clearTimeout(timer);
-                if (!r.ok) { lastErr = new Error('Status ' + r.status); continue; }
-                const d = await r.json();
-                return d.elements || [];
-            } catch (e) { lastErr = e; }
-        }
-        throw lastErr || new Error('keine Antwort');
-    }
+    function overpass(query) { return raceOverpass(query, true); }
+    function directOverpass(query) { return raceOverpass(query, false); }
 
     function haversine(lat1, lon1, lat2, lon2) {
         const R = 6371000, rad = Math.PI / 180, dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
