@@ -57,7 +57,7 @@
             'wachter.js': 'handleWachterCommand', 'tagesueberblick.js': 'handleUeberblickCommand', 'welt_anflug.js': 'handleAnflugCommand', 'diagnose.js': 'handleDiagCommand',
             'photo.js': 'handlePhotoCommand', 'ferien.js': 'handleFerienCommand', 'waehrung.js': 'handleCurrencyCommand', 'weathermap.js': 'handleWeatherMapCommand', 'nearbymore.js': 'handlePlacesCommand',
             'calendar.js': 'addGoogleCalendarEvent', 'briefing.js': 'triggerDailyBriefing', 'speechrate.js': 'handleSpeechRateCommand', 'birthdays.js': 'fetchUpcomingBirthdays', 'routing.js': 'resolveContactsInActions',
-            'feiertage.js': 'handleFeiertageCommand', 'sonnemond.js': 'handleSonneMondCommand', 'weltzeit.js': 'handleWeltzeitCommand', 'unwetter.js': 'handleUnwetterCommand', 'filme.js': 'handleFilmCommand', 'extrafenster.js': 'openExtraWindow', 'foto_adresse.js': 'photoNavigate', 'sprueche.js': 'jarvisQuip', 'ortsuche.js': 'handleOrtsucheCommand', 'toene.js': 'handleToeneCommand', 'audio.js': 'playSuccessSound'
+            'feiertage.js': 'handleFeiertageCommand', 'sonnemond.js': 'handleSonneMondCommand', 'weltzeit.js': 'handleWeltzeitCommand', 'unwetter.js': 'handleUnwetterCommand', 'filme.js': 'handleFilmCommand', 'extrafenster.js': 'openExtraWindow', 'foto_adresse.js': 'photoNavigate', 'sprueche.js': 'jarvisQuip', 'ortsuche.js': 'handleOrtsucheCommand', 'toene.js': 'handleToeneCommand', 'fish.js': 'runFishDiagnosis', 'audio.js': 'playSuccessSound'
         };
         window.addEventListener('load', function () {
             setTimeout(function () {
@@ -423,10 +423,18 @@
                         <div>
                             <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Sprachausgabe:</label>
                             <select id="ttsEngineSelect" onchange="setTtsEngine(this.value); document.getElementById('edgeVoiceRow').classList.toggle('hidden', this.value !== 'edge'); document.getElementById('openaiVoiceRow').classList.toggle('hidden', this.value !== 'openai')" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                                <option value="fish">Fish Audio (Hauptstimme, kostenpflichtig - fällt bei Problemen automatisch auf OpenAI, dann Edge zurück)</option>
                                 <option value="openai">Sehr natürlich (OpenAI, kostenpflichtig - fällt bei Problemen automatisch auf die kostenlose Cloud-Stimme zurück)</option>
                                 <option value="edge">Natürlicher (kostenlose Cloud-Stimme, fällt bei Problemen automatisch auf Handy-Stimme zurück)</option>
                                 <option value="browser">Nur Handy-Stimme (Browser)</option>
                             </select>
+                        </div>
+                        <div id="fishVoiceRow" class="hidden">
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Fish-Stimmen-ID (optional):</label>
+                            <input type="text" id="fishVoiceInput" placeholder="Stimmen-ID von fish.audio, leer = Standard auf dem Server" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                            <p class="text-xs text-[#5d7e91] font-mono mt-1">Die ID steht bei der Stimme auf fish.audio. Der Schlüssel liegt nur auf dem Server (Vercel: FISH_AUDIO_API_KEY).</p>
+                            <button onclick="playUiBeep(); runFishDiagnosis()" class="w-full mt-2 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🔊 Fish-Stimme testen</button>
+                            <pre id="fishDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words mt-2"></pre>
                         </div>
                         <div id="openaiVoiceRow">
                             <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">OpenAI-Stimme:</label>
@@ -734,6 +742,7 @@
     <script src="./js/sprueche.js"></script>
     <script src="./js/toene.js"></script>
     <script src="./js/lebendig.js"></script>
+    <script src="./js/fish.js"></script>
     <script src="./js/nearbymore.js"></script>
     <script src="./js/assistant.js"></script>
     <script src="./js/background.js"></script>
