@@ -38,6 +38,50 @@
     window.getFishVoice = function () { return store('tts_fish_voice', '').replace(/[^a-zA-Z0-9_-]/g, ''); };
     window.setFishVoice = function (val) { put('tts_fish_voice', String(val || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64)); };
 
+    // ---------- Zahlen und Uhrzeiten als Wörter ----------
+    // Fish Audio liest "Es ist 21 Uhr 40." als "... vierzigste", weil es "40." am Satzende für eine Ordnungszahl hält (so ähnlich wie "der 40."). Darum werden
+    // Uhrzeiten und Zahlen direkt vor einem Satzpunkt vor dem Senden in Wörter geschrieben: "Es ist einundzwanzig Uhr vierzig."
+    // Nur für die Cloud-Stimme; Anzeige und Handy-Stimme bleiben unverändert. Daten wie "3. Oktober" und Dezimalzahlen bleiben, wie sie sind.
+    const NUM_UNITS = ['null', 'eins', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwölf', 'dreizehn', 'vierzehn', 'fünfzehn', 'sechzehn', 'siebzehn', 'achtzehn', 'neunzehn'];
+    const NUM_TENS = ['', '', 'zwanzig', 'dreißig', 'vierzig', 'fünfzig', 'sechzig', 'siebzig', 'achtzig', 'neunzig'];
+    function below100(n, attrib) {
+        if (n < 20) return (attrib && n === 1) ? 'ein' : NUM_UNITS[n];
+        const t = Math.floor(n / 10), u = n % 10;
+        return u ? (u === 1 ? 'ein' : NUM_UNITS[u]) + 'und' + NUM_TENS[t] : NUM_TENS[t];
+    }
+    function germanNumber(n, attrib) {
+        if (n < 100) return below100(n, attrib);
+        if (n < 1000) { const h = Math.floor(n / 100), r = n % 100; return (h === 1 ? 'einhundert' : NUM_UNITS[h] + 'hundert') + (r ? below100(r, false) : ''); }
+        return String(n);
+    }
+    const MONTHS_RE = /^\s*(?:januar|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)\b/i;
+    const ORDINAL_NOUNS_RE = /^\s*(?:platz|stock|etage|klasse|mal|runde|spiel|liga|advent|jahrhundert|woche|tag|monat|quartal|halbzeit|satz|gang)\b/i;
+    function numbersToWords(text) {
+        let t = String(text);
+        // 21:40 -> einundzwanzig Uhr vierzig
+        t = t.replace(/(?<![\d:.,])(\d{1,2})\s*[:.]\s*(\d{2})(?![\d:])(?:\s*Uhr\b)?/g, (m, h, mi) => {
+            if (m.indexOf('.') !== -1 && !/Uhr\s*$/.test(m)) return m;   // "22.15" nur mit "Uhr" als Uhrzeit lesen
+            const hh = +h, mm = +mi;
+            if (hh > 24 || mm > 59) return m;
+            return germanNumber(hh, true) + ' Uhr' + (mm ? ' ' + below100(mm, false) : '');
+        });
+        // 21 Uhr 40 / 9 Uhr 05 / 16 Uhr
+        t = t.replace(/(?<![\d.,])(\d{1,2}) Uhr(?: (\d{1,2}))?(?![\d])/g, (m, h, mi) => {
+            const hh = +h, mm = mi === undefined ? 0 : +mi;
+            if (hh > 24 || mm > 59) return m;
+            return germanNumber(hh, true) + ' Uhr' + (mi !== undefined && mm ? ' ' + below100(mm, false) : '');
+        });
+        // Zahl direkt vor einem Satzpunkt ("Es sind 40."), aber keine Daten und Aufzählungen ("am 3. Oktober", "der 2. Platz")
+        t = t.replace(/(?<![\w.,:])(\d{1,3})\.(?=\s|$)/g, (m, d, off, str) => {
+            const rest = str.slice(off + m.length);
+            if (MONTHS_RE.test(rest) || ORDINAL_NOUNS_RE.test(rest)) return m;
+            if (/[a-zäöüß]/.test((rest.match(/^\s*(\S)/) || [])[1] || '')) return m;     // klein weiter: eher eine Ordnungszahl im Satz
+            return germanNumber(+d, false) + '.';
+        });
+        return t;
+    }
+    window.jvNumbersToWords = numbersToWords;
+
     // ---------- Menschliche Laute (nur Fish Audio) ----------
     // Fish Audio versteht Anweisungen in eckigen Klammern. Hier werden sie vor dem Senden in den Text gesetzt, nie in der Anzeige und nie bei anderen Stimmen:
     //  [sigh] Seufzen: bei Stau und Unangenehmem (Stau, lange Fahrt, Sprit, Bahn) und manchmal bei "Einen Moment ...", dazu mal ein "Hmm."
@@ -261,7 +305,7 @@
         if (window.getTtsEngine() !== 'fish') return originalFetch.call(this, strip(text), voice);
         if (typeof AbortController === 'undefined') return null;
         const started = Date.now();
-        const full = humanize(text);
+        const full = humanize(numbersToWords(text));
         const chunks = splitForFish(full);
 
         if (isAck) {
