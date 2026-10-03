@@ -47,7 +47,7 @@ export default async function handler(req, res) {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${fishKey}`, 'Content-Type': 'application/json', 'model': model },
             body: JSON.stringify(body),
-            signal: AbortSignal.timeout(7000)
+            signal: AbortSignal.timeout(15000)   // das kostenlose Modell ist manchmal langsam: Fish Audio bekommt Zeit, statt dass mitten drin eine andere Stimme einspringt
           });
           if (fRes.ok) {
             const buf = Buffer.from(await fRes.arrayBuffer());
