@@ -30,9 +30,9 @@ const HELP_TOPICS = [
         'Wie wird das Wetter morgen?', 'Brauche ich einen Regenschirm?', 'Zeig mir das Wetter in Istanbul (mit Wetterkarte)', 'Wie wird das Wetter morgen in Wien?', 'Zeig das Regenradar',
         'Gibt es Unwetterwarnungen? (amtliche Warnungen des Deutschen Wetterdienstes; bei Warnungen meldet sich Jarvis auch von selbst)'] },
     { key: 'sonnemond', icon: '🌙', title: 'Sonne & Mond', words: /sonne|sonnen|mond|vollmond|neumond|dämmerung|daemmerung/, examples: [
-        'Wann geht die Sonne unter?', 'Wann geht die Sonne auf?', 'Wie lange ist es noch hell?', 'Wann geht der Mond auf?', 'Wann ist Vollmond?', 'Wann ist Neumond?', 'Wie ist der Mond heute?'] },
+        'Wann geht die Sonne unter?', 'Wann geht die Sonne auf?', 'Wie lange ist es noch hell?', 'Wann geht der Mond auf?', 'Wann ist Vollmond? (öffnet ein Fenster mit Mondbild)', 'Wann ist Neumond?', 'Wie ist der Mond heute?', 'Schließen (macht das Fenster zu)'] },
     { key: 'feiertage', icon: '🎉', title: 'Feiertage & Brückentage', words: /feiertag|brückentag|brueckentag|ostern|weihnacht|pfingst/, examples: [
-        'Wann ist der nächste Feiertag?', 'Ist morgen Feiertag?', 'Welche Brückentage gibt es?', 'Welche Feiertage gibt es noch dieses Jahr?', 'Wann ist Ostern?', 'Wann ist Muttertag?',
+        'Öffne Feiertage (Fenster mit Feiertagen und Brückentagen)', 'Wann ist der nächste Feiertag?', 'Ist morgen Feiertag?', 'Welche Brückentage gibt es?', 'Welche Feiertage gibt es noch dieses Jahr?', 'Wann ist Ostern?', 'Wann ist Muttertag?',
         'Gerechnet wird für dein Bundesland; es wird mit „Mein Bundesland ist ...“ eingestellt (gilt auch für die Ferien)'] },
     { key: 'weltzeit', icon: '🕒', title: 'Uhrzeit in anderen Ländern', words: /weltzeit|uhrzeit|zeitunterschied|zeitzone|zeitverschiebung|wie spät/, examples: [
         'Wie spät ist es in Istanbul?', 'Wie viel Uhr ist es in Tokio?', 'Wie spät ist es in den USA?', 'Zeitunterschied zu Japan'] },

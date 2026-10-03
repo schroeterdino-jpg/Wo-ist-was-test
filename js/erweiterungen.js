@@ -1,6 +1,6 @@
 /* ============================================================
    ERWEITERUNGEN: hängt die neuen Funktionen in die bestehende App ein, ohne localcommands.js und wachter.js zu verändern.
-   Neu: Feiertage und Brückentage (feiertage.js), Sonne und Mond (sonnemond.js), Weltzeit (weltzeit.js),
+   Neu: Feiertage und Brückentage (feiertage.js), Sonne und Mond (sonnemond.js), gemeinsames Fenster dafür (extrafenster.js), Weltzeit (weltzeit.js),
         Unwetterwarnungen (unwetter.js), Filmtipps (filme.js).
    1) Sprachbefehle: Der Satz wird zuerst diesen Funktionen angeboten; erkennt keine ihn, geht er unverändert an die bisherigen festen Befehle
       (localcommands.js) und danach an die KI. Ein Fehler in einer neuen Funktion kann nichts anderes lahmlegen.
@@ -8,7 +8,7 @@
    Muss NACH localcommands.js, wachter.js und den fünf Funktionsdateien geladen werden (siehe index.html).
    ============================================================ */
 (function () {
-    const HANDLERS = ['handleUnwetterCommand', 'handleFeiertageCommand', 'handleSonneMondCommand', 'handleWeltzeitCommand', 'handleFilmCommand'];
+    const HANDLERS = ['handleExtraWindowCommand', 'handleUnwetterCommand', 'handleFeiertageCommand', 'handleSonneMondCommand', 'handleWeltzeitCommand', 'handleFilmCommand'];
 
     // 1) Sprachbefehle
     if (typeof window.handleLocalCommand === 'function') {

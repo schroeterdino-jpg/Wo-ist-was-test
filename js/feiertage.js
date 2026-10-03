@@ -4,6 +4,7 @@
    Alles wird in der App selbst berechnet (Ostern nach Gauß, alle anderen Feiertage daraus), es ist keine Schnittstelle nötig.
    Bundesland: Standard ist Schleswig-Holstein. "Mein Bundesland ist Bayern" wird von den Ferien (ferien.js) beantwortet; die Feiertage merken es sich
    dabei still mit. Steht ein Bundesland schon in den Ferien-Einstellungen, wird versucht, es von dort zu übernehmen.
+   "Öffne Feiertage" und "Welche Brückentage gibt es?" öffnen ein Fenster mit Liste und Brückentagen (extrafenster.js; ohne diese Datei erscheinen Karten).
    Wird von erweiterungen.js in die festen Sprachbefehle eingehängt. Braucht: speak (voice.js), showActionCards/clearActionCards.
    ============================================================ */
 (function () {
@@ -172,6 +173,65 @@
         return null;
     }
 
+    /* ---------- Fenster: Feiertage und Brückentage ---------- */
+    function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+    const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+
+    /* Die Tage einer Brücke von der Lücke bis zum Ende des freien Blocks: [{ date, kind: 'h' (Feiertag) | 'u' (Urlaub) | 'w' (Wochenende) }] */
+    function bridgeSpan(b, allHolidays) {
+        const isHol = (d) => allHolidays.some(h => daysBetween(h.date, d) === 0);
+        const isWe = (d) => d.getDay() === 0 || d.getDay() === 6;
+        const isTake = (d) => b.take.some(x => daysBetween(x, d) === 0);
+        const days = [b.holiday.date].concat(b.take).sort((x, y) => x - y);
+        let first = days[0], last = days[days.length - 1];
+        while (isWe(addDays(first, -1)) || isHol(addDays(first, -1))) first = addDays(first, -1);
+        while (isWe(addDays(last, 1)) || isHol(addDays(last, 1))) last = addDays(last, 1);
+        const out = [];
+        for (let d = first; d <= last; d = addDays(d, 1)) out.push({ date: d, kind: isTake(d) ? 'u' : isHol(d) ? 'h' : 'w' });
+        return out;
+    }
+
+    function dayBox(x) {
+        const color = { h: ['#0b3b52', '#49d7ff', '#9fe7ff'], u: ['#4a3300', '#ffb700', '#ffd980'], w: ['#14202e', '#3b566b', '#7fa7bd'] }[x.kind];
+        return `<div style="flex:1;min-width:0;text-align:center;padding:5px 0;border-radius:7px;background:${color[0]};border:1px solid ${color[1]}">` +
+            `<div style="font-size:10px;color:${color[2]}">${WD[x.date.getDay()]}</div><div style="font-size:14px;font-weight:700;color:#fff">${x.date.getDate()}</div></div>`;
+    }
+
+    function openHolidayWindow() {
+        const st = currentState(), t = today();
+        const list = upcomingHolidays(t, 400).slice(0, 14);
+        const bridges = bridgeDays(t, 430);
+        const all = holidaysFor(t.getFullYear(), st).concat(holidaysFor(t.getFullYear() + 1, st), holidaysFor(t.getFullYear() + 2, st));
+        if (typeof window.openExtraWindow !== 'function') {
+            showCards(list.slice(0, 8).map(x => ({ icon: '🎉', title: x.name, subtitle: `${shortDay(x.date)} · ${untilText(daysBetween(t, x.date))}` })));
+            return;
+        }
+        const sec = (title) => `<div style="margin:16px 0 8px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#49d7ff">${title}</div>`;
+        const rows = list.map(h => {
+            const n = daysBetween(t, h.date), we = h.date.getDay() === 0 || h.date.getDay() === 6;
+            const year = h.date.getFullYear() !== t.getFullYear() ? ' ' + h.date.getFullYear() : '';
+            return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid rgba(93,209,255,.12)">` +
+                `<div style="flex:0 0 46px;text-align:center;border:1px solid rgba(93,209,255,.35);border-radius:8px;padding:3px 0;background:#0a1621"><div style="font-size:16px;font-weight:700;color:#fff">${h.date.getDate()}</div>` +
+                `<div style="font-size:10px;color:#49d7ff;text-transform:uppercase">${h.date.toLocaleDateString('de-DE', { month: 'short' }).replace('.', '')}</div></div>` +
+                `<div style="flex:1;min-width:0"><div style="font-size:13px;color:#e2e8f0">${esc(h.name)}</div>` +
+                `<div style="font-size:11px;color:#7fa7bd">${h.date.toLocaleDateString('de-DE', { weekday: 'long' })}${year}${we ? ' · fällt aufs Wochenende' : ''}</div></div>` +
+                `<div style="flex:0 0 auto;font-size:11px;color:${n <= 1 ? '#00ff66' : '#9fd8ee'};text-align:right">${untilText(n)}</div></div>`;
+        }).join('');
+        const bridgeHtml = bridges.length ? bridges.map(b => {
+            const span = bridgeSpan(b, all);
+            const takeText = b.urlaub === 1 ? shortDay(b.take[0]) : `${shortDay(b.take[0])} und ${shortDay(b.take[1])}`;
+            const alt = b.alt ? `<div style="font-size:11px;color:#7fa7bd;margin-top:4px">Oder: ${shortDay(b.alt[0])} und ${shortDay(b.alt[1])}</div>` : '';
+            const year = b.holiday.date.getFullYear() !== t.getFullYear() ? ' ' + b.holiday.date.getFullYear() : '';
+            return `<div style="margin:0 0 10px;padding:10px;border:1px solid rgba(255,183,0,.35);border-radius:10px;background:rgba(255,183,0,.05)">` +
+                `<div style="font-size:13px;color:#fff">${esc(b.holiday.name)} <span style="color:#7fa7bd;font-size:11px">· ${shortDay(b.holiday.date)}${year}</span></div>` +
+                `<div style="font-size:12px;color:#ffd980;margin:4px 0 8px">${b.urlaub} Urlaubstag${b.urlaub > 1 ? 'e' : ''}: ${esc(takeText)} <span style="color:#00ff66">→ ${span.length} Tage am Stück</span></div>` +
+                `<div style="display:flex;gap:4px">${span.map(dayBox).join('')}</div>${alt}</div>`;
+        }).join('') : `<div style="font-size:12px;color:#7fa7bd;padding:6px 0">In den nächsten Monaten gibt es keine lohnenden Brückentage.</div>`;
+        const legend = `<div style="display:flex;gap:12px;font-size:10px;color:#7fa7bd;margin:2px 0 10px"><span><b style="color:#49d7ff">■</b> Feiertag</span><span><b style="color:#ffb700">■</b> Urlaubstag</span><span><b style="color:#3b566b">■</b> Wochenende</span></div>`;
+        window.openExtraWindow('Feiertage', `<div style="font-size:12px;color:#9fd8ee;margin-top:-2px">${esc(STATE_LABEL[st])}</div>` + sec('Kommende Feiertage') + rows + sec('Brückentage') + legend + bridgeHtml +
+            `<div style="font-size:10px;color:#5d7e91;margin-top:12px">Anderes Bundesland? Sag: „Mein Bundesland ist …“</div>`);
+    }
+
     /* ---------- Sprachbefehle ---------- */
     function handleFeiertageCommand(text) {
         const t = String(text || '').toLowerCase().replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -185,15 +245,19 @@
             return false;
         }
 
+        // "Öffne Feiertage", "Zeig mir die Feiertage", "Feiertage anzeigen", "Feiertagskalender": Fenster mit Feiertagen und Brückentagen
+        if (/\b(feiertage?|feiertagskalender|brückentage?)\b/.test(t) && /(?:^|\s)(?:öffne|öffnen|zeig|zeige|zeigen|anzeigen|ansicht|übersicht|kalender|liste)(?=\s|$)/.test(t)) {
+            const next = upcomingHolidays(today(), 400)[0];
+            openHolidayWindow();
+            say(next ? `Hier sind die Feiertage und Brückentage für ${stateName()}. Der nächste Feiertag ist ${next.name}, am ${dayText(next.date)}, also ${untilText(daysBetween(today(), next.date))}.` : `Hier sind die Feiertage für ${stateName()}.`);
+            return true;
+        }
+
         // Brückentage
         if (/\bbrückentage?\b/.test(t)) {
             const list = bridgeDays(today(), 400);
             if (!list.length) { say(`Für ${stateName()} finde ich in den nächsten Monaten keine lohnenden Brückentage.`); return true; }
-            showCards(list.slice(0, 8).map(b => ({
-                icon: '🌉',
-                title: `${b.holiday.name}: ${b.urlaub} Urlaubstag${b.urlaub > 1 ? 'e' : ''}`,
-                subtitle: `${shortDay(b.holiday.date)}${b.holiday.date.getFullYear() !== today().getFullYear() ? ' ' + b.holiday.date.getFullYear() : ''} · ${b.frei} Tage am Stück`
-            })));
+            openHolidayWindow();
             const first = list.slice(0, 2).map(b => {
                 const nimm = b.urlaub === 1 ? `Nehmen Sie ${shortDay(b.take[0])} frei` : `Nehmen Sie ${shortDay(b.take[0])} und ${shortDay(b.take[1])} frei, oder ${shortDay(b.alt[0])} und ${shortDay(b.alt[1])}`;
                 return `${b.holiday.name} ist am ${dayText(b.holiday.date)}. ${nimm}, dann haben Sie ${b.frei} Tage am Stück.`;
@@ -229,7 +293,7 @@
             const to = fixed(from.getFullYear(), 12, 31);
             const list = upcomingHolidays(from, 800).filter(h => h.date <= to);
             if (!list.length) { say(`In ${nextYear ? 'dem Jahr' : 'diesem Jahr'} stehen keine Feiertage mehr an.`); return true; }
-            showCards(list.slice(0, 12).map(x => ({ icon: '🎉', title: x.name, subtitle: `${shortDay(x.date)} · ${untilText(daysBetween(today(), x.date))}` })));
+            openHolidayWindow();
             say(`${nextYear ? 'Im nächsten Jahr' : 'In diesem Jahr'} gibt es in ${stateName()} noch ${list.length} ${list.length === 1 ? 'Feiertag' : 'Feiertage'}. Als Nächstes: ${joinList(list.slice(0, 3).map(x => `${x.name}, ${shortDay(x.date)}`))}.`);
             return true;
         }
@@ -251,5 +315,5 @@
     }
 
     window.handleFeiertageCommand = handleFeiertageCommand;
-    window._feiertageTest = { easter, holidaysFor, bridgeDays };   // nur zum Testen
+    window._feiertageTest = { easter, holidaysFor, bridgeDays, bridgeSpan };   // nur zum Testen
 })();

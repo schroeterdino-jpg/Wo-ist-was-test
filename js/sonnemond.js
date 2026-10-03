@@ -3,6 +3,7 @@
    "Wann ist Vollmond?", "Wie ist der Mond heute?", "Wann ist Neumond?".
    Alles wird in der App berechnet (Rechenverfahren der Astronomie, wie in der freien Bibliothek SunCalc), es ist keine Schnittstelle nötig.
    Der Standort kommt vom Handy; ohne Standort rechnet Jarvis mit Hamburg und sagt das dazu.
+   Bei Mond-Fragen öffnet sich ein Fenster mit Mondbild (extrafenster.js; ohne diese Datei erscheinen Karten).
    Wird von erweiterungen.js in die festen Sprachbefehle eingehängt. Braucht: speak (voice.js), showActionCards/clearActionCards.
    ============================================================ */
 (function () {
@@ -153,6 +154,75 @@
     function guessNote(pos) { return pos.guessed ? ' Ihren Standort kenne ich gerade nicht, ich habe mit Hamburg gerechnet.' : ''; }
     function noonOf(offset) { const d = new Date(); d.setDate(d.getDate() + offset); d.setHours(12, 0, 0, 0); return d; }
 
+    /* ---------- Mond-Fenster (Bild) ---------- */
+    let svgCounter = 0;
+    function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+    /* Mond als Bild (SVG) für die Phase p (0 = Neumond, 0.5 = Vollmond), Nordhalbkugel: zunehmend rechts beleuchtet */
+    function moonSvg(p, size) {
+        const R = 100, uid = ++svgCounter, cosv = Math.cos(2 * Math.PI * p), rx = Math.abs(cosv) * R, waxing = p < 0.5;
+        let lit;
+        if (p < 0.012 || p > 0.988) lit = '';
+        else if (waxing) lit = `M 0 ${-R} A ${R} ${R} 0 0 1 0 ${R} A ${rx.toFixed(2)} ${R} 0 0 ${cosv > 0 ? 0 : 1} 0 ${-R} Z`;
+        else lit = `M 0 ${-R} A ${R} ${R} 0 0 0 0 ${R} A ${rx.toFixed(2)} ${R} 0 0 ${cosv > 0 ? 1 : 0} 0 ${-R} Z`;
+        const craters = [[-35, -30, 18], [25, -45, 12], [40, 15, 22], [-20, 35, 15], [-55, 8, 9], [8, 2, 8], [2, 62, 10], [-60, -52, 7], [58, -20, 8]]
+            .map(c => `<circle cx="${c[0]}" cy="${c[1]}" r="${c[2]}" fill="#8a8468" opacity=".26"/>`).join('');
+        const glow = (1 - Math.cos(2 * Math.PI * p)) / 2;
+        return `<svg viewBox="-112 -112 224 224" width="${size}" height="${size}" style="display:block;margin:0 auto;filter:drop-shadow(0 0 ${Math.round(6 + glow * 20)}px rgba(255,246,205,${(0.1 + glow * 0.3).toFixed(2)}))" aria-hidden="true">` +
+            `<defs><radialGradient id="xm${uid}" cx="38%" cy="34%" r="80%"><stop offset="0" stop-color="#fffdf0"/><stop offset=".55" stop-color="#e9e3c8"/><stop offset="1" stop-color="#b3ad8f"/></radialGradient>` +
+            (lit ? `<clipPath id="xc${uid}"><path d="${lit}"/></clipPath>` : '') + `</defs>` +
+            `<circle r="100" fill="#0d1a27" stroke="rgba(93,209,255,.4)" stroke-width="1.5"/>` +
+            `<circle r="100" fill="none" stroke="rgba(120,150,180,.14)" stroke-width="10"/>` +
+            (lit ? `<path d="${lit}" fill="url(#xm${uid})"/><g clip-path="url(#xc${uid})">${craters}</g>` : '') +
+            `</svg>`;
+    }
+
+    function phaseRow(label, value, sub) {
+        return `<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid rgba(93,209,255,.12)">` +
+            `<span style="color:#7fa7bd;font-size:12px">${esc(label)}</span>` +
+            `<span style="text-align:right;font-size:13px;color:#e2e8f0">${value}${sub ? `<br><span style="color:#7fa7bd;font-size:11px">${esc(sub)}</span>` : ''}</span></div>`;
+    }
+    function miniMoon(label, p, line1, line2) {
+        return `<div style="flex:1;min-width:0;text-align:center">${moonSvg(p, 64)}<div style="margin-top:6px;font-size:11px;color:#49d7ff;text-transform:uppercase;letter-spacing:.05em">${esc(label)}</div>` +
+            `<div style="font-size:11px;color:#e2e8f0">${esc(line1)}</div><div style="font-size:10px;color:#7fa7bd">${esc(line2 || '')}</div></div>`;
+    }
+    function shortDate(d) { return d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: 'numeric', month: 'short' }); }
+
+    /* mode: 'today' (aktuelle Phase groß), 'full' (Vollmond groß), 'new' (Neumond groß) */
+    function openMoonWindow(mode) {
+        const now = new Date(), ill = moonIllumination(now), pct = Math.round(ill.fraction * 100);
+        const full = nextPhase(0.5, now), neu = nextPhase(0, now);
+        if (typeof window.openExtraWindow !== 'function') {
+            showCards([{ icon: '🌙', title: `${phaseName(ill.phase)}, ${pct} % beleuchtet`, subtitle: full ? `Nächster Vollmond: ${dateText(full)}` : '' }].concat(neu ? [{ icon: '🌑', title: 'Nächster Neumond', subtitle: dateText(neu) }] : []));
+            return;
+        }
+        const bigPhase = mode === 'full' ? 0.5 : mode === 'new' ? 0 : ill.phase;
+        let caption, captionSub;
+        if (mode === 'full' && full) { caption = 'Nächster Vollmond'; captionSub = `${dateText(full)}, ${berlinHM(full).short} Uhr · ${untilText(daysFromNow(full))}`; }
+        else if (mode === 'new' && neu) { caption = 'Nächster Neumond'; captionSub = `${dateText(neu)}, ${berlinHM(neu).short} Uhr · ${untilText(daysFromNow(neu))}`; }
+        else { caption = phaseName(ill.phase).replace(/^./, c => c.toUpperCase()); captionSub = `${pct} % beleuchtet · ${ill.phase < 0.5 ? 'zunehmend' : 'abnehmend'}`; }
+
+        const html =
+            `<div style="padding:6px 0 4px">${moonSvg(bigPhase, 210)}</div>` +
+            `<div style="text-align:center;margin:10px 0 14px"><div style="font-size:17px;font-weight:700;color:#fff6cf">${esc(caption)}</div><div style="font-size:12px;color:#9fd8ee;margin-top:3px">${esc(captionSub)}</div></div>` +
+            `<div style="display:flex;gap:8px;padding:12px 0;border-top:1px solid rgba(93,209,255,.2);border-bottom:1px solid rgba(93,209,255,.12)">` +
+            miniMoon('Heute', ill.phase, `${pct} %`, phaseName(ill.phase)) +
+            miniMoon('Vollmond', 0.5, full ? shortDate(full) : '–', full ? untilText(daysFromNow(full)) : '') +
+            miniMoon('Neumond', 0, neu ? shortDate(neu) : '–', neu ? untilText(daysFromNow(neu)) : '') +
+            `</div>` +
+            `<div id="xwMoonTimes">${phaseRow('Mondaufgang heute', '…')}${phaseRow('Monduntergang heute', '…')}</div>`;
+        const body = window.openExtraWindow('Mond', html);
+
+        // Auf- und Untergang nachtragen, sobald der Standort da ist
+        position().then(pos => {
+            const m0 = moonTimes(noonOf(0), pos.lat, pos.lon);
+            const el = body.querySelector('#xwMoonTimes');
+            if (!el) return;
+            el.innerHTML = phaseRow('Mondaufgang heute', m0.rise ? `${berlinHM(m0.rise).short} Uhr` : 'keiner', pos.guessed ? 'Standort geschätzt (Hamburg)' : '') +
+                phaseRow('Monduntergang heute', m0.set ? `${berlinHM(m0.set).short} Uhr` : 'keiner');
+        }).catch(() => {});
+    }
+
     /* ---------- Antworten ---------- */
     async function answerSun(wantRise, wantSet, wantLight) {
         const pos = await position(), now = new Date();
@@ -178,7 +248,7 @@
         const pos = await position(), now = new Date();
         const m0 = moonTimes(noonOf(0), pos.lat, pos.lon), m1 = moonTimes(noonOf(1), pos.lat, pos.lon);
         const ill = moonIllumination(now), pct = Math.round(ill.fraction * 100);
-        showCards([{ icon: '🌙', title: `Mondaufgang ${m0.rise ? berlinHM(m0.rise).short : '–'} · Monduntergang ${m0.set ? berlinHM(m0.set).short : '–'}`, subtitle: `${phaseName(ill.phase)}, ${pct} % beleuchtet${pos.guessed ? ' · Standort geschätzt' : ''}` }]);
+        openMoonWindow('today');
         const parts = [];
         if (wantRise) {
             if (!m0.rise && !m1.rise) parts.push('Heute und morgen gibt es keinen Mondaufgang.');
@@ -202,7 +272,7 @@
         const name = target === 0.5 ? 'Vollmond' : 'Neumond';
         if (!d) { say(`Den nächsten ${name} kann ich gerade nicht berechnen.`); return; }
         const n = daysFromNow(d);
-        showCards([{ icon: target === 0.5 ? '🌕' : '🌑', title: `Nächster ${name}`, subtitle: `${dateText(d)} um ${berlinHM(d).short} · ${untilText(n)}` }]);
+        openMoonWindow(target === 0.5 ? 'full' : 'new');
         const now50 = target === 0.5 && ill.phase >= 0.485 && ill.phase <= 0.515;
         const lead = now50 ? 'Gerade ist Vollmond. ' : '';
         say(`${lead}Der nächste ${name} ist am ${dateText(d)}, also ${untilText(n)}.`);
@@ -210,10 +280,8 @@
 
     function answerMoonToday() {
         const now = new Date(), ill = moonIllumination(now), pct = Math.round(ill.fraction * 100);
-        const full = nextPhase(0.5, now), neu = nextPhase(0, now);
-        const cards = [{ icon: '🌙', title: `${phaseName(ill.phase)}, ${pct} % beleuchtet`, subtitle: full ? `Nächster Vollmond: ${dateText(full)}` : '' }];
-        if (neu) cards.push({ icon: '🌑', title: 'Nächster Neumond', subtitle: dateText(neu) });
-        showCards(cards);
+        const full = nextPhase(0.5, now);
+        openMoonWindow('today');
         say(`Der Mond ist gerade ${phaseName(ill.phase)}, zu ${pct} Prozent beleuchtet.${full ? ` Der nächste Vollmond ist am ${dateText(full)}.` : ''}`);
     }
 
@@ -249,5 +317,5 @@
     }
 
     window.handleSonneMondCommand = handleSonneMondCommand;
-    window._sonneMondTest = { sunTimes, moonTimes, moonIllumination, nextPhase, phaseName };   // nur zum Testen
+    window._sonneMondTest = { sunTimes, moonTimes, moonIllumination, nextPhase, phaseName, moonSvg };   // nur zum Testen
 })();
