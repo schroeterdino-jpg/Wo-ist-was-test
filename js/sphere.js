@@ -4,6 +4,10 @@
    Farbe je Zustand (blendet weich über): Blau in Ruhe, Cyan beim Zuhören, Orange beim Nachdenken,
    Grün während Jarvis spricht - liest dafür nur die vorhandenen CSS-Klassen "speaking"/"recording" am
    Element #recordBtn mit, die voice.js sowieso schon setzt, und die Variable isProcessing aus voice.js.
+   Neu (lebendig.js und unwetter.js liefern die Signale):
+   - Rot-Orange und langsames, stärkeres Atmen, solange eine Unwetterwarnung gilt (window.jvSphereAlert)
+   - Beim Zuhören pulsiert sie leicht mit, sobald DU sprichst (window.jvUserSpeaking, aus den Sprach-Ereignissen der Spracherkennung)
+   - Beim Sprechen folgt sie der echten Lautstärke der Cloud-Stimme (window.jvSphereConnectAudio, aufgerufen von lebendig.js)
    Nachtmodus: ab 21 Uhr wird die Kugel langsam dunkler und ruhiger, nachts am dunkelsten, ab 5 Uhr wieder heller
    (abschaltbar in den Einstellungen unter "Effekte"). Spricht oder hört Jarvis gerade, leuchtet sie auch nachts kräftiger.
    Pausiert außerdem, sobald ein Panel (z.B. die Weltkugel) offen ist - siehe pauseJarvisSphere()/
@@ -53,7 +57,8 @@
             idle: [58, 140, 255],       // Blau: bereit
             recording: [60, 225, 235],  // Cyan/Türkis: Jarvis hört zu
             thinking: [255, 154, 68],   // Orange: Jarvis denkt nach (isProcessing)
-            speaking: [87, 224, 161]    // Grün: Jarvis spricht, siehe --good in style.css
+            speaking: [87, 224, 161],   // Grün: Jarvis spricht, siehe --good in style.css
+            alert: [255, 92, 60]        // Rot-Orange: eine Unwetterwarnung gilt (window.jvSphereAlert)
         };
         const colorCur = COLORS.idle.slice();   // aktuelle (überblendete) Farbe
         const COLOR_BLEND = 0.07;               // wie schnell die Farbe zum neuen Zustand wechselt (pro Bild)
@@ -63,6 +68,7 @@
             if (btn && btn.classList.contains('speaking')) return 'speaking';
             if (btn && btn.classList.contains('recording')) return 'recording';
             if (typeof isProcessing !== 'undefined' && isProcessing) return 'thinking';
+            if (window.jvSphereAlert) return 'alert';
             return 'idle';
         }
 
@@ -110,12 +116,25 @@
                 analyser.connect(audioCtx.destination);
             } catch (e) { analyser = null; }
         }
-        // Von voice.js aufgerufen, sobald ein neues <audio>-Element mit der Cloud-Stimme zu spielen beginnt.
+        // Beim ersten Fingertipp den Audio-Kontext vorbereiten und starten. Ein Audio-Kontext, der vor einem Fingertipp erzeugt wurde,
+        // bleibt vom Browser angehalten; die Stimme würde dann stumm bleiben, wenn man sie über ihn leitet.
+        function unlockAudio() {
+            try {
+                ensureAnalyser();
+                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+            } catch (e) {}
+        }
+        ['pointerdown', 'touchstart', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, { once: true, passive: true }));
+
+        // Von lebendig.js aufgerufen, sobald ein neues <audio>-Element mit der Cloud-Stimme zu spielen beginnt.
+        // Sicherheitsregel: Nur wenn der Audio-Kontext wirklich läuft, wird die Stimme durch ihn geleitet. Sonst bleibt die Stimme
+        // unverändert hörbar (die Kugel pulsiert dann nach dem simulierten Rhythmus), statt dass sie verstummt.
         window.jvSphereConnectAudio = function (audioEl) {
             try {
                 ensureAnalyser();
                 if (!analyser) return;
-                if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+                if (audioCtx.state === 'suspended') { audioCtx.resume().catch(() => {}); return; }
+                if (audioCtx.state !== 'running') return;
                 if (analyserSource) { try { analyserSource.disconnect(); } catch (e) {} }
                 analyserSource = audioCtx.createMediaElementSource(audioEl);
                 analyserSource.connect(analyser);
@@ -126,7 +145,7 @@
             analyser.getByteFrequencyData(analyserData);
             let sum = 0;
             for (let i = 0; i < analyserData.length; i++) sum += analyserData[i];
-            return Math.min(1, (sum / analyserData.length) / 110);
+            return Math.min(1, (sum / analyserData.length) / 90);
         }
 
         // Welche Punkte verbunden werden, steht schon vorher fest (ändert sich durch Drehen/Atmen nicht,
@@ -183,17 +202,21 @@
         const SPEAK_POINT_AMOUNT = 0.16;
         const SPEAK_POINT_SPEED = 0.09;
 
-        function pointPulse(p, t, speaking, liveLevel) {
-            if (!speaking) return 1;
-            const liveBoost = liveLevel !== null ? liveLevel * 0.22 : 0;
+        // mode: 'speaking' (Jarvis spricht), 'hearing' (du sprichst, dezenter), sonst keine Einzelbewegung
+        function pointPulse(p, t, mode, liveLevel) {
+            if (mode === 'hearing') return 1 + 0.07 * Math.sin(t * 0.07 * p.speedMul + p.phase);
+            if (mode !== 'speaking') return 1;
+            const liveBoost = liveLevel !== null ? liveLevel * 0.34 : 0;
             return 1 + SPEAK_POINT_AMOUNT * Math.sin(t * SPEAK_POINT_SPEED * p.speedMul + p.phase) + liveBoost;
         }
 
-        function currentBreathe(t, speaking, liveLevel) {
-            if (speaking) {
-                const liveBoost = liveLevel !== null ? liveLevel * 0.12 : 0;
+        function currentBreathe(t, mode, liveLevel) {
+            if (mode === 'speaking') {
+                const liveBoost = liveLevel !== null ? liveLevel * 0.18 : 0;
                 return 1 + SPEAK_BREATHE_A * Math.sin(t * SPEAK_BREATHE_A_SPEED) + SPEAK_BREATHE_B * Math.sin(t * SPEAK_BREATHE_B_SPEED) + liveBoost;
             }
+            if (mode === 'hearing') return 1 + 0.05 * Math.sin(t * 0.11) + 0.03 * Math.sin(t * 0.29);   // du sprichst: leichtes, unregelmäßiges Mitatmen
+            if (mode === 'alert') return 1 + 0.075 * Math.sin(t * 0.032);                              // Warnung: langsames, deutlicheres Atmen
             return 1 + BREATHE_AMOUNT * Math.sin(t * BREATHE_SPEED);
         }
 
@@ -226,16 +249,16 @@
             time += 1;
             const cosA = Math.cos(angle), sinA = Math.sin(angle);
             const liveLevel = liveVoiceLevel();   // einmal pro Bild messen, nicht pro Punkt (Leistung)
-            const breathe = currentBreathe(time, colorKey === 'speaking', liveLevel);
+            const mode = colorKey === 'speaking' ? 'speaking' : (colorKey === 'recording' && window.jvUserSpeaking === true) ? 'hearing' : colorKey === 'alert' ? 'alert' : 'none';
+            const breathe = currentBreathe(time, mode, liveLevel);
 
             // Farbe weich zum Ziel des aktuellen Zustands überblenden
             const target = COLORS[colorKey];
             for (let c = 0; c < 3; c++) colorCur[c] += (target[c] - colorCur[c]) * COLOR_BLEND;
             const rgb = `${Math.round(colorCur[0])},${Math.round(colorCur[1])},${Math.round(colorCur[2])}`;
 
-            const speaking = colorKey === 'speaking';
             const projected = points.map(p => {
-                const total = breathe * pointPulse(p, time, speaking, liveLevel);
+                const total = breathe * pointPulse(p, time, mode, liveLevel);
                 const bx = p.x * total, by = p.y * total, bz = p.z * total;
                 const x = bx * cosA - bz * sinA;
                 const z = bx * sinA + bz * cosA;

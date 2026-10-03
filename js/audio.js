@@ -2,6 +2,9 @@
    AUDIO: High-Tech WebAudio Sound-Synthesizer
    Cinematischer Sci-Fi-Stil (wie im Film): sanfte Sweeps statt einzelner Pieptöne,
    warme Bässe, kein hektisches Puls-Gehämmer.
+   Neu: Schalter "Töne" und Lautstärke (Einstellungen > Töne, oder per Sprache "Töne aus" / "Töne an" / "Töne leiser" / "Töne lauter").
+   Alle Effekt-Töne laufen über einen gemeinsamen Lautstärkeregler (audioOut); die Stimme von Jarvis gehört nicht dazu.
+   Neue Töne: playSuccessSound (Bestätigung), playErrorSound (Fehler), playAlertSound (Warnung). Sie werden von toene.js passend zum Gesprochenen ausgelöst.
    ============================================================ */
 
 let audioCtx = null;
@@ -14,6 +17,42 @@ function getAudioContext() {
     }
     return audioCtx;
 }
+
+/* --- Töne an/aus und Lautstärke (jedes Gerät merkt sich das selbst) --- */
+let soundOn = true;
+let soundVol = 1;
+try {
+    soundOn = localStorage.getItem('jv_sound_on') !== '0';
+    const v = parseFloat(localStorage.getItem('jv_sound_vol'));
+    if (!isNaN(v)) soundVol = Math.min(1.5, Math.max(0.2, v));
+} catch (e) {}
+
+let audioMaster = null;
+/* Gemeinsamer Ausgang aller Effekt-Töne: hier greifen Schalter und Lautstärke */
+function audioOut(ctx) {
+    if (!audioMaster || audioMaster.context !== ctx) {
+        audioMaster = ctx.createGain();
+        audioMaster.gain.value = soundOn ? soundVol : 0;
+        audioMaster.connect(ctx.destination);
+    }
+    return audioMaster;
+}
+function applySoundSettings() {
+    try { if (audioMaster) audioMaster.gain.value = soundOn ? soundVol : 0; } catch (e) {}
+}
+function setSoundEnabled(on) {
+    soundOn = !!on;
+    try { localStorage.setItem('jv_sound_on', soundOn ? '1' : '0'); } catch (e) {}
+    applySoundSettings();
+}
+function setSoundVolume(v) {
+    const n = parseFloat(v);
+    soundVol = isNaN(n) ? 1 : Math.min(1.5, Math.max(0.2, n));
+    try { localStorage.setItem('jv_sound_vol', String(soundVol)); } catch (e) {}
+    applySoundSettings();
+}
+function getSoundEnabled() { return soundOn; }
+function getSoundVolume() { return soundVol; }
 
 /* Kurzer, weicher Zwei-Ton-Chirp für Tipp-Bestätigungen (Buttons, Menüpunkte) */
 function playUiBeep() {
@@ -30,9 +69,78 @@ function playUiBeep() {
             gain.gain.exponentialRampToValueAtTime(0.045, now + delay + 0.012);
             gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.09);
             osc.connect(gain);
-            gain.connect(ctx.destination);
+            gain.connect(audioOut(ctx));
             osc.start(now + delay);
             osc.stop(now + delay + 0.1);
+        });
+    } catch (e) {}
+}
+
+/* Bestätigung (Erfolg): drei weiche, aufsteigende Töne (Dur-Dreiklang), ruhiger und tiefer als der Tipp-Ton */
+function playSuccessSound() {
+    try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        [[523.25, 0], [659.25, 0.07], [783.99, 0.14]].forEach(([freq, delay], i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + delay);
+            const peak = 0.05 + i * 0.008;
+            gain.gain.setValueAtTime(0.0001, now + delay);
+            gain.gain.exponentialRampToValueAtTime(peak, now + delay + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + (i === 2 ? 0.26 : 0.14));
+            osc.connect(gain);
+            gain.connect(audioOut(ctx));
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.3);
+        });
+    } catch (e) {}
+}
+
+/* Fehler: zwei tiefe, absteigende Töne mit warmem Klang (weich gefiltert, nicht schrill) */
+function playErrorSound() {
+    try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        [[233.08, 0], [174.61, 0.16]].forEach(([freq, delay]) => {
+            const osc = ctx.createOscillator();
+            const filter = ctx.createBiquadFilter();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + delay);
+            osc.frequency.exponentialRampToValueAtTime(freq * 0.94, now + delay + 0.22);
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(900, now + delay);
+            gain.gain.setValueAtTime(0.0001, now + delay);
+            gain.gain.exponentialRampToValueAtTime(0.085, now + delay + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.3);
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioOut(ctx));
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.34);
+        });
+    } catch (e) {}
+}
+
+/* Warnung (zum Beispiel Unwetter): zwei Töne im Wechsel, deutlich, aber nicht erschreckend */
+function playAlertSound() {
+    try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        [[740, 0], [988, 0.17], [740, 0.34], [988, 0.51]].forEach(([freq, delay]) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + delay);
+            gain.gain.setValueAtTime(0.0001, now + delay);
+            gain.gain.exponentialRampToValueAtTime(0.06, now + delay + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.15);
+            osc.connect(gain);
+            gain.connect(audioOut(ctx));
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.17);
         });
     } catch (e) {}
 }
@@ -53,7 +161,7 @@ function playJarvisSound() {
         subGain.gain.exponentialRampToValueAtTime(0.09, now + 0.35);
         subGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.1);
         sub.connect(subGain);
-        subGain.connect(ctx.destination);
+        subGain.connect(audioOut(ctx));
         sub.start(now);
         sub.stop(now + 1.15);
 
@@ -71,7 +179,7 @@ function playJarvisSound() {
         shimmerGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.15);
         shimmer.connect(shimmerFilter);
         shimmerFilter.connect(shimmerGain);
-        shimmerGain.connect(ctx.destination);
+        shimmerGain.connect(audioOut(ctx));
         shimmer.start(now + 0.2);
         shimmer.stop(now + 1.2);
     } catch (e) {
@@ -116,7 +224,7 @@ function startThinkingSound() {
 
         osc.connect(filter);
         filter.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(audioOut(ctx));
 
         osc.start(now);
         lfo.start(now);
@@ -157,7 +265,7 @@ function playPanelSound(opening = true) {
         subGain.gain.exponentialRampToValueAtTime(0.07, now + 0.04);
         subGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
         sub.connect(subGain);
-        subGain.connect(ctx.destination);
+        subGain.connect(audioOut(ctx));
         sub.start(now);
         sub.stop(now + 0.32);
 
@@ -170,7 +278,7 @@ function playPanelSound(opening = true) {
         sGain.gain.exponentialRampToValueAtTime(0.028, now + 0.08);
         sGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
         shimmer.connect(sGain);
-        sGain.connect(ctx.destination);
+        sGain.connect(audioOut(ctx));
         shimmer.start(now);
         shimmer.stop(now + 0.28);
     } catch (e) {}

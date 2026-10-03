@@ -4,7 +4,7 @@
    1) Per Sprache: "Gibt es Unwetterwarnungen?", "Ist Unwetter gemeldet?", "Wetterwarnung", "Sturmwarnung".
    2) Von selbst: Der Wächter (wachter.js) fragt alle paar Minuten nach und meldet sich bei Warnungen ab "markant" (Stufe 2 von 4).
       Wie bei allen Wächter-Meldungen: nur bei offener App, nie zwischen 22 und 7 Uhr, jede Warnung nur einmal am Tag.
-   Ernste Themen bekommen nie einen Spruch.
+   Ernste Themen bekommen nie einen Spruch. Gilt eine markante Warnung, färbt sich die Kugel rot-orange (window.jvSphereAlert).
    Wird von erweiterungen.js eingehängt (Sprachbefehl und Wächter). Braucht: speak (voice.js), showActionCards/clearActionCards.
    ============================================================ */
 (function () {
@@ -54,6 +54,8 @@
         });
         list.sort((x, y) => SEVERITY_RANK[y.severity] - SEVERITY_RANK[x.severity] || x.onset - y.onset);
         cache = { at: Date.now(), alerts: list, pos };
+        // Signal für die Kugel (sphere.js): rot-orange und langsames Atmen, solange eine markante oder schwerere Warnung gilt oder bald beginnt
+        window.jvSphereAlert = list.some(a => SEVERITY_RANK[a.severity] >= 2 && a.onset <= Date.now() + 3 * 3600000);
         return list;
     }
 
