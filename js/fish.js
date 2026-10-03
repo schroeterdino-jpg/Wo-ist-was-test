@@ -277,14 +277,20 @@
     function chainPlayback(el, q) {
         const origEnded = el.onended;
         const urls = [];
+        const rate = el.playbackRate;                       // das eingestellte Sprechtempo (voice.js setzt es vor dem Abspielen)
+        const keepPitch = el.preservesPitch;
         el.onended = async function (ev) {
             try {
                 const blob = await q.next();
                 if (blob) {
                     const u = URL.createObjectURL(blob);
                     urls.push(u);
+                    // Wichtig: Ein neues src setzt das Tempo im Browser auf Normal zurück. Darum Tempo ausdrücklich beibehalten, sonst spricht Jarvis ab dem zweiten Stück schneller/langsamer als eingestellt.
+                    try { el.defaultPlaybackRate = rate; } catch (e) {}
                     el.src = u;
+                    try { el.playbackRate = rate; if (keepPitch !== undefined) el.preservesPitch = keepPitch; } catch (e) {}
                     await el.play();
+                    try { if (el.playbackRate !== rate) el.playbackRate = rate; } catch (e) {}
                     return;
                 }
             } catch (e) { /* bei einem Problem: so tun, als wäre alles gespielt */ }
