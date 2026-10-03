@@ -161,7 +161,7 @@
         const timer = setTimeout(() => controller.abort(), opts.timeout);
         try {
             const oaVoice = typeof getOpenaiVoice === 'function' ? getOpenaiVoice() : 'alloy';
-            const url = `/api/stau?tts=1&text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}&engine=fish&fishVoice=${encodeURIComponent(window.getFishVoice())}&openaiVoice=${encodeURIComponent(oaVoice)}${opts.fishOnly ? '&fishOnly=1' : ''}`;
+            const url = `/api/stau?tts=1&text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}&engine=${opts.noFish ? 'openai' : 'fish'}&fishVoice=${encodeURIComponent(window.getFishVoice())}&openaiVoice=${encodeURIComponent(oaVoice)}${opts.fishOnly ? '&fishOnly=1' : ''}`;
             const res = await apiFetch(url, { signal: controller.signal });
             clearTimeout(timer);
             if (!res.ok) return null;
@@ -184,9 +184,9 @@
                     r = await requestOne(chunks[i], voice, { timeout: 12000, fishOnly: true });
                     if (!r) r = await requestOne(chunks[i], voice, { timeout: 12000, fishOnly: true });
                 }
-                if (!r) {                                   // Rest in einem Stück über die normale Kette
+                if (!r) {                                   // Rest in einem Stück über die Ersatzkette (ohne Fish, falls das erste Stück schon von der Ersatzstimme kam: eine Stimme für den ganzen Text)
                     const remaining = chunks.slice(i).join(' ');
-                    const rr = await requestOne(remaining.length > 2300 ? remaining.slice(0, 2300) : remaining, voice, { timeout: 20000 });
+                    const rr = await requestOne(remaining.length > 2300 ? remaining.slice(0, 2300) : remaining, voice, { timeout: 20000, noFish: firstEngine !== 'fish' });
                     parts[i].res(rr ? rr.blob : null);
                     for (let k = i + 1; k < chunks.length; k++) parts[k].res(null);
                     return;
@@ -236,16 +236,41 @@
         };
     }
 
+    // Zwischenansagen ("Einen Moment"): voice.js ruft dafür speakAck() auf. Sie sollen NIE mit einer anderen Stimme kommen als die Antwort. Darum: nur Fish Audio,
+    // mit viel Zeit; hakt Fish Audio, bleibt die Zwischenansage lieber stumm (ein kurzes Stück Stille), statt dass eine Ersatzstimme "Einen Moment" sagt.
+    if (typeof window.speakAck === 'function' && !window.speakAck._jv) {
+        const originalAck = window.speakAck;
+        const wrappedAck = function () {
+            window.__jvAck = true;
+            try { return originalAck.apply(this, arguments); } finally { window.__jvAck = false; }
+        };
+        wrappedAck._jv = true;
+        window.speakAck = wrappedAck;
+    }
+    function silentBlob() {   // 60 ms Stille als WAV (spielt überall ab)
+        const n = 480, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+        const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+        w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+        v.setUint32(24, 8000, true); v.setUint32(28, 16000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+        return new Blob([buf], { type: 'audio/wav' });
+    }
+
     const originalFetch = window.fetchCloudSpeechBlob;
     window.fetchCloudSpeechBlob = async function (text, voice) {
+        const isAck = window.__jvAck === true;   // wird synchron gelesen, bevor irgendetwas wartet
         if (window.getTtsEngine() !== 'fish') return originalFetch.call(this, strip(text), voice);
         if (typeof AbortController === 'undefined') return null;
         const started = Date.now();
         const full = humanize(text);
         const chunks = splitForFish(full);
 
-        // Erstes (oder einziges) Stück: normale Kette, der Server weicht bei Problemen selbst aus
-        const r = await requestOne(chunks[0], voice, { timeout: 10000 });
+        if (isAck) {
+            const a = await requestOne(chunks[0], voice, { timeout: 20000, fishOnly: true });
+            return a ? a.blob : silentBlob();
+        }
+
+        // Erstes (oder einziges) Stück: normale Kette. Fish Audio bekommt viel Zeit (Server 15 s), erst dann springt die Ersatzstimme ein.
+        const r = await requestOne(chunks[0], voice, { timeout: 30000 });
         if (!r) return null;
         setLastVoice(r.engine, Date.now() - started, full.length, chunks.length);
         if (chunks.length > 1) {
