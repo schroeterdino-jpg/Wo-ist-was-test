@@ -6,8 +6,7 @@
      /api/filme?mode=kino                    aktuell im Kino (Deutschland)
      /api/filme?mode=search&q=Titel          Film oder Serie suchen und sagen, wo sie in Deutschland laufen
    Antwort: { ok: true, results: [ { id, kind, title, year, rating, overview, release, providers: { flatrate, rent, buy } } ] }
-   Hinweis: Diese Datei benutzt "module.exports". Beginnen deine anderen Dateien im Ordner api mit "export default", ersetze die letzte Zeile
-   durch:  export default handler;
+   Hinweis: Diese Datei benutzt wie die anderen Dateien im Ordner api "export default" (ESM).
    ============================================================ */
 
 const BASE = 'https://api.themoviedb.org/3';
@@ -92,4 +91,4 @@ async function handler(req, res) {
     }
 }
 
-module.exports = handler;
+export default handler;

@@ -1,9 +1,11 @@
-// Verkehrsmeldungen (Stau, Baustellen), Webcams UND Sprachausgabe (OpenAI + Edge-TTS) - alles in EINER
+// Verkehrsmeldungen (Stau, Baustellen), Webcams UND Sprachausgabe (Fish Audio + OpenAI + Edge-TTS) - alles in EINER
 // Datei, weil Vercel im kostenlosen Hobby-Plan höchstens 12 Serverless Functions pro Deployment erlaubt.
-// Kein API-Schlüssel nötig für Verkehr/Webcams. Sprachausgabe: OpenAI (gpt-4o-mini-tts, sehr natürlich,
-// kostenpflichtig) ist die bevorzugte Stimme, fällt bei jedem Problem (kein Guthaben, Ausfall, kein
-// Schlüssel gesetzt) automatisch und sofort auf die kostenlose Edge-TTS-Stimme zurück - ohne dass der
-// Client das überhaupt merkt oder einen zweiten Versuch starten muss.
+// Kein API-Schlüssel nötig für Verkehr/Webcams. Sprachausgabe, in dieser Reihenfolge:
+//   1. Fish Audio (engine=fish; Schlüssel FISH_AUDIO_API_KEY, Stimme FISH_AUDIO_VOICE_ID oder ?fishVoice=..., Modell FISH_AUDIO_MODEL, Standard s2-pro)
+//   2. OpenAI (gpt-4o-mini-tts, sehr natürlich, kostenpflichtig; Schlüssel OPENAI_API_KEY)
+//   3. Edge-TTS (kostenlos, kein Schlüssel)
+// Bei jedem Problem einer Stufe (kein Schlüssel, kein Guthaben, Ausfall, Zeitüberschreitung) geht es automatisch und sofort mit der nächsten weiter,
+// ohne dass der Client das überhaupt merkt oder einen zweiten Versuch starten muss.
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 
 async function edgeTtsBuffer(text, voice) {
@@ -20,16 +22,54 @@ export default async function handler(req, res) {
   if (!expected) return res.status(500).json({ error: 'Server: APP_SECRET fehlt' });
   if ((req.headers['x-app-key'] || '') !== expected) return res.status(401).json({ error: 'Nicht erlaubt' });
 
-  // ---------- Sprachausgabe: ?tts=1&text=...&voice=de-DE-ConradNeural&engine=openai&openaiVoice=alloy ----------
+  // ---------- Sprachausgabe: ?tts=1&text=...&voice=de-DE-ConradNeural&engine=fish|openai|edge&fishVoice=...&openaiVoice=alloy ----------
   if (req.query.tts) {
     const text = String(req.query.text || '').slice(0, 2000);
     if (!text) return res.status(400).json({ error: 'Text fehlt' });
     const voice = String(req.query.voice || 'de-DE-ConradNeural').replace(/[^a-zA-Z0-9-]/g, '');
     const engine = String(req.query.engine || 'edge');
 
-    if (engine === 'openai') {
+    if (engine === 'fish') {
+      const fishKey = process.env.FISH_AUDIO_API_KEY;
+      const fdiag = req.query.diag === '1';
+      if (!fishKey) {
+        if (fdiag) return res.status(200).json({ engineUsed: 'none', error: 'Server: FISH_AUDIO_API_KEY fehlt - fällt normalerweise lautlos auf OpenAI/Edge-TTS zurück' });
+      } else {
+        const voiceId = String(req.query.fishVoice || process.env.FISH_AUDIO_VOICE_ID || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+        const model = String(process.env.FISH_AUDIO_MODEL || 's2-pro').replace(/[^a-zA-Z0-9._-]/g, '') || 's2-pro';
+        try {
+          const body = { text, format: 'mp3' };
+          if (voiceId) body.reference_id = voiceId;
+          const fRes = await fetch('https://api.fish.audio/v1/tts', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${fishKey}`, 'Content-Type': 'application/json', 'model': model },
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(7000)
+          });
+          if (fRes.ok) {
+            const buf = Buffer.from(await fRes.arrayBuffer());
+            if (buf.length) {
+              if (fdiag) return res.status(200).json({ engineUsed: 'fish', ok: true, bytes: buf.length, model, voice: voiceId || '(Standardstimme, keine Stimmen-ID gesetzt)' });
+              res.setHeader('Content-Type', 'audio/mpeg');
+              res.setHeader('Cache-Control', 'no-store');
+              return res.status(200).send(buf);
+            }
+            if (fdiag) return res.status(200).json({ engineUsed: 'none', error: 'Fish Audio lieferte eine leere Antwort' });
+          } else {
+            const errText = await fRes.text().catch(() => '');
+            if (fdiag) return res.status(200).json({ engineUsed: 'none', error: `Fish Audio meldet Status ${fRes.status}: ${errText.slice(0, 300)}`, model, voice: voiceId || '(Standardstimme)' });
+          }
+          // Antwort nicht ok oder leer -> unten automatisch auf OpenAI/Edge-TTS weiter (nur im Normalbetrieb, nicht im Diagnose-Modus)
+        } catch (e) {
+          if (fdiag) return res.status(200).json({ engineUsed: 'none', error: 'Fish Audio nicht erreichbar: ' + String(e && e.message || e) });
+          /* Fish Audio nicht erreichbar/Timeout -> unten automatisch auf OpenAI/Edge-TTS weiter */
+        }
+      }
+    }
+
+    if (engine === 'openai' || engine === 'fish') {
       const openaiKey = process.env.OPENAI_API_KEY;
-      const diag = req.query.diag === '1';
+      const diag = engine === 'openai' && req.query.diag === '1';
       if (!openaiKey) {
         if (diag) return res.status(200).json({ engineUsed: 'none', error: 'Server: OPENAI_API_KEY fehlt - fällt normalerweise lautlos auf Edge-TTS zurück' });
       } else {
