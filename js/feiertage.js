@@ -1,9 +1,9 @@
 /* ============================================================
    FEIERTAGE UND BRÜCKENTAGE: "Wann ist der nächste Feiertag?", "Ist morgen Feiertag?", "Wann ist Ostern?",
-   "Welche Brückentage gibt es?", "Mein Bundesland ist Hamburg".
+   "Welche Brückentage gibt es?".
    Alles wird in der App selbst berechnet (Ostern nach Gauß, alle anderen Feiertage daraus), es ist keine Schnittstelle nötig.
-   Bundesland: Standard ist Schleswig-Holstein. Per Sprache änderbar ("Mein Bundesland ist Bayern"); steht ein Bundesland schon
-   bei den Ferien-Einstellungen, wird versucht, es von dort zu übernehmen.
+   Bundesland: Standard ist Schleswig-Holstein. "Mein Bundesland ist Bayern" wird von den Ferien (ferien.js) beantwortet; die Feiertage merken es sich
+   dabei still mit. Steht ein Bundesland schon in den Ferien-Einstellungen, wird versucht, es von dort zu übernehmen.
    Wird von erweiterungen.js in die festen Sprachbefehle eingehängt. Braucht: speak (voice.js), showActionCards/clearActionCards.
    ============================================================ */
 (function () {
@@ -177,15 +177,11 @@
         const t = String(text || '').toLowerCase().replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 90) return false;
 
-        // Bundesland festlegen oder abfragen
+        // Bundesland: "Mein Bundesland ist Hamburg" gehört zu den Ferien (ferien.js) und wird dort beantwortet.
+        // Hier wird es nur still mitgemerkt (return false), damit die Feiertage dasselbe Bundesland benutzen.
         if (/\bbundesland\b/.test(t)) {
             const st = stateFromText(t);
-            if (st && /(mein|meins|stell|setz|änder|ändere|wechsel|merk|ist|auf)/.test(t) && !/\b(welches|was)\b/.test(t)) {
-                writeStore(STATE_KEY, st);
-                say(`Gut, ich rechne die Feiertage jetzt für ${STATE_LABEL[st]}.`);
-                return true;
-            }
-            if (/(welches|was|für welches)/.test(t)) { say(`Ich rechne die Feiertage für ${stateName()}. Sagen Sie „Mein Bundesland ist“ und den Namen, wenn das nicht stimmt.`); return true; }
+            if (st && /(mein|meins|stell|setz|änder|ändere|wechsel|merk|ist|auf)/.test(t) && !/\b(welches|was)\b/.test(t)) writeStore(STATE_KEY, st);
             return false;
         }
 

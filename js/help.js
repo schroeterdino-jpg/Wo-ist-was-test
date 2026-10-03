@@ -26,8 +26,19 @@ const HELP_TOPICS = [
         'Wo ist die nächste Apotheke?', 'Wo kann ich Geld abheben?', 'Wo gibt es einen Supermarkt, der noch offen hat?', 'Wo ist die nächste Toilette?', 'Wo kann ich parken?', 'Wo finde ich eine Ladestation?', 'Wo ist eine Autowerkstatt?', 'Apotheke in Hamburg'] },
     { key: 'tanken', icon: '⛽', title: 'Tanken & Essen', words: /tank|sprit|diesel|benzin|restaurant|essen|hunger|pizza/, examples: [
         'Wo tanke ich günstig auf meinem Weg zur Arbeit?', 'Was kostet Diesel in der Nähe?', 'Ich habe Lust auf Pizza, gibt es was in der Nähe?'] },
-    { key: 'wetter', icon: '🌦️', title: 'Wetter', words: /wetter|regen|schirm|jacke/, examples: [
-        'Wie wird das Wetter morgen?', 'Brauche ich einen Regenschirm?', 'Zeig mir das Wetter in Istanbul (mit Wetterkarte)', 'Wie wird das Wetter morgen in Wien?', 'Zeig das Regenradar'] },
+    { key: 'wetter', icon: '🌦️', title: 'Wetter & Unwetter', words: /wetter|regen|schirm|jacke|warnung/, examples: [
+        'Wie wird das Wetter morgen?', 'Brauche ich einen Regenschirm?', 'Zeig mir das Wetter in Istanbul (mit Wetterkarte)', 'Wie wird das Wetter morgen in Wien?', 'Zeig das Regenradar',
+        'Gibt es Unwetterwarnungen? (amtliche Warnungen des Deutschen Wetterdienstes; bei Warnungen meldet sich Jarvis auch von selbst)'] },
+    { key: 'sonnemond', icon: '🌙', title: 'Sonne & Mond', words: /sonne|sonnen|mond|vollmond|neumond|dämmerung|daemmerung/, examples: [
+        'Wann geht die Sonne unter?', 'Wann geht die Sonne auf?', 'Wie lange ist es noch hell?', 'Wann geht der Mond auf?', 'Wann ist Vollmond?', 'Wann ist Neumond?', 'Wie ist der Mond heute?'] },
+    { key: 'feiertage', icon: '🎉', title: 'Feiertage & Brückentage', words: /feiertag|brückentag|brueckentag|ostern|weihnacht|pfingst/, examples: [
+        'Wann ist der nächste Feiertag?', 'Ist morgen Feiertag?', 'Welche Brückentage gibt es?', 'Welche Feiertage gibt es noch dieses Jahr?', 'Wann ist Ostern?', 'Wann ist Muttertag?',
+        'Gerechnet wird für dein Bundesland; es wird mit „Mein Bundesland ist ...“ eingestellt (gilt auch für die Ferien)'] },
+    { key: 'weltzeit', icon: '🕒', title: 'Uhrzeit in anderen Ländern', words: /weltzeit|uhrzeit|zeitunterschied|zeitzone|zeitverschiebung|wie spät/, examples: [
+        'Wie spät ist es in Istanbul?', 'Wie viel Uhr ist es in Tokio?', 'Wie spät ist es in den USA?', 'Zeitunterschied zu Japan'] },
+    { key: 'filme', icon: '🎬', title: 'Filmtipps & Kino', words: /film|kino|streaming|streamen|serie|netflix/, examples: [
+        'Gib mir einen guten Horrorfilm (auch Action, Komödie, Thriller, Science-Fiction ...)', 'Hast du einen Filmtipp? (ohne Genre: Horror oder Action)', 'Was soll ich heute schauen?',
+        'Was läuft im Kino? (bundesweit aktuelle Filme)', 'Wo kann ich Dune streamen?', 'Auf welchem Streamingdienst ist Squid Game?'] },
     { key: 'mail', icon: '📧', title: 'E-Mails (nur lesen)', words: /mail|post/, examples: [
         'Habe ich neue E-Mails?', 'Nur wichtige E-Mails, keine Werbung', 'Lies mir die erste vor'] },
     { key: 'kontakte', icon: '📞', title: 'Anrufen & WhatsApp', words: /kontakt|anruf|ruf\b|whatsapp|telefon/, examples: [
@@ -40,15 +51,15 @@ const HELP_TOPICS = [
         'Tagesüberblick (zeigt Termine, Erinnerungen, Aufgaben und Einkaufsliste als Kacheln)', 'Zeig mir meinen Tag', 'Kommt morgens von selbst beim ersten Öffnen, einstellbar unter Einstellungen > Morgen-Überblick'] },
     { key: 'charakter', icon: '🎭', title: 'Charakter & Mitdenken', words: /charakter|frech|witz|humor|anrede|sprüche|spruch|mitdenk|von selbst|meldung|fakt/, examples: [
         'Sei frecher (oder: Sei höflicher, Keine Sprüche mehr)', 'Nenn mich Boss', 'Erzähl einen Witz', 'Erzähl mir was Interessantes', 'Bist du da?',
-        'Melde dich nicht mehr von selbst (Abfahrt, Regen, Geburtstage)', 'Beim Termin eintragen prüft Jarvis Überschneidungen, Feiertage, Wetter und Fahrzeit'] },
+        'Melde dich nicht mehr von selbst (Abfahrt, Regen, Unwetter, Geburtstage)', 'Beim Termin eintragen prüft Jarvis Überschneidungen, Feiertage, Wetter und Fahrzeit'] },
     { key: 'waehrung', icon: '💶', title: 'Währung umrechnen', words: /währung|waehrung|lira|dollar|kurs|umrechn|euro/, examples: [
         'Was sind 100 Euro in Lira?', 'Wie viel sind 50 Dollar in Euro?', 'Wie viel Lira sind 200 Euro?', 'Wie ist der Kurs von Euro zu Pfund?'] },
     { key: 'foto', icon: '📷', title: 'Foto auswerten', words: /foto|bild|kamera|schild|warnleuchte|fotografier/, examples: [
         'Tippe auf 📷, mach das Foto und sag dann: Setz das auf die Einkaufsliste (oder: Trag das in den Kalender ein, Übersetze das, Lege einen Kontakt davon an)', 'Übersetze dieses Schild', 'Lies mir den Brief vor', 'Erkläre mir diese Warnleuchte',
         'Trag die Termine von diesem Foto in meinen Kalender ein', 'Trag den Termin von diesem Plakat ein', 'Lege diese Visitenkarte als Kontakt an', 'Setz den Einkaufszettel auf die Liste',
         'Darf ich hier parken? (Schild fotografieren)', 'Was kann ich damit kochen? (Zutaten fotografieren)', 'Zum Foto: Was kostet das?'] },
-    { key: 'internet', icon: '🌐', title: 'Aus dem Internet', words: /internet|fernseh|kino|paket|öffnungszeit|oeffnungszeit/, examples: [
-        'Was läuft heute Abend im Fernsehen?', 'Wo ist mein Paket?', 'Wann hat der Baumarkt heute auf?'] },
+    { key: 'internet', icon: '🌐', title: 'Aus dem Internet', words: /internet|fernseh|paket|öffnungszeit|oeffnungszeit/, examples: [
+        'Was läuft heute Abend im Fernsehen?', 'Wo ist mein Paket?', 'Wann hat der Baumarkt heute auf?', 'Was läuft heute Abend im Kino in Hamburg?'] },
     { key: 'briefing', icon: '🌅', title: 'Briefing & Protokolle', words: /briefing|protokoll/, examples: [
         'Erwähne im Briefing immer, wo mein Ladekabel ist', 'Starte Protokoll Feierabend', 'Lege ein Protokoll Morgen an: Wetter und Fahrzeit zur Arbeit'] },
     { key: 'dolmetscher', icon: '🗣️', title: 'Dolmetscher', words: /dolmetsch|übersetz|uebersetz/, examples: [
@@ -81,7 +92,7 @@ function helpTopicCard(topic) {
 function showHelpOverview() {
     if (typeof clearActionCards === 'function') clearActionCards();
     if (typeof showActionCards === 'function') showActionCards(HELP_TOPICS.map(helpTopicCard));
-    speak('Ich kann Ihnen bei vielen Dingen helfen: Termine und Erinnerungen, Listen, Fahrten und Verkehr, Bahn, Tanken, Wetter, E-Mails, Anrufe, Nachrichten und mehr. Die Themen stehen unten. Tippen Sie auf eines, oder sagen Sie zum Beispiel: Hilfe Fahrten.',
+    speak('Ich kann Ihnen bei vielen Dingen helfen: Termine und Erinnerungen, Listen, Fahrten und Verkehr, Bahn, Tanken, Wetter und Unwetterwarnungen, Feiertage, Sonne und Mond, Filmtipps, E-Mails, Anrufe, Nachrichten und mehr. Die Themen stehen unten. Tippen Sie auf eines, oder sagen Sie zum Beispiel: Hilfe Fahrten.',
         typeof continueConversation === 'function' ? continueConversation : undefined);
 }
 
