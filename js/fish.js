@@ -82,6 +82,19 @@
     }
     window.jvNumbersToWords = numbersToWords;
 
+    // ---------- Abkürzungen buchstabieren ----------
+    // Fish Audio liest Buchstabenfolgen wie "KJP" englisch ("Kay Jay Pee", das J klingt komisch). Auf Deutsch heißt das "Ka Jot Pe". Darum werden Abkürzungen ohne Vokal
+    // (KJP, DB, TV, PC, SMS, GPS, LKW ...) und ein paar bekannte mit Vokal (ARD, ADAC, EU ...) vor dem Senden buchstabiert. Nur für die Cloud-Stimme; die Anzeige bleibt "KJP".
+    const LETTER_NAMES = { A: 'A', B: 'Be', C: 'Ze', D: 'De', E: 'E', F: 'Ef', G: 'Ge', H: 'Ha', I: 'I', J: 'Jot', K: 'Ka', L: 'El', M: 'Em', N: 'En', O: 'O', P: 'Pe', Q: 'Ku', R: 'Er', S: 'Es', T: 'Te', U: 'U', V: 'Fau', W: 'We', X: 'Iks', Y: 'Üpsilon', Z: 'Zet', Ä: 'Ä', Ö: 'Ö', Ü: 'Ü' };
+    const SPELLED_EXTRA = new Set(['ARD', 'ADAC', 'AOK', 'ICE', 'USA', 'EU', 'UKW', 'DJ', 'AEG', 'IKK', 'TUI', 'UPS', 'FAQ', 'EG', 'OG', 'UG', 'ABS', 'EC', 'AG', 'OP', 'IC', 'RE', 'RB']);
+    function spellAbbreviations(text) {
+        return String(text).replace(/(?<![\wÄÖÜäöüß])[A-ZÄÖÜ]{2,5}(?![\wÄÖÜäöüß])/g, (w) => {
+            if (!(SPELLED_EXTRA.has(w) || !/[AEIOUÄÖÜ]/.test(w))) return w;
+            return w.split('').map(c => LETTER_NAMES[c] || c).join(' ');
+        });
+    }
+    window.jvSpellAbbreviations = spellAbbreviations;
+
     // ---------- Menschliche Laute (nur Fish Audio) ----------
     // Fish Audio versteht Anweisungen in eckigen Klammern. Hier werden sie vor dem Senden in den Text gesetzt, nie in der Anzeige und nie bei anderen Stimmen:
     //  [sigh] Seufzen: bei Stau und Unangenehmem (Stau, lange Fahrt, Sprit, Bahn) und manchmal bei "Einen Moment ...", dazu mal ein "Hmm."
@@ -305,7 +318,7 @@
         if (window.getTtsEngine() !== 'fish') return originalFetch.call(this, strip(text), voice);
         if (typeof AbortController === 'undefined') return null;
         const started = Date.now();
-        const full = humanize(numbersToWords(text));
+        const full = humanize(spellAbbreviations(numbersToWords(text)));
         const chunks = splitForFish(full);
 
         if (isAck) {
