@@ -105,6 +105,39 @@
     ].map(b => ({ names: [b[0]], rx: b[1], icon: b[2], brand: true }));
     // Beschriftung der Ketten: schöner Name (siehe LABELS), sonst der gesagte Name mit großem Anfangsbuchstaben
     const LABELS = { dm: 'dm', 'mc donalds': 'McDonald\'s', mcdonalds: 'McDonald\'s', macdonalds: 'McDonald\'s', mcdonald: 'McDonald\'s', 'burger king': 'Burger King', kfc: 'KFC', 'h und m': 'H&M', 'c und a': 'C&A', 'l osteria': 'L\'Osteria', obi: 'OBI', 'media markt': 'MediaMarkt', mediamarkt: 'MediaMarkt', ikea: 'IKEA', dhl: 'DHL', ups: 'UPS', 'nah und gut': 'Nah und Gut', 'denn s': 'denn\'s', 'maxi zoo': 'Maxi Zoo', 'pizza hut': 'Pizza Hut' };
+    /* Ketten werden NICHT über eine Namenssuche beim Kartenserver gefunden (die ist bei großen Gebieten sehr langsam und läuft oft in die Zeitüberschreitung),
+       sondern: Der Server liefert alle Geschäfte der passenden Art im Umkreis (schnell, über das Merkmal), und der Name wird erst hier im Handy geprüft. */
+    const GROUPS = {
+        super: ['["shop"~"^(supermarket|convenience|discount|general|wholesale|variety_store)$"]'],
+        drug: ['["shop"~"^(chemist|beauty|variety_store|department_store|cosmetics)$"]'],
+        food: ['["amenity"~"^(fast_food|restaurant|cafe|ice_cream|food_court)$"]'],
+        diy: ['["shop"~"^(doityourself|hardware|garden_centre|trade|building_materials)$"]'],
+        furn: ['["shop"~"^(furniture|doityourself|houseware|department_store|interior_decoration|variety_store)$"]'],
+        elec: ['["shop"~"^(electronics|computer|mobile_phone|hifi)$"]'],
+        fuel: ['["amenity"="fuel"]'],
+        bank: ['["amenity"~"^(bank|atm)$"]'],
+        post: ['["amenity"~"^(post_office|parcel_locker)$"]', '["shop"~"^(kiosk|convenience|copyshop|newsagent|stationery|tobacco)$"]']
+    };
+    const GENERIC = ['["shop"]', '["amenity"~"^(restaurant|fast_food|cafe|bank|fuel|pharmacy|pub|bar|cinema|doctors|dentist|post_office|car_wash)$"]'];
+    const BRAND_GROUP = {
+        super: ['penny', 'aldi', 'lidl', 'rewe', 'edeka', 'netto', 'kaufland', 'norma', 'famila', 'marktkauf', 'nah und gut', 'nahkauf', 'hit', 'globus', 'real', 'bio company', 'denn s', 'alnatura'],
+        drug: ['rossmann', 'dm', 'müller', 'budni'],
+        food: ['mcdonalds', 'mc donalds', 'macdonalds', 'mcdonald', 'burger king', 'kfc', 'subway', 'starbucks', 'nordsee', 'dunkin', 'l osteria', 'pizza hut', 'dominos'],
+        diy: ['hornbach', 'obi', 'bauhaus', 'toom', 'hagebau'],
+        furn: ['ikea', 'poco', 'roller'],
+        elec: ['mediamarkt', 'media markt', 'saturn', 'euronics', 'expert'],
+        fuel: ['aral', 'shell', 'esso', 'jet', 'hem', 'total', 'star'],
+        bank: ['sparkasse', 'volksbank', 'commerzbank', 'deutsche bank', 'postbank'],
+        post: ['hermes', 'dhl', 'ups']
+    };
+    BRANDS.forEach(b => {
+        const n = b.names[0];
+        b.f = GENERIC;
+        b.generic = true;
+        for (const g of Object.keys(BRAND_GROUP)) {
+            if (BRAND_GROUP[g].indexOf(n) !== -1) { b.f = GROUPS[g]; b.generic = false; break; }
+        }
+    });
     BRANDS.forEach(b => { const n = b.names[0]; b.label = LABELS[n] || n.replace(/\b\w/g, c => c.toUpperCase()); });
 
     const ALL = [];
@@ -147,7 +180,7 @@
         for (const a of ALL) if (wordRe(a.name).test(what)) return { kind: a.type, entry: a.entry, query: what };
         if (nearest && !BLACK.test(what) && what.split(' ').length <= 3 && /^[a-zäöüß0-9&\- ]{3,}$/.test(what)) {
             const label = what.replace(/\b\w/g, c => c.toUpperCase());
-            return { kind: 'brand', entry: { rx: esc(what).replace(/\s+/g, '\\s*'), label, icon: '📍', brand: true }, query: what, guessed: true };
+            return { kind: 'brand', entry: { rx: esc(what).replace(/\s+/g, '\\s*'), label, icon: '📍', brand: true, f: GENERIC, generic: true }, query: what, guessed: true };
         }
         return null;
     }
@@ -155,12 +188,8 @@
     /* ---------- Suche ---------- */
     function buildQuery(res, lat, lon, radius) {
         const around = `(around:${radius},${lat.toFixed(5)},${lon.toFixed(5)})`;
-        let body;
-        if (res.entry.brand) {
-            const rx = res.entry.rx.replace(/"/g, '\\"');
-            body = `nwr${around}["name"~"${rx}",i];nwr${around}["brand"~"${rx}",i];`;
-        } else body = res.entry.f.map(f => `nwr${around}${f};`).join('');
-        return `[out:json][timeout:20];(${body});out center 60;`;
+        const body = res.entry.f.map(f => `nwr${around}${f};`).join('');
+        return `[out:json][timeout:20];(${body});out center ${res.entry.brand ? 900 : 60};`;
     }
 
     function withTimeout(p, ms) { return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('Zeitüberschreitung')), ms))]); }
@@ -212,11 +241,13 @@
 
     function toPlaces(elements, res, lat, lon) {
         const out = [], seen = [];
+        let brandRe = null;
+        if (res.entry.brand) { try { brandRe = new RegExp(res.entry.rx, 'i'); } catch (e) { brandRe = null; } }
         elements.forEach(el => {
             const tags = el.tags || {};
             const plat = el.lat !== undefined ? el.lat : el.center && el.center.lat, plon = el.lon !== undefined ? el.lon : el.center && el.center.lon;
             if (plat === undefined || plon === undefined) return;
-            if (res.entry.brand && !(tags.shop || tags.amenity || tags.tourism || tags.leisure || tags.craft || tags.office)) return;   // z.B. Straßen oder Gebäude mit gleichem Namen
+            if (brandRe) { const fields = [tags.name, tags.brand, tags.operator].filter(Boolean); if (!fields.some(f => brandRe.test(f))) return; }   // Kette: Name im Handy prüfen
             const name = tags.name || tags.brand || tags.operator || '';
             const dist = haversine(lat, lon, plat, plon);
             if (seen.some(s => s.name === name && haversine(s.lat, s.lon, plat, plon) < 80)) return;   // Gebäude und Eingang desselben Ladens
@@ -332,7 +363,7 @@
         }
         let places = [], usedRadius = 0;
         try {
-            for (const radius of RADII) {
+            for (const radius of (res.entry.brand && res.entry.generic ? [3000, 8000] : RADII)) {
                 usedRadius = radius;
                 places = toPlaces(await overpass(buildQuery(res, pos.lat, pos.lon, radius)), res, pos.lat, pos.lon);
                 if (places.length) break;
