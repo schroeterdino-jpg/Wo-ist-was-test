@@ -25,7 +25,7 @@ export default async function handler(req, res) {
 
   // ---------- Sprachausgabe: ?tts=1&text=...&voice=de-DE-ConradNeural&engine=fish|openai|edge&fishVoice=...&openaiVoice=alloy ----------
   if (req.query.tts) {
-    const text = String(req.query.text || '').slice(0, 2000);
+    const text = String(req.query.text || '').slice(0, 2400);
     if (!text) return res.status(400).json({ error: 'Text fehlt' });
     const voice = String(req.query.voice || 'de-DE-ConradNeural').replace(/[^a-zA-Z0-9-]/g, '');
     const engine = String(req.query.engine || 'edge');
@@ -54,6 +54,7 @@ export default async function handler(req, res) {
             if (buf.length) {
               if (fdiag) return res.status(200).json({ engineUsed: 'fish', ok: true, bytes: buf.length, model, voice: voiceId || '(Standardstimme, keine Stimmen-ID gesetzt)' });
               res.setHeader('Content-Type', 'audio/mpeg');
+              res.setHeader('X-Voice-Engine', 'fish');
               res.setHeader('Cache-Control', 'no-store');
               return res.status(200).send(buf);
             }
@@ -69,6 +70,10 @@ export default async function handler(req, res) {
         }
       }
     }
+
+    // fishOnly=1: Die App schickt lange Texte in Stücken und will für jedes Stück dieselbe Fish-Stimme. Klappt Fish Audio nicht, wird NICHT still mit einer
+    // anderen Stimme geantwortet (das gäbe einen Stimmenwechsel mitten im Text), sondern ein Fehler gemeldet; die App entscheidet dann selbst.
+    if (engine === 'fish' && req.query.fishOnly === '1') return res.status(503).json({ error: 'Fish Audio nicht verfügbar' });
 
     if (engine === 'openai' || engine === 'fish') {
       const openaiKey = process.env.OPENAI_API_KEY;
@@ -89,6 +94,7 @@ export default async function handler(req, res) {
             if (buf.length) {
               if (diag) return res.status(200).json({ engineUsed: 'openai', ok: true, bytes: buf.length });
               res.setHeader('Content-Type', 'audio/mpeg');
+              res.setHeader('X-Voice-Engine', 'openai');
               res.setHeader('Cache-Control', 'no-store');
               return res.status(200).send(buf);
             }
@@ -110,6 +116,7 @@ export default async function handler(req, res) {
       const buffer = await edgeTtsBuffer(plainText, voice);
       if (!buffer.length) return res.status(502).json({ error: 'Keine Audiodaten erhalten' });
       res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('X-Voice-Engine', 'edge');
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).send(buffer);
     } catch (err) {
