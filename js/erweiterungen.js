@@ -8,7 +8,7 @@
    Muss NACH localcommands.js, wachter.js und den fünf Funktionsdateien geladen werden (siehe index.html).
    ============================================================ */
 (function () {
-    const HANDLERS = ['handleToeneCommand', 'handleExtraWindowCommand', 'handleUnwetterCommand', 'handleFeiertageCommand', 'handleSonneMondCommand', 'handleWeltzeitCommand', 'handleFilmCommand'];
+    const HANDLERS = ['handleToeneCommand', 'handleKichernCommand', 'handleExtraWindowCommand', 'handleUnwetterCommand', 'handleFeiertageCommand', 'handleSonneMondCommand', 'handleWeltzeitCommand', 'handleFilmCommand'];
     // Diese kommen erst dran, wenn die bisherigen festen Befehle (localcommands.js, nearbymore.js ...) den Satz nicht erkannt haben, vor der KI
     const AFTER_HANDLERS = [];   // (Die Ortssuche hängt sich in ortsuche.js selbst hinter die bisherigen Befehle.)
 

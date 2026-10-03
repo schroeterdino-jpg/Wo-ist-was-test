@@ -65,7 +65,7 @@ const HELP_TOPICS = [
     { key: 'dolmetscher', icon: '🗣️', title: 'Dolmetscher', words: /dolmetsch|übersetz|uebersetz/, examples: [
         'Dolmetscher Türkisch (auch Englisch, Rumänisch, Polnisch, Russisch)', 'Übersetze Guten Tag ins Englische', 'Dolmetscher beenden'] },
     { key: 'einstellungen', icon: '⚙️', title: 'Stimme & Einstellungen', words: /einstellung|system|daten|stimme|tempo|aussprache|sicher/, examples: [
-        'Töne aus (auch: Töne an, Töne leiser, Töne lauter; die Effekt-Töne für Bestätigung, Fehler und Warnung)', 'Stimme: Einstellungen > Stimme & Gespräch > Sprachausgabe > Fish Audio (Stimmen-ID eintragen und „Fish-Stimme testen“)', 'Sprich langsamer', 'Sprich Alyssa so aus: Alischa', 'Nenn mich Dino', 'Sichere meine Daten', 'Systemcheck'] }
+        'Töne aus (auch: Töne an, Töne leiser, Töne lauter; die Effekt-Töne für Bestätigung, Fehler und Warnung)', 'Menschliche Laute aus (auch: dezent, an; Jarvis seufzt bei Stau, kichert bei Sprüchen, atmet vor langen Antworten ein - nur mit Fish Audio)', 'Stimme: Einstellungen > Stimme & Gespräch > Sprachausgabe > Fish Audio (Stimmen-ID eintragen und „Fish-Stimme testen“)', 'Sprich langsamer', 'Sprich Alyssa so aus: Alischa', 'Nenn mich Dino', 'Sichere meine Daten', 'Systemcheck'] }
 ];
 
 /* Ist der Satz eine Hilfe-Frage? Gibt { topic } zurück ('' = Überblick) oder null */

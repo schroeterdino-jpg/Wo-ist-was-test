@@ -12,6 +12,8 @@
    Braucht: speak (voice.js), optional sassLevel (persona.js), buildSystemPrompt (prompt.js). Muss nach diesen Dateien geladen werden.
    ============================================================ */
 (function () {
+    const CHUCKLE_MARK = '\u2063';   // unsichtbares Zeichen, steht vor dem angehängten Spruch (siehe fish.js)
+    window.JV_CHUCKLE_MARK = CHUCKLE_MARK;
     const LEVEL_CHANCE = { 0: 0, 1: 0.35, 2: 0.85, 3: 1 };
     const MAX_LEN = 430;   // längere Texte (Listen, Briefing, Protokolle) bekommen keinen Spruch
     const recent = {};     // Anlass -> zuletzt benutzte Sprüche
@@ -141,7 +143,7 @@
         const q = pick(hit.cat);
         if (!q) return text;
         const sep = /[.!?…]["“”)]?\s*$/.test(text) ? ' ' : '. ';
-        return text + sep + q;
+        return text + sep + CHUCKLE_MARK + q;   // unsichtbare Marke: fish.js macht daraus bei Fish Audio ein leichtes Kichern, sonst wird sie entfernt
     }
 
     /* ---------- 1) speak() umhüllen ---------- */
@@ -181,5 +183,7 @@
     }
 
     window.jarvisQuip = addQuip;
+    window.jvClassify = classify;                                              // für fish.js: Anlass eines Textes (Stau, Sprit, ...)
+    window.jvIsSerious = (t) => DENY.test(String(t || '').toLowerCase());     // ernste Themen: keine Laute, keine Sprüche
     window._spruecheTest = { classify, addQuip };   // nur zum Testen
 })();
