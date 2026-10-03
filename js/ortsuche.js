@@ -15,6 +15,12 @@
     const RADII = [3000, 10000, 30000];
 
     function say(msg) { speak(msg, typeof continueConversation === 'function' ? continueConversation : undefined); }
+    /* Kurze Zwischenmeldung, solange gesucht wird. Bewusst NICHT mit speak(..., continueConversation): Sonst hört die App schon wieder zu,
+       bevor die eigentliche Antwort da ist, und die Antwort geht unter. speakAck ist die Zwischenansage der App (wie bei der Bundesliga-Abfrage). */
+    function ack(msg) {
+        try { if (typeof typeWriterStatus === 'function') typeWriterStatus(msg); } catch (e) {}
+        try { if (typeof speakAck === 'function') speakAck(msg); } catch (e) {}
+    }
     function showCards(cards) {
         try {
             if (typeof clearActionCards === 'function') clearActionCards();
@@ -293,14 +299,14 @@
     function position() {
         return new Promise((ok, err) => {
             if (!navigator.geolocation) return err(new Error('keine Ortung'));
-            navigator.geolocation.getCurrentPosition(p => ok({ lat: p.coords.latitude, lon: p.coords.longitude }), err, { enableHighAccuracy: true, timeout: 9000, maximumAge: 60000 });
+            navigator.geolocation.getCurrentPosition(p => ok({ lat: p.coords.latitude, lon: p.coords.longitude }), err, { timeout: 8000, maximumAge: 120000 });
         });
     }
 
     async function search(req) {
         const res = resolve(req.what, req.nearest);
         if (!res) return false;
-        say(['Ich schaue nach.', 'Einen Moment, ich suche.', 'Ich sehe in der Umgebung nach.'][Math.floor(Math.random() * 3)]);
+        ack(['Ich schaue nach.', 'Einen Moment, ich suche.', 'Ich sehe in der Umgebung nach.'][Math.floor(Math.random() * 3)]);
         let pos;
         try { pos = await position(); }
         catch (e) { say('Ohne Standort kann ich nichts in der Nähe suchen. Bitte erlauben Sie den Standort für die App.'); return true; }

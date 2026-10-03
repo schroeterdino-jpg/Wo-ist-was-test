@@ -30,6 +30,12 @@
     ];
 
     function say(msg) { speak(msg, typeof continueConversation === 'function' ? continueConversation : undefined); }
+    /* Kurze Zwischenmeldung, solange gesucht wird. Bewusst NICHT mit speak(..., continueConversation): Sonst hört die App schon wieder zu,
+       bevor die eigentliche Antwort da ist, und die Antwort geht unter. speakAck ist die Zwischenansage der App (wie bei der Bundesliga-Abfrage). */
+    function ack(msg) {
+        try { if (typeof typeWriterStatus === 'function') typeWriterStatus(msg); } catch (e) {}
+        try { if (typeof speakAck === 'function') speakAck(msg); } catch (e) {}
+    }
     function showCards(cards) {
         try {
             if (typeof clearActionCards === 'function') clearActionCards();
@@ -74,7 +80,7 @@
 
     /* ---------- Tipps ---------- */
     async function recommend(genreIds, label) {
-        say('Ich schaue in die Filmdatenbank.');
+        ack('Ich schaue in die Filmdatenbank.');
         try {
             const list = await call('mode=discover&genres=' + encodeURIComponent(genreIds));
             if (!list.length) { say('Dazu habe ich gerade keinen passenden Film gefunden.'); return; }
@@ -86,7 +92,7 @@
     }
 
     async function cinema() {
-        say('Ich sehe nach, was im Kino läuft.');
+        ack('Ich sehe nach, was im Kino läuft.');
         try {
             const list = await call('mode=kino');
             if (!list.length) { say('Ich finde gerade keine aktuellen Kinofilme.'); return; }
@@ -96,7 +102,7 @@
     }
 
     async function whereToWatch(title) {
-        say(`Ich suche „${title}“.`);
+        ack(`Ich suche „${title}“.`);
         try {
             const list = await call('mode=search&q=' + encodeURIComponent(title));
             if (!list.length) { say(`Zu „${title}“ finde ich in der Filmdatenbank nichts.`); return; }
