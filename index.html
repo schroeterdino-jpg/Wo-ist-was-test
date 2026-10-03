@@ -434,6 +434,14 @@
                             <input type="text" id="fishVoiceInput" placeholder="Stimmen-ID von fish.audio, leer = Standard auf dem Server" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
                             <p class="text-xs text-[#5d7e91] font-mono mt-1">Die ID steht bei der Stimme auf fish.audio. Der Schlüssel liegt nur auf dem Server (Vercel: FISH_AUDIO_API_KEY).</p>
                             <button onclick="playUiBeep(); runFishDiagnosis()" class="w-full mt-2 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🔊 Fish-Stimme testen</button>
+                            <label class="block text-xs font-bold text-[#49d7ff] mt-3 mb-1 uppercase">Menschliche Laute (Seufzen, Lachen, Einatmen):</label>
+                            <select id="humanLevelSelect" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                                <option value="mittel">Mittel (hörbar, aber nicht ständig)</option>
+                                <option value="dezent">Dezent (halb so oft)</option>
+                                <option value="aus">Aus</option>
+                            </select>
+                            <p class="text-xs text-[#5d7e91] font-mono mt-1">Nur bei Fish Audio. Nie bei Warnungen, Fehlern, Erinnerungen, E-Mails oder Gesundheit. Per Sprache: „Menschliche Laute aus“, „… dezent“, „… an“.</p>
+                            <button onclick="playUiBeep(); testChuckle()" class="w-full mt-2 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">😮‍💨 Laute testen</button>
                             <pre id="fishDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words mt-2"></pre>
                         </div>
                         <div id="openaiVoiceRow">
