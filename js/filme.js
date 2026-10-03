@@ -2,7 +2,7 @@
    FILMTIPPS (TMDB über /api/filme):
    - "Gib mir einen guten Horrorfilm", "Filmtipp", "Was soll ich heute schauen?", "Empfiehl mir eine Komödie"
      Ohne Genre nimmt Jarvis Horror oder Action. Drei Tipps, bevorzugt solche, die gerade im Abo laufen (Netflix, Prime ...).
-   - "Was läuft im Kino?" (bundesweit aktuelle Kinofilme; das Programm eines bestimmten Kinos oder "heute Abend" geht weiter an die Internet-Suche)
+   - "Was läuft im Kino?" (nur diese allgemeine Frage: bundesweit aktuelle Kinofilme; sobald ein Ort oder Kinoname dabeisteht, oder "heute Abend", geht es an die Internet-Suche)
    - "Wo kann ich Dune streamen?", "Wo läuft Alien?", "Auf welchem Streamingdienst ist Squid Game?"
    Fernsehprogramm ("Was läuft im Fernsehen?") bleibt bei der Internet-Suche.
    Braucht: speak (voice.js), apiFetch, showActionCards/clearActionCards, /api/filme (Vercel-Variable TMDB_API_KEY).
@@ -130,10 +130,12 @@
             if (title.length >= 2 && title.length <= 60 && !/^(ich|du|man|wir|es)$/.test(title)) { whereToWatch(title); return true; }
         }
 
-        // Kino (nur allgemein; Programm eines Kinos geht an die Internet-Suche)
-        if (/\bkino\b/.test(t) && /\b(läuft|laufen|neu|neue|aktuell\w*|filme|gerade)\b/.test(t) && !/\b(in|bei|im)\s+[a-zäöü]+\s*(?:kino|cinemaxx|cinestar|uci)\b/.test(t) && !/\bkino\s+(?:in|bei|von)\b/.test(t)) {
-            cinema();
-            return true;
+        // Kino: nur die ganz allgemeine Frage ("Was läuft im Kino?"). Steht ein Ort oder Kinoname dabei ("in Schwarzenbek", "Kino Grimm"),
+        // geht der Satz weiter an die Internet-Suche, denn die Filmdatenbank kennt kein Kinoprogramm eines bestimmten Hauses.
+        if (/\bkinos?\b/.test(t) && /\b(läuft|laufen|kommt|neu|neue|aktuell\w*|filme|gerade)\b/.test(t)) {
+            const rest = t.replace(/\b(was|welche|welcher|filme?|läuft|laufen|kommt|gibt|es|gerade|aktuell\w*|zurzeit|momentan|derzeit|jetzt|neu|neue|neues|im|in|den|deutschen|kinos?|moment|so|mal|denn|eigentlich|bitte|alles|noch|und|jarvis)\b/g, ' ').replace(/\s+/g, ' ').trim();
+            if (rest === '') { cinema(); return true; }
+            return false;
         }
 
         // Filmtipp
