@@ -6,6 +6,7 @@
 //   3. Edge-TTS (kostenlos, kein Schlüssel)
 // Bei jedem Problem einer Stufe (kein Schlüssel, kein Guthaben, Ausfall, Zeitüberschreitung) geht es automatisch und sofort mit der nächsten weiter,
 // ohne dass der Client das überhaupt merkt oder einen zweiten Versuch starten muss.
+// Fish Audio bekommt den Text mit Tags in eckigen Klammern (z.B. [chuckle] für ein leichtes Kichern); für OpenAI und Edge werden sie entfernt.
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 
 async function edgeTtsBuffer(text, voice) {
@@ -28,6 +29,8 @@ export default async function handler(req, res) {
     if (!text) return res.status(400).json({ error: 'Text fehlt' });
     const voice = String(req.query.voice || 'de-DE-ConradNeural').replace(/[^a-zA-Z0-9-]/g, '');
     const engine = String(req.query.engine || 'edge');
+    // Fish Audio versteht Anweisungen in eckigen Klammern (z.B. [chuckle]). OpenAI und Edge würden sie wörtlich vorlesen, darum dort ohne.
+    const plainText = text.replace(/\[[A-Za-zÄÖÜäöüß ]{1,40}\]\s*/g, '').trim() || text;
 
     if (engine === 'fish') {
       const fishKey = process.env.FISH_AUDIO_API_KEY;
@@ -78,7 +81,7 @@ export default async function handler(req, res) {
           const oaRes = await fetch('https://api.openai.com/v1/audio/speech', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: 'gpt-4o-mini-tts', voice: openaiVoice, input: text, response_format: 'mp3' }),
+            body: JSON.stringify({ model: 'gpt-4o-mini-tts', voice: openaiVoice, input: plainText, response_format: 'mp3' }),
             signal: AbortSignal.timeout(20000)
           });
           if (oaRes.ok) {
@@ -104,7 +107,7 @@ export default async function handler(req, res) {
     }
 
     try {
-      const buffer = await edgeTtsBuffer(text, voice);
+      const buffer = await edgeTtsBuffer(plainText, voice);
       if (!buffer.length) return res.status(502).json({ error: 'Keine Audiodaten erhalten' });
       res.setHeader('Content-Type', 'audio/mpeg');
       res.setHeader('Cache-Control', 'no-store');
