@@ -12,14 +12,13 @@
    ============================================================ */
 (function () {
     const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
-    const RADII = [3000, 10000, 30000];
+    const RADII = [3000, 10000, 20000];
 
     function say(msg) { speak(msg, typeof continueConversation === 'function' ? continueConversation : undefined); }
-    /* Kurze Zwischenmeldung, solange gesucht wird. Bewusst NICHT mit speak(..., continueConversation): Sonst hört die App schon wieder zu,
-       bevor die eigentliche Antwort da ist, und die Antwort geht unter. speakAck ist die Zwischenansage der App (wie bei der Bundesliga-Abfrage). */
+    /* Zwischenmeldung, solange gesucht wird: nur als Statuszeile, NICHT gesprochen. Eine gesprochene Zwischenansage (auch über speakAck) lässt die App
+       danach wieder zuhören, bevor die Antwort da ist, und die Antwort geht unter. Die bisherige Orte-Suche (nearbymore.js) macht es genauso: erst still suchen, dann antworten. */
     function ack(msg) {
         try { if (typeof typeWriterStatus === 'function') typeWriterStatus(msg); } catch (e) {}
-        try { if (typeof speakAck === 'function') speakAck(msg); } catch (e) {}
     }
     function showCards(cards) {
         try {
@@ -170,7 +169,7 @@
         // 1) über den Server der App (/api/overpass, wie die bisherige Orte-Suche in nearbymore.js)
         if (typeof apiFetch === 'function') {
             try {
-                const res = await withTimeout(apiFetch('/api/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }), 35000);
+                const res = await withTimeout(apiFetch('/api/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }), 28000);
                 if (res.ok) { const d = await res.json(); if (d && Array.isArray(d.elements)) return d.elements; }
             } catch (e) { /* dann direkt versuchen */ }
         }
@@ -179,7 +178,7 @@
         for (const url of ENDPOINTS) {
             try {
                 const ctl = typeof AbortController === 'function' ? new AbortController() : null;
-                const timer = setTimeout(() => { if (ctl) ctl.abort(); }, 22000);
+                const timer = setTimeout(() => { if (ctl) ctl.abort(); }, 15000);
                 const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(query), signal: ctl ? ctl.signal : undefined });
                 clearTimeout(timer);
                 if (!r.ok) { lastErr = new Error('Status ' + r.status); continue; }
@@ -306,10 +305,16 @@
     async function search(req) {
         const res = resolve(req.what, req.nearest);
         if (!res) return false;
-        ack(['Ich schaue nach.', 'Einen Moment, ich suche.', 'Ich sehe in der Umgebung nach.'][Math.floor(Math.random() * 3)]);
+        const label = res.entry.label;
+        ack(`Suche ${label} ...`);
+        showCards([{ icon: '🔎', title: `Suche ${label} ...`, subtitle: 'Standort und Kartendaten werden abgefragt' }]);
         let pos;
         try { pos = await position(); }
-        catch (e) { say('Ohne Standort kann ich nichts in der Nähe suchen. Bitte erlauben Sie den Standort für die App.'); return true; }
+        catch (e) {
+            showCards([{ icon: '⚠️', title: 'Ortssuche: kein Standort', subtitle: String((e && e.message) || 'Standort nicht erlaubt oder nicht verfügbar').slice(0, 120) }]);
+            say('Ohne Standort kann ich nichts in der Nähe suchen. Bitte erlauben Sie den Standort für die App.');
+            return true;
+        }
         let places = [], usedRadius = 0;
         try {
             for (const radius of RADII) {
@@ -319,11 +324,12 @@
             }
         } catch (e) {
             console.error('Ortssuche fehlgeschlagen:', e && e.message);
+            showCards([{ icon: '⚠️', title: 'Ortssuche: Kartendaten nicht erreichbar', subtitle: String((e && e.message) || 'unbekannter Fehler').slice(0, 160) }]);
             say('Die Ortssuche antwortet gerade nicht. Bitte versuchen Sie es in einer Minute noch einmal.');
             return true;
         }
-        const label = res.entry.label;
         if (!places.length) {
+            showCards([{ icon: '🔎', title: `Kein Treffer für ${label}`, subtitle: `Im Umkreis von ${usedRadius / 1000} km nichts in den Kartendaten` }]);
             say(`Im Umkreis von ${usedRadius / 1000} Kilometern finde ich keinen Eintrag für ${label}. Die Kartendatenbank kennt eventuell nicht jedes Geschäft.`);
             return true;
         }

@@ -30,11 +30,10 @@
     ];
 
     function say(msg) { speak(msg, typeof continueConversation === 'function' ? continueConversation : undefined); }
-    /* Kurze Zwischenmeldung, solange gesucht wird. Bewusst NICHT mit speak(..., continueConversation): Sonst hört die App schon wieder zu,
-       bevor die eigentliche Antwort da ist, und die Antwort geht unter. speakAck ist die Zwischenansage der App (wie bei der Bundesliga-Abfrage). */
+    /* Zwischenmeldung, solange gesucht wird: nur als Statuszeile, NICHT gesprochen. Eine gesprochene Zwischenansage (auch über speakAck) lässt die App
+       danach wieder zuhören, bevor die Antwort da ist, und die Antwort geht unter. Die bisherige Orte-Suche (nearbymore.js) macht es genauso: erst still suchen, dann antworten. */
     function ack(msg) {
         try { if (typeof typeWriterStatus === 'function') typeWriterStatus(msg); } catch (e) {}
-        try { if (typeof speakAck === 'function') speakAck(msg); } catch (e) {}
     }
     function showCards(cards) {
         try {
