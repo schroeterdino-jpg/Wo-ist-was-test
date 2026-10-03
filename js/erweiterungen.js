@@ -30,6 +30,7 @@
             } catch (e) { console.error('Erweiterung fehlgeschlagen', e); }
             return handled;
         };
+        window.handleLocalCommand._hasAfter = true;   // ortsuche.js erkennt daran, dass es hier schon eingehängt wird
     }
 
     // 2) Wächter: Unwetterwarnungen dazunehmen

@@ -362,6 +362,25 @@
         return true;
     }
 
+    /* Sicherheitsnetz: Hat erweiterungen.js die Ortssuche nicht eingehängt (zum Beispiel, weil dort noch eine ältere Version liegt),
+       hängt sie sich nach dem Laden der Seite selbst ein, direkt nach den bisherigen festen Befehlen und vor der KI. */
+    function selfInstall() {
+        try {
+            const cur = window.handleLocalCommand;
+            if (typeof cur !== 'function' || cur._hasAfter || cur._ortsuche) return;
+            const wrapped = function (text) {
+                const handled = cur.apply(this, arguments);
+                if (handled) return handled;
+                try { if (handleOrtsucheCommand(text)) return true; } catch (e) { console.error('Ortssuche', e); }
+                return handled;
+            };
+            wrapped._ortsuche = true;
+            wrapped._hasAfter = true;
+            window.handleLocalCommand = wrapped;
+        } catch (e) { /* ohne Einhängen bleibt alles wie vorher */ }
+    }
+    if (document.readyState === 'complete') selfInstall(); else window.addEventListener('load', selfInstall);
+
     window.handleOrtsucheCommand = handleOrtsucheCommand;
     window._ortsucheTest = { extract, resolve, openNow, buildQuery, toPlaces, norm };   // nur zum Testen
 })();
