@@ -8,6 +8,9 @@
    vor dem Sprechen die Wörter aus der Liste. voice.js selbst bleibt unverändert; bei der Cloud-Stimme
    zeigt der Untertitel weiter die Original-Schreibweise.
 
+   DATUM: Fish Audio liest "den 12. Oktober" als "zwölfter Oktober". Darum werden Daten mit ausgeschriebenem Monat vor dem Senden an die Cloud-Stimme in Wörter
+   mit der passenden Endung geschrieben ("den zwölften Oktober", "der vierte Oktober"). Der Bildschirmtext bleibt "12. Oktober".
+
    WICHTIG (Fish Audio): fish.js ersetzt fetchCloudSpeechBlob später noch einmal und holt die Fish-Stimme selbst.
    Damit die Liste auch dort greift, wird das Einklinken erst gemacht, wenn ALLE Skripte geladen sind
    (DOMContentLoaded). So ist diese Umhüllung immer die äußerste, egal in welcher Reihenfolge die Dateien stehen.
@@ -180,6 +183,33 @@ function handlePronunciationCommand(text) {
     return done(`Gut, ab jetzt sage ich ${word}.`);   // läuft selbst durch die Liste: man hört gleich die neue Aussprache
 }
 
+/* --- Daten mit Monatsnamen als Wörter: "den 12. Oktober" -> "den zwölften Oktober" ---
+   Endung nach dem Wort davor: am, vom, zum, beim, den, dem, ... -> "-en" (zwölften); sonst (z.B. "der 4. Oktober", "Samstag, 3. Oktober") -> "-e" (vierte, dritte).
+   Gilt nur für Tage 1 bis 31 direkt vor einem ausgeschriebenen Monat. Alles andere (Uhrzeiten, Preise, Jahreszahlen) bleibt unberührt. */
+const DATE_ORD_SMALL = { 1: 'erst', 2: 'zweit', 3: 'dritt', 4: 'viert', 5: 'fünft', 6: 'sechst', 7: 'siebt', 8: 'acht', 9: 'neunt', 10: 'zehnt', 11: 'elft', 12: 'zwölft', 13: 'dreizehnt', 14: 'vierzehnt', 15: 'fünfzehnt', 16: 'sechzehnt', 17: 'siebzehnt', 18: 'achtzehnt', 19: 'neunzehnt' };
+const DATE_ORD_UNITS = ['', 'einund', 'zweiund', 'dreiund', 'vierund', 'fünfund', 'sechsund', 'siebenund', 'achtund', 'neunund'];
+const DATE_EN_WORDS = /^(?:am|vom|zum|beim|im|an|auf|bei|zu|von|vor|nach|seit|bis|ab|um|für|gegen|den|dem|des|diesen|jeden)$/i;
+
+function dateOrdinalStem(n) {
+    if (n >= 1 && n <= 19) return DATE_ORD_SMALL[n];
+    if (n === 20) return 'zwanzigst';
+    if (n > 20 && n < 30) return DATE_ORD_UNITS[n - 20] + 'zwanzigst';
+    if (n === 30) return 'dreißigst';
+    if (n === 31) return 'einunddreißigst';
+    return null;
+}
+
+function speakableOrdinalDates(text) {
+    const re = /(?<![\d.,:])(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)(?![A-Za-zÄÖÜäöüß])/gi;
+    return String(text == null ? '' : text).replace(re, (m, d, month, off, str) => {
+        const stem = dateOrdinalStem(+d);
+        if (!stem) return m;
+        const prev = str.slice(0, off).match(/([A-Za-zÄÖÜäöüß]+)\s+$/);
+        const ending = (prev && DATE_EN_WORDS.test(prev[1])) ? 'en' : 'e';
+        return stem + ending + ' ' + month;
+    });
+}
+
 /* --- Einklinken in die Sprachausgabe (voice.js bleibt unverändert) ---
    Erst nach dem Laden ALLER Skripte (DOMContentLoaded), damit auch die später geladene Fish-Audio-Stimme (fish.js) durch die Liste läuft. */
 (function hookSpeech() {
@@ -189,7 +219,7 @@ function handlePronunciationCommand(text) {
         if (typeof fetchCloudSpeechBlob === 'function') {
             const origCloud = fetchCloudSpeechBlob;
             fetchCloudSpeechBlob = function (text, voice) {
-                return origCloud.call(this, applyPronunciations(text), voice);
+                return origCloud.call(this, speakableOrdinalDates(applyPronunciations(text)), voice);
             };
         }
         if (typeof speakBrowser === 'function') {
