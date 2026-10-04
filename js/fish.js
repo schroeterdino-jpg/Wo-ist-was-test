@@ -168,6 +168,8 @@
 
     // Lach-Wunsch: Steht im Gedächtnis ("Merk dir, dass du öfter lachen sollst"), lacht Jarvis öfter: bei jedem Spruch, und ab und zu auch mitten in normalen Antworten.
     // Gilt nur, solange die Stufe "Menschliche Laute" nicht auf "aus" steht. Ein Wunsch mit "nicht/nie/weniger" zählt nicht.
+    const LAUGH_POS = /(?<![a-zäöüß])(?:ge)?lach(?:en|e|st|t)?(?![a-zäöüß])|kicher|schmunzel|gackern/;      // "lachen", "lach", "gelacht" - aber nicht "Lachs"
+    const LAUGH_NEG = /(?:nicht|nie|niemals|kein\w*|weniger|aufhör\w*|unterlass\w*)\s+(?:mehr\s+|so\s+)?(?:\w+\s+)?(?:lach|kicher|schmunzel)|(?:lach|kicher|schmunzel)\w*\s+(?:bitte\s+)?(?:nicht|nie|niemals|kein\w*|weniger)/;
     function laughWish() {
         try {
             const mem = (typeof memoryItems !== 'undefined') ? memoryItems : null;
@@ -176,7 +178,7 @@
                 let v = mem[k];
                 try { if (typeof parseMemoryValue === 'function') v = parseMemoryValue(v); } catch (e) {}
                 const all = (k + ' ' + (typeof v === 'string' ? v : JSON.stringify(v || ''))).toLowerCase();
-                return /lach|kicher|schmunzel|gackern|humorvoll|lustig/.test(all) && !/nicht|nie\b|niemals|kein|weniger|aufhören|unterlass|ernst/.test(all);
+                return LAUGH_POS.test(all) && !LAUGH_NEG.test(all);
             });
         } catch (e) { return false; }
     }
@@ -186,11 +188,18 @@
     const THINKING = /^(?:einen moment|moment|ich schaue|ich sehe|ich prüfe|ich suche|ich frage|sofort|gleich|mal sehen|ich rechne|ich lade)/i;
     const SIGH_CATS = { stau_viel: 0.6, stau_lang: 0.7, fahrt_lang: 0.3, sprit: 0.3, bahn: 0.2 };
 
+    // "Haha", "Hehe", "Hihi" im Text (die KI schreibt sie bei einem Lach-Wunsch) werden bei Fish Audio zu einem echten Lachen: "[laughing] Haha"
+    function laughWords(t) {
+        let n = 0;
+        return String(t).replace(/(?<![\wäöüß\[])((?:ha|he|hi){2,}(?:[ -]?(?:ha|he|hi))*)(?![\wäöüß])/gi, (m) => (n++ === 0 ? '[laughing] ' + m : m));
+    }
+
     function humanize(text) {
         const level = window.getHumanLevel();
         const force = window.__jvForceHuman === true;
         window.__jvForceHuman = false;
         if (level === 'aus') return strip(text);
+        text = laughWords(text);
         const f = force ? 1000 : (level === 'dezent' ? 0.5 : 1);      // Faktor auf alle Wahrscheinlichkeiten
         const roll = (p) => force || Math.random() < p * f;
         const idx = String(text).indexOf(MARK);
@@ -219,9 +228,10 @@
         }
         if (!quip) {
             // Lach-Wunsch auch ohne Spruch: ab und zu ein leises Lachen vor dem zweiten Satz einer normalen Antwort
-            if (boost && !serious && !force && out.replace(/\s+/g, ' ').length >= 50 && roll(0.25)) {
+            if (boost && !serious && !force && out.replace(/\s+/g, ' ').length >= 25 && !start && roll(0.5)) {
                 const sentences = out.split(/(?<=[.!?…])\s+/);
                 if (sentences.length >= 2 && !/^\[/.test(sentences[1])) { sentences.splice(1, 0, '[chuckle]'); out = sentences.join(' '); }
+                else if (sentences.length === 1) out = '[chuckle] ' + out;      // nur ein Satz: leises Lachen davor
             }
             return start + out;
         }
@@ -281,13 +291,14 @@
         return chunks;
     }
 
-    function setLastVoice(engine, ms, chars, parts) {
-        window.jvLastVoice = { engine, ms, chars, parts, at: Date.now() };
+    function setLastVoice(engine, ms, chars, parts, tags) {
+        window.jvLastVoice = { engine, ms, chars, parts, tags, at: Date.now() };
         try {
             const el = document.getElementById('fishLastVoice');
             if (el) {
                 const name = { fish: 'Fish Audio', openai: 'OpenAI', edge: 'Edge', gemischt: 'gemischt' }[engine] || engine;
-                el.textContent = `Zuletzt gesprochen mit: ${name} (${chars} Zeichen${parts > 1 ? ', ' + parts + ' Stücke' : ''}, ${(ms / 1000).toFixed(1)} s bis zum Start)`;
+                const tagText = (tags && tags.length) ? tags.join(' ') : 'keine';
+                el.textContent = `Zuletzt gesprochen mit: ${name} (${chars} Zeichen${parts > 1 ? ', ' + parts + ' Stücke' : ''}, ${(ms / 1000).toFixed(1)} s bis zum Start). Laute gesendet: ${tagText}. Lach-Wunsch erkannt: ${laughWish() ? 'ja' : 'nein'}.`;
                 el.style.color = engine === 'fish' ? '#7fe3b0' : '#ffb870';
             }
         } catch (e) {}
@@ -446,7 +457,7 @@
         // Erstes (oder einziges) Stück: normale Kette. Fish Audio bekommt viel Zeit (Server 15 s), erst dann springt die Ersatzstimme ein.
         const r = await requestOne(chunks[0], voice, { timeout: 30000 });
         if (!r) return null;
-        setLastVoice(r.engine, Date.now() - started, full.length, chunks.length);
+        setLastVoice(r.engine, Date.now() - started, full.length, chunks.length, (full.match(/\[[a-z ]+\]/g) || []));
         if (chunks.length > 1) {
             // Kam das erste Stück nicht von Fish Audio, wird der Rest einheitlich über dieselbe Ersatzkette geholt
             const restChunks = r.engine === 'fish' ? chunks.slice(1) : [chunks.slice(1).join(' ')];

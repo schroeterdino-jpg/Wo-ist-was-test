@@ -58,11 +58,17 @@
         'Einen Grund nennst du nur, wenn der Nutzer ihn wirklich gesagt hat. Steht dort kein Grund, sag das ehrlich ("Einen Grund haben Sie mir nicht genannt") und frag höchstens kurz, ob du dir den Grund merken sollst. ' +
         'Antworte niemals nur mit "nichts gefunden", wenn zum Thema ein Eintrag existiert. Erfinde nichts dazu.';
 
+    // Der Nutzer wünscht sich, dass Jarvis öfter lacht (Eintrag im Gedächtnis). Die KI schreibt das Lachen selbst in die Antwort; die Stimme macht daraus ein echtes Lachen.
+    const LAUGH_RULE =
+        '\n\nLACHEN: Der Nutzer wünscht sich ausdrücklich, dass du öfter lachst. Schreibe darum in lockeren Antworten ab und zu ein kurzes "Haha" oder "Hehe" an eine passende Stelle, ' +
+        'etwa nach einem Scherz oder wenn etwas lustig ist, in ungefähr jeder zweiten lockeren Antwort, höchstens einmal pro Antwort. Bei ernsten Themen (Warnungen, Gesundheit, Arzt, Geld, Fehler, Erinnerungen) lachst du nie.';
+
     if (typeof window.buildSystemPrompt === 'function' && !window.buildSystemPrompt._gedaechtnis) {
         const originalPrompt = window.buildSystemPrompt;
         const wrappedPrompt = function (text) {
-            const base = originalPrompt.apply(this, arguments);
-            try { if (MEMORY_QUESTION.test(String(text || ''))) return base + MEMORY_RULE; } catch (e) {}
+            let base = originalPrompt.apply(this, arguments);
+            try { if (MEMORY_QUESTION.test(String(text || ''))) base += MEMORY_RULE; } catch (e) {}
+            try { if (typeof window.jvLaughWish === 'function' && window.jvLaughWish()) base += LAUGH_RULE; } catch (e) {}
             return base;
         };
         wrappedPrompt._gedaechtnis = true;
