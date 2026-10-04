@@ -64,9 +64,21 @@
             const isMeasure = /^\s*(?:Grad|°|Kilometer|km|Meter|Prozent|%|Minuten|Stunden|Sekunden|Liter\b(?!\s*$))/i.test(after) && !money;   // Maßangaben sind keine Preise
             const fuelPrice = !isMeasure && FUEL_WORDS.test(before) && value >= 0.9 && value < 4;               // "Diesel kostet aktuell 2,183 bei Aral"
             if (!money && !fuelPrice) return m;
-            return (Math.round(value * 100) / 100).toFixed(2).replace('.', ',');
+            return (Math.round(value * 100) / 100).toFixed(2).replace('.', ',') + (money ? '' : ' Euro');
         });
     }
+
+    // Beträge so sprechen, wie man sie sagt: "2,18 Euro" -> "zwei Euro achtzehn", "12,50 Euro" -> "zwölf Euro fünfzig", "0,99 Euro" -> "neunundneunzig Cent".
+    // Nur für die Stimme: auf dem Bildschirm bleibt "2,18 Euro" stehen. Ohne diese Umschreibung spricht die Stimme das Komma mit ("zwei Komma achtzehn").
+    function pricesToWords(t) {
+        return String(t).replace(/(?<![\d,.])(\d{1,3}),(\d{2})(?!\d)\s*(?:Euro|€|EUR)(?![\wäöüß])/g, (m, e, c) => {
+            const eu = +e, ce = +c;
+            if (eu === 0) return ce ? germanNumber(ce, false) + ' Cent' : 'null Euro';
+            const euros = germanNumber(eu, true) + ' Euro';
+            return ce ? euros + ' ' + below100(ce, false) : euros;
+        });
+    }
+    window.jvPricesToWords = pricesToWords;
     // alles, was vor dem Sprechen aufgeräumt wird (Gedankenstriche, Preise)
     function normalizeSpoken(t) { return roundPrices(fixDashes(t)); }
     window.jvRoundPrices = roundPrices;
@@ -194,7 +206,7 @@
     // Handy-Stimme (Browser): das Zeichen nie mit vorlesen lassen
     if (typeof window.speakBrowser === 'function' && !window.speakBrowser._jv) {
         const originalBrowser = window.speakBrowser;
-        const wrappedBrowser = function () { const a = Array.prototype.slice.call(arguments); a[0] = normalizeSpoken(strip(a[0])); return originalBrowser.apply(this, a); };
+        const wrappedBrowser = function () { const a = Array.prototype.slice.call(arguments); a[0] = pricesToWords(normalizeSpoken(strip(a[0]))); return originalBrowser.apply(this, a); };
         wrappedBrowser._jv = true;
         window.speakBrowser = wrappedBrowser;
     }
@@ -392,13 +404,13 @@
     window.fetchCloudSpeechBlob = async function (text, voice) {
         const isAck = window.__jvAck === true;   // wird synchron gelesen, bevor irgendetwas wartet
         if (window.getTtsEngine() !== 'fish') {
-            const other = await originalFetch.call(this, normalizeSpoken(strip(text)), voice);
+            const other = await originalFetch.call(this, pricesToWords(normalizeSpoken(strip(text))), voice);
             try { if (other && typeof other === 'object') other.__jvSpeech = true; } catch (e) {}
             return other;
         }
         if (typeof AbortController === 'undefined') return null;
         const started = Date.now();
-        const full = humanize(spellAbbreviations(numbersToWords(normalizeSpoken(text))));
+        const full = humanize(spellAbbreviations(numbersToWords(pricesToWords(normalizeSpoken(text)))));
         const chunks = splitForFish(full);
 
         if (isAck) {
