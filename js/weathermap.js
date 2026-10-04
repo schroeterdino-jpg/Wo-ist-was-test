@@ -5,6 +5,7 @@
    öffnet ein Fenster mit: aktuellem Wetter, 7 Tagen und einer Wetterkarte von Windy (umschaltbar: Temperatur, Regen, Wind, Wolken).
    Die Karte ist ein eingebettetes Fremd-Angebot (embed.windy.com) und braucht Internet.
    Fragen ohne Ort ("Wie wird das Wetter morgen?", "Wetter in der Nähe") bleiben bei der bisherigen Antwort für deinen Standort.
+   Schließen: per Sprache ("Karte schließen", "Schließen", "Mach die Karte zu") oder mit dem Kreuz oben rechts.
    Braucht: voice.js (speak), briefing.js (weatherCodeText), apiFetch (Server-Zugriff). Wird von localcommands.js aufgerufen.
    ============================================================ */
 
@@ -76,6 +77,16 @@ function parseWeatherMapRequest(text) {
     if (!m) return null;
     const place = wxCleanPlace(m[1]);
     return place ? { place, dayOffset } : null;
+}
+
+/* "Karte schließen", "Schließen", "Mach die Karte zu", "Wetterkarte weg" - nur wenn die Wetterkarte offen ist */
+function wxIsCloseRequest(text) {
+    const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!t || t.length > 40) return false;
+    if (/(?<![\wäöüß])(?:termin\w*|erinnerung\w*|liste\w*|einkauf\w*|aufgabe\w*|protokoll\w*|gedächtnis|notiz\w*)(?![\wäöüß])/.test(t)) return false;   // das meint etwas anderes
+    if (/(?<![\wäöüß])(?:schlie(?:ß|ss)\w*|zumachen|ausblenden|wegmachen|beend\w*)(?![\wäöüß])/.test(t)) return true;
+    if (/^(?:bitte\s+)?(?:mach\w*\s+)?(?:(?:die|das|den)\s+)?(?:wetter\s*)?(?:karte|wetterkarte|fenster|ansicht)\s+(?:zu|weg|aus)(?:\s+bitte)?$/.test(t)) return true;
+    return false;
 }
 
 /* ---------- Daten holen ---------- */
@@ -259,26 +270,55 @@ async function runWeatherMap(req) {
 }
 
 function handleWeatherMapCommand(text) {
+    // Ist die Wetterkarte offen, wird "Karte schließen" hier erledigt (und nicht an die KI weitergereicht)
+    if (wxOverlayEl && wxIsCloseRequest(text)) {
+        closeWeatherMap();
+        try { speak('Die Karte ist geschlossen.', typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {}
+        return true;
+    }
     const req = parseWeatherMapRequest(text);
     if (!req) return false;
     runWeatherMap(req).catch(() => { try { speak('Die Wetterkarte hat gerade nicht geklappt.'); } catch (e) {} });
     return true;
 }
 
-/* ---------- Einklinken: "Schließen" und andere Fenster arbeiten mit der Wetterkarte zusammen ---------- */
+/* ---------- Einklinken: andere Fenster arbeiten mit der Wetterkarte zusammen ---------- */
+/* WICHTIG: isPanelOpen() wird NICHT verändert. Die Wetterkarte ist kein "Panel" aus panels.js; würde isPanelOpen() bei offener Karte "ja" melden, liest
+   refreshOpenPanel() (panels.js) den Namen eines nicht vorhandenen Panels und bricht mit "Cannot read properties of null (reading 'name')" ab,
+   sobald irgendein Befehl renderAllLists() auslöst. */
 (function hookPanels() {
     try {
-        if (typeof isPanelOpen === 'function') {
-            const origIsOpen = isPanelOpen;
-            isPanelOpen = function () { return !!wxOverlayEl || origIsOpen.apply(this, arguments); };
-        }
         if (typeof closePanel === 'function') {
             const origClose = closePanel;
-            closePanel = function () { const had = closeWeatherMap(); return origClose.apply(this, arguments); };
+            closePanel = function () { closeWeatherMap(); return origClose.apply(this, arguments); };   // Karten (Anruf, Route ...) sollen nicht hinter der Wetterkarte stecken
         }
         if (typeof openPanel === 'function') {
             const origOpen = openPanel;
             openPanel = function () { closeWeatherMap(); return origOpen.apply(this, arguments); };   // ein anderes Fenster ersetzt die Wetterkarte
         }
-    } catch (e) { /* ohne diese Anbindung funktioniert die Wetterkarte trotzdem, nur "Schließen" per Sprache nicht */ }
+        if (typeof refreshOpenPanel === 'function') {
+            const origRefresh = refreshOpenPanel;
+            refreshOpenPanel = function () { if (wxOverlayEl) return; return origRefresh.apply(this, arguments); };   // bei offener Wetterkarte gibt es kein anderes Fenster zu aktualisieren
+        }
+    } catch (e) { /* ohne diese Anbindung funktioniert die Wetterkarte trotzdem */ }
 })();
+
+/* Zusätzliche Absicherung: Kommt ein "Karte schließen" doch bis zur KI durch (weil eine andere Stelle es vorher nicht abfängt), wird es hier erledigt, ohne die KI zu fragen. */
+window.addEventListener('load', function () {
+    try {
+        if (typeof sendToGroqSmart === 'function' && !sendToGroqSmart._wx) {
+            const originalSend = sendToGroqSmart;
+            sendToGroqSmart = function (text) {
+                try {
+                    if (wxOverlayEl && wxIsCloseRequest(text)) {
+                        closeWeatherMap();
+                        speak('Die Karte ist geschlossen.', typeof continueConversation === 'function' ? continueConversation : undefined);
+                        return Promise.resolve();
+                    }
+                } catch (e) { /* dann ganz normal weiter */ }
+                return originalSend.apply(this, arguments);
+            };
+            sendToGroqSmart._wx = true;
+        }
+    } catch (e) { /* ohne diese Absicherung bleibt alles wie vorher */ }
+});
