@@ -166,6 +166,22 @@
     window.getChuckle = function () { return window.getHumanLevel() !== 'aus'; };               // alte Namen, falls andere Dateien sie benutzen
     window.setChuckle = function (on) { window.setHumanLevel(on ? 'mittel' : 'aus'); };
 
+    // Lach-Wunsch: Steht im Gedächtnis ("Merk dir, dass du öfter lachen sollst"), lacht Jarvis öfter: bei jedem Spruch, und ab und zu auch mitten in normalen Antworten.
+    // Gilt nur, solange die Stufe "Menschliche Laute" nicht auf "aus" steht. Ein Wunsch mit "nicht/nie/weniger" zählt nicht.
+    function laughWish() {
+        try {
+            const mem = (typeof memoryItems !== 'undefined') ? memoryItems : null;
+            if (!mem || typeof mem !== 'object') return false;
+            return Object.keys(mem).some(k => {
+                let v = mem[k];
+                try { if (typeof parseMemoryValue === 'function') v = parseMemoryValue(v); } catch (e) {}
+                const all = (k + ' ' + (typeof v === 'string' ? v : JSON.stringify(v || ''))).toLowerCase();
+                return /lach|kicher|schmunzel|gackern|humorvoll|lustig/.test(all) && !/nicht|nie\b|niemals|kein|weniger|aufhören|unterlass|ernst/.test(all);
+            });
+        } catch (e) { return false; }
+    }
+    window.jvLaughWish = laughWish;
+
     let lastFishAt = 0;
     const THINKING = /^(?:einen moment|moment|ich schaue|ich sehe|ich prüfe|ich suche|ich frage|sofort|gleich|mal sehen|ich rechne|ich lade)/i;
     const SIGH_CATS = { stau_viel: 0.6, stau_lang: 0.7, fahrt_lang: 0.3, sprit: 0.3, bahn: 0.2 };
@@ -194,12 +210,21 @@
             else if (plainLen <= 70 && THINKING.test(out.trim())) { if (roll(0.3)) start = '[sigh] '; else if (roll(0.2)) start = 'Hmm. '; }
             else if (plainLen > 180 && roll(0.5)) start = '[inhale] ';
         }
+        const boost = laughWish();                                       // "öfter lachen" ist gewünscht
         let mid = '';
-        if (quip && !serious && (force || Math.random() < (level === 'dezent' ? 0.45 : 0.85))) {
+        if (quip && !serious && (force || boost || Math.random() < (level === 'dezent' ? 0.45 : 0.85))) {
             const r = force ? 0.5 : Math.random();
-            mid = r < 0.25 ? '[laughing] ' : r < 0.75 ? '[chuckle] ' : '[short pause] ';
+            if (boost && !force) mid = r < 0.4 ? '[laughing] ' : '[chuckle] ';          // mit Lach-Wunsch: immer lachen, keine bloße Pause
+            else mid = r < 0.25 ? '[laughing] ' : r < 0.75 ? '[chuckle] ' : '[short pause] ';
         }
-        if (!quip) return start + out;
+        if (!quip) {
+            // Lach-Wunsch auch ohne Spruch: ab und zu ein leises Lachen vor dem zweiten Satz einer normalen Antwort
+            if (boost && !serious && !force && out.replace(/\s+/g, ' ').length >= 50 && roll(0.25)) {
+                const sentences = out.split(/(?<=[.!?…])\s+/);
+                if (sentences.length >= 2 && !/^\[/.test(sentences[1])) { sentences.splice(1, 0, '[chuckle]'); out = sentences.join(' '); }
+            }
+            return start + out;
+        }
         const sep = /[\s]$/.test(out) ? '' : ' ';
         return start + out + sep + mid + quip;
     }
