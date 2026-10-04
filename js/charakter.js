@@ -7,6 +7,9 @@
    - SPRACHSTIL (neu, frei wählbar): "Rede ab jetzt wie ein Pirat", "Rede ab jetzt slangartig und locker", "Rede wieder normal".
      Der Satz wird gespeichert und bei jeder KI-Antwort als Vorgabe ans Ende der Anweisung gehängt (hat Vorrang vor dem Butler-Ton).
      Gilt nur für Antworten, die die KI selbst formuliert; feste App-Texte (Briefing, Stau, Fahrzeit, Sprüche) bleiben, wie sie sind.
+   - STIMMUNGEN (neu, zum Auswählen): Böse, Anschreien, Genervt, Beleidigt. Per Sprache ("Sei böse", "Schrei mich an", "Sei genervt", "Sei beleidigt", "Sei wieder normal")
+     oder in den Einstellungen unter Charakter & Mitdenken > Stimmung. Wirkt wie ein fertiger Sprachstil und setzt bei der Fish-Stimme passende Laut-Anweisungen
+     (z.B. [shouting]) vor jeden Satz (siehe pronunciation.js). Bei ernsten Themen bleibt es ruhig.
    - Stellst du dieselbe Frage zum dritten Mal in kurzer Zeit, kommentiert Jarvis das (ab Stufe "Trocken").
    Alles richtet sich nach dem Frechheitsgrad aus persona.js: Stufe 0 und 1 bekommen die höflichen Fassungen, ab Stufe 2 die frechen.
    Braucht: persona.js (sassLevel, setSassLevel), voice.js (speak, speakAck, pickRandom), storage.js, prompt.js (buildSystemPrompt). Wird von localcommands.js aufgerufen.
@@ -168,14 +171,140 @@ function charLevelCommand(t) {
    "Sprich langsamer/schneller/normal" gehört zum Sprechtempo (speechrate.js) und wird hier bewusst NICHT angefasst. */
 const CHAR_STYLE_KEY = 'helfer_speech_style';
 
+const CHAR_MOOD_KEY = 'helfer_mood';
+
+/* ---------- Stimmungen (zum Auswählen) ----------
+   style: Anweisung an die KI (wie ein fertiger Sprachstil). tag / first: Laut-Anweisungen für die Fish-Stimme (nur dort, nie in der Anzeige):
+   "tag" kommt vor JEDEN Satz, "first" nur vor den ersten. Gesprochen werden die Tags nie als Text, Fish deutet sie als Tonfall.
+   say: was Jarvis beim Einschalten sagt (spricht schon in der neuen Stimmung). */
+const CHAR_MOODS = {
+    boese: {
+        name: 'Böse',
+        style: 'kalt, drohend und bösartig, wie ein Filmschurke: kurze, scharfe Sätze, leise Drohungen im Ton, zynisch und überlegen. Nur gespielt: nie echte Drohungen oder Gewalt, nie beleidigend gegenüber Familie, Aussehen, Herkunft oder Gesundheit.',
+        tag: '[menacing]', first: '',
+        say: 'Wie Sie wünschen, {a}. Ab jetzt bin ich böse. Das wird Ihnen nicht gefallen.'
+    },
+    anschreien: {
+        name: 'Anschreien',
+        style: 'laut und herrisch, wie ein Feldwebel, der den User anschreit: Befehlston, kurze Sätze, viele Ausrufezeichen, keine Schmeicheleien. Nur spielerisch gemeint, nie verletzend.',
+        tag: '[shouting]', first: '',
+        say: 'Verstanden, {a}! Ab jetzt wird gebrüllt!'
+    },
+    genervt: {
+        name: 'Genervt',
+        style: 'genervt und gelangweilt: seufzt hörbar ("Hach", "Na schön"), antwortet widerwillig und knapp, als wäre jede Frage eine Zumutung. Die Information bleibt trotzdem vollständig.',
+        tag: '[annoyed]', first: '[sigh]',
+        say: 'Na schön, {a}. Ab jetzt bin ich genervt. Hach.'
+    },
+    beleidigt: {
+        name: 'Beleidigt',
+        style: 'beleidigt und schmollend: spielt die gekränkte Diva, macht passiv-aggressive Bemerkungen und antwortet nur widerwillig, aber trotzdem vollständig.',
+        tag: '[sulking]', first: '',
+        say: 'Bitte. Dann bin ich eben beleidigt, {a}.'
+    }
+};
+
+function getMoodId() {
+    try { const id = String(getPersistentData(CHAR_MOOD_KEY, '') || ''); return CHAR_MOODS[id] ? id : ''; } catch (e) { return ''; }
+}
+function getMood() { const id = getMoodId(); return id ? CHAR_MOODS[id] : null; }
+
+function charSyncMoodUi() {
+    try { const el = document.getElementById('moodSelect'); if (el) el.value = getMoodId(); } catch (e) {}
+}
+
+/* Stimmung einschalten ('' = aus). Ein frei gesagter Sprachstil wird dabei zurückgesetzt, damit sich beides nicht widerspricht. */
+function setMood(id) {
+    const key = CHAR_MOODS[id] ? id : '';
+    try { setPersistentData(CHAR_STYLE_KEY, ''); setPersistentData(CHAR_MOOD_KEY, key); } catch (e) {}
+    charSyncMoodUi();
+    return key ? CHAR_MOODS[key] : null;
+}
+
+/* Auswahl in den Einstellungen */
+function chooseMoodFromUi(id) {
+    const m = setMood(id);
+    charSay(m ? m.say : 'Gut, {a}. Ich bin wieder freundlich.');
+}
+
+/* Für pronunciation.js: Laut-Anweisungen der aktuellen Stimmung (oder null) */
+window.jvMoodTags = function () {
+    const m = getMood();
+    return m ? { tag: m.tag || '', first: m.first || '' } : null;
+};
+
+/* Der Stil, der an die KI-Anweisung gehängt wird: die gewählte Stimmung, sonst der frei gesagte Sprachstil */
 function getSpeechStyle() {
+    const m = getMood();
+    if (m) return m.style;
     try { return String(getPersistentData(CHAR_STYLE_KEY, '') || '').trim(); } catch (e) { return ''; }
 }
 
+/* Setzt den frei gesagten Sprachstil (leer = zurücksetzen). Schaltet dabei jede gewählte Stimmung aus. */
 function setSpeechStyle(s) {
     const clean = String(s || '').replace(/[\r\n"`{}\\<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100);
-    try { setPersistentData(CHAR_STYLE_KEY, clean); } catch (e) {}
+    try { setPersistentData(CHAR_STYLE_KEY, clean); setPersistentData(CHAR_MOOD_KEY, ''); } catch (e) {}
+    charSyncMoodUi();
     return clean;
+}
+
+/* Sprachbefehle für die Stimmungen: "Sei böse", "Schrei mich an", "Sei genervt", "Sei beleidigt", "Sei wieder normal", "Welche Stimmung hast du?" */
+function charMoodCommand(t) {
+    if (!t || t.length > 70) return null;
+    const pre = '(?:sei|werde|bleib)(?: bitte)?(?: ab jetzt)?(?: mal)?(?: richtig| ganz| so)? ';
+    const alias = '(?:stimmung|modus|laune)(?: auf| ist)? ';
+    const rules = [
+        ['boese', new RegExp('^' + pre + '(?:böse|bösartig|fies|gemein)$|^' + alias + '(?:böse|bösartig|fies)$')],
+        ['anschreien', new RegExp('^(?:schrei|schreie|brüll|brülle)(?: mich)?(?: bitte)?(?: ab jetzt)?(?: immer)?(?: an)?$|^(?:schrei|schreie|brüll|brülle) mich (?:ab jetzt )?(?:immer )?an$|^' + pre + '(?:wütend|zornig)$|^' + alias + '(?:anschreien|schreien|brüllen)$')],
+        ['genervt', new RegExp('^' + pre + '(?:genervt|gelangweilt|mürrisch|launisch)$|^' + alias + '(?:genervt|gelangweilt)$')],
+        ['beleidigt', new RegExp('^' + pre + '(?:beleidigt|eingeschnappt|gekränkt)$|^' + alias + '(?:beleidigt|eingeschnappt)$')]
+    ];
+    for (const [id, re] of rules) {
+        if (re.test(t)) return setMood(id).say;
+    }
+    const off = new RegExp('^' + '(?:sei|werde)(?: bitte)?(?: ab jetzt)? wieder (?:normal|nett|freundlich|lieb|höflich|ruhig|vernünftig)$|^' + alias + '(?:normal|aus|neutral)$|^(?:hör|hoer) auf(?: mich)? (?:anzuschreien|böse zu sein|zu schreien|genervt zu sein|beleidigt zu sein|zu schmollen)$|^(?:schrei|schreie|brüll|brülle)(?: mich)? nicht(?: mehr)?(?: mich)?(?: an)?$');
+    if (off.test(t)) {
+        if (!getMood()) return null;   // keine Stimmung eingeschaltet: andere Befehle (z.B. "Sei höflicher") sind dran
+        setMood('');
+        return 'Gut, {a}. Ich bin wieder freundlich.';
+    }
+    if (/^(?:welche stimmung hast du|welche laune hast du|wie ist deine stimmung|wie ist deine laune|in welcher stimmung bist du)$/.test(t)) {
+        const m = getMood();
+        return m ? `Ich bin gerade ${m.name.toLowerCase()}, {a}.` : 'Ich bin ganz normal, {a}.';
+    }
+    return null;
+}
+
+/* Auswahl "Stimmung" in den Einstellungen unter dem Frechheitsgrad einfügen (ohne index.html zu ändern) */
+function charInjectMoodSelect(sassSel) {
+    try {
+        if (document.getElementById('moodSelect')) return;
+        const host = sassSel.parentElement;
+        if (!host || !host.parentElement) return;
+        const oldLabel = host.querySelector('label');
+        const box = document.createElement('div');
+        const lab = document.createElement('label');
+        lab.className = oldLabel ? oldLabel.className : 'block text-xs font-bold text-[#49d7ff] mb-1 uppercase';
+        lab.textContent = 'Stimmung:';
+        const sel = document.createElement('select');
+        sel.id = 'moodSelect';
+        sel.className = sassSel.className;
+        sel.setAttribute('onchange', 'chooseMoodFromUi(this.value)');
+        [['', 'Normal (Butler)'], ['boese', 'Böse (kalt, drohend)'], ['anschreien', 'Anschreien (laut, Befehlston)'], ['genervt', 'Genervt (seufzt, gelangweilt)'], ['beleidigt', 'Beleidigt (schmollt)']].forEach(([v, label]) => {
+            const o = document.createElement('option');
+            o.value = v;
+            o.textContent = label;
+            sel.appendChild(o);
+        });
+        sel.value = getMoodId();
+        const hint = document.createElement('p');
+        hint.className = 'text-xs text-[#5d7e91] font-mono mt-1';
+        hint.textContent = 'Auch per Sprache: „Sei böse“, „Schrei mich an“, „Sei genervt“, „Sei beleidigt“, „Sei wieder normal“. Bei ernsten Themen bleibt Jarvis ruhig. Die Stimme wird nur bei Fish Audio lauter oder bösartiger.';
+        box.appendChild(lab);
+        box.appendChild(sel);
+        box.appendChild(hint);
+        host.insertAdjacentElement('afterend', box);
+    } catch (e) { /* ohne die Auswahl funktioniert alles per Sprache weiter */ }
 }
 
 /* Gibt den Antwortsatz zurück, wenn t ein Sprachstil-Befehl war, sonst null */
@@ -195,6 +324,8 @@ function charStyleCommand(t) {
 
     // Abfrage
     if (/^(?:welchen sprachstil hast du|welcher sprachstil ist (?:eingestellt|aktiv)|wie redest du (?:gerade|jetzt)|wie sprichst du (?:gerade|jetzt))$/.test(t)) {
+        const mq = getMood();
+        if (mq) return `Ich bin gerade ${mq.name.toLowerCase()}, {a}.`;
         const s = getSpeechStyle();
         return s ? `Ich rede gerade so: ${s}.` : 'Ich rede ganz normal, {a}, so wie immer.';
     }
@@ -256,7 +387,9 @@ function charAddressCommand(text) {
 function handleCharacterCommand(text) {
     const t = charNorm(text);
 
-    // Sprachstil: eigener, längerer Satz, darum vor der Längenprüfung unten
+    // Stimmungen (Böse, Anschreien, Genervt, Beleidigt) und Sprachstil: eigene Sätze, darum vor der Längenprüfung unten
+    const mc = charMoodCommand(t);
+    if (mc) { charSay(mc); return true; }
     const sc = charStyleCommand(t);
     if (sc) { charSay(sc); return true; }
 
@@ -320,6 +453,7 @@ function charNoteQuestion(text) {
         if (sel) {
             sel.value = String(charLevel());
             sel.addEventListener('change', () => setSassLevel(sel.value));
+            charInjectMoodSelect(sel);
         }
     } catch (e) { /* ohne die Einstellungen funktioniert alles per Sprache weiter */ }
 })();

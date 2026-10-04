@@ -210,6 +210,24 @@ function speakableOrdinalDates(text) {
     });
 }
 
+/* --- Stimmung (charakter.js): Laut-Anweisungen für die Fish-Stimme ---
+   Ist eine Stimmung gewählt (Böse, Anschreien, Genervt, Beleidigt), bekommt JEDER Satz vor dem Senden ihre Anweisung in eckigen Klammern, z.B. "[shouting] Das war's!".
+   Nur bei Fish Audio (andere Stimmen würden die Klammern vorlesen), nur wenn "Menschliche Laute" nicht auf "aus" steht, und nie bei ernsten Themen.
+   Auf dem Bildschirm steht der Text ohne die Anweisungen. */
+function moodTagged(text) {
+    try {
+        if (typeof window.jvMoodTags !== 'function') return text;
+        if (typeof window.getTtsEngine === 'function' && window.getTtsEngine() !== 'fish') return text;
+        if (typeof window.getHumanLevel === 'function' && window.getHumanLevel() === 'aus') return text;
+        const mt = window.jvMoodTags();
+        if (!mt || (!mt.tag && !mt.first)) return text;
+        if (typeof window.jvIsSerious === 'function' && window.jvIsSerious(text)) return text;
+        const parts = String(text).split(/(?<=[.!?…])\s+/).filter(Boolean);
+        if (!parts.length) return text;
+        return parts.map((sentence, i) => (i === 0 && mt.first ? mt.first + ' ' : '') + (mt.tag ? mt.tag + ' ' : '') + sentence).join(' ');
+    } catch (e) { return text; }
+}
+
 /* --- Einklinken in die Sprachausgabe (voice.js bleibt unverändert) ---
    Erst nach dem Laden ALLER Skripte (DOMContentLoaded), damit auch die später geladene Fish-Audio-Stimme (fish.js) durch die Liste läuft. */
 (function hookSpeech() {
@@ -219,7 +237,7 @@ function speakableOrdinalDates(text) {
         if (typeof fetchCloudSpeechBlob === 'function') {
             const origCloud = fetchCloudSpeechBlob;
             fetchCloudSpeechBlob = function (text, voice) {
-                return origCloud.call(this, speakableOrdinalDates(applyPronunciations(text)), voice);
+                return origCloud.call(this, moodTagged(speakableOrdinalDates(applyPronunciations(text))), voice);
             };
         }
         if (typeof speakBrowser === 'function') {
