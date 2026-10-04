@@ -335,6 +335,48 @@ function isFuelWish(text) {
     return FUEL_WISH_KEYWORDS.some(k => nk.includes(k));
 }
 
+/* Briefing-Wünsche zur Einkaufsliste ("Lies mir im Briefing die Einkaufsliste vor"): Wie bei den Dieselpreisen wird der gespeicherte Wunschtext
+   NICHT einfach vorgelesen (das war der Fehler: "Denken Sie daran, sich die Einkaufsliste vorlesen zu lassen"), sondern die ECHTEN, aktuellen Artikel
+   der Einkaufsliste kommen ins Briefing. Jeder Textwunsch, der "Einkaufsliste" oder "Einkaufszettel" enthält, zählt dazu (auch ein schon gespeicherter).
+   Wunsch wieder entfernen: "Nimm die Einkaufsliste aus dem Briefing". Höchstens 15 Artikel, der Rest wird als "weitere" erwähnt. */
+const SHOPPING_WISH_KEYWORDS = ['einkaufsliste', 'einkaufszettel'].map(normalizeKey);
+const BRIEFING_MAX_SHOPPING = 15;
+function isShoppingWish(text) {
+    const nk = normalizeKey(text);
+    return SHOPPING_WISH_KEYWORDS.some(k => nk.includes(k));
+}
+
+/* "Milch, Brot und Eier" */
+function joinWords(list) {
+    const l = (list || []).filter(Boolean);
+    if (l.length <= 1) return l.join('');
+    return l.slice(0, -1).join(', ') + ' und ' + l[l.length - 1];
+}
+
+/* Satz für Fallback-Briefing und Absicherung */
+function shoppingSentence(data) {
+    const items = data.einkaufsliste || [];
+    if (items.length === 0) return 'Ihre Einkaufsliste ist zurzeit leer.';
+    const more = data.einkaufsliste_weitere || 0;
+    return `Auf Ihrer Einkaufsliste stehen: ${joinWords(items)}` + (more > 0 ? `, dazu noch ${more} weitere Artikel` : '') + '.';
+}
+
+/* Hat die KI beim Formulieren Artikel der Einkaufsliste vergessen, wird die Liste noch einmal vollständig angehängt */
+function ensureShoppingMentioned(text, data) {
+    if (!data.wunsch_einkaufsliste_angefordert) return text;
+    const norm = normalizeKey(text);
+    const items = data.einkaufsliste || [];
+    if (items.length === 0) {
+        return /einkaufsliste/i.test(text) ? text : text.trim() + ' ' + shoppingSentence(data);
+    }
+    const missing = items.filter(it => {
+        const words = String(it).trim().split(/\s+/).map(normalizeKey).filter(Boolean);
+        const core = words.sort((a, b) => b.length - a.length)[0];
+        return core && !norm.includes(core);
+    });
+    return missing.length === 0 ? text : text.trim() + ' ' + shoppingSentence(data);
+}
+
 function buildBriefingData(now, weather) {
     const hour = parseInt(now.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', hour12: false }), 10);
     const uhrzeit = now.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
@@ -374,10 +416,16 @@ function buildBriefingData(now, weather) {
         .filter(w => w.type === 'text')
         .map(w => w.text)
         .filter(t => wishAppliesToday(t, wochentag));
+    // Wünsche zur Einkaufsliste sind ein Sonderfall: die App liest die ECHTEN, aktuellen Artikel vor (siehe oben bei isShoppingWish).
+    const wunschEinkaufAngefordert = alleTextWuensche.some(isShoppingWish);
     // Wünsche zu Sprit-/Dieselpreisen sind ein Sonderfall: die App soll den ECHTEN, aktuellen Preis abrufen
     // (siehe fetchCheapestDieselNearby unten), statt nur den gespeicherten Wunschtext selbst vorzulesen.
-    const wunschDieselAngefordert = alleTextWuensche.some(isFuelWish);
-    const wuensche = alleTextWuensche.filter(t => !isFuelWish(t));
+    const wunschDieselAngefordert = alleTextWuensche.some(t => !isShoppingWish(t) && isFuelWish(t));
+    const wuensche = alleTextWuensche.filter(t => !isShoppingWish(t) && !isFuelWish(t));
+
+    const alleArtikel = wunschEinkaufAngefordert
+        ? (shoppingEntries || []).map(e => String((e && e.text) || '').trim()).filter(Boolean)
+        : [];
 
     let wetter = null;
     if (weather && !weather.fehler) {
@@ -404,7 +452,10 @@ function buildBriefingData(now, weather) {
         geburtstage: [],   // wird in triggerDailyBriefing aus dem Geburtstags-Kalender gefüllt (birthdays.js)
         zusaetzliche_wuensche: wuensche,
         wichtige_gegenstaende: gegenstaende,
-        wunsch_dieselpreis_angefordert: wunschDieselAngefordert
+        wunsch_dieselpreis_angefordert: wunschDieselAngefordert,
+        wunsch_einkaufsliste_angefordert: wunschEinkaufAngefordert,
+        einkaufsliste: alleArtikel.slice(0, BRIEFING_MAX_SHOPPING),
+        einkaufsliste_weitere: Math.max(0, alleArtikel.length - BRIEFING_MAX_SHOPPING)
     };
 
     const parkInfo = (typeof describeParking === 'function') ? describeParking() : null;
@@ -442,6 +493,7 @@ async function composeBriefingWithModel(data) {
     "3b. Geburtstage: Steht etwas in 'geburtstage' (Liste mit 'titel' und 'tag'), erwähne die Geburtstage herzlich und natürlich in einem Satz, zum Beispiel 'Übrigens: Morgen hat Julia Geburtstag, vielleicht eine kleine Gratulation?' oder 'Heute hat Peter Geburtstag.'. Der 'titel' kann 'Julias Geburtstag' oder nur ein Name sein; mache daraus einen natürlichen Satz und nenne den Tag so, wie er in 'tag' steht. Ist die Liste leer, sag dazu gar nichts.\n" +
     "4. Wünsche & Gegenstände: Wenn wichtige Gegenstände (Schlüssel, Portemonnaie etc.) oder Wünsche in den Daten stehen, erinnere ihn daran so, wie es ein aufmerksamer Assistent beim Verlassen des Hauses tun würde. Formuliere vollständige, harmonische Sätze mit passenden Präpositionen (z. B. 'Bevor Sie gehen: Ihr Schlüssel liegt wie gewohnt in der Schublade').\n" +
     "4b. Dieselpreis: Ist 'dieselpreis' vorhanden (nicht null), nenne den aktuellen Preis und die Tankstelle beiläufig in einem natürlichen Satz (z. B. 'Der günstigste Diesel in Ihrer Nähe kostet aktuell 1,679 Euro bei der Aral in der Lauenburger Straße'). Ist 'wunsch_dieselpreis_angefordert' true, aber 'dieselpreis' null, erwähne kurz, dass der aktuelle Preis gerade nicht abrufbar war. Ist 'wunsch_dieselpreis_angefordert' false, sag dazu gar nichts.\n" +
+    "4c. Einkaufsliste: Ist 'wunsch_einkaufsliste_angefordert' true, nenne ALLE Artikel aus 'einkaufsliste' vollständig und unverändert in einer natürlichen Aufzählung (z. B. 'Auf Ihrer Einkaufsliste stehen Milch, Brot und Eier'). Ist 'einkaufsliste_weitere' größer als 0, erwähne am Ende kurz, dass noch weitere Artikel auf der Liste stehen. Ist die Liste leer, sag kurz, dass die Einkaufsliste leer ist. Ist 'wunsch_einkaufsliste_angefordert' false, sag dazu gar nichts.\n" +
     "5. Parkplatz: Wenn ein Parkplatz angegeben ist, erwähne beiläufig, wo der Wagen steht. Wenn nicht ('parkplatz' ist null), verliere KEIN EINZIGES WORT darüber.\n\n" +
     "Sprach-Regeln:\n" +
     "- Uhrzeiten immer exakt in 24-Stunden-Zählung nennen (z. B. '16 Uhr 17'), niemals runden, aber natürlich einbetten.\n" +
@@ -523,6 +575,10 @@ function buildFallbackBriefing(data) {
         } else {
             text += 'Den aktuellen Dieselpreis konnte ich gerade leider nicht abrufen. ';
         }
+    }
+
+    if (data.wunsch_einkaufsliste_angefordert) {
+        text += shoppingSentence(data) + ' ';
     }
 
     if (data.wichtige_gegenstaende.length > 0) {
@@ -627,6 +683,7 @@ async function triggerDailyBriefing() {
         if (!text) text = buildFallbackBriefing(data);
         else {
             text = ensureItemsMentioned(text, data);
+            text = ensureShoppingMentioned(text, data);
             if (typeof ensureBirthdaysMentioned === 'function') text = ensureBirthdaysMentioned(text, data);
         }
 
