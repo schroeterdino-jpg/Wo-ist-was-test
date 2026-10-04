@@ -4,9 +4,12 @@
    - Witze und Fakten rotieren, ohne sich schnell zu wiederholen.
    - Frechheitsgrad per Sprache: "Sei frecher", "Sei höflicher", "Keine Sprüche mehr", "Frechheit auf hoch". Einstellbar auch unter Einstellungen > Charakter.
    - Anrede per Sprache ("Nenn mich Boss") und per Schnellwahl in den Einstellungen.
+   - SPRACHSTIL (neu, frei wählbar): "Rede ab jetzt wie ein Pirat", "Rede ab jetzt slangartig und locker", "Rede wieder normal".
+     Der Satz wird gespeichert und bei jeder KI-Antwort als Vorgabe ans Ende der Anweisung gehängt (hat Vorrang vor dem Butler-Ton).
+     Gilt nur für Antworten, die die KI selbst formuliert; feste App-Texte (Briefing, Stau, Fahrzeit, Sprüche) bleiben, wie sie sind.
    - Stellst du dieselbe Frage zum dritten Mal in kurzer Zeit, kommentiert Jarvis das (ab Stufe "Trocken").
    Alles richtet sich nach dem Frechheitsgrad aus persona.js: Stufe 0 und 1 bekommen die höflichen Fassungen, ab Stufe 2 die frechen.
-   Braucht: persona.js (sassLevel, setSassLevel), voice.js (speak, speakAck, pickRandom), storage.js. Wird von localcommands.js aufgerufen.
+   Braucht: persona.js (sassLevel, setSassLevel), voice.js (speak, speakAck, pickRandom), storage.js, prompt.js (buildSystemPrompt). Wird von localcommands.js aufgerufen.
    ============================================================ */
 
 /* ---------- Hilfen ---------- */
@@ -158,6 +161,77 @@ function charLevelCommand(t) {
     ][after];
 }
 
+/* ---------- Sprachstil (frei wählbar) ----------
+   "Rede ab jetzt wie ein Pirat" / "Rede ab jetzt slangartig und locker" / "Von jetzt an sprichst du Jugendsprache" ...
+   Der Satz nach "ab jetzt" wird gespeichert (höchstens 100 Zeichen) und bei jeder KI-Antwort als Vorgabe an die Anweisung gehängt.
+   "Rede wieder normal" / "Rede ab jetzt wieder normal" / "Vergiss deinen Sprachstil" stellt den Butler-Ton zurück.
+   "Sprich langsamer/schneller/normal" gehört zum Sprechtempo (speechrate.js) und wird hier bewusst NICHT angefasst. */
+const CHAR_STYLE_KEY = 'helfer_speech_style';
+
+function getSpeechStyle() {
+    try { return String(getPersistentData(CHAR_STYLE_KEY, '') || '').trim(); } catch (e) { return ''; }
+}
+
+function setSpeechStyle(s) {
+    const clean = String(s || '').replace(/[\r\n"`{}\\<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100);
+    try { setPersistentData(CHAR_STYLE_KEY, clean); } catch (e) {}
+    return clean;
+}
+
+/* Gibt den Antwortsatz zurück, wenn t ein Sprachstil-Befehl war, sonst null */
+function charStyleCommand(t) {
+    if (!t || t.length > 140) return null;
+
+    // Zurücksetzen
+    if (/^(?:rede|red|antworte|sprich|sprech)(?: bitte)?(?: (?:ab jetzt|von jetzt an|ab sofort))? wieder (?:normal|wie sonst|wie früher|wie vorher|wie ein butler)$/.test(t)
+        || /^(?:rede|red|antworte)(?: bitte)? (?:normal|wie sonst|wie ein butler|butlerhaft)$/.test(t)
+        || /^(?:ab jetzt|jetzt) wieder normal$/.test(t)
+        || /^(?:vergiss|lösche|setze?) (?:deinen |den )?(?:sprachstil|redestil)(?: zurück)?$/.test(t)
+        || /^sprachstil (?:zurücksetzen|löschen|aus)$/.test(t)) {
+        if (!getSpeechStyle()) return 'Ich rede ohnehin wie gewohnt, {a}.';
+        setSpeechStyle('');
+        return 'Gut, {a}. Ich rede wieder wie gewohnt.';
+    }
+
+    // Abfrage
+    if (/^(?:welchen sprachstil hast du|welcher sprachstil ist (?:eingestellt|aktiv)|wie redest du (?:gerade|jetzt)|wie sprichst du (?:gerade|jetzt))$/.test(t)) {
+        const s = getSpeechStyle();
+        return s ? `Ich rede gerade so: ${s}.` : 'Ich rede ganz normal, {a}, so wie immer.';
+    }
+
+    // Neuer Stil
+    const m = t.match(/^(?:rede|red|sprich|sprech|antworte|antwort)(?: bitte)? (?:ab jetzt|von jetzt an|ab sofort|künftig|zukünftig|in zukunft|immer) (.{3,120})$/)
+        || t.match(/^(?:dein )?(?:sprachstil|redestil)(?: ist| lautet| auf|:)? (.{3,120})$/);
+    if (!m) return null;
+    const rest = m[1].trim();
+    if (/^(?:etwas |ein bisschen |bisschen |viel |noch )?(?:langsamer|schneller|lauter|leiser|deutlicher|normal)$/.test(rest)) return null;   // das ist das Sprechtempo
+    if (/\baus$/.test(rest)) return null;   // "Sprich ... so aus" gehört zur Aussprache-Liste
+    const style = setSpeechStyle(rest);
+    if (!style) return null;
+    return `Verstanden, {a}. Ab jetzt rede ich so: ${style}. Mit "Rede wieder normal" ist es wieder vorbei.`;
+}
+
+/* Zusatz am Ende der KI-Anweisung, solange ein Sprachstil gespeichert ist. Steht ganz hinten, damit er den Butler-Ton und die Beispielsätze weiter oben übersteuert. */
+function charStyleReminder(style) {
+    return '\n\nSPRACHSTIL (vom User festgelegt, hat Vorrang vor allen Tonangaben und Beispielsätzen in dieser Anweisung): Formuliere ab jetzt ALLE deine Antworten (das Feld "reply") in diesem Stil: ' + style + '. ' +
+        'Die Beispielsätze im Butler-Ton weiter oben zeigen nur, WAS inhaltlich gesagt werden soll, nicht WIE. Der Stil ändert nur Wortwahl und Ton: Zahlen, Uhrzeiten, Daten, Namen, Adressen und alle Aktionen bleiben exakt und vollständig. ' +
+        'Bei ernsten Themen (Gesundheit, Medikamente, Warnungen, Fehler, Geld) bleibt es klar und gut verständlich, ohne Übertreibung; nie beleidigend. Das Ausgabeformat (valides JSON) bleibt unverändert.';
+}
+
+(function hookStylePrompt() {
+    if (typeof window.buildSystemPrompt !== 'function' || window.buildSystemPrompt._stil) return;
+    const original = window.buildSystemPrompt;
+    const wrapped = function () {
+        let base = original.apply(this, arguments);
+        try { const st = getSpeechStyle(); if (st) base += charStyleReminder(st); } catch (e) { /* darf nie etwas stören */ }
+        return base;
+    };
+    wrapped._stil = true;
+    // Eigenschaften der vorherigen Hülle behalten, damit nichts doppelt einhängt
+    Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
+    window.buildSystemPrompt = wrapped;
+})();
+
 /* ---------- Anrede ---------- */
 function setAddress(name) {
     const n = String(name || '').trim().slice(0, 24);
@@ -181,6 +255,11 @@ function charAddressCommand(text) {
 /* ---------- Haupt-Funktion ---------- */
 function handleCharacterCommand(text) {
     const t = charNorm(text);
+
+    // Sprachstil: eigener, längerer Satz, darum vor der Längenprüfung unten
+    const sc = charStyleCommand(t);
+    if (sc) { charSay(sc); return true; }
+
     if (!t || t.length > 60) return false;
     const lvl = charLevel();
 
