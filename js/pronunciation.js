@@ -7,6 +7,10 @@
    bzw. speakBrowser()/speakAckBrowser() (Handy-Stimme). Diese drei Funktionen werden hier umhüllt und ersetzen
    vor dem Sprechen die Wörter aus der Liste. voice.js selbst bleibt unverändert; bei der Cloud-Stimme
    zeigt der Untertitel weiter die Original-Schreibweise.
+
+   WICHTIG (Fish Audio): fish.js ersetzt fetchCloudSpeechBlob später noch einmal und holt die Fish-Stimme selbst.
+   Damit die Liste auch dort greift, wird das Einklinken erst gemacht, wenn ALLE Skripte geladen sind
+   (DOMContentLoaded). So ist diese Umhüllung immer die äußerste, egal in welcher Reihenfolge die Dateien stehen.
    ============================================================ */
 
 const PRONUNCIATION_KEY = 'helfer_pronunciations';
@@ -176,26 +180,33 @@ function handlePronunciationCommand(text) {
     return done(`Gut, ab jetzt sage ich ${word}.`);   // läuft selbst durch die Liste: man hört gleich die neue Aussprache
 }
 
-/* --- Einklinken in die Sprachausgabe (voice.js bleibt unverändert) --- */
+/* --- Einklinken in die Sprachausgabe (voice.js bleibt unverändert) ---
+   Erst nach dem Laden ALLER Skripte (DOMContentLoaded), damit auch die später geladene Fish-Audio-Stimme (fish.js) durch die Liste läuft. */
 (function hookSpeech() {
-    if (typeof fetchCloudSpeechBlob === 'function') {
-        const origCloud = fetchCloudSpeechBlob;
-        fetchCloudSpeechBlob = function (text, voice) {
-            return origCloud.call(this, applyPronunciations(text), voice);
-        };
+    function install() {
+        if (window.__pronHooked) return;
+        window.__pronHooked = true;
+        if (typeof fetchCloudSpeechBlob === 'function') {
+            const origCloud = fetchCloudSpeechBlob;
+            fetchCloudSpeechBlob = function (text, voice) {
+                return origCloud.call(this, applyPronunciations(text), voice);
+            };
+        }
+        if (typeof speakBrowser === 'function') {
+            const origBrowser = speakBrowser;
+            speakBrowser = function (cleanText, onComplete, langCode) {
+                return origBrowser.call(this, langCode ? cleanText : applyPronunciations(cleanText), onComplete, langCode);   // Dolmetscher (Fremdsprache) bleibt unberührt
+            };
+        }
+        if (typeof speakAckBrowser === 'function') {
+            const origAck = speakAckBrowser;
+            speakAckBrowser = function (text, gen, onComplete) {
+                return origAck.call(this, applyPronunciations(text), gen, onComplete);
+            };
+        }
     }
-    if (typeof speakBrowser === 'function') {
-        const origBrowser = speakBrowser;
-        speakBrowser = function (cleanText, onComplete, langCode) {
-            return origBrowser.call(this, langCode ? cleanText : applyPronunciations(cleanText), onComplete, langCode);   // Dolmetscher (Fremdsprache) bleibt unberührt
-        };
-    }
-    if (typeof speakAckBrowser === 'function') {
-        const origAck = speakAckBrowser;
-        speakAckBrowser = function (text, gen, onComplete) {
-            return origAck.call(this, applyPronunciations(text), gen, onComplete);
-        };
-    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
+    else install();
 })();
 
 /* Liste in den Einstellungen aktuell halten: beim Start und bei jeder Neuzeichnung der Listen */
