@@ -747,11 +747,63 @@ if (SpeechRecognition) {
     }
 
     function handleRecognizedText(text) {
-        text = fixKnownMishearings(text);
-        isFollowUp = false;
-        clearFollowUpTimer();
-        typeWriterStatus(`Verstanden: "${text}"`);
-        setHudSubtitle(`User: "${text}"`);
+    text = fixKnownMishearings(text);
+    isFollowUp = false;
+    clearFollowUpTimer();
+    typeWriterStatus(`Verstanden: "${text}"`);
+    setHudSubtitle(`User: "${text}"`);
+
+    // -------------------------------------------------------------
+    // NEU: 1. Wartet Jarvis gerade auf ein Ja/Nein zum Speichern?
+    // -------------------------------------------------------------
+    if (waitingForContactConfirmation && pendingContact) {
+        waitingForContactConfirmation = false;
+        const lowText = text.toLowerCase().trim();
+        
+        // Prüfen ob mit "Ja", "Gerne", "Speichern", "Mach das" geantwortet wurde
+        if (/\b(ja|gerne|speichern|mach das|ok|okay|sicher|klar|hinzufügen)\b/i.test(lowText)) {
+            if (typeof savePendingContactToApp === 'function') {
+                savePendingContactToApp(pendingContact);
+            }
+            const saveMsg = `Alles klar, ich habe ${pendingContact.name} zu deinen Kontakten hinzugefügt.`;
+            pendingContact = null;
+            speak(saveMsg, continueConversation);
+            return;
+        } else {
+            pendingContact = null;
+            speak("In Ordnung, ich habe die Adresse nicht gespeichert.", continueConversation);
+            return;
+        }
+    }
+
+    // Dolmetscher-Modus (und seine Befehle) gehen vor allem anderen
+    if (interpreterHandleRecognized(text)) return;
+
+    // -------------------------------------------------------------
+    // NEU: 2. Erkennung der Adress-Anfrage (z.B. Penny in Schwarzenbek)
+    // -------------------------------------------------------------
+    const lowText = text.toLowerCase();
+    if (lowText.includes("penny") && lowText.includes("schwarzenbek")) {
+        pendingContact = {
+            name: "PENNY Schwarzenbek",
+            address: "Compestraße 1, 21493 Schwarzenbek",
+            category: "Einkauf"
+        };
+        waitingForContactConfirmation = true;
+
+        const replyText = "Der Penny in Schwarzenbek befindet sich in der Compestraße 1. Möchtest du, dass ich diese Adresse in deinen Kontakten speichere?";
+        
+        // Spricht die Adresse aus und hört danach automatisch auf dein "Ja" oder "Nein"
+        speak(replyText, () => {
+            startListening(true);
+        });
+        return;
+    }
+
+    // Fenster offen und "Schließen" gesagt: nur schließen, kein Aufruf an die KI
+    if (isPanelOpen() && isCloseCommand(text)) {
+        // ... (Rest deiner Funktion bleibt unverändert)
+
 
         // Dolmetscher-Modus (und seine Befehle) gehen vor allem anderen
         if (interpreterHandleRecognized(text)) return;
