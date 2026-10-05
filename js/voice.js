@@ -18,6 +18,9 @@ let interpFailCount = 0;     // wie oft die Spracherkennung in dieser Dolmetsche
 const INTERP_MAX_RETRIES = 2;   // so oft hört er in derselben Runde automatisch weiter, bevor er zurück auf Deutsch wechselt
 let wakeWordEnabled = getPersistentData('wake_word_enabled', '0') === '1';
 let wakeWordListening = false;
+let pendingContact = null;
+let waitingForContactConfirmation = false;
+
 
 const SPEECH_RATE = 1.0;
 const SPEECH_PITCH = 0.92;
