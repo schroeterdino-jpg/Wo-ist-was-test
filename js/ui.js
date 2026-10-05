@@ -1,3 +1,4 @@
+var renderAllLists = typeof renderAllLists === 'function' ? renderAllLists : function() {};
 /* ============================================================
    UI: DOM-Referenzen, Terminal-Zeile, HUD-Untertitel, Navigation
    Muss als ERSTE Datei geladen werden.
