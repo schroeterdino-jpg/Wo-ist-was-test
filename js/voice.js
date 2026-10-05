@@ -813,7 +813,7 @@ function handleRecognizedText(text) {
     sendToGroqSmart(text);
 }
 
-    }
+    
     recognition.onerror = (event) => {
         const wasFollowUp = isFollowUp;
         isFollowUp = false;
