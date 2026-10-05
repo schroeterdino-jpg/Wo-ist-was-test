@@ -2,8 +2,7 @@
    VOICE: Stimme, Gesprächsmodus, Unterbrechen, Spracherkennung
    Braucht: ui.js, audio.js, storage.js
    ============================================================ */
-var typeWriterStatus = typeof typeWriterStatus === 'function' ? typeWriterStatus : function() {};
-var updateTerminalStream = typeof updateTerminalStream === 'function' ? updateTerminalStream : function() {};
+
 let currentAudio = null;
 let currentUtterance = null;
 let ackActive = false;
@@ -19,9 +18,6 @@ let interpFailCount = 0;     // wie oft die Spracherkennung in dieser Dolmetsche
 const INTERP_MAX_RETRIES = 2;   // so oft hört er in derselben Runde automatisch weiter, bevor er zurück auf Deutsch wechselt
 let wakeWordEnabled = getPersistentData('wake_word_enabled', '0') === '1';
 let wakeWordListening = false;
-let pendingContact = null;
-let waitingForContactConfirmation = false;
-
 
 const SPEECH_RATE = 1.0;
 const SPEECH_PITCH = 0.92;
@@ -738,83 +734,43 @@ if (SpeechRecognition) {
 
         handleRecognizedText(text);
     };
-/* Die Spracherkennung verhört sich beim Namen "Alyssa" konsequent zu ähnlich klingenden Namen
-   (Alicia, Alissa, Alisha) - das lässt sich an der Erkennung selbst nicht ändern (keine eigenen
-   Wörterbücher in der Web-Spracherkennung), darum wird der erkannte Text hier vor der Weiterverarbeitung
-   korrigiert, ganz am Anfang, damit Kalender-Namenssuche und die KI immer "Alyssa" bekommen. */
-function fixKnownMishearings(text) {
-    return String(text || '').replace(/\b(Alicia|Alissa|Alisha)\b/gi, 'Alyssa');
-}
 
-function handleRecognizedText(text) {
-    text = fixKnownMishearings(text);
-    isFollowUp = false;
-    clearFollowUpTimer();
-    typeWriterStatus(`Verstanden: "${text}"`);
-    setHudSubtitle(`User: "${text}"`);
+    /* Die Spracherkennung verhört sich beim Namen "Alyssa" konsequent zu ähnlich klingenden Namen
+       (Alicia, Alissa, Alisha) - das lässt sich an der Erkennung selbst nicht ändern (keine eigenen
+       Wörterbücher in der Web-Spracherkennung), darum wird der erkannte Text hier vor der Weiterverarbeitung
+       korrigiert, ganz am Anfang, damit Kalender-Namenssuche und die KI immer "Alyssa" bekommen. */
+    function fixKnownMishearings(text) {
+        return String(text || '').replace(/\b(Alicia|Alissa|Alisha)\b/gi, 'Alyssa');
+    }
 
-    // 1. Wartet Jarvis gerade auf ein Ja/Nein zum Speichern?
-    if (waitingForContactConfirmation && pendingContact) {
-        waitingForContactConfirmation = false;
-        const lowText = text.toLowerCase().trim();
-        
-        if (/\b(ja|gerne|speichern|mach das|ok|okay|sicher|klar|hinzufügen)\b/i.test(lowText)) {
-            if (typeof savePendingContactToApp === 'function') {
-                savePendingContactToApp(pendingContact);
-            }
-            const saveMsg = `Alles klar, ich habe ${pendingContact.name} zu deinen Kontakten hinzugefügt.`;
-            pendingContact = null;
-            speak(saveMsg, continueConversation);
-            return;
-        } else {
-            pendingContact = null;
-            speak("In Ordnung, ich habe die Adresse nicht gespeichert.", continueConversation);
+    function handleRecognizedText(text) {
+        text = fixKnownMishearings(text);
+        isFollowUp = false;
+        clearFollowUpTimer();
+        typeWriterStatus(`Verstanden: "${text}"`);
+        setHudSubtitle(`User: "${text}"`);
+
+        // Dolmetscher-Modus (und seine Befehle) gehen vor allem anderen
+        if (interpreterHandleRecognized(text)) return;
+
+        // Fenster offen und "Schließen" gesagt: nur schließen, kein Aufruf an die KI
+        if (isPanelOpen() && isCloseCommand(text)) {
+            closePanel();
+            typeWriterStatus("Klicken zum Sprechen...");
+            speak(pickRandom(["Sehr wohl.", "Zu Diensten.", "Wird geschlossen.", "Gerne.", "Ist erledigt.", "Fenster zu."]), continueConversation);
             return;
         }
+
+        if (isEndPhrase(text)) {
+            closePanel();
+            typeWriterStatus("Klicken zum Sprechen...");
+            speak(pickRandom(["Sehr wohl.", "Jederzeit.", "Zu Diensten.", "Bis gleich.", "Ich bin für Sie da.", "Melden Sie sich, wann immer Sie mögen.", "Ganz wie Sie wünschen."]));
+            return;
+        }
+        // Feste Sprachbefehle (Karte, Arbeitsadresse, Protokolle) ohne Umweg über die KI
+        if (typeof handleLocalCommand === 'function' && handleLocalCommand(text)) return;
+        sendToGroqSmart(text);
     }
-
-    // Dolmetscher-Modus (und seine Befehle) gehen vor allem anderen
-    if (interpreterHandleRecognized(text)) return;
-
-    // 2. Erkennung der Adress-Anfrage (z.B. Penny in Schwarzenbek)
-    const lowText = text.toLowerCase();
-    if (lowText.includes("penny") && lowText.includes("schwarzenbek")) {
-        pendingContact = {
-            name: "PENNY Schwarzenbek",
-            address: "Compestraße 1, 21493 Schwarzenbek",
-            category: "Einkauf"
-        };
-        waitingForContactConfirmation = true;
-
-        const replyText = "Der Penny in Schwarzenbek befindet sich in der Compestraße 1. Möchtest du, dass ich diese Adresse in deinen Kontakten speichere?";
-        
-        speak(replyText, () => {
-            startListening(true);
-        });
-        return;
-    }
-
-    // Fenster offen und "Schließen" gesagt: nur schließen, kein Aufruf an die KI
-    if (isPanelOpen() && isCloseCommand(text)) {
-        closePanel();
-        typeWriterStatus("Klicken zum Sprechen...");
-        speak(pickRandom(["Sehr wohl.", "Zu Diensten.", "Wird geschlossen.", "Gerne.", "Ist erledigt.", "Fenster zu."]), continueConversation);
-        return;
-    }
-
-    if (isEndPhrase(text)) {
-        closePanel();
-        typeWriterStatus("Klicken zum Sprechen...");
-        speak(pickRandom(["Sehr wohl.", "Jederzeit.", "Zu Diensten.", "Bis gleich.", "Ich bin für Sie da.", "Melden Sie sich, wann immer Sie mögen.", "Ganz wie Sie wünschen."]));
-        return;
-    }
-    
-    // Feste Sprachbefehle (Karte, Arbeitsadresse, Protokolle) ohne Umweg über die KI
-    if (typeof handleLocalCommand === 'function' && handleLocalCommand(text)) return;
-    sendToGroqSmart(text);
-}
-
-    
     recognition.onerror = (event) => {
         const wasFollowUp = isFollowUp;
         isFollowUp = false;
