@@ -152,7 +152,7 @@
                     <p id="userNameDisplay" class="text-xs font-bold text-[#49d7ff]/80 tracking-widest uppercase mt-0.5 font-mono">Hallo, Dino!</p>
                 </div>
                 <button onclick="playUiBeep(); openPanel('settings')" class="bg-[#0a1621] hover:bg-cyan-950/50 text-[#49d7ff] p-2.5 rounded-lg text-sm shadow flex items-center justify-center border border-[rgba(93,209,255,.18)] transition">
-                    ⚙️
+                    ⚙️️
                 </button>
             </div>
             <!-- Statuszeile: ausgeblendet, wird aber weiter von anderen Dateien beschrieben -->
@@ -601,138 +601,31 @@
                         <div class="pt-2 border-t border-[rgba(93,209,255,.18)]">
                             <button onclick="playUiBeep(); document.getElementById('diagToolsBox').classList.toggle('hidden')" class="w-full bg-slate-900 hover:bg-slate-800 text-[#5d7e91] py-2 rounded-lg text-xs font-bold border border-slate-700 uppercase tracking-wide">🔧 Diagnose-Werkzeuge (nur bei Problemen)</button>
                         </div>
-                        <div id="diagToolsBox" class="hidden space-y-3">
-                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Kalender-Suche testen (Suchbegriff):</label>
-                                <input type="text" id="calendarDiagInput" value="Helmut" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                                <button onclick="playUiBeep(); runCalendarDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🔍 Kalender prüfen</button>
-                                <pre id="calendarDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                            </div>
-                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Internet-Suche testen (Frage):</label>
-                                <input type="text" id="webDiagInput" value="Was läuft heute Abend im Fernsehen?" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                                <button onclick="playUiBeep(); runWebDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🌐 Internet prüfen</button>
-                                <pre id="webDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                            </div>
-                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Gmail testen (nur lesen, ungelesene E-Mails):</label>
-                                <button onclick="playUiBeep(); runGmailDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">📧 Gmail prüfen</button>
-                                <pre id="gmailDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                            </div>
-                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Fahrzeit testen (Ziel):</label>
-                                <input type="text" id="travelDiagInput" value="Hans-Dewitz-Ring" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                                <button onclick="playUiBeep(); runTravelDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🚗 Route prüfen</button>
-                                <pre id="travelDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                            </div>
-                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Sprit auf der Strecke testen (Ziel):</label>
-                                <input type="text" id="tankRouteDiagInput" value="Hans-Dewitz-Ring" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                                <button onclick="playUiBeep(); runTankRouteDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">⛽ Sprit-Route prüfen</button>
-                                <pre id="tankRouteDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                            </div>
-                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Langzeitgedächtnis testen (Suchbegriff, optional):</label>
-                                <input type="text" id="memoryDiagInput" value="Currywurst" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                                <button onclick="playUiBeep(); runMemoryDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🧠 Gedächtnis prüfen</button>
-                                <pre id="memoryDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                            </div>
-                            <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                                <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Restaurants in der Nähe testen (Küche, optional):</label>
-                                <input type="text" id="nearbyDiagInput" placeholder="z.B. Chinesisch, leer = alle" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                                <button onclick="playUiBeep(); runNearbyDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">🍽️ Restaurants prüfen</button>
-                                <pre id="nearbyDiagOutput" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
-                            </div>
+                        <div id="diagToolsBox" class="hidden space-y-3 pt-2">
+                            <p class="text-xs text-[#5d7e91] font-mono">Erweiterte System-Diagnose und Protokolle einsehen.</p>
+                            <button onclick="playUiBeep(); handleDiagCommand('status')" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded-lg text-xs font-bold border border-slate-700 uppercase">System-Status ausgeben</button>
                         </div>
-                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Datensicherung:</label>
-                            <p class="text-xs text-[#5d7e91] font-mono">Speichert Listen, Termine, Gedächtnis, Parkplatz und Heimatadresse als Datei. Auch per Sprache: „Sichere meine Daten."</p>
-                            <button onclick="playUiBeep(); exportAllData()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">💾 Daten sichern (Download)</button>
-                            <input type="file" id="backupRestoreInput" accept="application/json" class="hidden" onchange="handleImportFile(this)">
-                            <button onclick="playUiBeep(); document.getElementById('backupRestoreInput').click()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">📂 Sicherung wiederherstellen</button>
-                        </div>
-                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
-                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">App-Code (schützt deine Schnittstellen):</label>
-                            <input type="password" id="appSecretInput" placeholder="Geheimer App-Code..." autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                            <button onclick="playUiBeep(); syncNow(true)" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">☁️ Jetzt synchronisieren</button>
-                            <p id="syncStatus" class="text-xs text-[#5d7e91] font-medium break-all">Synchronisierung: noch nicht gestartet.</p>
-                        </div>
-                    </div>
-                </details>
-
-                <details id="contactsDetails" class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
-                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
-                        <span>📞 Kontakte</span>
-                    </summary>
-                    <div class="p-4 space-y-3">
-                        <p class="text-xs text-[#5d7e91] font-mono">Adresse eintragen, damit „Ich möchte zu [Name] fahren" die Fahrzeit findet. Telefonnummer nur nötig für Anruf/WhatsApp - eins von beiden reicht zum Speichern.</p>
-                        <div class="flex gap-2">
-                            <input type="text" id="contactNameInput" placeholder="Name..." class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                            <input type="text" id="contactPhoneInput" placeholder="Nummer (optional)..." class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                        </div>
-                        <input type="text" id="contactAddressInput" placeholder="Adresse: Straße, Hausnummer, Ort (optional)..." autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                        <button onclick="playUiBeep(); saveContact()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Kontakt speichern</button>
-                        <div id="contactListDisplay" class="mt-2 text-xs text-[#5d7e91] space-y-1"></div>
                     </div>
                 </details>
             </section>
 
         </main>
-
-        <!-- Fußzeile: ausgeblendet -->
-        <footer class="ui-hidden bg-[#081424]/90 backdrop-blur border-t border-[rgba(93,209,255,.18)] text-center p-3 text-xs text-[#49d7ff]/80 flex justify-between items-center px-6 font-mono">
-            <span>J.A.R.V.I.S. HUD SHELL</span>
-            <span class="font-bold">v13.1 (Marvel Edition)</span>
-        </footer>
     </div>
 
-    <!-- Fenster, die ins Bild fliegen (Termine, Erinnerungen, Listen, Einstellungen ...) -->
-    <div id="panelLayer" class="hidden" aria-hidden="true">
-        <div id="panelBackdrop" onclick="closePanel()"></div>
-        <div id="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle" class="hud-panel">
-            <div class="panel-scan"></div>
-            <div class="panel-header">
-                <h2 id="panelTitle" class="text-lg font-bold text-[#49d7ff] uppercase tracking-wide">Fenster</h2>
-                <button onclick="playUiBeep(); closePanel()" aria-label="Schließen" class="panel-close">✕</button>
-            </div>
-            <div id="panelBody"></div>
-        </div>
+    <!-- Modals & zusätzliche Panels werden bei Bedarf dynamisch von JS geladen -->
+    <div id="modalOverlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div id="modalContent" class="bg-[#0a1621] border border-[rgba(93,209,255,.3)] rounded-xl p-5 max-w-md w-full max-h-[85vh] overflow-y-auto"></div>
     </div>
 
-    <!-- Reihenfolge ist wichtig: Jede Datei darf nur Dinge nutzen, die weiter oben geladen wurden. -->
-    <script src="./js/ui.js"></script>
-    <script src="./js/audio.js"></script>
-    <script src="./js/sphere.js"></script>
-    <script src="./js/storage.js"></script>
-    <script src="./js/render.js"></script>
-    <script src="./js/lists.js"></script>
-    <script src="./js/places.js"></script>
-    <script src="./js/panels.js"></script>
-    <script src="./js/calendar.js"></script>
-    <script src="./js/mail.js"></script>
-    <script src="./js/travel.js"></script>
-    <script src="./js/nearby.js"></script>
-    <script src="./js/smarttips.js"></script>
-    <script src="./js/sync.js"></script>
+    <!-- App-Skripte -->
     <script src="./js/voice.js"></script>
-    <script src="./js/pronunciation.js"></script>
-    <script src="./js/voicefix.js"></script>
-    <script src="./js/speechrate.js"></script>
-    <script src="./js/tempo.js"></script>
-    <script src="./js/briefing.js"></script>
-    <script src="./js/answers.js"></script>
+    <script src="./js/assistant.js"></script>
+    <script src="./js/localcommands.js"></script>
+    <script src="./js/panels.js"></script>
     <script src="./js/actions.js"></script>
-    <script src="./js/reminders.js"></script>
     <script src="./js/persona.js"></script>
     <script src="./js/prompt.js"></script>
-    <script src="./js/routing.js"></script>
-    <script src="./js/localcommands.js"></script>
-    <script src="./js/systemcheck.js"></script>
     <script src="./js/help.js"></script>
-    <script src="./js/birthdays.js"></script>
-    <script src="./js/weathermap.js"></script>
-    <script src="./js/waehrung.js"></script>
-    <script src="./js/ferien.js"></script>
     <script src="./js/charakter.js"></script>
     <script src="./js/mitdenken.js"></script>
     <script src="./js/wachter.js"></script>
@@ -740,46 +633,27 @@
     <script src="./js/welt_anflug.js"></script>
     <script src="./js/diagnose.js"></script>
     <script src="./js/photo.js"></script>
-    <script src="./js/foto_adresse.js"></script>
-    <!-- Neu: Feiertage, Sonne und Mond (mit Fenster), Weltzeit, Unwetterwarnungen, Filmtipps. erweiterungen.js hängt sie ein und muss danach kommen. -->
-    <script src="./js/extrafenster.js"></script>
+    <script src="./js/ferien.js"></script>
+    <script src="./js/waehrung.js"></script>
+    <script src="./js/weathermap.js"></script>
+    <script src="./js/nearbymore.js"></script>
+    <script src="./js/calendar.js"></script>
+    <script src="./js/briefing.js"></script>
+    <script src="./js/speechrate.js"></script>
+    <script src="./js/birthdays.js"></script>
+    <script src="./js/routing.js"></script>
     <script src="./js/feiertage.js"></script>
     <script src="./js/sonnemond.js"></script>
     <script src="./js/weltzeit.js"></script>
     <script src="./js/unwetter.js"></script>
     <script src="./js/filme.js"></script>
-    <script src="./js/ortsuche.js"></script>
-    <script src="./js/erweiterungen.js"></script>
+    <script src="./js/extrafenster.js"></script>
+    <script src="./js/foto_adresse.js"></script>
     <script src="./js/sprueche.js"></script>
+    <script src="./js/ortsuche.js"></script>
     <script src="./js/toene.js"></script>
-    <script src="./js/lebendig.js"></script>
     <script src="./js/fish.js"></script>
-    <script src="./js/nearbymore.js"></script>
-    <script src="./js/assistant.js"></script>
-    <script src="./js/fehlerort.js"></script>
-    <script src="./js/gedaechtnis.js"></script>
-    <script src="./js/background.js"></script>
-    <script src="./js/matrix.js"></script>
-
-    <!-- Die Jarvis-Texte (Untertitel, Status) erscheinen nur, solange er spricht, zuhört oder gerade etwas gesagt hat, und blenden sich dann wieder aus -->
-    <script>
-        (function () {
-            var txt = document.getElementById('hudSubtitleText');
-            var btn = document.getElementById('recordBtn');
-            if (!txt || !btn) return;
-            var timer = null;
-            function active() { return btn.classList.contains('speaking') || btn.classList.contains('recording'); }
-            function show() { document.body.classList.add('show-sub'); clearTimeout(timer); }
-            function fadeLater() {
-                clearTimeout(timer);
-                timer = setTimeout(function () { if (!active()) document.body.classList.remove('show-sub'); }, 6000);
-            }
-            var textObserver = new MutationObserver(function () { show(); fadeLater(); });
-            [txt, document.getElementById('statusMessage'), document.getElementById('recordText')].forEach(function (el) {
-                if (el) textObserver.observe(el, { childList: true, characterData: true, subtree: true });
-            });
-            new MutationObserver(function () { if (active()) show(); else fadeLater(); }).observe(btn, { attributes: true, attributeFilter: ['class'] });
-        })();
-    </script>
+    <script src="./js/audio.js"></script>
+    <script src="./js/sphere.js"></script>
 </body>
 </html>
