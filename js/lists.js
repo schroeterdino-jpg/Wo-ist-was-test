@@ -406,33 +406,37 @@ function executeListEdit(action, ctx) {
 function savePendingContactToApp(contactData) {
     if (!contactData || !contactData.name) return;
 
-    // 1. Kontakt-Objekt zusammenstellen
+    // 1. Kontakt-Objekt zusammenstellen (mit addr für die Adresse)
     const newContact = {
         id: 'contact_' + Date.now(),
         name: contactData.name,
-        address: contactData.address || '',
         phone: contactData.phone || '',
+        addr: contactData.address || contactData.addr || '',
         category: contactData.category || 'Geschäft',
-        photo: '', // Visitenkarte/Foto optional leer
+        photo: '',
         createdAt: new Date().toISOString()
     };
 
     // 2. In lokales Kontakte-Array / LocalStorage einfügen
-    // Falls deine Variable in lists.js anders heißt (z.B. contacts), hier anpassen!
-    if (typeof contactsList !== 'undefined' && Array.isArray(contactsList)) {
-        contactsList.push(newContact);
-        setPersistentData('app_contacts', JSON.stringify(contactsList));
-    } else {
-        let currentContacts = [];
-        try {
-            currentContacts = JSON.parse(getPersistentData('app_contacts', '[]'));
-        } catch(e) {}
-        currentContacts.push(newContact);
-        setPersistentData('app_contacts', JSON.stringify(currentContacts));
+    let currentContacts = [];
+    try {
+        currentContacts = JSON.parse(localStorage.getItem('contacts') || '[]');
+    } catch(e) {
+        currentContacts = [];
     }
 
-    // 3. UI-Liste aktualisieren (falls Rendern-Funktion existiert)
-    if (typeof renderContactsList === 'function') {
+    currentContacts.push(newContact);
+    localStorage.setItem('contacts', JSON.stringify(currentContacts));
+
+    // Falls zusätzlich contactsList im Speicher genutzt wird
+    if (typeof contactsList !== 'undefined' && Array.isArray(contactsList)) {
+        contactsList.push(newContact);
+    }
+
+    // 3. UI-Liste aktualisieren
+    if (typeof renderContacts === 'function') {
+        renderContacts();
+    } else if (typeof renderContactsList === 'function') {
         renderContactsList();
     }
 
