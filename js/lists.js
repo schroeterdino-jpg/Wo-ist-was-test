@@ -400,3 +400,44 @@ function executeListEdit(action, ctx) {
         renderContactList();
     }
 }
+/* ============================================================
+   NEU: Kontakt direkt aus dem Sprachassistenten speichern
+   ============================================================ */
+function savePendingContactToApp(contactData) {
+    if (!contactData || !contactData.name) return;
+
+    // 1. Kontakt-Objekt zusammenstellen
+    const newContact = {
+        id: 'contact_' + Date.now(),
+        name: contactData.name,
+        address: contactData.address || '',
+        phone: contactData.phone || '',
+        category: contactData.category || 'Geschäft',
+        photo: '', // Visitenkarte/Foto optional leer
+        createdAt: new Date().toISOString()
+    };
+
+    // 2. In lokales Kontakte-Array / LocalStorage einfügen
+    // Falls deine Variable in lists.js anders heißt (z.B. contacts), hier anpassen!
+    if (typeof contactsList !== 'undefined' && Array.isArray(contactsList)) {
+        contactsList.push(newContact);
+        setPersistentData('app_contacts', JSON.stringify(contactsList));
+    } else {
+        let currentContacts = [];
+        try {
+            currentContacts = JSON.parse(getPersistentData('app_contacts', '[]'));
+        } catch(e) {}
+        currentContacts.push(newContact);
+        setPersistentData('app_contacts', JSON.stringify(currentContacts));
+    }
+
+    // 3. UI-Liste aktualisieren (falls Rendern-Funktion existiert)
+    if (typeof renderContactsList === 'function') {
+        renderContactsList();
+    }
+
+    // 4. Synchronisierung ausführen (falls vorhanden)
+    if (typeof syncContacts === 'function') {
+        syncContacts();
+    }
+}
