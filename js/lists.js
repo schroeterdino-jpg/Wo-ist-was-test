@@ -406,42 +406,27 @@ function executeListEdit(action, ctx) {
 function savePendingContactToApp(contactData) {
     if (!contactData || !contactData.name) return;
 
-    // 1. Kontakt-Objekt zusammenstellen (mit addr für die Adresse)
-    const newContact = {
-        id: 'contact_' + Date.now(),
-        name: contactData.name,
+    // 1. Schluessel (Kleinbuchstaben) erzeugen
+    const key = contactData.name.toLowerCase();
+
+    // 2. Kontakt im globalen Objekt savedContacts ablegen
+    if (typeof savedContacts === 'undefined') {
+        window.savedContacts = {};
+    }
+
+    savedContacts[key] = {
+        originalName: contactData.name,
         phone: contactData.phone || '',
-        addr: contactData.address || contactData.addr || '',
-        category: contactData.category || 'Geschäft',
-        photo: '',
-        createdAt: new Date().toISOString()
+        address: contactData.address || contactData.addr || ''
     };
 
-    // 2. In lokales Kontakte-Array / LocalStorage einfügen
-    let currentContacts = [];
-    try {
-        currentContacts = JSON.parse(localStorage.getItem('contacts') || '[]');
-    } catch(e) {
-        currentContacts = [];
+    // 3. Im persistenten Speicher deiner App ablegen
+    if (typeof setPersistentData === 'function') {
+        setPersistentData('helfer_contacts', JSON.stringify(savedContacts));
     }
 
-    currentContacts.push(newContact);
-    localStorage.setItem('contacts', JSON.stringify(currentContacts));
-
-    // Falls zusätzlich contactsList im Speicher genutzt wird
-    if (typeof contactsList !== 'undefined' && Array.isArray(contactsList)) {
-        contactsList.push(newContact);
-    }
-
-    // 3. UI-Liste aktualisieren
-    if (typeof renderContacts === 'function') {
-        renderContacts();
-    } else if (typeof renderContactsList === 'function') {
-        renderContactsList();
-    }
-
-    // 4. Synchronisierung ausführen (falls vorhanden)
-    if (typeof syncContacts === 'function') {
-        syncContacts();
+    // 4. UI-Liste aktualisieren
+    if (typeof renderContactList === 'function') {
+        renderContactList();
     }
 }
