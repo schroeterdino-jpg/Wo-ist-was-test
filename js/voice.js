@@ -2,7 +2,8 @@
    VOICE: Stimme, Gesprächsmodus, Unterbrechen, Spracherkennung
    Braucht: ui.js, audio.js, storage.js
    ============================================================ */
-let typeWriterStatus = null;
+var typeWriterStatus = typeof typeWriterStatus === 'function' ? typeWriterStatus : function() {};
+var updateTerminalStream = typeof updateTerminalStream === 'function' ? updateTerminalStream : function() {};
 let currentAudio = null;
 let currentUtterance = null;
 let ackActive = false;
