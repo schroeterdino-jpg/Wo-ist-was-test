@@ -1,4 +1,5 @@
 var renderAllLists = typeof renderAllLists === 'function' ? renderAllLists : function() {};
+var renderContactList = typeof renderContactList === 'function' ? renderContactList : function() {};
 /* ============================================================
    UI: DOM-Referenzen, Terminal-Zeile, HUD-Untertitel, Navigation
    Muss als ERSTE Datei geladen werden.
