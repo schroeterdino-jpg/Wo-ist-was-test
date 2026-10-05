@@ -165,15 +165,30 @@ function deleteContact(key) {
 function renderContactList() {
     if (!contactListDisplay) return;
     const keys = Object.keys(savedContacts);
-    setHtmlIfChanged(contactListDisplay, keys.length === 0 ? 'Keine Kontakte.' : keys.map(k => {
-        const c = savedContacts[k];
-        const parts = [];
-        if (c.phone) parts.push(`📞 ${c.phone}`);
-        if (c.address) parts.push(`📍 ${escapeHtml(c.address)}`);
-        const details = parts.length ? parts.join(' · ') : '<span class="italic text-slate-600">keine Nummer/Adresse</span>';
-        return `<div class="flex justify-between items-center bg-black p-2 rounded border border-[rgba(93,209,255,.2)] my-1"><span><b>${escapeHtml(c.originalName)}</b>: ${details}</span><button onclick="playUiBeep(); deleteContact('${k}')" class="text-[#49d7ff] font-bold">Löschen</button></div>`;
-    }).join(''));
+    setHtmlIfChanged(contactListDisplay, keys.length === 0 ? 'Keine Kontakte gespeichert.' : 
+        keys.map(k => {
+            const c = savedContacts[k];
+            const parts = [];
+            if (c.phone) parts.push(`📞 ${c.phone}`);
+            
+            // Wenn eine Adresse existiert, wird sie als anklickbarer Google Maps Link dargestellt
+            if (c.address) {
+                const encodedAddr = encodeURIComponent(c.address);
+                const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddr}`;
+                parts.push(`📍 <a href="${mapsUrl}" target="_blank" style="color: inherit; text-decoration: underline;">${c.address}</a>`);
+            }
+            
+            const details = parts.length ? parts.join(' · ') : '';
+            return `<div class="flex justify-between items-center bg-black/30 p-2 rounded mb-1">
+                        <div>
+                            <strong>${c.originalName || k}:</strong> ${details}
+                        </div>
+                        <button onclick="deleteContact('${k}')" class="text-red-400 text-sm hover:underline ml-2">Löschen</button>
+                    </div>`;
+        }).join('')
+    );
 }
+
 
 /* --- Löschen --- */
 function deleteTodoEntry(id) {
