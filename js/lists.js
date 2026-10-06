@@ -1,9 +1,9 @@
 /* ============================================================
-   LISTS: Aufgaben, Einkaufsliste, Gedächtnis, Kontakte
+   LISTS: Aufgaben, Einkaufsliste, GedÃ¤chtnis, Kontakte
    Braucht: storage.js, render.js
    ============================================================ */
 
-/* --- Gedächtnis: Werte lesen und durchsuchen --- */
+/* --- GedÃ¤chtnis: Werte lesen und durchsuchen --- */
 function parseMemoryValue(rawVal) {
     if (typeof rawVal === 'object' && rawVal !== null) {
         return rawVal.location || rawVal.value || JSON.stringify(rawVal);
@@ -17,7 +17,7 @@ function parseMemoryValue(rawVal) {
     return String(rawVal);
 }
 
-/* Wie unterschiedlich sind zwei Wörter? (Levenshtein-Distanz: Anzahl der Änderungen, um von a zu b zu kommen) */
+/* Wie unterschiedlich sind zwei WÃ¶rter? (Levenshtein-Distanz: Anzahl der Ã„nderungen, um von a zu b zu kommen) */
 function levenshteinDistance(a, b) {
     const m = a.length, n = b.length;
     if (m === 0) return n;
@@ -53,9 +53,9 @@ function searchMemory(query) {
         .map(key => ({ key, value: parseMemoryValue(memoryItems[key]) }));
     if (exact.length > 0) return exact;
 
-    // Nichts gefunden: bei einzelnen Wörtern (z.B. ein Name, den die Spracherkennung verhört hat)
-    // nach dem ähnlichsten gespeicherten Namen suchen, statt "nichts gefunden" zu melden.
-    if (lowerQuery.split(/\s+/).length > 3) return [];   // ganze Sätze nicht fuzzy vergleichen, zu unscharf
+    // Nichts gefunden: bei einzelnen WÃ¶rtern (z.B. ein Name, den die Spracherkennung verhÃ¶rt hat)
+    // nach dem Ã¤hnlichsten gespeicherten Namen suchen, statt "nichts gefunden" zu melden.
+    if (lowerQuery.split(/\s+/).length > 3) return [];   // ganze SÃ¤tze nicht fuzzy vergleichen, zu unscharf
     const nq = normalizeKey(lowerQuery);
     if (nq.length < 3) return [];
 
@@ -65,14 +65,14 @@ function searchMemory(query) {
         if (nk.length < 3) return;
         const dist = levenshteinDistance(nq, nk);
         const maxLen = Math.max(nq.length, nk.length);
-        const erlaubt = Math.max(2, Math.floor(maxLen * 0.4));   // z.B. bis zu 40% der Buchstaben dürfen abweichen
+        const erlaubt = Math.max(2, Math.floor(maxLen * 0.4));   // z.B. bis zu 40% der Buchstaben dÃ¼rfen abweichen
         if (dist <= erlaubt && dist < bestDist) { best = key; bestDist = dist; }
     });
     return best ? [{ key: best, value: parseMemoryValue(memoryItems[best]), unscharf: true }] : [];
 }
 
-/* Gleicher Gegenstand mit angehängtem "ort" ("schlüsselort" = "schlüssel"): Der alte Eintrag wird ersetzt,
-   statt doppelt im Gedächtnis zu bleiben. */
+/* Gleicher Gegenstand mit angehÃ¤ngtem "ort" ("schlÃ¼sselort" = "schlÃ¼ssel"): Der alte Eintrag wird ersetzt,
+   statt doppelt im GedÃ¤chtnis zu bleiben. */
 function removeKeyVariants(newKey) {
     const b = normalizeKey(newKey);
     if (!b) return;
@@ -82,7 +82,7 @@ function removeKeyVariants(newKey) {
     });
 }
 
-/* --- Manuell hinzufügen --- */
+/* --- Manuell hinzufÃ¼gen --- */
 function addManualTodo() {
     const inputEl = document.getElementById('manualTodoInput');
     if (!inputEl) return;
@@ -92,7 +92,7 @@ function addManualTodo() {
         setPersistentData('helfer_todo_entries', JSON.stringify(todoEntries));
         inputEl.value = '';
         renderAllLists();
-        speak(`Aufgabe hinzugefügt.`);
+        speak(`Aufgabe hinzugefÃ¼gt.`);
     }
 }
 
@@ -128,7 +128,7 @@ function addManualMemoryItem() {
 
 /* --- Kontakte ---
    Jeder Kontakt kann Telefonnummer und/oder Adresse haben - eins von beiden reicht zum Speichern.
-   Die Adresse wird von travel.js genutzt, damit "Ich möchte zu [Name] fahren" die Fahrzeit findet. */
+   Die Adresse wird von travel.js genutzt, damit "Ich mÃ¶chte zu [Name] fahren" die Fahrzeit findet. */
 function saveContact() {
     const nameEl = document.getElementById('contactNameInput');
     const phoneEl = document.getElementById('contactPhoneInput');
@@ -141,14 +141,7 @@ function saveContact() {
         speak('Mir fehlt der Name und mindestens Telefonnummer oder Adresse.');
         return;
     }
-    const key = name.toLowerCase();
-    const existing = savedContacts[key] || {};
-    savedContacts[key] = {
-        originalName: name,
-        phone: phone || existing.phone || '',
-        address: address || existing.address || ''
-    };
-    setPersistentData('helfer_contacts', JSON.stringify(savedContacts));
+    saveContactRecord(name, phone, address);
     nameEl.value = '';
     if (phoneEl) phoneEl.value = '';
     if (addressEl) addressEl.value = '';
@@ -162,20 +155,92 @@ function deleteContact(key) {
     renderContactList();
 }
 
+function saveContactRecord(name, phone = '', address = '') {
+    name = String(name || '').trim();
+    phone = String(phone || '').trim();
+    address = String(address || '').trim();
+    if (!name || (!phone && !address)) return false;
+    const key = name.toLowerCase();
+    const existing = savedContacts[key] || {};
+    savedContacts[key] = {
+        originalName: existing.originalName || name,
+        phone: phone || existing.phone || '',
+        address: address || existing.address || ''
+    };
+    setPersistentData('helfer_contacts', JSON.stringify(savedContacts));
+    renderContactList();
+    return true;
+}
+
+function contactExists(name) {
+    const key = String(name || '').trim().toLowerCase();
+    return !!(key && savedContacts[key]);
+}
+
+/* Google Maps fÃ¼r gespeicherte Kontaktadressen. */
+function openContactAddress(name) {
+    const key = String(name || '').trim().toLowerCase();
+    const c = savedContacts[key];
+    if (!c || !c.address) return false;
+    const url = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(c.address);
+    try {
+        const w = window.open(url, '_blank', 'noopener,noreferrer');
+        if (!w) window.location.href = url;
+    } catch (e) {
+        try { window.location.href = url; } catch (e2) {}
+    }
+    return true;
+}
+
+/* Kontaktangebot nach einer gefundenen Adresse (Ortssuche, Foto, andere Funktionen). */
+let pendingPlaceContact = null;
+function askSavePlaceAsContact(place) {
+    if (!place || !place.name) return;
+    const address = [place.street, place.city].filter(Boolean).join(', ').trim();
+    if (!address || contactExists(place.name)) return;
+    pendingPlaceContact = { name: place.name, address, at: Date.now() };
+    try {
+        if (typeof clearActionCards === 'function') clearActionCards();
+        if (typeof showActionCards === 'function') showActionCards([
+            { icon: 'ðŸ‘¤', title: 'Als Kontakt speichern?', subtitle: `${place.name} Â· ${address}` },
+            { icon: 'âž•', title: 'Ja, speichern', subtitle: 'Adresse in deine Kontakte Ã¼bernehmen', onclick: 'confirmPlaceContactSave()' },
+            { icon: 'âœ–ï¸', title: 'Nein', subtitle: 'Nicht speichern', onclick: 'cancelPlaceContactSave()' }
+        ]);
+    } catch (e) {}
+}
+
+function confirmPlaceContactSave() {
+    const p = pendingPlaceContact;
+    pendingPlaceContact = null;
+    if (!p || Date.now() - p.at > 120000) { speak('Die Kontaktfrage ist abgelaufen.'); return; }
+    if (contactExists(p.name)) { speak(`${p.name} ist bereits in deinen Kontakten.`); return; }
+    if (saveContactRecord(p.name, '', p.address)) {
+        speak(`${p.name} wurde mit der Adresse in deinen Kontakten gespeichert.`);
+    } else {
+        speak('Der Kontakt konnte nicht gespeichert werden.');
+    }
+}
+
+function cancelPlaceContactSave() {
+    pendingPlaceContact = null;
+    try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) {}
+    speak('Okay, ich speichere den Ort nicht als Kontakt.');
+}
+
 function renderContactList() {
     if (!contactListDisplay) return;
     const keys = Object.keys(savedContacts);
     setHtmlIfChanged(contactListDisplay, keys.length === 0 ? 'Keine Kontakte.' : keys.map(k => {
         const c = savedContacts[k];
         const parts = [];
-        if (c.phone) parts.push(`📞 ${c.phone}`);
-        if (c.address) parts.push(`📍 ${escapeHtml(c.address)}`);
-        const details = parts.length ? parts.join(' · ') : '<span class="italic text-slate-600">keine Nummer/Adresse</span>';
-        return `<div class="flex justify-between items-center bg-black p-2 rounded border border-[rgba(93,209,255,.2)] my-1"><span><b>${escapeHtml(c.originalName)}</b>: ${details}</span><button onclick="playUiBeep(); deleteContact('${k}')" class="text-[#49d7ff] font-bold">Löschen</button></div>`;
+        if (c.phone) parts.push(`<a href="tel:${escapeHtml(c.phone.replace(/[^+0-9]/g, ''))}" onclick="playUiBeep()" class="text-[#49d7ff] underline">ðŸ“ž ${escapeHtml(c.phone)}</a>`);
+        if (c.address) parts.push(`<button type="button" onclick="playUiBeep(); openContactAddress(${JSON.stringify(c.originalName)})" class="text-[#49d7ff] underline text-left">ðŸ“ ${escapeHtml(c.address)}</button>`);
+        const details = parts.length ? parts.join(' Â· ') : '<span class="italic text-slate-600">keine Nummer/Adresse</span>';
+        return `<div class="flex justify-between items-center gap-2 bg-black p-2 rounded border border-[rgba(93,209,255,.2)] my-1"><span class="min-w-0"><b>${escapeHtml(c.originalName)}</b>: ${details}</span><button onclick="playUiBeep(); deleteContact('${k.replace(/'/g, "\\'")}')" class="text-[#49d7ff] font-bold shrink-0">LÃ¶schen</button></div>`;
     }).join(''));
 }
 
-/* --- Löschen --- */
+/* --- LÃ¶schen --- */
 function deleteTodoEntry(id) {
     todoEntries = todoEntries.filter(e => e.id !== id);
     setPersistentData('helfer_todo_entries', JSON.stringify(todoEntries));
@@ -194,23 +259,23 @@ function deleteMemoryItem(key) {
     delete memoryItems[key];
     setPersistentData('helfer_memory', JSON.stringify(memoryItems));
     renderAllLists();
-    speak("Eintrag aus dem Gedächtnis gelöscht.");
+    speak("Eintrag aus dem GedÃ¤chtnis gelÃ¶scht.");
 }
 
 function clearAllMemory() {
     memoryItems = {};
     setPersistentData('helfer_memory', '{}');
     renderAllLists();
-    speak("Das neuronale Gedächtnis wurde vollständig bereinigt.");
+    speak("Das neuronale GedÃ¤chtnis wurde vollstÃ¤ndig bereinigt.");
 }
 
-/* --- Briefing-Wünsche: Dinge, die im Tages-Briefing immer genannt werden sollen --- */
+/* --- Briefing-WÃ¼nsche: Dinge, die im Tages-Briefing immer genannt werden sollen --- */
 function saveBriefingWishes() {
     setPersistentData('helfer_briefing_wishes', JSON.stringify(briefingWishes));
 }
 
 /* type 'text': freier Hinweis ("Denken Sie an Ihre Tabletten.")
-   type 'item': Begriff aus dem Gedächtnis, der immer mit seinem Platz genannt wird */
+   type 'item': Begriff aus dem GedÃ¤chtnis, der immer mit seinem Platz genannt wird */
 function addBriefingWish(type, text, id) {
     const clean = String(text || '').trim();
     const norm = normalizeKey(clean);
@@ -229,7 +294,7 @@ function addManualBriefingWish() {
     if (val) {
         addBriefingWish('text', val, Date.now());
         inputEl.value = '';
-        speak(`Wird im Briefing berücksichtigt, ${currentUserName}.`);
+        speak(`Wird im Briefing berÃ¼cksichtigt, ${currentUserName}.`);
     }
 }
 
@@ -240,7 +305,7 @@ function deleteBriefingWish(id) {
     speak("Aus dem Briefing gestrichen.");
 }
 
-/* Löscht alle Wünsche, die zum Suchbegriff passen. Gibt die Anzahl zurück (0 = nichts gefunden). */
+/* LÃ¶scht alle WÃ¼nsche, die zum Suchbegriff passen. Gibt die Anzahl zurÃ¼ck (0 = nichts gefunden). */
 function deleteBriefingWishesByQuery(query) {
     const q = normalizeKey(query);
     if (!q) return 0;
@@ -259,7 +324,7 @@ function deleteBriefingWishesByQuery(query) {
 
 /* --- Allgemeines Bearbeiten der Listen per Sprache (Aktion "list_edit") --- */
 
-/* Fehler mit einem Satz, den J.A.R.V.I.S. dem User wörtlich sagen kann */
+/* Fehler mit einem Satz, den J.A.R.V.I.S. dem User wÃ¶rtlich sagen kann */
 function userError(message) {
     const err = new Error(message);
     err.userMessage = message;
@@ -269,20 +334,20 @@ function userError(message) {
 const LIST_PLACE = {
     einkauf: 'auf der Einkaufsliste',
     aufgaben: 'auf der Aufgabenliste',
-    gedaechtnis: 'im Gedächtnis',
+    gedaechtnis: 'im GedÃ¤chtnis',
     kontakte: 'in den Kontakten'
 };
 
-/* Findet Einträge zu einem Suchbegriff: erst exakte Treffer, sonst Einträge, die den Begriff enthalten.
-   Bei mehreren ungenauen Treffern wird nichts geändert, sondern nachgefragt. */
+/* Findet EintrÃ¤ge zu einem Suchbegriff: erst exakte Treffer, sonst EintrÃ¤ge, die den Begriff enthalten.
+   Bei mehreren ungenauen Treffern wird nichts geÃ¤ndert, sondern nachgefragt. */
 function resolveListTargets(entries, query, place) {
     const q = normalizeKey(query);
     const exact = q ? entries.filter(e => normalizeKey(e.text) === q) : [];
     if (exact.length > 0) return exact;
     const partial = q ? entries.filter(e => normalizeKey(e.text).includes(q)) : [];
-    if (partial.length === 0) throw userError(`„${query}" habe ich ${place} nicht gefunden.`);
+    if (partial.length === 0) throw userError(`â€ž${query}" habe ich ${place} nicht gefunden.`);
     if (partial.length > 1) {
-        throw userError(`Zu „${query}" gibt es mehrere Einträge: ${partial.map(e => e.text).join(', ')}. Welchen meinen Sie?`);
+        throw userError(`Zu â€ž${query}" gibt es mehrere EintrÃ¤ge: ${partial.map(e => e.text).join(', ')}. Welchen meinen Sie?`);
     }
     return partial;
 }
@@ -295,7 +360,7 @@ function executeListEdit(action, ctx) {
     const newValue = String(action.list_new_value || '').trim();
 
     if (!LIST_PLACE[list]) throw userError('Diese Liste kenne ich nicht.');
-    if (!['add', 'remove', 'clear', 'replace'].includes(op)) throw userError('Diese Änderung kenne ich nicht.');
+    if (!['add', 'remove', 'clear', 'replace'].includes(op)) throw userError('Diese Ã„nderung kenne ich nicht.');
     const place = LIST_PLACE[list];
 
     /* ---------- Einkauf & Aufgaben (Listen aus { id, text }) ---------- */
@@ -308,7 +373,7 @@ function executeListEdit(action, ctx) {
         if (op === 'clear') {
             setEntries([]);
         } else if (op === 'add') {
-            if (items.length === 0) throw userError('Mir fehlt, was ich hinzufügen soll.');
+            if (items.length === 0) throw userError('Mir fehlt, was ich hinzufÃ¼gen soll.');
             items.forEach(text => {
                 const exists = getEntries().some(e => normalizeKey(e.text) === normalizeKey(text));
                 if (exists) return;
@@ -335,7 +400,7 @@ function executeListEdit(action, ctx) {
             }
             return;
         } else if (op === 'replace') {
-            if (items.length === 0 || !newValue) throw userError('Mir fehlt, was ich ändern und wie es heißen soll.');
+            if (items.length === 0 || !newValue) throw userError('Mir fehlt, was ich Ã¤ndern und wie es heiÃŸen soll.');
             const targets = resolveListTargets(getEntries(), items[0], place);
             targets.forEach(t => { t.text = newValue; });
         }
@@ -344,18 +409,18 @@ function executeListEdit(action, ctx) {
         return;
     }
 
-    /* ---------- Gedächtnis (Begriff -> Wert) ---------- */
+    /* ---------- GedÃ¤chtnis (Begriff -> Wert) ---------- */
     if (list === 'gedaechtnis') {
-        if (op === 'clear') throw userError('Das komplette Gedächtnis leere ich nur über den Knopf im Gedächtnis-Tab.');
+        if (op === 'clear') throw userError('Das komplette GedÃ¤chtnis leere ich nur Ã¼ber den Knopf im GedÃ¤chtnis-Tab.');
         const keys = () => Object.keys(memoryItems).map(k => ({ text: k }));
         if (op === 'add' || op === 'replace') {
-            if (items.length === 0 || !newValue) throw userError('Mir fehlt der Begriff oder der Wert fürs Gedächtnis.');
+            if (items.length === 0 || !newValue) throw userError('Mir fehlt der Begriff oder der Wert fÃ¼rs GedÃ¤chtnis.');
             let key = items[0].toLowerCase();
             if (op === 'replace') key = resolveListTargets(keys(), items[0], place)[0].text;
             removeKeyVariants(key);
             memoryItems[key] = newValue;
         } else if (op === 'remove') {
-            if (items.length === 0) throw userError('Mir fehlt, was ich aus dem Gedächtnis löschen soll.');
+            if (items.length === 0) throw userError('Mir fehlt, was ich aus dem GedÃ¤chtnis lÃ¶schen soll.');
             const done = [], problems = [];
             items.forEach(query => {
                 try {
@@ -369,7 +434,7 @@ function executeListEdit(action, ctx) {
             setPersistentData('helfer_memory', JSON.stringify(memoryItems));
             renderAllLists();
             if (problems.length > 0) {
-                throw userError((done.length ? `Gelöscht habe ich: ${done.join(', ')}. ` : '') + problems.join(' '));
+                throw userError((done.length ? `GelÃ¶scht habe ich: ${done.join(', ')}. ` : '') + problems.join(' '));
             }
             return;
         }
@@ -380,7 +445,7 @@ function executeListEdit(action, ctx) {
 
     /* ---------- Kontakte (Name -> Nummer/Adresse) ---------- */
     if (list === 'kontakte') {
-        if (op === 'clear') throw userError('Alle Kontakte auf einmal lösche ich nicht per Sprache.');
+        if (op === 'clear') throw userError('Alle Kontakte auf einmal lÃ¶sche ich nicht per Sprache.');
         const names = () => Object.keys(savedContacts).map(k => ({ text: savedContacts[k].originalName, key: k }));
         if (op === 'add') {
             if (items.length === 0 || !newValue) throw userError('Mir fehlt der Name oder die Telefonnummer.');
@@ -392,7 +457,7 @@ function executeListEdit(action, ctx) {
             const t = resolveListTargets(names(), items[0], place)[0];
             savedContacts[t.key].phone = newValue;
         } else if (op === 'remove') {
-            if (items.length === 0) throw userError('Mir fehlt, welchen Kontakt ich löschen soll.');
+            if (items.length === 0) throw userError('Mir fehlt, welchen Kontakt ich lÃ¶schen soll.');
             const t = resolveListTargets(names(), items[0], place)[0];
             delete savedContacts[t.key];
         }
