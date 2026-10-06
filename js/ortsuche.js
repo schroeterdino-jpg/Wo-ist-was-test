@@ -172,7 +172,14 @@
         what = what.replace(/\s+(?:in der nähe|in meiner nähe|hier in der nähe|in meiner umgebung|in der umgebung|von hier|von mir aus|bitte|jetzt|gerade)\s*$/g, '').replace(ADJ, ' ').replace(/\s+/g, ' ').trim();
         if (!what || what.split(' ').length > 4 || OWN.test(what)) return null;
         if (/^(?:was|wie|wer|wann|warum|wieso|welche\w*|wieviel\w*|ob)\b/.test(what)) return null;
-        return { what, explicit: explicit || /in der nähe|in meiner nähe|in der umgebung/.test(t), nearest: explicit, navigate };
+        let place = '';
+        const pm = what.match(/\s+in\s+([a-zäöüß][a-zäöüß .'-]{1,35})$/);
+        if (pm) {
+            place = pm[1].trim();
+            what = what.slice(0, pm.index).trim();
+            if (typeof wxCleanPlace === 'function') place = wxCleanPlace(place) || place;
+        }
+        return { what, place, explicit: explicit || /in der nähe|in meiner nähe|in der umgebung/.test(t), nearest: explicit, navigate };
     }
 
     /* Sucht den Eintrag (Art oder Kette), sonst bei ausdrücklichem "nächste ..." eine reine Namenssuche */
@@ -355,10 +362,17 @@
         ack(`Suche ${label} ...`);
         showCards([{ icon: '🔎', title: `Suche ${label} ...`, subtitle: 'Standort und Kartendaten werden abgefragt' }]);
         let pos;
-        try { pos = await position(); }
-        catch (e) {
-            showCards([{ icon: '⚠️', title: 'Ortssuche: kein Standort', subtitle: String((e && e.message) || 'Standort nicht erlaubt oder nicht verfügbar').slice(0, 120) }]);
-            say('Ohne Standort kann ich nichts in der Nähe suchen. Bitte erlauben Sie den Standort für die App.');
+        try {
+            if (req.place && typeof wxGeocode === 'function') {
+                const geo = await wxGeocode(req.place);
+                if (!geo) throw new Error('Ort nicht gefunden');
+                pos = { lat: Number(geo.lat), lon: Number(geo.lon) };
+            } else {
+                pos = await position();
+            }
+        } catch (e) {
+            showCards([{ icon: '⚠️', title: 'Ortssuche: Ort nicht gefunden', subtitle: req.place ? `„${req.place}“ konnte nicht gefunden werden` : String((e && e.message) || 'Standort nicht erlaubt oder nicht verfügbar').slice(0, 120) }]);
+            say(req.place ? `Den Ort ${req.place} konnte ich nicht finden.` : 'Ohne Standort kann ich nichts in der Nähe suchen. Bitte erlauben Sie den Standort für die App.');
             return true;
         }
         let places = [], usedRadius = 0;
@@ -393,8 +407,12 @@
             const other = places.find(p => { const x = hoursInfo(p); return x && x.open === true; });
             if (other) { const x = hoursInfo(other); alt = ` Offen hat gerade ${other.name}, ${distSpoken(other.dist)} entfernt${x.until ? ', bis ' + spokenTime(x.until) : ''}.`; }
         }
+        const placeForContact = { name: first.name, street: first.street, city: first.city, lat: first.lat, lon: first.lon };
         say(`Am nächsten ist ${first.name}${addr ? ', ' + addr : ''}, ${distSpoken(first.dist)} entfernt.${hoursSpoken(o)}${alt}${more} Tippen Sie unten auf eine Karte, dann öffnet sich die Route.`);
         if (req.navigate) openRoute(0);
+        if (typeof askSavePlaceAsContact === 'function' && first.name && addr) {
+            setTimeout(() => askSavePlaceAsContact(placeForContact), 250);
+        }
         return true;
     }
 
