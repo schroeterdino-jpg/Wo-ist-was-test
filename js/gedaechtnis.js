@@ -1,90 +1,3 @@
-export default async function handler(req, res) {
-  const url = process.env.UPSTASH_VECTOR_REST_URL;
-  const token = process.env.UPSTASH_VECTOR_REST_TOKEN;
-  if (!url || !token) return res.status(500).json({ error: 'Server: UPSTASH_VECTOR_REST_URL/TOKEN fehlen' });
-  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-
-  if (req.method === 'GET' && req.query && req.query.action === 'reflect') {
-    const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret) return res.status(500).json({ error: 'Server: CRON_SECRET fehlt' });
-    if ((req.headers['authorization'] || '') !== `Bearer ${cronSecret}`) return res.status(401).json({ error: 'Nicht erlaubt' });
-    return reflectAndStore(url, headers, res);
-  }
-
-  const expected = process.env.APP_SECRET;
-  if (!expected) return res.status(500).json({ error: 'Server: APP_SECRET fehlt' });
-  if ((req.headers['x-app-key'] || '') !== expected) return res.status(401).json({ error: 'Nicht erlaubt' });
-
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Nur POST erlaubt' });
-
-  let body = req.body;
-  if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
-  body = body || {};
-  const action = String(body.action || '').toLowerCase();
-
-  try {
-    if (action === 'store') {
-      const text = String(body.text || '').trim().slice(0, 2000);
-      if (!text) return res.status(400).json({ error: 'Text fehlt' });
-      const id = body.id ? String(body.id) : `f_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const metadata = Object.assign({ datum: new Date().toISOString() }, body.metadata || {});
-
-      const r = await fetch(`${url}/upsert-data`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ id, data: text, metadata }),
-        signal: AbortSignal.timeout(8000)
-      });
-      const d = await r.json();
-      if (!r.ok) return res.status(502).json({ error: 'Upstash meldet: ' + (d.error || JSON.stringify(d)) });
-      return res.status(200).json({ ok: true, id });
-    }
-
-    if (action === 'list') {
-      const limit = Math.min(30, Math.max(1, Number(body.limit) || 15));
-      const rangeBody = { cursor: '0', limit: Math.max(limit, 60), includeMetadata: true, includeData: true };
-      if (body.prefix) rangeBody.prefix = String(body.prefix);
-      const r = await fetch(`${url}/range`, {
-        method: 'POST', headers,
-        body: JSON.stringify(rangeBody),
-        signal: AbortSignal.timeout(8000)
-      });
-      const d = await r.json();
-      if (!r.ok) return res.status(502).json({ error: 'Upstash meldet: ' + (d.error || JSON.stringify(d)) });
-      const treffer = ((d.result && d.result.vectors) || [])
-        .map(v => ({ text: v.data, metadata: v.metadata || {} }))
-        .sort((a, b) => new Date(b.metadata.datum || 0) - new Date(a.metadata.datum || 0))
-        .slice(0, limit);
-      return res.status(200).json({ treffer });
-    }
-
-    if (action === 'search') {
-      const query = String(body.query || '').trim().slice(0, 500);
-      if (!query) return res.status(400).json({ error: 'Suchtext fehlt' });
-      const topK = Math.min(20, Math.max(1, Number(body.topK) || 5));
-      const minScore = Number(body.minScore) || 0.0;
-
-      const r = await fetch(`${url}/query-data`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ data: query, topK, includeMetadata: true, includeData: true }),
-        signal: AbortSignal.timeout(8000)
-      });
-      const d = await r.json();
-      if (!r.ok) return res.status(502).json({ error: 'Upstash meldet: ' + (d.error || JSON.stringify(d)) });
-
-      const treffer = ((d.result) || [])
-        .filter(v => (v.score || 0) >= minScore)
-        .map(v => ({ text: v.data, score: v.score, metadata: v.metadata || {} }));
-
-      return res.status(200).json({ treffer });
-    }
-
-    return res.status(400).json({ error: `Unbekannte Aktion: ${action}` });
-
-  } catch (error) {
-    return res.status(500).json({ error: `Server-Fehler: ${error.message}` });
-  }
-}
-
 (function () {
     const lastStored = {};
 
@@ -129,7 +42,7 @@ export default async function handler(req, res) {
         '\n\nGEDÄCHTNIS-FRAGEN: Fragt der Nutzer, warum, wann oder was er dir gesagt, aufgetragen oder dich gebeten hat, oder woher du etwas weißt, dann antworte direkt aus den Daten ' +
         '"gedächtnis" (Liste) und "gedächtnis_semantisch" (Langzeitgedächtnis) und aus dem bisherigen Gespräch. Nutze dafür KEINE memory_search-Aktion, wenn dort schon passende Einträge stehen. ' +
         'Einträge im Langzeitgedächtnis nennen Datum und Uhrzeit und den Originalsatz des Nutzers: nenne dann das Datum (zum Beispiel "Das haben Sie am Samstag, den 4. Oktober, gesagt") und gib seinen Wunsch in eigenen Worten wieder. ' +
-        'Einen Grund nennst du nur, wenn der Nutzer ihn wirklich gesagt hat. Steht dort kein Grund, sag das ehrlich ("Einen Grund haben Sie mir nicht genannt") and frag höchstens kurz, ob du dir den Grund merken sollst. ' +
+        'Einen Grund nennst du nur, wenn der Nutzer ihn wirklich gesagt hat. Steht dort kein Grund, sag das ehrlich ("Einen Grund haben Sie mir nicht genannt") und frag höchstens kurz, ob du dir den Grund merken sollst. ' +
         'Antworte niemals nur mit "nichts gefunden", wenn zum Thema ein Eintrag existiert. Erfinde nichts dazu.';
 
     const LAUGH_RULE =
