@@ -1,6 +1,6 @@
 /* ============================================================
-   GEHIRN-ANSICHT: Statt der Netz-Kugel zeigt der Startbildschirm ein Gehirn aus fünf Bereichen wie ein Körper:
-   GEDÄCHTNIS (Mitte, das Gehirn), OHREN (oben), HÄNDE (rechts), ZEIT (links), UNTERWEGS (unten). Jeder Bereich hat antippbare Knoten (Termine, Listen, Karte, Mail ...).
+   GEHIRN-ANSICHT: Statt der Netz-Kugel zeigt der Startbildschirm ein Gehirn aus vier Bereichen:
+   GEDÄCHTNIS (Mitte, das Gehirn), ZEIT (oben), HÄNDE (rechts unten), UNTERWEGS (links unten). Jeder Bereich hat antippbare Knoten (Termine, Listen, Karte, Mail ...).
    Die Punkte auf den Dreiecks-Linien wandern im Uhrzeigersinn, das Ganze schwingt langsam und lässt sich mit dem Finger drehen.
    Antippen eines Knotens öffnet die jeweilige Funktion. Antippen einer leeren Stelle startet wie bisher das Zuhören.
    Zurück zur alten Kugel: kleiner Knopf oben rechts an der Ansicht, oder per Sprache "Zurück zur Kugel". "Zeig das Gehirn" schaltet wieder um.
@@ -23,49 +23,47 @@
     }
     const panel = id => () => { try { window.openPanel(id); } catch (e) { console.error('Gehirn', e); } };
     const HUBS = [
-        { label: 'GEDÄCHTNIS', color: [73, 215, 255], pos: [0, 0, 0], lr: 0.36, ldir: 1, leaves: [
+        { label: 'GEDÄCHTNIS', color: [73, 215, 255], pos: [0, -0.05, 0], lr: 0.30, ldir: 1, leaves: [
             ['Langzeit', () => window.showLangzeit && window.showLangzeit()],
             ['Gedächtnis', panel('gedaechtnis')],
             ['Listen', panel('einkauf')],
             ['Protokolle', panel('protokolle')],
-            ['Adressen', panel('adressen')]
-        ] },
-        { label: 'OHREN', color: [190, 125, 255], pos: [0, -1.0, 0], ldir: -1, leaves: [
             ['Wünsche', () => say('Welche Formulierungen habe ich?')],
-            ['Hör-Korrektur', () => say('Welche Hör-Korrekturen hast du?')],
-            ['Hilfe', () => say('Hilfe')]
+            ['Hör-Korrektur', () => say('Welche Hör-Korrekturen hast du?')]
         ] },
-        { label: 'HÄNDE', color: [255, 154, 68], pos: [0.68, 0.05, 0], ldir: 1, leaves: [
+        { label: 'ZEIT', color: [120, 232, 150], pos: [0, -1.1, 0], ldir: -1, leaves: [
+            ['Termine', panel('termine')],
+            ['Erinnerungen', panel('erinnerungen')],
+            ['Fristen', () => say('Welche Fristen habe ich?')],
+            ['Planer', panel('planer')],
+            ['Weltuhr', () => { try { window.openWeltuhr(); } catch (e) { say('Öffne die Weltuhr'); } }],
+            ['Fahrzeit', () => say('Wann muss ich zum nächsten Termin losfahren?')]
+        ] },
+        { label: 'HÄNDE', color: [255, 154, 68], pos: [0.68, 0.85, 0], ldir: 1, leaves: [
             ['Mail', () => say('Welche E-Mails habe ich?')],
             ['Foto', () => { try { window.openPhotoCamera(true); } catch (e) {} }],
             ['Überblick', () => { try { window.showUeberblick(false); } catch (e) {} }],
             ['Wetter', () => say('Wie wird das Wetter?')],
             ['Briefing', () => { try { window.triggerDailyBriefing(); } catch (e) {} }],
-            ['Restaurants', () => say('Zeig mir Restaurants in der Nähe')],
-            ['Tanken', () => say('Zeig mir günstige Tankstellen in der Nähe')]
+            ['Hilfe', () => say('Hilfe')]
         ] },
-        { label: 'UNTERWEGS', color: [255, 214, 90], pos: [0, 1.0, 0], ldir: 1, leaves: [
+        { label: 'UNTERWEGS', color: [255, 214, 90], pos: [-0.68, 0.85, 0], ldir: 1, leaves: [
             ['Karte', panel('karte')],
             ['Welt', panel('welt')],
-            ['Fahrzeit', () => say('Wann muss ich zum nächsten Termin losfahren?')],
+            ['Adressen', panel('adressen')],
             ['Parkplatz', () => say('Wo habe ich geparkt?')],
+            ['Restaurants', () => say('Zeig mir Restaurants in der Nähe')],
+            ['Tanken', () => say('Zeig mir günstige Tankstellen in der Nähe')],
             ['Sprit-Route', () => say('Wo tanke ich auf dem Weg zum nächsten Termin am günstigsten?')]
-        ] },
-        { label: 'ZEIT', color: [120, 232, 150], pos: [-0.68, 0.05, 0], ldir: 1, leaves: [
-            ['Termine', panel('termine')],
-            ['Erinnerungen', panel('erinnerungen')],
-            ['Fristen', () => say('Welche Fristen habe ich?')],
-            ['Planer', panel('planer')],
-            ['Weltuhr', () => { try { window.openWeltuhr(); } catch (e) { say('Öffne die Weltuhr'); } }]
         ] }
     ];
 
     /* ---------- 3D-Aufbau ---------- */
-    const LEAF_R = 0.31;
+    const LEAF_R = 0.30;
     const nodes = [];       // alle Knoten: { hub, label, action, base:[x,y,z], r }
     HUBS.forEach((h, hi) => {
         h.index = hi;
-        h.node = { hub: h, label: h.label, isHub: true, base: h.pos.slice(), r: h.lr ? 14 : 11 };
+        h.node = { hub: h, label: h.label, isHub: true, base: h.pos.slice(), r: h.lr ? 13 : 11 };
         nodes.push(h.node);
         const n = h.leaves.length;
         h.leafNodes = h.leaves.map((l, i) => {
@@ -80,14 +78,14 @@
         const a = Math.random() * 6.283, b = Math.acos(2 * Math.random() - 1), R = 0.85 + Math.random() * 0.5;
         STARS.push({ p: [R * Math.sin(b) * Math.cos(a), R * Math.cos(b) * 0.9, R * Math.sin(b) * Math.sin(a)], s: 0.6 + Math.random() * 1.4, ph: Math.random() * 6.283 });
     }
-    const EDGES = [[0, 1], [0, 2], [0, 3], [0, 4], [1, 2], [2, 3], [3, 4], [4, 1]];   // Gehirn in der Mitte, Speichen zu den anderen, Außenring im Uhrzeigersinn
+    const EDGES = [[0, 1], [0, 2], [0, 3], [1, 2], [2, 3], [3, 1]];   // Gehirn in der Mitte, Speichen zu den drei anderen, Außenring im Uhrzeigersinn
 
     /* ---------- Zeichnen ---------- */
     let canvas = null, ctx = null, btn = null, W = 0, H = 0, dpr = 1;
     let yawDrag = 0, pitchDrag = 0, vYaw = 0, vPitch = 0, dragging = false, moved = false, lastX = 0, lastY = 0, downX = 0, downY = 0;
     let projected = [], pulse = null, raf = 0, t0 = performance.now();
     let E = 0.15, lastRing = 0; const rings = [];
-    const CROSS = [[0, 2, 2, 0], [1, 1, 3, 3], [2, 0, 4, 2], [3, 3, 0, 1], [4, 1, 1, 4], [0, 0, 3, 0], [1, 3, 4, 0]];   // Querverbindungen zwischen den Bereichen
+    const CROSS = [[0, 2, 1, 0], [1, 1, 3, 3], [2, 0, 3, 2], [3, 3, 0, 1], [0, 0, 2, 4]];   // Querverbindungen zwischen den Bereichen
 
     function state() {
         try { if (btn.classList.contains('speaking')) return 'speaking'; if (btn.classList.contains('recording')) return 'recording'; } catch (e) {}
@@ -238,7 +236,7 @@
                 glow.addColorStop(0, rgba(c, 0.5 * (0.4 + depth))); glow.addColorStop(1, rgba(c, 0));
                 ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(P.x, P.y, rr * 3, 0, 6.283); ctx.fill();
                 ctx.fillStyle = rgba([255, 255, 255], 0.55 + 0.4 * depth); ctx.beginPath(); ctx.arc(P.x, P.y, rr, 0, 6.283); ctx.fill();
-                if (depth > 0.36) {
+                if (depth > 0.42) {
                     ctx.font = `600 ${Math.round(13 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
                     ctx.textAlign = 'center'; ctx.fillStyle = rgba([255, 255, 255], Math.min(1, 0.8 + (depth - 0.3) * 1.5));
                     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(5,10,16,.95)'; ctx.strokeText(n.label, P.x, P.y - rr - 6); ctx.fillText(n.label, P.x, P.y - rr - 6);
