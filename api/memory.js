@@ -9,6 +9,8 @@
 // POST { action: 'delete', ids } -> löscht Einträge
 // POST { action: 'due', today } -> Einträge, zu denen heute nachgefragt oder an die heute erinnert werden soll
 // POST { action: 'mark', id, art, year } -> merkt sich, dass nachgefragt bzw. erinnert wurde
+// POST { action: 'fristen', today, all? } -> Fristen aus E-Mails (typ 'frist'): fällige Erinnerungen, oder mit all:true alle offenen
+// POST { action: 'mark', id, art:'frist_vor'|'frist_heute'|'frist_ueber'|'frist_erledigt' } -> Frist-Erinnerung vermerken bzw. erledigt
 // GET ?action=reflect -> vom täglichen Cronjob (vercel.json) aufgerufen; macht jetzt nichts mehr (siehe unten)
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -157,6 +159,27 @@ export default async function handler(req, res) {
       return res.status(200).json({ due: due.slice(0, 3) });
     }
 
+    // Fristen aus E-Mails: Erinnerung 2 Tage vorher, am Tag selbst, einmal wenn überfällig
+    if (action === 'fristen') {
+      const today = ISO_DAY.test(String(body.today || '')) ? String(body.today) : new Date().toISOString().slice(0, 10);
+      const all = await rangeAll(url, headers);
+      const diffDays = d => Math.round((new Date(d + 'T12:00:00Z') - new Date(today + 'T12:00:00Z')) / 86400000);
+      const out = [];
+      for (const e of all) {
+        const m = e.metadata || {};
+        if (m.typ !== 'frist' || m.status === 'erledigt') continue;
+        const hasDate = ISO_DAY.test(String(m.ereignis_datum || ''));
+        const diff = hasDate ? diffDays(m.ereignis_datum) : null;
+        if (body.all) { out.push({ id: e.id, text: e.text, metadata: m, tage: diff }); continue; }
+        if (!hasDate) continue;
+        if (diff === 0 && !m.erinnert_heute) out.push({ stufe: 'heute', id: e.id, text: e.text, metadata: m, tage: diff });
+        else if (diff > 0 && diff <= 2 && !m.erinnert_vor) out.push({ stufe: 'vor', id: e.id, text: e.text, metadata: m, tage: diff });
+        else if (diff < 0 && diff >= -7 && !m.erinnert_ueber) out.push({ stufe: 'ueber', id: e.id, text: e.text, metadata: m, tage: diff });
+      }
+      out.sort((a, b) => (a.tage === null) - (b.tage === null) || a.tage - b.tage);
+      return res.status(200).json({ fristen: body.all ? out.slice(0, 50) : out.slice(0, 3) });
+    }
+
     // Vermerkt, dass zu einem Eintrag nachgefragt bzw. erinnert wurde (damit es nur einmal passiert)
     if (action === 'mark') {
       const id = String(body.id || '');
@@ -173,7 +196,12 @@ export default async function handler(req, res) {
       const meta = Object.assign({}, v.metadata || {});
       const year = Number(body.year) || new Date().getFullYear();
       const yearly = meta.jaehrlich === true || meta.jaehrlich === 'true';
-      if (String(body.art) === 'heute') meta.hinweis_jahr = year;
+      if (String(body.art).startsWith('frist_')) {
+        const a = String(body.art).slice(6);
+        if (a === 'erledigt') meta.status = 'erledigt';
+        else if (a === 'vor' || a === 'heute' || a === 'ueber') meta['erinnert_' + a] = true;
+      }
+      else if (String(body.art) === 'heute') meta.hinweis_jahr = year;
       else { meta.nachgefragt_jahr = year; if (!yearly) meta.status = 'nachgefragt'; }
       const ur = await fetch(`${url}/upsert-data`, {
         method: 'POST',
