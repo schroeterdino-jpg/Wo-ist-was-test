@@ -615,6 +615,32 @@
         return true;
     }
 
+    /* Für die alte Orte-Suche (nearbymore.js): Adressen der ersten Treffer vervollständigen, Rückfrage "in den Kontakten speichern?" vorbereiten.
+       list: [{ name, street, lat, lon, dist }], liefert { ask, listing } oder null. Die Antwort (Ja / den ersten ...) übernimmt handlePendingSave. */
+    window.jvOfferSave = async function (label, list) {
+        try {
+            const cands = [];
+            for (const q of (list || []).slice(0, 3)) {
+                let info = null;
+                try { info = await fullAddress({ name: q.name || label, lat: q.lat, lon: q.lon, street: '' }, ''); } catch (e) { info = null; }
+                if (!(info && info.exact) && q.street) info = { street: q.street, city: '', address: q.street, exact: true };
+                if (info && info.exact) cands.push({ q, info });
+            }
+            if (!cands.length) return null;
+            const cities = cands.map(c => c.info.city || '');
+            const distinctCities = cities.every(c => c) && new Set(cities.map(c => c.toLowerCase())).size === cities.length;
+            const choices = cands.map((c, i) => ({
+                name: [label, (distinctCities || cands.length === 1) ? c.info.city : String(c.info.street || '').replace(/\s+\d+\s*\w?$/, '')].filter(Boolean).join(' '),
+                address: c.info.address
+            }));
+            pendingSave = { choices, at: Date.now() };
+            if (choices.length === 1) return { listing: '', ask: ` Soll ich die Adresse als ${choices[0].name} in Ihren Kontakten speichern?` };
+            const listing = cands.slice(1).map((c, i) => ` ${i === 0 ? 'Der zweite' : 'Der dritte'} ist ${[c.info.street, c.info.city].filter(Boolean).join(', ')}, ${distSpoken(c.q.dist)} entfernt.`).join('');
+            const ask = ` Welchen soll ich in Ihren Kontakten speichern: ${choices.map((c, i) => ORD_NAME[i]).join(', ').replace(/, ([^,]*)$/, ' oder $1')}? Oder keinen.`;
+            return { listing, ask };
+        } catch (e) { return null; }
+    };
+
     /* ---------- Einhängen ---------- */
     /* Reserve für die bisherige Orte-Suche (nearbymore.js): Antwortet der Server der App nicht, wird direkt bei den Kartenservern nachgefragt.
        nearbymore.js wird nach dieser Datei geladen, deshalb wird das erst beim ersten Sprachbefehl eingehängt. */

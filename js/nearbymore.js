@@ -43,6 +43,8 @@ const PLACE_CATEGORIES = [
 ];
 
 const PLACE_NEAR_PHRASE = /\b(?:nächste[nrms]?|nächst\w*|in der nähe|um die ecke|hier in der gegend|wo ist|wo sind|wo gibt es|wo finde ich|wo kann ich|ich suche|ich brauche|gibt es hier|gibt es (?:eine|einen|ein)|zeig mir|finde mir|such mir|wo ist hier)\b/;
+/* Dafür fragt Jarvis nicht nach dem Speichern in den Kontakten */
+const PLACE_NO_SAVE = ['geldautomat', 'toilette', 'parkhaus', 'parkplatz', 'briefkasten', 'ladestation', 'spielplatz'];
 const PLACE_OWN_CAR = /\b(?:mein|meine|meinen|meinem|geparkt|abgestellt|habe ich|steht mein)\b/;
 
 /* Satz verstehen: { cat, place, onlyOpen } oder null */
@@ -284,6 +286,13 @@ async function runPlaces(req) {
         else if (cat.key === 'apotheke') msg += ' Notdienst-Apotheken finden Sie auf aponet.de.';
     }
     msg += results.length > 1 ? ' Weitere stehen unten.' : '';
+    // Adresse in den Kontakten speichern anbieten (nur bei Läden und Einrichtungen mit festem Standort); die Antwort wertet ortsuche.js aus
+    if (typeof window.jvOfferSave === 'function' && !PLACE_NO_SAVE.includes(cat.key)) {
+        try {
+            const offer = await window.jvOfferSave(cat.label, results.slice(0, 3));
+            if (offer) msg += (offer.listing || '') + (offer.ask || '');
+        } catch (e) {}
+    }
 
     const cards = results.slice(0, 4).map(r => ({
         icon: cat.icon, title: `${r.name || cat.label} · ${plDistanceText(r.dist)}`,
