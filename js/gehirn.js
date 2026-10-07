@@ -1,6 +1,6 @@
 /* ============================================================
    GEHIRN-ANSICHT: Statt der Netz-Kugel zeigt der Startbildschirm ein Gehirn aus drei Bereichen im Dreieck:
-   GEDÄCHTNIS (oben), AKTIONEN (rechts unten), STIMME (links unten). Jeder Bereich hat antippbare Knoten (Termine, Listen, Karte, Mail ...).
+   GEDÄCHTNIS (oben), HÄNDE (rechts unten), OHREN (links unten). Jeder Bereich hat antippbare Knoten (Termine, Listen, Karte, Mail ...).
    Die Punkte auf den Dreiecks-Linien wandern im Uhrzeigersinn, das Ganze schwingt langsam und lässt sich mit dem Finger drehen.
    Antippen eines Knotens öffnet die jeweilige Funktion. Antippen einer leeren Stelle startet wie bisher das Zuhören.
    Zurück zur alten Kugel: kleiner Knopf oben rechts an der Ansicht, oder per Sprache "Zurück zur Kugel". "Zeig das Gehirn" schaltet wieder um.
@@ -33,7 +33,7 @@
             ['Protokolle', panel('protokolle')],
             ['Adressen', panel('adressen')]
         ] },
-        { label: 'AKTIONEN', color: [255, 154, 68], pos: [0.62, 0.46, 0], leaves: [
+        { label: 'HÄNDE', color: [255, 154, 68], pos: [0.62, 0.46, 0], leaves: [
             ['Karte', panel('karte')],
             ['Welt', panel('welt')],
             ['Planer', panel('planer')],
@@ -42,7 +42,7 @@
             ['Foto', () => { try { window.openPhotoCamera(true); } catch (e) {} }],
             ['Überblick', () => { try { window.showUeberblick(false); } catch (e) {} }]
         ] },
-        { label: 'STIMME', color: [190, 125, 255], pos: [-0.62, 0.46, 0], leaves: [
+        { label: 'OHREN', color: [190, 125, 255], pos: [-0.62, 0.46, 0], leaves: [
             ['Briefing', () => { try { window.triggerDailyBriefing(); } catch (e) {} }],
             ['Einstellungen', panel('settings')],
             ['Wünsche', () => say('Welche Formulierungen habe ich?')],
@@ -52,7 +52,7 @@
     ];
 
     /* ---------- 3D-Aufbau ---------- */
-    const LEAF_R = 0.34;
+    const LEAF_R = 0.37;
     const nodes = [];       // alle Knoten: { hub, label, action, base:[x,y,z], r }
     HUBS.forEach((h, hi) => {
         h.index = hi;
@@ -222,17 +222,17 @@
                 ctx.fillStyle = rgba([255, 255, 255], 0.95); ctx.beginPath(); ctx.arc(P.x, P.y, rr * 0.55, 0, 6.283); ctx.fill();
                 ctx.strokeStyle = rgba(c, 0.9); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(P.x, P.y, rr, 0, 6.283); ctx.stroke();
                 ctx.strokeStyle = rgba(c, 0.35 + 0.25 * Math.sin(t * 2 + n.hub.index)); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(P.x, P.y, rr * (1.5 + 0.2 * Math.sin(t * 2 + n.hub.index)), 0, 6.283); ctx.stroke();
-                ctx.font = `700 ${Math.round(10.5 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
+                ctx.font = `700 ${Math.round(13 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
                 const ly = P.y + (n.hub.index === 0 ? -1 : 1) * (LEAF_R * scale * P.s + 14); ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,16,.9)'; ctx.strokeText(n.label, P.x, ly); ctx.fillStyle = rgba(c, 0.95); ctx.fillText(n.label, P.x, ly);
             } else {
                 const glow = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, rr * 3);
                 glow.addColorStop(0, rgba(c, 0.5 * (0.4 + depth))); glow.addColorStop(1, rgba(c, 0));
                 ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(P.x, P.y, rr * 3, 0, 6.283); ctx.fill();
                 ctx.fillStyle = rgba([255, 255, 255], 0.55 + 0.4 * depth); ctx.beginPath(); ctx.arc(P.x, P.y, rr, 0, 6.283); ctx.fill();
-                if (depth > 0.42) {
-                    ctx.font = `${Math.round(9.5 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
-                    ctx.textAlign = 'center'; ctx.fillStyle = rgba([225, 240, 250], Math.min(0.95, (depth - 0.3) * 1.5));
-                    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,16,.85)'; ctx.strokeText(n.label, P.x, P.y - rr - 6); ctx.fillText(n.label, P.x, P.y - rr - 6);
+                if (depth > 0.36) {
+                    ctx.font = `600 ${Math.round(13 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
+                    ctx.textAlign = 'center'; ctx.fillStyle = rgba([255, 255, 255], Math.min(1, 0.8 + (depth - 0.3) * 1.5));
+                    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(5,10,16,.95)'; ctx.strokeText(n.label, P.x, P.y - rr - 6); ctx.fillText(n.label, P.x, P.y - rr - 6);
                 }
             }
             n.sx = P.x; n.sy = P.y; n.sr = rr;
