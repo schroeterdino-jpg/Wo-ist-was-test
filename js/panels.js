@@ -240,7 +240,7 @@ function buildMenuPanel() {
         ['🌍', 'Welt', 'Weltkugel mit Nachrichten', "openPanel('welt')"],
         ['📋', 'Protokolle', 'Abläufe tippen, ändern, löschen', "openPanel('protokolle')"],
         ['📍', 'Adressen', 'Arbeit und Zuhause tippen', "openPanel('adressen')"],
-        ['🖥️', 'Dashboard', 'Termine, Parkplatz, Sprit, Wetter', "openPanel('dashboard')"],
+        ['🖥️', 'Tagesüberblick', 'Termine, Erinnerungen, Aufgaben, Standort', "closePanel(); showUeberblick(false)"],
         ['🗓️', 'Planer', 'Erinnerung anlegen', "openPanel('planer')"],
         ['⚙️', 'Einstellungen', 'Konto, Stimme, Kontakte', "openPanel('settings')"]
     ];
