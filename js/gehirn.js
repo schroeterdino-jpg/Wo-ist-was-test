@@ -45,7 +45,7 @@
         { label: 'STIMME', color: [190, 125, 255], pos: [-0.62, 0.46, 0], leaves: [
             ['Briefing', () => { try { window.triggerDailyBriefing(); } catch (e) {} }],
             ['Einstellungen', panel('settings')],
-            ['Formulierungen', () => say('Welche Formulierungen habe ich?')],
+            ['Wünsche', () => say('Welche Formulierungen habe ich?')],
             ['Hör-Korrektur', () => say('Welche Hör-Korrekturen hast du?')],
             ['Hilfe', () => say('Hilfe')]
         ] }
@@ -62,7 +62,7 @@
         h.leafNodes = h.leaves.map((l, i) => {
             const y = 1 - (i + 0.5) / n * 2, rad = Math.sqrt(1 - y * y), th = i * 2.399963;   // Fibonacci-Kugel
             const k = 0.78 + 0.22 * ((i * 37) % 5) / 4;
-            return { hub: h, label: l[0], action: l[1], dir: [Math.cos(th) * rad * k, y * k, Math.sin(th) * rad * k], r: 5.5 };
+            return { phase: i * 1.7 + hi, hub: h, label: l[0], action: l[1], dir: [Math.cos(th) * rad * k, y * k, Math.sin(th) * rad * k], r: 5.5 };
         });
         h.leafNodes.forEach(l => nodes.push(l));
     });
@@ -77,6 +77,8 @@
     let canvas = null, ctx = null, btn = null, W = 0, H = 0, dpr = 1;
     let yawDrag = 0, pitchDrag = 0, vYaw = 0, vPitch = 0, dragging = false, moved = false, lastX = 0, lastY = 0, downX = 0, downY = 0;
     let projected = [], pulse = null, raf = 0, t0 = performance.now();
+    let E = 0.15, lastRing = 0; const rings = [];
+    const CROSS = [[0, 2, 1, 0], [0, 5, 2, 0], [1, 3, 2, 2], [0, 6, 1, 2], [2, 4, 1, 5], [0, 3, 2, 3]];   // Querverbindungen zwischen den Bereichen
 
     function state() {
         try { if (btn.classList.contains('speaking')) return 'speaking'; if (btn.classList.contains('recording')) return 'recording'; } catch (e) {}
@@ -97,12 +99,14 @@
         if (!document.body.classList.contains('jv-brain') || document.hidden || !canvas) return;
         raf = requestAnimationFrame(frame);
         const t = (now - t0) / 1000, st = state();
-        const energy = st === 'speaking' ? 1 : st === 'recording' ? 0.6 : 0.25;
+        E += ((st === 'speaking' ? 1 : st === 'recording' ? 0.55 : 0.15) - E) * 0.06;   // weich ein- und ausblenden
+        const energy = E;
+        const env = E * (0.55 + 0.45 * Math.min(1, Math.abs(Math.sin(t * 7.3) * Math.sin(t * 3.1 + 1.3) + 0.35 * Math.sin(t * 12.7))));   // Sprach-Rhythmus
         // Schwung durch Ziehen klingt ab, Ansicht pendelt langsam zurück
         if (!dragging) { yawDrag += vYaw; pitchDrag += vPitch; vYaw *= 0.94; vPitch *= 0.94; yawDrag *= 0.985; pitchDrag *= 0.985; }
         const yaw = Math.sin(t * 0.22) * 0.42 + yawDrag, pitch = 0.16 + Math.sin(t * 0.17 + 1) * 0.06 + pitchDrag;
         const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
-        const scale = Math.min(W, H) * 0.43, cx = W / 2, cyy = H / 2 + H * 0.02;
+        const scale = Math.min(W, H) * 0.385 * (1 + 0.025 * env), cx = W / 2, cyy = H / 2 - H * 0.025;
         function proj(p) {
             const x1 = p[0] * cy + p[2] * sy, z1 = -p[0] * sy + p[2] * cy;
             const y2 = p[1] * cp - z1 * sp, z2 = p[1] * sp + z1 * cp;
@@ -125,6 +129,14 @@
             });
         });
 
+        // Nebel hinter den Bereichen
+        HUBS.forEach(h => {
+            const P = h.P, r = 135 * P.s * (scale / 150) * (1 + 0.35 * env);
+            const g = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, r);
+            g.addColorStop(0, rgba(h.color, 0.10 + 0.12 * env)); g.addColorStop(1, rgba(h.color, 0));
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(P.x, P.y, r, 0, 6.283); ctx.fill();
+        });
+
         // Sterne
         STARS.forEach(s => {
             const P = proj(s.p), a = (0.15 + 0.2 * Math.sin(t * 0.8 + s.ph)) * (0.6 + P.z * 0.4);
@@ -132,20 +144,47 @@
             ctx.beginPath(); ctx.arc(P.x, P.y, s.s * P.s, 0, 6.283); ctx.fill();
         });
 
+        // Nebel und Sterne weich zum Rand ausblenden (kein sichtbarer Kasten)
+        ctx.globalCompositeOperation = 'destination-in';
+        const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.30, W / 2, H / 2, Math.min(W, H) * 0.5);
+        vg.addColorStop(0, 'rgba(0,0,0,1)'); vg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+        ctx.globalCompositeOperation = 'source-over';
+
         // Dreieck-Linien + wandernde Punkte (Uhrzeigersinn)
         EDGES.forEach(([a, b], ei) => {
             const A = HUBS[a].P, B = HUBS[b].P;
             const g = ctx.createLinearGradient(A.x, A.y, B.x, B.y);
             g.addColorStop(0, rgba(HUBS[a].color, 0.55)); g.addColorStop(1, rgba(HUBS[b].color, 0.55));
             ctx.strokeStyle = g; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
-            for (let k = 0; k < 3; k++) {
-                const u = ((t * (0.07 + 0.05 * energy) + k / 3 + ei * 0.11) % 1);
-                const px = A.x + (B.x - A.x) * u, py = A.y + (B.y - A.y) * u;
-                const c = [Math.round(HUBS[a].color[0] * (1 - u) + HUBS[b].color[0] * u), Math.round(HUBS[a].color[1] * (1 - u) + HUBS[b].color[1] * u), Math.round(HUBS[a].color[2] * (1 - u) + HUBS[b].color[2] * u)];
-                const rg = ctx.createRadialGradient(px, py, 0, px, py, 9);
-                rg.addColorStop(0, rgba([255, 240, 220], 0.95)); rg.addColorStop(0.25, rgba(c, 0.8)); rg.addColorStop(1, rgba(c, 0));
-                ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(px, py, 9, 0, 6.283); ctx.fill();
+            const cnt = 3 + Math.round(3 * energy);
+            for (let k = 0; k < cnt; k++) {
+                const base = t * (0.07 + 0.09 * energy) + k / cnt + ei * 0.11;
+                for (let tr = 5; tr >= 0; tr--) {
+                    const u = (((base - tr * 0.012) % 1) + 1) % 1;
+                    const px = A.x + (B.x - A.x) * u, py = A.y + (B.y - A.y) * u;
+                    const c = [Math.round(HUBS[a].color[0] * (1 - u) + HUBS[b].color[0] * u), Math.round(HUBS[a].color[1] * (1 - u) + HUBS[b].color[1] * u), Math.round(HUBS[a].color[2] * (1 - u) + HUBS[b].color[2] * u)];
+                    const rad = tr === 0 ? 9 + 5 * env : 5 - tr * 0.6;
+                    const rg = ctx.createRadialGradient(px, py, 0, px, py, rad);
+                    rg.addColorStop(0, rgba(tr === 0 ? [255, 240, 220] : c, tr === 0 ? 0.95 : 0.5 - tr * 0.07)); rg.addColorStop(tr === 0 ? 0.25 : 0.5, rgba(c, tr === 0 ? 0.8 : 0.3)); rg.addColorStop(1, rgba(c, 0));
+                    ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(px, py, rad, 0, 6.283); ctx.fill();
+                }
             }
+        });
+
+        // Querverbindungen zwischen den Bereichen (Synapsen mit Funken)
+        CROSS.forEach(([ha, la, hb, lb], ci) => {
+            const A = HUBS[ha].leafNodes[la % HUBS[ha].leafNodes.length].P, B = HUBS[hb].leafNodes[lb % HUBS[hb].leafNodes.length].P;
+            const mx = (A.x + B.x) / 2 + (cx - (A.x + B.x) / 2) * 0.35, my = (A.y + B.y) / 2 + (cyy - (A.y + B.y) / 2) * 0.35;
+            const ca = HUBS[ha].color, cb = HUBS[hb].color;
+            const g = ctx.createLinearGradient(A.x, A.y, B.x, B.y);
+            g.addColorStop(0, rgba(ca, 0.16 + 0.12 * env)); g.addColorStop(1, rgba(cb, 0.16 + 0.12 * env));
+            ctx.strokeStyle = g; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo(mx, my, B.x, B.y); ctx.stroke();
+            const u = (t * (0.18 + 0.25 * energy) + ci * 0.17) % 1, v = 1 - u;
+            const sx = v * v * A.x + 2 * v * u * mx + u * u * B.x, sy = v * v * A.y + 2 * v * u * my + u * u * B.y;
+            const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, 5);
+            sg.addColorStop(0, rgba([255, 255, 255], 0.7)); sg.addColorStop(1, rgba(ca, 0));
+            ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sx, sy, 5, 0, 6.283); ctx.fill();
         });
 
         // Bereiche: Verbindungen, Glühen, Knoten
@@ -161,9 +200,9 @@
                 ctx.beginPath(); ctx.moveTo(l.P.x, l.P.y); ctx.lineTo(nb.P.x, nb.P.y); ctx.stroke();
             });
             // Glühen
-            const gr = (62 + 10 * Math.sin(t * 1.6 + h.index) * (0.5 + energy)) * H0.s * (scale / 150);
+            const gr = (62 + 10 * Math.sin(t * 1.6 + h.index) * (0.5 + energy) + 38 * env) * H0.s * (scale / 150);
             const gg = ctx.createRadialGradient(H0.x, H0.y, 0, H0.x, H0.y, gr);
-            gg.addColorStop(0, rgba(c, 0.28 + 0.18 * energy)); gg.addColorStop(1, rgba(c, 0));
+            gg.addColorStop(0, rgba(c, 0.26 + 0.14 * energy + 0.3 * env)); gg.addColorStop(1, rgba(c, 0));
             ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(H0.x, H0.y, gr, 0, 6.283); ctx.fill();
         });
 
@@ -172,13 +211,19 @@
         HUBS.forEach(h => { drawn.push({ n: h.node, P: h.P, c: h.color }); h.leafNodes.forEach(l => drawn.push({ n: l, P: l.P, c: h.color })); });
         drawn.sort((a, b) => a.P.z - b.P.z);
         drawn.forEach(({ n, P, c }) => {
-            const depth = (P.z + 1) / 2, rr = n.r * P.s * (scale / 150);
+            const depth = (P.z + 1) / 2, rr = n.r * P.s * (scale / 150) * (n.isHub ? 1 + 0.28 * env : 1 + 0.4 * env * (0.5 + 0.5 * Math.sin(t * 6 + n.phase)));
             if (n.isHub) {
+                for (let ring = 0; ring < 2; ring++) {   // kreisende Bögen um den Kern
+                    const R = rr * (2.1 + ring * 0.7), a0 = t * (ring ? -0.9 : 0.7) + n.hub.index;
+                    ctx.strokeStyle = rgba(c, 0.55 - ring * 0.2 + 0.25 * env); ctx.lineWidth = 1.2;
+                    ctx.beginPath(); ctx.arc(P.x, P.y, R, a0, a0 + 1.9); ctx.stroke();
+                    ctx.beginPath(); ctx.arc(P.x, P.y, R, a0 + 3.3, a0 + 4.6); ctx.stroke();
+                }
                 ctx.fillStyle = rgba([255, 255, 255], 0.95); ctx.beginPath(); ctx.arc(P.x, P.y, rr * 0.55, 0, 6.283); ctx.fill();
                 ctx.strokeStyle = rgba(c, 0.9); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(P.x, P.y, rr, 0, 6.283); ctx.stroke();
                 ctx.strokeStyle = rgba(c, 0.35 + 0.25 * Math.sin(t * 2 + n.hub.index)); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(P.x, P.y, rr * (1.5 + 0.2 * Math.sin(t * 2 + n.hub.index)), 0, 6.283); ctx.stroke();
                 ctx.font = `700 ${Math.round(10.5 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
-                const ly = P.y + (n.hub.index === 0 ? -1 : 1) * (LEAF_R * scale * P.s + 20); ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,16,.9)'; ctx.strokeText(n.label, P.x, ly); ctx.fillStyle = rgba(c, 0.95); ctx.fillText(n.label, P.x, ly);
+                const ly = P.y + (n.hub.index === 0 ? -1 : 1) * (LEAF_R * scale * P.s + 14); ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,16,.9)'; ctx.strokeText(n.label, P.x, ly); ctx.fillStyle = rgba(c, 0.95); ctx.fillText(n.label, P.x, ly);
             } else {
                 const glow = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, rr * 3);
                 glow.addColorStop(0, rgba(c, 0.5 * (0.4 + depth))); glow.addColorStop(1, rgba(c, 0));
@@ -193,12 +238,28 @@
             n.sx = P.x; n.sy = P.y; n.sr = rr;
         });
 
+        // Schallwellen beim Sprechen: von jedem Bereich laufen Ringe nach außen
+        if (st === 'speaking' && now - lastRing > 520) { lastRing = now; HUBS.forEach(h => rings.push({ h, t: now })); }
+        for (let i = rings.length - 1; i >= 0; i--) {
+            const rg = rings[i], age = (now - rg.t) / 1300;
+            if (age >= 1) { rings.splice(i, 1); continue; }
+            ctx.strokeStyle = rgba(rg.h.color, (1 - age) * 0.6); ctx.lineWidth = 1.6 * (1 - age) + 0.4;
+            ctx.beginPath(); ctx.arc(rg.h.P.x, rg.h.P.y, 14 + age * 105 * (scale / 150), 0, 6.283); ctx.stroke();
+        }
+
         // Antipp-Welle
         if (pulse) {
             const age = (now - pulse.t) / 450;
             if (age >= 1) pulse = null;
             else { ctx.strokeStyle = rgba(pulse.c, 1 - age); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(pulse.x, pulse.y, 8 + age * 40, 0, 6.283); ctx.stroke(); }
         }
+
+        // Alles zum Rand hin weich ausblenden (Wellen und Glühen enden nicht abrupt am Rand)
+        ctx.globalCompositeOperation = 'destination-in';
+        const eg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.40, W / 2, H / 2, Math.min(W, H) * 0.5);
+        eg.addColorStop(0, 'rgba(0,0,0,1)'); eg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = eg; ctx.fillRect(0, 0, W, H);
+        ctx.globalCompositeOperation = 'source-over';
     }
 
     /* ---------- Bedienung ---------- */
