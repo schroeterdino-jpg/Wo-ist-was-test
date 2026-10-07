@@ -173,6 +173,12 @@ function speakableDates(text) {
     });
 }
 
+/* Ein Punkt direkt hinter einer Jahreszahl ("...am 7. Oktober 2026.") wird von der Stimme als Ordnungszahl gelesen ("zweitausendsechsundzwanzigstel"):
+   am Satzende fällt er weg, mitten im Text wird er zum Komma. */
+function speakableYears(text) {
+    return String(text).replace(/(?<![\d.])((?:1[5-9]|20)\d{2})\.(?=\s|$)/g, (m, y, off, str) => (off + m.length >= str.length ? y : y + ','));
+}
+
 /* Straßen-Abkürzungen ausschreiben, sonst liest die Stimme "Str" buchstabierend vor: "Hauptstr. 12" -> "Hauptstraße 12" */
 function speakableAbbreviations(text) {
     const end = '(?=[\\s,;:)!?]|$)';
@@ -272,7 +278,7 @@ function speak(text, onComplete, langCode) {
     // Namens-Aussprache: "Alyssa" soll wie "Alicia" (z.B. Alicia Keys) klingen, nicht wie geschrieben.
     // Nur beim Sprechen umgeschrieben - überall sonst in der App bleibt der Name "Alyssa".
     cleanText = cleanText.replace(/\bAlyssa\b/g, 'Alischa');
-    if (!langCode) cleanText = speakableAbbreviations(speakableDates(cleanText));   // deutsche Monatsnamen und Abkürzungen nur für deutschen Text
+    if (!langCode) cleanText = speakableYears(speakableAbbreviations(speakableDates(cleanText)));   // deutsche Monatsnamen und Abkürzungen nur für deutschen Text
 
     // Nur für normalen deutschen Text die Cloud-Stimme versuchen (der Dolmetscher-Modus mit langCode
     // bleibt bei der Handy-Stimme, die die Fremdsprachen-Stimmen schon mitbringt).
