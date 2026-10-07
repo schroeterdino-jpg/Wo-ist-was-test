@@ -51,7 +51,7 @@ const PLACE_OWN_CAR = /\b(?:mein|meine|meinen|meinem|geparkt|abgestellt|habe ich
 function parsePlacesRequest(text) {
     const t = String(text || '').toLowerCase().replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (!t || t.length > 110) return null;
-    if (/\b(?:wetter|kurs|euro|lira|dollar|tanke|tanken|sprit|diesel|benzin|restaurant\w*|hunger|pizza\w*|döner)\b/.test(t)) return null;   // gehört anderen Funktionen
+    if (/\b(?:wetter|kurs|euro|lira|dollar|tanke|tanken|sprit|diesel|benzin|restaurant\w*|hunger|pizza\w*|döner|zug|züge|zuges|bus|busse|fährt|fahrt|abfahrt|abfahrten|ankunft|verbindung\w*|fahrplan|bahnfahrt|losfahren|umstieg\w*|ice|regionalbahn|s-bahn|u-bahn)\b/.test(t)) return null;   // gehört anderen Funktionen
     const cat = PLACE_CATEGORIES.find(c => c.words.test(t));
     if (!cat) return null;
     if (cat.key === 'parkplatz' && PLACE_OWN_CAR.test(t)) return null;   // "Wo ist mein Parkplatz?" gehört zur Parkplatz-Merkfunktion
