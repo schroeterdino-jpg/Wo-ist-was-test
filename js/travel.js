@@ -727,12 +727,23 @@ async function bahnPlaceText(raw) {
     return t;
 }
 
+/* Ein bloßer Städtename ("Hamburg") wird von der Fahrplan-Suche sonst mit der nächstgelegenen Straße oder Haltestelle gleichen Namens
+   verwechselt (z.B. "Hamburger Straße 102" in der eigenen Stadt). Darum bei Bahnfragen den Hauptbahnhof meinen:
+   große Städte "X Hbf", alles andere bleibt unverändert. Adressen, Koordinaten, Straßen- und Bahnhofsnamen bleiben unverändert. */
+const BAHN_GROSSE_STAEDTE = ['hamburg', 'berlin', 'hannover', 'bremen', 'lübeck', 'kiel', 'münchen', 'köln', 'frankfurt', 'stuttgart', 'dresden', 'leipzig', 'düsseldorf', 'dortmund', 'essen', 'nürnberg', 'schwerin', 'rostock', 'flensburg', 'bielefeld', 'duisburg', 'bonn', 'mannheim', 'karlsruhe', 'münster', 'magdeburg', 'erfurt', 'wiesbaden', 'mainz', 'braunschweig', 'osnabrück', 'göttingen', 'kassel', 'augsburg', 'freiburg', 'regensburg', 'ulm', 'würzburg', 'saarbrücken', 'wolfsburg', 'stralsund', 'cuxhaven'];
+function bahnStationize(text) {
+    const t = String(text || '').trim();
+    if (!t || /[\d,]/.test(t) || t.split(/\s+/).length > 2) return t;
+    if (/(straße|strasse|str\.|weg\b|platz|ring\b|allee|damm|gasse|chaussee|ufer|hof\b|markt|bahnhof|hbf|bhf|flughafen|airport|haltestelle|zob|klinik|krankenhaus|universität|schule|zentrum)/i.test(t)) return t;
+    return BAHN_GROSSE_STAEDTE.includes(t.toLowerCase()) ? `${t} Hbf` : t;
+}
+
 /* Ergebnis: { reply, cards }. opts: { from, to, time ("HH:MM" oder ISO), timeType ('ankunft' | 'abfahrt') } */
 async function bahnAuskunft(opts) {
     if (!String(opts.to || '').trim()) throw userError('Wohin soll die Reise gehen?');
     if (bahnIsHere(opts.from) && bahnIsHere(opts.to)) throw userError('Von wo startet die Reise? Nennen Sie mir den Startort, zum Beispiel: von Hamburg Hauptbahnhof.');
-    const fromText = await bahnPlaceText(opts.from);
-    const toText = await bahnPlaceText(opts.to);
+    const fromText = bahnStationize(await bahnPlaceText(opts.from));
+    const toText = bahnStationize(await bahnPlaceText(opts.to));
     const now = new Date();
     let when = null;
     if (opts.time) {
