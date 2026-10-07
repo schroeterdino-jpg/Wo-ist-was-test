@@ -535,12 +535,17 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
                 text: (w.description || []).slice(0, 3).join(' · ')
             });
         });
-        // Dieselbe Stelle in beiden Fahrtrichtungen ("Hamburg-Stillhorn, Norderelbbrücke" und "Hamburg-Südost, Norderelbbrücke", beide Gefahrenstelle) nur einmal nennen
-        const gesehenStelle = new Set();
+        // Dieselbe Stelle in beiden Fahrtrichtungen ("Hamburg-Stillhorn - Norderelbbrücke" und "Hamburg-Südost - Norderelbbrücke", beide Gefahrenstelle) nur einmal nennen:
+        // gleiche Art und entweder gleicher Ortsname am Ende des Titels oder weniger als etwa 500 Meter Abstand
+        const gesehenStelle = [];
         nahe.filter(w => {
-            const k = classifyWarning(w) + '|' + String((w.title || '').split('|').pop().trim().split(',').pop()).trim().toLowerCase();
-            if (gesehenStelle.has(k)) return false;
-            gesehenStelle.add(k);
+            const art = classifyWarning(w);
+            const name = String((w.title || '').split('|').pop() || '').split(/\s+[-–]\s+|,\s*/).pop().trim().toLowerCase();
+            const lat = w.coordinate ? Number(w.coordinate.lat) : NaN, lon = w.coordinate ? Number(w.coordinate.long) : NaN;
+            const dup = gesehenStelle.some(g => g.art === art && ((name && g.name === name) ||
+                (isFinite(lat) && isFinite(lon) && isFinite(g.lat) && isFinite(g.lon) && Math.hypot((lat - g.lat) * 111, (lon - g.lon) * 111 * Math.cos(lat * Math.PI / 180)) < 0.5)));
+            if (dup) return false;
+            gesehenStelle.push({ art, name, lat, lon });
             return true;
         }).slice(0, 2).forEach(w => {
             const kurz = (w.title || '').split('|').pop().trim();
