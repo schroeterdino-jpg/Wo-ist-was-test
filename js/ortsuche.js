@@ -239,6 +239,44 @@
     function overpass(query) { return raceOverpass(query, true); }
     function directOverpass(query) { return raceOverpass(query, false); }
 
+    /* Rückfall: Die Suche von OpenStreetMap (Nominatim, wie bei der Ortsangabe) liefert Name und Adresse, wenn die Overpass-Server nicht antworten.
+       Sie hat meist keine Öffnungszeiten, kennt aber die gängigen Ketten und Straße/Hausnummer. */
+    async function nominatimElements(res, lat, lon, radius) {
+        const dLat = radius / 111000, dLon = radius / (111000 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
+        const view = [lon - dLon, lat + dLat, lon + dLon, lat - dLat].map(n => n.toFixed(5)).join(',');
+        const term = res.entry.brand && res.entry.generic ? (res.query || res.entry.label) : res.entry.label;
+        const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=30&addressdetails=1&extratags=1&accept-language=de&bounded=1&viewbox=' + view + '&q=' + encodeURIComponent(term);
+        const r = await withTimeout(fetch(url), 12000);
+        if (!r.ok) throw new Error('Nominatim Status ' + r.status);
+        const d = await r.json();
+        if (!Array.isArray(d)) throw new Error('Nominatim: keine Daten');
+        return d.map(x => {
+            const a = x.address || {}, ex = x.extratags || {};
+            const tags = { name: x.name || a[x.type] || '', 'addr:street': a.road || a.pedestrian || '', 'addr:housenumber': a.house_number || '', 'addr:city': a.city || a.town || a.village || a.municipality || '', 'addr:postcode': a.postcode || '' };
+            if (ex.opening_hours) tags.opening_hours = ex.opening_hours;
+            if (ex.brand) tags.brand = ex.brand;
+            return { lat: parseFloat(x.lat), lon: parseFloat(x.lon), tags };
+        }).filter(e => isFinite(e.lat) && isFinite(e.lon));
+    }
+
+    /* Erst Overpass (bei schnellem Fehler ein zweiter Versuch), bei Ausfall der Rückfall über Nominatim. Nach einem Ausfall wird Overpass eine Minute lang übersprungen. */
+    let overpassDownUntil = 0;
+    async function getElements(res, lat, lon, radius) {
+        if (Date.now() > overpassDownUntil) {
+            for (let attempt = 0; attempt < 2; attempt++) {
+                const t0 = Date.now();
+                try { return await overpass(buildQuery(res, lat, lon, radius)); }
+                catch (e) {
+                    console.error('Overpass fehlgeschlagen:', e && e.message);
+                    if (Date.now() - t0 > 10000) break;   // war langsam: kein zweiter Versuch
+                }
+            }
+            overpassDownUntil = Date.now() + 60000;
+        }
+        try { return await nominatimElements(res, lat, lon, radius); }
+        catch (e2) { throw new Error('Overpass und Nominatim: ' + String((e2 && e2.message) || e2).slice(0, 80)); }
+    }
+
     function haversine(lat1, lon1, lat2, lon2) {
         const R = 6371000, rad = Math.PI / 180, dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
         const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
@@ -431,7 +469,7 @@
         try {
             for (const radius of (res.entry.brand && res.entry.generic ? [3000, 8000] : RADII)) {
                 usedRadius = radius;
-                places = toPlaces(await overpass(buildQuery(res, geo.lat, geo.lon, radius)), res, geo.lat, geo.lon);
+                places = toPlaces(await getElements(res, geo.lat, geo.lon, radius), res, geo.lat, geo.lon);
                 if (places.length) break;
             }
         } catch (e) {
@@ -482,7 +520,7 @@
         try {
             for (const radius of (res.entry.brand && res.entry.generic ? [3000, 8000] : RADII)) {
                 usedRadius = radius;
-                places = toPlaces(await overpass(buildQuery(res, pos.lat, pos.lon, radius)), res, pos.lat, pos.lon);
+                places = toPlaces(await getElements(res, pos.lat, pos.lon, radius), res, pos.lat, pos.lon);
                 if (places.length) break;
             }
         } catch (e) {
