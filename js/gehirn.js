@@ -390,10 +390,12 @@
         return all.find(n => norm(n.label) === k) || all.find(n => norm(n.label).startsWith(k) || k.startsWith(norm(n.label))) || null;
     }
     function handleZoom(t) {
-        const m = t.match(/^(?:bitte\s+)?(?:zoom(?:e|en)?|zoom)\b\s*(.*)$/);
-        if (!m) return false;
-        const rest = m[1].replace(/\b(?:mal|bitte|ran|heran|rein|hinein|zu|zum|zur|auf|an|in|den|die|das|dem|der|begriff|bereich|kugel)\b/g, ' ').replace(/\s+/g, ' ').trim();
-        if (/^(?:raus|heraus|zurück|weg|aus|ab)\b/.test(m[1].trim()) || /^(?:raus|heraus|zurück|weg|aus)$/.test(rest)) {
+        const zm = t.match(/(?:^|\s)\w*zoom\w*/);
+        if (!zm) return false;
+        const before = t.slice(0, zm.index), word = zm[0].trim(), after = t.slice(zm.index + zm[0].length);
+        const clean = x => x.replace(/(?<![\wäöüß])(?:mal|bitte|ran|heran|rein|hinein|zu|zum|zur|auf|an|in|den|die|das|dem|der|begriff|bereich|kugel|jarvis|kannst|du|ich|möchte|will|moechte)(?![\wäöüß])/g, ' ').replace(/\s+/g, ' ').trim();
+        const rest = clean(before + ' ' + after);
+        if (/raus|heraus|weg|zurück|aus\b|ab\b/.test(word) || /^(?:raus|heraus|zurück|zurueck|weg|aus|ab)$/.test(rest) || /\b(?:raus|heraus|zurück)\b/.test(after) && !rest.replace(/\b(?:raus|heraus|zurück)\b/g, '').trim()) {
             zoomOut(); try { speak('Okay.', typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} return true;
         }
         const n = findNode(rest);
@@ -405,23 +407,28 @@
     function handle(text) {
         const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 60) return false;
-        if (/^(?:bitte\s+)?zoom/.test(t)) return handleZoom(t);
+        if (/(?:^|\s)\w*zoom/.test(t)) return handleZoom(t);
         if (OFF_RX.test(t)) { setMode(false, true); return true; }
         if (ON_RX.test(t)) { setMode(true, true); return true; }
         return false;
     }
     window.handleGehirnCommand = handle;
     window.__gehirnTest = { frame: t => frame(t), st: () => ({ n: zoomNode && zoomNode.label, k: zoomK, sx: zoomNode && zoomNode.sx, sy: zoomNode && zoomNode.sy, sr: zoomNode && zoomNode.sr }), hit: (x, y) => hit(x, y) && hit(x, y).label };
-    if (typeof window.handleLocalCommand === 'function' && !window.handleLocalCommand._gehirn) {
+    let lastHooked = null;
+    function ensureHook() {
         const original = window.handleLocalCommand;
+        if (typeof original !== 'function' || original === lastHooked) return;
         const hooked = function (text) {
             try { if (handle(text)) return true; } catch (e) {}
             return original.apply(this, arguments);
         };
         hooked._gehirn = true;
         Object.keys(original).forEach(k => { try { hooked[k] = original[k]; } catch (e) {} });
+        lastHooked = hooked;
         window.handleLocalCommand = hooked;
     }
+    ensureHook();
+    [800, 2500, 6000, 12000].forEach(ms => setTimeout(ensureHook, ms));   // spätere Dateien umwickeln den Befehl: wieder ganz nach außen
 
     function start() { try { mount(); } catch (e) { console.error('Gehirn-Ansicht', e); } }
     if (document.readyState === 'complete' || document.readyState === 'interactive') start(); else document.addEventListener('DOMContentLoaded', start);
