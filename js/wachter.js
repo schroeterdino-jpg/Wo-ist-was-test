@@ -89,7 +89,8 @@ async function wachterDriveMinutes(location) {
         const r = await wachterTimeout(apiFetch(`/api/route?fromLat=${pos.lat}&fromLon=${pos.lon}&toLat=${geo.lat}&toLon=${geo.lon}`), 8000);
         const d = await r.json();
         const sec = d && d.routes && d.routes[0] && d.routes[0].duration;
-        const min = sec ? Math.max(1, Math.round(sec / 60)) : null;
+        let min = sec ? Math.max(1, Math.round(sec / 60)) : null;
+        if (min !== null && min > 360) min = null;   // über 6 Stunden: der Ort wurde vermutlich falsch gefunden (z.B. ein Personenname), lieber keine Fahrzeit nennen
         wachterDrive[location] = { min, at: Date.now() };
         return min;
     } catch (e) { return null; }

@@ -148,6 +148,7 @@
                 c.show('Ich rechne …');
                 const drive = await wachterDriveMinutes(loc);
                 if (drive == null) { c.show('Die Fahrzeit konnte ich gerade nicht ermitteln.'); return; }
+                if (drive > 360) { c.show('Den Ort „' + loc + '“ habe ich nicht sicher gefunden (die Fahrt wäre über 6 Stunden lang). Vielleicht ist das gar keine Adresse.'); return; }
                 const leave = new Date(start - (drive + 10) * 60000);
                 c.show(['Die Fahrt dauert rund ' + drive + ' Minuten (ohne Verkehr).', 'Losfahren am besten um ' + clock(leave) + ' Uhr (10 Minuten Puffer).']);
             } });
