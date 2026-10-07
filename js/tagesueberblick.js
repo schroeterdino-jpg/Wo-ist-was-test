@@ -83,8 +83,8 @@ async function uebFillLocation(d, el) {
 }
 
 /* Kacheln, die ihren Inhalt erst nachladen: Parkplatz, Wetter, Spritpreis (früher im Dashboard). Fehler zeigen nur einen kurzen Hinweis in der Kachel. */
-function uebFillLine(el, fn) {
-    Promise.resolve().then(() => uebTimeout(fn(), 25000)).then(txt => { if (el.isConnected) el.textContent = txt; })
+function uebFillLine(el, fn, onDone) {
+    Promise.resolve().then(() => uebTimeout(fn(), 25000)).then(txt => { try { if (onDone) onDone(txt); } catch (e) {} if (el.isConnected) el.textContent = txt; })
         .catch(() => { if (el.isConnected) el.textContent = 'nicht verfügbar'; });
 }
 async function uebTextParkplatz() {
@@ -117,11 +117,16 @@ function uebSpeechText(d) {
     const t = (x) => (typeof formatSpokenTime === 'function') ? formatSpokenTime(x) : uebClock(x);
     if (uebIsEmpty(d)) return `Guten Morgen, ${a}. Heute ist nichts offen.` + (d.standort ? ` Sie befinden sich in ${d.standort}.` : '');
     const parts = [`Guten Morgen, ${a}.`];
-    if (d.termine.length) parts.push(`Heute ${d.termine.length === 1 ? 'steht ein Termin' : 'stehen ' + d.termine.length + ' Termine'} an: ` + d.termine.slice(0, 5).map(e => e.time ? `${e.text} um ${t(e.time)}` : `${e.text}, ganztägig`).join('; ') + '.');
-    if (d.erinnerungen.length) parts.push(`Erinnerungen: ` + d.erinnerungen.slice(0, 5).map(r => r.overdue ? `${r.text}, überfällig` : `${r.text} um ${t(r.time)}`).join('; ') + '.');
-    if (d.aufgaben.length) parts.push(`${d.aufgaben.length === 1 ? 'Eine Aufgabe ist' : d.aufgaben.length + ' Aufgaben sind'} offen: ` + d.aufgaben.slice(0, 4).join(', ') + (d.aufgaben.length > 4 ? ' und weitere' : '') + '.');
-    if (d.einkauf.length) parts.push(`Auf der Einkaufsliste ${d.einkauf.length === 1 ? 'steht ein Artikel' : 'stehen ' + d.einkauf.length + ' Artikel'}: ` + d.einkauf.slice(0, 5).join(', ') + (d.einkauf.length > 5 ? ' und weitere' : '') + '.');
+    if (d.termine.length) parts.push(`Heute ${d.termine.length === 1 ? 'steht ein Termin' : 'stehen ' + d.termine.length + ' Termine'} an: ` + d.termine.slice(0, 10).map(e => e.time ? `${e.text} um ${t(e.time)}` : `${e.text}, ganztägig`).join('; ') + '.');
+    if (d.erinnerungen.length) parts.push(`Erinnerungen: ` + d.erinnerungen.slice(0, 10).map(r => r.overdue ? `${r.text}, überfällig` : `${r.text} um ${t(r.time)}`).join('; ') + '.');
+    if (d.aufgaben.length) parts.push(`${d.aufgaben.length === 1 ? 'Eine Aufgabe ist' : d.aufgaben.length + ' Aufgaben sind'} offen: ` + d.aufgaben.slice(0, 10).join(', ') + (d.aufgaben.length > 10 ? ' und weitere' : '') + '.');
+    if (d.einkauf.length) parts.push(`Auf der Einkaufsliste ${d.einkauf.length === 1 ? 'steht ein Artikel' : 'stehen ' + d.einkauf.length + ' Artikel'}: ` + d.einkauf.slice(0, 12).join(', ') + (d.einkauf.length > 12 ? ' und weitere' : '') + '.');
     if (d.geburtstage.length) parts.push(`Heute ${d.geburtstage.length === 1 ? (/geburtstag/i.test(d.geburtstage[0]) ? 'ist ' + d.geburtstage[0] : 'hat ' + d.geburtstage[0] + ' Geburtstag') : 'haben mehrere Geburtstag'}.`);
+    // Kacheln, die ihren Inhalt nachladen: nur vorlesen, was schon da ist und eine echte Angabe ist
+    const okTxt = (x) => x && !/nicht verfügbar|gerade nicht|wird geladen|Kein Parkplatz|Keine geöffneten/i.test(x);
+    if (okTxt(d.wetter)) parts.push('Das Wetter: ' + d.wetter.replace(/\s*·\s*gefühlt\s*/i, ', gefühlt ').replace(/\s*·\s*/g, ', ').replace(/(-?\d+(?:[.,]\d+)?)°/g, '$1 Grad') + '.');
+    if (okTxt(d.parkplatz)) parts.push('Ihr Auto steht: ' + d.parkplatz.replace(/\s*·\s*/g, ', ') + '.');
+    if (okTxt(d.sprit)) parts.push('Spritpreis: ' + d.sprit.replace(/\s*€\s*/g, ' Euro ').replace(/\s*·\s*/, ' bei ').replace(/\s*·\s*/g, ', ').replace(/\s+/g, ' ').trim() + '.');
     if (d.standort) parts.push(`Sie befinden sich in ${d.standort}.`);
     return parts.join(' ');
 }
@@ -209,12 +214,12 @@ function uebRender(d) {
     if (d.geburtstage.length) tile('🎂', 'Geburtstage heute', d.geburtstage.map(t => ({ text: t })), { wide: true });
 
     // Parkplatz, Wetter, Spritpreis: Kacheln sofort, der Inhalt kommt nach
-    [['🅿️', 'Parkplatz', uebTextParkplatz, ['parkplatz']], ['🌤️', 'Wetter', uebTextWetter, null], ['⛽', 'Spritpreis', uebTextSprit, null]].forEach(([ic, ti, fn, pn]) => {
+    [['🅿️', 'Parkplatz', uebTextParkplatz, ['parkplatz'], 'parkplatz'], ['🌤️', 'Wetter', uebTextWetter, null, 'wetter'], ['⛽', 'Spritpreis', uebTextSprit, null, 'sprit']].forEach(([ic, ti, fn, pn, key]) => {
         const t = mk(grid, 'div', 'ub-tile wide');
         mk(mk(t, 'div', 'ub-th'), 'div', 'ub-tt', `${ic} ${ti}`);
         const line = mk(t, 'div', 'ub-line', 'wird geladen ...');
         if (pn) t.addEventListener('click', () => uebOpenPanelFor(pn));
-        uebFillLine(line, fn);
+        uebFillLine(line, fn, txt => { d[key] = String(txt || ''); });
     });
 
     // Standort: Kachel sofort, die Adresse kommt, sobald das GPS antwortet
