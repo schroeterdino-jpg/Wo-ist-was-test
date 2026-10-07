@@ -117,7 +117,7 @@
         function proj(p) {
             const x1 = p[0] * cy + p[2] * sy, z1 = -p[0] * sy + p[2] * cy;
             const y2 = p[1] * cp - z1 * sp, z2 = p[1] * sp + z1 * cp;
-            const s = 1 / (1 - z2 * 0.38);
+            const s = 1 / (1 - z2 * 0.2);
             return { x: cx + x1 * scale * s, y: cyy + y2 * scale * s, z: z2, s };
         }
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.lineJoin = 'round'; ctx.miterLimit = 2;
@@ -138,7 +138,7 @@
 
         // Nebel hinter den Bereichen
         HUBS.forEach(h => {
-            const P = h.P, r = 135 * P.s * (scale / 150) * (1 + 0.35 * env);
+            const P = h.P, r = 90 * P.s * (scale / 150) * (1 + 0.35 * env);
             const g = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, r);
             g.addColorStop(0, rgba(h.color, 0.10 + 0.12 * env)); g.addColorStop(1, rgba(h.color, 0));
             ctx.fillStyle = g; ctx.beginPath(); ctx.arc(P.x, P.y, r, 0, 6.283); ctx.fill();
@@ -153,7 +153,7 @@
 
         // Nebel und Sterne weich zum Rand ausblenden (kein sichtbarer Kasten)
         ctx.globalCompositeOperation = 'destination-in';
-        const vg = ctx.createRadialGradient(W / 2, H / 2, Math.max(W, H) * 0.42, W / 2, H / 2, Math.max(W, H) * 0.62);
+        const vg = ctx.createRadialGradient(W / 2, H / 2, Math.max(W, H) * 0.55, W / 2, H / 2, Math.max(W, H) * 0.8);
         vg.addColorStop(0, 'rgba(0,0,0,1)'); vg.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
         ctx.globalCompositeOperation = 'source-over';
@@ -230,16 +230,16 @@
                 ctx.strokeStyle = rgba(c, 0.9); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(P.x, P.y, rr, 0, 6.283); ctx.stroke();
                 ctx.strokeStyle = rgba(c, 0.35 + 0.25 * Math.sin(t * 2 + n.hub.index)); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(P.x, P.y, rr * (1.5 + 0.2 * Math.sin(t * 2 + n.hub.index)), 0, 6.283); ctx.stroke();
                 ctx.font = `700 ${Math.round(13 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
-                const ly = P.y + (n.hub.ldir || 1) * ((n.hub.lr || LEAF_R) * scale * P.s + 14); ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,16,.9)'; ctx.strokeText(n.label, P.x, ly); ctx.fillStyle = rgba(c, 0.95); ctx.fillText(n.label, P.x, ly);
+                const ly = P.y + (n.hub.ldir || 1) * ((n.hub.lr || LEAF_R) * scale * P.s + 14); ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,16,.9)'; const tw = ctx.measureText(n.label).width, lx = Math.max(tw / 2 + 4, Math.min(W - tw / 2 - 4, P.x)); ctx.strokeText(n.label, lx, ly); ctx.fillStyle = rgba(c, 0.95); ctx.fillText(n.label, lx, ly);
             } else {
                 const glow = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, rr * 3);
                 glow.addColorStop(0, rgba(c, 0.5 * (0.4 + depth))); glow.addColorStop(1, rgba(c, 0));
                 ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(P.x, P.y, rr * 3, 0, 6.283); ctx.fill();
                 ctx.fillStyle = rgba([255, 255, 255], 0.55 + 0.4 * depth); ctx.beginPath(); ctx.arc(P.x, P.y, rr, 0, 6.283); ctx.fill();
-                if (depth > 0.42) {
+                if (depth > 0.5) {
                     ctx.font = `600 ${Math.round(12 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
                     ctx.textAlign = 'center'; ctx.fillStyle = rgba([255, 255, 255], Math.min(1, 0.8 + (depth - 0.3) * 1.5));
-                    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(5,10,16,.95)'; ctx.strokeText(n.label, P.x, P.y - rr - 6); ctx.fillText(n.label, P.x, P.y - rr - 6);
+                    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(5,10,16,.95)'; const tw = ctx.measureText(n.label).width, lx = Math.max(tw / 2 + 4, Math.min(W - tw / 2 - 4, P.x)); ctx.strokeText(n.label, lx, P.y - rr - 6); ctx.fillText(n.label, lx, P.y - rr - 6);
                 }
             }
             n.sx = P.x; n.sy = P.y; n.sr = rr;
