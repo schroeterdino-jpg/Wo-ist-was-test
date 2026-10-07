@@ -111,6 +111,45 @@ async function uebTextSprit() {
 
 function uebIsEmpty(d) { return !d.termine.length && !d.erinnerungen.length && !d.aufgaben.length && !d.einkauf.length && !d.geburtstage.length; }
 
+/* ---------- Aufgaben nach Wichtigkeit ordnen ---------- */
+const UEB_PRIO_RE = [
+    [/dringend|sofort|unbedingt|wichtig|heute|asap|eilig|notfall/i, 5],
+    [/frist|rechnung|bezahl|überweis|steuer|mahnung|versicherung|miete|vertrag|kündig|antrag|formular|behörde|amt|finanzamt|gericht/i, 4],
+    [/arzt|zahnarzt|termin|rezept|apotheke|krank|werkstatt|tüv|hu/i, 3],
+    [/morgen|diese woche|bis (montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)/i, 3],
+    [/anrufen|zurückrufen|mail|antworten|abholen|abgeben|bestellen/i, 1],
+    [/irgendwann|vielleicht|idee|mal wieder|eventuell/i, -2]
+];
+function uebPrioScore(t) { return UEB_PRIO_RE.reduce((s, [rx, w]) => s + (rx.test(String(t)) ? w : 0), 0); }
+function uebSortByHeuristic(list) { return list.map((t, i) => ({ t, i, s: uebPrioScore(t) })).sort((a, b) => (b.s - a.s) || (a.i - b.i)).map(x => x.t); }
+let uebSortCache = { key: '', list: null };
+/* Erst die KI (bis 6 Sekunden), sonst die Stichwort-Regel oben. Die Liste selbst bleibt unverändert, nur das Vorlesen ist sortiert. */
+async function uebSortTasks(list) {
+    if (!Array.isArray(list) || list.length < 2) return list || [];
+    const key = list.join('\u0001');
+    if (uebSortCache.key === key && uebSortCache.list) return uebSortCache.list;
+    let result = null;
+    try {
+        if (typeof apiFetch === 'function') {
+            const heute = new Date().toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            const termine = (typeof calendarEntries !== 'undefined' ? calendarEntries : []).slice(0, 40).map(e => `${e.isoDate}: ${e.text}`).join('; ').slice(0, 1200);
+            const res = await uebTimeout(apiFetch('/api/groq', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: 'openai/gpt-oss-120b', response_format: { type: 'json_object' }, messages: [
+                    { role: 'system', content: `Du sortierst eine To-Do-Liste nach Wichtigkeit (wichtigste zuerst). Wichtig: Fristen, Rechnungen, Zahlungen, Behörden, Arzt, Dringendes, Anstehendes (heute ist ${heute}); weniger wichtig: lose Ideen und Besorgungen ohne Zeitdruck. Termine zur Orientierung: ${termine}. Antworte NUR mit JSON der Form {"reihenfolge":[Nummern]} mit allen Nummern von 0 bis ${list.length - 1} genau einmal.` },
+                    { role: 'user', content: list.map((t, i) => `${i}: ${t}`).join('\n') }
+                ] })
+            }), 6000);
+            const data = await res.json();
+            const ord = JSON.parse(data.choices[0].message.content).reihenfolge;
+            if (Array.isArray(ord) && ord.length === list.length && new Set(ord).size === list.length && ord.every(n => Number.isInteger(n) && n >= 0 && n < list.length)) result = ord.map(n => list[n]);
+        }
+    } catch (e) { result = null; }
+    if (!result) result = uebSortByHeuristic(list);
+    uebSortCache = { key, list: result };
+    return result;
+}
+
 /* ---------- Vorlesen ---------- */
 function uebSpeechText(d) {
     const a = uebAddress();
@@ -119,7 +158,13 @@ function uebSpeechText(d) {
     const parts = [`Guten Morgen, ${a}.`];
     if (d.termine.length) parts.push(`Heute ${d.termine.length === 1 ? 'steht ein Termin' : 'stehen ' + d.termine.length + ' Termine'} an: ` + d.termine.slice(0, 10).map(e => e.time ? `${e.text} um ${t(e.time)}` : `${e.text}, ganztägig`).join('; ') + '.');
     if (d.erinnerungen.length) parts.push(`Erinnerungen: ` + d.erinnerungen.slice(0, 10).map(r => r.overdue ? `${r.text}, überfällig` : `${r.text} um ${t(r.time)}`).join('; ') + '.');
-    if (d.aufgaben.length) parts.push(`${d.aufgaben.length === 1 ? 'Eine Aufgabe ist' : d.aufgaben.length + ' Aufgaben sind'} offen: ` + d.aufgaben.slice(0, 10).join(', ') + (d.aufgaben.length > 10 ? ' und weitere' : '') + '.');
+    if (d.aufgaben.length) {
+        if (d.aufgaben.length === 1) parts.push(`Eine Aufgabe ist offen: ${d.aufgaben[0]}.`);
+        else {   // Liste ist (wenn möglich) schon nach Wichtigkeit sortiert: die wichtigste zuerst nennen
+            const rest = d.aufgaben.slice(1, 10);
+            parts.push(`${d.aufgaben.length} Aufgaben sind offen. Am wichtigsten ist: ${d.aufgaben[0]}.` + (rest.length ? ' Danach: ' + rest.join(', ') + (d.aufgaben.length > 10 ? ' und weitere' : '') + '.' : ''));
+        }
+    }
     if (d.einkauf.length) parts.push(`Auf der Einkaufsliste ${d.einkauf.length === 1 ? 'steht ein Artikel' : 'stehen ' + d.einkauf.length + ' Artikel'}: ` + d.einkauf.slice(0, 12).join(', ') + (d.einkauf.length > 12 ? ' und weitere' : '') + '.');
     if (d.geburtstage.length) parts.push(`Heute ${d.geburtstage.length === 1 ? (/geburtstag/i.test(d.geburtstage[0]) ? 'ist ' + d.geburtstage[0] : 'hat ' + d.geburtstage[0] + ' Geburtstag') : 'haben mehrere Geburtstag'}.`);
     // Kacheln, die ihren Inhalt nachladen: nur vorlesen, was schon da ist und eine echte Angabe ist
@@ -231,7 +276,13 @@ function uebRender(d) {
 
     const bar = mk(el, 'div', 'ub-bar');
     const speakBtn = mk(bar, 'button', 'ub-btn primary', '🔊 Vorlesen');
-    speakBtn.addEventListener('click', () => { try { speak(uebSpeechText(d)); } catch (e) {} });
+    speakBtn.addEventListener('click', async () => {
+        try {
+            let d2 = d;
+            try { d2 = Object.assign({}, d, { aufgaben: await uebSortTasks(d.aufgaben) }); } catch (e) { d2 = d; }   // Aufgaben nach Wichtigkeit
+            speak(uebSpeechText(d2));
+        } catch (e) {}
+    });
     const closeBtn = mk(bar, 'button', 'ub-btn', 'Schließen');
     closeBtn.addEventListener('click', () => closeUeberblick());
 
