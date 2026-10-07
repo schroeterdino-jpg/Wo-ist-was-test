@@ -1,6 +1,6 @@
 /* ============================================================
-   GEHIRN-ANSICHT: Statt der Netz-Kugel zeigt der Startbildschirm ein Gehirn aus drei Bereichen im Dreieck:
-   GEDÄCHTNIS (oben), HÄNDE (rechts unten), OHREN (links unten). Jeder Bereich hat antippbare Knoten (Termine, Listen, Karte, Mail ...).
+   GEHIRN-ANSICHT: Statt der Netz-Kugel zeigt der Startbildschirm ein Gehirn aus fünf Bereichen im Fünfeck:
+   GEDÄCHTNIS (oben), ZEIT, HÄNDE, UNTERWEGS, OHREN. Jeder Bereich hat antippbare Knoten (Termine, Listen, Karte, Mail ...).
    Die Punkte auf den Dreiecks-Linien wandern im Uhrzeigersinn, das Ganze schwingt langsam und lässt sich mit dem Finger drehen.
    Antippen eines Knotens öffnet die jeweilige Funktion. Antippen einer leeren Stelle startet wie bisher das Zuhören.
    Zurück zur alten Kugel: kleiner Knopf oben rechts an der Ansicht, oder per Sprache "Zurück zur Kugel". "Zeig das Gehirn" schaltet wieder um.
@@ -23,28 +23,37 @@
     }
     const panel = id => () => { try { window.openPanel(id); } catch (e) { console.error('Gehirn', e); } };
     const HUBS = [
-        { label: 'GEDÄCHTNIS', color: [73, 215, 255], pos: [0, -0.56, 0], leaves: [
+        { label: 'GEDÄCHTNIS', color: [73, 215, 255], pos: [0, -0.68, 0], leaves: [
             ['Langzeit', () => window.showLangzeit && window.showLangzeit()],
             ['Gedächtnis', panel('gedaechtnis')],
             ['Listen', panel('einkauf')],
-            ['Termine', panel('termine')],
-            ['Erinnerungen', panel('erinnerungen')],
-            ['Fristen', () => say('Welche Fristen habe ich?')],
             ['Protokolle', panel('protokolle')],
             ['Adressen', panel('adressen')]
         ] },
-        { label: 'HÄNDE', color: [255, 154, 68], pos: [0.62, 0.46, 0], leaves: [
+        { label: 'ZEIT', color: [120, 232, 150], pos: [0.647, -0.21, 0], leaves: [
+            ['Termine', panel('termine')],
+            ['Erinnerungen', panel('erinnerungen')],
+            ['Fristen', () => say('Welche Fristen habe ich?')],
+            ['Planer', panel('planer')],
+            ['Weltuhr', () => { try { window.openWeltuhr(); } catch (e) { say('Öffne die Weltuhr'); } }]
+        ] },
+        { label: 'HÄNDE', color: [255, 154, 68], pos: [0.40, 0.55, 0], leaves: [
+            ['Mail', () => say('Welche E-Mails habe ich?')],
+            ['Foto', () => { try { window.openPhotoCamera(true); } catch (e) {} }],
+            ['Überblick', () => { try { window.showUeberblick(false); } catch (e) {} }],
+            ['Wetter', () => say('Wie wird das Wetter?')],
+            ['Briefing', () => { try { window.triggerDailyBriefing(); } catch (e) {} }],
+            ['Restaurants', () => say('Zeig mir Restaurants in der Nähe')],
+            ['Tanken', () => say('Zeig mir günstige Tankstellen in der Nähe')]
+        ] },
+        { label: 'UNTERWEGS', color: [255, 214, 90], pos: [-0.40, 0.55, 0], leaves: [
             ['Karte', panel('karte')],
             ['Welt', panel('welt')],
-            ['Planer', panel('planer')],
-            ['Mail', () => say('Welche E-Mails habe ich?')],
-            ['Wetter', () => say('Wie wird das Wetter?')],
-            ['Foto', () => { try { window.openPhotoCamera(true); } catch (e) {} }],
-            ['Überblick', () => { try { window.showUeberblick(false); } catch (e) {} }]
+            ['Fahrzeit', () => say('Wann muss ich zum nächsten Termin losfahren?')],
+            ['Parkplatz', () => say('Wo habe ich geparkt?')],
+            ['Sprit-Route', () => say('Wo tanke ich auf dem Weg zum nächsten Termin am günstigsten?')]
         ] },
-        { label: 'OHREN', color: [190, 125, 255], pos: [-0.62, 0.46, 0], leaves: [
-            ['Briefing', () => { try { window.triggerDailyBriefing(); } catch (e) {} }],
-            ['Einstellungen', panel('settings')],
+        { label: 'OHREN', color: [190, 125, 255], pos: [-0.647, -0.21, 0], leaves: [
             ['Wünsche', () => say('Welche Formulierungen habe ich?')],
             ['Hör-Korrektur', () => say('Welche Hör-Korrekturen hast du?')],
             ['Hilfe', () => say('Hilfe')]
@@ -52,7 +61,7 @@
     ];
 
     /* ---------- 3D-Aufbau ---------- */
-    const LEAF_R = 0.37;
+    const LEAF_R = 0.31;
     const nodes = [];       // alle Knoten: { hub, label, action, base:[x,y,z], r }
     HUBS.forEach((h, hi) => {
         h.index = hi;
@@ -71,14 +80,14 @@
         const a = Math.random() * 6.283, b = Math.acos(2 * Math.random() - 1), R = 0.85 + Math.random() * 0.5;
         STARS.push({ p: [R * Math.sin(b) * Math.cos(a), R * Math.cos(b) * 0.9, R * Math.sin(b) * Math.sin(a)], s: 0.6 + Math.random() * 1.4, ph: Math.random() * 6.283 });
     }
-    const EDGES = [[0, 1], [1, 2], [2, 0]];   // oben -> rechts unten -> links unten -> oben = im Uhrzeigersinn
+    const EDGES = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]];   // Fünfeck im Uhrzeigersinn
 
     /* ---------- Zeichnen ---------- */
     let canvas = null, ctx = null, btn = null, W = 0, H = 0, dpr = 1;
     let yawDrag = 0, pitchDrag = 0, vYaw = 0, vPitch = 0, dragging = false, moved = false, lastX = 0, lastY = 0, downX = 0, downY = 0;
     let projected = [], pulse = null, raf = 0, t0 = performance.now();
     let E = 0.15, lastRing = 0; const rings = [];
-    const CROSS = [[0, 2, 1, 0], [0, 5, 2, 0], [1, 3, 2, 2], [0, 6, 1, 2], [2, 4, 1, 5], [0, 3, 2, 3]];   // Querverbindungen zwischen den Bereichen
+    const CROSS = [[0, 2, 2, 0], [1, 1, 3, 3], [2, 0, 4, 2], [3, 3, 0, 1], [4, 1, 1, 4], [0, 0, 3, 0], [1, 3, 4, 0]];   // Querverbindungen zwischen den Bereichen
 
     function state() {
         try { if (btn.classList.contains('speaking')) return 'speaking'; if (btn.classList.contains('recording')) return 'recording'; } catch (e) {}
