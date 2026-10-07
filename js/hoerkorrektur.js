@@ -18,11 +18,17 @@
     const clean = s => String(s || '').trim().replace(/^[„“"»«'‚‘]+|[„“"»«'‚‘.!?,;:]+$/g, '').trim();
 
     /* Wendet alle gespeicherten Korrekturen auf einen erkannten Satz an (längste zuerst, ganze Wörter, Groß-/Kleinschreibung egal) */
+    /* Einträge: Text = überall ersetzen; {r, c:1} = nur im Namens-Zusammenhang ersetzen (für Wortgruppen wie "haben jetzt") */
+    const CTX = '(?:kennst\\s+du|kennt\\s+ihr|kenne\\s+ich|kennen\\s+wir|rufe?|ruf\\s+mal|anrufe?|anruf|kontakt|wann\\s+hat|wer\\s+ist|wo\\s+wohnt|wo\\s+arbeitet|wo\\s+ist|nachricht\\s+an|mail\\s+an|schreib\\s+an|an|mit|bei|von|für|über)';
     function fix(text) {
         let t = String(text == null ? '' : text);
         const map = load();
         Object.keys(map).sort((a, b) => b.length - a.length).forEach(k => {
-            try { t = t.replace(new RegExp('(^|[^A-Za-zÄÖÜäöüß0-9])' + esc(k) + '(?![A-Za-zÄÖÜäöüß0-9])', 'gi'), (m, pre) => pre + map[k]); } catch (e) {}
+            const e = map[k], r = (e && typeof e === 'object') ? e.r : e, ctx = !!(e && typeof e === 'object' && e.c);
+            try {
+                if (ctx) t = t.replace(new RegExp('(^|[^A-Za-zÄÖÜäöüß0-9])(' + CTX + ')(\\s+)' + esc(k).replace(/\\ /g, '\\s+') + '(?![A-Za-zÄÖÜäöüß0-9])', 'gi'), (m, pre, tr, sp) => pre + tr + sp + r);
+                else t = t.replace(new RegExp('(^|[^A-Za-zÄÖÜäöüß0-9])' + esc(k) + '(?![A-Za-zÄÖÜäöüß0-9])', 'gi'), (m, pre) => pre + r);
+            } catch (e2) {}
         });
         return t;
     }
@@ -61,7 +67,7 @@
         if (/^(?:welche|zeig\w*|nenne?|sag\w*)\b.*\b(?:hör-?korrekturen|korrekturen|schreibweisen)\b/i.test(t)) {
             const map = load(), keys = Object.keys(map);
             if (!keys.length) { say('Ich habe keine Hör-Korrekturen gespeichert.'); return true; }
-            card(keys.slice(0, 8).map(k => ({ icon: '✏️', title: `„${k}“ → „${map[k]}“`, subtitle: 'Hör-Korrektur' })));
+            card(keys.slice(0, 8).map(k => ({ icon: '✏️', title: `„${k}“ → „${typeof map[k] === 'object' ? map[k].r : map[k]}“`, subtitle: 'Hör-Korrektur' })));
             say(`Ich habe ${keys.length === 1 ? 'eine Korrektur' : keys.length + ' Korrekturen'} gespeichert, sie stehen auf den Karten.`);
             return true;
         }
@@ -73,9 +79,10 @@
         if (PROTECTED.test(p.falsch)) { say('Dieses Wort ist zu allgemein, das möchte ich nicht ersetzen.'); return true; }
         const map = load();
         if (Object.keys(map).length >= MAX_ITEMS) { say('Die Liste der Hör-Korrekturen ist voll. Löschen Sie bitte erst eine.'); return true; }
-        map[p.falsch] = p.richtig; save(map);
-        card([{ icon: '✏️', title: `„${p.falsch}“ → „${p.richtig}“`, subtitle: 'Hör-Korrektur gespeichert' }]);
-        say(`Verstanden. Wenn ich ${p.falsch} höre, schreibe ich ab jetzt ${p.richtig}.`);
+        const ctxOnly = p.falsch.split(/\s+/).length > 1;
+        map[p.falsch] = ctxOnly ? { r: p.richtig, c: 1 } : p.richtig; save(map);
+        card([{ icon: '✏️', title: `„${p.falsch}“ → „${p.richtig}“`, subtitle: ctxOnly ? 'Hör-Korrektur gespeichert (nur bei Namen-Sätzen)' : 'Hör-Korrektur gespeichert' }]);
+        say(ctxOnly ? `Verstanden. Wenn ich ${p.falsch} höre und es nach einem Namen klingt, schreibe ich ${p.richtig}.` : `Verstanden. Wenn ich ${p.falsch} höre, schreibe ich ab jetzt ${p.richtig}.`);
         return true;
     }
     window.handleHoerKorrekturCommand = handle;
