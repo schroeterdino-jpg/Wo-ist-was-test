@@ -1,6 +1,6 @@
 /* ============================================================
-   GEHIRN-ANSICHT: Statt der Netz-Kugel zeigt der Startbildschirm ein Gehirn aus vier Bereichen:
-   GEDÄCHTNIS (Mitte, das Gehirn), ZEIT (oben), HÄNDE (rechts unten), UNTERWEGS (links unten). Jeder Bereich hat antippbare Knoten (Termine, Listen, Karte, Mail ...).
+   GEHIRN-ANSICHT: Statt der Netz-Kugel zeigt der Startbildschirm ein Gehirn aus fünf Bereichen:
+   GEDÄCHTNIS (Mitte, das Gehirn), ZEIT und OHREN (oben), HÄNDE und UNTERWEGS (unten). Jeder Bereich hat antippbare Knoten (Termine, Listen, Karte, Mail ...).
    Die Punkte auf den Dreiecks-Linien wandern im Uhrzeigersinn, das Ganze schwingt langsam und lässt sich mit dem Finger drehen.
    Antippen eines Knotens öffnet die jeweilige Funktion. Antippen einer leeren Stelle startet wie bisher das Zuhören.
    Zurück zur alten Kugel: kleiner Knopf oben rechts an der Ansicht, oder per Sprache "Zurück zur Kugel". "Zeig das Gehirn" schaltet wieder um.
@@ -23,43 +23,45 @@
     }
     const panel = id => () => { try { window.openPanel(id); } catch (e) { console.error('Gehirn', e); } };
     const HUBS = [
-        { label: 'GEDÄCHTNIS', color: [73, 215, 255], pos: [0, 0, 0], lr: 0.34, ldir: 1, leaves: [
+        { label: 'GEDÄCHTNIS', color: [73, 215, 255], pos: [0, 0, 0], lr: 0.30, ldir: 1, leaves: [
             ['Langzeit', () => window.showLangzeit && window.showLangzeit()],
             ['Gedächtnis', panel('gedaechtnis')],
             ['Listen', panel('einkauf')],
             ['Protokolle', panel('protokolle')],
-            ['Wünsche', () => say('Welche Formulierungen habe ich?')],
-            ['Hör-Korrektur', () => say('Welche Hör-Korrekturen hast du?')]
+            ['Adressen', panel('adressen')]
         ] },
-        { label: 'ZEIT', color: [120, 232, 150], pos: [0, -0.98, 0], ldir: -1, leaves: [
+        { label: 'ZEIT', color: [120, 232, 150], pos: [-0.6, -0.8, 0], ldir: -1, leaves: [
             ['Termine', panel('termine')],
             ['Erinnerungen', panel('erinnerungen')],
             ['Fristen', () => say('Welche Fristen habe ich?')],
             ['Planer', panel('planer')],
-            ['Weltuhr', () => { try { window.openWeltuhr(); } catch (e) { say('Öffne die Weltuhr'); } }],
-            ['Fahrzeit', () => say('Wann muss ich zum nächsten Termin losfahren?')]
+            ['Weltuhr', () => { try { window.openWeltuhr(); } catch (e) { say('Öffne die Weltuhr'); } }]
         ] },
-        { label: 'HÄNDE', color: [255, 154, 68], pos: [0.60, 0.85, 0], ldir: 1, leaves: [
+        { label: 'OHREN', color: [190, 125, 255], pos: [0.6, -0.8, 0], ldir: -1, leaves: [
+            ['Briefing', () => { try { window.triggerDailyBriefing(); } catch (e) {} }],
+            ['Wünsche', () => say('Welche Formulierungen habe ich?')],
+            ['Hör-Korrektur', () => say('Welche Hör-Korrekturen hast du?')],
+            ['Hilfe', () => say('Hilfe')]
+        ] },
+        { label: 'HÄNDE', color: [255, 154, 68], pos: [0.6, 0.8, 0], ldir: 1, leaves: [
             ['Mail', () => say('Welche E-Mails habe ich?')],
             ['Foto', () => { try { window.openPhotoCamera(true); } catch (e) {} }],
             ['Überblick', () => { try { window.showUeberblick(false); } catch (e) {} }],
             ['Wetter', () => say('Wie wird das Wetter?')],
-            ['Briefing', () => { try { window.triggerDailyBriefing(); } catch (e) {} }],
-            ['Hilfe', () => say('Hilfe')]
+            ['Restaurants', () => say('Zeig mir Restaurants in der Nähe')],
+            ['Tanken', () => say('Zeig mir günstige Tankstellen in der Nähe')]
         ] },
-        { label: 'UNTERWEGS', color: [255, 214, 90], pos: [-0.60, 0.85, 0], ldir: 1, leaves: [
+        { label: 'UNTERWEGS', color: [255, 214, 90], pos: [-0.6, 0.8, 0], ldir: 1, leaves: [
             ['Karte', panel('karte')],
             ['Welt', panel('welt')],
-            ['Adressen', panel('adressen')],
+            ['Fahrzeit', () => say('Wann muss ich zum nächsten Termin losfahren?')],
             ['Parkplatz', () => say('Wo habe ich geparkt?')],
-            ['Restaurants', () => say('Zeig mir Restaurants in der Nähe')],
-            ['Tanken', () => say('Zeig mir günstige Tankstellen in der Nähe')],
             ['Sprit-Route', () => say('Wo tanke ich auf dem Weg zum nächsten Termin am günstigsten?')]
         ] }
     ];
 
     /* ---------- 3D-Aufbau ---------- */
-    const LEAF_R = 0.34;
+    const LEAF_R = 0.28;
     const nodes = [];       // alle Knoten: { hub, label, action, base:[x,y,z], r }
     HUBS.forEach((h, hi) => {
         h.index = hi;
@@ -78,14 +80,14 @@
         const a = Math.random() * 6.283, b = Math.acos(2 * Math.random() - 1), R = 0.85 + Math.random() * 0.5;
         STARS.push({ p: [R * Math.sin(b) * Math.cos(a), R * Math.cos(b) * 0.9, R * Math.sin(b) * Math.sin(a)], s: 0.6 + Math.random() * 1.4, ph: Math.random() * 6.283 });
     }
-    const EDGES = [[0, 1], [0, 2], [0, 3], [1, 2], [2, 3], [3, 1]];   // Gehirn in der Mitte, Speichen zu den drei anderen, Außenring im Uhrzeigersinn
+    const EDGES = [[0, 1], [0, 2], [0, 3], [0, 4], [1, 2], [2, 3], [3, 4], [4, 1]];   // Gehirn in der Mitte, Speichen zu den vier anderen, Außenring im Uhrzeigersinn
 
     /* ---------- Zeichnen ---------- */
     let canvas = null, ctx = null, btn = null, W = 0, H = 0, dpr = 1;
     let yawDrag = 0, pitchDrag = 0, vYaw = 0, vPitch = 0, dragging = false, moved = false, lastX = 0, lastY = 0, downX = 0, downY = 0;
     let projected = [], pulse = null, raf = 0, t0 = performance.now();
     let E = 0.15, lastRing = 0; const rings = [];
-    const CROSS = [[0, 2, 1, 0], [1, 1, 3, 3], [2, 0, 3, 2], [3, 3, 0, 1], [0, 0, 2, 4]];   // Querverbindungen zwischen den Bereichen
+    const CROSS = [[0, 2, 1, 0], [1, 1, 3, 3], [2, 0, 4, 2], [3, 3, 0, 1], [4, 1, 2, 4], [0, 0, 3, 4]];   // Querverbindungen zwischen den Bereichen
 
     function state() {
         try { if (btn.classList.contains('speaking')) return 'speaking'; if (btn.classList.contains('recording')) return 'recording'; } catch (e) {}
@@ -317,7 +319,7 @@
             'body.jv-brain #jarvisBrain{display:block}' +
             'body.jv-brain #jarvisSphere{display:none!important}' +
             'body.jv-brain .holo-container{width:min(98vw,440px)!important;height:min(112vw,60vh)!important;position:relative!important;top:calc(min(98vw,56vh) - min(112vw,60vh))!important;margin-bottom:calc(min(98vw,56vh) - min(112vw,60vh))!important}' +
-            'body.jv-brain #reactor-wrap,body.jv-brain #recordBtn,body.jv-brain .holo-container,body.jv-brain #jarvisBrain{overflow:visible!important;border-radius:0!important;clip-path:none!important;-webkit-mask-image:none!important;mask-image:none!important;box-shadow:none!important;-webkit-clip-path:none!important}' +
+            'body.jv-brain #reactor-wrap{overflow:visible!important}' +
             '#brainToggle{position:absolute;right:2px;top:2px;z-index:5;width:30px;height:30px;border-radius:50%;border:1px solid rgba(93,209,255,.35);background:rgba(10,22,33,.75);color:#49d7ff;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}';
         document.head.appendChild(css);
         canvas = document.createElement('canvas');
