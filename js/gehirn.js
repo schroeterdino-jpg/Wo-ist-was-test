@@ -86,6 +86,7 @@
     let canvas = null, ctx = null, btn = null, W = 0, H = 0, dpr = 1;
     let yawDrag = 0, pitchDrag = 0, vYaw = 0, vPitch = 0, dragging = false, moved = false, lastX = 0, lastY = 0, downX = 0, downY = 0;
     let projected = [], pulse = null, raf = 0, t0 = performance.now();
+    let zoomNode = null, zoomLast = null, zoomK = 1, zoomGoal = 1, zoomTimer = 0, lastNow = 0, zx = 0, zy = 0;   // Heranzoomen auf einen Begriff
     let E = 0.15, lastRing = 0; const rings = [];
     const CROSS = [[0, 2, 1, 0], [1, 1, 3, 3], [2, 0, 4, 2], [3, 3, 0, 1], [4, 1, 2, 4], [0, 0, 3, 4]];   // Querverbindungen zwischen den Bereichen
 
@@ -108,6 +109,9 @@
         if (!document.body.classList.contains('jv-brain') || document.hidden || !canvas) return;
         raf = requestAnimationFrame(frame);
         const t = (now - t0) / 1000, st = state();
+        const dtm = Math.min(0.05, lastNow ? (now - lastNow) / 1000 : 0.016); lastNow = now;
+        zoomK += (zoomGoal - zoomK) * 0.12; if (Math.abs(zoomGoal - zoomK) < 0.004) zoomK = zoomGoal;
+        if (zoomK <= 1.001 && !zoomNode) zoomK = 1;
         E += ((st === 'speaking' ? 1 : st === 'recording' ? 0.55 : 0.15) - E) * 0.06;   // weich ein- und ausblenden
         const energy = E;
         const env = E * (0.55 + 0.45 * Math.min(1, Math.abs(Math.sin(t * 7.3) * Math.sin(t * 3.1 + 1.3) + 0.35 * Math.sin(t * 12.7))));   // Sprach-Rhythmus
@@ -129,7 +133,11 @@
         projected = [];
         HUBS.forEach(h => {
             h.P = proj(h.pos);
-            const spin = t * (0.25 + h.index * 0.05);
+            if (h.spin === undefined) h.spin = 0;
+            if (zoomNode && !zoomNode.isHub && zoomNode.hub === h) {   // gezoomter Begriff dreht nach vorne
+                let df = Math.atan2(-zoomNode.dir[0], zoomNode.dir[2]) - h.spin; df = Math.atan2(Math.sin(df), Math.cos(df)); h.spin += df * 0.09;
+            } else h.spin += dtm * (0.25 + h.index * 0.05);
+            const spin = h.spin;
             const cs = Math.cos(spin), sn = Math.sin(spin);
             h.leafNodes.forEach(l => {
                 const d = l.dir, x = d[0] * cs + d[2] * sn, z = -d[0] * sn + d[2] * cs;
@@ -137,6 +145,17 @@
                 l.P = proj(l.world);
             });
         });
+
+        // Heranzoomen: Ansicht skaliert um den Begriff und schiebt ihn in die Mitte
+        let zk = 0, zox = 0, zoy = 0, zapp = false; const zz = zoomK, zf = zoomNode || zoomLast;
+        if (zz > 1.001 && zf) {
+            zapp = true;
+            const F = zf.isHub ? zf.hub.P : zf.P, mx = Math.max(0.001, (zf.isHub ? 1.9 : 2.6) - 1);
+            zk = Math.min(1, (zz - 1) / mx);
+            zox = F.x * (1 - zz) + (W / 2 - F.x) * zk; zoy = F.y * (1 - zz) + (H * 0.5 - F.y) * zk;
+            ctx.setTransform(dpr * zz, 0, 0, dpr * zz, dpr * zox, dpr * zoy);
+        }
+        zx = zox; zy = zoy;
 
         // Nebel hinter den Bereichen
         HUBS.forEach(h => {
@@ -154,11 +173,12 @@
         });
 
         // Nebel und Sterne weich zum Rand ausblenden (kein sichtbarer Kasten)
+        ctx.save(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.globalCompositeOperation = 'destination-in';
         const vg = ctx.createRadialGradient(W / 2, H / 2, Math.max(W, H) * 0.55, W / 2, H / 2, Math.max(W, H) * 0.8);
         vg.addColorStop(0, 'rgba(0,0,0,1)'); vg.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
-        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalCompositeOperation = 'source-over'; ctx.restore();
 
         // Dreieck-Linien + wandernde Punkte (Uhrzeigersinn)
         EDGES.forEach(([a, b], ei) => {
@@ -232,7 +252,7 @@
                 ctx.strokeStyle = rgba(c, 0.9); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(P.x, P.y, rr, 0, 6.283); ctx.stroke();
                 ctx.strokeStyle = rgba(c, 0.35 + 0.25 * Math.sin(t * 2 + n.hub.index)); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(P.x, P.y, rr * (1.5 + 0.2 * Math.sin(t * 2 + n.hub.index)), 0, 6.283); ctx.stroke();
                 ctx.font = `700 ${Math.round(13 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
-                const ly = P.y + (n.hub.ldir || 1) * ((n.hub.lr || LEAF_R) * scale * P.s + 14); ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,16,.9)'; const tw = ctx.measureText(n.label).width, lx = Math.max(tw / 2 + 4, Math.min(W - tw / 2 - 4, P.x)); ctx.strokeText(n.label, lx, ly); ctx.fillStyle = rgba(c, 0.95); ctx.fillText(n.label, lx, ly);
+                const ly = P.y + (n.hub.ldir || 1) * ((n.hub.lr || LEAF_R) * scale * P.s + 14); ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,16,.9)'; const tw = ctx.measureText(n.label).width, lx = zoomK > 1.02 ? P.x : Math.max(tw / 2 + 4, Math.min(W - tw / 2 - 4, P.x)); ctx.strokeText(n.label, lx, ly); ctx.fillStyle = rgba(c, 0.95); ctx.fillText(n.label, lx, ly);
             } else {
                 const glow = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, rr * 3);
                 glow.addColorStop(0, rgba(c, 0.5 * (0.4 + depth))); glow.addColorStop(1, rgba(c, 0));
@@ -241,8 +261,15 @@
                 if (true) {
                     ctx.font = `600 ${Math.round(12 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
                     ctx.textAlign = 'center'; ctx.fillStyle = rgba([255, 255, 255], 0.62 + 0.38 * depth);
-                    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(5,10,16,.95)'; const tw = ctx.measureText(n.label).width, lx = Math.max(tw / 2 + 4, Math.min(W - tw / 2 - 4, P.x)); ctx.strokeText(n.label, lx, P.y - rr - 6); ctx.fillText(n.label, lx, P.y - rr - 6);
+                    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(5,10,16,.95)'; const tw = ctx.measureText(n.label).width, lx = zoomK > 1.02 ? P.x : Math.max(tw / 2 + 4, Math.min(W - tw / 2 - 4, P.x)); ctx.strokeText(n.label, lx, P.y - rr - 6); ctx.fillText(n.label, lx, P.y - rr - 6);
                 }
+            }
+            if (zoomNode === n && !n.isHub) {   // der gezoomte Begriff leuchtet auf
+                const pu = 0.5 + 0.5 * Math.sin(t * 5), gl = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, rr * 7);
+                gl.addColorStop(0, rgba([255, 255, 255], 0.55 + 0.25 * pu)); gl.addColorStop(0.35, rgba(c, 0.4)); gl.addColorStop(1, rgba(c, 0));
+                ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(P.x, P.y, rr * 7, 0, 6.283); ctx.fill();
+                ctx.strokeStyle = rgba([255, 255, 255], 0.9); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(P.x, P.y, rr * (2.1 + 0.5 * pu), 0, 6.283); ctx.stroke();
+                ctx.fillStyle = rgba([255, 255, 255], 1); ctx.beginPath(); ctx.arc(P.x, P.y, rr * 1.1, 0, 6.283); ctx.fill();
             }
             n.sx = P.x; n.sy = P.y; n.sr = rr;
         });
@@ -255,6 +282,10 @@
             ctx.strokeStyle = rgba(rg.h.color, (1 - age) * 0.6); ctx.lineWidth = 1.6 * (1 - age) + 0.4;
             ctx.beginPath(); ctx.arc(rg.h.P.x, rg.h.P.y, 14 + age * 105 * (scale / 150), 0, 6.283); ctx.stroke();
         }
+
+        // Bildschirm-Koordinaten der Knoten (für Antippen) und Rückkehr zur normalen Zeichnung
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (zapp) nodes.forEach(n => { if (n.sx !== undefined) { n.sx = zox + zz * n.sx; n.sy = zoy + zz * n.sy; n.sr *= zz; } });
 
         // Antipp-Welle
         if (pulse) {
@@ -290,7 +321,9 @@
     function onClick(e) {
         if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; return; }   // war ein Ziehen: Zuhören nicht starten
         const p = localXY(e), n = hit(p.x, p.y);
+        if (zoomNode && (!n || n.isHub)) { e.stopPropagation(); e.preventDefault(); zoomOut(); return; }   // gezoomt: erst wieder rauszoomen
         if (!n) return;                      // leere Stelle: Klick geht weiter, Zuhören startet wie bei der Kugel
+        if (zoomNode) zoomOut();
         e.stopPropagation(); e.preventDefault();
         pulse = { x: n.sx, y: n.sy, t: performance.now(), c: n.hub.color };
         try { if (typeof window.playUiBeep === 'function') window.playUiBeep(); } catch (x) {}
@@ -343,14 +376,42 @@
     /* ---------- Sprache ---------- */
     const ON_RX = /^(?:bitte\s+)?(?:zeig(?:e)?(?:\s+mir)?|schalte?|wechsel(?:e)?|stell(?:e)?)\s+(?:bitte\s+)?(?:(?:das|die|den|auf|zum|zur|zu)\s+)*(?:gehirn|gehirn-?ansicht|neuen?\s+ansicht)\b|^gehirn-?ansicht(?:\s+an)?$|^gehirn$/;
     const OFF_RX = /^(?:bitte\s+)?(?:zurück\s+(?:zur|zu der|zum)\s+(?:kugel|alten\s+ansicht|alten\s+kugel)|(?:zeig(?:e)?(?:\s+mir)?|schalte?|wechsel(?:e)?)\s+(?:bitte\s+)?(?:(?:die|den|auf|zur|zum)\s+)*(?:kugel|alte\s+ansicht)|kugel-?ansicht(?:\s+an)?|gehirn-?ansicht\s+aus)$/;
+    function zoomOut() { if (zoomNode) zoomLast = zoomNode; zoomNode = null; zoomGoal = 1; clearTimeout(zoomTimer); }
+    function zoomTo(node) {
+        zoomNode = node; zoomGoal = node.isHub ? 1.9 : 2.6;
+        clearTimeout(zoomTimer); zoomTimer = setTimeout(zoomOut, 30000);
+        if (!raf) raf = requestAnimationFrame(frame);
+    }
+    const norm = x => String(x || '').toLowerCase().replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u').replace(/ß/g, 'ss').replace(/[^a-z0-9]/g, '');
+    function findNode(q) {
+        const k = norm(q); if (k.length < 3) return null;
+        const hubs = HUBS.map(h => h.node), leaves = []; HUBS.forEach(h => h.leafNodes.forEach(l => leaves.push(l)));
+        const all = hubs.concat(leaves);
+        return all.find(n => norm(n.label) === k) || all.find(n => norm(n.label).startsWith(k) || k.startsWith(norm(n.label))) || null;
+    }
+    function handleZoom(t) {
+        const m = t.match(/^(?:bitte\s+)?(?:zoom(?:e|en)?|zoom)\b\s*(.*)$/);
+        if (!m) return false;
+        const rest = m[1].replace(/\b(?:mal|bitte|ran|heran|rein|hinein|zu|zum|zur|auf|an|in|den|die|das|dem|der|begriff|bereich|kugel)\b/g, ' ').replace(/\s+/g, ' ').trim();
+        if (/^(?:raus|heraus|zurück|weg|aus|ab)\b/.test(m[1].trim()) || /^(?:raus|heraus|zurück|weg|aus)$/.test(rest)) {
+            zoomOut(); try { speak('Okay.', typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} return true;
+        }
+        const n = findNode(rest);
+        if (!n) { try { speak('Diesen Begriff sehe ich in der Ansicht nicht.', typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} return true; }
+        const go = () => { zoomTo(n); try { speak('Hier ist ' + n.label.charAt(0) + n.label.slice(1).toLowerCase() + '. Tippe darauf.', typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} };
+        if (!document.body.classList.contains('jv-brain')) { setMode(true, false); setTimeout(go, 200); } else go();
+        return true;
+    }
     function handle(text) {
         const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 60) return false;
+        if (/^(?:bitte\s+)?zoom/.test(t)) return handleZoom(t);
         if (OFF_RX.test(t)) { setMode(false, true); return true; }
         if (ON_RX.test(t)) { setMode(true, true); return true; }
         return false;
     }
     window.handleGehirnCommand = handle;
+    window.__gehirnTest = { frame: t => frame(t), st: () => ({ n: zoomNode && zoomNode.label, k: zoomK, sx: zoomNode && zoomNode.sx, sy: zoomNode && zoomNode.sy, sr: zoomNode && zoomNode.sr }), hit: (x, y) => hit(x, y) && hit(x, y).label };
     if (typeof window.handleLocalCommand === 'function' && !window.handleLocalCommand._gehirn) {
         const original = window.handleLocalCommand;
         const hooked = function (text) {
