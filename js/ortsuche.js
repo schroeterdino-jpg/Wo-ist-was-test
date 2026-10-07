@@ -203,7 +203,7 @@
     /* Fragt den Server der App (/api/overpass, wie die bisherige Orte-Suche in nearbymore.js) UND die öffentlichen Kartenserver gleichzeitig.
        Die erste brauchbare Antwort gewinnt, die anderen Anfragen werden abgebrochen. Das ist wichtig, weil die Kartenserver oft ausgelastet sind
        und der Server der App bei Vercel nach etwa 10 Sekunden aufgibt. Schlägt alles fehl, steht in der Fehlermeldung, woran es bei jedem lag. */
-    function raceOverpass(query, useAppServer) {
+    function raceOverpass(query, useAppServer, maxMs) {
         return new Promise((resolve, reject) => {
             const errors = [], controllers = [];
             let pending = 0, done = false;
@@ -219,7 +219,7 @@
             };
             if (useAppServer && typeof apiFetch === 'function') {
                 pending++;
-                withTimeout(apiFetch('/api/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }), 28000)
+                withTimeout(apiFetch('/api/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }), maxMs || 28000)
                     .then(async res => { if (!res.ok) throw new Error('Status ' + res.status); const d = await res.json(); if (!d || !Array.isArray(d.elements)) throw new Error('keine Daten'); win(d.elements); })
                     .catch(e => fail('App-Server', e));
             }
@@ -227,7 +227,7 @@
                 pending++;
                 const ctl = typeof AbortController === 'function' ? new AbortController() : null;
                 if (ctl) controllers.push(ctl);
-                const timer = setTimeout(() => { if (ctl) ctl.abort(); }, 25000);
+                const timer = setTimeout(() => { if (ctl) ctl.abort(); }, maxMs || 25000);
                 fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(query), signal: ctl ? ctl.signal : undefined })
                     .then(async r => { clearTimeout(timer); if (!r.ok) throw new Error('Status ' + r.status); const d = await r.json(); if (!d || !Array.isArray(d.elements)) throw new Error('keine Daten'); win(d.elements); })
                     .catch(e => { clearTimeout(timer); if (!done) fail(url.replace(/^https:\/\//, '').split('/')[0], e); else if (--pending === 0 && !done) reject(new Error(errors.join(' · '))); });
@@ -622,20 +622,16 @@
     function patchOldPlacesFetch() {
         if (oldFetchPatched || typeof window.plFetchElements !== 'function') return;
         oldFetchPatched = true;
-        const orig = window.plFetchElements;
-        window.plFetchElements = async function () {
-            try { return await orig.apply(this, arguments); }
-            catch (e) {
-                const q = String(arguments[0] || '');
-                try { return await directOverpass(q); }
-                catch (e2) {
-                    // auch die Kartenserver antworten nicht: Rückfall über Nominatim, Art und Umkreis stehen in der Anfrage
-                    const m = q.match(/around:(\d+),(-?[\d.]+),(-?[\d.]+)/);
-                    let cat = null;
-                    try { cat = (typeof PLACE_CATEGORIES !== 'undefined') ? PLACE_CATEGORIES.find(c => c.sel.some(sl => q.indexOf(sl) >= 0)) : null; } catch (e3) {}
-                    if (!m || !cat) throw e2;
-                    return await nominatimElements({ entry: { label: cat.label } }, parseFloat(m[2]), parseFloat(m[3]), parseInt(m[1], 10));
-                }
+        window.plFetchElements = async function (query) {
+            const q = String(query || '');
+            try { return await raceOverpass(q, true, 12000); }   // App-Server und Kartenserver gleichzeitig, höchstens 12 Sekunden
+            catch (e2) {
+                // niemand antwortet: Rückfall über Nominatim (ohne Öffnungszeiten), Art und Umkreis stehen in der Anfrage
+                const m = q.match(/around:(\d+),(-?[\d.]+),(-?[\d.]+)/);
+                let cat = null;
+                try { cat = (typeof PLACE_CATEGORIES !== 'undefined') ? PLACE_CATEGORIES.find(c => c.sel.some(sl => q.indexOf(sl) >= 0)) : null; } catch (e3) {}
+                if (!m || !cat) throw e2;
+                return await nominatimElements({ entry: { label: cat.label } }, parseFloat(m[2]), parseFloat(m[3]), parseInt(m[1], 10));
             }
         };
     }
