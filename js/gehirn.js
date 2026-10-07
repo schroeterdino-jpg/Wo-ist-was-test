@@ -23,7 +23,7 @@
     }
     const panel = id => () => { try { window.openPanel(id); } catch (e) { console.error('Gehirn', e); } };
     const HUBS = [
-        { label: 'GEDÄCHTNIS', color: [73, 215, 255], pos: [0, -0.05, 0], lr: 0.30, ldir: 1, leaves: [
+        { label: 'GEDÄCHTNIS', color: [73, 215, 255], pos: [0, 0, 0], lr: 0.36, ldir: 1, leaves: [
             ['Langzeit', () => window.showLangzeit && window.showLangzeit()],
             ['Gedächtnis', panel('gedaechtnis')],
             ['Listen', panel('einkauf')],
@@ -31,7 +31,7 @@
             ['Wünsche', () => say('Welche Formulierungen habe ich?')],
             ['Hör-Korrektur', () => say('Welche Hör-Korrekturen hast du?')]
         ] },
-        { label: 'ZEIT', color: [120, 232, 150], pos: [0, -1.1, 0], ldir: -1, leaves: [
+        { label: 'ZEIT', color: [120, 232, 150], pos: [0, -1.0, 0], ldir: -1, leaves: [
             ['Termine', panel('termine')],
             ['Erinnerungen', panel('erinnerungen')],
             ['Fristen', () => say('Welche Fristen habe ich?')],
@@ -39,7 +39,7 @@
             ['Weltuhr', () => { try { window.openWeltuhr(); } catch (e) { say('Öffne die Weltuhr'); } }],
             ['Fahrzeit', () => say('Wann muss ich zum nächsten Termin losfahren?')]
         ] },
-        { label: 'HÄNDE', color: [255, 154, 68], pos: [0.68, 0.85, 0], ldir: 1, leaves: [
+        { label: 'HÄNDE', color: [255, 154, 68], pos: [0.64, 0.85, 0], ldir: 1, leaves: [
             ['Mail', () => say('Welche E-Mails habe ich?')],
             ['Foto', () => { try { window.openPhotoCamera(true); } catch (e) {} }],
             ['Überblick', () => { try { window.showUeberblick(false); } catch (e) {} }],
@@ -47,7 +47,7 @@
             ['Briefing', () => { try { window.triggerDailyBriefing(); } catch (e) {} }],
             ['Hilfe', () => say('Hilfe')]
         ] },
-        { label: 'UNTERWEGS', color: [255, 214, 90], pos: [-0.68, 0.85, 0], ldir: 1, leaves: [
+        { label: 'UNTERWEGS', color: [255, 214, 90], pos: [-0.64, 0.85, 0], ldir: 1, leaves: [
             ['Karte', panel('karte')],
             ['Welt', panel('welt')],
             ['Adressen', panel('adressen')],
@@ -59,7 +59,7 @@
     ];
 
     /* ---------- 3D-Aufbau ---------- */
-    const LEAF_R = 0.30;
+    const LEAF_R = 0.36;
     const nodes = [];       // alle Knoten: { hub, label, action, base:[x,y,z], r }
     HUBS.forEach((h, hi) => {
         h.index = hi;
@@ -237,7 +237,7 @@
                 ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(P.x, P.y, rr * 3, 0, 6.283); ctx.fill();
                 ctx.fillStyle = rgba([255, 255, 255], 0.55 + 0.4 * depth); ctx.beginPath(); ctx.arc(P.x, P.y, rr, 0, 6.283); ctx.fill();
                 if (depth > 0.42) {
-                    ctx.font = `600 ${Math.round(13 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
+                    ctx.font = `600 ${Math.round(12 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
                     ctx.textAlign = 'center'; ctx.fillStyle = rgba([255, 255, 255], Math.min(1, 0.8 + (depth - 0.3) * 1.5));
                     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(5,10,16,.95)'; ctx.strokeText(n.label, P.x, P.y - rr - 6); ctx.fillText(n.label, P.x, P.y - rr - 6);
                 }
@@ -321,7 +321,7 @@
             '#jarvisBrain{position:absolute;left:0;top:0;width:100%;height:100%;display:none;touch-action:none;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
             'body.jv-brain #jarvisBrain{display:block}' +
             'body.jv-brain #jarvisSphere{display:none!important}' +
-            'body.jv-brain .holo-container{width:min(98vw,56vh)!important;height:min(98vw,56vh)!important}' +
+            'body.jv-brain .holo-container{width:98vw!important;height:min(122vw,70vh)!important;position:relative!important;top:calc(min(98vw,56vh) - min(122vw,70vh))!important;margin-bottom:calc(min(98vw,56vh) - min(122vw,70vh))!important}' +
             'body.jv-brain #reactor-wrap{overflow:visible!important}' +
             '#brainToggle{position:absolute;right:2px;top:2px;z-index:5;width:30px;height:30px;border-radius:50%;border:1px solid rgba(93,209,255,.35);background:rgba(10,22,33,.75);color:#49d7ff;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}';
         document.head.appendChild(css);
