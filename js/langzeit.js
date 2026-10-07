@@ -225,7 +225,7 @@
         let eintraege = [];
         try {
             const d = await post({ action: 'listall' });
-            eintraege = (d.eintraege || []).filter(e => e.metadata && e.metadata.typ === 'episode');
+            eintraege = (d.eintraege || []).filter(e => e.metadata && (e.metadata.typ === 'episode' || e.metadata.typ === 'frist'));
         } catch (e) {
             sub.textContent = 'Nicht erreichbar';
             mk(list, 'div', 'lt-note', 'Das Langzeitgedächtnis kann gerade nicht geladen werden. Prüfen Sie die Internetverbindung.');
@@ -287,7 +287,7 @@
         if (lsGet(CLEAN_KEY)) return;
         try {
             const d = await post({ action: 'listall' });
-            const alt = (d.eintraege || []).filter(e => !(e.metadata && e.metadata.typ === 'episode')).map(e => e.id);
+            const alt = (d.eintraege || []).filter(e => !(e.metadata && (e.metadata.typ === 'episode' || e.metadata.typ === 'frist'))).map(e => e.id);
             for (let i = 0; i < alt.length; i += 100) await post({ action: 'delete', ids: alt.slice(i, i + 100) });
             lsSet(CLEAN_KEY, new Date().toISOString());
             console.log('Langzeitgedächtnis aufgeräumt, gelöscht: ' + alt.length);

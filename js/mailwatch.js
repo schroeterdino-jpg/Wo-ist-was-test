@@ -148,7 +148,7 @@
         try { document.addEventListener('visibilitychange', () => { if (!document.hidden) schedule(4000); }); } catch (e) {}
     }
 
-    window.jvMailWatch = { check, handleAnswer, handleToggle };
+    window.jvMailWatch = { check, handleAnswer, handleToggle, waiting: () => !!state || queue.length > 0 };
     if (typeof window.handleLocalCommand === 'function' && !window.handleLocalCommand._mailwatch) {
         const original = window.handleLocalCommand;
         const hooked = function (text) {
