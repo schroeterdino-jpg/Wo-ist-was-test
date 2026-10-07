@@ -75,8 +75,18 @@ async function runProtocol(key) {
         isProcessing = false;
     }
     if (isPanelOpen()) closePanel();
-    showActionCards(cards);
-    speak(`Protokoll ${p.name}. ` + (replies.length ? replies.join(' ') : 'Ich konnte dazu leider nichts ermitteln.'), continueConversation);
+    // Mehrere Schritte können denselben Satz liefern (z.B. Fahrzeit und Stau zur selben Strecke): jeden Satz und jede Karte nur einmal bringen
+    const seenSentence = new Set();
+    const uniqueReplies = replies.map(r => String(r).split(/(?<=[.!?])\s+/).filter(sent => {
+        const k = sent.trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!k || seenSentence.has(k)) return false;
+        seenSentence.add(k);
+        return true;
+    }).join(' ')).filter(Boolean);
+    const seenCard = new Set();
+    const uniqueCards = cards.filter(c => { const k = [c && c.title, c && c.subtitle, c && (c.href || c.onclick)].join('|'); if (seenCard.has(k)) return false; seenCard.add(k); return true; });
+    showActionCards(uniqueCards);
+    speak(`Protokoll ${p.name}. ` + (uniqueReplies.length ? uniqueReplies.join(' ') : 'Ich konnte dazu leider nichts ermitteln.'), continueConversation);
 }
 
 /* ---------- Feste Sprachbefehle (ohne Umweg über die KI) ----------

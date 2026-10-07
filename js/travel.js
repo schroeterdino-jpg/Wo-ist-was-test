@@ -535,7 +535,14 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
                 text: (w.description || []).slice(0, 3).join(' · ')
             });
         });
-        nahe.slice(0, 2).forEach(w => {
+        // Dieselbe Stelle in beiden Fahrtrichtungen ("Hamburg-Stillhorn, Norderelbbrücke" und "Hamburg-Südost, Norderelbbrücke", beide Gefahrenstelle) nur einmal nennen
+        const gesehenStelle = new Set();
+        nahe.filter(w => {
+            const k = classifyWarning(w) + '|' + String((w.title || '').split('|').pop().trim().split(',').pop()).trim().toLowerCase();
+            if (gesehenStelle.has(k)) return false;
+            gesehenStelle.add(k);
+            return true;
+        }).slice(0, 2).forEach(w => {
             const kurz = (w.title || '').split('|').pop().trim();
             const art = classifyWarning(w);
             meldungen.push(`${road}${kurz ? ': ' + kurz : ''} (${art})`);
