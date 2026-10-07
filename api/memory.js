@@ -1,11 +1,44 @@
-// Semantisches Langzeit-Gedächtnis (Upstash Vector, mit eingebautem Embedding-Modell - kein zusätzlicher 
+// Semantisches Langzeit-Gedächtnis (Upstash Vector, mit eingebautem Embedding-Modell - kein zusätzlicher
 // Embedding-Anbieter wie OpenAI nötig, Upstash übernimmt das serverseitig).
+// Hier liegen NUR Erlebnisse, Pläne, Daten, Vorlieben und Kontext. Gegenstände mit Ablageort gehören ins lokale Gedächtnis der App.
 // Aktionen über denselben Endpunkt (spart eine der 12 möglichen Serverless Functions):
-// POST { action: 'store', text, metadata? } -> legt einen neuen Fakt ab
-// POST { action: 'search', query, topK?, minScore? } -> findet die bedeutungsähnlichsten gespeicherten Fakten
-// POST { action: 'list', limit?, prefix? } -> listet Fakten direkt auf, ohne Ähnlichkeits-Vergleich
-// GET ?action=reflect -> NUR vom täglichen Cronjob aufgerufen (vercel.json), 
-// nicht vom Client - Jarvis' "Unterbewusstsein"
+// POST { action: 'store', text, id?, metadata? } -> legt einen neuen Eintrag ab (gleiche id = überschreiben)
+// POST { action: 'search', query, topK?, minScore? } -> findet die bedeutungsähnlichsten gespeicherten Einträge
+// POST { action: 'list', limit?, prefix? } -> listet Einträge direkt auf, ohne Ähnlichkeits-Vergleich
+// POST { action: 'listall' } -> alle Einträge mit id (fürs Aufräumen)
+// POST { action: 'delete', ids } -> löscht Einträge
+// POST { action: 'due', today } -> Einträge, zu denen heute nachgefragt oder an die heute erinnert werden soll
+// POST { action: 'mark', id, art, year } -> merkt sich, dass nachgefragt bzw. erinnert wurde
+// GET ?action=reflect -> vom täglichen Cronjob (vercel.json) aufgerufen; macht jetzt nichts mehr (siehe unten)
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+function addDays(iso, n) {
+  const d = new Date(iso + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// Liest ALLE Einträge seitenweise (range liefert immer nur einen Teil)
+async function rangeAll(url, headers, maxItems = 2000) {
+  const out = [];
+  let cursor = '0';
+  for (let i = 0; i < 40 && out.length < maxItems; i++) {
+    const r = await fetch(`${url}/range`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ cursor, limit: 100, includeMetadata: true, includeData: true }),
+      signal: AbortSignal.timeout(8000)
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error('Upstash meldet: ' + (d.error || JSON.stringify(d)));
+    const result = d.result || {};
+    (result.vectors || []).forEach(v => out.push({ id: v.id, text: v.data, metadata: v.metadata || {} }));
+    cursor = result.nextCursor;
+    if (!cursor || cursor === '0') break;
+  }
+  return out;
+}
 
 export default async function handler(req, res) {
   const url = process.env.UPSTASH_VECTOR_REST_URL;
@@ -81,6 +114,78 @@ export default async function handler(req, res) {
       return res.status(200).json({ treffer });
     }
 
+    if (action === 'listall') {
+      const eintraege = await rangeAll(url, headers);
+      return res.status(200).json({ eintraege });
+    }
+
+    if (action === 'delete') {
+      const ids = (Array.isArray(body.ids) ? body.ids : []).map(String).filter(Boolean).slice(0, 200);
+      if (!ids.length) return res.status(400).json({ error: 'Keine IDs angegeben' });
+      const r = await fetch(`${url}/delete`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(ids),
+        signal: AbortSignal.timeout(8000)
+      });
+      const d = await r.json();
+      if (!r.ok) return res.status(502).json({ error: 'Upstash meldet: ' + (d.error || JSON.stringify(d)) });
+      return res.status(200).json({ ok: true, deleted: (d.result && d.result.deleted) !== undefined ? d.result.deleted : ids.length });
+    }
+
+    // Einträge, bei denen die App heute nachfragen ("Wie war es beim Schwimmen?") oder erinnern ("Heute hat ... Geburtstag") soll
+    if (action === 'due') {
+      const today = ISO_DAY.test(String(body.today || '')) ? String(body.today) : new Date().toISOString().slice(0, 10);
+      const year = Number(today.slice(0, 4));
+      const from = addDays(today, -14);   // Nachfragen verfallen nach zwei Wochen
+      const all = await rangeAll(url, headers);
+      const due = [];
+      for (const e of all) {
+        const m = e.metadata || {};
+        if (m.typ !== 'episode' || !ISO_DAY.test(String(m.ereignis_datum || ''))) continue;
+        const yearly = m.jaehrlich === true || m.jaehrlich === 'true';
+        if (yearly) {
+          const occ = `${year}${String(m.ereignis_datum).slice(4)}`;   // dieses Jahr am selben Tag
+          if (occ === today && Number(m.hinweis_jahr) !== year && m.hinweis) due.push({ art: 'heute', id: e.id, text: e.text, metadata: m });
+          else if (occ < today && occ >= from && Number(m.nachgefragt_jahr) !== year && m.frage) due.push({ art: 'nachfragen', id: e.id, text: e.text, metadata: m });
+        } else if (m.status === 'offen' && m.ereignis_datum < today && m.ereignis_datum >= from && m.frage) {
+          due.push({ art: 'nachfragen', id: e.id, text: e.text, metadata: m });
+        }
+      }
+      // Hinweise für heute zuerst, dann das älteste Ereignis
+      due.sort((a, b) => (a.art === 'heute' ? 0 : 1) - (b.art === 'heute' ? 0 : 1) || String(a.metadata.ereignis_datum).localeCompare(String(b.metadata.ereignis_datum)));
+      return res.status(200).json({ due: due.slice(0, 3) });
+    }
+
+    // Vermerkt, dass zu einem Eintrag nachgefragt bzw. erinnert wurde (damit es nur einmal passiert)
+    if (action === 'mark') {
+      const id = String(body.id || '');
+      if (!id) return res.status(400).json({ error: 'ID fehlt' });
+      const fr = await fetch(`${url}/fetch`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ids: [id], includeMetadata: true, includeData: true }),
+        signal: AbortSignal.timeout(8000)
+      });
+      const fd = await fr.json();
+      const v = fr.ok && Array.isArray(fd.result) ? fd.result[0] : null;
+      if (!v) return res.status(404).json({ error: 'Eintrag nicht gefunden' });
+      const meta = Object.assign({}, v.metadata || {});
+      const year = Number(body.year) || new Date().getFullYear();
+      const yearly = meta.jaehrlich === true || meta.jaehrlich === 'true';
+      if (String(body.art) === 'heute') meta.hinweis_jahr = year;
+      else { meta.nachgefragt_jahr = year; if (!yearly) meta.status = 'nachgefragt'; }
+      const ur = await fetch(`${url}/upsert-data`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ id, data: v.data, metadata: meta }),
+        signal: AbortSignal.timeout(8000)
+      });
+      const ud = await ur.json();
+      if (!ur.ok) return res.status(502).json({ error: 'Upstash meldet: ' + (ud.error || JSON.stringify(ud)) });
+      return res.status(200).json({ ok: true });
+    }
+
     if (action === 'search') {
       const query = String(body.query || '').trim().slice(0, 500);
       if (!query) return res.status(400).json({ error: 'Suchtext fehlt' });
@@ -91,11 +196,11 @@ export default async function handler(req, res) {
       const r = await fetch(`${url}/query-data`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ 
-          data: query, 
-          topK: topK, 
-          includeMetadata: true, 
-          includeData: true 
+        body: JSON.stringify({
+          data: query,
+          topK: topK,
+          includeMetadata: true,
+          includeData: true
         }),
         signal: AbortSignal.timeout(8000)
       });
@@ -121,46 +226,8 @@ export default async function handler(req, res) {
   }
 }
 
-// Hilfsfunktion für das "Unterbewusstsein" (Cronjob-Reflektion)
+// Früher legte der Cronjob jeden Tag einen inhaltslosen Eintrag ("Tägliche Reflektion ... Analysierte Fakten: 50") im Gedächtnis ab.
+// Der verschmutzte die Suche. Der Cronjob bleibt bestehen (vercel.json muss nicht angefasst werden), speichert aber nichts mehr.
 async function reflectAndStore(url, headers, res) {
-  try {
-    // 1. Hole die letzten 50 Einträge aus der Datenbank
-    const r = await fetch(`${url}/range`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ cursor: '0', limit: 50, includeMetadata: true, includeData: true }),
-      signal: AbortSignal.timeout(8000)
-    });
-    const d = await r.json();
-    if (!r.ok) return res.status(502).json({ error: 'Cron: Upstash-Fehler beim Laden: ' + JSON.stringify(d) });
-
-    const eintraege = ((d.result && d.result.vectors) || []).map(v => v.data);
-    
-    if (eintraege.length === 0) {
-      return res.status(200).json({ ok: true, message: 'Keine Daten zum Reflektieren vorhanden.' });
-    }
-
-    // 2. Hier wird die eigentliche LLM-Reflektion angestoßen. 
-    // Da kein externer LLM-Anbieter im Code definiert ist, erstellen wir eine strukturierte Übersicht.
-    const insightText = `Tägliche Reflektion vom ${new Date().toLocaleDateString('de-DE')}. Analysierte Fakten: ${eintraege.length}.`;
-    
-    // 3. Speichere die neue Erkenntnis mit dem Präfix 'insight_' ab
-    const insightId = `insight_${Date.now()}`;
-    const storeResponse = await fetch(`${url}/upsert-data`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        id: insightId,
-        data: insightText,
-        metadata: { datum: new Date().toISOString(), typ: 'cron_reflection' }
-      }),
-      signal: AbortSignal.timeout(8000)
-    });
-
-    if (!storeResponse.ok) return res.status(502).json({ error: 'Cron: Fehler beim Speichern der Erkenntnis.' });
-
-    return res.status(200).json({ ok: true, message: 'Reflektion erfolgreich durchgeführt und gespeichert.', id: insightId });
-  } catch (error) {
-    return res.status(500).json({ error: 'Fehler in reflectAndStore: ' + error.message });
-  }
+  return res.status(200).json({ ok: true, message: 'Nichts zu tun: Die tägliche Reflektion speichert keine Einträge mehr.' });
 }
