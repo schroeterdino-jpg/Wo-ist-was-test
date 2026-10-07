@@ -82,6 +82,33 @@ async function uebFillLocation(d, el) {
     } catch (e) { if (el.isConnected) el.textContent = 'nicht verfügbar'; }
 }
 
+/* Kacheln, die ihren Inhalt erst nachladen: Parkplatz, Wetter, Spritpreis (früher im Dashboard). Fehler zeigen nur einen kurzen Hinweis in der Kachel. */
+function uebFillLine(el, fn) {
+    Promise.resolve().then(() => uebTimeout(fn(), 25000)).then(txt => { if (el.isConnected) el.textContent = txt; })
+        .catch(() => { if (el.isConnected) el.textContent = 'nicht verfügbar'; });
+}
+async function uebTextParkplatz() {
+    const p = (typeof describeParking === 'function') ? describeParking() : null;
+    if (!p) return 'Kein Parkplatz gespeichert.';
+    return p.adresse + (p.gespeichert_vor ? ' · gespeichert ' + p.gespeichert_vor : '');
+}
+async function uebTextWetter() {
+    const w = await fetchWeatherData();
+    if (!w || w.fehler) return 'Wetterdaten gerade nicht verfügbar.';
+    const text = (typeof weatherCodeText === 'function') ? weatherCodeText(w.wettercode) : '';
+    return `${w.temperatur}° · gefühlt ${w.gefuehlteTemperatur}°` + (text ? ' · ' + text.charAt(0).toUpperCase() + text.slice(1) : '');
+}
+async function uebTextSprit() {
+    const pos = await new Promise((ok, err) => navigator.geolocation.getCurrentPosition(ok, err, { timeout: 7000, maximumAge: 120000 }));
+    const r = await apiFetch(`/api/tank?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}&rad=5`);
+    const d = await r.json();
+    if (!r.ok || d.error) return 'Spritpreise gerade nicht verfügbar.';
+    const rows = (d.stations || []).filter(s => typeof s.diesel === 'number' && s.diesel > 0).sort((a, b) => a.diesel - b.diesel);
+    if (!rows.length) return 'Keine geöffneten Tankstellen gefunden.';
+    const best = rows[0];
+    return `Diesel ab ${best.diesel.toFixed(3).replace('.', ',')} € · ${best.name || ''}` + (best.strasse ? ' · ' + best.strasse : '');
+}
+
 function uebIsEmpty(d) { return !d.termine.length && !d.erinnerungen.length && !d.aufgaben.length && !d.einkauf.length && !d.geburtstage.length; }
 
 /* ---------- Vorlesen ---------- */
@@ -180,6 +207,15 @@ function uebRender(d) {
     tile('✅', 'Aufgaben & Notizen', d.aufgaben.map(t => ({ text: t })), { panel: ['aufgaben', 'todo', 'notizen'] });
     tile('🛒', 'Einkauf', d.einkauf.map(t => ({ text: t })), { panel: ['einkauf', 'einkaufsliste'], max: 5 });
     if (d.geburtstage.length) tile('🎂', 'Geburtstage heute', d.geburtstage.map(t => ({ text: t })), { wide: true });
+
+    // Parkplatz, Wetter, Spritpreis: Kacheln sofort, der Inhalt kommt nach
+    [['🅿️', 'Parkplatz', uebTextParkplatz, ['parkplatz']], ['🌤️', 'Wetter', uebTextWetter, null], ['⛽', 'Spritpreis', uebTextSprit, null]].forEach(([ic, ti, fn, pn]) => {
+        const t = mk(grid, 'div', 'ub-tile wide');
+        mk(mk(t, 'div', 'ub-th'), 'div', 'ub-tt', `${ic} ${ti}`);
+        const line = mk(t, 'div', 'ub-line', 'wird geladen ...');
+        if (pn) t.addEventListener('click', () => uebOpenPanelFor(pn));
+        uebFillLine(line, fn);
+    });
 
     // Standort: Kachel sofort, die Adresse kommt, sobald das GPS antwortet
     const loc = mk(grid, 'div', 'ub-tile wide');
