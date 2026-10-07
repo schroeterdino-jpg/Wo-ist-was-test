@@ -238,9 +238,9 @@
                 glow.addColorStop(0, rgba(c, 0.5 * (0.4 + depth))); glow.addColorStop(1, rgba(c, 0));
                 ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(P.x, P.y, rr * 3, 0, 6.283); ctx.fill();
                 ctx.fillStyle = rgba([255, 255, 255], 0.55 + 0.4 * depth); ctx.beginPath(); ctx.arc(P.x, P.y, rr, 0, 6.283); ctx.fill();
-                if (depth > 0.5) {
+                if (true) {
                     ctx.font = `600 ${Math.round(12 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
-                    ctx.textAlign = 'center'; ctx.fillStyle = rgba([255, 255, 255], Math.min(1, 0.8 + (depth - 0.3) * 1.5));
+                    ctx.textAlign = 'center'; ctx.fillStyle = rgba([255, 255, 255], 0.62 + 0.38 * depth);
                     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(5,10,16,.95)'; const tw = ctx.measureText(n.label).width, lx = Math.max(tw / 2 + 4, Math.min(W - tw / 2 - 4, P.x)); ctx.strokeText(n.label, lx, P.y - rr - 6); ctx.fillText(n.label, lx, P.y - rr - 6);
                 }
             }
