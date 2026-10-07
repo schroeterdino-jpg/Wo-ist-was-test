@@ -252,7 +252,10 @@
     // nacheinander im Hintergrund und hängt sie nahtlos an, noch während das erste läuft (ein Stück Sprache dauert beim Abspielen viel länger als beim Erzeugen).
     // Nacheinander statt gleichzeitig, damit Fish Audio nicht wegen zu vieler Anfragen ablehnt. Alle Stücke bekommen dieselbe Fish-Stimme; hakt ein späteres Stück
     // auch nach zwei Versuchen, wird der RESTTEXT einmal über die normale Kette (OpenAI/Edge) gesprochen, damit nichts fehlt.
-    const CHUNK_MAX = 280, SINGLE_MAX = 320, FIRST_MIN = 60, FIRST_MAX = 170;
+    const CHUNK_MAX = 280, SINGLE_MAX = 50, FIRST_MIN = 60, FIRST_MAX = 170;
+    // Gestaffelte Stücke: erstes Stück kurz (schneller Start), jedes weitere etwas länger. So ist das nächste Stück fertig, bevor das vorige zu Ende gesprochen ist.
+    const LIMITS = [45, 100, 200];
+    const MIN_CHUNK = 20;
 
     function sentencesOf(text) {
         const t = String(text).replace(/\s+/g, ' ').trim();
@@ -271,23 +274,48 @@
         return out;
     }
 
-    /* Teilt in ein kurzes erstes Stück (schneller Start) und danach Stücke bis ~280 Zeichen. Tags bleiben bei ihrem Satz. */
+    /* Teilt einen Satz an Satzteil-Grenzen (Komma, Semikolon, Doppelpunkt, Gedankenstrich); zu kurze Teile werden mit dem nächsten verbunden, Tags in [eckigen Klammern] nie zerschnitten. */
+    function clausesOf(sn) {
+        const parts = [];
+        const re = /(?:,|;|:|\s[–—-])\s+/g;
+        let last = 0, m;
+        while ((m = re.exec(sn)) !== null) {
+            const cut = m.index + m[0].length;
+            const left = sn.slice(last, cut);
+            if ((left.match(/\[/g) || []).length !== (left.match(/\]/g) || []).length) continue;   // mitten in einem Tag
+            if (left.trim().length < 14) continue;                                                // zu kurz: mit dem nächsten Teil verbinden
+            parts.push(left.trim()); last = cut;
+        }
+        const rest = sn.slice(last).trim();
+        if (rest) { if (parts.length && rest.length < 14) parts[parts.length - 1] += ' ' + rest; else parts.push(rest); }
+        return parts.length ? parts : [sn];
+    }
+
+    /* Teilt in gestaffelte Stücke: kurzes erstes Stück (schneller Start), danach 100, 200, dann bis ~280 Zeichen.
+       Die ersten beiden Stücke dürfen an Satzteil-Grenzen enden (Komma), alle späteren nur an Satzenden. Tags bleiben bei ihrem Satz. */
     function splitForFish(text) {
         const t = String(text).replace(/\s+/g, ' ').trim();
         if (t.length <= SINGLE_MAX) return [t];
-        const sentences = sentencesOf(t);
+        const units = [];
+        sentencesOf(t).forEach(sn => { const cl = clausesOf(sn); cl.forEach((c, i) => units.push({ t: c, end: i === cl.length - 1 })); });
         const chunks = [];
-        let cur = '', first = true;
-        const push = () => { if (cur.trim()) chunks.push(cur.trim()); cur = ''; first = false; };
-        sentences.forEach(sn => {
-            const limit = first ? FIRST_MAX : CHUNK_MAX;
-            if (first && cur && cur.length >= FIRST_MIN) push();
-            if (!cur) cur = sn;
-            else if ((cur + ' ' + sn).length > limit) { push(); cur = sn; }
-            else cur = cur + ' ' + sn;
-            if (first && cur.length >= FIRST_MIN) push();
+        let cur = [];   // Einheiten des aktuellen Stücks
+        const len = a => a.map(u => u.t).join(' ').length;
+        const flush = a => { const x = a.map(u => u.t).join(' ').trim(); if (x) chunks.push(x); };
+        units.forEach(u => {
+            const limit = chunks.length < LIMITS.length ? LIMITS[chunks.length] : CHUNK_MAX;
+            if (!cur.length) { cur = [u]; return; }
+            const early = chunks.length < 2;
+            if (len(cur) + 1 + u.t.length > limit && len(cur) >= (early ? MIN_CHUNK : 60)) {
+                if (!early) {                                    // spätere Stücke: bevorzugt an einem Satzende enden
+                    let k = -1;
+                    for (let i = cur.length - 1; i >= 0; i--) if (cur[i].end) { k = i; break; }
+                    if (k >= 0 && k < cur.length - 1) { flush(cur.slice(0, k + 1)); cur = cur.slice(k + 1).concat([u]); return; }
+                }
+                flush(cur); cur = [u];
+            } else cur.push(u);
         });
-        push();
+        flush(cur);
         return chunks;
     }
 
@@ -450,7 +478,7 @@
         const chunks = splitForFish(full);
 
         if (isAck) {
-            const a = await requestOne(chunks[0], voice, { timeout: 20000, fishOnly: true });
+            const a = await requestOne(full.length <= 320 ? full : chunks[0], voice, { timeout: 20000, fishOnly: true });   // Zwischenansagen immer in einem Stück
             return a ? a.blob : silentBlob();
         }
 
