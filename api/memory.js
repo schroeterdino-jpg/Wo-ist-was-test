@@ -211,6 +211,7 @@ export default async function handler(req, res) {
       const treffer = ((d.result) || [])
         .filter(v => v.score >= minScore)
         .map(v => ({
+          id: v.id,
           text: v.data,
           score: v.score,
           metadata: v.metadata || {}
