@@ -261,12 +261,7 @@
             else { ctx.strokeStyle = rgba(pulse.c, 1 - age); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(pulse.x, pulse.y, 8 + age * 40, 0, 6.283); ctx.stroke(); }
         }
 
-        // Alles zum Rand hin weich ausblenden (Wellen und Glühen enden nicht abrupt am Rand)
-        ctx.globalCompositeOperation = 'destination-in';
-        const eg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.40, W / 2, H / 2, Math.min(W, H) * 0.5);
-        eg.addColorStop(0, 'rgba(0,0,0,1)'); eg.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = eg; ctx.fillRect(0, 0, W, H);
-        ctx.globalCompositeOperation = 'source-over';
+        // (kein Kreis-Ausblenden mehr am Ende: das hat Beschriftungen am Rand abgeschnitten)
     }
 
     /* ---------- Bedienung ---------- */
