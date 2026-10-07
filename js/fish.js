@@ -482,14 +482,22 @@
             return a ? a.blob : silentBlob();
         }
 
+        // Zweites Stück schon jetzt parallel anfordern (nicht erst, wenn das erste da ist): so ist es fertig, bevor das erste ausgesprochen ist, und es gibt keine Pause.
+        // Kommt das erste Stück nicht von Fish Audio, wird dieser frühe Versuch verworfen und der Rest über die Ersatzkette geholt.
+        let early = null;
+        if (chunks.length > 1) { try { early = startQueue(chunks.slice(1), voice, 'fish'); } catch (e) { early = null; } }
+
         // Erstes (oder einziges) Stück: normale Kette. Fish Audio bekommt viel Zeit (Server 15 s), erst dann springt die Ersatzstimme ein.
         const r = await requestOne(chunks[0], voice, { timeout: 30000 });
         if (!r) return null;
         setLastVoice(r.engine, Date.now() - started, full.length, chunks.length, (full.match(/\[[a-z ]+\]/g) || []));
         if (chunks.length > 1) {
-            // Kam das erste Stück nicht von Fish Audio, wird der Rest einheitlich über dieselbe Ersatzkette geholt
-            const restChunks = r.engine === 'fish' ? chunks.slice(1) : [chunks.slice(1).join(' ')];
-            try { r.blob.__jvQ = startQueue(restChunks, voice, r.engine); } catch (e) {}
+            if (r.engine === 'fish' && early) { r.blob.__jvQ = early; }
+            else {
+                // Kam das erste Stück nicht von Fish Audio, wird der Rest einheitlich über dieselbe Ersatzkette geholt
+                const restChunks = [chunks.slice(1).join(' ')];
+                try { r.blob.__jvQ = startQueue(restChunks, voice, r.engine); } catch (e) {}
+            }
         }
         return r.blob;
     };
