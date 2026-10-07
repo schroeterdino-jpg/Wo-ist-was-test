@@ -241,16 +241,27 @@
 
     /* Rückfall: Die Suche von OpenStreetMap (Nominatim, wie bei der Ortsangabe) liefert Name und Adresse, wenn die Overpass-Server nicht antworten.
        Sie hat meist keine Öffnungszeiten, kennt aber die gängigen Ketten und Straße/Hausnummer. */
+    /* Mehrere Suchwörter gleichzeitig (z.B. Friseur, Haarstudio, Friseursalon), Ergebnisse zusammengeführt: Nominatim findet nur, was zum Suchwort passt. */
+    const NOMI_TERMS = { 'Friseur': ['Friseur', 'Haarstudio', 'Friseursalon', 'Hairstyling'] };
     async function nominatimElements(res, lat, lon, radius) {
         const dLat = radius / 111000, dLon = radius / (111000 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
         const view = [lon - dLon, lat + dLat, lon + dLon, lat - dLat].map(n => n.toFixed(5)).join(',');
         const term = res.entry.brand && res.entry.generic ? (res.query || res.entry.label) : res.entry.label;
-        const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=30&addressdetails=1&extratags=1&accept-language=de&bounded=1&viewbox=' + view + '&q=' + encodeURIComponent(term);
-        const r = await withTimeout(fetch(url), 12000);
-        if (!r.ok) throw new Error('Nominatim Status ' + r.status);
-        const d = await r.json();
-        if (!Array.isArray(d)) throw new Error('Nominatim: keine Daten');
-        return d.map(x => {
+        const terms = (res.entry.brand && res.entry.generic) ? [term] : (NOMI_TERMS[term] || [term]);
+        const one = async (t) => {
+            const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=30&addressdetails=1&extratags=1&accept-language=de&bounded=1&viewbox=' + view + '&q=' + encodeURIComponent(t);
+            const r = await withTimeout(fetch(url), 12000);
+            if (!r.ok) throw new Error('Nominatim Status ' + r.status);
+            const d = await r.json();
+            if (!Array.isArray(d)) throw new Error('Nominatim: keine Daten');
+            return d;
+        };
+        const settled = await Promise.allSettled(terms.map(one));
+        const ok = settled.filter(x => x.status === 'fulfilled');
+        if (!ok.length) throw settled[0].reason || new Error('Nominatim: keine Antwort');
+        const seen = new Set(), all = [];
+        ok.forEach(x => x.value.forEach(i => { const k = String(i.osm_type) + i.osm_id; if (!seen.has(k)) { seen.add(k); all.push(i); } }));
+        return all.map(x => {
             const a = x.address || {}, ex = x.extratags || {};
             const tags = { name: x.name || a[x.type] || '', 'addr:street': a.road || a.pedestrian || '', 'addr:housenumber': a.house_number || '', 'addr:city': a.city || a.town || a.village || a.municipality || '', 'addr:postcode': a.postcode || '' };
             if (ex.opening_hours) tags.opening_hours = ex.opening_hours;
@@ -650,7 +661,7 @@
         oldFetchPatched = true;
         window.plFetchElements = async function (query) {
             const q = String(query || '');
-            try { const el = await raceOverpass(q, true, 12000); window.__jvPlSrc = ''; return el; }   // App-Server und Kartenserver gleichzeitig, höchstens 12 Sekunden
+            try { const el = await raceOverpass(q, true, 20000); window.__jvPlSrc = ''; return el; }   // App-Server und Kartenserver gleichzeitig, höchstens 20 Sekunden
             catch (e2) {
                 window.__jvPlSrc = 'Ausweichsuche, Kartenserver: ' + String((e2 && e2.message) || e2).slice(0, 150);
                 // niemand antwortet: Rückfall über Nominatim (ohne Öffnungszeiten), Art und Umkreis stehen in der Anfrage
