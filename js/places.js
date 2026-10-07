@@ -22,6 +22,10 @@ function showActionCards(cards) {
         if (c.onclick) {
             return `<button type="button" onclick="playUiBeep(); ${escapeHtml(c.onclick)}" class="${cls} w-full text-left">${inner}</button>`;
         }
+        // Karte ohne Ziel (z.B. ein Beispielsatz in der Hilfe): nur anzeigen, nicht als Link. Sonst öffnet "undefined" eine Fehlerseite (404).
+        if (!c.href) {
+            return `<div class="${cls} w-full">${inner.replace('<span class="text-[#49d7ff] text-lg">›</span>', '')}</div>`;
+        }
         const external = /^https?:/.test(c.href) ? ' target="_blank" rel="noopener"' : '';
         return `<a href="${escapeHtml(c.href)}"${external} onclick="playUiBeep()" class="${cls}">${inner}</a>`;
     }).join(''));
