@@ -242,7 +242,7 @@
     /* Rückfall: Die Suche von OpenStreetMap (Nominatim, wie bei der Ortsangabe) liefert Name und Adresse, wenn die Overpass-Server nicht antworten.
        Sie hat meist keine Öffnungszeiten, kennt aber die gängigen Ketten und Straße/Hausnummer. */
     /* Mehrere Suchwörter gleichzeitig (z.B. Friseur, Haarstudio, Friseursalon), Ergebnisse zusammengeführt: Nominatim findet nur, was zum Suchwort passt. */
-    const NOMI_TERMS = { 'Friseur': ['Friseur', 'Haarstudio', 'Friseursalon', 'Hairstyling'] };
+    const NOMI_TERMS = { 'Friseur': ['Friseur', 'Haarstudio', 'Friseursalon', 'Hairstyling'], 'Restaurant': ['Restaurant', 'Gaststätte', 'Imbiss', 'Pizzeria'] };
     async function nominatimElements(res, lat, lon, radius) {
         const dLat = radius / 111000, dLon = radius / (111000 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
         const view = [lon - dLon, lat + dLat, lon + dLon, lat - dLat].map(n => n.toFixed(5)).join(',');
@@ -626,6 +626,10 @@
         search(req).catch(e => { console.error('Ortssuche', e); say('Die Ortssuche hat gerade nicht geklappt.'); });
         return true;
     }
+
+    /* Für die Restaurantsuche (nearby.js): Kartenserver-Wettlauf und Nominatim-Rückfall bereitstellen */
+    window.jvOverpass = function (query) { return raceOverpass(query, true, 20000); };
+    window.jvNominatim = function (label, lat, lon, radius) { return nominatimElements({ entry: { label } }, lat, lon, radius); };
 
     /* Für die alte Orte-Suche (nearbymore.js): Adressen der ersten Treffer vervollständigen, Rückfrage "in den Kontakten speichern?" vorbereiten.
        list: [{ name, street, lat, lon, dist }], liefert { ask, listing } oder null. Die Antwort (Ja / den ersten ...) übernimmt handlePendingSave. */

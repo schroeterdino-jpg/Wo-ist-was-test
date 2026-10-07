@@ -59,15 +59,21 @@ function buildOverpassQuery(lat, lon, radiusM, cuisine) {
     return `[out:json][timeout:12];(node["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon});way["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon}););out center 20;`;
 }
 
-async function overpassSearch(lat, lon, radiusM, cuisine) {
-    const res = await apiFetch('/api/overpass', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: buildOverpassQuery(lat, lon, radiusM, cuisine) })
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return (data && data.elements) || [];
+async function overpassSearch(lat, lon, radiusM, cuisine, query) {
+    const q = buildOverpassQuery(lat, lon, radiusM, cuisine);
+    // 1. App-Server und Kartenserver gleichzeitig (ortsuche.js), 2. nur App-Server, 3. Rückfall über Nominatim (ohne Öffnungszeiten)
+    if (typeof window.jvOverpass === 'function') {
+        try { return await window.jvOverpass(q); } catch (e) { console.error('Restaurantsuche Overpass:', e && e.message); }
+    } else {
+        try {
+            const res = await apiFetch('/api/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
+            if (res.ok) { const data = await res.json(); return (data && data.elements) || []; }
+        } catch (e) { if (e && e.auth) throw e; }
+    }
+    if (typeof window.jvNominatim === 'function') {
+        try { return await window.jvNominatim(query && String(query).trim() ? String(query).trim() + ' Restaurant' : 'Restaurant', lat, lon, radiusM); } catch (e) { console.error('Restaurantsuche Nominatim:', e && e.message); }
+    }
+    return null;
 }
 
 function placeFromElement(el, userLat, userLon) {
@@ -89,7 +95,7 @@ async function findNearbyRestaurants(query) {
     const cuisine = cuisineFilterFor(query);
     let elements;
     try {
-        elements = await overpassSearch(loc.latitude, loc.longitude, 2000, cuisine);
+        elements = await overpassSearch(loc.latitude, loc.longitude, 2000, cuisine, query);
     } catch (e) {
         if (e && e.auth) throw e;
         elements = null;
@@ -99,7 +105,7 @@ async function findNearbyRestaurants(query) {
     let places = elements.map(el => placeFromElement(el, loc.latitude, loc.longitude)).filter(Boolean);
     let radiusUsed = 2;
     if (places.length === 0) {
-        try { elements = await overpassSearch(loc.latitude, loc.longitude, 5000, cuisine); } catch (e) { elements = []; }
+        try { elements = await overpassSearch(loc.latitude, loc.longitude, 5000, cuisine, query); } catch (e) { elements = []; }
         places = (elements || []).map(el => placeFromElement(el, loc.latitude, loc.longitude)).filter(Boolean);
         radiusUsed = 5;
     }
