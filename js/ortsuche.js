@@ -548,7 +548,19 @@
             const other = places.find(p => { const x = hoursInfo(p); return x && x.open === true; });
             if (other) { const x = hoursInfo(other); alt = ` Offen hat gerade ${other.name}, ${distSpoken(other.dist)} entfernt${x.until ? ', bis ' + spokenTime(x.until) : ''}.`; }
         }
-        say(`Am nächsten ist ${first.name}${addr ? ', ' + addr : ''}, ${distSpoken(first.dist)} entfernt.${hoursSpoken(o)}${alt}${more} Tippen Sie unten auf eine Karte, dann öffnet sich die Route.`);
+        // Adresse des ersten Treffers vervollständigen (fehlt die Straße, per Rückwärtssuche) und anbieten, sie in den Kontakten zu speichern
+        let ask = '';
+        if (!req.navigate) {
+            try {
+                const info = await fullAddress(first, '');
+                if (info.exact) {
+                    const contactName = [res.entry.label, info.city].filter(Boolean).join(' ');
+                    pendingSave = { name: contactName, address: info.address, at: Date.now() };
+                    ask = ` Soll ich die Adresse als ${contactName} in Ihren Kontakten speichern?`;
+                }
+            } catch (e) { ask = ''; }
+        }
+        say(`Am nächsten ist ${first.name}${addr ? ', ' + addr : ''}, ${distSpoken(first.dist)} entfernt.${hoursSpoken(o)}${alt}${more}${ask || ' Tippen Sie unten auf eine Karte, dann öffnet sich die Route.'}`);
         if (req.navigate) openRoute(0);
         return true;
     }
