@@ -625,7 +625,18 @@
         const orig = window.plFetchElements;
         window.plFetchElements = async function () {
             try { return await orig.apply(this, arguments); }
-            catch (e) { return await directOverpass(arguments[0]); }
+            catch (e) {
+                const q = String(arguments[0] || '');
+                try { return await directOverpass(q); }
+                catch (e2) {
+                    // auch die Kartenserver antworten nicht: Rückfall über Nominatim, Art und Umkreis stehen in der Anfrage
+                    const m = q.match(/around:(\d+),(-?[\d.]+),(-?[\d.]+)/);
+                    let cat = null;
+                    try { cat = (typeof PLACE_CATEGORIES !== 'undefined') ? PLACE_CATEGORIES.find(c => c.sel.some(sl => q.indexOf(sl) >= 0)) : null; } catch (e3) {}
+                    if (!m || !cat) throw e2;
+                    return await nominatimElements({ entry: { label: cat.label } }, parseFloat(m[2]), parseFloat(m[3]), parseInt(m[1], 10));
+                }
+            }
         };
     }
 
