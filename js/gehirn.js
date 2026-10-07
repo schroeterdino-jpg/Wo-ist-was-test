@@ -322,7 +322,7 @@
             'body.jv-brain #jarvisBrain{display:block}' +
             'body.jv-brain #jarvisSphere{display:none!important}' +
             'body.jv-brain .holo-container{width:min(98vw,440px)!important;height:min(112vw,60vh)!important;position:relative!important;top:calc(min(98vw,56vh) - min(112vw,60vh))!important;margin-bottom:calc(min(98vw,56vh) - min(112vw,60vh))!important}' +
-            'body.jv-brain #reactor-wrap{overflow:visible!important}' +
+            'body.jv-brain #reactor-wrap,body.jv-brain #recordBtn,body.jv-brain .holo-container,body.jv-brain #jarvisBrain{overflow:visible!important;border-radius:0!important;clip-path:none!important;-webkit-mask-image:none!important;mask-image:none!important;box-shadow:none!important;-webkit-clip-path:none!important}' +
             '#brainToggle{position:absolute;right:2px;top:2px;z-index:5;width:30px;height:30px;border-radius:50%;border:1px solid rgba(93,209,255,.35);background:rgba(10,22,33,.75);color:#49d7ff;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}';
         document.head.appendChild(css);
         canvas = document.createElement('canvas');
