@@ -466,7 +466,8 @@
                 catch (e) { say('Das Speichern in den Kontakten hat leider nicht geklappt.'); }
                 return true;
             }
-            const idx = ORD.findIndex((rx, i) => i < choices.length && rx.test(t));
+            let idx = choices.findIndex(c => c.name && t.length > 2 && norm(c.name).includes(t) && !/^(?:ja|den|der|die|das)$/.test(t));   // Name genannt
+            if (idx < 0) idx = ORD.findIndex((rx, i) => i < choices.length && rx.test(t));
             if (idx >= 0) {
                 pendingSave = null;
                 try { saveOne(choices[idx]); say(`Erledigt. ${choices[idx].name} steht jetzt in Ihren Kontakten.`); }
@@ -641,11 +642,12 @@
             const cities = cands.map(c => c.info.city || '');
             const distinctCities = cities.every(c => c) && new Set(cities.map(c => c.toLowerCase())).size === cities.length;
             const choices = cands.map((c, i) => ({
-                name: [label, (distinctCities || cands.length === 1) ? c.info.city : String(c.info.street || '').replace(/\s+\d+\s*\w?$/, '')].filter(Boolean).join(' '),
+                name: c.q.keepName ? c.q.name : [label, (distinctCities || cands.length === 1) ? c.info.city : String(c.info.street || '').replace(/\s+\d+\s*\w?$/, '')].filter(Boolean).join(' '),
                 address: c.info.address
             }));
             pendingSave = { choices, at: Date.now() };
             if (choices.length === 1) return { listing: '', ask: ` Soll ich die Adresse als ${choices[0].name} in Ihren Kontakten speichern?` };
+            if (cands[0].q.keepName) return { listing: '', ask: ` Soll ich einen davon in Ihren Kontakten speichern: ${choices.map(c => c.name).join(', ').replace(/, ([^,]*)$/, ' oder $1')}? Oder keinen.` };
             const listing = cands.slice(1).map((c, i) => ` ${i === 0 ? 'Der zweite' : 'Der dritte'} ist ${[c.info.street, c.info.city].filter(Boolean).join(', ')}, ${distSpoken(c.q.dist)} entfernt.`).join('');
             const ask = ` Welchen soll ich in Ihren Kontakten speichern: ${choices.map((c, i) => ORD_NAME[i]).join(', ').replace(/, ([^,]*)$/, ' oder $1')}? Oder keinen.`;
             return { listing, ask };

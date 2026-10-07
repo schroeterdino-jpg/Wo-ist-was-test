@@ -113,7 +113,14 @@ async function findNearbyRestaurants(query) {
     }
 
     const namen = top.slice(0, 3).map(p => `${p.name}${p.strasse ? ' (' + p.strasse + ')' : ''}, ${distText(p.distanzKm)}`);
-    const reply = `In der Nähe gibt es zum Beispiel ${namen.join('; ')}.`;
+    let reply = `In der Nähe gibt es zum Beispiel ${namen.join('; ')}.`;
+    // Adresse in den Kontakten speichern anbieten; die Antwort (Ja / den ersten ...) wertet ortsuche.js aus
+    if (typeof window.jvOfferSave === 'function') {
+        try {
+            const offer = await window.jvOfferSave('Restaurant', top.slice(0, 3).map(p => ({ name: p.name, street: p.strasse, lat: p.lat, lon: p.lon, dist: p.distanzKm * 1000, keepName: true })));
+            if (offer && offer.ask) reply += offer.ask;
+        } catch (e) {}
+    }
 
     const cards = top.map(p => ({
         icon: '🍽️',
