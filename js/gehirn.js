@@ -1,6 +1,6 @@
 /* ============================================================
-   GEHIRN-ANSICHT: Statt der Netz-Kugel zeigt der Startbildschirm ein Gehirn aus fünf Bereichen im Fünfeck:
-   GEDÄCHTNIS (oben), ZEIT, HÄNDE, UNTERWEGS, OHREN. Jeder Bereich hat antippbare Knoten (Termine, Listen, Karte, Mail ...).
+   GEHIRN-ANSICHT: Statt der Netz-Kugel zeigt der Startbildschirm ein Gehirn aus fünf Bereichen wie ein Körper:
+   GEDÄCHTNIS (Mitte, das Gehirn), OHREN (oben), HÄNDE (rechts), ZEIT (links), UNTERWEGS (unten). Jeder Bereich hat antippbare Knoten (Termine, Listen, Karte, Mail ...).
    Die Punkte auf den Dreiecks-Linien wandern im Uhrzeigersinn, das Ganze schwingt langsam und lässt sich mit dem Finger drehen.
    Antippen eines Knotens öffnet die jeweilige Funktion. Antippen einer leeren Stelle startet wie bisher das Zuhören.
    Zurück zur alten Kugel: kleiner Knopf oben rechts an der Ansicht, oder per Sprache "Zurück zur Kugel". "Zeig das Gehirn" schaltet wieder um.
@@ -23,21 +23,19 @@
     }
     const panel = id => () => { try { window.openPanel(id); } catch (e) { console.error('Gehirn', e); } };
     const HUBS = [
-        { label: 'GEDÄCHTNIS', color: [73, 215, 255], pos: [0, -0.68, 0], leaves: [
+        { label: 'GEDÄCHTNIS', color: [73, 215, 255], pos: [0, 0, 0], lr: 0.36, ldir: 1, leaves: [
             ['Langzeit', () => window.showLangzeit && window.showLangzeit()],
             ['Gedächtnis', panel('gedaechtnis')],
             ['Listen', panel('einkauf')],
             ['Protokolle', panel('protokolle')],
             ['Adressen', panel('adressen')]
         ] },
-        { label: 'ZEIT', color: [120, 232, 150], pos: [0.647, -0.21, 0], leaves: [
-            ['Termine', panel('termine')],
-            ['Erinnerungen', panel('erinnerungen')],
-            ['Fristen', () => say('Welche Fristen habe ich?')],
-            ['Planer', panel('planer')],
-            ['Weltuhr', () => { try { window.openWeltuhr(); } catch (e) { say('Öffne die Weltuhr'); } }]
+        { label: 'OHREN', color: [190, 125, 255], pos: [0, -1.0, 0], ldir: -1, leaves: [
+            ['Wünsche', () => say('Welche Formulierungen habe ich?')],
+            ['Hör-Korrektur', () => say('Welche Hör-Korrekturen hast du?')],
+            ['Hilfe', () => say('Hilfe')]
         ] },
-        { label: 'HÄNDE', color: [255, 154, 68], pos: [0.40, 0.55, 0], leaves: [
+        { label: 'HÄNDE', color: [255, 154, 68], pos: [0.68, 0.05, 0], ldir: 1, leaves: [
             ['Mail', () => say('Welche E-Mails habe ich?')],
             ['Foto', () => { try { window.openPhotoCamera(true); } catch (e) {} }],
             ['Überblick', () => { try { window.showUeberblick(false); } catch (e) {} }],
@@ -46,17 +44,19 @@
             ['Restaurants', () => say('Zeig mir Restaurants in der Nähe')],
             ['Tanken', () => say('Zeig mir günstige Tankstellen in der Nähe')]
         ] },
-        { label: 'UNTERWEGS', color: [255, 214, 90], pos: [-0.40, 0.55, 0], leaves: [
+        { label: 'UNTERWEGS', color: [255, 214, 90], pos: [0, 1.0, 0], ldir: 1, leaves: [
             ['Karte', panel('karte')],
             ['Welt', panel('welt')],
             ['Fahrzeit', () => say('Wann muss ich zum nächsten Termin losfahren?')],
             ['Parkplatz', () => say('Wo habe ich geparkt?')],
             ['Sprit-Route', () => say('Wo tanke ich auf dem Weg zum nächsten Termin am günstigsten?')]
         ] },
-        { label: 'OHREN', color: [190, 125, 255], pos: [-0.647, -0.21, 0], leaves: [
-            ['Wünsche', () => say('Welche Formulierungen habe ich?')],
-            ['Hör-Korrektur', () => say('Welche Hör-Korrekturen hast du?')],
-            ['Hilfe', () => say('Hilfe')]
+        { label: 'ZEIT', color: [120, 232, 150], pos: [-0.68, 0.05, 0], ldir: 1, leaves: [
+            ['Termine', panel('termine')],
+            ['Erinnerungen', panel('erinnerungen')],
+            ['Fristen', () => say('Welche Fristen habe ich?')],
+            ['Planer', panel('planer')],
+            ['Weltuhr', () => { try { window.openWeltuhr(); } catch (e) { say('Öffne die Weltuhr'); } }]
         ] }
     ];
 
@@ -65,7 +65,7 @@
     const nodes = [];       // alle Knoten: { hub, label, action, base:[x,y,z], r }
     HUBS.forEach((h, hi) => {
         h.index = hi;
-        h.node = { hub: h, label: h.label, isHub: true, base: h.pos.slice(), r: 11 };
+        h.node = { hub: h, label: h.label, isHub: true, base: h.pos.slice(), r: h.lr ? 14 : 11 };
         nodes.push(h.node);
         const n = h.leaves.length;
         h.leafNodes = h.leaves.map((l, i) => {
@@ -80,7 +80,7 @@
         const a = Math.random() * 6.283, b = Math.acos(2 * Math.random() - 1), R = 0.85 + Math.random() * 0.5;
         STARS.push({ p: [R * Math.sin(b) * Math.cos(a), R * Math.cos(b) * 0.9, R * Math.sin(b) * Math.sin(a)], s: 0.6 + Math.random() * 1.4, ph: Math.random() * 6.283 });
     }
-    const EDGES = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]];   // Fünfeck im Uhrzeigersinn
+    const EDGES = [[0, 1], [0, 2], [0, 3], [0, 4], [1, 2], [2, 3], [3, 4], [4, 1]];   // Gehirn in der Mitte, Speichen zu den anderen, Außenring im Uhrzeigersinn
 
     /* ---------- Zeichnen ---------- */
     let canvas = null, ctx = null, btn = null, W = 0, H = 0, dpr = 1;
@@ -133,7 +133,7 @@
             const cs = Math.cos(spin), sn = Math.sin(spin);
             h.leafNodes.forEach(l => {
                 const d = l.dir, x = d[0] * cs + d[2] * sn, z = -d[0] * sn + d[2] * cs;
-                l.world = [h.pos[0] + x * LEAF_R, h.pos[1] + d[1] * LEAF_R, h.pos[2] + z * LEAF_R];
+                const LR = h.lr || LEAF_R; l.world = [h.pos[0] + x * LR, h.pos[1] + d[1] * LR, h.pos[2] + z * LR];
                 l.P = proj(l.world);
             });
         });
@@ -155,7 +155,7 @@
 
         // Nebel und Sterne weich zum Rand ausblenden (kein sichtbarer Kasten)
         ctx.globalCompositeOperation = 'destination-in';
-        const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.30, W / 2, H / 2, Math.min(W, H) * 0.5);
+        const vg = ctx.createRadialGradient(W / 2, H / 2, Math.max(W, H) * 0.42, W / 2, H / 2, Math.max(W, H) * 0.62);
         vg.addColorStop(0, 'rgba(0,0,0,1)'); vg.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
         ctx.globalCompositeOperation = 'source-over';
@@ -232,7 +232,7 @@
                 ctx.strokeStyle = rgba(c, 0.9); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(P.x, P.y, rr, 0, 6.283); ctx.stroke();
                 ctx.strokeStyle = rgba(c, 0.35 + 0.25 * Math.sin(t * 2 + n.hub.index)); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(P.x, P.y, rr * (1.5 + 0.2 * Math.sin(t * 2 + n.hub.index)), 0, 6.283); ctx.stroke();
                 ctx.font = `700 ${Math.round(13 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
-                const ly = P.y + (n.hub.index === 0 ? -1 : 1) * (LEAF_R * scale * P.s + 14); ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,16,.9)'; ctx.strokeText(n.label, P.x, ly); ctx.fillStyle = rgba(c, 0.95); ctx.fillText(n.label, P.x, ly);
+                const ly = P.y + (n.hub.ldir || 1) * ((n.hub.lr || LEAF_R) * scale * P.s + 14); ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,16,.9)'; ctx.strokeText(n.label, P.x, ly); ctx.fillStyle = rgba(c, 0.95); ctx.fillText(n.label, P.x, ly);
             } else {
                 const glow = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, rr * 3);
                 glow.addColorStop(0, rgba(c, 0.5 * (0.4 + depth))); glow.addColorStop(1, rgba(c, 0));
