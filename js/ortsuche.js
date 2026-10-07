@@ -668,6 +668,7 @@
         const originalLocal = window.handleLocalCommand;
         const hooked = function (text) {
             try { patchOldPlacesFetch(); } catch (e) {}
+            try { installAskWrapper(); } catch (e) {}
             try { if (pendingSave && handlePendingSave(text)) return true; } catch (e) { pendingSave = null; }   // Ja/Nein zum Speichern in den Kontakten
             const handled = originalLocal.apply(this, arguments);
             if (handled) return handled;
@@ -677,6 +678,52 @@
         hooked._ortsuche = true;
         window.handleLocalCommand = hooked;
     }
+
+    /* Mehrere Wünsche in einem Satz ("Ist ein Friseur in der Nähe und wie wird das Wetter morgen"): Der Ortswunsch wird herausgelöst und
+       von den Orte-Suchen erledigt, der Rest geht wie gewohnt an die KI. Die Ortssuche läuft danach, wenn Jarvis fertig gesprochen hat. */
+    function placeKind(part) {
+        try { if (typeof window.parsePlacesRequest === 'function' ? window.parsePlacesRequest(part) : (typeof parsePlacesRequest === 'function' && parsePlacesRequest(part))) return 'old'; } catch (e) {}
+        try { const r = extract(norm(part)); if (r && resolve(r.what, r.nearest)) return 'new'; } catch (e) {}
+        return '';
+    }
+    function splitPlaceWish(text) {
+        const parts = String(text || '').split(/\s+(?:und dann|und auch|und|sowie|außerdem|danach|dann)\s+|\s*,\s*/i).map(x => x.trim()).filter(Boolean);
+        if (parts.length < 2) return null;
+        let idx = -1, kind = '';
+        for (let i = 0; i < parts.length && idx < 0; i++) { const k = placeKind(parts[i]); if (k) { idx = i; kind = k; } }
+        if (idx < 0) return null;
+        const rest = parts.filter((_, i) => i !== idx).join(' und ');
+        if (!rest) return null;
+        return { part: parts[idx], rest, kind };
+    }
+    async function runPlaceWish(sp) {
+        for (let i = 0; i < 120 && typeof isSpeaking === 'function' && isSpeaking(); i++) await new Promise(r => setTimeout(r, 500));   // bis zu 60 s warten
+        try {
+            if (sp.kind === 'old' && typeof window.handlePlacesCommand === 'function') { if (window.handlePlacesCommand(sp.part)) return; }
+            handleOrtsucheCommand(sp.part);
+        } catch (e) { console.error('Ortssuche (Teilsatz)', e); }
+    }
+    function installAskWrapper() {
+        if (typeof window.sendToGroqSmart !== 'function' || window.sendToGroqSmart._ortsuche) return;
+        const originalAsk = window.sendToGroqSmart;
+        const wrappedAsk = async function (text) {
+            if (typeof text === 'string' && text.length > 25) {
+                let sp = null;
+                try { sp = splitPlaceWish(text); } catch (e) { sp = null; }
+                if (sp) {
+                    const args = Array.prototype.slice.call(arguments);
+                    args[0] = sp.rest;
+                    try { return await originalAsk.apply(this, args); }
+                    finally { runPlaceWish(sp); }
+                }
+            }
+            return originalAsk.apply(this, arguments);
+        };
+        wrappedAsk._ortsuche = true;
+        Object.keys(originalAsk).forEach(k => { try { wrappedAsk[k] = originalAsk[k]; } catch (e) {} });
+        window.sendToGroqSmart = wrappedAsk;
+    }
+    installAskWrapper();
 
     window.handleOrtsucheCommand = handleOrtsucheCommand;
     window._ortsucheTest = { extract, resolve, openNow, buildQuery, toPlaces, norm };   // nur zum Testen
