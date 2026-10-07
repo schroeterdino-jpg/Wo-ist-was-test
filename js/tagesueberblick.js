@@ -1,6 +1,7 @@
 /* ============================================================
    TAGESÜBERBLICK: Öffnest du die App morgens (Standard 7 bis 10 Uhr) zum ersten Mal am Tag, erscheint ein Fenster im HUD-Stil mit Kacheln:
-   📅 Termine heute · 🔔 Erinnerungen (heute und überfällige) · ✅ Aufgaben · 🛒 Einkaufsliste · 🎂 Geburtstage heute.
+   📅 Termine heute · 🔔 Erinnerungen (heute und überfällige) · ✅ Aufgaben & Notizen · 🛒 Einkaufsliste · 🎂 Geburtstage heute · 📍 Mein Standort.
+   Der Tagesüberblick ersetzt das frühere Dashboard: "Dashboard" öffnet jetzt ebenfalls den Tagesüberblick.
    Es kommt ohne Ton (Chrome erlaubt beim Start keinen); der Knopf "Vorlesen" liest den Überblick vor. Ein Tipp auf eine Kachel öffnet das passende Fenster.
    Ist nichts offen, erscheint kurz "Heute ist nichts offen" und verschwindet von selbst.
    Einmal pro Tag: Wer es geschlossen hat, sieht es erst am nächsten Morgen wieder; per Sprache ("Tagesüberblick", "Zeig mir meinen Tag") jederzeit.
@@ -68,19 +69,33 @@ async function uebGather() {
     return out;
 }
 
+/* Aktueller Standort (braucht GPS, darum erst nach dem Öffnen im Hintergrund); trägt sich in die Kachel und in d.standort ein */
+async function uebFillLocation(d, el) {
+    if (typeof fetchUserLocationData !== 'function') { el.textContent = 'nicht verfügbar'; return; }
+    try {
+        const r = await uebTimeout(fetchUserLocationData(), 25000);
+        if (r && !r.fehler) {
+            const addr = r.straßenAdresse ? `${r.straßenAdresse}, ${r.ort}` : r.ort;
+            d.standort = addr;
+            if (el.isConnected) el.textContent = addr;
+        } else if (el.isConnected) el.textContent = (r && r.fehler) || 'nicht verfügbar';
+    } catch (e) { if (el.isConnected) el.textContent = 'nicht verfügbar'; }
+}
+
 function uebIsEmpty(d) { return !d.termine.length && !d.erinnerungen.length && !d.aufgaben.length && !d.einkauf.length && !d.geburtstage.length; }
 
 /* ---------- Vorlesen ---------- */
 function uebSpeechText(d) {
     const a = uebAddress();
     const t = (x) => (typeof formatSpokenTime === 'function') ? formatSpokenTime(x) : uebClock(x);
-    if (uebIsEmpty(d)) return `Guten Morgen, ${a}. Heute ist nichts offen.`;
+    if (uebIsEmpty(d)) return `Guten Morgen, ${a}. Heute ist nichts offen.` + (d.standort ? ` Sie befinden sich in ${d.standort}.` : '');
     const parts = [`Guten Morgen, ${a}.`];
     if (d.termine.length) parts.push(`Heute ${d.termine.length === 1 ? 'steht ein Termin' : 'stehen ' + d.termine.length + ' Termine'} an: ` + d.termine.slice(0, 5).map(e => e.time ? `${e.text} um ${t(e.time)}` : `${e.text}, ganztägig`).join('; ') + '.');
     if (d.erinnerungen.length) parts.push(`Erinnerungen: ` + d.erinnerungen.slice(0, 5).map(r => r.overdue ? `${r.text}, überfällig` : `${r.text} um ${t(r.time)}`).join('; ') + '.');
     if (d.aufgaben.length) parts.push(`${d.aufgaben.length === 1 ? 'Eine Aufgabe ist' : d.aufgaben.length + ' Aufgaben sind'} offen: ` + d.aufgaben.slice(0, 4).join(', ') + (d.aufgaben.length > 4 ? ' und weitere' : '') + '.');
     if (d.einkauf.length) parts.push(`Auf der Einkaufsliste ${d.einkauf.length === 1 ? 'steht ein Artikel' : 'stehen ' + d.einkauf.length + ' Artikel'}: ` + d.einkauf.slice(0, 5).join(', ') + (d.einkauf.length > 5 ? ' und weitere' : '') + '.');
     if (d.geburtstage.length) parts.push(`Heute ${d.geburtstage.length === 1 ? (/geburtstag/i.test(d.geburtstage[0]) ? 'ist ' + d.geburtstage[0] : 'hat ' + d.geburtstage[0] + ' Geburtstag') : 'haben mehrere Geburtstag'}.`);
+    if (d.standort) parts.push(`Sie befinden sich in ${d.standort}.`);
     return parts.join(' ');
 }
 
@@ -162,9 +177,16 @@ function uebRender(d) {
     };
     tile('📅', 'Termine heute', d.termine.map(e => ({ lead: e.time ? uebClock(e.time) : 'ganztägig', text: e.text })), { panel: ['termine', 'kalender'], none: 'heute frei' });
     tile('🔔', 'Erinnerungen', d.erinnerungen.map(r => ({ lead: r.overdue ? 'überfällig' : uebClock(r.time), text: r.text, od: r.overdue })), { panel: ['erinnerungen'] });
-    tile('✅', 'Aufgaben', d.aufgaben.map(t => ({ text: t })), { panel: ['aufgaben', 'todo', 'notizen'] });
+    tile('✅', 'Aufgaben & Notizen', d.aufgaben.map(t => ({ text: t })), { panel: ['aufgaben', 'todo', 'notizen'] });
     tile('🛒', 'Einkauf', d.einkauf.map(t => ({ text: t })), { panel: ['einkauf', 'einkaufsliste'], max: 5 });
     if (d.geburtstage.length) tile('🎂', 'Geburtstage heute', d.geburtstage.map(t => ({ text: t })), { wide: true });
+
+    // Standort: Kachel sofort, die Adresse kommt, sobald das GPS antwortet
+    const loc = mk(grid, 'div', 'ub-tile wide');
+    mk(mk(loc, 'div', 'ub-th'), 'div', 'ub-tt', '📍 Mein Standort');
+    const locLine = mk(loc, 'div', 'ub-line', 'wird ermittelt ...');
+    loc.addEventListener('click', () => uebOpenPanelFor(['karte']));
+    uebFillLocation(d, locLine);
 
     const bar = mk(el, 'div', 'ub-bar');
     const speakBtn = mk(bar, 'button', 'ub-btn primary', '🔊 Vorlesen');
@@ -198,7 +220,8 @@ async function showUeberblick(markShown) {
     try { if (uebEl) closeUeberblick(); } catch (e) {}
     const d = await uebGather();
     if (markShown) uebMarkShown();
-    if (uebIsEmpty(d)) { uebRenderEmpty(); return; }
+    // Morgens automatisch und nichts offen: kurzer Hinweis. Von Hand geöffnet (auch als Ersatz fürs Dashboard): immer die volle Ansicht mit Standort.
+    if (markShown && uebIsEmpty(d)) { uebRenderEmpty(); return; }
     uebRender(d);
 }
 
@@ -214,7 +237,7 @@ function uebMaybeShow() {
 function handleUeberblickCommand(text) {
     const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (!t || t.length > 50) return false;
-    if (/^(?:zeig(?:e)?(?: mir)?|öffne|mach)?\s*(?:mir\s+)?(?:bitte\s+)?(?:den |meinen |mal )*(?:tagesüberblick|tagesplan|tagesübersicht|morgenüberblick|überblick|mein tag|meinen tag|tagesablauf)(?: bitte)?$/.test(t)
+    if (/^(?:zeig(?:e)?(?: mir)?|öffne|mach)?\s*(?:mir\s+)?(?:bitte\s+)?(?:den |das |die |meinen |meine |mal )*(?:tagesüberblick|tagesplan|tagesübersicht|morgenüberblick|überblick|übersicht|dashboard|mein tag|meinen tag|tagesablauf)(?: bitte)?$/.test(t)
         || /^(?:zeig|zeige) mir (?:mal )?meinen tag$/.test(t) || /^was liegt heute an$/.test(t)) {
         showUeberblick(false).catch(() => {});
         return true;
@@ -235,7 +258,15 @@ function handleUeberblickCommand(text) {
         // "Schließen" per Sprache und andere Fenster arbeiten mit dem Überblick zusammen
         if (typeof isPanelOpen === 'function') { const o = isPanelOpen; isPanelOpen = function () { return !!uebEl || o.apply(this, arguments); }; }
         if (typeof closePanel === 'function') { const o = closePanel; closePanel = function () { closeUeberblick(); return o.apply(this, arguments); }; }
-        if (typeof openPanel === 'function') { const o = openPanel; openPanel = function () { closeUeberblick(); return o.apply(this, arguments); }; }
+        // Das Dashboard gibt es nicht mehr: Wer es öffnet (Menü oder KI), bekommt den Tagesüberblick
+        if (typeof openPanel === 'function') {
+            const o = openPanel;
+            openPanel = function (name) {
+                if (/^(?:dashboard|uebersicht|übersicht|start|home)$/i.test(String(name || ''))) { showUeberblick(false).catch(() => {}); return; }
+                closeUeberblick();
+                return o.apply(this, arguments);
+            };
+        }
     } catch (e) {}
     try {
         const go = () => setTimeout(uebMaybeShow, UEB_START_DELAY_MS);

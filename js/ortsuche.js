@@ -8,6 +8,8 @@
    Läuft NACH den bisherigen festen Befehlen (nearbymore.js usw.): Was dort schon klappt, bleibt, und alles, was dort nicht erkannt wird, landet hier,
    statt bei der KI und der Restaurantsuche. Bewusst NICHT hier: Tankstellen mit Spritpreisen, Restaurants, Pizza, Döner, Imbiss und Fragen wie
    "Was kostet Diesel in der Nähe?"; die bleiben bei der KI und den bisherigen Funktionen. Hängt sich selbst ein (siehe unten), braucht dafür nicht erweiterungen.js.
+   MIT ORT: "Wo ist Penny in Schwarzenbek?" sucht im genannten Ort (nicht rund um dich), nennt die Adresse und fragt, ob sie als Kontakt
+   ("Penny Schwarzenbek") gespeichert werden soll. Antwort per Sprache: "Ja" oder "Nein".
    Braucht: speak (voice.js), showActionCards/clearActionCards. Grenzen: OpenStreetMap kennt nicht jedes Geschäft, Öffnungszeiten sind nicht überall eingetragen.
    ============================================================ */
 (function () {
@@ -170,9 +172,13 @@
             || (m = t.match(/^(.+?)\s+(?:in der nähe|in meiner nähe|hier in der nähe|in meiner umgebung|in der umgebung)$/))) { what = m[1]; }
         if (!what) return null;
         what = what.replace(/\s+(?:in der nähe|in meiner nähe|hier in der nähe|in meiner umgebung|in der umgebung|von hier|von mir aus|bitte|jetzt|gerade)\s*$/g, '').replace(ADJ, ' ').replace(/\s+/g, ' ').trim();
+        // "penny in schwarzenbek": Ort hinter dem Laden abtrennen (nicht bei "in der nähe", "in meiner umgebung" usw.)
+        let place = '';
+        const pm = what.match(/^(.+?)\s+in\s+(?!(?:der|dem|den|die|das|meiner|meinem|diesem|dieser|einem|einer|nähe|umgebung)\b)([a-zäöüß][a-zäöüß.\-]*(?:\s+[a-zäöüß][a-zäöüß.\-]*){0,2})$/);
+        if (pm) { what = pm[1].trim(); place = pm[2].trim(); }
         if (!what || what.split(' ').length > 4 || OWN.test(what)) return null;
         if (/^(?:was|wie|wer|wann|warum|wieso|welche\w*|wieviel\w*|ob)\b/.test(what)) return null;
-        return { what, explicit: explicit || /in der nähe|in meiner nähe|in der umgebung/.test(t), nearest: explicit, navigate };
+        return { what, place, explicit: explicit || /in der nähe|in meiner nähe|in der umgebung/.test(t), nearest: explicit, navigate };
     }
 
     /* Sucht den Eintrag (Art oder Kette), sonst bei ausdrücklichem "nächste ..." eine reine Namenssuche */
@@ -254,7 +260,7 @@
             seen.push({ name, lat: plat, lon: plon });
             const street = tags['addr:street'] ? tags['addr:street'] + (tags['addr:housenumber'] ? ' ' + tags['addr:housenumber'] : '') : '';
             const city = tags['addr:city'] || tags['addr:suburb'] || tags['addr:village'] || '';
-            out.push({ name: name || res.entry.label, lat: plat, lon: plon, dist, street, city, hours: tags.opening_hours || '', unnamed: !name });
+            out.push({ name: name || res.entry.label, lat: plat, lon: plon, dist, street, city, postcode: tags['addr:postcode'] || '', hours: tags.opening_hours || '', unnamed: !name });
         });
         return out.sort((a, b) => a.dist - b.dist).slice(0, 3);
     }
@@ -330,7 +336,7 @@
         return `${(Math.round(km * 10) / 10).toFixed(1).replace('.', ',')} Kilometer`;
     }
     function distShort(m) { return m < 950 ? `${Math.max(10, Math.round(m / 10) * 10)} m` : `${(Math.round(m / 100) / 10).toFixed(1).replace('.', ',')} km`; }
-    function routeUrl(p) { return `https://www.google.com/maps/dir/?api=1&travelmode=${p.dist < 900 ? 'walking' : 'driving'}&destination=${p.lat.toFixed(6)},${p.lon.toFixed(6)}`; }
+    function routeUrl(p) { return `https://www.google.com/maps/dir/?api=1&travelmode=${(!p.fromPlace && p.dist < 900) ? 'walking' : 'driving'}&destination=${p.lat.toFixed(6)},${p.lon.toFixed(6)}`; }
 
     let lastPlaces = [];
     function openRoute(i) {
@@ -348,9 +354,120 @@
         });
     }
 
+    /* ---------- Suche in einem genannten Ort ("Wo ist Penny in Schwarzenbek?") ---------- */
+    const capWords = (s) => String(s || '').replace(/(^|[\s-])([a-zäöüß])/g, (m, a, b) => a + b.toUpperCase());
+
+    /* Ort in Koordinaten umwandeln (Nominatim, wie in briefing.js); erst in Deutschland, dann überall */
+    async function geocode(place) {
+        const base = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&accept-language=de&q=' + encodeURIComponent(place);
+        for (const extra of ['&countrycodes=de', '']) {
+            const r = await withTimeout(fetch(base + extra), 9000);
+            if (!r.ok) continue;
+            const d = await r.json();
+            if (Array.isArray(d) && d.length) {
+                const a = d[0].address || {};
+                return { lat: parseFloat(d[0].lat), lon: parseFloat(d[0].lon), name: a.city || a.town || a.village || a.municipality || capWords(place) };
+            }
+        }
+        return null;
+    }
+
+    /* Vollständige Adresse: aus den Kartendaten, sonst per Rückwärtssuche; sonst Name und Ort */
+    async function fullAddress(p, placeName) {
+        let street = p.street, postcode = p.postcode, city = p.city || placeName;
+        if (!street) {
+            try {
+                const r = await withTimeout(fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${p.lat}&lon=${p.lon}&zoom=18&addressdetails=1&accept-language=de`), 9000);
+                const a = (await r.json()).address || {};
+                if (a.road) { street = a.road + (a.house_number ? ' ' + a.house_number : ''); postcode = postcode || a.postcode || ''; city = a.city || a.town || a.village || city; }
+            } catch (e) {}
+        }
+        const line2 = [postcode, city].filter(Boolean).join(' ');
+        const address = street ? [street, line2].filter(Boolean).join(', ') : `${p.name}, ${placeName}`;
+        return { street, city, address, exact: !!street };
+    }
+
+    /* Wartet auf "Ja" oder "Nein" zum Speichern in den Kontakten */
+    let pendingSave = null;
+    const YES_RE = /^(?:ja|jawohl|jep|jo|klar|gern|gerne|ja gern|ja gerne|ja bitte|bitte|bitte speichern|speicher(?:e)?(?: sie| es| das| ihn)?|ja speicher(?:e)?(?: sie| es| das)?|mach das|okay|ok|natürlich|unbedingt|ja natürlich)$/;
+    const NO_RE = /^(?:nein|nö|nee|nein danke|danke nein|lieber nicht|nicht nötig|lass (?:es|das)|lass gut sein|nicht speichern|kein bedarf|nein bitte nicht)$/;
+
+    function saveContactFromPlace(c) {
+        const key = c.name.toLowerCase();
+        const existing = (typeof savedContacts === 'object' && savedContacts[key]) || {};
+        savedContacts[key] = { originalName: c.name, phone: existing.phone || '', address: c.address };
+        setPersistentData('helfer_contacts', JSON.stringify(savedContacts));
+        if (typeof renderContactList === 'function') renderContactList();
+    }
+
+    function handlePendingSave(text) {
+        if (!pendingSave) return false;
+        const p = pendingSave;
+        pendingSave = null;
+        if (Date.now() - p.at > 3 * 60000) return false;
+        const t = norm(text).replace(/^jarvis\s+|\s+jarvis$/g, '');
+        if (YES_RE.test(t)) {
+            try { saveContactFromPlace(p); say(`Erledigt. ${p.name} steht jetzt in Ihren Kontakten.`); }
+            catch (e) { say('Das Speichern in den Kontakten hat leider nicht geklappt.'); }
+            return true;
+        }
+        if (NO_RE.test(t)) { say('In Ordnung, ich lasse es.'); return true; }
+        return false;   // etwas anderes gesagt: Frage verfällt, der Satz läuft normal weiter
+    }
+
+    async function searchInPlace(req, res) {
+        const label = res.entry.label;
+        const placeShown = capWords(req.place);
+        ack(`Suche ${label} in ${placeShown} ...`);
+        showCards([{ icon: '🔎', title: `Suche ${label} in ${placeShown} ...`, subtitle: 'Ort und Kartendaten werden abgefragt' }]);
+        let geo = null;
+        try { geo = await geocode(req.place); } catch (e) { geo = null; }
+        if (!geo) {
+            showCards([{ icon: '⚠️', title: `Ort „${placeShown}" nicht gefunden`, subtitle: 'Die Ortssuche kennt diesen Ort nicht' }]);
+            say(`Den Ort ${placeShown} finde ich leider nicht.`);
+            return true;
+        }
+        let places = [], usedRadius = 0;
+        try {
+            for (const radius of (res.entry.brand && res.entry.generic ? [3000, 8000] : RADII)) {
+                usedRadius = radius;
+                places = toPlaces(await overpass(buildQuery(res, geo.lat, geo.lon, radius)), res, geo.lat, geo.lon);
+                if (places.length) break;
+            }
+        } catch (e) {
+            console.error('Ortssuche fehlgeschlagen:', e && e.message);
+            showCards([{ icon: '⚠️', title: 'Ortssuche: Kartendaten nicht erreichbar', subtitle: String((e && e.message) || 'unbekannter Fehler').slice(0, 160) }]);
+            say('Die Ortssuche antwortet gerade nicht. Bitte versuchen Sie es in einer Minute noch einmal.');
+            return true;
+        }
+        if (!places.length) {
+            showCards([{ icon: '🔎', title: `Kein Treffer für ${label} in ${geo.name}`, subtitle: `Im Umkreis von ${usedRadius / 1000} km nichts in den Kartendaten` }]);
+            say(`In ${geo.name} finde ich keinen Eintrag für ${label}. Die Kartendatenbank kennt eventuell nicht jedes Geschäft.`);
+            return true;
+        }
+        places.forEach(p => { p.fromPlace = true; });
+        lastPlaces = places;
+        const first = places[0];
+        const info = await fullAddress(first, geo.name);
+        showCards(places.map((p, i) => {
+            const oi = hoursInfo(p);
+            const hours = oi ? (oi.open ? `geöffnet${oi.until ? ' bis ' + oi.until : ''}` : `laut Eintrag geschlossen${oi.opensAt ? ', öffnet ' + oi.opensAt : ''}`) : (p.hours ? p.hours.slice(0, 40) : 'Öffnungszeiten unbekannt');
+            const addr = i === 0 ? info.address : ([p.street, p.city].filter(Boolean).join(', ') || 'Adresse unbekannt');
+            return { icon: res.entry.icon || '📍', title: p.name, subtitle: `${addr} · ${hours} · Tippen: Route`, href: routeUrl(p) };
+        }));
+        const spokenAddr = info.exact ? [info.street, info.city].filter(Boolean).join(', ') : '';
+        const many = places.length > 1 ? ' Es gibt dort mehrere Treffer; ich nenne den, der der Ortsmitte am nächsten liegt, die anderen stehen unten.' : '';
+        const o = hoursInfo(first);
+        const contactName = `${label} ${geo.name}`;
+        pendingSave = { name: contactName, address: info.address, at: Date.now() };
+        say(`${first.name} in ${geo.name}: ${spokenAddr || 'eine genaue Straße steht nicht in den Kartendaten'}.${hoursSpoken(o)}${many} Soll ich die Adresse als ${contactName} in Ihren Kontakten speichern?`);
+        return true;
+    }
+
     async function search(req) {
         const res = resolve(req.what, req.nearest);
         if (!res) return false;
+        if (req.place) return searchInPlace(req, res);
         const label = res.entry.label;
         ack(`Suche ${label} ...`);
         showCards([{ icon: '🔎', title: `Suche ${label} ...`, subtitle: 'Standort und Kartendaten werden abgefragt' }]);
@@ -428,6 +545,7 @@
         const originalLocal = window.handleLocalCommand;
         const hooked = function (text) {
             try { patchOldPlacesFetch(); } catch (e) {}
+            try { if (pendingSave && handlePendingSave(text)) return true; } catch (e) { pendingSave = null; }   // Ja/Nein zum Speichern in den Kontakten
             const handled = originalLocal.apply(this, arguments);
             if (handled) return handled;
             try { if (handleOrtsucheCommand(text)) return true; } catch (e) { console.error('Ortssuche', e); }

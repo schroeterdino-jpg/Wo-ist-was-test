@@ -169,7 +169,8 @@ function renderContactList() {
         const c = savedContacts[k];
         const parts = [];
         if (c.phone) parts.push(`📞 ${c.phone}`);
-        if (c.address) parts.push(`📍 ${escapeHtml(c.address)}`);
+        // Adresse antippbar: öffnet Google Maps (Suche nach genau dieser Adresse)
+        if (c.address) parts.push(`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}" target="_blank" rel="noopener" style="color:#49d7ff;text-decoration:underline">📍 ${escapeHtml(c.address)}</a>`);
         const details = parts.length ? parts.join(' · ') : '<span class="italic text-slate-600">keine Nummer/Adresse</span>';
         return `<div class="flex justify-between items-center bg-black p-2 rounded border border-[rgba(93,209,255,.2)] my-1"><span><b>${escapeHtml(c.originalName)}</b>: ${details}</span><button onclick="playUiBeep(); deleteContact('${k}')" class="text-[#49d7ff] font-bold">Löschen</button></div>`;
     }).join(''));
