@@ -43,10 +43,16 @@
         try { updateTerminalStream('PHRASE_WISH: DELETED'); } catch (e) {}
     }
 
+    const WISH_SAID = /(in zukunft|künftig|ab jetzt|ab sofort|von nun an|statt|anstatt|sondern|nicht mehr|formulier\w*|nenn(?:e)? mich|begrüß(?:e)? mich|merk dir)/i;
+
     if (typeof window.executeAction === 'function' && !window.executeAction._formulierungen) {
         const original = window.executeAction;
         const wrapped = async function (action, text, ctx) {
-            if (action && action.type === 'phrase_save') return saveWish(action, ctx);
+            // Nur speichern, wenn der User wirklich eine neue Formulierung wünscht (die KI hat sonst schon beim Aufzählen ihrer Fähigkeiten einen Wunsch "gespeichert")
+            if (action && action.type === 'phrase_save') {
+                if (typeof text === 'string' && !WISH_SAID.test(text)) return;
+                return saveWish(action, ctx);
+            }
             if (action && action.type === 'phrase_delete') return deleteWish(action, ctx);
             return original.apply(this, arguments);
         };
