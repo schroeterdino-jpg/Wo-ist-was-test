@@ -438,18 +438,44 @@
         if (typeof renderContactList === 'function') renderContactList();
     }
 
+    const ORD = [/\b(?:erste[nrms]?|1|eins|ersten)\b/, /\b(?:zweite[nrms]?|2|zwei)\b/, /\b(?:dritte[nrms]?|3|drei)\b/];
+    const ORD_NAME = ['den ersten', 'den zweiten', 'den dritten'];
     function handlePendingSave(text) {
         if (!pendingSave) return false;
         const p = pendingSave;
-        pendingSave = null;
-        if (Date.now() - p.at > 3 * 60000) return false;
+        if (Date.now() - p.at > 3 * 60000) { pendingSave = null; return false; }
         const t = norm(text).replace(/^jarvis\s+|\s+jarvis$/g, '');
+        const choices = p.choices || [{ name: p.name, address: p.address }];
+        const saveOne = (c) => { saveContactFromPlace(c); };
+        if (NO_RE.test(t) || /^(?:keinen?|keine|keins|lieber keinen?|keinen von beiden)$/.test(t)) { pendingSave = null; say('In Ordnung, ich lasse es.'); return true; }
+        if (choices.length > 1) {
+            if (/\b(?:beide|beiden|alle)\b/.test(t)) {
+                pendingSave = null;
+                try { choices.forEach(saveOne); say(`Erledigt. ${choices.map(c => c.name).join(' und ')} stehen jetzt in Ihren Kontakten.`); }
+                catch (e) { say('Das Speichern in den Kontakten hat leider nicht geklappt.'); }
+                return true;
+            }
+            const idx = ORD.findIndex((rx, i) => i < choices.length && rx.test(t));
+            if (idx >= 0) {
+                pendingSave = null;
+                try { saveOne(choices[idx]); say(`Erledigt. ${choices[idx].name} steht jetzt in Ihren Kontakten.`); }
+                catch (e) { say('Das Speichern in den Kontakten hat leider nicht geklappt.'); }
+                return true;
+            }
+            if (YES_RE.test(t)) {   // "Ja" allein ist bei mehreren Treffern nicht eindeutig: nachfragen, Frage bleibt offen
+                p.at = Date.now();
+                say(`Welchen soll ich speichern: ${choices.map((c, i) => ORD_NAME[i]).join(', ').replace(/, ([^,]*)$/, ' oder $1')}?`);
+                return true;
+            }
+            pendingSave = null;
+            return false;   // etwas anderes gesagt: Frage verfällt
+        }
+        pendingSave = null;
         if (YES_RE.test(t)) {
-            try { saveContactFromPlace(p); say(`Erledigt. ${p.name} steht jetzt in Ihren Kontakten.`); }
+            try { saveOne(choices[0]); say(`Erledigt. ${choices[0].name} steht jetzt in Ihren Kontakten.`); }
             catch (e) { say('Das Speichern in den Kontakten hat leider nicht geklappt.'); }
             return true;
         }
-        if (NO_RE.test(t)) { say('In Ordnung, ich lasse es.'); return true; }
         return false;   // etwas anderes gesagt: Frage verfällt, der Satz läuft normal weiter
     }
 
@@ -548,19 +574,33 @@
             const other = places.find(p => { const x = hoursInfo(p); return x && x.open === true; });
             if (other) { const x = hoursInfo(other); alt = ` Offen hat gerade ${other.name}, ${distSpoken(other.dist)} entfernt${x.until ? ', bis ' + spokenTime(x.until) : ''}.`; }
         }
-        // Adresse des ersten Treffers vervollständigen (fehlt die Straße, per Rückwärtssuche) und anbieten, sie in den Kontakten zu speichern
-        let ask = '';
+        // Adressen der Treffer vervollständigen (fehlt die Straße, per Rückwärtssuche) und anbieten, sie in den Kontakten zu speichern; bei mehreren Treffern darf man wählen
+        let ask = '', listing = '';
         if (!req.navigate) {
             try {
-                const info = await fullAddress(first, '');
-                if (info.exact) {
-                    const contactName = [res.entry.label, info.city].filter(Boolean).join(' ');
-                    pendingSave = { name: contactName, address: info.address, at: Date.now() };
-                    ask = ` Soll ich die Adresse als ${contactName} in Ihren Kontakten speichern?`;
+                const cands = [];
+                for (const p of places.slice(0, 3)) {
+                    let info = null;
+                    try { info = await fullAddress(p, ''); } catch (e) { info = null; }
+                    if (info && info.exact) cands.push({ p, info });
                 }
-            } catch (e) { ask = ''; }
+                if (cands.length) {
+                    const cities = cands.map(c => c.info.city || '');
+                    const distinctCities = cities.every(c => c) && new Set(cities.map(c => c.toLowerCase())).size === cities.length;
+                    const choices = cands.map(c => ({
+                        name: [res.entry.label, distinctCities || cands.length === 1 ? c.info.city : String(c.info.street || '').replace(/\s+\d+\s*\w?$/, '')].filter(Boolean).join(' '),
+                        address: c.info.address
+                    }));
+                    pendingSave = { choices, at: Date.now() };
+                    if (choices.length === 1) ask = ` Soll ich die Adresse als ${choices[0].name} in Ihren Kontakten speichern?`;
+                    else {
+                        listing = cands.slice(1).map((c, i) => ` ${i === 0 ? 'Der zweite' : 'Der dritte'} ist ${[c.info.street, c.info.city].filter(Boolean).join(', ')}, ${distSpoken(c.p.dist)} entfernt.`).join('');
+                        ask = ` Welchen soll ich in Ihren Kontakten speichern: ${choices.map((c, i) => ORD_NAME[i]).join(', ').replace(/, ([^,]*)$/, ' oder $1')}? Oder keinen.`;
+                    }
+                }
+            } catch (e) { ask = ''; listing = ''; }
         }
-        say(`Am nächsten ist ${first.name}${addr ? ', ' + addr : ''}, ${distSpoken(first.dist)} entfernt.${hoursSpoken(o)}${alt}${more}${ask || ' Tippen Sie unten auf eine Karte, dann öffnet sich die Route.'}`);
+        say(`Am nächsten ist ${first.name}${addr ? ', ' + addr : ''}, ${distSpoken(first.dist)} entfernt.${hoursSpoken(o)}${alt}${listing || more}${ask || ' Tippen Sie unten auf eine Karte, dann öffnet sich die Route.'}`);
         if (req.navigate) openRoute(0);
         return true;
     }
