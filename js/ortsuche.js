@@ -650,8 +650,9 @@
         oldFetchPatched = true;
         window.plFetchElements = async function (query) {
             const q = String(query || '');
-            try { return await raceOverpass(q, true, 12000); }   // App-Server und Kartenserver gleichzeitig, höchstens 12 Sekunden
+            try { const el = await raceOverpass(q, true, 12000); window.__jvPlSrc = ''; return el; }   // App-Server und Kartenserver gleichzeitig, höchstens 12 Sekunden
             catch (e2) {
+                window.__jvPlSrc = 'Ausweichsuche, Kartenserver: ' + String((e2 && e2.message) || e2).slice(0, 150);
                 // niemand antwortet: Rückfall über Nominatim (ohne Öffnungszeiten), Art und Umkreis stehen in der Anfrage
                 const m = q.match(/around:(\d+),(-?[\d.]+),(-?[\d.]+)/);
                 let cat = null;
