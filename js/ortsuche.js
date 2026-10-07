@@ -43,7 +43,7 @@
         { names: ['bank', 'sparkasse', 'volksbank', 'bankfiliale'], label: 'Bank', icon: '🏦', f: ['["amenity"="bank"]'] },
         { names: ['postfiliale', 'postamt', 'post', 'paketshop', 'paketannahme'], label: 'Post', icon: '📮', f: ['["amenity"="post_office"]', '["shop"="parcel_locker"]'] },
         { names: ['briefkasten'], label: 'Briefkasten', icon: '📮', f: ['["amenity"="post_box"]'] },
-        { names: ['friseursalon', 'friseur', 'frisör', 'barbier', 'barbershop'], label: 'Friseur', icon: '💈', f: ['["shop"="hairdresser"]'] },
+        { names: ['friseursalon', 'friseur', 'frisör', 'barbier', 'barbershop'], label: 'Friseur', icon: '💈', f: ['["shop"="hairdresser"]', '["shop"~"^(beauty|hairdresser_supply)$"]["name"~"friseur|frisör|haar|hair|coiffeur|barber",i]', '["name"~"friseur|frisör|haarstudio|haarwerk|hair|coiffeur|barber",i]["shop"]'] },
         { names: ['baumarkt', 'heimwerkermarkt', 'eisenwarenhandlung'], label: 'Baumarkt', icon: '🔨', f: ['["shop"~"^(doityourself|hardware)$"]'] },
         { names: ['blumenladen', 'blumengeschäft', 'florist', 'blumen'], label: 'Blumenladen', icon: '💐', f: ['["shop"="florist"]'] },
         { names: ['zahnarzt', 'zahnärztin', 'zahnarztpraxis'], label: 'Zahnarzt', icon: '🦷', f: ['["amenity"="dentist"]'] },

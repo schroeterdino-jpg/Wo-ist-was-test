@@ -34,7 +34,7 @@ const PLACE_CATEGORIES = [
     { key: 'eisdiele', label: 'Eisdiele', art: 'die', icon: '🍦', words: /eisdiele\w*|eiscafé\w*|eisladen|eis essen/, sel: ['["amenity"="ice_cream"]'], radius: [3000, 12000] },
     { key: 'kino', label: 'Kino', art: 'das', icon: '🎬', words: /\bkinos?\b/, sel: ['["amenity"="cinema"]'], radius: [10000, 30000] },
     { key: 'fahrradladen', label: 'Fahrradladen', art: 'der', icon: '🚲', words: /fahrradl\w+|fahrradgeschäft\w*|fahrradwerkstatt|fahrradhändler/, sel: ['["shop"="bicycle"]'], radius: [5000, 20000] },
-    { key: 'friseur', label: 'Friseur', art: 'der', icon: '💇', words: /friseur\w*|frisör\w*/, sel: ['["shop"="hairdresser"]'], radius: [2500, 10000] },
+    { key: 'friseur', label: 'Friseur', art: 'der', icon: '💇', words: /friseur\w*|frisör\w*/, sel: ['["shop"="hairdresser"]', '["shop"~"^(beauty|hairdresser_supply)$"]["name"~"friseur|frisör|haar|hair|coiffeur|barber",i]', '["name"~"friseur|frisör|haarstudio|haarwerk|hair|coiffeur|barber",i]["shop"]'], radius: [2500, 10000] },
     { key: 'optiker', label: 'Optiker', art: 'der', icon: '👓', words: /\boptiker\b/, sel: ['["shop"="optician"]'], radius: [4000, 15000] },
     { key: 'spielplatz', label: 'Spielplatz', art: 'der', icon: '🛝', words: /spielplatz|spielplätze/, sel: ['["leisure"="playground"]'], radius: [2000, 8000] },
     { key: 'schwimmbad', label: 'Schwimmbad', art: 'das', icon: '🏊', words: /schwimmbad|schwimmbäder|schwimmhalle|freibad|hallenbad/, sel: ['["leisure"="swimming_pool"]["name"]', '["leisure"="sports_centre"]["sport"="swimming"]'], radius: [10000, 30000] },
