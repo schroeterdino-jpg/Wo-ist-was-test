@@ -298,8 +298,6 @@ async function runPlaces(req) {
         icon: cat.icon, title: `${r.name || cat.label} · ${plDistanceText(r.dist)}`,
         subtitle: [r.street, plOpenShort(r.status)].filter(Boolean).join(' · ') || 'Weg zeigen', href: plMapsUrl(r)
     }));
-    // Hinweis, wenn die Treffer nicht von den Kartenservern kamen (zur Fehlersuche)
-    if (cards.length && window.__jvPlSrc) cards.push({ icon: 'ℹ️', title: String(window.__jvPlSrc), subtitle: 'Quelle der Treffer', href: '' });
     try { if (typeof clearActionCards === 'function') clearActionCards(); if (typeof showActionCards === 'function') showActionCards(cards); } catch (e) {}
     say(msg);
 }
