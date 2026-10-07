@@ -241,6 +241,7 @@ function buildMenuPanel() {
         ['📋', 'Protokolle', 'Abläufe tippen, ändern, löschen', "openPanel('protokolle')"],
         ['📍', 'Adressen', 'Arbeit und Zuhause tippen', "openPanel('adressen')"],
         ['🖥️', 'Tagesüberblick', 'Termine, Erinnerungen, Aufgaben, Standort', "closePanel(); showUeberblick(false)"],
+        ['🧠', 'Langzeitgedächtnis', 'Erlebnisse, Pläne, Geburtstage ansehen und löschen', "closePanel(); showLangzeit()"],
         ['🗓️', 'Planer', 'Erinnerung anlegen', "openPanel('planer')"],
         ['⚙️', 'Einstellungen', 'Konto, Stimme, Kontakte', "openPanel('settings')"]
     ];

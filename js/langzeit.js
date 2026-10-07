@@ -7,7 +7,8 @@
    2) Aktion "episode_asked": die KI meldet, dass sie die Nachfrage gestellt hat; dann wird sie vermerkt und es gibt heute keine weitere.
    3) Die Suche (searchSemanticMemory) liefert nur noch solche Einträge, mit Datum und Wochentag ("Wann war ich schwimmen?").
    4) Nachfragen: einmal am Tag höchstens EINE Nachfrage zu einem vergangenen Plan oder Geburtstag (Kontext "langzeit_nachfragen"); im Briefing nie.
-   5) Einmaliges Aufräumen: alte Vektor-Einträge ohne Datum/Kategorie (Altlasten aus der Zeit vor der Trennung) werden gelöscht.
+   5) Fenster "Langzeitgedächtnis" (Menü, oder per Sprache): alle Einträge ansehen und einzeln löschen. "Vergiss das mit dem Schwimmen" löscht per Sprache.
+   6) Einmaliges Aufräumen: alte Vektor-Einträge ohne Datum/Kategorie (Altlasten aus der Zeit vor der Trennung) werden gelöscht.
    Braucht: api/memory.js, actions.js (executeAction), assistant.js (searchSemanticMemory), prompt.js (buildSystemPrompt), apiFetch.
    Muss NACH assistant.js und gedaechtnis.js geladen werden.
    ============================================================ */
@@ -91,6 +92,7 @@
         const wrapped = async function (action, text, ctx) {
             if (action && action.type === 'episode_store') return storeEpisode(action, ctx);
             if (action && action.type === 'episode_asked') { markAsked(action); return; }
+            if (action && action.type === 'episode_forget') return forgetEpisode(action, ctx);
             return original.apply(this, arguments);
         };
         wrapped._langzeit = true;
@@ -155,7 +157,132 @@
         window.buildSystemPrompt = wrappedPrompt;
     }
 
-    /* ---------- 5) Einmaliges Aufräumen der Altlasten ---------- */
+
+    /* "Vergiss das mit dem Schwimmen": den passendsten Eintrag suchen und löschen; Jarvis nennt, was gelöscht wurde */
+    async function forgetEpisode(action, ctx) {
+        const q = String(action.episode_query || '').trim();
+        if (!q) throw userError('Ich weiß nicht, welchen Eintrag ich vergessen soll.');
+        let data;
+        try { data = await post({ action: 'search', query: q, topK: 5 }); }
+        catch (e) { throw userError('Das Langzeitgedächtnis konnte ich gerade nicht erreichen.'); }
+        const hit = (data.treffer || []).find(t => t && t.id && t.metadata && t.metadata.typ === 'episode');
+        if (!hit) throw userError('Dazu habe ich im Langzeitgedächtnis nichts gefunden.');
+        try { await post({ action: 'delete', ids: [hit.id] }); }
+        catch (e) { throw userError('Das Löschen im Langzeitgedächtnis hat nicht geklappt.'); }
+        dueCache = null;
+        ctx.notes.push('Gelöscht: ' + String(hit.text).replace(/\s*\([^)]*\d{4}\)\s*$/, '').slice(0, 120));
+        try { if (ltEl) showLangzeit(); } catch (e) {}
+    }
+
+    /* ---------- Fenster ---------- */
+    let ltEl = null;
+    function ltStyle() {
+        if (document.getElementById('ltStyle')) return;
+        const st = document.createElement('style');
+        st.id = 'ltStyle';
+        st.textContent =
+            '#ltMap{position:fixed;inset:0;z-index:93;background:rgba(4,9,15,.97);color:#d9e9f2;display:flex;flex-direction:column;font-family:"Rajdhani",sans-serif;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}' +
+            '#ltMap .lt-head{padding:18px 18px 8px;text-align:center}#ltMap .lt-title{font:700 17px "Orbitron",sans-serif;letter-spacing:.14em;color:#49d7ff}' +
+            '#ltMap .lt-sub{font:500 12px "IBM Plex Mono",monospace;color:#7fb8cf;margin-top:4px}' +
+            '#ltMap .lt-list{flex:1 1 auto;overflow-y:auto;padding:8px 16px}' +
+            '#ltMap .lt-item{display:flex;gap:10px;align-items:flex-start;border:1px solid rgba(93,209,255,.3);border-radius:10px;background:rgba(10,22,33,.88);padding:10px 11px;margin-bottom:8px}' +
+            '#ltMap .lt-body{flex:1 1 auto;min-width:0}#ltMap .lt-meta{font:600 11px "IBM Plex Mono",monospace;color:#ffb347;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px}' +
+            '#ltMap .lt-text{font-size:15px;line-height:1.25;color:#e8f3f9;word-break:break-word}' +
+            '#ltMap .lt-del{flex:0 0 auto;border:1px solid rgba(255,107,107,.6);color:#ff8a8a;background:rgba(0,0,0,.5);border-radius:8px;padding:6px 9px;font:700 12px "IBM Plex Mono",monospace}' +
+            '#ltMap .lt-note{font-size:14px;color:#7fb8cf;text-align:center;padding:24px 8px}' +
+            '#ltMap .lt-bar{display:flex;gap:10px;padding:8px 16px 14px}' +
+            '#ltMap .lt-btn{flex:1;padding:11px 8px;border-radius:10px;border:1px solid rgba(93,209,255,.4);background:rgba(10,22,33,.95);color:#49d7ff;font:700 13px "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase}';
+        document.head.appendChild(st);
+    }
+    function closeLangzeit() {
+        if (!ltEl) return false;
+        try { ltEl.remove(); } catch (e) {}
+        ltEl = null;
+        try { document.body.classList.remove('panel-open'); } catch (e) {}
+        try { if (typeof window.resumeJarvisSphere === 'function') window.resumeJarvisSphere(); } catch (e) {}
+        return true;
+    }
+    async function showLangzeit() {
+        ltStyle();
+        try { if (typeof closePanel === 'function') closePanel(); } catch (e) {}
+        const fresh = !ltEl;
+        if (ltEl) { try { ltEl.remove(); } catch (e) {} }
+        const mk = (parent, tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text !== undefined) x.textContent = text; parent.appendChild(x); return x; };
+        const el = document.createElement('div');
+        el.id = 'ltMap';
+        const head = mk(el, 'div', 'lt-head');
+        mk(head, 'div', 'lt-title', '🧠 LANGZEITGEDÄCHTNIS');
+        const sub = mk(head, 'div', 'lt-sub', 'wird geladen ...');
+        const list = mk(el, 'div', 'lt-list');
+        const bar = mk(el, 'div', 'lt-bar');
+        const refresh = mk(bar, 'button', 'lt-btn', 'Aktualisieren');
+        refresh.addEventListener('click', () => showLangzeit());
+        mk(bar, 'button', 'lt-btn', 'Schließen').addEventListener('click', closeLangzeit);
+        document.body.appendChild(el);
+        ltEl = el;
+        if (fresh) { try { document.body.classList.add('panel-open'); } catch (e) {} try { if (typeof window.pauseJarvisSphere === 'function') window.pauseJarvisSphere(); } catch (e) {} }
+
+        let eintraege = [];
+        try {
+            const d = await post({ action: 'listall' });
+            eintraege = (d.eintraege || []).filter(e => e.metadata && e.metadata.typ === 'episode');
+        } catch (e) {
+            sub.textContent = 'Nicht erreichbar';
+            mk(list, 'div', 'lt-note', 'Das Langzeitgedächtnis kann gerade nicht geladen werden. Prüfen Sie die Internetverbindung.');
+            return;
+        }
+        // neueste Ereignisse zuerst; Einträge ohne Ereignisdatum nach dem Tag, an dem sie erzählt wurden
+        const key = e => String(e.metadata.ereignis_datum || e.metadata.datum_gesagt || '');
+        eintraege.sort((a, b) => key(b).localeCompare(key(a)));
+        sub.textContent = eintraege.length === 1 ? '1 Eintrag' : eintraege.length + ' Einträge';
+        if (!eintraege.length) mk(list, 'div', 'lt-note', 'Noch nichts gespeichert. Erzählen Sie mir etwas, zum Beispiel „Ich gehe morgen schwimmen“.');
+        eintraege.forEach(e => {
+            const m = e.metadata;
+            const row = mk(list, 'div', 'lt-item');
+            const body = mk(row, 'div', 'lt-body');
+            const datum = isIsoDay(m.ereignis_datum) ? lesbar(m.ereignis_datum) : (isIsoDay(m.datum_gesagt) ? 'erzählt am ' + lesbar(m.datum_gesagt) : '');
+            mk(body, 'div', 'lt-meta', [m.kategorie || 'Eintrag', datum, (m.jaehrlich === true || m.jaehrlich === 'true') ? 'jährlich' : ''].filter(Boolean).join(' · '));
+            mk(body, 'div', 'lt-text', String(e.text || '').replace(/\s*\([^)]*\d{4}\)\s*$/, ''));
+            const del = mk(row, 'button', 'lt-del', 'Löschen');
+            del.addEventListener('click', async () => {
+                if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = 'Sicher?'; setTimeout(() => { if (del.isConnected) { del.dataset.sure = ''; del.textContent = 'Löschen'; } }, 4000); return; }
+                del.disabled = true; del.textContent = '...';
+                try { await post({ action: 'delete', ids: [e.id] }); row.remove(); dueCache = null; sub.textContent = list.querySelectorAll('.lt-item').length + ' Einträge'; }
+                catch (err) { del.disabled = false; del.textContent = 'Fehler'; }
+            });
+        });
+    }
+    window.showLangzeit = showLangzeit;
+    window.closeLangzeit = closeLangzeit;
+
+    // "Schließen" per Sprache und andere Fenster arbeiten mit dem Langzeit-Fenster zusammen
+    try {
+        if (typeof isPanelOpen === 'function') { const o = isPanelOpen; window.isPanelOpen = isPanelOpen = function () { return !!ltEl || o.apply(this, arguments); }; }
+        if (typeof closePanel === 'function') { const o = closePanel; window.closePanel = closePanel = function () { closeLangzeit(); return o.apply(this, arguments); }; }
+    } catch (e) {}
+
+    // Sprachbefehle zum Öffnen
+    const OPEN_RX = /^(?:zeig(?:e)?(?: mir)?|öffne|mach|was steht in)?\s*(?:mir\s+)?(?:bitte\s+)?(?:mal\s+)?(?:(?:den|das|die|mein|meinen|meine|dein|deinen|deine)\s+)*(?:langzeit[\s-]?gedächtnis|vektor[\s-]?gedächtnis|langzeit[\s-]?speicher)(?:\s+bitte)?$/;
+    const WHAT_RX = /^(?:was\s+weißt\s+du\s+(?:alles\s+)?(?:so\s+)?(?:über|von)\s+mich|was\s+hast\s+du\s+dir\s+(?:alles\s+)?(?:über\s+mich\s+)?gemerkt)$/;
+    function handleLangzeitCommand(text) {
+        const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!t || t.length > 60) return false;
+        if (OPEN_RX.test(t) || WHAT_RX.test(t)) { showLangzeit(); return true; }
+        return false;
+    }
+    window.handleLangzeitCommand = handleLangzeitCommand;
+    if (typeof window.handleLocalCommand === 'function' && !window.handleLocalCommand._langzeit) {
+        const originalLocal = window.handleLocalCommand;
+        const hooked = function (text) {
+            try { if (handleLangzeitCommand(text)) return true; } catch (e) {}
+            return originalLocal.apply(this, arguments);
+        };
+        hooked._langzeit = true;
+        Object.keys(originalLocal).forEach(k => { try { hooked[k] = originalLocal[k]; } catch (e) {} });
+        window.handleLocalCommand = hooked;
+    }
+
+    /* ---------- 6) Einmaliges Aufräumen der Altlasten ---------- */
     async function cleanupOnce() {
         if (lsGet(CLEAN_KEY)) return;
         try {
