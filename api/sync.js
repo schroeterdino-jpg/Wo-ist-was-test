@@ -41,6 +41,10 @@ export default async function handler(req, res) {
     return j.result;
   };
 
+  // --- Push-Nachrichten (Handy meldet sich an, Test-Nachricht). Eigener Speicherplatz, berührt den Datenabgleich unten nicht. ---
+  const pushAction = String((req.query && req.query.action) || '');
+  if (pushAction.indexOf('push_') === 0) return handlePush(pushAction, req, res, redis);
+
   try {
     const raw = await redis('GET', STORE_KEY);
     let stored = { items: {} };
@@ -72,5 +76,68 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     return res.status(500).json({ error: 'Sync-Fehler: ' + err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Push: Umgebungsvariablen VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (optional VAPID_SUBJECT, sonst die App-Adresse)
+// Aktionen: push_key (GET) · push_subscribe (POST {subscription}) · push_unsubscribe (POST {endpoint}) · push_test (POST)
+// ---------------------------------------------------------------------------------------------
+const PUSH_KEY = 'alltags-helfer:push';
+const MAX_SUBS = 5;
+
+async function handlePush(action, req, res, redis) {
+  try {
+    const pub = process.env.VAPID_PUBLIC_KEY, priv = process.env.VAPID_PRIVATE_KEY;
+    if (!pub || !priv) return res.status(500).json({ error: 'Server: VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY fehlen' });
+    if (action === 'push_key') return res.status(200).json({ publicKey: pub });
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+    let data = { subs: [] };
+    try { const raw = await redis('GET', PUSH_KEY); if (raw) data = JSON.parse(raw); } catch (e) {}
+    if (!Array.isArray(data.subs)) data.subs = [];
+    const body = req.body || {};
+
+    if (action === 'push_subscribe') {
+      const sub = body.subscription || {};
+      if (typeof sub.endpoint !== 'string' || sub.endpoint.indexOf('https://') !== 0 || sub.endpoint.length > 1000 ||
+          !sub.keys || typeof sub.keys.p256dh !== 'string' || typeof sub.keys.auth !== 'string') {
+        return res.status(400).json({ error: 'Ungültige Anmeldung' });
+      }
+      data.subs = data.subs.filter(x => x.endpoint !== sub.endpoint);
+      data.subs.push({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, ts: Date.now() });
+      data.subs = data.subs.slice(-MAX_SUBS);
+      await redis('SET', PUSH_KEY, JSON.stringify(data));
+      return res.status(200).json({ ok: true, count: data.subs.length });
+    }
+
+    if (action === 'push_unsubscribe') {
+      const before = data.subs.length;
+      data.subs = data.subs.filter(x => x.endpoint !== body.endpoint);
+      if (data.subs.length !== before) await redis('SET', PUSH_KEY, JSON.stringify(data));
+      return res.status(200).json({ ok: true, count: data.subs.length });
+    }
+
+    if (action === 'push_test') {
+      if (!data.subs.length) return res.status(200).json({ ok: false, sent: 0, error: 'Kein Handy angemeldet' });
+      const mod = await import('web-push');
+      const webpush = mod.default || mod;
+      webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'https://wo-ist-was-test.vercel.app/', pub, priv);
+      const payload = JSON.stringify({ title: 'Jarvis', body: 'Test: Diese Nachricht kommt auch bei geschlossener App an.', url: './' });
+      let sent = 0, failed = 0; const keep = [];
+      for (const sub of data.subs) {
+        try { await webpush.sendNotification(sub, payload, { TTL: 300 }); sent++; keep.push(sub); }
+        catch (e) {
+          failed++;
+          if (e && (e.statusCode === 404 || e.statusCode === 410)) continue;   // Anmeldung ist abgelaufen: entfernen
+          keep.push(sub);
+        }
+      }
+      if (keep.length !== data.subs.length) { data.subs = keep; await redis('SET', PUSH_KEY, JSON.stringify(data)); }
+      return res.status(200).json({ ok: sent > 0, sent, failed });
+    }
+    return res.status(400).json({ error: 'Unbekannte Aktion' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Push-Fehler: ' + err.message });
   }
 }
