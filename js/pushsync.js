@@ -25,8 +25,12 @@
             (typeof reminderEntries !== 'undefined' ? reminderEntries : []).forEach(r => {
                 if (!r || r.triggered || !r.time) return;
                 const at = new Date(r.time).getTime();
-                if (isNaN(at) || at < now - 15 * 60000 || at > now + HORIZON_MS) return;
-                items.push({ id: 'r' + r.id, k: 'r', x: String(r.text || 'Erinnerung').slice(0, 140), at });
+                if (r.done) return;
+                const imp = r.important ? 1 : 0;
+                if (isNaN(at) || at < now - (imp ? 70 : 15) * 60000 || at > now + HORIZON_MS) return;   // wichtige: Server fragt bis zu 60 Min. nach
+                const o = { id: 'r' + r.id, k: 'r', x: String(r.text || 'Erinnerung').slice(0, 140), at };
+                if (imp) o.i = 1;
+                items.push(o);
             });
         } catch (e) {}
         try {
@@ -35,7 +39,9 @@
                 if (typeof isBirthdayEntry === 'function' && isBirthdayEntry(c)) return;
                 const at = new Date(c.isoDate).getTime();
                 if (isNaN(at) || at < now || at > now + HORIZON_MS) return;
-                items.push({ id: 'e' + c.id, k: 'e', x: String(c.text || 'Termin').slice(0, 140), at });
+                const o = { id: 'e' + c.id, k: 'e', x: String(c.text || 'Termin').slice(0, 140), at };
+                if (c.location && String(c.location).trim()) o.l = String(c.location).trim().slice(0, 120);   // nur für die Abfahrtszeit
+                items.push(o);
             });
         } catch (e) {}
         items.sort((a, b) => a.at - b.at);
@@ -51,10 +57,23 @@
         try {
             if (!on() || typeof apiFetch !== 'function') return;
             const items = build();
-            const hash = JSON.stringify(items.map(i => [i.id, i.at, i.x]));
+            const hash = JSON.stringify(items.map(i => [i.id, i.at, i.x, i.l || '', i.i || 0]));
             if (!force && hash === lastHash) return;
-            if (await post('push_items', { items })) lastHash = hash;
+            const res = await apiFetch('/api/sync?action=push_items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
+            if (res.ok) {
+                lastHash = hash;
+                try { applyDone((await res.json()).done); } catch (e) {}
+            }
         } catch (e) {}
+    }
+    /* Am Sperrbildschirm auf "Erledigt" getippt: Erinnerung hier auch als erledigt markieren */
+    function applyDone(ids) {
+        if (!Array.isArray(ids) || !ids.length || typeof reminderEntries === 'undefined') return;
+        let changed = false;
+        reminderEntries.forEach(r => {
+            if (r && !r.done && ids.indexOf('r' + r.id) >= 0) { r.done = true; r.triggered = true; r.nextNagAt = null; changed = true; }
+        });
+        if (changed) { try { if (typeof saveReminders === 'function') saveReminders(); else if (typeof setPersistentData === 'function') setPersistentData('helfer_reminders', JSON.stringify(reminderEntries)); } catch (e) {} }
     }
     function schedule(ms) { clearTimeout(timer); timer = setTimeout(() => send(false), ms); }
 
@@ -92,6 +111,19 @@
         } catch (e) {}
     }
 
+    /* Standort für die Abfahrtszeit: nur solange die App offen ist; der Server nimmt den letzten Wert (höchstens 3 Stunden alt) */
+    let lastLocAt = 0;
+    async function reportLocation() {
+        try {
+            if (!on() || document.hidden || typeof apiFetch !== 'function' || !navigator.geolocation) return;
+            if (Date.now() - lastLocAt < 4 * 60000) return;
+            lastLocAt = Date.now();
+            let pos;
+            try { pos = await getPosition({ timeout: 10000, enableHighAccuracy: false, maximumAge: 120000 }); } catch (e) { return; }
+            await post('push_loc', { lat: pos.coords.latitude, lon: pos.coords.longitude });
+        } catch (e) {}
+    }
+
     async function alive() {
         try {
             if (!on() || document.hidden || typeof apiFetch !== 'function') return;
@@ -113,14 +145,14 @@
         }
     } catch (e) {}
 
-    setInterval(alive, 2 * 60 * 1000);          // Lebenszeichen alle 2 Minuten (Server rechnet 4,5 Minuten Toleranz)
+    setInterval(() => { alive(); reportLocation(); }, 2 * 60 * 1000);          // Lebenszeichen alle 2 Minuten (Server rechnet 4,5 Minuten Toleranz)
     setInterval(() => { send(false); sendConfig(false); }, 10 * 60 * 1000);   // Google-Termine ändern sich auch ohne Speicherung: regelmäßig vergleichen
     document.addEventListener('visibilitychange', function () {
-        if (!document.hidden) { alive(); schedule(3000); }
+        if (!document.hidden) { alive(); reportLocation(); schedule(3000); }
         else { try { if (on()) post('push_gone', {}, true).catch(() => {}); } catch (e) {} }   // App verlassen: ab jetzt schickt der Server
     });
-    setTimeout(() => { alive(); send(true); sendConfig(true); }, 20000);   // kurz nach dem Start
+    setTimeout(() => { alive(); reportLocation(); send(true); sendConfig(true); }, 20000);   // kurz nach dem Start
 
     window.jvPushSyncNow = () => { send(true); sendConfig(true); };
-    window._pushsyncTest = { build, send, alive, sendConfig, routeToWork };
+    window._pushsyncTest = { applyDone, reportLocation, build, send, alive, sendConfig, routeToWork };
 })();

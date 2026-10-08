@@ -67,7 +67,8 @@ const HELP_TOPICS = [
         'Das Briefing kommt von selbst: Frühschicht ab 3 Uhr 30, Spätschicht ab 12 Uhr, nur bei offener App, einmal am Tag', 'Briefing in der Spätschicht um 11 Uhr (Zeit ändern) / Wann kommt mein Briefing?',
         'Schicht-Briefing aus / Schicht-Briefing an', 'In der Frühschicht ist Jarvis von 21 Uhr 30 bis zur Briefing-Zeit still'] },
     { key: 'push', icon: '🔔', title: 'Benachrichtigungen', words: /benachrichtig|push|nachricht aufs handy/, examples: [
-        'Benachrichtigungen an (dann auf die Karte tippen und zulassen)', 'Sende eine Test-Nachricht (muss auch bei geschlossener App ankommen)', 'Benachrichtigungen aus / Status Benachrichtigungen'] },
+        'Benachrichtigungen an (dann auf die Karte tippen und zulassen)', 'Sende eine Test-Nachricht (muss auch bei geschlossener App ankommen)', 'Benachrichtigungen aus / Status Benachrichtigungen',
+        'Bei Terminen mit Ort sagt dir Jarvis aufs Handy, wann du losfahren musst (mit Stau, ab deinem letzten Standort oder Zuhause)', 'Wichtige Erinnerungen kommen alle 10 Minuten wieder, bis du am Sperrbildschirm auf Erledigt tippst'] },
     { key: 'routinen', icon: '🔁', title: 'Routinen', words: /routine|gelernt|gewohnheit/, examples: [
         'Welche Routinen kennst du? / Was hast du gelernt?', 'Jarvis merkt sich still nur Art und Uhrzeit (nie den Inhalt), was du wann tust, und fragt dich höchstens einmal am Tag, ob er eine Routine merken soll',
         'Antworte einfach Ja oder Nein', 'Vergiss die Routine Einkauf / Vergiss alle Routinen', 'Routinen aus / Routinen an'] },
