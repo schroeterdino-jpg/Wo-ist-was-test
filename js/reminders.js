@@ -83,6 +83,27 @@ function importantFromText(text) {
     return /\b(wichtig\w*|unbedingt|nachhak\w*|nachfass\w*|frag\w*\s+(?:mich\s+)?(?:so lange\s+)?nach|bis ich (?:es |das )?(?:bestätig\w*|erledigt|abhak\w*))\b/i.test(String(text || ''));
 }
 
+/* Sicherheitsnetz für die Uhrzeit: Sagt der User "um 20:20 Uhr" oder "in 3 Minuten" (ohne Tag/Datum), gilt genau das.
+   Liefert ein ISO-Datum oder null (dann bleibt die Zeit der KI). Verhindert, dass eine falsche KI-Zeit die Erinnerung auf "jetzt" legt. */
+function reminderTimeFromText(text, nowMs) {
+    const t = String(text || '').toLowerCase();
+    if (/\b(morgen|übermorgen|uebermorgen|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|nächste\w*|naechste\w*|woche|monat|jeden|jede|täglich|taeglich)\b|\b\d{1,2}\.\s?\d{1,2}\.|\bam \d/.test(t)) return null;
+    const now = new Date(nowMs || Date.now());
+    let m = t.match(/\bin\s+(\d{1,3})\s*(minuten?|min|stunden?|std)\b/);
+    if (m) { const n = parseInt(m[1], 10); return new Date(now.getTime() + n * (/^min/.test(m[2]) ? 60000 : 3600000)).toISOString(); }
+    if (/\bin\s+(?:einer|ner)\s+halben\s+stunde\b/.test(t)) return new Date(now.getTime() + 30 * 60000).toISOString();
+    if (/\bin\s+(?:einer|ner)\s+(?:stunde|std)\b/.test(t)) return new Date(now.getTime() + 60 * 60000).toISOString();
+    m = t.match(/\bum\s+(\d{1,2})(?:[:.](\d{2}))?\s*uhr\b/) || t.match(/\bum\s+(\d{1,2})[:.](\d{2})\b/);
+    if (m) {
+        const h = parseInt(m[1], 10), mi = m[2] ? parseInt(m[2], 10) : 0;
+        if (h > 23 || mi > 59) return null;
+        const d = new Date(now); d.setHours(h, mi, 0, 0);
+        if (d.getTime() <= now.getTime() - 60000) d.setDate(d.getDate() + 1);
+        return d.toISOString();
+    }
+    return null;
+}
+
 /* "Erledigt", "habe ich genommen" ... beendet das Nachfassen bei wichtigen Erinnerungen. Gibt true zurück, wenn behandelt. */
 function handleAcknowledgeCommand(text) {
     const t = String(text || '').toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim();

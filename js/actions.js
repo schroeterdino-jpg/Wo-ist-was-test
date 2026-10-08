@@ -130,7 +130,13 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'reminder') {
         const rrule = weekdayRuleFromText(text) || buildRecurrenceRule(action.reminder_recurrence_unit, action.reminder_recurrence_interval) || recurrenceFromText(text);
         const important = action.reminder_important === true || action.reminder_important === 'true' || importantFromText(text);
-        const remResult = await addGoogleCalendarReminder(action.reminder_text || text, action.reminder_time, rrule, important);
+        let remTime = action.reminder_time;
+        try {   // Sagt der User eine genaue Uhrzeit oder "in X Minuten", gilt die; die KI-Zeit nur, wenn sie dazu passt
+            const fromText = (typeof reminderTimeFromText === 'function') ? reminderTimeFromText(text) : null;
+            const aiMs = remTime ? new Date(remTime).getTime() : NaN;
+            if (fromText && (isNaN(aiMs) || Math.abs(aiMs - new Date(fromText).getTime()) > 2 * 60000)) remTime = fromText;
+        } catch (e) {}
+        const remResult = await addGoogleCalendarReminder(action.reminder_text || text, remTime, rrule, important);
         if (!remResult.synced) googleNotSynced(ctx, 'Die Erinnerung ist nur in der App gespeichert, das Handy klingelt dazu nicht');
         updateTerminalStream("REMINDER: CREATED");
     } else if (action.type === 'reminder_delete') {
@@ -279,4 +285,3 @@ async function executeAction(action, text, ctx) {
         updateTerminalStream("CALENDAR: EVENT_ADDED");
     }
 }
-
