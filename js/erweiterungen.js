@@ -13,15 +13,14 @@
     const AFTER_HANDLERS = [];   // (Die Ortssuche hängt sich in ortsuche.js selbst hinter die bisherigen Befehle.)
 
     // 1) Sprachbefehle
-    if (typeof window.handleLocalCommand === 'function') {
-        const original = window.handleLocalCommand;
-        window.handleLocalCommand = function (text) {
+    if (window.jvCommands) {   // Befehlsliste (commands.js)
+        window.jvCommands.use('erweiterungen', function (text, next) {
             try {
                 for (const name of HANDLERS) {
                     if (typeof window[name] === 'function' && window[name](text)) return true;
                 }
             } catch (e) { console.error('Erweiterung fehlgeschlagen', e); }
-            const handled = original.apply(this, arguments);
+            const handled = next(text);
             if (handled) return handled;
             try {
                 for (const name of AFTER_HANDLERS) {
@@ -29,7 +28,7 @@
                 }
             } catch (e) { console.error('Erweiterung fehlgeschlagen', e); }
             return handled;
-        };
+        }, 1200);
     }
 
     // 2) Wächter: Unwetterwarnungen dazunehmen

@@ -682,19 +682,16 @@
 
     /* Die Ortssuche hängt sich selbst hinter die bisherigen festen Befehle (localcommands.js, nearbymore.js ...) und vor die KI.
        Was dort erkannt wird, bleibt dort; alles andere (Penny, Edeka, McDonald's ...) landet hier. */
-    if (typeof window.handleLocalCommand === 'function' && !window.handleLocalCommand._ortsuche) {
-        const originalLocal = window.handleLocalCommand;
-        const hooked = function (text) {
+    if (window.jvCommands) {   // Befehlsliste (commands.js): ganz innen, direkt vor localcommands.js
+        window.jvCommands.use('ortsuche', function (text, next) {
             try { patchOldPlacesFetch(); } catch (e) {}
             try { installAskWrapper(); } catch (e) {}
             try { if (pendingSave && handlePendingSave(text)) return true; } catch (e) { pendingSave = null; }   // Ja/Nein zum Speichern in den Kontakten
-            const handled = originalLocal.apply(this, arguments);
+            const handled = next(text);
             if (handled) return handled;
             try { if (handleOrtsucheCommand(text)) return true; } catch (e) { console.error('Ortssuche', e); }
             return handled;
-        };
-        hooked._ortsuche = true;
-        window.handleLocalCommand = hooked;
+        }, 1300);
     }
 
     /* Mehrere Wünsche in einem Satz ("Ist ein Friseur in der Nähe und wie wird das Wetter morgen"): Der Ortswunsch wird herausgelöst und

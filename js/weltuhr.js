@@ -213,14 +213,10 @@
     window.handleWeltuhrCommand = handle;
     window.__weltuhrTest = { findCity, offsetMin, diffText, dayWord, readText, loadIds, entries };
 
-    if (typeof window.handleLocalCommand === 'function' && !window.handleLocalCommand._wu) {
-        const prev = window.handleLocalCommand;
-        const hooked = function (text) {
+    if (window.jvCommands) {   // Befehlsliste (commands.js)
+        window.jvCommands.use('weltuhr', function (text, next) {
             try { if (handle(text)) return true; } catch (e) { console.error('Weltuhr', e); }
-            return prev.apply(this, arguments);
-        };
-        hooked._wu = true;
-        Object.keys(prev).forEach(k => { try { hooked[k] = prev[k]; } catch (e) {} });
-        window.handleLocalCommand = hooked;
+            return next(text);
+        }, 1000);
     }
 })();

@@ -40,9 +40,8 @@
         window.speak = wrapped;
     }
 
-    if (typeof window.handleLocalCommand === 'function' && !window.handleLocalCommand._kl) {
-        const prev = window.handleLocalCommand;
-        const hooked = function (text) {
+    if (window.jvCommands) {   // Befehlsliste (commands.js)
+        window.jvCommands.use('kontext_lokal', function (text, next) {
             let t = norm(text);
             // Anschlussfrage zur Uhrzeit: "Und in New York?" -> "Wie spät ist es in New York?"
             if (lastTime && Date.now() - lastTime < WINDOW_MS && t && t.length <= 60 && !/\b(?:wetter|regen|temperatur|feiertag|termin|zug|bahn)\b/.test(t)) {
@@ -52,20 +51,17 @@
                     const rewritten = 'Wie spät ist es in ' + place.replace(/^(?:der|die|das|dem)\s+/, '');
                     let handled = false;
                     pending = { text: String(text), at: Date.now() };   // vor dem Aufruf: die Antwort kommt schon währenddessen
-                    try { handled = prev.call(this, rewritten); } catch (e) { handled = false; }
+                    try { handled = next(rewritten); } catch (e) { handled = false; }
                     if (handled) { lastTime = Date.now(); return true; }
                     pending = null;
                 }
             }
             pending = { text: String(text), at: Date.now() };   // vor dem Aufruf: feste Befehle antworten oft sofort
             let handled = false;
-            try { handled = prev.apply(this, arguments); } catch (e) { pending = null; throw e; }
+            try { handled = next(text); } catch (e) { pending = null; throw e; }
             if (handled) { if (TIME_Q.test(t)) lastTime = Date.now(); }
             else pending = null;
             return handled;
-        };
-        hooked._kl = true;
-        Object.keys(prev).forEach(k => { try { hooked[k] = prev[k]; } catch (e) {} });
-        window.handleLocalCommand = hooked;
+        }, 900);
     }
 })();
