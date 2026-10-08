@@ -15,7 +15,7 @@ const HELP_TOPICS = [
     { key: 'listen', icon: '📝', title: 'Listen & Notizen', words: /liste|einkauf|notiz|aufgabe/, examples: [
         'Setz Milch auf die Einkaufsliste', 'Was steht auf meiner Einkaufsliste?', 'Notiere, dass ich noch Kabelschuhe brauche', 'Lösche Milch von der Liste'] },
     { key: 'gedaechtnis', icon: '🧠', title: 'Gedächtnis', words: /gedächtnis|gedaechtnis|merk/, examples: [
-        'Merk dir, der Ersatzschlüssel hängt am Klemmbrett', 'Wo ist mein Ersatzschlüssel?'] },
+        'Merk dir, der Ersatzschlüssel hängt am Klemmbrett', 'Wo ist mein Ersatzschlüssel?', 'Ich lege meinen Schlüssel unters Kopfkissen (Kurzzeitgedächtnis)', 'Wann habe ich den Schlüssel abgelegt?'] },
     { key: 'auto', icon: '🚗', title: 'Auto & Parkplatz', words: /parkplatz|geparkt|\bauto\b/, examples: [
         'Merk dir, wo ich geparkt habe', 'Wo ist mein Auto?', 'Bring mich zu meinem Auto'] },
     { key: 'fahrten', icon: '🗺️', title: 'Fahrten & Verkehr', words: /fahr|verkehr|stau|navig|route|weg\b|karte/, examples: [
@@ -34,8 +34,8 @@ const HELP_TOPICS = [
     { key: 'feiertage', icon: '🎉', title: 'Feiertage & Brückentage', words: /feiertag|brückentag|brueckentag|ostern|weihnacht|pfingst/, examples: [
         'Öffne Feiertage (Fenster mit Feiertagen und Brückentagen)', 'Wann ist der nächste Feiertag?', 'Ist morgen Feiertag?', 'Welche Brückentage gibt es?', 'Welche Feiertage gibt es noch dieses Jahr?', 'Wann ist Ostern?', 'Wann ist Muttertag?',
         'Gerechnet wird für dein Bundesland; es wird mit „Mein Bundesland ist ...“ eingestellt (gilt auch für die Ferien)'] },
-    { key: 'weltzeit', icon: '🕒', title: 'Uhrzeit in anderen Ländern', words: /weltzeit|uhrzeit|zeitunterschied|zeitzone|zeitverschiebung|wie spät/, examples: [
-        'Wie spät ist es in Istanbul?', 'Wie viel Uhr ist es in Tokio?', 'Wie spät ist es in den USA?', 'Zeitunterschied zu Japan'] },
+    { key: 'weltzeit', icon: '🕒', title: 'Uhrzeit in anderen Ländern', words: /weltzeit|weltuhr|uhrzeit|zeitunterschied|zeitzone|zeitverschiebung|wie spät/, examples: [
+        'Öffne die Weltuhr (mehrere Uhren nebeneinander, live)', 'Füge Bukarest zur Weltuhr hinzu', 'Entferne Sydney aus der Weltuhr', 'Wie spät ist es in Istanbul?', 'Wie viel Uhr ist es in Tokio?', 'Wie spät ist es in den USA?', 'Zeitunterschied zu Japan'] },
     { key: 'filme', icon: '🎬', title: 'Filmtipps & Kino', words: /film|kino|streaming|streamen|serie|netflix/, examples: [
         'Gib mir einen guten Horrorfilm (auch Action, Komödie, Thriller, Science-Fiction ...)', 'Hast du einen Filmtipp? (ohne Genre: Horror oder Action)', 'Was soll ich heute schauen?',
         'Was läuft im Kino? (bundesweit aktuelle Filme)', 'Wo kann ich Dune streamen?', 'Auf welchem Streamingdienst ist Squid Game?'] },
@@ -62,10 +62,16 @@ const HELP_TOPICS = [
         'Was läuft heute Abend im Fernsehen?', 'Wo ist mein Paket?', 'Wann hat der Baumarkt heute auf?', 'Was läuft heute Abend im Kino in Hamburg?'] },
     { key: 'briefing', icon: '🌅', title: 'Briefing & Protokolle', words: /briefing|protokoll/, examples: [
         'Erwähne im Briefing immer, wo mein Ladekabel ist', 'Starte Protokoll Feierabend', 'Lege ein Protokoll Morgen an: Wetter und Fahrzeit zur Arbeit'] },
+    { key: 'kuendigung', icon: '✉️', title: 'Kündigung schreiben', words: /kündigung|kuendigung|kündigen|kuendigen|vertrag|abo\b|mitgliedschaft/, examples: [
+        'Schreib mir eine Kündigung (Jarvis fragt: Anbieter, Vertrag, Kunden-/Vertragsnummer, Zeitpunkt, Name und Anschrift)', 'Kündigung für Vodafone aufsetzen', 'Ich möchte meinen Vertrag kündigen',
+        'Zeig die letzte Kündigung (der Brief bleibt gespeichert)', 'Im Fenster: Text ändern, PDF speichern, Drucken, Kopieren, Adresse suchen', 'Abbrechen (beendet die Fragen)'] },
+    { key: 'ansicht', icon: '🧠', title: 'Kugel-Ansicht & Fokus', words: /fokus|kugel|ansicht|gehirn|zoom|markier|hervorheb/, examples: [
+        'Fokus auf Briefing (der Begriff leuchtet auf und wird groß, damit du ihn antippen kannst; auch: Markiere Parkplatz, Fokussiere Wetter)', 'Fokus beenden (oder: Zoom raus)', 'Zeig das Gehirn / Zurück zur Kugel',
+        'Die Bereiche: Gedächtnis (Mitte), Zeit, Hände, Unterwegs, Ohren'] },
     { key: 'dolmetscher', icon: '🗣️', title: 'Dolmetscher', words: /dolmetsch|übersetz|uebersetz/, examples: [
         'Dolmetscher Türkisch (auch Englisch, Rumänisch, Polnisch, Russisch)', 'Übersetze Guten Tag ins Englische', 'Dolmetscher beenden'] },
     { key: 'einstellungen', icon: '⚙️', title: 'Stimme & Einstellungen', words: /einstellung|system|daten|stimme|tempo|aussprache|sicher/, examples: [
-        'Töne aus (auch: Töne an, Töne leiser, Töne lauter; die Effekt-Töne für Bestätigung, Fehler und Warnung)', 'Menschliche Laute aus (auch: dezent, an; Jarvis seufzt bei Stau, kichert bei Sprüchen, atmet vor langen Antworten ein - nur mit Fish Audio)', 'Stimme: Einstellungen > Stimme & Gespräch > Sprachausgabe > Fish Audio (Stimmen-ID eintragen und „Fish-Stimme testen“)', 'Sprich langsamer', 'Sprich Alyssa so aus: Alischa', 'Nenn mich Dino', 'Sichere meine Daten', 'Systemcheck'] }
+        'Töne aus (auch: Töne an, Töne leiser, Töne lauter; die Effekt-Töne für Bestätigung, Fehler und Warnung)', 'Menschliche Laute aus (auch: dezent, an; Jarvis seufzt bei Stau, kichert bei Sprüchen, atmet vor langen Antworten ein - nur mit Fish Audio)', 'Stimme: Einstellungen > Stimme & Gespräch > Sprachausgabe > Fish Audio (Stimmen-ID eintragen und „Fish-Stimme testen“)', 'Sprich langsamer', 'Sprich Alyssa so aus: Alischa', 'Wenn ich Hamlet sage, meine ich Hamiyet (Hör-Korrektur für falsch verstandene Namen)', 'Welche Hör-Korrekturen hast du?', 'Nenn mich Dino', 'Sichere meine Daten', 'Systemcheck'] }
 ];
 
 /* Ist der Satz eine Hilfe-Frage? Gibt { topic } zurück ('' = Überblick) oder null */

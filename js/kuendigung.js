@@ -8,13 +8,15 @@
    Eigenständig; muss nach localcommands.js geladen werden. Ein Entwurf, keine Rechtsberatung: Jarvis sagt, dass Adresse und Frist zu prüfen sind.
    ============================================================ */
 (function () {
-    const PROFILE_KEY = 'jv_kuend_profil';
+    const PROFILE_KEY = 'jv_kuend_profil', LAST_KEY = 'jv_kuend_letzte';
     const norm = s => String(s || '').toLowerCase().replace(/[.,!?;:"„“]+/g, ' ').replace(/\s+/g, ' ').trim();
     const clean = s => String(s || '').replace(/\s+/g, ' ').replace(/^[\s.,;:!?„“"]+|[\s,;:!?„“"]+$/g, '').trim();
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
     function loadProfile() { try { const p = JSON.parse(lsGet(PROFILE_KEY) || '{}'); return (p && typeof p === 'object') ? p : {}; } catch (e) { return {}; } }
     function saveProfile(p) { lsSet(PROFILE_KEY, JSON.stringify(p)); }
+    function loadLast() { try { const v = JSON.parse(lsGet(LAST_KEY) || 'null'); return (v && typeof v.text === 'string') ? v : null; } catch (e) { return null; } }
+    function saveLast(text, data) { lsSet(LAST_KEY, JSON.stringify({ text: String(text || ''), data: data || null, at: Date.now() })); }
     function say(m) { try { speak(m, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} }
 
     /* ---------- Hilfsfunktionen für gesprochene Antworten ---------- */
@@ -206,6 +208,7 @@
         mk(head, 'div', 'kd-title', 'KÜNDIGUNG');
         mk(head, 'div', 'kd-sub', 'Entwurf: Text lässt sich hier ändern');
         const ta = mk(el, 'textarea'); ta.value = text; ta.spellcheck = false;
+        saveLast(text, data); ta.addEventListener('input', () => saveLast(ta.value, data));
         const bar = mk(el, 'div', 'kd-bar');
         const note = txt => { try { say(txt); } catch (e) {} };
         mk(bar, 'button', 'kd-btn primary', '📄 PDF speichern').addEventListener('click', () => { note(savePdf(ta.value) ? 'Die PDF-Datei wurde gespeichert. Sie finden sie bei den Downloads.' : 'Das PDF konnte nicht erstellt werden.'); });
@@ -227,6 +230,7 @@
     /* ---------- Das Gespräch ---------- */
     let S = null;   // { step, d, at }
     const ART_RE = /vertrag|abo|abonnement|mitgliedschaft|versicherung|internet|handy|mobilfunk|strom|gas|fitness|dsl|tarif|zeitung|zeitschrift|streaming|netflix/i;
+    const LAST_RE = /^(?:bitte\s+)?(?:(?:zeig|zeige|öffne|oeffne|hol|such|mach)(?:\s+mir)?\s+)?(?:(?:die|meine)\s+)?(?:letzte|vorherige|gespeicherte|zuletzt geschriebene)\s+k(?:ü|ue)ndigung(?:\s+(?:noch\s*mal|wieder|auf|an|her))*$/;
     const START_1 = /\bk(?:ü|ue)ndigung(?:en|sschreiben)?\b.*\b(?:schreib\w*|verfass\w*|aufsetz\w*|erstell\w*|entwirf\w*|entwerf\w*|formulier\w*|vorbereit\w*)\b/;
     const START_2 = /\b(?:schreib\w*|verfass\w*|setz\w*|erstell\w*|entwirf\w*|entwerf\w*|formulier\w*|brauch\w*|will|möchte|moechte|mach\w*|bereite)\b.*\bk(?:ü|ue)ndigung\b/;
     const START_3 = /\b(?:ich )?(?:will|möchte|moechte|muss|würde gerne)\b.*\b(?:vertrag|abo|abonnement|mitgliedschaft|versicherung|handyvertrag|internetvertrag|stromvertrag)\b.*\bk(?:ü|ue)ndigen\b/;
@@ -322,13 +326,18 @@
                 answer(text); return true;
             }
         }
+        if (LAST_RE.test(t)) {
+            const l = loadLast();
+            if (!l) { say('Ich habe noch keine Kündigung gespeichert.'); return true; }
+            openWin(l.text, l.data || {}); say('Hier ist Ihre letzte Kündigung.'); return true;
+        }
         if (!t || !isStart(t)) return false;
         start(text);
         return true;
     }
 
     window.handleKuendigungCommand = handle;
-    window.__kuendTest = { parseNumber, parseDateText, buildLetter, makePdf, isStart, state: () => S, wrap: wrapLine };
+    window.__kuendTest = { loadLast, saveLast, parseNumber, parseDateText, buildLetter, makePdf, isStart, state: () => S, wrap: wrapLine };
 
     let lastHooked = null;
     function hook() {

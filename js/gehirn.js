@@ -28,6 +28,7 @@
             ['Gedächtnis', panel('gedaechtnis')],
             ['Listen', panel('einkauf')],
             ['Protokolle', panel('protokolle')],
+            ['Kündigung', () => say('Schreib mir eine Kündigung')],
             ['Adressen', panel('adressen')]
         ] },
         { label: 'ZEIT', color: [120, 232, 150], pos: [-0.6, -0.8, 0], ldir: -1, leaves: [
