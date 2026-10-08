@@ -20,7 +20,7 @@
     /* ---------- Hilfsfunktionen für gesprochene Antworten ---------- */
     const YES = /^(?:ja|jawohl|jep|genau|stimmt|richtig|passt|korrekt|gerne|klar|okay|ok|mach das|das stimmt|so ist es)\b/;
     const NO = /^(?:nein|nee|falsch|nicht ganz|stimmt nicht|anders)\b/;
-    const UNKNOWN = /^(?:weiß ich nicht|weiss ich nicht|keine ahnung|nicht zur hand|habe ich nicht|hab ich nicht|kenne ich nicht|nicht bekannt|keine|weiß nicht|unbekannt|später|spaeter|egal|lass offen|offen lassen)\b/;
+    const UNKNOWN = /(?:wei(?:ß|ss)\s.*nicht|keine ahnung|nicht zur hand|habe ich nicht|hab ich nicht|kenne ich nicht|kenn ich nicht|nicht bekannt|unbekannt|später|spaeter|egal|offen|lücke|luecke|überspring|ueberspring|^(?:nein|nee|keine|keiner|nichts)$)/;
     const CANCEL = /^(?:abbrechen|abbruch|stopp|stop|vergiss es|lass es|lass das|doch nicht|vergiss das|schluss)\b/;
 
     const DIGITS = { null: '0', eins: '1', ein: '1', zwei: '2', zwo: '2', drei: '3', vier: '4', fünf: '5', fuenf: '5', sechs: '6', sieben: '7', acht: '8', neun: '9' };
@@ -218,7 +218,7 @@
             const q = encodeURIComponent(((data && data.anbieter) || '') + ' Kündigung Adresse Kündigungsschreiben');
             window.open('https://www.google.com/search?q=' + q, '_blank');
         });
-        mk(bar, 'button', 'kd-btn', 'Schließen').addEventListener('click', closeWin).style.gridColumn = '1 / -1';
+        const closeBtn = mk(bar, 'button', 'kd-btn', 'Schließen'); closeBtn.addEventListener('click', closeWin); closeBtn.style.gridColumn = '1 / -1';
         document.body.appendChild(el);
         try { document.body.classList.add('panel-open'); } catch (e) {}
         try { if (typeof window.pauseJarvisSphere === 'function') window.pauseJarvisSphere(); } catch (e) {}
@@ -270,7 +270,7 @@
         const d = S.d; S = null;
         saveProfile(Object.assign(loadProfile(), { name: d.name, adresse: d.adresse }));
         const text = buildLetter(d);
-        openWin(text, d);
+        try { openWin(text, d); } catch (e) { console.error('Kündigung Fenster', e); say('Das Fenster konnte nicht geöffnet werden. Bitte versuchen Sie es noch einmal.'); return; }
         const luecke = !d.anbAdresse ? ' Die Anschrift des Anbieters fehlt noch, tragen Sie sie im Fenster ein oder tippen Sie auf Adresse suchen.' : '';
         say(`Die Kündigung an ${d.anbieter} ist fertig.${luecke} Bitte prüfen Sie Adresse, Nummer und Kündigungsfrist. Sie können den Text im Fenster ändern, als PDF speichern oder drucken. Name und Anschrift merke ich mir für das nächste Mal.`);
     }
