@@ -167,14 +167,31 @@
         }
     } catch (e) {}
 
+    /* Beim Öffnen der App zuerst fragen, ob etwas am Sperrbildschirm schon erledigt wurde, bevor Jarvis es noch einmal vorspricht.
+       Die Erinnerungs-Prüfung in calendar.js wartet solange (höchstens 3,5 Sekunden, dann läuft alles wie gewohnt). */
+    async function checkDone() {
+        if (!on() || typeof apiFetch !== 'function') return;
+        window.jvPushHold = true;
+        try {
+            const res = await Promise.race([
+                apiFetch('/api/sync?action=push_done_list', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+                new Promise((_, rej) => setTimeout(() => rej(new Error('t')), 3500))
+            ]);
+            if (res && res.ok) applyDone((await res.json()).done);
+        } catch (e) {}
+        window.jvPushHold = false;
+    }
+    try { if (on()) { window.jvPushHold = true; setTimeout(checkDone, 0); } } catch (e) { window.jvPushHold = false; }
+    setTimeout(() => { window.jvPushHold = false; }, 5000);   // Sicherung: nie dauerhaft blockieren
+
     setInterval(() => { alive(); reportLocation(); }, 2 * 60 * 1000);          // Lebenszeichen alle 2 Minuten (Server rechnet 4,5 Minuten Toleranz)
     setInterval(() => { send(false); sendConfig(false); }, 10 * 60 * 1000);   // Google-Termine ändern sich auch ohne Speicherung: regelmäßig vergleichen
     document.addEventListener('visibilitychange', function () {
-        if (!document.hidden) { alive(); reportLocation(); schedule(3000); }
+        if (!document.hidden) { checkDone(); alive(); reportLocation(); schedule(3000); }
         else { try { if (on()) post('push_gone', {}, true).catch(() => {}); } catch (e) {} }   // App verlassen: ab jetzt schickt der Server
     });
     setTimeout(() => { alive(); reportLocation(); send(true); sendConfig(true); }, 20000);   // kurz nach dem Start
 
     window.jvPushSyncNow = () => { send(true); sendConfig(true); };
-    window._pushsyncTest = { applyDone, reportLocation, build, send, alive, sendConfig, routeToWork };
+    window._pushsyncTest = { checkDone, applyDone, reportLocation, build, send, alive, sendConfig, routeToWork };
 })();

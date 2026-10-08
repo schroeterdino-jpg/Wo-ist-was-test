@@ -40,6 +40,7 @@ function jvLocalNotify(title, body) {
 }
 
 setInterval(() => {
+    if (window.jvPushHold) return;   // kurz warten, bis pushsync.js geklärt hat, was am Sperrbildschirm schon erledigt wurde
     if (reminderEntries.length === 0) return;
     const now = new Date();
     let updated = false;
