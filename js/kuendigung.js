@@ -302,7 +302,7 @@
     function fmtAt(t) { const d = new Date(t); return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`; }
     function openMenu() {
         const list = loadList();
-        if (!list.length) { say('Du hast noch keine Kündigung gespeichert. Ich schreibe jetzt eine neue.'); startNew(); return; }
+        if (!list.length) { closeWin(); say('Du hast noch keine Kündigung gespeichert. Ich schreibe jetzt eine neue.'); startNew(); return; }
         ensureStyle(); closeWin();
         const mk = (p, tag, cls, txt) => { const x = document.createElement(tag); if (cls) x.className = cls; if (txt !== undefined) x.textContent = txt; p.appendChild(x); return x; };
         el = document.createElement('div'); el.id = 'jvKuend';
@@ -318,7 +318,7 @@
             const b = mk(row, 'button', 'kd-btn kd-open', (d.anbieter || 'Kündigung') + (d.art ? ' · ' + d.art : '') + '\n' + fmtAt(e.at));
             b.addEventListener('click', () => { openWin(e.text, d); });
             const x = mk(row, 'button', 'kd-btn kd-del', '✕');
-            x.addEventListener('click', () => { deleteEntry(e.id); openMenu(); });
+            x.addEventListener('click', () => { deleteEntry(e.id); if (loadList().length) openMenu(); else { closeWin(); say('Die Kündigung ist gelöscht.'); } });
         });
         const cb = mk(el, 'div', 'kd-bar'); const closeBtn = mk(cb, 'button', 'kd-btn', 'Schließen'); closeBtn.addEventListener('click', closeWin); closeBtn.style.gridColumn = '1 / -1';
         document.body.appendChild(el);
