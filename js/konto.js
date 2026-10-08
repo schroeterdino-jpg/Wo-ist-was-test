@@ -13,7 +13,7 @@
     const CHECK_EVERY_MS = 4 * 60 * 1000;
     const FIRST_CHECK_MS = 40 * 1000;
     const RETRY_BUSY_MS = 25 * 1000;
-    const SEEN_KEY = 'jv_konto_gesehen', ON_KEY = 'jv_konto_an', BANKS_KEY = 'jv_konto_banken';
+    const SEEN_KEY = 'jv_konto_gesehen', ON_KEY = 'jv_konto_an', BANKS_KEY = 'jv_konto_banken', LOG_KEY = 'jv_konto_verlauf';
     const QUIET_FROM = 22, QUIET_TO = 7;
     const BASE_BANKS = ['sparkasse', 'volksbank', 'raiffeisen', 'ing', 'diba', 'dkb', 'commerzbank', 'postbank', 'deutsche bank', 'n26', 'comdirect', 'targobank', 'hypovereinsbank', 'consorsbank', 'norisbank', 'santander', 'paypal', 'sparda', 'psd', 'gls bank', 'revolut', 'wise', 'klarna', 'bank'];
     const WORDS = /kontobewegung|kontoumsatz|umsatz|gutschrift|lastschrift|kontoauszug|abbuchung|zahlungseingang|geldeingang|überweisung|ueberweisung|buchung|kontostand|dauerauftrag|kartenzahlung|zahlung/i;
@@ -25,6 +25,8 @@
     function loadSeen() { try { const v = JSON.parse(lsGet(SEEN_KEY) || 'null'); return Array.isArray(v) ? v : null; } catch (e) { return null; } }
     function saveSeen(a) { lsSet(SEEN_KEY, JSON.stringify(a.slice(-200))); }
     function ownBanks() { try { const v = JSON.parse(lsGet(BANKS_KEY) || '[]'); return Array.isArray(v) ? v.filter(x => typeof x === 'string' && x) : []; } catch (e) { return []; } }
+    function loadLog() { try { const v = JSON.parse(lsGet(LOG_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+    function addLog(entry) { const l = loadLog(); l.unshift(entry); lsSet(LOG_KEY, JSON.stringify(l.slice(0, 5))); }
     const allBanks = () => BASE_BANKS.concat(ownBanks());
     function say(t) { try { speak(t, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) { console.error('Konto-Meldung', e); } }
     function quiet() { const h = new Date().getHours(); return h >= QUIET_FROM || h < QUIET_TO; }
@@ -104,15 +106,103 @@
         const m = queue.shift();
         const text = await describe(m);
         if (busy()) { queue.unshift(m); setTimeout(announceNext, RETRY_BUSY_MS); return; }
+        addLog({ at: Date.now(), von: String(m.von || '').replace(/<.*>/, '').trim(), betreff: String(m.betreff || ''), text: text });
         say(text);
         if (queue.length) setTimeout(announceNext, 12000);
     }
+
+    /* ---------- Fenster (Menü ☰ oder Kugel-Ansicht) ---------- */
+    let win = null;
+    function ensureStyle() {
+        if (document.getElementById('kmStyle')) return;
+        const st = document.createElement('style'); st.id = 'kmStyle';
+        st.textContent =
+            '#jvKonto{position:fixed;inset:0;z-index:92;background:rgba(4,9,15,.98);color:#d9e9f2;display:flex;flex-direction:column;font-family:"Rajdhani",sans-serif;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}' +
+            '#jvKonto .km-head{padding:16px 18px 6px;text-align:center}#jvKonto .km-title{font:700 17px "Orbitron",sans-serif;letter-spacing:.14em;color:#49d7ff}' +
+            '#jvKonto .km-sub{font:500 12px "IBM Plex Mono",monospace;color:#7fb8cf;margin-top:4px}' +
+            '#jvKonto .km-body{flex:1 1 auto;overflow:auto;padding:8px 14px;display:flex;flex-direction:column;gap:12px;min-height:0}' +
+            '#jvKonto .km-card{border:1px solid rgba(93,209,255,.25);border-radius:10px;padding:10px 12px;background:rgba(10,22,33,.9)}' +
+            '#jvKonto .km-h{font:700 12px "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:#49d7ff;margin-bottom:6px}' +
+            '#jvKonto .km-row{display:flex;gap:8px;align-items:center;margin:4px 0;font-size:15px}#jvKonto .km-row span{flex:1 1 auto}' +
+            '#jvKonto .km-btn{padding:10px 8px;border-radius:10px;border:1px solid rgba(93,209,255,.4);background:rgba(10,22,33,.95);color:#49d7ff;font:700 12px "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase}' +
+            '#jvKonto .km-btn.primary{background:rgba(73,215,255,.2);color:#fff}' +
+            '#jvKonto input{flex:1 1 auto;min-width:0;padding:10px;border-radius:10px;border:1px solid rgba(93,209,255,.3);background:#fff;color:#111;font:15px "Rajdhani",Arial,sans-serif}' +
+            '#jvKonto .km-log{font-size:14px;margin:6px 0;border-bottom:1px solid rgba(93,209,255,.12);padding-bottom:6px}#jvKonto .km-log small{color:#7fb8cf;font-family:"IBM Plex Mono",monospace}' +
+            '#jvKonto .km-bar{padding:6px 14px 14px}';
+        document.head.appendChild(st);
+    }
+    function closeWin() {
+        if (win) { try { win.remove(); } catch (e) {} win = null; }
+        try { document.body.classList.remove('panel-open'); } catch (e) {}
+        try { if (typeof window.resumeJarvisSphere === 'function') window.resumeJarvisSphere(); } catch (e) {}
+    }
+    function fmtAt(t) { const d = new Date(t); const p = n => String(n).padStart(2, '0'); return `${p(d.getDate())}.${p(d.getMonth() + 1)}. ${p(d.getHours())}:${p(d.getMinutes())}`; }
+    function openWin(note) {
+        ensureStyle(); closeWin();
+        const mk = (par, tag, cls, txt) => { const x = document.createElement(tag); if (cls) x.className = cls; if (txt !== undefined) x.textContent = txt; par.appendChild(x); return x; };
+        win = document.createElement('div'); win.id = 'jvKonto';
+        const head = mk(win, 'div', 'km-head'); mk(head, 'div', 'km-title', 'KONTO-MELDUNG');
+        mk(head, 'div', 'km-sub', enabled() ? 'an · meldet neue Bank-Mails bei offener App' : 'aus');
+        const body = mk(win, 'div', 'km-body');
+        if (note) mk(body, 'div', 'km-sub', note);
+        // Schalter
+        const c1 = mk(body, 'div', 'km-card'); mk(c1, 'div', 'km-h', 'Meldung');
+        const r1 = mk(c1, 'div', 'km-row'); mk(r1, 'span', '', enabled() ? 'Eingeschaltet' : 'Ausgeschaltet');
+        mk(r1, 'button', 'km-btn primary', enabled() ? 'Ausschalten' : 'Einschalten').addEventListener('click', () => { lsSet(ON_KEY, enabled() ? '0' : '1'); if (enabled()) schedule(FIRST_CHECK_MS); openWin(); });
+        // Jetzt prüfen
+        const c2 = mk(body, 'div', 'km-card'); mk(c2, 'div', 'km-h', 'Jetzt prüfen');
+        const pr = mk(c2, 'div', 'km-row'); mk(pr, 'span', '', 'Neue Bank-Mails der letzten zwei Tage');
+        mk(pr, 'button', 'km-btn primary', 'Prüfen').addEventListener('click', () => { closeWin(); handle('prüf mal mein konto'); });
+        // Banken
+        const c3 = mk(body, 'div', 'km-card'); mk(c3, 'div', 'km-h', 'Meine Banken');
+        const mine = ownBanks();
+        if (!mine.length) mk(c3, 'div', 'km-sub', 'Bekannte Banken wie Sparkasse, Volksbank, ING, DKB, Commerzbank, PayPal sind schon dabei.');
+        mine.forEach(b => { const r = mk(c3, 'div', 'km-row'); mk(r, 'span', '', b); mk(r, 'button', 'km-btn', '✕').addEventListener('click', () => { lsSet(BANKS_KEY, JSON.stringify(ownBanks().filter(x => x !== b))); openWin(); }); });
+        const add = mk(c3, 'div', 'km-row'); const inp = mk(add, 'input'); inp.placeholder = 'Bank hinzufügen, z. B. Sparkasse Lauenburg'; inp.setAttribute('autocomplete', 'off');
+        const doAdd = () => { const v = inp.value.trim().toLowerCase(); if (v.length < 3) return; const l = ownBanks(); if (!l.includes(v)) l.push(v); lsSet(BANKS_KEY, JSON.stringify(l.slice(-10))); openWin('Hinzugefügt: ' + v); };
+        mk(add, 'button', 'km-btn primary', '＋').addEventListener('click', doAdd); inp.addEventListener('keydown', e => { if (e.key === 'Enter') doAdd(); });
+        // Letzte Meldungen
+        const c4 = mk(body, 'div', 'km-card'); mk(c4, 'div', 'km-h', 'Letzte Meldungen');
+        const log = loadLog();
+        if (!log.length) mk(c4, 'div', 'km-sub', 'Noch keine gemeldet.');
+        log.forEach(e => { const d = mk(c4, 'div', 'km-log'); mk(d, 'small', '', fmtAt(e.at) + (e.von ? ' · ' + e.von : '')); mk(d, 'div', '', e.text || e.betreff); });
+        const bar = mk(win, 'div', 'km-bar'); const cb = mk(bar, 'button', 'km-btn', 'Schließen'); cb.style.width = '100%'; cb.addEventListener('click', closeWin);
+        document.body.appendChild(win);
+        try { document.body.classList.add('panel-open'); } catch (e) {}
+        try { if (typeof window.pauseJarvisSphere === 'function') window.pauseJarvisSphere(); } catch (e) {}
+    }
+    window.kontoMenu = openWin;
+
+    /* Eintrag im ☰-Menü, ohne panels.js zu ändern */
+    function hookMenu() {
+        try {
+            if (typeof window.buildMenuPanel !== 'function' || window.buildMenuPanel.__km) return;
+            const orig = window.buildMenuPanel;
+            const wrapped = function () {
+                const r = orig.apply(this, arguments);
+                try {
+                    if (r && typeof r.html === 'string' && r.html.indexOf('kontoMenu') < 0) {
+                        const btn = '<button class="panel-row w-full flex items-center gap-3 text-left bg-black/60 border border-[rgba(73,215,255,.2)] rounded-lg p-3 mb-2" style="--i:12" onclick="playUiBeep(); closePanel(); window.kontoMenu()">' +
+                            '<span class="text-2xl">🏦</span><span class="flex-1"><b class="block text-[#49d7ff] text-sm">Konto-Meldung</b><span class="text-xs text-slate-400">Bank-Mails, Banken, letzte Meldungen</span></span><span class="text-[#49d7ff]">›</span></button>';
+                        const m = r.html.match(/<button[^>]*openPanel\('planer'\)/);
+                        r.html = m ? r.html.replace(m[0], btn + m[0]) : r.html.replace(/<\/div>\s*$/, btn + '</div>');
+                    }
+                } catch (e) { console.error('Konto Menü', e); }
+                return r;
+            };
+            wrapped.__km = true;
+            // Falls kuendigung.js schon umwickelt hat: unsere Hülle darum legen (beide bleiben aktiv)
+            window.buildMenuPanel = wrapped;
+        } catch (e) {}
+    }
+    hookMenu(); [800, 3000].forEach(ms => setTimeout(hookMenu, ms));
 
     /* ---------- Sprachbefehle ---------- */
     const norm = s => String(s || '').toLowerCase().replace(/[.,!?;:"„“]+/g, ' ').replace(/\s+/g, ' ').trim();
     function handle(text) {
         const t = norm(text);
         if (!t || t.length > 80) return false;
+        if (/^(?:zeig\w*|öffne|oeffne)\s+(?:mir\s+)?(?:die\s+|meine\s+)?konto[- ]?(?:meldung|meldungen|mails?)$/.test(t) || /^konto[- ]?meldungen?$/.test(t)) { openWin(); return true; }
         if (/konto[- ]?(?:meldung|ansage|benachrichtigung|hinweis)/.test(t)) {
             if (/\b(aus|ausschalten|deaktivier\w*|abschalten|stopp?)\b/.test(t)) { lsSet(ON_KEY, '0'); say('Die Konto-Meldung ist ausgeschaltet.'); return true; }
             if (/\b(an|ein|einschalten|aktivier\w*|anschalten)\b/.test(t)) { lsSet(ON_KEY, '1'); say('Die Konto-Meldung ist eingeschaltet.'); schedule(FIRST_CHECK_MS); return true; }

@@ -46,6 +46,7 @@
         ] },
         { label: 'HÄNDE', color: [255, 154, 68], pos: [0.6, 0.8, 0], ldir: 1, leaves: [
             ['Mail', () => say('Welche E-Mails habe ich?')],
+            ['Konto', () => { try { window.kontoMenu(); } catch (e) { say('Zeig mir die Konto-Meldung'); } }],
             ['Foto', () => { try { window.openPhotoCamera(true); } catch (e) {} }],
             ['Überblick', () => { try { window.showUeberblick(false); } catch (e) {} }],
             ['Wetter', () => say('Wie wird das Wetter?')],

@@ -62,6 +62,11 @@ const HELP_TOPICS = [
         'Was läuft heute Abend im Fernsehen?', 'Wo ist mein Paket?', 'Wann hat der Baumarkt heute auf?', 'Was läuft heute Abend im Kino in Hamburg?'] },
     { key: 'briefing', icon: '🌅', title: 'Briefing & Protokolle', words: /briefing|protokoll/, examples: [
         'Erwähne im Briefing immer, wo mein Ladekabel ist', 'Starte Protokoll Feierabend', 'Lege ein Protokoll Morgen an: Wetter und Fahrzeit zur Arbeit'] },
+    { key: 'brief', icon: '✉️', title: 'Brief fotografieren', words: /brief|rechnung|mahnung|bescheid|post|schreiben|amt|behörde|preiserhöhung|einladung/, examples: [
+        'Brief fotografieren / Rechnung fotografieren / Ich habe Post bekommen (dann Karte antippen, Kamera öffnet sich)', 'Foto machen, dann "Werte den Brief aus" oder auf die Karte "Brief auswerten" tippen',
+        'Rechnung oder Mahnung: Jarvis nennt Absender, Betrag und Zahlungsziel und fragt, ob er dich vorher erinnern soll',
+        'Preiserhöhung oder Vertragsänderung: Hinweis auf das Sonderkündigungsrecht, auf Wunsch wird die Kündigung vorbereitet',
+        'Bescheid vom Amt: Frist (z. B. Widerspruch) erkennen und Erinnerung anbieten; Einladung: Termin in den Kalender (immer erst nach deinem Ja)'] },
     { key: 'konto', icon: '🏦', title: 'Konto-Meldung', words: /konto|bank|überweisung|gutschrift|lastschrift|abbuchung|umsatz|eingang/, examples: [
         'Jarvis sagt von selbst an, wenn deine Bank dir eine Mail zu einer Kontobewegung schickt (Eingang, Abbuchung, Kontoauszug), nur bei offener App', 'Prüf mal mein Konto (schaut sofort nach neuen Bank-Mails)',
         'Meine Bank ist die Sparkasse Lauenburg (damit er deren Mails erkennt)', 'Welche Banken überwachst du?', 'Konto-Meldung aus / Konto-Meldung an'] },

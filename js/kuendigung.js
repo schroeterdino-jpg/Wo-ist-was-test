@@ -550,6 +550,17 @@
     hookMenu();
     [800, 3000].forEach(ms => setTimeout(hookMenu, ms));
 
+    /* Start mit schon bekannten Angaben (z. B. aus einem fotografierten Brief): Anbieter, Vertragsart, Nummer, Grund */
+    window.kuendigungStart = function (o) {
+        o = o || {};
+        S = { step: 'anbieter', d: { modus: 'naechst' }, at: Date.now() };
+        const d = S.d;
+        if (o.anbieter) d.anbieter = capFirst(clean(o.anbieter));
+        if (o.art) d.art = clean(o.art);
+        if (o.nummer) d.nummer = clean(o.nummer);
+        if (o.grund) { d.modus = 'ausser'; d.modusGeklaert = true; d.grund = clean(o.grund); }
+        next();
+    };
     window.handleKuendigungCommand = handle;
     window.kuendigungMenu = openMenu;
     window.__kuendTest = { openMenu, loadList, kindOf, fixName, plzText, loadLast, saveLast, parseNumber, parseDateText, buildLetter, makePdf, isStart, state: () => S, wrap: wrapLine };
