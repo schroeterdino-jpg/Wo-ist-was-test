@@ -47,6 +47,7 @@
             if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(key) });
             await api('push_subscribe', postJson({ subscription: sub.toJSON() }));
             try { setPersistentData(FLAG, '1'); } catch (e) {}
+            try { if (typeof window.jvPushSyncNow === 'function') window.jvPushSyncNow(); } catch (e) {}   // Erinnerungen und Termine gleich an den Server melden
             say('Fertig, dein Handy ist für Benachrichtigungen angemeldet. Sag „Sende eine Test-Nachricht“, um es auszuprobieren.');
             return true;
         } catch (e) {
