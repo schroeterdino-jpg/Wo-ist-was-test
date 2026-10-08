@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 // Speicher für den Datenabgleich zwischen deinen Geräten.
 // GET  /api/sync -> liefert alle gespeicherten Bereiche
 // POST /api/sync -> speichert Bereiche; pro Bereich gewinnt der neuere Zeitstempel
@@ -32,6 +34,23 @@ function makeRedis(base, token) {
 }
 
 export default async function handler(req, res) {
+  // --- "Erledigt"-Knopf an einer Benachrichtigung: kein App-Code im Service Worker, stattdessen ein Token pro Erinnerung ---
+  if (String((req.query && req.query.action) || '') === 'push_done') {
+    const key = process.env.PUSH_CRON_KEY;
+    const b1 = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+    const t1 = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+    if (!key || !b1 || !t1) return res.status(500).json({ error: 'Server nicht eingerichtet' });
+    const id = String((req.query && req.query.id) || '').slice(0, 40), tok = String((req.query && req.query.t) || '');
+    if (!id || tok !== doneToken(id)) return res.status(401).json({ error: 'Nicht erlaubt' });
+    try {
+      const redis1 = makeRedis(b1, t1);
+      const st = await loadItems(redis1);
+      st.done[id] = Date.now();
+      delete st.nag[id];
+      await redis1('SET', ITEMS_KEY, JSON.stringify(st));
+      return res.status(200).json({ ok: true });
+    } catch (e) { return res.status(500).json({ error: 'Fehler' }); }
+  }
   // --- Zeitgeber (cron-job.org): eigener Schlüssel PUSH_CRON_KEY (nicht CRON_SECRET, den nutzt memory.js) statt App-Code; nur die Aktion push_due ---
   if (String((req.query && req.query.action) || '') === 'push_due') {
     const cs = process.env.PUSH_CRON_KEY;
@@ -139,12 +158,24 @@ async function handlePush(action, req, res, redis) {
       for (const it of list.slice(0, 200)) {
         if (!it || typeof it.id !== 'string' || typeof it.x !== 'string' || typeof it.at !== 'number' || !Number.isFinite(it.at)) continue;
         if (it.k !== 'r' && it.k !== 'e') continue;
-        items.push({ id: it.id.slice(0, 40), k: it.k, x: it.x.slice(0, 140), at: Math.round(it.at) });
+        const o = { id: it.id.slice(0, 40), k: it.k, x: it.x.slice(0, 140), at: Math.round(it.at) };
+        if (it.k === 'e' && typeof it.l === 'string' && it.l.trim()) o.l = it.l.trim().slice(0, 120);
+        if (it.k === 'r' && it.i === 1) o.i = 1;
+        items.push(o);
       }
       const st = await loadItems(redis);
-      st.items = items;
+      st.items = items.filter(o => !st.done[o.id]);   // am Sperrbildschirm als erledigt markierte Erinnerungen nicht wieder aufnehmen
+      const doneIds = Object.keys(st.done);
+      for (const k of doneIds) { if (Date.now() - st.done[k] > 2 * 86400000) delete st.done[k]; }
       await redis('SET', ITEMS_KEY, JSON.stringify(st));
-      return res.status(200).json({ ok: true, count: items.length });
+      return res.status(200).json({ ok: true, count: st.items.length, done: Object.keys(st.done) });
+    }
+    if (action === 'push_loc') {   // letzter bekannter Standort (die App meldet ihn nur, solange sie offen ist)
+      if (!Number.isFinite(body.lat) || !Number.isFinite(body.lon) || Math.abs(body.lat) > 90 || Math.abs(body.lon) > 180) return res.status(400).json({ error: 'Ungültig' });
+      const st = await loadItems(redis);
+      st.loc = { lat: body.lat, lon: body.lon, ts: Date.now() };
+      await redis('SET', ITEMS_KEY, JSON.stringify(st));
+      return res.status(200).json({ ok: true });
     }
     if (action === 'push_config') {   // Schichtplan und Strecke zur Arbeit (nur Zahlen), für die Briefing-Nachricht
       const st = await loadItems(redis);
@@ -201,6 +232,7 @@ async function loadItems(redis) {
   if (!st.sent || typeof st.sent !== 'object') st.sent = {};
   if (typeof st.alive !== 'number') st.alive = 0;
   if (!st.cfg || typeof st.cfg !== 'object') st.cfg = {};
+  for (const k of ['nag', 'done', 'dep', 'geo']) { if (!st[k] || typeof st[k] !== 'object') st[k] = {}; }
   return st;
 }
 
@@ -328,24 +360,102 @@ async function buildBriefing(st, sh, now) {
   return { title: gruss + name + '. ' + art, body: parts.join(' '), tag: 'brief-' + b.ymd, url: './' };
 }
 
+// --- Abfahrtszeit für Termine mit Ort, Nachfassen bei wichtigen Erinnerungen ---
+const BUFFER_MIN = 10;          // Puffer vor der Abfahrt (wie in der App)
+const DEPART_LEAD_MIN = 15;     // Nachricht so viele Minuten vor der Abfahrt
+const DEPART_WINDOW_MS = 4 * 3600000;   // Termine, die weiter weg sind, werden noch nicht berechnet
+const LOC_FRESH_MS = 3 * 3600000;       // so alt darf der gemeldete Standort sein, sonst gilt Zuhause
+const NAG_INTERVAL_MS = 10 * 60000;     // wie in der App (calendar.js)
+const NAG_MAX = 6;
+const UA = 'MeinAlltagsHelfer/1.0 (privates Projekt, kein kommerzieller Einsatz)';
+
+function doneToken(id) {
+  return crypto.createHmac('sha256', String(process.env.PUSH_CRON_KEY || '')).update('done:' + id).digest('hex').slice(0, 32);
+}
+
+async function geocodeServer(q) {
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q), { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(4000) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!j || !j[0]) return null;
+    const lat = Number(j[0].lat), lon = Number(j[0].lon);
+    return (isFinite(lat) && isFinite(lon)) ? { lat, lon } : null;
+  } catch (e) { return null; }
+}
+function autobahnRefs(route) {
+  const refs = new Set();
+  const add = (text) => String(text || '').split(/[;,\/]/).forEach(part => { const m = part.trim().match(/^(?:A|BAB)\s?(\d+)$/i); if (m) refs.add('A' + m[1]); });
+  (route.legs || []).forEach(leg => (leg.steps || []).forEach(step => { add(step.ref); add(step.name); }));
+  return Array.from(refs);
+}
+async function routeServer(a, b) {
+  try {
+    const r = await fetch('https://router.project-osrm.org/route/v1/driving/' + a.lon + ',' + a.lat + ';' + b.lon + ',' + b.lat + '?overview=false&steps=true', { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(4500) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const rt = j && j.routes && j.routes[0];
+    if (!rt || !isFinite(rt.duration)) return null;
+    return { fahrtMin: Math.round(rt.duration / 60), autobahnen: autobahnRefs(rt).slice(0, 2) };
+  } catch (e) { return null; }
+}
+function originNow(st, now) {
+  if (st.loc && now - st.loc.ts <= LOC_FRESH_MS) return { lat: st.loc.lat, lon: st.loc.lon, src: 'standort' };
+  const rt = st.cfg && st.cfg.route;
+  if (rt && rt.from) return { lat: rt.from.lat, lon: rt.from.lon, src: 'zuhause' };
+  return null;
+}
+async function geoCached(st, text) {
+  const key = String(text).toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 120);
+  const c = st.geo[key];
+  if (c && c.lat !== undefined) return { lat: c.lat, lon: c.lon };
+  if (c && c.fail && Date.now() - c.ts < 6 * 3600000) return null;
+  const g = await geocodeServer(text);
+  st.geo[key] = g ? { lat: g.lat, lon: g.lon, ts: Date.now() } : { fail: true, ts: Date.now() };
+  const keys = Object.keys(st.geo);
+  if (keys.length > 30) { keys.sort((a, b) => (st.geo[a].ts || 0) - (st.geo[b].ts || 0)); delete st.geo[keys[0]]; }
+  return g;
+}
+
+/* Termin ohne Ortsangabe oder mit nicht berechenbarer Strecke: einfache Vorwarnung 15 Minuten vorher */
+function genericDue(st, it, now) {
+  if (it.k !== 'e' || st.sent[it.id]) return false;
+  const lead = it.at - EVENT_LEAD_MIN * 60000;
+  if (!(now >= lead && now < it.at)) return false;
+  if (it.l) { const d = st.dep[it.id]; if (d && !d.fail) return false; }   // bekommt stattdessen die Abfahrts-Nachricht
+  return true;
+}
+/* Termin mit Ort: muss der Server rechnen oder senden? (rein aus dem Speicher, kein Netzwerk) */
+function depNeedsWork(st, it, now) {
+  if (it.k !== 'e' || !it.l || st.sent['d' + it.id] || st.sent[it.id]) return false;
+  if (it.at <= now || it.at - now > DEPART_WINDOW_MS) return false;
+  const d = st.dep[it.id];
+  if (!d) return true;
+  if (!d.fail && now >= it.at - (d.fahrtMin + BUFFER_MIN + DEPART_LEAD_MIN) * 60000) return true;
+  if (now - d.ts > 10 * 60000 && (d.fail || it.at - now < 90 * 60000)) return true;
+  return false;
+}
+function nagNeedsWork(st, it, now) {
+  if (it.k !== 'r' || it.i !== 1 || st.done[it.id]) return false;
+  const n = st.nag[it.id];
+  return !!n && n.n < NAG_MAX && now >= n.next;
+}
+
 async function handleDue(req, res, redis) {
   try {
     if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return res.status(500).json({ error: 'Server: VAPID-Schlüssel fehlen' });
     const now = Date.now();
-    const st = await loadItems(redis);   // nur ein Datenbank-Zugriff pro Minute, solange nichts fällig ist
+    const st = await loadItems(redis);   // nur ein Datenbank-Zugriff pro Minute, solange nichts zu tun ist
 
     const appOpen = now - st.alive < ALIVE_MS;
-    const quiet = berlinHour(now) >= 22 || berlinHour(now) < 7;
-    const due = [];
-    for (const it of st.items) {
-      if (st.sent[it.id]) continue;
-      if (it.k === 'r') {
-        if (it.at <= now && now - it.at <= REMINDER_GRACE_MIN * 60000) due.push(it);
-      } else {
-        const lead = it.at - EVENT_LEAD_MIN * 60000;
-        if (now >= lead && now < it.at) due.push(it);
-      }
-    }
+    const hour = berlinHour(now);
+    const quiet = hour >= 22 || hour < 7;          // Vorwarnungen ohne Ort
+    const quietDep = hour >= 22 || hour < 5;       // Abfahrts-Nachrichten: nur die tiefe Nacht ist still
+    const due = st.items.filter(it => {
+      if (st.sent[it.id]) return false;
+      if (it.k === 'r') return it.at <= now && now - it.at <= REMINDER_GRACE_MIN * 60000;
+      return genericDue(st, it, now);
+    });
     // Schicht-Briefing fällig? (einmal pro Tag, in [Zeit, Zeit + 10 min])
     let brief = null;
     const sc = st.cfg && st.cfg.schicht;
@@ -355,7 +465,9 @@ async function handleDue(req, res, redis) {
       const at = sc.times[sh];
       if (st.briefDay !== bp.ymd && bp.min >= at && bp.min <= at + BRIEF_GRACE_MIN) brief = { sh, ymd: bp.ymd };
     }
-    if (!due.length && !brief) return res.status(200).json({ ok: true, due: 0 });
+    const depList = st.items.filter(it => depNeedsWork(st, it, now)).sort((a, b) => a.at - b.at);
+    const nagList = st.items.filter(it => nagNeedsWork(st, it, now));
+    if (!due.length && !brief && !depList.length && !nagList.length) return res.status(200).json({ ok: true, due: 0 });
 
     // Sperre: nie zwei Läufe gleichzeitig (sonst käme alles doppelt)
     const lock = await redis('SET', 'alltags-helfer:pushlock', '1', 'NX', 'EX', '40');
@@ -364,19 +476,73 @@ async function handleDue(req, res, redis) {
     try { const raw = await redis('GET', PUSH_KEY); if (raw) data = JSON.parse(raw); } catch (e) {}
     if (!Array.isArray(data.subs)) data.subs = [];
 
-    let sent = 0, skippedApp = 0, skippedQuiet = 0;
+    let sent = 0, skippedApp = 0, skippedQuiet = 0, departSent = 0, nagSent = 0;
+    const doneBtn = (it) => ({ actions: [{ action: 'done', title: 'Erledigt' }], doneUrl: '/api/sync?action=push_done&id=' + encodeURIComponent(it.id) + '&t=' + doneToken(it.id) });
+
+    // 1) Abfahrtszeit für Termine mit Ort (höchstens 2 Berechnungen pro Lauf)
+    let computed = 0;
+    for (const it of depList) {
+      let dep = st.dep[it.id];
+      const stale = !dep || (now - dep.ts > 10 * 60000 && (dep.fail || it.at - now < 90 * 60000));
+      if (stale) {
+        if (computed >= 2) continue;
+        computed++;
+        const origin = originNow(st, now);
+        const g = origin ? await geoCached(st, it.l) : null;
+        const r = (origin && g) ? await routeServer(origin, g) : null;
+        if (!r) { st.dep[it.id] = dep && !dep.fail ? Object.assign({}, dep, { ts: now }) : { fail: origin ? (g ? 'route' : 'ort') : 'standort', ts: now }; dep = st.dep[it.id]; }
+        else dep = st.dep[it.id] = { fahrtMin: r.fahrtMin, autobahnen: r.autobahnen, from: { lat: origin.lat, lon: origin.lon }, to: g, quelle: origin.src, ts: now };
+      }
+      if (!dep || dep.fail) continue;
+      const leaveAt = it.at - (dep.fahrtMin + BUFFER_MIN) * 60000;
+      if (now < leaveAt - DEPART_LEAD_MIN * 60000 || now >= it.at) continue;
+      st.sent['d' + it.id] = now; st.sent[it.id] = now;
+      if (appOpen) { skippedApp++; continue; }
+      if (quietDep) { skippedQuiet++; continue; }
+      if (!data.subs.length) continue;
+      const stau = await checkStau({ autobahnen: dep.autobahnen, from: dep.from, to: dep.to });
+      const mins = Math.round((leaveAt - now) / 60000);
+      const wann = mins > 0 ? 'Du musst in ' + mins + ' Minuten losfahren (um ' + berlinClock(leaveAt) + ' Uhr)' : 'Du solltest jetzt losfahren';
+      const teile = [wann + ' zu „' + it.x + '“ um ' + berlinClock(it.at) + ' Uhr. Fahrt etwa ' + dep.fahrtMin + ' Minuten' + (dep.quelle === 'zuhause' ? ' (ab Zuhause)' : '') + '.'];
+      if (stau.meldungen.length) {
+        teile.push('Auf der Strecke: ' + stau.meldungen.join('; ') + '.');
+        if (stau.meldungen.some(m => /\((Stau|Unfall|Sperrung)\)/.test(m))) teile.push('Plane etwa 10 Minuten mehr ein.');
+      } else if (stau.geprueft) teile.push('Keine Staumeldungen auf der Strecke.');
+      const r2 = await sendToAll(redis, data, { title: 'Abfahrt: ' + it.x, body: teile.join(' '), tag: 'd-' + it.id, url: './' });
+      if (r2.sent > 0) departSent++;
+    }
+
+    // 2) einfache Erinnerungen und Vorwarnungen (nach 1: Termine mit berechneter Strecke sind schon versorgt)
     for (const it of due) {
+      if (it.k === 'e' && !genericDue(st, it, now)) continue;
       st.sent[it.id] = now;
       if (appOpen) { skippedApp++; continue; }                    // die offene App spricht selbst
       if (it.k === 'e' && quiet) { skippedQuiet++; continue; }    // Vorwarnungen schweigen nachts; eigene Erinnerungen immer
       if (!data.subs.length) continue;
       const mins = Math.max(1, Math.round((it.at - now) / 60000));
-      const payload = it.k === 'r'
-        ? { title: 'Erinnerung', body: it.x, tag: 'r-' + it.id, url: './' }
-        : { title: 'Termin in ' + mins + ' Minuten', body: it.x + ' um ' + berlinClock(it.at) + ' Uhr', tag: 'e-' + it.id, url: './' };
+      let payload;
+      if (it.k === 'r') {
+        payload = { title: 'Erinnerung', body: it.x, tag: 'r-' + it.id, url: './' };
+        if (it.i === 1) { Object.assign(payload, doneBtn(it)); st.nag[it.id] = { n: 0, next: now + NAG_INTERVAL_MS }; }
+      } else payload = { title: 'Termin in ' + mins + ' Minuten', body: it.x + ' um ' + berlinClock(it.at) + ' Uhr', tag: 'e-' + it.id, url: './' };
       const r = await sendToAll(redis, data, payload);
       if (r.sent > 0) sent++;
     }
+
+    // 3) Nachfassen bei wichtigen Erinnerungen (bis "Erledigt", höchstens NAG_MAX-mal)
+    for (const it of nagList) {
+      const n = st.nag[it.id];
+      if (appOpen) { n.next = now + NAG_INTERVAL_MS; continue; }   // die App fragt selbst nach
+      n.n++; n.next = now + NAG_INTERVAL_MS;
+      if (!data.subs.length) continue;
+      const last = n.n >= NAG_MAX;
+      const r = await sendToAll(redis, data, Object.assign({
+        title: last ? 'Letzte Erinnerung' : 'Noch einmal zur Erinnerung',
+        body: it.x + (last ? '. Ich frage nicht weiter nach.' : '. Erledigt?'), tag: 'r-' + it.id, url: './'
+      }, last ? {} : doneBtn(it)));
+      if (r.sent > 0) nagSent++;
+    }
+
     let briefSent = false;
     if (brief) {
       st.briefDay = brief.ymd;   // auch wenn die App offen ist: dann macht sie das Briefing selbst
@@ -386,11 +552,13 @@ async function handleDue(req, res, redis) {
         briefSent = r.sent > 0;
       }
     }
-    // Aufräumen: Gesendet-Liste nur für Einträge, die es noch gibt oder die jünger als 2 Tage sind
+    // Aufräumen: nur Einträge behalten, die es noch gibt oder jünger als 2 Tage sind
     const ids = new Set(st.items.map(i => i.id));
-    for (const k of Object.keys(st.sent)) { if (!ids.has(k) && now - st.sent[k] > 2 * 86400000) delete st.sent[k]; }
+    for (const k of Object.keys(st.sent)) { const base = k.replace(/^d(?=[re])/, ''); if (!ids.has(k) && !ids.has(base) && now - st.sent[k] > 2 * 86400000) delete st.sent[k]; }
+    for (const k of Object.keys(st.dep)) { if (!ids.has(k)) delete st.dep[k]; }
+    for (const k of Object.keys(st.nag)) { if (!ids.has(k)) delete st.nag[k]; }
     await redis('SET', ITEMS_KEY, JSON.stringify(st));
-    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent });
+    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent });
   } catch (err) {
     return res.status(500).json({ error: 'Push-Fehler: ' + err.message });
   }
