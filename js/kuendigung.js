@@ -88,12 +88,15 @@
     function buildLetter(d, now) {
         now = now || new Date();
         const kind = kindOf(d.art);
-        const absender = [d.name || '[Ihr Name]'].concat(lines(d.adresse || '[Ihre Anschrift]'));
+        const absender = [d.name || '[Ihr Name]'].concat(lines(capWords(d.adresse) || '[Ihre Anschrift]'));
         const anbL = d.anbAdresse ? lines(d.anbAdresse) : ['[Anschrift des Anbieters]'];
         if (anbL.length && d.anbieter && norm(anbL[0]) === norm(d.anbieter)) anbL.shift();
         const empf = [d.anbieter || '[Anbieter]'].concat(anbL);
-        const ort = cityOf(d.adresse), datum = fmtDate(now);
-        const art = d.art ? ` (${d.art})` : '';
+        const ort = capWords(cityOf(d.adresse)), datum = fmtDate(now);
+        // Vertragsart nur in Klammern, wenn der Anbietername sie nicht schon enthält (easy Fitness + Fitnessstudio -> keine Klammer)
+        const anbN = norm(d.anbieter);
+        const redundant = !d.art || norm(d.art).split(' ').some(w => w.length >= 5 && anbN.includes(w.slice(0, 6)));
+        const art = redundant ? '' : ` (${d.art})`;
         const bei = d.anbieter ? ` bei ${d.anbieter}` : ' bei Ihnen';
         const nl = kind === 'vers' ? 'Versicherungsschein-/Vertragsnummer' : kind === 'miete' ? 'Mietvertragsnummer' : 'Kunden-/Vertragsnummer';
         const num = d.nummer ? ` mit der ${nl} ${d.nummer}` : '';
@@ -286,12 +289,13 @@
     /* ---------- Namensschreibweise (Schröter -> Schroeter) und Postleitzahl ---------- */
     const OE_RE = /(?:^|\s)(?:o\s?e\s?t?|oet)(?=\s|$)/;
     const OE_STRIP = /\s*(?:geschrieben\s+)?(?:mit\s+)?(?:o\s?e\s?t?|oet)\.?\s*$/i;
+    const capWords = x => String(x || '').replace(/(^|[\s\-])([a-zäöüß])/g, (m, a, b) => a + b.toUpperCase());
     function fixName(n) { return String(n || '').replace(/ö/g, 'oe').replace(/Ö/g, 'Oe'); }
     function plzText(raw) {
         const toks = String(raw || '').trim().split(/\s+/);
         let digits = '', k = 0;
         while (k < toks.length && digits.length < 5 && DIGITS[toks[k].toLowerCase()] !== undefined) digits += DIGITS[toks[k++].toLowerCase()];
-        return digits.length === 5 ? (digits + ' ' + toks.slice(k).join(' ')).trim() : clean(raw);
+        return digits.length === 5 ? (digits + ' ' + toks.slice(k).join(' ')).trim() : clean(raw);   // Großschreibung folgt in capWords
     }
 
     /* ---------- Menü: neue Kündigung oder gespeicherte ansehen ---------- */
@@ -418,22 +422,22 @@
                 else if (YES.test(t)) { d.name = p.name; d.adresse = p.adresse || ''; } else { S.step = 'name'; return next(); }
                 break;
             }
-            case 'name': d.name = OE_RE.test(t) ? fixName(txt.replace(OE_STRIP, '')) : txt; break;
+            case 'name': d.name = capWords(OE_RE.test(t) ? fixName(txt.replace(OE_STRIP, '')) : txt); break;
             case 'home':
                 if (YES.test(t)) d.adresse = S.homeVorschlag; else { S.step = 'adresse'; return ask('Wie lautet Ihre Anschrift? Straße, Hausnummer, Postleitzahl und Ort.'); }
                 break;
-            case 'adresse': d.adresse = txt; break;
-            case 'plz': if (!UNKNOWN.test(t)) d.adresse = d.adresse + ', ' + plzText(raw); break;
+            case 'adresse': d.adresse = capWords(txt); break;
+            case 'plz': if (!UNKNOWN.test(t)) d.adresse = d.adresse + ', ' + capWords(plzText(raw)); break;
             case 'zaehler': d.zaehler = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
             case 'objekt':
                 if (YES.test(t)) d.objekt = d.adresse; else { S.step = 'objekt2'; return ask('Wie lautet die Anschrift?'); }
                 break;
-            case 'objekt2': d.objekt = txt; break;
+            case 'objekt2': d.objekt = capWords(txt); break;
             case 'stand': d.stand = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
             case 'wechsel': d.wechsel = YES.test(t); break;
             case 'rufnr': d.rufnr = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
             case 'mitnahme': d.mitnahme = YES.test(t); break;
-            case 'anbAdresse': d.anbAdresse = UNKNOWN.test(t) ? '' : txt; break;
+            case 'anbAdresse': d.anbAdresse = UNKNOWN.test(t) ? '' : capWords(txt); break;
         }
         S.at = Date.now();
         next();
