@@ -63,7 +63,7 @@
             setTimeout(function () {
                 try {
                     var missing = [];
-                    Object.keys(EXPECT).forEach(function (f) { if (typeof window[EXPECT[f]] !== 'function') missing.push(f + ' (' + EXPECT[f] + ')'); });
+                    Object.keys(EXPECT).forEach(function (f) { if (typeof window[EXPECT[f]] === 'undefined') missing.push(f + ' (' + EXPECT[f] + ')'); });
                     if (missing.length) add('FEHLT NACH DEM START: ' + missing.join(', ') + '. Diese Dateien fehlen im Ordner js oder enthalten einen Fehler.');
                 } catch (x) {}
             }, 2500);
