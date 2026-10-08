@@ -15,6 +15,7 @@
     const MAX_ITEMS = 150;
     let lastHash = '';
     let timer = null;
+    let cfgTimer = null;
 
     function on() { try { return getPersistentData('jv_push', '') === '1'; } catch (e) { return false; } }
 
@@ -57,6 +58,40 @@
     }
     function schedule(ms) { clearTimeout(timer); timer = setTimeout(() => send(false), ms); }
 
+    /* ---------- Schichtplan und Strecke zur Arbeit (für die Briefing-Nachricht des Servers) ---------- */
+    const ROUTE_KEY = 'jv_push_route';   // { day, home, work, data } - einmal pro Tag und Adresspaar
+    let lastCfgHash = '';
+    function today() { try { return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }); } catch (e) { return ''; } }
+
+    async function routeToWork() {
+        try {
+            const home = (typeof homeAddress === 'string') ? homeAddress : '', work = (typeof workAddress === 'string') ? workAddress : '';
+            if (!home || !work || typeof geocodeAddress !== 'function' || typeof routeDurationSeconds !== 'function') return null;
+            let c = null;
+            try { c = JSON.parse(getPersistentData(ROUTE_KEY, '') || 'null'); } catch (e) {}
+            if (c && c.day === today() && c.home === home && c.work === work && c.data) return c.data;
+            const a = await geocodeAddress(home), b = await geocodeAddress(work);
+            if (!a || !b) return (c && c.home === home && c.work === work) ? c.data : null;
+            const r = await routeDurationSeconds(a.lat, a.lon, b.lat, b.lon);
+            if (!r) return (c && c.home === home && c.work === work) ? c.data : null;
+            const data = { fahrtMin: Math.round(r.seconds / 60), km: Math.round(r.meters / 1000), autobahnen: (r.autobahnen || []).slice(0, 2), from: { lat: a.lat, lon: a.lon }, to: { lat: b.lat, lon: b.lon } };
+            try { setPersistentData(ROUTE_KEY, JSON.stringify({ day: today(), home, work, data })); } catch (e) {}
+            return data;
+        } catch (e) { return null; }
+    }
+    async function sendConfig(force) {
+        try {
+            if (!on() || typeof apiFetch !== 'function') return;
+            let schicht = null;
+            try { const o = JSON.parse(getPersistentData('jv_schicht', '') || 'null'); if (o && typeof o.base === 'number') schicht = o; } catch (e) {}
+            const route = await routeToWork();
+            const body = { schicht, route, name: (typeof currentUserName === 'string') ? currentUserName : '' };
+            const hash = JSON.stringify(body);
+            if (!force && hash === lastCfgHash) return;
+            if (await post('push_config', body)) lastCfgHash = hash;
+        } catch (e) {}
+    }
+
     async function alive() {
         try {
             if (!on() || document.hidden || typeof apiFetch !== 'function') return;
@@ -70,6 +105,7 @@
         if (typeof original === 'function' && !original._pushsync) {
             const wrapped = function (key) {
                 try { if (key === 'helfer_reminders' || key === 'helfer_calendar_entries') schedule(4000); } catch (e) {}
+                try { if (key === 'jv_schicht' || key === 'helfer_work_address' || key === 'helfer_home_address') { clearTimeout(cfgTimer); cfgTimer = setTimeout(() => sendConfig(false), 4000); } } catch (e) {}
                 return original.apply(this, arguments);
             };
             wrapped._pushsync = true;
@@ -78,13 +114,13 @@
     } catch (e) {}
 
     setInterval(alive, 2 * 60 * 1000);          // Lebenszeichen alle 2 Minuten (Server rechnet 4,5 Minuten Toleranz)
-    setInterval(() => send(false), 10 * 60 * 1000);   // Google-Termine ändern sich auch ohne Speicherung: regelmäßig vergleichen
+    setInterval(() => { send(false); sendConfig(false); }, 10 * 60 * 1000);   // Google-Termine ändern sich auch ohne Speicherung: regelmäßig vergleichen
     document.addEventListener('visibilitychange', function () {
         if (!document.hidden) { alive(); schedule(3000); }
         else { try { if (on()) post('push_gone', {}, true).catch(() => {}); } catch (e) {} }   // App verlassen: ab jetzt schickt der Server
     });
-    setTimeout(() => { alive(); send(true); }, 20000);   // kurz nach dem Start
+    setTimeout(() => { alive(); send(true); sendConfig(true); }, 20000);   // kurz nach dem Start
 
-    window.jvPushSyncNow = () => send(true);
-    window._pushsyncTest = { build, send, alive };
+    window.jvPushSyncNow = () => { send(true); sendConfig(true); };
+    window._pushsyncTest = { build, send, alive, sendConfig, routeToWork };
 })();
