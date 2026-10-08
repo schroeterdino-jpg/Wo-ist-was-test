@@ -66,6 +66,9 @@ const HELP_TOPICS = [
         'Diese Woche Frühschicht / Nächste Woche Spätschicht (danach wechselt Jarvis jeden Montag von selbst)', 'Welche Schicht habe ich? / Welche Schicht habe ich nächste Woche?',
         'Das Briefing kommt von selbst: Frühschicht ab 3 Uhr 30, Spätschicht ab 12 Uhr, nur bei offener App, einmal am Tag', 'Briefing in der Spätschicht um 11 Uhr (Zeit ändern) / Wann kommt mein Briefing?',
         'Schicht-Briefing aus / Schicht-Briefing an', 'In der Frühschicht ist Jarvis von 21 Uhr 30 bis zur Briefing-Zeit still'] },
+    { key: 'routinen', icon: '🔁', title: 'Routinen', words: /routine|gelernt|gewohnheit/, examples: [
+        'Welche Routinen kennst du? / Was hast du gelernt?', 'Jarvis merkt sich still nur Art und Uhrzeit (nie den Inhalt), was du wann tust, und fragt dich höchstens einmal am Tag, ob er eine Routine merken soll',
+        'Antworte einfach Ja oder Nein', 'Vergiss die Routine Einkauf / Vergiss alle Routinen', 'Routinen aus / Routinen an'] },
     { key: 'brief', icon: '✉️', title: 'Brief fotografieren', words: /brief|rechnung|mahnung|bescheid|post|schreiben|amt|behörde|preiserhöhung|einladung/, examples: [
         'Brief fotografieren / Rechnung fotografieren / Ich habe Post bekommen (dann Karte antippen, Kamera öffnet sich)', 'Foto machen, dann "Werte den Brief aus" oder auf die Karte "Brief auswerten" tippen',
         'Rechnung oder Mahnung: Jarvis nennt Absender, Betrag und Zahlungsziel und fragt, ob er dich vorher erinnern soll',
