@@ -202,7 +202,7 @@
     function handle(text) {
         const t = norm(text);
         if (!t || t.length > 80) return false;
-        if (/^(?:zeig\w*|öffne|oeffne)\s+(?:mir\s+)?(?:die\s+|meine\s+)?konto[- ]?(?:meldung|meldungen|mails?)$/.test(t) || /^konto[- ]?meldungen?$/.test(t)) { openWin(); return true; }
+        if (/^(?:zeig\w*|öffne|oeffne)\s+(?:mir\s+)?(?:die\s+|meine\s+)?konto[- ]?(?:meldung|meldungen|mails?)$/.test(t) || /^konto[- ]?meldung(?:en)?$/.test(t)) { openWin(); return true; }
         if (/konto[- ]?(?:meldung|ansage|benachrichtigung|hinweis)/.test(t)) {
             if (/\b(aus|ausschalten|deaktivier\w*|abschalten|stopp?)\b/.test(t)) { lsSet(ON_KEY, '0'); say('Die Konto-Meldung ist ausgeschaltet.'); return true; }
             if (/\b(an|ein|einschalten|aktivier\w*|anschalten)\b/.test(t)) { lsSet(ON_KEY, '1'); say('Die Konto-Meldung ist eingeschaltet.'); schedule(FIRST_CHECK_MS); return true; }
