@@ -146,6 +146,26 @@ async function handlePush(action, req, res, redis) {
       await redis('SET', ITEMS_KEY, JSON.stringify(st));
       return res.status(200).json({ ok: true, count: items.length });
     }
+    if (action === 'push_config') {   // Schichtplan und Strecke zur Arbeit (nur Zahlen), für die Briefing-Nachricht
+      const st = await loadItems(redis);
+      const cfg = {};
+      const sc = body.schicht;
+      if (sc && Number.isFinite(sc.base) && (sc.shift === 'frueh' || sc.shift === 'spaet') && sc.times &&
+          Number.isFinite(sc.times.frueh) && Number.isFinite(sc.times.spaet)) {
+        cfg.schicht = { base: Math.round(sc.base), shift: sc.shift, auto: sc.auto !== false,
+          times: { frueh: Math.max(0, Math.min(1439, Math.round(sc.times.frueh))), spaet: Math.max(0, Math.min(1439, Math.round(sc.times.spaet))) } };
+      }
+      if (typeof body.name === 'string') cfg.name = body.name.replace(/[^\p{L}\p{N} .'-]/gu, '').slice(0, 40);
+      const rt = body.route;
+      if (rt && Number.isFinite(rt.fahrtMin) && rt.from && rt.to && [rt.from.lat, rt.from.lon, rt.to.lat, rt.to.lon].every(Number.isFinite)) {
+        cfg.route = { fahrtMin: Math.round(rt.fahrtMin), km: Number.isFinite(rt.km) ? Math.round(rt.km) : null,
+          autobahnen: (Array.isArray(rt.autobahnen) ? rt.autobahnen : []).filter(a => /^A\d{1,3}$/.test(String(a))).slice(0, 2),
+          from: { lat: rt.from.lat, lon: rt.from.lon }, to: { lat: rt.to.lat, lon: rt.to.lon } };
+      }
+      st.cfg = cfg;
+      await redis('SET', ITEMS_KEY, JSON.stringify(st));
+      return res.status(200).json({ ok: true, schicht: !!cfg.schicht, route: !!cfg.route });
+    }
     if (action === 'push_alive' || action === 'push_gone') {   // alive: App offen und sichtbar, dann spricht sie selbst; gone: App wurde verlassen
       const st = await loadItems(redis);
       st.alive = action === 'push_alive' ? Date.now() : 0;
@@ -180,6 +200,7 @@ async function loadItems(redis) {
   if (!Array.isArray(st.items)) st.items = [];
   if (!st.sent || typeof st.sent !== 'object') st.sent = {};
   if (typeof st.alive !== 'number') st.alive = 0;
+  if (!st.cfg || typeof st.cfg !== 'object') st.cfg = {};
   return st;
 }
 
@@ -209,6 +230,104 @@ function berlinClock(ms) {
   return new Date(ms).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
 }
 
+// --- Schicht-Briefing als Push (gleiche Rechnung wie js/schicht.js) ---
+const REF_MONDAY = Date.UTC(2024, 0, 1);
+const BRIEF_GRACE_MIN = 10;   // so lange nach der Briefing-Zeit wird die Nachricht noch geschickt (falls ein Zeitgeber-Lauf ausfällt)
+function berlinParts(ms) {
+  const p = {};
+  new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(new Date(ms)).forEach(x => { p[x.type] = x.value; });
+  return { ymd: p.year + '-' + p.month + '-' + p.day, y: +p.year, m: +p.month, d: +p.day, min: (+p.hour % 24) * 60 + (+p.minute) };
+}
+function weekNo(b) {
+  const t = Date.UTC(b.y, b.m - 1, b.d);
+  const dow = (new Date(t).getUTCDay() + 6) % 7;
+  return Math.round((t - dow * 86400000 - REF_MONDAY) / (7 * 86400000));
+}
+function shiftOfWeek(sc, w) { return (((w - sc.base) % 2) + 2) % 2 === 0 ? sc.shift : (sc.shift === 'frueh' ? 'spaet' : 'frueh'); }
+function spokenClock(min) { const h = Math.floor(min / 60), m = min % 60; return m ? h + ' Uhr ' + m : h + ' Uhr'; }
+
+function classifyWarning(w) {
+  const text = ((w.title || '') + ' ' + (w.description || []).join(' ')).toLowerCase();
+  if (/unfall/.test(text)) return 'Unfall';
+  if (/geisterfahrer|falschfahrer/.test(text)) return 'Falschfahrer-Warnung';
+  if (/liegengeblieben|pannenfahrzeug|panne\b/.test(text)) return 'Pannenfahrzeug';
+  if (/ladung|gegenstand auf der fahrbahn|hindernis/.test(text)) return 'Hindernis auf der Fahrbahn';
+  if (/glätte|glatteis|schnee|eisglätte/.test(text)) return 'Glätte';
+  if (/nebel|sichtbehinderung/.test(text)) return 'Nebel';
+  if (/vollsperr|gesperrt|sperrung/.test(text)) return 'Sperrung';
+  if (/baustelle|bauarbeiten/.test(text)) return 'Baustelle';
+  if (/verengung|fahrstreifen/.test(text)) return 'Fahrstreifenverengung';
+  if (/rückstau|stockend|zähfließend|stau\b/.test(text)) return 'Stau';
+  const icon = String(w.icon || '').trim();
+  if (icon === '101') return 'Gefahrenstelle';
+  if (icon === '123') return 'Baustelle';
+  if (icon === '250') return 'Sperrung';
+  if (icon === 'warnkegel') return 'Kurzzeitbaustelle';
+  return 'Verkehrsstörung';
+}
+
+/* Verkehrsmeldungen auf der Strecke. Gibt { geprueft: true/false, meldungen: [Text] } zurück; geprueft=false: Dienst nicht erreichbar, dann nichts behaupten. */
+async function checkStau(route) {
+  const roads = (route && route.autobahnen) || [];
+  if (!roads.length) return { geprueft: false, meldungen: [] };
+  const pad = 0.35;
+  const minLat = Math.min(route.from.lat, route.to.lat) - pad, maxLat = Math.max(route.from.lat, route.to.lat) + pad;
+  const minLon = Math.min(route.from.lon, route.to.lon) - pad, maxLon = Math.max(route.from.lon, route.to.lon) + pad;
+  const meldungen = []; let geprueft = 0;
+  const results = await Promise.all(roads.map(async road => {
+    try {
+      const r = await fetch('https://verkehr.autobahn.de/o/autobahn/' + road + '/services/warning', { signal: AbortSignal.timeout(5000) });
+      if (!r.ok) return null;
+      const j = await r.json();
+      return Array.isArray(j.warning) ? j.warning : [];
+    } catch (e) { return null; }
+  }));
+  results.forEach((warnings, i) => {
+    if (!warnings) return;
+    geprueft++;
+    const seen = [];
+    warnings.filter(w => {
+      const lat = w.coordinate && Number(w.coordinate.lat), lon = w.coordinate && Number(w.coordinate.long);
+      return isFinite(lat) && isFinite(lon) && lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+    }).forEach(w => {
+      const art = classifyWarning(w);
+      const kurz = String(w.title || '').split('|').pop().trim();
+      const name = kurz.split(/\s+[-–]\s+|,\s*/).pop().trim().toLowerCase();
+      if (seen.some(g => g.art === art && g.name === name)) return;   // dieselbe Stelle in beiden Richtungen nur einmal
+      seen.push({ art, name });
+      if (meldungen.length < 3) meldungen.push(roads[i] + (kurz ? ' ' + kurz : '') + ' (' + art + ')');
+    });
+  });
+  return { geprueft: geprueft > 0, meldungen };
+}
+
+async function buildBriefing(st, sh, now) {
+  const cfg = st.cfg || {};
+  const name = cfg.name ? ', ' + cfg.name : '';
+  const b = berlinParts(now);
+  const hour = Math.floor(b.min / 60);
+  const gruss = hour < 11 ? 'Guten Morgen' : (hour < 18 ? 'Guten Tag' : 'Guten Abend');
+  const art = sh === 'frueh' ? 'Frühschicht' : 'Spätschicht';
+  const parts = [];
+  if (sh === 'spaet') parts.push('Abfahrt gegen ' + spokenClock(cfg.schicht.times.spaet) + '.');
+  if (cfg.route && cfg.route.fahrtMin) parts.push('Die Fahrt zur Arbeit dauert etwa ' + cfg.route.fahrtMin + ' Minuten.');
+  if (cfg.route) {
+    const stau = await checkStau(cfg.route);
+    if (stau.meldungen.length) parts.push('Achtung auf der Strecke: ' + stau.meldungen.join('; ') + '.');
+    else if (stau.geprueft) parts.push('Keine Staumeldungen auf der Strecke.');
+  }
+  // Heute anstehend (Zeiten nach Berlin-Tag)
+  const heute = st.items.filter(it => it.at >= now && berlinParts(it.at).ymd === b.ymd);
+  const ev = heute.filter(i => i.k === 'e'), rem = heute.filter(i => i.k === 'r');
+  const teile = [];
+  if (ev.length) teile.push(ev.length + (ev.length === 1 ? ' Termin' : ' Termine') + ' (nächster ' + berlinClock(ev[0].at) + ' ' + ev[0].x + ')');
+  if (rem.length) teile.push(rem.length + (rem.length === 1 ? ' Erinnerung' : ' Erinnerungen'));
+  if (teile.length) parts.push('Heute: ' + teile.join(', ') + '.');
+  parts.push('Tippe für das Briefing.');
+  return { title: gruss + name + '. ' + art, body: parts.join(' '), tag: 'brief-' + b.ymd, url: './' };
+}
+
 async function handleDue(req, res, redis) {
   try {
     if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return res.status(500).json({ error: 'Server: VAPID-Schlüssel fehlen' });
@@ -227,7 +346,16 @@ async function handleDue(req, res, redis) {
         if (now >= lead && now < it.at) due.push(it);
       }
     }
-    if (!due.length) return res.status(200).json({ ok: true, due: 0 });
+    // Schicht-Briefing fällig? (einmal pro Tag, in [Zeit, Zeit + 10 min])
+    let brief = null;
+    const sc = st.cfg && st.cfg.schicht;
+    if (sc && sc.auto !== false) {
+      const bp = berlinParts(now);
+      const sh = shiftOfWeek(sc, weekNo(bp));
+      const at = sc.times[sh];
+      if (st.briefDay !== bp.ymd && bp.min >= at && bp.min <= at + BRIEF_GRACE_MIN) brief = { sh, ymd: bp.ymd };
+    }
+    if (!due.length && !brief) return res.status(200).json({ ok: true, due: 0 });
 
     // Sperre: nie zwei Läufe gleichzeitig (sonst käme alles doppelt)
     const lock = await redis('SET', 'alltags-helfer:pushlock', '1', 'NX', 'EX', '40');
@@ -249,11 +377,20 @@ async function handleDue(req, res, redis) {
       const r = await sendToAll(redis, data, payload);
       if (r.sent > 0) sent++;
     }
+    let briefSent = false;
+    if (brief) {
+      st.briefDay = brief.ymd;   // auch wenn die App offen ist: dann macht sie das Briefing selbst
+      if (!appOpen && data.subs.length) {
+        const payload = await buildBriefing(st, brief.sh, now);
+        const r = await sendToAll(redis, data, payload);
+        briefSent = r.sent > 0;
+      }
+    }
     // Aufräumen: Gesendet-Liste nur für Einträge, die es noch gibt oder die jünger als 2 Tage sind
     const ids = new Set(st.items.map(i => i.id));
     for (const k of Object.keys(st.sent)) { if (!ids.has(k) && now - st.sent[k] > 2 * 86400000) delete st.sent[k]; }
     await redis('SET', ITEMS_KEY, JSON.stringify(st));
-    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet });
+    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent });
   } catch (err) {
     return res.status(500).json({ error: 'Push-Fehler: ' + err.message });
   }
