@@ -408,7 +408,7 @@
         return true;
     }
     function handle(text) {
-        const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/(?:^|\s)focus/g, m => m.replace('focus', 'fokus'));   // die Spracherkennung schreibt oft "Focus" mit c
         if (!t || t.length > 60) return false;
         if (/(?:^|\s)(?:\w*zoom|fokus\w*|markier\w*|hervorheb\w*)/.test(t)) return handleZoom(t);
         if (OFF_RX.test(t)) { setMode(false, true); return true; }
