@@ -58,37 +58,70 @@
     /* ---------- Der Brief ---------- */
     function lines(s) { return String(s || '').split(/\s*[,;\n]\s*(?=\S)/).map(x => x.trim()).filter(Boolean); }
     function cityOf(addr) { const m = String(addr || '').match(/\b\d{5}\s+([A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß\-\s]*?)\s*$/); return m ? m[1].trim() : ''; }
+    function kindOf(art) {
+        const a = String(art || '').toLowerCase();
+        if (/strom|erdgas|\bgas|energie|fernwärme|fernwaerme/.test(a)) return 'energie';
+        if (/miet|wohnung/.test(a)) return 'miete';
+        if (/versicher/.test(a)) return 'vers';
+        if (/internet|dsl|handy|mobil|festnetz|telefon|glasfaser|kabel|sim\b|rufnummer/.test(a)) return 'telko';
+        return 'allg';
+    }
     function buildLetter(d, now) {
         now = now || new Date();
+        const kind = kindOf(d.art);
         const absender = [d.name || '[Ihr Name]'].concat(lines(d.adresse || '[Ihre Anschrift]'));
         const anbL = d.anbAdresse ? lines(d.anbAdresse) : ['[Anschrift des Anbieters]'];
         if (anbL.length && d.anbieter && norm(anbL[0]) === norm(d.anbieter)) anbL.shift();
         const empf = [d.anbieter || '[Anbieter]'].concat(anbL);
         const ort = cityOf(d.adresse), datum = fmtDate(now);
         const art = d.art ? ` (${d.art})` : '';
-        const num = d.nummer ? ` mit der Kunden-/Vertragsnummer ${d.nummer}` : '';
-        const betreff = `Kündigung meines Vertrags${art}${d.nummer ? ' – Kunden-/Vertragsnummer ' + d.nummer : ''}`;
+        const bei = d.anbieter ? ` bei ${d.anbieter}` : ' bei Ihnen';
+        const nl = kind === 'vers' ? 'Versicherungsschein-/Vertragsnummer' : kind === 'miete' ? 'Mietvertragsnummer' : 'Kunden-/Vertragsnummer';
+        const num = d.nummer ? ` mit der ${nl} ${d.nummer}` : '';
+        const obj = d.objekt ? String(d.objekt) : '';
+        let betreff;
+        if (kind === 'miete') betreff = `Kündigung des Mietverhältnisses${obj ? ' – Wohnung ' + obj : ''}${d.nummer ? ' – ' + nl + ' ' + d.nummer : ''}`;
+        else betreff = `Kündigung meines Vertrags${art}${d.anbieter ? ' bei ' + d.anbieter : ''}${d.nummer ? ' – ' + nl + ' ' + d.nummer : ''}`;
+        const teil = kind === 'miete' ? `das Mietverhältnis über die Wohnung${obj ? ' ' + obj : ''}${num}` : `meinen Vertrag${art}${bei}${num}`;
         const fruehest = 'zum nächstmöglichen Zeitpunkt';
         let satz;
-        if (d.modus === 'datum' && d.datum) satz = `hiermit kündige ich meinen Vertrag${art} bei Ihnen${num} ordentlich und fristgerecht zum ${d.datum}, hilfsweise zum nächstmöglichen Zeitpunkt.`;
+        if (d.modus === 'datum' && d.datum) satz = `hiermit kündige ich ${teil} ordentlich und fristgerecht zum ${d.datum}, hilfsweise zum nächstmöglichen Zeitpunkt.`;
         else if (d.modus === 'ausser') {
-            const preis = /preis|erhöhung|erhoehung|teurer/i.test(d.grund || '');
+            const preis = /preis|erhöhung|erhoehung|teurer|beitrag/i.test(d.grund || '');
+            const was = /beitrag/i.test(d.grund || '') ? 'Beitragserhöhung' : 'Preiserhöhung';
             satz = preis
-                ? `hiermit kündige ich meinen Vertrag${art} bei Ihnen${num} außerordentlich unter Berufung auf mein Sonderkündigungsrecht wegen der Preiserhöhung, hilfsweise ordentlich ${fruehest}.`
-                : `hiermit kündige ich meinen Vertrag${art} bei Ihnen${num} außerordentlich aus wichtigem Grund${d.grund ? ' (' + d.grund + ')' : ''}, hilfsweise ordentlich ${fruehest}.`;
-        } else satz = `hiermit kündige ich meinen Vertrag${art} bei Ihnen${num} ordentlich und fristgerecht ${fruehest}.`;
-        const ident = d.nummer ? '' : ' Der Vertrag läuft auf meinen Namen und die oben genannte Anschrift.';
+                ? `hiermit kündige ich ${teil} außerordentlich unter Berufung auf mein Sonderkündigungsrecht wegen der ${was}, hilfsweise ordentlich ${fruehest}.`
+                : `hiermit kündige ich ${teil} außerordentlich aus wichtigem Grund${d.grund ? ' (' + d.grund + ')' : ''}, hilfsweise ordentlich ${fruehest}.`;
+        } else satz = `hiermit kündige ich ${teil} ordentlich und fristgerecht ${fruehest}.`;
+        const ident = (d.nummer || d.zaehler || kind === 'miete') ? '' : ' Der Vertrag läuft auf meinen Namen und die oben genannte Anschrift.';
+        // Angaben je nach Vertragsart
+        const fakten = [];
+        if (kind === 'energie') {
+            if (obj) fakten.push('Verbrauchsstelle: ' + obj);
+            if (d.zaehler) fakten.push('Zählernummer: ' + d.zaehler);
+            if (d.stand) fakten.push('Zählerstand am ' + datum + ': ' + d.stand);
+        } else if (kind === 'telko' && d.rufnr) fakten.push('Rufnummer: ' + d.rufnr);
+        let schluss;
+        if (kind === 'miete') schluss = 'Bitte bestätigen Sie mir die Kündigung sowie das Ende des Mietverhältnisses schriftlich. Bitte nennen Sie mir außerdem einen Termin für die Wohnungsübergabe und teilen Sie mir mit, wann ich die Mietkaution zurückerhalte.';
+        else {
+            schluss = 'Bitte bestätigen Sie mir die Kündigung sowie das Vertragsende (Beendigungsdatum) innerhalb von 14 Tagen schriftlich.';
+            if (kind === 'energie') schluss += ' Bitte erstellen Sie nach Vertragsende die Schlussrechnung.' + (d.wechsel ? ' Mein neuer Versorger übernimmt die Belieferung und wird sich bei Ihnen melden.' : '');
+            else schluss += ' Eine erteilte Einzugsermächtigung widerrufe ich mit Wirkung zum Vertragsende.';
+            if (kind === 'telko' && d.mitnahme) schluss += ' Bitte geben Sie meine Rufnummer zur Mitnahme zu meinem neuen Anbieter frei.';
+            schluss += ' Bitte löschen Sie nach Vertragsende außerdem meine personenbezogenen Daten, soweit keine gesetzlichen Aufbewahrungspflichten bestehen.';
+        }
         return [
             absender.join('\n'), '',
             empf.join('\n'), '',
             (ort ? ort + ', ' : '') + datum, '',
             'Betreff: ' + betreff, '',
             'Sehr geehrte Damen und Herren,', '',
-            satz + ident, '',
-            'Bitte bestätigen Sie mir die Kündigung sowie das Vertragsende (Beendigungsdatum) innerhalb von 14 Tagen schriftlich. Bitte löschen Sie nach Vertragsende außerdem meine personenbezogenen Daten, soweit keine gesetzlichen Aufbewahrungspflichten bestehen.', '',
+            satz + ident, ''
+        ].concat(fakten.length ? [fakten.join('\n'), ''] : []).concat([
+            schluss, '',
             'Mit freundlichen Grüßen', '', '', '',
             '____________________', d.name || '[Ihr Name]'
-        ].join('\n');
+        ]).join('\n');
     }
 
     /* ---------- Eigene kleine PDF-Datei (nur Text, Schrift Helvetica, A4) ---------- */
@@ -227,6 +260,17 @@
         try { if (typeof window.pauseJarvisSphere === 'function') window.pauseJarvisSphere(); } catch (e) {}
     }
 
+    /* ---------- Namensschreibweise (Schröter -> Schroeter) und Postleitzahl ---------- */
+    const OE_RE = /(?:^|\s)(?:o\s?e\s?t?|oet)(?=\s|$)/;
+    const OE_STRIP = /\s*(?:geschrieben\s+)?(?:mit\s+)?(?:o\s?e\s?t?|oet)\.?\s*$/i;
+    function fixName(n) { return String(n || '').replace(/ö/g, 'oe').replace(/Ö/g, 'Oe'); }
+    function plzText(raw) {
+        const toks = String(raw || '').trim().split(/\s+/);
+        let digits = '', k = 0;
+        while (k < toks.length && digits.length < 5 && DIGITS[toks[k].toLowerCase()] !== undefined) digits += DIGITS[toks[k++].toLowerCase()];
+        return digits.length === 5 ? (digits + ' ' + toks.slice(k).join(' ')).trim() : clean(raw);
+    }
+
     /* ---------- Das Gespräch ---------- */
     let S = null;   // { step, d, at }
     const ART_RE = /vertrag|abo|abonnement|mitgliedschaft|versicherung|internet|handy|mobilfunk|strom|gas|fitness|dsl|tarif|zeitung|zeitschrift|streaming|netflix/i;
@@ -252,9 +296,10 @@
     function next() {
         const d = S.d, p = loadProfile();
         if (!d.anbieter) { S.step = 'anbieter'; return ask('Gerne. Bei welchem Anbieter möchten Sie kündigen?'); }
-        if (!d.art) { S.step = 'art'; return ask(`Um welchen Vertrag bei ${d.anbieter} geht es? Zum Beispiel Handyvertrag, Internet, Strom, Versicherung oder Fitnessstudio.`); }
-        if (d.nummer === undefined) { S.step = 'nummer'; return ask('Wie lautet Ihre Kunden- oder Vertragsnummer? Wenn Sie sie nicht zur Hand haben, sagen Sie: weiß ich nicht.'); }
-        if (!d.modusGeklaert) { S.step = 'modus'; return ask('Soll zum nächstmöglichen Zeitpunkt gekündigt werden, zu einem bestimmten Datum, oder außerordentlich, zum Beispiel wegen einer Preiserhöhung?'); }
+        if (!d.art) { S.step = 'art'; return ask(`Um welchen Vertrag bei ${d.anbieter} geht es? Zum Beispiel Handyvertrag, Internet, Strom, Gas, Versicherung, Miete oder Fitnessstudio.`); }
+        const kind = kindOf(d.art);
+        if (d.nummer === undefined) { S.step = 'nummer'; return ask(`Wie lautet Ihre ${kind === 'vers' ? 'Versicherungsschein- oder Vertragsnummer' : kind === 'miete' ? 'Mietvertragsnummer' : 'Kunden- oder Vertragsnummer'}? Wenn Sie sie nicht zur Hand haben, sagen Sie: weiß ich nicht.`); }
+        if (!d.modusGeklaert) { S.step = 'modus'; return ask('Soll zum nächstmöglichen Zeitpunkt gekündigt werden, zu einem bestimmten Datum, oder außerordentlich, zum Beispiel wegen einer ' + (kind === 'vers' ? 'Beitragserhöhung' : 'Preiserhöhung') + '?'); }
         if (d.modus === 'datum' && !d.datum) { S.step = 'datum'; return ask('Zu welchem Datum soll der Vertrag enden?'); }
         if (d.modus === 'ausser' && d.grund === undefined) { S.step = 'grund'; return ask('Was ist der Grund? Zum Beispiel Preiserhöhung, Umzug oder Leistungsmängel.'); }
         if (!d.name) {
@@ -266,6 +311,18 @@
             try { if (typeof window.resolvePersonalPlace === 'function') home = String(window.resolvePersonalPlace('zuhause') || ''); } catch (e) {}
             if (home && /\d/.test(home) && !S.homeGefragt) { S.homeGefragt = true; S.homeVorschlag = home; S.step = 'home'; return ask(`Ist das Ihre Anschrift: ${home}?`); }
             S.step = 'adresse'; return ask('Wie lautet Ihre Anschrift? Straße, Hausnummer, Postleitzahl und Ort.');
+        }
+        if (!S.plzGefragt && !/\b\d{5}\b/.test(d.adresse)) { S.plzGefragt = true; S.step = 'plz'; return ask('Wie lauten Postleitzahl und Ort dazu? Dann steht der Ort vor dem Datum im Brief.'); }
+        if (kind === 'energie') {
+            if (d.zaehler === undefined) { S.step = 'zaehler'; return ask('Wie lautet die Zählernummer? Sie steht auf dem Zähler oder auf der Rechnung. Wenn Sie sie nicht haben, sagen Sie: weiß ich nicht.'); }
+            if (d.objekt === undefined) { S.step = 'objekt'; return ask('Liegt die Verbrauchsstelle, also der Ort der Lieferung, an Ihrer Anschrift?'); }
+            if (d.stand === undefined) { S.step = 'stand'; return ask('Kennen Sie den aktuellen Zählerstand? Sonst sagen Sie: weiß ich nicht.'); }
+            if (d.wechsel === undefined) { S.step = 'wechsel'; return ask('Wechseln Sie zu einem neuen Anbieter?'); }
+        } else if (kind === 'miete') {
+            if (d.objekt === undefined) { S.step = 'objekt'; return ask('Liegt die gemietete Wohnung an Ihrer Anschrift?'); }
+        } else if (kind === 'telko') {
+            if (d.rufnr === undefined) { S.step = 'rufnr'; return ask('Wie lautet die Rufnummer des Vertrags? Sonst sagen Sie: weiß ich nicht.'); }
+            if (d.mitnahme === undefined) { S.step = 'mitnahme'; return ask('Möchten Sie Ihre Rufnummer zu einem neuen Anbieter mitnehmen?'); }
         }
         if (d.anbAdresse === undefined) { S.step = 'anbAdresse'; return ask('Kennen Sie die Kündigungsadresse des Anbieters? Sagen Sie sie mir, oder sagen Sie: weiß ich nicht. Dann lasse ich eine Lücke, und Sie können im Fenster nach der Adresse suchen.'); }
         finish();
@@ -287,9 +344,10 @@
             case 'nummer': d.nummer = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
             case 'modus': {
                 const dt = parseDateText(raw);
-                if (/außerordentlich|ausserordentlich|sonderk|sonder|preiserh|fristlos|wichtig/.test(t)) {
+                if (/außerordentlich|ausserordentlich|sonderk|sonder|preiserh|beitragserh|fristlos|wichtig/.test(t)) {
                     d.modus = 'ausser'; d.modusGeklaert = true;
-                    if (/preiserh|preis|teurer/.test(t)) d.grund = 'Preiserhöhung';
+                    if (/beitrag/.test(t)) d.grund = 'Beitragserhöhung';
+                    else if (/preiserh|preis|teurer/.test(t)) d.grund = 'Preiserhöhung';
                 } else if (dt) { d.modus = 'datum'; d.datum = dt; d.modusGeklaert = true; }
                 else if (/datum|bestimmt|ende|zum\b.*\d/.test(t) && !/nächst|naechst|früh|frueh|schnellst/.test(t)) { d.modus = 'datum'; d.modusGeklaert = true; }
                 else { d.modus = 'naechst'; d.modusGeklaert = true; }
@@ -303,14 +361,25 @@
             case 'grund': d.grund = UNKNOWN.test(t) ? '' : txt; break;
             case 'profil': {
                 const p = loadProfile();
-                if (YES.test(t)) { d.name = p.name; d.adresse = p.adresse || ''; } else { S.step = 'name'; return next(); }
+                if (OE_RE.test(t)) { p.name = fixName(p.name); saveProfile(p); d.name = p.name; d.adresse = p.adresse || ''; }
+                else if (YES.test(t)) { d.name = p.name; d.adresse = p.adresse || ''; } else { S.step = 'name'; return next(); }
                 break;
             }
-            case 'name': d.name = txt; break;
+            case 'name': d.name = OE_RE.test(t) ? fixName(txt.replace(OE_STRIP, '')) : txt; break;
             case 'home':
                 if (YES.test(t)) d.adresse = S.homeVorschlag; else { S.step = 'adresse'; return ask('Wie lautet Ihre Anschrift? Straße, Hausnummer, Postleitzahl und Ort.'); }
                 break;
             case 'adresse': d.adresse = txt; break;
+            case 'plz': if (!UNKNOWN.test(t)) d.adresse = d.adresse + ', ' + plzText(raw); break;
+            case 'zaehler': d.zaehler = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
+            case 'objekt':
+                if (YES.test(t)) d.objekt = d.adresse; else { S.step = 'objekt2'; return ask('Wie lautet die Anschrift?'); }
+                break;
+            case 'objekt2': d.objekt = txt; break;
+            case 'stand': d.stand = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
+            case 'wechsel': d.wechsel = YES.test(t); break;
+            case 'rufnr': d.rufnr = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
+            case 'mitnahme': d.mitnahme = YES.test(t); break;
             case 'anbAdresse': d.anbAdresse = UNKNOWN.test(t) ? '' : txt; break;
         }
         S.at = Date.now();
@@ -326,6 +395,12 @@
                 answer(text); return true;
             }
         }
+        if (t.length <= 70 && /\bname\w*\b/.test(t) && OE_RE.test(t)) {
+            const p = loadProfile();
+            if (!p.name) { say('Ich habe noch keinen Namen gespeichert. Sagen Sie ihn bei der nächsten Kündigung, dann schreibe ich ihn mit oe.'); return true; }
+            p.name = fixName(p.name); saveProfile(p);
+            say(`In Ordnung. Ich schreibe Ihren Namen künftig so: ${p.name}.`); return true;
+        }
         if (LAST_RE.test(t)) {
             const l = loadLast();
             if (!l) { say('Ich habe noch keine Kündigung gespeichert.'); return true; }
@@ -337,7 +412,7 @@
     }
 
     window.handleKuendigungCommand = handle;
-    window.__kuendTest = { loadLast, saveLast, parseNumber, parseDateText, buildLetter, makePdf, isStart, state: () => S, wrap: wrapLine };
+    window.__kuendTest = { kindOf, fixName, plzText, loadLast, saveLast, parseNumber, parseDateText, buildLetter, makePdf, isStart, state: () => S, wrap: wrapLine };
 
     let lastHooked = null;
     function hook() {
