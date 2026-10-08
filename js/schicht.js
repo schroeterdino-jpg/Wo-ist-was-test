@@ -87,10 +87,23 @@
         const sh = shiftToday(st);
         const o = { art: NAME[sh] };
         if (sh === 'spaet') o.abfahrt = 'gegen ' + spoken(st.times.spaet);
+        window.__schichtStauCards = null;
         try {
-            if (typeof wachterDriveMinutes === 'function' && typeof workAddress === 'string' && workAddress) {
-                const m = await Promise.race([wachterDriveMinutes(workAddress), new Promise(r => setTimeout(() => r(null), 6000))]);
-                if (m) o.fahrzeit_zur_arbeit_minuten = m;
+            if (typeof workAddress === 'string' && workAddress) {
+                // Route zur Arbeit samt Verkehrslage auf den Autobahnen (travel.js); höchstens 14 Sekunden warten
+                let d = null;
+                if (typeof fetchRouteMapData === 'function') {
+                    d = await Promise.race([fetchRouteMapData(workAddress), new Promise(r => setTimeout(() => r(null), 14000))]);
+                }
+                if (d && d.fahrtMin) {
+                    o.fahrzeit_zur_arbeit_minuten = d.fahrtMin;
+                    const satz = (typeof lastStauText === 'string') ? lastStauText.trim() : '';
+                    if (satz) o.stau_auf_der_strecke = satz;
+                    if (typeof lastStauCards !== 'undefined' && lastStauCards.length) window.__schichtStauCards = lastStauCards.slice();
+                } else if (typeof wachterDriveMinutes === 'function') {
+                    const m = await Promise.race([wachterDriveMinutes(workAddress), new Promise(r => setTimeout(() => r(null), 6000))]);
+                    if (m) o.fahrzeit_zur_arbeit_minuten = m;
+                }
             }
         } catch (e) {}
         return o;

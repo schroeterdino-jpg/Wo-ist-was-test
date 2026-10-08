@@ -9,6 +9,7 @@ const TRAVEL_BUFFER_MINUTES = 10;   // Puffer, damit man nicht auf die Minute ge
 
 // Daten der zuletzt berechneten Route, damit die HUD-Karte sie ohne zweite Abfrage zeichnen kann
 let lastStauWarnings = [];
+let lastStauText = '';     // der zuletzt gesprochene Satz zur Verkehrslage auf der Strecke (siehe describeAutobahnStau; fürs Schicht-Briefing)
 let lastRouteMapData = null;
 let lastWebcamCards = [];   // Webcam-Bildkarten der zuletzt berechneten Route (siehe describeAutobahnStau)
 let lastStauCards = [];     // Verkehrsmeldungs-Karten der zuletzt berechneten Route (siehe describeAutobahnStau)
@@ -504,6 +505,7 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
     lastStauWarnings = [];
     lastWebcamCards = [];
     lastStauCards = [];
+    lastStauText = '';
     if (!autobahnen || autobahnen.length === 0) return '';
     // Grober Fahrschlauch um Start und Ziel, mit etwas Puffer für Umwege - nur Meldungen darin sind wirklich relevant
     const padding = 0.35;   // ca. 30-35 km, verhindert genau den Fehler "A1 bei Köln" auf einer Fahrt in Schleswig-Holstein
@@ -572,8 +574,8 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
             });
         });
     }
-    if (meldungen.length > 0) return ' Achtung, auf der Strecke aktuell gemeldet: ' + meldungen.join('; ') + '.';
-    if (geprueft.length > 0) return ` Auf der ${geprueft.join(' und ')} sind aktuell keine Staumeldungen bekannt.`;
+    if (meldungen.length > 0) return (lastStauText = ' Achtung, auf der Strecke aktuell gemeldet: ' + meldungen.join('; ') + '.');
+    if (geprueft.length > 0) return (lastStauText = ` Auf der ${geprueft.join(' und ')} sind aktuell keine Staumeldungen bekannt.`);
     return '';
 }
 
