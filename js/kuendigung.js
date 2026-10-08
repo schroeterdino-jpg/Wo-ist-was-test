@@ -126,7 +126,7 @@
         let schluss;
         if (kind === 'miete') schluss = 'Bitte bestätigen Sie mir die Kündigung sowie das Ende des Mietverhältnisses schriftlich. Bitte nennen Sie mir außerdem einen Termin für die Wohnungsübergabe und teilen Sie mir mit, wann ich die Mietkaution zurückerhalte.';
         else {
-            schluss = 'Bitte bestätigen Sie mir die Kündigung sowie das Vertragsende (Beendigungsdatum) innerhalb von 14 Tagen schriftlich.';
+            schluss = 'Bitte bestätigen Sie mir die Kündigung sowie das Datum des Vertragsendes innerhalb von 14 Tagen schriftlich.';
             if (kind === 'energie') schluss += ' Bitte erstellen Sie nach Vertragsende die Schlussrechnung.' + (d.wechsel ? ' Mein neuer Versorger übernimmt die Belieferung und wird sich bei Ihnen melden.' : '');
             else schluss += ' Eine erteilte Einzugsermächtigung widerrufe ich mit Wirkung zum Vertragsende.';
             if (kind === 'telko' && d.mitnahme) schluss += ' Bitte geben Sie meine Rufnummer zur Mitnahme zu meinem neuen Anbieter frei.';
