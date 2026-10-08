@@ -53,11 +53,33 @@
         return res.ok;
     }
 
+    /* Orte der Termine mit der App-eigenen Ortssuche finden (gleiche wie bei Fahrzeit) und dem Server mitgeben */
+    const GEO_KEY = 'jv_push_geo';
+    async function addGeo(items) {
+        try {
+            if (typeof geocodeDestination !== 'function') return;
+            let cache = {}; try { cache = JSON.parse(getPersistentData(GEO_KEY, '') || '{}') || {}; } catch (e) {}
+            let lookups = 0, changed = false;
+            for (const it of items) {
+                if (!it.l) continue;
+                const key = it.l.toLowerCase();
+                let g = cache[key];
+                if (!g && lookups < 4) {
+                    lookups++;
+                    try { const f = await geocodeDestination(it.l, ''); if (f && isFinite(f.lat) && isFinite(f.lon)) { g = cache[key] = { lat: Math.round(f.lat * 1e5) / 1e5, lon: Math.round(f.lon * 1e5) / 1e5 }; changed = true; } } catch (e) {}
+                }
+                if (g) it.g = g;
+            }
+            if (changed) { const keys = Object.keys(cache); if (keys.length > 40) keys.slice(0, keys.length - 40).forEach(k => delete cache[k]); try { setPersistentData(GEO_KEY, JSON.stringify(cache)); } catch (e) {} }
+        } catch (e) {}
+    }
+
     async function send(force) {
         try {
             if (!on() || typeof apiFetch !== 'function') return;
             const items = build();
-            const hash = JSON.stringify(items.map(i => [i.id, i.at, i.x, i.l || '', i.i || 0]));
+            await addGeo(items);
+            const hash = JSON.stringify(items.map(i => [i.id, i.at, i.x, i.l || '', i.i || 0, i.g ? 1 : 0]));
             if (!force && hash === lastHash) return;
             const res = await apiFetch('/api/sync?action=push_items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
             if (res.ok) {
