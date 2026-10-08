@@ -469,6 +469,32 @@
         return true;
     }
 
+    /* ---------- Eintrag im ☰-Menü (ohne panels.js zu ändern: buildMenuPanel wird umwickelt) ---------- */
+    function hookMenu() {
+        try {
+            if (typeof window.buildMenuPanel !== 'function' || window.buildMenuPanel.__kd) return;
+            const orig = window.buildMenuPanel;
+            const wrapped = function () {
+                const r = orig.apply(this, arguments);
+                try {
+                    if (r && typeof r.html === 'string' && r.html.indexOf('kuendigungMenu') < 0) {
+                        const n = loadList().length;
+                        const sub = n ? (n === 1 ? '1 gespeicherte, neue schreiben' : n + ' gespeicherte, neue schreiben') : 'Brief schreiben, als PDF speichern oder drucken';
+                        const btn = '<button class="panel-row w-full flex items-center gap-3 text-left bg-black/60 border border-[rgba(73,215,255,.2)] rounded-lg p-3 mb-2" style="--i:11" onclick="playUiBeep(); closePanel(); window.kuendigungMenu()">' +
+                            '<span class="text-2xl">✉️</span><span class="flex-1"><b class="block text-[#49d7ff] text-sm">Kündigungen</b><span class="text-xs text-slate-400">' + sub + '</span></span><span class="text-[#49d7ff]">›</span></button>';
+                        const m = r.html.match(/<button[^>]*openPanel\('planer'\)/);
+                        r.html = m ? r.html.replace(m[0], btn + m[0]) : r.html.replace(/<\/div>\s*$/, btn + '</div>');
+                    }
+                } catch (e) { console.error('Kündigung Menü', e); }
+                return r;
+            };
+            wrapped.__kd = true;
+            window.buildMenuPanel = wrapped;
+        } catch (e) {}
+    }
+    hookMenu();
+    [800, 3000].forEach(ms => setTimeout(hookMenu, ms));
+
     window.handleKuendigungCommand = handle;
     window.kuendigungMenu = openMenu;
     window.__kuendTest = { openMenu, loadList, kindOf, fixName, plzText, loadLast, saveLast, parseNumber, parseDateText, buildLetter, makePdf, isStart, state: () => S, wrap: wrapLine };
