@@ -62,6 +62,9 @@ const HELP_TOPICS = [
         'Was läuft heute Abend im Fernsehen?', 'Wo ist mein Paket?', 'Wann hat der Baumarkt heute auf?', 'Was läuft heute Abend im Kino in Hamburg?'] },
     { key: 'briefing', icon: '🌅', title: 'Briefing & Protokolle', words: /briefing|protokoll/, examples: [
         'Erwähne im Briefing immer, wo mein Ladekabel ist', 'Starte Protokoll Feierabend', 'Lege ein Protokoll Morgen an: Wetter und Fahrzeit zur Arbeit'] },
+    { key: 'konto', icon: '🏦', title: 'Konto-Meldung', words: /konto|bank|überweisung|gutschrift|lastschrift|abbuchung|umsatz|eingang/, examples: [
+        'Jarvis sagt von selbst an, wenn deine Bank dir eine Mail zu einer Kontobewegung schickt (Eingang, Abbuchung, Kontoauszug), nur bei offener App', 'Prüf mal mein Konto (schaut sofort nach neuen Bank-Mails)',
+        'Meine Bank ist die Sparkasse Lauenburg (damit er deren Mails erkennt)', 'Welche Banken überwachst du?', 'Konto-Meldung aus / Konto-Meldung an'] },
     { key: 'kuendigung', icon: '✉️', title: 'Kündigung schreiben', words: /kündigung|kuendigung|kündigen|kuendigen|vertrag|abo\b|mitgliedschaft/, examples: [
         'Schreib mir eine Kündigung (Jarvis fragt: Anbieter, Vertrag, Kunden-/Vertragsnummer, Zeitpunkt, Name und Anschrift)', 'Kündigung für Vodafone aufsetzen', 'Ich möchte meinen Vertrag kündigen',
         'Zeig die letzte Kündigung', 'Zeig meine Kündigungen (die letzten 5 bleiben gespeichert, auch per Tipp auf Kündigung in der Kugel-Ansicht)', 'Im Fenster: Text ändern, PDF speichern, Drucken, Kopieren, Adresse suchen', 'Abbrechen (beendet die Fragen)'] },
