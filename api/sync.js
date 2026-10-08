@@ -62,6 +62,23 @@ export default async function handler(req, res) {
     if (!b0 || !t0) return res.status(500).json({ error: 'Server: Speicher fehlt' });
     return handleDue(req, res, makeRedis(b0, t0));
   }
+  // --- Prüfansicht für dich: zeigt, was der Server über Standort und Abfahrtszeiten weiß (nur mit PUSH_CRON_KEY) ---
+  if (String((req.query && req.query.action) || '') === 'push_info') {
+    const cs = process.env.PUSH_CRON_KEY;
+    if (!cs || String((req.query && req.query.key) || '') !== cs) return res.status(401).json({ error: 'Nicht erlaubt' });
+    const b0 = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+    const t0 = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+    if (!b0 || !t0) return res.status(500).json({ error: 'Server: Speicher fehlt' });
+    try {
+      const st = await loadItems(makeRedis(b0, t0)); const now = Date.now();
+      const min = ts => ts ? Math.round((now - ts) / 60000) + ' Min. her' : 'nie';
+      return res.status(200).json({
+        appOffen: now - st.alive < ALIVE_MS, lebenszeichen: min(st.alive), standort: st.loc ? min(st.loc.ts) : 'keiner gemeldet',
+        zuhauseRoute: !!(st.cfg && st.cfg.route),
+        termine: st.items.filter(i => i.k === 'e').map(i => ({ text: i.x, in_min: Math.round((i.at - now) / 60000), mitOrt: !!i.l, strecke: st.dep[i.id] ? (st.dep[i.id].fail ? 'Fehler: ' + st.dep[i.id].fail : { fahrtMin: st.dep[i.id].fahrtMin, stauMin: st.dep[i.id].stauMin || 0, ab: st.dep[i.id].quelle }) : 'noch nicht berechnet', gesendet: !!st.sent[i.id] }))
+      });
+    } catch (e) { return res.status(500).json({ error: 'Fehler' }); }
+  }
   // --- Schutz: nur die App mit dem richtigen Code darf hier lesen oder schreiben ---
   const expected = process.env.APP_SECRET;
   if (!expected) return res.status(500).json({ error: 'Server: APP_SECRET fehlt' });
