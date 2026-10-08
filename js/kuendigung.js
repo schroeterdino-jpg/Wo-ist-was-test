@@ -96,7 +96,7 @@
         // Vertragsart nur in Klammern, wenn der Anbietername sie nicht schon enthält (easy Fitness + Fitnessstudio -> keine Klammer)
         const anbN = norm(d.anbieter);
         const redundant = !d.art || norm(d.art).split(' ').some(w => w.length >= 5 && anbN.includes(w.slice(0, 6)));
-        const art = redundant ? '' : ` (${d.art})`;
+        const art = '';   // keine Klammer mit der Vertragsart im Brief (Anbieter und Nummer genügen)
         const bei = d.anbieter ? ` bei ${d.anbieter}` : ' bei Ihnen';
         const nl = kind === 'vers' ? 'Versicherungsschein-/Vertragsnummer' : kind === 'miete' ? 'Mietvertragsnummer' : 'Kunden-/Vertragsnummer';
         const num = d.nummer ? ` mit der ${nl} ${d.nummer}` : '';
