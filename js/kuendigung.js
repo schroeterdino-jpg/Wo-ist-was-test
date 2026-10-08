@@ -108,7 +108,7 @@
         const obj = d.objekt ? String(d.objekt) : '';
         let betreff;
         if (kind === 'miete') betreff = `Kündigung des Mietverhältnisses${obj ? ' – Wohnung ' + obj : ''}${d.nummer ? ' – ' + nl + ' ' + d.nummer : ''}`;
-        else betreff = `Kündigung meines Vertrags${art}${d.anbieter ? ' bei ' + d.anbieter : ''}${d.nummer ? ' – ' + nl + ' ' + d.nummer : ''}`;
+        else betreff = `Kündigung${d.nummer ? ', ' + nl + ' ' + d.nummer : ' meines Vertrags' + (d.anbieter ? ' bei ' + d.anbieter : '')}`;
         const teil = kind === 'miete' ? `das Mietverhältnis über die Wohnung${obj ? ' ' + obj : ''}${num}` : `den mit Ihnen bestehenden Vertrag${numK}`;
         const fruehest = 'zum nächstmöglichen Zeitpunkt';
         let satz;
@@ -402,7 +402,7 @@
         if (!S.plzGefragt && !/\b\d{5}\b/.test(d.adresse)) { S.plzGefragt = true; S.step = 'plz'; return ask('Wie lauten Postleitzahl und Ort dazu? Dann steht der Ort vor dem Datum im Brief.'); }
         if (d.tel === undefined) { const pt = p.tel || (p.kontakt && !/@/.test(p.kontakt) ? p.kontakt : ''); if (pt) d.tel = pt; else { S.step = 'tel'; return ask('Wie lautet Ihre Telefonnummer? Der Anbieter kann Sie dann bei Rückfragen erreichen. Sonst sagen Sie: weiß ich nicht, dann lasse ich eine Zeile zum Ausfüllen frei.'); } }
         if (d.email === undefined) { const pe = p.email || (p.kontakt && /@/.test(p.kontakt) ? p.kontakt : ''); if (pe) d.email = mailFix(pe); else { S.step = 'email'; return ask('Wie lautet Ihre E-Mail-Adresse? Dorthin kann der Anbieter die Bestätigung schicken. Sonst sagen Sie: weiß ich nicht.'); } }
-        if (d.geb === undefined) { if (p.geb !== undefined) d.geb = p.geb; else { S.step = 'geb'; return ask('Wie lautet Ihr Geburtsdatum? Manche Anbieter brauchen es, um Sie zu finden. Sonst sagen Sie: weiß ich nicht.'); } }
+        if (d.geb === undefined) { if (p.geb !== undefined && (p.geb === '' || /^\d{2}\.\d{2}\.\d{4}$/.test(p.geb))) d.geb = p.geb; else { S.step = 'geb'; return ask('Wie lautet Ihr Geburtsdatum? Manche Anbieter brauchen es, um Sie zu finden. Sonst sagen Sie: weiß ich nicht.'); } }
         if (d.versand === undefined) { S.step = 'versand'; return ask('Wie schicken Sie den Brief ab: per Einschreiben, per E-Mail oder mit normaler Post? Einschreiben ist am sichersten.'); }
         if (kind === 'energie') {
             if (d.zaehler === undefined) { S.step = 'zaehler'; return ask('Wie lautet die Zählernummer? Sie steht auf dem Zähler oder auf der Rechnung. Wenn Sie sie nicht haben, sagen Sie: weiß ich nicht.'); }
