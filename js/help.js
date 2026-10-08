@@ -62,6 +62,10 @@ const HELP_TOPICS = [
         'Was läuft heute Abend im Fernsehen?', 'Wo ist mein Paket?', 'Wann hat der Baumarkt heute auf?', 'Was läuft heute Abend im Kino in Hamburg?'] },
     { key: 'briefing', icon: '🌅', title: 'Briefing & Protokolle', words: /briefing|protokoll/, examples: [
         'Erwähne im Briefing immer, wo mein Ladekabel ist', 'Starte Protokoll Feierabend', 'Lege ein Protokoll Morgen an: Wetter und Fahrzeit zur Arbeit'] },
+    { key: 'schicht', icon: '🕒', title: 'Schicht und Briefing', words: /schicht|frühschicht|spätschicht|früh|spät|dienstplan|briefing/, examples: [
+        'Diese Woche Frühschicht / Nächste Woche Spätschicht (danach wechselt Jarvis jeden Montag von selbst)', 'Welche Schicht habe ich? / Welche Schicht habe ich nächste Woche?',
+        'Das Briefing kommt von selbst: Frühschicht ab 3 Uhr 30, Spätschicht ab 12 Uhr, nur bei offener App, einmal am Tag', 'Briefing in der Spätschicht um 11 Uhr (Zeit ändern) / Wann kommt mein Briefing?',
+        'Schicht-Briefing aus / Schicht-Briefing an', 'In der Frühschicht ist Jarvis von 21 Uhr 30 bis zur Briefing-Zeit still'] },
     { key: 'brief', icon: '✉️', title: 'Brief fotografieren', words: /brief|rechnung|mahnung|bescheid|post|schreiben|amt|behörde|preiserhöhung|einladung/, examples: [
         'Brief fotografieren / Rechnung fotografieren / Ich habe Post bekommen (dann Karte antippen, Kamera öffnet sich)', 'Foto machen, dann "Werte den Brief aus" oder auf die Karte "Brief auswerten" tippen',
         'Rechnung oder Mahnung: Jarvis nennt Absender, Betrag und Zahlungsziel und fragt, ob er dich vorher erinnern soll',

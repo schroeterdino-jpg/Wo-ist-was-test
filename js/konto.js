@@ -29,7 +29,10 @@
     function addLog(entry) { const l = loadLog(); l.unshift(entry); lsSet(LOG_KEY, JSON.stringify(l.slice(0, 5))); }
     const allBanks = () => BASE_BANKS.concat(ownBanks());
     function say(t) { try { speak(t, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) { console.error('Konto-Meldung', e); } }
-    function quiet() { const h = new Date().getHours(); return h >= QUIET_FROM || h < QUIET_TO; }
+    function quiet() {
+        try { if (typeof window.jvSchichtQuiet === 'function') { const q = window.jvSchichtQuiet(); if (typeof q === 'boolean') return q; } } catch (e) {}   // Frühschicht-Tage: eigene Ruhezeit (schicht.js)
+        const h = new Date().getHours(); return h >= QUIET_FROM || h < QUIET_TO;
+    }
     function busy() {
         try {
             if (typeof document !== 'undefined' && document.hidden) return true;

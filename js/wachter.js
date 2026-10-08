@@ -41,7 +41,12 @@ function wachterBerlinHour() {
     const h = parseInt(new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin', hour: 'numeric', hour12: false }), 10);
     return isNaN(h) ? new Date().getHours() : h;
 }
-function wachterQuiet() { const h = wachterBerlinHour(); return h >= WACHTER_QUIET_FROM || h < WACHTER_QUIET_TO; }
+function wachterQuiet() {
+    try {   // an Frühschicht-Tagen gilt eine andere Ruhezeit (schicht.js); undefined = normale Ruhezeit
+        if (typeof window.jvSchichtQuiet === 'function') { const q = window.jvSchichtQuiet(); if (typeof q === 'boolean') return q; }
+    } catch (e) {}
+    const h = wachterBerlinHour(); return h >= WACHTER_QUIET_FROM || h < WACHTER_QUIET_TO;
+}
 function wachterDayKey() { return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }); }
 
 /* Was heute schon gemeldet wurde (überlebt einen App-Neustart am selben Tag) */

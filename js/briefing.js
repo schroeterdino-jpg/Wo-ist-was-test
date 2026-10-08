@@ -442,7 +442,9 @@ async function composeBriefingWithModel(data) {
     "3b. Geburtstage: Steht etwas in 'geburtstage' (Liste mit 'titel' und 'tag'), erwähne die Geburtstage herzlich und natürlich in einem Satz, zum Beispiel 'Übrigens: Morgen hat Julia Geburtstag, vielleicht eine kleine Gratulation?' oder 'Heute hat Peter Geburtstag.'. Der 'titel' kann 'Julias Geburtstag' oder nur ein Name sein; mache daraus einen natürlichen Satz und nenne den Tag so, wie er in 'tag' steht. Ist die Liste leer, sag dazu gar nichts.\n" +
     "4. Wünsche & Gegenstände: Wenn wichtige Gegenstände (Schlüssel, Portemonnaie etc.) oder Wünsche in den Daten stehen, erinnere ihn daran so, wie es ein aufmerksamer Assistent beim Verlassen des Hauses tun würde. Formuliere vollständige, harmonische Sätze mit passenden Präpositionen (z. B. 'Bevor Sie gehen: Ihr Schlüssel liegt wie gewohnt in der Schublade').\n" +
     "4b. Dieselpreis: Ist 'dieselpreis' vorhanden (nicht null), nenne den aktuellen Preis und die Tankstelle beiläufig in einem natürlichen Satz (z. B. 'Der günstigste Diesel in Ihrer Nähe kostet aktuell 1,679 Euro bei der Aral in der Lauenburger Straße'). Ist 'wunsch_dieselpreis_angefordert' true, aber 'dieselpreis' null, erwähne kurz, dass der aktuelle Preis gerade nicht abrufbar war. Ist 'wunsch_dieselpreis_angefordert' false, sag dazu gar nichts.\n" +
-    "5. Parkplatz: Wenn ein Parkplatz angegeben ist, erwähne beiläufig, wo der Wagen steht. Wenn nicht ('parkplatz' ist null), verliere KEIN EINZIGES WORT darüber.\n\n" +
+    "5. Parkplatz: Wenn ein Parkplatz angegeben ist, erwähne beiläufig, wo der Wagen steht. Wenn nicht ('parkplatz' ist null), verliere KEIN EINZIGES WORT darüber.\n" +
+    "6. Schicht: Steht etwas in 'schicht', nenne die heutige Schicht kurz und natürlich (z. B. 'Sie haben heute Frühschicht.' oder 'Heute steht die Spätschicht an, Abfahrt gegen 12 Uhr.'). Ist 'fahrzeit_zur_arbeit_minuten' vorhanden, nenne die Fahrzeit zur Arbeit ungefähr in Minuten. Bei 'Frühschicht': Er ist gerade aufgestanden, konzentriere dich auf die Fahrt zur Arbeit (Wetter unterwegs, Jacke) und danach auf das Wichtigste des Tages. Bei 'Spätschicht': Er fährt bald los, nenne was er vor der Abfahrt wissen oder mitnehmen sollte und das Wetter für die Fahrt. Erfinde nichts, was nicht in den Daten steht. Steht nichts in 'schicht', verliere kein Wort darüber.\n" +
+    "7. Schluss: Beende das Briefing ohne Frage und ohne Smalltalk (keine Sätze wie 'Kann ich noch etwas für Sie tun?'). Bleib kurz und sachlich, lass Unwichtiges weg.\n\n" +
     "Sprach-Regeln:\n" +
     "- Uhrzeiten immer exakt in 24-Stunden-Zählung nennen (z. B. '16 Uhr 17'), niemals runden, aber natürlich einbetten.\n" +
     "- Vermeide hölzerne Aufzählungen oder stakkatoartige Abfolgen. Verbinde die Informationen mit natürlichen Übergängen ('Übrigens', 'Werfen wir einen Blick auf Ihren Tag', 'Was Ihre Termine angeht').\n" +
@@ -488,6 +490,7 @@ function stripUnwantedParkingRemark(text) {
 
 function buildFallbackBriefing(data) {
     let text = `${data.begruessung}, ${data.name}. Es ist ${data.uhrzeit_gesprochen}. `;
+    if (data.schicht && data.schicht.art) text += `Heute haben Sie ${data.schicht.art}${data.schicht.abfahrt ? ', Abfahrt ' + data.schicht.abfahrt : ''}${data.schicht.fahrzeit_zur_arbeit_minuten ? ', die Fahrt zur Arbeit dauert etwa ' + data.schicht.fahrzeit_zur_arbeit_minuten + ' Minuten' : ''}. `;
 
     if (data.wetter) {
         const w = data.wetter;
@@ -625,6 +628,11 @@ async function triggerDailyBriefing() {
             }
         } catch (e) { data.geburtstage = []; }
 
+        // Schicht und Fahrzeit zur Arbeit (schicht.js); ein Fehler dort lässt sie einfach weg
+        try {
+            if (typeof window.jvSchichtInfo === 'function') data.schicht = await window.jvSchichtInfo();
+        } catch (e) {}
+
         typeWriterStatus("Stelle Briefing zusammen...");
         let text = await composeBriefingWithModel(data);
         if (!text) text = buildFallbackBriefing(data);
@@ -636,7 +644,7 @@ async function triggerDailyBriefing() {
         chatHistory.push({ role: "assistant", content: JSON.stringify({ type: "chat", reply: text }) });
 
         typeWriterStatus("Klicken zum Sprechen...");
-        speak(text, continueConversation);
+        speak(text);   // ohne continueConversation: nach dem Briefing hört Jarvis nicht von selbst weiter zu (keine Rückfrage)
         learnFromConversations();
     } finally {
         stopThinkingSound();
