@@ -1,0 +1,347 @@
+/* ============================================================
+   KÜNDIGUNG SCHREIBEN: "Schreib mir eine Kündigung" startet ein kurzes Gespräch. Jarvis fragt nacheinander:
+   Anbieter, Art des Vertrags, Kunden-/Vertragsnummer, Kündigung zum nächstmöglichen Zeitpunkt / zu einem Datum / außerordentlich (mit Grund),
+   Name und Anschrift (werden fürs nächste Mal gemerkt) und die Kündigungsadresse des Anbieters (ohne Angabe bleibt eine Lücke).
+   Danach steht der Brief in einem Fenster: Text lässt sich ändern, "PDF speichern" (richtige PDF-Datei), "Drucken", "Kopieren",
+   "Adresse suchen" (Google-Suche nach der Kündigungsadresse des Anbieters).
+   Sprache: "Schreib mir eine Kündigung", "Ich möchte meinen Vertrag kündigen", "Kündigung für Vodafone aufsetzen". Abbrechen: "Abbrechen" / "Stopp".
+   Eigenständig; muss nach localcommands.js geladen werden. Ein Entwurf, keine Rechtsberatung: Jarvis sagt, dass Adresse und Frist zu prüfen sind.
+   ============================================================ */
+(function () {
+    const PROFILE_KEY = 'jv_kuend_profil';
+    const norm = s => String(s || '').toLowerCase().replace(/[.,!?;:"„“]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const clean = s => String(s || '').replace(/\s+/g, ' ').replace(/^[\s.,;:!?„“"]+|[\s,;:!?„“"]+$/g, '').trim();
+    function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    function loadProfile() { try { const p = JSON.parse(lsGet(PROFILE_KEY) || '{}'); return (p && typeof p === 'object') ? p : {}; } catch (e) { return {}; } }
+    function saveProfile(p) { lsSet(PROFILE_KEY, JSON.stringify(p)); }
+    function say(m) { try { speak(m, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} }
+
+    /* ---------- Hilfsfunktionen für gesprochene Antworten ---------- */
+    const YES = /^(?:ja|jawohl|jep|genau|stimmt|richtig|passt|korrekt|gerne|klar|okay|ok|mach das|das stimmt|so ist es)\b/;
+    const NO = /^(?:nein|nee|falsch|nicht ganz|stimmt nicht|anders)\b/;
+    const UNKNOWN = /^(?:weiß ich nicht|weiss ich nicht|keine ahnung|nicht zur hand|habe ich nicht|hab ich nicht|kenne ich nicht|nicht bekannt|keine|weiß nicht|unbekannt|später|spaeter|egal|lass offen|offen lassen)\b/;
+    const CANCEL = /^(?:abbrechen|abbruch|stopp|stop|vergiss es|lass es|lass das|doch nicht|vergiss das|schluss)\b/;
+
+    const DIGITS = { null: '0', eins: '1', ein: '1', zwei: '2', zwo: '2', drei: '3', vier: '4', fünf: '5', fuenf: '5', sechs: '6', sieben: '7', acht: '8', neun: '9' };
+    const NUM_FILLER = /^(?:die|der|das|ist|meine|mein|kundennummer|kunden|vertragsnummer|vertrags|nummer|lautet|und|also|ähm|äh|buchstabe|bindestrich|strich)$/;
+    function parseNumber(text) {
+        const toks = String(text || '').toLowerCase().replace(/[,;:!?„“"]+/g, ' ').split(/\s+/).filter(Boolean)
+            .map(t => DIGITS[t] !== undefined ? DIGITS[t] : t).filter(t => !NUM_FILLER.test(t));
+        if (!toks.length) return '';
+        if (toks.length > 1 && toks.every(t => /^[0-9a-zäöüß\-\/]{1,8}$/.test(t))) return toks.join('').toUpperCase();
+        return toks.join(' ').toUpperCase();
+    }
+
+    const MONTHS = { januar: 1, jänner: 1, februar: 2, märz: 3, maerz: 3, april: 4, mai: 5, juni: 6, juli: 7, august: 8, september: 9, oktober: 10, november: 11, dezember: 12 };
+    const pad = n => String(n).padStart(2, '0');
+    function fmtDate(d) { return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`; }
+    function parseDateText(text, now) {
+        now = now || new Date();
+        const t = String(text || '').toLowerCase().replace(/[,!?;:"„“]+/g, ' ').replace(/\s+/g, ' ').trim();
+        let day = 0, mon = 0, yr = 0, m;
+        if ((m = t.match(/(\d{1,2})\s*\.\s*(\d{1,2})\s*\.?\s*(\d{4}|\d{2})?(?!\d)/))) { day = +m[1]; mon = +m[2]; yr = m[3] ? +m[3] : 0; }
+        else if ((m = t.match(/(\d{1,2})\s*\.?\s*(januar|jänner|februar|märz|maerz|april|mai|juni|juli|august|september|oktober|november|dezember)\s*(\d{4})?/))) { day = +m[1]; mon = MONTHS[m[2]]; yr = m[3] ? +m[3] : 0; }
+        else if (/jahresende|ende (?:des|dieses|diesen) jahres|ende jahr|zum jahresende/.test(t)) { day = 31; mon = 12; yr = now.getFullYear(); }
+        else if (/ende (?:des|dieses|diesen|nächsten|naechsten) monats|monatsende|ende monat/.test(t)) {
+            const next = /nächst|naechst/.test(t); const base = new Date(now.getFullYear(), now.getMonth() + (next ? 2 : 1), 0);
+            return fmtDate(base);
+        }
+        if (!day || !mon || day > 31 || mon > 12) return null;
+        if (yr && yr < 100) yr += 2000;
+        if (!yr) { yr = now.getFullYear(); if (new Date(yr, mon - 1, day) < new Date(now.getFullYear(), now.getMonth(), now.getDate())) yr++; }
+        return `${pad(day)}.${pad(mon)}.${yr}`;
+    }
+
+    /* ---------- Der Brief ---------- */
+    function lines(s) { return String(s || '').split(/\s*[,;\n]\s*(?=\S)/).map(x => x.trim()).filter(Boolean); }
+    function cityOf(addr) { const m = String(addr || '').match(/\b\d{5}\s+([A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß\-\s]*?)\s*$/); return m ? m[1].trim() : ''; }
+    function buildLetter(d, now) {
+        now = now || new Date();
+        const absender = [d.name || '[Ihr Name]'].concat(lines(d.adresse || '[Ihre Anschrift]'));
+        const anbL = d.anbAdresse ? lines(d.anbAdresse) : ['[Anschrift des Anbieters]'];
+        if (anbL.length && d.anbieter && norm(anbL[0]) === norm(d.anbieter)) anbL.shift();
+        const empf = [d.anbieter || '[Anbieter]'].concat(anbL);
+        const ort = cityOf(d.adresse), datum = fmtDate(now);
+        const art = d.art ? ` (${d.art})` : '';
+        const num = d.nummer ? ` mit der Kunden-/Vertragsnummer ${d.nummer}` : '';
+        const betreff = `Kündigung meines Vertrags${art}${d.nummer ? ' – Kunden-/Vertragsnummer ' + d.nummer : ''}`;
+        const fruehest = 'zum nächstmöglichen Zeitpunkt';
+        let satz;
+        if (d.modus === 'datum' && d.datum) satz = `hiermit kündige ich meinen Vertrag${art} bei Ihnen${num} ordentlich und fristgerecht zum ${d.datum}, hilfsweise zum nächstmöglichen Zeitpunkt.`;
+        else if (d.modus === 'ausser') {
+            const preis = /preis|erhöhung|erhoehung|teurer/i.test(d.grund || '');
+            satz = preis
+                ? `hiermit kündige ich meinen Vertrag${art} bei Ihnen${num} außerordentlich unter Berufung auf mein Sonderkündigungsrecht wegen der Preiserhöhung, hilfsweise ordentlich ${fruehest}.`
+                : `hiermit kündige ich meinen Vertrag${art} bei Ihnen${num} außerordentlich aus wichtigem Grund${d.grund ? ' (' + d.grund + ')' : ''}, hilfsweise ordentlich ${fruehest}.`;
+        } else satz = `hiermit kündige ich meinen Vertrag${art} bei Ihnen${num} ordentlich und fristgerecht ${fruehest}.`;
+        const ident = d.nummer ? '' : ' Der Vertrag läuft auf meinen Namen und die oben genannte Anschrift.';
+        return [
+            absender.join('\n'), '',
+            empf.join('\n'), '',
+            (ort ? ort + ', ' : '') + datum, '',
+            'Betreff: ' + betreff, '',
+            'Sehr geehrte Damen und Herren,', '',
+            satz + ident, '',
+            'Bitte bestätigen Sie mir die Kündigung sowie das Vertragsende (Beendigungsdatum) innerhalb von 14 Tagen schriftlich. Bitte löschen Sie nach Vertragsende außerdem meine personenbezogenen Daten, soweit keine gesetzlichen Aufbewahrungspflichten bestehen.', '',
+            'Mit freundlichen Grüßen', '', '', '',
+            '____________________', d.name || '[Ihr Name]'
+        ].join('\n');
+    }
+
+    /* ---------- Eigene kleine PDF-Datei (nur Text, Schrift Helvetica, A4) ---------- */
+    const HW = { 32: 278, 33: 278, 34: 355, 35: 556, 36: 556, 37: 889, 38: 667, 39: 191, 40: 333, 41: 333, 42: 389, 43: 584, 44: 278, 45: 333, 46: 278, 47: 278, 58: 278, 59: 278, 60: 584, 61: 584, 62: 584, 63: 556, 64: 1015,
+        65: 667, 66: 667, 67: 722, 68: 722, 69: 667, 70: 611, 71: 778, 72: 722, 73: 278, 74: 500, 75: 667, 76: 556, 77: 833, 78: 722, 79: 778, 80: 667, 81: 778, 82: 722, 83: 667, 84: 611, 85: 722, 86: 667, 87: 944, 88: 667, 89: 667, 90: 611,
+        91: 278, 92: 278, 93: 278, 94: 469, 95: 556, 96: 333, 97: 556, 98: 556, 99: 500, 100: 556, 101: 556, 102: 278, 103: 556, 104: 556, 105: 222, 106: 222, 107: 500, 108: 222, 109: 833, 110: 556, 111: 556, 112: 556, 113: 556, 114: 333, 115: 500, 116: 278, 117: 556, 118: 500, 119: 722, 120: 500, 121: 500, 122: 500, 123: 334, 124: 260, 125: 334, 126: 584 };
+    for (let c = 48; c <= 57; c++) HW[c] = 556;
+    function pdfByte(ch) {
+        const c = ch.charCodeAt(0);
+        if (c === 0x20AC) return 0x80;
+        if (c === 0x2013 || c === 0x2014) return 0x2D;
+        if (c === 0x201E || c === 0x201C || c === 0x201D) return 0x22;
+        if (c === 0x2018 || c === 0x2019) return 0x27;
+        if (c < 256) return c;
+        return 0x3F;
+    }
+    function glyphWidth(ch) {
+        const c = pdfByte(ch);
+        if (HW[c]) return HW[c];
+        if (c === 0x80) return 556;
+        if (c === 0xDF) return 611;
+        if (c === 0xC4 || c === 0xC0 || c === 0xC1 || c === 0xC2) return 667;
+        if (c === 0xD6) return 778;
+        if (c === 0xDC) return 722;
+        return 556;
+    }
+    function textWidth(s, size) { let w = 0; for (const ch of s) w += glyphWidth(ch); return w * size / 1000; }
+    function wrapLine(line, size, maxW) {
+        if (!line) return [''];
+        const out = []; let cur = '';
+        line.split(' ').forEach(word => {
+            const test = cur ? cur + ' ' + word : word;
+            if (textWidth(test, size) <= maxW || !cur) cur = test; else { out.push(cur); cur = word; }
+        });
+        out.push(cur);
+        return out;
+    }
+    function makePdf(text) {
+        const W = 595, H = 842, ML = 72, MT = 780, MB = 72, SIZE = 11, LEAD = 15, maxW = W - ML * 2;
+        const pages = [[]]; let y = MT;
+        String(text).replace(/\r/g, '').split('\n').forEach(src => {
+            wrapLine(src, SIZE, maxW).forEach(l => {
+                if (y < MB) { pages.push([]); y = MT; }
+                pages[pages.length - 1].push({ l, y }); y -= LEAD;
+            });
+        });
+        const esc = s => { let o = ''; for (const ch of s) { const b = pdfByte(ch); const c = String.fromCharCode(b); o += (c === '(' || c === ')' || c === '\\') ? '\\' + c : c; } return o; };
+        const objs = [];
+        const n = pages.length;   // Objekte: 1 Katalog, 2 Seitenbaum, 3 Schrift, dann je Seite: Seite (4+2i) und Inhalt (5+2i)
+        objs[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+        objs[2] = `<< /Type /Pages /Kids [${pages.map((_, i) => `${4 + 2 * i} 0 R`).join(' ')}] /Count ${n} >>`;
+        objs[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+        pages.forEach((pg, i) => {
+            const body = 'BT\n/F1 ' + SIZE + ' Tf\n' + pg.map(o => `1 0 0 1 ${ML} ${o.y} Tm (${esc(o.l)}) Tj`).join('\n') + '\nET';
+            objs[4 + 2 * i] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R >> >> /Contents ${5 + 2 * i} 0 R >>`;
+            objs[5 + 2 * i] = `<< /Length ${body.length} >>\nstream\n${body}\nendstream`;
+        });
+        let out = '%PDF-1.4\n'; const offs = [];
+        for (let i = 1; i < objs.length; i++) { offs[i] = out.length; out += `${i} 0 obj\n${objs[i]}\nendobj\n`; }
+        const xref = out.length;
+        out += `xref\n0 ${objs.length}\n0000000000 65535 f \n` + offs.slice(1).map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('');
+        out += `trailer\n<< /Size ${objs.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+        const bytes = new Uint8Array(out.length);
+        for (let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 255;
+        return bytes;
+    }
+
+    /* ---------- Fenster ---------- */
+    let el = null, lastData = null;
+    function ensureStyle() {
+        if (document.getElementById('kdStyle')) return;
+        const st = document.createElement('style');
+        st.id = 'kdStyle';
+        st.textContent =
+            '#jvKuend{position:fixed;inset:0;z-index:92;background:rgba(4,9,15,.98);color:#d9e9f2;display:flex;flex-direction:column;font-family:"Rajdhani",sans-serif;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}' +
+            '#jvKuend .kd-head{padding:16px 18px 6px;text-align:center}' +
+            '#jvKuend .kd-title{font:700 17px "Orbitron",sans-serif;letter-spacing:.14em;color:#49d7ff}' +
+            '#jvKuend .kd-sub{font:500 12px "IBM Plex Mono",monospace;color:#7fb8cf;margin-top:4px}' +
+            '#jvKuend textarea{flex:1 1 auto;margin:8px 14px;padding:12px;border-radius:10px;border:1px solid rgba(93,209,255,.3);background:#fff;color:#111;font:15px/1.45 "Rajdhani",Arial,sans-serif;resize:none;min-height:0}' +
+            '#jvKuend .kd-bar{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:6px 14px 14px}' +
+            '#jvKuend .kd-btn{padding:11px 6px;border-radius:10px;border:1px solid rgba(93,209,255,.4);background:rgba(10,22,33,.95);color:#49d7ff;font:700 12px "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase}' +
+            '#jvKuend .kd-btn.primary{background:rgba(73,215,255,.2);color:#fff}' +
+            '#jvKuendPrint{display:none}' +
+            '@media print{body.jv-kuend-print>*:not(#jvKuendPrint){display:none!important}body.jv-kuend-print #jvKuendPrint{display:block!important;position:static!important;background:#fff;color:#000;white-space:pre-wrap;font:12pt/1.45 Arial,sans-serif;padding:0}}';
+        document.head.appendChild(st);
+    }
+    function closeWin() {
+        if (el) { try { el.remove(); } catch (e) {} el = null; }
+        try { document.body.classList.remove('panel-open'); } catch (e) {}
+        try { if (typeof window.resumeJarvisSphere === 'function') window.resumeJarvisSphere(); } catch (e) {}
+    }
+    function fileName() { return 'Kuendigung_' + String((lastData && lastData.anbieter) || 'Vertrag').replace(/[^A-Za-z0-9ÄÖÜäöüß]+/g, '_').replace(/^_|_$/g, '') + '.pdf'; }
+    function savePdf(text) {
+        try {
+            const bytes = makePdf(text), blob = new Blob([bytes], { type: 'application/pdf' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = fileName();
+            document.body.appendChild(a); a.click();
+            setTimeout(() => { try { URL.revokeObjectURL(a.href); a.remove(); } catch (e) {} }, 4000);
+            return true;
+        } catch (e) { console.error('Kündigung PDF', e); return false; }
+    }
+    function printText(text) {
+        let box = document.getElementById('jvKuendPrint');
+        if (!box) { box = document.createElement('div'); box.id = 'jvKuendPrint'; document.body.appendChild(box); }
+        box.textContent = text;
+        document.body.classList.add('jv-kuend-print');
+        const done = () => { document.body.classList.remove('jv-kuend-print'); window.removeEventListener('afterprint', done); };
+        window.addEventListener('afterprint', done);
+        setTimeout(() => { try { window.print(); } catch (e) { done(); } setTimeout(done, 60000); }, 150);
+    }
+    function openWin(text, data) {
+        ensureStyle(); closeWin(); lastData = data;
+        const mk = (p, tag, cls, txt) => { const x = document.createElement(tag); if (cls) x.className = cls; if (txt !== undefined) x.textContent = txt; p.appendChild(x); return x; };
+        el = document.createElement('div'); el.id = 'jvKuend';
+        const head = mk(el, 'div', 'kd-head');
+        mk(head, 'div', 'kd-title', 'KÜNDIGUNG');
+        mk(head, 'div', 'kd-sub', 'Entwurf: Text lässt sich hier ändern');
+        const ta = mk(el, 'textarea'); ta.value = text; ta.spellcheck = false;
+        const bar = mk(el, 'div', 'kd-bar');
+        const note = txt => { try { say(txt); } catch (e) {} };
+        mk(bar, 'button', 'kd-btn primary', '📄 PDF speichern').addEventListener('click', () => { note(savePdf(ta.value) ? 'Die PDF-Datei wurde gespeichert. Sie finden sie bei den Downloads.' : 'Das PDF konnte nicht erstellt werden.'); });
+        mk(bar, 'button', 'kd-btn primary', '🖨️ Drucken').addEventListener('click', () => printText(ta.value));
+        mk(bar, 'button', 'kd-btn', '📋 Kopieren').addEventListener('click', () => {
+            const ok = () => note('Der Text ist kopiert.');
+            try { navigator.clipboard.writeText(ta.value).then(ok, () => { ta.select(); document.execCommand('copy'); ok(); }); } catch (e) { try { ta.select(); document.execCommand('copy'); ok(); } catch (x) {} }
+        });
+        mk(bar, 'button', 'kd-btn', '🔎 Adresse suchen').addEventListener('click', () => {
+            const q = encodeURIComponent(((data && data.anbieter) || '') + ' Kündigung Adresse Kündigungsschreiben');
+            window.open('https://www.google.com/search?q=' + q, '_blank');
+        });
+        mk(bar, 'button', 'kd-btn', 'Schließen').addEventListener('click', closeWin).style.gridColumn = '1 / -1';
+        document.body.appendChild(el);
+        try { document.body.classList.add('panel-open'); } catch (e) {}
+        try { if (typeof window.pauseJarvisSphere === 'function') window.pauseJarvisSphere(); } catch (e) {}
+    }
+
+    /* ---------- Das Gespräch ---------- */
+    let S = null;   // { step, d, at }
+    const ART_RE = /vertrag|abo|abonnement|mitgliedschaft|versicherung|internet|handy|mobilfunk|strom|gas|fitness|dsl|tarif|zeitung|zeitschrift|streaming|netflix/i;
+    const START_1 = /\bk(?:ü|ue)ndigung(?:en|sschreiben)?\b.*\b(?:schreib\w*|verfass\w*|aufsetz\w*|erstell\w*|entwirf\w*|entwerf\w*|formulier\w*|vorbereit\w*)\b/;
+    const START_2 = /\b(?:schreib\w*|verfass\w*|setz\w*|erstell\w*|entwirf\w*|entwerf\w*|formulier\w*|brauch\w*|will|möchte|moechte|mach\w*|bereite)\b.*\bk(?:ü|ue)ndigung\b/;
+    const START_3 = /\b(?:ich )?(?:will|möchte|moechte|muss|würde gerne)\b.*\b(?:vertrag|abo|abonnement|mitgliedschaft|versicherung|handyvertrag|internetvertrag|stromvertrag)\b.*\bk(?:ü|ue)ndigen\b/;
+
+    function isStart(t) { return t.length <= 100 && (START_1.test(t) || START_2.test(t) || START_3.test(t)); }
+    function prefill(raw, d) {
+        const m = String(raw || '').match(/.*\b(?:bei|für|fuer|an|von)\s+(?:den |die |das |meinen |meine |mein |meinem |meiner |dem |der |einem |einer )?(.+?)\s*(?:schreiben|aufsetzen|verfassen|erstellen|kündigen)?\s*$/i);
+        if (!m) return;
+        const g = clean(m[1]);
+        if (!g || /^(?:mir|uns|mich|dich|dir|eine|einen|ein)$/i.test(g)) return;
+        if (ART_RE.test(g) && !d.art) d.art = g; else if (!ART_RE.test(g)) d.anbieter = g;
+    }
+    function start(raw) {
+        S = { step: 'anbieter', d: { modus: 'naechst' }, at: Date.now() };
+        prefill(raw, S.d);
+        next();
+    }
+    function ask(q) { say(q); }
+    function next() {
+        const d = S.d, p = loadProfile();
+        if (!d.anbieter) { S.step = 'anbieter'; return ask('Gerne. Bei welchem Anbieter möchten Sie kündigen?'); }
+        if (!d.art) { S.step = 'art'; return ask(`Um welchen Vertrag bei ${d.anbieter} geht es? Zum Beispiel Handyvertrag, Internet, Strom, Versicherung oder Fitnessstudio.`); }
+        if (d.nummer === undefined) { S.step = 'nummer'; return ask('Wie lautet Ihre Kunden- oder Vertragsnummer? Wenn Sie sie nicht zur Hand haben, sagen Sie: weiß ich nicht.'); }
+        if (!d.modusGeklaert) { S.step = 'modus'; return ask('Soll zum nächstmöglichen Zeitpunkt gekündigt werden, zu einem bestimmten Datum, oder außerordentlich, zum Beispiel wegen einer Preiserhöhung?'); }
+        if (d.modus === 'datum' && !d.datum) { S.step = 'datum'; return ask('Zu welchem Datum soll der Vertrag enden?'); }
+        if (d.modus === 'ausser' && d.grund === undefined) { S.step = 'grund'; return ask('Was ist der Grund? Zum Beispiel Preiserhöhung, Umzug oder Leistungsmängel.'); }
+        if (!d.name) {
+            if (p.name && !S.profilGefragt) { S.profilGefragt = true; S.step = 'profil'; return ask(`Als Absender nehme ich ${p.name}${p.adresse ? ', ' + p.adresse : ''}. Stimmt das?`); }
+            S.step = 'name'; return ask('Auf welchen Namen läuft der Vertrag? Bitte Vor- und Nachname.');
+        }
+        if (!d.adresse) {
+            let home = '';
+            try { if (typeof window.resolvePersonalPlace === 'function') home = String(window.resolvePersonalPlace('zuhause') || ''); } catch (e) {}
+            if (home && /\d/.test(home) && !S.homeGefragt) { S.homeGefragt = true; S.homeVorschlag = home; S.step = 'home'; return ask(`Ist das Ihre Anschrift: ${home}?`); }
+            S.step = 'adresse'; return ask('Wie lautet Ihre Anschrift? Straße, Hausnummer, Postleitzahl und Ort.');
+        }
+        if (d.anbAdresse === undefined) { S.step = 'anbAdresse'; return ask('Kennen Sie die Kündigungsadresse des Anbieters? Sagen Sie sie mir, oder sagen Sie: weiß ich nicht. Dann lasse ich eine Lücke, und Sie können im Fenster nach der Adresse suchen.'); }
+        finish();
+    }
+    function finish() {
+        const d = S.d; S = null;
+        saveProfile(Object.assign(loadProfile(), { name: d.name, adresse: d.adresse }));
+        const text = buildLetter(d);
+        openWin(text, d);
+        const luecke = !d.anbAdresse ? ' Die Anschrift des Anbieters fehlt noch, tragen Sie sie im Fenster ein oder tippen Sie auf Adresse suchen.' : '';
+        say(`Die Kündigung an ${d.anbieter} ist fertig.${luecke} Bitte prüfen Sie Adresse, Nummer und Kündigungsfrist. Sie können den Text im Fenster ändern, als PDF speichern oder drucken. Name und Anschrift merke ich mir für das nächste Mal.`);
+    }
+
+    function answer(raw) {
+        const t = norm(raw), d = S.d, txt = clean(raw);
+        switch (S.step) {
+            case 'anbieter': d.anbieter = txt.replace(/^(?:bei|von|an|der|die|das)\s+/i, ''); break;
+            case 'art': d.art = txt.replace(/^(?:ein|eine|einen|mein|meine|meinen|der|die|das)\s+/i, ''); break;
+            case 'nummer': d.nummer = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
+            case 'modus': {
+                const dt = parseDateText(raw);
+                if (/außerordentlich|ausserordentlich|sonderk|sonder|preiserh|fristlos|wichtig/.test(t)) {
+                    d.modus = 'ausser'; d.modusGeklaert = true;
+                    if (/preiserh|preis|teurer/.test(t)) d.grund = 'Preiserhöhung';
+                } else if (dt) { d.modus = 'datum'; d.datum = dt; d.modusGeklaert = true; }
+                else if (/datum|bestimmt|ende|zum\b.*\d/.test(t) && !/nächst|naechst|früh|frueh|schnellst/.test(t)) { d.modus = 'datum'; d.modusGeklaert = true; }
+                else { d.modus = 'naechst'; d.modusGeklaert = true; }
+                break;
+            }
+            case 'datum': {
+                const dt = parseDateText(raw);
+                if (!dt) { say('Das Datum habe ich nicht verstanden. Sagen Sie es bitte so: 31. Dezember 2026.'); return; }
+                d.datum = dt; break;
+            }
+            case 'grund': d.grund = UNKNOWN.test(t) ? '' : txt; break;
+            case 'profil': {
+                const p = loadProfile();
+                if (YES.test(t)) { d.name = p.name; d.adresse = p.adresse || ''; } else { S.step = 'name'; return next(); }
+                break;
+            }
+            case 'name': d.name = txt; break;
+            case 'home':
+                if (YES.test(t)) d.adresse = S.homeVorschlag; else { S.step = 'adresse'; return ask('Wie lautet Ihre Anschrift? Straße, Hausnummer, Postleitzahl und Ort.'); }
+                break;
+            case 'adresse': d.adresse = txt; break;
+            case 'anbAdresse': d.anbAdresse = UNKNOWN.test(t) ? '' : txt; break;
+        }
+        S.at = Date.now();
+        next();
+    }
+
+    function handle(text) {
+        const t = norm(text);
+        if (S) {
+            if (Date.now() - S.at > 10 * 60000) S = null;
+            else {
+                if (CANCEL.test(t)) { S = null; say('In Ordnung, ich habe die Kündigung abgebrochen.'); return true; }
+                answer(text); return true;
+            }
+        }
+        if (!t || !isStart(t)) return false;
+        start(text);
+        return true;
+    }
+
+    window.handleKuendigungCommand = handle;
+    window.__kuendTest = { parseNumber, parseDateText, buildLetter, makePdf, isStart, state: () => S, wrap: wrapLine };
+
+    let lastHooked = null;
+    function hook() {
+        const prev = window.handleLocalCommand;
+        if (typeof prev !== 'function' || prev === lastHooked) return;
+        const hooked = function (text) {
+            try { if (handle(text)) return true; } catch (e) { console.error('Kündigung', e); }
+            return prev.apply(this, arguments);
+        };
+        Object.keys(prev).forEach(k => { try { hooked[k] = prev[k]; } catch (e) {} });
+        lastHooked = hooked;
+        window.handleLocalCommand = hooked;
+    }
+    hook();
+    [1500, 4000, 9000].forEach(ms => setTimeout(hook, ms));   // spätere Dateien umwickeln den Befehl: wieder ganz nach außen
+})();

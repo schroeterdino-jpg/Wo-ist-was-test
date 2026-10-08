@@ -390,15 +390,16 @@
         return all.find(n => norm(n.label) === k) || all.find(n => norm(n.label).startsWith(k) || k.startsWith(norm(n.label))) || null;
     }
     function handleZoom(t) {
-        const zm = t.match(/(?:^|\s)\w*zoom\w*/);
+        const zm = t.match(/(?:^|\s)(?:\w*zoom\w*|fokus\w*|markier\w*|hervorheb\w*)/);
         if (!zm) return false;
         const before = t.slice(0, zm.index), word = zm[0].trim(), after = t.slice(zm.index + zm[0].length);
         const clean = x => x.replace(/(?<![\wäöüß])(?:mal|bitte|ran|heran|rein|hinein|zu|zum|zur|auf|an|in|den|die|das|dem|der|begriff|bereich|kugel|jarvis|kannst|du|ich|möchte|will|moechte)(?![\wäöüß])/g, ' ').replace(/\s+/g, ' ').trim();
         const rest = clean(before + ' ' + after);
-        if (/raus|heraus|weg|zurück|aus\b|ab\b/.test(word) || /^(?:raus|heraus|zurück|zurueck|weg|aus|ab)$/.test(rest) || /\b(?:raus|heraus|zurück)\b/.test(after) && !rest.replace(/\b(?:raus|heraus|zurück)\b/g, '').trim()) {
+        if (/raus|heraus|weg|zurück|aus\b|ab\b/.test(word) || /(?:^|\s)(?:beenden|ende|aus|ab|weg|löschen|loeschen)(?:\s|$)/.test(after) || /^(?:raus|heraus|zurück|zurueck|weg|aus|ab|beenden|ende)$/.test(rest) || /\b(?:raus|heraus|zurück)\b/.test(after) && !rest.replace(/\b(?:raus|heraus|zurück)\b/g, '').trim()) {
             zoomOut(); try { speak('Okay.', typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} return true;
         }
         const n = findNode(rest);
+        if (!n && /markier|hervorheb/.test(word)) return false;   // "Markiere das als erledigt" o. Ä. nicht abfangen
         if (!n) { try { speak('Diesen Begriff sehe ich in der Ansicht nicht.', typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} return true; }
         const go = () => { zoomTo(n); try { speak('Hier ist ' + n.label.charAt(0) + n.label.slice(1).toLowerCase() + '. Tippe darauf.', typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} };
         if (!document.body.classList.contains('jv-brain')) { setMode(true, false); setTimeout(go, 200); } else go();
@@ -407,7 +408,7 @@
     function handle(text) {
         const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 60) return false;
-        if (/(?:^|\s)\w*zoom/.test(t)) return handleZoom(t);
+        if (/(?:^|\s)(?:\w*zoom|fokus\w*|markier\w*|hervorheb\w*)/.test(t)) return handleZoom(t);
         if (OFF_RX.test(t)) { setMode(false, true); return true; }
         if (ON_RX.test(t)) { setMode(true, true); return true; }
         return false;
