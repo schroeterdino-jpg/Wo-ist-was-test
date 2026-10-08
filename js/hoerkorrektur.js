@@ -88,16 +88,12 @@
     window.handleHoerKorrekturCommand = handle;
 
     /* ---------- Einhängen ---------- */
-    if (typeof window.handleLocalCommand === 'function' && !window.handleLocalCommand._hoerkorrektur) {
-        const original = window.handleLocalCommand;
-        const hooked = function (text) {
+    if (window.jvCommands) {   // Befehlsliste (commands.js): alles, was weiter innen steht, bekommt den korrigierten Text
+        window.jvCommands.use('hoerkorrektur', function (text, next) {
             try { if (handle(text)) return true; } catch (e) { console.error('Hör-Korrektur', e); }
             const fixed = fix(text);
-            return original.call(this, fixed);
-        };
-        hooked._hoerkorrektur = true;
-        Object.keys(original).forEach(k => { try { hooked[k] = original[k]; } catch (e) {} });
-        window.handleLocalCommand = hooked;
+            return next(fixed);
+        }, 400);
     }
     if (typeof window.sendToGroqSmart === 'function' && !window.sendToGroqSmart._hoerkorrektur) {
         const original = window.sendToGroqSmart;

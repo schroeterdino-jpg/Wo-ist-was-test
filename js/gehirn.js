@@ -417,21 +417,12 @@
     }
     window.handleGehirnCommand = handle;
     window.__gehirnTest = { frame: t => frame(t), st: () => ({ n: zoomNode && zoomNode.label, k: zoomK, sx: zoomNode && zoomNode.sx, sy: zoomNode && zoomNode.sy, sr: zoomNode && zoomNode.sr }), hit: (x, y) => hit(x, y) && hit(x, y).label };
-    let lastHooked = null;
-    function ensureHook() {
-        const original = window.handleLocalCommand;
-        if (typeof original !== 'function' || original === lastHooked) return;
-        const hooked = function (text) {
+    if (window.jvCommands) {   // Befehlsliste (commands.js)
+        window.jvCommands.use('gehirn', function (text, next) {
             try { if (handle(text)) return true; } catch (e) {}
-            return original.apply(this, arguments);
-        };
-        hooked._gehirn = true;
-        Object.keys(original).forEach(k => { try { hooked[k] = original[k]; } catch (e) {} });
-        lastHooked = hooked;
-        window.handleLocalCommand = hooked;
+            return next(text);
+        }, 200);
     }
-    ensureHook();
-    [800, 2500, 6000, 12000].forEach(ms => setTimeout(ensureHook, ms));   // spätere Dateien umwickeln den Befehl: wieder ganz nach außen
 
     function start() { try { mount(); } catch (e) { console.error('Gehirn-Ansicht', e); } }
     if (document.readyState === 'complete' || document.readyState === 'interactive') start(); else document.addEventListener('DOMContentLoaded', start);

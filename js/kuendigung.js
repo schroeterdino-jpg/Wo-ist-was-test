@@ -565,18 +565,10 @@
     window.kuendigungMenu = openMenu;
     window.__kuendTest = { openMenu, loadList, kindOf, fixName, plzText, loadLast, saveLast, parseNumber, parseDateText, buildLetter, makePdf, isStart, state: () => S, wrap: wrapLine };
 
-    let lastHooked = null;
-    function hook() {
-        const prev = window.handleLocalCommand;
-        if (typeof prev !== 'function' || prev === lastHooked) return;
-        const hooked = function (text) {
+    if (window.jvCommands) {   // Befehlsliste (commands.js): ganz außen, damit ein laufendes Kündigungs-Gespräch zuerst drankommt
+        window.jvCommands.use('kuendigung', function (text, next) {
             try { if (handle(text)) return true; } catch (e) { console.error('Kündigung', e); }
-            return prev.apply(this, arguments);
-        };
-        Object.keys(prev).forEach(k => { try { hooked[k] = prev[k]; } catch (e) {} });
-        lastHooked = hooked;
-        window.handleLocalCommand = hooked;
+            return next(text);
+        }, 100);
     }
-    hook();
-    [1500, 4000, 9000, 20000, 45000, 90000].forEach(ms => setTimeout(hook, ms));   // spätere Dateien umwickeln den Befehl: wieder ganz nach außen
 })();

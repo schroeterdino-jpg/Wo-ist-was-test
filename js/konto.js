@@ -239,17 +239,11 @@
     }
 
     window.jvKonto = { check, handle, isBankMail, euro, direction, queue: () => queue.slice(), describe };
-    let lastHooked = null;
-    function hook() {
-        const prev = window.handleLocalCommand;
-        if (typeof prev !== 'function' || prev === lastHooked) return;
-        const hooked = function (text) {
+    if (window.jvCommands) {   // Befehlsliste (commands.js)
+        window.jvCommands.use('konto', function (text, next) {
             try { if (handle(text)) return true; } catch (e) { console.error('Konto-Meldung', e); }
-            return prev.apply(this, arguments);
-        };
-        Object.keys(prev).forEach(k => { try { hooked[k] = prev[k]; } catch (e) {} });
-        lastHooked = hooked; window.handleLocalCommand = hooked;
+            return next(text);
+        }, 300);
     }
-    hook(); [1500, 4000, 9000].forEach(ms => setTimeout(hook, ms));
     try { if (document.readyState === 'complete') start(); else window.addEventListener('load', start, { once: true }); } catch (e) {}
 })();
