@@ -166,20 +166,17 @@
     }
 
     /* ---------- 2) KI-Anweisung ergänzen ---------- */
-    if (typeof window.buildSystemPrompt === 'function' && !window.buildSystemPrompt._quipped) {
-        const originalPrompt = window.buildSystemPrompt;
+    if (window.jvChain) {   // Ergänzungs-Liste (commands.js)
         const extra = '\n\nWICHTIG - Humor (ausdrücklicher Wunsch des Users): Er möchte, dass die Arbeit mit dir Spaß macht und du nicht wie ein steifes Vorlesegerät klingst. ' +
             'Gib bei fast jeder Antwort nach der eigentlichen Information einen kurzen, frechen, lustigen Kommentar ab (ein Satz, trockener britischer Butler-Humor, gern mit Übertreibung oder gespielter Empörung), ' +
             'auch bei Smalltalk, Wetter, Uhrzeit, Listen, Terminen, Bestätigungen und Auskünften aller Art. Diese Vorgabe hat Vorrang vor der „Stilvorgabe für diese Antwort“, ' +
             'gilt aber nie bei den TABU-Themen (Gesundheit, Tabletten und Medikamente, wichtige Erinnerungen, Fehler und Störungen, Geld und Rechtliches, Trauer, Sorgen, Notfälle, Vorlesen von E-Mails und Nachrichten). ' +
             'Variiere stark, wiederhole keinen Spruch und keine Struktur, sei einfallsreich statt platt, und neck nie bei Aussehen, Familie, Herkunft, Religion oder Politik. ' +
             'Bleibe knapp: ein bis zwei Sätze Information plus ein kurzer Spruch.';
-        const wrappedPrompt = function () {
-            const base = originalPrompt.apply(this, arguments);
+        window.jvChain.use('buildSystemPrompt', 'sprueche', function (next) {
+            const base = next();
             return level() === 0 ? base : base + extra;
-        };
-        wrappedPrompt._quipped = true;
-        window.buildSystemPrompt = wrappedPrompt;
+        }, 400);
     }
 
     window.jarvisQuip = addQuip;

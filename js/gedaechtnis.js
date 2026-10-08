@@ -19,18 +19,14 @@
         '\n\nLACHEN: Der Nutzer wünscht sich ausdrücklich, dass du öfter lachst. Schreibe darum in lockeren Antworten ab und zu ein kurzes "Haha" oder "Hehe" an eine passende Stelle, ' +
         'etwa nach einem Scherz oder wenn etwas lustig ist, in ungefähr jeder zweiten lockeren Antwort, höchstens einmal pro Antwort. Bei ernsten Themen (Warnungen, Gesundheit, Arzt, Geld, Fehler, Erinnerungen) lachst du nie.';
 
-    if (typeof window.buildSystemPrompt === 'function' && !window.buildSystemPrompt._gedaechtnis) {
-        const originalPrompt = window.buildSystemPrompt;
-        const wrappedPrompt = function (text) {
-            let base = originalPrompt.apply(this, arguments);
+    if (window.jvChain) {   // Ergänzungs-Liste (commands.js)
+        window.jvChain.use('buildSystemPrompt', 'gedaechtnis', function (next, args) {
+            const text = args[0];
+            let base = next();
             try { if (MEMORY_QUESTION.test(String(text || ''))) base += MEMORY_RULE; } catch (e) {}
             try { if (typeof window.jvLaughWish === 'function' && window.jvLaughWish()) base += LAUGH_RULE; } catch (e) {}
             return base;
-        };
-        wrappedPrompt._gedaechtnis = true;
-        // Eigenschaften der vorherigen Hülle (z.B. _quipped aus sprueche.js) behalten, damit nichts doppelt einhängt
-        Object.keys(originalPrompt).forEach(k => { try { wrappedPrompt[k] = originalPrompt[k]; } catch (e) {} });
-        window.buildSystemPrompt = wrappedPrompt;
+        }, 300);
     }
 
     window.jvMemoryQuestion = (t) => MEMORY_QUESTION.test(String(t || ''));

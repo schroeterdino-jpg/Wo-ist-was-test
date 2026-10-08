@@ -76,16 +76,12 @@
             list.map(w => `statt "${w.alt}" sage "${w.neu}"`).join(' | ');
     }
 
-    if (typeof window.buildSystemPrompt === 'function' && !window.buildSystemPrompt._formulierungen) {
-        const originalPrompt = window.buildSystemPrompt;
-        const wrappedPrompt = function () {
-            let base = originalPrompt.apply(this, arguments);
+    if (window.jvChain) {   // Ergänzungs-Liste (commands.js)
+        window.jvChain.use('buildSystemPrompt', 'formulierungen', function (next) {
+            let base = next();
             try { base += RULES + wishBlock(); } catch (e) {}
             return base;
-        };
-        wrappedPrompt._formulierungen = true;
-        Object.keys(originalPrompt).forEach(k => { try { wrappedPrompt[k] = originalPrompt[k]; } catch (e) {} });
-        window.buildSystemPrompt = wrappedPrompt;
+        }, 100);
     }
 
     /* ---------- Liste per Sprache ---------- */

@@ -350,17 +350,12 @@ function charStyleReminder(style) {
 }
 
 (function hookStylePrompt() {
-    if (typeof window.buildSystemPrompt !== 'function' || window.buildSystemPrompt._stil) return;
-    const original = window.buildSystemPrompt;
-    const wrapped = function () {
-        let base = original.apply(this, arguments);
+    if (!window.jvChain) return;   // Ergänzungs-Liste (commands.js): kommt als Erstes an die KI-Anweisung
+    window.jvChain.use('buildSystemPrompt', 'charakter', function (next) {
+        let base = next();
         try { const st = getSpeechStyle(); if (st) base += charStyleReminder(st); } catch (e) { /* darf nie etwas stören */ }
         return base;
-    };
-    wrapped._stil = true;
-    // Eigenschaften der vorherigen Hülle behalten, damit nichts doppelt einhängt
-    Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
-    window.buildSystemPrompt = wrapped;
+    }, 500);
 })();
 
 /* ---------- Anrede ---------- */

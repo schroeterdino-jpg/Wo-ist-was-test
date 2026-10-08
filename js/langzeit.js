@@ -145,16 +145,12 @@
         return '\n\nlangzeit_nachfragen (heute noch nicht gefragt; stelle sie genau einmal und melde es mit der Aktion episode_asked): ' + JSON.stringify(eintrag);
     }
 
-    if (typeof window.buildSystemPrompt === 'function' && !window.buildSystemPrompt._langzeit) {
-        const originalPrompt = window.buildSystemPrompt;
-        const wrappedPrompt = function () {
-            let base = originalPrompt.apply(this, arguments);
+    if (window.jvChain) {   // Ergänzungs-Liste (commands.js)
+        window.jvChain.use('buildSystemPrompt', 'langzeit', function (next) {
+            let base = next();
             try { base += dueBlock(); } catch (e) {}
             return base;
-        };
-        wrappedPrompt._langzeit = true;
-        Object.keys(originalPrompt).forEach(k => { try { wrappedPrompt[k] = originalPrompt[k]; } catch (e) {} });
-        window.buildSystemPrompt = wrappedPrompt;
+        }, 200);
     }
 
 
