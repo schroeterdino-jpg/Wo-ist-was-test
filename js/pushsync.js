@@ -1,12 +1,13 @@
 /* ============================================================
-   PUSHSYNC: meldet dem Server deine Erinnerungen und Termine, damit er dich auch bei geschlossener App benachrichtigen kann
+   PUSHSYNC: meldet dem Server deine Erinnerungen, damit er dich auch bei geschlossener App benachrichtigen kann
    ============================================================
    - Schickt (nur wenn "Benachrichtigungen an" gemacht wurde, Schlüssel jv_push = 1) eine kleine Liste: Titel und Zeit der nächsten 14 Tage.
-     Erinnerungen (noch nicht ausgelöst) und Termine mit Uhrzeit (keine Geburtstage, keine ganztägigen). Keine Orte, keine Notizen.
+     Nur Erinnerungen (noch nicht ausgelöst). Termine aus dem Kalender werden NICHT mehr gemeldet, dafür sorgt Google selbst
+     (sonst klingelte es doppelt). Keine Orte, keine Notizen.
    - Schickt jede Minute ein Lebenszeichen, solange die App offen UND sichtbar ist. Dann spricht Jarvis wie bisher selbst und der Server
      schickt nichts (kein Doppeltes). Ist die App zu, übernimmt der Server (api/sync.js, Aktion push_due, jede Minute von cron-job.org).
-   - Serverseitig: Erinnerung zur eingestellten Zeit; Termine 15 Minuten vorher (nachts 22-7 Uhr nicht).
-   Braucht: storage.js (apiFetch), push.js (Anmeldung), calendar.js (reminderEntries, calendarEntries), briefing.js (isBirthdayEntry), sync.js (onLocalDataChanged).
+   - Serverseitig: Erinnerung zur eingestellten Zeit.
+   Braucht: storage.js (apiFetch), push.js (Anmeldung), calendar.js (reminderEntries), sync.js (onLocalDataChanged).
    Fehlt etwas, tut die Datei still nichts. Muss nach push.js geladen werden.
    ============================================================ */
 (function () {
@@ -33,17 +34,7 @@
                 items.push(o);
             });
         } catch (e) {}
-        try {
-            (typeof calendarEntries !== 'undefined' ? calendarEntries : []).forEach(c => {
-                if (!c || !c.isoDate || !/T/.test(c.isoDate)) return;   // nur mit Uhrzeit
-                if (typeof isBirthdayEntry === 'function' && isBirthdayEntry(c)) return;
-                const at = new Date(c.isoDate).getTime();
-                if (isNaN(at) || at < now || at > now + HORIZON_MS) return;
-                const o = { id: 'e' + c.id, k: 'e', x: String(c.text || 'Termin').slice(0, 140), at };
-                if (c.location && String(c.location).trim()) o.l = String(c.location).trim().slice(0, 120);   // nur für die Abfahrtszeit
-                items.push(o);
-            });
-        } catch (e) {}
+        /* Kalender-Termine (Friseur usw.) werden bewusst nicht mehr gemeldet: Google erinnert selbst daran. */
         items.sort((a, b) => a.at - b.at);
         return items.slice(0, MAX_ITEMS);
     }
@@ -153,7 +144,7 @@
         } catch (e) {}
     }
 
-    /* Änderungen an Erinnerungen und Terminen bemerken (sync.js ruft onLocalDataChanged bei jeder Speicherung) */
+    /* Änderungen an Erinnerungen bemerken (sync.js ruft onLocalDataChanged bei jeder Speicherung) */
     try {
         const original = window.onLocalDataChanged;
         if (typeof original === 'function' && !original._pushsync) {
@@ -185,7 +176,7 @@
     setTimeout(() => { window.jvPushHold = false; }, 5000);   // Sicherung: nie dauerhaft blockieren
 
     setInterval(() => { alive(); reportLocation(); }, 2 * 60 * 1000);          // Lebenszeichen alle 2 Minuten (Server rechnet 4,5 Minuten Toleranz)
-    setInterval(() => { send(false); sendConfig(false); }, 10 * 60 * 1000);   // Google-Termine ändern sich auch ohne Speicherung: regelmäßig vergleichen
+    setInterval(() => { send(false); sendConfig(false); }, 10 * 60 * 1000);   // regelmäßig vergleichen
     document.addEventListener('visibilitychange', function () {
         if (!document.hidden) { checkDone(); alive(); reportLocation(); schedule(3000); }
         else { try { if (on()) post('push_gone', {}, true).catch(() => {}); } catch (e) {} }   // App verlassen: ab jetzt schickt der Server

@@ -458,7 +458,9 @@ async function addGoogleCalendarReminder(text, isoTimeString, recurrenceRule, im
     const eventData = {
         summary: `🔔 ${important ? '❗ ' : ''}${text}`,   // das ❗ merkt sich bei Google, dass die Erinnerung wichtig ist (gilt dann auch für jede Wiederholung)
         start: { dateTime: remDate.toISOString() },
-        end: { dateTime: new Date(remDate.getTime() + 30 * 60000).toISOString() }
+        end: { dateTime: new Date(remDate.getTime() + 30 * 60000).toISOString() },
+        // Kein Google-Alarm für Jarvis-Erinnerungen: Die Meldung kommt vom Jarvis-Push, sonst klingelt es doppelt
+        reminders: { useDefault: false, overrides: [] }
     };
     if (recurrenceRule) eventData.recurrence = [recurrenceRule];
     // Google verlangt bei Wiederholungen eine Zeitzone in Start und Ende, sonst wird der Eintrag abgelehnt
