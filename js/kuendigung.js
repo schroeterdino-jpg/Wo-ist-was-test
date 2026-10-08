@@ -89,6 +89,10 @@
         now = now || new Date();
         const kind = kindOf(d.art);
         const absender = [d.name || '[Ihr Name]'].concat(lines(capWords(d.adresse) || '[Ihre Anschrift]'));
+        const mail = d.kontakt && /@/.test(d.kontakt) ? d.kontakt : '', tel = d.kontakt && !/@/.test(d.kontakt) ? d.kontakt : '';
+        if (tel) absender.push('Telefon: ' + tel);
+        if (mail) absender.push('E-Mail: ' + mail);
+        const versand = d.versand === 'einschreiben' ? 'Per Einschreiben' : d.versand === 'email' ? 'Per E-Mail' : '';
         const anbL = d.anbAdresse ? lines(d.anbAdresse) : ['[Anschrift des Anbieters]'];
         if (anbL.length && d.anbieter && norm(anbL[0]) === norm(d.anbieter)) anbL.shift();
         const empf = [d.anbieter || '[Anbieter]'].concat(anbL);
@@ -123,23 +127,25 @@
             if (d.zaehler) fakten.push('Zählernummer: ' + d.zaehler);
             if (d.stand) fakten.push('Zählerstand am ' + datum + ': ' + d.stand);
         } else if (kind === 'telko' && d.rufnr) fakten.push('Rufnummer: ' + d.rufnr);
+        if (d.geb) fakten.push('Geburtsdatum: ' + d.geb);
         let schluss;
-        if (kind === 'miete') schluss = 'Bitte bestätigen Sie mir die Kündigung sowie das Ende des Mietverhältnisses schriftlich. Bitte nennen Sie mir außerdem einen Termin für die Wohnungsübergabe und teilen Sie mir mit, wann ich die Mietkaution zurückerhalte.';
+        if (kind === 'miete') schluss = 'Bitte bestätigen Sie mir die Kündigung sowie das Ende des Mietverhältnisses schriftlich' + (mail ? ' (per Post oder an ' + mail + ')' : '') + '. Bitte nennen Sie mir außerdem einen Termin für die Wohnungsübergabe und teilen Sie mir mit, wann ich die Mietkaution zurückerhalte.';
         else {
-            schluss = 'Bitte bestätigen Sie mir die Kündigung sowie das Datum des Vertragsendes innerhalb von 14 Tagen schriftlich.';
+            schluss = 'Diese Kündigung gilt auch für alle zugehörigen Zusatzvereinbarungen und Optionen. Bitte bestätigen Sie mir die Kündigung sowie das Datum des Vertragsendes innerhalb von 14 Tagen schriftlich' + (mail ? ' an die oben genannte Anschrift oder per E-Mail an ' + mail : '') + '.';
             if (kind === 'energie') schluss += ' Bitte erstellen Sie nach Vertragsende die Schlussrechnung.' + (d.wechsel ? ' Mein neuer Versorger übernimmt die Belieferung und wird sich bei Ihnen melden.' : '');
             else schluss += ' Eine erteilte Einzugsermächtigung widerrufe ich mit Wirkung zum Vertragsende.';
             if (kind === 'telko' && d.mitnahme) schluss += ' Bitte geben Sie meine Rufnummer zur Mitnahme zu meinem neuen Anbieter frei.';
             schluss += ' Bitte löschen Sie nach Vertragsende außerdem meine personenbezogenen Daten, soweit keine gesetzlichen Aufbewahrungspflichten bestehen.';
         }
         return [
-            absender.join('\n'), '',
+            absender.join('\n'), ''
+        ].concat(versand ? [versand, ''] : []).concat([
             empf.join('\n'), '',
             (ort ? ort + ', ' : '') + datum, '',
             'Betreff: ' + betreff, '',
             'Sehr geehrte Damen und Herren,', '',
             satz + ident, ''
-        ].concat(fakten.length ? [fakten.join('\n'), ''] : []).concat([
+        ]).concat(fakten.length ? [fakten.join('\n'), ''] : []).concat([
             schluss, '',
             'Mit freundlichen Grüßen', '', '', '',
             '____________________', d.name || '[Ihr Name]'
@@ -327,6 +333,19 @@
     }
     function startNew() { start(''); }
 
+    function mailOrPhone(raw) {
+        const t = String(raw || '').toLowerCase();
+        if (/@|\b(?:at|ät|klammeraffe)\b|punkt/.test(t) && /(?:punkt|\.)\s*\w{2,}/.test(t)) {
+            return t.replace(/\s*(?:klammeraffe|ät|\bat\b)\s*/g, '@').replace(/\s*punkt\s*/g, '.').replace(/\s*(?:minus|bindestrich)\s*/g, '-').replace(/\s*(?:unterstrich)\s*/g, '_').replace(/\s+/g, '').replace(/[.,;:!?]+$/, '');
+        }
+        return parseNumber(raw);
+    }
+    function gebText(raw) {
+        const dt = parseDateText(raw);
+        if (dt && /\b(?:19|20)\d{2}\b|\d{1,2}\s*\.\s*\d{1,2}\s*\.\s*\d{2}\b/.test(String(raw))) return dt;
+        return capWords(clean(raw));
+    }
+
     /* ---------- Das Gespräch ---------- */
     let S = null;   // { step, d, at }
     const ART_RE = /vertrag|abo|abonnement|mitgliedschaft|versicherung|internet|handy|mobilfunk|strom|gas|fitness|dsl|tarif|zeitung|zeitschrift|streaming|netflix/i;
@@ -370,6 +389,9 @@
             S.step = 'adresse'; return ask('Wie lautet Ihre Anschrift? Straße, Hausnummer, Postleitzahl und Ort.');
         }
         if (!S.plzGefragt && !/\b\d{5}\b/.test(d.adresse)) { S.plzGefragt = true; S.step = 'plz'; return ask('Wie lauten Postleitzahl und Ort dazu? Dann steht der Ort vor dem Datum im Brief.'); }
+        if (d.kontakt === undefined) { if (p.kontakt !== undefined) d.kontakt = p.kontakt; else { S.step = 'kontakt'; return ask('Unter welcher Telefonnummer oder E-Mail-Adresse darf der Anbieter Sie erreichen? Das hilft bei der Bestätigung. Sonst sagen Sie: weiß ich nicht.'); } }
+        if (d.geb === undefined) { if (p.geb !== undefined) d.geb = p.geb; else { S.step = 'geb'; return ask('Wie lautet Ihr Geburtsdatum? Manche Anbieter brauchen es, um Sie zu finden. Sonst sagen Sie: weiß ich nicht.'); } }
+        if (d.versand === undefined) { S.step = 'versand'; return ask('Wie schicken Sie den Brief ab: per Einschreiben, per E-Mail oder mit normaler Post? Einschreiben ist am sichersten.'); }
         if (kind === 'energie') {
             if (d.zaehler === undefined) { S.step = 'zaehler'; return ask('Wie lautet die Zählernummer? Sie steht auf dem Zähler oder auf der Rechnung. Wenn Sie sie nicht haben, sagen Sie: weiß ich nicht.'); }
             if (d.objekt === undefined) { S.step = 'objekt'; return ask('Liegt die Verbrauchsstelle, also der Ort der Lieferung, an Ihrer Anschrift?'); }
@@ -386,11 +408,12 @@
     }
     function finish() {
         const d = S.d; S = null;
-        saveProfile(Object.assign(loadProfile(), { name: d.name, adresse: d.adresse }));
+        saveProfile(Object.assign(loadProfile(), { name: d.name, adresse: d.adresse, kontakt: d.kontakt || '', geb: d.geb || '' }));
         const text = buildLetter(d);
         try { openWin(text, d); } catch (e) { console.error('Kündigung Fenster', e); say('Das Fenster konnte nicht geöffnet werden. Bitte versuchen Sie es noch einmal.'); return; }
         const luecke = !d.anbAdresse ? ' Die Anschrift des Anbieters fehlt noch, tragen Sie sie im Fenster ein oder tippen Sie auf Adresse suchen.' : '';
-        say(`Die Kündigung an ${d.anbieter} ist fertig.${luecke} Bitte prüfen Sie Adresse, Nummer und Kündigungsfrist. Sie können den Text im Fenster ändern, als PDF speichern oder drucken. Name und Anschrift merke ich mir für das nächste Mal.`);
+        S = { step: 'remind', d: d, at: Date.now() };
+        say(`Die Kündigung an ${d.anbieter} ist fertig.${luecke} Bitte prüfen Sie Adresse, Nummer und Kündigungsfrist. Sie können den Text im Fenster ändern, als PDF speichern oder drucken. Name und Anschrift merke ich mir für das nächste Mal. Soll ich Sie in 14 Tagen erinnern, die Bestätigung zu prüfen?`);
     }
 
     function answer(raw) {
@@ -428,6 +451,9 @@
                 break;
             case 'adresse': d.adresse = capWords(txt); break;
             case 'plz': if (!UNKNOWN.test(t)) d.adresse = d.adresse + ', ' + capWords(plzText(raw)); break;
+            case 'kontakt': d.kontakt = UNKNOWN.test(t) ? '' : mailOrPhone(raw); break;
+            case 'geb': d.geb = UNKNOWN.test(t) ? '' : gebText(raw); break;
+            case 'versand': d.versand = /einschreib/.test(t) ? 'einschreiben' : /mail|elektron|digital/.test(t) ? 'email' : ''; break;
             case 'zaehler': d.zaehler = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
             case 'objekt':
                 if (YES.test(t)) d.objekt = d.adresse; else { S.step = 'objekt2'; return ask('Wie lautet die Anschrift?'); }
@@ -447,6 +473,17 @@
         const t = norm(text);
         if (S) {
             if (Date.now() - S.at > 10 * 60000) S = null;
+            else if (S.step === 'remind') {
+                const d = S.d; S = null;
+                if (YES.test(t)) {
+                    const when = new Date(Date.now() + 14 * 86400000);
+                    const txt = `Erinnere mich am ${fmtDate(when)} um 9 Uhr daran, die Bestätigung der Kündigung bei ${d.anbieter || 'dem Anbieter'} zu prüfen`;
+                    try { const h = window.handleLocalCommand; if (!(typeof h === 'function' && h(txt)) && typeof window.sendToGroqSmart === 'function') window.sendToGroqSmart(txt); } catch (e) { console.error('Kündigung Erinnerung', e); }
+                    return true;
+                }
+                if (NO.test(t) || CANCEL.test(t)) { say('In Ordnung, ohne Erinnerung.'); return true; }
+                // etwas anderes gesagt: normal weiterverarbeiten
+            }
             else {
                 if (CANCEL.test(t)) { S = null; say('In Ordnung, ich habe die Kündigung abgebrochen.'); return true; }
                 answer(text); return true;
