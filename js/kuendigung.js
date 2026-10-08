@@ -334,8 +334,10 @@
     }
     function startNew() { start(''); }
 
+    const mailFix = e => String(e || '').replace(/ö/g, 'oe').replace(/ä/g, 'ae').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+    const capFirst = x => { x = String(x || ''); return x ? x.charAt(0).toUpperCase() + x.slice(1) : x; };
     function mailText(raw) {
-        return String(raw || '').toLowerCase().replace(/\s*(?:klammeraffe|ät|\bat\b)\s*/g, '@').replace(/\s*punkt\s*/g, '.').replace(/\s*(?:minus|bindestrich)\s*/g, '-').replace(/\s*unterstrich\s*/g, '_').replace(/\s+/g, '').replace(/[.,;:!?]+$/, '');
+        return mailFix(String(raw || '').toLowerCase()).replace(/\s*(?:klammeraffe|ät|\bat\b)\s*/g, '@').replace(/\s*punkt\s*/g, '.').replace(/\s*(?:minus|bindestrich)\s*/g, '-').replace(/\s*unterstrich\s*/g, '_').replace(/\s+/g, '').replace(/[.,;:!?]+$/, '');
     }
     function mailOrPhone(raw) {
         const t = String(raw || '').toLowerCase();
@@ -369,7 +371,7 @@
         if (!m) return;
         const g = clean(m[1]);
         if (!g || /^(?:mir|uns|mich|dich|dir|eine|einen|ein)$/i.test(g)) return;
-        if (ART_RE.test(g) && !d.art) d.art = g; else if (!ART_RE.test(g)) d.anbieter = g;
+        if (ART_RE.test(g) && !d.art) d.art = g; else if (!ART_RE.test(g)) d.anbieter = capFirst(g);
     }
     function start(raw) {
         S = { step: 'anbieter', d: { modus: 'naechst' }, at: Date.now() };
@@ -399,7 +401,7 @@
         }
         if (!S.plzGefragt && !/\b\d{5}\b/.test(d.adresse)) { S.plzGefragt = true; S.step = 'plz'; return ask('Wie lauten Postleitzahl und Ort dazu? Dann steht der Ort vor dem Datum im Brief.'); }
         if (d.tel === undefined) { const pt = p.tel || (p.kontakt && !/@/.test(p.kontakt) ? p.kontakt : ''); if (pt) d.tel = pt; else { S.step = 'tel'; return ask('Wie lautet Ihre Telefonnummer? Der Anbieter kann Sie dann bei Rückfragen erreichen. Sonst sagen Sie: weiß ich nicht, dann lasse ich eine Zeile zum Ausfüllen frei.'); } }
-        if (d.email === undefined) { const pe = p.email || (p.kontakt && /@/.test(p.kontakt) ? p.kontakt : ''); if (pe) d.email = pe; else { S.step = 'email'; return ask('Wie lautet Ihre E-Mail-Adresse? Dorthin kann der Anbieter die Bestätigung schicken. Sonst sagen Sie: weiß ich nicht.'); } }
+        if (d.email === undefined) { const pe = p.email || (p.kontakt && /@/.test(p.kontakt) ? p.kontakt : ''); if (pe) d.email = mailFix(pe); else { S.step = 'email'; return ask('Wie lautet Ihre E-Mail-Adresse? Dorthin kann der Anbieter die Bestätigung schicken. Sonst sagen Sie: weiß ich nicht.'); } }
         if (d.geb === undefined) { if (p.geb !== undefined) d.geb = p.geb; else { S.step = 'geb'; return ask('Wie lautet Ihr Geburtsdatum? Manche Anbieter brauchen es, um Sie zu finden. Sonst sagen Sie: weiß ich nicht.'); } }
         if (d.versand === undefined) { S.step = 'versand'; return ask('Wie schicken Sie den Brief ab: per Einschreiben, per E-Mail oder mit normaler Post? Einschreiben ist am sichersten.'); }
         if (kind === 'energie') {
@@ -429,7 +431,7 @@
     function answer(raw) {
         const t = norm(raw), d = S.d, txt = clean(raw);
         switch (S.step) {
-            case 'anbieter': d.anbieter = txt.replace(/^(?:bei|von|an|der|die|das)\s+/i, ''); break;
+            case 'anbieter': d.anbieter = capFirst(txt.replace(/^(?:bei|von|an|der|die|das)\s+/i, '')); break;
             case 'art': d.art = txt.replace(/^(?:ein|eine|einen|mein|meine|meinen|der|die|das)\s+/i, ''); break;
             case 'nummer': d.nummer = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
             case 'modus': {
@@ -463,7 +465,12 @@
             case 'plz': if (!UNKNOWN.test(t)) d.adresse = d.adresse + ', ' + capWords(plzText(raw)); break;
             case 'tel': d.tel = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
             case 'email': d.email = UNKNOWN.test(t) ? '' : mailText(raw); break;
-            case 'geb': d.geb = UNKNOWN.test(t) ? '' : gebText(raw); break;
+            case 'geb': {
+                if (UNKNOWN.test(t)) { d.geb = ''; break; }
+                const g = gebText(raw);
+                if (!/^\d{2}\.\d{2}\.\d{4}$/.test(g) && !S.gebNochmal) { S.gebNochmal = true; say('Das Geburtsdatum habe ich nicht vollständig verstanden. Bitte sagen Sie es mit Tag, Monat und Jahr, zum Beispiel 5. März 1980. Oder sagen Sie: weiß ich nicht.'); return; }
+                d.geb = /^\d{2}\.\d{2}\.\d{4}$/.test(g) ? g : ''; break;
+            }
             case 'versand': d.versand = /einschreib/.test(t) ? 'einschreiben' : /mail|elektron|digital/.test(t) ? 'email' : ''; break;
             case 'zaehler': d.zaehler = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
             case 'objekt':
