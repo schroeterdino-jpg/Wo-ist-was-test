@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "msedge-tts": "^2.0.0"
+    "msedge-tts": "^2.0.0",
+    "web-push": "^3.6.7"
   }
 }
