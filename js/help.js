@@ -64,7 +64,7 @@ const HELP_TOPICS = [
         'Erwähne im Briefing immer, wo mein Ladekabel ist', 'Starte Protokoll Feierabend', 'Lege ein Protokoll Morgen an: Wetter und Fahrzeit zur Arbeit'] },
     { key: 'kuendigung', icon: '✉️', title: 'Kündigung schreiben', words: /kündigung|kuendigung|kündigen|kuendigen|vertrag|abo\b|mitgliedschaft/, examples: [
         'Schreib mir eine Kündigung (Jarvis fragt: Anbieter, Vertrag, Kunden-/Vertragsnummer, Zeitpunkt, Name und Anschrift)', 'Kündigung für Vodafone aufsetzen', 'Ich möchte meinen Vertrag kündigen',
-        'Zeig die letzte Kündigung (der Brief bleibt gespeichert)', 'Im Fenster: Text ändern, PDF speichern, Drucken, Kopieren, Adresse suchen', 'Abbrechen (beendet die Fragen)'] },
+        'Zeig die letzte Kündigung', 'Zeig meine Kündigungen (die letzten 5 bleiben gespeichert, auch per Tipp auf Kündigung in der Kugel-Ansicht)', 'Im Fenster: Text ändern, PDF speichern, Drucken, Kopieren, Adresse suchen', 'Abbrechen (beendet die Fragen)'] },
     { key: 'ansicht', icon: '🧠', title: 'Kugel-Ansicht & Fokus', words: /fokus|kugel|ansicht|gehirn|zoom|markier|hervorheb/, examples: [
         'Fokus auf Briefing (der Begriff leuchtet auf und wird groß, damit du ihn antippen kannst; auch: Markiere Parkplatz, Fokussiere Wetter)', 'Fokus beenden (oder: Zoom raus)', 'Zeig das Gehirn / Zurück zur Kugel',
         'Die Bereiche: Gedächtnis (Mitte), Zeit, Hände, Unterwegs, Ohren'] },

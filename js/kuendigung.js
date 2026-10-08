@@ -15,8 +15,27 @@
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
     function loadProfile() { try { const p = JSON.parse(lsGet(PROFILE_KEY) || '{}'); return (p && typeof p === 'object') ? p : {}; } catch (e) { return {}; } }
     function saveProfile(p) { lsSet(PROFILE_KEY, JSON.stringify(p)); }
-    function loadLast() { try { const v = JSON.parse(lsGet(LAST_KEY) || 'null'); return (v && typeof v.text === 'string') ? v : null; } catch (e) { return null; } }
-    function saveLast(text, data) { lsSet(LAST_KEY, JSON.stringify({ text: String(text || ''), data: data || null, at: Date.now() })); }
+    const LIST_KEY = 'jv_kuend_liste', MAX_LIST = 5;
+    function loadList() {
+        try { const v = JSON.parse(lsGet(LIST_KEY) || 'null'); if (Array.isArray(v)) return v.filter(e => e && typeof e.text === 'string'); } catch (e) {}
+        try { const o = JSON.parse(lsGet(LAST_KEY) || 'null'); if (o && typeof o.text === 'string') return [{ id: o.at || Date.now(), text: o.text, data: o.data || null, at: o.at || Date.now() }]; } catch (e) {}
+        return [];
+    }
+    function loadLast() { const l = loadList(); return l.length ? l[0] : null; }
+    function saveLast(text, data) {
+        data = data || {};
+        if (!data.id) data.id = Date.now();
+        const old = loadList(), prev = old.find(e => e.id === data.id), list = old.filter(e => e.id !== data.id);
+        const now = (prev && prev.text === String(text || '')) ? prev.at : Date.now();
+        list.unshift({ id: data.id, text: String(text || ''), data: data, at: now });
+        lsSet(LIST_KEY, JSON.stringify(list.slice(0, MAX_LIST)));
+        lsSet(LAST_KEY, JSON.stringify({ text: String(text || ''), data: data, at: now }));
+    }
+    function deleteEntry(id) {
+        const list = loadList().filter(e => e.id !== id);
+        lsSet(LIST_KEY, JSON.stringify(list));
+        lsSet(LAST_KEY, list.length ? JSON.stringify({ text: list[0].text, data: list[0].data, at: list[0].at }) : 'null');
+    }
     function say(m) { try { speak(m, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} }
 
     /* ---------- Hilfsfunktionen für gesprochene Antworten ---------- */
@@ -204,6 +223,10 @@
             '#jvKuend .kd-bar{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:6px 14px 14px}' +
             '#jvKuend .kd-btn{padding:11px 6px;border-radius:10px;border:1px solid rgba(93,209,255,.4);background:rgba(10,22,33,.95);color:#49d7ff;font:700 12px "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase}' +
             '#jvKuend .kd-btn.primary{background:rgba(73,215,255,.2);color:#fff}' +
+            '#jvKuend .kd-list{flex:1 1 auto;overflow:auto;padding:8px 14px;display:flex;flex-direction:column;gap:10px;min-height:0}' +
+            '#jvKuend .kd-row{display:flex;gap:8px}' +
+            '#jvKuend .kd-open{flex:1 1 auto;text-align:left;text-transform:none;white-space:pre-line;font-size:13px}' +
+            '#jvKuend .kd-del{flex:0 0 48px}' +
             '#jvKuendPrint{display:none}' +
             '@media print{body.jv-kuend-print>*:not(#jvKuendPrint){display:none!important}body.jv-kuend-print #jvKuendPrint{display:block!important;position:static!important;background:#fff;color:#000;white-space:pre-wrap;font:12pt/1.45 Arial,sans-serif;padding:0}}';
         document.head.appendChild(st);
@@ -271,6 +294,35 @@
         return digits.length === 5 ? (digits + ' ' + toks.slice(k).join(' ')).trim() : clean(raw);
     }
 
+    /* ---------- Menü: neue Kündigung oder gespeicherte ansehen ---------- */
+    function fmtAt(t) { const d = new Date(t); return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`; }
+    function openMenu() {
+        const list = loadList();
+        if (!list.length) { say('Du hast noch keine Kündigung gespeichert. Ich schreibe jetzt eine neue.'); startNew(); return; }
+        ensureStyle(); closeWin();
+        const mk = (p, tag, cls, txt) => { const x = document.createElement(tag); if (cls) x.className = cls; if (txt !== undefined) x.textContent = txt; p.appendChild(x); return x; };
+        el = document.createElement('div'); el.id = 'jvKuend';
+        const head = mk(el, 'div', 'kd-head');
+        mk(head, 'div', 'kd-title', 'KÜNDIGUNGEN');
+        mk(head, 'div', 'kd-sub', list.length === 1 ? '1 gespeicherte Kündigung' : list.length + ' gespeicherte Kündigungen (die letzten ' + MAX_LIST + ')');
+        const box = mk(el, 'div', 'kd-list');
+        const nb = mk(box, 'button', 'kd-btn primary', '✉️ Neue Kündigung schreiben');
+        nb.addEventListener('click', () => { closeWin(); startNew(); });
+        list.forEach(e => {
+            const row = mk(box, 'div', 'kd-row');
+            const d = e.data || {};
+            const b = mk(row, 'button', 'kd-btn kd-open', (d.anbieter || 'Kündigung') + (d.art ? ' · ' + d.art : '') + '\n' + fmtAt(e.at));
+            b.addEventListener('click', () => { openWin(e.text, d); });
+            const x = mk(row, 'button', 'kd-btn kd-del', '✕');
+            x.addEventListener('click', () => { deleteEntry(e.id); openMenu(); });
+        });
+        const cb = mk(el, 'div', 'kd-bar'); const closeBtn = mk(cb, 'button', 'kd-btn', 'Schließen'); closeBtn.addEventListener('click', closeWin); closeBtn.style.gridColumn = '1 / -1';
+        document.body.appendChild(el);
+        try { document.body.classList.add('panel-open'); } catch (e) {}
+        try { if (typeof window.pauseJarvisSphere === 'function') window.pauseJarvisSphere(); } catch (e) {}
+    }
+    function startNew() { start(''); }
+
     /* ---------- Das Gespräch ---------- */
     let S = null;   // { step, d, at }
     const ART_RE = /vertrag|abo|abonnement|mitgliedschaft|versicherung|internet|handy|mobilfunk|strom|gas|fitness|dsl|tarif|zeitung|zeitschrift|streaming|netflix/i;
@@ -279,6 +331,7 @@
     const START_2 = /\b(?:schreib\w*|verfass\w*|setz\w*|erstell\w*|entwirf\w*|entwerf\w*|formulier\w*|brauch\w*|will|möchte|moechte|mach\w*|bereite)\b.*\bk(?:ü|ue)ndigung\b/;
     const START_3 = /\b(?:ich )?(?:will|möchte|moechte|muss|würde gerne)\b.*\b(?:vertrag|abo|abonnement|mitgliedschaft|versicherung|handyvertrag|internetvertrag|stromvertrag)\b.*\bk(?:ü|ue)ndigen\b/;
 
+    const LIST_RE = /^(?:bitte\s+)?(?:(?:zeig|zeige|öffne|oeffne|hol|such)(?:\s+mir)?\s+)?(?:(?:die|meine|alle|gespeicherten)\s+)*(?:k(?:ü|ue)ndigungen|k(?:ü|ue)ndigungsschreiben)(?:\s+(?:an|auf|anzeigen|her|ansehen))*$/;
     function isStart(t) { return t.length <= 100 && (START_1.test(t) || START_2.test(t) || START_3.test(t)); }
     function prefill(raw, d) {
         const m = String(raw || '').match(/.*\b(?:bei|für|fuer|an|von)\s+(?:den |die |das |meinen |meine |mein |meinem |meiner |dem |der |einem |einer )?(.+?)\s*(?:schreiben|aufsetzen|verfassen|erstellen|kündigen)?\s*$/i);
@@ -401,6 +454,7 @@
             p.name = fixName(p.name); saveProfile(p);
             say(`In Ordnung. Ich schreibe Ihren Namen künftig so: ${p.name}.`); return true;
         }
+        if (LIST_RE.test(t)) { openMenu(); return true; }
         if (LAST_RE.test(t)) {
             const l = loadLast();
             if (!l) { say('Ich habe noch keine Kündigung gespeichert.'); return true; }
@@ -412,7 +466,8 @@
     }
 
     window.handleKuendigungCommand = handle;
-    window.__kuendTest = { kindOf, fixName, plzText, loadLast, saveLast, parseNumber, parseDateText, buildLetter, makePdf, isStart, state: () => S, wrap: wrapLine };
+    window.kuendigungMenu = openMenu;
+    window.__kuendTest = { openMenu, loadList, kindOf, fixName, plzText, loadLast, saveLast, parseNumber, parseDateText, buildLetter, makePdf, isStart, state: () => S, wrap: wrapLine };
 
     let lastHooked = null;
     function hook() {
