@@ -177,10 +177,12 @@ async function handlePush(action, req, res, redis) {
         if (it.k !== 'r' && it.k !== 'e') continue;
         const o = { id: it.id.slice(0, 40), k: it.k, x: it.x.slice(0, 140), at: Math.round(it.at) };
         if (it.k === 'e' && typeof it.l === 'string' && it.l.trim()) o.l = it.l.trim().slice(0, 120);
+        if (o.l && it.g && Number.isFinite(it.g.lat) && Number.isFinite(it.g.lon) && Math.abs(it.g.lat) <= 90 && Math.abs(it.g.lon) <= 180) o.g = { lat: it.g.lat, lon: it.g.lon };   // von der App schon gefunden
         if (it.k === 'r' && it.i === 1) o.i = 1;
         items.push(o);
       }
       const st = await loadItems(redis);
+      items.forEach(o => { if (o.g && st.dep[o.id] && st.dep[o.id].fail) delete st.dep[o.id]; });   // Ort jetzt bekannt: neu rechnen
       st.items = items.filter(o => !st.done[o.id]);   // am Sperrbildschirm als erledigt markierte Erinnerungen nicht wieder aufnehmen
       const doneIds = Object.keys(st.done);
       for (const k of doneIds) { if (Date.now() - st.done[k] > 2 * 86400000) delete st.done[k]; }
@@ -432,7 +434,8 @@ async function geoCached(st, text) {
   const c = st.geo[key];
   if (c && c.lat !== undefined) return { lat: c.lat, lon: c.lon };
   if (c && c.fail && Date.now() - c.ts < 6 * 3600000) return null;
-  const g = await geocodeServer(text);
+  let g = await geocodeServer(text);
+  if (!g) { const m = String(text).trim().match(/^(.+?)\s+(?:in|bei|im|am|an der|auf der)\s+(.+)$/i); if (m) g = await geocodeServer(m[1].trim() + ', ' + m[2].trim()); }
   st.geo[key] = g ? { lat: g.lat, lon: g.lon, ts: Date.now() } : { fail: true, ts: Date.now() };
   const keys = Object.keys(st.geo);
   if (keys.length > 30) { keys.sort((a, b) => (st.geo[a].ts || 0) - (st.geo[b].ts || 0)); delete st.geo[keys[0]]; }
@@ -510,7 +513,7 @@ async function handleDue(req, res, redis) {
         if (computed >= 2) continue;
         computed++;
         const origin = originNow(st, now);
-        const g = origin ? await geoCached(st, it.l) : null;
+        const g = origin ? (it.g || await geoCached(st, it.l)) : null;
         const r = (origin && g) ? await routeServer(origin, g) : null;
         if (!r) { st.dep[it.id] = dep && !dep.fail ? Object.assign({}, dep, { ts: now }) : { fail: origin ? (g ? 'route' : 'ort') : 'standort', ts: now }; dep = st.dep[it.id]; }
         else {
