@@ -25,6 +25,20 @@ function sameTime(a, b) {
     return !isNaN(x) && !isNaN(y) && x === y;
 }
 
+/* Systemmeldung zu einer Erinnerung, wenn die App offen ist. Android erlaubt "new Notification" nicht (nur über den Service Worker);
+   ein Fehler hier darf die Erinnerung nie stoppen. Ist Push (push.js) an, übernimmt der Server die Meldung bei geschlossener App, hier bleibt es still. */
+function jvLocalNotify(title, body) {
+    try {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        if (getPersistentData('jv_push', '') === '1') return;
+        if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+            navigator.serviceWorker.ready.then(function (reg) { return reg.showNotification(title, { body: body, icon: './icon-192.png' }); }).catch(function () {});
+            return;
+        }
+        new Notification(title, { body: body, icon: './icon-192.png' });
+    } catch (e) {}
+}
+
 setInterval(() => {
     if (reminderEntries.length === 0) return;
     const now = new Date();
@@ -39,7 +53,7 @@ setInterval(() => {
             lastFiredReminderAt = now.getTime();
 
             if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(`Erinnerung für ${currentUserName}`, { body: rem.text, icon: './dino.png' });
+                jvLocalNotify(`Erinnerung für ${currentUserName}`, rem.text);
             }
             if (rem.important) {
                 rem.nagCount = 0;
@@ -66,7 +80,7 @@ setInterval(() => {
                     speak(`Noch einmal zur Erinnerung: ${rem.text}. Haben Sie das erledigt?`);
                 }
                 if ('Notification' in window && Notification.permission === 'granted') {
-                    new Notification(`Erinnerung für ${currentUserName}`, { body: rem.text, icon: './dino.png' });
+                    jvLocalNotify(`Erinnerung für ${currentUserName}`, rem.text);
                 }
             }
         }
