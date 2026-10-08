@@ -12,12 +12,18 @@ self.addEventListener('push', function (event) {
         icon: './icon-192.png',
         badge: './icon-192.png',
         tag: d.tag || undefined,
-        data: { url: d.url || './' }
+        actions: d.actions || undefined,
+        data: { url: d.url || './', doneUrl: d.doneUrl || '' }
     }));
 });
 
 self.addEventListener('notificationclick', function (event) {
     event.notification.close();
+    if (event.action === 'done') {   // "Erledigt" am Sperrbildschirm: App bleibt zu
+        var du = event.notification.data && event.notification.data.doneUrl;
+        if (du) event.waitUntil(fetch(du, { method: 'POST' }).catch(function () {}));
+        return;
+    }
     var url = (event.notification.data && event.notification.data.url) || './';
     event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
         for (var i = 0; i < list.length; i++) { if ('focus' in list[i]) return list[i].focus(); }
