@@ -89,9 +89,9 @@
         now = now || new Date();
         const kind = kindOf(d.art);
         const absender = [d.name || '[Ihr Name]'].concat(lines(capWords(d.adresse) || '[Ihre Anschrift]'));
-        const mail = d.kontakt && /@/.test(d.kontakt) ? d.kontakt : '', tel = d.kontakt && !/@/.test(d.kontakt) ? d.kontakt : '';
-        if (tel) absender.push('Telefon: ' + tel);
-        if (mail) absender.push('E-Mail: ' + mail);
+        const mail = d.email || '', tel = d.tel || '';
+        absender.push('Telefon: ' + (tel || '____________________'));
+        absender.push('E-Mail: ' + (mail || '____________________'));
         const versand = d.versand === 'einschreiben' ? 'Per Einschreiben' : d.versand === 'email' ? 'Per E-Mail' : '';
         const anbL = d.anbAdresse ? lines(d.anbAdresse) : ['[Anschrift des Anbieters]'];
         if (anbL.length && d.anbieter && norm(anbL[0]) === norm(d.anbieter)) anbL.shift();
@@ -334,6 +334,9 @@
     }
     function startNew() { start(''); }
 
+    function mailText(raw) {
+        return String(raw || '').toLowerCase().replace(/\s*(?:klammeraffe|ät|\bat\b)\s*/g, '@').replace(/\s*punkt\s*/g, '.').replace(/\s*(?:minus|bindestrich)\s*/g, '-').replace(/\s*unterstrich\s*/g, '_').replace(/\s+/g, '').replace(/[.,;:!?]+$/, '');
+    }
     function mailOrPhone(raw) {
         const t = String(raw || '').toLowerCase();
         if (/@|\b(?:at|ät|klammeraffe)\b|punkt/.test(t) && /(?:punkt|\.)\s*\w{2,}/.test(t)) {
@@ -395,7 +398,8 @@
             S.step = 'adresse'; return ask('Wie lautet Ihre Anschrift? Straße, Hausnummer, Postleitzahl und Ort.');
         }
         if (!S.plzGefragt && !/\b\d{5}\b/.test(d.adresse)) { S.plzGefragt = true; S.step = 'plz'; return ask('Wie lauten Postleitzahl und Ort dazu? Dann steht der Ort vor dem Datum im Brief.'); }
-        if (d.kontakt === undefined) { if (p.kontakt !== undefined) d.kontakt = p.kontakt; else { S.step = 'kontakt'; return ask('Unter welcher Telefonnummer oder E-Mail-Adresse darf der Anbieter Sie erreichen? Das hilft bei der Bestätigung. Sonst sagen Sie: weiß ich nicht.'); } }
+        if (d.tel === undefined) { const pt = p.tel || (p.kontakt && !/@/.test(p.kontakt) ? p.kontakt : ''); if (pt) d.tel = pt; else { S.step = 'tel'; return ask('Wie lautet Ihre Telefonnummer? Der Anbieter kann Sie dann bei Rückfragen erreichen. Sonst sagen Sie: weiß ich nicht, dann lasse ich eine Zeile zum Ausfüllen frei.'); } }
+        if (d.email === undefined) { const pe = p.email || (p.kontakt && /@/.test(p.kontakt) ? p.kontakt : ''); if (pe) d.email = pe; else { S.step = 'email'; return ask('Wie lautet Ihre E-Mail-Adresse? Dorthin kann der Anbieter die Bestätigung schicken. Sonst sagen Sie: weiß ich nicht.'); } }
         if (d.geb === undefined) { if (p.geb !== undefined) d.geb = p.geb; else { S.step = 'geb'; return ask('Wie lautet Ihr Geburtsdatum? Manche Anbieter brauchen es, um Sie zu finden. Sonst sagen Sie: weiß ich nicht.'); } }
         if (d.versand === undefined) { S.step = 'versand'; return ask('Wie schicken Sie den Brief ab: per Einschreiben, per E-Mail oder mit normaler Post? Einschreiben ist am sichersten.'); }
         if (kind === 'energie') {
@@ -414,7 +418,7 @@
     }
     function finish() {
         const d = S.d; S = null;
-        saveProfile(Object.assign(loadProfile(), { name: d.name, adresse: d.adresse, kontakt: d.kontakt || '', geb: d.geb || '' }));
+        saveProfile(Object.assign(loadProfile(), { name: d.name, adresse: d.adresse, tel: d.tel || '', email: d.email || '', geb: d.geb || '' }));
         const text = buildLetter(d);
         try { openWin(text, d); } catch (e) { console.error('Kündigung Fenster', e); say('Das Fenster konnte nicht geöffnet werden. Bitte versuchen Sie es noch einmal.'); return; }
         const luecke = !d.anbAdresse ? ' Die Anschrift des Anbieters fehlt noch, tragen Sie sie im Fenster ein oder tippen Sie auf Adresse suchen.' : '';
@@ -457,7 +461,8 @@
                 break;
             case 'adresse': d.adresse = capWords(txt); break;
             case 'plz': if (!UNKNOWN.test(t)) d.adresse = d.adresse + ', ' + capWords(plzText(raw)); break;
-            case 'kontakt': d.kontakt = UNKNOWN.test(t) ? '' : mailOrPhone(raw); break;
+            case 'tel': d.tel = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
+            case 'email': d.email = UNKNOWN.test(t) ? '' : mailText(raw); break;
             case 'geb': d.geb = UNKNOWN.test(t) ? '' : gebText(raw); break;
             case 'versand': d.versand = /einschreib/.test(t) ? 'einschreiben' : /mail|elektron|digital/.test(t) ? 'email' : ''; break;
             case 'zaehler': d.zaehler = UNKNOWN.test(t) ? '' : parseNumber(raw); break;
