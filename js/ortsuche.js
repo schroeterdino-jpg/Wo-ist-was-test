@@ -597,6 +597,15 @@
                     if (info && info.exact) cands.push({ p, info });
                 }
                 if (cands.length) {
+                    // Karten mit den ergänzten Adressen neu zeigen (vorher stand dort "Adresse unbekannt", wenn die Kartendaten keine Straße hatten)
+                    try {
+                        const full = new Map(cands.map(c => [c.p, c.info.address]));
+                        showCards(places.map(p => {
+                            const oi = hoursInfo(p);
+                            const hours = oi ? (oi.open ? `geöffnet${oi.until ? ' bis ' + oi.until : ''}` : `laut Eintrag geschlossen${oi.opensAt ? ', öffnet ' + oi.opensAt : ''}`) : (p.hours ? p.hours.slice(0, 40) : 'Öffnungszeiten unbekannt');
+                            return { icon: res.entry.icon || '📍', title: `${p.name} · ${distShort(p.dist)}`, subtitle: `${full.get(p) || [p.street, p.city].filter(Boolean).join(', ') || 'Adresse unbekannt'} · ${hours} · Tippen: Route`, href: routeUrl(p) };
+                        }));
+                    } catch (e) {}
                     const cities = cands.map(c => c.info.city || '');
                     const distinctCities = cities.every(c => c) && new Set(cities.map(c => c.toLowerCase())).size === cities.length;
                     const choices = cands.map(c => ({
