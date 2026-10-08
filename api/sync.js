@@ -190,6 +190,10 @@ async function handlePush(action, req, res, redis) {
       await redis('SET', ITEMS_KEY, JSON.stringify(st));
       return res.status(200).json({ ok: true, count: st.items.length, done: Object.keys(st.done) });
     }
+    if (action === 'push_done_list') {   // beim Öffnen der App: was wurde am Sperrbildschirm schon erledigt?
+      const st = await loadItems(redis);
+      return res.status(200).json({ ok: true, done: Object.keys(st.done) });
+    }
     if (action === 'push_loc') {   // letzter bekannter Standort (die App meldet ihn nur, solange sie offen ist)
       if (!Number.isFinite(body.lat) || !Number.isFinite(body.lon) || Math.abs(body.lat) > 90 || Math.abs(body.lon) > 180) return res.status(400).json({ error: 'Ungültig' });
       const st = await loadItems(redis);
