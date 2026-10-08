@@ -221,7 +221,7 @@ async function handlePush(action, req, res, redis) {
 //   /api/sync?action=push_due&key=<PUSH_CRON_KEY>
 // ---------------------------------------------------------------------------------------------
 const ITEMS_KEY = 'alltags-helfer:pushitems';
-const EVENT_LEAD_MIN = 15;          // Termin-Vorwarnung so viele Minuten vorher
+const EVENT_LEAD_MIN = 60;          // Termin-Vorwarnung (ohne Ort) so viele Minuten vorher
 const REMINDER_GRACE_MIN = 15;      // verpasste Erinnerung wird noch so lange nachgeholt
 const ALIVE_MS = 270 * 1000;        // App gilt so lange als "offen" nach ihrem letzten Lebenszeichen
 
@@ -306,7 +306,7 @@ async function checkStau(route) {
   const pad = 0.35;
   const minLat = Math.min(route.from.lat, route.to.lat) - pad, maxLat = Math.max(route.from.lat, route.to.lat) + pad;
   const minLon = Math.min(route.from.lon, route.to.lon) - pad, maxLon = Math.max(route.from.lon, route.to.lon) + pad;
-  const meldungen = []; let geprueft = 0;
+  const meldungen = []; let geprueft = 0, kostMin = 0;
   const results = await Promise.all(roads.map(async road => {
     try {
       const r = await fetch('https://verkehr.autobahn.de/o/autobahn/' + road + '/services/warning', { signal: AbortSignal.timeout(5000) });
@@ -328,10 +328,15 @@ async function checkStau(route) {
       const name = kurz.split(/\s+[-–]\s+|,\s*/).pop().trim().toLowerCase();
       if (seen.some(g => g.art === art && g.name === name)) return;   // dieselbe Stelle in beiden Richtungen nur einmal
       seen.push({ art, name });
+      if (art === 'Stau' || art === 'Unfall' || art === 'Sperrung') {   // Zeitverlust: aus der Meldung, sonst 10 Minuten pro Stelle
+        const txt = ((w.title || '') + ' ' + (w.description || []).join(' '));
+        const m = txt.match(/(?:verz[öo]gerung|zeitverlust|verlustzeit)[^0-9]{0,25}(\d{1,3})\s*min/i) || txt.match(/(\d{1,3})\s*min(?:uten)?\s*(?:verz[öo]gerung|zeitverlust|l[äa]nger)/i);
+        kostMin += m ? Math.min(60, Math.max(1, parseInt(m[1], 10))) : 10;
+      }
       if (meldungen.length < 3) meldungen.push(roads[i] + (kurz ? ' ' + kurz : '') + ' (' + art + ')');
     });
   });
-  return { geprueft: geprueft > 0, meldungen };
+  return { geprueft: geprueft > 0, meldungen, kostMin: Math.min(45, kostMin) };
 }
 
 async function buildBriefing(st, sh, now) {
@@ -431,7 +436,7 @@ function depNeedsWork(st, it, now) {
   if (it.at <= now || it.at - now > DEPART_WINDOW_MS) return false;
   const d = st.dep[it.id];
   if (!d) return true;
-  if (!d.fail && now >= it.at - (d.fahrtMin + BUFFER_MIN + DEPART_LEAD_MIN) * 60000) return true;
+  if (!d.fail && now >= it.at - (d.fahrtMin + (d.stauMin || 0) + BUFFER_MIN + DEPART_LEAD_MIN) * 60000) return true;
   if (now - d.ts > 10 * 60000 && (d.fail || it.at - now < 90 * 60000)) return true;
   return false;
 }
@@ -491,10 +496,13 @@ async function handleDue(req, res, redis) {
         const g = origin ? await geoCached(st, it.l) : null;
         const r = (origin && g) ? await routeServer(origin, g) : null;
         if (!r) { st.dep[it.id] = dep && !dep.fail ? Object.assign({}, dep, { ts: now }) : { fail: origin ? (g ? 'route' : 'ort') : 'standort', ts: now }; dep = st.dep[it.id]; }
-        else dep = st.dep[it.id] = { fahrtMin: r.fahrtMin, autobahnen: r.autobahnen, from: { lat: origin.lat, lon: origin.lon }, to: g, quelle: origin.src, ts: now };
+        else {
+          const sc = await checkStau({ autobahnen: r.autobahnen, from: origin, to: g });
+          dep = st.dep[it.id] = { fahrtMin: r.fahrtMin, autobahnen: r.autobahnen, from: { lat: origin.lat, lon: origin.lon }, to: g, quelle: origin.src, stauMin: sc.kostMin || 0, ts: now };
+        }
       }
       if (!dep || dep.fail) continue;
-      const leaveAt = it.at - (dep.fahrtMin + BUFFER_MIN) * 60000;
+      const leaveAt = it.at - (dep.fahrtMin + (dep.stauMin || 0) + BUFFER_MIN) * 60000;
       if (now < leaveAt - DEPART_LEAD_MIN * 60000 || now >= it.at) continue;
       st.sent['d' + it.id] = now; st.sent[it.id] = now;
       if (appOpen) { skippedApp++; continue; }
@@ -503,10 +511,10 @@ async function handleDue(req, res, redis) {
       const stau = await checkStau({ autobahnen: dep.autobahnen, from: dep.from, to: dep.to });
       const mins = Math.round((leaveAt - now) / 60000);
       const wann = mins > 0 ? 'Du musst in ' + mins + ' Minuten losfahren (um ' + berlinClock(leaveAt) + ' Uhr)' : 'Du solltest jetzt losfahren';
-      const teile = [wann + ' zu „' + it.x + '“ um ' + berlinClock(it.at) + ' Uhr. Fahrt etwa ' + dep.fahrtMin + ' Minuten' + (dep.quelle === 'zuhause' ? ' (ab Zuhause)' : '') + '.'];
+      const teile = [wann + ' zu „' + it.x + '“ um ' + berlinClock(it.at) + ' Uhr. Fahrt etwa ' + dep.fahrtMin + ' Minuten' + (dep.stauMin ? ' ohne Stau' : '') + (dep.quelle === 'zuhause' ? ' (ab Zuhause)' : '') + '.'];
       if (stau.meldungen.length) {
         teile.push('Auf der Strecke: ' + stau.meldungen.join('; ') + '.');
-        if (stau.meldungen.some(m => /\((Stau|Unfall|Sperrung)\)/.test(m))) teile.push('Plane etwa 10 Minuten mehr ein.');
+        if (dep.stauMin) teile.push('Der Stau kostet etwa ' + dep.stauMin + ' Minuten, die sind schon eingerechnet.');
       } else if (stau.geprueft) teile.push('Keine Staumeldungen auf der Strecke.');
       const r2 = await sendToAll(redis, data, { title: 'Abfahrt: ' + it.x, body: teile.join(' '), tag: 'd-' + it.id, url: './' });
       if (r2.sent > 0) departSent++;
