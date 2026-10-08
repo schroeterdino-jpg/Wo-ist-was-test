@@ -184,26 +184,21 @@
     }
     window.handleFristenCommand = handle;
 
-    if (typeof window.handleLocalCommand === 'function' && !window.handleLocalCommand._fristen) {
-        const original = window.handleLocalCommand;
-        const hooked = function (text) {
-            const args = arguments, self = this;
+    if (window.jvCommands) {   // Befehlsliste (commands.js)
+        window.jvCommands.use('fristen', function (text, next) {
             const t = String(text || '');
             if (t.length <= 90 && (TOGGLE_RX.test(t) || LIST_RX.test(t) || DONE_RX.test(t.trim()))) {
                 // async: erst prüfen, ob es wirklich um eine Frist geht; sonst normal weiter
                 const rest = () => {
                     let r = false;
-                    try { r = original.apply(self, args); } catch (e) { console.error('Fristen', e); }
+                    try { r = next(text); } catch (e) { console.error('Fristen', e); }
                     if (!r && typeof window.sendToGroqSmart === 'function') { try { window.sendToGroqSmart(t); } catch (e) {} }
                 };
                 handle(t).then(done => { if (!done) rest(); }).catch(rest);
                 return true;
             }
-            return original.apply(self, args);
-        };
-        hooked._fristen = true;
-        Object.keys(original).forEach(k => { try { hooked[k] = original[k]; } catch (e) {} });
-        window.handleLocalCommand = hooked;
+            return next(text);
+        }, 500);
     }
 
     /* ---------- Takt ---------- */

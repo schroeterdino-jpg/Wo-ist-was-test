@@ -101,14 +101,10 @@
         return true;
     }
     window.handleFormulierungCommand = handleCommand;
-    if (typeof window.handleLocalCommand === 'function' && !window.handleLocalCommand._formulierungen) {
-        const original = window.handleLocalCommand;
-        const hooked = function (text) {
+    if (window.jvCommands) {   // Befehlsliste (commands.js)
+        window.jvCommands.use('formulierungen', function (text, next) {
             try { if (handleCommand(text)) return true; } catch (e) {}
-            return original.apply(this, arguments);
-        };
-        hooked._formulierungen = true;
-        Object.keys(original).forEach(k => { try { hooked[k] = original[k]; } catch (e) {} });
-        window.handleLocalCommand = hooked;
+            return next(text);
+        }, 700);
     }
 })();

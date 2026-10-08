@@ -271,15 +271,11 @@
         return false;
     }
     window.handleLangzeitCommand = handleLangzeitCommand;
-    if (typeof window.handleLocalCommand === 'function' && !window.handleLocalCommand._langzeit) {
-        const originalLocal = window.handleLocalCommand;
-        const hooked = function (text) {
+    if (window.jvCommands) {   // Befehlsliste (commands.js)
+        window.jvCommands.use('langzeit', function (text, next) {
             try { if (handleLangzeitCommand(text)) return true; } catch (e) {}
-            return originalLocal.apply(this, arguments);
-        };
-        hooked._langzeit = true;
-        Object.keys(originalLocal).forEach(k => { try { hooked[k] = originalLocal[k]; } catch (e) {} });
-        window.handleLocalCommand = hooked;
+            return next(text);
+        }, 800);
     }
 
     /* ---------- 6) Einmaliges Aufräumen der Altlasten ---------- */

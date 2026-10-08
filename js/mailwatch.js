@@ -149,9 +149,8 @@
     }
 
     window.jvMailWatch = { check, handleAnswer, handleToggle, waiting: () => !!state || queue.length > 0 };
-    if (typeof window.handleLocalCommand === 'function' && !window.handleLocalCommand._mailwatch) {
-        const original = window.handleLocalCommand;
-        const hooked = function (text) {
+    if (window.jvCommands) {   // Befehlsliste (commands.js)
+        window.jvCommands.use('mailwatch', function (text, next) {
             try { if (handleToggle(text)) return true; } catch (e) {}
             if (state) {
                 // Antwort auf die Meldung; der Rest passiert asynchron, hier nur "behandelt" melden
@@ -159,11 +158,8 @@
                 if (Date.now() <= s.until && (YES.test(raw) || NO.test(raw))) { handleAnswer(raw).catch(() => {}); return true; }
                 state = null; queue = [];
             }
-            return original.apply(this, arguments);
-        };
-        hooked._mailwatch = true;
-        Object.keys(original).forEach(k => { try { hooked[k] = original[k]; } catch (e) {} });
-        window.handleLocalCommand = hooked;
+            return next(text);
+        }, 600);
     }
     try { if (document.readyState === 'complete') start(); else window.addEventListener('load', start, { once: true }); } catch (e) {}
 })();
