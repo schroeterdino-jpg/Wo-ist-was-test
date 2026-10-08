@@ -527,10 +527,9 @@
     /* ---------- Eintrag im ☰-Menü (ohne panels.js zu ändern: buildMenuPanel wird umwickelt) ---------- */
     function hookMenu() {
         try {
-            if (typeof window.buildMenuPanel !== 'function' || window.buildMenuPanel.__kd) return;
-            const orig = window.buildMenuPanel;
-            const wrapped = function () {
-                const r = orig.apply(this, arguments);
+            if (!window.jvChain) return;   // Ergänzungs-Liste (commands.js)
+            window.jvChain.use('buildMenuPanel', 'kuendigung', function (next) {
+                const r = next();
                 try {
                     if (r && typeof r.html === 'string' && r.html.indexOf('kuendigungMenu') < 0) {
                         const n = loadList().length;
@@ -542,13 +541,10 @@
                     }
                 } catch (e) { console.error('Kündigung Menü', e); }
                 return r;
-            };
-            wrapped.__kd = true;
-            window.buildMenuPanel = wrapped;
+            }, 200);
         } catch (e) {}
     }
     hookMenu();
-    [800, 3000].forEach(ms => setTimeout(hookMenu, ms));
 
     /* Start mit schon bekannten Angaben (z. B. aus einem fotografierten Brief): Anbieter, Vertragsart, Nummer, Grund */
     window.kuendigungStart = function (o) {

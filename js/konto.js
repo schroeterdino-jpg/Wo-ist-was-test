@@ -176,10 +176,9 @@
     /* Eintrag im ☰-Menü, ohne panels.js zu ändern */
     function hookMenu() {
         try {
-            if (typeof window.buildMenuPanel !== 'function' || window.buildMenuPanel.__km) return;
-            const orig = window.buildMenuPanel;
-            const wrapped = function () {
-                const r = orig.apply(this, arguments);
+            if (!window.jvChain) return;   // Ergänzungs-Liste (commands.js)
+            window.jvChain.use('buildMenuPanel', 'konto', function (next) {
+                const r = next();
                 try {
                     if (r && typeof r.html === 'string' && r.html.indexOf('kontoMenu') < 0) {
                         const btn = '<button class="panel-row w-full flex items-center gap-3 text-left bg-black/60 border border-[rgba(73,215,255,.2)] rounded-lg p-3 mb-2" style="--i:12" onclick="playUiBeep(); closePanel(); window.kontoMenu()">' +
@@ -189,13 +188,10 @@
                     }
                 } catch (e) { console.error('Konto Menü', e); }
                 return r;
-            };
-            wrapped.__km = true;
-            // Falls kuendigung.js schon umwickelt hat: unsere Hülle darum legen (beide bleiben aktiv)
-            window.buildMenuPanel = wrapped;
+            }, 100);
         } catch (e) {}
     }
-    hookMenu(); [800, 3000].forEach(ms => setTimeout(hookMenu, ms));
+    hookMenu();
 
     /* ---------- Sprachbefehle ---------- */
     const norm = s => String(s || '').toLowerCase().replace(/[.,!?;:"„“]+/g, ' ').replace(/\s+/g, ' ').trim();
