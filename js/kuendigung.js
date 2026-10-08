@@ -104,11 +104,12 @@
         const bei = d.anbieter ? ` bei ${d.anbieter}` : ' bei Ihnen';
         const nl = kind === 'vers' ? 'Versicherungsschein-/Vertragsnummer' : kind === 'miete' ? 'Mietvertragsnummer' : 'Kunden-/Vertragsnummer';
         const num = d.nummer ? ` mit der ${nl} ${d.nummer}` : '';
+        const numK = d.nummer ? ` (${nl} ${d.nummer})` : '';
         const obj = d.objekt ? String(d.objekt) : '';
         let betreff;
         if (kind === 'miete') betreff = `Kündigung des Mietverhältnisses${obj ? ' – Wohnung ' + obj : ''}${d.nummer ? ' – ' + nl + ' ' + d.nummer : ''}`;
         else betreff = `Kündigung meines Vertrags${art}${d.anbieter ? ' bei ' + d.anbieter : ''}${d.nummer ? ' – ' + nl + ' ' + d.nummer : ''}`;
-        const teil = kind === 'miete' ? `das Mietverhältnis über die Wohnung${obj ? ' ' + obj : ''}${num}` : `meinen Vertrag${art}${bei}${num}`;
+        const teil = kind === 'miete' ? `das Mietverhältnis über die Wohnung${obj ? ' ' + obj : ''}${num}` : `den mit Ihnen bestehenden Vertrag${numK}`;
         const fruehest = 'zum nächstmöglichen Zeitpunkt';
         let satz;
         if (d.modus === 'datum' && d.datum) satz = `hiermit kündige ich ${teil} ordentlich und fristgerecht zum ${d.datum}, hilfsweise zum nächstmöglichen Zeitpunkt.`;
@@ -355,7 +356,11 @@
     const START_3 = /\b(?:ich )?(?:will|möchte|moechte|muss|würde gerne)\b.*\b(?:vertrag|abo|abonnement|mitgliedschaft|versicherung|handyvertrag|internetvertrag|stromvertrag)\b.*\bk(?:ü|ue)ndigen\b/;
 
     const LIST_RE = /^(?:bitte\s+)?(?:(?:zeig|zeige|öffne|oeffne|hol|such)(?:\s+mir)?\s+)?(?:(?:die|meine|alle|gespeicherten)\s+)*(?:k(?:ü|ue)ndigungen|k(?:ü|ue)ndigungsschreiben)(?:\s+(?:an|auf|anzeigen|her|ansehen))*$/;
-    function isStart(t) { return t.length <= 100 && (START_1.test(t) || START_2.test(t) || START_3.test(t)); }
+    const START_4 = /^(?:(?:eine|die|meine|bitte|mal)\s+)*k(?:ü|ue)ndigung(?:en)?(?:\s+(?:bitte|mal|jetzt))*$/;
+    const START_5 = /\bk(?:ü|ue)ndigungs(?:schreiben|brief|vorlage|entwurf|schreib\w*)\b/;
+    const START_6 = /^(?:(?:ich|jarvis|bitte)\s+)*(?:(?:will|möchte|moechte|muss|würde|wuerde|kann|soll)\s+)?(?:(?:gerne|mal|jetzt|noch)\s+)*(?:(?:meinen|mein|meine|den|die|das|einen|eine|ein|mal|gerne)\s+)*[\wäöüß\- ]{0,40}\bk(?:ü|ue)ndigen$/;
+    const START_7 = /^k(?:ü|ue)ndigung\s+(?:für|fuer|an|bei)\s+\S/;
+    function isStart(t) { return t.length <= 100 && !/^(?:wie|wann|wo|was|warum|wieso|weshalb|kann|darf|gibt|ist|hat|habe|haben)\b/.test(t) && (START_7.test(t) || START_1.test(t) || START_2.test(t) || START_3.test(t) || START_4.test(t) || START_5.test(t) || START_6.test(t)); }
     function prefill(raw, d) {
         const m = String(raw || '').match(/.*\b(?:bei|für|fuer|an|von)\s+(?:den |die |das |meinen |meine |mein |meinem |meiner |dem |der |einem |einer )?(.+?)\s*(?:schreiben|aufsetzen|verfassen|erstellen|kündigen)?\s*$/i);
         if (!m) return;
@@ -366,6 +371,7 @@
     function start(raw) {
         S = { step: 'anbieter', d: { modus: 'naechst' }, at: Date.now() };
         prefill(raw, S.d);
+        if (!S.d.art) { const m = String(raw || '').toLowerCase().match(/([\wäöüß-]*(?:vertrag|abo|abonnement|mitgliedschaft|versicherung|internet|handy|mobilfunk|strom|gas|fitness\w*|dsl|miete|wohnung|zeitung|streaming)[\wäöüß-]*)\s+k(?:ü|ue)ndigen/); if (m) S.d.art = m[1]; }
         next();
     }
     function ask(q) { say(q); }
@@ -549,5 +555,5 @@
         window.handleLocalCommand = hooked;
     }
     hook();
-    [1500, 4000, 9000].forEach(ms => setTimeout(hook, ms));   // spätere Dateien umwickeln den Befehl: wieder ganz nach außen
+    [1500, 4000, 9000, 20000, 45000, 90000].forEach(ms => setTimeout(hook, ms));   // spätere Dateien umwickeln den Befehl: wieder ganz nach außen
 })();
