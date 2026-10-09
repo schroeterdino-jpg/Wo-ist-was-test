@@ -7,7 +7,7 @@
 // POST { action: 'list', limit?, prefix? } -> listet Einträge direkt auf, ohne Ähnlichkeits-Vergleich
 // POST { action: 'listall' } -> alle Einträge mit id (fürs Aufräumen)
 // POST { action: 'delete', ids } -> löscht Einträge
-// POST { action: 'due', today } -> Einträge, zu denen heute nachgefragt oder an die heute erinnert werden soll
+// POST { action: 'due', today, anstoss } -> Einträge, zu denen heute nachgefragt oder an die heute erinnert werden soll (anstoss: true = ggf. ein beiläufiger Anstoß zu einem undatierten Eintrag)
 // POST { action: 'mark', id, art, year } -> merkt sich, dass nachgefragt bzw. erinnert wurde
 // POST { action: 'fristen', today, all? } -> Fristen aus E-Mails (typ 'frist'): fällige Erinnerungen, oder mit all:true alle offenen
 // POST { action: 'mark', id, art:'frist_vor'|'frist_heute'|'frist_ueber'|'frist_erledigt' } -> Frist-Erinnerung vermerken bzw. erledigt
@@ -159,6 +159,23 @@ export default async function handler(req, res) {
           due.push({ art: 'nachfragen', id: e.id, text: e.text, metadata: m });
         }
       }
+      // Beiläufiger Anstoß ("Wie geht es eigentlich Finja?"): nur wenn die App ihn erlaubt (höchstens alle 2-3 Tage), sonst nichts fällig ist,
+      // zu Einträgen ohne Ereignisdatum (Familie, Vorlieben, Projekte), pro Eintrag höchstens alle 10 Tage, nicht zu frisch Erzähltes, nichts Abgewähltes
+      if (!due.length && body.anstoss === true) {
+        const cool = addDays(today, -10), frisch = addDays(today, -1);
+        const kandidaten = all.filter(e => {
+          const m = e.metadata || {};
+          if (m.typ !== 'episode' || ISO_DAY.test(String(m.ereignis_datum || ''))) return false;
+          if (m.kategorie === 'Stimmung' || m.anstoss_aus === true || m.anstoss_aus === 'true') return false;
+          if (ISO_DAY.test(String(m.anstoss_tag || '')) && m.anstoss_tag > cool) return false;
+          if (ISO_DAY.test(String(m.datum_gesagt || '')) && m.datum_gesagt >= frisch) return false;
+          return true;
+        });
+        if (kandidaten.length) {
+          const e = kandidaten[Math.floor(Math.random() * kandidaten.length)];
+          due.push({ art: 'anstoss', id: e.id, text: e.text, metadata: e.metadata || {} });
+        }
+      }
       // Hinweise für heute zuerst, dann das älteste Ereignis
       due.sort((a, b) => (a.art === 'heute' ? 0 : 1) - (b.art === 'heute' ? 0 : 1) || String(a.metadata.ereignis_datum).localeCompare(String(b.metadata.ereignis_datum)));
       return res.status(200).json({ due: due.slice(0, 3) });
@@ -206,6 +223,8 @@ export default async function handler(req, res) {
         if (a === 'erledigt') meta.status = 'erledigt';
         else if (a === 'vor' || a === 'heute' || a === 'ueber') meta['erinnert_' + a] = true;
       }
+      else if (String(body.art) === 'anstoss') meta.anstoss_tag = ISO_DAY.test(String(body.today || '')) ? String(body.today) : new Date().toISOString().slice(0, 10);
+      else if (String(body.art) === 'anstoss_aus') meta.anstoss_aus = true;
       else if (String(body.art) === 'heute') meta.hinweis_jahr = year;
       else { meta.nachgefragt_jahr = year; if (!yearly) meta.status = 'nachgefragt'; }
       const ur = await fetch(`${url}/upsert-data`, {
