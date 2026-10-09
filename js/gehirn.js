@@ -5,7 +5,7 @@
    Antippen eines Knotens öffnet die jeweilige Funktion. Antippen einer leeren Stelle startet wie bisher das Zuhören.
    Zurück zur alten Kugel: kleiner Knopf oben rechts an der Ansicht, oder per Sprache "Zurück zur Kugel". "Zeig das Gehirn" schaltet wieder um.
    Die Wahl bleibt gespeichert (localStorage, Schlüssel jv_ansicht). Die Kugel (sphere.js) bleibt unverändert und läuft weiter im Hintergrund-Zustand "aus".
-   Verschmelzen: Sobald du sprichst oder Jarvis antwortet, fliegen die fünf Bereiche in der Mitte zu EINEM Bereich zusammen (Farben wirbeln, Lichtblitz, Funken). Danach teilen sie sich wieder.
+   Verschmelzen: Sobald Jarvis antwortet (nicht, wenn du sprichst; nicht beim Fokus-Zoom), fliegen die fünf Bereiche in der Mitte zu EINEM Bereich zusammen (Farben wirbeln, Lichtblitz, Funken). Danach teilen sie sich wieder.
    Farben: ruhig und beim Zuhören blau-violett-orange; während Jarvis spricht pulsieren die Bereiche stärker.
    Braucht: index.html mit .holo-container und #recordBtn. Läuft ohne alle anderen Dateien, Aktionen rufen nur vorhandene Funktionen (openPanel, handleLocalCommand ...) auf, sofern sie existieren.
    ============================================================ */
@@ -121,15 +121,14 @@
         E += ((st === 'speaking' ? 1 : st === 'recording' ? 0.55 : 0.15) - E) * 0.06;   // weich ein- und ausblenden
         const energy = E;
         // Verschmelzen: beim Sprechen oder Zuhören zusammenfließen, kurz nachhalten (die KI denkt noch), dann wieder teilen
-        const active = st !== 'idle';
-        if (active) holdUntil = now + (st === 'recording' ? 5000 : 1800);
-        const fuseGoal = (active || now < holdUntil) ? 1 : 0;
+        const active = st === 'speaking';   // nur wenn Jarvis antwortet, nicht wenn der User spricht
+        if (active) holdUntil = now + 1800;
+        const fuseGoal = ((active || now < holdUntil) && !zoomNode && zoomK < 1.02) ? 1 : 0;   // beim Fokus/Heranzoomen bleibt alles einzeln antippbar
         F += (fuseGoal - F) * (fuseGoal ? 0.08 : 0.06); if (Math.abs(fuseGoal - F) < 0.003) F = fuseGoal;
         const e = F * F * (3 - 2 * F);
         if (fuseGoal && F > 0.9 && !wasFused) { wasFused = true; flash = 1; }
         if (!fuseGoal && F < 0.9 && wasFused) { wasFused = false; flash = 0.7; }
         flash *= 0.93; if (flash < 0.01) flash = 0;
-        if (fuseGoal && zoomNode) zoomOut();
         const la = Math.max(0, 1 - e * 1.7);   // Beschriftungen blenden beim Verschmelzen aus
         const env = E * (0.55 + 0.45 * Math.min(1, Math.abs(Math.sin(t * 7.3) * Math.sin(t * 3.1 + 1.3) + 0.35 * Math.sin(t * 12.7))));   // Sprach-Rhythmus
         // Schwung durch Ziehen klingt ab, Ansicht pendelt langsam zurück
