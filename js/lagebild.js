@@ -383,6 +383,25 @@
         };
         window.executeAction._jvLage = true;
     }
+    // "Wo tanke ich günstig auf dem Weg zu X": Diesel an der Strecke im Lagebild zeigen, nicht auf der dunklen HUD-Karte (E10/E5 bleiben beim Alten)
+    const origTank = window.fuelAlongRouteAdvice;
+    if (typeof origTank === 'function' && !origTank._jvLage) {
+        window.fuelAlongRouteAdvice = async function (opts) {
+            try {
+                const ft = String((opts && opts.fuelType) || 'diesel').toLowerCase();
+                if (opts && opts.destination && ft === 'diesel' && typeof window.computeDepartureAdvice === 'function') {
+                    const res = await window.computeDepartureAdvice({ query: opts.destLabel || String(opts.destination), destination: opts.destination, wantFuel: true });
+                    if (res && res.reply) {
+                        const sp = res.sprit;
+                        const extra = sp && sp.preis > 0 ? ' Der günstigste Diesel an der Strecke: ' + (sp.name || 'eine Tankstelle') + ' für ' + sp.preis.toFixed(3).replace('.', ',') + ' Euro.' : ' An der Strecke habe ich keine Tankstelle gefunden.';
+                        return { reply: res.reply + extra, cards: [], map: null, fuel: null, label: null };
+                    }
+                }
+            } catch (e) { if (e && (e.userMessage || e.auth)) throw e; console.error('Lagebild Tanken', e); }
+            return origTank.apply(this, arguments);
+        };
+        window.fuelAlongRouteAdvice._jvLage = true;
+    }
 
     /* ---------- Sprache ---------- */
     if (window.jvCommands) {
