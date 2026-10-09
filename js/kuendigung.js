@@ -112,7 +112,11 @@
         let betreff;
         if (kind === 'miete') betreff = `Kündigung des Mietverhältnisses${obj ? ' – Wohnung ' + obj : ''}${d.nummer ? ' – ' + nl + ' ' + d.nummer : ''}`;
         else betreff = `Kündigung${d.nummer ? ', ' + nl + ' ' + d.nummer : ' meines Vertrags' + (d.anbieter ? ' bei ' + d.anbieter : '')}`;
-        const teil = kind === 'miete' ? `das Mietverhältnis über die Wohnung${obj ? ' ' + obj : ''}${num}` : `den mit Ihnen bestehenden Vertrag${numK}`;
+        const artWort = kind === 'telko' ? (/handy|mobil|sim/i.test(d.art || '') ? 'Mobilfunkvertrag' : (/internet|dsl|glasfaser|kabel/i.test(d.art || '') ? 'Internetvertrag' : 'Vertrag')) : 'Vertrag';
+        const teil = kind === 'miete' ? `das Mietverhältnis über die Wohnung${obj ? ' ' + obj : ''}${num}`
+            : (d.tarif ? `den ${artWort} ${d.tarif}${numK}` : `den mit Ihnen bestehenden Vertrag${numK}`);
+        // Vertragsende vom Dokument: nur als Hinweis, die Kündigung selbst bleibt "zum nächstmöglichen Zeitpunkt"
+        const hinweisEnde = (d.vertragsende && kind !== 'miete') ? ` Nach meinen Unterlagen läuft der Vertrag bis zum ${d.vertragsende}. Bitte bestätigen Sie mir das genaue Vertragsende.` : '';
         const fruehest = 'zum nächstmöglichen Zeitpunkt';
         let satz;
         if (d.modus === 'datum' && d.datum) satz = `hiermit kündige ich ${teil} ordentlich und fristgerecht zum ${d.datum}, hilfsweise zum nächstmöglichen Zeitpunkt.`;
@@ -152,7 +156,7 @@
             (ort ? ort + ', ' : '') + datum, '',
             'Betreff: ' + betreff + (bezug.length ? '\n' + bezug.join('\n') : ''), '',
             'Sehr geehrte Damen und Herren,', '',
-            satz + ident, ''
+            satz + ident + hinweisEnde, ''
         ]).concat(fakten.length ? [fakten.join('\n'), ''] : []).concat([
             schluss, '',
             'Mit freundlichen Grüßen', '', '', '',
@@ -427,9 +431,9 @@
             S.step = 'adresse'; return ask('Wie lautet Ihre Anschrift? Straße, Hausnummer, Postleitzahl und Ort.');
         }
         if (!S.plzGefragt && !/\b\d{5}\b/.test(d.adresse)) { S.plzGefragt = true; S.step = 'plz'; return ask('Wie lauten Postleitzahl und Ort dazu? Dann steht der Ort vor dem Datum im Brief.'); }
-        if (d.tel === undefined) { const pt = p.tel || (p.kontakt && !/@/.test(p.kontakt) ? p.kontakt : ''); if (pt) d.tel = pt; else { S.step = 'tel'; return ask('Wie lautet Ihre Telefonnummer? Der Anbieter kann Sie dann bei Rückfragen erreichen. Sonst sagen Sie: weiß ich nicht, dann lasse ich eine Zeile zum Ausfüllen frei.'); } }
-        if (d.email === undefined) { const pe = p.email || (p.kontakt && /@/.test(p.kontakt) ? p.kontakt : ''); if (pe) d.email = mailFix(pe); else { S.step = 'email'; return ask('Wie lautet Ihre E-Mail-Adresse? Dorthin kann der Anbieter die Bestätigung schicken. Sonst sagen Sie: weiß ich nicht.'); } }
-        if (d.geb === undefined) { if (p.geb !== undefined && (p.geb === '' || /^\d{2}\.\d{2}\.\d{4}$/.test(p.geb))) d.geb = p.geb; else { S.step = 'geb'; return ask('Wie lautet Ihr Geburtsdatum? Manche Anbieter brauchen es, um Sie zu finden. Sonst sagen Sie: weiß ich nicht.'); } }
+        if (d.tel === undefined) { const pt = p.tel || (p.kontakt && !/@/.test(p.kontakt) ? p.kontakt : ''); if (pt) { d.tel = pt; (S.fromProfile = S.fromProfile || {}).tel = true; } else { S.step = 'tel'; return ask('Wie lautet Ihre Telefonnummer? Der Anbieter kann Sie dann bei Rückfragen erreichen. Sonst sagen Sie: weiß ich nicht, dann lasse ich eine Zeile zum Ausfüllen frei.'); } }
+        if (d.email === undefined) { const pe = p.email || (p.kontakt && /@/.test(p.kontakt) ? p.kontakt : ''); if (pe) { d.email = mailFix(pe); (S.fromProfile = S.fromProfile || {}).email = true; } else { S.step = 'email'; return ask('Wie lautet Ihre E-Mail-Adresse? Dorthin kann der Anbieter die Bestätigung schicken. Sonst sagen Sie: weiß ich nicht.'); } }
+        if (d.geb === undefined) { if (p.geb !== undefined && (p.geb === '' || /^\d{2}\.\d{2}\.\d{4}$/.test(p.geb))) { d.geb = p.geb; if (p.geb) (S.fromProfile = S.fromProfile || {}).geb = true; } else { S.step = 'geb'; return ask('Wie lautet Ihr Geburtsdatum? Manche Anbieter brauchen es, um Sie zu finden. Sonst sagen Sie: weiß ich nicht.'); } }
         if (d.versand === undefined) { S.step = 'versand'; return ask('Wie schicken Sie den Brief ab: per Einschreiben, per E-Mail oder mit normaler Post? Einschreiben ist am sichersten.'); }
         if (kind === 'energie') {
             if (d.zaehler === undefined) { S.step = 'zaehler'; return ask('Wie lautet die Zählernummer? Sie steht auf dem Zähler oder auf der Rechnung. Wenn Sie sie nicht haben, sagen Sie: weiß ich nicht.'); }
@@ -460,16 +464,18 @@
         finish();
     }
     function finish() {
-        const d = S.d; S = null;
+        const d = S.d, fp = S.fromProfile || {}; S = null;
         saveProfile(Object.assign(loadProfile(), { name: d.name, adresse: d.adresse, tel: d.tel || '', email: d.email || '', geb: d.geb || '' }));
         const text = buildLetter(d);
         try { openWin(text, d); } catch (e) { console.error('Kündigung Fenster', e); say('Das Fenster konnte nicht geöffnet werden. Bitte versuchen Sie es noch einmal.'); return; }
         const luecke = !d.anbAdresse ? ' Die Anschrift des Anbieters fehlt noch, tragen Sie sie im Fenster ein oder tippen Sie auf Adresse suchen.'
             : d.anbAdresseKI ? ' Die Anschrift des Anbieters stammt aus meinem Wissen. Im Brief steht ein Prüfhinweis, löschen Sie ihn, wenn die Adresse stimmt.'
             : d.anbAdresseBrief ? ' Die Anschrift des Anbieters habe ich vom Brief übernommen. Prüfen Sie, ob das auch die Kündigungsadresse ist.' : '';
-        const laufzeit = d.vertragsende ? ` Auf dem Brief steht als Ende der Vertragslaufzeit der ${d.vertragsende}. Zum nächstmöglichen Zeitpunkt endet der Vertrag also frühestens dann, prüfen Sie die Kündigungsfrist.` : '';
+        const laufzeit = d.vertragsende ? ` Auf dem Brief steht als Ende der Vertragslaufzeit der ${d.vertragsende}. Das steht als Hinweis im Brief, die Kündigung bleibt zum nächstmöglichen Zeitpunkt. Prüfen Sie die Kündigungsfrist.` : '';
+        const herkunft = [fp.tel && d.tel ? 'Telefon' : '', fp.email && d.email ? 'E-Mail' : '', fp.geb && d.geb ? 'Geburtsdatum' : ''].filter(Boolean);
+        const profilHinweis = herkunft.length ? ` ${herkunft.length > 1 ? herkunft.slice(0, -1).join(', ') + ' und ' + herkunft[herkunft.length - 1] : herkunft[0]} habe ich aus Ihrem Profil übernommen, bitte prüfen Sie ${herkunft.length > 1 ? 'sie' : 'es'} im Fenster.` : '';
         S = { step: 'remind', d: d, at: Date.now() };
-        say(`Die Kündigung an ${d.anbieter} ist fertig.${luecke}${laufzeit} Bitte prüfen Sie Adresse, Nummer und Kündigungsfrist. Sie können den Text im Fenster ändern, als PDF speichern oder drucken. Name und Anschrift merke ich mir für das nächste Mal. Soll ich Sie in 14 Tagen erinnern, die Bestätigung zu prüfen?`);
+        say(`Die Kündigung an ${d.anbieter} ist fertig.${luecke}${laufzeit}${profilHinweis} Bitte prüfen Sie Adresse, Nummer und Kündigungsfrist. Sie können den Text im Fenster ändern, als PDF speichern oder drucken. Name und Anschrift merke ich mir für das nächste Mal. Soll ich Sie in 14 Tagen erinnern, die Bestätigung zu prüfen?`);
     }
 
     function answer(raw) {
@@ -530,7 +536,7 @@
             case 'briefcheck':
                 if (YES.test(t)) break;
                 if (NO.test(t) || UNKNOWN.test(t)) {   // falsch gelesen: alles vom Brief verwerfen und normal fragen
-                    ['anbieter', 'art', 'nummer', 'vertragsnr', 'rufnr', 'anbAdresse', 'anbAdresseBrief', 'vertragsende'].forEach(k => { delete d[k]; });
+                    ['anbieter', 'art', 'nummer', 'vertragsnr', 'rufnr', 'anbAdresse', 'anbAdresseBrief', 'vertragsende', 'tarif'].forEach(k => { delete d[k]; });
                     say('In Ordnung, dann fragen wir es einzeln ab.'); break;
                 }
                 say('Bitte sagen Sie Ja, wenn das stimmt, oder Nein, wenn etwas falsch gelesen wurde.'); return;
@@ -614,6 +620,7 @@
         if (o.grund) { d.modus = 'ausser'; d.modusGeklaert = true; d.grund = clean(o.grund); }
         if (o.anbAdresse && /\b\d{5}\b|postfach/i.test(String(o.anbAdresse))) { d.anbAdresse = capWords(clean(o.anbAdresse)); d.anbAdresseBrief = true; }   // vom Brief gelesen
         if (o.vertragsnr) d.vertragsnr = clean(o.vertragsnr);
+        if (o.tarif) d.tarif = clean(o.tarif);
         if (o.rufnr) d.rufnr = clean(o.rufnr);
         if (o.vertragsende && /^\d{4}-\d{2}-\d{2}$/.test(o.vertragsende)) { const [y, m, dd] = o.vertragsende.split('-'); d.vertragsende = dd + '.' + m + '.' + y; }
         if (o.vonBrief && d.anbieter) {   // erst vorlesen, was gelesen wurde, und bestätigen lassen

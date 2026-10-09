@@ -165,6 +165,7 @@
             '"nummer":"Kundennummer (sonst Vertrags- oder Aktenzeichen) oder null",' +
             '"vertragsnummer":"Vertragsnummer, wenn es neben der Kundennummer eine eigene gibt, sonst null",' +
             '"rufnummer":"Handy- oder Telefonnummer des Vertrags mit Vorwahl oder null",' +
+            '"tarif":"Name des Tarifs oder Produkts, genau so gedruckt (z. B. 1&1 Unlimited on demand S), oder null",' +
             '"vertragsende":"JJJJ-MM-TT: Ende der Vertragslaufzeit oder Mindestlaufzeit, wenn gedruckt, sonst null",' +
             '"termin":{"titel":"kurzer Titel","datum":"JJJJ-MM-TT","uhrzeit":"HH:MM oder null","ort":"Ort oder null"} oder null,' +
             '"kurz":"Zusammenfassung in höchstens zwei kurzen deutschen Sätzen",' +
@@ -212,6 +213,7 @@
             vertragsnummer: clean(o.vertragsnummer).slice(0, 40),
             rufnummer: clean(o.rufnummer).slice(0, 30),
             vertragsende: dateOf(o.vertragsende),
+            tarif: clean(o.tarif).slice(0, 80),
             termin,
             kurz: clean(o.kurz).replace(/[*_`#>|]+/g, ' ').slice(0, 300),
             unsicher: o.unsicher === true || clean(o.unsicher).toLowerCase() === 'true'
@@ -379,7 +381,7 @@
     function startKuendigungFromLetter(L, grundOverride) {
         if (typeof window.kuendigungStart !== 'function') { say('Das Kündigungsschreiben ist in dieser Version nicht erreichbar.'); return; }
         const preis = /beitrag|versicherung/.test(String(L.vertragsart) + ' ' + String(L.neuerPreis || '').toLowerCase()) ? 'Beitragserhöhung' : 'Preiserhöhung';
-        window.kuendigungStart({ anbieter: L.absender, art: ART_LABEL[L.vertragsart] || '', nummer: L.nummer, vertragsnr: L.vertragsnummer, rufnr: L.rufnummer, vertragsende: L.vertragsende, anbAdresse: L.absenderAdresse,
+        window.kuendigungStart({ anbieter: L.absender, art: ART_LABEL[L.vertragsart] || '', nummer: L.nummer, vertragsnr: L.vertragsnummer, rufnr: L.rufnummer, tarif: L.tarif, vertragsende: L.vertragsende, anbAdresse: L.absenderAdresse,
             grund: grundOverride !== undefined ? grundOverride : (L.typ === 'vertragsaenderung' ? preis : ''), vonBrief: true });
     }
     window.startKuendigungAusBrief = function () {
