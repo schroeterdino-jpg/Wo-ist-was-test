@@ -1,6 +1,6 @@
 // Verkehrsmeldungen (Stau, Baustellen), Webcams UND Sprachausgabe (Fish Audio + OpenAI + Edge-TTS) - alles in EINER
 // Datei, weil Vercel im kostenlosen Hobby-Plan höchstens 12 Serverless Functions pro Deployment erlaubt.
-// Kein API-Schlüssel nötig für Verkehr/Webcams. Sprachausgabe, in dieser Reihenfolge:
+// Kein API-Schlüssel nötig für Autobahn-Verkehr/Webcams (Stadtverkehr über TomTom: Variable TOMTOM_API_KEY). Sprachausgabe, in dieser Reihenfolge:
 //   1. Fish Audio (engine=fish; Schlüssel FISH_AUDIO_API_KEY, Stimme FISH_AUDIO_VOICE_ID oder ?fishVoice=..., Modell FISH_AUDIO_MODEL, Standard s2-pro)
 //   2. OpenAI (gpt-4o-mini-tts, sehr natürlich, kostenpflichtig; Schlüssel OPENAI_API_KEY)
 //   3. Edge-TTS (kostenlos, kein Schlüssel)
@@ -121,6 +121,54 @@ export default async function handler(req, res) {
       return res.status(200).send(buffer);
     } catch (err) {
       return res.status(502).json({ error: 'Edge-TTS fehlgeschlagen: ' + String(err && err.message || err) });
+    }
+  }
+
+  // ---------- Stadtverkehr und Landstraßen (TomTom): ?traffic=1&bbox=minLon,minLat,maxLon,maxLat ----------
+  // Braucht die Vercel-Variable TOMTOM_API_KEY (kostenloser Schlüssel von developer.tomtom.com). Ohne Schlüssel: Fehlermeldung, die App macht dann nur mit den Autobahn-Meldungen weiter.
+  if (req.query.traffic) {
+    const key = process.env.TOMTOM_API_KEY;
+    if (!key) return res.status(501).json({ error: 'Server: TOMTOM_API_KEY fehlt', incidents: [] });
+    const parts = String(req.query.bbox || '').split(',').map(Number);
+    if (parts.length !== 4 || parts.some(n => !isFinite(n))) return res.status(400).json({ error: 'bbox ungültig', incidents: [] });
+    let [minLon, minLat, maxLon, maxLat] = parts;
+    // TomTom erlaubt höchstens 10.000 km² pro Abfrage: Fläche begrenzen (ca. 0,9° Breite x 0,6° Höhe in Norddeutschland)
+    if (maxLon - minLon > 0.9) { const m = (maxLon + minLon) / 2; minLon = m - 0.45; maxLon = m + 0.45; }
+    if (maxLat - minLat > 0.6) { const m = (maxLat + minLat) / 2; minLat = m - 0.3; maxLat = m + 0.3; }
+    try {
+      const url = 'https://api.tomtom.com/traffic/services/5/incidentDetails?key=' + encodeURIComponent(key) +
+        '&bbox=' + [minLon, minLat, maxLon, maxLat].map(n => n.toFixed(5)).join(',') +
+        '&language=de-DE&timeValidityFilter=present';
+      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) {
+        const t = await r.text().catch(() => '');
+        return res.status(502).json({ error: 'TomTom meldet Status ' + r.status + ': ' + t.slice(0, 200), incidents: [] });
+      }
+      const d = await r.json();
+      const ART = { 1: 'Unfall', 2: 'Nebel', 3: 'Gefahrenstelle', 4: 'Regen', 5: 'Glätte', 6: 'Stau', 7: 'Fahrstreifen gesperrt', 8: 'Sperrung', 9: 'Baustelle', 10: 'Wind', 11: 'Überflutung', 14: 'Pannenfahrzeug' };
+      const incidents = (d.incidents || []).map(it => {
+        const p = it.properties || {}, g = it.geometry || {};
+        // Position: erster Punkt der Linie (oder der Punkt selbst); TomTom liefert [Länge, Breite]
+        let c = g.coordinates;
+        while (Array.isArray(c) && Array.isArray(c[0])) c = c[0];
+        if (!Array.isArray(c) || c.length < 2) return null;
+        const ev = (p.events && p.events[0]) || {};
+        return {
+          lat: c[1], lon: c[0],
+          art: ART[p.iconCategory] || 'Verkehrsstörung',
+          kategorie: p.iconCategory || 0,
+          stufe: p.magnitudeOfDelay || 0,          // 0 unbekannt, 1 gering, 2 mittel, 3 groß, 4 Sperrung
+          verzoegerung_s: p.delay || 0,
+          laenge_m: p.length || 0,
+          von: p.from || '', nach: p.to || '',
+          strassen: p.roadNumbers || [],
+          text: ev.description || ''
+        };
+      }).filter(Boolean);
+      res.setHeader('Cache-Control', 's-maxage=60');
+      return res.status(200).json({ incidents });
+    } catch (e) {
+      return res.status(502).json({ error: 'TomTom nicht erreichbar: ' + String(e && e.message || e), incidents: [] });
     }
   }
 
