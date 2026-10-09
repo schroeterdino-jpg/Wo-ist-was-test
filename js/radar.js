@@ -1,7 +1,8 @@
 /* ============================================================
    RADAR: Vollbild-Ansicht im Film-Stil. Du bist in der Mitte, eine Scan-Linie dreht sich, rundherum leuchten (20 km Radius, Norden oben):
    - ⛽ Tankstellen (günstigste Diesel-Preise, die günstigste in Grün) - Tankerkönig über /api/tankroute
-   - ⚠ Verkehrsmeldungen (Stau, Unfälle, Sperrungen) - TomTom über /api/stau?traffic=1 (braucht TOMTOM_API_KEY; ohne Schlüssel fehlt dieser Teil)
+   - ⚠ Verkehrsmeldungen (Stau, Unfälle, Sperrungen) - TomTom über /api/stau?traffic=1 (braucht TOMTOM_API_KEY; ohne Schlüssel fehlt dieser Teil).
+     Dein Arbeitsweg (gespeicherte Arbeitsadresse) ist als Linie eingezeichnet; Meldungen darauf sind hervorgehoben und werden zuerst genannt (Straße, Abschnitt, Art, Verzögerung, Entfernung und Richtung), alle anderen sind blass.
    - ☂ Regen in den nächsten 3 Stunden: Vorhersage für 8 Richtungen rund um dich (Open-Meteo), als blaue Sektoren mit Beginn-Uhrzeit
    - ◆ Termine der nächsten 24 Stunden, die einen Ort haben
    Aufruf: "Radar" / "Zeig mir das Radar"; Schließen: ✕, Tipp auf den Rand oder "Radar schließen". Punkt antippen = Info (mit "Route" zum Tanken/Termin).
@@ -26,6 +27,35 @@
     function bearing(a, b, c, d) { const y = Math.sin(rad(d - b)) * Math.cos(rad(c)), x = Math.cos(rad(a)) * Math.sin(rad(c)) - Math.sin(rad(a)) * Math.cos(rad(c)) * Math.cos(rad(d - b)); return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360; }
     function dest(lat, lon, brg, dk) { const R = 6371, b = rad(brg), p1 = rad(lat), l1 = rad(lon), dr = dk / R; const p2 = Math.asin(Math.sin(p1) * Math.cos(dr) + Math.cos(p1) * Math.sin(dr) * Math.cos(b)); const l2 = l1 + Math.atan2(Math.sin(b) * Math.sin(dr) * Math.cos(p1), Math.cos(dr) - Math.sin(p1) * Math.sin(p2)); return [p2 * 180 / Math.PI, l2 * 180 / Math.PI]; }
     const hhmm = d => d.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
+    const himmel = b => HIMMEL[Math.round(b / 45) % 8];
+    function distToLine(lat, lon, pts) {
+        let best = Infinity;
+        for (let i = 0; i < pts.length - 1; i++) {
+            const a = pts[i], b = pts[i + 1], kx = Math.cos(lat * Math.PI / 180);
+            const ax = (a[1] - lon) * kx, ay = a[0] - lat, bx = (b[1] - lon) * kx, by = b[0] - lat, dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+            let t = L > 0 ? -(ax * dx + ay * dy) / L : 0; t = Math.max(0, Math.min(1, t));
+            const d = Math.hypot(ax + t * dx, ay + t * dy) * 111.2; if (d < best) best = d;
+        }
+        return best;
+    }
+    function wrap(x, text, maxW, maxLines) {
+        const words = String(text).split(' '), lines = []; let cur = '';
+        for (const w of words) { const t = cur ? cur + ' ' + w : w; if (x.measureText(t).width <= maxW) cur = t; else { if (cur) lines.push(cur); cur = w; } }
+        if (cur) lines.push(cur);
+        if (lines.length > maxLines) { lines.length = maxLines; lines[maxLines - 1] = lines[maxLines - 1].replace(/.{0,2}$/, '…'); }
+        return lines;
+    }
+    // ausführliche Beschreibung einer Verkehrsmeldung für Liste, Info und Sprache
+    function stauZeile(p, kurz) {
+        const strasse = p.strassen && p.strassen[0] ? p.strassen[0] : '';
+        const wo = p.von && p.nach && p.von !== p.nach ? 'zwischen ' + p.von + ' und ' + p.nach : (p.von ? 'bei ' + p.von : '');
+        const teile = [(strasse ? strasse + ' ' : '') + (wo ? wo + ': ' : ': ') + p.art + (p.anzahl > 1 ? ' (' + p.anzahl + ' Meldungen)' : '')];
+        if (p.min >= 2) teile.push(p.min + ' Minuten länger');
+        if (!kurz && p.laenge_m >= 300) teile.push((p.laenge_m / 1000).toFixed(1).replace('.', ',') + ' km lang');
+        teile.push(p.d.toFixed(0) + ' km ' + himmel(p.b));
+        if (!kurz && p.text && !new RegExp(p.art, 'i').test(p.text)) teile.push(p.text);
+        return teile.join(' · ');
+    }
 
     /* ---------- Daten ---------- */
     async function ladeTank(lat, lon) {
@@ -42,7 +72,7 @@
             const r = await apiFetch('/api/stau?traffic=1&bbox=' + [lon - dn, lat - dl, lon + dn, lat + dl].map(n => n.toFixed(5)).join(','));
             const d = await r.json();
             if (!r.ok) return { fehler: d && d.error ? String(d.error) : 'Status ' + r.status, items: [] };
-            return { items: (d.incidents || []).filter(i => ![4, 10].includes(i.kategorie) && (i.stufe >= 2 || i.verzoegerung_s >= 120 || [1, 8].includes(i.kategorie))).map(i => ({ typ: 'stau', lat: i.lat, lon: i.lon, art: i.art, min: Math.round(i.verzoegerung_s / 60), von: i.von, nach: i.nach, strassen: i.strassen, text: i.text })).slice(0, 25) };
+            return { items: (d.incidents || []).filter(i => ![4, 10].includes(i.kategorie) && (i.stufe >= 2 || i.verzoegerung_s >= 120 || [1, 8].includes(i.kategorie))).map(i => ({ typ: 'stau', lat: i.lat, lon: i.lon, art: i.art, min: Math.round(i.verzoegerung_s / 60), laenge_m: i.laenge_m || 0, von: i.von, nach: i.nach, strassen: i.strassen, text: i.text })).slice(0, 150) };
         } catch (e) { return { fehler: 'nicht erreichbar', items: [] }; }
     }
     async function ladeRegen(lat, lon) {
@@ -83,14 +113,21 @@
         try { loc = await mit(fetchUserLocationData(), 15000); } catch (e) {}
         if (!loc || loc.fehler || loc.latitude === undefined) return { fehler: (loc && loc.fehler) || 'Standort nicht verfügbar. Ist der Zugriff erlaubt?' };
         const lat = loc.latitude, lon = loc.longitude;
-        const [tank, stau, regen, term] = await Promise.all([ladeTank(lat, lon), ladeStau(lat, lon), ladeRegen(lat, lon), ladeTermine(lat, lon)]);
-        return { lat, lon, ort: loc.ort || '', tank, stau, regen, term, zeit: Date.now() };
+        const work = (typeof workAddress === 'string') ? workAddress : '';
+        const arbeitP = (work && typeof fetchRouteMapData === 'function') ? mit(fetchRouteMapData(work, loc).catch(() => null), 14000) : Promise.resolve(null);
+        const [tank, stau, regen, term, arbeitRoute] = await Promise.all([ladeTank(lat, lon), ladeStau(lat, lon), ladeRegen(lat, lon), ladeTermine(lat, lon), arbeitP]);
+        let arbeit = null;
+        if (arbeitRoute && Array.isArray(arbeitRoute.coords) && arbeitRoute.coords.length > 1) {
+            let c = arbeitRoute.coords; if (c.length > 400) { const st = Math.ceil(c.length / 400); c = c.filter((_, i) => i % st === 0 || i === c.length - 1); }
+            arbeit = { coords: c, fahrtMin: arbeitRoute.fahrtMin || null };
+        }
+        return { lat, lon, ort: loc.ort || '', tank, stau, regen, term, arbeit, hatArbeit: !!work, zeit: Date.now() };
     }
 
     /* ---------- Auswertung ---------- */
     // Meldungen an fast derselben Stelle (z.B. beide Fahrtrichtungen, mehrere Teilstücke einer Sperrung) zu einem Punkt zusammenfassen
     function clustern(items) {
-        const sorted = items.slice().sort((a, b) => b.min - a.min || (b.stufe || 0) - (a.stufe || 0));
+        const sorted = items.slice().sort((a, b) => (b.aufWeg ? 1 : 0) - (a.aufWeg ? 1 : 0) || b.min - a.min || (b.stufe || 0) - (a.stufe || 0));
         const out = [];
         sorted.forEach(i => {
             const c = out.find(o => distKm(o.lat, o.lon, i.lat, i.lon) < 1.5);
@@ -109,16 +146,20 @@
     }
     function infoText(p) {
         if (p.typ === 'fuel') return '⛽ ' + p.name + ' · Diesel ' + euro(p.preis) + ' · ' + p.d.toFixed(1).replace('.', ',') + ' km · ' + [p.strasse, p.ort].filter(Boolean).join(', ');
-        if (p.typ === 'stau') return '⚠ ' + p.art + ((p.strassen && p.strassen[0]) ? ' · ' + p.strassen[0] : '') + (p.von ? ' · ' + p.von + (p.nach ? ' → ' + p.nach : '') : '') + (p.min >= 2 ? ' · +' + p.min + ' min' : '') + ' · ' + p.d.toFixed(1).replace('.', ',') + ' km';
+        if (p.typ === 'stau') return (p.aufWeg ? '🚗 Auf deinem Arbeitsweg: ' : '⚠ ') + stauZeile(p, false);
         return '◆ ' + p.name + ' · ' + hhmm(p.wann) + ' Uhr · ' + p.d.toFixed(1).replace('.', ',') + ' km';
     }
     function zusammenfassung(s) {
         const z = [], sp = [];
         if (s.tank.length) { const t = s.tank[0]; z.push('⛽ Günstigster Diesel: ' + t.name + ' ' + euro(t.preis) + ' · ' + distKm(s.lat, s.lon, t.lat, t.lon).toFixed(0) + ' km'); sp.push('Der günstigste Diesel ist ' + euro(t.preis).replace(' €', ' Euro') + ' bei ' + t.name + ', ' + distKm(s.lat, s.lon, t.lat, t.lon).toFixed(0) + ' Kilometer entfernt.'); }
-        const cl = s.stau.cluster || [], n = cl.length;
+        const cl = s.stau.cluster || [], n = cl.length, auf = cl.filter(x => x.aufWeg), rest = cl.filter(x => !x.aufWeg);
+        if (s.hatArbeit && s.arbeit) {
+            if (auf.length) { auf.slice(0, 2).forEach(a => z.push('🚗 Arbeitsweg: ' + stauZeile(a, true))); sp.push('Auf deinem Arbeitsweg: ' + auf.slice(0, 2).map(a => stauZeile(a, true).replace(/ · \d+ km \S+$/, '')).join('. ') + '.'); }
+            else if (!s.stau.fehler) { z.push('🚗 Arbeitsweg: frei, keine Meldungen'); sp.push('Auf deinem Arbeitsweg ist nichts gemeldet.'); }
+        } else if (s.hatArbeit === false) z.push('🚗 Arbeitsweg unbekannt: sag „Merk dir meine Arbeitsadresse“');
         if (s.stau.fehler) z.push('⚠ Verkehr: nicht verfügbar');
-        else if (n) { const a = cl[0]; z.push('⚠ ' + n + (n === 1 ? ' Störung' : ' Störungen') + ' im Umkreis · schwerste: ' + a.art + (a.min >= 2 ? ' +' + a.min + ' min' : '') + ' ' + a.d.toFixed(0) + ' km'); sp.push('Im Umkreis gibt es ' + (n === 1 ? 'eine Störung' : n + ' Störungen') + ', die schwerste ist ' + a.art + '.'); }
-        else { z.push('⚠ Keine Verkehrsmeldungen im Umkreis'); }
+        else if (rest.length) { const r2 = rest.slice(0, auf.length ? 1 : 2); r2.forEach(a => z.push('⚠ ' + stauZeile(a, true))); if (rest.length > r2.length) z.push('⚠ + ' + (rest.length - r2.length) + ' weitere Meldungen (blass auf dem Radar, antippen)'); if (!auf.length) sp.push('Im Umkreis: ' + r2.map(a => stauZeile(a, true)).join('. ') + '.'); }
+        else if (!n) z.push('⚠ Keine Verkehrsmeldungen im Umkreis');
         const nass = s.regen.filter(x => x.start), jetztNass = nass.filter(x => x.start - Date.now() < 6 * 60000);
         const r = nass.slice().sort((a, b) => a.start - b.start)[0];
         if (jetztNass.length >= 6) {
@@ -173,26 +214,36 @@
         const a0 = rad(sw) - Math.PI / 2;
         for (let k = 0; k < 50; k++) { x.beginPath(); x.moveTo(cx, cy); x.arc(cx, cy, R, a0 - k * 0.022 - 0.022, a0 - k * 0.022); x.closePath(); x.fillStyle = 'rgba(94,231,255,' + (0.2 * (1 - k / 50)) + ')'; x.fill(); }
         x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + R * Math.cos(a0), cy + R * Math.sin(a0)); x.strokeStyle = '#5ee7ff'; x.lineWidth = 2; x.shadowColor = '#5ee7ff'; x.shadowBlur = 12; x.stroke(); x.shadowBlur = 0;
+        // Arbeitsweg als Linie (nur der Teil im Radius)
+        if (state && state.arbeit) {
+            x.save(); x.beginPath(); x.arc(cx, cy, R, 0, 7); x.clip();
+            x.beginPath(); let an = false;
+            state.arbeit.coords.forEach(c => { const d = distKm(state.lat, state.lon, c[0], c[1]), b = bearing(state.lat, state.lon, c[0], c[1]), f = d / RKM, px = cx + R * f * Math.sin(rad(b)), py = cy - R * f * Math.cos(rad(b)); if (!an) { x.moveTo(px, py); an = true; } else x.lineTo(px, py); });
+            x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = 2; x.setLineDash([6, 4]); x.shadowColor = '#5ee7ff'; x.shadowBlur = 6; x.stroke(); x.setLineDash([]); x.shadowBlur = 0; x.restore();
+        }
         // Punkte
         hits = [];
         if (state && state.pts) {
             const used = [], labeled = { fuel: 0, stau: 0 };
             const frei = (x0, y0, w) => !used.some(u => x0 < u.x + u.w && x0 + w > u.x && Math.abs(y0 - u.y) < 12);
-            const prio = state.pts.slice().sort((a, b) => (b.best ? 3 : 0) + (b.typ === 'term' ? 2 : 0) + (b.typ === 'stau' ? 1 : 0) - ((a.best ? 3 : 0) + (a.typ === 'term' ? 2 : 0) + (a.typ === 'stau' ? 1 : 0)));
+            const prio = state.pts.slice().sort((a, b) => (b.best ? 3 : 0) + (b.aufWeg ? 4 : 0) + (b.typ === 'term' ? 2 : 0) + (b.typ === 'stau' ? 1 : 0) - ((a.best ? 3 : 0) + (a.aufWeg ? 4 : 0) + (a.typ === 'term' ? 2 : 0) + (a.typ === 'stau' ? 1 : 0)));
             const pos = new Map();
             state.pts.forEach(p => {
                 const f = Math.min(p.d / RKM, 0.97), px = cx + R * f * Math.sin(rad(p.b)), py = cy - R * f * Math.cos(rad(p.b));
                 pos.set(p, [px, py]);
                 const diff = ((sw - p.b) % 360 + 360) % 360, glow = diff < 80 ? 1 - diff / 80 : 0;
                 const c = p.typ === 'fuel' ? (p.best ? COL.fuelBest : COL.fuel) : COL[p.typ], big = p.best ? 2 : 0;
-                x.beginPath(); x.arc(px, py, 5 + big + glow * 5, 0, 7); x.fillStyle = c + (glow > 0.1 ? '66' : '2a'); x.fill();
-                x.beginPath(); x.arc(px, py, 3.5 + big * 0.5, 0, 7); x.fillStyle = c; x.shadowColor = c; x.shadowBlur = 8; x.fill(); x.shadowBlur = 0;
+                const blass = p.typ === 'stau' && state.arbeit && !p.aufWeg && sel !== p;
+                x.globalAlpha = blass ? 0.38 : 1;
+                x.beginPath(); x.arc(px, py, (p.aufWeg ? 7 : 5) + big + glow * 5, 0, 7); x.fillStyle = c + (glow > 0.1 ? '66' : '2a'); x.fill();
+                x.beginPath(); x.arc(px, py, (p.aufWeg ? 4.6 : 3.5) + big * 0.5, 0, 7); x.fillStyle = c; x.shadowColor = c; x.shadowBlur = blass ? 0 : 8; x.fill(); x.shadowBlur = 0;
+                x.globalAlpha = 1;
                 if (sel === p) { x.beginPath(); x.arc(px, py, 11, 0, 7); x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.stroke(); }
                 hits.push({ p, x: px, y: py });
             });
             x.font = '10px ui-monospace,monospace';
             prio.forEach(p => {
-                if ((p.typ === 'fuel' && labeled.fuel >= 3) || (p.typ === 'stau' && labeled.stau >= 4)) return;
+                if ((p.typ === 'fuel' && labeled.fuel >= 3) || (p.typ === 'stau' && (labeled.stau >= 4 || (state.arbeit && !p.aufWeg)))) return;
                 const [px, py] = pos.get(p), c = p.typ === 'fuel' ? (p.best ? COL.fuelBest : COL.fuel) : COL[p.typ];
                 const l = ICO[p.typ] + ' ' + String(p.typ === 'fuel' ? euro(p.preis).replace(' €', '') : p.typ === 'stau' ? p.art + (p.anzahl > 1 ? ' ×' + p.anzahl : '') + (p.min >= 2 ? ' +' + p.min : '') : p.name).slice(0, 18);
                 const w = x.measureText(l).width;
@@ -215,12 +266,17 @@
         [['fuel', 'Tanken'], ['stau', 'Verkehr'], ['rain', 'Regen'], ['term', 'Termine']].forEach(([t, n]) => { x.fillStyle = COL[t]; x.beginPath(); x.arc(lx + 4, ly - 4, 4, 0, 7); x.fill(); x.font = '11px ui-monospace,monospace'; x.fillText(n, lx + 13, ly); lx += Math.max(80, (W - 32) / 4); });
         const rows = (state && state.fehler ? [state.fehler] : (state && state.zus ? state.zus.zeilen : ['Daten werden geladen …'])).slice();
         if (sel) rows.unshift(infoText(sel));
-        rows.slice(0, 6).forEach((t, i) => {
-            const y = ly + 24 + i * 25, ist = sel && i === 0;
-            x.fillStyle = ist ? 'rgba(20,60,80,.9)' : 'rgba(6,20,34,.7)'; x.fillRect(12, y - 15, W - 24, 22); x.strokeStyle = ist ? '#5ee7ff' : 'rgba(94,231,255,.3)'; x.strokeRect(12, y - 15, W - 24, 22);
-            x.fillStyle = '#d8f6ff'; x.font = '11px ui-monospace,monospace'; x.fillText(String(t).slice(0, Math.floor((W - 40) / 6.4)), 20, y);
+        x.font = '11px ui-monospace,monospace';
+        let yy = ly + 9;
+        rows.slice(0, 7).forEach((t, i) => {
+            const ist = sel && i === 0, lines = wrap(x, t, W - 48 - (ist && sel && (sel.typ === 'fuel' || sel.typ === 'term') ? 62 : 0), ist ? 4 : 3), h = lines.length * 14 + 8;
+            if (yy + h > H - 6) return;
+            x.fillStyle = ist ? 'rgba(20,60,80,.9)' : 'rgba(6,20,34,.7)'; x.fillRect(12, yy, W - 24, h); x.strokeStyle = ist ? '#5ee7ff' : 'rgba(94,231,255,.3)'; x.strokeRect(12, yy, W - 24, h);
+            x.fillStyle = '#d8f6ff'; x.textAlign = 'left'; lines.forEach((l, k) => x.fillText(l, 20, yy + 15 + k * 14));
+            if (i === 0) state._ersteY = yy;
+            yy += h + 5;
         });
-        if (sel && (sel.typ === 'fuel' || sel.typ === 'term')) { const y = ly + 24 - 15; hits.push({ knopf: true, x: W - 70, y: y + 11, w: 60, h: 22 }); x.fillStyle = '#5ee7ff'; x.fillRect(W - 70, y, 58, 22); x.fillStyle = '#02070d'; x.font = 'bold 11px ui-monospace,monospace'; x.textAlign = 'center'; x.fillText('Route ▶', W - 41, y + 15); }
+        if (sel && (sel.typ === 'fuel' || sel.typ === 'term')) { const y = (state._ersteY || (ly + 9)) + 4; hits.push({ knopf: true, x: W - 70, y: y + 11, w: 60, h: 22 }); x.fillStyle = '#5ee7ff'; x.fillRect(W - 70, y, 58, 22); x.fillStyle = '#02070d'; x.font = 'bold 11px ui-monospace,monospace'; x.textAlign = 'center'; x.fillText('Route ▶', W - 41, y + 15); }
     }
 
     function tap(ev) {
@@ -241,7 +297,7 @@
         const s = await laden();
         if (!layer) return;
         if (s.fehler) { state = { fehler: s.fehler }; if (sprich) sagen(s.fehler); return; }
-        s.stau.cluster = clustern(s.stau.items || []).filter(x => distKm(s.lat, s.lon, x.lat, x.lon) <= RKM).slice(0, 15); s.pts = punkte(s); s.zus = zusammenfassung(s); state = s; sel = null;
+        (s.stau.items || []).forEach(i => { i.aufWeg = !!(s.arbeit && distToLine(i.lat, i.lon, s.arbeit.coords) <= 1.2); }); s.stau.cluster = clustern(s.stau.items || []).filter(x => distKm(s.lat, s.lon, x.lat, x.lon) <= RKM).slice(0, 15); s.pts = punkte(s); s.zus = zusammenfassung(s); state = s; sel = null;
         if (sprich) sagen('Radar aktiv. ' + (s.zus.sprache.join(' ') || 'Im Umkreis gibt es nichts Besonderes.'));
     }
     function open(sprich) {
