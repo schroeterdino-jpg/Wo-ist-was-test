@@ -1,0 +1,294 @@
+/* ============================================================
+   LAGEBILD: ersetzt das Radar. Ein Jarvis-Fenster mit dem Wichtigsten rund um dich, als Liste statt Kreis:
+   - 🚗 Arbeitsweg: Fahrzeit, Kilometer, Ankunft und Meldungen, die WIRKLICH auf deiner Strecke liegen (Autobahn + TomTom), sonst "frei"
+   - ☂ Regen: trocken, "regnet jetzt" oder "ab 20:45 Uhr, aus Westen" (Open-Meteo, nächste 3 Stunden, Umkreis 20 km)
+   - ⛽ Diesel: die zwei günstigsten Tankstellen im Umkreis mit Preis und Entfernung (Tankerkönig), Antippen = Navigation
+   - ⚠ Verkehr in der Nähe: wichtige Meldungen abseits deiner Strecke (nur wenn TomTom eingerichtet ist)
+   - ◆ Nächster Termin mit Ort, Uhrzeit und Fahrzeit, Antippen = Navigation
+   Knöpfe: "Auf Karte" (öffnet die Jarvis-Karte), "Aktualisieren". Aufruf: "Lagebild", "Radar", "Wie ist die Lage"; Schließen: ✕ oder "Lagebild schließen".
+   Aktualisiert sich alle 5 Minuten, solange es offen ist; Jarvis nennt beim Öffnen kurz das Wichtigste.
+   Braucht: fetchUserLocationData, apiFetch, fetchRouteMapData (travel.js), optional calendarEntries, geocodeDestination, buildMapsLink, openPanel, speak().
+   Jede Quelle ist unabhängig: fällt eine aus, fehlt nur ihre Karte.
+   ============================================================ */
+(function () {
+    'use strict';
+    if (window.jvLage) return;
+    const RKM = 20;
+    let layer = null, body = null, timer = 0, state = null, ladeNr = 0;
+    const sagen = t => { try { if (typeof speak === 'function') speak(t, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} };
+    const mit = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
+    const euro = p => p.toFixed(3).replace('.', ',') + ' €';
+    const hhmm = d => d.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
+    const HIMMEL = ['Norden', 'Nordosten', 'Osten', 'Südosten', 'Süden', 'Südwesten', 'Westen', 'Nordwesten'];
+    const rad = d => d * Math.PI / 180;
+    const distKm = (a, b, c, d) => { const t = rad, x = Math.sin(t(c - a) / 2) ** 2 + Math.cos(t(a)) * Math.cos(t(c)) * Math.sin(t(d - b) / 2) ** 2; return 6371 * 2 * Math.asin(Math.sqrt(x)); };
+    function bearing(a, b, c, d) { const y = Math.sin(rad(d - b)) * Math.cos(rad(c)), x = Math.cos(rad(a)) * Math.sin(rad(c)) - Math.sin(rad(a)) * Math.cos(rad(c)) * Math.cos(rad(d - b)); return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360; }
+    function dest(lat, lon, brg, dk) { const R = 6371, b = rad(brg), p1 = rad(lat), l1 = rad(lon), dr = dk / R; const p2 = Math.asin(Math.sin(p1) * Math.cos(dr) + Math.cos(p1) * Math.sin(dr) * Math.cos(b)); const l2 = l1 + Math.atan2(Math.sin(b) * Math.sin(dr) * Math.cos(p1), Math.cos(dr) - Math.sin(p1) * Math.sin(p2)); return [p2 * 180 / Math.PI, l2 * 180 / Math.PI]; }
+    function distToLine(lat, lon, pts) {
+        let best = Infinity;
+        for (let i = 0; i < pts.length - 1; i++) {
+            const a = pts[i], b = pts[i + 1], kx = Math.cos(lat * Math.PI / 180);
+            const ax = (a[1] - lon) * kx, ay = a[0] - lat, bx = (b[1] - lon) * kx, by = b[0] - lat, dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+            let t = L > 0 ? -(ax * dx + ay * dy) / L : 0; t = Math.max(0, Math.min(1, t));
+            const d = Math.hypot(ax + t * dx, ay + t * dy) * 111.2; if (d < best) best = d;
+        }
+        return best;
+    }
+
+    /* ---------- Daten (jede Quelle für sich) ---------- */
+    async function ladeTank(lat, lon) {
+        try {
+            const r = await apiFetch('/api/tankroute?lat=' + lat.toFixed(5) + '&lng=' + lon.toFixed(5) + '&rad=' + RKM);
+            const d = await r.json();
+            if (!r.ok || !d.stations) return [];
+            return d.stations.filter(s => s.diesel > 0).map(s => ({ lat: s.lat, lon: s.lng, preis: s.diesel, name: s.name, strasse: s.strasse, ort: s.ort, km: distKm(lat, lon, s.lat, s.lng) }))
+                .filter(s => s.km <= RKM).sort((a, b) => a.preis - b.preis).slice(0, 2);
+        } catch (e) { return []; }
+    }
+    async function ladeStau(lat, lon) {
+        try {
+            const dl = RKM / 111, dn = RKM / (111 * Math.cos(rad(lat)));
+            const r = await apiFetch('/api/stau?traffic=1&bbox=' + [lon - dn, lat - dl, lon + dn, lat + dl].map(n => n.toFixed(5)).join(','));
+            const d = await r.json();
+            if (!r.ok) return { fehler: true, items: [] };
+            return { items: (d.incidents || []).filter(i => ![4, 10].includes(i.kategorie) && (i.stufe >= 2 || i.verzoegerung_s >= 120 || [1, 8].includes(i.kategorie)))
+                .map(i => ({ lat: i.lat, lon: i.lon, art: i.art, min: Math.round(i.verzoegerung_s / 60), von: i.von, nach: i.nach, strassen: i.strassen, text: i.text })).slice(0, 150) };
+        } catch (e) { return { fehler: true, items: [] }; }
+    }
+    async function ladeRegen(lat, lon) {
+        try {
+            const pts = [[lat, lon]];
+            for (let b = 0; b < 360; b += 45) pts.push(dest(lat, lon, b, RKM * 0.6));
+            const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + pts.map(p => p[0].toFixed(3)).join(',') + '&longitude=' + pts.map(p => p[1].toFixed(3)).join(',') + '&minutely_15=precipitation&forecast_minutely_15=12&timezone=GMT';
+            const r = await fetch(url);
+            let d = await r.json();
+            if (!Array.isArray(d)) d = [d];
+            const jetzt = Date.now();
+            const out = d.map((x, i) => {
+                const m = x.minutely_15; if (!m || !m.precipitation) return null;
+                const k = m.precipitation.findIndex((v, j) => v >= 0.1 && new Date(m.time[j] + 'Z').getTime() + 15 * 60000 > jetzt);
+                if (k < 0) return { brg: i === 0 ? null : (i - 1) * 45, start: null };
+                return { brg: i === 0 ? null : (i - 1) * 45, start: Math.max(new Date(m.time[k] + 'Z').getTime(), jetzt) };
+            }).filter(Boolean);
+            return out.length ? out : null;
+        } catch (e) { return null; }
+    }
+    async function ladeTermin(lat, lon) {
+        try {
+            const jetzt = Date.now(), bis = jetzt + 24 * 3600000;
+            const ev = (typeof calendarEntries !== 'undefined' ? calendarEntries : []).filter(e => e && e.location && e.isoDate && String(e.isoDate).length > 10 && new Date(e.isoDate).getTime() > jetzt - 1800000 && new Date(e.isoDate).getTime() < bis)
+                .sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate));
+            const e = ev[0]; if (!e) return null;
+            const out = { name: e.text, wann: new Date(e.isoDate), ort: e.location, min: null };
+            try {
+                const g = await mit(geocodeDestination(e.location, ''), 5000);
+                if (g && isFinite(g.lat) && typeof routeDurationSeconds === 'function') {
+                    const r = await mit(routeDurationSeconds(lat, lon, g.lat, g.lon), 8000);
+                    if (r && r.seconds) out.min = Math.round(r.seconds / 60);
+                }
+            } catch (x) {}
+            return out;
+        } catch (e) { return null; }
+    }
+
+    async function laden() {
+        let loc = null;
+        try { loc = await mit(fetchUserLocationData(), 15000); } catch (e) {}
+        if (!loc || loc.fehler || loc.latitude === undefined) return { fehler: (loc && loc.fehler) || 'Standort nicht verfügbar. Ist der Zugriff erlaubt?' };
+        const lat = loc.latitude, lon = loc.longitude;
+        const work = (typeof workAddress === 'string') ? workAddress : '';
+        const arbeitP = (work && typeof fetchRouteMapData === 'function') ? mit(fetchRouteMapData(work, loc).catch(() => null), 16000) : Promise.resolve(null);
+        const [tank, stau, regen, termin, route] = await Promise.all([ladeTank(lat, lon), ladeStau(lat, lon), ladeRegen(lat, lon), ladeTermin(lat, lon), arbeitP]);
+        let arbeit = null;
+        if (route && Array.isArray(route.coords) && route.coords.length > 1) {
+            const auf = (route.warnings || []).filter(w => distToLine(w.lat, w.lon, route.coords) <= 1.5);
+            arbeit = { min: route.fahrtMin, km: route.km, coords: route.coords, meldungen: auf };
+        }
+        // Verkehr in der Nähe: nicht auf dem Arbeitsweg und nicht doppelt zu einer Autobahn-Meldung
+        const aufWeg = i => (arbeit && distToLine(i.lat, i.lon, arbeit.coords) <= 1.5) || (route && (route.warnings || []).some(w => distKm(w.lat, w.lon, i.lat, i.lon) < 1.5));
+        const rest = [];
+        stau.items.filter(i => distKm(lat, lon, i.lat, i.lon) <= RKM && !aufWeg(i)).sort((a, b) => b.min - a.min).forEach(i => { if (!rest.some(o => distKm(o.lat, o.lon, i.lat, i.lon) < 1.5)) rest.push(i); });
+        return { lat, lon, ort: loc.ort || '', tank, stau: { fehler: stau.fehler, rest }, regen, termin, arbeit, hatArbeit: !!work, routeFehlt: !!work && !arbeit, zeit: Date.now() };
+    }
+
+    /* ---------- Texte ---------- */
+    function stauText(p) {
+        const strasse = p.strassen && p.strassen[0] ? p.strassen[0] : '';
+        const wo = p.von && p.nach && p.von !== p.nach ? 'zwischen ' + p.von + ' und ' + p.nach : (p.von ? 'bei ' + p.von : '');
+        const ort = ((strasse ? strasse + ' ' : '') + wo).trim();
+        const t = [(ort ? ort + ': ' : '') + p.art];
+        if (p.min >= 2) t.push(p.min + ' Min. länger');
+        return t.join(' · ');
+    }
+    function regenInfo(s) {
+        if (!s.regen) return null;
+        const nass = s.regen.filter(x => x.start), jetztNass = nass.filter(x => x.start - Date.now() < 6 * 60000);
+        if (!nass.length) return { gross: 'Trocken', text: 'Kein Regen in den nächsten 3 Stunden', sprache: 'In den nächsten drei Stunden bleibt es trocken.', ok: true };
+        if (jetztNass.length >= 6) return { gross: 'Regnet jetzt', text: 'Im ganzen Umkreis von ' + RKM + ' km', sprache: 'Es regnet im ganzen Umkreis.', ok: false };
+        const spaet = nass.filter(x => x.start - Date.now() >= 6 * 60000).sort((a, b) => a.start - b.start)[0];
+        const wer = jetztNass.length ? jetztNass[0] : spaet;
+        const min = Math.max(0, Math.round((wer.start - Date.now()) / 60000));
+        const wo = wer.brg === null ? 'bei dir' : 'aus ' + HIMMEL[wer.brg / 45];
+        if (min <= 5) return { gross: wer.brg === null ? 'Regnet jetzt' : 'Regen in der Nähe', text: wer.brg === null ? 'Bei dir' : 'Aus Richtung ' + HIMMEL[wer.brg / 45], sprache: wer.brg === null ? 'Es regnet gerade bei dir.' : 'In der Nähe regnet es, ' + wo + '.', ok: false };
+        return { gross: 'Regen ab ' + hhmm(new Date(wer.start)) + ' Uhr', text: 'In etwa ' + min + ' Minuten, ' + wo, sprache: 'Regen erreicht dich in etwa ' + min + ' Minuten, ' + wo + '.', ok: false };
+    }
+    function sprache(s) {
+        const sp = [];
+        if (s.arbeit) {
+            sp.push('Dein Arbeitsweg dauert ' + s.arbeit.min + ' Minuten.');
+            sp.push(s.arbeit.meldungen.length ? 'Auf der Strecke gemeldet: ' + s.arbeit.meldungen.slice(0, 2).map(m => m.title).join('. ') + '.' : 'Auf deiner Strecke ist nichts gemeldet.');
+        }
+        const r = regenInfo(s); if (r) sp.push(r.sprache);
+        if (s.tank.length) sp.push('Der günstigste Diesel ist ' + euro(s.tank[0].preis).replace(' €', ' Euro') + ' bei ' + s.tank[0].name + ', ' + Math.round(s.tank[0].km) + ' Kilometer entfernt.');
+        if (s.stau.rest.length) sp.push('In der Nähe: ' + s.stau.rest.slice(0, 2).map(stauText).join('. ') + '.');
+        if (s.termin) sp.push('Als Nächstes: ' + s.termin.name + ' um ' + hhmm(s.termin.wann) + ' Uhr' + (s.termin.min ? ', Fahrzeit etwa ' + s.termin.min + ' Minuten' : '') + '.');
+        return sp.join(' ');
+    }
+
+    /* ---------- Darstellung ---------- */
+    function stil() {
+        if (document.getElementById('jvLageCss')) return;
+        const st = document.createElement('style'); st.id = 'jvLageCss';
+        st.textContent = '#jvLage{position:fixed;inset:0;z-index:9500;background:rgba(2,7,13,.97);color:#d8f6ff;font:13px ui-monospace,Menlo,monospace;overflow-y:auto;-webkit-overflow-scrolling:touch}' +
+            '#jvLage .in{max-width:520px;margin:0 auto;padding:14px 14px 40px}' +
+            '#jvLage .kopf{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}' +
+            '#jvLage .kopf b{display:block;font-size:15px;letter-spacing:2px;color:#5ee7ff}#jvLage .kopf small{opacity:.7;font-size:11px}' +
+            '#jvLage .x{width:36px;height:36px;border-radius:8px;border:1px solid rgba(93,209,255,.5);background:#0a1621;color:#49d7ff;font-size:17px}' +
+            '#jvLage .k{position:relative;background:rgba(6,20,34,.7);border:1px solid rgba(94,231,255,.35);border-radius:6px;padding:10px 12px 11px;margin-bottom:10px;box-shadow:0 0 14px rgba(94,231,255,.1)}' +
+            '#jvLage .k.tap{cursor:pointer}#jvLage .k.tap:active{background:rgba(20,60,80,.8)}' +
+            '#jvLage .k:before,#jvLage .k:after{content:"";position:absolute;width:8px;height:8px;border:2px solid #5ee7ff}#jvLage .k:before{top:-2px;left:-2px;border-right:0;border-bottom:0}#jvLage .k:after{bottom:-2px;right:-2px;border-left:0;border-top:0}' +
+            '#jvLage .t{display:flex;justify-content:space-between;font-size:10px;letter-spacing:2px;color:#5ee7ff;margin-bottom:5px}' +
+            '#jvLage .g{font-size:21px;font-weight:600;color:#fff;text-shadow:0 0 10px #5ee7ff;line-height:1.2}' +
+            '#jvLage .z{margin-top:5px;line-height:1.35}' +
+            '#jvLage .ok{color:#7dffb0}#jvLage .bad{color:#ff8a8a}#jvLage .dim{opacity:.7}' +
+            '#jvLage .knoepfe{display:flex;gap:10px;margin-top:14px}' +
+            '#jvLage .knoepfe button{flex:1;padding:12px 8px;border-radius:8px;border:1px solid rgba(93,209,255,.5);background:#0a1621;color:#49d7ff;font:600 12px ui-monospace,Menlo,monospace;letter-spacing:1px}' +
+            '#jvLage .knoepfe button.p{background:#5ee7ff;color:#02070d}' +
+            '#jvLage .fuss{margin-top:12px;font-size:10px;opacity:.55;line-height:1.4}';
+        document.head.appendChild(st);
+    }
+    const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined && txt !== null) e.textContent = txt; return e; };
+    function karte(titel, rechts, gross, zeilen, aktion) {
+        const k = el('div', 'k' + (aktion ? ' tap' : ''));
+        const t = el('div', 't'); t.appendChild(el('span', '', titel)); t.appendChild(el('span', '', rechts || '')); k.appendChild(t);
+        if (gross) k.appendChild(el('div', 'g', gross));
+        (zeilen || []).forEach(z => k.appendChild(el('div', 'z ' + (z.c || ''), z.t)));
+        if (aktion) k.addEventListener('click', aktion);
+        return k;
+    }
+    const navi = adr => () => { try { if (typeof buildMapsLink === 'function') window.open(buildMapsLink(adr, '', 'driving'), '_blank'); } catch (e) {} };
+
+    function zeichne() {
+        if (!body) return;
+        body.textContent = '';
+        const s = state;
+        if (!s) { body.appendChild(karte('LAGEBILD', '', 'Lade Daten …', [{ t: 'Standort, Verkehr, Wetter und Preise werden geholt.', c: 'dim' }])); return; }
+        if (s.fehler) { body.appendChild(karte('LAGEBILD', '', 'Kein Standort', [{ t: s.fehler, c: 'bad' }])); return; }
+
+        // Arbeitsweg
+        if (s.arbeit) {
+            const m = s.arbeit.meldungen;
+            const z = m.length ? m.slice(0, 3).map(x => ({ t: '⚠ ' + x.title + (x.road && /^A\d+$/.test(x.road) ? ' (' + x.road + ')' : ''), c: 'bad' })) : [{ t: '✓ Frei, keine Meldungen auf deiner Strecke', c: 'ok' }];
+            if (m.length > 3) z.push({ t: '+ ' + (m.length - 3) + ' weitere Meldungen', c: 'dim' });
+            body.appendChild(karte('🚗 ARBEITSWEG', 'ANKUNFT ' + hhmm(new Date(Date.now() + s.arbeit.min * 60000)), s.arbeit.min + ' Min · ' + s.arbeit.km + ' km', z));
+        } else if (s.routeFehlt) body.appendChild(karte('🚗 ARBEITSWEG', '', 'Nicht verfügbar', [{ t: 'Die Route konnte gerade nicht berechnet werden.', c: 'dim' }]));
+        else body.appendChild(karte('🚗 ARBEITSWEG', '', 'Unbekannt', [{ t: 'Sag „Merk dir meine Arbeitsadresse“, dann zeige ich dir hier Fahrzeit und Verkehr.', c: 'dim' }]));
+
+        // Regen
+        const r = regenInfo(s);
+        if (r) body.appendChild(karte('☂ REGEN', 'NÄCHSTE 3 STD', r.gross, [{ t: r.text, c: r.ok ? 'ok' : 'dim' }]));
+
+        // Diesel
+        if (s.tank.length) {
+            const k = el('div', 'k'); const t = el('div', 't'); t.appendChild(el('span', '', '⛽ DIESEL'));
+            t.appendChild(el('span', '', 'IM UMKREIS ' + RKM + ' KM')); k.appendChild(t);
+            s.tank.forEach((x, i) => {
+                const row = el('div', 'z'); row.style.cssText = 'cursor:pointer;' + (i ? 'margin-top:9px' : '');
+                const a = el('div', 'g', euro(x.preis)); if (i) a.style.fontSize = '17px';
+                row.appendChild(a); row.appendChild(el('div', i === 0 ? 'ok' : '', x.name + ' · ' + x.km.toFixed(1).replace('.', ',') + ' km'));
+                row.appendChild(el('div', 'dim', [x.strasse, x.ort].filter(Boolean).join(', ')));
+                row.addEventListener('click', navi([x.strasse, x.ort].filter(Boolean).join(', ')));
+                k.appendChild(row);
+            });
+            body.appendChild(k);
+        }
+
+        // Verkehr in der Nähe
+        if (s.stau.fehler) body.appendChild(karte('⚠ VERKEHR', 'IN DER NÄHE', 'Nicht verfügbar', [{ t: 'Die Verkehrsdaten konnten gerade nicht geladen werden.', c: 'dim' }]));
+        else if (s.stau.rest.length) {
+            const z = s.stau.rest.slice(0, 3).map(p => ({ t: stauText(p) + ' · ' + Math.round(distKm(s.lat, s.lon, p.lat, p.lon)) + ' km', c: '' }));
+            if (s.stau.rest.length > 3) z.push({ t: '+ ' + (s.stau.rest.length - 3) + ' weitere Meldungen (auf der Karte)', c: 'dim' });
+            body.appendChild(karte('⚠ VERKEHR', 'ABSEITS DEINER STRECKE', s.stau.rest.length + (s.stau.rest.length === 1 ? ' Meldung' : ' Meldungen'), z));
+        } else body.appendChild(karte('⚠ VERKEHR', 'IN DER NÄHE', 'Ruhig', [{ t: 'Keine wichtigen Meldungen im Umkreis von ' + RKM + ' km', c: 'ok' }]));
+
+        // Termin
+        if (s.termin) body.appendChild(karte('◆ NÄCHSTER TERMIN', hhmm(s.termin.wann) + ' UHR', s.termin.name, [{ t: s.termin.ort + (s.termin.min ? ' · Fahrzeit ca. ' + s.termin.min + ' Min.' : ''), c: 'dim' }], navi(s.termin.ort)));
+
+        const kn = el('div', 'knoepfe');
+        const b1 = el('button', 'p', 'AUF KARTE ▶'); b1.addEventListener('click', () => { close(); try { if (typeof openPanel === 'function') openPanel('karte'); } catch (e) {} });
+        const b2 = el('button', '', 'AKTUALISIEREN'); b2.addEventListener('click', () => refresh(false));
+        kn.appendChild(b1); kn.appendChild(b2); body.appendChild(kn);
+        body.appendChild(el('div', 'fuss', 'Stand ' + hhmm(new Date(s.zeit)) + ' Uhr · Verkehr: Autobahn.de und TomTom · Wetter: Open-Meteo · Preise: Tankerkönig'));
+    }
+
+    /* ---------- Ortsnamen für Meldungen ohne Straße/Ort ---------- */
+    const ortCache = {};
+    async function ortsname(lat, lon) {
+        const k = lat.toFixed(3) + ',' + lon.toFixed(3);
+        if (ortCache[k] !== undefined) return ortCache[k];
+        try {
+            const r = await mit(fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=16&accept-language=de&lat=' + lat + '&lon=' + lon), 5000);
+            const d = r && r.ok ? await r.json() : null, a = (d && d.address) || {};
+            return (ortCache[k] = [a.road || a.pedestrian || '', a.suburb || a.village || a.town || a.city || a.municipality || ''].filter(Boolean).join(', '));
+        } catch (e) { return (ortCache[k] = ''); }
+    }
+    async function orteNachladen(s) {
+        const kand = s.stau.rest.filter(p => !p.von && !(p.strassen && p.strassen[0])).slice(0, 3);
+        for (const p of kand) {
+            const n = await ortsname(p.lat, p.lon);
+            if (n) p.von = n;
+            if (state !== s) return;
+            await new Promise(r => setTimeout(r, 1100));
+        }
+        if (state === s && kand.length) zeichne();
+    }
+
+    async function refresh(sprich) {
+        const nr = ++ladeNr;
+        const s = await laden();
+        if (!layer || nr !== ladeNr) return;
+        state = s; zeichne();
+        if (s.fehler) { if (sprich) sagen(s.fehler); return; }
+        if (sprich) sagen('Lagebild. ' + (sprache(s) || 'Im Moment gibt es nichts Besonderes.'));
+        orteNachladen(s);
+    }
+    function open(sprich) {
+        if (layer) return;
+        stil();
+        layer = el('div'); layer.id = 'jvLage';
+        const inn = el('div', 'in'); layer.appendChild(inn);
+        const kopf = el('div', 'kopf'); const l = el('div'); l.appendChild(el('b', '', 'J.A.R.V.I.S. // LAGEBILD')); l.appendChild(el('small', '', 'Dein Umkreis auf einen Blick')); kopf.appendChild(l);
+        const x = el('button', 'x', '✕'); x.setAttribute('aria-label', 'Lagebild schließen'); x.addEventListener('click', close); kopf.appendChild(x);
+        inn.appendChild(kopf); body = el('div'); inn.appendChild(body);
+        document.body.appendChild(layer);
+        state = null; zeichne(); refresh(!!sprich);
+        timer = setInterval(() => refresh(false), 5 * 60000);
+    }
+    function close() {
+        if (!layer) return;
+        clearInterval(timer); ladeNr++; layer.remove(); layer = null; body = null; state = null;
+    }
+    window.jvLage = { open, close, isOpen: () => !!layer };
+    window.jvRadar = window.jvLage;   // alte Bezeichnung bleibt gültig
+
+    /* ---------- Sprache ---------- */
+    if (window.jvCommands) {
+        window.jvCommands.use('lagebild', function (text, next) {
+            const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
+            if (t.length > 50) return next(text);
+            if (layer && /^(?:jarvis )?(?:lagebild |radar |lage )?(?:schließ\w*|schliess\w*|zumachen|ausblenden|beenden|zurück)(?: (?:lagebild|radar|lage))?$|^(?:jarvis )?(?:lagebild|radar) (?:aus|zu)$/.test(t)) { close(); return true; }
+            if (/^(?:jarvis )?(?:(?:zeig(?:e)?(?: mir)?|öffne|starte|mach|schalte|gib mir) )?(?:(?:das|den|die|mein|meine) )?(?:radar(?:ansicht)?|lagebild|lage)(?: (?:an|auf|ein|öffnen|starten|zeigen|bitte))*$|^(?:jarvis )?wie ist (?:die|meine) lage(?: heute| gerade| jetzt)?$/.test(t)) { open(true); return true; }
+            return next(text);
+        }, 140);
+    }
+})();
