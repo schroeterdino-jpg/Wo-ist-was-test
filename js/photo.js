@@ -24,7 +24,7 @@ const PHOTO_FOLLOWUP_MS = 10 * 60000;
 const PHOTO_EVENTS_MS = 5 * 60000;
 
 let photoIntent = null;   // { task, question, at }
-let lastPhoto = null;     // { dataUrl, at } für Fragen zum selben Foto
+let lastPhoto = null;     // { dataUrl, at, text } für Fragen zum selben Foto (text: nur bei PDF, der Text aus der Datei)
 let photoEvents = [];     // erkannte Termine: { titel, datum, uhrzeit, ort, unsicher, done }
 let photoEventsAt = 0;
 
@@ -157,16 +157,26 @@ async function preparePdf(file) {
     const lib = await loadPdfJs();
     const buf = await file.arrayBuffer();
     const pdf = await lib.getDocument({ data: buf }).promise;
+    // Text direkt aus der Datei lesen (Seite 1 und 2): exakt, ohne Bilderkennung. Bei gescannten PDFs bleibt er leer, dann gilt nur das Bild.
+    let text = '';
+    try {
+        for (let n = 1; n <= Math.min(2, pdf.numPages); n++) {
+            const pg = await pdf.getPage(n);
+            const tc = await pg.getTextContent();
+            text += tc.items.map(i => (i.str || '') + (i.hasEOL ? '\n' : ' ')).join('') + '\n';
+        }
+        text = text.replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 7000);
+    } catch (e) { text = ''; }
     const page = await pdf.getPage(1);
     const v1 = page.getViewport({ scale: 1 });
-    const scale = PHOTO_MAX_SIDE / Math.max(v1.width, v1.height);
+    const scale = Math.max(PHOTO_MAX_SIDE, 2000) / Math.max(v1.width, v1.height);
     const vp = page.getViewport({ scale });
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(vp.width)); canvas.height = Math.max(1, Math.round(vp.height));
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);   // PDF-Hintergrund ist durchsichtig: sonst wird er im JPEG schwarz
     await page.render({ canvasContext: ctx, viewport: vp }).promise;
-    return canvas.toDataURL('image/jpeg', PHOTO_JPEG_QUALITY);
+    return { dataUrl: canvas.toDataURL('image/jpeg', PHOTO_JPEG_QUALITY), text };
 }
 
 /* ---------- KI fragen ---------- */
@@ -427,9 +437,10 @@ async function handlePhotoFile(file) {
     try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Werte das Foto aus...'); } catch (e) {}
     try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) {}
     let dataUrl;
-    try { dataUrl = isPdfFile(file) ? await preparePdf(file) : await preparePhoto(file); }
+    let pdfText = '';
+    try { if (isPdfFile(file)) { const r = await preparePdf(file); dataUrl = r.dataUrl; pdfText = r.text || ''; } else dataUrl = await preparePhoto(file); }
     catch (e) { console.error('Foto/PDF lesen', e); photoSay(isPdfFile(file) ? 'Die PDF-Datei konnte ich nicht lesen. Ist sie mit einem Passwort geschützt, oder fehlt die Internetverbindung?' : 'Das Foto konnte ich nicht lesen.'); return; }
-    lastPhoto = { dataUrl, at: Date.now() };
+    lastPhoto = { dataUrl, at: Date.now(), text: pdfText };
     if (intent.task === 'wait') { photoAskWhatToDo(); return; }
     await processPhoto(intent, dataUrl);
 }
