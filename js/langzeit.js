@@ -15,6 +15,7 @@
 (function () {
     const FOLLOW_KEY = 'jv_langzeit_nachfrage_tag';
     const CLEAN_KEY = 'jv_langzeit_aufgeraeumt_v1';
+    const AUTO_FRAGE = 'Frage beiläufig, wie es war.';
     const KATEGORIEN = ['Event', 'Vorliebe', 'Projekt', 'Stimmung', 'Geburtstag'];
 
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -58,8 +59,10 @@
         if (frage) metadata.frage = frage;
         if (hinweis) metadata.hinweis = hinweis;
         if (jaehrlich) metadata.jaehrlich = true;
-        // Status: ein Plan in der Zukunft mit Nachfrage ist "offen"; alles andere braucht keine Nachfrage
-        metadata.status = (datum && frage) ? 'offen' : 'ohne_nachfrage';
+        // Status: ein Plan mit Nachfrage ist "offen"; alles andere braucht keine Nachfrage.
+        // Hat die KI bei einem Event von heute oder später keine Frage mitgeschickt, wird trotzdem nachgefragt (beiläufig, wie es war).
+        if (!frage && kat === 'Event' && datum && datum >= heute) metadata.frage = AUTO_FRAGE;
+        metadata.status = (datum && metadata.frage) ? 'offen' : 'ohne_nachfrage';
 
         const fullText = datum ? `${text} (${lesbar(datum)})` : text;
         try {
@@ -141,8 +144,8 @@
         const m = e.metadata || {};
         const eintrag = e.art === 'heute'
             ? { id: e.id, art: 'heute', hinweis: m.hinweis, inhalt: e.text }
-            : { id: e.id, art: 'nachfragen', frage: m.frage, inhalt: e.text, ereignis: isIsoDay(m.ereignis_datum) ? lesbar(m.ereignis_datum) : '' };
-        return '\n\nlangzeit_nachfragen (heute noch nicht gefragt; stelle sie genau einmal und melde es mit der Aktion episode_asked): ' + JSON.stringify(eintrag);
+            : { id: e.id, art: 'nachfragen', frage: (m.frage && m.frage !== AUTO_FRAGE) ? m.frage : 'Frage beiläufig, wie es war (zum Eintrag passend, z.B. "Wie war es beim Schwimmen?")', inhalt: e.text, ereignis: isIsoDay(m.ereignis_datum) ? lesbar(m.ereignis_datum) : '' };
+        return '\n\nlangzeit_nachfragen (heute noch nicht gefragt; stelle sie genau einmal, ganz beiläufig und locker nebenbei in einem passenden Moment des Gesprächs, nicht als steife Pflichtfrage, und melde es mit der Aktion episode_asked): ' + JSON.stringify(eintrag);
     }
 
     if (window.jvChain) {   // Ergänzungs-Liste (commands.js)
@@ -288,5 +291,6 @@
         }
     }
 
-    setTimeout(() => { try { refreshDue(); cleanupOnce(); } catch (e) {} }, 4000);
+    setTimeout(() => { try { refreshDue(); } catch (e) {} }, 1500);
+    setTimeout(() => { try { cleanupOnce(); } catch (e) {} }, 4000);
 })();
