@@ -736,7 +736,7 @@ async function handleMailStatus(req, res, redis) {
     let tok = null; try { const raw = await redis('GET', MAIL_TOKEN_KEY); if (raw) tok = JSON.parse(raw); } catch (e) {}
     const st = await loadItems(redis);
     const m = st.mail || {};
-    return res.status(200).json({ verbunden: !!(tok && tok.rt), seit: tok ? tok.ts : 0, letztePruefung: m.last || 0, fehler: m.err || '', gemeldet: (m.seen || []).length, secretOk: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) });
+    return res.status(200).json({ verbunden: !!(tok && tok.rt), seit: tok ? tok.ts : 0, letztePruefung: m.last || 0, fehler: m.err || '', gemeldet: (m.seen || []).length, secretOk: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET), clientId: process.env.GOOGLE_CLIENT_ID || '' });
   } catch (e) { return res.status(500).json({ error: 'Fehler' }); }
 }
 
