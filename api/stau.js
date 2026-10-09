@@ -136,10 +136,13 @@ export default async function handler(req, res) {
     if (maxLon - minLon > 0.9) { const m = (maxLon + minLon) / 2; minLon = m - 0.45; maxLon = m + 0.45; }
     if (maxLat - minLat > 0.6) { const m = (maxLat + minLat) / 2; minLat = m - 0.3; maxLat = m + 0.3; }
     try {
-      const url = 'https://api.tomtom.com/traffic/services/5/incidentDetails?key=' + encodeURIComponent(key) +
+      const base = 'https://api.tomtom.com/traffic/services/5/incidentDetails?key=' + encodeURIComponent(key) +
         '&bbox=' + [minLon, minLat, maxLon, maxLat].map(n => n.toFixed(5)).join(',') +
         '&language=de-DE&timeValidityFilter=present';
-      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      // Alle nötigen Felder ausdrücklich anfordern (Straße, Abschnitt, Länge, Verzögerung, Beschreibung); klappt das nicht, einmal ohne Angabe versuchen
+      const fields = '{incidents{type,geometry{type,coordinates},properties{iconCategory,magnitudeOfDelay,events{description,code,iconCategory},startTime,endTime,from,to,length,delay,roadNumbers,timeValidity}}}';
+      let r = await fetch(base + '&fields=' + encodeURIComponent(fields), { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) r = await fetch(base, { signal: AbortSignal.timeout(8000) });
       if (!r.ok) {
         const t = await r.text().catch(() => '');
         return res.status(502).json({ error: 'TomTom meldet Status ' + r.status + ': ' + t.slice(0, 200), incidents: [] });
