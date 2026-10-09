@@ -437,6 +437,8 @@ async function handlePhotoFile(file) {
     try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Werte das Foto aus...'); } catch (e) {}
     try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) {}
     let dataUrl;
+    const isImg = /^image\//.test(file.type || '') || /\.(jpe?g|png|webp|heic|heif|gif|bmp)$/i.test(file.name || '');
+    if (!isPdfFile(file) && !isImg && file.type) { photoSay('Das ist weder ein Bild noch eine PDF-Datei. Bitte wählen Sie ein Foto oder eine PDF.'); return; }
     let pdfText = '';
     try { if (isPdfFile(file)) { const r = await preparePdf(file); dataUrl = r.dataUrl; pdfText = r.text || ''; } else dataUrl = await preparePhoto(file); }
     catch (e) { console.error('Foto/PDF lesen', e); photoSay(isPdfFile(file) ? 'Die PDF-Datei konnte ich nicht lesen. Ist sie mit einem Passwort geschützt, oder fehlt die Internetverbindung?' : 'Das Foto konnte ich nicht lesen.'); return; }
