@@ -5,6 +5,7 @@
    Antippen eines Knotens öffnet die jeweilige Funktion. Antippen einer leeren Stelle startet wie bisher das Zuhören.
    Zurück zur alten Kugel: kleiner Knopf oben rechts an der Ansicht, oder per Sprache "Zurück zur Kugel". "Zeig das Gehirn" schaltet wieder um.
    Die Wahl bleibt gespeichert (localStorage, Schlüssel jv_ansicht). Die Kugel (sphere.js) bleibt unverändert und läuft weiter im Hintergrund-Zustand "aus".
+   Verschmelzen: Sobald du sprichst oder Jarvis antwortet, fliegen die fünf Bereiche in der Mitte zu EINEM Bereich zusammen (Farben wirbeln, Lichtblitz, Funken). Danach teilen sie sich wieder.
    Farben: ruhig und beim Zuhören blau-violett-orange; während Jarvis spricht pulsieren die Bereiche stärker.
    Braucht: index.html mit .holo-container und #recordBtn. Läuft ohne alle anderen Dateien, Aktionen rufen nur vorhandene Funktionen (openPanel, handleLocalCommand ...) auf, sofern sie existieren.
    ============================================================ */
@@ -82,6 +83,8 @@
         const a = Math.random() * 6.283, b = Math.acos(2 * Math.random() - 1), R = 0.85 + Math.random() * 0.5;
         STARS.push({ p: [R * Math.sin(b) * Math.cos(a), R * Math.cos(b) * 0.9, R * Math.sin(b) * Math.sin(a)], s: 0.6 + Math.random() * 1.4, ph: Math.random() * 6.283 });
     }
+    const ALL_LEAVES = [];
+    HUBS.forEach(h => h.leafNodes.forEach(l => ALL_LEAVES.push(l)));
     const EDGES = [[0, 1], [0, 2], [0, 3], [0, 4], [1, 2], [2, 3], [3, 4], [4, 1]];   // Gehirn in der Mitte, Speichen zu den vier anderen, Außenring im Uhrzeigersinn
 
     /* ---------- Zeichnen ---------- */
@@ -90,6 +93,7 @@
     let projected = [], pulse = null, raf = 0, t0 = performance.now();
     let zoomNode = null, zoomLast = null, zoomK = 1, zoomGoal = 1, zoomTimer = 0, lastNow = 0, zx = 0, zy = 0;   // Heranzoomen auf einen Begriff
     let E = 0.15, lastRing = 0; const rings = [];
+    let F = 0, holdUntil = 0, flash = 0, wasFused = false;   // F = Grad der Verschmelzung (0 = fünf Bereiche, 1 = ein Bereich)
     const CROSS = [[0, 2, 1, 0], [1, 1, 3, 3], [2, 0, 4, 2], [3, 3, 0, 1], [4, 1, 2, 4], [0, 0, 3, 4]];   // Querverbindungen zwischen den Bereichen
 
     function state() {
@@ -116,6 +120,17 @@
         if (zoomK <= 1.001 && !zoomNode) zoomK = 1;
         E += ((st === 'speaking' ? 1 : st === 'recording' ? 0.55 : 0.15) - E) * 0.06;   // weich ein- und ausblenden
         const energy = E;
+        // Verschmelzen: beim Sprechen oder Zuhören zusammenfließen, kurz nachhalten (die KI denkt noch), dann wieder teilen
+        const active = st !== 'idle';
+        if (active) holdUntil = now + (st === 'recording' ? 5000 : 1800);
+        const fuseGoal = (active || now < holdUntil) ? 1 : 0;
+        F += (fuseGoal - F) * (fuseGoal ? 0.08 : 0.06); if (Math.abs(fuseGoal - F) < 0.003) F = fuseGoal;
+        const e = F * F * (3 - 2 * F);
+        if (fuseGoal && F > 0.9 && !wasFused) { wasFused = true; flash = 1; }
+        if (!fuseGoal && F < 0.9 && wasFused) { wasFused = false; flash = 0.7; }
+        flash *= 0.93; if (flash < 0.01) flash = 0;
+        if (fuseGoal && zoomNode) zoomOut();
+        const la = Math.max(0, 1 - e * 1.7);   // Beschriftungen blenden beim Verschmelzen aus
         const env = E * (0.55 + 0.45 * Math.min(1, Math.abs(Math.sin(t * 7.3) * Math.sin(t * 3.1 + 1.3) + 0.35 * Math.sin(t * 12.7))));   // Sprach-Rhythmus
         // Schwung durch Ziehen klingt ab, Ansicht pendelt langsam zurück
         if (!dragging) { yawDrag += vYaw; pitchDrag += vPitch; vYaw *= 0.94; vPitch *= 0.94; yawDrag *= 0.985; pitchDrag *= 0.985; }
@@ -134,16 +149,17 @@
         // Positionen
         projected = [];
         HUBS.forEach(h => {
-            h.P = proj(h.pos);
+            h.cur = [h.pos[0] * (1 - e), h.pos[1] * (1 - e), h.pos[2] * (1 - e)];
+            h.P = proj(h.cur);
             if (h.spin === undefined) h.spin = 0;
             if (zoomNode && !zoomNode.isHub && zoomNode.hub === h) {   // gezoomter Begriff dreht nach vorne
                 let df = Math.atan2(-zoomNode.dir[0], zoomNode.dir[2]) - h.spin; df = Math.atan2(Math.sin(df), Math.cos(df)); h.spin += df * 0.09;
-            } else h.spin += dtm * (0.25 + h.index * 0.05);
+            } else h.spin += dtm * (0.25 + h.index * 0.05) * (1 + 3 * e);
             const spin = h.spin;
             const cs = Math.cos(spin), sn = Math.sin(spin);
             h.leafNodes.forEach(l => {
                 const d = l.dir, x = d[0] * cs + d[2] * sn, z = -d[0] * sn + d[2] * cs;
-                const LR = h.lr || LEAF_R; l.world = [h.pos[0] + x * LR, h.pos[1] + d[1] * LR, h.pos[2] + z * LR];
+                const LR = (h.lr || LEAF_R) + e * 0.07 * h.index; l.world = [h.cur[0] + x * LR, h.cur[1] + d[1] * LR, h.cur[2] + z * LR];
                 l.P = proj(l.world);
             });
         });
@@ -183,6 +199,7 @@
         ctx.globalCompositeOperation = 'source-over'; ctx.restore();
 
         // Dreieck-Linien + wandernde Punkte (Uhrzeigersinn)
+        ctx.globalAlpha = 1 - e;
         EDGES.forEach(([a, b], ei) => {
             const A = HUBS[a].P, B = HUBS[b].P;
             const g = ctx.createLinearGradient(A.x, A.y, B.x, B.y);
@@ -203,15 +220,16 @@
             }
         });
 
+        ctx.globalAlpha = 1;
         // Querverbindungen zwischen den Bereichen (Synapsen mit Funken)
         CROSS.forEach(([ha, la, hb, lb], ci) => {
             const A = HUBS[ha].leafNodes[la % HUBS[ha].leafNodes.length].P, B = HUBS[hb].leafNodes[lb % HUBS[hb].leafNodes.length].P;
             const mx = (A.x + B.x) / 2 + (cx - (A.x + B.x) / 2) * 0.35, my = (A.y + B.y) / 2 + (cyy - (A.y + B.y) / 2) * 0.35;
             const ca = HUBS[ha].color, cb = HUBS[hb].color;
             const g = ctx.createLinearGradient(A.x, A.y, B.x, B.y);
-            g.addColorStop(0, rgba(ca, 0.16 + 0.12 * env)); g.addColorStop(1, rgba(cb, 0.16 + 0.12 * env));
+            g.addColorStop(0, rgba(ca, 0.16 + 0.12 * env + 0.3 * e)); g.addColorStop(1, rgba(cb, 0.16 + 0.12 * env + 0.3 * e));
             ctx.strokeStyle = g; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo(mx, my, B.x, B.y); ctx.stroke();
-            const u = (t * (0.18 + 0.25 * energy) + ci * 0.17) % 1, v = 1 - u;
+            const u = (t * (0.18 + 0.25 * energy + 0.6 * e) + ci * 0.17) % 1, v = 1 - u;
             const sx = v * v * A.x + 2 * v * u * mx + u * u * B.x, sy = v * v * A.y + 2 * v * u * my + u * u * B.y;
             const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, 5);
             sg.addColorStop(0, rgba([255, 255, 255], 0.7)); sg.addColorStop(1, rgba(ca, 0));
@@ -231,11 +249,39 @@
                 ctx.beginPath(); ctx.moveTo(l.P.x, l.P.y); ctx.lineTo(nb.P.x, nb.P.y); ctx.stroke();
             });
             // Glühen
-            const gr = (62 + 10 * Math.sin(t * 1.6 + h.index) * (0.5 + energy) + 38 * env) * H0.s * (scale / 150);
+            const gr = (62 + 10 * Math.sin(t * 1.6 + h.index) * (0.5 + energy) + 38 * env) * H0.s * (scale / 150) * (1 + 0.45 * e);
             const gg = ctx.createRadialGradient(H0.x, H0.y, 0, H0.x, H0.y, gr);
             gg.addColorStop(0, rgba(c, 0.26 + 0.14 * energy + 0.3 * env)); gg.addColorStop(1, rgba(c, 0));
             ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(H0.x, H0.y, gr, 0, 6.283); ctx.fill();
         });
+
+        // Verschmolzener Kern: wirbelnde Farben der fünf Bereiche, weißer Kern, Lichtblitz mit Druckwelle
+        const CC = HUBS[0].P, R0 = scale * 0.30 * CC.s;
+        if (e > 0.01 || flash > 0.02) {
+            ctx.save(); ctx.globalCompositeOperation = 'lighter';
+            if (e > 0.01) {
+                ctx.globalAlpha = Math.min(1, e);
+                HUBS.forEach((h, k) => {
+                    const a = t * (1.6 + 0.35 * k) + k * 1.2566, rr = R0 * (0.35 + 0.1 * Math.sin(t * 2 + k));
+                    const bx = CC.x + Math.cos(a) * rr, by = CC.y + Math.sin(a * 1.1) * rr * 0.8, br = R0 * (1.0 + 0.5 * env);
+                    const g = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+                    g.addColorStop(0, rgba(h.color, 0.55)); g.addColorStop(1, rgba(h.color, 0));
+                    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(bx, by, br, 0, 6.283); ctx.fill();
+                });
+            }
+            ctx.globalAlpha = 1;
+            const wr = R0 * (0.4 + 0.2 * env + 0.6 * flash) * Math.max(e, flash);
+            if (wr > 1) {
+                const wg = ctx.createRadialGradient(CC.x, CC.y, 0, CC.x, CC.y, wr);
+                wg.addColorStop(0, 'rgba(255,255,255,' + Math.min(1, 0.4 + 0.5 * flash).toFixed(3) + ')'); wg.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = wg; ctx.beginPath(); ctx.arc(CC.x, CC.y, wr, 0, 6.283); ctx.fill();
+            }
+            if (flash > 0.02) {
+                ctx.strokeStyle = 'rgba(255,255,255,' + (flash * 0.8).toFixed(3) + ')'; ctx.lineWidth = 2.5 * flash + 0.5;
+                ctx.beginPath(); ctx.arc(CC.x, CC.y, R0 * (0.6 + (1 - flash) * 3.2), 0, 6.283); ctx.stroke();
+            }
+            ctx.restore();
+        }
 
         // Knoten nach Tiefe sortiert
         const drawn = [];
@@ -244,6 +290,7 @@
         drawn.forEach(({ n, P, c }) => {
             const depth = (P.z + 1) / 2, rr = n.r * P.s * (scale / 150) * (n.isHub ? 1 + 0.28 * env : 1 + 0.4 * env * (0.5 + 0.5 * Math.sin(t * 6 + n.phase)));
             if (n.isHub) {
+                ctx.globalAlpha = 1 - 0.6 * e;
                 for (let ring = 0; ring < 2; ring++) {   // kreisende Bögen um den Kern
                     const R = rr * (2.1 + ring * 0.7), a0 = t * (ring ? -0.9 : 0.7) + n.hub.index;
                     ctx.strokeStyle = rgba(c, 0.55 - ring * 0.2 + 0.25 * env); ctx.lineWidth = 1.2;
@@ -253,17 +300,20 @@
                 ctx.fillStyle = rgba([255, 255, 255], 0.95); ctx.beginPath(); ctx.arc(P.x, P.y, rr * 0.55, 0, 6.283); ctx.fill();
                 ctx.strokeStyle = rgba(c, 0.9); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(P.x, P.y, rr, 0, 6.283); ctx.stroke();
                 ctx.strokeStyle = rgba(c, 0.35 + 0.25 * Math.sin(t * 2 + n.hub.index)); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(P.x, P.y, rr * (1.5 + 0.2 * Math.sin(t * 2 + n.hub.index)), 0, 6.283); ctx.stroke();
+                ctx.globalAlpha = la;
                 ctx.font = `700 ${Math.round(13 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
-                const ly = P.y + (n.hub.ldir || 1) * ((n.hub.lr || LEAF_R) * scale * P.s + 14); ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,16,.9)'; const tw = ctx.measureText(n.label).width, lx = zoomK > 1.02 ? P.x : Math.max(tw / 2 + 4, Math.min(W - tw / 2 - 4, P.x)); ctx.strokeText(n.label, lx, ly); ctx.fillStyle = rgba(c, 0.95); ctx.fillText(n.label, lx, ly);
+                const ly = P.y + (n.hub.ldir || 1) * ((n.hub.lr || LEAF_R) * scale * P.s + 14); ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,10,16,.9)'; const tw = ctx.measureText(n.label).width, lx = zoomK > 1.02 ? P.x : Math.max(tw / 2 + 4, Math.min(W - tw / 2 - 4, P.x)); ctx.strokeText(n.label, lx, ly); ctx.fillStyle = rgba(c, 0.95); ctx.fillText(n.label, lx, ly); ctx.globalAlpha = 1;
             } else {
                 const glow = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, rr * 3);
                 glow.addColorStop(0, rgba(c, 0.5 * (0.4 + depth))); glow.addColorStop(1, rgba(c, 0));
                 ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(P.x, P.y, rr * 3, 0, 6.283); ctx.fill();
                 ctx.fillStyle = rgba([255, 255, 255], 0.55 + 0.4 * depth); ctx.beginPath(); ctx.arc(P.x, P.y, rr, 0, 6.283); ctx.fill();
-                if (true) {
+                if (la > 0.02) {
+                    ctx.globalAlpha = la;
                     ctx.font = `600 ${Math.round(12 * Math.min(1.25, scale / 150))}px ui-monospace, Menlo, Consolas, monospace`;
                     ctx.textAlign = 'center'; ctx.fillStyle = rgba([255, 255, 255], 0.62 + 0.38 * depth);
                     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(5,10,16,.95)'; const tw = ctx.measureText(n.label).width, lx = zoomK > 1.02 ? P.x : Math.max(tw / 2 + 4, Math.min(W - tw / 2 - 4, P.x)); ctx.strokeText(n.label, lx, P.y - rr - 6); ctx.fillText(n.label, lx, P.y - rr - 6);
+                    ctx.globalAlpha = 1;
                 }
             }
             if (zoomNode === n && !n.isHub) {   // der gezoomte Begriff leuchtet auf
@@ -275,6 +325,24 @@
             }
             n.sx = P.x; n.sy = P.y; n.sr = rr;
         });
+
+        // Funken: Blitze vom Kern zu wechselnden Knoten, solange verschmolzen
+        if (e > 0.6) {
+            const nb = (e - 0.6) / 0.4, slot = Math.floor(now / 110), bolts = st === 'speaking' ? 3 : 2;
+            const rnd = n => { const x = Math.sin(n * 127.1 + slot * 311.7) * 43758.5453; return x - Math.floor(x); };
+            ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineJoin = 'round';
+            for (let b = 0; b < bolts; b++) {
+                const leaf = ALL_LEAVES[(slot * 7 + b * 13) % ALL_LEAVES.length], T = leaf.P;
+                const dx = T.x - CC.x, dy = T.y - CC.y, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len, SEG = 7;
+                const pts = [];
+                for (let i = 0; i <= SEG; i++) { const u = i / SEG, j = (i === 0 || i === SEG) ? 0 : (rnd(b * 31 + i) - 0.5) * len * 0.22; pts.push([CC.x + dx * u + nx * j, CC.y + dy * u + ny * j]); }
+                [[3.2, 0.28, leaf.hub.color], [1, 0.9, [255, 255, 255]]].forEach(([lw, al, col]) => {
+                    ctx.strokeStyle = rgba(col, al * nb); ctx.lineWidth = lw; ctx.beginPath();
+                    pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.stroke();
+                });
+            }
+            ctx.restore();
+        }
 
         // Schallwellen beim Sprechen: von jedem Bereich laufen Ringe nach außen
         if (st === 'speaking' && now - lastRing > 520) { lastRing = now; HUBS.forEach(h => rings.push({ h, t: now })); }
@@ -301,6 +369,7 @@
 
     /* ---------- Bedienung ---------- */
     function hit(x, y) {
+        if (F > 0.5) return null;   // verschmolzen: keine Begriffe zum Antippen
         let best = null, bd = 1e9;
         nodes.forEach(n => {
             if (n.sx === undefined) return;
@@ -427,3 +496,4 @@
     function start() { try { mount(); } catch (e) { console.error('Gehirn-Ansicht', e); } }
     if (document.readyState === 'complete' || document.readyState === 'interactive') start(); else document.addEventListener('DOMContentLoaded', start);
 })();
+
