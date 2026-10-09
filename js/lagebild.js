@@ -233,9 +233,9 @@
 
         const kn = el('div', 'knoepfe');
         const b1 = el('button', 'p', 'AUF KARTE ▶'); b1.addEventListener('click', () => { close(); try { if (typeof openPanel === 'function') openPanel('karte'); } catch (e) {} });
-        const b2 = el('button', '', 'AKTUALISIEREN'); b2.addEventListener('click', () => refresh(false));
+        const b2 = el('button', '', 'AKTUALISIEREN'); b2.addEventListener('click', () => { b2.textContent = 'LÄDT …'; b2.disabled = true; b2.style.opacity = '.6'; refresh(false); });
         kn.appendChild(b1); kn.appendChild(b2); body.appendChild(kn);
-        body.appendChild(el('div', 'fuss', 'Stand ' + hhmm(new Date(s.zeit)) + ' Uhr · Verkehr: Autobahn.de und TomTom · Wetter: Open-Meteo · Preise: Tankerkönig'));
+        body.appendChild(el('div', 'fuss', 'Stand ' + hhmm(new Date(s.zeit)) + ':' + String(new Date(s.zeit).getSeconds()).padStart(2, '0') + ' Uhr · Verkehr: Autobahn.de und TomTom · Wetter: Open-Meteo · Preise: Tankerkönig'));
     }
 
     /* ---------- Ortsnamen für Meldungen ohne Straße/Ort ---------- */
