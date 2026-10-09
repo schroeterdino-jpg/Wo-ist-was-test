@@ -152,6 +152,8 @@ async function handlePush(action, req, res, redis) {
     const pub = process.env.VAPID_PUBLIC_KEY, priv = process.env.VAPID_PRIVATE_KEY;
     if (!pub || !priv) return res.status(500).json({ error: 'Server: VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY fehlen' });
     if (action === 'push_key') return res.status(200).json({ publicKey: pub });
+    if (action === 'push_mail_status') return handleMailStatus(req, res, redis);
+    if (action === 'push_mail_connect') { if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' }); return handleMailConnect(req, res, redis); }
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     let data = { subs: [] };
@@ -695,6 +697,106 @@ function nagNeedsWork(st, it, now) {
   return !!n && n.n < NAG_MAX && now >= n.next;
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// Mail-Meldung als Push, auch bei geschlossener App.
+// Einmalige Verbindung: die App schickt einen Google-Code (push_mail_connect); der Server tauscht ihn gegen einen Dauer-Schlüssel
+// (refresh_token, bleibt im Speicher) und schaut danach alle paar Minuten in Gmail (nur lesen, nichts wird verändert).
+// Braucht bei Vercel: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (die Zugangsdaten der Google-Cloud-App).
+// ---------------------------------------------------------------------------------------------
+const MAIL_TOKEN_KEY = 'alltags-helfer:mailtoken';
+const MAIL_CHECK_MS = 5 * 60000;
+const MAIL_MAX_PER_RUN = 3;
+
+async function googleToken(params) {
+  const body = new URLSearchParams(Object.assign({ client_id: process.env.GOOGLE_CLIENT_ID, client_secret: process.env.GOOGLE_CLIENT_SECRET }, params));
+  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+  const j = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, j };
+}
+
+async function handleMailConnect(req, res, redis) {
+  try {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) return res.status(500).json({ error: 'Server: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET fehlen bei Vercel' });
+    const code = String((req.body && req.body.code) || '');
+    if (!code) return res.status(400).json({ error: 'Code fehlt' });
+    const t = await googleToken({ code, grant_type: 'authorization_code', redirect_uri: 'postmessage' });
+    if (!t.ok) return res.status(400).json({ error: 'Google lehnt ab: ' + String((t.j && (t.j.error_description || t.j.error)) || t.status) });
+    if (!t.j.refresh_token) return res.status(400).json({ error: 'Google hat keinen Dauer-Schlüssel geliefert. Bitte unter myaccount.google.com/permissions den Zugriff der App entfernen und erneut verbinden.' });
+    await redis('SET', MAIL_TOKEN_KEY, JSON.stringify({ rt: t.j.refresh_token, ts: Date.now() }));
+    const st = await loadItems(redis);
+    st.mail = { last: 0, seen: [], err: '' };
+    await redis('SET', ITEMS_KEY, JSON.stringify(st));
+    return res.status(200).json({ ok: true });
+  } catch (e) { return res.status(500).json({ error: 'Fehler: ' + e.message }); }
+}
+
+async function handleMailStatus(req, res, redis) {
+  try {
+    let tok = null; try { const raw = await redis('GET', MAIL_TOKEN_KEY); if (raw) tok = JSON.parse(raw); } catch (e) {}
+    const st = await loadItems(redis);
+    const m = st.mail || {};
+    return res.status(200).json({ verbunden: !!(tok && tok.rt), seit: tok ? tok.ts : 0, letztePruefung: m.last || 0, fehler: m.err || '', gemeldet: (m.seen || []).length, secretOk: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) });
+  } catch (e) { return res.status(500).json({ error: 'Fehler' }); }
+}
+
+function mailDue(st, now) {
+  return !!(st.mail && st.mail.last !== undefined) && now - (st.mail.last || 0) >= MAIL_CHECK_MS;
+}
+
+function headerOf(msg, name) {
+  const h = ((msg.payload && msg.payload.headers) || []).find(x => String(x.name).toLowerCase() === name);
+  return h ? String(h.value || '') : '';
+}
+
+async function runMail(redis, st, data, now, appOpen) {
+  if (!st.mail) return false;
+  st.mail.last = now;
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) return false;
+  let tok = null; try { const raw = await redis('GET', MAIL_TOKEN_KEY); if (raw) tok = JSON.parse(raw); } catch (e) {}
+  if (!tok || !tok.rt) return false;
+  const t = await googleToken({ refresh_token: tok.rt, grant_type: 'refresh_token' });
+  if (!t.ok || !t.j.access_token) {
+    const abgelaufen = t.j && t.j.error === 'invalid_grant';
+    st.mail.err = 'Anmeldung: ' + String((t.j && (t.j.error_description || t.j.error)) || t.status);
+    if (abgelaufen && now - (st.mail.errPush || 0) > 24 * 3600000 && data.subs.length) {
+      st.mail.errPush = now;
+      await sendToAll(redis, data, { title: 'Mail-Meldung unterbrochen', body: 'Die Google-Anmeldung ist abgelaufen. Bitte in der App "Mail Push einrichten" sagen.', tag: 'mail-err', url: './' });
+    }
+    return false;
+  }
+  st.mail.err = '';
+  const auth = { Authorization: 'Bearer ' + t.j.access_token };
+  const q = encodeURIComponent('is:unread in:inbox newer_than:2d -category:promotions -category:social -category:updates -category:forums');
+  const lr = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=10&q=' + q, { headers: auth });
+  if (!lr.ok) { st.mail.err = 'Gmail: Status ' + lr.status; return false; }
+  const list = ((await lr.json()).messages || []).map(m => m.id);
+  const erste = !Array.isArray(st.mail.seen) || st.mail.seen.length === 0 && !st.mail.init;
+  if (!Array.isArray(st.mail.seen)) st.mail.seen = [];
+  if (erste) { st.mail.seen = list.slice(); st.mail.init = true; return false; }   // erster Lauf: nur merken, nichts melden
+  const neu = list.filter(id => !st.mail.seen.includes(id));
+  if (!neu.length) return false;
+  const hour = berlinHour(now);
+  if (hour >= 22 || hour < 6) return false;               // nachts still; wird am Morgen gemeldet
+  if (appOpen) { st.mail.seen = st.mail.seen.concat(neu).slice(-200); return false; }   // die offene App meldet selbst
+  let sent = false;
+  for (const id of neu.slice(0, MAIL_MAX_PER_RUN)) {
+    st.mail.seen.push(id);
+    try {
+      const mr = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=metadata&metadataHeaders=From&metadataHeaders=Subject', { headers: auth });
+      if (!mr.ok) continue;
+      const msg = await mr.json();
+      let from = headerOf(msg, 'from').replace(/<.*>/, '').replace(/["']/g, '').trim() || 'unbekannt';
+      const subj = headerOf(msg, 'subject') || '(kein Betreff)';
+      const r = await sendToAll(redis, data, { title: 'E-Mail von ' + from.slice(0, 40), body: subj.slice(0, 120), tag: 'mail-' + id, url: './' });
+      if (r.sent > 0) sent = true;
+    } catch (e) {}
+  }
+  const rest = neu.slice(MAIL_MAX_PER_RUN);
+  st.mail.seen = st.mail.seen.concat(rest).slice(-200);   // Überschuss nicht nachmelden
+  return sent;
+}
+
 async function handleDue(req, res, redis) {
   try {
     if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return res.status(500).json({ error: 'Server: VAPID-Schlüssel fehlen' });
@@ -724,7 +826,8 @@ async function handleDue(req, res, redis) {
     const tankNow = tankDue(st, now);
     const wxNow = weatherDue(st, now);
     const impNow = impulseDue(st, now);
-    if (!due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow && !impNow) return res.status(200).json({ ok: true, due: 0 });
+    const mailNow = mailDue(st, now);
+    if (!due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow && !impNow && !mailNow) return res.status(200).json({ ok: true, due: 0 });
 
     // Sperre: nie zwei Läufe gleichzeitig (sonst käme alles doppelt)
     const lock = await redis('SET', 'alltags-helfer:pushlock', '1', 'NX', 'EX', '40');
@@ -815,6 +918,10 @@ async function handleDue(req, res, redis) {
     let impSent = false;
     if (impNow) impSent = await runImpulse(redis, st, data, now, impNow, appOpen);
 
+    // 7) Neue wichtige E-Mails (alle 5 Minuten; nur wenn die Verbindung eingerichtet ist)
+    let mailSent = false;
+    if (mailNow) { try { mailSent = await runMail(redis, st, data, now, appOpen); } catch (e) { st.mail.err = 'Fehler: ' + e.message; } }
+
     let briefSent = false;
     if (brief) {
       st.briefDay = brief.ymd;   // auch wenn die App offen ist: dann macht sie das Briefing selbst
@@ -830,7 +937,7 @@ async function handleDue(req, res, redis) {
     for (const k of Object.keys(st.dep)) { if (!ids.has(k)) delete st.dep[k]; }
     for (const k of Object.keys(st.nag)) { if (!ids.has(k)) delete st.nag[k]; }
     await redis('SET', ITEMS_KEY, JSON.stringify(st));
-    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent, tank: tankSent, wetter: wxSent, impuls: impSent });
+    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent, tank: tankSent, wetter: wxSent, impuls: impSent, mail: mailSent });
   } catch (err) {
     return res.status(500).json({ error: 'Push-Fehler: ' + err.message });
   }
