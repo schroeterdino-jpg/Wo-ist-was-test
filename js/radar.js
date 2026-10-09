@@ -49,7 +49,9 @@
     function stauZeile(p, kurz) {
         const strasse = p.strassen && p.strassen[0] ? p.strassen[0] : '';
         const wo = p.von && p.nach && p.von !== p.nach ? 'zwischen ' + p.von + ' und ' + p.nach : (p.von ? 'bei ' + p.von : '');
-        const teile = [(strasse ? strasse + ' ' : '') + (wo ? wo + ': ' : ': ') + p.art + (p.anzahl > 1 ? ' (' + p.anzahl + ' Meldungen)' : '')];
+        const ort = ((strasse ? strasse + ' ' : '') + wo).trim();
+        const teile = [(ort ? ort + ': ' : '') + p.art + (p.anzahl > 1 ? ' (' + p.anzahl + ' Meldungen)' : '')];
+        if (kurz && !ort && p.text && !new RegExp(p.art, 'i').test(p.text)) teile.push(p.text);
         if (p.min >= 2) teile.push(p.min + ' Minuten länger');
         if (!kurz && p.laenge_m >= 300) teile.push((p.laenge_m / 1000).toFixed(1).replace('.', ',') + ' km lang');
         teile.push(p.d.toFixed(0) + ' km ' + himmel(p.b));
@@ -273,10 +275,10 @@
             if (yy + h > H - 6) return;
             x.fillStyle = ist ? 'rgba(20,60,80,.9)' : 'rgba(6,20,34,.7)'; x.fillRect(12, yy, W - 24, h); x.strokeStyle = ist ? '#5ee7ff' : 'rgba(94,231,255,.3)'; x.strokeRect(12, yy, W - 24, h);
             x.fillStyle = '#d8f6ff'; x.textAlign = 'left'; lines.forEach((l, k) => x.fillText(l, 20, yy + 15 + k * 14));
-            if (i === 0) state._ersteY = yy;
+            if (i === 0 && state) state._ersteY = yy;
             yy += h + 5;
         });
-        if (sel && (sel.typ === 'fuel' || sel.typ === 'term')) { const y = (state._ersteY || (ly + 9)) + 4; hits.push({ knopf: true, x: W - 70, y: y + 11, w: 60, h: 22 }); x.fillStyle = '#5ee7ff'; x.fillRect(W - 70, y, 58, 22); x.fillStyle = '#02070d'; x.font = 'bold 11px ui-monospace,monospace'; x.textAlign = 'center'; x.fillText('Route ▶', W - 41, y + 15); }
+        if (sel && (sel.typ === 'fuel' || sel.typ === 'term')) { const y = ((state && state._ersteY) || (ly + 9)) + 4; hits.push({ knopf: true, x: W - 70, y: y + 11, w: 60, h: 22 }); x.fillStyle = '#5ee7ff'; x.fillRect(W - 70, y, 58, 22); x.fillStyle = '#02070d'; x.font = 'bold 11px ui-monospace,monospace'; x.textAlign = 'center'; x.fillText('Route ▶', W - 41, y + 15); }
     }
 
     function tap(ev) {
@@ -293,12 +295,35 @@
     }
 
     /* ---------- Öffnen / Schließen ---------- */
+    // Meldungen ohne Straße/Ort (z.B. Sperrungen): Ortsname über die Koordinaten nachschlagen (nur für die angezeigten, höchstens 4, ein Aufruf pro Sekunde)
+    const ortCache = {};
+    async function ortsname(lat, lon) {
+        const k = lat.toFixed(3) + ',' + lon.toFixed(3);
+        if (ortCache[k] !== undefined) return ortCache[k];
+        try {
+            const r = await mit(fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=16&accept-language=de&lat=' + lat + '&lon=' + lon), 5000);
+            const d = r && r.ok ? await r.json() : null, a = (d && d.address) || {};
+            const strasse = a.road || a.pedestrian || '', ort = a.suburb || a.village || a.town || a.city || a.municipality || '';
+            return (ortCache[k] = [strasse, ort].filter(Boolean).join(', ') || '');
+        } catch (e) { return (ortCache[k] = ''); }
+    }
+    async function orteNachladen(s) {
+        const kand = s.stau.cluster.filter(p => !p.von && !(p.strassen && p.strassen[0])).sort((a, b) => (b.aufWeg ? 1 : 0) - (a.aufWeg ? 1 : 0)).slice(0, 4);
+        for (const p of kand) {
+            const n = await ortsname(p.lat, p.lon);
+            if (n) p.von = n;
+            if (state !== s) return;
+            await new Promise(r => setTimeout(r, 1100));
+        }
+        if (state === s && kand.length) s.zus = zusammenfassung(s);
+    }
     async function refresh(sprich) {
         const s = await laden();
         if (!layer) return;
         if (s.fehler) { state = { fehler: s.fehler }; if (sprich) sagen(s.fehler); return; }
         (s.stau.items || []).forEach(i => { i.aufWeg = !!(s.arbeit && distToLine(i.lat, i.lon, s.arbeit.coords) <= 1.2); }); s.stau.cluster = clustern(s.stau.items || []).filter(x => distKm(s.lat, s.lon, x.lat, x.lon) <= RKM).slice(0, 15); s.pts = punkte(s); s.zus = zusammenfassung(s); state = s; sel = null;
-        if (sprich) sagen('Radar aktiv. ' + (s.zus.sprache.join(' ') || 'Im Umkreis gibt es nichts Besonderes.'));
+        await orteNachladen(s);   // Straße/Ort für Meldungen ohne Angabe ergänzen (Anzeige aktualisiert sich dabei von selbst)
+        if (sprich && state === s) sagen('Radar aktiv. ' + (s.zus.sprache.join(' ') || 'Im Umkreis gibt es nichts Besonderes.'));
     }
     function open(sprich) {
         if (layer) return;
