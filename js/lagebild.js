@@ -101,8 +101,9 @@
         const [tank, stau, regen, termin, route] = await Promise.all([ladeTank(lat, lon), ladeStau(lat, lon), ladeRegen(lat, lon), ladeTermin(lat, lon), arbeitP]);
         let arbeit = null;
         if (route && Array.isArray(route.coords) && route.coords.length > 1) {
-            const auf = (route.warnings || []).filter(w => distToLine(w.lat, w.lon, route.coords) <= 1.5);
-            arbeit = { min: route.fahrtMin, km: route.km, coords: route.coords, meldungen: auf };
+            // Sperrungen zählen nur, wenn sie wirklich auf der Strecke liegen (Google fährt um Sperrungen herum), alles andere bis ~600 m neben der Linie
+            const auf = (route.warnings || []).filter(w => distToLine(w.lat, w.lon, route.coords) <= (/sperr|gesperrt/i.test((w.title || '') + ' ' + (w.text || '')) ? 0.25 : 0.6));
+            arbeit = { min: route.fahrtMin, km: Math.round(Number(route.km)), coords: route.coords, meldungen: auf };
         }
         // Verkehr in der Nähe: nicht auf dem Arbeitsweg und nicht doppelt zu einer Autobahn-Meldung
         const aufWeg = i => (arbeit && distToLine(i.lat, i.lon, arbeit.coords) <= 1.5) || (route && (route.warnings || []).some(w => distKm(w.lat, w.lon, i.lat, i.lon) < 1.5));
@@ -267,7 +268,7 @@
         stil();
         layer = el('div'); layer.id = 'jvLage';
         const inn = el('div', 'in'); layer.appendChild(inn);
-        const kopf = el('div', 'kopf'); const l = el('div'); l.appendChild(el('b', '', 'J.A.R.V.I.S. // LAGEBILD')); l.appendChild(el('small', '', 'Dein Umkreis auf einen Blick')); kopf.appendChild(l);
+        const kopf = el('div', 'kopf'); const l = el('div'); l.appendChild(el('b', '', 'LAGEBILD')); l.appendChild(el('small', '', 'J.A.R.V.I.S. · dein Umkreis auf einen Blick')); kopf.appendChild(l);
         const x = el('button', 'x', '✕'); x.setAttribute('aria-label', 'Lagebild schließen'); x.addEventListener('click', close); kopf.appendChild(x);
         inn.appendChild(kopf); body = el('div'); inn.appendChild(body);
         document.body.appendChild(layer);

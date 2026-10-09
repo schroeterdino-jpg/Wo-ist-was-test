@@ -119,7 +119,7 @@
         if (!d || !Array.isArray(d.incidents)) return null;
         const doppelt = (i) => (typeof lastStauWarnings !== 'undefined' ? lastStauWarnings : []).some(w => km(w.lat, w.lon, i.lat, i.lon) < 1.5);
         const wichtig = d.incidents.filter(i => ![4, 10].includes(i.kategorie) && (i.stufe >= 2 || i.verzoegerung_s >= 120 || [1, 8].includes(i.kategorie)))
-            .filter(i => distToLine(i.lat, i.lon, pts) <= 1.2 && !doppelt(i))
+            .filter(i => distToLine(i.lat, i.lon, pts) <= ([7, 8].includes(i.kategorie) ? 0.25 : 1.2) && !doppelt(i))   // Sperrungen nur, wenn sie wirklich auf der Strecke liegen (Google fährt um sie herum)
             .sort((a, b) => (b.verzoegerung_s - a.verzoegerung_s) || (b.stufe - a.stufe)).slice(0, 3);
         return wichtig;
     }
