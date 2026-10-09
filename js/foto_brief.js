@@ -345,6 +345,7 @@
                 return;
             }
             const P = makePlan(L);
+            try { if (window.jvRechnungen) window.jvRechnungen.merken(L); } catch (e) {}   // Rechnung im Blick behalten (js/rechnungen.js)
             const list = [];
             const head = { rechnung: ['🧾', 'Rechnung'], mahnung: ['⚠️', 'Mahnung'], vertragsaenderung: ['📝', 'Vertragsänderung'], bescheid: ['🏛️', 'Bescheid / Behörde'], einladung: ['💌', 'Einladung'], sonstiges: ['✉️', 'Schreiben'] }[L.typ];
             const facts = [L.absender, L.betrag ? euro(L.betrag) : '', L.zahlungsziel ? 'zahlen bis ' + fmtDe(parseIso(L.zahlungsziel)) : '', L.frist ? 'Frist ' + fmtDe(parseIso(L.frist)) : ''].filter(Boolean).join(' · ');
