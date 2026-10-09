@@ -152,6 +152,11 @@ export default async function handler(req, res) {
           else if (occ < today && occ >= from && Number(m.nachgefragt_jahr) !== year && m.frage) due.push({ art: 'nachfragen', id: e.id, text: e.text, metadata: m });
         } else if (m.status === 'offen' && m.ereignis_datum < today && m.ereignis_datum >= from && m.frage) {
           due.push({ art: 'nachfragen', id: e.id, text: e.text, metadata: m });
+        } else if (m.status === 'ohne_nachfrage' && m.kategorie === 'Event' && m.ereignis_datum < today && m.ereignis_datum >= addDays(today, -3)
+                   && !(ISO_DAY.test(String(m.datum_gesagt || '')) && m.datum_gesagt > m.ereignis_datum)) {
+          // Plan ohne mitgespeicherte Frage (die KI hat sie weggelassen): trotzdem nachfragen, solange es höchstens 3 Tage her ist
+          // und der User nicht erst NACH dem Ereignis davon erzählt hat
+          due.push({ art: 'nachfragen', id: e.id, text: e.text, metadata: m });
         }
       }
       // Hinweise für heute zuerst, dann das älteste Ereignis
