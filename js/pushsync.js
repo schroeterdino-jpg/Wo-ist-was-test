@@ -2,12 +2,12 @@
    PUSHSYNC: meldet dem Server deine Erinnerungen, damit er dich auch bei geschlossener App benachrichtigen kann
    ============================================================
    - Schickt (nur wenn "Benachrichtigungen an" gemacht wurde, Schlüssel jv_push = 1) eine kleine Liste: Titel und Zeit der nächsten 14 Tage.
-     Nur Erinnerungen (noch nicht ausgelöst). Termine aus dem Kalender werden NICHT mehr gemeldet, dafür sorgt Google selbst
-     (sonst klingelte es doppelt). Keine Orte, keine Notizen.
+     Erinnerungen (noch nicht ausgelöst) und Termine mit Uhrzeit UND Ort (für die Abfahrtszeit). Termine ohne Ort, Geburtstage und
+     ganztägige Termine werden nicht gemeldet, dafür sorgt Google selbst (sonst klingelte es doppelt). Keine Notizen.
    - Schickt jede Minute ein Lebenszeichen, solange die App offen UND sichtbar ist. Dann spricht Jarvis wie bisher selbst und der Server
      schickt nichts (kein Doppeltes). Ist die App zu, übernimmt der Server (api/sync.js, Aktion push_due, jede Minute von cron-job.org).
-   - Serverseitig: Erinnerung zur eingestellten Zeit.
-   Braucht: storage.js (apiFetch), push.js (Anmeldung), calendar.js (reminderEntries), sync.js (onLocalDataChanged).
+   - Serverseitig: Erinnerung zur eingestellten Zeit; Termine mit Ort als Abfahrtsmeldung (ohne berechenbare Strecke eine einfache Vorwarnung).
+   Braucht: storage.js (apiFetch), push.js (Anmeldung), calendar.js (reminderEntries, calendarEntries), briefing.js (isBirthdayEntry), sync.js (onLocalDataChanged).
    Fehlt etwas, tut die Datei still nichts. Muss nach push.js geladen werden.
    ============================================================ */
 (function () {
@@ -34,7 +34,20 @@
                 items.push(o);
             });
         } catch (e) {}
-        /* Kalender-Termine (Friseur usw.) werden bewusst nicht mehr gemeldet: Google erinnert selbst daran. */
+        /* Kalender-Termine: nur solche MIT Ort, damit der Server die Abfahrtszeit melden kann ("Du musst in 25 Minuten losfahren").
+           Termine ohne Ort meldet nur Google, sonst klingelte es doppelt. */
+        try {
+            (typeof calendarEntries !== 'undefined' ? calendarEntries : []).forEach(c => {
+                if (!c || !c.isoDate || !/T/.test(c.isoDate)) return;   // nur mit Uhrzeit
+                if (!c.location || !String(c.location).trim()) return;   // ohne Ort: Google meldet
+                if (typeof isBirthdayEntry === 'function' && isBirthdayEntry(c)) return;
+                const at = new Date(c.isoDate).getTime();
+                if (isNaN(at) || at < now || at > now + HORIZON_MS) return;
+                const o = { id: 'e' + c.id, k: 'e', x: String(c.text || 'Termin').slice(0, 140), at };
+                o.l = String(c.location).trim().slice(0, 120);   // nur für die Abfahrtszeit
+                items.push(o);
+            });
+        } catch (e) {}
         items.sort((a, b) => a.at - b.at);
         return items.slice(0, MAX_ITEMS);
     }
