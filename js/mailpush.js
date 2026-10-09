@@ -70,6 +70,27 @@
     }
 
     window.jvMailPush = { einrichten: knopf, status };
+
+    function erkennen(text) {
+        const t = String(text || '').toLowerCase().replace(/[.,!?;:\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (t.length >= 50) return null;
+        if (/^(?:jarvis )?(?:(?:richte|richt) )?(?:die )?(?:e ?mail|mail|gmail)(?: ?(?:push|meldung|benachrichtigung))?(?: einrichten| verbinden| aktivieren)$/.test(t)) return 'einrichten';
+        if (/^(?:jarvis )?(?:e ?mail|mail) ?push (?:einrichten|verbinden|aktivieren)$/.test(t)) return 'einrichten';
+        if (/^(?:jarvis )?(?:(?:e ?)?mail ?push|mail meldung) (?:status|prüfen|test)$/.test(t)) return 'status';
+        return null;
+    }
+    // ganz nach vorn: vor dem alten Push-Befehl ("Push einrichten" = Handy-Benachrichtigungen)
+    const alt = window.handleLocalCommand;
+    if (typeof alt === 'function' && !alt._mailpush) {
+        const neu = function (text) {
+            const k = erkennen(text);
+            if (k === 'einrichten') { knopf(); say('Tippe unten auf den Knopf und bestätige bei Google.'); return true; }
+            if (k === 'status') { status(); return true; }
+            return alt.apply(this, arguments);
+        };
+        neu._mailpush = true;
+        window.handleLocalCommand = neu;
+    }
     if (window.jvCommands) {
         window.jvCommands.use('mailpush', function (text, next) {
             const t = String(text || '').toLowerCase().replace(/[.,!?;:\-]+/g, ' ').replace(/\s+/g, ' ').trim();
