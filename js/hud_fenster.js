@@ -3,6 +3,7 @@
    Dazu:
    - Ansage beim Öffnen: Jarvis nennt einmal (höchstens alle 3 Stunden, nicht zwischen 22 und 7 Uhr) Termine heute, Wetter und bald fällige Rechnungen und zeigt sie als Fenster.
      "Ansagen aus" / "Ansagen an" schaltet das ab (nur die gesprochene Ansage: "Ansagen leise" lässt die Fenster ohne Stimme).
+   - Nachrichten: beim ersten Öffnen des Tages (morgens bis 12 Uhr) je ein Fenster mit den neuesten Meldungen aus Schwarzenbek und Hamburg (/api/news) und eine kurze Schlagzeile je Ort gesprochen. Jederzeit: "Lokale Nachrichten" / "Nachrichten für Schwarzenbek und Hamburg".
    - Systemcheck: "Systemcheck" zeigt jede Prüfung als Fenster-Zeile mit grünem Haken oder rotem Kreuz (zusätzlich Benachrichtigungen und Netz).
    - "Zeig Rechnungen" bleibt in rechnungen.js; Aufruf window.jvPanel.zeigen({titel, zeit, gross, text, zeilen:[{ok,text}], sek}) von überall möglich.
    Braucht (alles optional): calendarEntries, fetchWeatherData/weatherCodeText (briefing.js), window.jvRechnungen, speak(), collectSystemChecks (systemcheck.js), getPersistentData/setPersistentData, wachterQuiet.
@@ -29,7 +30,7 @@
         if (!o.gross) p.querySelector('.g').remove();
         if (!o.text) p.querySelector('.s').remove();
         const zb = p.querySelector('.z');
-        (o.zeilen || []).forEach(z => { const d = document.createElement('div'); d.style.cssText = 'margin-top:4px;line-height:1.3;color:' + (z.ok ? '#7dffb0' : '#ff7a7a'); d.textContent = (z.ok ? '✓ ' : '✗ ') + z.text; zb.appendChild(d); });
+        (o.zeilen || []).forEach(z => { const d = document.createElement('div'); d.style.cssText = 'margin-top:4px;line-height:1.3;color:' + (z.ok === null ? '#d8f6ff' : z.ok ? '#7dffb0' : '#ff7a7a'); d.textContent = (z.ok === null ? '• ' : z.ok ? '✓ ' : '✗ ') + z.text; zb.appendChild(d); });
         const weg = () => { p.classList.add('aus'); setTimeout(() => p.remove(), 500); };
         p.addEventListener('click', weg); box.appendChild(p); setTimeout(weg, s);
         while (box.children.length > 3) box.firstChild.remove();
@@ -97,6 +98,48 @@
     window.jvAnsage = ansage;
     setTimeout(ansage, 7500);
 
+    /* ---------- Lokale Nachrichten (Schwarzenbek, Hamburg) ---------- */
+    const N_KEY = 'jv_news_tag';
+    const ORTE = ['Schwarzenbek', 'Hamburg'];
+    async function holeNews(ort) {
+        try {
+            const r = await Promise.race([apiFetch('/api/news?q=' + encodeURIComponent(ort)), new Promise((_, j) => setTimeout(() => j(new Error('t')), 9000))]);
+            const d = await r.json();
+            const frisch = Date.now() - 3 * 86400000;
+            const a = (d.articles || []).filter(x => !x.date || new Date(x.date).getTime() > frisch);
+            return (a.length ? a : d.articles || []).slice(0, 3);
+        } catch (e) { return []; }
+    }
+    async function nachrichten(spreche) {
+        const res = await Promise.all(ORTE.map(holeNews));
+        const saetze = [];
+        ORTE.forEach((ort, i) => {
+            const a = res[i];
+            if (!a.length) return;
+            zeigen({ titel: 'NACHRICHTEN', zeit: ort.toUpperCase(), zeilen: a.slice(0, 3).map(x => ({ ok: null, text: x.title.slice(0, 110) })), sek: 16 });
+            saetze.push((ort === 'Hamburg' ? 'In Hamburg' : 'In ' + ort) + ': ' + a[0].title.replace(/[„“"]/g, '').slice(0, 140) + '.');
+        });
+        if (spreche) {
+            if (!saetze.length) sagen('Ich konnte gerade keine Nachrichten für Schwarzenbek und Hamburg laden.');
+            else sagen('Nachrichten. ' + saetze.join(' '));
+        }
+        return saetze.length > 0;
+    }
+    window.jvLokalNews = nachrichten;
+    async function morgensNews() {
+        try {
+            if (pd('jv_ansagen', 'an') === 'aus' || document.hidden || typeof apiFetch !== 'function') return;
+            const h = stunde();
+            if (h < 4 || h >= 12 || /alarm=/.test(location.search)) return;
+            const heute = heuteIso();
+            if (localStorage.getItem(N_KEY) === heute) return;
+            localStorage.setItem(N_KEY, heute);
+            await nachrichten(pd('jv_ansagen', 'an') !== 'leise');
+        } catch (e) {}
+    }
+    // nach der Ansage (die dauert ein paar Sekunden), damit sich nichts überlagert
+    setTimeout(morgensNews, 22000);
+
     /* ---------- Systemcheck als Fenster ---------- */
     const origCheck = window.runSystemCheckSpoken;
     if (typeof origCheck === 'function' && typeof window.collectSystemChecks === 'function') {
@@ -120,6 +163,13 @@
 
     /* ---------- Sprache: Ansagen an/aus/leise ---------- */
     if (window.jvCommands) {
+        window.jvCommands.use('lokalnews', function (text, next) {
+            const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
+            if (t.length < 60 && /^(?:jarvis )?(?:(?:zeig(?:e)?(?: mir)?|gib mir|was gibt(?:'?s| es)) )?(?:die )?(?:lokale[nr]? nachrichten|nachrichten (?:für|aus|von) (?:schwarzenbek|hamburg)(?: und (?:schwarzenbek|hamburg))?|(?:schwarzenbek|hamburg) (?:und )?(?:schwarzenbek |hamburg )?nachrichten|neues aus schwarzenbek(?: und hamburg)?)(?: bitte)?(?: neues)?$/.test(t)) {
+                nachrichten(true); return true;
+            }
+            return next(text);
+        }, 155);
         window.jvCommands.use('ansagen', function (text, next) {
             const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
             const m = t.match(/^(?:jarvis )?(?:ansagen|ansage beim öffnen|begrüßung)\s+(aus|an|ein|leise)$/) || t.match(/^(?:schalte? )?(?:die )?(?:ansagen|begrüßung) (aus|an|ein|leise)(?:schalten)?$/);
