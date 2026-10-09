@@ -82,6 +82,7 @@ export default async function handler(req, res) {
         appOffen: now - st.alive < ALIVE_MS, lebenszeichen: min(st.alive), standort: st.loc ? min(st.loc.ts) : 'keiner gemeldet',
         zuhauseRoute: !!(st.cfg && st.cfg.route),
         wetter: wetterTest || { letzte: st.wx.last || 'noch keine', fehler: st.wx.err || null },
+        impulse: { aus: !!st.imp.off, letzter: st.imp.last ? min(st.imp.last) : 'noch keiner', heute: st.imp.dayCount || null, regelnHeuteGesendet: st.imp.sent },
         diesel: { letzterPreis: st.tank.last ? { euro: st.tank.last.p, tankstelle: st.tank.last.name, ort: st.tank.last.ort, vor: min(st.tank.last.ts), ab: st.tank.last.quelle } : 'noch keiner', schnitt7Tage: st.tank.avg || 'noch zu wenig Daten', messwerte: st.tank.hist.length, ersteMessung: st.tank.hist.length ? min(st.tank.hist[0][0] * 60000) : 'nie', letzteMeldung: min(st.tank.lastAlert), fehler: st.tank.err || null },
         erinnerungen: st.items.filter(i => i.k === 'r' && i.at < now + 36 * 3600000).map(i => ({ text: i.x, in_min: Math.round((i.at - now) / 60000), wichtig: i.i === 1, gesendet: !!st.sent[i.id], nachgefasst: st.nag[i.id] ? st.nag[i.id].n : 0, erledigt: !!st.done[i.id] })),
         termine: st.items.filter(i => i.k === 'e').map(i => ({ text: i.x, in_min: Math.round((i.at - now) / 60000), mitOrt: !!i.l, strecke: st.dep[i.id] ? (st.dep[i.id].fail ? 'Fehler: ' + st.dep[i.id].fail : { fahrtMin: st.dep[i.id].fahrtMin, stauMin: st.dep[i.id].stauMin || 0, ab: st.dep[i.id].quelle }) : 'noch nicht berechnet', gesendet: !!st.sent[i.id] }))
@@ -229,6 +230,12 @@ async function handlePush(action, req, res, redis) {
       await redis('SET', ITEMS_KEY, JSON.stringify(st));
       return res.status(200).json({ ok: true, schicht: !!cfg.schicht, route: !!cfg.route });
     }
+    if (action === 'push_impulse') {   // Abend-Impulse ein/aus ("Impulse aus" per Sprache)
+      const st = await loadItems(redis);
+      st.imp.off = body.on === false;
+      await redis('SET', ITEMS_KEY, JSON.stringify(st));
+      return res.status(200).json({ ok: true, an: !st.imp.off });
+    }
     if (action === 'push_alive' || action === 'push_gone') {   // alive: App offen und sichtbar, dann spricht sie selbst; gone: App wurde verlassen
       const st = await loadItems(redis);
       st.alive = action === 'push_alive' ? Date.now() : 0;
@@ -268,6 +275,8 @@ async function loadItems(redis) {
   if (!st.tank || typeof st.tank !== 'object') st.tank = {};
   if (!Array.isArray(st.tank.hist)) st.tank.hist = [];
   if (!st.wx || typeof st.wx !== 'object') st.wx = {};
+  if (!st.imp || typeof st.imp !== 'object') st.imp = {};
+  if (!st.imp.sent || typeof st.imp.sent !== 'object') st.imp.sent = {};
   return st;
 }
 
@@ -600,6 +609,69 @@ async function runWeather(redis, st, data, now, wd) {
 }
 
 /* Termin ohne Ortsangabe oder mit nicht berechenbarer Strecke: einfache Vorwarnung 15 Minuten vorher */
+/* --- Situations-Impulse: Jarvis meldet sich von selbst, wenn die Lage passt (ohne dass ein Termin dranhängt) ---
+   Regeln (je Regel höchstens einmal am Tag, insgesamt höchstens 2 am Tag, mindestens 25 Minuten Abstand, nur bei geschlossener App):
+   - wechsel: Sonntag 19:00 -> "Ab morgen Frühschicht/Spätschicht"
+   - bett:    21:00 am Abend vor einer Frühschicht (Mo-Fr) -> "Zeit, ins Bett zu gehen"
+   - morgen:  19:30, wenn morgen Termine oder Erinnerungen anstehen -> kurze Übersicht
+   Ausschalten: "Impulse aus" (Sprache) oder push_impulse. Neue Regeln: hier in impulseDue/runImpulse ergänzen. */
+const IMP_WECHSEL_MIN = 19 * 60;
+const IMP_MORGEN_MIN = 19 * 60 + 30;
+const IMP_BETT_MIN = 21 * 60;
+const IMP_GRACE_MIN = 15;
+const IMP_MAX_PRO_TAG = 2;
+const IMP_GAP_MS = 25 * 60000;
+function impulseDue(st, now) {
+  const imp = st.imp || {};
+  if (imp.off) return null;
+  const bp = berlinParts(now);
+  if (imp.dayCount && imp.dayCount.ymd === bp.ymd && imp.dayCount.n >= IMP_MAX_PRO_TAG) return null;
+  if (imp.last && now - imp.last < IMP_GAP_MS) return null;
+  const sent = imp.sent || {};
+  const inWin = m => bp.min >= m && bp.min <= m + IMP_GRACE_MIN;
+  if (!inWin(IMP_WECHSEL_MIN) && !inWin(IMP_MORGEN_MIN) && !inWin(IMP_BETT_MIN)) return null;
+  const tm = berlinParts(now + 86400000);
+  const dowTm = (new Date(Date.UTC(tm.y, tm.m - 1, tm.d)).getUTCDay() + 6) % 7;   // 0 = Montag
+  const sc = st.cfg && st.cfg.schicht;
+  if (sc && sc.times) {
+    const shTm = shiftOfWeek(sc, weekNo(tm));
+    if (dowTm === 0 && inWin(IMP_WECHSEL_MIN) && sent.wechsel !== bp.ymd) return { id: 'wechsel', ymd: bp.ymd, shTm, at: sc.times[shTm] };
+    if (shTm === 'frueh' && dowTm <= 4 && inWin(IMP_BETT_MIN) && sent.bett !== bp.ymd) return { id: 'bett', ymd: bp.ymd, at: sc.times.frueh };
+  }
+  if (inWin(IMP_MORGEN_MIN) && sent.morgen !== bp.ymd) {
+    const items = st.items.filter(it => berlinParts(it.at).ymd === tm.ymd).sort((a, b) => a.at - b.at);
+    if (items.length) return { id: 'morgen', ymd: bp.ymd, items };
+  }
+  return null;
+}
+async function runImpulse(redis, st, data, now, ru, appOpen) {
+  if (appOpen) return false;   // die offene App spricht selbst; Regel bleibt im Zeitfenster noch offen
+  st.imp.sent[ru.id] = ru.ymd;
+  if (!data.subs.length) return false;
+  let title, body;
+  if (ru.id === 'wechsel') {
+    title = 'Ab morgen ' + (ru.shTm === 'frueh' ? 'Frühschicht' : 'Spätschicht');
+    body = 'Abfahrt gegen ' + spokenClock(ru.at) + '. ' + (ru.shTm === 'frueh' ? 'Geh heute etwas früher ins Bett.' : 'Du kannst morgen etwas länger schlafen.');
+  } else if (ru.id === 'bett') {
+    title = 'Morgen Frühschicht';
+    body = 'Abfahrt gegen ' + spokenClock(ru.at) + '. Zeit, langsam ins Bett zu gehen.';
+  } else {
+    const ev = ru.items.filter(i => i.k === 'e'), rem = ru.items.filter(i => i.k === 'r');
+    const teile = ev.slice(0, 3).map(i => berlinClock(i.at) + ' ' + i.x);
+    if (ev.length > 3) teile.push('und ' + (ev.length - 3) + ' weitere');
+    if (rem.length) teile.push(rem.length + (rem.length === 1 ? ' Erinnerung' : ' Erinnerungen'));
+    title = 'Morgen steht an';
+    body = teile.join(', ') + '.';
+  }
+  const out = await sendToAll(redis, data, { title, body, tag: 'imp-' + ru.id, url: './' });
+  if (out.sent > 0) {
+    const bp = berlinParts(now);
+    st.imp.last = now;
+    st.imp.dayCount = { ymd: bp.ymd, n: (st.imp.dayCount && st.imp.dayCount.ymd === bp.ymd ? st.imp.dayCount.n : 0) + 1 };
+  }
+  return out.sent > 0;
+}
+
 function genericDue(st, it, now) {
   if (it.k !== 'e' || st.sent[it.id]) return false;
   const lead = it.at - EVENT_LEAD_MIN * 60000;
@@ -651,7 +723,8 @@ async function handleDue(req, res, redis) {
     const nagList = st.items.filter(it => nagNeedsWork(st, it, now));
     const tankNow = tankDue(st, now);
     const wxNow = weatherDue(st, now);
-    if (!due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow) return res.status(200).json({ ok: true, due: 0 });
+    const impNow = impulseDue(st, now);
+    if (!due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow && !impNow) return res.status(200).json({ ok: true, due: 0 });
 
     // Sperre: nie zwei Läufe gleichzeitig (sonst käme alles doppelt)
     const lock = await redis('SET', 'alltags-helfer:pushlock', '1', 'NX', 'EX', '40');
@@ -738,6 +811,10 @@ async function handleDue(req, res, redis) {
     let wxSent = false;
     if (wxNow) wxSent = await runWeather(redis, st, data, now, wxNow);
 
+    // 6) Situations-Impulse (Schichtwechsel, Bettzeit vor Frühschicht, Vorschau auf morgen)
+    let impSent = false;
+    if (impNow) impSent = await runImpulse(redis, st, data, now, impNow, appOpen);
+
     let briefSent = false;
     if (brief) {
       st.briefDay = brief.ymd;   // auch wenn die App offen ist: dann macht sie das Briefing selbst
@@ -753,7 +830,7 @@ async function handleDue(req, res, redis) {
     for (const k of Object.keys(st.dep)) { if (!ids.has(k)) delete st.dep[k]; }
     for (const k of Object.keys(st.nag)) { if (!ids.has(k)) delete st.nag[k]; }
     await redis('SET', ITEMS_KEY, JSON.stringify(st));
-    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent, tank: tankSent, wetter: wxSent });
+    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent, tank: tankSent, wetter: wxSent, impuls: impSent });
   } catch (err) {
     return res.status(500).json({ error: 'Push-Fehler: ' + err.message });
   }

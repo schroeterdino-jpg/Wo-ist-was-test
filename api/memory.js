@@ -250,7 +250,7 @@ export default async function handler(req, res) {
         headers,
         body: JSON.stringify({
           data: query,
-          topK: topK,
+          topK: Math.min(40, topK * 2),   // mehr holen, dann nach Neuheit umsortieren und auf topK kürzen
           includeMetadata: true,
           includeData: true
         }),
@@ -259,15 +259,29 @@ export default async function handler(req, res) {
       const d = await r.json();
       if (!r.ok) return res.status(502).json({ error: 'Upstash meldet: ' + (d.error || JSON.stringify(d)) });
 
-      // Ergebnisse filtern und formatieren
+      // Ergebnisse filtern, nach Neuheit gewichten und formatieren.
+      // Veränderliches (Pläne, Stimmungen, Projekte, Rückblicke) rückt bei gleicher Ähnlichkeit nach vorn, wenn es frisch oder bald ist;
+      // Dauerhaftes (Vorlieben, Geburtstage, Familie) bleibt unverändert.
+      const heute = new Date().toISOString().slice(0, 10);
+      const tage = iso => Math.round((new Date(heute + 'T12:00:00Z') - new Date(iso + 'T12:00:00Z')) / 86400000);
+      const gewicht = m => {
+        if (!['Event', 'Projekt', 'Stimmung', 'Rückblick'].includes(m.kategorie)) return 1;
+        const ref = ISO_DAY.test(String(m.ereignis_datum || '')) ? m.ereignis_datum : (ISO_DAY.test(String(m.datum_gesagt || '')) ? m.datum_gesagt : null);
+        if (!ref) return 1;
+        const alter = Math.max(0, tage(ref));   // Zukünftiges zählt wie heute
+        return 0.88 + 0.27 * Math.exp(-alter / 21);
+      };
       const treffer = ((d.result) || [])
         .filter(v => v.score >= minScore)
         .map(v => ({
           id: v.id,
           text: v.data,
           score: v.score,
+          rang: v.score * gewicht(v.metadata || {}),
           metadata: v.metadata || {}
-        }));
+        }))
+        .sort((a, b) => b.rang - a.rang)
+        .slice(0, topK);
 
       return res.status(200).json({ treffer });
     }
