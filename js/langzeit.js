@@ -7,6 +7,8 @@
    2) Aktion "episode_asked": die KI meldet, dass sie die Nachfrage gestellt hat; dann wird sie vermerkt und es gibt heute keine weitere.
    3) Die Suche (searchSemanticMemory) liefert nur noch solche Einträge, mit Datum und Wochentag ("Wann war ich schwimmen?").
    4) Nachfragen: einmal am Tag höchstens EINE Nachfrage zu einem vergangenen Plan oder Geburtstag (Kontext "langzeit_nachfragen"); im Briefing nie.
+      Dazu alle 2-3 Tage ein beiläufiger Anstoß zu einem undatierten Eintrag ("Wie geht es eigentlich Finja?"), pro Eintrag höchstens alle 10 Tage; abstellbar mit "Frag nicht mehr nach ...".
+      "Was weißt du über mich?" lässt Jarvis die Einträge vorlesen (Kontext "langzeit_alles"); das Fenster öffnet "Zeig mir das Langzeitgedächtnis".
    5) Fenster "Langzeitgedächtnis" (Menü, oder per Sprache): alle Einträge ansehen und einzeln löschen. "Vergiss das mit dem Schwimmen" löscht per Sprache.
    6) Einmaliges Aufräumen: alte Vektor-Einträge ohne Datum/Kategorie (Altlasten aus der Zeit vor der Trennung) werden gelöscht.
    Braucht: api/memory.js, actions.js (executeAction), assistant.js (searchSemanticMemory), prompt.js (buildSystemPrompt), apiFetch.
@@ -14,6 +16,7 @@
    ============================================================ */
 (function () {
     const FOLLOW_KEY = 'jv_langzeit_nachfrage_tag';
+    const ANSTOSS_KEY = 'jv_langzeit_anstoss_tag';
     const CLEAN_KEY = 'jv_langzeit_aufgeraeumt_v1';
     const AUTO_FRAGE = 'Frage beiläufig, wie es war.';
     const KATEGORIEN = ['Event', 'Vorliebe', 'Projekt', 'Stimmung', 'Geburtstag'];
@@ -85,8 +88,10 @@
         const id = String(action.episode_id || '').trim();
         lsSet(FOLLOW_KEY, todayIso());   // heute keine weitere Nachfrage
         if (!id) return;
-        const art = String(action.episode_art || '').toLowerCase().startsWith('heute') ? 'heute' : 'nachfragen';
-        try { await post({ action: 'mark', id, art, year: new Date().getFullYear() }); } catch (e) { console.error('Nachfrage-Vermerk fehlgeschlagen', e); }
+        const a0 = String(action.episode_art || '').toLowerCase();
+        const art = a0.startsWith('heute') ? 'heute' : a0.startsWith('anst') ? 'anstoss' : 'nachfragen';
+        if (art === 'anstoss') lsSet(ANSTOSS_KEY, todayIso());   // Anstöße höchstens alle 2-3 Tage
+        try { await post({ action: 'mark', id, art, year: new Date().getFullYear(), today: todayIso() }); } catch (e) { console.error('Nachfrage-Vermerk fehlgeschlagen', e); }
         dueCache = null;
     }
 
@@ -96,6 +101,7 @@
             if (action && action.type === 'episode_store') return storeEpisode(action, ctx);
             if (action && action.type === 'episode_asked') { markAsked(action); return; }
             if (action && action.type === 'episode_forget') return forgetEpisode(action, ctx);
+            if (action && action.type === 'episode_nicht_fragen') return noAnstoss(action, ctx);
             return original.apply(this, arguments);
         };
         wrapped._langzeit = true;
@@ -125,11 +131,17 @@
     let dueCache = null;        // { tag, liste }
     let dueLoading = false;
 
+    function anstossErlaubt() {   // frühestens alle 2 Tage ein beiläufiger Anstoß
+        const last = lsGet(ANSTOSS_KEY);
+        if (!isIsoDay(last)) return true;
+        return (new Date(todayIso() + 'T12:00:00Z') - new Date(last + 'T12:00:00Z')) / 86400000 >= 2;
+    }
+
     function refreshDue() {
         const heute = todayIso();
         if (dueLoading || (dueCache && dueCache.tag === heute)) return;
         dueLoading = true;
-        post({ action: 'due', today: heute })
+        post({ action: 'due', today: heute, anstoss: anstossErlaubt() })
             .then(d => { dueCache = { tag: heute, liste: Array.isArray(d.due) ? d.due : [] }; })
             .catch(() => { dueCache = { tag: heute, liste: [] }; })
             .finally(() => { dueLoading = false; });
@@ -142,20 +154,60 @@
         if (!dueCache || dueCache.tag !== heute || !dueCache.liste.length) return '';
         const e = dueCache.liste[0];
         const m = e.metadata || {};
-        const eintrag = e.art === 'heute'
+        const eintrag = e.art === 'anstoss'
+            ? { id: e.id, art: 'anstoss', inhalt: String(e.text || '').replace(/\s*\([^)]*\d{4}\)\s*$/, ''), kategorie: m.kategorie }
+            : e.art === 'heute'
             ? { id: e.id, art: 'heute', hinweis: m.hinweis, inhalt: e.text }
             : { id: e.id, art: 'nachfragen', frage: (m.frage && m.frage !== AUTO_FRAGE) ? m.frage : 'Frage beiläufig, wie es war (zum Eintrag passend, z.B. "Wie war es beim Schwimmen?")', inhalt: e.text, ereignis: isIsoDay(m.ereignis_datum) ? lesbar(m.ereignis_datum) : '' };
+        if (e.art === 'anstoss') return '\n\nlangzeit_nachfragen (heute noch nicht gefragt; kein fester Anlass, nur ein beiläufiger Anstoß in einem ruhigen Moment; stelle ihn genau einmal und melde es mit der Aktion episode_asked, episode_art "anstoss"): ' + JSON.stringify(eintrag);
         return '\n\nlangzeit_nachfragen (heute noch nicht gefragt; stelle sie genau einmal, ganz beiläufig und locker nebenbei in einem passenden Moment des Gesprächs, nicht als steife Pflichtfrage, und melde es mit der Aktion episode_asked): ' + JSON.stringify(eintrag);
     }
 
     if (window.jvChain) {   // Ergänzungs-Liste (commands.js)
         window.jvChain.use('buildSystemPrompt', 'langzeit', function (next) {
             let base = next();
-            try { base += dueBlock(); } catch (e) {}
+            try { base += (alleBlock() || dueBlock()); } catch (e) {}
             return base;
         }, 200);
     }
 
+
+    /* "Was weißt du über mich?": Jarvis liest vor, was er weiß. Alle Einträge werden einmal geholt und der KI für diese Antwort mitgegeben. */
+    let alleCache = null;   // { t, liste }
+    const WISSEN_RXS = [
+        /\bwas\s+(?:\S+\s+){0,3}?wei(?:ß|ss)t\s+du\s+(?:\S+\s+){0,3}?(?:über|von)\s+(?:mich|mir)(?:\s|$)/,
+        /(?:^|\s)(?:über|von)\s+(?:mich|mir)\s+(?:\S+\s+){0,3}?(?:wei(?:ß|ss)t|gemerkt)(?:\s|$)/,
+        /\bwas\s+hast\s+du\s+(?:\S+\s+){0,3}?gemerkt(?:\s|$)/
+    ];
+
+    function alleFrisch() { return !!alleCache && Date.now() - alleCache.t < 45000; }
+    function alleBlock() {
+        if (!alleFrisch()) return '';
+        return '\n\nlangzeit_alles (der User fragt gerade, was du über ihn weißt; erzähle es ihm in wenigen natürlichen Sätzen): ' + JSON.stringify(alleCache.liste);
+    }
+    async function loadAlle() {
+        const d = await post({ action: 'listall' });
+        const liste = (d.eintraege || []).filter(e => e.metadata && e.metadata.typ === 'episode')
+            .sort((a, b) => String(b.metadata.datum_gesagt || '').localeCompare(String(a.metadata.datum_gesagt || '')))
+            .slice(0, 80)
+            .map(e => ({ kategorie: e.metadata.kategorie || 'Eintrag', inhalt: String(e.text || ''), erzaehlt: e.metadata.datum_gesagt || '' }));
+        alleCache = { t: Date.now(), liste };
+    }
+
+    /* "Frag nicht mehr nach Finja": nimmt den Eintrag aus den beiläufigen Nachfragen, ohne ihn zu löschen */
+    async function noAnstoss(action, ctx) {
+        const q = String(action.episode_query || '').trim();
+        if (!q) throw userError('Ich weiß nicht, zu welchem Eintrag ich nicht mehr nachfragen soll.');
+        let data;
+        try { data = await post({ action: 'search', query: q, topK: 5 }); }
+        catch (e) { throw userError('Das Langzeitgedächtnis konnte ich gerade nicht erreichen.'); }
+        const hit = (data.treffer || []).find(t => t && t.id && t.metadata && t.metadata.typ === 'episode');
+        if (!hit) throw userError('Dazu habe ich im Langzeitgedächtnis nichts gefunden.');
+        try { await post({ action: 'mark', id: hit.id, art: 'anstoss_aus' }); }
+        catch (e) { throw userError('Das hat nicht geklappt.'); }
+        dueCache = null;
+        ctx.notes.push('Ich frage dazu nicht mehr von mir aus nach: ' + String(hit.text).replace(/\s*\([^)]*\d{4}\)\s*$/, '').slice(0, 120));
+    }
 
     /* "Vergiss das mit dem Schwimmen": den passendsten Eintrag suchen und löschen; Jarvis nennt, was gelöscht wurde */
     async function forgetEpisode(action, ctx) {
@@ -262,11 +314,18 @@
 
     // Sprachbefehle zum Öffnen
     const OPEN_RX = /^(?:zeig(?:e)?(?: mir)?|öffne|mach|was steht in)?\s*(?:mir\s+)?(?:bitte\s+)?(?:mal\s+)?(?:(?:den|das|die|mein|meinen|meine|dein|deinen|deine)\s+)*(?:langzeit[\s-]?gedächtnis|vektor[\s-]?gedächtnis|langzeit[\s-]?speicher)(?:\s+bitte)?$/;
-    const WHAT_RX = /^(?:was\s+weißt\s+du\s+(?:alles\s+)?(?:so\s+)?(?:über|von)\s+mich|was\s+hast\s+du\s+dir\s+(?:alles\s+)?(?:über\s+mich\s+)?gemerkt)$/;
     function handleLangzeitCommand(text) {
         const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
-        if (!t || t.length > 60) return false;
-        if (OPEN_RX.test(t) || WHAT_RX.test(t)) { showLangzeit(); return true; }
+        if (!t) return false;
+        if (t.length <= 90 && WISSEN_RXS.some(r => r.test(t))) {
+            if (alleFrisch()) return false;   // Einträge sind schon geladen: Satz geht an die KI
+            loadAlle().catch(() => { alleCache = { t: Date.now(), liste: [] }; }).then(() => {
+                try { if (typeof window.sendToGroqSmart === 'function') window.sendToGroqSmart(String(text)); } catch (e) { console.error('Langzeit', e); }
+            });
+            return true;
+        }
+        if (t.length > 60) return false;
+        if (OPEN_RX.test(t)) { showLangzeit(); return true; }
         return false;
     }
     window.handleLangzeitCommand = handleLangzeitCommand;
