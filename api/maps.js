@@ -64,13 +64,132 @@ async function reverse(req, res) {
   }
 }
 
+
+/* ------------------------------------------------------------------
+   Google Routes API (nur auf Wunsch: ?google=1, derzeit für den Arbeitsweg).
+   Liefert dieselbe Strecke wie die Google-Maps-App, inklusive aktuellem Verkehr, im selben Format wie OSRM
+   (routes[0].duration/distance/geometry/legs[].steps[].ref), damit die App nichts anders machen muss.
+   Schutz vor Kosten: Ergebnis 10 Minuten zwischengespeichert, höchstens GOOGLE_MONATSLIMIT Abfragen pro Monat (Zähler in Redis).
+   Ohne GOOGLE_MAPS_API_KEY, ohne Redis, bei erreichtem Limit oder bei jedem Fehler wird einfach OSRM benutzt.
+   ------------------------------------------------------------------ */
+const GOOGLE_MONATSLIMIT = 4000;
+const GOOGLE_CACHE_S = 600;
+
+function redisCmd(command) {
+  const base = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  if (!base || !token) return Promise.resolve(undefined);
+  return fetch(base, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(command),
+    signal: AbortSignal.timeout(3000)
+  }).then(r => r.json()).then(j => (j && j.error ? undefined : j.result)).catch(() => undefined);
+}
+
+function decodePolyline(str) {
+  const pts = [];
+  let i = 0, lat = 0, lon = 0;
+  while (i < str.length) {
+    for (const axis of [0, 1]) {
+      let shift = 0, result = 0, b;
+      do { b = str.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20 && i <= str.length);
+      const d = (result & 1) ? ~(result >> 1) : (result >> 1);
+      if (axis === 0) lat += d; else lon += d;
+    }
+    pts.push([lon / 1e5, lat / 1e5]);   // wie OSRM/GeoJSON: [Länge, Breite]
+  }
+  return pts;
+}
+
+function ausdünnen(pts, max) {
+  if (pts.length <= max) return pts;
+  const step = Math.ceil(pts.length / max);
+  return pts.filter((_, i) => i % step === 0 || i === pts.length - 1);
+}
+
+function googleAutobahnen(route) {
+  const refs = new Set();
+  (route.legs || []).forEach(leg => (leg.steps || []).forEach(step => {
+    const t = step && step.navigationInstruction && step.navigationInstruction.instructions;
+    if (!t) return;
+    const re = /(?:^|[^A-Za-zÄÖÜäöüß0-9])A ?(\d{1,3})(?![0-9A-Za-z])/g;
+    let m;
+    while ((m = re.exec(t))) refs.add('A' + m[1]);
+  }));
+  return Array.from(refs);
+}
+
+async function googleRoute(fromLat, fromLon, toLat, toLon, mitLinie) {
+  const key = process.env.GOOGLE_MAPS_API_KEY;
+  if (!key) return null;
+  const f = n => Number(n).toFixed(3);
+  const cacheKey = 'gmaps:route:' + [fromLat, fromLon, toLat, toLon].map(f).join(',') + (mitLinie ? ':g' : '');
+  const cached = await redisCmd(['GET', cacheKey]);
+  if (cached) { try { const o = JSON.parse(cached); o.quelle = 'google'; o.zwischengespeichert = true; return o; } catch (e) {} }
+
+  // Monatszähler: ohne Redis kann das Limit nicht eingehalten werden, dann lieber gar nicht Google nutzen
+  const monat = new Date().toISOString().slice(0, 7);
+  const zaehler = await redisCmd(['INCR', 'gmaps:count:' + monat]);
+  if (typeof zaehler !== 'number') return null;
+  if (zaehler === 1) await redisCmd(['EXPIRE', 'gmaps:count:' + monat, 3456000]);
+  if (zaehler > GOOGLE_MONATSLIMIT) return null;
+
+  const body = {
+    origin: { location: { latLng: { latitude: Number(fromLat), longitude: Number(fromLon) } } },
+    destination: { location: { latLng: { latitude: Number(toLat), longitude: Number(toLon) } } },
+    travelMode: 'DRIVE',
+    routingPreference: 'TRAFFIC_AWARE',
+    languageCode: 'de-DE',
+    units: 'METRIC',
+    polylineQuality: 'OVERVIEW'
+  };
+  const r = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': key,
+      'X-Goog-FieldMask': 'routes.duration,routes.staticDuration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.legs.steps.navigationInstruction.instructions'
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000)
+  });
+  if (!r.ok) return null;
+  const d = await r.json();
+  const g = d && d.routes && d.routes[0];
+  if (!g || !g.duration) return null;
+  const sec = parseInt(String(g.duration), 10);
+  if (!isFinite(sec)) return null;
+  const out = {
+    code: 'Ok',
+    quelle: 'google',
+    routes: [{
+      duration: sec,
+      distance: g.distanceMeters || 0,
+      legs: [{ steps: googleAutobahnen(g).map(a => ({ ref: a, name: '' })) }]
+    }]
+  };
+  if (mitLinie && g.polyline && g.polyline.encodedPolyline) {
+    out.routes[0].geometry = { type: 'LineString', coordinates: ausdünnen(decodePolyline(g.polyline.encodedPolyline), 400) };
+  }
+  await redisCmd(['SET', cacheKey, JSON.stringify(out), 'EX', GOOGLE_CACHE_S]);
+  return out;
+}
+
 /* ------------------------------------------------------------------
    route: Fahrzeit-Berechnung über OSRM (Open Source Routing Machine).
    Mit ?geometry=1 kommt zusätzlich der (vereinfachte) Linienverlauf der Route mit, den die HUD-Karte zeichnet.
    ------------------------------------------------------------------ */
 async function route(req, res) {
-  const { fromLat, fromLon, toLat, toLon, geometry } = req.query;
+  const { fromLat, fromLon, toLat, toLon, geometry, google } = req.query;
   if (!fromLat || !fromLon || !toLat || !toLon) return res.status(400).json({ error: 'Koordinaten fehlen' });
+
+  if (google === '1') {
+    try {
+      const g = await googleRoute(fromLat, fromLon, toLat, toLon, geometry === '1');
+      if (g) return res.status(200).json(g);
+    } catch (e) { /* bei jedem Fehler weiter mit OSRM */ }
+  }
 
   try {
     const overview = geometry === '1' ? 'simplified&geometries=geojson' : 'false';
