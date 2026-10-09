@@ -75,6 +75,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         appOffen: now - st.alive < ALIVE_MS, lebenszeichen: min(st.alive), standort: st.loc ? min(st.loc.ts) : 'keiner gemeldet',
         zuhauseRoute: !!(st.cfg && st.cfg.route),
+        diesel: { letzterPreis: st.tank.last ? { euro: st.tank.last.p, tankstelle: st.tank.last.name, ort: st.tank.last.ort, vor: min(st.tank.last.ts), ab: st.tank.last.quelle } : 'noch keiner', schnitt7Tage: st.tank.avg || 'noch zu wenig Daten', messwerte: st.tank.hist.length, ersteMessung: st.tank.hist.length ? min(st.tank.hist[0][0] * 60000) : 'nie', letzteMeldung: min(st.tank.lastAlert), fehler: st.tank.err || null },
         erinnerungen: st.items.filter(i => i.k === 'r' && i.at < now + 36 * 3600000).map(i => ({ text: i.x, in_min: Math.round((i.at - now) / 60000), wichtig: i.i === 1, gesendet: !!st.sent[i.id], nachgefasst: st.nag[i.id] ? st.nag[i.id].n : 0, erledigt: !!st.done[i.id] })),
         termine: st.items.filter(i => i.k === 'e').map(i => ({ text: i.x, in_min: Math.round((i.at - now) / 60000), mitOrt: !!i.l, strecke: st.dep[i.id] ? (st.dep[i.id].fail ? 'Fehler: ' + st.dep[i.id].fail : { fahrtMin: st.dep[i.id].fahrtMin, stauMin: st.dep[i.id].stauMin || 0, ab: st.dep[i.id].quelle }) : 'noch nicht berechnet', gesendet: !!st.sent[i.id] }))
       });
@@ -257,6 +258,8 @@ async function loadItems(redis) {
   if (typeof st.alive !== 'number') st.alive = 0;
   if (!st.cfg || typeof st.cfg !== 'object') st.cfg = {};
   for (const k of ['nag', 'done', 'dep', 'geo']) { if (!st[k] || typeof st[k] !== 'object') st[k] = {}; }
+  if (!st.tank || typeof st.tank !== 'object') st.tank = {};
+  if (!Array.isArray(st.tank.hist)) st.tank.hist = [];
   return st;
 }
 
@@ -396,6 +399,14 @@ const DEPART_WINDOW_MS = 4 * 3600000;   // Termine, die weiter weg sind, werden 
 const LOC_FRESH_MS = 3 * 3600000;       // so alt darf der gemeldete Standort sein, sonst gilt Zuhause
 const NAG_INTERVAL_MS = 10 * 60000;     // wie in der App (calendar.js)
 const NAG_MAX = 6;
+// --- Dieselpreis-Alarm ---
+const TANK_CHECK_MS = 30 * 60000;        // alle 30 Minuten nachsehen
+const TANK_RADIUS_KM = 10;               // Umkreis um den letzten bekannten Standort (max. 25)
+const TANK_DROP_CT = 6;                  // so viele Cent unter dem Durchschnitt der letzten Tage = Alarm  <-- hier änderbar
+const TANK_ALERT_GAP_MS = 12 * 3600000;  // höchstens eine Meldung pro 12 Stunden
+const TANK_HIST_MS = 7 * 86400000;       // Durchschnitt über die letzten 7 Tage
+const TANK_MIN_SPAN_MS = 2 * 86400000;   // erst mit Daten aus mindestens 2 Tagen wird gemeldet
+const TANK_MIN_SAMPLES = 40;
 const UA = 'MeinAlltagsHelfer/1.0 (privates Projekt, kein kommerzieller Einsatz)';
 
 function doneToken(id) {
@@ -445,6 +456,58 @@ async function geoCached(st, text) {
   const keys = Object.keys(st.geo);
   if (keys.length > 30) { keys.sort((a, b) => (st.geo[a].ts || 0) - (st.geo[b].ts || 0)); delete st.geo[keys[0]]; }
   return g;
+}
+
+/* Dieselpreis: billigste geöffnete Tankstelle im Umkreis; Verlauf merken; bei deutlich günstigerem Preis melden */
+async function cheapestDiesel(origin) {
+  const key = process.env.TANKER_API_KEY || process.env.TANKERKOENIG_API_KEY;
+  if (!key) return { err: 'Schlüssel fehlt (TANKER_API_KEY)' };
+  try {
+    const url = 'https://creativecommons.tankerkoenig.de/json/list.php?lat=' + encodeURIComponent(origin.lat) + '&lng=' + encodeURIComponent(origin.lon) + '&rad=' + TANK_RADIUS_KM + '&sort=dist&type=diesel&apikey=' + encodeURIComponent(key);
+    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    const d = await r.json();
+    if (!d || d.ok === false) return { err: 'Tankerkönig: ' + ((d && d.message) || 'Fehler') };
+    const list = (d.stations || []).filter(x => x && x.isOpen && typeof x.price === 'number' && x.price > 0.5 && x.price < 5);
+    if (!list.length) return { err: 'keine geöffnete Tankstelle mit Preis' };
+    list.sort((a, b) => a.price - b.price);
+    const b = list[0];
+    return { price: b.price, name: b.brand || b.name || 'Tankstelle', street: [b.street, b.houseNumber].filter(Boolean).join(' ').trim(), place: b.place || '', dist: b.dist };
+  } catch (e) { return { err: 'nicht erreichbar' }; }
+}
+function tankDue(st, now) {
+  return now - (st.tank.lastCheck || 0) >= TANK_CHECK_MS;
+}
+function tankAverage(st, now) {
+  const h = st.tank.hist.filter(x => now - x[0] * 60000 <= TANK_HIST_MS);
+  if (h.length < TANK_MIN_SAMPLES) return null;
+  if (now - h[0][0] * 60000 < TANK_MIN_SPAN_MS) return null;
+  return h.reduce((a, x) => a + x[1], 0) / h.length / 1000;
+}
+const eur = p => p.toFixed(3).replace('.', ',') + ' €';
+async function runTank(redis, st, data, now, quietNight) {
+  const t = st.tank;
+  const origin = originNow(st, now);
+  if (!origin) { t.lastCheck = now - TANK_CHECK_MS + 10 * 60000; t.err = 'kein Standort'; return false; }
+  const c = await cheapestDiesel(origin);
+  if (c.err) { t.lastCheck = now - TANK_CHECK_MS + 10 * 60000; t.err = c.err; return false; }   // in 10 Minuten nochmal
+  t.lastCheck = now; t.err = null; t.last = { p: c.price, name: c.name, ort: c.place, ts: now, quelle: origin.src };
+  const avg = tankAverage(st, now);   // vor dem neuen Messwert berechnet
+  t.hist.push([Math.round(now / 60000), Math.round(c.price * 1000)]);
+  t.hist = t.hist.filter(x => now - x[0] * 60000 <= TANK_HIST_MS);
+  t.avg = avg ? Math.round(avg * 1000) / 1000 : null;
+  if (avg === null || quietNight || !data.subs.length) return false;
+  if (t.lastAlert && now - t.lastAlert < TANK_ALERT_GAP_MS) return false;
+  const diffCt = Math.round((avg - c.price) * 100);
+  if (avg - c.price < TANK_DROP_CT / 100 - 0.0005) return false;
+  const km = typeof c.dist === 'number' ? ', ' + c.dist.toFixed(1).replace('.', ',') + ' km entfernt' : '';
+  const ort = [c.street, c.place].filter(Boolean).join(', ');
+  const r = await sendToAll(redis, data, {
+    title: 'Diesel günstig: ' + eur(c.price),
+    body: c.name + (ort ? ' (' + ort + ')' : '') + km + '. Das sind ' + diffCt + ' Cent unter dem Schnitt der letzten Tage (' + eur(avg) + ').',
+    tag: 'tank', url: './'
+  });
+  if (r.sent > 0) { t.lastAlert = now; return true; }
+  return false;
 }
 
 /* Termin ohne Ortsangabe oder mit nicht berechenbarer Strecke: einfache Vorwarnung 15 Minuten vorher */
@@ -497,7 +560,8 @@ async function handleDue(req, res, redis) {
     }
     const depList = st.items.filter(it => depNeedsWork(st, it, now)).sort((a, b) => a.at - b.at);
     const nagList = st.items.filter(it => nagNeedsWork(st, it, now));
-    if (!due.length && !brief && !depList.length && !nagList.length) return res.status(200).json({ ok: true, due: 0 });
+    const tankNow = tankDue(st, now);
+    if (!due.length && !brief && !depList.length && !nagList.length && !tankNow) return res.status(200).json({ ok: true, due: 0 });
 
     // Sperre: nie zwei Läufe gleichzeitig (sonst käme alles doppelt)
     const lock = await redis('SET', 'alltags-helfer:pushlock', '1', 'NX', 'EX', '40');
@@ -576,6 +640,10 @@ async function handleDue(req, res, redis) {
       if (r.sent > 0) nagSent++;
     }
 
+    // 4) Dieselpreis-Alarm (alle 30 Minuten; nachts 22-5 Uhr nur mitschreiben, nicht melden)
+    let tankSent = false;
+    if (tankNow) tankSent = await runTank(redis, st, data, now, quietDep);
+
     let briefSent = false;
     if (brief) {
       st.briefDay = brief.ymd;   // auch wenn die App offen ist: dann macht sie das Briefing selbst
@@ -591,7 +659,7 @@ async function handleDue(req, res, redis) {
     for (const k of Object.keys(st.dep)) { if (!ids.has(k)) delete st.dep[k]; }
     for (const k of Object.keys(st.nag)) { if (!ids.has(k)) delete st.nag[k]; }
     await redis('SET', ITEMS_KEY, JSON.stringify(st));
-    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent });
+    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent, tank: tankSent });
   } catch (err) {
     return res.status(500).json({ error: 'Push-Fehler: ' + err.message });
   }
