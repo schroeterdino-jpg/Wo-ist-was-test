@@ -72,9 +72,16 @@ export default async function handler(req, res) {
     try {
       const st = await loadItems(makeRedis(b0, t0)); const now = Date.now();
       const min = ts => ts ? Math.round((now - ts) / 60000) + ' Min. her' : 'nie';
+      let wetterTest;
+      if (String(req.query.wetter || '') === '1') {   // Probe: Wetter jetzt für die nächsten Fahrten bewerten (sendet nichts)
+        const sc = st.cfg && st.cfg.schicht, rt = st.cfg && st.cfg.route;
+        if (!sc || !rt) wetterTest = 'Schichtplan oder Strecke fehlt (App einmal öffnen)';
+        else wetterTest = { morgenFrueh: await assessWeather(rt, berlinParts(now + 86400000).ymd, sc.times.frueh, WX_WINDOW_MIN), heuteSpaet: await assessWeather(rt, berlinParts(now).ymd, sc.times.spaet, WX_WINDOW_MIN) };
+      }
       return res.status(200).json({
         appOffen: now - st.alive < ALIVE_MS, lebenszeichen: min(st.alive), standort: st.loc ? min(st.loc.ts) : 'keiner gemeldet',
         zuhauseRoute: !!(st.cfg && st.cfg.route),
+        wetter: wetterTest || { letzte: st.wx.last || 'noch keine', fehler: st.wx.err || null },
         diesel: { letzterPreis: st.tank.last ? { euro: st.tank.last.p, tankstelle: st.tank.last.name, ort: st.tank.last.ort, vor: min(st.tank.last.ts), ab: st.tank.last.quelle } : 'noch keiner', schnitt7Tage: st.tank.avg || 'noch zu wenig Daten', messwerte: st.tank.hist.length, ersteMessung: st.tank.hist.length ? min(st.tank.hist[0][0] * 60000) : 'nie', letzteMeldung: min(st.tank.lastAlert), fehler: st.tank.err || null },
         erinnerungen: st.items.filter(i => i.k === 'r' && i.at < now + 36 * 3600000).map(i => ({ text: i.x, in_min: Math.round((i.at - now) / 60000), wichtig: i.i === 1, gesendet: !!st.sent[i.id], nachgefasst: st.nag[i.id] ? st.nag[i.id].n : 0, erledigt: !!st.done[i.id] })),
         termine: st.items.filter(i => i.k === 'e').map(i => ({ text: i.x, in_min: Math.round((i.at - now) / 60000), mitOrt: !!i.l, strecke: st.dep[i.id] ? (st.dep[i.id].fail ? 'Fehler: ' + st.dep[i.id].fail : { fahrtMin: st.dep[i.id].fahrtMin, stauMin: st.dep[i.id].stauMin || 0, ab: st.dep[i.id].quelle }) : 'noch nicht berechnet', gesendet: !!st.sent[i.id] }))
@@ -260,6 +267,7 @@ async function loadItems(redis) {
   for (const k of ['nag', 'done', 'dep', 'geo']) { if (!st[k] || typeof st[k] !== 'object') st[k] = {}; }
   if (!st.tank || typeof st.tank !== 'object') st.tank = {};
   if (!Array.isArray(st.tank.hist)) st.tank.hist = [];
+  if (!st.wx || typeof st.wx !== 'object') st.wx = {};
   return st;
 }
 
@@ -510,6 +518,87 @@ async function runTank(redis, st, data, now, quietNight) {
   return false;
 }
 
+// --- Wetterwarnung für den Arbeitsweg (Glätte, Schnee, Regen) ---
+const WX_EVE_MIN = 20 * 60 + 45;   // Frühschicht: Warnung am Vorabend um 20:45 Uhr (kurz vorm Schlafen)
+const WX_SPAET_LEAD_MIN = 90;      // Spätschicht: so viele Minuten vor der Abfahrt
+const WX_GRACE_MIN = 15;           // so lange nach der Zeit wird noch gesendet (falls ein Zeitgeber-Lauf ausfällt)
+const WX_WINDOW_MIN = 180;         // so lange nach Fahrtbeginn wird das Wetter betrachtet
+const WX_HEAVY_MM = 2.5;           // ab so viel Regen pro Stunde: Starkregen
+const WX_RAIN_MM = 0.3;            // ab so viel pro Stunde: Regen
+const hhmm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+
+async function assessWeather(route, ymd, startMin, durMin) {
+  try {
+    const a = route.from, b = route.to, mid = { lat: (a.lat + b.lat) / 2, lon: (a.lon + b.lon) / 2 };
+    const pts = [a, mid, b];
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + pts.map(p => p.lat.toFixed(3)).join(',') + '&longitude=' + pts.map(p => p.lon.toFixed(3)).join(',') +
+      '&hourly=temperature_2m,precipitation,snowfall,weather_code&timezone=Europe%2FBerlin&past_days=1&forecast_days=3';
+    const r = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(7000) });
+    if (!r.ok) return { err: 'Wetterdienst ' + r.status };
+    const j = await r.json();
+    const locs = Array.isArray(j) ? j : [j];
+    const endMin = Math.min(1439, startMin + durMin);
+    const startStr = ymd + 'T' + String(Math.floor(startMin / 60)).padStart(2, '0') + ':00';
+    const endStr = ymd + 'T' + String(Math.floor(endMin / 60)).padStart(2, '0') + ':00';
+    let minT = 99, maxP = 0, snow = 0, wet = 0, frz = false, snowCode = false, thunder = false, n = 0;
+    for (const L of locs) {
+      const h = L && L.hourly; if (!h || !Array.isArray(h.time)) continue;
+      const i0 = h.time.findIndex(t => t >= startStr);
+      if (i0 < 0) continue;
+      let i1 = i0; while (i1 + 1 < h.time.length && h.time[i1 + 1] <= endStr) i1++;
+      let wetSum = 0;
+      for (let i = Math.max(0, i0 - 6); i <= i1; i++) wetSum += Number(h.precipitation[i]) || 0;
+      if (wetSum >= 0.2) wet++;
+      for (let i = i0; i <= i1; i++) {
+        const t = Number(h.temperature_2m[i]), p = Number(h.precipitation[i]) || 0, sf = Number(h.snowfall[i]) || 0, c = Number(h.weather_code[i]);
+        if (isFinite(t)) minT = Math.min(minT, t);
+        maxP = Math.max(maxP, p); snow = Math.max(snow, sf);
+        if ([56, 57, 66, 67].includes(c)) frz = true;
+        if ([71, 73, 75, 77, 85, 86].includes(c)) snowCode = true;
+        if (c >= 95) thunder = true;
+      }
+      n++;
+    }
+    if (!n || minT === 99) return { err: 'keine Wetterdaten' };
+    const probleme = [];
+    const glatt = frz || (minT <= 1 && (wet > 0));
+    if (snowCode || snow > 0) { if (minT <= 3) probleme.push('Schnee'); }
+    if (glatt) probleme.push('Glättegefahr');
+    if (maxP >= WX_HEAVY_MM) probleme.push('Starkregen');
+    else if (maxP >= WX_RAIN_MM && minT > 1) probleme.push('Regen');
+    if (thunder) probleme.push('Gewitter');
+    const wann = hhmm(startMin) + ' und ' + hhmm(endMin);
+    const temp = 'Temperatur bis ' + Math.round(minT) + ' Grad';
+    const glattOderSchnee = probleme.includes('Glättegefahr') || probleme.includes('Schnee');
+    return { warn: probleme.length > 0, probleme, minT: Math.round(minT * 10) / 10, maxRegenMm: Math.round(maxP * 10) / 10, wann, temp, titel: glattOderSchnee ? 'Glätte auf dem Arbeitsweg' : (probleme.includes('Gewitter') ? 'Gewitter auf dem Arbeitsweg' : 'Regen auf dem Arbeitsweg') };
+  } catch (e) { return { err: 'Wetterdienst nicht erreichbar' }; }
+}
+/* Ist eine Wetterwarnung fällig? (rein aus dem Speicher, kein Netzwerk) */
+function weatherDue(st, now) {
+  const sc = st.cfg && st.cfg.schicht, rt = st.cfg && st.cfg.route;
+  if (!sc || !rt || !sc.times) return null;
+  const bp = berlinParts(now);
+  if (bp.min >= WX_EVE_MIN && bp.min <= WX_EVE_MIN + WX_GRACE_MIN && st.wx.eve !== bp.ymd) {
+    const tm = berlinParts(now + 86400000);
+    if (shiftOfWeek(sc, weekNo(tm)) === 'frueh') return { key: 'eve', day: bp.ymd, ymd: tm.ymd, start: sc.times.frueh, wo: 'Morgen früh' };
+  }
+  if (shiftOfWeek(sc, weekNo(bp)) === 'spaet') {
+    const at = sc.times.spaet - WX_SPAET_LEAD_MIN;
+    if (at >= 0 && bp.min >= at && bp.min <= at + WX_GRACE_MIN && st.wx.sp !== bp.ymd) return { key: 'sp', day: bp.ymd, ymd: bp.ymd, start: sc.times.spaet, wo: 'Heute' };
+  }
+  return null;
+}
+async function runWeather(redis, st, data, now, wd) {
+  const r = await assessWeather(st.cfg.route, wd.ymd, wd.start, WX_WINDOW_MIN);
+  if (r.err) { st.wx.err = r.err; return false; }   // nicht als erledigt markieren: nächste Minute nochmal
+  st.wx[wd.key] = wd.day; st.wx.err = null;
+  st.wx.last = { ts: now, wo: wd.wo, warnung: r.warn ? r.probleme.join(', ') : null, minT: r.minT, maxRegenMm: r.maxRegenMm };
+  if (!r.warn || !data.subs.length) return false;
+  const rat = r.probleme.includes('Glättegefahr') || r.probleme.includes('Schnee') ? ' Plan mehr Zeit ein und fahr vorsichtig.' : (r.probleme.includes('Starkregen') ? ' Plan etwas mehr Zeit ein.' : '');
+  const out = await sendToAll(redis, data, { title: r.titel, body: wd.wo + ' zwischen ' + r.wann + ' Uhr: ' + r.probleme.join(', ') + '. ' + r.temp + '.' + rat, tag: 'wetter', url: './' });
+  return out.sent > 0;
+}
+
 /* Termin ohne Ortsangabe oder mit nicht berechenbarer Strecke: einfache Vorwarnung 15 Minuten vorher */
 function genericDue(st, it, now) {
   if (it.k !== 'e' || st.sent[it.id]) return false;
@@ -561,7 +650,8 @@ async function handleDue(req, res, redis) {
     const depList = st.items.filter(it => depNeedsWork(st, it, now)).sort((a, b) => a.at - b.at);
     const nagList = st.items.filter(it => nagNeedsWork(st, it, now));
     const tankNow = tankDue(st, now);
-    if (!due.length && !brief && !depList.length && !nagList.length && !tankNow) return res.status(200).json({ ok: true, due: 0 });
+    const wxNow = weatherDue(st, now);
+    if (!due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow) return res.status(200).json({ ok: true, due: 0 });
 
     // Sperre: nie zwei Läufe gleichzeitig (sonst käme alles doppelt)
     const lock = await redis('SET', 'alltags-helfer:pushlock', '1', 'NX', 'EX', '40');
@@ -644,6 +734,10 @@ async function handleDue(req, res, redis) {
     let tankSent = false;
     if (tankNow) tankSent = await runTank(redis, st, data, now, quietDep);
 
+    // 5) Wetterwarnung für den Arbeitsweg (Frühschicht: Vorabend 20:45; Spätschicht: 90 Min. vor der Abfahrt)
+    let wxSent = false;
+    if (wxNow) wxSent = await runWeather(redis, st, data, now, wxNow);
+
     let briefSent = false;
     if (brief) {
       st.briefDay = brief.ymd;   // auch wenn die App offen ist: dann macht sie das Briefing selbst
@@ -659,7 +753,7 @@ async function handleDue(req, res, redis) {
     for (const k of Object.keys(st.dep)) { if (!ids.has(k)) delete st.dep[k]; }
     for (const k of Object.keys(st.nag)) { if (!ids.has(k)) delete st.nag[k]; }
     await redis('SET', ITEMS_KEY, JSON.stringify(st));
-    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent, tank: tankSent });
+    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent, tank: tankSent, wetter: wxSent });
   } catch (err) {
     return res.status(500).json({ error: 'Push-Fehler: ' + err.message });
   }
