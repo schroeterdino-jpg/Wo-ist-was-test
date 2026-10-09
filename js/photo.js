@@ -104,7 +104,7 @@ function showPhotoCards(galleryFirst) {
     if (typeof clearActionCards === 'function') clearActionCards();
     if (typeof showActionCards === 'function') {
         const cam = { icon: '📷', title: 'Foto aufnehmen', subtitle: 'Tippen, dann öffnet sich die Kamera', onclick: 'openPhotoCamera()' };
-        const pick = { icon: '📁', title: 'Bild aus den Dateien', subtitle: 'Ein vorhandenes Bild vom Handy auswählen', onclick: 'openPhotoGallery()' };
+        const pick = { icon: '📁', title: 'Bild oder PDF aus den Dateien', subtitle: 'Ein Bild oder eine PDF vom Handy auswählen', onclick: 'openPhotoGallery()' };
         showActionCards(galleryFirst ? [pick, cam] : [cam, pick]);
     }
 }
@@ -132,6 +132,41 @@ function preparePhoto(file) {
         };
         reader.readAsDataURL(file);
     });
+}
+
+/* PDF: erste Seite als Bild (pdf.js wird erst bei Bedarf von jsdelivr geladen, wie die Karten-Bibliothek). Mehrseitige PDFs: die erste Seite zählt. */
+const PDFJS_VERSION = '3.11.174';
+const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@' + PDFJS_VERSION + '/build/pdf.min.js';
+const PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@' + PDFJS_VERSION + '/build/pdf.worker.min.js';
+let pdfjsLoading = null;
+function loadPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (!pdfjsLoading) {
+        pdfjsLoading = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = PDFJS_URL;
+            s.onload = () => { if (window.pdfjsLib) { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; resolve(window.pdfjsLib); } else reject(new Error('PDF-Bibliothek fehlt')); };
+            s.onerror = () => { pdfjsLoading = null; reject(new Error('PDF-Bibliothek nicht ladbar')); };
+            document.head.appendChild(s);
+        });
+    }
+    return pdfjsLoading;
+}
+function isPdfFile(file) { return !!file && (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '')); }
+async function preparePdf(file) {
+    const lib = await loadPdfJs();
+    const buf = await file.arrayBuffer();
+    const pdf = await lib.getDocument({ data: buf }).promise;
+    const page = await pdf.getPage(1);
+    const v1 = page.getViewport({ scale: 1 });
+    const scale = PHOTO_MAX_SIDE / Math.max(v1.width, v1.height);
+    const vp = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(vp.width)); canvas.height = Math.max(1, Math.round(vp.height));
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);   // PDF-Hintergrund ist durchsichtig: sonst wird er im JPEG schwarz
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    return canvas.toDataURL('image/jpeg', PHOTO_JPEG_QUALITY);
 }
 
 /* ---------- KI fragen ---------- */
@@ -392,7 +427,8 @@ async function handlePhotoFile(file) {
     try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Werte das Foto aus...'); } catch (e) {}
     try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) {}
     let dataUrl;
-    try { dataUrl = await preparePhoto(file); } catch (e) { photoSay('Das Foto konnte ich nicht lesen.'); return; }
+    try { dataUrl = isPdfFile(file) ? await preparePdf(file) : await preparePhoto(file); }
+    catch (e) { console.error('Foto/PDF lesen', e); photoSay(isPdfFile(file) ? 'Die PDF-Datei konnte ich nicht lesen. Ist sie mit einem Passwort geschützt, oder fehlt die Internetverbindung?' : 'Das Foto konnte ich nicht lesen.'); return; }
     lastPhoto = { dataUrl, at: Date.now() };
     if (intent.task === 'wait') { photoAskWhatToDo(); return; }
     await processPhoto(intent, dataUrl);
