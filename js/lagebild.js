@@ -2,7 +2,7 @@
    LAGEBILD: ersetzt das Radar. Ein Jarvis-Fenster mit dem Wichtigsten rund um dich, als Liste statt Kreis:
    - 🚗 Arbeitsweg: Fahrzeit, Kilometer, Ankunft und Meldungen, die WIRKLICH auf deiner Strecke liegen (Autobahn + TomTom), sonst "frei"
    - ☂ Regen: trocken, "regnet jetzt" oder "ab 20:45 Uhr, aus Westen" (Open-Meteo, nächste 3 Stunden, Umkreis 20 km)
-   - ⛽ Diesel: die zwei günstigsten Tankstellen im Umkreis mit Preis und Entfernung (Tankerkönig), Antippen = Navigation
+   - ⛽ Diesel: die zwei günstigsten Tankstellen im Umkreis von 5 km mit Preis und Entfernung (Tankerkönig), Antippen = Navigation
    - ⚠ Verkehr in der Nähe: Stau und Unfälle im Umkreis von 10 km abseits deiner Strecke (nur wenn TomTom eingerichtet ist)
    - ◆ Nächster Termin mit Ort, Uhrzeit und Fahrzeit, Antippen = Navigation
    Knöpfe: "Auf Karte" (öffnet die Jarvis-Karte), "Aktualisieren". Aufruf: "Lagebild", "Radar", "Wie ist die Lage"; Schließen: ✕ oder "Lagebild schließen".
@@ -18,6 +18,7 @@
     'use strict';
     if (window.jvLage) return;
     const RKM = 20;
+    const TANK_KM = 5;   // Diesel nur im Umkreis von 5 km um dich
     let layer = null, body = null, timer = 0, state = null, ladeNr = 0, view = 'umkreis', zielD = null, orteD = null;
     const sagen = t => { try { if (typeof speak === 'function') speak(t, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} };
     const mit = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
@@ -42,11 +43,11 @@
     /* ---------- Daten (jede Quelle für sich) ---------- */
     async function ladeTank(lat, lon) {
         try {
-            const r = await apiFetch('/api/tankroute?lat=' + lat.toFixed(5) + '&lng=' + lon.toFixed(5) + '&rad=' + RKM);
+            const r = await apiFetch('/api/tankroute?lat=' + lat.toFixed(5) + '&lng=' + lon.toFixed(5) + '&rad=' + TANK_KM);
             const d = await r.json();
             if (!r.ok || !d.stations) return [];
             return d.stations.filter(s => s.diesel > 0).map(s => ({ lat: s.lat, lon: s.lng, preis: s.diesel, name: s.name, strasse: s.strasse, ort: s.ort, km: distKm(lat, lon, s.lat, s.lng) }))
-                .filter(s => s.km <= RKM).sort((a, b) => a.preis - b.preis).slice(0, 2);
+                .filter(s => s.km <= TANK_KM).sort((a, b) => a.preis - b.preis).slice(0, 2);
         } catch (e) { return []; }
     }
     async function ladeStau(lat, lon) {
@@ -208,7 +209,7 @@
         // Diesel
         if (s.tank.length) {
             const k = el('div', 'k'); const t = el('div', 't'); t.appendChild(el('span', '', '⛽ DIESEL'));
-            t.appendChild(el('span', '', 'IM UMKREIS ' + RKM + ' KM')); k.appendChild(t);
+            t.appendChild(el('span', '', 'IM UMKREIS ' + TANK_KM + ' KM')); k.appendChild(t);
             s.tank.forEach((x, i) => {
                 const row = el('div', 'z'); row.style.cssText = 'cursor:pointer;' + (i ? 'margin-top:9px' : '');
                 const a = el('div', 'g', euro(x.preis)); if (i) a.style.fontSize = '17px';
@@ -219,6 +220,8 @@
             });
             body.appendChild(k);
         }
+
+        else body.appendChild(karte('⛽ DIESEL', 'IM UMKREIS ' + TANK_KM + ' KM', 'Keine Tankstelle', [{ t: 'Im Umkreis von ' + TANK_KM + ' km gibt es keine Tankstelle mit Dieselpreis.', c: 'dim' }]));
 
         // Verkehr in der Nähe
         if (s.stau.fehler) body.appendChild(karte('⚠ VERKEHR', 'IN DER NÄHE', 'Nicht verfügbar', [{ t: 'Die Verkehrsdaten konnten gerade nicht geladen werden.', c: 'dim' }]));
