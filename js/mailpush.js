@@ -24,11 +24,13 @@
         } catch (e) { zeigen({ titel: 'MAIL-PUSH', zeit: 'FEHLER', text: (e && e.userMessage) || 'keine Verbindung', sek: 12 }); }
     }
 
-    function verbinden() {
+    async function verbinden() {
         try {
+            let cid = clientId();
+            try { const r0 = await apiFetch('/api/sync?action=push_mail_status'); const d0 = await r0.json(); if (d0 && d0.clientId) cid = d0.clientId; } catch (e) {}
             if (!window.google || !google.accounts || !google.accounts.oauth2 || !google.accounts.oauth2.initCodeClient) { zeigen({ titel: 'MAIL-PUSH', zeit: 'FEHLER', text: 'Google-Anmeldung ist nicht geladen. Bitte kurz warten und noch einmal versuchen.', sek: 10 }); return; }
             const c = google.accounts.oauth2.initCodeClient({
-                client_id: clientId(), scope: SCOPE, ux_mode: 'popup',
+                client_id: cid, scope: SCOPE, ux_mode: 'popup',
                 callback: resp => { weg(); if (resp && resp.code) senden(resp.code); else zeigen({ titel: 'MAIL-PUSH', zeit: 'ABGEBROCHEN', text: (resp && resp.error) || 'Keine Freigabe erhalten.', sek: 10 }); },
                 error_callback: () => { zeigen({ titel: 'MAIL-PUSH', zeit: 'ABGEBROCHEN', text: 'Die Google-Anmeldung wurde nicht abgeschlossen.', sek: 10 }); }
             });
