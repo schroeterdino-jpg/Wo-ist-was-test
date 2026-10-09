@@ -105,7 +105,7 @@
         const redundant = !d.art || norm(d.art).split(' ').some(w => w.length >= 5 && anbN.includes(w.slice(0, 6)));
         const art = '';   // keine Klammer mit der Vertragsart im Brief (Anbieter und Nummer genügen)
         const bei = d.anbieter ? ` bei ${d.anbieter}` : ' bei Ihnen';
-        const nl = kind === 'vers' ? 'Versicherungsschein-/Vertragsnummer' : kind === 'miete' ? 'Mietvertragsnummer' : 'Kunden-/Vertragsnummer';
+        const nl = kind === 'vers' ? 'Versicherungsschein-/Vertragsnummer' : kind === 'miete' ? 'Mietvertragsnummer' : (d.vertragsnr ? 'Kundennummer' : 'Kunden-/Vertragsnummer');
         const num = d.nummer ? ` mit der ${nl} ${d.nummer}` : '';
         const numK = d.nummer ? ` (${nl} ${d.nummer})` : '';
         const obj = d.objekt ? String(d.objekt) : '';
@@ -130,8 +130,12 @@
             if (obj) fakten.push('Verbrauchsstelle: ' + obj);
             if (d.zaehler) fakten.push('Zählernummer: ' + d.zaehler);
             if (d.stand) fakten.push('Zählerstand am ' + datum + ': ' + d.stand);
-        } else if (kind === 'telko' && d.rufnr) fakten.push('Rufnummer: ' + d.rufnr);
-        if (d.geb) fakten.push('Geburtsdatum: ' + d.geb);
+        }
+        // Bezugszeilen direkt unter dem Betreff: Vertragsnummer, Rufnummer, Geburtsdatum (so findet der Anbieter den Vertrag sofort)
+        const bezug = [];
+        if (d.vertragsnr) bezug.push('Vertragsnummer: ' + d.vertragsnr);
+        if (kind === 'telko' && d.rufnr) bezug.push('Rufnummer: ' + d.rufnr);
+        if (d.geb) bezug.push('Geburtsdatum: ' + d.geb);
         let schluss;
         if (kind === 'miete') schluss = 'Bitte bestätigen Sie mir die Kündigung sowie das Ende des Mietverhältnisses schriftlich' + (mail ? ' (per Post oder an ' + mail + ')' : '') + '. Bitte nennen Sie mir außerdem einen Termin für die Wohnungsübergabe und teilen Sie mir mit, wann ich die Mietkaution zurückerhalte.';
         else {
@@ -146,7 +150,7 @@
         ].concat(versand ? [versand, ''] : []).concat([
             empf.join('\n'), '',
             (ort ? ort + ', ' : '') + datum, '',
-            'Betreff: ' + betreff, '',
+            'Betreff: ' + betreff + (bezug.length ? '\n' + bezug.join('\n') : ''), '',
             'Sehr geehrte Damen und Herren,', '',
             satz + ident, ''
         ]).concat(fakten.length ? [fakten.join('\n'), ''] : []).concat([
@@ -463,8 +467,9 @@
         const luecke = !d.anbAdresse ? ' Die Anschrift des Anbieters fehlt noch, tragen Sie sie im Fenster ein oder tippen Sie auf Adresse suchen.'
             : d.anbAdresseKI ? ' Die Anschrift des Anbieters stammt aus meinem Wissen. Im Brief steht ein Prüfhinweis, löschen Sie ihn, wenn die Adresse stimmt.'
             : d.anbAdresseBrief ? ' Die Anschrift des Anbieters habe ich vom Brief übernommen. Prüfen Sie, ob das auch die Kündigungsadresse ist.' : '';
+        const laufzeit = d.vertragsende ? ` Auf dem Brief steht als Ende der Vertragslaufzeit der ${d.vertragsende}. Zum nächstmöglichen Zeitpunkt endet der Vertrag also frühestens dann, prüfen Sie die Kündigungsfrist.` : '';
         S = { step: 'remind', d: d, at: Date.now() };
-        say(`Die Kündigung an ${d.anbieter} ist fertig.${luecke} Bitte prüfen Sie Adresse, Nummer und Kündigungsfrist. Sie können den Text im Fenster ändern, als PDF speichern oder drucken. Name und Anschrift merke ich mir für das nächste Mal. Soll ich Sie in 14 Tagen erinnern, die Bestätigung zu prüfen?`);
+        say(`Die Kündigung an ${d.anbieter} ist fertig.${luecke}${laufzeit} Bitte prüfen Sie Adresse, Nummer und Kündigungsfrist. Sie können den Text im Fenster ändern, als PDF speichern oder drucken. Name und Anschrift merke ich mir für das nächste Mal. Soll ich Sie in 14 Tagen erinnern, die Bestätigung zu prüfen?`);
     }
 
     function answer(raw) {
@@ -522,6 +527,13 @@
             case 'mitnahme': d.mitnahme = YES.test(t); break;
             case 'anbAdresse': d.anbAdresse = UNKNOWN.test(t) ? '' : capWords(txt); break;
             case 'suche': say('Einen Moment noch, ich suche die Adresse.'); return;
+            case 'briefcheck':
+                if (YES.test(t)) break;
+                if (NO.test(t) || UNKNOWN.test(t)) {   // falsch gelesen: alles vom Brief verwerfen und normal fragen
+                    ['anbieter', 'art', 'nummer', 'vertragsnr', 'rufnr', 'anbAdresse', 'anbAdresseBrief', 'vertragsende'].forEach(k => { delete d[k]; });
+                    say('In Ordnung, dann fragen wir es einzeln ab.'); break;
+                }
+                say('Bitte sagen Sie Ja, wenn das stimmt, oder Nein, wenn etwas falsch gelesen wurde.'); return;
             case 'anbAdresseKI':
                 if (YES.test(t)) { d.anbAdresse = S.vorschlag; d.anbAdresseKI = true; }
                 else if (NO.test(t) || UNKNOWN.test(t)) { S.step = 'anbAdresse'; return ask('In Ordnung. Sagen Sie mir die Kündigungsadresse, oder sagen Sie: weiß ich nicht. Dann lasse ich eine Lücke.'); }
@@ -601,6 +613,20 @@
         if (o.nummer) d.nummer = clean(o.nummer);
         if (o.grund) { d.modus = 'ausser'; d.modusGeklaert = true; d.grund = clean(o.grund); }
         if (o.anbAdresse && /\b\d{5}\b|postfach/i.test(String(o.anbAdresse))) { d.anbAdresse = capWords(clean(o.anbAdresse)); d.anbAdresseBrief = true; }   // vom Brief gelesen
+        if (o.vertragsnr) d.vertragsnr = clean(o.vertragsnr);
+        if (o.rufnr) d.rufnr = clean(o.rufnr);
+        if (o.vertragsende && /^\d{4}-\d{2}-\d{2}$/.test(o.vertragsende)) { const [y, m, dd] = o.vertragsende.split('-'); d.vertragsende = dd + '.' + m + '.' + y; }
+        if (o.vonBrief && d.anbieter) {   // erst vorlesen, was gelesen wurde, und bestätigen lassen
+            S.step = 'briefcheck';
+            const teile = ['Anbieter ' + d.anbieter];
+            if (d.art) teile.push(d.art);
+            if (d.nummer) teile.push('Kundennummer ' + d.nummer);
+            if (d.vertragsnr) teile.push('Vertragsnummer ' + d.vertragsnr);
+            if (d.rufnr) teile.push('Rufnummer ' + d.rufnr);
+            if (d.anbAdresse) teile.push('Anschrift ' + d.anbAdresse);
+            say('Ich habe vom Brief gelesen: ' + teile.join(', ') + '. Stimmt das?');
+            return;
+        }
         next();
     };
     window.handleKuendigungCommand = handle;

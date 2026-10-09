@@ -152,7 +152,7 @@
         return 'Du liest einen Brief (Rechnung, Mahnung, Vertragsschreiben, Behördenbescheid, Einladung oder anderes Schreiben) von einem Foto. Heute ist ' + t + '. ' +
             'Antworte NUR mit einem JSON-Objekt: ' +
             '{"typ":"rechnung|mahnung|vertragsaenderung|bescheid|einladung|sonstiges",' +
-            '"absender":"Name der Firma oder Behörde oder null",' +
+            '"absender":"Name der Firma oder Behörde, genau so abgeschrieben, wie er gedruckt dasteht, oder null",' +
             '"absenderAdresse":"Postanschrift des Absenders (Straße Hausnummer oder Postfach, PLZ Ort) oder null",' +
             '"betrag":Zahl in Euro mit Punkt als Dezimaltrenner (der zu zahlende Gesamtbetrag) oder null,' +
             '"zahlungsziel":"JJJJ-MM-TT oder null",' +
@@ -162,7 +162,10 @@
             '"aenderungAb":"JJJJ-MM-TT oder null",' +
             '"neuerPreis":"kurzer Text zur Änderung oder null",' +
             '"vertragsart":"strom|gas|internet|handy|versicherung|fitness|miete|zeitung|sonstiges oder null",' +
-            '"nummer":"Kunden-, Vertrags- oder Aktenzeichen oder null",' +
+            '"nummer":"Kundennummer (sonst Vertrags- oder Aktenzeichen) oder null",' +
+            '"vertragsnummer":"Vertragsnummer, wenn es neben der Kundennummer eine eigene gibt, sonst null",' +
+            '"rufnummer":"Handy- oder Telefonnummer des Vertrags mit Vorwahl oder null",' +
+            '"vertragsende":"JJJJ-MM-TT: Ende der Vertragslaufzeit oder Mindestlaufzeit, wenn gedruckt, sonst null",' +
             '"termin":{"titel":"kurzer Titel","datum":"JJJJ-MM-TT","uhrzeit":"HH:MM oder null","ort":"Ort oder null"} oder null,' +
             '"kurz":"Zusammenfassung in höchstens zwei kurzen deutschen Sätzen",' +
             '"unsicher":true oder false}. ' +
@@ -171,6 +174,7 @@
             '"zahlungsziel" ist das Datum, bis zu dem bezahlt werden muss. "frist" ist eine andere Frist, zum Beispiel Antwort-, Widerspruchs- oder Einreichungsfrist; steht dort nur "innerhalb eines Monats", lasse "frist" auf null und setze "widerspruchMonate" auf 1. ' +
             '"termin" nur bei Einladung oder Terminbestätigung. Fehlt das Jahr bei einem Datum, nimm das Jahr, bei dem es heute oder in der Zukunft liegt. ' +
             '"absenderAdresse" ist die Anschrift der Firma oder Behörde, die den Brief schickt (oft klein über dem Empfängerfeld oder im Briefkopf oder Fuß), nie die des Empfängers. ' +
+            '"absender" und alle Namen schreibst du Buchstabe für Buchstabe so ab, wie sie gedruckt sind, auch wenn sie ungewöhnlich sind (zum Beispiel bleibt "Telecom" Telecom und wird nicht zu "Telekom", "1&1" bleibt "1&1"). Nimm bevorzugt den vollständigen Firmennamen mit Rechtsform (GmbH, AG) aus Briefkopf oder Fußzeile. ' +
             'Erfinde nichts; was nicht dasteht, setze auf null. Ist Handschrift oder Datum schwer lesbar, setze "unsicher" auf true. Ist es kein Brief, setze typ "sonstiges" und beschreibe es in "kurz".';
     }
 
@@ -205,6 +209,9 @@
             neuerPreis: clean(o.neuerPreis).slice(0, 120),
             vertragsart: clean(o.vertragsart).toLowerCase(),
             nummer: clean(o.nummer).slice(0, 40),
+            vertragsnummer: clean(o.vertragsnummer).slice(0, 40),
+            rufnummer: clean(o.rufnummer).slice(0, 30),
+            vertragsende: dateOf(o.vertragsende),
             termin,
             kurz: clean(o.kurz).replace(/[*_`#>|]+/g, ' ').slice(0, 300),
             unsicher: o.unsicher === true || clean(o.unsicher).toLowerCase() === 'true'
@@ -365,10 +372,11 @@
         return false;
     }
 
-    function startKuendigungFromLetter(L) {
+    function startKuendigungFromLetter(L, grundOverride) {
         if (typeof window.kuendigungStart !== 'function') { say('Das Kündigungsschreiben ist in dieser Version nicht erreichbar.'); return; }
         const preis = /beitrag|versicherung/.test(String(L.vertragsart) + ' ' + String(L.neuerPreis || '').toLowerCase()) ? 'Beitragserhöhung' : 'Preiserhöhung';
-        window.kuendigungStart({ anbieter: L.absender, art: ART_LABEL[L.vertragsart] || '', nummer: L.nummer, anbAdresse: L.absenderAdresse, grund: L.typ === 'vertragsaenderung' ? preis : '' });
+        window.kuendigungStart({ anbieter: L.absender, art: ART_LABEL[L.vertragsart] || '', nummer: L.nummer, vertragsnr: L.vertragsnummer, rufnr: L.rufnummer, vertragsende: L.vertragsende, anbAdresse: L.absenderAdresse,
+            grund: grundOverride !== undefined ? grundOverride : (L.typ === 'vertragsaenderung' ? preis : ''), vonBrief: true });
     }
     window.startKuendigungAusBrief = function () {
         const L = window._lastLetter;
@@ -385,6 +393,7 @@
             return;
         }
         if (plan.kind === 'kuendigung') {
+            if (L && L.absender) { startKuendigungFromLetter(L, plan.grund); return; }
             if (typeof window.kuendigungStart === 'function') { window.kuendigungStart({ anbieter: plan.anbieter, art: plan.art, nummer: plan.nummer, grund: plan.grund, anbAdresse: plan.anbAdresse }); return; }
             say('Das Kündigungsschreiben ist in dieser Version nicht erreichbar.');
             return;
