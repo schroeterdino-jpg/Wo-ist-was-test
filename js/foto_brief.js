@@ -12,6 +12,8 @@
    - Bescheid / Behörde mit Frist (z. B. Widerspruch): Erinnerung 3 Tage vor Fristende
    - Einladung / Termin: Eintrag in den Kalender
    - sonstiges Schreiben: kurze Zusammenfassung in zwei Sätzen
+   - Kündigung aus dem Brief: Karte "Kündigung vorbereiten" (bei Rechnung, Vertragsschreiben mit Anbieter) und Karte "Kündigung aus Brief" im Foto-Menü;
+     Anbieter, Vertragsart, Nummer und die Anschrift des Absenders werden übernommen
    Hängt sich in photo.js ein (ohne es zu verändern) und muss nach photo.js und foto_adresse.js geladen werden.
    Benutzt: askVision, photoJsonObject, photoPending, lastPhoto, runLastPhotoTask, photoSay, addGoogleCalendarEvent, handleLocalCommand.
    Fehlt photo.js, tut diese Datei nichts.
@@ -110,6 +112,7 @@
         window.photoAskWhatToDo = function () {
             cards([
                 { icon: '✉️', title: 'Brief auswerten', subtitle: 'Rechnung, Mahnung, Vertrag, Bescheid, Einladung', onclick: "runLastPhotoTask('letter')" },
+                { icon: '✍️', title: 'Kündigung aus Brief', subtitle: 'Anbieter, Nummer und Anschrift übernehmen', onclick: "window._briefKuend=Date.now();runLastPhotoTask('letter')" },
                 { icon: '🛒', title: 'Auf die Einkaufsliste', subtitle: 'Zettel lesen, Artikel eintragen', onclick: "runLastPhotoTask('shopping')" },
                 { icon: '📅', title: 'Termine eintragen', subtitle: 'Kalender, Plakat, Einladung', onclick: "runLastPhotoTask('events')" },
                 { icon: '📍', title: 'Dorthin navigieren', subtitle: 'Adresse lesen, Route starten', onclick: "runLastPhotoTask('address')" },
@@ -150,6 +153,7 @@
             'Antworte NUR mit einem JSON-Objekt: ' +
             '{"typ":"rechnung|mahnung|vertragsaenderung|bescheid|einladung|sonstiges",' +
             '"absender":"Name der Firma oder Behörde oder null",' +
+            '"absenderAdresse":"Postanschrift des Absenders (Straße Hausnummer oder Postfach, PLZ Ort) oder null",' +
             '"betrag":Zahl in Euro mit Punkt als Dezimaltrenner (der zu zahlende Gesamtbetrag) oder null,' +
             '"zahlungsziel":"JJJJ-MM-TT oder null",' +
             '"frist":"JJJJ-MM-TT oder null",' +
@@ -166,6 +170,7 @@
             '"bescheid" = Schreiben einer Behörde, eines Amtes, Gerichts, Finanzamts oder einer Krankenkasse mit Entscheidung oder Aufforderung. ' +
             '"zahlungsziel" ist das Datum, bis zu dem bezahlt werden muss. "frist" ist eine andere Frist, zum Beispiel Antwort-, Widerspruchs- oder Einreichungsfrist; steht dort nur "innerhalb eines Monats", lasse "frist" auf null und setze "widerspruchMonate" auf 1. ' +
             '"termin" nur bei Einladung oder Terminbestätigung. Fehlt das Jahr bei einem Datum, nimm das Jahr, bei dem es heute oder in der Zukunft liegt. ' +
+            '"absenderAdresse" ist die Anschrift der Firma oder Behörde, die den Brief schickt (oft klein über dem Empfängerfeld oder im Briefkopf oder Fuß), nie die des Empfängers. ' +
             'Erfinde nichts; was nicht dasteht, setze auf null. Ist Handschrift oder Datum schwer lesbar, setze "unsicher" auf true. Ist es kein Brief, setze typ "sonstiges" und beschreibe es in "kurz".';
     }
 
@@ -190,6 +195,7 @@
         return {
             typ,
             absender: clean(o.absender).slice(0, 60),
+            absenderAdresse: clean(o.absenderAdresse).slice(0, 140),
             betrag,
             zahlungsziel: dateOf(o.zahlungsziel),
             frist: dateOf(o.frist),
@@ -256,7 +262,7 @@
             if (L.aenderungAb) s += ` Sie gilt ab ${dayText(parseIso(L.aenderungAb))}.`;
             s += ' Bei einer Preiserhöhung oder einer Änderung zu Ihrem Nachteil haben Sie in der Regel ein Sonderkündigungsrecht, oft nur für kurze Zeit. Prüfen Sie die Frist im Brief.';
             const grund = /beitrag|versicherung/.test(L.vertragsart + ' ' + L.neuerPreis.toLowerCase()) ? 'Beitragserhöhung' : /preis|erh|teurer|euro|€/.test(L.neuerPreis.toLowerCase()) || L.betrag ? 'Preiserhöhung' : 'Vertragsänderung';
-            out.plan = { kind: 'kuendigung', anbieter: L.absender, art: ART_LABEL[L.vertragsart] || '', nummer: L.nummer, grund };
+            out.plan = { kind: 'kuendigung', anbieter: L.absender, art: ART_LABEL[L.vertragsart] || '', nummer: L.nummer, grund, anbAdresse: L.absenderAdresse };
             s += ' Soll ich eine Kündigung vorbereiten?';
             out.text = s + unsure;
             return out;
@@ -317,6 +323,14 @@
                 say('Ich konnte auf dem Foto keinen Brief lesen. Liegt er gerade, ist er scharf und gut beleuchtet?');
                 return;
             }
+            window._lastLetter = L;
+            if (window._briefKuend && Date.now() - window._briefKuend < 10 * 60000) {   // Karte "Kündigung aus Brief"
+                window._briefKuend = 0;
+                if (L.absender) { photoPending = null; cards([]); startKuendigungFromLetter(L); return; }
+                say('Auf dem Brief konnte ich keinen Absender lesen. Sagen Sie mir den Anbieter, wenn ich die Kündigung trotzdem vorbereiten soll.');
+                if (typeof window.kuendigungStart === 'function') window.kuendigungStart({});
+                return;
+            }
             const P = makePlan(L);
             const list = [];
             const head = { rechnung: ['🧾', 'Rechnung'], mahnung: ['⚠️', 'Mahnung'], vertragsaenderung: ['📝', 'Vertragsänderung'], bescheid: ['🏛️', 'Bescheid / Behörde'], einladung: ['💌', 'Einladung'], sonstiges: ['✉️', 'Schreiben'] }[L.typ];
@@ -329,8 +343,10 @@
             } else {
                 photoPending = null;
             }
+            const kuendOffer = !(P.plan && P.plan.kind === 'kuendigung') && L.absender && (L.typ === 'rechnung' || L.typ === 'sonstiges') && (L.vertragsart || L.nummer);
+            if (kuendOffer) list.push({ icon: '✍️', title: 'Kündigung vorbereiten', subtitle: `${L.absender}${L.nummer ? ' · ' + L.nummer : ''}`, onclick: 'startKuendigungAusBrief()' });
             cards(list);
-            say(P.text);
+            say(P.text + (kuendOffer ? ' Wenn Sie diesen Vertrag kündigen möchten, tippen Sie auf Kündigung vorbereiten.' : ''));
         } catch (e) {
             console.error('Brief aus Foto fehlgeschlagen:', e && e.stack);
             const m = String((e && e.message) || 'unbekannter Fehler');
@@ -349,6 +365,18 @@
         return false;
     }
 
+    function startKuendigungFromLetter(L) {
+        if (typeof window.kuendigungStart !== 'function') { say('Das Kündigungsschreiben ist in dieser Version nicht erreichbar.'); return; }
+        const preis = /beitrag|versicherung/.test(String(L.vertragsart) + ' ' + String(L.neuerPreis || '').toLowerCase()) ? 'Beitragserhöhung' : 'Preiserhöhung';
+        window.kuendigungStart({ anbieter: L.absender, art: ART_LABEL[L.vertragsart] || '', nummer: L.nummer, anbAdresse: L.absenderAdresse, grund: L.typ === 'vertragsaenderung' ? preis : '' });
+    }
+    window.startKuendigungAusBrief = function () {
+        const L = window._lastLetter;
+        if (!L || !L.absender) { say('Dafür brauche ich zuerst ein Foto vom Brief.'); return; }
+        photoPending = null; cards([]);
+        startKuendigungFromLetter(L);
+    };
+
     async function runPlan(plan, L) {
         if (!plan) return;
         if (plan.kind === 'reminder') {
@@ -357,7 +385,7 @@
             return;
         }
         if (plan.kind === 'kuendigung') {
-            if (typeof window.kuendigungStart === 'function') { window.kuendigungStart({ anbieter: plan.anbieter, art: plan.art, nummer: plan.nummer, grund: plan.grund }); return; }
+            if (typeof window.kuendigungStart === 'function') { window.kuendigungStart({ anbieter: plan.anbieter, art: plan.art, nummer: plan.nummer, grund: plan.grund, anbAdresse: plan.anbAdresse }); return; }
             say('Das Kündigungsschreiben ist in dieser Version nicht erreichbar.');
             return;
         }
