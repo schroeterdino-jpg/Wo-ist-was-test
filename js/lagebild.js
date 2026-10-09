@@ -19,7 +19,7 @@
     if (window.jvLage) return;
     const RKM = 20;
     const TANK_KM = 5;   // Diesel nur im Umkreis von 5 km um dich
-    let layer = null, body = null, timer = 0, state = null, ladeNr = 0, view = 'umkreis', zielD = null, orteD = null;
+    let layer = null, body = null, timer = 0, state = null, ladeNr = 0, view = 'umkreis', zielD = null, orteD = null, orteTank = false;
     const sagen = t => { try { if (typeof speak === 'function') speak(t, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} };
     const mit = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
     const euro = p => p.toFixed(3).replace('.', ',') + ' €';
@@ -330,21 +330,22 @@
     }
 
     /* ---------- Ansicht "Orte": Wo ist der nächste Penny, Apotheke in der Nähe ---------- */
-    function orte(cards) {
+    function orte(cards, tank) {
         if (!Array.isArray(cards) || !cards.length) return false;
-        orteD = cards; view = 'orte';
+        orteD = cards; orteTank = !!tank; view = 'orte';
         layerBauen(); clearInterval(timer); ladeNr++; kopfText(); zeichne();
         try { layer.scrollTo(0, 0); } catch (e) {}
         return true;
     }
     function zeichneOrte() {
         orteD.forEach((c, i) => {
-            const k = karte((c.icon || '📍') + (i === 0 ? ' AM NÄCHSTEN' : ''), 'TIPPEN: ROUTE', c.title, [{ t: String(c.subtitle || '').replace(/\s*·\s*Tippen: Route\s*$/, ''), c: 'dim' }], () => { try { window.open(c.href, '_blank'); } catch (e) {} });
+            const k = karte((orteTank ? '⛽' : (c.icon || '📍')) + (i === 0 ? (orteTank ? ' DIESEL · GÜNSTIGSTER' : ' AM NÄCHSTEN') : ''), 'TIPPEN: ROUTE', orteTank ? String(c.title).replace(/^🟢\s*GÜNSTIGSTER PREIS\s*·\s*/, '') : c.title, [{ t: String(c.subtitle || '').replace(/\s*·\s*Tippen: Route\s*$/, ''), c: 'dim' }], () => { try { window.open(c.href, '_blank'); } catch (e) {} });
             body.appendChild(k);
         });
         const kn = el('div', 'knoepfe'); kn.appendChild(zurueckKnopf()); body.appendChild(kn);
-        body.appendChild(el('div', 'fuss', 'Quelle: OpenStreetMap. Öffnungszeiten fehlen dort manchmal oder sind veraltet.'));
+        body.appendChild(el('div', 'fuss', orteTank ? 'Quelle: Tankerkönig, Preise in Euro pro Liter, im Umkreis von ' + TANK_KM + ' km.' : 'Quelle: OpenStreetMap. Öffnungszeiten fehlen dort manchmal oder sind veraltet.'));
     }
+    const istTankKarte = c => c && /^(🟢|⛽)/.test(String(c.icon || '')) && /\d,\d{3} €\s*$/.test(String(c.title || ''));
     const istOrtKarte = c => c && c.href && / · /.test(String(c.title || '')) && /google\.com\/maps\/dir\/\?[^ ]*destination=-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?/.test(c.href);
 
     window.jvLage = { open, close, isOpen: () => !!layer, ziel, orte };
@@ -356,7 +357,7 @@
     if (typeof origKarten === 'function' && !origKarten._jvLage) {
         window.showActionCards = function (cards) {
             const r = origKarten.apply(this, arguments);
-            try { if (Array.isArray(cards) && cards.length && cards.every(istOrtKarte)) orte(cards); } catch (e) { console.error('Lagebild Orte', e); }
+            try { if (Array.isArray(cards) && cards.length && cards.every(istOrtKarte)) orte(cards); else if (Array.isArray(cards) && cards.length && cards.every(istTankKarte)) orte(cards, true); } catch (e) { console.error('Lagebild Orte', e); }
             return r;
         };
         window.showActionCards._jvLage = true;
