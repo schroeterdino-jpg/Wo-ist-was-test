@@ -166,7 +166,7 @@ export default async function handler(req, res) {
         const kandidaten = all.filter(e => {
           const m = e.metadata || {};
           if (m.typ !== 'episode' || ISO_DAY.test(String(m.ereignis_datum || ''))) return false;
-          if (m.kategorie === 'Stimmung' || m.anstoss_aus === true || m.anstoss_aus === 'true') return false;
+          if (m.kategorie === 'Stimmung' || m.kategorie === 'Rückblick' || m.anstoss_aus === true || m.anstoss_aus === 'true') return false;
           if (ISO_DAY.test(String(m.anstoss_tag || '')) && m.anstoss_tag > cool) return false;
           if (ISO_DAY.test(String(m.datum_gesagt || '')) && m.datum_gesagt >= frisch) return false;
           return true;
