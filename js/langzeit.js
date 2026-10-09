@@ -103,7 +103,9 @@
             if (action && action.type === 'episode_asked') { markAsked(action); return; }
             if (action && action.type === 'episode_forget') return forgetEpisode(action, ctx);
             if (action && action.type === 'episode_nicht_fragen') return noAnstoss(action, ctx);
-            return original.apply(this, arguments);
+            const res = await original.apply(this, arguments);
+            try { logAktion(action); } catch (e) {}   // Tageszustand: was heute schon erledigt wurde
+            return res;
         };
         wrapped._langzeit = true;
         Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
@@ -168,7 +170,7 @@
         window.jvChain.use('buildSystemPrompt', 'langzeit', function (next) {
             let base = next();
             try { base += (alleBlock() || dueBlock()); } catch (e) {}
-            try { base += rueckblickBlock() + plauderBlock(); } catch (e) {}
+            try { base += rueckblickBlock() + heuteBlock() + plauderBlock(); } catch (e) {}
             return base;
         }, 200);
     }
@@ -436,6 +438,45 @@
         const l = jget(RUECK_KEY, []).filter(e => e && e.text && e.d < todayIso() && e.d >= addDaysIso(todayIso(), -4)).slice(-3);
         if (!l.length) return '';
         return '\n\ntagesrueckblick (kurze Zusammenfassungen der letzten Tage, nur zum beiläufigen Anknüpfen, nie aufzählen): ' + JSON.stringify(l.map(e => ({ tag: lesbar(e.d), inhalt: e.text })));
+    }
+
+    // 7d) Tageszustand: was Jarvis heute schon für dich erledigt hat (Termin eingetragen, WhatsApp vorbereitet, Route geöffnet ...).
+    //     Flüchtiger, aber präsenter Kontext: nur heute, nur auf dem Gerät, nicht im Langzeitgedächtnis.
+    const HEUTE_KEY = 'jv_heute';
+    function aktionsZeile(a) {
+        const kurz = x => String(x || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+        if (!a) return '';
+        if (a.type === 'calendar' || a.calendar_text) return 'Termin eingetragen: ' + kurz(a.calendar_text);
+        switch (a.type) {
+            case 'reminder': return 'Erinnerung angelegt: ' + kurz(a.reminder_text);
+            case 'shopping': return 'Einkaufsliste ergänzt';
+            case 'todo': return 'Aufgabe notiert';
+            case 'whatsapp': return 'WhatsApp an ' + kurz(a.contact_name) + ' vorbereitet';
+            case 'call': return 'Anruf bei ' + kurz(a.contact_name) + ' vorbereitet';
+            case 'navigate': return 'Route nach ' + kurz(a.nav_to) + ' geöffnet';
+            case 'parking_save': return 'Parkplatz gespeichert';
+            case 'fuel_route': return 'Tankstellen auf der Strecke gesucht';
+            case 'nearby_places': return 'Orte in der Nähe gesucht';
+            case 'travel_time': return 'Fahrzeit berechnet';
+            case 'bahn': return 'Bahnverbindung gesucht';
+            case 'episode_store': return 'Im Langzeitgedächtnis gemerkt: ' + kurz(a.episode_text);
+            default: return '';
+        }
+    }
+    function logAktion(a) {
+        const z = aktionsZeile(a);
+        if (!z) return;
+        const heute = todayIso();
+        let o = jget(HEUTE_KEY, null);
+        if (!o || o.d !== heute || !Array.isArray(o.z)) o = { d: heute, z: [] };
+        o.z.push({ h: berlinHM(), t: z });
+        o.z = o.z.slice(-25);
+        lsSet(HEUTE_KEY, JSON.stringify(o));
+    }
+    function heuteBlock() {
+        const o = jget(HEUTE_KEY, null);
+        if (!o || o.d !== todayIso() || !Array.isArray(o.z) || !o.z.length) return '';
+        return '\n\nheute_bisher (was heute schon erledigt wurde, nur zum Mitdenken: nichts doppelt anbieten, nicht aufzählen, nur erwähnen, wenn es passt): ' + JSON.stringify(o.z.slice(-12));
     }
 
     // 7c) Plauder-Modus: "Lass uns plaudern" -> ausführlicher, persönlicher, mit Gegenfragen; "Okay, genug" beendet ihn. Läuft nach 2 Stunden ohne Gespräch von selbst aus.

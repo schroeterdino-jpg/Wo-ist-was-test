@@ -115,8 +115,20 @@
         const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 50) return false;
         if (TEST_RX.test(t)) { show({ stufe: 'rot', titel: 'Testalarm', text: 'So sieht eine Warnung aus: Glättegefahr auf Ihrer Strecke. Plan mehr Zeit ein.' }); return true; }
+        if (IMP_OFF_RX.test(t)) { impulse(false); return true; }
+        if (IMP_ON_RX.test(t)) { impulse(true); return true; }
         if (el && OFF_RX.test(t)) { close(); try { if (typeof speak === 'function') speak('Alarm beendet.'); } catch (e) {} return true; }
         return false;
+    }
+    // Abend-Impulse (Jarvis meldet sich per Push von selbst: Schichtwechsel, Bettzeit vor Frühschicht, Vorschau auf morgen) ein- und ausschalten
+    const IMP_OFF_RX = /^(?:(?:abend-?\s?)?impulse? (?:aus|ausschalten)|keine (?:abend-?\s?)?impulse mehr)$/;
+    const IMP_ON_RX = /^(?:abend-?\s?)?impulse? (?:an|ein|einschalten)$/;
+    function impulse(an) {
+        try {
+            apiFetch('/api/sync?action=push_impulse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: an }) })
+                .then(r => { try { if (typeof speak === 'function') speak(r.ok ? (an ? 'Gut, ich melde mich abends wieder von selbst.' : 'Okay, abends melde ich mich nicht mehr von selbst.') : 'Das hat gerade nicht geklappt.'); } catch (e) {} })
+                .catch(() => { try { if (typeof speak === 'function') speak('Das hat gerade nicht geklappt.'); } catch (e) {} });
+        } catch (e) {}
     }
     window.handleAlarmCommand = handle;
     if (window.jvCommands) {
