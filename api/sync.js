@@ -595,7 +595,7 @@ async function runWeather(redis, st, data, now, wd) {
   st.wx.last = { ts: now, wo: wd.wo, warnung: r.warn ? r.probleme.join(', ') : null, minT: r.minT, maxRegenMm: r.maxRegenMm };
   if (!r.warn || !data.subs.length) return false;
   const rat = r.probleme.includes('Glättegefahr') || r.probleme.includes('Schnee') ? ' Plan mehr Zeit ein und fahr vorsichtig.' : (r.probleme.includes('Starkregen') ? ' Plan etwas mehr Zeit ein.' : '');
-  const out = await sendToAll(redis, data, { title: r.titel, body: wd.wo + ' zwischen ' + r.wann + ' Uhr: ' + r.probleme.join(', ') + '. ' + r.temp + '.' + rat, tag: 'wetter', url: './' });
+  const out = await sendToAll(redis, data, { title: r.titel, body: wd.wo + ' zwischen ' + r.wann + ' Uhr: ' + r.probleme.join(', ') + '. ' + r.temp + '.' + rat, tag: 'wetter', url: './', alarm: (r.probleme.includes('Glättegefahr') || r.probleme.includes('Schnee')) ? 'rot' : 'orange' });
   return out.sent > 0;
 }
 
