@@ -4,7 +4,7 @@
    - SPRIT: die günstigste Tankstelle auf der Strecke (kommt schon aus travel.js) erscheint zusätzlich im Fenster
    - LISTEN: passende Einträge von Einkaufsliste und Aufgaben (Baumarkt -> Schrauben, Kabel ... / Supermarkt -> die ganze Einkaufsliste / Apotheke ...)
    - RECHNUNGEN: eine Rechnung, die in den nächsten 2 Tagen fällig oder schon überfällig ist (rechnungen.js)
-   Gesprochen werden höchstens zwei kurze Sätze; alles Weitere steht im Fenster "FAHRT-CHECK" (hud_fenster.js).
+   Gesprochen werden höchstens zwei kurze Sätze; alles Weitere steht im Lagebild (lagebild.js, Ansicht "Ziel"), ersatzweise im Fenster "FAHRT-CHECK" (hud_fenster.js).
    Es erscheint nur, was wirklich etwas zu sagen hat. Ausschalten: "Fahrt-Check aus" / "Fahrt-Check an".
    Greift nur bei der Sprachabfrage (computeDepartureAdvice mit Suchbegriff), nicht bei der Abfahrts-Warnung oder der Spritsuche.
    Braucht: travel.js (computeDepartureAdvice), optional hud_fenster.js (jvPanel), lists (shoppingEntries, todoEntries), rechnungen.js. Muss danach geladen werden.
@@ -84,18 +84,25 @@
     window.computeDepartureAdvice = async function (opts) {
         const res = await orig.apply(this, arguments);
         try {
-            if (pd(KEY, 'an') === 'aus' || !opts || typeof opts !== 'object' || !('query' in opts) || !res || !res.map) return res;
+            if (!opts || typeof opts !== 'object' || !('query' in opts) || !res || !res.map) return res;
             const m = res.map, ziel = (m.to && m.to.label) || opts.destination || opts.query || '';
-            const [wetter] = await Promise.all([mit(wetterAmZiel(m.to.lat, m.to.lon, m.fahrtMin || 0), 6000)]);
-            const liste = listenTipp(ziel), rg = rechnungsTipp();
             const zeilen = [], sprich = [];
-            if (wetter) { zeilen.push({ ok: null, text: '☂ ' + wetter.kurz }); sprich.push(wetter.text); }
-            if (res.sprit) zeilen.push({ ok: null, text: '⛽ ' + (res.sprit.name || 'Tankstelle') + ': Diesel ' + res.sprit.preis.toFixed(3).replace('.', ',') + ' € an der Strecke' });
-            if (liste.length) { zeilen.push({ ok: null, text: '📝 Auf deiner Liste: ' + liste.join(', ') }); sprich.push('Auf deiner Liste stehen noch ' + liste.slice(0, 3).join(', ') + (liste.length > 3 ? ' und mehr' : '') + '.'); }
-            if (rg) zeilen.push({ ok: null, text: '🧾 ' + rg });
-            if (!zeilen.length) return res;
-            if (sprich.length) res.reply += ' ' + sprich.slice(0, 2).join(' ');
-            if (window.jvPanel) window.jvPanel.zeigen({ titel: 'FAHRT-CHECK', zeit: String(ziel).toUpperCase().slice(0, 18), zeilen, sek: 18 });
+            if (pd(KEY, 'an') !== 'aus') {
+                const [wetter] = await Promise.all([mit(wetterAmZiel(m.to.lat, m.to.lon, m.fahrtMin || 0), 6000)]);
+                const liste = listenTipp(ziel), rg = rechnungsTipp();
+                if (wetter) { zeilen.push({ ok: null, text: '☂ ' + wetter.kurz }); sprich.push(wetter.text); }
+                if (res.sprit) zeilen.push({ ok: null, text: '⛽ ' + (res.sprit.name || 'Tankstelle') + ': Diesel ' + res.sprit.preis.toFixed(3).replace('.', ',') + ' € an der Strecke' });
+                if (liste.length) { zeilen.push({ ok: null, text: '📝 Auf deiner Liste: ' + liste.join(', ') }); sprich.push('Auf deiner Liste stehen noch ' + liste.slice(0, 3).join(', ') + (liste.length > 3 ? ' und mehr' : '') + '.'); }
+                if (rg) zeilen.push({ ok: null, text: '🧾 ' + rg });
+                if (sprich.length) res.reply += ' ' + sprich.slice(0, 2).join(' ');
+            }
+            // Alles in einem Fenster: das Lagebild zeigt Ziel, Fahrzeit, Stau auf der Strecke, Wetter am Ziel, Diesel, Liste und Rechnung.
+            // Die HUD-Karte öffnet sich dann nicht zusätzlich (der Linienverlauf wird nur der Antwort abgenommen, nicht dem Original).
+            if (window.jvLage && typeof window.jvLage.ziel === 'function') {
+                const sub = res.card && res.card.subtitle && /Abfahrt/.test(res.card.subtitle) ? res.card.subtitle : '';
+                if (window.jvLage.ziel({ titel: ziel, map: m, untertitel: sub, zeilen })) return Object.assign({}, res, { map: Object.assign({}, m, { coords: null }) });
+            }
+            if (zeilen.length && window.jvPanel) window.jvPanel.zeigen({ titel: 'FAHRT-CHECK', zeit: String(ziel).toUpperCase().slice(0, 18), zeilen, sek: 18 });
         } catch (e) { console.error('Fahrtcheck', e); }
         return res;
     };

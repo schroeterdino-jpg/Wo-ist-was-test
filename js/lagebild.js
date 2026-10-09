@@ -3,10 +3,14 @@
    - 🚗 Arbeitsweg: Fahrzeit, Kilometer, Ankunft und Meldungen, die WIRKLICH auf deiner Strecke liegen (Autobahn + TomTom), sonst "frei"
    - ☂ Regen: trocken, "regnet jetzt" oder "ab 20:45 Uhr, aus Westen" (Open-Meteo, nächste 3 Stunden, Umkreis 20 km)
    - ⛽ Diesel: die zwei günstigsten Tankstellen im Umkreis mit Preis und Entfernung (Tankerkönig), Antippen = Navigation
-   - ⚠ Verkehr in der Nähe: wichtige Meldungen abseits deiner Strecke (nur wenn TomTom eingerichtet ist)
+   - ⚠ Verkehr in der Nähe: Stau und Unfälle im Umkreis von 10 km abseits deiner Strecke (nur wenn TomTom eingerichtet ist)
    - ◆ Nächster Termin mit Ort, Uhrzeit und Fahrzeit, Antippen = Navigation
    Knöpfe: "Auf Karte" (öffnet die Jarvis-Karte), "Aktualisieren". Aufruf: "Lagebild", "Radar", "Wie ist die Lage"; Schließen: ✕ oder "Lagebild schließen".
    Aktualisiert sich alle 5 Minuten, solange es offen ist; Jarvis nennt beim Öffnen kurz das Wichtigste.
+   ZIEL-ANSICHT: "Route zu X", "Bring mich zu X", "Wann muss ich losfahren", "Ist Stau auf dem Weg zu X": dasselbe Fenster zeigt Ziel, Fahrzeit, Ankunft, Meldungen auf der Strecke,
+   Wetter am Ziel, Diesel an der Strecke, passende Listeneinträge und Rechnungen (kommt aus fahrtcheck.js); Knöpfe "Navigation" (Google Maps), "Karte", "Lagebild".
+   Bei "Route zu X" öffnet sich Google Maps nicht mehr von selbst (executeAction wird umgeleitet), nur auf Tipp.
+   ORTE-ANSICHT: "Wo ist der nächste Penny?", "Apotheke in der Nähe": die Treffer (aus ortsuche.js/nearbymore.js) erscheinen im selben Fenster, Tipp = Route.
    Braucht: fetchUserLocationData, apiFetch, fetchRouteMapData (travel.js), optional calendarEntries, geocodeDestination, buildMapsLink, openPanel, speak().
    Jede Quelle ist unabhängig: fällt eine aus, fehlt nur ihre Karte.
    ============================================================ */
@@ -14,7 +18,7 @@
     'use strict';
     if (window.jvLage) return;
     const RKM = 20;
-    let layer = null, body = null, timer = 0, state = null, ladeNr = 0;
+    let layer = null, body = null, timer = 0, state = null, ladeNr = 0, view = 'umkreis', zielD = null, orteD = null;
     const sagen = t => { try { if (typeof speak === 'function') speak(t, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} };
     const mit = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
     const euro = p => p.toFixed(3).replace('.', ',') + ' €';
@@ -52,7 +56,7 @@
             const d = await r.json();
             if (!r.ok) return { fehler: true, items: [] };
             return { items: (d.incidents || []).filter(i => ![4, 10].includes(i.kategorie) && (i.stufe >= 2 || i.verzoegerung_s >= 120 || [1, 8].includes(i.kategorie)))
-                .map(i => ({ lat: i.lat, lon: i.lon, art: i.art, min: Math.round(i.verzoegerung_s / 60), von: i.von, nach: i.nach, strassen: i.strassen, text: i.text })).slice(0, 150) };
+                .map(i => ({ kategorie: i.kategorie, lat: i.lat, lon: i.lon, art: i.art, min: Math.round(i.verzoegerung_s / 60), von: i.von, nach: i.nach, strassen: i.strassen, text: i.text })).slice(0, 150) };
         } catch (e) { return { fehler: true, items: [] }; }
     }
     async function ladeRegen(lat, lon) {
@@ -108,7 +112,7 @@
         // Verkehr in der Nähe: nicht auf dem Arbeitsweg und nicht doppelt zu einer Autobahn-Meldung
         const aufWeg = i => (arbeit && distToLine(i.lat, i.lon, arbeit.coords) <= 1.5) || (route && (route.warnings || []).some(w => distKm(w.lat, w.lon, i.lat, i.lon) < 1.5));
         const rest = [];
-        stau.items.filter(i => distKm(lat, lon, i.lat, i.lon) <= RKM && !aufWeg(i)).sort((a, b) => b.min - a.min).forEach(i => { if (!rest.some(o => distKm(o.lat, o.lon, i.lat, i.lon) < 1.5)) rest.push(i); });
+        stau.items.filter(i => distKm(lat, lon, i.lat, i.lon) <= 10 && [1, 6].includes(i.kategorie) && !aufWeg(i))   // abseits der Strecke nur Unfälle und Stau im Umkreis von 10 km.sort((a, b) => b.min - a.min).forEach(i => { if (!rest.some(o => distKm(o.lat, o.lon, i.lat, i.lon) < 1.5)) rest.push(i); });
         return { lat, lon, ort: loc.ort || '', tank, stau: { fehler: stau.fehler, rest }, regen, termin, arbeit, hatArbeit: !!work, routeFehlt: !!work && !arbeit, zeit: Date.now() };
     }
 
@@ -182,6 +186,8 @@
     function zeichne() {
         if (!body) return;
         body.textContent = '';
+        if (view === 'ziel' && zielD) return zeichneZiel();
+        if (view === 'orte' && orteD) return zeichneOrte();
         const s = state;
         if (!s) { body.appendChild(karte('LAGEBILD', '', 'Lade Daten …', [{ t: 'Standort, Verkehr, Wetter und Preise werden geholt.', c: 'dim' }])); return; }
         if (s.fehler) { body.appendChild(karte('LAGEBILD', '', 'Kein Standort', [{ t: s.fehler, c: 'bad' }])); return; }
@@ -220,7 +226,7 @@
             const z = s.stau.rest.slice(0, 3).map(p => ({ t: stauText(p) + ' · ' + Math.round(distKm(s.lat, s.lon, p.lat, p.lon)) + ' km', c: '' }));
             if (s.stau.rest.length > 3) z.push({ t: '+ ' + (s.stau.rest.length - 3) + ' weitere Meldungen (auf der Karte)', c: 'dim' });
             body.appendChild(karte('⚠ VERKEHR', 'ABSEITS DEINER STRECKE', s.stau.rest.length + (s.stau.rest.length === 1 ? ' Meldung' : ' Meldungen'), z));
-        } else body.appendChild(karte('⚠ VERKEHR', 'IN DER NÄHE', 'Ruhig', [{ t: 'Keine wichtigen Meldungen im Umkreis von ' + RKM + ' km', c: 'ok' }]));
+        } else body.appendChild(karte('⚠ VERKEHR', 'IN DER NÄHE', 'Ruhig', [{ t: 'Kein Stau und keine Unfälle im Umkreis von 10 km', c: 'ok' }]));
 
         // Termin
         if (s.termin) body.appendChild(karte('◆ NÄCHSTER TERMIN', hhmm(s.termin.wann) + ' UHR', s.termin.name, [{ t: s.termin.ort + (s.termin.min ? ' · Fahrzeit ca. ' + s.termin.min + ' Min.' : ''), c: 'dim' }], navi(s.termin.ort)));
@@ -251,19 +257,19 @@
             if (state !== s) return;
             await new Promise(r => setTimeout(r, 1100));
         }
-        if (state === s && kand.length) zeichne();
+        if (state === s && kand.length && view === 'umkreis') zeichne();
     }
 
     async function refresh(sprich) {
         const nr = ++ladeNr;
         const s = await laden();
         if (!layer || nr !== ladeNr) return;
-        state = s; zeichne();
+        state = s; if (view === 'umkreis') zeichne();
         if (s.fehler) { if (sprich) sagen(s.fehler); return; }
         if (sprich) sagen('Lagebild. ' + (sprache(s) || 'Im Moment gibt es nichts Besonderes.'));
         orteNachladen(s);
     }
-    function open(sprich) {
+    function layerBauen() {
         if (layer) return;
         stil();
         layer = el('div'); layer.id = 'jvLage';
@@ -272,15 +278,108 @@
         const x = el('button', 'x', '✕'); x.setAttribute('aria-label', 'Lagebild schließen'); x.addEventListener('click', close); kopf.appendChild(x);
         inn.appendChild(kopf); body = el('div'); inn.appendChild(body);
         document.body.appendChild(layer);
-        state = null; zeichne(); refresh(!!sprich);
+        layer._klein = l.querySelector('small');
+    }
+    function kopfText() {
+        if (!layer || !layer._klein) return;
+        layer._klein.textContent = view === 'ziel' ? 'J.A.R.V.I.S. · deine Fahrt' : view === 'orte' ? 'J.A.R.V.I.S. · in deiner Nähe' : 'J.A.R.V.I.S. · dein Umkreis auf einen Blick';
+    }
+    function open(sprich) {
+        if (layer && view === 'umkreis') return;
+        layerBauen();
+        view = 'umkreis'; kopfText();
+        clearInterval(timer);
+        if (!state) { zeichne(); } else zeichne();
+        refresh(!!sprich);
         timer = setInterval(() => refresh(false), 5 * 60000);
     }
     function close() {
         if (!layer) return;
-        clearInterval(timer); ladeNr++; layer.remove(); layer = null; body = null; state = null;
+        clearInterval(timer); ladeNr++; layer.remove(); layer = null; body = null; state = null; view = 'umkreis'; zielD = null; orteD = null;
     }
-    window.jvLage = { open, close, isOpen: () => !!layer };
+
+    /* ---------- Ansicht "Ziel": Route zu X, Wann losfahren, Stau auf der Strecke ---------- */
+    function zurueckKnopf() { const b = el('button', '', '◀ LAGEBILD'); b.addEventListener('click', () => { state = null; open(true); }); return b; }
+    function ziel(d) {
+        if (!d || !d.map) return false;
+        zielD = d; view = 'ziel';
+        layerBauen(); clearInterval(timer); ladeNr++; kopfText(); zeichne();
+        try { layer.scrollTo(0, 0); } catch (e) {}
+        return true;
+    }
+    function zeichneZiel() {
+        const d = zielD, m = d.map, min = m.fahrtMin, km = Math.round(Number(m.km));
+        const auf = (m.warnings || []).filter(w => m.coords && distToLine(w.lat, w.lon, m.coords) <= (/sperr|gesperrt/i.test((w.title || '') + ' ' + (w.text || '')) ? 0.25 : 0.6));
+        const z = [];
+        if (d.untertitel) { const ab = String(d.untertitel).match(/Abfahrt bis .+$/); if (ab) z.push({ t: ab[0], c: 'dim' }); }
+        if (auf.length) auf.slice(0, 3).forEach(x => z.push({ t: '⚠ ' + x.title + (x.road && /^A\d+$/.test(x.road) ? ' (' + x.road + ')' : ''), c: 'bad' }));
+        else z.push({ t: '✓ Frei, keine Meldungen auf der Strecke', c: 'ok' });
+        if (auf.length > 3) z.push({ t: '+ ' + (auf.length - 3) + ' weitere Meldungen', c: 'dim' });
+        body.appendChild(karte('🎯 ' + String(d.titel || 'ZIEL').toUpperCase().slice(0, 26), 'ANKUNFT ' + hhmm(new Date(Date.now() + (min || 0) * 60000)), min + ' Min · ' + km + ' km', z));
+        const extra = (d.zeilen || []).filter(x => x && x.text);
+        if (extra.length) body.appendChild(karte('UNTERWEGS & AM ZIEL', '', null, extra.map(x => ({ t: x.text, c: '' }))));
+        const kn = el('div', 'knoepfe');
+        const b1 = el('button', 'p', 'NAVIGATION ▶'); b1.addEventListener('click', () => { try { const a = m.to && isFinite(m.to.lat) ? m.to.lat + ',' + m.to.lon : d.titel; window.open(buildMapsLink(a, '', 'driving'), '_blank'); } catch (e) {} });
+        const b2 = el('button', '', 'KARTE'); b2.addEventListener('click', () => { const md = d.map; close(); try { openPanel('karte', { mapData: md }); } catch (e) {} });
+        kn.appendChild(b1); kn.appendChild(b2); body.appendChild(kn);
+        const kn2 = el('div', 'knoepfe'); kn2.appendChild(zurueckKnopf()); body.appendChild(kn2);
+        body.appendChild(el('div', 'fuss', 'Stand ' + hhmm(new Date()) + ' Uhr · Verkehr: Autobahn.de und TomTom · Wetter: Open-Meteo'));
+    }
+
+    /* ---------- Ansicht "Orte": Wo ist der nächste Penny, Apotheke in der Nähe ---------- */
+    function orte(cards) {
+        if (!Array.isArray(cards) || !cards.length) return false;
+        orteD = cards; view = 'orte';
+        layerBauen(); clearInterval(timer); ladeNr++; kopfText(); zeichne();
+        try { layer.scrollTo(0, 0); } catch (e) {}
+        return true;
+    }
+    function zeichneOrte() {
+        orteD.forEach((c, i) => {
+            const k = karte((c.icon || '📍') + (i === 0 ? ' AM NÄCHSTEN' : ''), 'TIPPEN: ROUTE', c.title, [{ t: String(c.subtitle || '').replace(/\s*·\s*Tippen: Route\s*$/, ''), c: 'dim' }], () => { try { window.open(c.href, '_blank'); } catch (e) {} });
+            body.appendChild(k);
+        });
+        const kn = el('div', 'knoepfe'); kn.appendChild(zurueckKnopf()); body.appendChild(kn);
+        body.appendChild(el('div', 'fuss', 'Quelle: OpenStreetMap. Öffnungszeiten fehlen dort manchmal oder sind veraltet.'));
+    }
+    const istOrtKarte = c => c && c.href && / · /.test(String(c.title || '')) && /google\.com\/maps\/dir\/\?[^ ]*destination=-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?/.test(c.href);
+
+    window.jvLage = { open, close, isOpen: () => !!layer, ziel, orte };
     window.jvRadar = window.jvLage;   // alte Bezeichnung bleibt gültig
+
+    /* ---------- Umleiten: alles läuft über das Lagebild ---------- */
+    // Orte in der Nähe ("Wo ist der nächste Penny?"): die Treffer-Karten erscheinen zusätzlich im Lagebild
+    const origKarten = window.showActionCards;
+    if (typeof origKarten === 'function' && !origKarten._jvLage) {
+        window.showActionCards = function (cards) {
+            const r = origKarten.apply(this, arguments);
+            try { if (Array.isArray(cards) && cards.length && cards.every(istOrtKarte)) orte(cards); } catch (e) { console.error('Lagebild Orte', e); }
+            return r;
+        };
+        window.showActionCards._jvLage = true;
+    }
+    // "Route zu X" / "Bring mich zu X" mit dem Auto: statt Google Maps zu öffnen erst rechnen und das Lagebild mit Fahrzeit, Stau und Wetter zeigen
+    const origAktion = window.executeAction;
+    if (typeof origAktion === 'function' && !origAktion._jvLage) {
+        window.executeAction = async function (action, text, ctx) {
+            try {
+                if (action && action.type === 'navigate' && action.nav_to && !String(action.nav_from || '').trim() && /^(|driving)$/.test(String(action.nav_mode || '').toLowerCase().trim()) &&
+                    typeof resolveTravelDestination === 'function' && typeof window.computeDepartureAdvice === 'function' && ctx && Array.isArray(ctx.notes)) {
+                    const k = String(action.nav_to).toLowerCase().replace(/[^a-zäöüß]/g, '');
+                    if (!/^(parkplatz|meinparkplatz|auto|meinauto|geparktesauto)$/.test(k)) {
+                        const res = await window.computeDepartureAdvice({ query: text || String(action.nav_to), destination: resolveTravelDestination(text, action.nav_to), wantFuel: true });
+                        if (res && res.reply) {
+                            ctx.notes.push(res.reply);
+                            if (typeof updateTerminalStream === 'function') updateTerminalStream('LAGEBILD: ZIEL');
+                            return;
+                        }
+                    }
+                }
+            } catch (e) { if (e && e.auth) throw e; console.error('Lagebild Ziel', e); }
+            return origAktion.apply(this, arguments);
+        };
+        window.executeAction._jvLage = true;
+    }
 
     /* ---------- Sprache ---------- */
     if (window.jvCommands) {
