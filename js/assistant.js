@@ -143,7 +143,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
 
     let messagesPayload = [
         { role: "system", content: systemPrompt },
-        ...chatHistory.slice(-6)
+        ...chatHistory.slice(-30)
     ];
 
     try {
