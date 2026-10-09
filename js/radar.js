@@ -88,13 +88,24 @@
     }
 
     /* ---------- Auswertung ---------- */
+    // Meldungen an fast derselben Stelle (z.B. beide Fahrtrichtungen, mehrere Teilstücke einer Sperrung) zu einem Punkt zusammenfassen
+    function clustern(items) {
+        const sorted = items.slice().sort((a, b) => b.min - a.min || (b.stufe || 0) - (a.stufe || 0));
+        const out = [];
+        sorted.forEach(i => {
+            const c = out.find(o => distKm(o.lat, o.lon, i.lat, i.lon) < 1.5);
+            if (c) c.anzahl++; else out.push(Object.assign({ anzahl: 1 }, i));
+        });
+        return out;
+    }
     function punkte(s) {
         const out = [];
         s.tank.forEach((t, i) => out.push(Object.assign({}, t, { best: i === 0 })));
-        (s.stau.items || []).forEach(x => out.push(x));
+        s.stau.cluster.forEach(x => out.push(x));
         s.term.forEach(x => out.push(x));
         out.forEach(p => { p.d = distKm(s.lat, s.lon, p.lat, p.lon); p.b = bearing(s.lat, s.lon, p.lat, p.lon); });
-        return out;
+        // außerhalb des Radius (Ecken der Abfrage-Fläche) weglassen, Termine bleiben am Rand sichtbar
+        return out.filter(p => p.typ === 'term' || p.d <= RKM);
     }
     function infoText(p) {
         if (p.typ === 'fuel') return '⛽ ' + p.name + ' · Diesel ' + euro(p.preis) + ' · ' + p.d.toFixed(1).replace('.', ',') + ' km · ' + [p.strasse, p.ort].filter(Boolean).join(', ');
@@ -104,17 +115,22 @@
     function zusammenfassung(s) {
         const z = [], sp = [];
         if (s.tank.length) { const t = s.tank[0]; z.push('⛽ Günstigster Diesel: ' + t.name + ' ' + euro(t.preis) + ' · ' + distKm(s.lat, s.lon, t.lat, t.lon).toFixed(0) + ' km'); sp.push('Der günstigste Diesel ist ' + euro(t.preis).replace(' €', ' Euro') + ' bei ' + t.name + ', ' + distKm(s.lat, s.lon, t.lat, t.lon).toFixed(0) + ' Kilometer entfernt.'); }
-        const n = (s.stau.items || []).length;
+        const cl = s.stau.cluster || [], n = cl.length;
         if (s.stau.fehler) z.push('⚠ Verkehr: nicht verfügbar');
-        else if (n) { const a = (s.stau.items || []).slice().sort((x, y) => y.min - x.min)[0]; z.push('⚠ ' + n + (n === 1 ? ' Verkehrsmeldung' : ' Verkehrsmeldungen') + ' im Umkreis · größte: ' + a.art + (a.min >= 2 ? ' +' + a.min + ' min' : '')); sp.push('Im Umkreis gibt es ' + (n === 1 ? 'eine Verkehrsmeldung' : n + ' Verkehrsmeldungen') + '.'); }
+        else if (n) { const a = cl[0]; z.push('⚠ ' + n + (n === 1 ? ' Störung' : ' Störungen') + ' im Umkreis · schwerste: ' + a.art + (a.min >= 2 ? ' +' + a.min + ' min' : '') + ' ' + a.d.toFixed(0) + ' km'); sp.push('Im Umkreis gibt es ' + (n === 1 ? 'eine Störung' : n + ' Störungen') + ', die schwerste ist ' + a.art + '.'); }
         else { z.push('⚠ Keine Verkehrsmeldungen im Umkreis'); }
-        const r = s.regen.filter(x => x.start).sort((a, b) => a.start - b.start)[0];
-        if (r) {
-            const min = Math.max(0, Math.round((r.start - Date.now()) / 60000));
-            const dirs = s.regen.filter(x => x.start && x.brg !== null && x.start - r.start < 20 * 60000).map(x => HIMMEL[x.brg / 45]);
-            const wo = r.brg === null ? 'bei dir' : 'aus ' + (dirs[0] || HIMMEL[r.brg / 45]).replace(/^(Norden|Osten|Süden|Westen)$/, m => m);
-            z.push('☂ Regen ' + (min <= 5 ? 'jetzt' : 'ab ' + hhmm(new Date(r.start)) + ' Uhr') + ' · ' + (r.brg === null ? 'bei dir' : 'aus Richtung ' + HIMMEL[r.brg / 45]));
-            sp.push(min <= 5 ? 'Es regnet gerade oder gleich.' : 'Regen erreicht dich in etwa ' + min + ' Minuten, ' + (r.brg === null ? 'bei dir.' : 'aus Richtung ' + HIMMEL[r.brg / 45] + '.'));
+        const nass = s.regen.filter(x => x.start), jetztNass = nass.filter(x => x.start - Date.now() < 6 * 60000);
+        const r = nass.slice().sort((a, b) => a.start - b.start)[0];
+        if (jetztNass.length >= 6) {
+            z.push('☂ Regen im ganzen Umkreis');
+            sp.push('Es regnet im ganzen Umkreis.');
+        } else if (r) {
+            const spaet = nass.filter(x => x.start - Date.now() >= 6 * 60000).sort((a, b) => a.start - b.start)[0];
+            const wer = jetztNass.length ? jetztNass[0] : spaet;
+            const min = Math.max(0, Math.round((wer.start - Date.now()) / 60000));
+            const wo = wer.brg === null ? 'bei dir' : 'aus Richtung ' + HIMMEL[wer.brg / 45];
+            z.push('☂ Regen ' + (min <= 5 ? 'jetzt' : 'ab ' + hhmm(new Date(wer.start)) + ' Uhr') + ' · ' + wo);
+            sp.push(min <= 5 ? 'Es regnet ' + (wer.brg === null ? 'gerade bei dir.' : 'in der Nähe, ' + wo + '.') : 'Regen erreicht dich in etwa ' + min + ' Minuten, ' + wo + '.');
         } else z.push('☂ Kein Regen in den nächsten 3 Stunden');
         if (s.term.length) { const t = s.term.slice().sort((a, b) => a.wann - b.wann)[0]; z.push('◆ ' + t.name + ' · ' + hhmm(t.wann) + ' Uhr'); }
         return { zeilen: z, sprache: sp };
@@ -134,13 +150,16 @@
         // Regen-Sektoren (unter allem anderen)
         if (state && state.regen) state.regen.forEach(r => {
             if (!r.start) return;
-            const min = (r.start - Date.now()) / 60000, a = Math.max(0.12, Math.min(0.42, 0.42 - min / 400 + Math.min(r.mm, 2) * 0.05));
+            const min = (r.start - Date.now()) / 60000, schon = min < 6;
+            const a = schon ? 0.1 : Math.max(0.14, Math.min(0.4, 0.4 - min / 400 + Math.min(r.mm, 2) * 0.05));
             if (r.brg === null) { x.beginPath(); x.arc(cx, cy, R * 0.14, 0, 7); x.fillStyle = 'rgba(111,168,255,' + a + ')'; x.fill(); return; }
             const mid = rad(r.brg) - Math.PI / 2, gr = x.createRadialGradient(cx, cy, R * 0.15, cx, cy, R);
             gr.addColorStop(0, 'rgba(111,168,255,0)'); gr.addColorStop(1, 'rgba(111,168,255,' + a + ')');
             x.beginPath(); x.moveTo(cx, cy); x.arc(cx, cy, R, mid - rad(22.5), mid + rad(22.5)); x.closePath(); x.fillStyle = gr; x.fill();
-            const lx = cx + R * 0.78 * Math.sin(rad(r.brg)), ly = cy - R * 0.78 * Math.cos(rad(r.brg));
-            x.fillStyle = '#9cc4ff'; x.font = '10px ui-monospace,monospace'; x.textAlign = 'center'; x.fillText('☂ ' + (min <= 5 ? 'jetzt' : hhmm(new Date(r.start))), lx, ly);
+            if (!schon) {
+                const lx = cx + R * 0.82 * Math.sin(rad(r.brg)), ly = cy - R * 0.82 * Math.cos(rad(r.brg));
+                x.fillStyle = '#9cc4ff'; x.font = '10px ui-monospace,monospace'; x.textAlign = 'center'; x.fillText('☂ ' + hhmm(new Date(r.start)), lx, ly);
+            }
         });
         for (let i = 1; i <= 4; i++) {
             x.beginPath(); x.arc(cx, cy, R * i / 4, 0, 7); x.strokeStyle = 'rgba(94,231,255,' + (i === 4 ? 0.6 : 0.28) + ')'; x.lineWidth = i === 4 ? 1.6 : 1; x.stroke();
@@ -157,21 +176,32 @@
         // Punkte
         hits = [];
         if (state && state.pts) {
-            const labeled = { fuel: 0 };
+            const used = [], labeled = { fuel: 0, stau: 0 };
+            const frei = (x0, y0, w) => !used.some(u => x0 < u.x + u.w && x0 + w > u.x && Math.abs(y0 - u.y) < 12);
+            const prio = state.pts.slice().sort((a, b) => (b.best ? 3 : 0) + (b.typ === 'term' ? 2 : 0) + (b.typ === 'stau' ? 1 : 0) - ((a.best ? 3 : 0) + (a.typ === 'term' ? 2 : 0) + (a.typ === 'stau' ? 1 : 0)));
+            const pos = new Map();
             state.pts.forEach(p => {
                 const f = Math.min(p.d / RKM, 0.97), px = cx + R * f * Math.sin(rad(p.b)), py = cy - R * f * Math.cos(rad(p.b));
+                pos.set(p, [px, py]);
                 const diff = ((sw - p.b) % 360 + 360) % 360, glow = diff < 80 ? 1 - diff / 80 : 0;
                 const c = p.typ === 'fuel' ? (p.best ? COL.fuelBest : COL.fuel) : COL[p.typ], big = p.best ? 2 : 0;
                 x.beginPath(); x.arc(px, py, 5 + big + glow * 5, 0, 7); x.fillStyle = c + (glow > 0.1 ? '66' : '2a'); x.fill();
                 x.beginPath(); x.arc(px, py, 3.5 + big * 0.5, 0, 7); x.fillStyle = c; x.shadowColor = c; x.shadowBlur = 8; x.fill(); x.shadowBlur = 0;
                 if (sel === p) { x.beginPath(); x.arc(px, py, 11, 0, 7); x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.stroke(); }
                 hits.push({ p, x: px, y: py });
-                const zeigeLabel = p.typ !== 'fuel' ? true : (labeled.fuel++ < 3);
-                if (zeigeLabel) {
-                    const l = p.typ === 'fuel' ? euro(p.preis).replace(' €', '') : p.typ === 'stau' ? p.art + (p.min >= 2 ? ' +' + p.min : '') : p.name;
-                    const left = px > cx + 30; x.fillStyle = c; x.font = '10px ui-monospace,monospace'; x.textAlign = left ? 'left' : 'right';
-                    x.fillText(ICO[p.typ] + ' ' + String(l).slice(0, 18), px + (left ? 9 : -9), py + 3);
-                }
+            });
+            x.font = '10px ui-monospace,monospace';
+            prio.forEach(p => {
+                if ((p.typ === 'fuel' && labeled.fuel >= 3) || (p.typ === 'stau' && labeled.stau >= 4)) return;
+                const [px, py] = pos.get(p), c = p.typ === 'fuel' ? (p.best ? COL.fuelBest : COL.fuel) : COL[p.typ];
+                const l = ICO[p.typ] + ' ' + String(p.typ === 'fuel' ? euro(p.preis).replace(' €', '') : p.typ === 'stau' ? p.art + (p.anzahl > 1 ? ' ×' + p.anzahl : '') + (p.min >= 2 ? ' +' + p.min : '') : p.name).slice(0, 18);
+                const w = x.measureText(l).width;
+                let left = px > cx + 30, lx = left ? px + 9 : px - 9 - w;
+                if (lx < 4 || lx + w > W - 4) { left = !left; lx = left ? px + 9 : px - 9 - w; }
+                if (lx < 4 || lx + w > W - 4 || !frei(lx, py, w)) return;
+                used.push({ x: lx, y: py, w });
+                if (p.typ === 'fuel') labeled.fuel++; else if (p.typ === 'stau') labeled.stau++;
+                x.fillStyle = c; x.textAlign = 'left'; x.fillText(l, lx, py + 3);
             });
         }
         x.beginPath(); x.arc(cx, cy, 5, 0, 7); x.fillStyle = '#fff'; x.shadowColor = '#5ee7ff'; x.shadowBlur = 14; x.fill(); x.shadowBlur = 0;
@@ -211,7 +241,7 @@
         const s = await laden();
         if (!layer) return;
         if (s.fehler) { state = { fehler: s.fehler }; if (sprich) sagen(s.fehler); return; }
-        s.pts = punkte(s); s.zus = zusammenfassung(s); state = s; sel = null;
+        s.stau.cluster = clustern(s.stau.items || []).filter(x => distKm(s.lat, s.lon, x.lat, x.lon) <= RKM).slice(0, 15); s.pts = punkte(s); s.zus = zusammenfassung(s); state = s; sel = null;
         if (sprich) sagen('Radar aktiv. ' + (s.zus.sprache.join(' ') || 'Im Umkreis gibt es nichts Besonderes.'));
     }
     function open(sprich) {
