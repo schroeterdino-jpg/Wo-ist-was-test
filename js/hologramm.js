@@ -341,6 +341,7 @@ function frame(now){
         return false;
     }
     window.handleHologrammCommand = handle;
+    window.jvHolo = { set: on => setHolo(!!on, false), on: isOn, emo: e => { emo = e; emoUntil = performance.now() + 60000; } };   // für die Präsentation (js/praesentation.js)
     window.__holoTest = { frame: t => frame(t), setEmo: e => { emo = e; emoUntil = performance.now() + 60000; }, detect };
     if (window.jvCommands) {
         window.jvCommands.use('hologramm', function (text, next) {
