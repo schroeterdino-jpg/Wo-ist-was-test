@@ -87,7 +87,10 @@
         const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
         let n; while ((n = w.nextNode())) tauschKnoten(n);
     }
+    let markeAktiv = false;
     function markeAn() {
+        if (obs) { markeAktiv = true; return; }
+        markeAktiv = true;
         tauschBaum(document.body);
         obs = new MutationObserver(list => {
             if (busy) return;
@@ -100,16 +103,17 @@
         try {   // gesprochene Sätze (KI-Antworten, Ansagen) ohne den Namen
             if (typeof window.speak === 'function' && !window.speak._praesi) {
                 prevSpeak = window.speak;
-                const w = function (text) { const a = Array.prototype.slice.call(arguments); a[0] = markeNeu(text); return prevSpeak.apply(this, a); };
+                const w = function (text) { const a = Array.prototype.slice.call(arguments); if (markeAktiv) a[0] = markeNeu(text); return prevSpeak.apply(this, a); };
                 w._praesi = true; window.speak = w;
             }
         } catch (e) {}
     }
     function markeAus() {
+        markeAktiv = false;
         try { if (obs) obs.disconnect(); } catch (e) {} obs = null;
         orig.forEach((v, n) => { try { if (n.isConnected || n.parentNode) { busy = true; n.nodeValue = v; busy = false; } } catch (e) { busy = false; } });
         orig = new Map();
-        try { if (prevSpeak && window.speak && window.speak._praesi) window.speak = prevSpeak; } catch (e) {} prevSpeak = null;
+        try { if (prevSpeak && window.speak && window.speak._praesi) { window.speak = prevSpeak; prevSpeak = null; } } catch (e) {}
     }
 
     const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -241,6 +245,16 @@
         if (alive(id)) stop(false);
     }
 
+    /* Videomodus (für Bildschirmaufnahmen): Name "Jarvis" ist schon VOR der Präsentation überall getauscht und bleibt es, bis man ihn ausschaltet.
+       An/aus per Sprache ("Videomodus an", "Videomodus aus") oder per Link-Anhang (...?video=1 / ?video=0). Wird gemerkt. */
+    const VKEY = 'jv_videomodus';
+    const vGet = () => { try { return localStorage.getItem(VKEY) === '1'; } catch (e) { return false; } };
+    const vSet = on => { try { localStorage.setItem(VKEY, on ? '1' : '0'); } catch (e) {} };
+    function videoModus(on) {
+        vSet(on);
+        if (on) markeAn(); else if (!running) markeAus();
+    }
+
     function start() {
         if (running) return;
         running = true; aborted = false; runId++; skipFlag = false;
@@ -263,7 +277,7 @@
         try { if (window.jvHolo && savedHolo === false) window.jvHolo.set(false); } catch (e) {}
         try { if (wake && wake.release) wake.release(); wake = 0; } catch (e) {}
         document.body.classList.remove('jv-praesi');
-        markeAus();
+        if (!vGet()) markeAus();
         if (card) card.classList.remove('on'); if (cap) cap.classList.remove('on');
         if (userCut) { try { typeWriterStatus('Klicken zum Sprechen...'); } catch (e) {} }
     }
@@ -271,15 +285,21 @@
     /* ---------- Sprachbefehle ---------- */
     const START_RX = /^(?:bitte\s+)?(?:(?:starte|beginne|mach(?:e)?|zeig(?:e)?(?:\s+mir)?)\s+(?:bitte\s+)?(?:die\s+|deine\s+|eine\s+)?(?:pr[äa]sentation|vorstellung)(?:\s+(?:starten|an))?|pr[äa]sentation(?:\s+(?:starten|an|los))?|stell\s+dich\s+(?:bitte\s+)?(?:mal\s+)?(?:kurz\s+)?vor|(?:kannst|könntest)\s+du\s+dich\s+(?:mal\s+)?(?:kurz\s+)?vorstellen)$/;
     const STOP_RX = /^(?:bitte\s+)?(?:pr[äa]sentation\s+(?:beenden|abbrechen|stoppen|stopp|aus)|(?:beende|stoppe|brich)\s+(?:die\s+)?pr[äa]sentation(?:\s+ab)?|stopp?|abbrechen|danke\s+das\s+reicht)$/;
+    const V_AN = /^(?:bitte\s+)?(?:(?:video|aufnahme|tiktok|tik\s*tok)[\s-]*modus(?:\s+(?:an|ein|starten|aktivieren))?|(?:schalte?|mach(?:e)?|stell(?:e)?)\s+(?:den\s+)?(?:video|aufnahme|tiktok)[\s-]*modus\s+(?:an|ein))$/;
+    const V_AUS = /^(?:bitte\s+)?(?:(?:video|aufnahme|tiktok|tik\s*tok)[\s-]*modus\s+(?:aus|beenden|ausschalten|deaktivieren)|(?:schalte?|mach(?:e)?)\s+(?:den\s+)?(?:video|aufnahme|tiktok)[\s-]*modus\s+aus)$/;
     function handle(text) {
         const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 60) return false;
+        if (V_AUS.test(t)) { videoModus(false); try { speak('Videomodus ist aus.'); } catch (e) {} return true; }
+        if (V_AN.test(t)) { videoModus(true); try { speak('Videomodus ist an. Ich heiße jetzt ' + NAME + '.'); } catch (e) {} return true; }
         if (running && STOP_RX.test(t)) { stop(true); return true; }
         if (START_RX.test(t)) { start(); return true; }
         return false;
     }
     document.addEventListener('click', function (e) { if (running && !(e.target.closest && e.target.closest('#praesiCard'))) { e.stopPropagation(); e.preventDefault(); } }, true);   // während der Präsentation startet kein Tippen das Zuhören
-    window.jvPraesentation = { start, stop: () => stop(true), isRunning: () => running };
+    try { const q = new URLSearchParams(location.search).get('video'); if (q === '1') vSet(true); else if (q === '0') vSet(false); } catch (e) {}
+    if (vGet()) { if (document.body) markeAn(); else document.addEventListener('DOMContentLoaded', markeAn); }
+    window.jvPraesentation = { videoModus, start, stop: () => stop(true), isRunning: () => running };
     if (window.jvCommands) {
         window.jvCommands.use('praesentation', function (text, next) {
             try { if (handle(text)) return true; } catch (e) { console.error('Präsentation', e); }
