@@ -82,6 +82,7 @@ function pose(name,sd){
     case 'open':  return {E:V(X*1.52,SY-1.00,0.45), H:V(X*1.35,SY-0.50,1.25)};
     case 'point': return {E:V(X*1.42,SY-1.00,0.55), H:V(X*0.60,SY-0.75,1.50)};
     case 'chest': return {E:V(X*1.38,SY-1.00,0.50), H:V(X*0.50,SY-0.95,1.00)};
+    case 'scratch': { const w=Math.sin(tNowG*9)*0.06; return {E:V(X*1.55,-0.40,0.35), H:V(X*(0.98+w),0.70+Math.abs(w)*0.5,0.62)}; }
     case 'stop':  return {E:V(X*1.40,SY-0.70,0.45), H:V(X*0.95,SY+0.15,1.05)};
     case 'welcome': return {E:V(X*1.62,SY-0.85,0.35), H:V(X*2.05,SY-0.30,0.95)};
     case 'ask':   return {E:V(X*1.45,SY-1.00,0.45), H:V(X*0.85,SY-0.70,1.30)};
@@ -101,7 +102,8 @@ function armsUpdate(dt){
   const GEST=GESTEN[emo]||GESTEN.neutral;
   arm.forEach((a,i)=>{
     a.timer-=dt;
-    if(a.timer<=0){
+    if(thinking){ a.tgt=i===0?'scratch':'rest'; a.timer=0.2; }
+    else if(a.timer<=0){
       if(speaking){ // rechts öfter, links seltener
         const both=emo==='greet'||emo==='sorry'||emo==='question';
         const act=Math.random()<(i===0?0.85:(both?0.9:0.5));
@@ -117,7 +119,7 @@ function armsUpdate(dt){
 const CURL={
   rest:[0.35,0.30,0.35,0.40,0.45], palm:[0.05,0.02,0.0,0.02,0.05], open:[0.20,0.15,0.18,0.22,0.25],
   point:[0.70,0.0,0.95,0.98,1.0], chest:[0.30,0.25,0.30,0.35,0.40],
-  stop:[0.05,0.0,0.0,0.0,0.03], welcome:[0.10,0.05,0.05,0.08,0.12], ask:[0.10,0.08,0.08,0.10,0.15], sorry:[0.40,0.38,0.42,0.46,0.5]
+  stop:[0.05,0.0,0.0,0.0,0.03], welcome:[0.10,0.05,0.05,0.08,0.12], ask:[0.10,0.08,0.08,0.10,0.15], sorry:[0.40,0.38,0.42,0.46,0.5], scratch:[0.35,0.40,0.45,0.50,0.55]
 };
 function nrm(x,y,z){ const l=Math.hypot(x,y,z)||1; return [x/l,y/l,z/l]; }
 function handPoints(out,a,E,Hd){
@@ -184,6 +186,7 @@ function armPoints(out){
 
 
 function col(c,a){ const r=40+c*215, g=130+c*40-(c>0.6?(c-0.6)*100:0), b=255-c*230; return `rgba(${r|0},${g|0},${b|0},${a})`; }
+let thinking=false, tNowG=0, eyeUp=0;
 let speaking=false, mo=0, target=0, blink=0, nextBlink=2200, t0=performance.now(), tPrev=performance.now();
 let eyeH=1, eyeHappy=0, eyeTilt=0, smile=0;
 function frame(now){
@@ -192,6 +195,8 @@ function frame(now){
   raf=requestAnimationFrame(frame);
   const t=(now-t0)/1000; const dt=Math.min(0.05,(now-tPrev)/1000); tPrev=now;
   speaking=sprechen(); const listening=hoeren();
+  try { thinking=!speaking && !listening && typeof isProcessing!=='undefined' && !!isProcessing; } catch(e){ thinking=false; }
+  tNowG=t; eyeUp+=((thinking?1:0)-eyeUp)*0.12;
   if(!speaking && now>emoUntil-59000) emo='neutral';
   armsUpdate(dt);
   if(speaking){ if(Math.random()<0.22) target=0.1+Math.random()*0.9; } else target=0;
@@ -226,7 +231,7 @@ function frame(now){
   }
   cx.lineCap='round';
   for(const sx0 of [-0.27,0.27]){
-    const [ex,ey,k]=fp(sx0,HC+0.14);
+    const [ex,ey,k]=fp(sx0,HC+0.14+0.05*eyeUp);
     const w=0.26*sc*k*(1+0.08*(eyeH-1)), h=Math.max(2,0.07*sc*k*Math.min(ek,1)*1.9*eyeH);
     cx.shadowColor=col(1,1); cx.shadowBlur=14;
     if(eyeHappy>0.5){   // lachende Augen: nach oben gewölbte Bögen
