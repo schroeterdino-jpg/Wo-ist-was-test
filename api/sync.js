@@ -82,6 +82,7 @@ export default async function handler(req, res) {
         appOffen: now - st.alive < ALIVE_MS, lebenszeichen: min(st.alive), standort: st.loc ? min(st.loc.ts) : 'keiner gemeldet',
         zuhauseRoute: !!(st.cfg && st.cfg.route),
         wetter: wetterTest || { letzte: st.wx.last || 'noch keine', fehler: st.wx.err || null },
+        regenVorhersage: { letztePruefung: st.rain.lastCheck ? min(st.rain.lastCheck) : 'noch keine', ergebnis: st.rain.last || 'noch keins', letzteMeldung: st.rain.lastAlert ? min(st.rain.lastAlert) : 'noch keine', fehler: st.rain.err || null },
         impulse: { aus: !!st.imp.off, letzter: st.imp.last ? min(st.imp.last) : 'noch keiner', heute: st.imp.dayCount || null, regelnHeuteGesendet: st.imp.sent },
         diesel: { letzterPreis: st.tank.last ? { euro: st.tank.last.p, tankstelle: st.tank.last.name, ort: st.tank.last.ort, vor: min(st.tank.last.ts), ab: st.tank.last.quelle } : 'noch keiner', schnitt7Tage: st.tank.avg || 'noch zu wenig Daten', messwerte: st.tank.hist.length, ersteMessung: st.tank.hist.length ? min(st.tank.hist[0][0] * 60000) : 'nie', letzteMeldung: min(st.tank.lastAlert), fehler: st.tank.err || null },
         erinnerungen: st.items.filter(i => i.k === 'r' && i.at < now + 36 * 3600000).map(i => ({ text: i.x, in_min: Math.round((i.at - now) / 60000), wichtig: i.i === 1, gesendet: !!st.sent[i.id], nachgefasst: st.nag[i.id] ? st.nag[i.id].n : 0, erledigt: !!st.done[i.id] })),
@@ -277,6 +278,7 @@ async function loadItems(redis) {
   if (!st.tank || typeof st.tank !== 'object') st.tank = {};
   if (!Array.isArray(st.tank.hist)) st.tank.hist = [];
   if (!st.wx || typeof st.wx !== 'object') st.wx = {};
+  if (!st.rain || typeof st.rain !== 'object') st.rain = {};
   if (!st.imp || typeof st.imp !== 'object') st.imp = {};
   if (!st.imp.sent || typeof st.imp.sent !== 'object') st.imp.sent = {};
   return st;
@@ -610,6 +612,94 @@ async function runWeather(redis, st, data, now, wd) {
   return out.sent > 0;
 }
 
+// --- Regen in der nächsten Stunde (Radar-Vorhersage: 15-Minuten-Werte von Open-Meteo, kostenlos) ---
+// Meldet nur, wenn es JETZT trocken ist und in der nächsten Stunde Regen anfängt, und nur dort, wo es dir etwas nützt:
+//   a) rund um die Abfahrt zur Arbeit (Werktage, 45 Minuten vor bis 10 Minuten nach der Abfahrt; Strecke und Schicht kommen aus der App): Regen zu Hause oder bei der Arbeit
+//   b) unterwegs: Standort (zuletzt von der App gemeldet, höchstens 3 Stunden alt) mehr als 1 km von zu Hause entfernt
+// Nur bei geschlossener App (offen spricht die App selbst), nachts (22-7 Uhr) nur beim Arbeitsweg, höchstens 3 am Tag, mindestens 3 Stunden Abstand.
+const RAIN_CHECK_MS = 10 * 60000;
+const RAIN_ALERT_GAP_MS = 3 * 3600000;
+const RAIN_MAX_PRO_TAG = 3;
+const RAIN_STEP_MM = 0.1;          // ab so viel in 15 Minuten gilt es als Regen
+const RAIN_MIN_SUM_MM = 0.3;       // so viel mindestens in der nächsten Stunde
+const RAIN_HOME_KM = 1.0;          // weiter als so weit von zu Hause = unterwegs
+function distKm(a, b) {
+  const R = 6371, rad = Math.PI / 180, dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+function rainDue(st, now, appOpen) {
+  if (appOpen) return null;
+  const r = st.rain;
+  if (now - (r.lastCheck || 0) < RAIN_CHECK_MS) return null;
+  if (r.lastAlert && now - r.lastAlert < RAIN_ALERT_GAP_MS) return null;
+  const bp = berlinParts(now);
+  if (r.day && r.day.ymd === bp.ymd && r.day.n >= RAIN_MAX_PRO_TAG) return null;
+  const rt = st.cfg && st.cfg.route, sc = st.cfg && st.cfg.schicht;
+  const points = []; let arbeitsweg = false;
+  const wd = new Date(bp.y, bp.m - 1, bp.d).getDay();
+  if (rt && rt.from && rt.to && sc && sc.times && wd >= 1 && wd <= 5) {
+    const start = sc.times[shiftOfWeek(sc, weekNo(bp))];
+    const dep = start - (rt.fahrtMin || 30) - 10;
+    if (bp.min >= dep - 45 && bp.min <= dep + 10) {
+      arbeitsweg = true;
+      points.push({ lat: rt.from.lat, lon: rt.from.lon, wo: 'zu Hause' }, { lat: rt.to.lat, lon: rt.to.lon, wo: 'bei der Arbeit' });
+    }
+  }
+  if (!points.length && st.loc && now - st.loc.ts <= LOC_FRESH_MS && rt && rt.from && distKm(st.loc, rt.from) > RAIN_HOME_KM) {
+    points.push({ lat: st.loc.lat, lon: st.loc.lon, wo: 'bei dir' });
+  }
+  if (!points.length) return null;
+  const h = berlinHour(now);
+  if (!arbeitsweg && (h >= 22 || h < 7)) return null;
+  return { points, arbeitsweg };
+}
+async function runRain(redis, st, data, now, ctx) {
+  const r = st.rain;
+  try {
+    const pts = ctx.points;
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + pts.map(p => p.lat.toFixed(3)).join(',') + '&longitude=' + pts.map(p => p.lon.toFixed(3)).join(',') +
+      '&minutely_15=precipitation&forecast_minutely_15=8&past_minutely_15=2&timezone=Europe%2FBerlin';
+    const resp = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(7000) });
+    if (!resp.ok) { r.err = 'Wetterdienst ' + resp.status; r.lastCheck = now - RAIN_CHECK_MS + 3 * 60000; return false; }
+    const j = await resp.json();
+    const locs = Array.isArray(j) ? j : [j];
+    const bp = berlinParts(now);
+    const nowStr = bp.ymd + 'T' + hhmm(bp.min);
+    let best = null;
+    locs.forEach((L, idx) => {
+      const m = L && L.minutely_15; if (!m || !Array.isArray(m.time) || !Array.isArray(m.precipitation)) return;
+      const past = [], fut = [];
+      m.time.forEach((t, i) => { const v = Number(m.precipitation[i]) || 0; if (t < nowStr) past.push(v); else fut.push({ t, v }); });
+      if (past.slice(-2).some(v => v >= RAIN_STEP_MM)) return;   // es regnet schon: nichts melden
+      const next = fut.slice(0, 4);   // nächste Stunde
+      const sum = next.reduce((a, x) => a + x.v, 0);
+      const first = next.findIndex(x => x.v >= RAIN_STEP_MM);
+      if (first < 0 || sum < RAIN_MIN_SUM_MM) return;
+      const peak = Math.max(...next.map(x => x.v)) * 4;   // mm pro Stunde
+      const endIdx = (() => { let e = first; while (e + 1 < fut.length && fut[e + 1].v >= RAIN_STEP_MM) e++; return e; })();
+      const startMin = Math.max(bp.min, parseInt(next[first].t.slice(11, 13), 10) * 60 + parseInt(next[first].t.slice(14, 16), 10) - 15);
+      const endMin = parseInt(fut[endIdx].t.slice(11, 13), 10) * 60 + parseInt(fut[endIdx].t.slice(14, 16), 10);
+      const cand = { wo: pts[idx].wo, startMin, endMin, peak, sum, offen: endIdx === fut.length - 1 };
+      if (!best || cand.startMin < best.startMin) best = cand;
+    });
+    r.lastCheck = now; r.err = null;
+    r.last = { ts: now, regen: best ? { wo: best.wo, ab: hhmm(best.startMin), mmProStunde: Math.round(best.peak * 10) / 10 } : null };
+    if (!best || !data.subs.length) return false;
+    const inMin = Math.max(0, best.startMin - bp.min);
+    const art = best.peak >= 7.5 ? 'starker Regen' : best.peak >= 2.5 ? 'kräftiger Regen' : best.peak >= 1 ? 'mäßiger Regen' : 'leichter Regen';
+    const wo = ctx.arbeitsweg ? (best.wo === 'zu Hause' ? ' bei dir zu Hause' : ' bei der Arbeit') : ' bei dir';
+    const ende = best.offen ? '' : ', bis etwa ' + hhmm(best.endMin) + ' Uhr';
+    const out = await sendToAll(redis, data, {
+      title: inMin <= 5 ? 'Es fängt gleich an zu regnen' : 'Regen in ' + inMin + ' Minuten',
+      body: 'Ab etwa ' + hhmm(best.startMin) + ' Uhr' + wo + ': ' + art + ende + '. ' + (best.peak >= 1 ? 'Nimm Jacke oder Schirm mit.' : 'Eine Jacke reicht wahrscheinlich.'),
+      tag: 'regen', url: './'
+    });
+    if (out.sent > 0) { r.lastAlert = now; r.day = { ymd: bp.ymd, n: (r.day && r.day.ymd === bp.ymd ? r.day.n : 0) + 1 }; return true; }
+    return false;
+  } catch (e) { r.err = 'Regenvorhersage: ' + (e && e.message || 'Fehler'); r.lastCheck = now - RAIN_CHECK_MS + 3 * 60000; return false; }
+}
+
 /* Termin ohne Ortsangabe oder mit nicht berechenbarer Strecke: einfache Vorwarnung 15 Minuten vorher */
 /* --- Situations-Impulse: Jarvis meldet sich von selbst, wenn die Lage passt (ohne dass ein Termin dranhängt) ---
    Regeln (je Regel höchstens einmal am Tag, insgesamt höchstens 2 am Tag, mindestens 25 Minuten Abstand, nur bei geschlossener App):
@@ -827,7 +917,8 @@ async function handleDue(req, res, redis) {
     const wxNow = weatherDue(st, now);
     const impNow = impulseDue(st, now);
     const mailNow = mailDue(st, now);
-    if (!due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow && !impNow && !mailNow) return res.status(200).json({ ok: true, due: 0 });
+    const rainNow = rainDue(st, now, appOpen);
+    if (!due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow && !impNow && !mailNow && !rainNow) return res.status(200).json({ ok: true, due: 0 });
 
     // Sperre: nie zwei Läufe gleichzeitig (sonst käme alles doppelt)
     const lock = await redis('SET', 'alltags-helfer:pushlock', '1', 'NX', 'EX', '40');
@@ -914,6 +1005,10 @@ async function handleDue(req, res, redis) {
     let wxSent = false;
     if (wxNow) wxSent = await runWeather(redis, st, data, now, wxNow);
 
+    // 5b) Regen in der nächsten Stunde (Arbeitsweg oder unterwegs, nur bei geschlossener App)
+    let rainSent = false;
+    if (rainNow) rainSent = await runRain(redis, st, data, now, rainNow);
+
     // 6) Situations-Impulse (Schichtwechsel, Bettzeit vor Frühschicht, Vorschau auf morgen)
     let impSent = false;
     if (impNow) impSent = await runImpulse(redis, st, data, now, impNow, appOpen);
@@ -937,7 +1032,7 @@ async function handleDue(req, res, redis) {
     for (const k of Object.keys(st.dep)) { if (!ids.has(k)) delete st.dep[k]; }
     for (const k of Object.keys(st.nag)) { if (!ids.has(k)) delete st.nag[k]; }
     await redis('SET', ITEMS_KEY, JSON.stringify(st));
-    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent, tank: tankSent, wetter: wxSent, impuls: impSent, mail: mailSent });
+    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent, tank: tankSent, wetter: wxSent, regen: rainSent, impuls: impSent, mail: mailSent });
   } catch (err) {
     return res.status(500).json({ error: 'Push-Fehler: ' + err.message });
   }

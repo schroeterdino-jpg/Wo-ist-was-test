@@ -292,9 +292,121 @@ async function holidays(req, res) {
 }
 
 /* ------------------------------------------------------------------
+   places: Orte-Suche über Google Places (neue API, "Text Search"): Name, Adresse, Öffnungszeiten (auch Feiertage, "jetzt geöffnet"),
+   Bewertung, Telefon. Genauer und vollständiger als OpenStreetMap, besonders bei Öffnungszeiten.
+   Aufruf: /api/maps?action=places&lat=..&lon=..&radius=5000&q=Penny
+   Braucht in Vercel: GOOGLE_MAPS_API_KEY (derselbe wie für die Routes API) und in Google Cloud die aktivierte "Places API (New)".
+   Schutz vor Kosten: Ergebnis 10 Minuten zwischengespeichert, höchstens PLACES_MONATSLIMIT Abfragen pro Monat (Zähler in Redis, wie bei der Route).
+   Ohne Schlüssel, ohne Redis, bei erreichtem Limit oder bei jedem Fehler antwortet der Server mit einem Fehler, und die App nimmt wie bisher OpenStreetMap.
+   ------------------------------------------------------------------ */
+const PLACES_MONATSLIMIT = 900;
+const PLACES_CACHE_S = 600;
+const OSM_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+function distM(lat1, lon1, lat2, lon2) {
+  const R = 6371000, rad = Math.PI / 180, dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/* Google-Öffnungszeiten (periods) in die OpenStreetMap-Schreibweise ("Mo 08:00-20:00; Tu ...") umwandeln,
+   damit die bisherige Auswertung in der App sie versteht */
+function periodsToOsm(periods) {
+  if (!Array.isArray(periods) || !periods.length) return '';
+  if (periods.length === 1 && periods[0].open && !periods[0].close) return '24/7';
+  const pad = n => String(n || 0).padStart(2, '0');
+  const perDay = {};
+  periods.forEach(p => {
+    if (!p.open || !p.close) return;
+    const d = p.open.day;
+    const closeIsMidnight = p.close.day !== d && !p.close.hour && !p.close.minute;
+    const end = closeIsMidnight ? '24:00' : pad(p.close.hour) + ':' + pad(p.close.minute);
+    (perDay[d] = perDay[d] || []).push(pad(p.open.hour) + ':' + pad(p.open.minute) + '-' + end);
+  });
+  const rules = [];
+  [1, 2, 3, 4, 5, 6, 0].forEach(d => {
+    rules.push(perDay[d] ? OSM_DAYS[d] + ' ' + perDay[d].sort().join(',') : OSM_DAYS[d] + ' off');
+  });
+  return rules.join('; ');
+}
+
+function berlinTime(iso) {
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return null;
+    const hhmm = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+    const day = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(d);
+    const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
+    return { hhmm, sameDay: day === today };
+  } catch (e) { return null; }
+}
+
+async function places(req, res) {
+  const key = process.env.GOOGLE_MAPS_API_KEY;
+  if (!key) return res.status(503).json({ error: 'GOOGLE_MAPS_API_KEY fehlt' });
+  const lat = Number(req.query.lat), lon = Number(req.query.lon);
+  const radius = Math.min(50000, Math.max(500, Number(req.query.radius) || 5000));
+  const q = String(req.query.q || '').trim().slice(0, 60);
+  if (!q || !isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return res.status(400).json({ error: 'Suchbegriff oder Koordinaten fehlen' });
+
+  const cacheKey = 'gmaps:places:' + q.toLowerCase() + ':' + lat.toFixed(3) + ',' + lon.toFixed(3) + ':' + Math.round(radius / 1000);
+  const cached = await redisCmd(['GET', cacheKey]);
+  if (cached) { try { const o = JSON.parse(cached); o.zwischengespeichert = true; return res.status(200).json(o); } catch (e) {} }
+
+  const monat = new Date().toISOString().slice(0, 7);
+  const zaehler = await redisCmd(['INCR', 'gmaps:placescount:' + monat]);
+  if (typeof zaehler !== 'number') return res.status(503).json({ error: 'Zähler (Redis) nicht erreichbar' });
+  if (zaehler === 1) await redisCmd(['EXPIRE', 'gmaps:placescount:' + monat, 3456000]);
+  if (zaehler > PLACES_MONATSLIMIT) return res.status(429).json({ error: 'Monatslimit für Google Places erreicht' });
+
+  try {
+    const r = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': key,
+        'X-Goog-FieldMask': 'places.displayName,places.addressComponents,places.location,places.regularOpeningHours,places.currentOpeningHours,places.rating,places.userRatingCount,places.nationalPhoneNumber,places.businessStatus'
+      },
+      body: JSON.stringify({
+        textQuery: q,
+        languageCode: 'de',
+        regionCode: 'DE',
+        rankPreference: 'DISTANCE',
+        maxResultCount: 10,
+        locationBias: { circle: { center: { latitude: lat, longitude: lon }, radius } }
+      }),
+      signal: AbortSignal.timeout(9000)
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return res.status(502).json({ error: 'Google Places: ' + ((d && d.error && d.error.message) || ('Status ' + r.status)).slice(0, 160) });
+    const out = [];
+    (d.places || []).forEach(p => {
+      if (!p.location || p.businessStatus === 'CLOSED_PERMANENTLY') return;
+      const plat = p.location.latitude, plon = p.location.longitude;
+      if (distM(lat, lon, plat, plon) > radius * 1.1) return;
+      const comp = t => { const c = (p.addressComponents || []).find(x => (x.types || []).indexOf(t) >= 0); return c ? c.longText : ''; };
+      const cur = p.currentOpeningHours || null;
+      const o = { name: (p.displayName && p.displayName.text) || '', lat: plat, lon: plon, street: comp('route'), housenumber: comp('street_number'), city: comp('locality') || comp('postal_town') || comp('sublocality'), postcode: comp('postal_code') };
+      o.hours = periodsToOsm(p.regularOpeningHours && p.regularOpeningHours.periods);
+      o.openNow = cur && typeof cur.openNow === 'boolean' ? cur.openNow : null;
+      if (o.openNow === true && cur.nextCloseTime) { const t = berlinTime(cur.nextCloseTime); if (t && t.sameDay) o.until = t.hhmm; }
+      if (o.openNow === false && cur && cur.nextOpenTime) { const t = berlinTime(cur.nextOpenTime); if (t && t.sameDay) o.opensAt = t.hhmm; }
+      if (typeof p.rating === 'number') { o.rating = p.rating; o.ratingCount = p.userRatingCount || 0; }
+      if (p.nationalPhoneNumber) o.phone = p.nationalPhoneNumber;
+      out.push(o);
+    });
+    const result = { quelle: 'google', places: out };
+    await redisCmd(['SET', cacheKey, JSON.stringify(result), 'EX', PLACES_CACHE_S]);
+    return res.status(200).json(result);
+  } catch (e) {
+    return res.status(502).json({ error: 'Google Places nicht erreichbar: ' + e.message });
+  }
+}
+
+/* ------------------------------------------------------------------
    Verteiler: prüft zuerst den App-Code (wie bisher in jeder der vier Dateien) und ruft dann die passende Funktion auf
    ------------------------------------------------------------------ */
-const ACTIONS = { geocode, reverse, route, overpass, holidays };
+const ACTIONS = { geocode, reverse, route, overpass, holidays, places };
 
 export default async function handler(req, res) {
   const expected = process.env.APP_SECRET;
