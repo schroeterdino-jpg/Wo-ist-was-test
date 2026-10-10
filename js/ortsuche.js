@@ -276,6 +276,10 @@
     let googleDownUntil = 0;
     const googleMemo = new Map();
     async function googleElements(text, lat, lon, radius) {
+        try { const r = await googleElements0(text, lat, lon, radius); window.__jvGoogleLast = { ok: true, n: r.length, at: Date.now() }; return r; }
+        catch (e) { window.__jvGoogleLast = { ok: false, msg: String((e && e.message) || e).slice(0, 80), at: Date.now() }; throw e; }
+    }
+    async function googleElements0(text, lat, lon, radius) {
         if (Date.now() < googleDownUntil) throw new Error('Google pausiert');
         const mk = text.toLowerCase() + '|' + lat.toFixed(3) + ',' + lon.toFixed(3) + '|' + radius;
         const hit = googleMemo.get(mk);

@@ -19,6 +19,15 @@
     if (window.jvLage) return;
     const RKM = 20;
     const TANK_KM = 5;   // Diesel nur im Umkreis von 5 km um dich
+    function quelleOrte() {
+        const g = window.__jvGoogleLast;
+        if (g && Date.now() - g.at < 120000) {
+            if (g.ok && g.n) return 'Quelle: Google Places (' + g.n + ' Treffer).';
+            if (g.ok) return 'Quelle: OpenStreetMap (Google fand nichts).';
+            return 'Quelle: OpenStreetMap. Google Places ging nicht: ' + g.msg;
+        }
+        return 'Quelle: OpenStreetMap. Öffnungszeiten können fehlen oder veraltet sein.';
+    }
     let layer = null, body = null, timer = 0, state = null, ladeNr = 0, view = 'umkreis', zielD = null, orteD = null, orteTank = false;
     const sagen = t => { try { if (typeof speak === 'function') speak(t, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} };
     const mit = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
@@ -343,7 +352,7 @@
             body.appendChild(k);
         });
         const kn = el('div', 'knoepfe'); kn.appendChild(zurueckKnopf()); body.appendChild(kn);
-        body.appendChild(el('div', 'fuss', orteTank ? 'Quelle: Tankerkönig, Preise in Euro pro Liter, im Umkreis von ' + TANK_KM + ' km.' : 'Quelle: OpenStreetMap. Öffnungszeiten fehlen dort manchmal oder sind veraltet.'));
+        body.appendChild(el('div', 'fuss', orteTank ? 'Quelle: Tankerkönig, Preise in Euro pro Liter, im Umkreis von ' + TANK_KM + ' km.' : quelleOrte()));
     }
     const istTankKarte = c => c && /^(🟢|⛽)/.test(String(c.icon || '')) && /\d,\d{3} €\s*$/.test(String(c.title || ''));
     const istOrtKarte = c => c && c.href && / · /.test(String(c.title || '')) && /google\.com\/maps\/dir\/\?[^ ]*destination=-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?/.test(c.href);
