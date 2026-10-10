@@ -28,7 +28,7 @@
         }
         return 'Quelle: OpenStreetMap. Öffnungszeiten können fehlen oder veraltet sein.';
     }
-    let layer = null, body = null, timer = 0, state = null, ladeNr = 0, view = 'umkreis', zielD = null, orteD = null, orteTank = false;
+    let layer = null, body = null, timer = 0, state = null, ladeNr = 0, view = 'umkreis', zielD = null, orteD = null, orteTank = false, wegD = null;
     const sagen = t => { try { if (typeof speak === 'function') speak(t, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} };
     const mit = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
     const euro = p => p.toFixed(3).replace('.', ',') + ' €';
@@ -307,14 +307,14 @@
     }
     function close() {
         if (!layer) return;
-        clearInterval(timer); ladeNr++; layer.remove(); layer = null; body = null; state = null; view = 'umkreis'; zielD = null; orteD = null;
+        clearInterval(timer); ladeNr++; layer.remove(); layer = null; body = null; state = null; view = 'umkreis'; zielD = null; orteD = null; wegD = null;
     }
 
     /* ---------- Ansicht "Ziel": Route zu X, Wann losfahren, Stau auf der Strecke ---------- */
     function zurueckKnopf() { const b = el('button', '', '◀ LAGEBILD'); b.addEventListener('click', () => { state = null; open(true); }); return b; }
     function ziel(d) {
         if (!d || !d.map) return false;
-        zielD = d; view = 'ziel';
+        zielD = d; view = 'ziel'; wegD = null;
         layerBauen(); clearInterval(timer); ladeNr++; kopfText(); zeichne();
         try { layer.scrollTo(0, 0); } catch (e) {}
         return true;
@@ -323,13 +323,22 @@
         const d = zielD, m = d.map, min = m.fahrtMin, km = Math.round(Number(m.km));
         const auf = (m.warnings || []).filter(w => m.coords && distToLine(w.lat, w.lon, m.coords) <= (/sperr|gesperrt/i.test((w.title || '') + ' ' + (w.text || '')) ? 0.25 : 0.6));
         const z = [];
-        if (d.untertitel) { const ab = String(d.untertitel).match(/Abfahrt bis .+$/); if (ab) z.push({ t: ab[0], c: 'dim' }); }
+        if (d.untertitel) { const ab = String(d.untertitel).match(/Abfahrt bis .+$/); if (ab) z.push({ t: ab[0].replace(/(\d{1,2}) Uhr (\d{1,2})\b/, (x, h, m) => h.padStart(2, '0') + ':' + m.padStart(2, '0') + ' Uhr'), c: 'dim' }); }
         if (auf.length) auf.slice(0, 3).forEach(x => z.push({ t: '⚠ ' + x.title + (x.road && /^A\d+$/.test(x.road) ? ' (' + x.road + ')' : ''), c: 'bad' }));
         else z.push({ t: '✓ Frei, keine Meldungen auf der Strecke', c: 'ok' });
         if (auf.length > 3) z.push({ t: '+ ' + (auf.length - 3) + ' weitere Meldungen', c: 'dim' });
         body.appendChild(karte('🎯 ' + String(d.titel || 'ZIEL').toUpperCase().slice(0, 26), 'ANKUNFT ' + hhmm(new Date(Date.now() + (min || 0) * 60000)), min + ' Min · ' + km + ' km', z));
         const extra = (d.zeilen || []).filter(x => x && x.text);
         if (extra.length) body.appendChild(karte('UNTERWEGS & AM ZIEL', '', null, extra.map(x => ({ t: x.text, c: '' }))));
+        if (wegD) {
+            const zl = wegD.items.length ? wegD.items.map(x => ({ t: x.name + ' · ' + x.abw + ' ' + (x.status ? '· ' + x.status : ''), c: '' })) : [{ t: 'Nichts gefunden: ' + wegD.was, c: 'dim' }];
+            const wk = karte('📍 AUF DEM WEG: ' + wegD.was.toUpperCase().slice(0, 22), wegD.items.length ? 'TIPPEN: ROUTE' : '', null, zl);
+            if (wegD.items.length) wk.addEventListener('click', () => { try { window.open(wegD.items[0].href, '_blank'); } catch (e) {} });
+            body.appendChild(wk);
+        }
+        const knm = el('div', 'knoepfe');
+        const bm = el('button', 'p', '🎤 FRAG: GIBT ES … AUF DEM WEG?'); bm.addEventListener('click', () => { try { if (typeof startListening === 'function') startListening(false); } catch (e) {} });
+        knm.appendChild(bm); body.appendChild(knm);
         const kn = el('div', 'knoepfe');
         const b1 = el('button', 'p', 'NAVIGATION ▶'); b1.addEventListener('click', () => { try { const a = m.to && isFinite(m.to.lat) ? m.to.lat + ',' + m.to.lon : d.titel; window.open(buildMapsLink(a, '', 'driving'), '_blank'); } catch (e) {} });
         const b2 = el('button', '', 'KARTE'); b2.addEventListener('click', () => { const md = d.map; close(); try { openPanel('karte', { mapData: md }); } catch (e) {} });
@@ -411,6 +420,52 @@
             return origTank.apply(this, arguments);
         };
         window.fuelAlongRouteAdvice._jvLage = true;
+    }
+
+
+    /* ---------- "Gibt es eine Apotheke auf dem Weg?" (nur in der Ziel-Ansicht) ---------- */
+    function punkteAmWeg(coords) {
+        const n = coords.length, out = [];
+        const k = Math.min(5, Math.max(2, Math.round(n / 60)));
+        for (let i = 1; i <= k; i++) out.push(coords[Math.min(n - 1, Math.floor(n * i / (k + 1)))]);
+        return out;
+    }
+    async function suchAufDemWeg(was) {
+        const m = zielD && zielD.map;
+        if (!m || !m.coords || m.coords.length < 2 || typeof window.jvGoogleElements !== 'function') { sagen('Dafür brauche ich erst eine Route. Sag zum Beispiel: Route zu Hamburg.'); return; }
+        sagen('Ich suche ' + was + ' auf dem Weg.');
+        const pts = punkteAmWeg(m.coords);
+        const alle = await Promise.all(pts.map(p => mit(window.jvGoogleElements(was, p[0], p[1], 6000).catch(() => []), 12000)));
+        const gesehen = new Set(), items = [];
+        alle.forEach(l => (l || []).forEach(e => {
+            const nm = (e.tags && e.tags.name) || '';
+            const key = nm + '|' + Number(e.lat).toFixed(4) + ',' + Number(e.lon).toFixed(4);
+            if (!nm || gesehen.has(key)) return;
+            gesehen.add(key);
+            const ab = distToLine(e.lat, e.lon, m.coords);
+            if (ab > 2.5) return;   // höchstens 2,5 km abseits der Strecke
+            const g = e.g || {}, st = g.openNow === true ? 'offen' : g.openNow === false ? 'geschlossen' : '';
+            const to = m.to && isFinite(m.to.lat) ? m.to.lat + ',' + m.to.lon : (zielD.titel || '');
+            items.push({ name: nm, ab: ab < 0.15 ? 'direkt an der Strecke' : (ab < 1 ? Math.round(ab * 10) * 100 + ' m Umweg' : ab.toFixed(1).replace('.', ',') + ' km abseits'), abKm: ab, status: st, href: 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(to) + '&waypoints=' + encodeURIComponent(e.lat + ',' + e.lon) + '&travelmode=driving' });
+        }));
+        items.sort((a, b) => a.abKm - b.abKm);
+        wegD = { was, items: items.slice(0, 4) };
+        if (view === 'ziel' && body) zeichne();
+        if (!items.length) { sagen('Auf dem Weg habe ich ' + was + ' nicht gefunden.'); return; }
+        const e0 = items[0];
+        sagen('Ja, ' + e0.name + ', ' + (e0.abKm < 0.15 ? 'direkt an der Strecke' : 'etwa ' + (e0.abKm < 1 ? Math.round(e0.abKm * 10) * 100 + ' Meter' : e0.abKm.toFixed(1).replace('.', ',') + ' Kilometer') + ' abseits') + (e0.status ? ', ' + e0.status : '') + '.' + (items.length > 1 ? ' Weitere stehen im Lagebild.' : ''));
+    }
+    if (window.jvCommands) {
+        window.jvCommands.use('lageweg', function (text, next) {
+            const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
+            if (!(layer && view === 'ziel' && zielD) || t.length > 80) return next(text);
+            const m = t.match(/^(?:jarvis )?(?:gibt es|gibt's|ist|sind|finde|such|suche|zeig mir|zeig)?\s*(?:da |dort )?(?:eine?n?|keine?n?|irgendeine?n?|ne|nen)?\s*(.+?)\s+(?:auf dem weg|auf der strecke|unterwegs|an der strecke|entlang der strecke)(?: gibt es| gibt's)?$/);
+            if (!m || !m[1] || /^(?:stau|regen|wetter|diesel|tankstelle für diesel)$/.test(m[1])) return next(text);
+            const was = m[1].replace(/^(?:gibt es|gibt's|ist|sind)\s+/, '').replace(/\b(?:so|mal|vielleicht|bitte|noch|irgendwo)\b/g, '').replace(/\s+/g, ' ').trim();
+            if (!was) return next(text);
+            suchAufDemWeg(was.charAt(0).toUpperCase() + was.slice(1)).catch(e => console.error('Lagebild Weg', e));
+            return true;
+        }, 139);
     }
 
     /* ---------- Sprache ---------- */

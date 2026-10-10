@@ -33,7 +33,7 @@
             const i = H.time.findIndex(t => t.slice(0, 13) === key(an));
             if (i < 0) return null;
             const code = H.weather_code[i], mm = H.precipitation[i];
-            if (!nass(mm, code)) return null;
+            if (!nass(mm, code)) return { trockenZiel: true, text: '', kurz: 'Bei Ankunft gegen ' + hh(an) + ' ist es am Ziel trocken' };
             const schwer = code === 96 || code === 99, gewitter = code === 95 || schwer;
             let trocken = null;
             for (let j = i + 1; j < Math.min(H.time.length, i + 6); j++) if (!nass(H.precipitation[j], H.weather_code[j])) { trocken = H.time[j].slice(11, 13); break; }
@@ -90,7 +90,7 @@
             if (pd(KEY, 'an') !== 'aus') {
                 const [wetter] = await Promise.all([mit(wetterAmZiel(m.to.lat, m.to.lon, m.fahrtMin || 0), 6000)]);
                 const liste = listenTipp(ziel), rg = rechnungsTipp();
-                if (wetter) { zeilen.push({ ok: null, text: '☂ ' + wetter.kurz }); sprich.push(wetter.text); }
+                if (wetter) { zeilen.push({ ok: null, text: '☂ ' + wetter.kurz }); if (wetter.text) sprich.push(wetter.text); }
                 if (res.sprit) zeilen.push({ ok: null, text: '⛽ ' + (res.sprit.name || 'Tankstelle') + ': Diesel ' + res.sprit.preis.toFixed(3).replace('.', ',') + ' € an der Strecke' });
                 if (liste.length) { zeilen.push({ ok: null, text: '📝 Auf deiner Liste: ' + liste.join(', ') }); sprich.push('Auf deiner Liste stehen noch ' + liste.slice(0, 3).join(', ') + (liste.length > 3 ? ' und mehr' : '') + '.'); }
                 if (rg) zeilen.push({ ok: null, text: '🧾 ' + rg });
