@@ -484,6 +484,7 @@
         return false;
     }
     window.handleGehirnCommand = handle;
+    window.__gehirnSet = setMode;   // für die Hologramm-Ansicht (js/hologramm.js)
     window.__gehirnTest = { frame: t => frame(t), st: () => ({ n: zoomNode && zoomNode.label, k: zoomK, sx: zoomNode && zoomNode.sx, sy: zoomNode && zoomNode.sy, sr: zoomNode && zoomNode.sr }), hit: (x, y) => hit(x, y) && hit(x, y).label };
     if (window.jvCommands) {   // Befehlsliste (commands.js)
         window.jvCommands.use('gehirn', function (text, next) {
