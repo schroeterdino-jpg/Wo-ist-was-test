@@ -22,19 +22,25 @@
         { t: 'DER TAG AUF EINEN BLICK', k: 'Briefing und Schicht', ic: '🌅',
           say: 'Morgens fasse ich den Tag zusammen: Termine, Wetter, Erinnerungen und wichtige Dinge. Ich richte mich nach seiner Schicht, Früh oder Spät, und der Wechsel läuft ganz von allein.',
           items: ['📅 Termine von heute', '🌦️ Wetter mit Jacken-Tipp', '⏰ Erinnerungen', '🔁 Schichtplan, Wechsel automatisch'] },
+        { t: 'ALLTAG ORGANISIERT', k: 'Listen, Protokolle, Kontakte', ic: '🗂️',
+          say: 'Im Alltag halte ich den Kopf frei. Einkaufsliste und Aufgaben pflege ich per Sprache. Erinnerungen wiederhole ich auf Wunsch, jeden Montag oder alle zwei Wochen, und bei wichtigen frage ich so lange nach, bis sie erledigt sind. Mit einem Wort wie Feierabend starte ich gleich mehrere Aktionen auf einmal. Und anrufen oder navigieren kann ich auch.',
+          items: ['🛒 Einkaufsliste und Aufgaben', '🔁 Erinnerungen mit Wiederholung', '⚡ Protokolle: „Feierabend“ erledigt alles auf einmal', '📞 Anrufen, WhatsApp, Navigation'] },
         { t: 'WETTER WELTWEIT', k: 'Live-Vorführung', ic: '🌍', say: 'Das Wetter kann ich auch weltweit. Ich zeige es euch live: Istanbul.',
           items: ['🌍 Jeder Ort der Welt', '🛰️ Wetterkarte mit Vorhersage'],
-          demo: { cmd: 'Zeig mir das Wetter in Istanbul', max: 22000, dwell: 5000 } },
+          demo: { cmd: 'Zeig mir das Wetter in Istanbul', max: 14000, dwell: 2500 } },
         { t: 'UNTERWEGS', k: 'Lagebild: Fahrt, Stau, Orte', ic: '🚗',
           say: 'Unterwegs wird es richtig praktisch. Ich rechne aus, wann man losfahren muss, mit Stau auf der Strecke und Regen am Ziel. Und ich finde alles in der Nähe. Live: die nächste Apotheke.',
           items: ['⏱️ Abfahrtszeit mit Stau', '🌧️ Wetter am Ziel', '📍 Orte in der Nähe und auf dem Weg', '⛽ Tankstellen und Dieselpreis'],
-          demo: { cmd: 'Wo ist die nächste Apotheke', max: 25000, dwell: 6000 } },
+          demo: { cmd: 'Wo ist die nächste Apotheke', max: 22000, dwell: 3500 } },
         { t: 'MOND UND STERNE', k: 'Live-Vorführung', ic: '🌕', say: 'Etwas fürs Auge: Wann ist der nächste Vollmond?',
           items: ['🌕 Mondphase', '🌅 Sonnenauf- und -untergang'],
-          demo: { cmd: 'Wann ist der nächste Vollmond', max: 20000, dwell: 4000 } },
+          demo: { cmd: 'Wann ist der nächste Vollmond', max: 14000, dwell: 2500 } },
         { t: 'UMRECHNEN', k: 'Währungen', ic: '💶', say: 'Und wer viel unterwegs ist, braucht Währungen. Fünfzig Euro in Lira?',
           items: ['💶 Euro, Lira, Dollar und mehr'],
-          demo: { cmd: 'Was sind 50 Euro in Lira', max: 15000, dwell: 1500 } },
+          demo: { cmd: 'Was sind 50 Euro in Lira', max: 12000, dwell: 1500 } },
+        { t: 'UNTERWEGS PLUS', k: 'Sprit, Unwetter, Feiertage', ic: '⛽',
+          say: 'Dazu kommt einiges rund ums Fahren. Ich zeige die günstigsten Tankstellen in der Nähe und entlang der Strecke, und warne vor dem Diesel-Hoch. Bei Unwettern gebe ich Bescheid. Außerdem kenne ich Feiertage, Brückentage und die Schulferien in allen Bundesländern.',
+          items: ['⛽ Spritpreise in der Nähe und auf der Strecke', '🌩️ Unwetterwarnungen', '🏖️ Feiertage, Brückentage, Schulferien', '📦 Paketverfolgung'] },
         { t: 'GEDÄCHTNIS', k: 'Merkt sich, was wichtig ist', ic: '🧠',
           say: 'Ich habe ein Gedächtnis. Wo steht das Auto? Wo liegt die Brille? Ich weiß es. Im Langzeitgedächtnis merke ich mir auch Pläne, Erlebnisse und Vorlieben, und frage später nach, wie es war.',
           items: ['🅿️ Parkplatz vom Auto', '🔑 Gegenstände und Orte', '🧠 Langzeitgedächtnis', '💭 „Wie war das Schwimmen?“'] },
@@ -47,6 +53,9 @@
         { t: 'SPRACHEN UND WELT', k: 'Dolmetscher, Weltkugel', ic: '🗣️',
           say: 'Ich dolmetsche auf Englisch, Türkisch, Rumänisch, Polnisch und Russisch. Und ich zeige die Welt: eine Weltkugel mit Nachrichten, und Live-Kameras aus großen Städten.',
           items: ['🗣️ 5 Sprachen', '🌐 Weltkugel mit Nachrichten', '📹 Live-Kameras'] },
+        { t: 'FREIZEIT', k: 'Filme, Fernsehen, Fußball', ic: '🎬',
+          say: 'Auch für den Feierabend habe ich etwas. Ich gebe Filmtipps nach seinem Geschmack, suche im Fernsehprogramm passende Sendungen, sage, was im Kino läuft, und kenne die Bundesliga-Tabelle.',
+          items: ['🎬 Filmtipps nach Vorlieben', '📺 Fernsehprogramm', '🍿 Kino in der Nähe', '⚽ Bundesliga-Tabelle'] },
         { t: 'AUCH BEI GESCHLOSSENER APP', k: 'Push-Nachrichten', ic: '🔔', emo: 'warn',
           say: 'Und das Beste: Ich melde mich auch, wenn die App zu ist. Erinnerungen, die Abfahrtszeit mit Stau, Glatteis auf dem Arbeitsweg und wenn der Diesel günstig ist. Achtung: Bei wichtigen Dingen bin ich ziemlich hartnäckig.',
           items: ['⏰ Erinnerungen mit Nachfassen', '🚗 Abfahrt inklusive Stau', '❄️ Glatteis und Regen', '⛽ Dieselpreis-Alarm'] },
@@ -147,9 +156,14 @@
         while (alive(id) && !skipFlag && Date.now() - t0 < maxMs) { if (idleNow()) { await sleep(600); if (idleNow()) return; } await sleep(300); }
     }
 
+    /* Schließt ALLES, was eine Vorführung geöffnet haben kann (Lagebild, Wetterkarte, Mond-/Extrafenster, normale Fenster).
+       Bewusst ohne "ist eins offen?"-Prüfung: Wetterkarte und Extrafenster laufen nicht über das normale Fenster-System. */
     function schliesseFenster() {
         try { if (window.jvLage && window.jvLage.isOpen && window.jvLage.isOpen()) window.jvLage.close(); } catch (e) {}
-        try { if (typeof isPanelOpen === 'function' && isPanelOpen()) closePanel(); } catch (e) {}
+        try { if (typeof closeWeatherMap === 'function') closeWeatherMap(); } catch (e) {}
+        try { if (typeof window.closeExtraWindow === 'function') window.closeExtraWindow(); } catch (e) {}
+        try { if (typeof closePanel === 'function') closePanel(); } catch (e) {}
+        try { const x = document.getElementById('extraFenster'); if (x && x.parentNode) x.parentNode.parentNode ? x.parentNode.remove() : x.remove(); } catch (e) {}
     }
 
     async function demo(d, id) {
@@ -168,6 +182,7 @@
     async function run(id) {
         for (let i = 0; i < SZENEN.length && alive(id); i++) {
             const s = SZENEN[i]; skipFlag = false;
+            schliesseFenster();
             show(i);
             const est = s.say.length * 70;
             reveal(i, est, id);
