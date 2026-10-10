@@ -6,6 +6,9 @@
    Live-Vorführungen (Wetter, Apotheke in der Nähe, Mond, Währung) laufen mit den echten Funktionen der App.
    Private Dinge (Mail, Kalender, Gedächtnis, Konto) werden nur als Folie gezeigt, nie live.
    Während der Präsentation hört Jarvis nicht zu (Gesprächsmodus ist aus) und ein Tippen auf die Figur startet nichts.
+   Markenrecht: Während der Präsentation erscheint und klingt der Name "Jarvis" nirgends (Video für TikTok). Der Assistent heißt dann
+   "Scarlett" (NAME unten). Sichtbare Texte (Titel, Statuszeile, Lagebild ...) werden nur auf dem Bildschirm getauscht und danach zurückgesetzt,
+   gesprochene Sätze werden vor dem Sprechen umgeschrieben. Im Alltag bleibt alles beim Alten.
    Braucht: voice.js (speak), commands.js, hologramm.js (optional, für Gesten).
    ============================================================ */
 (function () {
@@ -13,8 +16,8 @@
     let running = false, aborted = false, card = null, cap = null, savedConv = null, savedHolo = null, runId = 0, wake = 0;
 
     const SZENEN = [
-        { t: 'JARVIS', k: 'Persönlicher Sprachassistent', ic: '🎙️', emo: 'greet',
-          say: 'Hallo zusammen! Ich bin Jarvis, der persönliche Sprachassistent von Dino. Er hat mich selbst gebaut, Schritt für Schritt. Darf ich mich kurz vorstellen?',
+        { t: 'SCARLETT', k: 'Persönlicher Sprachassistent', ic: '🎙️', emo: 'greet',
+          say: 'Hallo zusammen! Ich bin Scarlett, der persönliche Sprachassistent von Dino. Er hat mich selbst gebaut, Schritt für Schritt. Darf ich mich kurz vorstellen?',
           items: ['🎙️ Sprache', '🧠 Gedächtnis', '🚗 Unterwegs', '📅 Termine', '📷 Kamera'] },
         { t: 'REDEN WIE MIT EINEM MENSCHEN', k: 'Keine festen Kommandos', ic: '💬',
           say: 'Zuerst das Wichtigste: Man redet einfach ganz normal mit mir. Ohne feste Kommandos, und gern auch mehrere Wünsche in einem Satz. Zum Beispiel: Erinnere mich morgen an den Zahnarzt und setz Milch auf die Einkaufsliste.',
@@ -66,6 +69,48 @@
           say: 'Das war\'s von mir. Gebaut mit viel Geduld und noch mehr Ideen. Gibt es Fragen?',
           items: ['✨ Danke!'] }
     ];
+
+    const NAME = 'Scarlett';
+    const markeNeu = t => String(t == null ? '' : t).replace(/J\.A\.R\.V\.I\.S\.?/g, NAME.toUpperCase()).replace(/JARVIS/g, NAME.toUpperCase()).replace(/Jarvis/g, NAME).replace(/jarvis/g, NAME.toLowerCase());
+    const RX_MARKE = /j\.a\.r\.v\.i\.s|jarvis/i;
+    let orig = new Map(), obs = null, busy = false, prevSpeak = null;
+    function tauschKnoten(n) {
+        if (!n || n.nodeType !== 3) return;
+        const v = n.nodeValue; if (!v || !RX_MARKE.test(v)) return;
+        if (!orig.has(n)) orig.set(n, v);
+        busy = true; try { n.nodeValue = markeNeu(v); } finally { busy = false; }
+    }
+    function tauschBaum(root) {
+        if (!root) return;
+        if (root.nodeType === 3) { tauschKnoten(root); return; }
+        if (root.nodeType !== 1 || /^(SCRIPT|STYLE|NOSCRIPT)$/.test(root.tagName) || root.id === 'praesiCard') return;
+        const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+        let n; while ((n = w.nextNode())) tauschKnoten(n);
+    }
+    function markeAn() {
+        tauschBaum(document.body);
+        obs = new MutationObserver(list => {
+            if (busy) return;
+            list.forEach(m => {
+                if (m.type === 'characterData') tauschKnoten(m.target);
+                else m.addedNodes.forEach(x => tauschBaum(x));
+            });
+        });
+        obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+        try {   // gesprochene Sätze (KI-Antworten, Ansagen) ohne den Namen
+            if (typeof window.speak === 'function' && !window.speak._praesi) {
+                prevSpeak = window.speak;
+                const w = function (text) { const a = Array.prototype.slice.call(arguments); a[0] = markeNeu(text); return prevSpeak.apply(this, a); };
+                w._praesi = true; window.speak = w;
+            }
+        } catch (e) {}
+    }
+    function markeAus() {
+        try { if (obs) obs.disconnect(); } catch (e) {} obs = null;
+        orig.forEach((v, n) => { try { if (n.isConnected || n.parentNode) { busy = true; n.nodeValue = v; busy = false; } } catch (e) { busy = false; } });
+        orig = new Map();
+        try { if (prevSpeak && window.speak && window.speak._praesi) window.speak = prevSpeak; } catch (e) {} prevSpeak = null;
+    }
 
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     const alive = id => running && !aborted && id === runId;
@@ -202,6 +247,7 @@
         try { savedConv = typeof conversationMode !== 'undefined' ? conversationMode : null; if (savedConv !== null) conversationMode = false; } catch (e) {}
         try { savedHolo = window.jvHolo ? window.jvHolo.on() : null; if (window.jvHolo && !savedHolo) window.jvHolo.set(true); } catch (e) {}
         document.body.classList.add('jv-praesi');
+        markeAn();
         try { schliesseFenster(); } catch (e) {}
         if (!card) build();
         try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wake = l; }).catch(() => {}); } catch (e) {}
@@ -217,6 +263,7 @@
         try { if (window.jvHolo && savedHolo === false) window.jvHolo.set(false); } catch (e) {}
         try { if (wake && wake.release) wake.release(); wake = 0; } catch (e) {}
         document.body.classList.remove('jv-praesi');
+        markeAus();
         if (card) card.classList.remove('on'); if (cap) cap.classList.remove('on');
         if (userCut) { try { typeWriterStatus('Klicken zum Sprechen...'); } catch (e) {} }
     }
