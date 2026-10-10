@@ -98,6 +98,12 @@
             }
             // Alles in einem Fenster: das Lagebild zeigt Ziel, Fahrzeit, Stau auf der Strecke, Wetter am Ziel, Diesel, Liste und Rechnung.
             // Die HUD-Karte öffnet sich dann nicht zusätzlich (der Linienverlauf wird nur der Antwort abgenommen, nicht dem Original).
+            // Gesprochener Satz zur Verkehrslage und Karte sollen dasselbe sagen: nur Meldungen, die wirklich auf der Strecke liegen
+            if (window.jvLage && typeof window.jvLage.aufStrecke === 'function' && typeof lastStauText === 'string' && lastStauText && res.reply && res.reply.indexOf(lastStauText) >= 0) {
+                const auf = window.jvLage.aufStrecke(m);
+                const satz = auf.length ? ' Achtung, auf der Strecke gemeldet: ' + auf.slice(0, 3).map(x => x.title).join('; ') + '.' : ' Auf deiner Strecke sind keine Meldungen bekannt.';
+                res.reply = res.reply.replace(lastStauText, satz);
+            }
             if (window.jvLage && typeof window.jvLage.ziel === 'function') {
                 const sub = res.card && res.card.subtitle && /Abfahrt/.test(res.card.subtitle) ? res.card.subtitle : '';
                 if (window.jvLage.ziel({ titel: ziel, map: m, untertitel: sub, zeilen })) return Object.assign({}, res, { map: Object.assign({}, m, { coords: null }) });

@@ -319,9 +319,13 @@
         try { layer.scrollTo(0, 0); } catch (e) {}
         return true;
     }
+    /* Meldungen, die wirklich auf der Strecke liegen (Sperrungen enger, sonst 600 m); auch für den gesprochenen Satz (fahrtcheck.js) */
+    function aufStrecke(m) {
+        return (m && m.warnings || []).filter(w => m.coords && distToLine(w.lat, w.lon, m.coords) <= (/sperr|gesperrt/i.test((w.title || '') + ' ' + (w.text || '')) ? 0.25 : 0.6));
+    }
     function zeichneZiel() {
         const d = zielD, m = d.map, min = m.fahrtMin, km = Math.round(Number(m.km));
-        const auf = (m.warnings || []).filter(w => m.coords && distToLine(w.lat, w.lon, m.coords) <= (/sperr|gesperrt/i.test((w.title || '') + ' ' + (w.text || '')) ? 0.25 : 0.6));
+        const auf = aufStrecke(m);
         const z = [];
         if (d.untertitel) { const ab = String(d.untertitel).match(/Abfahrt bis .+$/); if (ab) z.push({ t: ab[0].replace(/(\d{1,2}) Uhr (\d{1,2})\b/, (x, h, m) => h.padStart(2, '0') + ':' + m.padStart(2, '0') + ' Uhr'), c: 'dim' }); }
         if (auf.length) auf.slice(0, 3).forEach(x => z.push({ t: '⚠ ' + x.title + (x.road && /^A\d+$/.test(x.road) ? ' (' + x.road + ')' : ''), c: 'bad' }));
@@ -366,7 +370,7 @@
     const istTankKarte = c => c && /^(🟢|⛽)/.test(String(c.icon || '')) && /\d,\d{3} €\s*$/.test(String(c.title || ''));
     const istOrtKarte = c => c && c.href && / · /.test(String(c.title || '')) && /google\.com\/maps\/dir\/\?[^ ]*destination=-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?/.test(c.href);
 
-    window.jvLage = { open, close, isOpen: () => !!layer, ziel, orte };
+    window.jvLage = { open, close, isOpen: () => !!layer, ziel, orte, aufStrecke };
     window.jvRadar = window.jvLage;   // alte Bezeichnung bleibt gültig
 
     /* ---------- Umleiten: alles läuft über das Lagebild ---------- */
