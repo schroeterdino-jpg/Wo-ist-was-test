@@ -133,6 +133,31 @@ function photoTranslatePrompt(lang) {
         'Erfinde nichts; ist etwas nicht lesbar, lass es weg und sage es in "art".';
 }
 
+/* Foto oben, Übersetzung darunter, auf einem Bildschirm (Tippen auf X oder außerhalb schließt) */
+function photoShowTranslation(lang, dataUrl, text) {
+    const old = document.getElementById('jvPhotoTr'); if (old) old.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'jvPhotoTr';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(3,8,16,.97);display:flex;flex-direction:column;padding:14px;gap:10px;color:#e8f6ff;font-family:inherit';
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;font-size:15px;letter-spacing:.08em;color:#5ee7ff';
+    head.textContent = 'ÜBERSETZUNG · ' + lang.name.toUpperCase();
+    const x = document.createElement('button');
+    x.textContent = '✕';
+    x.setAttribute('aria-label', 'Schließen');
+    x.style.cssText = 'background:none;border:1px solid #5ee7ff;color:#5ee7ff;border-radius:8px;font-size:20px;padding:4px 12px';
+    x.onclick = () => wrap.remove();
+    head.appendChild(x);
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.style.cssText = 'width:100%;max-height:42vh;object-fit:contain;border-radius:10px;border:1px solid rgba(94,231,255,.3);background:#000';
+    const box = document.createElement('div');
+    box.style.cssText = 'flex:1;overflow-y:auto;font-size:19px;line-height:1.45;white-space:pre-wrap;padding:12px;border-radius:10px;background:rgba(94,231,255,.07);border:1px solid rgba(94,231,255,.25)';
+    box.textContent = text;
+    wrap.appendChild(head); wrap.appendChild(img); wrap.appendChild(box);
+    document.body.appendChild(wrap);
+}
+
 /* Übersetzt das Foto in eine Fremdsprache, zeigt den Text als Karte und liest ihn vor (erst kurz auf Deutsch, was es ist, dann die Übersetzung) */
 async function photoTranslateTo(lang, dataUrl) {
     const content = await askVision(photoTranslatePrompt(lang), 'Übersetze den Text auf diesem Foto nach ' + lang.name + '.', dataUrl, true);
@@ -140,10 +165,13 @@ async function photoTranslateTo(lang, dataUrl) {
     const art = String(o.art || '').trim();
     const tr = String(o.uebersetzung || o.translation || '').trim();
     if (!tr) { photoSay('Auf dem Foto konnte ich keinen Text zum Übersetzen erkennen. Ist es scharf und gut beleuchtet?'); return; }
-    try {
-        if (typeof clearActionCards === 'function') clearActionCards();
-        if (typeof showActionCards === 'function') showActionCards([{ icon: '🔤', title: 'Übersetzung: ' + lang.name, subtitle: tr.slice(0, 600) }]);
-    } catch (e) {}
+    try { photoShowTranslation(lang, dataUrl, tr); }
+    catch (e) {
+        try {
+            if (typeof clearActionCards === 'function') clearActionCards();
+            if (typeof showActionCards === 'function') showActionCards([{ icon: '🔤', title: 'Übersetzung: ' + lang.name, subtitle: tr.slice(0, 600) }]);
+        } catch (e2) {}
+    }
     const after = typeof continueConversation === 'function' ? continueConversation : undefined;
     const spoken = tr.length > 700 ? tr.slice(0, 700).replace(/\s+\S*$/, '') : tr;
     speak((art ? art.replace(/[.!?]*$/, '.') + ' ' : '') + 'Auf ' + lang.name + ' steht:', () => speak(spoken, after, lang.code));
