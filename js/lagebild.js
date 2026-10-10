@@ -331,7 +331,7 @@
         const extra = (d.zeilen || []).filter(x => x && x.text);
         if (extra.length) body.appendChild(karte('UNTERWEGS & AM ZIEL', '', null, extra.map(x => ({ t: x.text, c: '' }))));
         if (wegD) {
-            const zl = wegD.items.length ? wegD.items.map(x => ({ t: x.name + ' · ' + x.abw + ' ' + (x.status ? '· ' + x.status : ''), c: '' })) : [{ t: 'Nichts gefunden: ' + wegD.was, c: 'dim' }];
+            const zl = wegD.items.length ? wegD.items.map(x => ({ t: x.name + ' · ' + x.ab + (x.status ? ' · ' + x.status : ''), c: '' })) : [{ t: 'Nichts gefunden: ' + wegD.was, c: 'dim' }];
             const wk = karte('📍 AUF DEM WEG: ' + wegD.was.toUpperCase().slice(0, 22), wegD.items.length ? 'TIPPEN: ROUTE' : '', null, zl);
             if (wegD.items.length) wk.addEventListener('click', () => { try { window.open(wegD.items[0].href, '_blank'); } catch (e) {} });
             body.appendChild(wk);
