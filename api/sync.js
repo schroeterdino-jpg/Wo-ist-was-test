@@ -586,6 +586,8 @@ async function assessWeather(route, ymd, startMin, durMin) {
     return { warn: probleme.length > 0, probleme, minT: Math.round(minT * 10) / 10, maxRegenMm: Math.round(maxP * 10) / 10, wann, temp, titel: glattOderSchnee ? 'Glätte auf dem Arbeitsweg' : (probleme.includes('Gewitter') ? 'Gewitter auf dem Arbeitsweg' : 'Regen auf dem Arbeitsweg') };
   } catch (e) { return { err: 'Wetterdienst nicht erreichbar' }; }
 }
+/* Arbeitet er an diesem Tag? Nur Montag bis Freitag (am Wochenende gibt es keine Arbeitsweg-Warnung) */
+function isWerktag(p) { const d = new Date(p.y, p.m - 1, p.d).getDay(); return d >= 1 && d <= 5; }
 /* Ist eine Wetterwarnung fällig? (rein aus dem Speicher, kein Netzwerk) */
 function weatherDue(st, now) {
   const sc = st.cfg && st.cfg.schicht, rt = st.cfg && st.cfg.route;
@@ -593,9 +595,9 @@ function weatherDue(st, now) {
   const bp = berlinParts(now);
   if (bp.min >= WX_EVE_MIN && bp.min <= WX_EVE_MIN + WX_GRACE_MIN && st.wx.eve !== bp.ymd) {
     const tm = berlinParts(now + 86400000);
-    if (shiftOfWeek(sc, weekNo(tm)) === 'frueh') return { key: 'eve', day: bp.ymd, ymd: tm.ymd, start: sc.times.frueh, wo: 'Morgen früh' };
+    if (isWerktag(tm) && shiftOfWeek(sc, weekNo(tm)) === 'frueh') return { key: 'eve', day: bp.ymd, ymd: tm.ymd, start: sc.times.frueh, wo: 'Morgen früh' };
   }
-  if (shiftOfWeek(sc, weekNo(bp)) === 'spaet') {
+  if (isWerktag(bp) && shiftOfWeek(sc, weekNo(bp)) === 'spaet') {
     const at = sc.times.spaet - WX_SPAET_LEAD_MIN;
     if (at >= 0 && bp.min >= at && bp.min <= at + WX_GRACE_MIN && st.wx.sp !== bp.ymd) return { key: 'sp', day: bp.ymd, ymd: bp.ymd, start: sc.times.spaet, wo: 'Heute' };
   }
