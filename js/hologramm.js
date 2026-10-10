@@ -36,7 +36,13 @@
         cx.setTransform(DPR, 0, 0, DPR, 0, 0);
     }
     const isOn = () => document.body.classList.contains('jv-holo');
-    const sprechen = () => { try { return btn.classList.contains('speaking'); } catch (e) { return false; } };
+    /* Mund und Arme erst bewegen, wenn die Stimme wirklich zu hören ist (Cloud-Stimme braucht 1-2 s Vorlauf, die Klasse "speaking" kommt schon vorher) */
+    function hoerbar() {
+        try { if (typeof currentAudio !== 'undefined' && currentAudio && !currentAudio.paused && !currentAudio.ended && currentAudio.currentTime > 0) return true; } catch (e) {}
+        try { if (window.speechSynthesis && window.speechSynthesis.speaking) return true; } catch (e) {}
+        return false;
+    }
+    const sprechen = () => { try { return btn.classList.contains('speaking') && hoerbar(); } catch (e) { return false; } };
     const hoeren = () => { try { return btn.classList.contains('recording'); } catch (e) { return false; } };
 
 // ---- Punktwolke (x,y,z, Farbe 0=blau .. 1=orange, Größe)
