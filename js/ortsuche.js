@@ -270,9 +270,37 @@
         }).filter(e => isFinite(e.lat) && isFinite(e.lon));
     }
 
-    /* Erst Overpass (bei schnellem Fehler ein zweiter Versuch), bei Ausfall der Rückfall über Nominatim. Nach einem Ausfall wird Overpass eine Minute lang übersprungen. */
+    /* Google Places (über den Server der App, /api/maps?action=places): genauere Öffnungszeiten (auch Feiertage), Bewertung, vollständigere Adressen.
+       Die Treffer werden in dieselbe Form gebracht wie die OpenStreetMap-Treffer (tags + g = Google-Zusatzdaten), der Rest der Suche bleibt unverändert.
+       Klappt Google nicht (kein Schlüssel, Monatslimit, Ausfall), wird einige Minuten pausiert und wie bisher OpenStreetMap genommen. */
+    let googleDownUntil = 0;
+    const googleMemo = new Map();
+    async function googleElements(text, lat, lon, radius) {
+        if (Date.now() < googleDownUntil) throw new Error('Google pausiert');
+        const mk = text.toLowerCase() + '|' + lat.toFixed(3) + ',' + lon.toFixed(3) + '|' + radius;
+        const hit = googleMemo.get(mk);
+        if (hit && Date.now() - hit.at < 120000) return hit.els;
+        let r;
+        try { r = await withTimeout(apiFetch('/api/maps?action=places&lat=' + lat.toFixed(5) + '&lon=' + lon.toFixed(5) + '&radius=' + Math.round(radius) + '&q=' + encodeURIComponent(text)), 11000); }
+        catch (e) { googleDownUntil = Date.now() + 120000; throw e; }
+        if (!r.ok) { if (r.status !== 400) googleDownUntil = Date.now() + (r.status === 429 ? 3600000 : 300000); throw new Error('Google Status ' + r.status); }
+        const d = await r.json();
+        if (!d || !Array.isArray(d.places)) throw new Error('Google: keine Daten');
+        const els = d.places.map(p => ({ lat: p.lat, lon: p.lon, tags: { name: p.name, 'addr:street': p.street || '', 'addr:housenumber': p.housenumber || '', 'addr:city': p.city || '', 'addr:postcode': p.postcode || '', opening_hours: p.hours || '' }, g: p }));
+        googleMemo.set(mk, { at: Date.now(), els });
+        return els;
+    }
+    window.jvGoogleElements = googleElements;   // auch für die Orte-Suche in nearbymore.js (siehe unten)
+
+    /* Erst Google Places, dann Overpass (bei schnellem Fehler ein zweiter Versuch), bei Ausfall der Rückfall über Nominatim. Nach einem Ausfall wird Overpass eine Minute lang übersprungen. */
     let overpassDownUntil = 0;
     async function getElements(res, lat, lon, radius) {
+        try {
+            const generic = res.entry.brand && res.entry.generic;
+            const text = generic ? (res.query || res.entry.label) : res.entry.label;
+            const els = await googleElements(text, lat, lon, generic ? 8000 : RADII[RADII.length - 1]);
+            if (els.length) return els;
+        } catch (e) { console.error('Google Places:', e && e.message); }
         if (Date.now() > overpassDownUntil) {
             for (let attempt = 0; attempt < 2; attempt++) {
                 const t0 = Date.now();
@@ -309,7 +337,7 @@
             seen.push({ name, lat: plat, lon: plon });
             const street = tags['addr:street'] ? tags['addr:street'] + (tags['addr:housenumber'] ? ' ' + tags['addr:housenumber'] : '') : '';
             const city = tags['addr:city'] || tags['addr:suburb'] || tags['addr:village'] || '';
-            out.push({ name: name || res.entry.label, lat: plat, lon: plon, dist, street, city, postcode: tags['addr:postcode'] || '', hours: tags.opening_hours || '', unnamed: !name });
+            out.push({ name: name || res.entry.label, lat: plat, lon: plon, dist, street, city, postcode: tags['addr:postcode'] || '', hours: tags.opening_hours || '', unnamed: !name, g: el.g || null });
         });
         return out.sort((a, b) => a.dist - b.dist).slice(0, 3);
     }
@@ -361,6 +389,17 @@
         return { open: false, until: null };
     }
     function hoursInfo(p) {
+        // Google kennt "jetzt geöffnet" samt Feiertagen; fehlt die Zeit bis wann, wird sie aus den Wochenzeiten ergänzt
+        if (p.g && typeof p.g.openNow === 'boolean') {
+            let until = p.g.until || null, opensAt = p.g.opensAt || null;
+            try {
+                if (p.hours && ((p.g.openNow && !until) || (!p.g.openNow && !opensAt))) {
+                    const st = typeof osmOpenStatus === 'function' ? osmOpenStatus(p.hours, new Date()) : openNow(p.hours, new Date());
+                    if (st && st.open === p.g.openNow) { if (p.g.openNow) until = st.until || null; else opensAt = st.opensAt || null; }
+                }
+            } catch (e) {}
+            return { open: p.g.openNow, until, opensAt };
+        }
         if (!p.hours) return null;
         try {
             if (typeof osmOpenStatus === 'function') {   // genauere Auswertung aus nearbymore.js (Mitternacht, Pausen, rund um die Uhr)
@@ -375,6 +414,12 @@
         if (!o) return '';
         if (o.open) return o.until ? ` Geöffnet bis ${spokenTime(o.until)}.` : ' Durchgehend geöffnet.';
         return o.opensAt ? ` Laut Eintrag ist dort gerade geschlossen, geöffnet wird um ${spokenTime(o.opensAt)}.` : ' Laut Eintrag ist dort gerade geschlossen.';
+    }
+    function ratingShort(p) { return p && p.g && typeof p.g.rating === 'number' ? ` · ★ ${p.g.rating.toFixed(1).replace('.', ',')}` : ''; }
+    function ratingSpoken(p) {
+        if (!(p && p.g && typeof p.g.rating === 'number')) return '';
+        const n = p.g.ratingCount || 0;
+        return ` Bewertung ${p.g.rating.toFixed(1).replace('.', ',')} von 5${n >= 10 ? ' bei ' + n + ' Bewertungen' : ''}.`;
     }
     function spokenTime(hhmm) { const [h, m] = String(hhmm).split(':').map(Number); return m ? `${h} Uhr ${String(m).padStart(2, '0')}` : `${h} Uhr`; }
 
@@ -529,14 +574,14 @@
             const oi = hoursInfo(p);
             const hours = oi ? (oi.open ? `geöffnet${oi.until ? ' bis ' + oi.until : ''}` : `laut Eintrag geschlossen${oi.opensAt ? ', öffnet ' + oi.opensAt : ''}`) : (p.hours ? p.hours.slice(0, 40) : 'Öffnungszeiten unbekannt');
             const addr = i === 0 ? info.address : ([p.street, p.city].filter(Boolean).join(', ') || 'Adresse unbekannt');
-            return { icon: res.entry.icon || '📍', title: p.name, subtitle: `${addr} · ${hours} · Tippen: Route`, href: routeUrl(p) };
+            return { icon: res.entry.icon || '📍', title: p.name, subtitle: `${addr} · ${hours}${ratingShort(p)} · Tippen: Route`, href: routeUrl(p) };
         }));
         const spokenAddr = info.exact ? [info.street, info.city].filter(Boolean).join(', ') : '';
         const many = places.length > 1 ? ' Es gibt dort mehrere Treffer; ich nenne den, der der Ortsmitte am nächsten liegt, die anderen stehen unten.' : '';
         const o = hoursInfo(first);
         const contactName = `${label} ${geo.name}`;
         pendingSave = { name: contactName, address: info.address, at: Date.now() };
-        say(`${first.name} in ${geo.name}: ${spokenAddr || 'eine genaue Straße steht nicht in den Kartendaten'}.${hoursSpoken(o)}${many} Soll ich die Adresse als ${contactName} in Ihren Kontakten speichern?`);
+        say(`${first.name} in ${geo.name}: ${spokenAddr || 'eine genaue Straße steht nicht in den Kartendaten'}.${hoursSpoken(o)}${ratingSpoken(first)}${many} Soll ich die Adresse als ${contactName} in Ihren Kontakten speichern?`);
         return true;
     }
 
@@ -577,7 +622,7 @@
         showCards(places.map((p, i) => {
             const oi = hoursInfo(p);
             const hours = oi ? (oi.open ? `geöffnet${oi.until ? ' bis ' + oi.until : ''}` : `laut Eintrag geschlossen${oi.opensAt ? ', öffnet ' + oi.opensAt : ''}`) : (p.hours ? p.hours.slice(0, 40) : 'Öffnungszeiten unbekannt');
-            return { icon: res.entry.icon || '📍', title: `${p.name} · ${distShort(p.dist)}`, subtitle: `${[p.street, p.city].filter(Boolean).join(', ') || 'Adresse unbekannt'} · ${hours} · Tippen: Route`, href: routeUrl(p) };
+            return { icon: res.entry.icon || '📍', title: `${p.name} · ${distShort(p.dist)}`, subtitle: `${[p.street, p.city].filter(Boolean).join(', ') || 'Adresse unbekannt'} · ${hours}${ratingShort(p)} · Tippen: Route`, href: routeUrl(p) };
         }));
         const addr = [first.street, first.city].filter(Boolean).join(', ');
         const more = places.length > 1 ? ` Weitere Treffer stehen unten.` : '';
@@ -603,7 +648,7 @@
                         showCards(places.map(p => {
                             const oi = hoursInfo(p);
                             const hours = oi ? (oi.open ? `geöffnet${oi.until ? ' bis ' + oi.until : ''}` : `laut Eintrag geschlossen${oi.opensAt ? ', öffnet ' + oi.opensAt : ''}`) : (p.hours ? p.hours.slice(0, 40) : 'Öffnungszeiten unbekannt');
-                            return { icon: res.entry.icon || '📍', title: `${p.name} · ${distShort(p.dist)}`, subtitle: `${full.get(p) || [p.street, p.city].filter(Boolean).join(', ') || 'Adresse unbekannt'} · ${hours} · Tippen: Route`, href: routeUrl(p) };
+                            return { icon: res.entry.icon || '📍', title: `${p.name} · ${distShort(p.dist)}`, subtitle: `${full.get(p) || [p.street, p.city].filter(Boolean).join(', ') || 'Adresse unbekannt'} · ${hours}${ratingShort(p)} · Tippen: Route`, href: routeUrl(p) };
                         }));
                     } catch (e) {}
                     const cities = cands.map(c => c.info.city || '');
@@ -621,7 +666,7 @@
                 }
             } catch (e) { ask = ''; listing = ''; }
         }
-        say(`Am nächsten ist ${first.name}${addr ? ', ' + addr : ''}, ${distSpoken(first.dist)} entfernt.${hoursSpoken(o)}${alt}${listing || more}${ask || ' Tippen Sie unten auf eine Karte, dann öffnet sich die Route.'}`);
+        say(`Am nächsten ist ${first.name}${addr ? ', ' + addr : ''}, ${distSpoken(first.dist)} entfernt.${hoursSpoken(o)}${ratingSpoken(first)}${alt}${listing || more}${ask || ' Tippen Sie unten auf eine Karte, dann öffnet sich die Route.'}`);
         if (req.navigate) openRoute(0);
         return true;
     }
@@ -671,11 +716,21 @@
     /* Reserve für die bisherige Orte-Suche (nearbymore.js): Antwortet der Server der App nicht, wird direkt bei den Kartenservern nachgefragt.
        nearbymore.js wird nach dieser Datei geladen, deshalb wird das erst beim ersten Sprachbefehl eingehängt. */
     let oldFetchPatched = false;
+    const GOOGLE_KEYS = ['apotheke', 'bank', 'supermarkt', 'baecker', 'drogerie', 'baumarkt', 'zahnarzt', 'arzt', 'krankenhaus', 'tierarzt', 'post', 'cafe', 'eisdiele', 'kino', 'fahrradladen', 'friseur', 'optiker'];   // Arten mit Öffnungszeiten
     function patchOldPlacesFetch() {
         if (oldFetchPatched || typeof window.plFetchElements !== 'function') return;
         oldFetchPatched = true;
         window.plFetchElements = async function (query) {
             const q = String(query || '');
+            // Zuerst Google Places (genauere Öffnungszeiten), für Arten mit Öffnungszeiten; fehlt etwas oder klappt es nicht, geht es wie bisher weiter
+            try {
+                const mg = q.match(/around:(\d+),(-?[\d.]+),(-?[\d.]+)/);
+                const cg = (typeof PLACE_CATEGORIES !== 'undefined') ? PLACE_CATEGORIES.find(c => c.sel.some(sl => q.indexOf(sl) >= 0)) : null;
+                if (mg && cg && GOOGLE_KEYS.indexOf(cg.key) >= 0) {
+                    const g = await googleElements(cg.label, parseFloat(mg[2]), parseFloat(mg[3]), Math.min(40000, Math.max(3000, parseInt(mg[1], 10) * 4)));
+                    if (g.length) { window.__jvPlSrc = ''; return g; }
+                }
+            } catch (eg) { console.error('Google Places (Orte):', eg && eg.message); }
             try { const el = await raceOverpass(q, true, 20000); window.__jvPlSrc = ''; return el; }   // App-Server und Kartenserver gleichzeitig, höchstens 20 Sekunden
             catch (e2) {
                 window.__jvPlSrc = 'Ausweichsuche, Kartenserver: ' + String((e2 && e2.message) || e2).slice(0, 150);

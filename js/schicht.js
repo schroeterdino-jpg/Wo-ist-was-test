@@ -130,6 +130,63 @@
     setTimeout(tick, 5000);
     try { document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(tick, 1500); }); } catch (e) {}
 
+
+    /* ---------- Schichten in den Google Kalender ---------- */
+    /* Ganztägige Einträge Mo-Fr für die nächsten Wochen, ohne Erinnerung (kein doppeltes Klingeln, kein Jarvis-Push, pushsync ignoriert Ganztags-Termine).
+       Feste Kennung je Tag: erneutes Eintragen aktualisiert statt zu verdoppeln. */
+    const CAL_WEEKS = 8;
+    function ymdAdd(b, n) { const t = new Date(Date.UTC(b.y, b.m - 1, b.d + n)); return t.toISOString().slice(0, 10); }
+    function shiftDays(st) {
+        const b = berlin(), out = [];
+        const dow = (new Date(Date.UTC(b.y, b.m - 1, b.d)).getUTCDay() + 6) % 7;
+        for (let i = 0; i < CAL_WEEKS * 7; i++) {
+            const off = i - dow;                 // ab Montag dieser Woche
+            if ((i % 7) > 4) continue;           // nur Mo-Fr
+            const day = ymdAdd(b, off);
+            const p = day.split('-');
+            const wn = weekNo({ y: +p[0], m: +p[1], d: +p[2] });
+            if (off < 0) continue;               // Vergangenes auslassen
+            out.push({ day, next: ymdAdd(b, off + 1), shift: shiftOfWeek(st, wn) });
+        }
+        return out;
+    }
+    async function calCall(method, path, body) {
+        const r = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events' + path, {
+            method, headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined
+        });
+        if (r.status === 401 && typeof markGoogleExpired === 'function') markGoogleExpired();
+        return r;
+    }
+    async function writeShifts(st, remove) {
+        const days = shiftDays(st);
+        let ok = 0;
+        for (const d of days) {
+            const id = 'jvschicht' + d.day.replace(/-/g, '');
+            const ev = { id, summary: NAME[d.shift], start: { date: d.day }, end: { date: d.next }, reminders: { useDefault: false, overrides: [] }, colorId: d.shift === 'frueh' ? '5' : '9', extendedProperties: { private: { jarvisSchicht: '1' } } };
+            let r;
+            if (remove) { r = await calCall('DELETE', '/' + id); if (r.ok || r.status === 404 || r.status === 410) ok++; continue; }
+            r = await calCall('POST', '', ev);
+            if (r.status === 409) r = await calCall('PUT', '/' + id, Object.assign({}, ev, { status: 'confirmed' }));
+            if (r.ok) ok++;
+            if (r.status === 401) break;
+        }
+        return { ok, total: days.length };
+    }
+    const CAL_RX = /(?:schicht\w*.*kalender|kalender.*schicht)/;
+    const CAL_DEL_RX = /(?:lösch|entfern|nimm)/;
+    async function calendarCommand(remove) {
+        try {
+            const st = load();
+            if (!st) return say('Sagen Sie mir zuerst Ihre Schicht, zum Beispiel: Diese Woche Frühschicht.');
+            if (typeof isGoogleAuthorized !== 'function' || !isGoogleAuthorized()) return say('Dafür muss der Google Kalender verbunden sein.');
+            say(remove ? 'Ich entferne die Schichten aus dem Kalender.' : 'Ich trage die Schichten der nächsten acht Wochen in den Kalender ein.');
+            const r = await writeShifts(st, remove);
+            if (!r.ok) return say('Das hat leider nicht geklappt. Bitte den Google-Zugriff prüfen.');
+            if (!remove && typeof fetchGoogleCalendarEvents === 'function') fetchGoogleCalendarEvents();
+            return say(remove ? 'Die Schichten sind aus dem Kalender entfernt.' : `Fertig, ${r.ok} Schichttage stehen im Kalender, ohne Erinnerung.`);
+        } catch (e) { console.error('Schicht-Kalender', e); return say('Das hat leider nicht geklappt.'); }
+    }
+
     /* ---------- Sprachbefehle ---------- */
     function say(msg) { try { speak(msg, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} return true; }
     function norm(text) {
@@ -161,6 +218,12 @@
         if (!t) return false;
         const hasShift = SHIFT_RX.exec(t);
         const st = load();
+
+        // Schichten in den Google Kalender eintragen / entfernen
+        if (CAL_RX.test(t) && /eintrag|trag |übertrag|schreib|lösch|entfern|nimm|setz/.test(t) && !/^(?:welche|was|wann|wie)\b/.test(t)) {
+            calendarCommand(CAL_DEL_RX.test(t));
+            return true;
+        }
 
         // Automatik an/aus
         const au = t.match(AUTO_RX);

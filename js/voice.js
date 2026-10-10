@@ -441,6 +441,13 @@ function parseInterpreterCommand(text) {
     }
     const lang = findInterpLang(low);
     if (!lang) return null;
+    // "Übersetze das ins Türkische" / "Übersetze dieses Schild ins Polnische" meint das Foto (photo.js), nicht den Dolmetscher
+    if (!interpreter && /(?<![\wäöüß])übersetz/.test(low)) {
+        const photoNoun = /\b(?:schild|foto|bild|speisekarte|etikett|brief|seite|text|verpackung|zettel|aushang|dokument|menü|beschreibung|karte)\b/;
+        const recentPhoto = (typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < 600000) || (typeof photoIntent !== 'undefined' && photoIntent && Date.now() - photoIntent.at < 180000);
+        if (photoNoun.test(low) && /\b(?:dies\w*|das|den|die|diese[nrs]?)\b/.test(low)) return null;
+        if (recentPhoto && /^(?:bitte\s+)?übersetz\w*\s+(?:mir\s+)?(?:bitte\s+)?(?:das|dies\w*|es)\s+(?:bitte\s+)?(?:ins|auf|in|nach)\b/.test(low)) return null;
+    }
     const once = t.match(INTERP_ONCE_RE);
     if (once && !/^(für mich|mir|das|alles|bitte|für uns)$/i.test(once[1].trim())) {
         return { type: 'once', lang, text: once[1].trim() };

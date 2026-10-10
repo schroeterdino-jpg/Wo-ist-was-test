@@ -90,6 +90,65 @@ function photoSystemPrompt(task) {
     }
 }
 
+/* ---------- Übersetzen in beide Richtungen ----------
+   "Übersetze das" (ohne Sprache) übersetzt wie bisher ins Deutsche. "Übersetze das ins Türkische / auf Polnisch / in Englisch"
+   übersetzt in diese Sprache und liest die Übersetzung mit einer passenden Stimme vor (die Stimmen bringt das Handy mit). */
+const PHOTO_LANGS = [
+    { name: 'Deutsch',      code: 'de-DE', re: /deutsch\w*|german/ },
+    { name: 'Englisch',     code: 'en-US', re: /englisch\w*|english/ },
+    { name: 'Türkisch',     code: 'tr-TR', re: /t(?:ü|ue)rkisch\w*|turkish/ },
+    { name: 'Rumänisch',    code: 'ro-RO', re: /rum(?:ä|ae)nisch\w*|romanian/ },
+    { name: 'Polnisch',     code: 'pl-PL', re: /polnisch\w*|polish/ },
+    { name: 'Russisch',     code: 'ru-RU', re: /russisch\w*|russian/ },
+    { name: 'Französisch',  code: 'fr-FR', re: /franz(?:ö|oe)sisch\w*|french/ },
+    { name: 'Spanisch',     code: 'es-ES', re: /spanisch\w*|spanish/ },
+    { name: 'Italienisch',  code: 'it-IT', re: /italienisch\w*|italian/ },
+    { name: 'Ukrainisch',   code: 'uk-UA', re: /ukrainisch\w*|ukrainian/ },
+    { name: 'Arabisch',     code: 'ar-SA', re: /arabisch\w*|arabic/ },
+    { name: 'Griechisch',   code: 'el-GR', re: /griechisch\w*|greek/ },
+    { name: 'Portugiesisch', code: 'pt-PT', re: /portugiesisch\w*|portuguese/ },
+    { name: 'Niederländisch', code: 'nl-NL', re: /niederl(?:ä|ae)ndisch\w*|holl(?:ä|ae)ndisch\w*|dutch/ },
+    { name: 'Bulgarisch',   code: 'bg-BG', re: /bulgarisch\w*/ },
+    { name: 'Kroatisch',    code: 'hr-HR', re: /kroatisch\w*/ },
+    { name: 'Serbisch',     code: 'sr-RS', re: /serbisch\w*/ },
+    { name: 'Tschechisch',  code: 'cs-CZ', re: /tschechisch\w*/ },
+    { name: 'Dänisch',      code: 'da-DK', re: /d(?:ä|ae)nisch\w*/ },
+    { name: 'Schwedisch',   code: 'sv-SE', re: /schwedisch\w*/ }
+];
+
+/* Zielsprache aus dem Satz ("ins Türkische", "auf Polnisch", "nach Englisch"); null = nichts genannt (dann ins Deutsche) */
+function photoTargetLang(question) {
+    const t = String(question || '').toLowerCase().replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ');
+    for (const l of PHOTO_LANGS) {
+        const m = t.match(new RegExp('(?:^|\\s)(?:ins|in|auf|nach|zu|zum)\\s+(?:das\\s+|dem\\s+|die\\s+)?(?:' + l.re.source + ')', 'i'));
+        if (m) return l;
+    }
+    return null;
+}
+
+function photoTranslatePrompt(lang) {
+    return 'Du bist J.A.R.V.I.S. und übersetzt den Text auf einem Foto. Zielsprache: ' + lang.name + '. Der Text auf dem Foto kann in jeder Sprache sein, auch Deutsch. ' +
+        'Antworte NUR mit einem JSON-Objekt: {"art":"ein kurzer deutscher Satz, was es ist (Schild, Brief, Speisekarte ...)","uebersetzung":"der sichtbare Text, vollständig und natürlich in ' + lang.name + ' übersetzt"}. ' +
+        'Ist der Text schon in ' + lang.name + ', schreibe ihn unverändert hinein und nenne es in "art". Bei sehr langem Text übersetze die ersten Absätze und das Wichtigste (Anliegen, Fristen, Beträge). ' +
+        'Erfinde nichts; ist etwas nicht lesbar, lass es weg und sage es in "art".';
+}
+
+/* Übersetzt das Foto in eine Fremdsprache, zeigt den Text als Karte und liest ihn vor (erst kurz auf Deutsch, was es ist, dann die Übersetzung) */
+async function photoTranslateTo(lang, dataUrl) {
+    const content = await askVision(photoTranslatePrompt(lang), 'Übersetze den Text auf diesem Foto nach ' + lang.name + '.', dataUrl, true);
+    const o = photoJsonObject(content) || {};
+    const art = String(o.art || '').trim();
+    const tr = String(o.uebersetzung || o.translation || '').trim();
+    if (!tr) { photoSay('Auf dem Foto konnte ich keinen Text zum Übersetzen erkennen. Ist es scharf und gut beleuchtet?'); return; }
+    try {
+        if (typeof clearActionCards === 'function') clearActionCards();
+        if (typeof showActionCards === 'function') showActionCards([{ icon: '🔤', title: 'Übersetzung: ' + lang.name, subtitle: tr.slice(0, 600) }]);
+    } catch (e) {}
+    const after = typeof continueConversation === 'function' ? continueConversation : undefined;
+    const spoken = tr.length > 700 ? tr.slice(0, 700).replace(/\s+\S*$/, '') : tr;
+    speak((art ? art.replace(/[.!?]*$/, '.') + ' ' : '') + 'Auf ' + lang.name + ' steht:', () => speak(spoken, after, lang.code));
+}
+
 /* ---------- Kamera öffnen, Foto vorbereiten ---------- */
 function openPhotoCamera(fromButton) {
     const el = document.getElementById('photoInput');
@@ -477,6 +536,10 @@ async function processPhoto(intent, dataUrl) {
             showPhotoPendingCards();
             photoSay(`Ich habe ${items.length} ${items.length === 1 ? 'Artikel' : 'Artikel'} gelesen: ${items.slice(0, 5).join(', ')}${items.length > 5 ? ' und weitere' : ''}. Soll ich ${items.length === 1 ? 'ihn' : 'sie'} auf die Einkaufsliste setzen? Sagen Sie Ja, oder tippen Sie unten auf die Karte.`);
             return;
+        }
+        if (intent.task === 'translate') {
+            const tl = photoTargetLang(intent.question);
+            if (tl && tl.code !== 'de-DE') { await photoTranslateTo(tl, dataUrl); return; }
         }
         const q = intent.question ? `Der Nutzer sagte: "${intent.question}". Mach, was er möchte.` : 'Was ist auf dem Foto?';
         const content = await askVision(photoSystemPrompt(intent.task), q, dataUrl, false);

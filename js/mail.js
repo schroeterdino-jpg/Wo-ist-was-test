@@ -66,6 +66,35 @@ async function gmailFetch(path, headers) {
     return { data: await res.json() };
 }
 
+/* --- Rangfolge: Was ist wichtig, was ist Werbung oder eine automatische Benachrichtigung? ---
+   Punkte aus: Gmail-Reiter (Werbung/Soziale Netzwerke/Updates = Abzug), automatischen Absendern (noreply, Newsletter, Google Cloud ...),
+   Betreffs mit Werbe- oder Willkommens-Wörtern (Abzug) und Wörtern wie Rechnung, Mahnung, Frist, Bescheid, Termin, Bank (Pluspunkte).
+   Die Liste wird danach sortiert; bei gleicher Punktzahl bleibt die neueste Mail vorn. Eigene Schlüsselwörter: MAIL_WICHTIG_WOERTER, MAIL_LAUT_ABSENDER. */
+const MAIL_WICHTIG_WOERTER = /rechnung|mahnung|zahlungserinnerung|zahlung|frist|bescheid|kündigung|kuendigung|vertrag|widerspruch|steuer|finanzamt|jobcenter|krankenkasse|versicherung|sparkasse|volksbank|bank|konto|überweisung|lastschrift|termin|einladung|arzt|praxis|paket|lieferung|sendung|zustellung|dringend|wichtig|erinnerung|ihre bestellung|bestellbestätigung|schule|kita|vermieter|hausverwaltung|nebenkosten|strom|gas|wasser|ordnungsamt|polizei|bußgeld|anhörung/i;
+const MAIL_LAUT_ABSENDER = /no-?reply|do-?not-?reply|donotreply|noreply|newsletter|mailer-daemon|notification|notifications|benachrichtigung|marketing|promo|info@|news@|service@|google cloud|cloud-?platform|google play|youtube|linkedin|facebook|instagram|twitter|tiktok|pinterest|xing|amazon marketplace|paypal marketing/i;
+const MAIL_LAUT_BETREFF = /willkommen|welcome|newsletter|angebot|rabatt|gutschein|sale|% ?off|\d+ ?%|aktion|jetzt sichern|nur heute|exklusiv|neu(?:e|es)? (?:bei|für)|upgrade|testen sie|jetzt testen|kostenlos|gratis|gewinn|umfrage|bewerten sie|bewertung abgeben|webinar|tipps? (?:für|zu)|haben sie schon|verpassen sie nicht|entdecken sie|ihr (?:konto|projekt) (?:wurde|ist)|zusammenfassung/i;
+
+function mailScore(e) {
+    let s = 0;
+    const labels = e._labels || [];
+    const von = (e._from || '') + ' ' + (e.von || '');
+    const betreff = e.betreff || '';
+    if (labels.includes('CATEGORY_PROMOTIONS')) s -= 6;
+    if (labels.includes('CATEGORY_SOCIAL')) s -= 5;
+    if (labels.includes('CATEGORY_FORUMS')) s -= 4;
+    if (labels.includes('CATEGORY_UPDATES')) s -= 3;
+    if (labels.includes('CATEGORY_PERSONAL')) s += 2;
+    if (labels.includes('IMPORTANT')) s += 2;
+    if (labels.includes('STARRED')) s += 3;
+    if (MAIL_LAUT_ABSENDER.test(von)) s -= 4;
+    if (MAIL_LAUT_BETREFF.test(betreff)) s -= 3;
+    if (MAIL_WICHTIG_WOERTER.test(betreff)) s += 4;
+    if (/paket|lieferung|zustellung|sendung|versandt|geliefert|abholbereit/i.test(betreff)) s += 3;   // Paketmeldungen sind trotz automatischem Absender nützlich
+    // echte Person: Absender mit Vor- und Nachnamen, ohne automatische Adresse
+    if (!MAIL_LAUT_ABSENDER.test(von) && /^[A-ZÄÖÜ][\wäöüß.\-]+ [A-ZÄÖÜ][\wäöüß.\-]+$/.test((e.von || '').trim())) s += 1;
+    return s;
+}
+
 /* --- Für die KI: neueste E-Mails, standardmäßig ungelesene --- */
 async function fetchEmailOverview(opts = {}) {
     const onlyUnread = opts.onlyUnread !== false;
@@ -86,7 +115,10 @@ async function fetchEmailOverview(opts = {}) {
     if (opts.importantOnly) q += ' -category:promotions -category:social -category:forums -category:updates';
     if (searchTerm) q += ' ' + searchTerm;
 
-    const list = await gmailFetch('messages?maxResults=' + max + '&q=' + encodeURIComponent(q), headers);
+    // Ohne Suchbegriff werden mehr Mails geladen und nach Wichtigkeit sortiert (siehe mailScore); mit Suchbegriff bleibt es bei der Reihenfolge von Gmail
+    const rank = !searchTerm && opts.rank !== false;
+    const fetchMax = rank ? Math.min(Math.max(max * 3, 12), 24) : max;
+    const list = await gmailFetch('messages?maxResults=' + fetchMax + '&q=' + encodeURIComponent(q), headers);
     if (list.unauthorized) { markGoogleExpired(); return { emails: [], anzahl_ungelesen: null, verbindung: 'getrennt', hinweis: 'Die Google-Anmeldung ist abgelaufen. Bitte auf die Karte unten tippen, um neu zu verbinden.' }; }
     if (list.scopeMissing) { markGoogleExpired(); return { emails: [], anzahl_ungelesen: null, verbindung: 'getrennt', hinweis: 'Für Gmail fehlt noch die Berechtigung. Bitte auf die Karte unten tippen und beim Verbinden auch "Gmail lesen" erlauben.' }; }
     if (list.error) return { emails: [], anzahl_ungelesen: null, hinweis: 'Die E-Mails konnten nicht abgerufen werden (' + list.error + ').' };
@@ -102,7 +134,9 @@ async function fetchEmailOverview(opts = {}) {
             betreff: headerValue(m.payload && m.payload.headers, 'Subject') || '(ohne Betreff)',
             datum: spokenEmailDate(headerValue(m.payload && m.payload.headers, 'Date')),
             kurztext: (m.snippet || '').replace(/\s+/g, ' ').trim(),
-            ungelesen: (m.labelIds || []).includes('UNREAD')
+            ungelesen: (m.labelIds || []).includes('UNREAD'),
+            _labels: m.labelIds || [],
+            _from: headerValue(m.payload && m.payload.headers, 'From')
         };
     }));
 
@@ -110,9 +144,21 @@ async function fetchEmailOverview(opts = {}) {
     const profile = await gmailFetch('labels/UNREAD', headers);
     if (profile.data && typeof profile.data.messagesUnread === 'number') unreadTotal = profile.data.messagesUnread;
 
-    const emails = details.filter(Boolean);
+    let emails = details.filter(Boolean);
+    let ausgeblendet = 0;
+    if (rank) {
+        emails = emails.map((e, i) => ({ e, i, s: mailScore(e) })).sort((a, b) => (b.s - a.s) || (a.i - b.i)).map(x => x.e);
+        // Werbung und automatische Mails kommen nur dazu, wenn nicht genug Wichtiges da ist
+        const gut = emails.filter(e => mailScore(e) >= 0);
+        if (gut.length >= Math.min(3, max)) { ausgeblendet = emails.length - Math.min(gut.length, max); emails = gut; }
+        emails = emails.slice(0, max);
+    }
+    // interne Felder (Labels, Roh-Absender) nicht an die KI weitergeben
+    emails = emails.map(e => { const c = Object.assign({}, e); delete c._labels; delete c._from; return c; });
     lastEmailList = emails;
-    return { emails, anzahl_ungelesen: unreadTotal };
+    const out = { emails, anzahl_ungelesen: unreadTotal };
+    if (rank) out.hinweis_sortierung = 'Die Mails sind nach Wichtigkeit sortiert (Rechnungen, Fristen, Banken und Personen zuerst; Werbung und automatische Benachrichtigungen wie Google Cloud zuletzt oder weggelassen' + (ausgeblendet > 0 ? ', ' + ausgeblendet + ' davon ausgeblendet' : '') + '). Nenne zuerst die ersten Einträge der Liste.';
+    return out;
 }
 
 /* --- Für die KI: eine bestimmte E-Mail vorlesen (die 1., 2. ... aus der letzten Übersicht, oder per id) --- */

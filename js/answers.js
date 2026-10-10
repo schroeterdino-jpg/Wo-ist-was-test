@@ -42,7 +42,7 @@ async function answerWithEmailResults(messages, firstAi, data) {
                     ...messages,
                     { role: "assistant", content: JSON.stringify(firstAi) },
                     { role: "user", content: "Ergebnis deiner E-Mail-Abfrage (JSON): " + JSON.stringify(data) +
-                        "\n\nBeantworte damit jetzt die Frage des Users im Feld 'reply'. Bei einer Übersicht: nenne die Anzahl ungelesener E-Mails und danach kurz Absender und Betreff der wichtigsten, höchstens 5, in normalen Sätzen (kein Aufzählungszeichen, das wird vorgelesen). Bei einer einzelnen E-Mail: lies Absender, Betreff und den Text vor, in eigenen, klaren Sätzen, nichts hinzuerfinden. Erfinde niemals Absender, Betreffs oder Inhalte, die nicht in den Daten stehen. Antworte nur mit JSON: {\"reply\": \"...\"}" }
+                        "\n\nBeantworte damit jetzt die Frage des Users im Feld 'reply'. Bei einer Übersicht: nenne die Anzahl ungelesener E-Mails und danach kurz Absender und Betreff der wichtigsten, höchstens 5, in normalen Sätzen (kein Aufzählungszeichen, das wird vorgelesen). Die Liste ist schon nach Wichtigkeit sortiert: nimm die Einträge in dieser Reihenfolge von oben und überspringe keine wichtigen zugunsten von Werbung, Newslettern oder automatischen Benachrichtigungen (zum Beispiel von Google Cloud). Bei einer einzelnen E-Mail: lies Absender, Betreff und den Text vor, in eigenen, klaren Sätzen, nichts hinzuerfinden. Erfinde niemals Absender, Betreffs oder Inhalte, die nicht in den Daten stehen. Antworte nur mit JSON: {\"reply\": \"...\"}" }
                 ]
             })
         });
