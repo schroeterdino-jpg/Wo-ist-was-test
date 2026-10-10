@@ -54,6 +54,7 @@ const HC=1.05, HRX=0.86, HRY=1.0, HRZ=0.92;
 const taper=v=>0.80+0.20*sm(Math.min(1,Math.max(0,(v+0.95)/1.1)));
 const hA=v=>Math.sqrt(Math.max(0,1-v*v))*taper(v);
 for(let k=0;k<44;k++){ const v=-1+(k+0.5)/44*2, a=hA(v); ringE(HC+v*HRY,HRX*a,HRZ*a,Math.max(10,Math.round(a*86)),0.97-0.2*Math.abs(v),1.0,k*0.1); }
+const NH=P.length;   // Punkte 0..NH-1 gehören zum Kopf (der Kopf bewegt sich einzeln)
 // Hals (länger, oval)
 for(let k=0;k<7;k++){ const y=HC-HRY*0.95-k*0.065; ringE(y,0.34+k*0.006,0.36+k*0.006,36,0.62-k*0.05,0.95); }
 // Schultern und Oberkörper: breit in x, flach in z, schräg ab dem Hals
@@ -186,6 +187,7 @@ function armPoints(out){
 
 
 function col(c,a){ const r=40+c*215, g=130+c*40-(c>0.6?(c-0.6)*100:0), b=255-c*230; return `rgba(${r|0},${g|0},${b|0},${a})`; }
+let hy=0,hp=0,hr=0;
 let thinking=false, tNowG=0, eyeUp=0;
 let speaking=false, mo=0, target=0, blink=0, nextBlink=2200, t0=performance.now(), tPrev=performance.now();
 let eyeH=1, eyeHappy=0, eyeTilt=0, smile=0;
@@ -207,15 +209,22 @@ function frame(now){
   const tH=emo==='warn'?1.5:emo==='question'?1.25:listening?1.2:emo==='sorry'?0.8:1;
   const tHap=(emo==='happy'||emo==='greet')?1:0, tTilt=emo==='sorry'?1:0, tSm=(emo==='happy'||emo==='greet')?1:emo==='sorry'?-0.8:0;
   eyeH+=(tH-eyeH)*0.15; eyeHappy+=(tHap-eyeHappy)*0.15; eyeTilt+=(tTilt-eyeTilt)*0.15; smile+=(tSm-smile)*0.15;
-  const th=Math.sin(t*0.45)*0.06+Math.sin(t*1.1)*0.015, cs=Math.cos(th), sn=Math.sin(th);
+  const th=Math.sin(t*0.45)*0.02, cs=Math.cos(th), sn=Math.sin(th);
   const F=4.6, sc=Math.min(W/4.6,H/5.4), ox=W/2, oy=H*0.40+Math.sin(t*1.3)*2.5+(speaking?mo*2.5:0);
   cx.clearRect(0,0,W,H);
   cx.globalCompositeOperation='lighter';
   const gr=cx.createRadialGradient(ox,oy-sc*0.9,10,ox,oy-sc*0.9,sc*1.7);
   gr.addColorStop(0,col(emo==='warn'?0.85:1,0.10+mo*0.10+(emo==='warn'?0.05:0))); gr.addColorStop(1,'rgba(0,0,0,0)'); cx.fillStyle=gr; cx.fillRect(0,0,W,H);
+  // Kopf: dreht sich leicht, nickt beim Sprechen, neigt sich je nach Stimmung (weich überblendet)
+  const hyT=Math.sin(t*0.6)*0.10+Math.sin(t*1.7)*0.03+(speaking?Math.sin(t*2.1)*0.07*(0.5+mo):0)+(thinking?0.22:0);
+  const hpT=Math.sin(t*0.9)*0.025+(speaking?Math.sin(t*3.3)*0.05*(0.4+mo):0)+(thinking?-0.10:0)+(emo==='sorry'&&speaking?0.10:0)+(listening?-0.04:0);
+  const hrT=Math.sin(t*0.5)*0.04+(emo==='question'&&speaking?0.10:0)+(emo==='sorry'&&speaking?-0.06:0)+(listening?0.07:0);
+  hy+=(hyT-hy)*0.12; hp+=(hpT-hp)*0.12; hr+=(hrT-hr)*0.12;
+  const PVY=HC-HRY*0.95-0.05, cY=Math.cos(hy), sY=Math.sin(hy), cP=Math.cos(hp), sP=Math.sin(hp), cR=Math.cos(hr), sR=Math.sin(hr);
+  const hproj=(x,y,z)=>{ const dy=y-PVY; const x1=x*cR-dy*sR, y1=x*sR+dy*cR; const y2=y1*cP-z*sP, z2=y1*sP+z*cP; const x3=x1*cY+z2*sY, z3=-x1*sY+z2*cY; return proj(x3,y2+PVY,z3); };
   const proj=(x,y,z)=>{ const X=x*cs+z*sn, Z=-x*sn+z*cs, k=F/(F+Z+1.6); return [ox+X*sc*k, oy-(y-0.1)*sc*k, k, Z]; };
-  for(const p of P){
-    const [sx,sy,k,Z]=proj(p.x,p.y,p.z);
+  for(let pi=0;pi<P.length;pi++){ const p=P[pi];
+    const [sx,sy,k,Z]=(pi<NH?hproj:proj)(p.x,p.y,p.z);
     const front=Z<0.15 ? 1 : 0.38; const a=Math.min(1,(0.75+0.6*(k-0.7))*front);
     const boost=p.c>0.6?(speaking?0.28*mo:0):0;
     cx.fillStyle=col(p.c,Math.min(1,a+boost));
@@ -227,7 +236,7 @@ function frame(now){
   function fp(x,y){
     const v=Math.max(-0.99,Math.min(0.99,(y-HC)/HRY)), a=hA(v), rxx=HRX*a, rzz=HRZ*a;
     const u=Math.max(-0.98,Math.min(0.98,x/rxx)); const zz=rzz*Math.sqrt(1-u*u);
-    return proj(x,y,zz+0.012);
+    return hproj(x,y,zz+0.012);
   }
   cx.lineCap='round';
   for(const sx0 of [-0.27,0.27]){
