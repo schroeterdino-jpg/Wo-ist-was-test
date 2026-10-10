@@ -188,6 +188,7 @@ function armPoints(out){
 
 function col(c,a){ const r=40+c*215, g=130+c*40-(c>0.6?(c-0.6)*100:0), b=255-c*230; return `rgba(${r|0},${g|0},${b|0},${a})`; }
 let hy=0,hp=0,hr=0;
+let gx=0,gy=0,gtx=0,gty=0,nextGaze=1500, brL=0,brR=0,brS=0,brF=0, nextFlick=800, flick=0;
 let thinking=false, tNowG=0, eyeUp=0;
 let speaking=false, mo=0, target=0, blink=0, nextBlink=2200, t0=performance.now(), tPrev=performance.now();
 let eyeH=1, eyeHappy=0, eyeTilt=0, smile=0;
@@ -203,12 +204,26 @@ function frame(now){
   armsUpdate(dt);
   if(speaking){ if(Math.random()<0.22) target=0.1+Math.random()*0.9; } else target=0;
   mo+=(target-mo)*(speaking?0.4:0.18);
-  nextBlink-=16; if(nextBlink<0){blink=1; nextBlink=2200+Math.random()*3200;}
+  nextBlink-=16; if(nextBlink<0){blink=1; nextBlink=Math.random()<0.22?260:2200+Math.random()*3200;}
   let ek=1; if(blink>0){ ek=Math.max(0.08,Math.abs(1-blink*2)); blink-=0.13; if(blink<0) blink=0; }
   // Augen und Mundwinkel je nach Stimmung (weich überblendet)
   const tH=emo==='warn'?1.5:emo==='question'?1.25:listening?1.2:emo==='sorry'?0.8:1;
   const tHap=(emo==='happy'||emo==='greet')?1:0, tTilt=emo==='sorry'?1:0, tSm=(emo==='happy'||emo==='greet')?1:emo==='sorry'?-0.8:0;
   eyeH+=(tH-eyeH)*0.15; eyeHappy+=(tHap-eyeHappy)*0.15; eyeTilt+=(tTilt-eyeTilt)*0.15; smile+=(tSm-smile)*0.15;
+  // Blick: kleine, zufällige Blickwechsel; beim Nachdenken nach oben-seitlich, beim Zuhören geradeaus
+  nextGaze-=dt*1000;
+  if(nextGaze<0){ nextGaze=900+Math.random()*2600; gtx=(Math.random()-0.5)*0.07; gty=(Math.random()-0.5)*0.035; }
+  if(thinking){ gtx=0.05; gty=0.04; } else if(listening){ gtx*=0.5; gty*=0.5; }
+  gx+=(gtx-gx)*0.2; gy+=(gty-gy)*0.2;
+  // Augenbrauen: heben beim Betonen, Stimmung bestimmt Grundstellung
+  nextFlick-=dt*1000; if(nextFlick<0){ nextFlick=(speaking?350:2500)+Math.random()*900; flick=speaking?0.25+Math.random()*0.3:0.15; }
+  flick*=0.92;
+  let bL=0,bR=0,bS=0,bF=0;
+  if(emo==='warn'){ bL=bR=0.5; bF=0.35; } else if(emo==='question'){ bL=0.85; bR=0.35; } else if(emo==='sorry'){ bL=bR=0.25; bS=1; }
+  else if(emo==='greet'||emo==='happy'){ bL=bR=0.4; } else if(listening){ bL=bR=0.3; }
+  if(thinking){ bL=0.1; bR=0.7; bF=0.5; }
+  const fl=speaking||thinking||listening?flick:flick*0.6;
+  brL+=((bL+fl)-brL)*0.18; brR+=((bR+fl*0.8)-brR)*0.18; brS+=(bS-brS)*0.15; brF+=(bF-brF)*0.15;
   const th=Math.sin(t*0.45)*0.02, cs=Math.cos(th), sn=Math.sin(th);
   const F=4.6, sc=Math.min(W/4.6,H/5.4), ox=W/2, oy=H*0.40+Math.sin(t*1.3)*2.5+(speaking?mo*2.5:0);
   cx.clearRect(0,0,W,H);
@@ -233,14 +248,27 @@ function frame(now){
   const AP=[]; armPoints(AP);
   for(const p of AP){ const [sx,sy,k,Z]=proj(p.x,p.y,p.z); const a=Math.min(1,0.8+0.5*(k-0.7)); cx.fillStyle=col(p.c,a*(p.y<NY-1.9?Math.max(0.15,1-(NY-1.9-p.y)*1.1):1)); const sz=p.s*k*1.7; cx.fillRect(sx-sz/2,sy-sz/2,sz,sz); }
   for(const q of SP){ const a=q.a+t*q.sp; const x=Math.cos(a)*q.r, z=Math.sin(a)*q.r, y=q.y+Math.sin(t*0.8+q.a)*0.1; const [sx,sy,k,Z]=proj(x,y,z); cx.fillStyle=col(0.1,Z<0?0.7:0.25); const s=q.s*k; cx.fillRect(sx,sy,s,s); }
-  function fp(x,y){
+  function fp(x,y,dz){
     const v=Math.max(-0.99,Math.min(0.99,(y-HC)/HRY)), a=hA(v), rxx=HRX*a, rzz=HRZ*a;
     const u=Math.max(-0.98,Math.min(0.98,x/rxx)); const zz=rzz*Math.sqrt(1-u*u);
-    return hproj(x,y,zz+0.012);
+    return hproj(x,y,zz+0.012+(dz||0));
   }
   cx.lineCap='round';
+  // Nase: dezente Linie mit Nasenflügeln, steht etwas vor dem Gesicht
+  cx.shadowColor=col(0.9,0.8); cx.shadowBlur=8; cx.strokeStyle=col(0.8,0.55); cx.lineWidth=1.8;
+  cx.beginPath(); { const nb=[[0,HC+0.06,0.02],[0.01,HC-0.08,0.07],[0,HC-0.20,0.12],[-0.075,HC-0.23,0.07]]; nb.forEach((q,i)=>{ const [nx,ny]=fp(q[0],q[1],q[2]); if(i===0) cx.moveTo(nx,ny); else cx.lineTo(nx,ny); }); const [tx,ty]=fp(0,HC-0.20,0.12); cx.lineTo(tx,ty); const [ux,uy]=fp(0.075,HC-0.23,0.07); cx.lineTo(ux,uy); }
+  cx.stroke();
+  // Augenbrauen
+  cx.lineWidth=3; cx.strokeStyle=col(0.85,0.85); cx.shadowBlur=10;
+  for(const sd of [-1,1]){
+    const raise=sd<0?brL:brR, y0=HC+0.14+0.20+raise*0.075, xo=sd*0.46, xi=sd*0.10;
+    const yi=y0-brF*0.07+brS*0.05, yo=y0+brS*(-0.03)+(emo==='warn'?0:0);
+    cx.beginPath();
+    for(let i=0;i<=8;i++){ const u=i/8; const x=xo+(xi-xo)*u+gx*0.3, arch=Math.sin(u*Math.PI)*0.035; const y=yo+(yi-yo)*u+arch; const [bx,by]=fp(x,y,0.01); if(i===0) cx.moveTo(bx,by); else cx.lineTo(bx,by); }
+    cx.stroke();
+  }
   for(const sx0 of [-0.27,0.27]){
-    const [ex,ey,k]=fp(sx0,HC+0.14+0.05*eyeUp);
+    const [ex,ey,k]=fp(sx0+gx,HC+0.14+0.05*eyeUp+gy);
     const w=0.26*sc*k*(1+0.08*(eyeH-1)), h=Math.max(2,0.07*sc*k*Math.min(ek,1)*1.9*eyeH);
     cx.shadowColor=col(1,1); cx.shadowBlur=14;
     if(eyeHappy>0.5){   // lachende Augen: nach oben gewölbte Bögen
