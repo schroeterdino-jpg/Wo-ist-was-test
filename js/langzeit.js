@@ -56,6 +56,7 @@
         const frage = String(action.episode_frage || '').trim().slice(0, 200);
         const hinweis = String(action.episode_hinweis || '').trim().slice(0, 200);
         const jaehrlich = action.episode_jaehrlich === true || action.episode_jaehrlich === 'true' || kat === 'Geburtstag';
+        const frist = (action.episode_frist === true || action.episode_frist === 'true') && !!datum && !jaehrlich;   // "Bis Ende November Vertrag kündigen": wird später beiläufig erwähnt, ohne Frage
 
         const heute = todayIso();
         const metadata = { typ: 'episode', kategorie: kat, datum_gesagt: heute, quelle: 'gespraech' };
@@ -63,10 +64,12 @@
         if (frage) metadata.frage = frage;
         if (hinweis) metadata.hinweis = hinweis;
         if (jaehrlich) metadata.jaehrlich = true;
+        if (frist) metadata.frist = true;
         // Status: ein Plan mit Nachfrage ist "offen"; alles andere braucht keine Nachfrage.
         // Hat die KI bei einem Event von heute oder später keine Frage mitgeschickt, wird trotzdem nachgefragt (beiläufig, wie es war).
         if (!frage && kat === 'Event' && datum && datum >= heute) metadata.frage = AUTO_FRAGE;
-        metadata.status = (datum && metadata.frage) ? 'offen' : 'ohne_nachfrage';
+        if (frist) delete metadata.frage;
+        metadata.status = (datum && metadata.frage && !frist) ? 'offen' : 'ohne_nachfrage';
 
         const fullText = datum ? `${text} (${lesbar(datum)})` : text;
         try {
@@ -90,7 +93,7 @@
         lsSet(FOLLOW_KEY, todayIso());   // heute keine weitere Nachfrage
         if (!id) return;
         const a0 = String(action.episode_art || '').toLowerCase();
-        const art = a0.startsWith('heute') ? 'heute' : a0.startsWith('anst') ? 'anstoss' : 'nachfragen';
+        const art = a0.startsWith('heute') ? 'heute' : a0.startsWith('anst') ? 'anstoss' : (a0.startsWith('fh') || a0.startsWith('frist')) ? 'fh' : 'nachfragen';
         if (art === 'anstoss') lsSet(ANSTOSS_KEY, todayIso());   // Anstöße höchstens alle 2-3 Tage
         try { await post({ action: 'mark', id, art, year: new Date().getFullYear(), today: todayIso() }); } catch (e) { console.error('Nachfrage-Vermerk fehlgeschlagen', e); }
         dueCache = null;
@@ -199,6 +202,11 @@
         if (!dueCache || dueCache.tag !== heute || !dueCache.liste.length) return '';
         const e = dueCache.liste[0];
         const m = e.metadata || {};
+        if (e.art === 'frist') {
+            const tg = Number(e.tage);
+            const fe = { id: e.id, art: 'frist', inhalt: String(e.text || '').replace(/\s*\([^)]*\d{4}\)\s*$/, ''), frist: isIsoDay(m.ereignis_datum) ? lesbar(m.ereignis_datum) : '', tage: Number.isFinite(tg) ? tg : null };
+            return '\n\nlangzeit_nachfragen (Frist, heute noch nicht erwähnt; erwähne sie genau einmal ganz beiläufig, OHNE Frage und ohne Erinnerungsangebot, und melde es mit der Aktion episode_asked, episode_art "fh"): ' + JSON.stringify(fe);
+        }
         const eintrag = e.art === 'anstoss'
             ? { id: e.id, art: 'anstoss', inhalt: String(e.text || '').replace(/\s*\([^)]*\d{4}\)\s*$/, ''), kategorie: m.kategorie }
             : e.art === 'heute'
