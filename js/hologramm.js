@@ -616,7 +616,8 @@ function frame(now){
   }
   cx.globalCompositeOperation=CFG.glow?'lighter':'source-over';cx.shadowColor=CFG.f.mouth;cx.shadowBlur=CFG.glow?12:0;
   // Mund
-  const my=yOf(0.30),mw=0.20*cur.mw,od=0.012+mo*0.12+mouthO*0.10+Math.max(0,(cur.smL+cur.smR)/2-0.3)*0.04;   // Lächeln öffnet den Mund nur wenig, damit die Lippen beim Sprechen sichtbar auf- und zugehencx.strokeStyle=CFG.f.mouth;cx.lineWidth=CFG.f.mouthW;cx.lineJoin=CFG.smooth?'round':'miter';
+  const my=yOf(0.30),mw=0.20*cur.mw,od=0.012+mo*0.12+mouthO*0.10+Math.max(0,(cur.smL+cur.smR)/2-0.3)*0.04;;   /* Lächeln öffnet den Mund nur wenig */
+  cx.strokeStyle=CFG.f.mouth;cx.lineWidth=CFG.f.mouthW;cx.lineJoin=CFG.smooth?'round':'miter';
   if(od>0.022){
     const N=14,up=[],lo=[];
     for(let i=0;i<=N;i++){const u=i/N*2-1;const lift=(u<0?cur.smL:cur.smR)*0.05*u*u;const x=u*mw*(mouthO>0?(1-mouthO*0.3):1);
