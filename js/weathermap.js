@@ -68,12 +68,17 @@ function parseWeatherMapRequest(text) {
     // Achtung: \b erkennt Wörter mit ü am Anfang nicht, darum hier eigene Wortgrenzen
     const dayOffset = /(?<![\wäöüß])übermorgen(?![\wäöüß])/.test(t) ? 2 : (/(?<![\wäöüß])morgen(?![\wäöüß])/.test(t) && !/\bguten morgen\b/.test(t)) ? 1 : 0;
 
+    // Füllwörter, die kein Ort sind: "auf der Karte", "für morgen" ("Zeig mir das Wetter für morgen auf der Karte" = dein Standort, morgen)
+    const tk = t.replace(/(?<![\wäöüß])(?:auf|in)\s+(?:der|die|einer)\s+(?:wetter\s*)?karte(?![\wäöüß])|(?<![\wäöüß])(?:als|auf)\s+(?:wetter\s*)?karte(?![\wäöüß])/g, ' ')
+        .replace(/(?<![\wäöüß])(?:für\s+)?(?:übermorgen|morgen|heute)(?![\wäöüß])/g, ' ').replace(/\s+/g, ' ').trim();
+    if (/karte/.test(t) && /^(?:(?:zeig\w*|öffne\w*|mach\w*|ruf\w*|gib\w*)\s+)?(?:mir\s+)?(?:bitte\s+)?(?:mal\s+)?(?:die\s+|das\s+|eine\s+)?(?:wetter\s*karte|wettervorhersage|wetter)(?:\s+(?:bitte|mal))?$/.test(tk)) return { place: '', dayOffset };
+
     // ohne Ort: "Zeig mir die Wetterkarte" / "Wetterkarte"
     if (/^(?:(?:zeig\w*|öffne\w*|mach\w*)\s+(?:mir\s+)?(?:bitte\s+)?(?:mal\s+)?(?:die\s+|eine\s+)?)?wetterkarte(?:\s+bitte)?$/.test(t)) return { place: '', dayOffset };
 
     // mit Ort: alles nach "Wetter..." und "in/für/von/auf/bei/im"
-    const m = t.match(/\b(?:wetterkarte|wettervorhersage|wetterlage|wetter)\b.*?(?<![\wäöüß])(?:in|für|von|auf|bei|im|über)\s+(.+)$/)
-        || t.match(/\bwetterkarte\s+([a-zäöüß][a-zäöüß .'-]*)$/);   // "Wetterkarte Istanbul" ohne "in"
+    const m = tk.match(/\b(?:wetterkarte|wettervorhersage|wetterlage|wetter)\b.*?(?<![\wäöüß])(?:in|für|von|auf|bei|im|über)\s+(.+)$/)
+        || tk.match(/\bwetterkarte\s+([a-zäöüß][a-zäöüß .'-]*)$/);   // "Wetterkarte Istanbul" ohne "in"
     if (!m) return null;
     const place = wxCleanPlace(m[1]);
     return place ? { place, dayOffset } : null;
