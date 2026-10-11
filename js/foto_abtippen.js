@@ -289,7 +289,7 @@
         const wrap = document.createElement('div'); wrap.id = 'jvAbtipp';
         const head = document.createElement('div'); head.className = 'abt-head';
         const title = document.createElement('span'); title.textContent = 'ABGETIPPT · ' + pages + (pages === 1 ? ' SEITE' : ' SEITEN'); head.appendChild(title);
-        const x = document.createElement('button'); x.textContent = '✕'; x.setAttribute('aria-label', 'Schließen'); x.addEventListener('click', () => { wrap.remove(); doc = null; });
+        const x = document.createElement('button'); x.textContent = '✕'; x.setAttribute('aria-label', 'Schließen'); x.addEventListener('click', () => { wrap.remove(); doc = null; document.body.classList.remove('jv-abt-print'); const pr0 = document.getElementById('jvAbtPrint'); if (pr0) pr0.remove(); });
         head.appendChild(x);
         const bar = document.createElement('div'); bar.className = 'abt-bar';
         const body = document.createElement('div'); body.className = 'abt-body';
@@ -304,9 +304,9 @@
             pr.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
             document.body.appendChild(pr);
             document.body.classList.add('jv-abt-print');
-            const done = () => { document.body.classList.remove('jv-abt-print'); try { pr.remove(); } catch (e) {} window.removeEventListener('afterprint', done); };
-            window.addEventListener('afterprint', done);
-            setTimeout(() => { try { window.print(); } catch (e) { done(); } setTimeout(done, 60000); }, 150);
+            // Der Druck-Bereich bleibt bis zum Schließen des Fensters stehen: Auf Android meldet der Browser "fertig" (afterprint) sofort, noch bevor die
+            // Druckvorschau gezeichnet ist, und würde ihn sonst zu früh wieder wegnehmen. Am Bildschirm sieht man ihn nie (nur beim Drucken).
+            setTimeout(() => { try { window.print(); } catch (e) { note.textContent = 'Drucken ist auf diesem Gerät nicht möglich.'; } }, 150);
         });
         const naechste = (fn) => () => {
             try { photoIntent = { task: 'abtippen', question: MEHR, at: Date.now() }; } catch (e) {}
