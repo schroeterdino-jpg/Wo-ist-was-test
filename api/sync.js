@@ -222,6 +222,8 @@ async function handlePush(action, req, res, redis) {
         cfg.schicht = { base: Math.round(sc.base), shift: sc.shift, auto: sc.auto !== false,
           times: { frueh: Math.max(0, Math.min(1439, Math.round(sc.times.frueh))), spaet: Math.max(0, Math.min(1439, Math.round(sc.times.spaet))) } };
       }
+      const ur = body.urlaub;   // Urlaub (von/bis, jeweils JJJJ-MM-TT): dann keine Arbeitsweg-, Schicht- und Wettermeldungen
+      if (ur && /^\d{4}-\d{2}-\d{2}$/.test(String(ur.von)) && /^\d{4}-\d{2}-\d{2}$/.test(String(ur.bis)) && ur.von <= ur.bis) cfg.urlaub = { von: String(ur.von), bis: String(ur.bis) };
       if (typeof body.name === 'string') cfg.name = body.name.replace(/[^\p{L}\p{N} .'-]/gu, '').slice(0, 40);
       const rt = body.route;
       if (rt && Number.isFinite(rt.fahrtMin) && rt.from && rt.to && [rt.from.lat, rt.from.lon, rt.to.lat, rt.to.lon].every(Number.isFinite)) {
@@ -587,6 +589,8 @@ async function assessWeather(route, ymd, startMin, durMin) {
   } catch (e) { return { err: 'Wetterdienst nicht erreichbar' }; }
 }
 /* Arbeitet er an diesem Tag? Nur Montag bis Freitag (am Wochenende gibt es keine Arbeitsweg-Warnung) */
+/* Ist der Tag (JJJJ-MM-TT) ein Urlaubstag? Dann gibt es keine Arbeitsweg-, Schicht- und Wettermeldungen. */
+function inUrlaub(st, ymd) { const u = st && st.cfg && st.cfg.urlaub; return !!(u && ymd >= u.von && ymd <= u.bis); }
 function isWerktag(p) { const d = new Date(p.y, p.m - 1, p.d).getDay(); return d >= 1 && d <= 5; }
 /* Ist eine Wetterwarnung fällig? (rein aus dem Speicher, kein Netzwerk) */
 function weatherDue(st, now) {
@@ -595,9 +599,9 @@ function weatherDue(st, now) {
   const bp = berlinParts(now);
   if (bp.min >= WX_EVE_MIN && bp.min <= WX_EVE_MIN + WX_GRACE_MIN && st.wx.eve !== bp.ymd) {
     const tm = berlinParts(now + 86400000);
-    if (isWerktag(tm) && shiftOfWeek(sc, weekNo(tm)) === 'frueh') return { key: 'eve', day: bp.ymd, ymd: tm.ymd, start: sc.times.frueh, wo: 'Morgen früh' };
+    if (isWerktag(tm) && !inUrlaub(st, tm.ymd) && shiftOfWeek(sc, weekNo(tm)) === 'frueh') return { key: 'eve', day: bp.ymd, ymd: tm.ymd, start: sc.times.frueh, wo: 'Morgen früh' };
   }
-  if (isWerktag(bp) && shiftOfWeek(sc, weekNo(bp)) === 'spaet') {
+  if (isWerktag(bp) && !inUrlaub(st, bp.ymd) && shiftOfWeek(sc, weekNo(bp)) === 'spaet') {
     const at = sc.times.spaet - WX_SPAET_LEAD_MIN;
     if (at >= 0 && bp.min >= at && bp.min <= at + WX_GRACE_MIN && st.wx.sp !== bp.ymd) return { key: 'sp', day: bp.ymd, ymd: bp.ymd, start: sc.times.spaet, wo: 'Heute' };
   }
@@ -640,7 +644,7 @@ function rainDue(st, now, appOpen) {
   const rt = st.cfg && st.cfg.route, sc = st.cfg && st.cfg.schicht;
   const points = []; let arbeitsweg = false;
   const wd = new Date(bp.y, bp.m - 1, bp.d).getDay();
-  if (rt && rt.from && rt.to && sc && sc.times && wd >= 1 && wd <= 5) {
+  if (rt && rt.from && rt.to && sc && sc.times && wd >= 1 && wd <= 5 && !inUrlaub(st, bp.ymd)) {
     const start = sc.times[shiftOfWeek(sc, weekNo(bp))];
     const dep = start - (rt.fahrtMin || 30) - 10;
     if (bp.min >= dep - 45 && bp.min <= dep + 10) {
@@ -727,7 +731,7 @@ function impulseDue(st, now) {
   const tm = berlinParts(now + 86400000);
   const dowTm = (new Date(Date.UTC(tm.y, tm.m - 1, tm.d)).getUTCDay() + 6) % 7;   // 0 = Montag
   const sc = st.cfg && st.cfg.schicht;
-  if (sc && sc.times) {
+  if (sc && sc.times && !inUrlaub(st, tm.ymd)) {
     const shTm = shiftOfWeek(sc, weekNo(tm));
     if (dowTm === 0 && inWin(IMP_WECHSEL_MIN) && sent.wechsel !== bp.ymd) return { id: 'wechsel', ymd: bp.ymd, shTm, at: sc.times[shTm] };
     if (shTm === 'frueh' && dowTm <= 4 && inWin(IMP_BETT_MIN) && sent.bett !== bp.ymd) return { id: 'bett', ymd: bp.ymd, at: sc.times.frueh };
@@ -907,7 +911,7 @@ async function handleDue(req, res, redis) {
     // Schicht-Briefing fällig? (einmal pro Tag, in [Zeit, Zeit + 10 min])
     let brief = null;
     const sc = st.cfg && st.cfg.schicht;
-    if (sc && sc.auto !== false) {
+    if (sc && sc.auto !== false && !inUrlaub(st, berlinParts(now).ymd)) {
       const bp = berlinParts(now);
       const sh = shiftOfWeek(sc, weekNo(bp));
       const at = sc.times[sh];
