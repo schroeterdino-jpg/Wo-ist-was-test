@@ -100,6 +100,22 @@
         } catch (e) { console.error('Erinnerung mitnehmen', e); }
     }
 
+    /* ---------- Kalender erst nach der Antwort öffnen ----------
+       Beim Eintragen springt der Google Kalender in den Vordergrund, dann steht in Jarvis das Mikrofon still und die Antwort auf die
+       Rückfrage geht verloren. Darum wartet das Öffnen, bis die Frage beantwortet ist (oder 5 Minuten vergangen sind). */
+    let halten = false, offen = null, haltTimer = null;
+    const origOpen = (typeof window.openGoogleCalendarApp === 'function') ? window.openGoogleCalendarApp : null;
+    if (origOpen && !origOpen._termin) {
+        const w = function (iso) { if (halten) { offen = { a: iso }; return; } return origOpen.apply(this, arguments); };
+        w._termin = true;
+        window.openGoogleCalendarApp = w;
+    }
+    function freigeben(verzoegerung) {
+        halten = false; clearTimeout(haltTimer);
+        const o = offen; offen = null;
+        if (o && origOpen) setTimeout(function () { try { origOpen(o.a); } catch (e) {} }, verzoegerung || 0);
+    }
+
     /* ---------- Aktion abfangen ---------- */
     const original = window.executeAction;
     if (!original._langzeitErinnern) {
@@ -108,7 +124,9 @@
             try {
                 if (action && (action.type === 'calendar_update' || action.type === 'calendar_delete')) { altEintrag = eintragZu(action, text); altLink = linkZu(altEintrag); }
             } catch (e) {}
-            const res = await original.apply(this, arguments);
+            try { if (isOn() && origOpen && action && action.type !== 'calendar_update' && action.type !== 'calendar_delete' && (action.type === 'calendar' || action.calendar_text) && action.calendar_time) { halten = true; offen = null; } } catch (e) {}
+            let res;
+            try { res = await original.apply(this, arguments); } catch (e) { freigeben(0); throw e; }
             try {
                 if (altLink && action.type === 'calendar_delete') {
                     const rem = erinnerungDa(altLink);
@@ -146,6 +164,7 @@
                     }
                 }
             } catch (e) { console.error('Termin-Erinnerung', e); }
+            if (halten) { if (pending) { clearTimeout(haltTimer); haltTimer = setTimeout(function () { freigeben(0); }, PENDING_MS); } else freigeben(0); }
             return res;
         };
         wrapped._langzeitErinnern = true;
@@ -221,9 +240,32 @@
         }
         return false;
     }
+    /* Der Kalender springt beim Eintragen in den Vordergrund, Jarvis ist dann im Hintergrund: Mikrofon und Zuhören stehen still.
+       Kommt der User zurück und die Frage ist noch offen, stellt Jarvis sie kurz noch einmal und hört danach wieder zu. */
+    let zuletztVersteckt = 0;
+    try {
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) { zuletztVersteckt = Date.now(); return; }
+            if (!pending || !zuletztVersteckt || zuletztVersteckt < pending.at - 20000) return;
+            if (Date.now() - pending.at > PENDING_MS) return;
+            const p = pending; zuletztVersteckt = 0;
+            setTimeout(function () {
+                try {
+                    if (pending !== p || (typeof isRecording !== 'undefined' && isRecording)) return;
+                    say('Wie viele Stunden vorher soll ich Sie erinnern?');
+                } catch (e) {}
+            }, 900);
+        });
+    } catch (e) {}
+
     if (window.jvCommands) {
         window.jvCommands.use('termin-erinnern', function (text, next) {
-            try { if (handle(text)) return true; } catch (e) { console.error('Termin-Erinnerung', e); }
+            try {
+                const war = !!pending, r = handle(text);
+                if (war && !pending) freigeben(4500);   // beantwortet: erst die Bestätigung sprechen lassen, dann den Kalender zeigen
+                else if (war && !r) freigeben(0);       // etwas anderes gesagt: Frage bleibt, der Kalender öffnet sich trotzdem
+                if (r) return true;
+            } catch (e) { console.error('Termin-Erinnerung', e); }
             return next(text);
         }, 96);
     }
