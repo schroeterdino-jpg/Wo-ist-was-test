@@ -340,13 +340,18 @@
         const key = e => String(e.metadata.ereignis_datum || e.metadata.datum_gesagt || '');
         eintraege.sort((a, b) => key(b).localeCompare(key(a)));
         sub.textContent = eintraege.length === 1 ? '1 Eintrag' : eintraege.length + ' Einträge';
+        try {   // Prüfhilfe: wie viele Fristen gespeichert sind und ob heute ein Hinweis bereitliegt
+            const nF = eintraege.filter(e => e.metadata && (e.metadata.frist === true || e.metadata.frist === 'true')).length;
+            const nH = (dueCache && dueCache.tag === todayIso()) ? dueCache.liste.filter(x => x.art === 'frist').length : '?';
+            sub.textContent += ' · Fristen: ' + nF + ' · Hinweis bereit: ' + nH;
+        } catch (e) {}
         if (!eintraege.length) mk(list, 'div', 'lt-note', 'Noch nichts gespeichert. Erzählen Sie mir etwas, zum Beispiel „Ich gehe morgen schwimmen“.');
         eintraege.forEach(e => {
             const m = e.metadata;
             const row = mk(list, 'div', 'lt-item');
             const body = mk(row, 'div', 'lt-body');
             const datum = isIsoDay(m.ereignis_datum) ? lesbar(m.ereignis_datum) : (isIsoDay(m.datum_gesagt) ? 'erzählt am ' + lesbar(m.datum_gesagt) : '');
-            mk(body, 'div', 'lt-meta', [m.kategorie || 'Eintrag', datum, (m.jaehrlich === true || m.jaehrlich === 'true') ? 'jährlich' : ''].filter(Boolean).join(' · '));
+            mk(body, 'div', 'lt-meta', [m.kategorie || 'Eintrag', datum, (m.jaehrlich === true || m.jaehrlich === 'true') ? 'jährlich' : '', (m.frist === true || m.frist === 'true') ? 'FRIST' : ''].filter(Boolean).join(' · '));
             mk(body, 'div', 'lt-text', String(e.text || '').replace(/\s*\([^)]*\d{4}\)\s*$/, ''));
             const del = mk(row, 'button', 'lt-del', 'Löschen');
             del.addEventListener('click', async () => {
