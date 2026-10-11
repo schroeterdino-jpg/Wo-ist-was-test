@@ -495,13 +495,6 @@
     const originalFetch = window.fetchCloudSpeechBlob;
     window.fetchCloudSpeechBlob = async function (text, voice) {
         const isAck = window.__jvAck === true;   // wird synchron gelesen, bevor irgendetwas wartet
-        const foreign = window.__jvForeign === true; window.__jvForeign = false;   // Fremdsprache (Dolmetscher): Text unverändert, nur Fish Audio, sonst Handy-Stimme der Sprache
-        if (foreign && window.getTtsEngine() === 'fish') {
-            if (typeof AbortController === 'undefined') return null;
-            window.__jvEmoRate = 1;
-            const r = await requestOne(strip(text).replace(/\s+/g, ' ').trim().slice(0, 600), voice, { timeout: 20000, fishOnly: true });
-            return r ? r.blob : null;
-        }
         if (window.getTtsEngine() !== 'fish') {
             const other = await originalFetch.call(this, pricesToWords(normalizeSpoken(strip(text))), voice);
             try { if (other && typeof other === 'object') other.__jvSpeech = true; } catch (e) {}

@@ -282,11 +282,8 @@ function speak(text, onComplete, langCode) {
 
     // Nur für normalen deutschen Text die Cloud-Stimme versuchen (der Dolmetscher-Modus mit langCode
     // bleibt bei der Handy-Stimme, die die Fremdsprachen-Stimmen schon mitbringt).
-    // Fremdsprachen (Dolmetscher): nur mit Fish Audio in der Cloud (die Stimme kann Türkisch, Polnisch, Englisch ...), sonst Handy-Stimme der Sprache
-    const foreignCloud = !!langCode && getTtsEngine() === 'fish' && ttsCloudFailCount < TTS_CLOUD_MAX_FAILS;
-    const tryCloud = (!langCode || foreignCloud) && getTtsEngine() !== 'browser' && ttsCloudFailCount < TTS_CLOUD_MAX_FAILS;
+    const tryCloud = !langCode && getTtsEngine() !== 'browser' && ttsCloudFailCount < TTS_CLOUD_MAX_FAILS;
     if (tryCloud) {
-        window.__jvForeign = !!langCode;
         fetchCloudSpeechBlob(cleanText, getEdgeVoice()).then(blob => {
             if (!blob) { ttsCloudFailCount++; speakBrowser(cleanText, onComplete, langCode); return; }
             ttsCloudFailCount = 0;
