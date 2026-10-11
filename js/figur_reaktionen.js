@@ -82,7 +82,7 @@
         const t = ' ' + String(text || '').toLowerCase() + ' ';
         if (t.length > 900) return null;
         if (/herzlichen glückwunsch zum geburtstag|alles gute zum geburtstag|hat heute geburtstag|heute hat .{0,30}geburtstag|geburtstag(?:skind)? heute/.test(t)) return 'party';
-        if (/\bgute nacht\b|\btschüss\b|\bbis später\b|\bbis morgen\b|\bschönen feierabend\b|\bbis bald\b/.test(t)) return 'winken';
+        if (/\bgute nacht\b|\btschüss\b|\bbis später\b|\bbis morgen\b|\bschönen feierabend\b|\bbis bald\b|schlafen sie gut|schlaf gut|süße träume|angenehme nachtruhe|\bgut(?:e)? nacht\b|\bauf wiedersehen\b|\bbis dann\b|\bschönen abend noch\b|\bschönen tag noch\b|\bmach'?s gut\b|\bpassen sie auf sich auf\b/.test(t)) return 'winken';
         if (/\bstau\b|\bstaus\b|zähfließend|stockender verkehr|verzögerung(?:en)? von|längere fahrzeit/.test(t) && !/kein stau|keine staus|ohne stau/.test(t)) return 'stau';
         if (wetterText(t)) {
             if (/\bregen\b|regnet|schauer|nieselregen|gewitter|starkregen|nass/.test(t) && !/kein regen|keinen regen|trocken/.test(t)) return 'schirm';
@@ -152,6 +152,8 @@
             if (neu && holoOn()) { wirft = false; setTimeout(() => holo().karteWurf('✅', () => {}, 2150), 800); }
             return true;
         }
+        // Verabschiedung des Users -> Winken (der Befehl läuft normal weiter)
+        if (t.length <= 40 && /\b(?:gute nacht|tschüss|tschuess|tschau|ciao|bis später|bis morgen|bis bald|auf wiedersehen|schönen feierabend|ich gehe schlafen|ich geh schlafen|ich gehe jetzt)\b/.test(t)) { setTimeout(() => react('winken', ''), 1500); return false; }
         // Lob -> Verbeugung (der Befehl läuft normal weiter)
         if (t.length <= 40 && /\b(?:gut gemacht|sehr gut gemacht|super gemacht|toll gemacht|bravo|du bist (?:der beste|klasse|super|toll|spitze)|danke jarvis|danke scarlett)\b/.test(t)) { setTimeout(() => react('verbeugen', ''), 600); return false; }
         // Münze werfen
