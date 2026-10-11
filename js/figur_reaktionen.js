@@ -1,6 +1,6 @@
 /* ============================================================
    FIGUR-REAKTIONEN: Die Figur (hologramm.js) reagiert auf das, was passiert. Alles ist abschaltbar: "Figur-Animationen aus" / "Figur-Animationen an" (Standard: an).
-   1) KARTENWURF: Öffnet sich ein Fenster auf einen Sprachbefehl hin (Termine, Karte, Nachrichten, Tabelle ...) oder die Wetterkarte, holt die Figur ein Kärtchen
+   1) KARTENWURF: Öffnet sich ein Fenster auf einen Sprachbefehl hin (Termine, Karte, Nachrichten, Tabelle ...) oder die Wetterkarte oder der Tagesüberblick, holt die Figur ein Kärtchen
       mit dem passenden Symbol hervor, wirft es hoch, und das Fenster klappt auf. Beim Antippen von Menü oder Knöpfen gibt es keinen Wurf (keine Wartezeit).
    2) REAKTIONEN auf die Antwort (kurz nachdem Jarvis zu sprechen beginnt, höchstens alle 25 Sekunden eine):
       Regen -> Schirm; Sonne -> Sonnenbrille; Frost -> Hände reiben, Atemwölkchen; Stau -> Blick auf die Uhr, Kopfschütteln;
@@ -22,15 +22,16 @@
 
     /* ---------- 1) Kartenwurf ---------- */
     const PANEL_ICON = { termine: '📅', erinnerungen: '🔔', einkauf: '📝', aufgaben: '📝', gedaechtnis: '🧠', kontakte: '👤', karte: '🗺️', protokolle: '📋', adressen: '📍', dashboard: '🖥️', nachrichten: '📰', tabelle: '⚽' };
-    let lastTap = 0, wirft = false;
+    let lastTap = 0, wirft = false, nachWurf = 0;
     try {
         document.addEventListener('pointerdown', () => { lastTap = Date.now(); }, true);
         document.addEventListener('touchstart', () => { lastTap = Date.now(); }, { capture: true, passive: true });
     } catch (e) {}
     function wurf(icon, tu, args, self) {
-        if (!isOn() || !holoOn() || wirft || Date.now() - lastTap < 1500) return false;
+        if (!isOn() || !holoOn() || wirft || Date.now() - lastTap < 1500 || Date.now() < nachWurf) return false;
         wirft = true;
-        const ok = holo().karteWurf(icon, () => { wirft = false; try { tu.apply(self, args); } catch (e) { console.error('Kartenwurf', e); } }, 2150);
+        let ok = false;
+        try { ok = typeof holo().karteWurf === 'function' && holo().karteWurf(icon, () => { nachWurf = Date.now() + 4000; try { tu.apply(self, args); } catch (e) { console.error('Kartenwurf', e); } wirft = false; }, 2150); } catch (e) { ok = false; }
         if (!ok) wirft = false;
         return ok;
     }
@@ -56,6 +57,16 @@
         };
         w._wurf = true;
         window.showWeatherMap = w;
+    }
+
+    if (typeof window.uebRender === 'function' && !window.uebRender._wurf) {   // Tagesüberblick (morgens beim Öffnen und per Sprache)
+        const orig = window.uebRender;
+        const w = function () {
+            try { if (wurf('🗓️', orig, arguments, this)) return; } catch (e) {}
+            return orig.apply(this, arguments);
+        };
+        w._wurf = true;
+        window.uebRender = w;
     }
 
     /* ---------- 2) Reaktionen auf die Antwort ---------- */
@@ -88,7 +99,7 @@
         const iv = setInterval(() => {
             n++;
             let h = false; try { h = holo().hoerbar(); } catch (e) {}
-            if (h || n > (versuche || 30)) { clearInterval(iv); if (h || n <= 30) react(name, ''); }
+            if (h || n > (versuche || 30)) { clearInterval(iv); react(name, ''); }
         }, 150);
     }
     function wrapSpeak() {
@@ -134,6 +145,12 @@
             if (/\b(aus|ausschalten|deaktivier\w*|stopp?)\b/.test(t)) { lsSet(KEY, '0'); say('Die Figur bleibt jetzt ruhig. Keine Animationen mehr.'); return true; }
             if (/\b(an|ein|einschalten|aktivier\w*)\b/.test(t)) { lsSet(KEY, '1'); say('Die Animationen der Figur sind wieder an.'); return true; }
             say('Die Animationen der Figur sind ' + (isOn() ? 'an' : 'aus') + '.'); return true;
+        }
+        if (t.length <= 30 && /^(?:figur|animations?)[- ]?test$|^teste? (?:die )?(?:figur|animationen)$/.test(t)) {
+            const neu = !!(holo() && typeof holo().karteWurf === 'function' && typeof holo().react === 'function');
+            say('Figur-Test. Die Datei für die Animationen ist geladen. Die Figur-Datei ist ' + (holo() ? (neu ? 'auf dem neuen Stand' : 'noch die alte, es fehlt die neue hologramm Datei') : 'nicht da') + '. Die Figur ist ' + (holoOn() ? 'an' : 'aus, schalten Sie die Figur-Ansicht ein') + '. Die Animationen sind ' + (isOn() ? 'an' : 'aus') + '.');
+            if (neu && holoOn()) { wirft = false; setTimeout(() => holo().karteWurf('✅', () => {}, 2150), 800); }
+            return true;
         }
         // Lob -> Verbeugung (der Befehl läuft normal weiter)
         if (t.length <= 40 && /\b(?:gut gemacht|sehr gut gemacht|super gemacht|toll gemacht|bravo|du bist (?:der beste|klasse|super|toll|spitze)|danke jarvis|danke scarlett)\b/.test(t)) { setTimeout(() => react('verbeugen', ''), 600); return false; }
