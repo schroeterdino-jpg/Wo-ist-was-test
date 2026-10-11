@@ -389,18 +389,19 @@ async function addGoogleCalendarEvent(text, isoStartString, location, recurrence
 }
 
 async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString, newLocation) {
-    let eventDate = newIsoStartString ? new Date(newIsoStartString) : new Date();
-    if (isNaN(eventDate.getTime())) eventDate = new Date();
+    // Ohne neue Zeit (nur Titel oder Ort geändert) bleibt die Startzeit des Termins, wie sie ist
+    let eventDate = newIsoStartString ? new Date(newIsoStartString) : null;
+    if (eventDate && isNaN(eventDate.getTime())) eventDate = null;
+    const zeitNeu = !!eventDate;
+    if (!eventDate) eventDate = new Date();
     const endDate = new Date(eventDate.getTime() + 60 * 60000);
 
     clearGoogleProblem();
     const isLocalEvent = String(eventId || '').startsWith('local_');
     if (isGoogleAuthorized() && eventId && !isLocalEvent) {
         try {
-            const patchData = {
-                start: { dateTime: eventDate.toISOString() },
-                end: { dateTime: endDate.toISOString() }
-            };
+            const patchData = {};
+            if (zeitNeu) { patchData.start = { dateTime: eventDate.toISOString() }; patchData.end = { dateTime: endDate.toISOString() }; }
             if (newText) patchData.summary = newText;
             if (newLocation) patchData.location = newLocation;
 
@@ -435,8 +436,10 @@ async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString, ne
     if (target) {
         if (newText) target.text = newText;
         if (newLocation) target.location = newLocation;
-        target.isoDate = eventDate.toISOString();
-        target.date = eventDate.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' });
+        if (zeitNeu) {
+            target.isoDate = eventDate.toISOString();
+            target.date = eventDate.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' });
+        }
         setPersistentData('helfer_calendar_entries', JSON.stringify(calendarEntries));
         renderAllLists();
     }
