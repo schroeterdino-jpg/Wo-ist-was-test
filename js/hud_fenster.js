@@ -57,9 +57,11 @@
             if (Date.now() - last < 3 * 3600000) return;
             localStorage.setItem(G_KEY, String(Date.now()));
             const teile = [];
+            // Hat der Tagesüberblick heute schon Termine und Wetter gezeigt, kommen sie hier nicht noch einmal (sonst doppelt)
+            let ueb = false; try { ueb = localStorage.getItem('ueberblick_day') === heuteIso(); } catch (e) {}
             const gruss = h < 11 ? 'Guten Morgen.' : h < 17 ? 'Hallo.' : 'Guten Abend.';
             // Termine heute (mit Uhrzeit, noch nicht vorbei)
-            try {
+            try { if (!ueb) {
                 const jetzt = Date.now(), heute = heuteIso();
                 const ev = (typeof calendarEntries !== 'undefined' ? calendarEntries : []).filter(e => e && e.isoDate && String(e.isoDate).length > 10 && new Date(e.isoDate).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }) === heute && new Date(e.isoDate).getTime() > jetzt - 600000)
                     .sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate));
@@ -68,10 +70,10 @@
                     teile.push(ev.length === 1 ? 'Heute steht ein Termin an: ' + n.text + ' um ' + z.replace(':00', '') + ' Uhr.' : 'Heute stehen ' + ev.length + ' Termine an, der nächste um ' + z.replace(':00', '') + ' Uhr: ' + n.text + '.');
                     zeigen({ titel: 'TERMINE HEUTE', zeit: ev.length + '×', gross: z, text: n.text, sek: 9 });
                 }
-            } catch (e) {}
+            } } catch (e) {}
             // Wetter
             try {
-                if (typeof fetchWeatherData === 'function') {
+                if (!ueb && typeof fetchWeatherData === 'function') {
                     const w = await Promise.race([fetchWeatherData(), new Promise(r => setTimeout(() => r(null), 7000))]);
                     if (w && !w.fehler) {
                         const was = typeof weatherCodeText === 'function' ? weatherCodeText(w.wettercode) : '';
