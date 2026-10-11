@@ -113,18 +113,60 @@
     }
 
     /* ---------- 3) Suche: nur Einträge der neuen Art, mit Datum und Wochentag ---------- */
+    /* Zeitbezogene Fragen ("Habe ich morgen was vor?"): Einträge nach Datum holen, nicht nur nach Bedeutung */
+    function addDays(iso, n) {
+        const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n);
+        return d.toLocaleDateString('sv-SE');
+    }
+    function zeitraum(q) {
+        const t = todayIso(); const l = String(q).toLowerCase();
+        const wd = new Date(t + 'T12:00:00').getDay();   // 0 = Sonntag
+        if (/übermorgen/.test(l)) return [addDays(t, 2), addDays(t, 2)];
+        if (/\bmorgen\b/.test(l) && !/morgens|heute morgen/.test(l)) return [addDays(t, 1), addDays(t, 1)];
+        if (/\bheute\b/.test(l)) return [t, t];
+        if (/wochenende/.test(l)) { const bisSa = (6 - wd + 7) % 7; const sa = addDays(t, wd === 0 ? -1 : bisSa); return [sa, addDays(sa, 1)]; }
+        if (/nächste woche|nächster woche|kommende woche/.test(l)) { const bisMo = ((8 - wd) % 7) || 7; const mo = addDays(t, bisMo); return [mo, addDays(mo, 6)]; }
+        if (/diese woche|dieser woche|in den nächsten tagen|demnächst|bald/.test(l)) return [t, addDays(t, 7)];
+        const tage = ['sonntag', 'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag'];
+        for (let i = 0; i < 7; i++) {
+            if (new RegExp('\\b' + tage[i]).test(l)) { const d = addDays(t, ((i - wd + 7) % 7) || 7); return [d, d]; }
+        }
+        if (/\b(vor|vorhaben|geplant|los|anstehen|ansteht|termin)/.test(l)) return [t, addDays(t, 7)];
+        return null;
+    }
+    async function plaeneImZeitraum(q) {
+        const z = zeitraum(q);
+        if (!z) return [];
+        try {
+            const data = await post({ action: 'listall' });
+            const liste = Array.isArray(data.eintraege) ? data.eintraege : [];
+            return liste.filter(e => e && e.metadata && e.metadata.typ === 'episode' && isIsoDay(e.metadata.ereignis_datum)
+                    && e.metadata.ereignis_datum >= z[0] && e.metadata.ereignis_datum <= z[1])
+                .sort((a, b) => a.metadata.ereignis_datum < b.metadata.ereignis_datum ? -1 : 1)
+                .map(e => `GEPLANT am ${lesbar(e.metadata.ereignis_datum)}: ${e.text}`);
+        } catch (e) { return []; }
+    }
+
     window.searchSemanticMemory = async function (text) {
         const q = String(text || '').trim();
         if (!q || q.length < 4) return [];
         try {
-            const data = await post({ action: 'search', query: q, topK: 8 });
-            return (Array.isArray(data.treffer) ? data.treffer : [])
+            const [data, plaene] = await Promise.all([
+                post({ action: 'search', query: q, topK: 8 }),
+                plaeneImZeitraum(q)
+            ]);
+            const treffer = (Array.isArray(data.treffer) ? data.treffer : [])
                 .filter(t => t && t.text && t.metadata && t.metadata.typ === 'episode')
                 .map(t => {
                     const m = t.metadata;
                     const gesagt = isIsoDay(m.datum_gesagt) ? ` (erzählt am ${lesbar(m.datum_gesagt)})` : '';
                     return `${m.kategorie || 'Eintrag'}: ${t.text}${gesagt}`;   // das Datum des Ereignisses steht schon im Text
                 });
+            const rest = treffer.filter(x => {
+                const kern = x.split(': ').slice(1).join(': ').split(' (erzählt')[0];
+                return !plaene.some(p => p.includes(kern));
+            });
+            return plaene.concat(rest);
         } catch (e) {
             return [];
         }
