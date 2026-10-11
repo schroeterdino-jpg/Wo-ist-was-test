@@ -1,6 +1,6 @@
 /* ============================================================
    LANGZEIT-ERINNERN (Mitdenken): Sagt der User einen Termin mit Datum UND Uhrzeit ("übermorgen ist das Konzert um 20 Uhr"), merkt sich Jarvis
-   ihn wie bisher im Langzeitgedächtnis und fragt danach: "Soll ich Sie drei Stunden vorher per Push erinnern?".
+   ihn wie bisher im Langzeitgedächtnis (oder trägt ihn als Kalendertermin ein, Aktion 'calendar') und fragt danach: "Soll ich Sie drei Stunden vorher per Push erinnern?".
    "Ja" legt die Erinnerung an (Push über das bestehende Erinnerungssystem, KEIN doppeltes Klingeln im Google-Kalender), "Nein" lässt es.
    Ohne Uhrzeit oder liegt der Zeitpunkt (Termin minus 3 Stunden) schon in der Vergangenheit, wird nicht gefragt.
    Die KI liefert dafür zwei zusätzliche Felder in 'episode_store': episode_uhrzeit (HH:MM) und episode_erinnerung (kurzer Text).
@@ -47,20 +47,33 @@
         return 'am ' + start.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
     }
 
+    function hatSerie(a) { return !!(a.calendar_recurrence_unit || a.calendar_recurrence_interval); }
+
     /* ---------- Aktion abfangen ---------- */
     const original = window.executeAction;
     if (!original._langzeitErinnern) {
         const wrapped = async function (action, text, ctx) {
             const res = await original.apply(this, arguments);
             try {
-                if (isOn() && action && action.type === 'episode_store' && action.episode_uhrzeit && action.episode_datum) {
-                    const s = startVon(action.episode_datum, action.episode_uhrzeit);
-                    if (s) {
+                if (isOn() && action) {
+                    let s = null, titel = '';
+                    if (action.type === 'episode_store' && action.episode_uhrzeit && action.episode_datum) {
+                        s = startVon(action.episode_datum, action.episode_uhrzeit);
+                        titel = String(action.episode_erinnerung || '').trim().slice(0, 120) ||
+                            String(action.episode_text || '').replace(/^Der User\s+/i, '').replace(/[.!]+$/, '').slice(0, 120);
+                    } else if ((action.type === 'calendar' || action.calendar_text) && action.calendar_time && !hatSerie(action)) {
+                        // Kalendertermin mit Uhrzeit (kein Ganztag, keine Wiederholung)
+                        const m = String(action.calendar_time).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/);
+                        if (m && !(m[2] === '00' && m[3] === '00')) {
+                            s = startVon(m[1], m[2] + ':' + m[3]);
+                            titel = String(action.calendar_text || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+                        }
+                    }
+                    if (s && titel) {
                         const remind = new Date(s.start.getTime() - VORLAUF_H * 3600000);
                         if (remind.getTime() > Date.now() + 60000) {
-                            const titel = String(action.episode_erinnerung || '').trim().slice(0, 120) ||
-                                String(action.episode_text || '').replace(/^Der User\s+/i, '').replace(/[.!]+$/, '').slice(0, 120);
-                            pending = { text: titel + ' um ' + uhrText(s.h, s.mi), start: s.start, remind, at: Date.now() };
+                            const mitZeit = /\buhr\b|\d{1,2}[:.]\d{2}/i.test(titel) ? titel : titel + ' um ' + uhrText(s.h, s.mi);
+                            pending = { text: mitZeit, start: s.start, remind, at: Date.now() };
                             if (ctx && Array.isArray(ctx.notes)) {
                                 ctx.notes.push(`Soll ich Sie ${tagWort(s.start) === 'heute' ? 'heute' : tagWort(remind) === 'heute' ? 'am selben Tag' : tagWort(remind)} um ${uhrText(remind.getHours(), remind.getMinutes())}, also ${VORLAUF_H} Stunden vorher, per Push erinnern?`);
                             }
