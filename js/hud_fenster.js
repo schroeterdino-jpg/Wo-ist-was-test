@@ -20,6 +20,11 @@
         '.jvP .g{font-size:22px;font-weight:600;color:#fff;text-shadow:0 0 10px #5ee7ff}.jvP .s{opacity:.8;margin-top:2px;line-height:1.35}' +
         '.jvP .bar{height:2px;background:rgba(94,231,255,.2);margin-top:8px}.jvP .bar i{display:block;height:100%;background:#5ee7ff;animation:jvPb linear forwards}' +
         '.jvP.aus{animation:jvPout .5s ease-in forwards}' +
+        '#jvPan:has(.jvP.news){width:min(318px,86vw)}' +
+        '.jvP .c{display:flex;gap:9px;margin-top:8px;color:#d8f6ff;text-decoration:none;align-items:flex-start}' +
+        '.jvP .c .im{flex:0 0 78px;height:58px;border-radius:4px;border:1px solid rgba(94,231,255,.5);background:linear-gradient(135deg,#0b2336,#12384f);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px}' +
+        '.jvP .c .im img{width:100%;height:100%;object-fit:cover;display:block}' +
+        '.jvP .c .t{flex:1;min-width:0;line-height:1.3;font-size:12px}.jvP .c .m{opacity:.6;font-size:10px;margin-top:3px}' +
         '@keyframes jvPin{from{opacity:0;transform:translateX(40px) scale(.96);filter:blur(4px)}}@keyframes jvPout{to{opacity:0;transform:translateX(40px)}}@keyframes jvPb{from{width:100%}to{width:0}}';
     document.head.appendChild(st);
     const box = document.createElement('div'); box.id = 'jvPan'; (document.body || document.documentElement).appendChild(box);
@@ -30,7 +35,19 @@
         if (!o.gross) p.querySelector('.g').remove();
         if (!o.text) p.querySelector('.s').remove();
         const zb = p.querySelector('.z');
-        (o.zeilen || []).forEach(z => { const d = document.createElement('div'); d.style.cssText = 'margin-top:4px;line-height:1.3;color:' + (z.ok === null ? '#d8f6ff' : z.ok ? '#7dffb0' : '#ff7a7a'); d.textContent = (z.ok === null ? '• ' : z.ok ? '✓ ' : '✗ ') + z.text; zb.appendChild(d); });
+        if (o.news) p.classList.add('news');
+        (o.zeilen || []).forEach(z => {
+            if (!o.news) return;
+            const a = document.createElement(z.url ? 'a' : 'div'); a.className = 'c';
+            if (z.url) { a.href = z.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.addEventListener('click', e => e.stopPropagation()); }
+            const im = document.createElement('div'); im.className = 'im';
+            const platz = () => { im.textContent = '📰'; };
+            if (z.bild && /^https:\/\//.test(z.bild)) { const g = document.createElement('img'); g.loading = 'lazy'; g.alt = ''; g.referrerPolicy = 'no-referrer'; g.onerror = () => { g.remove(); platz(); }; g.src = z.bild; im.appendChild(g); } else platz();
+            const t = document.createElement('div'); t.className = 't'; t.textContent = z.text || '';
+            if (z.meta) { const m = document.createElement('div'); m.className = 'm'; m.textContent = z.meta; t.appendChild(m); }
+            a.appendChild(im); a.appendChild(t); zb.appendChild(a);
+        });
+        if (!o.news) (o.zeilen || []).forEach(z => { const d = document.createElement('div'); d.style.cssText = 'margin-top:4px;line-height:1.3;color:' + (z.ok === null ? '#d8f6ff' : z.ok ? '#7dffb0' : '#ff7a7a'); d.textContent = (z.ok === null ? '• ' : z.ok ? '✓ ' : '✗ ') + z.text; zb.appendChild(d); });
         const weg = () => { p.classList.add('aus'); setTimeout(() => p.remove(), 500); };
         p.addEventListener('click', weg); box.appendChild(p); setTimeout(weg, s);
         while (box.children.length > 3) box.firstChild.remove();
@@ -103,6 +120,15 @@
     /* ---------- Lokale Nachrichten (Schwarzenbek, Hamburg) ---------- */
     const N_KEY = 'jv_news_tag';
     const ORTE = ['Schwarzenbek', 'Hamburg'];
+    function vorAlter(iso) {
+        const t = iso ? new Date(iso).getTime() : 0;
+        if (!t || isNaN(t)) return '';
+        const m = Math.round((Date.now() - t) / 60000);
+        if (m < 2) return 'gerade eben';
+        if (m < 60) return 'vor ' + m + ' Min';
+        if (m < 1440) return 'vor ' + Math.round(m / 60) + ' Std';
+        return 'vor ' + Math.round(m / 1440) + (Math.round(m / 1440) === 1 ? ' Tag' : ' Tagen');
+    }
     async function holeNews(ort) {
         try {
             const r = await Promise.race([apiFetch('/api/news?q=' + encodeURIComponent(ort)), new Promise((_, j) => setTimeout(() => j(new Error('t')), 9000))]);
@@ -118,7 +144,7 @@
         ORTE.forEach((ort, i) => {
             const a = res[i];
             if (!a.length) return;
-            zeigen({ titel: 'NACHRICHTEN', zeit: ort.toUpperCase(), zeilen: a.slice(0, 3).map(x => ({ ok: null, text: x.title.slice(0, 110) })), sek: 16 });
+            zeigen({ titel: 'NACHRICHTEN', zeit: ort.toUpperCase(), news: true, zeilen: a.slice(0, 3).map(x => ({ ok: null, text: String(x.title || '').slice(0, 120), bild: x.image || '', url: /^https?:\/\//.test(x.url || '') ? x.url : '', meta: [x.domain, vorAlter(x.date)].filter(Boolean).join(' · ') })), sek: 22 });
             saetze.push((ort === 'Hamburg' ? 'In Hamburg' : 'In ' + ort) + ': ' + a[0].title.replace(/[„“"]/g, '').slice(0, 140) + '.');
         });
         if (spreche) {
