@@ -7,7 +7,7 @@
     const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
     const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
     let cv = null, cx = null, btn = null, tg = null, W = 0, H = 0, DPR = 1, raf = 0;
-    let emo = 'neutral', emoUntil = 0;
+    let emo = 'neutral', emoUntil = 0, emoGehoert = false;   // emoGehoert: die Stimme hat nach diesem Satz schon angefangen
 
     /* ---------- Stimmung aus dem gesprochenen Text ---------- */
     function detect(text) {
@@ -30,7 +30,7 @@
     function wrapSpeak() {
         if (typeof window.speak !== 'function' || window.speak._holo) return;
         const orig = window.speak;
-        const w = function (text) { try { emo = detect(text); emoUntil = performance.now() + 60000; } catch (e) {} return orig.apply(this, arguments); };
+        const w = function (text) { try { emo = detect(text); emoUntil = performance.now() + 60000; emoGehoert = false; } catch (e) {} return orig.apply(this, arguments); };
         w._holo = true;
         Object.keys(orig).forEach(k => { try { w[k] = orig[k]; } catch (e) {} });
         window.speak = w;
@@ -466,7 +466,10 @@ function driveState(now){
   speaking=sprechen(); const listening=hoeren();
   let thinking=false;
   try { thinking=!speaking && !listening && typeof isProcessing!=='undefined' && !!isProcessing; } catch(e){}
-  if(!speaking && now>emoUntil-59000) emo='neutral';
+  // Die Stimmung bleibt, bis der Satz zu Ende gesprochen ist. Früher fiel sie schon nach 1 Sekunde auf neutral zurück:
+  // Die Cloud-Stimme braucht 1-2 Sekunden Vorlauf, dann kam die Mimik (Lächeln usw.) nie zum Zug.
+  if(speaking) emoGehoert=true;
+  if(!speaking && (emoGehoert || now>emoUntil-40000)) emo='neutral';
   let k='neutral';
   if(thinking) k='think'; else if(listening) k='listen'; else if(speaking) k=EMO2EXP[emo]||'neutral';
   if(k==='roll' && tgt!=='roll') rollT=0;
@@ -691,8 +694,8 @@ function frame(now){
     }
     window.handleHologrammCommand = handle;
     window.jvDetectEmo = detect;
-    window.jvHolo = { gimShow: (k, ms, icon) => { if (GIMS[k]) { gimWant = k; gimIcon = icon || ''; gimUntil = performance.now() + (ms || GIMS[k].dur); } }, react: (k, icon) => { if (!isOn() || !GIMS[k]) return false; gimWant = k; gimIcon = icon || ''; gimUntil = performance.now() + GIMS[k].dur; return true; }, hoerbar: () => hoerbar(), gimDauer: k => (GIMS[k] ? GIMS[k].dur : 0), karteWurf: (icon, cb, ms) => { if (!isOn() || !GIMS.karte) return false; gimWant = 'karte'; gimIcon = icon || ''; gimUntil = performance.now() + GIMS.karte.dur; setTimeout(() => { try { cb && cb(); } catch (e) {} }, ms || 2200); return true; }, set: on => setHolo(!!on, false), on: isOn, emo: e => { emo = e; emoUntil = performance.now() + 60000; } };   // für die Präsentation (js/praesentation.js)
-    window.__holoTest = { gimTest: k => { lastActive = -1e9; nextGim = 0; if (k) { gim = { k, t0: performance.now(), tilt: 0 }; } }, frame: t => frame(t), setEmo: e => { emo = e; emoUntil = performance.now() + 60000; }, detect };
+    window.jvHolo = { gimShow: (k, ms, icon) => { if (GIMS[k]) { gimWant = k; gimIcon = icon || ''; gimUntil = performance.now() + (ms || GIMS[k].dur); } }, react: (k, icon) => { if (!isOn() || !GIMS[k]) return false; gimWant = k; gimIcon = icon || ''; gimUntil = performance.now() + GIMS[k].dur; return true; }, hoerbar: () => hoerbar(), gimDauer: k => (GIMS[k] ? GIMS[k].dur : 0), karteWurf: (icon, cb, ms) => { if (!isOn() || !GIMS.karte) return false; gimWant = 'karte'; gimIcon = icon || ''; gimUntil = performance.now() + GIMS.karte.dur; setTimeout(() => { try { cb && cb(); } catch (e) {} }, ms || 2200); return true; }, set: on => setHolo(!!on, false), on: isOn, emo: e => { emo = e; emoUntil = performance.now() + 60000; emoGehoert = false; } };   // für die Präsentation (js/praesentation.js)
+    window.__holoTest = { gimTest: k => { lastActive = -1e9; nextGim = 0; if (k) { gim = { k, t0: performance.now(), tilt: 0 }; } }, frame: t => frame(t), setEmo: e => { emo = e; emoUntil = performance.now() + 60000; emoGehoert = false; }, detect };
     if (window.jvCommands) {
         window.jvCommands.use('hologramm', function (text, next) {
             try { if (handle(text)) return true; } catch (e) {}
