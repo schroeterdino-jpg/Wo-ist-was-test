@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 // Semantisches Langzeit-Gedächtnis (Upstash Vector, mit eingebautem Embedding-Modell - kein zusätzlicher
 // Embedding-Anbieter wie OpenAI nötig, Upstash übernimmt das serverseitig).
 // Hier liegen NUR Erlebnisse, Pläne, Daten, Vorlieben und Kontext. Gegenstände mit Ablageort gehören ins lokale Gedächtnis der App.
@@ -22,11 +24,11 @@ function addDays(iso, n) {
 }
 
 // Liest ALLE Einträge seitenweise (range liefert immer nur einen Teil)
-async function rangeAll(url, headers, maxItems = 2000) {
+async function rangeAll(url, headers, maxItems = 2000, nsPath = '') {
   const out = [];
   let cursor = '0';
   for (let i = 0; i < 40 && out.length < maxItems; i++) {
-    const r = await fetch(`${url}/range`, {
+    const r = await fetch(`${url}/range${nsPath}`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ cursor, limit: 100, includeMetadata: true, includeData: true }),
@@ -63,7 +65,14 @@ export default async function handler(req, res) {
 
   const expected = process.env.APP_SECRET;
   if (!expected) return res.status(500).json({ error: 'Server: APP_SECRET fehlt' });
-  if ((req.headers['x-app-key'] || '') !== expected) return res.status(401).json({ error: 'Nicht erlaubt' });
+  // Profile: der Besitzer (APP_SECRET) nutzt den Standardbereich, jeder Code aus PROFILE_CODES einen eigenen Namensraum (Gedächtnis getrennt)
+  const given = String(req.headers['x-app-key'] || '');
+  let nsPath = '';
+  if (given !== expected) {
+    const ok = String(process.env.PROFILE_CODES || '').split(',').map(s => s.trim()).filter(Boolean).includes(given);
+    if (!ok) return res.status(401).json({ error: 'Nicht erlaubt' });
+    nsPath = '/p' + crypto.createHash('sha256').update(given).digest('hex').slice(0, 10);
+  }
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Nur POST erlaubt' });
 
@@ -82,7 +91,7 @@ export default async function handler(req, res) {
       const id = body.id ? String(body.id) : `f_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const metadata = Object.assign({ datum: new Date().toISOString() }, body.metadata || {});
 
-      const r = await fetch(`${url}/upsert-data`, {
+      const r = await fetch(`${url}/upsert-data${nsPath}`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ id, data: text, metadata }),
@@ -99,7 +108,7 @@ export default async function handler(req, res) {
       const rangeBody = { cursor: '0', limit: Math.max(limit, 60), includeMetadata: true, includeData: true };
       if (body.prefix) rangeBody.prefix = String(body.prefix);
 
-      const r = await fetch(`${url}/range`, {
+      const r = await fetch(`${url}/range${nsPath}`, {
         method: 'POST',
         headers,
         body: JSON.stringify(rangeBody),
@@ -117,14 +126,14 @@ export default async function handler(req, res) {
     }
 
     if (action === 'listall') {
-      const eintraege = await rangeAll(url, headers);
+      const eintraege = await rangeAll(url, headers, 2000, nsPath);
       return res.status(200).json({ eintraege });
     }
 
     if (action === 'delete') {
       const ids = (Array.isArray(body.ids) ? body.ids : []).map(String).filter(Boolean).slice(0, 200);
       if (!ids.length) return res.status(400).json({ error: 'Keine IDs angegeben' });
-      const r = await fetch(`${url}/delete`, {
+      const r = await fetch(`${url}/delete${nsPath}`, {
         method: 'POST',
         headers,
         body: JSON.stringify(ids),
@@ -140,12 +149,25 @@ export default async function handler(req, res) {
       const today = ISO_DAY.test(String(body.today || '')) ? String(body.today) : new Date().toISOString().slice(0, 10);
       const year = Number(today.slice(0, 4));
       const from = addDays(today, -14);   // Nachfragen verfallen nach zwei Wochen
-      const all = await rangeAll(url, headers);
+      const all = await rangeAll(url, headers, 2000, nsPath);
       const due = [];
       for (const e of all) {
         const m = e.metadata || {};
         if (m.typ !== 'episode' || !ISO_DAY.test(String(m.ereignis_datum || ''))) continue;
         const yearly = m.jaehrlich === true || m.jaehrlich === 'true';
+        if (m.frist === true || m.frist === 'true') {
+          // Frist ("bis Ende November Vertrag kündigen"): beiläufig erwähnen, nicht fragen. Ab 28 Tage vorher wöchentlich, in der letzten Woche täglich, bis 2 Tage nach Ablauf
+          if (m.status === 'erledigt') continue;
+          const dd = (a, b) => Math.round((new Date(a + 'T12:00:00Z') - new Date(b + 'T12:00:00Z')) / 86400000);
+          const diff = dd(m.ereignis_datum, today);
+          if (diff > 28 || diff < -2) continue;
+          if (ISO_DAY.test(String(m.datum_gesagt || '')) && m.datum_gesagt >= today) continue;   // heute erst erzählt
+          const need = diff <= 7 ? 1 : 7;
+          const last = ISO_DAY.test(String(m.frist_tag || '')) ? m.frist_tag : null;
+          if (last && dd(today, last) < need) continue;
+          due.push({ art: 'frist', id: e.id, text: e.text, metadata: m, tage: diff });
+          continue;
+        }
         if (yearly) {
           const occ = `${year}${String(m.ereignis_datum).slice(4)}`;   // dieses Jahr am selben Tag
           if (occ === today && Number(m.hinweis_jahr) !== year && m.hinweis) due.push({ art: 'heute', id: e.id, text: e.text, metadata: m });
@@ -184,7 +206,7 @@ export default async function handler(req, res) {
     // Fristen aus E-Mails: Erinnerung 2 Tage vorher, am Tag selbst, einmal wenn überfällig
     if (action === 'fristen') {
       const today = ISO_DAY.test(String(body.today || '')) ? String(body.today) : new Date().toISOString().slice(0, 10);
-      const all = await rangeAll(url, headers);
+      const all = await rangeAll(url, headers, 2000, nsPath);
       const diffDays = d => Math.round((new Date(d + 'T12:00:00Z') - new Date(today + 'T12:00:00Z')) / 86400000);
       const out = [];
       for (const e of all) {
@@ -206,7 +228,7 @@ export default async function handler(req, res) {
     if (action === 'mark') {
       const id = String(body.id || '');
       if (!id) return res.status(400).json({ error: 'ID fehlt' });
-      const fr = await fetch(`${url}/fetch`, {
+      const fr = await fetch(`${url}/fetch${nsPath}`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ ids: [id], includeMetadata: true, includeData: true }),
@@ -224,10 +246,11 @@ export default async function handler(req, res) {
         else if (a === 'vor' || a === 'heute' || a === 'ueber') meta['erinnert_' + a] = true;
       }
       else if (String(body.art) === 'anstoss') meta.anstoss_tag = ISO_DAY.test(String(body.today || '')) ? String(body.today) : new Date().toISOString().slice(0, 10);
+      else if (String(body.art) === 'fh') meta.frist_tag = ISO_DAY.test(String(body.today || '')) ? String(body.today) : new Date().toISOString().slice(0, 10);
       else if (String(body.art) === 'anstoss_aus') meta.anstoss_aus = true;
       else if (String(body.art) === 'heute') meta.hinweis_jahr = year;
       else { meta.nachgefragt_jahr = year; if (!yearly) meta.status = 'nachgefragt'; }
-      const ur = await fetch(`${url}/upsert-data`, {
+      const ur = await fetch(`${url}/upsert-data${nsPath}`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ id, data: v.data, metadata: meta }),
@@ -245,7 +268,7 @@ export default async function handler(req, res) {
       const topK = Math.min(20, Math.max(1, Number(body.topK) || 5));
       const minScore = Number(body.minScore) || 0.0; // Optionaler Schwellenwert für Relevanz
 
-      const r = await fetch(`${url}/query-data`, {
+      const r = await fetch(`${url}/query-data${nsPath}`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
