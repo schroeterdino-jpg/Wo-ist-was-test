@@ -37,7 +37,7 @@ function uebTimeout(p, ms) { return Promise.race([p, new Promise((_, rej) => set
 /* ---------- Daten sammeln ---------- */
 async function uebGather() {
     const today = uebLocalDay(new Date());
-    const out = { termine: [], erinnerungen: [], aufgaben: [], einkauf: [], geburtstage: [] };
+    const out = { termine: [], erinnerungen: [], aufgaben: [], einkauf: [], geburtstage: [], plaene: [] };
 
     (typeof calendarEntries !== 'undefined' ? calendarEntries : []).forEach(e => {
         if (!e || !e.isoDate) return;
@@ -66,6 +66,17 @@ async function uebGather() {
     if (typeof fetchUpcomingBirthdays === 'function') {
         try { out.geburtstage = (await uebTimeout(fetchUpcomingBirthdays(0), 6000)).filter(b => b.tag === 'heute').map(b => String(b.titel)); } catch (e) { out.geburtstage = []; }
     }
+    // Pläne aus dem Langzeitgedächtnis, die für heute vorgemerkt sind ("Ich gehe zum Apache-Konzert"); Geburtstage kommen schon oben
+    try {
+        const res = await uebTimeout(apiFetch('/api/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'listall' }) }), 6000);
+        const data = res && res.ok ? await res.json() : null;
+        (data && Array.isArray(data.eintraege) ? data.eintraege : []).forEach(e => {
+            const m = e && e.metadata; if (!m || m.typ !== 'episode' || m.kategorie === 'Geburtstag' || m.kategorie === 'Rückblick') return;
+            if (String(m.ereignis_datum || '') !== today) return;
+            const txt = String(e.text || '').replace(/\s*\([^()]*\d{4}\)\s*$/, '').trim();   // das angehängte Datum in Klammern weglassen
+            if (txt) out.plaene.push(txt);
+        });
+    } catch (e) {}
     return out;
 }
 
@@ -109,7 +120,7 @@ async function uebTextSprit() {
     return `Diesel ab ${best.diesel.toFixed(3).replace('.', ',')} € · ${best.name || ''}` + (best.strasse ? ' · ' + best.strasse : '');
 }
 
-function uebIsEmpty(d) { return !d.termine.length && !d.erinnerungen.length && !d.aufgaben.length && !d.einkauf.length && !d.geburtstage.length; }
+function uebIsEmpty(d) { return !d.termine.length && !d.erinnerungen.length && !d.aufgaben.length && !d.einkauf.length && !d.geburtstage.length && !(d.plaene && d.plaene.length); }
 
 /* ---------- Aufgaben nach Wichtigkeit ordnen ---------- */
 const UEB_PRIO_RE = [
@@ -157,6 +168,7 @@ function uebSpeechText(d) {
     if (uebIsEmpty(d)) return `Guten Morgen, ${a}. Heute ist nichts offen.` + (d.standort ? ` Sie befinden sich in ${d.standort}.` : '');
     const parts = [`Guten Morgen, ${a}.`];
     if (d.termine.length) parts.push(`Heute ${d.termine.length === 1 ? 'steht ein Termin' : 'stehen ' + d.termine.length + ' Termine'} an: ` + d.termine.slice(0, 10).map(e => e.time ? `${e.text} um ${t(e.time)}` : `${e.text}, ganztägig`).join('; ') + '.');
+    if (d.plaene && d.plaene.length) parts.push('Heute vorgemerkt: ' + d.plaene.slice(0, 5).join('; ') + '.');
     if (d.erinnerungen.length) parts.push(`Erinnerungen: ` + d.erinnerungen.slice(0, 10).map(r => r.overdue ? `${r.text}, überfällig` : `${r.text} um ${t(r.time)}`).join('; ') + '.');
     if (d.aufgaben.length) {
         if (d.aufgaben.length === 1) parts.push(`Eine Aufgabe ist offen: ${d.aufgaben[0]}.`);
@@ -256,6 +268,7 @@ function uebRender(d) {
     tile('🔔', 'Erinnerungen', d.erinnerungen.map(r => ({ lead: r.overdue ? 'überfällig' : uebClock(r.time), text: r.text, od: r.overdue })), { panel: ['erinnerungen'] });
     tile('✅', 'Aufgaben & Notizen', d.aufgaben.map(t => ({ text: t })), { panel: ['aufgaben', 'todo', 'notizen'] });
     tile('🛒', 'Einkauf', d.einkauf.map(t => ({ text: t })), { panel: ['einkauf', 'einkaufsliste'], max: 5 });
+    if (d.plaene && d.plaene.length) tile('🧠', 'Vorgemerkt für heute', d.plaene.map(t => ({ text: t })), { wide: true });
     if (d.geburtstage.length) tile('🎂', 'Geburtstage heute', d.geburtstage.map(t => ({ text: t })), { wide: true });
 
     // Parkplatz, Wetter, Spritpreis: Kacheln sofort, der Inhalt kommt nach
