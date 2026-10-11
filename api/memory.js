@@ -161,7 +161,6 @@ export default async function handler(req, res) {
           const dd = (a, b) => Math.round((new Date(a + 'T12:00:00Z') - new Date(b + 'T12:00:00Z')) / 86400000);
           const diff = dd(m.ereignis_datum, today);
           if (diff > 28 || diff < -2) continue;
-          if (ISO_DAY.test(String(m.datum_gesagt || '')) && m.datum_gesagt >= today) continue;   // heute erst erzählt
           const need = diff <= 7 ? 1 : 7;
           const last = ISO_DAY.test(String(m.frist_tag || '')) ? m.frist_tag : null;
           if (last && dd(today, last) < need) continue;
