@@ -134,7 +134,7 @@
     /* Raten-Nummern in der ersten Spalte: Lücken verraten eine fehlende Seite oder ein Foto, das eine Zeile abschneidet */
     function luecken(text) {
         const nums = [];
-        text.split('\n').filter(isRow).forEach(l => { const c = l.split('|')[0].trim(); if (/^\d{1,3}\.?$/.test(c)) nums.push(parseInt(c, 10)); });
+        text.split('\n').filter(isRow).forEach(l => { const c = l.split('|')[0].trim(); const mm = c.match(/^(?:rate\s*)?(\d{1,3})\.?$/i); if (mm) nums.push(parseInt(mm[1], 10)); });
         if (nums.length < 3) return '';
         const miss = [];
         for (let i = 1; i < nums.length; i++) for (let n = nums[i - 1] + 1; n < nums[i] && miss.length < 12; n++) miss.push(n);
@@ -148,11 +148,57 @@
             'Regeln: Schreibe ALLES ab, was lesbar ist, in der Reihenfolge von oben nach unten, genau mit denselben Zahlen, Beträgen, Daten, Namen und Rechtschreibung. Erfinde nichts, rechne nichts um, lass nichts weg. ' +
             'Ist eine Stelle nicht lesbar, schreibe an dieser Stelle [unleserlich]. ' +
             'Ist es eine Tabelle (z.B. ein Ratenplan mit Spalten wie Rate, Fälligkeit, Betrag), dann schreibe jede Zeile der Tabelle als eine Zeile, die Spalten getrennt durch " | ", und zuerst die Überschriftenzeile der Spalten. ' +
+            'Besteht eine Zeile aus mehreren Teilen nebeneinander (z.B. "Rate 3", "fällig am 13.03.2027" und "3,41 €"), schreibe sie auch dann mit " | " dazwischen: "Rate 3 | 13.03.2027 | 3,41 €". Schreibe Datum und Betrag nie ohne Trennzeichen zusammen. ' +
+            'Angaben mit Beschriftung und Wert (Empfänger, IBAN, Bank, BIC, Betrag, Verwendungszweck) schreibst du in EINE Zeile: "IBAN: DE12 ...". ' +
+            'Ist das Foto ein Bildschirmfoto einer App oder Webseite, lass die Bedienelemente weg: Uhrzeit und Statusleiste oben, Menüs, Schaltflächen und Links wie Chat, Service, Hilfe, Zur Zahlung, Mehr anzeigen, Weniger anzeigen. Schreibe nur den Inhalt ab. ' +
             'Texte über oder unter der Tabelle schreibst du als eigene normale Zeilen. Eine leere Zeile trennt Abschnitte. ' +
             'Antworte NUR mit dem abgeschriebenen Text. Kein Markdown, keine Sternchen, keine Erklärung, kein Kommentar, keine Einleitung.';
     }
+    /* Zeilen, die nur Bedienelemente einer App sind (Uhrzeit, Menüpunkte), fliegen raus */
+    const JUNK = /^(?:\d{1,2}:\d{2}|chat|service|hilfe(?: & k\.{0,3}| und kontakt)?|service hilfe(?: & k\.{0,3})?(?: chat)?|zur zahlung|weniger anzeigen|mehr anzeigen|alle anzeigen|zurück|schließen|menü)$/i;
+    /* "Rate 3 fällig am 13.03.20273,41 €" (vom Foto zusammengerutscht) -> "Rate 3 | 13.03.2027 | 3,41 €" */
+    const RATE_ROW = /^\s*(?:\|\s*)?(Rate\s*\d{1,3})\s*\|?\s*(?:fällig(?:\s*am)?\s*\|?\s*)?(\d{1,2}\.\d{1,2}\.\d{4})\s*\|?\s*(\d[\d.]*,\d{2})\s*(?:€|eur\w*)?\s*\|?\s*$/i;
+    function normalizeRows(text) {
+        const lines = text.split('\n').filter(l => !JUNK.test(l.trim()));
+        let any = false;
+        const out = lines.map(l => {
+            const m = l.match(RATE_ROW);
+            if (!m) return l;
+            any = true;
+            return m[1].replace(/\s+/, ' ') + ' | ' + m[2] + ' | ' + m[3] + ' €';
+        });
+        if (any && !out.some(l => /^\s*rate\s*\|/i.test(l))) {          // Spaltenüberschrift ergänzen, wenn keine da ist (vor die erste Ratenzeile)
+            const i = out.findIndex(l => /^Rate \d/.test(l) && isRow(l));
+            if (i >= 0) out.splice(i, 0, 'Rate | Fällig am | Betrag');
+        }
+        return sortRates(joinLabels(out)).join('\n');
+    }
+    /* "IBAN" in einer Zeile und der Wert in der nächsten -> "IBAN: Wert" */
+    const LABEL = /^(?:empfänger|iban|bic|bank\s*\/\s*bic|bank|betrag(?:\s*\(€\))?|verwendungszweck|kontoinhaber)$/i;
+    function joinLabels(lines) {
+        const out = [];
+        for (let i = 0; i < lines.length; i++) {
+            const l = lines[i].trim();
+            if (LABEL.test(l) && i + 1 < lines.length && lines[i + 1].trim() && !LABEL.test(lines[i + 1].trim())) { out.push(l + ': ' + lines[i + 1].trim()); i++; }
+            else out.push(lines[i]);
+        }
+        return out;
+    }
+    /* Ratenzeilen am Stück nach Nummer sortieren (Fotos überlappen oder kommen in anderer Reihenfolge) */
+    function sortRates(lines) {
+        const isRate = l => /^Rate \d{1,3} \|/.test(l);
+        const out = [];
+        for (let i = 0; i < lines.length;) {
+            if (!isRate(lines[i])) { out.push(lines[i]); i++; continue; }
+            let j = i; while (j < lines.length && isRate(lines[j])) j++;
+            out.push.apply(out, lines.slice(i, j).sort((a, b) => parseInt(a.slice(5), 10) - parseInt(b.slice(5), 10)));
+            i = j;
+        }
+        return out;
+    }
     function clean(raw) {
-        return String(raw || '').replace(/```[a-z]*\n?/gi, '').replace(/\*\*/g, '').replace(/^\s*[-|]{3,}[-| ]*$/gm, '').replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+        const t = String(raw || '').replace(/```[a-z]*\n?/gi, '').replace(/\*\*/g, '').replace(/^\s*[-|]{3,}[-| ]*$/gm, '').replace(/[ \t]+$/gm, '');
+        return normalizeRows(t).replace(/\n{3,}/g, '\n\n').trim();
     }
 
     async function processAbtippen(dataUrl, mehr) {
@@ -168,7 +214,7 @@
         }
         let text = clean(raw);
         if (!text || text.length < 3) { say('Ich konnte auf dem Foto keinen Text erkennen. Ist es scharf, gerade und gut beleuchtet?'); return; }
-        if (mehr) { text = mergePages(toText(body0), text); doc.pages++; } else doc = { pages: 1 };
+        if (mehr) { text = normalizeRows(mergePages(toText(body0), text)); doc.pages++; } else doc = { pages: 1 };
         try { zeigeFenster(text); }
         catch (e) { console.error('Abtippen-Fenster', e); say('Ich habe es abgetippt, kann es aber gerade nicht anzeigen.'); return; }
         const zeilen = text.split('\n').filter(l => l.trim()).length;
@@ -193,10 +239,12 @@
             '#jvAbtipp .abt-body th{background:#e8eef2}' +
             '#jvAbtipp .abt-body p{margin:0 0 6px;white-space:pre-wrap}' +
             '#jvAbtipp .abt-note{font-size:12px;color:#8fb9c9}' +
-            '@media print{body.jv-abt-print>*:not(#jvAbtipp){display:none!important}' +
-            'body.jv-abt-print #jvAbtipp{position:static!important;inset:auto!important;display:block!important;background:#fff!important;padding:0!important}' +
-            'body.jv-abt-print #jvAbtipp .abt-head,body.jv-abt-print #jvAbtipp .abt-note{display:none!important}' +
-            'body.jv-abt-print #jvAbtipp .abt-body{overflow:visible!important;padding:0!important;font-size:11pt}}';
+            '#jvAbtPrint{display:none}' +
+            '@media print{body.jv-abt-print>*:not(#jvAbtPrint){display:none!important}' +
+            'body.jv-abt-print,body.jv-abt-print html{height:auto!important;overflow:visible!important;background:#fff!important}' +
+            'body.jv-abt-print #jvAbtPrint{display:block!important;position:static!important;background:#fff;color:#000;font:11pt/1.4 Arial,Helvetica,sans-serif;padding:0;margin:0}' +
+            '#jvAbtPrint table{border-collapse:collapse;width:100%;margin:6px 0}#jvAbtPrint th,#jvAbtPrint td{border:1px solid #000;padding:4px 7px;text-align:left;vertical-align:top}' +
+            '#jvAbtPrint th{background:#e8e8e8}#jvAbtPrint tr{page-break-inside:avoid}#jvAbtPrint p{margin:0 0 5px;white-space:pre-wrap}}';
         document.head.appendChild(st);
     }
 
@@ -249,8 +297,14 @@
         const note = document.createElement('div'); note.className = 'abt-note'; note.textContent = 'Zahlen bitte mit dem Original vergleichen. Zellen lassen sich antippen und ändern.';
         const mk = (label, cls, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; if (cls) b.className = cls; b.addEventListener('click', fn); bar.appendChild(b); };
         mk('🖨️ Drucken', 'primary', () => {
+            // Eigener Druck-Bereich direkt unter <body> (das Fenster selbst ist fest und scrollt, das druckt sonst nur den sichtbaren Ausschnitt)
+            let pr = document.getElementById('jvAbtPrint'); if (pr) pr.remove();
+            pr = document.createElement('div'); pr.id = 'jvAbtPrint';
+            toHtml(pr, toText(body));
+            pr.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+            document.body.appendChild(pr);
             document.body.classList.add('jv-abt-print');
-            const done = () => { document.body.classList.remove('jv-abt-print'); window.removeEventListener('afterprint', done); };
+            const done = () => { document.body.classList.remove('jv-abt-print'); try { pr.remove(); } catch (e) {} window.removeEventListener('afterprint', done); };
             window.addEventListener('afterprint', done);
             setTimeout(() => { try { window.print(); } catch (e) { done(); } setTimeout(done, 60000); }, 150);
         });
