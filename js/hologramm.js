@@ -145,6 +145,13 @@ function pose(name,sd){
     case 'welcome': return {E:V(X*1.62,SY-0.85,0.35), H:V(X*2.05,SY-0.30,0.95)};
     case 'ask':   return {E:V(X*1.45,SY-1.00,0.45), H:V(X*0.85,SY-0.70,1.30)};
     case 'sorry': return {E:V(X*1.36,SY-1.00,0.30), H:V(X*0.75,SY-1.35,0.85)};
+    case 'cupHold': return {E:V(X*0.95,SY-1.05,0.55), H:V(X*0.35,SY-0.80,1.10)};
+    case 'cupMouth': return {E:V(X*0.85,SY-0.95,0.65), H:V(X*0.14,NY+0.42,1.00)};
+    case 'yawnHand': return {E:V(X*0.90,SY-0.95,0.60), H:V(X*0.12,NY+0.50,1.00)};
+    case 'stretch': return {E:V(X*1.55,SY+1.15,0.15), H:V(X*1.35,SY+2.35,0.10)};
+    case 'neck':  return {E:V(X*1.45,SY+0.35,0.10), H:V(X*0.55,NY+1.45,0.00)};
+    case 'coin':  return {E:V(X*1.10,SY-1.00,0.50), H:V(X*0.55,SY-0.55,1.15)};
+    case 'watch': return {E:V(X*0.95,SY-1.00,0.55), H:V(X*0.30,NY+0.15,0.95)};
     case 'face':  return {E:V(X*1.30,SY-0.40,0.55), H:V(X*0.50,NY+1.25,0.85)};
   }
 }
@@ -246,15 +253,76 @@ const EXP={
  sad     :{bL:0.15,bR:0.15,bin:-0.9,open:0.75,sq:0,gx:0,gy:-0.6,smL:-0.8,smR:-0.8,mw:0.85,tilt:-0.05,yaw:0,pit:0.14,arms:['sorry','sorry'],cap:'TRAURIG'},
  angry   :{bL:-0.35,bR:-0.35,bin:1.0,open:0.85,sq:0.3,gx:0,gy:0,smL:-0.5,smR:-0.5,mw:0.9,tilt:0,yaw:0,pit:0.05,arms:['point','rest'],cap:'GENERVT'},
  listen  :{bL:0.35,bR:0.35,bin:-0.1,open:1.1,sq:0,gx:0,gy:0,smL:0.05,smR:0.05,mw:1,tilt:0.07,yaw:0.05,pit:-0.04,arms:null,cap:'ZUHOEREN'},
+ sip     :{bL:0.2,bR:0.2,bin:-0.2,open:0.45,sq:0.5,gx:0,gy:-0.3,smL:0.25,smR:0.25,mw:0.7,tilt:0.05,yaw:0.05,pit:-0.12,arms:null,cap:'SIP'},
+ yawn    :{bL:0.8,bR:0.8,bin:-0.3,open:0.12,sq:0.3,gx:0,gy:0,smL:0,smR:0,mw:0.8,tilt:0,yaw:0,pit:-0.18,arms:null,cap:'GAEHNEN',mouthO:2.8},
+ focus   :{bL:0.2,bR:0.2,bin:0.2,open:1.0,sq:0.15,gx:0,gy:0.6,smL:0.2,smR:0.2,mw:0.9,tilt:0.04,yaw:0.0,pit:-0.05,arms:null,cap:'FOKUS'},
+ sigh    :{bL:0.1,bR:0.1,bin:-0.6,open:0.6,sq:0,gx:0.4,gy:-0.3,smL:-0.4,smR:-0.4,mw:0.85,tilt:-0.05,yaw:-0.1,pit:0.08,arms:null,cap:'SEUFZEN'},
  shrug   :{bL:0.7,bR:0.7,bin:-0.5,open:1,sq:0,gx:0,gy:0.1,smL:-0.5,smR:-0.5,mw:0.8,tilt:0.12,yaw:0,pit:0,arms:['shrug','shrug'],cap:'SCHULTERZUCKEN'}
 };
 let cur=Object.assign({},EXP.neutral),tgt='neutral',rollT=-1;
 const KEYS=['bL','bR','bin','open','sq','gx','gy','smL','smR','mw','tilt','yaw','pit'];
 
-let speaking=false,mo=0,target=0,blink=0,nextBlink=2200,tPrev=performance.now(),sig=0,nextSacc=1500,sx_=0,sy_=0;
+let mO=0,speaking=false,mo=0,target=0,blink=0,nextBlink=2200,tPrev=performance.now(),sig=0,nextSacc=1500,sx_=0,sy_=0;
 function hAt(y){return wid(tOf(y));}
 function fp(proj,x,y,dz){const t=clamp(tOf(y),0.02,0.98),w=wid(t),u=clamp(x/w,-0.98,0.98);return proj(x,y,w*DEP*Math.pow(1-Math.pow(Math.abs(u),4),0.25)+0.012+(dz||0));}
 function col(c,a){const r=40+c*215,g=130+c*40-(c>0.6?(c-0.6)*100:0),b=255-c*230;return `rgba(${r|0},${g|0},${b|0},${a})`;}
+
+
+/* ---------- Leerlauf-Gimmicks: wenn er nichts zu tun hat, trinkt er Kaffee, gähnt, spielt mit einer Münze oder schaut auf die Uhr ---------- */
+const IDLE_MS=30000;
+let lastActive=performance.now(), nextGim=0, gim=null, gimLast='', gimGaze=null;
+const GIMS={
+  kaffee:{dur:10500,prop:'cup',steps:[[0,['cupHold','rest'],'neutral',0],[1200,['cupMouth','rest'],'sip',0.45],[3600,['cupHold','rest'],'neutral',0],[5600,['cupMouth','rest'],'sip',0.5],[8200,['cupHold','rest'],'neutral',0],[9800,['rest','rest'],'neutral',0]]},
+  gaehnen:{dur:8200,steps:[[0,['rest','rest'],'neutral'],[900,['yawnHand','rest'],'yawn'],[3300,['stretch','stretch'],'yawn'],[5600,['neck','rest'],'sigh'],[7600,['rest','rest'],'neutral']]},
+  muenze:{dur:9000,prop:'coin',steps:[[0,['coin','rest'],'focus'],[8200,['rest','rest'],'neutral']]},
+  uhr:{dur:7600,steps:[[0,['rest','watch'],'neutral'],[2600,['rest','watch'],'sigh'],[4400,['neck','rest'],'think'],[6800,['rest','rest'],'neutral']]}
+};
+function gimStart(now){
+  const keys=Object.keys(GIMS).filter(k=>k!==gimLast);
+  const k=keys[(Math.random()*keys.length)|0]; gimLast=k;
+  gim={k,t0:now,tilt:0};
+}
+function gimStop(now){ gim=null; gimGaze=null; nextGim=now+45000+Math.random()*75000; }
+/* liefert true, solange ein Gimmick läuft (setzt dann Ausdruck und Arme) */
+function gimDrive(now,idle){
+  if(!idle){ if(gim) gimStop(now); return false; }
+  if(!gim){ if(now>=nextGim) gimStart(now); else return false; }
+  const G=GIMS[gim.k], el=now-gim.t0;
+  if(el>=G.dur){ gimStop(now); return false; }
+  let st=G.steps[0]; for(const x of G.steps){ if(el>=x[0]) st=x; }
+  tgt=st[2]; FORCE=st[1];
+  gim.tiltT=st[3]||0; gim.tilt+=((gim.tiltT)-gim.tilt)*0.1;
+  gimGaze=null;
+  if(G.prop==='coin'){ const ph=((el/1000)%1.25)/1.25, h=4*ph*(1-ph); gim.coin=h; gimGaze={x:0.1,y:Math.max(-0.3,Math.min(1,h*1.4-0.15))}; }
+  return true;
+}
+function gimProps(proj,lift,sc,t){
+  if(!gim) return;
+  const G=GIMS[gim.k]; if(!G.prop) return;
+  const a=arm[0], Hd=a.cur.H; const q=proj(Hd.x,lift(Hd.y),Hd.z), k=q[2], u=sc*k;
+  if(G.prop==='cup'){
+    const cx0=q[0]-0.02*u, cy0=q[1]-0.24*u, w=0.36*u, h=0.42*u;
+    cx.save(); cx.translate(q[0],q[1]-0.05*u); cx.rotate(-gim.tilt*0.9); cx.translate(-q[0],-(q[1]-0.05*u));
+    cx.lineJoin='round'; cx.lineWidth=2.4; cx.strokeStyle='#4a3326';
+    cx.beginPath(); cx.arc(cx0+w*0.52,cy0+h*0.15,h*0.30,-1.2,1.5); cx.stroke();   // Henkel
+    cx.fillStyle='#f3efe9';
+    cx.beginPath(); cx.moveTo(cx0-w/2,cy0-h/2); cx.lineTo(cx0+w/2,cy0-h/2); cx.lineTo(cx0+w*0.38,cy0+h/2); cx.lineTo(cx0-w*0.38,cy0+h/2); cx.closePath(); cx.fill(); cx.stroke();
+    cx.fillStyle='#4a2c1a'; cx.beginPath(); cx.ellipse(cx0,cy0-h/2,w/2,h*0.12,0,0,6.283); cx.fill(); cx.stroke();
+    cx.restore();
+    // Dampf
+    cx.strokeStyle='rgba(220,235,245,0.55)'; cx.lineWidth=2; cx.lineCap='round';
+    for(let i=0;i<3;i++){ const bx=cx0+(i-1)*w*0.28; cx.beginPath();
+      for(let j=0;j<=6;j++){ const y=cy0-h*0.7-j*h*0.16, x=bx+Math.sin(t*2.2+i*1.7+j*0.9)*w*0.10; if(j===0)cx.moveTo(x,y); else cx.lineTo(x,y); }
+      cx.globalAlpha=0.55*(1-Math.min(1,(gim.tilt)*1.2)); cx.stroke(); }
+    cx.globalAlpha=1;
+  } else if(G.prop==='coin'){
+    const h=gim.coin||0, x=q[0], y=q[1]-(0.12+h*1.1)*u, r=0.12*u, sq=Math.abs(Math.cos(((now2()/1000)*9)%6.283));
+    cx.fillStyle='#e6b422'; cx.strokeStyle='#8a6410'; cx.lineWidth=1.8;
+    cx.beginPath(); cx.ellipse(x,y,r,Math.max(1.5,r*(0.25+0.75*sq)),0,0,6.283); cx.fill(); cx.stroke();
+    cx.fillStyle='rgba(255,255,255,0.65)'; cx.beginPath(); cx.ellipse(x-r*0.3,y-r*0.1*sq,r*0.25,Math.max(0.8,r*0.2*sq),0,0,6.283); cx.fill();
+  }
+}
+const now2=()=>performance.now();
 
 /* ---------- Zustand der App -> Ausdruck ---------- */
 const EMO2EXP={warn:'surprise',sorry:'sad',question:'skeptic',happy:'happy',greet:'happy',roll:'roll',shrug:'shrug'};
@@ -269,6 +337,12 @@ function driveState(now){
   if(tgt==='roll' && k==='roll' && rollT<0){ emo='neutral'; k='neutral'; }   // Augenrollen nur einmal
   tgt=k;
   FORCE=(k==='think'||k==='roll'||k==='shrug')?EXP[k].arms:null;
+  // Leerlauf: nichts zu tun -> Gimmicks
+  let aktiv=speaking||listening||thinking||k!=='neutral';
+  try { if(window.jvPraesentation && window.jvPraesentation.isRunning()) aktiv=true; } catch(e){}
+  try { if(typeof isPanelOpen==='function' && isPanelOpen()) aktiv=true; } catch(e){}
+  if(aktiv) lastActive=now;
+  gimDrive(now, !aktiv && now-lastActive>IDLE_MS);
 }
 function frame(now){
   raf=0;
@@ -282,7 +356,7 @@ function frame(now){
   // Sprechen / Mund
   if(speaking){if(Math.random()<0.22)target=0.1+Math.random()*0.9;}else target=0;
   mo+=(target-mo)*(speaking?0.4:0.18);
-  const mouthO=(E.mouthO||0);
+  mO+=((E.mouthO||0)-mO)*0.15; const mouthO=mO;
   // Blinzeln
   nextBlink-=dt*1000;if(nextBlink<0){blink=1;nextBlink=Math.random()<0.2?250:2200+Math.random()*3200;}
   let ek=1;if(blink>0){ek=Math.max(0.05,Math.abs(1-blink*2));blink-=dt*7;if(blink<0)blink=0;}
@@ -290,6 +364,7 @@ function frame(now){
   nextSacc-=dt*1000;if(nextSacc<0){nextSacc=800+Math.random()*2200;sx_=(Math.random()-0.5)*0.5;sy_=(Math.random()-0.5)*0.3;}
   let gx=cur.gx+sx_*0.5,gy=cur.gy+sy_*0.5;
   if(rollT>=0){rollT+=dt;const p=rollT/1.5;if(p<1){const ang=-2.4+p*6.4;const e=Math.sin(Math.min(1,p*1.1)*Math.PI);gx=Math.cos(ang)*0.95*Math.min(1,e*2);gy=Math.sin(ang)*0.95*Math.min(1,e*2)+0.1;}else if(rollT>2.2)rollT=-1;}
+  if(gimGaze){gx=gimGaze.x;gy=gimGaze.y;}
   // Kopf: einzeln bewegt
   const yaw=cur.yaw+Math.sin(t*0.6)*0.07+Math.sin(t*1.7)*0.02+(speaking?Math.sin(t*2.1)*0.06*(0.5+mo):0);
   const pit=cur.pit+Math.sin(t*0.9)*0.02+(speaking?Math.sin(t*3.3)*0.045*(0.4+mo):0);
@@ -418,6 +493,7 @@ function frame(now){
   }
   for(const dir of [-1,1]){cx.beginPath();for(let i=0;i<=(CFG.smooth?14:6);i++){const u=i/(CFG.smooth?14:6)*2-1;const lift=(u<0?cur.smL:cur.smR)*0.05*u*u;const x=u*mw*(mouthO>0?(1-mouthO*0.3):1),y=my+lift+dir*od*(1-u*u)*(dir>0?0.6:1)+(dir>0?Math.sin(Math.abs(u)*3.1416)*0.0:0);const [px,py]=F(x,y,0.02);if(i===0)cx.moveTo(px,py);else cx.lineTo(px,py);}cx.stroke();}
   cx.shadowBlur=0;cx.globalCompositeOperation='source-over';
+  gimProps(proj,lift,sc,t);
 }
 
     /* ---------- Ein-/Ausschalten ---------- */
@@ -456,7 +532,8 @@ function frame(now){
         tg.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); setHolo(!isOn(), false); });
         holder.appendChild(tg);
         window.addEventListener('resize', resize);
-        document.addEventListener('visibilitychange', () => { if (!document.hidden && isOn() && !raf) { tPrev = performance.now(); raf = requestAnimationFrame(frame); } });
+        ['pointerdown','touchstart','keydown'].forEach(ev => document.addEventListener(ev, () => { lastActive = performance.now(); }, { passive: true, capture: true }));
+    document.addEventListener('visibilitychange', () => { lastActive = performance.now(); if (!document.hidden && isOn() && !raf) { tPrev = performance.now(); raf = requestAnimationFrame(frame); } });
         wrapSpeak(); setTimeout(wrapSpeak, 1500);
         setHolo(lsGet(KEY) !== '0', false);   // erste Nutzung: Hologramm
     }
@@ -474,7 +551,7 @@ function frame(now){
     }
     window.handleHologrammCommand = handle;
     window.jvHolo = { set: on => setHolo(!!on, false), on: isOn, emo: e => { emo = e; emoUntil = performance.now() + 60000; } };   // für die Präsentation (js/praesentation.js)
-    window.__holoTest = { frame: t => frame(t), setEmo: e => { emo = e; emoUntil = performance.now() + 60000; }, detect };
+    window.__holoTest = { gimTest: k => { lastActive = -1e9; nextGim = 0; if (k) { gim = { k, t0: performance.now(), tilt: 0 }; } }, frame: t => frame(t), setEmo: e => { emo = e; emoUntil = performance.now() + 60000; }, detect };
     if (window.jvCommands) {
         window.jvCommands.use('hologramm', function (text, next) {
             try { if (handle(text)) return true; } catch (e) {}
