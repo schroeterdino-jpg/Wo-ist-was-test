@@ -63,8 +63,22 @@
         announceNext();
     }
 
+    /* Der Browser erlaubt Sprache erst, nachdem du die App einmal angetippt hast. Wurde sie gerade erst (z.B. aus einer Benachrichtigung) geöffnet,
+       wäre die Meldung sonst nur Text ohne Stimme. Dann wartet sie auf deinen ersten Tipp und wird danach gesprochen. */
+    let tipp = false, wartetAufTipp = false;
+    function hatGetippt() {
+        if (tipp) return true;
+        try { if (navigator.userActivation && navigator.userActivation.hasBeenActive) { tipp = true; return true; } } catch (e) {}
+        return false;
+    }
+    ['pointerdown', 'touchstart', 'keydown', 'click'].forEach(ev => document.addEventListener(ev, () => {
+        tipp = true;
+        if (wartetAufTipp) { wartetAufTipp = false; setTimeout(() => announceNext(), 700); }
+    }, { passive: true, capture: true }));
+
     function announceNext(prefix) {
         if (state || !queue.length) return;
+        if (!hatGetippt()) { wartetAufTipp = true; return; }
         if (busy()) { setTimeout(() => announceNext(prefix), RETRY_BUSY_MS); return; }
         const mail = queue.shift();
         const more = queue.length;
