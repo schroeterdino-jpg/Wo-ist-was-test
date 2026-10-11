@@ -10,7 +10,7 @@ const HELP_TOPICS = [
         'Trag morgen um 15 Uhr Zahnarzt in Hamburg ein', 'Wann hat Schatz Geburtstag?', 'Verschieb den Zahnarzt auf Freitag',
         'Trag jeden Montag Mülltonne rausstellen ein', 'Zeig meine Termine der nächsten Woche',
         'Trag Alyssas Geburtstag am 30. Oktober ein (Geburtstage und Jahrestage kommen ganztägig und jedes Jahr, ohne Uhrzeit-Frage)',
-        'Übermorgen ist das Konzert um 20 Uhr (Jarvis fragt danach: Soll ich Sie 3 Stunden vorher per Push erinnern? Antwort: Ja oder Nein)', 'Termin-Erinnerung aus (auch: Termin-Erinnerung an)'] },
+        'Übermorgen ist das Konzert um 20 Uhr (Jarvis fragt danach: Wie viele Stunden vorher soll ich Sie per Push erinnern? Antwort zum Beispiel: zwei Stunden, eine halbe Stunde, 30 Minuten, Ja = 3 Stunden, Nein = keine Erinnerung. Sagst du gleich dazu "und erinnere mich zwei Stunden vorher", fragt er nicht)', 'Termin-Erinnerung aus (auch: Termin-Erinnerung an)'] },
     { key: 'erinnerungen', icon: '🔔', title: 'Erinnerungen', words: /erinner/, examples: [
         'Erinnere mich morgen um 8 Uhr an den Arzt', 'Erinnere mich alle zwei Wochen an die Wäsche', 'Wichtige Erinnerung: Paket abholen (er fragt nach, bis du erledigt sagst)',
         'In zehn Minuten nochmal', 'Lösche alle Erinnerungen'] },
@@ -95,6 +95,7 @@ const HELP_TOPICS = [
     { key: 'figur', icon: '🪄', title: 'Figur-Animationen', words: /figur|animation|kartenwurf|karte|scarlett|wurf/, examples: [
         'Wetter, Termine, Listen, Kontakte, Tagesüberblick usw.: Die Figur wirft eine Karte, daraus wird das Fenster', 'Sie reagiert auch auf Antworten: Regenschirm bei Regen, Sonnenbrille bei Sonne, Frieren bei Kälte, Stau-Blick, Stempel, Häkchen, Partyhut mit Konfetti, Winken bei Gute Nacht / Tschüss, Kamera-Blitz beim Foto, Klopfen wenn es länger dauert',
         'Gut gemacht (die Figur verbeugt sich)', 'Montags und freitags hat sie eigene Gesten', 'Figur-Animationen aus (auch: Figur-Animationen an)', 'Figur Test (prüft, ob alles geladen ist, und wirft eine Testkarte)',
+        'Realistischer Kopf an (auch: Realistischer Kopf aus, 3D-Kopf an/aus; ein echter 3D-Kopf mit Mimik, Blinzeln, Blick und Mundbewegung statt des gezeichneten. Braucht beim ersten Mal einen Moment zum Laden)',
         'Karte automatisch schließen aus (auch: an; die Karte schließt sich sonst nach dem Sprechen von selbst, ein Tippen darauf hält sie offen)'] },
     { key: 'spiele', icon: '🎲', title: 'Mini-Spiele', words: /spiel|münze|muenze|kopf oder zahl|schere|stein|papier|würfel/, examples: [
         'Münze werfen (oder: Kopf oder Zahl)', 'Schere Stein Papier (du sagst deine Wahl, die Figur antwortet mit einer geworfenen Karte)'] },
