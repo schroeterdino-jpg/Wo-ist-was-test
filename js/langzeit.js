@@ -200,7 +200,8 @@
         if (lsGet(FOLLOW_KEY) === heute) return '';
         refreshDue();
         if (!dueCache || dueCache.tag !== heute || !dueCache.liste.length) return '';
-        const e = dueCache.liste[0];
+        const e = dueCache.liste.find(x => x.art !== 'frist');   // Fristen hängt die App selbst an die Antwort (jvFristHinweis), nicht die KI
+        if (!e) return '';
         const m = e.metadata || {};
         if (e.art === 'frist') {
             const tg = Number(e.tage);
@@ -215,6 +216,28 @@
         if (e.art === 'anstoss') return '\n\nlangzeit_nachfragen (heute noch nicht gefragt; kein fester Anlass, nur ein beiläufiger Anstoß in einem ruhigen Moment; stelle ihn genau einmal und melde es mit der Aktion episode_asked, episode_art "anstoss"): ' + JSON.stringify(eintrag);
         return '\n\nlangzeit_nachfragen (heute noch nicht gefragt; stelle sie genau einmal, ganz beiläufig und locker nebenbei in einem passenden Moment des Gesprächs, nicht als steife Pflichtfrage, und melde es mit der Aktion episode_asked): ' + JSON.stringify(eintrag);
     }
+
+    /* Nahende Frist: die App hängt den Hinweis selbst als letzten Satz an die Antwort (zuverlässiger als die KI), höchstens einmal am Tag */
+    const ERNST = /tablette|medikament|arzt|krank|tod\b|beerdig|trauer|notfall|unfall|schmerz|schulden|kredit|sorge|angst/i;
+    function fristSatz(e) {
+        const tg = Number(e.tage);
+        let t = String(e.text || '').replace(/\s*\([^)]*\d{4}\)\s*$/, '').replace(/\s*\(Frist\)/i, '').trim();
+        t = t.replace(/^Der User (muss|soll|will|möchte|sollte)\b/, (a, v) => ({ muss: 'Sie müssen', soll: 'Sie sollen', will: 'Sie wollen', 'möchte': 'Sie möchten', sollte: 'Sie sollten' })[v]).replace(/^Der User /, 'Sie ');
+        t = t.replace(/\bseinen\b/g, 'Ihren').replace(/\bseinem\b/g, 'Ihrem').replace(/\bseiner\b/g, 'Ihrer').replace(/\bseine\b/g, 'Ihre').replace(/\bsein\b/g, 'Ihr').replace(/\bseines\b/g, 'Ihres');
+        const wann = !Number.isFinite(tg) ? 'zur Frist' : tg < 0 ? 'die Frist ist gerade abgelaufen' : tg === 0 ? 'heute ist die Frist' : tg === 1 ? 'morgen ist die Frist' : 'in ' + tg + ' Tagen läuft die Frist ab';
+        return 'Übrigens, ' + wann + ': ' + t.replace(/\.$/, '') + '.';
+    }
+    window.jvFristHinweis = function (reply, userText) {
+        const heute = todayIso();
+        if (lsGet(FOLLOW_KEY) === heute) return reply;
+        if (!dueCache || dueCache.tag !== heute) return reply;
+        const e = dueCache.liste.find(x => x.art === 'frist');
+        if (!e) return reply;
+        const r = String(reply || '');
+        if (!r || r.length > 500 || ERNST.test(r) || ERNST.test(String(userText || ''))) return reply;
+        markAsked({ episode_id: e.id, episode_art: 'fh' });   // heute nicht noch einmal
+        return r.replace(/\s+$/, '') + ' ' + fristSatz(e);
+    };
 
     if (window.jvChain) {   // Ergänzungs-Liste (commands.js)
         window.jvChain.use('buildSystemPrompt', 'langzeit', function (next) {

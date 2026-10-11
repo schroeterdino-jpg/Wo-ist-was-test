@@ -488,6 +488,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
         stopThinkingSound();
         if (wantsSearch) updateTerminalStream("MEMORY_READ: QUERY_EXEC");
         clearTimeout(ackTimer);   // VOR speak(), nicht erst im finally-Block - schließt das Zeitfenster für eine überlappende Zwischenansage ganz
+        try { if (typeof window.jvFristHinweis === 'function') replyText = window.jvFristHinweis(replyText, text) || replyText; } catch (e) {}   // nahende Frist beiläufig anhängen (js/langzeit.js)
         speak(replyText, continueConversation);
     } catch (e) {
         renderAllLists();
