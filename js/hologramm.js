@@ -12,6 +12,8 @@
     /* ---------- Stimmung aus dem gesprochenen Text ---------- */
     function detect(text) {
         const t = ' ' + String(text || '').toLowerCase() + ' ';
+        if (/glückwunsch|gratuliere|großartig|grossartig|fantastisch|wahnsinn|hervorragend|bravo|\bwow\b|spitze|bestanden|gewonnen|herzlichen/.test(t)) return 'wow';
+        if (/gute besserung|tut mir (?:so )?leid für|schade|bedauer|mein beileid|das tut weh|hoffentlich geht es/.test(t)) return 'care';
         if (/stau|achtung|warnung|unwetter|sturm|glatteis|unfall|gefahr|vorsicht|sperrung|dringend|starkregen|gewitter|verspätung|ausfall/.test(t)) return 'warn';
         if (/keine ahnung|wei(?:ß|ss) (?:ich )?nicht|kommt darauf an|vielleicht|schwer zu sagen/.test(t)) return 'shrug';
         if (/schon wieder|mal wieder|na toll|wie immer|ach ja|ach nee|na klar|nat(?:ü|ue)rlich nicht|wer h(?:ä|ae)tte das gedacht/.test(t)) return 'roll';
@@ -249,7 +251,10 @@ const EXP={
  roll    :{bL:0.9,bR:0.9,bin:-0.2,open:0.55,sq:0,gx:0,gy:1,smL:-0.15,smR:-0.15,mw:0.9,tilt:-0.07,yaw:0,pit:-0.12,arms:['shrug','shrug'],cap:'AUGENROLLEN',roll:true},
  skeptic :{bL:-0.15,bR:1.0,bin:0.25,open:0.8,sq:0.25,gx:0.5,gy:0,smL:-0.2,smR:0.45,mw:0.9,tilt:0.12,yaw:-0.12,pit:0,arms:['palm','rest'],cap:'SKEPTISCH'},
  surprise:{bL:1.0,bR:1.0,bin:-0.3,open:1.45,sq:0,gx:0,gy:0.1,smL:0,smR:0,mw:0.7,tilt:0,yaw:0,pit:-0.07,arms:['stop','stop'],cap:'STAUNEN',mouthO:0.7},
- happy   :{bL:0.4,bR:0.4,bin:-0.2,open:0.8,sq:0.45,gx:0,gy:0,smL:1,smR:1,mw:1.25,tilt:0.04,yaw:0,pit:-0.03,arms:['welcome','welcome'],cap:'FREUDE'},
+ happy   :{bL:0.55,bR:0.55,bin:-0.25,open:0.85,sq:0.6,gx:0,gy:0,smL:1.15,smR:1.15,mw:1.4,tilt:0.06,yaw:0,pit:-0.05,arms:['welcome','welcome'],cap:'FREUDE'},
+ wow     :{bL:1.0,bR:1.0,bin:-0.45,open:1.5,sq:0.2,gx:0,gy:0.15,smL:1.0,smR:1.0,mw:1.5,tilt:0.05,yaw:0,pit:-0.1,arms:['welcome','welcome'],cap:'BEGEISTERT',mouthO:0.5},
+ worry   :{bL:0.7,bR:0.7,bin:-1.0,open:1.3,sq:0,gx:0,gy:0.1,smL:-0.55,smR:-0.55,mw:0.9,tilt:0.04,yaw:0,pit:0.04,arms:['stop','sorry'],cap:'BESORGT'},
+ care    :{bL:0.3,bR:0.3,bin:-1.0,open:0.8,sq:0.1,gx:0,gy:-0.3,smL:-0.35,smR:-0.35,mw:0.9,tilt:0.14,yaw:0,pit:0.12,arms:['sorry','sorry'],cap:'MITGEFUEHL'},
  sad     :{bL:0.15,bR:0.15,bin:-0.9,open:0.75,sq:0,gx:0,gy:-0.6,smL:-0.8,smR:-0.8,mw:0.85,tilt:-0.05,yaw:0,pit:0.14,arms:['sorry','sorry'],cap:'TRAURIG'},
  angry   :{bL:-0.35,bR:-0.35,bin:1.0,open:0.85,sq:0.3,gx:0,gy:0,smL:-0.5,smR:-0.5,mw:0.9,tilt:0,yaw:0,pit:0.05,arms:['point','rest'],cap:'GENERVT'},
  listen  :{bL:0.35,bR:0.35,bin:-0.1,open:1.1,sq:0,gx:0,gy:0,smL:0.05,smR:0.05,mw:1,tilt:0.07,yaw:0.05,pit:-0.04,arms:null,cap:'ZUHOEREN'},
@@ -325,7 +330,7 @@ function gimProps(proj,lift,sc,t){
 const now2=()=>performance.now();
 
 /* ---------- Zustand der App -> Ausdruck ---------- */
-const EMO2EXP={warn:'surprise',sorry:'sad',question:'skeptic',happy:'happy',greet:'happy',roll:'roll',shrug:'shrug'};
+const EMO2EXP={warn:'worry',wow:'wow',care:'care',sorry:'sad',question:'skeptic',happy:'happy',greet:'happy',roll:'roll',shrug:'shrug'};
 function driveState(now){
   speaking=sprechen(); const listening=hoeren();
   let thinking=false;
@@ -550,6 +555,7 @@ function frame(now){
         return false;
     }
     window.handleHologrammCommand = handle;
+    window.jvDetectEmo = detect;
     window.jvHolo = { set: on => setHolo(!!on, false), on: isOn, emo: e => { emo = e; emoUntil = performance.now() + 60000; } };   // für die Präsentation (js/praesentation.js)
     window.__holoTest = { gimTest: k => { lastActive = -1e9; nextGim = 0; if (k) { gim = { k, t0: performance.now(), tilt: 0 }; } }, frame: t => frame(t), setEmo: e => { emo = e; emoUntil = performance.now() + 60000; }, detect };
     if (window.jvCommands) {

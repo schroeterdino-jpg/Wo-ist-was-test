@@ -194,7 +194,31 @@
         return String(t).replace(/(?<![\wäöüß\[])((?:ha|he|hi){2,}(?:[ -]?(?:ha|he|hi))*)(?![\wäöüß])/gi, (m) => (n++ === 0 ? '[laughing] ' + m : m));
     }
 
+    // ---------- Gefühl in der Stimme ----------
+    // Passend zum Inhalt (gleiche Erkennung wie die Mimik der Figur, js/hologramm.js) bekommt die Cloud-Stimme eine Gefühls-Anweisung und ein leicht anderes Tempo.
+    // Auch bei ernsten Themen (dort passt ein Lachen nie, aber ein besorgter oder mitfühlender Ton schon). Bei Stufe "aus" nichts, bei "dezent" nur halb so oft.
+    const EMO_TAG = { warn: '[concerned] ', wow: '[excited] ', care: '[soft tone] ', sorry: '[apologetic] ', happy: '[cheerful] ', greet: '[warm] ' };
+    const EMO_RATE = { warn: 1.06, wow: 1.05, care: 0.92, sorry: 0.95, happy: 1.03, greet: 1 };
+    function emotionStart(text) {
+        window.__jvEmoRate = 1;
+        try {
+            const level = window.getHumanLevel();
+            if (level === 'aus' || typeof window.jvDetectEmo !== 'function') return '';
+            const e = window.jvDetectEmo(text);
+            const tag = EMO_TAG[e];
+            if (!tag) return '';
+            window.__jvEmoRate = EMO_RATE[e] || 1;
+            if (level === 'dezent' && Math.random() < 0.5) return '';
+            return tag;
+        } catch (err) { return ''; }
+    }
+
     function humanize(text) {
+        const emoTag = emotionStart(strip(text).replace(/\s+/g, ' '));
+        const res = humanizeInner(text);
+        return (emoTag && !/^\s*\[/.test(res)) ? emoTag + res : res;
+    }
+    function humanizeInner(text) {
         const level = window.getHumanLevel();
         const force = window.__jvForceHuman === true;
         window.__jvForceHuman = false;
@@ -335,7 +359,11 @@
     // Das eingestellte Sprechtempo (speechrate.js). Bei Fish Audio wird es direkt bei der Erzeugung der Sprache eingestellt (Fish kann 0,5 bis 2,0),
     // bei den anderen Stimmen und als Ersatz stellt die App das Abspielen schneller oder langsamer.
     function speechRate() {
-        try { const v = typeof window.getSpeechRateFactor === 'function' ? Number(window.getSpeechRateFactor()) : 1; return (v >= 0.5 && v <= 2) ? v : 1; } catch (e) { return 1; }
+        try {
+            let v = typeof window.getSpeechRateFactor === 'function' ? Number(window.getSpeechRateFactor()) : 1;
+            v = v * (window.__jvEmoRate || 1);                       // Gefühl: bei Warnungen etwas schneller, bei Mitgefühl langsamer
+            return (v >= 0.5 && v <= 2) ? v : 1;
+        } catch (e) { return 1; }
     }
 
     async function requestOne(text, voice, opts) {
