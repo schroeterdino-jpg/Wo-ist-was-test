@@ -51,7 +51,8 @@
         try { if (window.speechSynthesis && window.speechSynthesis.speaking) return true; } catch (e) {}
         return false;
     }
-    const sprechen = () => { try { return btn.classList.contains('speaking') && hoerbar(); } catch (e) { return false; } };
+    /* Entscheidend ist, dass die Stimme wirklich zu hoeren ist. Die Klasse "speaking" wird bei manchen Antworten (z.B. Befehle wie "sei lustiger") zu frueh entfernt, obwohl die Stimme noch laeuft */
+    const sprechen = () => { try { return hoerbar(); } catch (e) { return false; } };
     const hoeren = () => { try { return btn.classList.contains('recording'); } catch (e) { return false; } };
 
 const CFG={"title": "ECHTER MENSCH", "mode": "real", "ns": 40, "pw": 1, "ex": 2, "smooth": 1, "glow": 0, "panel": 0, "head": [236, 190, 158], "body": [44, 52, 68], "hair": [52, 36, 28], "arm": "real", "f": {"sclera": "rgb(246,242,236)", "iris1": "rgb(84,58,38)", "iris2": "rgb(138,100,62)", "pupil": "rgb(6,4,4)", "eyeline": "rgba(70,40,30,0.95)", "brow": "rgb(52,36,28)", "browW": 4.5, "mouth": "rgb(176,84,92)", "mouthW": 4, "nose": "rgba(160,100,80,0.55)"}, "note": "Realistischeres Gesicht mit Haut, Haaren und nat\u00fcrlicher Mimik, im Anzug. Weicher Schatten statt Kanten."};
