@@ -33,8 +33,9 @@
         const t = norm(text);
         if (!t || t.length > 100 || /stundenplan/.test(t)) return false;
         if (/^(?:was|wann|wie|wo|welche\w*|hast|hat|weißt|weisst)\b/.test(t)) return false;
+        if (/\b(?:dass|ich|bis|muss|will|soll)\b/.test(t) && !/\b(?:foto|bild|fotografier\w*|zettel)\b/.test(t)) return false;   // "Merk dir, dass ich den Vertrag kündigen muss" ist eine Notiz, kein Foto
         return /\b(?:merk\w*|speicher\w*|abspeicher\w*|ablegen|leg\w*)\b/.test(t) && /\b(?:foto|bild|dokument|zettel|brief|schreiben|aushang|plan|tabelle|seite|rechnung|vertrag|bescheid)\b/.test(t)
-            && (/\b(?:foto|bild|fotografier\w*|zettel|dokument|seite)\b/.test(t) || /\b(?:gedächtnis|merk\w*)\b/.test(t));
+            && (/\b(?:foto|bild|fotografier\w*|zettel|dokument|seite)\b/.test(t) || /\bgedächtnis\b/.test(t));
     }
     /* Nach einem Foto: "Merk dir das", "Speicher das im Gedächtnis" (nur gültig, wenn ein frisches Foto da ist) */
     function isMerkFollowup(text) {
