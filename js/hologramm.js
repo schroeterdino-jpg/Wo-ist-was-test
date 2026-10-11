@@ -289,6 +289,7 @@ function gimStart(now){
 }
 function gimStop(now){ gim=null; gimGaze=null; nextGim=now+45000+Math.random()*75000; }
 /* liefert true, solange ein Gimmick läuft (setzt dann Ausdruck und Arme) */
+let gimWant=null,gimUntil=0;
 function gimDrive(now,idle){
   if(!idle){ if(gim) gimStop(now); return false; }
   if(!gim){ if(now>=nextGim) gimStart(now); else return false; }
@@ -347,6 +348,10 @@ function driveState(now){
   try { if(window.jvPraesentation && window.jvPraesentation.isRunning()) aktiv=true; } catch(e){}
   try { if(typeof isPanelOpen==='function' && isPanelOpen()) aktiv=true; } catch(e){}
   if(aktiv) lastActive=now;
+  if(gimWant){   // Vorführung (Präsentation): Gimmick auf Wunsch zeigen
+    if(now<gimUntil){ if(!gim||gim.k!==gimWant) gim={k:gimWant,t0:now,tilt:0}; gimDrive(now,true); return; }
+    gimWant=null; if(gim) gimStop(now);
+  }
   gimDrive(now, !aktiv && now-lastActive>IDLE_MS);
 }
 function frame(now){
@@ -556,7 +561,7 @@ function frame(now){
     }
     window.handleHologrammCommand = handle;
     window.jvDetectEmo = detect;
-    window.jvHolo = { set: on => setHolo(!!on, false), on: isOn, emo: e => { emo = e; emoUntil = performance.now() + 60000; } };   // für die Präsentation (js/praesentation.js)
+    window.jvHolo = { gimShow: (k, ms) => { if (GIMS[k]) { gimWant = k; gimUntil = performance.now() + (ms || GIMS[k].dur); } }, set: on => setHolo(!!on, false), on: isOn, emo: e => { emo = e; emoUntil = performance.now() + 60000; } };   // für die Präsentation (js/praesentation.js)
     window.__holoTest = { gimTest: k => { lastActive = -1e9; nextGim = 0; if (k) { gim = { k, t0: performance.now(), tilt: 0 }; } }, frame: t => frame(t), setEmo: e => { emo = e; emoUntil = performance.now() + 60000; }, detect };
     if (window.jvCommands) {
         window.jvCommands.use('hologramm', function (text, next) {

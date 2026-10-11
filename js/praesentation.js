@@ -18,16 +18,20 @@
     const SZENEN = [
         { t: 'SCARLETT', k: 'Persönlicher Sprachassistent', ic: '🎙️', emo: 'greet',
           say: 'Hallo zusammen! Ich bin Scarlett, der persönliche Sprachassistent von Dino. Er hat mich selbst gebaut, Schritt für Schritt. Darf ich mich kurz vorstellen?',
-          items: ['🎙️ Sprache', '🧠 Gedächtnis', '🚗 Unterwegs', '📅 Termine', '📷 Kamera'] },
+          items: ['🎙️ Sprache', '🧠 Gedächtnis', '🚗 Unterwegs', '📅 Termine', '📷 Kamera'], ex: ['Hallo, stell dich vor'] },
         { t: 'REDEN WIE MIT EINEM MENSCHEN', k: 'Keine festen Kommandos', ic: '💬',
           say: 'Zuerst das Wichtigste: Man redet einfach ganz normal mit mir. Ohne feste Kommandos, und gern auch mehrere Wünsche in einem Satz. Zum Beispiel: Erinnere mich morgen an den Zahnarzt und setz Milch auf die Einkaufsliste.',
-          items: ['„Erinnere mich morgen an den Zahnarzt“', '„Setz Milch auf die Einkaufsliste“', '„Wo ist der nächste Penny?“', '„Zeig mir meine Termine“'] },
+          items: ['„Erinnere mich morgen an den Zahnarzt“', '„Setz Milch auf die Einkaufsliste“', '„Wo ist der nächste Penny?“', '„Zeig mir meine Termine“'], ex: ['Erinnere mich morgen an den Zahnarzt und setz Milch auf die Einkaufsliste'] },
         { t: 'DER TAG AUF EINEN BLICK', k: 'Briefing und Schicht', ic: '🌅',
           say: 'Morgens fasse ich den Tag zusammen: Termine, Wetter, Erinnerungen und wichtige Dinge. Ich richte mich nach seiner Schicht, Früh oder Spät, und der Wechsel läuft ganz von allein.',
-          items: ['📅 Termine von heute', '🌦️ Wetter mit Jacken-Tipp', '⏰ Erinnerungen', '🔁 Schichtplan, Wechsel automatisch'] },
+          items: ['📅 Termine von heute', '🌦️ Wetter mit Jacken-Tipp', '⏰ Erinnerungen', '🔁 Schichtplan, Wechsel automatisch'], ex: ['Was steht heute an?', 'Welche Schicht habe ich nächste Woche?'] },
+        { t: 'URLAUBSMODUS', k: 'Ruhe, wenn man frei hat', ic: '🏖️',
+          say: 'Hat Dino Urlaub, sagt er es mir einmal, und ich halte mich zurück. Kein Wetter für den Arbeitsweg, kein Schicht-Briefing, keine Glatteis-Warnung. Nach dem letzten Urlaubstag läuft alles von allein wieder los.',
+          items: ['🏖️ Urlaub per Sprache eintragen', '🔕 Keine Meldungen zum Arbeitsweg', '🔁 Danach automatisch wieder normal', '❓ „Habe ich Urlaub eingetragen?“'],
+          ex: ['Ich habe Urlaub vom 20. Oktober bis 3. November', 'Ich habe ab morgen zwei Wochen Urlaub'] },
         { t: 'ALLTAG ORGANISIERT', k: 'Listen, Protokolle, Kontakte', ic: '🗂️',
           say: 'Im Alltag halte ich den Kopf frei. Einkaufsliste und Aufgaben pflege ich per Sprache. Erinnerungen wiederhole ich auf Wunsch, jeden Montag oder alle zwei Wochen, und bei wichtigen frage ich so lange nach, bis sie erledigt sind. Mit einem Wort wie Feierabend starte ich gleich mehrere Aktionen auf einmal. Und anrufen oder navigieren kann ich auch.',
-          items: ['🛒 Einkaufsliste und Aufgaben', '🔁 Erinnerungen mit Wiederholung', '⚡ Protokolle: „Feierabend“ erledigt alles auf einmal', '📞 Anrufen, WhatsApp, Navigation'] },
+          items: ['🛒 Einkaufsliste und Aufgaben', '🔁 Erinnerungen mit Wiederholung', '⚡ Protokolle: „Feierabend“ erledigt alles auf einmal', '📞 Anrufen, WhatsApp, Navigation'], ex: ['Erinnere mich jeden Montag an die Mülltonne', 'Ruf Matze an'] },
         { t: 'WETTER WELTWEIT', k: 'Live-Vorführung', ic: '🌍', say: 'Das Wetter kann ich auch weltweit. Ich zeige es euch live: Istanbul.',
           items: ['🌍 Jeder Ort der Welt', '🛰️ Wetterkarte mit Vorhersage'],
           demo: { cmd: 'Zeig mir das Wetter in Istanbul', max: 14000, dwell: 2500 } },
@@ -35,6 +39,13 @@
           say: 'Unterwegs wird es richtig praktisch. Ich rechne aus, wann man losfahren muss, mit Stau auf der Strecke und Regen am Ziel. Und ich finde alles in der Nähe. Live: die nächste Apotheke.',
           items: ['⏱️ Abfahrtszeit mit Stau', '🌧️ Wetter am Ziel', '📍 Orte in der Nähe und auf dem Weg', '⛽ Tankstellen und Dieselpreis'],
           demo: { cmd: 'Wo ist die nächste Apotheke', max: 22000, dwell: 3500 } },
+        { t: 'KONZERT UND ABFAHRT', k: 'Termine merken, Abfahrt rechnen', ic: '🎫',
+          say: 'Sagt man mir, dass morgen ein Konzert ist, merke ich es mir, auch ohne Kalender. Fragt man später, wann man losfahren muss, rechne ich Fahrzeit, Stau und zehn Minuten Puffer ein. Und gibt es einen Einlass vor dem Beginn, nehme ich diese Zeit.',
+          items: ['🧠 Termine einfach per Sprache merken', '⏱️ Abfahrt mit Stau und Puffer', '🎫 Einlass vor dem Beginn zählt', '🗺️ Lagebild zeigt Termin und Abfahrt'],
+          ex: ['Morgen ist das Konzert um 20 Uhr in Hamburg', 'Wann muss ich morgen los zum Konzert?', 'Der Einlass ist um 19 Uhr, wann muss ich los?'] },
+        { t: 'WETTER FÜR MORGEN', k: 'Live-Vorführung', ic: '🗺️', say: 'Auch für morgen zeige ich die Wetterkarte. Live: das Wetter für morgen auf der Karte.',
+          items: ['🗺️ Wetterkarte für heute, morgen, übermorgen', '🌦️ Vorhersage direkt auf der Karte'],
+          demo: { cmd: 'Zeig mir das Wetter für morgen auf der Karte', max: 15000, dwell: 3000 } },
         { t: 'MOND UND STERNE', k: 'Live-Vorführung', ic: '🌕', say: 'Etwas fürs Auge: Wann ist der nächste Vollmond?',
           items: ['🌕 Mondphase', '🌅 Sonnenauf- und -untergang'],
           demo: { cmd: 'Wann ist der nächste Vollmond', max: 14000, dwell: 2500 } },
@@ -46,10 +57,10 @@
           items: ['⛽ Spritpreise in der Nähe und auf der Strecke', '🌩️ Unwetterwarnungen', '🏖️ Feiertage, Brückentage, Schulferien', '📦 Paketverfolgung'] },
         { t: 'GEDÄCHTNIS', k: 'Merkt sich, was wichtig ist', ic: '🧠',
           say: 'Ich habe ein Gedächtnis. Wo steht das Auto? Wo liegt die Brille? Ich weiß es. Im Langzeitgedächtnis merke ich mir auch Pläne, Erlebnisse und Vorlieben, und frage später nach, wie es war.',
-          items: ['🅿️ Parkplatz vom Auto', '🔑 Gegenstände und Orte', '🧠 Langzeitgedächtnis', '💭 „Wie war das Schwimmen?“'] },
+          items: ['🅿️ Parkplatz vom Auto', '🔑 Gegenstände und Orte', '🧠 Langzeitgedächtnis', '💭 „Wie war das Schwimmen?“', '📅 Pläne: „Was habe ich morgen vor?“'], ex: ['Wo habe ich das Auto geparkt?', 'Was habe ich am Wochenende vor?'] },
         { t: 'POST UND TERMINE', k: 'Mail, Kalender, Fristen', ic: '✉️',
           say: 'Ich lese E-Mails vor, erkenne Fristen auf Rechnungen und Mahnungen und erinnere rechtzeitig daran. Termine trage ich direkt in den Google Kalender ein. Und wenn man einen Vertrag loswerden will: Ich schreibe die Kündigung, frage Anbieter, Nummer und Zeitpunkt ab, und mache daraus ein fertiges Schreiben zum Drucken oder als PDF.',
-          items: ['✉️ E-Mails vorlesen', '⚠️ Fristen erkennen', '📆 Google Kalender', '📝 Kündigungen schreiben: fertig als PDF oder zum Drucken'] },
+          items: ['✉️ E-Mails vorlesen', '⚠️ Fristen erkennen', '📆 Google Kalender', '📝 Kündigungen schreiben: fertig als PDF oder zum Drucken', '🔔 Neue Mail: wird beim Öffnen von selbst angesagt'], ex: ['Lies meine Mails vor', 'Wann ist die Frist bei der Rechnung?'] },
         { t: 'MIT DER KAMERA', k: 'Foto-Funktionen', ic: '📷',
           say: 'Mit der Kamera lese ich Briefe, übersetze Schilder, erkläre Warnleuchten im Auto und mache aus einem Plakat gleich einen Termin.',
           items: ['📄 Briefe lesen und einordnen', '🔤 Schilder übersetzen', '🚨 Warnleuchten erklären', '📍 Adresse im Foto: Navigation'] },
@@ -58,10 +69,19 @@
           items: ['🗣️ 5 Sprachen', '🌐 Weltkugel mit Nachrichten', '📹 Live-Kameras'] },
         { t: 'FREIZEIT', k: 'Filme, Fernsehen, Fußball', ic: '🎬',
           say: 'Auch für den Feierabend habe ich etwas. Ich gebe Filmtipps nach seinem Geschmack, suche im Fernsehprogramm passende Sendungen, sage, was im Kino läuft, und kenne die Bundesliga-Tabelle.',
-          items: ['🎬 Filmtipps nach Vorlieben', '📺 Fernsehprogramm', '🍿 Kino in der Nähe', '⚽ Bundesliga-Tabelle'] },
+          items: ['🎬 Filmtipps nach Vorlieben', '📺 Fernsehprogramm', '🍿 Kino in der Nähe', '⚽ Bundesliga-Tabelle'], ex: ['Was läuft heute im Fernsehen?', 'Wie steht die Bundesliga?'] },
         { t: 'AUCH BEI GESCHLOSSENER APP', k: 'Push-Nachrichten', ic: '🔔', emo: 'warn',
           say: 'Und das Beste: Ich melde mich auch, wenn die App zu ist. Erinnerungen, die Abfahrtszeit mit Stau, Glatteis auf dem Arbeitsweg und wenn der Diesel günstig ist. Achtung: Bei wichtigen Dingen bin ich ziemlich hartnäckig.',
           items: ['⏰ Erinnerungen mit Nachfassen', '🚗 Abfahrt inklusive Stau', '❄️ Glatteis und Regen', '⛽ Dieselpreis-Alarm'] },
+        { t: 'GEFÜHLE', k: 'Stimme, Gesicht und Gesten passen zusammen', ic: '🎭',
+          say: 'Ich kann auch Gefühle zeigen. Meine Stimme, mein Gesicht und meine Hände passen zu dem, was ich sage. Hört selbst.',
+          items: ['🎉 Freude und Begeisterung', '🤗 Mitgefühl', '😟 Sorge bei Gefahr', '🙄 Augenrollen, wenn es passt'],
+          ex: ['Sei mal ehrlich, wie findest du Montage?'],
+          lines: ['Herzlichen Glückwunsch, bestanden! Das ist ja großartig!', 'Gute Besserung! Das tut mir leid für dich.', 'Achtung, Glatteis auf der A24! Bitte vorsichtig fahren.', 'Schon wieder Montag. Na toll.'] },
+        { t: 'WENN NICHTS LOS IST', k: 'Gimmicks im Leerlauf', ic: '☕',
+          say: 'Und wenn ich nichts zu tun habe, bin ich nicht still. Ich trinke einen Kaffee, gähne, spiele mit einer Münze oder schaue auf die Uhr. Immer etwas anderes.',
+          items: ['☕ Kaffee trinken', '🥱 Gähnen und strecken', '🪙 Münze werfen', '⌚ Auf die Uhr schauen'],
+          gims: ['kaffee', 'gaehnen', 'muenze', 'uhr'] },
         { t: 'CHARAKTER', k: 'Frech, trocken, lebendig', ic: '😏',
           say: 'Ich habe auch Charakter: frech, trocken, und auf Wunsch sogar genervt oder beleidigt. Nur Kaffee kochen kann ich leider noch nicht.',
           items: ['😏 Trockener Humor', '🎭 Stimmungen und Stile', '🙂 Hologramm mit Mimik und Gesten'] },
@@ -142,13 +162,16 @@
             '#praesiCard ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;min-height:20px}' +
             '#praesiCard li{font-size:16px;line-height:1.25;padding:6px 10px;border-left:2px solid #ffa24a;background:rgba(80,180,255,.08);border-radius:0 8px 8px 0;opacity:0;transform:translateX(-14px);transition:opacity .45s ease,transform .45s ease}' +
             '#praesiCard li.on{opacity:1;transform:none}' +
+            '#praesiCard .pex{display:none;margin-top:8px;padding:7px 10px;border-radius:10px;background:rgba(255,162,74,.12);border:1px dashed rgba(255,162,74,.6);color:#ffd9a8;font-size:14px;line-height:1.35}' +
+            '#praesiCard .pex.on{display:block}' +
+            '#praesiCard .pex b{color:#ffa24a;font-weight:700;letter-spacing:.04em}' +
             '#praesiCard .pf{display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:10px}' +
             '#praesiCard .pd{display:flex;gap:5px;flex-wrap:wrap}' +
             '#praesiCard .pd i{width:7px;height:7px;border-radius:50%;background:rgba(93,209,255,.25)}' +
             '#praesiCard .pd i.on{background:#ffa24a;box-shadow:0 0 8px #ffa24a}' +
             '#praesiCard .pd i.done{background:#49d7ff}' +
             '#praesiCard button{font:600 12px Orbitron,system-ui,sans-serif;letter-spacing:.08em;color:#49d7ff;background:rgba(10,22,33,.8);border:1px solid rgba(93,209,255,.45);border-radius:8px;padding:7px 11px;cursor:pointer}' +
-            '#praesiCap{position:fixed;left:50%;top:max(10px,env(safe-area-inset-top));transform:translateX(-50%);z-index:9100;padding:6px 14px;border-radius:999px;border:1px solid rgba(255,162,74,.7);background:rgba(20,10,2,.82);color:#ffb866;font:700 11px Orbitron,system-ui,sans-serif;letter-spacing:.18em;display:none;white-space:nowrap}' +
+            '#praesiCap{position:fixed;left:50%;top:max(10px,env(safe-area-inset-top));transform:translateX(-50%);z-index:9100;padding:6px 14px;border-radius:999px;border:1px solid rgba(255,162,74,.7);background:rgba(20,10,2,.82);color:#ffb866;font:700 11px Orbitron,system-ui,sans-serif;letter-spacing:.08em;display:none;white-space:normal;max-width:92vw;text-align:center}' +
             '#praesiCap.on{display:block}' +
             '';
         document.head.appendChild(st);
@@ -157,7 +180,7 @@
     function build() {
         css();
         card = document.createElement('div'); card.id = 'praesiCard'; card.setAttribute('role', 'status');
-        card.innerHTML = '<div class="pk"></div><div class="pt"><span class="pi"></span><span class="px"></span></div><ul></ul><div class="pf"><div class="pd"></div><div><button type="button" data-a="skip">WEITER ▶</button> <button type="button" data-a="stop">✕</button></div></div>';
+        card.innerHTML = '<div class="pk"></div><div class="pt"><span class="pi"></span><span class="px"></span></div><ul></ul><div class="pex"></div><div class="pf"><div class="pd"></div><div><button type="button" data-a="skip">WEITER ▶</button> <button type="button" data-a="stop">✕</button></div></div>';
         card.addEventListener('click', e => {
             const b = e.target.closest && e.target.closest('button'); if (!b) return;
             e.stopPropagation();
@@ -176,6 +199,11 @@
         card.querySelector('.px').textContent = s.t;
         const ul = card.querySelector('ul'); ul.innerHTML = s.items.map(x => '<li></li>').join('');
         ul.querySelectorAll('li').forEach((li, n) => { li.textContent = s.items[n]; });
+        const pex = card.querySelector('.pex'); pex.classList.remove('on'); pex.textContent = '';
+        if (s.ex && s.ex.length) {
+            const b = document.createElement('b'); b.textContent = '🎙️ Du sagst: '; pex.appendChild(b);
+            s.ex.forEach((x, n) => { if (n) pex.appendChild(document.createElement('br')); pex.appendChild(document.createTextNode('„' + x + '“')); });
+        }
         card.querySelectorAll('.pd i').forEach((d, n) => { d.className = n < i ? 'done' : n === i ? 'on' : ''; });
         card.classList.add('on');
     }
@@ -184,6 +212,9 @@
         const step = Math.max(700, Math.min(2200, (durMs - 800) / n));
         lis.forEach((li, k) => setTimeout(() => { if (alive(id)) li.classList.add('on'); }, 600 + k * step));
         setTimeout(() => { if (alive(id)) lis.forEach(li => li.classList.add('on')); }, Math.max(2500, durMs));
+        const pex = card.querySelector('.pex');
+        const txt = pex ? pex.textContent : '';
+        if (txt) setTimeout(() => { if (alive(id) && pex.textContent === txt) pex.classList.add('on'); }, 600 + n * step + 300);
     }
 
     function sag(text, id) {
@@ -216,7 +247,7 @@
     }
 
     async function demo(d, id) {
-        card.classList.remove('on'); cap.classList.add('on');
+        card.classList.remove('on'); cap.textContent = '🎙️ „' + d.cmd + '“'; cap.classList.add('on');
         await sleep(500);
         if (!alive(id)) return;
         let ok = false;
@@ -224,7 +255,7 @@
         if (!ok) { try { sendToGroqSmart(d.cmd); } catch (e) {} }
         await warteBisRuhig(id, d.max);
         if (alive(id) && !skipFlag) await sleep(d.dwell);
-        cutSpeech(); schliesseFenster(); cap.classList.remove('on');
+        cutSpeech(); schliesseFenster(); cap.classList.remove('on'); cap.textContent = '● LIVE-VORFÜHRUNG';
         await sleep(900);
     }
 
@@ -239,6 +270,11 @@
             if (s.emo && window.jvHolo) { setTimeout(() => { try { window.jvHolo.emo(s.emo); } catch (e) {} }, 400); }
             await p;
             if (!alive(id)) break;
+            if (s.lines && !skipFlag) { for (const l of s.lines) { if (!alive(id) || skipFlag) break; await sleep(500); await sag(l, id); } }
+            if (s.gims && !skipFlag && window.jvHolo && window.jvHolo.gimShow) {
+                const dur = { kaffee: 6500, gaehnen: 6500, muenze: 5500, uhr: 6000 };
+                for (const k of s.gims) { if (!alive(id) || skipFlag) break; window.jvHolo.gimShow(k, dur[k] || 6000); await sleep((dur[k] || 6000) + 400); }
+            }
             if (s.demo && !skipFlag) await demo(s.demo, id);
             else await sleep(i === SZENEN.length - 1 ? 2500 : 700);
         }
