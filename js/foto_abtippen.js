@@ -25,7 +25,21 @@
         if (/\b(?:abtippen|abtipp\w*|abschreiben|abschreib\w*)\b/.test(t) || /\b(?:tipp|tippe|schreib|schreibe)\w*\s+(?:mir\s+)?(?:\w+\s+){0,3}ab\b/.test(t)) return true;
         if (/\b(?:zum|zu)\s+(?:ausdrucken|drucken)\b/.test(t) && new RegExp('\\b' + WAS + '\\b').test(t)) return true;
         if (/\b(?:ausdrucken|drucken|druckbar)\b/.test(t) && /\b(?:foto|bild|ratenplan|ratenzahlungsplan|zahlungsplan)\b/.test(t)) return true;
+        if (isMerken(t)) return true;
         return false;
+    }
+    /* "Merk dir das Foto", "Speicher den Zettel im Gedächtnis": Foto lesen und im Langzeitgedächtnis ablegen (Stundenpläne haben eine eigene Datei) */
+    function isMerken(text) {
+        const t = norm(text);
+        if (!t || t.length > 100 || /stundenplan/.test(t)) return false;
+        if (/^(?:was|wann|wie|wo|welche\w*|hast|hat|weißt|weisst)\b/.test(t)) return false;
+        return /\b(?:merk\w*|speicher\w*|abspeicher\w*|ablegen|leg\w*)\b/.test(t) && /\b(?:foto|bild|dokument|zettel|brief|schreiben|aushang|plan|tabelle|seite|rechnung|vertrag|bescheid)\b/.test(t)
+            && (/\b(?:foto|bild|fotografier\w*|zettel|dokument|seite)\b/.test(t) || /\b(?:gedächtnis|merk\w*)\b/.test(t));
+    }
+    /* Nach einem Foto: "Merk dir das", "Speicher das im Gedächtnis" (nur gültig, wenn ein frisches Foto da ist) */
+    function isMerkFollowup(text) {
+        const t = norm(text);
+        return !!t && t.length <= 70 && /^(?:jarvis )?(?:bitte )?(?:merk|merke|speicher|speichere|leg|lege)\w*\s+(?:dir\s+|mir\s+)?(?:das|dies\w*|es)(?:\s+(?:bitte|mal|auch|ab|im gedächtnis|ins gedächtnis|im langzeitgedächtnis|ins langzeitgedächtnis|im hintergrund|hintergrund))*$/.test(t);
     }
     function isFollowup(text) {
         const t = norm(text);
@@ -43,13 +57,13 @@
     if (typeof window.parseFollowupTask === 'function') {
         const origFollow = window.parseFollowupTask;
         window.parseFollowupTask = function (text) {
-            if (isFollowup(text)) return { task: 'abtippen' };
+            if (isFollowup(text) || isMerkFollowup(text)) return { task: 'abtippen', question: isMerkFollowup(text) ? '__merken' : '' };
             return origFollow.apply(this, arguments);
         };
     }
     const origProcess = window.processPhoto;
     window.processPhoto = async function (intent, dataUrl) {
-        if (intent && intent.task === 'abtippen') return processAbtippen(dataUrl, intent.question === MEHR);
+        if (intent && intent.task === 'abtippen') return processAbtippen(dataUrl, intent.question === MEHR, isMerken(intent.question) || isMerkFollowup(intent.question) || intent.question === '__merken');
         return origProcess.apply(this, arguments);
     };
 
@@ -61,7 +75,7 @@
                 if (typeof clearActionCards === 'function') clearActionCards();
                 if (typeof showActionCards === 'function') {
                     showActionCards([
-                        { icon: '🖨️', title: 'Abtippen zum Ausdrucken', subtitle: 'Ratenplan, Tabelle, Zettel sauber abschreiben', onclick: "runLastPhotoTask('abtippen')" },
+                        { icon: '🖨️', title: 'Abtippen · Merken', subtitle: 'Text sauber abschreiben, drucken oder im Gedächtnis speichern', onclick: "runLastPhotoTask('abtippen')" },
                         { icon: '✉️', title: 'Brief auswerten', subtitle: 'Rechnung, Mahnung, Vertrag, Bescheid, Einladung', onclick: "runLastPhotoTask('letter')" },
                         { icon: '🛒', title: 'Auf die Einkaufsliste', subtitle: 'Zettel lesen, Artikel eintragen', onclick: "runLastPhotoTask('shopping')" },
                         { icon: '📅', title: 'Termine eintragen', subtitle: 'Kalender, Plakat, Einladung', onclick: "runLastPhotoTask('events')" },
@@ -81,15 +95,16 @@
         const origCmd = window.handlePhotoCommand;
         window.handlePhotoCommand = function (text) {
             try {
-                if (isAbtippen(text) || isFollowup(text)) {
-                    const fresh = typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < (typeof PHOTO_FOLLOWUP_MS !== 'undefined' ? PHOTO_FOLLOWUP_MS : 600000);
+                const freshNow = typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < (typeof PHOTO_FOLLOWUP_MS !== 'undefined' ? PHOTO_FOLLOWUP_MS : 600000);
+                if (isAbtippen(text) || isFollowup(text) || (isMerkFollowup(text) && freshNow)) {
+                    const fresh = freshNow;
                     if (fresh && !/\b(?:neu\w*|fotografier\w*|abfotografier\w*|mach\w*\s+(?:ein\s+)?foto)\b/.test(norm(text))) {
                         runLastPhotoTask('abtippen', text).catch(() => say('Das Abtippen hat gerade nicht geklappt.'));
                         return true;
                     }
                     photoIntent = { task: 'abtippen', question: String(text || ''), at: Date.now() };
                     if (typeof showPhotoCards === 'function') showPhotoCards();
-                    say('Legen Sie den Plan gut beleuchtet und gerade hin. Tippen Sie unten auf die Karte, dann öffnet sich die Kamera. Bei mehreren Seiten machen Sie zuerst die erste.');
+                    say(isMerken(text) ? 'Legen Sie das Blatt gut beleuchtet und gerade hin. Tippen Sie unten auf die Karte, dann öffnet sich die Kamera. Danach können Sie es im Gedächtnis speichern.' : 'Legen Sie den Plan gut beleuchtet und gerade hin. Tippen Sie unten auf die Karte, dann öffnet sich die Kamera. Bei mehreren Seiten machen Sie zuerst die erste.');
                     return true;
                 }
             } catch (e) { console.error('Abtippen-Befehl', e); }
@@ -201,7 +216,7 @@
         return normalizeRows(t).replace(/\n{3,}/g, '\n\n').trim();
     }
 
-    async function processAbtippen(dataUrl, mehr) {
+    async function processAbtippen(dataUrl, mehr, merken) {
         const body0 = document.querySelector('#jvAbtipp .abt-body');
         mehr = !!(mehr && doc && body0);
         say(mehr ? 'Ich hänge die nächste Seite an. Einen Moment.' : 'Ich tippe es ab. Einen Moment.');
@@ -220,7 +235,53 @@
         const zeilen = text.split('\n').filter(l => l.trim()).length;
         const lk = luecken(text);
         say((mehr ? 'Seite ' + doc.pages + ' ist dabei, jetzt ' + zeilen + ' Zeilen. ' : 'Fertig, ' + zeilen + ' Zeilen. ') + (lk ? lk + ' vermutlich. Fehlt eine Seite? ' : '') +
-            (mehr ? 'Noch eine Seite? Tippen Sie auf Weitere Seite, sonst auf Drucken.' : 'Hat der Plan mehr Seiten, tippen Sie auf Weitere Seite. Sonst prüfen Sie die Zahlen und drucken ihn aus.'));
+            (merken ? (mehr ? 'Noch eine Seite? Tippen Sie auf Weitere Seite, sonst auf Merken.' : 'Hat es mehr Seiten, tippen Sie auf Weitere Seite. Sonst geben Sie oben einen Titel ein und tippen auf Merken, dann speichere ich es im Langzeitgedächtnis.')
+                : (mehr ? 'Noch eine Seite? Tippen Sie auf Weitere Seite, sonst auf Drucken.' : 'Hat der Plan mehr Seiten, tippen Sie auf Weitere Seite. Sonst prüfen Sie die Zahlen und drucken ihn aus. Tippen Sie auf Merken, wenn ich es mir im Langzeitgedächtnis merken soll.')));
+    }
+
+    /* ---------- Im Langzeitgedächtnis merken ---------- */
+    function vorschlagTitel(text) {
+        const l = String(text || '').split('\n').map(x => x.trim()).filter(x => x && !/\|/.test(x))[0] || '';
+        const t = l.replace(/[„“"]/g, '').slice(0, 40).trim();
+        return t.length >= 3 ? t : 'Foto vom ' + new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'long', timeZone: 'Europe/Berlin' });
+    }
+    async function memPost(body) {
+        const res = await apiFetch('/api/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        let data = null; try { data = await res.json(); } catch (e) {}
+        if (!res.ok) throw new Error((data && data.error) || ('Fehler ' + res.status));
+        return data || {};
+    }
+    const slugOf = s => String(s || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'foto';
+    /* Text in Stücke von höchstens ~1100 Zeichen (an Zeilengrenzen) teilen, jedes Stück mit dem Titel, damit es später gefunden wird */
+    function stuecke(text) {
+        const out = []; let cur = '';
+        String(text || '').split('\n').forEach(l => {
+            if (cur && (cur.length + l.length + 1) > 1100) { out.push(cur.trim()); cur = ''; }
+            cur += l + '\n';
+        });
+        if (cur.trim()) out.push(cur.trim());
+        return out;
+    }
+    async function merken(titel, text) {
+        const t = String(text || '').trim();
+        if (t.length < 3) throw new Error('Es ist kein Text da.');
+        const heute = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+        const lesbar = new Date(heute + 'T12:00:00').toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
+        const teile = stuecke(t), base = 'foto_' + slugOf(titel), ids = {};
+        for (let i = 0; i < teile.length; i++) {
+            const id = base + '_' + (i + 1); ids[id] = true;
+            const kopf = '„' + titel + '“ (Foto vom ' + lesbar + (teile.length > 1 ? ', Teil ' + (i + 1) + ' von ' + teile.length : '') + '): ';
+            await memPost({
+                action: 'store', id, text: (kopf + teile[i]).slice(0, 1990),
+                metadata: { typ: 'episode', kategorie: 'Foto', titel, teil: i + 1, quelle: 'foto', datum_gesagt: heute, status: 'ohne_nachfrage', anstoss_aus: true }
+            });
+        }
+        try {   // war der Text früher länger (mehr Stücke unter demselben Titel), die überzähligen entfernen
+            const d = await memPost({ action: 'listall' });
+            const weg = (d.eintraege || []).filter(e => e && e.id && String(e.id).indexOf(base + '_') === 0 && !ids[e.id]).map(e => e.id);
+            if (weg.length) await memPost({ action: 'delete', ids: weg });
+        } catch (e) { /* nur Aufräumen */ }
+        return teile.length;
     }
 
     /* ---------- Fenster ---------- */
@@ -284,6 +345,7 @@
 
     function zeigeFenster(text) {
         css();
+        const prevInp = document.querySelector('#jvAbtipp input'); const prevTitel = prevInp ? prevInp.value : '';
         const old = document.getElementById('jvAbtipp'); if (old) old.remove();
         const pages = doc ? doc.pages : 1;
         const wrap = document.createElement('div'); wrap.id = 'jvAbtipp';
@@ -320,9 +382,24 @@
             try { navigator.clipboard.writeText(t).then(() => { note.textContent = 'Kopiert.'; }, () => { note.textContent = 'Kopieren war nicht möglich.'; }); }
             catch (e) { note.textContent = 'Kopieren war nicht möglich.'; }
         });
-        wrap.appendChild(head); wrap.appendChild(bar); wrap.appendChild(body); wrap.appendChild(note);
+        const titelRow = document.createElement('div'); titelRow.className = 'abt-bar';
+        const tl = document.createElement('span'); tl.textContent = 'Titel zum Merken:'; titelRow.appendChild(tl);
+        const tin = document.createElement('input'); tin.type = 'text'; tin.maxLength = 60; tin.setAttribute('aria-label', 'Titel');
+        tin.value = prevTitel || vorschlagTitel(text); tin.style.cssText = 'flex:1;min-width:8em;font-size:16px;padding:7px 10px;border-radius:8px;border:1px solid #5ee7ff;background:#07131d;color:#e8f6ff;font-family:inherit';
+        titelRow.appendChild(tin);
+        mk('🧠 Merken', 'primary', async (ev) => {
+            const btn = ev.currentTarget; const ti = tin.value.trim() || vorschlagTitel(toText(body));
+            btn.disabled = true; note.textContent = 'Speichere im Langzeitgedächtnis ...';
+            try {
+                const n = await merken(ti, toText(body));
+                note.textContent = 'Gemerkt als „' + ti + '“ (' + n + (n === 1 ? ' Eintrag' : ' Einträge') + ').';
+                say('Gemerkt als ' + ti + '. Sie können mich später danach fragen.');
+            } catch (e) { console.error('Foto merken', e); note.textContent = 'Das Speichern hat nicht geklappt: ' + String((e && e.message) || e).slice(0, 120); }
+            btn.disabled = false;
+        });
+        wrap.appendChild(head); wrap.appendChild(bar); wrap.appendChild(titelRow); wrap.appendChild(body); wrap.appendChild(note);
         document.body.appendChild(wrap);
     }
 
-    window.jvAbtippen = { isAbtippen, isFollowup, toHtml, toText, clean, mergePages, luecken };
+    window.jvAbtippen = { isAbtippen, isFollowup, isMerken, isMerkFollowup, stuecke, vorschlagTitel, toHtml, toText, clean, mergePages, luecken };
 })();
