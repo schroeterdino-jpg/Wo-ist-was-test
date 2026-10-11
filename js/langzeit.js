@@ -187,11 +187,11 @@
 
     function refreshDue() {
         const heute = todayIso();
-        if (dueLoading || (dueCache && dueCache.tag === heute)) return;
+        if (dueLoading || (dueCache && dueCache.tag === heute && Date.now() - (dueCache.t || 0) < 600000)) return;   // alle 10 Minuten neu holen, damit neue Fristen nicht erst morgen auftauchen
         dueLoading = true;
         post({ action: 'due', today: heute, anstoss: anstossErlaubt() })
-            .then(d => { dueCache = { tag: heute, liste: Array.isArray(d.due) ? d.due : [] }; })
-            .catch(() => { dueCache = { tag: heute, liste: [] }; })
+            .then(d => { dueCache = { tag: heute, t: Date.now(), liste: Array.isArray(d.due) ? d.due : [] }; })
+            .catch(() => { dueCache = { tag: heute, t: Date.now(), liste: [] }; })
             .finally(() => { dueLoading = false; });
     }
 
