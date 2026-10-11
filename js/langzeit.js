@@ -228,14 +228,17 @@
         const wann = !Number.isFinite(tg) ? 'zur Frist' : tg < 0 ? 'die Frist ist gerade abgelaufen' : tg === 0 ? 'heute ist die Frist' : tg === 1 ? 'morgen ist die Frist' : 'in ' + tg + ' Tagen läuft die Frist ab';
         return 'Übrigens, ' + wann + ': ' + t.replace(/\.$/, '') + '.';
     }
+    let fristAufrufe = 0, fristGrund = 'noch nicht aufgerufen';
     window.jvFristHinweis = function (reply, userText) {
         const heute = todayIso();
-        if (lsGet(FRIST_KEY) === heute) return reply;   // eigener Zähler: eine Nachfrage der KI blockiert den Frist-Hinweis nicht
-        if (!dueCache || dueCache.tag !== heute) return reply;
+        fristAufrufe++;
+        if (lsGet(FRIST_KEY) === heute) { fristGrund = 'heute schon gesagt'; return reply; }   // eigener Zähler: eine Nachfrage der KI blockiert den Frist-Hinweis nicht
+        if (!dueCache || dueCache.tag !== heute) { fristGrund = 'Liste noch nicht geladen'; return reply; }
         const e = dueCache.liste.find(x => x.art === 'frist');
-        if (!e) return reply;
+        if (!e) { fristGrund = 'keine Frist fällig'; return reply; }
         const r = String(reply || '');
-        if (!r || r.length > 500 || ERNST.test(r) || ERNST.test(String(userText || ''))) return reply;
+        if (!r || r.length > 500 || ERNST.test(r) || ERNST.test(String(userText || ''))) { fristGrund = 'Antwort zu lang oder ernstes Thema'; return reply; }
+        fristGrund = 'angehängt';
         lsSet(FRIST_KEY, heute);   // heute nicht noch einmal
         post({ action: 'mark', id: e.id, art: 'fh', year: new Date().getFullYear(), today: heute }).catch(() => {});
         dueCache = null;
@@ -369,7 +372,7 @@
         try {   // Prüfhilfe: wie viele Fristen gespeichert sind und ob heute ein Hinweis bereitliegt
             const nF = eintraege.filter(e => e.metadata && (e.metadata.frist === true || e.metadata.frist === 'true')).length;
             const nH = (dueCache && dueCache.tag === todayIso()) ? dueCache.liste.filter(x => x.art === 'frist').length : '?';
-            sub.textContent += ' · Fristen: ' + nF + ' · Hinweis bereit: ' + nH + ' · Heute gefragt: ' + (lsGet(FOLLOW_KEY) === todayIso() ? 'ja' : 'nein') + ' · Frist gesagt: ' + (lsGet(FRIST_KEY) === todayIso() ? 'ja' : 'nein');
+            sub.textContent += ' · Fristen: ' + nF + ' · Hinweis bereit: ' + nH + ' · Heute gefragt: ' + (lsGet(FOLLOW_KEY) === todayIso() ? 'ja' : 'nein') + ' · Frist gesagt: ' + (lsGet(FRIST_KEY) === todayIso() ? 'ja' : 'nein') + ' · Prüfungen: ' + fristAufrufe + ' (' + fristGrund + ')';
         } catch (e) {}
         if (!eintraege.length) mk(list, 'div', 'lt-note', 'Noch nichts gespeichert. Erzählen Sie mir etwas, zum Beispiel „Ich gehe morgen schwimmen“.');
         eintraege.forEach(e => {
