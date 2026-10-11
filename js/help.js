@@ -8,7 +8,9 @@
 const HELP_TOPICS = [
     { key: 'termine', icon: '📅', title: 'Termine & Kalender', words: /termin|kalender|geburtstag/, examples: [
         'Trag morgen um 15 Uhr Zahnarzt in Hamburg ein', 'Wann hat Schatz Geburtstag?', 'Verschieb den Zahnarzt auf Freitag',
-        'Trag jeden Montag Mülltonne rausstellen ein', 'Zeig meine Termine der nächsten Woche'] },
+        'Trag jeden Montag Mülltonne rausstellen ein', 'Zeig meine Termine der nächsten Woche',
+        'Trag Alyssas Geburtstag am 30. Oktober ein (Geburtstage und Jahrestage kommen ganztägig und jedes Jahr, ohne Uhrzeit-Frage)',
+        'Übermorgen ist das Konzert um 20 Uhr (Jarvis fragt danach: Soll ich Sie 3 Stunden vorher per Push erinnern? Antwort: Ja oder Nein)', 'Termin-Erinnerung aus (auch: Termin-Erinnerung an)'] },
     { key: 'erinnerungen', icon: '🔔', title: 'Erinnerungen', words: /erinner/, examples: [
         'Erinnere mich morgen um 8 Uhr an den Arzt', 'Erinnere mich alle zwei Wochen an die Wäsche', 'Wichtige Erinnerung: Paket abholen (er fragt nach, bis du erledigt sagst)',
         'In zehn Minuten nochmal', 'Lösche alle Erinnerungen'] },
@@ -44,11 +46,12 @@ const HELP_TOPICS = [
     { key: 'kontakte', icon: '📞', title: 'Anrufen & WhatsApp', words: /kontakt|anruf|ruf\b|whatsapp|telefon/, examples: [
         'Ruf Mama an', 'Schick Schatz eine WhatsApp: Bin gleich da', '(Jarvis bereitet es vor, du tippst auf die Karte)'] },
     { key: 'welt', icon: '🌍', title: 'Welt, Nachrichten & Sport', words: /welt|nachricht|sport|bundesliga|iss\b|erdbeb|live/, examples: [
-        'Was ist gerade in Spanien los?', 'Zeig mir, was in Hamburg los ist (die Kugel zoomt heran und blendet in die Neon-Karte über; „Zurück zur Kugel“ bringt dich wieder hoch)', 'Zeig mir die Nachrichten von heute', 'Wo ist die ISS?', 'Zeig mir New York live', 'Wie hat der HSV gespielt?', 'Wie ist die Tabelle?', 'Anflug aus (oder: Anflug an)'] },
+        'Was ist gerade in Spanien los?', 'Zeig mir, was in Hamburg los ist (die Kugel zoomt heran und blendet in die Neon-Karte über; „Zurück zur Kugel“ bringt dich wieder hoch)', 'Zeig mir die Nachrichten von heute', 'Wo ist die ISS?', 'Zeig mir New York live', 'Wie hat der HSV gespielt?', 'Wie ist die Tabelle?', 'Anflug aus (oder: Anflug an)',
+        'Lokale Nachrichten (zwei Fenster mit Bildern: Schwarzenbek und Hamburg; kommen morgens beim ersten Öffnen auch von selbst)'] },
     { key: 'ferien', icon: '🏖️', title: 'Schulferien', words: /ferien|ferienkalender|schulferien|bundesland/, examples: [
         'Wann sind die Herbstferien in Hamburg?', 'Wann sind die nächsten Ferien?', 'Zeig mir den Ferienkalender', 'Sommerferien 2027 in allen Bundesländern', 'Wann sind die Osterferien in Bayern und Hessen?', 'Mein Bundesland ist Schleswig-Holstein'] },
     { key: 'ueberblick', icon: '🌅', title: 'Tagesüberblick', words: /überblick|ueberblick|tagesplan|morgen|mein tag/, examples: [
-        'Tagesüberblick (zeigt Termine, Erinnerungen, Aufgaben und Einkaufsliste als Kacheln)', 'Zeig mir meinen Tag', 'Kommt morgens von selbst beim ersten Öffnen, einstellbar unter Einstellungen > Morgen-Überblick'] },
+        'Tagesüberblick (zeigt Termine, Erinnerungen, Aufgaben und Einkaufsliste als Kacheln)', 'Zeig mir meinen Tag', 'Kommt morgens von selbst beim ersten Öffnen, einstellbar unter Einstellungen > Morgen-Überblick', 'Das Fenster kommt mit Kartenwurf: Die Figur wirft eine Karte, die zum Fenster wird'] },
     { key: 'charakter', icon: '🎭', title: 'Charakter & Mitdenken', words: /charakter|frech|witz|humor|anrede|sprüche|spruch|mitdenk|von selbst|meldung|fakt/, examples: [
         'Sei frecher (oder: Sei höflicher, Keine Sprüche mehr). Fast jede Antwort bekommt einen Spruch, auch Stau, Fahrzeit, Bahn, Sprit, Mond und Filmtipps; bei Warnungen, Fehlern, Erinnerungen und E-Mails gibt es nie einen', 'Nenn mich Boss', 'Erzähl einen Witz', 'Erzähl mir was Interessantes', 'Bist du da?',
         'Melde dich nicht mehr von selbst (Abfahrt, Regen, Unwetter, Geburtstage)', 'Beim Termin eintragen prüft Jarvis Überschneidungen, Feiertage, Wetter und Fahrzeit'] },
@@ -57,7 +60,10 @@ const HELP_TOPICS = [
     { key: 'foto', icon: '📷', title: 'Foto auswerten', words: /foto|bild|kamera|schild|warnleuchte|fotografier/, examples: [
         'Tippe auf 📷, mach das Foto und sag dann: Setz das auf die Einkaufsliste (oder: Trag das in den Kalender ein, Übersetze das, Lege einen Kontakt davon an)', 'Übersetze dieses Schild', 'Lies mir den Brief vor', 'Erkläre mir diese Warnleuchte',
         'Trag die Termine von diesem Foto in meinen Kalender ein', 'Trag den Termin von diesem Plakat ein', 'Lege diese Visitenkarte als Kontakt an', 'Setz den Einkaufszettel auf die Liste',
-        'Navigiere zu der Adresse auf diesem Foto (Plakat, Flyer, Brief fotografieren; Jarvis liest die Adresse vor, mit Ja startet die Route)', 'Bring mich dorthin (nach dem Foto)', 'Darf ich hier parken? (Schild fotografieren)', 'Was kann ich damit kochen? (Zutaten fotografieren)', 'Zum Foto: Was kostet das?'] },
+        'Navigiere zu der Adresse auf diesem Foto (Plakat, Flyer, Brief fotografieren; Jarvis liest die Adresse vor, mit Ja startet die Route)', 'Bring mich dorthin (nach dem Foto)', 'Darf ich hier parken? (Schild fotografieren)', 'Was kann ich damit kochen? (Zutaten fotografieren)', 'Zum Foto: Was kostet das?',
+        'Tipp zum Foto: Tippe das Foto ab / Merk dir den Ratenplan (auch mehrere Seiten, Drucken, ins Langzeitgedächtnis)', 'Merk dir diesen Stundenplan (Name und Tage)', 'Foto-Erkennung aus (auch: Foto-Erkennung an; sonst erkennt Jarvis Plakate, Briefe usw. von selbst)'] },
+    { key: 'person', icon: '👧', title: 'Aussehen merken (Personen)', words: /aussehen|julia|tochter|person|gesicht/, examples: [
+        'Das ist meine Tochter Julia (nach einem Foto)', 'Merk dir, wie Julia aussieht', 'Vergiss, wie Julia aussieht', '(Jarvis beschreibt nur das äußere Aussehen und fragt vorher, ob er es merken soll. Das Foto selbst wird nicht gespeichert, ein Gesicht erkennt er später nicht wieder.)'] },
     { key: 'internet', icon: '🌐', title: 'Aus dem Internet', words: /internet|fernseh|paket|öffnungszeit|oeffnungszeit/, examples: [
         'Was läuft heute Abend im Fernsehen?', 'Wo ist mein Paket?', 'Wann hat der Baumarkt heute auf?', 'Was läuft heute Abend im Kino in Hamburg?'] },
     { key: 'briefing', icon: '🌅', title: 'Briefing & Protokolle', words: /briefing|protokoll/, examples: [
@@ -86,6 +92,12 @@ const HELP_TOPICS = [
     { key: 'ansicht', icon: '🧠', title: 'Kugel-Ansicht & Fokus', words: /fokus|kugel|ansicht|gehirn|zoom|markier|hervorheb/, examples: [
         'Fokus auf Briefing (der Begriff leuchtet auf und wird groß, damit du ihn antippen kannst; auch: Markiere Parkplatz, Fokussiere Wetter)', 'Fokus beenden (oder: Zoom raus)', 'Zeig das Gehirn / Zurück zur Kugel',
         'Die Bereiche: Gedächtnis (Mitte), Zeit, Hände, Unterwegs, Ohren'] },
+    { key: 'figur', icon: '🪄', title: 'Figur-Animationen', words: /figur|animation|kartenwurf|karte|scarlett|wurf/, examples: [
+        'Wetter, Termine, Listen, Kontakte, Tagesüberblick usw.: Die Figur wirft eine Karte, daraus wird das Fenster', 'Sie reagiert auch auf Antworten: Regenschirm bei Regen, Sonnenbrille bei Sonne, Frieren bei Kälte, Stau-Blick, Stempel, Häkchen, Partyhut mit Konfetti, Winken bei Gute Nacht / Tschüss, Kamera-Blitz beim Foto, Klopfen wenn es länger dauert',
+        'Gut gemacht (die Figur verbeugt sich)', 'Montags und freitags hat sie eigene Gesten', 'Figur-Animationen aus (auch: Figur-Animationen an)', 'Figur Test (prüft, ob alles geladen ist, und wirft eine Testkarte)',
+        'Karte automatisch schließen aus (auch: an; die Karte schließt sich sonst nach dem Sprechen von selbst, ein Tippen darauf hält sie offen)'] },
+    { key: 'spiele', icon: '🎲', title: 'Mini-Spiele', words: /spiel|münze|muenze|kopf oder zahl|schere|stein|papier|würfel/, examples: [
+        'Münze werfen (oder: Kopf oder Zahl)', 'Schere Stein Papier (du sagst deine Wahl, die Figur antwortet mit einer geworfenen Karte)'] },
     { key: 'dolmetscher', icon: '🗣️', title: 'Dolmetscher', words: /dolmetsch|übersetz|uebersetz/, examples: [
         'Dolmetscher Türkisch (auch Englisch, Rumänisch, Polnisch, Russisch)', 'Übersetze Guten Tag ins Englische', 'Dolmetscher beenden'] },
     { key: 'einstellungen', icon: '⚙️', title: 'Stimme & Einstellungen', words: /einstellung|system|daten|stimme|tempo|aussprache|sicher/, examples: [
