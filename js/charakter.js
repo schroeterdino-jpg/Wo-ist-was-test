@@ -144,7 +144,7 @@ function charDraw(key, list) {
 /* ---------- Frechheitsgrad per Sprache ---------- */
 function charLevelCommand(t) {
     let target = null, dir = 0;
-    if (/^(?:sei|werde)(?: bitte)?(?: (?:ein bisschen|ein wenig|etwas|mal|noch))? (?:frecher|spitzer|sarkastischer|lustiger|mutiger|ruhig frecher)$/.test(t)) dir = 1;
+    if (/^(?:sei|werde|sag(?:e)?|sprich|rede|antworte)(?: bitte)?(?: mal)?(?: (?:ein bisschen|ein wenig|etwas|mal|noch))? (?:frecher|spitzer|sarkastischer|lustiger|witziger|humorvoller|mutiger|ruhig frecher)$/.test(t)) dir = 1;
     else if (/^(?:sei|werde)(?: bitte)?(?: (?:ein bisschen|ein wenig|etwas|mal|noch))? (?:netter|höflicher|freundlicher|ruhiger|braver|sachlicher|seriöser|weniger frech)$/.test(t)) dir = -1;
     else if (/^(?:keine|ohne|bitte keine) (?:sprüche|witze|frechheiten)(?: mehr)?(?: bitte)?$/.test(t)) target = 0;
     else {

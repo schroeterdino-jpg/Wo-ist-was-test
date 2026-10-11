@@ -18,9 +18,13 @@
         if (/keine ahnung|wei(?:ß|ss) (?:ich )?nicht|kommt darauf an|vielleicht|schwer zu sagen/.test(t)) return 'shrug';
         if (/schon wieder|mal wieder|na toll|wie immer|ach ja|ach nee|na klar|nat(?:ü|ue)rlich nicht|wer h(?:ä|ae)tte das gedacht/.test(t)) return 'roll';
         if (/leider|entschuldig|tut mir leid|keine ahnung|nicht gefunden|nichts gefunden|nicht verstanden|konnte .{0,25}nicht|fehler|kein zugriff|nicht möglich|nicht moeglich/.test(t)) return 'sorry';
+        // Humor: Witz, Spruch, "frech", "lustiger" ... -> breites Schmunzeln
+        if (/\bhaha\w*|\bhihi\w*|\bwitz\w*|\blach\w*|schmunzel\w*|\bscherz\w*|\blustig\w*|\bwitzig\w*|\bspa(?:ß|ss)\b|zwinker\w*|\bgrins\w*|\bhumor\w*|\bfrech\w*|schnallen sie sich an|bitte sehr, .{0,30}lachen|[\u{1F600}-\u{1F64F}]/u.test(t)) return 'joke';
         if (/\?\s*$/.test(t.trim()) || /\b(?:soll ich|möchten sie|moechten sie|willst du|wollen sie|welche[rsmn]?|was möchten)\b/.test(t)) return 'question';
         if (/\b(?:guten (?:morgen|tag|abend)|hallo|willkommen|moin|gute nacht|bis später|bis bald|tschüss)\b/.test(t)) return 'greet';
         if (/\b(?:super|toll|prima|erledigt|gerne|perfekt|glückwunsch|geschafft|alles frei|alles klar|trocken|gespeichert|eingetragen|fertig)\b/.test(t)) return 'happy';
+        // Bei Frech-Stufe 2 oder 3 schmunzelt Jarvis bei längeren Antworten manchmal (kein Dauergrinsen)
+        try { if (typeof sassLevel === 'function' && sassLevel() >= 2 && t.length > 60 && Math.random() < 0.3) return 'smirk'; } catch (e) {}
         return 'neutral';
     }
     function wrapSpeak() {
@@ -255,6 +259,8 @@ const EXP={
  roll    :{bL:0.9,bR:0.9,bin:-0.2,open:0.55,sq:0,gx:0,gy:1,smL:-0.15,smR:-0.15,mw:0.9,tilt:-0.07,yaw:0,pit:-0.12,arms:['shrug','shrug'],cap:'AUGENROLLEN',roll:true},
  skeptic :{bL:-0.15,bR:1.0,bin:0.25,open:0.8,sq:0.25,gx:0.5,gy:0,smL:-0.2,smR:0.45,mw:0.9,tilt:0.12,yaw:-0.12,pit:0,arms:['palm','rest'],cap:'SKEPTISCH'},
  surprise:{bL:1.0,bR:1.0,bin:-0.3,open:1.45,sq:0,gx:0,gy:0.1,smL:0,smR:0,mw:0.7,tilt:0,yaw:0,pit:-0.07,arms:['stop','stop'],cap:'STAUNEN',mouthO:0.7},
+ joke    :{bL:0.45,bR:0.75,bin:-0.2,open:0.9,sq:0.75,gx:0.2,gy:0,smL:1.0,smR:1.35,mw:1.55,tilt:0.1,yaw:0.05,pit:-0.04,arms:null,cap:'SCHMUNZELN'},
+ smirk   :{bL:0.15,bR:0.4,bin:0,open:1,sq:0.25,gx:0,gy:0,smL:0.45,smR:0.85,mw:1.15,tilt:0.04,yaw:0.03,pit:-0.02,arms:null,cap:'SCHMUNZELN'},
  happy   :{bL:0.55,bR:0.55,bin:-0.25,open:0.85,sq:0.6,gx:0,gy:0,smL:1.15,smR:1.15,mw:1.4,tilt:0.06,yaw:0,pit:-0.05,arms:['welcome','welcome'],cap:'FREUDE'},
  wow     :{bL:1.0,bR:1.0,bin:-0.45,open:1.5,sq:0.2,gx:0,gy:0.15,smL:1.0,smR:1.0,mw:1.5,tilt:0.05,yaw:0,pit:-0.1,arms:['welcome','welcome'],cap:'BEGEISTERT',mouthO:0.5},
  worry   :{bL:0.7,bR:0.7,bin:-1.0,open:1.3,sq:0,gx:0,gy:0.1,smL:-0.55,smR:-0.55,mw:0.9,tilt:0.04,yaw:0,pit:0.04,arms:['stop','sorry'],cap:'BESORGT'},
@@ -455,7 +461,7 @@ function gimProps(proj,lift,sc,t,FF,YEv,EXv,yOfv){
 const now2=()=>performance.now();
 
 /* ---------- Zustand der App -> Ausdruck ---------- */
-const EMO2EXP={warn:'worry',wow:'wow',care:'care',sorry:'sad',question:'skeptic',happy:'happy',greet:'happy',roll:'roll',shrug:'shrug'};
+const EMO2EXP={joke:'joke',smirk:'smirk',warn:'worry',wow:'wow',care:'care',sorry:'sad',question:'skeptic',happy:'happy',greet:'happy',roll:'roll',shrug:'shrug'};
 function driveState(now){
   speaking=sprechen(); const listening=hoeren();
   let thinking=false;
