@@ -259,8 +259,8 @@ const EXP={
  roll    :{bL:0.9,bR:0.9,bin:-0.2,open:0.55,sq:0,gx:0,gy:1,smL:-0.15,smR:-0.15,mw:0.9,tilt:-0.07,yaw:0,pit:-0.12,arms:['shrug','shrug'],cap:'AUGENROLLEN',roll:true},
  skeptic :{bL:-0.15,bR:1.0,bin:0.25,open:0.8,sq:0.25,gx:0.5,gy:0,smL:-0.2,smR:0.45,mw:0.9,tilt:0.12,yaw:-0.12,pit:0,arms:['palm','rest'],cap:'SKEPTISCH'},
  surprise:{bL:1.0,bR:1.0,bin:-0.3,open:1.45,sq:0,gx:0,gy:0.1,smL:0,smR:0,mw:0.7,tilt:0,yaw:0,pit:-0.07,arms:['stop','stop'],cap:'STAUNEN',mouthO:0.7},
- joke    :{bL:0.45,bR:0.75,bin:-0.2,open:0.9,sq:0.75,gx:0.2,gy:0,smL:1.0,smR:1.35,mw:1.55,tilt:0.1,yaw:0.05,pit:-0.04,arms:null,cap:'SCHMUNZELN'},
- smirk   :{bL:0.15,bR:0.4,bin:0,open:1,sq:0.25,gx:0,gy:0,smL:0.45,smR:0.85,mw:1.15,tilt:0.04,yaw:0.03,pit:-0.02,arms:null,cap:'SCHMUNZELN'},
+ joke    :{bL:0.4,bR:0.7,bin:-0.2,open:0.95,sq:0.5,gx:0.2,gy:0,smL:0.75,smR:1.0,mw:1.2,tilt:0.1,yaw:0.05,pit:-0.04,arms:null,cap:'SCHMUNZELN'},
+ smirk   :{bL:0.15,bR:0.4,bin:0,open:1,sq:0.2,gx:0,gy:0,smL:0.3,smR:0.6,mw:1.05,tilt:0.04,yaw:0.03,pit:-0.02,arms:null,cap:'SCHMUNZELN'},
  happy   :{bL:0.55,bR:0.55,bin:-0.25,open:0.85,sq:0.6,gx:0,gy:0,smL:1.15,smR:1.15,mw:1.4,tilt:0.06,yaw:0,pit:-0.05,arms:['welcome','welcome'],cap:'FREUDE'},
  wow     :{bL:1.0,bR:1.0,bin:-0.45,open:1.5,sq:0.2,gx:0,gy:0.15,smL:1.0,smR:1.0,mw:1.5,tilt:0.05,yaw:0,pit:-0.1,arms:['welcome','welcome'],cap:'BEGEISTERT',mouthO:0.5},
  worry   :{bL:0.7,bR:0.7,bin:-1.0,open:1.3,sq:0,gx:0,gy:0.1,smL:-0.55,smR:-0.55,mw:0.9,tilt:0.04,yaw:0,pit:0.04,arms:['stop','sorry'],cap:'BESORGT'},
@@ -522,12 +522,7 @@ function frame(now){
   const xfH=(x,y,z)=>{const r=htr(x,y,z),q=proj(r[0],r[1],r[2]);return {sx:q[0],sy:q[1],x3:r[0],y3:r[1],z3:r[2]};};
   drawMesh(bodyMesh,xfB,y=>shrugUp*Math.max(0,1-Math.abs(y-NY)/0.9),false);
   { const gy0=oy+sc*1.9, gy1=oy+sc*3.6, gg=cx.createLinearGradient(0,gy0,0,gy1); gg.addColorStop(0,'rgba(3,7,13,0)'); gg.addColorStop(1,'rgba(3,7,13,1)'); cx.fillStyle=gg; cx.fillRect(0,gy0,W,H-gy0); }
-  // Realistischer 3D-Kopf (js/kopf3d.js): dann wird der gezeichnete Kopf samt Gesicht ausgelassen, der 3D-Kopf liegt unter dieser Zeichenfläche
-  let k3=false; try{k3=!!(window.jvKopf3d&&window.jvKopf3d.aktiv());}catch(e){}
-  if(k3){   // 3D-Kopf zeichnen lassen und an die Stelle des gezeichneten Kopfes setzen (Arme und Requisiten kommen danach davor)
-    try{ const c3=window.jvKopf3d.draw({W,H,sc,ox,oy,yaw,pit,rol,PVY,CHIN,HH,cur,mo,ek,gx,gy,mouthO,t,speaking}); if(c3) cx.drawImage(c3,0,0,W,H); else k3=false; }catch(e){ console.error('Kopf3D',e); k3=false; }
-  }
-  if(!k3) drawMesh(headMesh,xfH,null,true);
+  drawMesh(headMesh,xfH,null,true);
   // Arme als glänzende Zylinder
   const lift=y=>y+shrugUp*(y>SY-0.4?1:0.5);
   const SK=CFG.head, SLV=CFG.body;
@@ -571,7 +566,6 @@ function frame(now){
   const F=(x,y,dz)=>{const t2=clamp(tOf(y),0.02,0.98),w=wid(t2),u=clamp(x/w,-0.98,0.98);return hproj(x,y,w*DEP*Math.pow(1-Math.pow(Math.abs(u),CFG.ex),1/CFG.ex)+(CFG.smooth?0.035:0.02)+(dz||0));};
   cx.lineCap='round';cx.lineJoin='round';
   const YE=yOf(0.585),EX=0.33;
-  if(!k3){
   // Kantige Platten-Linien
   if(CFG.panel){
   cx.shadowColor='rgba(120,220,255,0.7)';cx.shadowBlur=5;cx.strokeStyle='rgba(150,225,255,0.55)';cx.lineWidth=1.6;
@@ -619,7 +613,7 @@ function frame(now){
   }
   cx.globalCompositeOperation=CFG.glow?'lighter':'source-over';cx.shadowColor=CFG.f.mouth;cx.shadowBlur=CFG.glow?12:0;
   // Mund
-  const my=yOf(0.30),mw=0.20*cur.mw,od=0.012+mo*0.12+mouthO*0.10+Math.max(0,(cur.smL+cur.smR)/2-0.3)*0.10;cx.strokeStyle=CFG.f.mouth;cx.lineWidth=CFG.f.mouthW;cx.lineJoin=CFG.smooth?'round':'miter';
+  const my=yOf(0.30),mw=0.20*cur.mw,od=0.012+mo*0.12+mouthO*0.10+Math.max(0,(cur.smL+cur.smR)/2-0.3)*0.04;   // Lächeln öffnet den Mund nur wenig, damit die Lippen beim Sprechen sichtbar auf- und zugehencx.strokeStyle=CFG.f.mouth;cx.lineWidth=CFG.f.mouthW;cx.lineJoin=CFG.smooth?'round':'miter';
   if(od>0.022){
     const N=14,up=[],lo=[];
     for(let i=0;i<=N;i++){const u=i/N*2-1;const lift=(u<0?cur.smL:cur.smR)*0.05*u*u;const x=u*mw*(mouthO>0?(1-mouthO*0.3):1);
@@ -638,7 +632,6 @@ function frame(now){
     cx.restore();
   }
   for(const dir of [-1,1]){cx.beginPath();for(let i=0;i<=(CFG.smooth?14:6);i++){const u=i/(CFG.smooth?14:6)*2-1;const lift=(u<0?cur.smL:cur.smR)*0.05*u*u;const x=u*mw*(mouthO>0?(1-mouthO*0.3):1),y=my+lift+dir*od*(1-u*u)*(dir>0?0.6:1)+(dir>0?Math.sin(Math.abs(u)*3.1416)*0.0:0);const [px,py]=F(x,y,0.02);if(i===0)cx.moveTo(px,py);else cx.lineTo(px,py);}cx.stroke();}
-  }
   cx.shadowBlur=0;cx.globalCompositeOperation='source-over';
   gimProps(proj,lift,sc,t,F,YE,EX,yOf);
 }
