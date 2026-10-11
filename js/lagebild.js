@@ -331,7 +331,7 @@
         if (auf.length) auf.slice(0, 3).forEach(x => z.push({ t: '⚠ ' + x.title + (x.road && /^A\d+$/.test(x.road) ? ' (' + x.road + ')' : ''), c: 'bad' }));
         else z.push({ t: '✓ Frei, keine Meldungen auf der Strecke', c: 'ok' });
         if (auf.length > 3) z.push({ t: '+ ' + (auf.length - 3) + ' weitere Meldungen', c: 'dim' });
-        body.appendChild(karte('🎯 ' + String(d.titel || 'ZIEL').toUpperCase().slice(0, 26), 'ANKUNFT ' + hhmm(new Date(Date.now() + (min || 0) * 60000)), min + ' Min · ' + km + ' km', z));
+        body.appendChild(karte('🎯 ' + String(d.titel || 'ZIEL').toUpperCase().slice(0, 26), (m.terminMs && m.terminMs - Date.now() > (min || 0) * 60000 + 5 * 60000) ? 'TERMIN ' + hhmm(new Date(m.terminMs)) : 'ANKUNFT ' + hhmm(new Date(Date.now() + (min || 0) * 60000)), min + ' Min · ' + km + ' km', z));
         const extra = (d.zeilen || []).filter(x => x && x.text);
         if (extra.length) body.appendChild(karte('UNTERWEGS & AM ZIEL', '', null, extra.map(x => ({ t: x.text, c: '' }))));
         if (wegD) {

@@ -428,7 +428,8 @@ async function computeDepartureAdvice(opts) {
         coords: route.coords,
         warnings: lastStauWarnings.slice(),
         autobahnen: route.autobahnen || [],
-        fahrtMin, km
+        fahrtMin, km,
+        terminMs: (!target.keinFesterTermin && target.start) ? target.start.getTime() : null   // Beginn des Termins (für die Anzeige "Termin 20:00" im Lagebild)
     };
     lastRouteMapData = mapData;
 
