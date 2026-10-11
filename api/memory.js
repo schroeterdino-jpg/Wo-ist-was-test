@@ -198,8 +198,10 @@ export default async function handler(req, res) {
         }
       }
       // Hinweise für heute zuerst, dann das älteste Ereignis
-      due.sort((a, b) => (a.art === 'heute' ? 0 : 1) - (b.art === 'heute' ? 0 : 1) || String(a.metadata.ereignis_datum).localeCompare(String(b.metadata.ereignis_datum)));
-      return res.status(200).json({ due: due.slice(0, 3) });
+      // Reihenfolge: Hinweise für heute, dann dringende Fristen (höchstens 7 Tage), dann alles andere nach Datum
+      const rang = d => d.art === 'heute' ? 0 : (d.art === 'frist' && d.tage <= 7) ? 1 : 2;
+      due.sort((a, b) => rang(a) - rang(b) || String(a.metadata.ereignis_datum).localeCompare(String(b.metadata.ereignis_datum)));
+      return res.status(200).json({ due: due.slice(0, 8) });
     }
 
     // Fristen aus E-Mails: Erinnerung 2 Tage vorher, am Tag selbst, einmal wenn überfällig
