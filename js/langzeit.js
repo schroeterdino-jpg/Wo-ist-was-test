@@ -18,6 +18,7 @@
 (function () {
     const FOLLOW_KEY = 'jv_langzeit_nachfrage_tag';
     const ANSTOSS_KEY = 'jv_langzeit_anstoss_tag';
+    const FRIST_KEY = 'jv_langzeit_frist_tag';
     const CLEAN_KEY = 'jv_langzeit_aufgeraeumt_v1';
     const AUTO_FRAGE = 'Frage beiläufig, wie es war.';
     const KATEGORIEN = ['Event', 'Vorliebe', 'Projekt', 'Stimmung', 'Geburtstag'];
@@ -197,8 +198,8 @@
 
     function dueBlock() {
         const heute = todayIso();
+        refreshDue();   // auch wenn heute schon gefragt wurde: die Fristen für den Hinweis am Antwortende brauchen die Liste
         if (lsGet(FOLLOW_KEY) === heute) return '';
-        refreshDue();
         if (!dueCache || dueCache.tag !== heute || !dueCache.liste.length) return '';
         const e = dueCache.liste.find(x => x.art !== 'frist');   // Fristen hängt die App selbst an die Antwort (jvFristHinweis), nicht die KI
         if (!e) return '';
@@ -229,13 +230,15 @@
     }
     window.jvFristHinweis = function (reply, userText) {
         const heute = todayIso();
-        if (lsGet(FOLLOW_KEY) === heute) return reply;
+        if (lsGet(FRIST_KEY) === heute) return reply;   // eigener Zähler: eine Nachfrage der KI blockiert den Frist-Hinweis nicht
         if (!dueCache || dueCache.tag !== heute) return reply;
         const e = dueCache.liste.find(x => x.art === 'frist');
         if (!e) return reply;
         const r = String(reply || '');
         if (!r || r.length > 500 || ERNST.test(r) || ERNST.test(String(userText || ''))) return reply;
-        markAsked({ episode_id: e.id, episode_art: 'fh' });   // heute nicht noch einmal
+        lsSet(FRIST_KEY, heute);   // heute nicht noch einmal
+        post({ action: 'mark', id: e.id, art: 'fh', year: new Date().getFullYear(), today: heute }).catch(() => {});
+        dueCache = null;
         return r.replace(/\s+$/, '') + ' ' + fristSatz(e);
     };
 
@@ -366,7 +369,7 @@
         try {   // Prüfhilfe: wie viele Fristen gespeichert sind und ob heute ein Hinweis bereitliegt
             const nF = eintraege.filter(e => e.metadata && (e.metadata.frist === true || e.metadata.frist === 'true')).length;
             const nH = (dueCache && dueCache.tag === todayIso()) ? dueCache.liste.filter(x => x.art === 'frist').length : '?';
-            sub.textContent += ' · Fristen: ' + nF + ' · Hinweis bereit: ' + nH + ' · Heute schon gefragt: ' + (lsGet(FOLLOW_KEY) === todayIso() ? 'ja' : 'nein');
+            sub.textContent += ' · Fristen: ' + nF + ' · Hinweis bereit: ' + nH + ' · Heute gefragt: ' + (lsGet(FOLLOW_KEY) === todayIso() ? 'ja' : 'nein') + ' · Frist gesagt: ' + (lsGet(FRIST_KEY) === todayIso() ? 'ja' : 'nein');
         } catch (e) {}
         if (!eintraege.length) mk(list, 'div', 'lt-note', 'Noch nichts gespeichert. Erzählen Sie mir etwas, zum Beispiel „Ich gehe morgen schwimmen“.');
         eintraege.forEach(e => {
@@ -418,7 +421,7 @@
         window.jvCommands.use('langzeit_reset', function (text, next) {
             const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
             if (/^(?:hinweise|nachfragen|fristen)(?:[- ]hinweise)? (?:zurücksetzen|zuruecksetzen|neu starten)$/.test(t)) {
-                try { localStorage.removeItem(FOLLOW_KEY); localStorage.removeItem(ANSTOSS_KEY); } catch (e) {}
+                try { localStorage.removeItem(FOLLOW_KEY); localStorage.removeItem(ANSTOSS_KEY); localStorage.removeItem(FRIST_KEY); } catch (e) {}
                 dueCache = null;
                 try { speak('Erledigt. Ich darf heute wieder einen Hinweis geben.', typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {}
                 return true;
