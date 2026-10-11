@@ -376,7 +376,8 @@
     const START_5 = /\bk(?:ü|ue)ndigungs(?:schreiben|brief|vorlage|entwurf|schreib\w*)\b/;
     const START_6 = /^(?:(?:ich|jarvis|bitte)\s+)*(?:(?:will|möchte|moechte|muss|würde|wuerde|kann|soll)\s+)?(?:(?:gerne|mal|jetzt|noch)\s+)*(?:(?:meinen|mein|meine|den|die|das|einen|eine|ein|mal|gerne)\s+)*[\wäöüß\- ]{0,40}\bk(?:ü|ue)ndigen$/;
     const START_7 = /^k(?:ü|ue)ndigung\s+(?:für|fuer|an|bei)\s+\S/;
-    function isStart(t) { return t.length <= 100 && !/^(?:wie|wann|wo|was|warum|wieso|weshalb|kann|darf|gibt|ist|hat|habe|haben)\b/.test(t) && (START_7.test(t) || START_1.test(t) || START_2.test(t) || START_3.test(t) || START_4.test(t) || START_5.test(t) || START_6.test(t)); }
+    const MERKEN = /^(?:(?:bitte|jarvis|ach|und|übrigens|uebrigens)[\s,]+)*(?:merk(?:e)?|notier(?:e)?|speicher(?:e)?|vergiss|denk|erinner(?:e)?)\b|\berinner(?:e|st)?\s+(?:mich|mir|uns)\b/;   // "Merk dir, dass ich ... kündigen muss" ist eine Notiz, kein Kündigungsschreiben
+    function isStart(t) { return t.length <= 100 && !MERKEN.test(t) && !/^(?:wie|wann|wo|was|warum|wieso|weshalb|kann|darf|gibt|ist|hat|habe|haben)\b/.test(t) && (START_7.test(t) || START_1.test(t) || START_2.test(t) || START_3.test(t) || START_4.test(t) || START_5.test(t) || START_6.test(t)); }
     function prefill(raw, d) {
         const m = String(raw || '').match(/.*\b(?:bei|für|fuer|an|von)\s+(?:den |die |das |meinen |meine |mein |meinem |meiner |dem |der |einem |einer )?(.+?)\s*(?:schreiben|aufsetzen|verfassen|erstellen|kündigen)?\s*$/i);
         if (!m) return;
