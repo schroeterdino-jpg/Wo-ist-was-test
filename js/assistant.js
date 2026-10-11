@@ -293,17 +293,61 @@ async function sendToGroqSmartCore(text, opts = {}) {
             }
         }
 
+        /* Nennt der User die Uhrzeit selbst ("um 20 Uhr", "um 19:30"), gilt genau diese als Ankunftszeit (nicht die der KI, die sich dabei schon verrechnet hat).
+           "morgen" / "übermorgen" wird mitgenommen, sonst gilt der nächste Zeitpunkt mit dieser Uhrzeit. Gibt "" zurück, wenn der Satz keine Uhrzeit nennt. */
+        function zeitenImSatz(l) {
+            const out = [], rx = /\b(um|gegen|bis|ab)\s+(\d{1,2})(?:[:.](\d{2}))?\s*uhr(?:\s+(\d{2}))?\b|\b(um|gegen|bis|ab)\s+(\d{1,2})[:.](\d{2})\b/g;
+            let m;
+            while ((m = rx.exec(l))) {
+                const hh = +(m[2] || m[6]), mi = +(m[3] || m[4] || m[7] || 0);
+                if (hh <= 23 && mi <= 59) out.push({ hh, mi, i: m.index, e: m.index + m[0].length, ab: (m[1] || m[5]) === 'ab' });
+            }
+            return out;
+        }
+        /* Gehört die Uhrzeit zum Einlass / zur Ankunft? ("Einlass um 19 Uhr", "um 19 Uhr da sein") */
+        function istEinlassZeit(l, z) {
+            return /(?:einlass|ankunft)[^,.;]{0,16}$/.test(l.slice(0, z.i + 3)) || /^\s*(?:\w+\s+){0,2}(?:da sein|dort sein|ankommen|vor ort sein|da zu sein|dort zu sein)/.test(l.slice(z.e));
+        }
+        /* Nennt der User die Uhrzeit selbst, gilt genau diese als Ankunftszeit (nicht die der KI, die sich dabei schon verrechnet hat).
+           Gibt es einen Einlass ("Einlass um 19 Uhr", "ich will um 19 Uhr da sein"), zählt diese Zeit, nicht der Beginn. "morgen"/"übermorgen" wird mitgenommen.
+           Gibt "" zurück, wenn der Satz keine Uhrzeit nennt. */
+        function arrivalFromUserText(t) {
+            try {
+                const l = String(t || '').toLowerCase();
+                const zs = zeitenImSatz(l).filter(z => !z.ab);
+                if (!zs.length) return '';
+                const nahe = zs.filter(z => istEinlassZeit(l, z));
+                const z = nahe.length ? nahe[0] : zs[0];
+                const d = new Date(); d.setHours(z.hh, z.mi, 0, 0);
+                if (/übermorgen/.test(l)) d.setDate(d.getDate() + 2);
+                else if (/\bmorgen\b/.test(l) && !/morgens|heute morgen/.test(l)) d.setDate(d.getDate() + 1);
+                else if (d.getTime() < Date.now()) d.setDate(d.getDate() + 1);
+                const zz = n => String(n).padStart(2, '0');
+                return d.getFullYear() + '-' + zz(d.getMonth() + 1) + '-' + zz(d.getDate()) + 'T' + zz(z.hh) + ':' + zz(z.mi) + ':00';
+            } catch (e) { return ''; }
+        }
+        /* "Einlass ist vorher" ohne Uhrzeit für den Einlass: lieber nachfragen, als mit dem Beginn zu rechnen */
+        function einlassOhneZeit(t) {
+            try {
+                const l = String(t || '').toLowerCase();
+                if (!/einlass/.test(l)) return false;
+                return !zeitenImSatz(l).some(z => !z.ab && istEinlassZeit(l, z));
+            } catch (e) { return false; }
+        }
+
         // Abfahrtszeit berechnen ("Wann muss ich losfahren?")
         let travelReply = null;
         const travelAction = actions.find(a => a.type === 'travel_time');
-        if (travelAction) {
+        if (travelAction && einlassOhneZeit(text)) {
+            travelReply = 'Wann ist der Einlass? Sag mir zum Beispiel: Ich will um 19 Uhr da sein, wann muss ich losfahren?';
+        } else if (travelAction) {
             typeWriterStatus("Berechne Fahrzeit...");
             updateTerminalStream("API_FETCH: ROUTE", "FETCHING");
             try {
                 const res = await computeDepartureAdvice({
                     query: travelAction.travel_query || '',
                     destination: resolveTravelDestination(text, travelAction.travel_destination || ''),
-                    arrivalTime: travelAction.travel_arrival_time || '',
+                    arrivalTime: arrivalFromUserText(text) || travelAction.travel_arrival_time || '',
                     wantFuel: true
                 });
                 travelReply = res.reply;
