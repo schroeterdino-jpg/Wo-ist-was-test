@@ -209,7 +209,25 @@
         return h * 60 + mi;
     }
 
-    function describeWeek(st, w) { return NAME[shiftOfWeek(st, weekNo(berlin()) + w)]; }
+    /* Urlaub (js/urlaub.js) hat Vorrang: In einer Urlaubswoche gibt es keine Schicht. */
+    function wocheYmd(w) {   // Montag und Sonntag der Woche (heute + w Wochen) als JJJJ-MM-TT
+        const b = berlin(), t = Date.UTC(b.y, b.m - 1, b.d), dow = (new Date(t).getUTCDay() + 6) % 7;
+        const mon = t - dow * 86400000 + w * 7 * 86400000;
+        return { von: new Date(mon).toISOString().slice(0, 10), bis: new Date(mon + 6 * 86400000).toISOString().slice(0, 10) };
+    }
+    function urlaubLesbar(iso) { try { return new Date(iso + 'T12:00:00').toLocaleDateString('de-DE', { day: 'numeric', month: 'long' }); } catch (e) { return iso; } }
+    function describeWeek(st, w) {
+        const sh = NAME[shiftOfWeek(st, weekNo(berlin()) + w)];
+        try {
+            const u = window.jvUrlaub && window.jvUrlaub.get && window.jvUrlaub.get();
+            if (u && u.von && u.bis) {
+                const wk = wocheYmd(w);
+                if (u.von <= wk.von && u.bis >= wk.bis) return 'Urlaub, also keine Schicht';
+                if (u.von <= wk.bis && u.bis >= wk.von) return sh + ', aber vom ' + urlaubLesbar(u.von < wk.von ? wk.von : u.von) + ' bis ' + urlaubLesbar(u.bis > wk.bis ? wk.bis : u.bis) + ' haben Sie Urlaub';
+            }
+        } catch (e) {}
+        return sh;
+    }
 
     function handle(text) {
         const raw = String(text || '');
