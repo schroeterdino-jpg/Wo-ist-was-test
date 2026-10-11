@@ -130,7 +130,9 @@
             let schicht = null;
             try { const o = JSON.parse(getPersistentData('jv_schicht', '') || 'null'); if (o && typeof o.base === 'number') schicht = o; } catch (e) {}
             const route = await routeToWork();
-            const body = { schicht, route, name: (typeof currentUserName === 'string') ? currentUserName : '' };
+            let urlaub = null;
+            try { const u = JSON.parse(getPersistentData('jv_urlaub', '') || 'null'); if (u && u.von && u.bis && u.bis >= new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' })) urlaub = { von: u.von, bis: u.bis }; } catch (e) {}
+            const body = { schicht, route, urlaub, name: (typeof currentUserName === 'string') ? currentUserName : '' };
             const hash = JSON.stringify(body);
             if (!force && hash === lastCfgHash) return;
             if (await post('push_config', body)) lastCfgHash = hash;
@@ -163,7 +165,7 @@
         if (typeof original === 'function' && !original._pushsync) {
             const wrapped = function (key) {
                 try { if (key === 'helfer_reminders' || key === 'helfer_calendar_entries') schedule(4000); } catch (e) {}
-                try { if (key === 'jv_schicht' || key === 'helfer_work_address' || key === 'helfer_home_address') { clearTimeout(cfgTimer); cfgTimer = setTimeout(() => sendConfig(false), 4000); } } catch (e) {}
+                try { if (key === 'jv_schicht' || key === 'jv_urlaub' || key === 'helfer_work_address' || key === 'helfer_home_address') { clearTimeout(cfgTimer); cfgTimer = setTimeout(() => sendConfig(false), 4000); } } catch (e) {}
                 return original.apply(this, arguments);
             };
             wrapped._pushsync = true;
