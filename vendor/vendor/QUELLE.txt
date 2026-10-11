@@ -1,1 +1,4 @@
-
+facecap.glb: Kopfmodell "Face Cap" von Bannaflak (https://www.bannaflak.com/face-cap),
+entnommen aus den Beispielen des three.js-Projekts (https://github.com/mrdoob/three.js, Ordner examples/models/gltf).
+Die Lizenz des Modells steht auf der Seite von Face Cap; hier nur für die private Nutzung in dieser App eingebunden.
+Die übrigen Dateien in vendor sind three.js (MIT-Lizenz, siehe vendor/LICENSE).
