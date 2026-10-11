@@ -49,7 +49,7 @@
     }
     const origProcess = window.processPhoto;
     window.processPhoto = async function (intent, dataUrl) {
-        if (intent && intent.task === 'abtippen') return processAbtippen(dataUrl);
+        if (intent && intent.task === 'abtippen') return processAbtippen(dataUrl, intent.question === MEHR);
         return origProcess.apply(this, arguments);
     };
 
@@ -97,6 +97,51 @@
         };
     }
 
+    /* ---------- Mehrere Seiten: weitere Fotos werden hinten angehängt ---------- */
+    const MEHR = '__mehr';
+    let doc = null;   // { pages } solange das Fenster offen ist
+
+    const isRow = l => /\|/.test(l) && l.split('|').length >= 2;
+    const keyOf = l => l.split('|').map(c => c.trim().toLowerCase()).join('|');
+    /* Neue Seite an den bisherigen Text hängen: wiederholte Spaltenüberschrift, wiederholte Überschrift und doppelte Zeilen (Überlappung) fallen weg */
+    function mergePages(oldText, newText) {
+        const oldLines = oldText.split('\n');
+        const seenRows = new Set(oldLines.filter(isRow).map(keyOf));
+        const seenText = new Set(oldLines.filter(l => !isRow(l) && l.trim().length > 6).map(l => l.trim().toLowerCase()));
+        const firstRowOld = oldLines.find(isRow);
+        let nl = newText.split('\n');
+        const out = [];
+        let sawRow = false;
+        nl.forEach(l => {
+            if (!l.trim()) { out.push(l); return; }
+            if (isRow(l)) {
+                const k = keyOf(l);
+                if (!sawRow && firstRowOld && k === keyOf(firstRowOld)) { sawRow = true; return; }      // Spaltenüberschrift der neuen Seite
+                sawRow = true;
+                if (seenRows.has(k)) return;                                                         // Zeile gibt es schon (Fotos überlappen)
+                out.push(l); return;
+            }
+            if (!sawRow && seenText.has(l.trim().toLowerCase())) return;                              // gleiche Überschrift oben auf der neuen Seite
+            out.push(l);
+        });
+        while (out.length && !out[0].trim()) out.shift();
+        while (out.length && !out[out.length - 1].trim()) out.pop();
+        if (!out.length) return oldText;
+        const oldLast = oldLines.filter(l => l.trim()).pop() || '';
+        const sep = (isRow(oldLast) && isRow(out[0])) ? '\n' : '\n\n';
+        return oldText.replace(/\s+$/, '') + sep + out.join('\n');
+    }
+    /* Raten-Nummern in der ersten Spalte: Lücken verraten eine fehlende Seite oder ein Foto, das eine Zeile abschneidet */
+    function luecken(text) {
+        const nums = [];
+        text.split('\n').filter(isRow).forEach(l => { const c = l.split('|')[0].trim(); if (/^\d{1,3}\.?$/.test(c)) nums.push(parseInt(c, 10)); });
+        if (nums.length < 3) return '';
+        const miss = [];
+        for (let i = 1; i < nums.length; i++) for (let n = nums[i - 1] + 1; n < nums[i] && miss.length < 12; n++) miss.push(n);
+        if (!miss.length) return '';
+        return miss.length === 1 ? 'Rate ' + miss[0] + ' fehlt' : 'Die Raten ' + miss.join(', ') + ' fehlen';
+    }
+
     /* ---------- Abtippen ---------- */
     function prompt() {
         return 'Du schreibst den kompletten Text von einem Foto sauber und vollständig ab (zum Ausdrucken). ' +
@@ -110,8 +155,10 @@
         return String(raw || '').replace(/```[a-z]*\n?/gi, '').replace(/\*\*/g, '').replace(/^\s*[-|]{3,}[-| ]*$/gm, '').replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
     }
 
-    async function processAbtippen(dataUrl) {
-        say('Ich tippe es ab. Einen Moment.');
+    async function processAbtippen(dataUrl, mehr) {
+        const body0 = document.querySelector('#jvAbtipp .abt-body');
+        mehr = !!(mehr && doc && body0);
+        say(mehr ? 'Ich hänge die nächste Seite an. Einen Moment.' : 'Ich tippe es ab. Einen Moment.');
         let raw = '';
         try { raw = await askVision(prompt(), 'Schreibe den Text auf diesem Foto vollständig ab.', dataUrl, false); }
         catch (e) {
@@ -119,12 +166,15 @@
             say('Das Abtippen hat gerade nicht geklappt. Ist das Foto scharf und gut beleuchtet?');
             return;
         }
-        const text = clean(raw);
+        let text = clean(raw);
         if (!text || text.length < 3) { say('Ich konnte auf dem Foto keinen Text erkennen. Ist es scharf, gerade und gut beleuchtet?'); return; }
+        if (mehr) { text = mergePages(toText(body0), text); doc.pages++; } else doc = { pages: 1 };
         try { zeigeFenster(text); }
         catch (e) { console.error('Abtippen-Fenster', e); say('Ich habe es abgetippt, kann es aber gerade nicht anzeigen.'); return; }
         const zeilen = text.split('\n').filter(l => l.trim()).length;
-        say('Fertig, ' + zeilen + ' Zeilen. Bitte prüfen Sie die Zahlen. Mit Drucken können Sie es ausdrucken, am Handy auch als PDF speichern.');
+        const lk = luecken(text);
+        say((mehr ? 'Seite ' + doc.pages + ' ist dabei, jetzt ' + zeilen + ' Zeilen. ' : 'Fertig, ' + zeilen + ' Zeilen. ') + (lk ? lk + ' vermutlich. Fehlt eine Seite? ' : '') +
+            (mehr ? 'Noch eine Seite? Tippen Sie auf Weitere Seite, sonst auf Drucken.' : 'Hat der Plan mehr Seiten, tippen Sie auf Weitere Seite. Sonst prüfen Sie die Zahlen und drucken ihn aus.'));
     }
 
     /* ---------- Fenster ---------- */
@@ -187,10 +237,11 @@
     function zeigeFenster(text) {
         css();
         const old = document.getElementById('jvAbtipp'); if (old) old.remove();
+        const pages = doc ? doc.pages : 1;
         const wrap = document.createElement('div'); wrap.id = 'jvAbtipp';
         const head = document.createElement('div'); head.className = 'abt-head';
-        const title = document.createElement('span'); title.textContent = 'ABGETIPPT · ZUM AUSDRUCKEN'; head.appendChild(title);
-        const x = document.createElement('button'); x.textContent = '✕'; x.setAttribute('aria-label', 'Schließen'); x.addEventListener('click', () => wrap.remove());
+        const title = document.createElement('span'); title.textContent = 'ABGETIPPT · ' + pages + (pages === 1 ? ' SEITE' : ' SEITEN'); head.appendChild(title);
+        const x = document.createElement('button'); x.textContent = '✕'; x.setAttribute('aria-label', 'Schließen'); x.addEventListener('click', () => { wrap.remove(); doc = null; });
         head.appendChild(x);
         const bar = document.createElement('div'); bar.className = 'abt-bar';
         const body = document.createElement('div'); body.className = 'abt-body';
@@ -203,6 +254,13 @@
             window.addEventListener('afterprint', done);
             setTimeout(() => { try { window.print(); } catch (e) { done(); } setTimeout(done, 60000); }, 150);
         });
+        const naechste = (fn) => () => {
+            try { photoIntent = { task: 'abtippen', question: MEHR, at: Date.now() }; } catch (e) {}
+            note.textContent = 'Mach das Foto der nächsten Seite. Danach wird sie angehängt.';
+            try { fn(); } catch (e) { note.textContent = 'Die Kamera ließ sich nicht öffnen.'; }
+        };
+        mk('➕ Weitere Seite', '', naechste(() => { if (typeof openPhotoCamera === 'function') openPhotoCamera(true); }));
+        mk('📁 Aus Dateien', '', naechste(() => { if (typeof openPhotoGallery === 'function') openPhotoGallery(); }));
         mk('📋 Kopieren', '', () => {
             const t = toText(body);
             try { navigator.clipboard.writeText(t).then(() => { note.textContent = 'Kopiert.'; }, () => { note.textContent = 'Kopieren war nicht möglich.'; }); }
@@ -212,5 +270,5 @@
         document.body.appendChild(wrap);
     }
 
-    window.jvAbtippen = { isAbtippen, isFollowup, toHtml, toText, clean };
+    window.jvAbtippen = { isAbtippen, isFollowup, toHtml, toText, clean, mergePages, luecken };
 })();
