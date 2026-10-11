@@ -1,6 +1,6 @@
 /* ============================================================
    FIGUR-REAKTIONEN: Die Figur (hologramm.js) reagiert auf das, was passiert. Alles ist abschaltbar: "Figur-Animationen aus" / "Figur-Animationen an" (Standard: an).
-   1) KARTENWURF: Öffnet sich ein Fenster auf einen Sprachbefehl hin (Termine, Karte, Nachrichten, Tabelle ...) oder die Wetterkarte oder der Tagesüberblick, holt die Figur ein Kärtchen
+   1) KARTENWURF: Öffnet sich ein Fenster auf einen Sprachbefehl hin (Termine, Karte, Nachrichten, Tabelle ...) oder die Wetterkarte, holt die Figur ein Kärtchen
       mit dem passenden Symbol hervor, wirft es hoch, und das Fenster klappt auf. Beim Antippen von Menü oder Knöpfen gibt es keinen Wurf (keine Wartezeit).
    2) REAKTIONEN auf die Antwort (kurz nachdem Jarvis zu sprechen beginnt, höchstens alle 25 Sekunden eine):
       Regen -> Schirm; Sonne -> Sonnenbrille; Frost -> Hände reiben, Atemwölkchen; Stau -> Blick auf die Uhr, Kopfschütteln;
@@ -56,16 +56,6 @@
         };
         w._wurf = true;
         window.showWeatherMap = w;
-    }
-
-    if (typeof window.uebRender === 'function' && !window.uebRender._wurf) {   // Tagesüberblick (morgens beim Öffnen und per Sprache)
-        const orig = window.uebRender;
-        const w = function () {
-            try { if (wurf('🗓️', orig, arguments, this)) return; } catch (e) {}
-            return orig.apply(this, arguments);
-        };
-        w._wurf = true;
-        window.uebRender = w;
     }
 
     /* ---------- 2) Reaktionen auf die Antwort ---------- */

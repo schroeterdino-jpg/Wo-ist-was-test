@@ -153,6 +153,10 @@ function pose(name,sd){
     case 'stretch': return {E:V(X*1.55,SY+1.15,0.15), H:V(X*1.35,SY+2.35,0.10)};
     case 'neck':  return {E:V(X*1.45,SY+0.35,0.10), H:V(X*0.55,NY+1.45,0.00)};
     case 'coin':  return {E:V(X*1.10,SY-1.00,0.50), H:V(X*0.55,SY-0.55,1.15)};
+    case 'cardHold': return {E:V(X*1.12,SY-0.92,0.55), H:V(X*0.55,SY-0.55,1.25)};
+    case 'cardUp':  return {E:V(X*1.28,SY+0.30,0.40), H:V(X*0.95,NY+1.30,0.85)};
+    case 'waveA': return {E:V(X*1.30,SY+0.30,0.40), H:V(X*0.60,NY+1.45,0.85)};
+    case 'waveB': return {E:V(X*1.30,SY+0.30,0.40), H:V(X*1.30,NY+1.40,0.85)};
     case 'watch': return {E:V(X*0.95,SY-1.00,0.55), H:V(X*0.30,NY+0.15,0.95)};
     case 'face':  return {E:V(X*1.30,SY-0.40,0.55), H:V(X*0.50,NY+1.25,0.85)};
   }
@@ -262,6 +266,7 @@ const EXP={
  yawn    :{bL:0.8,bR:0.8,bin:-0.3,open:0.12,sq:0.3,gx:0,gy:0,smL:0,smR:0,mw:0.8,tilt:0,yaw:0,pit:-0.18,arms:null,cap:'GAEHNEN',mouthO:2.8},
  focus   :{bL:0.2,bR:0.2,bin:0.2,open:1.0,sq:0.15,gx:0,gy:0.6,smL:0.2,smR:0.2,mw:0.9,tilt:0.04,yaw:0.0,pit:-0.05,arms:null,cap:'FOKUS'},
  sigh    :{bL:0.1,bR:0.1,bin:-0.6,open:0.6,sq:0,gx:0.4,gy:-0.3,smL:-0.4,smR:-0.4,mw:0.85,tilt:-0.05,yaw:-0.1,pit:0.08,arms:null,cap:'SEUFZEN'},
+ bow     :{bL:0.4,bR:0.4,bin:-0.3,open:0.6,sq:0.4,gx:0,gy:-0.8,smL:0.8,smR:0.8,mw:1.2,tilt:0,yaw:0,pit:0.42,arms:['chest','chest'],cap:'VERBEUGEN'},
  shrug   :{bL:0.7,bR:0.7,bin:-0.5,open:1,sq:0,gx:0,gy:0.1,smL:-0.5,smR:-0.5,mw:0.8,tilt:0.12,yaw:0,pit:0,arms:['shrug','shrug'],cap:'SCHULTERZUCKEN'}
 };
 let cur=Object.assign({},EXP.neutral),tgt='neutral',rollT=-1;
@@ -279,17 +284,33 @@ let lastActive=performance.now(), nextGim=0, gim=null, gimLast='', gimGaze=null;
 const GIMS={
   kaffee:{dur:10500,prop:'cup',steps:[[0,['cupHold','rest'],'neutral',0],[1200,['cupMouth','rest'],'sip',0.45],[3600,['cupHold','rest'],'neutral',0],[5600,['cupMouth','rest'],'sip',0.5],[8200,['cupHold','rest'],'neutral',0],[9800,['rest','rest'],'neutral',0]]},
   gaehnen:{dur:8200,steps:[[0,['rest','rest'],'neutral'],[900,['yawnHand','rest'],'yawn'],[3300,['stretch','stretch'],'yawn'],[5600,['neck','rest'],'sigh'],[7600,['rest','rest'],'neutral']]},
+  karte:{dur:2900,only:true,prop:'card',steps:[[0,['cardHold','rest'],'focus'],[900,['cardUp','rest'],'happy'],[1250,['rest','rest'],'happy'],[2600,['rest','rest'],'neutral']]},
+  schirm:{dur:4800,only:true,shift:0.18,prop:'umbrella',steps:[[0,['cardUp','rest'],'worry'],[1800,['cardUp','rest'],'neutral'],[4300,['rest','rest'],'neutral']]},
+  sonne:{dur:4600,only:true,prop:'shades',steps:[[0,['face','rest'],'happy'],[900,['rest','rest'],'happy'],[4200,['rest','rest'],'neutral']]},
+  kalt:{dur:4400,only:true,prop:'puff',steps:[[0,['palm','chest'],'sigh'],[420,['chest','palm'],'sigh'],[840,['palm','chest'],'sigh'],[1260,['chest','palm'],'sigh'],[1680,['palm','chest'],'sigh'],[2100,['chest','palm'],'sigh'],[2520,['palm','chest'],'sigh'],[2940,['chest','palm'],'sigh'],[3700,['rest','rest'],'sigh']]},
+  stau:{dur:5200,only:true,steps:[[0,['rest','watch'],'neutral'],[1800,['rest','watch'],'sigh'],[3400,['neck','rest'],'roll'],[4900,['rest','rest'],'neutral']]},
+  haken:{dur:3500,only:true,prop:'check',steps:[[0,['cardHold','rest'],'focus'],[1700,['cardHold','rest'],'happy'],[3100,['rest','rest'],'happy']]},
+  stempel:{dur:2800,only:true,prop:'stamp',steps:[[0,['cardHold','rest'],'focus'],[1200,['cardHold','rest'],'happy'],[2400,['rest','rest'],'neutral']]},
+  kamera:{dur:2700,only:true,prop:'cam',steps:[[0,['cardHold','rest'],'happy'],[2300,['rest','rest'],'neutral']]},
+  winken:{dur:3300,only:true,steps:[[0,['waveB','rest'],'happy'],[290,['waveA','rest'],'happy'],[580,['waveB','rest'],'happy'],[870,['waveA','rest'],'happy'],[1160,['waveB','rest'],'happy'],[1450,['waveA','rest'],'happy'],[1740,['waveB','rest'],'happy'],[2030,['waveA','rest'],'happy'],[2320,['waveB','rest'],'happy'],[2610,['waveA','rest'],'happy'],[3000,['rest','rest'],'happy']]},
+  party:{dur:5200,only:true,prop:'party',steps:[[0,['welcome','welcome'],'wow'],[4800,['rest','rest'],'happy']]},
+  verbeugen:{dur:2800,only:true,steps:[[0,['rest','rest'],'happy'],[300,['chest','chest'],'bow'],[1800,['rest','rest'],'happy']]},
+  klopfen:{dur:3200,only:true,prop:'knock',steps:[[0,['stop','rest'],'skeptic'],[300,['palm','rest'],'skeptic'],[600,['stop','rest'],'skeptic'],[900,['palm','rest'],'skeptic'],[1200,['stop','rest'],'skeptic'],[1500,['palm','rest'],'skeptic'],[1800,['stop','rest'],'skeptic'],[2100,['palm','rest'],'skeptic'],[2400,['stop','rest'],'skeptic'],[2700,['palm','rest'],'skeptic'],[3000,['rest','rest'],'skeptic']]},
+  zauber:{dur:4400,prop:'magic',steps:[[0,['cardUp','rest'],'focus'],[3000,['rest','rest'],'happy'],[4100,['rest','rest'],'neutral']]},
+  montag:{dur:4200,tag:1,steps:[[0,['rest','rest'],'sigh'],[1400,['neck','rest'],'sigh'],[3200,['rest','rest'],'neutral']]},
+  freitag:{dur:5200,tag:5,steps:[[0,['open','welcome'],'happy'],[420,['welcome','open'],'happy'],[840,['open','welcome'],'happy'],[1260,['welcome','open'],'happy'],[1680,['open','welcome'],'happy'],[2100,['welcome','open'],'happy'],[2520,['open','welcome'],'happy'],[2940,['welcome','open'],'happy'],[3360,['open','welcome'],'happy'],[3780,['welcome','open'],'happy'],[4200,['open','welcome'],'happy'],[4620,['welcome','open'],'happy'],[5000,['rest','rest'],'happy']]},
   muenze:{dur:9000,prop:'coin',steps:[[0,['coin','rest'],'focus'],[8200,['rest','rest'],'neutral']]},
   uhr:{dur:7600,steps:[[0,['rest','watch'],'neutral'],[2600,['rest','watch'],'sigh'],[4400,['neck','rest'],'think'],[6800,['rest','rest'],'neutral']]}
 };
 function gimStart(now){
-  const keys=Object.keys(GIMS).filter(k=>k!==gimLast);
+  const wd=new Date().getDay();
+  const keys=Object.keys(GIMS).filter(k=>k!==gimLast&&!GIMS[k].only&&(!GIMS[k].tag||GIMS[k].tag===wd));
   const k=keys[(Math.random()*keys.length)|0]; gimLast=k;
   gim={k,t0:now,tilt:0};
 }
 function gimStop(now){ gim=null; gimGaze=null; nextGim=now+45000+Math.random()*75000; }
 /* liefert true, solange ein Gimmick läuft (setzt dann Ausdruck und Arme) */
-let gimWant=null,gimUntil=0;
+let gimWant=null,gimUntil=0,gimIcon='',gimShift=0;
 function gimDrive(now,idle){
   if(!idle){ if(gim) gimStop(now); return false; }
   if(!gim){ if(now>=nextGim) gimStart(now); else return false; }
@@ -300,12 +321,115 @@ function gimDrive(now,idle){
   gim.tiltT=st[3]||0; gim.tilt+=((gim.tiltT)-gim.tilt)*0.1;
   gimGaze=null;
   if(G.prop==='coin'){ const ph=((el/1000)%1.25)/1.25, h=4*ph*(1-ph); gim.coin=h; gimGaze={x:0.1,y:Math.max(-0.3,Math.min(1,h*1.4-0.15))}; }
+  if(G.prop==='card'){ gimGaze={x:0.1,y:el>1000?0.95:0.1}; }
   return true;
 }
-function gimProps(proj,lift,sc,t){
+function gimProps(proj,lift,sc,t,FF,YEv,EXv,yOfv){
   if(!gim) return;
   const G=GIMS[gim.k]; if(!G.prop) return;
   const a=arm[0], Hd=a.cur.H; const q=proj(Hd.x,lift(Hd.y),Hd.z), k=q[2], u=sc*k;
+  if(G.prop==='card'){
+    const el=now2()-gim.t0, FL=1150, T0=1150;
+    const p=Math.max(0,Math.min(1,(el-T0)/FL)), e=p*p*(3-2*p);
+    const sw=Math.abs(Math.cos(Math.min(el,T0)/1000*4.2));   // Kärtchen dreht sich in der Hand
+    let x=q[0], y=q[1]-0.16*u, sz=u*0.46, rot=0, al=1;
+    if(el>=T0){ x=q[0]+(W/2-q[0])*e; y=(q[1]-0.16*u)+((H*0.30)-(q[1]-0.16*u))*e-Math.sin(p*Math.PI)*H*0.12; sz=u*0.46*(1+e*2.6); rot=e*6.283; al=1-Math.max(0,p-0.82)/0.18; }
+    const w=sz*0.74*(el<T0?(0.35+0.65*sw):1), h=sz;
+    cx.save(); cx.globalAlpha=Math.max(0,al); cx.translate(x,y); cx.rotate(el<T0?-0.18:rot);
+    const g=cx.createRadialGradient(0,0,2,0,0,h*1.2); g.addColorStop(0,'rgba(94,231,255,0.35)'); g.addColorStop(1,'rgba(94,231,255,0)'); cx.fillStyle=g; cx.fillRect(-h*1.2,-h*1.2,h*2.4,h*2.4);
+    cx.fillStyle='rgba(8,22,36,0.96)'; cx.strokeStyle='rgb(94,231,255)'; cx.lineWidth=2.2; cx.lineJoin='round';
+    const r=Math.min(w,h)*0.14; cx.beginPath(); cx.moveTo(-w/2+r,-h/2); cx.lineTo(w/2-r,-h/2); cx.quadraticCurveTo(w/2,-h/2,w/2,-h/2+r); cx.lineTo(w/2,h/2-r); cx.quadraticCurveTo(w/2,h/2,w/2-r,h/2); cx.lineTo(-w/2+r,h/2); cx.quadraticCurveTo(-w/2,h/2,-w/2,h/2-r); cx.lineTo(-w/2,-h/2+r); cx.quadraticCurveTo(-w/2,-h/2,-w/2+r,-h/2); cx.closePath(); cx.fill(); cx.stroke();
+    if(w>h*0.4){ cx.font=Math.round(h*0.46)+'px sans-serif'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillStyle='#fff'; cx.fillText(gim.icon||'🗂️',0,h*0.02); }
+    cx.restore();
+    return;
+  }
+  const el2=now2()-gim.t0;
+  const rr=(x,y,w,h,r)=>{cx.beginPath();cx.moveTo(x-w/2+r,y-h/2);cx.lineTo(x+w/2-r,y-h/2);cx.quadraticCurveTo(x+w/2,y-h/2,x+w/2,y-h/2+r);cx.lineTo(x+w/2,y+h/2-r);cx.quadraticCurveTo(x+w/2,y+h/2,x+w/2-r,y+h/2);cx.lineTo(x-w/2+r,y+h/2);cx.quadraticCurveTo(x-w/2,y+h/2,x-w/2,y+h/2-r);cx.lineTo(x-w/2,y-h/2+r);cx.quadraticCurveTo(x-w/2,y-h/2,x-w/2+r,y-h/2);cx.closePath();};
+  const star=(x,y,r,a)=>{cx.save();cx.globalAlpha=Math.max(0,a);cx.fillStyle='#fff6b0';cx.beginPath();for(let i=0;i<8;i++){const rad=i%2?r*0.28:r,ang=i*Math.PI/4;cx.lineTo(x+Math.cos(ang)*rad,y+Math.sin(ang)*rad);}cx.closePath();cx.fill();cx.restore();};
+  const tcard=(x,y,w,h,rot,al,fn)=>{cx.save();cx.globalAlpha=Math.max(0,al);cx.translate(x,y);cx.rotate(rot);
+    cx.fillStyle='rgba(8,22,36,0.96)';cx.strokeStyle='rgb(94,231,255)';cx.lineWidth=2.2;rr(0,0,w,h,Math.min(w,h)*0.14);cx.fill();cx.stroke();if(fn)fn(w,h);cx.restore();};
+  const head=FF?FF(0,yOfv(1.0),0):[W/2,H*0.1];
+  if(G.prop==='umbrella'){
+    const R=sc*0.85, open=Math.min(1,el2/450), ccx=head[0]+0.10*R, ccy=head[1]-0.30*R;
+    cx.save(); cx.lineCap='round';
+    cx.strokeStyle='#cfe3f0'; cx.lineWidth=3; cx.beginPath(); cx.moveTo(ccx,ccy); cx.lineTo(q[0],q[1]-0.04*u); cx.stroke();
+    cx.fillStyle='rgba(60,130,210,0.92)'; cx.strokeStyle='#9fd4ff'; cx.lineWidth=2;
+    cx.beginPath(); cx.moveTo(ccx-R*open,ccy); cx.quadraticCurveTo(ccx-R*open,ccy-R*0.95*open,ccx,ccy-R*0.95*open); cx.quadraticCurveTo(ccx+R*open,ccy-R*0.95*open,ccx+R*open,ccy);
+    for(let i=1;i>=-1;i-=1){ const x1=ccx+i*R*open*0.5; cx.quadraticCurveTo(x1+R*open*0.25,ccy+R*0.16,x1-(i===-1?0:R*open*0.5),ccy); }
+    cx.closePath(); cx.fill(); cx.stroke();
+    cx.strokeStyle='rgba(190,225,255,0.5)'; cx.lineWidth=1.5; for(const f of [-0.5,0,0.5]){ cx.beginPath(); cx.moveTo(ccx,ccy-R*0.95*open); cx.lineTo(ccx+f*R*open*1.9,ccy); cx.stroke(); }
+    cx.strokeStyle='rgba(160,210,255,0.65)'; cx.lineWidth=2;
+    for(let i=0;i<34;i++){ const rx=ccx+(((i*37)%100)/100-0.5)*R*3.4, ry=ccy-R*1.1+(((now2()*0.55+i*61)%(R*3.2))); const inside=Math.abs(rx-ccx)<R*0.95&&ry>ccy-R&&ry<ccy+R*0.05; if(inside) continue; cx.beginPath(); cx.moveTo(rx,ry); cx.lineTo(rx-3,ry+12); cx.stroke(); }
+    cx.restore(); return;
+  }
+  if(G.prop==='shades'){
+    const p=Math.max(0,Math.min(1,(el2-500)/450)), a=FF(-EXv,YEv,0.07), b=FF(EXv,YEv,0.07), d=Math.hypot(b[0]-a[0],b[1]-a[1]), r=d*0.29, dy=(1-p*p*(3-2*p))*-r*2.4, al=el2>3900?Math.max(0,1-(el2-3900)/500):1;
+    // Sonne oben rechts
+    cx.save(); cx.globalAlpha=Math.min(1,el2/500)*al; const sx=W*0.84, sy=H*0.09, sr=sc*0.32;
+    const gl=cx.createRadialGradient(sx,sy,2,sx,sy,sr*3); gl.addColorStop(0,'rgba(255,220,90,0.55)'); gl.addColorStop(1,'rgba(255,220,90,0)'); cx.fillStyle=gl; cx.fillRect(sx-sr*3,sy-sr*3,sr*6,sr*6);
+    cx.strokeStyle='#ffd84a'; cx.lineWidth=3; cx.lineCap='round'; for(let i=0;i<10;i++){ const an=i*0.628+el2/1500; cx.beginPath(); cx.moveTo(sx+Math.cos(an)*sr*1.25,sy+Math.sin(an)*sr*1.25); cx.lineTo(sx+Math.cos(an)*sr*1.75,sy+Math.sin(an)*sr*1.75); cx.stroke(); }
+    cx.fillStyle='#ffd84a'; cx.beginPath(); cx.arc(sx,sy,sr,0,6.283); cx.fill(); cx.restore();
+    if(p>0){ cx.save(); cx.globalAlpha=al; cx.lineWidth=Math.max(2,r*0.16); cx.strokeStyle='#0b0b10'; cx.fillStyle='rgba(12,14,22,0.93)';
+      for(const c of [a,b]){ cx.beginPath(); cx.ellipse(c[0],c[1]+dy,r*1.18,r,0,0,6.283); cx.fill(); cx.stroke(); cx.fillStyle='rgba(255,255,255,0.22)'; cx.beginPath(); cx.ellipse(c[0]-r*0.35,c[1]+dy-r*0.35,r*0.4,r*0.18,-0.5,0,6.283); cx.fill(); cx.fillStyle='rgba(12,14,22,0.93)'; }
+      cx.beginPath(); cx.moveTo(a[0]+r*1.18,a[1]+dy); cx.lineTo(b[0]-r*1.18,b[1]+dy); cx.stroke();
+      cx.beginPath(); cx.moveTo(a[0]-r*1.18,a[1]+dy); cx.lineTo(a[0]-r*1.9,a[1]+dy-r*0.2); cx.moveTo(b[0]+r*1.18,b[1]+dy); cx.lineTo(b[0]+r*1.9,b[1]+dy-r*0.2); cx.stroke(); cx.restore(); }
+    return;
+  }
+  if(G.prop==='puff'){
+    const m=FF(0,yOfv(0.30),0.12);
+    cx.save();
+    for(let i=0;i<5;i++){ const age=((el2/1000)*0.8+i*0.2)%1, x=m[0]+age*sc*0.35, y=m[1]-age*sc*0.30, r=sc*(0.04+age*0.12); cx.fillStyle='rgba(215,235,255,'+(0.55*(1-age))+')'; cx.beginPath(); cx.arc(x,y,r,0,6.283); cx.fill(); }
+    for(let i=0;i<14;i++){ const fx=(((i*53)%100)/100)*W, fy=((el2*0.05+i*37)%(H*0.7)); cx.fillStyle='rgba(235,245,255,0.7)'; cx.beginPath(); cx.arc(fx,fy,1.6+((i*7)%3),0,6.283); cx.fill(); }
+    cx.restore(); return;
+  }
+  if(G.prop==='check'){
+    const x=q[0], y=q[1]-0.16*u, w=u*0.40, h=u*0.52, pr=Math.max(0,Math.min(1,(el2-600)/700));
+    tcard(x,y,w,h,-0.12,1,(ww,hh)=>{ cx.strokeStyle='rgba(94,231,255,0.35)'; cx.lineWidth=2; for(let i=0;i<3;i++){ cx.beginPath(); cx.moveTo(-ww*0.3,-hh*0.28+i*hh*0.18); cx.lineTo(ww*0.3,-hh*0.28+i*hh*0.18); cx.stroke(); }
+      const pts=[[-0.28,0.12],[-0.06,0.34],[0.34,-0.16]]; cx.strokeStyle='#5dff9a'; cx.lineWidth=Math.max(3,ww*0.09); cx.lineCap='round'; cx.lineJoin='round'; cx.beginPath();
+      const L1=Math.hypot(0.22,0.22), L2=Math.hypot(0.40,0.50), tot=L1+L2, d=pr*tot; cx.moveTo(pts[0][0]*ww,pts[0][1]*hh);
+      if(d<=L1){ const f=d/L1; cx.lineTo((pts[0][0]+(pts[1][0]-pts[0][0])*f)*ww,(pts[0][1]+(pts[1][1]-pts[0][1])*f)*hh); } else { cx.lineTo(pts[1][0]*ww,pts[1][1]*hh); const f=(d-L1)/L2; cx.lineTo((pts[1][0]+(pts[2][0]-pts[1][0])*f)*ww,(pts[1][1]+(pts[2][1]-pts[1][1])*f)*hh); } cx.stroke(); });
+    if(el2>1300&&el2<2300){ const a=1-(el2-1300)/1000; for(let i=0;i<6;i++){ const an=i*1.05+0.4; star(x+Math.cos(an)*h*(0.5+(1-a)*0.5),y+Math.sin(an)*h*(0.5+(1-a)*0.5),h*0.1,a); } }
+    return;
+  }
+  if(G.prop==='stamp'){
+    const x=q[0], y=q[1]+0.02*u, w=u*0.62, h=u*0.46;
+    const hit=el2>=900&&el2<1050, up=el2<900?(1-Math.min(1,el2/500)*0.0):0, lift=el2<900?-0.55*u:(el2<1050?-0.55*u*(1-(el2-900)/150):(el2<1500?0:-0.55*u*Math.min(1,(el2-1500)/400)));
+    tcard(x,y,w,h,0,1,(ww,hh)=>{ cx.strokeStyle='rgba(94,231,255,0.3)'; cx.lineWidth=2; for(let i=0;i<3;i++){ cx.beginPath(); cx.moveTo(-ww*0.38,-hh*0.30+i*hh*0.17); cx.lineTo(ww*0.38,-hh*0.30+i*hh*0.17); cx.stroke(); }
+      if(el2>=1020){ const k=Math.min(1,(el2-1020)/160), sc2=1+0.35*(1-k); cx.save(); cx.translate(ww*0.12,hh*0.10); cx.rotate(-0.25); cx.scale(sc2,sc2); cx.strokeStyle='#5dff9a'; cx.fillStyle='rgba(93,255,154,0.12)'; cx.lineWidth=3; cx.beginPath(); cx.arc(0,0,hh*0.30,0,6.283); cx.fill(); cx.stroke(); cx.lineCap='round'; cx.beginPath(); cx.moveTo(-hh*0.14,0); cx.lineTo(-hh*0.03,hh*0.12); cx.lineTo(hh*0.16,-hh*0.12); cx.stroke(); cx.restore(); } });
+    cx.save(); cx.translate(x+w*0.12,y+h*0.10+lift-h*0.15); cx.fillStyle='#8a6a4a'; rr(0,-h*0.30,w*0.16,h*0.42,4); cx.fill(); cx.fillStyle='#d8dde3'; rr(0,h*0.02,w*0.46,h*0.12,3); cx.fill(); cx.restore();
+    return;
+  }
+  if(G.prop==='cam'){
+    const x=q[0], y=q[1]-0.14*u, w=u*0.62, h=u*0.40, fl=el2>850&&el2<1350?1-(el2-850)/500:0;
+    cx.save(); cx.translate(x,y); cx.rotate(-0.12);
+    cx.fillStyle='#222a33'; cx.strokeStyle='#8fa4b8'; cx.lineWidth=2; rr(0,0,w,h,6); cx.fill(); cx.stroke();
+    cx.fillStyle='#10161c'; rr(-w*0.22,-h*0.58,w*0.24,h*0.2,3); cx.fill();
+    cx.fillStyle='#0a0f14'; cx.strokeStyle='#5ee7ff'; cx.beginPath(); cx.arc(0,h*0.02,h*0.32,0,6.283); cx.fill(); cx.stroke();
+    cx.fillStyle='rgba(94,231,255,0.35)'; cx.beginPath(); cx.arc(-h*0.08,-h*0.06,h*0.1,0,6.283); cx.fill();
+    cx.restore();
+    if(fl>0){ cx.save(); cx.fillStyle='rgba(255,255,255,'+(0.85*fl)+')'; cx.fillRect(0,0,W,H); cx.restore(); }
+    return;
+  }
+  if(G.prop==='party'){
+    const hw=sc*0.34, hh2=sc*0.78, tip=[head[0]+hw*0.2,head[1]-hh2*0.95], bl=[head[0]-hw*0.7,head[1]+sc*0.02], br=[head[0]+hw*0.9,head[1]-sc*0.05];
+    cx.save(); cx.fillStyle='#ff5fa8'; cx.strokeStyle='#fff'; cx.lineWidth=2; cx.beginPath(); cx.moveTo(tip[0],tip[1]); cx.lineTo(bl[0],bl[1]); cx.lineTo(br[0],br[1]); cx.closePath(); cx.fill(); cx.stroke();
+    cx.strokeStyle='#ffe066'; cx.lineWidth=4; for(const f of [0.35,0.65]){ cx.beginPath(); cx.moveTo(tip[0]+(bl[0]-tip[0])*f,tip[1]+(bl[1]-tip[1])*f); cx.lineTo(tip[0]+(br[0]-tip[0])*f,tip[1]+(br[1]-tip[1])*f); cx.stroke(); }
+    cx.fillStyle='#fff'; cx.beginPath(); cx.arc(tip[0],tip[1],sc*0.07,0,6.283); cx.fill();
+    for(let i=0;i<70;i++){ const x=(((i*97)%100)/100)*W+Math.sin(el2/400+i)*8, y=((el2*0.13+i*43)%(H*1.15))-H*0.05; cx.fillStyle='hsl('+((i*47)%360)+',90%,60%)'; cx.save(); cx.translate(x,y); cx.rotate(el2/300+i); cx.fillRect(-3,-2,6,4); cx.restore(); }
+    cx.restore(); return;
+  }
+  if(G.prop==='knock'){
+    cx.save(); cx.strokeStyle='rgba(94,231,255,0.8)'; cx.lineWidth=3;
+    for(let k=0;k<10;k++){ if(k%2) continue; const t0=k*300+130, age=el2-t0; if(age<0||age>450) continue; const rad=u*(0.15+age*0.0012), a=1-age/450; cx.globalAlpha=a; cx.beginPath(); cx.arc(q[0],q[1]-0.1*u,rad,0,6.283); cx.stroke(); }
+    cx.restore(); return;
+  }
+  if(G.prop==='magic'){
+    const x=q[0]+0.1*u, vis=el2>1100&&el2<3000, k=Math.min(1,(el2-1100)/500), y=q[1]-(0.4+k*0.25)*u+Math.sin(el2/260)*u*0.04;
+    if(vis) tcard(x,y,u*0.34,u*0.46,Math.sin(el2/320)*0.25,1,(ww,hh)=>{ cx.font=Math.round(hh*0.5)+'px sans-serif'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillStyle='#fff'; cx.fillText('🂡',0,0); });
+    if(el2>900&&el2<3500){ for(let i=0;i<9;i++){ const ph=((el2/700)+i*0.37)%1; star(x+Math.cos(i*2.1)*u*0.4*ph+0.0,y-0.1*u+Math.sin(i*2.1)*u*0.4*ph,u*0.09,1-ph); } }
+    if(el2>=3000&&el2<3500){ const a=1-(el2-3000)/500; for(let i=0;i<10;i++){ star(x+Math.cos(i*0.63)*u*0.6*(1-a),y+Math.sin(i*0.63)*u*0.6*(1-a),u*0.1,a); } }
+    return;
+  }
   if(G.prop==='cup'){
     const cx0=q[0]-0.02*u, cy0=q[1]-0.24*u, w=0.36*u, h=0.42*u;
     cx.save(); cx.translate(q[0],q[1]-0.05*u); cx.rotate(-gim.tilt*0.9); cx.translate(-q[0],-(q[1]-0.05*u));
@@ -349,7 +473,7 @@ function driveState(now){
   try { if(typeof isPanelOpen==='function' && isPanelOpen()) aktiv=true; } catch(e){}
   if(aktiv) lastActive=now;
   if(gimWant){   // Vorführung (Präsentation): Gimmick auf Wunsch zeigen
-    if(now<gimUntil){ if(!gim||gim.k!==gimWant) gim={k:gimWant,t0:now,tilt:0}; gimDrive(now,true); return; }
+    if(now<gimUntil){ if(!gim||gim.k!==gimWant) gim={k:gimWant,t0:now,tilt:0,icon:gimIcon}; gimDrive(now,true); return; }
     gimWant=null; if(gim) gimStop(now);
   }
   gimDrive(now, !aktiv && now-lastActive>IDLE_MS);
@@ -380,7 +504,7 @@ function frame(now){
   const pit=cur.pit+Math.sin(t*0.9)*0.02+(speaking?Math.sin(t*3.3)*0.045*(0.4+mo):0);
   const rol=cur.tilt+Math.sin(t*0.5)*0.03;
   const PVY=CHIN-0.05,cY=Math.cos(yaw),sY=Math.sin(yaw),cP=Math.cos(pit),sP=Math.sin(pit),cR=Math.cos(rol),sR=Math.sin(rol);
-  const sc=Math.min(W/4.6,H/5.4),ox=W/2,oy=H*0.42+Math.sin(t*1.3)*2.5;
+  const sc=Math.min(W/4.6,H/5.4),ox=W/2,oy=H*0.42+Math.sin(t*1.3)*2.5+(gimShift=gimShift+(((gim&&GIMS[gim.k]&&GIMS[gim.k].shift)||0)-gimShift)*0.1)*H;
   const shrugUp=(E.arms&&E.arms[0]==='shrug')?0.10:0;
   const proj=(x,y,z)=>{const X=x,Z=z,k=4.6/(4.6-Z+1.6);return [ox+X*sc*k,oy-(y-0.1)*sc*k,k,Z];};
   const htr=(x,y,z)=>{const dy=y-PVY;const x1=x*cR-dy*sR,y1=x*sR+dy*cR;const y2=y1*cP-z*sP,z2=y1*sP+z*cP;return [x1*cY+z2*sY,y2+PVY,-x1*sY+z2*cY];};
@@ -503,7 +627,7 @@ function frame(now){
   }
   for(const dir of [-1,1]){cx.beginPath();for(let i=0;i<=(CFG.smooth?14:6);i++){const u=i/(CFG.smooth?14:6)*2-1;const lift=(u<0?cur.smL:cur.smR)*0.05*u*u;const x=u*mw*(mouthO>0?(1-mouthO*0.3):1),y=my+lift+dir*od*(1-u*u)*(dir>0?0.6:1)+(dir>0?Math.sin(Math.abs(u)*3.1416)*0.0:0);const [px,py]=F(x,y,0.02);if(i===0)cx.moveTo(px,py);else cx.lineTo(px,py);}cx.stroke();}
   cx.shadowBlur=0;cx.globalCompositeOperation='source-over';
-  gimProps(proj,lift,sc,t);
+  gimProps(proj,lift,sc,t,F,YE,EX,yOf);
 }
 
     /* ---------- Ein-/Ausschalten ---------- */
@@ -561,7 +685,7 @@ function frame(now){
     }
     window.handleHologrammCommand = handle;
     window.jvDetectEmo = detect;
-    window.jvHolo = { gimShow: (k, ms) => { if (GIMS[k]) { gimWant = k; gimUntil = performance.now() + (ms || GIMS[k].dur); } }, set: on => setHolo(!!on, false), on: isOn, emo: e => { emo = e; emoUntil = performance.now() + 60000; } };   // für die Präsentation (js/praesentation.js)
+    window.jvHolo = { gimShow: (k, ms, icon) => { if (GIMS[k]) { gimWant = k; gimIcon = icon || ''; gimUntil = performance.now() + (ms || GIMS[k].dur); } }, react: (k, icon) => { if (!isOn() || !GIMS[k]) return false; gimWant = k; gimIcon = icon || ''; gimUntil = performance.now() + GIMS[k].dur; return true; }, hoerbar: () => hoerbar(), gimDauer: k => (GIMS[k] ? GIMS[k].dur : 0), karteWurf: (icon, cb, ms) => { if (!isOn() || !GIMS.karte) return false; gimWant = 'karte'; gimIcon = icon || ''; gimUntil = performance.now() + GIMS.karte.dur; setTimeout(() => { try { cb && cb(); } catch (e) {} }, ms || 2200); return true; }, set: on => setHolo(!!on, false), on: isOn, emo: e => { emo = e; emoUntil = performance.now() + 60000; } };   // für die Präsentation (js/praesentation.js)
     window.__holoTest = { gimTest: k => { lastActive = -1e9; nextGim = 0; if (k) { gim = { k, t0: performance.now(), tilt: 0 }; } }, frame: t => frame(t), setEmo: e => { emo = e; emoUntil = performance.now() + 60000; }, detect };
     if (window.jvCommands) {
         window.jvCommands.use('hologramm', function (text, next) {
