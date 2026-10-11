@@ -50,6 +50,10 @@ function shuffle(a) {
 }
 
 async function handler(req, res) {
+    // --- Schutz: nur die App mit dem richtigen Code darf diese Schnittstelle nutzen (wie bei den anderen Dateien in api) ---
+    const expected = process.env.APP_SECRET;
+    if (!expected) { res.status(500).json({ ok: false, error: 'Server: APP_SECRET fehlt' }); return; }
+    if ((req.headers['x-app-key'] || '') !== expected) { res.status(401).json({ ok: false, error: 'Nicht erlaubt' }); return; }
     const key = process.env.TMDB_API_KEY;
     if (!key) { res.status(500).json({ ok: false, error: 'TMDB_API_KEY fehlt in Vercel' }); return; }
     const mode = String((req.query && req.query.mode) || 'discover');
@@ -57,7 +61,7 @@ async function handler(req, res) {
         if (mode === 'kino') {
             const d = await tmdb('/movie/now_playing', { region: 'DE', page: 1 }, key);
             const list = (d.results || []).filter(m => m.overview && m.poster_path).sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 8).map(m => slim(m, 'movie'));
-            res.setHeader('Cache-Control', 's-maxage=3600');
+            res.setHeader('Cache-Control', 'private, max-age=3600');   // nur im Browser, nicht im gemeinsamen Cache (sonst könnte der Schutz umgangen werden)
             res.status(200).json({ ok: true, results: list });
             return;
         }
