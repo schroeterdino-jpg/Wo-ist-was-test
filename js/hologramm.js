@@ -690,33 +690,9 @@ function frameInner(now){
     const HOLO_ON = /^(?:bitte\s+)?(?:zeig(?:e)?(?:\s+mir)?|schalte?|wechsel(?:e)?|stell(?:e)?)\s+(?:bitte\s+)?(?:(?:das|die|den|auf|zum|zur|zu|dich)\s+)*(?:hologramm|roboter|büste|bueste|jarvis(?:-?figur)?|figur)\b|^hologramm(?:-?ansicht)?(?:\s+an)?$/;
     const HOLO_OFF = /^(?:bitte\s+)?(?:hologramm(?:-?ansicht)?\s+aus|(?:schalte?|mach(?:e)?)\s+(?:das\s+)?hologramm\s+aus)$/;
 
-    /* ---------- Mund-Diagnose: "Mund Diagnose an" zeigt oben, warum sich der Mund (nicht) bewegt ---------- */
-    let diagEl = null, diagTimer = 0;
-    function diagText() {
-        let a = 'kein Audio', ts = 'nein', cls = 'nein';
-        try { if (typeof currentAudio !== 'undefined' && currentAudio) a = (currentAudio.paused ? 'pausiert' : 'laeuft') + ' t=' + currentAudio.currentTime.toFixed(1) + (currentAudio.ended ? ' ende' : ''); } catch (e) { a = 'Fehler'; }
-        try { ts = (window.speechSynthesis && window.speechSynthesis.speaking) ? 'ja' : 'nein'; } catch (e) {}
-        try { cls = btn.classList.contains('speaking') ? 'ja' : 'nein'; } catch (e) { cls = 'Fehler'; }
-        const grund = cls === 'nein' ? 'App meldet kein Sprechen' : (hoerbar() ? 'OK, Mund laeuft' : 'Stimme nicht hoerbar (Audio/Browser-Stimme startet nicht)');
-        return 'MUND: ' + grund + '\nsprechen-Klasse: ' + cls + ' | Audio: ' + a + ' | Browser-Stimme: ' + ts + '\nStimmung: ' + emo + ' | Mund-Wert: ' + (typeof mo === 'number' ? mo.toFixed(2) : '?') + ' | Figur an: ' + (isOn() ? 'ja' : 'nein') + (window.__holoErr ? '\nFEHLER: ' + window.__holoErr : '');
-    }
-    function diagSet(on) {
-        try { localStorage.setItem('jv_mund_diag', on ? '1' : '0'); } catch (e) {}
-        if (!on) { clearInterval(diagTimer); diagTimer = 0; if (diagEl) { diagEl.remove(); diagEl = null; } return; }
-        if (!diagEl) {
-            diagEl = document.createElement('pre');
-            diagEl.style.cssText = 'position:fixed;left:6px;right:6px;top:6px;z-index:99999;margin:0;padding:6px 8px;background:rgba(0,0,0,.82);color:#7fffd4;font:11px/1.35 monospace;white-space:pre-wrap;border:1px solid #7fffd4;border-radius:6px;pointer-events:none';
-            document.body.appendChild(diagEl);
-        }
-        if (!diagTimer) diagTimer = setInterval(() => { try { diagEl.textContent = diagText(); } catch (e) { diagEl.textContent = 'Diagnose-Fehler: ' + e.message; } }, 300);
-    }
-    window.jvMundDiag = diagSet;
-    if (lsGet('jv_mund_diag') === '1') setTimeout(() => diagSet(true), 800);
     function handle(text, next) {
         const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 60) return false;
-        if (/^(?:mund|lippen)[- ]?diagnose (?:an|ein)$/.test(t)) { diagSet(true); speak('Diagnose ist an.'); return true; }
-        if (/^(?:mund|lippen)[- ]?diagnose aus$/.test(t)) { diagSet(false); return true; }
         if (HOLO_OFF.test(t)) { if (isOn()) setHolo(false, true); return true; }
         if (HOLO_ON.test(t)) { if (!isOn()) setHolo(true, true); else { try { speak('Ich bin schon da.', typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} } return true; }
         if (isOn() && /gehirn|kugel|alte\s+ansicht|netzwerk/.test(t)) setHolo(false, false);   // Gehirn-/Kugel-Befehle übernimmt danach gehirn.js
