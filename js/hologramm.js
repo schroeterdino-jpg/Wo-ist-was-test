@@ -527,9 +527,15 @@ function frameInner(now){
   cx.globalCompositeOperation='source-over';
   const xfB=(x,y,z)=>{const q=proj(x,y,z);return {sx:q[0],sy:q[1],x3:x,y3:y,z3:z};};
   const xfH=(x,y,z)=>{const r=htr(x,y,z),q=proj(r[0],r[1],r[2]);return {sx:q[0],sy:q[1],x3:r[0],y3:r[1],z3:r[2]};};
-  drawMesh(bodyMesh,xfB,y=>shrugUp*Math.max(0,1-Math.abs(y-NY)/0.9),false);
+  let k3=false; try{k3=!!(window.jvKopf3d&&window.jvKopf3d.aktiv());}catch(e){}
+  const nk=k3&&!!(window.jvKopf3d.nurKopf&&window.jvKopf3d.nurKopf());   // weiblicher Kopf: ohne Körper und Arme
+  if(!nk) drawMesh(bodyMesh,xfB,y=>shrugUp*Math.max(0,1-Math.abs(y-NY)/0.9),false);
   { const gy0=oy+sc*1.9, gy1=oy+sc*3.6, gg=cx.createLinearGradient(0,gy0,0,gy1); gg.addColorStop(0,'rgba(3,7,13,0)'); gg.addColorStop(1,'rgba(3,7,13,1)'); cx.fillStyle=gg; cx.fillRect(0,gy0,W,H-gy0); }
-  drawMesh(headMesh,xfH,null,true);
+  // Realistischer 3D-Kopf (js/kopf3d.js): dann wird der gezeichnete Kopf samt Gesicht ausgelassen, der 3D-Kopf liegt unter dieser Zeichenfläche
+  if(k3){   // 3D-Kopf zeichnen lassen und an die Stelle des gezeichneten Kopfes setzen (Arme und Requisiten kommen danach davor)
+    try{ const c3=window.jvKopf3d.draw({W,H,sc,ox,oy,yaw,pit,rol,PVY,CHIN,HH,cur,mo,ek,gx,gy,mouthO,t,speaking}); if(c3) cx.drawImage(c3,0,0,W,H); else k3=false; }catch(e){ console.error('Kopf3D',e); k3=false; }
+  }
+  if(!k3) drawMesh(headMesh,xfH,null,true);
   // Arme als glänzende Zylinder
   const lift=y=>y+shrugUp*(y>SY-0.4?1:0.5);
   const SK=CFG.head, SLV=CFG.body;
@@ -541,6 +547,7 @@ function frameInner(now){
     else if(m==='toon'){L(1.16,'#14100e',0);L(1,rgb(cc,0.78),0);L(0.74,rgb(cc,1),-0.08);}
     else {L(1,rgb(cc,0.55),0);L(0.8,rgb(cc,0.85),-0.07);L(0.36,rgb(cc,1.08),-0.2);}
   };
+  if(!nk){
   arm.forEach(a=>{const S=V(a.sd*1.22,SY,0);capsule(S,a.cur.E,0.31,0.21,false);capsule(a.cur.E,a.cur.H,0.21,0.14,CFG.arm==='toon'||CFG.arm==='real');});
   const AP=[];armPoints(AP,true);if(CFG.arm==='line'||CFG.arm==='glass')AP.sort((p,q)=>p.z-q.z);
   if(CFG.arm==='line'||CFG.arm==='glass'){
@@ -568,11 +575,13 @@ function frameInner(now){
     cx.beginPath();bd.forEach((q,i)=>{if(i===0)cx.moveTo(q.x,q.y);else cx.lineTo(q.x,q.y);});cx.closePath();cx.fillStyle=FL;cx.strokeStyle=FL;cx.lineWidth=fw*0.9;cx.fill();cx.stroke();
   }
   }
+  }   // Ende !nk (Arme)
   cx.globalCompositeOperation=CFG.glow?'lighter':'source-over';
   // ===== Gesicht =====
   const F=(x,y,dz)=>{const t2=clamp(tOf(y),0.02,0.98),w=wid(t2),u=clamp(x/w,-0.98,0.98);return hproj(x,y,w*DEP*Math.pow(1-Math.pow(Math.abs(u),CFG.ex),1/CFG.ex)+(CFG.smooth?0.035:0.02)+(dz||0));};
   cx.lineCap='round';cx.lineJoin='round';
   const YE=yOf(0.585),EX=0.33;
+  if(!k3){
   // Kantige Platten-Linien
   if(CFG.panel){
   cx.shadowColor='rgba(120,220,255,0.7)';cx.shadowBlur=5;cx.strokeStyle='rgba(150,225,255,0.55)';cx.lineWidth=1.6;
@@ -640,6 +649,7 @@ function frameInner(now){
     cx.restore();
   }
   for(const dir of [-1,1]){cx.beginPath();for(let i=0;i<=(CFG.smooth?14:6);i++){const u=i/(CFG.smooth?14:6)*2-1;const lift=(u<0?cur.smL:cur.smR)*0.05*u*u;const x=u*mw*(mouthO>0?(1-mouthO*0.3):1),y=my+lift+dir*od*(1-u*u)*(dir>0?0.6:1)+(dir>0?Math.sin(Math.abs(u)*3.1416)*0.0:0);const [px,py]=F(x,y,0.02);if(i===0)cx.moveTo(px,py);else cx.lineTo(px,py);}cx.stroke();}
+  }
   cx.shadowBlur=0;cx.globalCompositeOperation='source-over';
   gimProps(proj,lift,sc,t,F,YE,EX,yOf);
 }

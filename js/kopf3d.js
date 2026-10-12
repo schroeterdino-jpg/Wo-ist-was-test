@@ -12,13 +12,17 @@
     const KEY = 'jv_kopf3d';
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    const KEY2 = 'jv_kopf3d_modell';   // 'frau' oder 'standard'
     const isOn = () => lsGet(KEY) === '1';
+    const frau = () => lsGet(KEY2) === 'frau';
     const holoOn = () => document.body.classList.contains('jv-holo');
 
     let status = 'leer';   // leer | laedt | bereit | fehler
     let THREE = null, renderer = null, scene = null, cam = null, pivot = null, model = null, head = null, c3 = null;
+    let morphMeshes = [], augeR = null, augeL = null, kiefer = [], geladenFrau = false;
     let kopfH = 3.3, kopfChinY = 0, kopfCx = 0, kopfCz = 0;
     let lw = 0, lh = 0, ldpr = 0;
+    const GROESSE_FRAU = 1.9, FRAU_RUNTER = 0.1;   // weiblicher Kopf: ohne Körper, deshalb größer und tiefer
     const GROESSE = 1.12;   // der 3D-Kopf wirkt neben dem breiten Körper sonst klein
 
     function say(m) { try { speak(m, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} }
@@ -37,6 +41,7 @@
             const { GLTFLoader } = await import('../vendor/vendor/GLTFLoader.js');
             const { KTX2Loader } = await import('../vendor/vendor/KTX2Loader.js');
             const { MeshoptDecoder } = await import('../vendor/vendor/meshopt_decoder.module.js');
+            if (!renderer) {
             c3 = document.createElement('canvas');   // wird nicht angezeigt: hologramm.js kopiert das Bild an die richtige Stelle der Figur
             renderer = new THREE.WebGLRenderer({ canvas: c3, alpha: true, antialias: true, premultipliedAlpha: true, preserveDrawingBuffer: true });
             renderer.setClearColor(0x000000, 0);
@@ -46,19 +51,32 @@
             scene.add(new THREE.HemisphereLight(0xfff4ea, 0x3b3028, 1.25));
             const key = new THREE.DirectionalLight(0xfff0e2, 2.1); key.position.set(0.6, 0.9, 1.0); scene.add(key);
             const rim = new THREE.DirectionalLight(0x7fcfff, 0.9); rim.position.set(-1, 0.4, -0.6); scene.add(rim);
+            }
+            if (pivot) { scene.remove(pivot); pivot = null; }
+            const istFrau = frau(); geladenFrau = istFrau;
             const ktx2 = new KTX2Loader().setTranscoderPath('./vendor/vendor/').detectSupport(renderer);
             const loader = new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
-            const g = await new Promise((ok, no) => loader.load('./vendor/vendor/facecap.glb', ok, undefined, no));
+            const g = await new Promise((ok, no) => loader.load(istFrau ? './vendor/vendor/frau.glb' : './vendor/vendor/facecap.glb', ok, undefined, no));
             model = g.scene;
             const meshes = [];
             model.traverse(o => { if (o.isMesh && o.morphTargetDictionary) meshes.push(o); });
             if (!meshes.length) throw new Error('Kein Kopf im Modell');
+            morphMeshes = meshes; augeR = augeL = null; kiefer = [];
+            if (istFrau) {
+                head = meshes.find(m => m.name === 'head') || meshes[0];
+                model.traverse(o => { if (o.name === 'eyeR') augeR = o; else if (o.name === 'eyeL') augeL = o; if (o.userData && o.userData.jawTravel !== undefined) kiefer.push({ o, y0: o.position.y, d: o.userData.jawTravel }); });
+                // Maße des Kopfes (Meter): Kinn bis Scheitel
+                try { head.material.color.setRGB(0.95, 0.8, 0.7); head.material.needsUpdate = true; } catch (e) {}   // Haut etwas wärmer
+                kopfH = 0.235; kopfChinY = 1.59; kopfCx = 0; kopfCz = -0.01;
+                model.traverse(o => { if (o.material) { const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach(m => { m.needsUpdate = true; }); } });
+            } else {
             head = meshes.sort((a, b) => Object.keys(b.morphTargetDictionary).length - Object.keys(a.morphTargetDictionary).length)[0];
             model.updateMatrixWorld(true);
             const box = new THREE.Box3().setFromObject(head, true);   // genau, nur der Kopf (nicht Augäpfel oder Zähne, die darüber hinausragen können)
             kopfH = box.max.y - box.min.y; kopfChinY = box.min.y; kopfCx = (box.min.x + box.max.x) / 2; kopfCz = (box.min.z + box.max.z) / 2;
             // Hautton wärmer (die Textur ist grau)
             try { if (head.material) { head.material.color.setRGB(1.5, 1.08, 0.86); head.material.needsUpdate = true; } } catch (e) {}
+            }
             pivot = new THREE.Group(); pivot.rotation.order = 'YXZ'; pivot.add(model); scene.add(pivot);
             status = 'bereit';
             if (ansage && isOn()) say('Der realistische Kopf ist bereit.');
@@ -112,9 +130,9 @@
         // Maßstab: der gezeichnete Kopf ist HH hoch, der 3D-Kopf soll gleich hoch sein. K0 = mittlere Perspektive der gezeichneten Figur
         const K0 = 0.76;
         const px = st.sc * K0;                       // Pixel je Figur-Einheit
-        const s = px * (st.HH / kopfH) * GROESSE;     // Pixel je Modell-Einheit
+        const s = px * (st.HH / kopfH) * (geladenFrau ? GROESSE_FRAU : GROESSE);     // Pixel je Modell-Einheit
         // Drehpunkt: unter dem Kinn (wie beim gezeichneten Kopf)
-        const pivX = st.ox, pivY = st.H - (st.oy - (st.PVY - 0.1) * px);
+        const pivX = st.ox, pivY = st.H - (st.oy - (st.PVY - 0.1) * px) - (geladenFrau ? st.H * FRAU_RUNTER : 0);
         pivot.position.set(pivX, pivY, 0);
         pivot.scale.setScalar(s);
         pivot.rotation.set(st.pit, st.yaw, st.rol);
@@ -122,17 +140,36 @@
         model.position.set(-kopfCx, -kopfChinY + 0.05 * (kopfH / st.HH), -kopfCz);
         // Regler setzen
         const o = formen(st);
-        const dict = head.morphTargetDictionary, inf = head.morphTargetInfluences;
-        for (const n in dict) inf[dict[n]] = 0;
-        for (const n in o) { const i = dict[n]; if (i !== undefined) inf[i] = cl(o[n]); }
+        for (const mm of (geladenFrau ? morphMeshes : [head])) {
+            const dict = mm.morphTargetDictionary, inf = mm.morphTargetInfluences;
+            for (const n in dict) inf[dict[n]] = 0;
+            for (const n in o) { const i = dict[n]; if (i !== undefined) inf[i] = cl(o[n]); }
+        }
+        if (geladenFrau) {   // Augäpfel drehen, Unterkiefer-Teile mitnehmen
+            const gx = cl(st.gx, -1, 1), gy = cl(st.gy, -1, 1);
+            if (augeR) augeR.rotation.set(-gy * 0.3, gx * 0.4, 0);
+            if (augeL) augeL.rotation.set(-gy * 0.3, gx * 0.4, 0);
+            for (const k of kiefer) k.o.position.y = k.y0 + k.d * (o.jawOpen || 0);
+        }
         renderer.render(scene, cam);
         return c3;
     }
 
+    function wechsel() {   // Modell tauschen: beim nächsten Zeichnen neu laden
+        if (status === 'laedt') return;
+        if (status === 'bereit' && geladenFrau === frau()) return;
+        status = 'leer'; if (isOn() && holoOn()) laden(false);
+    }
     /* ---------- Sprache ---------- */
     function handle(text) {
         const t = String(text || '').toLowerCase().replace(/[.,!?;:\-]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 60) return false;
+        if (/\b(?:weibliche[nrms]?|frauen|fraulichen?)\s*(?:modell\s*)?kopf\b/.test(t) || /\bkopf\s+(?:von|als)\s+(?:einer\s+)?frau\b/.test(t)) {
+            if (/\b(aus|ausschalten|weg|normal\w*|standard)\b/.test(t)) { lsSet(KEY2, 'standard'); wechsel(); say('Gut, ich nehme wieder den ersten Kopf.'); return true; }
+            lsSet(KEY2, 'frau'); lsSet(KEY, '1'); wechsel();
+            if (!holoOn()) { say('Der weibliche Kopf zeigt sich in der Figur-Ansicht. Schalten Sie sie mit dem Knopf oben rechts ein.'); return true; }
+            say('Einen Moment, ich lade den weiblichen Kopf.'); return true;
+        }
         if (!/\b(?:realistische[nrms]?\s+kopf|3\s*d\s*kopf|dreid\s*kopf|echte[nr]?\s+kopf)\b/.test(t)) return false;
         if (/\b(aus|ausschalten|deaktivier\w*|abschalten|weg)\b/.test(t)) {
             lsSet(KEY, '0'); say('Gut, ich zeige wieder die gezeichnete Figur.'); return true;
@@ -154,5 +191,5 @@
             return next(text);
         }, 205);
     }
-    window.jvKopf3d = { aktiv, draw, handle, isOn, status: () => status, formen, masse: () => ({ kopfH, kopfChinY, kopfCx, kopfCz }), _dbg: () => ({ head, scene, pivot }) };
+    window.jvKopf3d = { nurKopf: () => status === 'bereit' && geladenFrau, aktiv, draw, handle, isOn, status: () => status, formen, masse: () => ({ kopfH, kopfChinY, kopfCx, kopfCz }), _dbg: () => ({ head, scene, pivot }) };
 })();
