@@ -203,7 +203,7 @@ function uebEnsureStyle() {
         '#uebMap .ub-head{padding:18px 18px 8px;text-align:center}' +
         '#uebMap .ub-title{font:700 17px "Orbitron",sans-serif;letter-spacing:.14em;color:#49d7ff}' +
         '#uebMap .ub-date{font:500 13px "IBM Plex Mono",monospace;color:#7fb8cf;margin-top:4px;letter-spacing:.08em}' +
-        '#uebMap .ub-grid{flex:1 1 auto;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:8px 16px;align-content:start}' +
+        '#uebMap .ub-grid{flex:1 1 auto;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:max-content;min-height:0;gap:10px;padding:8px 16px;align-content:start}' +
         '#uebMap .ub-tile{border:1px solid rgba(93,209,255,.3);border-radius:10px;background:rgba(10,22,33,.88);padding:10px 11px;min-height:96px;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
         '#uebMap .ub-tile.wide{grid-column:1 / -1;min-height:0}#uebMap .ub-tile.empty{opacity:.45}' +
         '#uebMap .ub-th{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px}' +
