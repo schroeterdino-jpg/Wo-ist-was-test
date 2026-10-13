@@ -30,33 +30,34 @@ const cyan=0x00cfff, dark=0x111820;
 const metalMat=new THREE.MeshPhysicalMaterial({color:0xb8c1c7,metalness:.58,roughness:.48,clearcoat:.10,clearcoatRoughness:.55});
 const darkMat=new THREE.MeshStandardMaterial({color:dark,metalness:.9,roughness:.3});
 const glowMat=new THREE.MeshStandardMaterial({color:0x8df7ff,metalness:.2,roughness:.18,emissive:cyan,emissiveIntensity:5});
-// V10: feine Gesichtsdetails anhand der echten Diagnose-Maße, nicht nach Bildschirm-Pixeln.
-const browMat=new THREE.MeshStandardMaterial({color:0x3a241c,roughness:.96,metalness:0});
-const lashMat=new THREE.MeshStandardMaterial({color:0x241a17,roughness:.98,metalness:0});
+// V11: feinere Gesichtsdetails. Keine gezeichnete Wimpern-Linie mehr:
+// einzelne, kurze Härchen folgen dem oberen Lid. Brauen deutlich dünner und näher am Gesicht.
+const browMat=new THREE.MeshStandardMaterial({color:0x4a332b,roughness:1,metalness:0});
+const lashMat=new THREE.MeshStandardMaterial({color:0x2c211e,roughness:1,metalness:0});
 let browLeft=null,browRight=null,lashesLeft=null,lashesRight=null;
-function tube(points,radius,material,segments=18){
+function tube(points,radius,material,segments=12){
  const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));
- return new THREE.Mesh(new THREE.TubeGeometry(curve,segments,radius,5,false),material);
+ return new THREE.Mesh(new THREE.TubeGeometry(curve,segments,radius,4,false),material);
 }
 function addNaturalBrowsAndLashes(){
- // Augenmitten/Abmessungen stammen direkt aus Diagnose V8. Z liegt knapp vor der Augenoberfläche.
- const eyeX=.2352, eyeY=-.0066, eyeFront=.562;
+ const eyeX=.2352, eyeY=-.0066, z=.574;
  const makeBrow=(side)=>{
    const g=new THREE.Group(), x=side*eyeX;
-   const pts=side<0 ? [[x-.145,.238,.594],[x-.075,.265,.608],[x,.273,.614],[x+.075,.258,.608],[x+.142,.226,.594]]
-                    : [[x-.142,.226,.594],[x-.075,.258,.608],[x,.273,.614],[x+.075,.265,.608],[x+.145,.238,.594]];
-   const b=tube(pts,.0125,browMat,22); b.scale.y=.82; g.add(b); return g;
+   const pts=[[x-.125,.225,.588],[x-.065,.238,.596],[x,.241,.599],[x+.065,.235,.596],[x+.125,.218,.588]];
+   g.add(tube(pts,.0065,browMat,18));
+   return g;
  };
  const makeLashes=(side)=>{
    const g=new THREE.Group(), x=side*eyeX;
-   // Dünner oberer Wimpernkranz direkt am oberen Augenrand.
-   const pts=[[x-.137,eyeY+.085,eyeFront+.008],[x-.070,eyeY+.116,eyeFront+.014],[x,eyeY+.124,eyeFront+.016],[x+.070,eyeY+.116,eyeFront+.014],[x+.137,eyeY+.085,eyeFront+.008]];
-   g.add(tube(pts,.0042,lashMat,18));
-   // Nur außen drei sehr feine Härchen; deutlich kürzer als die alten schwarzen Striche.
-   const outer=side<0?x-.118:x+.118;
-   for(let i=0;i<3;i++){
-     const dx=side*(.012+i*.018), y=eyeY+.097-i*.008;
-     g.add(tube([[outer+dx,y,eyeFront+.010],[outer+dx+side*.012,y+.022+i*.004,eyeFront+.018]],.0024,lashMat,5));
+   // 9 einzelne Wimpern statt einer schwarzen Bogenlinie. Innen sehr kurz, außen etwas länger.
+   for(let i=0;i<9;i++){
+     const u=i/8;                         // 0 = innen, 1 = außen
+     const sx=side<0 ? x+.105-u*.215 : x-.105+u*.215;
+     const rel=(sx-x)/.115;
+     const sy=eyeY+.105-.030*rel*rel;     // folgt der natürlichen Lidkurve
+     const outward=(side<0?-1:1)*(u-.25)*.010;
+     const len=.012+u*.018;
+     g.add(tube([[sx,sy,z],[sx+outward,sy+len,z+.008]],.00115,lashMat,4));
    }
    return g;
  };
@@ -65,12 +66,11 @@ function addNaturalBrowsAndLashes(){
 }
 function animateFaceDetails(){
  if(!browLeft||!browRight)return;
- // Die sichtbaren Brauen folgen der gleichen Emotion wie die echten Brow-Morphs.
  let y=0, inner=0, tilt=0;
- if(expression==='surprised'){y=.060;inner=.018;}
- else if(expression==='sad'||expression==='concerned'){inner=.035;y=.018;}
- else if(expression==='serious'){y=-.025;tilt=.035;}
- else if(expression==='thinking'){browRight.position.y=.025;browLeft.position.y=0;}
+ if(expression==='surprised'){y=.045;inner=.010;}
+ else if(expression==='sad'||expression==='concerned'){inner=.020;y=.012;}
+ else if(expression==='serious'){y=-.018;tilt=.022;}
+ else if(expression==='thinking'){browRight.position.y=.018;browLeft.position.y=0;}
  else {browLeft.position.y=0;browRight.position.y=0;}
  if(expression!=='thinking'){browLeft.position.y=y;browRight.position.y=y;}
  browLeft.rotation.z=tilt-inner; browRight.rotation.z=-tilt+inner;

@@ -257,6 +257,7 @@ function showWeatherMap(label, lat, lon, data) {
     wxOverlayEl = el;
     try { document.body.classList.add('panel-open'); } catch (e) {}
     try { if (typeof window.pauseJarvisSphere === 'function') window.pauseJarvisSphere(); } catch (e) {}
+    try { window.dispatchEvent(new CustomEvent('jarvis-weather-map-opened', {detail:{label,lat,lon}})); } catch (e) {}
 }
 
 /* ---------- Ablauf ---------- */
@@ -292,6 +293,8 @@ function handleWeatherMapCommand(text) {
     runWeatherMap(req).catch(() => { try { speak('Die Wetterkarte hat gerade nicht geklappt.'); } catch (e) {} });
     return true;
 }
+
+window.handleWeatherMapCommand = handleWeatherMapCommand;
 
 /* ---------- Einklinken: andere Fenster arbeiten mit der Wetterkarte zusammen ---------- */
 /* WICHTIG: isPanelOpen() wird NICHT verändert. Die Wetterkarte ist kein "Panel" aus panels.js; würde isPanelOpen() bei offener Karte "ja" melden, liest

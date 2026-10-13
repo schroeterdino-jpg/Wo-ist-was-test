@@ -19,30 +19,33 @@
         const raw = String(text || '').trim();
         if (!raw || raw.length > 220) return false;
         const low = raw.toLowerCase();
-        const hasWeather = /\b(wetter|wetterkarte|wettervorhersage|temperatur|regen)\b/.test(low);
-        const hasMoonSun = /\b(vollmond|neumond|mond|mondphase|sonnenaufgang|sonnenuntergang)\b/.test(low);
-        if (!hasWeather || !hasMoonSun) return false;
+        if (!/\b(wetter|wetterkarte|wettervorhersage|temperatur|regen)\b/.test(low) ||
+            !/\b(vollmond|neumond|mond|mondphase|sonnenaufgang|sonnenuntergang)\b/.test(low)) return false;
 
-        // An Konjunktionen/Satzgrenzen trennen; nur übernehmen, wenn danach beide Themen als eigene Teile vorliegen.
-        const parts = raw.split(/\s+(?:und|außerdem|sowie)\s+|[?;]+\s*/i).map(x => x.trim()).filter(Boolean);
-        const weatherParts = parts.filter(x => /\b(wetter|wetterkarte|wettervorhersage|temperatur|regen)\b/i.test(x));
-        const moonParts = parts.filter(x => /\b(vollmond|neumond|mond|mondphase|sonnenaufgang|sonnenuntergang)\b/i.test(x));
-        if (!weatherParts.length || !moonParts.length) return false;
+        const parts = raw.split(/\s+(?:und|außerdem|sowie)\s+|[?;]+\s*/i).map(x=>x.trim()).filter(Boolean);
+        const weather = parts.find(x=>/\b(wetter|wetterkarte|wettervorhersage|temperatur|regen)\b/i.test(x));
+        const moon = parts.find(x=>/\b(vollmond|neumond|mond|mondphase|sonnenaufgang|sonnenuntergang)\b/i.test(x));
+        if (!weather || !moon) return false;
 
-        let handled = false;
-        // Wetter zuerst anstoßen; die Daten werden asynchron geladen.
+        // Mond erst anzeigen, NACHDEM die asynchrone Wetterkarte wirklich da ist.
+        // So kann die langsamere Wetterabfrage das Mondfenster nicht wieder überdecken.
+        let moonDone=false, timer=null;
+        const runMoon=()=>{
+            if(moonDone) return; moonDone=true;
+            if(timer) clearTimeout(timer);
+            window.removeEventListener('jarvis-weather-map-opened', onWeather);
+            try { if(typeof window.handleSonneMondCommand==='function') window.handleSonneMondCommand(moon); }
+            catch(e){ console.error('Mehrfachfrage Mond/Sonne fehlgeschlagen',e); }
+        };
+        const onWeather=()=>setTimeout(runMoon,250);
+        window.addEventListener('jarvis-weather-map-opened',onWeather,{once:true});
+        timer=setTimeout(runMoon,6500); // auch bei langsamer/fehlgeschlagener Wetterabfrage Mond nicht verlieren
+
         try {
-            if (typeof window.handleWeatherMapCommand === 'function') {
-                handled = !!window.handleWeatherMapCommand(weatherParts[0]) || handled;
-            }
-        } catch (e) { console.error('Mehrfachfrage Wetter fehlgeschlagen', e); }
-        // Mond/Sonne separat ausführen. Das Mondfenster liegt sichtbar oben; nach dem Schließen bleibt die Wetteransicht darunter.
-        try {
-            if (typeof window.handleSonneMondCommand === 'function') {
-                handled = !!window.handleSonneMondCommand(moonParts[0]) || handled;
-            }
-        } catch (e) { console.error('Mehrfachfrage Mond/Sonne fehlgeschlagen', e); }
-        return handled;
+            if(typeof window.handleWeatherMapCommand==='function') window.handleWeatherMapCommand(weather);
+            else { window.removeEventListener('jarvis-weather-map-opened',onWeather); runMoon(); }
+        } catch(e){ console.error('Mehrfachfrage Wetter fehlgeschlagen',e); runMoon(); }
+        return true;
     }
 
     // 1) Sprachbefehle
