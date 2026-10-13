@@ -1,4 +1,4 @@
-/* JARVIS 3D v6.3.2 – v5-Basis + Fish-Audio-Lippensync + Robot-Material direkt auf FaceCap. */
+/* JARVIS 3D v6.4 – v5-Basis + Fish-Audio-Lippensync + Robot-Material direkt auf FaceCap. */
 (async function(){
 'use strict';
 const holder=document.querySelector('.holo-container'); if(!holder) return;
@@ -15,7 +15,7 @@ try{
 
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,2)); renderer.outputColorSpace=THREE.SRGBColorSpace;
-renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.25;
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.38;
 renderer.domElement.id='jarvisAvatar3D';
 renderer.domElement.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:none;z-index:4;pointer-events:none'; holder.appendChild(renderer.domElement);
 const scene=new THREE.Scene(); const camera=new THREE.PerspectiveCamera(28,1,.01,100); camera.position.set(0,.03,4.4);
@@ -25,7 +25,7 @@ let rim=new THREE.DirectionalLight(0x00bfff,3.5);rim.position.set(-3,1,-1);scene
 let fill=new THREE.PointLight(0x00eaff,18,8);fill.position.set(2,-1,2);scene.add(fill);
 const root=new THREE.Group();scene.add(root); const faceRoot=new THREE.Group();root.add(faceRoot);
 const cyan=0x00cfff, dark=0x111820;
-const metalMat=new THREE.MeshPhysicalMaterial({color:0x66717a,metalness:.92,roughness:.28,clearcoat:.25,clearcoatRoughness:.3});
+const metalMat=new THREE.MeshPhysicalMaterial({color:0xb8c1c7,metalness:.58,roughness:.48,clearcoat:.10,clearcoatRoughness:.55});
 const darkMat=new THREE.MeshStandardMaterial({color:dark,metalness:.9,roughness:.3});
 const glowMat=new THREE.MeshStandardMaterial({color:0x8df7ff,metalness:.2,roughness:.18,emissive:cyan,emissiveIntensity:5});
 const morphMeshes=[]; let morphNames=new Set(), model=null, active=false, raf=0, blink=0, expression='neutral', manualMouth=0, modelReady=false;
@@ -99,17 +99,22 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
  model=g.scene; faceRoot.add(model);
  model.traverse(o=>{if(!o.isMesh)return; o.frustumCulled=false;
    if(o.material){o.material.side=THREE.DoubleSide;o.material.needsUpdate=true;}
+   const nm=String(o.name||'').toLowerCase();
+   const isEye=/eye|iris|pupil/.test(nm);
    if(o.morphTargetDictionary&&o.morphTargetInfluences){
-     // Robot-Look DIREKT auf dem beweglichen Gesicht – keine Ringe/Kästen/Scheiben davor.
+     // Robot-Look DIREKT auf dem vorhandenen Mesh – keine zusätzliche Geometrie vor dem Gesicht.
      const oldMat=Array.isArray(o.material)?o.material[0]:o.material;
-     const robot=new THREE.MeshPhysicalMaterial({color:0x9ca6ad,metalness:.88,roughness:.27,clearcoat:.42,clearcoatRoughness:.20,side:THREE.DoubleSide});
-     if(oldMat&&oldMat.normalMap) robot.normalMap=oldMat.normalMap;
-     o.material=robot;
+     if(isEye){
+       o.material=new THREE.MeshStandardMaterial({color:0x36ff72,emissive:0x00e84f,emissiveIntensity:2.5,roughness:.32,metalness:.05,side:THREE.DoubleSide});
+     } else {
+       const robot=new THREE.MeshPhysicalMaterial({color:0xc3cbd0,metalness:.56,roughness:.48,clearcoat:.10,clearcoatRoughness:.58,side:THREE.DoubleSide});
+       if(oldMat&&oldMat.normalMap) robot.normalMap=oldMat.normalMap;
+       o.material=robot;
+     }
      morphMeshes.push(o);Object.keys(o.morphTargetDictionary).forEach(n=>{morphNames.add(n);target[n]=0;current[n]=0})
-   } else {
-     // Augen – nur vorhandene Meshes umfärben, keine fremde Geometrie auf das Gesicht setzen.
-     const nm=String(o.name||'').toLowerCase();
-     if(/eye|iris|pupil/.test(nm)) o.material=new THREE.MeshStandardMaterial({color:0x4cff86,emissive:0x16ff68,emissiveIntensity:3.2,roughness:.18,metalness:.15,side:THREE.DoubleSide});
+   } else if(isEye){
+     // Nur das vorhandene Augen-Mesh grün färben; nichts darüberlegen.
+     o.material=new THREE.MeshStandardMaterial({color:0x36ff72,emissive:0x00e84f,emissiveIntensity:2.5,roughness:.32,metalness:.05,side:THREE.DoubleSide});
    }
  });
  // Robust zentrieren: erst Weltmatrizen aktualisieren, dann skalieren, danach erneut messen.
@@ -120,7 +125,7 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
  model.position.x-=center.x; model.position.y-=center.y+.04; model.position.z-=center.z;
  model.updateMatrixWorld(true);
  modelReady=true; setExpression('friendly'); btn.textContent='● 3D'; showStatus('✓ GLB geladen – Kopf bereit'); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}} setTimeout(()=>{if(active)hideStatus()},1400);
- console.info('JARVIS 3D v6.2 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
+ console.info('JARVIS 3D v6.4 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
 },p=>{if(active&&p.total)showStatus('GLB lädt … '+Math.round(p.loaded/p.total*100)+' %')},e=>{console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e);btn.textContent='⚠ 3D';btn.title='facecap.glb konnte nicht geladen werden';const msg=(e&&e.message)?e.message:String(e||'Unbekannter Fehler');
 showStatus('✕ GLB-Fehler: '+msg.slice(0,120),true);});
 
@@ -200,9 +205,34 @@ function applyMorphs(dt,speaking,now){
  for(const n of morphNames){const want=target[n]||0;current[n]+=(want-current[n])*Math.min(1,dt*14)}
  for(const m of morphMeshes)for(const n of morphNames){const i=morphIndex(m,n);if(i>=0)m.morphTargetInfluences[i]=current[n]||0}
 }
+let lastAvatarState='';
+function avatarState(){
+ const rb=document.getElementById('recordBtn'), rt=document.getElementById('recordText');
+ const speaking=!!(window.__jvLipAudio&&!window.__jvLipAudio.paused&&!window.__jvLipAudio.ended);
+ if(speaking)return 'speaking';
+ if(rb&&rb.classList.contains('recording'))return 'listening';
+ const tx=String(rt&&rt.textContent||'').toLowerCase();
+ if(/verarbeitet|verarbeite|processing|denkt|analys/.test(tx))return 'thinking';
+ return 'idle';
+}
+function syncAvatarState(now){
+ const st=avatarState();
+ if(st!==lastAvatarState && now>=manualExpressionUntil){
+   lastAvatarState=st;
+   if(st==='listening')setExpression('friendly');
+   else if(st==='thinking')setExpression('thinking');
+   else if(st==='idle')setExpression('friendly');
+ }
+ return st;
+}
 function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);const dt=Math.min(.05,(now-(loop.last||now))/1000);loop.last=now;
  let speaking=!!(window.__jvLipAudio&&!window.__jvLipAudio.paused&&!window.__jvLipAudio.ended);
- applyMorphs(dt,speaking,now); root.rotation.y=Math.sin(now*.00055)*.035; root.rotation.x=Math.sin(now*.0007)*.008;root.position.y=Math.sin(now*.0011)*.012;renderer.render(scene,camera)}
+ const st=syncAvatarState(now); applyMorphs(dt,speaking,now);
+ const baseY=Math.sin(now*.00055)*.035, baseX=Math.sin(now*.0007)*.008;
+ root.rotation.y=baseY+(st==='thinking'?.055:0);
+ root.rotation.x=baseX+(st==='listening'?-.018:st==='thinking'?-.010:0);
+ root.position.y=Math.sin(now*.0011)*.012+(st==='listening'?.008:0);
+ renderer.render(scene,camera)}
 function setMode(on){active=!!on; const sphere=document.getElementById('jarvisSphere'); const holo=document.getElementById('jarvisHolo'); btn.classList.toggle('active',active); btn.textContent=active?'● 3D':'○ 3D'; if(!active){renderer.domElement.style.display='none';hideStatus();if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} if(!modelReady){renderer.domElement.style.display='none';showStatus('3D-Kopf wird geladen …');if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} renderer.domElement.style.display='block';hideStatus();if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
 const btn=document.createElement('button');btn.id='jv3dToggle';btn.type='button';btn.textContent='○ 3D';btn.title='JARVIS 3D-Kopf';btn.style.cssText='position:absolute;right:8px;top:8px;z-index:9;border:1px solid #16cce8;border-radius:999px;background:#07131ddd;color:#9df6ff;padding:7px 10px;font:700 11px system-ui;letter-spacing:.04em;cursor:pointer;box-shadow:0 0 16px #00bfff33';holder.appendChild(btn);btn.onclick=()=>setMode(!active);
 window.jvAvatar3D={setMode,setExpression,expressions:['neutral','friendly','happy','laugh','sad','serious','surprised','thinking','concerned'],update(p={}){if(p.expression)setExpression(p.expression);if(p.mouth!=null)manualMouth=Math.max(0,Math.min(1,p.mouth));if(p.blink)blink=1;if(p.tongue){tongueUntil=performance.now()+Math.max(400,Number(p.tongueMs)||2200)}},tongue(ms=2200){const tn=tongueMorphName();if(!tn)return false;tongueUntil=performance.now()+ms;return true},get ready(){return modelReady},get morphs(){return [...morphNames]},get hasTongue(){return !!tongueMorphName()}};
