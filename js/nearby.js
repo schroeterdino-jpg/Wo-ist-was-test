@@ -1,0 +1,220 @@
+/* ============================================================
+   NEARBY: Restaurants und Lokale in der Nähe
+   Nutzt OpenStreetMap-Daten über Overpass (kostenlos, ohne API-Schlüssel), über den eigenen Server geleitet.
+   Braucht: briefing.js (fetchUserLocationData), lists.js (userError), places.js (buildMapsLink), storage.js (apiFetch)
+   ============================================================ */
+
+const CUISINE_MAP = {
+    chinesisch: 'chinese', chinesische: 'chinese', china: 'chinese',
+    italienisch: 'italian', italienische: 'italian',
+    griechisch: 'greek', griechische: 'greek',
+    tuerkisch: 'turkish',
+    indisch: 'indian', indische: 'indian',
+    thailaendisch: 'thai', thai: 'thai',
+    japanisch: 'japanese', sushi: 'japanese|sushi',
+    vietnamesisch: 'vietnamese',
+    mexikanisch: 'mexican',
+    amerikanisch: 'american',
+    deutsch: 'german',
+    vegan: 'vegan',
+    vegetarisch: 'vegetarian',
+    pizza: 'pizza',
+    doener: 'kebab', kebab: 'kebab',
+    burger: 'burger',
+    asiatisch: 'asian',
+    spanisch: 'spanish',
+    franzoesisch: 'french',
+    libanesisch: 'lebanese',
+    arabisch: 'arabic',
+    koreanisch: 'korean',
+    mongolisch: 'mongolian'
+};
+
+/* Aus einem Satz das erste passende Küchen-Stichwort herausziehen (für den erzwungenen Sprachbefehl-Trigger) */
+function extractCuisineKeyword(text) {
+    const nk = normalizeKey(text || '');
+    const hit = Object.keys(CUISINE_MAP).find(k => nk.includes(k));
+    return hit || '';
+}
+const NEARBY_GENERIC_WORDS = ['restaurant', 'restaurants', 'essen', 'food', 'lokal', 'gaststaette', 'gaststätte', 'imbiss', 'was', 'etwas', 'lokale'];
+
+/* Aus dem Suchbegriff einen Overpass-Filter machen: bekannte Küche -> passendes OSM-Tag, sonst der Begriff selbst */
+function cuisineFilterFor(query) {
+    const key = normalizeKey(query || '');
+    if (!key || NEARBY_GENERIC_WORDS.includes(key)) return null;
+    if (CUISINE_MAP[key]) return CUISINE_MAP[key];
+    const safe = String(query).replace(/[^a-zA-Z0-9äöüÄÖÜß ]/g, '').trim();
+    return safe || null;
+}
+
+/* haversineKm (Luftlinie in km) steht in travel.js, das vor dieser Datei geladen wird (früher gab es hier eine identische zweite Kopie). */
+
+function buildOverpassQuery(lat, lon, radiusM, cuisine) {
+    const c = cuisine ? `["cuisine"~"${cuisine}",i]` : '';
+    return `[out:json][timeout:12];(node["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon});way["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon}););out center 20;`;
+}
+
+
+/* Google Places ist die primaere Quelle. Overpass bleibt nur als Fallback. */
+async function googlePlacesSearch(lat, lon, radiusM, query) {
+    const q = String(query || '').trim() || 'Restaurant';
+    try {
+        const url = `/api/maps?action=places&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&radius=${encodeURIComponent(radiusM)}&q=${encodeURIComponent(q)}`;
+        const res = await apiFetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (!data || !Array.isArray(data.places)) return null;
+        // In dasselbe Format bringen, das die bisherige Restaurantanzeige erwartet.
+        return data.places.map((p, i) => ({
+            type: 'node', id: 'google-' + i,
+            lat: p.lat, lon: p.lon,
+            tags: {
+                name: p.name || '',
+                'addr:street': p.street || '',
+                'addr:housenumber': p.housenumber || '',
+                'addr:city': p.city || '',
+                'addr:postcode': p.postcode || '',
+                opening_hours: p.hours || ''
+            }
+        }));
+    } catch (e) {
+        console.warn('Restaurantsuche Google Places:', e && e.message);
+        return null;
+    }
+}
+
+async function overpassSearch(lat, lon, radiusM, cuisine, query) {
+    const q = buildOverpassQuery(lat, lon, radiusM, cuisine);
+    // 1. App-Server und Kartenserver gleichzeitig (ortsuche.js), 2. nur App-Server, 3. Rückfall über Nominatim (ohne Öffnungszeiten)
+    if (typeof window.jvOverpass === 'function') {
+        try { return await window.jvOverpass(q); } catch (e) { console.error('Restaurantsuche Overpass:', e && e.message); }
+    } else {
+        try {
+            const res = await apiFetch('/api/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
+            if (res.ok) { const data = await res.json(); return (data && data.elements) || []; }
+        } catch (e) { if (e && e.auth) throw e; }
+    }
+    if (typeof window.jvNominatim === 'function') {
+        try { return await window.jvNominatim(query && String(query).trim() ? String(query).trim() + ' Restaurant' : 'Restaurant', lat, lon, radiusM); } catch (e) { console.error('Restaurantsuche Nominatim:', e && e.message); }
+    }
+    return null;
+}
+
+function placeFromElement(el, userLat, userLon) {
+    const t = el.tags || {};
+    if (!t.name) return null;
+    const lat = el.lat !== undefined ? el.lat : (el.center && el.center.lat);
+    const lon = el.lon !== undefined ? el.lon : (el.center && el.center.lon);
+    if (lat === undefined || lon === undefined) return null;
+    const strasse = [t['addr:street'], t['addr:housenumber']].filter(Boolean).join(' ');
+    const ort = [t['addr:postcode'], t['addr:city']].filter(Boolean).join(' ');
+    return { name: t.name, strasse, ort, distanzKm: haversineKm(userLat, userLon, lat, lon), lat, lon };
+}
+
+const distText = km => km < 1 ? Math.round(km * 1000) + ' Meter' : km.toFixed(1).replace('.', ',') + ' km';
+
+async function findNearbyRestaurants(query) {
+    const loc = await fetchUserLocationData();
+    if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
+
+    const cuisine = cuisineFilterFor(query);
+    let elements = await googlePlacesSearch(loc.latitude, loc.longitude, 2000, query);
+    if (elements === null) {
+        try {
+            elements = await overpassSearch(loc.latitude, loc.longitude, 2000, cuisine, query);
+        } catch (e) {
+            if (e && e.auth) throw e;
+            elements = null;
+        }
+    }
+    if (elements === null) throw userError('Die Suche nach Restaurants konnte gerade nicht durchgeführt werden.');
+
+    let places = elements.map(el => placeFromElement(el, loc.latitude, loc.longitude)).filter(Boolean);
+    let radiusUsed = 2;
+    if (places.length === 0) {
+        elements = await googlePlacesSearch(loc.latitude, loc.longitude, 5000, query);
+        if (elements === null) {
+            try { elements = await overpassSearch(loc.latitude, loc.longitude, 5000, cuisine, query); } catch (e) { elements = []; }
+        }
+        places = (elements || []).map(el => placeFromElement(el, loc.latitude, loc.longitude)).filter(Boolean);
+        radiusUsed = 5;
+    }
+
+    places.sort((a, b) => a.distanzKm - b.distanzKm);
+    const top = places.slice(0, 5);
+
+    if (top.length === 0) {
+        const art = query ? `zu "${query}" ` : '';
+        return { reply: `In der Nähe (bis ${radiusUsed} km) habe ich leider nichts ${art}gefunden.`, cards: [] };
+    }
+
+    const namen = top.slice(0, 3).map(p => `${p.name}${p.strasse ? ' (' + p.strasse + ')' : ''}, ${distText(p.distanzKm)}`);
+    let reply = `In der Nähe gibt es zum Beispiel ${namen.join('; ')}.`;
+    // Adresse in den Kontakten speichern anbieten; die Antwort (Ja / den ersten ...) wertet ortsuche.js aus
+    if (typeof window.jvOfferSave === 'function') {
+        try {
+            const offer = await window.jvOfferSave('Restaurant', top.slice(0, 4).map(p => ({ name: p.name, street: [p.strasse, p.ort].filter(Boolean).join(', '), lat: p.lat, lon: p.lon, dist: p.distanzKm * 1000, keepName: true })));
+            if (offer && offer.ask) reply += offer.ask;
+        } catch (e) {}
+    }
+
+    const cards = top.map(p => ({
+        icon: '🍽️',
+        title: p.name,
+        subtitle: distText(p.distanzKm) + (p.strasse ? ' · ' + p.strasse : ''),
+        href: buildMapsLink(p.strasse ? `${p.name}, ${p.strasse}` : p.name, '', p.distanzKm < 1.2 ? 'walking' : 'driving')
+    }));
+
+    return { reply, cards };
+}
+
+/* --- Test für die Einstellungen --- */
+async function diagnoseNearby(query, log) {
+    log('Suchbegriff: ' + (query || '(keiner, alle Restaurants)'));
+    log('Standort wird ermittelt ...');
+    let loc;
+    try { loc = await fetchUserLocationData(); } catch (e) { log('❌ Standort-Fehler: ' + e.message); return; }
+    if (!loc || loc.fehler || loc.latitude === undefined) { log('❌ Standort nicht verfügbar' + (loc && loc.fehler ? ': ' + loc.fehler : '')); return; }
+    log(`✅ Standort: ${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`);
+
+    const cuisine = cuisineFilterFor(query);
+    log(cuisine ? `Küchen-Filter: "${cuisine}"` : 'Kein Küchen-Filter (alle Restaurants)');
+
+    log('Google Places wird zuerst geprüft ...');
+    const gp = await googlePlacesSearch(loc.latitude, loc.longitude, 2000, query);
+    if (gp !== null) {
+        const places = gp.map(el => placeFromElement(el, loc.latitude, loc.longitude)).filter(Boolean).sort((a,b)=>a.distanzKm-b.distanzKm);
+        log(`✅ Google Places: ${places.length} Treffer im Umkreis von 2 km`);
+        places.slice(0,5).forEach(p => log(`  • ${p.name} · ${distText(p.distanzKm)}${p.strasse ? ' · ' + p.strasse : ''}`));
+        log('Fertig.');
+        return;
+    }
+    log('Google Places nicht verfügbar – Overpass-Fallback wird geprüft ...');
+    let res;
+    try {
+        res = await apiFetch('/api/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: buildOverpassQuery(loc.latitude, loc.longitude, 2000, cuisine) }) });
+    } catch (e) {
+        log('❌ ' + (e && e.userMessage ? e.userMessage : 'Keine Verbindung zum Server.'));
+        return;
+    }
+    const raw = await res.text();
+    log('Antwort: Status ' + res.status);
+    let data;
+    try { data = JSON.parse(raw); } catch (e) { log('❌ Die Antwort war kein JSON: ' + raw.slice(0, 200).replace(/\s+/g, ' ')); return; }
+    if (!res.ok) { log('❌ Fehler: ' + (data.error || JSON.stringify(data)).toString().slice(0, 250)); return; }
+
+    const places = (data.elements || []).map(el => placeFromElement(el, loc.latitude, loc.longitude)).filter(Boolean);
+    places.sort((a, b) => a.distanzKm - b.distanzKm);
+    log(`✅ ${places.length} Treffer im Umkreis von 2 km`);
+    places.slice(0, 5).forEach(p => log(`  • ${p.name} · ${distText(p.distanzKm)}${p.strasse ? ' · ' + p.strasse : ''}`));
+    log('Fertig.');
+}
+
+async function runNearbyDiagnosis() {
+    const out = document.getElementById('nearbyDiagOutput');
+    const input = document.getElementById('nearbyDiagInput');
+    const lines = [];
+    const log = (t) => { lines.push(t); if (out) { out.textContent = lines.join('\n'); out.classList.remove('hidden'); } };
+    try { await diagnoseNearby(input ? input.value : '', log); }
+    catch (e) { log('❌ Unerwarteter Fehler: ' + (e && e.message ? e.message : e)); }
+}
