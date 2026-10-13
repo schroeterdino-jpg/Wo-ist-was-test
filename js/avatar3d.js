@@ -139,9 +139,10 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
      }
      if(part==='eye') return makeEyeMaterial(oldMat);
      if(part==='head'){
-       // Gesicht mattes helles Metall; keine Haut-Farbtextur, damit es nicht wieder spiegelnd/dunkel wird.
-       const m=new THREE.MeshPhysicalMaterial({color:0x9eabb2,metalness:.18,roughness:.78,clearcoat:.015,clearcoatRoughness:.92,side:THREE.DoubleSide});
-       if(oldMat&&oldMat.normalMap)m.normalMap=oldMat.normalMap;
+       // Menschenoptik: warme neutrale Haut statt Metall/Cyan. Keine Emission, kein Clearcoat, keine Leuchteffekte.
+       // Die vorhandene Normalmap bleibt für Gesichtsdetails erhalten; Augen und Zähne werden separat behandelt.
+       const m=new THREE.MeshStandardMaterial({color:0xc9967b,metalness:0,roughness:.72,side:THREE.DoubleSide});
+       if(oldMat&&oldMat.normalMap){m.normalMap=oldMat.normalMap; m.normalScale=oldMat.normalScale?oldMat.normalScale.clone():new THREE.Vector2(1,1);}
        m.needsUpdate=true; return m;
      }
      return oldMat&&oldMat.clone?oldMat.clone():oldMat;
@@ -151,7 +152,7 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
    if(o.morphTargetDictionary&&o.morphTargetInfluences){
      morphMeshes.push(o);Object.keys(o.morphTargetDictionary).forEach(n=>{morphNames.add(n);target[n]=0;current[n]=0})
    }
-   console.info('JARVIS 3D v6.7 mesh',ancestry,'=>',part);
+   console.info('JARVIS 3D v6.9 mesh',ancestry,'=>',part);
  });
  // Robust zentrieren: erst Weltmatrizen aktualisieren, dann skalieren, danach erneut messen.
  model.updateMatrixWorld(true);
