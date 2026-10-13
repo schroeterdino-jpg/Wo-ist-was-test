@@ -1,6 +1,4 @@
-/* JARVIS 3D v10 – stabile v7-Basis + echte ARKit-Mimik + vermessene Brauen/Wimpern.
-   Gesichtsanker aus Diagnose V8: Kopf 1.6223 x 2.34 x 2.1239; Auge ca. 0.3015 x 0.3163 x 0.3209;
-   Augenmitten X ca. +/-0.2352, Y -0.0066, Z 0.3978. */
+/* JARVIS 3D v6.10 – v5-Basis + Fish-Audio-Lippensync + Robot-Material direkt auf FaceCap. */
 (async function(){
 'use strict';
 const holder=document.querySelector('.holo-container'); if(!holder) return;
@@ -30,51 +28,6 @@ const cyan=0x00cfff, dark=0x111820;
 const metalMat=new THREE.MeshPhysicalMaterial({color:0xb8c1c7,metalness:.58,roughness:.48,clearcoat:.10,clearcoatRoughness:.55});
 const darkMat=new THREE.MeshStandardMaterial({color:dark,metalness:.9,roughness:.3});
 const glowMat=new THREE.MeshStandardMaterial({color:0x8df7ff,metalness:.2,roughness:.18,emissive:cyan,emissiveIntensity:5});
-// V11: feinere Gesichtsdetails. Keine gezeichnete Wimpern-Linie mehr:
-// einzelne, kurze Härchen folgen dem oberen Lid. Brauen deutlich dünner und näher am Gesicht.
-const browMat=new THREE.MeshStandardMaterial({color:0x4a332b,roughness:1,metalness:0});
-const lashMat=new THREE.MeshStandardMaterial({color:0x2c211e,roughness:1,metalness:0});
-let browLeft=null,browRight=null,lashesLeft=null,lashesRight=null;
-function tube(points,radius,material,segments=12){
- const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));
- return new THREE.Mesh(new THREE.TubeGeometry(curve,segments,radius,4,false),material);
-}
-function addNaturalBrowsAndLashes(){
- const eyeX=.2352, eyeY=-.0066, z=.574;
- const makeBrow=(side)=>{
-   const g=new THREE.Group(), x=side*eyeX;
-   const pts=[[x-.125,.225,.588],[x-.065,.238,.596],[x,.241,.599],[x+.065,.235,.596],[x+.125,.218,.588]];
-   g.add(tube(pts,.0065,browMat,18));
-   return g;
- };
- const makeLashes=(side)=>{
-   const g=new THREE.Group(), x=side*eyeX;
-   // 9 einzelne Wimpern statt einer schwarzen Bogenlinie. Innen sehr kurz, außen etwas länger.
-   for(let i=0;i<9;i++){
-     const u=i/8;                         // 0 = innen, 1 = außen
-     const sx=side<0 ? x+.105-u*.215 : x-.105+u*.215;
-     const rel=(sx-x)/.115;
-     const sy=eyeY+.105-.030*rel*rel;     // folgt der natürlichen Lidkurve
-     const outward=(side<0?-1:1)*(u-.25)*.010;
-     const len=.012+u*.018;
-     g.add(tube([[sx,sy,z],[sx+outward,sy+len,z+.008]],.00115,lashMat,4));
-   }
-   return g;
- };
- browLeft=makeBrow(-1); browRight=makeBrow(1); lashesLeft=makeLashes(-1); lashesRight=makeLashes(1);
- faceRoot.add(browLeft,browRight,lashesLeft,lashesRight);
-}
-function animateFaceDetails(){
- if(!browLeft||!browRight)return;
- let y=0, inner=0, tilt=0;
- if(expression==='surprised'){y=.045;inner=.010;}
- else if(expression==='sad'||expression==='concerned'){inner=.020;y=.012;}
- else if(expression==='serious'){y=-.018;tilt=.022;}
- else if(expression==='thinking'){browRight.position.y=.018;browLeft.position.y=0;}
- else {browLeft.position.y=0;browRight.position.y=0;}
- if(expression!=='thinking'){browLeft.position.y=y;browRight.position.y=y;}
- browLeft.rotation.z=tilt-inner; browRight.rotation.z=-tilt+inner;
-}
 const morphMeshes=[]; let morphNames=new Set(), model=null, active=false, raf=0, blink=0, expression='neutral', manualMouth=0, modelReady=false;
 let speechMorphs={};
 let tongueUntil=0, lastEmotionText='', manualExpressionUntil=0;
@@ -113,8 +66,8 @@ function setExpression(name='neutral'){
  expression=name; clearExpression();
  const both=(n,v)=>{setMorph(n+'_L',v);setMorph(n+'_R',v)};
  switch(name){
-  case 'friendly': case 'happy': both('mouthSmile',.66);both('cheekSquint',.24);setMorph('browInnerUp',.10);break;
-  case 'laugh': both('mouthSmile',.98);both('cheekSquint',.62);setMorph('jawOpen',.38);both('eyeSquint',.30);break;
+  case 'friendly': case 'happy': both('mouthSmile',.52);both('cheekSquint',.18);setMorph('browInnerUp',.08);break;
+  case 'laugh': both('mouthSmile',.95);both('cheekSquint',.55);setMorph('jawOpen',.34);both('eyeSquint',.24);break;
   case 'sad': both('mouthFrown',.68);setMorph('browInnerUp',.72);both('eyeSquint',.12);break;
   case 'serious': both('browDown',.48);both('mouthPress',.28);break;
   case 'surprised': both('eyeWide',.72);setMorph('browInnerUp',.75);both('browOuterUp',.62);setMorph('jawOpen',.38);break;
@@ -208,7 +161,6 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
  box=new THREE.Box3().setFromObject(model); const center=new THREE.Vector3();box.getCenter(center);
  model.position.x-=center.x; model.position.y-=center.y+.04; model.position.z-=center.z;
  model.updateMatrixWorld(true);
- addNaturalBrowsAndLashes();
  modelReady=true; setExpression('friendly'); btn.textContent='● 3D'; hideStatus(); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
  console.info('JARVIS 3D v6.7 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
 },p=>{if(active&&p.total)showStatus('GLB lädt … '+Math.round(p.loaded/p.total*100)+' %')},e=>{console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e);btn.textContent='⚠ 3D';btn.title='facecap.glb konnte nicht geladen werden';const msg=(e&&e.message)?e.message:String(e||'Unbekannter Fehler');
@@ -312,7 +264,7 @@ function syncAvatarState(now){
 }
 function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);const dt=Math.min(.05,(now-(loop.last||now))/1000);loop.last=now;
  let speaking=!!(window.__jvLipAudio&&!window.__jvLipAudio.paused&&!window.__jvLipAudio.ended);
- const st=syncAvatarState(now); applyMorphs(dt,speaking,now); animateFaceDetails();
+ const st=syncAvatarState(now); applyMorphs(dt,speaking,now);
  const baseY=Math.sin(now*.00055)*.035, baseX=Math.sin(now*.0007)*.008;
  root.rotation.y=baseY+(st==='thinking'?.055:0);
  root.rotation.x=baseX+(st==='listening'?-.018:st==='thinking'?-.010:0);
