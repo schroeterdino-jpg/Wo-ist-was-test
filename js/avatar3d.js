@@ -1,4 +1,4 @@
-/* JARVIS 3D v6.2 – v5-Basis + Fish-Audio-Lippensync + Robot-Material direkt auf FaceCap. */
+/* JARVIS 3D v6.3.2 – v5-Basis + Fish-Audio-Lippensync + Robot-Material direkt auf FaceCap. */
 (async function(){
 'use strict';
 const holder=document.querySelector('.holo-container'); if(!holder) return;
@@ -35,9 +35,33 @@ const status=document.createElement('div'); status.id='jv3dStatus'; status.style
 function showStatus(t,err=false){status.textContent=t;status.style.borderColor=err?'#ff5b6e':'#16cce8';status.style.color=err?'#ffd5da':'#aef7ff';status.style.display='block'}
 function hideStatus(){status.style.display='none'}
 const target={}, current={};
-function morphIndex(mesh,name){return mesh.morphTargetDictionary?.[name] ?? mesh.morphTargetDictionary?.[name.replace('_L','Left').replace('_R','Right')] ?? -1}
-function setMorph(name,v){target[name]=Math.max(0,Math.min(1,v))}
-function clearExpression(){for(const n of morphNames) if(!/^eyeBlink_|^jawOpen$|^mouthClose$/.test(n)) target[n]=0}
+// FaceCap/ARKit benutzt je nach Export z.B. mouthSmileLeft statt mouthSmile_L.
+// Alle Mimik- und Sprachformen werden deshalb zuerst auf den TATSÄCHLICH vorhandenen Morph-Namen aufgelöst.
+function resolveMorphName(name){
+ if(morphNames.has(name)) return name;
+ const candidates=[
+   name.replace(/_L$/,'Left').replace(/_R$/,'Right'),
+   name.replace(/Left$/,'_L').replace(/Right$/,'_R'),
+   name.replace(/_left$/i,'Left').replace(/_right$/i,'Right')
+ ];
+ for(const c of candidates) if(morphNames.has(c)) return c;
+ return null;
+}
+function morphIndex(mesh,name){
+ const real=resolveMorphName(name)||name;
+ return mesh.morphTargetDictionary?.[real] ?? -1;
+}
+function setMorph(name,v){
+ const real=resolveMorphName(name);
+ if(!real) return false;
+ target[real]=Math.max(0,Math.min(1,v));
+ return true;
+}
+function clearExpression(){
+ for(const n of morphNames)
+   if(!/^eyeBlink(?:_|Left|Right)/i.test(n) && n!=='jawOpen' && n!=='mouthClose' && !/^tongue/i.test(n))
+     target[n]=0;
+}
 function setExpression(name='neutral'){
  expression=name; clearExpression();
  const both=(n,v)=>{setMorph(n+'_L',v);setMorph(n+'_R',v)};
@@ -104,7 +128,7 @@ function resize(){const w=holder.clientWidth||360,h=holder.clientHeight||360;ren
 new ResizeObserver(resize).observe(holder);resize();
 function clearSpeechMorphs(){
  for(const n of ['jawOpen','mouthClose','mouthFunnel','mouthPucker','mouthStretch_L','mouthStretch_R','mouthPress_L','mouthPress_R','mouthLowerDown_L','mouthLowerDown_R','mouthUpperUp_L','mouthUpperUp_R','mouthRollLower','mouthRollUpper']){
-   if(morphNames.has(n)) target[n]=0;
+   setMorph(n,0);
  }
 }
 function lipShapeForText(text,audio){
