@@ -1,4 +1,4 @@
-/* JARVIS 3D v10 – FaceCap + Robot-Look + Fish-Audio-Lippensynchronisation. */
+/* JARVIS 3D v5 – GLB-Facial-Avatar mit ARKit-Morphs, Mimik und Robot-Look. */
 (async function(){
 'use strict';
 const holder=document.querySelector('.holo-container'); if(!holder) return;
@@ -61,39 +61,6 @@ function addRobotFrame(){
 // v3: keine geometrischen Fallback-Teile mehr – erst das echte GLB anzeigen.
 // addRobotFrame();
 
-// Futuristische JARVIS-Hülle: bewusst als Zusatzgeometrie, damit das FaceCap-Gesicht und seine Morphs unangetastet bleiben.
-function addJarvisShell(){
- if(faceRoot.getObjectByName('JARVIS_V10_SHELL')) return;
- model.updateMatrixWorld(true);
- const box=new THREE.Box3().setFromObject(model), sz=new THREE.Vector3(), ct=new THREE.Vector3(); box.getSize(sz); box.getCenter(ct);
- const W=sz.x,H=sz.y,D=Math.max(sz.z,W*.45), z=box.max.z+D*.025;
- const shell=new THREE.Group(); shell.name='JARVIS_V10_SHELL'; faceRoot.add(shell);
- const silver=new THREE.MeshPhysicalMaterial({color:0x7b8993,metalness:.9,roughness:.28,clearcoat:.35});
- const black=new THREE.MeshPhysicalMaterial({color:0x111820,metalness:.88,roughness:.34,clearcoat:.18});
- const green=new THREE.MeshStandardMaterial({color:0x83ffd1,emissive:0x19ff86,emissiveIntensity:4.6,roughness:.18});
- const amber=new THREE.MeshStandardMaterial({color:0xffd56a,emissive:0xff9d16,emissiveIntensity:4.2,roughness:.2});
- const glass=new THREE.MeshPhysicalMaterial({color:0x9cecff,transparent:true,opacity:.13,roughness:.08,transmission:.45,clearcoat:1,side:THREE.DoubleSide,depthWrite:false});
- function plate(w,h,x,y,r,mat=black){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,D*.035),mat);m.position.set(x,y,z);m.rotation.z=r;shell.add(m);return m}
- // Schläfen, Wangen und Kiefer – Mitte des Gesichts bleibt frei.
- plate(W*.14,H*.25,ct.x-W*.44,ct.y+H*.10,-.13); plate(W*.14,H*.25,ct.x+W*.44,ct.y+H*.10,.13);
- plate(W*.16,H*.18,ct.x-W*.39,ct.y-H*.15,.18,silver); plate(W*.16,H*.18,ct.x+W*.39,ct.y-H*.15,-.18,silver);
- plate(W*.14,H*.15,ct.x-W*.30,ct.y-H*.36,.28); plate(W*.14,H*.15,ct.x+W*.30,ct.y-H*.36,-.28);
- plate(W*.40,H*.045,ct.x,ct.y+H*.34,0,black);
- // Stirnkern wie in der Vorlage.
- const core=new THREE.Mesh(new THREE.OctahedronGeometry(W*.07,0),amber);core.scale.set(.75,1.25,.38);core.position.set(ct.x,ct.y+H*.34,z+D*.045);shell.add(core);
- // Augen-Leuchtringe statt großer künstlicher Kugeln.
- for(const side of [-1,1]){const e=new THREE.Mesh(new THREE.TorusGeometry(W*.052,W*.009,8,28),green);e.position.set(ct.x+side*W*.185,ct.y+H*.095,z+D*.035);shell.add(e)}
- // Transparente obere Schädelkuppel + sichtbares technisches "Gehirn".
- const dome=new THREE.Mesh(new THREE.SphereGeometry(W*.46,36,18,0,Math.PI*2,0,Math.PI*.53),glass);dome.scale.set(1,.80,.72);dome.position.set(ct.x,ct.y+H*.38,ct.z);shell.add(dome);
- const brain=new THREE.Group();brain.name='JARVIS_BRAIN';brain.position.set(ct.x,ct.y+H*.40,ct.z+D*.10);shell.add(brain);
- for(let i=0;i<26;i++){const q=new THREE.Mesh(new THREE.SphereGeometry(W*(.027+(i%4)*.004),10,7),green);const a=i*2.399,r=W*(.07+(i%6)*.027);q.scale.set(1.5,.7,.8);q.position.set(Math.cos(a)*r,Math.sin(a)*r*.42,(i%5)*D*.018);brain.add(q)}
- const brainLight=new THREE.PointLight(0x24ff91,2.4,Math.max(W,H)*2.2);brainLight.position.set(ct.x,ct.y+H*.42,z+D*.12);shell.add(brainLight);
- // Mechanischer Hals und Schultern unter dem Kopf.
- const neck=new THREE.Mesh(new THREE.CylinderGeometry(W*.15,W*.21,H*.26,16),black);neck.position.set(ct.x,box.min.y-H*.10,ct.z);shell.add(neck);
- const shoulders=new THREE.Mesh(new THREE.SphereGeometry(1,28,12),black);shoulders.scale.set(W*.72,H*.12,D*.36);shoulders.position.set(ct.x,box.min.y-H*.28,ct.z-D*.04);shell.add(shoulders);
- const start=performance.now();(function pulse(){if(!brain.parent)return;const t=(performance.now()-start)/1000,q=1+.025*Math.sin(t*2.5);brain.scale.setScalar(q);brainLight.intensity=2.2+.55*Math.sin(t*2.5);requestAnimationFrame(pulse)})();
-}
-
 // facecap.glb benötigt zwingend EXT_meshopt_compression UND KTX2/BasisU.
 const ktx2Loader=new KTX2Loader()
   .setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/libs/basis/')
@@ -102,7 +69,7 @@ const gltfLoader=new GLTFLoader();
 gltfLoader.setMeshoptDecoder(MeshoptDecoder);
 gltfLoader.setKTX2Loader(ktx2Loader);
 
-gltfLoader.load('./models/facecap.glb?v=5',g=>{
+gltfLoader.load('./models/facecap.glb?v=101',g=>{
  model=g.scene; faceRoot.add(model);
  model.traverse(o=>{if(!o.isMesh)return; o.frustumCulled=false;
    // v3: Originalmaterial zunächst behalten. So prüfen wir zuerst zuverlässig das echte FaceCap-Modell.
@@ -112,55 +79,24 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
  // Robust zentrieren: erst Weltmatrizen aktualisieren, dann skalieren, danach erneut messen.
  model.updateMatrixWorld(true);
  let box=new THREE.Box3().setFromObject(model), size=new THREE.Vector3();box.getSize(size);
- const sc=2.65/Math.max(size.y,.001); model.scale.multiplyScalar(sc); model.updateMatrixWorld(true);
+ const sc=2.35/Math.max(size.y,.001); model.scale.multiplyScalar(sc); model.updateMatrixWorld(true);
  box=new THREE.Box3().setFromObject(model); const center=new THREE.Vector3();box.getCenter(center);
- model.position.x-=center.x; model.position.y-=center.y+.16; model.position.z-=center.z;
+ model.position.x-=center.x; model.position.y-=center.y-.05; model.position.z-=center.z;
  model.updateMatrixWorld(true);
- addJarvisShell();
  modelReady=true; setExpression('friendly'); btn.textContent='● 3D'; showStatus('✓ GLB geladen – Kopf bereit'); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}} setTimeout(()=>{if(active)hideStatus()},1400);
- console.info('JARVIS 3D v10 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
+ console.info('JARVIS 3D v5 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
 },p=>{if(active&&p.total)showStatus('GLB lädt … '+Math.round(p.loaded/p.total*100)+' %')},e=>{console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e);btn.textContent='⚠ 3D';btn.title='facecap.glb konnte nicht geladen werden';const msg=(e&&e.message)?e.message:String(e||'Unbekannter Fehler');
 showStatus('✕ GLB-Fehler: '+msg.slice(0,120),true);});
 
 function resize(){const w=holder.clientWidth||360,h=holder.clientHeight||360;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
 new ResizeObserver(resize).observe(holder);resize();
-function fishViseme(now){
- const L=window.__jvFishLip;if(!L||!L.active||!L.meta)return null;
- const dur=Math.max(.12,Number(L.meta.duration)||1), rate=Math.max(.5,Number(L.rate)||1), t=(performance.now()/1000-L.start)*rate;
- if(t<0||t>dur+.10){L.active=false;return null}
- const p=Math.max(0,Math.min(.999,t/dur)), units=L.meta.units||['REST'], env=L.meta.env||[];
- const u=units[Math.min(units.length-1,Math.floor(p*units.length))]||'REST';
- const amp=env.length?env[Math.min(env.length-1,Math.floor(p*env.length))]:.72;
- return {u,amp:Math.max(.06,Math.min(1,amp))};
-}
-let hadFishLip=false;
 function applyMorphs(dt,speaking,now){
- if(Math.random()<.0022)blink=1; blink=Math.max(0,blink-dt*5.5); setMorph('eyeBlink_L',blink);setMorph('eyeBlink_R',blink);
- const v=fishViseme(now), both=(n,x)=>{setMorph(n+'_L',x);setMorph(n+'_R',x)};
- if(v){
-   hadFishLip=true; const a=v.amp;
-   // Nur Mund-Morphs verändern; Augen/Brauen/Mimik bleiben erhalten.
-   ['jawOpen','mouthClose','mouthFunnel','mouthPucker','mouthRollLower','mouthRollUpper'].forEach(n=>setMorph(n,0));
-   ['mouthPress','mouthStretch','mouthLowerDown','mouthUpperUp','mouthDimple'].forEach(n=>both(n,0));
-   switch(v.u){
-    case 'MBP': setMorph('mouthClose',.82);both('mouthPress',.42);setMorph('jawOpen',.015);break;
-    case 'FV': setMorph('jawOpen',.07*a);setMorph('mouthRollLower',.52);both('mouthUpperUp',.16);break;
-    case 'OU': setMorph('jawOpen',.24*a);setMorph('mouthFunnel',.62);setMorph('mouthPucker',.48);break;
-    case 'A': setMorph('jawOpen',.68*a);both('mouthLowerDown',.25*a);both('mouthUpperUp',.10);break;
-    case 'EI': setMorph('jawOpen',.22*a);both('mouthStretch',.48);both('mouthDimple',.10);break;
-    case 'L': setMorph('jawOpen',.25*a);both('mouthUpperUp',.12);break;
-    case 'K': setMorph('jawOpen',.36*a);both('mouthLowerDown',.10);break;
-    case 'T': setMorph('jawOpen',.18*a);both('mouthStretch',.10);break;
-    case 'S': setMorph('jawOpen',.10*a);both('mouthStretch',.30);break;
-    default: setMorph('mouthClose',.18);setMorph('jawOpen',.015);
-   }
- }else{
-   if(hadFishLip){hadFishLip=false;setExpression(expression)}
-   let talk=speaking ? .05+Math.abs(Math.sin(now*.017))*.16 : manualMouth;
-   if(expression==='laugh')talk=Math.max(talk,.28); if(expression==='surprised')talk=Math.max(talk,.34);
-   setMorph('jawOpen',Math.max(target.jawOpen||0,talk));
- }
- for(const n of morphNames){const want=target[n]||0;current[n]+=(want-current[n])*Math.min(1,dt*13)}
+ if(Math.random()<.0022)blink=1; blink=Math.max(0,blink-dt*5.5);
+ setMorph('eyeBlink_L',blink);setMorph('eyeBlink_R',blink);
+ let talk=speaking ? .08+Math.abs(Math.sin(now*.017))*0.32+Math.abs(Math.sin(now*.029))*0.12 : manualMouth;
+ if(expression==='laugh')talk=Math.max(talk,.28); if(expression==='surprised')talk=Math.max(talk,.34);
+ setMorph('jawOpen',Math.max(target.jawOpen||0,talk));
+ for(const n of morphNames){const want=target[n]||0;current[n]+=(want-current[n])*Math.min(1,dt*9)}
  for(const m of morphMeshes)for(const n of morphNames){const i=morphIndex(m,n);if(i>=0)m.morphTargetInfluences[i]=current[n]||0}
 }
 function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);const dt=Math.min(.05,(now-(loop.last||now))/1000);loop.last=now;
