@@ -360,6 +360,60 @@
     function distShort(m) { return m < 950 ? `${Math.max(10, Math.round(m / 10) * 10)} m` : `${(Math.round(m / 100) / 10).toFixed(1).replace('.', ',')} km`; }
     function routeUrl(p) { return `https://www.google.com/maps/dir/?api=1&travelmode=${p.dist < 900 ? 'walking' : 'driving'}&destination=${p.lat.toFixed(6)},${p.lon.toFixed(6)}`; }
 
+    /* ---------- Treffer aus Orts-/Restaurantsuche in den APP-Kontakten speichern ---------- */
+    let pendingSavePlaces = null;
+    function cleanSavePlace(p) {
+        if (!p) return null;
+        const name = String(p.name || '').trim();
+        const address = String(p.street || p.address || '').trim();
+        if (!name || !address) return null;
+        return { name, address };
+    }
+    function savePlaceToAppContacts(p) {
+        const x = cleanSavePlace(p);
+        if (!x) { say('Bei diesem Treffer fehlt leider die Adresse.'); return false; }
+        if (typeof savedContacts !== 'object' || !savedContacts || typeof setPersistentData !== 'function') {
+            say('Die App-Kontakte sind gerade nicht erreichbar.'); return false;
+        }
+        const key = x.name.toLowerCase();
+        const old = savedContacts[key] || {};
+        savedContacts[key] = { originalName: x.name, phone: old.phone || '', address: x.address };
+        setPersistentData('helfer_contacts', JSON.stringify(savedContacts));
+        try { if (typeof renderContactList === 'function') renderContactList(); } catch (e) {}
+        pendingSavePlaces = null;
+        say(`${x.name} mit der Adresse ${x.address} ist in Ihren App-Kontakten gespeichert.`);
+        return true;
+    }
+    function offerSavePlaces(label, places) {
+        const list = (Array.isArray(places) ? places : []).map(cleanSavePlace).filter(Boolean).slice(0, 4);
+        if (!list.length) { pendingSavePlaces = null; return { ask: '' }; }
+        pendingSavePlaces = { at: Date.now(), label: label || 'Ort', places: list };
+        const nums = list.map((_, i) => i + 1);
+        return { ask: ` Möchten Sie eine dieser Adressen in Ihren App-Kontakten speichern? Sagen Sie ${nums.join(', ')} oder Nein.` };
+    }
+    function handlePendingSaveAnswer(text) {
+        if (!pendingSavePlaces) return false;
+        if (Date.now() - pendingSavePlaces.at > 120000) { pendingSavePlaces = null; return false; }
+        const t = norm(text);
+        if (/^(nein|nee|ne|abbrechen|keine|keinen|keins|nichts)$/.test(t)) {
+            pendingSavePlaces = null; say('Alles klar, ich speichere keine Adresse.'); return true;
+        }
+        const words = [
+            /^(1|eins|ein|erste|ersten|erstes|die erste|den ersten)$/, /^(2|zwei|zweite|zweiten|zweites|die zweite|den zweiten)$/,
+            /^(3|drei|dritte|dritten|drittes|die dritte|den dritten)$/, /^(4|vier|vierte|vierten|viertes|die vierte|den vierten)$/
+        ];
+        let idx = words.findIndex(r => r.test(t));
+        if (idx < 0) {
+            const m=t.match(/(?:nummer|nr)?\s*([1-4])\b/); if(m) idx=Number(m[1])-1;
+        }
+        if (/^(ja|ja bitte|gerne|speichern)$/.test(t) && pendingSavePlaces.places.length === 1) idx=0;
+        if (/^(ja|ja bitte|gerne|speichern)$/.test(t) && pendingSavePlaces.places.length > 1) {
+            say(`Gerne. Welche Adresse? Sagen Sie eine Zahl von 1 bis ${pendingSavePlaces.places.length}.`); return true;
+        }
+        if (idx >= 0 && idx < pendingSavePlaces.places.length) return savePlaceToAppContacts(pendingSavePlaces.places[idx]);
+        return false;
+    }
+    window.jvOfferSave = offerSavePlaces;
     let lastPlaces = [];
     function openRoute(i) {
         const p = lastPlaces[Number(i) || 0];
@@ -425,7 +479,9 @@
             const other = places.find(p => { const x = hoursInfo(p); return x && x.open === true; });
             if (other) { const x = hoursInfo(other); alt = ` Offen hat gerade ${other.name}, ${distSpoken(other.dist)} entfernt${x.until ? ', bis ' + spokenTime(x.until) : ''}.`; }
         }
-        say(`Am nächsten ist ${first.name}${addr ? ', ' + addr : ''}, ${distSpoken(first.dist)} entfernt.${hoursSpoken(o)}${alt}${more} Tippen Sie unten auf eine Karte, dann öffnet sich die Route.`);
+        let saveAsk = '';
+        try { const offer = offerSavePlaces(label, places.slice(0, 4).map(p => ({ name: p.name, street: [p.street, p.city].filter(Boolean).join(', ') }))); saveAsk = offer.ask || ''; } catch (e) {}
+        say(`Am nächsten ist ${first.name}${addr ? ', ' + addr : ''}, ${distSpoken(first.dist)} entfernt.${hoursSpoken(o)}${alt}${more} Tippen Sie unten auf eine Karte, dann öffnet sich die Route.${saveAsk}`);
         if (req.navigate) openRoute(0);
         return true;
     }
@@ -460,6 +516,7 @@
         const originalLocal = window.handleLocalCommand;
         const hooked = function (text) {
             try { patchOldPlacesFetch(); } catch (e) {}
+            try { if (handlePendingSaveAnswer(text)) return true; } catch (e) { console.error('Kontakt-Auswahl', e); }
             const handled = originalLocal.apply(this, arguments);
             if (handled) return handled;
             try { if (handleOrtsucheCommand(text)) return true; } catch (e) { console.error('Ortssuche', e); }

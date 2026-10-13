@@ -107,7 +107,8 @@ function placeFromElement(el, userLat, userLon) {
     const lon = el.lon !== undefined ? el.lon : (el.center && el.center.lon);
     if (lat === undefined || lon === undefined) return null;
     const strasse = [t['addr:street'], t['addr:housenumber']].filter(Boolean).join(' ');
-    return { name: t.name, strasse, distanzKm: haversineKm(userLat, userLon, lat, lon), lat, lon };
+    const ort = [t['addr:postcode'], t['addr:city']].filter(Boolean).join(' ');
+    return { name: t.name, strasse, ort, distanzKm: haversineKm(userLat, userLon, lat, lon), lat, lon };
 }
 
 const distText = km => km < 1 ? Math.round(km * 1000) + ' Meter' : km.toFixed(1).replace('.', ',') + ' km';
@@ -152,7 +153,7 @@ async function findNearbyRestaurants(query) {
     // Adresse in den Kontakten speichern anbieten; die Antwort (Ja / den ersten ...) wertet ortsuche.js aus
     if (typeof window.jvOfferSave === 'function') {
         try {
-            const offer = await window.jvOfferSave('Restaurant', top.slice(0, 3).map(p => ({ name: p.name, street: p.strasse, lat: p.lat, lon: p.lon, dist: p.distanzKm * 1000, keepName: true })));
+            const offer = await window.jvOfferSave('Restaurant', top.slice(0, 4).map(p => ({ name: p.name, street: [p.strasse, p.ort].filter(Boolean).join(', '), lat: p.lat, lon: p.lon, dist: p.distanzKm * 1000, keepName: true })));
             if (offer && offer.ask) reply += offer.ask;
         } catch (e) {}
     }

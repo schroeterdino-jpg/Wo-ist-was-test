@@ -31,7 +31,6 @@ const glowMat=new THREE.MeshStandardMaterial({color:0x8df7ff,metalness:.2,roughn
 const morphMeshes=[]; let morphNames=new Set(), model=null, active=false, raf=0, blink=0, expression='neutral', manualMouth=0, modelReady=false;
 let speechMorphs={};
 let tongueUntil=0, lastEmotionText='', manualExpressionUntil=0;
-let browLeft=null,browRight=null,lashesLeft=null,lashesRight=null;
 const status=document.createElement('div'); status.id='jv3dStatus'; status.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10;display:none;max-width:86%;padding:9px 12px;border:1px solid #16cce8;border-radius:10px;background:#06111ee8;color:#aef7ff;font:700 12px system-ui;text-align:center;box-shadow:0 0 18px #00bfff44;pointer-events:none'; holder.appendChild(status);
 function showStatus(t,err=false){status.textContent=t;status.style.borderColor=err?'#ff5b6e':'#16cce8';status.style.color=err?'#ffd5da':'#aef7ff';status.style.display='block'}
 function hideStatus(){status.style.display='none'}
@@ -84,68 +83,6 @@ function addRobotFrame(){
  for(const s of [-1,1]){const p=new THREE.Mesh(new THREE.BoxGeometry(.28,.78,.06),darkMat);p.position.set(s*.61,-.08,.14);p.rotation.z=s*.16;faceRoot.add(p);const l=new THREE.Mesh(new THREE.BoxGeometry(.045,.58,.075),glowMat);l.position.set(s*.62,-.08,.19);l.rotation.z=s*.16;faceRoot.add(l)}
  const core=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,.055,24),glowMat);core.rotation.x=Math.PI/2;core.position.set(0,.78,.28);faceRoot.add(core);
  const ring=new THREE.Mesh(new THREE.TorusGeometry(.17,.025,10,32),glowMat);ring.position.set(0,.78,.31);faceRoot.add(ring);
-}
-// Augenbrauen und Wimpern werden NACH dem Laden direkt aus den echten Augen des GLB abgeleitet.
-// Keine geratenen absoluten Gesichtskoordinaten mehr: eyeLeft/eyeRight sind die Anker.
-function makeArc(points, radius, material){
- const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));
- return new THREE.Mesh(new THREE.TubeGeometry(curve,12,radius,5,false),material);
-}
-function findNamedNode(rx){
- let found=null;
- model?.traverse(o=>{ if(!found && rx.test(String(o.name||''))) found=o; });
- return found;
-}
-function addBrowsAndLashesFromEyes(){
- const leftEye=findNamedNode(/^(eyeLeft|grp_eyeLeft)$/i) || findNamedNode(/eye.*left/i);
- const rightEye=findNamedNode(/^(eyeRight|grp_eyeRight)$/i) || findNamedNode(/eye.*right/i);
- if(!leftEye||!rightEye){ console.warn('JARVIS 3D: Augen-Anker nicht gefunden – Brauen/Wimpern bleiben aus.'); return; }
- const browMat=new THREE.MeshStandardMaterial({color:0x2b1d19,roughness:.9,metalness:0,side:THREE.DoubleSide});
- const lashMat=new THREE.MeshStandardMaterial({color:0x17100f,roughness:.95,metalness:0,side:THREE.DoubleSide});
- function localEyeBox(node){
-   model.updateMatrixWorld(true); faceRoot.updateMatrixWorld(true);
-   const wb=new THREE.Box3().setFromObject(node);
-   const pts=[];
-   for(const x of [wb.min.x,wb.max.x]) for(const y of [wb.min.y,wb.max.y]) for(const z of [wb.min.z,wb.max.z]) pts.push(faceRoot.worldToLocal(new THREE.Vector3(x,y,z)));
-   return new THREE.Box3().setFromPoints(pts);
- }
- function decorate(node,side){
-   const b=localEyeBox(node), c=new THREE.Vector3(); b.getCenter(c);
-   const w=b.max.x-b.min.x, h=b.max.y-b.min.y;
-   const front=b.max.z + Math.max(.006,w*.018);
-   // Wimpern: 8 einzelne feine Haare, deren WURZEL direkt am oberen Rand des echten Auges liegt.
-   const lashGroup=new THREE.Group(); faceRoot.add(lashGroup);
-   for(let i=0;i<8;i++){
-     const t=(i+.5)/8;
-     const x=b.min.x+w*(.12+.76*t);
-     // Augen sind leicht gewölbt: Mitte minimal höher als außen.
-     const arch=Math.sin(Math.PI*t)*h*.055;
-     const y=c.y+h*.18+arch; // echter Lidrand statt Oberkante des kugelförmigen Augapfels
-     const outer=side<0 ? (1-t) : t;
-     const len=h*(.10+.11*outer);
-     const dx=side*len*.22*outer;
-     const lash=makeArc([[x,y,front],[x+dx,y+len,front+w*.012]],Math.max(.0010,w*.0035),lashMat);
-     lashGroup.add(lash);
-   }
-   // Braue: Abstand und Breite werden aus derselben Augenbox berechnet.
-   const browY=c.y + h*.62; // natürlicher Abstand über dem sichtbaren Lid
-   const innerX=c.x-side*w*.31, outerX=c.x+side*w*.62;
-   const midX=(innerX+outerX)/2;
-   const brow=makeArc([[innerX,browY,front+w*.018],[midX,browY+h*.16,front+w*.024],[outerX,browY-h*.02,front+w*.012]],Math.max(.009,w*.038),browMat);
-   faceRoot.add(brow);
-   if(side<0){browLeft=brow;lashesLeft=lashGroup;} else {browRight=brow;lashesRight=lashGroup;}
- }
- decorate(leftEye,-1); decorate(rightEye,1);
-}
-function animateBrows(){
- if(!browLeft||!browRight)return;
- let y=0, rzL=0, rzR=0;
- if(expression==='surprised'){y=.045;rzL=-.04;rzR=.04;}
- else if(expression==='sad'||expression==='concerned'){y=.018;rzL=.10;rzR=-.10;}
- else if(expression==='serious'){y=-.018;rzL=-.08;rzR=.08;}
- else if(expression==='happy'||expression==='laugh'){y=.012;rzL=.025;rzR=-.025;}
- browLeft.position.y+=(y-browLeft.position.y)*.16; browRight.position.y+=(y-browRight.position.y)*.16;
- browLeft.rotation.z+=(rzL-browLeft.rotation.z)*.16; browRight.rotation.z+=(rzR-browRight.rotation.z)*.16;
 }
 // v3: keine sonstigen geometrischen Fallback-Teile mehr – erst das echte GLB anzeigen.
 // addRobotFrame();
@@ -224,7 +161,6 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
  box=new THREE.Box3().setFromObject(model); const center=new THREE.Vector3();box.getCenter(center);
  model.position.x-=center.x; model.position.y-=center.y+.04; model.position.z-=center.z;
  model.updateMatrixWorld(true);
- addBrowsAndLashesFromEyes();
  modelReady=true; setExpression('friendly'); btn.textContent='● 3D'; hideStatus(); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
  console.info('JARVIS 3D v6.7 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
 },p=>{if(active&&p.total)showStatus('GLB lädt … '+Math.round(p.loaded/p.total*100)+' %')},e=>{console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e);btn.textContent='⚠ 3D';btn.title='facecap.glb konnte nicht geladen werden';const msg=(e&&e.message)?e.message:String(e||'Unbekannter Fehler');
@@ -328,7 +264,7 @@ function syncAvatarState(now){
 }
 function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);const dt=Math.min(.05,(now-(loop.last||now))/1000);loop.last=now;
  let speaking=!!(window.__jvLipAudio&&!window.__jvLipAudio.paused&&!window.__jvLipAudio.ended);
- const st=syncAvatarState(now); applyMorphs(dt,speaking,now); animateBrows();
+ const st=syncAvatarState(now); applyMorphs(dt,speaking,now);
  const baseY=Math.sin(now*.00055)*.035, baseX=Math.sin(now*.0007)*.008;
  root.rotation.y=baseY+(st==='thinking'?.055:0);
  root.rotation.x=baseX+(st==='listening'?-.018:st==='thinking'?-.010:0);
