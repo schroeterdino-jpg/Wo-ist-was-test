@@ -328,6 +328,22 @@
             '#ltMap .lt-btn{flex:1;padding:11px 8px;border-radius:10px;border:1px solid rgba(93,209,255,.4);background:rgba(10,22,33,.95);color:#49d7ff;font:700 13px "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase}';
         document.head.appendChild(st);
     }
+    /* Anzeige im Fenster: "Der User geht schwimmen." -> "Du gehst schwimmen." (nur die Anzeige, der gespeicherte Text bleibt) */
+    const DU_VERB = { ist: 'bist', hat: 'hast', wird: 'wirst', muss: 'musst', will: 'willst', kann: 'kannst', soll: 'sollst', darf: 'darfst', mag: 'magst', weiß: 'weißt', war: 'warst', hatte: 'hattest', möchte: 'möchtest', sollte: 'solltest', musste: 'musstest', wollte: 'wolltest', konnte: 'konntest', durfte: 'durftest', mochte: 'mochtest', wurde: 'wurdest', gibt: 'gibst', nimmt: 'nimmst', isst: 'isst', liest: 'liest', sieht: 'siehst', fährt: 'fährst', trifft: 'triffst', hilft: 'hilfst', spricht: 'sprichst' };
+    function duForm(t) {
+        let x = String(t || '');
+        x = x.replace(/\b(Der|der) User (\S+)/g, (m, art, v) => {
+            const lead = art === 'Der' ? 'Du' : 'du';
+            const k = v.toLowerCase().replace(/[.,;:!?]+$/, ''), tail = v.slice(k.length);
+            let w = DU_VERB[k];
+            if (!w) w = /(?:st|ß|s|z|x)$/.test(k) ? k : /t$/.test(k) ? k.slice(0, -1) + 'st' : k + 'st';
+            return lead + ' ' + w + tail;
+        });
+        x = x.replace(/\b(?:(Der|Die|Das) )?([A-ZÄÖÜ][\wäöüß-]*) des Users\b/g, (m, art, n) => (art === 'Die' ? 'Deine ' : 'Dein ') + n);
+        x = x.replace(/\bdes Users\b/g, 'von dir').replace(/\bdem User\b/g, 'dir').replace(/\bdem Users\b/g, 'dir').replace(/\bdie User\b/g, 'dich').replace(/\bden User\b/g, 'dich').replace(/\b(Der|der) User\b/g, (m, a) => a === 'Der' ? 'Du' : 'du').replace(/\bUsers\b/g, 'deine');
+        x = x.replace(/\bseinen\b/g, 'deinen').replace(/\bseinem\b/g, 'deinem').replace(/\bseiner\b/g, 'deiner').replace(/\bseine\b/g, 'deine').replace(/\bseines\b/g, 'deines').replace(/\bsein\b/g, 'dein');
+        return x;
+    }
     function closeLangzeit() {
         if (!ltEl) return false;
         try { ltEl.remove(); } catch (e) {}
@@ -381,7 +397,7 @@
             const body = mk(row, 'div', 'lt-body');
             const datum = isIsoDay(m.ereignis_datum) ? lesbar(m.ereignis_datum) : (isIsoDay(m.datum_gesagt) ? 'erzählt am ' + lesbar(m.datum_gesagt) : '');
             mk(body, 'div', 'lt-meta', [m.kategorie || 'Eintrag', datum, (m.jaehrlich === true || m.jaehrlich === 'true') ? 'jährlich' : '', (m.frist === true || m.frist === 'true') ? 'FRIST' : ''].filter(Boolean).join(' · '));
-            mk(body, 'div', 'lt-text', String(e.text || '').replace(/\s*\([^)]*\d{4}\)\s*$/, ''));
+            mk(body, 'div', 'lt-text', duForm(String(e.text || '').replace(/\s*\([^)]*\d{4}\)\s*$/, '')));
             const del = mk(row, 'button', 'lt-del', 'Löschen');
             del.addEventListener('click', async () => {
                 if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = 'Sicher?'; setTimeout(() => { if (del.isConnected) { del.dataset.sure = ''; del.textContent = 'Löschen'; } }, 4000); return; }

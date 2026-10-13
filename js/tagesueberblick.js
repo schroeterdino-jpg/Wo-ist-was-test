@@ -74,7 +74,7 @@ async function uebGather() {
             const m = e && e.metadata; if (!m || m.typ !== 'episode' || m.kategorie === 'Geburtstag' || m.kategorie === 'Rückblick') return;
             if (String(m.ereignis_datum || '') !== today) return;
             const txt = String(e.text || '').replace(/\s*\([^()]*\d{4}\)\s*$/, '').trim();   // das angehängte Datum in Klammern weglassen
-            if (txt) out.plaene.push(txt);
+            // Pläne aus dem Langzeitgedächtnis erscheinen hier nicht mehr (Wunsch des Nutzers)
         });
     } catch (e) {}
     return out;
