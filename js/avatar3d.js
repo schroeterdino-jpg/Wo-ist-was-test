@@ -1,12 +1,17 @@
-/* JARVIS 3D v2 – GLB-Facial-Avatar mit ARKit-Morphs, Mimik und Robot-Look. */
+/* JARVIS 3D v5 – GLB-Facial-Avatar mit ARKit-Morphs, Mimik und Robot-Look. */
 (async function(){
 'use strict';
 const holder=document.querySelector('.holo-container'); if(!holder) return;
-let THREE,GLTFLoader;
+let THREE,GLTFLoader,KTX2Loader,MeshoptDecoder;
 try{
   THREE=await import('https://esm.sh/three@0.161.0');
   ({GLTFLoader}=await import('https://esm.sh/three@0.161.0/examples/jsm/loaders/GLTFLoader.js'));
-}catch(e){console.warn('JARVIS 3D: Three.js konnte nicht geladen werden',e);return;}
+  ({KTX2Loader}=await import('https://esm.sh/three@0.161.0/examples/jsm/loaders/KTX2Loader.js'));
+  ({MeshoptDecoder}=await import('https://esm.sh/meshoptimizer@0.20.0'));
+}catch(e){
+  console.error('JARVIS 3D: Loader konnten nicht geladen werden',e);
+  return;
+}
 
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,2)); renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -24,6 +29,9 @@ const metalMat=new THREE.MeshPhysicalMaterial({color:0x66717a,metalness:.92,roug
 const darkMat=new THREE.MeshStandardMaterial({color:dark,metalness:.9,roughness:.3});
 const glowMat=new THREE.MeshStandardMaterial({color:0x8df7ff,metalness:.2,roughness:.18,emissive:cyan,emissiveIntensity:5});
 const morphMeshes=[]; let morphNames=new Set(), model=null, active=false, raf=0, blink=0, expression='neutral', manualMouth=0, modelReady=false;
+const status=document.createElement('div'); status.id='jv3dStatus'; status.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10;display:none;max-width:86%;padding:9px 12px;border:1px solid #16cce8;border-radius:10px;background:#06111ee8;color:#aef7ff;font:700 12px system-ui;text-align:center;box-shadow:0 0 18px #00bfff44;pointer-events:none'; holder.appendChild(status);
+function showStatus(t,err=false){status.textContent=t;status.style.borderColor=err?'#ff5b6e':'#16cce8';status.style.color=err?'#ffd5da':'#aef7ff';status.style.display='block'}
+function hideStatus(){status.style.display='none'}
 const target={}, current={};
 function morphIndex(mesh,name){return mesh.morphTargetDictionary?.[name] ?? mesh.morphTargetDictionary?.[name.replace('_L','Left').replace('_R','Right')] ?? -1}
 function setMorph(name,v){target[name]=Math.max(0,Math.min(1,v))}
@@ -53,7 +61,15 @@ function addRobotFrame(){
 // v3: keine geometrischen Fallback-Teile mehr – erst das echte GLB anzeigen.
 // addRobotFrame();
 
-new GLTFLoader().load('./models/facecap.glb?v=3',g=>{
+// facecap.glb benötigt zwingend EXT_meshopt_compression UND KTX2/BasisU.
+const ktx2Loader=new KTX2Loader()
+  .setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/libs/basis/')
+  .detectSupport(renderer);
+const gltfLoader=new GLTFLoader();
+gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+gltfLoader.setKTX2Loader(ktx2Loader);
+
+gltfLoader.load('./models/facecap.glb?v=5',g=>{
  model=g.scene; faceRoot.add(model);
  model.traverse(o=>{if(!o.isMesh)return; o.frustumCulled=false;
    // v3: Originalmaterial zunächst behalten. So prüfen wir zuerst zuverlässig das echte FaceCap-Modell.
@@ -67,9 +83,10 @@ new GLTFLoader().load('./models/facecap.glb?v=3',g=>{
  box=new THREE.Box3().setFromObject(model); const center=new THREE.Vector3();box.getCenter(center);
  model.position.x-=center.x; model.position.y-=center.y-.05; model.position.z-=center.z;
  model.updateMatrixWorld(true);
- modelReady=true; setExpression('friendly'); btn.textContent='● 3D';
- console.info('JARVIS 3D v3 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
-},undefined,e=>{console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e);btn.textContent='⚠ 3D';btn.title='facecap.glb konnte nicht geladen werden';});
+ modelReady=true; setExpression('friendly'); btn.textContent='● 3D'; showStatus('✓ GLB geladen – Kopf bereit'); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}} setTimeout(()=>{if(active)hideStatus()},1400);
+ console.info('JARVIS 3D v5 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
+},p=>{if(active&&p.total)showStatus('GLB lädt … '+Math.round(p.loaded/p.total*100)+' %')},e=>{console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e);btn.textContent='⚠ 3D';btn.title='facecap.glb konnte nicht geladen werden';const msg=(e&&e.message)?e.message:String(e||'Unbekannter Fehler');
+showStatus('✕ GLB-Fehler: '+msg.slice(0,120),true);});
 
 function resize(){const w=holder.clientWidth||360,h=holder.clientHeight||360;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
 new ResizeObserver(resize).observe(holder);resize();
@@ -85,7 +102,7 @@ function applyMorphs(dt,speaking,now){
 function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);const dt=Math.min(.05,(now-(loop.last||now))/1000);loop.last=now;
  let speaking=!!window.speechSynthesis?.speaking; try{if(window.currentAudio&&!window.currentAudio.paused&&!window.currentAudio.ended)speaking=true}catch(e){}
  applyMorphs(dt,speaking,now); root.rotation.y=Math.sin(now*.00055)*.035; root.rotation.x=Math.sin(now*.0007)*.008;root.position.y=Math.sin(now*.0011)*.012;renderer.render(scene,camera)}
-function setMode(on){active=!!on;renderer.domElement.style.display=active?'block':'none';const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility=active?'hidden':'';if(holo)holo.style.visibility=active?'hidden':'';btn.classList.toggle('active',active);btn.textContent=active?'● 3D':'○ 3D';if(active&&!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
+function setMode(on){active=!!on; const sphere=document.getElementById('jarvisSphere'); const holo=document.getElementById('jarvisHolo'); btn.classList.toggle('active',active); btn.textContent=active?'● 3D':'○ 3D'; if(!active){renderer.domElement.style.display='none';hideStatus();if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} if(!modelReady){renderer.domElement.style.display='none';showStatus('3D-Kopf wird geladen …');if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} renderer.domElement.style.display='block';hideStatus();if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
 const btn=document.createElement('button');btn.id='jv3dToggle';btn.type='button';btn.textContent='○ 3D';btn.title='JARVIS 3D-Kopf';btn.style.cssText='position:absolute;right:8px;top:8px;z-index:9;border:1px solid #16cce8;border-radius:999px;background:#07131ddd;color:#9df6ff;padding:7px 10px;font:700 11px system-ui;letter-spacing:.04em;cursor:pointer;box-shadow:0 0 16px #00bfff33';holder.appendChild(btn);btn.onclick=()=>setMode(!active);
 window.jvAvatar3D={setMode,setExpression,expressions:['neutral','friendly','laugh','sad','serious','surprised','thinking','concerned'],update(p={}){if(p.expression)setExpression(p.expression);if(p.mouth!=null)manualMouth=Math.max(0,Math.min(1,p.mouth));if(p.blink)blink=1},get ready(){return modelReady},get morphs(){return [...morphNames]}};
 })();
