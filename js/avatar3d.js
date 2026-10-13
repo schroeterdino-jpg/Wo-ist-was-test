@@ -28,7 +28,7 @@ const cyan=0x00cfff, dark=0x111820;
 const metalMat=new THREE.MeshPhysicalMaterial({color:0xb8c1c7,metalness:.58,roughness:.48,clearcoat:.10,clearcoatRoughness:.55});
 const darkMat=new THREE.MeshStandardMaterial({color:dark,metalness:.9,roughness:.3});
 const glowMat=new THREE.MeshStandardMaterial({color:0x8df7ff,metalness:.2,roughness:.18,emissive:cyan,emissiveIntensity:5});
-const morphMeshes=[]; let morphNames=new Set(), model=null, active=false, raf=0, blink=0, expression='neutral', manualMouth=0, modelReady=false;
+const morphMeshes=[]; const diagnosticMeshes=[]; let morphNames=new Set(), model=null, active=false, raf=0, blink=0, expression='neutral', manualMouth=0, modelReady=false;
 let speechMorphs={};
 let tongueUntil=0, lastEmotionText='', manualExpressionUntil=0;
 const status=document.createElement('div'); status.id='jv3dStatus'; status.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10;display:none;max-width:86%;padding:9px 12px;border:1px solid #16cce8;border-radius:10px;background:#06111ee8;color:#aef7ff;font:700 12px system-ui;text-align:center;box-shadow:0 0 18px #00bfff44;pointer-events:none'; holder.appendChild(status);
@@ -97,7 +97,7 @@ gltfLoader.setKTX2Loader(ktx2Loader);
 
 gltfLoader.load('./models/facecap.glb?v=5',g=>{
  model=g.scene; faceRoot.add(model);
- model.traverse(o=>{if(!o.isMesh)return; o.frustumCulled=false;
+ model.traverse(o=>{if(!o.isMesh)return; o.frustumCulled=false; diagnosticMeshes.push(o);
    const oldMaterials=Array.isArray(o.material)?o.material:[o.material];
    // Das echte facecap.glb wurde geprüft: 4 Meshes unter den Knoten eyeLeft, eyeRight, head und teeth.
    // Alle vier teilen sich dasselbe Material "lambert5". Deshalb MUSS die Zuordnung über die Elternknoten laufen,
@@ -161,6 +161,33 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
  box=new THREE.Box3().setFromObject(model); const center=new THREE.Vector3();box.getCenter(center);
  model.position.x-=center.x; model.position.y-=center.y+.04; model.position.z-=center.z;
  model.updateMatrixWorld(true);
+
+ // V8 DIAGNOSE: echte Abmessungen des geladenen GLB und seiner Gesichts-Meshes anzeigen.
+ // Rein lesend: verändert weder Geometrie noch Mimik noch die restliche App.
+ function v3(n){return {x:+n.x.toFixed(4),y:+n.y.toFixed(4),z:+n.z.toFixed(4)}}
+ function measureObject(o){
+   const b=new THREE.Box3().setFromObject(o), sz=new THREE.Vector3(), c=new THREE.Vector3();
+   b.getSize(sz); b.getCenter(c); return {name:o.name||'(ohne Name)',size:v3(sz),center:v3(c),min:v3(b.min),max:v3(b.max)};
+ }
+ const diag={model:measureObject(model),meshes:[],morphs:[...morphNames].sort()};
+ for(const m of diagnosticMeshes){
+   let n=m, path=[]; while(n){if(n.name)path.push(n.name);n=n.parent}
+   const d=measureObject(m); d.path=path.join(' > '); diag.meshes.push(d);
+ }
+ window.JARVIS_HEAD_DIAGNOSTICS=diag;
+ console.info('JARVIS KOPF-DIAGNOSE V8',diag);
+ const important=diag.meshes.filter(x=>/eyeleft|eyeright|head|teeth/i.test(x.path));
+ const panel=document.createElement('div'); panel.id='jvHeadDiag';
+ panel.style.cssText='position:fixed;z-index:99999;left:8px;right:8px;bottom:8px;max-height:46vh;overflow:auto;background:#031019f2;color:#bffaff;border:1px solid #19d8f2;border-radius:12px;padding:10px;font:12px/1.35 monospace;box-shadow:0 0 24px #00cfff55;text-align:left';
+ const line=o=>`${o.path||o.name}\n  Größe X/Y/Z: ${o.size.x} / ${o.size.y} / ${o.size.z}\n  Mitte X/Y/Z: ${o.center.x} / ${o.center.y} / ${o.center.z}`;
+ panel.innerHTML='<div style="font:700 14px system-ui;margin-bottom:6px">📐 JARVIS Kopf-Diagnose V8</div>'+
+   '<div>MODELL<br>Größe X/Y/Z: '+diag.model.size.x+' / '+diag.model.size.y+' / '+diag.model.size.z+'<br>Mitte X/Y/Z: '+diag.model.center.x+' / '+diag.model.center.y+' / '+diag.model.center.z+'</div>'+
+   '<pre style="white-space:pre-wrap;margin:8px 0">'+important.map(line).join('\n\n')+'</pre>'+
+   '<div style="font-family:system-ui"><b>Morph Targets ('+diag.morphs.length+'):</b><br>'+diag.morphs.join(', ')+'</div>'+
+   '<button id="jvDiagClose" style="margin-top:8px;padding:7px 12px;border-radius:8px;border:1px solid #19d8f2;background:#082331;color:#bffaff">Schließen</button>';
+ document.body.appendChild(panel);
+ panel.querySelector('#jvDiagClose').onclick=()=>panel.remove();
+
  modelReady=true; setExpression('friendly'); btn.textContent='● 3D'; hideStatus(); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
  console.info('JARVIS 3D v6.7 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
 },p=>{if(active&&p.total)showStatus('GLB lädt … '+Math.round(p.loaded/p.total*100)+' %')},e=>{console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e);btn.textContent='⚠ 3D';btn.title='facecap.glb konnte nicht geladen werden';const msg=(e&&e.message)?e.message:String(e||'Unbekannter Fehler');
