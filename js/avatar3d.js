@@ -23,7 +23,7 @@
     let kopfH = 3.3, kopfChinY = 0, kopfCx = 0, kopfCz = 0;
     let lw = 0, lh = 0, ldpr = 0;
     const GROESSE_FRAU = 1.9, FRAU_RUNTER = 0.1;   // weiblicher Kopf: ohne Körper, deshalb größer und tiefer
-    const GROESSE = 1.12;   // der 3D-Kopf wirkt neben dem breiten Körper sonst klein
+    const GROESSE = 1.72;   // der 3D-Kopf wirkt neben dem breiten Körper sonst klein
 
     function say(m) { try { speak(m, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} }
 
@@ -56,7 +56,7 @@
             const istFrau = false; geladenFrau = false;
             const ktx2 = new KTX2Loader().setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/libs/basis/').detectSupport(renderer);
             const loader = new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
-            const g = await new Promise((ok, no) => loader.load('./models/facecap.glb?v=6', ok, undefined, no));
+            const g = await new Promise((ok, no) => loader.load('./models/facecap.glb?v=8', ok, undefined, no));
             model = g.scene;
             const meshes = [];
             model.traverse(o => { if (o.isMesh && o.morphTargetDictionary) meshes.push(o); });
@@ -74,12 +74,51 @@
             model.updateMatrixWorld(true);
             const box = new THREE.Box3().setFromObject(head, true);   // genau, nur der Kopf (nicht Augäpfel oder Zähne, die darüber hinausragen können)
             kopfH = box.max.y - box.min.y; kopfChinY = box.min.y; kopfCx = (box.min.x + box.max.x) / 2; kopfCz = (box.min.z + box.max.z) / 2;
-            // Hautton wärmer (die Textur ist grau)
-            try { if (head.material) { head.material.color.setRGB(1.5, 1.08, 0.86); head.material.needsUpdate = true; } } catch (e) {}
+            // JARVIS-Roboterlook: bewegliche Gesichtshaut bleibt vollständig morph-fähig.
+            try {
+                const oldMat = head.material;
+                head.material = new THREE.MeshPhysicalMaterial({
+                    color: 0x56636d,
+                    metalness: 0.88,
+                    roughness: 0.27,
+                    clearcoat: 0.48,
+                    clearcoatRoughness: 0.20,
+                    emissive: 0x00131d,
+                    emissiveIntensity: 0.28
+                });
+                head.material.morphTargets = true;
+                head.material.needsUpdate = true;
+
+                // Augen = JARVIS-Cyan, Zähne dezent metallisch.
+                model.traverse(o => {
+                    if (!o.isMesh) return;
+                    const n = String(o.name || '').toLowerCase();
+                    if (n.includes('eyeleft') || n.includes('eyeright')) {
+                        o.material = new THREE.MeshPhysicalMaterial({
+                            color: 0x8ffcff,
+                            emissive: 0x00bde8,
+                            emissiveIntensity: 2.2,
+                            metalness: 0.18,
+                            roughness: 0.18,
+                            clearcoat: 0.65
+                        });
+                    } else if (n.includes('teeth')) {
+                        o.material = new THREE.MeshStandardMaterial({
+                            color: 0xb7c7cf, metalness: 0.55, roughness: 0.32
+                        });
+                    }
+                });
+
+                // Kühles Cyan-Licht statt menschlichem Hautton.
+                const cyanKey = new THREE.DirectionalLight(0x52ddff, 1.45);
+                cyanKey.position.set(-0.7, 0.55, 1.25); scene.add(cyanKey);
+                const cyanRim = new THREE.PointLight(0x00aee8, 1.8, 6);
+                cyanRim.position.set(0.75, 0.25, 1.1); scene.add(cyanRim);
+            } catch (e) { console.warn('JARVIS Material', e); }
             }
             pivot = new THREE.Group(); pivot.rotation.order = 'YXZ'; pivot.add(model); scene.add(pivot);
             status = 'bereit';
-            if (ansage && isOn()) say('Der realistische Kopf ist bereit.');
+            if (ansage && isOn()) say('Der JARVIS-Kopf ist bereit.');
         } catch (e) {
             console.error('Kopf3D laden', e);
             status = 'fehler';
@@ -189,13 +228,13 @@
         }
         if (/\b(an|ein|einschalten|aktivier\w*|zeig\w*|zeige)\b/.test(t) || /^(?:bitte )?(?:schalte? )?(?:den )?\w*\s?kopf/.test(t)) {
             lsSet(KEY, '1');
-            if (!holoOn()) { say('Der realistische Kopf zeigt sich in der Figur-Ansicht. Schalten Sie sie mit dem Knopf oben rechts ein.'); return true; }
-            if (status === 'bereit') say('Hier ist der realistische Kopf.');
+            if (!holoOn()) { say('Der JARVIS-Kopf zeigt sich in der Figur-Ansicht. Schalten Sie sie mit dem Knopf oben rechts ein.'); return true; }
+            if (status === 'bereit') say('Hier ist der JARVIS-Kopf.');
             else if (status === 'fehler') { status = 'leer'; say('Einen Moment, ich lade den Kopf noch einmal.'); laden(true); }
             else { say('Einen Moment, ich lade den Kopf.'); laden(true); }
             return true;
         }
-        say('Der realistische Kopf ist ' + (isOn() ? 'an' : 'aus') + '.');
+        say('Der JARVIS-Kopf ist ' + (isOn() ? 'an' : 'aus') + '.');
         return true;
     }
     if (window.jvCommands) {

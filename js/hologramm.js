@@ -535,7 +535,13 @@ function frameInner(now){
       kopf3dCanvas=window.jvKopf3d.draw({cur,ek,gx,gy,t,mo,mouthO,W,H,sc,ox,oy,PVY,HH,yaw,pit,rol});
     }
   } catch(e) { console.warn('Kopf3D zeichnen',e); }
-  if(kopf3dCanvas) cx.drawImage(kopf3dCanvas,0,0,W,H); else drawMesh(headMesh,xfH,null,true);
+  if(kopf3dCanvas) {
+    // Neuer JARVIS-Modus: ausschließlich das GLB rendern.
+    // Alter Körper, Hals, Arme, Hände und altes 2D-Gesicht bleiben unsichtbar.
+    cx.clearRect(0,0,W,H);
+    cx.drawImage(kopf3dCanvas,0,0,W,H);
+    return;
+  } else drawMesh(headMesh,xfH,null,true);
   // Arme als glänzende Zylinder
   const lift=y=>y+shrugUp*(y>SY-0.4?1:0.5);
   const SK=CFG.head, SLV=CFG.body;
