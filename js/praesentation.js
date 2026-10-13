@@ -1,0 +1,345 @@
+/* ============================================================
+   praesentation.js – Jarvis stellt sich selbst vor
+   ============================================================
+   Start per Sprache: "Präsentation starten", "Stell dich vor" (Abbrechen: ✕ unten oder "Präsentation beenden").
+   Ablauf: Jarvis spricht zu jeder Folie, Stichpunkte erscheinen nacheinander, das Hologramm gestikuliert dazu.
+   Live-Vorführungen (Wetter, Apotheke in der Nähe, Mond, Währung) laufen mit den echten Funktionen der App.
+   Private Dinge (Mail, Kalender, Gedächtnis, Konto) werden nur als Folie gezeigt, nie live.
+   Während der Präsentation hört Jarvis nicht zu (Gesprächsmodus ist aus) und ein Tippen auf die Figur startet nichts.
+   Markenrecht: Während der Präsentation erscheint und klingt der Name "Jarvis" nirgends (Video für TikTok). Der Assistent heißt dann
+   "Scarlett" (NAME unten). Sichtbare Texte (Titel, Statuszeile, Lagebild ...) werden nur auf dem Bildschirm getauscht und danach zurückgesetzt,
+   gesprochene Sätze werden vor dem Sprechen umgeschrieben. Im Alltag bleibt alles beim Alten.
+   Braucht: voice.js (speak), commands.js, hologramm.js (optional, für Gesten).
+   ============================================================ */
+(function () {
+    'use strict';
+    let running = false, aborted = false, card = null, cap = null, savedConv = null, savedHolo = null, runId = 0, wake = 0;
+
+    const SZENEN = [
+        { t: 'SCARLETT', k: 'Persönlicher Sprachassistent', ic: '🎙️', emo: 'greet',
+          say: 'Hallo zusammen! Ich bin Scarlett, der persönliche Sprachassistent von Dino. Er hat mich selbst gebaut, Schritt für Schritt. Darf ich mich kurz vorstellen?',
+          items: ['🎙️ Sprache', '🧠 Gedächtnis', '🚗 Unterwegs', '📅 Termine', '📷 Kamera'], ex: ['Hallo, stell dich vor'] },
+        { t: 'REDEN WIE MIT EINEM MENSCHEN', k: 'Keine festen Kommandos', ic: '💬',
+          say: 'Zuerst das Wichtigste: Man redet einfach ganz normal mit mir. Ohne feste Kommandos, und gern auch mehrere Wünsche in einem Satz. Zum Beispiel: Erinnere mich morgen an den Zahnarzt und setz Milch auf die Einkaufsliste.',
+          items: ['„Erinnere mich morgen an den Zahnarzt“', '„Setz Milch auf die Einkaufsliste“', '„Wo ist der nächste Penny?“', '„Zeig mir meine Termine“'], ex: ['Erinnere mich morgen an den Zahnarzt und setz Milch auf die Einkaufsliste'] },
+        { t: 'DER TAG AUF EINEN BLICK', k: 'Briefing und Schicht', ic: '🌅',
+          say: 'Morgens fasse ich den Tag zusammen: Termine, Wetter, Erinnerungen und wichtige Dinge. Ich richte mich nach seiner Schicht, Früh oder Spät, und der Wechsel läuft ganz von allein.',
+          items: ['📅 Termine von heute', '🌦️ Wetter mit Jacken-Tipp', '⏰ Erinnerungen', '🔁 Schichtplan, Wechsel automatisch'], ex: ['Was steht heute an?', 'Welche Schicht habe ich nächste Woche?'] },
+        { t: 'URLAUBSMODUS', k: 'Ruhe, wenn man frei hat', ic: '🏖️',
+          say: 'Hat Dino Urlaub, sagt er es mir einmal, und ich halte mich zurück. Kein Wetter für den Arbeitsweg, kein Schicht-Briefing, keine Glatteis-Warnung. Nach dem letzten Urlaubstag läuft alles von allein wieder los.',
+          items: ['🏖️ Urlaub per Sprache eintragen', '🔕 Keine Meldungen zum Arbeitsweg', '🔁 Danach automatisch wieder normal', '❓ „Habe ich Urlaub eingetragen?“'],
+          ex: ['Ich habe Urlaub vom 20. Oktober bis 3. November', 'Ich habe ab morgen zwei Wochen Urlaub'] },
+        { t: 'ALLTAG ORGANISIERT', k: 'Listen, Protokolle, Kontakte', ic: '🗂️',
+          say: 'Im Alltag halte ich den Kopf frei. Einkaufsliste und Aufgaben pflege ich per Sprache. Erinnerungen wiederhole ich auf Wunsch, jeden Montag oder alle zwei Wochen, und bei wichtigen frage ich so lange nach, bis sie erledigt sind. Mit einem Wort wie Feierabend starte ich gleich mehrere Aktionen auf einmal. Und anrufen oder navigieren kann ich auch.',
+          items: ['🛒 Einkaufsliste und Aufgaben', '🔁 Erinnerungen mit Wiederholung', '⚡ Protokolle: „Feierabend“ erledigt alles auf einmal', '📞 Anrufen, WhatsApp, Navigation'], ex: ['Erinnere mich jeden Montag an die Mülltonne', 'Ruf Matze an'] },
+        { t: 'WETTER WELTWEIT', k: 'Live-Vorführung', ic: '🌍', say: 'Das Wetter kann ich auch weltweit. Ich zeige es euch live: Istanbul.',
+          items: ['🌍 Jeder Ort der Welt', '🛰️ Wetterkarte mit Vorhersage'],
+          demo: { cmd: 'Zeig mir das Wetter in Istanbul', max: 14000, dwell: 2500 } },
+        { t: 'UNTERWEGS', k: 'Lagebild: Fahrt, Stau, Orte', ic: '🚗',
+          say: 'Unterwegs wird es richtig praktisch. Ich rechne aus, wann man losfahren muss, mit Stau auf der Strecke und Regen am Ziel. Und ich finde alles in der Nähe. Live: die nächste Apotheke.',
+          items: ['⏱️ Abfahrtszeit mit Stau', '🌧️ Wetter am Ziel', '📍 Orte in der Nähe und auf dem Weg', '⛽ Tankstellen und Dieselpreis'],
+          demo: { cmd: 'Wo ist die nächste Apotheke', max: 22000, dwell: 3500 } },
+        { t: 'KONZERT UND ABFAHRT', k: 'Termine merken, Abfahrt rechnen', ic: '🎫',
+          say: 'Sagt man mir, dass morgen ein Konzert ist, merke ich es mir, auch ohne Kalender. Fragt man später, wann man losfahren muss, rechne ich Fahrzeit, Stau und zehn Minuten Puffer ein. Und gibt es einen Einlass vor dem Beginn, nehme ich diese Zeit.',
+          items: ['🧠 Termine einfach per Sprache merken', '⏱️ Abfahrt mit Stau und Puffer', '🎫 Einlass vor dem Beginn zählt', '🗺️ Lagebild zeigt Termin und Abfahrt'],
+          ex: ['Morgen ist das Konzert um 20 Uhr in Hamburg', 'Wann muss ich morgen los zum Konzert?', 'Der Einlass ist um 19 Uhr, wann muss ich los?'] },
+        { t: 'WETTER FÜR MORGEN', k: 'Live-Vorführung', ic: '🗺️', say: 'Auch für morgen zeige ich die Wetterkarte. Live: das Wetter für morgen auf der Karte.',
+          items: ['🗺️ Wetterkarte für heute, morgen, übermorgen', '🌦️ Vorhersage direkt auf der Karte'],
+          demo: { cmd: 'Zeig mir das Wetter für morgen auf der Karte', max: 15000, dwell: 3000 } },
+        { t: 'MOND UND STERNE', k: 'Live-Vorführung', ic: '🌕', say: 'Etwas fürs Auge: Wann ist der nächste Vollmond?',
+          items: ['🌕 Mondphase', '🌅 Sonnenauf- und -untergang'],
+          demo: { cmd: 'Wann ist der nächste Vollmond', max: 14000, dwell: 2500 } },
+        { t: 'UMRECHNEN', k: 'Währungen', ic: '💶', say: 'Und wer viel unterwegs ist, braucht Währungen. Fünfzig Euro in Lira?',
+          items: ['💶 Euro, Lira, Dollar und mehr'],
+          demo: { cmd: 'Was sind 50 Euro in Lira', max: 12000, dwell: 1500 } },
+        { t: 'UNTERWEGS PLUS', k: 'Sprit, Unwetter, Feiertage', ic: '⛽',
+          say: 'Dazu kommt einiges rund ums Fahren. Ich zeige die günstigsten Tankstellen in der Nähe und entlang der Strecke, und warne vor dem Diesel-Hoch. Bei Unwettern gebe ich Bescheid. Außerdem kenne ich Feiertage, Brückentage und die Schulferien in allen Bundesländern.',
+          items: ['⛽ Spritpreise in der Nähe und auf der Strecke', '🌩️ Unwetterwarnungen', '🏖️ Feiertage, Brückentage, Schulferien', '📦 Paketverfolgung'] },
+        { t: 'GEDÄCHTNIS', k: 'Merkt sich, was wichtig ist', ic: '🧠',
+          say: 'Ich habe ein Gedächtnis. Wo steht das Auto? Wo liegt die Brille? Ich weiß es. Im Langzeitgedächtnis merke ich mir auch Pläne, Erlebnisse und Vorlieben, und frage später nach, wie es war.',
+          items: ['🅿️ Parkplatz vom Auto', '🔑 Gegenstände und Orte', '🧠 Langzeitgedächtnis', '💭 „Wie war das Schwimmen?“', '📅 Pläne: „Was habe ich morgen vor?“'], ex: ['Wo habe ich das Auto geparkt?', 'Was habe ich am Wochenende vor?'] },
+        { t: 'POST UND TERMINE', k: 'Mail, Kalender, Fristen', ic: '✉️',
+          say: 'Ich lese E-Mails vor, erkenne Fristen auf Rechnungen und Mahnungen und erinnere rechtzeitig daran. Termine trage ich direkt in den Google Kalender ein. Und wenn man einen Vertrag loswerden will: Ich schreibe die Kündigung, frage Anbieter, Nummer und Zeitpunkt ab, und mache daraus ein fertiges Schreiben zum Drucken oder als PDF.',
+          items: ['✉️ E-Mails vorlesen', '⚠️ Fristen erkennen', '📆 Google Kalender', '📝 Kündigungen schreiben: fertig als PDF oder zum Drucken', '🔔 Neue Mail: wird beim Öffnen von selbst angesagt'], ex: ['Lies meine Mails vor', 'Wann ist die Frist bei der Rechnung?'] },
+        { t: 'MIT DER KAMERA', k: 'Foto-Funktionen', ic: '📷',
+          say: 'Mit der Kamera lese ich Briefe, übersetze Schilder, erkläre Warnleuchten im Auto und mache aus einem Plakat gleich einen Termin.',
+          items: ['📄 Briefe lesen und einordnen', '🔤 Schilder übersetzen', '🚨 Warnleuchten erklären', '📍 Adresse im Foto: Navigation'] },
+        { t: 'SPRACHEN UND WELT', k: 'Dolmetscher, Weltkugel', ic: '🗣️',
+          say: 'Ich dolmetsche auf Englisch, Türkisch, Rumänisch, Polnisch und Russisch. Und ich zeige die Welt: eine Weltkugel mit Nachrichten, und Live-Kameras aus großen Städten.',
+          items: ['🗣️ 5 Sprachen', '🌐 Weltkugel mit Nachrichten', '📹 Live-Kameras'] },
+        { t: 'FREIZEIT', k: 'Filme, Fernsehen, Fußball', ic: '🎬',
+          say: 'Auch für den Feierabend habe ich etwas. Ich gebe Filmtipps nach seinem Geschmack, suche im Fernsehprogramm passende Sendungen, sage, was im Kino läuft, und kenne die Bundesliga-Tabelle.',
+          items: ['🎬 Filmtipps nach Vorlieben', '📺 Fernsehprogramm', '🍿 Kino in der Nähe', '⚽ Bundesliga-Tabelle'], ex: ['Was läuft heute im Fernsehen?', 'Wie steht die Bundesliga?'] },
+        { t: 'AUCH BEI GESCHLOSSENER APP', k: 'Push-Nachrichten', ic: '🔔', emo: 'warn',
+          say: 'Und das Beste: Ich melde mich auch, wenn die App zu ist. Erinnerungen, die Abfahrtszeit mit Stau, Glatteis auf dem Arbeitsweg und wenn der Diesel günstig ist. Achtung: Bei wichtigen Dingen bin ich ziemlich hartnäckig.',
+          items: ['⏰ Erinnerungen mit Nachfassen', '🚗 Abfahrt inklusive Stau', '❄️ Glatteis und Regen', '⛽ Dieselpreis-Alarm'] },
+        { t: 'GEFÜHLE', k: 'Stimme, Gesicht und Gesten passen zusammen', ic: '🎭',
+          say: 'Ich kann auch Gefühle zeigen. Meine Stimme, mein Gesicht und meine Hände passen zu dem, was ich sage. Hört selbst.',
+          items: ['🎉 Freude und Begeisterung', '🤗 Mitgefühl', '😟 Sorge bei Gefahr', '🙄 Augenrollen, wenn es passt'],
+          ex: ['Sei mal ehrlich, wie findest du Montage?'],
+          lines: ['Herzlichen Glückwunsch, bestanden! Das ist ja großartig!', 'Gute Besserung! Das tut mir leid für dich.', 'Achtung, Glatteis auf der A24! Bitte vorsichtig fahren.', 'Schon wieder Montag. Na toll.'] },
+        { t: 'WENN NICHTS LOS IST', k: 'Gimmicks im Leerlauf', ic: '☕',
+          say: 'Und wenn ich nichts zu tun habe, bin ich nicht still. Ich trinke einen Kaffee, gähne, spiele mit einer Münze oder schaue auf die Uhr. Immer etwas anderes.',
+          items: ['☕ Kaffee trinken', '🥱 Gähnen und strecken', '🪙 Münze werfen', '⌚ Auf die Uhr schauen'],
+          gims: ['kaffee', 'gaehnen', 'muenze', 'uhr'] },
+        { t: 'CHARAKTER', k: 'Frech, trocken, lebendig', ic: '😏',
+          say: 'Ich habe auch Charakter: frech, trocken, und auf Wunsch sogar genervt oder beleidigt. Nur Kaffee kochen kann ich leider noch nicht.',
+          items: ['😏 Trockener Humor', '🎭 Stimmungen und Stile', '🙂 Hologramm mit Mimik und Gesten'] },
+        { t: 'DAS WAR\'S', k: 'Danke fürs Zuhören', ic: '✨', emo: 'question',
+          say: 'Das war\'s von mir. Gebaut mit viel Geduld und noch mehr Ideen. Gibt es Fragen?',
+          items: ['✨ Danke!'] }
+    ];
+
+    const NAME = 'Scarlett';
+    const markeNeu = t => String(t == null ? '' : t).replace(/J\.A\.R\.V\.I\.S\.?/g, NAME.toUpperCase()).replace(/JARVIS/g, NAME.toUpperCase()).replace(/Jarvis/g, NAME).replace(/jarvis/g, NAME.toLowerCase());
+    const RX_MARKE = /j\.a\.r\.v\.i\.s|jarvis/i;
+    let orig = new Map(), obs = null, busy = false, prevSpeak = null;
+    function tauschKnoten(n) {
+        if (!n || n.nodeType !== 3) return;
+        const v = n.nodeValue; if (!v || !RX_MARKE.test(v)) return;
+        if (!orig.has(n)) orig.set(n, v);
+        busy = true; try { n.nodeValue = markeNeu(v); } finally { busy = false; }
+    }
+    function tauschBaum(root) {
+        if (!root) return;
+        if (root.nodeType === 3) { tauschKnoten(root); return; }
+        if (root.nodeType !== 1 || /^(SCRIPT|STYLE|NOSCRIPT)$/.test(root.tagName) || root.id === 'praesiCard') return;
+        const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+        let n; while ((n = w.nextNode())) tauschKnoten(n);
+    }
+    let markeAktiv = false;
+    function markeAn() {
+        if (obs) { markeAktiv = true; return; }
+        markeAktiv = true;
+        tauschBaum(document.body);
+        obs = new MutationObserver(list => {
+            if (busy) return;
+            list.forEach(m => {
+                if (m.type === 'characterData') tauschKnoten(m.target);
+                else m.addedNodes.forEach(x => tauschBaum(x));
+            });
+        });
+        obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+        try {   // gesprochene Sätze (KI-Antworten, Ansagen) ohne den Namen
+            if (typeof window.speak === 'function' && !window.speak._praesi) {
+                prevSpeak = window.speak;
+                const w = function (text) { const a = Array.prototype.slice.call(arguments); if (markeAktiv) a[0] = markeNeu(text); return prevSpeak.apply(this, a); };
+                w._praesi = true; window.speak = w;
+            }
+        } catch (e) {}
+    }
+    function markeAus() {
+        markeAktiv = false;
+        try { if (obs) obs.disconnect(); } catch (e) {} obs = null;
+        orig.forEach((v, n) => { try { if (n.isConnected || n.parentNode) { busy = true; n.nodeValue = v; busy = false; } } catch (e) { busy = false; } });
+        orig = new Map();
+        try { if (prevSpeak && window.speak && window.speak._praesi) { window.speak = prevSpeak; prevSpeak = null; } } catch (e) {}
+    }
+
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const alive = id => running && !aborted && id === runId;
+    const idleNow = () => {
+        try { const b = document.getElementById('recordBtn'); if (b && (b.classList.contains('speaking') || b.classList.contains('recording'))) return false; } catch (e) {}
+        try { if (typeof isProcessing !== 'undefined' && isProcessing) return false; } catch (e) {}
+        return true;
+    };
+    function cutSpeech() {
+        try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
+        try { if (typeof currentAudio !== 'undefined' && currentAudio) { currentAudio.pause(); currentAudio = null; } } catch (e) {}
+        try { if (typeof currentUtterance !== 'undefined') currentUtterance = null; } catch (e) {}
+        try { if (typeof setIdleUi === 'function') setIdleUi(); } catch (e) {}
+    }
+
+    function css() {
+        if (document.getElementById('praesiCss')) return;
+        const st = document.createElement('style'); st.id = 'praesiCss';
+        st.textContent =
+            '#praesiCard{position:fixed;left:50%;bottom:max(12px,env(safe-area-inset-bottom));width:min(94vw,560px);transform:translate(-50%,24px);opacity:0;z-index:9000;box-sizing:border-box;padding:14px 16px 12px;border:1px solid rgba(93,209,255,.45);border-radius:14px;background:linear-gradient(180deg,rgba(6,18,30,.88),rgba(3,10,18,.94));box-shadow:0 0 28px rgba(0,190,255,.18),inset 0 0 22px rgba(0,160,220,.07);color:#cfefff;transition:transform .5s ease,opacity .5s ease;font-family:Rajdhani,system-ui,sans-serif}' +
+            '#praesiCard.on{transform:translate(-50%,0);opacity:1}' +
+            '#praesiCard .pk{font:600 11px/1 Orbitron,system-ui,sans-serif;letter-spacing:.2em;color:#6fe7ff;opacity:.85;margin-bottom:6px}' +
+            '#praesiCard .pt{font:700 19px/1.2 Orbitron,system-ui,sans-serif;letter-spacing:.1em;color:#fff;text-shadow:0 0 14px rgba(70,210,255,.7);margin-bottom:10px;display:flex;gap:10px;align-items:center}' +
+            '#praesiCard .pi{font-size:24px}' +
+            '#praesiCard ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;min-height:20px}' +
+            '#praesiCard li{font-size:16px;line-height:1.25;padding:6px 10px;border-left:2px solid #ffa24a;background:rgba(80,180,255,.08);border-radius:0 8px 8px 0;opacity:0;transform:translateX(-14px);transition:opacity .45s ease,transform .45s ease}' +
+            '#praesiCard li.on{opacity:1;transform:none}' +
+            '#praesiCard .pex{display:none;margin-top:8px;padding:7px 10px;border-radius:10px;background:rgba(255,162,74,.12);border:1px dashed rgba(255,162,74,.6);color:#ffd9a8;font-size:14px;line-height:1.35}' +
+            '#praesiCard .pex.on{display:block}' +
+            '#praesiCard .pex b{color:#ffa24a;font-weight:700;letter-spacing:.04em}' +
+            '#praesiCard .pf{display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:10px}' +
+            '#praesiCard .pd{display:flex;gap:5px;flex-wrap:wrap}' +
+            '#praesiCard .pd i{width:7px;height:7px;border-radius:50%;background:rgba(93,209,255,.25)}' +
+            '#praesiCard .pd i.on{background:#ffa24a;box-shadow:0 0 8px #ffa24a}' +
+            '#praesiCard .pd i.done{background:#49d7ff}' +
+            '#praesiCard button{font:600 12px Orbitron,system-ui,sans-serif;letter-spacing:.08em;color:#49d7ff;background:rgba(10,22,33,.8);border:1px solid rgba(93,209,255,.45);border-radius:8px;padding:7px 11px;cursor:pointer}' +
+            '#praesiCap{position:fixed;left:50%;top:max(10px,env(safe-area-inset-top));transform:translateX(-50%);z-index:9100;padding:6px 14px;border-radius:999px;border:1px solid rgba(255,162,74,.7);background:rgba(20,10,2,.82);color:#ffb866;font:700 11px Orbitron,system-ui,sans-serif;letter-spacing:.08em;display:none;white-space:normal;max-width:92vw;text-align:center}' +
+            '#praesiCap.on{display:block}' +
+            '';
+        document.head.appendChild(st);
+    }
+
+    function build() {
+        css();
+        card = document.createElement('div'); card.id = 'praesiCard'; card.setAttribute('role', 'status');
+        card.innerHTML = '<div class="pk"></div><div class="pt"><span class="pi"></span><span class="px"></span></div><ul></ul><div class="pex"></div><div class="pf"><div class="pd"></div><div><button type="button" data-a="skip">WEITER ▶</button> <button type="button" data-a="stop">✕</button></div></div>';
+        card.addEventListener('click', e => {
+            const b = e.target.closest && e.target.closest('button'); if (!b) return;
+            e.stopPropagation();
+            if (b.dataset.a === 'stop') stop(true); else if (b.dataset.a === 'skip') { skipFlag = true; cutSpeech(); }
+        });
+        document.body.appendChild(card);
+        cap = document.createElement('div'); cap.id = 'praesiCap'; cap.textContent = '● LIVE-VORFÜHRUNG'; document.body.appendChild(cap);
+        const dots = card.querySelector('.pd'); dots.innerHTML = SZENEN.map(() => '<i></i>').join('');
+    }
+    let skipFlag = false;
+
+    function show(i) {
+        const s = SZENEN[i];
+        card.querySelector('.pk').textContent = s.k.toUpperCase();
+        card.querySelector('.pi').textContent = s.ic;
+        card.querySelector('.px').textContent = s.t;
+        const ul = card.querySelector('ul'); ul.innerHTML = s.items.map(x => '<li></li>').join('');
+        ul.querySelectorAll('li').forEach((li, n) => { li.textContent = s.items[n]; });
+        const pex = card.querySelector('.pex'); pex.classList.remove('on'); pex.textContent = '';
+        if (s.ex && s.ex.length) {
+            const b = document.createElement('b'); b.textContent = '🎙️ Du sagst: '; pex.appendChild(b);
+            s.ex.forEach((x, n) => { if (n) pex.appendChild(document.createElement('br')); pex.appendChild(document.createTextNode('„' + x + '“')); });
+        }
+        card.querySelectorAll('.pd i').forEach((d, n) => { d.className = n < i ? 'done' : n === i ? 'on' : ''; });
+        card.classList.add('on');
+    }
+    function reveal(i, durMs, id) {
+        const lis = card.querySelectorAll('li'), n = lis.length; if (!n) return;
+        const step = Math.max(700, Math.min(2200, (durMs - 800) / n));
+        lis.forEach((li, k) => setTimeout(() => { if (alive(id)) li.classList.add('on'); }, 600 + k * step));
+        setTimeout(() => { if (alive(id)) lis.forEach(li => li.classList.add('on')); }, Math.max(2500, durMs));
+        const pex = card.querySelector('.pex');
+        const txt = pex ? pex.textContent : '';
+        if (txt) setTimeout(() => { if (alive(id) && pex.textContent === txt) pex.classList.add('on'); }, 600 + n * step + 300);
+    }
+
+    function sag(text, id) {
+        return new Promise(res => {
+            let done = false; const fin = () => { if (!done) { done = true; res(); } };
+            const est = text.length * 70 + 3000;
+            try { speak(text, fin); } catch (e) { setTimeout(fin, est); return; }
+            // Sicherheitsnetz: falls die Sprachausgabe nie "fertig" meldet
+            const t0 = Date.now();
+            const iv = setInterval(() => {
+                if (done || !alive(id) || skipFlag) { clearInterval(iv); fin(); return; }
+                if (Date.now() - t0 > est * 2.2 + 8000) { clearInterval(iv); fin(); }
+            }, 400);
+        });
+    }
+
+    async function warteBisRuhig(id, maxMs) {
+        const t0 = Date.now(); await sleep(1800);
+        while (alive(id) && !skipFlag && Date.now() - t0 < maxMs) { if (idleNow()) { await sleep(600); if (idleNow()) return; } await sleep(300); }
+    }
+
+    /* Schließt ALLES, was eine Vorführung geöffnet haben kann (Lagebild, Wetterkarte, Mond-/Extrafenster, normale Fenster).
+       Bewusst ohne "ist eins offen?"-Prüfung: Wetterkarte und Extrafenster laufen nicht über das normale Fenster-System. */
+    function schliesseFenster() {
+        try { if (window.jvLage && window.jvLage.isOpen && window.jvLage.isOpen()) window.jvLage.close(); } catch (e) {}
+        try { if (typeof closeWeatherMap === 'function') closeWeatherMap(); } catch (e) {}
+        try { if (typeof window.closeExtraWindow === 'function') window.closeExtraWindow(); } catch (e) {}
+        try { if (typeof closePanel === 'function') closePanel(); } catch (e) {}
+        try { const x = document.getElementById('extraFenster'); if (x && x.parentNode) x.parentNode.parentNode ? x.parentNode.remove() : x.remove(); } catch (e) {}
+    }
+
+    async function demo(d, id) {
+        card.classList.remove('on'); cap.textContent = '🎙️ „' + d.cmd + '“'; cap.classList.add('on');
+        await sleep(500);
+        if (!alive(id)) return;
+        let ok = false;
+        try { ok = typeof handleLocalCommand === 'function' && handleLocalCommand(d.cmd); } catch (e) { ok = false; }
+        if (!ok) { try { sendToGroqSmart(d.cmd); } catch (e) {} }
+        await warteBisRuhig(id, d.max);
+        if (alive(id) && !skipFlag) await sleep(d.dwell);
+        cutSpeech(); schliesseFenster(); cap.classList.remove('on'); cap.textContent = '● LIVE-VORFÜHRUNG';
+        await sleep(900);
+    }
+
+    async function run(id) {
+        for (let i = 0; i < SZENEN.length && alive(id); i++) {
+            const s = SZENEN[i]; skipFlag = false;
+            schliesseFenster();
+            show(i);
+            const est = s.say.length * 70;
+            reveal(i, est, id);
+            const p = sag(s.say, id);
+            if (s.emo && window.jvHolo) { setTimeout(() => { try { window.jvHolo.emo(s.emo); } catch (e) {} }, 400); }
+            await p;
+            if (!alive(id)) break;
+            if (s.lines && !skipFlag) { for (const l of s.lines) { if (!alive(id) || skipFlag) break; await sleep(500); await sag(l, id); } }
+            if (s.gims && !skipFlag && window.jvHolo && window.jvHolo.gimShow) {
+                const dur = { kaffee: 6500, gaehnen: 6500, muenze: 5500, uhr: 6000 };
+                for (const k of s.gims) { if (!alive(id) || skipFlag) break; window.jvHolo.gimShow(k, dur[k] || 6000); await sleep((dur[k] || 6000) + 400); }
+            }
+            if (s.demo && !skipFlag) await demo(s.demo, id);
+            else await sleep(i === SZENEN.length - 1 ? 2500 : 700);
+        }
+        if (alive(id)) stop(false);
+    }
+
+    /* Videomodus (für Bildschirmaufnahmen): Name "Jarvis" ist schon VOR der Präsentation überall getauscht und bleibt es, bis man ihn ausschaltet.
+       An/aus per Sprache ("Videomodus an", "Videomodus aus") oder per Link-Anhang (...?video=1 / ?video=0). Wird gemerkt. */
+    const VKEY = 'jv_videomodus';
+    const vGet = () => { try { return localStorage.getItem(VKEY) === '1'; } catch (e) { return false; } };
+    const vSet = on => { try { localStorage.setItem(VKEY, on ? '1' : '0'); } catch (e) {} };
+    function videoModus(on) {
+        vSet(on);
+        if (on) markeAn(); else if (!running) markeAus();
+    }
+
+    function start() {
+        if (running) return;
+        running = true; aborted = false; runId++; skipFlag = false;
+        try { savedConv = typeof conversationMode !== 'undefined' ? conversationMode : null; if (savedConv !== null) conversationMode = false; } catch (e) {}
+        try { savedHolo = window.jvHolo ? window.jvHolo.on() : null; if (window.jvHolo && !savedHolo) window.jvHolo.set(true); } catch (e) {}
+        document.body.classList.add('jv-praesi');
+        markeAn();
+        try { schliesseFenster(); } catch (e) {}
+        if (!card) build();
+        try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wake = l; }).catch(() => {}); } catch (e) {}
+        const id = runId;
+        setTimeout(() => { if (alive(id)) run(id); }, 600);
+    }
+
+    function stop(userCut) {
+        if (!running) return;
+        aborted = true; running = false; runId++;
+        cutSpeech(); schliesseFenster();
+        try { if (savedConv !== null) conversationMode = savedConv; } catch (e) {}
+        try { if (window.jvHolo && savedHolo === false) window.jvHolo.set(false); } catch (e) {}
+        try { if (wake && wake.release) wake.release(); wake = 0; } catch (e) {}
+        document.body.classList.remove('jv-praesi');
+        if (!vGet()) markeAus();
+        if (card) card.classList.remove('on'); if (cap) cap.classList.remove('on');
+        if (userCut) { try { typeWriterStatus('Klicken zum Sprechen...'); } catch (e) {} }
+    }
+
+    /* ---------- Sprachbefehle ---------- */
+    const START_RX = /^(?:bitte\s+)?(?:(?:starte|beginne|mach(?:e)?|zeig(?:e)?(?:\s+mir)?)\s+(?:bitte\s+)?(?:die\s+|deine\s+|eine\s+)?(?:pr[äa]sentation|vorstellung)(?:\s+(?:starten|an))?|pr[äa]sentation(?:\s+(?:starten|an|los))?|stell\s+dich\s+(?:bitte\s+)?(?:mal\s+)?(?:kurz\s+)?vor|(?:kannst|könntest)\s+du\s+dich\s+(?:mal\s+)?(?:kurz\s+)?vorstellen)$/;
+    const STOP_RX = /^(?:bitte\s+)?(?:pr[äa]sentation\s+(?:beenden|abbrechen|stoppen|stopp|aus)|(?:beende|stoppe|brich)\s+(?:die\s+)?pr[äa]sentation(?:\s+ab)?|stopp?|abbrechen|danke\s+das\s+reicht)$/;
+    const V_AN = /^(?:bitte\s+)?(?:(?:video|aufnahme|tiktok|tik\s*tok)[\s-]*modus(?:\s+(?:an|ein|starten|aktivieren))?|(?:schalte?|mach(?:e)?|stell(?:e)?)\s+(?:den\s+)?(?:video|aufnahme|tiktok)[\s-]*modus\s+(?:an|ein))$/;
+    const V_AUS = /^(?:bitte\s+)?(?:(?:video|aufnahme|tiktok|tik\s*tok)[\s-]*modus\s+(?:aus|beenden|ausschalten|deaktivieren)|(?:schalte?|mach(?:e)?)\s+(?:den\s+)?(?:video|aufnahme|tiktok)[\s-]*modus\s+aus)$/;
+    function handle(text) {
+        const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!t || t.length > 60) return false;
+        if (V_AUS.test(t)) { videoModus(false); try { speak('Videomodus ist aus.'); } catch (e) {} return true; }
+        if (V_AN.test(t)) { videoModus(true); try { speak('Videomodus ist an. Ich heiße jetzt ' + NAME + '.'); } catch (e) {} return true; }
+        if (running && STOP_RX.test(t)) { stop(true); return true; }
+        if (START_RX.test(t)) { start(); return true; }
+        return false;
+    }
+    document.addEventListener('click', function (e) { if (running && !(e.target.closest && e.target.closest('#praesiCard'))) { e.stopPropagation(); e.preventDefault(); } }, true);   // während der Präsentation startet kein Tippen das Zuhören
+    try { const q = new URLSearchParams(location.search).get('video'); if (q === '1') vSet(true); else if (q === '0') vSet(false); } catch (e) {}
+    if (vGet()) { if (document.body) markeAn(); else document.addEventListener('DOMContentLoaded', markeAn); }
+    window.jvPraesentation = { videoModus, start, stop: () => stop(true), isRunning: () => running };
+    if (window.jvCommands) {
+        window.jvCommands.use('praesentation', function (text, next) {
+            try { if (handle(text)) return true; } catch (e) { console.error('Präsentation', e); }
+            return next(text);
+        }, 90);
+    }
+})();
