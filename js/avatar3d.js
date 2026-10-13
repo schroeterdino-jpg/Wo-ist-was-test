@@ -92,22 +92,28 @@ function makeArc(points, radius, material){
  return new THREE.Mesh(new THREE.TubeGeometry(curve,18,radius,6,false),material);
 }
 function addBrowsAndLashes(){
- const browMat=new THREE.MeshStandardMaterial({color:0x2b1d19,roughness:.88,metalness:0,side:THREE.DoubleSide});
- const lashMat=new THREE.MeshStandardMaterial({color:0x160f0e,roughness:.92,metalness:0,side:THREE.DoubleSide});
- // Positionen sind auf das nach dem Laden auf ca. 2.34 Einheiten normierte FaceCap-Gesicht abgestimmt.
- browLeft=makeArc([[-.55,.22,.605],[-.39,.29,.655],[-.21,.265,.65]],.024,browMat);
- browRight=makeArc([[.21,.265,.65],[.39,.29,.655],[.55,.22,.605]],.024,browMat);
+ const browMat=new THREE.MeshStandardMaterial({color:0x2b1d19,roughness:.9,metalness:0,side:THREE.DoubleSide});
+ const lashMat=new THREE.MeshStandardMaterial({color:0x120d0c,roughness:.95,metalness:0,side:THREE.DoubleSide});
+ // Brauen: kompakter, deutlich näher am natürlichen Brauenbogen.
+ browLeft=makeArc([[-.51,.315,.635],[-.38,.355,.675],[-.23,.335,.67]],.019,browMat);
+ browRight=makeArc([[.23,.335,.67],[.38,.355,.675],[.51,.315,.635]],.019,browMat);
  faceRoot.add(browLeft,browRight);
- lashesLeft=makeArc([[-.51,.145,.67],[-.38,.18,.705],[-.24,.155,.695]],.008,lashMat);
- lashesRight=makeArc([[.24,.155,.695],[.38,.18,.705],[.51,.145,.67]],.008,lashMat);
- faceRoot.add(lashesLeft,lashesRight);
- // Je Auge drei kurze äußere Wimpernhärchen – bewusst dezent, damit der Avatar nicht geschminkt wirkt.
+
+ // Wimpern NICHT als durchgehende Linie: einzelne sehr feine Härchen direkt am oberen Lidrand.
+ // Innen kurz, außen etwas länger und stärker nach außen/oben geneigt.
+ const xs=[.235,.275,.315,.355,.395,.435,.475,.510];
  for(const side of [-1,1]){
-   for(let i=0;i<3;i++){
-     const x=side*(.455+i*.028), y=.158-i*.004;
-     const lash=makeArc([[x,y,.695],[x+side*.020,y+.024,.708]],.0052,lashMat);
-     faceRoot.add(lash);
-   }
+   const group=new THREE.Group();
+   xs.forEach((ax,i)=>{
+     const x=side*ax;
+     const arch=.205 + .030*(1-Math.pow((ax-.37)/.15,2));
+     const len=.018 + i*.0032;
+     const start=[x,arch,.704];
+     const end=[x+side*(.006+i*.0022),arch+len,.714+i*.001];
+     group.add(makeArc([start,end],.0022,lashMat));
+   });
+   faceRoot.add(group);
+   if(side<0) lashesLeft=group; else lashesRight=group;
  }
 }
 function animateBrows(){
