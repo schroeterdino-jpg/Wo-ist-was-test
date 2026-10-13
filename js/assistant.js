@@ -45,15 +45,6 @@ async function sendToGroqSmart(text, opts = {}) {
 }
 
 async function sendToGroqSmartCore(text, opts = {}) {
-    // v7.0 FIX: Allgemeine Ortssuche (Penny, Aldi, Lidl, Werkstatt usw.) auch dann
-    // lokal abfangen, wenn die Anfrage direkt an sendToGroqSmart() gelangt (z.B. Texteingabe).
-    // Sonst kann die KI aus "in der Nähe" fälschlich eine Restaurant-Aktion machen.
-    // handleOrtsucheCommand startet seine Suche selbst und liefert sofort true, wenn der Satz dazugehört.
-    try {
-        if (typeof window.handleOrtsucheCommand === 'function' && window.handleOrtsucheCommand(text)) return true;
-    } catch (e) {
-        console.error('Ortssuche-Vorabfang fehlgeschlagen', e);
-    }
     isProcessing = true;
     try { if (typeof diagStart === 'function') diagStart(text); } catch (e) {}   // Diagnose-Fenster (nur wenn eingeschaltet)
     clearActionCards();

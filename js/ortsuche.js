@@ -233,6 +233,34 @@
     function overpass(query) { return raceOverpass(query, true); }
     function directOverpass(query) { return raceOverpass(query, false); }
 
+    /* Primärsuche über die bereits vorhandene Google-Places-API der App.
+       Damit hängt die normale Laden-/Ortssuche nicht mehr von den öffentlichen Overpass-Servern ab.
+       Fällt Google Places aus oder ist der Schlüssel nicht eingerichtet, bleibt OpenStreetMap/Overpass als Rückfall erhalten. */
+    async function googlePlaces(res, lat, lon, radius) {
+        if (typeof apiFetch !== 'function') return null;
+        const q = (res && res.entry && res.entry.label) ? res.entry.label : (res && res.query) || '';
+        if (!q) return null;
+        try {
+            const url = '/api/maps?action=places&q=' + encodeURIComponent(q) + '&lat=' + encodeURIComponent(lat.toFixed(6)) + '&lon=' + encodeURIComponent(lon.toFixed(6)) + '&radius=' + encodeURIComponent(radius);
+            const r = await withTimeout(apiFetch(url), 12000);
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error((d && d.error) || ('Status ' + r.status));
+            if (!d || !Array.isArray(d.places)) throw new Error('keine Places-Daten');
+            window.__jvGoogleLast = { at: Date.now(), ok: true, n: d.places.length, msg: '' };
+            return d.places.map(p => ({
+                type: 'google', id: p.name + ':' + p.lat + ':' + p.lon,
+                name: p.name || q, lat: Number(p.lat), lon: Number(p.lon),
+                street: [p.street, p.housenumber].filter(Boolean).join(' '), city: [p.postcode, p.city].filter(Boolean).join(' '),
+                hours: p.hours || '', openNow: p.openNow, until: p.until || null, opensAt: p.opensAt || null,
+                dist: haversine(lat, lon, Number(p.lat), Number(p.lon))
+            })).filter(p => isFinite(p.lat) && isFinite(p.lon) && p.dist <= radius * 1.15).sort((a,b) => a.dist-b.dist);
+        } catch (e) {
+            window.__jvGoogleLast = { at: Date.now(), ok: false, n: 0, msg: String((e && e.message) || e).slice(0,120) };
+            console.warn('Google Places Ortssuche:', e && e.message);
+            return null;
+        }
+    }
+
     function haversine(lat1, lon1, lat2, lon2) {
         const R = 6371000, rad = Math.PI / 180, dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
         const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
@@ -363,8 +391,12 @@
         }
         let places = [], usedRadius = 0;
         try {
-            for (const radius of (res.entry.brand && res.entry.generic ? [3000, 8000] : RADII)) {
+            for (const radius of (res.entry.brand && res.entry.generic ? [3000, 8000, 20000] : RADII)) {
                 usedRadius = radius;
+                // Zuerst Google Places über unsere eigene Vercel-API. Das ist für konkrete Geschäfte wie Penny zuverlässiger.
+                const gp = await googlePlaces(res, pos.lat, pos.lon, radius);
+                if (gp && gp.length) { places = gp; break; }
+                // Rückfall: freie OpenStreetMap-Kartendaten.
                 places = toPlaces(await overpass(buildQuery(res, pos.lat, pos.lon, radius)), res, pos.lat, pos.lon);
                 if (places.length) break;
             }
