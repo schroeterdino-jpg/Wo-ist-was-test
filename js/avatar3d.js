@@ -69,19 +69,38 @@ const gltfLoader=new GLTFLoader();
 gltfLoader.setMeshoptDecoder(MeshoptDecoder);
 gltfLoader.setKTX2Loader(ktx2Loader);
 
-gltfLoader.load('./models/facecap.glb?v=101',g=>{
+gltfLoader.load('./models/facecap.glb?v=102',g=>{
  model=g.scene; faceRoot.add(model);
  model.traverse(o=>{if(!o.isMesh)return; o.frustumCulled=false;
    // v3: Originalmaterial zunächst behalten. So prüfen wir zuerst zuverlässig das echte FaceCap-Modell.
-   if(o.material){o.material.side=THREE.DoubleSide;o.material.needsUpdate=true;}
+   if(o.material){
+     // v10.2: Robot-Look direkt AUF dem animierbaren FaceCap-Mesh.
+     // So bleiben Lippen, Augen, Mimik und Blinzeln vollständig erhalten.
+     const oldMat=o.material;
+     const robotMat=new THREE.MeshPhysicalMaterial({
+       color:0x9aa4aa,
+       metalness:.82,
+       roughness:.30,
+       clearcoat:.38,
+       clearcoatRoughness:.22,
+       envMapIntensity:1.15,
+       side:THREE.DoubleSide
+     });
+     if(oldMat.map) robotMat.map=oldMat.map;
+     if(oldMat.normalMap) robotMat.normalMap=oldMat.normalMap;
+     if(oldMat.roughnessMap) robotMat.roughnessMap=oldMat.roughnessMap;
+     if(oldMat.metalnessMap) robotMat.metalnessMap=oldMat.metalnessMap;
+     robotMat.needsUpdate=true;
+     o.material=robotMat;
+   }
    if(o.morphTargetDictionary&&o.morphTargetInfluences){morphMeshes.push(o);Object.keys(o.morphTargetDictionary).forEach(n=>{morphNames.add(n);target[n]=0;current[n]=0})}
  });
  // Robust zentrieren: erst Weltmatrizen aktualisieren, dann skalieren, danach erneut messen.
  model.updateMatrixWorld(true);
  let box=new THREE.Box3().setFromObject(model), size=new THREE.Vector3();box.getSize(size);
- const sc=2.35/Math.max(size.y,.001); model.scale.multiplyScalar(sc); model.updateMatrixWorld(true);
+ const sc=2.02/Math.max(size.y,.001); model.scale.multiplyScalar(sc); model.updateMatrixWorld(true);
  box=new THREE.Box3().setFromObject(model); const center=new THREE.Vector3();box.getCenter(center);
- model.position.x-=center.x; model.position.y-=center.y-.05; model.position.z-=center.z;
+ model.position.x-=center.x; model.position.y-=center.y+.08; model.position.z-=center.z;
  model.updateMatrixWorld(true);
  modelReady=true; setExpression('friendly'); btn.textContent='● 3D'; showStatus('✓ GLB geladen – Kopf bereit'); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}} setTimeout(()=>{if(active)hideStatus()},1400);
  console.info('JARVIS 3D v5 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
