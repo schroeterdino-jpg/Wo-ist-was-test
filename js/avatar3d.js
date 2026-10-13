@@ -1,4 +1,4 @@
-/* JARVIS 3D v6.5 – v5-Basis + Fish-Audio-Lippensync + Robot-Material direkt auf FaceCap. */
+/* JARVIS 3D v6.7 – v5-Basis + Fish-Audio-Lippensync + Robot-Material direkt auf FaceCap. */
 (async function(){
 'use strict';
 const holder=document.querySelector('.holo-container'); if(!holder) return;
@@ -98,62 +98,60 @@ gltfLoader.setKTX2Loader(ktx2Loader);
 gltfLoader.load('./models/facecap.glb?v=5',g=>{
  model=g.scene; faceRoot.add(model);
  model.traverse(o=>{if(!o.isMesh)return; o.frustumCulled=false;
-   const meshName=String(o.name||'').toLowerCase();
    const oldMaterials=Array.isArray(o.material)?o.material:[o.material];
-
-   // Wichtig: FaceCap kann Gesicht, Iris, Augenweiß und Zähne als Material-Gruppen IM SELBEN Mesh liefern.
-   // Darum nie mehr das komplette Morph-Mesh durch EIN Material ersetzen – genau das hatte Augen/Zähne zerstört.
-   function classifyPart(mat){
-     const n=(meshName+' '+String(mat&&mat.name||'')).toLowerCase();
-     if(/teeth|tooth|zahn|dental/.test(n)) return 'teeth';
-     if(/sclera|eyewhite|eye_white|augenweiss|augenweiß/.test(n)) return 'sclera';
-     if(/iris/.test(n)) return 'iris';
-     if(/pupil/.test(n)) return 'pupil';
-     if(/eye|eyeball|auge/.test(n)) return 'eye';
-     if(/tongue|zunge|gum|gums|mouthinside|mouth_inside|oral/.test(n)) return 'mouth';
-     return 'face';
+   // Das echte facecap.glb wurde geprüft: 4 Meshes unter den Knoten eyeLeft, eyeRight, head und teeth.
+   // Alle vier teilen sich dasselbe Material "lambert5". Deshalb MUSS die Zuordnung über die Elternknoten laufen,
+   // nicht über Materialnamen. So bleiben Augen und Zähne getrennt vom Gesicht.
+   function ancestryName(obj){
+     const names=[]; let n=obj;
+     while(n){ if(n.name) names.push(String(n.name)); n=n.parent; }
+     return names.join(' ').toLowerCase();
    }
-   function copyMaps(dst,src){
-     if(!src)return dst;
-     for(const k of ['map','normalMap','roughnessMap','metalnessMap','aoMap','alphaMap']) if(src[k]) dst[k]=src[k];
-     if(src.transparent){dst.transparent=true;dst.opacity=src.opacity;}
-     return dst;
+   const ancestry=ancestryName(o);
+   const part=/teeth/.test(ancestry)?'teeth':(/eyeleft|eyeright|grp_eye/.test(ancestry)?'eye':(/head/.test(ancestry)?'head':'other'));
+
+   function makeEyeMaterial(oldMat){
+     // Original-Augen-Textur behalten (damit Augenweiß + Pupille erhalten bleiben),
+     // aber die dunkleren Irispixel im Shader grün färben. Keine Zusatzkugel/kein Overlay.
+     const m=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.42,metalness:0,side:THREE.DoubleSide});
+     if(oldMat&&oldMat.map)m.map=oldMat.map;
+     if(oldMat&&oldMat.normalMap)m.normalMap=oldMat.normalMap;
+     m.onBeforeCompile=(shader)=>{
+       shader.fragmentShader=shader.fragmentShader.replace(
+         '#include <map_fragment>',
+         `#include <map_fragment>\n`+
+         `float jvLum = dot(diffuseColor.rgb, vec3(0.299,0.587,0.114));\n`+
+         `float jvIris = 1.0 - smoothstep(0.48, 0.86, jvLum);\n`+
+         `float jvPupil = 1.0 - smoothstep(0.08, 0.30, jvLum);\n`+
+         `vec3 jvGreen = vec3(0.05,0.95,0.30) * (0.45 + 0.70*jvLum);\n`+
+         `diffuseColor.rgb = mix(diffuseColor.rgb, jvGreen, jvIris * (1.0-jvPupil) * 0.96);\n`+
+         `diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.008,0.018,0.012), jvPupil * 0.92);`
+       );
+     };
+     m.customProgramCacheKey=()=> 'jarvis-green-eyes-v67';
+     m.needsUpdate=true; return m;
    }
    function materialFor(oldMat){
-     const part=classifyPart(oldMat);
-     let m;
-     if(part==='teeth' || part==='sclera'){
-       m=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.34,metalness:0,side:THREE.DoubleSide});
-       copyMaps(m,oldMat);
-     } else if(part==='iris'){
-       m=new THREE.MeshStandardMaterial({color:0x20e866,emissive:0x087a32,emissiveIntensity:.85,roughness:.28,metalness:.03,side:THREE.DoubleSide});
-       // Die alte Farbtextur wird bei der Iris absichtlich NICHT übernommen, sonst bleibt die Original-Augenfarbe sichtbar.
-       if(oldMat&&oldMat.normalMap)m.normalMap=oldMat.normalMap;
-     } else if(part==='pupil'){
-       m=new THREE.MeshStandardMaterial({color:0x06150b,emissive:0x063516,emissiveIntensity:.22,roughness:.35,metalness:0,side:THREE.DoubleSide});
-     } else if(part==='eye'){
-       // Falls das Modell Iris/Auge nicht getrennt benennt, wird das vorhandene Augenmaterial grün – ohne Overlay-Geometrie.
-       m=new THREE.MeshStandardMaterial({color:0x28f06b,emissive:0x087a32,emissiveIntensity:.75,roughness:.30,metalness:.02,side:THREE.DoubleSide});
-       if(oldMat&&oldMat.normalMap)m.normalMap=oldMat.normalMap;
-     } else if(part==='mouth'){
-       // Mund/Zunge nicht versilbern. Originalmaterial behalten, damit Mundraum natürlich dunkel/rot bleibt.
-       m=oldMat&&oldMat.clone?oldMat.clone():oldMat;
-       if(m){m.side=THREE.DoubleSide;m.needsUpdate=true;}
-       return m;
-     } else {
-       // Heller, aber bewusst MATT: kein Spiegel-Chrom mehr.
-       m=new THREE.MeshPhysicalMaterial({color:0xaebbc2,metalness:.30,roughness:.68,clearcoat:.03,clearcoatRoughness:.82,side:THREE.DoubleSide});
-       // Nur Relief übernehmen, keine alte Haut-Farbtextur.
-       if(oldMat&&oldMat.normalMap)m.normalMap=oldMat.normalMap;
+     if(part==='teeth'){
+       // Zähne sind im echten GLB ein eigener Knoten: sauber weiß, ohne die Gesichtsfarbe zu übernehmen.
+       const m=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.30,metalness:0,side:THREE.DoubleSide});
+       m.needsUpdate=true; return m;
      }
-     m.needsUpdate=true; return m;
+     if(part==='eye') return makeEyeMaterial(oldMat);
+     if(part==='head'){
+       // Gesicht mattes helles Metall; keine Haut-Farbtextur, damit es nicht wieder spiegelnd/dunkel wird.
+       const m=new THREE.MeshPhysicalMaterial({color:0x9eabb2,metalness:.18,roughness:.78,clearcoat:.015,clearcoatRoughness:.92,side:THREE.DoubleSide});
+       if(oldMat&&oldMat.normalMap)m.normalMap=oldMat.normalMap;
+       m.needsUpdate=true; return m;
+     }
+     return oldMat&&oldMat.clone?oldMat.clone():oldMat;
    }
    const replaced=oldMaterials.map(materialFor);
    o.material=Array.isArray(o.material)?replaced:replaced[0];
    if(o.morphTargetDictionary&&o.morphTargetInfluences){
      morphMeshes.push(o);Object.keys(o.morphTargetDictionary).forEach(n=>{morphNames.add(n);target[n]=0;current[n]=0})
    }
-   console.info('JARVIS 3D material',o.name,oldMaterials.map(m=>m&&m.name),oldMaterials.map(classifyPart));
+   console.info('JARVIS 3D v6.7 mesh',ancestry,'=>',part);
  });
  // Robust zentrieren: erst Weltmatrizen aktualisieren, dann skalieren, danach erneut messen.
  model.updateMatrixWorld(true);
@@ -163,7 +161,7 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
  model.position.x-=center.x; model.position.y-=center.y+.04; model.position.z-=center.z;
  model.updateMatrixWorld(true);
  modelReady=true; setExpression('friendly'); btn.textContent='● 3D'; hideStatus(); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
- console.info('JARVIS 3D v6.5 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
+ console.info('JARVIS 3D v6.7 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
 },p=>{if(active&&p.total)showStatus('GLB lädt … '+Math.round(p.loaded/p.total*100)+' %')},e=>{console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e);btn.textContent='⚠ 3D';btn.title='facecap.glb konnte nicht geladen werden';const msg=(e&&e.message)?e.message:String(e||'Unbekannter Fehler');
 showStatus('✕ GLB-Fehler: '+msg.slice(0,120),true);});
 
