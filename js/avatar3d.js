@@ -95,17 +95,17 @@ function addBrowsAndLashes(){
  const browMat=new THREE.MeshStandardMaterial({color:0x2b1d19,roughness:.88,metalness:0,side:THREE.DoubleSide});
  const lashMat=new THREE.MeshStandardMaterial({color:0x160f0e,roughness:.92,metalness:0,side:THREE.DoubleSide});
  // Positionen sind auf das nach dem Laden auf ca. 2.34 Einheiten normierte FaceCap-Gesicht abgestimmt.
- browLeft=makeArc([[-.56,.38,.59],[-.39,.46,.65],[-.20,.42,.64]],.027,browMat);
- browRight=makeArc([[.20,.42,.64],[.39,.46,.65],[.56,.38,.59]],.027,browMat);
+ browLeft=makeArc([[-.55,.22,.605],[-.39,.29,.655],[-.21,.265,.65]],.024,browMat);
+ browRight=makeArc([[.21,.265,.65],[.39,.29,.655],[.55,.22,.605]],.024,browMat);
  faceRoot.add(browLeft,browRight);
- lashesLeft=makeArc([[-.53,.25,.655],[-.38,.29,.69],[-.23,.26,.68]],.010,lashMat);
- lashesRight=makeArc([[.23,.26,.68],[.38,.29,.69],[.53,.25,.655]],.010,lashMat);
+ lashesLeft=makeArc([[-.51,.145,.67],[-.38,.18,.705],[-.24,.155,.695]],.008,lashMat);
+ lashesRight=makeArc([[.24,.155,.695],[.38,.18,.705],[.51,.145,.67]],.008,lashMat);
  faceRoot.add(lashesLeft,lashesRight);
  // Je Auge drei kurze äußere Wimpernhärchen – bewusst dezent, damit der Avatar nicht geschminkt wirkt.
  for(const side of [-1,1]){
    for(let i=0;i<3;i++){
-     const x=side*(.47+i*.035), y=.275-i*.006;
-     const lash=makeArc([[x,y,.68],[x+side*.025,y+.035,.695]],.0065,lashMat);
+     const x=side*(.455+i*.028), y=.158-i*.004;
+     const lash=makeArc([[x,y,.695],[x+side*.020,y+.024,.708]],.0052,lashMat);
      faceRoot.add(lash);
    }
  }
