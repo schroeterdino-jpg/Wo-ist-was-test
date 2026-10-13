@@ -50,20 +50,26 @@ function addRobotFrame(){
  const core=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,.055,24),glowMat);core.rotation.x=Math.PI/2;core.position.set(0,.78,.28);faceRoot.add(core);
  const ring=new THREE.Mesh(new THREE.TorusGeometry(.17,.025,10,32),glowMat);ring.position.set(0,.78,.31);faceRoot.add(ring);
 }
-addRobotFrame();
+// v3: keine geometrischen Fallback-Teile mehr – erst das echte GLB anzeigen.
+// addRobotFrame();
 
-new GLTFLoader().load('./models/facecap.glb',g=>{
+new GLTFLoader().load('./models/facecap.glb?v=3',g=>{
  model=g.scene; faceRoot.add(model);
  model.traverse(o=>{if(!o.isMesh)return; o.frustumCulled=false;
-   // Das Originalgesicht bleibt morphbar, bekommt aber eine metallische Android-Oberfläche.
-   o.material=metalMat.clone(); o.material.skinning=!!o.isSkinnedMesh; o.material.needsUpdate=true;
+   // v3: Originalmaterial zunächst behalten. So prüfen wir zuerst zuverlässig das echte FaceCap-Modell.
+   if(o.material){o.material.side=THREE.DoubleSide;o.material.needsUpdate=true;}
    if(o.morphTargetDictionary&&o.morphTargetInfluences){morphMeshes.push(o);Object.keys(o.morphTargetDictionary).forEach(n=>{morphNames.add(n);target[n]=0;current[n]=0})}
  });
- // Modell automatisch auf Kopfgröße zentrieren.
- const box=new THREE.Box3().setFromObject(model), size=new THREE.Vector3(), center=new THREE.Vector3();box.getSize(size);box.getCenter(center);
- const sc=2.15/Math.max(size.y,.001); model.scale.setScalar(sc); model.position.set(-center.x*sc,-center.y*sc+.05,-center.z*sc);
- modelReady=true; setExpression('friendly'); console.info('JARVIS 3D bereit – Morph Targets:',[...morphNames]);
-},undefined,e=>console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e));
+ // Robust zentrieren: erst Weltmatrizen aktualisieren, dann skalieren, danach erneut messen.
+ model.updateMatrixWorld(true);
+ let box=new THREE.Box3().setFromObject(model), size=new THREE.Vector3();box.getSize(size);
+ const sc=2.35/Math.max(size.y,.001); model.scale.multiplyScalar(sc); model.updateMatrixWorld(true);
+ box=new THREE.Box3().setFromObject(model); const center=new THREE.Vector3();box.getCenter(center);
+ model.position.x-=center.x; model.position.y-=center.y-.05; model.position.z-=center.z;
+ model.updateMatrixWorld(true);
+ modelReady=true; setExpression('friendly'); btn.textContent='● 3D';
+ console.info('JARVIS 3D v3 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
+},undefined,e=>{console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e);btn.textContent='⚠ 3D';btn.title='facecap.glb konnte nicht geladen werden';});
 
 function resize(){const w=holder.clientWidth||360,h=holder.clientHeight||360;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
 new ResizeObserver(resize).observe(holder);resize();
