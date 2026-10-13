@@ -162,7 +162,7 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
  box=new THREE.Box3().setFromObject(model); const center=new THREE.Vector3();box.getCenter(center);
  model.position.x-=center.x; model.position.y-=center.y+.04; model.position.z-=center.z;
  model.updateMatrixWorld(true);
- modelReady=true; setExpression('friendly'); btn.textContent='● 3D'; showStatus('✓ GLB geladen – Kopf bereit'); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}} setTimeout(()=>{if(active)hideStatus()},1400);
+ modelReady=true; setExpression('friendly'); btn.textContent='● 3D'; hideStatus(); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
  console.info('JARVIS 3D v6.5 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
 },p=>{if(active&&p.total)showStatus('GLB lädt … '+Math.round(p.loaded/p.total*100)+' %')},e=>{console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e);btn.textContent='⚠ 3D';btn.title='facecap.glb konnte nicht geladen werden';const msg=(e&&e.message)?e.message:String(e||'Unbekannter Fehler');
 showStatus('✕ GLB-Fehler: '+msg.slice(0,120),true);});
