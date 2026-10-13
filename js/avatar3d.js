@@ -1,4 +1,4 @@
-/* JARVIS 3D v6.7 – v5-Basis + Fish-Audio-Lippensync + Robot-Material direkt auf FaceCap. */
+/* JARVIS 3D v6.10 – v5-Basis + Fish-Audio-Lippensync + Robot-Material direkt auf FaceCap. */
 (async function(){
 'use strict';
 const holder=document.querySelector('.holo-container'); if(!holder) return;
@@ -31,6 +31,7 @@ const glowMat=new THREE.MeshStandardMaterial({color:0x8df7ff,metalness:.2,roughn
 const morphMeshes=[]; let morphNames=new Set(), model=null, active=false, raf=0, blink=0, expression='neutral', manualMouth=0, modelReady=false;
 let speechMorphs={};
 let tongueUntil=0, lastEmotionText='', manualExpressionUntil=0;
+let browLeft=null,browRight=null,lashesLeft=null,lashesRight=null;
 const status=document.createElement('div'); status.id='jv3dStatus'; status.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10;display:none;max-width:86%;padding:9px 12px;border:1px solid #16cce8;border-radius:10px;background:#06111ee8;color:#aef7ff;font:700 12px system-ui;text-align:center;box-shadow:0 0 18px #00bfff44;pointer-events:none'; holder.appendChild(status);
 function showStatus(t,err=false){status.textContent=t;status.style.borderColor=err?'#ff5b6e':'#16cce8';status.style.color=err?'#ffd5da':'#aef7ff';status.style.display='block'}
 function hideStatus(){status.style.display='none'}
@@ -84,7 +85,43 @@ function addRobotFrame(){
  const core=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,.055,24),glowMat);core.rotation.x=Math.PI/2;core.position.set(0,.78,.28);faceRoot.add(core);
  const ring=new THREE.Mesh(new THREE.TorusGeometry(.17,.025,10,32),glowMat);ring.position.set(0,.78,.31);faceRoot.add(ring);
 }
-// v3: keine geometrischen Fallback-Teile mehr – erst das echte GLB anzeigen.
+// Sichtbare Augenbrauen + dezente obere Wimpern als echte 3D-Geometrie.
+// Sie hängen am Face-Root und bewegen sich mit dem Kopf. Nur avatar3d.js wird dafür geändert.
+function makeArc(points, radius, material){
+ const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));
+ return new THREE.Mesh(new THREE.TubeGeometry(curve,18,radius,6,false),material);
+}
+function addBrowsAndLashes(){
+ const browMat=new THREE.MeshStandardMaterial({color:0x2b1d19,roughness:.88,metalness:0,side:THREE.DoubleSide});
+ const lashMat=new THREE.MeshStandardMaterial({color:0x160f0e,roughness:.92,metalness:0,side:THREE.DoubleSide});
+ // Positionen sind auf das nach dem Laden auf ca. 2.34 Einheiten normierte FaceCap-Gesicht abgestimmt.
+ browLeft=makeArc([[-.56,.38,.59],[-.39,.46,.65],[-.20,.42,.64]],.027,browMat);
+ browRight=makeArc([[.20,.42,.64],[.39,.46,.65],[.56,.38,.59]],.027,browMat);
+ faceRoot.add(browLeft,browRight);
+ lashesLeft=makeArc([[-.53,.25,.655],[-.38,.29,.69],[-.23,.26,.68]],.010,lashMat);
+ lashesRight=makeArc([[.23,.26,.68],[.38,.29,.69],[.53,.25,.655]],.010,lashMat);
+ faceRoot.add(lashesLeft,lashesRight);
+ // Je Auge drei kurze äußere Wimpernhärchen – bewusst dezent, damit der Avatar nicht geschminkt wirkt.
+ for(const side of [-1,1]){
+   for(let i=0;i<3;i++){
+     const x=side*(.47+i*.035), y=.275-i*.006;
+     const lash=makeArc([[x,y,.68],[x+side*.025,y+.035,.695]],.0065,lashMat);
+     faceRoot.add(lash);
+   }
+ }
+}
+function animateBrows(){
+ if(!browLeft||!browRight)return;
+ let y=0, rzL=0, rzR=0;
+ if(expression==='surprised'){y=.075;rzL=-.05;rzR=.05;}
+ else if(expression==='sad'||expression==='concerned'){y=.025;rzL=.13;rzR=-.13;}
+ else if(expression==='serious'){y=-.025;rzL=-.10;rzR=.10;}
+ else if(expression==='happy'||expression==='laugh'){y=.018;rzL=.035;rzR=-.035;}
+ browLeft.position.y+=(y-browLeft.position.y)*.16; browRight.position.y+=(y-browRight.position.y)*.16;
+ browLeft.rotation.z+=(rzL-browLeft.rotation.z)*.16; browRight.rotation.z+=(rzR-browRight.rotation.z)*.16;
+}
+addBrowsAndLashes();
+// v3: keine sonstigen geometrischen Fallback-Teile mehr – erst das echte GLB anzeigen.
 // addRobotFrame();
 
 // facecap.glb benötigt zwingend EXT_meshopt_compression UND KTX2/BasisU.
@@ -264,7 +301,7 @@ function syncAvatarState(now){
 }
 function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);const dt=Math.min(.05,(now-(loop.last||now))/1000);loop.last=now;
  let speaking=!!(window.__jvLipAudio&&!window.__jvLipAudio.paused&&!window.__jvLipAudio.ended);
- const st=syncAvatarState(now); applyMorphs(dt,speaking,now);
+ const st=syncAvatarState(now); applyMorphs(dt,speaking,now); animateBrows();
  const baseY=Math.sin(now*.00055)*.035, baseX=Math.sin(now*.0007)*.008;
  root.rotation.y=baseY+(st==='thinking'?.055:0);
  root.rotation.x=baseX+(st==='listening'?-.018:st==='thinking'?-.010:0);
