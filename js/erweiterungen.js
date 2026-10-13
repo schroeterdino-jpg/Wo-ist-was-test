@@ -12,10 +12,44 @@
     // Diese kommen erst dran, wenn die bisherigen festen Befehle (localcommands.js, nearbymore.js ...) den Satz nicht erkannt haben, vor der KI
     const AFTER_HANDLERS = [];   // (Die Ortssuche hängt sich in ortsuche.js selbst hinter die bisherigen Befehle.)
 
+    // V9: Mehrfachfragen Wetter + Sonne/Mond getrennt ausführen.
+    // Dadurch wird z.B. "Wie wird das Wetter morgen in Schwarzenbek und wann ist der nächste Vollmond?"
+    // nicht mehr als ein einziger Wetter-Ortsname missverstanden.
+    function handleWeatherMoonMulti(text) {
+        const raw = String(text || '').trim();
+        if (!raw || raw.length > 220) return false;
+        const low = raw.toLowerCase();
+        const hasWeather = /\b(wetter|wetterkarte|wettervorhersage|temperatur|regen)\b/.test(low);
+        const hasMoonSun = /\b(vollmond|neumond|mond|mondphase|sonnenaufgang|sonnenuntergang)\b/.test(low);
+        if (!hasWeather || !hasMoonSun) return false;
+
+        // An Konjunktionen/Satzgrenzen trennen; nur übernehmen, wenn danach beide Themen als eigene Teile vorliegen.
+        const parts = raw.split(/\s+(?:und|außerdem|sowie)\s+|[?;]+\s*/i).map(x => x.trim()).filter(Boolean);
+        const weatherParts = parts.filter(x => /\b(wetter|wetterkarte|wettervorhersage|temperatur|regen)\b/i.test(x));
+        const moonParts = parts.filter(x => /\b(vollmond|neumond|mond|mondphase|sonnenaufgang|sonnenuntergang)\b/i.test(x));
+        if (!weatherParts.length || !moonParts.length) return false;
+
+        let handled = false;
+        // Wetter zuerst anstoßen; die Daten werden asynchron geladen.
+        try {
+            if (typeof window.handleWeatherMapCommand === 'function') {
+                handled = !!window.handleWeatherMapCommand(weatherParts[0]) || handled;
+            }
+        } catch (e) { console.error('Mehrfachfrage Wetter fehlgeschlagen', e); }
+        // Mond/Sonne separat ausführen. Das Mondfenster liegt sichtbar oben; nach dem Schließen bleibt die Wetteransicht darunter.
+        try {
+            if (typeof window.handleSonneMondCommand === 'function') {
+                handled = !!window.handleSonneMondCommand(moonParts[0]) || handled;
+            }
+        } catch (e) { console.error('Mehrfachfrage Mond/Sonne fehlgeschlagen', e); }
+        return handled;
+    }
+
     // 1) Sprachbefehle
     if (window.jvCommands) {   // Befehlsliste (commands.js)
         window.jvCommands.use('erweiterungen', function (text, next) {
             try {
+                if (handleWeatherMoonMulti(text)) return true;
                 for (const name of HANDLERS) {
                     if (typeof window[name] === 'function' && window[name](text)) return true;
                 }

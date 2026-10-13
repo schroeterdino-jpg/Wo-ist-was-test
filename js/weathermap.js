@@ -76,6 +76,12 @@ function parseWeatherMapRequest(text) {
     // ohne Ort: "Zeig mir die Wetterkarte" / "Wetterkarte"
     if (/^(?:(?:zeig\w*|öffne\w*|mach\w*)\s+(?:mir\s+)?(?:bitte\s+)?(?:mal\s+)?(?:die\s+|eine\s+)?)?wetterkarte(?:\s+bitte)?$/.test(t)) return { place: '', dayOffset };
 
+    // V9: normale Wetterfragen ohne Ortsnamen sollen ebenfalls die vorhandene Wetteranzeige öffnen.
+    // Beispiele: "Wie wird das Wetter morgen?", "Wie ist das Wetter heute?"
+    if (/\bwetter\b/.test(t) && /\b(?:wie|wird|ist|heute|morgen|übermorgen|vorhersage)\b/.test(t) && !/\b(?:in|für|von|auf|bei|im|über)\s+[a-zäöüß]/.test(tk)) {
+        return { place: '', dayOffset };
+    }
+
     // mit Ort: alles nach "Wetter..." und "in/für/von/auf/bei/im"
     const m = tk.match(/\b(?:wetterkarte|wettervorhersage|wetterlage|wetter)\b.*?(?<![\wäöüß])(?:in|für|von|auf|bei|im|über)\s+(.+)$/)
         || tk.match(/\bwetterkarte\s+([a-zäöüß][a-zäöüß .'-]*)$/);   // "Wetterkarte Istanbul" ohne "in"
