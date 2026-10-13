@@ -326,6 +326,7 @@
             const h = (name) => (res.headers && res.headers.get && res.headers.get(name)) || null;
             const engine = h('x-voice-engine') || 'fish';
             blob.__jvSpeech = true;                                                    // Sprach-Datei (für das Tempo beim Abspielen)
+            blob.__jvLipText = String(text || '');                                      // v6: Text für FaceCap-Lippensynchronisation
             blob.__jvFish = engine === 'fish' && (sp === 1 || h('x-fish-speed') === 'applied');   // Tempo schon von Fish Audio eingebaut: beim Abspielen nicht noch einmal
             return { blob, engine };
         } catch (e) {
@@ -333,58 +334,6 @@
             return null;
         }
     }
-
-    // JARVIS v10: Fish-Audio-Lippensynchronisation. Der tatsächlich an Fish gesendete Text
-    // wird zusammen mit der echten MP3-Dauer in eine Visem-Zeitleiste umgerechnet.
-    function lipUnits(text) {
-        const clean = String(text || '').replace(/\[[^\]]+\]/g, ' ').replace(/[^A-Za-zÄÖÜäöüß0-9 ]+/g, ' ').toLowerCase();
-        const out = [];
-        for (const w of clean.split(/\s+/).filter(Boolean)) {
-            for (let i=0;i<w.length;i++) {
-                const a=w[i], b=w.slice(i,i+2);
-                if ('mbp'.includes(a)) out.push('MBP');
-                else if ('fv'.includes(a)) out.push('FV');
-                else if (b==='sch'||'szx'.includes(a)) out.push('S');
-                else if ('ouöü'.includes(a)) out.push('OU');
-                else if ('aä'.includes(a)) out.push('A');
-                else if ('ei'.includes(a)) out.push('EI');
-                else if ('lr'.includes(a)) out.push('L');
-                else if ('kg'.includes(a)) out.push('K');
-                else if ('tdn'.includes(a)) out.push('T');
-            }
-            out.push('REST');
-        }
-        return out.length ? out : ['REST'];
-    }
-    async function prepareLip(blob, text) {
-        if (!blob) return blob;
-        blob.__jvLipText = String(text || '');
-        blob.__jvLipUnits = lipUnits(text);
-        try {
-            const AC = window.AudioContext || window.webkitAudioContext;
-            if (AC) {
-                const ac = window.__jvLipAC || (window.__jvLipAC = new AC());
-                const ab = await blob.arrayBuffer();
-                const buf = await ac.decodeAudioData(ab.slice(0));
-                blob.__jvLipDuration = buf.duration || 0;
-                const ch=buf.getChannelData(0), bins=160, env=[];
-                for(let i=0;i<bins;i++){
-                    const a=Math.floor(i*ch.length/bins), z=Math.floor((i+1)*ch.length/bins); let q=0,n=0;
-                    for(let j=a;j<z;j+=4){ q+=ch[j]*ch[j]; n++; }
-                    env.push(Math.sqrt(q/Math.max(1,n)));
-                }
-                const mx=Math.max(.001,...env); blob.__jvLipEnvelope=env.map(v=>Math.min(1,v/mx));
-            }
-        } catch(e) {}
-        return blob;
-    }
-    function lipMeta(blob){ return blob ? { text:blob.__jvLipText||'', units:blob.__jvLipUnits||['REST'], duration:blob.__jvLipDuration||0, env:blob.__jvLipEnvelope||[] } : null; }
-    window.__jvFishLip = window.__jvFishLip || {active:false,start:0,meta:null,rate:1};
-    function startLip(meta, el){
-        if(!meta) return;
-        window.__jvFishLip={active:true,start:performance.now()/1000,meta,rate:(el&&el.playbackRate)||1};
-    }
-    function stopLip(){ if(window.__jvFishLip) window.__jvFishLip.active=false; }
 
     // Warteschlange der Folge-Stücke: parts[i] ist ein Versprechen auf den Ton von Stück i (oder null, wenn übersprungen)
     function startQueue(chunks, voice, firstEngine) {
@@ -399,11 +348,11 @@
                 if (!r) {                                   // Rest in einem Stück über die Ersatzkette (ohne Fish, falls das erste Stück schon von der Ersatzstimme kam: eine Stimme für den ganzen Text)
                     const remaining = chunks.slice(i).join(' ');
                     const rr = await requestOne(remaining.length > 2300 ? remaining.slice(0, 2300) : remaining, voice, { timeout: 20000, noFish: firstEngine !== 'fish' });
-                    parts[i].res(rr ? await prepareLip(rr.blob, remaining) : null);
+                    parts[i].res(rr ? rr.blob : null);
                     for (let k = i + 1; k < chunks.length; k++) parts[k].res(null);
                     return;
                 }
-                parts[i].res(await prepareLip(r.blob, chunks[i]));
+                parts[i].res(r.blob);
             }
         })();
         let idx = 0;
@@ -418,7 +367,7 @@
         URL.createObjectURL = function (obj) {
             const u = origCreate(obj);
             try { if (obj && obj.__jvQ) queues[u] = obj.__jvQ; } catch (e) {}
-            try { if (obj && obj.__jvSpeech) speechUrls[u] = { fishSpeed: !!obj.__jvFish, lip: lipMeta(obj) }; } catch (e) {}
+            try { if (obj && obj.__jvSpeech) speechUrls[u] = { fishSpeed: !!obj.__jvFish, lipText: String(obj.__jvLipText || '') }; } catch (e) {}
             return u;
         };
         const proto = window.HTMLMediaElement && window.HTMLMediaElement.prototype;
@@ -429,12 +378,15 @@
                     // Sprechtempo sicherstellen (unabhängig davon, wie voice.js das Audio-Element anlegt)
                     const sInfo = speechUrls[this.src];
                     if (sInfo) {
+                        // v6: Das echte Fish-Audio-Element + genau der Text dieses Audio-Stücks stehen dem 3D-Kopf zur Verfügung.
+                        window.__jvLipAudio = this;
+                        window.__jvLipText = sInfo.lipText || '';
+                        window.__jvLipStartedAt = performance.now();
                         const r = sInfo.fishSpeed ? 1 : speechRate();
                         this.defaultPlaybackRate = r;
                         this.playbackRate = r;
                         try { this.preservesPitch = true; this.webkitPreservesPitch = true; } catch (e) {}
                     }
-                    if (sInfo && sInfo.lip) startLip(sInfo.lip, this);
                     const q = queues[this.src];
                     if (q && !this.__jvChained) { this.__jvChained = true; delete queues[this.src]; chainPlayback(this, q); }
                 } catch (e) {}
@@ -466,7 +418,6 @@
                 }
             } catch (e) { /* bei einem Problem: so tun, als wäre alles gespielt */ }
             urls.forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
-            stopLip();
             if (typeof origEnded === 'function') origEnded.call(el, ev);
         };
     }
@@ -505,14 +456,13 @@
 
         if (isAck) {
             const a = await requestOne(chunks[0], voice, { timeout: 20000, fishOnly: true });
-            return a ? await prepareLip(a.blob, chunks[0]) : silentBlob();
+            return a ? a.blob : silentBlob();
         }
 
         // Erstes (oder einziges) Stück: normale Kette. Fish Audio bekommt viel Zeit (Server 15 s), erst dann springt die Ersatzstimme ein.
         const r = await requestOne(chunks[0], voice, { timeout: 30000 });
         if (!r) return null;
         setLastVoice(r.engine, Date.now() - started, full.length, chunks.length, (full.match(/\[[a-z ]+\]/g) || []));
-        await prepareLip(r.blob, chunks[0]);
         if (chunks.length > 1) {
             // Kam das erste Stück nicht von Fish Audio, wird der Rest einheitlich über dieselbe Ersatzkette geholt
             const restChunks = r.engine === 'fish' ? chunks.slice(1) : [chunks.slice(1).join(' ')];
