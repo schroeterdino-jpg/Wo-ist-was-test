@@ -1,12 +1,28 @@
 /* Jarvis 3D-Avatar: optionale 3D-Ansicht zusätzlich zum bisherigen Hologramm. */
 (async function(){
 'use strict';
-let THREE;
-try { THREE = await import('https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js'); }
-catch(e){ console.warn('Jarvis 3D konnte Three.js nicht laden:',e); return; }
-
 const holder=document.querySelector('.holo-container');
 if(!holder) return;
+
+// Der Schalter wird sofort angelegt und ist IMMER sichtbar – unabhängig von der aktiven Ansicht.
+const btn=document.createElement('button');
+btn.id='jv3dToggle';
+btn.type='button';
+btn.textContent='◈ 3D-Kopf';
+btn.title='3D-Kopf ein-/ausschalten';
+btn.setAttribute('aria-label','3D-Kopf ein-/ausschalten');
+btn.style.cssText='position:absolute;right:42px;top:2px;z-index:20;border:1px solid #4be7d1;border-radius:9px;background:#09232bdd;color:#bffff2;padding:7px 9px;font:600 12px system-ui;cursor:pointer;display:block!important;-webkit-tap-highlight-color:transparent';
+holder.appendChild(btn);
+
+let THREE;
+try { THREE = await import('https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js'); }
+catch(e){
+  console.warn('Jarvis 3D konnte Three.js nicht laden:',e);
+  btn.textContent='⚠ 3D-Kopf';
+  btn.title='3D-Modul konnte nicht geladen werden';
+  btn.addEventListener('click',()=>{ try{ if(typeof speak==='function') speak('Der 3D Kopf konnte nicht geladen werden.'); }catch(_){} });
+  return;
+}
 
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
@@ -97,27 +113,44 @@ function setMode(on){
   active=on;
   renderer.domElement.style.display=on?'block':'none';
   const old=document.getElementById('jarvisSphere');
-  if(old) old.style.display=on?'none':'block';
+  if(old) old.style.display=on?'none':'';
+  const holo=document.getElementById('jarvisHolo');
+  if(holo) holo.style.display=on?'none':'';
   const btn=document.getElementById('jv3dToggle');
   if(btn){btn.textContent=on?'◉ 3D-Kopf':'◈ 3D-Kopf';btn.classList.toggle('active',on)}
   if(on&&!raf) last=performance.now(), raf=requestAnimationFrame(loop);
 }
 
-const btn=document.createElement('button');
-btn.id='jv3dToggle';
-btn.type='button';
-btn.textContent='◈ 3D-Kopf';
-btn.title='Zwischen bisherigem Hologramm und neuem 3D-Kopf wechseln';
-btn.style.cssText='position:absolute;right:12px;top:12px;z-index:8;border:1px solid #4be7d1;border-radius:9px;background:#09232bdd;color:#bffff2;padding:8px 10px;font:600 12px system-ui;cursor:pointer;display:none';
-holder.appendChild(btn);
-btn.addEventListener('click',()=>setMode(!active));
+btn.addEventListener('click',()=>{
+  // Wird aus Kugel/Gehirn geklickt, zuerst die Figur-Ansicht einschalten.
+  if(!active && !document.body.classList.contains('jv-holo')){
+    try{ if(window.jvHolo && typeof window.jvHolo.set==='function') window.jvHolo.set(true); }
+    catch(e){}
+  }
+  setMode(!active);
+});
 
+// Der Knopf bleibt auch außerhalb der Hologramm-Ansicht sichtbar.
 const css=document.createElement('style');
-css.textContent='body.jv-holo #jv3dToggle{display:block} body:not(.jv-holo) #jv3dToggle{display:none}';
+css.textContent='#jv3dToggle{display:block!important}';
 document.head.appendChild(css);
 
-const mo=new MutationObserver(()=>{if(!document.body.classList.contains('jv-holo'))setMode(false)});
-mo.observe(document.body,{attributes:true,attributeFilter:['class']});
+// Sprachbefehle: „3D-Kopf an“, „3D Kopf aus“ oder „3D-Kopf“.
+function handle3DCommand(text, next){
+  const t=String(text||'').toLowerCase().replace(/[.,!?;:]+/g,' ').replace(/\s+/g,' ').trim();
+  if(!/\b3d[ -]?kopf\b/.test(t)) return typeof next==='function' ? next(text) : false;
+  const off=/\b(?:aus|weg|zurück|zurueck)\b/.test(t);
+  if(!off && !document.body.classList.contains('jv-holo')){
+    try{ if(window.jvHolo && typeof window.jvHolo.set==='function') window.jvHolo.set(true); }catch(e){}
+  }
+  setMode(!off);
+  try{ if(typeof speak==='function') speak(off?'3D Kopf aus.':'3D Kopf an.'); }catch(e){}
+  return true;
+}
+if(window.jvCommands && typeof window.jvCommands.use==='function'){
+  window.jvCommands.use('avatar3d', handle3DCommand, 220);
+}
+window.handleAvatar3DCommand=handle3DCommand;
 
 window.jvAvatar3D={
   setMode, 
