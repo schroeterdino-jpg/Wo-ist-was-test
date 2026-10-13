@@ -591,6 +591,7 @@ function frameInner(now){
   }
   pl([[-0.22,yOf(0.09)],[0.22,yOf(0.09)]]);
   }
+  if(!kopf3dCanvas){
   // Nase
   cx.shadowColor='rgba(120,220,255,0.7)';cx.shadowBlur=CFG.glow?5:0;cx.strokeStyle=CFG.f.nose;cx.lineWidth=CFG.glow?1.8:(CFG.mode==='toon'?3:2.2);
   {const pts=[[0.015,YE+0.02,0.03],[0.035,YE-0.18,0.10],[0.05,yOf(0.445)+0.01,0.15],[0.02,yOf(0.425),0.17],[-0.02,yOf(0.425),0.17],[-0.05,yOf(0.445)+0.01,0.15]];
@@ -648,6 +649,7 @@ function frameInner(now){
   for(const dir of [-1,1]){cx.beginPath();for(let i=0;i<=(CFG.smooth?14:6);i++){const u=i/(CFG.smooth?14:6)*2-1;const lift=(u<0?cur.smL:cur.smR)*0.05*u*u;const x=u*mw*(mouthO>0?(1-mouthO*0.3):1),y=my+lift+dir*od*(1-u*u)*(dir>0?0.6:1)+(dir>0?Math.sin(Math.abs(u)*3.1416)*0.0:0);const [px,py]=F(x,y,0.02);if(i===0)cx.moveTo(px,py);else cx.lineTo(px,py);}cx.stroke();}
   cx.shadowBlur=0;cx.globalCompositeOperation='source-over';
   gimProps(proj,lift,sc,t,F,YE,EX,yOf);
+  }
 }
 
     /* ---------- Ein-/Ausschalten ---------- */
