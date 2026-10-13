@@ -23,7 +23,7 @@
     let kopfH = 3.3, kopfChinY = 0, kopfCx = 0, kopfCz = 0;
     let lw = 0, lh = 0, ldpr = 0;
     const GROESSE_FRAU = 1.9, FRAU_RUNTER = 0.1;   // weiblicher Kopf: ohne Körper, deshalb größer und tiefer
-    const GROESSE = 1.72;   // der 3D-Kopf wirkt neben dem breiten Körper sonst klein
+    const GROESSE = 1.38;   // der 3D-Kopf wirkt neben dem breiten Körper sonst klein
 
     function say(m) { try { speak(m, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} }
 
@@ -56,7 +56,7 @@
             const istFrau = false; geladenFrau = false;
             const ktx2 = new KTX2Loader().setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/libs/basis/').detectSupport(renderer);
             const loader = new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
-            const g = await new Promise((ok, no) => loader.load('./models/facecap.glb?v=8', ok, undefined, no));
+            const g = await new Promise((ok, no) => loader.load('./models/facecap.glb?v=9', ok, undefined, no));
             model = g.scene;
             const meshes = [];
             model.traverse(o => { if (o.isMesh && o.morphTargetDictionary) meshes.push(o); });
@@ -74,46 +74,119 @@
             model.updateMatrixWorld(true);
             const box = new THREE.Box3().setFromObject(head, true);   // genau, nur der Kopf (nicht Augäpfel oder Zähne, die darüber hinausragen können)
             kopfH = box.max.y - box.min.y; kopfChinY = box.min.y; kopfCx = (box.min.x + box.max.x) / 2; kopfCz = (box.min.z + box.max.z) / 2;
-            // JARVIS-Roboterlook: bewegliche Gesichtshaut bleibt vollständig morph-fähig.
+            // JARVIS v9: matte titanium face + mechanical shell details.
             try {
-                const oldMat = head.material;
                 head.material = new THREE.MeshPhysicalMaterial({
-                    color: 0x56636d,
-                    metalness: 0.88,
-                    roughness: 0.27,
-                    clearcoat: 0.48,
-                    clearcoatRoughness: 0.20,
-                    emissive: 0x00131d,
-                    emissiveIntensity: 0.28
+                    color: 0x9aa6ad,
+                    metalness: 0.58,
+                    roughness: 0.48,
+                    clearcoat: 0.10,
+                    clearcoatRoughness: 0.62,
+                    emissive: 0x061015,
+                    emissiveIntensity: 0.10
                 });
                 head.material.morphTargets = true;
                 head.material.needsUpdate = true;
 
-                // Augen = JARVIS-Cyan, Zähne dezent metallisch.
+                // Green luminous eyes like the reference.
                 model.traverse(o => {
                     if (!o.isMesh) return;
                     const n = String(o.name || '').toLowerCase();
                     if (n.includes('eyeleft') || n.includes('eyeright')) {
                         o.material = new THREE.MeshPhysicalMaterial({
-                            color: 0x8ffcff,
-                            emissive: 0x00bde8,
-                            emissiveIntensity: 2.2,
-                            metalness: 0.18,
-                            roughness: 0.18,
-                            clearcoat: 0.65
+                            color: 0xbaffc8,
+                            emissive: 0x39ff88,
+                            emissiveIntensity: 3.0,
+                            metalness: 0.08,
+                            roughness: 0.24,
+                            clearcoat: 0.35
                         });
                     } else if (n.includes('teeth')) {
                         o.material = new THREE.MeshStandardMaterial({
-                            color: 0xb7c7cf, metalness: 0.55, roughness: 0.32
+                            color: 0xc7d0d4, metalness: 0.35, roughness: 0.48
                         });
                     }
                 });
 
-                // Kühles Cyan-Licht statt menschlichem Hautton.
-                const cyanKey = new THREE.DirectionalLight(0x52ddff, 1.45);
-                cyanKey.position.set(-0.7, 0.55, 1.25); scene.add(cyanKey);
-                const cyanRim = new THREE.PointLight(0x00aee8, 1.8, 6);
-                cyanRim.position.set(0.75, 0.25, 1.1); scene.add(cyanRim);
+                // Details are children of the head, so they follow all head movement.
+                const details = new THREE.Group();
+                details.name = 'JarvisMechanicalDetails';
+                head.add(details);
+
+                const darkMat = new THREE.MeshStandardMaterial({
+                    color: 0x27333a, metalness: 0.82, roughness: 0.38
+                });
+                const silverMat = new THREE.MeshStandardMaterial({
+                    color: 0xb8c2c7, metalness: 0.72, roughness: 0.36
+                });
+                const greenMat = new THREE.MeshPhysicalMaterial({
+                    color: 0x6dffd0, emissive: 0x21ff9b, emissiveIntensity: 2.2,
+                    transparent: true, opacity: 0.74, roughness: 0.24, metalness: 0.08
+                });
+                const goldMat = new THREE.MeshPhysicalMaterial({
+                    color: 0xffd45d, emissive: 0xffa900, emissiveIntensity: 2.8,
+                    metalness: 0.30, roughness: 0.28, clearcoat: 0.35
+                });
+
+                function box(name, sx, sy, sz, x, y, z, mat, rz=0) {
+                    const m = new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz), mat);
+                    m.name=name; m.position.set(x,y,z); m.rotation.z=rz; details.add(m); return m;
+                }
+
+                // Temple / cheek armor. Kept away from lips and eyelids so facial morphs remain readable.
+                box('leftTemplePlate', .16,.30,.035,-.30,.08,.38,darkMat,-.18);
+                box('rightTemplePlate',.16,.30,.035, .30,.08,.38,darkMat, .18);
+                box('leftCheekPlate', .18,.23,.035,-.27,-.16,.41,silverMat, .18);
+                box('rightCheekPlate',.18,.23,.035, .27,-.16,.41,silverMat,-.18);
+                box('chinPlate',.27,.10,.040,0,-.36,.43,darkMat,0);
+
+                // Forehead circuitry base and central gold power crystal.
+                box('foreheadCircuit',.42,.10,.040,0,.33,.42,darkMat,0);
+                const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(.085,0), goldMat);
+                crystal.name='JarvisForeheadCore';
+                crystal.scale.set(.78,1.25,.40);
+                crystal.position.set(0,.34,.48);
+                details.add(crystal);
+
+                // Transparent skull dome + glowing "brain".
+                const dome = new THREE.Mesh(
+                    new THREE.SphereGeometry(.37,32,18,0,Math.PI*2,0,Math.PI*.53),
+                    new THREE.MeshPhysicalMaterial({
+                        color:0xbfefff, transparent:true, opacity:.18,
+                        roughness:.08, metalness:.05, transmission:.22,
+                        clearcoat:.65, side:THREE.DoubleSide
+                    })
+                );
+                dome.name='JarvisSkullDome';
+                dome.scale.set(1.0,.78,.72);
+                dome.position.set(0,.48,.03);
+                details.add(dome);
+
+                const brain = new THREE.Group();
+                brain.name='JarvisGlowingBrain';
+                brain.position.set(0,.48,.08);
+                details.add(brain);
+                for(let i=0;i<15;i++){
+                    const a=(i/15)*Math.PI*2;
+                    const r=.10 + (i%4)*.035;
+                    const orb=new THREE.Mesh(new THREE.SphereGeometry(.052,12,8),greenMat);
+                    orb.scale.set(1.35,.72,.85);
+                    orb.position.set(Math.cos(a)*r, Math.sin(a)*r*.45, .02+(i%3)*.025);
+                    brain.add(orb);
+                }
+                const brainLight = new THREE.PointLight(0x3dffad, 2.4, 2.4);
+                brainLight.position.set(0,.50,.38);
+                details.add(brainLight);
+
+                // Subtle cool lighting, no mirror-ball gloss.
+                const key = new THREE.DirectionalLight(0xd7f4ff, 1.05);
+                key.position.set(-.8,.8,1.8); scene.add(key);
+                const fill = new THREE.DirectionalLight(0x75dfff,.42);
+                fill.position.set(.9,.1,1.2); scene.add(fill);
+
+                // Gentle brain pulse.
+                const oldAnimate = window.__jarvisBrainPulse;
+                window.__jarvisBrainPulse = { brain, brainLight, greenMat, t:0 };
             } catch (e) { console.warn('JARVIS Material', e); }
             }
             pivot = new THREE.Group(); pivot.rotation.order = 'YXZ'; pivot.add(model); scene.add(pivot);
