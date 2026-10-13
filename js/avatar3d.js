@@ -1,108 +1,208 @@
-/* JARVIS 3D v5 – GLB-Facial-Avatar mit ARKit-Morphs, Mimik und Robot-Look. */
-(async function(){
-'use strict';
-const holder=document.querySelector('.holo-container'); if(!holder) return;
-let THREE,GLTFLoader,KTX2Loader,MeshoptDecoder;
-try{
-  THREE=await import('https://esm.sh/three@0.161.0');
-  ({GLTFLoader}=await import('https://esm.sh/three@0.161.0/examples/jsm/loaders/GLTFLoader.js'));
-  ({KTX2Loader}=await import('https://esm.sh/three@0.161.0/examples/jsm/loaders/KTX2Loader.js'));
-  ({MeshoptDecoder}=await import('https://esm.sh/meshoptimizer@0.20.0'));
-}catch(e){
-  console.error('JARVIS 3D: Loader konnten nicht geladen werden',e);
-  return;
-}
+/* ============================================================
+   KOPF 3D (realistischer Kopf): Optionale Ansicht der Figur mit einem echten 3D-Kopf statt des gezeichneten.
+   Das Modell "Face Cap" (vendor/facecap.glb, Bannaflak, im three.js-Projekt als Beispiel enthalten) hat 52 Gesichtsregler:
+   Augen, Lider, Brauen, Wangen, Mund, Kiefer. Die Mimik, das Sprechen, das Blinzeln, den Blick und die Kopfbewegung liefert weiter js/hologramm.js,
+   dieser Kopf bekommt nur die Werte. Körper, Arme, Gesten und Requisiten (Karte, Schirm ...) bleiben die gezeichneten.
+   Die 3D-Bibliothek (three.js, MIT-Lizenz) liegt im Ordner vendor und wird erst beim Einschalten geladen, sonst kostet die Ansicht nichts.
+   Ein-/Ausschalten per Sprache: "Realistischer Kopf an" / "Realistischer Kopf aus" (auch "3D-Kopf an/aus"). Standard: aus.
+   Klappt das Laden nicht (kein WebGL, Datei fehlt), bleibt der gezeichnete Kopf.
+   Braucht: hologramm.js (ruft aktiv() und draw() auf), commands.js. importmap in index.html (three -> vendor/three.module.js).
+   ============================================================ */
+(function () {
+    const KEY = 'jv_kopf3d';
+    function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    const KEY2 = 'jv_kopf3d_modell';   // 'frau' oder 'standard'
+    const isOn = () => lsGet(KEY) === '1';
+    const frau = () => lsGet(KEY2) === 'frau';
+    const holoOn = () => document.body.classList.contains('jv-holo');
 
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,2)); renderer.outputColorSpace=THREE.SRGBColorSpace;
-renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.25;
-renderer.domElement.id='jarvisAvatar3D';
-renderer.domElement.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:none;z-index:4;pointer-events:none'; holder.appendChild(renderer.domElement);
-const scene=new THREE.Scene(); const camera=new THREE.PerspectiveCamera(28,1,.01,100); camera.position.set(0,.03,4.4);
-scene.add(new THREE.HemisphereLight(0xaeeeff,0x03070d,2.2));
-let key=new THREE.DirectionalLight(0xdffaff,4.2);key.position.set(2.5,3.5,4);scene.add(key);
-let rim=new THREE.DirectionalLight(0x00bfff,3.5);rim.position.set(-3,1,-1);scene.add(rim);
-let fill=new THREE.PointLight(0x00eaff,18,8);fill.position.set(2,-1,2);scene.add(fill);
-const root=new THREE.Group();scene.add(root); const faceRoot=new THREE.Group();root.add(faceRoot);
-const cyan=0x00cfff, dark=0x111820;
-const metalMat=new THREE.MeshPhysicalMaterial({color:0x66717a,metalness:.92,roughness:.28,clearcoat:.25,clearcoatRoughness:.3});
-const darkMat=new THREE.MeshStandardMaterial({color:dark,metalness:.9,roughness:.3});
-const glowMat=new THREE.MeshStandardMaterial({color:0x8df7ff,metalness:.2,roughness:.18,emissive:cyan,emissiveIntensity:5});
-const morphMeshes=[]; let morphNames=new Set(), model=null, active=false, raf=0, blink=0, expression='neutral', manualMouth=0, modelReady=false;
-const status=document.createElement('div'); status.id='jv3dStatus'; status.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10;display:none;max-width:86%;padding:9px 12px;border:1px solid #16cce8;border-radius:10px;background:#06111ee8;color:#aef7ff;font:700 12px system-ui;text-align:center;box-shadow:0 0 18px #00bfff44;pointer-events:none'; holder.appendChild(status);
-function showStatus(t,err=false){status.textContent=t;status.style.borderColor=err?'#ff5b6e':'#16cce8';status.style.color=err?'#ffd5da':'#aef7ff';status.style.display='block'}
-function hideStatus(){status.style.display='none'}
-const target={}, current={};
-function morphIndex(mesh,name){return mesh.morphTargetDictionary?.[name] ?? mesh.morphTargetDictionary?.[name.replace('_L','Left').replace('_R','Right')] ?? -1}
-function setMorph(name,v){target[name]=Math.max(0,Math.min(1,v))}
-function clearExpression(){for(const n of morphNames) if(!/^eyeBlink_|^jawOpen$|^mouthClose$/.test(n)) target[n]=0}
-function setExpression(name='neutral'){
- expression=name; clearExpression();
- const both=(n,v)=>{setMorph(n+'_L',v);setMorph(n+'_R',v)};
- switch(name){
-  case 'friendly': case 'happy': both('mouthSmile',.52);both('cheekSquint',.18);setMorph('browInnerUp',.08);break;
-  case 'laugh': both('mouthSmile',.95);both('cheekSquint',.55);setMorph('jawOpen',.34);both('eyeSquint',.24);break;
-  case 'sad': both('mouthFrown',.68);setMorph('browInnerUp',.72);both('eyeSquint',.12);break;
-  case 'serious': both('browDown',.48);both('mouthPress',.28);break;
-  case 'surprised': both('eyeWide',.72);setMorph('browInnerUp',.75);both('browOuterUp',.62);setMorph('jawOpen',.38);break;
-  case 'thinking': setMorph('eyeLookUp_R',.35);setMorph('eyeLookUp_L',.35);setMorph('eyeLookOut_R',.22);setMorph('eyeLookIn_L',.22);setMorph('mouthPucker',.16);setMorph('browInnerUp',.18);break;
-  case 'concerned': setMorph('browInnerUp',.52);both('browDown',.22);both('mouthFrown',.35);break;
- }
-}
+    let status = 'leer';   // leer | laedt | bereit | fehler
+    let THREE = null, renderer = null, scene = null, cam = null, pivot = null, model = null, head = null, c3 = null;
+    let morphMeshes = [], augeR = null, augeL = null, kiefer = [], geladenFrau = false;
+    let kopfH = 3.3, kopfChinY = 0, kopfCx = 0, kopfCz = 0;
+    let lw = 0, lh = 0, ldpr = 0;
+    const GROESSE_FRAU = 1.9, FRAU_RUNTER = 0.1;   // weiblicher Kopf: ohne Körper, deshalb größer und tiefer
+    const GROESSE = 1.12;   // der 3D-Kopf wirkt neben dem breiten Körper sonst klein
 
-// Mechanische Schulter-/Hals-Silhouette – unabhängig vom beweglichen Gesicht.
-function addRobotFrame(){
- const neck=new THREE.Mesh(new THREE.CylinderGeometry(.31,.4,.72,24),darkMat);neck.position.set(0,-1.28,-.08);root.add(neck);
- const chest=new THREE.Mesh(new THREE.SphereGeometry(1,32,16),darkMat);chest.scale.set(1.25,.30,.46);chest.position.set(0,-1.7,-.1);root.add(chest);
- for(const s of [-1,1]){const p=new THREE.Mesh(new THREE.BoxGeometry(.28,.78,.06),darkMat);p.position.set(s*.61,-.08,.14);p.rotation.z=s*.16;faceRoot.add(p);const l=new THREE.Mesh(new THREE.BoxGeometry(.045,.58,.075),glowMat);l.position.set(s*.62,-.08,.19);l.rotation.z=s*.16;faceRoot.add(l)}
- const core=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,.055,24),glowMat);core.rotation.x=Math.PI/2;core.position.set(0,.78,.28);faceRoot.add(core);
- const ring=new THREE.Mesh(new THREE.TorusGeometry(.17,.025,10,32),glowMat);ring.position.set(0,.78,.31);faceRoot.add(ring);
-}
-// v3: keine geometrischen Fallback-Teile mehr – erst das echte GLB anzeigen.
-// addRobotFrame();
+    function say(m) { try { speak(m, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} }
 
-// facecap.glb benötigt zwingend EXT_meshopt_compression UND KTX2/BasisU.
-const ktx2Loader=new KTX2Loader()
-  .setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/libs/basis/')
-  .detectSupport(renderer);
-const gltfLoader=new GLTFLoader();
-gltfLoader.setMeshoptDecoder(MeshoptDecoder);
-gltfLoader.setKTX2Loader(ktx2Loader);
+    function aktiv() {
+        if (status === 'bereit' && isOn() && holoOn()) return true;
+        if (isOn() && holoOn() && status === 'leer') laden(false);
+        return false;
+    }
 
-gltfLoader.load('./models/facecap.glb?v=5',g=>{
- model=g.scene; faceRoot.add(model);
- model.traverse(o=>{if(!o.isMesh)return; o.frustumCulled=false;
-   // v3: Originalmaterial zunächst behalten. So prüfen wir zuerst zuverlässig das echte FaceCap-Modell.
-   if(o.material){o.material.side=THREE.DoubleSide;o.material.needsUpdate=true;}
-   if(o.morphTargetDictionary&&o.morphTargetInfluences){morphMeshes.push(o);Object.keys(o.morphTargetDictionary).forEach(n=>{morphNames.add(n);target[n]=0;current[n]=0})}
- });
- // Robust zentrieren: erst Weltmatrizen aktualisieren, dann skalieren, danach erneut messen.
- model.updateMatrixWorld(true);
- let box=new THREE.Box3().setFromObject(model), size=new THREE.Vector3();box.getSize(size);
- const sc=2.35/Math.max(size.y,.001); model.scale.multiplyScalar(sc); model.updateMatrixWorld(true);
- box=new THREE.Box3().setFromObject(model); const center=new THREE.Vector3();box.getCenter(center);
- model.position.x-=center.x; model.position.y-=center.y-.05; model.position.z-=center.z;
- model.updateMatrixWorld(true);
- modelReady=true; setExpression('friendly'); btn.textContent='● 3D'; showStatus('✓ GLB geladen – Kopf bereit'); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}} setTimeout(()=>{if(active)hideStatus()},1400);
- console.info('JARVIS 3D v5 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
-},p=>{if(active&&p.total)showStatus('GLB lädt … '+Math.round(p.loaded/p.total*100)+' %')},e=>{console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e);btn.textContent='⚠ 3D';btn.title='facecap.glb konnte nicht geladen werden';const msg=(e&&e.message)?e.message:String(e||'Unbekannter Fehler');
-showStatus('✕ GLB-Fehler: '+msg.slice(0,120),true);});
+    async function laden(ansage) {   // ansage: nur wenn der User es selbst verlangt hat, sprechen; beim automatischen Laden beim Start bleibt Jarvis still
+        if (status === 'laedt' || status === 'bereit') return;
+        status = 'laedt';
+        try {
+                        THREE = await import('https://esm.sh/three@0.161.0');
+            const { GLTFLoader } = await import('https://esm.sh/three@0.161.0/examples/jsm/loaders/GLTFLoader.js');
+            const { KTX2Loader } = await import('https://esm.sh/three@0.161.0/examples/jsm/loaders/KTX2Loader.js');
+            const { MeshoptDecoder } = await import('https://esm.sh/meshoptimizer@0.20.0');
+            if (!renderer) {
+            c3 = document.createElement('canvas');   // wird nicht angezeigt: hologramm.js kopiert das Bild an die richtige Stelle der Figur
+            renderer = new THREE.WebGLRenderer({ canvas: c3, alpha: true, antialias: true, premultipliedAlpha: true, preserveDrawingBuffer: true });
+            renderer.setClearColor(0x000000, 0);
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            scene = new THREE.Scene();
+            cam = new THREE.OrthographicCamera(0, 100, 100, 0, -2000, 2000);
+            scene.add(new THREE.HemisphereLight(0xfff4ea, 0x3b3028, 1.25));
+            const key = new THREE.DirectionalLight(0xfff0e2, 2.1); key.position.set(0.6, 0.9, 1.0); scene.add(key);
+            const rim = new THREE.DirectionalLight(0x7fcfff, 0.9); rim.position.set(-1, 0.4, -0.6); scene.add(rim);
+            }
+            if (pivot) { scene.remove(pivot); pivot = null; }
+            const istFrau = false; geladenFrau = false;
+            const ktx2 = new KTX2Loader().setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/libs/basis/').detectSupport(renderer);
+            const loader = new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
+            const g = await new Promise((ok, no) => loader.load('./models/facecap.glb?v=6', ok, undefined, no));
+            model = g.scene;
+            const meshes = [];
+            model.traverse(o => { if (o.isMesh && o.morphTargetDictionary) meshes.push(o); });
+            if (!meshes.length) throw new Error('Kein Kopf im Modell');
+            morphMeshes = meshes; augeR = augeL = null; kiefer = [];
+            if (istFrau) {
+                head = meshes.find(m => m.name === 'head') || meshes[0];
+                model.traverse(o => { if (o.name === 'eyeR') augeR = o; else if (o.name === 'eyeL') augeL = o; if (o.userData && o.userData.jawTravel !== undefined) kiefer.push({ o, y0: o.position.y, d: o.userData.jawTravel }); });
+                // Maße des Kopfes (Meter): Kinn bis Scheitel
+                try { head.material.color.setRGB(0.95, 0.8, 0.7); head.material.needsUpdate = true; } catch (e) {}   // Haut etwas wärmer
+                kopfH = 0.235; kopfChinY = 1.59; kopfCx = 0; kopfCz = -0.01;
+                model.traverse(o => { if (o.material) { const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach(m => { m.needsUpdate = true; }); } });
+            } else {
+            head = meshes.sort((a, b) => Object.keys(b.morphTargetDictionary).length - Object.keys(a.morphTargetDictionary).length)[0];
+            model.updateMatrixWorld(true);
+            const box = new THREE.Box3().setFromObject(head, true);   // genau, nur der Kopf (nicht Augäpfel oder Zähne, die darüber hinausragen können)
+            kopfH = box.max.y - box.min.y; kopfChinY = box.min.y; kopfCx = (box.min.x + box.max.x) / 2; kopfCz = (box.min.z + box.max.z) / 2;
+            // Hautton wärmer (die Textur ist grau)
+            try { if (head.material) { head.material.color.setRGB(1.5, 1.08, 0.86); head.material.needsUpdate = true; } } catch (e) {}
+            }
+            pivot = new THREE.Group(); pivot.rotation.order = 'YXZ'; pivot.add(model); scene.add(pivot);
+            status = 'bereit';
+            if (ansage && isOn()) say('Der realistische Kopf ist bereit.');
+        } catch (e) {
+            console.error('Kopf3D laden', e);
+            status = 'fehler';
+            if (ansage && isOn()) say('Den realistischen Kopf konnte ich nicht laden. Ich bleibe bei der gezeichneten Figur.');
+        }
+    }
 
-function resize(){const w=holder.clientWidth||360,h=holder.clientHeight||360;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
-new ResizeObserver(resize).observe(holder);resize();
-function applyMorphs(dt,speaking,now){
- if(Math.random()<.0022)blink=1; blink=Math.max(0,blink-dt*5.5);
- setMorph('eyeBlink_L',blink);setMorph('eyeBlink_R',blink);
- let talk=speaking ? .08+Math.abs(Math.sin(now*.017))*0.32+Math.abs(Math.sin(now*.029))*0.12 : manualMouth;
- if(expression==='laugh')talk=Math.max(talk,.28); if(expression==='surprised')talk=Math.max(talk,.34);
- setMorph('jawOpen',Math.max(target.jawOpen||0,talk));
- for(const n of morphNames){const want=target[n]||0;current[n]+=(want-current[n])*Math.min(1,dt*9)}
- for(const m of morphMeshes)for(const n of morphNames){const i=morphIndex(m,n);if(i>=0)m.morphTargetInfluences[i]=current[n]||0}
-}
-function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);const dt=Math.min(.05,(now-(loop.last||now))/1000);loop.last=now;
- let speaking=!!window.speechSynthesis?.speaking; try{if(window.currentAudio&&!window.currentAudio.paused&&!window.currentAudio.ended)speaking=true}catch(e){}
- applyMorphs(dt,speaking,now); root.rotation.y=Math.sin(now*.00055)*.035; root.rotation.x=Math.sin(now*.0007)*.008;root.position.y=Math.sin(now*.0011)*.012;renderer.render(scene,camera)}
-function setMode(on){active=!!on; const sphere=document.getElementById('jarvisSphere'); const holo=document.getElementById('jarvisHolo'); btn.classList.toggle('active',active); btn.textContent=active?'● 3D':'○ 3D'; if(!active){renderer.domElement.style.display='none';hideStatus();if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} if(!modelReady){renderer.domElement.style.display='none';showStatus('3D-Kopf wird geladen …');if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} renderer.domElement.style.display='block';hideStatus();if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
-const btn=document.createElement('button');btn.id='jv3dToggle';btn.type='button';btn.textContent='○ 3D';btn.title='JARVIS 3D-Kopf';btn.style.cssText='position:absolute;right:8px;top:8px;z-index:9;border:1px solid #16cce8;border-radius:999px;background:#07131ddd;color:#9df6ff;padding:7px 10px;font:700 11px system-ui;letter-spacing:.04em;cursor:pointer;box-shadow:0 0 16px #00bfff33';holder.appendChild(btn);btn.onclick=()=>setMode(!active);
-window.jvAvatar3D={setMode,setExpression,expressions:['neutral','friendly','laugh','sad','serious','surprised','thinking','concerned'],update(p={}){if(p.expression)setExpression(p.expression);if(p.mouth!=null)manualMouth=Math.max(0,Math.min(1,p.mouth));if(p.blink)blink=1},get ready(){return modelReady},get morphs(){return [...morphNames]}};
+    const cl = (v, a, b) => Math.max(a === undefined ? 0 : a, Math.min(b === undefined ? 1 : b, v));
+    /* Werte der Figur (js/hologramm.js) -> 52 Gesichtsregler. Links/Rechts in der Figur ist aus Sicht des Betrachters, die Regler sind aus Sicht der Person: Betrachter-links = Regler _R */
+    function formen(st) {
+        const c = st.cur, o = {};
+        const bl = cl(c.bL), br = cl(c.bR);
+        o.browOuterUp_R = bl * 0.9; o.browOuterUp_L = br * 0.9;
+        o.browInnerUp = cl(-c.bin * 1.5) + (bl + br) * 0.25;
+        o.browDown_R = cl(c.bin * 1.3) * (1 - bl * 0.6); o.browDown_L = cl(c.bin * 1.3) * (1 - br * 0.6);
+        const lid = cl(1 - (c.open * st.ek - c.sq * 0.35));
+        o.eyeBlink_L = lid; o.eyeBlink_R = lid;
+        const wide = cl((c.open - 1) * 1.8) * st.ek;
+        o.eyeWide_L = wide; o.eyeWide_R = wide;
+        const sm = (cl(c.smL, -1, 1.5) + cl(c.smR, -1, 1.5)) / 2;
+        const sq = cl(c.sq * 0.9 + cl(sm) * 0.25);
+        o.eyeSquint_L = sq; o.eyeSquint_R = sq;
+        const gx = cl(st.gx, -1, 1), gy = cl(st.gy, -1, 1);
+        if (gx > 0) { o.eyeLookOut_L = gx; o.eyeLookIn_R = gx; } else { o.eyeLookOut_R = -gx; o.eyeLookIn_L = -gx; }
+        if (gy > 0) { o.eyeLookUp_L = gy; o.eyeLookUp_R = gy; } else { o.eyeLookDown_L = -gy; o.eyeLookDown_R = -gy; }
+        const wob = 0.5 + 0.5 * Math.sin(st.t * 11);
+        const jaw = cl(st.mo * 0.55 + st.mouthO * 0.2);
+        o.jawOpen = jaw;
+        o.mouthFunnel = cl(st.mouthO * 0.3 + st.mo * 0.16 * wob);
+        o.mouthLowerDown_L = o.mouthLowerDown_R = jaw * 0.3;
+        o.mouthUpperUp_L = o.mouthUpperUp_R = st.mo * 0.12;
+        o.mouthSmile_R = cl(c.smL); o.mouthFrown_R = cl(-c.smL);
+        o.mouthSmile_L = cl(c.smR); o.mouthFrown_L = cl(-c.smR);
+        o.cheekSquint_L = o.cheekSquint_R = cl(sm) * 0.5;
+        o.mouthStretch_L = o.mouthStretch_R = cl((c.mw - 1) * 0.5);
+        o.mouthPucker = cl((1 - c.mw) * 0.5);
+        return o;
+    }
+
+    function draw(st) {
+        if (status !== 'bereit') return null;
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        if (st.W !== lw || st.H !== lh || dpr !== ldpr) {
+            lw = st.W; lh = st.H; ldpr = dpr;
+            renderer.setPixelRatio(dpr); renderer.setSize(st.W, st.H, false);
+            cam.left = 0; cam.right = st.W; cam.top = st.H; cam.bottom = 0; cam.updateProjectionMatrix();
+        }
+        // Maßstab: der gezeichnete Kopf ist HH hoch, der 3D-Kopf soll gleich hoch sein. K0 = mittlere Perspektive der gezeichneten Figur
+        const K0 = 0.76;
+        const px = st.sc * K0;                       // Pixel je Figur-Einheit
+        const s = px * (st.HH / kopfH) * (geladenFrau ? GROESSE_FRAU : GROESSE);     // Pixel je Modell-Einheit
+        // Drehpunkt: unter dem Kinn (wie beim gezeichneten Kopf)
+        const pivX = st.ox, pivY = st.H - (st.oy - (st.PVY - 0.1) * px) - (geladenFrau ? st.H * FRAU_RUNTER : 0);
+        pivot.position.set(pivX, pivY, 0);
+        pivot.scale.setScalar(s);
+        pivot.rotation.set(st.pit, st.yaw, st.rol);
+        // Modell so verschieben, dass das Kinn 0,05 Figur-Einheiten über dem Drehpunkt liegt und die Mitte auf der Achse
+        model.position.set(-kopfCx, -kopfChinY + 0.05 * (kopfH / st.HH), -kopfCz);
+        // Regler setzen
+        const o = formen(st);
+        for (const mm of (geladenFrau ? morphMeshes : [head])) {
+            const dict = mm.morphTargetDictionary, inf = mm.morphTargetInfluences;
+            for (const n in dict) inf[dict[n]] = 0;
+            for (const n in o) { const i = dict[n]; if (i !== undefined) inf[i] = cl(o[n]); }
+        }
+        if (geladenFrau) {   // Augäpfel drehen, Unterkiefer-Teile mitnehmen
+            const gx = cl(st.gx, -1, 1), gy = cl(st.gy, -1, 1);
+            if (augeR) augeR.rotation.set(-gy * 0.3, gx * 0.4, 0);
+            if (augeL) augeL.rotation.set(-gy * 0.3, gx * 0.4, 0);
+            for (const k of kiefer) k.o.position.y = k.y0 + k.d * (o.jawOpen || 0);
+        }
+        renderer.render(scene, cam);
+        return c3;
+    }
+
+    function wechsel() {   // Modell tauschen: beim nächsten Zeichnen neu laden
+        if (status === 'laedt') return;
+        if (status === 'bereit' && geladenFrau === frau()) return;
+        status = 'leer'; if (isOn() && holoOn()) laden(false);
+    }
+    function mountToggle() {
+        if (document.getElementById('kopf3dToggle')) return;
+        const holder = document.querySelector('.holo-container');
+        if (!holder) return;
+        const b = document.createElement('button');
+        b.id='kopf3dToggle'; b.type='button'; b.textContent='3D'; b.title='3D-Kopf an/aus';
+        b.style.cssText='position:absolute;right:42px;top:2px;z-index:12;height:32px;min-width:46px;padding:0 10px;border-radius:18px;border:1px solid rgba(73,215,255,.55);background:rgba(10,22,33,.88);color:#8feaff;font:700 14px monospace;cursor:pointer';
+        const paint=()=>{ const on=isOn(); b.textContent=on?'● 3D':'○ 3D'; b.style.color=on?'#9fffe8':'#8feaff'; };
+        b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();lsSet(KEY,isOn()?'0':'1');status=isOn()&&status==='fehler'?'leer':status;paint();if(isOn()&&holoOn())laden(false);});
+        holder.appendChild(b); paint();
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',mountToggle); else mountToggle();
+
+    /* ---------- Sprache ---------- */
+    function handle(text) {
+        const t = String(text || '').toLowerCase().replace(/[.,!?;:\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!t || t.length > 60) return false;
+        if (/\b(?:weibliche[nrms]?|frauen|fraulichen?)\s*(?:modell\s*)?kopf\b/.test(t) || /\bkopf\s+(?:von|als)\s+(?:einer\s+)?frau\b/.test(t)) {
+            if (/\b(aus|ausschalten|weg|normal\w*|standard)\b/.test(t)) { lsSet(KEY2, 'standard'); wechsel(); say('Gut, ich nehme wieder den ersten Kopf.'); return true; }
+            lsSet(KEY2, 'frau'); lsSet(KEY, '1'); wechsel();
+            if (!holoOn()) { say('Der weibliche Kopf zeigt sich in der Figur-Ansicht. Schalten Sie sie mit dem Knopf oben rechts ein.'); return true; }
+            say('Einen Moment, ich lade den weiblichen Kopf.'); return true;
+        }
+        if (!/\b(?:realistische[nrms]?\s+kopf|3\s*d\s*kopf|dreid\s*kopf|echte[nr]?\s+kopf)\b/.test(t)) return false;
+        if (/\b(aus|ausschalten|deaktivier\w*|abschalten|weg)\b/.test(t)) {
+            lsSet(KEY, '0'); say('Gut, ich zeige wieder die gezeichnete Figur.'); return true;
+        }
+        if (/\b(an|ein|einschalten|aktivier\w*|zeig\w*|zeige)\b/.test(t) || /^(?:bitte )?(?:schalte? )?(?:den )?\w*\s?kopf/.test(t)) {
+            lsSet(KEY, '1');
+            if (!holoOn()) { say('Der realistische Kopf zeigt sich in der Figur-Ansicht. Schalten Sie sie mit dem Knopf oben rechts ein.'); return true; }
+            if (status === 'bereit') say('Hier ist der realistische Kopf.');
+            else if (status === 'fehler') { status = 'leer'; say('Einen Moment, ich lade den Kopf noch einmal.'); laden(true); }
+            else { say('Einen Moment, ich lade den Kopf.'); laden(true); }
+            return true;
+        }
+        say('Der realistische Kopf ist ' + (isOn() ? 'an' : 'aus') + '.');
+        return true;
+    }
+    if (window.jvCommands) {
+        window.jvCommands.use('kopf3d', function (text, next) {
+            try { if (handle(text)) return true; } catch (e) { console.error('Kopf3D', e); }
+            return next(text);
+        }, 205);
+    }
+    window.jvKopf3d = { nurKopf: () => status === 'bereit' && geladenFrau, aktiv, draw, handle, isOn, status: () => status, formen, masse: () => ({ kopfH, kopfChinY, kopfCx, kopfCz }), _dbg: () => ({ head, scene, pivot }) };
 })();

@@ -529,7 +529,13 @@ function frameInner(now){
   const xfH=(x,y,z)=>{const r=htr(x,y,z),q=proj(r[0],r[1],r[2]);return {sx:q[0],sy:q[1],x3:r[0],y3:r[1],z3:r[2]};};
   drawMesh(bodyMesh,xfB,y=>shrugUp*Math.max(0,1-Math.abs(y-NY)/0.9),false);
   { const gy0=oy+sc*1.9, gy1=oy+sc*3.6, gg=cx.createLinearGradient(0,gy0,0,gy1); gg.addColorStop(0,'rgba(3,7,13,0)'); gg.addColorStop(1,'rgba(3,7,13,1)'); cx.fillStyle=gg; cx.fillRect(0,gy0,W,H-gy0); }
-  drawMesh(headMesh,xfH,null,true);
+  let kopf3dCanvas=null;
+  try {
+    if(window.jvKopf3d && window.jvKopf3d.aktiv()) {
+      kopf3dCanvas=window.jvKopf3d.draw({cur,ek,gx,gy,t,mo,mouthO,W,H,sc,ox,oy,PVY,HH,yaw,pit,rol});
+    }
+  } catch(e) { console.warn('Kopf3D zeichnen',e); }
+  if(kopf3dCanvas) cx.drawImage(kopf3dCanvas,0,0,W,H); else drawMesh(headMesh,xfH,null,true);
   // Arme als glänzende Zylinder
   const lift=y=>y+shrugUp*(y>SY-0.4?1:0.5);
   const SK=CFG.head, SLV=CFG.body;
