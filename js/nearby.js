@@ -54,6 +54,35 @@ function buildOverpassQuery(lat, lon, radiusM, cuisine) {
     return `[out:json][timeout:12];(node["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon});way["amenity"~"restaurant|fast_food"]${c}(around:${radiusM},${lat},${lon}););out center 20;`;
 }
 
+
+/* Google Places ist die primaere Quelle. Overpass bleibt nur als Fallback. */
+async function googlePlacesSearch(lat, lon, radiusM, query) {
+    const q = String(query || '').trim() || 'Restaurant';
+    try {
+        const url = `/api/maps?action=places&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&radius=${encodeURIComponent(radiusM)}&q=${encodeURIComponent(q)}`;
+        const res = await apiFetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (!data || !Array.isArray(data.places)) return null;
+        // In dasselbe Format bringen, das die bisherige Restaurantanzeige erwartet.
+        return data.places.map((p, i) => ({
+            type: 'node', id: 'google-' + i,
+            lat: p.lat, lon: p.lon,
+            tags: {
+                name: p.name || '',
+                'addr:street': p.street || '',
+                'addr:housenumber': p.housenumber || '',
+                'addr:city': p.city || '',
+                'addr:postcode': p.postcode || '',
+                opening_hours: p.hours || ''
+            }
+        }));
+    } catch (e) {
+        console.warn('Restaurantsuche Google Places:', e && e.message);
+        return null;
+    }
+}
+
 async function overpassSearch(lat, lon, radiusM, cuisine, query) {
     const q = buildOverpassQuery(lat, lon, radiusM, cuisine);
     // 1. App-Server und Kartenserver gleichzeitig (ortsuche.js), 2. nur App-Server, 3. Rückfall über Nominatim (ohne Öffnungszeiten)
@@ -88,19 +117,24 @@ async function findNearbyRestaurants(query) {
     if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
 
     const cuisine = cuisineFilterFor(query);
-    let elements;
-    try {
-        elements = await overpassSearch(loc.latitude, loc.longitude, 2000, cuisine, query);
-    } catch (e) {
-        if (e && e.auth) throw e;
-        elements = null;
+    let elements = await googlePlacesSearch(loc.latitude, loc.longitude, 2000, query);
+    if (elements === null) {
+        try {
+            elements = await overpassSearch(loc.latitude, loc.longitude, 2000, cuisine, query);
+        } catch (e) {
+            if (e && e.auth) throw e;
+            elements = null;
+        }
     }
     if (elements === null) throw userError('Die Suche nach Restaurants konnte gerade nicht durchgeführt werden.');
 
     let places = elements.map(el => placeFromElement(el, loc.latitude, loc.longitude)).filter(Boolean);
     let radiusUsed = 2;
     if (places.length === 0) {
-        try { elements = await overpassSearch(loc.latitude, loc.longitude, 5000, cuisine, query); } catch (e) { elements = []; }
+        elements = await googlePlacesSearch(loc.latitude, loc.longitude, 5000, query);
+        if (elements === null) {
+            try { elements = await overpassSearch(loc.latitude, loc.longitude, 5000, cuisine, query); } catch (e) { elements = []; }
+        }
         places = (elements || []).map(el => placeFromElement(el, loc.latitude, loc.longitude)).filter(Boolean);
         radiusUsed = 5;
     }
@@ -145,7 +179,16 @@ async function diagnoseNearby(query, log) {
     const cuisine = cuisineFilterFor(query);
     log(cuisine ? `Küchen-Filter: "${cuisine}"` : 'Kein Küchen-Filter (alle Restaurants)');
 
-    log('Overpass-Anfrage (/api/overpass) läuft, kann etwas dauern ...');
+    log('Google Places wird zuerst geprüft ...');
+    const gp = await googlePlacesSearch(loc.latitude, loc.longitude, 2000, query);
+    if (gp !== null) {
+        const places = gp.map(el => placeFromElement(el, loc.latitude, loc.longitude)).filter(Boolean).sort((a,b)=>a.distanzKm-b.distanzKm);
+        log(`✅ Google Places: ${places.length} Treffer im Umkreis von 2 km`);
+        places.slice(0,5).forEach(p => log(`  • ${p.name} · ${distText(p.distanzKm)}${p.strasse ? ' · ' + p.strasse : ''}`));
+        log('Fertig.');
+        return;
+    }
+    log('Google Places nicht verfügbar – Overpass-Fallback wird geprüft ...');
     let res;
     try {
         res = await apiFetch('/api/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: buildOverpassQuery(loc.latitude, loc.longitude, 2000, cuisine) }) });

@@ -120,15 +120,15 @@ function addBrowsAndLashesFromEyes(){
      const x=b.min.x+w*(.12+.76*t);
      // Augen sind leicht gewölbt: Mitte minimal höher als außen.
      const arch=Math.sin(Math.PI*t)*h*.055;
-     const y=b.max.y-h*.055+arch;
+     const y=c.y+h*.18+arch; // echter Lidrand statt Oberkante des kugelförmigen Augapfels
      const outer=side<0 ? (1-t) : t;
-     const len=h*(.16+.16*outer);
+     const len=h*(.10+.11*outer);
      const dx=side*len*.22*outer;
-     const lash=makeArc([[x,y,front],[x+dx,y+len,front+w*.012]],Math.max(.0016,w*.006),lashMat);
+     const lash=makeArc([[x,y,front],[x+dx,y+len,front+w*.012]],Math.max(.0010,w*.0035),lashMat);
      lashGroup.add(lash);
    }
    // Braue: Abstand und Breite werden aus derselben Augenbox berechnet.
-   const browY=b.max.y + h*.58;
+   const browY=c.y + h*.62; // natürlicher Abstand über dem sichtbaren Lid
    const innerX=c.x-side*w*.31, outerX=c.x+side*w*.62;
    const midX=(innerX+outerX)/2;
    const brow=makeArc([[innerX,browY,front+w*.018],[midX,browY+h*.16,front+w*.024],[outerX,browY-h*.02,front+w*.012]],Math.max(.009,w*.038),browMat);
