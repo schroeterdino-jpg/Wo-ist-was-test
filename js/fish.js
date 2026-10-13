@@ -194,31 +194,7 @@
         return String(t).replace(/(?<![\wäöüß\[])((?:ha|he|hi){2,}(?:[ -]?(?:ha|he|hi))*)(?![\wäöüß])/gi, (m) => (n++ === 0 ? '[laughing] ' + m : m));
     }
 
-    // ---------- Gefühl in der Stimme ----------
-    // Passend zum Inhalt (gleiche Erkennung wie die Mimik der Figur, js/hologramm.js) bekommt die Cloud-Stimme eine Gefühls-Anweisung und ein leicht anderes Tempo.
-    // Auch bei ernsten Themen (dort passt ein Lachen nie, aber ein besorgter oder mitfühlender Ton schon). Bei Stufe "aus" nichts, bei "dezent" nur halb so oft.
-    const EMO_TAG = { warn: '[concerned] ', wow: '[excited] ', care: '[soft tone] ', sorry: '[apologetic] ', happy: '[cheerful] ', greet: '[warm] ' };
-    const EMO_RATE = { warn: 1.06, wow: 1.05, care: 0.92, sorry: 0.95, happy: 1.03, greet: 1 };
-    function emotionStart(text) {
-        window.__jvEmoRate = 1;
-        try {
-            const level = window.getHumanLevel();
-            if (level === 'aus' || typeof window.jvDetectEmo !== 'function') return '';
-            const e = window.jvDetectEmo(text);
-            const tag = EMO_TAG[e];
-            if (!tag) return '';
-            window.__jvEmoRate = EMO_RATE[e] || 1;
-            if (level === 'dezent' && Math.random() < 0.5) return '';
-            return tag;
-        } catch (err) { return ''; }
-    }
-
     function humanize(text) {
-        const emoTag = emotionStart(strip(text).replace(/\s+/g, ' '));
-        const res = humanizeInner(text);
-        return (emoTag && !/^\s*\[/.test(res)) ? emoTag + res : res;
-    }
-    function humanizeInner(text) {
         const level = window.getHumanLevel();
         const force = window.__jvForceHuman === true;
         window.__jvForceHuman = false;
@@ -276,10 +252,7 @@
     // nacheinander im Hintergrund und hängt sie nahtlos an, noch während das erste läuft (ein Stück Sprache dauert beim Abspielen viel länger als beim Erzeugen).
     // Nacheinander statt gleichzeitig, damit Fish Audio nicht wegen zu vieler Anfragen ablehnt. Alle Stücke bekommen dieselbe Fish-Stimme; hakt ein späteres Stück
     // auch nach zwei Versuchen, wird der RESTTEXT einmal über die normale Kette (OpenAI/Edge) gesprochen, damit nichts fehlt.
-    const CHUNK_MAX = 280, SINGLE_MAX = 50, FIRST_MIN = 60, FIRST_MAX = 170;
-    // Gestaffelte Stücke: erstes Stück kurz (schneller Start), jedes weitere etwas länger. So ist das nächste Stück fertig, bevor das vorige zu Ende gesprochen ist.
-    const LIMITS = [45, 100, 200];
-    const MIN_CHUNK = 20;
+    const CHUNK_MAX = 280, SINGLE_MAX = 320, FIRST_MIN = 60, FIRST_MAX = 170;
 
     function sentencesOf(text) {
         const t = String(text).replace(/\s+/g, ' ').trim();
@@ -298,48 +271,23 @@
         return out;
     }
 
-    /* Teilt einen Satz an Satzteil-Grenzen (Komma, Semikolon, Doppelpunkt, Gedankenstrich); zu kurze Teile werden mit dem nächsten verbunden, Tags in [eckigen Klammern] nie zerschnitten. */
-    function clausesOf(sn) {
-        const parts = [];
-        const re = /(?:,|;|:|\s[–—-])\s+/g;
-        let last = 0, m;
-        while ((m = re.exec(sn)) !== null) {
-            const cut = m.index + m[0].length;
-            const left = sn.slice(last, cut);
-            if ((left.match(/\[/g) || []).length !== (left.match(/\]/g) || []).length) continue;   // mitten in einem Tag
-            if (left.trim().length < 14) continue;                                                // zu kurz: mit dem nächsten Teil verbinden
-            parts.push(left.trim()); last = cut;
-        }
-        const rest = sn.slice(last).trim();
-        if (rest) { if (parts.length && rest.length < 14) parts[parts.length - 1] += ' ' + rest; else parts.push(rest); }
-        return parts.length ? parts : [sn];
-    }
-
-    /* Teilt in gestaffelte Stücke: kurzes erstes Stück (schneller Start), danach 100, 200, dann bis ~280 Zeichen.
-       Die ersten beiden Stücke dürfen an Satzteil-Grenzen enden (Komma), alle späteren nur an Satzenden. Tags bleiben bei ihrem Satz. */
+    /* Teilt in ein kurzes erstes Stück (schneller Start) und danach Stücke bis ~280 Zeichen. Tags bleiben bei ihrem Satz. */
     function splitForFish(text) {
         const t = String(text).replace(/\s+/g, ' ').trim();
         if (t.length <= SINGLE_MAX) return [t];
-        const units = [];
-        sentencesOf(t).forEach(sn => { const cl = clausesOf(sn); cl.forEach((c, i) => units.push({ t: c, end: i === cl.length - 1 })); });
+        const sentences = sentencesOf(t);
         const chunks = [];
-        let cur = [];   // Einheiten des aktuellen Stücks
-        const len = a => a.map(u => u.t).join(' ').length;
-        const flush = a => { const x = a.map(u => u.t).join(' ').trim(); if (x) chunks.push(x); };
-        units.forEach(u => {
-            const limit = chunks.length < LIMITS.length ? LIMITS[chunks.length] : CHUNK_MAX;
-            if (!cur.length) { cur = [u]; return; }
-            const early = chunks.length < 2;
-            if (len(cur) + 1 + u.t.length > limit && len(cur) >= (early ? MIN_CHUNK : 60)) {
-                if (!early) {                                    // spätere Stücke: bevorzugt an einem Satzende enden
-                    let k = -1;
-                    for (let i = cur.length - 1; i >= 0; i--) if (cur[i].end) { k = i; break; }
-                    if (k >= 0 && k < cur.length - 1) { flush(cur.slice(0, k + 1)); cur = cur.slice(k + 1).concat([u]); return; }
-                }
-                flush(cur); cur = [u];
-            } else cur.push(u);
+        let cur = '', first = true;
+        const push = () => { if (cur.trim()) chunks.push(cur.trim()); cur = ''; first = false; };
+        sentences.forEach(sn => {
+            const limit = first ? FIRST_MAX : CHUNK_MAX;
+            if (first && cur && cur.length >= FIRST_MIN) push();
+            if (!cur) cur = sn;
+            else if ((cur + ' ' + sn).length > limit) { push(); cur = sn; }
+            else cur = cur + ' ' + sn;
+            if (first && cur.length >= FIRST_MIN) push();
         });
-        flush(cur);
+        push();
         return chunks;
     }
 
@@ -359,11 +307,7 @@
     // Das eingestellte Sprechtempo (speechrate.js). Bei Fish Audio wird es direkt bei der Erzeugung der Sprache eingestellt (Fish kann 0,5 bis 2,0),
     // bei den anderen Stimmen und als Ersatz stellt die App das Abspielen schneller oder langsamer.
     function speechRate() {
-        try {
-            let v = typeof window.getSpeechRateFactor === 'function' ? Number(window.getSpeechRateFactor()) : 1;
-            v = v * (window.__jvEmoRate || 1);                       // Gefühl: bei Warnungen etwas schneller, bei Mitgefühl langsamer
-            return (v >= 0.5 && v <= 2) ? v : 1;
-        } catch (e) { return 1; }
+        try { const v = typeof window.getSpeechRateFactor === 'function' ? Number(window.getSpeechRateFactor()) : 1; return (v >= 0.5 && v <= 2) ? v : 1; } catch (e) { return 1; }
     }
 
     async function requestOne(text, voice, opts) {
@@ -390,6 +334,58 @@
         }
     }
 
+    // JARVIS v10: Fish-Audio-Lippensynchronisation. Der tatsächlich an Fish gesendete Text
+    // wird zusammen mit der echten MP3-Dauer in eine Visem-Zeitleiste umgerechnet.
+    function lipUnits(text) {
+        const clean = String(text || '').replace(/\[[^\]]+\]/g, ' ').replace(/[^A-Za-zÄÖÜäöüß0-9 ]+/g, ' ').toLowerCase();
+        const out = [];
+        for (const w of clean.split(/\s+/).filter(Boolean)) {
+            for (let i=0;i<w.length;i++) {
+                const a=w[i], b=w.slice(i,i+2);
+                if ('mbp'.includes(a)) out.push('MBP');
+                else if ('fv'.includes(a)) out.push('FV');
+                else if (b==='sch'||'szx'.includes(a)) out.push('S');
+                else if ('ouöü'.includes(a)) out.push('OU');
+                else if ('aä'.includes(a)) out.push('A');
+                else if ('ei'.includes(a)) out.push('EI');
+                else if ('lr'.includes(a)) out.push('L');
+                else if ('kg'.includes(a)) out.push('K');
+                else if ('tdn'.includes(a)) out.push('T');
+            }
+            out.push('REST');
+        }
+        return out.length ? out : ['REST'];
+    }
+    async function prepareLip(blob, text) {
+        if (!blob) return blob;
+        blob.__jvLipText = String(text || '');
+        blob.__jvLipUnits = lipUnits(text);
+        try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (AC) {
+                const ac = window.__jvLipAC || (window.__jvLipAC = new AC());
+                const ab = await blob.arrayBuffer();
+                const buf = await ac.decodeAudioData(ab.slice(0));
+                blob.__jvLipDuration = buf.duration || 0;
+                const ch=buf.getChannelData(0), bins=160, env=[];
+                for(let i=0;i<bins;i++){
+                    const a=Math.floor(i*ch.length/bins), z=Math.floor((i+1)*ch.length/bins); let q=0,n=0;
+                    for(let j=a;j<z;j+=4){ q+=ch[j]*ch[j]; n++; }
+                    env.push(Math.sqrt(q/Math.max(1,n)));
+                }
+                const mx=Math.max(.001,...env); blob.__jvLipEnvelope=env.map(v=>Math.min(1,v/mx));
+            }
+        } catch(e) {}
+        return blob;
+    }
+    function lipMeta(blob){ return blob ? { text:blob.__jvLipText||'', units:blob.__jvLipUnits||['REST'], duration:blob.__jvLipDuration||0, env:blob.__jvLipEnvelope||[] } : null; }
+    window.__jvFishLip = window.__jvFishLip || {active:false,start:0,meta:null,rate:1};
+    function startLip(meta, el){
+        if(!meta) return;
+        window.__jvFishLip={active:true,start:performance.now()/1000,meta,rate:(el&&el.playbackRate)||1};
+    }
+    function stopLip(){ if(window.__jvFishLip) window.__jvFishLip.active=false; }
+
     // Warteschlange der Folge-Stücke: parts[i] ist ein Versprechen auf den Ton von Stück i (oder null, wenn übersprungen)
     function startQueue(chunks, voice, firstEngine) {
         const parts = chunks.map(() => { let res; const p = new Promise(r => { res = r; }); return { p, res }; });
@@ -403,11 +399,11 @@
                 if (!r) {                                   // Rest in einem Stück über die Ersatzkette (ohne Fish, falls das erste Stück schon von der Ersatzstimme kam: eine Stimme für den ganzen Text)
                     const remaining = chunks.slice(i).join(' ');
                     const rr = await requestOne(remaining.length > 2300 ? remaining.slice(0, 2300) : remaining, voice, { timeout: 20000, noFish: firstEngine !== 'fish' });
-                    parts[i].res(rr ? rr.blob : null);
+                    parts[i].res(rr ? await prepareLip(rr.blob, remaining) : null);
                     for (let k = i + 1; k < chunks.length; k++) parts[k].res(null);
                     return;
                 }
-                parts[i].res(r.blob);
+                parts[i].res(await prepareLip(r.blob, chunks[i]));
             }
         })();
         let idx = 0;
@@ -422,7 +418,7 @@
         URL.createObjectURL = function (obj) {
             const u = origCreate(obj);
             try { if (obj && obj.__jvQ) queues[u] = obj.__jvQ; } catch (e) {}
-            try { if (obj && obj.__jvSpeech) speechUrls[u] = { fishSpeed: !!obj.__jvFish }; } catch (e) {}
+            try { if (obj && obj.__jvSpeech) speechUrls[u] = { fishSpeed: !!obj.__jvFish, lip: lipMeta(obj) }; } catch (e) {}
             return u;
         };
         const proto = window.HTMLMediaElement && window.HTMLMediaElement.prototype;
@@ -438,6 +434,7 @@
                         this.playbackRate = r;
                         try { this.preservesPitch = true; this.webkitPreservesPitch = true; } catch (e) {}
                     }
+                    if (sInfo && sInfo.lip) startLip(sInfo.lip, this);
                     const q = queues[this.src];
                     if (q && !this.__jvChained) { this.__jvChained = true; delete queues[this.src]; chainPlayback(this, q); }
                 } catch (e) {}
@@ -469,6 +466,7 @@
                 }
             } catch (e) { /* bei einem Problem: so tun, als wäre alles gespielt */ }
             urls.forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
+            stopLip();
             if (typeof origEnded === 'function') origEnded.call(el, ev);
         };
     }
@@ -506,26 +504,19 @@
         const chunks = splitForFish(full);
 
         if (isAck) {
-            const a = await requestOne(full.length <= 320 ? full : chunks[0], voice, { timeout: 20000, fishOnly: true });   // Zwischenansagen immer in einem Stück
-            return a ? a.blob : silentBlob();
+            const a = await requestOne(chunks[0], voice, { timeout: 20000, fishOnly: true });
+            return a ? await prepareLip(a.blob, chunks[0]) : silentBlob();
         }
-
-        // Zweites Stück schon jetzt parallel anfordern (nicht erst, wenn das erste da ist): so ist es fertig, bevor das erste ausgesprochen ist, und es gibt keine Pause.
-        // Kommt das erste Stück nicht von Fish Audio, wird dieser frühe Versuch verworfen und der Rest über die Ersatzkette geholt.
-        let early = null;
-        if (chunks.length > 1) { try { early = startQueue(chunks.slice(1), voice, 'fish'); } catch (e) { early = null; } }
 
         // Erstes (oder einziges) Stück: normale Kette. Fish Audio bekommt viel Zeit (Server 15 s), erst dann springt die Ersatzstimme ein.
         const r = await requestOne(chunks[0], voice, { timeout: 30000 });
         if (!r) return null;
         setLastVoice(r.engine, Date.now() - started, full.length, chunks.length, (full.match(/\[[a-z ]+\]/g) || []));
+        await prepareLip(r.blob, chunks[0]);
         if (chunks.length > 1) {
-            if (r.engine === 'fish' && early) { r.blob.__jvQ = early; }
-            else {
-                // Kam das erste Stück nicht von Fish Audio, wird der Rest einheitlich über dieselbe Ersatzkette geholt
-                const restChunks = [chunks.slice(1).join(' ')];
-                try { r.blob.__jvQ = startQueue(restChunks, voice, r.engine); } catch (e) {}
-            }
+            // Kam das erste Stück nicht von Fish Audio, wird der Rest einheitlich über dieselbe Ersatzkette geholt
+            const restChunks = r.engine === 'fish' ? chunks.slice(1) : [chunks.slice(1).join(' ')];
+            try { r.blob.__jvQ = startQueue(restChunks, voice, r.engine); } catch (e) {}
         }
         return r.blob;
     };
