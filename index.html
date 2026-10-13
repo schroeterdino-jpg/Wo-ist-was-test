@@ -755,7 +755,17 @@
     <script src="./js/lebendig.js"></script>
     <script src="./js/fish.js"></script>
     <!-- JARVIS 3D v6 SAFE: bewährter v5-FaceCap-Kopf + Fish-Audio-Lippensynchronisation -->
-    <script src="./js/avatar3d.js?v=6"></script>
+    <script src="./js/avatar3d.js?v=62"></script>
+    <script>
+    // v6.1: Mimik-Befehle lokal abfangen, bevor sie an die KI gehen.
+    (function(){
+      const oldLocal = window.handleLocalCommand;
+      window.handleLocalCommand = function(text){
+        try { if (typeof window.handleAvatarExpressionCommand === 'function' && window.handleAvatarExpressionCommand(text)) return true; } catch(e) {}
+        return typeof oldLocal === 'function' ? oldLocal.apply(this, arguments) : false;
+      };
+    })();
+    </script>
     <script src="./js/nearbymore.js"></script>
     <script src="./js/assistant.js"></script>
     <script src="./js/fehlerort.js"></script>
