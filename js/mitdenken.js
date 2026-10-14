@@ -1,5 +1,5 @@
 /* ============================================================
-   MITDENKEN BEIM TERMIN EINTRAGEN: Bevor ein neuer Termin in den Kalender kommt, prüft Jarvis ihn und sagt dazu, was auffällt:
+   MITDENKEN BEIM TERMIN EINTRAGEN: Bevor ein neuer Termin in den Kalender kommt, prüft Zane ihn und sagt dazu, was auffällt:
    - Termin liegt in der Vergangenheit oder gibt es schon (gleicher Titel, gleiche Zeit)
    - Überschneidung mit einem anderen Termin (jeder Termin zählt eine Stunde)
    - Feiertag an dem Tag (in deinem Bundesland)

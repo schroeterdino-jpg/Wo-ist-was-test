@@ -1,8 +1,8 @@
 /* ============================================================
    MAIL-MELDUNG: Ist die App offen, schaut sie alle paar Minuten nach neuen, wichtigen E-Mails (ohne Werbung) und meldet sich:
-   "Sie haben eine E-Mail von Anna. Betreff: ... Soll ich sie vorlesen?" -> "Ja" -> Jarvis liest sie vor und fragt "Wollen Sie antworten?" -> "Ja" -> Gmail öffnet sich mit einer Antwort.
-   Jarvis liest nur und verschickt nie etwas; die E-Mail bleibt im Postfach ungelesen, die App merkt sich aber, dass sie sie gemeldet hat.
-   Meldet sich nicht, solange Jarvis spricht, verarbeitet oder zuhört; dann wird es später nachgeholt. Läuft nur bei offener, sichtbarer App.
+   "Sie haben eine E-Mail von Anna. Betreff: ... Soll ich sie vorlesen?" -> "Ja" -> Zane liest sie vor und fragt "Wollen Sie antworten?" -> "Ja" -> Gmail öffnet sich mit einer Antwort.
+   Zane liest nur und verschickt nie etwas; die E-Mail bleibt im Postfach ungelesen, die App merkt sich aber, dass sie sie gemeldet hat.
+   Meldet sich nicht, solange Zane spricht, verarbeitet oder zuhört; dann wird es später nachgeholt. Läuft nur bei offener, sichtbarer App.
    Ohne Google-Verbindung bleibt alles still. Per Sprache: "E-Mail-Meldung aus" / "E-Mail-Meldung an".
    Braucht: mail.js (fetchEmailOverview, fetchEmailFullText, gmailFetch), calendar.js (accessToken), voice.js (speak). Muss nach mail.js und localcommands.js geladen werden.
    ============================================================ */

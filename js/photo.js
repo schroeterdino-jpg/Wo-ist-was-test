@@ -1,12 +1,12 @@
 /* ============================================================
-   FOTO-FUNKTION: Kamera auf etwas halten, Jarvis wertet das Foto mit einer KI aus.
+   FOTO-FUNKTION: Kamera auf etwas halten, Zane wertet das Foto mit einer KI aus.
    Aufrufen: Knopf 📷 unter der Kugel, oder per Sprache: "Mach ein Foto", "Übersetze dieses Schild", "Lies mir den Brief vor",
    "Erkläre mir diese Warnleuchte", "Trag die Termine von diesem Foto in meinen Kalender ein", "Was für ein Vogel ist das?" (Kamera öffnet sich nach einem Tipp
    auf die Karte, weil Chrome die Kamera nur nach einem Fingertipp erlaubt).
    Weitere Aufgaben: Visitenkarte -> Kontakt anlegen, handgeschriebener Zettel -> Einkaufsliste, Plakat/Flyer -> Termin, Parkschild ("Darf ich hier parken?"),
    Zutaten -> Rezeptidee ("Was kann ich damit kochen?"). Kontakt und Einkaufszettel werden erst nach deinem "Ja" gespeichert.
    Danach Fragen zum selben Foto: "Zum Foto: Was kostet das?" (10 Minuten lang).
-   TERMINE AUS EINEM FOTO: Jarvis liest sie heraus und zeigt sie als Karten; eingetragen wird erst nach deinem "Ja" (oder Tipp auf die Karten),
+   TERMINE AUS EINEM FOTO: Zane liest sie heraus und zeigt sie als Karten; eingetragen wird erst nach deinem "Ja" (oder Tipp auf die Karten),
    weil eine KI Handschrift und Datum auch mal falsch liest. Termine ohne Uhrzeit werden ganztägig eingetragen, schon vorhandene übersprungen.
    Datenschutz: Das Foto wird verkleinert und zur Auswertung an den KI-Anbieter geschickt (über deinen Server /api/groq).
    Braucht: voice.js (speak), calendar.js (addGoogleCalendarEvent), briefing.js (normalizeKey), apiFetch, showActionCards/clearActionCards.
@@ -58,7 +58,7 @@ function parsePhotoRequest(text) {
     return null;
 }
 
-const PHOTO_SYSTEM_BASE = 'Du bist J.A.R.V.I.S., ein Assistent, der ein Foto auswertet. Antworte auf Deutsch, knapp und so, dass man es gut vorlesen kann: höchstens vier kurze Sätze, ohne Aufzählungszeichen, ohne Markdown, ohne Links. ' +
+const PHOTO_SYSTEM_BASE = 'Du bist Zane, ein Assistent, der ein Foto auswertet. Antworte auf Deutsch, knapp und so, dass man es gut vorlesen kann: höchstens vier kurze Sätze, ohne Aufzählungszeichen, ohne Markdown, ohne Links. ' +
     'Erfinde nichts. Ist etwas nicht erkennbar oder nicht lesbar, sage das ehrlich, statt zu raten.';
 
 /* Wochentag, Datum und Uhrzeit für Fragen, bei denen die Zeit zählt (z.B. Parkschilder) */
@@ -85,7 +85,7 @@ function photoSystemPrompt(task) {
         case 'car': return PHOTO_SYSTEM_BASE + ' Auf dem Foto sind Anzeigen oder Kontrollleuchten eines Autos (es kann ein Diesel-SUV sein). Nenne, welche Leuchte oder Anzeige du erkennst, was sie bedeutet und ob man weiterfahren kann oder anhalten bzw. in die Werkstatt muss. Bist du unsicher, sage das und empfehle einen Blick in die Bedienungsanleitung.';
         case 'identify': return PHOTO_SYSTEM_BASE + ' Sage, was zu sehen ist. Bei Pflanzen, Tieren und Pilzen nenne die wahrscheinlichste Art mit deiner Sicherheit und weise darauf hin, dass man Pilze und Pflanzen nie allein nach einem Foto essen sollte.';
         case 'parking': return PHOTO_SYSTEM_BASE + ' ' + photoNowText() + ' Auf dem Foto sind Verkehrsschilder oder Parkregeln. Sage, ob man hier jetzt parken darf, wie lange, ob Parkscheibe oder Gebühr nötig ist und ab wann sich etwas ändert. Bist du unsicher oder ist ein Schild nicht lesbar, sage es und rate dazu, im Zweifel nicht zu parken.';
-        case 'cook': return 'Du bist J.A.R.V.I.S. und siehst ein Foto von Zutaten oder einem Kühlschrank. Antworte auf Deutsch, ohne Aufzählungszeichen, ohne Markdown, gut vorlesbar. Nenne kurz, welche Zutaten du erkennst, schlage dann EIN passendes Gericht vor und nenne die Zubereitung in höchstens sechs kurzen Sätzen. Sage, welche gewöhnlichen Zutaten du voraussetzt (zum Beispiel Salz und Öl). Erfinde keine Zutaten, die nicht zu sehen sind.';
+        case 'cook': return 'Du bist Zane und siehst ein Foto von Zutaten oder einem Kühlschrank. Antworte auf Deutsch, ohne Aufzählungszeichen, ohne Markdown, gut vorlesbar. Nenne kurz, welche Zutaten du erkennst, schlage dann EIN passendes Gericht vor und nenne die Zubereitung in höchstens sechs kurzen Sätzen. Sage, welche gewöhnlichen Zutaten du voraussetzt (zum Beispiel Salz und Öl). Erfinde keine Zutaten, die nicht zu sehen sind.';
         default: return PHOTO_SYSTEM_BASE + ' Beschreibe kurz, was zu sehen ist. Ist Text sichtbar, nenne das Wichtigste daraus und übersetze ihn ins Deutsche, falls er nicht deutsch ist.';
     }
 }
@@ -127,7 +127,7 @@ function photoTargetLang(question) {
 }
 
 function photoTranslatePrompt(lang) {
-    return 'Du bist J.A.R.V.I.S. und übersetzt den Text auf einem Foto. Zielsprache: ' + lang.name + '. Der Text auf dem Foto kann in jeder Sprache sein, auch Deutsch. ' +
+    return 'Du bist Zane und übersetzt den Text auf einem Foto. Zielsprache: ' + lang.name + '. Der Text auf dem Foto kann in jeder Sprache sein, auch Deutsch. ' +
         'Antworte NUR mit einem JSON-Objekt: {"art":"ein kurzer deutscher Satz, was es ist (Schild, Brief, Speisekarte ...)","uebersetzung":"der sichtbare Text, vollständig und natürlich in ' + lang.name + ' übersetzt"}. ' +
         'Ist der Text schon in ' + lang.name + ', schreibe ihn unverändert hinein und nenne es in "art". Bei sehr langem Text übersetze die ersten Absätze und das Wichtigste (Anliegen, Fristen, Beträge). ' +
         'Erfinde nichts; ist etwas nicht lesbar, lass es weg und sage es in "art".';

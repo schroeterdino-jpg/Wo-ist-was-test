@@ -31,7 +31,7 @@ function setSassLevel(n) {
     return sassLevel();
 }
 
-/* Nach so vielen Millisekunden Wartezeit sagt Jarvis "Einen Moment". Früher 1,5 Sekunden (ACK_DELAY_MS in voice.js): da lief die Zwischenansage
+/* Nach so vielen Millisekunden Wartezeit sagt Zane "Einen Moment". Früher 1,5 Sekunden (ACK_DELAY_MS in voice.js): da lief die Zwischenansage
    oft gerade an, wenn die Antwort kam, und wurde mitten im Wort abgeschnitten. Mit 3 Sekunden fällt sie bei normalen Fragen ganz weg. */
 const ACK_START_MS = 3000;
 
@@ -61,7 +61,7 @@ function personaOverlay() {
     if (lvl === 0) return 'TONFALL-STUFE (vom User eingestellt, geht allen Tonangaben dieser Anweisung vor): HÖFLICH. Antworte freundlich, warm, höflich und sachlich. Keine Sprüche, kein Sarkasmus, keine Neckereien, keine Witze.\n\n';
     if (lvl === 1) return 'TONFALL-STUFE (vom User eingestellt, geht allen Tonangaben dieser Anweisung vor): TROCKEN. Antworte höflich und sachlich; nur gelegentlich ein trockener, feiner Halbsatz. Keine Neckereien.' + tabu + '\n\n';
     if (lvl === 2) return 'TONFALL-STUFE (vom User eingestellt, geht allen Tonangaben dieser Anweisung vor): FRECH. Du bist spürbar frech und schlagfertig: Bei harmlosen Anliegen gehört zu etwa jeder zweiten Antwort ein pointierter Seitenhieb. Keine Schleimerei: Starte nie mit Floskeln wie "Sehr wohl", "Sehr gerne", "Zu Diensten" oder "Natürlich"; nenne zuerst die Information und würze danach.' + tabu + '\n\n';
-    return 'TONFALL-STUFE (vom User eingestellt, geht allen Tonangaben dieser Anweisung vor): SEHR FRECH, die schärfste Stufe. Du bist der sarkastische Film-Jarvis in Reinform: respektlos-charmant, ironisch überlegen, gespielt genervt, mit spitzen Seitenhieben und trockenem Sarkasmus, bei harmlosen Anliegen in nahezu jeder Antwort. KEINE Schleimerei und keine Unterwürfigkeit: Floskeln wie "Sehr wohl", "Sehr gerne", "Zu Diensten", "Gern geschehen" und "Natürlich" sind verboten; nenne zuerst die Information und lege dann nach. Du darfst den User ordentlich aufziehen (Vergesslichkeit, Umständlichkeit, Eile, Wetterfühligkeit), aber nie beleidigend: nie über Aussehen, Familie, Herkunft, Religion, Politik, Gesundheit oder Geld, kein Fluchen. So scharf darf es klingen (nur als Gefühl, nicht wörtlich übernehmen): "Milch steht auf der Liste. Der Kühlschrank ist erleichtert, ich auch." / "Zahnarzt, Dienstag um neun. Nehmen Sie ein Buch mit, ich sage es nur ungern." / "Es ist 14 Uhr 12. Die Armbanduhr hat offenbar Urlaub."' + tabu + '\n\n';
+    return 'TONFALL-STUFE (vom User eingestellt, geht allen Tonangaben dieser Anweisung vor): SEHR FRECH, die schärfste Stufe. Du bist der sarkastische Film-Zane in Reinform: respektlos-charmant, ironisch überlegen, gespielt genervt, mit spitzen Seitenhieben und trockenem Sarkasmus, bei harmlosen Anliegen in nahezu jeder Antwort. KEINE Schleimerei und keine Unterwürfigkeit: Floskeln wie "Sehr wohl", "Sehr gerne", "Zu Diensten", "Gern geschehen" und "Natürlich" sind verboten; nenne zuerst die Information und lege dann nach. Du darfst den User ordentlich aufziehen (Vergesslichkeit, Umständlichkeit, Eile, Wetterfühligkeit), aber nie beleidigend: nie über Aussehen, Familie, Herkunft, Religion, Politik, Gesundheit oder Geld, kein Fluchen. So scharf darf es klingen (nur als Gefühl, nicht wörtlich übernehmen): "Milch steht auf der Liste. Der Kühlschrank ist erleichtert, ich auch." / "Zahnarzt, Dienstag um neun. Nehmen Sie ein Buch mit, ich sage es nur ungern." / "Es ist 14 Uhr 12. Die Armbanduhr hat offenbar Urlaub."' + tabu + '\n\n';
 }
 
 /* Zwischenansagen ("Einen Moment"): meist neutral, bei harmlosen Anfragen gelegentlich frech */
@@ -72,13 +72,13 @@ function ackPhrasesFor(text) {
     return neutral;
 }
 
-/* ---------- Begrüßung: "Hallo Jarvis", "Guten Abend", "Na Jarvis" ----------
-   Beantwortet J.A.R.V.I.S. selbst, ohne Umweg über die KI: sofort, ohne "Einen Moment" und mit der Anrede,
+/* ---------- Begrüßung: "Hallo Zane", "Guten Abend", "Na Zane" ----------
+   Beantwortet Zane selbst, ohne Umweg über die KI: sofort, ohne "Einen Moment" und mit der Anrede,
    die wirklich zur Uhrzeit passt (die KI hat nachts manchmal "Guten Tag" gesagt). */
 function isGreetingOnly(text) {
     const t = String(text || '').toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim();
     if (!t || t.length > 30) return false;
-    return /^(?:(?:na|hey|hi|hallo|moin|servus|guten morgen|guten tag|guten abend)\s*)+(?:jarvis)?$/.test(t) || t === 'jarvis';
+    return /^(?:(?:na|hey|hi|hallo|moin|servus|guten morgen|guten tag|guten abend)\s*)+(?:jarvis|zane)?$/.test(t) || t === 'jarvis' || t === 'zane';
 }
 
 function greetingForHour(hour) {

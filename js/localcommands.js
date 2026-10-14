@@ -145,11 +145,11 @@ function matchLiveCamCommand(text) {
 }
 
 /* Ist die Weltkugel offen, genügt ein Ortsname: "Und in Portugal?", "In Spanien", "Japan".
-   Bewusst streng: Alles andere (z.B. "Setz Milch auf die Einkaufsliste") geht ganz normal an J.A.R.V.I.S. */
+   Bewusst streng: Alles andere (z.B. "Setz Milch auf die Einkaufsliste") geht ganz normal an Zane */
 function placeFromFollowUp(text) {
     const t = String(text || '').trim().replace(/[?!.,]+$/, '');
     if (!t || t.length > 40 || t.split(/\s+/).length > 7) return null;
-    const stop = /^(jarvis|danke|bitte|hallo|hey|okay|ok|ja|nein|weiter|stopp|stop|schließen|zurück|wetter|karte|radar|liste|termine|kalender|hilfe|mehr|nochmal|wiederholen|gut|super|genau|richtig|falsch|morgen|abend|nacht|heute|jetzt|später|alles|nichts|nix|dann|noch|auch|wieder|wie|was|wo|wer|wann|warum|nähe|umgebung|einkaufsliste|aufgaben|aufgabenliste|erinnerungen|termin|kontakte|gedächtnis|briefing|parkplatz|einstellungen|menü|mir|mich|dir|uns|ich|du|wir|sie|es)$/i;
+    const stop = /^((?:jarvis|zane)|danke|bitte|hallo|hey|okay|ok|ja|nein|weiter|stopp|stop|schließen|zurück|wetter|karte|radar|liste|termine|kalender|hilfe|mehr|nochmal|wiederholen|gut|super|genau|richtig|falsch|morgen|abend|nacht|heute|jetzt|später|alles|nichts|nix|dann|noch|auch|wieder|wie|was|wo|wer|wann|warum|nähe|umgebung|einkaufsliste|aufgaben|aufgabenliste|erinnerungen|termin|kontakte|gedächtnis|briefing|parkplatz|einstellungen|menü|mir|mich|dir|uns|ich|du|wir|sie|es)$/i;
     const article = '(?:(?:der|dem|den|die|das)\\s+)?';
     let place = null;
     // 1) mit Einleitung: "Und in Portugal", "In Spanien", "Was ist in Italien", "Und Japan"
@@ -168,7 +168,7 @@ function placeFromFollowUp(text) {
     return place;
 }
 
-/* Ein Fehler in den festen Befehlen darf nie dazu führen, dass Jarvis gar nichts mehr sagt: dann geht der Satz normal an die KI */
+/* Ein Fehler in den festen Befehlen darf nie dazu führen, dass Zane gar nichts mehr sagt: dann geht der Satz normal an die KI */
 function handleLocalCommand(text) {
     try {
         return handleLocalCommandInner(text);

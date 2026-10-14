@@ -1,8 +1,8 @@
 /* ============================================================
-   MAIL-PUSH EINRICHTEN: damit Jarvis dich auch bei GESCHLOSSENER App über neue wichtige E-Mails informiert.
+   MAIL-PUSH EINRICHTEN: damit Zane dich auch bei GESCHLOSSENER App über neue wichtige E-Mails informiert.
    Sagen: "Mail Push einrichten" -> es erscheint ein Knopf, den du einmal antippst und bei Google bestätigst (nur Mails lesen).
-   Sagen: "Mail Push Status" -> Jarvis sagt, ob die Verbindung steht und wann zuletzt nachgesehen wurde.
-   Der Server (api/sync.js) braucht bei Vercel GOOGLE_CLIENT_ID und GOOGLE_CLIENT_SECRET. Jarvis liest nur, verändert nichts.
+   Sagen: "Mail Push Status" -> Zane sagt, ob die Verbindung steht und wann zuletzt nachgesehen wurde.
+   Der Server (api/sync.js) braucht bei Vercel GOOGLE_CLIENT_ID und GOOGLE_CLIENT_SECRET. Zane liest nur, verändert nichts.
    Braucht: storage.js (getPersistentData), voice.js (speak), das Google-Skript (accounts.google.com/gsi/client) aus index.html.
    ============================================================ */
 (function () {
@@ -42,7 +42,7 @@
         weg();
         box = document.createElement('div');
         box.style.cssText = 'position:fixed;left:12px;right:12px;bottom:90px;z-index:2147483000;background:rgba(6,20,34,.96);border:1px solid #5ee7ff;border-radius:10px;padding:14px;color:#d8f6ff;font:14px ui-monospace,Menlo,monospace;text-align:center';
-        const t = document.createElement('div'); t.textContent = 'Jarvis darf deine Mails lesen (nur lesen), damit er dich bei neuen wichtigen Mails auch bei geschlossener App meldet.'; t.style.marginBottom = '10px';
+        const t = document.createElement('div'); t.textContent = 'Zane darf deine Mails lesen (nur lesen), damit er dich bei neuen wichtigen Mails auch bei geschlossener App meldet.'; t.style.marginBottom = '10px';
         const b = document.createElement('button'); b.textContent = 'MIT GOOGLE VERBINDEN';
         b.style.cssText = 'background:#0b3a4a;color:#5ee7ff;border:1px solid #5ee7ff;border-radius:8px;padding:12px 16px;font:700 14px ui-monospace,monospace;width:100%';
         b.addEventListener('click', verbinden);
@@ -74,9 +74,9 @@
     function erkennen(text) {
         const t = String(text || '').toLowerCase().replace(/[.,!?;:\-]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (t.length >= 50) return null;
-        if (/^(?:jarvis )?(?:(?:richte|richt) )?(?:die )?(?:e ?mail|mail|gmail)(?: ?(?:push|meldung|benachrichtigung))?(?: einrichten| verbinden| aktivieren)$/.test(t)) return 'einrichten';
-        if (/^(?:jarvis )?(?:e ?mail|mail) ?push (?:einrichten|verbinden|aktivieren)$/.test(t)) return 'einrichten';
-        if (/^(?:jarvis )?(?:(?:e ?)?mail ?push|mail meldung) (?:status|prüfen|test)$/.test(t)) return 'status';
+        if (/^(?:(?:jarvis|zane) )?(?:(?:richte|richt) )?(?:die )?(?:e ?mail|mail|gmail)(?: ?(?:push|meldung|benachrichtigung))?(?: einrichten| verbinden| aktivieren)$/.test(t)) return 'einrichten';
+        if (/^(?:(?:jarvis|zane) )?(?:e ?mail|mail) ?push (?:einrichten|verbinden|aktivieren)$/.test(t)) return 'einrichten';
+        if (/^(?:(?:jarvis|zane) )?(?:(?:e ?)?mail ?push|mail meldung) (?:status|prüfen|test)$/.test(t)) return 'status';
         return null;
     }
     // ganz nach vorn: vor dem alten Push-Befehl ("Push einrichten" = Handy-Benachrichtigungen)
@@ -95,8 +95,8 @@
         window.jvCommands.use('mailpush', function (text, next) {
             const t = String(text || '').toLowerCase().replace(/[.,!?;:\-]+/g, ' ').replace(/\s+/g, ' ').trim();
             if (t.length < 50) {
-                if (/^(?:jarvis )?(?:(?:richte|richt) )?(?:die )?(?:e ?mail|mail|gmail)(?: ?(?:push|meldung|benachrichtigung))?(?: einrichten| verbinden| aktivieren)$|^(?:jarvis )?(?:e ?mail|mail) ?push (?:einrichten|verbinden)$/.test(t) || /^(?:jarvis )?mail ?push (?:einrichten|verbinden|aktivieren)$/.test(t)) { knopf(); say('Tippe unten auf den Knopf und bestätige bei Google.'); return true; }
-                if (/^(?:jarvis )?(?:(?:e ?)?mail ?push|mail meldung) (?:status|prüfen|test)$/.test(t)) { status(); return true; }
+                if (/^(?:(?:jarvis|zane) )?(?:(?:richte|richt) )?(?:die )?(?:e ?mail|mail|gmail)(?: ?(?:push|meldung|benachrichtigung))?(?: einrichten| verbinden| aktivieren)$|^(?:(?:jarvis|zane) )?(?:e ?mail|mail) ?push (?:einrichten|verbinden)$/.test(t) || /^(?:(?:jarvis|zane) )?mail ?push (?:einrichten|verbinden|aktivieren)$/.test(t)) { knopf(); say('Tippe unten auf den Knopf und bestätige bei Google.'); return true; }
+                if (/^(?:(?:jarvis|zane) )?(?:(?:e ?)?mail ?push|mail meldung) (?:status|prüfen|test)$/.test(t)) { status(); return true; }
             }
             return next(text);
         }, 30);

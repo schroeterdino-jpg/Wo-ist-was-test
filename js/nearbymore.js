@@ -1,10 +1,10 @@
 /* ============================================================
    ORTE IN DER NÄHE: "Wo ist die nächste Apotheke?", "Wo ist ein Geldautomat?", "Wo gibt es einen Supermarkt, der noch offen hat?",
    "Wo ist eine Toilette?", "Wo kann ich parken?", "Apotheke in Hamburg" (auch für andere Orte).
-   Jarvis sucht in den Kartendaten von OpenStreetMap (über deinen Server /api/overpass), nennt den nächsten Treffer mit Entfernung und,
+   Zane sucht in den Kartendaten von OpenStreetMap (über deinen Server /api/overpass), nennt den nächsten Treffer mit Entfernung und,
    wenn in den Kartendaten Öffnungszeiten stehen, ob er gerade offen hat. Weitere Treffer erscheinen als Karten mit Weg dorthin (Google Maps).
    Restaurants und Tankstellen laufen weiter über die bisherigen Funktionen.
-   Grenzen: OpenStreetMap ist von Freiwilligen gepflegt; Öffnungszeiten fehlen manchmal oder sind veraltet. Fehlen sie, sagt Jarvis dazu nichts.
+   Grenzen: OpenStreetMap ist von Freiwilligen gepflegt; Öffnungszeiten fehlen manchmal oder sind veraltet. Fehlen sie, sagt Zane dazu nichts.
    Braucht: voice.js (speak), apiFetch (Server-Zugriff). Optional: weathermap.js (wxGeocode, wxCleanPlace) für "... in Hamburg".
    Wird von localcommands.js aufgerufen.
    ============================================================ */
@@ -43,7 +43,7 @@ const PLACE_CATEGORIES = [
 ];
 
 const PLACE_NEAR_PHRASE = /\b(?:nächste[nrms]?|nächst\w*|in der nähe|um die ecke|hier in der gegend|wo ist|wo sind|wo gibt es|wo finde ich|wo kann ich|ich suche|ich brauche|gibt es hier|gibt es (?:eine|einen|ein)|zeig mir|finde mir|such mir|wo ist hier)\b/;
-/* Dafür fragt Jarvis nicht nach dem Speichern in den Kontakten */
+/* Dafür fragt Zane nicht nach dem Speichern in den Kontakten */
 const PLACE_NO_SAVE = ['geldautomat', 'toilette', 'parkhaus', 'parkplatz', 'briefkasten', 'ladestation', 'spielplatz'];
 const PLACE_OWN_CAR = /\b(?:mein|meine|meinen|meinem|geparkt|abgestellt|habe ich|steht mein)\b/;
 
@@ -118,7 +118,7 @@ function ohParseTimes(part) {
     return ranges.length ? ranges : null;
 }
 
-/* Wochenplan [Sonntag..Samstag] mit Zeitbereichen in Minuten; null, wenn die Angabe zu kompliziert ist (dann sagt Jarvis nichts zur Öffnung) */
+/* Wochenplan [Sonntag..Samstag] mit Zeitbereichen in Minuten; null, wenn die Angabe zu kompliziert ist (dann sagt Zane nichts zur Öffnung) */
 function parseOpeningHours(oh) {
     let s = String(oh || '').replace(/"[^"]*"/g, '').trim();
     if (!s) return null;

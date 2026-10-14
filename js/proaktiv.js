@@ -1,11 +1,11 @@
 /* ============================================================
-   PROAKTIV: Jarvis macht von selbst Vorschläge zu Kalendereinträgen und Erinnerungen (als Karte auf dem Bildschirm, ohne Ton).
+   PROAKTIV: Zane macht von selbst Vorschläge zu Kalendereinträgen und Erinnerungen (als Karte auf dem Bildschirm, ohne Ton).
    - TERMIN (mit Uhrzeit): etwa 60 Minuten vorher erscheint eine Karte "In einer Stunde: Friseur bei Anja" mit den Knöpfen
        "Fahrzeit" (nur wenn der Termin einen Ort hat: Fahrzeit und Abfahrtszeit), "Weg zeigen" (öffnet die Route),
        "Notizen suchen" (Gedächtnis, Aufgaben, frühere Termine mit gleichem Stichwort), "Später" (in 15 Minuten wieder) und "Nein danke".
    - ERINNERUNG: etwa 30 Minuten vorher eine kurze Karte mit "Später" und "Okay".
    Ganztägige Termine und Geburtstage bleiben außen vor. Jede Karte kommt pro Eintrag nur einmal (außer "Später").
-   Regeln wie beim Wächter (wachter.js): gleicher Ein-/Ausschalter ("Jarvis meldet sich von selbst"), nichts zwischen 22 und 7 Uhr, nur bei geöffneter App.
+   Regeln wie beim Wächter (wachter.js): gleicher Ein-/Ausschalter ("Zane meldet sich von selbst"), nichts zwischen 22 und 7 Uhr, nur bei geöffneter App.
    Der Wächter spricht weiterhin kurz vor dem Termin (Abfahrt, "gleich"); diese Karte ist die frühe, ruhige Vorwarnung.
    Einstellbar über getPersistentData: proaktiv_termin_min (Standard 60), proaktiv_erinnerung_min (Standard 30), proaktiv_sprechen ('1' = kurzer Satz dazu, Standard aus).
    Braucht: calendarEntries, reminderEntries, wachter.js (wachterEnabled, wachterQuiet, wachterDriveMinutes), briefing.js (isBirthdayEntry), places.js (buildMapsLink),
