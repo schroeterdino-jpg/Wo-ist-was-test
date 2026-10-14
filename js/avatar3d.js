@@ -62,6 +62,7 @@ function setMorph(name,v){
  target[real]=Math.max(0,Math.min(1,v));
  return true;
 }
+let browBase={};
 function clearExpression(){
  for(const n of morphNames)
    if(!/^eyeBlink(?:_|Left|Right)/i.test(n) && n!=='jawOpen' && n!=='mouthClose' && !/^tongue/i.test(n))
@@ -78,7 +79,15 @@ function setExpression(name='neutral'){
   case 'surprised': both('eyeWide',.72);setMorph('browInnerUp',.75);both('browOuterUp',.62);setMorph('jawOpen',.38);break;
   case 'thinking': setMorph('eyeLookUp_R',.35);setMorph('eyeLookUp_L',.35);setMorph('eyeLookOut_R',.22);setMorph('eyeLookIn_L',.22);setMorph('mouthPucker',.16);setMorph('browInnerUp',.18);break;
   case 'concerned': setMorph('browInnerUp',.52);both('browDown',.22);both('mouthFrown',.35);break;
+  // Neu: einzelne Brauen. Skeptisch = linke Braue hoch, rechte leicht runter.
+  case 'skeptical': setMorph('browOuterUp_L',.85);setMorph('browInnerUp',.12);setMorph('browDown_R',.4);both('mouthSmile',.12);break;
+  case 'question': setMorph('browInnerUp',.3);both('browOuterUp',.38);break;
+  case 'browsup': setMorph('browInnerUp',.55);both('browOuterUp',.6);break;
+  case 'browsdown': both('browDown',.75);break;
  }
+ // Brauen-Grundwerte merken, damit beim Sprechen leichte Bewegung darauf aufsetzen kann.
+ browBase={};
+ ['browInnerUp','browOuterUp_L','browOuterUp_R','browDown_L','browDown_R'].forEach(n=>{const r=resolveMorphName(n);if(r)browBase[r]=target[r]||0;});
 }
 
 // Mechanische Schulter-/Hals-Silhouette – unabhängig vom beweglichen Gesicht.
@@ -148,7 +157,18 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
        // Die vorhandene Normalmap bleibt für Gesichtsdetails erhalten; Augen und Zähne werden separat behandelt.
        const m=new THREE.MeshStandardMaterial({color:0xc9967b,metalness:0,roughness:.72,side:THREE.DoubleSide});
        // Augenbrauen sind in der Original-Textur aufgemalt: Textur behalten, nur warm einfaerben.
-       if(oldMat&&oldMat.map){m.map=oldMat.map; m.color.setRGB(1.35,1.02,0.84);}
+       if(oldMat&&oldMat.map){
+         m.map=oldMat.map; m.color.setRGB(1,1,1);
+         // Textur nur als Helligkeit nutzen (Brauen/Schatten), Farbe = warme Hautfarbe wie vorher.
+         m.onBeforeCompile=(shader)=>{
+           shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',
+             '#include <map_fragment>\n'+
+             'float jvL = dot(diffuseColor.rgb, vec3(0.299,0.587,0.114));\n'+
+             'vec3 jvSkin = vec3(0.584,0.305,0.198) * clamp(jvL/0.42, 0.0, 1.6);\n'+
+             'diffuseColor.rgb = mix(diffuseColor.rgb, jvSkin, 0.9);');
+         };
+         m.customProgramCacheKey=()=> 'jarvis-skin-brows-v1';
+       }
        if(oldMat&&oldMat.normalMap){m.normalMap=oldMat.normalMap; m.normalScale=oldMat.normalScale?oldMat.normalScale.clone():new THREE.Vector2(1,1);}
        m.needsUpdate=true; return m;
      }
@@ -225,6 +245,7 @@ function emotionFromSpeech(text){
  if(/\b(hmm|überlege|ueberlege|nachdenken|mal sehen|ich denke|ich prüfe|ich pruefe)\b/.test(t)) return 'thinking';
  if(/\b(sorge|besorgt|aufpassen|hoffentlich|unsicher)\b/.test(t)) return 'concerned';
  if(/\b(haha|hehe|witzig|lustig|freut mich|gern|gerne|super|prima|perfekt|geschafft|natürlich|natuerlich)\b/.test(t)) return 'happy';
+ if(/\?\s*$/.test(String(text||'').trim())) return 'question';
  return 'friendly';
 }
 function syncEmotionToFish(){
@@ -241,6 +262,11 @@ function applyMorphs(dt,speaking,now){
  setMorph('eyeBlink_L',blink);setMorph('eyeBlink_R',blink);
  const audio=window.__jvLipAudio, text=window.__jvLipText||'';
  const fishSpeaking=!!(audio&&!audio.paused&&!audio.ended);
+ // Beim Sprechen: Brauen betonen leicht im Rhythmus der Worte (nur bei den Hoch-Brauen).
+ if(fishSpeaking&&expression!=='skeptical'&&expression!=='browsdown'&&expression!=='serious'){
+   const tt=now/1000, p=Math.max(0,Math.sin(tt*2.3)*Math.sin(tt*0.9+1.2))*.2;
+   for(const n in browBase){ if(/Up/.test(n)) setMorph(n, browBase[n]+p); }
+ }
  if(fishSpeaking) applySpeechShape(lipShapeForText(text,audio));
  else if(manualMouth>0){clearSpeechMorphs();setMorph('jawOpen',manualMouth)}
  else clearSpeechMorphs();
@@ -279,7 +305,7 @@ function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);cons
  renderer.render(scene,camera)}
 function setMode(on){active=!!on; const sphere=document.getElementById('jarvisSphere'); const holo=document.getElementById('jarvisHolo'); btn.classList.toggle('active',active); btn.textContent=active?'● 3D':'○ 3D'; if(!active){renderer.domElement.style.display='none';hideStatus();if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} if(!modelReady){renderer.domElement.style.display='none';showStatus('3D-Kopf wird geladen …');if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} renderer.domElement.style.display='block';hideStatus();if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
 const btn=document.createElement('button');btn.id='jv3dToggle';btn.type='button';btn.textContent='● 3D';btn.title='JARVIS 3D-Kopf';btn.style.cssText='position:absolute;left:6px;top:6px;z-index:9;border:1px solid #16cce8;border-radius:999px;background:#07131ddd;color:#9df6ff;padding:7px 10px;font:700 11px system-ui;letter-spacing:.04em;cursor:pointer;box-shadow:0 0 16px #00bfff33';holder.appendChild(btn);btn.onclick=()=>setMode(!active);
-window.jvAvatar3D={setMode,setExpression,expressions:['neutral','friendly','happy','laugh','sad','serious','surprised','thinking','concerned'],update(p={}){if(p.expression)setExpression(p.expression);if(p.mouth!=null)manualMouth=Math.max(0,Math.min(1,p.mouth));if(p.blink)blink=1;if(p.tongue){tongueUntil=performance.now()+Math.max(400,Number(p.tongueMs)||2200)}},tongue(ms=2200){const tn=tongueMorphName();if(!tn)return false;tongueUntil=performance.now()+ms;return true},get ready(){return modelReady},get morphs(){return [...morphNames]},get hasTongue(){return !!tongueMorphName()}};
+window.jvAvatar3D={setMode,setExpression,expressions:['neutral','friendly','happy','laugh','sad','serious','surprised','thinking','concerned','skeptical','question','browsup','browsdown'],update(p={}){if(p.expression)setExpression(p.expression);if(p.mouth!=null)manualMouth=Math.max(0,Math.min(1,p.mouth));if(p.blink)blink=1;if(p.tongue){tongueUntil=performance.now()+Math.max(400,Number(p.tongueMs)||2200)}},tongue(ms=2200){const tn=tongueMorphName();if(!tn)return false;tongueUntil=performance.now()+ms;return true},get ready(){return modelReady},get morphs(){return [...morphNames]},get hasTongue(){return !!tongueMorphName()}};
 // Direkte Mimik-Sprachbefehle: werden lokal ausgeführt, statt an die KI geschickt zu werden.
 window.handleAvatarExpressionCommand=function(text){
  const t=String(text||'').toLowerCase().replace(/[.,!?;:]+/g,' ').replace(/\s+/g,' ').trim();
@@ -291,7 +317,10 @@ window.handleAvatarExpressionCommand=function(text){
    try{if(typeof window.speak==='function')window.speak(answer,typeof window.continueConversation==='function'?window.continueConversation:undefined);}catch(e){}
    return true;
  }
- if(/\b(lächel|laechel|lächeln|laecheln|schau freundlich|sei freundlich)\b/.test(t)){exp='happy';answer='Natürlich.';}
+ if(/augenbrau/.test(t)&&/\b(eine|einen|einer|links|rechts|skeptisch)\b/.test(t)&&/\b(hoch|heb|hebe|zieh|ziehe)/.test(t)){exp='skeptical';answer='Hm?';}
+ else if(/augenbrau/.test(t)&&/\b(runter|senk|senke|tief)/.test(t)){exp='browsdown';answer='In Ordnung.';}
+ else if(/augenbrau/.test(t)&&/\b(hoch|heb|hebe|zieh|ziehe)/.test(t)){exp='browsup';answer='So?';}
+ else if(/\b(lächel|laechel|lächeln|laecheln|schau freundlich|sei freundlich)\b/.test(t)){exp='happy';answer='Natürlich.';}
  else if(/\b(lach|lache|lachen)\b/.test(t)){exp='laugh';answer='Sehr gern.';}
  else if(/\b(schau ernst|sei ernst|ernst schauen|schau böse|schau boese)\b/.test(t)){exp='serious';answer='In Ordnung.';}
  else if(/\b(schau traurig|sei traurig|traurig schauen)\b/.test(t)){exp='sad';answer='In Ordnung.';}
