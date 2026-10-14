@@ -238,7 +238,9 @@ async function thoughtsForNewEvent(text, iso, location) {
         slow.push(guard(() => mdCheckSchoolHoliday(notes, String(text || ''), p)));
         slow.push(guard(() => mdCheckWeather(notes, String(text || ''), p, location)));
         slow.push(guard(() => mdCheckTravel(notes, String(text || ''), p, location)));
-        slow.push(guard(() => mdCheckContext(notes, String(text || ''), p, location)));
+        // Kein ungefragtes Langzeitgedächtnis bei neuen Terminen.
+        // Sonst können alte, nur ähnlich benannte Termine den aktuellen Termin verfälschen.
+        // Gedächtnis wird weiterhin auf ausdrückliche Gedächtnisfragen hin benutzt.
     }
     await Promise.race([Promise.all(slow), new Promise(r => setTimeout(r, MD_TIME_LIMIT_MS))]);
     return notes.slice().sort((x, y) => y.prio - x.prio).slice(0, MD_MAX_NOTES).map(n => n.text);

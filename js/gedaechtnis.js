@@ -63,7 +63,7 @@
         '\n\nKONTEXT-GEHIRN / AKTIVES LANGZEITGEDÄCHTNIS: Prüfe bei jeder konkreten Anfrage still im Hintergrund, ob in \"gedächtnis\", \"gedächtnis_semantisch\", offenen Aufgaben, Erinnerungen, Einkaufsliste, Kontakten oder Terminen etwas STARK und DIREKT zur aktuellen Sache passt. ' +
         'Wenn ja, erledige zuerst normal den eigentlichen Wunsch. Danach darfst du GENAU EINEN kurzen passenden Zusammenhang nennen oder eine nützliche Rückfrage stellen, z.B. \"Dazu habe ich noch gespeichert, dass ... Soll ich das berücksichtigen?\". ' +
         'Nenne nur Treffer mit klarem sachlichem Zusammenhang; bloße ähnliche Wörter reichen nicht. Wiederhole nichts, was der Nutzer gerade selbst gesagt hat. Keine ungefragten Hinweise zu sensiblen/ernsten Themen. ' +
-        'Wenn nichts wirklich Nützliches passt, erwähne das Gedächtnis überhaupt nicht. Bei neu angelegten Kalenderterminen übernimmt die Terminprüfung das Mitdenken; dort keinen zweiten Gedächtnis-Hinweis in reply erzeugen.';
+        'Wenn nichts wirklich Nützliches passt, erwähne das Gedächtnis überhaupt nicht. Bei einem Wunsch, einen NEUEN Termin anzulegen, erwähne das Gedächtnis grundsätzlich NICHT ungefragt und übernimm daraus niemals Datum, Uhrzeit, Ort oder andere fehlende Angaben. Fehlen Angaben für den neuen Termin, frage nach den fehlenden Angaben gemäß den Terminregeln. Erst nachdem ein Termin mit Datum und Uhrzeit wirklich angelegt wurde, übernimmt die App selbst die Rückfrage nach der Push-Erinnerung.';
 
     const LAUGH_RULE =
         '\n\nLACHEN: Der Nutzer wünscht sich ausdrücklich, dass du öfter lachst. Schreibe darum in lockeren Antworten ab und zu ein kurzes "Haha" oder "Hehe" an eine passende Stelle, ' +
