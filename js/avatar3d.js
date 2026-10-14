@@ -21,7 +21,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio||1,2)); renderer.outputColorSpa
 renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.12;
 renderer.domElement.id='jarvisAvatar3D';
 renderer.domElement.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:none;z-index:4;pointer-events:none;-webkit-mask-image:radial-gradient(closest-side,#000 74%,transparent 100%);mask-image:radial-gradient(closest-side,#000 74%,transparent 100%)'; holder.appendChild(renderer.domElement);
-const scene=new THREE.Scene(); const camera=new THREE.PerspectiveCamera(28,1,.01,100); camera.position.set(0,.03,4.4);
+const scene=new THREE.Scene(); const camera=new THREE.PerspectiveCamera(28,1,.01,100); camera.position.set(0,-.12,5.2); /* Kamera weiter weg (Kopf kleiner) und etwas tiefer (Kopf sitzt höher) */
 scene.add(new THREE.HemisphereLight(0xd9f7ff,0x071018,1.55));
 let key=new THREE.DirectionalLight(0xf3fbff,2.35);key.position.set(2.5,3.5,4);scene.add(key);
 let rim=new THREE.DirectionalLight(0x35d7ff,1.45);rim.position.set(-3,1,-1);scene.add(rim);

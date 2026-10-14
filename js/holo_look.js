@@ -24,13 +24,13 @@
     var css = document.createElement('style');
     css.textContent =
         /* Kopf: durchsichtig, Cyan, heller Rand */
-        'body.jv-holo #jarvisAvatar3D{opacity:.42;' +
-        'filter:grayscale(1) brightness(.95) contrast(1.35) sepia(1) hue-rotate(160deg) saturate(7) ' +
+        'body.jv-holo #jarvisAvatar3D{opacity:.5;' +
+        'filter:grayscale(1) brightness(.92) contrast(1.6) sepia(1) hue-rotate(160deg) saturate(7) ' +
         'drop-shadow(0 0 2px rgba(170,250,255,.95)) drop-shadow(0 0 9px rgba(0,190,255,.75));' +
         '-webkit-mask-image:none;mask-image:none}' +
         /* feine Scanlinien über dem Kopf (ruhend, kein Flackern) */
         '.jv-holo-scan{position:absolute;left:0;top:0;width:100%;height:100%;z-index:5;pointer-events:none;display:none;' +
-        'background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,12,24,.2) 2px,rgba(0,12,24,.2) 3px);' +
+        'background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,12,24,.13) 2px,rgba(0,12,24,.13) 3px);' +
         '-webkit-mask-image:radial-gradient(closest-side,#000 62%,transparent 92%);mask-image:radial-gradient(closest-side,#000 62%,transparent 92%)}' +
         'body.jv-holo.jv-holo-head .jv-holo-scan{display:block}' +
         '.jv-holo-bg{position:absolute;left:50%;top:50%;pointer-events:none;z-index:3;display:none}' +
