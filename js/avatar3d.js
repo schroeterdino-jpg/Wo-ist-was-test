@@ -1,6 +1,7 @@
 /* JARVIS 3D v6.10 – v5-Basis + Fish-Audio-Lippensync + Robot-Material direkt auf FaceCap. */
 (async function(){
 'use strict';
+const JV_HAARE=true; // false = glatzköpfig wie vorher
 const holder=document.querySelector('.holo-container'); if(!holder) return;
 let THREE,GLTFLoader,KTX2Loader,MeshoptDecoder;
 try{
@@ -160,18 +161,51 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
        if(oldMat&&oldMat.map){
          m.map=oldMat.map; m.color.setRGB(1,1,1);
          // Textur nur als Helligkeit nutzen (Brauen/Schatten), Farbe = warme Hautfarbe wie vorher.
+         // Modell-Achsen: Y = nach vorn, Z = nach unten (1-z = oben).
+         // HAARE: auf die Kopfhaut gemalt (kurz, dunkelbraun). Zum Abschalten oben JV_HAARE auf false setzen.
+         let hb=null; try{
+           const pa=o.geometry.attributes.position; const mn=new THREE.Vector3(1e9,1e9,1e9), mx=new THREE.Vector3(-1e9,-1e9,-1e9);
+           for(let i=0;i<pa.count;i++){const x=pa.getX(i),y=pa.getY(i),z=pa.getZ(i); if(x<mn.x)mn.x=x;if(y<mn.y)mn.y=y;if(z<mn.z)mn.z=z; if(x>mx.x)mx.x=x;if(y>mx.y)mx.y=y;if(z>mx.z)mx.z=z;}
+           hb={min:mn,max:mx};
+         }catch(e){}
          m.onBeforeCompile=(shader)=>{
-           shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',
+           shader.uniforms.jvBMin={value:hb?hb.min:new THREE.Vector3(-1,-1,-1)};
+           shader.uniforms.jvBMax={value:hb?hb.max:new THREE.Vector3(1,1,1)};
+           shader.uniforms.jvHair={value:(JV_HAARE&&hb)?1.0:0.0};
+           shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vJvPos;')
+             .replace('#include <begin_vertex>','#include <begin_vertex>\nvJvPos=position;');
+           shader.fragmentShader=shader.fragmentShader.replace('#include <common>',
+             '#include <common>\nvarying vec3 vJvPos; uniform vec3 jvBMin; uniform vec3 jvBMax; uniform float jvHair;')
+           .replace('#include <map_fragment>',
              '#include <map_fragment>\n'+
              'float jvL = dot(diffuseColor.rgb, vec3(0.299,0.587,0.114));\n'+
              'float jvN = clamp(jvL/0.40, 0.0, 1.6);\n'+
-             'jvN = pow(jvN, 2.3);\n'+
-             'vec3 jvSkin = vec3(0.66,0.285,0.17) * min(jvN, 1.6);\n'+
-             'float jvBrow = 1.0 - smoothstep(0.35, 0.80, jvN);\n'+
-             'jvSkin = mix(jvSkin, vec3(0.05,0.022,0.012), jvBrow*0.75);\n'+
+             'vec3 jvLumSkin = vec3(0.66,0.285,0.17) * jvN;\n'+
+             'vec3 jvTexWarm = diffuseColor.rgb * vec3(2.1,1.0,0.62);\n'+
+             'vec3 jvSkin = mix(jvTexWarm, jvLumSkin, 0.0) * vec3(0.96,0.86,0.78);\n'+
+             'vec3 jvT = (vJvPos - jvBMin) / (jvBMax - jvBMin);\n'+
+             'float jvUp = 1.0 - jvT.z;\n'+
+             'float jvBand = smoothstep(0.57,0.60,jvUp)*(1.0-smoothstep(0.64,0.67,jvUp))*smoothstep(0.55,0.75,jvT.y);\n'+
+             'float jvBrow = (1.0 - smoothstep(0.6, 1.05, jvN)) * jvBand;\n'+
+             'jvSkin = mix(jvSkin, vec3(0.05,0.022,0.012), jvBrow*0.95);\n'+
+             'float jvDark = 1.0 - smoothstep(0.15, 0.85, jvN);\n'+
+             'jvSkin = mix(jvSkin, vec3(0.60,0.33,0.24), jvDark*0.55*(1.0-jvBand));\n'+
+             'float jvEyeB = smoothstep(0.38,0.43,jvUp)*(1.0-smoothstep(0.545,0.575,jvUp))*smoothstep(0.55,0.75,jvT.y);\n'+
+             'float jvEyeDark = 1.0 - smoothstep(0.7, 1.35, jvN);\n'+
+             'jvSkin = mix(jvSkin, vec3(0.62,0.32,0.21), jvEyeDark*jvEyeB*0.7);\n'+
+             'float jvLip = smoothstep(0.165,0.19,jvUp)*(1.0-smoothstep(0.225,0.25,jvUp))*(1.0-smoothstep(0.10,0.17,abs(jvT.x-0.5)))*smoothstep(0.7,0.85,jvT.y);\n'+
+             'jvSkin = mix(jvSkin, vec3(0.50,0.17,0.15), jvLip*0.5);\n'+
+             'float jvFront = smoothstep(0.55, 0.80, jvT.y);\n'+
+             'float jvSide = smoothstep(0.30, 0.50, abs(jvT.x-0.5));\n'+
+             'float jvThr = mix(0.50, 0.77, jvFront) - jvSide*0.0;\n'+
+             'float jvStr = sin(jvT.x*260.0+jvT.z*90.0)*sin(jvT.y*210.0+jvT.x*70.0);\n'+
+             'float jvEdge = jvThr + jvStr*0.012 + sin(jvT.x*23.0+1.3)*0.012 + sin(jvT.x*57.0)*0.006;\n'+
+             'float jvH = smoothstep(jvEdge-0.03, jvEdge+0.03, 1.0-jvT.z) * jvHair;\n'+
+             'vec3 jvHairCol = vec3(0.028,0.016,0.010) * (0.75 + 0.5*jvStr*jvStr);\n'+
+             'jvSkin = mix(jvSkin, mix(jvSkin*0.35, jvHairCol, 0.85), jvH);\n'+
              'diffuseColor.rgb = jvSkin;');
          };
-         m.customProgramCacheKey=()=> 'jarvis-skin-brows-v2';
+         m.customProgramCacheKey=()=> 'jarvis-skin-hair-v1';
        }
        if(oldMat&&oldMat.normalMap){m.normalMap=oldMat.normalMap; m.normalScale=oldMat.normalScale?oldMat.normalScale.clone():new THREE.Vector2(1,1);}
        m.needsUpdate=true; return m;
