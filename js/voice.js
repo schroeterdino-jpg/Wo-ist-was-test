@@ -753,8 +753,6 @@ if (SpeechRecognition) {
        Wörterbücher in der Web-Spracherkennung), darum wird der erkannte Text hier vor der Weiterverarbeitung
        korrigiert, ganz am Anfang, damit Kalender-Namenssuche und die KI immer "Alyssa" bekommen. */
     function fixKnownMishearings(text) {
-        // Zentrale Liste in hoerkorrektur.js (STANDARD); hier nur der Rückfall, falls die Datei fehlt
-        if (typeof window.jvHoerKorrektur === 'function') { try { return window.jvHoerKorrektur(text); } catch (e) {} }
         return String(text || '').replace(/\b(Alicia|Alissa|Alisha)\b/gi, 'Alyssa').replace(/\b(Zain|Zayn|Zein|Zeyn|Sane)\b/gi, 'Zane').replace(/^((?:hey|hallo|hi)[ ,]+)(?:sein|sain|zehn|seyn)\b/i, '$1Zane');
     }
 

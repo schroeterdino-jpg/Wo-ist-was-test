@@ -11,12 +11,15 @@
         [/alicias|alycias|alisias/, 'Alyssas'],
         [/neu[\s-]*g[aä]r?l+[iy]?n\w*[\s-]*ring/, 'Neu-Galliner-Ring'],
         [/schwarzenbeck/, 'Schwarzenbek'],
-        [/schröter/, 'Schroeter']
+        [/schr(?:ö|oe)ter/, 'Schroeter'],
+        [/verbr(?:ü|ue)derungs[\s-]+ring/, 'Verbrüderungsring'],
+        [/zain|zayn|zein|zeyn|sane|zaine/, 'Zane']
     ].map(([re, r]) => [new RegExp(W + '(?:' + re.source + ')' + E, 'gi'), r]);
 
     function fest(text) {
         let t = String(text == null ? '' : text);
         LISTE.forEach(([re, r]) => { t = t.replace(re, (m, pre) => pre + r); });
+        t = t.replace(/^((?:hey|hallo|hi)[ ,]+)(?:sein|sain|zehn|seyn|sehn)(?![A-Za-zÄÖÜäöüß0-9])/i, '$1Zane');   // "Hey Sein" = "Hey Zane"
         return t;
     }
     window.jvFestnamen = fest;
