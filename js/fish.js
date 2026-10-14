@@ -195,7 +195,8 @@
     }
 
     // Lautes Lachen: so oft lacht Zane nach einem Spruch oder Witz richtig laut (Faktor: bei "dezent" halb so oft)
-    const LOUD_LAUGH_CHANCE = 0.55;
+    // Bei Witzen (zwei Marken hintereinander, siehe charakter.js) lacht er immer.
+    const LOUD_LAUGH_CHANCE = 0.85;
     const LOUD_LAUGHS = ['Hahaha!', 'Hahahaha!', 'Ha ha ha, hahaha!'];
 
     // Die KI soll selbst ein "Hahaha!" schreiben, wenn der Nutzer etwas wirklich Lustiges sagt oder sie einen sarkastischen Spruch bringt.
@@ -251,7 +252,8 @@
         // Lautes Lachen NACH dem Spruch (sarkastischer Spruch oder Witz): richtiges "Hahaha" statt Kichern. Nur bei Sprüchen, nie bei ernsten Themen.
         // Das Gesicht lacht dabei mit (mimik.js erkennt das "Hahaha" im Text).
         let tail = '';
-        if (quip && !serious && roll(LOUD_LAUGH_CHANCE)) {
+        const sureLaugh = idx !== -1 && String(text).charAt(idx + 1) === MARK;      // Witz: zwei Marken, er lacht sicher (außer "Menschliche Laute aus")
+        if (quip && (sureLaugh || (!serious && roll(LOUD_LAUGH_CHANCE)))) {      // ein Witz ist nie "ernst", auch wenn ein Wort wie "Problem" darin vorkommt
             tail = ' [laughing] ' + LOUD_LAUGHS[Math.floor(Math.random() * LOUD_LAUGHS.length)];
             mid = '[short pause] ';                                      // kurze Pause vor der Pointe, danach das Lachen
         }
