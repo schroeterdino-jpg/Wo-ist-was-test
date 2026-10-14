@@ -1,10 +1,10 @@
 /* ============================================================
-   FRISTEN AUS E-MAILS: Ist die App offen, sucht Jarvis in deinen Mails nach Rechnungen, Mahnungen, Zahlungszielen, Fristen und
+   FRISTEN AUS E-MAILS: Ist die App offen, sucht Zane in deinen Mails nach Rechnungen, Mahnungen, Zahlungszielen, Fristen und
    Vertragsänderungen (Preiserhöhung, Kündigung, neue Bedingungen). Die KI liest die Mail und zieht das Wichtige heraus (nie verschickt, nie gelöscht).
-   - Gefundene Fristen werden still im Langzeitgedächtnis gespeichert (typ "frist") und mit einer Karte gezeigt; bei Mahnungen und Vertragsänderungen meldet sich Jarvis sofort.
+   - Gefundene Fristen werden still im Langzeitgedächtnis gespeichert (typ "frist") und mit einer Karte gezeigt; bei Mahnungen und Vertragsänderungen meldet sich Zane sofort.
    - Erinnerung 2 Tage vorher, am Tag selbst, und einmal, wenn eine Frist überfällig ist.
    - Sprache: "Welche Fristen habe ich?" / "Die Telekom-Rechnung ist bezahlt" / "Fristen-Prüfung aus" und "an".
-   Läuft nur bei offener, sichtbarer App, still bei fehlender Google-Verbindung. Meldet sich nie, während Jarvis spricht, zuhört oder auf eine Antwort zur Mailmeldung wartet.
+   Läuft nur bei offener, sichtbarer App, still bei fehlender Google-Verbindung. Meldet sich nie, während Zane spricht, zuhört oder auf eine Antwort zur Mailmeldung wartet.
    Braucht: mail.js (fetchEmailOverview, fetchEmailFullText), api/memory.js (Aktionen store, fristen, mark), apiFetch, voice.js (speak). Nach mailwatch.js laden.
    ============================================================ */
 (function () {

@@ -5,8 +5,8 @@
    Antippen eines Knotens öffnet die jeweilige Funktion. Antippen einer leeren Stelle startet wie bisher das Zuhören.
    Zurück zur alten Kugel: kleiner Knopf oben rechts an der Ansicht, oder per Sprache "Zurück zur Kugel". "Zeig das Gehirn" schaltet wieder um.
    Die Wahl bleibt gespeichert (localStorage, Schlüssel jv_ansicht). Die Kugel (sphere.js) bleibt unverändert und läuft weiter im Hintergrund-Zustand "aus".
-   Verschmelzen: Sobald Jarvis antwortet (nicht, wenn du sprichst; nicht beim Fokus-Zoom), fliegen die fünf Bereiche in der Mitte zu EINEM Bereich zusammen (Farben wirbeln, Lichtblitz, Funken). Danach teilen sie sich wieder.
-   Farben: ruhig und beim Zuhören blau-violett-orange; während Jarvis spricht pulsieren die Bereiche stärker.
+   Verschmelzen: Sobald Zane antwortet (nicht, wenn du sprichst; nicht beim Fokus-Zoom), fliegen die fünf Bereiche in der Mitte zu EINEM Bereich zusammen (Farben wirbeln, Lichtblitz, Funken). Danach teilen sie sich wieder.
+   Farben: ruhig und beim Zuhören blau-violett-orange; während Zane spricht pulsieren die Bereiche stärker.
    Braucht: index.html mit .holo-container und #recordBtn. Läuft ohne alle anderen Dateien, Aktionen rufen nur vorhandene Funktionen (openPanel, handleLocalCommand ...) auf, sofern sie existieren.
    ============================================================ */
 (function () {
@@ -121,7 +121,7 @@
         E += ((st === 'speaking' ? 1 : st === 'recording' ? 0.55 : 0.15) - E) * 0.06;   // weich ein- und ausblenden
         const energy = E;
         // Verschmelzen: beim Sprechen oder Zuhören zusammenfließen, kurz nachhalten (die KI denkt noch), dann wieder teilen
-        const active = st === 'speaking';   // nur wenn Jarvis antwortet, nicht wenn der User spricht
+        const active = st === 'speaking';   // nur wenn Zane antwortet, nicht wenn der User spricht
         if (active) holdUntil = now + 1800;
         const fuseGoal = ((active || now < holdUntil) && !zoomNode && zoomK < 1.02) ? 1 : 0;   // beim Fokus/Heranzoomen bleibt alles einzeln antippbar
         F += (fuseGoal - F) * (fuseGoal ? 0.08 : 0.06); if (Math.abs(fuseGoal - F) < 0.003) F = fuseGoal;
@@ -463,7 +463,7 @@
         const zm = t.match(/(?:^|\s)(?:\w*zoom\w*|fokus\w*|markier\w*|hervorheb\w*)/);
         if (!zm) return false;
         const before = t.slice(0, zm.index), word = zm[0].trim(), after = t.slice(zm.index + zm[0].length);
-        const clean = x => x.replace(/(?<![\wäöüß])(?:mal|bitte|ran|heran|rein|hinein|zu|zum|zur|auf|an|in|den|die|das|dem|der|begriff|bereich|kugel|jarvis|kannst|du|ich|möchte|will|moechte)(?![\wäöüß])/g, ' ').replace(/\s+/g, ' ').trim();
+        const clean = x => x.replace(/(?<![\wäöüß])(?:mal|bitte|ran|heran|rein|hinein|zu|zum|zur|auf|an|in|den|die|das|dem|der|begriff|bereich|kugel|(?:jarvis|zane)|kannst|du|ich|möchte|will|moechte)(?![\wäöüß])/g, ' ').replace(/\s+/g, ' ').trim();
         const rest = clean(before + ' ' + after);
         if (/raus|heraus|weg|zurück|aus\b|ab\b/.test(word) || /(?:^|\s)(?:beenden|ende|aus|ab|weg|löschen|loeschen)(?:\s|$)/.test(after) || /^(?:raus|heraus|zurück|zurueck|weg|aus|ab|beenden|ende)$/.test(rest) || /\b(?:raus|heraus|zurück)\b/.test(after) && !rest.replace(/\b(?:raus|heraus|zurück)\b/g, '').trim()) {
             zoomOut(); try { speak('Okay.', typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} return true;

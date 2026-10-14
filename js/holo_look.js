@@ -2,7 +2,7 @@
    drehende Ringe mit Strichskala, Eckklammern, Hologramm-Boden mit Raster und Lichtstrahl, Staubpartikel.
    - Kopf: nur per CSS (Farbfilter, Durchsichtigkeit, heller Rand, feine Scanlinien) - der Kopf selbst bleibt unverändert.
    - Hintergrund: zwei eigene Canvas hinter dem Kopf (eine ruhende Ebene, eine bewegte).
-   - Reagiert auf Jarvis: beim Sprechen drehen die Ringe schneller und leuchten stärker, beim Zuhören etwas.
+   - Reagiert auf Zane: beim Sprechen drehen die Ringe schneller und leuchten stärker, beim Zuhören etwas.
    - Die alte Glaskugel samt Scan-Strahl ("Puls" übers Auge) sitzt in avatar3d.js und ist dort abgeschaltet.
    - Nur sichtbar, solange die Ansicht "Kopf" aktiv ist (Kugel und Gehirn bleiben unberührt).
    - Effekt-Stufen aus den Einstellungen werden beachtet: "Aus" und "Hintergrund aus" zeichnen nur ein ruhiges Bild.

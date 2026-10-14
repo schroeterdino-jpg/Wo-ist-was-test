@@ -1,16 +1,16 @@
 /* ============================================================
    HÖR-KORREKTUR: Die Spracherkennung des Handys verhört sich bei manchen Namen und Wörtern immer gleich ("Hamlet" statt "Hamiyet").
-   Du bringst Jarvis die richtige Schreibweise einmal bei, dann ersetzt die App das falsch erkannte Wort, bevor irgendetwas damit passiert
+   Du bringst Zane die richtige Schreibweise einmal bei, dann ersetzt die App das falsch erkannte Wort, bevor irgendetwas damit passiert
    (Kalender-Suche, Kontakte, die KI), und die Korrektur bleibt dauerhaft gespeichert.
    Sagen: "Wenn ich Hamlet sage, meine ich Hamiyet" / "Schreib Hamiyet statt Hamlet" / "Korrigiere Hamlet zu Hamiyet".
    Liste: "Welche Hör-Korrekturen hast du?"  Löschen: "Vergiss die Korrektur für Hamlet".
-   Das ist etwas anderes als die Aussprache-Liste (wie Jarvis ein Wort SPRICHT): hier geht es darum, wie ein erkanntes Wort GESCHRIEBEN wird.
+   Das ist etwas anderes als die Aussprache-Liste (wie Zane ein Wort SPRICHT): hier geht es darum, wie ein erkanntes Wort GESCHRIEBEN wird.
    Braucht: assistant.js (sendToGroqSmart), localcommands.js (handleLocalCommand). Muss nach beiden geladen werden.
    ============================================================ */
 (function () {
     const KEY = 'jv_hoerkorrektur';
     const MAX_ITEMS = 60;
-    const PROTECTED = /^(?:ja|nein|und|oder|der|die|das|ich|du|er|sie|es|wir|mit|von|bei|für|auf|aus|nach|zum|zur|wie|was|wer|wo|wann|warum|nicht|ist|bin|war|hat|habe|mein|meine|dein|jarvis)$/i;
+    const PROTECTED = /^(?:ja|nein|und|oder|der|die|das|ich|du|er|sie|es|wir|mit|von|bei|für|auf|aus|nach|zum|zur|wie|was|wer|wo|wann|warum|nicht|ist|bin|war|hat|habe|mein|meine|dein|(?:jarvis|zane))$/i;
 
     function load() { try { const v = JSON.parse(localStorage.getItem(KEY) || '{}'); return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}; } catch (e) { return {}; } }
     function save(map) { try { localStorage.setItem(KEY, JSON.stringify(map)); } catch (e) {} }

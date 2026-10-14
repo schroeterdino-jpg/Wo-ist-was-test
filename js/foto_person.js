@@ -1,6 +1,6 @@
 /* ============================================================
    FOTO PERSON: "Das ist meine Tochter Julia" (nach einem Foto) oder "Merk dir, wie Julia aussieht" (dann Foto machen).
-   Jarvis beschreibt, was er sieht (Haare, Brille, ungefähres Alter, Kleidung, auffällige Merkmale), sagt es dir und fragt: "Soll ich mir das merken?".
+   Zane beschreibt, was er sieht (Haare, Brille, ungefähres Alter, Kleidung, auffällige Merkmale), sagt es dir und fragt: "Soll ich mir das merken?".
    Bei "Ja" steht die Beschreibung im Langzeitgedächtnis ("Wie sieht Julia aus?" beantwortet er daraus). Ein neues Foto derselben Person ersetzt die alte Beschreibung.
    WICHTIG: Gesichter werden NICHT wiedererkannt. Er erkennt Julia auf einem neuen Foto nicht selbst, er kennt nur die gemerkte Beschreibung.
    Das Foto selbst wird nicht gespeichert, nur der Text. Ohne dein "Ja" wird nichts gespeichert. Vergessen: "Vergiss, wie Julia aussieht" (oder im Langzeitgedächtnis-Fenster löschen).
@@ -12,7 +12,7 @@
 
     const REL = 'tochter|sohn|frau|mann|mutter|vater|bruder|schwester|enkelin|enkel|freundin|freund|kollegin|kollege|oma|opa|nichte|neffe|tante|onkel|schwiegermutter|schwiegervater|schwiegersohn|schwiegertochter|cousine|cousin|nachbarin|nachbar|chefin|chef|partnerin|partner|mama|papa|großmutter|großvater|kind';
     const NAME = '[A-ZÄÖÜ][a-zäöüßé-]{1,24}';
-    const NICHT_NAME = new Set(['Jarvis', 'Scarlett', 'Das', 'Dies', 'Merk', 'Merke', 'Foto', 'Bild', 'Ja', 'Nein', 'Ok', 'Okay', 'Bitte', 'Hier', 'Wie', 'Aussehen', 'Gesicht', 'Person', 'Dir', 'Mir', 'Von', 'Meiner', 'Meines', 'Meinem', 'Meine']);
+    const NICHT_NAME = new Set(['Zane', 'Scarlett', 'Das', 'Dies', 'Merk', 'Merke', 'Foto', 'Bild', 'Ja', 'Nein', 'Ok', 'Okay', 'Bitte', 'Hier', 'Wie', 'Aussehen', 'Gesicht', 'Person', 'Dir', 'Mir', 'Von', 'Meiner', 'Meines', 'Meinem', 'Meine']);
     REL.split('|').forEach(r => NICHT_NAME.add(r.charAt(0).toUpperCase() + r.slice(1)));
     const PHOTO_FRESH_MS = (typeof PHOTO_FOLLOWUP_MS !== 'undefined') ? PHOTO_FOLLOWUP_MS : 600000;
 
@@ -31,7 +31,7 @@
         if (!t || t.length > 90 || /^(?:was|wann|wo|wie viel|welche\w*|hast|hat|weißt|weisst)\b/.test(t)) return null;
         let m;
         // "Das ist meine Tochter Julia" / "Das ist Julia" (nur mit frischem Foto)
-        if (hatFoto && (m = raw.match(new RegExp('^(?:jarvis |scarlett )?(?:das|dies|das hier)\\s+ist\\s+(?:(?:meine?|mein|unsere?|unser)\\s+(' + REL + ')\\b\\s*(' + NAME + ')?|(' + NAME + '))\\s*$', 'i')))) {
+        if (hatFoto && (m = raw.match(new RegExp('^(?:jarvis |zane |scarlett )?(?:das|dies|das hier)\\s+ist\\s+(?:(?:meine?|mein|unsere?|unser)\\s+(' + REL + ')\\b\\s*(' + NAME + ')?|(' + NAME + '))\\s*$', 'i')))) {
             const rel = m[1] ? m[1].toLowerCase() : '';
             let name = m[2] || m[3] || '';
             if (name && !/^[A-ZÄÖÜ]/.test(name)) name = '';

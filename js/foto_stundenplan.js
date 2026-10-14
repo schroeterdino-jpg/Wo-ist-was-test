@@ -1,5 +1,5 @@
 /* ============================================================
-   STUNDENPLAN FOTOGRAFIEREN UND MERKEN: Jarvis liest den Stundenplan vom Foto, zeigt ihn zum Prüfen (Zellen lassen sich ändern)
+   STUNDENPLAN FOTOGRAFIEREN UND MERKEN: Zane liest den Stundenplan vom Foto, zeigt ihn zum Prüfen (Zellen lassen sich ändern)
    und speichert ihn nach deinem Tipp im Langzeitgedächtnis: pro Wochentag ein Eintrag ("Stundenplan von Isabel, Montag: 1. Mathe, 2. Deutsch ...").
    Ein neuer Plan überschreibt den alten derselben Person. Die Einträge stehen auch im Langzeitgedächtnis-Fenster und lassen sich dort löschen.
    Aufrufen:
@@ -54,7 +54,7 @@
     function isFollowup(text) {
         const t = norm(text);
         if (!t || t.length > 80) return false;
-        return /^(?:jarvis )?(?:bitte )?(?:merk|merke|speicher|speichere)\w*\s+(?:dir\s+|mir\s+)?(?:das|dies\w*|es)\s+(?:bitte\s+)?(?:als|im|als meinen)\s+(?:den\s+)?stundenplan$/.test(t)
+        return /^(?:(?:jarvis|zane) )?(?:bitte )?(?:merk|merke|speicher|speichere)\w*\s+(?:dir\s+|mir\s+)?(?:das|dies\w*|es)\s+(?:bitte\s+)?(?:als|im|als meinen)\s+(?:den\s+)?stundenplan$/.test(t)
             || /^(?:das|es|dies\w*)\s+(?:ist|ist ein|ist der)\s+(?:ein\s+|der\s+)?stundenplan$/.test(t);
     }
 

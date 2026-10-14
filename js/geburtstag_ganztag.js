@@ -1,6 +1,6 @@
 /* ============================================================
    GEBURTSTAG GANZTAG: "Trag Alyssas Geburtstag am 30. Oktober ein" braucht keine Uhrzeit. Geburtstage und Jahrestage werden als GANZTÄGIGER Termin eingetragen
-   und wiederholen sich jedes Jahr (Google Kalender: ganztägig, jährlich). Jarvis fragt dafür nicht mehr nach einer Uhrzeit.
+   und wiederholen sich jedes Jahr (Google Kalender: ganztägig, jährlich). Zane fragt dafür nicht mehr nach einer Uhrzeit.
    Dasselbe gilt, wenn die KI einen Termin ausdrücklich als ganztägig markiert ('calendar_allday'), dann ohne Wiederholung.
    Braucht: actions.js (executeAction), calendar.js (addGoogleCalendarEvent), reminders.js (buildRecurrenceRule), commands/jvChain. Muss NACH langzeit.js geladen werden.
    ============================================================ */

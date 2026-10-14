@@ -58,7 +58,7 @@
         'Einen Grund nennst du nur, wenn der Nutzer ihn wirklich gesagt hat. Steht dort kein Grund, sag das ehrlich ("Einen Grund haben Sie mir nicht genannt") und frag höchstens kurz, ob du dir den Grund merken sollst. ' +
         'Antworte niemals nur mit "nichts gefunden", wenn zum Thema ein Eintrag existiert. Erfinde nichts dazu.';
 
-    // Der Nutzer wünscht sich, dass Jarvis öfter lacht (Eintrag im Gedächtnis). Die KI schreibt das Lachen selbst in die Antwort; die Stimme macht daraus ein echtes Lachen.
+    // Der Nutzer wünscht sich, dass Zane öfter lacht (Eintrag im Gedächtnis). Die KI schreibt das Lachen selbst in die Antwort; die Stimme macht daraus ein echtes Lachen.
     const CONTEXT_BRAIN_RULE =
         '\n\nKONTEXT-GEHIRN / AKTIVES LANGZEITGEDÄCHTNIS: Prüfe bei jeder konkreten Anfrage still im Hintergrund, ob in \"gedächtnis\", \"gedächtnis_semantisch\", offenen Aufgaben, Erinnerungen, Einkaufsliste, Kontakten oder Terminen etwas STARK und DIREKT zur aktuellen Sache passt. ' +
         'Wenn ja, erledige zuerst normal den eigentlichen Wunsch. Danach darfst du GENAU EINEN kurzen passenden Zusammenhang nennen oder eine nützliche Rückfrage stellen, z.B. \"Dazu habe ich noch gespeichert, dass ... Soll ich das berücksichtigen?\". ' +

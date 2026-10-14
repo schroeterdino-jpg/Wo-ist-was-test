@@ -1,7 +1,7 @@
 /* ============================================================
-   HILFE: "Hilfe", "Was kannst du?", "Was kannst du alles?" -> Jarvis nennt die Themen, unten erscheinen sie als Karten.
+   HILFE: "Hilfe", "Was kannst du?", "Was kannst du alles?" -> Zane nennt die Themen, unten erscheinen sie als Karten.
    Ein Tipp auf ein Thema (oder "Hilfe Fahrten") zeigt Beispielsätze dazu. Direkt in der App, ohne KI.
-   Die Beispiele entsprechen dem, was Jarvis wirklich kann (siehe prompt.js); wird etwas Neues eingebaut, hier ergänzen.
+   Die Beispiele entsprechen dem, was Zane wirklich kann (siehe prompt.js); wird etwas Neues eingebaut, hier ergänzen.
    Braucht: voice.js (speak), showActionCards/clearActionCards. Wird von localcommands.js aufgerufen.
    ============================================================ */
 
@@ -10,7 +10,7 @@ const HELP_TOPICS = [
         'Trag morgen um 15 Uhr Zahnarzt in Hamburg ein', 'Wann hat Schatz Geburtstag?', 'Verschieb den Zahnarzt auf Freitag',
         'Trag jeden Montag Mülltonne rausstellen ein', 'Zeig meine Termine der nächsten Woche',
         'Trag Alyssas Geburtstag am 30. Oktober ein (Geburtstage und Jahrestage kommen ganztägig und jedes Jahr, ohne Uhrzeit-Frage)',
-        'Übermorgen ist das Konzert um 20 Uhr (Jarvis fragt danach: Wie viele Stunden vorher soll ich Sie per Push erinnern? Antwort zum Beispiel: zwei Stunden, eine halbe Stunde, 30 Minuten, Ja = 3 Stunden, Nein = keine Erinnerung. Sagst du gleich dazu "und erinnere mich zwei Stunden vorher", fragt er nicht)', 'Termin-Erinnerung aus (auch: Termin-Erinnerung an)'] },
+        'Übermorgen ist das Konzert um 20 Uhr (Zane fragt danach: Wie viele Stunden vorher soll ich Sie per Push erinnern? Antwort zum Beispiel: zwei Stunden, eine halbe Stunde, 30 Minuten, Ja = 3 Stunden, Nein = keine Erinnerung. Sagst du gleich dazu "und erinnere mich zwei Stunden vorher", fragt er nicht)', 'Termin-Erinnerung aus (auch: Termin-Erinnerung an)'] },
     { key: 'erinnerungen', icon: '🔔', title: 'Erinnerungen', words: /erinner/, examples: [
         'Erinnere mich morgen um 8 Uhr an den Arzt', 'Erinnere mich alle zwei Wochen an die Wäsche', 'Wichtige Erinnerung: Paket abholen (er fragt nach, bis du erledigt sagst)',
         'In zehn Minuten nochmal', 'Lösche alle Erinnerungen'] },
@@ -25,12 +25,12 @@ const HELP_TOPICS = [
     { key: 'bahn', icon: '🚆', title: 'Bahn & Bus', words: /\bbahn|\bzug\b|\bzüge\b|\bbus\b|verbindung/, examples: [
         'Wann fährt der nächste Zug nach Hamburg?', 'Such mir die Bahnverbindung von Schwarzenbek nach Hamburg raus', 'Meine Tochter soll um 16 Uhr hier sein, wann muss sie los?'] },
     { key: 'orte', icon: '📍', title: 'Orte in der Nähe', words: /apothek|geldautomat|supermarkt|toilette|parkplatz|parkhaus|café|cafe|bäcker|drogerie|krankenhaus|ladestation|werkstatt|waschanlage|orte|nähe/, examples: [
-        'Wo ist der nächste Penny? (auch Aldi, Lidl, Rewe, Rossmann, McDonald\'s, Baumarkt, Werkstatt, Tankstelle, Bäcker ... Jarvis nennt den nächsten mit Entfernung und Öffnungszeit; ein Tipp auf die Karte öffnet die Route)', 'Navigiere mich zum nächsten Rossmann', 'Gibt es hier einen Baumarkt?', 'Wo ist die nächste Apotheke?', 'Wo kann ich Geld abheben?', 'Wo gibt es einen Supermarkt, der noch offen hat?', 'Wo ist die nächste Toilette?', 'Wo kann ich parken?', 'Wo finde ich eine Ladestation?', 'Wo ist eine Autowerkstatt?', 'Apotheke in Hamburg'] },
+        'Wo ist der nächste Penny? (auch Aldi, Lidl, Rewe, Rossmann, McDonald\'s, Baumarkt, Werkstatt, Tankstelle, Bäcker ... Zane nennt den nächsten mit Entfernung und Öffnungszeit; ein Tipp auf die Karte öffnet die Route)', 'Navigiere mich zum nächsten Rossmann', 'Gibt es hier einen Baumarkt?', 'Wo ist die nächste Apotheke?', 'Wo kann ich Geld abheben?', 'Wo gibt es einen Supermarkt, der noch offen hat?', 'Wo ist die nächste Toilette?', 'Wo kann ich parken?', 'Wo finde ich eine Ladestation?', 'Wo ist eine Autowerkstatt?', 'Apotheke in Hamburg'] },
     { key: 'tanken', icon: '⛽', title: 'Tanken & Essen', words: /tank|sprit|diesel|benzin|restaurant|essen|hunger|pizza/, examples: [
         'Wo tanke ich günstig auf meinem Weg zur Arbeit?', 'Was kostet Diesel in der Nähe?', 'Ich habe Lust auf Pizza, gibt es was in der Nähe?'] },
     { key: 'wetter', icon: '🌦️', title: 'Wetter & Unwetter', words: /wetter|regen|schirm|jacke|warnung/, examples: [
         'Wie wird das Wetter morgen?', 'Brauche ich einen Regenschirm?', 'Zeig mir das Wetter in Istanbul (mit Wetterkarte)', 'Wie wird das Wetter morgen in Wien?', 'Zeig das Regenradar',
-        'Gibt es Unwetterwarnungen? (amtliche Warnungen des Deutschen Wetterdienstes; bei Warnungen meldet sich Jarvis auch von selbst)'] },
+        'Gibt es Unwetterwarnungen? (amtliche Warnungen des Deutschen Wetterdienstes; bei Warnungen meldet sich Zane auch von selbst)'] },
     { key: 'sonnemond', icon: '🌙', title: 'Sonne & Mond', words: /sonne|sonnen|mond|vollmond|neumond|dämmerung|daemmerung/, examples: [
         'Wann geht die Sonne unter?', 'Wann geht die Sonne auf?', 'Wie lange ist es noch hell?', 'Wann geht der Mond auf?', 'Wann ist Vollmond? (öffnet ein Fenster mit Mondbild)', 'Wann ist Neumond?', 'Wie ist der Mond heute?', 'Schließen (macht das Fenster zu)'] },
     { key: 'feiertage', icon: '🎉', title: 'Feiertage & Brückentage', words: /feiertag|brückentag|brueckentag|ostern|weihnacht|pfingst/, examples: [
@@ -44,7 +44,7 @@ const HELP_TOPICS = [
     { key: 'mail', icon: '📧', title: 'E-Mails (nur lesen)', words: /mail|post/, examples: [
         'Habe ich neue E-Mails?', 'Nur wichtige E-Mails, keine Werbung', 'Lies mir die erste vor'] },
     { key: 'kontakte', icon: '📞', title: 'Anrufen & WhatsApp', words: /kontakt|anruf|ruf\b|whatsapp|telefon/, examples: [
-        'Ruf Mama an', 'Schick Schatz eine WhatsApp: Bin gleich da', '(Jarvis bereitet es vor, du tippst auf die Karte)'] },
+        'Ruf Mama an', 'Schick Schatz eine WhatsApp: Bin gleich da', '(Zane bereitet es vor, du tippst auf die Karte)'] },
     { key: 'welt', icon: '🌍', title: 'Welt, Nachrichten & Sport', words: /welt|nachricht|sport|bundesliga|iss\b|erdbeb|live/, examples: [
         'Was ist gerade in Spanien los?', 'Zeig mir, was in Hamburg los ist (die Kugel zoomt heran und blendet in die Neon-Karte über; „Zurück zur Kugel“ bringt dich wieder hoch)', 'Zeig mir die Nachrichten von heute', 'Wo ist die ISS?', 'Zeig mir New York live', 'Wie hat der HSV gespielt?', 'Wie ist die Tabelle?', 'Anflug aus (oder: Anflug an)',
         'Lokale Nachrichten (zwei Fenster mit Bildern: Schwarzenbek und Hamburg; kommen morgens beim ersten Öffnen auch von selbst)'] },
@@ -54,40 +54,40 @@ const HELP_TOPICS = [
         'Tagesüberblick (zeigt Termine, Erinnerungen, Aufgaben und Einkaufsliste als Kacheln)', 'Zeig mir meinen Tag', 'Kommt morgens von selbst beim ersten Öffnen, einstellbar unter Einstellungen > Morgen-Überblick', 'Das Fenster kommt mit Kartenwurf: Die Figur wirft eine Karte, die zum Fenster wird'] },
     { key: 'charakter', icon: '🎭', title: 'Charakter & Mitdenken', words: /charakter|frech|witz|humor|anrede|sprüche|spruch|mitdenk|von selbst|meldung|fakt/, examples: [
         'Sei frecher (oder: Sei höflicher, Keine Sprüche mehr). Fast jede Antwort bekommt einen Spruch, auch Stau, Fahrzeit, Bahn, Sprit, Mond und Filmtipps; bei Warnungen, Fehlern, Erinnerungen und E-Mails gibt es nie einen', 'Nenn mich Boss', 'Erzähl einen Witz', 'Erzähl mir was Interessantes', 'Bist du da?',
-        'Melde dich nicht mehr von selbst (Abfahrt, Regen, Unwetter, Geburtstage)', 'KI-Mitdenken aus (auch: KI-Mitdenken an; die KI macht sonst am Ende einer Antwort höchstens einen kurzen Vorschlag für den nächsten Schritt und merkt sich Dauerhaftes selbst)', 'Beim Termin eintragen prüft Jarvis Überschneidungen, Feiertage, Wetter und Fahrzeit'] },
+        'Melde dich nicht mehr von selbst (Abfahrt, Regen, Unwetter, Geburtstage)', 'KI-Mitdenken aus (auch: KI-Mitdenken an; die KI macht sonst am Ende einer Antwort höchstens einen kurzen Vorschlag für den nächsten Schritt und merkt sich Dauerhaftes selbst)', 'Beim Termin eintragen prüft Zane Überschneidungen, Feiertage, Wetter und Fahrzeit'] },
     { key: 'waehrung', icon: '💶', title: 'Währung umrechnen', words: /währung|waehrung|lira|dollar|kurs|umrechn|euro/, examples: [
         'Was sind 100 Euro in Lira?', 'Wie viel sind 50 Dollar in Euro?', 'Wie viel Lira sind 200 Euro?', 'Wie ist der Kurs von Euro zu Pfund?'] },
     { key: 'foto', icon: '📷', title: 'Foto auswerten', words: /foto|bild|kamera|schild|warnleuchte|fotografier/, examples: [
         'Tippe auf 📷, mach das Foto und sag dann: Setz das auf die Einkaufsliste (oder: Trag das in den Kalender ein, Übersetze das, Lege einen Kontakt davon an)', 'Übersetze dieses Schild', 'Lies mir den Brief vor', 'Erkläre mir diese Warnleuchte',
         'Trag die Termine von diesem Foto in meinen Kalender ein', 'Trag den Termin von diesem Plakat ein', 'Lege diese Visitenkarte als Kontakt an', 'Setz den Einkaufszettel auf die Liste',
-        'Navigiere zu der Adresse auf diesem Foto (Plakat, Flyer, Brief fotografieren; Jarvis liest die Adresse vor, mit Ja startet die Route)', 'Bring mich dorthin (nach dem Foto)', 'Darf ich hier parken? (Schild fotografieren)', 'Was kann ich damit kochen? (Zutaten fotografieren)', 'Zum Foto: Was kostet das?',
-        'Tipp zum Foto: Tippe das Foto ab / Merk dir den Ratenplan (auch mehrere Seiten, Drucken, ins Langzeitgedächtnis)', 'Merk dir diesen Stundenplan (Name und Tage)', 'Foto-Erkennung aus (auch: Foto-Erkennung an; sonst erkennt Jarvis Plakate, Briefe usw. von selbst)'] },
+        'Navigiere zu der Adresse auf diesem Foto (Plakat, Flyer, Brief fotografieren; Zane liest die Adresse vor, mit Ja startet die Route)', 'Bring mich dorthin (nach dem Foto)', 'Darf ich hier parken? (Schild fotografieren)', 'Was kann ich damit kochen? (Zutaten fotografieren)', 'Zum Foto: Was kostet das?',
+        'Tipp zum Foto: Tippe das Foto ab / Merk dir den Ratenplan (auch mehrere Seiten, Drucken, ins Langzeitgedächtnis)', 'Merk dir diesen Stundenplan (Name und Tage)', 'Foto-Erkennung aus (auch: Foto-Erkennung an; sonst erkennt Zane Plakate, Briefe usw. von selbst)'] },
     { key: 'person', icon: '👧', title: 'Aussehen merken (Personen)', words: /aussehen|julia|tochter|person|gesicht/, examples: [
-        'Das ist meine Tochter Julia (nach einem Foto)', 'Merk dir, wie Julia aussieht', 'Vergiss, wie Julia aussieht', '(Jarvis beschreibt nur das äußere Aussehen und fragt vorher, ob er es merken soll. Das Foto selbst wird nicht gespeichert, ein Gesicht erkennt er später nicht wieder.)'] },
+        'Das ist meine Tochter Julia (nach einem Foto)', 'Merk dir, wie Julia aussieht', 'Vergiss, wie Julia aussieht', '(Zane beschreibt nur das äußere Aussehen und fragt vorher, ob er es merken soll. Das Foto selbst wird nicht gespeichert, ein Gesicht erkennt er später nicht wieder.)'] },
     { key: 'internet', icon: '🌐', title: 'Aus dem Internet', words: /internet|fernseh|paket|öffnungszeit|oeffnungszeit/, examples: [
         'Was läuft heute Abend im Fernsehen?', 'Wo ist mein Paket?', 'Wann hat der Baumarkt heute auf?', 'Was läuft heute Abend im Kino in Hamburg?'] },
     { key: 'briefing', icon: '🌅', title: 'Briefing & Protokolle', words: /briefing|protokoll/, examples: [
         'Erwähne im Briefing immer, wo mein Ladekabel ist', 'Starte Protokoll Feierabend', 'Lege ein Protokoll Morgen an: Wetter und Fahrzeit zur Arbeit'] },
     { key: 'schicht', icon: '🕒', title: 'Schicht und Briefing', words: /schicht|frühschicht|spätschicht|früh|spät|dienstplan|briefing/, examples: [
-        'Diese Woche Frühschicht / Nächste Woche Spätschicht (danach wechselt Jarvis jeden Montag von selbst)', 'Welche Schicht habe ich? / Welche Schicht habe ich nächste Woche?',
+        'Diese Woche Frühschicht / Nächste Woche Spätschicht (danach wechselt Zane jeden Montag von selbst)', 'Welche Schicht habe ich? / Welche Schicht habe ich nächste Woche?',
         'Das Briefing kommt von selbst: Frühschicht ab 3 Uhr 30, Spätschicht ab 12 Uhr, nur bei offener App, einmal am Tag', 'Briefing in der Spätschicht um 11 Uhr (Zeit ändern) / Wann kommt mein Briefing?',
-        'Schicht-Briefing aus / Schicht-Briefing an', 'In der Frühschicht ist Jarvis von 21 Uhr 30 bis zur Briefing-Zeit still'] },
+        'Schicht-Briefing aus / Schicht-Briefing an', 'In der Frühschicht ist Zane von 21 Uhr 30 bis zur Briefing-Zeit still'] },
     { key: 'push', icon: '🔔', title: 'Benachrichtigungen', words: /benachrichtig|push|nachricht aufs handy/, examples: [
         'Benachrichtigungen an (dann auf die Karte tippen und zulassen)', 'Sende eine Test-Nachricht (muss auch bei geschlossener App ankommen)', 'Benachrichtigungen aus / Status Benachrichtigungen',
-        'Bei Terminen mit Ort sagt dir Jarvis aufs Handy, wann du losfahren musst (mit Stau, ab deinem letzten Standort oder Zuhause)', 'Wichtige Erinnerungen kommen alle 10 Minuten wieder, bis du am Sperrbildschirm auf Erledigt tippst'] },
+        'Bei Terminen mit Ort sagt dir Zane aufs Handy, wann du losfahren musst (mit Stau, ab deinem letzten Standort oder Zuhause)', 'Wichtige Erinnerungen kommen alle 10 Minuten wieder, bis du am Sperrbildschirm auf Erledigt tippst'] },
     { key: 'routinen', icon: '🔁', title: 'Routinen', words: /routine|gelernt|gewohnheit/, examples: [
-        'Welche Routinen kennst du? / Was hast du gelernt?', 'Jarvis merkt sich still nur Art und Uhrzeit (nie den Inhalt), was du wann tust, und fragt dich höchstens einmal am Tag, ob er eine Routine merken soll',
+        'Welche Routinen kennst du? / Was hast du gelernt?', 'Zane merkt sich still nur Art und Uhrzeit (nie den Inhalt), was du wann tust, und fragt dich höchstens einmal am Tag, ob er eine Routine merken soll',
         'Antworte einfach Ja oder Nein', 'Vergiss die Routine Einkauf / Vergiss alle Routinen', 'Routinen aus / Routinen an'] },
     { key: 'brief', icon: '✉️', title: 'Brief fotografieren', words: /brief|rechnung|mahnung|bescheid|post|schreiben|amt|behörde|preiserhöhung|einladung/, examples: [
         'Brief fotografieren / Rechnung fotografieren / Ich habe Post bekommen (dann Karte antippen, Kamera öffnet sich)', 'Foto machen, dann "Werte den Brief aus" oder auf die Karte "Brief auswerten" tippen',
-        'Rechnung oder Mahnung: Jarvis nennt Absender, Betrag und Zahlungsziel und fragt, ob er dich vorher erinnern soll',
+        'Rechnung oder Mahnung: Zane nennt Absender, Betrag und Zahlungsziel und fragt, ob er dich vorher erinnern soll',
         'Preiserhöhung oder Vertragsänderung: Hinweis auf das Sonderkündigungsrecht, auf Wunsch wird die Kündigung vorbereitet',
         'Bescheid vom Amt: Frist (z. B. Widerspruch) erkennen und Erinnerung anbieten; Einladung: Termin in den Kalender (immer erst nach deinem Ja)'] },
     { key: 'konto', icon: '🏦', title: 'Konto-Meldung', words: /konto|bank|überweisung|gutschrift|lastschrift|abbuchung|umsatz|eingang/, examples: [
-        'Jarvis sagt von selbst an, wenn deine Bank dir eine Mail zu einer Kontobewegung schickt (Eingang, Abbuchung, Kontoauszug), nur bei offener App', 'Prüf mal mein Konto (schaut sofort nach neuen Bank-Mails)',
+        'Zane sagt von selbst an, wenn deine Bank dir eine Mail zu einer Kontobewegung schickt (Eingang, Abbuchung, Kontoauszug), nur bei offener App', 'Prüf mal mein Konto (schaut sofort nach neuen Bank-Mails)',
         'Meine Bank ist die Sparkasse Lauenburg (damit er deren Mails erkennt)', 'Welche Banken überwachst du?', 'Konto-Meldung aus / Konto-Meldung an'] },
     { key: 'kuendigung', icon: '✉️', title: 'Kündigung schreiben', words: /kündigung|kuendigung|kündigen|kuendigen|vertrag|abo\b|mitgliedschaft/, examples: [
-        'Schreib mir eine Kündigung (Jarvis fragt: Anbieter, Vertrag, Kunden-/Vertragsnummer, Zeitpunkt, Name und Anschrift)', 'Kündigung für Vodafone aufsetzen', 'Ich möchte meinen Vertrag kündigen',
+        'Schreib mir eine Kündigung (Zane fragt: Anbieter, Vertrag, Kunden-/Vertragsnummer, Zeitpunkt, Name und Anschrift)', 'Kündigung für Vodafone aufsetzen', 'Ich möchte meinen Vertrag kündigen',
         'Zeig die letzte Kündigung', 'Zeig meine Kündigungen (die letzten 5 bleiben gespeichert, auch per Tipp auf Kündigung in der Kugel-Ansicht)', 'Im Fenster: Text ändern, PDF speichern, Drucken, Kopieren, Adresse suchen', 'Abbrechen (beendet die Fragen)'] },
     { key: 'ansicht', icon: '🧠', title: 'Kugel-Ansicht & Fokus', words: /fokus|kugel|ansicht|gehirn|zoom|markier|hervorheb/, examples: [
         'Fokus auf Briefing (der Begriff leuchtet auf und wird groß, damit du ihn antippen kannst; auch: Markiere Parkplatz, Fokussiere Wetter)', 'Fokus beenden (oder: Zoom raus)', 'Zeig das Gehirn / Zurück zur Kugel',
@@ -102,18 +102,18 @@ const HELP_TOPICS = [
     { key: 'dolmetscher', icon: '🗣️', title: 'Dolmetscher', words: /dolmetsch|übersetz|uebersetz/, examples: [
         'Dolmetscher Türkisch (auch Englisch, Rumänisch, Polnisch, Russisch)', 'Übersetze Guten Tag ins Englische', 'Dolmetscher beenden'] },
     { key: 'einstellungen', icon: '⚙️', title: 'Stimme & Einstellungen', words: /einstellung|system|daten|stimme|tempo|aussprache|sicher/, examples: [
-        'Töne aus (auch: Töne an, Töne leiser, Töne lauter; die Effekt-Töne für Bestätigung, Fehler und Warnung)', 'Menschliche Laute aus (auch: dezent, an; Jarvis seufzt bei Stau, kichert bei Sprüchen, atmet vor langen Antworten ein - nur mit Fish Audio)', 'Stimme: Einstellungen > Stimme & Gespräch > Sprachausgabe > Fish Audio (Stimmen-ID eintragen und „Fish-Stimme testen“)', 'Sprich langsamer', 'Sprich Alyssa so aus: Alischa', 'Wenn ich Hamlet sage, meine ich Hamiyet (Hör-Korrektur für falsch verstandene Namen)', 'Welche Hör-Korrekturen hast du?', 'Nenn mich Dino', 'Sichere meine Daten', 'Systemcheck'] }
+        'Töne aus (auch: Töne an, Töne leiser, Töne lauter; die Effekt-Töne für Bestätigung, Fehler und Warnung)', 'Menschliche Laute aus (auch: dezent, an; Zane seufzt bei Stau, kichert bei Sprüchen, atmet vor langen Antworten ein - nur mit Fish Audio)', 'Stimme: Einstellungen > Stimme & Gespräch > Sprachausgabe > Fish Audio (Stimmen-ID eintragen und „Fish-Stimme testen“)', 'Sprich langsamer', 'Sprich Alyssa so aus: Alischa', 'Wenn ich Hamlet sage, meine ich Hamiyet (Hör-Korrektur für falsch verstandene Namen)', 'Welche Hör-Korrekturen hast du?', 'Nenn mich Dino', 'Sichere meine Daten', 'Systemcheck'] }
 ];
 
 /* Ist der Satz eine Hilfe-Frage? Gibt { topic } zurück ('' = Überblick) oder null */
 function parseHelpRequest(text) {
     const t = String(text || '').toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim();
     if (!t || t.length > 60) return null;
-    const overview = /^(?:jarvis[, ]+)?(?:hilfe|hilf mir|was kannst du(?: alles)?(?: für mich)?(?: tun| machen)?|was kann ich (?:dich )?fragen|was kann ich sagen|welche befehle (?:gibt es|kennst du)|sprachbefehle|befehle|zeig(?:e)? (?:mir )?(?:was du kannst|die hilfe|hilfe))$/.test(t);
+    const overview = /^(?:(?:jarvis|zane)[, ]+)?(?:hilfe|hilf mir|was kannst du(?: alles)?(?: für mich)?(?: tun| machen)?|was kann ich (?:dich )?fragen|was kann ich sagen|welche befehle (?:gibt es|kennst du)|sprachbefehle|befehle|zeig(?:e)? (?:mir )?(?:was du kannst|die hilfe|hilfe))$/.test(t);
     if (overview) return { topic: '' };
     // Zu einem Thema nur, wenn der Satz wirklich mit "Hilfe/Was kannst du/Beispiele" beginnt oder "Hilfe zu/bei ..." sagt;
     // sonst würde "Ich brauche Hilfe beim Umzug" fälschlich als Hilfe zu einem Thema gelten
-    const asksHelp = /^(?:jarvis[, ]+)?(?:hilfe|was kannst du|beispiele?|befehle)\b/.test(t)
+    const asksHelp = /^(?:(?:jarvis|zane)[, ]+)?(?:hilfe|was kannst du|beispiele?|befehle)\b/.test(t)
         || /\b(?:hilfe|beispiele?)\s+(?:zu|zum|zur|bei|für|über)\b/.test(t) || /\bwas kannst du\b/.test(t);
     if (asksHelp) {
         const hit = HELP_TOPICS.find(x => x.words.test(t));
