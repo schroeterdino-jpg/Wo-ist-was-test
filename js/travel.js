@@ -371,37 +371,65 @@ async function runTankRouteDiagnosis() {
     catch (e) { log('❌ Unerwarteter Fehler: ' + (e && e.message ? e.message : e)); }
 }
 
+
+/* Für direkte Fahrzeitfragen: nicht den letzten Android/WebView-Standort übernehmen,
+   sondern kurz mehrere echte GPS-Messungen sammeln und die genaueste/neuste nehmen. */
+async function fetchFreshTravelLocation() {
+    if (!navigator.geolocation) return fetchUserLocationData();
+
+    let best = null;
+    await new Promise(resolve => {
+        let done = false, watchId = null;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            try { if (watchId !== null) navigator.geolocation.clearWatch(watchId); } catch (e) {}
+            resolve();
+        };
+        const timer = setTimeout(finish, 7000);
+        try {
+            watchId = navigator.geolocation.watchPosition(pos => {
+                if (!pos || !pos.coords) return;
+                if (!best ||
+                    Number(pos.coords.accuracy || 99999) < Number(best.coords.accuracy || 99999) ||
+                    Number(pos.timestamp || 0) > Number(best.timestamp || 0) + 1500) {
+                    best = pos;
+                }
+                if (Number(pos.coords.accuracy || 99999) <= 50) {
+                    clearTimeout(timer);
+                    setTimeout(finish, 350);
+                }
+            }, () => {}, {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 6500
+            });
+        } catch (e) {
+            clearTimeout(timer);
+            finish();
+        }
+    });
+
+    if (!best || !best.coords) return fetchUserLocationData();
+    return {
+        latitude: best.coords.latitude,
+        longitude: best.coords.longitude,
+        genauigkeit: best.coords.accuracy,
+        lat: Number(best.coords.latitude).toFixed(4),
+        lon: Number(best.coords.longitude).toFixed(4),
+        ort: ''
+    };
+}
+
 async function computeDepartureAdvice(opts) {
     if (typeof opts === 'string') opts = { query: opts };   // Rückwärtskompatibel
     const target = await resolveTravelTarget(opts);
 
-    // Bei einer direkten Fahr-/Lagebild-Frage IMMER einen frischen GPS-Standort holen.
-    // Alte Gesprächsorte, frühere Ziele oder ein zuvor gespeicherter Standort dürfen
-    // niemals stillschweigend als Startpunkt einer neuen Route verwendet werden.
-    let loc;
-    if (opts && typeof opts === 'object' && ('query' in opts) && navigator.geolocation) {
-        try {
-            const pos = await new Promise((resolve, reject) =>
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                    enableHighAccuracy: true,
-                    maximumAge: 0,
-                    timeout: 12000
-                })
-            );
-            loc = {
-                latitude: pos.coords.latitude,
-                longitude: pos.coords.longitude,
-                accuracy: pos.coords.accuracy,
-                ort: ''
-            };
-        } catch (e) {
-            // Nur wenn frisches GPS technisch nicht verfügbar ist, auf die bestehende
-            // Standortfunktion zurückfallen – niemals auf einen Gesprächskontext-Ort.
-            loc = await fetchUserLocationData();
-        }
-    } else {
-        loc = opts.loc || await fetchUserLocationData();
-    }
+    // Bei einer vom User gerade gestellten Fahrzeit-/Lagebildfrage niemals einen alten
+    // Gesprächs- oder WebView-Standort als Start verwenden.
+    const loc = (opts && typeof opts === 'object' && ('query' in opts))
+        ? await fetchFreshTravelLocation()
+        : (opts.loc || await fetchUserLocationData());
     if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
 
     // Ziel kann eine Straßenadresse, aber auch ein Geschäft/eine Sehenswürdigkeit ohne Adresse sein

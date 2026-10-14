@@ -22,12 +22,14 @@
 
     /* ---------- Wetter am Ziel ---------- */
     const nass = (mm, code) => mm >= 0.3 || (code >= 51 && code <= 67) || (code >= 80 && code <= 99);
-    async function wetterAmZiel(lat, lon, minuten) {
+    async function wetterAmZiel(lat, lon, minuten, terminMs) {
         try {
             const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&hourly=precipitation,weather_code&forecast_days=2&timezone=Europe%2FBerlin');
             const d = await r.json(), H = d.hourly;
             if (!H || !H.time) return null;
-            const an = new Date(Date.now() + minuten * 60000);
+            // Wenn die Frage einen festen Termin enthält, Wetter für DIESE Ankunftszeit
+            // prüfen (z.B. morgen 15 Uhr), nicht für "jetzt + Fahrzeit".
+            const an = terminMs ? new Date(terminMs) : new Date(Date.now() + minuten * 60000);
             // Stunden als Berlin-Ortszeit "YYYY-MM-DDTHH:00": Vergleich über denselben Textschlüssel
             const key = x => x.toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).slice(0, 13).replace(' ', 'T');
             const i = H.time.findIndex(t => t.slice(0, 13) === key(an));
@@ -88,7 +90,7 @@
             const m = res.map, ziel = (m.to && m.to.label) || opts.destination || opts.query || '';
             const zeilen = [], sprich = [];
             if (pd(KEY, 'an') !== 'aus') {
-                const [wetter] = await Promise.all([mit(wetterAmZiel(m.to.lat, m.to.lon, m.fahrtMin || 0), 6000)]);
+                const [wetter] = await Promise.all([mit(wetterAmZiel(m.to.lat, m.to.lon, m.fahrtMin || 0, m.terminMs || null), 6000)]);
                 const liste = listenTipp(ziel), rg = rechnungsTipp();
                 if (wetter) { zeilen.push({ ok: null, text: '☂ ' + wetter.kurz }); if (wetter.text) sprich.push(wetter.text); }
                 if (res.sprit) zeilen.push({ ok: null, text: '⛽ ' + (res.sprit.name || 'Tankstelle') + ': Diesel ' + res.sprit.preis.toFixed(3).replace('.', ',') + ' € an der Strecke' });
