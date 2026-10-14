@@ -19,30 +19,14 @@ function openGoogleCalendarApp(isoTimeString) {
     let d = isoTimeString ? new Date(isoTimeString) : new Date();
     if (isNaN(d.getTime())) d = new Date();
     const url = `https://calendar.google.com/calendar/u/0/r/day/${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-
-    // Android/WebView beendet die Web-Spracherkennung beim Wechsel zu Google Kalender.
-    // Beim Zurückkehren darf deshalb kein alter "isRecording"-Zustand stehen bleiben.
-    try { if (typeof recognition !== 'undefined' && recognition) recognition.stop(); } catch (e) {}
-    try { if (typeof resetRecordingState === 'function') resetRecordingState(); } catch (e) {}
-
-    // Nach der Rückkehr aus Google Kalender den Sprachzustand sauber neu initialisieren.
-    const resumeVoiceAfterCalendar = () => {
-        if (document.hidden) return;
-        setTimeout(() => {
-            try { if (typeof resetRecordingState === 'function') resetRecordingState(); } catch (e) {}
-            try {
-                if (typeof wakeWordEnabled !== 'undefined' && wakeWordEnabled &&
-                    typeof startWakeWordListening === 'function' &&
-                    (typeof isSpeaking !== 'function' || !isSpeaking()) &&
-                    (typeof isProcessing === 'undefined' || !isProcessing)) {
-                    startWakeWordListening();
-                }
-            } catch (e) {}
-        }, 350);
-    };
-    window.addEventListener('focus', resumeVoiceAfterCalendar, { once: true });
-
-    try { window.open(url, '_blank', 'noopener'); } catch (e) {}
+    try {
+        const w = window.open(url, '_blank', 'noopener');
+        // Android/PWA kann einen neuen Tab nach einer asynchronen Aktion blockieren.
+        // Dann als sicherer Fallback direkt zum Kalender wechseln; Zurück bringt Jarvis wieder.
+        if (!w) window.location.href = url;
+    } catch (e) {
+        try { window.location.href = url; } catch (_) {}
+    }
 }
 
 /* ---- Fragen wie "Wann hat Schatz Geburtstag?" werden sofort im Kalender nachgeschlagen, ohne dass die KI die Suche erst anfordern muss ---- */
@@ -182,13 +166,16 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'calendar_delete') {
         const q = (action.calendar_query || text).toLowerCase();
         const found = calendarEntries.find(c => c.text.toLowerCase().includes(q) || q.includes(c.text.toLowerCase()));
+        const deleteTarget = found || (calendarEntries.length > 0 ? calendarEntries[0] : null);
+        const deletedDay = deleteTarget && deleteTarget.isoDate ? deleteTarget.isoDate : new Date().toISOString();
         let calDone = true;
-        if (found) {
-            calDone = await deleteCalendarEntry(found.id);
-        } else if (calendarEntries.length > 0) {
-            calDone = await deleteCalendarEntry(calendarEntries[0].id);
+        if (deleteTarget) calDone = await deleteCalendarEntry(deleteTarget.id);
+        if (calDone === false) {
+            googleNotSynced(ctx, 'Der Termin ist in der App gelöscht, bei Google steht er noch');
+        } else if (deleteTarget) {
+            // Erst NACH bestätigtem Google-Löschen öffnen, damit sofort kontrolliert werden kann.
+            openGoogleCalendarApp(deletedDay);
         }
-        if (calDone === false) googleNotSynced(ctx, 'Der Termin ist in der App gelöscht, bei Google steht er noch');
         updateTerminalStream("CALENDAR: EVENT_DELETED");
     } else if (action.type === 'calendar_update') {
         let targetId = action.calendar_id;

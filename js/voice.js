@@ -922,6 +922,34 @@ if (typeof document !== 'undefined' && document.addEventListener) {
     });
 }
 
+/* Android/PWA-Rückkehr-Fix:
+   Externe Apps/Custom-Tabs (z.B. Google Kalender) können die Web-Speech-Sitzung
+   beenden, ohne dass alle internen Flags zuverlässig zurückgesetzt werden.
+   Bei jeder echten Rückkehr in Jarvis deshalb Aufnahmezustand bereinigen und
+   das Weckwort mit kurzer Verzögerung neu starten. */
+let jvResumeVoiceTimer = null;
+function jvResumeVoiceAfterExternalApp() {
+    if (document.hidden) return;
+    clearTimeout(jvResumeVoiceTimer);
+    jvResumeVoiceTimer = setTimeout(() => {
+        try { if (recognition) recognition.abort(); } catch (e) {}
+        try { resetRecordingState(); } catch (e) { isRecording = false; }
+        wakeWordListening = false;
+        setTimeout(() => {
+            try {
+                if (wakeWordEnabled && !document.hidden && !isSpeaking() && !isProcessing && !interpreter) {
+                    startWakeWordListening();
+                }
+            } catch (e) {}
+        }, 450);
+    }, 250);
+}
+window.addEventListener('pageshow', jvResumeVoiceAfterExternalApp);
+window.addEventListener('focus', jvResumeVoiceAfterExternalApp);
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) jvResumeVoiceAfterExternalApp();
+});
+
 let pendingManualListen = false;
 
 function toggleSpeechRecognition() {
