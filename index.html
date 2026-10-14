@@ -646,7 +646,7 @@
                         </div>
                         <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
                             <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Datensicherung:</label>
-                            <p class="text-xs text-[#5d7e91] font-mono">Speichert Listen, Termine, Gedächtnis, Parkplatz und Heimatadresse als Datei. Auch per Sprache: „Sichere meine Daten."</p>
+                            <p class="text-xs text-[#5d7e91] font-mono">Speichert alles als Datei: Listen, Termine, Gedächtnis, Urlaub, Schicht, Rechnungen und Einstellungen (ohne Zugangsdaten). Auch per Sprache: „Sichere meine Daten."</p>
                             <button onclick="playUiBeep(); exportAllData()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">💾 Daten sichern (Download)</button>
                             <input type="file" id="backupRestoreInput" accept="application/json" class="hidden" onchange="handleImportFile(this)">
                             <button onclick="playUiBeep(); document.getElementById('backupRestoreInput').click()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">📂 Sicherung wiederherstellen</button>
@@ -728,14 +728,14 @@
     <script src="./js/routing.js"></script>
     <script src="./js/localcommands.js"></script>
     <!-- JARVIS Erweiterungs-Bus: muss direkt nach localcommands.js kommen -->
-    <script src="./js/commands.js?v=20261014-jarvis-upgrade"></script>
+    <script src="./js/commands.js?v=20261014-zane"></script>
     <script src="./js/systemcheck.js"></script>
     <!-- JARVIS: natürlicher Gesprächskontext + stilles Mitdenken -->
-    <script src="./js/contextplus.js?v=20261014-jarvis-upgrade"></script>
-    <script src="./js/ki_mitdenken.js?v=20261014-jarvis-upgrade"></script>
+    <script src="./js/contextplus.js?v=20261014-zane"></script>
+    <script src="./js/ki_mitdenken.js?v=20261014-zane"></script>
     <script src="./js/boot.js"></script>
     <script src="./js/alarm.js"></script>
-    <script src="./js/formulierungen.js?v=20261014-jarvis-upgrade"></script>
+    <script src="./js/formulierungen.js?v=20261014-zane"></script>
     <script src="./js/mailwatch.js"></script>
     <script src="./js/fristen.js"></script>
     <script src="./js/help.js"></script>
@@ -747,25 +747,25 @@
     <script src="./js/mitdenken.js"></script>
     <script src="./js/wachter.js"></script>
     <!-- JARVIS proaktiv: HUD, Rechnungen, Schicht, Routinen, frühe Terminhinweise, Fahrt-Check, Lagebild -->
-    <script src="./js/hud_fenster.js?v=20261014-jarvis-upgrade"></script>
-    <script src="./js/rechnungen.js?v=20261014-jarvis-upgrade"></script>
-    <script src="./js/schicht.js?v=20261014-jarvis-upgrade"></script>
-    <script src="./js/routinen.js?v=20261014-jarvis-upgrade"></script>
-    <script src="./js/proaktiv.js?v=20261014-jarvis-upgrade"></script>
-    <script src="./js/fahrtcheck.js?v=20261014-jarvis-upgrade"></script>
+    <script src="./js/hud_fenster.js?v=20261014-zane"></script>
+    <script src="./js/rechnungen.js?v=20261014-zane"></script>
+    <script src="./js/schicht.js?v=20261014-zane"></script>
+    <script src="./js/routinen.js?v=20261014-zane"></script>
+    <script src="./js/proaktiv.js?v=20261014-zane"></script>
+    <script src="./js/fahrtcheck.js?v=20261014-zane"></script>
     <script src="./js/stadtverkehr.js"></script>
-    <script src="./js/lagebild.js?v=20261014-jarvis-upgrade"></script>
+    <script src="./js/lagebild.js?v=20261014-zane"></script>
     <script src="./js/selbsttest.js"></script>
     <script src="./js/festnamen.js"></script>
-    <script src="./js/konto.js?v=20261014-jarvis-upgrade"></script>
+    <script src="./js/konto.js?v=20261014-zane"></script>
     <script src="./js/hoerkorrektur.js"></script>
     <script src="./js/hoeren.js"></script>
     <script src="./js/gehirn.js"></script>
     <script src="./js/urlaub.js"></script>
     <!-- JARVIS Push: geschlossene App, Termin-/Wetter-/Mail-Synchronisierung -->
-    <script src="./js/push.js?v=20261014-jarvis-upgrade"></script>
-    <script src="./js/pushsync.js?v=20261014-jarvis-upgrade"></script>
-    <script src="./js/mailpush.js?v=20261014-jarvis-upgrade"></script>
+    <script src="./js/push.js?v=20261014-zane"></script>
+    <script src="./js/pushsync.js?v=20261014-zane"></script>
+    <script src="./js/mailpush.js?v=20261014-zane"></script>
     <script src="./js/satztest.js"></script>
     <script src="./js/tagesueberblick.js"></script>
     <script src="./js/welt_anflug.js"></script>
@@ -773,12 +773,12 @@
     <script src="./js/photo.js"></script>
     <script src="./js/foto_adresse.js"></script>
     <!-- JARVIS-Auge: Brief/Rechnung, Abtippen, Stundenplan, Personen, automatische Erkennung -->
-    <script src="./js/foto_brief.js?v=20261014-jarvis-upgrade"></script>
-    <script src="./js/foto_abtippen.js?v=20261014-jarvis-upgrade"></script>
-    <script src="./js/foto_stundenplan.js?v=20261014-jarvis-upgrade"></script>
-    <script src="./js/foto_person.js?v=20261014-jarvis-upgrade"></script>
+    <script src="./js/foto_brief.js?v=20261014-zane"></script>
+    <script src="./js/foto_abtippen.js?v=20261014-zane"></script>
+    <script src="./js/foto_stundenplan.js?v=20261014-zane"></script>
+    <script src="./js/foto_person.js?v=20261014-zane"></script>
     <script src="./js/karte_zu.js"></script>
-    <script src="./js/foto_erkennen.js?v=20261014-jarvis-upgrade"></script>
+    <script src="./js/foto_erkennen.js?v=20261014-zane"></script>
     <!-- Neu: Feiertage, Sonne und Mond (mit Fenster), Weltzeit, Unwetterwarnungen, Filmtipps. erweiterungen.js hängt sie ein und muss danach kommen. -->
     <script src="./js/extrafenster.js"></script>
     <script src="./js/feiertage.js"></script>
