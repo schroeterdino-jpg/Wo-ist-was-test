@@ -19,14 +19,7 @@ function openGoogleCalendarApp(isoTimeString) {
     let d = isoTimeString ? new Date(isoTimeString) : new Date();
     if (isNaN(d.getTime())) d = new Date();
     const url = `https://calendar.google.com/calendar/u/0/r/day/${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-    try {
-        const w = window.open(url, '_blank', 'noopener');
-        // Android/PWA kann einen neuen Tab nach einer asynchronen Aktion blockieren.
-        // Dann als sicherer Fallback direkt zum Kalender wechseln; Zurück bringt Jarvis wieder.
-        if (!w) window.location.href = url;
-    } catch (e) {
-        try { window.location.href = url; } catch (_) {}
-    }
+    try { window.open(url, '_blank', 'noopener'); } catch (e) {}
 }
 
 /* ---- Fragen wie "Wann hat Schatz Geburtstag?" werden sofort im Kalender nachgeschlagen, ohne dass die KI die Suche erst anfordern muss ---- */
@@ -167,15 +160,14 @@ async function executeAction(action, text, ctx) {
         const q = (action.calendar_query || text).toLowerCase();
         const found = calendarEntries.find(c => c.text.toLowerCase().includes(q) || q.includes(c.text.toLowerCase()));
         const deleteTarget = found || (calendarEntries.length > 0 ? calendarEntries[0] : null);
-        const deletedDay = deleteTarget && deleteTarget.isoDate ? deleteTarget.isoDate : new Date().toISOString();
+        const deletedDay = deleteTarget && deleteTarget.isoDate ? deleteTarget.isoDate : null;
         let calDone = true;
-        if (deleteTarget) calDone = await deleteCalendarEntry(deleteTarget.id);
-        if (calDone === false) {
-            googleNotSynced(ctx, 'Der Termin ist in der App gelöscht, bei Google steht er noch');
-        } else if (deleteTarget) {
-            // Erst NACH bestätigtem Google-Löschen öffnen, damit sofort kontrolliert werden kann.
-            openGoogleCalendarApp(deletedDay);
+        if (deleteTarget) {
+            calDone = await deleteCalendarEntry(deleteTarget.id);
         }
+        if (calDone === false) googleNotSynced(ctx, 'Der Termin ist in der App gelöscht, bei Google steht er noch');
+        // Genau EINMAL öffnen; kein location-Fallback und keine Eingriffe in die Sprachsteuerung.
+        if (deleteTarget && calDone !== false) openGoogleCalendarApp(deletedDay);
         updateTerminalStream("CALENDAR: EVENT_DELETED");
     } else if (action.type === 'calendar_update') {
         let targetId = action.calendar_id;
