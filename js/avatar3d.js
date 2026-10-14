@@ -368,11 +368,11 @@ function applyMorphs(dt,speaking,now){
  else if(manualMouth>0){clearSpeechMorphs();setMorph('jawOpen',manualMouth)}
  else clearSpeechMorphs();
  // Grimassen (js/grimassen.js): liegen als Überlagerung oben drauf, damit das Aufräumen der Mundformen sie nicht löscht.
- if(grimass&&!fishSpeaking) for(const n in grimass) setMorph(n,grimass[n]);
+ if(grimass){ for(const n in grimass){ if(!fishSpeaking||/^(brow|eye|cheek|nose|mouthSmile|mouthDimple)/.test(n)) setMorph(n,grimass[n]); } }   // beim Sprechen nur Augen, Brauen, Wangen, Nase und Lächeln, nie den Mund/Kiefer
  if(expression==='laugh'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.28));
  if(expression==='surprised'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.34));
  for(const n of morphNames){const want=target[n]||0;current[n]+=(want-current[n])*Math.min(1,dt*14)}
- { const b1=resolveMorphName('eyeBlink_L'),b2=resolveMorphName('eyeBlink_R'); if(b1)current[b1]=Math.max(0,Math.min(1,blinkVal)); if(b2)current[b2]=Math.max(0,Math.min(1,blinkVal)); }
+ { const b1=resolveMorphName('eyeBlink_L'),b2=resolveMorphName('eyeBlink_R'), wl=(grimass&&grimass.eyeBlink_L)||0, wr=(grimass&&grimass.eyeBlink_R)||0; if(b1)current[b1]=Math.max(0,Math.min(1,Math.max(blinkVal,wl))); if(b2)current[b2]=Math.max(0,Math.min(1,Math.max(blinkVal,wr))); }   // Zwinkern (Mimik) läuft über die Überlagerung
  for(const m of morphMeshes)for(const n of morphNames){const i=morphIndex(m,n);if(i>=0)m.morphTargetInfluences[i]=current[n]||0}
 }
 let lastAvatarState='';
