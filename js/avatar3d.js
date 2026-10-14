@@ -28,9 +28,14 @@ const cyan=0x00cfff, dark=0x111820;
 const metalMat=new THREE.MeshPhysicalMaterial({color:0xb8c1c7,metalness:.58,roughness:.48,clearcoat:.10,clearcoatRoughness:.55});
 const darkMat=new THREE.MeshStandardMaterial({color:dark,metalness:.9,roughness:.3});
 const glowMat=new THREE.MeshStandardMaterial({color:0x8df7ff,metalness:.2,roughness:.18,emissive:cyan,emissiveIntensity:5});
-const morphMeshes=[]; let morphNames=new Set(), model=null, active=false, raf=0, blink=0, expression='neutral', manualMouth=0, modelReady=false;
+const morphMeshes=[]; let morphNames=new Set(), model=null, active=true, raf=0, blink=0, expression='neutral', manualMouth=0, modelReady=false;
 let speechMorphs={};
 let tongueUntil=0, lastEmotionText='', manualExpressionUntil=0;
+// Der 3D-Kopf ist die Standardansicht. Das bisherige Geflecht bleibt nur die zweite Wahl.
+const startupSphere=document.getElementById('jarvisSphere');
+const startupHolo=document.getElementById('jarvisHolo');
+if(startupSphere) startupSphere.style.visibility='hidden';
+if(startupHolo) startupHolo.style.visibility='hidden';
 const status=document.createElement('div'); status.id='jv3dStatus'; status.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10;display:none;max-width:86%;padding:9px 12px;border:1px solid #16cce8;border-radius:10px;background:#06111ee8;color:#aef7ff;font:700 12px system-ui;text-align:center;box-shadow:0 0 18px #00bfff44;pointer-events:none'; holder.appendChild(status);
 function showStatus(t,err=false){status.textContent=t;status.style.borderColor=err?'#ff5b6e':'#16cce8';status.style.color=err?'#ffd5da':'#aef7ff';status.style.display='block'}
 function hideStatus(){status.style.display='none'}
@@ -271,7 +276,7 @@ function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);cons
  root.position.y=Math.sin(now*.0011)*.012+(st==='listening'?.008:0);
  renderer.render(scene,camera)}
 function setMode(on){active=!!on; const sphere=document.getElementById('jarvisSphere'); const holo=document.getElementById('jarvisHolo'); btn.classList.toggle('active',active); btn.textContent=active?'● 3D':'○ 3D'; if(!active){renderer.domElement.style.display='none';hideStatus();if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} if(!modelReady){renderer.domElement.style.display='none';showStatus('3D-Kopf wird geladen …');if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} renderer.domElement.style.display='block';hideStatus();if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
-const btn=document.createElement('button');btn.id='jv3dToggle';btn.type='button';btn.textContent='○ 3D';btn.title='JARVIS 3D-Kopf';btn.style.cssText='position:absolute;right:8px;top:8px;z-index:9;border:1px solid #16cce8;border-radius:999px;background:#07131ddd;color:#9df6ff;padding:7px 10px;font:700 11px system-ui;letter-spacing:.04em;cursor:pointer;box-shadow:0 0 16px #00bfff33';holder.appendChild(btn);btn.onclick=()=>setMode(!active);
+const btn=document.createElement('button');btn.id='jv3dToggle';btn.type='button';btn.textContent='● 3D';btn.title='JARVIS 3D-Kopf';btn.style.cssText='position:absolute;right:8px;top:8px;z-index:9;border:1px solid #16cce8;border-radius:999px;background:#07131ddd;color:#9df6ff;padding:7px 10px;font:700 11px system-ui;letter-spacing:.04em;cursor:pointer;box-shadow:0 0 16px #00bfff33';holder.appendChild(btn);btn.onclick=()=>setMode(!active);
 window.jvAvatar3D={setMode,setExpression,expressions:['neutral','friendly','happy','laugh','sad','serious','surprised','thinking','concerned'],update(p={}){if(p.expression)setExpression(p.expression);if(p.mouth!=null)manualMouth=Math.max(0,Math.min(1,p.mouth));if(p.blink)blink=1;if(p.tongue){tongueUntil=performance.now()+Math.max(400,Number(p.tongueMs)||2200)}},tongue(ms=2200){const tn=tongueMorphName();if(!tn)return false;tongueUntil=performance.now()+ms;return true},get ready(){return modelReady},get morphs(){return [...morphNames]},get hasTongue(){return !!tongueMorphName()}};
 // Direkte Mimik-Sprachbefehle: werden lokal ausgeführt, statt an die KI geschickt zu werden.
 window.handleAvatarExpressionCommand=function(text){
