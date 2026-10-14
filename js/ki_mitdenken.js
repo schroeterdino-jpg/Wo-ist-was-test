@@ -100,11 +100,67 @@
         return out.sort((a, b) => a.n - b.n);
     }
 
+    // Geburtstage direkt aus dem Langzeitgedächtnis holen (alle Einträge, nicht über die Suche) und kurz merken
+    let gebCache = { t: 0, liste: [], fehler: '' };
+    async function ladeGeburtstage(force) {
+        if (!force && gebCache.t && !gebCache.fehler && Date.now() - gebCache.t < 300000) return gebCache.liste;
+        try {
+            const res = await apiFetch('/api/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'listall' }) });
+            let data = null;
+            try { data = await res.json(); } catch (e) {}
+            if (!res.ok) throw new Error((data && data.error) || ('Fehler ' + res.status));
+            const alle = Array.isArray(data && data.eintraege) ? data.eintraege : [];
+            const liste = alle.filter(e => e && e.text && ((e.metadata && e.metadata.kategorie === 'Geburtstag') || /geburtstag/i.test(e.text)));
+            gebCache = { t: Date.now(), liste, fehler: '', gesamt: alle.length, google: gebCache.google || [] };
+        } catch (e) {
+            gebCache = { t: Date.now(), liste: gebCache.liste || [], fehler: String((e && e.message) || e), gesamt: 0, google: gebCache.google || [] };
+        }
+        // Geburtstags-Kalender von Google (Kontakte) und Hauptkalender, wie im Tages-Briefing (birthdays.js)
+        try {
+            if (typeof fetchUpcomingBirthdays === 'function') {
+                const g = await fetchUpcomingBirthdays(35);
+                if (Array.isArray(g)) gebCache.google = g;
+            }
+        } catch (e) {}
+        return gebCache.liste;
+    }
+    function speicherGeburtstage() {
+        const out = [];
+        const heute = new Date();
+        (gebCache.liste || []).forEach(e => {
+            try {
+                const m = e.metadata || {};
+                const s = String(e.text || '');
+                let mon = -1, tag = 0, jahr = 0;
+                if (/^\d{4}-\d{2}-\d{2}$/.test(String(m.ereignis_datum || ''))) {
+                    jahr = Number(m.ereignis_datum.slice(0, 4)); mon = Number(m.ereignis_datum.slice(5, 7)) - 1; tag = Number(m.ereignis_datum.slice(8, 10));
+                } else {
+                    const x = s.match(new RegExp('(\\d{1,2})\\.\\s*' + MONAT_RX, 'i'));
+                    if (x) { tag = Number(x[1]); mon = MONATE[x[2].toLowerCase()]; }
+                }
+                if (mon < 0 || !tag) return;
+                let d = new Date(heute.getFullYear(), mon, tag);
+                if (tageBis(d) < 0) d = new Date(heute.getFullYear() + 1, mon, tag);
+                const n = tageBis(d);
+                if (n < 0 || n > 35) return;
+                let t = s.replace(/\s*\([^)]*\d{4}\)\s*$/, '').replace(/\.$/, '').trim();
+                out.push({ n, text: t });
+            } catch (x) {}
+        });
+        return out.sort((a, b) => a.n - b.n);
+    }
+
     function geschenkHinweis(reply, userText) {
         if (!isOn() || stufe() !== 'aktiv') return reply;
         const r = String(reply || ''), u = String(userText || '');
         if (!r || r.length > 500 || !GESCHENK_RX.test(u) || ERNST_RX.test(r + ' ' + u) || /geburtstag/i.test(r)) return reply;
+        const gg = (gebCache.google || [])[0];
+        if (gg && gg.titel) {
+            const ph = (typeof birthdayPhrase === 'function') ? birthdayPhrase(gg) : (gg.tag + ' ' + gg.titel);
+            return r.replace(/\s+$/, '') + ' Übrigens, ' + ph.replace(/\.$/, '') + '.';
+        }
         let liste = kalenderGeburtstage();
+        if (!liste.length) liste = speicherGeburtstage();
         if (!liste.length && letzteTreffer.q === u) liste = gedaechtnisGeburtstage(letzteTreffer.hits);
         if (!liste.length) return reply;
         const e = liste[0];
@@ -130,6 +186,7 @@
                     if (!Array.isArray(hits)) hits = [];
                     try {
                         if (isOn() && stufe() === 'aktiv' && GESCHENK_RX.test(String(text || ''))) {
+                            await ladeGeburtstage();
                             const extra = await origS.call(this, 'Geburtstag Feier Fest Jubiläum');
                             if (Array.isArray(extra)) hits = hits.concat(extra.filter(x => hits.indexOf(x) === -1));
                         }
@@ -141,6 +198,7 @@
                 window.searchSemanticMemory = w2;
             }
         } catch (e) { console.error('KI-Mitdenken einhängen', e); }
+        setTimeout(function () { try { ladeGeburtstage(); } catch (e) {} }, 4000);
     }
     if (document.readyState === 'complete') setTimeout(einhaengen, 0); else window.addEventListener('load', einhaengen);
 
@@ -155,6 +213,19 @@
         if (mehr) { lsSet(KEY, '1'); lsSet(KEY_STUFE, 'aktiv'); say('Gut, ich denke jetzt aktiv mit und melde mich, wenn mir etwas auffällt.'); return true; }
         if (weniger) { lsSet(KEY, '1'); lsSet(KEY_STUFE, 'normal'); say('In Ordnung, ich melde mich nur noch bei offensichtlichem Anlass.'); return true; }
 
+        if (/^(?:ki )?mitdenken (?:status|test|prüfung|pruefung|check)$|^geschenk(?:-| )?check$/.test(t)) {
+            ladeGeburtstage(true).then(function () {
+                const k = kalenderGeburtstage(), sp = speicherGeburtstage();
+                let msg = 'Mitdenken ist ' + (isOn() ? 'an, Stufe ' + stufe() : 'aus') + '. ';
+                if (gebCache.fehler) msg += 'Das Langzeitgedächtnis konnte ich nicht lesen: ' + gebCache.fehler + '. ';
+                else msg += 'Im Langzeitgedächtnis habe ich ' + gebCache.liste.length + ' Geburtstagseinträge. ';
+                msg += 'Im Geburtstagskalender von Google sind ' + (gebCache.google || []).length + ' in den nächsten fünf Wochen. Im Terminkalender stehen ' + k.length + ' Geburtstage in den nächsten fünf Wochen';
+                const e = k[0] || sp[0];
+                msg += e ? ', der nächste: ' + wannText(e.n) + ', ' + e.text + '.' : ', im Gedächtnis keiner.';
+                say(msg);
+            });
+            return true;
+        }
         if (!/\bki mitdenken\b/.test(t)) return false;
         if (/\b(aus|ausschalten|deaktivier\w*)\b/.test(t)) { lsSet(KEY, '0'); say('Gut, ich halte mich mit eigenen Vorschlägen zurück.'); return true; }
         if (/\b(an|ein|einschalten|aktivier\w*)\b/.test(t)) { lsSet(KEY, '1'); say('Gut, ich denke wieder mit.'); return true; }
@@ -167,5 +238,5 @@
             return next(text);
         }, 92);
     }
-    window.jvKiMitdenken = { isOn, stufe, handle, hinweis, HINWEIS_AKTIV, HINWEIS_NORMAL };
+    window.jvKiMitdenken = { ladeGeburtstage, speicherGeburtstage, geschenkHinweis, isOn, stufe, handle, hinweis, HINWEIS_AKTIV, HINWEIS_NORMAL };
 })();
