@@ -150,6 +150,14 @@
         return out.sort((a, b) => a.n - b.n);
     }
 
+    // "Geburtstag von Alischa Geburtstag am 30. Oktober (2009)" -> "Alischa hat Geburtstag"
+    function saubererSatz(t) {
+        let x = String(t || '').replace(/\([^)]*\)/g, ' ').replace(/\d{1,2}\.\s*(?:\d{1,2}\.|[A-Za-zäöüÄÖÜ]+)(?:\s*\d{4})?/g, ' ');
+        x = x.replace(/geburtstags?(?:feier|party|kind)?/gi, ' ').replace(/\b(?:von|vom|der|die|das|des|hat|am|im|zum|zur|alles|gute|jährlich)\b/gi, ' ');
+        x = x.replace(/[.,:;!?\-–]+/g, ' ').replace(/\s+/g, ' ').trim();
+        return x ? x + ' hat Geburtstag' : String(t || 'Geburtstag').replace(/\.$/, '');
+    }
+
     function geschenkHinweis(reply, userText) {
         if (!isOn() || stufe() !== 'aktiv') return reply;
         const r = String(reply || ''), u = String(userText || '');
@@ -164,7 +172,7 @@
         if (!liste.length && letzteTreffer.q === u) liste = gedaechtnisGeburtstage(letzteTreffer.hits);
         if (!liste.length) return reply;
         const e = liste[0];
-        return r.replace(/\s+$/, '') + ' Übrigens, ' + wannText(e.n) + ': ' + e.text.replace(/\.$/, '') + '.';
+        return r.replace(/\s+$/, '') + ' Übrigens, ' + wannText(e.n) + ': ' + saubererSatz(e.text) + '.';
     }
 
     function einhaengen() {
