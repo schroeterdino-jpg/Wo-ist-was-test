@@ -20,7 +20,7 @@ const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreferenc
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,2)); renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.12;
 renderer.domElement.id='jarvisAvatar3D';
-renderer.domElement.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:none;z-index:4;pointer-events:none'; holder.appendChild(renderer.domElement);
+renderer.domElement.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:none;z-index:4;pointer-events:none;-webkit-mask-image:radial-gradient(closest-side,#000 74%,transparent 100%);mask-image:radial-gradient(closest-side,#000 74%,transparent 100%)'; holder.appendChild(renderer.domElement);
 const scene=new THREE.Scene(); const camera=new THREE.PerspectiveCamera(28,1,.01,100); camera.position.set(0,.03,4.4);
 scene.add(new THREE.HemisphereLight(0xd9f7ff,0x071018,1.55));
 let key=new THREE.DirectionalLight(0xf3fbff,2.35);key.position.set(2.5,3.5,4);scene.add(key);
@@ -29,7 +29,7 @@ let fill=new THREE.PointLight(0x6be9ff,5.5,8);fill.position.set(2,-1,2);scene.ad
 const root=new THREE.Group();scene.add(root);
 // ---------- Jarvis-Hintergrund: Hologramm-Ringe + Partikel + Schein (hinter dem Kopf) ----------
 const bgGroup=new THREE.Group(); bgGroup.position.set(0,-.04,-1.0); scene.add(bgGroup);
-const bgRings=[], bgMats=[]; let bgParticles=null, bgHalo=null, bgScan=null;
+const bgRings=[], bgMats=[]; let bgParticles=null, bgHalo=null, bgScan=null, bgBig=null;
 if(JV_HINTERGRUND){
   const addMat=(c,o)=>{const m=new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});bgMats.push([m,o]);return m};
   const ring=(r,tube,arc,col,op,speed,tilt)=>{const m=new THREE.Mesh(new THREE.TorusGeometry(r,tube,6,160,arc),addMat(col,op));m.rotation.x=tilt||0;m.userData.speed=speed;bgGroup.add(m);bgRings.push(m);
@@ -53,7 +53,7 @@ if(JV_HINTERGRUND){
   // weicher Schein hinter dem Kopf
   {const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');const gr=x.createRadialGradient(128,128,10,128,128,128);
    gr.addColorStop(0,'rgba(30,150,230,.30)');gr.addColorStop(.45,'rgba(0,90,170,.10)');gr.addColorStop(1,'rgba(0,40,90,0)');x.fillStyle=gr;x.fillRect(0,0,256,256);
-   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));sp.scale.set(4.4,4.4,1);sp.position.set(0,-.04,-1.6);scene.add(sp);}
+   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));sp.scale.set(4.4,4.4,1);sp.position.set(0,-.04,-1.6);scene.add(sp);bgBig=sp;}
   // Heller Kern-Schein direkt hinter dem Kopf (Rand-Leuchten) – pulsiert beim Sprechen
   {const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');const gr=x.createRadialGradient(128,128,40,128,128,128);
    gr.addColorStop(0,'rgba(80,220,255,0)');gr.addColorStop(.55,'rgba(60,200,255,.30)');gr.addColorStop(.8,'rgba(30,170,255,.14)');gr.addColorStop(1,'rgba(0,80,160,0)');x.fillStyle=gr;x.fillRect(0,0,256,256);
@@ -64,13 +64,16 @@ if(JV_HINTERGRUND){
    bgScan=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,opacity:.28,blending:THREE.AdditiveBlending,depthWrite:false}));bgScan.scale.set(3.6,.22,1);bgScan.position.set(0,0,-.5);scene.add(bgScan);}
 
 }
+let bgSpk=0;
 function updateBackground(now,dt,st,speaking){
   if(!JV_HINTERGRUND)return;
+  bgSpk+=((speaking?1:0)-bgSpk)*Math.min(1,dt*3.2);
   const boost=speaking?2.4:(st==='thinking'?3.2:(st==='listening'?1.6:1));
   for(const r of bgRings){ if(r.userData.follow){r.rotation.z=r.userData.follow.rotation.z;} else r.rotation.z+= (r.userData.speed||0)*dt*boost*2;}
-  const pulse=speaking?(.85+.15*Math.sin(now*.012)):1;
+  const pulse=1+bgSpk*(.8+.25*Math.sin(now*.011));
   for(const [m,o] of bgMats) m.opacity=o*pulse*(st==='listening'?1.25:1);
-  if(bgHalo){bgHalo.material.opacity=(speaking?.55+.18*Math.sin(now*.014):.42+.10*Math.sin(now*.0016))*(st==='listening'?1.25:1);}
+  if(bgBig){bgBig.material.opacity=.55+bgSpk*.45;bgBig.scale.set(4.4+bgSpk*1.0,4.4+bgSpk*1.0,1);}
+  if(bgHalo){bgHalo.material.opacity=Math.min(1,(.40+.10*Math.sin(now*.0016)+bgSpk*(.75+.2*Math.sin(now*.012)))*(st==='listening'?1.25:1));bgHalo.scale.set(2.9+bgSpk*.5,3.3+bgSpk*.55,1);}
   if(bgScan){const ph=((now*.00016*boost)%1);bgScan.position.y=1.5-ph*3.0;bgScan.material.opacity=.30*Math.sin(ph*Math.PI);}
   if(bgParticles){const p=bgParticles.geometry.attributes.position,v=bgParticles.userData.vel;
     for(let i=0;i<p.count;i++){let y=p.getY(i)+v[i]*dt*boost;if(y>2.1)y=-2.1;p.setY(i,y)}p.needsUpdate=true;}
@@ -248,7 +251,8 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
              'jvSkin = mix(jvSkin, vec3(0.50,0.17,0.15), jvLip*0.5);\n'+
              'float jvFront = smoothstep(0.55, 0.80, jvT.y);\n'+
              'float jvSide = smoothstep(0.30, 0.50, abs(jvT.x-0.5));\n'+
-             'float jvThr = mix(0.50, 0.77, jvFront) - jvSide*0.0;\n'+
+             'float jvEar = smoothstep(0.26,0.34,abs(jvT.x-0.5)) * (1.0-smoothstep(0.35,0.55,jvT.y));\n'+
+             'float jvThr = mix(0.56, 0.77, jvFront) + jvEar*0.05;\n'+
              'float jvStr = sin(jvT.x*260.0+jvT.z*90.0)*sin(jvT.y*210.0+jvT.x*70.0);\n'+
              'float jvEdge = jvThr + jvStr*0.012 + sin(jvT.x*23.0+1.3)*0.012 + sin(jvT.x*57.0)*0.006;\n'+
              'float jvH = smoothstep(jvEdge-0.03, jvEdge+0.03, 1.0-jvT.z) * jvHair;\n'+
