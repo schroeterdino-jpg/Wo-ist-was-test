@@ -2,14 +2,14 @@
    JARVIS-KUGEL: Netzwerk aus Punkten und Verbindungslinien, dreht sich langsam.
    Reine Optik, per <canvas id="jarvisSphere"> in index.html, unabhängig von den anderen Skripten.
    Farbe je Zustand (blendet weich über): Blau in Ruhe, Cyan beim Zuhören, Orange beim Nachdenken,
-   Grün während Jarvis spricht - liest dafür nur die vorhandenen CSS-Klassen "speaking"/"recording" am
+   Grün während Zane spricht - liest dafür nur die vorhandenen CSS-Klassen "speaking"/"recording" am
    Element #recordBtn mit, die voice.js sowieso schon setzt, und die Variable isProcessing aus voice.js.
    Neu (lebendig.js und unwetter.js liefern die Signale):
    - Rot-Orange und langsames, stärkeres Atmen, solange eine Unwetterwarnung gilt (window.jvSphereAlert)
    - Beim Zuhören pulsiert sie leicht mit, sobald DU sprichst (window.jvUserSpeaking, aus den Sprach-Ereignissen der Spracherkennung)
    - Beim Sprechen folgt sie der echten Lautstärke der Cloud-Stimme (window.jvSphereConnectAudio, aufgerufen von lebendig.js)
    Nachtmodus: ab 21 Uhr wird die Kugel langsam dunkler und ruhiger, nachts am dunkelsten, ab 5 Uhr wieder heller
-   (abschaltbar in den Einstellungen unter "Effekte"). Spricht oder hört Jarvis gerade, leuchtet sie auch nachts kräftiger.
+   (abschaltbar in den Einstellungen unter "Effekte"). Spricht oder hört Zane gerade, leuchtet sie auch nachts kräftiger.
    Pausiert außerdem, sobald ein Panel (z.B. die Weltkugel) offen ist - siehe pauseJarvisSphere()/
    resumeJarvisSphere() unten, aufgerufen von panels.js (openPanel/closePanel).
    ============================================================ */
@@ -55,9 +55,9 @@
         // Farben (Linie/Punkt) je Zustand als Zahlen, damit sie weich ineinander übergehen können
         const COLORS = {
             idle: [58, 140, 255],       // Blau: bereit
-            recording: [60, 225, 235],  // Cyan/Türkis: Jarvis hört zu
-            thinking: [255, 154, 68],   // Orange: Jarvis denkt nach (isProcessing)
-            speaking: [87, 224, 161],   // Grün: Jarvis spricht, siehe --good in style.css
+            recording: [60, 225, 235],  // Cyan/Türkis: Zane hört zu
+            thinking: [255, 154, 68],   // Orange: Zane denkt nach (isProcessing)
+            speaking: [87, 224, 161],   // Grün: Zane spricht, siehe --good in style.css
             alert: [255, 92, 60]        // Rot-Orange: eine Unwetterwarnung gilt (window.jvSphereAlert)
         };
         const colorCur = COLORS.idle.slice();   // aktuelle (überblendete) Farbe
@@ -160,7 +160,7 @@
         }
 
         // Goldener Staub-Schwarm um das Netz herum - eigene Teilchen, unabhängig von den Netz-Punkten,
-        // bleiben immer warmgolden (ändern die Farbe NICHT mit, wenn Jarvis spricht/zuhört), damit das
+        // bleiben immer warmgolden (ändern die Farbe NICHT mit, wenn Zane spricht/zuhört), damit das
         // Netz selbst (das die Zustandsfarbe trägt) klar als das "lebendige" Element erkennbar bleibt.
         const DUST_COUNT = 90;
         const dust = [];
@@ -187,7 +187,7 @@
         const BREATHE_SPEED = 0.02;     // wie schnell sie "atmet" (auseinander- und wieder zusammenzieht)
         const BREATHE_AMOUNT = 0.04;    // wie stark - 0.04 = bis zu 4% größer/kleiner als die Grundgröße (dezentes Pulsieren statt starkem Pump)
 
-        // Während Jarvis SPRICHT: zwei überlagerte Wellen mit unterschiedlicher Geschwindigkeit statt einer
+        // Während Zane SPRICHT: zwei überlagerte Wellen mit unterschiedlicher Geschwindigkeit statt einer
         // einzelnen, sauberen Sinuskurve - das wirkt unregelmäßiger und organischer, eher wie echtes Sprechen,
         // statt wie ein gleichmäßiges Ein- und Ausatmen.
         const SPEAK_BREATHE_A = 0.10;
@@ -202,7 +202,7 @@
         const SPEAK_POINT_AMOUNT = 0.16;
         const SPEAK_POINT_SPEED = 0.09;
 
-        // mode: 'speaking' (Jarvis spricht), 'hearing' (du sprichst, dezenter), sonst keine Einzelbewegung
+        // mode: 'speaking' (Zane spricht), 'hearing' (du sprichst, dezenter), sonst keine Einzelbewegung
         function pointPulse(p, t, mode, liveLevel) {
             if (mode === 'hearing') return 1 + 0.07 * Math.sin(t * 0.07 * p.speedMul + p.phase);
             if (mode !== 'speaking') return 1;
@@ -238,7 +238,7 @@
             const colorKey = currentColorKey();
             const active = colorKey !== 'idle';
 
-            // Helligkeit: nachts gedimmt, aber sobald Jarvis hört, denkt oder spricht, auch nachts kräftig
+            // Helligkeit: nachts gedimmt, aber sobald Zane hört, denkt oder spricht, auch nachts kräftig
             const levelTarget = active ? Math.max(timeLevel(), 0.85) : timeLevel();
             levelCur += (levelTarget - levelCur) * 0.05;
             const lvl = levelCur;

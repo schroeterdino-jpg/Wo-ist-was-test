@@ -1,5 +1,5 @@
 /* ============================================================
-   SPRÜCHE: Jarvis soll überall frecher und lustiger sein, nicht nur dort, wo die KI selbst formuliert.
+   SPRÜCHE: Zane soll überall frecher und lustiger sein, nicht nur dort, wo die KI selbst formuliert.
    1) Antworten, die die App selbst aus echten Daten baut (Stau, Fahrzeit, Bahn, Sprit, Restaurants, Foto-Bestätigungen und die neuen Funktionen
       wie Mond, Feiertage, Weltzeit, Filmtipps), bekommen NACH der Information einen kurzen Spruch angehängt, passend zur Lage
       ("Da würde ich nicht hinfahren" bei Stau, "Freie Fahrt" ohne Stau, "Popcorn nicht vergessen" bei Filmtipps).

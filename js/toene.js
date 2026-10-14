@@ -1,5 +1,5 @@
 /* ============================================================
-   TÖNE: Bestätigungs-, Fehler- und Warnton passend zu dem, was Jarvis gleich sagt.
+   TÖNE: Bestätigungs-, Fehler- und Warnton passend zu dem, was Zane gleich sagt.
    - Erfolg ("Erledigt", "Notiert", "ist eingetragen", "gespeichert", "steht auf der Einkaufsliste" ...): kurzer, aufsteigender Dreiklang
    - Fehler ("konnte ich nicht", "nicht erreichbar", "hat nicht geklappt" ...): tiefer, absteigender Ton
    - Warnung ("Achtung ...", Unwetterwarnungen): zwei Töne im Wechsel

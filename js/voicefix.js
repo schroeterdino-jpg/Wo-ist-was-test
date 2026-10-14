@@ -4,7 +4,7 @@
    Zwischenansage "Einen Moment" mit der Handy-Stimme - liefen beide gleichzeitig, sobald die neue Ansage die
    Cloud-Stimme nutzte (die Cloud-Stimme stoppte die Handy-Stimme nie).
    Jetzt: Jede neue Ansage beendet zuerst sofort jede laufende Handy-Stimme und jede laufende Cloud-Stimme.
-   Außerdem gibt es keine Zwischenansage mehr, während Jarvis gerade selbst spricht.
+   Außerdem gibt es keine Zwischenansage mehr, während Zane gerade selbst spricht.
    Braucht: voice.js (muss davor geladen sein). voice.js selbst bleibt unverändert.
    ============================================================ */
 /* --- Grammatik bei Straßennamen ---

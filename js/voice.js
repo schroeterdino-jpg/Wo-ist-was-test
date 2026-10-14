@@ -23,11 +23,11 @@ const SPEECH_RATE = 1.0;
 const SPEECH_PITCH = 0.92;
 const FOLLOW_UP_WINDOW_MS = 9000;
 const ACK_DELAY_MS = 1500;
-// Deutlich toleranter als vorher: "Jarvis" wird von der deutschen Spracherkennung oft als "Jarwis"
+// Deutlich toleranter als vorher: "Zane" wird von der deutschen Spracherkennung oft als "Jarwis"
 // verschriftlicht (das englische "v" klingt wie ein deutsches "w") - beides wird jetzt erkannt. Satzzeichen
-// zwischen "Hey" und "Jarvis" (z.B. "Hey, Jarvis") stören nicht mehr, und "Hey" selbst ist nur noch optional -
-// hört die App nur "Jarvis" (weil "Hey" mal verschluckt wurde), reicht das im Weckwort-Modus auch.
-const WAKE_WORD_REGEX = /\b(?:hey?[\s,]*)?jar[vw]is\b/i;
+// zwischen "Hey" und "Zane" (z.B. "Hey, Zane") stören nicht mehr, und "Hey" selbst ist nur noch optional -
+// hört die App nur "Zane" (weil "Hey" mal verschluckt wurde), reicht das im Weckwort-Modus auch.
+const WAKE_WORD_REGEX = /\b(?:(?:hey?|hallo|hi)[\s,]*(?:zane|zain|zein|zayn|zeyn|sein|sain|sane|zehn|seyn)|(?:jar[vw]is|zane|zain|zayn|zeyn))\b/i;
 
 function pickRandom(list) {
     return list[Math.floor(Math.random() * list.length)];
@@ -50,7 +50,7 @@ function setIdleUi() {
     const waveEl = document.getElementById('waveform');
     if (waveEl) waveEl.classList.remove('speaking');
 
-    if (recordText) recordText.textContent = "J.A.R.V.I.S. / BEREIT";
+    if (recordText) recordText.textContent = "ZANE / BEREIT";
     updateTerminalStream("SYS_IDLE: AWAITING_INPUT", "ONLINE");
     if (wakeWordEnabled) startWakeWordListening();
 }
@@ -270,7 +270,7 @@ function speak(text, onComplete, langCode) {
     const waveEl = document.getElementById('waveform');
     if (waveEl) waveEl.classList.add('speaking');
 
-    if (recordText) recordText.textContent = "J.A.R.V.I.S. / SPRICHT...";
+    if (recordText) recordText.textContent = "ZANE / SPRICHT...";
     updateTerminalStream("AUDIO_OUT: TRANSMITTING...", "SPEAKING");
 
     let cleanText = text.replace(/[*_#`~]/g, '');
@@ -408,7 +408,7 @@ function interruptSpeaking() {
 }
 
 /* --- Dolmetscher-Modus ---
-   "Dolmetscher Türkisch" startet ihn: Du sprichst Deutsch, J.A.R.V.I.S. übersetzt und spricht es in der Fremdsprache.
+   "Dolmetscher Türkisch" startet ihn: Du sprichst Deutsch, Zane übersetzt und spricht es in der Fremdsprache.
    Danach hört er in der Fremdsprache zu (dein Gegenüber), übersetzt ins Deutsche und hört wieder auf dich.
    "Dolmetscher beenden" oder "Ende" beendet ihn. Einzelne Sätze: "Übersetze Guten Tag ins Türkische". */
 const INTERP_LANGS = [
@@ -543,7 +543,7 @@ async function interpretOnce(text, lang) {
     speak(translated, undefined, lang.code);
 }
 
-/* --- Zuhör-Anzeige: sichtbar, dass Jarvis dich hört ---
+/* --- Zuhör-Anzeige: sichtbar, dass Zane dich hört ---
    Oben erscheint die Leiste "ICH HÖRE" mit Pegelbalken (sie bewegen sich, sobald Sprache erkannt wird),
    die Kugel bekommt einen grünen Schimmer und ihr Rahmen leuchtet atmend grün.
    Ohne Mikrofon-Mitschnitt: die Balken folgen den Sprach-Ereignissen der Spracherkennung (kein zweiter Mikrofonzugriff). */
@@ -602,7 +602,7 @@ function jvHearing(on) {
 
 /* ============================================================
    HOLOGRAMM-RAHMEN (Entwurf C): Sechseck mit Eckmarken statt der drehenden Ringe, dazu eine größere Kugel, die bis an den Rahmen reicht.
-   Ohne Bewegung (ruhig, kein Flackern). Farben je nach Zustand: Cyan = bereit, Grün (atmend) = Jarvis hört zu, Orange = Jarvis spricht.
+   Ohne Bewegung (ruhig, kein Flackern). Farben je nach Zustand: Cyan = bereit, Grün (atmend) = Zane hört zu, Orange = Zane spricht.
    Wird beim Laden einmal in den vorhandenen Ring-Bereich (.holo-container) eingesetzt; index.html und style.css bleiben unverändert.
    ============================================================ */
 const JV_HOLO_ON = false;       // Auf Wunsch abgeschaltet: nur noch die reine Kugel, kein Sechseck-Rahmen mehr
@@ -663,7 +663,7 @@ function setListeningUi(followUp) {
         recordBtn.classList.remove('speaking');
         recordBtn.classList.add('recording');
     }
-    if (recordText) recordText.textContent = "J.A.R.V.I.S. / HÖRE...";
+    if (recordText) recordText.textContent = "ZANE / HÖRE...";
     if (!wakeWordListening) jvListenIndicator(true);   // im stillen Weckwort-Modus keine Anzeige
     typeWriterStatus(followUp ? "Ich höre weiter zu..." : "Höre zu...");
     setHudSubtitle(followUp ? "Höre weiter zu..." : "Aktiviert. Ich höre zu...");
@@ -753,7 +753,7 @@ if (SpeechRecognition) {
        Wörterbücher in der Web-Spracherkennung), darum wird der erkannte Text hier vor der Weiterverarbeitung
        korrigiert, ganz am Anfang, damit Kalender-Namenssuche und die KI immer "Alyssa" bekommen. */
     function fixKnownMishearings(text) {
-        return String(text || '').replace(/\b(Alicia|Alissa|Alisha)\b/gi, 'Alyssa');
+        return String(text || '').replace(/\b(Alicia|Alissa|Alisha)\b/gi, 'Alyssa').replace(/\b(Zain|Zayn|Zein|Zeyn|Sane)\b/gi, 'Zane').replace(/^((?:hey|hallo|hi)[ ,]+)(?:sein|sain|zehn|seyn)\b/i, '$1Zane');
     }
 
     function handleRecognizedText(text) {
@@ -845,7 +845,7 @@ if (SpeechRecognition) {
     };
 }
 
-/* --- Weckwort-Modus: hört dauerhaft zu, solange die App offen ist, und reagiert nur auf "Hey Jarvis" ---
+/* --- Weckwort-Modus: hört dauerhaft zu, solange die App offen ist, und reagiert nur auf "Hey Zane" ---
    Wake Lock: hält den Bildschirm wach, solange gelauscht wird. Ohne das dimmt/sperrt Android den Bildschirm
    nach einer Weile von selbst - dabei killt das Betriebssystem die laufende Mikrofon-Sitzung oft, BEVOR
    unsere Neustart-Logik (recognition.onend/onerror) überhaupt greifen kann. Das war vermutlich die
@@ -866,7 +866,7 @@ function releaseWakeLock() {
 
 function startWakeWordListening() {
     if (!recognition || !wakeWordEnabled) return;
-    if (interpreter) return;   // im Dolmetscher-Modus wird nicht auf "Hey Jarvis" gewartet
+    if (interpreter) return;   // im Dolmetscher-Modus wird nicht auf "Hey Zane" gewartet
     if (isRecording || isSpeaking() || isProcessing || wakeWordListening) return;
     if (document.hidden) return;   // App im Hintergrund: nicht versuchen, spart Akku und vermeidet Fehler
     wakeWordListening = true;
@@ -876,7 +876,7 @@ function startWakeWordListening() {
     recognition.interimResults = false;
     try {
         recognition.start();
-        if (recordText) recordText.textContent = "J.A.R.V.I.S. / WARTET AUF „HEY JARVIS\"...";
+        if (recordText) recordText.textContent = "ZANE / WARTET AUF „HEY JARVIS\"...";
     } catch (e) {
         wakeWordListening = false;
         // Meist "InvalidStateError", weil die vorige Sitzung noch nicht ganz beendet ist - kurz warten und
@@ -952,7 +952,7 @@ function toggleSpeechRecognition() {
         return;
     }
     if (wakeWordListening) {
-        // Man will jetzt sofort reden, statt erst "Hey Jarvis" zu sagen: umschalten auf normales Zuhören
+        // Man will jetzt sofort reden, statt erst "Hey Zane" zu sagen: umschalten auf normales Zuhören
         wakeWordListening = false;
         pendingManualListen = true;
         try { recognition.stop(); } catch (e) { pendingManualListen = false; startListening(false); }

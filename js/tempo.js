@@ -1,6 +1,6 @@
 /* ============================================================
    TEMPO-SICHERUNG: Das Sprechtempo (speechrate.js) soll nach dem Öffnen der App sofort wieder stimmen.
-   Problem: Das Tempo steckt im Hauptspeicher der App (getPersistentData). Wird der erst NACH dem ersten Sprechen vollständig geladen, spricht Jarvis den ersten Satz
+   Problem: Das Tempo steckt im Hauptspeicher der App (getPersistentData). Wird der erst NACH dem ersten Sprechen vollständig geladen, spricht Zane den ersten Satz
    nach dem Öffnen im Normaltempo, also schneller als eingestellt, und der Regler in den Einstellungen zeigt "normal".
    Lösung: Das Tempo wird zusätzlich direkt im Handy gesichert (localStorage) und von dort sofort gelesen. Der Hauptspeicher bleibt wie er ist.
    Muss nach speechrate.js geladen werden. Fehlt speechrate.js, passiert nichts.

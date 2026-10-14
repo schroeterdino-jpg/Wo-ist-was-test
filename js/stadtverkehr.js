@@ -2,9 +2,9 @@
    STADTVERKEHR: ergänzt die Staumeldungen bei "Route zu X" / "Wann muss ich losfahren" um Meldungen von Landstraßen und aus der Stadt (TomTom).
    Bisher kamen die Meldungen nur von den Autobahnen (autobahn.de). Jetzt zusätzlich: Unfälle, Stau, Sperrungen, Baustellen mit Verzögerung und Pannenfahrzeuge,
    die höchstens ~1,2 km von der berechneten Fahrstrecke entfernt liegen. Gesprochen als Zusatz ("Außerdem gemeldet: ..."), dazu Karten, und die Punkte erscheinen auf der HUD-Karte.
-   ZWISCHENPUNKT FÜRS ARBEITSWEG: Sagst du "Ich fahre zur Arbeit über Lanken", rechnet Jarvis jede Fahrt zur Arbeitsadresse in zwei Teilen (hier -> Lanken -> Arbeit), damit die Route (und damit Fahrzeit,
+   ZWISCHENPUNKT FÜRS ARBEITSWEG: Sagst du "Ich fahre zur Arbeit über Lanken", rechnet Zane jede Fahrt zur Arbeitsadresse in zwei Teilen (hier -> Lanken -> Arbeit), damit die Route (und damit Fahrzeit,
    Briefing, Karte und Staumeldungen "auf deinem Arbeitsweg") zu deinem echten Weg passt. Aus: "Arbeitsweg ohne Zwischenpunkt". Der Ort wird in deiner Nähe gesucht (mehrere gleichnamige Orte). Gilt nur für Fahrten zur gespeicherten Arbeitsadresse.
-   GOOGLE-ROUTE: Fahrten zur Arbeit holt Jarvis zuerst von der Google Routes API (api/maps.js, ?google=1; Vercel-Variable GOOGLE_MAPS_API_KEY, Redis für den Monatszähler, Limit 4000/Monat).
+   GOOGLE-ROUTE: Fahrten zur Arbeit holt Zane zuerst von der Google Routes API (api/maps.js, ?google=1; Vercel-Variable GOOGLE_MAPS_API_KEY, Redis für den Monatszähler, Limit 4000/Monat).
    Klappt das nicht (kein Schlüssel, Limit erreicht, Fehler), gilt der Zwischenpunkt, und ohne den die normale OSRM-Route.
    Braucht: api/stau.js (?traffic=1) und die Vercel-Variable TOMTOM_API_KEY. Fehlt sie oder ist TomTom nicht erreichbar, bleibt alles wie vorher (nur Autobahn).
    Braucht außerdem travel.js (routeDurationSeconds, describeAutobahnStau, lastStau*), muss danach geladen werden.
@@ -128,10 +128,10 @@
         window.jvCommands.use('arbeitsweg-via', function (text, next) {
             const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
             if (t.length > 80) return next(text);
-            if (/^(?:jarvis )?(?:mein )?(?:arbeitsweg|weg zur arbeit) (?:ohne (?:zwischenpunkt|zwischenstopp|umweg)|normal|zurücksetzen)$|^(?:jarvis )?(?:zwischenpunkt|umweg) (?:löschen|entfernen|aus)$/.test(t)) {
+            if (/^(?:(?:jarvis|zane) )?(?:mein )?(?:arbeitsweg|weg zur arbeit) (?:ohne (?:zwischenpunkt|zwischenstopp|umweg)|normal|zurücksetzen)$|^(?:(?:jarvis|zane) )?(?:zwischenpunkt|umweg) (?:löschen|entfernen|aus)$/.test(t)) {
                 sd(VIA_KEY, ''); sagen('Gut, ich berechne den Arbeitsweg wieder ohne Zwischenpunkt.'); return true;
             }
-            const m = t.match(/^(?:jarvis )?(?:ich fahre? |ich fahr |mein |der )?(?:zur arbeit |arbeitsweg |weg zur arbeit )(?:geht |führt |läuft |fahre ich )?(?:immer )?über (.{2,40})$/);
+            const m = t.match(/^(?:(?:jarvis|zane) )?(?:ich fahre? |ich fahr |mein |der )?(?:zur arbeit |arbeitsweg |weg zur arbeit )(?:geht |führt |läuft |fahre ich )?(?:immer )?über (.{2,40})$/);
             if (!m) return next(text);
             const ort = m[1].replace(/\b(?:bitte|immer|und dann weiter)\b/g, '').trim().replace(/\b\w/g, c => c.toUpperCase());
             (async () => {

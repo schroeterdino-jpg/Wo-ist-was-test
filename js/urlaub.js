@@ -1,5 +1,5 @@
 /* ============================================================
-   URLAUB: "Ich habe Urlaub vom 20. Oktober bis 3. November" – in dieser Zeit meldet Jarvis nichts mehr zum Arbeitsweg
+   URLAUB: "Ich habe Urlaub vom 20. Oktober bis 3. November" – in dieser Zeit meldet Zane nichts mehr zum Arbeitsweg
    (kein Wetter für die Fahrt zur Arbeit, kein Regen auf dem Arbeitsweg, kein Schicht-Briefing, kein "Zeit ins Bett" vor der Frühschicht).
    Sprache:  "Ich habe Urlaub vom 20. Oktober bis 3. November" / "Urlaub vom 20.10. bis 3.11." / "Ich habe ab morgen zwei Wochen Urlaub"
              "Urlaub bis Freitag" geht nicht, bitte Datum nennen ("Urlaub bis 24. Oktober").

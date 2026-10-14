@@ -101,7 +101,7 @@ async function runSystemCheck() {
     }
 }
 
-/* Per Sprache ("Systemcheck"): Jarvis nennt das Ergebnis und zeigt Probleme als Karten */
+/* Per Sprache ("Systemcheck"): Zane nennt das Ergebnis und zeigt Probleme als Karten */
 async function runSystemCheckSpoken() {
     speakAck('Ich prüfe alle Verbindungen.');
     try {
