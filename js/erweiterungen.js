@@ -13,13 +13,18 @@
     const AFTER_HANDLERS = [];   // (Die Ortssuche hängt sich in ortsuche.js selbst hinter die bisherigen Befehle.)
 
     // 1) Sprachbefehle
-    if (window.jvCommands) {   // Befehlsliste (commands.js)
+    function runHandlers(text) {
+        try {
+            for (const name of HANDLERS) {
+                if (typeof window[name] === 'function' && window[name](text)) return true;
+            }
+        } catch (e) { console.error('Erweiterung fehlgeschlagen', e); }
+        return false;
+    }
+
+    if (window.jvCommands && typeof window.jvCommands.use === 'function') {
         window.jvCommands.use('erweiterungen', function (text, next) {
-            try {
-                for (const name of HANDLERS) {
-                    if (typeof window[name] === 'function' && window[name](text)) return true;
-                }
-            } catch (e) { console.error('Erweiterung fehlgeschlagen', e); }
+            if (runHandlers(text)) return true;
             const handled = next(text);
             if (handled) return handled;
             try {
@@ -29,6 +34,20 @@
             } catch (e) { console.error('Erweiterung fehlgeschlagen', e); }
             return handled;
         }, 1200);
+    } else if (typeof window.handleLocalCommand === 'function') {
+        // Rückfall für ältere/abweichende Starts: Mond & Co. dürfen nicht zur KI durchrutschen.
+        const original = window.handleLocalCommand;
+        window.handleLocalCommand = function (text) {
+            if (runHandlers(text)) return true;
+            const handled = original.apply(this, arguments);
+            if (handled) return handled;
+            try {
+                for (const name of AFTER_HANDLERS) {
+                    if (typeof window[name] === 'function' && window[name](text)) return true;
+                }
+            } catch (e) { console.error('Erweiterung fehlgeschlagen', e); }
+            return handled;
+        };
     }
 
     // 2) Wächter: Unwetterwarnungen dazunehmen
