@@ -80,7 +80,7 @@ const cyan=0x00cfff, dark=0x111820;
 const metalMat=new THREE.MeshPhysicalMaterial({color:0xb8c1c7,metalness:.58,roughness:.48,clearcoat:.10,clearcoatRoughness:.55});
 const darkMat=new THREE.MeshStandardMaterial({color:dark,metalness:.9,roughness:.3});
 const glowMat=new THREE.MeshStandardMaterial({color:0x8df7ff,metalness:.2,roughness:.18,emissive:cyan,emissiveIntensity:5});
-const morphMeshes=[]; let morphNames=new Set(), model=null, active=true, raf=0, blink=0, expression='neutral', manualMouth=0, modelReady=false;
+const morphMeshes=[]; let morphNames=new Set(), model=null, active=true, raf=0, blink=0, blinkAt=-1e9, nextBlink=0, blinkVal=0, expression='neutral', manualMouth=0, modelReady=false;
 let speechMorphs={};
 let tongueUntil=0, lastEmotionText='', manualExpressionUntil=0;
 // Der 3D-Kopf ist die Standardansicht. Das bisherige Geflecht bleibt nur die zweite Wahl.
@@ -347,8 +347,10 @@ function syncEmotionToFish(){
 function applyMorphs(dt,speaking,now){
  syncEmotionToFish();
  const tn=tongueMorphName(); if(tn) setMorph(tn, performance.now()<tongueUntil ? .95 : 0);
- if(Math.random()<.0022)blink=1; blink=Math.max(0,blink-dt*5.5);
- setMorph('eyeBlink_L',blink);setMorph('eyeBlink_R',blink);
+ // Natürliches Blinzeln: zeitgesteuert (alle 2-6 s, manchmal doppelt), unabhängig vom Sprechen.
+ if(blink>=1){blinkAt=now;blink=0;}
+ if(now>=nextBlink){blinkAt=now;nextBlink=now+2200+Math.random()*3800; if(Math.random()<.2)nextBlink=now+330;}
+ { const bt=(now-blinkAt)/210; blinkVal=(bt>=0&&bt<1)?(bt<.38?bt/.38:1-(bt-.38)/.62):0; }
  const audio=window.__jvLipAudio, text=window.__jvLipText||'';
  const fishSpeaking=!!(audio&&!audio.paused&&!audio.ended);
  // Beim Sprechen: Brauen betonen leicht im Rhythmus der Worte (nur bei den Hoch-Brauen).
@@ -362,6 +364,7 @@ function applyMorphs(dt,speaking,now){
  if(expression==='laugh'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.28));
  if(expression==='surprised'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.34));
  for(const n of morphNames){const want=target[n]||0;current[n]+=(want-current[n])*Math.min(1,dt*14)}
+ { const b1=resolveMorphName('eyeBlink_L'),b2=resolveMorphName('eyeBlink_R'); if(b1)current[b1]=Math.max(0,Math.min(1,blinkVal)); if(b2)current[b2]=Math.max(0,Math.min(1,blinkVal)); }
  for(const m of morphMeshes)for(const n of morphNames){const i=morphIndex(m,n);if(i>=0)m.morphTargetInfluences[i]=current[n]||0}
 }
 let lastAvatarState='';
