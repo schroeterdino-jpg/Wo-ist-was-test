@@ -1,4 +1,4 @@
-/* PRÄSENTATION: Zane stellt sich in ca. 90 Sekunden selbst vor (für Bildschirmaufnahmen).
+/* PRÄSENTATION: Zane stellt sich in ca. 90 Sekunden (Start: Einstieg "Andere Apps laufen nur am PC, ich auf dem Handy") selbst vor (für Bildschirmaufnahmen).
    - Start per Sprache: "Stell dich vor", "Präsentation", "Starte die Präsentation", "Präsentation starten".
    - Abbrechen: zweimal schnell auf den Bildschirm tippen.
    - Alles ist ausgedacht (Max Mustermann, Beispielrechnung), es werden KEINE echten Daten angezeigt oder gelesen.
@@ -107,27 +107,28 @@
     /* ---------------- Szenen (TikTok: schnell, laut, kurze Schnitte) ---------------- */
     function szeneHook() {
         mimik('serious'); blitz(); fortschritt(4);
-        caption('ICH WEISS, WO DEIN SCHLÜSSEL LIEGT.');
-        var k = karte('<div class="pz-riesig">🔑</div><div class="pz-klein">UND DEINE RECHNUNGEN KENN ICH AUCH</div>');
+        caption('ANDERE JARVIS-APPS? NUR AM PC.');
+        var k = karte('<div class="pz-riesig">💻</div><div class="pz-klein">ANDERE: NUR AM RECHNER</div>');
         setTimeout(function () { grimasse({ browOuterUp_L: .95, browInnerUp: .3, mouthSmile_L: .8, mouthSmile_R: .3 }, 1500); }, 700);
-        return sag('Ich weiß, wo dein Schlüssel liegt. Und deine Rechnungen kenne ich auch.');
+        setTimeout(function () { var kk = stage && stage.querySelector('.pz-riesig'); if (kk) kk.textContent = '📱'; var kl = stage && stage.querySelector('.pz-klein'); if (kl) kl.textContent = 'ICH: AUF DEINEM HANDY'; caption('ICH LAUFE AUF DEINEM HANDY.'); blitz(); }, 3300);
+        return sag('Andere Jarvis-Apps laufen nur am Computer. Ich laufe auf deinem Handy. Und ich kann viel mehr.');
     }
 
     function szeneName() {
         blitz(); mimik('happy'); fortschritt(12); caption('');
-        karte('<div class="pz-gross pz-glitch">ZANE</div><div class="pz-klein">DEIN PERSÖNLICHER ASSISTENT</div>');
-        return sag('Ich bin Zane.');
+        karte('<div class="pz-gross pz-glitch">ZANE</div><div class="pz-klein">DEIN ASSISTENT · AUF DEM HANDY</div>');
+        return sag('Ich bin Zane. Und das kann ich.');
     }
 
     function szeneBriefing() {
-        blitz(); mimik('friendly'); fortschritt(20); caption('☀️ JEDEN MORGEN');
+        blitz(); mimik('friendly'); fortschritt(20); caption('📱 ICH KENNE DEINEN TAG');
         var k = karte('<div class="pz-kopf">Guten Morgen, Max</div>' +
             '<div class="pz-zeile">🌤️ <span><b>14 °C</b>, trocken</span></div>' +
             '<div class="pz-zeile">🕕 <span>Frühschicht <b>6:00 Uhr</b></span></div>' +
             '<div class="pz-zeile">🚗 <span>A24: <b class="pz-rot">Stau +<em class="pz-z">0</em> Min.</b></span></div>' +
             '<div class="pz-zeile">🔑 <span>Schlüssel: <b>Küchentisch</b></span></div>');
         setTimeout(function () { zaehle(k.querySelector('.pz-z'), 12, 1200, 0); }, 900);
-        var rede = sag('Jeden Morgen: Wetter, Schicht, Stau. Bevor du die Augen richtig auf hast.');
+        var rede = sag('Ich kenne deinen Tag: Wetter, Schicht, Stau und deinen Kalender. Jeden Morgen, bevor du die Augen richtig auf hast.');
         return Promise.all([warte(300).then(function () { return pop(k, 520); }), rede]);
     }
 
