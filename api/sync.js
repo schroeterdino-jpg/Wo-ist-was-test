@@ -250,7 +250,7 @@ async function handlePush(action, req, res, redis) {
 
     if (action === 'push_test') {
       if (!data.subs.length) return res.status(200).json({ ok: false, sent: 0, error: 'Kein Handy angemeldet' });
-      const payload = { title: 'Jarvis', body: 'Test: Diese Nachricht kommt auch bei geschlossener App an.', url: './' };
+      const payload = { title: 'Zane', body: 'Test: Diese Nachricht kommt auch bei geschlossener App an.', url: './' };
       const { sent, failed } = await sendToAll(redis, data, payload);
       return res.status(200).json({ ok: sent > 0, sent, failed });
     }
@@ -707,7 +707,7 @@ async function runRain(redis, st, data, now, ctx) {
 }
 
 /* Termin ohne Ortsangabe oder mit nicht berechenbarer Strecke: einfache Vorwarnung 15 Minuten vorher */
-/* --- Situations-Impulse: Jarvis meldet sich von selbst, wenn die Lage passt (ohne dass ein Termin dranhängt) ---
+/* --- Situations-Impulse: Zane meldet sich von selbst, wenn die Lage passt (ohne dass ein Termin dranhängt) ---
    Regeln (je Regel höchstens einmal am Tag, insgesamt höchstens 2 am Tag, mindestens 25 Minuten Abstand, nur bei geschlossener App):
    - wechsel: Sonntag 19:00 -> "Ab morgen Frühschicht/Spätschicht"
    - bett:    21:00 am Abend vor einer Frühschicht (Mo-Fr) -> "Zeit, ins Bett zu gehen"
