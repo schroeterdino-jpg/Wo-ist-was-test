@@ -9,17 +9,27 @@
    Wird der Termin verschoben (calendar_update), rutscht die Erinnerung im selben Abstand mit; wird er gelöscht (calendar_delete), verschwindet sie auch.
    Gilt für Erinnerungen, die über diese Rückfrage für einen Kalendertermin entstanden sind; ältere Erinnerungen und reine Gedächtnis-Einträge bleiben unberührt.
    Die KI liefert dafür zwei zusätzliche Felder in 'episode_store': episode_uhrzeit (HH:MM) und episode_erinnerung (kurzer Text).
-   Aus- und einschalten per Sprache: "Termin-Erinnerung aus" / "Termin-Erinnerung an". Standard: an.
+   Aus- und einschalten per Sprache: "Termin-Erinnerung aus" / "Termin-Erinnerung an". Standard: aus; zusätzliche Erinnerung nur auf ausdrücklichen Wunsch.
    Braucht: langzeit.js (executeAction-Hülle), calendar.js (addGoogleCalendarReminder), commands.js, prompt-Kette (jvChain). Muss NACH langzeit.js geladen werden.
    ============================================================ */
 (function () {
     if (typeof window.executeAction !== 'function') return;
 
     const KEY = 'jv_termin_erinnern';
-        const PENDING_MS = 5 * 60000;
+    const MODE_VERSION_KEY = 'jv_termin_erinnern_mode_v2';
+    const PENDING_MS = 5 * 60000;
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-    const isOn = () => lsGet(KEY) !== '0';
+
+    // Ab v2 standardmäßig keine zusätzliche Jarvis-Rückfrage mehr:
+    // Google Kalender übernimmt die normale Termin-Erinnerung.
+    // Eine zusätzliche Jarvis-Erinnerung wird nur angelegt, wenn der User sie ausdrücklich verlangt.
+    // Einmalige Migration, damit auch Geräte mit der bisherigen Einstellung "an" umgestellt werden.
+    if (lsGet(MODE_VERSION_KEY) !== '2') {
+        lsSet(KEY, '0');
+        lsSet(MODE_VERSION_KEY, '2');
+    }
+    const isOn = () => lsGet(KEY) === '1';
 
     let pending = null;   // { text, start:Date, at }
 
