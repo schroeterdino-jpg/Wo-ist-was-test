@@ -2,6 +2,7 @@
 (async function(){
 'use strict';
 const JV_HINTERGRUND=true; // false = einfacher dunkler Hintergrund wie vorher
+const JV_KOPFBEWEGUNG=true; // false = Kopf bleibt (fast) still
 const JV_HAARE=true; // false = glatzköpfig wie vorher
 const holder=document.querySelector('.holo-container'); if(!holder) return;
 let THREE,GLTFLoader,KTX2Loader,MeshoptDecoder;
@@ -383,12 +384,33 @@ function syncAvatarState(now){
  }
  return st;
 }
+// Kopf schaut von selbst mal hierhin, mal dorthin (Augen schauen zuerst), nickt leicht beim Sprechen.
+const look={y:0,x:0,z:0,ty:0,tx:0,tz:0,next:0,nod:0};
+function updateLook(now,dt,st,speaking){
+  if(!JV_KOPFBEWEGUNG){look.y=look.x=look.z=0;return}
+  if(now>look.next){
+    const quiet=Math.random()<.35;
+    const amp=(st==='thinking')?.55:(speaking?.45:.7);
+    look.ty=quiet?(Math.random()-.5)*.12:(Math.random()<.5?-1:1)*(.18+Math.random()*.22)*amp/.7;
+    look.tx=(Math.random()-.45)*(quiet?.05:.16);
+    look.tz=(Math.random()-.5)*(quiet?.03:.09);
+    look.next=now+(speaking?2200:3200)+Math.random()*(speaking?3200:6500);
+  }
+  const k=1-Math.exp(-dt*2.0);
+  look.y+=(look.ty-look.y)*k; look.x+=(look.tx-look.x)*k; look.z+=(look.tz-look.z)*k;
+  look.nod=speaking?Math.sin(now*.0062)*.028*(.4+.6*Math.max(0,Math.sin(now*.0019))):look.nod*.9;
+  // Augen schauen etwas früher in die Blickrichtung
+  if(expression!=='thinking'){
+    const d=Math.max(-1,Math.min(1,look.ty/.4))*.6, u=Math.max(0,d), v=Math.max(0,-d);
+    setMorph('eyeLookOut_L',u);setMorph('eyeLookIn_R',u);setMorph('eyeLookIn_L',v);setMorph('eyeLookOut_R',v);
+  }
+}
 function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);const dt=Math.min(.05,(now-(loop.last||now))/1000);loop.last=now;
  let speaking=!!(window.__jvLipAudio&&!window.__jvLipAudio.paused&&!window.__jvLipAudio.ended);
- const st=syncAvatarState(now); applyMorphs(dt,speaking,now);
+ const st=syncAvatarState(now); updateLook(now,dt,st,speaking); applyMorphs(dt,speaking,now);
  const baseY=Math.sin(now*.00055)*.035, baseX=Math.sin(now*.0007)*.008;
- root.rotation.y=baseY+(st==='thinking'?.055:0);
- root.rotation.x=baseX+(st==='listening'?-.018:st==='thinking'?-.010:0);
+ root.rotation.y=baseY+(st==='thinking'?.055:0)+look.y;
+ root.rotation.x=baseX+(st==='listening'?-.018:st==='thinking'?-.010:0)+look.x+look.nod; root.rotation.z=look.z;
  root.position.y=Math.sin(now*.0011)*.012+(st==='listening'?.008:0);
  updateBackground(now,dt,st,speaking);
  renderer.render(scene,camera)}
