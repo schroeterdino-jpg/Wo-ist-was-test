@@ -1,7 +1,7 @@
 /* JARVIS 3D v6.10 – v5-Basis + Fish-Audio-Lippensync + Robot-Material direkt auf FaceCap. */
 (async function(){
 'use strict';
-const JV_HINTERGRUND=true; // false = einfacher dunkler Hintergrund wie vorher
+const JV_HINTERGRUND=false; // Die alte Glaskugel samt Scan-Strahl ist aus; den Hologramm-Hintergrund zeichnet js/holo_look.js (true = alter Hintergrund)
 const JV_KOPFBEWEGUNG=true; // false = Kopf bleibt (fast) still
 const JV_HAARE=true; // false = glatzköpfig wie vorher
 const holder=document.querySelector('.holo-container'); if(!holder) return;
