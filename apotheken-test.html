@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jarvis Overpass-Test</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#111827;color:#fff;padding:20px}
+button{font-size:20px;padding:16px 20px;border:0;border-radius:12px}
+pre{white-space:pre-wrap;word-break:break-word;background:#1f2937;padding:14px;border-radius:12px;margin-top:16px}
+</style>
+</head>
+<body>
+<h2>Apotheken-Test</h2>
+<p>Dieser Test verändert nichts an Jarvis. Er sendet nur eine POST-Anfrage an deinen vorhandenen Vercel-Endpunkt.</p>
+<button id="test">Apotheke testen</button>
+<pre id="out">Noch nicht getestet.</pre>
+<script>
+const out=document.getElementById('out');
+document.getElementById('test').onclick=async()=>{
+  out.textContent='Teste…';
+  try{
+    // Testpunkt Schwarzenbek – nur für die Diagnose.
+    const lat=53.504;
+    const lon=10.481;
+    const radius=5000;
+    const query=`[out:json][timeout:15];
+(
+ node["amenity"="pharmacy"](around:${radius},${lat},${lon});
+ way["amenity"="pharmacy"](around:${radius},${lat},${lon});
+ relation["amenity"="pharmacy"](around:${radius},${lat},${lon});
+);
+out center tags;`;
+    const r=await fetch('https://wo-ist-was-test.vercel.app/api/overpass',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({query})
+    });
+    const text=await r.text();
+    out.textContent='HTTP '+r.status+'\n\n'+text;
+  }catch(e){
+    out.textContent='FEHLER:\n'+(e && e.message ? e.message : String(e));
+  }
+};
+</script>
+</body>
+</html>
