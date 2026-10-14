@@ -94,12 +94,33 @@ let parkingSpot = JSON.parse(getPersistentData('helfer_parking', 'null')) || nul
 let homeAddress = getPersistentData('helfer_home_address', '') || '';
 
 /* --- Datensicherung: alles als Datei herunterladen bzw. wieder einlesen --- */
+/* Zusätzlich zu den Listen unten wird jetzt ALLES gesichert, was die App sonst noch speichert
+   (Urlaub, Schicht, Rechnungen, Kündigungen, Aussprache, Hörkorrektur, Routinen, Einstellungen ...).
+   Nicht gesichert werden Zugangsdaten (Google-Anmeldung, App-Code) und gerätespezifische Push-Daten. */
+const BACKUP_PREFIX_RX = /^(helfer_|jv_|tts_|fx_|wake_word|night_dim|conversation_mode|ueberblick_day|proaktiv_|google_client_id)/;
+const BACKUP_SKIP_RX = /^(jv_push|helfer_sync_meta|helfer_diag|helfer_ferien_cache|jv_fish_init|jv_boot_last)/;
+const BACKUP_HAUPT_KEYS = new Set(['helfer_calendar_entries', 'helfer_reminders', 'helfer_shopping', 'helfer_todo_entries', 'helfer_memory', 'helfer_contacts', 'helfer_briefing_wishes', 'helfer_parking', 'helfer_home_address']);
+
+function backupWeitere() {
+    const out = {};
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k || !BACKUP_PREFIX_RX.test(k) || BACKUP_SKIP_RX.test(k) || BACKUP_HAUPT_KEYS.has(k)) continue;
+            const v = localStorage.getItem(k);
+            if (v != null && v !== 'null' && v !== 'undefined') out[k] = v;
+        }
+    } catch (e) {}
+    return out;
+}
+
 function exportAllData() {
     const data = {
-        version: 1,
+        version: 2,
         exportiert_am: new Date().toISOString(),
         currentUserName, calendarEntries, reminderEntries, shoppingEntries, todoEntries,
-        memoryItems, savedContacts, briefingWishes, parkingSpot, homeAddress
+        memoryItems, savedContacts, briefingWishes, parkingSpot, homeAddress,
+        weitere: backupWeitere()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -128,6 +149,18 @@ function importAllData(jsonText) {
     if (typeof data.homeAddress === 'string') { homeAddress = data.homeAddress; setPersistentData('helfer_home_address', homeAddress); }
     if (typeof data.currentUserName === 'string' && data.currentUserName.trim()) { currentUserName = data.currentUserName; setPersistentData('user_custom_name', currentUserName); }
 
+    /* Alles Übrige (ab Version 2): Urlaub, Schicht, Rechnungen, Einstellungen ... */
+    let weitere = 0;
+    if (data.weitere && typeof data.weitere === 'object') {
+        Object.keys(data.weitere).forEach(k => {
+            if (!BACKUP_PREFIX_RX.test(k) || BACKUP_SKIP_RX.test(k) || BACKUP_HAUPT_KEYS.has(k)) return;
+            if (typeof data.weitere[k] !== 'string') return;
+            setPersistentData(k, data.weitere[k]);
+            weitere++;
+        });
+    }
+    importAllData._weitere = weitere;
+
     if (typeof renderAllLists === 'function') renderAllLists();
 }
 
@@ -137,7 +170,8 @@ async function handleImportFile(input) {
     try {
         const text = await file.text();
         importAllData(text);
-        alert('Die Sicherung wurde wiederhergestellt.');
+        alert('Die Sicherung wurde wiederhergestellt' + (importAllData._weitere ? ' (inklusive Urlaub, Schicht, Rechnungen und Einstellungen). Die App lädt jetzt neu.' : '.'));
+        if (importAllData._weitere) setTimeout(() => location.reload(), 300);
     } catch (e) {
         alert(e.userMessage || 'Die Sicherung konnte nicht eingelesen werden.');
     } finally {
