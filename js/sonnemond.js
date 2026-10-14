@@ -2,7 +2,7 @@
    SONNE UND MOND: "Wann geht die Sonne unter?", "Sonnenaufgang", "Wie lange ist es noch hell?", "Wann geht der Mond auf?",
    "Wann ist Vollmond?", "Wie ist der Mond heute?", "Wann ist Neumond?".
    Alles wird in der App berechnet (Rechenverfahren der Astronomie, wie in der freien Bibliothek SunCalc), es ist keine Schnittstelle nötig.
-   Der Standort kommt vom Handy; ohne Standort rechnet Jarvis mit Hamburg und sagt das dazu.
+   Der Standort kommt vom Handy; ohne Standort rechnet Zane mit Hamburg und sagt das dazu.
    Bei Mond-Fragen öffnet sich ein Fenster mit Mondbild (extrafenster.js; ohne diese Datei erscheinen Karten).
    Wird von erweiterungen.js in die festen Sprachbefehle eingehängt. Braucht: speak (voice.js), showActionCards/clearActionCards.
    ============================================================ */

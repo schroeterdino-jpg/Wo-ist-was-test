@@ -1,10 +1,10 @@
 /* ============================================================
    SCHICHT: Frühschicht / Spätschicht im Wochenwechsel, Briefing zur richtigen Zeit, Ruhezeit je Schicht
    ============================================================
-   Einmal sagen: "Diese Woche Frühschicht" (oder "Nächste Woche Spätschicht"). Jarvis rechnet den Wechsel jede Woche selbst weiter
+   Einmal sagen: "Diese Woche Frühschicht" (oder "Nächste Woche Spätschicht"). Zane rechnet den Wechsel jede Woche selbst weiter
    (Frühschicht, Spätschicht, Frühschicht ...). Der Wechsel ist immer am Montag.
 
-   Briefing von selbst (nur bei offener, sichtbarer App; höchstens einmal pro Tag, nur wenn "Jarvis meldet sich von selbst" an ist):
+   Briefing von selbst (nur bei offener, sichtbarer App; höchstens einmal pro Tag, nur wenn "Zane meldet sich von selbst" an ist):
      Frühschicht: ab 3:30 Uhr (Aufstehen) · Spätschicht: ab 12:00 Uhr (kurz vor der Abfahrt).
      Wird die App später geöffnet, kommt das Briefing sofort, solange seit der Zeit höchstens 4 Stunden vergangen sind.
    Ruhezeit: an Frühschicht-Tagen still von 21:30 bis zur Briefing-Zeit (sonst 22 bis 7 Uhr wie bisher).
@@ -145,7 +145,7 @@
 
 
     /* ---------- Schichten in den Google Kalender ---------- */
-    /* Ganztägige Einträge Mo-Fr für die nächsten Wochen, ohne Erinnerung (kein doppeltes Klingeln, kein Jarvis-Push, pushsync ignoriert Ganztags-Termine).
+    /* Ganztägige Einträge Mo-Fr für die nächsten Wochen, ohne Erinnerung (kein doppeltes Klingeln, kein Zane-Push, pushsync ignoriert Ganztags-Termine).
        Feste Kennung je Tag: erneutes Eintragen aktualisiert statt zu verdoppeln. */
     const CAL_WEEKS = 8;
     function ymdAdd(b, n) { const t = new Date(Date.UTC(b.y, b.m - 1, b.d + n)); return t.toISOString().slice(0, 10); }

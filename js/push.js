@@ -5,7 +5,7 @@
    - "Sende eine Test-Nachricht": der Server schickt eine Nachricht; sie muss auch bei geschlossener App ankommen.
    - "Benachrichtigungen aus": meldet das Handy wieder ab. "Status Benachrichtigungen": sagt, ob sie an sind.
    Braucht: storage.js (apiFetch), commands.js, places.js (showActionCards), voice.js (speak); serverseitig api/sync.js (Aktionen push_*),
-   sw.js im Hauptordner, Umgebungsvariablen VAPID_PUBLIC_KEY und VAPID_PRIVATE_KEY. Fehlt etwas davon, sagt Jarvis es ehrlich.
+   sw.js im Hauptordner, Umgebungsvariablen VAPID_PUBLIC_KEY und VAPID_PRIVATE_KEY. Fehlt etwas davon, sagt Zane es ehrlich.
    Ändert nichts an Briefing, Terminen oder Erinnerungen.
    ============================================================ */
 (function () {
@@ -40,7 +40,7 @@
         try {
             if (!supported()) { say('Dieses Gerät oder dieser Browser kann keine Benachrichtigungen bekommen. Auf dem Handy bitte die installierte App in Chrome öffnen.'); return false; }
             const perm = await Notification.requestPermission();
-            if (perm !== 'granted') { say('Ohne Erlaubnis kann ich dir keine Nachrichten schicken. Du kannst sie in den Handy-Einstellungen unter Apps, Jarvis, Benachrichtigungen erlauben.'); return false; }
+            if (perm !== 'granted') { say('Ohne Erlaubnis kann ich dir keine Nachrichten schicken. Du kannst sie in den Handy-Einstellungen unter Apps, Zane, Benachrichtigungen erlauben.'); return false; }
             const key = (await api('push_key')).publicKey;
             const reg = await registration();
             let sub = await reg.pushManager.getSubscription();

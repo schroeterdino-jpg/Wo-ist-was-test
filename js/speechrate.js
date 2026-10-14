@@ -1,5 +1,5 @@
 /* ============================================================
-   SPRECHTEMPO: Wie schnell Jarvis spricht, einstellbar in den Einstellungen (Regler "Sprechtempo")
+   SPRECHTEMPO: Wie schnell Zane spricht, einstellbar in den Einstellungen (Regler "Sprechtempo")
    oder per Sprache: "Sprich langsamer", "Sprich schneller", "Sprich normal".
    Wirkt auf beide Stimmen, ohne voice.js anzufassen:
    - Cloud-Stimme (OpenAI/Edge): Das <audio>-Element der Sprachausgabe wird mit angepasster Abspielgeschwindigkeit angelegt

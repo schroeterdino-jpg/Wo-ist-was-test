@@ -1,8 +1,8 @@
 /* ============================================================
-   ROUTINEN: Jarvis lernt aus dem, was du in der App tust, und unterstützt dich dabei
+   ROUTINEN: Zane lernt aus dem, was du in der App tust, und unterstützt dich dabei
    ============================================================
    - Mitzählen (still): bei jedem Termin, jeder Erinnerung, Aufgabe, Einkaufsliste, jedem Foto, jeder Stau-/Wetter-Abfrage und jedem Parkplatz-Satz
-     merkt sich Jarvis NUR Art, Wochentag und Uhrzeit. Keine Inhalte, kein Wortlaut. Alles bleibt auf dem Handy (Schlüssel jv_routinen, nicht synchronisiert).
+     merkt sich Zane NUR Art, Wochentag und Uhrzeit. Keine Inhalte, kein Wortlaut. Alles bleibt auf dem Handy (Schlüssel jv_routinen, nicht synchronisiert).
    - Erkennen: gleiche Art, ähnliche Uhrzeit (±45 Minuten) an mindestens 3 verschiedenen Tagen innerhalb von 21 Tagen.
    - Vorschlagen: höchstens EIN Vorschlag am Tag, nur bei offener, ruhiger App, nie in der Ruhezeit. "Ja" = merken, "Nein" = nie wieder fragen.
    - Unterstützen: bei einer gemerkten Routine kommt kurz vor der Zeit ein kurzer Hinweis (Karte und gesprochen), einmal am Tag, nur wenn du es nicht schon getan hast.

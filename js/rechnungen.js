@@ -1,8 +1,8 @@
 /* ============================================================
-   RECHNUNGEN IM BLICK: Jarvis merkt sich jede fotografierte oder als PDF ausgewertete Rechnung/Mahnung (Absender, Betrag, Zahlungsziel)
+   RECHNUNGEN IM BLICK: Zane merkt sich jede fotografierte oder als PDF ausgewertete Rechnung/Mahnung (Absender, Betrag, Zahlungsziel)
    und behält sie im Blick, bis du sie als bezahlt meldest. Die Erinnerung zum Zahlungsziel legt weiter foto_brief.js an.
    Sprache:
-   - "Welche Rechnungen sind offen?", "Rechnungen im Blick", "Wie viel muss ich noch zahlen?" -> Jarvis nennt Anzahl, Summe und die nächste Fälligkeit; Karten je Rechnung mit "Bezahlt".
+   - "Welche Rechnungen sind offen?", "Rechnungen im Blick", "Wie viel muss ich noch zahlen?" -> Zane nennt Anzahl, Summe und die nächste Fälligkeit; Karten je Rechnung mit "Bezahlt".
    - "Die Rechnung von 1&1 ist bezahlt" / "Ich habe die Rechnung von Vodafone bezahlt" -> wird abgehakt.
    Zusätzlich kennt die KI die offenen Rechnungen (Kontext "rechnungen_offen") und kann sie beiläufig erwähnen, wenn eine bald fällig ist.
    Gespeichert wird nur auf dem Gerät (localStorage "jv_rechnungen"); bezahlte Rechnungen verschwinden nach 30 Tagen.

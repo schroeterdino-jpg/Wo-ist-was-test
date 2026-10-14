@@ -4,7 +4,7 @@
    - Schickt (nur wenn "Benachrichtigungen an" gemacht wurde, Schlüssel jv_push = 1) eine kleine Liste: Titel und Zeit der nächsten 14 Tage.
      Erinnerungen (noch nicht ausgelöst) und Termine mit Uhrzeit UND Ort (für die Abfahrtszeit). Termine ohne Ort, Geburtstage und
      ganztägige Termine werden nicht gemeldet, dafür sorgt Google selbst (sonst klingelte es doppelt). Keine Notizen.
-   - Schickt jede Minute ein Lebenszeichen, solange die App offen UND sichtbar ist. Dann spricht Jarvis wie bisher selbst und der Server
+   - Schickt jede Minute ein Lebenszeichen, solange die App offen UND sichtbar ist. Dann spricht Zane wie bisher selbst und der Server
      schickt nichts (kein Doppeltes). Ist die App zu, übernimmt der Server (api/sync.js, Aktion push_due, jede Minute von cron-job.org).
    - Serverseitig: Erinnerung zur eingestellten Zeit; Termine mit Ort als Abfahrtsmeldung (ohne berechenbare Strecke eine einfache Vorwarnung).
    Braucht: storage.js (apiFetch), push.js (Anmeldung), calendar.js (reminderEntries, calendarEntries), briefing.js (isBirthdayEntry), sync.js (onLocalDataChanged).
@@ -173,7 +173,7 @@
         }
     } catch (e) {}
 
-    /* Beim Öffnen der App zuerst fragen, ob etwas am Sperrbildschirm schon erledigt wurde, bevor Jarvis es noch einmal vorspricht.
+    /* Beim Öffnen der App zuerst fragen, ob etwas am Sperrbildschirm schon erledigt wurde, bevor Zane es noch einmal vorspricht.
        Die Erinnerungs-Prüfung in calendar.js wartet solange (höchstens 3,5 Sekunden, dann läuft alles wie gewohnt). */
     async function checkDone() {
         if (!on() || typeof apiFetch !== 'function') return;

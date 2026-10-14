@@ -78,7 +78,7 @@ function weekdayRuleFromText(text) {
     return `RRULE:FREQ=WEEKLY${interval > 1 ? ';INTERVAL=' + interval : ''};BYDAY=${days.join(',')}`;
 }
 
-/* Hat der User gesagt, dass die Erinnerung WICHTIG ist bzw. dass Jarvis nachhaken soll? (Rückfall, falls die KI das Feld vergisst) */
+/* Hat der User gesagt, dass die Erinnerung WICHTIG ist bzw. dass Zane nachhaken soll? (Rückfall, falls die KI das Feld vergisst) */
 function importantFromText(text) {
     return /\b(wichtig\w*|unbedingt|nachhak\w*|nachfass\w*|frag\w*\s+(?:mich\s+)?(?:so lange\s+)?nach|bis ich (?:es |das )?(?:bestätig\w*|erledigt|abhak\w*))\b/i.test(String(text || ''));
 }

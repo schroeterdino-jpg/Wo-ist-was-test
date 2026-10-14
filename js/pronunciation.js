@@ -1,5 +1,5 @@
 /* ============================================================
-   AUSSPRACHE-LISTE: Jarvis merkt sich, wie schwierige Wörter und Namen gesprochen werden sollen.
+   AUSSPRACHE-LISTE: Zane merkt sich, wie schwierige Wörter und Namen gesprochen werden sollen.
    Beispiel: "Sprich Alyssa so aus: Alischa" - angezeigt bleibt "Alyssa", gesprochen wird "Alischa".
    Braucht: storage.js (getPersistentData/setPersistentData), voice.js (speak). Muss NACH voice.js geladen werden.
 
@@ -38,7 +38,7 @@ function pronunciationEscape(s) {
 /* Ersetzt jedes Wort der Liste im Text (ganze Wörter, Groß-/Kleinschreibung egal, auch mit angehängtem "s": "Alyssas") */
 function applyPronunciations(text) {
     let out = String(text == null ? '' : text);
-    const dict = getPronunciations();
+    const dict = Object.assign({ 'Zane': 'Sein' }, getPronunciations());   // Standard: englisch "Sein" (zeen); mit "Sprich Zane so aus: ..." änderbar
     const keys = Object.keys(dict).sort((a, b) => b.length - a.length);
     keys.forEach(word => {
         const spoken = dict[word];
@@ -85,7 +85,7 @@ function deletePronunciation(word) {
 function renderPronunciationList() {
     const box = document.getElementById('pronunciationList');
     if (!box) return;
-    const dict = getPronunciations();
+    const dict = Object.assign({ 'Zane': 'Sein' }, getPronunciations());   // Standard: englisch "Sein" (zeen); mit "Sprich Zane so aus: ..." änderbar
     const keys = Object.keys(dict).sort((a, b) => a.localeCompare(b, 'de'));
     box.textContent = '';
     if (keys.length === 0) {
