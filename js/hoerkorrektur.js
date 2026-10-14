@@ -20,8 +20,26 @@
     /* Wendet alle gespeicherten Korrekturen auf einen erkannten Satz an (längste zuerst, ganze Wörter, Groß-/Kleinschreibung egal) */
     /* Einträge: Text = überall ersetzen; {r, c:1} = nur im Namens-Zusammenhang ersetzen (für Wortgruppen wie "haben jetzt") */
     const CTX = '(?:kennst\\s+du|kennt\\s+ihr|kenne\\s+ich|kennen\\s+wir|rufe?|ruf\\s+mal|anrufe?|anruf|kontakt|wann\\s+hat|wer\\s+ist|wo\\s+wohnt|wo\\s+arbeitet|wo\\s+ist|nachricht\\s+an|mail\\s+an|schreib\\s+an|an|mit|bei|von|für|über)';
+    /* ---------- Eingebaute Standard-Korrekturen (gelten immer, ohne dass du sie beibringen musst) ----------
+       Hier steht zentral, was die Handy-Spracherkennung bei dir regelmäßig falsch schreibt.
+       Neue feste Fälle einfach unten als [Muster, Ersetzung] ergänzen. Deine eigenen Korrekturen ("Wenn ich X sage, meine ich Y")
+       werden danach angewendet und haben im Zweifel das letzte Wort. */
+    const STANDARD = [
+        [/\bSchr(?:ö|oe)ter\b/gi, 'Schroeter'],
+        [/\bSchwarzenbeck\b/gi, 'Schwarzenbek'],
+        [/\bNeu[\s-]*Gal+i+n[aeo]?(?:r|n)?[\s-]*Ring\b/gi, 'Neu-Galliner-Ring'],
+        [/\bVerbr(?:ü|ue)derungs[\s-]+ring\b/gi, 'Verbrüderungsring'],
+        [/\b(?:Alicia|Alissa|Alisha|Alyssia)\b/gi, 'Alyssa'],
+        [/\b(?:Zain|Zayn|Zein|Zeyn|Sane|Zaine)\b/gi, 'Zane'],
+        [/^((?:hey|hallo|hi)[ ,]+)(?:sein|sain|zehn|seyn|sehn)\b/i, '$1Zane']
+    ];
+    function standard(t) {
+        STANDARD.forEach(function (r) { try { t = t.replace(r[0], r[1]); } catch (e) {} });
+        return t;
+    }
+
     function fix(text) {
-        let t = String(text == null ? '' : text);
+        let t = standard(String(text == null ? '' : text));
         const map = load();
         Object.keys(map).sort((a, b) => b.length - a.length).forEach(k => {
             const e = map[k], r = (e && typeof e === 'object') ? e.r : e, ctx = !!(e && typeof e === 'object' && e.c);
