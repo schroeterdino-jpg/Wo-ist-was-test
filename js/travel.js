@@ -437,7 +437,19 @@ async function computeDepartureAdvice(opts) {
     // Erst bei den Kontakten nachsehen (dort gehören Adressen am ehesten hin), dann im Gedächtnis.
     const contactAddr = findContactAddressFor(target.ort);
     const memAddr = contactAddr || findMemoryAddressFor(target.ort);
-    const dest = await geocodeDestination(memAddr || target.ort, loc.ort);
+
+    /* WICHTIG:
+       Ein echter Ortsname wie "Hamburg" darf niemals durch einen alten Gedächtnistreffer
+       (z.B. Königsberger Allee aus einer früheren Zahnarzt-Frage) ersetzt werden.
+       Deshalb zuerst das vom User JETZT genannte Ziel selbst geocodieren.
+       Nur wenn das nicht gefunden wird, dürfen Kontakt/Gedächtnis als persönliche
+       Adressauflösung einspringen. */
+    let dest = await geocodeDestination(target.ort, '');
+    let usedStoredAddress = false;
+    if (!dest && memAddr) {
+        dest = await geocodeDestination(memAddr, loc.ort);
+        usedStoredAddress = !!dest;
+    }
     if (!dest) {
         throw userError(`Die Adresse "${target.ort}" konnte ich nicht finden.` +
             (memAddr ? '' : ` Ist dazu keine Adresse gespeichert? Tragen Sie sie bei den Kontakten ein, oder sagen Sie "Merk dir ${target.ort}s Adresse: ..."`));
