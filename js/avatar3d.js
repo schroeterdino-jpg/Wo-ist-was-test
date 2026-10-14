@@ -1,6 +1,7 @@
 /* JARVIS 3D v6.10 – v5-Basis + Fish-Audio-Lippensync + Robot-Material direkt auf FaceCap. */
 (async function(){
 'use strict';
+const JV_HINTERGRUND=true; // false = einfacher dunkler Hintergrund wie vorher
 const JV_HAARE=true; // false = glatzköpfig wie vorher
 const holder=document.querySelector('.holo-container'); if(!holder) return;
 let THREE,GLTFLoader,KTX2Loader,MeshoptDecoder;
@@ -24,7 +25,56 @@ scene.add(new THREE.HemisphereLight(0xd9f7ff,0x071018,1.55));
 let key=new THREE.DirectionalLight(0xf3fbff,2.35);key.position.set(2.5,3.5,4);scene.add(key);
 let rim=new THREE.DirectionalLight(0x35d7ff,1.45);rim.position.set(-3,1,-1);scene.add(rim);
 let fill=new THREE.PointLight(0x6be9ff,5.5,8);fill.position.set(2,-1,2);scene.add(fill);
-const root=new THREE.Group();scene.add(root); const faceRoot=new THREE.Group();root.add(faceRoot);
+const root=new THREE.Group();scene.add(root);
+// ---------- Jarvis-Hintergrund: Hologramm-Ringe + Partikel + Schein (hinter dem Kopf) ----------
+const bgGroup=new THREE.Group(); bgGroup.position.set(0,-.04,-1.0); scene.add(bgGroup);
+const bgRings=[], bgMats=[]; let bgParticles=null, bgHalo=null, bgScan=null;
+if(JV_HINTERGRUND){
+  const addMat=(c,o)=>{const m=new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});bgMats.push([m,o]);return m};
+  const ring=(r,tube,arc,col,op,speed,tilt)=>{const m=new THREE.Mesh(new THREE.TorusGeometry(r,tube,6,160,arc),addMat(col,op));m.rotation.x=tilt||0;m.userData.speed=speed;bgGroup.add(m);bgRings.push(m);
+    // Leuchten: dickere, sehr transparente Kopien im gleichen Takt
+    [[4,.16],[9,.05]].forEach(([k,f])=>{const g=new THREE.Mesh(new THREE.TorusGeometry(r,tube*k,16,160,arc),addMat(col,op*f));g.userData.follow=m;bgGroup.add(g);bgRings.push(g)});
+    return m};
+  ring(1.25,.005,Math.PI*2,0x35d7ff,.35,.05,0);
+  ring(1.50,.008,Math.PI*1.35,0x00bfff,.55,-.16,0);
+  ring(1.78,.006,Math.PI*1.7,0x35d7ff,.32,.10,0);
+  ring(2.05,.004,Math.PI*0.9,0x8df7ff,.28,-.07,0);
+  ring(1.38,.004,Math.PI*2,0x8df7ff,.25,.0,.0);
+  // Skala aus kleinen Strichen
+  {const pts=[];const N=120;for(let i=0;i<N;i++){const a=i/N*Math.PI*2,L=(i%5===0)?.07:.035,r0=1.64;pts.push(Math.cos(a)*r0,Math.sin(a)*r0,0,Math.cos(a)*(r0+L),Math.sin(a)*(r0+L),0)}
+   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+   const l=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0x35d7ff,transparent:true,opacity:.40,blending:THREE.AdditiveBlending,depthWrite:false}));l.userData.speed=.03;bgGroup.add(l);bgRings.push(l);}
+  // Partikel
+  {const N=140,pos=new Float32Array(N*3),vel=new Float32Array(N);for(let i=0;i<N;i++){pos[i*3]=(Math.random()-.5)*4.4;pos[i*3+1]=(Math.random()-.5)*4.2;pos[i*3+2]=-.8-Math.random()*1.6;vel[i]=.03+Math.random()*.08}
+   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+   bgParticles=new THREE.Points(g,new THREE.PointsMaterial({color:0x9ff8ff,size:.09,map:(()=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');const g=x.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.25,'rgba(150,240,255,.8)');g.addColorStop(1,'rgba(0,150,255,0)');x.fillStyle=g;x.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})(),transparent:true,opacity:.95,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true}));
+   bgParticles.userData.vel=vel;bgParticles.position.z=0;scene.add(bgParticles);}
+  // weicher Schein hinter dem Kopf
+  {const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');const gr=x.createRadialGradient(128,128,10,128,128,128);
+   gr.addColorStop(0,'rgba(30,150,230,.30)');gr.addColorStop(.45,'rgba(0,90,170,.10)');gr.addColorStop(1,'rgba(0,40,90,0)');x.fillStyle=gr;x.fillRect(0,0,256,256);
+   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));sp.scale.set(4.4,4.4,1);sp.position.set(0,-.04,-1.6);scene.add(sp);}
+  // Heller Kern-Schein direkt hinter dem Kopf (Rand-Leuchten) – pulsiert beim Sprechen
+  {const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');const gr=x.createRadialGradient(128,128,40,128,128,128);
+   gr.addColorStop(0,'rgba(80,220,255,0)');gr.addColorStop(.55,'rgba(60,200,255,.30)');gr.addColorStop(.8,'rgba(30,170,255,.14)');gr.addColorStop(1,'rgba(0,80,160,0)');x.fillStyle=gr;x.fillRect(0,0,256,256);
+   bgHalo=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));bgHalo.scale.set(2.9,3.3,1);bgHalo.position.set(0,-.04,-.7);scene.add(bgHalo);}
+  // Scan-Strahl: weiche waagerechte Lichtlinie, wandert langsam von oben nach unten
+  {const c=document.createElement('canvas');c.width=256;c.height=32;const x=c.getContext('2d');const gr=x.createLinearGradient(0,0,0,32);
+   gr.addColorStop(0,'rgba(0,200,255,0)');gr.addColorStop(.5,'rgba(120,240,255,.9)');gr.addColorStop(1,'rgba(0,200,255,0)');x.fillStyle=gr;x.fillRect(0,0,256,32);
+   bgScan=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,opacity:.28,blending:THREE.AdditiveBlending,depthWrite:false}));bgScan.scale.set(3.6,.22,1);bgScan.position.set(0,0,-.5);scene.add(bgScan);}
+
+}
+function updateBackground(now,dt,st,speaking){
+  if(!JV_HINTERGRUND)return;
+  const boost=speaking?2.4:(st==='thinking'?3.2:(st==='listening'?1.6:1));
+  for(const r of bgRings){ if(r.userData.follow){r.rotation.z=r.userData.follow.rotation.z;} else r.rotation.z+= (r.userData.speed||0)*dt*boost*2;}
+  const pulse=speaking?(.85+.15*Math.sin(now*.012)):1;
+  for(const [m,o] of bgMats) m.opacity=o*pulse*(st==='listening'?1.25:1);
+  if(bgHalo){bgHalo.material.opacity=(speaking?.55+.18*Math.sin(now*.014):.42+.10*Math.sin(now*.0016))*(st==='listening'?1.25:1);}
+  if(bgScan){const ph=((now*.00016*boost)%1);bgScan.position.y=1.5-ph*3.0;bgScan.material.opacity=.30*Math.sin(ph*Math.PI);}
+  if(bgParticles){const p=bgParticles.geometry.attributes.position,v=bgParticles.userData.vel;
+    for(let i=0;i<p.count;i++){let y=p.getY(i)+v[i]*dt*boost;if(y>2.1)y=-2.1;p.setY(i,y)}p.needsUpdate=true;}
+}
+ const faceRoot=new THREE.Group();root.add(faceRoot);
 const cyan=0x00cfff, dark=0x111820;
 const metalMat=new THREE.MeshPhysicalMaterial({color:0xb8c1c7,metalness:.58,roughness:.48,clearcoat:.10,clearcoatRoughness:.55});
 const darkMat=new THREE.MeshStandardMaterial({color:dark,metalness:.9,roughness:.3});
@@ -340,6 +390,7 @@ function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);cons
  root.rotation.y=baseY+(st==='thinking'?.055:0);
  root.rotation.x=baseX+(st==='listening'?-.018:st==='thinking'?-.010:0);
  root.position.y=Math.sin(now*.0011)*.012+(st==='listening'?.008:0);
+ updateBackground(now,dt,st,speaking);
  renderer.render(scene,camera)}
 function setMode(on){active=!!on; const sphere=document.getElementById('jarvisSphere'); const holo=document.getElementById('jarvisHolo'); btn.classList.toggle('active',active); btn.textContent=active?'● 3D':'○ 3D'; if(!active){renderer.domElement.style.display='none';hideStatus();if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} if(!modelReady){renderer.domElement.style.display='none';showStatus('3D-Kopf wird geladen …');if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} renderer.domElement.style.display='block';hideStatus();if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
 const btn=document.createElement('button');btn.id='jv3dToggle';btn.type='button';btn.textContent='● 3D';btn.title='JARVIS 3D-Kopf';btn.style.cssText='position:absolute;left:6px;top:6px;z-index:9;border:1px solid #16cce8;border-radius:999px;background:#07131ddd;color:#9df6ff;padding:7px 10px;font:700 11px system-ui;letter-spacing:.04em;cursor:pointer;box-shadow:0 0 16px #00bfff33';holder.appendChild(btn);btn.onclick=()=>setMode(!active);
