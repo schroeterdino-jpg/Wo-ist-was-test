@@ -45,7 +45,7 @@
             if (!mo || mo > 12) continue;
             let r = iso(y || y0, mo, d);
             if (r && !y && r < addDays(now, -1)) r = iso(y0 + 1, mo, d);   // ohne Jahr: nächstes Vorkommen
-            if (r) out.push({ iso: r, i: m.index });
+            if (r) out.push({ iso: r, i: m.index, noYear: !y, cur: !y ? iso(y0, mo, d) : null });
         }
         return out;
     }
@@ -89,7 +89,23 @@
         if (/\b(habe|hab|nehme|nehm|trag|trage|tragen|mach|ab|vom|von|bis|hatte)\b/.test(t) && !/\bwann\b|\bwie\b/.test(t)) {
             const ds = findDates(t);
             let von = null, bis = null;
-            if (ds.length >= 2) { von = ds[0].iso; bis = ds[1].iso; }
+            if (ds.length >= 2) {
+                von = ds[0].iso; bis = ds[1].iso;
+                /* Ohne Jahr gilt für BEIDE Daten dasselbe Jahr: "vom 10. bis 16. Oktober" mitten in dieser Woche ist
+                   dieses Jahr, auch wenn der 10. schon vorbei ist (früher rutschte er ins nächste Jahr). */
+                const a = ds[0], b = ds[1];
+                if (a.noYear && a.cur) {
+                    const bc = (b.noYear && b.cur) ? b.cur : b.iso;
+                    if (a.cur <= bc && bc >= addDays(today(), -1)) { von = a.cur; if (b.noYear && b.cur) bis = b.cur; }
+                }
+            }
+            else if (ds.length === 1 && (() => {   // "vom 10. bis 16. Oktober": nur das zweite Datum hat einen Monat
+                const rg = t.match(new RegExp('(\\d{1,2})\\.?\\s*(?:bis|-)\\s*(?:zum\\s+|zu\\s+)?(\\d{1,2})\\.?\\s*' + MON_RX));
+                if (!rg) return false;
+                const mo = monthIdx(rg[3]), yy = +ds[0].iso.slice(0, 4), v = iso(yy, mo, +rg[1]), b2 = iso(yy, mo, +rg[2]);
+                if (!v || !b2 || v > b2) return false;
+                von = v; bis = b2; return true;
+            })()) { /* von und bis sind gesetzt */ }
             else if (ds.length === 1) {
                 const n = dauerTage(t);
                 if (/\bbis\b/.test(t) && !/\b(vom|von|ab)\b/.test(t)) { von = today(); bis = ds[0].iso; }

@@ -85,7 +85,20 @@
         const st = load();
         if (!st) return null;
         const sh = shiftToday(st);
+        /* Urlaub heute: nur der Urlaubshinweis, keine Schicht, keine Abfahrt, keine Fahrzeit, kein Stau */
+        try {
+            const u = window.jvUrlaub && window.jvUrlaub.get && window.jvUrlaub.get();
+            const heute = berlin().ymd;
+            if (u && u.von && u.bis && u.von <= heute && u.bis >= heute) {
+                return { urlaub_bis: urlaubLesbar(u.bis) };
+            }
+        } catch (e) {}
         const o = { art: NAME[sh] };
+        /* Ist die Abfahrt schon länger her, steckt er mitten in der Schicht: dann weder Abfahrt noch Fahrzeit noch Stau nennen */
+        try {
+            const b = berlin();
+            if (b.min > st.times[sh] + 120) { o.schicht_laeuft_schon = true; window.__schichtStauCards = null; return o; }
+        } catch (e) {}
         if (sh === 'spaet') o.abfahrt = 'gegen ' + spoken(st.times.spaet);
         window.__schichtStauCards = null;
         try {
