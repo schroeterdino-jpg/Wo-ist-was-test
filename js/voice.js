@@ -917,8 +917,24 @@ if (typeof document !== 'undefined' && document.addEventListener) {
 
 if (typeof document !== 'undefined' && document.addEventListener) {
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) stopWakeWordListening();
-        else if (wakeWordEnabled && !isRecording && !isSpeaking() && !isProcessing) startWakeWordListening();
+        if (document.hidden) {
+            stopWakeWordListening();
+        } else {
+            // Android kann beim Wechsel in Google Kalender die Web-Speech-Sitzung beenden,
+            // während isRecording intern noch true bleibt. Nur diesen veralteten Zustand
+            // bereinigen und danach die bereits vorhandene Weckwort-Logik benutzen.
+            try { if (recognition) recognition.abort(); } catch (e) {}
+            isRecording = false;
+            wakeWordListening = false;
+            jvListenIndicator(false);
+            setTimeout(() => {
+                if (wakeWordEnabled && !isRecording && !isSpeaking() && !isProcessing) {
+                    startWakeWordListening();
+                } else if (!isSpeaking() && !isProcessing) {
+                    setIdleUi();
+                }
+            }, 500);
+        }
     });
 }
 

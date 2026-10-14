@@ -162,11 +162,8 @@ async function executeAction(action, text, ctx) {
         const deleteTarget = found || (calendarEntries.length > 0 ? calendarEntries[0] : null);
         const deletedDay = deleteTarget && deleteTarget.isoDate ? deleteTarget.isoDate : null;
         let calDone = true;
-        if (deleteTarget) {
-            calDone = await deleteCalendarEntry(deleteTarget.id);
-        }
+        if (deleteTarget) calDone = await deleteCalendarEntry(deleteTarget.id);
         if (calDone === false) googleNotSynced(ctx, 'Der Termin ist in der App gelöscht, bei Google steht er noch');
-        // Genau EINMAL öffnen; kein location-Fallback und keine Eingriffe in die Sprachsteuerung.
         if (deleteTarget && calDone !== false) openGoogleCalendarApp(deletedDay);
         updateTerminalStream("CALENDAR: EVENT_DELETED");
     } else if (action.type === 'calendar_update') {
