@@ -243,6 +243,9 @@ function buildMenuPanel() {
         ['🖥️', 'Tagesüberblick', 'Termine, Erinnerungen, Aufgaben, Standort', "closePanel(); showUeberblick(false)"],
         ['🧠', 'Langzeitgedächtnis', 'Erlebnisse, Pläne, Geburtstage ansehen und löschen', "closePanel(); showLangzeit()"],
         ['🗓️', 'Planer', 'Erinnerung anlegen', "openPanel('planer')"],
+        ['👤', 'Kopf', 'Ansicht: 3D-Kopf', "closePanel(); jvAnsicht.set('kopf')"],
+        ['🔵', 'Kugel', 'Ansicht: Kugel', "closePanel(); jvAnsicht.set('kugel')"],
+        ['🧠', 'Gehirn', 'Ansicht: Gehirn', "closePanel(); jvAnsicht.set('gehirn')"],
         ['⚙️', 'Einstellungen', 'Konto, Stimme, Kontakte', "openPanel('settings')"]
     ];
     const html = '<div class="font-mono">' + entries.map(([icon, name, sub, action], i) =>
