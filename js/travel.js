@@ -375,7 +375,33 @@ async function computeDepartureAdvice(opts) {
     if (typeof opts === 'string') opts = { query: opts };   // Rückwärtskompatibel
     const target = await resolveTravelTarget(opts);
 
-    const loc = opts.loc || await fetchUserLocationData();
+    // Bei einer direkten Fahr-/Lagebild-Frage IMMER einen frischen GPS-Standort holen.
+    // Alte Gesprächsorte, frühere Ziele oder ein zuvor gespeicherter Standort dürfen
+    // niemals stillschweigend als Startpunkt einer neuen Route verwendet werden.
+    let loc;
+    if (opts && typeof opts === 'object' && ('query' in opts) && navigator.geolocation) {
+        try {
+            const pos = await new Promise((resolve, reject) =>
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 12000
+                })
+            );
+            loc = {
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                accuracy: pos.coords.accuracy,
+                ort: ''
+            };
+        } catch (e) {
+            // Nur wenn frisches GPS technisch nicht verfügbar ist, auf die bestehende
+            // Standortfunktion zurückfallen – niemals auf einen Gesprächskontext-Ort.
+            loc = await fetchUserLocationData();
+        }
+    } else {
+        loc = opts.loc || await fetchUserLocationData();
+    }
     if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
 
     // Ziel kann eine Straßenadresse, aber auch ein Geschäft/eine Sehenswürdigkeit ohne Adresse sein
