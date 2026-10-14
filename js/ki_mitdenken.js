@@ -53,6 +53,7 @@
        2) Die App hängt selbst einen Satz an die Antwort an, wenn in den nächsten 35 Tagen ein Geburtstag ansteht
           (erst aus dem Kalender, sonst aus dem Langzeitgedächtnis): "Übrigens, in 15 Tagen: Alyssa Geburtstag."
        Greift nur bei eingeschaltetem KI-Mitdenken (Stufe aktiv). Hängt sich beim Laden der Seite in jvFristHinweis (langzeit.js) und searchSemanticMemory ein. */
+    const VERSION = '15.10. 00:45';
     const GESCHENK_RX = /(?:^|[^a-zäöüß])(geschenk\w*|mitbringsel|blumen\w*|strauß|strauss|glückwunschkarte|geburtstagskarte|geburtstagskuchen|torte)(?![a-zäöüß])/i;
     const ERNST_RX = /(achtung|warnung|fehler|problem|leider|tablette|medikament|arzt|krank|beerdigung|trauer|e-mail|rechnung|konto)/i;
     const MONATE = { januar: 0, februar: 1, 'märz': 2, april: 3, mai: 4, juni: 5, juli: 6, august: 7, september: 8, oktober: 9, november: 10, dezember: 11 };
@@ -164,8 +165,7 @@
         if (!r || r.length > 500 || !GESCHENK_RX.test(u) || ERNST_RX.test(r + ' ' + u) || /geburtstag/i.test(r)) return reply;
         const gg = (gebCache.google || [])[0];
         if (gg && gg.titel) {
-            const ph = (typeof birthdayPhrase === 'function') ? birthdayPhrase(gg) : (gg.tag + ' ' + gg.titel);
-            return r.replace(/\s+$/, '') + ' Übrigens, ' + ph.replace(/\.$/, '') + '.';
+            return r.replace(/\s+$/, '') + ' Übrigens, ' + String(gg.tag || '').replace(/^am /, 'am ') + ': ' + saubererSatz(gg.titel) + '.';
         }
         let liste = kalenderGeburtstage();
         if (!liste.length) liste = speicherGeburtstage();
@@ -224,12 +224,17 @@
         if (/^(?:ki )?mitdenken (?:status|test|prüfung|pruefung|check)$|^geschenk(?:-| )?check$/.test(t)) {
             ladeGeburtstage(true).then(function () {
                 const k = kalenderGeburtstage(), sp = speicherGeburtstage();
-                let msg = 'Mitdenken ist ' + (isOn() ? 'an, Stufe ' + stufe() : 'aus') + '. ';
+                let msg = 'Mitdenken, Stand ' + VERSION + ', ist ' + (isOn() ? 'an, Stufe ' + stufe() : 'aus') + '. ';
                 if (gebCache.fehler) msg += 'Das Langzeitgedächtnis konnte ich nicht lesen: ' + gebCache.fehler + '. ';
                 else msg += 'Im Langzeitgedächtnis habe ich ' + gebCache.liste.length + ' Geburtstagseinträge. ';
                 msg += 'Im Geburtstagskalender von Google sind ' + (gebCache.google || []).length + ' in den nächsten fünf Wochen. Im Terminkalender stehen ' + k.length + ' Geburtstage in den nächsten fünf Wochen';
                 const e = k[0] || sp[0];
                 msg += e ? ', der nächste: ' + wannText(e.n) + ', ' + e.text + '.' : ', im Gedächtnis keiner.';
+                const roh = [];
+                if ((gebCache.google || [])[0]) roh.push('Google: ' + gebCache.google[0].titel);
+                if (k[0]) roh.push('Kalender: ' + k[0].text);
+                if (gebCache.liste && gebCache.liste[0]) roh.push('Gedächtnis: ' + String(gebCache.liste[0].text).slice(0, 80));
+                if (roh.length) msg += ' Rohtexte: ' + roh.join('; ') + '.';
                 say(msg);
             });
             return true;
