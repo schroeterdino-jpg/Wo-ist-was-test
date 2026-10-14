@@ -1,6 +1,6 @@
 /* ============================================================
    FORMULIERUNGS-WÜNSCHE: "Sag in Zukunft nicht 'Es ist 12 Uhr', sondern 'Hey mein Freund, es ist 12 Uhr'."
-   Jarvis legt den Wunsch in einer Liste ab (bleibt dauerhaft gespeichert) und gibt ihn bei jeder Antwort im normalen Gespräch an die KI weiter.
+   Zane legt den Wunsch in einer Liste ab (bleibt dauerhaft gespeichert) und gibt ihn bei jeder Antwort im normalen Gespräch an die KI weiter.
    Die KI überträgt das Muster auf wechselnde Werte (14 Uhr 30 statt 12 Uhr). Im Briefing gelten die Wünsche nicht.
    Per Sprache: "Welche Formulierungen hast du dir gemerkt?" zeigt die Liste, "Vergiss die Formulierung mit dem Freund" löscht einen Wunsch.
    Braucht: actions.js (executeAction), prompt.js (buildSystemPrompt), getPersistentData/setPersistentData. Muss nach prompt.js geladen werden.

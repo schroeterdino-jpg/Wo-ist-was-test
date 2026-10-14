@@ -10,7 +10,7 @@
    - STIMMUNGEN (neu, zum Auswählen): Böse, Anschreien, Genervt, Beleidigt. Per Sprache ("Sei böse", "Schrei mich an", "Sei genervt", "Sei beleidigt", "Sei wieder normal")
      oder in den Einstellungen unter Charakter & Mitdenken > Stimmung. Wirkt wie ein fertiger Sprachstil und setzt bei der Fish-Stimme passende Laut-Anweisungen
      (z.B. [shouting]) vor jeden Satz (siehe pronunciation.js). Bei ernsten Themen bleibt es ruhig.
-   - Stellst du dieselbe Frage zum dritten Mal in kurzer Zeit, kommentiert Jarvis das (ab Stufe "Trocken").
+   - Stellst du dieselbe Frage zum dritten Mal in kurzer Zeit, kommentiert Zane das (ab Stufe "Trocken").
    Alles richtet sich nach dem Frechheitsgrad aus persona.js: Stufe 0 und 1 bekommen die höflichen Fassungen, ab Stufe 2 die frechen.
    Braucht: persona.js (sassLevel, setSassLevel), voice.js (speak, speakAck, pickRandom), storage.js, prompt.js (buildSystemPrompt). Wird von localcommands.js aufgerufen.
    ============================================================ */
@@ -20,11 +20,11 @@ function charAddress() { return (typeof currentUserName !== 'undefined' && curre
 function charFill(s) { return String(s).replace(/\{a\}/g, charAddress()); }
 function charLevel() { return (typeof sassLevel === 'function') ? sassLevel() : 2; }
 
-/* Normalisiert den Satz: klein, ohne Satzzeichen, ohne "Hey/Jarvis" am Rand */
+/* Normalisiert den Satz: klein, ohne Satzzeichen, ohne "Hey/Zane" am Rand */
 function charNorm(text) {
     let t = String(text || '').toLowerCase().replace(/[.,!?;:"„“”'’]/g, ' ').replace(/\s+/g, ' ').trim();
-    t = t.replace(/^(?:hey|hallo|ok|okay|na|also|sag mal|jarvis)\s+/g, '').replace(/^(?:hey|hallo|ok|okay|na|also|jarvis)\s+/g, '');
-    t = t.replace(/\s+jarvis$/, '').trim();
+    t = t.replace(/^(?:hey|hallo|ok|okay|na|also|sag mal|(?:jarvis|zane))\s+/g, '').replace(/^(?:hey|hallo|ok|okay|na|also|(?:jarvis|zane))\s+/g, '');
+    t = t.replace(/\s+(?:jarvis|zane)$/, '').trim();
     return t;
 }
 
@@ -51,11 +51,11 @@ const CHAR_EGGS = [
       polite: ['Danke der Nachfrage, {a}. Alle Systeme arbeiten einwandfrei. Und Ihnen?', 'Es geht mir gut, {a}. Und wie geht es Ihnen?'],
       cheeky: ['Ich bin ein Programm, {a}, aber in Bestform. Und Sie?', 'Prächtig. Keine Kopfschmerzen, kein Montag, nur Rechenleistung. Und bei Ihnen?', 'Bestens, {a}. Ich muss ja nie in den Stau.'] },
     { key: 'wer', re: /^(?:wer bist du(?: eigentlich)?|was bist du(?: eigentlich)?|stell dich (?:mal )?vor)$/,
-      polite: ['Ich bin J.A.R.V.I.S., Ihr persönlicher Assistent, {a}.'],
-      cheeky: ['Ich bin Ihr Butler, {a}: höflich, allwissend und leicht überqualifiziert.', 'J.A.R.V.I.S., {a}. Der Assistent, den Sie verdient haben, auch wenn Sie es nicht immer zeigen.'] },
-    { key: 'name', re: /^(?:warum heißt du jarvis|woher hast du deinen namen|woher kommt dein name|warum jarvis)$/,
-      polite: ['Der Name stammt aus den Iron-Man-Filmen: Dort ist Jarvis der Assistent von Tony Stark. Ich gebe mir Mühe, {a}.'],
-      cheeky: ['Nach dem Butler aus den Iron-Man-Filmen. Ich versuche, ihm Ehre zu machen, wenn auch ohne Anzug.'] },
+      polite: ['Ich bin Zane, Ihr persönlicher Assistent, {a}.'],
+      cheeky: ['Ich bin Ihr Butler, {a}: höflich, allwissend und leicht überqualifiziert.', 'Zane, {a}. Der Assistent, den Sie verdient haben, auch wenn Sie es nicht immer zeigen.'] },
+    { key: 'name', re: /^(?:warum heißt du (?:jarvis|zane)|woher hast du deinen namen|woher kommt dein name|warum (?:jarvis|zane))$/,
+      polite: ['Zane ist kurz, kantig und leicht zu merken. Dino hat ihn ausgesucht, {a}, und ich trage ihn mit Stolz.'],
+      cheeky: ['Dino fand, ich brauche einen Namen mit Wumms. Zane hat gewonnen, Gegenkandidaten gab es nicht.'] },
     { key: 'danke', re: /^(?:danke|vielen dank|dankeschön|danke schön|danke dir|danke sehr|besten dank)$/,
       polite: ['Gern geschehen, {a}.', 'Jederzeit, {a}.'],
       cheeky: ['Dafür bin ich da, {a}.', 'Keine Ursache. Ich werde ja nicht pro Stunde bezahlt.', 'Gern geschehen. Das war ein Spaziergang.'] },
@@ -176,7 +176,7 @@ const CHAR_MOOD_KEY = 'helfer_mood';
 /* ---------- Stimmungen (zum Auswählen) ----------
    style: Anweisung an die KI (wie ein fertiger Sprachstil). tag / first: Laut-Anweisungen für die Fish-Stimme (nur dort, nie in der Anzeige):
    "tag" kommt vor JEDEN Satz, "first" nur vor den ersten. Gesprochen werden die Tags nie als Text, Fish deutet sie als Tonfall.
-   say: was Jarvis beim Einschalten sagt (spricht schon in der neuen Stimmung). */
+   say: was Zane beim Einschalten sagt (spricht schon in der neuen Stimmung). */
 const CHAR_MOODS = {
     boese: {
         name: 'Böse',
@@ -299,7 +299,7 @@ function charInjectMoodSelect(sassSel) {
         sel.value = getMoodId();
         const hint = document.createElement('p');
         hint.className = 'text-xs text-[#5d7e91] font-mono mt-1';
-        hint.textContent = 'Auch per Sprache: „Sei böse“, „Schrei mich an“, „Sei genervt“, „Sei beleidigt“, „Sei wieder normal“. Bei ernsten Themen bleibt Jarvis ruhig. Die Stimme wird nur bei Fish Audio lauter oder bösartiger.';
+        hint.textContent = 'Auch per Sprache: „Sei böse“, „Schrei mich an“, „Sei genervt“, „Sei beleidigt“, „Sei wieder normal“. Bei ernsten Themen bleibt Zane ruhig. Die Stimme wird nur bei Fish Audio lauter oder bösartiger.';
         box.appendChild(lab);
         box.appendChild(sel);
         box.appendChild(hint);

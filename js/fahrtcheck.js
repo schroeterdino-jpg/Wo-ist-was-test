@@ -1,5 +1,5 @@
 /* ============================================================
-   FAHRT-CHECK: Nach "Route zu X" / "Wann muss ich losfahren" hängt Jarvis einen kurzen Tipp an die Antwort, der mehrere Quellen verbindet:
+   FAHRT-CHECK: Nach "Route zu X" / "Wann muss ich losfahren" hängt Zane einen kurzen Tipp an die Antwort, der mehrere Quellen verbindet:
    - WETTER am Ziel zur Ankunftszeit (Open-Meteo, stündlich): Regen, Gewitter oder Hagel bei der Ankunft, und ab wann es dort wieder trocken ist
    - SPRIT: die günstigste Tankstelle auf der Strecke (kommt schon aus travel.js) erscheint zusätzlich im Fenster
    - LISTEN: passende Einträge von Einkaufsliste und Aufgaben (Baumarkt -> Schrauben, Kabel ... / Supermarkt -> die ganze Einkaufsliste / Apotheke ...)
@@ -118,7 +118,7 @@
     if (window.jvCommands) {
         window.jvCommands.use('fahrtcheck', function (text, next) {
             const t = String(text || '').toLowerCase().replace(/[.,!?;:\-]+/g, ' ').replace(/\s+/g, ' ').trim();
-            const m = t.match(/^(?:jarvis )?fahrt ?check (aus|an|ein)$/);
+            const m = t.match(/^(?:(?:jarvis|zane) )?fahrt ?check (aus|an|ein)$/);
             if (!m) return next(text);
             sd(KEY, m[1] === 'aus' ? 'aus' : 'an');
             try { speak(m[1] === 'aus' ? 'Der Fahrt-Check ist aus.' : 'Der Fahrt-Check ist an.', typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {}

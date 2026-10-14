@@ -1,10 +1,10 @@
 /* ============================================================
-   FOTO MIT ADRESSE -> NAVIGATION: Plakat, Flyer, Einladung, Brief, Schild oder Zettel fotografieren, Jarvis liest die Adresse
+   FOTO MIT ADRESSE -> NAVIGATION: Plakat, Flyer, Einladung, Brief, Schild oder Zettel fotografieren, Zane liest die Adresse
    und startet auf Wunsch die Route (Google Maps, Start ist dein Standort, Auto).
    Aufrufen:
    - vorher: "Navigiere zu der Adresse auf diesem Foto", "Bring mich zu der Adresse auf dem Plakat", "Fotografiere die Adresse und bring mich hin"
    - danach: Foto machen (📷 oder 📁), dann "Bring mich dorthin", "Navigiere dorthin" oder auf die Karte "Dorthin navigieren" tippen
-   Ablauf: Jarvis liest die Adresse vor und zeigt sie als Karte (bei mehreren Adressen auf dem Foto jeweils eine). "Ja" oder ein Tipp auf die Karte
+   Ablauf: Zane liest die Adresse vor und zeigt sie als Karte (bei mehreren Adressen auf dem Foto jeweils eine). "Ja" oder ein Tipp auf die Karte
    startet die Route; "Nein" verwirft. Eine KI kann Handschrift und Hausnummern falsch lesen, darum wird erst nach deinem OK gestartet.
    Hängt sich in photo.js ein (ohne es zu verändern) und muss danach geladen werden. Benutzt dessen Teile: askVision, photoJsonObject,
    photoPending, lastPhoto, runLastPhotoTask, photoSay. Fehlt photo.js, tut diese Datei nichts.
@@ -39,7 +39,7 @@
         const t = norm(text);
         if (!t || t.length > 70) return false;
         if (/\b(dorthin|dahin|da hin|dort hin)\b/.test(t) && /(navigier\w*|bring mich|fahr\w*|\broute\b|wie komme ich|hinkommen|komme)/.test(t)) return true;
-        if (/^(?:jarvis )?navigier\w*(?: mich)?(?: bitte)?$/.test(t)) return true;
+        if (/^(?:(?:jarvis|zane) )?navigier\w*(?: mich)?(?: bitte)?$/.test(t)) return true;
         if (/\b(?:zu|zur|zu der|zu dieser) (?:dieser )?adresse\b/.test(t) && NAV_WORD.test(t)) return true;
         return false;
     }
@@ -85,7 +85,7 @@
             try {
                 if (typeof photoPending !== 'undefined' && photoPending && photoPending.type === 'address') {
                     const t = norm(text);
-                    if (/^(?:jarvis )?(?:navigier\w*|route starten|starte? (?:die )?(?:route|navigation)|bring mich hin|fahr mich hin|fahr los|los geht s|start|starten)$/.test(t)) {
+                    if (/^(?:(?:jarvis|zane) )?(?:navigier\w*|route starten|starte? (?:die )?(?:route|navigation)|bring mich hin|fahr mich hin|fahr los|los geht s|start|starten)$/.test(t)) {
                         window.confirmPhotoPending().catch(() => say('Die Navigation konnte ich nicht starten.'));
                         return true;
                     }

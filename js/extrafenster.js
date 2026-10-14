@@ -55,7 +55,7 @@
     function handleExtraWindowCommand(text) {
         if (!layer) return false;
         const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
-        if (/^(?:jarvis )?(?:schließ\w*|schliess\w*|zumachen|fenster schließen|ansicht schließen|ausblenden|weg damit|mach (?:das |es |die |den )?(?:fenster |ansicht )?zu|zurück)$/.test(t)) {
+        if (/^(?:(?:jarvis|zane) )?(?:schließ\w*|schliess\w*|zumachen|fenster schließen|ansicht schließen|ausblenden|weg damit|mach (?:das |es |die |den )?(?:fenster |ansicht )?zu|zurück)$/.test(t)) {
             closeExtraWindow();
             return true;
         }

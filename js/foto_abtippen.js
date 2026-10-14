@@ -1,5 +1,5 @@
 /* ============================================================
-   FOTO ABTIPPEN ZUM AUSDRUCKEN: Ratenzahlungsplan, Tabelle, Zettel, Liste, Brief - Jarvis schreibt den Text vom Foto sauber ab,
+   FOTO ABTIPPEN ZUM AUSDRUCKEN: Ratenzahlungsplan, Tabelle, Zettel, Liste, Brief - Zane schreibt den Text vom Foto sauber ab,
    zeigt ihn in einem Fenster (Tabellen als richtige Tabelle) und man kann ihn ändern, drucken (am Handy auch "Als PDF speichern") oder kopieren.
    Aufrufen:
    - vorher: "Ratenplan abtippen", "Tipp den Plan ab", "Foto abtippen zum Ausdrucken", "Schreib das Foto ab"
@@ -40,12 +40,12 @@
     /* Nach einem Foto: "Merk dir das", "Speicher das im Gedächtnis" (nur gültig, wenn ein frisches Foto da ist) */
     function isMerkFollowup(text) {
         const t = norm(text);
-        return !!t && t.length <= 70 && /^(?:jarvis )?(?:bitte )?(?:merk|merke|speicher|speichere|leg|lege)\w*\s+(?:dir\s+|mir\s+)?(?:das|dies\w*|es)(?:\s+(?:bitte|mal|auch|ab|im gedächtnis|ins gedächtnis|im langzeitgedächtnis|ins langzeitgedächtnis|im hintergrund|hintergrund))*$/.test(t);
+        return !!t && t.length <= 70 && /^(?:(?:jarvis|zane) )?(?:bitte )?(?:merk|merke|speicher|speichere|leg|lege)\w*\s+(?:dir\s+|mir\s+)?(?:das|dies\w*|es)(?:\s+(?:bitte|mal|auch|ab|im gedächtnis|ins gedächtnis|im langzeitgedächtnis|ins langzeitgedächtnis|im hintergrund|hintergrund))*$/.test(t);
     }
     function isFollowup(text) {
         const t = norm(text);
         if (!t || t.length > 70) return false;
-        if (/^(?:jarvis )?(?:bitte )?(?:(?:tipp|tippe|schreib|schreibe)\w*\s+(?:mir\s+)?(?:das|dies\w*|es|den plan|die tabelle|den ratenplan)\s+(?:bitte\s+)?ab|(?:das|es)\s+abtippen|abtippen|abschreiben|(?:mach|mache)\s+(?:mir\s+)?(?:das|es|daraus)\s+(?:bitte\s+)?(?:druckbar|zum ausdrucken)|(?:zum|zu)\s+ausdrucken|(?:das|es|den plan|die tabelle)\s+(?:bitte\s+)?(?:ausdrucken|drucken))$/.test(t)) return true;
+        if (/^(?:(?:jarvis|zane) )?(?:bitte )?(?:(?:tipp|tippe|schreib|schreibe)\w*\s+(?:mir\s+)?(?:das|dies\w*|es|den plan|die tabelle|den ratenplan)\s+(?:bitte\s+)?ab|(?:das|es)\s+abtippen|abtippen|abschreiben|(?:mach|mache)\s+(?:mir\s+)?(?:das|es|daraus)\s+(?:bitte\s+)?(?:druckbar|zum ausdrucken)|(?:zum|zu)\s+ausdrucken|(?:das|es|den plan|die tabelle)\s+(?:bitte\s+)?(?:ausdrucken|drucken))$/.test(t)) return true;
         return false;
     }
 

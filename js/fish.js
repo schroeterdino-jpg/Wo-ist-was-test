@@ -166,7 +166,7 @@
     window.getChuckle = function () { return window.getHumanLevel() !== 'aus'; };               // alte Namen, falls andere Dateien sie benutzen
     window.setChuckle = function (on) { window.setHumanLevel(on ? 'mittel' : 'aus'); };
 
-    // Lach-Wunsch: Steht im Gedächtnis ("Merk dir, dass du öfter lachen sollst"), lacht Jarvis öfter: bei jedem Spruch, und ab und zu auch mitten in normalen Antworten.
+    // Lach-Wunsch: Steht im Gedächtnis ("Merk dir, dass du öfter lachen sollst"), lacht Zane öfter: bei jedem Spruch, und ab und zu auch mitten in normalen Antworten.
     // Gilt nur, solange die Stufe "Menschliche Laute" nicht auf "aus" steht. Ein Wunsch mit "nicht/nie/weniger" zählt nicht.
     const LAUGH_POS = /(?<![a-zäöüß])(?:ge)?lach(?:en|e|st|t)?(?![a-zäöüß])|kicher|schmunzel|gackern/;      // "lachen", "lach", "gelacht" - aber nicht "Lachs"
     const LAUGH_NEG = /(?:nicht|nie|niemals|kein\w*|weniger|aufhör\w*|unterlass\w*)\s+(?:mehr\s+|so\s+)?(?:\w+\s+)?(?:lach|kicher|schmunzel)|(?:lach|kicher|schmunzel)\w*\s+(?:bitte\s+)?(?:nicht|nie|niemals|kein\w*|weniger)/;
@@ -408,7 +408,7 @@
                     const u = URL.createObjectURL(blob);
                     urls.push(u);
                     rate = blob.__jvFish ? 1 : speechRate();
-                    // Wichtig: Ein neues src setzt das Tempo im Browser auf Normal zurück. Darum Tempo ausdrücklich beibehalten, sonst spricht Jarvis ab dem zweiten Stück schneller/langsamer als eingestellt.
+                    // Wichtig: Ein neues src setzt das Tempo im Browser auf Normal zurück. Darum Tempo ausdrücklich beibehalten, sonst spricht Zane ab dem zweiten Stück schneller/langsamer als eingestellt.
                     try { el.defaultPlaybackRate = rate; } catch (e) {}
                     el.src = u;
                     try { el.playbackRate = rate; if (keepPitch !== undefined) el.preservesPitch = keepPitch; } catch (e) {}
@@ -485,7 +485,7 @@
                 show(`✅ Fish Audio antwortet (Modell ${d.model}, Stimme ${d.voice}).` + (noId ? '\n⚠️ Ohne feste Stimmen-ID kann die Stimme von Satz zu Satz wechseln. Trage oben eine ID von fish.audio ein.' : ''));
                 if (typeof testVoice === 'function') testVoice();
             } else {
-                show('❌ ' + ((d && d.error) || ('Antwort: ' + JSON.stringify(d))) + '\nJarvis spricht in dem Fall mit der nächsten Stimme (OpenAI oder Edge).');
+                show('❌ ' + ((d && d.error) || ('Antwort: ' + JSON.stringify(d))) + '\nZane spricht in dem Fall mit der nächsten Stimme (OpenAI oder Edge).');
             }
         } catch (e) {
             show('❌ Server nicht erreichbar: ' + String((e && e.message) || e));
@@ -504,7 +504,7 @@
         if (!t || t.length > 45) return false;
         const say = (m) => speak(m, typeof continueConversation === 'function' ? continueConversation : undefined);
         const word = '(?:kichern|lachen|seufzen|menschliche laute|laute)';
-        if (new RegExp('^(?:jarvis )?' + word + ' (?:aus|ausschalten)$').test(t) || /^(?:jarvis )?(?:kicher|lach|seufz)\w*\s+(?:bitte\s+)?(?:nicht|nie|kein)(?:\s+mehr)?$/.test(t) || /^hör auf zu (?:kichern|lachen|seufzen)$/.test(t)) {
+        if (new RegExp('^(?:(?:jarvis|zane) )?' + word + ' (?:aus|ausschalten)$').test(t) || /^(?:(?:jarvis|zane) )?(?:kicher|lach|seufz)\w*\s+(?:bitte\s+)?(?:nicht|nie|kein)(?:\s+mehr)?$/.test(t) || /^hör auf zu (?:kichern|lachen|seufzen)$/.test(t)) {
             window.setHumanLevel('aus'); syncUi(); say('In Ordnung, ich verzichte auf Lachen und Seufzen.'); return true;
         }
         if (new RegExp('^' + word + ' dezent$').test(t) || /^(?:etwas |bisschen |ein bisschen )?(?:weniger|seltener) (?:kichern|lachen|seufzen)$/.test(t)) {

@@ -1,6 +1,6 @@
 /* ============================================================
    BRIEF FOTOGRAFIEREN: Rechnung, Mahnung, Vertragsänderung, Preiserhöhung, Behördenbrief, Bescheid, Einladung, anderes Schreiben.
-   Jarvis liest den Brief vom Foto, nennt dir Absender, Betrag und Fristen, sagt, was für ein Brief es ist, und schlägt EINE passende Sache vor.
+   Zane liest den Brief vom Foto, nennt dir Absender, Betrag und Fristen, sagt, was für ein Brief es ist, und schlägt EINE passende Sache vor.
    Es wird nichts ohne dein "Ja" angelegt (Sprache oder Tipp auf die Karte).
    Aufrufen:
    - vorher: "Brief fotografieren", "Werte diesen Brief aus", "Ich habe Post bekommen", "Rechnung fotografieren", "Schreiben vom Amt fotografieren"
@@ -66,7 +66,7 @@
         const t = norm(text);
         if (!t || t.length > 80 || NOT_THIS.test(t)) return false;
         if (LETTER_WORD.test(t) && DO_WORD.test(t)) return true;                             // "Werte den Brief aus"
-        if (/^(?:jarvis )?(?:was (?:ist|soll) (?:das|ich)\b.*|was muss ich (?:damit|hier|da) .*|worum geht es(?: hier)?|worum geht s)$/.test(t) && /(?:muss|geht|ist das|soll)/.test(t)) return /(?:muss|soll)/.test(t) || /worum geht/.test(t);
+        if (/^(?:(?:jarvis|zane) )?(?:was (?:ist|soll) (?:das|ich)\b.*|was muss ich (?:damit|hier|da) .*|worum geht es(?: hier)?|worum geht s)$/.test(t) && /(?:muss|geht|ist das|soll)/.test(t)) return /(?:muss|soll)/.test(t) || /worum geht/.test(t);
         if (/^(?:ist|war) das (?:eine |ne )?(?:rechnung|mahnung|kündigung|preiserhöhung|bescheid)\b/.test(t)) return true;
         return false;
     }
@@ -239,7 +239,7 @@
 
     const ART_LABEL = { strom: 'Strom', gas: 'Gas', internet: 'Internet', handy: 'Handyvertrag', versicherung: 'Versicherung', fitness: 'Fitnessstudio', miete: 'Miete', zeitung: 'Zeitung' };
 
-    /* ---------- Plan: was schlägt Jarvis vor? ---------- */
+    /* ---------- Plan: was schlägt Zane vor? ---------- */
     // Rückgabe: { say: Text, plan: {...}|null, cards: [...] }
     function makePlan(L) {
         const who = L.absender ? `von ${L.absender}` : '';
