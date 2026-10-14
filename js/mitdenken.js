@@ -170,20 +170,9 @@ function mdWords(s) {
     const stop = new Set(['der','die','das','den','dem','des','ein','eine','einer','einen','und','oder','aber','mit','bei','zum','zur','von','für','fuer','auf','in','im','am','an','ich','du','mir','mich','mein','meine','termin','heute','morgen','übermorgen','uhr']);
     return String(s || '').toLowerCase().replace(/[^a-z0-9äöüß ]/g, ' ').split(/\s+/).filter(w => w.length >= 4 && !stop.has(w));
 }
-function mdOverlap(a, b) {
-    const aa = new Set(mdWords(a)), bb = new Set(mdWords(b));
-    let n = 0; aa.forEach(w => { if (bb.has(w) || [...bb].some(x => x.includes(w) || w.includes(x))) n++; });
-    return n;
-}
-function mdCleanMemoryText(s) {
-    return String(s || '').replace(/^Am .{0,80}?hat der Nutzer ausdrücklich darum gebeten, sich Folgendes zu merken:\s*/i, '').replace(/^"|"$/g, '').trim();
-}
-async function mdCheckContext(notes, text, p, location) {
-    // Absichtlich deaktiviert:
-    // Bei neu angelegten Terminen keine alten Gedächtniseinträge ungefragt einmischen.
-    // Überschneidungen, Feiertage, Wetter und Fahrzeit bleiben weiterhin aktiv.
-    return;
-}
+
+
+
 
 /* ---------- Haupt-Funktion: gibt die (höchstens zwei) wichtigsten Hinweise als Sätze zurück ---------- */
 async function thoughtsForNewEvent(text, iso, location) {

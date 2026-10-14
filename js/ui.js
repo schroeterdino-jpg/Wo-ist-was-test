@@ -210,13 +210,7 @@ function typeWriterInto(el, text, speedMs = 18) {
     type();
 }
 
-/* Die Reiter gibt es nicht mehr. Alles, was früher ein Reiter war, öffnet jetzt als Fenster (panels.js). */
-function switchSection(sectionId) {
-    const map = { speak: null, planner: 'planer', lists: 'einkauf', memory: 'gedaechtnis', settings: 'settings' };
-    const panel = sectionId in map ? map[sectionId] : sectionId;
-    if (!panel) { closePanel(); return; }
-    openPanel(panel);
-}
+
 
 /* Effekt-Stufe: "calm" (Standard), "full" oder "off". Das Aussehen steuert style.css über html[data-fx]. */
 function applyFxMode(mode) {
