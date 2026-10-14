@@ -195,3 +195,5 @@
     }
     if (!registerCommand()) document.addEventListener('DOMContentLoaded', registerCommand);
 })();
+
+/* Stand 14.10. 23:10 */
