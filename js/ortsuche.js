@@ -375,6 +375,40 @@
         if (typeof savedContacts !== 'object' || !savedContacts || typeof setPersistentData !== 'function') {
             say('Die App-Kontakte sind gerade nicht erreichbar.'); return false;
         }
+        // Gibt es den Ort schon (gleiche Adresse oder gleicher Name), nichts doppelt anlegen
+        const normAdr = v => String(v || '').toLowerCase().replace(/ß/g, 'ss').replace(/stra(?:ss|ß)e/g, 'str').replace(/\bstr\./g, 'str').replace(/[^a-z0-9äöü]+/g, '');
+        const strasse = v => normAdr(String(v || '').split(',')[0]);
+        const adrNeu = normAdr(x.address), strNeu = strasse(x.address);
+        let vorhanden = null;
+        for (const k of Object.keys(savedContacts)) {
+            const c = savedContacts[k] || {};
+            const adrAlt = normAdr(c.address);
+            if (!adrAlt) continue;
+            if (adrAlt === adrNeu || (strNeu.length >= 6 && strasse(c.address) === strNeu && /\d/.test(strNeu))) { vorhanden = k; break; }
+        }
+        if (!vorhanden) {   // gleicher Name, aber noch ohne Adresse: die Adresse dort ergänzen statt einen zweiten Eintrag anzulegen
+            const nm = v => String(v || '').toLowerCase().replace(/[^a-zäöüß0-9]+/g, '');
+            const nNeu = nm(x.name);
+            for (const k of Object.keys(savedContacts)) {
+                const c = savedContacts[k] || {};
+                if (normAdr(c.address)) continue;
+                const nAlt = nm(c.originalName || k);
+                if (nNeu.length >= 4 && nAlt && (nAlt === nNeu || nAlt.indexOf(nNeu) === 0 || nNeu.indexOf(nAlt) === 0)) {
+                    savedContacts[k] = { originalName: c.originalName || x.name, phone: c.phone || '', address: x.address };
+                    setPersistentData('helfer_contacts', JSON.stringify(savedContacts));
+                    try { if (typeof renderContactList === 'function') renderContactList(); } catch (e) {}
+                    pendingSavePlaces = null;
+                    say(`Die Adresse ${x.address} ist jetzt bei ${savedContacts[k].originalName} in Ihren App-Kontakten ergänzt.`);
+                    return true;
+                }
+            }
+        }
+        if (vorhanden) {
+            const c = savedContacts[vorhanden];
+            pendingSavePlaces = null;
+            say(`${c.originalName || x.name} ist schon in Ihren App-Kontakten gespeichert. Ich lege nichts doppelt an.`);
+            return true;
+        }
         const key = x.name.toLowerCase();
         const old = savedContacts[key] || {};
         savedContacts[key] = { originalName: x.name, phone: old.phone || '', address: x.address };
