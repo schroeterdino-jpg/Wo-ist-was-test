@@ -19,6 +19,29 @@ function openGoogleCalendarApp(isoTimeString) {
     let d = isoTimeString ? new Date(isoTimeString) : new Date();
     if (isNaN(d.getTime())) d = new Date();
     const url = `https://calendar.google.com/calendar/u/0/r/day/${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+
+    // Android/WebView beendet die Web-Spracherkennung beim Wechsel zu Google Kalender.
+    // Beim Zurückkehren darf deshalb kein alter "isRecording"-Zustand stehen bleiben.
+    try { if (typeof recognition !== 'undefined' && recognition) recognition.stop(); } catch (e) {}
+    try { if (typeof resetRecordingState === 'function') resetRecordingState(); } catch (e) {}
+
+    // Nach der Rückkehr aus Google Kalender den Sprachzustand sauber neu initialisieren.
+    const resumeVoiceAfterCalendar = () => {
+        if (document.hidden) return;
+        setTimeout(() => {
+            try { if (typeof resetRecordingState === 'function') resetRecordingState(); } catch (e) {}
+            try {
+                if (typeof wakeWordEnabled !== 'undefined' && wakeWordEnabled &&
+                    typeof startWakeWordListening === 'function' &&
+                    (typeof isSpeaking !== 'function' || !isSpeaking()) &&
+                    (typeof isProcessing === 'undefined' || !isProcessing)) {
+                    startWakeWordListening();
+                }
+            } catch (e) {}
+        }, 350);
+    };
+    window.addEventListener('focus', resumeVoiceAfterCalendar, { once: true });
+
     try { window.open(url, '_blank', 'noopener'); } catch (e) {}
 }
 
@@ -150,27 +173,22 @@ async function executeAction(action, text, ctx) {
             else if (reminderEntries.length > 0) targets = [reminderEntries[0]];
         }
         let remDone = true;
-        const deletedReminderDay = targets.length ? (targets[0].isoDate || targets[0].time || targets[0].date || targets[0].datetime || null) : null;
         for (const t of targets) {   // eine Serie wird beim ersten Treffer komplett gelöscht, die übrigen Termine daraus sind dann schon weg
             if (!reminderEntries.some(r => r.id === t.id)) continue;
             if ((await deleteReminderEntry(t.id)) === false) remDone = false;
         }
         if (remDone === false) googleNotSynced(ctx, 'Die Erinnerung ist in der App gelöscht, bei Google steht sie noch');
-        if (targets.length && remDone !== false) openGoogleCalendarApp(deletedReminderDay);
         updateTerminalStream("REMINDER: DELETED");
     } else if (action.type === 'calendar_delete') {
         const q = (action.calendar_query || text).toLowerCase();
         const found = calendarEntries.find(c => c.text.toLowerCase().includes(q) || q.includes(c.text.toLowerCase()));
-        const deleteTarget = found || (calendarEntries.length > 0 ? calendarEntries[0] : null);
-        const deletedDay = deleteTarget && deleteTarget.isoDate ? deleteTarget.isoDate : null;
         let calDone = true;
-        if (deleteTarget) {
-            calDone = await deleteCalendarEntry(deleteTarget.id);
+        if (found) {
+            calDone = await deleteCalendarEntry(found.id);
+        } else if (calendarEntries.length > 0) {
+            calDone = await deleteCalendarEntry(calendarEntries[0].id);
         }
         if (calDone === false) googleNotSynced(ctx, 'Der Termin ist in der App gelöscht, bei Google steht er noch');
-        // Auch nach dem Löschen Google Kalender am betroffenen Tag öffnen:
-        // So sieht der User sofort, dass der Termin wirklich verschwunden ist.
-        if (deleteTarget && calDone !== false) openGoogleCalendarApp(deletedDay);
         updateTerminalStream("CALENDAR: EVENT_DELETED");
     } else if (action.type === 'calendar_update') {
         let targetId = action.calendar_id;
