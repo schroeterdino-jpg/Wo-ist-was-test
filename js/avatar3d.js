@@ -164,10 +164,14 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
            shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',
              '#include <map_fragment>\n'+
              'float jvL = dot(diffuseColor.rgb, vec3(0.299,0.587,0.114));\n'+
-             'vec3 jvSkin = vec3(0.584,0.305,0.198) * clamp(jvL/0.42, 0.0, 1.6);\n'+
-             'diffuseColor.rgb = mix(diffuseColor.rgb, jvSkin, 0.9);');
+             'float jvN = clamp(jvL/0.40, 0.0, 1.6);\n'+
+             'jvN = pow(jvN, 2.3);\n'+
+             'vec3 jvSkin = vec3(0.66,0.285,0.17) * min(jvN, 1.6);\n'+
+             'float jvBrow = 1.0 - smoothstep(0.35, 0.80, jvN);\n'+
+             'jvSkin = mix(jvSkin, vec3(0.05,0.022,0.012), jvBrow*0.75);\n'+
+             'diffuseColor.rgb = jvSkin;');
          };
-         m.customProgramCacheKey=()=> 'jarvis-skin-brows-v1';
+         m.customProgramCacheKey=()=> 'jarvis-skin-brows-v2';
        }
        if(oldMat&&oldMat.normalMap){m.normalMap=oldMat.normalMap; m.normalScale=oldMat.normalScale?oldMat.normalScale.clone():new THREE.Vector2(1,1);}
        m.needsUpdate=true; return m;
