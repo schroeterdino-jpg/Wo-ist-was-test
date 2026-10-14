@@ -147,6 +147,8 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
        // Menschenoptik: warme neutrale Haut statt Metall/Cyan. Keine Emission, kein Clearcoat, keine Leuchteffekte.
        // Die vorhandene Normalmap bleibt für Gesichtsdetails erhalten; Augen und Zähne werden separat behandelt.
        const m=new THREE.MeshStandardMaterial({color:0xc9967b,metalness:0,roughness:.72,side:THREE.DoubleSide});
+       // Augenbrauen sind in der Original-Textur aufgemalt: Textur behalten, nur warm einfaerben.
+       if(oldMat&&oldMat.map){m.map=oldMat.map; m.color.setRGB(1.35,1.02,0.84);}
        if(oldMat&&oldMat.normalMap){m.normalMap=oldMat.normalMap; m.normalScale=oldMat.normalScale?oldMat.normalScale.clone():new THREE.Vector2(1,1);}
        m.needsUpdate=true; return m;
      }
