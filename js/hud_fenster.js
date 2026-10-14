@@ -1,7 +1,7 @@
 /* ============================================================
    HUD-FENSTER: kleine durchsichtige Info-Panels rechts am Rand (Eck-Klammern, Balken mit Restzeit), die von selbst verschwinden (Antippen schließt sofort).
    Dazu:
-   - Ansage beim Öffnen: Jarvis nennt einmal (höchstens alle 3 Stunden, nicht zwischen 22 und 7 Uhr) Termine heute, Wetter und bald fällige Rechnungen und zeigt sie als Fenster.
+   - Ansage beim Öffnen: Zane nennt einmal (höchstens alle 3 Stunden, nicht zwischen 22 und 7 Uhr) Termine heute, Wetter und bald fällige Rechnungen und zeigt sie als Fenster.
      "Ansagen aus" / "Ansagen an" schaltet das ab (nur die gesprochene Ansage: "Ansagen leise" lässt die Fenster ohne Stimme).
    - Nachrichten: beim ersten Öffnen des Tages (morgens bis 12 Uhr) je ein Fenster mit den neuesten Meldungen aus Schwarzenbek und Hamburg (/api/news) und eine kurze Schlagzeile je Ort gesprochen. Jederzeit: "Lokale Nachrichten" / "Nachrichten für Schwarzenbek und Hamburg".
    - Systemcheck: "Systemcheck" zeigt jede Prüfung als Fenster-Zeile mit grünem Haken oder rotem Kreuz (zusätzlich Benachrichtigungen und Netz).
@@ -193,14 +193,14 @@
     if (window.jvCommands) {
         window.jvCommands.use('lokalnews', function (text, next) {
             const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
-            if (t.length < 60 && /^(?:jarvis )?(?:(?:zeig(?:e)?(?: mir)?|gib mir|was gibt(?:'?s| es)) )?(?:die )?(?:lokale[nr]? nachrichten|nachrichten (?:für|aus|von) (?:schwarzenbek|hamburg)(?: und (?:schwarzenbek|hamburg))?|(?:schwarzenbek|hamburg) (?:und )?(?:schwarzenbek |hamburg )?nachrichten|neues aus schwarzenbek(?: und hamburg)?)(?: bitte)?(?: neues)?$/.test(t)) {
+            if (t.length < 60 && /^(?:(?:jarvis|zane) )?(?:(?:zeig(?:e)?(?: mir)?|gib mir|was gibt(?:'?s| es)) )?(?:die )?(?:lokale[nr]? nachrichten|nachrichten (?:für|aus|von) (?:schwarzenbek|hamburg)(?: und (?:schwarzenbek|hamburg))?|(?:schwarzenbek|hamburg) (?:und )?(?:schwarzenbek |hamburg )?nachrichten|neues aus schwarzenbek(?: und hamburg)?)(?: bitte)?(?: neues)?$/.test(t)) {
                 nachrichten(true); return true;
             }
             return next(text);
         }, 155);
         window.jvCommands.use('ansagen', function (text, next) {
             const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
-            const m = t.match(/^(?:jarvis )?(?:ansagen|ansage beim öffnen|begrüßung)\s+(aus|an|ein|leise)$/) || t.match(/^(?:schalte? )?(?:die )?(?:ansagen|begrüßung) (aus|an|ein|leise)(?:schalten)?$/);
+            const m = t.match(/^(?:(?:jarvis|zane) )?(?:ansagen|ansage beim öffnen|begrüßung)\s+(aus|an|ein|leise)$/) || t.match(/^(?:schalte? )?(?:die )?(?:ansagen|begrüßung) (aus|an|ein|leise)(?:schalten)?$/);
             if (!m) return next(text);
             const v = m[1] === 'aus' ? 'aus' : m[1] === 'leise' ? 'leise' : 'an';
             sd('jv_ansagen', v);

@@ -2,11 +2,11 @@
    KONTO-MELDUNG: Ist die App offen, schaut sie alle paar Minuten nach neuen, ungelesenen Mails deiner Bank (Kontobewegung, Umsatz, Gutschrift,
    Lastschrift, Kontoauszug, Abbuchung ...) und sagt kurz an, was passiert ist:
    "Auf Ihrem Konto ist ein Eingang von 120 Euro. Betreff: ..." oder, wenn in der Mail nichts Genaues steht: "Ihre Bank hat Ihnen geschrieben. Betreff: ..."
-   Jarvis liest nur; die Mail bleibt ungelesen im Postfach, nichts wird verschickt oder gelöscht. Es werden nur Mails der letzten zwei Tage beachtet.
+   Zane liest nur; die Mail bleibt ungelesen im Postfach, nichts wird verschickt oder gelöscht. Es werden nur Mails der letzten zwei Tage beachtet.
    Erkennung: bekannte Bank-Namen im Absender (Sparkasse, Volksbank, ING, DKB, Commerzbank, Postbank, N26, comdirect, PayPal ...) oder Wörter wie Kontobewegung/Umsatz im Betreff.
    Eigene Bank hinzufügen per Sprache: "Meine Bank ist die Sparkasse Lauenburg" / "Füge Targobank als Bank hinzu". Anzeigen: "Welche Banken überwachst du?"
    Ein/Aus per Sprache: "Konto-Meldung aus" / "Konto-Meldung an". Standard: an.
-   Läuft nur bei offener, sichtbarer App; nichts zwischen 22 und 7 Uhr; meldet sich nie, während Jarvis spricht, rechnet oder zuhört (wird nachgeholt).
+   Läuft nur bei offener, sichtbarer App; nichts zwischen 22 und 7 Uhr; meldet sich nie, während Zane spricht, rechnet oder zuhört (wird nachgeholt).
    Ohne Google-Verbindung bleibt alles still. Braucht: mail.js (fetchEmailOverview, fetchEmailFullText), voice.js (speak). Nach mailwatch.js laden.
    ============================================================ */
 (function () {

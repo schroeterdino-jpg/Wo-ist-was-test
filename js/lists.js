@@ -260,7 +260,7 @@ function deleteBriefingWishesByQuery(query) {
 
 /* --- Allgemeines Bearbeiten der Listen per Sprache (Aktion "list_edit") --- */
 
-/* Fehler mit einem Satz, den J.A.R.V.I.S. dem User wörtlich sagen kann */
+/* Fehler mit einem Satz, den Zane dem User wörtlich sagen kann */
 function userError(message) {
     const err = new Error(message);
     err.userMessage = message;

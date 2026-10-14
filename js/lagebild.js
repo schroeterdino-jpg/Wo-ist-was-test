@@ -1,12 +1,12 @@
 /* ============================================================
-   LAGEBILD: ersetzt das Radar. Ein Jarvis-Fenster mit dem Wichtigsten rund um dich, als Liste statt Kreis:
+   LAGEBILD: ersetzt das Radar. Ein Zane-Fenster mit dem Wichtigsten rund um dich, als Liste statt Kreis:
    - 🚗 Arbeitsweg: Fahrzeit, Kilometer, Ankunft und Meldungen, die WIRKLICH auf deiner Strecke liegen (Autobahn + TomTom), sonst "frei"
    - ☂ Regen: trocken, "regnet jetzt" oder "ab 20:45 Uhr, aus Westen" (Open-Meteo, nächste 3 Stunden, Umkreis 20 km)
    - ⛽ Diesel: die zwei günstigsten Tankstellen im Umkreis von 5 km mit Preis und Entfernung (Tankerkönig), Antippen = Navigation
    - ⚠ Verkehr in der Nähe: Stau und Unfälle im Umkreis von 10 km abseits deiner Strecke (nur wenn TomTom eingerichtet ist)
    - ◆ Nächster Termin mit Ort, Uhrzeit und Fahrzeit, Antippen = Navigation
-   Knöpfe: "Auf Karte" (öffnet die Jarvis-Karte), "Aktualisieren". Aufruf: "Lagebild", "Radar", "Wie ist die Lage"; Schließen: ✕ oder "Lagebild schließen".
-   Aktualisiert sich alle 5 Minuten, solange es offen ist; Jarvis nennt beim Öffnen kurz das Wichtigste.
+   Knöpfe: "Auf Karte" (öffnet die Zane-Karte), "Aktualisieren". Aufruf: "Lagebild", "Radar", "Wie ist die Lage"; Schließen: ✕ oder "Lagebild schließen".
+   Aktualisiert sich alle 5 Minuten, solange es offen ist; Zane nennt beim Öffnen kurz das Wichtigste.
    ZIEL-ANSICHT: "Route zu X", "Bring mich zu X", "Wann muss ich losfahren", "Ist Stau auf dem Weg zu X": dasselbe Fenster zeigt Ziel, Fahrzeit, Ankunft, Meldungen auf der Strecke,
    Wetter am Ziel, Diesel an der Strecke, passende Listeneinträge und Rechnungen (kommt aus fahrtcheck.js); Knöpfe "Navigation" (Google Maps), "Karte", "Lagebild".
    Bei "Route zu X" öffnet sich Google Maps nicht mehr von selbst (executeAction wird umgeleitet), nur auf Tipp.
@@ -286,7 +286,7 @@
         stil();
         layer = el('div'); layer.id = 'jvLage';
         const inn = el('div', 'in'); layer.appendChild(inn);
-        const kopf = el('div', 'kopf'); const l = el('div'); l.appendChild(el('b', '', 'LAGEBILD')); l.appendChild(el('small', '', 'J.A.R.V.I.S. · dein Umkreis auf einen Blick')); kopf.appendChild(l);
+        const kopf = el('div', 'kopf'); const l = el('div'); l.appendChild(el('b', '', 'LAGEBILD')); l.appendChild(el('small', '', 'Zane · dein Umkreis auf einen Blick')); kopf.appendChild(l);
         const x = el('button', 'x', '✕'); x.setAttribute('aria-label', 'Lagebild schließen'); x.addEventListener('click', close); kopf.appendChild(x);
         inn.appendChild(kopf); body = el('div'); inn.appendChild(body);
         document.body.appendChild(layer);
@@ -294,7 +294,7 @@
     }
     function kopfText() {
         if (!layer || !layer._klein) return;
-        layer._klein.textContent = view === 'ziel' ? 'J.A.R.V.I.S. · deine Fahrt' : view === 'orte' ? 'J.A.R.V.I.S. · in deiner Nähe' : 'J.A.R.V.I.S. · dein Umkreis auf einen Blick';
+        layer._klein.textContent = view === 'ziel' ? 'Zane · deine Fahrt' : view === 'orte' ? 'Zane · in deiner Nähe' : 'Zane · dein Umkreis auf einen Blick';
     }
     function open(sprich) {
         if (layer && view === 'umkreis') return;

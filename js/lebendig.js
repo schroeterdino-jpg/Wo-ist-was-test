@@ -1,5 +1,5 @@
 /* ============================================================
-   LEBENDIGE KUGEL: verbindet die Kugel (sphere.js) mit Jarvis' Stimme und mit deiner Stimme, ohne voice.js zu verändern.
+   LEBENDIGE KUGEL: verbindet die Kugel (sphere.js) mit Zane' Stimme und mit deiner Stimme, ohne voice.js zu verändern.
    1) Cloud-Stimme (OpenAI/Edge): Sobald ein Audio mit einer blob:-Adresse zu spielen beginnt, wird es an die Kugel gemeldet.
       Die Kugel misst dann die echte Lautstärke und pulsiert im Rhythmus der Stimme. Bei der Handy-Stimme (Browser) gibt es keinen Zugriff
       auf die Lautstärke, dort pulsiert sie nach dem gleichmäßigen Rhythmus, den sie schon vorher hatte.

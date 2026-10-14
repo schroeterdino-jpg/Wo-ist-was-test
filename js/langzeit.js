@@ -3,12 +3,12 @@
    Strikt getrennt vom lokalen Gedächtnis (memoryItems = Gegenstände und Orte, Aktion memory_store).
    Was diese Datei macht:
    1) Aktion "episode_store": speichert einen Eintrag mit Datum, Kategorie und Status im Vektorgedächtnis, wartet auf die Antwort des Servers und
-      zeigt danach die Karte "Im Langzeitgedächtnis gespeichert". Klappt es nicht, sagt Jarvis das ehrlich.
+      zeigt danach die Karte "Im Langzeitgedächtnis gespeichert". Klappt es nicht, sagt Zane das ehrlich.
    2) Aktion "episode_asked": die KI meldet, dass sie die Nachfrage gestellt hat; dann wird sie vermerkt und es gibt heute keine weitere.
    3) Die Suche (searchSemanticMemory) liefert nur noch solche Einträge, mit Datum und Wochentag ("Wann war ich schwimmen?").
    4) Nachfragen: einmal am Tag höchstens EINE Nachfrage zu einem vergangenen Plan oder Geburtstag (Kontext "langzeit_nachfragen"); im Briefing nie.
       Dazu alle 2-3 Tage ein beiläufiger Anstoß zu einem undatierten Eintrag ("Wie geht es eigentlich Finja?"), pro Eintrag höchstens alle 10 Tage; abstellbar mit "Frag nicht mehr nach ...".
-      "Was weißt du über mich?" lässt Jarvis die Einträge vorlesen (Kontext "langzeit_alles"); das Fenster öffnet "Zeig mir das Langzeitgedächtnis".
+      "Was weißt du über mich?" lässt Zane die Einträge vorlesen (Kontext "langzeit_alles"); das Fenster öffnet "Zeig mir das Langzeitgedächtnis".
    5) Fenster "Langzeitgedächtnis" (Menü, oder per Sprache): alle Einträge ansehen und einzeln löschen. "Vergiss das mit dem Schwimmen" löscht per Sprache.
    7) Tageslog (lokal), Tagesrückblick um 21:30 (2-3 Sätze, Kategorie "Rückblick") und Plauder-Modus ("Lass uns plaudern" / "Okay, genug").
    6) Einmaliges Aufräumen: alte Vektor-Einträge ohne Datum/Kategorie (Altlasten aus der Zeit vor der Trennung) werden gelöscht.
@@ -255,7 +255,7 @@
     }
 
 
-    /* "Was weißt du über mich?": Jarvis liest vor, was er weiß. Alle Einträge werden einmal geholt und der KI für diese Antwort mitgegeben. */
+    /* "Was weißt du über mich?": Zane liest vor, was er weiß. Alle Einträge werden einmal geholt und der KI für diese Antwort mitgegeben. */
     let alleCache = null;   // { t, liste }
     const WISSEN_RXS = [
         /\bwas\s+(?:\S+\s+){0,3}?wei(?:ß|ss)t\s+du\s+(?:\S+\s+){0,3}?(?:über|von)\s+(?:mich|mir)(?:\s|$)/,
@@ -292,7 +292,7 @@
         ctx.notes.push('Ich frage dazu nicht mehr von mir aus nach: ' + String(hit.text).replace(/\s*\([^)]*\d{4}\)\s*$/, '').slice(0, 120));
     }
 
-    /* "Vergiss das mit dem Schwimmen": den passendsten Eintrag suchen und löschen; Jarvis nennt, was gelöscht wurde */
+    /* "Vergiss das mit dem Schwimmen": den passendsten Eintrag suchen und löschen; Zane nennt, was gelöscht wurde */
     async function forgetEpisode(action, ctx) {
         const q = String(action.episode_query || '').trim();
         if (!q) throw userError('Ich weiß nicht, welchen Eintrag ich vergessen soll.');
@@ -457,12 +457,12 @@
 
     /* ---------- 7) Gespräch merken, Tagesrückblick, Plauder-Modus ---------- */
     const LOG_KEY = 'jv_tageslog', RUECK_KEY = 'jv_rueckblicke', RUECK_TAG = 'jv_rueckblick_tag', PLAUDER_KEY = 'jv_plauder_bis';
-    const RUECK_ZEIT = '21:30';   // ab dieser Uhrzeit (Berlin) fasst Jarvis den Tag zusammen; verpasste Tage werden beim nächsten Start nachgeholt
+    const RUECK_ZEIT = '21:30';   // ab dieser Uhrzeit (Berlin) fasst Zane den Tag zusammen; verpasste Tage werden beim nächsten Start nachgeholt
     function jget(k, def) { try { const v = JSON.parse(lsGet(k)); return v === null || v === undefined ? def : v; } catch (e) { return def; } }
     function addDaysIso(iso, n) { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
     function sagen(t) { try { speak(t, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} }
 
-    // 7a) Tageslog: jede Frage und Antwort wird (gekürzt) auf dem Gerät mitgeschrieben, damit Jarvis nach einem App-Neustart den Faden des Tages hat
+    // 7a) Tageslog: jede Frage und Antwort wird (gekürzt) auf dem Gerät mitgeschrieben, damit Zane nach einem App-Neustart den Faden des Tages hat
     //     und abends zusammenfassen kann. Nur die letzten 3 Tage, nur lokal.
     let tageslog = jget(LOG_KEY, []);
     if (!Array.isArray(tageslog)) tageslog = [];
@@ -503,7 +503,7 @@
         const zeilen = tageslog.filter(e => e.d === d);
         const nutzer = zeilen.filter(e => e.r === 'u').length;
         if (nutzer < 2) return 'leer';
-        const verlauf = zeilen.map(e => (e.r === 'u' ? 'User: ' : 'Jarvis: ') + e.t).join('\n').slice(-6000);
+        const verlauf = zeilen.map(e => (e.r === 'u' ? 'User: ' : 'Zane: ') + e.t).join('\n').slice(-6000);
         const res = await apiFetch('/api/groq', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -511,7 +511,7 @@
                 model: 'openai/gpt-oss-120b',
                 response_format: { type: 'json_object' },
                 messages: [
-                    { role: 'system', content: 'Du fasst für den persönlichen Assistenten J.A.R.V.I.S. den Tag des Users zusammen. Du bekommst das Gespräch des Tages. Schreibe 2 bis 3 kurze Sätze in der dritten Person ("Der User ...") über das, was PERSÖNLICH und für spätere Gespräche merkenswert ist: worüber er gesprochen hat, Pläne, Erlebnisse, Sorgen, Stimmung, Familie, Freunde. Keine Befehle (Licht, Timer, Einkaufslisten-Einträge, Wetter, Uhrzeit, Navigation), nichts erfinden, keine Adressen, Nummern oder Passwörter. Ist nichts Persönliches dabei, gib einen leeren Text zurück. Antworte NUR mit JSON: {"text": "..."}' },
+                    { role: 'system', content: 'Du fasst für den persönlichen Assistenten Zane den Tag des Users zusammen. Du bekommst das Gespräch des Tages. Schreibe 2 bis 3 kurze Sätze in der dritten Person ("Der User ...") über das, was PERSÖNLICH und für spätere Gespräche merkenswert ist: worüber er gesprochen hat, Pläne, Erlebnisse, Sorgen, Stimmung, Familie, Freunde. Keine Befehle (Licht, Timer, Einkaufslisten-Einträge, Wetter, Uhrzeit, Navigation), nichts erfinden, keine Adressen, Nummern oder Passwörter. Ist nichts Persönliches dabei, gib einen leeren Text zurück. Antworte NUR mit JSON: {"text": "..."}' },
                     { role: 'user', content: 'Gespräch vom ' + lesbar(d) + ':\n' + verlauf }
                 ]
             })
@@ -552,7 +552,7 @@
         return '\n\ntagesrueckblick (kurze Zusammenfassungen der letzten Tage, nur zum beiläufigen Anknüpfen, nie aufzählen): ' + JSON.stringify(l.map(e => ({ tag: lesbar(e.d), inhalt: e.text })));
     }
 
-    // 7d) Tageszustand: was Jarvis heute schon für dich erledigt hat (Termin eingetragen, WhatsApp vorbereitet, Route geöffnet ...).
+    // 7d) Tageszustand: was Zane heute schon für dich erledigt hat (Termin eingetragen, WhatsApp vorbereitet, Route geöffnet ...).
     //     Flüchtiger, aber präsenter Kontext: nur heute, nur auf dem Gerät, nicht im Langzeitgedächtnis.
     const HEUTE_KEY = 'jv_heute';
     function aktionsZeile(a) {
@@ -593,11 +593,11 @@
 
     // 7c) Plauder-Modus: "Lass uns plaudern" -> ausführlicher, persönlicher, mit Gegenfragen; "Okay, genug" beendet ihn. Läuft nach 2 Stunden ohne Gespräch von selbst aus.
     const PLAUDER_ON_RXS = [
-        /^(?:ok(?:ay)? |na |so |jarvis )?(?:lass uns|komm|wollen wir|können wir|wir können) (?:mal |jetzt |ein bisschen |etwas |noch |einfach |bisschen )*(?:plaudern|quatschen|klönen|schnacken|reden|unterhalten)(?: jarvis| bitte)?$/,
+        /^(?:ok(?:ay)? |na |so |(?:jarvis|zane) )?(?:lass uns|komm|wollen wir|können wir|wir können) (?:mal |jetzt |ein bisschen |etwas |noch |einfach |bisschen )*(?:plaudern|quatschen|klönen|schnacken|reden|unterhalten)(?: (?:jarvis|zane)| bitte)?$/,
         /^plauder(?:-| )?modus(?: an| ein| starten)?$/
     ];
     const PLAUDER_OFF_RXS = [
-        /^(?:ok(?:ay)? |gut |so |jarvis )?(?:genug|schluss|ende|fertig)(?: (?:mit dem |mit )?(?:plaudern|quatschen|plauder-?modus))?(?: jarvis| bitte)?$/,
+        /^(?:ok(?:ay)? |gut |so |(?:jarvis|zane) )?(?:genug|schluss|ende|fertig)(?: (?:mit dem |mit )?(?:plaudern|quatschen|plauder-?modus))?(?: (?:jarvis|zane)| bitte)?$/,
         /^(?:zurück|wieder) (?:zum|in den) (?:butler|normalen?(?: modus)?)$/
     ];
     function plauderAktiv() { return Number(lsGet(PLAUDER_KEY) || 0) > Date.now(); }

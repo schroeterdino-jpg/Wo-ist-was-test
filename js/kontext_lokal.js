@@ -1,5 +1,5 @@
 /* ============================================================
-   KONTEXT FÜR FESTE BEFEHLE: Wenn Jarvis eine Frage selbst beantwortet (Weltzeit, Feiertage, Sonne und Mond, Orte-Suche ...) und nicht die KI,
+   KONTEXT FÜR FESTE BEFEHLE: Wenn Zane eine Frage selbst beantwortet (Weltzeit, Feiertage, Sonne und Mond, Orte-Suche ...) und nicht die KI,
    wusste die KI bei der Anschlussfrage nichts davon ("Wie spät ist es in Istanbul?" ... "Und in New York?" -> "Worauf bezieht sich das?").
    1) Frage und gesprochene Antwort werden jetzt in den Gesprächsverlauf (chatHistory) eingetragen, damit die KI bei der nächsten Frage den Zusammenhang kennt.
    2) Uhrzeit-Anschlussfragen ("Und in New York?", "Und in Tokio?", "Was ist mit Dubai?") werden direkt zur Weltzeit umgeschrieben ("Wie spät ist es in New York?"),

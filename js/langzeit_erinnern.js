@@ -1,5 +1,5 @@
 /* ============================================================
-   LANGZEIT-ERINNERN (Mitdenken): Sagt der User einen Termin mit Datum UND Uhrzeit ("übermorgen ist das Konzert um 20 Uhr"), merkt sich Jarvis
+   LANGZEIT-ERINNERN (Mitdenken): Sagt der User einen Termin mit Datum UND Uhrzeit ("übermorgen ist das Konzert um 20 Uhr"), merkt sich Zane
    ihn wie bisher im Langzeitgedächtnis (oder trägt ihn als Kalendertermin ein, Aktion 'calendar') und fragt danach: "Wie viele Stunden vorher soll ich Sie per Push erinnern?".
    Der User nennt die Zeit ("zwei Stunden", "2", "eine halbe Stunde", "anderthalb Stunden", "30 Minuten"); "Ja" heißt 3 Stunden, "Nein"/"keine" lässt es.
    Die Erinnerung ist ein Push über das bestehende Erinnerungssystem, KEIN doppeltes Klingeln im Google-Kalender.
@@ -121,7 +121,7 @@
     }
 
     /* ---------- Kalender erst nach der Antwort öffnen ----------
-       Beim Eintragen springt der Google Kalender in den Vordergrund, dann steht in Jarvis das Mikrofon still und die Antwort auf die
+       Beim Eintragen springt der Google Kalender in den Vordergrund, dann steht in Zane das Mikrofon still und die Antwort auf die
        Rückfrage geht verloren. Darum wartet das Öffnen, bis die Frage beantwortet ist (oder 5 Minuten vergangen sind). */
     let halten = false, offen = null, haltTimer = null;
     const origOpen = (typeof window.openGoogleCalendarApp === 'function') ? window.openGoogleCalendarApp : null;
@@ -269,8 +269,8 @@
         }
         return false;
     }
-    /* Der Kalender springt beim Eintragen in den Vordergrund, Jarvis ist dann im Hintergrund: Mikrofon und Zuhören stehen still.
-       Kommt der User zurück und die Frage ist noch offen, stellt Jarvis sie kurz noch einmal und hört danach wieder zu. */
+    /* Der Kalender springt beim Eintragen in den Vordergrund, Zane ist dann im Hintergrund: Mikrofon und Zuhören stehen still.
+       Kommt der User zurück und die Frage ist noch offen, stellt Zane sie kurz noch einmal und hört danach wieder zu. */
     let zuletztVersteckt = 0;
     try {
         document.addEventListener('visibilitychange', function () {

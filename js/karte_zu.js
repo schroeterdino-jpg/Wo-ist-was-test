@@ -1,5 +1,5 @@
 /* ============================================================
-   KARTE ZU: Die Karte mit Route (Fahrzeit, Stau, Tanken) schließt sich von selbst, 8 Sekunden nachdem Jarvis fertig gesprochen hat.
+   KARTE ZU: Die Karte mit Route (Fahrzeit, Stau, Tanken) schließt sich von selbst, 8 Sekunden nachdem Zane fertig gesprochen hat.
    Antippen oder Wischen auf der Karte hält sie offen (dann bleibt sie bis zum Schließen). Per Hand (✕) oder "Schließen" geht es weiter wie bisher.
    Aus- und einschalten per Sprache: "Karte automatisch schließen aus" / "... an". Standard: an.
    Braucht: panels.js (openPanel, closePanel, currentPanel), voice.js (isSpeaking), commands.js. Muss NACH panels.js geladen werden.

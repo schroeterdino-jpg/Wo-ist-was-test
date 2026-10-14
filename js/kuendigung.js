@@ -1,13 +1,13 @@
 /* ============================================================
-   KÜNDIGUNG SCHREIBEN: "Schreib mir eine Kündigung" startet ein kurzes Gespräch. Jarvis fragt nacheinander:
+   KÜNDIGUNG SCHREIBEN: "Schreib mir eine Kündigung" startet ein kurzes Gespräch. Zane fragt nacheinander:
    Anbieter, Art des Vertrags, Kunden-/Vertragsnummer, Kündigung zum nächstmöglichen Zeitpunkt / zu einem Datum / außerordentlich (mit Grund),
    Name und Anschrift (werden fürs nächste Mal gemerkt) und die Kündigungsadresse des Anbieters (ohne Angabe bleibt eine Lücke).
    Danach steht der Brief in einem Fenster: Text lässt sich ändern, "PDF speichern" (richtige PDF-Datei), "Drucken", "Kopieren",
    "Adresse suchen" (Google-Suche nach der Kündigungsadresse des Anbieters).
    Sprache: "Schreib mir eine Kündigung", "Ich möchte meinen Vertrag kündigen", "Kündigung für Vodafone aufsetzen". Abbrechen: "Abbrechen" / "Stopp".
    Adresse des Anbieters: kommt sie von einem fotografierten Brief (Absender), wird sie übernommen; sonst sucht die KI einen Vorschlag aus ihrem Wissen,
-   den Jarvis vorliest und bestätigen lässt (nicht geprüft, im Brief steht dann "[Anschrift bitte prüfen]").
-   Eigenständig; muss nach localcommands.js geladen werden. Ein Entwurf, keine Rechtsberatung: Jarvis sagt, dass Adresse und Frist zu prüfen sind.
+   den Zane vorliest und bestätigen lässt (nicht geprüft, im Brief steht dann "[Anschrift bitte prüfen]").
+   Eigenständig; muss nach localcommands.js geladen werden. Ein Entwurf, keine Rechtsberatung: Zane sagt, dass Adresse und Frist zu prüfen sind.
    ============================================================ */
 (function () {
     const PROFILE_KEY = 'jv_kuend_profil', LAST_KEY = 'jv_kuend_letzte';
@@ -374,9 +374,9 @@
     const LIST_RE = /^(?:bitte\s+)?(?:(?:zeig|zeige|öffne|oeffne|hol|such)(?:\s+mir)?\s+)?(?:(?:die|meine|alle|gespeicherten)\s+)*(?:k(?:ü|ue)ndigungen|k(?:ü|ue)ndigungsschreiben)(?:\s+(?:an|auf|anzeigen|her|ansehen))*$/;
     const START_4 = /^(?:(?:eine|die|meine|bitte|mal)\s+)*k(?:ü|ue)ndigung(?:en)?(?:\s+(?:bitte|mal|jetzt))*$/;
     const START_5 = /\bk(?:ü|ue)ndigungs(?:schreiben|brief|vorlage|entwurf|schreib\w*)\b/;
-    const START_6 = /^(?:(?:ich|jarvis|bitte)\s+)*(?:(?:will|möchte|moechte|muss|würde|wuerde|kann|soll)\s+)?(?:(?:gerne|mal|jetzt|noch)\s+)*(?:(?:meinen|mein|meine|den|die|das|einen|eine|ein|mal|gerne)\s+)*[\wäöüß\- ]{0,40}\bk(?:ü|ue)ndigen$/;
+    const START_6 = /^(?:(?:ich|jarvis|zane|bitte)\s+)*(?:(?:will|möchte|moechte|muss|würde|wuerde|kann|soll)\s+)?(?:(?:gerne|mal|jetzt|noch)\s+)*(?:(?:meinen|mein|meine|den|die|das|einen|eine|ein|mal|gerne)\s+)*[\wäöüß\- ]{0,40}\bk(?:ü|ue)ndigen$/;
     const START_7 = /^k(?:ü|ue)ndigung\s+(?:für|fuer|an|bei)\s+\S/;
-    const MERKEN = /^(?:(?:bitte|jarvis|ach|und|übrigens|uebrigens)[\s,]+)*(?:merk(?:e)?|notier(?:e)?|speicher(?:e)?|vergiss|denk|erinner(?:e)?)\b|\berinner(?:e|st)?\s+(?:mich|mir|uns)\b/;   // "Merk dir, dass ich ... kündigen muss" ist eine Notiz, kein Kündigungsschreiben
+    const MERKEN = /^(?:(?:bitte|jarvis|zane|ach|und|übrigens|uebrigens)[\s,]+)*(?:merk(?:e)?|notier(?:e)?|speicher(?:e)?|vergiss|denk|erinner(?:e)?)\b|\berinner(?:e|st)?\s+(?:mich|mir|uns)\b/;   // "Merk dir, dass ich ... kündigen muss" ist eine Notiz, kein Kündigungsschreiben
     function isStart(t) { return t.length <= 100 && !MERKEN.test(t) && !/^(?:wie|wann|wo|was|warum|wieso|weshalb|kann|darf|gibt|ist|hat|habe|haben)\b/.test(t) && (START_7.test(t) || START_1.test(t) || START_2.test(t) || START_3.test(t) || START_4.test(t) || START_5.test(t) || START_6.test(t)); }
     function prefill(raw, d) {
         const m = String(raw || '').match(/.*\b(?:bei|für|fuer|an|von)\s+(?:den |die |das |meinen |meine |mein |meinem |meiner |dem |der |einem |einer )?(.+?)\s*(?:schreiben|aufsetzen|verfassen|erstellen|kündigen)?\s*$/i);
