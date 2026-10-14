@@ -3,7 +3,7 @@
    Aus assistant.js herausgelöst, Code unverändert. Braucht: calendar.js, lists.js, panels.js zur Laufzeit.
    ============================================================ */
 
-/* Etwas hat bei Google nicht geklappt: Die Änderung gilt nur in der App. J.A.R.V.I.S. nennt den ECHTEN Grund
+/* Etwas hat bei Google nicht geklappt: Die Änderung gilt nur in der App. Zane nennt den ECHTEN Grund
    (siehe lastGoogleProblem in calendar.js) und zeigt die Karte zum erneuten Verbinden nur, wenn das wirklich hilft. */
 function googleNotSynced(ctx, what) {
     const problem = (typeof lastGoogleProblem !== 'undefined' && lastGoogleProblem) || null;

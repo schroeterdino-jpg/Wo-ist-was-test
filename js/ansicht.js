@@ -3,7 +3,7 @@
    - Umschalten nur noch per Sprache ("Zeig den Kopf", "Zeig die Kugel", "Zeig das Gehirn")
      oder im ☰ Menü (Einträge Kopf / Kugel / Gehirn).
    - Beim Öffnen der App startet immer der Kopf.
-   - Der Wechsel passiert still, Jarvis sagt dazu nichts.
+   - Der Wechsel passiert still, Zane sagt dazu nichts.
    Nutzt nur die vorhandenen Schnittstellen: window.jvAvatar3D.setMode (avatar3d.js)
    und window.__gehirnSet (gehirn.js). */
 (function () {

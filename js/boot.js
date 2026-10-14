@@ -1,4 +1,4 @@
-/* BOOT-SEQUENZ: kurzer Start-Effekt beim Öffnen von Jarvis (Scan-Linie, Statuszeilen, Ring, Power-up-Ton). Antippen überspringt. */
+/* BOOT-SEQUENZ: kurzer Start-Effekt beim Öffnen von Zane (Scan-Linie, Statuszeilen, Ring, Power-up-Ton). Antippen überspringt. */
 (function () {
     'use strict';
     if (window.jvBoot) return;
@@ -26,7 +26,7 @@
             '@keyframes jvr{to{transform:rotate(360deg)}}@keyframes jvp{50%{transform:scale(1.5);opacity:.6}}@keyframes jvs{0%{top:0}50%{top:100%}100%{top:0}}@keyframes jvf{to{opacity:1}}';
         document.head.appendChild(st);
         const el = document.createElement('div'); el.id = 'jvBoot';
-        el.innerHTML = '<div class="scan"></div><div class="h">J.A.R.V.I.S.</div><div class="ring"><div class="core" style="top:58px;left:58px"></div></div><div class="t"></div>';
+        el.innerHTML = '<div class="scan"></div><div class="h">ZANE</div><div class="ring"><div class="core" style="top:58px;left:58px"></div></div><div class="t"></div>';
         document.body.appendChild(el);
         const box = el.querySelector('.t'); let weg = false;
         function ende() { if (weg) return; weg = true; el.style.opacity = 0; setTimeout(() => { el.remove(); st.remove(); if (opt.fertig) opt.fertig(); }, 750); }

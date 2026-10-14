@@ -27,7 +27,7 @@ async function searchSemanticMemory(text) {
 
 /* Schutzhülle: Ein Fehler VOR dem eigentlichen KI-Aufruf (zum Beispiel beim Zusammenbau der Anweisung, wenn eine js-Datei fehlt oder
    nicht zur anderen passt) darf die App nie auf "VERARBEITET" hängen lassen. Dann wird aufgeräumt, der Grund erscheint in der
-   Fehleranzeige (roter Streifen) und Jarvis sagt, dass intern etwas nicht stimmt. */
+   Fehleranzeige (roter Streifen) und Zane sagt, dass intern etwas nicht stimmt. */
 async function sendToGroqSmart(text, opts = {}) {
     try {
         return await sendToGroqSmartCore(text, opts);
@@ -53,7 +53,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
     updateTerminalStream("CPU_LOAD: PROCESSING_NLP...", "PROCESSING");
 
     if (recordBtn) recordBtn.classList.remove('recording');
-    if (recordText) recordText.textContent = "J.A.R.V.I.S. / VERARBEITET...";
+    if (recordText) recordText.textContent = "ZANE / VERARBEITET...";
 
     // Zwischenbescheid während der Wartezeit auf die KI: bewusst NEUTRALE Formulierungen, die sowohl zu
     // einem Befehl ("Termin eintragen") als auch zu einer normalen Gesprächsfrage ("Wie geht's dir?") passen.
@@ -63,7 +63,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
     // die neutrale Zwischenansage noch unpassend - niemand braucht "einen Moment", um sowas zu beantworten.
     // Dafür komplett weggelassen, auch wenn die Antwort mal etwas länger braucht (z.B. durch die
     // Gedächtnis-Suche im Hintergrund) - dann wartet man eben kurz in Stille statt eine seltsame Floskel zu hören.
-    const SMALLTALK_NO_ACK = /^(?:(?:na|hey|hi|hallo|moin|servus)[,\s]*)?(?:(?:guten (?:morgen|tag|abend)|gute nacht)[,\s]*)?(?:jarvis[,\s]*)?(?:wie geht(?:'?s| es)(?: dir| ihnen)?|alles (?:klar|gut|ok|okay)(?: bei dir| bei ihnen)?|was machst du(?: gerade| so)?|wie läuft'?s(?: bei dir)?)?[?!.\s]*$/i;
+    const SMALLTALK_NO_ACK = /^(?:(?:na|hey|hi|hallo|moin|servus)[,\s]*)?(?:(?:guten (?:morgen|tag|abend)|gute nacht)[,\s]*)?(?:(?:jarvis|zane)[,\s]*)?(?:wie geht(?:'?s| es)(?: dir| ihnen)?|alles (?:klar|gut|ok|okay)(?: bei dir| bei ihnen)?|was machst du(?: gerade| so)?|wie läuft'?s(?: bei dir)?)?[?!.\s]*$/i;
     const ackTimer = SMALLTALK_NO_ACK.test(text.trim()) ? null : setTimeout(() => {
         if (opts.collect) return;   // im Protokoll wird nicht zwischendurch gesprochen
         speakAck(pickRandom(ackPhrasesFor(text)));
@@ -460,7 +460,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
             }
         }
 
-        // Ehrlich bleiben: Was nicht geklappt hat, sagt J.A.R.V.I.S. auch so
+        // Ehrlich bleiben: Was nicht geklappt hat, sagt Zane auch so
         if (errors.length > 0) {
             if (searchReply) replyText = `${searchReply} ${errors.join(' ')}`;
             else if (okCount > 0) replyText = `Das meiste ist erledigt, aber: ${errors.join(' ')}`;

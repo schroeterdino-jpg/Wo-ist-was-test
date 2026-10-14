@@ -13,7 +13,7 @@ function requestNotificationPermission() {
 
 /* --- Erinnerungen: jede Sekunde prüfen, ob eine fällig ist ---
    WICHTIGE Erinnerungen (rem.important) werden alle 10 Minuten wiederholt, bis der User "erledigt" sagt
-   (siehe handleAcknowledgeCommand in assistant.js), höchstens NAG_MAX-mal. Danach hört Jarvis auf. */
+   (siehe handleAcknowledgeCommand in assistant.js), höchstens NAG_MAX-mal. Danach hört Zane auf. */
 const NAG_INTERVAL_MS = 10 * 60000;
 const NAG_MAX = 6;
 let lastFiredReminder = null;   // zuletzt ausgelöste Erinnerung (für "in zehn Minuten nochmal")
@@ -262,7 +262,7 @@ setInterval(() => {
 }, 30000);
 
 /* --- Warum hat Google etwas nicht angenommen? ---
-   Jede Google-Funktion unten merkt sich den ECHTEN Grund in lastGoogleProblem, damit J.A.R.V.I.S. nicht bei
+   Jede Google-Funktion unten merkt sich den ECHTEN Grund in lastGoogleProblem, damit Zane nicht bei
    jedem Fehler pauschal "nicht verbunden" sagt. Der technische Text (Status und Antwort von Google) steht
    nur in der Konsole, vorgelesen wird eine kurze, verständliche Erklärung. */
 let lastGoogleProblem = null;   // { kind, status, detail } oder null, wenn der letzte Vorgang geklappt hat
@@ -462,7 +462,7 @@ async function addGoogleCalendarReminder(text, isoTimeString, recurrenceRule, im
         summary: `🔔 ${important ? '❗ ' : ''}${text}`,   // das ❗ merkt sich bei Google, dass die Erinnerung wichtig ist (gilt dann auch für jede Wiederholung)
         start: { dateTime: remDate.toISOString() },
         end: { dateTime: new Date(remDate.getTime() + 30 * 60000).toISOString() },
-        // Kein Google-Alarm für Jarvis-Erinnerungen: Die Meldung kommt vom Jarvis-Push, sonst klingelt es doppelt
+        // Kein Google-Alarm für Zane-Erinnerungen: Die Meldung kommt vom Zane-Push, sonst klingelt es doppelt
         reminders: { useDefault: false, overrides: [] }
     };
     if (recurrenceRule) eventData.recurrence = [recurrenceRule];

@@ -110,7 +110,7 @@
 
     // Auslöser 3: Sprache
     const TEST_RX = /^(?:(?:teste?|zeig(?:e)?|starte?|mach)\s+(?:mir\s+)?(?:mal\s+)?(?:den\s+)?alarm(?:-?\s?modus)?(?:\s+test)?|alarm(?:-?\s?modus)?\s*test)$/;
-    const OFF_RX = /^(?:(?:ok(?:ay)?|gut)\s+)?(?:alarm\s+(?:aus|beenden|stopp)|verstanden|alarm\s+verstanden)(?:\s+jarvis)?$/;
+    const OFF_RX = /^(?:(?:ok(?:ay)?|gut)\s+)?(?:alarm\s+(?:aus|beenden|stopp)|verstanden|alarm\s+verstanden)(?:\s+(?:jarvis|zane))?$/;
     function handle(text) {
         const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 50) return false;
@@ -120,7 +120,7 @@
         if (el && OFF_RX.test(t)) { close(); try { if (typeof speak === 'function') speak('Alarm beendet.'); } catch (e) {} return true; }
         return false;
     }
-    // Abend-Impulse (Jarvis meldet sich per Push von selbst: Schichtwechsel, Bettzeit vor Frühschicht, Vorschau auf morgen) ein- und ausschalten
+    // Abend-Impulse (Zane meldet sich per Push von selbst: Schichtwechsel, Bettzeit vor Frühschicht, Vorschau auf morgen) ein- und ausschalten
     const IMP_OFF_RX = /^(?:(?:abend-?\s?)?impulse? (?:aus|ausschalten)|keine (?:abend-?\s?)?impulse mehr)$/;
     const IMP_ON_RX = /^(?:abend-?\s?)?impulse? (?:an|ein|einschalten)$/;
     function impulse(an) {

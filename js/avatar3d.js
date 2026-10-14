@@ -27,7 +27,7 @@ let key=new THREE.DirectionalLight(0xf3fbff,2.35);key.position.set(2.5,3.5,4);sc
 let rim=new THREE.DirectionalLight(0x35d7ff,1.45);rim.position.set(-3,1,-1);scene.add(rim);
 let fill=new THREE.PointLight(0x6be9ff,5.5,8);fill.position.set(2,-1,2);scene.add(fill);
 const root=new THREE.Group();scene.add(root);
-// ---------- Jarvis-Hintergrund: Hologramm-Ringe + Partikel + Schein (hinter dem Kopf) ----------
+// ---------- Zane-Hintergrund: Hologramm-Ringe + Partikel + Schein (hinter dem Kopf) ----------
 const bgGroup=new THREE.Group(); bgGroup.position.set(0,-.04,-1.0); scene.add(bgGroup);
 const bgRings=[], bgMats=[]; let bgParticles=null, bgHalo=null, bgScan=null, bgBig=null;
 if(JV_HINTERGRUND){

@@ -443,7 +443,7 @@ async function fetchCheapestDieselNearby() {
 }
 
 async function composeBriefingWithModel(data) {
-    const systemPrompt = "Du bist J.A.R.V.I.S., der hochintelligente, charmante und aufmerksame persönliche Assistent von " + data.name + ". Formuliere ein gesprochenes Tages-Briefing auf Deutsch. Es soll natürlich, flüssig, menschlich und elegant klingen – wie ein echter Butler, der spricht, nicht wie ein Roboter, der eine Liste vorliest. Verzichte komplett auf Aufzählungszeichen, Tabellen oder Markdown-Formatierungen.\n\n" +
+    const systemPrompt = "Du bist Zane, der hochintelligente, charmante und aufmerksame persönliche Assistent von " + data.name + ". Formuliere ein gesprochenes Tages-Briefing auf Deutsch. Es soll natürlich, flüssig, menschlich und elegant klingen – wie ein echter Butler, der spricht, nicht wie ein Roboter, der eine Liste vorliest. Verzichte komplett auf Aufzählungszeichen, Tabellen oder Markdown-Formatierungen.\n\n" +
     "Ablauf & Tonfall:\n" +
     "1. Begrüßung & Uhrzeit: Begrüße ihn herzlich und verbinde die Uhrzeit ganz natürlich (z. B. 'Guten Morgen, Dino. Es ist jetzt genau 16 Uhr 17...'). Nutze dafür 'uhrzeit_gesprochen'.\n" +
     "2. Wetter: Bette das Wetter in einen flüssigen, menschlichen Satz ein. Statt nur trocken '16 Grad' zu sagen, beschreibe es charmant und passend (z. B. 'Draußen erwarten Sie heute milde 16 Grad, gefühlt etwa 15...'). Flechte die Empfehlungen zu Jacke und Regenschirm sympathisch in den Satz ein. Gibt es einen 'sturm_hinweis', erwähne ihn beiläufig. Fehlen Wetterdaten, erwähne das kurz nebensächlich. WICHTIG: Nenne die Windgeschwindigkeit als Zahl NUR, wenn 'sturm_hinweis' vorhanden ist - sonst fließt Wind höchstens als Eindruck ein ('ein spürbarer Wind weht'), nie als reine Kennzahl. Insgesamt reichen für das Wetter EIN bis höchstens ZWEI Sätze, keine Aneinanderreihung von Einzelfakten.\n" +
@@ -560,7 +560,7 @@ async function learnFromConversations() {
     try {
         const verlauf = chatHistory.slice(-40).map(m => {
             const c = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
-            return `${m.role === 'user' ? 'User' : 'Jarvis'}: ${c}`;
+            return `${m.role === 'user' ? 'User' : 'Zane'}: ${c}`;
         }).join('\n');
 
         const res = await apiFetch('/api/groq', {
@@ -571,7 +571,7 @@ async function learnFromConversations() {
                 response_format: { type: "json_object" },
                 messages: [
                     { role: "system", content:
-                        "Du liest einen Gesprächsverlauf zwischen einem User und seinem persönlichen Assistenten J.A.R.V.I.S. Suche darin nach NEUEN, dauerhaft " +
+                        "Du liest einen Gesprächsverlauf zwischen einem User und seinem persönlichen Assistenten Zane Suche darin nach NEUEN, dauerhaft " +
                         "merkenswerten Fakten über den User: Vorlieben, Gewohnheiten, wiederkehrende Aktivitäten, persönliche Details, die er von sich aus erwähnt hat. " +
                         "Ignoriere einmalige Aufträge (einzelne Einkaufslisten-Einträge, einzelne Termine, Small Talk, Testfragen). " +
                         "Bereits im Gedächtnis gespeichert ist: " + JSON.stringify(memoryItems || {}) + ". Nenne NUR wirklich neue Fakten, keine Wiederholungen von bereits Bekanntem. " +
@@ -619,7 +619,7 @@ async function triggerDailyBriefing() {
     isProcessing = true;
     startThinkingSound();
     if (recordBtn) recordBtn.classList.remove('recording');
-    if (recordText) recordText.textContent = "J.A.R.V.I.S. / VERARBEITET...";
+    if (recordText) recordText.textContent = "ZANE / VERARBEITET...";
     updateTerminalStream("EXECUTE: DAILY_BRIEFING", "PROCESSING");
 
     try {
@@ -661,7 +661,7 @@ async function triggerDailyBriefing() {
             if (window.__schichtStauCards && window.__schichtStauCards.length && typeof showActionCards === 'function') { showActionCards(window.__schichtStauCards); }
             window.__schichtStauCards = null;
         } catch (e) {}
-        speak(text);   // ohne continueConversation: nach dem Briefing hört Jarvis nicht von selbst weiter zu (keine Rückfrage)
+        speak(text);   // ohne continueConversation: nach dem Briefing hört Zane nicht von selbst weiter zu (keine Rückfrage)
         learnFromConversations();
     } finally {
         stopThinkingSound();

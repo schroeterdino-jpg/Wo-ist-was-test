@@ -3,7 +3,7 @@
    Cinematischer Sci-Fi-Stil (wie im Film): sanfte Sweeps statt einzelner Pieptöne,
    warme Bässe, kein hektisches Puls-Gehämmer.
    Neu: Schalter "Töne" und Lautstärke (Einstellungen > Töne, oder per Sprache "Töne aus" / "Töne an" / "Töne leiser" / "Töne lauter").
-   Alle Effekt-Töne laufen über einen gemeinsamen Lautstärkeregler (audioOut); die Stimme von Jarvis gehört nicht dazu.
+   Alle Effekt-Töne laufen über einen gemeinsamen Lautstärkeregler (audioOut); die Stimme von Zane gehört nicht dazu.
    Neue Töne: playSuccessSound (Bestätigung), playErrorSound (Fehler), playAlertSound (Warnung). Sie werden von toene.js passend zum Gesprochenen ausgelöst.
    ============================================================ */
 
@@ -187,7 +187,7 @@ function playJarvisSound() {
     }
 }
 
-/* --- J.A.R.V.I.S. Nachdenk-Sound: EIN ruhiger, durchlaufender Ton mit langsamem Filter-Sweep ---
+/* --- Zane Nachdenk-Sound: EIN ruhiger, durchlaufender Ton mit langsamem Filter-Sweep ---
    Statt der früheren, hektischen Puls-Schleife (alle 260ms ein Blip) läuft hier nur eine einzelne,
    sehr leise Hintergrund-Textur: ein Sinuston, dessen Klangfarbe sich über einen Tiefpassfilter
    langsam auf- und abbewegt (LFO) - wie ein sanftes "Scannen/Analysieren" im Hintergrund,
