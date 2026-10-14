@@ -1,12 +1,12 @@
 /* ============================================================
-   WÄCHTER: Jarvis meldet sich von selbst, solange die App offen ist (Bildschirm an oder "Hey Jarvis"-Modus).
+   WÄCHTER: Zane meldet sich von selbst, solange die App offen ist (Bildschirm an oder "Hey Zane"-Modus).
    Er sieht jede Minute nach und spricht nur, wenn es wirklich etwas gibt:
    - ABFAHRT: Ein Termin mit Ort steht an, und es wird Zeit loszufahren ("In etwa 10 Minuten sollten Sie zum Zahnarzt losfahren, die Fahrt dauert rund 25 Minuten").
      Die Fahrzeit kommt vom Karten-Server (ohne Verkehr gerechnet), plus 10 Minuten Puffer.
    - GLEICH: Ein Termin ohne Ort beginnt in 15 Minuten.
    - REGEN: In der nächsten Stunde fängt es an zu regnen (höchstens einmal in drei Stunden).
    - GEBURTSTAG: Heute hat jemand Geburtstag (einmal am Tag, nach 8 Uhr).
-   Regeln, damit es nicht nervt: nichts zwischen 22 und 7 Uhr; höchstens eine Meldung alle 8 Minuten; jede Meldung nur einmal; nichts, solange du sprichst, Jarvis spricht, rechnet oder
+   Regeln, damit es nicht nervt: nichts zwischen 22 und 7 Uhr; höchstens eine Meldung alle 8 Minuten; jede Meldung nur einmal; nichts, solange du sprichst, Zane spricht, rechnet oder
    der Dolmetscher läuft. Jede Meldung zählt erst als erledigt, wenn sie wirklich gesprochen wurde (blockiert Chrome den Ton, kommt sie später noch einmal).
    Ist die App geschlossen oder der Bildschirm aus, kann eine Web-App nichts sagen; dafür gäbe es nur Push-Benachrichtigungen.
    Ein-/Ausschalten: Einstellungen > Charakter oder per Sprache ("Melde dich nicht mehr von selbst" / "Melde dich von selbst").

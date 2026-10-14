@@ -2,7 +2,7 @@
    WHISPER-SPRACHERKENNUNG (Groq): Statt der Handy-Erkennung nimmt die App deine Stimme kurz auf und lässt sie von Whisper in Text umwandeln.
    Das versteht Straßennamen, Eigennamen und Dialekt deutlich besser ("Neu-Galliner-Ring", "Hamiyet", "Schroeter").
    Einschalten: Einstellungen > Spracherkennung > "Whisper (Groq)". Gilt nur für dieses Gerät. Standard bleibt die Handy-Erkennung.
-   Gilt für: Mikrofon antippen, Weiterhören nach einer Antwort, Dolmetscher. NICHT für das Weckwort "Hey Jarvis" (das bleibt bei der Handy-Erkennung,
+   Gilt für: Mikrofon antippen, Weiterhören nach einer Antwort, Dolmetscher. NICHT für das Weckwort "Hey Zane" (das bleibt bei der Handy-Erkennung,
    weil es dauerhaft mithört).
    Ablauf: Mikrofon auf, Aufnahme läuft, sobald du eine Pause machst (ca. 1,2 Sekunden Stille), geht die Aufnahme über /api/groq an Whisper,
    der Text läuft danach genauso weiter wie bisher (Hör-Korrektur, Befehle, KI).
@@ -17,7 +17,7 @@
     const MAX_MS = 22000;           // längste Aufnahme
     const MANUAL_WAIT_MS = 7000;    // so lange wartet er nach dem Antippen auf den Sprechbeginn
     const MIN_SPEECH_MS = 250;      // kürzere Geräusche zählen nicht als Sprache
-    const BASE_PROMPT = 'Jarvis, Alyssa, Hamiyet, Schwarzenbek, Verbrüderungsring, Neu-Galliner-Ring, Schroeter, Penny, Rewe, Edeka, HVV, Kia Sportage, Einkaufsliste, Tankstelle, Lagebild, Erinnerung, Dolmetscher.';
+    const BASE_PROMPT = 'Zane, Alyssa, Hamiyet, Schwarzenbek, Verbrüderungsring, Neu-Galliner-Ring, Schroeter, Penny, Rewe, Edeka, HVV, Kia Sportage, Einkaufsliste, Tankstelle, Lagebild, Erinnerung, Dolmetscher.';
     const HALLUZINATION = /^(?:untertitel\b|untertitelung\b|amara\.org|vielen dank(?: fürs| für das)? (?:zuschauen|zuhören)|danke fürs (?:zuschauen|zuhören)|bis zum nächsten mal|tschüss\.?$|\.+$|ja\.$)/i;
 
     let rec = null;
@@ -134,7 +134,7 @@
             return origStart(followUp, windowMs);   // Sicherheitsnetz: Handy-Erkennung für diese Runde
         }
         if (starting === startToken) starting = null;
-        if (startToken.cancel) {   // in der Zwischenzeit abgebrochen (Mikrofon-Taste oder Jarvis spricht)
+        if (startToken.cancel) {   // in der Zwischenzeit abgebrochen (Mikrofon-Taste oder Zane spricht)
             try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
             giveBack();
             try { rec.onend(); } catch (e) {}
@@ -237,7 +237,7 @@
         return whisperListen(followUp, w, origStart);
     };
 
-    // stop() = fertig gesprochen (Mikrofon-Taste), abort() = verwerfen (z.B. weil Jarvis jetzt spricht)
+    // stop() = fertig gesprochen (Mikrofon-Taste), abort() = verwerfen (z.B. weil Zane jetzt spricht)
     const origStop = rec.stop.bind(rec);
     const origAbort = rec.abort.bind(rec);
     rec.stop = function () {
@@ -273,7 +273,7 @@
                 '<option value="0">Handy (wie bisher)</option>' +
                 '<option value="1">Whisper (Groq) - versteht Namen und Straßen besser</option>' +
                 '</select>' +
-                '<p class="text-xs text-[#5d7e91]">Whisper nimmt dich kurz auf und schickt die Aufnahme zur Auswertung an Groq. Es wartet, bis du eine kleine Pause machst. Das Weckwort „Hey Jarvis“ bleibt bei der Handy-Erkennung. Gilt nur für dieses Gerät.</p>' +
+                '<p class="text-xs text-[#5d7e91]">Whisper nimmt dich kurz auf und schickt die Aufnahme zur Auswertung an Groq. Es wartet, bis du eine kleine Pause machst. Das Weckwort „Hey Zane“ bleibt bei der Handy-Erkennung. Gilt nur für dieses Gerät.</p>' +
                 '</div>';
             anchor.insertAdjacentElement('beforebegin', box);
             const sel = box.querySelector('#whisperSelect');

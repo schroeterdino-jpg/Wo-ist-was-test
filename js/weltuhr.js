@@ -170,10 +170,10 @@
     }
 
     /* ---------- Sprachbefehle ---------- */
-    const OPEN_RE = /^(?:(?:bitte|jarvis)\s+)?(?:(?:öffne|oeffne|zeig|zeige|starte|mach|mache|stell|stelle)(?:\s+mir)?(?:\s+(?:bitte|mal))?\s+)?(?:(?:die|meine|mir die|mir meine)\s+)?(?:weltuhr(?:en)?|welt uhr(?:en)?|weltzeituhr(?:en)?|weltzeit(?:en)?|uhren der welt)(?:\s+(?:auf|an|bitte|mal))?$|^(?:wie spät ist es|wie viel uhr ist es|wieviel uhr ist es)\s+(?:auf der welt|überall|in der welt|in aller welt)$/;
-    const ADD_RE = /^(?:(?:bitte|jarvis)\s+)?(?:füge|füg|fuege|fueg|setz|setze|nimm|nehm|tu|tue|pack|packe|mach|mache|stell)\s+(.+?)\s+(?:zur|zu der|in die|auf die|bei der|der)\s+(?:weltuhr|weltzeit|welt uhr|weltzeituhr)(?:\s+(?:hinzu|dazu|auf|rein|drauf))?$/;
-    const DEL_RE = /^(?:(?:bitte|jarvis)\s+)?(?:entferne|entfern|lösche|loesche|lösch|loesch|nimm|nehm|streiche|streich|werf|wirf)\s+(.+?)\s+(?:aus der|von der|aus|von)\s+(?:weltuhr|weltzeit|welt uhr|weltzeituhr)(?:\s+(?:raus|heraus|weg|runter))?$/;
-    const RESET_RE = /^(?:(?:bitte|jarvis)\s+)?(?:setz|setze|stell|stelle)\s+(?:die\s+)?(?:weltuhr|weltzeit)\s+(?:zurück|zurueck|auf standard|auf die standardorte)$/;
+    const OPEN_RE = /^(?:(?:bitte|(?:jarvis|zane))\s+)?(?:(?:öffne|oeffne|zeig|zeige|starte|mach|mache|stell|stelle)(?:\s+mir)?(?:\s+(?:bitte|mal))?\s+)?(?:(?:die|meine|mir die|mir meine)\s+)?(?:weltuhr(?:en)?|welt uhr(?:en)?|weltzeituhr(?:en)?|weltzeit(?:en)?|uhren der welt)(?:\s+(?:auf|an|bitte|mal))?$|^(?:wie spät ist es|wie viel uhr ist es|wieviel uhr ist es)\s+(?:auf der welt|überall|in der welt|in aller welt)$/;
+    const ADD_RE = /^(?:(?:bitte|(?:jarvis|zane))\s+)?(?:füge|füg|fuege|fueg|setz|setze|nimm|nehm|tu|tue|pack|packe|mach|mache|stell)\s+(.+?)\s+(?:zur|zu der|in die|auf die|bei der|der)\s+(?:weltuhr|weltzeit|welt uhr|weltzeituhr)(?:\s+(?:hinzu|dazu|auf|rein|drauf))?$/;
+    const DEL_RE = /^(?:(?:bitte|(?:jarvis|zane))\s+)?(?:entferne|entfern|lösche|loesche|lösch|loesch|nimm|nehm|streiche|streich|werf|wirf)\s+(.+?)\s+(?:aus der|von der|aus|von)\s+(?:weltuhr|weltzeit|welt uhr|weltzeituhr)(?:\s+(?:raus|heraus|weg|runter))?$/;
+    const RESET_RE = /^(?:(?:bitte|(?:jarvis|zane))\s+)?(?:setz|setze|stell|stelle)\s+(?:die\s+)?(?:weltuhr|weltzeit)\s+(?:zurück|zurueck|auf standard|auf die standardorte)$/;
 
     function say(m) { try { speak(m, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} }
     const known = () => CITIES.slice(0, 12).map(c => c.name).join(', ');

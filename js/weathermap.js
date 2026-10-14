@@ -1,7 +1,7 @@
 /* ============================================================
    WETTERKARTE zu jedem Ort: "Zeig mir das Wetter in Istanbul", "Wie ist das Wetter in Rom?", "Wetterkarte Hamburg",
    "Wie wird das Wetter morgen in Wien?", "Zeig mir die Wetterkarte" (ohne Ort = dein Standort).
-   Jarvis sucht den Ort (Server: /api/geocode), holt aktuelle Werte und 7-Tage-Vorhersage (Open-Meteo), nennt kurz das Wichtigste und
+   Zane sucht den Ort (Server: /api/geocode), holt aktuelle Werte und 7-Tage-Vorhersage (Open-Meteo), nennt kurz das Wichtigste und
    öffnet ein Fenster mit: aktuellem Wetter, 7 Tagen und einer Wetterkarte von Windy (umschaltbar: Temperatur, Regen, Wind, Wolken).
    Die Karte ist ein eingebettetes Fremd-Angebot (embed.windy.com) und braucht Internet.
    Fragen ohne Ort ("Wie wird das Wetter morgen?", "Wetter in der Nähe") bleiben bei der bisherigen Antwort für deinen Standort.
