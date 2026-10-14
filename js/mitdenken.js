@@ -179,50 +179,10 @@ function mdCleanMemoryText(s) {
     return String(s || '').replace(/^Am .{0,80}?hat der Nutzer ausdrücklich darum gebeten, sich Folgendes zu merken:\s*/i, '').replace(/^"|"$/g, '').trim();
 }
 async function mdCheckContext(notes, text, p, location) {
-    const query = [text, location].filter(Boolean).join(' ');
-    if (!query.trim()) return;
-    const candidates = [];
-
-    // Sichtbares Gedächtnis: nur wirklich passende Begriffe/Werte.
-    try {
-        Object.keys(typeof memoryItems !== 'undefined' ? memoryItems : {}).forEach(k => {
-            const v = parseMemoryValue(memoryItems[k]);
-            const joined = `${k} ${v}`;
-            const score = mdOverlap(query, joined);
-            if (score > 0) candidates.push({ score: 7 + score, text: `${k}: ${v}` });
-        });
-    } catch (e) {}
-
-    // Semantisches Langzeitgedächtnis: findet auch Umschreibungen.
-    try {
-        if (typeof searchSemanticMemory === 'function' && query.trim().length >= 4) {
-            const hits = await mdTimeout(searchSemanticMemory(query), 3500).catch(() => []);
-            (hits || []).slice(0, 3).forEach((h, i) => {
-                const clean = mdCleanMemoryText(h);
-                if (clean && clean.length <= 420) candidates.push({ score: 6 - i, text: clean });
-            });
-        }
-    } catch (e) {}
-
-    // Offene Aufgaben/Erinnerungen dürfen ebenfalls einen Zusammenhang liefern.
-    try {
-        (typeof todoEntries !== 'undefined' ? todoEntries : []).forEach(t => {
-            if (t && mdOverlap(query, t.text) > 0) candidates.push({ score: 6, text: `Offene Aufgabe: ${t.text}` });
-        });
-        (typeof reminderEntries !== 'undefined' ? reminderEntries : []).filter(r => r && !r.triggered).forEach(r => {
-            if (mdOverlap(query, r.text) > 0) candidates.push({ score: 6, text: `Erinnerung: ${r.text}` });
-        });
-    } catch (e) {}
-
-    const seen = new Set();
-    const best = candidates.sort((a,b) => b.score - a.score).find(c => {
-        const key = c.text.toLowerCase().replace(/\s+/g,' ').slice(0,180);
-        if (seen.has(key)) return false; seen.add(key); return true;
-    });
-    if (!best) return;
-
-    // Nur EIN Kontext-Hinweis. So denkt Jarvis mit, ohne bei jedem Termin zu nerven.
-    notes.push({ prio: 7, text: `Dazu habe ich noch etwas Passendes im Gedächtnis: ${best.text} Soll ich das bei diesem Termin berücksichtigen?` });
+    // Absichtlich deaktiviert:
+    // Bei neu angelegten Terminen keine alten Gedächtniseinträge ungefragt einmischen.
+    // Überschneidungen, Feiertage, Wetter und Fahrzeit bleiben weiterhin aktiv.
+    return;
 }
 
 /* ---------- Haupt-Funktion: gibt die (höchstens zwei) wichtigsten Hinweise als Sätze zurück ---------- */
@@ -238,9 +198,6 @@ async function thoughtsForNewEvent(text, iso, location) {
         slow.push(guard(() => mdCheckSchoolHoliday(notes, String(text || ''), p)));
         slow.push(guard(() => mdCheckWeather(notes, String(text || ''), p, location)));
         slow.push(guard(() => mdCheckTravel(notes, String(text || ''), p, location)));
-        // Kein ungefragtes Langzeitgedächtnis bei neuen Terminen.
-        // Sonst können alte, nur ähnlich benannte Termine den aktuellen Termin verfälschen.
-        // Gedächtnis wird weiterhin auf ausdrückliche Gedächtnisfragen hin benutzt.
     }
     await Promise.race([Promise.all(slow), new Promise(r => setTimeout(r, MD_TIME_LIMIT_MS))]);
     return notes.slice().sort((x, y) => y.prio - x.prio).slice(0, MD_MAX_NOTES).map(n => n.text);
