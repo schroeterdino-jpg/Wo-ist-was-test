@@ -399,7 +399,7 @@ function handleCharacterCommand(text) {
 
     if (/^(?:erzähl(?:e)? (?:mir )?(?:einen|nen|noch einen) witz|sag (?:mir )?(?:einen|nen|noch einen) witz|kennst du (?:einen|nen) witz|bring mich zum lachen|mach (?:mal )?(?:einen|nen) witz|erzähl was lustiges|sag was lustiges|witz bitte|noch (?:einen|ein) witz|noch einer)$/.test(t)) {
         const intro = lvl >= 2 ? charPick('jokeIntro', ['Bitte sehr, {a}, aber lachen ist Pflicht:', 'Na gut. Der ist gar nicht schlecht:', 'Ein Butler hat auch Humor, {a}:']) : 'Gern:';
-        charSay(`${intro} ${charDraw('joke', CHAR_JOKES)}`);
+        charSay(`${intro} ⁣${charDraw('joke', CHAR_JOKES)}`);   // ⁣ = unsichtbare Marke: fish.js lacht nach dem Witz laut (wie bei Sprüchen)
         return true;
     }
     if (/^(?:erzähl(?:e)? (?:mir )?(?:was|etwas|einen fakt)(?: interessantes| spannendes)?|sag (?:mir )?was interessantes|weißt du was interessantes|nenn mir einen fakt|ein fun ?fact|fun ?fact|ich langweile mich|mir ist langweilig|unterhalte mich(?: mal)?)$/.test(t)) {

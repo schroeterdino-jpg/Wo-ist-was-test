@@ -194,6 +194,28 @@
         return String(t).replace(/(?<![\wäöüß\[])((?:ha|he|hi){2,}(?:[ -]?(?:ha|he|hi))*)(?![\wäöüß])/gi, (m) => (n++ === 0 ? '[laughing] ' + m : m));
     }
 
+    // Lautes Lachen: so oft lacht Zane nach einem Spruch oder Witz richtig laut (Faktor: bei "dezent" halb so oft)
+    const LOUD_LAUGH_CHANCE = 0.55;
+    const LOUD_LAUGHS = ['Hahaha!', 'Hahahaha!', 'Ha ha ha, hahaha!'];
+
+    // Die KI soll selbst ein "Hahaha!" schreiben, wenn der Nutzer etwas wirklich Lustiges sagt oder sie einen sarkastischen Spruch bringt.
+    // Die Stimme macht daraus bei Fish Audio ein lautes Lachen (laughWords), das Gesicht lacht mit. Aus bei "Menschliche Laute aus" / "Lachen aus".
+    const LOUD_RULE =
+        '\n\nLAUTES LACHEN: Nur wenn der Nutzer etwas wirklich Lustiges sagt oder du selbst einen sarkastischen Spruch bringst, hänge direkt danach ein kurzes "Hahaha!" an. ' +
+        'Sonst nie. Höchstens einmal pro Antwort, und bei ernsten Themen (Warnungen, Gesundheit, Arzt, Geld, Fehler, Erinnerungen) lachst du nie.';
+    if (typeof window.buildSystemPrompt === 'function' && !window.buildSystemPrompt._fishLach) {
+        const originalPrompt = window.buildSystemPrompt;
+        const wrappedPrompt = function () {
+            let base = originalPrompt.apply(this, arguments);
+            try { if (window.getHumanLevel() !== 'aus') base += LOUD_RULE; } catch (e) {}
+            return base;
+        };
+        // Eigenschaften der vorherigen Hülle behalten, damit nichts doppelt einhängt
+        Object.keys(originalPrompt).forEach(k => { try { wrappedPrompt[k] = originalPrompt[k]; } catch (e) {} });
+        wrappedPrompt._fishLach = true;
+        window.buildSystemPrompt = wrappedPrompt;
+    }
+
     function humanize(text) {
         const level = window.getHumanLevel();
         const force = window.__jvForceHuman === true;
@@ -226,6 +248,13 @@
             if (boost && !force) mid = r < 0.4 ? '[laughing] ' : '[chuckle] ';          // mit Lach-Wunsch: immer lachen, keine bloße Pause
             else mid = r < 0.25 ? '[laughing] ' : r < 0.75 ? '[chuckle] ' : '[short pause] ';
         }
+        // Lautes Lachen NACH dem Spruch (sarkastischer Spruch oder Witz): richtiges "Hahaha" statt Kichern. Nur bei Sprüchen, nie bei ernsten Themen.
+        // Das Gesicht lacht dabei mit (mimik.js erkennt das "Hahaha" im Text).
+        let tail = '';
+        if (quip && !serious && roll(LOUD_LAUGH_CHANCE)) {
+            tail = ' [laughing] ' + LOUD_LAUGHS[Math.floor(Math.random() * LOUD_LAUGHS.length)];
+            mid = '[short pause] ';                                      // kurze Pause vor der Pointe, danach das Lachen
+        }
         if (!quip) {
             // Lach-Wunsch auch ohne Spruch: ab und zu ein leises Lachen vor dem zweiten Satz einer normalen Antwort
             if (boost && !serious && !force && out.replace(/\s+/g, ' ').length >= 25 && !start && roll(0.5)) {
@@ -236,7 +265,7 @@
             return start + out;
         }
         const sep = /[\s]$/.test(out) ? '' : ' ';
-        return start + out + sep + mid + quip;
+        return start + out + sep + mid + quip + tail;
     }
     // Handy-Stimme (Browser): das Zeichen nie mit vorlesen lassen
     if (typeof window.speakBrowser === 'function' && !window.speakBrowser._jv) {

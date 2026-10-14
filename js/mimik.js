@@ -34,7 +34,22 @@
         try { a.grimasse(m); meinAktiv = true; } catch (e) { return; }
         setTimeout(function () { if (my === token) { try { a.grimasse(null); } catch (e) {} meinAktiv = false; } }, ms);
     }
-    function loesche() { token++; if (meinAktiv) { try { av().grimasse(null); } catch (e) {} meinAktiv = false; } }
+    function loesche() { token++; lachTimer.forEach(clearTimeout); lachTimer = []; if (meinAktiv) { try { av().grimasse(null); } catch (e) {} meinAktiv = false; } }
+
+    /* ---------- Lautes Lachen: Gesicht wippt zwischen starkem und etwas schwächerem Lachen ---------- */
+    var lachBis = 0, lachTimer = [];
+    var LACH_DAUER = 1.5;   // so lange dauert ein "Hahaha" der Stimme ungefähr (Sekunden)
+    function lache(ms) {
+        if (!skala() || !bereit()) return;
+        ms = ms || 1700;
+        lachBis = Date.now() + ms + 300;
+        lachTimer.forEach(clearTimeout); lachTimer = [];
+        for (var t = 0, i = 0; t < ms; t += 400, i++) {
+            (function (form, at) {
+                lachTimer.push(setTimeout(function () { if (bereit()) zeige(form(), 520); }, at));
+            })(i % 2 ? FORMEN.lachenWelle : FORMEN.lachen, t);
+        }
+    }
 
     /* ---------- Bausteine ---------- */
     function sidePick() { return Math.random() < .5 ? 'L' : 'R'; }
@@ -46,6 +61,8 @@
         grinsen: function () { return { mouthSmile_L: .7, mouthSmile_R: .7, mouthDimple_L: .35, mouthDimple_R: .35, cheekSquint_L: .4, cheekSquint_R: .4, eyeSquint_L: .25, eyeSquint_R: .25, browOuterUp_L: .25, browOuterUp_R: .25 }; },
         schiefGrinsen: function () { var s = sidePick(), o = s === 'L' ? 'R' : 'L'; var m = { browOuterUp_R: .3, eyeSquint_L: .25, eyeSquint_R: .25 }; m['mouthSmile_' + s] = .85; m['mouthSmile_' + o] = .25; m['mouthDimple_' + s] = .5; m['cheekSquint_' + s] = .45; m['browOuterUp_' + s] = .55; return m; },
         zwinkern: function () { var s = sidePick(), o = s === 'L' ? 'R' : 'L'; var m = { mouthSmile_L: .5, mouthSmile_R: .5, browInnerUp: .1 }; m['eyeBlink_' + s] = 1; m['cheekSquint_' + s] = .7; m['eyeSquint_' + s] = .5; m['browDown_' + s] = .25; m['browOuterUp_' + o] = .3; return m; },
+        lachen: function () { return { mouthSmile_L: 1, mouthSmile_R: 1, mouthDimple_L: .55, mouthDimple_R: .55, cheekSquint_L: .9, cheekSquint_R: .9, eyeSquint_L: .7, eyeSquint_R: .7, browOuterUp_L: .3, browOuterUp_R: .3, noseSneer_L: .2, noseSneer_R: .2 }; },
+        lachenWelle: function () { return { mouthSmile_L: .75, mouthSmile_R: .75, mouthDimple_L: .4, mouthDimple_R: .4, cheekSquint_L: .65, cheekSquint_R: .65, eyeSquint_L: .5, eyeSquint_R: .5, browOuterUp_L: .15, browOuterUp_R: .15, noseSneer_L: .1, noseSneer_R: .1 }; },
         interessiert: function () { return { browInnerUp: .35, eyeWide_L: .2, eyeWide_R: .2, mouthSmile_L: .15, mouthSmile_R: .15 }; },
         blickWeg: function () {
             var r = Math.random(), m = {};
@@ -80,6 +97,13 @@
             var t = m[0].trim(); if (!t) continue;
             sentences.push({ text: t, von: m.index / total, bis: (m.index + m[0].length) / total, geplant: false });
         }
+        // Lachen im Text ("Hahaha", "Hehe" ...): Der Ton ist dort länger als der Text vermuten lässt, darum rechnen wir die Startzeit eines Lachens
+        // aus dem Text davor (ohne die Lach-Buchstaben) und der Dauer der Aufnahme aus (siehe sprechTakt)
+        var lacher = [], lachChars = 0, lastEnd = -99, lm, lachRe = /(?<![A-Za-zÄÖÜäöüß])(?:ha|he|hi){2,}(?:[ -]?(?:ha|he|hi))*(?![A-Za-zÄÖÜäöüß])/gi;
+        while ((lm = lachRe.exec(clean))) {
+            if (lm.index - lastEnd >= 10) lacher.push({ cb: lm.index - lachChars, idx: lacher.length, fertig: false });   // Lachen direkt hintereinander zählt als eines
+            lachChars += lm[0].length; lastEnd = lm.index + lm[0].length;
+        }
         var words = [], wr = /[A-Za-zÄÖÜäöüß0-9,.-]+/g, w;
         while ((w = wr.exec(clean))) {
             var word = w[0].replace(/[.,!?;:]+$/g, '');
@@ -87,7 +111,7 @@
             var hoch = BETONT_HOCH.test(word), eng = BETONT_ENG.test(word);
             if (hoch || eng) words.push({ p: w.index / total, art: eng ? 'eng' : 'hoch', fertig: false });
         }
-        return { audio: audio, text: clean, sentences: sentences, words: words, satz: -1, ende: false, letzteBetonung: 0, frage: /\?\s*$/.test(clean) };
+        return { audio: audio, text: clean, sentences: sentences, words: words, lacher: lacher, nonTotal: Math.max(1, total - lachChars), satz: -1, ende: false, letzteBetonung: 0, frage: /\?\s*$/.test(clean) };
     }
 
     function sprechTakt() {
@@ -109,12 +133,23 @@
             try { av().setExpression(stimmung(S.sentences[idx].text)); } catch (e) {}
             if (idx > 0 && Math.random() < .5 * skala()) zeige(Math.random() < .5 ? FORMEN.brauenHoch() : FORMEN.einBrauHoch(), 700);
         }
+        // Lachen: das Gesicht lacht genau dann, wenn auch die Stimme lacht
+        if (S.lacher.length) {
+            var ct = Number(a.currentTime) || 0, rest = Math.max(.5, dur - S.lacher.length * LACH_DAUER);
+            for (var l = 0; l < S.lacher.length; l++) {
+                var L = S.lacher[l];
+                if (L.fertig) continue;
+                var ts = (L.cb / S.nonTotal) * rest + L.idx * LACH_DAUER;      // geschätzter Beginn des Lachens in der Aufnahme
+                if (ct >= ts - .15) { L.fertig = true; if (ct < ts + 1.2) lache(1700); }
+            }
+        }
+        var lacht = jetzt < lachBis;
         // Betonung
         for (var j = 0; j < S.words.length; j++) {
             var w = S.words[j];
             if (!w.fertig && p >= w.p) {
                 w.fertig = true;
-                if (jetzt - S.letzteBetonung > 1300 && Math.random() < .8 * skala() && p < .9) {
+                if (!lacht && jetzt - S.letzteBetonung > 1300 && Math.random() < .8 * skala() && p < .9) {
                     S.letzteBetonung = jetzt;
                     zeige(w.art === 'eng' ? FORMEN.zusammenkneifen() : FORMEN.brauenHoch(), 650);
                 }
@@ -124,7 +159,8 @@
         if (!S.ende && p >= .9) {
             S.ende = true;
             var r = Math.random(), f = skala();
-            if (S.frage) zeige(FORMEN.brauenHoch(), 1700);
+            if (jetzt < lachBis) { /* wer gerade lacht, grinst nicht noch extra */ }
+            else if (S.frage) zeige(FORMEN.brauenHoch(), 1700);
             else if (r < .3 * Math.min(1.4, f)) zeige(FORMEN.zwinkern(), 420);
             else if (r < .65 * Math.min(1.4, f)) zeige(Math.random() < .5 ? FORMEN.grinsen() : FORMEN.schiefGrinsen(), 1600);
         }
@@ -196,4 +232,4 @@
     if (!registerCommand()) document.addEventListener('DOMContentLoaded', registerCommand);
 })();
 
-/* Stand 14.10. 23:10 */
+/* Stand 14.10. 23:45: lautes Lachen (Gesicht lacht mit, wenn die Stimme "Hahaha" sagt) */
