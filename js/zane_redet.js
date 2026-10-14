@@ -72,7 +72,8 @@
             }).slice(0, 4).map(function (r) { return r.text; });
         } catch (e) {}
         try {
-            if (window.jvSchichtInfo) { var si = window.jvSchichtInfo(); if (si && !si.urlaub_bis) k.schicht = si.schicht || si.heute || undefined; if (si && si.urlaub_bis) k.urlaub_bis = si.urlaub_bis; }
+            var u = window.jvUrlaub && window.jvUrlaub.get && window.jvUrlaub.get();
+            if (u && u.von <= heuteIso && u.bis >= heuteIso) { k.hat_urlaub_heute = true; k.urlaub_bis = u.bis; }
         } catch (e) {}
         return k;
     }
@@ -94,7 +95,9 @@
         'Wähle EINE der Möglichkeiten, die zu den Daten passen: (a) frage ihn, was heute noch ansteht, oder ob er heute noch etwas Bestimmtes erledigt (z. B. einkaufen, wenn etwas auf der Einkaufsliste steht, oder eine offene Aufgabe), ' +
         '(b) greife eine Sache aus "erinnerungen" auf und frag nach, wie es damit lief oder erwähne sie überraschend persönlich, (c) mach eine freche oder aufmunternde Bemerkung zum Tag, zur Tageszeit oder zur Schicht, ' +
         '(d) frag ihn, wie sein Tag läuft. Sei abwechslungsreich: keine Floskeln wie "Kann ich helfen?", keine Wiederholung der Sätze aus "schon_gesagt". Erfinde keine Fakten, nutze nur die Daten. ' +
-        'Bei Urlaub keine Fragen zur Arbeit. Nachts nichts Aufregendes. ' +
+        'WICHTIG: Ist "hat_urlaub_heute" true, hat er Urlaub: kein Wort über Arbeit, Schicht, Dienst, Kollegen oder Feierabend, stattdessen Urlaub, Freizeit, Pläne. ' +
+        'Frage NIE nach etwas, das schon in den Daten steht (zum Beispiel Urlaubsdaten, Termine, Einkaufsliste). ' +
+        'Behaupte NIE etwas über Vergangenes (letzte Nacht, gestern, die Schicht), das nicht ausdrücklich in den Daten steht; du weißt nicht, was er getan hat. Frag stattdessen offen, z. B. wie sein Tag war oder was heute noch ansteht. Nachts nichts Aufregendes. ' +
         'Antworte nur mit JSON: {"text":"...","frage":true|false} (frage = true, wenn dein Satz eine Frage an ihn ist, auf die er antworten kann).';
 
     function fertigsatz(k) {
@@ -106,6 +109,15 @@
         liste.push({ t: 'Na, ' + n + '? Wie läuft dein ' + (k.tageszeit === 'Abend' || k.tageszeit === 'Nacht' ? 'Abend' : 'Tag') + ' bisher?', f: true });
         liste.push({ t: 'Ich wollte nur sagen: Ich bin noch da. Falls du mich brauchst.', f: false });
         return liste[Math.floor(Math.random() * liste.length)];
+    }
+
+    var ARBEIT_RX = /schicht|arbeit|dienst|kollege|kollegin|feierabend|chef|betrieb|überstunde|ueberstunde/i;
+    /* Letzte Sicherung: Behauptet der Satz etwas über Arbeit, obwohl Urlaub ist, oder über "heute Nacht"/gestern ohne Beleg, wird er verworfen */
+    function pruefe(satz, k) {
+        if (!satz) return satz;
+        if (k.hat_urlaub_heute && ARBEIT_RX.test(satz.t)) return null;
+        if (/\bheute nacht\b|\bletzte nacht\b|\bgestern\b/i.test(satz.t) && !(k.tageszeit === 'Nacht')) return null;
+        return satz;
     }
 
     function erzeuge(k, mem, schonGesagt) {
@@ -143,7 +155,10 @@
         return Date.now() - letzteAktion >= RUHE_MS;
     }
 
+    var letzteFrage = { text: '', t: 0 };
+
     function sprich(satz) {
+        letzteFrage = { text: satz.f ? satz.t : '', t: Date.now() };
         var l = log(); l.n++; l.texte.push(satz.t); l.texte = l.texte.slice(-12); logSave(l);
         try { if (Array.isArray(chatHistory)) chatHistory.push({ role: 'assistant', content: JSON.stringify({ type: 'chat', reply: satz.t }) }); } catch (e) {}
         var danach;
@@ -156,7 +171,7 @@
         laeuft = true;
         var l = log(), schon = l.texte.slice();
         var k = kontext();
-        erinnerungenAusGedaechtnis().then(function (mem) { return erzeuge(k, mem, schon); }).then(function (satz) {
+        erinnerungenAusGedaechtnis().then(function (mem) { if (k.hat_urlaub_heute) mem = mem.filter(function (m) { return !ARBEIT_RX.test(m.text); }); return erzeuge(k, mem, schon); }).then(function (satz) { return pruefe(satz, k); }).then(function (satz) {
             laeuft = false;
             if (!satz) satz = fertigsatz(k);
             if (!erzwingen && !ruhig()) { naechste = Date.now() + 3 * 60000; return; }   // inzwischen ist etwas los: später nochmal
@@ -199,6 +214,25 @@
     }
     window.handleZaneRedetCommand = handle;
     window.jvZaneRedet = { jetzt: function () { los(true); }, stufe: stufe, setStufe: setStufe };
+
+    /* Antwort auf Zanes Frage verstehen: Fragt er z. B. nach dem Urlaub und du sagst nur "vom 10. bis 16. Oktober",
+       wird daraus "Ich habe Urlaub vom 10. bis 16. Oktober", damit der Urlaubs-Befehl (urlaub.js) greift und nicht die KI losrennt. */
+    function antwortBinden(text) {
+        var f = letzteFrage;
+        if (!f.text || Date.now() - f.t > 3 * 60000) return text;
+        var t = String(text || '');
+        if (/urlaub|ferien/i.test(f.text) && !/urlaub/i.test(t) && /\d{1,2}\.\s*(?:\d{1,2}\.?|[a-zäöü]{3,})/i.test(t) && /\bbis\b/i.test(t)) {
+            letzteFrage = { text: '', t: 0 };
+            return 'Ich habe Urlaub ' + t.replace(/^\s*(?:ich habe|ich hab|ab|von)\s+/i, 'vom ').replace(/^(\d)/, 'vom $1');
+        }
+        return text;
+    }
+    function registerAntwort() {
+        if (!window.jvCommands) return false;
+        window.jvCommands.use('zane_redet_antwort', function (text, next) { return next(antwortBinden(text)); }, 110);
+        return true;
+    }
+    if (!registerAntwort()) document.addEventListener('DOMContentLoaded', registerAntwort);
 
     function registerCommand() {
         if (!window.jvCommands) return false;
