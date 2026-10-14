@@ -46,6 +46,104 @@
         }, 230);
     }
 
+    /* ---------- Feste Prüfung (nicht nur Anweisung an die KI): Geschenk-Sätze und Geburtstage ----------
+       Sagt der User etwas mit Geschenk, Blumen, Karte oder Torte, geschieht zweierlei:
+       1) Die Suche im Langzeitgedächtnis bekommt zusätzlich "Geburtstag, Feier, Fest, Jubiläum", damit die KI den Geburtstag sicher sieht
+          (die Suche nach "Geschenk" allein findet ihn oft nicht).
+       2) Die App hängt selbst einen Satz an die Antwort an, wenn in den nächsten 35 Tagen ein Geburtstag ansteht
+          (erst aus dem Kalender, sonst aus dem Langzeitgedächtnis): "Übrigens, in 15 Tagen: Alyssa Geburtstag."
+       Greift nur bei eingeschaltetem KI-Mitdenken (Stufe aktiv). Hängt sich beim Laden der Seite in jvFristHinweis (langzeit.js) und searchSemanticMemory ein. */
+    const GESCHENK_RX = /(?:^|[^a-zäöüß])(geschenk\w*|mitbringsel|blumen\w*|strauß|strauss|glückwunschkarte|geburtstagskarte|geburtstagskuchen|torte)(?![a-zäöüß])/i;
+    const ERNST_RX = /(achtung|warnung|fehler|problem|leider|tablette|medikament|arzt|krank|beerdigung|trauer|e-mail|rechnung|konto)/i;
+    const MONATE = { januar: 0, februar: 1, 'märz': 2, april: 3, mai: 4, juni: 5, juli: 6, august: 7, september: 8, oktober: 9, november: 10, dezember: 11 };
+    const MONAT_RX = '(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)';
+    let letzteTreffer = { q: '', hits: [] };
+
+    function tageBis(d) { const h = new Date(); h.setHours(0, 0, 0, 0); const x = new Date(d); x.setHours(0, 0, 0, 0); return Math.round((x - h) / 86400000); }
+    function wannText(n) { return n === 0 ? 'heute' : n === 1 ? 'morgen' : 'in ' + n + ' Tagen'; }
+
+    function kalenderGeburtstage() {
+        const out = [];
+        try {
+            if (typeof calendarEntries === 'undefined' || !Array.isArray(calendarEntries)) return out;
+            calendarEntries.forEach(e => {
+                if (!e) return;
+                const geb = (typeof isBirthdayEntry === 'function') ? isBirthdayEntry(e) : /geburtstag/i.test(e.text || '');
+                if (!geb) return;
+                const iso = String(e.isoDate || '');
+                const d = new Date(iso.length === 10 ? iso + 'T00:00:00' : iso);
+                if (isNaN(d.getTime())) return;
+                const n = tageBis(d);
+                if (n >= 0 && n <= 35) out.push({ n, text: String(e.text || '').trim() });
+            });
+        } catch (e) {}
+        return out.sort((a, b) => a.n - b.n);
+    }
+
+    function gedaechtnisGeburtstage(hits) {
+        const out = [];
+        (hits || []).forEach(h => {
+            const s = String(h || '');
+            if (!/geburtstag/i.test(s)) return;
+            // Datum direkt neben dem Wort "Geburtstag" (nicht das "erzählt am ..." oder das Datum des Rückblicks)
+            const m = s.match(new RegExp('Geburtstag[^.]{0,60}?(\\d{1,2})\\.\\s*' + MONAT_RX, 'i')) || s.match(new RegExp('(\\d{1,2})\\.\\s*' + MONAT_RX + '[^.]{0,40}?Geburtstag', 'i'));
+            if (!m) return;
+            const heute = new Date();
+            const mon = MONATE[m[2].toLowerCase()];
+            let d = new Date(heute.getFullYear(), mon, Number(m[1]));
+            if (tageBis(d) < 0) d = new Date(heute.getFullYear() + 1, mon, Number(m[1]));
+            const n = tageBis(d);
+            if (n < 0 || n > 35) return;
+            const rest = (s.match(/Geburtstag[^.,(]*/i) || ['Geburtstag'])[0].replace(/\s+(?:am|im)\s+\d.*$/i, '').trim();
+            out.push({ n, text: rest + ' am ' + m[1] + '. ' + m[2] });
+        });
+        return out.sort((a, b) => a.n - b.n);
+    }
+
+    function geschenkHinweis(reply, userText) {
+        if (!isOn() || stufe() !== 'aktiv') return reply;
+        const r = String(reply || ''), u = String(userText || '');
+        if (!r || r.length > 500 || !GESCHENK_RX.test(u) || ERNST_RX.test(r + ' ' + u) || /geburtstag/i.test(r)) return reply;
+        let liste = kalenderGeburtstage();
+        if (!liste.length && letzteTreffer.q === u) liste = gedaechtnisGeburtstage(letzteTreffer.hits);
+        if (!liste.length) return reply;
+        const e = liste[0];
+        return r.replace(/\s+$/, '') + ' Übrigens, ' + wannText(e.n) + ': ' + e.text.replace(/\.$/, '') + '.';
+    }
+
+    function einhaengen() {
+        try {
+            const orig = window.jvFristHinweis;
+            if (typeof orig === 'function' && !orig._ki) {
+                const w = function (reply, userText) {
+                    let r = orig.apply(this, arguments);
+                    try { r = geschenkHinweis(r, userText); } catch (e) {}
+                    return r;
+                };
+                w._ki = true;
+                window.jvFristHinweis = w;
+            }
+            const origS = window.searchSemanticMemory;
+            if (typeof origS === 'function' && !origS._ki) {
+                const w2 = async function (text) {
+                    let hits = await origS.apply(this, arguments);
+                    if (!Array.isArray(hits)) hits = [];
+                    try {
+                        if (isOn() && stufe() === 'aktiv' && GESCHENK_RX.test(String(text || ''))) {
+                            const extra = await origS.call(this, 'Geburtstag Feier Fest Jubiläum');
+                            if (Array.isArray(extra)) hits = hits.concat(extra.filter(x => hits.indexOf(x) === -1));
+                        }
+                    } catch (e) {}
+                    letzteTreffer = { q: String(text || ''), hits: hits };
+                    return hits;
+                };
+                w2._ki = true;
+                window.searchSemanticMemory = w2;
+            }
+        } catch (e) { console.error('KI-Mitdenken einhängen', e); }
+    }
+    if (document.readyState === 'complete') setTimeout(einhaengen, 0); else window.addEventListener('load', einhaengen);
+
     function handle(text) {
         const t = String(text || '').toLowerCase().replace(/[.,!?;:\-]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/^(?:bitte\s+)?(?:zane\s+)?/, '');
         if (!t || t.length > 40) return false;
