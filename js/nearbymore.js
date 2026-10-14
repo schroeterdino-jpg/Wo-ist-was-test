@@ -67,6 +67,18 @@ function parsePlacesRequest(text) {
         if (/^(?:der\s+)?(?:nähe|umgebung|stadt|gegend)$/i.test(cand)) place = '';
         if (place && PLACE_CATEGORIES.some(c => c.words.test(cand))) place = '';   // "in der Bank" ist kein Ort
     }
+    // Zielort darf auch VOR der Kategorie stehen: "Ich suche in Wentorf Apotheken", "Gibt es in Hamburg Apotheken?"
+    if (!place && hit) {
+        const before = t.slice(0, hit.index);
+        const bm = before.match(/(?:^|\s)in\s+([a-zäöüß][a-zäöüß .'-]{1,30})\s*$/);
+        if (bm) {
+            let cand = bm[1].replace(/^(?:der|die|das|den|dem|des)\s+/, '').trim();
+            cand = cand.replace(/^(?:ich\s+suche|suche|finde|zeig\s+mir|gibt\s+es|wo\s+sind|wo\s+gibt\s+es)\s+/i, '').trim();
+            place = (typeof wxCleanPlace === 'function') ? wxCleanPlace(cand) : '';
+            if (/^(?:der\s+)?(?:nähe|umgebung|stadt|gegend)$/i.test(cand)) place = '';
+            if (place && PLACE_CATEGORIES.some(c => c.words.test(cand))) place = '';
+        }
+    }
     // Ohne "Wo ist / nächste / in der Nähe ..." nur, wenn ein Ort genannt ist ("Apotheke in Hamburg")
     if (!PLACE_NEAR_PHRASE.test(t) && !place) return null;
     return { cat, place, onlyOpen };
