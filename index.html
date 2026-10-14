@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jarvis</title>
+    <title>Zane</title>
     <!-- FEHLERANZEIGE (steht absichtlich ganz vorn und unabhängig von allen js-Dateien): zeigt Programmfehler, nicht ladbare Dateien und fehlende Funktionen als roten Streifen unten -->
     <script>
     (function () {
@@ -108,7 +108,7 @@
     <link rel="stylesheet" href="./style.css">
 
     <!-- Reduzierte Startseite: nur die Kugel ist dauerhaft sichtbar. Alles andere bleibt im Hintergrund erhalten
-         (andere Dateien schreiben dort hinein), ist aber ausgeblendet. Die Jarvis-Texte erscheinen nur, solange er spricht oder zuhört. -->
+         (andere Dateien schreiben dort hinein), ist aber ausgeblendet. Die Zane-Texte erscheinen nur, solange er spricht oder zuhört. -->
     <style>
         .ui-hidden { display: none !important; }
         .hud-badge { display: none !important; }
@@ -135,7 +135,7 @@
         <div class="hud-corner hud-corner-br"></div>
         <div class="hud-badge hud-badge-tl">
             <span class="hud-dot"></span>
-            <span>J.A.R.V.I.S. <span class="hud-badge-sub">ONLINE</span></span>
+            <span>ZANE <span class="hud-badge-sub">ONLINE</span></span>
         </div>
         <div class="hud-badge hud-badge-tr">
             <span id="hudClock">--:--</span>
@@ -148,7 +148,7 @@
             <div class="flex justify-between items-center max-w-md mx-auto">
                 <button onclick="playUiBeep(); openPanel('menu')" aria-label="Menü" class="bg-[#0a1621] hover:bg-cyan-950/50 text-[#49d7ff] p-2.5 rounded-lg text-sm shadow flex items-center justify-center border border-[rgba(93,209,255,.18)] transition w-10">☰</button>
                 <div>
-                    <h1 class="text-base font-black text-[#49d7ff] glow-cyan tracking-wider leading-tight">JARVIS</h1>
+                    <h1 class="text-base font-black text-[#49d7ff] glow-cyan tracking-wider leading-tight">ZANE</h1>
                     <p id="userNameDisplay" class="text-xs font-bold text-[#49d7ff]/80 tracking-widest uppercase mt-0.5 font-mono">Hallo, Dino!</p>
                 </div>
                 <button onclick="playUiBeep(); openPanel('settings')" class="bg-[#0a1621] hover:bg-cyan-950/50 text-[#49d7ff] p-2.5 rounded-lg text-sm shadow flex items-center justify-center border border-[rgba(93,209,255,.18)] transition">
@@ -187,7 +187,7 @@
                         <div id="reactor-wrap">
                             <div class="holo-container">
                                 <!-- Netzwerk-Kugel: Punkte und Verbindungslinien, per Canvas/JavaScript gezeichnet und gedreht (js/sphere.js).
-                                     Blau in Ruhe/beim Zuhören, Grün während Jarvis spricht (siehe .jarvis-scanner-container.speaking/.recording). -->
+                                     Blau in Ruhe/beim Zuhören, Grün während Zane spricht (siehe .jarvis-scanner-container.speaking/.recording). -->
                                 <canvas id="jarvisSphere" width="290" height="290" aria-hidden="true"></canvas>
                             </div>
                             <div id="waveform" class="active">
@@ -210,7 +210,7 @@
                         <span id="hudSubtitleText" class="tracking-wide">System bereit. Warte auf Spracheingabe...</span>
                     </div>
 
-                    <span id="recordText" class="font-mono text-xs tracking-widest text-[#49d7ff]">J.A.R.V.I.S. / BEREIT</span>
+                    <span id="recordText" class="font-mono text-xs tracking-widest text-[#49d7ff]">ZANE / BEREIT</span>
                     <p id="statusMessage" class="text-center font-semibold text-[#49d7ff] h-6 tracking-wide text-sm font-mono">Klicken zum Sprechen...</p>
                 </div>
 
@@ -373,7 +373,7 @@
                         </div>
                         <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer pt-1">
                             <input type="checkbox" id="proactiveToggle" class="w-5 h-5 accent-[#49d7ff]" checked>
-                            <span>Jarvis meldet sich von selbst (Abfahrtszeit, Regen, Unwetterwarnungen, Geburtstage)</span>
+                            <span>Zane meldet sich von selbst (Abfahrtszeit, Regen, Unwetterwarnungen, Geburtstage)</span>
                         </label>
                         <p class="text-xs text-[#5d7e91] font-mono pl-8">Nur solange die App offen ist, nie zwischen 22 und 7 Uhr. Per Sprache: „Melde dich nicht mehr von selbst" / „Melde dich von selbst".</p>
                     </div>
@@ -487,12 +487,12 @@
                         </label>
                         <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer pt-1">
                             <input type="checkbox" id="wakeWordToggle" class="w-5 h-5 accent-[#49d7ff]" onchange="setWakeWordEnabled(this.checked)">
-                            <span>Weckwort-Modus: hört auf „Hey Jarvis", solange die App offen ist</span>
+                            <span>Weckwort-Modus: hört auf „Hey Zane", solange die App offen ist</span>
                         </label>
                         <p class="text-xs text-[#5d7e91] font-mono pl-8">Braucht dauerhaften Mikrofon-Zugriff, zeigt dafür das Mikro-Symbol von Android permanent an und verbraucht etwas mehr Akku. Funktioniert nur, solange die App im Vordergrund ist.</p>
                         <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
                             <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Aussprache-Liste:</label>
-                            <p class="text-xs text-[#5d7e91] font-mono">Wie soll Jarvis ein Wort oder einen Namen sprechen? Per Sprache: „Sprich Alyssa so aus: Alischa." Oder hier eintragen. Angezeigt wird weiter die normale Schreibweise.</p>
+                            <p class="text-xs text-[#5d7e91] font-mono">Wie soll Zane ein Wort oder einen Namen sprechen? Per Sprache: „Sprich Alyssa so aus: Alischa." Oder hier eintragen. Angezeigt wird weiter die normale Schreibweise.</p>
                             <div class="flex gap-2">
                                 <input type="text" id="pronWordInput" placeholder="Wort, z.B. Alyssa" autocomplete="off" class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
                                 <input type="text" id="pronSpokenInput" placeholder="So sprechen, z.B. Alischa" autocomplete="off" class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
@@ -537,7 +537,7 @@
                             <div class="flex justify-between text-xs text-[#5d7e91]"><span>leiser</span><span>lauter</span></div>
                         </div>
                         <button onclick="playUiBeep(); testSounds()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Töne testen</button>
-                        <p class="text-xs text-[#5d7e91] font-mono">Per Sprache: „Töne aus“, „Töne an“, „Töne leiser“, „Töne lauter“. Gilt nur für die Effekt-Töne, nicht für die Stimme von Jarvis.</p>
+                        <p class="text-xs text-[#5d7e91] font-mono">Per Sprache: „Töne aus“, „Töne an“, „Töne leiser“, „Töne lauter“. Gilt nur für die Effekt-Töne, nicht für die Stimme von Zane.</p>
                     </div>
                 </details>
 
@@ -681,7 +681,7 @@
 
         <!-- Fußzeile: ausgeblendet -->
         <footer class="ui-hidden bg-[#081424]/90 backdrop-blur border-t border-[rgba(93,209,255,.18)] text-center p-3 text-xs text-[#49d7ff]/80 flex justify-between items-center px-6 font-mono">
-            <span>J.A.R.V.I.S. HUD SHELL</span>
+            <span>ZANE HUD SHELL</span>
             <span class="font-bold">v13.1 (Marvel Edition)</span>
         </footer>
     </div>
@@ -822,8 +822,9 @@
     <script src="./js/ansicht.js"></script>
     <script src="./js/grimassen.js"></script>
     <script src="./js/holo_look.js"></script>
+    <script src="./js/praesentation.js"></script>
 
-    <!-- Die Jarvis-Texte (Untertitel, Status) erscheinen nur, solange er spricht, zuhört oder gerade etwas gesagt hat, und blenden sich dann wieder aus -->
+    <!-- Die Zane-Texte (Untertitel, Status) erscheinen nur, solange er spricht, zuhört oder gerade etwas gesagt hat, und blenden sich dann wieder aus -->
     <script>
         (function () {
             var txt = document.getElementById('hudSubtitleText');
