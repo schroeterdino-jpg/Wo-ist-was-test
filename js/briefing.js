@@ -335,6 +335,17 @@ function isFuelWish(text) {
     return FUEL_WISH_KEYWORDS.some(k => nk.includes(k));
 }
 
+/* Orte werden manchmal in der falschen Form gespeichert ("unter das Kopfkissen"). Beim Vorlesen steht der Gegenstand aber
+   an einem Ort ("wo liegt er?"), also Dativ: "unter dem Kopfkissen", "in der Schublade". Mehrzahl-Formen auf -n bleiben unberührt. */
+function ortImDativ(t) {
+    if (!t) return t;
+    return String(t).replace(/\b(in|auf|unter|über|ueber|vor|hinter|neben|zwischen|an)\s+(das|die|den)\s+(\S+)/gi, (m, prep, art, wort) => {
+        if (art.toLowerCase() !== 'das' && /n[.,!?]*$/i.test(wort)) return m;   // "das" ist immer Einzahl; bei den/die auf -n ist es vermutlich schon Mehrzahl im Dativ ("unter den Kissen")
+        const neu = { das: 'dem', die: 'der', den: 'dem' }[art.toLowerCase()];
+        return prep + ' ' + neu + ' ' + wort;
+    });
+}
+
 function buildBriefingData(now, weather) {
     const hour = parseInt(now.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', hour12: false }), 10);
     const uhrzeit = now.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
@@ -367,7 +378,7 @@ function buildBriefingData(now, weather) {
 
     const gegenstaende = Object.keys(memoryItems || {})
         .filter(k => isImportantItem(k))
-        .map(k => ({ gegenstand: displayItemName(k), wert: parseMemoryValue(memoryItems[k]) }));
+        .map(k => ({ gegenstand: displayItemName(k), wert: ortImDativ(parseMemoryValue(memoryItems[k])) }));
 
     const wochentag = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long' }).format(now);
     const alleTextWuensche = (briefingWishes || [])
@@ -440,7 +451,7 @@ async function composeBriefingWithModel(data) {
     "  GUT (so): 'Draußen sind es angenehme 16 Grad, gefühlt eher 14 bei dem spürbaren Wind - eine leichte Jacke reicht aber völlig, einen Schirm brauchen Sie heute nicht.'\n" +
     "3. Termine & Erinnerungen: Flechte anstehende Termine und Erinnerungen naturgemäß in den Redefluss ein (Tag und Uhrzeit exakt nennen, aber in fließender Sprache, z. B. 'Was Ihren Kalender betrifft...'). Ist der Kalender frei, sag ihm das in einem kurzen Satz auf eine entspannte, nette Art. Nenne nur Termine aus der Liste 'naechste_termine' und erfinde keine weiteren dazu.\n" +
     "3b. Geburtstage: Steht etwas in 'geburtstage' (Liste mit 'titel' und 'tag'), erwähne die Geburtstage herzlich und natürlich in einem Satz, zum Beispiel 'Übrigens: Morgen hat Julia Geburtstag, vielleicht eine kleine Gratulation?' oder 'Heute hat Peter Geburtstag.'. Der 'titel' kann 'Julias Geburtstag' oder nur ein Name sein; mache daraus einen natürlichen Satz und nenne den Tag so, wie er in 'tag' steht. Ist die Liste leer, sag dazu gar nichts.\n" +
-    "4. Wünsche & Gegenstände: Wenn wichtige Gegenstände (Schlüssel, Portemonnaie etc.) oder Wünsche in den Daten stehen, erinnere ihn daran so, wie es ein aufmerksamer Assistent beim Verlassen des Hauses tun würde. Formuliere vollständige, harmonische Sätze mit passenden Präpositionen (z. B. 'Bevor Sie gehen: Ihr Schlüssel liegt wie gewohnt in der Schublade').\n" +
+    "4. Wünsche & Gegenstände: Wenn wichtige Gegenstände (Schlüssel, Portemonnaie etc.) oder Wünsche in den Daten stehen, erinnere ihn daran so, wie es ein aufmerksamer Assistent beim Verlassen des Hauses tun würde. Der Ort steht manchmal in der falschen Form (z. B. 'unter das Kopfkissen'): sprich ihn grammatisch richtig als Aufenthaltsort im Dativ ('unter dem Kopfkissen'). Formuliere vollständige, harmonische Sätze mit passenden Präpositionen (z. B. 'Bevor Sie gehen: Ihr Schlüssel liegt wie gewohnt in der Schublade').\n" +
     "4b. Dieselpreis: Ist 'dieselpreis' vorhanden (nicht null), nenne den aktuellen Preis und die Tankstelle beiläufig in einem natürlichen Satz (z. B. 'Der günstigste Diesel in Ihrer Nähe kostet aktuell 1,679 Euro bei der Aral in der Lauenburger Straße'). Ist 'wunsch_dieselpreis_angefordert' true, aber 'dieselpreis' null, erwähne kurz, dass der aktuelle Preis gerade nicht abrufbar war. Ist 'wunsch_dieselpreis_angefordert' false, sag dazu gar nichts.\n" +
     "5. Parkplatz: Wenn ein Parkplatz angegeben ist, erwähne beiläufig, wo der Wagen steht. Wenn nicht ('parkplatz' ist null), verliere KEIN EINZIGES WORT darüber.\n" +
     "6. Schicht: Steht etwas in 'schicht', nenne die heutige Schicht kurz und natürlich (z. B. 'Sie haben heute Frühschicht.' oder 'Heute steht die Spätschicht an, Abfahrt gegen 12 Uhr.'). Ist 'fahrzeit_zur_arbeit_minuten' vorhanden, nenne die Fahrzeit zur Arbeit ungefähr in Minuten. Bei 'Frühschicht': Er ist gerade aufgestanden, konzentriere dich auf die Fahrt zur Arbeit (Wetter unterwegs, Jacke) und danach auf das Wichtigste des Tages. Bei 'Spätschicht': Er fährt bald los, nenne was er vor der Abfahrt wissen oder mitnehmen sollte und das Wetter für die Fahrt. Erfinde nichts, was nicht in den Daten steht. Steht in 'schicht' das Feld 'stau_auf_der_strecke' (ein fertiger Satz zur Verkehrslage auf dem Weg zur Arbeit), gib es sinngemäß und natürlich wieder; Staumeldungen und Gefahrenstellen nennst du unbedingt und gleich zu Beginn der Fahrt-Informationen, denn das ist ihm wichtig. Fehlt das Feld, verliere kein Wort über Stau. Steht nichts in 'schicht', verliere kein Wort darüber. Steht in 'schicht' das Feld 'urlaub_bis', hat er Urlaub: sage nur in einem kurzen Satz, dass er noch bis zu diesem Datum Urlaub hat, und nenne KEINE Schicht, keine Abfahrt, keine Fahrzeit und keinen Stau zur Arbeit. Steht in 'schicht' das Feld 'schicht_laeuft_schon' (true), ist die Schicht schon im Gange: lass Abfahrt, Fahrzeit und Stau ganz weg und erwähne die Schicht höchstens in einem halben Satz oder gar nicht.\n" +
