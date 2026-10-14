@@ -9,27 +9,17 @@
    Wird der Termin verschoben (calendar_update), rutscht die Erinnerung im selben Abstand mit; wird er gelöscht (calendar_delete), verschwindet sie auch.
    Gilt für Erinnerungen, die über diese Rückfrage für einen Kalendertermin entstanden sind; ältere Erinnerungen und reine Gedächtnis-Einträge bleiben unberührt.
    Die KI liefert dafür zwei zusätzliche Felder in 'episode_store': episode_uhrzeit (HH:MM) und episode_erinnerung (kurzer Text).
-   Aus- und einschalten per Sprache: "Termin-Erinnerung aus" / "Termin-Erinnerung an". Standard: aus; zusätzliche Erinnerung nur auf ausdrücklichen Wunsch.
+   Aus- und einschalten per Sprache: "Termin-Erinnerung aus" / "Termin-Erinnerung an". Standard: an.
    Braucht: langzeit.js (executeAction-Hülle), calendar.js (addGoogleCalendarReminder), commands.js, prompt-Kette (jvChain). Muss NACH langzeit.js geladen werden.
    ============================================================ */
 (function () {
     if (typeof window.executeAction !== 'function') return;
 
     const KEY = 'jv_termin_erinnern';
-    const MODE_VERSION_KEY = 'jv_termin_erinnern_mode_v2';
-    const PENDING_MS = 5 * 60000;
+        const PENDING_MS = 5 * 60000;
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-
-    // Ab v2 standardmäßig keine zusätzliche Jarvis-Rückfrage mehr:
-    // Google Kalender übernimmt die normale Termin-Erinnerung.
-    // Eine zusätzliche Jarvis-Erinnerung wird nur angelegt, wenn der User sie ausdrücklich verlangt.
-    // Einmalige Migration, damit auch Geräte mit der bisherigen Einstellung "an" umgestellt werden.
-    if (lsGet(MODE_VERSION_KEY) !== '2') {
-        lsSet(KEY, '0');
-        lsSet(MODE_VERSION_KEY, '2');
-    }
-    const isOn = () => lsGet(KEY) === '1';
+    const isOn = () => lsGet(KEY) !== '0';
 
     let pending = null;   // { text, start:Date, at }
 
@@ -89,6 +79,26 @@
     }
     function erinnerungDa(link) { try { return reminderEntries.find(r => r.id === link.reminderId) || null; } catch (e) { return null; } }
 
+    /* Fallback für ältere/ungekoppelte Zusatz-Erinnerungen:
+       Frühere Versionen haben den Link Termin <-> Erinnerung nicht immer zuverlässig gespeichert.
+       Beim Löschen eines Termins suchen wir deshalb zusätzlich nach einer passenden Erinnerung,
+       aber nur wenn Titel UND zeitliche Nähe zum Termin passen. */
+    function erinnerungZumTermin(eintrag) {
+        try {
+            if (!eintrag || !eintrag.isoDate || !Array.isArray(reminderEntries)) return null;
+            const start = new Date(eintrag.isoDate).getTime();
+            if (!isFinite(start)) return null;
+            const titel = norm(eintrag.text);
+            if (!titel) return null;
+            return reminderEntries.find(r => {
+                const rt = norm(r && r.text);
+                if (!rt || !(rt.includes(titel) || titel.includes(rt.replace(/\\b(?:um\\s+)?\\d{1,2}(?::\\d{2})?\\s*uhr\\b/g, '').trim()))) return false;
+                const when = new Date(r.isoDate || r.time || r.date || r.datetime || 0).getTime();
+                return isFinite(when) && when < start && (start - when) <= 48 * 3600000;
+            }) || null;
+        } catch (e) { return null; }
+    }
+
     async function erinnerungMitnehmen(link, neuerStart, ctx) {
         const rem = erinnerungDa(link);
         const rest = linksLesen().filter(l => l !== link && !(l.reminderId === link.reminderId));
@@ -138,10 +148,19 @@
             let res;
             try { res = await original.apply(this, arguments); } catch (e) { freigeben(0); throw e; }
             try {
-                if (altLink && action.type === 'calendar_delete') {
-                    const rem = erinnerungDa(altLink);
-                    linksSchreiben(linksLesen().filter(l => l.reminderId !== altLink.reminderId));
-                    if (rem) { await deleteReminderEntry(rem.id); if (ctx && Array.isArray(ctx.notes)) ctx.notes.push('Die Erinnerung dazu habe ich auch gelöscht.'); }
+                if (action.type === 'calendar_delete' && altEintrag) {
+                    // Zuerst die sauber verknüpfte Erinnerung, bei älteren Terminen notfalls
+                    // eine eindeutig passende Zusatz-Erinnerung über Titel + Zeit finden.
+                    const rem = altLink ? erinnerungDa(altLink) : erinnerungZumTermin(altEintrag);
+                    if (altLink) linksSchreiben(linksLesen().filter(l => l.reminderId !== altLink.reminderId));
+                    if (rem) {
+                        const remDone = await deleteReminderEntry(rem.id);
+                        if (ctx && Array.isArray(ctx.notes)) {
+                            ctx.notes.push(remDone === false
+                                ? 'Den Termin habe ich gelöscht. Die zusätzliche Erinnerung konnte ich bei Google gerade nicht löschen.'
+                                : 'Die zusätzliche Erinnerung dazu habe ich ebenfalls gelöscht.');
+                        }
+                    }
                 } else if (altLink && action.type === 'calendar_update' && action.calendar_time) {
                     const neu = new Date(action.calendar_time);
                     if (!isNaN(neu.getTime()) && Math.abs(neu.getTime() - new Date(altLink.start).getTime()) > 60000) await erinnerungMitnehmen(altLink, neu, ctx);
