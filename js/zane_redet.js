@@ -22,8 +22,8 @@
         normal: { min: 25, max: 45, tag: 6 },
         oft:    { min: 12, max: 22, tag: 10 }
     };
-    var RUHE_MS = 2 * 60000;          // so lange darf nichts angetippt/gesagt worden sein
-    var ERST_MS = 3 * 60000;          // frühestens so lange nach dem Öffnen der App
+    var RUHE_MS = 60000;          // so lange darf nichts angetippt/gesagt worden sein
+    var ERST_MS = 75000;          // frühestens so lange nach dem Öffnen der App
 
     function get(k, d) { try { var v = getPersistentData(k, d); return v == null ? d : v; } catch (e) { return d; } }
     function set(k, v) { try { setPersistentData(k, v); } catch (e) {} }
@@ -38,7 +38,7 @@
         var s = STUFEN[stufe()];
         naechste = Date.now() + (s.min + Math.random() * (s.max - s.min)) * 60000;
     }
-    plane(); naechste = Math.max(naechste, geoeffnet + ERST_MS);
+    naechste = geoeffnet + ERST_MS + Math.random() * 45000;   // erste Meldung kurz nach dem Öffnen, danach im normalen Abstand
 
     function log() { try { var l = JSON.parse(get(LOG, '{}')); return (l && l.tag === heute()) ? l : { tag: heute(), n: 0, texte: [] }; } catch (e) { return { tag: heute(), n: 0, texte: [] }; } }
     function logSave(l) { set(LOG, JSON.stringify(l)); }
