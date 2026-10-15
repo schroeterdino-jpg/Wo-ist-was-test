@@ -742,6 +742,17 @@ jobs:
               static void setEnabled(Context c, boolean v) { sp(c).edit().putBoolean("enabled", v).apply(); }
               static boolean muted(Context c) { return sp(c).getBoolean("muted", false); }
               static void setMuted(Context c, boolean v) { sp(c).edit().putBoolean("muted", v).apply(); }
+              // Nachtruhe: das Weckwort schläft zwischen zwei Uhrzeiten (Minuten seit Mitternacht), Standard 23:00 bis 04:00
+              static boolean nightOn(Context c) { return sp(c).getBoolean("nightOn", true); }
+              static void setNightOn(Context c, boolean v) { sp(c).edit().putBoolean("nightOn", v).apply(); }
+              static int nightFrom(Context c) { return sp(c).getInt("nightFrom", 23 * 60); }
+              static void setNightFrom(Context c, int v) { sp(c).edit().putInt("nightFrom", v).apply(); }
+              static int nightTo(Context c) { return sp(c).getInt("nightTo", 4 * 60); }
+              static void setNightTo(Context c, int v) { sp(c).edit().putInt("nightTo", v).apply(); }
+              // "Einschalten" mitten in der Nachtruhe: bis zu diesem Zeitpunkt (Millisekunden) bleibt das Weckwort trotzdem an
+              static long nightOver(Context c) { return sp(c).getLong("nightOver", 0L); }
+              static void setNightOver(Context c, long v) { sp(c).edit().putLong("nightOver", v).apply(); }
+              static String hhmm(int minuten) { return String.format(java.util.Locale.GERMANY, "%02d:%02d", minuten / 60, minuten % 60); }
               static String status(Context c) { return sp(c).getString("status", "aus"); }
               static void setStatus(Context c, String s) { sp(c).edit().putString("status", s).apply(); }
               static String last(Context c) { return sp(c).getString("last", "-"); }
@@ -850,6 +861,40 @@ jobs:
                       if (Prefs.enabled(this) && WakeService.inst != null) startAll();
                   });
                   root.addView(rg);
+
+                  // Nachtruhe: das Weckwort schläft zwischen zwei Uhrzeiten
+                  TextView nacht = new TextView(this);
+                  nacht.setText("\nNachtruhe (Weckwort schläft):");
+                  root.addView(nacht);
+                  android.widget.CheckBox cb = new android.widget.CheckBox(this);
+                  cb.setText("Nachtruhe benutzen");
+                  cb.setChecked(Prefs.nightOn(this));
+                  root.addView(cb);
+                  final Button von = new Button(this);
+                  final Button bis = new Button(this);
+                  von.setAllCaps(false);
+                  bis.setAllCaps(false);
+                  von.setText("Von: " + Prefs.hhmm(Prefs.nightFrom(this)) + " Uhr");
+                  bis.setText("Bis: " + Prefs.hhmm(Prefs.nightTo(this)) + " Uhr");
+                  cb.setOnCheckedChangeListener((b, an) -> { Prefs.setNightOn(this, an); WakeService.nachtGeaendert(); });
+                  von.setOnClickListener(v -> {
+                      int m = Prefs.nightFrom(this);
+                      new android.app.TimePickerDialog(this, (tp, hh, mm) -> {
+                          Prefs.setNightFrom(this, hh * 60 + mm);
+                          von.setText("Von: " + Prefs.hhmm(hh * 60 + mm) + " Uhr");
+                          WakeService.nachtGeaendert();
+                      }, m / 60, m % 60, true).show();
+                  });
+                  bis.setOnClickListener(v -> {
+                      int m = Prefs.nightTo(this);
+                      new android.app.TimePickerDialog(this, (tp, hh, mm) -> {
+                          Prefs.setNightTo(this, hh * 60 + mm);
+                          bis.setText("Bis: " + Prefs.hhmm(hh * 60 + mm) + " Uhr");
+                          WakeService.nachtGeaendert();
+                      }, m / 60, m % 60, true).show();
+                  });
+                  root.addView(von);
+                  root.addView(bis);
               }
 
               private void startAll() {
@@ -900,6 +945,7 @@ jobs:
           cat > app/src/main/java/de/dino/zaneweckruf/WakeService.java <<'ZANE_EOF'
           package de.dino.zaneweckruf;
 
+          import android.app.AlarmManager;
           import android.app.KeyguardManager;
           import android.app.Notification;
           import android.app.NotificationChannel;
@@ -962,6 +1008,7 @@ jobs:
                       if (!alive) return;
                       try {
                           // Hängt gebliebene Meldungen lösen (sonst bleibt das Weckwort für immer auf Pause)
+                          if (nachtAktiv() != letzteNacht) nachtWechsel();   // Nachtruhe hat gerade begonnen oder geendet
                           long jetzt = System.currentTimeMillis();
                           boolean geloest = false;
                           if (recActive && jetzt - recSince > 45000) { recActive = false; geloest = true; }
@@ -1001,18 +1048,94 @@ jobs:
               }
 
               static final String ACTION_TOGGLE = "de.dino.zaneweckruf.TOGGLE";
+              static final String ACTION_NACHT = "de.dino.zaneweckruf.NACHT";
+
+              // ---- Nachtruhe: zwischen zwei Uhrzeiten schläft das Weckwort (Handy-Zeit) ----
+              private boolean letzteNacht = false;
+
+              private static boolean inNacht(int von, int bis) {
+                  java.util.Calendar c = java.util.Calendar.getInstance();
+                  int m = c.get(java.util.Calendar.HOUR_OF_DAY) * 60 + c.get(java.util.Calendar.MINUTE);
+                  if (von == bis) return false;
+                  return von < bis ? (m >= von && m < bis) : (m >= von || m < bis);
+              }
+
+              /** Nächster Zeitpunkt (Millisekunden), an dem die angegebene Uhrzeit (Minuten seit Mitternacht) erreicht wird. */
+              private static long naechste(int minuten) {
+                  java.util.Calendar c = java.util.Calendar.getInstance();
+                  c.set(java.util.Calendar.HOUR_OF_DAY, minuten / 60);
+                  c.set(java.util.Calendar.MINUTE, minuten % 60);
+                  c.set(java.util.Calendar.SECOND, 0);
+                  c.set(java.util.Calendar.MILLISECOND, 0);
+                  if (c.getTimeInMillis() <= System.currentTimeMillis() + 1000) c.add(java.util.Calendar.DAY_OF_YEAR, 1);
+                  return c.getTimeInMillis();
+              }
+
+              /** Ist gerade Nachtruhe (und nicht per "Einschalten" übersteuert)? */
+              private boolean nachtAktiv() {
+                  if (!Prefs.nightOn(this)) return false;
+                  if (System.currentTimeMillis() < Prefs.nightOver(this)) return false;
+                  return inNacht(Prefs.nightFrom(this), Prefs.nightTo(this));
+              }
+
+              /** Aus per Knopf oder wegen Nachtruhe. */
+              private boolean ausgeschaltet() {
+                  return Prefs.muted(this) || nachtAktiv();
+              }
+
+              private void wakeLockAnpassen() {
+                  if (ausgeschaltet()) {
+                      // ausgeschaltet: kein Dauer-Wachhalten, das spart Akku
+                      if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+                      wakeLock = null;
+                  } else if (wakeLock == null) {
+                      PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                      wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "zane:lauschen");
+                      wakeLock.acquire();
+                  }
+              }
+
+              /** Weckt den Dienst zur nächsten Grenze der Nachtruhe, auch wenn das Handy schläft (ohne Wachhalten). */
+              private void nachtPlanen() {
+                  try {
+                      AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                      Intent i = new Intent(this, WakeService.class);
+                      i.setAction(ACTION_NACHT);
+                      PendingIntent pi = PendingIntent.getService(this, 3, i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+                      if (!Prefs.nightOn(this)) { am.cancel(pi); return; }
+                      long t = Math.min(naechste(Prefs.nightFrom(this)), naechste(Prefs.nightTo(this)));
+                      am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, t, pi);
+                  } catch (Throwable ignored) { }
+              }
+
+              /** Nachtruhe hat begonnen/geendet oder wurde in den Einstellungen geändert: alles anpassen. */
+              void nachtWechsel() {
+                  try {
+                      letzteNacht = nachtAktiv();
+                      ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE)).notify(1, baueBenachrichtigung());
+                      wakeLockAnpassen();
+                      nachtPlanen();
+                      evalVosk();
+                  } catch (Throwable ignored) { }
+              }
+
+              static void nachtGeaendert() {
+                  final WakeService s = inst;
+                  if (s != null) s.main.post(s::nachtWechsel);
+              }
 
               // Benachrichtigung mit Knopf: Weckwort ein- oder ausschalten (der Dienst bleibt dabei bestehen)
               private Notification baueBenachrichtigung() {
-                  boolean aus = Prefs.muted(this);
+                  boolean manuell = Prefs.muted(this);
+                  boolean aus = ausgeschaltet();
                   Intent open = new Intent(this, MainActivity.class);
                   PendingIntent pi = PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE);
                   Intent tog = new Intent(this, WakeService.class);
                   tog.setAction(ACTION_TOGGLE);
                   PendingIntent togPi = PendingIntent.getService(this, 2, tog, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
                   return new Notification.Builder(this, CH_LISTEN)
-                          .setContentTitle(aus ? "Nova ist aus" : "Nova hört zu")
-                          .setContentText(aus ? "„Hey Nova“ ist ausgeschaltet" : "Sag „Hey Nova“")
+                          .setContentTitle(manuell ? "Nova ist aus" : aus ? "Nova schläft (Nachtruhe)" : "Nova hört zu")
+                          .setContentText(manuell ? "„Hey Nova“ ist ausgeschaltet" : aus ? "Nachtruhe bis " + Prefs.hhmm(Prefs.nightTo(this)) + " Uhr" : "Sag „Hey Nova“")
                           .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                           .setOngoing(true)
                           .setContentIntent(pi)
@@ -1023,10 +1146,19 @@ jobs:
               @Override
               public int onStartCommand(Intent intent, int flags, int startId) {
                   if (intent != null && ACTION_TOGGLE.equals(intent.getAction())) {
-                      boolean jetztAus = !Prefs.muted(this);
-                      Prefs.setMuted(this, jetztAus);
-                      Prefs.setStatus(this, jetztAus ? "aus (Knopf in der Benachrichtigung)" : "lädt …");
+                      if (ausgeschaltet()) {
+                          // Einschalten; mitten in der Nachtruhe gilt das bis zu ihrem Ende
+                          Prefs.setMuted(this, false);
+                          if (nachtAktiv()) Prefs.setNightOver(this, naechste(Prefs.nightTo(this)));
+                          Prefs.setStatus(this, "lädt …");
+                      } else {
+                          Prefs.setMuted(this, true);
+                          Prefs.setNightOver(this, 0L);
+                          Prefs.setStatus(this, "aus (Knopf in der Benachrichtigung)");
+                      }
                   }
+                  letzteNacht = nachtAktiv();
+                  nachtPlanen();
                   Notification n = baueBenachrichtigung();
                   if (Build.VERSION.SDK_INT >= 30) {
                       startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
@@ -1035,15 +1167,7 @@ jobs:
                   }
                   alive = true;
                   if (!watchdogOn) { watchdogOn = true; main.postDelayed(watchdog, 15000); }
-                  if (Prefs.muted(this)) {
-                      // ausgeschaltet: kein Dauer-Wachhalten, das spart Akku
-                      if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
-                      wakeLock = null;
-                  } else if (wakeLock == null) {
-                      PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-                      wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "zane:lauschen");
-                      wakeLock.acquire();
-                  }
+                  wakeLockAnpassen();
                   if (model == null) {
                       loadModel();
                   } else {
@@ -1105,7 +1229,7 @@ jobs:
               // ---- Wann lauschen wir? Nicht, wenn Nova spricht/zuhört oder die Spracherkennung läuft ----
               private boolean want() {
                   if (!alive || model == null) return false;
-                  if (Prefs.muted(this)) return false;
+                  if (ausgeschaltet()) return false;
                   if (recActive) return false;
                   if (System.currentTimeMillis() < holdUntil) return false;
                   if (activityResumed && pageBusy) return false;
@@ -1121,9 +1245,9 @@ jobs:
                   if (!want()) {
                       main.removeCallbacks(startRun);
                       startPending = false;
-                      if (Prefs.muted(this)) {
+                      if (ausgeschaltet()) {
                           stopSpeech();
-                          Prefs.setStatus(this, "aus (Knopf in der Benachrichtigung)");
+                          Prefs.setStatus(this, Prefs.muted(this) ? "aus (Knopf in der Benachrichtigung)" : "Nachtruhe bis " + Prefs.hhmm(Prefs.nightTo(this)) + " Uhr");
                           return;
                       }
                       if (speech != null) {
