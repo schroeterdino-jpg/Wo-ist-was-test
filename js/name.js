@@ -6,7 +6,7 @@
     const ALT = /Zane(?![a-zA-Z_])/g;
     const ALT_S = /Zanes(?![a-zA-Z_])/g;
 
-    function ersetze(t) { return t.replace(ALT_S, NEU + 's').replace(ALT, NEU); }
+    function ersetze(t) { return t.replace(ALT_S, NEU + 's').replace(ALT, NEU).replace(/ZANE(?![A-Z_])/g, 'NOVA'); }
 
     // Anzeige: alle sichtbaren Texte
     function textKnoten(root) {
@@ -16,7 +16,7 @@
             while ((n = w.nextNode())) {
                 const p = n.parentNode && n.parentNode.nodeName;
                 if (p === 'SCRIPT' || p === 'STYLE' || p === 'TEXTAREA') continue;
-                if (n.nodeValue && n.nodeValue.indexOf('Zane') !== -1) n.nodeValue = ersetze(n.nodeValue);
+                if (n.nodeValue && n.nodeValue.search(/Zane|ZANE/) !== -1) n.nodeValue = ersetze(n.nodeValue);
             }
         } catch (e) { }
     }
@@ -26,13 +26,13 @@
             root.querySelectorAll('[placeholder],[title],[aria-label]').forEach(function (el) {
                 ['placeholder', 'title', 'aria-label'].forEach(function (a) {
                     const v = el.getAttribute(a);
-                    if (v && v.indexOf('Zane') !== -1) el.setAttribute(a, ersetze(v));
+                    if (v && v.search(/Zane|ZANE/) !== -1) el.setAttribute(a, ersetze(v));
                 });
             });
         } catch (e) { }
     }
     function alles() {
-        if (document.title.indexOf('Zane') !== -1) document.title = ersetze(document.title);
+        if (document.title.search(/Zane|ZANE/) !== -1) document.title = ersetze(document.title);
         if (document.body) { textKnoten(document.body); attribute(document.body); }
     }
 
