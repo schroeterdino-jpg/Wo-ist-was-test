@@ -82,10 +82,17 @@
     }
 
     /* ---------- Foto(s) -> Rezept ---------- */
+    let letzteAuswertung = null;     // { at, n }: schützt davor, dass dieselben Bilder zweimal ausgewertet werden
     async function processRezept(urls, addTo) {
+        const jetzt = Date.now();
+        if (!addTo && letzteAuswertung && jetzt - letzteAuswertung.at < 60000 && letzteAuswertung.n === urls.length) return;   // doppelt zugestellt
+        letzteAuswertung = { at: jetzt, n: urls.length };
         status('Lese das Rezept ...');
         try { return await processRezeptInner(urls, addTo); }
-        finally { status(''); }     // Statuszeile wieder leeren
+        finally {
+            status('');     // Statuszeile wieder leeren
+            if (!draft || draft.at < jetzt) letzteAuswertung = null;     // nichts erkannt: neuer Versuch bleibt erlaubt
+        }
     }
     async function processRezeptInner(urls, addTo) {
         let lastErr = null;
@@ -125,6 +132,7 @@
             { icon: '💾', title: 'Speichern', subtitle: 'Ins Rezeptbuch', onclick: 'jvRezept.speichern()' },
             { icon: '🖨️', title: 'Drucken', subtitle: 'Druckansicht oder als PDF', onclick: 'jvRezept.drucken()' },
             { icon: '🔊', title: 'Vorlesen', subtitle: 'Zutaten und Zubereitung', onclick: 'jvRezept.vorlesen()' },
+            { icon: '📤', title: 'Per WhatsApp senden', subtitle: 'Rezept als Text verschicken', onclick: 'jvRezept.senden()' },
             { icon: '➕', title: 'Foto hinzufügen', subtitle: 'Zweite Seite, zum Beispiel die Zubereitung', onclick: 'jvRezept.hinzu()' }
         ]);
     }
@@ -206,6 +214,26 @@
         } catch (e) { say('Das Drucken hat nicht geklappt.'); }
     }
 
+    /* ---------- Senden per WhatsApp ---------- */
+    function sendeText(rez) {
+        const z = rez.zutaten.map(x => /:$/.test(x) ? '\n*' + x + '*' : '• ' + x).join('\n');
+        const s = rez.zubereitung.map((x, i) => (i + 1) + '. ' + x).join('\n');
+        const meta = [rez.portionen, rez.zeit].filter(Boolean).join(' · ');
+        return '*' + (rez.titel || 'Rezept') + '*' + (meta ? '\n' + meta : '') +
+            (z ? '\n\n*Zutaten*\n' + z : '') + (s ? '\n\n*Zubereitung*\n' + s : '');
+    }
+
+    function senden(rez) {
+        rez = rez || (hasDraft() ? draft.rez : null);
+        if (!rez) { say('Es gibt gerade kein Rezept zum Senden.'); return; }
+        const url = 'https://wa.me/?text=' + encodeURIComponent(sendeText(rez));
+        try {
+            const w = window.open(url, '_blank');
+            if (!w && !window.ZaneNative) window.location.href = url;
+            say('WhatsApp öffnet sich. Such dort die Person aus, der du das Rezept schicken willst.');
+        } catch (e) { say('Das Senden hat nicht geklappt.'); }
+    }
+
     /* ---------- Anzeige: Rezept auf einem Bildschirm ---------- */
     function zeigen(rez, gespeichert) {
         const old = document.getElementById('jvRezeptView'); if (old) old.remove();
@@ -242,6 +270,7 @@
         };
         btn('🖨️ Drucken', () => drucken(rez));
         btn('🔊 Vorlesen', () => { wrap.remove(); vorlesen(rez); });
+        btn('📤 WhatsApp', () => senden(rez));
         if (gespeichert) {
             let sicher = false;
             btn('🗑️ Löschen', function () {
@@ -294,7 +323,7 @@
         if (a.slice(0, 4) === b.slice(0, 4)) return true;
         return lev(a, b) <= (Math.min(a.length, b.length) >= 7 ? 2 : 1);
     }
-    const BEFEHLSWORT = /^(?:rezept\w*|losch\w*|loesch\w*|entfern\w*|streich\w*|vergiss\w*|zeig\w*|offne\w*|oeffne\w*|druck\w*|ausdruck\w*|vorles\w*|vorlesen|lies|lese|lesen|bitte|dieses|diese\w*|meine\w*|dein\w*|gespeicher\w*|kannst|konnt\w*|koennt\w*|habe|haben|welche|alle|noch|jetzt|nach|auch|mich|dann|wenn|will|moechte|mochte|sollst|soll|mach\w*|gib|gibt|such\w*|find\w*|erste\w*|letzte\w*|aktuelle\w*|rezeptbuch|sammlung)$/;
+    const BEFEHLSWORT = /^(?:rezept\w*|losch\w*|loesch\w*|entfern\w*|streich\w*|vergiss\w*|zeig\w*|offne\w*|oeffne\w*|druck\w*|ausdruck\w*|vorles\w*|vorlesen|lies|lese|lesen|bitte|dieses|diese\w*|meine\w*|dein\w*|gespeicher\w*|kannst|konnt\w*|koennt\w*|habe|haben|welche|alle|noch|jetzt|nach|auch|mich|dann|wenn|will|moechte|mochte|sollst|soll|mach\w*|gib|gibt|such\w*|find\w*|erste\w*|letzte\w*|aktuelle\w*|rezeptbuch|sammlung|whats\w*|schick\w*|send\w*|verschick\w*|teil\w*|per|mir|app)$/;
     function finde(t) {
         const list = loadAll();
         const worte = fold(t).split(' ').filter(w => w.length >= 4 && !BEFEHLSWORT.test(w));
@@ -327,6 +356,7 @@
         merke(r);
         if (aktion === 'loeschen') { loeschen(r.id); return; }
         if (aktion === 'drucken') { drucken(r); return; }
+        if (aktion === 'senden') { senden(r); return; }
         if (aktion === 'vorlesen') { vorlesen(r, /\bzutaten\b/.test(t) ? 'zutaten' : /\bzubereitung\b/.test(t) ? 'zubereitung' : undefined); return; }
         zeigen(r, true);
         say('Hier ist ' + r.titel + '.');
@@ -347,6 +377,7 @@
         if (hasDraft()) {
             if (/^(?:ja|ja bitte|jawohl|gerne|ok|okay|klar|speichern|speicher(?:e)? (?:es|das|ihn|das rezept)|bitte speichern|ja speichern|ablegen|merk dir das|ins rezeptbuch)$/.test(t)) { speichern(); return true; }
             if (/\b(?:druck\w*|ausdruck\w*|druckansicht)\b/.test(t)) { drucken(); return true; }
+            if (/\bwhats\s?app\b|\b(?:schick\w*|send\w*|verschick\w*)\b.*\b(?:es|das|ihn|rezept)\b/.test(t)) { senden(); return true; }
             if (/\bzutaten\b.*\b(?:vorlesen|vor)\b|\blies\w*\b.*\bzutaten\b/.test(t)) { vorlesen(null, 'zutaten'); return true; }
             if (/\bzubereitung\b.*\b(?:vorlesen|vor)\b|\blies\w*\b.*\bzubereitung\b|\bzubereitung\b$/.test(t)) { vorlesen(null, 'zubereitung'); return true; }
             if (/^(?:vorlesen|lies (?:es|das|mir das|mir das rezept) vor|les (?:es|das) vor|lies vor)$/.test(t)) { vorlesen(); return true; }
@@ -378,6 +409,7 @@
         if (hatRezept && loadAll().length) {
             const aktion = loesch ? 'loeschen'
                 : /\b(?:druck\w*|ausdruck\w*)\b/.test(t) ? 'drucken'
+                : /\bwhats\s?app\b|\b(?:schick\w*|send\w*|verschick\w*|teil\w*)\b/.test(t) ? 'senden'
                 : /\b(?:vorles\w*|lies|les|lese|lesen)\b/.test(t) ? 'vorlesen'
                 : /\b(?:zeig\w*|öffne\w*|anzeigen|such\w*|find\w*|aufmachen)\b/.test(t) ? 'zeigen' : null;
             if (aktion) {
@@ -539,7 +571,7 @@
     }
 
     window.jvRezept = {
-        speichern: () => speichern(), drucken: () => drucken(), vorlesen: () => vorlesen(), hinzu,
+        speichern: () => speichern(), drucken: () => drucken(), senden: () => senden(), vorlesen: () => vorlesen(), hinzu,
         ansehen: () => { if (hasDraft()) zeigen(draft.rez, false); },
         oeffne: (id) => { const r = loadAll().find(x => x.id === id); if (r) { merke(r); zeigen(r, true); } },
         aktion: (ak, id) => { const r = loadAll().find(x => x.id === id); warte = null; if (r) tue(ak, r, ''); },
