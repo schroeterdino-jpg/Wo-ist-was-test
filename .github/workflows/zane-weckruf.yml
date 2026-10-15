@@ -420,8 +420,26 @@ jobs:
                   if (req == 77) {
                       pickerUntil = 0;
                       WakeService.release(pickerHold);
-                      final Uri[] uris = res == RESULT_OK ? WebChromeClient.FileChooserParams.parseResult(res, data) : null;
+                      Uri[] u0 = null;
+                      if (res == RESULT_OK) {
+                          u0 = urisAus(data);
+                          if (u0 == null || u0.length == 0) {
+                              try { u0 = WebChromeClient.FileChooserParams.parseResult(res, data); } catch (Throwable ignored) { }
+                          }
+                      }
+                      final Uri[] uris = u0;
                       final int n = uris == null ? 0 : uris.length;
+                      if (res == RESULT_OK && n == 0) {
+                          String info = "Fenster gibt zurück: ";
+                          try {
+                              if (data == null) info += "keine Daten";
+                              else {
+                                  android.content.ClipData cd = data.getClipData();
+                                  info += "clip=" + (cd == null ? "keine" : cd.getItemCount()) + ", data=" + data.getData() + ", extras=" + (data.getExtras() == null ? "keine" : data.getExtras().keySet());
+                              }
+                          } catch (Throwable e) { info += "?"; }
+                          Toast.makeText(this, info, Toast.LENGTH_LONG).show();
+                      }
                       final boolean ohne = fileCallback == null || chooserStale;
                       Toast.makeText(this, "Auswahl: " + n + (n == 1 ? " Datei" : " Dateien") + (res == RESULT_OK ? "" : " (abgebrochen)") + (ohne ? " – gehe direkt" : ""), Toast.LENGTH_SHORT).show();
                       ValueCallback<Uri[]> cb = fileCallback;
@@ -467,6 +485,21 @@ jobs:
                   try {
                       c.startActivity(i);
                   } catch (Throwable ignored) { }
+              }
+
+              private Uri[] urisAus(Intent data) {
+                  ArrayList<Uri> l = new ArrayList<>();
+                  try {
+                      if (data != null) {
+                          android.content.ClipData cd = data.getClipData();
+                          if (cd != null) for (int k = 0; k < cd.getItemCount(); k++) {
+                              Uri u = cd.getItemAt(k).getUri();
+                              if (u != null) l.add(u);
+                          }
+                          if (l.isEmpty() && data.getData() != null) l.add(data.getData());
+                      }
+                  } catch (Throwable ignored) { }
+                  return l.toArray(new Uri[0]);
               }
 
               // ---- Bilder aus dem Ordner selbst an die Seite geben (Notweg) ----
