@@ -77,6 +77,15 @@ jobs:
               <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
               <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+              <queries>
+                  <intent>
+                      <action android:name="android.intent.action.VIEW" />
+                      <category android:name="android.intent.category.BROWSABLE" />
+                      <data android:scheme="https" android:host="wo-ist-was-test.vercel.app" />
+                  </intent>
+                  <package android:name="com.android.chrome" />
+              </queries>
+
               <application
                   android:label="Zane Weckruf"
                   android:allowBackup="false"
@@ -234,7 +243,7 @@ jobs:
               private static SharedPreferences sp(Context c) {
                   return c.getSharedPreferences("zane", Context.MODE_PRIVATE);
               }
-              static int level(Context c) { return sp(c).getInt("level", 1); }
+              static int level(Context c) { return sp(c).getInt("level", 0); }
               static void setLevel(Context c, int v) { sp(c).edit().putInt("level", v).apply(); }
               static String status(Context c) { return sp(c).getString("status", "aus"); }
               static void setStatus(Context c, String s) { sp(c).edit().putString("status", s).apply(); }
@@ -265,6 +274,7 @@ jobs:
           import android.os.Looper;
           import android.os.PowerManager;
 
+          import org.json.JSONArray;
           import org.json.JSONObject;
           import org.vosk.Model;
           import org.vosk.Recognizer;
@@ -379,12 +389,21 @@ jobs:
                   f.delete();
               }
 
+              private static final String[][] NAMEN = {
+                      {"zane", "zain", "zayn"},
+                      {"zane", "zain", "zayn", "jane", "sane", "jain"},
+                      {"zane", "zain", "zayn", "jane", "sane", "jain", "shane", "cain", "payne", "zen"}
+              };
+              // Ähnlich klingende Ablenker: Sie sorgen dafür, dass Radio und Gespräche nicht auf "hey zane" gezwungen werden.
+              private static final String[] ABLENKER = {"hey", "hey there", "hey you", "hey man", "hey guys", "hey john", "hey jay",
+                      "hey siri", "hey google", "hey alexa", "hey sam", "hey dan", "hey ben", "hey jack", "hey mate", "okay", "hello", "hi there"};
+
               private String grammar() {
-                  int level = Prefs.level(this);
-                  String g = "\"hey zane\", \"hey zain\", \"hey zayn\"";
-                  if (level >= 1) g += ", \"hey jane\", \"hey sane\", \"hey jain\"";
-                  if (level >= 2) g += ", \"hey shane\", \"hey cain\", \"hey payne\", \"hey zen\"";
-                  return "[" + g + ", \"[unk]\"]";
+                  StringBuilder g = new StringBuilder("[");
+                  for (String n : NAMEN[Prefs.level(this)]) g.append("\"hey ").append(n).append("\", ");
+                  for (String d : ABLENKER) g.append("\"").append(d).append("\", ");
+                  g.append("\"[unk]\"]");
+                  return g.toString();
               }
 
               private void startSpeech() {
@@ -392,6 +411,7 @@ jobs:
                   if (model == null || !alive) return;
                   try {
                       Recognizer rec = new Recognizer(model, 16000.0f, grammar());
+                      rec.setWords(true);
                       speech = new SpeechService(rec, 16000.0f);
                       speech.startListening(this);
                       Prefs.setStatus(this, "lauscht auf „Hey Zane“");
@@ -407,12 +427,30 @@ jobs:
                   }
               }
 
-              private void check(String json, String key) {
+              private void check(String json) {
                   try {
-                      String t = new JSONObject(json).optString(key, "").toLowerCase(Locale.ROOT).replace("[unk]", "").trim();
-                      if (t.isEmpty()) return;
-                      Prefs.setLast(this, t);
-                      trigger();
+                      JSONObject o = new JSONObject(json);
+                      String text = o.optString("text", "").toLowerCase(Locale.ROOT).trim();
+                      if (text.isEmpty() || text.equals("[unk]")) return;
+                      double min = 1.0;
+                      JSONArray ws = o.optJSONArray("result");
+                      if (ws != null) {
+                          for (int k = 0; k < ws.length(); k++) min = Math.min(min, ws.getJSONObject(k).optDouble("conf", 1.0));
+                      }
+                      int level = Prefs.level(this);
+                      String[] teile = text.split("\\s+");
+                      boolean passt = false;
+                      if (teile.length == 2 && teile[0].equals("hey")) {
+                          for (String n : NAMEN[level]) if (n.equals(teile[1])) passt = true;
+                      }
+                      double noetig = level == 0 ? 0.8 : (level == 1 ? 0.6 : 0.4);
+                      String info = text + " (" + String.format(Locale.US, "%.2f", min) + ")";
+                      if (passt && min >= noetig) {
+                          Prefs.setLast(this, "erkannt: " + info);
+                          trigger();
+                      } else {
+                          Prefs.setLast(this, "abgelehnt: " + info);
+                      }
                   } catch (Throwable ignored) { }
               }
 
@@ -433,6 +471,7 @@ jobs:
               private void openZane() {
                   Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(ZANE_URL));
                   i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                  i.addCategory(Intent.CATEGORY_BROWSABLE);
                   NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                   try {
                       PendingIntent pi = PendingIntent.getActivity(this, 1, i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
@@ -448,13 +487,29 @@ jobs:
                       nm.notify(2, n);
                       main.postDelayed(() -> nm.cancel(2), 30000);
                   } catch (Throwable ignored) { }
+                  // Zane gehört einer installierten Web-App (WebAPK) bzw. Chrome. Nicht den Standardbrowser nehmen (bei Dino Brave),
+                  // der hat einen eigenen, leeren Speicher und keine Spracherkennung.
+                  String ziel = null;
+                  try {
+                      for (android.content.pm.ResolveInfo ri : getPackageManager().queryIntentActivities(i, 0)) {
+                          String pk = ri.activityInfo.packageName;
+                          if (pk.contains("webapk")) { ziel = pk; break; }
+                      }
+                  } catch (Throwable ignored) { }
+                  if (ziel == null) ziel = "com.android.chrome";
+                  i.setPackage(ziel);
                   try {
                       startActivity(i);
-                  } catch (Throwable ignored) { }
+                  } catch (Throwable e1) {
+                      try {
+                          i.setPackage(null);
+                          startActivity(i);
+                      } catch (Throwable ignored) { }
+                  }
               }
 
-              @Override public void onPartialResult(String hypothesis) { check(hypothesis, "partial"); }
-              @Override public void onResult(String hypothesis) { check(hypothesis, "text"); }
+              @Override public void onPartialResult(String hypothesis) { }
+              @Override public void onResult(String hypothesis) { check(hypothesis); }
               @Override public void onFinalResult(String hypothesis) { }
               @Override public void onError(Exception exception) { Prefs.setStatus(this, "Fehler: " + exception); }
               @Override public void onTimeout() { }
