@@ -16,6 +16,7 @@ const SYNC_KEYS = [
     'helfer_contacts',
     'helfer_briefing_wishes',
     'helfer_parking',
+    'helfer_rezepte',
     'helfer_home_address',
     'user_custom_name'
 ];
@@ -86,8 +87,9 @@ function unionMerge(remoteStr, localStr) {
         const r = JSON.parse(remoteStr);
         const l = JSON.parse(localStr);
         if (Array.isArray(r) && Array.isArray(l)) {
-            const seen = new Set(r.map(e => normalizeKey(e.text)));
-            return JSON.stringify([...r, ...l.filter(e => !seen.has(normalizeKey(e.text)))]);
+            const nm = e => normalizeKey((e && (e.text || e.titel)) || '');   // Einkauf/Aufgaben: text, Rezepte: titel
+            const seen = new Set(r.map(nm));
+            return JSON.stringify([...r, ...l.filter(e => !seen.has(nm(e)))]);
         }
         if (r && l && typeof r === 'object' && typeof l === 'object' && !Array.isArray(r) && !Array.isArray(l)) {
             return JSON.stringify({ ...l, ...r });
