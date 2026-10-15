@@ -259,8 +259,8 @@
             if (!list.length) { say(`Für ${stateName()} finde ich in den nächsten Monaten keine lohnenden Brückentage.`); return true; }
             openHolidayWindow();
             const first = list.slice(0, 2).map(b => {
-                const nimm = b.urlaub === 1 ? `Nehmen Sie ${shortDay(b.take[0])} frei` : `Nehmen Sie ${shortDay(b.take[0])} und ${shortDay(b.take[1])} frei, oder ${shortDay(b.alt[0])} und ${shortDay(b.alt[1])}`;
-                return `${b.holiday.name} ist am ${dayText(b.holiday.date)}. ${nimm}, dann haben Sie ${b.frei} Tage am Stück.`;
+                const nimm = b.urlaub === 1 ? `Nimm ${shortDay(b.take[0])} frei` : `Nimm ${shortDay(b.take[0])} und ${shortDay(b.take[1])} frei, oder ${shortDay(b.alt[0])} und ${shortDay(b.alt[1])}`;
+                return `${b.holiday.name} ist am ${dayText(b.holiday.date)}. ${nimm}, dann hast du ${b.frei} Tage am Stück.`;
             });
             say(`In ${stateName()} gibt es als Nächstes diese Brückentage. ${first.join(' ')} Weitere stehen unten.`);
             return true;

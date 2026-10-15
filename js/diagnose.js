@@ -41,7 +41,7 @@ function diagClose() {
 
 function diagStart(text) {
     if (!diagEnabled()) return;
-    diagLines = [`▶ ${new Date().toLocaleTimeString('de-DE')}  Sie: ${String(text || '').slice(0, 120)}`];
+    diagLines = [`▶ ${new Date().toLocaleTimeString('de-DE')}  Du: ${String(text || '').slice(0, 120)}`];
     diagRender();
 }
 
@@ -95,7 +95,7 @@ function handleDiagCommand(text) {
     const say = (m) => speak(m, typeof continueConversation === 'function' ? continueConversation : undefined);
     if (/^(?:diagnose|diagnosemodus|diagnose-?fenster) (?:an|ein|einschalten|aktivieren)$/.test(t) || /^schalte? (?:die )?diagnose (?:an|ein)$/.test(t)) {
         setPersistentData(DIAG_KEY, '1');
-        say('Die Diagnose ist an. Unten im Bild sehen Sie jetzt, was bei jeder Anfrage an die KI passiert.');
+        say('Die Diagnose ist an. Unten im Bild siehst du jetzt, was bei jeder Anfrage an die KI passiert.');
         return true;
     }
     if (/^(?:diagnose|diagnosemodus|diagnose-?fenster) (?:aus|ab|ausschalten|deaktivieren)$/.test(t) || /^schalte? (?:die )?diagnose aus$/.test(t)) {

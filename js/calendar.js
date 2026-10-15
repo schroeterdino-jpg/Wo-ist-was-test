@@ -60,7 +60,7 @@ setInterval(() => {
                 rem.nagCount = 0;
                 rem.nextNagAt = now.getTime() + NAG_INTERVAL_MS;
                 rem.done = false;
-                speak(`Zur Erinnerung: ${rem.text}. Sagen Sie erledigt, sobald Sie es getan haben, sonst frage ich nach.`);
+                speak(`Zur Erinnerung: ${rem.text}. Sag erledigt, sobald du es getan hast, sonst frage ich nach.`);
             } else {
                 speak(`Zur Erinnerung: ${rem.text}`);
             }
@@ -78,7 +78,7 @@ setInterval(() => {
                     speak(`Letzte Erinnerung: ${rem.text}. Ich frage nicht weiter nach.`);
                 } else {
                     rem.nextNagAt = now.getTime() + NAG_INTERVAL_MS;
-                    speak(`Noch einmal zur Erinnerung: ${rem.text}. Haben Sie das erledigt?`);
+                    speak(`Noch einmal zur Erinnerung: ${rem.text}. Hast du das erledigt?`);
                 }
                 if ('Notification' in window && Notification.permission === 'granted') {
                     jvLocalNotify(`Erinnerung für ${currentUserName}`, rem.text);
@@ -299,9 +299,9 @@ function googleProblemText(p) {
         case 'nicht_angemeldet': return 'Der Google Kalender ist nicht verbunden.';
         case 'abgelaufen': return 'Die Google-Anmeldung ist abgelaufen.';
         case 'berechtigung': return 'Google verweigert den Zugriff, es fehlt eine Berechtigung.';
-        case 'zu_viele': return 'Google meldet zu viele Anfragen, bitte versuchen Sie es gleich noch einmal.';
+        case 'zu_viele': return 'Google meldet zu viele Anfragen, bitte versuch es gleich noch einmal.';
         case 'abgelehnt': return 'Google hat den Eintrag abgelehnt, die Angaben passten nicht.';
-        case 'google_stoerung': return 'Google hat gerade selbst ein Problem, bitte versuchen Sie es gleich noch einmal.';
+        case 'google_stoerung': return 'Google hat gerade selbst ein Problem, bitte versuch es gleich noch einmal.';
         case 'netz': return 'Google ist gerade nicht erreichbar, vermutlich fehlt die Internetverbindung.';
         case 'nicht_gefunden': return 'Google kennt diesen Eintrag nicht mehr.';
         case 'lokal': return 'Dieser Termin liegt nur in der App.';

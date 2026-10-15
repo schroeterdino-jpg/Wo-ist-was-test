@@ -261,7 +261,7 @@ function ferienDefaultYear(kind) {
 async function runFerien(req) {
     try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Hole Ferientermine...'); } catch (e) {}
     try { await ferienLoad(req.year || 0); }
-    catch (e) { ferienSay('Die Ferientermine kann ich gerade nicht laden. Versuchen Sie es bitte gleich noch einmal.'); return; }
+    catch (e) { ferienSay('Die Ferientermine kann ich gerade nicht laden. Versuch es bitte gleich noch einmal.'); return; }
 
     // Vergleich aller Bundesländer
     if (req.all) {
@@ -280,7 +280,7 @@ async function runFerien(req) {
     let codes = req.states.slice(0, 3);
     if (!codes.length) {
         const home = await ferienHomeState();
-        if (!home) { ferienSay('Für welches Bundesland? Sagen Sie zum Beispiel: Wann sind die Herbstferien in Hamburg? Oder legen Sie Ihres fest: Mein Bundesland ist Schleswig-Holstein.'); return; }
+        if (!home) { ferienSay('Für welches Bundesland? Sag zum Beispiel: Wann sind die Herbstferien in Hamburg? Oder lege deines fest: Mein Bundesland ist Schleswig-Holstein.'); return; }
         codes = [home];
     }
 
@@ -325,9 +325,9 @@ function handleFerienCommand(text) {
     const req = parseFerienRequest(text);
     if (!req) return false;
     if (req.setHome !== undefined) {
-        if (req.setHome === '?') { ferienSay('Welches Bundesland meinen Sie? Sagen Sie zum Beispiel: Mein Bundesland ist Schleswig-Holstein.'); return true; }
+        if (req.setHome === '?') { ferienSay('Welches Bundesland meinst du? Sag zum Beispiel: Mein Bundesland ist Schleswig-Holstein.'); return true; }
         ferienSetHome(req.setHome);
-        ferienSay(`Gut, Ihr Bundesland ist ${ferienStateByCode(req.setHome).name}.`);
+        ferienSay(`Gut, dein Bundesland ist ${ferienStateByCode(req.setHome).name}.`);
         return true;
     }
     runFerien(req).catch(() => { try { speak('Der Ferienkalender hat gerade nicht geklappt.'); } catch (e) {} });

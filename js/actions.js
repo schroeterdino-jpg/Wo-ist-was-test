@@ -254,7 +254,7 @@ async function executeAction(action, text, ctx) {
             });
             // Steht der Gegenstand im Gedächtnis, wird er mit Platz genannt; sonst als einfacher Hinweis
             if (inMemory) addBriefingWish('item', item, Date.now() + ctx.counter++);
-            else addBriefingWish('text', `Denken Sie an: ${item}.`, Date.now() + ctx.counter++);
+            else addBriefingWish('text', `Denk an: ${item}.`, Date.now() + ctx.counter++);
         }
         if (wish) addBriefingWish('text', wish, Date.now() + ctx.counter++);
         updateTerminalStream("BRIEFING: WISH_ADDED");

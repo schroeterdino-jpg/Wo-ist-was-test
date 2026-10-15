@@ -39,7 +39,7 @@ async function sendToGroqSmart(text, opts = {}) {
         try { renderAllLists(); } catch (x) {}
         try { if (typeof diagError === 'function') diagError(e); } catch (x) {}
         try { window.dispatchEvent(new ErrorEvent('error', { message: 'KI-Ablauf: ' + ((e && e.message) || e), filename: 'js/assistant.js', lineno: 0 })); } catch (x) {}
-        const failText = 'Da ist bei mir intern etwas nicht in Ordnung, wahrscheinlich passt eine Programmdatei nicht zur anderen. Den Grund sehen Sie unten im Bild.';
+        const failText = 'Da ist bei mir intern etwas nicht in Ordnung, wahrscheinlich passt eine Programmdatei nicht zur anderen. Den Grund siehst du unten im Bild.';
         if (opts && opts.collect) opts.collect(failText, []); else speak(failText);
     }
 }
@@ -278,7 +278,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
                 let data;
                 if (emailReadAction) {
                     const id = resolveEmailRef(emailReadAction.email_ref);
-                    if (!id) throw userError("Ich weiß nicht genau, welche E-Mail Sie meinen. Fragen Sie mich zuerst, ob Sie E-Mails haben.");
+                    if (!id) throw userError("Ich weiß nicht genau, welche E-Mail du meinst. Frag mich zuerst, ob du E-Mails hast.");
                     data = { email_inhalt: await fetchEmailFullText(id) };
                 } else {
                     const overview = await fetchEmailOverview({ onlyUnread: emailCheckAction.email_unread_only !== false, max: 8, query: emailCheckAction.email_query || '', importantOnly: !!emailCheckAction.email_important_only });
@@ -439,7 +439,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
             typeWriterStatus("Durchsuche das Internet...");
             updateTerminalStream("API_FETCH: WEB_SEARCH", "FETCHING");
             webReply = await answerWithWebSearch(text, webAction.web_query || '');
-            if (!webReply) webReply = "Die Suche im Internet hat gerade nicht geklappt. Versuchen Sie es bitte gleich noch einmal.";
+            if (!webReply) webReply = "Die Suche im Internet hat gerade nicht geklappt. Versuch es bitte gleich noch einmal.";
         }
 
         let replyText = searchReply || webReply || emailReply || travelReply || nearbyReply || fuelReply || bahnReply || ai.reply;
@@ -449,14 +449,14 @@ async function sendToGroqSmartCore(text, opts = {}) {
                 if (results.length === 0) {
                     replyText = `Dazu konnte ich in meinen Datenbanken leider keinen Eintrag finden.`;
                 } else if (results[0].unscharf) {
-                    replyText = `Meinten Sie vielleicht "${results[0].key}"? Dazu habe ich: ${results[0].value}`;
+                    replyText = `Meintest du vielleicht "${results[0].key}"? Dazu habe ich: ${results[0].value}`;
                 } else {
                     replyText = `Ich habe Folgendes in meinen Registern gefunden: ${results.map(r => `${r.key}:${r.value}`).join(', ')}`;
                 }
             } else {
-                replyText = sassLevel() >= 3 ? pickRandom([`Erledigt, ${currentUserName}. Sie dürfen jetzt klatschen.`, `Ist passiert. Ihre Dankbarkeit nehme ich bar entgegen.`, `Fertig. Das war leichter als Ihr Gesichtsausdruck vermuten ließ.`])
-                    : sassLevel() >= 2 ? pickRandom([`Erledigt, ${currentUserName}. Applaus ist optional.`, `Ist passiert. Sie müssen nichts weiter tun.`, `Fertig. Das ging schneller als Ihr Gedanke dazu.`])
-                    : `Zu Ihren Diensten, ${currentUserName}. Es ist erledigt.`;
+                replyText = sassLevel() >= 3 ? pickRandom([`Erledigt, ${currentUserName}. Du darfst jetzt klatschen.`, `Ist passiert. Deine Dankbarkeit nehme ich bar entgegen.`, `Fertig. Das war leichter als dein Gesichtsausdruck vermuten ließ.`])
+                    : sassLevel() >= 2 ? pickRandom([`Erledigt, ${currentUserName}. Applaus ist optional.`, `Ist passiert. Du musst nichts weiter tun.`, `Fertig. Das ging schneller als dein Gedanke dazu.`])
+                    : `Zu deinen Diensten, ${currentUserName}. Es ist erledigt.`;
             }
         }
 
@@ -496,9 +496,9 @@ async function sendToGroqSmartCore(text, opts = {}) {
         updateTerminalStream("SYS_ERR: COMMS_FAILURE", "ERROR");
         try { if (typeof diagError === 'function') diagError(e); } catch (x) {}
         const failText = (e && e.auth) ? e.userMessage : pickRandom([
-            `Verzeihen Sie, ${currentUserName}, meine Sensoren scheinen gerade blockiert zu sein.`,
+            `Verzeih, ${currentUserName}, meine Sensoren scheinen gerade blockiert zu sein.`,
             `Da hakt es gerade irgendwo in der Leitung, ${currentUserName}. Nochmal, bitte.`,
-            `Entschuldigung, die Verbindung ist mir kurz weggebrochen. Versuchen Sie es noch einmal.`,
+            `Entschuldigung, die Verbindung ist mir kurz weggebrochen. Versuch es noch einmal.`,
             `Hm, da war wohl gerade niemand zu Hause am anderen Ende. Einen Moment, und nochmal bitte.`
         ]);
         clearTimeout(ackTimer);

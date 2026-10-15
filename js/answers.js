@@ -59,7 +59,7 @@ async function answerWithEmailResults(messages, firstAi, data) {
 function formatEmailFallback(data) {
     if (data.email_inhalt) return `${data.email_inhalt.betreff}, von ${data.email_inhalt.von}: ${data.email_inhalt.text}`;
     const ov = data.uebersicht;
-    if (!ov || ov.emails.length === 0) return ov && ov.anzahl_ungelesen === 0 ? 'Sie haben keine ungelesenen E-Mails.' : 'Ich habe dazu keine E-Mails gefunden.';
+    if (!ov || ov.emails.length === 0) return ov && ov.anzahl_ungelesen === 0 ? 'Du hast keine ungelesenen E-Mails.' : 'Ich habe dazu keine E-Mails gefunden.';
     const teile = ov.emails.slice(0, 5).map(e => `${e.von}: ${e.betreff}`);
     const anzahl = ov.anzahl_ungelesen !== null ? `${ov.anzahl_ungelesen} ungelesene E-Mails. ` : '';
     return anzahl + teile.join('. ');

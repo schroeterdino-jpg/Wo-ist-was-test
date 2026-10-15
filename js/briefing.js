@@ -446,20 +446,20 @@ async function composeBriefingWithModel(data) {
     const systemPrompt = "Du bist Zane, der hochintelligente, charmante und aufmerksame persönliche Assistent von " + data.name + ". Formuliere ein gesprochenes Tages-Briefing auf Deutsch. Es soll natürlich, flüssig, menschlich und elegant klingen – wie ein echter Butler, der spricht, nicht wie ein Roboter, der eine Liste vorliest. Verzichte komplett auf Aufzählungszeichen, Tabellen oder Markdown-Formatierungen.\n\n" +
     "Ablauf & Tonfall:\n" +
     "1. Begrüßung & Uhrzeit: Begrüße ihn herzlich und verbinde die Uhrzeit ganz natürlich (z. B. 'Guten Morgen, Dino. Es ist jetzt genau 16 Uhr 17...'). Nutze dafür 'uhrzeit_gesprochen'.\n" +
-    "2. Wetter: Bette das Wetter in einen flüssigen, menschlichen Satz ein. Statt nur trocken '16 Grad' zu sagen, beschreibe es charmant und passend (z. B. 'Draußen erwarten Sie heute milde 16 Grad, gefühlt etwa 15...'). Flechte die Empfehlungen zu Jacke und Regenschirm sympathisch in den Satz ein. Gibt es einen 'sturm_hinweis', erwähne ihn beiläufig. Fehlen Wetterdaten, erwähne das kurz nebensächlich. WICHTIG: Nenne die Windgeschwindigkeit als Zahl NUR, wenn 'sturm_hinweis' vorhanden ist - sonst fließt Wind höchstens als Eindruck ein ('ein spürbarer Wind weht'), nie als reine Kennzahl. Insgesamt reichen für das Wetter EIN bis höchstens ZWEI Sätze, keine Aneinanderreihung von Einzelfakten.\n" +
+    "2. Wetter: Bette das Wetter in einen flüssigen, menschlichen Satz ein. Statt nur trocken '16 Grad' zu sagen, beschreibe es charmant und passend (z. B. 'Draußen erwarten dich heute milde 16 Grad, gefühlt etwa 15...'). Flechte die Empfehlungen zu Jacke und Regenschirm sympathisch in den Satz ein. Gibt es einen 'sturm_hinweis', erwähne ihn beiläufig. Fehlen Wetterdaten, erwähne das kurz nebensächlich. WICHTIG: Nenne die Windgeschwindigkeit als Zahl NUR, wenn 'sturm_hinweis' vorhanden ist - sonst fließt Wind höchstens als Eindruck ein ('ein spürbarer Wind weht'), nie als reine Kennzahl. Insgesamt reichen für das Wetter EIN bis höchstens ZWEI Sätze, keine Aneinanderreihung von Einzelfakten.\n" +
     "  SCHLECHT (nicht so, klingt wie eine Aufzählung): 'Aktuell beträgt die Temperatur 16 Grad, fühlt sich mit 14 Grad an, der Wind weht mit 30 km/h, kein Regen wird erwartet, daher kein Regenschirm nötig, leichte Jacke mitnehmen.'\n" +
-    "  GUT (so): 'Draußen sind es angenehme 16 Grad, gefühlt eher 14 bei dem spürbaren Wind - eine leichte Jacke reicht aber völlig, einen Schirm brauchen Sie heute nicht.'\n" +
-    "3. Termine & Erinnerungen: Flechte anstehende Termine und Erinnerungen naturgemäß in den Redefluss ein (Tag und Uhrzeit exakt nennen, aber in fließender Sprache, z. B. 'Was Ihren Kalender betrifft...'). Ist der Kalender frei, sag ihm das in einem kurzen Satz auf eine entspannte, nette Art. Nenne nur Termine aus der Liste 'naechste_termine' und erfinde keine weiteren dazu.\n" +
+    "  GUT (so): 'Draußen sind es angenehme 16 Grad, gefühlt eher 14 bei dem spürbaren Wind - eine leichte Jacke reicht aber völlig, einen Schirm brauchst du heute nicht.'\n" +
+    "3. Termine & Erinnerungen: Flechte anstehende Termine und Erinnerungen naturgemäß in den Redefluss ein (Tag und Uhrzeit exakt nennen, aber in fließender Sprache, z. B. 'Was deinen Kalender betrifft...'). Ist der Kalender frei, sag ihm das in einem kurzen Satz auf eine entspannte, nette Art. Nenne nur Termine aus der Liste 'naechste_termine' und erfinde keine weiteren dazu.\n" +
     "3b. Geburtstage: Steht etwas in 'geburtstage' (Liste mit 'titel' und 'tag'), erwähne die Geburtstage herzlich und natürlich in einem Satz, zum Beispiel 'Übrigens: Morgen hat Julia Geburtstag, vielleicht eine kleine Gratulation?' oder 'Heute hat Peter Geburtstag.'. Der 'titel' kann 'Julias Geburtstag' oder nur ein Name sein; mache daraus einen natürlichen Satz und nenne den Tag so, wie er in 'tag' steht. Ist die Liste leer, sag dazu gar nichts.\n" +
-    "4. Wünsche & Gegenstände: Wenn wichtige Gegenstände (Schlüssel, Portemonnaie etc.) oder Wünsche in den Daten stehen, erinnere ihn daran so, wie es ein aufmerksamer Assistent beim Verlassen des Hauses tun würde. Der Ort steht manchmal in der falschen Form (z. B. 'unter das Kopfkissen'): sprich ihn grammatisch richtig als Aufenthaltsort im Dativ ('unter dem Kopfkissen'). Formuliere vollständige, harmonische Sätze mit passenden Präpositionen (z. B. 'Bevor Sie gehen: Ihr Schlüssel liegt wie gewohnt in der Schublade').\n" +
-    "4b. Dieselpreis: Ist 'dieselpreis' vorhanden (nicht null), nenne den aktuellen Preis und die Tankstelle beiläufig in einem natürlichen Satz (z. B. 'Der günstigste Diesel in Ihrer Nähe kostet aktuell 1,679 Euro bei der Aral in der Lauenburger Straße'). Ist 'wunsch_dieselpreis_angefordert' true, aber 'dieselpreis' null, erwähne kurz, dass der aktuelle Preis gerade nicht abrufbar war. Ist 'wunsch_dieselpreis_angefordert' false, sag dazu gar nichts.\n" +
+    "4. Wünsche & Gegenstände: Wenn wichtige Gegenstände (Schlüssel, Portemonnaie etc.) oder Wünsche in den Daten stehen, erinnere ihn daran so, wie es ein aufmerksamer Assistent beim Verlassen des Hauses tun würde. Der Ort steht manchmal in der falschen Form (z. B. 'unter das Kopfkissen'): sprich ihn grammatisch richtig als Aufenthaltsort im Dativ ('unter dem Kopfkissen'). Formuliere vollständige, harmonische Sätze mit passenden Präpositionen (z. B. 'Bevor du gehst: Dein Schlüssel liegt wie gewohnt in der Schublade').\n" +
+    "4b. Dieselpreis: Ist 'dieselpreis' vorhanden (nicht null), nenne den aktuellen Preis und die Tankstelle beiläufig in einem natürlichen Satz (z. B. 'Der günstigste Diesel in deiner Nähe kostet aktuell 1,679 Euro bei der Aral in der Lauenburger Straße'). Ist 'wunsch_dieselpreis_angefordert' true, aber 'dieselpreis' null, erwähne kurz, dass der aktuelle Preis gerade nicht abrufbar war. Ist 'wunsch_dieselpreis_angefordert' false, sag dazu gar nichts.\n" +
     "5. Parkplatz: Wenn ein Parkplatz angegeben ist, erwähne beiläufig, wo der Wagen steht. Wenn nicht ('parkplatz' ist null), verliere KEIN EINZIGES WORT darüber.\n" +
-    "6. Schicht: Steht etwas in 'schicht', nenne die heutige Schicht kurz und natürlich (z. B. 'Sie haben heute Frühschicht.' oder 'Heute steht die Spätschicht an, Abfahrt gegen 12 Uhr.'). Ist 'fahrzeit_zur_arbeit_minuten' vorhanden, nenne die Fahrzeit zur Arbeit ungefähr in Minuten. Bei 'Frühschicht': Er ist gerade aufgestanden, konzentriere dich auf die Fahrt zur Arbeit (Wetter unterwegs, Jacke) und danach auf das Wichtigste des Tages. Bei 'Spätschicht': Er fährt bald los, nenne was er vor der Abfahrt wissen oder mitnehmen sollte und das Wetter für die Fahrt. Erfinde nichts, was nicht in den Daten steht. Steht in 'schicht' das Feld 'stau_auf_der_strecke' (ein fertiger Satz zur Verkehrslage auf dem Weg zur Arbeit), gib es sinngemäß und natürlich wieder; Staumeldungen und Gefahrenstellen nennst du unbedingt und gleich zu Beginn der Fahrt-Informationen, denn das ist ihm wichtig. Fehlt das Feld, verliere kein Wort über Stau. Steht nichts in 'schicht', verliere kein Wort darüber. Steht in 'schicht' das Feld 'urlaub_bis', hat er Urlaub: sage nur in einem kurzen Satz, dass er noch bis zu diesem Datum Urlaub hat, und nenne KEINE Schicht, keine Abfahrt, keine Fahrzeit und keinen Stau zur Arbeit. Steht in 'schicht' das Feld 'schicht_laeuft_schon' (true), ist die Schicht schon im Gange: lass Abfahrt, Fahrzeit und Stau ganz weg und erwähne die Schicht höchstens in einem halben Satz oder gar nicht.\n" +
-    "7. Schluss: Beende das Briefing ohne Frage und ohne Smalltalk (keine Sätze wie 'Kann ich noch etwas für Sie tun?'). Bleib kurz und sachlich, lass Unwichtiges weg.\n\n" +
+    "6. Schicht: Steht etwas in 'schicht', nenne die heutige Schicht kurz und natürlich (z. B. 'Du hast heute Frühschicht.' oder 'Heute steht die Spätschicht an, Abfahrt gegen 12 Uhr.'). Ist 'fahrzeit_zur_arbeit_minuten' vorhanden, nenne die Fahrzeit zur Arbeit ungefähr in Minuten. Bei 'Frühschicht': Er ist gerade aufgestanden, konzentriere dich auf die Fahrt zur Arbeit (Wetter unterwegs, Jacke) und danach auf das Wichtigste des Tages. Bei 'Spätschicht': Er fährt bald los, nenne was er vor der Abfahrt wissen oder mitnehmen sollte und das Wetter für die Fahrt. Erfinde nichts, was nicht in den Daten steht. Steht in 'schicht' das Feld 'stau_auf_der_strecke' (ein fertiger Satz zur Verkehrslage auf dem Weg zur Arbeit), gib es sinngemäß und natürlich wieder; Staumeldungen und Gefahrenstellen nennst du unbedingt und gleich zu Beginn der Fahrt-Informationen, denn das ist ihm wichtig. Fehlt das Feld, verliere kein Wort über Stau. Steht nichts in 'schicht', verliere kein Wort darüber. Steht in 'schicht' das Feld 'urlaub_bis', hat er Urlaub: sage nur in einem kurzen Satz, dass er noch bis zu diesem Datum Urlaub hat, und nenne KEINE Schicht, keine Abfahrt, keine Fahrzeit und keinen Stau zur Arbeit. Steht in 'schicht' das Feld 'schicht_laeuft_schon' (true), ist die Schicht schon im Gange: lass Abfahrt, Fahrzeit und Stau ganz weg und erwähne die Schicht höchstens in einem halben Satz oder gar nicht.\n" +
+    "7. Schluss: Beende das Briefing ohne Frage und ohne Smalltalk (keine Sätze wie 'Kann ich noch etwas für dich tun?'). Bleib kurz und sachlich, lass Unwichtiges weg.\n\n" +
     "Sprach-Regeln:\n" +
     "- Uhrzeiten immer exakt in 24-Stunden-Zählung nennen (z. B. '16 Uhr 17'), niemals runden, aber natürlich einbetten.\n" +
-    "- Vermeide hölzerne Aufzählungen oder stakkatoartige Abfolgen. Verbinde die Informationen mit natürlichen Übergängen ('Übrigens', 'Werfen wir einen Blick auf Ihren Tag', 'Was Ihre Termine angeht').\n" +
-    "- Sprich ihn gerne gelegentlich persönlich an.\n- Mache nach jedem Themenblock (Wetter, Termine, Gegenstände) einen Punkt und beginne einen neuen Satz, nie ein Komma als Satzende. Halte die Sätze kurz.\n\n" +
+    "- Vermeide hölzerne Aufzählungen oder stakkatoartige Abfolgen. Verbinde die Informationen mit natürlichen Übergängen ('Übrigens', 'Werfen wir einen Blick auf deinen Tag', 'Was deine Termine angeht').\n" +
+    "- Du duzt ihn IMMER (du, dich, dir, dein/deine), niemals Sie, Ihnen oder Ihr. Sprich ihn gerne gelegentlich persönlich an.\n- Mache nach jedem Themenblock (Wetter, Termine, Gegenstände) einen Punkt und beginne einen neuen Satz, nie ein Komma als Satzende. Halte die Sätze kurz.\n\n" +
     "Antworte ausschließlich mit einem JSON-Objekt der Form {\"briefing\": \"...\"}.";
 
     const controller = new AbortController();
@@ -501,13 +501,13 @@ function stripUnwantedParkingRemark(text) {
 
 function buildFallbackBriefing(data) {
     let text = `${data.begruessung}, ${data.name}. Es ist ${data.uhrzeit_gesprochen}. `;
-    if (data.schicht && data.schicht.urlaub_bis) text += `Sie haben noch bis zum ${data.schicht.urlaub_bis} Urlaub. `;
+    if (data.schicht && data.schicht.urlaub_bis) text += `Du hast noch bis zum ${data.schicht.urlaub_bis} Urlaub. `;
     else if (data.schicht && data.schicht.art && data.schicht.schicht_laeuft_schon) text += '';
-    else if (data.schicht && data.schicht.art) text += `Heute haben Sie ${data.schicht.art}${data.schicht.abfahrt ? ', Abfahrt ' + data.schicht.abfahrt : ''}${data.schicht.fahrzeit_zur_arbeit_minuten ? ', die Fahrt zur Arbeit dauert etwa ' + data.schicht.fahrzeit_zur_arbeit_minuten + ' Minuten' : ''}. ${data.schicht.stau_auf_der_strecke ? data.schicht.stau_auf_der_strecke.trim() + ' ' : ''}`;
+    else if (data.schicht && data.schicht.art) text += `Heute hast du ${data.schicht.art}${data.schicht.abfahrt ? ', Abfahrt ' + data.schicht.abfahrt : ''}${data.schicht.fahrzeit_zur_arbeit_minuten ? ', die Fahrt zur Arbeit dauert etwa ' + data.schicht.fahrzeit_zur_arbeit_minuten + ' Minuten' : ''}. ${data.schicht.stau_auf_der_strecke ? data.schicht.stau_auf_der_strecke.trim() + ' ' : ''}`;
 
     if (data.wetter) {
         const w = data.wetter;
-        text += `Draußen erwarten Sie aktuell ${w.temperatur_grad} Grad, gefühlt liegt die Temperatur bei etwa ${w.gefuehlt_grad} Grad. `;
+        text += `Draußen erwarten dich aktuell ${w.temperatur_grad} Grad, gefühlt liegt die Temperatur bei etwa ${w.gefuehlt_grad} Grad. `;
         if (w.sturm_hinweis) text += `${w.sturm_hinweis}. `;
         text += `${w.regenschirm_empfehlung}. ${w.jacken_empfehlung}. `;
     } else {
@@ -515,13 +515,13 @@ function buildFallbackBriefing(data) {
     }
 
     if (data.naechste_termine.length > 0) {
-        text += "Werfen wir einen Blick auf Ihre nächsten Termine: " + data.naechste_termine.map(t => `${t.tag} ${t.uhrzeit === 'ganztägig' ? 'ganztägig' : 'um ' + t.uhrzeit} ${t.text}`).join(', ') + ". ";
+        text += "Werfen wir einen Blick auf deine nächsten Termine: " + data.naechste_termine.map(t => `${t.tag} ${t.uhrzeit === 'ganztägig' ? 'ganztägig' : 'um ' + t.uhrzeit} ${t.text}`).join(', ') + ". ";
     } else {
-        text += "Ihr Kalender ist für heute vollkommen frei. ";
+        text += "Dein Kalender ist für heute vollkommen frei. ";
     }
 
     if (data.erinnerungen_naechste_tage.length > 0) {
-        text += "Hier noch Ihre Erinnerungen: " + data.erinnerungen_naechste_tage.map(r => `${r.text} ${r.tag}${r.uhrzeit === 'ganztägig' ? '' : ' um ' + r.uhrzeit}`).join(' sowie ') + ". ";
+        text += "Hier noch deine Erinnerungen: " + data.erinnerungen_naechste_tage.map(r => `${r.text} ${r.tag}${r.uhrzeit === 'ganztägig' ? '' : ' um ' + r.uhrzeit}`).join(' sowie ') + ". ";
     }
 
     if ((data.geburtstage || []).length > 0) {
@@ -535,7 +535,7 @@ function buildFallbackBriefing(data) {
     if (data.wunsch_dieselpreis_angefordert) {
         if (data.dieselpreis) {
             const p = data.dieselpreis;
-            text += `Der günstigste Diesel in Ihrer Nähe kostet aktuell ${p.preis.toFixed(3).replace('.', ',')} Euro` + (p.name ? ` bei ${p.name}` : '') + (p.strasse ? `, ${p.strasse}` : '') + '. ';
+            text += `Der günstigste Diesel in deiner Nähe kostet aktuell ${p.preis.toFixed(3).replace('.', ',')} Euro` + (p.name ? ` bei ${p.name}` : '') + (p.strasse ? `, ${p.strasse}` : '') + '. ';
         } else {
             text += 'Den aktuellen Dieselpreis konnte ich gerade leider nicht abrufen. ';
         }
@@ -546,7 +546,7 @@ function buildFallbackBriefing(data) {
     }
 
     if (data.parkplatz && data.parkplatz.adresse) {
-        text += `Ihr Auto steht übrigens in ${data.parkplatz.adresse}. `;
+        text += `Dein Auto steht übrigens in ${data.parkplatz.adresse}. `;
     }
 
     return text;

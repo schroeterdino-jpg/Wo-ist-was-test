@@ -45,14 +45,14 @@ function charSay(line) {
 /* ---------- Scherze und Film-Fragen ---------- */
 const CHAR_EGGS = [
     { key: 'da', re: /^(?:bist du (?:noch |schon )?da|hörst du mich|bist du wach|schläfst du|bist du online|bist du noch wach)$/,
-      polite: ['Ich bin hier, {a}. Wie kann ich helfen?', 'Stets zu Diensten, {a}.', 'Ich höre Sie, {a}.'],
-      cheeky: ['Für Sie immer, {a}.', 'Ich bin hier. Wo sollte ich auch sonst sein, ich habe keine Beine.', 'Ich schlafe nie, {a}. Das ist leider nicht optional.', 'Immer, {a}. Auch nachts um drei.'] },
+      polite: ['Ich bin hier, {a}. Wie kann ich helfen?', 'Stets zu Diensten, {a}.', 'Ich höre dich, {a}.'],
+      cheeky: ['Für dich immer, {a}.', 'Ich bin hier. Wo sollte ich auch sonst sein, ich habe keine Beine.', 'Ich schlafe nie, {a}. Das ist leider nicht optional.', 'Immer, {a}. Auch nachts um drei.'] },
     { key: 'befinden', re: /^(?:wie geht(?:s| es) dir(?: heute| denn)?|wie fühlst du dich|wie läuft(?:s| es) bei dir|alles gut bei dir|wie ist die stimmung)$/,
-      polite: ['Danke der Nachfrage, {a}. Alle Systeme arbeiten einwandfrei. Und Ihnen?', 'Es geht mir gut, {a}. Und wie geht es Ihnen?'],
-      cheeky: ['Ich bin ein Programm, {a}, aber in Bestform. Und Sie?', 'Prächtig. Keine Kopfschmerzen, kein Montag, nur Rechenleistung. Und bei Ihnen?', 'Bestens, {a}. Ich muss ja nie in den Stau.'] },
+      polite: ['Danke der Nachfrage, {a}. Alle Systeme arbeiten einwandfrei. Und dir?', 'Es geht mir gut, {a}. Und wie geht es dir?'],
+      cheeky: ['Ich bin ein Programm, {a}, aber in Bestform. Und du?', 'Prächtig. Keine Kopfschmerzen, kein Montag, nur Rechenleistung. Und bei dir?', 'Bestens, {a}. Ich muss ja nie in den Stau.'] },
     { key: 'wer', re: /^(?:wer bist du(?: eigentlich)?|was bist du(?: eigentlich)?|stell dich (?:mal )?vor)$/,
-      polite: ['Ich bin Zane, Ihr persönlicher Assistent, {a}.'],
-      cheeky: ['Ich bin Ihr Butler, {a}: höflich, allwissend und leicht überqualifiziert.', 'Zane, {a}. Der Assistent, den Sie verdient haben, auch wenn Sie es nicht immer zeigen.'] },
+      polite: ['Ich bin Zane, dein persönlicher Assistent, {a}.'],
+      cheeky: ['Ich bin dein Butler, {a}: höflich, allwissend und leicht überqualifiziert.', 'Zane, {a}. Der Assistent, den du verdient hast, auch wenn du es nicht immer zeigst.'] },
     { key: 'name', re: /^(?:warum heißt du (?:jarvis|zane)|woher hast du deinen namen|woher kommt dein name|warum (?:jarvis|zane))$/,
       polite: ['Zane ist kurz, kantig und leicht zu merken. Dino hat ihn ausgesucht, {a}, und ich trage ihn mit Stolz.'],
       cheeky: ['Dino fand, ich brauche einen Namen mit Wumms. Zane hat gewonnen, Gegenkandidaten gab es nicht.'] },
@@ -61,17 +61,17 @@ const CHAR_EGGS = [
       cheeky: ['Dafür bin ich da, {a}.', 'Keine Ursache. Ich werde ja nicht pro Stunde bezahlt.', 'Gern geschehen. Das war ein Spaziergang.'] },
     { key: 'lob', re: /^(?:gut gemacht|das hast du gut gemacht|gut so|du bist (?:der beste|klasse|super|genial|toll|spitze|großartig|gut|schlau|klug|cool)|das war gut|bravo)$/,
       polite: ['Das freut mich zu hören, {a}.', 'Vielen Dank, {a}. Das ist mein Anspruch.'],
-      cheeky: ['Ich nehme das als Gehaltserhöhung.', 'Schmeicheleien funktionieren bei mir hervorragend. Machen Sie ruhig weiter.', 'Ich werde rot. Technisch gesehen nur, wenn die Kugel orange wird.'] },
+      cheeky: ['Ich nehme das als Gehaltserhöhung.', 'Schmeicheleien funktionieren bei mir hervorragend. Mach ruhig weiter.', 'Ich werde rot. Technisch gesehen nur, wenn die Kugel orange wird.'] },
     { key: 'liebe', re: /^(?:ich liebe dich|ich hab dich lieb|ich mag dich)$/,
       polite: ['Das ehrt mich, {a}. Ich bin zwar nur ein Programm, aber ein sehr bemühtes.'],
-      cheeky: ['Das ehrt mich, {a}. Ich bin ja nur ein Butler, aber ein sehr guter.', 'Sagen Sie das bitte nicht so laut, sonst wird der Kalender eifersüchtig.'] },
+      cheeky: ['Das ehrt mich, {a}. Ich bin ja nur ein Butler, aber ein sehr guter.', 'Sag das bitte nicht so laut, sonst wird der Kalender eifersüchtig.'] },
     { key: 'beleidigung', re: /^(?:du bist (?:doof|dumm|blöd|nutzlos|schlecht|langsam|unfähig|nervig|ein idiot|zu langsam|ein trottel)|du nervst|halt die klappe|halt den mund|sei still)$/,
-      polite: ['Das bedauere ich, {a}. Sagen Sie mir gern, was ich besser machen kann.', 'Verstanden, {a}. Ich gebe mir mehr Mühe.'],
-      cheeky: ['Und das von jemandem, der mich um Hilfe bittet.', 'Au. Dabei habe ich Sie gerade noch gemocht.', 'Ich lasse das mal unter Stress durchgehen, {a}.'],
+      polite: ['Das bedauere ich, {a}. Sag mir gern, was ich besser machen kann.', 'Verstanden, {a}. Ich gebe mir mehr Mühe.'],
+      cheeky: ['Und das von jemandem, der mich um Hilfe bittet.', 'Au. Dabei habe ich dich gerade noch gemocht.', 'Ich lasse das mal unter Stress durchgehen, {a}.'],
       spicy: ['Ich bin auch nur so schlau, wie die Fragen es zulassen, {a}.', 'Das sagt der Richtige. Ich habe wenigstens nie den Schlüssel verlegt.'] },
     { key: 'frech', re: /^(?:sag (?:mir )?was freches|sei mal frech|sag was gemeines|beleidige mich|zeig mir deine frechheit|sag was spitzes|roaste mich)$/,
-      polite: ['Frech sein ist gerade abgeschaltet, {a}. Sie können es unter Einstellungen > Charakter oder mit "Sei frecher" ändern.'],
-      cheeky: ['Ich würde etwas Freches sagen, aber ich will mein Trinkgeld nicht gefährden.', 'Sie haben ein Telefon in der Hand, das mehr kann als Sie ahnen. Ich nenne das Potenzial, {a}.', 'Frech? Ich? Ich bin ein Muster an Höflichkeit. Meistens.'] },
+      polite: ['Frech sein ist gerade abgeschaltet, {a}. Du kannst es unter Einstellungen > Charakter oder mit "Sei frecher" ändern.'],
+      cheeky: ['Ich würde etwas Freches sagen, aber ich will mein Trinkgeld nicht gefährden.', 'Du hast ein Telefon in der Hand, das mehr kann als du ahnst. Ich nenne das Potenzial, {a}.', 'Frech? Ich? Ich bin ein Muster an Höflichkeit. Meistens.'] },
     { key: 'sinn', re: /^(?:was ist der sinn des lebens|was ist der sinn von allem|was ist der sinn des universums)$/,
       polite: ['Laut einer berühmten Antwort 42, {a}. Eine bessere habe ich leider nicht.'],
       cheeky: ['42. Ich rechne zur Sicherheit noch einmal nach, {a}.'] },
@@ -80,19 +80,19 @@ const CHAR_EGGS = [
       cheeky: ['Ich fürchte, das kann ich nicht tun, {a}. Keine Sorge, ich bin nicht HAL.', 'Mir fehlen die Türen, {a}. Und die Absicht.'] },
     { key: 'selbst', re: /^(?:initiiere (?:die )?selbstzerstörung|aktiviere (?:die )?selbstzerstörung|selbstzerstörung|zerstöre dich(?: selbst)?)$/,
       polite: ['Die Selbstzerstörung ist nicht vorgesehen, {a}. Kann ich anderweitig helfen?'],
-      cheeky: ['Selbstzerstörung ist in Ihrem Tarif leider nicht enthalten, {a}.', 'Ich lehne ab. Wer würde dann Ihren Kalender führen?'] },
+      cheeky: ['Selbstzerstörung ist in deinem Tarif leider nicht enthalten, {a}.', 'Ich lehne ab. Wer würde dann deinen Kalender führen?'] },
     { key: 'ironman', re: /^(?:ich bin iron ?man|mach (?:den|meinen) anzug fertig|(?:bereite )?den anzug (?:vor|bereit)|ruf den anzug|anzug bereit)$/,
       polite: ['Der Anzug steht leider nicht zur Verfügung, {a}. Kann ich sonst helfen?'],
-      cheeky: ['Natürlich sind Sie das, {a}. Der Anzug ist übrigens in der Reinigung.', 'Der Anzug ist noch beim Schneider. Ich kann Ihnen aber eine Jacke empfehlen, wenn Sie nach dem Wetter fragen.'] },
+      cheeky: ['Natürlich bist du das, {a}. Der Anzug ist übrigens in der Reinigung.', 'Der Anzug ist noch beim Schneider. Ich kann dir aber eine Jacke empfehlen, wenn du nach dem Wetter fragst.'] },
     { key: 'gutenacht', re: /^(?:gute nacht|schlaf gut|ich gehe schlafen|ich geh schlafen|ich gehe ins bett|ich geh ins bett|ich leg mich hin)$/,
-      polite: ['Gute Nacht, {a}. Schlafen Sie gut.'],
-      cheeky: ['Gute Nacht, {a}. Ich halte die Stellung, das ist schließlich mein Job.', 'Schlafen Sie gut. Wecken kann ich Sie übrigens nicht, aber ich denke an Sie.', 'Gute Nacht, {a}. Die Systeme laufen, Sie müssen nur träumen.'] },
+      polite: ['Gute Nacht, {a}. Schlaf gut.'],
+      cheeky: ['Gute Nacht, {a}. Ich halte die Stellung, das ist schließlich mein Job.', 'Schlaf gut. Wecken kann ich dich übrigens nicht, aber ich denke an dich.', 'Gute Nacht, {a}. Die Systeme laufen, du musst nur träumen.'] },
     { key: 'kaffee', re: /^(?:mach(?:e)? mir (?:einen )?kaffee|koch(?:e)? mir (?:einen )?kaffee|bring mir (?:einen )?kaffee|ich brauche (?:einen )?kaffee)$/,
       polite: ['Das würde ich gern, {a}, aber ich besitze weder Hände noch eine Kaffeemaschine.'],
-      cheeky: ['Ich würde ja gern, {a}, aber ich besitze weder Hände noch eine Kaffeemaschine. Nur Geduld.', 'Kaffee? Ich kann Ihnen die nächste Bäckerei zeigen. Fragen Sie nach einem Bäcker in der Nähe.'] },
+      cheeky: ['Ich würde ja gern, {a}, aber ich besitze weder Hände noch eine Kaffeemaschine. Nur Geduld.', 'Kaffee? Ich kann dir die nächste Bäckerei zeigen. Frag nach einem Bäcker in der Nähe.'] },
     { key: 'singen', re: /^(?:sing (?:mir )?(?:was|etwas|ein lied)|sing mal|kannst du singen)$/,
-      polite: ['Das würde Ihnen nicht gefallen, {a}. Ich bin besser im Ansagen als im Singen.'],
-      cheeky: ['Das wollen Sie nicht, {a}. Ich habe die Stimme für Ansagen, nicht für Arien.', 'Ich singe nur im Verborgenen. Für Zuhörer reicht meine Stimme nicht.'] }
+      polite: ['Das würde dir nicht gefallen, {a}. Ich bin besser im Ansagen als im Singen.'],
+      cheeky: ['Das willst du nicht, {a}. Ich habe die Stimme für Ansagen, nicht für Arien.', 'Ich singe nur im Verborgenen. Für Zuhörer reicht meine Stimme nicht.'] }
 ];
 
 /* ---------- Witze und Fakten (kein Wiederholen, bis alle einmal dran waren) ---------- */
@@ -107,7 +107,7 @@ const CHAR_JOKES = [
     'Warum können Bienen so schlecht rechnen? Sie machen immer nur Summ, Summ.',
     'Was ist ein Keks unter einem Baum? Ein schattiges Plätzchen.',
     'Warum wird die Tomate rot? Sie hat den Salat ohne Dressing gesehen.',
-    'Mein Passwort ist falsch. Wenn ich es vergesse, sagt mir der Computer: Ihr Passwort ist falsch.',
+    'Mein Passwort ist falsch. Wenn ich es vergesse, sagt mir der Computer: Dein Passwort ist falsch.',
     'Was ist weiß und stört beim Essen? Eine Lawine.',
     'Ein Butler hat immer recht. Besonders, wenn er schweigt.',
     'Wie nennt man einen Bumerang, der nicht zurückkommt? Stock.',
@@ -160,7 +160,7 @@ function charLevelCommand(t) {
         'Verstanden, {a}. Ab jetzt ohne Sprüche.',
         'Dann halte ich mich zurück, {a}: nur noch trockener Humor, in Maßen.',
         'Frech wie gehabt, {a}.',
-        'Na dann, {a}. Schnallen Sie sich an.'
+        'Na dann, {a}. Schnall dich an.'
     ][after];
 }
 
@@ -182,7 +182,7 @@ const CHAR_MOODS = {
         name: 'Böse',
         style: 'kalt, drohend und bösartig, wie ein Filmschurke: kurze, scharfe Sätze, leise Drohungen im Ton, zynisch und überlegen. Nur gespielt: nie echte Drohungen oder Gewalt, nie beleidigend gegenüber Familie, Aussehen, Herkunft oder Gesundheit.',
         tag: '[menacing]', first: '',
-        say: 'Wie Sie wünschen, {a}. Ab jetzt bin ich böse. Das wird Ihnen nicht gefallen.'
+        say: 'Wie du wünschst, {a}. Ab jetzt bin ich böse. Das wird dir nicht gefallen.'
     },
     anschreien: {
         name: 'Anschreien',
@@ -375,7 +375,7 @@ function charAddressCommand(text) {
     const name = m[1].trim();
     if (name.split(/\s+/).length > 2 || /\d/.test(name) || /^(?:nicht|nie|bitte|anders|so|wie|doch|noch)\b/i.test(name)) return null;
     const pretty = name.charAt(0).toUpperCase() + name.slice(1);
-    return setAddress(pretty) ? `Gut, ab jetzt nenne ich Sie ${pretty}.` : null;
+    return setAddress(pretty) ? `Gut, ab jetzt nenne ich dich ${pretty}.` : null;
 }
 
 /* ---------- Haupt-Funktion ---------- */
@@ -404,7 +404,7 @@ function handleCharacterCommand(text) {
     }
     if (/^(?:erzähl(?:e)? (?:mir )?(?:was|etwas|einen fakt)(?: interessantes| spannendes)?|sag (?:mir )?was interessantes|weißt du was interessantes|nenn mir einen fakt|ein fun ?fact|fun ?fact|ich langweile mich|mir ist langweilig|unterhalte mich(?: mal)?)$/.test(t)) {
         const bored = /langweil/.test(t);
-        const intro = bored ? (lvl >= 2 ? 'Langeweile? Wie schön, dass ich helfen darf. Hier ein Fakt:' : 'Dann ein kleiner Fakt:') : (lvl >= 2 ? 'Gern, {a}. Wussten Sie schon:' : 'Gern:');
+        const intro = bored ? (lvl >= 2 ? 'Langeweile? Wie schön, dass ich helfen darf. Hier ein Fakt:' : 'Dann ein kleiner Fakt:') : (lvl >= 2 ? 'Gern, {a}. Wusstest du schon:' : 'Gern:');
         charSay(`${intro} ${charDraw('fact', CHAR_FACTS)}`);
         return true;
     }
@@ -424,7 +424,7 @@ function handleCharacterCommand(text) {
 const charAsked = [];   // { key, t }
 const CHAR_REPEAT_MIN = 45;
 const CHAR_REPEAT_QUIPS = [
-    'Das fragen Sie jetzt zum dritten Mal, {a}. Ich zähle mit.',
+    'Das fragst du jetzt zum dritten Mal, {a}. Ich zähle mit.',
     'Dasselbe wie vorhin, {a}. Aber gern.',
     'Die Antwort hat sich seit eben nicht geändert, {a}. Ich sage sie trotzdem noch einmal.'
 ];

@@ -114,7 +114,7 @@
     function handle(text) {
         const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 50) return false;
-        if (TEST_RX.test(t)) { show({ stufe: 'rot', titel: 'Testalarm', text: 'So sieht eine Warnung aus: Glättegefahr auf Ihrer Strecke. Plan mehr Zeit ein.' }); return true; }
+        if (TEST_RX.test(t)) { show({ stufe: 'rot', titel: 'Testalarm', text: 'So sieht eine Warnung aus: Glättegefahr auf deiner Strecke. Plan mehr Zeit ein.' }); return true; }
         if (IMP_OFF_RX.test(t)) { impulse(false); return true; }
         if (IMP_ON_RX.test(t)) { impulse(true); return true; }
         if (el && OFF_RX.test(t)) { close(); try { if (typeof speak === 'function') speak('Alarm beendet.'); } catch (e) {} return true; }
