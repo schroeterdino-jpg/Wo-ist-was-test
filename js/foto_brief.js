@@ -357,10 +357,12 @@
             } else {
                 photoPending = null;
             }
+            const frist = (L.typ === 'rechnung' || L.typ === 'mahnung') && /^\d{4}-\d{2}-\d{2}$/.test(String(L.zahlungsziel || '')) && parseIso(L.zahlungsziel);
+            if (frist) list.push({ icon: '📅', title: 'Frist in den Kalender', subtitle: 'Ganztägig am ' + fmtDe(frist), onclick: 'jvRechnungKalender()' });
             const kuendOffer = !(P.plan && P.plan.kind === 'kuendigung') && L.absender && (L.typ === 'rechnung' || L.typ === 'sonstiges') && (L.vertragsart || L.nummer);
             if (kuendOffer) list.push({ icon: '✍️', title: 'Kündigung vorbereiten', subtitle: `${L.absender}${L.nummer ? ' · ' + L.nummer : ''}`, onclick: 'startKuendigungAusBrief()' });
             cards(list);
-            say(P.text + (kuendOffer ? ' Wenn du diesen Vertrag kündigen möchtest, tippe auf Kündigung vorbereiten.' : ''));
+            say(P.text + (frist ? ' Die Frist kann ich auch in den Kalender eintragen, sag: Trag die Frist in den Kalender ein.' : '') + (kuendOffer ? ' Wenn du diesen Vertrag kündigen möchtest, tippe auf Kündigung vorbereiten.' : ''));
         } catch (e) {
             console.error('Brief aus Foto fehlgeschlagen:', e && e.stack);
             const m = String((e && e.message) || 'unbekannter Fehler');
@@ -416,6 +418,20 @@
             } catch (e) { say('Das Eintragen hat nicht geklappt.'); }
         }
     }
+
+    /* Zahlungsfrist einer Rechnung als ganztägigen Termin in den Kalender eintragen (Karte "Frist in den Kalender" oder Sprache) */
+    window.jvRechnungKalender = async function () {
+        const L = window._lastLetter;
+        const z = L && parseIso(L.zahlungsziel);
+        if (!L || !z || (L.typ !== 'rechnung' && L.typ !== 'mahnung')) { say('Dafür brauche ich zuerst eine ausgewertete Rechnung mit Zahlungsziel.'); return; }
+        try {
+            if (typeof addGoogleCalendarEvent !== 'function') { say('Der Kalender ist in dieser Version nicht erreichbar.'); return; }
+            const titel = (L.typ === 'mahnung' ? 'Mahnung bezahlen: ' : 'Rechnung bezahlen: ') + (L.absender || 'Rechnung') + (L.betrag ? ' ' + euro(L.betrag) : '');
+            const synced = await addGoogleCalendarEvent(titel, L.zahlungsziel, '', null, true);
+            if (synced === false) say(`${typeof googleProblemText === 'function' ? googleProblemText(typeof lastGoogleProblem !== 'undefined' ? lastGoogleProblem : null) + ' ' : ''}Die Frist ist nur in der App gespeichert.`);
+            else say(`Die Frist ist im Kalender eingetragen, ${dayText(z)}.`);
+        } catch (e) { say('Das Eintragen hat nicht geklappt.'); }
+    };
 
     window._fotoBriefTest = { isLetterRequest, isLetterFollowup, parseLetter, makePlan, planReminder, letterPrompt };   // nur zum Testen
 })();

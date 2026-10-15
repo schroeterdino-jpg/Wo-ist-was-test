@@ -1,0 +1,524 @@
+/* ============================================================
+   plan_ansagen.js – Nova meldet sich zur richtigen Zeit von selbst (auch bei gesperrtem Handy, nur in der Nova-App)
+   ============================================================
+   - WOCHENÜBERBLICK: Sonntag 18:00. Schicht der kommenden Woche (mit Urlaubstagen), Termine, Erinnerungen, offene Aufgaben, fällige Rechnungen.
+   - AUFBRUCHSZEIT: an jedem Arbeitstag (Mo-Fr, nicht im Urlaub), Früh- und Spätschicht, 10 Minuten vor der Abfahrt.
+     Abfahrt = Schichtbeginn minus Fahrzeit (mit aktueller Verkehrslage, kurz vor der Ansage frisch abgefragt) minus 10 Minuten Puffer.
+     Schichtbeginn: Früh 5:10, Spät 13:45 (änderbar per Sprache: "Meine Frühschicht beginnt um 5 Uhr 30").
+   - WECKER-FRAGE: Am Abend vor einer Frühschicht um 20:30: "Soll ich den Wecker auf 3 Uhr 30 stellen?" Ja = Wecker in der Uhr-App des Handys.
+   - WECKER per Sprache: "Stell den Wecker auf 6 Uhr 15", "Weck mich um 5", "Wecker in 20 Minuten".
+   - Rechnung: "Trag die Frist in den Kalender ein" nach einer ausgewerteten Rechnung (zusätzlich zur Erinnerung).
+   So klappt das Von-selbst: Diese Datei meldet der App eine Liste mit Uhrzeiten (ZaneNative.planAnsagen). Die App löst sie zur Zeit selbst aus,
+   schaltet den Bildschirm ein und holt Nova nach vorn; Nova holt die Ansage ab (ZaneNative.holeAnsage) und spricht sie. Im Browser gibt es das nicht.
+   Sprache: "Wochenüberblick" (jederzeit) · "Wann muss ich zur Arbeit los?" · "Was ist geplant?" · "Planer aus" / "Planer an" · "Teste die Wecker-Frage"
+   Braucht: schicht.js (_schichtTest), urlaub.js, commands.js, voice.js (speak), travel.js (fetchRouteMapData), calendar.js, lists, rechnungen.js. Wird ganz am Ende geladen.
+   ============================================================ */
+(function () {
+    'use strict';
+    if (window.jvPlan) return;
+
+    const BEGINN_STD = { frueh: 5 * 60 + 10, spaet: 13 * 60 + 45 };
+    const PUFFER_ARBEIT = 10;        // Minuten zwischen Ankunft und Schichtbeginn
+    const VOR_ABFAHRT = 10;          // so viele Minuten vor der Abfahrt kommt die Ansage
+    const WOCHEN_MIN = 18 * 60;      // Sonntag 18:00
+    const WECKER_MIN = 20 * 60 + 30; // Abend vor der Frühschicht 20:30
+    const TAGE_VORAUS = 5;
+    const K_AUS = 'jv_plan_aus', K_FAHRT = 'jv_plan_fahrt', K_BEGINN = 'jv_plan_beginn', K_GESAGT = 'jv_plan_gesagt', K_WECKER = 'jv_plan_wecker_';
+
+    /* ---------- Hilfen ---------- */
+    function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
+    function pd(k, d) { try { return typeof getPersistentData === 'function' ? getPersistentData(k, d) : (lsGet(k) ?? d); } catch (e) { return d; } }
+    function sd(k, v) { try { if (typeof setPersistentData === 'function') setPersistentData(k, v); else lsSet(k, v); } catch (e) { } }
+    function N() { return window.ZaneNative || null; }
+    function sagen(t, weiter) {
+        try { speak(t, weiter && typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) { }
+    }
+    function norm(t) {
+        return String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+            .replace(/[^a-z0-9:. ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    const pad = n => String(n).padStart(2, '0');
+    const pad4 = n => String(n).padStart(4, '0');
+    function aus() { return pd(K_AUS, '') === '1'; }
+
+    /* ---------- Zeit in Berlin ---------- */
+    function parts(ms) {
+        const p = {};
+        new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+            .formatToParts(new Date(ms)).forEach(x => { p[x.type] = x.value; });
+        return { ymd: p.year + '-' + p.month + '-' + p.day, min: (+p.hour % 24) * 60 + (+p.minute) };
+    }
+    function jetzt() { return parts(Date.now()); }
+    function offset(ms) {
+        const p = parts(ms), [y, m, d] = p.ymd.split('-').map(Number);
+        return Date.UTC(y, m - 1, d, 0, 0) + p.min * 60000 - ms;
+    }
+    /* Zeitpunkt (Millisekunden) für Datum und Minute seit Mitternacht in Berlin */
+    function berlinMs(ymd, min) {
+        const [y, m, d] = ymd.split('-').map(Number);
+        const t0 = Date.UTC(y, m - 1, d, 0, 0) + min * 60000;
+        let r = t0 - offset(t0);
+        r = t0 - offset(r);
+        return r;
+    }
+    function ymdPlus(ymd, n) { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); }
+    function dow(ymd) { const [y, m, d] = ymd.split('-').map(Number); return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7; }   // Montag = 0
+    const TAGE = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+    function tagName(ymd) {
+        const h = jetzt().ymd;
+        if (ymd === h) return 'heute';
+        if (ymd === ymdPlus(h, 1)) return 'morgen';
+        return TAGE[dow(ymd)];
+    }
+    function uhr(min) { const h = Math.floor(min / 60), m = min % 60; return m ? h + ' Uhr ' + m : h + ' Uhr'; }
+    function uhrHM(min) { return Math.floor(min / 60) + ':' + pad(min % 60); }
+    function undListe(a) { return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' und ' + a[a.length - 1]; }
+    function tagWann(ymd) { const t = tagName(ymd); return t === 'heute' ? 'Heute' : t === 'morgen' ? 'Morgen' : 'Am ' + t; }
+
+    /* ---------- Schicht, Urlaub, Schichtbeginn ---------- */
+    function S() { const t = window._schichtTest; return t && typeof t.load === 'function' ? t : null; }
+    function urlaubAm(ymd) {
+        try {
+            const u = window.jvUrlaub && window.jvUrlaub.get && window.jvUrlaub.get();
+            return !!(u && u.von && u.bis && u.von <= ymd && u.bis >= ymd);
+        } catch (e) { return false; }
+    }
+    function schichtAm(ymd) {   // 'frueh' | 'spaet' | null (Wochenende, Urlaub, keine Schicht eingestellt)
+        const T = S(); if (!T) return null;
+        const st = T.load(); if (!st) return null;
+        if (dow(ymd) > 4 || urlaubAm(ymd)) return null;
+        const [y, m, d] = ymd.split('-').map(Number);
+        return T.shiftOfWeek(st, T.weekNo({ y, m, d }));
+    }
+    function schichtOhneUrlaub(ymd) {
+        const T = S(); if (!T) return null;
+        const st = T.load(); if (!st) return null;
+        const [y, m, d] = ymd.split('-').map(Number);
+        return T.shiftOfWeek(st, T.weekNo({ y, m, d }));
+    }
+    function beginn(sh) {
+        try {
+            const o = JSON.parse(pd(K_BEGINN, '') || 'null');
+            if (o && Number.isFinite(o[sh])) return o[sh];
+        } catch (e) { }
+        return BEGINN_STD[sh];
+    }
+    function setBeginn(sh, min) {
+        let o = {}; try { o = JSON.parse(pd(K_BEGINN, '') || '{}') || {}; } catch (e) { }
+        o[sh] = min; sd(K_BEGINN, JSON.stringify(o));
+    }
+    function weckzeit() { const T = S(), st = T && T.load(); return st && st.times && Number.isFinite(st.times.frueh) ? st.times.frueh : 210; }
+    const NAME = { frueh: 'Frühschicht', spaet: 'Spätschicht' };
+
+    /* ---------- Fahrzeit zur Arbeit ---------- */
+    function letzteFahrt() {
+        try { const o = JSON.parse(lsGet(K_FAHRT) || 'null'); if (o && o.min >= 3 && o.min <= 180) return o.min; } catch (e) { }
+        return 30;
+    }
+    function merkeFahrt(min) { if (min >= 3 && min <= 180) lsSet(K_FAHRT, JSON.stringify({ min, at: Date.now() })); }
+    async function fahrtFrisch() {
+        let min = null, stau = '';
+        try {
+            if (typeof workAddress === 'string' && workAddress) {
+                if (typeof fetchRouteMapData === 'function') {
+                    const d = await Promise.race([fetchRouteMapData(workAddress), new Promise(r => setTimeout(() => r(null), 14000))]);
+                    if (d && d.fahrtMin) {
+                        min = d.fahrtMin;
+                        stau = (typeof lastStauText === 'string') ? lastStauText.trim() : '';
+                    }
+                }
+                if (!min && typeof wachterDriveMinutes === 'function') {
+                    const m = await Promise.race([wachterDriveMinutes(workAddress), new Promise(r => setTimeout(() => r(null), 6000))]);
+                    if (m) min = m;
+                }
+            }
+        } catch (e) { }
+        if (min) merkeFahrt(min);
+        return { min, stau };
+    }
+    if (typeof window.jvSchichtInfo === 'function' && !window.jvSchichtInfo._plan) {   // merkt sich die Fahrzeit, wenn das Briefing sie holt
+        const o = window.jvSchichtInfo;
+        const w = async function () {
+            const r = await o.apply(this, arguments);
+            try { if (r && r.fahrzeit_zur_arbeit_minuten) merkeFahrt(r.fahrzeit_zur_arbeit_minuten); } catch (e) { }
+            return r;
+        };
+        w._plan = true;
+        window.jvSchichtInfo = w;
+    }
+
+    /* ---------- Texte ---------- */
+    async function aufbruchText(ymd, mitFrisch) {
+        const sh = schichtAm(ymd);
+        if (!sh) return { text: '', sh: null };
+        const start = beginn(sh);
+        let min, stau = '';
+        if (mitFrisch) { const f = await fahrtFrisch(); min = f.min || letzteFahrt(); stau = f.stau || ''; }
+        else min = letzteFahrt();
+        const abfahrt = start - min - PUFFER_ARBEIT;
+        const nu = jetzt();
+        const diff = abfahrt - nu.min;
+        let t;
+        if (nu.ymd !== ymd) {
+            t = tagWann(ymd) + ' hast du ' + NAME[sh] + ' ab ' + uhr(start) + '. Fahr gegen ' + uhr(abfahrt) + ' los, die Fahrt dauert rund ' + min + ' Minuten.';
+        } else if (nu.min >= start) {
+            t = 'Deine ' + NAME[sh] + ' hat schon um ' + uhr(start) + ' angefangen.';
+        } else if (diff >= 3) {
+            t = 'Bald geht es los. Fahr um ' + uhr(abfahrt) + ' ab, das ist in ' + diff + ' Minuten. Die Fahrt zur Arbeit dauert rund ' + min + ' Minuten, deine ' + NAME[sh] + ' beginnt um ' + uhr(start) + '.';
+        } else if (diff >= -3) {
+            t = 'Es ist Zeit zum Losfahren. Die Fahrt dauert rund ' + min + ' Minuten, deine ' + NAME[sh] + ' beginnt um ' + uhr(start) + '.';
+        } else if (nu.min + min < start) {
+            t = 'Du solltest jetzt losfahren. Die Fahrt dauert rund ' + min + ' Minuten, deine ' + NAME[sh] + ' beginnt um ' + uhr(start) + '.';
+        } else {
+            t = 'Es wird knapp. Die Fahrt dauert rund ' + min + ' Minuten, deine ' + NAME[sh] + ' beginnt aber schon um ' + uhr(start) + '. Fahr sofort los.';
+        }
+        if (stau) t += ' ' + stau;
+        return { text: t, sh, min, abfahrt };
+    }
+
+    function termineInWoche(montag, ab) {
+        const sonntag = ymdPlus(montag, 6), out = [];
+        try {
+            (typeof calendarEntries !== 'undefined' && Array.isArray(calendarEntries) ? calendarEntries : []).forEach(e => {
+                if (!e || !e.isoDate) return;
+                const iso = String(e.isoDate);
+                let ymd, zeit = null;
+                if (iso.length === 10) ymd = iso;
+                else { const ms = Date.parse(iso); if (isNaN(ms)) return; const p = parts(ms); ymd = p.ymd; zeit = p.min; }
+                if (ymd < ab || ymd > sonntag) return;
+                const text = String(e.text || '').trim();
+                if (!text || /^(früh|spät)schicht$/i.test(text)) return;
+                out.push({ ymd, zeit, text });
+            });
+        } catch (e) { }
+        return out.sort((a, b) => (a.ymd + pad4(a.zeit == null ? 0 : a.zeit + 1)).localeCompare(b.ymd + pad4(b.zeit == null ? 0 : b.zeit + 1)));
+    }
+    function erinnerungenInWoche(montag, ab) {
+        const sonntag = ymdPlus(montag, 6), out = [];
+        try {
+            (typeof reminderEntries !== 'undefined' && Array.isArray(reminderEntries) ? reminderEntries : []).forEach(r => {
+                if (!r || r.done || !r.time) return;
+                const ms = Date.parse(String(r.time)); if (isNaN(ms)) return;
+                const p = parts(ms);
+                if (p.ymd < ab || p.ymd > sonntag) return;
+                out.push({ ymd: p.ymd, zeit: p.min, text: String(r.text || '').trim() });
+            });
+        } catch (e) { }
+        return out.filter(x => x.text).sort((a, b) => (a.ymd + pad4(a.zeit)).localeCompare(b.ymd + pad4(b.zeit)));
+    }
+    function liste(arr, max) {
+        const teile = arr.slice(0, max).map(x => tagName(x.ymd) + (x.zeit != null ? ' um ' + uhr(x.zeit) : '') + ' ' + x.text);
+        let s = teile.join('; ');
+        if (arr.length > max) s += '; und ' + (arr.length - max) + ' weitere';
+        return s;
+    }
+
+    /* Überblick für die Woche, die am Montag "montag" beginnt. "ab": erster Tag, der noch zählt (heute, wenn die Woche läuft). */
+    function wochenText(montag, ab, naechste) {
+        const T = S(), st = T && T.load();
+        const teile = ['Hier ist dein Überblick für ' + (naechste ? 'die kommende Woche' : 'diese Woche') + '.'];
+        if (st) {
+            const sh = schichtOhneUrlaub(montag);
+            const tage = [];
+            for (let i = 0; i < 5; i++) { const y = ymdPlus(montag, i); if (y >= ab) tage.push(y); }
+            const urlaub = tage.filter(urlaubAm);
+            if (tage.length) {
+                if (urlaub.length === tage.length) teile.push('Du hast ' + (naechste ? 'die ganze Woche' : 'bis Freitag') + ' Urlaub. Sonst hättest du ' + NAME[sh] + '.');
+                else if (urlaub.length) teile.push('Du hast ' + NAME[sh] + ', aber am ' + undListe(urlaub.map(y => TAGE[dow(y)])) + ' Urlaub.');
+                else teile.push('Du hast ' + NAME[sh] + ', Beginn ' + uhr(beginn(sh)) + '.');
+            }
+        }
+        const term = termineInWoche(montag, ab);
+        teile.push(term.length ? 'Termine: ' + liste(term, 6) + '.' : 'Keine Termine im Kalender.');
+        const erin = erinnerungenInWoche(montag, ab);
+        if (erin.length) teile.push('Erinnerungen: ' + liste(erin, 3) + '.');
+        try {
+            const todo = (typeof todoEntries !== 'undefined' && Array.isArray(todoEntries)) ? todoEntries.filter(e => e && !e.done) : [];
+            if (todo.length) teile.push('Auf deiner Aufgabenliste ' + (todo.length === 1 ? 'steht ein Eintrag' : 'stehen ' + todo.length + ' Einträge') + '.');
+        } catch (e) { }
+        try {
+            const sonntag = ymdPlus(montag, 6), heute = jetzt().ymd;
+            const rg = (window.jvRechnungen && window.jvRechnungen.offen ? window.jvRechnungen.offen() : []).filter(r => r.ziel && r.ziel <= sonntag);
+            if (rg.length) {
+                teile.push('Rechnungen: ' + rg.slice(0, 3).map(r => r.absender + (r.betrag ? ' ' + Number(r.betrag).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Euro' : '') + (r.ziel < heute ? ', überfällig' : ', fällig ' + tagName(r.ziel))).join('; ') + '.');
+            }
+        } catch (e) { }
+        return teile.join(' ');
+    }
+    function wocheJetzt() {   // Sonntag: die kommende Woche, sonst die laufende
+        const h = jetzt().ymd, d = dow(h);
+        if (d === 6) return { montag: ymdPlus(h, 1), ab: ymdPlus(h, 1), naechste: true };
+        return { montag: ymdPlus(h, -d), ab: h, naechste: false };
+    }
+
+    /* ---------- Plan an die App melden ---------- */
+    function gefragt(ymd) { return !!lsGet(K_WECKER + ymd); }
+    function bauePlan() {
+        const out = [];
+        if (aus() || !S() || !S().load()) return out;
+        const nu = jetzt(), jetztMs = Date.now();
+        for (let i = 0; i < TAGE_VORAUS; i++) {
+            const ymd = ymdPlus(nu.ymd, i), d = dow(ymd);
+            if (d === 6) {
+                const mo = ymdPlus(ymd, 1);
+                out.push({ id: 'wochen|' + ymd, at: berlinMs(ymd, WOCHEN_MIN), text: wochenText(mo, mo, true).slice(0, 400) });
+            }
+            const sh = schichtAm(ymd);
+            if (sh) {
+                const start = beginn(sh), fahrt = letzteFahrt();
+                const abfahrt = start - fahrt - PUFFER_ARBEIT, ansage = abfahrt - VOR_ABFAHRT;
+                if (ansage >= 0) out.push({ id: 'aufbruch|' + ymd, at: berlinMs(ymd, ansage), text: 'Abfahrt gegen ' + uhrHM(abfahrt) + ' Uhr (' + NAME[sh] + ' ab ' + uhrHM(start) + ', Fahrt rund ' + fahrt + ' Minuten). Tippe, dann sage ich dir die aktuelle Lage.' });
+            }
+            const morgen = ymdPlus(ymd, 1);
+            if ((d <= 3 || d === 6) && schichtAm(morgen) === 'frueh' && !gefragt(ymd)) {
+                out.push({ id: 'wecker|' + ymd, at: berlinMs(ymd, WECKER_MIN), text: 'Morgen ist Frühschicht. Soll ich den Wecker auf ' + uhrHM(weckzeit()) + ' Uhr stellen? Tippe, dann frage ich dich.' });
+            }
+        }
+        return out.filter(e => e.at > jetztMs + 20000).sort((a, b) => a.at - b.at);
+    }
+    let letztesSignal = '';
+    function planSenden(erzwingen) {
+        try {
+            const n = N();
+            if (!n || typeof n.planAnsagen !== 'function') return false;
+            const plan = bauePlan();
+            const json = JSON.stringify(plan);
+            if (!erzwingen && json === letztesSignal) return true;
+            letztesSignal = json;
+            return !!n.planAnsagen(json);
+        } catch (e) { console.error('Plan senden', e && e.message); return false; }
+    }
+
+    /* ---------- Ansagen abholen und sprechen ---------- */
+    function gesagt() { try { return JSON.parse(lsGet(K_GESAGT) || '[]'); } catch (e) { return []; } }
+    function merkeGesagt(id) { const a = gesagt().filter(x => x !== id); a.push(id); lsSet(K_GESAGT, JSON.stringify(a.slice(-20))); }
+    function bereit() {
+        try {
+            if (typeof speak !== 'function') return false;
+            if (typeof isProcessing !== 'undefined' && isProcessing) return false;
+            if (typeof isSpeaking === 'function' && isSpeaking()) return false;
+            return true;
+        } catch (e) { return true; }
+    }
+    function warteBereit(maxMs) {
+        return new Promise(res => {
+            const t0 = Date.now();
+            (function schau() { if (bereit() || Date.now() - t0 > maxMs) res(bereit()); else setTimeout(schau, 700); })();
+        });
+    }
+
+    let offenesWecker = null;   // { ymd, min, at }
+    async function ansage(id, erzwingen) {
+        id = String(id || ''); if (!id) return false;
+        if (!erzwingen && gesagt().includes(id)) return false;
+        const art = id.split('|')[0], ymd = id.split('|')[1] || jetzt().ymd, nu = jetzt();
+        if (!(await warteBereit(30000))) return false;
+        if (!erzwingen) {   // abgelaufene Ansage (zum Beispiel alte Meldung angetippt): nichts sagen
+            if (art === 'wochen' && nu.ymd !== ymd) return false;
+            if (art === 'aufbruch' && (nu.ymd !== ymd || nu.min >= beginn(schichtAm(ymd) || 'frueh'))) return false;
+            if (art === 'wecker' && (nu.ymd !== ymd || nu.min > 23 * 60)) return false;
+        }
+        merkeGesagt(id);
+        if (art === 'wochen') {
+            const mo = ymdPlus(ymd, 1);
+            sagen(wochenText(mo, mo, true), false);
+            return true;
+        }
+        if (art === 'aufbruch') {
+            const r = await aufbruchText(ymd, true);
+            if (!r.text) return false;
+            sagen(r.text, false);
+            return true;
+        }
+        if (art === 'wecker') { weckerFrage(ymd); return true; }
+        return false;
+    }
+    function pruefe() {
+        try {
+            const n = N();
+            if (!n || typeof n.holeAnsage !== 'function') return;
+            const id = String(n.holeAnsage() || '');
+            if (id) ansage(id, false);
+        } catch (e) { }
+    }
+
+    /* ---------- Wecker ---------- */
+    function weckerFrage(ymd) {
+        const min = weckzeit();
+        offenesWecker = { ymd, min, at: Date.now() };
+        try {
+            if (typeof showActionCards === 'function') showActionCards([
+                { icon: '⏰', title: 'Wecker auf ' + uhrHM(min) + ' Uhr stellen', subtitle: 'Frühschicht morgen', onclick: 'jvPlan.weckerJa()' },
+                { icon: '🙅', title: 'Nein danke', subtitle: '', onclick: 'jvPlan.weckerNein()' }
+            ]);
+        } catch (e) { }
+        sagen('Morgen ist Frühschicht. Soll ich den Wecker auf ' + uhr(min) + ' stellen?', true);
+    }
+    function karten() { try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) { } }
+    function weckerSetzen(h, m, label) {
+        const n = N();
+        if (!n) return 'kein-app';
+        if (typeof n.weckerStellen !== 'function') return 'alt';
+        let ok = false;
+        try { ok = !!n.weckerStellen(h, m, label || 'Nova'); } catch (e) { ok = false; }
+        return ok ? 'ok' : 'fehler';
+    }
+    function weckerAntwort(r, h, m) {
+        const nu = jetzt(), ziel = h * 60 + m;
+        const wann = ziel > nu.min ? 'heute' : 'morgen';
+        if (r === 'ok') return 'Der Wecker ist gestellt, ' + wann + ' um ' + uhr(ziel) + '. Du findest ihn in der Uhr-App.';
+        if (r === 'kein-app') return 'Einen Wecker kann ich nur in der Nova-App auf dem Handy stellen.';
+        if (r === 'alt') return 'Dafür brauchst du die neueste Nova-App. Bitte installiere die aktuelle Version.';
+        return 'Den Wecker konnte ich nicht stellen. Prüfe, ob die Uhr-App des Handys erreichbar ist.';
+    }
+    function weckerJa() {
+        const w = offenesWecker; offenesWecker = null; karten();
+        if (!w) { sagen('Gerade ist keine Wecker-Frage offen.', false); return; }
+        const h = Math.floor(w.min / 60), m = w.min % 60;
+        const r = weckerSetzen(h, m, 'Nova: Frühschicht');
+        if (r === 'ok') lsSet(K_WECKER + w.ymd, 'ja');
+        sagen(weckerAntwort(r, h, m) + (r === 'ok' ? ' Gute Nacht.' : ''), false);
+    }
+    function weckerNein() {
+        const w = offenesWecker; offenesWecker = null; karten();
+        if (w) lsSet(K_WECKER + w.ymd, 'nein');
+        sagen('Gut, dann stelle ich keinen Wecker.', false);
+    }
+
+    const ZAHLEN = { ein: 1, eins: 1, eine: 1, einer: 1, zwei: 2, drei: 3, vier: 4, fuenf: 5, sechs: 6, sieben: 7, acht: 8, neun: 9, zehn: 10, elf: 11, zwoelf: 12, fuenfzehn: 15, zwanzig: 20, dreissig: 30, vierzig: 40, fuenfundvierzig: 45 };
+    function zahlenWorte(t) {
+        return t.replace(/\b(fuenfundvierzig|fuenfzehn|zwanzig|dreissig|vierzig|zwoelf|fuenf|sechs|sieben|zehn|eins|eine|einer|ein|zwei|drei|vier|acht|neun|elf)\b/g, (m) => String(ZAHLEN[m]));
+    }
+    /* Uhrzeit aus einem Satz: { h, m } oder { rel: Minuten } oder null */
+    function parseZeit(t0) {
+        const t = zahlenWorte(t0);
+        let m;
+        if ((m = t.match(/\bin (\d{1,3}) (minuten?|min|stunden?|std)\b/))) {
+            const n = +m[1]; return { rel: /^(st)/.test(m[2]) ? n * 60 : n };
+        }
+        if ((m = t.match(/\bviertel (nach|vor) (\d{1,2})\b/))) {
+            let h = +m[2], mi = m[1] === 'nach' ? 15 : 45; if (m[1] === 'vor') h = (h + 23) % 24;
+            return { h, m: mi };
+        }
+        if ((m = t.match(/\bhalb (\d{1,2})\b/))) return { h: (+m[1] + 23) % 24, m: 30 };
+        if ((m = t.match(/\b(\d{1,2})[:.](\d{2})\b/))) return { h: +m[1], m: +m[2] };
+        if ((m = t.match(/\b(\d{1,2}) uhr (\d{1,2})\b/))) return { h: +m[1], m: +m[2] };
+        if ((m = t.match(/\b(\d{1,2}) uhr\b/))) return { h: +m[1], m: 0 };
+        if ((m = t.match(/\bum (\d{1,2})\b/))) return { h: +m[1], m: 0 };
+        return null;
+    }
+    function weckerBefehl(text, next) {
+        const t = norm(text);
+        if (!t || t.split(' ').length > 16) return next(text);
+        if (offenesWecker && Date.now() - offenesWecker.at < 40 * 60000) {   // Antwort auf die Abend-Frage
+            if (/^(nein|nee|ne|nicht|lass|laesst|brauche ich nicht|kein wecker|nein danke)\b/.test(t)) { weckerNein(); return true; }
+            if (/^(ja|jawohl|jep|jo|joa|klar|gerne|gern|okay|ok|bitte|mach|stell|mach das|genau|gut)\b/.test(t)) { weckerJa(); return true; }
+        }
+        if (!/\bwecker\b|\bweck mich\b|\bwecke mich\b|\bweck\b/.test(t)) return next(text);
+        if (/\b(loesch|loeschen|aus|ausschalten|abbrechen|entfern\w*)\b/.test(t)) return next(text);
+        let z = parseZeit(t);
+        if (!z && /\bfrueh\s?schicht\b|\bfruehschicht\b/.test(t)) { const w = weckzeit(); z = { h: Math.floor(w / 60), m: w % 60 }; }
+        if (!z) return next(text);
+        let h, m;
+        if (z.rel != null) {
+            const ziel = parts(Date.now() + z.rel * 60000); h = Math.floor(ziel.min / 60); m = ziel.min % 60;
+        } else {
+            h = z.h; m = z.m;
+            if (/\b(abends|nachmittags|mittags)\b/.test(t) && h < 12) h += 12;
+        }
+        if (h < 0 || h > 23 || m < 0 || m > 59) return next(text);
+        const r = weckerSetzen(h, m, 'Nova');
+        sagen(weckerAntwort(r, h, m), false);
+        return true;
+    }
+
+    /* ---------- Sprachbefehle ---------- */
+    function befehl(text, next) {
+        const t = norm(text);
+        if (!t || t.split(' ').length > 14) return next(text);
+        // Schichtbeginn ändern
+        let m = t.match(/\b(fruehschicht|spaetschicht)\b.*\b(beginnt|faengt an|startet|anfang)\b/) || t.match(/\b(beginn|anfang)\b.*\b(fruehschicht|spaetschicht)\b/);
+        if (m && /\b(meine|mein|die|der)\b/.test(t)) {
+            const sh = /fruehschicht/.test(t) ? 'frueh' : 'spaet';
+            const z = parseZeit(t.replace(/\b(fruehschicht|spaetschicht)\b/g, ''));
+            if (z && z.h != null) {
+                setBeginn(sh, z.h * 60 + z.m);
+                planSenden(true);
+                sagen('Gut, deine ' + NAME[sh] + ' beginnt um ' + uhr(z.h * 60 + z.m) + '. Die Aufbruchszeit rechne ich damit.', false);
+                return true;
+            }
+        }
+        // Planer ein/aus
+        if (/^(den |der |nova )?(planer|tagesplaner)\s+(aus|an|ein)(schalten)?$/.test(t) || /^(schalte? )?(den )?planer (aus|an|ein)(schalten)?$/.test(t)) {
+            const an = /\b(an|ein)\b/.test(t) && !/\baus\b/.test(t);
+            sd(K_AUS, an ? '' : '1'); planSenden(true);
+            sagen(an ? 'Der Planer ist an. Wochenüberblick, Aufbruchszeit und Wecker-Frage kommen wieder von selbst.' : 'Der Planer ist aus. Ich melde mich nicht mehr von selbst mit Überblick, Aufbruchszeit und Wecker-Frage.', false);
+            return true;
+        }
+        // Was ist geplant?
+        if (/\b(was ist geplant|geplante (meldungen|ansagen)|naechste (meldung|ansage)|was meldest du dir|planer status|planer zeig\w*)\b/.test(t)) {
+            const p = bauePlan();
+            if (!p.length) sagen(aus() ? 'Der Planer ist aus.' : 'Im Moment ist nichts geplant. Ist die Schicht eingestellt?', false);
+            else {
+                const art = { wochen: 'Wochenüberblick', aufbruch: 'Aufbruchszeit', wecker: 'Wecker-Frage' };
+                sagen('Geplant: ' + p.slice(0, 4).map(e => art[e.id.split('|')[0]] + ' ' + tagName(parts(e.at).ymd) + ' um ' + uhr(parts(e.at).min)).join('; ') + '.', false);
+            }
+            return true;
+        }
+        // Wochenüberblick jederzeit
+        if (/\b(wochenueberblick|wochenvorschau|wochenuebersicht)\b/.test(t) || /\b(ueberblick|uebersicht|vorschau)\b.*\bwoche\b/.test(t) || /\bwoche\b.*\b(ueberblick|uebersicht|vorschau)\b/.test(t)) {
+            const w = wocheJetzt();
+            if (/\b(naechste|kommende)\b/.test(t) && !w.naechste) {
+                const mo = ymdPlus(w.montag, 7);
+                sagen(wochenText(mo, mo, true), false);
+            } else {
+                sagen(wochenText(w.montag, w.ab, w.naechste), false);
+            }
+            return true;
+        }
+        // Aufbruchszeit jederzeit
+        if (/\baufbruchszeit\b/.test(t) || /\bwann\b.*\b(zur arbeit|zum arbeitsplatz|auf die arbeit)\b.*\b(los|fahren|losfahren|aufbrechen|abfahren)\b/.test(t) || /\bwann (muss|soll|sollte) ich\b.*\b(los|losfahren|aufbrechen)\b.*\barbeit\b/.test(t)) {
+            (async () => {
+                const heute = jetzt().ymd;
+                let ymd = heute;
+                if (!schichtAm(ymd) || jetzt().min >= beginn(schichtAm(ymd))) {   // heute nichts mehr: nächster Arbeitstag
+                    ymd = null;
+                    for (let i = 1; i <= 7; i++) { const y = ymdPlus(heute, i); if (schichtAm(y)) { ymd = y; break; } }
+                }
+                if (!ymd) { sagen('Ich finde keinen Arbeitstag in den nächsten Tagen. Ist deine Schicht eingestellt?', false); return; }
+                const r = await aufbruchText(ymd, ymd === heute);
+                sagen(r.text || 'Dafür brauche ich deine Schicht. Sag zum Beispiel: Diese Woche Frühschicht.', false);
+            })();
+            return true;
+        }
+        // Tests
+        if (/\b(teste|test)\b.*\b(wecker.?frage)\b/.test(t)) { weckerFrage(ymdPlus(jetzt().ymd, 0)); return true; }
+        return next(text);
+    }
+
+    /* ---------- Rechnungsfrist in den Kalender ---------- */
+    function fristBefehl(text, next) {
+        const t = norm(text);
+        if (!t || t.split(' ').length > 14) return next(text);
+        if (!(/\bkalender\b/.test(t) && /\b(frist|rechnung|zahlungsziel|faelligkeit)\b/.test(t) && /\b(trag\w*|schreib\w*|speicher\w*|eintragen|eintrag)\b/.test(t))) return next(text);
+        if (typeof window.jvRechnungKalender !== 'function') return next(text);
+        window.jvRechnungKalender();
+        return true;
+    }
+
+    if (window.jvCommands && typeof window.jvCommands.use === 'function') {
+        window.jvCommands.use('plan_wecker', weckerBefehl, 3);
+        window.jvCommands.use('plan_ansagen', befehl, 4);
+        window.jvCommands.use('plan_frist', fristBefehl, 4);
+    }
+
+    /* ---------- Start ---------- */
+    window.jvPlan = { pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerFrage, parseZeit };
+    setTimeout(() => { planSenden(true); pruefe(); }, 5000);
+    setTimeout(pruefe, 12000);   // Nova war beim Start noch nicht fertig: Ansage später noch einmal abholen
+    setInterval(() => planSenden(false), 10 * 60000);
+    try {
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(() => { planSenden(false); pruefe(); }, 1500); });
+    } catch (e) { }
+})();
