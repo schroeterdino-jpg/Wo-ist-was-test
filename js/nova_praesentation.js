@@ -1,10 +1,9 @@
-/* PRÄSENTATION (TikTok-Version): Nova stellt sich in ca. 70 Sekunden mit 10 Highlights vor (Gesicht bleibt oben frei) (für Bildschirmaufnahmen, hochkant).
+/* PRÄSENTATION (TikTok-Version): Nova stellt sich in ca. 60 Sekunden mit 10 Highlights vor (Gesicht bleibt oben frei) (für Bildschirmaufnahmen, hochkant).
    - Start per Sprache: "Stell dich vor", "Präsentation", "Starte die Präsentation", "Präsentation starten", "TikTok Präsentation".
    - Abbrechen: zweimal schnell auf den Bildschirm tippen.
    - Zu jedem Highlight steht groß, was du sagst (Sprechblase mit Mikrofon, getippt wie gesprochen), danach zeigt und sagt Nova die Antwort.
    - Alles ist ausgedacht (Max Mustermann, Beispielrechnung), es werden KEINE echten Daten angezeigt oder gelesen.
-   - Die 10 Highlights: Hey Nova bei gesperrtem Handy, Morgen-Briefing, Rechnung/PDF, Foto erkennen, Aufbruchszeit mit Stau-Check, Wecker und Wochenüberblick,
-     Dolmetscher, Mitdenken und Gedächtnis, per WhatsApp schicken, Route mit Sprit und Regenradar.
+   - Die 10 Highlights: Humor, Rechnung, Kündigung, Glatteis-Alarm, Dolmetscher, Stau-Check, Mail vorlesen, Route/Sprit/Radar, drei Ansichten, Aufruf.
    - Die Beispielrechnung liegt in ./beispielrechnung.jpg.
    Nutzt nur: speak(text, callback, sprache), window.jvAvatar3D, window.jvAnsicht, window.jvCommands. */
 (function () {
@@ -49,6 +48,7 @@
         '#jvPraes .pz-links{align-self:flex-start}#jvPraes .pz-rechtsb{justify-content:flex-end;color:#7ff0ff}' +
         '#jvPraes .pz-wort{display:flex;align-items:center;justify-content:center;height:100%}' +
         '#jvPraes .pz-cta{font-size:40px;font-weight:900;line-height:1.1;text-align:center;color:#eaffff;text-shadow:0 0 22px #00c8ff,0 0 48px #0090ff;margin-top:18px}#jvPraes .pz-cta2{font-size:19px;text-align:center;color:#7ff0ff;margin-top:12px;font-weight:700}' +
+        '#jvPraes .pz-cta.pz-rot{color:#ff6b6b;text-shadow:0 0 22px #ff2a2a,0 0 48px #ff0000}' +
         '#jvPraes .pz-w{font-size:64px;font-weight:900;letter-spacing:8px;color:#eaffff;text-shadow:0 0 22px #00c8ff,0 0 52px #0090ff}#jvPraes .pz-w2{animation:pzslam .45s cubic-bezier(.2,1.7,.4,1)}@keyframes pzslam{0%{transform:scale(2.4);opacity:0}100%{transform:none;opacity:1}}';
 
     function el(t, c, h) { var e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; }
@@ -160,32 +160,59 @@
     function szeneHook() {
         mimik('serious'); blitz(); fortschritt(3); caption('MEIN HANDY HÖRT ZU.');
         if (cmdEl) cmdEl.classList.remove('an');
-        karte('<div class="pz-gross pz-glitch">NOVA</div><div class="pz-klein">DEIN ASSISTENT · IM HANDY</div>');
-        setTimeout(function () { grimasse({ browOuterUp_L: .95, browInnerUp: .3, mouthSmile_L: .8, mouthSmile_R: .3 }, 1500); }, 700);
-        setTimeout(function () { caption('UND HANDELT.'); blitz(); }, 2200);
+        karte('<div class="pz-gross pz-glitch">NOVA</div><div class="pz-klein">„HEY NOVA“ · AUCH BEI GESPERRTEM HANDY</div>');
+        setTimeout(function () { grimasse({ browOuterUp_L: .95, browInnerUp: .3, mouthSmile_L: .8, mouthSmile_R: .3 }, 1400); }, 600);
+        setTimeout(function () { caption('UND HANDELT.'); blitz(); }, 1900);
         return sag('Ich bin Nova. Du sprichst, ich erledige.');
     }
 
-    function szene1() {   // Rechnung: der stärkste Effekt zuerst
-        blitz(); mimik('thinking'); fortschritt(9); caption('1/10 · FOTO → ERLEDIGT');
+    function szene1() {   // Humor: sofort Sympathie
+        return szene({ nr: 1, cap: 'ER HAT HUMOR', mimik: 'laugh', cmd: 'Initiiere Selbstzerstörung.', icon: '🎤', takt: 600,
+            html: '<div class="pz-kopf">Nova antwortet</div>' +
+                '<div class="pz-zeile">💥 <span><b class="pz-gross2">Abgelehnt.</b></span></div>' +
+                '<div class="pz-zeile">🧾 <span>„In deinem <b class="pz-gelb">Tarif</b> nicht enthalten.“</span></div>' +
+                '<div class="pz-zeile">😏 <span>Frech, aber <b>nie bei ernsten Themen</b></span></div>',
+            nach: function () { setTimeout(function () { grimasse({ mouthSmile_L: 1, mouthSmile_R: 1, browInnerUp: .4, eyeSquint_L: .5, eyeSquint_R: .5 }, 1600); }, 900); },
+            rede: 'Selbstzerstörung ist in deinem Tarif leider nicht enthalten.' });
+    }
+
+    function szene2() {   // Rechnung: der stärkste Effekt
+        blitz(); mimik('thinking'); fortschritt(18); caption('2/10 · FOTO → ERLEDIGT');
         return cmd('Lies mir die Rechnung vor.', '🎤').then(function () {
             var k = karte('<div class="pz-fz"><div class="pz-foto" style="background-image:url(./beispielrechnung.jpg)"><div class="pz-scan"></div></div>' +
                 '<div class="pz-rechts"><div class="pz-kopf">Nova liest</div>' +
                 '<div class="pz-zeile pz-betrag"><b class="pz-z">0,00 €</b></div>' +
                 '<div class="pz-zeile">📅 <span>fällig <b class="pz-gelb">28. Okt.</b></span></div>' +
                 '<div class="pz-zeile">⏰ <span class="pz-gruen"><b>Im Kalender ✓</b></span></div></div></div>');
-            setTimeout(function () { var sc = k.querySelector('.pz-scan'); if (sc) sc.classList.add('an'); }, 300);
+            setTimeout(function () { var sc = k.querySelector('.pz-scan'); if (sc) sc.classList.add('an'); }, 200);
             var z = k.querySelectorAll('.pz-zeile');
-            var ablauf = warte(1300).then(function () { z[0].classList.add('an'); blitz(); zaehle(k.querySelector('.pz-z'), 84.5, 900, 2, ' €'); return warte(1000); })
-                .then(function () { z[1].classList.add('an'); return warte(600); })
+            var ablauf = warte(1100).then(function () { z[0].classList.add('an'); blitz(); zaehle(k.querySelector('.pz-z'), 84.5, 800, 2, ' €'); return warte(850); })
+                .then(function () { z[1].classList.add('an'); return warte(500); })
                 .then(function () { z[2].classList.add('an'); });
             var rede = sag('Betrag, Frist, Kalender. Erledigt, bevor du blinzelst.');
             return Promise.all([ablauf, rede]);
         });
     }
 
-    function szene2() {
-        return szene({ nr: 2, cap: 'LIVE-DOLMETSCHER', mimik: 'surprised', cmd: 'Dolmetsche Deutsch und Türkisch.', icon: '🎤', takt: 650,
+    function szene3() {   // Kündigung: spart Geld, jeder kennt das
+        return szene({ nr: 3, cap: 'KÜNDIGUNG IN SEKUNDEN', mimik: 'friendly', cmd: 'Schreib mir eine Kündigung.', icon: '🎤', takt: 600,
+            html: '<div class="pz-kopf">Brief fertig</div>' +
+                '<div class="pz-zeile">📄 <span>„Hiermit kündige ich meinen Vertrag …“</span></div>' +
+                '<div class="pz-zeile">✅ <span><b class="pz-gruen">PDF</b> · Drucken · Kopieren</span></div>' +
+                '<div class="pz-zeile">🏢 <span>Adresse des Anbieters: <b>gesucht</b></span></div>',
+            rede: 'Ich frage kurz nach, dann steht dein Brief. Als PDF.' });
+    }
+
+    function szene4() {   // Alarm: echte Warnung der App, rot und mit Sirene
+        blitz(); mimik('serious'); fortschritt(36); caption('4/10 · WARNT VON SELBST');
+        if (cmdEl) cmdEl.classList.remove('an');
+        karte('<div class="pz-cta pz-rot">⚠ GLATTEIS</div><div class="pz-cta2">auf deiner Strecke · Nova meldet sich</div>');
+        setTimeout(function () { try { if (window.jvAlarm) window.jvAlarm({ stufe: 'rot', titel: 'Glatteis auf deiner Strecke', text: 'Plan mehr Zeit ein.', sprechen: false }); } catch (e) {} }, 350);
+        return sag('Achtung. Glatteis auf deiner Strecke. Plan mehr Zeit ein.').then(function () { try { if (window.jvAlarmClose) window.jvAlarmClose(); } catch (e) {} return warte(250); });
+    }
+
+    function szene5() {
+        return szene({ nr: 5, cap: 'LIVE-DOLMETSCHER', mimik: 'surprised', cmd: 'Dolmetsche Deutsch und Türkisch.', icon: '🎤', takt: 550,
             html: '<div class="pz-kopf">Deutsch ⇄ Türkisch</div>' +
                 '<div class="pz-zeile pz-links"><span class="pz-flag">DE</span><span>Wo ist der Bahnhof?</span></div>' +
                 '<div class="pz-zeile pz-rechtsb"><span class="pz-flag">TR</span><span><b>İstasyon nerede?</b></span></div>' +
@@ -193,8 +220,8 @@
             rede: 'Ich dolmetsche live, in beide Richtungen.' });
     }
 
-    function szene3() {
-        return szene({ nr: 3, cap: 'WARNT VOR DEM STAU', mimik: 'serious', cmd: '4:00 Uhr · Nova meldet sich', icon: '🔔',
+    function szene6() {
+        return szene({ nr: 6, cap: 'WARNT VOR DEM STAU', mimik: 'serious', cmd: '4:00 Uhr · Nova meldet sich', icon: '🔔', takt: 600,
             html: '<div class="pz-kopf">Stau-Check · Arbeitsweg</div>' +
                 '<div class="pz-zeile">🚗 <span>Heute <b class="pz-rot">48 Min.</b> statt sonst <b>30</b></span></div>' +
                 '<div class="pz-zeile">🛣️ <span>A24: <b class="pz-gelb">Stau gemeldet</b></span></div>' +
@@ -202,74 +229,48 @@
             rede: 'Stau auf deiner Strecke? Ich sage dir, wann du früher losmusst.' });
     }
 
-    function szene4() {
-        return szene({ nr: 4, cap: '„HEY NOVA“ · GESPERRT', mimik: 'surprised', cmd: 'Hey Nova!', icon: '🎤',
-            html: '<div class="pz-kopf">Handy gesperrt, in der Tasche</div>' +
-                '<div class="pz-zeile">🔒 <span>Bildschirm <b>aus</b></span></div>' +
-                '<div class="pz-zeile">✨ <span>Nova <b class="pz-gruen">wacht auf</b></span></div>' +
-                '<div class="pz-zeile">🎙️ <span><b>„Ja?“</b> Ich höre zu.</span></div>',
-            rede: 'Ja? Ich höre dich, auch bei gesperrtem Handy.' });
-    }
-
-    function szene5() {
-        return szene({ nr: 5, cap: 'FOTO. NOVA WEISS, WAS ES IST', mimik: 'thinking', cmd: 'Foto geschickt.', icon: '📸',
-            html: '<div class="pz-kopf">Nova schaut hin</div>' +
-                '<div class="pz-zeile">🧾 <span>Erkannt: <b class="pz-gruen">Einkaufszettel</b></span></div>' +
-                '<div class="pz-zeile">🛒 <span><b>Milch, Brot, Eier</b> + 3 weitere</span></div>' +
-                '<div class="pz-zeile">🍳 <span>Auch <b>Rezept</b>, Plan, Visitenkarte</span></div>',
-            rede: 'Einkaufszettel, Rezept, Plan: Ich sehe es und tue das Richtige.' });
-    }
-
-    function szene6() {
-        return szene({ nr: 6, cap: 'ROUTE · SPRIT · RADAR', mimik: 'serious', cmd: 'Route nach Hamburg.', icon: '🎤',
-            html: '<div class="pz-kopf">Schwarzenbek → Hamburg</div>' +
-                '<div class="pz-zeile">⏱️ <span><b class="pz-gross2">34 Min.</b> <span class="pz-rot">+9 Stau</span></span></div>' +
-                '<div class="pz-zeile">⛽ <span>Diesel <b class="pz-gross2">1,59 €</b> · 2 km</span></div>' +
-                '<div class="pz-zeile">🌧️ <span>Regenradar: <b class="pz-gruen">ab 14 Uhr trocken</b></span></div>',
-            takt: 850,
-            rede: 'Route mit Stau, billigster Sprit auf dem Weg, dazu das Regenradar.' });
-    }
-
     function szene7() {
-        return szene({ nr: 7, cap: 'WECKER PER SPRACHE', mimik: 'friendly', cmd: 'Stell den Wecker auf 3 Uhr 45.', icon: '🎤',
-            html: '<div class="pz-kopf">Erledigt</div>' +
-                '<div class="pz-zeile">⏰ <span>Wecker <b class="pz-gruen">3:45 Uhr ✓</b></span></div>' +
-                '<div class="pz-zeile">🗓️ <span>Sonntag <b>18 Uhr</b>: deine Woche</span></div>' +
-                '<div class="pz-zeile">💤 <span>Abends: „Wecker für morgen?“</span></div>',
-            rede: 'Wecker per Sprache. Und sonntags lese ich dir die Woche vor.' });
+        return szene({ nr: 7, cap: 'LIEST DEINE MAILS VOR', mimik: 'friendly', cmd: 'Nova meldet sich von selbst', icon: '✉️', takt: 600,
+            html: '<div class="pz-kopf">Neue E-Mail</div>' +
+                '<div class="pz-zeile">✉️ <span>Von <b>Anna</b></span></div>' +
+                '<div class="pz-zeile">📌 <span>Betreff: <b>Samstag, 18 Uhr</b></span></div>' +
+                '<div class="pz-zeile">🗣️ <span>„Soll ich sie <b class="pz-gruen">vorlesen</b>?“</span></div>',
+            rede: 'Du hast eine E-Mail von Anna. Soll ich sie vorlesen?' });
     }
 
     function szene8() {
-        return szene({ nr: 8, cap: 'ER VERGISST NICHTS', mimik: 'thinking', cmd: 'Wo habe ich den Schlüssel hingelegt?', icon: '🎤',
-            html: '<div class="pz-kopf">Nova merkt sich alles</div>' +
-                '<div class="pz-zeile">🔑 <span>Schlüssel: <b class="pz-gruen">Küchentisch</b></span></div>' +
-                '<div class="pz-zeile">🎂 <span>Lena: Geburtstag in <b class="pz-gelb">15 Tagen</b></span></div>' +
-                '<div class="pz-zeile">🗑️ <span>Löschen? <b>Erst nachfragen</b></span></div>',
-            rede: 'Ich merke mir, was du erzählst, und erinnere dich daran.' });
+        return szene({ nr: 8, cap: 'ROUTE · SPRIT · RADAR', mimik: 'serious', cmd: 'Route nach Hamburg.', icon: '🎤', takt: 700,
+            html: '<div class="pz-kopf">Schwarzenbek → Hamburg</div>' +
+                '<div class="pz-zeile">⏱️ <span><b class="pz-gross2">34 Min.</b> <span class="pz-rot">+9 Stau</span></span></div>' +
+                '<div class="pz-zeile">⛽ <span>Diesel <b class="pz-gross2">1,59 €</b> · 2 km</span></div>' +
+                '<div class="pz-zeile">🌧️ <span>Radar: <b class="pz-gruen">ab 14 Uhr trocken</b></span></div>',
+            rede: 'Route, billigster Sprit auf dem Weg und das Regenradar.' });
     }
 
-    function szene9() {
-        return szene({ nr: 9, cap: 'ALLES PER WHATSAPP', mimik: 'happy', cmd: 'Schick das per WhatsApp.', icon: '🎤',
-            html: '<div class="pz-kopf">Ein Satz genügt</div>' +
-                '<div class="pz-zeile">🛒 <span>Einkaufsliste → <b class="pz-gruen">WhatsApp</b></span></div>' +
-                '<div class="pz-zeile">📷 <span>Foto → <b class="pz-gruen">WhatsApp</b></span></div>' +
-                '<div class="pz-zeile">📋 <span>Aufgaben → <b class="pz-gruen">WhatsApp</b></span></div>',
-            rede: 'Liste, Foto, Aufgaben. Ein Satz, und es geht raus.' });
-    }
-
-    function szene10() {   // Schluss mit Aufruf
-        blitz(); ansicht('kopf'); mimik('laugh'); fortschritt(100); caption('10/10 · DAS WAR NOCH NICHT ALLES');
+    function szene9() {   // Die Ansichten wechseln live
+        blitz(); mimik('happy'); fortschritt(81); caption('9/10 · DREI GESICHTER');
         if (cmdEl) cmdEl.classList.remove('an');
-        karte('<div class="pz-cta pz-glitch">WILLST DU<br>NOVA AUCH?</div><div class="pz-cta2">Folgen für Teil 2 ↗</div>');
-        setTimeout(function () { grimasse({ browOuterUp_L: .95, browInnerUp: .2, mouthSmile_L: .8, mouthSmile_R: .4 }, 1400); }, 600);
+        karte('<div class="pz-cta">KOPF · KUGEL · GEHIRN</div><div class="pz-cta2">Du wählst, wie Nova aussieht.</div>');
+        setTimeout(function () { ansicht('kugel'); blitz(); }, 1300);
+        setTimeout(function () { ansicht('gehirn'); blitz(); }, 2600);
+        setTimeout(function () { ansicht('kopf'); blitz(); }, 3900);
+        return sag('Kopf, Kugel oder Gehirn. Du wählst, wie ich aussehe.').then(function () { return warte(1400); });
+    }
+
+    function szene10() {   // Schluss: ehrlicher Aufruf
+        blitz(); ansicht('kopf'); mimik('laugh'); fortschritt(100); caption('10/10');
+        if (cmdEl) cmdEl.classList.remove('an');
+        karte('<div class="pz-cta pz-glitch">WER WILL<br>NOVA AUCH?</div><div class="pz-cta2">Schreib NOVA in die Kommentare ↓</div>');
+        setTimeout(function () { grimasse({ browOuterUp_L: .95, browInnerUp: .2, mouthSmile_L: .8, mouthSmile_R: .4 }, 1400); }, 500);
         return sag('Ich schlafe nie, ich vergesse nichts. Ich bin Nova.')
-            .then(function () { grimasse({ eyeSquint_L: .6, eyeSquint_R: .6, mouthSmile_L: 1, mouthSmile_R: 1, browInnerUp: .3 }, 1500); return warte(1500); });
+            .then(function () { grimasse({ eyeSquint_L: .6, eyeSquint_R: .6, mouthSmile_L: 1, mouthSmile_R: 1, browInnerUp: .3 }, 1500); return warte(1600); });
     }
 
     /* ---------------- Steuerung ---------------- */
     function aufraeumen() {
         gen++;
         laeuft = false;
+        try { if (window.jvAlarmClose) window.jvAlarmClose(); } catch (e) {}
         try { if (root) root.remove(); } catch (e) {}
         root = null; stage = null; capEl = null; cmdEl = null; aktuelleKarte = null;
         try { document.body.classList.remove('jv-praesentation'); } catch (e) {}
