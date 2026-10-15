@@ -1,8 +1,10 @@
-/* PRÄSENTATION: Zane stellt sich in ca. 90 Sekunden (Start: Einstieg "Andere Apps laufen nur am PC, ich auf dem Handy") selbst vor (für Bildschirmaufnahmen).
-   - Start per Sprache: "Stell dich vor", "Präsentation", "Starte die Präsentation", "Präsentation starten".
+/* PRÄSENTATION (TikTok-Version): Nova stellt sich in ca. 90 Sekunden mit 10 Highlights vor (für Bildschirmaufnahmen, hochkant).
+   - Start per Sprache: "Stell dich vor", "Präsentation", "Starte die Präsentation", "Präsentation starten", "TikTok Präsentation".
    - Abbrechen: zweimal schnell auf den Bildschirm tippen.
+   - Zu jedem Highlight steht groß, was du sagst (Sprechblase mit Mikrofon, getippt wie gesprochen), danach zeigt und sagt Nova die Antwort.
    - Alles ist ausgedacht (Max Mustermann, Beispielrechnung), es werden KEINE echten Daten angezeigt oder gelesen.
-   - Ablauf: Vorstellung, Morgen-Briefing, Rechnung fotografieren, Route/Stau/Sprit, Dolmetscher, Mitdenken, zwei Szenen "Das haben andere nicht", Ansichten, Abschluss.
+   - Die 10 Highlights: Hey Nova bei gesperrtem Handy, Morgen-Briefing, Rechnung/PDF, Foto erkennen, Aufbruchszeit mit Stau-Check, Wecker und Wochenüberblick,
+     Dolmetscher, Mitdenken und Gedächtnis, per WhatsApp schicken, Route mit Sprit und Regenradar.
    - Die Beispielrechnung liegt in ./beispielrechnung.jpg.
    Nutzt nur: speak(text, callback, sprache), window.jvAvatar3D, window.jvAnsicht, window.jvCommands. */
 (function () {
@@ -11,16 +13,18 @@
     var laeuft = false, abbruch = false, root = null, gen = 0, letzterTipp = 0;
 
     var CSS = '' +
-        '#jvPraes{position:fixed;left:0;right:0;bottom:0;height:60vh;z-index:99990;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding:0 16px calc(18px + env(safe-area-inset-bottom));' +
+        '#jvPraes{position:fixed;left:0;right:0;bottom:0;height:68vh;z-index:99990;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding:0 16px calc(18px + env(safe-area-inset-bottom));' +
         'background:linear-gradient(to top,rgba(2,10,18,.97) 50%,rgba(2,10,18,.0));color:#dff6ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none}' +
         '#jvPraes *{box-sizing:border-box}' +
         '#jvPraes .pz-cap{width:100%;max-width:520px;text-align:center;font-size:19px;line-height:1.35;font-weight:600;letter-spacing:.2px;min-height:52px;margin-bottom:12px;text-shadow:0 0 14px rgba(73,215,255,.55);opacity:0;transition:opacity .35s}' +
         '#jvPraes .pz-cap.an{opacity:1}' +
-        '#jvPraes .pz-stage{position:relative;width:100%;max-width:520px;height:36vh;min-height:230px}' +
+        '#jvPraes .pz-stage{position:relative;width:100%;max-width:520px;height:34vh;min-height:230px}' +
+        '#jvPraes .pz-cmd{width:100%;max-width:520px;min-height:54px;margin-bottom:12px;padding:10px 16px;border:1.5px solid rgba(255,255,255,.55);border-radius:28px;background:rgba(18,64,98,.82);box-shadow:0 0 22px rgba(0,190,255,.35);font-size:21px;line-height:1.25;font-weight:700;color:#fff;display:flex;align-items:center;gap:12px;opacity:0;transform:translateY(12px) scale(.97);transition:opacity .3s,transform .3s}' +
+        '#jvPraes .pz-cmd.an{opacity:1;transform:none}#jvPraes .pz-cmd .pz-ic{font-size:28px;animation:pzbeat .9s ease-in-out infinite;flex:none}#jvPraes .pz-cmd .pz-car{display:inline-block;width:2px;height:1.1em;background:#49d7ff;margin-left:3px;vertical-align:-3px;animation:pzblink .6s steps(2) infinite}@keyframes pzblink{50%{opacity:0}}' +
         '#jvPraes .pz-card{position:absolute;inset:0;border:1px solid rgba(73,215,255,.55);border-radius:16px;background:rgba(6,24,38,.88);box-shadow:0 0 28px rgba(0,190,255,.28),inset 0 0 22px rgba(0,190,255,.08);padding:14px 16px;opacity:0;transform:translateY(26px) scale(.97);transition:opacity .45s,transform .45s;overflow:hidden}' +
         '#jvPraes .pz-card.an{opacity:1;transform:none}' +
         '#jvPraes .pz-card.weg{opacity:0;transform:translateY(-18px) scale(.97)}' +
-        '#jvPraes .pz-kopf{font:700 11px/1 ui-monospace,Menlo,monospace;letter-spacing:2.5px;color:#49d7ff;margin-bottom:10px;text-transform:uppercase}' +
+        '#jvPraes .pz-kopf{font:700 13px/1 ui-monospace,Menlo,monospace;letter-spacing:2.5px;color:#49d7ff;margin-bottom:10px;text-transform:uppercase}' +
         '#jvPraes .pz-zeile{display:flex;align-items:center;gap:10px;font-size:15.5px;line-height:1.3;padding:5px 0;opacity:0;transform:translateX(-14px);transition:opacity .4s,transform .4s}' +
         '#jvPraes .pz-zeile.an{opacity:1;transform:none}' +
         '#jvPraes .pz-zeile b{color:#7ff0ff}' +
@@ -38,7 +42,7 @@
         '#jvPraes .pz-cap{font-size:26px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;transform:scale(.9);transition:opacity .2s,transform .25s cubic-bezier(.2,1.6,.4,1)}#jvPraes .pz-cap.an{transform:scale(1)}' +
         '#jvPraes .pz-riesig{font-size:84px;text-align:center;margin-top:14px;filter:drop-shadow(0 0 22px #00c8ff);animation:pzbeat .9s ease-in-out infinite}@keyframes pzbeat{50%{transform:scale(1.14)}}' +
         '#jvPraes .pz-glitch{animation:pzglitch 2.4s infinite}@keyframes pzglitch{0%,92%,100%{transform:none;text-shadow:0 0 22px #00c8ff,0 0 48px #0090ff}94%{transform:translateX(-5px) skewX(8deg);text-shadow:4px 0 #ff2a6d,-4px 0 #00f0ff}97%{transform:translateX(4px);text-shadow:-4px 0 #ff2a6d,4px 0 #00f0ff}}' +
-        '#jvPraes .pz-zeile{font-size:19px;padding:7px 0;transform:translateX(-22px) scale(.96)}#jvPraes .pz-zeile.an{transform:none}' +
+        '#jvPraes .pz-zeile{font-size:22px;padding:9px 0;transform:translateX(-22px) scale(.96)}#jvPraes .pz-zeile.an{transform:none}' +
         '#jvPraes .pz-gross2{font-size:30px;font-weight:800;color:#eaffff;text-shadow:0 0 14px #00c8ff}' +
         '#jvPraes .pz-betrag b{font-size:38px;font-weight:800;color:#eaffff;text-shadow:0 0 16px #00c8ff}' +
         '#jvPraes .pz-links{align-self:flex-start}#jvPraes .pz-rechtsb{justify-content:flex-end;color:#7ff0ff}' +
@@ -60,7 +64,7 @@
         }).then(function () { if (g !== gen || abbruch) throw 'stop'; });
     }
 
-    var capEl, stage, aktuelleKarte = null;
+    var capEl, cmdEl, stage, aktuelleKarte = null;
     function caption(t) {
         if (!capEl) return;
         capEl.classList.remove('an');
@@ -104,121 +108,154 @@
         return (function n() { if (i >= z.length) return Promise.resolve(); z[i++].classList.add('an'); return warte(ms || 380).then(n); })();
     }
 
-    /* ---------------- Szenen (TikTok: schnell, laut, kurze Schnitte) ---------------- */
+    /* ---------------- Sprechblase: was der Nutzer sagt ---------------- */
+    function cmd(text, icon) {
+        var g = gen;
+        if (!cmdEl) return Promise.resolve();
+        cmdEl.classList.remove('an');
+        return warte(220).then(function () {
+            cmdEl.innerHTML = '<span class="pz-ic">' + (icon || '🎤') + '</span><span><span class="pz-t"></span><i class="pz-car"></i></span>';
+            cmdEl.classList.add('an');
+            var t = cmdEl.querySelector('.pz-t'), i = 0, n = text.length, schritt = Math.max(28, Math.min(55, 1300 / n));
+            return new Promise(function (res) {
+                (function tipp() {
+                    if (g !== gen || !t) return res();
+                    i++; t.textContent = text.slice(0, i);
+                    if (i < n) setTimeout(tipp, schritt); else res();
+                })();
+            });
+        }).then(function () { return warte(350); });
+    }
+    /* Eine Szene: Sprechblase tippen, dann Karte mit Zeilen zeigen und dazu sprechen */
+    function szene(o) {
+        blitz(); mimik(o.mimik || 'friendly'); fortschritt(o.nr * 9); caption(o.nr + '/10 · ' + o.cap);
+        return cmd(o.cmd, o.icon).then(function () {
+            var k = karte(o.html);
+            if (o.nach) o.nach(k);
+            var rede = sag(o.rede);
+            return Promise.all([warte(250).then(function () { return pop(k, o.takt || 750); }), rede]);
+        });
+    }
+
     function szeneHook() {
-        mimik('serious'); blitz(); fortschritt(4);
-        caption('ANDERE JARVIS-APPS? NUR AM PC.');
-        var k = karte('<div class="pz-riesig">💻</div><div class="pz-klein">ANDERE: NUR AM RECHNER</div>');
+        mimik('serious'); blitz(); fortschritt(3); caption('ANDERE ASSISTENTEN? NUR AM PC.');
+        if (cmdEl) cmdEl.classList.remove('an');
+        karte('<div class="pz-gross pz-glitch">NOVA</div><div class="pz-klein">DEIN ASSISTENT · IM HANDY</div>');
         setTimeout(function () { grimasse({ browOuterUp_L: .95, browInnerUp: .3, mouthSmile_L: .8, mouthSmile_R: .3 }, 1500); }, 700);
-        setTimeout(function () { var kk = stage && stage.querySelector('.pz-riesig'); if (kk) kk.textContent = '📱'; var kl = stage && stage.querySelector('.pz-klein'); if (kl) kl.textContent = 'ICH: AUF DEINEM HANDY'; caption('ICH LAUFE AUF DEINEM HANDY.'); blitz(); }, 3300);
-        return sag('Andere Jarvis-Apps laufen nur am Computer. Ich laufe auf deinem Handy. Und ich kann viel mehr.');
+        setTimeout(function () { caption('10 DINGE, DIE KEINER SONST KANN'); blitz(); }, 2800);
+        return sag('Ich bin Nova, dein Assistent im Handy. Zehn Dinge, die ich kann.');
     }
 
-    function szeneName() {
-        blitz(); mimik('happy'); fortschritt(12); caption('');
-        karte('<div class="pz-gross pz-glitch">ZANE</div><div class="pz-klein">DEIN ASSISTENT · AUF DEM HANDY</div>');
-        return sag('Ich bin Zane. Und das kann ich.');
+    function szene1() {
+        return szene({ nr: 1, cap: '„HEY NOVA“ · AUCH GESPERRT', mimik: 'surprised', cmd: 'Hey Nova!', icon: '🎤',
+            html: '<div class="pz-kopf">Handy gesperrt, in der Tasche</div>' +
+                '<div class="pz-zeile">🔒 <span>Bildschirm <b>aus</b></span></div>' +
+                '<div class="pz-zeile">✨ <span>Nova <b class="pz-gruen">wacht auf</b></span></div>' +
+                '<div class="pz-zeile">🎙️ <span><b>„Ja?“</b> Ich höre zu.</span></div>',
+            rede: 'Ja? Ich höre dich, auch bei gesperrtem Handy.' });
     }
 
-    function szeneBriefing() {
-        blitz(); mimik('friendly'); fortschritt(20); caption('📱 ICH KENNE DEINEN TAG');
-        var k = karte('<div class="pz-kopf">Guten Morgen, Max</div>' +
-            '<div class="pz-zeile">🌤️ <span><b>14 °C</b>, trocken</span></div>' +
-            '<div class="pz-zeile">🕕 <span>Frühschicht <b>6:00 Uhr</b></span></div>' +
-            '<div class="pz-zeile">🚗 <span>A24: <b class="pz-rot">Stau +<em class="pz-z">0</em> Min.</b></span></div>' +
-            '<div class="pz-zeile">🔑 <span>Schlüssel: <b>Küchentisch</b></span></div>');
-        setTimeout(function () { zaehle(k.querySelector('.pz-z'), 12, 1200, 0); }, 900);
-        var rede = sag('Ich kenne deinen Tag: Wetter, Schicht, Stau und deinen Kalender. Jeden Morgen, bevor du die Augen richtig auf hast.');
-        return Promise.all([warte(300).then(function () { return pop(k, 520); }), rede]);
+    function szene2() {
+        return szene({ nr: 2, cap: 'MORGEN-BRIEFING', mimik: 'friendly', cmd: 'Guten Morgen Nova, was steht an?', icon: '🎤',
+            html: '<div class="pz-kopf">Guten Morgen, Max</div>' +
+                '<div class="pz-zeile">🌤️ <span><b>14 °C</b>, trocken</span></div>' +
+                '<div class="pz-zeile">🕔 <span>Frühschicht <b>5:10 Uhr</b></span></div>' +
+                '<div class="pz-zeile">🚗 <span>A24: <b class="pz-rot">Stau +<em class="pz-z">0</em> Min.</b></span></div>',
+            nach: function (k) { setTimeout(function () { zaehle(k.querySelector('.pz-z'), 12, 1200, 0); }, 1800); },
+            rede: 'Wetter, Schicht und Stau auf deiner Strecke. Jeden Morgen, ohne dass du fragst.' });
     }
 
-    function szeneRechnung() {
-        blitz(); mimik('thinking'); fortschritt(34); caption('📸 FOTO. ZACK. GELESEN.');
-        var k = karte('<div class="pz-foto" style="background-image:url(./beispielrechnung.jpg)"><div class="pz-scan"></div></div>' +
-            '<div class="pz-rechts"><div class="pz-kopf">Zane liest</div>' +
-            '<div class="pz-zeile">🏢 <span><b>Nordstrom Energie</b></span></div>' +
-            '<div class="pz-zeile pz-betrag"><b class="pz-z">0,00 €</b></div>' +
-            '<div class="pz-zeile">📅 <span>fällig <b class="pz-gelb">28. Okt.</b></span></div>' +
-            '<div class="pz-zeile">⏰ <span class="pz-gruen"><b>Erinnerung ✓</b></span></div></div>');
-        setTimeout(function () { var sc = k.querySelector('.pz-scan'); if (sc) sc.classList.add('an'); }, 300);
-        var z = k.querySelectorAll('.pz-zeile');
-        var ablauf = warte(1900).then(function () { z[0].classList.add('an'); return warte(450); })
-            .then(function () { z[1].classList.add('an'); blitz(); zaehle(k.querySelector('.pz-z'), 84.5, 900, 2, ' €'); return warte(1100); })
-            .then(function () { z[2].classList.add('an'); return warte(700); })
-            .then(function () { z[3].classList.add('an'); });
-        var rede = sag('Rechnung abfotografieren. Zack. Gelesen. Vierundachtzig Euro fünfzig, fällig am achtundzwanzigsten. Erinnerung läuft.');
-        return Promise.all([ablauf, rede]);
+    function szene3() {
+        blitz(); mimik('thinking'); fortschritt(27); caption('3/10 · RECHNUNG: FOTO ODER PDF');
+        return cmd('Lies mir die Rechnung vor.', '🎤').then(function () {
+            var k = karte('<div class="pz-foto" style="background-image:url(./beispielrechnung.jpg)"><div class="pz-scan"></div></div>' +
+                '<div class="pz-rechts"><div class="pz-kopf">Nova liest</div>' +
+                '<div class="pz-zeile">🏢 <span><b>Nordstrom Energie</b></span></div>' +
+                '<div class="pz-zeile pz-betrag"><b class="pz-z">0,00 €</b></div>' +
+                '<div class="pz-zeile">📅 <span>fällig <b class="pz-gelb">28. Okt.</b></span></div>' +
+                '<div class="pz-zeile">⏰ <span class="pz-gruen"><b>Erinnerung + Kalender ✓</b></span></div></div>');
+            setTimeout(function () { var sc = k.querySelector('.pz-scan'); if (sc) sc.classList.add('an'); }, 300);
+            var z = k.querySelectorAll('.pz-zeile');
+            var ablauf = warte(1500).then(function () { z[0].classList.add('an'); return warte(400); })
+                .then(function () { z[1].classList.add('an'); blitz(); zaehle(k.querySelector('.pz-z'), 84.5, 900, 2, ' €'); return warte(900); })
+                .then(function () { z[2].classList.add('an'); return warte(600); })
+                .then(function () { z[3].classList.add('an'); });
+            var rede = sag('Rechnung als Foto oder PDF. Betrag und Frist gelesen, Erinnerung und Kalender gleich mit.');
+            return Promise.all([ablauf, rede]);
+        });
     }
 
-    function szeneRoute() {
-        blitz(); mimik('serious'); fortschritt(48); caption('🚗 STAU? KENN ICH.');
-        var k = karte('<div class="pz-kopf">Hamburg → Schwarzenbek</div>' +
-            '<div class="pz-zeile">⏱️ <span><b class="pz-gross2">34 Min.</b> <span class="pz-rot">+9 Stau</span></span></div>' +
-            '<div class="pz-zeile">🛣️ <span>Über B404: <b class="pz-gruen">−6 Min.</b></span></div>' +
-            '<div class="pz-zeile">⛽ <span>Diesel <b class="pz-gross2">1,59 €</b> · 2 km</span></div>');
-        var rede = sag('Stau? Kenn ich. Umweg? Hab ich. Und der billigste Sprit ist zwei Kilometer weiter.');
-        return Promise.all([warte(400).then(function () { return pop(k, 850); }), rede]);
+    function szene4() {
+        return szene({ nr: 4, cap: 'FOTO. NOVA WEISS, WAS ES IST', mimik: 'thinking', cmd: 'Foto geschickt.', icon: '📸',
+            html: '<div class="pz-kopf">Nova schaut hin</div>' +
+                '<div class="pz-zeile">🧾 <span>Erkannt: <b class="pz-gruen">Einkaufszettel</b></span></div>' +
+                '<div class="pz-zeile">🛒 <span><b>Milch, Brot, Eier</b> + 3 weitere</span></div>' +
+                '<div class="pz-zeile">🍳 <span>Auch <b>Rezept</b>, Plan, Visitenkarte …</span></div>',
+            rede: 'Ich sehe selbst, was auf dem Foto ist. Einkaufszettel, Rezept, Plan, Visitenkarte, und tue das Richtige.' });
     }
 
-    function szeneDolmetscher() {
-        blitz(); mimik('surprised'); fortschritt(60); caption('🌍 LIVE-DOLMETSCHER');
-        var k = karte('<div class="pz-kopf">Deutsch ⇄ Türkisch</div>' +
-            '<div class="pz-zeile pz-links"><span class="pz-flag">DE</span><span>Wo ist der Bahnhof?</span></div>' +
-            '<div class="pz-zeile pz-rechtsb"><span class="pz-flag">TR</span><span><b>İstasyon nerede?</b></span></div>' +
-            '<div class="pz-zeile pz-links"><span class="pz-flag">TR</span><span>Düz git, sonra sağa.</span></div>' +
-            '<div class="pz-zeile pz-rechtsb"><span class="pz-flag">DE</span><span><b>Geradeaus, dann rechts.</b></span></div>');
-        var rede = sag('Türkisch? Kein Problem. Ich dolmetsche live.');
-        return Promise.all([warte(500).then(function () { return pop(k, 750); }), rede]);
+    function szene5() {
+        return szene({ nr: 5, cap: 'MELDET SICH VON SELBST', mimik: 'serious', cmd: '4:00 Uhr · Nova meldet sich', icon: '🔔',
+            html: '<div class="pz-kopf">Stau-Check · Arbeitsweg</div>' +
+                '<div class="pz-zeile">🚗 <span>Heute <b class="pz-rot">48 Min.</b> statt sonst <b>30</b></span></div>' +
+                '<div class="pz-zeile">🛣️ <span>A24: <b class="pz-gelb">Stau gemeldet</b></span></div>' +
+                '<div class="pz-zeile">⏰ <span>Fahr um <b class="pz-gruen">4:10 Uhr</b> los</span></div>',
+            rede: 'Ich melde mich von selbst. Ist auf deiner Strecke Stau, sage ich dir, dass du früher losfahren musst.' });
     }
 
-    function szeneMitdenken() {
-        blitz(); mimik('thinking'); fortschritt(66); caption('🧠 ER DENKT MIT');
-        var k = karte('<div class="pz-kopf">Zane denkt mit</div>' +
-            '<div class="pz-zeile">💬 <span>„Ich muss noch ein <b>Geschenk</b> besorgen.“</span></div>' +
-            '<div class="pz-zeile">✅ <span>Auf der Aufgabenliste</span></div>' +
-            '<div class="pz-zeile">🎂 <span>Lena hat in <b class="pz-gelb">15 Tagen</b> Geburtstag</span></div>' +
-            '<div class="pz-zeile">🧠 <span class="pz-gruen"><b>Ich frage später nach, wie es war</b></span></div>');
-        var rede = sag('Ich sage nicht nur: Erledigt. Ich sage dir auch, wer bald Geburtstag hat. Und ich frage später nach, wie es war.');
-        return Promise.all([warte(500).then(function () { return pop(k, 1250); }), rede]);
+    function szene6() {
+        return szene({ nr: 6, cap: 'WECKER UND WOCHENÜBERBLICK', mimik: 'friendly', cmd: 'Stell den Wecker auf 3 Uhr 45.', icon: '🎤',
+            html: '<div class="pz-kopf">Erledigt</div>' +
+                '<div class="pz-zeile">⏰ <span>Wecker <b class="pz-gruen">3:45 Uhr ✓</b></span></div>' +
+                '<div class="pz-zeile">🗓️ <span>Sonntag <b>18 Uhr</b>: dein Wochenüberblick</span></div>' +
+                '<div class="pz-zeile">💤 <span>Abends: „Wecker für morgen?“</span></div>',
+            rede: 'Wecker stellen per Sprache. Und sonntags um sechs lese ich dir von selbst deine Woche vor.' });
     }
 
-    function szeneUnterschied1() {
-        blitz(); mimik('serious'); fortschritt(76); caption('⚡ DAS HABEN ANDERE NICHT');
-        var k = karte('<div class="pz-kopf">Nur Zane</div>' +
-            '<div class="pz-zeile">📱 <span><b>Im Handy</b>, nicht am PC</span></div>' +
-            '<div class="pz-zeile">📅 <span><b>Kennt deinen Tag</b></span></div>' +
-            '<div class="pz-zeile">🧠 <span><b>Merkt sich</b>, fragt nach</span></div>');
-        var rede = sag('Das haben die anderen nicht. Ich laufe im Handy, nicht am Rechner. Ich kenne deinen Kalender, deine Schicht, den Einkauf, das Wetter und deine Strecke. Und ich merke mir Menschen und Fristen und frage später nach.');
-        return Promise.all([warte(700).then(function () { return pop(k, 3600); }), rede]);
+    function szene7() {
+        return szene({ nr: 7, cap: 'LIVE-DOLMETSCHER', mimik: 'surprised', cmd: 'Dolmetsche Deutsch und Türkisch.', icon: '🎤', takt: 650,
+            html: '<div class="pz-kopf">Deutsch ⇄ Türkisch</div>' +
+                '<div class="pz-zeile pz-links"><span class="pz-flag">DE</span><span>Wo ist der Bahnhof?</span></div>' +
+                '<div class="pz-zeile pz-rechtsb"><span class="pz-flag">TR</span><span><b>İstasyon nerede?</b></span></div>' +
+                '<div class="pz-zeile pz-links"><span class="pz-flag">TR</span><span>Düz git, sonra sağa.</span></div>' +
+                '<div class="pz-zeile pz-rechtsb"><span class="pz-flag">DE</span><span><b>Geradeaus, dann rechts.</b></span></div>',
+            rede: 'Türkisch? Kein Problem. Ich dolmetsche live, in beide Richtungen.' });
     }
 
-    function szeneUnterschied2() {
-        blitz(); mimik('happy'); fortschritt(86); caption('⚡ UND NOCH WAS');
-        var k = karte('<div class="pz-kopf">Nur Zane</div>' +
-            '<div class="pz-zeile">😀 <span><b>Gesicht</b> und Mimik</span></div>' +
-            '<div class="pz-zeile">😂 <span><b>Lacht</b> wirklich laut</span></div>' +
-            '<div class="pz-zeile">🇩🇪 <span><b>Deutsch</b>, mit Humor</span></div>' +
-            '<div class="pz-zeile">🚀 <span><b>Nichts</b> zu installieren</span></div>');
-        setTimeout(function () { grimasse({ eyeSquint_L: .6, eyeSquint_R: .6, mouthSmile_L: 1, mouthSmile_R: 1, browInnerUp: .3 }, 1400); }, 2400);
-        var rede = sag('Ich habe ein Gesicht, eine Stimme und Humor. Wenn etwas wirklich witzig ist, lache ich laut. Auf Deutsch. Und du musst nichts installieren: App öffnen, reden.');
-        return Promise.all([warte(600).then(function () { return pop(k, 2300); }), rede]);
+    function szene8() {
+        return szene({ nr: 8, cap: 'ER DENKT MIT', mimik: 'thinking', cmd: 'Wo habe ich den Schlüssel hingelegt?', icon: '🎤',
+            html: '<div class="pz-kopf">Nova merkt sich alles</div>' +
+                '<div class="pz-zeile">🔑 <span>Schlüssel: <b class="pz-gruen">Küchentisch</b></span></div>' +
+                '<div class="pz-zeile">🎂 <span>Lena hat in <b class="pz-gelb">15 Tagen</b> Geburtstag</span></div>' +
+                '<div class="pz-zeile">🗑️ <span>Löschen? <b>Erst nachfragen</b></span></div>',
+            rede: 'Ich merke mir, was du erzählst, und erinnere dich daran. Gelöscht wird nur, wenn du es bestätigst.' });
     }
 
-    function szeneAnsichten() {
-        blitz(); mimik('happy'); fortschritt(92); caption('✨ ER KANN AUCH ANDERS');
-        var k = karte('<div class="pz-wort"><span class="pz-w">KOPF</span></div>');
-        var w = k.querySelector('.pz-w');
-        function wort(t, an) { return function () { blitz(); w.textContent = t; w.classList.remove('pz-w2'); void w.offsetWidth; w.classList.add('pz-w2'); ansicht(an); return warte(1500); }; }
-        var rede = sag('Kopf. Kugel. Gehirn. Ganz wie du willst.');
-        var show = warte(300).then(wort('KOPF', 'kopf')).then(wort('KUGEL', 'kugel')).then(wort('GEHIRN', 'gehirn')).then(function () { ansicht('kopf'); });
-        return Promise.all([show, rede]);
+    function szene9() {
+        return szene({ nr: 9, cap: 'ALLES PER WHATSAPP', mimik: 'happy', cmd: 'Schick das per WhatsApp.', icon: '🎤',
+            html: '<div class="pz-kopf">Ein Satz genügt</div>' +
+                '<div class="pz-zeile">🛒 <span>Einkaufsliste → <b class="pz-gruen">WhatsApp</b></span></div>' +
+                '<div class="pz-zeile">📷 <span>Foto → <b class="pz-gruen">WhatsApp</b></span></div>' +
+                '<div class="pz-zeile">📋 <span>Aufgaben, Antworten → <b class="pz-gruen">WhatsApp</b></span></div>',
+            rede: 'Einkaufsliste, Foto, Aufgaben, meine letzte Antwort. Ein Satz, und es geht per WhatsApp raus.' });
+    }
+
+    function szene10() {
+        return szene({ nr: 10, cap: 'ROUTE · SPRIT · REGENRADAR', mimik: 'serious', cmd: 'Route nach Hamburg.', icon: '🎤',
+            html: '<div class="pz-kopf">Schwarzenbek → Hamburg</div>' +
+                '<div class="pz-zeile">⏱️ <span><b class="pz-gross2">34 Min.</b> <span class="pz-rot">+9 Stau</span></span></div>' +
+                '<div class="pz-zeile">⛽ <span>Diesel <b class="pz-gross2">1,59 €</b> · 2 km</span></div>' +
+                '<div class="pz-zeile">🌧️ <span>Regenradar: <b class="pz-gruen">ab 14 Uhr trocken</b></span></div>',
+            takt: 850,
+            rede: 'Route mit Stau, der billigste Sprit auf dem Weg und das Regenradar. Alles in einem.' });
     }
 
     function szeneAbschluss() {
         blitz(); ansicht('kopf'); mimik('laugh'); fortschritt(100); caption('');
-        karte('<div class="pz-gross pz-glitch">ZANE</div><div class="pz-klein">ARBEITET FÜR DICH · TAG UND NACHT</div>');
+        if (cmdEl) cmdEl.classList.remove('an');
+        karte('<div class="pz-gross pz-glitch">NOVA</div><div class="pz-klein">ARBEITET FÜR DICH · TAG UND NACHT</div>');
         setTimeout(function () { grimasse({ browOuterUp_L: .95, browInnerUp: .2, mouthSmile_L: .8, mouthSmile_R: .4 }, 1400); }, 600);
-        return sag('Ich schlafe nie. Ich beschwere mich nie. Und ich vergesse nichts.')
+        return sag('Ich schlafe nie, ich vergesse nichts. Ich bin Nova.')
             .then(function () { grimasse({ eyeSquint_L: .6, eyeSquint_R: .6, mouthSmile_L: 1, mouthSmile_R: 1, browInnerUp: .3 }, 1500); return warte(1700); });
     }
 
@@ -227,7 +264,7 @@
         gen++;
         laeuft = false;
         try { if (root) root.remove(); } catch (e) {}
-        root = null; stage = null; capEl = null; aktuelleKarte = null;
+        root = null; stage = null; capEl = null; cmdEl = null; aktuelleKarte = null;
         try { document.body.classList.remove('jv-praesentation'); } catch (e) {}
         ansicht('kopf'); mimik('friendly');
         try { if (window.jvAvatar3D && window.jvAvatar3D.grimasse) window.jvAvatar3D.grimasse(null); } catch (e) {}
@@ -240,8 +277,8 @@
         laeuft = true; abbruch = false; gen++;
         if (!document.getElementById('jvPraesCss')) { var s = el('style'); s.id = 'jvPraesCss'; s.textContent = CSS; document.head.appendChild(s); }
         root = el('div'); root.id = 'jvPraes';
-        capEl = el('div', 'pz-cap'); stage = el('div', 'pz-stage');
-        root.appendChild(capEl); root.appendChild(stage); root.insertAdjacentHTML('beforeend','<div class="pz-bar"><i></i></div>');
+        capEl = el('div', 'pz-cap'); cmdEl = el('div', 'pz-cmd'); stage = el('div', 'pz-stage');
+        root.appendChild(capEl); root.appendChild(cmdEl); root.appendChild(stage); root.insertAdjacentHTML('beforeend','<div class="pz-bar"><i></i></div>');
         root.addEventListener('click', function () { var n = Date.now(); if (n - letzterTipp < 450) stop(); letzterTipp = n; });
         document.body.appendChild(root);
         document.body.classList.add('jv-praesentation');
@@ -249,15 +286,16 @@
         var g = gen;
         warte(900)
             .then(szeneHook).then(function () { return warte(150); })
-            .then(szeneName).then(function () { return warte(150); })
-            .then(szeneBriefing).then(function () { return warte(150); })
-            .then(szeneRechnung).then(function () { return warte(150); })
-            .then(szeneRoute).then(function () { return warte(150); })
-            .then(szeneDolmetscher).then(function () { return warte(150); })
-            .then(szeneMitdenken).then(function () { return warte(150); })
-            .then(szeneUnterschied1).then(function () { return warte(150); })
-            .then(szeneUnterschied2).then(function () { return warte(150); })
-            .then(szeneAnsichten).then(function () { return warte(150); })
+            .then(szene1).then(function () { return warte(150); })
+            .then(szene2).then(function () { return warte(150); })
+            .then(szene3).then(function () { return warte(150); })
+            .then(szene4).then(function () { return warte(150); })
+            .then(szene5).then(function () { return warte(150); })
+            .then(szene6).then(function () { return warte(150); })
+            .then(szene7).then(function () { return warte(150); })
+            .then(szene8).then(function () { return warte(150); })
+            .then(szene9).then(function () { return warte(150); })
+            .then(szene10).then(function () { return warte(150); })
             .then(szeneAbschluss)
             .then(function () { return warte(900); })
             .then(function () { if (g === gen) aufraeumen(); })
@@ -270,8 +308,8 @@
     var RX = /^(?:bitte\s+)?(?:(?:starte?|beginne?|mach|zeig|spiel|spiele|los)\s+(?:mal\s+)?(?:die\s+|deine\s+|eine\s+|mir\s+(?:die\s+|deine\s+)?)?)?präsentation(?:\s+(?:starten|beginnen|los|bitte|ab))?$|^präsentation\s+starten$/;
     function handle(text) {
         var t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim()
-            .replace(/^(?:hey |hallo |ok |okay )?(?:zane |jarvis )/, '');
-        t = t.replace(/praesentation/g, 'präsentation');
+            .replace(/^(?:hey |hallo |ok |okay )?(?:zane |jarvis |nova )/, '');
+        t = t.replace(/praesentation/g, 'präsentation').replace(/^(?:tik ?tok|tiktok)[ -]+(?=präsentation)/, '').replace(/(?:^| )(?:tik ?tok|tiktok)[ -]+(?=präsentation)/, ' ');
         if (!t || t.length > 50) return false;
         if (RX.test(t) || /^stell(?:e)? dich (?:(?:mal|bitte|doch|kurz|einmal|ruhig|allen|uns) )*vor$/.test(t)) { setTimeout(start, 150); return true; }
         return false;
