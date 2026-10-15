@@ -194,6 +194,7 @@ jobs:
               private SpeechRecognizer recognizer;
               private boolean recRunning = false;
               private boolean recAborted = false;
+              private int recSession = 0;
               private ValueCallback<Uri[]> fileCallback;
               private boolean chooserStale = false;   // Seite wurde neu geladen, solange der Ordner offen war
               static volatile long pickerUntil = 0;
@@ -598,6 +599,7 @@ jobs:
                       }
                       recAborted = false;
                       recRunning = true;
+                      final int sess = ++recSession;
                       WakeService.setRecActive(true);
                       final Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
                       i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
@@ -607,7 +609,14 @@ jobs:
                       i.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
                       h.postDelayed(() -> {
                           if (!recRunning) return;
-                          try { recognizer.startListening(i); } catch (Throwable e) { finishRec("audio-capture"); }
+                          try { recognizer.startListening(i); } catch (Throwable e) { finishRec("audio-capture"); return; }
+                          // Meldet sich die Android-Spracherkennung nie zurück, nach 40 Sekunden selbst beenden
+                          h.postDelayed(() -> {
+                              if (recRunning && recSession == sess) {
+                                  try { recognizer.cancel(); } catch (Throwable ignored) { }
+                                  finishRec("no-speech");
+                              }
+                          }, 40000);
                       }, 250);
                   });
               }
@@ -898,6 +907,8 @@ jobs:
               static volatile boolean recActive = false;
               static volatile boolean activityResumed = false;
               static volatile long holdUntil = 0;
+              static volatile long recSince = 0;
+              static volatile long busySince = 0;
               static WakeService inst;
 
               private final Handler main = new Handler(Looper.getMainLooper());
@@ -916,6 +927,12 @@ jobs:
                   @Override public void run() {
                       if (!alive) return;
                       try {
+                          // Hängt gebliebene Meldungen lösen (sonst bleibt das Weckwort für immer auf Pause)
+                          long jetzt = System.currentTimeMillis();
+                          boolean geloest = false;
+                          if (recActive && jetzt - recSince > 45000) { recActive = false; geloest = true; }
+                          if (pageBusy && jetzt - busySince > 600000) { pageBusy = false; geloest = true; }
+                          if (geloest) evalVosk();
                           if (want()) {
                               if (speech == null && !startPending) evalVosk();
                               else if (speech != null && System.currentTimeMillis() - speechSince > 240000) {
@@ -928,8 +945,8 @@ jobs:
                   }
               };
 
-              static void setPageBusy(boolean b) { if (pageBusy != b) { pageBusy = b; poke(); } }
-              static void setRecActive(boolean b) { recActive = b; poke(); }
+              static void setPageBusy(boolean b) { if (pageBusy != b) { pageBusy = b; if (b) busySince = System.currentTimeMillis(); poke(); } }
+              static void setRecActive(boolean b) { if (b && !recActive) recSince = System.currentTimeMillis(); recActive = b; poke(); }
               static void setActivityResumed(boolean b) { activityResumed = b; poke(); }
 
               static long hold(long ms) { long v = System.currentTimeMillis() + ms; holdUntil = v; poke(); return v; }
@@ -1050,7 +1067,7 @@ jobs:
                       startPending = false;
                       if (speech != null) {
                           stopSpeech();
-                          Prefs.setStatus(this, "Pause (Nova ist dran)");
+                          Prefs.setStatus(this, "Pause (" + (recActive ? "Spracherkennung läuft" : System.currentTimeMillis() < holdUntil ? "Ordner oder Kamera offen, oder Nova gerade geweckt" : "Nova spricht oder hört zu") + ")");
                       }
                       if (alive && model != null && System.currentTimeMillis() < holdUntil) {
                           main.postDelayed(this::evalVosk, holdUntil - System.currentTimeMillis() + 100);
