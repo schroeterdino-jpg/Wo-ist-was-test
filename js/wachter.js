@@ -1,7 +1,7 @@
 /* ============================================================
    WÄCHTER: Zane meldet sich von selbst, solange die App offen ist (Bildschirm an oder "Hey Zane"-Modus).
    Er sieht jede Minute nach und spricht nur, wenn es wirklich etwas gibt:
-   - ABFAHRT: Ein Termin mit Ort steht an, und es wird Zeit loszufahren ("In etwa 10 Minuten sollten Sie zum Zahnarzt losfahren, die Fahrt dauert rund 25 Minuten").
+   - ABFAHRT: Ein Termin mit Ort steht an, und es wird Zeit loszufahren ("In etwa 10 Minuten solltest du zum Zahnarzt losfahren, die Fahrt dauert rund 25 Minuten").
      Die Fahrzeit kommt vom Karten-Server (ohne Verkehr gerechnet), plus 10 Minuten Puffer.
    - GLEICH: Ein Termin ohne Ort beginnt in 15 Minuten.
    - REGEN: In der nächsten Stunde fängt es an zu regnen (höchstens einmal in drei Stunden).
@@ -139,7 +139,7 @@ async function wachterCollect() {
         const mins = Math.round((start - now) / 60000);
         if (mins < 1 || mins > WACHTER_LOOKAHEAD_MIN) continue;
         const key = `${e.text}|${e.isoDate}`;
-        const title = String(e.text || 'Ihr Termin');
+        const title = String(e.text || 'Dein Termin');
         if (e.location) {
             const drive = await wachterDriveMinutes(e.location);
             if (drive !== null) {
@@ -149,8 +149,8 @@ async function wachterCollect() {
                 } else if (leaveIn <= 10) {
                     const when = leaveIn > 2 ? `in etwa ${leaveIn} Minuten` : 'jetzt';
                     let text = leaveIn > 2
-                        ? `${a}, ${when} sollten Sie zu „${title}“ losfahren. Die Fahrt dauert rund ${drive} Minuten, ohne Verkehr gerechnet.`
-                        : `${a}, es wird Zeit: Sie sollten jetzt zu „${title}“ losfahren. Die Fahrt dauert rund ${drive} Minuten, ohne Verkehr gerechnet.`;
+                        ? `${a}, ${when} solltest du zu „${title}“ losfahren. Die Fahrt dauert rund ${drive} Minuten, ohne Verkehr gerechnet.`
+                        : `${a}, es wird Zeit: Du solltest jetzt zu „${title}“ losfahren. Die Fahrt dauert rund ${drive} Minuten, ohne Verkehr gerechnet.`;
                     if (lvl >= 2 && leaveIn <= 2) text += ' Ich sage es nur ungern, aber: Beeilung.';
                     out.push({ id: `leave|${key}`, prio: 5, text });
                 }
@@ -207,7 +207,7 @@ function handleWachterCommand(text) {
     if (/^(?:melde dich|sprich|sag etwas|sag was)(?: bitte)? (?:nicht|nie)(?: mehr)? von selbst$/.test(t) || /^(?:hör|hoer) (?:bitte )?auf,? dich von selbst zu melden$/.test(t)
         || /^(?:keine|ohne) (?:meldungen|hinweise|ansagen) (?:mehr )?von selbst$/.test(t) || /^(?:sei|bleib) still,? bis ich dich frage$/.test(t)) {
         setWachter(false);
-        say(`In Ordnung, ${wAddress()}. Ich melde mich nur noch, wenn Sie mich ansprechen.`);
+        say(`In Ordnung, ${wAddress()}. Ich melde mich nur noch, wenn du mich ansprichst.`);
         return true;
     }
     if (/^melde dich(?: bitte)?(?: wieder)? von selbst$/.test(t) || /^du darfst dich (?:wieder )?von selbst melden$/.test(t) || /^(?:meldungen|hinweise) von selbst (?:wieder )?(?:an|einschalten)$/.test(t)) {

@@ -104,10 +104,10 @@
         return b > a ? ', schon am nächsten Tag' : ', noch am Vortag';
     }
     function diffText(diffMin) {
-        if (diffMin === 0) return 'Das ist dieselbe Zeit wie bei Ihnen.';
+        if (diffMin === 0) return 'Das ist dieselbe Zeit wie bei dir.';
         const abs = Math.abs(diffMin), h = Math.floor(abs / 60), m = abs % 60;
         const dur = h === 0 ? `${m} Minuten` : `${h} ${h === 1 ? 'Stunde' : 'Stunden'}${m ? ' und ' + m + ' Minuten' : ''}`;
-        return `Das sind ${dur} ${diffMin > 0 ? 'mehr' : 'weniger'} als bei Ihnen.`;
+        return `Das sind ${dur} ${diffMin > 0 ? 'mehr' : 'weniger'} als bei dir.`;
     }
 
     function findPlace(t) {
@@ -138,7 +138,7 @@
                 const c = clock(zone, now), diff = offsetMin(zone, now) - homeOff;
                 return { name, c, diff, zone };
             });
-            showCards(lines.map(l => ({ icon: '🕒', title: `${l.name}: ${l.c.short} Uhr`, subtitle: diffText(l.diff).replace('Das sind ', '').replace(' als bei Ihnen.', ' zu Deutschland') })));
+            showCards(lines.map(l => ({ icon: '🕒', title: `${l.name}: ${l.c.short} Uhr`, subtitle: diffText(l.diff).replace('Das sind ', '').replace(' als bei dir.', ' zu Deutschland') })));
             say(`${hit.p.label.charAt(0).toUpperCase() + hit.p.label.slice(1)} gibt es mehrere Zeitzonen. ` + lines.map((l, i) => `${i === 0 ? 'In' : 'in'} ${l.name} ist es ${spokenClock(l.c)}`).join(', ') + '.');
             return true;
         }
@@ -146,7 +146,7 @@
         const zone = hit.p.zone, c = clock(zone, now), diff = offsetMin(zone, now) - homeOff;
         const prep = /^auf den/.test(hit.p.label) ? '' : 'In ';
         const name = hit.p.label.replace(/^auf den /, 'auf den ');
-        showCards([{ icon: '🕒', title: `${hit.p.label}: ${c.short} Uhr`, subtitle: diffText(diff).replace('Das sind ', '').replace(' als bei Ihnen.', ' zu Deutschland').replace('Das ist dieselbe Zeit wie bei Ihnen.', 'gleiche Zeit wie in Deutschland') }]);
+        showCards([{ icon: '🕒', title: `${hit.p.label}: ${c.short} Uhr`, subtitle: diffText(diff).replace('Das sind ', '').replace(' als bei dir.', ' zu Deutschland').replace('Das ist dieselbe Zeit wie bei dir.', 'gleiche Zeit wie in Deutschland') }]);
         const only = /\b(zeitunterschied|zeitverschiebung|zeitdifferenz)\b/.test(t);
         if (only) say(`${hit.p.label.charAt(0).toUpperCase() + hit.p.label.slice(1)}: ${diffText(diff)} Dort ist es gerade ${spokenClock(c)}.`);
         else say(`${prep ? 'In ' + name : name.charAt(0).toUpperCase() + name.slice(1)} ist es jetzt ${spokenClock(c)}${dayNote(zone, now)}. ${diffText(diff)}`);

@@ -162,7 +162,7 @@
     function readText() {
         const d = new Date();
         const list = entries().filter(c => c.id !== 'hier');
-        if (!list.length) return 'Die Weltuhr ist leer. Sagen Sie zum Beispiel: Füge Istanbul zur Weltuhr hinzu.';
+        if (!list.length) return 'Die Weltuhr ist leer. Sag zum Beispiel: Füge Istanbul zur Weltuhr hinzu.';
         return 'Bei uns ist es ' + spoken(HOME.tz, d) + '. ' + list.map(c => {
             const w = dayWord(c.tz, d);
             return `In ${c.name} ist es ${spoken(c.tz, d)}${w && w !== 'heute' ? ' (' + w + ')' : ''}`;
@@ -188,7 +188,7 @@
             if (!c) { say(`Den Ort ${m[1]} kenne ich für die Weltuhr noch nicht. Bekannt sind zum Beispiel ${known()}.`); return true; }
             const ids = loadIds();
             if (ids.includes(c.id)) { say(`${c.name} ist schon in der Weltuhr.`); return true; }
-            if (ids.length >= MAX) { say(`Die Weltuhr ist mit ${MAX} Orten voll. Entfernen Sie zuerst einen.`); return true; }
+            if (ids.length >= MAX) { say(`Die Weltuhr ist mit ${MAX} Orten voll. Entferne zuerst einen.`); return true; }
             ids.push(c.id); saveIds(ids);
             if (el) open();
             say(`${c.name} steht jetzt in der Weltuhr.`);

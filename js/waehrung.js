@@ -151,7 +151,7 @@ async function runCurrency(req) {
     const say = (msg) => speak(msg, typeof continueConversation === 'function' ? continueConversation : undefined);
     if (req.from.code === req.to.code) { say(`Das ist beides ${req.from.name}, da gibt es nichts umzurechnen.`); return; }
     const r = await fetchExchangeRate(req.from.code, req.to.code);
-    if (!r) { say('Den aktuellen Kurs konnte ich gerade nicht abrufen. Versuchen Sie es bitte gleich noch einmal.'); return; }
+    if (!r) { say('Den aktuellen Kurs konnte ich gerade nicht abrufen. Versuch es bitte gleich noch einmal.'); return; }
     const result = req.amount * r.rate;
     const dt = rateDateText(r.date);
     const rateSentence = `${formatRate(r.rate)} ${req.to.name} pro ${req.from.name}`;

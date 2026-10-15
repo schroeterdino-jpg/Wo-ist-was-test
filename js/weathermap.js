@@ -140,7 +140,7 @@ async function wxFetchWeather(lat, lon) {
 
 /* ---------- Gesprochene Zusammenfassung ---------- */
 function wxSummary(label, data, dayOffset, isLocal) {
-    const where = isLocal ? 'bei Ihnen' : `in ${label}`;
+    const where = isLocal ? 'bei dir' : `in ${label}`;
     if (dayOffset > 0 && data.days[dayOffset]) {
         const d = data.days[dayOffset];
         const day = dayOffset === 1 ? 'Morgen' : 'Übermorgen';
@@ -261,14 +261,14 @@ async function runWeatherMap(req) {
     const isLocal = !req.place;
     if (isLocal) {
         try { const p = await wxCurrentPosition(); lat = p.lat; lon = p.lon; label = 'Hier'; }
-        catch (e) { say('Ihren Standort kann ich gerade nicht ermitteln.'); return; }
+        catch (e) { say('Deinen Standort kann ich gerade nicht ermitteln.'); return; }
     } else {
         const geo = await wxGeocode(req.place);
         if (!geo) { say(`Den Ort ${req.place} habe ich nicht gefunden.`); return; }
         lat = geo.lat; lon = geo.lon; label = geo.short;
     }
     const data = await wxFetchWeather(lat, lon);
-    if (!data) { say(`Die Wetterdaten für ${isLocal ? 'Ihren Standort' : label} konnte ich gerade nicht laden.`); return; }
+    if (!data) { say(`Die Wetterdaten für ${isLocal ? 'deinen Standort' : label} konnte ich gerade nicht laden.`); return; }
     try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) {}
     showWeatherMap(label, lat, lon, data);
     say(wxSummary(label, data, req.dayOffset, isLocal) + ' Die Karte ist offen.');
