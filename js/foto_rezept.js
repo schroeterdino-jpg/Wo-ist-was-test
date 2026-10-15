@@ -84,6 +84,10 @@
     /* ---------- Foto(s) -> Rezept ---------- */
     async function processRezept(urls, addTo) {
         status('Lese das Rezept ...');
+        try { return await processRezeptInner(urls, addTo); }
+        finally { status(''); }     // Statuszeile wieder leeren
+    }
+    async function processRezeptInner(urls, addTo) {
         let lastErr = null;
         const results = await Promise.all(urls.map(u =>
             askVision(rezeptPrompt(), 'Lies das Rezept von diesem Foto.', u, true).then(parseRezept).catch(e => { lastErr = e; return null; })));
