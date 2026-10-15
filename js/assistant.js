@@ -172,6 +172,9 @@ async function sendToGroqSmartCore(text, opts = {}) {
         // Fahrziele, die ein gespeicherter Kontakt sind ("zu Alyssa", "zu meiner Tochter"), werden durch dessen Adresse ersetzt
         resolveContactsInActions(actions, text);
 
+        // Wünsche und Sorgen: immer ins Langzeitgedächtnis (langzeit.js), auch wenn die KI es vergessen hat
+        try { if (typeof window.jvWunschAktion === 'function') window.jvWunschAktion(text, actions); } catch (e) { }
+
         // Fragen nach Fernsehen, Kino usw. werden IMMER im Internet nachgeschlagen, auch wenn die KI behauptet, sie hätte keinen Zugriff
         if (WEB_TRIGGER.test(text) && !actions.some(a => a.type === 'web_lookup') &&
             actions.every(a => !a.type || a.type === 'chat' || a.type === 'memory_search')) {

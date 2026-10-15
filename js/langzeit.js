@@ -628,3 +628,26 @@
     setTimeout(() => { try { rueckblickJob(); } catch (e) {} }, 8000);
     setInterval(() => { try { rueckblickJob(); } catch (e) {} }, 10 * 60 * 1000);
 })();
+
+
+/* Wünsche und Sorgen ("Ich wäre gerne mal wieder in Urlaub gefahren, aber die Preise sind zu hoch") legt die App selbst ins Langzeitgedächtnis,
+   auch wenn die KI es vergisst. assistant.js ruft das nach der Antwort der KI auf und gibt die Aktionsliste mit. */
+(function () {
+    const MARKER = /\b(?:mal wieder|wieder mal|wieder einmal|endlich mal|irgendwann mal|eines tages|so gerne?|vermisse|träume?\s+(?:von|davon)|nicht leisten|nicht erlauben|zu teuer|mir sorgen|sorgen (?:um|wegen)|überfordert|einsam|traurig|stress)\b/i;
+    const ICH = /\b(?:ich|mir|mich|mein\w*)\b/i;
+    const BEFEHL = /\b(?:termin\w*|erinner\w*|wecker|timer|wetter|einkauf\w*|route|fahrzeit|navig\w*|liste|kalender|mails?|nachricht\w*|zeig\w*|öffne\w*|ruf|rufe|schick\w*|lies|such\w*|find\w*|stell\w*|lösch\w*|speicher\w*|merk\w*)\b|\?\s*$|^\s*(?:wie|was|wo|wann|warum|wieso|wer|welche\w*|kannst|könntest|gibt)\b/i;
+    const STIMMUNG = /\b(?:sorgen|stress|überfordert|einsam|traurig|vermisse)\b/i;
+    let zuletzt = { t: '', at: 0 };
+
+    window.jvWunschAktion = function (text, actions) {
+        const t = String(text || '').trim();
+        if (t.length < 15 || t.length > 400 || !Array.isArray(actions)) return false;
+        if (!MARKER.test(t) || !ICH.test(t) || BEFEHL.test(t)) return false;
+        if (actions.some(a => a && (String(a.type || '').indexOf('episode_') === 0 || a.type === 'memory_store'))) return false;   // die KI hat es schon abgelegt
+        if (zuletzt.t === t && Date.now() - zuletzt.at < 20000) return false;
+        zuletzt = { t, at: Date.now() };
+        const satz = t.replace(/^(?:ich wollte dir (?:nur )?(?:mal )?(?:sagen|erzählen|zählen),?\s*)/i, '').replace(/\s+/g, ' ').trim();
+        actions.push({ type: 'episode_store', episode_text: 'Der User sagte: „' + satz + '“', episode_kategorie: STIMMUNG.test(t) ? 'Stimmung' : 'Vorliebe' });
+        return true;
+    };
+})();
