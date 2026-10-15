@@ -464,8 +464,14 @@
             const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
             if (!(layer && view === 'ziel' && zielD) || t.length > 80) return next(text);
             const m = t.match(/^(?:jarvis )?(?:gibt es|gibt's|ist|sind|finde|such|suche|zeig mir|zeig)?\s*(?:da |dort )?(?:eine?n?|keine?n?|irgendeine?n?|ne|nen)?\s*(.+?)\s+(?:auf dem weg|auf der strecke|unterwegs|an der strecke|entlang der strecke)(?: gibt es| gibt's)?$/);
-            if (!m || !m[1] || /^(?:stau|regen|wetter|diesel|tankstelle für diesel)$/.test(m[1])) return next(text);
-            const was = m[1].replace(/^(?:gibt es|gibt's|ist|sind)\s+/, '').replace(/\b(?:so|mal|vielleicht|bitte|noch|irgendwo)\b/g, '').replace(/\s+/g, ' ').trim();
+            // Auch mit "auf dem Weg" VOR dem Gesuchten: "Gibt es auf dem Weg ein McDonald's", "Ist unterwegs irgendwo eine Apotheke"
+            let m2 = m;
+            if (!m2) {
+                const m3 = t.match(/^(?:jarvis )?(?:gibt es|gibt's|ist|sind|finde|such|suche|zeig mir|zeig)?\s*(?:da |dort |hier )?(?:auf dem weg|auf der strecke|unterwegs|an der strecke|entlang der strecke|auf dem weg dorthin)\s*(?:gibt es |gibt's |ist |sind )?(?:da |dort |irgendwo |vielleicht )*(?:eine?n?|keine?n?|irgendeine?n?|ne|nen)?\s*(.+)$/);
+                if (m3) m2 = m3;
+            }
+            if (!m2 || !m2[1] || /^(?:stau|regen|wetter|diesel|tankstelle für diesel)$/.test(m2[1])) return next(text);
+            const was = m2[1].replace(/^(?:gibt es|gibt's|ist|sind)\s+/, '').replace(/\b(?:so|mal|vielleicht|bitte|noch|irgendwo)\b/g, '').replace(/\s+/g, ' ').trim();
             if (!was) return next(text);
             suchAufDemWeg(was.charAt(0).toUpperCase() + was.slice(1)).catch(e => console.error('Lagebild Weg', e));
             return true;
