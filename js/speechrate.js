@@ -42,7 +42,7 @@ function updateSpeechRateUi() {
 }
 
 function testSpeechRate() {
-    speak('So spreche ich jetzt. Ganz gemütlich, oder wie es Ihnen gefällt.');
+    speak('So spreche ich jetzt. Ganz gemütlich, oder wie es dir gefällt.');
 }
 
 /* "Sprich langsamer" / "Sprich schneller" / "Etwas langsamer bitte" / "Nicht so schnell" / "Sprich normal" / "Sprechtempo normal".

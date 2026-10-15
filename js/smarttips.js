@@ -43,7 +43,7 @@ function buildTipSentence(activity, weatherDay) {
         else if (!regnetWahrscheinlich && weatherDay.hoechstwert_grad >= 20 && activity.sonne) parts.push(activity.sonne);
     }
     if (parts.length === 0) return null;
-    return `Übrigens: Denken Sie an ${parts.join(' und ')}.`;
+    return `Übrigens: Denk an ${parts.join(' und ')}.`;
 }
 
 async function checkSmartTips() {

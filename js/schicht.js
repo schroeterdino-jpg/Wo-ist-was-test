@@ -190,7 +190,7 @@
     async function calendarCommand(remove) {
         try {
             const st = load();
-            if (!st) return say('Sagen Sie mir zuerst Ihre Schicht, zum Beispiel: Diese Woche Frühschicht.');
+            if (!st) return say('Sag mir zuerst deine Schicht, zum Beispiel: Diese Woche Frühschicht.');
             if (typeof isGoogleAuthorized !== 'function' || !isGoogleAuthorized()) return say('Dafür muss der Google Kalender verbunden sein.');
             say(remove ? 'Ich entferne die Schichten aus dem Kalender.' : 'Ich trage die Schichten der nächsten acht Wochen in den Kalender ein.');
             const r = await writeShifts(st, remove);
@@ -236,7 +236,7 @@
             if (u && u.von && u.bis) {
                 const wk = wocheYmd(w);
                 if (u.von <= wk.von && u.bis >= wk.bis) return 'Urlaub, also keine Schicht';
-                if (u.von <= wk.bis && u.bis >= wk.von) return sh + ', aber vom ' + urlaubLesbar(u.von < wk.von ? wk.von : u.von) + ' bis ' + urlaubLesbar(u.bis > wk.bis ? wk.bis : u.bis) + ' haben Sie Urlaub';
+                if (u.von <= wk.bis && u.bis >= wk.von) return sh + ', aber vom ' + urlaubLesbar(u.von < wk.von ? wk.von : u.von) + ' bis ' + urlaubLesbar(u.bis > wk.bis ? wk.bis : u.bis) + ' hast du Urlaub';
             }
         } catch (e) {}
         return sh;
@@ -259,7 +259,7 @@
         // Automatik an/aus
         const au = t.match(AUTO_RX);
         if (au) {
-            if (!st) return say('Sagen Sie mir zuerst Ihre Schicht, zum Beispiel: Diese Woche Frühschicht.');
+            if (!st) return say('Sag mir zuerst deine Schicht, zum Beispiel: Diese Woche Frühschicht.');
             st.auto = /^(?:an|ein|einschalten)$/.test(au[1]);
             save(st);
             return say(st.auto ? 'In Ordnung, das Briefing kommt wieder zur Schicht von selbst.' : 'In Ordnung, das Briefing kommt nicht mehr von selbst.');
@@ -268,7 +268,7 @@
         // Briefing-Zeit ändern: "Briefing in der Spätschicht um 11 Uhr"
         if (hasShift && /briefing/.test(t) && !QUERY_RX.test(t) && !WHEN_RX.test(t)) {
             const min = parseTime(t);
-            if (min === null) return say('Zu welcher Uhrzeit? Sagen Sie zum Beispiel: Briefing in der Spätschicht um 11 Uhr.');
+            if (min === null) return say('Zu welcher Uhrzeit? Sag zum Beispiel: Briefing in der Spätschicht um 11 Uhr.');
             const key = hasShift[1] === 'frühschicht' ? 'frueh' : 'spaet';
             const s = st || { base: weekNo(berlin()), shift: key, times: Object.assign({}, DEFAULT_TIMES), auto: true };
             s.times[key] = min;
@@ -278,16 +278,16 @@
 
         // Wann kommt das Briefing?
         if (WHEN_RX.test(t)) {
-            if (!st) return say('Sagen Sie mir zuerst Ihre Schicht, zum Beispiel: Diese Woche Frühschicht. Dann kommt das Briefing zur passenden Zeit.');
+            if (!st) return say('Sag mir zuerst deine Schicht, zum Beispiel: Diese Woche Frühschicht. Dann kommt das Briefing zur passenden Zeit.');
             return say(`In der Frühschicht kommt das Briefing ab ${spoken(st.times.frueh)}, in der Spätschicht ab ${spoken(st.times.spaet)}.${st.auto ? '' : ' Es ist aber gerade ausgeschaltet.'}`);
         }
 
         // Frage nach der Schicht
         if (QUERY_RX.test(t) && (/schicht/.test(t))) {
-            if (!st) return say('Ihre Schicht kenne ich noch nicht. Sagen Sie zum Beispiel: Diese Woche Frühschicht.');
-            if (NEXT_WEEK.test(t)) return say(`Nächste Woche haben Sie ${describeWeek(st, 1)}.`);
-            if (/übernächste/.test(t)) return say(`In zwei Wochen haben Sie ${describeWeek(st, 2)}.`);
-            return say(`Diese Woche haben Sie ${describeWeek(st, 0)}, nächste Woche ${describeWeek(st, 1)}.`);
+            if (!st) return say('Deine Schicht kenne ich noch nicht. Sag zum Beispiel: Diese Woche Frühschicht.');
+            if (NEXT_WEEK.test(t)) return say(`Nächste Woche hast du ${describeWeek(st, 1)}.`);
+            if (/übernächste/.test(t)) return say(`In zwei Wochen hast du ${describeWeek(st, 2)}.`);
+            return say(`Diese Woche hast du ${describeWeek(st, 0)}, nächste Woche ${describeWeek(st, 1)}.`);
         }
 
         // Schicht festlegen: "Diese Woche Frühschicht", "Nächste Woche habe ich Spätschicht"

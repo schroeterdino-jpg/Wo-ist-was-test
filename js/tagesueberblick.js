@@ -165,7 +165,7 @@ async function uebSortTasks(list) {
 function uebSpeechText(d) {
     const a = uebAddress();
     const t = (x) => (typeof formatSpokenTime === 'function') ? formatSpokenTime(x) : uebClock(x);
-    if (uebIsEmpty(d)) return `Guten Morgen, ${a}. Heute ist nichts offen.` + (d.standort ? ` Sie befinden sich in ${d.standort}.` : '');
+    if (uebIsEmpty(d)) return `Guten Morgen, ${a}. Heute ist nichts offen.` + (d.standort ? ` Du befindest dich in ${d.standort}.` : '');
     const parts = [`Guten Morgen, ${a}.`];
     if (d.termine.length) parts.push(`Heute ${d.termine.length === 1 ? 'steht ein Termin' : 'stehen ' + d.termine.length + ' Termine'} an: ` + d.termine.slice(0, 10).map(e => e.time ? `${e.text} um ${t(e.time)}` : `${e.text}, ganztägig`).join('; ') + '.');
     if (d.plaene && d.plaene.length) parts.push('Heute vorgemerkt: ' + d.plaene.slice(0, 5).join('; ') + '.');
@@ -182,9 +182,9 @@ function uebSpeechText(d) {
     // Kacheln, die ihren Inhalt nachladen: nur vorlesen, was schon da ist und eine echte Angabe ist
     const okTxt = (x) => x && !/nicht verfügbar|gerade nicht|wird geladen|Kein Parkplatz|Keine geöffneten/i.test(x);
     if (okTxt(d.wetter)) parts.push('Das Wetter: ' + d.wetter.replace(/\s*·\s*gefühlt\s*/i, ', gefühlt ').replace(/\s*·\s*/g, ', ').replace(/(-?\d+(?:[.,]\d+)?)°/g, '$1 Grad') + '.');
-    if (okTxt(d.parkplatz)) parts.push('Ihr Auto steht: ' + d.parkplatz.replace(/\s*·\s*/g, ', ') + '.');
+    if (okTxt(d.parkplatz)) parts.push('Dein Auto steht: ' + d.parkplatz.replace(/\s*·\s*/g, ', ') + '.');
     if (okTxt(d.sprit)) parts.push('Spritpreis: ' + d.sprit.replace(/\s*€\s*/g, ' Euro ').replace(/\s*·\s*/, ' bei ').replace(/\s*·\s*/g, ', ').replace(/\s+/g, ' ').trim() + '.');
-    if (d.standort) parts.push(`Sie befinden sich in ${d.standort}.`);
+    if (d.standort) parts.push(`Du befindest dich in ${d.standort}.`);
     return parts.join(' ');
 }
 

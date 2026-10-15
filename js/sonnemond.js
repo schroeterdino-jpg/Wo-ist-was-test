@@ -151,7 +151,7 @@
         return Math.round((b - a) / dayMs);
     }
     function untilText(n) { return n <= 0 ? 'heute' : n === 1 ? 'morgen' : n === 2 ? 'übermorgen' : `in ${n} Tagen`; }
-    function guessNote(pos) { return pos.guessed ? ' Ihren Standort kenne ich gerade nicht, ich habe mit Hamburg gerechnet.' : ''; }
+    function guessNote(pos) { return pos.guessed ? ' Deinen Standort kenne ich gerade nicht, ich habe mit Hamburg gerechnet.' : ''; }
     function noonOf(offset) { const d = new Date(); d.setDate(d.getDate() + offset); d.setHours(12, 0, 0, 0); return d; }
 
     /* ---------- Mond-Fenster (Bild) ---------- */
@@ -227,7 +227,7 @@
     async function answerSun(wantRise, wantSet, wantLight) {
         const pos = await position(), now = new Date();
         const t0 = sunTimes(noonOf(0), pos.lat, pos.lon), t1 = sunTimes(noonOf(1), pos.lat, pos.lon);
-        if (!t0.rise || !t0.set) { say('Zur Sonne kann ich für Ihren Standort gerade keine Zeiten berechnen.'); return; }
+        if (!t0.rise || !t0.set) { say('Zur Sonne kann ich für deinen Standort gerade keine Zeiten berechnen.'); return; }
         showCards([{ icon: '🌅', title: `Sonnenaufgang ${berlinHM(t0.rise).short} · Sonnenuntergang ${berlinHM(t0.set).short}`, subtitle: `Heute · morgen: ${berlinHM(t1.rise).short} und ${berlinHM(t1.set).short}${pos.guessed ? ' · Standort geschätzt' : ''}` }]);
         const parts = [];
         if (wantLight) {

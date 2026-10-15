@@ -84,7 +84,7 @@
             out.push({
                 id: `uwarn|${a.id}`,
                 prio: SEVERITY_RANK[a.severity] >= 3 ? 7 : 4,
-                text: `Achtung: ${SEVERITY_LABEL[a.severity]} des Deutschen Wetterdienstes für Ihren Standort. ${a.event}. ${begins}, bis ${spokenWhen(a.expires)}.`
+                text: `Achtung: ${SEVERITY_LABEL[a.severity]} des Deutschen Wetterdienstes für deinen Standort. ${a.event}. ${begins}, bis ${spokenWhen(a.expires)}.`
             });
         });
         return out;
@@ -95,7 +95,7 @@
         let list;
         try { list = await fetchAlerts(); }
         catch (e) { say('Die Wetterwarnungen konnte ich gerade nicht abrufen. Entweder fehlt der Standort oder der Warndienst antwortet nicht.'); return; }
-        if (!list.length) { say('Für Ihren Standort liegt derzeit keine Warnung des Deutschen Wetterdienstes vor.'); return; }
+        if (!list.length) { say('Für deinen Standort liegt derzeit keine Warnung des Deutschen Wetterdienstes vor.'); return; }
         showCards(list.slice(0, 6).map(cardFor));
         const top = list[0], more = list.length - 1;
         let msg = `Es liegt ${list.length === 1 ? 'eine Warnung' : list.length + ' Warnungen'} des Deutschen Wetterdienstes vor. ${SEVERITY_LABEL[top.severity].charAt(0).toUpperCase() + SEVERITY_LABEL[top.severity].slice(1)}: ${top.event}, gültig bis ${spokenWhen(top.expires)}.`;

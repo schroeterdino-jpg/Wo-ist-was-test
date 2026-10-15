@@ -430,7 +430,7 @@ async function computeDepartureAdvice(opts) {
     const loc = (opts && typeof opts === 'object' && ('query' in opts))
         ? await fetchFreshTravelLocation()
         : (opts.loc || await fetchUserLocationData());
-    if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
+    if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Deinen Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
 
     // Ziel kann eine Straßenadresse, aber auch ein Geschäft/eine Sehenswürdigkeit ohne Adresse sein
     // (z.B. "Penny in Schwarzenbek") - geocodeDestination probiert dafür mehrere Schreibweisen.
@@ -452,11 +452,11 @@ async function computeDepartureAdvice(opts) {
     }
     if (!dest) {
         throw userError(`Die Adresse "${target.ort}" konnte ich nicht finden.` +
-            (memAddr ? '' : ` Ist dazu keine Adresse gespeichert? Tragen Sie sie bei den Kontakten ein, oder sagen Sie "Merk dir ${target.ort}s Adresse: ..."`));
+            (memAddr ? '' : ` Ist dazu keine Adresse gespeichert? Trag sie bei den Kontakten ein, oder sag "Merk dir ${target.ort}s Adresse: ..."`));
     }
 
     const route = await routeDurationSeconds(loc.latitude, loc.longitude, dest.lat, dest.lon);
-    if (!route) throw userError('Die Fahrzeit konnte gerade nicht berechnet werden. Bitte versuchen Sie es gleich noch einmal.');
+    if (!route) throw userError('Die Fahrzeit konnte gerade nicht berechnet werden. Bitte versuch es gleich noch einmal.');
 
     const fahrtMin = Math.round(route.seconds / 60);
     const km = route.meters / 1000;
@@ -466,7 +466,7 @@ async function computeDepartureAdvice(opts) {
     // der zufällig auch irgendwo auf der Welt ein Ortsname ist) - dann lieber ehrlich nachfragen, statt
     // eine mit Sicherheit falsche Fahrzeit als Tatsache zu verkaufen.
     if (!target.keinFesterTermin && fahrtMin > 600 && (target.start.getTime() - Date.now()) / 3600000 < 24) {
-        throw userError(`Die gefundene Adresse für "${target.ort}" liegt ungewöhnlich weit entfernt (${Math.round(km)} Kilometer, etwa ${Math.round(fahrtMin / 60)} Stunden Fahrt) - das kann für heute kaum richtig sein. Vermutlich habe ich den falschen Ort gefunden. Nennen Sie mir die genaue Adresse, oder merken Sie sie mir mit "Merk dir ${target.ort}s Adresse: ...".`);
+        throw userError(`Die gefundene Adresse für "${target.ort}" liegt ungewöhnlich weit entfernt (${Math.round(km)} Kilometer, etwa ${Math.round(fahrtMin / 60)} Stunden Fahrt) - das kann für heute kaum richtig sein. Vermutlich habe ich den falschen Ort gefunden. Nenne mir die genaue Adresse, oder merk sie mir mit "Merk dir ${target.ort}s Adresse: ...".`);
     }
 
     const kmText = km >= 10 ? Math.round(km) + ' Kilometer' : km.toFixed(1).replace('.', ',') + ' Kilometer';
@@ -482,8 +482,8 @@ async function computeDepartureAdvice(opts) {
         const zielSatz = target.titel === target.ort ? target.ort : `${target.titel} ist um ${formatSpokenTime(target.start)} in ${target.ort}`;
         reply = `${zielSatz}. Die Fahrt dauert etwa ${fahrtMin} Minuten, das sind ${kmText}. `;
         reply += schonZuSpaet
-            ? 'Um pünktlich zu sein, hätten Sie eigentlich schon losfahren müssen.'
-            : `Um pünktlich da zu sein, sollten Sie spätestens um ${formatSpokenTime(losfahren)} losfahren.`;
+            ? 'Um pünktlich zu sein, hättest du eigentlich schon losfahren müssen.'
+            : `Um pünktlich da zu sein, solltest du spätestens um ${formatSpokenTime(losfahren)} losfahren.`;
         subtitle = `${fahrtMin} Min. Fahrt · Abfahrt bis ${formatSpokenTime(losfahren)}`;
     }
     reply += staumeldung;
@@ -713,10 +713,10 @@ async function fuelAlongRouteAdvice(opts) {
     const fuelType = ['diesel', 'e10', 'e5'].includes(opts.fuelType) ? opts.fuelType : 'diesel';
     const label = FUEL_ROUTE_LABELS[fuelType];
     const destLabel = opts.destLabel || 'zum Ziel';
-    if (!opts.destination) throw userError('Wohin fahren Sie? Nennen Sie mir das Ziel, zum Beispiel: Wo tanke ich günstig auf meinem Weg zur Arbeit?');
+    if (!opts.destination) throw userError('Wohin fährst du? Nenne mir das Ziel, zum Beispiel: Wo tanke ich günstig auf meinem Weg zur Arbeit?');
 
     const loc = await fetchUserLocationData();
-    if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
+    if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Deinen Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
     const adv = await computeDepartureAdvice({ destination: opts.destination, loc });   // wirft verständliche Fehler (Adresse nicht gefunden usw.)
     const map = adv.map;
     if (!map || !map.coords || map.coords.length < 2) throw userError('Die Strecke konnte ich gerade nicht berechnen.');
@@ -790,7 +790,7 @@ async function bahnPlaceText(raw) {
     const k = t.toLowerCase().replace(/[^a-zäöüß]/g, '');
     if (!t || /^(hier|hierher|meinstandort|standort|vonhier|beimir|beiuns|hierbeimir)$/.test(k)) {
         const loc = await fetchUserLocationData();
-        if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
+        if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Deinen Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
         return `${loc.latitude.toFixed(5)},${loc.longitude.toFixed(5)}`;
     }
     // Erst prüfen, ob es sich um eine Person handelt (Kontakt oder Gedächtnis-Eintrag mit Adresse) -
@@ -816,7 +816,7 @@ function bahnStationize(text) {
 /* Ergebnis: { reply, cards }. opts: { from, to, time ("HH:MM" oder ISO), timeType ('ankunft' | 'abfahrt') } */
 async function bahnAuskunft(opts) {
     if (!String(opts.to || '').trim()) throw userError('Wohin soll die Reise gehen?');
-    if (bahnIsHere(opts.from) && bahnIsHere(opts.to)) throw userError('Von wo startet die Reise? Nennen Sie mir den Startort, zum Beispiel: von Hamburg Hauptbahnhof.');
+    if (bahnIsHere(opts.from) && bahnIsHere(opts.to)) throw userError('Von wo startet die Reise? Nenne mir den Startort, zum Beispiel: von Hamburg Hauptbahnhof.');
     const fromText = bahnStationize(await bahnPlaceText(opts.from));
     const toText = bahnStationize(await bahnPlaceText(opts.to));
     const now = new Date();
@@ -844,7 +844,7 @@ async function bahnAuskunft(opts) {
         if (!r.ok || d.error) throw new Error(d.error || ('Status ' + r.status));
     } catch (e) {
         if (e && e.auth) throw e;
-        const err = userError(`Die Bahn-Auskunft hat gerade nicht geantwortet (${String(e.message || e).slice(0, 90)}). Ich habe Ihnen die Verbindung in Google Maps bereitgelegt${when ? ' (' + timeNote + ')' : ''}.`);
+        const err = userError(`Die Bahn-Auskunft hat gerade nicht geantwortet (${String(e.message || e).slice(0, 90)}). Ich habe dir die Verbindung in Google Maps bereitgelegt${when ? ' (' + timeNote + ')' : ''}.`);
         err.fallbackCard = fallbackCard;
         throw err;
     }
@@ -853,8 +853,8 @@ async function bahnAuskunft(opts) {
     const nach = d.nach || String(opts.to);
     if (!list.length) {
         return { reply: isArrival
-            ? `Ich habe keine Verbindung gefunden, die bis ${formatSpokenTime(when)} in ${nach} ankommt. Ich habe Ihnen Google Maps bereitgelegt.`
-            : `Ich habe gerade keine Verbindung nach ${nach} gefunden. Ich habe Ihnen Google Maps bereitgelegt.`, cards: [fallbackCard] };
+            ? `Ich habe keine Verbindung gefunden, die bis ${formatSpokenTime(when)} in ${nach} ankommt. Ich habe dir Google Maps bereitgelegt.`
+            : `Ich habe gerade keine Verbindung nach ${nach} gefunden. Ich habe dir Google Maps bereitgelegt.`, cards: [fallbackCard] };
     }
 
     const say = (j) => {
@@ -988,7 +988,7 @@ async function runTravelDiagnosis() {
 }
 
 /* ============================================================
-   ABFAHRTS-WARNUNG: "Sie sollten jetzt losfahren" - prüft automatisch, ob ein Termin
+   ABFAHRTS-WARNUNG: "Du solltest jetzt losfahren" - prüft automatisch, ob ein Termin
    mit hinterlegtem Ort bevorsteht und die Zeit zum Losfahren gekommen ist.
    Läuft wie die Termin-Tipps: nur während die App offen ist, alle 60s geprüft,
    die eigentliche Fahrzeit-Berechnung aber nur EINMAL pro Termin (nicht bei jedem Tick).
@@ -1050,7 +1050,7 @@ async function checkDepartureWarning() {
     if (now.getTime() >= cached.deadline.getTime()) {
         warned.add(key);
         saveWarnedEventIds(warned);
-        speak(`Sie sollten jetzt losfahren, sonst schaffen Sie es nicht rechtzeitig zu ${cached.titel} um ${formatSpokenTime(cached.zeit)}.`);
+        speak(`Du solltest jetzt losfahren, sonst schaffst du es nicht rechtzeitig zu ${cached.titel} um ${formatSpokenTime(cached.zeit)}.`);
     }
 }
 

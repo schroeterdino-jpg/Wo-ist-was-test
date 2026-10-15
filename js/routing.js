@@ -183,12 +183,12 @@ function resolvePersonalPlace(dest) {
     if (!raw) return raw;
     const k = plainKey(raw);
     if (/^(zu|zur|zum|nach|in|ins|auf)?(meine|meiner|mein|meinem)?(arbeit|arbeitsstelle|arbeitsplatz|firma|buro|buero)$/.test(k)) {
-        if (!workAddress) throw userError('Ihre Arbeitsadresse kenne ich noch nicht. Sagen Sie: Merk dir meine Arbeitsadresse, und dann die Adresse.');
+        if (!workAddress) throw userError('Deine Arbeitsadresse kenne ich noch nicht. Sag: Merk dir meine Arbeitsadresse, und dann die Adresse.');
         return workAddress;
     }
     if (/^(nach|zu|in|ins|auf)?(meine|mein)?(hause|zuhause|heim|heimat|heimatadresse|wohnung)$/.test(k)) {
         const home = (typeof homeAddress === 'string') ? homeAddress : (homeAddress && (homeAddress.address || homeAddress.text || homeAddress.label)) || '';
-        if (!home) throw userError('Ihre Heimatadresse kenne ich noch nicht. Sagen Sie: Merk dir meine Heimatadresse, und dann die Adresse.');
+        if (!home) throw userError('Deine Heimatadresse kenne ich noch nicht. Sag: Merk dir meine Heimatadresse, und dann die Adresse.');
         return home;
     }
     return raw;
