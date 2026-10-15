@@ -32,7 +32,7 @@
 
     function prompt() {
         return 'Du erkennst, was auf einem Foto zu sehen ist, damit eine Assistenz-App die passende Funktion starten kann. Antworte NUR mit JSON: ' +
-            '{"art":"einkaufsliste|brief|stundenplan|termin|visitenkarte|tabelle|parkschild|warnleuchte|rezept|sonstiges","sicher":true oder false}. ' +
+            '{"art":"einkaufsliste|brief|stundenplan|termin|visitenkarte|tabelle|parkschild|warnleuchte|rezept|sonstiges","sicher":true oder false,"beschreibung":"ein kurzer deutscher Satz, was zu sehen ist, zum Beispiel: ein Ausmalbild mit einem Bären"}. ' +
             'Bedeutung: einkaufsliste = handgeschriebener oder gedruckter Einkaufszettel mit Artikeln; ' +
             'brief = Brief, Rechnung, Mahnung, Bescheid, Vertragsschreiben, Behördenpost, Kontoauszug; ' +
             'stundenplan = Schulstundenplan mit Wochentagen und Fächern; ' +
@@ -66,9 +66,15 @@
         erkennen(my, foto, dataUrl).catch(e => { console.error('Foto erkennen', e && e.message); fallback(my); });
     };
 
-    function fallback(my) {
+    function fallback(my, beschr) {
         if (my !== seq || userStarted === my) return;
-        try { window.photoSay('Das Foto ist da. Was soll ich damit tun?'); } catch (e) {}
+        const b = String(beschr || '').replace(/\s+/g, ' ').replace(/[.!?]+$/, '').trim().slice(0, 140);
+        if (!b) { try { window.photoSay('Das Foto ist da. Was soll ich damit tun?'); } catch (e) {} return; }
+        // Unbekanntes Foto: Zane beschreibt es sofort selbst. Die Karten (z. B. WhatsApp senden) bleiben stehen.
+        mine = true;
+        Promise.resolve().then(() => origRun.call(window, 'describe', ''))
+            .catch(e => { console.error('Foto beschreiben', e); try { window.photoSay('Ich sehe: ' + b + '. Sag mir, was ich damit tun soll.'); } catch (e2) {} })
+            .finally(() => { mine = false; });
     }
 
     async function erkennen(my, foto, dataUrl) {
@@ -79,7 +85,8 @@
         const art = String(o.art || '').toLowerCase().trim();
         const sicher = !(o.sicher === false || o.sicher === 'false');
         const a = AUFGABE[art];
-        if (!a || !sicher) return fallback(my);
+        const beschr = String(o.beschreibung || '').trim();
+        if (!a || !sicher) return fallback(my, beschr);
         try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Erkannt: ' + a.text); } catch (e) {}
         mine = true;
         try { await origRun.call(window, a.task, ''); }
