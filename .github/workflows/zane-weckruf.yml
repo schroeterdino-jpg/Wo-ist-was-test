@@ -204,6 +204,7 @@ jobs:
               protected void onCreate(Bundle s) {
                   super.onCreate(s);
                   current = this;
+                  try { WebView.resumeTimers(); } catch (Throwable ignored) { }
                   web = new WebView(this);
                   web.setBackgroundColor(Color.BLACK);
                   setContentView(web, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -387,6 +388,7 @@ jobs:
               protected void onResume() {
                   super.onResume();
                   current = this;
+                  try { WebView.resumeTimers(); if (web != null) web.onResume(); } catch (Throwable ignored) { }   // nie eingefroren starten
                   WakeService.setActivityResumed(true);
                   try {
                       ((android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE)).cancel(2);   // "Hey Zane erkannt"-Meldung wegräumen
@@ -411,7 +413,7 @@ jobs:
                   WakeService.setPageBusy(false);
                   // Fenster weggewischt: Seite und Sprachausgabe sofort beenden, sonst redet Nova im Hintergrund weiter
                   if (web != null) {
-                      try { web.stopLoading(); web.loadUrl("about:blank"); web.onPause(); web.pauseTimers(); web.removeAllViews(); web.destroy(); } catch (Throwable ignored) { }
+                      try { web.stopLoading(); web.loadUrl("about:blank"); web.removeAllViews(); web.destroy(); } catch (Throwable ignored) { }
                       web = null;
                   }
                   super.onDestroy();
