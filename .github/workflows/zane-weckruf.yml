@@ -39,8 +39,23 @@ jobs:
                   applicationId 'de.dino.zaneweckruf'
                   minSdk 26
                   targetSdk 34
-                  versionCode 1
+                  versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
                   versionName '1.0'
+              }
+
+              signingConfigs {
+                  zane {
+                      storeFile file('zane.jks')
+                      storePassword 'zaneweckruf'
+                      keyAlias 'zane'
+                      keyPassword 'zaneweckruf'
+                  }
+              }
+
+              buildTypes {
+                  debug {
+                      signingConfig signingConfigs.zane
+                  }
               }
 
               compileOptions {
@@ -473,7 +488,8 @@ jobs:
                   i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                   i.addCategory(Intent.CATEGORY_BROWSABLE);
                   NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-                  try {
+                  // Hinweis nur als Notlösung, wenn "Über anderen Apps einblenden" fehlt. Sonst öffnet sich Zane direkt.
+                  if (!android.provider.Settings.canDrawOverlays(this)) try {
                       PendingIntent pi = PendingIntent.getActivity(this, 1, i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
                       Notification n = new Notification.Builder(this, CH_WAKE)
                               .setContentTitle("Hey Zane erkannt")
@@ -561,6 +577,11 @@ jobs:
           rootProject.name = "ZaneWeckruf"
           include ':app'
           ZANE_EOF
+
+      - name: Signatur-Schluessel anlegen
+        run: |
+          cd weckruf
+          echo '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' | base64 -d > app/zane.jks
 
       - name: Sprachmodell laden
         run: |
