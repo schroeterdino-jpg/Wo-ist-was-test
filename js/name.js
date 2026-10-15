@@ -1,0 +1,65 @@
+/* Der Assistent heißt jetzt "Nova". Intern rechnet der Code weiter mit "Zane" (Befehle, gespeicherte Daten),
+   nach außen heißt er überall Nova: Anzeige, Ansprache der KI, Aussprache. Das Weckwort "Nova" wird beim Erkennen
+   in voice.js wieder zu "Zane" umgeschrieben. */
+(function () {
+    const NEU = 'Nova';
+    const ALT = /Zane(?![a-zA-Z_])/g;
+    const ALT_S = /Zanes(?![a-zA-Z_])/g;
+
+    function ersetze(t) { return t.replace(ALT_S, NEU + 's').replace(ALT, NEU); }
+
+    // Anzeige: alle sichtbaren Texte
+    function textKnoten(root) {
+        try {
+            const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+            let n;
+            while ((n = w.nextNode())) {
+                const p = n.parentNode && n.parentNode.nodeName;
+                if (p === 'SCRIPT' || p === 'STYLE' || p === 'TEXTAREA') continue;
+                if (n.nodeValue && n.nodeValue.indexOf('Zane') !== -1) n.nodeValue = ersetze(n.nodeValue);
+            }
+        } catch (e) { }
+    }
+    function attribute(root) {
+        try {
+            if (!root.querySelectorAll) return;
+            root.querySelectorAll('[placeholder],[title],[aria-label]').forEach(function (el) {
+                ['placeholder', 'title', 'aria-label'].forEach(function (a) {
+                    const v = el.getAttribute(a);
+                    if (v && v.indexOf('Zane') !== -1) el.setAttribute(a, ersetze(v));
+                });
+            });
+        } catch (e) { }
+    }
+    function alles() {
+        if (document.title.indexOf('Zane') !== -1) document.title = ersetze(document.title);
+        if (document.body) { textKnoten(document.body); attribute(document.body); }
+    }
+
+    let geplant = false;
+    function bald() {
+        if (geplant) return;
+        geplant = true;
+        setTimeout(function () { geplant = false; alles(); }, 50);
+    }
+
+    function start() {
+        alles();
+        try {
+            new MutationObserver(bald).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+        } catch (e) { }
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+    else start();
+
+    // Ansprache der KI: Sie heißt Nova
+    try {
+        if (typeof buildSystemPrompt === 'function') {
+            const orig = buildSystemPrompt;
+            buildSystemPrompt = function () {
+                const r = orig.apply(this, arguments);
+                return typeof r === 'string' ? ersetze(r) : r;
+            };
+        }
+    } catch (e) { }
+})();

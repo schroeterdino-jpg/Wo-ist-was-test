@@ -13,7 +13,7 @@
     if (!rec || rec._jvHoeren) return;
     rec._jvHoeren = true;
 
-    const BEKANNT = /alyssa|neu-galliner|schwarzenbek|schroeter|lagebild|\broute\b|penny|tank|diesel|losfahren|nächste|arbeit|zuhause|(?:jarvis|zane)|termin|einkauf|erinner|wetter|kalender/i;
+    const BEKANNT = /alyssa|neu-galliner|schwarzenbek|schroeter|lagebild|\broute\b|penny|tank|diesel|losfahren|nächste|arbeit|zuhause|(?:jarvis|zane|nova)|termin|einkauf|erinner|wetter|kalender/i;
     const fest = t => (typeof window.jvFestnamen === 'function' ? window.jvFestnamen(t) : t);
 
     function beste(result) {

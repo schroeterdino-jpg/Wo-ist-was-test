@@ -38,7 +38,7 @@ function pronunciationEscape(s) {
 /* Ersetzt jedes Wort der Liste im Text (ganze Wörter, Groß-/Kleinschreibung egal, auch mit angehängtem "s": "Alyssas") */
 function applyPronunciations(text) {
     let out = String(text == null ? '' : text);
-    const dict = Object.assign({ 'Zane': 'Sein' }, getPronunciations());   // Standard: englisch "Sein" (zeen); mit "Sprich Zane so aus: ..." änderbar
+    const dict = Object.assign({ 'Zane': 'Nova' }, getPronunciations());   // Standard: englisch "Sein" (zeen); mit "Sprich Zane so aus: ..." änderbar
     const keys = Object.keys(dict).sort((a, b) => b.length - a.length);
     keys.forEach(word => {
         const spoken = dict[word];
@@ -85,7 +85,7 @@ function deletePronunciation(word) {
 function renderPronunciationList() {
     const box = document.getElementById('pronunciationList');
     if (!box) return;
-    const dict = Object.assign({ 'Zane': 'Sein' }, getPronunciations());   // Standard: englisch "Sein" (zeen); mit "Sprich Zane so aus: ..." änderbar
+    const dict = Object.assign({ 'Zane': 'Nova' }, getPronunciations());   // Standard: englisch "Sein" (zeen); mit "Sprich Zane so aus: ..." änderbar
     const keys = Object.keys(dict).sort((a, b) => a.localeCompare(b, 'de'));
     box.textContent = '';
     if (keys.length === 0) {
@@ -177,7 +177,7 @@ function handlePronunciationCommand(text) {
     if (!validPronunciationPart(word) || !validPronunciationPart(spoken)) return false;
     if (word.toLowerCase() === spoken.toLowerCase()) {
         // Die Spracherkennung hat beides gleich geschrieben (z.B. verbessert sie bestimmte Namen von selbst)
-        return done('Die Spracherkennung hat beides gleich geschrieben. Bitte tragen Sie die Aussprache in den Einstellungen unter Stimme ein.');
+        return done('Die Spracherkennung hat beides gleich geschrieben. Bitte trag die Aussprache in den Einstellungen unter Stimme ein.');
     }
     if (!savePronunciation(word, spoken)) return false;
     return done(`Gut, ab jetzt sage ich ${word}.`);   // läuft selbst durch die Liste: man hört gleich die neue Aussprache
