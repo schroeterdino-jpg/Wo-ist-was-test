@@ -105,7 +105,6 @@ jobs:
               <application
                   android:label="Zane"
                   android:allowBackup="false"
-                  android:extractNativeLibs="true"
                   android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 
                   <activity
@@ -466,7 +465,7 @@ jobs:
                   public void onResults(Bundle b) {
                       if (!recRunning) return;
                       try {
-                          ArrayList<String> t = b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION_RESULTS);
+                          ArrayList<String> t = b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                           float[] c = b.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES);
                           if (t == null || t.isEmpty()) { finishRec("no-speech"); return; }
                           JSONArray alts = new JSONArray();
@@ -1021,7 +1020,10 @@ jobs:
       - name: APK bauen
         run: |
           cd weckruf
-          gradle assembleDebug --no-daemon --stacktrace
+          gradle assembleDebug --no-daemon --console=plain > build.log 2>&1 || {
+            grep -E "error:|What went wrong" -A4 build.log | head -60
+            exit 1
+          }
 
       - name: APK als Download bereitstellen
         env:
