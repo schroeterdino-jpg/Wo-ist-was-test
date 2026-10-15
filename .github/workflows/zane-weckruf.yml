@@ -621,6 +621,16 @@ jobs:
                   });
                   btn(root, "„Über anderen Apps einblenden“ erlauben", v ->
                           startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()))));
+                  btn(root, "„Vollbild-Benachrichtigungen“ erlauben (für gesperrten Bildschirm)", v -> {
+                      try {
+                          if (android.os.Build.VERSION.SDK_INT >= 34)
+                              startActivity(new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:" + getPackageName())));
+                          else
+                              startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName()));
+                      } catch (Throwable e) {
+                          startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName())));
+                      }
+                  });
                   btn(root, "Akku-Optimierung ausschalten", v ->
                           startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)));
 
@@ -664,12 +674,23 @@ jobs:
                   else info.setText("Ohne Mikrofon-Erlaubnis geht es nicht.");
               }
 
+              private String fullScreenOk() {
+                  try {
+                      if (android.os.Build.VERSION.SDK_INT >= 34) {
+                          android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                          return nm.canUseFullScreenIntent() ? "erlaubt" : "NICHT erlaubt";
+                      }
+                  } catch (Throwable ignored) { }
+                  return "erlaubt";
+              }
+
               private void refresh() {
                   boolean overlay = Settings.canDrawOverlays(this);
                   info.setText("Status: " + Prefs.status(this)
                           + "\nZuletzt gehört: " + Prefs.last(this)
                           + "\nErkennungen: " + Prefs.hits(this)
-                          + "\nÜber anderen Apps einblenden: " + (overlay ? "erlaubt" : "NICHT erlaubt"));
+                          + "\nÜber anderen Apps einblenden: " + (overlay ? "erlaubt" : "NICHT erlaubt")
+                          + "\nVollbild-Benachrichtigung: " + fullScreenOk());
               }
 
               @Override protected void onResume() { super.onResume(); h.post(tick); }
@@ -680,6 +701,7 @@ jobs:
           cat > app/src/main/java/de/dino/zaneweckruf/WakeService.java <<'ZANE_EOF'
           package de.dino.zaneweckruf;
 
+          import android.app.KeyguardManager;
           import android.app.Notification;
           import android.app.NotificationChannel;
           import android.app.NotificationManager;
@@ -730,6 +752,25 @@ jobs:
               private boolean alive = false;
               private boolean startPending = false;
               private long lastTrigger = 0;
+              private long speechSince = 0;
+              private boolean watchdogOn = false;
+
+              // Wächter: startet das Lauschen neu, wenn es still gestorben ist, und frischt es alle paar Minuten auf
+              private final Runnable watchdog = new Runnable() {
+                  @Override public void run() {
+                      if (!alive) return;
+                      try {
+                          if (want()) {
+                              if (speech == null && !startPending) evalVosk();
+                              else if (speech != null && System.currentTimeMillis() - speechSince > 240000) {
+                                  stopSpeech();
+                                  evalVosk();
+                              }
+                          }
+                      } catch (Throwable ignored) { }
+                      main.postDelayed(this, 15000);
+                  }
+              };
 
               static void setPageBusy(boolean b) { if (pageBusy != b) { pageBusy = b; poke(); } }
               static void setRecActive(boolean b) { recActive = b; poke(); }
@@ -766,6 +807,7 @@ jobs:
                       startForeground(1, n);
                   }
                   alive = true;
+                  if (!watchdogOn) { watchdogOn = true; main.postDelayed(watchdog, 15000); }
                   if (wakeLock == null) {
                       PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
                       wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "zane:lauschen");
@@ -887,6 +929,7 @@ jobs:
                       rec.setWords(true);
                       speech = new SpeechService(rec, 16000.0f);
                       speech.startListening(this);
+                      speechSince = System.currentTimeMillis();
                       Prefs.setStatus(this, "lauscht auf „Hey Zane“");
                   } catch (Throwable e) {
                       speech = null;
@@ -939,7 +982,19 @@ jobs:
                   try {
                       new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80).startTone(ToneGenerator.TONE_PROP_BEEP, 150);
                   } catch (Throwable ignored) { }
-                  if (!android.provider.Settings.canDrawOverlays(this) && !activityResumed) {
+                  boolean gesperrt = false;
+                  try {
+                      PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                      KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+                      gesperrt = !pm.isInteractive() || km.isKeyguardLocked();
+                      if (gesperrt) {   // Bildschirm einschalten
+                          @SuppressWarnings("deprecation")
+                          PowerManager.WakeLock w = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK
+                                  | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "zane:wach");
+                          w.acquire(15000);
+                      }
+                  } catch (Throwable ignored) { }
+                  if ((gesperrt || !android.provider.Settings.canDrawOverlays(this)) && !activityResumed) {
                       // Notlösung: Ohne "Über anderen Apps einblenden" darf Android Zane nicht von selbst nach vorn holen
                       try {
                           Intent i = new Intent(this, MainActivity.class).putExtra("wake", true)
@@ -966,7 +1021,10 @@ jobs:
               @Override public void onPartialResult(String hypothesis) { }
               @Override public void onResult(String hypothesis) { check(hypothesis); }
               @Override public void onFinalResult(String hypothesis) { }
-              @Override public void onError(Exception exception) { Prefs.setStatus(this, "Fehler: " + exception); }
+              @Override public void onError(Exception exception) {
+                  Prefs.setStatus(this, "Fehler: " + exception);
+                  main.post(() -> { stopSpeech(); main.postDelayed(this::evalVosk, 2000); });
+              }
               @Override public void onTimeout() { }
 
               @Override
