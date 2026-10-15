@@ -236,7 +236,7 @@
             if (u && u.von && u.bis) {
                 const wk = wocheYmd(w);
                 if (u.von <= wk.von && u.bis >= wk.bis) return 'Urlaub, also keine Schicht';
-                if (u.von <= wk.bis && u.bis >= wk.von) return sh + ', aber vom ' + urlaubLesbar(u.von < wk.von ? wk.von : u.von) + ' bis ' + urlaubLesbar(u.bis > wk.bis ? wk.bis : u.bis) + ' hast du Urlaub';
+                if (u.von <= wk.bis && u.bis >= wk.von) return sh + ', aber du hast vom ' + urlaubLesbar(u.von) + ' bis ' + urlaubLesbar(u.bis) + ' Urlaub';   // der ganze eingetragene Urlaub, nicht nur der Teil in dieser Woche
             }
         } catch (e) {}
         return sh;
