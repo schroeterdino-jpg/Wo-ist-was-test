@@ -195,15 +195,7 @@ jobs:
                   web.setBackgroundColor(Color.BLACK);
                   setContentView(web, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-                  WebSettings st = web.getSettings();
-                  st.setJavaScriptEnabled(true);
-                  st.setDomStorageEnabled(true);
-                  st.setDatabaseEnabled(true);
-                  st.setMediaPlaybackRequiresUserGesture(false);
-                  st.setGeolocationEnabled(true);
-                  st.setJavaScriptCanOpenWindowsAutomatically(true);
-                  st.setSupportMultipleWindows(true);
-                  st.setAllowFileAccess(false);
+                  configure(web);
 
                   web.addJavascriptInterface(new ZaneBridge(this), "ZaneNative");
                   web.setWebViewClient(new WebViewClient() {
@@ -225,26 +217,44 @@ jobs:
 
                       @Override
                       public boolean onCreateWindow(WebView v, boolean dialog, boolean userGesture, Message resultMsg) {
-                          WebView tmp = new WebView(MainActivity.this);
-                          tmp.setWebViewClient(new WebViewClient() {
+                          // Popups (z. B. die Google-Anmeldung) bleiben ein echtes Popup mit Verbindung zu Zane.
+                          // Alles andere (Karten, Telefon, andere Webseiten) geht an die passende Android-App.
+                          final WebView popup = makeWebView();
+                          final android.app.Dialog dlg = new android.app.Dialog(MainActivity.this, android.R.style.Theme_DeviceDefault_Light_NoActionBar);
+                          dlg.setContentView(popup, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                          dlg.setOnDismissListener(d -> { try { popup.destroy(); } catch (Throwable ignored) { } });
+                          popup.setWebViewClient(new WebViewClient() {
+                              private boolean pruefen(Uri u) {
+                                  if (u == null) return true;
+                                  String url = u.toString();
+                                  if (url.equals("about:blank")) return true;
+                                  if (popupHostErlaubt(u)) {
+                                      if (!dlg.isShowing()) { try { dlg.show(); } catch (Throwable ignored) { } }
+                                      return true;
+                                  }
+                                  openExternal(u);
+                                  try { dlg.dismiss(); } catch (Throwable ignored) { }
+                                  return false;
+                              }
+
                               @Override
                               public boolean shouldOverrideUrlLoading(WebView v2, WebResourceRequest r) {
-                                  openExternal(r.getUrl());
-                                  v2.destroy();
-                                  return true;
+                                  return !pruefen(r.getUrl());
                               }
 
                               @Override
                               public void onPageStarted(WebView v2, String url, android.graphics.Bitmap b) {
-                                  if (url != null && !url.equals("about:blank")) {
-                                      openExternal(Uri.parse(url));
-                                      v2.stopLoading();
-                                      v2.destroy();
-                                  }
+                                  if (url != null) pruefen(Uri.parse(url));
+                              }
+                          });
+                          popup.setWebChromeClient(new WebChromeClient() {
+                              @Override
+                              public void onCloseWindow(WebView w) {
+                                  try { dlg.dismiss(); } catch (Throwable ignored) { }
                               }
                           });
                           WebView.WebViewTransport t = (WebView.WebViewTransport) resultMsg.obj;
-                          t.setWebView(tmp);
+                          t.setWebView(popup);
                           resultMsg.sendToTarget();
                           return true;
                       }
@@ -266,6 +276,40 @@ jobs:
                   web.loadUrl(ZANE_URL);
                   askPermissions();
                   handleIntent(getIntent());
+              }
+
+              private WebView makeWebView() {
+                  WebView w = new WebView(this);
+                  configure(w);
+                  return w;
+              }
+
+              private void configure(WebView w) {
+                  WebSettings st = w.getSettings();
+                  st.setJavaScriptEnabled(true);
+                  st.setDomStorageEnabled(true);
+                  st.setDatabaseEnabled(true);
+                  st.setMediaPlaybackRequiresUserGesture(false);
+                  st.setGeolocationEnabled(true);
+                  st.setJavaScriptCanOpenWindowsAutomatically(true);
+                  st.setSupportMultipleWindows(true);
+                  st.setAllowFileAccess(false);
+                  // Google lässt die Anmeldung in einem "WebView" nicht zu - darum gibt sich das Fenster als normaler Browser aus.
+                  String ua = st.getUserAgentString();
+                  if (ua != null) st.setUserAgentString(ua.replace("; wv", "").replace(" Version/4.0", ""));
+                  android.webkit.CookieManager cm = android.webkit.CookieManager.getInstance();
+                  cm.setAcceptCookie(true);
+                  cm.setAcceptThirdPartyCookies(w, true);
+              }
+
+              private boolean popupHostErlaubt(Uri u) {
+                  String scheme = u.getScheme();
+                  String host = u.getHost();
+                  if (host == null || scheme == null || !(scheme.equals("https") || scheme.equals("http"))) return false;
+                  if (host.endsWith("vercel.app")) return true;
+                  return host.equals("accounts.google.com") || host.equals("accounts.youtube.com")
+                          || host.equals("myaccount.google.com") || host.endsWith(".gstatic.com") || host.equals("www.gstatic.com")
+                          || host.equals("oauth2.googleapis.com");
               }
 
               private boolean handleUrl(Uri u) {
