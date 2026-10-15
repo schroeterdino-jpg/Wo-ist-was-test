@@ -154,6 +154,9 @@ jobs:
           import android.os.Handler;
           import android.os.Looper;
           import android.os.Message;
+          import android.print.PrintAttributes;
+          import android.print.PrintDocumentAdapter;
+          import android.print.PrintManager;
           import android.speech.RecognitionListener;
           import android.speech.RecognizerIntent;
           import android.speech.SpeechRecognizer;
@@ -421,6 +424,31 @@ jobs:
                   try {
                       c.startActivity(i);
                   } catch (Throwable ignored) { }
+              }
+
+              // ---- Drucken (Rezepte): Android-Druckdialog, dort geht auch "Als PDF speichern" ----
+              private WebView printWeb;
+
+              void printHtml(final String title, final String html) {
+                  runOnUiThread(() -> {
+                      try {
+                          final WebView w = new WebView(this);
+                          final boolean[] done = { false };
+                          w.setWebViewClient(new WebViewClient() {
+                              @Override public void onPageFinished(WebView v, String u) {
+                                  if (done[0]) return;
+                                  done[0] = true;
+                                  try {
+                                      PrintManager pm = (PrintManager) getSystemService(PRINT_SERVICE);
+                                      PrintDocumentAdapter ad = v.createPrintDocumentAdapter(title);
+                                      pm.print(title, ad, new PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4).build());
+                                  } catch (Throwable ignored) { }
+                              }
+                          });
+                          printWeb = w;   // festhalten, bis der Druckdialog fertig ist
+                          w.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
+                      } catch (Throwable ignored) { }
+                  });
               }
 
               private void js(String code) {
@@ -1076,6 +1104,9 @@ jobs:
 
               @JavascriptInterface
               public void setBusy(boolean busy) { WakeService.setPageBusy(busy); }
+
+              @JavascriptInterface
+              public void printHtml(String title, String html) { act.printHtml(title, html); }
 
               @JavascriptInterface
               public void openSetup() { act.runOnUiThread(() -> act.startActivity(new android.content.Intent(act, SetupActivity.class))); }
