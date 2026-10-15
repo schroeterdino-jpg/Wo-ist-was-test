@@ -406,6 +406,13 @@ jobs:
               protected void onDestroy() {
                   if (current == this) current = null;
                   if (recognizer != null) { try { recognizer.destroy(); } catch (Throwable ignored) { } recognizer = null; }
+                  WakeService.setRecActive(false);
+                  WakeService.setPageBusy(false);
+                  // Fenster weggewischt: Seite und Sprachausgabe sofort beenden, sonst redet Nova im Hintergrund weiter
+                  if (web != null) {
+                      try { web.stopLoading(); web.loadUrl("about:blank"); web.onPause(); web.pauseTimers(); web.removeAllViews(); web.destroy(); } catch (Throwable ignored) { }
+                      web = null;
+                  }
                   super.onDestroy();
               }
 
@@ -441,7 +448,6 @@ jobs:
                           Toast.makeText(this, info, Toast.LENGTH_LONG).show();
                       }
                       final boolean ohne = fileCallback == null || chooserStale;
-                      Toast.makeText(this, "Auswahl: " + n + (n == 1 ? " Datei" : " Dateien") + (res == RESULT_OK ? "" : " (abgebrochen)") + (ohne ? " – gehe direkt" : ""), Toast.LENGTH_SHORT).show();
                       ValueCallback<Uri[]> cb = fileCallback;
                       fileCallback = null;
                       if (cb != null && !chooserStale) {
