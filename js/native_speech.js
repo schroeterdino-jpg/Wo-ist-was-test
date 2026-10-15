@@ -171,6 +171,28 @@
         }
     };
 
+    // Merkt sich, wann zuletzt eine Datei gewählt wurde (die App prüft das und gibt sonst die Bilder selbst weiter)
+    document.addEventListener('change', function (e) {
+        try { if (e.target && e.target.type === 'file') window.__zaneChange = Date.now(); } catch (x) { }
+    }, true);
+
+    // Notweg: die App reicht gewählte Bilder (als Datenadresse) direkt an das Foto-Feld weiter
+    window.__zaneFiles = function (list) {
+        try {
+            const inp = document.getElementById('photoPickInput');
+            if (!inp || !list || !list.length) return;
+            const dt = new DataTransfer();
+            list.forEach(function (u, i) {
+                const b = atob(String(u).split(',')[1] || '');
+                const a = new Uint8Array(b.length);
+                for (let k = 0; k < b.length; k++) a[k] = b.charCodeAt(k);
+                dt.items.add(new File([a], 'auswahl' + (i + 1) + '.jpg', { type: 'image/jpeg' }));
+            });
+            inp.files = dt.files;
+            inp.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (e) { }
+    };
+
     // Falls die Seite beim Wecken noch lud
     window.addEventListener('load', function () {
         setTimeout(function () { if (window.__zaneWakePending) window.zaneWake(); }, 800);
