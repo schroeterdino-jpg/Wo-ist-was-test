@@ -21,7 +21,8 @@
         '#jvPraes .pz-stage{position:relative;width:100%;max-width:520px;height:34vh;min-height:230px}' +
         '#jvPraes .pz-cmd{width:100%;max-width:520px;min-height:54px;margin-bottom:12px;padding:10px 16px;border:1.5px solid rgba(255,255,255,.55);border-radius:28px;background:rgba(18,64,98,.82);box-shadow:0 0 22px rgba(0,190,255,.35);font-size:21px;line-height:1.25;font-weight:700;color:#fff;display:flex;align-items:center;gap:12px;opacity:0;transform:translateY(12px) scale(.97);transition:opacity .3s,transform .3s}' +
         '#jvPraes .pz-cmd.an{opacity:1;transform:none}#jvPraes .pz-cmd .pz-ic{font-size:28px;animation:pzbeat .9s ease-in-out infinite;flex:none}#jvPraes .pz-cmd .pz-car{display:inline-block;width:2px;height:1.1em;background:#49d7ff;margin-left:3px;vertical-align:-3px;animation:pzblink .6s steps(2) infinite}@keyframes pzblink{50%{opacity:0}}' +
-        '#jvPraes .pz-card{position:absolute;inset:0;border:1px solid rgba(73,215,255,.55);border-radius:16px;background:rgba(6,24,38,.88);box-shadow:0 0 28px rgba(0,190,255,.28),inset 0 0 22px rgba(0,190,255,.08);padding:14px 16px;opacity:0;transform:translateY(26px) scale(.97);transition:opacity .45s,transform .45s;overflow:hidden}' +
+        '#jvPraes .pz-card{position:absolute;inset:0;border:1px solid rgba(73,215,255,.55);border-radius:16px;background:rgba(6,24,38,.88);box-shadow:0 0 28px rgba(0,190,255,.28),inset 0 0 22px rgba(0,190,255,.08);padding:0;opacity:0;transform:translateY(26px) scale(.97);transition:opacity .45s,transform .45s;overflow:hidden}' +
+        '#jvPraes .pz-in{position:absolute;left:0;top:0;right:0;bottom:0;padding:14px 16px}' +
         '#jvPraes .pz-card.an{opacity:1;transform:none}' +
         '#jvPraes .pz-card.weg{opacity:0;transform:translateY(-18px) scale(.97)}' +
         '#jvPraes .pz-kopf{font:700 13px/1 ui-monospace,Menlo,monospace;letter-spacing:2.5px;color:#49d7ff;margin-bottom:10px;text-transform:uppercase}' +
@@ -64,17 +65,35 @@
         }).then(function () { if (g !== gen || abbruch) throw 'stop'; });
     }
 
+    /* Anpassung an große Handy-Schrift: Hat das Handy "Schriftgröße" oder "Bildschirmzoom" groß gestellt, wäre alles zu riesig.
+       Wir messen den Faktor (zf) und verkleinern Überschrift, Sprechblase und Karteninhalt so, dass alles ins Bild passt. */
+    var zf = 1;
+    function messeZoom() {
+        try {
+            var p = el('div', '', 'Mg'); p.style.cssText = 'position:absolute;left:-999px;top:0;visibility:hidden;font-size:100px;line-height:1;white-space:nowrap;font-family:system-ui,sans-serif';
+            document.body.appendChild(p); var h = p.getBoundingClientRect().height; p.remove();
+            zf = Math.max(1, Math.min(2.2, h / 100 || 1));
+        } catch (e) { zf = 1; }
+    }
+    function passe(inner, zuGross, minZ) {   // Inhalt per zoom so lange verkleinern, bis zuGross() nicht mehr wahr ist
+        var z = 1 / zf; minZ = minZ || .45;
+        inner.style.zoom = z;
+        for (var i = 0; i < 30 && z > minZ && zuGross(); i++) { z -= .04; inner.style.zoom = z; }
+    }
+
     var capEl, cmdEl, stage, aktuelleKarte = null;
     function caption(t) {
         if (!capEl) return;
         capEl.classList.remove('an');
-        setTimeout(function () { if (!capEl) return; capEl.textContent = t || ''; if (t) capEl.classList.add('an'); }, 200);
+        setTimeout(function () { if (!capEl) return; capEl.textContent = t || ''; if (t) { capEl.style.zoom = 1 / zf; passe(capEl, function () { return capEl.getBoundingClientRect().height > Math.max(60, window.innerHeight * .085); }); capEl.classList.add('an'); } }, 200);
     }
     function karte(html) {
         var alt = aktuelleKarte;
         if (alt) { alt.classList.remove('an'); alt.classList.add('weg'); setTimeout(function () { try { alt.remove(); } catch (e) {} }, 600); }
-        var k = el('div', 'pz-card', html);
+        var k = el('div', 'pz-card');
+        var inn = el('div', 'pz-in', html); k.appendChild(inn);
         stage.appendChild(k);
+        passe(inn, function () { return k.scrollHeight > k.clientHeight + 1 || k.scrollWidth > k.clientWidth + 1; });
         requestAnimationFrame(function () { requestAnimationFrame(function () { k.classList.add('an'); }); });
         aktuelleKarte = k;
         return k;
@@ -276,8 +295,9 @@
         if (laeuft) return true;
         laeuft = true; abbruch = false; gen++;
         if (!document.getElementById('jvPraesCss')) { var s = el('style'); s.id = 'jvPraesCss'; s.textContent = CSS; document.head.appendChild(s); }
+        messeZoom();
         root = el('div'); root.id = 'jvPraes';
-        capEl = el('div', 'pz-cap'); cmdEl = el('div', 'pz-cmd'); stage = el('div', 'pz-stage');
+        capEl = el('div', 'pz-cap'); cmdEl = el('div', 'pz-cmd'); stage = el('div', 'pz-stage'); cmdEl.style.zoom = 1 / zf;
         root.appendChild(capEl); root.appendChild(cmdEl); root.appendChild(stage); root.insertAdjacentHTML('beforeend','<div class="pz-bar"><i></i></div>');
         root.addEventListener('click', function () { var n = Date.now(); if (n - letzterTipp < 450) stop(); letzterTipp = n; });
         document.body.appendChild(root);
