@@ -712,6 +712,8 @@ jobs:
               static void setLevel(Context c, int v) { sp(c).edit().putInt("level2", v).apply(); }
               static boolean enabled(Context c) { return sp(c).getBoolean("enabled", true); }
               static void setEnabled(Context c, boolean v) { sp(c).edit().putBoolean("enabled", v).apply(); }
+              static boolean muted(Context c) { return sp(c).getBoolean("muted", false); }
+              static void setMuted(Context c, boolean v) { sp(c).edit().putBoolean("muted", v).apply(); }
               static String status(Context c) { return sp(c).getString("status", "aus"); }
               static void setStatus(Context c, String s) { sp(c).edit().putString("status", s).apply(); }
               static String last(Context c) { return sp(c).getString("last", "-"); }
@@ -782,7 +784,7 @@ jobs:
                   root.addView(info);
 
                   btn(root, "Nova öffnen", v -> startActivity(new Intent(this, MainActivity.class)));
-                  btn(root, "Lauschen starten", v -> { Prefs.setEnabled(this, true); startAll(); });
+                  btn(root, "Lauschen starten", v -> { Prefs.setEnabled(this, true); Prefs.setMuted(this, false); startAll(); });
                   btn(root, "Lauschen beenden", v -> {
                       Prefs.setEnabled(this, false);
                       stopService(new Intent(this, WakeService.class));
@@ -970,17 +972,34 @@ jobs:
                   nm.createNotificationChannel(new NotificationChannel(CH_WAKE, "Hey Nova erkannt", NotificationManager.IMPORTANCE_HIGH));
               }
 
-              @Override
-              public int onStartCommand(Intent intent, int flags, int startId) {
+              static final String ACTION_TOGGLE = "de.dino.zaneweckruf.TOGGLE";
+
+              // Benachrichtigung mit Knopf: Weckwort ein- oder ausschalten (der Dienst bleibt dabei bestehen)
+              private Notification baueBenachrichtigung() {
+                  boolean aus = Prefs.muted(this);
                   Intent open = new Intent(this, MainActivity.class);
                   PendingIntent pi = PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE);
-                  Notification n = new Notification.Builder(this, CH_LISTEN)
-                          .setContentTitle("Nova hört zu")
-                          .setContentText("Sag „Hey Nova“")
+                  Intent tog = new Intent(this, WakeService.class);
+                  tog.setAction(ACTION_TOGGLE);
+                  PendingIntent togPi = PendingIntent.getService(this, 2, tog, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+                  return new Notification.Builder(this, CH_LISTEN)
+                          .setContentTitle(aus ? "Nova ist aus" : "Nova hört zu")
+                          .setContentText(aus ? "„Hey Nova“ ist ausgeschaltet" : "Sag „Hey Nova“")
                           .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                           .setOngoing(true)
                           .setContentIntent(pi)
+                          .addAction(android.R.drawable.ic_media_pause, aus ? "Einschalten" : "Ausschalten", togPi)
                           .build();
+              }
+
+              @Override
+              public int onStartCommand(Intent intent, int flags, int startId) {
+                  if (intent != null && ACTION_TOGGLE.equals(intent.getAction())) {
+                      boolean jetztAus = !Prefs.muted(this);
+                      Prefs.setMuted(this, jetztAus);
+                      Prefs.setStatus(this, jetztAus ? "aus (Knopf in der Benachrichtigung)" : "lädt …");
+                  }
+                  Notification n = baueBenachrichtigung();
                   if (Build.VERSION.SDK_INT >= 30) {
                       startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
                   } else {
@@ -988,7 +1007,11 @@ jobs:
                   }
                   alive = true;
                   if (!watchdogOn) { watchdogOn = true; main.postDelayed(watchdog, 15000); }
-                  if (wakeLock == null) {
+                  if (Prefs.muted(this)) {
+                      // ausgeschaltet: kein Dauer-Wachhalten, das spart Akku
+                      if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+                      wakeLock = null;
+                  } else if (wakeLock == null) {
                       PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
                       wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "zane:lauschen");
                       wakeLock.acquire();
@@ -1054,6 +1077,7 @@ jobs:
               // ---- Wann lauschen wir? Nicht, wenn Nova spricht/zuhört oder die Spracherkennung läuft ----
               private boolean want() {
                   if (!alive || model == null) return false;
+                  if (Prefs.muted(this)) return false;
                   if (recActive) return false;
                   if (System.currentTimeMillis() < holdUntil) return false;
                   if (activityResumed && pageBusy) return false;
@@ -1069,6 +1093,11 @@ jobs:
                   if (!want()) {
                       main.removeCallbacks(startRun);
                       startPending = false;
+                      if (Prefs.muted(this)) {
+                          stopSpeech();
+                          Prefs.setStatus(this, "aus (Knopf in der Benachrichtigung)");
+                          return;
+                      }
                       if (speech != null) {
                           stopSpeech();
                           Prefs.setStatus(this, "Pause (" + (recActive ? "Spracherkennung läuft" : System.currentTimeMillis() < holdUntil ? "Ordner oder Kamera offen, oder Nova gerade geweckt" : "Nova spricht oder hört zu") + ")");
