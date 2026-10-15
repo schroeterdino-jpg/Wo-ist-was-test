@@ -45,6 +45,7 @@ public class MainActivity extends Activity {
     static final String ZANE_URL = "https://wo-ist-was-test.vercel.app/";
     static MainActivity current;
     static boolean pendingWake = false;
+    static volatile String pendingAnsage = null;   // geplante Ansage (aus AnsageReceiver), wartet darauf, dass die Seite sie abholt
 
     private WebView web;
     private final Handler h = new Handler(Looper.getMainLooper());
@@ -308,10 +309,17 @@ public class MainActivity extends Activity {
         super.onNewIntent(i);
         setIntent(i);
         handleIntent(i);
+        if (pendingAnsage != null) {   // Nova ist schon offen (onResume kommt dann nicht noch einmal): Seite sofort anstoßen
+            h.postDelayed(() -> js("if(window.jvPlan&&window.jvPlan.pruefe)window.jvPlan.pruefe();"), 500);
+        }
     }
 
     private void handleIntent(Intent i) {
         if (i != null && i.getBooleanExtra("wake", false)) pendingWake = true;
+        if (i != null) {
+            String an = i.getStringExtra("ansage");
+            if (an != null && !an.isEmpty()) pendingAnsage = an;
+        }
     }
 
     @Override
@@ -326,6 +334,31 @@ public class MainActivity extends Activity {
         if (pendingWake) {
             pendingWake = false;
             runWake();
+        }
+        if (pendingAnsage != null) {   // geplante Ansage: die Seite holt sie ab (bei frisch gestarteter Seite macht sie das selbst nach dem Laden)
+            h.postDelayed(() -> js("if(window.jvPlan&&window.jvPlan.pruefe)window.jvPlan.pruefe();"), 700);
+        }
+    }
+
+    /** Von der Seite aufgerufen: die wartende Ansage abholen (und löschen). */
+    String holeAnsage() {
+        String a = pendingAnsage;
+        pendingAnsage = null;
+        return a == null ? "" : a;
+    }
+
+    /** Wecker in der Uhr-App des Handys anlegen (ohne die Uhr-App anzuzeigen). */
+    boolean weckerStellen(int stunde, int minute, String text) {
+        try {
+            Intent i = new Intent(android.provider.AlarmClock.ACTION_SET_ALARM)
+                    .putExtra(android.provider.AlarmClock.EXTRA_HOUR, stunde)
+                    .putExtra(android.provider.AlarmClock.EXTRA_MINUTES, minute)
+                    .putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, text == null ? "Nova" : text)
+                    .putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, true);
+            startActivity(i);
+            return true;
+        } catch (Throwable e) {
+            return false;
         }
     }
 

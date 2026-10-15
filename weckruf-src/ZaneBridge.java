@@ -27,6 +27,18 @@ class ZaneBridge {
     @JavascriptInterface
     public boolean shareImage(String dataUrl, String text) { return act.shareImage(dataUrl, text); }
 
+    /** Geplante Ansagen (JSON-Liste mit id, at in Millisekunden, text) an die App übergeben. */
+    @JavascriptInterface
+    public boolean planAnsagen(String json) { return AnsageReceiver.setzen(act, json); }
+
+    /** Eine wartende, von der App ausgelöste Ansage abholen (leer, wenn keine wartet). */
+    @JavascriptInterface
+    public String holeAnsage() { return act.holeAnsage(); }
+
+    /** Wecker in der Uhr-App des Handys stellen. */
+    @JavascriptInterface
+    public boolean weckerStellen(int stunde, int minute, String text) { return act.weckerStellen(stunde, minute, text); }
+
     @JavascriptInterface
     public void openSetup() { act.runOnUiThread(() -> act.startActivity(new android.content.Intent(act, SetupActivity.class))); }
 }
