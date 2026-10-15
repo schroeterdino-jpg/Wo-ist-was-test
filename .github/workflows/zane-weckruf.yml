@@ -345,7 +345,35 @@ jobs:
                   return true;
               }
 
+              /** Google-Kalender-Link (…/calendar/…/day/J/M/T): direkt in der Kalender-App öffnen statt im Browser (z. B. Brave). */
+              private boolean openKalenderApp(Uri u) {
+                  try {
+                      String host = u.getHost();
+                      if (host == null || !host.equals("calendar.google.com")) return false;
+                      long millis = System.currentTimeMillis();
+                      java.util.regex.Matcher m = java.util.regex.Pattern.compile("/day/(\\d{4})/(\\d{1,2})/(\\d{1,2})").matcher(String.valueOf(u.getPath()));
+                      if (m.find()) {
+                          java.util.Calendar c = java.util.Calendar.getInstance();
+                          c.clear();
+                          c.set(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)) - 1, Integer.parseInt(m.group(3)), 12, 0, 0);
+                          millis = c.getTimeInMillis();
+                      }
+                      Uri zeit = Uri.parse("content://com.android.calendar/time/" + millis);
+                      String[] pakete = {"com.google.android.calendar", null};
+                      for (String p : pakete) {
+                          try {
+                              Intent i = new Intent(Intent.ACTION_VIEW, zeit).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                              if (p != null) i.setPackage(p);
+                              startActivity(i);
+                              return true;
+                          } catch (Throwable ignored) { }
+                      }
+                  } catch (Throwable ignored) { }
+                  return false;
+              }
+
               private void openExternal(Uri u) {
+                  if (openKalenderApp(u)) return;
                   try {
                       startActivity(new Intent(Intent.ACTION_VIEW, u).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
                   } catch (Throwable ignored) { }
