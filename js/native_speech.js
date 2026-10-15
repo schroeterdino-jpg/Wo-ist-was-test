@@ -179,6 +179,7 @@
     // Notweg: die App reicht gewählte Bilder (als Datenadresse) direkt an das Foto-Feld weiter
     window.__zaneFiles = function (list) {
         try {
+            if (Date.now() - (window.__zaneChange || 0) < 15000) return;   // die Seite hat die Auswahl schon bekommen
             const inp = document.getElementById('photoPickInput');
             if (!inp || !list || !list.length) return;
             const dt = new DataTransfer();
