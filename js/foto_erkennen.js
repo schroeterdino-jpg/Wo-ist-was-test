@@ -26,12 +26,13 @@
         visitenkarte: { task: 'contact', text: 'Visitenkarte' },
         tabelle: { task: 'abtippen', text: 'Plan oder Tabelle' },
         parkschild: { task: 'parking', text: 'Parkschild' },
-        warnleuchte: { task: 'car', text: 'Warnleuchte' }
+        warnleuchte: { task: 'car', text: 'Warnleuchte' },
+        rezept: { task: 'rezept', text: 'Rezept' }
     };
 
     function prompt() {
         return 'Du erkennst, was auf einem Foto zu sehen ist, damit eine Assistenz-App die passende Funktion starten kann. Antworte NUR mit JSON: ' +
-            '{"art":"einkaufsliste|brief|stundenplan|termin|visitenkarte|tabelle|parkschild|warnleuchte|sonstiges","sicher":true oder false}. ' +
+            '{"art":"einkaufsliste|brief|stundenplan|termin|visitenkarte|tabelle|parkschild|warnleuchte|rezept|sonstiges","sicher":true oder false}. ' +
             'Bedeutung: einkaufsliste = handgeschriebener oder gedruckter Einkaufszettel mit Artikeln; ' +
             'brief = Brief, Rechnung, Mahnung, Bescheid, Vertragsschreiben, Behördenpost, Kontoauszug; ' +
             'stundenplan = Schulstundenplan mit Wochentagen und Fächern; ' +
@@ -39,6 +40,7 @@
             'visitenkarte = Visitenkarte oder Kontaktdaten einer Person oder Firma; ' +
             'tabelle = Tabelle, Plan, Aufstellung oder Liste mit mehreren Zahlen oder Daten (zum Beispiel Ratenplan, Dienstplan, Preisliste), die keiner der anderen Arten entspricht; ' +
             'parkschild = Verkehrsschild zu Parken oder Halten; warnleuchte = Kontrollleuchte im Auto; ' +
+            'rezept = Kochrezept oder Backrezept mit Zutaten und/oder Zubereitungsschritten (Kochbuchseite, Zettel, Zeitschrift, Bildschirmfoto); ' +
             'sonstiges = alles andere (Landschaft, Personen, Gegenstände, Tiere, Essen, einfache Textseiten). ' +
             '"sicher" ist false, wenn du dir nicht ziemlich sicher bist.';
     }
