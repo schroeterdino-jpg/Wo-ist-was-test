@@ -94,8 +94,13 @@ function buildNearbyFuelCards(stations, fuelType) {
 
 async function tankFuerFrage(text) {
     if (isFuelRouteQuestion(text)) return null;   // Fragen "auf dem Weg zu ..." beantwortet die Strecken-Abfrage, keine Anfrage in der Nähe (Tankerkönig erlaubt nur etwa eine pro Minute)
-    const passtThema = /benzin|diesel|sprit|tank|e10|kraftstoff|günstig|kostet|teuer|preis/i.test(text);
     const cacheFrisch = lastTankCache && (Date.now() - lastTankCache.time) < TANK_CACHE_MS;
+    // Tank-Wörter reichen immer. "Preis/teuer/günstig/kostet" allein nur als kurze Folgefrage kurz nach einer Spritfrage
+    // (sonst springt zum Beispiel "die Preise für den Urlaub sind teuer" fälschlich auf die Benzinkarte an).
+    const tankWort = /benzin|diesel|sprit|tank|\be10\b|\be5\b|kraftstoff|\bsuper\b|\bliter\b|zapfsäule/i.test(text);
+    const folgefrage = cacheFrisch && /günstig|billig|kostet|teuer|preis/i.test(text)
+        && String(text).trim().split(/\s+/).length <= 8 && !/urlaub|reise|flug|flieg|hotel|miete|essen|restaurant|lebensmittel|strom|gas\b/i.test(text);
+    const passtThema = tankWort || folgefrage;
 
     if (!passtThema) {
         return cacheFrisch ? lastTankCache.data : null;   // Folgefrage ohne Stichwort: letzten Stand weiterverwenden
