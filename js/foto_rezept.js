@@ -162,9 +162,29 @@
         return copy;
     }
 
+    /* Fürs Vorlesen: "1 Glas" -> "ein Glas", "1 Zwiebel" -> "eine Zwiebel", "EL" -> "Esslöffel", "5-7" -> "5 bis 7" */
+    const WEIBLICH = /^(?:zwiebel|kartoffel|zehe|tasse|packung|prise|dose|tüte|stange|zitrone|möhre|karotte|paprika|tomate|gurke|banane|orange|birne|handvoll|schüssel|flasche|scheibe|messerspitze|knolle|wurzel|stunde|minute|hälfte|menge|kelle|pfanne|gabel|schote|rolle|portion|platte|form|schale|kugel|kanne|nuss|zimtstange|vanilleschote)$/i;
+    const SAECHLICH = /^(?:ei|glas|stück|bund|päckchen|blatt|viertel|pfund|paket|gramm|kilogramm|filet|brot|öl|mehl|salz)$/i;
+    function eineOderEin(nomen) {
+        const n = String(nomen || '');
+        if (SAECHLICH.test(n)) return 'ein';
+        if (WEIBLICH.test(n)) return 'eine';
+        if (/(?:ung|heit|keit|ion|ik|ur|schaft|tät|ie|e)$/i.test(n) && !/^(?:käse|gemüse|rosmarin)$/i.test(n)) return 'eine';
+        return 'ein';
+    }
+    function sprechbar(t) {
+        t = String(t || '');
+        t = t.replace(/\bEL\b\.?/g, 'Esslöffel').replace(/\bTL\b\.?/g, 'Teelöffel').replace(/\bml\b/g, 'Milliliter').replace(/\bkg\b/g, 'Kilogramm')
+            .replace(/\bg\b/g, 'Gramm').replace(/\bPck\.?/g, 'Päckchen').replace(/\bca\./gi, 'circa').replace(/\bPr\./g, 'Prise');
+        t = t.replace(/(\d)\.(\d)/g, '$1,$2');
+        t = t.replace(/(\d)\s*[–—-]\s*(\d)/g, '$1 bis $2');
+        t = t.replace(/(^|[^\d,.\/])1(\s+)((?:[a-zäöüß]+\s+){0,2})([A-ZÄÖÜ][A-Za-zäöüßÄÖÜ-]*)/g, (m, vor, sp, adj, nomen) => vor + eineOderEin(nomen) + sp + adj + nomen);
+        return t;
+    }
+
     function lesetext(rez, teil) {
-        const z = rez.zutaten.map(x => x.replace(/:$/, '.')).join(', ').replace(/\.,/g, '.');
-        const s = rez.zubereitung.map((x, i) => `Schritt ${i + 1}: ${x.replace(/[.!?]*$/, '.')}`).join(' ');
+        const z = rez.zutaten.map(x => sprechbar(x).replace(/:$/, '.')).join(', ').replace(/\.,/g, '.');
+        const s = rez.zubereitung.map((x, i) => `Schritt ${i + 1}: ${sprechbar(x).replace(/[.!?]*$/, '.')}`).join(' ');
         const kopf = rez.titel ? rez.titel + '. ' : '';
         if (teil === 'zutaten') return kopf + (z ? 'Zutaten: ' + z + '.' : 'Zu diesem Rezept habe ich keine Zutaten.');
         if (teil === 'zubereitung') return kopf + (s ? 'Zubereitung. ' + s : 'Zu diesem Rezept habe ich keine Zubereitung.');
@@ -575,6 +595,6 @@
         ansehen: () => { if (hasDraft()) zeigen(draft.rez, false); },
         oeffne: (id) => { const r = loadAll().find(x => x.id === id); if (r) { merke(r); zeigen(r, true); } },
         aktion: (ak, id) => { const r = loadAll().find(x => x.id === id); warte = null; if (r) tue(ak, r, ''); },
-        liste: loadAll, handle
+        liste: loadAll, handle, sprechbar
     };
 })();
