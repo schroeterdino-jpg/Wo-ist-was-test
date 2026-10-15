@@ -592,6 +592,7 @@
 
     window.jvRezept = {
         speichern: () => speichern(), drucken: () => drucken(), senden: () => senden(), vorlesen: () => vorlesen(), hinzu,
+        hatEntwurf: () => hasDraft(),
         ansehen: () => { if (hasDraft()) zeigen(draft.rez, false); },
         oeffne: (id) => { const r = loadAll().find(x => x.id === id); if (r) { merke(r); zeigen(r, true); } },
         aktion: (ak, id) => { const r = loadAll().find(x => x.id === id); warte = null; if (r) tue(ak, r, ''); },
