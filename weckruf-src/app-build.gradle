@@ -1,0 +1,51 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'de.dino.zaneweckruf'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'de.dino.zaneweckruf'
+        minSdk 26
+        targetSdk 34
+        versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+        versionName '1.0'
+    }
+
+    signingConfigs {
+        zane {
+            storeFile file('zane.jks')
+            storePassword 'zaneweckruf'
+            keyAlias 'zane'
+            keyPassword 'zaneweckruf'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.zane
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    androidResources {
+        noCompress 'mdl', 'fst', 'conf', 'int', 'txt', 'mat', 'stats', 'ie', 'dubm', 'raw'
+    }
+}
+
+dependencies {
+    implementation 'com.alphacephei:vosk-android:0.3.47'
+    implementation 'net.java.dev.jna:jna:5.13.0@aar'
+}
