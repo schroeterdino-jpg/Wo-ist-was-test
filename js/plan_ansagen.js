@@ -5,6 +5,8 @@
    - AUFBRUCHSZEIT: an jedem Arbeitstag (Mo-Fr, nicht im Urlaub), Früh- und Spätschicht, 10 Minuten vor der Abfahrt.
      Abfahrt = Schichtbeginn minus Fahrzeit (mit aktueller Verkehrslage, kurz vor der Ansage frisch abgefragt) minus 10 Minuten Puffer.
      Schichtbeginn: Früh 5:10, Spät 13:45 (änderbar per Sprache: "Meine Frühschicht beginnt um 5 Uhr 30").
+   - STAU-CHECK: 20 Minuten vor der Aufbruchs-Ansage (Frühschicht frühestens 10 Minuten nach dem Aufstehen) prüft Nova still die Verkehrslage. Sie spricht nur bei Stau
+     oder wenn die Fahrt mindestens 10 Minuten länger dauert als sonst ("normal" = Mittelwert der letzten Messungen). Test: "Teste den Stau-Check".
    - WECKER-FRAGE: Am Abend vor einer Frühschicht um 20:30: "Soll ich den Wecker auf 3 Uhr 30 stellen?" Ja = Wecker in der Uhr-App des Handys.
    - WECKER per Sprache: "Stell den Wecker auf 6 Uhr 15", "Weck mich um 5", "Wecker in 20 Minuten".
    - Rechnung: "Trag die Frist in den Kalender ein" nach einer ausgewerteten Rechnung (zusätzlich zur Erinnerung).
@@ -19,6 +21,7 @@
 
     const BEGINN_STD = { frueh: 5 * 60 + 10, spaet: 13 * 60 + 45 };
     const PUFFER_ARBEIT = 10;        // Minuten zwischen Ankunft und Schichtbeginn
+    const STAU_VOR = 20;             // Stau-Check so viele Minuten vor der Aufbruchs-Ansage
     const VOR_ABFAHRT = 10;          // so viele Minuten vor der Abfahrt kommt die Ansage
     const WOCHEN_MIN = 18 * 60;      // Sonntag 18:00
     const WECKER_MIN = 20 * 60 + 30; // Abend vor der Frühschicht 20:30
@@ -112,11 +115,20 @@
     const NAME = { frueh: 'Frühschicht', spaet: 'Spätschicht' };
 
     /* ---------- Fahrzeit zur Arbeit ---------- */
-    function letzteFahrt() {
-        try { const o = JSON.parse(lsGet(K_FAHRT) || 'null'); if (o && o.min >= 3 && o.min <= 180) return o.min; } catch (e) { }
-        return 30;
+    /* "Normale" Fahrzeit = Mittelwert (Median) der letzten Messungen; einzelne Staus verfälschen sie kaum */
+    function messungen() {
+        try { const a = JSON.parse(lsGet(K_FAHRT) || '[]'); return Array.isArray(a) ? a.filter(x => x && x.min >= 3 && x.min <= 180) : []; } catch (e) { return []; }
     }
-    function merkeFahrt(min) { if (min >= 3 && min <= 180) lsSet(K_FAHRT, JSON.stringify({ min, at: Date.now() })); }
+    function letzteFahrt() {
+        const m = messungen().map(x => x.min).sort((a, b) => a - b);
+        return m.length ? m[Math.floor(m.length / 2)] : 30;
+    }
+    function merkeFahrt(min) {
+        if (!(min >= 3 && min <= 180)) return;
+        const a = messungen(); a.push({ min, at: Date.now() });
+        lsSet(K_FAHRT, JSON.stringify(a.slice(-9)));
+    }
+    const ISTSTAU = /Achtung, auf der Strecke aktuell gemeldet|Außerdem gemeldet/;
     async function fahrtFrisch() {
         let min = null, stau = '';
         try {
@@ -268,6 +280,8 @@
             if (sh) {
                 const start = beginn(sh), fahrt = letzteFahrt();
                 const abfahrt = start - fahrt - PUFFER_ARBEIT, ansage = abfahrt - VOR_ABFAHRT;
+                const staumin = Math.max(ansage - STAU_VOR, sh === 'frueh' ? weckzeit() + 10 : 0);
+                if (ansage >= 0 && staumin <= ansage - 5) out.push({ id: 'stau|' + ymd, at: berlinMs(ymd, staumin), text: 'Ich prüfe kurz die Verkehrslage auf deinem Arbeitsweg. Ist alles frei, sage ich nichts.' });
                 if (ansage >= 0) out.push({ id: 'aufbruch|' + ymd, at: berlinMs(ymd, ansage), text: 'Abfahrt gegen ' + uhrHM(abfahrt) + ' Uhr (' + NAME[sh] + ' ab ' + uhrHM(start) + ', Fahrt rund ' + fahrt + ' Minuten). Tippe, dann sage ich dir die aktuelle Lage.' });
             }
             const morgen = ymdPlus(ymd, 1);
@@ -318,6 +332,7 @@
             if (art === 'wochen' && nu.ymd !== ymd) return false;
             if (art === 'aufbruch' && (nu.ymd !== ymd || nu.min >= beginn(schichtAm(ymd) || 'frueh'))) return false;
             if (art === 'wecker' && (nu.ymd !== ymd || nu.min > 23 * 60)) return false;
+            if (art === 'stau' && (nu.ymd !== ymd || !schichtAm(ymd) || nu.min >= beginn(schichtAm(ymd)) - 30)) return false;
         }
         merkeGesagt(id);
         if (art === 'wochen') {
@@ -332,7 +347,24 @@
             return true;
         }
         if (art === 'wecker') { weckerFrage(ymd); return true; }
+        if (art === 'stau') { return stauCheck(ymd, !!erzwingen); }
         return false;
+    }
+    /* Früher Stau-Check: spricht nur, wenn die Fahrt heute deutlich länger dauert als sonst oder Meldungen auf der Strecke liegen */
+    async function stauCheck(ymd, immer) {
+        const sh = schichtAm(ymd); if (!sh) return false;
+        const normal = letzteFahrt();
+        const f = await fahrtFrisch();
+        const min = f.min || normal;
+        const stau = ISTSTAU.test(f.stau || '') ? f.stau.trim() : '';
+        const mehr = min - normal;
+        if (!immer && mehr < 10 && !stau) return false;   // alles normal: Nova bleibt still
+        const abfahrt = beginn(sh) - min - PUFFER_ARBEIT, nu = jetzt();
+        let t = mehr >= 10 ? 'Auf deinem Arbeitsweg ist heute mehr los. Die Fahrt dauert rund ' + min + ' Minuten statt sonst ' + normal + '.' : 'Die Fahrt dauert rund ' + min + ' Minuten.';
+        if (stau) t += ' ' + stau;
+        t += abfahrt <= nu.min + 5 ? ' Fahr am besten gleich los.' : ' Fahr lieber um ' + uhr(abfahrt) + ' los.';
+        sagen(t, false);
+        return true;
     }
     function pruefe() {
         try {
@@ -461,7 +493,7 @@
             const p = bauePlan();
             if (!p.length) sagen(aus() ? 'Der Planer ist aus.' : 'Im Moment ist nichts geplant. Ist die Schicht eingestellt?', false);
             else {
-                const art = { wochen: 'Wochenüberblick', aufbruch: 'Aufbruchszeit', wecker: 'Wecker-Frage' };
+                const art = { wochen: 'Wochenüberblick', aufbruch: 'Aufbruchszeit', wecker: 'Wecker-Frage', stau: 'Stau-Check' };
                 sagen('Geplant: ' + p.slice(0, 4).map(e => art[e.id.split('|')[0]] + ' ' + tagName(parts(e.at).ymd) + ' um ' + uhr(parts(e.at).min)).join('; ') + '.', false);
             }
             return true;
@@ -494,6 +526,13 @@
         }
         // Tests
         if (/\b(teste|test)\b.*\b(wecker.?frage)\b/.test(t)) { weckerFrage(ymdPlus(jetzt().ymd, 0)); return true; }
+        if (/\b(teste|test)\b.*\bstau.?check\b/.test(t) || /\bstau.?check\b/.test(t)) {
+            const heute = jetzt().ymd; let ymd = null;
+            for (let i = 0; i <= 7 && !ymd; i++) { const y = ymdPlus(heute, i); if (schichtAm(y)) ymd = y; }
+            if (!ymd) { sagen('Ich finde keinen Arbeitstag in den nächsten Tagen.', false); return true; }
+            stauCheck(ymd, true);
+            return true;
+        }
         return next(text);
     }
 
@@ -514,7 +553,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerFrage, parseZeit };
+    window.jvPlan = { stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Nova war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);
