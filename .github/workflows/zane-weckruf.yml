@@ -204,8 +204,8 @@ jobs:
               protected void onCreate(Bundle s) {
                   super.onCreate(s);
                   current = this;
-                  try { WebView.resumeTimers(); } catch (Throwable ignored) { }
                   web = new WebView(this);
+                  try { web.resumeTimers(); } catch (Throwable ignored) { }
                   web.setBackgroundColor(Color.BLACK);
                   setContentView(web, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
@@ -388,7 +388,7 @@ jobs:
               protected void onResume() {
                   super.onResume();
                   current = this;
-                  try { WebView.resumeTimers(); if (web != null) web.onResume(); } catch (Throwable ignored) { }   // nie eingefroren starten
+                  try { if (web != null) { web.resumeTimers(); web.onResume(); } } catch (Throwable ignored) { }   // nie eingefroren starten
                   WakeService.setActivityResumed(true);
                   try {
                       ((android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE)).cancel(2);   // "Hey Zane erkannt"-Meldung wegräumen
