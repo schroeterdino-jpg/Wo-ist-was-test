@@ -78,7 +78,7 @@
         if (p.falsch.split(/\s+/).length > 3 || p.richtig.split(/\s+/).length > 3) return false;
         if (PROTECTED.test(p.falsch)) { say('Dieses Wort ist zu allgemein, das möchte ich nicht ersetzen.'); return true; }
         const map = load();
-        if (Object.keys(map).length >= MAX_ITEMS) { say('Die Liste der Hör-Korrekturen ist voll. Löschen Sie bitte erst eine.'); return true; }
+        if (Object.keys(map).length >= MAX_ITEMS) { say('Die Liste der Hör-Korrekturen ist voll. Lösch bitte erst eine.'); return true; }
         const ctxOnly = p.falsch.split(/\s+/).length > 1;
         map[p.falsch] = ctxOnly ? { r: p.richtig, c: 1 } : p.richtig; save(map);
         card([{ icon: '✏️', title: `„${p.falsch}“ → „${p.richtig}“`, subtitle: ctxOnly ? 'Hör-Korrektur gespeichert (nur bei Namen-Sätzen)' : 'Hör-Korrektur gespeichert' }]);

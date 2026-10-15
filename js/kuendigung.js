@@ -288,7 +288,7 @@
         saveLast(text, data); ta.addEventListener('input', () => saveLast(ta.value, data));
         const bar = mk(el, 'div', 'kd-bar');
         const note = txt => { try { say(txt); } catch (e) {} };
-        mk(bar, 'button', 'kd-btn primary', '📄 PDF speichern').addEventListener('click', () => { note(savePdf(ta.value) ? 'Die PDF-Datei wurde gespeichert. Sie finden sie bei den Downloads.' : 'Das PDF konnte nicht erstellt werden.'); });
+        mk(bar, 'button', 'kd-btn primary', '📄 PDF speichern').addEventListener('click', () => { note(savePdf(ta.value) ? 'Die PDF-Datei wurde gespeichert. Du findest sie bei den Downloads.' : 'Das PDF konnte nicht erstellt werden.'); });
         mk(bar, 'button', 'kd-btn primary', '🖨️ Drucken').addEventListener('click', () => printText(ta.value));
         mk(bar, 'button', 'kd-btn', '📋 Kopieren').addEventListener('click', () => {
             const ok = () => note('Der Text ist kopiert.');
@@ -414,10 +414,10 @@
     }
     function next() {
         const d = S.d, p = loadProfile();
-        if (!d.anbieter) { S.step = 'anbieter'; return ask('Gerne. Bei welchem Anbieter möchten Sie kündigen?'); }
+        if (!d.anbieter) { S.step = 'anbieter'; return ask('Gerne. Bei welchem Anbieter möchtest du kündigen?'); }
         if (!d.art) { S.step = 'art'; return ask(`Um welchen Vertrag bei ${d.anbieter} geht es? Zum Beispiel Handyvertrag, Internet, Strom, Gas, Versicherung, Miete oder Fitnessstudio.`); }
         const kind = kindOf(d.art);
-        if (d.nummer === undefined) { S.step = 'nummer'; return ask(`Wie lautet Ihre ${kind === 'vers' ? 'Versicherungsschein- oder Vertragsnummer' : kind === 'miete' ? 'Mietvertragsnummer' : 'Kunden- oder Vertragsnummer'}? Wenn Sie sie nicht zur Hand haben, sagen Sie: weiß ich nicht.`); }
+        if (d.nummer === undefined) { S.step = 'nummer'; return ask(`Wie lautet deine ${kind === 'vers' ? 'Versicherungsschein- oder Vertragsnummer' : kind === 'miete' ? 'Mietvertragsnummer' : 'Kunden- oder Vertragsnummer'}? Wenn du sie nicht zur Hand hast, sag: weiß ich nicht.`); }
         if (!d.modusGeklaert) { S.step = 'modus'; return ask('Soll zum nächstmöglichen Zeitpunkt gekündigt werden, zu einem bestimmten Datum, oder außerordentlich, zum Beispiel wegen einer ' + (kind === 'vers' ? 'Beitragserhöhung' : 'Preiserhöhung') + '?'); }
         if (d.modus === 'datum' && !d.datum) { S.step = 'datum'; return ask('Zu welchem Datum soll der Vertrag enden?'); }
         if (d.modus === 'ausser' && d.grund === undefined) { S.step = 'grund'; return ask('Was ist der Grund? Zum Beispiel Preiserhöhung, Umzug oder Leistungsmängel.'); }
@@ -428,24 +428,24 @@
         if (!d.adresse) {
             let home = '';
             try { if (typeof window.resolvePersonalPlace === 'function') home = String(window.resolvePersonalPlace('zuhause') || ''); } catch (e) {}
-            if (home && /\d/.test(home) && !S.homeGefragt) { S.homeGefragt = true; S.homeVorschlag = home; S.step = 'home'; return ask(`Ist das Ihre Anschrift: ${home}?`); }
-            S.step = 'adresse'; return ask('Wie lautet Ihre Anschrift? Straße, Hausnummer, Postleitzahl und Ort.');
+            if (home && /\d/.test(home) && !S.homeGefragt) { S.homeGefragt = true; S.homeVorschlag = home; S.step = 'home'; return ask(`Ist das deine Anschrift: ${home}?`); }
+            S.step = 'adresse'; return ask('Wie lautet deine Anschrift? Straße, Hausnummer, Postleitzahl und Ort.');
         }
         if (!S.plzGefragt && !/\b\d{5}\b/.test(d.adresse)) { S.plzGefragt = true; S.step = 'plz'; return ask('Wie lauten Postleitzahl und Ort dazu? Dann steht der Ort vor dem Datum im Brief.'); }
-        if (d.tel === undefined) { const pt = p.tel || (p.kontakt && !/@/.test(p.kontakt) ? p.kontakt : ''); if (pt) { d.tel = pt; (S.fromProfile = S.fromProfile || {}).tel = true; } else { S.step = 'tel'; return ask('Wie lautet Ihre Telefonnummer? Der Anbieter kann Sie dann bei Rückfragen erreichen. Sonst sagen Sie: weiß ich nicht, dann lasse ich eine Zeile zum Ausfüllen frei.'); } }
-        if (d.email === undefined) { const pe = p.email || (p.kontakt && /@/.test(p.kontakt) ? p.kontakt : ''); if (pe) { d.email = mailFix(pe); (S.fromProfile = S.fromProfile || {}).email = true; } else { S.step = 'email'; return ask('Wie lautet Ihre E-Mail-Adresse? Dorthin kann der Anbieter die Bestätigung schicken. Sonst sagen Sie: weiß ich nicht.'); } }
-        if (d.geb === undefined) { if (p.geb !== undefined && (p.geb === '' || /^\d{2}\.\d{2}\.\d{4}$/.test(p.geb))) { d.geb = p.geb; if (p.geb) (S.fromProfile = S.fromProfile || {}).geb = true; } else { S.step = 'geb'; return ask('Wie lautet Ihr Geburtsdatum? Manche Anbieter brauchen es, um Sie zu finden. Sonst sagen Sie: weiß ich nicht.'); } }
-        if (d.versand === undefined) { S.step = 'versand'; return ask('Wie schicken Sie den Brief ab: per Einschreiben, per E-Mail oder mit normaler Post? Einschreiben ist am sichersten.'); }
+        if (d.tel === undefined) { const pt = p.tel || (p.kontakt && !/@/.test(p.kontakt) ? p.kontakt : ''); if (pt) { d.tel = pt; (S.fromProfile = S.fromProfile || {}).tel = true; } else { S.step = 'tel'; return ask('Wie lautet deine Telefonnummer? Der Anbieter kann dich dann bei Rückfragen erreichen. Sonst sag: weiß ich nicht, dann lasse ich eine Zeile zum Ausfüllen frei.'); } }
+        if (d.email === undefined) { const pe = p.email || (p.kontakt && /@/.test(p.kontakt) ? p.kontakt : ''); if (pe) { d.email = mailFix(pe); (S.fromProfile = S.fromProfile || {}).email = true; } else { S.step = 'email'; return ask('Wie lautet deine E-Mail-Adresse? Dorthin kann der Anbieter die Bestätigung schicken. Sonst sag: weiß ich nicht.'); } }
+        if (d.geb === undefined) { if (p.geb !== undefined && (p.geb === '' || /^\d{2}\.\d{2}\.\d{4}$/.test(p.geb))) { d.geb = p.geb; if (p.geb) (S.fromProfile = S.fromProfile || {}).geb = true; } else { S.step = 'geb'; return ask('Wie lautet dein Geburtsdatum? Manche Anbieter brauchen es, um dich zu finden. Sonst sag: weiß ich nicht.'); } }
+        if (d.versand === undefined) { S.step = 'versand'; return ask('Wie schickst du den Brief ab: per Einschreiben, per E-Mail oder mit normaler Post? Einschreiben ist am sichersten.'); }
         if (kind === 'energie') {
-            if (d.zaehler === undefined) { S.step = 'zaehler'; return ask('Wie lautet die Zählernummer? Sie steht auf dem Zähler oder auf der Rechnung. Wenn Sie sie nicht haben, sagen Sie: weiß ich nicht.'); }
-            if (d.objekt === undefined) { S.step = 'objekt'; return ask('Liegt die Verbrauchsstelle, also der Ort der Lieferung, an Ihrer Anschrift?'); }
-            if (d.stand === undefined) { S.step = 'stand'; return ask('Kennen Sie den aktuellen Zählerstand? Sonst sagen Sie: weiß ich nicht.'); }
-            if (d.wechsel === undefined) { S.step = 'wechsel'; return ask('Wechseln Sie zu einem neuen Anbieter?'); }
+            if (d.zaehler === undefined) { S.step = 'zaehler'; return ask('Wie lautet die Zählernummer? Sie steht auf dem Zähler oder auf der Rechnung. Wenn du sie nicht hast, sag: weiß ich nicht.'); }
+            if (d.objekt === undefined) { S.step = 'objekt'; return ask('Liegt die Verbrauchsstelle, also der Ort der Lieferung, an deiner Anschrift?'); }
+            if (d.stand === undefined) { S.step = 'stand'; return ask('Kennst du den aktuellen Zählerstand? Sonst sag: weiß ich nicht.'); }
+            if (d.wechsel === undefined) { S.step = 'wechsel'; return ask('Wechselst du zu einem neuen Anbieter?'); }
         } else if (kind === 'miete') {
-            if (d.objekt === undefined) { S.step = 'objekt'; return ask('Liegt die gemietete Wohnung an Ihrer Anschrift?'); }
+            if (d.objekt === undefined) { S.step = 'objekt'; return ask('Liegt die gemietete Wohnung an deiner Anschrift?'); }
         } else if (kind === 'telko') {
-            if (d.rufnr === undefined) { S.step = 'rufnr'; return ask('Wie lautet die Rufnummer des Vertrags? Sonst sagen Sie: weiß ich nicht.'); }
-            if (d.mitnahme === undefined) { S.step = 'mitnahme'; return ask('Möchten Sie Ihre Rufnummer zu einem neuen Anbieter mitnehmen?'); }
+            if (d.rufnr === undefined) { S.step = 'rufnr'; return ask('Wie lautet die Rufnummer des Vertrags? Sonst sag: weiß ich nicht.'); }
+            if (d.mitnahme === undefined) { S.step = 'mitnahme'; return ask('Möchtest du deine Rufnummer zu einem neuen Anbieter mitnehmen?'); }
         }
         if (d.anbAdresse === undefined) {
             if (!S.sucheVersucht && d.anbieter) {   // erst die KI nach einem Vorschlag fragen
@@ -456,11 +456,11 @@
                     if (S !== mine || S.step !== 'suche') return;   // inzwischen abgebrochen
                     S.at = Date.now();
                     if (a) { S.vorschlag = a; S.step = 'anbAdresseKI'; return ask('Ich habe diese Adresse gefunden: ' + a + '. Das kommt aus meinem Wissen und ist nicht geprüft. Soll ich sie nehmen?'); }
-                    S.step = 'anbAdresse'; ask('Eine Adresse habe ich nicht sicher gefunden. Kennen Sie die Kündigungsadresse des Anbieters? Sagen Sie sie mir, oder sagen Sie: weiß ich nicht. Dann lasse ich eine Lücke, und Sie können im Fenster nach der Adresse suchen.');
+                    S.step = 'anbAdresse'; ask('Eine Adresse habe ich nicht sicher gefunden. Kennst du die Kündigungsadresse des Anbieters? Sag sie mir, oder sag: weiß ich nicht. Dann lasse ich eine Lücke, und du kannst im Fenster nach der Adresse suchen.');
                 });
                 return;
             }
-            S.step = 'anbAdresse'; return ask('Kennen Sie die Kündigungsadresse des Anbieters? Sagen Sie sie mir, oder sagen Sie: weiß ich nicht. Dann lasse ich eine Lücke, und Sie können im Fenster nach der Adresse suchen.');
+            S.step = 'anbAdresse'; return ask('Kennst du die Kündigungsadresse des Anbieters? Sag sie mir, oder sag: weiß ich nicht. Dann lasse ich eine Lücke, und du kannst im Fenster nach der Adresse suchen.');
         }
         finish();
     }
@@ -468,15 +468,15 @@
         const d = S.d, fp = S.fromProfile || {}; S = null;
         saveProfile(Object.assign(loadProfile(), { name: d.name, adresse: d.adresse, tel: d.tel || '', email: d.email || '', geb: d.geb || '' }));
         const text = buildLetter(d);
-        try { openWin(text, d); } catch (e) { console.error('Kündigung Fenster', e); say('Das Fenster konnte nicht geöffnet werden. Bitte versuchen Sie es noch einmal.'); return; }
-        const luecke = !d.anbAdresse ? ' Die Anschrift des Anbieters fehlt noch, tragen Sie sie im Fenster ein oder tippen Sie auf Adresse suchen.'
-            : d.anbAdresseKI ? ' Die Anschrift des Anbieters stammt aus meinem Wissen. Im Brief steht ein Prüfhinweis, löschen Sie ihn, wenn die Adresse stimmt.'
-            : d.anbAdresseBrief ? ' Die Anschrift des Anbieters habe ich vom Brief übernommen. Prüfen Sie, ob das auch die Kündigungsadresse ist.' : '';
-        const laufzeit = d.vertragsende ? ` Auf dem Brief steht als Ende der Vertragslaufzeit der ${d.vertragsende}. Das steht als Hinweis im Brief, die Kündigung bleibt zum nächstmöglichen Zeitpunkt. Prüfen Sie die Kündigungsfrist.` : '';
+        try { openWin(text, d); } catch (e) { console.error('Kündigung Fenster', e); say('Das Fenster konnte nicht geöffnet werden. Bitte versuch es noch einmal.'); return; }
+        const luecke = !d.anbAdresse ? ' Die Anschrift des Anbieters fehlt noch, trage sie im Fenster ein oder tippe auf Adresse suchen.'
+            : d.anbAdresseKI ? ' Die Anschrift des Anbieters stammt aus meinem Wissen. Im Brief steht ein Prüfhinweis, lösche ihn, wenn die Adresse stimmt.'
+            : d.anbAdresseBrief ? ' Die Anschrift des Anbieters habe ich vom Brief übernommen. Prüfe, ob das auch die Kündigungsadresse ist.' : '';
+        const laufzeit = d.vertragsende ? ` Auf dem Brief steht als Ende der Vertragslaufzeit der ${d.vertragsende}. Das steht als Hinweis im Brief, die Kündigung bleibt zum nächstmöglichen Zeitpunkt. Prüfe die Kündigungsfrist.` : '';
         const herkunft = [fp.tel && d.tel ? 'Telefon' : '', fp.email && d.email ? 'E-Mail' : '', fp.geb && d.geb ? 'Geburtsdatum' : ''].filter(Boolean);
-        const profilHinweis = herkunft.length ? ` ${herkunft.length > 1 ? herkunft.slice(0, -1).join(', ') + ' und ' + herkunft[herkunft.length - 1] : herkunft[0]} habe ich aus Ihrem Profil übernommen, bitte prüfen Sie ${herkunft.length > 1 ? 'sie' : 'es'} im Fenster.` : '';
+        const profilHinweis = herkunft.length ? ` ${herkunft.length > 1 ? herkunft.slice(0, -1).join(', ') + ' und ' + herkunft[herkunft.length - 1] : herkunft[0]} habe ich aus deinem Profil übernommen, bitte prüfe ${herkunft.length > 1 ? 'sie' : 'es'} im Fenster.` : '';
         S = { step: 'remind', d: d, at: Date.now() };
-        say(`Die Kündigung an ${d.anbieter} ist fertig.${luecke}${laufzeit}${profilHinweis} Bitte prüfen Sie Adresse, Nummer und Kündigungsfrist. Sie können den Text im Fenster ändern, als PDF speichern oder drucken. Name und Anschrift merke ich mir für das nächste Mal. Soll ich Sie in 14 Tagen erinnern, die Bestätigung zu prüfen?`);
+        say(`Die Kündigung an ${d.anbieter} ist fertig.${luecke}${laufzeit}${profilHinweis} Bitte prüfe Adresse, Nummer und Kündigungsfrist. Du kannst den Text im Fenster ändern, als PDF speichern oder drucken. Name und Anschrift merke ich mir für das nächste Mal. Soll ich dich in 14 Tagen erinnern, die Bestätigung zu prüfen?`);
     }
 
     function answer(raw) {
@@ -498,7 +498,7 @@
             }
             case 'datum': {
                 const dt = parseDateText(raw);
-                if (!dt) { say('Das Datum habe ich nicht verstanden. Sagen Sie es bitte so: 31. Dezember 2026.'); return; }
+                if (!dt) { say('Das Datum habe ich nicht verstanden. Sag es bitte so: 31. Dezember 2026.'); return; }
                 d.datum = dt; break;
             }
             case 'grund': d.grund = UNKNOWN.test(t) ? '' : txt; break;
@@ -510,7 +510,7 @@
             }
             case 'name': d.name = capWords(OE_RE.test(t) ? fixName(txt.replace(OE_STRIP, '')) : txt); break;
             case 'home':
-                if (YES.test(t)) d.adresse = S.homeVorschlag; else { S.step = 'adresse'; return ask('Wie lautet Ihre Anschrift? Straße, Hausnummer, Postleitzahl und Ort.'); }
+                if (YES.test(t)) d.adresse = S.homeVorschlag; else { S.step = 'adresse'; return ask('Wie lautet deine Anschrift? Straße, Hausnummer, Postleitzahl und Ort.'); }
                 break;
             case 'adresse': d.adresse = capWords(txt); break;
             case 'plz': if (!UNKNOWN.test(t)) d.adresse = d.adresse + ', ' + capWords(plzText(raw)); break;
@@ -519,7 +519,7 @@
             case 'geb': {
                 if (UNKNOWN.test(t)) { d.geb = ''; break; }
                 const g = gebText(raw);
-                if (!/^\d{2}\.\d{2}\.\d{4}$/.test(g) && !S.gebNochmal) { S.gebNochmal = true; say('Das Geburtsdatum habe ich nicht vollständig verstanden. Bitte sagen Sie es mit Tag, Monat und Jahr, zum Beispiel 5. März 1980. Oder sagen Sie: weiß ich nicht.'); return; }
+                if (!/^\d{2}\.\d{2}\.\d{4}$/.test(g) && !S.gebNochmal) { S.gebNochmal = true; say('Das Geburtsdatum habe ich nicht vollständig verstanden. Bitte sag es mit Tag, Monat und Jahr, zum Beispiel 5. März 1980. Oder sag: weiß ich nicht.'); return; }
                 d.geb = /^\d{2}\.\d{2}\.\d{4}$/.test(g) ? g : ''; break;
             }
             case 'versand': d.versand = /einschreib/.test(t) ? 'einschreiben' : /mail|elektron|digital/.test(t) ? 'email' : ''; break;
@@ -540,10 +540,10 @@
                     ['anbieter', 'art', 'nummer', 'vertragsnr', 'rufnr', 'anbAdresse', 'anbAdresseBrief', 'vertragsende', 'tarif'].forEach(k => { delete d[k]; });
                     say('In Ordnung, dann fragen wir es einzeln ab.'); break;
                 }
-                say('Bitte sagen Sie Ja, wenn das stimmt, oder Nein, wenn etwas falsch gelesen wurde.'); return;
+                say('Bitte sag Ja, wenn das stimmt, oder Nein, wenn etwas falsch gelesen wurde.'); return;
             case 'anbAdresseKI':
                 if (YES.test(t)) { d.anbAdresse = S.vorschlag; d.anbAdresseKI = true; }
-                else if (NO.test(t) || UNKNOWN.test(t)) { S.step = 'anbAdresse'; return ask('In Ordnung. Sagen Sie mir die Kündigungsadresse, oder sagen Sie: weiß ich nicht. Dann lasse ich eine Lücke.'); }
+                else if (NO.test(t) || UNKNOWN.test(t)) { S.step = 'anbAdresse'; return ask('In Ordnung. Sag mir die Kündigungsadresse, oder sag: weiß ich nicht. Dann lasse ich eine Lücke.'); }
                 else d.anbAdresse = capWords(txt);
                 break;
         }
@@ -573,15 +573,15 @@
         }
         if (t.length <= 70 && /\bname\w*\b/.test(t) && OE_RE.test(t)) {
             const p = loadProfile();
-            if (!p.name) { say('Ich habe noch keinen Namen gespeichert. Sagen Sie ihn bei der nächsten Kündigung, dann schreibe ich ihn mit oe.'); return true; }
+            if (!p.name) { say('Ich habe noch keinen Namen gespeichert. Sag ihn bei der nächsten Kündigung, dann schreibe ich ihn mit oe.'); return true; }
             p.name = fixName(p.name); saveProfile(p);
-            say(`In Ordnung. Ich schreibe Ihren Namen künftig so: ${p.name}.`); return true;
+            say(`In Ordnung. Ich schreibe deinen Namen künftig so: ${p.name}.`); return true;
         }
         if (LIST_RE.test(t)) { openMenu(); return true; }
         if (LAST_RE.test(t)) {
             const l = loadLast();
             if (!l) { say('Ich habe noch keine Kündigung gespeichert.'); return true; }
-            openWin(l.text, l.data || {}); say('Hier ist Ihre letzte Kündigung.'); return true;
+            openWin(l.text, l.data || {}); say('Hier ist deine letzte Kündigung.'); return true;
         }
         if (!t || !isStart(t)) return false;
         start(text);

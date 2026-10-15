@@ -210,7 +210,7 @@ function saveBriefingWishes() {
     setPersistentData('helfer_briefing_wishes', JSON.stringify(briefingWishes));
 }
 
-/* type 'text': freier Hinweis ("Denken Sie an Ihre Tabletten.")
+/* type 'text': freier Hinweis ("Denk an deine Tabletten.")
    type 'item': Begriff aus dem Gedächtnis, der immer mit seinem Platz genannt wird */
 function addBriefingWish(type, text, id) {
     const clean = String(text || '').trim();
@@ -283,7 +283,7 @@ function resolveListTargets(entries, query, place) {
     const partial = q ? entries.filter(e => normalizeKey(e.text).includes(q)) : [];
     if (partial.length === 0) throw userError(`„${query}" habe ich ${place} nicht gefunden.`);
     if (partial.length > 1) {
-        throw userError(`Zu „${query}" gibt es mehrere Einträge: ${partial.map(e => e.text).join(', ')}. Welchen meinen Sie?`);
+        throw userError(`Zu „${query}" gibt es mehrere Einträge: ${partial.map(e => e.text).join(', ')}. Welchen meinst du?`);
     }
     return partial;
 }

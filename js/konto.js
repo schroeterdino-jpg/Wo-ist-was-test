@@ -1,7 +1,7 @@
 /* ============================================================
    KONTO-MELDUNG: Ist die App offen, schaut sie alle paar Minuten nach neuen, ungelesenen Mails deiner Bank (Kontobewegung, Umsatz, Gutschrift,
    Lastschrift, Kontoauszug, Abbuchung ...) und sagt kurz an, was passiert ist:
-   "Auf Ihrem Konto ist ein Eingang von 120 Euro. Betreff: ..." oder, wenn in der Mail nichts Genaues steht: "Ihre Bank hat Ihnen geschrieben. Betreff: ..."
+   "Auf deinem Konto ist ein Eingang von 120 Euro. Betreff: ..." oder, wenn in der Mail nichts Genaues steht: "Deine Bank hat dir geschrieben. Betreff: ..."
    Zane liest nur; die Mail bleibt ungelesen im Postfach, nichts wird verschickt oder gelöscht. Es werden nur Mails der letzten zwei Tage beachtet.
    Erkennung: bekannte Bank-Namen im Absender (Sparkasse, Volksbank, ING, DKB, Commerzbank, Postbank, N26, comdirect, PayPal ...) oder Wörter wie Kontobewegung/Umsatz im Betreff.
    Eigene Bank hinzufügen per Sprache: "Meine Bank ist die Sparkasse Lauenburg" / "Füge Targobank als Bank hinzu". Anzeigen: "Welche Banken überwachst du?"
@@ -77,10 +77,10 @@
         const all = (m.betreff || '') + ' ' + body;
         const betrag = euro(all), dir = direction(all);
         const bet = String(m.betreff || '').trim();
-        if (betrag && dir === 'ein') return `Auf Ihrem Konto ist ein Eingang von ${betrag}. Betreff: ${bet}.`;
-        if (betrag && dir === 'aus') return `Von Ihrem Konto wurden ${betrag} abgebucht. Betreff: ${bet}.`;
+        if (betrag && dir === 'ein') return `Auf deinem Konto ist ein Eingang von ${betrag}. Betreff: ${bet}.`;
+        if (betrag && dir === 'aus') return `Von deinem Konto wurden ${betrag} abgebucht. Betreff: ${bet}.`;
         if (betrag) return `Es gibt eine Kontobewegung über ${betrag}. Betreff: ${bet}.`;
-        return `Ihre Bank hat Ihnen geschrieben. Betreff: ${bet}.`;
+        return `Deine Bank hat dir geschrieben. Betreff: ${bet}.`;
     }
 
     /* ---------- Nachsehen ---------- */
@@ -216,7 +216,7 @@
         }
         if (/^(?:welche banken|welche bank)\b.*(?:überwach\w*|beobacht\w*|kennst|achtest|meldest)/.test(t)) {
             const l = ownBanks();
-            say(l.length ? `Zusätzlich zu den bekannten Banken achte ich auf: ${l.join(', ')}.` : 'Ich kenne die gängigen Banken, zum Beispiel Sparkasse, Volksbank, ING, DKB und Commerzbank. Eigene fügen Sie mit „Meine Bank ist …“ hinzu.');
+            say(l.length ? `Zusätzlich zu den bekannten Banken achte ich auf: ${l.join(', ')}.` : 'Ich kenne die gängigen Banken, zum Beispiel Sparkasse, Volksbank, ING, DKB und Commerzbank. Eigene fügst du mit „Meine Bank ist …“ hinzu.');
             return true;
         }
         if (/^(?:prüf\w*|pruef\w*|check\w*|schau\w*)\s+(?:mal\s+)?(?:mein\s+|meine\s+)?(?:konto|bank)\b/.test(t) || /^(?:gibt es |habe ich )?(?:neue\s+)?(?:konto|bank)[- ]?(?:mails?|nachrichten|bewegungen)\??$/.test(t)) {

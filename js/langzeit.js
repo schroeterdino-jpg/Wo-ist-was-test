@@ -223,8 +223,9 @@
     function fristSatz(e) {
         const tg = Number(e.tage);
         let t = String(e.text || '').replace(/\s*\([^)]*\d{4}\)\s*$/, '').replace(/\s*\(Frist\)/i, '').trim();
-        t = t.replace(/^Der User (muss|soll|will|möchte|sollte)\b/, (a, v) => ({ muss: 'Sie müssen', soll: 'Sie sollen', will: 'Sie wollen', 'möchte': 'Sie möchten', sollte: 'Sie sollten' })[v]).replace(/^Der User /, 'Sie ');
-        t = t.replace(/\bseinen\b/g, 'Ihren').replace(/\bseinem\b/g, 'Ihrem').replace(/\bseiner\b/g, 'Ihrer').replace(/\bseine\b/g, 'Ihre').replace(/\bsein\b/g, 'Ihr').replace(/\bseines\b/g, 'Ihres');
+        const DUFORM = { ist: 'bist', hat: 'hast', muss: 'musst', soll: 'sollst', will: 'willst', 'möchte': 'möchtest', sollte: 'solltest', kann: 'kannst', darf: 'darfst', wird: 'wirst', hatte: 'hattest', war: 'warst', wollte: 'wolltest', musste: 'musstest' };
+        t = t.replace(/^Der User (\S+)/, (a, v) => 'du ' + (DUFORM[v] || (/et$/.test(v) ? v.slice(0, -2) + 'est' : /[^s]t$/.test(v) ? v.slice(0, -1) + 'st' : v)));
+        t = t.replace(/\bseinen\b/g, 'deinen').replace(/\bseinem\b/g, 'deinem').replace(/\bseiner\b/g, 'deiner').replace(/\bseine\b/g, 'deine').replace(/\bsein\b/g, 'dein').replace(/\bseines\b/g, 'deines');
         const wann = !Number.isFinite(tg) ? 'zur Frist' : tg < 0 ? 'die Frist ist gerade abgelaufen' : tg === 0 ? 'heute ist die Frist' : tg === 1 ? 'morgen ist die Frist' : 'in ' + tg + ' Tagen läuft die Frist ab';
         return 'Übrigens, ' + wann + ': ' + t.replace(/\.$/, '') + '.';
     }
@@ -378,7 +379,7 @@
             eintraege = (d.eintraege || []).filter(e => e.metadata && (e.metadata.typ === 'episode' || e.metadata.typ === 'frist'));
         } catch (e) {
             sub.textContent = 'Nicht erreichbar';
-            mk(list, 'div', 'lt-note', 'Das Langzeitgedächtnis kann gerade nicht geladen werden. Prüfen Sie die Internetverbindung.');
+            mk(list, 'div', 'lt-note', 'Das Langzeitgedächtnis kann gerade nicht geladen werden. Prüfe die Internetverbindung.');
             return;
         }
         // neueste Ereignisse zuerst; Einträge ohne Ereignisdatum nach dem Tag, an dem sie erzählt wurden
@@ -390,7 +391,7 @@
             const nH = (dueCache && dueCache.tag === todayIso()) ? dueCache.liste.filter(x => x.art === 'frist').length : '?';
             sub.textContent += ' · Fristen: ' + nF + ' · Hinweis bereit: ' + nH + ' · Heute gefragt: ' + (lsGet(FOLLOW_KEY) === todayIso() ? 'ja' : 'nein') + ' · Frist gesagt: ' + (lsGet(FRIST_KEY) === todayIso() ? 'ja' : 'nein') + ' · Prüfungen: ' + fristAufrufe + ' (' + fristGrund + ')';
         } catch (e) {}
-        if (!eintraege.length) mk(list, 'div', 'lt-note', 'Noch nichts gespeichert. Erzählen Sie mir etwas, zum Beispiel „Ich gehe morgen schwimmen“.');
+        if (!eintraege.length) mk(list, 'div', 'lt-note', 'Noch nichts gespeichert. Erzähl mir etwas, zum Beispiel „Ich gehe morgen schwimmen“.');
         eintraege.forEach(e => {
             const m = e.metadata;
             const row = mk(list, 'div', 'lt-item');

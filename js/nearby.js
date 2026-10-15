@@ -115,7 +115,7 @@ const distText = km => km < 1 ? Math.round(km * 1000) + ' Meter' : km.toFixed(1)
 
 async function findNearbyRestaurants(query) {
     const loc = await fetchUserLocationData();
-    if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Ihren Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
+    if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Deinen Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
 
     const cuisine = cuisineFilterFor(query);
     let elements = await googlePlacesSearch(loc.latitude, loc.longitude, 2000, query);

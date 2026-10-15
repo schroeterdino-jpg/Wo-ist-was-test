@@ -1,6 +1,6 @@
 /* ============================================================
    MAIL-MELDUNG: Ist die App offen, schaut sie alle paar Minuten nach neuen, wichtigen E-Mails (ohne Werbung) und meldet sich:
-   "Sie haben eine E-Mail von Anna. Betreff: ... Soll ich sie vorlesen?" -> "Ja" -> Zane liest sie vor und fragt "Wollen Sie antworten?" -> "Ja" -> Gmail öffnet sich mit einer Antwort.
+   "Du hast eine E-Mail von Anna. Betreff: ... Soll ich sie vorlesen?" -> "Ja" -> Zane liest sie vor und fragt "Willst du antworten?" -> "Ja" -> Gmail öffnet sich mit einer Antwort.
    Zane liest nur und verschickt nie etwas; die E-Mail bleibt im Postfach ungelesen, die App merkt sich aber, dass sie sie gemeldet hat.
    Meldet sich nicht, solange Zane spricht, verarbeitet oder zuhört; dann wird es später nachgeholt. Läuft nur bei offener, sichtbarer App.
    Ohne Google-Verbindung bleibt alles still. Per Sprache: "E-Mail-Meldung aus" / "E-Mail-Meldung an".
@@ -83,8 +83,8 @@
         const mail = queue.shift();
         const more = queue.length;
         state = { step: 'read', mail, until: Date.now() + ANSWER_WINDOW_MS };
-        let text = (prefix || '') + `Sie haben eine E-Mail von ${mail.von}. Betreff: ${mail.betreff}. Soll ich sie vorlesen?`;
-        if (more && !prefix) text = `Sie haben ${more + 1} neue E-Mails. Die erste ist von ${mail.von}. Betreff: ${mail.betreff}. Soll ich sie vorlesen?`;
+        let text = (prefix || '') + `Du hast eine E-Mail von ${mail.von}. Betreff: ${mail.betreff}. Soll ich sie vorlesen?`;
+        if (more && !prefix) text = `Du hast ${more + 1} neue E-Mails. Die erste ist von ${mail.von}. Betreff: ${mail.betreff}. Soll ich sie vorlesen?`;
         say(text);
     }
 
@@ -126,7 +126,7 @@
             try {
                 const full = await fetchEmailFullText(mail.id);
                 state = { step: 'reply', mail, until: Date.now() + ANSWER_WINDOW_MS };
-                say(`E-Mail von ${full.von}. Betreff: ${full.betreff}. ${full.text} Wollen Sie antworten?`);
+                say(`E-Mail von ${full.von}. Betreff: ${full.betreff}. ${full.text} Willst du antworten?`);
             } catch (e) {
                 say((e && e.userMessage) || 'Die E-Mail konnte ich gerade nicht laden.');
             }
@@ -135,9 +135,9 @@
         // step === 'reply'
         if (no) { say('Verstanden.'); setTimeout(() => announceNext('Die nächste: '), 4000); return true; }
         const target = await replyTarget(mail.id);
-        if (!target) { say('Die Adresse des Absenders konnte ich nicht ermitteln. Antworten Sie bitte direkt in Gmail.'); return true; }
+        if (!target) { say('Die Adresse des Absenders konnte ich nicht ermitteln. Antworte bitte direkt in Gmail.'); return true; }
         openReply(mail, target);
-        say('Gmail ist geöffnet, die Antwort an ' + mail.von + ' wartet auf Sie.');
+        say('Gmail ist geöffnet, die Antwort an ' + mail.von + ' wartet auf dich.');
         return true;
     }
 

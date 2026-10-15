@@ -1,6 +1,6 @@
 /* ============================================================
    LANGZEIT-ERINNERN (Mitdenken): Sagt der User einen Termin mit Datum UND Uhrzeit ("übermorgen ist das Konzert um 20 Uhr"), merkt sich Zane
-   ihn wie bisher im Langzeitgedächtnis (oder trägt ihn als Kalendertermin ein, Aktion 'calendar') und fragt danach: "Wie viele Stunden vorher soll ich Sie per Push erinnern?".
+   ihn wie bisher im Langzeitgedächtnis (oder trägt ihn als Kalendertermin ein, Aktion 'calendar') und fragt danach: "Wie viele Stunden vorher soll ich dich per Push erinnern?".
    Der User nennt die Zeit ("zwei Stunden", "2", "eine halbe Stunde", "anderthalb Stunden", "30 Minuten"); "Ja" heißt 3 Stunden, "Nein"/"keine" lässt es.
    Die Erinnerung ist ein Push über das bestehende Erinnerungssystem, KEIN doppeltes Klingeln im Google-Kalender.
    Hat der User die Erinnerung schon im selben Satz verlangt ("... und erinnere mich zwei Stunden vorher"), wird nicht gefragt.
@@ -188,7 +188,7 @@
                         if (s.start.getTime() > Date.now() + 30 * 60000) {
                             const mitZeit = /\buhr\b|\d{1,2}[:.]\d{2}/i.test(titel) ? titel : titel + ' um ' + uhrText(s.h, s.mi);
                             pending = { text: mitZeit, start: s.start, at: Date.now(), kal: action.type !== 'episode_store' ? titel : '' };
-                            if (ctx && Array.isArray(ctx.notes)) ctx.notes.push('Wie viele Stunden vorher soll ich Sie per Push erinnern?');
+                            if (ctx && Array.isArray(ctx.notes)) ctx.notes.push('Wie viele Stunden vorher soll ich dich per Push erinnern?');
                         }
                     }
                 }
@@ -233,7 +233,7 @@
         const p = pending; pending = null;
         if (!p) return;
         const remind = new Date(p.start.getTime() - stunden * 3600000);
-        if (remind.getTime() <= Date.now() + 30000) { say('Dann wäre der Zeitpunkt schon vorbei. Nennen Sie mir bitte eine kürzere Zeit.'); pending = p; pending.at = Date.now(); return; }
+        if (remind.getTime() <= Date.now() + 30000) { say('Dann wäre der Zeitpunkt schon vorbei. Nenne mir bitte eine kürzere Zeit.'); pending = p; pending.at = Date.now(); return; }
         try {
             if (typeof addGoogleCalendarReminder !== 'function') { say('Erinnerungen sind in dieser Version nicht erreichbar.'); return; }
             const r = await addGoogleCalendarReminder(p.text, remind.toISOString(), null, false);
@@ -244,8 +244,8 @@
                 }
             } catch (e) {}
             const wann = tagWort(remind) + ' um ' + uhrText(remind.getHours(), remind.getMinutes());
-            if (r && r.synced === false) say(`Gut, ich erinnere Sie ${wann}, also ${dauerText(stunden)} vorher. Der Kalender-Eintrag hat nicht geklappt, die Erinnerung ist aber in der App gespeichert.`);
-            else say(`Gut, ich erinnere Sie ${wann}, also ${dauerText(stunden)} vorher.`);
+            if (r && r.synced === false) say(`Gut, ich erinnere dich ${wann}, also ${dauerText(stunden)} vorher. Der Kalender-Eintrag hat nicht geklappt, die Erinnerung ist aber in der App gespeichert.`);
+            else say(`Gut, ich erinnere dich ${wann}, also ${dauerText(stunden)} vorher.`);
         } catch (e) { console.error('Termin-Erinnerung anlegen', e); say('Die Erinnerung konnte ich gerade nicht anlegen.'); }
     }
 
@@ -255,13 +255,13 @@
         // Ein-/Ausschalten
         if (t.length <= 60 && /termin\s*erinnerung|mitdenk\w*\s*erinnerung|automatische erinnerung/.test(t)) {
             if (/\b(aus|ausschalten|deaktivier\w*|stopp?)\b/.test(t)) { lsSet(KEY, '0'); pending = null; say('Ich frage bei Terminen nicht mehr nach einer Erinnerung.'); return true; }
-            if (/\b(an|ein|einschalten|aktivier\w*)\b/.test(t)) { lsSet(KEY, '1'); say('Bei Terminen mit Uhrzeit frage ich wieder, ob ich Sie erinnern soll.'); return true; }
+            if (/\b(an|ein|einschalten|aktivier\w*)\b/.test(t)) { lsSet(KEY, '1'); say('Bei Terminen mit Uhrzeit frage ich wieder, ob ich dich erinnern soll.'); return true; }
             say('Die Termin-Erinnerung ist ' + (isOn() ? 'an' : 'aus') + '.');
             return true;
         }
         if (!pending) return false;
         if (Date.now() - pending.at > PENDING_MS) { pending = null; return false; }
-        if (NEIN.test(t)) { pending = null; say('Gut, dann erinnere ich Sie nicht.'); return true; }
+        if (NEIN.test(t)) { pending = null; say('Gut, dann erinnere ich dich nicht.'); return true; }
         if (JA.test(t)) { anlegen(3); return true; }
         if (t.length <= 40) {
             const h = stundenAus(t);
@@ -281,7 +281,7 @@
             setTimeout(function () {
                 try {
                     if (pending !== p || (typeof isRecording !== 'undefined' && isRecording)) return;
-                    say('Wie viele Stunden vorher soll ich Sie erinnern?');
+                    say('Wie viele Stunden vorher soll ich dich erinnern?');
                 } catch (e) {}
             }, 900);
         });
@@ -303,7 +303,7 @@
     if (window.jvChain) {
         window.jvChain.use('buildSystemPrompt', 'termin-erinnern', function (next) {
             let base = next();
-            if (isOn()) base += '\n\nZUSATZ zu \'episode_store\': Nennt der User bei einem zukünftigen Termin eine UHRZEIT (z.B. "übermorgen ist das Konzert von Xavier Naidoo um 20 Uhr"), setze zusätzlich \'episode_uhrzeit\' = die Uhrzeit als HH:MM (24 Stunden, "20 Uhr" = "20:00", "halb acht abends" = "19:30") und \'episode_erinnerung\' = kurzer Titel für die Erinnerung (z.B. "Konzert von Xavier Naidoo", ohne Uhrzeit und ohne "Der User"). Ohne genannte Uhrzeit lasse beide Felder weg, erfinde nie eine Uhrzeit. Die Rückfrage "Wie viele Stunden vorher soll ich Sie erinnern?" stellt die App selbst, stelle sie NICHT zusätzlich und lege dafür auch keine eigene Erinnerung an.';
+            if (isOn()) base += '\n\nZUSATZ zu \'episode_store\': Nennt der User bei einem zukünftigen Termin eine UHRZEIT (z.B. "übermorgen ist das Konzert von Xavier Naidoo um 20 Uhr"), setze zusätzlich \'episode_uhrzeit\' = die Uhrzeit als HH:MM (24 Stunden, "20 Uhr" = "20:00", "halb acht abends" = "19:30") und \'episode_erinnerung\' = kurzer Titel für die Erinnerung (z.B. "Konzert von Xavier Naidoo", ohne Uhrzeit und ohne "Der User"). Ohne genannte Uhrzeit lasse beide Felder weg, erfinde nie eine Uhrzeit. Die Rückfrage "Wie viele Stunden vorher soll ich dich erinnern?" stellt die App selbst, stelle sie NICHT zusätzlich und lege dafür auch keine eigene Erinnerung an.';
             return base;
         }, 215);
     }

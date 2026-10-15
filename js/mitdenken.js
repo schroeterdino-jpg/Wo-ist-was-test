@@ -100,7 +100,7 @@ async function mdCheckSchoolHoliday(notes, text, p) {
     await mdTimeout(ferienLoad(0), 6500);
     const day = mdLocalDay(p.date);
     const hit = ferienPeriodsFor(code).find(x => x.start <= day && x.end >= day && FERIEN_MAJOR.includes(x.kind));
-    if (hit) notes.push({ prio: 5, text: `Beachten Sie, ${mdAddress()}: Zu der Zeit sind Schulferien in ${ferienStateByCode(code).name}, ${hit.name}.` });
+    if (hit) notes.push({ prio: 5, text: `Beachte, ${mdAddress()}: Zu der Zeit sind Schulferien in ${ferienStateByCode(code).name}, ${hit.name}.` });
 }
 
 async function mdCoords(location) {
@@ -153,13 +153,13 @@ async function mdCheckTravel(notes, text, p, location) {
         const gap = Math.round((p.date - (prev.start.getTime() + MD_EVENT_MINUTES * 60000)) / 60000);
         if (gap > 150) return;
         const drive = await mdDriveMinutes(prev.location, location);
-        if (drive !== null && gap < drive + 10) notes.push({ prio: 8, text: `Zwischen „${prev.text}“ und diesem Termin brauchen Sie etwa ${drive} Minuten Fahrt, es bleiben aber nur ${Math.max(gap, 0)}. Das wird knapp, ${a}.` });
+        if (drive !== null && gap < drive + 10) notes.push({ prio: 8, text: `Zwischen „${prev.text}“ und diesem Termin brauchst du etwa ${drive} Minuten Fahrt, es bleiben aber nur ${Math.max(gap, 0)}. Das wird knapp, ${a}.` });
     })());
     if (next) jobs.push((async () => {
         const gap = Math.round((next.start - (p.date.getTime() + MD_EVENT_MINUTES * 60000)) / 60000);
         if (gap > 150) return;
         const drive = await mdDriveMinutes(location, next.location);
-        if (drive !== null && gap < drive + 10) notes.push({ prio: 8, text: `Von diesem Termin zu „${next.text}“ brauchen Sie etwa ${drive} Minuten Fahrt, es bleiben aber nur ${Math.max(gap, 0)}. Das wird knapp, ${a}.` });
+        if (drive !== null && gap < drive + 10) notes.push({ prio: 8, text: `Von diesem Termin zu „${next.text}“ brauchst du etwa ${drive} Minuten Fahrt, es bleiben aber nur ${Math.max(gap, 0)}. Das wird knapp, ${a}.` });
     })());
     await Promise.all(jobs);
 }

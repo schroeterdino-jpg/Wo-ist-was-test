@@ -48,7 +48,7 @@
         const t = String(text || '').toLowerCase().replace(/[.,!?;:\-]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 60 || !/karte\s+(?:automatisch|von selbst|selbst)\s+(?:schlie\w*|zu)|automatisch\w*\s+karte/.test(t)) return false;
         const say = m => speak(m, typeof continueConversation === 'function' ? continueConversation : undefined);
-        if (/\b(aus|ausschalten|deaktivier\w*|nicht|stopp?)\b/.test(t)) { lsSet(KEY, '0'); stop(); say('Die Karte bleibt jetzt offen, bis Sie sie schließen.'); return true; }
+        if (/\b(aus|ausschalten|deaktivier\w*|nicht|stopp?)\b/.test(t)) { lsSet(KEY, '0'); stop(); say('Die Karte bleibt jetzt offen, bis du sie schließt.'); return true; }
         if (/\b(an|ein|einschalten|aktivier\w*)\b/.test(t)) { lsSet(KEY, '1'); say('Die Karte schließt sich jetzt von selbst, kurz nachdem ich fertig bin.'); return true; }
         say('Das automatische Schließen der Karte ist ' + (isOn() ? 'an' : 'aus') + '.');
         return true;
