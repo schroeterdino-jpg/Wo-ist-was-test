@@ -77,15 +77,22 @@
     // Das "Ja?" kommt IMMER in der Fish-Audio-Stimme und wird einmal geholt und dann gespeichert,
     // so ist es beim nächsten Mal sofort da (kein Warten auf Fish, keine Ersatzstimme).
     let waking = false;
-    let jaBlob = null;
-    function jaKey() {
+    const SAETZE = [
+        'Zu Diensten, Sir.',
+        'Was kann ich für dich tun?',
+        'Ich bin ganz Ohr.',
+        'Schieß los.',
+        'Was willst du denn jetzt schon wieder?'
+    ];
+    const blobs = {};   // Satz -> Audio (Fish Audio), im Speicher
+    function jaKey(t) {
         let v = '';
         try { v = (typeof getFishVoice === 'function') ? getFishVoice() : ''; } catch (e) { }
-        return 'zane_ja_cache_' + v;
+        return 'zane_ack_' + v + '_' + t;
     }
-    function jaLaden() {
+    function jaLaden(t) {
         try {
-            const d = localStorage.getItem(jaKey());
+            const d = localStorage.getItem(jaKey(t));
             if (!d) return null;
             const parts = d.split(',');
             const mime = (parts[0].match(/data:([^;]+)/) || [])[1] || 'audio/mpeg';
@@ -95,32 +102,43 @@
             return new Blob([arr], { type: mime });
         } catch (e) { return null; }
     }
-    function jaSpeichern(blob) {
+    function jaSpeichern(t, blob) {
         try {
             const fr = new FileReader();
-            fr.onload = function () { try { localStorage.setItem(jaKey(), String(fr.result)); } catch (e) { } };
+            fr.onload = function () { try { localStorage.setItem(jaKey(t), String(fr.result)); } catch (e) { } };
             fr.readAsDataURL(blob);
         } catch (e) { }
     }
-    function jaHolen() {   // nur Fish Audio; bei Fehlschlag null (dann bleibt es still)
+    function jaHolen(t) {   // nur Fish Audio; bei Fehlschlag null (dann bleibt es still)
         try {
             if (typeof getTtsEngine === 'function' && getTtsEngine() !== 'fish') return Promise.resolve(null);
             window.__jvAck = true;   // fish.js: nur Fish Audio, viel Zeit, niemals Ersatzstimme
             let p;
-            try { p = fetchCloudSpeechBlob('Ja?', (typeof getEdgeVoice === 'function') ? getEdgeVoice() : undefined); }
+            try { p = fetchCloudSpeechBlob(t, (typeof getEdgeVoice === 'function') ? getEdgeVoice() : undefined); }
             finally { window.__jvAck = false; }
             return Promise.resolve(p).then(function (b) {
-                if (b && b.size > 3000) { jaBlob = b; jaSpeichern(b); return b; }   // kurze Stille (Fehlschlag) nicht merken
+                if (b && b.size > 3000) { blobs[t] = b; jaSpeichern(t, b); return b; }   // kurze Stille (Fehlschlag) nicht merken
                 return null;
             }).catch(function () { return null; });
         } catch (e) { return Promise.resolve(null); }
     }
-    // Schon beim Start vorbereiten
+    function fertigeSaetze() {
+        return SAETZE.filter(function (t) {
+            if (!blobs[t]) { const b = jaLaden(t); if (b) blobs[t] = b; }
+            return !!blobs[t];
+        });
+    }
+    // Schon beim Start vorbereiten: fehlende Sätze nacheinander holen
     window.addEventListener('load', function () {
         setTimeout(function () {
-            if (!jaBlob) jaBlob = jaLaden();
-            if (!jaBlob) jaHolen();
-        }, 3000);
+            fertigeSaetze();
+            const fehlt = SAETZE.filter(function (t) { return !blobs[t]; });
+            (function weiter() {
+                const t = fehlt.shift();
+                if (!t) return;
+                jaHolen(t).then(function () { setTimeout(weiter, 1500); });
+            })();
+        }, 4000);
     });
 
     window.zaneWake = function () {
@@ -128,14 +146,13 @@
         window.__zaneWakePending = false;
         waking = true;
         setTimeout(function () { waking = false; }, 3000);
-        let weiter = function () { try { startListening(false); } catch (e) { } };
+        const weiter = function () { try { startListening(false); } catch (e) { } };
         try {
             if (typeof isRecording !== 'undefined' && isRecording) return;
             if (typeof getTtsEngine === 'function' && getTtsEngine() !== 'fish') {
-                speakAck('Ja?', weiter);
+                speakAck('Zu Diensten, Sir.', weiter);
                 return;
             }
-            if (!jaBlob) jaBlob = jaLaden();
             const spielen = function (blob) {
                 if (!blob) { weiter(); return; }   // lieber still als mit fremder Stimme
                 window.__zaneAckBusy = true;
@@ -146,8 +163,9 @@
                 au.onerror = fertig;
                 au.play().catch(fertig);
             };
-            if (jaBlob) spielen(jaBlob);
-            else jaHolen().then(spielen);
+            const da = fertigeSaetze();
+            if (da.length) spielen(blobs[da[Math.floor(Math.random() * da.length)]]);
+            else jaHolen(SAETZE[0]).then(spielen);
         } catch (e) {
             weiter();
         }
