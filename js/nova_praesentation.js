@@ -1,4 +1,4 @@
-/* PRÄSENTATION (TikTok-Version): Nova stellt sich in ca. 90 Sekunden mit 10 Highlights vor (für Bildschirmaufnahmen, hochkant).
+/* PRÄSENTATION (TikTok-Version): Nova stellt sich in ca. 70 Sekunden mit 10 Highlights vor (Gesicht bleibt oben frei) (für Bildschirmaufnahmen, hochkant).
    - Start per Sprache: "Stell dich vor", "Präsentation", "Starte die Präsentation", "Präsentation starten", "TikTok Präsentation".
    - Abbrechen: zweimal schnell auf den Bildschirm tippen.
    - Zu jedem Highlight steht groß, was du sagst (Sprechblase mit Mikrofon, getippt wie gesprochen), danach zeigt und sagt Nova die Antwort.
@@ -13,41 +13,42 @@
     var laeuft = false, abbruch = false, root = null, gen = 0, letzterTipp = 0;
 
     var CSS = '' +
-        '#jvPraes{position:fixed;left:0;right:0;bottom:0;height:68vh;z-index:99990;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding:0 16px calc(18px + env(safe-area-inset-bottom));' +
-        'background:linear-gradient(to top,rgba(2,10,18,.97) 50%,rgba(2,10,18,.0));color:#dff6ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none}' +
+        '#jvPraes{position:fixed;left:0;right:0;bottom:0;height:56vh;z-index:99990;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding:0 16px calc(18px + env(safe-area-inset-bottom));' +
+        'background:linear-gradient(to top,rgba(2,10,18,.96) 62%,rgba(2,10,18,.0));color:#dff6ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none}' +
         '#jvPraes *{box-sizing:border-box}' +
         '#jvPraes .pz-cap{width:100%;max-width:520px;text-align:center;font-size:19px;line-height:1.35;font-weight:600;letter-spacing:.2px;min-height:52px;margin-bottom:12px;text-shadow:0 0 14px rgba(73,215,255,.55);opacity:0;transition:opacity .35s}' +
         '#jvPraes .pz-cap.an{opacity:1}' +
-        '#jvPraes .pz-stage{position:relative;width:100%;max-width:520px;height:34vh;min-height:230px}' +
-        '#jvPraes .pz-cmd{width:100%;max-width:520px;min-height:54px;margin-bottom:12px;padding:10px 16px;border:1.5px solid rgba(255,255,255,.55);border-radius:28px;background:rgba(18,64,98,.82);box-shadow:0 0 22px rgba(0,190,255,.35);font-size:21px;line-height:1.25;font-weight:700;color:#fff;display:flex;align-items:center;gap:12px;opacity:0;transform:translateY(12px) scale(.97);transition:opacity .3s,transform .3s}' +
-        '#jvPraes .pz-cmd.an{opacity:1;transform:none}#jvPraes .pz-cmd .pz-ic{font-size:28px;animation:pzbeat .9s ease-in-out infinite;flex:none}#jvPraes .pz-cmd .pz-car{display:inline-block;width:2px;height:1.1em;background:#49d7ff;margin-left:3px;vertical-align:-3px;animation:pzblink .6s steps(2) infinite}@keyframes pzblink{50%{opacity:0}}' +
+        '#jvPraes .pz-stage{position:relative;width:100%;max-width:520px;height:27vh;min-height:176px}' +
+        '#jvPraes .pz-cmd{width:100%;max-width:520px;min-height:46px;margin-bottom:8px;padding:7px 14px;border:1.5px solid rgba(255,255,255,.55);border-radius:28px;background:rgba(18,64,98,.82);box-shadow:0 0 22px rgba(0,190,255,.35);font-size:19px;line-height:1.2;font-weight:700;color:#fff;display:flex;align-items:center;gap:12px;opacity:0;transform:translateY(12px) scale(.97);transition:opacity .3s,transform .3s}' +
+        '#jvPraes .pz-cmd.an{opacity:1;transform:none}#jvPraes .pz-cmd .pz-ic{font-size:24px;animation:pzbeat .9s ease-in-out infinite;flex:none}#jvPraes .pz-cmd .pz-car{display:inline-block;width:2px;height:1.1em;background:#49d7ff;margin-left:3px;vertical-align:-3px;animation:pzblink .6s steps(2) infinite}@keyframes pzblink{50%{opacity:0}}' +
         '#jvPraes .pz-card{position:absolute;inset:0;border:1px solid rgba(73,215,255,.55);border-radius:16px;background:rgba(6,24,38,.88);box-shadow:0 0 28px rgba(0,190,255,.28),inset 0 0 22px rgba(0,190,255,.08);padding:0;opacity:0;transform:translateY(26px) scale(.97);transition:opacity .45s,transform .45s;overflow:hidden}' +
         '#jvPraes .pz-in{position:absolute;left:0;top:0;right:0;bottom:0;padding:14px 16px}' +
         '#jvPraes .pz-card.an{opacity:1;transform:none}' +
         '#jvPraes .pz-card.weg{opacity:0;transform:translateY(-18px) scale(.97)}' +
-        '#jvPraes .pz-kopf{font:700 13px/1 ui-monospace,Menlo,monospace;letter-spacing:2.5px;color:#49d7ff;margin-bottom:10px;text-transform:uppercase}' +
+        '#jvPraes .pz-kopf{font:700 13px/1 ui-monospace,Menlo,monospace;letter-spacing:2.5px;color:#49d7ff;margin-bottom:6px;text-transform:uppercase}' +
         '#jvPraes .pz-zeile{display:flex;align-items:center;gap:10px;font-size:15.5px;line-height:1.3;padding:5px 0;opacity:0;transform:translateX(-14px);transition:opacity .4s,transform .4s}' +
         '#jvPraes .pz-zeile.an{opacity:1;transform:none}' +
         '#jvPraes .pz-zeile b{color:#7ff0ff}' +
         '#jvPraes .pz-gross{font-size:56px;font-weight:800;letter-spacing:10px;text-align:center;margin-top:34px;color:#eaffff;text-shadow:0 0 22px #00c8ff,0 0 48px #0090ff}' +
         '#jvPraes .pz-klein{text-align:center;font:600 12px ui-monospace,Menlo,monospace;letter-spacing:4px;color:#49d7ff;margin-top:8px}' +
-        '#jvPraes .pz-foto{position:absolute;left:14px;top:14px;bottom:14px;width:38%;border-radius:8px;background:#000 center/contain no-repeat;border:1px solid rgba(255,255,255,.35);overflow:hidden}' +
+        '#jvPraes .pz-fz{display:flex;gap:14px;align-items:flex-start}#jvPraes .pz-foto{position:relative;flex:0 0 36%;height:128px;border-radius:8px;background:#000 center/contain no-repeat;border:1px solid rgba(255,255,255,.35);overflow:hidden}' +
         '#jvPraes .pz-scan{position:absolute;left:0;right:0;height:3px;background:#49d7ff;box-shadow:0 0 14px 4px rgba(73,215,255,.9);top:0;opacity:0}' +
         '#jvPraes .pz-scan.an{opacity:1;animation:pzscan 1.5s ease-in-out 2}' +
         '@keyframes pzscan{0%{top:0}50%{top:calc(100% - 3px)}100%{top:0}}' +
-        '#jvPraes .pz-rechts{position:absolute;left:calc(38% + 28px);right:14px;top:12px}' +
+        '#jvPraes .pz-rechts{flex:1;min-width:0}' +
         '#jvPraes .pz-flag{display:inline-block;padding:2px 8px;border:1px solid #49d7ff;border-radius:6px;font:700 12px ui-monospace,Menlo,monospace;color:#49d7ff;margin-right:6px}' +
         '#jvPraes .pz-gruen{color:#5dffa8}#jvPraes .pz-rot{color:#ff7a7a}#jvPraes .pz-gelb{color:#ffd166}' +
         '#jvPraes .pz-bar{position:absolute;left:16px;right:16px;top:-6px;height:3px;background:rgba(73,215,255,.18);border-radius:2px}#jvPraes .pz-bar i{display:block;height:100%;width:0;background:#49d7ff;box-shadow:0 0 10px #49d7ff;border-radius:2px;transition:width .8s}' +
         '.pz-blitz{position:fixed;inset:0;z-index:99995;pointer-events:none;background:radial-gradient(circle at 50% 70%,rgba(180,245,255,.85),rgba(0,170,255,.35) 60%,transparent);animation:pzblitz .42s ease-out forwards}@keyframes pzblitz{0%{opacity:.95}100%{opacity:0}}' +
-        '#jvPraes .pz-cap{font-size:26px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;transform:scale(.9);transition:opacity .2s,transform .25s cubic-bezier(.2,1.6,.4,1)}#jvPraes .pz-cap.an{transform:scale(1)}' +
+        '#jvPraes .pz-cap{font-size:29px;line-height:1.1;min-height:0;margin-bottom:8px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;transform:scale(.9);transition:opacity .2s,transform .25s cubic-bezier(.2,1.6,.4,1)}#jvPraes .pz-cap.an{transform:scale(1)}' +
         '#jvPraes .pz-riesig{font-size:84px;text-align:center;margin-top:14px;filter:drop-shadow(0 0 22px #00c8ff);animation:pzbeat .9s ease-in-out infinite}@keyframes pzbeat{50%{transform:scale(1.14)}}' +
         '#jvPraes .pz-glitch{animation:pzglitch 2.4s infinite}@keyframes pzglitch{0%,92%,100%{transform:none;text-shadow:0 0 22px #00c8ff,0 0 48px #0090ff}94%{transform:translateX(-5px) skewX(8deg);text-shadow:4px 0 #ff2a6d,-4px 0 #00f0ff}97%{transform:translateX(4px);text-shadow:-4px 0 #ff2a6d,4px 0 #00f0ff}}' +
-        '#jvPraes .pz-zeile{font-size:22px;padding:9px 0;transform:translateX(-22px) scale(.96)}#jvPraes .pz-zeile.an{transform:none}' +
-        '#jvPraes .pz-gross2{font-size:30px;font-weight:800;color:#eaffff;text-shadow:0 0 14px #00c8ff}' +
-        '#jvPraes .pz-betrag b{font-size:38px;font-weight:800;color:#eaffff;text-shadow:0 0 16px #00c8ff}' +
+        '#jvPraes .pz-zeile{font-size:20px;padding:6px 0;transform:translateX(-22px) scale(.96)}#jvPraes .pz-zeile.an{transform:none}' +
+        '#jvPraes .pz-gross2{font-size:36px;font-weight:800;color:#eaffff;text-shadow:0 0 14px #00c8ff}' +
+        '#jvPraes .pz-betrag b{font-size:46px;font-weight:800;color:#eaffff;text-shadow:0 0 16px #00c8ff}' +
         '#jvPraes .pz-links{align-self:flex-start}#jvPraes .pz-rechtsb{justify-content:flex-end;color:#7ff0ff}' +
         '#jvPraes .pz-wort{display:flex;align-items:center;justify-content:center;height:100%}' +
+        '#jvPraes .pz-cta{font-size:40px;font-weight:900;line-height:1.1;text-align:center;color:#eaffff;text-shadow:0 0 22px #00c8ff,0 0 48px #0090ff;margin-top:18px}#jvPraes .pz-cta2{font-size:19px;text-align:center;color:#7ff0ff;margin-top:12px;font-weight:700}' +
         '#jvPraes .pz-w{font-size:64px;font-weight:900;letter-spacing:8px;color:#eaffff;text-shadow:0 0 22px #00c8ff,0 0 52px #0090ff}#jvPraes .pz-w2{animation:pzslam .45s cubic-bezier(.2,1.7,.4,1)}@keyframes pzslam{0%{transform:scale(2.4);opacity:0}100%{transform:none;opacity:1}}';
 
     function el(t, c, h) { var e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; }
@@ -157,16 +158,52 @@
     }
 
     function szeneHook() {
-        mimik('serious'); blitz(); fortschritt(3); caption('ANDERE ASSISTENTEN? NUR AM PC.');
+        mimik('serious'); blitz(); fortschritt(3); caption('MEIN HANDY HÖRT ZU.');
         if (cmdEl) cmdEl.classList.remove('an');
         karte('<div class="pz-gross pz-glitch">NOVA</div><div class="pz-klein">DEIN ASSISTENT · IM HANDY</div>');
         setTimeout(function () { grimasse({ browOuterUp_L: .95, browInnerUp: .3, mouthSmile_L: .8, mouthSmile_R: .3 }, 1500); }, 700);
-        setTimeout(function () { caption('10 DINGE, DIE KEINER SONST KANN'); blitz(); }, 2800);
-        return sag('Ich bin Nova, dein Assistent im Handy. Zehn Dinge, die ich kann.');
+        setTimeout(function () { caption('UND HANDELT.'); blitz(); }, 2200);
+        return sag('Ich bin Nova. Du sprichst, ich erledige.');
     }
 
-    function szene1() {
-        return szene({ nr: 1, cap: '„HEY NOVA“ · AUCH GESPERRT', mimik: 'surprised', cmd: 'Hey Nova!', icon: '🎤',
+    function szene1() {   // Rechnung: der stärkste Effekt zuerst
+        blitz(); mimik('thinking'); fortschritt(9); caption('1/10 · FOTO → ERLEDIGT');
+        return cmd('Lies mir die Rechnung vor.', '🎤').then(function () {
+            var k = karte('<div class="pz-fz"><div class="pz-foto" style="background-image:url(./beispielrechnung.jpg)"><div class="pz-scan"></div></div>' +
+                '<div class="pz-rechts"><div class="pz-kopf">Nova liest</div>' +
+                '<div class="pz-zeile pz-betrag"><b class="pz-z">0,00 €</b></div>' +
+                '<div class="pz-zeile">📅 <span>fällig <b class="pz-gelb">28. Okt.</b></span></div>' +
+                '<div class="pz-zeile">⏰ <span class="pz-gruen"><b>Im Kalender ✓</b></span></div></div></div>');
+            setTimeout(function () { var sc = k.querySelector('.pz-scan'); if (sc) sc.classList.add('an'); }, 300);
+            var z = k.querySelectorAll('.pz-zeile');
+            var ablauf = warte(1300).then(function () { z[0].classList.add('an'); blitz(); zaehle(k.querySelector('.pz-z'), 84.5, 900, 2, ' €'); return warte(1000); })
+                .then(function () { z[1].classList.add('an'); return warte(600); })
+                .then(function () { z[2].classList.add('an'); });
+            var rede = sag('Betrag, Frist, Kalender. Erledigt, bevor du blinzelst.');
+            return Promise.all([ablauf, rede]);
+        });
+    }
+
+    function szene2() {
+        return szene({ nr: 2, cap: 'LIVE-DOLMETSCHER', mimik: 'surprised', cmd: 'Dolmetsche Deutsch und Türkisch.', icon: '🎤', takt: 650,
+            html: '<div class="pz-kopf">Deutsch ⇄ Türkisch</div>' +
+                '<div class="pz-zeile pz-links"><span class="pz-flag">DE</span><span>Wo ist der Bahnhof?</span></div>' +
+                '<div class="pz-zeile pz-rechtsb"><span class="pz-flag">TR</span><span><b>İstasyon nerede?</b></span></div>' +
+                '<div class="pz-zeile pz-links"><span class="pz-flag">TR</span><span>Düz git, sonra sağa.</span></div>',
+            rede: 'Ich dolmetsche live, in beide Richtungen.' });
+    }
+
+    function szene3() {
+        return szene({ nr: 3, cap: 'WARNT VOR DEM STAU', mimik: 'serious', cmd: '4:00 Uhr · Nova meldet sich', icon: '🔔',
+            html: '<div class="pz-kopf">Stau-Check · Arbeitsweg</div>' +
+                '<div class="pz-zeile">🚗 <span>Heute <b class="pz-rot">48 Min.</b> statt sonst <b>30</b></span></div>' +
+                '<div class="pz-zeile">🛣️ <span>A24: <b class="pz-gelb">Stau gemeldet</b></span></div>' +
+                '<div class="pz-zeile">⏰ <span>Fahr um <b class="pz-gruen">4:10 Uhr</b> los</span></div>',
+            rede: 'Stau auf deiner Strecke? Ich sage dir, wann du früher losmusst.' });
+    }
+
+    function szene4() {
+        return szene({ nr: 4, cap: '„HEY NOVA“ · GESPERRT', mimik: 'surprised', cmd: 'Hey Nova!', icon: '🎤',
             html: '<div class="pz-kopf">Handy gesperrt, in der Tasche</div>' +
                 '<div class="pz-zeile">🔒 <span>Bildschirm <b>aus</b></span></div>' +
                 '<div class="pz-zeile">✨ <span>Nova <b class="pz-gruen">wacht auf</b></span></div>' +
@@ -174,80 +211,41 @@
             rede: 'Ja? Ich höre dich, auch bei gesperrtem Handy.' });
     }
 
-    function szene2() {
-        return szene({ nr: 2, cap: 'MORGEN-BRIEFING', mimik: 'friendly', cmd: 'Guten Morgen Nova, was steht an?', icon: '🎤',
-            html: '<div class="pz-kopf">Guten Morgen, Max</div>' +
-                '<div class="pz-zeile">🌤️ <span><b>14 °C</b>, trocken</span></div>' +
-                '<div class="pz-zeile">🕔 <span>Frühschicht <b>5:10 Uhr</b></span></div>' +
-                '<div class="pz-zeile">🚗 <span>A24: <b class="pz-rot">Stau +<em class="pz-z">0</em> Min.</b></span></div>',
-            nach: function (k) { setTimeout(function () { zaehle(k.querySelector('.pz-z'), 12, 1200, 0); }, 1800); },
-            rede: 'Wetter, Schicht und Stau auf deiner Strecke. Jeden Morgen, ohne dass du fragst.' });
-    }
-
-    function szene3() {
-        blitz(); mimik('thinking'); fortschritt(27); caption('3/10 · RECHNUNG: FOTO ODER PDF');
-        return cmd('Lies mir die Rechnung vor.', '🎤').then(function () {
-            var k = karte('<div class="pz-foto" style="background-image:url(./beispielrechnung.jpg)"><div class="pz-scan"></div></div>' +
-                '<div class="pz-rechts"><div class="pz-kopf">Nova liest</div>' +
-                '<div class="pz-zeile">🏢 <span><b>Nordstrom Energie</b></span></div>' +
-                '<div class="pz-zeile pz-betrag"><b class="pz-z">0,00 €</b></div>' +
-                '<div class="pz-zeile">📅 <span>fällig <b class="pz-gelb">28. Okt.</b></span></div>' +
-                '<div class="pz-zeile">⏰ <span class="pz-gruen"><b>Erinnerung + Kalender ✓</b></span></div></div>');
-            setTimeout(function () { var sc = k.querySelector('.pz-scan'); if (sc) sc.classList.add('an'); }, 300);
-            var z = k.querySelectorAll('.pz-zeile');
-            var ablauf = warte(1500).then(function () { z[0].classList.add('an'); return warte(400); })
-                .then(function () { z[1].classList.add('an'); blitz(); zaehle(k.querySelector('.pz-z'), 84.5, 900, 2, ' €'); return warte(900); })
-                .then(function () { z[2].classList.add('an'); return warte(600); })
-                .then(function () { z[3].classList.add('an'); });
-            var rede = sag('Rechnung als Foto oder PDF. Betrag und Frist gelesen, Erinnerung und Kalender gleich mit.');
-            return Promise.all([ablauf, rede]);
-        });
-    }
-
-    function szene4() {
-        return szene({ nr: 4, cap: 'FOTO. NOVA WEISS, WAS ES IST', mimik: 'thinking', cmd: 'Foto geschickt.', icon: '📸',
+    function szene5() {
+        return szene({ nr: 5, cap: 'FOTO. NOVA WEISS, WAS ES IST', mimik: 'thinking', cmd: 'Foto geschickt.', icon: '📸',
             html: '<div class="pz-kopf">Nova schaut hin</div>' +
                 '<div class="pz-zeile">🧾 <span>Erkannt: <b class="pz-gruen">Einkaufszettel</b></span></div>' +
                 '<div class="pz-zeile">🛒 <span><b>Milch, Brot, Eier</b> + 3 weitere</span></div>' +
-                '<div class="pz-zeile">🍳 <span>Auch <b>Rezept</b>, Plan, Visitenkarte …</span></div>',
-            rede: 'Ich sehe selbst, was auf dem Foto ist. Einkaufszettel, Rezept, Plan, Visitenkarte, und tue das Richtige.' });
-    }
-
-    function szene5() {
-        return szene({ nr: 5, cap: 'MELDET SICH VON SELBST', mimik: 'serious', cmd: '4:00 Uhr · Nova meldet sich', icon: '🔔',
-            html: '<div class="pz-kopf">Stau-Check · Arbeitsweg</div>' +
-                '<div class="pz-zeile">🚗 <span>Heute <b class="pz-rot">48 Min.</b> statt sonst <b>30</b></span></div>' +
-                '<div class="pz-zeile">🛣️ <span>A24: <b class="pz-gelb">Stau gemeldet</b></span></div>' +
-                '<div class="pz-zeile">⏰ <span>Fahr um <b class="pz-gruen">4:10 Uhr</b> los</span></div>',
-            rede: 'Ich melde mich von selbst. Ist auf deiner Strecke Stau, sage ich dir, dass du früher losfahren musst.' });
+                '<div class="pz-zeile">🍳 <span>Auch <b>Rezept</b>, Plan, Visitenkarte</span></div>',
+            rede: 'Einkaufszettel, Rezept, Plan: Ich sehe es und tue das Richtige.' });
     }
 
     function szene6() {
-        return szene({ nr: 6, cap: 'WECKER UND WOCHENÜBERBLICK', mimik: 'friendly', cmd: 'Stell den Wecker auf 3 Uhr 45.', icon: '🎤',
-            html: '<div class="pz-kopf">Erledigt</div>' +
-                '<div class="pz-zeile">⏰ <span>Wecker <b class="pz-gruen">3:45 Uhr ✓</b></span></div>' +
-                '<div class="pz-zeile">🗓️ <span>Sonntag <b>18 Uhr</b>: dein Wochenüberblick</span></div>' +
-                '<div class="pz-zeile">💤 <span>Abends: „Wecker für morgen?“</span></div>',
-            rede: 'Wecker stellen per Sprache. Und sonntags um sechs lese ich dir von selbst deine Woche vor.' });
+        return szene({ nr: 6, cap: 'ROUTE · SPRIT · RADAR', mimik: 'serious', cmd: 'Route nach Hamburg.', icon: '🎤',
+            html: '<div class="pz-kopf">Schwarzenbek → Hamburg</div>' +
+                '<div class="pz-zeile">⏱️ <span><b class="pz-gross2">34 Min.</b> <span class="pz-rot">+9 Stau</span></span></div>' +
+                '<div class="pz-zeile">⛽ <span>Diesel <b class="pz-gross2">1,59 €</b> · 2 km</span></div>' +
+                '<div class="pz-zeile">🌧️ <span>Regenradar: <b class="pz-gruen">ab 14 Uhr trocken</b></span></div>',
+            takt: 850,
+            rede: 'Route mit Stau, billigster Sprit auf dem Weg, dazu das Regenradar.' });
     }
 
     function szene7() {
-        return szene({ nr: 7, cap: 'LIVE-DOLMETSCHER', mimik: 'surprised', cmd: 'Dolmetsche Deutsch und Türkisch.', icon: '🎤', takt: 650,
-            html: '<div class="pz-kopf">Deutsch ⇄ Türkisch</div>' +
-                '<div class="pz-zeile pz-links"><span class="pz-flag">DE</span><span>Wo ist der Bahnhof?</span></div>' +
-                '<div class="pz-zeile pz-rechtsb"><span class="pz-flag">TR</span><span><b>İstasyon nerede?</b></span></div>' +
-                '<div class="pz-zeile pz-links"><span class="pz-flag">TR</span><span>Düz git, sonra sağa.</span></div>' +
-                '<div class="pz-zeile pz-rechtsb"><span class="pz-flag">DE</span><span><b>Geradeaus, dann rechts.</b></span></div>',
-            rede: 'Türkisch? Kein Problem. Ich dolmetsche live, in beide Richtungen.' });
+        return szene({ nr: 7, cap: 'WECKER PER SPRACHE', mimik: 'friendly', cmd: 'Stell den Wecker auf 3 Uhr 45.', icon: '🎤',
+            html: '<div class="pz-kopf">Erledigt</div>' +
+                '<div class="pz-zeile">⏰ <span>Wecker <b class="pz-gruen">3:45 Uhr ✓</b></span></div>' +
+                '<div class="pz-zeile">🗓️ <span>Sonntag <b>18 Uhr</b>: deine Woche</span></div>' +
+                '<div class="pz-zeile">💤 <span>Abends: „Wecker für morgen?“</span></div>',
+            rede: 'Wecker per Sprache. Und sonntags lese ich dir die Woche vor.' });
     }
 
     function szene8() {
-        return szene({ nr: 8, cap: 'ER DENKT MIT', mimik: 'thinking', cmd: 'Wo habe ich den Schlüssel hingelegt?', icon: '🎤',
+        return szene({ nr: 8, cap: 'ER VERGISST NICHTS', mimik: 'thinking', cmd: 'Wo habe ich den Schlüssel hingelegt?', icon: '🎤',
             html: '<div class="pz-kopf">Nova merkt sich alles</div>' +
                 '<div class="pz-zeile">🔑 <span>Schlüssel: <b class="pz-gruen">Küchentisch</b></span></div>' +
-                '<div class="pz-zeile">🎂 <span>Lena hat in <b class="pz-gelb">15 Tagen</b> Geburtstag</span></div>' +
+                '<div class="pz-zeile">🎂 <span>Lena: Geburtstag in <b class="pz-gelb">15 Tagen</b></span></div>' +
                 '<div class="pz-zeile">🗑️ <span>Löschen? <b>Erst nachfragen</b></span></div>',
-            rede: 'Ich merke mir, was du erzählst, und erinnere dich daran. Gelöscht wird nur, wenn du es bestätigst.' });
+            rede: 'Ich merke mir, was du erzählst, und erinnere dich daran.' });
     }
 
     function szene9() {
@@ -255,27 +253,17 @@
             html: '<div class="pz-kopf">Ein Satz genügt</div>' +
                 '<div class="pz-zeile">🛒 <span>Einkaufsliste → <b class="pz-gruen">WhatsApp</b></span></div>' +
                 '<div class="pz-zeile">📷 <span>Foto → <b class="pz-gruen">WhatsApp</b></span></div>' +
-                '<div class="pz-zeile">📋 <span>Aufgaben, Antworten → <b class="pz-gruen">WhatsApp</b></span></div>',
-            rede: 'Einkaufsliste, Foto, Aufgaben, meine letzte Antwort. Ein Satz, und es geht per WhatsApp raus.' });
+                '<div class="pz-zeile">📋 <span>Aufgaben → <b class="pz-gruen">WhatsApp</b></span></div>',
+            rede: 'Liste, Foto, Aufgaben. Ein Satz, und es geht raus.' });
     }
 
-    function szene10() {
-        return szene({ nr: 10, cap: 'ROUTE · SPRIT · REGENRADAR', mimik: 'serious', cmd: 'Route nach Hamburg.', icon: '🎤',
-            html: '<div class="pz-kopf">Schwarzenbek → Hamburg</div>' +
-                '<div class="pz-zeile">⏱️ <span><b class="pz-gross2">34 Min.</b> <span class="pz-rot">+9 Stau</span></span></div>' +
-                '<div class="pz-zeile">⛽ <span>Diesel <b class="pz-gross2">1,59 €</b> · 2 km</span></div>' +
-                '<div class="pz-zeile">🌧️ <span>Regenradar: <b class="pz-gruen">ab 14 Uhr trocken</b></span></div>',
-            takt: 850,
-            rede: 'Route mit Stau, der billigste Sprit auf dem Weg und das Regenradar. Alles in einem.' });
-    }
-
-    function szeneAbschluss() {
-        blitz(); ansicht('kopf'); mimik('laugh'); fortschritt(100); caption('');
+    function szene10() {   // Schluss mit Aufruf
+        blitz(); ansicht('kopf'); mimik('laugh'); fortschritt(100); caption('10/10 · DAS WAR NOCH NICHT ALLES');
         if (cmdEl) cmdEl.classList.remove('an');
-        karte('<div class="pz-gross pz-glitch">NOVA</div><div class="pz-klein">ARBEITET FÜR DICH · TAG UND NACHT</div>');
+        karte('<div class="pz-cta pz-glitch">WILLST DU<br>NOVA AUCH?</div><div class="pz-cta2">Folgen für Teil 2 ↗</div>');
         setTimeout(function () { grimasse({ browOuterUp_L: .95, browInnerUp: .2, mouthSmile_L: .8, mouthSmile_R: .4 }, 1400); }, 600);
         return sag('Ich schlafe nie, ich vergesse nichts. Ich bin Nova.')
-            .then(function () { grimasse({ eyeSquint_L: .6, eyeSquint_R: .6, mouthSmile_L: 1, mouthSmile_R: 1, browInnerUp: .3 }, 1500); return warte(1700); });
+            .then(function () { grimasse({ eyeSquint_L: .6, eyeSquint_R: .6, mouthSmile_L: 1, mouthSmile_R: 1, browInnerUp: .3 }, 1500); return warte(1500); });
     }
 
     /* ---------------- Steuerung ---------------- */
@@ -315,8 +303,7 @@
             .then(szene7).then(function () { return warte(150); })
             .then(szene8).then(function () { return warte(150); })
             .then(szene9).then(function () { return warte(150); })
-            .then(szene10).then(function () { return warte(150); })
-            .then(szeneAbschluss)
+            .then(szene10)
             .then(function () { return warte(900); })
             .then(function () { if (g === gen) aufraeumen(); })
             .catch(function (e) { if (e !== 'stop') { console.error('Präsentation', e); if (g === gen) aufraeumen(); } });
