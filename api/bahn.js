@@ -142,7 +142,7 @@ export default async function handler(req, res) {
   try {
     const [from, to] = await Promise.all([fromRaw, toRaw].map(async raw => {
       const p = await resolvePlace(raw, near);
-      if (!p) { const e = new Error(`Den Ort "${raw}" habe ich nicht gefunden. Nennen Sie Straße und Ort oder eine Haltestelle.`); e.notFound = true; throw e; }
+      if (!p) { const e = new Error(`Den Ort "${raw}" habe ich nicht gefunden. Nenne Straße und Ort oder eine Haltestelle.`); e.notFound = true; throw e; }
       return p;
     }));
 
