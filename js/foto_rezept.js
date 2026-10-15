@@ -144,6 +144,7 @@
         list.unshift(copy);
         saveAll(list);
         if (draft && draft.rez === rez) draft.rez = copy;     // weiter mit dem gespeicherten Rezept (Drucken, Vorlesen)
+        merke(copy);
         cards([]);
         say(`${copy.titel} ist im Rezeptbuch gespeichert. Du findest es mit „Zeig meine Rezepte“.`);
         return copy;
@@ -268,17 +269,69 @@
         say(`Du hast ${list.length} ${list.length === 1 ? 'Rezept' : 'Rezepte'} gespeichert: ${namen}${list.length > 4 ? ' und weitere' : ''}. Tippe unten auf eins, oder sag zum Beispiel „Zeig das Rezept ${list[0].titel}“.`);
     }
 
+    /* Namen vergleichen, auch wenn die Spracherkennung anders schreibt ("Pogatscha" statt "Poğaça") */
+    function fold(x) {
+        return String(x || '').toLowerCase().replace(/ß/g, 'ss').replace(/ı/g, 'i').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    function lev(a, b) {
+        const m = a.length, n = b.length;
+        if (!m) return n; if (!n) return m;
+        let prev = Array.from({ length: n + 1 }, (_, j) => j);
+        for (let i = 1; i <= m; i++) {
+            const cur = [i];
+            for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+            prev = cur;
+        }
+        return prev[n];
+    }
+    function aehnlich(a, b) {
+        if (a === b) return true;
+        if (a.length < 4 || b.length < 4) return false;
+        if (a.slice(0, 4) === b.slice(0, 4)) return true;
+        return lev(a, b) <= (Math.min(a.length, b.length) >= 7 ? 2 : 1);
+    }
+    const BEFEHLSWORT = /^(?:rezept\w*|losch\w*|loesch\w*|entfern\w*|streich\w*|vergiss\w*|zeig\w*|offne\w*|oeffne\w*|druck\w*|ausdruck\w*|vorles\w*|vorlesen|lies|lese|lesen|bitte|dieses|diese\w*|meine\w*|dein\w*|gespeicher\w*|kannst|konnt\w*|koennt\w*|habe|haben|welche|alle|noch|jetzt|nach|auch|mich|dann|wenn|will|moechte|mochte|sollst|soll|mach\w*|gib|gibt|such\w*|find\w*|erste\w*|letzte\w*|aktuelle\w*|rezeptbuch|sammlung)$/;
     function finde(t) {
         const list = loadAll();
+        const worte = fold(t).split(' ').filter(w => w.length >= 4 && !BEFEHLSWORT.test(w));
+        if (!worte.length) return null;
         let best = null, bestScore = 0;
         list.forEach(r => {
-            const titel = norm(r.titel);
+            const titel = fold(r.titel);
+            const tw = titel.split(' ').filter(w => w.length >= 4);
             let score = 0;
-            if (titel && t.includes(titel)) score = 100 + titel.length;
-            else titel.split(' ').filter(w => w.length >= 4).forEach(w => { if (t.includes(w.slice(0, Math.max(4, w.length - 2)))) score += w.length; });
+            if (titel && fold(t).includes(titel)) score = 100;
+            worte.forEach(w => { if (tw.some(x => aehnlich(w, x))) score += 10 + w.length; });
             if (score > bestScore) { bestScore = score; best = r; }
         });
         return best;
+    }
+
+    // Auf welches Rezept bezieht sich "das Rezept"? Name im Satz, sonst das zuletzt benutzte, sonst das einzige
+    let zuletzt = null;     // { id, at }
+    let warte = null;       // { aktion, at }: Nova hat gefragt "Welches Rezept?"
+    function merke(r) { if (r && r.id) zuletzt = { id: r.id, at: Date.now() }; }
+    function ziel(t) {
+        const r = finde(t);
+        if (r) return r;
+        const list = loadAll();
+        if (zuletzt && Date.now() - zuletzt.at < 30 * 60000) { const z = list.find(x => x.id === zuletzt.id); if (z) return z; }
+        if (list.length === 1) return list[0];
+        return null;
+    }
+    function tue(aktion, r, t) {
+        merke(r);
+        if (aktion === 'loeschen') { loeschen(r.id); return; }
+        if (aktion === 'drucken') { drucken(r); return; }
+        if (aktion === 'vorlesen') { vorlesen(r, /\bzutaten\b/.test(t) ? 'zutaten' : /\bzubereitung\b/.test(t) ? 'zubereitung' : undefined); return; }
+        zeigen(r, true);
+        say('Hier ist ' + r.titel + '.');
+    }
+    function frageWelches(aktion) {
+        const list = loadAll();
+        warte = { aktion, at: Date.now() };
+        cards(list.slice(0, 8).map(r => ({ icon: '🍽️', title: r.titel, subtitle: aktion === 'loeschen' ? 'Tippen zum Löschen' : 'Tippen zum Auswählen', onclick: `jvRezept.aktion('${aktion}',${Number(r.id)})` })));
+        say('Welches Rezept meinst du? Du hast ' + list.slice(0, 5).map(r => r.titel).join(', ') + (list.length > 5 ? ' und weitere' : '') + '.');
     }
 
     /* ---------- Sprachbefehle ---------- */
@@ -297,20 +350,41 @@
             if (/^(?:nein|nee|nicht|lieber nicht|abbrechen|verwerfen|vergiss es|lass (?:es|das))$/.test(t)) { draft = null; cards([]); say('Gut, ich habe nichts gespeichert.'); return true; }
         }
 
-        // Rezeptbuch
-        if (/\b(?:meine rezepte|rezeptbuch|rezeptsammlung|gespeicherte rezepte|alle rezepte)\b/.test(t) && /\b(?:zeig\w*|öffne|öffnen|anzeigen|was|welche|liste|such\w*)\b|^(?:meine rezepte|rezeptbuch)$/.test(t)) { zeigeBuch(); return true; }
+        // Nova hat gefragt "Welches Rezept?": Antwort mit Namen, "das erste", "das letzte"
+        if (warte && Date.now() - warte.at < 2 * 60000) {
+            if (/^(?:nein|nee|abbrechen|vergiss es|lass (?:es|das)|doch nicht)$/.test(t)) { warte = null; cards([]); say('Gut, ich lasse alles, wie es ist.'); return true; }
+            const list = loadAll();
+            let r = finde(t);
+            if (!r && /\berste\w*\b/.test(t)) r = list[list.length - 1];
+            if (!r && /\bletzte\w*|neueste\w*\b/.test(t)) r = list[0];
+            if (r) { const ak = warte.aktion; warte = null; tue(ak, r, t); return true; }
+        }
 
-        // Ein bestimmtes Rezept: "Zeig das Rezept Lasagne", "Drucke das Rezept Lasagne", "Lies mir das Rezept Lasagne vor", "Lösche das Rezept Lasagne"
-        const verb = t.match(/^(?:bitte\s+)?(zeig\w*|öffne\w*|lies|les|lese|lesen|druck\w*|ausdruck\w*|lösch\w*|entfern\w*|such\w*)\b/);
-        if (verb && /\brezept\b/.test(t) && loadAll().length) {
-            const r = finde(t);
-            if (r) {
-                if (/^(?:lösch|entfern)/.test(verb[1])) { loeschen(r.id); return true; }
-                if (/^(?:druck|ausdruck)/.test(verb[1])) { drucken(r); return true; }
-                if (/^(?:lies|les|lese|lesen)/.test(verb[1]) || /\bvor(?:lesen)?\b/.test(t)) { vorlesen(r, /\bzutaten\b/.test(t) ? 'zutaten' : /\bzubereitung\b/.test(t) ? 'zubereitung' : undefined); return true; }
-                zeigen(r, true);
-                say(`Hier ist ${r.titel}.`);
-                return true;
+        const hatRezept = /\brezept\w*/.test(t);
+        const definit = /\b(?:das|dieses|dein|mein\w*|gespeicherte\w*|letzte\w*|aktuelle\w*|alle)\s+(?:\w+\s+)?rezept(?:e|buch)?\b|\bdas rezept\b/.test(t);
+
+        // Rezeptbuch: "Zeig meine Rezepte", "Habe ich Rezepte?", "Welche Rezepte habe ich?", "Was für Rezepte habe ich gespeichert?"
+        const buch = /\b(?:meine rezepte|rezeptbuch|rezeptsammlung|gespeicherte\w* rezept\w*|alle rezepte|welche rezepte|was für rezepte|wie viele rezepte)\b/.test(t)
+            || (/\b(?:habe|hab)\s+ich\b/.test(t) && /\brezept\w*\b/.test(t) && !/\b(?:für|zu|mit)\s+\w+/.test(t))
+            || (/\bgibt es\b.*\brezept\w*\b/.test(t) && /\bgespeichert\b/.test(t));
+        const loesch = /\b(?:lösch\w*|entfern\w*|streich\w*|vergiss)\b/.test(t);
+        if (hatRezept && buch && !loesch && !/\b(?:druck\w*|ausdruck\w*|vorles\w*)\b/.test(t)) { zeigeBuch(); return true; }
+
+        // Ein bestimmtes Rezept: zeigen, drucken, vorlesen, löschen (Verb darf irgendwo im Satz stehen)
+        if (hatRezept && loadAll().length) {
+            const aktion = loesch ? 'loeschen'
+                : /\b(?:druck\w*|ausdruck\w*)\b/.test(t) ? 'drucken'
+                : /\b(?:vorles\w*|lies|les|lese|lesen)\b/.test(t) ? 'vorlesen'
+                : /\b(?:zeig\w*|öffne\w*|anzeigen|such\w*|find\w*|aufmachen)\b/.test(t) ? 'zeigen' : null;
+            if (aktion) {
+                const genannt = finde(t);
+                if (genannt) { tue(aktion, genannt, t); return true; }
+                if (definit) {
+                    const z = ziel(t);
+                    if (z) { tue(aktion, z, t); return true; }
+                    frageWelches(aktion);
+                    return true;
+                }
             }
         }
         return false;
@@ -411,6 +485,34 @@
         const add = addMode && hasDraft() ? draft.rez : null;
         await processRezept(urls, add);
     }
+    /* Nach dem Aufwecken per Zuruf hört Zane noch zu (Spracherkennung läuft). Öffnet man dann Kamera oder Dateien, ging die Auswahl
+       danach verloren. Darum: vor dem Öffnen das Zuhören sauber beenden, dann läuft alles wie bei einem normalen Start. */
+    function ruhigStellen() {
+        try { if (typeof recognition !== 'undefined' && recognition) recognition.abort(); } catch (e) {}
+        try { if (typeof clearFollowUpTimer === 'function') clearFollowUpTimer(); } catch (e) {}
+        try { isRecording = false; } catch (e) {}
+        try { isFollowUp = false; } catch (e) {}
+        try { if (typeof wakeWordListening !== 'undefined') wakeWordListening = false; } catch (e) {}
+        try { if (typeof jvListenIndicator === 'function') jvListenIndicator(false); } catch (e) {}
+    }
+    ['openPhotoCamera', 'openPhotoGallery'].forEach(fn => {
+        try {
+            const o = window[fn];
+            if (typeof o !== 'function' || o._ruhig) return;
+            const w = function () { ruhigStellen(); return o.apply(this, arguments); };
+            w._ruhig = true;
+            window[fn] = w;
+        } catch (e) {}
+    });
+    // Rückmeldung, sobald ein Bild ankommt (zeigt, dass die Auswahl die Seite erreicht hat)
+    ['photoInput', 'photoPickInput'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('change', function (ev) {
+            const n = ev.target && ev.target.files ? ev.target.files.length : 0;
+            if (n) status(n > 1 ? n + ' Bilder erhalten ...' : 'Bild erhalten ...');
+        }, true);
+    });
     function initInputs() {
         const pick = document.getElementById('photoPickInput');
         if (!pick) return;
@@ -435,7 +537,8 @@
     window.jvRezept = {
         speichern: () => speichern(), drucken: () => drucken(), vorlesen: () => vorlesen(), hinzu,
         ansehen: () => { if (hasDraft()) zeigen(draft.rez, false); },
-        oeffne: (id) => { const r = loadAll().find(x => x.id === id); if (r) zeigen(r, true); },
+        oeffne: (id) => { const r = loadAll().find(x => x.id === id); if (r) { merke(r); zeigen(r, true); } },
+        aktion: (ak, id) => { const r = loadAll().find(x => x.id === id); warte = null; if (r) tue(ak, r, ''); },
         liste: loadAll, handle
     };
 })();
