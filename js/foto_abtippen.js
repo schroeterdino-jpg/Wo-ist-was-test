@@ -105,7 +105,7 @@
                     }
                     photoIntent = { task: 'abtippen', question: String(text || ''), at: Date.now() };
                     if (typeof showPhotoCards === 'function') showPhotoCards();
-                    say(isMerken(text) ? 'Legen Sie das Blatt gut beleuchtet und gerade hin. Tippen Sie unten auf die Karte, dann öffnet sich die Kamera. Danach können Sie es im Gedächtnis speichern.' : 'Legen Sie den Plan gut beleuchtet und gerade hin. Tippen Sie unten auf die Karte, dann öffnet sich die Kamera. Bei mehreren Seiten machen Sie zuerst die erste.');
+                    say(isMerken(text) ? 'Leg das Blatt gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera. Danach kannst du es im Gedächtnis speichern.' : 'Leg den Plan gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera. Bei mehreren Seiten machst du zuerst die erste.');
                     return true;
                 }
             } catch (e) { console.error('Abtippen-Befehl', e); }
@@ -236,8 +236,8 @@
         const zeilen = text.split('\n').filter(l => l.trim()).length;
         const lk = luecken(text);
         say((mehr ? 'Seite ' + doc.pages + ' ist dabei, jetzt ' + zeilen + ' Zeilen. ' : 'Fertig, ' + zeilen + ' Zeilen. ') + (lk ? lk + ' vermutlich. Fehlt eine Seite? ' : '') +
-            (merken ? (mehr ? 'Noch eine Seite? Tippen Sie auf Weitere Seite, sonst auf Merken.' : 'Hat es mehr Seiten, tippen Sie auf Weitere Seite. Sonst geben Sie oben einen Titel ein und tippen auf Merken, dann speichere ich es im Langzeitgedächtnis.')
-                : (mehr ? 'Noch eine Seite? Tippen Sie auf Weitere Seite, sonst auf Drucken.' : 'Hat der Plan mehr Seiten, tippen Sie auf Weitere Seite. Sonst prüfen Sie die Zahlen und drucken ihn aus. Tippen Sie auf Merken, wenn ich es mir im Langzeitgedächtnis merken soll.')));
+            (merken ? (mehr ? 'Noch eine Seite? Tippe auf Weitere Seite, sonst auf Merken.' : 'Hat es mehr Seiten, tippst du auf Weitere Seite. Sonst gib oben einen Titel ein und tippe auf Merken, dann speichere ich es im Langzeitgedächtnis.')
+                : (mehr ? 'Noch eine Seite? Tippe auf Weitere Seite, sonst auf Drucken.' : 'Hat der Plan mehr Seiten, tippst du auf Weitere Seite. Sonst prüf die Zahlen und drucke ihn aus. Tippe auf Merken, wenn ich es mir im Langzeitgedächtnis merken soll.')));
     }
 
     /* ---------- Im Langzeitgedächtnis merken ---------- */
@@ -394,7 +394,7 @@
             try {
                 const n = await merken(ti, toText(body));
                 note.textContent = 'Gemerkt als „' + ti + '“ (' + n + (n === 1 ? ' Eintrag' : ' Einträge') + ').';
-                say('Gemerkt als ' + ti + '. Sie können mich später danach fragen.');
+                say('Gemerkt als ' + ti + '. Du kannst mich später danach fragen.');
             } catch (e) { console.error('Foto merken', e); note.textContent = 'Das Speichern hat nicht geklappt: ' + String((e && e.message) || e).slice(0, 120); }
             btn.disabled = false;
         });

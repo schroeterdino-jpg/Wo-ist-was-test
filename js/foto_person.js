@@ -75,7 +75,7 @@
                     if (p.nurMerken) {
                         photoIntent = { task: 'person', question: String(text || ''), at: Date.now() };
                         if (typeof showPhotoCards === 'function') showPhotoCards();
-                        say('Machen Sie bitte ein Foto von ' + (p.name || (p.rel ? 'der Person' : 'der Person')) + '. Tippen Sie unten auf die Karte, dann öffnet sich die Kamera. Ich beschreibe dann, was ich sehe, und frage, ob ich es mir merken soll.');
+                        say('Mach bitte ein Foto von ' + (p.name || (p.rel ? 'der Person' : 'der Person')) + '. Tippe unten auf die Karte, dann öffnet sich die Kamera. Ich beschreibe dann, was ich sehe, und frage, ob ich es mir merken soll.');
                         return true;
                     }
                 }
@@ -96,12 +96,12 @@
 
     async function processPerson(p, dataUrl) {
         const who = label(p);
-        if (!p.name && !p.rel) { say('Wer ist das? Sagen Sie zum Beispiel: Das ist meine Tochter Julia. Das Foto bleibt dafür kurz erhalten.'); return; }
+        if (!p.name && !p.rel) { say('Wer ist das? Sag zum Beispiel: Das ist meine Tochter Julia. Das Foto bleibt dafür kurz erhalten.'); return; }
         try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Sehe mir ' + who + ' an...'); } catch (e) {}
         let o = null;
         try { o = photoJsonObject(await askVision(prompt(), 'Beschreibe das Äußere der Person.', dataUrl, true)); } catch (e) { console.error('Foto-Person', e && e.message); }
         const text = o && String(o.beschreibung || '').replace(/\s+/g, ' ').trim().slice(0, 400);
-        if (!text) { say(o ? 'Auf dem Foto kann ich keine Person erkennen. Versuchen Sie es bitte nochmal, etwas näher und gut beleuchtet.' : 'Das Foto konnte ich gerade nicht auswerten.'); return; }
+        if (!text) { say(o ? 'Auf dem Foto kann ich keine Person erkennen. Versuch es bitte nochmal, etwas näher und gut beleuchtet.' : 'Das Foto konnte ich gerade nicht auswerten.'); return; }
         const mehr = o.mehrere === true ? ' Es sind mehrere Personen zu sehen, ich habe nur eine beschrieben.' : '';
         pending = { name: p.name, rel: p.rel, text, at: Date.now() };
         say('Das sehe ich bei ' + who + ': ' + text + mehr + ' Soll ich mir das merken? Ein Gesicht erkenne ich später damit nicht wieder, ich merke mir nur diese Beschreibung.');
@@ -134,7 +134,7 @@
             const res = await apiFetch('/api/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', ids: ['person_' + slug(name)] }) });
             if (!res.ok) throw new Error('Fehler ' + res.status);
             say('Gut, ich habe vergessen, wie ' + name + ' aussieht.');
-        } catch (e) { say('Das konnte ich gerade nicht löschen. Im Langzeitgedächtnis-Fenster können Sie den Eintrag selbst entfernen.'); }
+        } catch (e) { say('Das konnte ich gerade nicht löschen. Im Langzeitgedächtnis-Fenster kannst du den Eintrag selbst entfernen.'); }
     }
     function handle(text) {
         const t = norm(text);

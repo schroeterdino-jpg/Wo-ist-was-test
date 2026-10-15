@@ -526,7 +526,7 @@
     // Test: ein Satz mit sicherem Seufzer und Lachen (ohne Zufall)
     window.testChuckle = function () {
         window.__jvForceHuman = true;
-        speak('Auf Ihrer Strecke gibt es einen Stau, mit etwa zwanzig Minuten Verzögerung. ' + MARK + 'Da würde ich nicht hinfahren.');
+        speak('Auf deiner Strecke gibt es einen Stau, mit etwa zwanzig Minuten Verzögerung. ' + MARK + 'Da würde ich nicht hinfahren.');
     };
 
     // Sprachbefehle: "Menschliche Laute aus / dezent / an", "Kichern aus", "Lach nicht mehr", "Du darfst wieder lachen"

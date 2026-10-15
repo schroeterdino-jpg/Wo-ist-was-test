@@ -124,7 +124,7 @@
         };
     }
 
-    /* Ansage beim Befehl "Brief fotografieren": die Standard-Ansage von photo.js passt ("Halten Sie die Kamera darauf"), wir machen sie genauer */
+    /* Ansage beim Befehl "Brief fotografieren": die Standard-Ansage von photo.js passt ("Halte die Kamera darauf"), wir machen sie genauer */
     if (typeof window.handlePhotoCommand === 'function') {
         const origCmd = window.handlePhotoCommand;
         window.handlePhotoCommand = function (text) {
@@ -138,7 +138,7 @@
                     }
                     photoIntent = { task: 'letter', question: String(text || ''), at: Date.now() };
                     if (typeof showPhotoCards === 'function') showPhotoCards();
-                    say('Legen Sie den Brief gut beleuchtet und gerade hin. Tippen Sie unten auf die Karte, dann öffnet sich die Kamera. Bei mehreren Seiten fotografieren Sie zuerst die erste.');
+                    say('Leg den Brief gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera. Bei mehreren Seiten fotografierst du zuerst die erste.');
                     return true;
                 }
             } catch (e) { console.error('Brief-Befehl', e); }
@@ -243,7 +243,7 @@
     // Rückgabe: { say: Text, plan: {...}|null, cards: [...] }
     function makePlan(L) {
         const who = L.absender ? `von ${L.absender}` : '';
-        const unsure = L.unsicher ? ' Bei einigen Angaben bin ich nicht ganz sicher, bitte prüfen Sie sie auf dem Brief.' : '';
+        const unsure = L.unsicher ? ' Bei einigen Angaben bin ich nicht ganz sicher, bitte prüfe sie auf dem Brief.' : '';
         const out = { text: '', plan: null };
 
         if (L.typ === 'rechnung' || L.typ === 'mahnung') {
@@ -252,10 +252,10 @@
             if (L.zahlungsziel) {
                 const r = planReminder(L.zahlungsziel, L.typ === 'mahnung' ? 1 : 2);
                 const z = parseIso(L.zahlungsziel);
-                if (r && r.status === 'abgelaufen') s += ` Die Frist war am ${dayText(z)} und ist schon abgelaufen. Bitte kümmern Sie sich bald darum.`;
-                else if (r && r.status === 'heute-faellig') s += ` Zahlen müssen Sie bis ${dayText(z)}, das ist heute oder sehr bald.`;
+                if (r && r.status === 'abgelaufen') s += ` Die Frist war am ${dayText(z)} und ist schon abgelaufen. Bitte kümmere dich bald darum.`;
+                else if (r && r.status === 'heute-faellig') s += ` Zahlen musst du bis ${dayText(z)}, das ist heute oder sehr bald.`;
                 else if (r) {
-                    s += ` Zahlen müssen Sie bis ${dayText(z)}. Soll ich Sie ${whenText(r.datum) === 'heute' ? 'heute' : 'am ' + dayText(r.datum)} um ${r.stunde} Uhr daran erinnern?`;
+                    s += ` Zahlen musst du bis ${dayText(z)}. Soll ich dich ${whenText(r.datum) === 'heute' ? 'heute' : 'am ' + dayText(r.datum)} um ${r.stunde} Uhr daran erinnern?`;
                     out.plan = { kind: 'reminder', datum: r.datum, stunde: r.stunde, text: `die Rechnung ${who ? who + ' ' : ''}${L.betrag ? 'über ' + euro(L.betrag) + ' ' : ''}zu bezahlen, Frist ${fmtDe(z)}`.replace(/\s+/g, ' ').trim() };
                 }
             } else {
@@ -269,7 +269,7 @@
             let s = `Das ist eine Vertragsänderung${L.absender ? ' von ' + L.absender : ''}.`;
             if (L.neuerPreis) s += ` ${L.neuerPreis.replace(/[.!]+$/, '')}.`;
             if (L.aenderungAb) s += ` Sie gilt ab ${dayText(parseIso(L.aenderungAb))}.`;
-            s += ' Bei einer Preiserhöhung oder einer Änderung zu Ihrem Nachteil haben Sie in der Regel ein Sonderkündigungsrecht, oft nur für kurze Zeit. Prüfen Sie die Frist im Brief.';
+            s += ' Bei einer Preiserhöhung oder einer Änderung zu deinem Nachteil hast du in der Regel ein Sonderkündigungsrecht, oft nur für kurze Zeit. Prüfe die Frist im Brief.';
             const grund = /beitrag|versicherung/.test(L.vertragsart + ' ' + L.neuerPreis.toLowerCase()) ? 'Beitragserhöhung' : /preis|erh|teurer|euro|€/.test(L.neuerPreis.toLowerCase()) || L.betrag ? 'Preiserhöhung' : 'Vertragsänderung';
             out.plan = { kind: 'kuendigung', anbieter: L.absender, art: ART_LABEL[L.vertragsart] || '', nummer: L.nummer, grund, anbAdresse: L.absenderAdresse };
             s += ' Soll ich eine Kündigung vorbereiten?';
@@ -287,14 +287,14 @@
             }
             if (fristDate) {
                 const r = planReminder(isoDay(fristDate), 3);
-                if (r && r.status === 'abgelaufen') s += ` Die Frist ${approx ? 'läuft nach meiner Rechnung ' : 'war '}bis ${dayText(fristDate)} und ist schon vorbei. Wenn Sie widersprechen wollen, zögern Sie nicht und fragen Sie die Behörde oder eine Beratungsstelle.`;
+                if (r && r.status === 'abgelaufen') s += ` Die Frist ${approx ? 'läuft nach meiner Rechnung ' : 'war '}bis ${dayText(fristDate)} und ist schon vorbei. Wenn du widersprechen willst, zögere nicht und frag die Behörde oder eine Beratungsstelle.`;
                 else if (r && r.status === 'heute-faellig') s += ` Die Frist endet ${approx ? 'ungefähr ' : ''}${dayText(fristDate)}, also heute oder sehr bald.`;
                 else if (r) {
-                    s += ` Die Frist endet ${approx ? 'nach meiner Rechnung ungefähr am ' : 'am '}${dayText(fristDate)}${approx ? '. Prüfen Sie das Datum im Brief' : ''}. Soll ich Sie ${whenText(r.datum) === 'heute' ? 'heute' : 'am ' + dayText(r.datum)} um ${r.stunde} Uhr erinnern?`;
+                    s += ` Die Frist endet ${approx ? 'nach meiner Rechnung ungefähr am ' : 'am '}${dayText(fristDate)}${approx ? '. Prüfe das Datum im Brief' : ''}. Soll ich dich ${whenText(r.datum) === 'heute' ? 'heute' : 'am ' + dayText(r.datum)} um ${r.stunde} Uhr erinnern?`;
                     out.plan = { kind: 'reminder', datum: r.datum, stunde: r.stunde, text: `die Frist beim Schreiben ${who ? who + ' ' : ''}zu beachten, sie endet ${approx ? 'ungefähr ' : ''}am ${fmtDe(fristDate)}`.replace(/\s+/g, ' ').trim() };
                 }
             } else {
-                s += ' Eine Frist konnte ich nicht lesen. Schauen Sie bitte nach, ob im Brief eine Rechtsbehelfsbelehrung mit Widerspruchsfrist steht.';
+                s += ' Eine Frist konnte ich nicht lesen. Schau bitte nach, ob im Brief eine Rechtsbehelfsbelehrung mit Widerspruchsfrist steht.';
             }
             out.text = s + unsure;
             return out;
@@ -315,7 +315,7 @@
             const r = planReminder(L.frist, 3);
             const z = parseIso(L.frist);
             if (r && r.status === 'ok') {
-                s += ` Es gibt eine Frist bis ${dayText(z)}. Soll ich Sie ${whenText(r.datum) === 'heute' ? 'heute' : 'am ' + dayText(r.datum)} um ${r.stunde} Uhr erinnern?`;
+                s += ` Es gibt eine Frist bis ${dayText(z)}. Soll ich dich ${whenText(r.datum) === 'heute' ? 'heute' : 'am ' + dayText(r.datum)} um ${r.stunde} Uhr erinnern?`;
                 out.plan = { kind: 'reminder', datum: r.datum, stunde: r.stunde, text: `die Frist beim Schreiben ${who ? who + ' ' : ''}zu beachten, sie endet am ${fmtDe(z)}`.replace(/\s+/g, ' ').trim() };
             } else if (r) s += ` Es gibt eine Frist bis ${dayText(z)}, die ist schon vorbei oder sehr nah.`;
         }
@@ -340,7 +340,7 @@
             if (window._briefKuend && Date.now() - window._briefKuend < 10 * 60000) {   // Karte "Kündigung aus Brief"
                 window._briefKuend = 0;
                 if (L.absender) { photoPending = null; cards([]); startKuendigungFromLetter(L); return; }
-                say('Auf dem Brief konnte ich keinen Absender lesen. Sagen Sie mir den Anbieter, wenn ich die Kündigung trotzdem vorbereiten soll.');
+                say('Auf dem Brief konnte ich keinen Absender lesen. Sag mir den Anbieter, wenn ich die Kündigung trotzdem vorbereiten soll.');
                 if (typeof window.kuendigungStart === 'function') window.kuendigungStart({});
                 return;
             }
@@ -360,12 +360,12 @@
             const kuendOffer = !(P.plan && P.plan.kind === 'kuendigung') && L.absender && (L.typ === 'rechnung' || L.typ === 'sonstiges') && (L.vertragsart || L.nummer);
             if (kuendOffer) list.push({ icon: '✍️', title: 'Kündigung vorbereiten', subtitle: `${L.absender}${L.nummer ? ' · ' + L.nummer : ''}`, onclick: 'startKuendigungAusBrief()' });
             cards(list);
-            say(P.text + (kuendOffer ? ' Wenn Sie diesen Vertrag kündigen möchten, tippen Sie auf Kündigung vorbereiten.' : ''));
+            say(P.text + (kuendOffer ? ' Wenn du diesen Vertrag kündigen möchtest, tippe auf Kündigung vorbereiten.' : ''));
         } catch (e) {
             console.error('Brief aus Foto fehlgeschlagen:', e && e.stack);
             const m = String((e && e.message) || 'unbekannter Fehler');
             cards([{ icon: '⚠️', title: 'Foto-Auswertung: Fehler der KI-Verbindung', subtitle: m.slice(0, 220) }]);
-            say('Die Auswertung des Briefs hat gerade nicht geklappt. Den Grund sehen Sie unten auf der Karte.');
+            say('Die Auswertung des Briefs hat gerade nicht geklappt. Den Grund siehst du unten auf der Karte.');
         }
     }
 

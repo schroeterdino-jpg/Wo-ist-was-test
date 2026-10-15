@@ -101,7 +101,7 @@
                     }
                     photoIntent = { task: 'stundenplan', question: String(text || ''), at: Date.now() };
                     if (typeof showPhotoCards === 'function') showPhotoCards();
-                    say('Legen Sie den Stundenplan gut beleuchtet und gerade hin. Tippen Sie unten auf die Karte, dann öffnet sich die Kamera.');
+                    say('Leg den Stundenplan gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera.');
                     return true;
                 }
             } catch (e) { console.error('Stundenplan-Befehl', e); }
@@ -149,7 +149,7 @@
         if (!tageN) { say('Ich konnte auf dem Foto keinen Stundenplan erkennen. Ist er scharf, gerade und ganz im Bild?'); return; }
         const name = personFrom(intent && intent.question) || standardName();
         zeigeFenster(plan, name);
-        say('Ich habe den Stundenplan gelesen, ' + tageN + ' Tage. Bitte prüfen Sie ihn. Zellen lassen sich antippen und ändern. Dann tippen Sie auf Speichern, und ich merke ihn mir für ' + name + '.');
+        say('Ich habe den Stundenplan gelesen, ' + tageN + ' Tage. Bitte prüfe ihn. Zellen lassen sich antippen und ändern. Dann tippst du auf Speichern, und ich merke ihn mir für ' + name + '.');
     }
 
     /* ---------- Fenster ---------- */
@@ -215,7 +215,7 @@
                 const k = await speichern(nm, out, plan.zeiten);
                 lsSet(NAME_KEY, nm);
                 wrap.remove();
-                say('Gespeichert: der Stundenplan von ' + nm + ', ' + k + ' Tage. Sie können mich jetzt zum Beispiel fragen: Was hat ' + nm + ' morgen in der dritten Stunde?');
+                say('Gespeichert: der Stundenplan von ' + nm + ', ' + k + ' Tage. Du kannst mich jetzt zum Beispiel fragen: Was hat ' + nm + ' morgen in der dritten Stunde?');
             } catch (e) {
                 console.error('Stundenplan speichern', e);
                 save.disabled = false; note.textContent = 'Das Speichern hat nicht geklappt: ' + String((e && e.message) || e).slice(0, 120);

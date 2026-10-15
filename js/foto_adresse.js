@@ -148,12 +148,12 @@
             const first = list[0];
             const what = first.name && first.adresse ? `${first.name}, ${first.adresse}` : first.dest;
             const more = list.length > 1 ? ` Auf dem Foto steht noch ${list.length === 2 ? 'eine weitere Adresse' : (list.length - 1) + ' weitere Adressen'}, sie stehen unten.` : '';
-            say(`Ich habe gelesen: ${what}.${first.unsicher ? ' Bei der Schreibweise bin ich nicht sicher.' : ''}${more} Soll ich die Route starten? Sagen Sie Ja, oder tippen Sie unten auf die Karte.`);
+            say(`Ich habe gelesen: ${what}.${first.unsicher ? ' Bei der Schreibweise bin ich nicht sicher.' : ''}${more} Soll ich die Route starten? Sag Ja, oder tippe unten auf die Karte.`);
         } catch (e) {
             console.error('Adresse aus Foto fehlgeschlagen:', e && e.message);
             const m = String((e && e.message) || 'unbekannter Fehler');
             cards([{ icon: '⚠️', title: 'Foto-Auswertung: Fehler der KI-Verbindung', subtitle: m.slice(0, 220) }]);
-            say('Die Auswertung des Fotos hat gerade nicht geklappt. Den Grund sehen Sie unten auf der Karte.');
+            say('Die Auswertung des Fotos hat gerade nicht geklappt. Den Grund siehst du unten auf der Karte.');
         }
     }
 
@@ -182,7 +182,7 @@
             return true;
         }
         // Blockiert der Browser das automatische Öffnen (kein Fingertipp), bleibt die Karte stehen: ein Tipp darauf öffnet die Route
-        say('Tippen Sie unten auf die Karte, dann öffnet sich die Navigation.');
+        say('Tippe unten auf die Karte, dann öffnet sich die Navigation.');
         return false;
     }
 

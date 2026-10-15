@@ -10,7 +10,7 @@ const HELP_TOPICS = [
         'Trag morgen um 15 Uhr Zahnarzt in Hamburg ein', 'Wann hat Schatz Geburtstag?', 'Verschieb den Zahnarzt auf Freitag',
         'Trag jeden Montag Mülltonne rausstellen ein', 'Zeig meine Termine der nächsten Woche',
         'Trag Alyssas Geburtstag am 30. Oktober ein (Geburtstage und Jahrestage kommen ganztägig und jedes Jahr, ohne Uhrzeit-Frage)',
-        'Übermorgen ist das Konzert um 20 Uhr (Zane fragt danach: Wie viele Stunden vorher soll ich Sie per Push erinnern? Antwort zum Beispiel: zwei Stunden, eine halbe Stunde, 30 Minuten, Ja = 3 Stunden, Nein = keine Erinnerung. Sagst du gleich dazu "und erinnere mich zwei Stunden vorher", fragt er nicht)', 'Termin-Erinnerung aus (auch: Termin-Erinnerung an)'] },
+        'Übermorgen ist das Konzert um 20 Uhr (Zane fragt danach: Wie viele Stunden vorher soll ich dich per Push erinnern? Antwort zum Beispiel: zwei Stunden, eine halbe Stunde, 30 Minuten, Ja = 3 Stunden, Nein = keine Erinnerung. Sagst du gleich dazu "und erinnere mich zwei Stunden vorher", fragt er nicht)', 'Termin-Erinnerung aus (auch: Termin-Erinnerung an)'] },
     { key: 'erinnerungen', icon: '🔔', title: 'Erinnerungen', words: /erinner/, examples: [
         'Erinnere mich morgen um 8 Uhr an den Arzt', 'Erinnere mich alle zwei Wochen an die Wäsche', 'Wichtige Erinnerung: Paket abholen (er fragt nach, bis du erledigt sagst)',
         'In zehn Minuten nochmal', 'Lösche alle Erinnerungen'] },
@@ -129,7 +129,7 @@ function helpTopicCard(topic) {
 function showHelpOverview() {
     if (typeof clearActionCards === 'function') clearActionCards();
     if (typeof showActionCards === 'function') showActionCards(HELP_TOPICS.map(helpTopicCard));
-    speak('Ich kann Ihnen bei vielen Dingen helfen: Termine und Erinnerungen, Listen, Fahrten und Verkehr, Bahn, Tanken, Wetter und Unwetterwarnungen, Feiertage, Sonne und Mond, Filmtipps, E-Mails, Anrufe, Nachrichten und mehr. Die Themen stehen unten. Tippen Sie auf eines, oder sagen Sie zum Beispiel: Hilfe Fahrten.',
+    speak('Ich kann dir bei vielen Dingen helfen: Termine und Erinnerungen, Listen, Fahrten und Verkehr, Bahn, Tanken, Wetter und Unwetterwarnungen, Feiertage, Sonne und Mond, Filmtipps, E-Mails, Anrufe, Nachrichten und mehr. Die Themen stehen unten. Tippe auf eines, oder sag zum Beispiel: Hilfe Fahrten.',
         typeof continueConversation === 'function' ? continueConversation : undefined);
 }
 
@@ -141,7 +141,7 @@ function showHelpTopic(key) {
     if (typeof clearActionCards === 'function') clearActionCards();
     if (typeof showActionCards === 'function') showActionCards(cards);
     const first = topic.examples.filter(e => !e.startsWith('(')).slice(0, 2);
-    speak(`${topic.title}: Sagen Sie zum Beispiel: ${first[0]}.${first[1] ? ' Oder: ' + first[1] + '.' : ''} Weitere Beispiele stehen unten.`,
+    speak(`${topic.title}: Sag zum Beispiel: ${first[0]}.${first[1] ? ' Oder: ' + first[1] + '.' : ''} Weitere Beispiele stehen unten.`,
         typeof continueConversation === 'function' ? continueConversation : undefined);
 }
 

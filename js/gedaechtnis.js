@@ -54,8 +54,8 @@
     const MEMORY_RULE =
         '\n\nGEDÄCHTNIS-FRAGEN: Fragt der Nutzer, warum, wann oder was er dir gesagt, aufgetragen oder dich gebeten hat, oder woher du etwas weißt, dann antworte direkt aus den Daten ' +
         '"gedächtnis" (Liste) und "gedächtnis_semantisch" (Langzeitgedächtnis) und aus dem bisherigen Gespräch. Nutze dafür KEINE memory_search-Aktion, wenn dort schon passende Einträge stehen. ' +
-        'Einträge im Langzeitgedächtnis nennen Datum und Uhrzeit und den Originalsatz des Nutzers: nenne dann das Datum (zum Beispiel "Das haben Sie am Samstag, den 4. Oktober, gesagt") und gib seinen Wunsch in eigenen Worten wieder. ' +
-        'Einen Grund nennst du nur, wenn der Nutzer ihn wirklich gesagt hat. Steht dort kein Grund, sag das ehrlich ("Einen Grund haben Sie mir nicht genannt") und frag höchstens kurz, ob du dir den Grund merken sollst. ' +
+        'Einträge im Langzeitgedächtnis nennen Datum und Uhrzeit und den Originalsatz des Nutzers: nenne dann das Datum (zum Beispiel "Das hast du am Samstag, den 4. Oktober, gesagt") und gib seinen Wunsch in eigenen Worten wieder. ' +
+        'Einen Grund nennst du nur, wenn der Nutzer ihn wirklich gesagt hat. Steht dort kein Grund, sag das ehrlich ("Einen Grund hast du mir nicht genannt") und frag höchstens kurz, ob du dir den Grund merken sollst. ' +
         'Antworte niemals nur mit "nichts gefunden", wenn zum Thema ein Eintrag existiert. Erfinde nichts dazu.';
 
     // Der Nutzer wünscht sich, dass Zane öfter lacht (Eintrag im Gedächtnis). Die KI schreibt das Lachen selbst in die Antwort; die Stimme macht daraus ein echtes Lachen.

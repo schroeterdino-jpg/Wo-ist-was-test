@@ -138,7 +138,7 @@
             return `${was}${m.betrag ? ' über ' + m.betrag : ''} ist ${tageText(f.tage)} fällig`;
         });
         card(list.map(f => ({ icon: f.stufe === 'ueber' ? '⚠️' : '⏰', title: (f.metadata.titel || 'Frist').slice(0, 80), subtitle: `${tageText(f.tage)}${f.metadata.betrag ? ' · ' + f.metadata.betrag : ''}`.slice(0, 160) })));
-        say('Erinnerung: ' + parts.join('. Außerdem: ') + '. Sagen Sie „bezahlt“ oder „erledigt“, wenn es erledigt ist.');
+        say('Erinnerung: ' + parts.join('. Außerdem: ') + '. Sag „bezahlt“ oder „erledigt“, wenn es erledigt ist.');
         for (const f of list) { try { await post({ action: 'mark', id: f.id, art: 'frist_' + f.stufe }); } catch (e) {} }
         lastReminded = list.map(f => ({ id: f.id, titel: f.metadata.titel || '' }));
     }

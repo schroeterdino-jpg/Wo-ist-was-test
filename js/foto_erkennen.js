@@ -1,7 +1,7 @@
 /* ============================================================
    FOTO ERKENNEN: Macht man ein Foto, ohne vorher etwas zu sagen, schaut Zane kurz drauf, erkennt, was es ist, und startet gleich die passende
    Funktion. Jede dieser Funktionen fragt selbst nach, bevor etwas gespeichert wird ("Soll ich die Einkaufsliste speichern?",
-   "Soll ich Sie an die Rechnung erinnern?", "Soll ich die Termine eintragen?"). Nichts wird ungefragt abgelegt.
+   "Soll ich dich an die Rechnung erinnern?", "Soll ich die Termine eintragen?"). Nichts wird ungefragt abgelegt.
    Erkannt wird: Einkaufszettel, Rechnung/Brief/Bescheid, Stundenplan, Plakat/Einladung (Termin), Visitenkarte, Tabelle/Plan/Zettel mit Daten,
    Parkschild, Warnleuchte. Bei allem anderen oder bei Unsicherheit bleiben die Auswahlkarten wie bisher.
    Kostet eine zusätzliche KI-Anfrage pro Foto ohne vorherigen Befehl (Fotos mit Befehl wie "Übersetze das Schild" bleiben unverändert).
