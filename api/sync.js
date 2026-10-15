@@ -15,6 +15,7 @@ const ALLOWED_KEYS = [
   'helfer_contacts',
   'helfer_briefing_wishes',
   'helfer_parking',
+  'helfer_rezepte',
   'user_custom_name'
 ];
 const STORE_KEY = 'alltags-helfer:data';
