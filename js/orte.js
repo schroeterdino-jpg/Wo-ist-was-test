@@ -15,6 +15,11 @@
     const K_AN = 'jv_orte_an', K_CACHE = 'jv_orte_cache', K_FRAGE = 'jv_orte_frage';
     const MITTE = { lat: 53.5033, lon: 10.4781 }, RADIUS_M = 4500, TREFFER_M = 100;
     const MARKEN = ['Penny', 'Aldi', 'Edeka', 'Rewe', 'Lidl'];
+    /* Manche Märkte stehen unter anderem Namen in den Kartendaten: Edeka zum Beispiel als "E center Kratzmann" (Hans-Koch-Ring 6) */
+    const ZUSATZ_OV = { Edeka: '^E[ -]?(center|neukauf)|Marktkauf|Nahkauf' };
+    const ZUSATZ_JS = { Edeka: '(?:^|[^a-z])e[ -]?(?:center|neukauf)|marktkauf|nahkauf' };
+    const ovMuster = m => m + (ZUSATZ_OV[m] ? '|' + ZUSATZ_OV[m] : '');
+    const jsMuster = m => new RegExp(m + (ZUSATZ_JS[m] ? '|' + ZUSATZ_JS[m] : ''), 'i');
     const CACHE_MS = 14 * 24 * 3600 * 1000, FRAGE_MS = 3 * 24 * 3600 * 1000;
 
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -76,7 +81,7 @@
             const t = x.tags || {}; if (!t.name) return;
             const lat = x.lat !== undefined ? x.lat : (x.center && x.center.lat), lon = x.lon !== undefined ? x.lon : (x.center && x.center.lon);
             if (lat === undefined || lon === undefined) return;
-            const marke = MARKEN.find(m => new RegExp(m, 'i').test(t.name)); if (!marke) return;
+            const marke = MARKEN.find(m => jsMuster(m).test(t.name)); if (!marke) return;
             orte.push({ id: 'osm' + (x.type || 'x') + x.id, name: marke, lat: Math.round(lat * 1e6) / 1e6, lon: Math.round(lon * 1e6) / 1e6, r: TREFFER_M });
         });
         return orte;
@@ -92,7 +97,7 @@
                 const d = await r.json().catch(() => ({}));
                 if (!r.ok) { fehler = (d && d.error) || ('Status ' + r.status); if (r.status === 503 || r.status === 429) { lsSet(K_PLACES_AUS, String(Date.now())); break; } continue; }
                 (d.places || []).forEach(p => {
-                    if (!new RegExp(m, 'i').test(String(p.name || ''))) return;
+                    if (!jsMuster(m).test(String(p.name || ''))) return;
                     if (isFinite(p.lat) && isFinite(p.lon)) orte.push({ id: 'gp' + m + Math.round(p.lat * 1e5) + Math.round(p.lon * 1e5), name: m, lat: Math.round(p.lat * 1e6) / 1e6, lon: Math.round(p.lon * 1e6) / 1e6, r: TREFFER_M });
                 });
             } catch (e) { fehler = kurz(e); }
@@ -128,7 +133,7 @@
             if (versucheHeute() >= 4) return null;   // automatisch nur wenige Versuche pro Tag
         }
         merkeVersuch();
-        const q = '[out:json][timeout:25];(nwr["shop"~"supermarket|convenience|discount"]["name"~"' + MARKEN.join('|') + '",i](around:' + RADIUS_M + ',' + MITTE.lat + ',' + MITTE.lon + '););out center tags;';
+        const q = '[out:json][timeout:25];(nwr["shop"~"supermarket|convenience|discount"]["name"~"' + MARKEN.map(ovMuster).join('|') + '",i](around:' + RADIUS_M + ',' + MITTE.lat + ',' + MITTE.lon + '););out center tags;';
         let orte = [];
         letzterFehler = '';
         try {
