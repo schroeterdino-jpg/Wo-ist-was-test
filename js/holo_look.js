@@ -19,6 +19,7 @@
     var W = 400, DPR = 1, t0 = performance.now(), lastDraw = 0, speak = 0, listen = 0, raf = 0, running = false;
 
     var CYAN = '38,209,255', ICE = '153,247,255', DEEP = '10,110,200';
+    var STRAHL = false;   /* true = Lichtstrahl von der Plattform nach oben wieder an */
 
     /* ---------- CSS ---------- */
     var css = document.createElement('style');
@@ -77,6 +78,7 @@
         g.addColorStop(0, 'rgba(' + DEEP + ',.34)'); g.addColorStop(.55, 'rgba(10,70,150,.14)'); g.addColorStop(1, 'rgba(0,30,80,0)');
         c.fillStyle = g; c.fillRect(0, 0, W, W);
 
+        if (STRAHL) {
         /* Lichtstrahl von der Boden-Plattform nach oben */
         var bw = W * 0.175, tw = W * 0.28, top = cy - W * 0.32;
         var bg = c.createLinearGradient(0, fy, 0, top);
@@ -86,6 +88,8 @@
         /* feine senkrechte Streifen im Strahl */
         c.strokeStyle = 'rgba(' + CYAN + ',.10)'; c.lineWidth = 1;
         for (var i = -6; i <= 6; i++) { c.beginPath(); c.moveTo(cx + i * bw / 6.5, fy); c.lineTo(cx + i * tw / 6.5, top); c.stroke(); }
+
+        }
 
         /* Boden-Raster (Perspektive) */
         c.save();
