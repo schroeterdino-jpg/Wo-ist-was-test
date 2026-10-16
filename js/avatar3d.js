@@ -3,7 +3,7 @@
 'use strict';
 const JV_HINTERGRUND=false; // Die alte Glaskugel samt Scan-Strahl ist aus; den Hologramm-Hintergrund zeichnet js/holo_look.js (true = alter Hintergrund)
 const JV_KOPFBEWEGUNG=true; // false = Kopf bleibt (fast) still
-const KOPF_URL={jung:'./models/facecap.glb?v=5',reif:'./models/mann.glb?v=4'};
+const KOPF_URL={jung:'./models/facecap.glb?v=5',reif:'./models/mann.glb?v=5'};
 // Feinabstimmung des reifen Kopfes: h = Gesamthoehe im Bild (Kopf plus Hals), cy = Hoehe im Modell, die in der Bildmitte liegen soll
 const KOPF_REIF={h:2.40,cy:1.630};
 function kopfLesen(){try{return localStorage.getItem('nova_kopf')==='reif'?'reif':'jung'}catch(e){return 'jung'}}
@@ -233,6 +233,11 @@ gltfLoader.load(KOPF_URL[art],g=>{
      m.needsUpdate=true; return m;
    }
    function materialFor(oldMat){
+     if(part==='teeth'&&art==='reif'){
+       // Reifer Kopf: Zähne elfenbein, Zunge/Gaumen in Fleischfarbe (in mann.glb als Vertexfarben eingebrannt)
+       const m=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.7,metalness:0,side:THREE.DoubleSide});
+       m.needsUpdate=true; return m;
+     }
      if(part==='teeth'){
        // Zähne sind im echten GLB ein eigener Knoten: sauber weiß, ohne die Gesichtsfarbe zu übernehmen.
        const m=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.30,metalness:0,side:THREE.DoubleSide});
