@@ -335,6 +335,7 @@
             if (art === 'stau' && (nu.ymd !== ymd || !schichtAm(ymd) || nu.min >= beginn(schichtAm(ymd)) - 30)) return false;
         }
         merkeGesagt(id);
+        if (art === 'ort') { try { return !!(window.jvOrte && window.jvOrte.ansage(id)); } catch (e) { return false; } }   // Orts-Erinnerung (orte.js)
         if (art === 'wochen') {
             const mo = ymdPlus(ymd, 1);
             sagen(wochenText(mo, mo, true), false);
