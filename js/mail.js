@@ -1,5 +1,5 @@
 /* ============================================================
-   MAIL: Gmail lesen (nur lesen, nichts verändern oder verschicken)
+   MAIL: Gmail lesen (Entwürfe und Papierkorb: siehe mailaktionen.js; verschickt wird nie etwas)
    Braucht: calendar.js (accessToken, isGoogleAuthorized, ensureGoogleAuth, markGoogleExpired)
    ============================================================ */
 
@@ -214,7 +214,7 @@ async function diagnoseGmail(log) {
         const r = await fetch('https://oauth2.googleapis.com/tokeninfo?access_token=' + encodeURIComponent(accessToken));
         const d = await r.json();
         const scopes = String(d.scope || '').split(' ');
-        const canRead = scopes.some(x => /\/auth\/gmail(\.readonly)?$/.test(x));
+        const canRead = scopes.some(x => /\/auth\/gmail(\.readonly|\.modify)?$/.test(x));
         log(canRead ? '✅ Berechtigung "Gmail lesen" vorhanden' : '❌ Berechtigung "Gmail lesen" FEHLT. Bitte neu verbinden (Karte oben) und alle Häkchen setzen.');
         if (!canRead) return;
     } catch (e) { log('Berechtigungen: nicht prüfbar'); }
