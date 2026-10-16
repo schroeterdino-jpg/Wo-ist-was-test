@@ -20,7 +20,9 @@
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
     function an() { return lsGet(K_AN) !== '0'; }
     function sagen(t) { try { speak(t); } catch (e) { } }
-    function karte(l) { try { if (typeof showActionCards === 'function') showActionCards(l); } catch (e) { } }
+    let meineKarte = false;   // unsere Karte steht gerade unten: beim nächsten Satz von dir verschwindet sie
+    function karte(l) { try { if (typeof showActionCards === 'function' && l && l.length) { showActionCards(l); meineKarte = true; } } catch (e) { } }
+    function karteWeg() { if (!meineKarte) return; meineKarte = false; try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) { } }
     function norm(t) { return String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
     function nutzer() { try { return (typeof currentUserName === 'string' && currentUserName) ? currentUserName : ''; } catch (e) { return ''; } }
     function done() { try { return JSON.parse(lsGet(K_DONE) || '[]'); } catch (e) { return []; } }
@@ -201,7 +203,10 @@
         }
         return next(text);
     }
-    if (window.jvCommands && typeof window.jvCommands.use === 'function') window.jvCommands.use('mail_nacht', befehl, 98);
+    if (window.jvCommands && typeof window.jvCommands.use === 'function') {
+        window.jvCommands.use('mail_nacht-karte', function (text, next) { karteWeg(); return next(text); }, 1);
+        window.jvCommands.use('mail_nacht', befehl, 98);
+    }
 
     window.jvMailNacht = { lauf, ansagen, befehl, _letzte: letzte };
 

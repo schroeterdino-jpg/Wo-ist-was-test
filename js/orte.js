@@ -23,7 +23,9 @@
     function an() { return lsGet(K_AN) !== '0'; }
     function sagen(t) { try { speak(t); } catch (e) { } }
     function norm(t) { return String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
-    function karte(l) { try { if (typeof showActionCards === 'function') showActionCards(l); } catch (e) { } }
+    let meineKarte = false;   // unsere Karte steht gerade unten: beim nächsten Satz von dir verschwindet sie
+    function karte(l) { try { if (typeof showActionCards === 'function') { showActionCards(l); meineKarte = true; } } catch (e) { } }
+    function karteWeg() { if (!meineKarte) return; meineKarte = false; try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) { } }
     function einkauf() {
         try { return (typeof shoppingEntries !== 'undefined' && Array.isArray(shoppingEntries) ? shoppingEntries : []).map(e => String(e && e.text || '').trim()).filter(Boolean); }
         catch (e) { return []; }
@@ -31,39 +33,125 @@
     function undListe(a) { return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' und ' + a[a.length - 1]; }
 
     /* ---------- Supermärkte finden ---------- */
-    async function ladeOrte(erzwingen) {
-        if (!erzwingen) {
-            try { const c = JSON.parse(lsGet(K_CACHE) || 'null'); if (c && Date.now() - c.t < CACHE_MS && Array.isArray(c.orte) && c.orte.length) return c.orte; } catch (e) { }
-        }
-        const q = '[out:json][timeout:25];(nwr["shop"~"supermarket|convenience|discount"]["name"~"' + MARKEN.join('|') + '",i](around:' + RADIUS_M + ',' + MITTE.lat + ',' + MITTE.lon + '););out center tags;';
-        let el = null;
-        try { if (typeof window.jvOverpass === 'function') el = await window.jvOverpass(q); } catch (e) { console.error('Orte (jvOverpass)', e && e.message); }
-        if (!el) {
-            try {
-                const res = await apiFetch('/api/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
-                if (res.ok) { const d = await res.json(); el = (d && d.elements) || null; }
-            } catch (e) { console.error('Orte (api)', e && e.message); }
-        }
-        if (!Array.isArray(el)) return null;
-        const orte = [], gesehen = new Set();
-        el.forEach(x => {
+    const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
+    const K_VERSUCH = 'jv_orte_versuch', K_PLACES_AUS = 'jv_orte_places_aus';
+    let letzterFehler = '';
+    function zeit(p, ms) { return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('Zeitüberschreitung')), ms))]); }
+    function grundText() {
+        const f = letzterFehler || '';
+        if (!f) return '';
+        if (/keine dieser/.test(f)) return 'Der Kartendienst kennt dort keine dieser Märkte';
+        return 'Der Kartendienst antwortet gerade nicht' + (/Zeit/.test(f) ? ' (Zeitüberschreitung)' : '');
+    }
+    function kurz(e) { return String((e && e.message) || e || '').replace(/signal is aborted without reason/i, 'Zeitüberschreitung').slice(0, 70); }
+
+    /* Kartendaten: Server der App UND die öffentlichen Kartenserver gleichzeitig, die erste brauchbare Antwort gewinnt */
+    function overpassRennen(q) {
+        return new Promise((resolve, reject) => {
+            const fehler = [], ctls = [];
+            let offen = 0, fertig = false;
+            const aus = (wer, e) => { fehler.push(wer + ': ' + kurz(e)); if (--offen === 0 && !fertig) reject(new Error(fehler.join(' · '))); };
+            const sieg = el => { if (fertig) return; fertig = true; ctls.forEach(c => { try { c.abort(); } catch (e) { } }); resolve(el); };
+            if (typeof apiFetch === 'function') {
+                offen++;
+                zeit(apiFetch('/api/overpass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) }), 28000)
+                    .then(async r => { if (!r.ok) throw new Error('Status ' + r.status); const d = await r.json(); if (!d || !Array.isArray(d.elements)) throw new Error('keine Daten'); sieg(d.elements); })
+                    .catch(e => aus('App-Server', e));
+            }
+            ENDPOINTS.forEach(url => {
+                offen++;
+                const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+                if (ctl) ctls.push(ctl);
+                const t = setTimeout(() => { if (ctl) ctl.abort(); }, 25000);
+                fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(q), signal: ctl ? ctl.signal : undefined })
+                    .then(async r => { clearTimeout(t); if (!r.ok) throw new Error('Status ' + r.status); const d = await r.json(); if (!d || !Array.isArray(d.elements)) throw new Error('keine Daten'); sieg(d.elements); })
+                    .catch(e => { clearTimeout(t); if (!fertig) aus(url.replace(/^https:\/\//, '').split('/')[0], e); else if (--offen === 0 && !fertig) reject(new Error(fehler.join(' · '))); });
+            });
+            if (!offen) reject(new Error('keine Verbindung'));
+        });
+    }
+    function ausElementen(el) {
+        const orte = [];
+        (el || []).forEach(x => {
             const t = x.tags || {}; if (!t.name) return;
             const lat = x.lat !== undefined ? x.lat : (x.center && x.center.lat), lon = x.lon !== undefined ? x.lon : (x.center && x.center.lon);
             if (lat === undefined || lon === undefined) return;
-            const id = 'osm' + (x.type || 'x') + x.id; if (gesehen.has(id)) return; gesehen.add(id);
-            const marke = MARKEN.find(m => new RegExp(m, 'i').test(t.name));
-            orte.push({ id, name: marke || t.name, lat: Math.round(lat * 1e6) / 1e6, lon: Math.round(lon * 1e6) / 1e6, r: TREFFER_M });
+            const marke = MARKEN.find(m => new RegExp(m, 'i').test(t.name)); if (!marke) return;
+            orte.push({ id: 'osm' + (x.type || 'x') + x.id, name: marke, lat: Math.round(lat * 1e6) / 1e6, lon: Math.round(lon * 1e6) / 1e6, r: TREFFER_M });
         });
-        if (orte.length) lsSet(K_CACHE, JSON.stringify({ t: Date.now(), orte }));
         return orte;
+    }
+    /* Google Places (falls bei dir eingerichtet), nur als zweiter Weg: pro Marke eine Abfrage */
+    async function ausPlaces() {
+        const orte = [];
+        let fehler = '';
+        for (const m of MARKEN) {
+            try {
+                const url = '/api/maps?action=places&q=' + encodeURIComponent(m + ' Schwarzenbek') + '&lat=' + MITTE.lat + '&lon=' + MITTE.lon + '&radius=' + RADIUS_M;
+                const r = await zeit(apiFetch(url), 12000);
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) { fehler = (d && d.error) || ('Status ' + r.status); if (r.status === 503 || r.status === 429) { lsSet(K_PLACES_AUS, String(Date.now())); break; } continue; }
+                (d.places || []).forEach(p => {
+                    if (!new RegExp(m, 'i').test(String(p.name || ''))) return;
+                    if (isFinite(p.lat) && isFinite(p.lon)) orte.push({ id: 'gp' + m + Math.round(p.lat * 1e5) + Math.round(p.lon * 1e5), name: m, lat: Math.round(p.lat * 1e6) / 1e6, lon: Math.round(p.lon * 1e6) / 1e6, r: TREFFER_M });
+                });
+            } catch (e) { fehler = kurz(e); }
+        }
+        if (!orte.length && fehler) throw new Error('Google Places: ' + fehler);
+        return orte;
+    }
+    function ohneDoppelte(liste) {
+        const aus = [];
+        liste.forEach(o => {
+            const nah = aus.find(x => x.name === o.name && Math.abs(x.lat - o.lat) < 0.0007 && Math.abs(x.lon - o.lon) < 0.001);
+            if (!nah) aus.push(o);
+        });
+        return aus;
+    }
+    function versucheHeute() {
+        try { const v = JSON.parse(lsGet(K_VERSUCH) || '{}'); const tag = new Date().toISOString().slice(0, 10); return v.tag === tag ? v.n : 0; } catch (e) { return 0; }
+    }
+    function merkeVersuch() { try { const tag = new Date().toISOString().slice(0, 10); lsSet(K_VERSUCH, JSON.stringify({ tag, n: versucheHeute() + 1 })); } catch (e) { } }
+    function cacheOrte() {
+        try { const c = JSON.parse(lsGet(K_CACHE) || 'null'); if (c && Date.now() - c.t < CACHE_MS && Array.isArray(c.orte) && c.orte.length) return c.orte; } catch (e) { }
+        return null;
+    }
+    let imGang = null;
+    function ladeOrte(erzwingen) {
+        if (imGang) return imGang;
+        imGang = ladeOrteInner(erzwingen).then(r => { imGang = null; return r; }, e => { imGang = null; throw e; });
+        return imGang;
+    }
+    async function ladeOrteInner(erzwingen) {
+        if (!erzwingen) {
+            try { const c = JSON.parse(lsGet(K_CACHE) || 'null'); if (c && Date.now() - c.t < CACHE_MS && Array.isArray(c.orte) && c.orte.length) return c.orte; } catch (e) { }
+            if (versucheHeute() >= 4) return null;   // automatisch nur wenige Versuche pro Tag
+        }
+        merkeVersuch();
+        const q = '[out:json][timeout:25];(nwr["shop"~"supermarket|convenience|discount"]["name"~"' + MARKEN.join('|') + '",i](around:' + RADIUS_M + ',' + MITTE.lat + ',' + MITTE.lon + '););out center tags;';
+        let orte = [];
+        letzterFehler = '';
+        try {
+            let el = null;
+            if (typeof window.jvOverpass === 'function') { try { el = await window.jvOverpass(q); } catch (e) { letzterFehler = 'Kartendienst: ' + kurz(e); } }
+            if (!Array.isArray(el)) el = await overpassRennen(q);
+            orte = ausElementen(el);
+            if (!orte.length) letzterFehler = 'Der Kartendienst kennt in Schwarzenbek keine dieser Märkte';
+        } catch (e) { letzterFehler = 'Kartendienst: ' + kurz(e); }
+        if (!orte.length && Date.now() - Number(lsGet(K_PLACES_AUS) || 0) > 7 * 24 * 3600 * 1000 && typeof apiFetch === 'function') {
+            try { orte = await ausPlaces(); if (orte.length) letzterFehler = ''; } catch (e) { letzterFehler += (letzterFehler ? ' · ' : '') + kurz(e); }
+        }
+        orte = ohneDoppelte(orte);
+        if (orte.length) lsSet(K_CACHE, JSON.stringify({ t: Date.now(), orte }));
+        return orte.length ? orte : null;
     }
 
     /* ---------- An die App melden ---------- */
     let letzte = '';
-    async function senden(erzwingen) {
+    async function senden(erzwingen, mitSuche) {
         const n = N(); if (!n) return false;
         try {
-            const orte = (await ladeOrte(false)) || [];
+            const orte = cacheOrte() || (mitSuche === false ? [] : (await ladeOrte(false)) || []);
             const plan = { an: an(), orte, einkauf: einkauf().slice(0, 40) };
             const sig = JSON.stringify(plan);
             if (!erzwingen && sig === letzte) return true;
@@ -127,12 +215,19 @@
             if (/\b(aus\w*|ab\w*|deaktiv\w*|stopp\w*|beende\w*)\b/.test(t)) { lsSet(K_AN, '0'); senden(true); sagen('Gut, ich erinnere dich nicht mehr, wenn du an einem Supermarkt ankommst.'); return true; }
             if (/\b(an\w*|ein\w*|aktiv\w*|starte\w*)\b/.test(t)) { lsSet(K_AN, '1'); senden(true); setTimeout(erlaubnisFragen, 1500); sagen('Okay, ich erinnere dich wieder, wenn du an einem Supermarkt ankommst.'); return true; }
         }
+        if (/^(such\w*|lad\w*|aktualisier\w*) (die |deine )?(maerkte|supermaerkte|orte) neu$/.test(t)) {
+            if (!N()) { sagen('Die Ortserinnerungen gibt es nur in der Nova-App.'); return true; }
+            sagen('Ich suche die Märkte neu. Einen Moment.');
+            ladeOrte(true).then(o => { senden(true, false); sagen(o && o.length ? 'Gefunden: ' + o.length + ' Märkte, ' + undListe([...new Set(o.map(x => x.name))]) + '.' : 'Ich habe keine Märkte gefunden. ' + (grundText() ? 'Grund: ' + grundText() + '.' : '')); }).catch(() => sagen('Das hat gerade nicht geklappt.'));
+            return true;
+        }
         if (/\b(wo|bei welchen)\b.*\b(meldest|erinnerst)\b.*\bdu\b|\bwelche (maerkte|supermaerkte|orte)\b.*\b(kennst|merkst|ueberwachst)\b/.test(t)) {
             if (!N()) { sagen('Die Ortserinnerungen gibt es nur in der Nova-App.'); return true; }
-            ladeOrte(false).then(o => {
+            ladeOrte(true).then(o => {
                 const s = status();
                 const namen = [...new Set((o || []).map(x => x.name))];
-                let m = namen.length ? 'Ich melde mich bei ' + (o.length) + ' Märkten in Schwarzenbek: ' + undListe(namen) + '.' : 'Ich habe noch keine Märkte gefunden.';
+                let m = namen.length ? 'Ich melde mich bei ' + (o.length) + ' Märkten in Schwarzenbek: ' + undListe(namen) + '.' : 'Ich habe noch keine Märkte gefunden.' + (grundText() ? ' Grund: ' + grundText() + '.' : '') + ' Sag „Suche die Märkte neu“, um es noch einmal zu versuchen.';
+                if (namen.length) senden(true, false);
                 m += an() ? '' : ' Die Erinnerung ist gerade ausgeschaltet.';
                 if (!(s.fein && s.immer)) m += ' Es fehlt noch der Standort „Immer zulassen“. Sag „Ortszugriff einrichten“.';
                 sagen(m);
@@ -142,9 +237,12 @@
         if (/\b(ortszugriff|standortzugriff)\b/.test(t) || (/\bstandort\b/.test(t) && /\bimmer\b/.test(t) && /\b(erlauben|einrichten|freigeben)\b/.test(t))) { rechte(); return true; }
         return next(text);
     }
-    if (window.jvCommands && typeof window.jvCommands.use === 'function') window.jvCommands.use('orte', befehl, 97);
+    if (window.jvCommands && typeof window.jvCommands.use === 'function') {
+        window.jvCommands.use('orte-karte', function (text, next) { karteWeg(); return next(text); }, 1);
+        window.jvCommands.use('orte', befehl, 97);
+    }
 
-    window.jvOrte = { ansage, senden, ladeOrte, rechte, status, _norm: norm };
+    window.jvOrte = { ansage, senden, ladeOrte, rechte, status, _norm: norm, _fehler: () => letzterFehler };
 
     /* ---------- Start ---------- */
     if (N()) {
