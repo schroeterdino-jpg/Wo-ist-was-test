@@ -3,6 +3,11 @@
 'use strict';
 const JV_HINTERGRUND=false; // Die alte Glaskugel samt Scan-Strahl ist aus; den Hologramm-Hintergrund zeichnet js/holo_look.js (true = alter Hintergrund)
 const JV_KOPFBEWEGUNG=true; // false = Kopf bleibt (fast) still
+const KOPF_URL={jung:'./models/facecap.glb?v=5',reif:'./models/mann.glb?v=1'};
+// Feinabstimmung des reifen Kopfes: h = Gesamthoehe im Bild (Kopf plus Hals), cy = Hoehe im Modell, die in der Bildmitte liegen soll
+const KOPF_REIF={h:2.82,cy:1.630};
+function kopfLesen(){try{return localStorage.getItem('nova_kopf')==='reif'?'reif':'jung'}catch(e){return 'jung'}}
+let kopfArt=kopfLesen();
 const JV_HAARE=true; // false = glatzköpfig wie vorher
 const holder=document.querySelector('.holo-container'); if(!holder) return;
 let THREE,GLTFLoader,KTX2Loader,MeshoptDecoder;
@@ -166,7 +171,32 @@ const gltfLoader=new GLTFLoader();
 gltfLoader.setMeshoptDecoder(MeshoptDecoder);
 gltfLoader.setKTX2Loader(ktx2Loader);
 
-gltfLoader.load('./models/facecap.glb?v=5',g=>{
+// Augen des reifen Kopfes: weisse Lederhaut, braune Iris, dunkle Pupille (die Datei hat keine Augentextur)
+let augenTex=null;
+function augenTextur(){
+ if(augenTex) return augenTex;
+ const c=document.createElement('canvas'); c.width=c.height=256; const x=c.getContext('2d');
+ x.fillStyle='#efe9e1'; x.fillRect(0,0,256,256);
+ let g=x.createRadialGradient(128,128,10,128,128,66); g.addColorStop(0,'#5a3a1c'); g.addColorStop(.55,'#4a2c14'); g.addColorStop(.9,'#2a190c'); g.addColorStop(1,'#1a0f08');
+ x.fillStyle=g; x.beginPath(); x.arc(128,128,64,0,Math.PI*2); x.fill();
+ x.fillStyle='#050403'; x.beginPath(); x.arc(128,128,26,0,Math.PI*2); x.fill();
+ x.fillStyle='rgba(255,255,255,.55)'; x.beginPath(); x.arc(112,112,7,0,Math.PI*2); x.fill();
+ augenTex=new THREE.CanvasTexture(c); augenTex.colorSpace=THREE.SRGBColorSpace; augenTex.flipY=false; return augenTex;
+}
+function setHead(name){
+ name=(name==='reif')?'reif':'jung';
+ if(name===kopfArt&&model) return false;
+ try{localStorage.setItem('nova_kopf',name)}catch(e){}
+ kopfArt=name;
+ if(model){try{faceRoot.remove(model)}catch(e){} model=null}
+ morphMeshes.length=0; morphNames=new Set(); modelReady=false;
+ ladeKopf(); return true;
+}
+let ladeNr=0;
+function ladeKopf(){
+const meine=++ladeNr, art=kopfArt;
+gltfLoader.load(KOPF_URL[art],g=>{
+ if(meine!==ladeNr) return;
  model=g.scene; faceRoot.add(model);
  model.traverse(o=>{if(!o.isMesh)return; o.frustumCulled=false;
    const oldMaterials=Array.isArray(o.material)?o.material:[o.material];
@@ -207,6 +237,10 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
        // Zähne sind im echten GLB ein eigener Knoten: sauber weiß, ohne die Gesichtsfarbe zu übernehmen.
        const m=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.30,metalness:0,side:THREE.DoubleSide});
        m.needsUpdate=true; return m;
+     }
+     if(art==='reif'){
+       if(part==='eye'){const m=new THREE.MeshStandardMaterial({color:0xffffff,map:augenTextur(),roughness:.28,metalness:0,side:THREE.DoubleSide});m.needsUpdate=true;return m}
+       if(part==='head'){const m=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.66,metalness:0,side:THREE.DoubleSide});m.needsUpdate=true;return m}
      }
      if(part==='eye') return makeEyeMaterial(oldMat);
      if(part==='head'){
@@ -279,14 +313,17 @@ gltfLoader.load('./models/facecap.glb?v=5',g=>{
  // Robust zentrieren: erst Weltmatrizen aktualisieren, dann skalieren, danach erneut messen.
  model.updateMatrixWorld(true);
  let box=new THREE.Box3().setFromObject(model), size=new THREE.Vector3();box.getSize(size);
- const sc=2.34/Math.max(size.y,.001); model.scale.multiplyScalar(sc); model.updateMatrixWorld(true);
+ const sc=(art==='reif'?KOPF_REIF.h:2.34)/Math.max(size.y,.001); model.scale.multiplyScalar(sc); model.updateMatrixWorld(true);
  box=new THREE.Box3().setFromObject(model); const center=new THREE.Vector3();box.getCenter(center);
- model.position.x-=center.x; model.position.y-=center.y+.04; model.position.z-=center.z;
+ model.position.x-=center.x; model.position.y-=(art==='reif'?KOPF_REIF.cy*sc:center.y)+.04; model.position.z-=center.z;
  model.updateMatrixWorld(true);
  modelReady=true; setExpression('friendly'); btn.textContent='● 3D'; hideStatus(); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
  console.info('JARVIS 3D v6.7 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
 },p=>{if(active&&p.total)showStatus('GLB lädt … '+Math.round(p.loaded/p.total*100)+' %')},e=>{console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e);btn.textContent='⚠ 3D';btn.title='facecap.glb konnte nicht geladen werden';const msg=(e&&e.message)?e.message:String(e||'Unbekannter Fehler');
-showStatus('✕ GLB-Fehler: '+msg.slice(0,120),true);});
+showStatus('✕ GLB-Fehler: '+msg.slice(0,120),true);
+ if(art==='reif'&&meine===ladeNr){kopfArt='jung';try{localStorage.setItem('nova_kopf','jung')}catch(e){}ladeKopf()}});
+}
+ladeKopf();
 
 function resize(){const w=holder.clientWidth||360,h=holder.clientHeight||360;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
 new ResizeObserver(resize).observe(holder);resize();
@@ -428,6 +465,7 @@ function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);cons
 function setMode(on){active=!!on; const sphere=document.getElementById('jarvisSphere'); const holo=document.getElementById('jarvisHolo'); btn.classList.toggle('active',active); btn.textContent=active?'● 3D':'○ 3D'; if(!active){renderer.domElement.style.display='none';hideStatus();if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} if(!modelReady){renderer.domElement.style.display='none';showStatus('3D-Kopf wird geladen …');if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} renderer.domElement.style.display='block';hideStatus();if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
 const btn=document.createElement('button');btn.id='jv3dToggle';btn.type='button';btn.textContent='● 3D';btn.title='JARVIS 3D-Kopf';btn.style.cssText='position:absolute;left:6px;top:6px;z-index:9;border:1px solid #16cce8;border-radius:999px;background:#07131ddd;color:#9df6ff;padding:7px 10px;font:700 11px system-ui;letter-spacing:.04em;cursor:pointer;box-shadow:0 0 16px #00bfff33';holder.appendChild(btn);btn.onclick=()=>setMode(!active);
 window.jvAvatar3D={setMode,setExpression,expressions:['neutral','friendly','happy','laugh','sad','serious','surprised','thinking','concerned','skeptical','question','browsup','browsdown'],update(p={}){if(p.expression)setExpression(p.expression);if(p.mouth!=null)manualMouth=Math.max(0,Math.min(1,p.mouth));if(p.blink)blink=1;if(p.tongue){tongueUntil=performance.now()+Math.max(400,Number(p.tongueMs)||2200)}},tongue(ms=2200){const tn=tongueMorphName();if(!tn)return false;tongueUntil=performance.now()+ms;return true},grimasse:setGrimasse,get state(){return avatarState()},get active(){return active},get busy(){const n=performance.now();return n<manualExpressionUntil||n<tongueUntil},get ready(){return modelReady},get morphs(){return [...morphNames]},get hasTongue(){return !!tongueMorphName()}};
+window.jvAvatar3D.setHead=setHead; try{Object.defineProperty(window.jvAvatar3D,'kopf',{get(){return kopfArt}})}catch(e){}
 // Direkte Mimik-Sprachbefehle: werden lokal ausgeführt, statt an die KI geschickt zu werden.
 window.handleAvatarExpressionCommand=function(text){
  const t=String(text||'').toLowerCase().replace(/[.,!?;:]+/g,' ').replace(/\s+/g,' ').trim();
