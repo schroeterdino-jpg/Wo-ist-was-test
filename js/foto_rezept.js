@@ -38,6 +38,11 @@
     let draft = null;       // { rez, at }
     let addMode = false;    // nächstes Foto wird an das Rezept angehängt
 
+    /* Zubereitung kann Abschnittsüberschriften enthalten ("Teig:", "Füllung:"), wie die Zutaten. Überschriften werden nicht nummeriert. */
+    const istKopf = x => /:$/.test(String(x));
+    function zaehleSchritte(l) { return (l || []).filter(x => !istKopf(x)).length; }
+    function nummeriert(l) { let n = 0; return (l || []).map(x => istKopf(x) ? { kopf: true, t: x } : { kopf: false, t: x, n: ++n }); }
+
     function emptyRez() { return { titel: '', portionen: '', zeit: '', zutaten: [], zubereitung: [] }; }
     function hasDraft() { return !!draft && Date.now() - draft.at < DRAFT_MS; }
 
@@ -45,7 +50,7 @@
         return 'Du liest ein Rezept von einem Foto (Kochbuchseite, Zettel, Zeitschrift, Bildschirmfoto). Antworte NUR mit einem JSON-Objekt: ' +
             '{"ist_rezept":true oder false,"titel":"Name des Gerichts oder null","portionen":"zum Beispiel 4 Portionen oder null","zeit":"zum Beispiel 45 Minuten oder null",' +
             '"zutaten":["200 g Mehl","2 Eier"],"zubereitung":["erster Schritt","zweiter Schritt"],"hinweis":"ein kurzer Satz oder leer"}. ' +
-            'Regeln: Übernimm Mengen, Zutaten und Schritte so, wie sie auf dem Foto stehen. Jeder Schritt der Zubereitung ist ein eigener Eintrag ohne Nummerierung. ' +
+            'Regeln: Übernimm Mengen, Zutaten und Schritte so, wie sie auf dem Foto stehen. Jeder Schritt der Zubereitung ist ein eigener Eintrag ohne Nummerierung; steht die Zubereitung in Absätzen, ist jeder Absatz ein Schritt. Hat das Rezept mehrere Teile (Teig, Füllung ...), setzt du auch in der Zubereitung Überschriften mit Doppelpunkt ("Teig:"). Hashtags, Autor und Likes ignorierst du. ' +
             'Stehen auf dem Foto nur Zutaten oder nur die Zubereitung, lass die andere Liste leer. Zutatengruppen wie "Für den Teig" schreibst du als eigenen Eintrag mit Doppelpunkt am Ende ("Für den Teig:"). ' +
             'Erfinde nichts und ergänze nichts; was nicht lesbar ist, lässt du weg. Ist auf dem Foto kein Rezept, setze "ist_rezept" auf false und lass die Listen leer.';
     }
@@ -63,7 +68,7 @@
         const o = typeof photoJsonObject === 'function' ? photoJsonObject(content) : null;
         if (!o || typeof o !== 'object') return null;
         const clean = v => (v == null || String(v).trim().toLowerCase() === 'null') ? '' : String(v).trim();
-        const r = { titel: clean(o.titel).slice(0, 80), portionen: clean(o.portionen).slice(0, 40), zeit: clean(o.zeit).slice(0, 40), zutaten: strList(o.zutaten).slice(0, 60), zubereitung: strList(o.zubereitung).slice(0, 50) };
+        const r = { titel: clean(o.titel).slice(0, 80), portionen: clean(o.portionen).slice(0, 40), zeit: clean(o.zeit).slice(0, 40), zutaten: strList(o.zutaten).slice(0, 80), zubereitung: strList(o.zubereitung).slice(0, 80) };
         if (!r.zutaten.length && !r.zubereitung.length) return null;
         return r;
     }
@@ -94,8 +99,60 @@
             if (!draft || draft.at < jetzt) letzteAuswertung = null;     // nichts erkannt: neuer Versuch bleibt erlaubt
         }
     }
+    /* Mehrere Bilder: ALLE gemeinsam an die KI, damit sie das Rezept als Ganzes sieht (Reihenfolge, Überlappungen, Abschnitte). */
+    function mehrbildPrompt(n) {
+        return 'Du bekommst ' + n + ' Bilder (Fotos oder Bildschirmfotos). Sie zeigen zusammen EIN Rezept. Die Bilder können sich überlappen (derselbe Text steht auf zwei Bildern) ' +
+            'und in beliebiger Reihenfolge kommen. Setze das Rezept in der richtigen, logischen Reihenfolge vollständig zusammen und nenne jede Zutat und jeden Schritt genau EINMAL (Doppeltes aus Überlappungen weglassen). ' +
+            'Lies sorgfältig und lass nichts aus. Antworte NUR mit einem JSON-Objekt: ' +
+            '{"ist_rezept":true oder false,"titel":"Name des Gerichts oder null","portionen":"zum Beispiel 4 Portionen oder null","zeit":"zum Beispiel 45 Minuten oder null",' +
+            '"zutaten":["Teig:","200 g Mehl","Füllung:","2 Eier"],"zubereitung":["Teig:","erster Schritt","Füllung:","zweiter Schritt"],"hinweis":"ein kurzer Satz oder leer"}. ' +
+            'Regeln: Übernimm Mengen, Zutaten und Schritte so, wie sie dort stehen. Hat das Rezept mehrere Teile (Teig, Füllung, Topping ...), schreibst du bei den Zutaten UND bei der Zubereitung jeweils eine Überschrift als eigenen Eintrag mit Doppelpunkt am Ende ' +
+            'und ordnest die Einträge darunter ein, in der Reihenfolge des Rezepts. Jeder Schritt ist ein eigener Eintrag ohne Nummerierung; steht die Zubereitung in Absätzen, ist jeder Absatz ein Schritt. ' +
+            'Hashtags, Autor, Datum, Likes und Kommentare ignorierst du. Erfinde nichts; was nicht lesbar ist, lässt du weg. Zeigt kein Bild ein Rezept, setze "ist_rezept" auf false und lass die Listen leer.';
+    }
+    async function askVisionMulti(system, userText, urls) {
+        const models = (typeof PHOTO_MODELS !== 'undefined' && Array.isArray(PHOTO_MODELS)) ? PHOTO_MODELS : [];
+        const variants = [{ think: true, json: true }, { think: false, json: true }, { think: false, json: false }];
+        const started = Date.now();
+        let lastErr = null;
+        for (const model of models) {
+            for (const v of variants) {
+                if (Date.now() - started > 100000) throw new Error(String(lastErr || 'Zeitüberschreitung'));
+                try {
+                    const body = {
+                        model, temperature: 0.2, max_completion_tokens: 6000,
+                        messages: [
+                            { role: 'system', content: system },
+                            { role: 'user', content: [{ type: 'text', text: userText }].concat(urls.map(u => ({ type: 'image_url', image_url: { url: u } }))) }
+                        ]
+                    };
+                    if (v.think) body.reasoning_effort = 'none';
+                    if (v.json) body.response_format = { type: 'json_object' };
+                    const res = await photoTimeout(apiFetch('/api/groq', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), 55000);
+                    const data = await res.json().catch(() => null);
+                    if (res.ok && data && data.choices && data.choices[0]) return stripThinking(data.choices[0].message.content);
+                    lastErr = (data && data.error && (data.error.message || data.error)) || ('Status ' + res.status);
+                    console.error('Rezept (mehrere Bilder, ' + model + '):', lastErr);
+                    if (/does not exist|not found|decommission|do not have access|unknown model|no longer/i.test(String(lastErr))) break;
+                } catch (e) {
+                    lastErr = e.message;
+                    console.error('Rezept (mehrere Bilder, ' + model + '):', e.message);
+                    if (e.auth) throw e;
+                }
+            }
+        }
+        throw new Error(String(lastErr || 'unbekannter Fehler'));
+    }
+
     async function processRezeptInner(urls, addTo) {
         let lastErr = null;
+        // Mehrere Bilder zuerst gemeinsam auswerten; klappt das nicht, einzeln (wie bisher)
+        if (urls.length > 1 && typeof photoTimeout === 'function' && typeof stripThinking === 'function') {
+            try {
+                const gem = parseRezept(await askVisionMulti(mehrbildPrompt(urls.length), 'Setze das Rezept aus diesen ' + urls.length + ' Bildern zusammen.', urls));
+                if (gem) return rezeptFertig(addTo ? mergeInto(addTo, gem) : gem);
+            } catch (e) { console.error('Rezept gemeinsam: fehlgeschlagen, einzeln weiter', e); }
+        }
         const results = await Promise.all(urls.map(u =>
             askVision(rezeptPrompt(), 'Lies das Rezept von diesem Foto.', u, true).then(parseRezept).catch(e => { lastErr = e; return null; })));
         const rez = addTo || emptyRez();
@@ -110,12 +167,16 @@
             }
             return;
         }
+        return rezeptFertig(rez);
+    }
+
+    function rezeptFertig(rez) {
         if (typeof photoPending !== 'undefined') photoPending = null;     // es ist immer nur eine Rückfrage offen
         if (typeof photoEvents !== 'undefined') { photoEvents = []; }
         draft = { rez, at: Date.now() };
         addMode = false;
         showDraftCards();
-        const n = rez.zutaten.filter(z => !/:$/.test(z)).length, m = rez.zubereitung.length;
+        const n = rez.zutaten.filter(z => !/:$/.test(z)).length, m = zaehleSchritte(rez.zubereitung);
         let msg = `Das ist ein Rezept${rez.titel ? ': ' + rez.titel : ''}. Ich habe ${n} ${n === 1 ? 'Zutat' : 'Zutaten'} und ${m} ${m === 1 ? 'Schritt' : 'Schritte'} gelesen.`;
         if (!m) msg += ' Die Zubereitung fehlt noch. Mit „Foto hinzufügen“ ergänzt du sie.';
         else if (!n) msg += ' Die Zutaten fehlen noch. Mit „Foto hinzufügen“ ergänzt du sie.';
@@ -128,7 +189,7 @@
         const r = draft.rez;
         const n = r.zutaten.filter(z => !/:$/.test(z)).length;
         cards([
-            { icon: '🍽️', title: r.titel || 'Rezept ohne Namen', subtitle: `${n} Zutaten · ${r.zubereitung.length} Schritte${r.portionen ? ' · ' + r.portionen : ''}`, onclick: 'jvRezept.ansehen()' },
+            { icon: '🍽️', title: r.titel || 'Rezept ohne Namen', subtitle: `${n} Zutaten · ${zaehleSchritte(r.zubereitung)} Schritte${r.portionen ? ' · ' + r.portionen : ''}`, onclick: 'jvRezept.ansehen()' },
             { icon: '💾', title: 'Speichern', subtitle: 'Ins Rezeptbuch', onclick: 'jvRezept.speichern()' },
             { icon: '🖨️', title: 'Drucken', subtitle: 'Druckansicht oder als PDF', onclick: 'jvRezept.drucken()' },
             { icon: '🔊', title: 'Vorlesen', subtitle: 'Zutaten und Zubereitung', onclick: 'jvRezept.vorlesen()' },
@@ -162,29 +223,9 @@
         return copy;
     }
 
-    /* Fürs Vorlesen: "1 Glas" -> "ein Glas", "1 Zwiebel" -> "eine Zwiebel", "EL" -> "Esslöffel", "5-7" -> "5 bis 7" */
-    const WEIBLICH = /^(?:zwiebel|kartoffel|zehe|tasse|packung|prise|dose|tüte|stange|zitrone|möhre|karotte|paprika|tomate|gurke|banane|orange|birne|handvoll|schüssel|flasche|scheibe|messerspitze|knolle|wurzel|stunde|minute|hälfte|menge|kelle|pfanne|gabel|schote|rolle|portion|platte|form|schale|kugel|kanne|nuss|zimtstange|vanilleschote)$/i;
-    const SAECHLICH = /^(?:ei|glas|stück|bund|päckchen|blatt|viertel|pfund|paket|gramm|kilogramm|filet|brot|öl|mehl|salz)$/i;
-    function eineOderEin(nomen) {
-        const n = String(nomen || '');
-        if (SAECHLICH.test(n)) return 'ein';
-        if (WEIBLICH.test(n)) return 'eine';
-        if (/(?:ung|heit|keit|ion|ik|ur|schaft|tät|ie|e)$/i.test(n) && !/^(?:käse|gemüse|rosmarin)$/i.test(n)) return 'eine';
-        return 'ein';
-    }
-    function sprechbar(t) {
-        t = String(t || '');
-        t = t.replace(/\bEL\b\.?/g, 'Esslöffel').replace(/\bTL\b\.?/g, 'Teelöffel').replace(/\bml\b/g, 'Milliliter').replace(/\bkg\b/g, 'Kilogramm')
-            .replace(/\bg\b/g, 'Gramm').replace(/\bPck\.?/g, 'Päckchen').replace(/\bca\./gi, 'circa').replace(/\bPr\./g, 'Prise');
-        t = t.replace(/(\d)\.(\d)/g, '$1,$2');
-        t = t.replace(/(\d)\s*[–—-]\s*(\d)/g, '$1 bis $2');
-        t = t.replace(/(^|[^\d,.\/])1(\s+)((?:[a-zäöüß]+\s+){0,2})([A-ZÄÖÜ][A-Za-zäöüßÄÖÜ-]*)/g, (m, vor, sp, adj, nomen) => vor + eineOderEin(nomen) + sp + adj + nomen);
-        return t;
-    }
-
     function lesetext(rez, teil) {
-        const z = rez.zutaten.map(x => sprechbar(x).replace(/:$/, '.')).join(', ').replace(/\.,/g, '.');
-        const s = rez.zubereitung.map((x, i) => `Schritt ${i + 1}: ${sprechbar(x).replace(/[.!?]*$/, '.')}`).join(' ');
+        const z = rez.zutaten.map(x => x.replace(/:$/, '.')).join(', ').replace(/\.,/g, '.');
+        const s = nummeriert(rez.zubereitung).map(o => o.kopf ? o.t.replace(/:$/, '.') : `Schritt ${o.n}: ${o.t.replace(/[.!?]*$/, '.')}`).join(' ');
         const kopf = rez.titel ? rez.titel + '. ' : '';
         if (teil === 'zutaten') return kopf + (z ? 'Zutaten: ' + z + '.' : 'Zu diesem Rezept habe ich keine Zutaten.');
         if (teil === 'zubereitung') return kopf + (s ? 'Zubereitung. ' + s : 'Zu diesem Rezept habe ich keine Zubereitung.');
@@ -199,16 +240,16 @@
 
     function druckHtml(rez) {
         const zut = rez.zutaten.map(z => /:$/.test(z) ? `<li class="grp">${esc(z)}</li>` : `<li>${esc(z)}</li>`).join('');
-        const sch = rez.zubereitung.map(s => `<li>${esc(s)}</li>`).join('');
+        const sch = nummeriert(rez.zubereitung).map(o => o.kopf ? `<div class="grp2">${esc(o.t)}</div>` : `<div class="st"><b>${o.n}.</b> ${esc(o.t)}</div>`).join('');
         const meta = [rez.portionen, rez.zeit].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ');
         return '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' + esc(rez.titel || 'Rezept') + '</title><style>' +
             '@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font-family:Georgia,"Times New Roman",serif;color:#111;font-size:12pt;line-height:1.45;margin:0}' +
             'h1{font-size:23pt;margin:0 0 4px}.meta{color:#555;font-size:10.5pt;margin-bottom:12px}' +
             'h2{font-size:12.5pt;border-bottom:1.5px solid #333;padding-bottom:2px;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.07em}' +
             'ul{padding:0;list-style:none;margin:0;columns:2;column-gap:28px}ul li{padding:2px 0;break-inside:avoid}ul li.grp{font-weight:bold;margin-top:8px;column-span:none}' +
-            'ol{padding-left:22px;margin:0}ol li{margin-bottom:8px}.foot{margin-top:22px;font-size:8.5pt;color:#888}' +
+            '.st{margin-bottom:8px;padding-left:22px;text-indent:-22px;break-inside:avoid}.grp2{font-weight:bold;margin:12px 0 6px}.foot{margin-top:22px;font-size:8.5pt;color:#888}' +
             '</style></head><body><h1>' + esc(rez.titel || 'Rezept') + '</h1>' + (meta ? '<div class="meta">' + meta + '</div>' : '') +
-            (zut ? '<h2>Zutaten</h2><ul>' + zut + '</ul>' : '') + (sch ? '<h2>Zubereitung</h2><ol>' + sch + '</ol>' : '') +
+            (zut ? '<h2>Zutaten</h2><ul>' + zut + '</ul>' : '') + (sch ? '<h2>Zubereitung</h2><div>' + sch + '</div>' : '') +
             '<div class="foot">Aus Nova</div></body></html>';
     }
 
@@ -237,7 +278,7 @@
     /* ---------- Senden per WhatsApp ---------- */
     function sendeText(rez) {
         const z = rez.zutaten.map(x => /:$/.test(x) ? '\n*' + x + '*' : '• ' + x).join('\n');
-        const s = rez.zubereitung.map((x, i) => (i + 1) + '. ' + x).join('\n');
+        const s = nummeriert(rez.zubereitung).map(o => o.kopf ? '\n*' + o.t + '*' : o.n + '. ' + o.t).join('\n');
         const meta = [rez.portionen, rez.zeit].filter(Boolean).join(' · ');
         return '*' + (rez.titel || 'Rezept') + '*' + (meta ? '\n' + meta : '') +
             (z ? '\n\n*Zutaten*\n' + z : '') + (s ? '\n\n*Zubereitung*\n' + s : '');
@@ -277,8 +318,8 @@
         if (meta) html += '<div style="color:#8fb3c4;margin-bottom:8px">' + meta + '</div>';
         if (rez.zutaten.length) html += '<div style="color:#5ee7ff;letter-spacing:.08em;margin:6px 0">ZUTATEN</div><ul style="list-style:none;padding:0;margin:0">' +
             rez.zutaten.map(z => /:$/.test(z) ? `<li style="font-weight:bold;margin-top:8px">${esc(z)}</li>` : `<li>• ${esc(z)}</li>`).join('') + '</ul>';
-        if (rez.zubereitung.length) html += '<div style="color:#5ee7ff;letter-spacing:.08em;margin:14px 0 6px">ZUBEREITUNG</div><ol style="padding-left:22px;margin:0">' +
-            rez.zubereitung.map(s => `<li style="margin-bottom:8px">${esc(s)}</li>`).join('') + '</ol>';
+        if (rez.zubereitung.length) html += '<div style="color:#5ee7ff;letter-spacing:.08em;margin:14px 0 6px">ZUBEREITUNG</div><div>' +
+            nummeriert(rez.zubereitung).map(o => o.kopf ? `<div style="font-weight:bold;margin:12px 0 6px">${esc(o.t)}</div>` : `<div style="margin-bottom:8px;padding-left:24px;text-indent:-24px"><b>${o.n}.</b> ${esc(o.t)}</div>`).join('') + '</div>';
         body.innerHTML = html;
         const bar = document.createElement('div');
         bar.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
@@ -317,7 +358,7 @@
     function zeigeBuch() {
         const list = loadAll();
         if (!list.length) { say('Dein Rezeptbuch ist noch leer. Fotografiere ein Rezept, dann speichere ich es.'); return; }
-        cards(list.slice(0, 8).map(r => ({ icon: '🍽️', title: r.titel, subtitle: `${r.zutaten.length} Zutaten · ${r.zubereitung.length} Schritte`, onclick: `jvRezept.oeffne(${Number(r.id)})` })));
+        cards(list.slice(0, 8).map(r => ({ icon: '🍽️', title: r.titel, subtitle: `${r.zutaten.filter(z => !/:$/.test(z)).length} Zutaten · ${zaehleSchritte(r.zubereitung)} Schritte`, onclick: `jvRezept.oeffne(${Number(r.id)})` })));
         const namen = list.slice(0, 4).map(r => r.titel).join(', ');
         say(`Du hast ${list.length} ${list.length === 1 ? 'Rezept' : 'Rezepte'} gespeichert: ${namen}${list.length > 4 ? ' und weitere' : ''}. Tippe unten auf eins, oder sag zum Beispiel „Zeig das Rezept ${list[0].titel}“.`);
     }
@@ -592,10 +633,9 @@
 
     window.jvRezept = {
         speichern: () => speichern(), drucken: () => drucken(), senden: () => senden(), vorlesen: () => vorlesen(), hinzu,
-        hatEntwurf: () => hasDraft(),
         ansehen: () => { if (hasDraft()) zeigen(draft.rez, false); },
         oeffne: (id) => { const r = loadAll().find(x => x.id === id); if (r) { merke(r); zeigen(r, true); } },
         aktion: (ak, id) => { const r = loadAll().find(x => x.id === id); warte = null; if (r) tue(ak, r, ''); },
-        liste: loadAll, handle, sprechbar
+        liste: loadAll, handle
     };
 })();
