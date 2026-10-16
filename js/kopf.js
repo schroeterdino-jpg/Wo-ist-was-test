@@ -30,6 +30,16 @@
         }
     } catch (e) { }
 
+    // Der Hologramm-Look (holo_look.js) macht den Kopf halbdurchsichtig (50 %). Der reife Kopf soll fester wirken.
+    const KOPF_DECKKRAFT_REIF = '.82';
+    try {
+        const st = document.createElement('style');
+        st.textContent = 'body.jv-holo.jv-kopf-reif #jarvisAvatar3D{opacity:' + KOPF_DECKKRAFT_REIF + '}';
+        document.head.appendChild(st);
+    } catch (e) { }
+    function klasse() { try { document.body.classList.toggle('jv-kopf-reif', kopf() === 'reif'); } catch (e) { } }
+    klasse();
+
     let sperre = false;
     function stimmeAnwenden(art) {
         if (!mitStimme() || typeof window.setFishVoice !== 'function') return;
@@ -47,6 +57,7 @@
         const war = kopf();
         try { if (window.jvAvatar3D && typeof window.jvAvatar3D.setHead === 'function') window.jvAvatar3D.setHead(art); else localStorage.setItem('nova_kopf', art); } catch (e) { }
         stimmeAnwenden(art);
+        klasse();
         uiSync();
         if (!still && war !== art) sagen(art === 'reif' ? 'So, jetzt bin ich der Reife.' : 'So, wieder der Junge.');
     }
