@@ -420,6 +420,19 @@
                         <span>🔊 Stimme & Gespräch</span>
                     </summary>
                     <div class="p-4 space-y-3">
+                        <div id="kopfRow">
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Kopf von Nova:</label>
+                            <select id="kopfSelect" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                                <option value="jung">Jung (der bisherige Kopf)</option>
+                                <option value="reif">Reif (dunkle Haut, graue Haare)</option>
+                            </select>
+                            <label class="flex items-center gap-2 text-sm text-slate-200 mt-2"><input type="checkbox" id="kopfStimmeMit" checked> Stimme wechselt mit dem Kopf</label>
+                            <label class="block text-xs font-bold text-[#49d7ff] mt-2 mb-1 uppercase">Fish-Stimmen-ID zum jungen Kopf:</label>
+                            <input type="text" id="kopfVoiceJung" placeholder="leer = Standardstimme vom Server" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                            <label class="block text-xs font-bold text-[#49d7ff] mt-2 mb-1 uppercase">Fish-Stimmen-ID zum reifen Kopf:</label>
+                            <input type="text" id="kopfVoiceReif" placeholder="ID von fish.audio" autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                            <p class="text-xs text-[#5d7e91] font-mono mt-1">Per Sprache: „Reifer Kopf“, „Junger Kopf“ oder „Kopf wechseln“.</p>
+                        </div>
                         <div>
                             <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Sprachausgabe:</label>
                             <select id="ttsEngineSelect" onchange="setTtsEngine(this.value); document.getElementById('edgeVoiceRow').classList.toggle('hidden', this.value !== 'edge'); document.getElementById('openaiVoiceRow').classList.toggle('hidden', this.value !== 'openai')" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
@@ -799,7 +812,8 @@
     <script src="./js/fish.js"></script>
     <!-- JARVIS 3D v6 SAFE: bewährter v5-FaceCap-Kopf + Fish-Audio-Lippensynchronisation -->
     <script src="./js/worldqueryfix.js?v=65"></script>
-    <script src="./js/avatar3d.js?v=20261013-recovery"></script>
+    <script src="./js/avatar3d.js?v=20261016-kopf"></script>
+    <script src="./js/kopf.js?v=k1"></script>
     <script>
     // v6.1: Mimik-Befehle lokal abfangen, bevor sie an die KI gehen.
     (function(){
