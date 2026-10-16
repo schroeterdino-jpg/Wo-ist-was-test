@@ -3,7 +3,7 @@
 'use strict';
 const JV_HINTERGRUND=false; // Die alte Glaskugel samt Scan-Strahl ist aus; den Hologramm-Hintergrund zeichnet js/holo_look.js (true = alter Hintergrund)
 const JV_KOPFBEWEGUNG=true; // false = Kopf bleibt (fast) still
-const KOPF_URL={jung:'./models/facecap.glb?v=5',reif:'./models/mann.glb?v=1'};
+const KOPF_URL={jung:'./models/facecap.glb?v=5',reif:'./models/mann.glb?v=2'};
 // Feinabstimmung des reifen Kopfes: h = Gesamthoehe im Bild (Kopf plus Hals), cy = Hoehe im Modell, die in der Bildmitte liegen soll
 const KOPF_REIF={h:2.82,cy:1.630};
 function kopfLesen(){try{return localStorage.getItem('nova_kopf')==='reif'?'reif':'jung'}catch(e){return 'jung'}}
