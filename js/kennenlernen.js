@@ -1,8 +1,9 @@
 /* ============================================================
    KENNENLERN-FRAGEN: Nova stellt dir von selbst ab und zu EINE Frage, damit sie dich besser kennenlernt.
    - Höchstens 2 Fragen pro Tag, mindestens 2,5 Stunden Abstand, nur zwischen 9 und 20:30 Uhr.
-   - Nur wenn Ruhe ist (wie bei zane_redet.js): App sichtbar, nichts läuft, du hast eine Minute nichts getippt oder gesagt,
+   - Nur wenn Ruhe ist (wie bei zane_redet.js): App sichtbar, nichts läuft, du hast 20 Sekunden nichts getippt oder gesagt,
      keine Ruhezeit (wachter.js) und "Nova meldet sich von selbst" ist an.
+     Schon 20 Sekunden nach dem Öffnen der App (und 20 Sekunden nach deiner letzten Eingabe) darf Nova fragen; du musst nichts eintragen.
    - Die KI denkt sich die Frage selbst aus: passend zu dem, was Nova schon über dich weiß (Langzeitgedächtnis), zu Wochentag und Tageszeit,
      ohne Wiederholung ("schon gefragt"). Nichts zu Gesundheit, Geld, Religion, Politik, Alter. Fällt die KI aus, nimmt Nova eine Frage aus einer festen Liste (40 Stück).
    - Nach der Frage öffnet sich das Mikrofon. Deine Antwort wird als kurzer Satz im Langzeitgedächtnis gespeichert (Kategorie Vorliebe).
@@ -17,7 +18,7 @@
 (function () {
     'use strict';
     var ON_KEY = 'jv_kennen_an', LOG_KEY = 'jv_kennen_log', ASKED_KEY = 'jv_kennen_gefragt';
-    var MAX_PRO_TAG = 2, ABSTAND_MS = 150 * 60000, RUHE_MS = 60000, ERST_MS = 4 * 60000;
+    var MAX_PRO_TAG = 2, ABSTAND_MS = 150 * 60000, RUHE_MS = 20000, ERST_MS = 20000;
     var VON_H = 9, BIS_H = 20.5, ANTWORT_MS = 3 * 60000;
 
     function get(k, d) { try { var v = getPersistentData(k, d); return v == null ? d : v; } catch (e) { return d; } }
@@ -182,7 +183,7 @@
         if (!zeitFenster() || !ruhig()) return;
         stelle(false);
     }
-    setInterval(takt, 30000);
+    setInterval(takt, 10000);
 
     /* ---------- Antwort verstehen und merken ---------- */
     var SKIP_RX = /^(?:überspring\w*|lieber nicht|weiß (?:ich )?nicht|weiss (?:ich )?nicht|keine ahnung|dazu sag ich nichts|das sag ich nicht|nächste frage|naechste frage|frag was anderes|später|spaeter|jetzt nicht|nein danke|lass(?:e)? (?:es|das))(?: bitte| mal| jetzt)?$/;
