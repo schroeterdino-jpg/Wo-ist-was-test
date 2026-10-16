@@ -158,6 +158,9 @@ function setExpression(name='neutral'){
   case 'cheeky': setMorph('mouthSmile_L',.7);setMorph('mouthDimple_L',.5);setMorph('browOuterUp_R',.55);setMorph('eyeSquint_R',.35);setMorph('mouthRight',.2);break;
   case 'unsure': setMorph('mouthRight',.4);setMorph('mouthShrugUpper',.35);setMorph('browInnerUp',.35);setMorph('eyeLookOut_L',.25);setMorph('eyeLookOut_R',.25);break;
   case 'puh': setMorph('cheekPuff',.55);both('eyeSquint',.12);setMorph('browInnerUp',.18);break;
+  case 'relaxed': both('mouthSmile',.2);both('cheekSquint',.08);both('eyeSquint',.14);setMorph('browInnerUp',.04);break;
+  case 'scared': both('eyeWide',.85);setMorph('browInnerUp',.85);both('browOuterUp',.3);both('mouthStretch',.35);setMorph('jawOpen',.22);both('mouthFrown',.1);break;
+  case 'puzzled': setMorph('browInnerUp',.4);setMorph('browDown_L',.32);setMorph('browOuterUp_R',.45);setMorph('mouthShrugUpper',.3);setMorph('mouthRight',.2);setMorph('eyeLookUp_L',.15);setMorph('eyeLookUp_R',.15);break;
   case 'kiss': setMorph('mouthPucker',.7);both('cheekSquint',.2);break;
  }
  // Brauen-Grundwerte merken, damit beim Sprechen leichte Bewegung darauf aufsetzen kann.
@@ -464,6 +467,8 @@ function syncEmotionToFish(){
  lastEmotionText=text; lastSentence=-1;
 }
 let lastSentence=-1;
+const EXPR_OK=['neutral','friendly','happy','laugh','amused','pleased','relaxed','smug','cheeky','sad','concerned','serious','angry','disgust','scared','surprised','awe','puzzled','thinking','unsure','skeptical','doubt','tired','puh','question','kiss'];
+function kiMimikAktiv(){ try{ const K=window.__jvMimikKI, au=window.__jvLipAudio; return !!(K&&K.list&&K.list.length&&Date.now()-K.at<600000&&au&&!au.paused&&!au.ended); }catch(e){ return false; } }
 function syncSentenceEmotion(){
  const audio=window.__jvLipAudio, text=String(window.__jvLipText||'');
  if(!audio||audio.paused||audio.ended||!text) return;
@@ -473,7 +478,23 @@ function syncSentenceEmotion(){
  const tot=sents.reduce((s,x)=>s+x.length,0)||1; let pos=(Math.max(0,audio.currentTime)/dur)*tot, idx=0;
  for(;idx<sents.length-1;idx++){ if(pos<sents[idx].length) break; pos-=sents[idx].length; }
  if(idx===lastSentence) return; lastSentence=idx;
- const s=sents[idx]; let emo=emotionFromSpeech(s);
+ const s=sents[idx]; let emo=null;
+ try{ // Hat die KI zu dieser Antwort selbst Ausdrücke gewählt (Feld "mimik"), gelten die
+   const K=window.__jvMimikKI;
+   if(K&&K.list&&K.list.length&&Date.now()-K.at<600000){
+     const rep=String(K.reply||''), probe=String(sents[0]||'').replace(/\s+/g,' ').trim().slice(0,24);
+     const flat=rep.replace(/\s+/g,' '); const st=probe?flat.indexOf(probe):-1;
+     let gi;
+     if(st>=0){
+       let before=0; for(let k=0;k<idx;k++) before+=sents[k].length;
+       const gpos=st+before+1, rs=flat.match(/[^.!?;:]+[.!?;:]*/g)||[flat]; let acc=0; gi=rs.length-1;
+       for(let k=0;k<rs.length;k++){ acc+=rs[k].length; if(gpos<=acc){gi=k;break;} }
+     } else gi=(sents.length===K.list.length)?idx:Math.floor(idx/Math.max(1,sents.length)*K.list.length);
+     const cand=String(K.list[Math.min(gi,K.list.length-1)]||'').toLowerCase();
+     if(EXPR_OK.indexOf(cand)>=0) emo=cand;
+   }
+ }catch(e){}
+ if(!emo) emo=emotionFromSpeech(s);
  if(emo==='friendly'&&/[?]\s*$/.test(s.trim())) emo='question';
  if(emo!==expression) setExpression(emo);
 }
@@ -580,7 +601,7 @@ function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);cons
  renderer.render(scene,camera)}
 function setMode(on){active=!!on; const sphere=document.getElementById('jarvisSphere'); const holo=document.getElementById('jarvisHolo'); btn.classList.toggle('active',active); btn.textContent=active?'● 3D':'○ 3D'; if(!active){renderer.domElement.style.display='none';hideStatus();if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} if(!modelReady){renderer.domElement.style.display='none';showStatus('3D-Kopf wird geladen …');if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} renderer.domElement.style.display='block';hideStatus();if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
 const btn=document.createElement('button');btn.id='jv3dToggle';btn.type='button';btn.textContent='● 3D';btn.title='JARVIS 3D-Kopf';btn.style.cssText='position:absolute;left:6px;top:6px;z-index:9;border:1px solid #16cce8;border-radius:999px;background:#07131ddd;color:#9df6ff;padding:7px 10px;font:700 11px system-ui;letter-spacing:.04em;cursor:pointer;box-shadow:0 0 16px #00bfff33';holder.appendChild(btn);btn.onclick=()=>setMode(!active);
-window.jvAvatar3D={setMode,setExpression,expressions:['neutral','friendly','happy','laugh','sad','serious','surprised','thinking','concerned','skeptical','question','browsup','browsdown','amused','pleased','disgust','angry','tired','awe','doubt','smug','cheeky','unsure','puh','kiss'],update(p={}){if(p.expression)setExpression(p.expression);if(p.mouth!=null)manualMouth=Math.max(0,Math.min(1,p.mouth));if(p.blink)blink=1;if(p.tongue){tongueUntil=performance.now()+Math.max(400,Number(p.tongueMs)||2200)}},tongue(ms=2200){const tn=tongueMorphName();if(!tn)return false;tongueUntil=performance.now()+ms;return true},grimasse:setGrimasse,get state(){return avatarState()},get active(){return active},get busy(){const n=performance.now();return n<manualExpressionUntil||n<tongueUntil},get ready(){return modelReady},get morphs(){return [...morphNames]},get hasTongue(){return !!tongueMorphName()}};
+window.jvAvatar3D={setMode,setExpression:function(n){ if(kiMimikAktiv()) return; return setExpression(n); },expressions:['neutral','friendly','happy','laugh','sad','serious','surprised','thinking','concerned','skeptical','question','browsup','browsdown','amused','pleased','disgust','angry','tired','awe','doubt','smug','cheeky','unsure','puh','kiss','relaxed','scared','puzzled'],update(p={}){if(p.expression)setExpression(p.expression);if(p.mouth!=null)manualMouth=Math.max(0,Math.min(1,p.mouth));if(p.blink)blink=1;if(p.tongue){tongueUntil=performance.now()+Math.max(400,Number(p.tongueMs)||2200)}},tongue(ms=2200){const tn=tongueMorphName();if(!tn)return false;tongueUntil=performance.now()+ms;return true},grimasse:setGrimasse,get state(){return avatarState()},get active(){return active},get busy(){const n=performance.now();return n<manualExpressionUntil||n<tongueUntil},get ready(){return modelReady},get morphs(){return [...morphNames]},get hasTongue(){return !!tongueMorphName()}};
 window.jvAvatar3D.setHead=setHead; try{Object.defineProperty(window.jvAvatar3D,'kopf',{get(){return kopfArt}})}catch(e){}
 // Direkte Mimik-Sprachbefehle: werden lokal ausgeführt, statt an die KI geschickt zu werden.
 window.handleAvatarExpressionCommand=function(text){

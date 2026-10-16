@@ -169,7 +169,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
             ? ai.actions.filter(a => a && typeof a === 'object')
             : [ai];
 
-        // Fahrziele, die ein gespeicherter Kontakt sind ("zu Alyssa", "zu meiner Tochter"), werden durch dessen Adresse ersetzt
+        // Fahrziele, die ein gespeicherter Kontakt sind ("zu Anna", "zu meiner Tochter"), werden durch dessen Adresse ersetzt
         resolveContactsInActions(actions, text);
 
         // Wünsche und Sorgen: immer ins Langzeitgedächtnis (langzeit.js), auch wenn die KI es vergessen hat
@@ -446,6 +446,8 @@ async function sendToGroqSmartCore(text, opts = {}) {
         }
 
         let replyText = searchReply || webReply || emailReply || travelReply || nearbyReply || fuelReply || bahnReply || ai.reply;
+        // 3D-Kopf: Gesichtsausdruck pro Satz, den die KI selbst gewählt hat (nur wenn genau ihre Antwort gesprochen wird)
+        try { window.__jvMimikKI = (replyText === ai.reply && Array.isArray(ai.mimik) && ai.mimik.length) ? { reply: String(ai.reply), list: ai.mimik.map(String), at: Date.now() } : null; } catch (e) { }
         if (!replyText) {
             if (wantsSearch) {
                 const results = searchMemory((searchAction && searchAction.memory_search_query) || text);
