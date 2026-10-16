@@ -404,16 +404,19 @@ function applyAudioSpeech(env,shape){
  clearSpeechMorphs();
  const kind=shape&&shape.kind||'A', e2=Math.min(1,env*2.5);
  const scale=(kind==='OU')?.75:(kind==='EI')?.7:(kind==='S'||kind==='FV')?.55:1;
- const jaw=Math.pow(env,.85)*.42*scale;
+ let jaw=Math.pow(env,.85)*.42*scale;
+ const lach=(expression==='laugh');
+ if(lach) jaw=Math.max(jaw,.26+.14*env);          // beim Lachen bleibt der Mund offen
  setMorph('jawOpen',jaw); setMorph('mouthLowerDown_L',jaw*.3); setMorph('mouthLowerDown_R',jaw*.3);
  setMorph('mouthUpperUp_L',jaw*.1); setMorph('mouthUpperUp_R',jaw*.1);
- setMorph('mouthClose',Math.max(0,Math.min(.6,.6-env*2.4)));      // leise/Pause: Lippen zu
+ setMorph('mouthClose',lach?0:Math.max(0,Math.min(.6,.6-env*2.4)));      // leise/Pause: Lippen zu (nicht beim Lachen)
  if(kind==='OU'){ setMorph('mouthFunnel',.4*e2); setMorph('mouthPucker',.34*e2); }
  else if(kind==='EI'){ setMorph('mouthStretch_L',.3*e2); setMorph('mouthStretch_R',.3*e2); }
  else if(kind==='FV'){ setMorph('mouthRollLower',.3*e2); }
 }
 function applySpeechShape(shape){
  clearSpeechMorphs(); if(!shape) return;
+ if(expression==='laugh'){ setMorph('jawOpen',.3+.1*Math.abs(Math.sin(performance.now()*.012))); return; }
  if(shape.kind==='REST'){ setMorph('mouthClose',.55); return; }
  const a=shape.amp||.2;
  switch(shape.kind){
@@ -438,7 +441,8 @@ function emotionFromSpeech(text){
  if(/\b(müde|muede|erschöpft|erschoepft|gähn|gaehn|schlafen|feierabend)\b/.test(t)) return 'tired';
  if(/\b(wahnsinn|beeindruckend|großartig|grossartig|fantastisch|traumhaft|atemberaubend)\b/.test(t)) return 'awe';
  if(/\b(hehe|schelm|zwinker|na warte|ätsch|aetsch)\b/.test(t)) return 'cheeky';
- if(/\b(haha|lach|witzig|lustig|spaß|spass|komisch)\b/.test(t)) return 'amused';
+ if(/\b(haha|hahaha|hihi|lol|ha ha)\b/.test(t)) return 'laugh';
+ if(/\b(lach|witzig|lustig|spaß|spass|komisch)\b/.test(t)) return 'amused';
  if(/\b(stolz|gewonnen|gelungen|erfolg|geschafft|gut gemacht)\b/.test(t)) return 'smug';
  if(/\b(puh|uff|boah|hitze|schwül|schwuel)\b/.test(t)) return 'puh';
  if(/\b(vielleicht|keine ahnung|weiß nicht|weiss nicht|unklar|eventuell|womöglich|womoeglich)\b/.test(t)) return 'unsure';
