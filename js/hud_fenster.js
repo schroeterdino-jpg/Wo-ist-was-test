@@ -3,7 +3,7 @@
    Dazu:
    - Ansage beim Öffnen: Zane nennt einmal (höchstens alle 3 Stunden, nicht zwischen 22 und 7 Uhr) Termine heute, Wetter und bald fällige Rechnungen und zeigt sie als Fenster.
      "Ansagen aus" / "Ansagen an" schaltet das ab (nur die gesprochene Ansage: "Ansagen leise" lässt die Fenster ohne Stimme).
-   - Nachrichten: beim ersten Öffnen des Tages (morgens bis 12 Uhr) je ein Fenster mit den neuesten Meldungen aus Schwarzenbek und Hamburg (/api/news) und eine kurze Schlagzeile je Ort gesprochen. Jederzeit: "Lokale Nachrichten" / "Nachrichten für Schwarzenbek und Hamburg".
+   - Nachrichten: auf Zuruf je ein Fenster mit den neuesten Meldungen aus Schwarzenbek und Hamburg (/api/news) und eine kurze Schlagzeile je Ort gesprochen. Jederzeit: "Lokale Nachrichten" / "Nachrichten für Schwarzenbek und Hamburg".
    - Systemcheck: "Systemcheck" zeigt jede Prüfung als Fenster-Zeile mit grünem Haken oder rotem Kreuz (zusätzlich Benachrichtigungen und Netz).
    - "Zeig Rechnungen" bleibt in rechnungen.js; Aufruf window.jvPanel.zeigen({titel, zeit, gross, text, zeilen:[{ok,text}], sek}) von überall möglich.
    Braucht (alles optional): calendarEntries, fetchWeatherData/weatherCodeText (briefing.js), window.jvRechnungen, speak(), collectSystemChecks (systemcheck.js), getPersistentData/setPersistentData, wachterQuiet.
@@ -166,7 +166,8 @@
         } catch (e) {}
     }
     // nach der Ansage (die dauert ein paar Sekunden), damit sich nichts überlagert
-    setTimeout(morgensNews, 22000);
+    // Automatisch am Morgen: AUS (nur noch auf Zuruf: "Lokale Nachrichten"). Zum Wiedereinschalten die Zeile unten freigeben.
+    // setTimeout(morgensNews, 22000);
 
     /* ---------- Systemcheck als Fenster ---------- */
     const origCheck = window.runSystemCheckSpoken;
