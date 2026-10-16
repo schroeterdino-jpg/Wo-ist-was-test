@@ -39,6 +39,18 @@ class ZaneBridge {
     @JavascriptInterface
     public boolean weckerStellen(int stunde, int minute, String text) { return act.weckerStellen(stunde, minute, text); }
 
+    /** Orte und Einkaufsliste für die Orts-Erinnerungen übergeben (JSON). */
+    @JavascriptInterface
+    public boolean planOrte(String json) { return OrtReceiver.setzen(act, json); }
+
+    /** Zustand der Orts-Erinnerungen (JSON mit fein, immer, aktiv, orte, letzte). */
+    @JavascriptInterface
+    public String ortStatus() { return OrtReceiver.status(act); }
+
+    /** Standort-Erlaubnis "Immer zulassen": fragt nach oder öffnet die App-Einstellungen. */
+    @JavascriptInterface
+    public void ortRechte() { act.ortRechte(); }
+
     @JavascriptInterface
     public void openSetup() { act.runOnUiThread(() -> act.startActivity(new android.content.Intent(act, SetupActivity.class))); }
 }

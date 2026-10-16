@@ -148,6 +148,7 @@ public class AnsageReceiver extends BroadcastReceiver {
         if (id.startsWith("wochen")) return "Nova: Dein Wochenüberblick";
         if (id.startsWith("aufbruch")) return "Nova: Zeit zum Losfahren";
         if (id.startsWith("wecker")) return "Nova: Wecker für morgen?";
+        if (id.startsWith("ort|")) return "Nova: Einkaufsliste";
         return "Nova";
     }
 

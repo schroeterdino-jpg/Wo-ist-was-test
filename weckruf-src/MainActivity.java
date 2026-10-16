@@ -293,6 +293,7 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
         super.onRequestPermissionsResult(code, perms, res);
+        try { OrtReceiver.anmelden(this); } catch (Throwable ignored) { }
         startWake();
     }
 
@@ -338,6 +339,21 @@ public class MainActivity extends Activity {
         if (pendingAnsage != null) {   // geplante Ansage: die Seite holt sie ab (bei frisch gestarteter Seite macht sie das selbst nach dem Laden)
             h.postDelayed(() -> js("if(window.jvPlan&&window.jvPlan.pruefe)window.jvPlan.pruefe();"), 700);
         }
+    }
+
+    /** Standort-Erlaubnis für die Orts-Erinnerungen: erst genau, dann "Immer zulassen" in den App-Einstellungen. */
+    void ortRechte() {
+        runOnUiThread(() -> {
+            try {
+                if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2);
+                    return;
+                }
+                Intent i = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:" + getPackageName()));
+                startActivity(i);
+            } catch (Throwable ignored) { }
+        });
     }
 
     /** Von der Seite aufgerufen: die wartende Ansage abholen (und löschen). */
