@@ -326,6 +326,12 @@
             '#ltMap .lt-del{flex:0 0 auto;border:1px solid rgba(255,107,107,.6);color:#ff8a8a;background:rgba(0,0,0,.5);border-radius:8px;padding:6px 9px;font:700 12px "IBM Plex Mono",monospace}' +
             '#ltMap .lt-note{font-size:14px;color:#7fb8cf;text-align:center;padding:24px 8px}' +
             '#ltMap .lt-bar{display:flex;gap:10px;padding:8px 16px 14px}' +
+            '#ltMap .lt-sw{display:flex;gap:8px;padding:6px 16px 2px}#ltMap .lt-in{flex:1;min-width:0;background:rgba(10,22,33,.95);border:1px solid rgba(93,209,255,.4);border-radius:10px;color:#e8f3f9;padding:10px 12px;font:500 15px "Rajdhani",sans-serif;outline:none}' +
+            '#ltMap .lt-x{flex:0 0 42px;border:1px solid rgba(93,209,255,.4);border-radius:10px;background:rgba(10,22,33,.95);color:#49d7ff;font:700 14px "IBM Plex Mono",monospace}' +
+            '#ltMap .lt-chips{display:flex;gap:6px;padding:8px 16px 4px;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}#ltMap .lt-chip{flex:0 0 auto;border:1px solid rgba(93,209,255,.35);border-radius:999px;padding:5px 11px;background:transparent;font:700 11px "IBM Plex Mono",monospace;color:#7fb8cf;letter-spacing:.05em;text-transform:uppercase}' +
+            '#ltMap .lt-chip.on{background:rgba(73,215,255,.18);color:#49d7ff;border-color:#49d7ff}' +
+            '#ltMap .lt-sort{display:flex;gap:10px;padding:2px 16px 6px;font:600 11px "IBM Plex Mono",monospace;color:#7fb8cf;align-items:center}#ltMap .lt-sort button{background:none;border:0;border-bottom:1px solid transparent;color:#7fb8cf;font:600 11px "IBM Plex Mono",monospace;padding:2px 0;text-transform:uppercase}#ltMap .lt-sort button.on{color:#49d7ff;border-bottom-color:#49d7ff}' +
+            '#ltMap .lt-item.neu{border-color:rgba(255,179,71,.7)}#ltMap .lt-neu{background:#ffb347;color:#04090f;padding:1px 6px;border-radius:5px;margin-right:6px}#ltMap mark{background:rgba(73,215,255,.3);color:#fff;border-radius:3px}' +
             '#ltMap .lt-btn{flex:1;padding:11px 8px;border-radius:10px;border:1px solid rgba(93,209,255,.4);background:rgba(10,22,33,.95);color:#49d7ff;font:700 13px "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase}';
         document.head.appendChild(st);
     }
@@ -364,6 +370,12 @@
         const head = mk(el, 'div', 'lt-head');
         mk(head, 'div', 'lt-title', '🧠 LANGZEITGEDÄCHTNIS');
         const sub = mk(head, 'div', 'lt-sub', 'wird geladen ...');
+        const sw = mk(el, 'div', 'lt-sw');
+        const inp = mk(sw, 'input', 'lt-in'); inp.type = 'search'; inp.placeholder = 'Suchen ...'; inp.setAttribute('autocomplete', 'off');
+        const clr = mk(sw, 'button', 'lt-x', '✕');
+        const chips = mk(el, 'div', 'lt-chips');
+        const sortBar = mk(el, 'div', 'lt-sort'); mk(sortBar, 'span', '', 'SORTIERUNG:');
+        const sBtnNeu = mk(sortBar, 'button', '', 'Zuletzt gespeichert'), sBtnDat = mk(sortBar, 'button', '', 'Nach Datum');
         const list = mk(el, 'div', 'lt-list');
         const bar = mk(el, 'div', 'lt-bar');
         const refresh = mk(bar, 'button', 'lt-btn', 'Aktualisieren');
@@ -382,31 +394,88 @@
             mk(list, 'div', 'lt-note', 'Das Langzeitgedächtnis kann gerade nicht geladen werden. Prüfe die Internetverbindung.');
             return;
         }
-        // neueste Ereignisse zuerst; Einträge ohne Ereignisdatum nach dem Tag, an dem sie erzählt wurden
-        const key = e => String(e.metadata.ereignis_datum || e.metadata.datum_gesagt || '');
-        eintraege.sort((a, b) => key(b).localeCompare(key(a)));
-        sub.textContent = eintraege.length === 1 ? '1 Eintrag' : eintraege.length + ' Einträge';
-        try {   // Prüfhilfe: wie viele Fristen gespeichert sind und ob heute ein Hinweis bereitliegt
-            const nF = eintraege.filter(e => e.metadata && (e.metadata.frist === true || e.metadata.frist === 'true')).length;
-            const nH = (dueCache && dueCache.tag === todayIso()) ? dueCache.liste.filter(x => x.art === 'frist').length : '?';
-            sub.textContent += ' · Fristen: ' + nF + ' · Hinweis bereit: ' + nH + ' · Heute gefragt: ' + (lsGet(FOLLOW_KEY) === todayIso() ? 'ja' : 'nein') + ' · Frist gesagt: ' + (lsGet(FRIST_KEY) === todayIso() ? 'ja' : 'nein') + ' · Prüfungen: ' + fristAufrufe + ' (' + fristGrund + ')';
-        } catch (e) {}
-        if (!eintraege.length) mk(list, 'div', 'lt-note', 'Noch nichts gespeichert. Erzähl mir etwas, zum Beispiel „Ich gehe morgen schwimmen“.');
-        eintraege.forEach(e => {
-            const m = e.metadata;
-            const row = mk(list, 'div', 'lt-item');
-            const body = mk(row, 'div', 'lt-body');
-            const datum = isIsoDay(m.ereignis_datum) ? lesbar(m.ereignis_datum) : (isIsoDay(m.datum_gesagt) ? 'erzählt am ' + lesbar(m.datum_gesagt) : '');
-            mk(body, 'div', 'lt-meta', [m.kategorie || 'Eintrag', datum, (m.jaehrlich === true || m.jaehrlich === 'true') ? 'jährlich' : '', (m.frist === true || m.frist === 'true') ? 'FRIST' : ''].filter(Boolean).join(' · '));
-            mk(body, 'div', 'lt-text', duForm(String(e.text || '').replace(/\s*\([^)]*\d{4}\)\s*$/, '')));
-            const del = mk(row, 'button', 'lt-del', 'Löschen');
-            del.addEventListener('click', async () => {
-                if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = 'Sicher?'; setTimeout(() => { if (del.isConnected) { del.dataset.sure = ''; del.textContent = 'Löschen'; } }, 4000); return; }
-                del.disabled = true; del.textContent = '...';
-                try { await post({ action: 'delete', ids: [e.id] }); row.remove(); dueCache = null; sub.textContent = list.querySelectorAll('.lt-item').length + ' Einträge'; }
-                catch (err) { del.disabled = false; del.textContent = 'Fehler'; }
+        // Speicherzeit: steckt in der Eintrags-ID ("f_<Zeitstempel>_..."); sonst nur der Tag, an dem es erzählt wurde
+        const MON = ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'];
+        const idZeit = e => { const mm = /^f_(\d{10,13})_/.exec(String((e && e.id) || '')); if (!mm) return 0; let t = Number(mm[1]); if (t < 1e12) t *= 1000; return t; };
+        const gespZeit = e => { const t = idZeit(e); if (t) return t; const d = e.metadata && e.metadata.datum_gesagt; return isIsoDay(d) ? new Date(d + 'T12:00:00').getTime() : 0; };
+        const p2 = n => String(n).padStart(2, '0');
+        const gespText = e => {
+            const t = gespZeit(e); if (!t) return '';
+            const d = new Date(t), n = new Date(), uhr = idZeit(e) ? ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) : '';
+            const tag0 = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(), diff = Math.round((tag0(n) - tag0(d)) / 86400000);
+            const tag = diff === 0 ? 'heute' : diff === 1 ? 'gestern' : 'am ' + d.getDate() + '. ' + MON[d.getMonth()];
+            return 'gespeichert ' + tag + uhr;
+        };
+        const evKey = e => String(e.metadata.ereignis_datum || e.metadata.datum_gesagt || '');
+        const textVon = e => duForm(String(e.text || '').replace(/\s*\([^)]*\d{4}\)\s*$/, ''));
+        const katVon = e => (e.metadata && e.metadata.kategorie) || 'Eintrag';
+        let suche = '', katAkt = '', sortMode = lsGet('lt_sort') === 'datum' ? 'datum' : 'neu';
+        const mitMarke = (parent, text, q) => {
+            const words = q.split(/\s+/).filter(Boolean); if (!words.length) { parent.textContent = text; return; }
+            const low = text.toLowerCase(); let i = 0;
+            while (i < text.length) {
+                let best = -1, bl = 0;
+                words.forEach(w => { const k = low.indexOf(w, i); if (k >= 0 && (best < 0 || k < best || (k === best && w.length > bl))) { best = k; bl = w.length; } });
+                if (best < 0) { parent.appendChild(document.createTextNode(text.slice(i))); break; }
+                if (best > i) parent.appendChild(document.createTextNode(text.slice(i, best)));
+                const mk2 = document.createElement('mark'); mk2.textContent = text.slice(best, best + bl); parent.appendChild(mk2); i = best + bl;
+            }
+        };
+        const diagText = () => {
+            try {   // Prüfhilfe: wie viele Fristen gespeichert sind und ob heute ein Hinweis bereitliegt
+                const nF = eintraege.filter(e => e.metadata && (e.metadata.frist === true || e.metadata.frist === 'true')).length;
+                const nH = (dueCache && dueCache.tag === todayIso()) ? dueCache.liste.filter(x => x.art === 'frist').length : '?';
+                return ' · Fristen: ' + nF + ' · Hinweis bereit: ' + nH + ' · Heute gefragt: ' + (lsGet(FOLLOW_KEY) === todayIso() ? 'ja' : 'nein') + ' · Frist gesagt: ' + (lsGet(FRIST_KEY) === todayIso() ? 'ja' : 'nein') + ' · Prüfungen: ' + fristAufrufe + ' (' + fristGrund + ')';
+            } catch (e) { return ''; }
+        };
+        const chipsBauen = () => {
+            chips.textContent = '';
+            const zaehl = {}; eintraege.forEach(e => { const k = katVon(e); zaehl[k] = (zaehl[k] || 0) + 1; });
+            const mkChip = (label, wert) => { const c = mk(chips, 'button', 'lt-chip' + (katAkt === wert ? ' on' : ''), label); c.addEventListener('click', () => { katAkt = wert; chipsBauen(); zeichnen(); }); };
+            mkChip('Alle', '');
+            Object.keys(zaehl).sort((x, y) => zaehl[y] - zaehl[x]).forEach(k => mkChip(k + ' ' + zaehl[k], k));
+        };
+        const zeichnen = () => {
+            list.textContent = '';
+            sBtnNeu.className = sortMode === 'neu' ? 'on' : ''; sBtnDat.className = sortMode === 'datum' ? 'on' : '';
+            const q = suche.trim().toLowerCase(), words = q.split(/\s+/).filter(Boolean);
+            let teil = eintraege.filter(e => {
+                if (katAkt && katVon(e) !== katAkt) return false;
+                if (!words.length) return true;
+                const hay = (textVon(e) + ' ' + katVon(e)).toLowerCase();
+                return words.every(w => hay.indexOf(w) >= 0);
             });
-        });
+            if (sortMode === 'neu') teil.sort((x, y) => (gespZeit(y) - gespZeit(x)) || evKey(y).localeCompare(evKey(x)));
+            else teil.sort((x, y) => evKey(y).localeCompare(evKey(x)));
+            const gef = (q || katAkt) ? ' · ' + teil.length + ' gefunden' : '';
+            sub.textContent = (eintraege.length === 1 ? '1 Eintrag' : eintraege.length + ' Einträge') + gef + diagText();
+            if (!eintraege.length) { mk(list, 'div', 'lt-note', 'Noch nichts gespeichert. Erzähl mir etwas, zum Beispiel „Ich gehe morgen schwimmen“.'); return; }
+            if (!teil.length) { mk(list, 'div', 'lt-note', 'Nichts gefunden. Anderes Stichwort versuchen oder auf „Alle“ tippen.'); return; }
+            const jetzt = Date.now();
+            teil.forEach(e => {
+                const m = e.metadata;
+                const neu = idZeit(e) && jetzt - idZeit(e) < 86400000;
+                const row = mk(list, 'div', 'lt-item' + (neu ? ' neu' : ''));
+                const body = mk(row, 'div', 'lt-body');
+                const datum = isIsoDay(m.ereignis_datum) ? lesbar(m.ereignis_datum) : '';
+                const meta = mk(body, 'div', 'lt-meta');
+                if (neu) mk(meta, 'span', 'lt-neu', 'NEU');
+                meta.appendChild(document.createTextNode([m.kategorie || 'Eintrag', datum, (m.jaehrlich === true || m.jaehrlich === 'true') ? 'jährlich' : '', (m.frist === true || m.frist === 'true') ? 'FRIST' : '', gespText(e)].filter(Boolean).join(' · ')));
+                mitMarke(mk(body, 'div', 'lt-text'), textVon(e), q);
+                const del = mk(row, 'button', 'lt-del', 'Löschen');
+                del.addEventListener('click', async () => {
+                    if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = 'Sicher?'; setTimeout(() => { if (del.isConnected) { del.dataset.sure = ''; del.textContent = 'Löschen'; } }, 4000); return; }
+                    del.disabled = true; del.textContent = '...';
+                    try { await post({ action: 'delete', ids: [e.id] }); const ix = eintraege.indexOf(e); if (ix >= 0) eintraege.splice(ix, 1); dueCache = null; chipsBauen(); zeichnen(); }
+                    catch (err) { del.disabled = false; del.textContent = 'Fehler'; }
+                });
+            });
+        };
+        inp.addEventListener('input', () => { suche = inp.value; zeichnen(); });
+        clr.addEventListener('click', () => { inp.value = ''; suche = ''; katAkt = ''; chipsBauen(); zeichnen(); });
+        sBtnNeu.addEventListener('click', () => { sortMode = 'neu'; lsSet('lt_sort', 'neu'); zeichnen(); });
+        sBtnDat.addEventListener('click', () => { sortMode = 'datum'; lsSet('lt_sort', 'datum'); zeichnen(); });
+        chipsBauen(); zeichnen();
     }
     window.showLangzeit = showLangzeit;
     window.closeLangzeit = closeLangzeit;
