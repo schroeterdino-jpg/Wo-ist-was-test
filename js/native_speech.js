@@ -158,6 +158,11 @@
                 window.__zaneAckBusy = true;
                 const url = URL.createObjectURL(blob);
                 const au = new Audio(url);
+                // 3D-Kopf: Lippen auch beim "Ja?" nach dem Weckwort bewegen (dieses Audio läuft nicht über fish.js)
+                try {
+                    const satz = SAETZE.filter(function (t) { return blobs[t] === blob; })[0] || '';
+                    window.__jvLipAudio = au; window.__jvLipText = satz; window.__jvLipStartedAt = performance.now();
+                } catch (e) { }
                 const fertig = function () { window.__zaneAckBusy = false; try { URL.revokeObjectURL(url); } catch (e) { } weiter(); };
                 au.onended = fertig;
                 au.onerror = fertig;

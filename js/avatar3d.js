@@ -121,6 +121,7 @@ function morphIndex(mesh,name){
 function setMorph(name,v){
  const real=resolveMorphName(name);
  if(!real) return false;
+ if(/^mouthFrown/.test(real)) v=Math.min(v,.3);
  target[real]=Math.max(0,Math.min(1,v));
  return true;
 }
@@ -136,11 +137,11 @@ function setExpression(name='neutral'){
  switch(name){
   case 'friendly': case 'happy': both('mouthSmile',.52);both('cheekSquint',.18);setMorph('browInnerUp',.08);break;
   case 'laugh': both('mouthSmile',.95);both('cheekSquint',.55);setMorph('jawOpen',.34);both('eyeSquint',.24);break;
-  case 'sad': both('mouthFrown',.68);setMorph('browInnerUp',.72);both('eyeSquint',.12);break;
+  case 'sad': both('mouthFrown',.35);setMorph('browInnerUp',.72);both('eyeSquint',.12);break;
   case 'serious': both('browDown',.48);both('mouthPress',.28);break;
   case 'surprised': both('eyeWide',.72);setMorph('browInnerUp',.75);both('browOuterUp',.62);setMorph('jawOpen',.38);break;
   case 'thinking': setMorph('eyeLookUp_R',.35);setMorph('eyeLookUp_L',.35);setMorph('eyeLookOut_R',.22);setMorph('eyeLookIn_L',.22);setMorph('mouthPucker',.16);setMorph('browInnerUp',.18);break;
-  case 'concerned': setMorph('browInnerUp',.52);both('browDown',.22);both('mouthFrown',.35);break;
+  case 'concerned': setMorph('browInnerUp',.52);both('browDown',.22);both('mouthFrown',.12);break;
   // Neu: einzelne Brauen. Skeptisch = linke Braue hoch, rechte leicht runter.
   case 'skeptical': setMorph('browOuterUp_L',.85);setMorph('browInnerUp',.12);setMorph('browDown_R',.4);both('mouthSmile',.12);break;
   case 'question': setMorph('browInnerUp',.3);both('browOuterUp',.38);break;
@@ -148,11 +149,11 @@ function setExpression(name='neutral'){
   case 'browsdown': both('browDown',.75);break;
   case 'amused': setMorph('mouthSmile_L',.62);setMorph('mouthSmile_R',.36);setMorph('mouthDimple_L',.4);both('cheekSquint',.3);both('eyeSquint',.2);setMorph('browOuterUp_R',.25);break;
   case 'pleased': both('mouthSmile',.34);both('cheekSquint',.22);both('eyeSquint',.18);setMorph('browInnerUp',.1);break;
-  case 'disgust': both('noseSneer',.6);both('browDown',.38);setMorph('mouthShrugUpper',.5);both('mouthFrown',.3);both('eyeSquint',.3);break;
-  case 'angry': both('browDown',.8);both('eyeSquint',.35);both('noseSneer',.3);both('mouthPress',.4);both('mouthFrown',.2);break;
-  case 'tired': both('eyeSquint',.28);setMorph('browInnerUp',.22);both('mouthFrown',.12);setMorph('eyeLookDown_L',.3);setMorph('eyeLookDown_R',.3);break;
+  case 'disgust': both('noseSneer',.6);both('browDown',.38);setMorph('mouthShrugUpper',.5);both('mouthFrown',.1);both('eyeSquint',.3);break;
+  case 'angry': both('browDown',.8);both('eyeSquint',.35);both('noseSneer',.3);both('mouthPress',.4);both('mouthFrown',.06);break;
+  case 'tired': both('eyeSquint',.28);setMorph('browInnerUp',.22);setMorph('eyeLookDown_L',.3);setMorph('eyeLookDown_R',.3);break;
   case 'awe': both('eyeWide',.5);setMorph('browInnerUp',.5);both('browOuterUp',.42);setMorph('mouthFunnel',.2);both('mouthSmile',.15);break;
-  case 'doubt': setMorph('mouthLeft',.5);setMorph('mouthShrugLower',.4);setMorph('browInnerUp',.25);setMorph('browDown_L',.3);both('mouthFrown',.15);break;
+  case 'doubt': setMorph('mouthLeft',.5);setMorph('mouthShrugLower',.4);setMorph('browInnerUp',.25);setMorph('browDown_L',.3);break;
   case 'smug': setMorph('mouthSmile_R',.52);setMorph('browOuterUp_L',.42);both('eyeSquint',.22);setMorph('jawRight',.1);break;
   case 'cheeky': setMorph('mouthSmile_L',.7);setMorph('mouthDimple_L',.5);setMorph('browOuterUp_R',.55);setMorph('eyeSquint_R',.35);setMorph('mouthRight',.2);break;
   case 'unsure': setMorph('mouthRight',.4);setMorph('mouthShrugUpper',.35);setMorph('browInnerUp',.35);setMorph('eyeLookOut_L',.25);setMorph('eyeLookOut_R',.25);break;
@@ -451,7 +452,7 @@ const MICROS=[
  {n:{mouthPress_L:.3,mouthPress_R:.3,mouthRollLower:.2},t:900,mund:true},
  {n:{mouthLeft:.3,jawLeft:.12},t:1000,mund:true},
  {n:{mouthRight:.3,jawRight:.12},t:1000,mund:true},
- {n:{mouthShrugLower:.35,mouthFrown_L:.15,mouthFrown_R:.15,browInnerUp:.2},t:1100,mund:true},
+ {n:{mouthShrugLower:.3,browInnerUp:.2,mouthSmile_L:.12,mouthSmile_R:.12},t:1100,mund:true},
  {n:{cheekPuff:.3},t:700,mund:true},
  {n:{mouthPucker:.3,mouthRollUpper:.2},t:900,mund:true}
 ];
