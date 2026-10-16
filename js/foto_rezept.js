@@ -180,7 +180,7 @@
         let msg = `Das ist ein Rezept${rez.titel ? ': ' + rez.titel : ''}. Ich habe ${n} ${n === 1 ? 'Zutat' : 'Zutaten'} und ${m} ${m === 1 ? 'Schritt' : 'Schritte'} gelesen.`;
         if (!m) msg += ' Die Zubereitung fehlt noch. Mit „Foto hinzufügen“ ergänzt du sie.';
         else if (!n) msg += ' Die Zutaten fehlen noch. Mit „Foto hinzufügen“ ergänzt du sie.';
-        msg += ' Soll ich es speichern, ausdrucken oder vorlesen?';
+        msg += ' Soll ich es speichern, ausdrucken, vorlesen oder die Zutaten auf deine Einkaufsliste setzen?';
         say(msg);
     }
 
@@ -193,6 +193,7 @@
             { icon: '💾', title: 'Speichern', subtitle: 'Ins Rezeptbuch', onclick: 'jvRezept.speichern()' },
             { icon: '🖨️', title: 'Drucken', subtitle: 'Druckansicht oder als PDF', onclick: 'jvRezept.drucken()' },
             { icon: '🔊', title: 'Vorlesen', subtitle: 'Zutaten und Zubereitung', onclick: 'jvRezept.vorlesen()' },
+            { icon: '🛒', title: 'Zutaten auf Einkaufsliste', subtitle: `${n} Zutaten eintragen`, onclick: 'jvRezept.einkaufen()' },
             { icon: '📤', title: 'Per WhatsApp senden', subtitle: 'Rezept als Text verschicken', onclick: 'jvRezept.senden()' },
             { icon: '➕', title: 'Foto hinzufügen', subtitle: 'Zweite Seite, zum Beispiel die Zubereitung', onclick: 'jvRezept.hinzu()' }
         ]);
@@ -284,6 +285,31 @@
             (z ? '\n\n*Zutaten*\n' + z : '') + (s ? '\n\n*Zubereitung*\n' + s : '');
     }
 
+    /* Zutaten (ohne Gruppenüberschriften) auf die Einkaufsliste; was schon draufsteht, wird nicht doppelt eingetragen */
+    function einkaufen(rez) {
+        rez = rez || (hasDraft() ? draft.rez : null);
+        if (!rez) { say('Es gibt gerade kein Rezept, dessen Zutaten ich auf die Liste setzen kann.'); return; }
+        const items = rez.zutaten.filter(z => !istKopf(z));
+        if (!items.length) { say('In diesem Rezept habe ich keine Zutaten gefunden.'); return; }
+        let neu = 0, schon = 0;
+        try {
+            if (typeof shoppingEntries === 'undefined') throw new Error('keine Liste');
+            const hat = new Set(shoppingEntries.map(e => norm(e.text)));
+            for (let i = items.length - 1; i >= 0; i--) {      // rückwärts, damit die Liste oben in Rezept-Reihenfolge steht
+                const t = String(items[i]).trim(), k = norm(t);
+                if (!k) continue;
+                if (hat.has(k)) { schon++; continue; }
+                hat.add(k);
+                shoppingEntries.unshift({ id: Date.now() + neu + Math.floor(Math.random() * 1000), text: t });
+                neu++;
+            }
+            setPersistentData('helfer_shopping', JSON.stringify(shoppingEntries));
+            try { if (typeof renderAllLists === 'function') renderAllLists(); } catch (e) {}
+        } catch (e) { console.error('Rezept: Einkaufsliste', e); say('Das Eintragen auf die Einkaufsliste hat nicht geklappt.'); return; }
+        if (!neu) say('Alle Zutaten stehen schon auf deiner Einkaufsliste.');
+        else say(neu + (neu === 1 ? ' Zutat steht' : ' Zutaten stehen') + ' jetzt auf deiner Einkaufsliste' + (schon ? (schon === 1 ? ', eine war schon drauf.' : ', ' + schon + ' waren schon drauf.') : '.'));
+    }
+
     function senden(rez) {
         rez = rez || (hasDraft() ? draft.rez : null);
         if (!rez) { say('Es gibt gerade kein Rezept zum Senden.'); return; }
@@ -331,6 +357,7 @@
         };
         btn('🖨️ Drucken', () => drucken(rez));
         btn('🔊 Vorlesen', () => { wrap.remove(); vorlesen(rez); });
+        btn('🛒 Einkaufsliste', () => einkaufen(rez));
         btn('📤 WhatsApp', () => senden(rez));
         if (gespeichert) {
             let sicher = false;
@@ -418,6 +445,7 @@
         if (aktion === 'loeschen') { loeschen(r.id); return; }
         if (aktion === 'drucken') { drucken(r); return; }
         if (aktion === 'senden') { senden(r); return; }
+        if (aktion === 'einkauf') { einkaufen(r); return; }
         if (aktion === 'vorlesen') { vorlesen(r, /\bzutaten\b/.test(t) ? 'zutaten' : /\bzubereitung\b/.test(t) ? 'zubereitung' : undefined); return; }
         zeigen(r, true);
         say('Hier ist ' + r.titel + '.');
@@ -438,6 +466,7 @@
         if (hasDraft()) {
             if (/^(?:ja|ja bitte|jawohl|gerne|ok|okay|klar|speichern|speicher(?:e)? (?:es|das|ihn|das rezept)|bitte speichern|ja speichern|ablegen|merk dir das|ins rezeptbuch)$/.test(t)) { speichern(); return true; }
             if (/\b(?:druck\w*|ausdruck\w*|druckansicht)\b/.test(t)) { drucken(); return true; }
+            if (/\beinkauf\w*/.test(t) && !/\b(?:nein|nicht)\b/.test(t)) { einkaufen(); return true; }
             if (/\bwhats\s?app\b|\b(?:schick\w*|send\w*|verschick\w*)\b.*\b(?:es|das|ihn|rezept)\b/.test(t)) { senden(); return true; }
             if (/\bzutaten\b.*\b(?:vorlesen|vor)\b|\blies\w*\b.*\bzutaten\b/.test(t)) { vorlesen(null, 'zutaten'); return true; }
             if (/\bzubereitung\b.*\b(?:vorlesen|vor)\b|\blies\w*\b.*\bzubereitung\b|\bzubereitung\b$/.test(t)) { vorlesen(null, 'zubereitung'); return true; }
@@ -469,6 +498,7 @@
         // Ein bestimmtes Rezept: zeigen, drucken, vorlesen, löschen (Verb darf irgendwo im Satz stehen)
         if (hatRezept && loadAll().length) {
             const aktion = loesch ? 'loeschen'
+                : /\beinkauf\w*/.test(t) ? 'einkauf'
                 : /\b(?:druck\w*|ausdruck\w*)\b/.test(t) ? 'drucken'
                 : /\bwhats\s?app\b|\b(?:schick\w*|send\w*|verschick\w*|teil\w*)\b/.test(t) ? 'senden'
                 : /\b(?:vorles\w*|lies|les|lese|lesen)\b/.test(t) ? 'vorlesen'
@@ -476,6 +506,7 @@
             if (aktion) {
                 const genannt = finde(t);
                 if (genannt) { tue(aktion, genannt, t); return true; }
+                if (aktion === 'einkauf' && /\bzutaten\b/.test(t)) { const z = ziel(t); if (z) { tue(aktion, z, t); return true; } frageWelches(aktion); return true; }
                 if (definit) {
                     const z = ziel(t);
                     if (z) { tue(aktion, z, t); return true; }
@@ -632,7 +663,7 @@
     }
 
     window.jvRezept = {
-        speichern: () => speichern(), drucken: () => drucken(), senden: () => senden(), vorlesen: () => vorlesen(), hinzu,
+        speichern: () => speichern(), drucken: () => drucken(), senden: () => senden(), einkaufen: () => einkaufen(), vorlesen: () => vorlesen(), hinzu,
         ansehen: () => { if (hasDraft()) zeigen(draft.rez, false); },
         oeffne: (id) => { const r = loadAll().find(x => x.id === id); if (r) { merke(r); zeigen(r, true); } },
         aktion: (ak, id) => { const r = loadAll().find(x => x.id === id); warte = null; if (r) tue(ak, r, ''); },
