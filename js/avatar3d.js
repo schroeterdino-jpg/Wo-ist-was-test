@@ -361,7 +361,15 @@ function lipShapeForText(text,audio){
  const pos=(t/dur)*units.length; const i=Math.min(units.length-1,Math.floor(pos)); const u=units[i];
  if(/[.,!?;:]/.test(u)) return {kind:'REST',amp:0};
  if(/^[mbp]$/.test(u)) return {kind:'MBP',amp:.08};
- if(/^[tdnkgrhcqxz]$/.test(u)||u==='pf'||u==='qu') return {kind:'CONS',amp:.08};
+ const isV=x=>/^(a|e|i|o|u|ä|ö|ü|y|ei|ai|ie|eu|äu|au)$/.test(x);
+ if(!isV(u)){
+   // Mitlaut: Mund bleibt in der Form des letzten Vokals, nur etwas enger (kein Aufklappen pro Buchstabe)
+   for(let k=i-1;k>=Math.max(0,i-3);k--){ const w=units[k]; if(isV(w)){
+     const base=/^(o|ö|u|ü|au|eu|äu)$/.test(w)?{kind:'OU',amp:.34}:/^(e|i|ä|y|ei|ai|ie)$/.test(w)?{kind:'EI',amp:.25}:{kind:'A',amp:.38};
+     return {kind:base.kind,amp:base.amp*.6};
+   } }
+   return {kind:'CONS',amp:.12};
+ }
  if(/^[fvw]$/.test(u)||u==='ph') return {kind:'FV',amp:.16};
  if(/^(o|ö|u|ü|au|eu|äu)$/.test(u)) return {kind:'OU',amp:.34};
  if(/^(e|i|ä|y|ei|ai|ie)$/.test(u)) return {kind:'EI',amp:.25};
@@ -371,17 +379,17 @@ function lipShapeForText(text,audio){
 }
 function applySpeechShape(shape){
  clearSpeechMorphs(); if(!shape) return;
- if(shape.kind==='REST'){ setMorph('mouthClose',.7); return; }
+ if(shape.kind==='REST'){ setMorph('mouthClose',.55); return; }
  const a=shape.amp||.2;
  switch(shape.kind){
-  case 'MBP': setMorph('mouthClose',1);setMorph('mouthPress_L',.5);setMorph('mouthPress_R',.5);break;
-  case 'CONS': setMorph('jawOpen',.07);setMorph('mouthClose',.6);break;
+  case 'MBP': setMorph('mouthClose',.9);setMorph('mouthPress_L',.3);setMorph('mouthPress_R',.3);break;
+  case 'CONS': setMorph('jawOpen',.12);setMorph('mouthClose',.25);break;
   case 'FV': setMorph('jawOpen',.06);setMorph('mouthClose',.3);setMorph('mouthRollLower',.34);setMorph('mouthUpperUp_L',.16);setMorph('mouthUpperUp_R',.16);break;
   case 'OU': setMorph('jawOpen',a*.75);setMorph('mouthFunnel',.48);setMorph('mouthPucker',.44);break;
   case 'EI': setMorph('jawOpen',a*.55);setMorph('mouthStretch_L',.38);setMorph('mouthStretch_R',.38);setMorph('mouthUpperUp_L',.12);setMorph('mouthUpperUp_R',.12);break;
   case 'S': setMorph('jawOpen',.08);setMorph('mouthClose',.4);setMorph('mouthStretch_L',.16);setMorph('mouthStretch_R',.16);break;
   case 'L': setMorph('jawOpen',.14);setMorph('mouthClose',.2);setMorph('mouthUpperUp_L',.10);setMorph('mouthUpperUp_R',.10);break;
-  default: setMorph('jawOpen',a*.85);setMorph('mouthLowerDown_L',a*.34);setMorph('mouthLowerDown_R',a*.34);setMorph('mouthUpperUp_L',a*.15);setMorph('mouthUpperUp_R',a*.15);
+  default: setMorph('jawOpen',a*.9);setMorph('mouthLowerDown_L',a*.34);setMorph('mouthLowerDown_R',a*.34);setMorph('mouthUpperUp_L',a*.15);setMorph('mouthUpperUp_R',a*.15);
  }
 }
 function tongueMorphName(){
@@ -470,7 +478,7 @@ function applyMorphs(dt,speaking,now){
  if(grimass){ for(const n in grimass){ if(!fishSpeaking||/^(brow|eye|cheek|nose|mouthSmile|mouthDimple)/.test(n)) setMorph(n,grimass[n]); } }   // beim Sprechen nur Augen, Brauen, Wangen, Nase und Lächeln, nie den Mund/Kiefer
  if(expression==='laugh'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.28));
  if(expression==='surprised'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.34));
- for(const n of morphNames){const want=target[n]||0;current[n]+=(want-current[n])*Math.min(1,dt*14)}
+ for(const n of morphNames){const want=target[n]||0;const mund=/^(jaw|mouth)/.test(n)&&speaking;current[n]+=(want-current[n])*Math.min(1,dt*(mund?8:14))}
  { const b1=resolveMorphName('eyeBlink_L'),b2=resolveMorphName('eyeBlink_R'), wl=(grimass&&grimass.eyeBlink_L)||0, wr=(grimass&&grimass.eyeBlink_R)||0; if(b1)current[b1]=Math.max(0,Math.min(1,Math.max(blinkVal,wl))); if(b2)current[b2]=Math.max(0,Math.min(1,Math.max(blinkVal,wr))); }   // Zwinkern (Mimik) läuft über die Überlagerung
  const shown=Object.assign({},current);
  if(now>microNext&&!micro&&MIMIK_STAERKE>0){ const pool=MICROS.filter(m=>!(speaking&&m.mund)); micro=Object.assign({t0:now},pool[Math.floor(Math.random()*pool.length)]); microNext=now+1800+Math.random()*4200; }
