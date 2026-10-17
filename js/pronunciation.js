@@ -1,6 +1,6 @@
 /* ============================================================
    AUSSPRACHE-LISTE: Zane merkt sich, wie schwierige Wörter und Namen gesprochen werden sollen.
-   Beispiel: "Sprich Alyssa so aus: Alischa" - angezeigt bleibt "Alyssa", gesprochen wird "Alischa".
+   Beispiel: "Sprich Anna so aus: Alischa" - angezeigt bleibt "Anna", gesprochen wird "Alischa".
    Braucht: storage.js (getPersistentData/setPersistentData), voice.js (speak). Muss NACH voice.js geladen werden.
 
    So greift es ein: voice.js schickt jeden zu sprechenden Text an fetchCloudSpeechBlob() (Cloud-Stimme)
@@ -35,7 +35,7 @@ function pronunciationEscape(s) {
     return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/* Ersetzt jedes Wort der Liste im Text (ganze Wörter, Groß-/Kleinschreibung egal, auch mit angehängtem "s": "Alyssas") */
+/* Ersetzt jedes Wort der Liste im Text (ganze Wörter, Groß-/Kleinschreibung egal, auch mit angehängtem "s": "Annas") */
 function applyPronunciations(text) {
     let out = String(text == null ? '' : text);
     const dict = Object.assign({ 'Zane': 'Nova' }, getPronunciations());   // Standard: englisch "Sein" (zeen); mit "Sprich Zane so aus: ..." änderbar
@@ -138,8 +138,8 @@ function savePronunciationManual() {
 }
 
 /* --- Sprachbefehle ---
-   "Sprich Alyssa so aus: Alischa" / "Sprich Alyssa wie Alischa aus" / "Alyssa wird Alischa ausgesprochen" /
-   "Merk dir die Aussprache von Alyssa: Alischa" / "Vergiss die Aussprache von Alyssa" / "Welche Aussprachen kennst du?"
+   "Sprich Anna so aus: Alischa" / "Sprich Anna wie Alischa aus" / "Anna wird Alischa ausgesprochen" /
+   "Merk dir die Aussprache von Anna: Alischa" / "Vergiss die Aussprache von Anna" / "Welche Aussprachen kennst du?"
    Gibt true zurück, wenn der Satz hier behandelt wurde. */
 function handlePronunciationCommand(text) {
     const t = String(text || '').replace(/[„“"”]/g, '').replace(/[.!?]+$/, '').trim();
@@ -163,7 +163,7 @@ function handlePronunciationCommand(text) {
         || t.match(/^(?:bitte\s+)?spr(?:ich|ech)\w*\s+(?:den\s+namen\s+|das\s+wort\s+|den\s+begriff\s+)?(.+?)\s+(?:wie|als)\s+(.+?)\s+aus$/i)
         || t.match(/^(?:merk\w*\s+(?:dir\s+)?)?(?:die\s+)?aussprache\s+(?:von|für|bei)\s+(.+?)\s*(?:ist|lautet|wie|:|,)\s*(.+)$/i);
     if (!m) {
-        // "Alyssa wird Alischa ausgesprochen": nur kurze Wort-Paare, sonst würde ein normaler Satz fälschlich als Aussprache gelten
+        // "Anna wird Alischa ausgesprochen": nur kurze Wort-Paare, sonst würde ein normaler Satz fälschlich als Aussprache gelten
         const p = t.match(/^(.+?)\s+(?:wird|soll)\s+(?:wie\s+)?(.+?)\s+(?:ausgesprochen|gesprochen)$/i);
         if (!p) return false;
         const w = p[1].trim().split(/\s+/), sp = p[2].trim();
@@ -210,6 +210,37 @@ function speakableOrdinalDates(text) {
     });
 }
 
+
+/* --- "1 Teelöffel" -> "ein Teelöffel", "1 Packung" -> "eine Packung" ---
+   Die Stimme liest die Ziffer 1 sonst als "eins". Nur beim Sprechen; auf dem Bildschirm bleibt die Ziffer.
+   Geschlecht nach dem Hauptwort: weibliche Wörter (Packung, Prise, Dose, ...) -> "eine", sonst "ein".
+   Nach mit/nach/bei/von/aus/zu/seit/außer: "einem" bzw. "einer". Zahlen wie 10, 1,5, 1.5, 1:30 und "1." bleiben unberührt. */
+const EIN_WEIBLICH = /^(?:Packung|Prise|Dose|Tasse|Flasche|Zwiebel|Zehe|Knoblauchzehe|Knolle|Tüte|Schachtel|Portion|Scheibe|Stunde|Minute|Sekunde|Woche|Karotte|Möhre|Paprika|Tomate|Gurke|Kartoffel|Banane|Zitrone|Orange|Birne|Handvoll|Messerspitze|Stange|Kugel|Tafel|Rolle|Nuss|Kiste|Kanne|Pfanne|Schüssel|Wurst|Packungen|Gabel|Flocke|Kelle|Tablette|Kapsel|Sorte|Seite|Nachricht|Mail|E-Mail|Erinnerung|Aufgabe|Liste|Karte|Rechnung|Frist|Frage|Antwort|Stelle|Etage|Straße|Tankstelle|Apotheke|Bahn|Uhr)$/i;
+const EIN_NICHT_WEIBLICH = /^(?:Käse|Name|Junge|Hase|Kunde|Gedanke|Buchstabe|Glaube|Wille|Friede|Same|Franke|Riese|Affe|Löwe|Bote|Erbe|Ende|Auge|Ohr)$/i;
+const EIN_MASKULIN = /^(?:Teelöffel|Esslöffel|Löffel|Becher|Schuss|Spritzer|Liter|Beutel|Würfel|Strauß|Apfel|Kuchen|Euro|Cent|Tag|Monat|Termin|Kaffee|Tee|Salat|Joghurt|Quark|Reis|Topf|Eimer|Korb|Kasten|Block|Streifen|Klecks|Tropfen|Zweig|Schluck|Bissen|Meter|Kilometer|Anruf|Brief|Zettel|Film|Titel|Kontakt|Eintrag)$/i;
+const EIN_PRAEP = /^(?:mit|nach|bei|von|aus|zu|seit|außer|gegenüber)$/i;
+function einWeiblich(w) {
+    if (EIN_NICHT_WEIBLICH.test(w)) return false;
+    if (EIN_WEIBLICH.test(w)) return true;
+    return /(?:ung|heit|keit|schaft|ion|tät|ur|ik|ie|e)$/i.test(w) && /^[A-ZÄÖÜ]/.test(w);
+}
+function speakableEin(text) {
+    const re = /(^|[^\d.,:\/-])1(?![\d.,:\/%°])\s+([A-Za-zÄÖÜäöüß-]+)(?:\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*))?/g;
+    return String(text == null ? '' : text).replace(re, (m, pre, w1, w2, off, str) => {
+        let noun = w1, weib;
+        if (/^[a-zäöüß]/.test(w1)) {                       // Eigenschaftswort davor: "1 kleine Zwiebel", "1 großer Löffel"
+            if (!w2) return m;
+            noun = w2; weib = /e$/.test(w1) && einWeiblich(w2);
+        } else weib = einWeiblich(noun);
+        const before = str.slice(0, off + pre.length).match(/([A-Za-zÄÖÜäöüß]+)\s*$/);
+        const dativ = before && EIN_PRAEP.test(before[1]);
+        const satzAnfang = !/\S/.test(str.slice(0, off + pre.length).replace(/[.!?…:;]\s*$/, '').replace(/^.*$/s, m0 => m0 === '' ? '' : 'x')) || /(?:^|[.!?…]\s*)$/.test(str.slice(0, off + pre.length));
+        const akk = !weib && !dativ && !satzAnfang && EIN_MASKULIN.test(noun);   // "Nimm einen Teelöffel Salz"
+        const form = dativ ? (weib ? 'einer' : 'einem') : (weib ? 'eine' : (akk ? 'einen' : 'ein'));
+        return pre + form + ' ' + w1 + (w2 ? ' ' + w2 : '');
+    });
+}
+
 /* --- Stimmung (charakter.js): Laut-Anweisungen für die Fish-Stimme ---
    Ist eine Stimmung gewählt (Böse, Anschreien, Genervt, Beleidigt), bekommt JEDER Satz vor dem Senden ihre Anweisung in eckigen Klammern, z.B. "[shouting] Das war's!".
    Nur bei Fish Audio (andere Stimmen würden die Klammern vorlesen), nur wenn "Menschliche Laute" nicht auf "aus" steht, und nie bei ernsten Themen.
@@ -237,19 +268,19 @@ function moodTagged(text) {
         if (typeof fetchCloudSpeechBlob === 'function') {
             const origCloud = fetchCloudSpeechBlob;
             fetchCloudSpeechBlob = function (text, voice) {
-                return origCloud.call(this, moodTagged(speakableOrdinalDates(applyPronunciations(text))), voice);
+                return origCloud.call(this, moodTagged(speakableEin(speakableOrdinalDates(applyPronunciations(text)))), voice);
             };
         }
         if (typeof speakBrowser === 'function') {
             const origBrowser = speakBrowser;
             speakBrowser = function (cleanText, onComplete, langCode) {
-                return origBrowser.call(this, langCode ? cleanText : applyPronunciations(cleanText), onComplete, langCode);   // Dolmetscher (Fremdsprache) bleibt unberührt
+                return origBrowser.call(this, langCode ? cleanText : speakableEin(applyPronunciations(cleanText)), onComplete, langCode);   // Dolmetscher (Fremdsprache) bleibt unberührt
             };
         }
         if (typeof speakAckBrowser === 'function') {
             const origAck = speakAckBrowser;
             speakAckBrowser = function (text, gen, onComplete) {
-                return origAck.call(this, applyPronunciations(text), gen, onComplete);
+                return origAck.call(this, speakableEin(applyPronunciations(text)), gen, onComplete);
             };
         }
     }
