@@ -81,6 +81,15 @@
     CSS += '.jvseg{display:inline-flex;gap:3px;margin-left:10px;vertical-align:middle}.jvseg i{width:16px;height:4px;background:rgba(73,215,255,.85)}.jvseg i:nth-child(2){opacity:.55}.jvseg i:nth-child(3){opacity:.3}' +
         '.jvfuss{display:flex;justify-content:space-between;padding:6px 16px 10px;font:9px ui-monospace,Menlo,monospace;letter-spacing:2px;color:rgba(73,215,255,.65)}';
 
+    /* Immer aktiv (auch bei "Jarvis Fenster aus"): Sind mehrere Karten oder lange Nachrichten da, lässt sich die Spalte rechts scrollen */
+    function scrollStil() {
+        if (document.getElementById('jvFensterScroll')) return;
+        var st = document.createElement('style'); st.id = 'jvFensterScroll';
+        st.textContent = 'html body #jvPan{max-height:calc(100vh - 84px);max-height:calc(100dvh - 84px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;pointer-events:auto;touch-action:pan-y;scrollbar-width:none}' +
+            'html body #jvPan::-webkit-scrollbar{display:none}' +
+            'html body #jvPan .jvP{flex:0 0 auto}';
+        document.head.appendChild(st);
+    }
     var styleEl = null;
     function stilSetzen() {
         if (!an) { if (styleEl) { try { styleEl.remove(); } catch (e) {} styleEl = null; } document.body && document.body.classList.remove('jv-fenster'); return; }
@@ -122,6 +131,7 @@
         if (!jp || typeof jp.zeigen !== 'function' || jp.__jvw) return;
         var orig = jp.zeigen; jp.__jvw = true;
         jp.zeigen = function (o) {
+            if (o && o.news && !(o.sek >= 75)) { o = Object.assign({}, o, { sek: 75 }); arguments[0] = o; }   /* zum Lesen und Scrollen mehr Zeit */
             var r = orig.apply(this, arguments);
             try {
                 var warn = o && (/warn|unwetter|glatteis|achtung|alarm|fehler|problem/i.test(String(o.titel || '') + ' ' + String(o.zeit || '')) ||
@@ -145,6 +155,6 @@
         }, 160);
     }
 
-    function start() { stilSetzen(); beobachten(); warnungPruefen(); setTimeout(warnungPruefen, 1500); setTimeout(warnungPruefen, 5000); }
+    function start() { scrollStil(); stilSetzen(); beobachten(); warnungPruefen(); setTimeout(warnungPruefen, 1500); setTimeout(warnungPruefen, 5000); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
