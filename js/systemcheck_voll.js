@@ -101,6 +101,7 @@
             }
         } catch (e) {}
         const de = voices.filter(v => /^de/i.test(v.lang)).length;
+        if (!('speechSynthesis' in window) && IN_APP()) return ok('in der Nova-App nicht eingebaut, Nova nutzt dort die Server-Stimmen (Fish, Edge)');
         if (!('speechSynthesis' in window)) return hinweis('Handy-Stimme (Ausweichstimme) nicht verfügbar', 'Chrome-Sprachausgabe in den Android-Einstellungen prüfen');
         if (!de) teile.push('keine deutsche Handy-Stimme');
         let ac = '';
@@ -258,7 +259,7 @@
     }
     async function pruefYoutube() {
         try {
-            const { r, d } = await api('/api/youtubelive?type=live', {}, 15000);
+            const { r, d } = await api('/api/youtubelive?type=live&q=Hamburg', {}, 15000);
             if (r.ok && d && !d.error) return ok('antwortet');
             return schlecht(fehlerText(r, d), 'bei Vercel YOUTUBE_API_KEY und das Tageslimit prüfen');
         } catch (e) { return schlecht(warum(e), 'Netz oder Vercel prüfen'); }
