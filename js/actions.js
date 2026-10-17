@@ -192,6 +192,9 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'home_save') {
         saveHomeAddress(String(action.home_address || '').trim());
         updateTerminalStream("HOME: SAVED");
+    } else if (action.type === 'work_save') {
+        saveWorkAddress(String(action.work_address || '').trim());
+        updateTerminalStream("WORK: SAVED");
     } else if (action.type === 'world_live') {
         const kind = String(action.live_type || '').toLowerCase();
         if (kind.startsWith('kam') || kind.startsWith('cam') || kind.startsWith('live')) ctx.panel = { name: 'welt', place: String(action.news_place || '').trim(), mode: 'live' };
