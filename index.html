@@ -7,7 +7,7 @@
     <!-- FEHLERANZEIGE (steht absichtlich ganz vorn und unabhängig von allen js-Dateien): zeigt Programmfehler, nicht ladbare Dateien und fehlende Funktionen als roten Streifen unten -->
     <script>
     (function () {
-        var errs = [], box = null, body = null;
+        var errs = [], box = null, body = null; window.__jvErrs = errs;
         function esc(t) { return String(t).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
         function short(u) { return String(u || '').replace(/^.*\/(js|api)\//, '$1/').replace(/^https?:\/\/[^\/]+\//, ''); }
         function render() {
@@ -58,7 +58,7 @@
             'photo.js': 'handlePhotoCommand', 'ferien.js': 'handleFerienCommand', 'waehrung.js': 'handleCurrencyCommand', 'weathermap.js': 'handleWeatherMapCommand', 'nearbymore.js': 'handlePlacesCommand',
             'calendar.js': 'addGoogleCalendarEvent', 'briefing.js': 'triggerDailyBriefing', 'speechrate.js': 'handleSpeechRateCommand', 'birthdays.js': 'fetchUpcomingBirthdays', 'routing.js': 'resolveContactsInActions',
             'feiertage.js': 'handleFeiertageCommand', 'sonnemond.js': 'handleSonneMondCommand', 'weltzeit.js': 'handleWeltzeitCommand', 'unwetter.js': 'handleUnwetterCommand', 'filme.js': 'handleFilmCommand', 'extrafenster.js': 'openExtraWindow', 'foto_adresse.js': 'photoNavigate', 'sprueche.js': 'jarvisQuip', 'ortsuche.js': 'handleOrtsucheCommand', 'toene.js': 'handleToeneCommand', 'fish.js': 'runFishDiagnosis', 'audio.js': 'playSuccessSound'
-        };
+        }; window.__jvExpect = EXPECT;
         window.addEventListener('load', function () {
             setTimeout(function () {
                 try {
@@ -771,6 +771,7 @@
     <script src="./js/stadtverkehr.js"></script>
     <script src="./js/lagebild.js?v=20261014-zane"></script>
     <script src="./js/selbsttest.js"></script>
+    <script src="./js/systemcheck_voll.js?v=20261017-1"></script>
     <script src="./js/festnamen.js"></script>
     <script src="./js/konto.js?v=20261014-zane"></script>
     <script src="./js/hoerkorrektur.js"></script>
