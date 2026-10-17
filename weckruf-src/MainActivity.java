@@ -54,6 +54,7 @@ public class MainActivity extends Activity {
     private boolean recAborted = false;
     private int recSession = 0;
     private ValueCallback<Uri[]> fileCallback;
+    private Uri camUri;   // Zieladresse des gerade aufgenommenen Fotos
     private boolean chooserStale = false;   // Seite wurde neu geladen, solange der Ordner offen war
     static volatile long pickerUntil = 0;
     private long pickerHold = 0;
@@ -143,6 +144,26 @@ public class MainActivity extends Activity {
                 chooserStale = false;
                 pickerUntil = System.currentTimeMillis() + 120000;
                 pickerHold = WakeService.hold(120000);     // solange der Ordner offen ist, hört das Weckwort nicht mit
+                // Kamera-Knopf der Seite (capture): direkt die Handy-Kamera starten, das Foto geht an die Seite zurück
+                try {
+                    if (params != null && params.isCaptureEnabled()) {
+                        android.content.ContentValues cv = new android.content.ContentValues();
+                        cv.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "nova_" + System.currentTimeMillis() + ".jpg");
+                        cv.put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                        if (Build.VERSION.SDK_INT >= 29) cv.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Nova");
+                        camUri = getContentResolver().insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
+                        if (camUri != null) {
+                            Intent ci = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+                            ci.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, camUri);
+                            ci.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                            startActivityForResult(ci, 77);
+                            return true;
+                        }
+                    }
+                } catch (Throwable e) {
+                    try { if (camUri != null) getContentResolver().delete(camUri, null, null); } catch (Throwable ignored) { }
+                    camUri = null;     // Kamera ließ sich nicht starten: weiter mit der normalen Dateiauswahl
+                }
                 try {
                     startActivityForResult(params.createIntent(), 77);
                 } catch (Throwable e) {
@@ -293,7 +314,6 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
         super.onRequestPermissionsResult(code, perms, res);
-        try { OrtReceiver.anmelden(this); } catch (Throwable ignored) { }
         startWake();
     }
 
@@ -339,21 +359,6 @@ public class MainActivity extends Activity {
         if (pendingAnsage != null) {   // geplante Ansage: die Seite holt sie ab (bei frisch gestarteter Seite macht sie das selbst nach dem Laden)
             h.postDelayed(() -> js("if(window.jvPlan&&window.jvPlan.pruefe)window.jvPlan.pruefe();"), 700);
         }
-    }
-
-    /** Standort-Erlaubnis für die Orts-Erinnerungen: erst genau, dann "Immer zulassen" in den App-Einstellungen. */
-    void ortRechte() {
-        runOnUiThread(() -> {
-            try {
-                if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                    requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2);
-                    return;
-                }
-                Intent i = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        android.net.Uri.parse("package:" + getPackageName()));
-                startActivity(i);
-            } catch (Throwable ignored) { }
-        });
     }
 
     /** Von der Seite aufgerufen: die wartende Ansage abholen (und löschen). */
@@ -410,7 +415,15 @@ public class MainActivity extends Activity {
             pickerUntil = 0;
             WakeService.release(pickerHold);
             Uri[] u0 = null;
-            if (res == RESULT_OK) {
+            final Uri cu = camUri; camUri = null;
+            if (cu != null) {
+                if (res == RESULT_OK) {
+                    u0 = new Uri[]{cu};
+                    h.postDelayed(() -> { try { getContentResolver().delete(cu, null, null); } catch (Throwable ignored) { } }, 180000);   // Foto nach 3 Minuten wieder aus der Galerie nehmen
+                } else {
+                    try { getContentResolver().delete(cu, null, null); } catch (Throwable ignored) { }
+                }
+            } else if (res == RESULT_OK) {
                 u0 = urisAus(data);
                 if (u0 == null || u0.length == 0) {
                     try { u0 = WebChromeClient.FileChooserParams.parseResult(res, data); } catch (Throwable ignored) { }
