@@ -1,6 +1,7 @@
 /* ============================================================
    SYSTEMCHECK VOLL: prüft ALLES auf einmal, nach Bereichen geordnet, mit Lösung zu jedem Fehler.
-   Baut auf systemcheck.js und selbsttest.js auf (Google, Wetter, Karten, KI, Standort ...) und ergänzt:
+   Ersetzt systemcheck.js und selbsttest.js (die beiden gibt es nicht mehr). Prüft:
+   - Google/Dienste: Kalender, Gmail, Wetter, Spritpreise, Karten, KI, Google-Route, Verkehr, Diesel-Suche, Standort
    - Handy: Mikrofon, Spracherkennung, Kamera, Benachrichtigungen/Push, Speicher, Stimme, Netz, Uhrzeit
    - Programm: alle Programmdateien erreichbar, Funktionen geladen, Programmfehler seit dem Start, 3D-Kopf und Modelle
    - Server: App-Code, Langzeitgedächtnis, Abgleich, Push-Server, Mail-Wächter, Nachrichten, Filme, Stimmen (Fish, Edge)
@@ -8,24 +9,19 @@
    - Weckruf-App: erkannt? Weckwort? Funktionen der App
    Aufruf: Menü "Alles prüfen", Sprache "Systemcheck", einmal am Tag still im Hintergrund (meldet sich nur bei Problemen).
    Ein Fehler in einer Prüfung stört nie die anderen. Kostet (Fish, YouTube, KI, Google-Route) nur bei der von Hand gestarteten Prüfung.
-   Muss NACH selbsttest.js und hud_fenster.js geladen werden.
+   Muss NACH hud_fenster.js geladen werden.
    ============================================================ */
 (function () {
     'use strict';
     if (window.__jvCheckVoll) return;
     window.__jvCheckVoll = true;
 
-    const origCollect = (typeof window.collectSystemChecks === 'function') ? window.collectSystemChecks : null;
     const mit = (p, ms, msg) => Promise.race([Promise.resolve(p), new Promise((_, rej) => setTimeout(() => rej(new Error(msg || 'antwortet nicht')), ms))]);
     const pd = (k, d) => { try { return typeof getPersistentData === 'function' ? getPersistentData(k, d) : (localStorage.getItem(k) ?? d); } catch (e) { return d; } };
     const sd = (k, v) => { try { if (typeof setPersistentData === 'function') setPersistentData(k, v); else localStorage.setItem(k, v); } catch (e) {} };
     const IN_APP = () => !!window.ZaneNative;
 
     const GRUPPEN = ['Handy', 'Programm', 'Google', 'Dienste', 'Server', 'Daten', 'Weckruf-App'];
-    const GRUPPE_VON = {
-        'Standort': 'Handy', 'Bausteine': 'Programm', 'Google Kalender': 'Google', 'Gmail': 'Google',
-        'Wetter': 'Dienste', 'Spritpreise': 'Dienste', 'Karten': 'Dienste', 'KI': 'Dienste', 'Google-Route': 'Dienste', 'Verkehr': 'Dienste', 'Diesel-Suche': 'Dienste'
-    };
     const ok = (text) => ({ ok: true, text });
     const schlecht = (text, fix) => ({ ok: false, text, fix: fix || '' });
     const hinweis = (text, fix) => ({ ok: null, text, fix: fix || '' });
@@ -287,12 +283,127 @@
         return an ? ok('Weckwort-Modus an') : hinweis('Weckwort-Modus aus', 'in den Einstellungen einschalten, wenn Nova auf "Hey Nova" hören soll');
     }
 
+
+    /* ---------------- Google und Dienste (früher systemcheck.js und selbsttest.js) ---------------- */
+    let posMerk = null;
+    function posHolen() {
+        if (!posMerk) posMerk = (async () => {
+            if (!navigator.geolocation) return { ok: false, text: 'nicht unterstützt' };
+            try {
+                const p = await mit(new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000, maximumAge: 120000 })), 10000);
+                return { ok: true, text: 'gefunden', lat: p.coords.latitude, lon: p.coords.longitude };
+            } catch (e) { return { ok: false, text: (e && e.code === 1) ? 'nicht erlaubt' : 'kein Signal' }; }
+        })();
+        return posMerk;
+    }
+    async function pruefStandort() {
+        const p = await posHolen();
+        if (p.ok) return ok('gefunden');
+        return p.text === 'nicht erlaubt'
+            ? schlecht('nicht erlaubt', 'Android: Einstellungen > Apps > ' + (IN_APP() ? 'Nova' : 'Chrome') + ' > Berechtigungen > Standort erlauben')
+            : schlecht(p.text, 'Standort und GPS am Handy einschalten, kurz nach draußen oder ans Fenster');
+    }
+    let googleStatus = null;
+    async function googleBereit() {
+        if (googleStatus) return googleStatus;
+        let okG = false, warumG = '';
+        try {
+            if (typeof accessToken === 'undefined' || !accessToken) warumG = 'nicht verbunden';
+            else {
+                if (!isGoogleAuthorized()) { try { await ensureGoogleAuth(4000); } catch (e) {} }
+                if (isGoogleAuthorized()) okG = true; else warumG = 'Anmeldung abgelaufen';
+            }
+        } catch (e) { warumG = 'nicht verbunden'; }
+        googleStatus = { ok: okG, warum: warumG };
+        return googleStatus;
+    }
+    async function pruefGoogle(url, keineRechte) {
+        const g = await googleBereit();
+        if (!g.ok) return schlecht(g.warum, 'Einstellungen > Google neu verbinden');
+        try {
+            const r = await mit(fetch(url, { headers: { 'Authorization': 'Bearer ' + accessToken } }), 12000);
+            if (r.ok) return ok('verbunden');
+            if (r.status === 401) { try { markGoogleExpired(); } catch (e) {} return schlecht('Anmeldung abgelaufen', 'Einstellungen > Google neu verbinden'); }
+            if (r.status === 403) return schlecht(keineRechte, 'Einstellungen > Google neu verbinden und alle Häkchen setzen');
+            return schlecht('Fehler ' + r.status, 'später nochmal prüfen');
+        } catch (e) { return schlecht(warum(e), 'Netz prüfen'); }
+    }
+    const pruefKalender = () => pruefGoogle('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=1', 'Berechtigung fehlt');
+    const pruefGmail = () => pruefGoogle('https://gmail.googleapis.com/gmail/v1/users/me/profile', 'Berechtigung "Gmail lesen" fehlt');
+    async function pruefWetter() {
+        try {
+            if (typeof fetchWeatherData !== 'function') return schlecht('Funktion fehlt', 'js/briefing.js fehlt oder hat einen Fehler');
+            const w = await mit(fetchWeatherData(), 15000);
+            if (w && !w.fehler) return ok('Daten kommen an');
+            return schlecht((w && w.fehler) || 'keine Daten', 'Standort erlauben, dann nochmal prüfen');
+        } catch (e) { return schlecht(warum(e), 'Netz prüfen'); }
+    }
+    async function pruefSprit() {
+        try {
+            const { r, d } = await api('/api/tank?lat=53.55&lng=10.0&rad=5', {}, 15000);
+            if (r.ok && d && Array.isArray(d.stations)) return ok(d.stations.length + (d.stations.length === 1 ? ' Tankstelle' : ' Tankstellen') + ' gefunden');
+            return schlecht(fehlerText(r, d), 'bei Vercel TANKERKOENIG_API_KEY prüfen');
+        } catch (e) { return schlecht(warum(e), 'Netz oder Vercel prüfen'); }
+    }
+    async function pruefKarten() {
+        try {
+            const { r, d } = await api('/api/geocode?q=Hamburg', {}, 15000);
+            if (r.ok && Array.isArray(d) && d.length > 0) return ok('Adress-Suche funktioniert');
+            return schlecht((d && d.error) || ('Status ' + r.status), 'später nochmal prüfen (Kartendienst antwortet nicht)');
+        } catch (e) { return schlecht(warum(e), 'Netz oder Vercel prüfen'); }
+    }
+    async function pruefKI() {
+        try {
+            const { r, d } = await api('/api/groq', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'openai/gpt-oss-120b', reasoning_effort: 'low', messages: [{ role: 'user', content: 'Antworte nur mit dem Wort ok.' }] }) }, 25000);
+            if (r.ok && d && d.choices && d.choices[0]) return ok('antwortet');
+            return schlecht(fehlerText(r, d), 'bei Vercel GROQ_API_KEY und das Mengenlimit prüfen');
+        } catch (e) { return schlecht(warum(e), 'Netz oder Vercel prüfen'); }
+    }
+    async function pruefRoute() {
+        try {
+            const p = await posHolen(); const lat = p.ok ? p.lat : 53.5, lon = p.ok ? p.lon : 10.48;
+            const { r, d } = await api('/api/route?fromLat=' + lat + '&fromLon=' + lon + '&toLat=53.55&toLon=10.0&geometry=0&google=1', {}, 15000);
+            const rt = d && d.routes && d.routes[0];
+            if (!r.ok || !rt) return schlecht((d && d.error) || ('Status ' + r.status), 'Netz oder Vercel prüfen');
+            if (d.quelle === 'google') return ok(Math.round(rt.duration / 60) + ' Min, Google');
+            return schlecht('nur Ersatzdienst (OSRM)', 'bei Vercel Google-Schlüssel und das Monatslimit prüfen');
+        } catch (e) { return schlecht(warum(e), 'Netz oder Vercel prüfen'); }
+    }
+    async function pruefVerkehr() {
+        try {
+            const p = await posHolen(); const lat = p.ok ? p.lat : 53.5, lon = p.ok ? p.lon : 10.48, dl = 0.1, dn = 0.17;
+            const { r, d } = await api('/api/stau?traffic=1&bbox=' + [lon - dn, lat - dl, lon + dn, lat + dl].map(n => n.toFixed(5)).join(','), {}, 15000);
+            if (r.ok && d && !d.error) return ok('Meldungen kommen an');
+            return schlecht(fehlerText(r, d), 'bei Vercel TOMTOM_API_KEY prüfen');
+        } catch (e) { return schlecht(warum(e), 'Netz oder Vercel prüfen'); }
+    }
+    async function pruefDiesel() {
+        try {
+            const p = await posHolen(); const lat = p.ok ? p.lat : 53.5, lon = p.ok ? p.lon : 10.48;
+            const { r, d } = await api('/api/tankroute?lat=' + lat.toFixed(5) + '&lng=' + lon.toFixed(5) + '&rad=5', {}, 15000);
+            if (r.ok && d && !d.error) return ok('antwortet');
+            return schlecht(fehlerText(r, d), 'bei Vercel TANKERKOENIG_API_KEY prüfen');
+        } catch (e) { return schlecht(warum(e), 'Netz oder Vercel prüfen'); }
+    }
+    async function pruefBausteine() {
+        const fehlt = [];
+        if (!window.jvLage || typeof window.jvLage.open !== 'function') fehlt.push('Lagebild');
+        if (!window.jvPanel) fehlt.push('Fenster');
+        const liste = (window.jvCommands && window.jvCommands.list) ? window.jvCommands.list().join(' ') : '';
+        ['lagebild', 'arbeitsweg-via'].forEach(n => { if (liste.indexOf(n) < 0) fehlt.push('Befehl ' + n); });
+        if (typeof window.executeAction !== 'function') fehlt.push('Aktionen');
+        return fehlt.length ? schlecht('fehlt: ' + fehlt.join(', '), 'Datei im Ordner js fehlt oder hat einen Fehler') : ok('Lagebild und Sprachbefehle geladen');
+    }
+
     /* ---------------- Ablauf ---------------- */
     // [Gruppe, Name, Funktion, teuer?]
     const PRUEFUNGEN = [
-        ['Handy', 'Mikrofon', pruefMikro], ['Handy', 'Kamera', pruefKamera], ['Handy', 'Benachrichtigungen', pruefPush],
+        ['Handy', 'Standort', pruefStandort], ['Handy', 'Mikrofon', pruefMikro], ['Handy', 'Kamera', pruefKamera], ['Handy', 'Benachrichtigungen', pruefPush],
         ['Handy', 'Speicher', pruefSpeicher], ['Handy', 'Stimme (Handy)', pruefStimme], ['Handy', 'Netz', pruefNetz], ['Handy', 'Uhrzeit', pruefUhr],
-        ['Programm', 'Programmdateien', pruefDateien], ['Programm', 'Funktionen', pruefFunktionen], ['Programm', 'Programmfehler', pruefFehler], ['Programm', '3D-Kopf', pruefModelle],
+        ['Programm', 'Programmdateien', pruefDateien], ['Programm', 'Bausteine', pruefBausteine], ['Programm', 'Funktionen', pruefFunktionen], ['Programm', 'Programmfehler', pruefFehler], ['Programm', '3D-Kopf', pruefModelle],
+        ['Google', 'Google Kalender', pruefKalender], ['Google', 'Gmail', pruefGmail],
+        ['Dienste', 'Wetter', pruefWetter], ['Dienste', 'Spritpreise', pruefSprit], ['Dienste', 'Karten', pruefKarten], ['Dienste', 'KI', pruefKI, true],
+        ['Dienste', 'Google-Route', pruefRoute, true], ['Dienste', 'Verkehr', pruefVerkehr], ['Dienste', 'Diesel-Suche', pruefDiesel],
         ['Server', 'App-Code', pruefAppCode], ['Server', 'Langzeitgedächtnis', pruefGedaechtnis], ['Server', 'Abgleich', pruefAbgleich], ['Server', 'Push-Server', pruefPushServer],
         ['Server', 'Mail-Wächter', pruefMailWaechter], ['Server', 'Nachrichten', pruefNachrichten], ['Server', 'Filme', pruefFilme], ['Server', 'Stimme Edge', pruefEdge],
         ['Server', 'Stimme Fish', pruefFish, true], ['Server', 'YouTube', pruefYoutube, true],
@@ -302,20 +413,14 @@
 
     async function sammeln(leicht) {
         const res = [];
-        // 1) Bisherige Prüfungen (Google, Wetter, Karten, KI, Standort, Route, Verkehr ...) – nur bei der Prüfung von Hand
-        if (!leicht && origCollect) {
-            try {
-                const alt = await origCollect.apply(window, []);
-                (alt || []).forEach(r => res.push(Object.assign({ gruppe: GRUPPE_VON[r.name] || 'Dienste', fix: '' }, r)));
-            } catch (e) { res.push({ gruppe: 'Dienste', name: 'Grundprüfung', ok: false, text: 'Fehler: ' + (e && e.message || e), fix: '' }); }
-        }
-        // 2) Neue Prüfungen, alle gleichzeitig
-        await Promise.all(PRUEFUNGEN.filter(p => !(leicht && p[3])).map(async ([gruppe, name, fn]) => {
+        posMerk = null; googleStatus = null;
+        // Alle Prüfungen gleichzeitig
+        await Promise.all(PRUEFUNGEN.map((p, nr) => [p, nr]).filter(([p]) => !(leicht && p[3])).map(async ([[gruppe, name, fn], nr]) => {
             let r;
             try { r = await fn(); } catch (e) { r = schlecht('Prüfung selbst ist abgestürzt: ' + (e && e.message || e), ''); }
-            res.push({ gruppe, name, ok: r.ok, text: r.text, fix: r.fix || '' });
+            res.push({ gruppe, name, ok: r.ok, text: r.text, fix: r.fix || '', nr });
         }));
-        res.sort((a, b) => GRUPPEN.indexOf(a.gruppe) - GRUPPEN.indexOf(b.gruppe));
+        res.sort((a, b) => (GRUPPEN.indexOf(a.gruppe) - GRUPPEN.indexOf(b.gruppe)) || ((a.nr || 0) - (b.nr || 0)));
         return res;
     }
     window.collectSystemChecksVoll = sammeln;
@@ -336,6 +441,17 @@
         return out;
     }
     window.__jvCheckText = alsText;
+
+
+    /* Namen, die andere Dateien noch benutzen (localcommands.js ruft isSystemCheckCommand) */
+    window.checkWithTimeout = (p, ms) => mit(p, ms, 'Zeitüberschreitung');
+    window.isSystemCheckCommand = function (text) {
+        const t = String(text || '').toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!t || t.length > 60) return false;
+        return /\b(systemcheck|systemprüfung|systemtest|selbsttest)\b/.test(t)
+            || /\bprüf\w*\s+(?:mal\s+)?(?:bitte\s+)?(?:alle\s+|alles\b|die\s+)?(?:verbindungen|schnittstellen|systeme)\b/.test(t)
+            || /\balles prüfen\b/.test(t);
+    };
 
     /* Knopf im Menü */
     window.runSystemCheck = async function () {
