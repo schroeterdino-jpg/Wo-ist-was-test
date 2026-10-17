@@ -774,8 +774,9 @@ function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);cons
  root.position.y=Math.sin(now*.0011)*.012*(1-sleepLevel)+(st==='listening'?.008:0)+atem*.012-(1-zubS)*.55;
  root.scale.setScalar(zubS*(1+.006*atem));
  updateBackground(now,dt,st,speaking);
- renderer.render(scene,camera)}
-function setMode(on){active=!!on; const sphere=document.getElementById('jarvisSphere'); const holo=document.getElementById('jarvisHolo'); btn.classList.toggle('active',active); btn.textContent=active?'● 3D':'○ 3D'; if(!active){renderer.domElement.style.display='none';hideStatus();if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} if(!modelReady){renderer.domElement.style.display='none';showStatus('3D-Kopf wird geladen …');if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} renderer.domElement.style.display='block';hideStatus();if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
+ renderer.render(scene,camera);
+ if(window.__novaBrainDraw)window.__novaBrainDraw(now,dt,st)}
+function setMode(on){active=!!on; if(!on&&window.__novaBrainShow)window.__novaBrainShow(false); const sphere=document.getElementById('jarvisSphere'); const holo=document.getElementById('jarvisHolo'); btn.classList.toggle('active',active); btn.textContent=active?'● 3D':'○ 3D'; if(!active){renderer.domElement.style.display='none';hideStatus();if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} if(!modelReady){renderer.domElement.style.display='none';showStatus('3D-Kopf wird geladen …');if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} renderer.domElement.style.display='block';hideStatus();if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
 const btn=document.createElement('button');btn.id='jv3dToggle';btn.type='button';btn.textContent='● 3D';btn.title='JARVIS 3D-Kopf';btn.style.cssText='position:absolute;left:6px;top:6px;z-index:9;border:1px solid #16cce8;border-radius:999px;background:#07131ddd;color:#9df6ff;padding:7px 10px;font:700 11px system-ui;letter-spacing:.04em;cursor:pointer;box-shadow:0 0 16px #00bfff33';holder.appendChild(btn);btn.onclick=()=>setMode(!active);
 window.jvAvatar3D={setMode,setExpression:function(n){ if(kiMimikAktiv()) return; return setExpression(n); },expressions:['neutral','friendly','happy','laugh','sad','serious','surprised','thinking','concerned','skeptical','question','browsup','browsdown','amused','pleased','disgust','angry','tired','awe','doubt','smug','cheeky','unsure','puh','kiss','relaxed','scared','puzzled'],update(p={}){if(p.expression)setExpression(p.expression);if(p.mouth!=null)manualMouth=Math.max(0,Math.min(1,p.mouth));if(p.blink)blink=1;if(p.tongue){tongueUntil=performance.now()+Math.max(400,Number(p.tongueMs)||2200)}},tongue(ms=2200){const tn=tongueMorphName();if(!tn)return false;tongueUntil=performance.now()+ms;return true},grimasse:setGrimasse,get state(){return avatarState()},get active(){return active},get busy(){const n=performance.now();return n<manualExpressionUntil||n<tongueUntil},get ready(){return modelReady},get morphs(){return [...morphNames]},get hasTongue(){return !!tongueMorphName()}};
 window.jvAvatar3D.setHead=setHead; window.jvAvatar3D.sleep=function(on){ if(on){sleepForced=true;forcedGrace=0}else{sleepForced=false;lastActive=performance.now()} }; window.jvAvatar3D.zubehoer=function(l){ return zubSetzen(Array.isArray(l)?l:[],true) }; window.jvAvatar3D.mirror=function(t){ try{spiegeln(t)}catch(e){} }; try{Object.defineProperty(window.jvAvatar3D,'kopf',{get(){return kopfArt}})}catch(e){}
@@ -822,6 +823,113 @@ window.handleAvatarExpressionCommand=function(text){
    if(!r){ try{ spiegeln(text); }catch(e){} }
    return r;
  };
+})();
+
+
+// ---- Sichtbares Gehirn in der Glaskuppel am Scheitel (Frontansicht), mit Synapsen-Blitzen ----
+(function(){
+  let BR_AN=true; try{ BR_AN=localStorage.getItem('nova_gehirn_kopf')!=='0'; }catch(e){}
+  const cv=document.createElement('canvas'); cv.id='jvKopfGehirn';
+  cv.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:3;display:none';
+  holder.appendChild(cv); const cx=cv.getContext('2d');
+  function groesse(){ const dpr=Math.min(2,window.devicePixelRatio||1), w=holder.clientWidth||360, h=holder.clientHeight||360; const W=Math.round(w*dpr),H=Math.round(h*dpr); if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;} return {W,H}; }
+  // Textur: zwei Hirnhälften mit Windungen (einmalig berechnet)
+  const TW=256, TH=192; let tex=null, punkte=[];
+  function rnd(i,j){ let h=(i*374761393+j*668265263)^0x5bd1e995; h=(h^(h>>>13))*1274126177; return ((h^(h>>>16))>>>0)/4294967295; }
+  function vn(x,y){ const i=Math.floor(x),j=Math.floor(y),fx=x-i,fy=y-j,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);
+    return (rnd(i,j)*(1-u)+rnd(i+1,j)*u)*(1-v)+(rnd(i,j+1)*(1-u)+rnd(i+1,j+1)*u)*v; }
+  function ridge(x,y){ let s=0,a=.55,f=1; for(let o=0;o<3;o++){ s+=a*(1-Math.abs(2*vn(x*f,y*f)-1)); a*=.5; f*=2.1; } return s; }
+  function bauen(){
+    const c=document.createElement('canvas'); c.width=TW; c.height=TH; const g=c.getContext('2d'), im=g.createImageData(TW,TH), d=im.data, kand=[];
+    for(let y=0;y<TH;y++)for(let x=0;x<TW;x++){
+      const nx=(x/TW)*2-1, ny=(y/TH)*2-1, hx=nx<0?-1:1, ex=(nx-hx*.5)/.52, ey=(ny+.02)/.97, r=ex*ex+ey*ey;
+      const gap=Math.abs(nx)<.035; if(r>1||gap){ continue; }
+      const wx=x/11+2.2*vn(x/30,y/30)+1.5*vn(x/13+5,y/13), wy=y/11+2.2*vn(y/30+9,x/30)+1.5*vn(y/13+2,x/13+7);
+      let b=ridge(wx,wy); b=Math.max(0,Math.min(1,(b-.35)*1.5));
+      const rand=Math.min(1,(1-r)*5), a=(.22+.78*b)*(.35+.65*rand), k=(y*TW+x)*4;
+      d[k]=d[k+1]=d[k+2]=255; d[k+3]=Math.round(255*Math.min(1,a));
+      if(b>.72&&r<.85&&((x*7+y*13)%5===0)) kand.push([x,y]);
+    }
+    g.putImageData(im,0,0); tex=c;
+    // ca. 120 Synapsen-Punkte auf hellen Windungen
+    for(let n=0;n<130&&kand.length;n++){ const i=Math.floor(rnd(n,77)*kand.length); punkte.push({x:kand[i][0],y:kand[i][1],nb:[]}); kand.splice(i,1); }
+    punkte.forEach((p,i)=>{ const ds=punkte.map((q,j)=>[j,(p.x-q.x)**2+(p.y-q.y)**2]).filter(a=>a[0]!==i&&a[1]<32*32).sort((a,b)=>a[1]-b[1]).slice(0,3); p.nb=ds.map(a=>a[0]); });
+  }
+  // Leuchtpunkt
+  const spr=document.createElement('canvas'); spr.width=spr.height=48; { const g=spr.getContext('2d'), gr=g.createRadialGradient(24,24,0,24,24,24); gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(.22,'rgba(255,255,255,.85)'); gr.addColorStop(.55,'rgba(255,255,255,.18)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; g.fillRect(0,0,48,48); }
+  const work=document.createElement('canvas'); work.width=TW; work.height=TH; const wx=work.getContext('2d');
+  const FARBEN={idle:[[60,215,255],[120,255,240]],listening:[[70,255,150],[190,255,120]],thinking:[[255,165,50],[255,230,110]],speaking:[[190,110,255],[255,120,220]]};
+  let farbe=[[60,215,255],[120,255,240]], letzter=null, funken=[], nextFunk=0, wellenStart=-1e9, cache={m:null,art:null};
+  function feuer(i,now,st){ const p=punkte[i]; if(!p) return; funken.push({i,t:now,st}); if(funken.length>90) funken.shift(); }
+  function burst(n,now){ for(let k=0;k<n;k++) feuer(Math.floor(Math.random()*punkte.length),now+k*35); }
+  window.jvGehirnPuls=function(n){ try{ if(punkte.length) burst(n||10,performance.now()); }catch(e){} };
+  function masse(){
+    if(cache.m&&cache.art===kopfArt&&cache.mod===model) return cache.m;
+    let M=null; try{ M=kopfMasse(); }catch(e){}
+    if(!M) M=Object.assign({ecx:0},REIF_M);
+    cache={m:M,art:kopfArt,mod:model}; return M;
+  }
+  const V=new THREE.Vector3();
+  function proj(x,y,z,W,H){ V.set(x,y,z); model.localToWorld(V); V.project(camera); return [(V.x*.5+.5)*W,(-V.y*.5+.5)*H]; }
+  function zeichnen(now,dt,st,sl){
+    const {W,H}=groesse(); cx.clearRect(0,0,W,H);
+    const ok=BR_AN&&active&&modelReady&&model&&!(typeof zubSel!=='undefined'&&ZUB_KOPF.some(n=>zubSel.has(n)));
+    cv.style.display=ok?'block':'none'; if(!ok) return;
+    if(!tex) bauen();
+    const M=masse(), h=M.top-M.ey, zc=(M.zf+M.zmin)/2, yc=M.ey+.46*h;
+    const c=proj(M.ecx,yc,zc,W,H), l=proj(M.ecx-.85*M.hw,yc,zc,W,H), r=proj(M.ecx+.85*M.hw,yc,zc,W,H), t=proj(M.ecx,yc+.425*h,zc,W,H), b=proj(M.ecx,yc-.425*h,zc,W,H);
+    const rx=Math.hypot(r[0]-l[0],r[1]-l[1])/2, ry=Math.hypot(t[0]-b[0],t[1]-b[1])/2, ang=Math.atan2(r[1]-l[1],r[0]-l[0]);
+    if(!(rx>4&&ry>4)) return;
+    // Farben weich angleichen
+    const ziel=FARBEN[st]||FARBEN.idle; for(let a=0;a<2;a++)for(let k=0;k<3;k++) farbe[a][k]+=(ziel[a][k]-farbe[a][k])*(1-Math.exp(-dt*4));
+    const f0=farbe[0].map(Math.round), f1=farbe[1].map(Math.round), col=a=>'rgb('+a.join(',')+')';
+    if(st!==letzter){ if(letzter!==null){ burst(st==='thinking'?18:14,now); wellenStart=now; } letzter=st; }
+    const dim=1-.8*sl, takt={idle:.0016,listening:.0045,thinking:.0075,speaking:.006}[st]||.0016;
+    const puls=.62+.38*Math.sin(now*takt*2.2)+(st==='speaking'?.12*Math.sin(now*.021):0);
+    // Funken auslösen
+    const rate={idle:1.6,listening:6,thinking:12,speaking:9}[st]||1.6;
+    if(now>nextFunk){ feuer(Math.floor(Math.random()*punkte.length),now,st); nextFunk=now+1000/rate*(.4+Math.random()*1.2); }
+    // Kettenreaktion beim Denken/Sprechen
+    for(const f of funken.slice()){ if(!f.kette&&now-f.t>90&&(f.st==='thinking'||f.st==='speaking'||f.st==='listening')&&now>=f.t){ f.kette=1; const nb=punkte[f.i].nb; if(nb.length&&Math.random()<.8) funken.push({i:nb[Math.floor(Math.random()*nb.length)],t:now+20,st:f.st,kette:f.st==='idle'?1:(Math.random()<.5?1:0)}); } }
+    cx.save(); cx.translate(c[0],c[1]); cx.rotate(ang);
+    // Glaskuppel
+    cx.beginPath(); cx.ellipse(0,0,rx,ry,0,0,Math.PI*2);
+    const dg=cx.createRadialGradient(0,-ry*.2,ry*.1,0,0,ry*1.05); dg.addColorStop(0,'rgba(4,12,20,.86)'); dg.addColorStop(.8,'rgba(3,10,16,.78)'); dg.addColorStop(1,'rgba(3,10,16,.5)');
+    cx.globalAlpha=dim*.9+.1*(1-dim); cx.fillStyle=dg; cx.fill(); cx.globalAlpha=1;
+    cx.clip();
+    // Gehirn eingefärbt
+    wx.globalCompositeOperation='source-over'; wx.clearRect(0,0,TW,TH); wx.drawImage(tex,0,0);
+    wx.globalCompositeOperation='source-atop';
+    const gg=wx.createLinearGradient(0,0,TW,TH); gg.addColorStop(0,col(f0)); gg.addColorStop(1,col(f1)); wx.fillStyle=gg; wx.fillRect(0,0,TW,TH);
+    const bw=rx*1.92, bh=ry*1.9, bx=-bw/2, by=-bh/2;
+    cx.globalCompositeOperation='lighter'; cx.globalAlpha=Math.min(1,(.45+.55*puls)*dim);
+    cx.drawImage(work,bx,by,bw,bh);
+    // Welle vom Zentrum aus
+    const wt=(now-wellenStart)/900; if(wt>=0&&wt<1){ cx.globalAlpha=(1-wt)*.7*dim; cx.strokeStyle=col(f1); cx.lineWidth=2.5; cx.beginPath(); cx.ellipse(0,0,rx*wt*1.1,ry*wt*1.1,0,0,Math.PI*2); cx.stroke(); }
+    // Synapsen
+    const sz=Math.max(7,rx*.17);
+    for(let k=funken.length-1;k>=0;k--){ const f=funken[k], a=(now-f.t)/420; if(a>=1){ funken.splice(k,1); continue; } if(a<0) continue;
+      const p=punkte[f.i], x=bx+(p.x/TW)*bw, y=by+(p.y/TH)*bh, e=a<.15?a/.15:1-(a-.15)/.85;
+      cx.globalAlpha=Math.min(1,e)*dim; cx.drawImage(spr,x-sz,y-sz,sz*2,sz*2);
+      if(e>.7){ cx.globalAlpha=(e-.7)/.3*.9*dim; cx.drawImage(spr,x-sz*.45,y-sz*.45,sz*.9,sz*.9); } }
+    cx.globalAlpha=1; cx.globalCompositeOperation='source-over';
+    cx.restore();
+    // Glasrand + Glanz
+    cx.save(); cx.translate(c[0],c[1]); cx.rotate(ang);
+    cx.beginPath(); cx.ellipse(0,0,rx,ry,0,0,Math.PI*2); cx.lineWidth=Math.max(1.5,rx*.025); cx.strokeStyle=col(f0); cx.globalAlpha=(.5+.4*puls)*dim; cx.shadowColor=col(f0); cx.shadowBlur=rx*.16; cx.stroke(); cx.shadowBlur=0;
+    cx.beginPath(); cx.ellipse(0,0,rx*.86,ry*.86,0,Math.PI*1.12,Math.PI*1.55); cx.lineWidth=Math.max(1,rx*.02); cx.strokeStyle='rgba(255,255,255,.55)'; cx.globalAlpha=.55*dim; cx.stroke();
+    cx.restore(); cx.globalAlpha=1;
+  }
+  window.__novaBrainDraw=function(now,dt,st){ try{ zeichnen(now,dt,st,sleepLevel); }catch(e){ if(!zeichnen.warned){ zeichnen.warned=1; console.warn('Kopf-Gehirn:',e); } } };
+  window.__novaBrainShow=function(on){ if(!on) cv.style.display='none'; };
+  // Sprachbefehl
+  function an(v){ BR_AN=v; try{ localStorage.setItem('nova_gehirn_kopf',v?'1':'0'); }catch(e){} }
+  function sagen(t){ try{ if(typeof speak==='function') speak(t, typeof continueConversation==='function'?continueConversation:undefined); }catch(e){} }
+  let tries=0; (function reg(){ if(window.jvCommands&&typeof jvCommands.use==='function'){ jvCommands.use('gehirnimkopf',function(text,next){
+      const t=String(text||'').toLowerCase().replace(/[.,!?;:]+/g,' ').replace(/\s+/g,' ').trim();
+      const m=t.match(/^(?:(?:jarvis|zane|nova) )?(?:schalte? |mach |zeig )?(?:(?:mir|den|das) )*gehirn im kopf(?: (an|aus|ein))?(?:schalten)?$/);
+      if(!m) return next(text);
+      const v=m[1]!=='aus'; an(v); sagen(v?'Das Gehirn im Kopf ist an.':'Das Gehirn im Kopf ist aus.'); return true; },150); } else if(tries++<40) setTimeout(reg,500); })();
 })();
 
 })();
