@@ -211,6 +211,19 @@ function speakableOrdinalDates(text) {
 }
 
 
+/* --- Küchen-Abkürzungen: "2 EL Öl" -> "2 Esslöffel Öl", "1 TL Salz" -> "1 Teelöffel Salz", "1 Msp." -> "1 Messerspitze", "1 Pck." -> "1 Packung" ---
+   Nur nach einer Zahl. "TL" bleibt bei Geld-Kontext (Lira, Euro, Kurs, Preis ...) unberührt, weil es dort die türkische Lira ist. */
+function speakableMasse(text) {
+    let t = String(text == null ? '' : text);
+    const num = '(\\d[\\d.,/]*|½|¼|¾)\\s*';
+    const ende = '(?![A-Za-zÄÖÜäöüß])\\.?';
+    t = t.replace(new RegExp(num + '(?:EL|El|E\\.L)' + ende, 'g'), '$1 Esslöffel');
+    if (!/lira|euro|€|kurs|währung|waehrung|preis|kostet|\\bTRY\\b/i.test(t)) t = t.replace(new RegExp(num + '(?:TL|Tl|T\\.L)' + ende, 'g'), '$1 Teelöffel');
+    t = t.replace(new RegExp(num + 'Msp' + ende, 'g'), '$1 Messerspitze');
+    t = t.replace(new RegExp(num + '(?:Pck|Pkg)' + ende, 'g'), '$1 Packung');
+    return t;
+}
+
 /* --- "1 Teelöffel" -> "ein Teelöffel", "1 Packung" -> "eine Packung" ---
    Die Stimme liest die Ziffer 1 sonst als "eins". Nur beim Sprechen; auf dem Bildschirm bleibt die Ziffer.
    Geschlecht nach dem Hauptwort: weibliche Wörter (Packung, Prise, Dose, ...) -> "eine", sonst "ein".
@@ -268,19 +281,19 @@ function moodTagged(text) {
         if (typeof fetchCloudSpeechBlob === 'function') {
             const origCloud = fetchCloudSpeechBlob;
             fetchCloudSpeechBlob = function (text, voice) {
-                return origCloud.call(this, moodTagged(speakableEin(speakableOrdinalDates(applyPronunciations(text)))), voice);
+                return origCloud.call(this, moodTagged(speakableEin(speakableMasse(speakableOrdinalDates(applyPronunciations(text))))), voice);
             };
         }
         if (typeof speakBrowser === 'function') {
             const origBrowser = speakBrowser;
             speakBrowser = function (cleanText, onComplete, langCode) {
-                return origBrowser.call(this, langCode ? cleanText : speakableEin(applyPronunciations(cleanText)), onComplete, langCode);   // Dolmetscher (Fremdsprache) bleibt unberührt
+                return origBrowser.call(this, langCode ? cleanText : speakableEin(speakableMasse(applyPronunciations(cleanText))), onComplete, langCode);   // Dolmetscher (Fremdsprache) bleibt unberührt
             };
         }
         if (typeof speakAckBrowser === 'function') {
             const origAck = speakAckBrowser;
             speakAckBrowser = function (text, gen, onComplete) {
-                return origAck.call(this, speakableEin(applyPronunciations(text)), gen, onComplete);
+                return origAck.call(this, speakableEin(speakableMasse(applyPronunciations(text))), gen, onComplete);
             };
         }
     }
