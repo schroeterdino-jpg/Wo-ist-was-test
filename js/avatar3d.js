@@ -884,7 +884,7 @@ window.handleAvatarExpressionCommand=function(text){
     const ziel=FARBEN[st]||FARBEN.idle; for(let a=0;a<2;a++)for(let k=0;k<3;k++) farbe[a][k]+=(ziel[a][k]-farbe[a][k])*(1-Math.exp(-dt*4));
     const f0=farbe[0].map(Math.round), f1=farbe[1].map(Math.round), col=a=>'rgb('+a.join(',')+')';
     if(st!==letzter){ if(letzter!==null){ burst(st==='thinking'?18:14,now); wellenStart=now; } letzter=st; }
-    const dim=1-.8*sl, takt={idle:.0016,listening:.0045,thinking:.0075,speaking:.006}[st]||.0016;
+    const dim=1-.3*sl, takt={idle:.0016,listening:.0045,thinking:.0075,speaking:.006}[st]||.0016;
     const puls=.62+.38*Math.sin(now*takt*2.2)+(st==='speaking'?.12*Math.sin(now*.021):0);
     // Funken auslösen
     const rate={idle:1.6,listening:6,thinking:12,speaking:9}[st]||1.6;
@@ -895,7 +895,7 @@ window.handleAvatarExpressionCommand=function(text){
     // Glaskuppel
     cx.beginPath(); cx.ellipse(0,0,rx,ry,0,0,Math.PI*2);
     const dg=cx.createRadialGradient(0,-ry*.2,ry*.1,0,0,ry*1.05); dg.addColorStop(0,'rgba(4,12,20,.86)'); dg.addColorStop(.8,'rgba(3,10,16,.78)'); dg.addColorStop(1,'rgba(3,10,16,.5)');
-    cx.globalAlpha=dim*.9+.1*(1-dim); cx.fillStyle=dg; cx.fill(); cx.globalAlpha=1;
+    cx.globalAlpha=.95; cx.fillStyle=dg; cx.fill(); cx.globalAlpha=1;
     cx.clip();
     // Gehirn eingefärbt
     wx.globalCompositeOperation='source-over'; wx.clearRect(0,0,TW,TH); wx.drawImage(tex,0,0);
