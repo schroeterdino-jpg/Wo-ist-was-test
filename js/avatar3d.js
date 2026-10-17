@@ -208,9 +208,9 @@ function setHead(name){
  morphMeshes.length=0; morphNames=new Set(); modelReady=false;
  ladeKopf(); return true;
 }
-let ladeNr=0;
+let ladeNr=0, zubEyes=[], zubHeadMesh=null;
 function ladeKopf(){
-const meine=++ladeNr, art=kopfArt;
+const meine=++ladeNr, art=kopfArt; zubEyes=[]; zubHeadMesh=null;
 gltfLoader.load(KOPF_URL[art],g=>{
  if(meine!==ladeNr) return;
  model=g.scene; faceRoot.add(model);
@@ -226,6 +226,7 @@ gltfLoader.load(KOPF_URL[art],g=>{
    }
    const ancestry=ancestryName(o);
    const part=/teeth/.test(ancestry)?'teeth':(/eyeleft|eyeright|grp_eye/.test(ancestry)?'eye':(/head/.test(ancestry)?'head':'other'));
+   if(part==='eye')zubEyes.push(o); if(part==='head'&&!zubHeadMesh)zubHeadMesh=o;
 
    function makeEyeMaterial(oldMat){
      // Original-Augen-Textur behalten (damit Augenweiß + Pupille erhalten bleiben),
@@ -338,7 +339,7 @@ gltfLoader.load(KOPF_URL[art],g=>{
  box=new THREE.Box3().setFromObject(model); const center=new THREE.Vector3();box.getCenter(center);
  model.position.x-=center.x; model.position.y-=(art==='reif'?KOPF_REIF.cy*sc:center.y)+.04; model.position.z-=center.z;
  model.updateMatrixWorld(true);
- modelReady=true; setExpression('friendly'); btn.textContent='● 3D'; hideStatus(); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
+ modelReady=true; try{zubAnbringen()}catch(e){console.warn('Zubehör:',e)} setExpression('friendly'); btn.textContent='● 3D'; hideStatus(); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
  console.info('JARVIS 3D v6.7 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
 },p=>{if(active&&p.total)showStatus('GLB lädt … '+Math.round(p.loaded/p.total*100)+' %')},e=>{console.error('JARVIS 3D: facecap.glb konnte nicht geladen werden',e);btn.textContent='⚠ 3D';btn.title='facecap.glb konnte nicht geladen werden';const msg=(e&&e.message)?e.message:String(e||'Unbekannter Fehler');
 showStatus('✕ GLB-Fehler: '+msg.slice(0,120),true);
@@ -538,14 +539,15 @@ function applyMorphs(dt,speaking,now){
  }
  else if(manualMouth>0){audioDriven=false;envState=0;clearSpeechMorphs();setMorph('jawOpen',manualMouth)}
  else { audioDriven=false; envState=0; clearSpeechMorphs(); if(!/^(laugh|surprised|awe)$/.test(expression)) setMorph('mouthClose',.35); }
+ if(sleepLevel>.4&&!fishSpeaking){ setMorph('jawOpen',(.045+.03*(.5+.5*Math.sin(now*.0016)))*Math.min(1,sleepLevel)); }   // schlafend: Mund leicht offen, atmet
  // Grimassen (js/grimassen.js): liegen als Überlagerung oben drauf, damit das Aufräumen der Mundformen sie nicht löscht.
  if(grimass){ for(const n in grimass){ if(!fishSpeaking||/^(brow|eye|cheek|nose|mouthSmile|mouthDimple)/.test(n)) setMorph(n,grimass[n]); } }   // beim Sprechen nur Augen, Brauen, Wangen, Nase und Lächeln, nie den Mund/Kiefer
  if(expression==='laugh'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.28));
  if(expression==='surprised'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.34));
  for(const n of morphNames){const want=target[n]||0;const mund=/^(jaw|mouth)/.test(n)&&speaking&&!audioDriven;current[n]+=(want-current[n])*Math.min(1,dt*(mund?8:14))}
- { const b1=resolveMorphName('eyeBlink_L'),b2=resolveMorphName('eyeBlink_R'), wl=(grimass&&grimass.eyeBlink_L)||0, wr=(grimass&&grimass.eyeBlink_R)||0; if(b1)current[b1]=Math.max(0,Math.min(1,Math.max(blinkVal,wl))); if(b2)current[b2]=Math.max(0,Math.min(1,Math.max(blinkVal,wr))); }   // Zwinkern (Mimik) läuft über die Überlagerung
+ { const b1=resolveMorphName('eyeBlink_L'),b2=resolveMorphName('eyeBlink_R'), wl=(grimass&&grimass.eyeBlink_L)||0, wr=(grimass&&grimass.eyeBlink_R)||0; const sl=sleepLevel*.97; if(b1)current[b1]=Math.max(0,Math.min(1,Math.max(blinkVal,wl,sl))); if(b2)current[b2]=Math.max(0,Math.min(1,Math.max(blinkVal,wr,sl))); }   // Zwinkern (Mimik) läuft über die Überlagerung
  const shown=Object.assign({},current);
- if(now>microNext&&!micro&&MIMIK_STAERKE>0){ const pool=MICROS.filter(m=>!(speaking&&m.mund)); micro=Object.assign({t0:now},pool[Math.floor(Math.random()*pool.length)]); microNext=now+1800+Math.random()*4200; }
+ if(now>microNext&&!micro&&MIMIK_STAERKE>0&&sleepLevel<.2){ const pool=MICROS.filter(m=>!(speaking&&m.mund)); micro=Object.assign({t0:now},pool[Math.floor(Math.random()*pool.length)]); microNext=now+1800+Math.random()*4200; }
  { const e=microEnvelope(now); if(e>0&&micro) for(const k in micro.n){ const r=resolveMorphName(k); if(r) shown[r]=Math.min(1,Math.max(shown[r]||0,micro.n[k]*e*MIMIK_STAERKE)); } }
  for(const m of morphMeshes)for(const n of morphNames){const i=morphIndex(m,n);if(i>=0)m.morphTargetInfluences[i]=shown[n]||0}
 }
@@ -561,18 +563,181 @@ function avatarState(){
 }
 function syncAvatarState(now){
  const st=avatarState();
+ schlafPruefen(st,now);
  if(st!==lastAvatarState && now>=manualExpressionUntil){
    lastAvatarState=st;
    if(st==='listening')setExpression('friendly');
-   else if(st==='thinking')setExpression('thinking');
-   else if(st==='idle')setExpression('friendly');
+   else if(st==='thinking'){ if(!(JV_SPIEGELN&&mirror.expr&&now<mirror.until)) setExpression('thinking'); }
+   else if(st==='idle'){ if(sleepLevel<.4) setExpression('friendly'); }
  }
  return st;
 }
+// ================= v7: Schlafen, Blick zum Finger, Spiegeln, Kopfhaltung, Zubehör =================
+const JV_SCHLAF=true;           // nachts im Leerlauf schläft Nova (false = nie)
+const SCHLAF_VON=22, SCHLAF_BIS=5, SCHLAF_NACH_MS=120000;   // 22 bis 5 Uhr, nach 2 Minuten Ruhe
+const JV_BLICK_FINGER=true;     // Augen und Kopf folgen deinem Finger
+const JV_SPIEGELN=true;         // reagiert mit Mimik schon auf das, was du sagst
+const JV_POSE=true;             // Kopfhaltung passend zur Mimik, Nicken beim Zuhören
+const ZUB_URL='./models/zubehoer.glb?v=1';
+const REIF_M={ed:0.06608,ey:1.6437,zf:0.12322,hw:0.09532,top:1.76642,zmin:-0.09046};   // Messwerte des reifen Kopfes (fbx/accglb.py)
+let sleepLevel=0, sleepForced=false, forcedGrace=0, lastActive=performance.now(), sleepOn=false;
+const gaze={x:0,y:0,until:0,w:0,dirty:false};
+const mirror={expr:null,until:0,tilt:0,tiltUntil:0};
+const pose={x:0,y:0,z:0};
+function isNight(){const h=new Date().getHours();return SCHLAF_VON>SCHLAF_BIS?(h>=SCHLAF_VON||h<SCHLAF_BIS):(h>=SCHLAF_VON&&h<SCHLAF_BIS)}
+function schlafPruefen(st,now){
+  if(st!=='idle') lastActive=now;
+  if(sleepForced&&st!=='idle'&&now>=forcedGrace) sleepForced=false;   // in den ersten Sekunden läuft noch das "Gute Nacht"
+}
+function schlafStep(dt,now,st){
+  const want=JV_SCHLAF&&st==='idle'&&modelReady&&(sleepForced||(isNight()&&now-lastActive>SCHLAF_NACH_MS));
+  sleepLevel+=((want?1:0)-sleepLevel)*(1-Math.exp(-dt*(want?1.3:4.5))); if(sleepLevel<.002)sleepLevel=0;
+  if(want&&!sleepOn&&sleepLevel>.5){sleepOn=true;setExpression('neutral')}
+  if(!want&&sleepOn&&sleepLevel<.5){sleepOn=false;setExpression('friendly')}
+  zubS+=(zubWant-zubS)*(1-Math.exp(-dt*4));
+}
+// ---- Blick zum Finger ----
+function gazeEvent(e){
+  try{
+    const now=performance.now();
+    if(e.type==='pointerdown'){ lastActive=now; sleepForced=false; }
+    if(!JV_BLICK_FINGER) return;
+    const r=holder.getBoundingClientRect(); if(!r.width) return;
+    const cx=r.left+r.width/2, cy=r.top+r.height*.45;
+    gaze.x=Math.max(-1,Math.min(1,(e.clientX-cx)/(r.width*.55+80)*1.25));
+    gaze.y=Math.max(-1,Math.min(1,(e.clientY-cy)/(r.height*.55+80)*1.25));
+    gaze.until=now+(e.pointerType==='mouse'?1800:2600);
+  }catch(err){}
+}
+window.addEventListener('pointerdown',gazeEvent,{passive:true,capture:true});
+window.addEventListener('pointermove',gazeEvent,{passive:true,capture:true});
+// ---- Kopfhaltung zur Mimik ----
+const POSEN={question:{z:.09,x:-.02},puzzled:{z:.10,y:.04},skeptical:{z:-.06,y:.05},doubt:{z:-.05},unsure:{z:.06,x:.02},
+ sad:{x:.075,z:.02},concerned:{x:.05,z:.04},tired:{x:.09,z:.05},thinking:{z:.05,y:.04,x:-.02},smug:{x:-.05,z:-.03},cheeky:{z:.07,y:-.03},
+ amused:{z:.03,x:-.01},happy:{z:.015},laugh:{x:-.03},surprised:{x:-.045},scared:{x:-.05},awe:{x:-.04},angry:{x:.045},serious:{x:.025},
+ disgust:{x:-.02,y:.06},pleased:{z:.025},relaxed:{z:.02},kiss:{z:.04}};
+function updatePose(now,dt,st){
+  let tx=0,ty=0,tz=0;
+  if(JV_POSE){
+    const p=POSEN[expression]; if(p){tx=p.x||0;ty=p.y||0;tz=p.z||0}
+    if(now<mirror.tiltUntil){ tz+=mirror.tilt; tx-=.015; }
+    if(st==='listening'&&window.jvUserSpeaking){ tx+=Math.max(0,Math.sin(now*.0042))*.04*Math.max(0,Math.sin(now*.0011+1)); }   // nickt leicht, während du sprichst
+  }
+  const k=1-Math.exp(-dt*3.2); pose.x+=(tx-pose.x)*k; pose.y+=(ty-pose.y)*k; pose.z+=(tz-pose.z)*k;
+}
+// ---- Spiegeln: Nova reagiert auf das, was DU sagst, noch bevor sie antwortet ----
+function nova_spricht(){ const a=window.__jvLipAudio; return !!(a&&!a.paused&&!a.ended); }
+function spiegeln(text){
+  if(!JV_SPIEGELN||!text) return;
+  const raw=String(text), t=' '+raw.toLowerCase().replace(/[.,!;:]+/g,' ').replace(/\s+/g,' ')+' ';
+  let ex=null;
+  if(/(gestorben|verstorben|beerdig|todesfall|trauer|traurig|verloren|vermiss|einsam|geweint|weine |krebs|trennung|schluss gemacht|depress|überfordert|ueberfordert|hoffnungslos|schlecht gegangen|gestresst)/.test(t)) ex='sad';
+  else if(/(sorge|sorgen|angst|besorgt|problem|stress|schlimm|krank|unfall|streit|ärger|aerger|schmerz|nervt|genervt|wütend|wuetend|sauer|frechheit|unfair|müde|muede|erschöpft|erschoepft|kaputt|schlecht geschlafen)/.test(t)) ex='concerned';
+  else if(/(haha|hihi|lustig|witzig|kicher|lach|scherz)/.test(t)) ex='amused';
+  else if(/(gewonnen|bestanden|geburtstag|hochzeit|befördert|befoerdert|schwanger|zusage|geschafft|urlaub|freue mich|freu mich|super|geil|klasse|wunderbar|großartig|grossartig|fantastisch|endlich)/.test(t)) ex='happy';
+  else if(/(stell dir vor|unglaublich|wahnsinn|krass|nicht zu fassen|kaum zu glauben|echt jetzt)/.test(t)) ex='surprised';
+  else if(/(danke|dankeschön|dankeschoen|gut gemacht|bravo|du bist (super|toll|klasse|gut|cool|witzig|der beste|die beste))/.test(t)) ex='pleased';
+  const frage=/\?/.test(raw)||/^ (wer|wie|was|warum|wieso|weshalb|wann|wo|wohin|woher|welche[nrsm]?|wieviel|wie viel|kannst du|kann ich|könntest du|hast du|gibt es|ist es|soll ich|sollen wir|stimmt) /.test(t);
+  const now=performance.now();
+  mirror.expr=ex; mirror.until=now+9000;
+  mirror.tilt=frage?(Math.random()<.5?-1:1)*.10:0; mirror.tiltUntil=frage?now+6000:0;
+  if(ex) setTimeout(()=>{ try{ if(!nova_spricht()&&now+9000>performance.now()) setExpression(ex); }catch(e){} },320);
+}
+// ---- Zubehör (Brille, Sonnenbrille, Mütze, Cap, Kopfhörer) ----
+const ZUB_NAMEN=['brille','sonnenbrille','muetze','cap','kopfhoerer'], ZUB_TEXT={brille:'die Brille',sonnenbrille:'die Sonnenbrille',muetze:'die Mütze',cap:'die Cap',kopfhoerer:'die Kopfhörer'};
+const ZUB_KOPF=['muetze','cap','kopfhoerer'];
+let zubRoot=null, zubGlas=null, zubKopfG=null, zubNodes={}, zubLoading=null, zubSel=new Set(), zubS=1, zubWant=1;
+try{ const l=JSON.parse(localStorage.getItem('nova_zubehoer')||'[]'); if(Array.isArray(l)) l.forEach(n=>{ if(ZUB_NAMEN.includes(n)) zubSel.add(n); }); }catch(e){}
+function zubLaden(){
+  if(zubLoading) return zubLoading;
+  zubLoading=new Promise((res,rej)=>{
+    gltfLoader.load(ZUB_URL,g=>{
+      zubRoot=new THREE.Group(); zubGlas=new THREE.Group(); zubKopfG=new THREE.Group(); zubRoot.add(zubGlas); zubRoot.add(zubKopfG);
+      for(const n of ZUB_NAMEN){
+        const o=g.scene.getObjectByName('z_'+n); if(!o) continue;
+        o.traverse(x=>{ x.frustumCulled=false; if(x.isMesh&&x.material){ x.material.side=THREE.DoubleSide; x.renderOrder=(x.material.transparent?6:5); } });
+        o.visible=false; (/brille/.test(n)?zubGlas:zubKopfG).add(o); zubNodes[n]=o;
+      }
+      res(true);
+    },undefined,e=>{ zubLoading=null; rej(e); });
+  });
+  zubLoading.catch(e=>console.warn('zubehoer.glb konnte nicht geladen werden',e));
+  return zubLoading;
+}
+function kopfMasse(){
+  if(kopfArt==='reif'||!zubHeadMesh||zubEyes.length<2) return null;
+  model.updateMatrixWorld(true);
+  const inv=new THREE.Matrix4().copy(model.matrixWorld).invert();
+  const boxes=zubEyes.slice(0,2).map(m=>new THREE.Box3().setFromObject(m).applyMatrix4(inv));
+  const c=boxes.map(b=>b.getCenter(new THREE.Vector3())).sort((a,b)=>a.x-b.x);
+  const ed=Math.abs(c[1].x-c[0].x), ey=(c[0].y+c[1].y)/2, ecx=(c[0].x+c[1].x)/2; if(!(ed>1e-4)) return null;
+  const pos=zubHeadMesh.geometry.attributes.position, v=new THREE.Vector3(); zubHeadMesh.updateMatrixWorld(true);
+  const mw=new THREE.Matrix4().multiplyMatrices(inv,zubHeadMesh.matrixWorld);
+  let hw=0, top=-1e9, zmin=1e9, zf=[-1e9,-1e9];
+  for(let i=0;i<pos.count;i++){
+    v.fromBufferAttribute(pos,i).applyMatrix4(mw);
+    if(Math.abs(v.y-ey)<.3*ed){ hw=Math.max(hw,Math.abs(v.x-ecx)); for(let k=0;k<2;k++) if(Math.abs(v.x-c[k].x)<.3*ed) zf[k]=Math.max(zf[k],v.z); }
+    if(v.y>top) top=v.y; if(v.y>ey&&v.z<zmin) zmin=v.z;
+  }
+  const zfm=(zf[0]+zf[1])/2; if(!(hw>0)||!(zfm>zmin)||!(top>ey)) return null;
+  return {ed,ey,ecx,zf:zfm,hw,top,zmin};
+}
+function zubPlatzieren(){
+  if(!zubRoot) return;
+  const R=REIF_M; let M=null; try{ M=kopfMasse(); }catch(e){ console.warn('Kopfmaße:',e); }
+  if(!M){ zubGlas.scale.set(1,1,1); zubGlas.position.set(0,0,0); zubKopfG.scale.set(1,1,1); zubKopfG.position.set(0,0,0); return; }
+  const s=M.ed/R.ed; zubGlas.scale.setScalar(s); zubGlas.position.set(M.ecx,M.ey-s*R.ey,M.zf-s*R.zf);
+  const sx=M.hw/R.hw, sy=(M.top-M.ey)/(R.top-R.ey), sz=(M.zf-M.zmin)/(R.zf-R.zmin);
+  zubKopfG.scale.set(sx,sy,sz); zubKopfG.position.set(M.ecx,M.ey-sy*R.ey,M.zmin-sz*R.zmin);
+}
+function zubSicht(){
+  for(const n of ZUB_NAMEN) if(zubNodes[n]) zubNodes[n].visible=zubSel.has(n);
+  zubWant=ZUB_KOPF.some(n=>zubSel.has(n))?.93:1;
+}
+function zubAnbringen(){
+  if(!model) return;
+  if(!zubRoot){ if(zubSel.size) zubLaden().then(()=>zubAnbringen()).catch(()=>{}); return; }
+  model.add(zubRoot); zubPlatzieren(); zubSicht();
+}
+function zubNormal(){
+  if(zubSel.has('sonnenbrille')&&zubSel.has('brille')) zubSel.delete('brille');
+  const kopf=ZUB_KOPF.filter(n=>zubSel.has(n)); for(let i=0;i<kopf.length-1;i++) zubSel.delete(kopf[i]);   // nur ein Kopfteil (das zuletzt hinzugefügte bleibt)
+}
+function zubSetzen(liste,speichern){
+  zubSel=new Set((liste||[]).filter(n=>ZUB_NAMEN.includes(n))); zubNormal();
+  if(speichern!==false){ try{localStorage.setItem('nova_zubehoer',JSON.stringify([...zubSel]))}catch(e){} }
+  if(zubRoot){ zubAnbringen(); } else if(zubSel.size) zubLaden().then(()=>zubAnbringen()).catch(()=>{});
+  zubSicht(); return [...zubSel];
+}
+function zubBefehl(t){
+  const item=/\bsonnenbrille\b/.test(t)?'sonnenbrille':/\bbrille\b/.test(t)?'brille':/\b(mütze|muetze|wollmütze|wollmuetze|bommelmütze|bommelmuetze|haube)\b/.test(t)?'muetze':/\b(cap|basecap|baseballcap|kappe|schirmmütze|schirmmuetze)\b/.test(t)?'cap':/\bkopfh(ö|oe|o)rer\b/.test(t)?'kopfhoerer':null;
+  const alle=/\b(alles|alle|das zeug|den kram)\b.*\b(ab|runter|weg)\b/.test(t)||/\bnimm\b.*\b(alles|alle)\b/.test(t);
+  const ab=/\b(ab|abnehmen|absetzen|runter|herunter|weg)\b/.test(t)||/\bohne\b/.test(t)||/\bkeine?n?\b.*\bmehr\b/.test(t);
+  const auf=/\b(auf|an|drauf|anziehen|aufsetzen|anlegen)\b/.test(t)||/\b(setz|setze|zieh|ziehe|leg|lege|trag|trage|schnall|stülp|stuelp)\b/.test(t);
+  if(!item&&!(alle&&zubSel.size)) return null;
+  if(!item&&alle){ zubSetzen([]); return {text:'In Ordnung.',exp:'neutral'}; }
+  if(ab&&!/\b(setz|setze)\b.*\b(auf)\b/.test(t)){
+    const s=[...zubSel].filter(n=>n!==item); zubSetzen(s); return {text:'Okay, '+ZUB_TEXT[item]+' ist ab.',exp:'neutral'};
+  }
+  if(auf&&/\b(wo|wer|hast|hab|habe|suche|such|finde)\b/.test(t)&&!/\b(setz|setze|zieh|ziehe|leg|lege|trag|trage|mach|mache|nimm)\b/.test(t)) return null;
+  if(auf){
+    const s=[...zubSel].filter(n=>n!==item); s.push(item); zubSetzen(s);
+    const txt={brille:'So besser?',sonnenbrille:'Cool, oder?',muetze:'Schön warm.',cap:'Wie sehe ich aus?',kopfhoerer:'Wie gefällt dir das?'}[item];
+    return {text:txt,exp:item==='sonnenbrille'?'smug':item==='muetze'?'pleased':'amused',zub:item};
+  }
+  return null;
+}
+function sag(text,exp,ohneWeiter){
+  try{ if(exp){ setExpression(exp); manualExpressionUntil=performance.now()+4500; } }catch(e){}
+  try{ if(typeof window.speak==='function') window.speak(text,ohneWeiter?undefined:(typeof window.continueConversation==='function'?window.continueConversation:undefined)); }catch(e){}
+}
+
 // Kopf schaut von selbst mal hierhin, mal dorthin (Augen schauen zuerst), nickt leicht beim Sprechen.
 const look={y:0,x:0,z:0,ty:0,tx:0,tz:0,next:0,nod:0};
 function updateLook(now,dt,st,speaking){
   if(!JV_KOPFBEWEGUNG){look.y=look.x=look.z=0;return}
+  const gz=JV_BLICK_FINGER&&now<gaze.until&&sleepLevel<.3;
+  gaze.w+=((gz?1:0)-gaze.w)*(1-Math.exp(-dt*(gz?9:2.5)));
   if(now>look.next){
     const quiet=Math.random()<.35;
     const amp=(st==='thinking')?.55:(speaking?.45:.7);
@@ -581,28 +746,39 @@ function updateLook(now,dt,st,speaking){
     look.tz=(Math.random()-.5)*(quiet?.03:.09);
     look.next=now+(speaking?2200:3200)+Math.random()*(speaking?3200:6500);
   }
-  const k=1-Math.exp(-dt*2.0);
+  if(gz){ look.ty=gaze.x*.30; look.tx=gaze.y*.13; look.tz=0; look.next=Math.max(look.next,gaze.until+500); }
+  if(sleepLevel>.3){ look.ty=look.tx=look.tz=0; look.next=now+1500; }
+  const k=1-Math.exp(-dt*(gz?3.6:2.0));
   look.y+=(look.ty-look.y)*k; look.x+=(look.tx-look.x)*k; look.z+=(look.tz-look.z)*k;
   look.nod=speaking?Math.sin(now*.0062)*.028*(.4+.6*Math.max(0,Math.sin(now*.0019))):look.nod*.9;
+  updatePose(now,dt,st);
   // Augen schauen etwas früher in die Blickrichtung
-  if(expression!=='thinking'){
-    const d=Math.max(-1,Math.min(1,look.ty/.4))*.6, u=Math.max(0,d), v=Math.max(0,-d);
+  if(expression!=='thinking'||gaze.w>.02){
+    let d=Math.max(-1,Math.min(1,look.ty/.4))*.6;
+    if(gaze.w>.01) d=d*(1-gaze.w)+Math.max(-1,Math.min(1,gaze.x))*.95*gaze.w;
+    const u=Math.max(0,d), v=Math.max(0,-d);
     setMorph('eyeLookOut_L',u);setMorph('eyeLookIn_R',u);setMorph('eyeLookIn_L',v);setMorph('eyeLookOut_R',v);
+    if(gaze.w>.02){ gaze.dirty=true; const up=Math.max(0,-gaze.y)*.9*gaze.w, dn=Math.max(0,gaze.y)*.8*gaze.w;
+      setMorph('eyeLookUp_L',up);setMorph('eyeLookUp_R',up);setMorph('eyeLookDown_L',dn);setMorph('eyeLookDown_R',dn); }
+    else if(gaze.dirty){ gaze.dirty=false; setExpression(expression); }
   }
 }
 function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);const dt=Math.min(.05,(now-(loop.last||now))/1000);loop.last=now;
  let speaking=!!(window.__jvLipAudio&&!window.__jvLipAudio.paused&&!window.__jvLipAudio.ended);
  const st=syncAvatarState(now); updateLook(now,dt,st,speaking); applyMorphs(dt,speaking,now);
- const baseY=Math.sin(now*.00055)*.035, baseX=Math.sin(now*.0007)*.008;
- root.rotation.y=baseY+(st==='thinking'?.055:0)+look.y;
- root.rotation.x=baseX+(st==='listening'?-.018:st==='thinking'?-.010:0)+look.x+look.nod; root.rotation.z=look.z;
- root.position.y=Math.sin(now*.0011)*.012+(st==='listening'?.008:0);
+ schlafStep(dt,now,st);
+ const baseY=Math.sin(now*.00055)*.035*(1-sleepLevel), baseX=Math.sin(now*.0007)*.008;
+ root.rotation.y=baseY+(st==='thinking'?.055:0)+look.y+pose.y;
+ root.rotation.x=baseX+(st==='listening'?-.018:st==='thinking'?-.010:0)+look.x+look.nod+pose.x+.17*sleepLevel; root.rotation.z=look.z+pose.z+.05*sleepLevel;
+ const atem=Math.sin(now*.0017)*sleepLevel;
+ root.position.y=Math.sin(now*.0011)*.012*(1-sleepLevel)+(st==='listening'?.008:0)+atem*.012-(1-zubS)*.55;
+ root.scale.setScalar(zubS*(1+.006*atem));
  updateBackground(now,dt,st,speaking);
  renderer.render(scene,camera)}
 function setMode(on){active=!!on; const sphere=document.getElementById('jarvisSphere'); const holo=document.getElementById('jarvisHolo'); btn.classList.toggle('active',active); btn.textContent=active?'● 3D':'○ 3D'; if(!active){renderer.domElement.style.display='none';hideStatus();if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} if(!modelReady){renderer.domElement.style.display='none';showStatus('3D-Kopf wird geladen …');if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} renderer.domElement.style.display='block';hideStatus();if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
 const btn=document.createElement('button');btn.id='jv3dToggle';btn.type='button';btn.textContent='● 3D';btn.title='JARVIS 3D-Kopf';btn.style.cssText='position:absolute;left:6px;top:6px;z-index:9;border:1px solid #16cce8;border-radius:999px;background:#07131ddd;color:#9df6ff;padding:7px 10px;font:700 11px system-ui;letter-spacing:.04em;cursor:pointer;box-shadow:0 0 16px #00bfff33';holder.appendChild(btn);btn.onclick=()=>setMode(!active);
 window.jvAvatar3D={setMode,setExpression:function(n){ if(kiMimikAktiv()) return; return setExpression(n); },expressions:['neutral','friendly','happy','laugh','sad','serious','surprised','thinking','concerned','skeptical','question','browsup','browsdown','amused','pleased','disgust','angry','tired','awe','doubt','smug','cheeky','unsure','puh','kiss','relaxed','scared','puzzled'],update(p={}){if(p.expression)setExpression(p.expression);if(p.mouth!=null)manualMouth=Math.max(0,Math.min(1,p.mouth));if(p.blink)blink=1;if(p.tongue){tongueUntil=performance.now()+Math.max(400,Number(p.tongueMs)||2200)}},tongue(ms=2200){const tn=tongueMorphName();if(!tn)return false;tongueUntil=performance.now()+ms;return true},grimasse:setGrimasse,get state(){return avatarState()},get active(){return active},get busy(){const n=performance.now();return n<manualExpressionUntil||n<tongueUntil},get ready(){return modelReady},get morphs(){return [...morphNames]},get hasTongue(){return !!tongueMorphName()}};
-window.jvAvatar3D.setHead=setHead; try{Object.defineProperty(window.jvAvatar3D,'kopf',{get(){return kopfArt}})}catch(e){}
+window.jvAvatar3D.setHead=setHead; window.jvAvatar3D.sleep=function(on){ if(on){sleepForced=true;forcedGrace=0}else{sleepForced=false;lastActive=performance.now()} }; window.jvAvatar3D.zubehoer=function(l){ return zubSetzen(Array.isArray(l)?l:[],true) }; window.jvAvatar3D.mirror=function(t){ try{spiegeln(t)}catch(e){} }; try{Object.defineProperty(window.jvAvatar3D,'kopf',{get(){return kopfArt}})}catch(e){}
 // Direkte Mimik-Sprachbefehle: werden lokal ausgeführt, statt an die KI geschickt zu werden.
 window.handleAvatarExpressionCommand=function(text){
  const t=String(text||'').toLowerCase().replace(/[.,!?;:]+/g,' ').replace(/\s+/g,' ').trim();
@@ -631,4 +807,21 @@ window.handleAvatarExpressionCommand=function(text){
  try{if(typeof window.speak==='function')window.speak(answer,typeof window.continueConversation==='function'?window.continueConversation:undefined);}catch(e){}
  return true;
 };
+// v7: Zubehör- und Schlaf-Befehle zuerst, danach die bisherigen Mimik-Befehle; was keiner kennt, wird zum Spiegeln genutzt.
+(function(){
+ const orig=window.handleAvatarExpressionCommand;
+ window.handleAvatarExpressionCommand=function(text){
+   const t=String(text||'').toLowerCase().replace(/[.,!?;:]+/g,' ').replace(/\s+/g,' ').trim();
+   try{ const a=zubBefehl(t); if(a){ sag(a.text,a.exp); return true; } }catch(e){ console.warn(e); }
+   try{
+     if(JV_SCHLAF&&/\b(geh schlafen|schlaf jetzt|schlaf ein|mach (die )?augen zu|schlafmodus|leg dich schlafen|schlaf gut nova)\b/.test(t)){
+       sleepForced=true; forcedGrace=performance.now()+10000; sag('Gute Nacht.',null,true); return true; }
+     if(/\b(wach auf|aufwachen|augen auf)\b/.test(t)){ sleepForced=false; lastActive=performance.now(); sag('Bin wach.','friendly'); return true; }
+   }catch(e){}
+   const r=orig?orig.apply(this,arguments):false;
+   if(!r){ try{ spiegeln(text); }catch(e){} }
+   return r;
+ };
+})();
+
 })();
