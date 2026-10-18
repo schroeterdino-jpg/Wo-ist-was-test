@@ -187,6 +187,7 @@
         }
         if (stau) t += ' ' + stau;
         if (st) t += ' Darin sind etwa ' + st + ' Minuten Stau schon eingerechnet.';
+        try { if (mitFrisch && nu.ymd === ymd && nu.min < start && window.jvMitnehmen) t += ' ' + window.jvMitnehmen.text(); } catch (e) { }   // Mitnehmen-Liste (mitnehmen.js), nur bei der echten Ansage am selben Tag
         return { text: t, sh, min, abfahrt };
     }
 
