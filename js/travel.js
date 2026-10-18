@@ -802,16 +802,19 @@ function bahnTafelCard(j, href) {
         return (i ? '<span style="color:#7fb8cf">›</span>' : '') +
             `<span style="font-weight:700;font-size:13px;border-radius:6px;padding:3px 8px;color:#fff;background:${bus ? '#d9142c' : '#3a4a5a'}">${e(label)}</span>`;
     }).join(' ');
-    const ort = j.gleis ? `${bahnSteigWort(j) === 'Steig' ? 'Steig' : 'Gl.'} ${j.gleis}` : (j.haltVon || '');
-    const ortChip = ort ? `<span style="font-size:11px;color:#7fb8cf;border:1px solid rgba(127,184,207,.4);border-radius:6px;padding:2px 6px">${e(ort)}</span>` : '';
-    const sub = `an ${e(bahnHHMM(j.ankunft))} · ${e(bahnUmstiegeText(j.umstiege).replace('mit einem Umstieg', '1 Umstieg').replace(/^mit (\d+) Umstiegen$/, '$1 Umstiege').replace('ohne Umstieg', 'direkt'))} · ${j.dauerMin} Min.`;
+    const steig = j.gleis ? `${bahnSteigWort(j) === 'Steig' ? 'Steig' : 'Gl.'} ${j.gleis}` : '';
+    const chip = steig ? `<span style="font-size:11px;color:#7fb8cf;border:1px solid rgba(127,184,207,.4);border-radius:6px;padding:2px 6px;white-space:nowrap">${e(steig)}</span>` : '';
+    const umst = bahnUmstiegeText(j.umstiege).replace('mit einem Umstieg', '1 Umstieg').replace(/^mit (\d+) Umstiegen$/, '$1 Umstiege').replace('ohne Umstieg', 'direkt');
+    const von = j.haltVon ? `<b style="color:#e2e8f0;font-weight:600">${e(j.haltVon)}</b>` : '';
+    const nach2 = j.haltNach ? ` → <b style="color:#e2e8f0;font-weight:600">${e(j.haltNach)}</b> ${e(bahnHHMM(j.ankunft))}` : ` → an ${e(bahnHHMM(j.ankunft))}`;
     const klein = j.faelltAus ? 'fällt aus' : (verspaetet ? `geplant ${e(bahnHHMM(geplant.toISOString()))}` : 'pünktlich');
     const rechts2 = j.faelltAus ? '' : (verspaetet ? `+${j.verspaetungMin} verspätet` : (walk >= 4 ? `${e(bahnHHMM(j.start))} losgehen` : ''));
     return {
-        html: `<div style="display:flex;align-items:center;gap:10px">` +
-            `<div style="min-width:84px"><div style="font-size:28px;font-weight:700;color:#49d7ff;line-height:1">${e(bahnHHMM(j.abfahrt))}</div><div style="font-size:11px;color:#7fb8cf;margin-top:4px">${klein}</div></div>` +
-            `<div style="flex:1;min-width:0"><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">${schilder}${ortChip}</div><div style="font-size:11px;color:#9bb4c4;margin-top:6px">${sub}</div></div>` +
-            `<div style="text-align:right;min-width:64px"><div style="font-size:16px;font-weight:700;color:${farbe}">${e(cd)}</div><div style="font-size:11px;color:${verspaetet ? '#ff9a44' : '#7fb8cf'}">${rechts2}</div></div></div>`,
+        html: `<div style="display:flex;align-items:center;gap:8px">` +
+            `<div style="flex:none"><div style="font-size:24px;font-weight:700;color:#49d7ff;line-height:1;white-space:nowrap">${e(bahnHHMM(j.abfahrt))}</div><div style="font-size:10px;color:#7fb8cf;margin-top:4px;white-space:nowrap">${klein}</div></div>` +
+            `<div style="flex:1;min-width:0;display:flex;gap:5px;flex-wrap:wrap;align-items:center">${schilder}${chip}</div>` +
+            `<div style="flex:none;text-align:right"><div style="font-size:15px;font-weight:700;color:${farbe};white-space:nowrap">${e(cd)}</div><div style="font-size:10px;color:${verspaetet ? '#ff9a44' : '#7fb8cf'};white-space:nowrap">${rechts2}</div></div></div>` +
+            `<div style="margin-top:8px;font-size:11px;line-height:1.45;color:#9bb4c4">ab ${von}${nach2} · ${e(umst)} · ${j.dauerMin} Min.</div>`,
         rand: j.faelltAus ? 'rgba(255,92,92,.6)' : (verspaetet ? 'rgba(255,154,68,.55)' : ''),
         href,
     };
