@@ -110,6 +110,7 @@ function mapItinerary(it) {
     haltVon: (first.from && first.from.name) || '',
     haltNach: (last.to && last.to.name) || '',
     gleis: (first.from && (first.from.track || first.from.scheduledTrack)) || null,
+    modus: first.mode || '',   // BUS, TRAM, RAIL ... (bei Bussen ist die Nummer ein Steig, kein Gleis)
     linien: ride.map(lineName).filter(Boolean),
     umstiege: Number.isFinite(it.transfers) ? it.transfers : Math.max(0, ride.length - 1),
     dauerMin: Math.round((new Date(ankunft) - new Date(start)) / 60000),
