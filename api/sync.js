@@ -185,9 +185,13 @@ async function handlePush(action, req, res, redis) {
 
     if (action === 'push_items') {   // die App meldet ihre Erinnerungen und Termine (nur Titel, Zeit)
       const list = Array.isArray(body.items) ? body.items : [];
-      const items = [];
+      const items = [], plan = [];
       for (const it of list.slice(0, 200)) {
         if (!it || typeof it.id !== 'string' || typeof it.x !== 'string' || typeof it.at !== 'number' || !Number.isFinite(it.at)) continue;
+        if (it.k === 'p') {   // Planer-Meldung (Wochenüberblick): voller Text, wird immer geschickt, auch bei offener App
+          if (plan.length < 10) plan.push({ id: it.id.slice(0, 40), k: 'p', t: String(it.t || 'Nova').slice(0, 40), x: it.x.slice(0, 700), at: Math.round(it.at) });
+          continue;
+        }
         if (it.k !== 'r' && it.k !== 'e') continue;
         const o = { id: it.id.slice(0, 40), k: it.k, x: it.x.slice(0, 140), at: Math.round(it.at) };
         if (it.k === 'e' && typeof it.l === 'string' && it.l.trim()) o.l = it.l.trim().slice(0, 120);
@@ -197,6 +201,7 @@ async function handlePush(action, req, res, redis) {
       }
       const st = await loadItems(redis);
       items.forEach(o => { if (o.g && st.dep[o.id] && st.dep[o.id].fail) delete st.dep[o.id]; });   // Ort jetzt bekannt: neu rechnen
+      st.plan = plan;
       st.items = items.filter(o => !st.done[o.id]);   // am Sperrbildschirm als erledigt markierte Erinnerungen nicht wieder aufnehmen
       const doneIds = Object.keys(st.done);
       for (const k of doneIds) { if (Date.now() - st.done[k] > 2 * 86400000) delete st.done[k]; }
@@ -274,6 +279,7 @@ async function loadItems(redis) {
   let st = { items: [], sent: {}, alive: 0 };
   try { const raw = await redis('GET', ITEMS_KEY); if (raw) st = JSON.parse(raw); } catch (e) {}
   if (!Array.isArray(st.items)) st.items = [];
+  if (!Array.isArray(st.plan)) st.plan = [];
   if (!st.sent || typeof st.sent !== 'object') st.sent = {};
   if (typeof st.alive !== 'number') st.alive = 0;
   if (!st.cfg || typeof st.cfg !== 'object') st.cfg = {};
@@ -978,7 +984,8 @@ async function handleDue(req, res, redis) {
     const mailNow = mailDue(st, now);
     const rainNow = rainDue(st, now, appOpen);
     const hsvNow = hsvDue(st, now);
-    if (!due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow && !impNow && !mailNow && !rainNow && !hsvNow) return res.status(200).json({ ok: true, due: 0 });
+    const planDue = st.plan.filter(p => !st.sent[p.id] && p.at <= now && now - p.at <= 20 * 60000);   // Planer-Meldungen (Wochenüberblick)
+    if (!planDue.length && !due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow && !impNow && !mailNow && !rainNow && !hsvNow) return res.status(200).json({ ok: true, due: 0 });
 
     // Sperre: nie zwei Läufe gleichzeitig (sonst käme alles doppelt)
     const lock = await redis('SET', 'alltags-helfer:pushlock', '1', 'NX', 'EX', '40');
@@ -1024,6 +1031,15 @@ async function handleDue(req, res, redis) {
       } else if (stau.geprueft) teile.push('Keine Staumeldungen auf der Strecke.');
       const r2 = await sendToAll(redis, data, { title: 'Abfahrt: ' + it.x, body: teile.join(' '), tag: 'd-' + it.id, url: './' });
       if (r2.sent > 0) departSent++;
+    }
+
+    // 1b) Planer-Meldungen mit vollem Text (Wochenüberblick): immer, auch bei offener App und zu jeder Uhrzeit
+    let planSent = 0;
+    for (const p of planDue) {
+      st.sent[p.id] = now;
+      if (!data.subs.length) continue;
+      const r = await sendToAll(redis, data, { title: '📅 ' + p.t, body: p.x, tag: 'p-' + p.id, url: './' });
+      if (r.sent > 0) planSent++;
     }
 
     // 2) einfache Erinnerungen und Vorwarnungen (nach 1: Termine mit berechneter Strecke sind schon versorgt)
@@ -1091,12 +1107,12 @@ async function handleDue(req, res, redis) {
       }
     }
     // Aufräumen: nur Einträge behalten, die es noch gibt oder jünger als 2 Tage sind
-    const ids = new Set(st.items.map(i => i.id));
+    const ids = new Set(st.items.map(i => i.id).concat(st.plan.map(i => i.id)));
     for (const k of Object.keys(st.sent)) { const base = k.replace(/^d(?=[re])/, ''); if (!ids.has(k) && !ids.has(base) && now - st.sent[k] > 2 * 86400000) delete st.sent[k]; }
     for (const k of Object.keys(st.dep)) { if (!ids.has(k)) delete st.dep[k]; }
     for (const k of Object.keys(st.nag)) { if (!ids.has(k)) delete st.nag[k]; }
     await redis('SET', ITEMS_KEY, JSON.stringify(st));
-    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent, tank: tankSent, wetter: wxSent, regen: rainSent, impuls: impSent, mail: mailSent });
+    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent, tank: tankSent, wetter: wxSent, regen: rainSent, impuls: impSent, mail: mailSent, planung: planSent });
   } catch (err) {
     return res.status(500).json({ error: 'Push-Fehler: ' + err.message });
   }
