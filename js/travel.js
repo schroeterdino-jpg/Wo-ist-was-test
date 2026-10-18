@@ -781,6 +781,12 @@ function bahnHHMM(iso) {
 function bahnUmstiegeText(n) { return n <= 0 ? 'ohne Umstieg' : (n === 1 ? 'mit einem Umstieg' : `mit ${n} Umstiegen`); }
 
 /* Abfahrtstafel-Karte: Abfahrtszeit groß, Linien-Schilder, Gleis, Countdown, Verspätung in Orange */
+/* Bei Bussen ist die Nummer ein Haltestellensteig, bei Zug, S-, U-Bahn und Tram ein Gleis */
+function bahnSteigWort(j) {
+    const m = String(j.modus || '').toUpperCase();
+    return (m === 'BUS' || m === 'COACH' || (!m && /^bus/i.test((j.linien || [])[0] || ''))) ? 'Steig' : 'Gleis';
+}
+
 function bahnTafelCard(j, href) {
     const e = escapeHtml;
     const ab = new Date(j.abfahrt), jetzt = Date.now();
@@ -796,7 +802,7 @@ function bahnTafelCard(j, href) {
         return (i ? '<span style="color:#7fb8cf">›</span>' : '') +
             `<span style="font-weight:700;font-size:13px;border-radius:6px;padding:3px 8px;color:#fff;background:${bus ? '#d9142c' : '#3a4a5a'}">${e(label)}</span>`;
     }).join(' ');
-    const ort = j.gleis ? `Gl. ${j.gleis}` : (j.haltVon || '');
+    const ort = j.gleis ? `${bahnSteigWort(j) === 'Steig' ? 'Steig' : 'Gl.'} ${j.gleis}` : (j.haltVon || '');
     const ortChip = ort ? `<span style="font-size:11px;color:#7fb8cf;border:1px solid rgba(127,184,207,.4);border-radius:6px;padding:2px 6px">${e(ort)}</span>` : '';
     const sub = `an ${e(bahnHHMM(j.ankunft))} · ${e(bahnUmstiegeText(j.umstiege).replace('mit einem Umstieg', '1 Umstieg').replace(/^mit (\d+) Umstiegen$/, '$1 Umstiege').replace('ohne Umstieg', 'direkt'))} · ${j.dauerMin} Min.`;
     const klein = j.faelltAus ? 'fällt aus' : (verspaetet ? `geplant ${e(bahnHHMM(geplant.toISOString()))}` : 'pünktlich');
@@ -894,7 +900,7 @@ async function bahnAuskunft(opts) {
         let t = '';
         const walk = (new Date(j.abfahrt) - new Date(j.start)) / 60000;
         if (walk >= 4) t += `Losgehen um ${formatSpokenTime(new Date(j.start))}, `;
-        t += `Abfahrt ab ${j.haltVon || 'der ersten Haltestelle'}${j.gleis ? ', Gleis ' + j.gleis : ''} um ${formatSpokenTime(new Date(j.abfahrt))} mit ${j.linien.join(', dann ')}, Ankunft um ${formatSpokenTime(new Date(j.ankunft))} in ${j.haltNach || nach}, ${bahnUmstiegeText(j.umstiege)}.`;
+        t += `Abfahrt ab ${j.haltVon || 'der ersten Haltestelle'}${j.gleis ? ', ' + bahnSteigWort(j) + ' ' + j.gleis : ''} um ${formatSpokenTime(new Date(j.abfahrt))} mit ${j.linien.join(', dann ')}, Ankunft um ${formatSpokenTime(new Date(j.ankunft))} in ${j.haltNach || nach}, ${bahnUmstiegeText(j.umstiege)}.`;
         if (j.faelltAus) t += ' Achtung, diese Verbindung fällt aus.';
         else if (j.verspaetungMin >= 3) t += ` Aktuell ${j.verspaetungMin} Minuten Verspätung.`;
         return t;
@@ -907,7 +913,7 @@ async function bahnAuskunft(opts) {
         if (list.length >= 2) {
             // Abfahrtsliste: bis zu 3 Zeiten nacheinander, mit Linie, Gleis und Verspätung (die Karten darunter zeigen Ankunft, Umstiege und Dauer)
             const kurz = (j) => {
-                let s = `um ${formatSpokenTime(new Date(j.abfahrt))} mit ${j.linien.join(' dann ')}${j.gleis ? ', Gleis ' + j.gleis : ''}`;
+                let s = `um ${formatSpokenTime(new Date(j.abfahrt))} mit ${j.linien.join(' dann ')}${j.gleis ? ', ' + bahnSteigWort(j) + ' ' + j.gleis : ''}`;
                 if (j.faelltAus) s += ' (fällt aus)';
                 else if (j.verspaetungMin >= 3) s += ` (${j.verspaetungMin} Minuten später)`;
                 return s;
