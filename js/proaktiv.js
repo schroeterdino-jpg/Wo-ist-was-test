@@ -181,6 +181,7 @@
             if (isNaN(start)) return;
             const mins = Math.round((start - now) / 60000);
             if (mins < 3 || mins > evLead) return;
+            try { if (typeof window.jvVorbereitungLief === 'function' && window.jvVorbereitungLief(e)) return; } catch (x) {}   // Vorbereitung lief schon: keine zweite Vorwarnung
             const card = eventCard(e, start, mins);
             if (isDone(card.id) || (snooze[card.id] && now < snooze[card.id])) return;
             out.push({ start, card });

@@ -127,6 +127,14 @@
     }
     if (window.jvCommands && typeof window.jvCommands.use === 'function') window.jvCommands.use('vorbereitung', befehl, 166);
 
+    /* Lief die Vorbereitung für diesen Termin schon? (proaktiv.js und wachter.js lassen dann ihre doppelten Hinweise weg) */
+    window.jvVorbereitungLief = function (e) {
+        try {
+            if (!e || !e.isoDate || !/T/.test(String(e.isoDate))) return false;
+            return !!erledigt()['v' + e.id + '|' + String(e.isoDate).slice(0, 16)];
+        } catch (x) { return false; }
+    };
+
     window.jvVorbereitung = { tick, kandidaten, vorbereiten, befehl };
     setInterval(tick, TICK_MS);
     setTimeout(tick, 45000);

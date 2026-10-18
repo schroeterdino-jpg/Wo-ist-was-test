@@ -146,6 +146,8 @@ async function wachterCollect() {
                 const leaveIn = mins - drive - WACHTER_LEAVE_BUFFER_MIN;
                 if (leaveIn <= 10 && mins < drive) {
                     out.push({ id: `leave|${key}`, prio: 5, text: `${a}, das wird knapp: Die Fahrt zu „${title}“ dauert rund ${drive} Minuten, der Termin beginnt aber in ${mins} Minuten.` });
+                } else if (leaveIn <= 10 && leaveIn > 2 && typeof window.jvVorbereitungLief === 'function' && window.jvVorbereitungLief(e)) {
+                    // Vorbereitung hat Fahrzeit und Abfahrtszeit schon genannt: erst "jetzt losfahren" kommt noch einmal
                 } else if (leaveIn <= 10) {
                     const when = leaveIn > 2 ? `in etwa ${leaveIn} Minuten` : 'jetzt';
                     let text = leaveIn > 2
