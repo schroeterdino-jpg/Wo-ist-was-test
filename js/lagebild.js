@@ -179,6 +179,7 @@
             '#jvLage .knoepfe{display:flex;gap:10px;margin-top:14px}' +
             '#jvLage .knoepfe button{flex:1;padding:12px 8px;border-radius:8px;border:1px solid rgba(93,209,255,.5);background:#0a1621;color:#49d7ff;font:600 12px ui-monospace,Menlo,monospace;letter-spacing:1px}' +
             '#jvLage .knoepfe button.p{background:#5ee7ff;color:#02070d}' +
+            '#jvLage .knoepfe.wrap{flex-wrap:wrap}#jvLage .knoepfe.wrap button{flex:1 1 42%}#jvLage .knoepfe button.an{background:#5ee7ff;color:#02070d}' +
             '#jvLage .fuss{margin-top:12px;font-size:10px;opacity:.55;line-height:1.4}';
         document.head.appendChild(st);
     }
@@ -334,15 +335,22 @@
         body.appendChild(karte('🎯 ' + String(d.titel || 'ZIEL').toUpperCase().slice(0, 26), (m.terminMs && m.terminMs - Date.now() > (min || 0) * 60000 + 5 * 60000) ? 'TERMIN ' + hhmm(new Date(m.terminMs)) : 'ANKUNFT ' + hhmm(new Date(Date.now() + (min || 0) * 60000)), min + ' Min · ' + km + ' km', z));
         const extra = (d.zeilen || []).filter(x => x && x.text);
         if (extra.length) body.appendChild(karte('UNTERWEGS & AM ZIEL', '', null, extra.map(x => ({ t: x.text, c: '' }))));
+        // Kategorien auf der Strecke (Tippen = Suche entlang der Route)
+        body.appendChild(el('div', 'z dim', 'AUF DEM WEG SUCHEN:'));
+        const kat = el('div', 'knoepfe wrap');
+        WEG_KAT.forEach(k => {
+            const b = el('button', (wegD && wegD.was === k.q) ? 'an' : '', k.icon + ' ' + k.name.toUpperCase());
+            b.addEventListener('click', () => { suchAufDemWeg(k.q, k.name).catch(e => console.error('Lagebild Weg', e)); });
+            kat.appendChild(b);
+        });
+        const bm = el('button', '', '🎤 ETWAS ANDERES … AUF DEM WEG?'); bm.addEventListener('click', () => { try { if (typeof startListening === 'function') startListening(false); } catch (e) {} });
+        kat.appendChild(bm);
+        body.appendChild(kat);
         if (wegD) {
-            const zl = wegD.items.length ? wegD.items.map(x => ({ t: x.name + ' · ' + x.ab + (x.status ? ' · ' + x.status : ''), c: '' })) : [{ t: 'Nichts gefunden: ' + wegD.was, c: 'dim' }];
-            const wk = karte('📍 AUF DEM WEG: ' + wegD.was.toUpperCase().slice(0, 22), wegD.items.length ? 'TIPPEN: ROUTE' : '', null, zl);
-            if (wegD.items.length) wk.addEventListener('click', () => { try { window.open(wegD.items[0].href, '_blank'); } catch (e) {} });
-            body.appendChild(wk);
+            if (wegD.lade) body.appendChild(karte('📍 ' + (wegD.name || wegD.was).toUpperCase().slice(0, 22) + ' · AUF DEM WEG', '', null, [{ t: 'Ich suche entlang der Strecke …', c: 'dim' }]));
+            else if (!wegD.items.length) body.appendChild(karte('📍 ' + (wegD.name || wegD.was).toUpperCase().slice(0, 22) + ' · AUF DEM WEG', '', null, [{ t: wegD.fehler ? 'Die Suche ging gerade nicht (Google Places).' : 'Nichts gefunden: ' + (wegD.name || wegD.was), c: 'dim' }]));
+            else wegD.items.forEach((x, i) => body.appendChild(karte('📍 ' + x.name.slice(0, 26), x.status ? x.status.toUpperCase() : (i === 0 ? 'TIPPEN: ROUTE' : ''), null, [{ t: x.ab + (i === 0 && x.status ? ' · tippen: Route' : ''), c: 'dim' }], () => { try { window.open(x.href, '_blank'); } catch (e) {} })));
         }
-        const knm = el('div', 'knoepfe');
-        const bm = el('button', 'p', '🎤 FRAG: GIBT ES … AUF DEM WEG?'); bm.addEventListener('click', () => { try { if (typeof startListening === 'function') startListening(false); } catch (e) {} });
-        knm.appendChild(bm); body.appendChild(knm);
         const kn = el('div', 'knoepfe');
         const b1 = el('button', 'p', 'NAVIGATION ▶'); b1.addEventListener('click', () => { try { const a = m.to && isFinite(m.to.lat) ? m.to.lat + ',' + m.to.lon : d.titel; window.open(buildMapsLink(a, '', 'driving'), '_blank'); } catch (e) {} });
         const b2 = el('button', '', 'KARTE'); b2.addEventListener('click', () => { const md = d.map; close(); try { openPanel('karte', { mapData: md }); } catch (e) {} });
@@ -434,12 +442,30 @@
         for (let i = 1; i <= k; i++) out.push(coords[Math.min(n - 1, Math.floor(n * i / (k + 1)))]);
         return out;
     }
-    async function suchAufDemWeg(was) {
+    const WEG_KAT = [
+        { icon: '🍔', name: 'Restaurants', q: 'Restaurant Fast Food' },
+        { icon: '⛽', name: 'Tankstellen', q: 'Tankstelle' },
+        { icon: '🔨', name: 'Baumärkte', q: 'Baumarkt' },
+        { icon: '🛒', name: 'Supermärkte', q: 'Supermarkt' },
+        { icon: '☕', name: 'Cafés', q: 'Café' }
+    ];
+    // Orte per Google Places (über deinen Server). Liefert Einträge im Format { lat, lon, tags:{name}, g:{openNow} }
+    async function sucheOrteGoogle(was, lat, lon, radiusM) {
+        const r = await apiFetch('/api/maps?action=places&q=' + encodeURIComponent(was) + '&lat=' + Number(lat).toFixed(6) + '&lon=' + Number(lon).toFixed(6) + '&radius=' + Math.round(radiusM || 6000));
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d || !Array.isArray(d.places)) throw new Error((d && d.error) || ('Status ' + r.status));
+        return d.places.map(p => ({ lat: Number(p.lat), lon: Number(p.lon), tags: { name: p.name || '' }, g: { openNow: p.openNow } })).filter(e => isFinite(e.lat) && isFinite(e.lon));
+    }
+    if (typeof window.jvGoogleElements !== 'function') window.jvGoogleElements = sucheOrteGoogle;
+    async function suchAufDemWeg(was, anzeige) {
         const m = zielD && zielD.map;
-        if (!m || !m.coords || m.coords.length < 2 || typeof window.jvGoogleElements !== 'function') { sagen('Dafür brauche ich erst eine Route. Sag zum Beispiel: Route zu Hamburg.'); return; }
-        sagen('Ich suche ' + was + ' auf dem Weg.');
+        if (!m || !m.coords || m.coords.length < 2) { sagen('Dafür brauche ich erst eine Route. Sag zum Beispiel: Route zu Hamburg.'); return; }
+        const name = anzeige || was;
+        sagen('Ich suche ' + name + ' auf dem Weg.');
+        wegD = { was, name, items: [], lade: true }; if (view === 'ziel' && body) zeichne();
         const pts = punkteAmWeg(m.coords);
-        const alle = await Promise.all(pts.map(p => mit(window.jvGoogleElements(was, p[0], p[1], 6000).catch(() => []), 12000)));
+        let fehler = 0;
+        const alle = await Promise.all(pts.map(p => mit(window.jvGoogleElements(was, p[0], p[1], 6000).catch(() => { fehler++; return []; }), 12000)));
         const gesehen = new Set(), items = [];
         alle.forEach(l => (l || []).forEach(e => {
             const nm = (e.tags && e.tags.name) || '';
@@ -452,10 +478,10 @@
             const to = m.to && isFinite(m.to.lat) ? m.to.lat + ',' + m.to.lon : (zielD.titel || '');
             items.push({ name: nm, ab: ab < 0.15 ? 'direkt an der Strecke' : (ab < 1 ? Math.round(ab * 10) * 100 + ' m Umweg' : ab.toFixed(1).replace('.', ',') + ' km abseits'), abKm: ab, status: st, href: 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(to) + '&waypoints=' + encodeURIComponent(e.lat + ',' + e.lon) + '&travelmode=driving' });
         }));
-        items.sort((a, b) => a.abKm - b.abKm);
-        wegD = { was, items: items.slice(0, 4) };
+        items.sort((a, b) => (a.abKm + (a.status === 'geschlossen' ? 3 : 0)) - (b.abKm + (b.status === 'geschlossen' ? 3 : 0)));   // Geschlossene rutschen nach hinten
+        wegD = { was, name, items: items.slice(0, 5), fehler: fehler >= pts.length };
         if (view === 'ziel' && body) zeichne();
-        if (!items.length) { sagen('Auf dem Weg habe ich ' + was + ' nicht gefunden.'); return; }
+        if (!items.length) { sagen(fehler >= pts.length ? 'Die Suche ging gerade nicht, Google Places antwortet nicht.' : 'Auf dem Weg habe ich ' + name + ' nicht gefunden.'); return; }
         const e0 = items[0];
         sagen('Ja, ' + e0.name + ', ' + (e0.abKm < 0.15 ? 'direkt an der Strecke' : 'etwa ' + (e0.abKm < 1 ? Math.round(e0.abKm * 10) * 100 + ' Meter' : e0.abKm.toFixed(1).replace('.', ',') + ' Kilometer') + ' abseits') + (e0.status ? ', ' + e0.status : '') + '.' + (items.length > 1 ? ' Weitere stehen im Lagebild.' : ''));
     }

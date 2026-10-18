@@ -25,6 +25,7 @@ const HELP_TOPICS = [
         'Die Fahrzeit kommt von Google Maps mit aktuellem Verkehr; bei der alten Route rechnet Zane gemeldete Staus (mit Minuten) zusätzlich ein, dazu immer 10 Minuten Puffer: "Abfahrt bis ..."',
         'Zane denkt voraus: Etwa eine Stunde vor einem Termin mit Ort sagt er von selbst "Ich habe mir erlaubt, deinen Termin vorzubereiten" mit Route, Abfahrtszeit, Wetter am Ziel, Tankstelle, passender Liste und fälligen Rechnungen (bei offener App gesprochen, bei geschlossener App als Nachricht aufs Handy mit Fahrzeit, Abfahrt, Staumeldungen, Wetter am Ziel und bei Supermärkten der Einkaufsliste; nachts nicht)',
         'Bereite meinen nächsten Termin vor (sofort) / Vorbereitung aus / Vorbereitung an',
+        'Im Lagebild bei einer Route: Knöpfe 🍔 Restaurants, ⛽ Tankstellen, 🔨 Baumärkte, 🛒 Supermärkte, ☕ Cafés suchen entlang der Strecke (mit Umweg und offen/geschlossen, Tippen = Route mit Zwischenstopp); oder sagen: Gibt es einen McDonald\'s auf dem Weg?',
         'Steht im Termin kein Ort, aber ein gespeicherter Kontakt mit Adresse ("Besuch bei Mama", Mama und Mutter gelten gleich), nimmt Zane die Adresse aus den Kontakten; bei Anrufen nicht'] },
     { key: 'bahn', icon: '🚆', title: 'Bahn & Bus', words: /\bbahn|\bzug\b|\bzüge\b|\bbus\b|verbindung/, examples: [
         'Wann fährt der nächste Zug nach Hamburg?', 'Such mir die Bahnverbindung von Schwarzenbek nach Hamburg raus', 'Meine Tochter soll um 16 Uhr hier sein, wann muss sie los?',
