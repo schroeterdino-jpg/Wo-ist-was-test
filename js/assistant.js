@@ -128,8 +128,8 @@ async function sendToGroqSmartCore(text, opts = {}) {
         gedächtnis: memoryItems,
         gedächtnis_semantisch: semanticMemoryHits,
         kontakte: savedContacts,
-        // die nächsten 60 Termine (mit sich wiederholenden Terminen wären es sonst zu viele)
-        termine: [...calendarEntries].sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate)).slice(0, 60).map(c => ({ id: c.id, text: c.text, ...describeEventDate(c.isoDate), isoDate: c.isoDate })),
+        // die nächsten 40 Termine (mit sich wiederholenden Terminen wären es sonst zu viele)
+        termine: [...calendarEntries].sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate)).slice(0, 40).map(c => ({ id: c.id, text: c.text, ...describeEventDate(c.isoDate), isoDate: c.isoDate })),
         erinnerungen: reminderEntries.map(r => ({ id: r.id, text: r.text, ...describeEventDate(r.time), iso: r.time })),
         einkauf: shoppingEntries.map(s => s.text),
         aufgaben_und_notizen: todoEntries.map(t => t.text),
@@ -143,7 +143,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
 
     let messagesPayload = [
         { role: "system", content: systemPrompt },
-        ...chatHistory.slice(-30)
+        ...chatHistory.slice(-16)
     ];
 
     try {
@@ -152,6 +152,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: "openai/gpt-oss-120b",
+                reasoning_effort: "low",   // weniger Grübeln = schnellere Antwort
                 response_format: { type: "json_object" },
                 messages: messagesPayload
             })
