@@ -24,7 +24,8 @@ const HELP_TOPICS = [
         'Ich möchte heute zu Alyssa fahren', 'Wann muss ich zum Zahnarzt losfahren?', 'Ist Stau auf meiner Strecke zur Arbeit?', 'Bring mich nach Hause', 'Zeig mir die Karte', 'Schließ die Karte (schließt die offene Karte, auch die Wetterkarte)',
         'Die Fahrzeit kommt von Google Maps mit aktuellem Verkehr; bei der alten Route rechnet Zane gemeldete Staus (mit Minuten) zusätzlich ein, dazu immer 10 Minuten Puffer: "Abfahrt bis ..."',
         'Zane denkt voraus: Etwa eine Stunde vor einem Termin mit Ort sagt er von selbst "Ich habe mir erlaubt, deinen Termin vorzubereiten" mit Route, Abfahrtszeit, Wetter am Ziel, Tankstelle, passender Liste und fälligen Rechnungen (bei offener App gesprochen, bei geschlossener App als Nachricht aufs Handy mit Fahrzeit, Abfahrt, Staumeldungen, Wetter am Ziel und bei Supermärkten der Einkaufsliste; nachts nicht)',
-        'Bereite meinen nächsten Termin vor (sofort) / Vorbereitung aus / Vorbereitung an'] },
+        'Bereite meinen nächsten Termin vor (sofort) / Vorbereitung aus / Vorbereitung an',
+        'Steht im Termin kein Ort, aber ein gespeicherter Kontakt mit Adresse ("Besuch bei Mama", Mama und Mutter gelten gleich), nimmt Zane die Adresse aus den Kontakten; bei Anrufen nicht'] },
     { key: 'bahn', icon: '🚆', title: 'Bahn & Bus', words: /\bbahn|\bzug\b|\bzüge\b|\bbus\b|verbindung/, examples: [
         'Wann fährt der nächste Zug nach Hamburg?', 'Such mir die Bahnverbindung von Schwarzenbek nach Hamburg raus', 'Meine Tochter soll um 16 Uhr hier sein, wann muss sie los?',
         'Wann fährt die nächste Bahn von Bergedorf nach Hamburg? (Zane nennt die nächsten 3 Abfahrten, die Karten sehen aus wie eine Abfahrtstafel: Abfahrtszeit, Linie, Steig bei Bussen und Gleis bei Zügen, Haltestellen, Countdown, Verspätung in Orange)', 'Wann fährt der nächste Bus Richtung Innenstadt?'] },

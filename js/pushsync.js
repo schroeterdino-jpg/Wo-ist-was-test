@@ -39,12 +39,13 @@
         try {
             (typeof calendarEntries !== 'undefined' ? calendarEntries : []).forEach(c => {
                 if (!c || !c.isoDate || !/T/.test(c.isoDate)) return;   // nur mit Uhrzeit
-                if (!c.location || !String(c.location).trim()) return;   // ohne Ort: Google meldet
+                const ortKontakt = (!c.location || !String(c.location).trim()) && typeof window.jvOrtAusKontakt === 'function' ? window.jvOrtAusKontakt(c.text) : '';   // "Besuch bei Mama": Adresse aus den Kontakten
+                if ((!c.location || !String(c.location).trim()) && !ortKontakt) return;   // ohne Ort: Google meldet
                 if (typeof isBirthdayEntry === 'function' && isBirthdayEntry(c)) return;
                 const at = new Date(c.isoDate).getTime();
                 if (isNaN(at) || at < now || at > now + HORIZON_MS) return;
                 const o = { id: 'e' + c.id, k: 'e', x: String(c.text || 'Termin').slice(0, 140), at };
-                o.l = String(c.location).trim().slice(0, 120);   // nur für die Abfahrtszeit
+                o.l = String(c.location || ortKontakt).trim().slice(0, 120);   // nur für die Abfahrtszeit
                 items.push(o);
             });
         } catch (e) {}

@@ -4,6 +4,7 @@
    günstigste Tankstelle auf dem Weg, passende Einträge von Einkaufsliste und Aufgaben, bald fällige Rechnungen. Es öffnet sich das Lagebild
    (wie beim Fahrt-Check), und er sagt: "Ich habe mir erlaubt, deinen Termin ... vorzubereiten. ..."
    Regeln wie beim Wächter (wachter.js): nur bei offener, sichtbarer App, wenn Ruhe ist, nicht in der Ruhezeit, nur bei "Zane meldet sich von selbst".
+   Hat der Termin keinen Ort, aber der Titel nennt einen Kontakt mit Adresse ("Besuch bei Mama"), nimmt er dessen Adresse (auch für den Push, siehe pushsync.js).
    Sprache: "Bereite meinen nächsten Termin vor" (sofort) · "Vorbereitung aus" / "Vorbereitung an".
    Braucht: travel.js (computeDepartureAdvice), fahrtcheck.js, lagebild.js, wachter.js, calendar (calendarEntries), voice.js (speak), commands.js.
    Muss nach fahrtcheck.js und wachter.js geladen werden.
@@ -37,16 +38,44 @@
         return true;
     }
 
+    /* Ort aus den Kontakten: steht im Titel ein gespeicherter Kontakt ("Besuch bei Mama"), nimmt Nova dessen Adresse.
+       Mama/Mutter und Papa/Vater gelten als dieselbe Person. Anrufe und Nachrichten zählen nicht (da fährt niemand hin). */
+    const SYN = [['mama', 'mutter', 'mami', 'mutti'], ['papa', 'vater', 'papi', 'vati']];
+    const KEIN_BESUCH = /\b(anruf\w*|anrufen|telefon\w*|videoanruf|nachricht\w*|schreib\w*|whatsapp|geburtstag\w*)\b/i;
+    const woerter = s => String(s || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').split(/[^a-z0-9]+/).filter(Boolean);
+    const ohneS = w => (w.length > 3 && w.endsWith('s')) ? w.slice(0, -1) : w;
+    function ortAusKontakt(titel) {
+        try {
+            if (!titel || KEIN_BESUCH.test(String(titel))) return '';
+            const kontakte = (typeof savedContacts === 'object' && savedContacts) ? savedContacts : null;
+            if (!kontakte) return '';
+            const wt = woerter(titel).map(ohneS);
+            if (!wt.length) return '';
+            for (const k of Object.keys(kontakte)) {
+                const c = kontakte[k];
+                if (!c || !c.address || !String(c.address).trim()) continue;
+                const namen = woerter(c.originalName || k).map(ohneS).filter(n => n.length >= 3);
+                const alle = new Set(namen);
+                namen.forEach(n => SYN.forEach(g => { if (g.includes(n)) g.forEach(x => alle.add(x)); }));
+                if (wt.some(w => alle.has(w))) return String(c.address).trim();
+            }
+        } catch (e) { }
+        return '';
+    }
+    window.jvOrtAusKontakt = ortAusKontakt;
+
     /* Termine mit Uhrzeit und Ort, die in der Zukunft beginnen (aufsteigend) */
     function kandidaten() {
         const out = [], jetzt = Date.now();
         try {
             (typeof calendarEntries !== 'undefined' ? calendarEntries : []).forEach(c => {
-                if (!c || !c.isoDate || !/T/.test(c.isoDate) || !c.location || !String(c.location).trim()) return;
+                if (!c || !c.isoDate || !/T/.test(c.isoDate)) return;
                 if (typeof isBirthdayEntry === 'function' && isBirthdayEntry(c)) return;
+                const ort = (c.location && String(c.location).trim()) || ortAusKontakt(c.text);
+                if (!ort) return;
                 const at = new Date(c.isoDate).getTime();
                 if (isNaN(at) || at <= jetzt) return;
-                out.push({ id: 'v' + c.id + '|' + String(c.isoDate).slice(0, 16), at, titel: String(c.text || 'Termin'), ort: String(c.location).trim() });
+                out.push({ id: 'v' + c.id + '|' + String(c.isoDate).slice(0, 16), at, titel: String(c.text || 'Termin'), ort });
             });
         } catch (e) { }
         return out.sort((a, b) => a.at - b.at);
