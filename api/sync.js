@@ -794,6 +794,52 @@ function depNeedsWork(st, it, now) {
   if (now - d.ts > 10 * 60000 && (d.fail || it.at - now < 90 * 60000)) return true;
   return false;
 }
+/* ---------- Vorbereitung ("Ich habe mir erlaubt ...") für Termine mit Ort, auch bei geschlossener App ---------- */
+const PREP_VON_MIN = 90, PREP_BIS_MIN = 40;
+async function wetterAmZielServer(to, atMs) {
+  try {
+    if (!to || !isFinite(to.lat) || !isFinite(to.lon)) return null;
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + to.lat + '&longitude=' + to.lon + '&hourly=precipitation,weather_code&forecast_days=2&timezone=Europe%2FBerlin', { signal: AbortSignal.timeout(6000) });
+    if (!r.ok) return null;
+    const H = (await r.json()).hourly;
+    if (!H || !Array.isArray(H.time)) return null;
+    const key = new Date(atMs).toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).slice(0, 13).replace(' ', 'T');
+    const i = H.time.findIndex(t => t.slice(0, 13) === key);
+    if (i < 0) return null;
+    const code = H.weather_code[i], mm = H.precipitation[i];
+    const nass = (m, c) => m >= 0.3 || (c >= 51 && c <= 67) || (c >= 80 && c <= 99);
+    if (!nass(mm, code)) return 'Bei deiner Ankunft ist es am Ziel trocken.';
+    const gew = code === 95 || code === 96 || code === 99;
+    let trocken = null;
+    for (let j = i + 1; j < Math.min(H.time.length, i + 6); j++) if (!nass(H.precipitation[j], H.weather_code[j])) { trocken = parseInt(H.time[j].slice(11, 13), 10); break; }
+    return 'Bei deiner Ankunft gibt es am Ziel ' + (gew ? 'ein Gewitter' : mm >= 2 ? 'kräftigen Regen' : 'Regen') + (trocken !== null ? '; ab ' + trocken + ' Uhr ist es dort trocken.' : '.');
+  } catch (e) { return null; }
+}
+async function einkaufsListeServer(redis) {
+  try {
+    const raw = await redis('GET', STORE_KEY);
+    const stored = raw ? JSON.parse(raw) : null;
+    const v = stored && stored.items && stored.items.helfer_shopping && stored.items.helfer_shopping.v;
+    const arr = typeof v === 'string' ? JSON.parse(v) : v;
+    return Array.isArray(arr) ? arr.map(e => String((e && e.text) || '')).filter(Boolean).slice(0, 5) : [];
+  } catch (e) { return []; }
+}
+async function sendPrep(redis, data, it, dep, now) {
+  const fahrt = dep.fahrtMin + (dep.stauMin || 0);
+  const leaveAt = it.at - (fahrt + BUFFER_MIN) * 60000;
+  const teile = ['Ich habe mir erlaubt, deinen Termin „' + it.x + '“ um ' + berlinClock(it.at) + ' Uhr vorzubereiten.'];
+  teile.push('Die Fahrt dauert etwa ' + fahrt + ' Minuten' + (dep.stauMin ? ' (darin ' + dep.stauMin + ' Minuten Stau)' : '') + (dep.quelle === 'zuhause' ? ' ab Zuhause' : '') + '. Fahr gegen ' + berlinClock(leaveAt) + ' Uhr los.');
+  const stau = await checkStau({ autobahnen: dep.autobahnen, from: dep.from, to: dep.to });
+  if (stau.meldungen.length) teile.push('Auf der Strecke: ' + stau.meldungen.join('; ') + '.');
+  else if (stau.geprueft) teile.push('Keine Staumeldungen auf der Strecke.');
+  const wetter = await wetterAmZielServer(dep.to, it.at);
+  if (wetter) teile.push(wetter);
+  if (/supermarkt|edeka|rewe|lidl|aldi|penny|netto|kaufland|einkaufen|bäcker|markt\b/i.test((it.l || '') + ' ' + it.x)) {
+    const liste = await einkaufsListeServer(redis);
+    if (liste.length) teile.push('Auf deiner Einkaufsliste: ' + liste.join(', ') + '.');
+  }
+  return sendToAll(redis, data, { title: 'Vorbereitet: ' + it.x, body: teile.join(' '), tag: 'v-' + it.id, url: './' });
+}
 function nagNeedsWork(st, it, now) {
   if (it.k !== 'r' || it.i !== 1 || st.done[it.id]) return false;
   const n = st.nag[it.id];
@@ -994,7 +1040,7 @@ async function handleDue(req, res, redis) {
     try { const raw = await redis('GET', PUSH_KEY); if (raw) data = JSON.parse(raw); } catch (e) {}
     if (!Array.isArray(data.subs)) data.subs = [];
 
-    let sent = 0, skippedApp = 0, skippedQuiet = 0, departSent = 0, nagSent = 0;
+    let sent = 0, skippedApp = 0, skippedQuiet = 0, departSent = 0, nagSent = 0, prepSent = 0;
     const doneBtn = (it) => ({ actions: [{ action: 'done', title: 'Erledigt' }], doneUrl: '/api/sync?action=push_done&id=' + encodeURIComponent(it.id) + '&t=' + doneToken(it.id) });
 
     // 1) Abfahrtszeit für Termine mit Ort (höchstens 2 Berechnungen pro Lauf)
@@ -1015,6 +1061,12 @@ async function handleDue(req, res, redis) {
         }
       }
       if (!dep || dep.fail) continue;
+      // Vorbereitung: einmal, 90 bis 40 Minuten vor dem Termin; bei offener App macht die App das selbst, nachts still
+      const bisTermin = it.at - now;
+      if (!st.sent['v' + it.id] && bisTermin <= PREP_VON_MIN * 60000 && bisTermin >= PREP_BIS_MIN * 60000) {
+        st.sent['v' + it.id] = now;
+        if (!appOpen && !quiet && data.subs.length) { try { const rp = await sendPrep(redis, data, it, dep, now); if (rp.sent > 0) prepSent++; } catch (e) { } }
+      }
       const leaveAt = it.at - (dep.fahrtMin + (dep.stauMin || 0) + BUFFER_MIN) * 60000;
       if (now < leaveAt - DEPART_LEAD_MIN * 60000 || now >= it.at) continue;
       st.sent['d' + it.id] = now; st.sent[it.id] = now;
@@ -1112,7 +1164,7 @@ async function handleDue(req, res, redis) {
     for (const k of Object.keys(st.dep)) { if (!ids.has(k)) delete st.dep[k]; }
     for (const k of Object.keys(st.nag)) { if (!ids.has(k)) delete st.nag[k]; }
     await redis('SET', ITEMS_KEY, JSON.stringify(st));
-    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent, tank: tankSent, wetter: wxSent, regen: rainSent, impuls: impSent, mail: mailSent, planung: planSent });
+    return res.status(200).json({ ok: true, due: due.length, sent, skippedApp, skippedQuiet, briefing: briefSent, depart: departSent, nag: nagSent, tank: tankSent, wetter: wxSent, regen: rainSent, impuls: impSent, mail: mailSent, planung: planSent, vorbereitung: prepSent });
   } catch (err) {
     return res.status(500).json({ error: 'Push-Fehler: ' + err.message });
   }
