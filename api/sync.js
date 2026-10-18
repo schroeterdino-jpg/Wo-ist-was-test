@@ -894,6 +894,58 @@ async function runMail(redis, st, data, now, appOpen) {
   return sent;
 }
 
+// --- HSV-Endstand als Push (nur Hamburger SV; OpenLigaDB, kostenlos, ohne Schlüssel) ---
+// Prüft nicht jede Minute: vor dem Anpfiff erst kurz vor Spielende, während des Spiels alle 3 Minuten, sonst höchstens alle 6 Stunden (falls ein Spiel verlegt wird).
+const HSV_SEARCH = 'hamburg';
+function hsvDue(st, now) { return !st.hsv || !st.hsv.next || now >= st.hsv.next; }
+
+function hsvTeam(t) { return !!(t && String(t.teamName || '').toLowerCase().indexOf(HSV_SEARCH) >= 0); }
+function hsvResult(m) {
+  const arr = Array.isArray(m.matchResults) ? m.matchResults : [];
+  const r = arr.find(x => x.resultTypeID === 2) || arr[arr.length - 1];
+  return r ? { a: r.pointsTeam1, b: r.pointsTeam2 } : null;
+}
+
+async function runHsv(redis, st, data, now) {
+  if (!st.hsv || typeof st.hsv !== 'object') st.hsv = {};
+  if (!st.hsv.sent || typeof st.hsv.sent !== 'object') st.hsv.sent = {};
+  const h = st.hsv;
+  h.next = now + 6 * 3600000;
+  let match = null;
+  try {
+    for (const liga of ['bl1', 'bl2']) {
+      const r = await fetch('https://api.openligadb.de/getmatchdata/' + liga, { signal: AbortSignal.timeout(7000) });
+      if (!r.ok) continue;
+      const arr = await r.json();
+      const m = (Array.isArray(arr) ? arr : []).find(x => hsvTeam(x.team1) || hsvTeam(x.team2));
+      if (m) { match = m; break; }
+    }
+  } catch (e) { h.next = now + 10 * 60000; return false; }
+  if (!match) return false;
+  const ko = new Date(match.matchDateTimeUTC || match.matchDateTime).getTime();
+  const id = String(match.matchID);
+  const hour = berlinHour(now);
+  if (match.matchIsFinished && !h.sent[id]) {
+    if (hour >= 22 || hour < 7) { h.next = now + 30 * 60000; return false; }   // nachts nicht klingeln: morgens nachholen
+    const res = hsvResult(match);
+    if (!res) { h.next = now + 5 * 60000; return false; }
+    const heim = hsvTeam(match.team1), wir = heim ? res.a : res.b, die = heim ? res.b : res.a;
+    const gegner = (heim ? match.team2 : match.team1).teamName;
+    const t1 = match.team1.teamName, t2 = match.team2.teamName;
+    const titel = wir > die ? '⚽ HSV hat gewonnen!' : (wir < die ? '⚽ HSV hat verloren' : '⚽ HSV: Unentschieden');
+    const body = t1 + ' ' + res.a + ' : ' + res.b + ' ' + t2 + (wir > die ? '. Sieg gegen ' + gegner + '.' : (wir < die ? '. Niederlage gegen ' + gegner + '.' : '. Punkteteilung gegen ' + gegner + '.'));
+    h.sent[id] = now;
+    for (const k of Object.keys(h.sent)) { if (now - h.sent[k] > 30 * 86400000) delete h.sent[k]; }
+    if (!data.subs.length) return false;
+    const out = await sendToAll(redis, data, { title: titel, body, tag: 'hsv-' + id, url: './' });
+    return out.sent > 0;
+  }
+  if (h.sent[id] || match.matchIsFinished) { h.next = now + 6 * 3600000; return false; }
+  if (ko > now) { h.next = Math.min(now + 6 * 3600000, ko + 100 * 60000); return false; }   // noch nicht angepfiffen: erst gegen Spielende wieder schauen
+  h.next = now + 3 * 60000;   // läuft gerade
+  return false;
+}
+
 async function handleDue(req, res, redis) {
   try {
     if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return res.status(500).json({ error: 'Server: VAPID-Schlüssel fehlen' });
@@ -925,7 +977,8 @@ async function handleDue(req, res, redis) {
     const impNow = impulseDue(st, now);
     const mailNow = mailDue(st, now);
     const rainNow = rainDue(st, now, appOpen);
-    if (!due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow && !impNow && !mailNow && !rainNow) return res.status(200).json({ ok: true, due: 0 });
+    const hsvNow = hsvDue(st, now);
+    if (!due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow && !impNow && !mailNow && !rainNow && !hsvNow) return res.status(200).json({ ok: true, due: 0 });
 
     // Sperre: nie zwei Läufe gleichzeitig (sonst käme alles doppelt)
     const lock = await redis('SET', 'alltags-helfer:pushlock', '1', 'NX', 'EX', '40');
@@ -1023,6 +1076,10 @@ async function handleDue(req, res, redis) {
     // 7) Neue wichtige E-Mails (alle 5 Minuten; nur wenn die Verbindung eingerichtet ist)
     let mailSent = false;
     if (mailNow) { try { mailSent = await runMail(redis, st, data, now, appOpen); } catch (e) { st.mail.err = 'Fehler: ' + e.message; } }
+
+    // 8) HSV-Endstand (nur Hamburger SV)
+    let hsvSent = false;
+    if (hsvNow) { try { hsvSent = await runHsv(redis, st, data, now); } catch (e) { } }
 
     let briefSent = false;
     if (brief) {
