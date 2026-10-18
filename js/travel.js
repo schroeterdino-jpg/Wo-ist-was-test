@@ -780,6 +780,37 @@ function bahnHHMM(iso) {
 
 function bahnUmstiegeText(n) { return n <= 0 ? 'ohne Umstieg' : (n === 1 ? 'mit einem Umstieg' : `mit ${n} Umstiegen`); }
 
+/* Abfahrtstafel-Karte: Abfahrtszeit groß, Linien-Schilder, Gleis, Countdown, Verspätung in Orange */
+function bahnTafelCard(j, href) {
+    const e = escapeHtml;
+    const ab = new Date(j.abfahrt), jetzt = Date.now();
+    const verspaetet = !j.faelltAus && j.verspaetungMin >= 2;
+    const geplant = verspaetet ? new Date(ab.getTime() - j.verspaetungMin * 60000) : null;
+    const min = Math.round((ab - jetzt) / 60000);
+    const cd = j.faelltAus ? 'fällt aus' : (min <= 0 ? 'jetzt' : (min < 60 ? `in ${min} Min` : `in ${Math.floor(min / 60)} Std ${String(min % 60).padStart(2, '0')}`));
+    const walk = (ab - new Date(j.start)) / 60000;
+    const farbe = j.faelltAus ? '#ff5c5c' : (verspaetet ? '#ff9a44' : '#e2e8f0');
+    const schilder = (j.linien || []).map((n, i) => {
+        const bus = /^(bus|tram)/i.test(n) || /^\d/.test(n);
+        const label = String(n).replace(/^(bus|tram)\s+/i, '');
+        return (i ? '<span style="color:#7fb8cf">›</span>' : '') +
+            `<span style="font-weight:700;font-size:13px;border-radius:6px;padding:3px 8px;color:#fff;background:${bus ? '#d9142c' : '#3a4a5a'}">${e(label)}</span>`;
+    }).join(' ');
+    const ort = j.gleis ? `Gl. ${j.gleis}` : (j.haltVon || '');
+    const ortChip = ort ? `<span style="font-size:11px;color:#7fb8cf;border:1px solid rgba(127,184,207,.4);border-radius:6px;padding:2px 6px">${e(ort)}</span>` : '';
+    const sub = `an ${e(bahnHHMM(j.ankunft))} · ${e(bahnUmstiegeText(j.umstiege).replace('mit einem Umstieg', '1 Umstieg').replace(/^mit (\d+) Umstiegen$/, '$1 Umstiege').replace('ohne Umstieg', 'direkt'))} · ${j.dauerMin} Min.`;
+    const klein = j.faelltAus ? 'fällt aus' : (verspaetet ? `geplant ${e(bahnHHMM(geplant.toISOString()))}` : 'pünktlich');
+    const rechts2 = j.faelltAus ? '' : (verspaetet ? `+${j.verspaetungMin} verspätet` : (walk >= 4 ? `${e(bahnHHMM(j.start))} losgehen` : ''));
+    return {
+        html: `<div style="display:flex;align-items:center;gap:10px">` +
+            `<div style="min-width:84px"><div style="font-size:28px;font-weight:700;color:#49d7ff;line-height:1">${e(bahnHHMM(j.abfahrt))}</div><div style="font-size:11px;color:#7fb8cf;margin-top:4px">${klein}</div></div>` +
+            `<div style="flex:1;min-width:0"><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">${schilder}${ortChip}</div><div style="font-size:11px;color:#9bb4c4;margin-top:6px">${sub}</div></div>` +
+            `<div style="text-align:right;min-width:64px"><div style="font-size:16px;font-weight:700;color:${farbe}">${e(cd)}</div><div style="font-size:11px;color:${verspaetet ? '#ff9a44' : '#7fb8cf'}">${rechts2}</div></div></div>`,
+        rand: j.faelltAus ? 'rgba(255,92,92,.6)' : (verspaetet ? 'rgba(255,154,68,.55)' : ''),
+        href,
+    };
+}
+
 function bahnIsHere(raw) {
     const t = String(raw || '').trim();
     return !t || /^(hier|hierher|meinstandort|standort|vonhier|beimir|beiuns|hierbeimir)$/.test(t.toLowerCase().replace(/[^a-zäöüß]/g, ''));
@@ -888,12 +919,7 @@ async function bahnAuskunft(opts) {
             reply = `Die nächste Verbindung nach ${nach}: ${say(list[0])}`;
         }
     }
-    const cards = list.slice(0, 3).map(j => ({
-        icon: '🚆',
-        title: `${bahnHHMM(j.abfahrt)} → ${bahnHHMM(j.ankunft)} · ${j.linien.join(' › ')}`,
-        subtitle: `${j.haltVon || ''}${j.gleis ? ' · Gl. ' + j.gleis : ''} · ${bahnUmstiegeText(j.umstiege)} · ${j.dauerMin} Min.${j.faelltAus ? ' · fällt aus' : (j.verspaetungMin >= 3 ? ' · +' + j.verspaetungMin + ' Min.' : '')}`,
-        href: mapsLink()
-    }));
+    const cards = list.slice(0, 3).map(j => bahnTafelCard(j, mapsLink()));
     if (d.quelle) cards.push({ icon: 'ℹ️', title: `Fahrplandaten: ${d.quelle}`, subtitle: 'Quellen und Lizenzen der Daten', href: 'https://transitous.org/sources/' });   // Transitous verlangt die sichtbare Nennung
     return { reply, cards };
 }

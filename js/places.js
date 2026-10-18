@@ -12,6 +12,13 @@ function showActionCards(cards) {
     const box = document.getElementById('actionCards');
     if (!box) return;
     setHtmlIfChanged(box, (cards || []).map(c => {
+        // Karte mit fertigem Aussehen (z.B. die Abfahrtstafel für Bus und Bahn): c.html ist schon sauber maskiert und kommt unverändert hinein
+        if (c.html) {
+            const hcls = 'block bg-[#0a1621]/90 backdrop-blur rounded-xl p-3 font-mono';
+            const hst = 'border:1px solid ' + (c.rand || 'rgba(73,215,255,.35)') + ';color:#e2e8f0;text-decoration:none;padding:12px;border-radius:12px';
+            if (c.href) return `<a href="${escapeHtml(c.href)}" target="_blank" rel="noopener" onclick="playUiBeep()" class="${hcls}" style="${hst}">${c.html}</a>`;
+            return `<div class="${hcls}" style="${hst}">${c.html}</div>`;
+        }
         const inner =
             `<span class="text-2xl">${c.icon}</span>` +
             `<span class="flex-1 min-w-0"><b class="block text-[#49d7ff] text-sm">${escapeHtml(c.title)}</b>` +
