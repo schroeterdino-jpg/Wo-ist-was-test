@@ -80,7 +80,10 @@ const HELP_TOPICS = [
     { key: 'push', icon: '🔔', title: 'Benachrichtigungen', words: /benachrichtig|push|nachricht aufs handy/, examples: [
         'Benachrichtigungen an (dann auf die Karte tippen und zulassen)', 'Sende eine Test-Nachricht (muss auch bei geschlossener App ankommen)', 'Benachrichtigungen aus / Status Benachrichtigungen',
         'Bei Terminen mit Ort sagt dir Zane aufs Handy, wann du losfahren musst (mit Stau, ab deinem letzten Standort oder Zuhause)', 'Wichtige Erinnerungen kommen alle 10 Minuten wieder, bis du am Sperrbildschirm auf Erledigt tippst',
-        'Nach jedem HSV-Spiel kommt von selbst eine Nachricht mit dem Endstand (gewonnen, verloren oder unentschieden); nachts zwischen 22 und 7 Uhr erst morgens'] },
+        'Nach jedem HSV-Spiel kommt von selbst eine Nachricht mit dem Endstand (gewonnen, verloren oder unentschieden); nachts zwischen 22 und 7 Uhr erst morgens',
+        'Der Wochenüberblick (Sonntag 18 Uhr) kommt als Nachricht mit dem ganzen Text und wird zusätzlich gesprochen, auch wenn die App gerade offen ist',
+        'Meldungen nachlesen: "Meine Meldungen" / "Was hast du mir gesagt?" / "Was habe ich verpasst?" (Wochenüberblick, Aufbruchszeit, Stau-Hinweis der letzten Tage)',
+        'Wochenüberblick, Aufbruchszeit und Stau-Hinweis öffnen beim Sprechen auch ein Fenster zum Nachlesen; "Zeig mir den Wochenüberblick" jederzeit'] },
     { key: 'routinen', icon: '🔁', title: 'Routinen', words: /routine|gelernt|gewohnheit/, examples: [
         'Welche Routinen kennst du? / Was hast du gelernt?', 'Zane merkt sich still nur Art und Uhrzeit (nie den Inhalt), was du wann tust, und fragt dich höchstens einmal am Tag, ob er eine Routine merken soll',
         'Antworte einfach Ja oder Nein', 'Vergiss die Routine Einkauf / Vergiss alle Routinen', 'Routinen aus / Routinen an'] },

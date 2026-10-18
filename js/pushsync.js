@@ -48,6 +48,8 @@
                 items.push(o);
             });
         } catch (e) {}
+        /* Wochenüberblick (sonntags 18:00) als Push mit vollem Text: kommt auch, wenn die App gerade offen ist */
+        try { if (window.jvPlan && typeof window.jvPlan.pushPlan === 'function') window.jvPlan.pushPlan().forEach(o => items.push(o)); } catch (e) {}
         items.sort((a, b) => a.at - b.at);
         return items.slice(0, MAX_ITEMS);
     }
@@ -83,7 +85,7 @@
             if (!on() || typeof apiFetch !== 'function') return;
             const items = build();
             await addGeo(items);
-            const hash = JSON.stringify(items.map(i => [i.id, i.at, i.x, i.l || '', i.i || 0, i.g ? 1 : 0]));
+            const hash = JSON.stringify(items.map(i => [i.id, i.at, i.x, i.l || '', i.i || 0, i.g ? 1 : 0, i.t || '']));
             if (!force && hash === lastHash) return;
             const res = await apiFetch('/api/sync?action=push_items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
             if (res.ok) {

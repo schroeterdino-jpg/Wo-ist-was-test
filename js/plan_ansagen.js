@@ -37,6 +37,44 @@
     function sagen(t, weiter) {
         try { speak(t, weiter && typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) { }
     }
+    /* ---------- Meldungen zum Nachlesen ---------- */
+    const K_MELD = 'jv_meldungen';
+    function meldungen() { try { const a = JSON.parse(lsGet(K_MELD) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+    function escH(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function merkeMeldung(titel, text) {
+        try { const a = meldungen(); a.push({ at: Date.now(), t: titel, x: String(text || '').slice(0, 900) }); lsSet(K_MELD, JSON.stringify(a.slice(-20))); } catch (e) { }
+    }
+    function zeigeMeldung(titel, text) {
+        try {
+            if (typeof openExtraWindow !== 'function') return;
+            const zeit = new Date().toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
+            openExtraWindow(titel, '<div style="font-size:12px;color:#8fb4c8;margin-bottom:8px">' + zeit + ' Uhr</div>' +
+                '<div style="font-size:15px;line-height:1.55;white-space:pre-wrap">' + escH(String(text || '').replace(/\. (?=[A-ZÄÖÜ])/g, '.\n\n')) + '</div>');
+        } catch (e) { }
+    }
+    /* Meldung sprechen, zum Nachlesen merken und als Fenster zeigen */
+    function sagenMeldung(titel, text, ohneFenster) {
+        merkeMeldung(titel, text);
+        if (!ohneFenster) zeigeMeldung(titel, text);
+        sagen(text, false);
+    }
+    function verlaufFenster() {
+        const a = meldungen().slice().reverse();
+        if (!a.length) { sagen('Ich habe noch keine Meldung zum Nachlesen gemerkt.', false); return; }
+        try {
+            if (typeof openExtraWindow !== 'function') { sagen(a[0].t + ': ' + a[0].x, false); return; }
+            const html = a.slice(0, 10).map(m => {
+                const d = new Date(m.at), tag = d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit' }),
+                    zeit = d.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
+                return '<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(93,209,255,.15)">' +
+                    '<div style="font-size:12px;color:#8fb4c8">' + escH(tag) + ', ' + zeit + ' Uhr</div>' +
+                    '<div style="font-weight:700;color:#49d7ff;margin:2px 0 4px">' + escH(m.t) + '</div>' +
+                    '<div style="font-size:14px;line-height:1.5;white-space:pre-wrap">' + escH(String(m.x).replace(/\. (?=[A-ZÄÖÜ])/g, '.\n')) + '</div></div>';
+            }).join('');
+            openExtraWindow('🔔 Meine Meldungen', html);
+        } catch (e) { }
+        sagen('Hier sind deine letzten Meldungen zum Nachlesen.', false);
+    }
     function norm(t) {
         return String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
             .replace(/[^a-z0-9:. ]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -293,6 +331,22 @@
         }
         return out.filter(e => e.at > jetztMs + 20000).sort((a, b) => a.at - b.at);
     }
+    /* Für den Server (pushsync.js): Wochenüberblick als Push-Nachricht mit vollem Text, auch wenn die App offen ist */
+    function pushPlan() {
+        const out = [];
+        try {
+            if (aus()) return out;
+            const nu = jetzt(), jetztMs = Date.now();
+            for (let i = 0; i < 8; i++) {
+                const ymd = ymdPlus(nu.ymd, i);
+                if (dow(ymd) !== 6) continue;
+                const mo = ymdPlus(ymd, 1), at = berlinMs(ymd, WOCHEN_MIN);
+                if (at < jetztMs - 20 * 60000) continue;
+                out.push({ id: 'pw' + ymd, k: 'p', t: 'Wochenüberblick', x: wochenText(mo, mo, true).slice(0, 700), at });
+            }
+        } catch (e) { }
+        return out;
+    }
     let letztesSignal = '';
     function planSenden(erzwingen) {
         try {
@@ -340,13 +394,13 @@
         if (art === 'ort') { try { return !!(window.jvOrte && window.jvOrte.ansage(id)); } catch (e) { return false; } }   // Orts-Erinnerung (orte.js)
         if (art === 'wochen') {
             const mo = ymdPlus(ymd, 1);
-            sagen(wochenText(mo, mo, true), false);
+            sagenMeldung('📅 Wochenüberblick', wochenText(mo, mo, true));
             return true;
         }
         if (art === 'aufbruch') {
             const r = await aufbruchText(ymd, true);
             if (!r.text) return false;
-            sagen(r.text, false);
+            sagenMeldung('🚗 Aufbruchszeit', r.text);
             return true;
         }
         if (art === 'wecker') { weckerFrage(ymd); return true; }
@@ -367,7 +421,7 @@
         if (stau) t += ' ' + stau;
         if (f.min && f.st) t += ' Darin sind etwa ' + f.st + ' Minuten Stau schon eingerechnet.';
         t += abfahrt <= nu.min + 5 ? ' Fahr am besten gleich los.' : ' Fahr lieber um ' + uhr(abfahrt) + ' los.';
-        sagen(t, false);
+        sagenMeldung('🚦 Stau auf dem Arbeitsweg', t);
         return true;
     }
     function pruefe() {
@@ -502,14 +556,19 @@
             }
             return true;
         }
+        // Meldungen nachlesen
+        if (/\b(meine meldungen|verpasste meldungen|meldungen nachlesen|letzte meldungen?|letzte ansagen?)\b/.test(t) || /\bwas hast du (mir )?(gerade |eben |vorhin )?(gesagt|gemeldet)\b/.test(t) || /\bwas habe ich (gerade |eben |vorhin )?verpasst\b/.test(t)) {
+            verlaufFenster();
+            return true;
+        }
         // Wochenüberblick jederzeit
         if (/\b(wochenueberblick|wochenvorschau|wochenuebersicht)\b/.test(t) || /\b(ueberblick|uebersicht|vorschau)\b.*\bwoche\b/.test(t) || /\bwoche\b.*\b(ueberblick|uebersicht|vorschau)\b/.test(t)) {
             const w = wocheJetzt();
             if (/\b(naechste|kommende)\b/.test(t) && !w.naechste) {
                 const mo = ymdPlus(w.montag, 7);
-                sagen(wochenText(mo, mo, true), false);
+                sagenMeldung('📅 Wochenüberblick', wochenText(mo, mo, true), false);
             } else {
-                sagen(wochenText(w.montag, w.ab, w.naechste), false);
+                sagenMeldung('📅 Wochenüberblick', wochenText(w.montag, w.ab, w.naechste), false);
             }
             return true;
         }
@@ -524,7 +583,7 @@
                 }
                 if (!ymd) { sagen('Ich finde keinen Arbeitstag in den nächsten Tagen. Ist deine Schicht eingestellt?', false); return; }
                 const r = await aufbruchText(ymd, ymd === heute);
-                sagen(r.text || 'Dafür brauche ich deine Schicht. Sag zum Beispiel: Diese Woche Frühschicht.', false);
+                if (r.text) sagenMeldung('🚗 Aufbruchszeit', r.text); else sagen('Dafür brauche ich deine Schicht. Sag zum Beispiel: Diese Woche Frühschicht.', false);
             })();
             return true;
         }
@@ -557,7 +616,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerFrage, parseZeit };
+    window.jvPlan = { pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Nova war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);
