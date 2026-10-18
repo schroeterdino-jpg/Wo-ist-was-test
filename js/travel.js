@@ -873,8 +873,20 @@ async function bahnAuskunft(opts) {
         reply = `Um ${formatSpokenTime(when)} in ${nach} zu sein: ${say(list[0])}`;
         if (list[1]) reply += ` Eine frühere Möglichkeit: Abfahrt um ${formatSpokenTime(new Date(list[1].abfahrt))}, Ankunft um ${formatSpokenTime(new Date(list[1].ankunft))}.`;
     } else {
-        reply = `Die nächste Verbindung nach ${nach}: ${say(list[0])}`;
-        if (list[1]) reply += ` Danach um ${formatSpokenTime(new Date(list[1].abfahrt))}.`;
+        if (list.length >= 2) {
+            // Abfahrtsliste: bis zu 3 Zeiten nacheinander, mit Linie, Gleis und Verspätung (die Karten darunter zeigen Ankunft, Umstiege und Dauer)
+            const kurz = (j) => {
+                let s = `um ${formatSpokenTime(new Date(j.abfahrt))} mit ${j.linien.join(' dann ')}${j.gleis ? ', Gleis ' + j.gleis : ''}`;
+                if (j.faelltAus) s += ' (fällt aus)';
+                else if (j.verspaetungMin >= 3) s += ` (${j.verspaetungMin} Minuten später)`;
+                return s;
+            };
+            const drei = list.slice(0, 3).map(kurz);
+            const ab = list[0].haltVon ? ` ab ${list[0].haltVon}` : '';
+            reply = `Die nächsten Abfahrten${ab} nach ${nach}: ${drei.slice(0, -1).join('; ')} und ${drei[drei.length - 1]}. Die erste kommt um ${formatSpokenTime(new Date(list[0].ankunft))} an.`;
+        } else {
+            reply = `Die nächste Verbindung nach ${nach}: ${say(list[0])}`;
+        }
     }
     const cards = list.slice(0, 3).map(j => ({
         icon: '🚆',
