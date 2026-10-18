@@ -117,7 +117,7 @@
         if (route && Array.isArray(route.coords) && route.coords.length > 1) {
             // Sperrungen zählen nur, wenn sie wirklich auf der Strecke liegen (Google fährt um Sperrungen herum), alles andere bis ~600 m neben der Linie
             const auf = (route.warnings || []).filter(w => distToLine(w.lat, w.lon, route.coords) <= (/sperr|gesperrt/i.test((w.title || '') + ' ' + (w.text || '')) ? 0.25 : 0.6));
-            arbeit = { min: route.fahrtMin, km: Math.round(Number(route.km)), coords: route.coords, meldungen: auf };
+            arbeit = { min: route.fahrtMin + (route.stauMin || 0), km: Math.round(Number(route.km)), coords: route.coords, meldungen: auf };
         }
         // Verkehr in der Nähe: nicht auf dem Arbeitsweg und nicht doppelt zu einer Autobahn-Meldung
         const aufWeg = i => (arbeit && distToLine(i.lat, i.lon, arbeit.coords) <= 1.5) || (route && (route.warnings || []).some(w => distKm(w.lat, w.lon, i.lat, i.lon) < 1.5));
@@ -324,7 +324,7 @@
         return (m && m.warnings || []).filter(w => m.coords && distToLine(w.lat, w.lon, m.coords) <= (/sperr|gesperrt/i.test((w.title || '') + ' ' + (w.text || '')) ? 0.25 : 0.6));
     }
     function zeichneZiel() {
-        const d = zielD, m = d.map, min = m.fahrtMin, km = Math.round(Number(m.km));
+        const d = zielD, m = d.map, min = m.fahrtMin + (m.stauMin || 0), km = Math.round(Number(m.km));
         const auf = aufStrecke(m);
         const z = [];
         if (d.untertitel) { const ab = String(d.untertitel).match(/Abfahrt bis .+$/); if (ab) z.push({ t: ab[0].replace(/(\d{1,2}) Uhr (\d{1,2})\b/, (x, h, m) => h.padStart(2, '0') + ':' + m.padStart(2, '0') + ' Uhr'), c: 'dim' }); }

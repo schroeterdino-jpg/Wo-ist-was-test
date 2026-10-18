@@ -471,20 +471,21 @@ async function computeDepartureAdvice(opts) {
 
     const kmText = km >= 10 ? Math.round(km) + ' Kilometer' : km.toFixed(1).replace('.', ',') + ' Kilometer';
     const staumeldung = await describeAutobahnStau(route.autobahnen, loc.latitude, loc.longitude, dest.lat, dest.lon);
+    const stauMin = Math.max(0, Math.round(Number(window.jvStauMin) || 0));   // gemeldete Verzögerung auf der Strecke: kommt zur Fahrzeit dazu
 
     let reply, subtitle;
     if (target.keinFesterTermin) {
         reply = `Bis ${target.ort} sind es etwa ${fahrtMin} Minuten, das sind ${kmText}.`;
         subtitle = `${fahrtMin} Min. Fahrt · ${kmText}`;
     } else {
-        const losfahren = new Date(target.start.getTime() - (fahrtMin + TRAVEL_BUFFER_MINUTES) * 60000);
+        const losfahren = new Date(target.start.getTime() - (fahrtMin + stauMin + TRAVEL_BUFFER_MINUTES) * 60000);
         const schonZuSpaet = losfahren.getTime() < Date.now();
         const zielSatz = target.titel === target.ort ? target.ort : `${target.titel} ist um ${formatSpokenTime(target.start)} in ${target.ort}`;
-        reply = `${zielSatz}. Die Fahrt dauert etwa ${fahrtMin} Minuten, das sind ${kmText}. `;
+        reply = `${zielSatz}. Die Fahrt dauert etwa ${fahrtMin} Minuten, das sind ${kmText}. ` + (stauMin ? `Dazu kommen etwa ${stauMin} Minuten Verzögerung durch Stau, ich rechne also mit ${fahrtMin + stauMin} Minuten. ` : '');
         reply += schonZuSpaet
             ? 'Um pünktlich zu sein, hättest du eigentlich schon losfahren müssen.'
             : `Um pünktlich da zu sein, solltest du spätestens um ${formatSpokenTime(losfahren)} losfahren.`;
-        subtitle = `${fahrtMin} Min. Fahrt · Abfahrt bis ${formatSpokenTime(losfahren)}`;
+        subtitle = `${fahrtMin}${stauMin ? ' + ' + stauMin + ' Stau' : ''} Min. Fahrt · Abfahrt bis ${formatSpokenTime(losfahren)}`;
     }
     reply += staumeldung;
 
@@ -494,7 +495,7 @@ async function computeDepartureAdvice(opts) {
         coords: route.coords,
         warnings: lastStauWarnings.slice(),
         autobahnen: route.autobahnen || [],
-        fahrtMin, km,
+        fahrtMin, stauMin, km,
         terminMs: (!target.keinFesterTermin && target.start) ? target.start.getTime() : null   // Beginn des Termins (für die Anzeige "Termin 20:00" im Lagebild)
     };
     lastRouteMapData = mapData;

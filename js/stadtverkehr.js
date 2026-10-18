@@ -146,10 +146,12 @@
     }
 
     window.describeAutobahnStau = async function (autobahnen, fLat, fLon, tLat, tLon) {
+        window.jvStauMin = 0;   // Minuten Verzögerung durch Meldungen auf der Strecke (travel.js rechnet sie in die Abfahrtszeit ein)
         let text = await origDesc.apply(this, arguments);
         try {
             const w = await stadtMeldungen(fLat, fLon, tLat, tLon);
             if (w && w.length) {
+                window.jvStauMin = Math.min(60, w.reduce((s, i) => s + (i.verzoegerung_s >= 120 ? Math.round(i.verzoegerung_s / 60) : 0), 0));
                 const teile = w.map(i => {
                     const wo = i.von && i.nach && i.von !== i.nach ? ' zwischen ' + i.von + ' und ' + i.nach : (i.von ? ' bei ' + i.von : '');
                     const min = Math.round(i.verzoegerung_s / 60);

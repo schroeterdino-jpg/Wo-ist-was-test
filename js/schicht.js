@@ -109,7 +109,8 @@
                     d = await Promise.race([fetchRouteMapData(workAddress), new Promise(r => setTimeout(() => r(null), 14000))]);
                 }
                 if (d && d.fahrtMin) {
-                    o.fahrzeit_zur_arbeit_minuten = d.fahrtMin;
+                    o.fahrzeit_zur_arbeit_minuten = d.fahrtMin + (d.stauMin || 0);   // inklusive gemeldetem Stau
+                    if (d.stauMin) o.davon_stau_minuten = d.stauMin;
                     const satz = (typeof lastStauText === 'string') ? lastStauText.trim() : '';
                     if (satz) o.stau_auf_der_strecke = satz;
                     if (typeof lastStauCards !== 'undefined' && lastStauCards.length) window.__schichtStauCards = lastStauCards.slice();

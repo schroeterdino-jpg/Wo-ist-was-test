@@ -130,13 +130,13 @@
     }
     const ISTSTAU = /Achtung, auf der Strecke aktuell gemeldet|Außerdem gemeldet/;
     async function fahrtFrisch() {
-        let min = null, stau = '';
+        let min = null, stau = '', st = 0;
         try {
             if (typeof workAddress === 'string' && workAddress) {
                 if (typeof fetchRouteMapData === 'function') {
                     const d = await Promise.race([fetchRouteMapData(workAddress), new Promise(r => setTimeout(() => r(null), 14000))]);
                     if (d && d.fahrtMin) {
-                        min = d.fahrtMin;
+                        min = d.fahrtMin; st = d.stauMin || 0;
                         stau = (typeof lastStauText === 'string') ? lastStauText.trim() : '';
                     }
                 }
@@ -146,14 +146,14 @@
                 }
             }
         } catch (e) { }
-        if (min) merkeFahrt(min);
-        return { min, stau };
+        if (min) merkeFahrt(min);   // gemerkt wird die Fahrzeit ohne Stau (sie ist der Vergleichswert für "normal")
+        return { min: min ? min + st : min, st, stau };
     }
     if (typeof window.jvSchichtInfo === 'function' && !window.jvSchichtInfo._plan) {   // merkt sich die Fahrzeit, wenn das Briefing sie holt
         const o = window.jvSchichtInfo;
         const w = async function () {
             const r = await o.apply(this, arguments);
-            try { if (r && r.fahrzeit_zur_arbeit_minuten) merkeFahrt(r.fahrzeit_zur_arbeit_minuten); } catch (e) { }
+            try { if (r && r.fahrzeit_zur_arbeit_minuten) merkeFahrt(r.fahrzeit_zur_arbeit_minuten - (r.davon_stau_minuten || 0)); } catch (e) { }
             return r;
         };
         w._plan = true;
@@ -165,8 +165,8 @@
         const sh = schichtAm(ymd);
         if (!sh) return { text: '', sh: null };
         const start = beginn(sh);
-        let min, stau = '';
-        if (mitFrisch) { const f = await fahrtFrisch(); min = f.min || letzteFahrt(); stau = f.stau || ''; }
+        let min, stau = '', st = 0;
+        if (mitFrisch) { const f = await fahrtFrisch(); min = f.min || letzteFahrt(); stau = f.stau || ''; st = f.min ? (f.st || 0) : 0; }
         else min = letzteFahrt();
         const abfahrt = start - min - PUFFER_ARBEIT;
         const nu = jetzt();
@@ -186,6 +186,7 @@
             t = 'Es wird knapp. Die Fahrt dauert rund ' + min + ' Minuten, deine ' + NAME[sh] + ' beginnt aber schon um ' + uhr(start) + '. Fahr sofort los.';
         }
         if (stau) t += ' ' + stau;
+        if (st) t += ' Darin sind etwa ' + st + ' Minuten Stau schon eingerechnet.';
         return { text: t, sh, min, abfahrt };
     }
 
@@ -363,6 +364,7 @@
         const abfahrt = beginn(sh) - min - PUFFER_ARBEIT, nu = jetzt();
         let t = mehr >= 10 ? 'Auf deinem Arbeitsweg ist heute mehr los. Die Fahrt dauert rund ' + min + ' Minuten statt sonst ' + normal + '.' : 'Die Fahrt dauert rund ' + min + ' Minuten.';
         if (stau) t += ' ' + stau;
+        if (f.min && f.st) t += ' Darin sind etwa ' + f.st + ' Minuten Stau schon eingerechnet.';
         t += abfahrt <= nu.min + 5 ? ' Fahr am besten gleich los.' : ' Fahr lieber um ' + uhr(abfahrt) + ' los.';
         sagen(t, false);
         return true;
