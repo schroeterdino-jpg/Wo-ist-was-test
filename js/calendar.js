@@ -328,6 +328,7 @@ async function addGoogleCalendarEvent(text, isoStartString, location, recurrence
         start: { dateTime: eventDate.toISOString() },
         end: { dateTime: endDate.toISOString() }
     };
+    if (!location && typeof window.jvOrtAusKontakt === 'function') location = window.jvOrtAusKontakt(text);   // "Besuch bei Mama" -> Adresse aus den Kontakten
     if (location) eventData.location = location;
     if (recurrenceRule) eventData.recurrence = [recurrenceRule];
     // Google verlangt bei Wiederholungen eine Zeitzone in Start und Ende, sonst wird der Eintrag abgelehnt
@@ -564,7 +565,7 @@ async function fetchGoogleCalendarEvents() {
                         isoDate: item.start.dateTime || item.start.date,
                         eventType: item.eventType || 'default',
                         recurring: !!item.recurringEventId,
-                        location: item.location || ''   // fürs Fahrzeit/Verkehr-Feature (siehe travel.js appointmentDepartureSummaries) nötig
+                        location: item.location || (typeof window.jvOrtAusKontakt === 'function' ? window.jvOrtAusKontakt(item.summary || '') : '')   // (Ort fehlt: Adresse aus den Kontakten) fürs Fahrzeit/Verkehr-Feature (siehe travel.js appointmentDepartureSummaries) nötig
                     };
                 });
                 calendarEntries = [...localOnly, ...mappedEntries];

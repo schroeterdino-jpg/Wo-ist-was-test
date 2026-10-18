@@ -112,9 +112,10 @@ async function fetchNextAppointmentWithLocation(withinHours = 36) {
     }
     if (!res.ok) throw userError('Der Kalender konnte gerade nicht abgefragt werden.');
     const data = await res.json();
-    const item = (data.items || []).find(i => i.status !== 'cancelled' && i.location && i.location.trim() && i.start && i.start.dateTime);
+    const kOrt = i => (i.location && i.location.trim()) || (typeof window.jvOrtAusKontakt === 'function' ? window.jvOrtAusKontakt(i.summary) : '');   // Ort fehlt: Adresse aus den Kontakten
+    const item = (data.items || []).find(i => i.status !== 'cancelled' && kOrt(i) && i.start && i.start.dateTime);
     if (!item) throw userError('Für die nächsten anstehenden Termine ist kein Ort hinterlegt. Nenne mir den Termin, wenn er einen Ort hat, oder trag den Ort im Kalender ein.');
-    return { titel: item.summary || 'Termin', ort: item.location.trim(), start: new Date(item.start.dateTime) };
+    return { titel: item.summary || 'Termin', ort: kOrt(item), start: new Date(item.start.dateTime) };
 }
 
 /* Mit Stichwort: der nächste dazu passende Termin (mit Ort und Uhrzeit) im Hauptkalender, nächste 30 Tage */
@@ -141,9 +142,10 @@ async function findAppointmentByQuery(query) {
     const data = await res.json();
     const items = (data.items || []).filter(i => i.status !== 'cancelled' && i.start && i.start.dateTime);
     if (items.length === 0) throw userError('Dazu habe ich keinen bevorstehenden Termin mit Uhrzeit gefunden.');
-    const withLoc = items.find(i => i.location && i.location.trim());
+    const kOrt = i => (i.location && i.location.trim()) || (typeof window.jvOrtAusKontakt === 'function' ? window.jvOrtAusKontakt(i.summary) : '');
+    const withLoc = items.find(i => kOrt(i));
     if (!withLoc) throw userError(`Für "${items[0].summary || query}" ist kein Ort hinterlegt, dafür kann ich die Fahrzeit nicht berechnen.`);
-    return { titel: withLoc.summary || query, ort: withLoc.location.trim(), start: new Date(withLoc.start.dateTime) };
+    return { titel: withLoc.summary || query, ort: kOrt(withLoc), start: new Date(withLoc.start.dateTime) };
 }
 
 /* Erwartet "HH:MM" oder einen ISO-Zeitstempel. Liegt die Uhrzeit schon in der Vergangenheit, gilt sie für morgen. */
