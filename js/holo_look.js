@@ -16,7 +16,7 @@
 
     var an = lsGet(KEY) !== 'aus';
     var holder = null, cBack = null, cFront = null, xBack = null, xFront = null, scan = null;
-    var W = 400, DPR = 1, t0 = performance.now(), lastDraw = 0, speak = 0, listen = 0, raf = 0, running = false;
+    var W = 400, DPR = 1, t0 = performance.now(), lastDraw = 0, speak = 0, listen = 0, think = 0, raf = 0, running = false;
 
     var CYAN = '38,209,255', ICE = '153,247,255', DEEP = '10,110,200';
     var STRAHL = false;   /* true = Lichtstrahl von der Plattform nach oben wieder an */
@@ -151,7 +151,14 @@
     function drawFront(now) {
         var c = xFront; c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, W, W);
         var t = (now - t0) / 1000, cx = W / 2, cy = W / 2;
-        var boost = 1 + speak * 1.6 + listen * .6, lum = 1 + speak * .55 + listen * .25;
+        var boost = 1 + speak * 1.6 + listen * .6 + think * 1.5, lum = 1 + speak * .55 + listen * .25 + think * .45;
+        /* Farbe nach Zustand: Ruhe cyan, Denken orange, Sprechen violett */
+        function mix(a, b, k) { return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; }
+        var cc = mix(mix([38, 209, 255], [255, 160, 40], think), [185, 105, 255], speak);
+        var ic = mix(mix([153, 247, 255], [255, 225, 140], think), [255, 170, 245], speak);
+        var CYAN = Math.round(cc[0]) + ',' + Math.round(cc[1]) + ',' + Math.round(cc[2]);
+        var ICE = Math.round(ic[0]) + ',' + Math.round(ic[1]) + ',' + Math.round(ic[2]);
+        var wk = Math.min(1, think + speak), fy = cy + W * 0.385;
         c.globalCompositeOperation = 'lighter';
 
         /* pulsierendes Leuchten hinter dem Kopf beim Sprechen */
@@ -175,6 +182,33 @@
         /* Skalen */
         ticks(c, cx, cy, W * .385, 120, W * .011, t * .02 * boost, .5 * Math.min(1.3, lum));
         ticks(c, cx, cy, W * .445, 180, W * .0065, -t * .015 * boost, .34 * Math.min(1.3, lum));
+
+        /* Plattform: Ringe in Zustandsfarbe, Equalizer, aufsteigende Funken (nur beim Denken und Sprechen) */
+        if (wk > .02) {
+            [[.16, 1, 2.2], [.244, .8, 1.6], [.345, .6, 1.4], [.454, .42, 1.2]].forEach(function (r) {
+                var rx = r[0] * W;
+                c.save(); c.shadowColor = 'rgba(' + CYAN + ',.9)'; c.shadowBlur = 10;
+                c.strokeStyle = 'rgba(' + CYAN + ',' + (r[1] * wk) + ')'; c.lineWidth = r[2];
+                c.beginPath(); c.ellipse(cx, fy, rx, rx * 0.24, 0, 0, Math.PI * 2); c.stroke(); c.restore();
+            });
+            var NB = 17, bx0 = cx - W * .40, bstep = W * .80 / (NB - 1);
+            c.save(); c.shadowColor = 'rgba(' + CYAN + ',.95)'; c.shadowBlur = 8; c.fillStyle = 'rgba(' + ICE + ',' + (.9 * wk) + ')';
+            for (var bi = 0; bi < NB; bi++) {
+                var lvS = Math.abs(Math.sin(now * .011 + bi * 1.37)) * (.35 + .65 * Math.abs(Math.sin(now * .0043 + bi * .71)));
+                var lvT = .12 + .5 * Math.max(0, Math.sin(now * .0035 - bi * .45));
+                var lv = lvS * speak + lvT * think * (1 - speak);
+                var bh = Math.max(2, W * .13 * lv * Math.sin(Math.PI * (.15 + .7 * bi / (NB - 1))));
+                c.fillRect(bx0 + bi * bstep - 2.2, fy - bh, 4.4, bh);
+            }
+            c.restore();
+            c.fillStyle = 'rgba(' + ICE + ',1)';
+            for (var ei = 0; ei < 46; ei++) {
+                var ph = (ei * 0.6180339) % 1, vv = .10 + ((ei * 0.37) % 1) * .16;
+                var ey = fy - ((ph + t * vv * (1 + think)) % 1) * W * .66, ex = cx + (((ei * 0.7548) % 1) - .5) * W * .86 + Math.sin(t * 1.3 + ei) * 6;
+                c.globalAlpha = wk * (.25 + .65 * (1 - (fy - ey) / (W * .66))); c.beginPath(); c.arc(ex, ey, .8 + ((ei * 0.29) % 1) * 1.8, 0, Math.PI * 2); c.fill();
+            }
+            c.globalAlpha = 1;
+        }
 
         /* Staub */
         c.fillStyle = 'rgba(' + ICE + ',1)';
@@ -205,6 +239,7 @@
         var st = window.jvAvatar3D.state;
         speak += ((st === 'speaking' ? 1 : 0) - speak) * .12;
         listen += ((st === 'listening' ? 1 : 0) - listen) * .12;
+        think += ((st === 'thinking' ? 1 : 0) - think) * .10;
         var fps = document.documentElement.dataset.fx === 'full' ? 30 : 24;
         if (now - lastDraw >= 1000 / fps - 2) { lastDraw = now; drawFront(now); }
         raf = requestAnimationFrame(frame);
