@@ -230,13 +230,27 @@
         b.classList.toggle('jv-holo', an);
         b.classList.toggle('jv-holo-head', an && headActive());
     }
+    /* Zustand aus mehreren Quellen: Kopf-Zustand, Knopf-Klassen und Statustext der App */
+    function zustand() {
+        var st = 'idle';
+        try { st = window.jvAvatar3D.state || 'idle'; } catch (e) {}
+        if (st !== 'idle') return st;
+        try {
+            var rb = document.getElementById('recordBtn'), rt = document.getElementById('recordText');
+            var tx = String(rt && rt.textContent || '').toUpperCase();
+            if ((rb && rb.classList.contains('speaking')) || /SPRICHT/.test(tx) || (typeof isSpeaking === 'function' && isSpeaking())) return 'speaking';
+            if (/VERARBEIT|DENKT|ANALYS|SUCHE|LADE/.test(tx) || (typeof isProcessing !== 'undefined' && isProcessing)) return 'thinking';
+            if (rb && rb.classList.contains('recording')) return 'listening';
+        } catch (e) {}
+        return 'idle';
+    }
     function frame(now) {
         raf = 0;
         applyBody();
         var show = an && headActive();
         if (!show || document.hidden) { running = false; return; }
         if (document.body.classList.contains('panel-open') || fxStatic()) { running = false; drawFront(now); return; }
-        var st = window.jvAvatar3D.state;
+        var st = zustand();
         speak += ((st === 'speaking' ? 1 : 0) - speak) * .12;
         listen += ((st === 'listening' ? 1 : 0) - listen) * .12;
         think += ((st === 'thinking' ? 1 : 0) - think) * .10;
