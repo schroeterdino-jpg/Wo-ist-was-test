@@ -183,7 +183,7 @@
         ticks(c, cx, cy, W * .385, 120, W * .011, t * .02 * boost, .5 * Math.min(1.3, lum));
         ticks(c, cx, cy, W * .445, 180, W * .0065, -t * .015 * boost, .34 * Math.min(1.3, lum));
 
-        /* Plattform: Ringe in Zustandsfarbe, Equalizer, aufsteigende Funken (nur beim Denken und Sprechen) */
+        /* Plattform: Ringe in Zustandsfarbe, aufsteigende Funken (nur beim Denken und Sprechen) */
         if (wk > .02) {
             [[.16, 1, 2.2], [.244, .8, 1.6], [.345, .6, 1.4], [.454, .42, 1.2]].forEach(function (r) {
                 var rx = r[0] * W;
@@ -191,16 +191,6 @@
                 c.strokeStyle = 'rgba(' + CYAN + ',' + (r[1] * wk) + ')'; c.lineWidth = r[2];
                 c.beginPath(); c.ellipse(cx, fy, rx, rx * 0.24, 0, 0, Math.PI * 2); c.stroke(); c.restore();
             });
-            var NB = 17, bx0 = cx - W * .40, bstep = W * .80 / (NB - 1);
-            c.save(); c.shadowColor = 'rgba(' + CYAN + ',.95)'; c.shadowBlur = 8; c.fillStyle = 'rgba(' + ICE + ',' + (.9 * wk) + ')';
-            for (var bi = 0; bi < NB; bi++) {
-                var lvS = Math.abs(Math.sin(now * .011 + bi * 1.37)) * (.35 + .65 * Math.abs(Math.sin(now * .0043 + bi * .71)));
-                var lvT = .12 + .5 * Math.max(0, Math.sin(now * .0035 - bi * .45));
-                var lv = lvS * speak + lvT * think * (1 - speak);
-                var bh = Math.max(2, W * .13 * lv * Math.sin(Math.PI * (.15 + .7 * bi / (NB - 1))));
-                c.fillRect(bx0 + bi * bstep - 2.2, fy - bh, 4.4, bh);
-            }
-            c.restore();
             c.fillStyle = 'rgba(' + ICE + ',1)';
             for (var ei = 0; ei < 46; ei++) {
                 var ph = (ei * 0.6180339) % 1, vv = .10 + ((ei * 0.37) % 1) * .16;
