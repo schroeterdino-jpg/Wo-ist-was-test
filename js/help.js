@@ -73,7 +73,8 @@ const HELP_TOPICS = [
     { key: 'schicht', icon: '🕒', title: 'Schicht und Briefing', words: /schicht|frühschicht|spätschicht|früh|spät|dienstplan|briefing/, examples: [
         'Diese Woche Frühschicht / Nächste Woche Spätschicht (danach wechselt Zane jeden Montag von selbst)', 'Welche Schicht habe ich? / Welche Schicht habe ich nächste Woche?',
         'Das Briefing kommt von selbst: Frühschicht ab 3 Uhr 30, Spätschicht ab 12 Uhr, nur bei offener App, einmal am Tag', 'Briefing in der Spätschicht um 11 Uhr (Zeit ändern) / Wann kommt mein Briefing?',
-        'Schicht-Briefing aus / Schicht-Briefing an', 'In der Frühschicht ist Zane von 21 Uhr 30 bis zur Briefing-Zeit still'] },
+        'Schicht-Briefing aus / Schicht-Briefing an', 'In der Frühschicht ist Zane von 21 Uhr 30 bis zur Briefing-Zeit still',
+        'Wann beginnt meine Spätschicht? / Wann fange ich an? / Schichtbeginn nächste Woche (Früh 5 Uhr 10, Spät 13 Uhr 45, änderbar mit: Meine Frühschicht beginnt um 5 Uhr 30)', 'Wann stehe ich auf? (Frühschicht: Aufstehzeit, Spätschicht: Briefing-Zeit)'] },
     { key: 'mitnehmen', icon: '🎒', title: 'Mitnehmen-Liste', words: /mitnehm|einpack|vergessen|mitnahme/, examples: [
         'Was muss ich mitnehmen? (Zane liest die Liste vor: Arbeitschip, Haustürschlüssel, Autoschlüssel, Portemonnaie, Zahnprovisorium, Arbeitsessen, dein Energy)', 'Pack Handy auf meine Mitnehmen-Liste', 'Streich das Energy von der Mitnehmen-Liste', 'Mitnehmen-Liste zurücksetzen',
         'Die Liste sagt Zane bei der Aufbruchsansage vor der Arbeit von selbst, 10 Minuten vor der Abfahrt'] },

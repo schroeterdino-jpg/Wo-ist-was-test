@@ -133,7 +133,8 @@ async function sendToGroqSmartCore(text, opts = {}) {
         erinnerungen: reminderEntries.map(r => ({ id: r.id, text: r.text, ...describeEventDate(r.time), iso: r.time })),
         einkauf: shoppingEntries.map(s => s.text),
         aufgaben_und_notizen: todoEntries.map(t => t.text),
-        briefing_wuensche: briefingWishes.map(w => ({ id: w.id, art: w.type === 'item' ? 'gegenstand' : 'hinweis', text: w.text }))
+        briefing_wuensche: briefingWishes.map(w => ({ id: w.id, art: w.type === 'item' ? 'gegenstand' : 'hinweis', text: w.text })),
+        schicht: (typeof window.jvSchichtWissen === 'function' ? window.jvSchichtWissen() : null)
     };
 
     const systemPrompt = buildSystemPrompt(text, contextData, nowGermanIso);
