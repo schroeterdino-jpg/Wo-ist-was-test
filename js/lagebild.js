@@ -339,7 +339,7 @@
         body.appendChild(el('div', 'z dim', 'AUF DEM WEG SUCHEN:'));
         const kat = el('div', 'knoepfe wrap');
         WEG_KAT.forEach(k => {
-            const b = el('button', (wegD && wegD.was === k.q) ? 'an' : '', k.icon + ' ' + k.name.toUpperCase());
+            const b = el('button', (wegD && String(wegD.was) === String(k.q)) ? 'an' : '', k.icon + ' ' + k.name.toUpperCase());
             b.addEventListener('click', () => { suchAufDemWeg(k.q, k.name).catch(e => console.error('Lagebild Weg', e)); });
             kat.appendChild(b);
         });
@@ -443,7 +443,7 @@
         return out;
     }
     const WEG_KAT = [
-        { icon: '🍔', name: 'Restaurants', q: 'Restaurant Fast Food' },
+        { icon: '🍔', name: 'Restaurants', q: ['Fast Food', 'Restaurant'] },   // Fast Food extra, sonst kommen kaum McDonald's & Co.,
         { icon: '⛽', name: 'Tankstellen', q: 'Tankstelle' },
         { icon: '🔨', name: 'Baumärkte', q: 'Baumarkt' },
         { icon: '🛒', name: 'Supermärkte', q: 'Supermarkt' },
@@ -463,9 +463,13 @@
         const name = anzeige || was;
         sagen('Ich suche ' + name + ' auf dem Weg.');
         wegD = { was, name, items: [], lade: true }; if (view === 'ziel' && body) zeichne();
-        const pts = punkteAmWeg(m.coords);
+        const fragen = Array.isArray(was) ? was : [was];
+        let pts = punkteAmWeg(m.coords);
+        if (fragen.length > 1 && pts.length > 4) pts = pts.filter((_, i) => i % 2 === 0 || i === pts.length - 1).slice(0, 4);   // spart Abfragen (Monatslimit)
         let fehler = 0;
-        const alle = await Promise.all(pts.map(p => mit(window.jvGoogleElements(was, p[0], p[1], 6000).catch(() => { fehler++; return []; }), 12000)));
+        const jobs = [];
+        pts.forEach(p => fragen.forEach(q => jobs.push(mit(window.jvGoogleElements(q, p[0], p[1], 6000).catch(() => { fehler++; return []; }), 12000))));
+        const alle = await Promise.all(jobs);
         const gesehen = new Set(), items = [];
         alle.forEach(l => (l || []).forEach(e => {
             const nm = (e.tags && e.tags.name) || '';
@@ -479,9 +483,9 @@
             items.push({ name: nm, ab: ab < 0.15 ? 'direkt an der Strecke' : (ab < 1 ? Math.round(ab * 10) * 100 + ' m Umweg' : ab.toFixed(1).replace('.', ',') + ' km abseits'), abKm: ab, status: st, href: 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(to) + '&waypoints=' + encodeURIComponent(e.lat + ',' + e.lon) + '&travelmode=driving' });
         }));
         items.sort((a, b) => (a.abKm + (a.status === 'geschlossen' ? 3 : 0)) - (b.abKm + (b.status === 'geschlossen' ? 3 : 0)));   // Geschlossene rutschen nach hinten
-        wegD = { was, name, items: items.slice(0, 5), fehler: fehler >= pts.length };
+        wegD = { was, name, items: items.slice(0, 6), fehler: fehler >= jobs.length };
         if (view === 'ziel' && body) zeichne();
-        if (!items.length) { sagen(fehler >= pts.length ? 'Die Suche ging gerade nicht, Google Places antwortet nicht.' : 'Auf dem Weg habe ich ' + name + ' nicht gefunden.'); return; }
+        if (!items.length) { sagen(fehler >= jobs.length ? 'Die Suche ging gerade nicht, Google Places antwortet nicht.' : 'Auf dem Weg habe ich ' + name + ' nicht gefunden.'); return; }
         const e0 = items[0];
         sagen('Ja, ' + e0.name + ', ' + (e0.abKm < 0.15 ? 'direkt an der Strecke' : 'etwa ' + (e0.abKm < 1 ? Math.round(e0.abKm * 10) * 100 + ' Meter' : e0.abKm.toFixed(1).replace('.', ',') + ' Kilometer') + ' abseits') + (e0.status ? ', ' + e0.status : '') + '.' + (items.length > 1 ? ' Weitere stehen im Lagebild.' : ''));
     }
