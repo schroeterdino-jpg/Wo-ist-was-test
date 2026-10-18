@@ -471,7 +471,8 @@ async function computeDepartureAdvice(opts) {
 
     const kmText = km >= 10 ? Math.round(km) + ' Kilometer' : km.toFixed(1).replace('.', ',') + ' Kilometer';
     const staumeldung = await describeAutobahnStau(route.autobahnen, loc.latitude, loc.longitude, dest.lat, dest.lon);
-    const stauMin = Math.max(0, Math.round(Number(window.jvStauMin) || 0));   // gemeldete Verzögerung auf der Strecke: kommt zur Fahrzeit dazu
+    const mitVerkehr = route.quelle === 'google';   // Googles Fahrzeit enthält den aktuellen Verkehr schon: Stau-Minuten dann NICHT noch einmal addieren
+    const stauMin = mitVerkehr ? 0 : Math.max(0, Math.round(Number(window.jvStauMin) || 0));   // gemeldete Verzögerung auf der Strecke: kommt zur Fahrzeit dazu
 
     let reply, subtitle;
     if (target.keinFesterTermin) {
@@ -481,7 +482,7 @@ async function computeDepartureAdvice(opts) {
         const losfahren = new Date(target.start.getTime() - (fahrtMin + stauMin + TRAVEL_BUFFER_MINUTES) * 60000);
         const schonZuSpaet = losfahren.getTime() < Date.now();
         const zielSatz = target.titel === target.ort ? target.ort : `${target.titel} ist um ${formatSpokenTime(target.start)} in ${target.ort}`;
-        reply = `${zielSatz}. Die Fahrt dauert etwa ${fahrtMin} Minuten, das sind ${kmText}. ` + (stauMin ? `Dazu kommen etwa ${stauMin} Minuten Verzögerung durch Stau, ich rechne also mit ${fahrtMin + stauMin} Minuten. ` : '');
+        reply = `${zielSatz}. Die Fahrt dauert etwa ${fahrtMin} Minuten${mitVerkehr ? ' mit aktuellem Verkehr' : ''}, das sind ${kmText}. ` + (stauMin ? `Dazu kommen etwa ${stauMin} Minuten Verzögerung durch Stau, ich rechne also mit ${fahrtMin + stauMin} Minuten. ` : '');
         reply += schonZuSpaet
             ? 'Um pünktlich zu sein, hättest du eigentlich schon losfahren müssen.'
             : `Um pünktlich da zu sein, solltest du spätestens um ${formatSpokenTime(losfahren)} losfahren.`;

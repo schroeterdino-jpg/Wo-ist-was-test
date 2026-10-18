@@ -55,16 +55,14 @@
         } catch (e) { if (e && e.auth) throw e; return null; }
     }
 
-    // Fahrten zur Arbeit: Route von Google (wie in der Google-Maps-App, mit aktuellem Verkehr). Der Server nutzt dafür den Google-Schlüssel,
+    // Alle Fahrten (Arbeit, Termine, Besuche): Route von Google (wie in der Google-Maps-App, mit aktuellem Verkehr). Der Server nutzt dafür den Google-Schlüssel,
     // zählt mit (Monatslimit) und merkt sich Ergebnisse 10 Minuten. Ohne Schlüssel, bei Limit oder Fehler: null, dann geht es wie bisher weiter.
     const arbeitGeo = {};
     async function mitGoogle(args) {
         const [fLat, fLon, tLat, tLon] = args;
-        if (typeof workAddress !== 'string' || !workAddress || typeof geocodeAddress !== 'function') return null;
         if (window.__jvGoogleAus) return null;
         try {
-            const w = arbeitGeo[workAddress] || (arbeitGeo[workAddress] = await geocodeAddress(workAddress));
-            if (!w || km(w.lat, w.lon, tLat, tLon) > 0.5 || km(w.lat, w.lon, fLat, fLon) < 3) return null;   // nur Fahrten ZUR Arbeit
+            if (km(fLat, fLon, tLat, tLon) < 1) return null;   // ganz kurze Wege nicht über Google rechnen (spart das Monatslimit); alle anderen Fahrten schon, nicht nur die zur Arbeit
             const res = await apiFetch(`/api/route?fromLat=${fLat}&fromLon=${fLon}&toLat=${tLat}&toLon=${tLon}&geometry=1&google=1`);
             if (!res.ok) return null;
             const data = await res.json();
