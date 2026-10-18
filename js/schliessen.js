@@ -16,6 +16,7 @@
         try { if (window.jvLage && window.jvLage.isOpen()) o.push('lage'); } catch (e) {}
         try { const l = document.getElementById('extraFenster'); if (l) o.push('extra'); } catch (e) {}
         try { const b = document.getElementById('actionCards'); if (b && b.children.length) o.push('karten'); } catch (e) {}
+        try { if (document.getElementById('wxMap')) o.push('wetterkarte'); } catch (e) {}   // die Wetterkarte ist kein Fenster aus panels.js
         return o;
     }
 
@@ -24,6 +25,7 @@
         try { if (window.jvLage && window.jvLage.isOpen()) window.jvLage.close(); } catch (e) {}
         try { if (typeof isPanelOpen === 'function' && isPanelOpen() && typeof closePanel === 'function') closePanel(); } catch (e) {}
         try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) {}
+        try { if (typeof closeWeatherMap === 'function') closeWeatherMap(); } catch (e) {}
     }
 
     /* Ist die ganze Äußerung ein Schließbefehl? Gibt { nomen } zurück oder null. */
