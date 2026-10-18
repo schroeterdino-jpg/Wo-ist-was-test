@@ -36,6 +36,8 @@
     }
 
     async function post(body) {
+        // Feste Namen (Schroeter, Schwarzenbek ...) immer richtig schreiben, auch wenn die KI den Text neu formuliert hat
+        try { if (body && body.text && typeof window.jvFestnamen === 'function') body.text = window.jvFestnamen(body.text); } catch (e) {}
         const res = await apiFetch('/api/memory', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

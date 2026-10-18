@@ -123,6 +123,7 @@ async function executeAction(action, text, ctx) {
         const newKey = action.memory_key.toLowerCase().trim();
         removeKeyVariants(newKey);
         memoryItems[newKey] = String(parseMemoryValue(val));
+        try { if (typeof window.jvFestnamen === 'function') memoryItems[newKey] = window.jvFestnamen(memoryItems[newKey]); } catch (e) {}
         setPersistentData('helfer_memory', JSON.stringify(memoryItems));
         updateTerminalStream(`MEMORY_WRITE: KEY_${action.memory_key.toUpperCase()}`);
     } else if (action.type === 'memory_search') {
