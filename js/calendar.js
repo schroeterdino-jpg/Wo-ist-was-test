@@ -15,7 +15,7 @@ function requestNotificationPermission() {
    WICHTIGE Erinnerungen (rem.important) werden alle 10 Minuten wiederholt, bis der User "erledigt" sagt
    (siehe handleAcknowledgeCommand in assistant.js), höchstens NAG_MAX-mal. Danach hört Zane auf. */
 const NAG_INTERVAL_MS = 10 * 60000;
-const NAG_MAX = 6;
+const NAG_MAX = 3;   // vorher 6
 let lastFiredReminder = null;   // zuletzt ausgelöste Erinnerung (für "in zehn Minuten nochmal")
 let lastFiredReminderAt = 0;
 

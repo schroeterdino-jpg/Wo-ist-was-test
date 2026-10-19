@@ -33,7 +33,14 @@ function pickRandom(list) {
     return list[Math.floor(Math.random() * list.length)];
 }
 
+/* Zählt, wie viele Sprachausgaben gerade noch die Stimme aus dem Netz holen. In dieser Zeit (1-2 Sekunden)
+   ist weder currentAudio noch currentUtterance gesetzt - früher glaubten dann Mail-, Fristen- und
+   Wächter-Meldungen, Nova schweige, und redeten dazwischen. Jetzt gilt er schon ab speak() als "spricht". */
+let speechFetching = 0;
+let speechFetchSince = 0;
+let interruptedGen = 0;
 function isSpeaking() {
+    if (speechFetching > 0 && Date.now() - speechFetchSince < 15000) return true;
     return !!currentUtterance || currentAudio !== null;
 }
 
@@ -284,7 +291,12 @@ function speak(text, onComplete, langCode) {
     // bleibt bei der Handy-Stimme, die die Fremdsprachen-Stimmen schon mitbringt).
     const tryCloud = !langCode && getTtsEngine() !== 'browser' && ttsCloudFailCount < TTS_CLOUD_MAX_FAILS;
     if (tryCloud) {
+        const myGen = speechGeneration;
+        speechFetching++;
+        speechFetchSince = Date.now();
         fetchCloudSpeechBlob(cleanText, getEdgeVoice()).then(blob => {
+            speechFetching = Math.max(0, speechFetching - 1);
+            if (myGen <= interruptedGen) { setIdleUi(); return; }   // inzwischen per interruptSpeaking() abgebrochen - nicht mehr abspielen
             if (!blob) { ttsCloudFailCount++; speakBrowser(cleanText, onComplete, langCode); return; }
             ttsCloudFailCount = 0;
             setHudSubtitle(cleanText);   // kein Wort-für-Wort-Timing wie bei der Browser-Stimme möglich, daher direkt ganz anzeigen
@@ -300,7 +312,7 @@ function speak(text, onComplete, langCode) {
             currentAudio.onended = () => finish(true);
             currentAudio.onerror = () => { finish(false); speakBrowser(cleanText, onComplete, langCode); };
             currentAudio.play().catch(() => { finish(false); speakBrowser(cleanText, onComplete, langCode); });
-        });
+        }).catch(() => { speechFetching = Math.max(0, speechFetching - 1); speakBrowser(cleanText, onComplete, langCode); });
         return;
     }
     speakBrowser(cleanText, onComplete, langCode);
@@ -398,6 +410,7 @@ let currentAckAudio = null;
 
 function interruptSpeaking() {
     speechGeneration++;
+    interruptedGen = speechGeneration;
     stopThinkingSound();
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     if (currentAckAudio) { try { currentAckAudio.pause(); } catch (e) {} currentAckAudio = null; }

@@ -115,6 +115,10 @@
         const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 50) return false;
         if (TEST_RX.test(t)) { show({ stufe: 'rot', titel: 'Testalarm', text: 'So sieht eine Warnung aus: Glättegefahr auf deiner Strecke. Plan mehr Zeit ein.' }); return true; }
+        let am = AUS_RX.exec(t) || AUS2_RX.exec(t);
+        if (am && artVon(am[1])) { meldungsart(artVon(am[1]), true); return true; }
+        am = AN_RX.exec(t);
+        if (am && artVon(am[1])) { meldungsart(artVon(am[1]), false); return true; }
         if (IMP_OFF_RX.test(t)) { impulse(false); return true; }
         if (IMP_ON_RX.test(t)) { impulse(true); return true; }
         if (el && OFF_RX.test(t)) { close(); try { if (typeof speak === 'function') speak('Alarm beendet.'); } catch (e) {} return true; }
@@ -123,6 +127,28 @@
     // Abend-Impulse (Zane meldet sich per Push von selbst: Schichtwechsel, Bettzeit vor Frühschicht, Vorschau auf morgen) ein- und ausschalten
     const IMP_OFF_RX = /^(?:(?:abend-?\s?)?impulse? (?:aus|ausschalten)|keine (?:abend-?\s?)?impulse mehr)$/;
     const IMP_ON_RX = /^(?:abend-?\s?)?impulse? (?:an|ein|einschalten)$/;
+    // Einzelne Meldungsarten ein/aus: "Keine Dieselmeldungen mehr", "Wettermeldungen wieder an"
+    const AUS_RX = /^(?:keine |kein )([a-zäöüß\- ]+?) ?(?:meldungen?|nachrichten|benachrichtigungen|push|mails?)? mehr$/;
+    const AUS2_RX = /^([a-zäöüß\-]+?)-?(?:meldungen|nachrichten|benachrichtigungen)? (aus|ausschalten)$/;
+    const AN_RX = /^([a-zäöüß\-]+?)-?(?:meldungen|nachrichten|benachrichtigungen)? (?:wieder )?(an|ein|einschalten)$/;
+    function artVon(w) {
+        w = String(w || '');
+        if (/diesel|tank|sprit/.test(w)) return 'diesel';
+        if (/wetter|regen/.test(w)) return 'wetter';
+        if (/mail/.test(w)) return 'mail';
+        if (/hsv|fu(ß|ss)ball/.test(w)) return 'hsv';
+        if (/vorbereit/.test(w)) return 'vorbereitung';
+        return '';
+    }
+    function meldungsart(art, aus) {
+        try {
+            if (!art) return;
+            const namen = { diesel: 'Dieselmeldungen', wetter: 'Wettermeldungen', mail: 'Mail-Meldungen', hsv: 'HSV-Meldungen', vorbereitung: 'Vorbereitungs-Nachrichten' };
+            apiFetch('/api/sync?action=push_aus', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ art: art, on: !aus }) })
+                .then(r => { try { if (typeof speak === 'function') speak(r.ok ? (aus ? 'Okay, keine ' + namen[art] + ' mehr.' : 'Gut, ' + namen[art] + ' sind wieder an.') : 'Das hat gerade nicht geklappt.'); } catch (e) {} })
+                .catch(() => { try { if (typeof speak === 'function') speak('Das hat gerade nicht geklappt.'); } catch (e) {} });
+        } catch (e) {}
+    }
     function impulse(an) {
         try {
             apiFetch('/api/sync?action=push_impulse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: an }) })
