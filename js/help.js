@@ -105,9 +105,6 @@ const HELP_TOPICS = [
     { key: 'kuendigung', icon: '✉️', title: 'Kündigung schreiben', words: /kündigung|kuendigung|kündigen|kuendigen|vertrag|abo\b|mitgliedschaft/, examples: [
         'Schreib mir eine Kündigung (Zane fragt: Anbieter, Vertrag, Kunden-/Vertragsnummer, Zeitpunkt, Name und Anschrift)', 'Kündigung für Vodafone aufsetzen', 'Ich möchte meinen Vertrag kündigen',
         'Zeig die letzte Kündigung', 'Zeig meine Kündigungen (die letzten 5 bleiben gespeichert, auch per Tipp auf Kündigung in der Kugel-Ansicht)', 'Im Fenster: Text ändern, PDF speichern, Drucken, Kopieren, Adresse suchen', 'Abbrechen (beendet die Fragen)'] },
-    { key: 'ansicht', icon: '🧠', title: 'Kugel-Ansicht & Fokus', words: /fokus|kugel|ansicht|gehirn|zoom|markier|hervorheb/, examples: [
-        'Fokus auf Briefing (der Begriff leuchtet auf und wird groß, damit du ihn antippen kannst; auch: Markiere Parkplatz, Fokussiere Wetter)', 'Fokus beenden (oder: Zoom raus)', 'Zeig das Gehirn / Zurück zur Kugel',
-        'Die Bereiche: Gedächtnis (Mitte), Zeit, Hände, Unterwegs, Ohren'] },
     { key: 'figur', icon: '🪄', title: 'Figur-Animationen', words: /figur|animation|kartenwurf|karte|scarlett|wurf/, examples: [
         'Wetter, Termine, Listen, Kontakte, Tagesüberblick usw.: Die Figur wirft eine Karte, daraus wird das Fenster', 'Sie reagiert auch auf Antworten: Regenschirm bei Regen, Sonnenbrille bei Sonne, Frieren bei Kälte, Stau-Blick, Stempel, Häkchen, Partyhut mit Konfetti, Winken bei Gute Nacht / Tschüss, Kamera-Blitz beim Foto, Klopfen wenn es länger dauert',
         'Gut gemacht (die Figur verbeugt sich)', 'Montags und freitags hat sie eigene Gesten', 'Figur-Animationen aus (auch: Figur-Animationen an)', 'Figur Test (prüft, ob alles geladen ist, und wirft eine Testkarte)',

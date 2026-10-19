@@ -238,12 +238,6 @@ function buildMenuPanel() {
         `<button class="panel-row w-full flex items-center gap-3 text-left bg-black/60 border border-[rgba(73,215,255,.2)] rounded-lg p-3 mb-2" style="--i:${n++}" onclick="playUiBeep(); ${action}">` +
         `<span class="text-2xl">${icon}</span><span class="flex-1"><b class="block text-[#49d7ff] text-sm">${name}</b><span class="text-xs text-slate-400">${sub}</span></span><span class="text-[#49d7ff]">›</span></button>`;
     const head = (t) => `<div class="panel-row text-[10px] tracking-[.25em] text-[#5d7e91] mt-4 mb-2 px-1" style="--i:${n++}">${t}</div>`;
-    let aktuell = 'kopf';
-    try { if (window.jvAnsicht && window.jvAnsicht.get) aktuell = window.jvAnsicht.get(); } catch (e) {}
-    const ansicht = (key, icon, name) =>
-        `<button class="flex-1 flex flex-col items-center gap-1 rounded-lg p-3 border ${aktuell === key ? 'border-[#49d7ff] bg-[rgba(73,215,255,.15)]' : 'border-[rgba(73,215,255,.2)] bg-black/60'}" onclick="playUiBeep(); closePanel(); jvAnsicht.set('${key}')">` +
-        `<span class="text-2xl">${icon}</span><span class="text-xs text-[#49d7ff]">${name}</span></button>`;
-
     const html = '<div class="font-mono">' +
         head('HEUTE') +
         row('🖥️', 'Tagesüberblick', 'Alles Wichtige auf einen Blick', "closePanel(); showUeberblick(false)") +
@@ -258,8 +252,6 @@ function buildMenuPanel() {
         row('🗺️', 'Karte', 'Standort, Route zur Arbeit, Stau', "openPanel('karte')") +
         head('POST &amp; GELD') +
         '<!--post-->' +
-        head('ANSICHT') +
-        `<div class="panel-row flex gap-2 mb-2" style="--i:${n++}">` + ansicht('kopf', '👤', 'Kopf') + ansicht('kugel', '🔵', 'Kugel') + ansicht('gehirn', '🧠', 'Gehirn') + '</div>' +
         head('MEHR') +
         `<details class="panel-row mb-2" style="--i:${n++}"><summary class="text-xs text-[#49d7ff] cursor-pointer p-3 bg-black/60 border border-[rgba(73,215,255,.2)] rounded-lg">Welt, Protokolle, Adressen ...</summary><div class="pt-2">` +
         row('🌍', 'Welt', 'Weltkugel mit Nachrichten', "openPanel('welt')") +
