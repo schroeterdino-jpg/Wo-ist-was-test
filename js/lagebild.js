@@ -179,7 +179,11 @@
             '#jvLage .knoepfe{display:flex;gap:10px;margin-top:14px}' +
             '#jvLage .knoepfe button{flex:1;padding:12px 8px;border-radius:8px;border:1px solid rgba(93,209,255,.5);background:#0a1621;color:#49d7ff;font:600 12px ui-monospace,Menlo,monospace;letter-spacing:1px}' +
             '#jvLage .knoepfe button.p{background:#5ee7ff;color:#02070d}' +
-            '#jvLage .knoepfe.wrap{flex-wrap:wrap}#jvLage .knoepfe.wrap button{flex:1 1 42%}#jvLage .knoepfe button.an{background:#5ee7ff;color:#02070d}' +
+            '#jvLage .knoepfe.wrap{flex-wrap:wrap}#jvLage .knoepfe.wrap button{flex:1 1 42%;min-height:54px;display:flex;align-items:center;justify-content:center;text-align:center}#jvLage .knoepfe button.an{background:#5ee7ff;color:#02070d}' +
+            '#jvLage .duo{display:flex;gap:10px;margin-bottom:10px}#jvLage .duo .mini{flex:1;background:rgba(6,20,34,.7);border:1px solid rgba(94,231,255,.35);border-radius:6px;padding:9px 12px}' +
+            '#jvLage .mini .t{margin-bottom:3px}#jvLage .mini .w{font-size:16px;font-weight:600;color:#7dffb0}' +
+            '#jvLage .p1{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}#jvLage .p1 .n{font-size:12px;font-weight:400;text-shadow:none}' +
+            '#jvLage .hinweis{font-size:11px;opacity:.6;margin:2px 2px 8px}' +
             '#jvLage .fuss{margin-top:12px;font-size:10px;opacity:.55;line-height:1.4}';
         document.head.appendChild(st);
     }
@@ -191,6 +195,9 @@
         (zeilen || []).forEach(z => k.appendChild(el('div', 'z ' + (z.c || ''), z.t)));
         if (aktion) k.addEventListener('click', aktion);
         return k;
+    }
+    function mini(titel, wert) {
+        const m = el('div', 'mini'); m.appendChild(el('div', 't', titel)); m.appendChild(el('div', 'w', '✓ ' + wert)); return m;
     }
     const navi = adr => () => { try { if (typeof buildMapsLink === 'function') window.open(buildMapsLink(adr, '', 'driving'), '_blank'); } catch (e) {} };
 
@@ -214,7 +221,15 @@
 
         // Regen
         const r = regenInfo(s);
-        if (r) body.appendChild(karte('☂ REGEN', 'NÄCHSTE 3 STD', r.gross, [{ t: r.text, c: r.ok ? 'ok' : 'dim' }]));
+        const regenRuhig = !!(r && r.ok && r.gross === 'Trocken');
+        const verkehrRuhig = !s.stau.fehler && !s.stau.rest.length;
+        if (regenRuhig || verkehrRuhig) {   // ruhige Lage: zwei kleine Kacheln statt zwei großer Karten
+            const duo = el('div', 'duo');
+            if (regenRuhig) duo.appendChild(mini('☂ REGEN · 3 STD', 'Trocken'));
+            if (verkehrRuhig) duo.appendChild(mini('⚠ VERKEHR · 10 KM', 'Ruhig'));
+            body.appendChild(duo);
+        }
+        if (r && !regenRuhig) body.appendChild(karte('☂ REGEN', 'NÄCHSTE 3 STD', r.gross, [{ t: r.text, c: r.ok ? 'ok' : 'dim' }]));
 
         // Diesel
         if (s.tank.length) {
@@ -222,9 +237,10 @@
             t.appendChild(el('span', '', 'IM UMKREIS ' + TANK_KM + ' KM')); k.appendChild(t);
             s.tank.forEach((x, i) => {
                 const row = el('div', 'z'); row.style.cssText = 'cursor:pointer;' + (i ? 'margin-top:9px' : '');
-                const a = el('div', 'g', euro(x.preis)); if (i) a.style.fontSize = '17px';
-                row.appendChild(a); row.appendChild(el('div', i === 0 ? 'ok' : '', x.name + ' · ' + x.km.toFixed(1).replace('.', ',') + ' km'));
-                row.appendChild(el('div', 'dim', [x.strasse, x.ort].filter(Boolean).join(', ')));
+                const a = el('div', 'g p1', euro(x.preis)); if (i) a.style.fontSize = '17px';
+                a.appendChild(el('span', 'n ' + (i === 0 ? 'ok' : ''), x.name + ' · ' + x.km.toFixed(1).replace('.', ',') + ' km'));
+                row.appendChild(a);
+                row.appendChild(el('div', 'dim', x.strasse || ''));
                 row.addEventListener('click', navi([x.strasse, x.ort].filter(Boolean).join(', ')));
                 k.appendChild(row);
             });
@@ -239,7 +255,7 @@
             const z = s.stau.rest.slice(0, 3).map(p => ({ t: stauText(p) + ' · ' + Math.round(distKm(s.lat, s.lon, p.lat, p.lon)) + ' km', c: '' }));
             if (s.stau.rest.length > 3) z.push({ t: '+ ' + (s.stau.rest.length - 3) + ' weitere Meldungen (auf der Karte)', c: 'dim' });
             body.appendChild(karte('⚠ VERKEHR', 'ABSEITS DEINER STRECKE', s.stau.rest.length + (s.stau.rest.length === 1 ? ' Meldung' : ' Meldungen'), z));
-        } else body.appendChild(karte('⚠ VERKEHR', 'IN DER NÄHE', 'Ruhig', [{ t: 'Kein Stau und keine Unfälle im Umkreis von 10 km', c: 'ok' }]));
+        }
 
         // Termin
         if (s.termin) body.appendChild(karte('◆ NÄCHSTER TERMIN', hhmm(s.termin.wann) + ' UHR', s.termin.name, [{ t: s.termin.ort + (s.termin.min ? ' · Fahrzeit ca. ' + s.termin.min + ' Min.' : ''), c: 'dim' }], navi(s.termin.ort)));
@@ -248,7 +264,7 @@
         const b1 = el('button', 'p', 'AUF KARTE ▶'); b1.addEventListener('click', () => { close(); try { if (typeof openPanel === 'function') openPanel('karte'); } catch (e) {} });
         const b2 = el('button', '', 'AKTUALISIEREN'); b2.addEventListener('click', () => { b2.textContent = 'LÄDT …'; b2.disabled = true; b2.style.opacity = '.6'; refresh(false); });
         kn.appendChild(b1); kn.appendChild(b2); body.appendChild(kn);
-        body.appendChild(el('div', 'fuss', 'Stand ' + hhmm(new Date(s.zeit)) + ':' + String(new Date(s.zeit).getSeconds()).padStart(2, '0') + ' Uhr · Verkehr: Autobahn.de und TomTom · Wetter: Open-Meteo · Preise: Tankerkönig'));
+        body.appendChild(el('div', 'fuss', 'Stand ' + hhmm(new Date(s.zeit)) + ' Uhr'));
     }
 
     /* ---------- Ortsnamen für Meldungen ohne Straße/Ort ---------- */
@@ -287,7 +303,7 @@
         stil();
         layer = el('div'); layer.id = 'jvLage';
         const inn = el('div', 'in'); layer.appendChild(inn);
-        const kopf = el('div', 'kopf'); const l = el('div'); l.appendChild(el('b', '', 'LAGEBILD')); l.appendChild(el('small', '', 'Zane · dein Umkreis auf einen Blick')); kopf.appendChild(l);
+        const kopf = el('div', 'kopf'); const l = el('div'); l.appendChild(el('b', '', 'LAGEBILD')); l.appendChild(el('small', '', 'Zane · dein Umkreis')); kopf.appendChild(l);
         const x = el('button', 'x', '✕'); x.setAttribute('aria-label', 'Lagebild schließen'); x.addEventListener('click', close); kopf.appendChild(x);
         inn.appendChild(kopf); body = el('div'); inn.appendChild(body);
         document.body.appendChild(layer);
@@ -295,7 +311,7 @@
     }
     function kopfText() {
         if (!layer || !layer._klein) return;
-        layer._klein.textContent = view === 'ziel' ? 'Zane · deine Fahrt' : view === 'orte' ? 'Zane · in deiner Nähe' : 'Zane · dein Umkreis auf einen Blick';
+        layer._klein.textContent = view === 'ziel' ? 'Zane · deine Fahrt' : view === 'orte' ? 'Zane · in deiner Nähe' : 'Zane · dein Umkreis';
     }
     function open(sprich) {
         if (layer && view === 'umkreis') return;
@@ -343,20 +359,20 @@
             b.addEventListener('click', () => { suchAufDemWeg(k.q, k.name).catch(e => console.error('Lagebild Weg', e)); });
             kat.appendChild(b);
         });
-        const bm = el('button', '', '🎤 ETWAS ANDERES … AUF DEM WEG?'); bm.addEventListener('click', () => { try { if (typeof startListening === 'function') startListening(false); } catch (e) {} });
+        const bm = el('button', '', '🎤 ETWAS ANDERES'); bm.addEventListener('click', () => { try { if (typeof startListening === 'function') startListening(false); } catch (e) {} });
         kat.appendChild(bm);
         body.appendChild(kat);
         if (wegD) {
             if (wegD.lade) body.appendChild(karte('📍 ' + (wegD.name || wegD.was).toUpperCase().slice(0, 22) + ' · AUF DEM WEG', '', null, [{ t: 'Ich suche entlang der Strecke …', c: 'dim' }]));
             else if (!wegD.items.length) body.appendChild(karte('📍 ' + (wegD.name || wegD.was).toUpperCase().slice(0, 22) + ' · AUF DEM WEG', '', null, [{ t: wegD.fehler ? 'Die Suche ging gerade nicht (Google Places).' : 'Nichts gefunden: ' + (wegD.name || wegD.was), c: 'dim' }]));
-            else wegD.items.forEach((x, i) => body.appendChild(karte('📍 ' + x.name.slice(0, 26), x.status ? x.status.toUpperCase() : (i === 0 ? 'TIPPEN: ROUTE' : ''), null, [{ t: x.ab + (i === 0 && x.status ? ' · tippen: Route' : ''), c: 'dim' }], () => { try { window.open(x.href, '_blank'); } catch (e) {} })));
+            else { body.appendChild(el('div', 'hinweis', 'Tippen auf eine Karte öffnet die Route')); wegD.items.forEach((x, i) => body.appendChild(karte('📍 ' + x.name.slice(0, 26), x.status ? x.status.toUpperCase() : '', null, [{ t: x.ab, c: 'dim' }], () => { try { window.open(x.href, '_blank'); } catch (e) {} }))); }
         }
         const kn = el('div', 'knoepfe');
         const b1 = el('button', 'p', 'NAVIGATION ▶'); b1.addEventListener('click', () => { try { const a = m.to && isFinite(m.to.lat) ? m.to.lat + ',' + m.to.lon : d.titel; window.open(buildMapsLink(a, '', 'driving'), '_blank'); } catch (e) {} });
         const b2 = el('button', '', 'KARTE'); b2.addEventListener('click', () => { const md = d.map; close(); try { openPanel('karte', { mapData: md }); } catch (e) {} });
         kn.appendChild(b1); kn.appendChild(b2); body.appendChild(kn);
         const kn2 = el('div', 'knoepfe'); kn2.appendChild(zurueckKnopf()); body.appendChild(kn2);
-        body.appendChild(el('div', 'fuss', 'Stand ' + hhmm(new Date()) + ' Uhr · Verkehr: Autobahn.de und TomTom · Wetter: Open-Meteo'));
+        body.appendChild(el('div', 'fuss', 'Stand ' + hhmm(new Date()) + ' Uhr'));
     }
 
     /* ---------- Ansicht "Orte": Wo ist der nächste Penny, Apotheke in der Nähe ---------- */
@@ -368,8 +384,9 @@
         return true;
     }
     function zeichneOrte() {
+        body.appendChild(el('div', 'hinweis', 'Tippen auf eine Karte öffnet die Route'));
         orteD.forEach((c, i) => {
-            const k = karte((orteTank ? '⛽' : (c.icon || '📍')) + (i === 0 ? (orteTank ? ' DIESEL · GÜNSTIGSTER' : ' AM NÄCHSTEN') : ''), 'TIPPEN: ROUTE', orteTank ? String(c.title).replace(/^🟢\s*GÜNSTIGSTER PREIS\s*·\s*/, '') : c.title, [{ t: String(c.subtitle || '').replace(/\s*·\s*Tippen: Route\s*$/, ''), c: 'dim' }], () => { try { window.open(c.href, '_blank'); } catch (e) {} });
+            const k = karte((orteTank ? '⛽' : (c.icon || '📍')) + (i === 0 ? (orteTank ? ' DIESEL · GÜNSTIGSTER' : ' AM NÄCHSTEN') : ''), '', orteTank ? String(c.title).replace(/^🟢\s*GÜNSTIGSTER PREIS\s*·\s*/, '') : c.title, [{ t: String(c.subtitle || '').replace(/\s*·\s*Tippen: Route\s*$/, ''), c: 'dim' }], () => { try { window.open(c.href, '_blank'); } catch (e) {} });
             body.appendChild(k);
         });
         const kn = el('div', 'knoepfe'); kn.appendChild(zurueckKnopf()); body.appendChild(kn);
