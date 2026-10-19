@@ -38,7 +38,19 @@
 
     async function enable() {
         try {
-            if (!supported()) { say('Dieses Gerät oder dieser Browser kann keine Benachrichtigungen bekommen. Auf dem Handy bitte die installierte App in Chrome öffnen.'); return false; }
+            if (!supported()) {
+                // Diagnose: welche Funktion fehlt, und in welchem Browser läuft die App gerade?
+                const fehlt = [];
+                if (!('serviceWorker' in navigator)) fehlt.push('Hintergrunddienst');
+                if (!('PushManager' in window)) fehlt.push('Push');
+                if (!('Notification' in window)) fehlt.push('Mitteilungen');
+                const ua = String(navigator.userAgent || '');
+                const wo = /; wv\)|Version\/[\d.]+ Chrome/.test(ua) ? 'eine App mit eingebautem Browser (WebView)' : /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /Instagram|FBAN|FBAV|GSA\//.test(ua) ? 'ein Browser innerhalb einer anderen App' : /Firefox/.test(ua) ? 'Firefox' : /Chrome/.test(ua) ? 'Chrome' : 'ein unbekannter Browser';
+                const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ? 'als installierte App' : 'als Browser-Seite';
+                say('Hier gehen Benachrichtigungen nicht. Es fehlt: ' + (fehlt.join(', ') || 'nichts erkennbar') + '. Ich laufe in: ' + wo + ', ' + standalone + '. Öffne Nova bitte in Chrome und sag dort noch einmal Benachrichtigungen an.');
+                try { card('Diagnose Benachrichtigungen', 'Fehlt: ' + (fehlt.join(', ') || 'nichts') + ' · ' + wo + ' · ' + standalone, ''); } catch (e) {}
+                return false;
+            }
             const perm = await Notification.requestPermission();
             if (perm !== 'granted') { say('Ohne Erlaubnis kann ich dir keine Nachrichten schicken. Du kannst sie in den Handy-Einstellungen unter Apps, Zane, Benachrichtigungen erlauben.'); return false; }
             const key = (await api('push_key')).publicKey;
