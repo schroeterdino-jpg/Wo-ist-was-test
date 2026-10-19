@@ -247,6 +247,15 @@ async function handlePush(action, req, res, redis) {
       await redis('SET', ITEMS_KEY, JSON.stringify(st));
       return res.status(200).json({ ok: true, an: !st.imp.off });
     }
+    if (action === 'push_aus') {   // einzelne Meldungsarten ein/aus ("Keine Dieselmeldungen mehr")
+      const st = await loadItems(redis);
+      const art = String(body.art || '');
+      if (['diesel', 'wetter', 'mail', 'hsv', 'vorbereitung'].indexOf(art) < 0) return res.status(400).json({ error: 'unbekannte Art' });
+      if (!st.aus || typeof st.aus !== 'object') st.aus = {};
+      if (body.on === false) st.aus[art] = true; else delete st.aus[art];
+      await redis('SET', ITEMS_KEY, JSON.stringify(st));
+      return res.status(200).json({ ok: true, art, an: !st.aus[art] });
+    }
     if (action === 'push_alive' || action === 'push_gone') {   // alive: App offen und sichtbar, dann spricht sie selbst; gone: App wurde verlassen
       const st = await loadItems(redis);
       st.alive = action === 'push_alive' ? Date.now() : 0;
@@ -428,7 +437,7 @@ const DEPART_LEAD_MIN = 15;     // Nachricht so viele Minuten vor der Abfahrt
 const DEPART_WINDOW_MS = 4 * 3600000;   // Termine, die weiter weg sind, werden noch nicht berechnet
 const LOC_FRESH_MS = 3 * 3600000;       // so alt darf der gemeldete Standort sein, sonst gilt Zuhause
 const NAG_INTERVAL_MS = 10 * 60000;     // wie in der App (calendar.js)
-const NAG_MAX = 6;
+const NAG_MAX = 3;   // vorher 6: höchstens drei Nachfragen, dann Ruhe
 // --- Dieselpreis-Alarm ---
 const TANK_CHECK_MS = 30 * 60000;        // alle 30 Minuten nachsehen
 const TANK_RADIUS_KM = 10;               // Umkreis um den letzten bekannten Standort (max. 25)
@@ -794,6 +803,7 @@ function depNeedsWork(st, it, now) {
   if (now - d.ts > 10 * 60000 && (d.fail || it.at - now < 90 * 60000)) return true;
   return false;
 }
+function leaveAt0(it, dep) { return it.at - ((dep.fahrtMin || 0) + (dep.stauMin || 0) + BUFFER_MIN) * 60000; }
 /* ---------- Vorbereitung ("Ich habe mir erlaubt ...") für Termine mit Ort, auch bei geschlossener App ---------- */
 const PREP_VON_MIN = 90, PREP_BIS_MIN = 40;
 async function wetterAmZielServer(to, atMs) {
@@ -1024,12 +1034,13 @@ async function handleDue(req, res, redis) {
     }
     const depList = st.items.filter(it => depNeedsWork(st, it, now)).sort((a, b) => a.at - b.at);
     const nagList = st.items.filter(it => nagNeedsWork(st, it, now));
-    const tankNow = tankDue(st, now);
-    const wxNow = weatherDue(st, now);
+    const aus = (st.aus && typeof st.aus === 'object') ? st.aus : {};   // vom Nutzer abgeschaltete Meldungsarten
+    const tankNow = aus.diesel ? null : tankDue(st, now);
+    const wxNow = aus.wetter ? null : weatherDue(st, now);
     const impNow = impulseDue(st, now);
-    const mailNow = mailDue(st, now);
-    const rainNow = rainDue(st, now, appOpen);
-    const hsvNow = hsvDue(st, now);
+    const mailNow = aus.mail ? null : mailDue(st, now);
+    const rainNow = aus.wetter ? null : rainDue(st, now, appOpen);
+    const hsvNow = aus.hsv ? null : hsvDue(st, now);
     const planDue = st.plan.filter(p => !st.sent[p.id] && p.at <= now && now - p.at <= 20 * 60000);   // Planer-Meldungen (Wochenüberblick)
     if (!planDue.length && !due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow && !impNow && !mailNow && !rainNow && !hsvNow) return res.status(200).json({ ok: true, due: 0 });
 
@@ -1065,7 +1076,9 @@ async function handleDue(req, res, redis) {
       const bisTermin = it.at - now;
       if (!st.sent['v' + it.id] && bisTermin <= PREP_VON_MIN * 60000 && bisTermin >= PREP_BIS_MIN * 60000) {
         st.sent['v' + it.id] = now;
-        if (!appOpen && !quiet && data.subs.length) { try { const rp = await sendPrep(redis, data, it, dep, now); if (rp.sent > 0) prepSent++; } catch (e) { } }
+        // Folgt die Abfahrts-Nachricht ohnehin innerhalb von 45 Minuten, wäre die Vorbereitung eine Doppelung -> keine eigene Nachricht
+        const abfahrtBald = (leaveAt0(it, dep) - DEPART_LEAD_MIN * 60000 - now) < 45 * 60000;
+        if (!appOpen && !quiet && !aus.vorbereitung && !abfahrtBald && data.subs.length) { try { const rp = await sendPrep(redis, data, it, dep, now); if (rp.sent > 0) prepSent++; } catch (e) { } }
       }
       const leaveAt = it.at - (dep.fahrtMin + (dep.stauMin || 0) + BUFFER_MIN) * 60000;
       if (now < leaveAt - DEPART_LEAD_MIN * 60000 || now >= it.at) continue;
