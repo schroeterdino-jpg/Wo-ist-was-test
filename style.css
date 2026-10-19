@@ -580,3 +580,9 @@ body.panel-open .hud-decor { opacity: 0; transition: opacity .2s ease; }
     .hud-corner { width: 30px; height: 30px; }
     .hud-badge { font-size: 9px; }
 }
+
+/* Einstellungen aufgeräumt: kein doppelter Titel, kompaktere Zeilen, Gruppen-Überschriften */
+#panelBody #sec-settings > h2 { display: none; }
+#panelBody #sec-settings summary { padding: .7rem .9rem; font-size: .92rem; }
+#panel #panelTitle { font-size: 1rem; white-space: nowrap; }
+.set-gruppe { font-size: 10px; letter-spacing: .25em; color: #5d7e91; margin: 14px 4px 2px; }

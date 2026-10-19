@@ -105,7 +105,7 @@
         document.documentElement.dataset.fx = (function () { try { return localStorage.getItem('fx_mode') || 'calm'; } catch (e) { return 'calm'; } })();
         (function () { try { JSON.parse(localStorage.getItem('fx_flags') || '[]').forEach(function (f) { document.documentElement.classList.add('nofx-' + f); }); } catch (e) {} })();
     </script>
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./style.css?v=20261019-set">
 
     <!-- Reduzierte Startseite: nur die Kugel ist dauerhaft sichtbar. Alles andere bleibt im Hintergrund erhalten
          (andere Dateien schreiben dort hinein), ist aber ausgeblendet. Die Zane-Texte erscheinen nur, solange er spricht oder zuhört. -->
@@ -334,7 +334,9 @@
             <section id="sec-settings" class="hidden space-y-3 font-mono">
                 <h2 class="text-xl font-bold text-[#49d7ff] px-1 uppercase tracking-wider">⚙️ Einstellungen</h2>
 
-                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden" open>
+                <div class="set-gruppe">PERSÖNLICH</div>
+
+                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
                     <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
                         <span>👤 Profil & Anrede</span>
                     </summary>
@@ -379,6 +381,24 @@
                     </div>
                 </details>
 
+                <details id="contactsDetails" class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
+                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
+                        <span>📞 Kontakte</span>
+                    </summary>
+                    <div class="p-4 space-y-3">
+                        <p class="text-xs text-[#5d7e91] font-mono">Adresse eintragen, damit „Ich möchte zu [Name] fahren" die Fahrzeit findet. Telefonnummer nur nötig für Anruf/WhatsApp - eins von beiden reicht zum Speichern.</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="contactNameInput" placeholder="Name..." class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                            <input type="text" id="contactPhoneInput" placeholder="Nummer (optional)..." class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                        </div>
+                        <input type="text" id="contactAddressInput" placeholder="Adresse: Straße, Hausnummer, Ort (optional)..." autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
+                        <button onclick="playUiBeep(); saveContact()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Kontakt speichern</button>
+                        <div id="contactListDisplay" class="mt-2 text-xs text-[#5d7e91] space-y-1"></div>
+                    </div>
+                </details>
+
+                <div class="set-gruppe">TAGESABLAUF</div>
+
                 <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
                     <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
                         <span>🌅 Morgen-Überblick</span>
@@ -402,18 +422,7 @@
                     </div>
                 </details>
 
-                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
-                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
-                        <span>🌍 Weltkugel</span>
-                    </summary>
-                    <div class="p-4 space-y-3">
-                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
-                            <input type="checkbox" id="anflugToggle" class="w-5 h-5 accent-[#49d7ff]" checked>
-                            <span>Anflug auf Städte: Die Kugel zoomt heran und blendet in die Neon-Karte über</span>
-                        </label>
-                        <p class="text-xs text-[#5d7e91] font-mono">Gilt für Städte und Regionen, ganze Länder bleiben auf der Kugel. „Zurück zur Kugel" oder „Zoom raus" bringt dich wieder nach oben. Per Sprache: „Anflug aus" / „Anflug an".</p>
-                    </div>
-                </details>
+                <div class="set-gruppe">STIMME &amp; KLANG</div>
 
                 <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
                     <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
@@ -518,6 +527,25 @@
 
                 <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
                     <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
+                        <span>🔔 Töne</span>
+                    </summary>
+                    <div class="p-4 space-y-3">
+                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
+                            <input type="checkbox" id="soundToggle" class="w-5 h-5 accent-[#49d7ff]" checked>
+                            <span>Effekt-Töne einschalten (Tippen, Fenster, Bestätigung, Fehler, Warnung)</span>
+                        </label>
+                        <div>
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Lautstärke der Töne: <span id="soundVolumeValue" class="normal-case text-slate-300">100 %</span></label>
+                            <input type="range" id="soundVolume" min="0.2" max="1.5" step="0.1" value="1" class="w-full accent-[#49d7ff]">
+                            <div class="flex justify-between text-xs text-[#5d7e91]"><span>leiser</span><span>lauter</span></div>
+                        </div>
+                        <button onclick="playUiBeep(); testSounds()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Töne testen</button>
+                        <p class="text-xs text-[#5d7e91] font-mono">Per Sprache: „Töne aus“, „Töne an“, „Töne leiser“, „Töne lauter“. Gilt nur für die Effekt-Töne, nicht für die Stimme von Nova.</p>
+                    </div>
+                </details>
+
+                <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
+                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
                         <span>✨ Effekte</span>
                     </summary>
                     <div class="p-4 space-y-3">
@@ -535,22 +563,18 @@
                     </div>
                 </details>
 
+                <div class="set-gruppe">ANZEIGE &amp; TECHNIK</div>
+
                 <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
                     <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
-                        <span>🔔 Töne</span>
+                        <span>🌍 Weltkugel</span>
                     </summary>
                     <div class="p-4 space-y-3">
                         <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer">
-                            <input type="checkbox" id="soundToggle" class="w-5 h-5 accent-[#49d7ff]" checked>
-                            <span>Effekt-Töne einschalten (Tippen, Fenster, Bestätigung, Fehler, Warnung)</span>
+                            <input type="checkbox" id="anflugToggle" class="w-5 h-5 accent-[#49d7ff]" checked>
+                            <span>Anflug auf Städte: Die Kugel zoomt heran und blendet in die Neon-Karte über</span>
                         </label>
-                        <div>
-                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Lautstärke der Töne: <span id="soundVolumeValue" class="normal-case text-slate-300">100 %</span></label>
-                            <input type="range" id="soundVolume" min="0.2" max="1.5" step="0.1" value="1" class="w-full accent-[#49d7ff]">
-                            <div class="flex justify-between text-xs text-[#5d7e91]"><span>leiser</span><span>lauter</span></div>
-                        </div>
-                        <button onclick="playUiBeep(); testSounds()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Töne testen</button>
-                        <p class="text-xs text-[#5d7e91] font-mono">Per Sprache: „Töne aus“, „Töne an“, „Töne leiser“, „Töne lauter“. Gilt nur für die Effekt-Töne, nicht für die Stimme von Nova.</p>
+                        <p class="text-xs text-[#5d7e91] font-mono">Gilt für Städte und Regionen, ganze Länder bleiben auf der Kugel. „Zurück zur Kugel" oder „Zoom raus" bringt dich wieder nach oben. Per Sprache: „Anflug aus" / „Anflug an".</p>
                     </div>
                 </details>
 
@@ -590,6 +614,8 @@
                         </label>
                     </div>
                 </details>
+
+                <div class="set-gruppe">VERBINDUNGEN</div>
 
                 <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
                     <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
@@ -672,22 +698,6 @@
                         </div>
                     </div>
                 </details>
-
-                <details id="contactsDetails" class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
-                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
-                        <span>📞 Kontakte</span>
-                    </summary>
-                    <div class="p-4 space-y-3">
-                        <p class="text-xs text-[#5d7e91] font-mono">Adresse eintragen, damit „Ich möchte zu [Name] fahren" die Fahrzeit findet. Telefonnummer nur nötig für Anruf/WhatsApp - eins von beiden reicht zum Speichern.</p>
-                        <div class="flex gap-2">
-                            <input type="text" id="contactNameInput" placeholder="Name..." class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                            <input type="text" id="contactPhoneInput" placeholder="Nummer (optional)..." class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                        </div>
-                        <input type="text" id="contactAddressInput" placeholder="Adresse: Straße, Hausnummer, Ort (optional)..." autocomplete="off" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
-                        <button onclick="playUiBeep(); saveContact()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Kontakt speichern</button>
-                        <div id="contactListDisplay" class="mt-2 text-xs text-[#5d7e91] space-y-1"></div>
-                    </div>
-                </details>
             </section>
 
         </main>
@@ -767,7 +777,7 @@
     <script src="./js/proaktiv.js?v=20261018-vorb"></script>
     <script src="./js/fahrtcheck.js?v=20261014-zane"></script>
     <script src="./js/stadtverkehr.js?v=20261019-abf"></script>
-    <script src="./js/lagebild.js?v=20261019-abf"></script>
+    <script src="./js/lagebild.js?v=20261019-ruhig"></script>
     <script src="./js/systemcheck_voll.js?v=20261018-1"></script>
     <script src="./js/jvfenster.js?v=20261018-1"></script>
     <script src="./js/laune.js?v=20261018-1"></script>
