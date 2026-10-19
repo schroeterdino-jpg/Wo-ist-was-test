@@ -186,8 +186,9 @@
                     if (r && typeof r.html === 'string' && r.html.indexOf('kontoMenu') < 0) {
                         const btn = '<button class="panel-row w-full flex items-center gap-3 text-left bg-black/60 border border-[rgba(73,215,255,.2)] rounded-lg p-3 mb-2" style="--i:12" onclick="playUiBeep(); closePanel(); window.kontoMenu()">' +
                             '<span class="text-2xl">🏦</span><span class="flex-1"><b class="block text-[#49d7ff] text-sm">Konto-Meldung</b><span class="text-xs text-slate-400">Bank-Mails, Banken, letzte Meldungen</span></span><span class="text-[#49d7ff]">›</span></button>';
-                        const m = r.html.match(/<button[^>]*openPanel\('planer'\)/);
-                        r.html = m ? r.html.replace(m[0], btn + m[0]) : r.html.replace(/<\/div>\s*$/, btn + '</div>');
+                        if (r.html.indexOf('<!--post-->') >= 0) r.html = r.html.replace('<!--post-->', btn + '<!--post-->');
+                        else { const m = r.html.match(/<button[^>]*openPanel\('planer'\)/);
+                        r.html = m ? r.html.replace(m[0], btn + m[0]) : r.html.replace(/<\/div>\s*$/, btn + '</div>'); }
                     }
                 } catch (e) { console.error('Konto Menü', e); }
                 return r;
