@@ -150,19 +150,23 @@
             const w = await stadtMeldungen(fLat, fLon, tLat, tLon);
             if (w && w.length) {
                 window.jvStauMin = Math.min(60, w.reduce((s, i) => s + (i.verzoegerung_s >= 120 ? Math.round(i.verzoegerung_s / 60) : 0), 0));
+                // TomTom nennt bei Autobahn-Ausfahrten oft nur "Abfahrt [8a]" ohne Straße: dann die Autobahn der Route nehmen (wenn es nur eine gibt) und die eckigen Klammern weglassen
+                const sauber = s => String(s || '').replace(/\[([^\]]+)\]/g, '$1').trim();
+                const strasse = i => (i.strassen && i.strassen[0]) || ((/^(?:abfahrt|ausfahrt|auffahrt|anschlussstelle|as)\b/i.test(sauber(i.von)) && Array.isArray(autobahnen) && autobahnen.length === 1) ? autobahnen[0] : '');
                 const teile = w.map(i => {
-                    const wo = i.von && i.nach && i.von !== i.nach ? ' zwischen ' + i.von + ' und ' + i.nach : (i.von ? ' bei ' + i.von : '');
+                    const von = sauber(i.von), nach = sauber(i.nach);
+                    const wo = von && nach && von !== nach ? ' zwischen ' + von + ' und ' + nach : (von ? ' bei ' + von : '');
                     const min = Math.round(i.verzoegerung_s / 60);
-                    return i.art + (i.strassen && i.strassen[0] ? ' auf der ' + i.strassen[0] : '') + wo + (min >= 2 ? ', etwa ' + min + ' Minuten länger' : '');
+                    return i.art + (strasse(i) ? ' auf der ' + strasse(i) : '') + wo + (min >= 2 ? ', etwa ' + min + ' Minuten länger' : '');
                 });
                 text += ' Außerdem gemeldet: ' + teile.join('; ') + '.';
                 const ICON = { 'Unfall': '🚨', 'Stau': '🚦', 'Sperrung': '⛔', 'Fahrstreifen gesperrt': '🚧', 'Baustelle': '🚧', 'Pannenfahrzeug': '🚗', 'Gefahrenstelle': '⚠️', 'Glätte': '❄️', 'Nebel': '🌫️', 'Überflutung': '🌊' };
                 w.forEach((i, k) => {
-                    lastStauWarnings.push({ lat: i.lat, lon: i.lon, road: (i.strassen && i.strassen[0]) || 'Stadt', title: teile[k], text: i.text || '' });
+                    lastStauWarnings.push({ lat: i.lat, lon: i.lon, road: strasse(i) || 'Stadt', title: teile[k], text: i.text || '' });
                     lastStauCards.push({
                         icon: ICON[i.art] || '⚠️',
-                        title: i.art + ' · ' + ((i.strassen && i.strassen[0]) || (i.von || 'Strecke')),
-                        subtitle: (i.von ? i.von + (i.nach ? ' → ' + i.nach : '') : (i.text || 'Verkehrsmeldung')) + (i.verzoegerung_s >= 120 ? ' · +' + Math.round(i.verzoegerung_s / 60) + ' min' : ''),
+                        title: i.art + ' · ' + (strasse(i) || sauber(i.von) || 'Strecke'),
+                        subtitle: (i.von ? sauber(i.von) + (i.nach ? ' → ' + sauber(i.nach) : '') : (i.text || 'Verkehrsmeldung')) + (i.verzoegerung_s >= 120 ? ' · +' + Math.round(i.verzoegerung_s / 60) + ' min' : ''),
                         href: 'https://www.google.com/maps?q=' + i.lat + ',' + i.lon
                     });
                 });
