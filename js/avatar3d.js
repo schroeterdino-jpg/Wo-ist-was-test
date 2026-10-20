@@ -550,7 +550,7 @@ function applyMorphs(dt,speaking,now){
    let env=audio.__jvTextOnly?null:audioEnvelope(audio);
    // Sicherung (Mund blieb zu, obwohl er sprach): liefert der Lautstärke-Messer dauerhaft Stille, obwohl der Ton läuft,
    // wechselt der Mund auf die Text-Variante, bis wieder echte Lautstärke ankommt.
-   if(env!==null){ const dtm=lipLastT?Math.min(100,now-lipLastT):16; lipLastT=now; if(env<.02&&audio.currentTime>.25) lipSilent+=dtm; else lipSilent=0; if(lipSilent>700){ env=null; audio.__jvTextOnly=true; lipSilent=0; } } else { lipLastT=0; lipSilent=0; }
+   if(env!==null){ const dtm=lipLastT?Math.min(100,now-lipLastT):16; lipLastT=now; if(env<.1&&audio.currentTime>.1) lipSilent+=dtm; else if(env>.14) lipSilent=0; if(lipSilent>400){ env=null; audio.__jvTextOnly=true; lipSilent=0; } } else { lipLastT=0; lipSilent=0; }
    audioDriven=(env!==null);
    const shp=lipShapeForText(text,audio)||{kind:['A','EI','OU','A','CONS','A'][Math.floor(now/130)%6],amp:.2+.2*Math.abs(Math.sin(now*.011))};   // ohne Text (z. B. Zwischenansage/Cache): Sprechrhythmus statt geschlossener Mund
    if(audioDriven) applyAudioSpeech(env,shp); else applySpeechShape(shp);
