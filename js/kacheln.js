@@ -187,6 +187,8 @@
 
     function befehl(text, next) {
         var t = String(text || '').toLowerCase().replace(/[.!?,]/g, '').trim();
+        var md = t.match(/^(?:(?:jarvis|zane|nova)[ ]+)?mund[- ]?diagnose(?: ?(aus|an|ausschalten|einschalten))$/);
+        if (md) { var mein = !/^(aus|ausschalten)$/.test(md[1]); mundDiagnose(mein); speak(mein ? 'Mund-Diagnose eingeschaltet.' : 'Mund-Diagnose ausgeschaltet.'); return true; }
         var sb = t.match(/^(?:(?:jarvis|zane|nova)[ ]+)?(?:die )?(?:start[- ]?animation|startanimation|boot[- ]?animation)(?: ?(aus|an|ausschalten|einschalten))$/);
         if (sb) {
             var baus = /^(aus|ausschalten)$/.test(sb[1]);
@@ -209,6 +211,15 @@
             return true;
         }
         return next();
+    }
+    var mdEl = null, mdIv = 0;
+    function mundDiagnose(ein) {
+        if (!ein) { if (mdEl) { mdEl.remove(); mdEl = null; } clearInterval(mdIv); return; }
+        if (mdEl) return;
+        mdEl = document.createElement('pre');
+        mdEl.style.cssText = 'position:fixed;left:4px;top:70px;z-index:2147482000;margin:0;padding:6px 8px;background:rgba(0,0,0,.78);color:#7dffb0;font:10px/1.25 ui-monospace,Menlo,monospace;pointer-events:none;max-width:60vw;white-space:pre-wrap;border:1px solid rgba(125,255,176,.4)';
+        document.body.appendChild(mdEl);
+        mdIv = setInterval(function () { var d = window.__jvMouthDiag; mdEl.textContent = d ? Object.keys(d).map(function (k) { return k + ': ' + d[k]; }).join('\n') : 'keine Daten (Kopf nicht aktiv?)'; }, 250);
     }
     function einhaengen() {
         if (!window.jvCommands || typeof window.jvCommands.use !== 'function') return false;
