@@ -123,6 +123,15 @@
         return o;
     }
     window.jvSchichtInfo = info;
+    /* Nur die Schicht von heute als Wort ("Frühschicht" / "Spätschicht"), ohne Netz; null bei Urlaub oder ohne Schichtplan (für die Start-Ansage, jarvis.js) */
+    window.jvSchichtHeute = function () {
+        try {
+            const st = load(); if (!st) return null;
+            const u = window.jvUrlaub && window.jvUrlaub.get && window.jvUrlaub.get(), heute = berlin().ymd;
+            if (u && u.von && u.bis && u.von <= heute && u.bis >= heute) return null;
+            return NAME[shiftToday(st)] || null;
+        } catch (e) { return null; }
+    };
 
     /* ---------- Briefing von selbst ---------- */
     function idle() { try { return typeof wachterIdle === 'function' ? wachterIdle() : !document.hidden; } catch (e) { return false; } }

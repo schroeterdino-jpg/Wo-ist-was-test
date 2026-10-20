@@ -56,6 +56,11 @@ function sassHintFor(text) {
 /* Tonfall-Block für die KI-Anweisung (prompt.js): geht allen Tonangaben dort vor. Ohne ihn würde die Grundanweisung
    ("britischer Butler, zieht den User freundlich auf") jede Einstellung überdecken. */
 function personaOverlay() {
+    return jarvisBlockText() + personaOverlayBase();
+}
+function jarvisBlockText() { try { return typeof window.jvJarvisBlock === 'function' ? window.jvJarvisBlock() : ''; } catch (e) { return ''; } }
+function jarvisTonAn() { try { return typeof window.jvJarvisTon === 'function' && window.jvJarvisTon(); } catch (e) { return false; } }
+function personaOverlayBase() {
     const lvl = sassLevel();
     const tabu = ' Bei ernsten Themen (siehe TABU unten) bleibt es immer klar, freundlich und ohne Witz.';
     if (lvl === 0) return 'TONFALL-STUFE (vom User eingestellt, geht allen Tonangaben dieser Anweisung vor): HÖFLICH. Antworte freundlich, warm, höflich und sachlich. Keine Sprüche, kein Sarkasmus, keine Neckereien, keine Witze.\n\n';
@@ -67,6 +72,7 @@ function personaOverlay() {
 /* Zwischenansagen ("Einen Moment"): meist neutral, bei harmlosen Anfragen gelegentlich frech */
 function ackPhrasesFor(text) {
     const neutral = ["Einen Moment.", "Einen Augenblick.", "Ich denke nach.", "Moment.", "Sofort.", "Verstanden."];
+    if (jarvisTonAn() && !SERIOUS_TOPIC_RE.test(String(text || ''))) return ["Einen Moment, Sir.", "Verstanden.", "Wird bearbeitet.", "Läuft, Sir.", "Analyse läuft."];
     const cheeky = ["Gleich. Ein Butler hetzt nicht.", "Moment, Genialität braucht Zeit.", "Ich arbeite daran, bitte staunen Sie leise.", "Einen Augenblick, ich will es ja richtig machen."];
     if (!SERIOUS_TOPIC_RE.test(String(text || '')) && Math.random() < sassChance()) return cheeky;
     return neutral;
@@ -94,7 +100,8 @@ function handleGreeting(text) {
     const greet = greetingForHour(isNaN(hour) ? new Date().getHours() : hour);
     const politeClosings = ['Wie kann ich helfen?', 'Was kann ich für Sie tun?', 'Ich höre.', 'Womit kann ich dienen?', 'Womit darf ich Ihren Tag verbessern?', 'Schön, dass Sie an mich denken.'];
     const cheekyClosings = ['Na, wieder Sehnsucht nach meinem Charme?', 'Ich war schon fast eingeschlafen. Also, was gibt es?'];
-    const closing = pickRandom(sassLevel() >= 2 ? politeClosings.concat(cheekyClosings) : politeClosings);
+    const jarvisClosings = ['Ich höre, Sir.', 'Systeme bereit, Sir.', 'Was kann ich tun, Sir?'];
+    const closing = jarvisTonAn() ? pickRandom(jarvisClosings) : pickRandom(sassLevel() >= 2 ? politeClosings.concat(cheekyClosings) : politeClosings);
     const named = Math.random() < 0.33 && !/[?]$/.test(greet);
     speak(`${greet}${named ? ', ' + currentUserName : ''}. ${closing}`.replace('?.', '?'), continueConversation);
     return true;
