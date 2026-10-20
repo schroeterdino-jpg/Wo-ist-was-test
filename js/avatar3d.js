@@ -518,6 +518,15 @@ const MICROS=[
 ];
 let micro=null, microNext=0;
 function microEnvelope(now){ if(!micro) return 0; const x=(now-micro.t0)/micro.t; if(x<0||x>=1){micro=null;return 0} return Math.sin(Math.PI*x); }
+let lipSilent=0, lipLastT=0;
+function generischSpricht(){
+ try{
+   const a=(typeof currentAudio!=='undefined')?currentAudio:null;
+   if(a&&!a.paused&&!a.ended&&a.currentTime>.05) return true;
+   if(window.speechSynthesis&&window.speechSynthesis.speaking) return true;
+ }catch(e){}
+ return false;
+}
 function applyMorphs(dt,speaking,now){
  syncEmotionToFish(); syncSentenceEmotion();
  const tn=tongueMorphName(); if(tn) setMorph(tn, performance.now()<tongueUntil ? .95 : 0);
@@ -533,9 +542,18 @@ function applyMorphs(dt,speaking,now){
    for(const n in browBase){ if(/Up/.test(n)) setMorph(n, browBase[n]+p); }
  }
  if(fishSpeaking){
-   const env=audioEnvelope(audio); audioDriven=(env!==null);
+   let env=audioEnvelope(audio);
+   // Sicherung (Mund blieb zu, obwohl er sprach): liefert der Lautstärke-Messer dauerhaft Stille, obwohl der Ton läuft,
+   // wechselt der Mund auf die Text-Variante, bis wieder echte Lautstärke ankommt.
+   if(env!==null){ const dtm=lipLastT?Math.min(100,now-lipLastT):16; lipLastT=now; if(env<.02&&audio.currentTime>.25) lipSilent+=dtm; else lipSilent=0; if(lipSilent>700) env=null; } else { lipLastT=0; lipSilent=0; }
+   audioDriven=(env!==null);
    if(audioDriven) applyAudioSpeech(env,lipShapeForText(text,audio)); else applySpeechShape(lipShapeForText(text,audio));
    if(anCtx&&anCtx.state==='suspended'&&anCtx.resume) anCtx.resume();
+ }
+ else if(generischSpricht()){
+   // Sicherung: Ton läuft, aber das Lippen-Audio wurde nicht erkannt -> Mund bewegt sich trotzdem im Sprechrhythmus
+   audioDriven=false; envState=0; lipSilent=0; lipLastT=0;
+   applySpeechShape({kind:['A','EI','OU','A','CONS','A'][Math.floor(now/130)%6],amp:.2+.2*Math.abs(Math.sin(now*.011))});
  }
  else if(manualMouth>0){audioDriven=false;envState=0;clearSpeechMorphs();setMorph('jawOpen',manualMouth)}
  else { audioDriven=false; envState=0; clearSpeechMorphs(); if(!/^(laugh|surprised|awe)$/.test(expression)) setMorph('mouthClose',.35); }
