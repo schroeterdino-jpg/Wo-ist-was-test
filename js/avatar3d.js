@@ -401,7 +401,7 @@ function audioEnvelope(audio){
    const lvl=Math.max(0,Math.min(1,(rms-.015)/.22));
    envState+=(lvl-envState)*(lvl>envState?.55:.2);   // schnell auf, etwas langsamer zu
    return envState;
- }catch(e){ audio.__jvAnFail=true; return null; }
+ }catch(e){ audio.__jvAnFail=true; audio.__jvAnErr=String(e&&e.message||e).slice(0,60); return null; }
 }
 let JV_NOAC=false;
 function applyAudioSpeech(env,shape){
@@ -547,7 +547,8 @@ function applyMorphs(dt,speaking,now){
    // wechselt der Mund auf die Text-Variante, bis wieder echte Lautstärke ankommt.
    if(env!==null){ const dtm=lipLastT?Math.min(100,now-lipLastT):16; lipLastT=now; if(env<.02&&audio.currentTime>.25) lipSilent+=dtm; else lipSilent=0; if(lipSilent>700) env=null; } else { lipLastT=0; lipSilent=0; }
    audioDriven=(env!==null);
-   if(audioDriven) applyAudioSpeech(env,lipShapeForText(text,audio)); else applySpeechShape(lipShapeForText(text,audio));
+   const shp=lipShapeForText(text,audio)||{kind:['A','EI','OU','A','CONS','A'][Math.floor(now/130)%6],amp:.2+.2*Math.abs(Math.sin(now*.011))};   // ohne Text (z. B. Zwischenansage/Cache): Sprechrhythmus statt geschlossener Mund
+   if(audioDriven) applyAudioSpeech(env,shp); else applySpeechShape(shp);
    if(anCtx&&anCtx.state==='suspended'&&anCtx.resume) anCtx.resume();
  }
  else if(generischSpricht()){
@@ -562,7 +563,7 @@ function applyMorphs(dt,speaking,now){
  if(grimass){ for(const n in grimass){ if(!fishSpeaking||/^(brow|eye|cheek|nose|mouthSmile|mouthDimple)/.test(n)) setMorph(n,grimass[n]); } }   // beim Sprechen nur Augen, Brauen, Wangen, Nase und Lächeln, nie den Mund/Kiefer
  if(expression==='laugh'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.28));
  if(expression==='surprised'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.34));
- try{ window.__jvMouthDiag={t:Math.round(now),fish:fishSpeaking,audioDriven:audioDriven,env:+envState.toFixed(3),silent:Math.round(lipSilent),ctx:anCtx?anCtx.state:'-',fail:!!(audio&&audio.__jvAnFail),paused:!!(audio&&audio.paused),ct:audio?+Number(audio.currentTime).toFixed(1):0,dur:audio?+Number(audio.duration||0).toFixed(1):0,vol:audio?+Number(audio.volume).toFixed(2):0,muted:!!(audio&&audio.muted),gen:generischSpricht(),state:speaking,expr:expression,ki:kiMimikAktiv(),sleep:+Number(sleepLevel).toFixed(2),jawT:+(target.jawOpen||0).toFixed(2),jawC:+(current.jawOpen||0).toFixed(2),mcT:+(target.mouthClose||0).toFixed(2),dt:+Number(dt).toFixed(3)}; }catch(e){}
+ try{ window.__jvMouthDiag={t:Math.round(now),fish:fishSpeaking,audioDriven:audioDriven,env:+envState.toFixed(3),silent:Math.round(lipSilent),ctx:anCtx?anCtx.state:'-',fail:!!(audio&&audio.__jvAnFail),err:(audio&&audio.__jvAnErr)||'-',txt:String(text||'').length,paused:!!(audio&&audio.paused),ct:audio?+Number(audio.currentTime).toFixed(1):0,dur:audio?+Number(audio.duration||0).toFixed(1):0,vol:audio?+Number(audio.volume).toFixed(2):0,muted:!!(audio&&audio.muted),gen:generischSpricht(),state:speaking,expr:expression,ki:kiMimikAktiv(),sleep:+Number(sleepLevel).toFixed(2),jawT:+(target.jawOpen||0).toFixed(2),jawC:+(current.jawOpen||0).toFixed(2),mcT:+(target.mouthClose||0).toFixed(2),dt:+Number(dt).toFixed(3)}; }catch(e){}
  for(const n of morphNames){const want=target[n]||0;const mund=/^(jaw|mouth)/.test(n)&&speaking&&!audioDriven;current[n]+=(want-current[n])*Math.min(1,dt*(mund?8:14))}
  { const b1=resolveMorphName('eyeBlink_L'),b2=resolveMorphName('eyeBlink_R'), wl=(grimass&&grimass.eyeBlink_L)||0, wr=(grimass&&grimass.eyeBlink_R)||0; const sl=sleepLevel*.97; if(b1)current[b1]=Math.max(0,Math.min(1,Math.max(blinkVal,wl,sl))); if(b2)current[b2]=Math.max(0,Math.min(1,Math.max(blinkVal,wr,sl))); }   // Zwinkern (Mimik) läuft über die Überlagerung
  const shown=Object.assign({},current);
