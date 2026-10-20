@@ -129,7 +129,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
         gedächtnis_semantisch: semanticMemoryHits,
         kontakte: savedContacts,
         // die nächsten 40 Termine (mit sich wiederholenden Terminen wären es sonst zu viele)
-        termine: [...calendarEntries].sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate)).slice(0, 40).map(c => ({ id: c.id, text: c.text, ...describeEventDate(c.isoDate), isoDate: c.isoDate })),
+        termine: [...calendarEntries].sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate)).slice(0, 40).map(c => ({ id: c.id, text: c.text, ...describeEventDate(c.isoDate), isoDate: c.isoDate, ...(c.location ? { ort: c.location } : {}) })),
         erinnerungen: reminderEntries.map(r => ({ id: r.id, text: r.text, ...describeEventDate(r.time), iso: r.time })),
         einkauf: shoppingEntries.map(s => s.text),
         aufgaben_und_notizen: todoEntries.map(t => t.text),
