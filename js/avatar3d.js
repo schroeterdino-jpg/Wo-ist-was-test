@@ -803,8 +803,18 @@ function updateLook(now,dt,st,speaking){
     else if(gaze.dirty){ gaze.dirty=false; setExpression(expression); }
   }
 }
+let pulseEl=null, pulseN=0;
+// Repaint-Anstoß: Beim Sprechen ändert sich der Kopf sehr fein (Mund). Ohne weitere Änderungen auf dem Bildschirm zeigt Chrome auf manchen Handys das neue Bild
+// des 3D-Kopfes (der hat einen CSS-Filter/Hologramm-Effekt) nicht jedes Mal an; der Mund wirkt dann zu. Ein unsichtbares 2-Pixel-Element, das sich jedes Bild minimal ändert, erzwingt das Neuzeichnen.
+function repaintPulse(){
+ try{
+   if(!pulseEl){ const host=renderer&&renderer.domElement&&renderer.domElement.parentNode; if(!host) return; pulseEl=document.createElement('div'); pulseEl.style.cssText='position:absolute;left:0;top:0;width:3px;height:3px;pointer-events:none;z-index:7;background:#000;opacity:.01'; host.appendChild(pulseEl); }
+   pulseN++; pulseEl.style.opacity=(pulseN%2)?'.01':'.02';
+ }catch(e){}
+}
 function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);const dt=Math.min(.05,(now-(loop.last||now))/1000);loop.last=now;
  let speaking=!!(window.__jvLipAudio&&!window.__jvLipAudio.paused&&!window.__jvLipAudio.ended);
+ if(speaking||generischSpricht()) repaintPulse();
  const st=syncAvatarState(now); updateLook(now,dt,st,speaking); applyMorphs(dt,speaking,now);
  schlafStep(dt,now,st);
  const baseY=Math.sin(now*.00055)*.035*(1-sleepLevel), baseX=Math.sin(now*.0007)*.008;
