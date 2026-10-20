@@ -44,6 +44,7 @@
     var ac = null;
     function ton() {
         try {
+            if (localStorage.getItem('helfer_bootton') !== 'an') return;   // Standard: still
             var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
             ac = new AC(); if (ac.state !== 'running') { try { ac.close(); } catch (e) {} ac = null; return; }
             var t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
