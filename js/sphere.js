@@ -140,6 +140,7 @@
                 analyserSource.connect(analyser);
             } catch (e) { /* z.B. Browser ohne Unterstützung - die simulierte Atmung läuft einfach weiter */ }
         };
+        window.jvSphereLevel = function () { try { return liveVoiceLevel(); } catch (e) { return null; } };   // der 3D-Kopf nutzt dieselbe Lautstärke-Messung für den Mund
         function liveVoiceLevel() {
             if (!analyser || !analyserData) return null;
             analyser.getByteFrequencyData(analyserData);

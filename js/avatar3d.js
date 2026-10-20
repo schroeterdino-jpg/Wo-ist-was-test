@@ -386,6 +386,11 @@ function lipShapeForText(text,audio){
 const JV_AUDIO_LIPPEN=true;
 let anCtx=null, envState=0, audioDriven=false;
 function audioEnvelope(audio){
+ // Die Kugel (sphere.js) hängt sich oft zuerst an den Ton; dann scheitert unsere eigene Anbindung. In dem Fall nutzen wir ihre Lautstärke-Messung mit.
+ if(JV_AUDIO_LIPPEN&&audio&&audio.__jvAnFail&&typeof window.jvSphereLevel==='function'){
+   try{ const l=window.jvSphereLevel(); if(l!==null&&l!==undefined){ const lvl=Math.max(0,Math.min(1,(l-.04)/.45)); envState+=(lvl-envState)*(lvl>envState?.55:.25); return envState; } }catch(e){}
+   return null;
+ }
  if(!JV_AUDIO_LIPPEN||!audio||audio.__jvAnFail) return null;
  try{
    if(!anCtx){ const AC=window.AudioContext||window.webkitAudioContext; if(!AC){JV_NOAC=true;return null} anCtx=new AC(); }
@@ -425,12 +430,12 @@ function applySpeechShape(shape){
  const a=shape.amp||.2;
  switch(shape.kind){
   case 'MBP': setMorph('mouthClose',.9);setMorph('mouthPress_L',.3);setMorph('mouthPress_R',.3);break;
-  case 'CONS': setMorph('jawOpen',.12);setMorph('mouthClose',.25);break;
-  case 'FV': setMorph('jawOpen',.06);setMorph('mouthClose',.3);setMorph('mouthRollLower',.34);setMorph('mouthUpperUp_L',.16);setMorph('mouthUpperUp_R',.16);break;
+  case 'CONS': setMorph('jawOpen',.17);setMorph('mouthClose',.25);break;
+  case 'FV': setMorph('jawOpen',.1);setMorph('mouthClose',.3);setMorph('mouthRollLower',.34);setMorph('mouthUpperUp_L',.16);setMorph('mouthUpperUp_R',.16);break;
   case 'OU': setMorph('jawOpen',a*.75);setMorph('mouthFunnel',.48);setMorph('mouthPucker',.44);break;
   case 'EI': setMorph('jawOpen',a*.55);setMorph('mouthStretch_L',.38);setMorph('mouthStretch_R',.38);setMorph('mouthUpperUp_L',.12);setMorph('mouthUpperUp_R',.12);break;
-  case 'S': setMorph('jawOpen',.08);setMorph('mouthClose',.4);setMorph('mouthStretch_L',.16);setMorph('mouthStretch_R',.16);break;
-  case 'L': setMorph('jawOpen',.14);setMorph('mouthClose',.2);setMorph('mouthUpperUp_L',.10);setMorph('mouthUpperUp_R',.10);break;
+  case 'S': setMorph('jawOpen',.12);setMorph('mouthClose',.4);setMorph('mouthStretch_L',.16);setMorph('mouthStretch_R',.16);break;
+  case 'L': setMorph('jawOpen',.18);setMorph('mouthClose',.2);setMorph('mouthUpperUp_L',.10);setMorph('mouthUpperUp_R',.10);break;
   default: setMorph('jawOpen',a*.9);setMorph('mouthLowerDown_L',a*.34);setMorph('mouthLowerDown_R',a*.34);setMorph('mouthUpperUp_L',a*.15);setMorph('mouthUpperUp_R',a*.15);
  }
 }
