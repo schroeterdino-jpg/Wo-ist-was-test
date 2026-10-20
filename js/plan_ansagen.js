@@ -446,9 +446,24 @@
         sagen('Morgen ist Frühschicht. Soll ich den Wecker auf ' + uhr(min) + ' stellen?', true);
     }
     function karten() { try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) { } }
+    let weckerIntentUrl = '';
+    function weckerIntent() { karten(); if (weckerIntentUrl) { try { location.href = weckerIntentUrl; } catch (e) { } } }
     function weckerSetzen(h, m, label) {
         const n = N();
-        if (!n) return 'kein-app';
+        if (!n) {
+            // Ohne Nova-App (normale Web-Seite im Browser): Android-Uhr-App per Link öffnen; der Wecker muss dort einmal bestätigt werden.
+            if (!/Android/i.test(navigator.userAgent || '')) return 'kein-app';
+            const url = 'intent:#Intent;action=android.intent.action.SET_ALARM;i.android.intent.extra.alarm.HOUR=' + h + ';i.android.intent.extra.alarm.MINUTES=' + m +
+                ';S.android.intent.extra.alarm.MESSAGE=' + encodeURIComponent(label || 'Nova') + ';end';
+            try { if (navigator.userActivation && navigator.userActivation.isActive) { location.href = url; return 'intent-offen'; } } catch (e) { }
+            weckerIntentUrl = url;
+            try {
+                if (typeof showActionCards === 'function') showActionCards([
+                    { icon: '⏰', title: 'Wecker ' + uhrHM(h * 60 + m) + ' in der Uhr-App öffnen', subtitle: 'Dort kurz auf Speichern tippen', onclick: 'jvPlan.weckerIntent()' }
+                ]);
+            } catch (e) { }
+            return 'intent-karte';
+        }
         if (typeof n.weckerStellen !== 'function') return 'alt';
         let ok = false;
         try { ok = !!n.weckerStellen(h, m, label || 'Nova'); } catch (e) { ok = false; }
@@ -458,6 +473,8 @@
         const nu = jetzt(), ziel = h * 60 + m;
         const wann = ziel > nu.min ? 'heute' : 'morgen';
         if (r === 'ok') return 'Der Wecker ist gestellt, ' + wann + ' um ' + uhr(ziel) + '. Du findest ihn in der Uhr-App.';
+        if (r === 'intent-karte') return 'Tippe auf die Karte, dann öffnet sich die Uhr-App mit dem Wecker um ' + uhr(ziel) + '. Dort musst du ihn nur noch speichern.';
+        if (r === 'intent-offen') return 'Ich öffne die Uhr-App mit dem Wecker um ' + uhr(ziel) + '. Bitte dort noch auf Speichern tippen.';
         if (r === 'kein-app') return 'Einen Wecker kann ich nur in der Nova-App auf dem Handy stellen.';
         if (r === 'alt') return 'Dafür brauchst du die neueste Nova-App. Bitte installiere die aktuelle Version.';
         return 'Den Wecker konnte ich nicht stellen. Prüfe, ob die Uhr-App des Handys erreichbar ist.';
@@ -467,7 +484,7 @@
         if (!w) { sagen('Gerade ist keine Wecker-Frage offen.', false); return; }
         const h = Math.floor(w.min / 60), m = w.min % 60;
         const r = weckerSetzen(h, m, 'Nova: Frühschicht');
-        if (r === 'ok') lsSet(K_WECKER + w.ymd, 'ja');
+        if (r === 'ok' || r === 'intent-offen' || r === 'intent-karte') lsSet(K_WECKER + w.ymd, 'ja');
         sagen(weckerAntwort(r, h, m) + (r === 'ok' ? ' Gute Nacht.' : ''), false);
     }
     function weckerNein() {
@@ -616,7 +633,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerFrage, parseZeit };
+    window.jvPlan = { pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Nova war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);
