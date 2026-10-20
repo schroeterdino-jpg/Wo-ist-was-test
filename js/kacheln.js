@@ -188,7 +188,7 @@
     function befehl(text, next) {
         var t = String(text || '').toLowerCase().replace(/[.!?,]/g, '').trim();
         var md = t.match(/^(?:(?:jarvis|zane|nova)[ ]+)?mund[- ]?diagnose(?: ?(aus|an|ausschalten|einschalten))$/);
-        if (md) { var mein = !/^(aus|ausschalten)$/.test(md[1]); mundDiagnose(mein); speak(mein ? 'Mund-Diagnose eingeschaltet.' : 'Mund-Diagnose ausgeschaltet.'); return true; }
+        if (md) { var mein = !/^(aus|ausschalten)$/.test(md[1]); sd('helfer_munddiag', mein ? 'an' : 'aus'); mundDiagnose(mein); speak(mein ? 'Mund-Diagnose eingeschaltet.' : 'Mund-Diagnose ausgeschaltet.'); return true; }
         var sb = t.match(/^(?:(?:jarvis|zane|nova)[ ]+)?(?:die )?(?:start[- ]?animation|startanimation|boot[- ]?animation)(?: ?(aus|an|ausschalten|einschalten))$/);
         if (sb) {
             var baus = /^(aus|ausschalten)$/.test(sb[1]);
@@ -226,6 +226,7 @@
         window.jvCommands.use('kacheln', befehl, 36);
         return true;
     }
+    try { if (pd('helfer_munddiag', 'aus') === 'an') { if (document.body) mundDiagnose(true); else document.addEventListener('DOMContentLoaded', function () { mundDiagnose(true); }); } } catch (e) {}
     if (!einhaengen()) { var n = 0, iv = setInterval(function () { if (einhaengen() || ++n > 40) clearInterval(iv); }, 250); }
     if (!aufbauen()) document.addEventListener('DOMContentLoaded', aufbauen);
 })();
