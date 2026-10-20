@@ -524,6 +524,17 @@ const MICROS=[
 let micro=null, microNext=0;
 function microEnvelope(now){ if(!micro) return 0; const x=(now-micro.t0)/micro.t; if(x<0||x>=1){micro=null;return 0} return Math.sin(Math.PI*x); }
 let lipSilent=0, lipLastT=0;
+let uiSeit=0;
+// Letzte Sicherung: Die Oberfläche zeigt "NOVA / SPRICHT", aber der Kopf erkennt keinen Ton (anderer Abspielweg). Nach 0,6 s Dauer bewegt sich der Mund trotzdem.
+function uiSprichtLang(now){
+ try{
+   const rb=document.getElementById('recordBtn'), rt=document.getElementById('recordText');
+   const an=!!((rb&&rb.classList.contains('speaking'))||/SPRICHT/i.test(String(rt&&rt.textContent||'')));
+   if(!an){ uiSeit=0; return false; }
+   if(!uiSeit) uiSeit=now;
+   return now-uiSeit>600;
+ }catch(e){ return false; }
+}
 function generischSpricht(){
  try{
    const a=(typeof currentAudio!=='undefined')?currentAudio:null;
@@ -561,6 +572,10 @@ function applyMorphs(dt,speaking,now){
    audioDriven=false; envState=0; lipSilent=0; lipLastT=0;
    applySpeechShape({kind:['A','EI','OU','A','CONS','A'][Math.floor(now/130)%6],amp:.2+.2*Math.abs(Math.sin(now*.011))});
  }
+ else if(uiSprichtLang(now)){
+   audioDriven=false; envState=0; lipSilent=0; lipLastT=0;
+   applySpeechShape({kind:['A','EI','OU','A','CONS','A'][Math.floor(now/130)%6],amp:.2+.2*Math.abs(Math.sin(now*.011))});
+ }
  else if(manualMouth>0){audioDriven=false;envState=0;clearSpeechMorphs();setMorph('jawOpen',manualMouth)}
  else { audioDriven=false; envState=0; clearSpeechMorphs(); if(!/^(laugh|surprised|awe)$/.test(expression)) setMorph('mouthClose',.35); }
  if(sleepLevel>.4&&!fishSpeaking){ setMorph('jawOpen',(.045+.03*(.5+.5*Math.sin(now*.0016)))*Math.min(1,sleepLevel)); }   // schlafend: Mund leicht offen, atmet
@@ -568,7 +583,7 @@ function applyMorphs(dt,speaking,now){
  if(grimass){ for(const n in grimass){ if(!fishSpeaking||/^(brow|eye|cheek|nose|mouthSmile|mouthDimple)/.test(n)) setMorph(n,grimass[n]); } }   // beim Sprechen nur Augen, Brauen, Wangen, Nase und Lächeln, nie den Mund/Kiefer
  if(expression==='laugh'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.28));
  if(expression==='surprised'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.34));
- try{ window.__jvMouthDiag={t:Math.round(now),fish:fishSpeaking,audioDriven:audioDriven,env:+envState.toFixed(3),silent:Math.round(lipSilent),ctx:anCtx?anCtx.state:'-',fail:!!(audio&&audio.__jvAnFail),err:(audio&&audio.__jvAnErr)||'-',txt:String(text||'').length,paused:!!(audio&&audio.paused),ct:audio?+Number(audio.currentTime).toFixed(1):0,dur:audio?+Number(audio.duration||0).toFixed(1):0,vol:audio?+Number(audio.volume).toFixed(2):0,muted:!!(audio&&audio.muted),gen:generischSpricht(),state:speaking,expr:expression,ki:kiMimikAktiv(),sleep:+Number(sleepLevel).toFixed(2),jawT:+(target.jawOpen||0).toFixed(2),jawC:+(current.jawOpen||0).toFixed(2),mcT:+(target.mouthClose||0).toFixed(2),dt:+Number(dt).toFixed(3)}; }catch(e){}
+ try{ window.__jvMouthDiag={t:Math.round(now),fish:fishSpeaking,audioDriven:audioDriven,env:+envState.toFixed(3),silent:Math.round(lipSilent),ctx:anCtx?anCtx.state:'-',fail:!!(audio&&audio.__jvAnFail),err:(audio&&audio.__jvAnErr)||'-',txt:String(text||'').length,paused:!!(audio&&audio.paused),ct:audio?+Number(audio.currentTime).toFixed(1):0,dur:audio?+Number(audio.duration||0).toFixed(1):0,vol:audio?+Number(audio.volume).toFixed(2):0,muted:!!(audio&&audio.muted),gen:generischSpricht(),ui:uiSeit?Math.round(now-uiSeit):0,state:speaking,expr:expression,ki:kiMimikAktiv(),sleep:+Number(sleepLevel).toFixed(2),jawT:+(target.jawOpen||0).toFixed(2),jawC:+(current.jawOpen||0).toFixed(2),mcT:+(target.mouthClose||0).toFixed(2),dt:+Number(dt).toFixed(3)}; }catch(e){}
  for(const n of morphNames){const want=target[n]||0;const mund=/^(jaw|mouth)/.test(n)&&speaking&&!audioDriven;current[n]+=(want-current[n])*Math.min(1,dt*(mund?8:14))}
  { const b1=resolveMorphName('eyeBlink_L'),b2=resolveMorphName('eyeBlink_R'), wl=(grimass&&grimass.eyeBlink_L)||0, wr=(grimass&&grimass.eyeBlink_R)||0; const sl=sleepLevel*.97; if(b1)current[b1]=Math.max(0,Math.min(1,Math.max(blinkVal,wl,sl))); if(b2)current[b2]=Math.max(0,Math.min(1,Math.max(blinkVal,wr,sl))); }   // Zwinkern (Mimik) läuft über die Überlagerung
  const shown=Object.assign({},current);
