@@ -773,8 +773,8 @@ if (SpeechRecognition) {
         text = fixKnownMishearings(text);
         isFollowUp = false;
         clearFollowUpTimer();
-        typeWriterStatus(`Verstanden: "${text}"`);
-        setHudSubtitle(`User: "${text}"`);
+        typeWriterStatus('Verstanden.');   // dein Satz wird nicht mehr wiederholt (stört)
+        setHudSubtitle('');
 
         // Dolmetscher-Modus (und seine Befehle) gehen vor allem anderen
         if (interpreterHandleRecognized(text)) return;
