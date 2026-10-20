@@ -427,8 +427,9 @@ async function buildBriefing(st, sh, now) {
   if (ev.length) teile.push(ev.length + (ev.length === 1 ? ' Termin' : ' Termine') + ' (nächster ' + berlinClock(ev[0].at) + ' ' + ev[0].x + ')');
   if (rem.length) teile.push(rem.length + (rem.length === 1 ? ' Erinnerung' : ' Erinnerungen'));
   if (teile.length) parts.push('Heute: ' + teile.join(', ') + '.');
-  parts.push('Tippe für das Briefing.');
-  return { title: gruss + name + '. ' + art, body: parts.join(' '), tag: 'brief-' + b.ymd, url: './' };
+  const titel = gruss + name + '. ' + art, klartext = parts.join(' ');
+  parts.push('Tippe zum Vorlesen.');
+  return { title: titel, body: parts.join(' '), tag: 'brief-' + b.ymd, url: './?brief=1&t=' + encodeURIComponent(titel) + '&b=' + encodeURIComponent(klartext.slice(0, 900)), brief: { t: titel, b: klartext.slice(0, 900) } };
 }
 
 // --- Abfahrtszeit für Termine mit Ort, Nachfassen bei wichtigen Erinnerungen ---
