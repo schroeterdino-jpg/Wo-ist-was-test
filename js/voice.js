@@ -299,7 +299,7 @@ function speak(text, onComplete, langCode) {
             if (myGen <= interruptedGen) { setIdleUi(); return; }   // inzwischen per interruptSpeaking() abgebrochen - nicht mehr abspielen
             if (!blob) { ttsCloudFailCount++; speakBrowser(cleanText, onComplete, langCode); return; }
             ttsCloudFailCount = 0;
-            setHudSubtitle(cleanText);   // kein Wort-für-Wort-Timing wie bei der Browser-Stimme möglich, daher direkt ganz anzeigen
+            setHudSubtitle(jvUntertitelAn() ? cleanText : '');   // kein Wort-für-Wort-Timing wie bei der Browser-Stimme möglich, daher direkt ganz anzeigen
             if (currentAudio) { try { currentAudio.pause(); } catch (e) {} currentAudio = null; }
             const url = URL.createObjectURL(blob);
             currentAudio = new Audio(url);
@@ -350,7 +350,7 @@ function speakBrowser(cleanText, onComplete, langCode) {
 
         window.speechSynthesis.speak(utterance);
     } else {
-        setHudSubtitle(cleanText);
+        setHudSubtitle(jvUntertitelAn() ? cleanText : '');
         if (currentAudio) { currentAudio.pause(); currentAudio = null; }
         currentAudio = new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${langCode ? langCode.slice(0, 2) : 'de'}&client=tw-ob`);
         currentAudio.playbackRate = 1.1;
@@ -773,7 +773,7 @@ if (SpeechRecognition) {
         text = fixKnownMishearings(text);
         isFollowUp = false;
         clearFollowUpTimer();
-        typeWriterStatus('Verstanden.');   // dein Satz wird nicht mehr wiederholt (stört)
+        typeWriterStatus('');   // dein Satz wird nicht mehr wiederholt (stört)
         setHudSubtitle('');
 
         // Dolmetscher-Modus (und seine Befehle) gehen vor allem anderen

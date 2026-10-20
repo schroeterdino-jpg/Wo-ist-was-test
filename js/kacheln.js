@@ -41,6 +41,8 @@
             '#parkButton.jvk-in.err{border-color:#ff7a7a!important}#parkButton.jvk-in.err .pk-p{color:#ff7a7a!important}' +
             '.jvk-reihe{justify-content:center;gap:8px!important}' +
             '#parkButton.jvk-in.hidden{display:none!important}' +
+            /* leerer Untertitel-Kasten ausblenden */
+            '#hudSubtitleBox:has(#hudSubtitleText:empty){display:none!important}' +
             /* Kopfzeile: dünne Linie mit Ecken */
             '.app-shell>header{position:relative}' +
             '.app-shell>header::after{content:"";position:absolute;left:16px;right:16px;bottom:0;height:7px;border-left:2px solid #5ee7ff;border-right:2px solid #5ee7ff;' +
@@ -185,6 +187,13 @@
 
     function befehl(text, next) {
         var t = String(text || '').toLowerCase().replace(/[.!?,]/g, '').trim();
+        var u = t.match(/^(?:(?:jarvis|zane|nova)[ ]+)?(?:die )?untertitel(?: ?(aus|an|ausschalten|einschalten))$/);
+        if (u) {
+            var uaus = /^(aus|ausschalten)$/.test(u[1]);
+            sd('helfer_untertitel', uaus ? 'aus' : 'an');
+            speak(uaus ? 'Untertitel ausgeschaltet.' : 'Untertitel eingeschaltet.');
+            return true;
+        }
         var m = t.match(/^(?:(?:jarvis|zane|nova)[ ]+)?(?:die )?(?:kacheln|startkacheln|start-kacheln)(?: ?(aus|an|ausschalten|einschalten|ausblenden|einblenden))?$/);
         if (m && m[1]) {
             var aus = /^(aus|ausschalten|ausblenden)$/.test(m[1]);
