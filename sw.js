@@ -17,7 +17,7 @@ self.addEventListener('push', function (event) {
         badge: './icon-192.png',
         tag: d.tag || undefined,
         actions: d.actions || undefined,
-        data: { url: (alarm && (!d.url || d.url === './')) ? './?alarm=' + alarm.stufe + '&t=' + encodeURIComponent(alarm.titel) + '&b=' + encodeURIComponent(alarm.text) : (d.url || './'), doneUrl: d.doneUrl || '' }
+        data: { brief: d.brief || null, url: (alarm && (!d.url || d.url === './')) ? './?alarm=' + alarm.stufe + '&t=' + encodeURIComponent(alarm.titel) + '&b=' + encodeURIComponent(alarm.text) : (d.url || './'), doneUrl: d.doneUrl || '' }
     }); }));
 });
 
@@ -30,7 +30,8 @@ self.addEventListener('notificationclick', function (event) {
     }
     var url = (event.notification.data && event.notification.data.url) || './';
     event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
-        for (var i = 0; i < list.length; i++) { if ('focus' in list[i]) return list[i].focus(); }   // offene App: hat die Warnung beim Eintreffen schon gezeigt
+        var br = event.notification.data && event.notification.data.brief;
+        for (var i = 0; i < list.length; i++) { if ('focus' in list[i]) { if (br) { try { list[i].postMessage({ jvBrief: br }); } catch (e) {} } return list[i].focus(); } }   // offene App: hat die Warnung beim Eintreffen schon gezeigt
         return self.clients.openWindow(url);
     }));
 });
