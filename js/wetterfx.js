@@ -1,7 +1,7 @@
 /* ============================================================
    WETTER IM HINTERGRUND: Hinter dem Kopf fällt Regen, Schnee, es zieht Nebel auf oder es blitzt leise bei Gewitter,
    passend zum echten Wetter am Standort. Bei Sonne/Wolken bleibt alles wie es ist. Der Kopf selbst bleibt unverändert.
-   Die Ebene liegt hinter allem (z-index 0), reagiert nicht auf Berührung und pausiert, wenn die Seite im Hintergrund ist.
+   Die Ebene liegt hinter allem (über dem Hintergrundgitter, unter der App), reagiert nicht auf Berührung und pausiert, wenn die Seite im Hintergrund ist.
    Bei "Bewegung reduzieren" im Handy bleibt sie aus.
    Sprache: "Wetter-Effekt an/aus", "Wetter-Effekt Regen/Schnee/Nebel/Gewitter" (Vorschau, bis "Wetter-Effekt echt").
    Braucht: briefing.js (fetchWeatherData), storage.js, commands.js. Fehlt etwas, passiert einfach nichts.
@@ -31,8 +31,9 @@
         if (cv) return true;
         if (!document.body) return false;
         cv = document.createElement('canvas'); cv.id = 'jvWetterFx';
-        cv.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0;transition:opacity 1.2s';
-        document.body.insertBefore(cv, document.body.firstChild);
+        cv.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:1;opacity:0;transition:opacity 1.2s';   // über dem Hintergrundgitter (z 0), unter der App (.app-shell, z 1, später im Dokument)
+        var shell = document.querySelector('.app-shell');
+        if (shell && shell.parentNode === document.body) document.body.insertBefore(cv, shell); else document.body.insertBefore(cv, document.body.firstChild);
         ctx = cv.getContext('2d');
         return true;
     }
