@@ -135,7 +135,9 @@
             const route = await routeToWork();
             let urlaub = null;
             try { const u = JSON.parse(getPersistentData('jv_urlaub', '') || 'null'); if (u && u.von && u.bis && u.bis >= new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' })) urlaub = { von: u.von, bis: u.bis }; } catch (e) {}
-            const body = { schicht, route, urlaub, name: (typeof currentUserName === 'string') ? currentUserName : '' };
+            let notizen = [];
+            try { notizen = (typeof todoEntries !== 'undefined' ? todoEntries : []).filter(e => e && e.text && !e.done).map(e => String(e.text).slice(0, 60)); } catch (e) {}
+            const body = { schicht, route, urlaub, name: (typeof currentUserName === 'string') ? currentUserName : '', notizen: notizen.slice(0, 3), notizenN: notizen.length };
             const hash = JSON.stringify(body);
             if (!force && hash === lastCfgHash) return;
             if (await post('push_config', body)) lastCfgHash = hash;

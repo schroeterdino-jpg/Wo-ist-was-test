@@ -237,6 +237,7 @@ async function handlePush(action, req, res, redis) {
           autobahnen: (Array.isArray(rt.autobahnen) ? rt.autobahnen : []).filter(a => /^A\d{1,3}$/.test(String(a))).slice(0, 2),
           from: { lat: rt.from.lat, lon: rt.from.lon }, to: { lat: rt.to.lat, lon: rt.to.lon } };
       }
+      if (Array.isArray(body.notizen)) { cfg.notizen = body.notizen.filter(x => typeof x === 'string').slice(0, 3).map(x => x.replace(/[\r\n]+/g, ' ').slice(0, 60)); cfg.notizenN = Math.max(cfg.notizen.length, Math.min(999, Math.round(Number(body.notizenN) || 0))); }
       st.cfg = cfg;
       await redis('SET', ITEMS_KEY, JSON.stringify(st));
       return res.status(200).json({ ok: true, schicht: !!cfg.schicht, route: !!cfg.route });
@@ -405,7 +406,43 @@ async function checkStau(route) {
   return { geprueft: geprueft > 0, meldungen, kostMin: Math.min(45, kostMin) };
 }
 
-async function buildBriefing(st, sh, now) {
+// Bank-Buchungen seit gestern aus Gmail (nur lesen): Eingänge und Ausgaben mit Summe. Ohne Mail-Push-Anmeldung: leer.
+async function bankUebersicht(redis) {
+  try {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) return '';
+    let tok = null; const raw = await redis('GET', MAIL_TOKEN_KEY); if (raw) tok = JSON.parse(raw);
+    if (!tok || !tok.rt) return '';
+    const t = await googleToken({ refresh_token: tok.rt, grant_type: 'refresh_token' });
+    if (!t.ok || !t.j.access_token) return '';
+    const auth = { Authorization: 'Bearer ' + t.j.access_token };
+    const q = encodeURIComponent('newer_than:1d (subject:(Umsatz OR Kontobewegung OR Gutschrift OR Lastschrift OR Abbuchung OR Kontoauszug OR Zahlungseingang OR Kartenzahlung OR Buchung OR Überweisung))');
+    const lr = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=15&q=' + q, { headers: auth, signal: AbortSignal.timeout(6000) });
+    if (!lr.ok) return '';
+    const ids = ((await lr.json()).messages || []).map(m => m.id).slice(0, 15);
+    let ein = 0, aus = 0, n = 0, ohne = 0;
+    for (const id of ids) {
+      const mr = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=metadata&metadataHeaders=Subject', { headers: auth, signal: AbortSignal.timeout(6000) });
+      if (!mr.ok) continue;
+      const m = await mr.json();
+      const txt = headerOf(m, 'subject') + ' ' + (m.snippet || '');
+      n++;
+      const a = txt.match(/(\d{1,3}(?:\.\d{3})*|\d+),(\d{2})\s?(?:€|EUR|Euro)/i);
+      if (!a) { ohne++; continue; }
+      const v = Number(a[1].replace(/\./g, '') + '.' + a[2]);
+      if (/gutschrift|eingang|erhalten|gehalt|lohn|rückerstattung/i.test(txt)) ein += v;
+      else if (/lastschrift|abbuchung|belastung|zahlung|kartenzahlung|abgebucht|bezahlt|überweisung/i.test(txt)) aus += v;
+      else ohne++;
+    }
+    if (!n) return '';
+    const eur = x => x.toFixed(2).replace('.', ',') + ' Euro';
+    const teile = [];
+    if (ein) teile.push('Eingänge ' + eur(ein));
+    if (aus) teile.push('Ausgaben ' + eur(aus));
+    if (!teile.length) return 'Konto: ' + n + (n === 1 ? ' Bank-Mail' : ' Bank-Mails') + ' seit gestern.';
+    return 'Konto seit gestern: ' + teile.join(', ') + (ohne ? ' (dazu ' + ohne + ' ohne Betrag)' : '') + '.';
+  } catch (e) { return ''; }
+}
+async function buildBriefing(st, sh, now, redis) {
   const cfg = st.cfg || {};
   const name = cfg.name ? ', ' + cfg.name : '';
   const b = berlinParts(now);
@@ -424,9 +461,18 @@ async function buildBriefing(st, sh, now) {
   const heute = st.items.filter(it => it.at >= now && berlinParts(it.at).ymd === b.ymd);
   const ev = heute.filter(i => i.k === 'e'), rem = heute.filter(i => i.k === 'r');
   const teile = [];
-  if (ev.length) teile.push(ev.length + (ev.length === 1 ? ' Termin' : ' Termine') + ' (nächster ' + berlinClock(ev[0].at) + ' ' + ev[0].x + ')');
+  ev.sort((x, y) => x.at - y.at);
+  if (ev.length) teile.push(ev.length + (ev.length === 1 ? ' Termin' : ' Termine') + ' (' + ev.slice(0, 4).map(e => berlinClock(e.at) + ' ' + e.x).join(', ') + (ev.length > 4 ? ', …' : '') + ')');
   if (rem.length) teile.push(rem.length + (rem.length === 1 ? ' Erinnerung' : ' Erinnerungen'));
   if (teile.length) parts.push('Heute: ' + teile.join(', ') + '.');
+  // Konflikte: zwei Termine dicht beieinander, oder ein Termin in der Arbeitszeit (Spätschicht: ab Abfahrt)
+  const konf = [];
+  for (let i = 0; i + 1 < ev.length; i++) { const d = Math.round((ev[i + 1].at - ev[i].at) / 60000); if (d < 90) konf.push(ev[i].x + ' und ' + ev[i + 1].x + ' nur ' + d + ' Minuten auseinander'); }
+  if (sh === 'spaet' && cfg.schicht && cfg.schicht.times) { const dep = cfg.schicht.times.spaet; ev.forEach(e => { const m = berlinParts(e.at).min; if (m + 30 > dep) konf.push(e.x + ' um ' + berlinClock(e.at) + ' liegt in deiner Arbeitszeit'); }); }
+  if (sh === 'frueh') ev.forEach(e => { const m = berlinParts(e.at).min; if (m < 12 * 60 + 30) konf.push(e.x + ' um ' + berlinClock(e.at) + ' liegt in deiner Frühschicht'); });
+  if (konf.length) parts.push('Achtung, Terminkonflikt: ' + konf.slice(0, 3).join('; ') + '.');
+  if (cfg.notizenN) parts.push('Notizen offen: ' + cfg.notizenN + (cfg.notizen && cfg.notizen.length ? ' (' + cfg.notizen.join(', ') + (cfg.notizenN > cfg.notizen.length ? ', …' : '') + ')' : '') + '.');
+  if (redis) { const bank = await bankUebersicht(redis); if (bank) parts.push(bank); }
   const titel = gruss + name + '. ' + art, klartext = parts.join(' ');
   parts.push('Tippe zum Vorlesen.');
   return { title: titel, body: parts.join(' '), tag: 'brief-' + b.ymd, url: './?brief=1&t=' + encodeURIComponent(titel) + '&b=' + encodeURIComponent(klartext.slice(0, 900)), brief: { t: titel, b: klartext.slice(0, 900) } };
@@ -1167,7 +1213,7 @@ async function handleDue(req, res, redis) {
     if (brief) {
       st.briefDay = brief.ymd;   // auch wenn die App offen ist: dann macht sie das Briefing selbst
       if (!appOpen && data.subs.length) {
-        const payload = await buildBriefing(st, brief.sh, now);
+        const payload = await buildBriefing(st, brief.sh, now, redis);
         const r = await sendToAll(redis, data, payload);
         briefSent = r.sent > 0;
       }
