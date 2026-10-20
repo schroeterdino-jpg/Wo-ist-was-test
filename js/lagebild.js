@@ -349,6 +349,11 @@
         else z.push({ t: '✓ Frei, keine Meldungen auf der Strecke', c: 'ok' });
         if (auf.length > 3) z.push({ t: '+ ' + (auf.length - 3) + ' weitere Meldungen', c: 'dim' });
         body.appendChild(karte('🎯 ' + String(d.titel || 'ZIEL').toUpperCase().slice(0, 48), (m.terminMs && m.terminMs - Date.now() > (min || 0) * 60000 + 5 * 60000) ? 'TERMIN ' + hhmm(new Date(m.terminMs)) : 'ANKUNFT ' + hhmm(new Date(Date.now() + (min || 0) * 60000)), min + ' Min · ' + km + ' km', z));
+        // Street-View-Foto vom Ziel (js/streetview.js); ohne Foto oder ohne die Datei bleibt alles wie vorher
+        try {
+            const lp = Array.isArray(m.coords) && m.coords.length ? m.coords[m.coords.length - 1] : null;
+            if (typeof window.jvStreetViewBild === 'function' && lp && isFinite(lp[0]) && isFinite(lp[1])) body.appendChild(window.jvStreetViewBild(lp[0] + ',' + lp[1]));
+        } catch (e) {}
         const extra = (d.zeilen || []).filter(x => x && x.text);
         if (extra.length) body.appendChild(karte('UNTERWEGS & AM ZIEL', '', null, extra.map(x => ({ t: x.text, c: '' }))));
         // Kategorien auf der Strecke (Tippen = Suche entlang der Route)

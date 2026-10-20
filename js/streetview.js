@@ -26,6 +26,19 @@
         return c;
     };
 
+    /* Fertiges Bild-Element für andere Fenster (Lagebild "deine Fahrt"): ziel = "Breite,Länge" oder Text. Bleibt unsichtbar, bis ein Foto da ist. */
+    window.jvStreetViewBild = function (ziel) {
+        var box = document.createElement('div');
+        box.setAttribute('data-svbox', 'x'); box.setAttribute('data-svziel', String(ziel));
+        box.style.cssText = 'display:none;position:relative;height:190px;margin-bottom:10px;border:1px solid rgba(94,231,255,.35);border-radius:6px;overflow:hidden;background:#06121c';
+        var btn = 'position:absolute;top:50%;margin-top:-17px;width:34px;height:34px;border-radius:50%;background:rgba(10,22,33,.8);border:1px solid #49d7ff;color:#49d7ff;font-size:18px;line-height:30px;text-align:center;cursor:pointer';
+        box.innerHTML = '<img data-svimg alt="Street View" style="width:100%;height:100%;object-fit:cover;display:block">' +
+            '<div style="position:absolute;left:0;right:0;top:0;padding:5px 10px;font-size:10px;letter-spacing:.1em;background:linear-gradient(180deg,rgba(0,0,0,.55),transparent);color:#cfefff">📷 STREET VIEW</div>' +
+            '<span data-svdreh="-60" style="' + btn + ';left:8px">‹</span><span data-svdreh="60" style="' + btn + ';right:8px">›</span>';
+        setTimeout(pruefen, 0);
+        return box;
+    };
+
     function laden(box, drehen) {
         if (typeof apiFetch !== 'function') return;
         var ziel = box.getAttribute('data-svziel'), img = box.querySelector('[data-svimg]');
