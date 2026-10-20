@@ -66,9 +66,13 @@ function setHudSubtitle(text) {
    dann wird der Text einmal komplett gesetzt statt laufend Wort für Wort bzw. Buchstabe für Buchstabe
    nachzuzeichnen. Das spart genau die Extra-Arbeit, die zusammen mit einer laufenden 3D-Ansicht (Weltkugel)
    zum Ruckeln geführt hat. */
+/* Untertitel mit Novas gesprochenem Text unten: standardmäßig AUS (Dino: wiederholt nur, was er schon hört). "Untertitel an" schaltet ihn wieder ein. */
+function jvUntertitelAn() { try { return getPersistentData('helfer_untertitel', 'aus') === 'an'; } catch (e) { return false; } }
+
 function setHudSubtitleSynced(text, utterance) {
     const el = document.getElementById('hudSubtitleText');
     if (!el) return;
+    if (!jvUntertitelAn()) { if (subtitleTypewriterTimeout) clearTimeout(subtitleTypewriterTimeout); if (subtitleBoundaryFallback) clearTimeout(subtitleBoundaryFallback); el.textContent = ''; return () => {}; }
     if (subtitleTypewriterTimeout) clearTimeout(subtitleTypewriterTimeout);
     if (subtitleBoundaryFallback) clearTimeout(subtitleBoundaryFallback);
 
