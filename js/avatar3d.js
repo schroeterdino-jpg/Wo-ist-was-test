@@ -490,7 +490,7 @@ function applyViseme(f,env){
  setMorph('mouthStretch_L',(f.stretch||0)*hold); setMorph('mouthStretch_R',(f.stretch||0)*hold);
  setMorph('mouthPress_L',f.press||0); setMorph('mouthPress_R',f.press||0);
  setMorph('mouthRollLower',f.rollLower||0);
- setMorph('mouthClose',Math.min(1,(f.close||0)+(f.pause?.6:0)+(1-Math.min(1,gain))*.35));
+ setMorph('mouthClose',Math.min(1,(f.close||0)+Math.min(.28,(f.pause?.12:0)+(1-Math.min(1,gain))*.14)));   // Pausen: Lippen nur locker aufeinander, nicht nach unten gezogen
 }
 // Kiefer folgt der echten Lautstärke der Stimme (AnalyserNode). Fällt das aus, läuft automatisch die Text-Variante weiter.
 const JV_AUDIO_LIPPEN=true;
