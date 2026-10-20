@@ -29,7 +29,7 @@
     /* Fertiges Bild-Element für andere Fenster (Lagebild "deine Fahrt"): ziel = "Breite,Länge" oder Text. Bleibt unsichtbar, bis ein Foto da ist. */
     window.jvStreetViewBild = function (ziel) {
         var box = document.createElement('div');
-        box.setAttribute('data-svbox', 'x'); box.setAttribute('data-svziel', String(ziel));
+        box.setAttribute('data-svbox', 'x'); box.setAttribute('data-svinfo', '1'); box.setAttribute('data-svziel', String(ziel));
         box.style.cssText = 'display:none;position:relative;height:190px;margin-bottom:10px;border:1px solid rgba(94,231,255,.35);border-radius:6px;overflow:hidden;background:#06121c';
         var btn = 'position:absolute;top:50%;margin-top:-17px;width:34px;height:34px;border-radius:50%;background:rgba(10,22,33,.8);border:1px solid #49d7ff;color:#49d7ff;font-size:18px;line-height:30px;text-align:center;cursor:pointer';
         box.innerHTML = '<img data-svimg alt="Street View" style="width:100%;height:100%;object-fit:cover;display:block">' +
@@ -45,14 +45,25 @@
         var m = /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/.exec(ziel);
         var url = '/api/maps?action=streetview&' + (m ? 'lat=' + m[1] + '&lon=' + m[2] : 'q=' + encodeURIComponent(ziel)) + '&drehen=' + (drehen || 0);
         apiFetch(url).then(function (r) {
-            if (!r.ok) throw new Error('kein Bild');
+            if (!r.ok) {
+                return r.json().catch(function () { return {}; }).then(function (j) {
+                    var g = r.status === 404 ? 'Kein Street View in der Nähe' : r.status === 429 ? 'Monatslimit erreicht' : r.status === 503 ? 'Server: Google-Schlüssel oder Zähler fehlt' : r.status === 401 ? 'App-Code wird abgelehnt' : 'Fehler ' + r.status;
+                    var e = new Error('kein Bild'); e.grund = g + (j && j.status ? ' (' + j.status + ')' : ''); throw e;
+                });
+            }
             return r.blob();
         }).then(function (b) {
             if (!box.isConnected) return;
             var alt = img.getAttribute('src'); img.src = URL.createObjectURL(b);
             if (alt && alt.indexOf('blob:') === 0) { try { URL.revokeObjectURL(alt); } catch (e) {} }
             box.style.display = 'block';
-        }).catch(function () { /* ohne Bild: Karte bleibt wie gehabt */ });
+        }).catch(function (e) {
+            /* ohne Bild: Karte bleibt wie gehabt; im Lagebild steht klein der Grund */
+            if (!box.hasAttribute('data-svinfo') || !box.isConnected) return;
+            var g = (e && e.grund) || (e && e.auth ? 'App-Code wird abgelehnt' : 'Server nicht erreichbar');
+            box.style.cssText = 'display:block;margin-bottom:10px;padding:6px 10px;font-size:11px;letter-spacing:.08em;color:#7fa7b8;border:1px dashed rgba(94,231,255,.25);border-radius:6px';
+            box.innerHTML = '📷 Kein Street-View-Foto: ' + g;
+        });
     }
 
     function pruefen() {
