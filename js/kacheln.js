@@ -187,6 +187,13 @@
 
     function befehl(text, next) {
         var t = String(text || '').toLowerCase().replace(/[.!?,]/g, '').trim();
+        var sb = t.match(/^(?:(?:jarvis|zane|nova)[ ]+)?(?:die )?(?:start[- ]?animation|startanimation|boot[- ]?animation)(?: ?(aus|an|ausschalten|einschalten))$/);
+        if (sb) {
+            var baus = /^(aus|ausschalten)$/.test(sb[1]);
+            try { if (window.jvBootSetzen) window.jvBootSetzen(!baus); } catch (e) {}
+            speak(baus ? 'Startanimation ausgeschaltet.' : 'Startanimation eingeschaltet.');
+            return true;
+        }
         var u = t.match(/^(?:(?:jarvis|zane|nova)[ ]+)?(?:die )?untertitel(?: ?(aus|an|ausschalten|einschalten))$/);
         if (u) {
             var uaus = /^(aus|ausschalten)$/.test(u[1]);
