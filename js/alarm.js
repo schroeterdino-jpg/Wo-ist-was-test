@@ -85,6 +85,31 @@
         siren(stufe);
         if (o.sprechen !== false) setTimeout(() => { try { if (el && typeof speak === 'function') speak(titel + '. ' + text); } catch (e) {} }, 2200);
     }
+    /* Briefing-Karte: Tippen auf die Schicht-Briefing-Push-Nachricht zeigt den Text und einen großen Knopf "VORLESEN".
+       Der Browser erlaubt Sprache erst nach einem Tipp, deshalb liest Nova erst nach diesem Tipp vor. */
+    let bk = null;
+    function briefKarte(o) {
+        try {
+            const titel = String(o.t || 'Briefing').slice(0, 120), text = String(o.b || '').slice(0, 900);
+            if (bk) { bk.remove(); bk = null; }
+            bk = document.createElement('div');
+            bk.style.cssText = 'position:fixed;inset:0;z-index:9100;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(2,8,14,.8)';
+            const box = document.createElement('div');
+            box.style.cssText = 'width:100%;max-width:420px;box-sizing:border-box;border:1px solid rgba(93,209,255,.5);border-radius:16px;background:linear-gradient(180deg,#0b1a29,#07111b);color:#e2e8f0;padding:16px;box-shadow:0 0 30px rgba(0,210,255,.2);font-family:"Rajdhani",sans-serif';
+            const h = document.createElement('div'); h.textContent = titel; h.style.cssText = 'font:700 15px "Orbitron",sans-serif;letter-spacing:.08em;color:#49d7ff;margin-bottom:8px';
+            const t = document.createElement('div'); t.textContent = text; t.style.cssText = 'font-size:17px;line-height:1.3;margin-bottom:14px;max-height:45vh;overflow-y:auto';
+            const go = document.createElement('button'); go.type = 'button'; go.textContent = '▶  VORLESEN';
+            go.style.cssText = 'width:100%;padding:16px 8px;border-radius:12px;border:1px solid #49d7ff;background:rgba(73,215,255,.2);color:#49d7ff;font:700 16px "IBM Plex Mono",monospace;letter-spacing:.14em';
+            const cl = document.createElement('button'); cl.type = 'button'; cl.textContent = 'Schließen';
+            cl.style.cssText = 'width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px solid rgba(93,209,255,.3);background:transparent;color:#7fb8cf;font-size:14px';
+            go.addEventListener('click', () => { try { if (typeof speak === 'function') speak(titel + '. ' + text); } catch (e) {} go.textContent = '▶  NOCHMAL VORLESEN'; });
+            cl.addEventListener('click', () => { try { bk.remove(); } catch (e) {} bk = null; });
+            box.appendChild(h); box.appendChild(t); box.appendChild(go); box.appendChild(cl); bk.appendChild(box);
+            document.body.appendChild(bk);
+        } catch (e) {}
+    }
+    window.jvBriefKarte = briefKarte;
+
     window.jvAlarm = show;
     window.jvAlarmClose = close;
 
@@ -93,13 +118,21 @@
         if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => {
             const d = e && e.data;
             if (d && d.jvAlarm) show(d.jvAlarm);
+            if (d && d.jvBrief) briefKarte(d.jvBrief);
         });
     } catch (e) {}
 
     // Auslöser 2: Tippen auf die Push-Nachricht öffnet die App mit ?alarm=rot&t=Titel&b=Text
     function fromUrl() {
         try {
-            const u = new URL(location.href), a = u.searchParams.get('alarm');
+            const u = new URL(location.href);
+            if (u.searchParams.get('brief')) {
+                briefKarte({ t: u.searchParams.get('t'), b: u.searchParams.get('b') });
+                ['brief', 't', 'b'].forEach(k => u.searchParams.delete(k));
+                history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);
+                return;
+            }
+            const a = u.searchParams.get('alarm');
             if (!a) return;
             show({ stufe: a === 'orange' ? 'orange' : 'rot', titel: u.searchParams.get('t') || 'Warnung', text: u.searchParams.get('b') || '' });
             ['alarm', 't', 'b'].forEach(k => u.searchParams.delete(k));
