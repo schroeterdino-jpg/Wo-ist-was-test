@@ -75,7 +75,10 @@ function buildNavigationCard(action) {
     const icon = isHome ? '🏠' : (mode === 'transit' ? '🚆' : mode === 'walking' ? '🚶' : mode === 'bicycling' ? '🚲' : '🚗');
     const title = isCar ? 'Zum Auto' : isHome ? 'Nach Hause' : (mode === 'transit' ? `Verbindung nach ${rawTo}` : `Route nach ${rawTo}`);
     const subtitle = `${NAV_MODES[mode]}, ${from ? 'von ' + from : 'von Ihrem Standort'}`;
-    return { icon, title, subtitle, href: buildMapsLink(to, from, mode) };
+    const card = { icon, title, subtitle, href: buildMapsLink(to, from, mode) };
+    // Street-View-Foto vom Ziel dazu (js/streetview.js); ohne diese Datei bleibt die Karte wie bisher
+    try { if (typeof window.jvStreetViewCard === 'function') return window.jvStreetViewCard(to, card); } catch (e) {}
+    return card;
 }
 
 /* --- Heimatadresse (nur einmal gesetzt, wird nie durch den Parkplatz überschrieben) --- */
