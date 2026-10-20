@@ -206,6 +206,8 @@
         var t = String(text || '').toLowerCase().replace(/[.!?,]/g, '').trim();
         var md = t.match(/mund[- ]?(?:dia|di)?agnose/) ? [t, /(\baus|abschalten|ausstellen|beenden)/.test(t.replace(/mund[- ]?diagnose/, '')) ? 'aus' : 'an'] : null;
         if (md) { var mein = md[1] !== 'aus'; sd('helfer_munddiag', mein ? 'an' : 'aus'); mundDiagnose(mein); speak(mein ? 'Mund-Diagnose eingeschaltet.' : 'Mund-Diagnose ausgeschaltet.'); return true; }
+        var st2 = t.match(/^(?:(?:jarvis|zane|nova)[ ]+)?(?:den )?start[- ]?(?:ton|sound|geräusch|geraeusch)(?: ?(aus|an|ausschalten|einschalten))$/);
+        if (st2) { var tau = /^(aus|ausschalten)$/.test(st2[1]); try { localStorage.setItem('helfer_bootton', tau ? 'aus' : 'an'); } catch (e) {} speak(tau ? 'Der Startton ist aus.' : 'Der Startton ist an, aber nur wenn der Browser Ton ohne Tippen erlaubt.'); return true; }
         var sb = t.match(/^(?:(?:jarvis|zane|nova)[ ]+)?(?:die )?(?:start[- ]?animation|startanimation|boot[- ]?animation)(?: ?(aus|an|ausschalten|einschalten))$/);
         if (sb) {
             var baus = /^(aus|ausschalten)$/.test(sb[1]);
