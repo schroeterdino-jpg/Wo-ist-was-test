@@ -113,7 +113,7 @@
         try { if (typeof playUiBeep === 'function') playUiBeep(); } catch (e) {}
         try {
             if (k === 'termin') { if (typeof openPanel === 'function') openPanel('termine'); }
-            else if (k === 'wetter') { if (typeof handleWeatherMapCommand === 'function') handleWeatherMapCommand('Wetterkarte zeigen'); }
+            else if (k === 'wetter') { if (typeof handleWeatherMapCommand === 'function') handleWeatherMapCommand('Zeig mir die Wetterkarte'); }
             else if (k === 'weg') {
                 var wa = ''; try { wa = (workAddress || '').trim(); } catch (e) {}
                 if (!wa) { speak('Deine Arbeitsadresse fehlt noch. Sag zum Beispiel: Meine Arbeit ist in Hamburg, Musterstraße 1.'); return; }
