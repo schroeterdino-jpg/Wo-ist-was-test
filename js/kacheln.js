@@ -76,7 +76,7 @@
         if (!wa) return kachel('weg', 'Arbeitsweg', '–', 'Adresse fehlt');
         if (!weg) return kachel('weg', 'Arbeitsweg', '–', wegBusy ? 'berechne …' : 'Tippen');
         var stau = weg.stauMin > 0 || (weg.warnings && weg.warnings.length);
-        return kachel('weg', 'Arbeitsweg', weg.fahrtMin + (weg.stauMin ? '+' + weg.stauMin : '') + ' Min', stau ? (weg.stauMin ? 'Stau +' + weg.stauMin + ' Min' : 'Meldung auf Strecke') : 'frei', stau);
+        return kachel('weg', 'Arbeitsweg', weg.fahrtMin + (weg.stauMin ? '+' + weg.stauMin : '') + ' Min', stau ? (weg.stauMin ? 'Stau +' + weg.stauMin + ' Min' : 'Meldung') : 'frei', stau);
     }
 
     function zeichne() {
