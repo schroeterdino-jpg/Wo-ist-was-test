@@ -404,9 +404,61 @@ async function places(req, res) {
 }
 
 /* ------------------------------------------------------------------
+   streetview: Foto der Straße vor einem Ziel (Google Street View Static API). Die App schickt q (Adresse/Name) oder lat+lon und
+   optional drehen (Grad, relativ zur Blickrichtung aufs Ziel). Antwort: JPEG; Header X-Blick = Grundrichtung.
+   Die Vorab-Abfrage (metadata) kostet nichts und sagt, ob es dort Bilder gibt. Höchstens SV_MONATSLIMIT Bilder pro Monat (Zähler in Redis).
+   ------------------------------------------------------------------ */
+const SV_MONATSLIMIT = 3000;
+async function streetview(req, res) {
+  const key = process.env.GOOGLE_MAPS_API_KEY;
+  if (!key) return res.status(503).json({ error: 'GOOGLE_MAPS_API_KEY fehlt' });
+  const lat = Number(req.query.lat), lon = Number(req.query.lon);
+  const q = String(req.query.q || '').trim().slice(0, 120);
+  const ort = (isFinite(lat) && isFinite(lon) && req.query.lat !== undefined && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) ? lat + ',' + lon : q;
+  if (!ort) return res.status(400).json({ error: 'Kein Ziel angegeben' });
+  const drehen = Number(req.query.drehen) || 0;
+  try {
+    const meta = await fetch('https://maps.googleapis.com/maps/api/streetview/metadata?source=outdoor&location=' + encodeURIComponent(ort) + '&key=' + key, { signal: AbortSignal.timeout(8000) }).then(r => r.json());
+    if (!meta || meta.status !== 'OK') return res.status(404).json({ error: 'Kein Street View', status: meta && meta.status });
+    // Grundrichtung: von der Kamera-Position zum Ziel (Ziel-Koordinate über Nominatim; ohne sie bleibt die Richtung der Standard von Google)
+    let blick = null;
+    try {
+      let tlat = null, tlon = null;
+      if (ort.includes(',') && /^-?[\d.]+,-?[\d.]+$/.test(ort)) { const p = ort.split(','); tlat = Number(p[0]); tlon = Number(p[1]); }
+      else {
+        const g = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(ort), { headers: { 'User-Agent': 'MeinAlltagsHelfer/1.0 (privates Projekt)', 'Accept-Language': 'de' }, signal: AbortSignal.timeout(5000) }).then(r => r.json());
+        if (Array.isArray(g) && g[0]) { tlat = Number(g[0].lat); tlon = Number(g[0].lon); }
+      }
+      if (tlat !== null && meta.location && isFinite(tlat) && isFinite(tlon)) {
+        const rad = d => d * Math.PI / 180, a1 = rad(meta.location.lat), a2 = rad(tlat), dl = rad(tlon - meta.location.lng);
+        const y = Math.sin(dl) * Math.cos(a2), x = Math.cos(a1) * Math.sin(a2) - Math.sin(a1) * Math.cos(a2) * Math.cos(dl);
+        blick = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+      }
+    } catch (e) {}
+    const monat = new Date().toISOString().slice(0, 7);
+    const zaehler = await redisCmd(['INCR', 'gmaps:sv:' + monat]);
+    if (typeof zaehler !== 'number') return res.status(503).json({ error: 'Zähler nicht verfügbar' });
+    if (zaehler === 1) await redisCmd(['EXPIRE', 'gmaps:sv:' + monat, 3456000]);
+    if (zaehler > SV_MONATSLIMIT) return res.status(429).json({ error: 'Monatslimit erreicht' });
+    let url = 'https://maps.googleapis.com/maps/api/streetview?size=640x320&fov=90&source=outdoor&pano=' + encodeURIComponent(meta.pano_id) + '&key=' + key;
+    if (blick !== null) url += '&heading=' + Math.round(((blick + drehen) % 360 + 360) % 360);
+    const img = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!img.ok) return res.status(502).json({ error: 'Street View nicht erreichbar' });
+    const buf = Buffer.from(await img.arrayBuffer());
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('X-Blick', blick === null ? '' : String(Math.round(blick)));
+    res.setHeader('Access-Control-Expose-Headers', 'X-Blick');
+    return res.status(200).send(buf);
+  } catch (e) {
+    return res.status(502).json({ error: 'Street View nicht erreichbar: ' + e.message });
+  }
+}
+
+/* ------------------------------------------------------------------
    Verteiler: prüft zuerst den App-Code (wie bisher in jeder der vier Dateien) und ruft dann die passende Funktion auf
    ------------------------------------------------------------------ */
-const ACTIONS = { geocode, reverse, route, overpass, holidays, places };
+const ACTIONS = { geocode, reverse, route, overpass, holidays, places, streetview };
 
 export default async function handler(req, res) {
   const expected = process.env.APP_SECRET;
