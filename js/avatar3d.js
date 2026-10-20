@@ -523,7 +523,7 @@ const MICROS=[
 ];
 let micro=null, microNext=0;
 function microEnvelope(now){ if(!micro) return 0; const x=(now-micro.t0)/micro.t; if(x<0||x>=1){micro=null;return 0} return Math.sin(Math.PI*x); }
-let lipSilent=0, lipLastT=0;
+let lipSilent=0, lipLastT=0, lipProven=false;
 function generischSpricht(){
  try{
    const a=(typeof currentAudio!=='undefined')?currentAudio:null;
@@ -548,6 +548,8 @@ function applyMorphs(dt,speaking,now){
  }
  if(fishSpeaking){
    let env=audio.__jvTextOnly?null:audioEnvelope(audio);
+   // Solange die Lautstärke-Messung noch nie echten Ton gemeldet hat (erste Antwort nach dem Laden), bewegt sich der Mund nach dem Text statt nach der Messung.
+   if(env!==null&&!lipProven){ if(env>.14) lipProven=true; else env=null; }
    // Sicherung (Mund blieb zu, obwohl er sprach): liefert der Lautstärke-Messer dauerhaft Stille, obwohl der Ton läuft,
    // wechselt der Mund auf die Text-Variante, bis wieder echte Lautstärke ankommt.
    if(env!==null){ const dtm=lipLastT?Math.min(100,now-lipLastT):16; lipLastT=now; if(env<.1&&audio.currentTime>.1) lipSilent+=dtm; else if(env>.14) lipSilent=0; if(lipSilent>400){ env=null; audio.__jvTextOnly=true; lipSilent=0; } } else { lipLastT=0; lipSilent=0; }
