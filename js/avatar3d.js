@@ -877,7 +877,7 @@ function sag(text,exp,ohneWeiter){
 }
 
 // Kopf schaut von selbst mal hierhin, mal dorthin (Augen schauen zuerst), nickt leicht beim Sprechen.
-const look={y:0,x:0,z:0,ty:0,tx:0,tz:0,next:0,nod:0};
+const look={y:0,x:0,z:0,ty:0,tx:0,tz:0,next:0,nod:0,avert:false};
 function updateLook(now,dt,st,speaking){
   if(!JV_KOPFBEWEGUNG){look.y=look.x=look.z=0;return}
   const gz=JV_BLICK_FINGER&&now<gaze.until&&sleepLevel<.3;
@@ -889,6 +889,7 @@ function updateLook(now,dt,st,speaking){
     look.tx=(Math.random()-.45)*(quiet?.05:.16);
     look.tz=(Math.random()-.5)*(quiet?.03:.09);
     look.next=now+(speaking?2200:3200)+Math.random()*(speaking?3200:6500);
+    look.avert=!quiet&&Math.random()<.2;   // nur selten schaut er beim Sprechen kurz weg, sonst bleiben die Augen bei dir
   }
   if(gz){ look.ty=gaze.x*.30; look.tx=gaze.y*.13; look.tz=0; look.next=Math.max(look.next,gaze.until+500); }
   if(sleepLevel>.3){ look.ty=look.tx=look.tz=0; look.next=now+1500; }
@@ -899,6 +900,7 @@ function updateLook(now,dt,st,speaking){
   // Augen schauen etwas früher in die Blickrichtung
   if(expression!=='thinking'||gaze.w>.02){
     let d=Math.max(-1,Math.min(1,look.ty/.4))*.6;
+    if(speaking&&!look.avert&&gaze.w<.02) d=-Math.max(-1,Math.min(1,look.y/.4))*.85;   // beim Sprechen dreht der Kopf mit, die Augen halten Blickkontakt
     if(gaze.w>.01) d=d*(1-gaze.w)+Math.max(-1,Math.min(1,gaze.x))*.95*gaze.w;
     const u=Math.max(0,d), v=Math.max(0,-d);
     setMorph('eyeLookOut_L',u);setMorph('eyeLookIn_R',u);setMorph('eyeLookIn_L',v);setMorph('eyeLookOut_R',v);
