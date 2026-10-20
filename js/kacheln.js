@@ -187,8 +187,8 @@
 
     function befehl(text, next) {
         var t = String(text || '').toLowerCase().replace(/[.!?,]/g, '').trim();
-        var md = t.match(/^(?:(?:jarvis|zane|nova)[ ]+)?mund[- ]?diagnose(?: ?(aus|an|ausschalten|einschalten))$/);
-        if (md) { var mein = !/^(aus|ausschalten)$/.test(md[1]); sd('helfer_munddiag', mein ? 'an' : 'aus'); mundDiagnose(mein); speak(mein ? 'Mund-Diagnose eingeschaltet.' : 'Mund-Diagnose ausgeschaltet.'); return true; }
+        var md = t.match(/mund[- ]?(?:dia|di)?agnose/) ? [t, /(\baus|abschalten|ausstellen|beenden)/.test(t.replace(/mund[- ]?diagnose/, '')) ? 'aus' : 'an'] : null;
+        if (md) { var mein = md[1] !== 'aus'; sd('helfer_munddiag', mein ? 'an' : 'aus'); mundDiagnose(mein); speak(mein ? 'Mund-Diagnose eingeschaltet.' : 'Mund-Diagnose ausgeschaltet.'); return true; }
         var sb = t.match(/^(?:(?:jarvis|zane|nova)[ ]+)?(?:die )?(?:start[- ]?animation|startanimation|boot[- ]?animation)(?: ?(aus|an|ausschalten|einschalten))$/);
         if (sb) {
             var baus = /^(aus|ausschalten)$/.test(sb[1]);
