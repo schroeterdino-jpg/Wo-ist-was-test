@@ -29,15 +29,18 @@
             '.jvk-v{font-size:14px;color:#fff;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
             '.jvk-s{font-size:9px;color:#9fc4d6;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}';
         st.textContent +=
-            /* Untere Knöpfe + Parkknopf: eckig wie die Kacheln */
-            '#briefingBtn,#photoBtn,#photoPickBtn{border-radius:0!important;border:1px solid transparent!important;' +
-            'background:linear-gradient(rgba(4,14,24,.95),rgba(4,14,24,.95)) padding-box,linear-gradient(135deg,rgba(94,231,255,.5),rgba(94,231,255,.12)) border-box!important;' +
-            'clip-path:polygon(0 0,calc(100% - 9px) 0,100% 9px,100% 100%,9px 100%,0 calc(100% - 9px));letter-spacing:.2em}' +
-            'body #parkButton{border-radius:0!important;border:1px solid transparent!important;width:48px!important;height:48px!important;font-size:22px!important;box-shadow:none!important;' +
-            'background:linear-gradient(rgba(4,14,24,.95),rgba(4,14,24,.95)) padding-box,linear-gradient(135deg,rgba(94,231,255,.6),rgba(94,231,255,.15)) border-box!important;' +
-            'clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))}' +
-            'body #parkButton .pk-p{top:1px!important;right:3px!important;width:auto!important;height:auto!important;background:none!important;color:#5ee7ff!important;font-size:10px!important;border-radius:0!important}' +
-            'body #parkButton.ok .pk-p{color:#3ddc97!important}body #parkButton.err .pk-p{color:#ff7a7a!important}' +
+            /* Untere Leiste: vier gleich hohe eckige Knöpfe in einer Reihe, mittig */
+            '#briefingBtn,#photoBtn,#photoPickBtn,#parkButton.jvk-in{box-sizing:border-box!important;height:46px!important;border-radius:0!important;border:1px solid rgba(94,231,255,.6)!important;' +
+            'background:rgba(6,20,32,.95)!important;box-shadow:none!important;color:#5ee7ff;letter-spacing:.2em;display:flex;align-items:center;justify-content:center;' +
+            'clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,7px 100%,0 calc(100% - 7px))}' +
+            '#briefingBtn{padding:0 18px!important;font-size:12px!important}' +
+            '#photoBtn,#photoPickBtn,#parkButton.jvk-in{width:50px!important;padding:0!important;font-size:18px!important}' +
+            '#parkButton.jvk-in{position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important;z-index:auto!important}' +
+            '#parkButton.jvk-in .pk-p{position:absolute!important;top:1px!important;right:4px!important;width:auto!important;height:auto!important;background:none!important;color:#5ee7ff!important;font:700 8px monospace!important;border-radius:0!important}' +
+            '#parkButton.jvk-in.ok{border-color:#3ddc97!important}#parkButton.jvk-in.ok .pk-p{color:#3ddc97!important}' +
+            '#parkButton.jvk-in.err{border-color:#ff7a7a!important}#parkButton.jvk-in.err .pk-p{color:#ff7a7a!important}' +
+            '.jvk-reihe{justify-content:center;gap:8px!important}' +
+            '#parkButton.jvk-in.hidden{display:none!important}' +
             /* Kopfzeile: dünne Linie mit Ecken */
             '.app-shell>header{position:relative}' +
             '.app-shell>header::after{content:"";position:absolute;left:16px;right:16px;bottom:0;height:7px;border-left:2px solid #5ee7ff;border-right:2px solid #5ee7ff;' +
@@ -132,6 +135,14 @@
         stat.innerHTML = '<span><i>●</i> Systeme online</span><span>' + esc(sch) + '</span><span>' + esc(dat) + '</span>';
     }
 
+    function parkInReihe() {
+        var pb = document.getElementById('parkButton'), bb = document.getElementById('briefingBtn');
+        if (!pb || !bb || pb.classList.contains('jvk-in')) return !!(pb && pb.classList.contains('jvk-in'));
+        bb.parentNode.classList.add('jvk-reihe');
+        pb.classList.add('jvk-in'); bb.parentNode.appendChild(pb);
+        return true;
+    }
+
     function aktualisieren() {
         if (!box) return;
         box.classList.toggle('jvk-aus', !an());
@@ -166,6 +177,7 @@
         sec.insertBefore(box, sec.firstChild);
         box.addEventListener('click', function (e) { var b = e.target.closest('.jvk'); if (b) tippen(b.getAttribute('data-k')); });
         aktualisieren();
+        if (!parkInReihe()) { var pn = 0, piv = setInterval(function () { if (parkInReihe() || ++pn > 40) clearInterval(piv); }, 250); }
         document.addEventListener('visibilitychange', aktualisieren);
         setInterval(aktualisieren, 60000);   // Termin-Anzeige nachziehen; Wetter/Weg laden selbst nur alle 15 Min.
         return true;
