@@ -680,7 +680,11 @@ function applyMorphs(dt,speaking,now){
  else { visActive=false; audioDriven=false; envState=0; clearSpeechMorphs(); if(!/^(laugh|surprised|awe)$/.test(expression)) setMorph('mouthClose',.35); }
  if(sleepLevel>.4&&!fishSpeaking){ setMorph('jawOpen',(.045+.03*(.5+.5*Math.sin(now*.0016)))*Math.min(1,sleepLevel)); }   // schlafend: Mund leicht offen, atmet
  // Grimassen (js/grimassen.js): liegen als Überlagerung oben drauf, damit das Aufräumen der Mundformen sie nicht löscht.
- if(grimass){ for(const n in grimass){ if(!fishSpeaking||/^(brow|eye|cheek|nose|mouthSmile|mouthDimple)/.test(n)) setMorph(n,grimass[n]); } }   // beim Sprechen nur Augen, Brauen, Wangen, Nase und Lächeln, nie den Mund/Kiefer
+ if(grimass){ for(const n in grimass){ if(!fishSpeaking||/^(brow|eye|cheek|nose|mouthSmile|mouthDimple)/.test(n)){
+   let v=grimass[n];
+   if(fishSpeaking&&/^mouth(Smile|Dimple)_[LR]$/.test(n)){ const a=grimass[n.slice(0,-1)+'L']||0, b=grimass[n.slice(0,-1)+'R']||0; v=(a+b)/2; }   // beim Sprechen beide Mundwinkel gleich (kein schiefer Mund)
+   setMorph(n,v);
+ } } }   // beim Sprechen nur Augen, Brauen, Wangen, Nase und Lächeln, nie den Mund/Kiefer
  if(expression==='laugh'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.28));
  if(expression==='surprised'&&!fishSpeaking)setMorph('jawOpen',Math.max(target.jawOpen||0,.34));
  try{ window.__jvMouthDiag={t:Math.round(now),fish:fishSpeaking,audioDriven:audioDriven,env:+envState.toFixed(3),silent:Math.round(lipSilent),ctx:anCtx?anCtx.state:'-',fail:!!(audio&&audio.__jvAnFail),err:(audio&&audio.__jvAnErr)||'-',txt:String(text||'').length,paused:!!(audio&&audio.paused),ct:audio?+Number(audio.currentTime).toFixed(1):0,dur:audio?+Number(audio.duration||0).toFixed(1):0,vol:audio?+Number(audio.volume).toFixed(2):0,muted:!!(audio&&audio.muted),gen:generischSpricht(),state:speaking,expr:expression,ki:kiMimikAktiv(),sleep:+Number(sleepLevel).toFixed(2),jawT:+(target.jawOpen||0).toFixed(2),jawC:+(current.jawOpen||0).toFixed(2),mcT:+(target.mouthClose||0).toFixed(2),dt:+Number(dt).toFixed(3)}; }catch(e){}
