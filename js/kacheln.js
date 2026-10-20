@@ -8,6 +8,7 @@
 (function () {
     'use strict';
     var KEY = 'helfer_kacheln';
+    var terminIdx = 0, terminAt = 0, sperreBis = 0;
     var box = null, stat = null, wx = null, wxAt = 0, weg = null, wegAt = 0, wegBusy = false, wxBusy = false;
 
     function pd(k, d) { try { return getPersistentData(k, d); } catch (e) { return d; } }
@@ -73,7 +74,9 @@
             return c.allDay ? t + 86400000 > jetzt : t > jetzt - 15 * 60000;
         }).sort(function (a, b) { return new Date(a.isoDate) - new Date(b.isoDate); });
         if (!list.length) return kachel('termin', 'Termin', 'keiner', 'nichts geplant');
-        var c = list[0], d = new Date(c.isoDate);
+        if (terminIdx && Date.now() - terminAt > 20000) terminIdx = 0;   // nach 20 s ohne Wischen wieder der nächste Termin
+        if (terminIdx >= list.length) terminIdx = terminIdx === 9999 ? list.length - 1 : 0;
+        var c = list[terminIdx], d = new Date(c.isoDate);
         var tag = d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
         var heute = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
         var morgen = new Date(Date.now() + 86400000).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
@@ -86,6 +89,7 @@
             var dm = d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric', month: 'short' }).replace('.', '');
             wann = (wt + ' ' + dm).toUpperCase() + zeit;
         }
+        if (list.length > 1) wann += ' · ' + (terminIdx + 1) + '/' + list.length;
         var bald = !c.allDay && d.getTime() - jetzt < 3600000 && d.getTime() - jetzt > -15 * 60000;
         return '<button type="button" class="jvk' + (bald ? ' puls' : '') + '" data-k="termin"><div><div class="jvk-l' + (bald ? ' warn' : '') + '">' + esc(wann) + '</div><div class="jvk-v">' + esc(c.text || 'Termin') + '</div>' +
             '<div class="jvk-s">' + esc(c.location || ' ') + '</div></div></button>';
@@ -177,7 +181,20 @@
         if (hd && !document.getElementById('jvStatus')) { stat = document.createElement('div'); stat.id = 'jvStatus'; hd.parentNode.insertBefore(stat, hd.nextSibling); }
         box = document.createElement('div'); box.id = 'jvKacheln';
         sec.insertBefore(box, sec.firstChild);
-        box.addEventListener('click', function (e) { var b = e.target.closest('.jvk'); if (b) tippen(b.getAttribute('data-k')); });
+        box.addEventListener('click', function (e) { if (Date.now() < sperreBis) return; var b = e.target.closest('.jvk'); if (b) tippen(b.getAttribute('data-k')); });
+        // Wischen auf der Termin-Kachel: nach links = nächster Termin, nach rechts = vorheriger
+        var sx = 0, sy = 0, imTermin = false;
+        box.addEventListener('touchstart', function (e) { var b = e.target.closest('.jvk'); imTermin = !!(b && b.getAttribute('data-k') === 'termin'); if (imTermin && e.touches[0]) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; } }, { passive: true });
+        box.addEventListener('touchend', function (e) {
+            if (!imTermin || !e.changedTouches[0]) return; imTermin = false;
+            var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+            if (Math.abs(dx) < 40 || Math.abs(dy) > Math.abs(dx) * .7) return;
+            sperreBis = Date.now() + 400;
+            terminIdx = terminIdx + (dx < 0 ? 1 : -1); terminAt = Date.now();
+            if (terminIdx < 0) terminIdx = 9999;   // vor dem ersten: zum letzten springen (terminKachel kürzt auf Länge)
+            zeichne();
+            try { if (typeof playUiBeep === 'function') playUiBeep(); } catch (x) {}
+        }, { passive: true });
         aktualisieren();
         if (!parkInReihe()) { var pn = 0, piv = setInterval(function () { if (parkInReihe() || ++pn > 40) clearInterval(piv); }, 250); }
         document.addEventListener('visibilitychange', aktualisieren);
