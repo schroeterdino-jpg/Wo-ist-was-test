@@ -418,7 +418,7 @@ async function streetview(req, res) {
   if (!ort) return res.status(400).json({ error: 'Kein Ziel angegeben' });
   const drehen = Number(req.query.drehen) || 0;
   try {
-    const meta = await fetch('https://maps.googleapis.com/maps/api/streetview/metadata?source=outdoor&location=' + encodeURIComponent(ort) + '&key=' + key, { signal: AbortSignal.timeout(8000) }).then(r => r.json());
+    const meta = await fetch('https://maps.googleapis.com/maps/api/streetview/metadata?source=outdoor&radius=250&location=' + encodeURIComponent(ort) + '&key=' + key, { signal: AbortSignal.timeout(8000) }).then(r => r.json());
     if (!meta || meta.status !== 'OK') return res.status(404).json({ error: 'Kein Street View', status: meta && meta.status });
     // Grundrichtung: von der Kamera-Position zum Ziel (Ziel-Koordinate über Nominatim; ohne sie bleibt die Richtung der Standard von Google)
     let blick = null;
