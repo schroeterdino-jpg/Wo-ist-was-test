@@ -51,6 +51,10 @@ class ZaneBridge {
     @JavascriptInterface
     public void ortRechte() { act.ortRechte(); }
 
+    /** Beobachtungsaufträge: App-Code und Anzahl der Aufträge melden; die App fragt dann regelmäßig beim Server nach (0 = aus). */
+    @JavascriptInterface
+    public boolean auftraege(String schluessel, int anzahl) { return AuftragReceiver.setzen(act, schluessel, anzahl); }
+
     @JavascriptInterface
     public void openSetup() { act.runOnUiThread(() -> act.startActivity(new android.content.Intent(act, SetupActivity.class))); }
 }
