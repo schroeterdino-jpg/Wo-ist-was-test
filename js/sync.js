@@ -18,8 +18,42 @@ const SYNC_KEYS = [
     'helfer_parking',
     'helfer_rezepte',
     'helfer_home_address',
-    'user_custom_name'
+    'user_custom_name',
+    /* Einstellungen, die eine Neuinstallation überleben sollen (keine Schlüssel/Codes). Stimme des Handys (tts_voice_uri) bewusst nicht: gilt nur pro Gerät. */
+    'helfer_work_address',
+    'jv_schicht',
+    'jv_urlaub',
+    'jv_plan_beginn',
+    'jv_hoerkorrektur',
+    'helfer_pronunciations',
+    'jv_mitnehmen',
+    'nova_kopf',
+    'nova_zubehoer',
+    'tts_engine',
+    'tts_openai_voice',
+    'tts_edge_voice',
+    'night_dim',
+    'jv_sound_vol',
+    'jv_sound_on',
+    'helfer_untertitel',
+    'helfer_bootton',
+    'helfer_wetterfx',
+    'helfer_vibration',
+    'wake_word_enabled',
+    'fx_flags',
+    'fx_mode',
+    'conversation_mode',
+    'proaktiv_sprechen'
 ];
+const SYNC_EINSTELLUNGEN = ['helfer_work_address', 'jv_schicht', 'jv_urlaub', 'jv_plan_beginn', 'jv_hoerkorrektur', 'helfer_pronunciations', 'jv_mitnehmen', 'nova_kopf', 'nova_zubehoer', 'tts_engine', 'tts_openai_voice', 'tts_edge_voice', 'night_dim', 'jv_sound_vol', 'jv_sound_on', 'helfer_untertitel', 'helfer_bootton', 'helfer_wetterfx', 'helfer_vibration', 'wake_word_enabled', 'fx_flags', 'fx_mode', 'conversation_mode', 'proaktiv_sprechen'];
+/* Viele Teile der App schreiben direkt in den Gerätespeicher (nicht über setPersistentData). Damit auch deren Änderungen gesichert werden, melden wir sie hier an die Synchronisierung. */
+try {
+    const origSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k, v) {
+        origSetItem.call(this, k, v);
+        try { if (this === window.localStorage && SYNC_KEYS.includes(k) && typeof onLocalDataChanged === 'function') onLocalDataChanged(k); } catch (e) {}
+    };
+} catch (e) {}
 const SYNC_META_KEY = 'helfer_sync_meta';
 
 let syncMeta = {};
@@ -117,7 +151,7 @@ async function syncNow(manual = false) {
     try {
         const remote = (await readSyncResponse(await apiFetch('/api/sync', { method: 'GET' }))).items || {};
         const upload = {};
-        let changed = false;
+        let changed = false, wiederhergestellt = false;
 
         for (const key of SYNC_KEYS) {
             const localVal = getPersistentData(key, null);
@@ -136,10 +170,12 @@ async function syncNow(manual = false) {
                 applyRemoteValue(key, r.v);
                 syncMeta[key] = r.ts;
                 changed = true;
+                if (SYNC_EINSTELLUNGEN.includes(key)) wiederhergestellt = true;
                 continue;
             }
             if (localTs === 0) {                         // Gerät nie abgeglichen: zusammenführen
                 const merged = unionMerge(r.v, localVal);
+                if (SYNC_EINSTELLUNGEN.includes(key) && merged !== localVal) wiederhergestellt = true;
                 const ts = Date.now();
                 applyRemoteValue(key, merged);
                 syncMeta[key] = ts;
@@ -165,6 +201,9 @@ async function syncNow(manual = false) {
             }));
         }
 
+        if (wiederhergestellt) {   // Einstellungen kamen vom Server zurück (z. B. nach Neuinstallation): einmal neu laden, damit alles sofort gilt
+            try { if (!sessionStorage.getItem('jv_restored') && performance.now() < 120000) { sessionStorage.setItem('jv_restored', '1'); setTimeout(() => location.reload(), 800); } } catch (e) {}
+        }
         if (changed) {
             renderAllLists();
             renderContactList();
