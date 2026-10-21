@@ -8,7 +8,7 @@
 (function () {
     'use strict';
     var KEY = 'jv_mitnehmen';
-    var STANDARD = ['Arbeitschip', 'Haustürschlüssel', 'Autoschlüssel', 'Portemonnaie', 'Zahnprovisorium', 'Arbeitsessen', 'dein Energy'];
+    var STANDARD = ['Arbeitschip', 'Haustürschlüssel', 'Autoschlüssel', 'Portemonnaie', 'Handy', 'Zahnprovisorium', 'Arbeitsessen', 'dein Energy'];
 
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
