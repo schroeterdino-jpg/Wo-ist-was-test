@@ -34,7 +34,7 @@
             '#briefingBtn,#photoBtn,#photoPickBtn,#parkButton.jvk-in{box-sizing:border-box!important;height:46px!important;border-radius:0!important;border:1px solid rgba(94,231,255,.6)!important;' +
             'background:rgba(6,20,32,.95)!important;box-shadow:none!important;color:#5ee7ff;letter-spacing:.2em;display:flex;align-items:center;justify-content:center;' +
             'clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,7px 100%,0 calc(100% - 7px))}' +
-            '#briefingBtn{padding:0 18px!important;font-size:12px!important}' +
+            '#briefingBtn{display:none!important}' +   /* Briefing-Knopf entfällt: das Briefing kommt von selbst (Früh- und Spätschicht) */
             '#photoBtn,#photoPickBtn,#parkButton.jvk-in{width:50px!important;padding:0!important;font-size:18px!important}' +
             '#parkButton.jvk-in{position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important;z-index:auto!important}' +
             '#parkButton.jvk-in .pk-p{position:absolute!important;top:1px!important;right:4px!important;width:auto!important;height:auto!important;background:none!important;color:#5ee7ff!important;font:700 8px monospace!important;border-radius:0!important}' +
