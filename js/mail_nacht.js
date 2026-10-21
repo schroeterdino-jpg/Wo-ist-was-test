@@ -154,6 +154,7 @@
             if (typeof speak !== 'function') return false;
             if (typeof isProcessing !== 'undefined' && isProcessing) return false;
             if (typeof isSpeaking === 'function' && isSpeaking()) return false;
+            if (typeof window.jvRuhe === 'function' && window.jvRuhe()) return false;   // Briefing läuft oder gerade gesprochen (ruhe.js)
             if (typeof isRecording !== 'undefined' && isRecording) return false;
             return true;
         } catch (e) { return true; }
