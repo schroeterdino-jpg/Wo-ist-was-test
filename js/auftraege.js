@@ -89,7 +89,7 @@
             if (!r || !r.ok) { sagen('Das konnte ich nicht anlegen.'); return; }
             const wann = a.einmal ? 'einmal' : 'jedes Mal';
             let s = 'Verstanden, Sir. Ich melde mich ' + wann + ', sobald ' + beschreibe(a) + '.';
-            if (!pushAn()) s += ' Aber die Benachrichtigungen sind aus. Sag: Benachrichtigungen an, dann erreiche ich dich auch bei geschlossener App.';
+            if (!pushAn() && !inApp()) s += ' Aber die Benachrichtigungen sind aus. Sag: Benachrichtigungen an, dann erreiche ich dich auch bei geschlossener App.';
             sagen(s);
         } catch (e) { sagen('Das hat gerade nicht geklappt. Versuch es bitte gleich noch einmal.'); }
     }
