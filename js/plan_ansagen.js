@@ -418,6 +418,12 @@
             return false;
         }
         merkeGesagt(id);
+        if (art === 'auftrag') {   // Beobachtungsauftrag erfüllt (auftraege.js, AuftragReceiver der App): id = auftrag|<Auftrags-ID>|<Text>
+            const text = id.split('|').slice(2).join('|');
+            if (!text) return false;
+            sagenMeldung('👁️ Auftrag', text);
+            return true;
+        }
         if (art === 'ort') { try { return !!(window.jvOrte && window.jvOrte.ansage(id)); } catch (e) { return false; } }   // Orts-Erinnerung (orte.js)
         if (art === 'wochen') {
             const mo = ymdPlus(ymd, 1);

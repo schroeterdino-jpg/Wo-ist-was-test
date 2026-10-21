@@ -26,8 +26,20 @@
     async function post(action, body) {
         const res = await apiFetch('/api/sync?action=' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
         if (!res.ok) throw new Error('Status ' + res.status);
-        return res.json();
+        const r = await res.json();
+        if (r && Array.isArray(r.list)) melden(r.list.length);
+        return r;
     }
+
+    /* In der Android-App gibt es kein Web-Push: Die App fragt selbst nach erfüllten Aufträgen (AuftragReceiver), solange es welche gibt.
+       Hier sagen wir ihr, wie viele es sind (und geben den App-Code mit). Im Browser tut das nichts. */
+    function melden(n) {
+        try {
+            const N = window.ZaneNative;
+            if (N && typeof N.auftraege === 'function') N.auftraege(String(getPersistentData('app_secret', '') || ''), n);
+        } catch (e) { }
+    }
+    function inApp() { try { return !!(window.ZaneNative && typeof window.ZaneNative.auftraege === 'function'); } catch (e) { return false; } }
 
     /* Auftrag aus dem Satz lesen; null, wenn es keiner ist */
     const BESCHEID = /\b(?:sag|sage|gib|geb|gebe) (?:mir |mal |bitte |gleich |sofort |dann |jedes mal |jedes weitere mal )*bescheid\b|\bmeld(?:e)? dich\b|\bbenachrichtige mich\b|\bwarn(?:e)? mich\b|\binformier(?:e)? mich\b|\bgib mir (?:ein )?(?:zeichen|bescheid)\b|\bsag mir (?:gleich |dann |sofort )?(?:wenn|sobald|falls|ob)\b|\bsag (?:gleich |dann |sofort )?(?:wenn|sobald)\b/;
@@ -121,9 +133,11 @@
         if (laeuft || document.hidden) return;
         try { if (typeof isRecording !== 'undefined' && isRecording) return; } catch (e) { }
         try { if (typeof isSpeaking === 'function' && isSpeaking()) return; } catch (e) { }
-        if (!pushAn()) return;   // ohne eingeschaltete Benachrichtigungen kennt der Server die App nicht als offen
         laeuft = true;
         try {
+            // Der Server weiß nur durch ein Lebenszeichen, dass die App offen ist (dann kommt die Meldung hierher und nicht als Push):
+            // mit Benachrichtigungen schickt pushsync.js es, in der Android-App ohne Web-Push schicken wir es selbst.
+            if (!pushAn()) { if (!inApp()) { laeuft = false; return; } await post('push_alive', {}); }
             const r = await post('push_watch_poll', {});
             const msgs = (r && r.msgs) || [];
             if (msgs.length) sagen(msgs.map(m => m.body).join(' '));
@@ -138,5 +152,12 @@
     }
     if (!cmd()) { let n = 0; const iv = setInterval(function () { if (cmd() || ++n > 40) clearInterval(iv); }, 250); }
     setInterval(abholen, 60000);
+    // App verlassen: dem Server sagen, dass sie zu ist, damit erfüllte Aufträge sofort an die Android-App gehen (nur ohne Web-Push)
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden && inApp() && !pushAn()) { try { apiFetch('/api/sync?action=push_gone', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(function () { }); } catch (e) { } }
+        else if (!document.hidden) setTimeout(abholen, 800);
+    });
+    // Beim Start einmal abgleichen (Anzahl an die Android-App melden, wartende Meldungen abholen)
+    setTimeout(function () { if (inApp()) post('push_watch_list', {}).catch(function () { }); abholen(); }, 6000);
     window.jvAuftraege = { parse: parseAuftrag, abholen };
 })();

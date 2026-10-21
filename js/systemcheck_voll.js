@@ -272,7 +272,7 @@
     async function pruefApp() {
         const N = window.ZaneNative;
         if (!N) return hinweis('Seite läuft im Browser, nicht in der Jarvis-App', 'Weckwort im Hintergrund, Wecker-Ansagen und Kamera-Knopf brauchen die Jarvis-App');
-        const fehlt = ['recStart', 'printHtml', 'shareImage', 'planAnsagen', 'holeAnsage', 'weckerStellen', 'openSetup'].filter(f => typeof N[f] !== 'function');
+        const fehlt = ['recStart', 'printHtml', 'shareImage', 'planAnsagen', 'holeAnsage', 'weckerStellen', 'openSetup', 'auftraege'].filter(f => typeof N[f] !== 'function');
         if (fehlt.length) return hinweis('App ist älter, es fehlt: ' + fehlt.join(', '), 'neue APK bei GitHub bauen lassen (Releases) und installieren');
         return ok('Jarvis-App erkannt, alle Funktionen da');
     }
