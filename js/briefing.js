@@ -654,6 +654,10 @@ async function triggerDailyBriefing() {
             if (typeof ensureBirthdaysMentioned === 'function') text = ensureBirthdaysMentioned(text, data);
         }
 
+        try {   // Mitnehmen-Liste (mitnehmen.js) ans Ende, wenn eine Schicht ansteht und es noch Vormittag ist
+            if (data.schicht && window.jvMitnehmen && new Date().getHours() < 15 && !/nimm mit/i.test(text)) text += ' ' + window.jvMitnehmen.text();
+        } catch (e) {}
+
         chatHistory.push({ role: "assistant", content: JSON.stringify({ type: "chat", reply: text }) });
 
         typeWriterStatus("Klicken zum Sprechen...");

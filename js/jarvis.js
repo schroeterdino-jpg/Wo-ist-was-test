@@ -88,6 +88,7 @@
 
     var karte = null, wartetAufTipp = null;
     function zeigen(text) {
+        return;   // keine Text-Karte mehr: er spricht, mitlesen ist nicht nötig
         try {
             if (karte) karte.remove();
             karte = document.createElement('div');
