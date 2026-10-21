@@ -1,5 +1,5 @@
 /* ============================================================
-   VORBEREITUNG ("Ich habe mir erlaubt ..."): Nova bereitet einen Termin mit Ort vor, bevor du fragst.
+   VORBEREITUNG ("Ich habe mir erlaubt ..."): Jarvis bereitet einen Termin mit Ort vor, bevor du fragst.
    Etwa 90 bis 45 Minuten vorher (einmal pro Termin) rechnet er von selbst: Route mit aktuellem Verkehr und Abfahrtszeit, Wetter am Ziel zur Ankunft,
    günstigste Tankstelle auf dem Weg, passende Einträge von Einkaufsliste und Aufgaben, bald fällige Rechnungen. Es öffnet sich das Lagebild
    (wie beim Fahrt-Check), und er sagt: "Ich habe mir erlaubt, deinen Termin ... vorzubereiten. ..."
@@ -38,7 +38,7 @@
         return true;
     }
 
-    /* Ort aus den Kontakten: steht im Titel ein gespeicherter Kontakt ("Besuch bei Mama"), nimmt Nova dessen Adresse.
+    /* Ort aus den Kontakten: steht im Titel ein gespeicherter Kontakt ("Besuch bei Mama"), nimmt Jarvis dessen Adresse.
        Mama/Mutter und Papa/Vater gelten als dieselbe Person. Anrufe und Nachrichten zählen nicht (da fährt niemand hin). */
     const SYN = [['mama', 'mutter', 'mami', 'mutti'], ['papa', 'vater', 'papi', 'vati']];
     const KEIN_BESUCH = /\b(anruf\w*|anrufen|telefon\w*|videoanruf|nachricht\w*|schreib\w*|whatsapp|geburtstag\w*)\b/i;

@@ -1,14 +1,14 @@
 /* ============================================================
    MAIL-AKTIONEN: Antwort als ENTWURF in Gmail ablegen und Mails in den PAPIERKORB legen (immer mit Nachfrage).
-   Nova VERSCHICKT NIE etwas. Entwürfe liegen in Gmail und werden von dir selbst abgeschickt.
+   Jarvis VERSCHICKT NIE etwas. Entwürfe liegen in Gmail und werden von dir selbst abgeschickt.
    Der Papierkorb von Gmail behält Mails 30 Tage, man kann sie dort zurückholen. Endgültig gelöscht wird nichts.
 
    Sprache:
    - "Habe ich E-Mails?" -> "Lies mir die erste vor" -> "Schreib eine Antwort und leg sie in meine Entwürfe"
-     (Nova fragt dann "Was soll ich antworten?", du diktierst; oder gleich: "Schreib eine Antwort: Ich komme morgen um zehn.")
-   - "Lösche die Mail" / "Lösche die erste Mail" / "Lösche die Mail von Anna" -> Nova fragt nach, du sagst "ja" -> Papierkorb.
-   - "Lösche alle Werbe-Mails" -> Nova nennt die Anzahl und fragt nach, du sagst "ja" -> Papierkorb.
-   Braucht die Google-Berechtigung "gmail.modify" (calendar.js, Scope). Ohne sie bittet Nova, neu zu verbinden.
+     (Jarvis fragt dann "Was soll ich antworten?", du diktierst; oder gleich: "Schreib eine Antwort: Ich komme morgen um zehn.")
+   - "Lösche die Mail" / "Lösche die erste Mail" / "Lösche die Mail von Anna" -> Jarvis fragt nach, du sagst "ja" -> Papierkorb.
+   - "Lösche alle Werbe-Mails" -> Jarvis nennt die Anzahl und fragt nach, du sagst "ja" -> Papierkorb.
+   Braucht die Google-Berechtigung "gmail.modify" (calendar.js, Scope). Ohne sie bittet Jarvis, neu zu verbinden.
    Braucht: mail.js, calendar.js (accessToken, isGoogleAuthorized, ensureGoogleAuth, markGoogleExpired, googleReconnectCard),
             commands.js (jvCommands), voice.js (speak), places.js (showActionCards), api/groq (für die Formulierung).
    ============================================================ */
@@ -196,7 +196,7 @@
     const NEIN = /^(?:nein|nee|nö|stopp?|abbrechen|lass(?:e)?(?: es| das)?|doch nicht|nicht|vergiss es)(?: bitte)?(?: sein)?$/;
     const KONTEXT = () => !!(aktuelleId() || liste().length);
 
-    // Wer schreibt eine Antwort? (Nova hat eine Mail im Blick und das Wort Antwort/Entwurf fällt)
+    // Wer schreibt eine Antwort? (Jarvis hat eine Mail im Blick und das Wort Antwort/Entwurf fällt)
     const ANTWORT_RX = /(?:^|\s)(?:schreib\w*|verfass\w*|formulier\w*|erstell\w*|mach\w*|leg\w*|speicher\w*|sag\w*)\b[^:]{0,50}\bantwort\w*|\bbeantworte\w*\b[^:]{0,40}\b(?:mail|nachricht)|\bantworte\b[^:]{0,30}\b(?:mail|nachricht|darauf)|\b(?:mail|nachricht|antwort)\w*\b[^:]{0,40}\bentw[üu]rfe?n?\b|\bantwort\w*\b[^:]{0,20}\b(?:in|als)\b[^:]{0,15}\bentw[üu]rf\w*/;
     function diktatAus(original) {
         let s = String(original || '').trim();

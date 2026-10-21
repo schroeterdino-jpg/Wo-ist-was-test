@@ -17,9 +17,9 @@ import org.json.JSONObject;
 import java.util.Calendar;
 
 /**
- * Orts-Erinnerungen: Nova meldet der App eine Liste von Orten (zum Beispiel Supermärkte) und die Einkaufsliste.
- * Die App lässt sich vom Handy über Standortänderungen wecken (auch bei gesperrtem Handy, ohne dass Nova läuft).
- * Kommst du an einem Ort an, löst sie eine Ansage aus (wie die geplanten Ansagen): Bildschirm an, Meldung, Nova spricht.
+ * Orts-Erinnerungen: Jarvis meldet der App eine Liste von Orten (zum Beispiel Supermärkte) und die Einkaufsliste.
+ * Die App lässt sich vom Handy über Standortänderungen wecken (auch bei gesperrtem Handy, ohne dass Jarvis läuft).
+ * Kommst du an einem Ort an, löst sie eine Ansage aus (wie die geplanten Ansagen): Bildschirm an, Meldung, Jarvis spricht.
  * Dafür braucht die App die Standort-Erlaubnis "Immer zulassen".
  */
 public class OrtReceiver extends BroadcastReceiver {

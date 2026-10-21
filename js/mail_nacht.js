@@ -1,8 +1,8 @@
 /* ============================================================
-   MAIL-NACHTSCHICHT: Nova liest neue, ungelesene Mails im Hauptpostfach (nicht Werbung/Updates), erkennt, welche eine Antwort brauchen,
+   MAIL-NACHTSCHICHT: Jarvis liest neue, ungelesene Mails im Hauptpostfach (nicht Werbung/Updates), erkennt, welche eine Antwort brauchen,
    und legt dafür selbst Antwort-ENTWÜRFE in Gmail an. Gesendet wird nie etwas, gelöscht auch nicht. Werbe-Mails werden nur gezählt.
-   - Läuft, solange Nova offen ist (beim Start, dann alle 30 Minuten, und wenn du zurückkommst). Google erlaubt Nova keinen Zugriff im
-     Hintergrund bei geschlossener Seite: Nach der Morgen-Ansage, die Nova öffnet, ist alles bereit.
+   - Läuft, solange Jarvis offen ist (beim Start, dann alle 30 Minuten, und wenn du zurückkommst). Google erlaubt Jarvis keinen Zugriff im
+     Hintergrund bei geschlossener Seite: Nach der Morgen-Ansage, die Jarvis öffnet, ist alles bereit.
    - Meldet sich einmal, wenn neue Entwürfe da sind. Frag jederzeit: "Was hast du vorbereitet?"
    Sprachbefehle: "Mail-Autopilot aus/an", "Mail-Autopilot jetzt", "Was hast du vorbereitet?", "Wurden Entwürfe angelegt?".
    Braucht: accessToken (Google, Berechtigung gmail.modify), apiFetch (/api/groq). Überspringt: Newsletter, noreply, Automatik-Mails.

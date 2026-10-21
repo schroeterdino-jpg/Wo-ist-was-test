@@ -39,7 +39,7 @@ function pronunciationEscape(s) {
 /* Ersetzt jedes Wort der Liste im Text (ganze Wörter, Groß-/Kleinschreibung egal, auch mit angehängtem "s": "Annas") */
 function applyPronunciations(text) {
     let out = String(text == null ? '' : text);
-    const dict = Object.assign({ 'Zane': 'Nova' }, getPronunciations());   // Standard: englisch "Sein" (zeen); mit "Sprich Zane so aus: ..." änderbar
+    const dict = Object.assign({ 'Zane': 'Jarvis' }, getPronunciations());   // Standard: englisch "Sein" (zeen); mit "Sprich Zane so aus: ..." änderbar
     const keys = Object.keys(dict).sort((a, b) => b.length - a.length);
     keys.forEach(word => {
         const spoken = dict[word];
@@ -86,7 +86,7 @@ function deletePronunciation(word) {
 function renderPronunciationList() {
     const box = document.getElementById('pronunciationList');
     if (!box) return;
-    const dict = Object.assign({ 'Zane': 'Nova' }, getPronunciations());   // Standard: englisch "Sein" (zeen); mit "Sprich Zane so aus: ..." änderbar
+    const dict = Object.assign({ 'Zane': 'Jarvis' }, getPronunciations());   // Standard: englisch "Sein" (zeen); mit "Sprich Zane so aus: ..." änderbar
     const keys = Object.keys(dict).sort((a, b) => a.localeCompare(b, 'de'));
     box.textContent = '';
     if (keys.length === 0) {

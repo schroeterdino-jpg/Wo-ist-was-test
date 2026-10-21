@@ -1,5 +1,5 @@
 /* ============================================================
-   LAUNE: Nova hat eine eigene Stimmung, die er selbst wechselt. Du musst nichts auswählen.
+   LAUNE: Jarvis hat eine eigene Stimmung, die er selbst wechselt. Du musst nichts auswählen.
    Was sie beeinflusst:
    - Tageszeit: morgens eher munter, mittags gut gelaunt oder schelmisch, abends entspannt, nachts müde oder nachdenklich.
    - Zufall: alle 40 bis 90 Minuten würfelt er eine neue Laune, passend zur Tageszeit (ab und zu auch mal genervt).
@@ -185,7 +185,7 @@
     }
     var rt = 0; (function r() { if (!register() && rt++ < 40) setTimeout(r, 500); })();
 
-    /* Die Auswahlliste "Stimmung" in den Einstellungen ist nicht mehr nötig: Nova wechselt seine Laune selbst */
+    /* Die Auswahlliste "Stimmung" in den Einstellungen ist nicht mehr nötig: Jarvis wechselt seine Laune selbst */
     (function ausblenden() {
         function go() { try { var s = document.getElementById('moodSelect'); if (s && s.parentElement) s.parentElement.style.display = 'none'; } catch (e) {} }
         go(); var n = 0, iv = setInterval(function () { go(); if (++n > 20) clearInterval(iv); }, 1000);

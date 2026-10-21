@@ -25,7 +25,7 @@
     </queries>
 
     <application
-        android:label="Nova"
+        android:label="Jarvis"
         android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher"
         android:allowBackup="false"
@@ -47,7 +47,7 @@
 
         <activity
             android:name=".SetupActivity"
-            android:label="Nova Einstellungen"
+            android:label="Jarvis Einstellungen"
             android:exported="true"
             android:theme="@android:style/Theme.DeviceDefault.Light">
             <intent-filter>

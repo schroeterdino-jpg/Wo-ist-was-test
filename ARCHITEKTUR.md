@@ -1,7 +1,7 @@
-# Nova: Architektur-Überblick
+# Jarvis: Architektur-Überblick
 
 Stand: 21.10.2026 (Commit b240df6). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
-Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Nova" (`js/name.js`).
+Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
 ## 1. Drei Teile
 
@@ -9,7 +9,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 |---|---|---|
 | Web-App | `index.html`, `style.css`, `js/` (133 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
-| Weckruf-APK "Nova" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
+| Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
 Die APK öffnet die Web-App (`https://wo-ist-was-test.vercel.app/`) in einem WebView und bietet ihr über `ZaneBridge` native Funktionen an (Spracherkennung, Drucken, Ansagen, Orts-Erinnerungen).
 
@@ -59,11 +59,11 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 
 ## 6. Weckruf-APK (`weckruf-src/`)
 
-- `WakeService`: Vordergrunddienst, lauscht aufs Weckwort. **Zwei Erkennungen**, einstellbar in den Nova-Einstellungen unter "Erkennung":
-  - bisher: Vosk mit Weckwort "Hey Nova" (`GatedSpeech` mit Stille-Schranke)
-  - neu: openWakeWord (`OwwEngine` rechnet Mel, Embedding, Weckwort-Modell je 80 ms; `OwwSpeech` ist die Mikrofon-Schleife mit Stille-Schranke seit PR #44). Test-Weckwort derzeit "Hey Jarvis", "Hey Nova" muss erst trainiert werden.
-- Nachtruhe (Standard 23 bis 04 Uhr), Pause während Nova spricht oder zuhört, Ein/Aus in der Benachrichtigung.
-- `MainActivity` (WebView der Web-App), `ZaneBridge` (JavaScript-Brücke), `SetupActivity` (Nova-Einstellungen mit Messzeile), `AnsageReceiver` (geplante Ansagen bei gesperrtem Handy), `OrtReceiver` (Orts-Erinnerungen), `Prefs`.
+- `WakeService`: Vordergrunddienst, lauscht aufs Weckwort. **Zwei Erkennungen**, einstellbar in den Jarvis-Einstellungen unter "Erkennung":
+  - bisher: Vosk mit Weckwort "Hey Jarvis" (`GatedSpeech` mit Stille-Schranke)
+  - neu: openWakeWord (`OwwEngine` rechnet Mel, Embedding, Weckwort-Modell je 80 ms; `OwwSpeech` ist die Mikrofon-Schleife mit Stille-Schranke seit PR #44). Weckwort: fertiges Modell "Hey Jarvis".
+- Nachtruhe (Standard 23 bis 04 Uhr), Pause während Jarvis spricht oder zuhört, Ein/Aus in der Benachrichtigung.
+- `MainActivity` (WebView der Web-App), `ZaneBridge` (JavaScript-Brücke), `SetupActivity` (Jarvis-Einstellungen mit Messzeile), `AnsageReceiver` (geplante Ansagen bei gesperrtem Handy), `OrtReceiver` (Orts-Erinnerungen), `Prefs`.
 - Bau: `.github/workflows/zane-weckruf.yml` (bei Änderungen in `weckruf-src`, lädt Vosk- und openWakeWord-Modelle, veröffentlicht `Zane-Weckruf.apk` als Release "weckruf-N"). `oww-test.yml` prüft `OwwEngine` gegen die Python-Vorlage (`weckruf-test/`).
 
 ## 7. Arbeitsweise und Stolperfallen
@@ -73,4 +73,4 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - Mehrere Module ersetzen zur Laufzeit Funktionen anderer (zum Beispiel `fish.js` die Sprachausgabe). Die Reihenfolge in `index.html` zählt.
 - Neue geräteübergreifende Einstellung: Schlüssel in `SYNC_KEYS` (`js/sync.js`) **und** `ALLOWED_KEYS` (`api/sync.js`) eintragen.
 - Push-Meldungen laufen im Server (`api/sync.js`), bei offener App spricht die App selbst (`wachter.js` und Co.). `api/sync.js` merkt sich per `push_alive`, ob die App offen ist.
-- Offener Rest der Umbenennung: `sw.js` nennt Push-Meldungen ohne Titel noch "Jarvis".
+- Der Name Nova war nur kurz für ein Video; alles heißt wieder Jarvis. Interne Schlüssel mit `nova_` (Kopf, Zubehör, Prefs der APK) blieben bewusst, sonst gingen gespeicherte Einstellungen verloren.

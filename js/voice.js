@@ -27,7 +27,7 @@ const ACK_DELAY_MS = 1500;
 // verschriftlicht (das englische "v" klingt wie ein deutsches "w") - beides wird jetzt erkannt. Satzzeichen
 // zwischen "Hey" und "Zane" (z.B. "Hey, Zane") stören nicht mehr, und "Hey" selbst ist nur noch optional -
 // hört die App nur "Zane" (weil "Hey" mal verschluckt wurde), reicht das im Weckwort-Modus auch.
-const WAKE_WORD_REGEX = /\b(?:(?:hey?|hallo|hi)[\s,]*(?:nova|nowa|zane|zain|zein|zayn|zeyn|sein|sain|sane|zehn|seyn)|(?:jar[vw]is|nova|zane|zain|zayn|zeyn))\b/i;
+const WAKE_WORD_REGEX = /\b(?:(?:hey?|hallo|hi)[\s,]*(?:jarvis|jarwis|nowa|zane|zain|zein|zayn|zeyn|sein|sain|sane|zehn|seyn)|(?:jar[vw]is|nova|zane|zain|zayn|zeyn))\b/i;
 
 function pickRandom(list) {
     return list[Math.floor(Math.random() * list.length)];
@@ -35,7 +35,7 @@ function pickRandom(list) {
 
 /* Zählt, wie viele Sprachausgaben gerade noch die Stimme aus dem Netz holen. In dieser Zeit (1-2 Sekunden)
    ist weder currentAudio noch currentUtterance gesetzt - früher glaubten dann Mail-, Fristen- und
-   Wächter-Meldungen, Nova schweige, und redeten dazwischen. Jetzt gilt er schon ab speak() als "spricht". */
+   Wächter-Meldungen, Jarvis schweige, und redeten dazwischen. Jetzt gilt er schon ab speak() als "spricht". */
 let speechFetching = 0;
 let speechFetchSince = 0;
 let interruptedGen = 0;
@@ -320,7 +320,7 @@ function speak(text, onComplete, langCode) {
 
 /* Die bisherige, rein im Browser laufende Sprachausgabe - unverändert, dient jetzt als Grundeinstellung
    ("Nur Handy-Stimme") und als automatischer Rückfall, wenn die Cloud-Stimme mal nicht erreichbar ist. */
-/* Direkt nach dem Seitenstart (z. B. wenn "Hey Nova" die App öffnet) ist die Stimmenliste des Handys manchmal noch leer.
+/* Direkt nach dem Seitenstart (z. B. wenn "Hey Jarvis" die App öffnet) ist die Stimmenliste des Handys manchmal noch leer.
    Dann würde die Standard-Stimme des Handys sprechen (bei Dino eine weibliche). Deshalb einmalig kurz warten, bis die Liste da ist. */
 let voicesWaited = false;
 
@@ -803,7 +803,7 @@ if (SpeechRecognition) {
        Wörterbücher in der Web-Spracherkennung), darum wird der erkannte Text hier vor der Weiterverarbeitung
        korrigiert, ganz am Anfang, damit Kalender-Namenssuche und die KI immer "Alyssa" bekommen. */
     function fixKnownMishearings(text) {
-        return String(text || '').replace(/\b(Alicia|Alissa|Alisha)\b/gi, 'Alyssa').replace(/\b(Zain|Zayn|Zein|Zeyn|Sane|Nova|Nowa|Noba)\b/gi, 'Zane').replace(/^((?:hey|hallo|hi)[ ,]+)(?:sein|sain|zehn|seyn)\b/i, '$1Zane');
+        return String(text || '').replace(/\b(Alicia|Alissa|Alisha)\b/gi, 'Alyssa').replace(/\b(Zain|Zayn|Zein|Zeyn|Sane|Jarvis|Jarwis|Jarvas|Nowa|Noba)\b/gi, 'Zane').replace(/^((?:hey|hallo|hi)[ ,]+)(?:sein|sain|zehn|seyn)\b/i, '$1Zane');
     }
 
     function handleRecognizedText(text) {

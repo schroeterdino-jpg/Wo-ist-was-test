@@ -1,5 +1,5 @@
 /* ============================================================
-   KARTEN WEG: Wenn du Nova etwas Neues fragst, verschwinden die Karten der letzten Antwort unten auf dem Bildschirm.
+   KARTEN WEG: Wenn du Jarvis etwas Neues fragst, verschwinden die Karten der letzten Antwort unten auf dem Bildschirm.
    Ausnahme: kurze Antworten auf eine Rückfrage ("ja", "nein", "1", "das erste", "weiter", "mehr" ...) - dann bleiben die Karten stehen,
    weil du dich gerade auf sie beziehst. Neue Antworten zeigen ihre eigenen Karten, wie bisher.
    Befehlsliste: ganz vorn (Reihenfolge 0), räumt nur auf und gibt den Satz unverändert weiter.

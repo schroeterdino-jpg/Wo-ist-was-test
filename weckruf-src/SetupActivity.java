@@ -48,7 +48,7 @@ public class SetupActivity extends Activity {
         setContentView(sv);
 
         TextView title = new TextView(this);
-        title.setText("Nova Einstellungen");
+        title.setText("Jarvis Einstellungen");
         title.setTextSize(24);
         root.addView(title);
 
@@ -57,7 +57,7 @@ public class SetupActivity extends Activity {
         info.setPadding(0, p, 0, p);
         root.addView(info);
 
-        btn(root, "Nova öffnen", v -> startActivity(new Intent(this, MainActivity.class)));
+        btn(root, "Jarvis öffnen", v -> startActivity(new Intent(this, MainActivity.class)));
         btn(root, "Lauschen starten", v -> { Prefs.setEnabled(this, true); Prefs.setMuted(this, false); startAll(); });
         btn(root, "Lauschen beenden", v -> {
             Prefs.setEnabled(this, false);
@@ -102,7 +102,7 @@ public class SetupActivity extends Activity {
         eng.setText("\nErkennung:");
         root.addView(eng);
         RadioGroup rge = new RadioGroup(this);
-        String[] engNames = {"bisher (Vosk, Weckwort „Hey Nova“)", "neu (openWakeWord, Test mit „Hey Jarvis“, spart Strom)"};
+        String[] engNames = {"bisher (Vosk, Weckwort „Hey Jarvis“)", "neu (openWakeWord, Test mit „Hey Jarvis“, spart Strom)"};
         for (int i = 0; i < engNames.length; i++) {
             RadioButton rb = new RadioButton(this);
             rb.setText(engNames[i]);

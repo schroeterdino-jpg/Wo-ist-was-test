@@ -75,7 +75,7 @@ class GatedSpeech {
                 double rms = Math.sqrt(sum / n);
                 boolean laut = rms > boden * 2.2 + 60;
                 if (!laut) { boden = Math.max(25, Math.min(3000, boden * 0.97 + rms * 0.03)); lautSerie = 0; }
-                else if (++lautSerie > 30) boden = Math.min(3000, boden * 0.9 + rms * 0.1);   // seit über 3 s durchgehend laut: Dauerlärm (Fernseher, Auto), nicht "Hey Nova" - die Schranke passt sich an
+                else if (++lautSerie > 30) boden = Math.min(3000, boden * 0.9 + rms * 0.1);   // seit über 3 s durchgehend laut: Dauerlärm (Fernseher, Auto), nicht "Hey Jarvis" - die Schranke passt sich an
 
                 gesamt++; fenster++;
                 if (rechnet) { gerechnet++; fensterRechnet++; }

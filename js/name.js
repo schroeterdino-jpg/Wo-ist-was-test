@@ -1,12 +1,12 @@
-/* Der Assistent heißt jetzt "Nova". Intern rechnet der Code weiter mit "Zane" (Befehle, gespeicherte Daten),
-   nach außen heißt er überall Nova: Anzeige, Ansprache der KI, Aussprache. Das Weckwort "Nova" wird beim Erkennen
+/* Der Assistent heißt jetzt "Jarvis". Intern rechnet der Code weiter mit "Zane" (Befehle, gespeicherte Daten),
+   nach außen heißt er überall Jarvis: Anzeige, Ansprache der KI, Aussprache. Das Weckwort "Jarvis" wird beim Erkennen
    in voice.js wieder zu "Zane" umgeschrieben. */
 (function () {
-    const NEU = 'Nova';
+    const NEU = 'Jarvis';
     const ALT = /Zane(?![a-zA-Z_])/g;
     const ALT_S = /Zanes(?![a-zA-Z_])/g;
 
-    function ersetze(t) { return t.replace(ALT_S, NEU + 's').replace(ALT, NEU).replace(/ZANE(?![A-Z_])/g, 'NOVA'); }
+    function ersetze(t) { return t.replace(ALT_S, NEU + 's').replace(ALT, NEU).replace(/ZANE(?![A-Z_])/g, 'JARVIS'); }
 
     // Anzeige: alle sichtbaren Texte
     function textKnoten(root) {
@@ -52,7 +52,7 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
     else start();
 
-    // Ansprache der KI: Sie heißt Nova
+    // Ansprache der KI: Sie heißt Jarvis
     try {
         if (typeof buildSystemPrompt === 'function') {
             const orig = buildSystemPrompt;

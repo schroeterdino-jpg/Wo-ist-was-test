@@ -28,7 +28,7 @@ final class Prefs {
     static void setStatus(Context c, String s) { sp(c).edit().putString("status", s).apply(); }
     static String last(Context c) { return sp(c).getString("last", "-"); }
     static void setLast(Context c, String s) { sp(c).edit().putString("last", s).apply(); }
-    // Erkennung: 0 = Vosk (Hey Nova, wie bisher), 1 = openWakeWord (Test mit "Hey Jarvis", spart Strom)
+    // Erkennung: 0 = Vosk (Hey Jarvis, wie bisher), 1 = openWakeWord (Test mit "Hey Jarvis", spart Strom)
     static int engine(Context c) { return sp(c).getInt("engine", 1); }
     static void setEngine(Context c, int v) { sp(c).edit().putInt("engine", v).apply(); }
     static String stat(Context c) { return sp(c).getString("stat", "noch keine Messung"); }

@@ -47,7 +47,7 @@
                 const ua = String(navigator.userAgent || '');
                 const wo = /; wv\)|Version\/[\d.]+ Chrome/.test(ua) ? 'eine App mit eingebautem Browser (WebView)' : /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /Instagram|FBAN|FBAV|GSA\//.test(ua) ? 'ein Browser innerhalb einer anderen App' : /Firefox/.test(ua) ? 'Firefox' : /Chrome/.test(ua) ? 'Chrome' : 'ein unbekannter Browser';
                 const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ? 'als installierte App' : 'als Browser-Seite';
-                say('Hier gehen Benachrichtigungen nicht. Es fehlt: ' + (fehlt.join(', ') || 'nichts erkennbar') + '. Ich laufe in: ' + wo + ', ' + standalone + '. Öffne Nova bitte in Chrome und sag dort noch einmal Benachrichtigungen an.');
+                say('Hier gehen Benachrichtigungen nicht. Es fehlt: ' + (fehlt.join(', ') || 'nichts erkennbar') + '. Ich laufe in: ' + wo + ', ' + standalone + '. Öffne Jarvis bitte in Chrome und sag dort noch einmal Benachrichtigungen an.');
                 try { card('Diagnose Benachrichtigungen', 'Fehlt: ' + (fehlt.join(', ') || 'nichts') + ' · ' + wo + ' · ' + standalone, ''); } catch (e) {}
                 return false;
             }

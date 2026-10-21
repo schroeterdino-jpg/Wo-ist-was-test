@@ -106,11 +106,11 @@
                 n.__jvs = 1;
                 var fw = n.querySelector('#extraFenster'), t = fw && fw.querySelector('span');
                 if (t) t.parentNode.insertBefore(seg(), t.nextSibling), (t.parentNode.style.justifyContent = 'flex-start'), (fw.querySelector('button').style.marginLeft = 'auto');
-                if (fw) fw.appendChild(fuss('NOVA // ' + ((t && t.textContent) || 'HUD').toUpperCase()));
+                if (fw) fw.appendChild(fuss('JARVIS // ' + ((t && t.textContent) || 'HUD').toUpperCase()));
             } else if (n.id === 'jvLage') {
                 n.__jvs = 1;
                 var b = n.querySelector('.kopf b'); if (b) b.appendChild(seg());
-                var inn = n.querySelector('.in'); if (inn) inn.appendChild(fuss('NOVA // LAGE'));
+                var inn = n.querySelector('.in'); if (inn) inn.appendChild(fuss('JARVIS // LAGE'));
             } else if (n.id === 'jvWeltuhr') {
                 n.__jvs = 1;
                 var tt = n.querySelector('.wu-title'); if (tt) tt.appendChild(seg());

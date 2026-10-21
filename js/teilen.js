@@ -1,5 +1,5 @@
 /* ============================================================
-   teilen.js – "Schick das per WhatsApp": die letzte Antwort von Nova (Brief, Rechnung, Zettel, Übersetzung, Stundenplan ...),
+   teilen.js – "Schick das per WhatsApp": die letzte Antwort von Jarvis (Brief, Rechnung, Zettel, Übersetzung, Stundenplan ...),
    die Einkaufsliste oder die Aufgabenliste als Text verschicken.
    ============================================================
    Beispiele:  "Schick das per WhatsApp"  /  "Schick mir die Einkaufsliste per WhatsApp"  /  "Verschick die Aufgabenliste über WhatsApp"
@@ -26,7 +26,7 @@
         eigenesSagen = false;
     }
 
-    /* Jede längere Antwort von Nova merken (kurze Bestätigungen wie "Okay." nicht) */
+    /* Jede längere Antwort von Jarvis merken (kurze Bestätigungen wie "Okay." nicht) */
     if (typeof window.speak === 'function' && !window.speak._teilen) {
         const orig = window.speak;
         const wrapped = function (text) {

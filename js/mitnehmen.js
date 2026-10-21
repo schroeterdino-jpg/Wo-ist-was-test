@@ -1,6 +1,6 @@
 /* ============================================================
    MITNEHMEN: feste Liste der Dinge, die du vor der Arbeit nicht vergessen willst.
-   Nova sagt sie bei der Aufbruchsansage (10 Minuten vor der Abfahrt, plan_ansagen.js) kurz an, an jedem Arbeitstag, Früh- und Spätschicht gleich.
+   Jarvis sagt sie bei der Aufbruchsansage (10 Minuten vor der Abfahrt, plan_ansagen.js) kurz an, an jedem Arbeitstag, Früh- und Spätschicht gleich.
    Sagen:  "Was muss ich mitnehmen?" · "Pack Handy auf meine Mitnehmen-Liste" · "Streich das Energy von der Mitnehmen-Liste"
            "Mitnehmen-Liste zurücksetzen" (dann gilt wieder die Grundliste)
    Braucht: commands.js, voice.js (speak). Muss VOR plan_ansagen.js geladen werden.

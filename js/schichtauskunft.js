@@ -1,5 +1,5 @@
 /* ============================================================
-   SCHICHTAUSKUNFT: Nova beantwortet Fragen zu deinen Schichtzeiten selbst, ohne dass du sie ins Gedächtnis sprechen musst.
+   SCHICHTAUSKUNFT: Jarvis beantwortet Fragen zu deinen Schichtzeiten selbst, ohne dass du sie ins Gedächtnis sprechen musst.
    - Feste Fragen (ohne KI): "Wann beginnt meine Spätschicht?", "Wann fange ich an?", "Schichtbeginn", "Wann stehe ich auf?"
    - Die KI bekommt bei jeder Frage die Schichtdaten mit (window.jvSchichtWissen): Schicht diese und nächste Woche, Beginn, Aufstehzeit, Urlaub.
    Quellen: schicht.js (Wochenwechsel, Aufstehzeit Früh, Briefing-Zeit Spät), plan_ansagen.js (Beginn Früh 5:10, Spät 13:45, änderbar), urlaub.js.
