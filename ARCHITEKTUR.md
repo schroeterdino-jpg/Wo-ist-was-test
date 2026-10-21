@@ -73,4 +73,4 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - Mehrere Module ersetzen zur Laufzeit Funktionen anderer (zum Beispiel `fish.js` die Sprachausgabe). Die Reihenfolge in `index.html` zählt.
 - Neue geräteübergreifende Einstellung: Schlüssel in `SYNC_KEYS` (`js/sync.js`) **und** `ALLOWED_KEYS` (`api/sync.js`) eintragen.
 - Push-Meldungen laufen im Server (`api/sync.js`), bei offener App spricht die App selbst (`wachter.js` und Co.). `api/sync.js` merkt sich per `push_alive`, ob die App offen ist.
-- Der Name Jarvis war nur kurz für ein Video; alles heißt wieder Jarvis. Interne Schlüssel mit `nova_` (Kopf, Zubehör, Prefs der APK) blieben bewusst, sonst gingen gespeicherte Einstellungen verloren.
+- Der Name Nova war nur kurz für ein Video; alles heißt wieder Jarvis. Interne Schlüssel mit `nova_` (Kopf, Zubehör, Prefs der APK) blieben bewusst, sonst gingen gespeicherte Einstellungen verloren.
