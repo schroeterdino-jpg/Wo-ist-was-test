@@ -5,6 +5,7 @@
    - AUFBRUCHSZEIT: an jedem Arbeitstag (Mo-Fr, nicht im Urlaub), Früh- und Spätschicht, 10 Minuten vor der Abfahrt.
      Abfahrt = Schichtbeginn minus Fahrzeit (mit aktueller Verkehrslage, kurz vor der Ansage frisch abgefragt) minus 10 Minuten Puffer.
      Schichtbeginn: Früh 5:10, Spät 13:45 (änderbar per Sprache: "Meine Frühschicht beginnt um 5 Uhr 30").
+     Abfahrt fest: Früh 4:30, Spät 13:20 ("Meine Abfahrt in der Frühschicht ist um 4 Uhr 30"); bei deutlich längerer Fahrt (ab 10 Minuten mehr) entsprechend früher.
    - STAU-CHECK: 20 Minuten vor der Aufbruchs-Ansage (Frühschicht frühestens 10 Minuten nach dem Aufstehen) prüft Nova still die Verkehrslage. Sie spricht nur bei Stau
      oder wenn die Fahrt mindestens 10 Minuten länger dauert als sonst ("normal" = Mittelwert der letzten Messungen). Test: "Teste den Stau-Check".
    - WECKER-FRAGE: Am Abend vor einer Frühschicht um 20:30: "Soll ich den Wecker auf 3 Uhr 30 stellen?" Ja = Wecker in der Uhr-App des Handys.
@@ -26,7 +27,7 @@
     const WOCHEN_MIN = 18 * 60;      // Sonntag 18:00
     const WECKER_MIN = 20 * 60 + 30; // Abend vor der Frühschicht 20:30
     const TAGE_VORAUS = 5;
-    const K_AUS = 'jv_plan_aus', K_FAHRT = 'jv_plan_fahrt', K_BEGINN = 'jv_plan_beginn', K_GESAGT = 'jv_plan_gesagt', K_WECKER = 'jv_plan_wecker_';
+    const K_AUS = 'jv_plan_aus', K_FAHRT = 'jv_plan_fahrt', K_BEGINN = 'jv_plan_beginn', K_ABF = 'jv_plan_abfahrt', K_GESAGT = 'jv_plan_gesagt', K_WECKER = 'jv_plan_wecker_';
 
     /* ---------- Hilfen ---------- */
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -152,6 +153,20 @@
     function weckzeit() { const T = S(), st = T && T.load(); return st && st.times && Number.isFinite(st.times.frueh) ? st.times.frueh : 210; }
     const NAME = { frueh: 'Frühschicht', spaet: 'Spätschicht' };
 
+    /* ---------- Abfahrtszeit ----------
+       Feste Zeit pro Schicht (Früh 4:30, Spät 13:20; änderbar per Sprache). Nur wenn die Fahrt heute deutlich länger dauert als sonst
+       (10 Minuten oder mehr), wird entsprechend früher losgefahren. */
+    const ABF_STD = { frueh: 4 * 60 + 30, spaet: 13 * 60 + 20 };
+    function abfFix(sh) {
+        try { const o = JSON.parse(pd(K_ABF, '') || 'null'); if (o && Number.isFinite(o[sh])) return o[sh]; } catch (e) { }
+        return ABF_STD[sh];
+    }
+    function setAbf(sh, min) {
+        let o = {}; try { o = JSON.parse(pd(K_ABF, '') || '{}') || {}; } catch (e) { }
+        o[sh] = min; sd(K_ABF, JSON.stringify(o));
+    }
+    function abfahrtFuer(sh, min, normal) { const mehr = (min || 0) - (normal || 0); return abfFix(sh) - (mehr >= 10 ? mehr : 0); }
+
     /* ---------- Fahrzeit zur Arbeit ---------- */
     /* "Normale" Fahrzeit = Mittelwert (Median) der letzten Messungen; einzelne Staus verfälschen sie kaum */
     function messungen() {
@@ -202,11 +217,11 @@
     async function aufbruchText(ymd, mitFrisch) {
         const sh = schichtAm(ymd);
         if (!sh) return { text: '', sh: null };
-        const start = beginn(sh);
+        const start = beginn(sh), normal = letzteFahrt();
         let min, stau = '', st = 0;
         if (mitFrisch) { const f = await fahrtFrisch(); min = f.min || letzteFahrt(); stau = f.stau || ''; st = f.min ? (f.st || 0) : 0; }
         else min = letzteFahrt();
-        const abfahrt = start - min - PUFFER_ARBEIT;
+        const abfahrt = abfahrtFuer(sh, min, normal);
         const nu = jetzt();
         const diff = abfahrt - nu.min;
         let t;
@@ -323,7 +338,7 @@
                     if (bt && Number.isFinite(bt[sh])) out.push({ id: 'brief|' + ymd, at: berlinMs(ymd, bt[sh]), text: 'Dein Briefing ist bereit. Tippe, dann erzähle ich es dir.' });
                 } catch (e) { }
                 const start = beginn(sh), fahrt = letzteFahrt();
-                const abfahrt = start - fahrt - PUFFER_ARBEIT, ansage = abfahrt - VOR_ABFAHRT;
+                const abfahrt = abfFix(sh), ansage = abfahrt - VOR_ABFAHRT;
                 const staumin = Math.max(ansage - STAU_VOR, sh === 'frueh' ? weckzeit() + 10 : 0);
                 if (ansage >= 0 && staumin <= ansage - 5) out.push({ id: 'stau|' + ymd, at: berlinMs(ymd, staumin), text: 'Ich prüfe kurz die Verkehrslage auf deinem Arbeitsweg. Ist alles frei, sage ich nichts.' });
                 if (ansage >= 0) out.push({ id: 'aufbruch|' + ymd, at: berlinMs(ymd, ansage), text: 'Abfahrt gegen ' + uhrHM(abfahrt) + ' Uhr (' + NAME[sh] + ' ab ' + uhrHM(start) + ', Fahrt rund ' + fahrt + ' Minuten). Tippe, dann sage ich dir die aktuelle Lage.' });
@@ -428,7 +443,7 @@
         const stau = ISTSTAU.test(f.stau || '') ? f.stau.trim() : '';
         const mehr = min - normal;
         if (!immer && mehr < 10 && !stau) return false;   // alles normal: Nova bleibt still
-        const abfahrt = beginn(sh) - min - PUFFER_ARBEIT, nu = jetzt();
+        const abfahrt = abfahrtFuer(sh, min, normal), nu = jetzt();
         let t = mehr >= 10 ? 'Auf deinem Arbeitsweg ist heute mehr los. Die Fahrt dauert rund ' + min + ' Minuten statt sonst ' + normal + '.' : 'Die Fahrt dauert rund ' + min + ' Minuten.';
         if (stau) t += ' ' + stau;
         if (f.min && f.st) t += ' Darin sind etwa ' + f.st + ' Minuten Stau schon eingerechnet.';
@@ -568,6 +583,17 @@
                 return true;
             }
         }
+        // Abfahrtszeit ändern ("Meine Abfahrt in der Frühschicht ist um 4 Uhr 30" / "In der Spätschicht fahre ich um 13 Uhr 20 los")
+        if (/\b(fruehschicht|spaetschicht)\b/.test(t) && /\b(abfahrt|fahre|fahr|losfahre|los)\b/.test(t) && !/\b(beginnt|faengt an|startet)\b/.test(t)) {
+            const sh = /fruehschicht/.test(t) ? 'frueh' : 'spaet';
+            const z = parseZeit(t.replace(/\b(fruehschicht|spaetschicht)\b/g, ''));
+            if (z && z.h != null) {
+                setAbf(sh, z.h * 60 + z.m);
+                planSenden(true);
+                sagen('Gut, in der ' + NAME[sh] + ' fährst du um ' + uhr(z.h * 60 + z.m) + ' los.', false);
+                return true;
+            }
+        }
         // Planer ein/aus
         if (/^(den |der |nova )?(planer|tagesplaner)\s+(aus|an|ein)(schalten)?$/.test(t) || /^(schalte? )?(den )?planer (aus|an|ein)(schalten)?$/.test(t)) {
             const an = /\b(an|ein)\b/.test(t) && !/\baus\b/.test(t);
@@ -645,7 +671,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Nova war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);

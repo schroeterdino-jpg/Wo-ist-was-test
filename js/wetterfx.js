@@ -92,6 +92,7 @@
     function schleife(now) {
         raf = 0;
         if (!art || document.hidden) return;
+        if (last && now - last < 30) { raf = requestAnimationFrame(schleife); return; }   // Strom sparen: höchstens ca. 30 Bilder pro Sekunde
         if (!last) last = now;
         var dt = Math.min(.05, (now - last) / 1000); last = now;
         messen(); zeichnen(dt, now / 1000);
