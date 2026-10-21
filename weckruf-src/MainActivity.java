@@ -176,9 +176,10 @@ public class MainActivity extends Activity {
             }
         });
 
-        web.loadUrl(ZANE_URL);
+        handleIntent(getIntent());   // zuerst: Wurde die App durch das Weckwort gestartet? Dann muss schon der erste Seitenaufruf das wissen
+        // Von "Hey ..." geweckt: Seite ohne Startanimation laden (Schalter ?nostart=1 kennt die Seite schon), Nova sagt sofort "Ja?"
+        web.loadUrl(pendingWake ? ZANE_URL + "?nostart=1" : ZANE_URL);
         askPermissions();
-        handleIntent(getIntent());
     }
 
     private WebView makeWebView() {
