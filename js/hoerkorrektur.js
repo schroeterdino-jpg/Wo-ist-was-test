@@ -12,6 +12,7 @@
     const MAX_ITEMS = 60;
     const PROTECTED = /^(?:ja|nein|und|oder|der|die|das|ich|du|er|sie|es|wir|mit|von|bei|für|auf|aus|nach|zum|zur|wie|was|wer|wo|wann|warum|nicht|ist|bin|war|hat|habe|mein|meine|dein|(?:jarvis|zane))$/i;
 
+    const FEST = { 'Hamlet': 'Hamiyet' };   // fest eingebaut: überlebt jede Neuinstallation (eigene Korrekturen gehen vor)
     function load() { try { const v = JSON.parse(localStorage.getItem(KEY) || '{}'); return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}; } catch (e) { return {}; } }
     function save(map) { try { localStorage.setItem(KEY, JSON.stringify(map)); } catch (e) {} }
     const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -22,7 +23,7 @@
     const CTX = '(?:kennst\\s+du|kennt\\s+ihr|kenne\\s+ich|kennen\\s+wir|rufe?|ruf\\s+mal|anrufe?|anruf|kontakt|wann\\s+hat|wer\\s+ist|wo\\s+wohnt|wo\\s+arbeitet|wo\\s+ist|nachricht\\s+an|mail\\s+an|schreib\\s+an|an|mit|bei|von|für|über)';
     function fix(text) {
         let t = String(text == null ? '' : text);
-        const map = load();
+        const map = Object.assign({}, FEST, load());
         Object.keys(map).sort((a, b) => b.length - a.length).forEach(k => {
             const e = map[k], r = (e && typeof e === 'object') ? e.r : e, ctx = !!(e && typeof e === 'object' && e.c);
             try {

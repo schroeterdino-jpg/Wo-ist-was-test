@@ -18,12 +18,13 @@
 
 const PRONUNCIATION_KEY = 'helfer_pronunciations';
 
+const PRONUNCIATION_FEST = { 'Hamiyet': 'Hamijet' };   // fest eingebaut (überlebt jede Neuinstallation); eigene Einträge gehen vor
 function getPronunciations() {
     try {
         const obj = JSON.parse(getPersistentData(PRONUNCIATION_KEY, '{}') || '{}');
-        return (obj && typeof obj === 'object' && !Array.isArray(obj)) ? obj : {};
+        return Object.assign({}, PRONUNCIATION_FEST, (obj && typeof obj === 'object' && !Array.isArray(obj)) ? obj : {});
     } catch (e) {
-        return {};
+        return Object.assign({}, PRONUNCIATION_FEST);
     }
 }
 

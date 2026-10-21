@@ -16,7 +16,32 @@ const ALLOWED_KEYS = [
   'helfer_briefing_wishes',
   'helfer_parking',
   'helfer_rezepte',
-  'user_custom_name'
+  'user_custom_name',
+  'helfer_home_address',
+  'helfer_work_address',
+  'jv_schicht',
+  'jv_urlaub',
+  'jv_plan_beginn',
+  'jv_hoerkorrektur',
+  'helfer_pronunciations',
+  'jv_mitnehmen',
+  'nova_kopf',
+  'nova_zubehoer',
+  'tts_engine',
+  'tts_openai_voice',
+  'tts_edge_voice',
+  'night_dim',
+  'jv_sound_vol',
+  'jv_sound_on',
+  'helfer_untertitel',
+  'helfer_bootton',
+  'helfer_wetterfx',
+  'helfer_vibration',
+  'wake_word_enabled',
+  'fx_flags',
+  'fx_mode',
+  'conversation_mode',
+  'proaktiv_sprechen'
 ];
 const STORE_KEY = 'alltags-helfer:data';
 const MAX_VALUE_LENGTH = 200000;
