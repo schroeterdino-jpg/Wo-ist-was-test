@@ -349,6 +349,7 @@ public class MainActivity extends Activity {
         super.onResume();
         current = this;
         try { if (web != null) { web.resumeTimers(); web.onResume(); } } catch (Throwable ignored) { }   // nie eingefroren starten
+        freezeHandler.removeCallbacks(freezeRun);
         WakeService.setActivityResumed(true);
         try {
             ((android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE)).cancel(2);   // "Hey Zane erkannt"-Meldung wegräumen
@@ -403,11 +404,29 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         WakeService.setActivityResumed(false);
+        // Strom sparen: ist Nova eine Weile nicht sichtbar und nichts los (kein Sprechen, kein Zuhören), wird die Seite angehalten.
+        // onResume weckt sie sofort wieder auf (resumeTimers/onResume), geplante Ansagen und "Hey Nova" starten Nova ohnehin neu nach vorn.
+        freezeHandler.removeCallbacks(freezeRun);
+        freezeHandler.postDelayed(freezeRun, 45000);
     }
+
+    private final android.os.Handler freezeHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable freezeRun = new Runnable() {
+        @Override public void run() {
+            try {
+                if (WakeService.activityResumed || WakeService.pageBusy || WakeService.recActive) {
+                    freezeHandler.postDelayed(this, 30000);   // gerade etwas los: später noch einmal prüfen
+                    return;
+                }
+                if (web != null) { web.onPause(); web.pauseTimers(); }
+            } catch (Throwable ignored) { }
+        }
+    };
 
     @Override
     protected void onDestroy() {
         if (current == this) current = null;
+        freezeHandler.removeCallbacks(freezeRun);
         if (recognizer != null) { try { recognizer.destroy(); } catch (Throwable ignored) { } recognizer = null; }
         WakeService.setRecActive(false);
         WakeService.setPageBusy(false);

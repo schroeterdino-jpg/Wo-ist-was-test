@@ -48,7 +48,7 @@ public class WakeService extends Service implements RecognitionListener {
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private Model model;
-    private SpeechService speech;
+    private GatedSpeech speech;
     private PowerManager.WakeLock wakeLock;
     private boolean loading = false;
     private boolean alive = false;
@@ -343,7 +343,7 @@ public class WakeService extends Service implements RecognitionListener {
         try {
             Recognizer rec = new Recognizer(model, 16000.0f, grammar());
             rec.setWords(true);
-            speech = new SpeechService(rec, 16000.0f);
+            speech = new GatedSpeech(rec, 16000.0f);
             speech.startListening(this);
             speechSince = System.currentTimeMillis();
             Prefs.setStatus(this, "lauscht auf „Hey Nova“");
