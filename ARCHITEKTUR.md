@@ -53,7 +53,7 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - **Mail/Geld:** `mail.js`, `mailaktionen.js`, `mail_nacht.js`, `mailwatch.js`, `mailpush.js`, `konto.js`, `fristen.js`, `rechnungen.js`, `kuendigung.js`, `waehrung.js`
 - **Foto:** `photo.js`, `foto_erkennen.js`, `foto_brief.js`, `foto_rezept.js`, `foto_abtippen.js`, `foto_adresse.js`, `foto_stundenplan.js`, `foto_person.js`, `fotosenden.js`
 - **Gedächtnis/Mitdenken:** `langzeit.js`, `langzeit_erinnern.js`, `gedaechtnis.js`, `gedaechtnis_zeit.js`, `kontext_lokal.js`, `mitdenken.js`, `proaktiv.js`, `wachter.js`, `routinen.js`, `vorbereitung.js`, `smarttips.js`, `ruhe.js`
-- **Push/Sync:** `push.js`, `pushsync.js`, `sync.js`, `auftraege.js` ("Sag Bescheid, wenn ...": Diesel, Regen, Temperatur; Server: `push_watch_*` in `api/sync.js`, Prüfung jede Minute in `push_due`; in der APK fragt `AuftragReceiver` alle 5 Minuten per `push_watch_native` nach, weil es im WebView kein Web-Push gibt)
+- **Push/Sync:** `push.js`, `pushsync.js`, `sync.js`, `auftraege.js` ("Sag Bescheid, wenn ...": Diesel, Regen, Temperatur; Server: `push_watch_*` in `api/sync.js`, Prüfung jede Minute in `push_due`; Meldungen in der APK siehe Abschnitt 6)
 - **Sonstiges:** `bundesliga.js`, `ergebnisse.js`, `filme.js`, `tagesueberblick.js`, `help.js`, `einfuehrung.js`, `teilen.js`, `schliessen.js`, `loeschen_fragen.js`, `loesch_notiz.js`
 - **Diagnose:** `diagnose.js`, `systemcheck_voll.js`, `satztest.js`, `fehlerort.js`, `erweiterungen.js`
 
@@ -62,6 +62,7 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - `WakeService`: Vordergrunddienst, lauscht aufs Weckwort. **Zwei Erkennungen**, einstellbar in den Jarvis-Einstellungen unter "Erkennung":
   - bisher: Vosk mit Weckwort "Hey Jarvis" (`GatedSpeech` mit Stille-Schranke)
   - neu: openWakeWord (`OwwEngine` rechnet Mel, Embedding, Weckwort-Modell je 80 ms; `OwwSpeech` ist die Mikrofon-Schleife mit Stille-Schranke seit PR #44). Weckwort: fertiges Modell "Hey Jarvis".
+- **Meldungen vom Server in der APK:** Im WebView gibt es kein Web-Push. `AuftragReceiver` fragt per `push_native` (`api/sync.js`) nach, jede Minute im `WakeService` und alle 5 Minuten über den Wecker. Der Server legt jede Meldung (`sendToAll`) zusätzlich in eine eigene Warteschlange (`alltags-helfer:natq`), solange die APK in den letzten 20 Minuten nachgefragt hat. Normale Meldungen werden Benachrichtigungen (Erinnerungen mit "Erledigt"), erfüllte Aufträge spricht Jarvis. `pushsync.js` behandelt die APK wie "Benachrichtigungen an", damit der Server Erinnerungen, Schicht und Standort bekommt. Der App-Code kommt über `ZaneBridge.auftraege()` in die APK. Browser-Version und APK gleichzeitig = doppelte Meldungen.
 - Nachtruhe (Standard 23 bis 04 Uhr), Pause während Jarvis spricht oder zuhört, Ein/Aus in der Benachrichtigung.
 - `MainActivity` (WebView der Web-App), `ZaneBridge` (JavaScript-Brücke), `SetupActivity` (Jarvis-Einstellungen mit Messzeile), `AnsageReceiver` (geplante Ansagen bei gesperrtem Handy), `OrtReceiver` (Orts-Erinnerungen), `Prefs`.
 - Bau: `.github/workflows/zane-weckruf.yml` (bei Änderungen in `weckruf-src`, lädt Vosk- und openWakeWord-Modelle, veröffentlicht `Zane-Weckruf.apk` als Release "weckruf-N"). `oww-test.yml` prüft `OwwEngine` gegen die Python-Vorlage (`weckruf-test/`).

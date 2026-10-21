@@ -18,7 +18,10 @@
     let timer = null;
     let cfgTimer = null;
 
-    function on() { try { return getPersistentData('jv_push', '') === '1'; } catch (e) { return false; } }
+    /* In der Android-App (Jarvis-APK) gibt es kein Web-Push; dort holt die App die Meldungen selbst beim Server ab (AuftragReceiver).
+       Der Server braucht trotzdem Erinnerungen, Schicht, Strecke und Standort, darum zählt die App hier wie "Benachrichtigungen an". */
+    function inApp() { try { return !!(window.ZaneNative && typeof window.ZaneNative.auftraege === 'function'); } catch (e) { return false; } }
+    function on() { try { return getPersistentData('jv_push', '') === '1' || inApp(); } catch (e) { return false; } }
 
     function build() {
         const now = Date.now(), items = [];

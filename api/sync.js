@@ -311,12 +311,13 @@ async function handlePush(action, req, res, redis) {
       if (msgs.length) await redis('SET', ITEMS_KEY, JSON.stringify(st));
       return res.status(200).json({ ok: true, msgs, list: st.watch });
     }
-    if (action === 'push_watch_native') {   // die Android-App fragt nach erfüllten Aufträgen (im WebView gibt es kein Web-Push)
+    if (action === 'push_native' || action === 'push_watch_native') {   // die Android-App holt Meldungen ab (alle Arten, nicht nur Aufträge)
+      const q = await natLoad(redis);
+      q.ts = Date.now();
+      const msgs = q.msgs.splice(0, 10);
+      await redis('SET', NATQ_KEY, JSON.stringify(q));
       const st = await loadItems(redis);
-      st.natTs = Date.now();
-      const msgs = st.watchNat.splice(0, 5);
-      await redis('SET', ITEMS_KEY, JSON.stringify(st));
-      return res.status(200).json({ ok: true, msgs, n: st.watch.length });
+      return res.status(200).json({ ok: true, msgs: msgs.filter(m => m.speak), meldungen: msgs.filter(m => !m.speak), n: st.watch.length });
     }
     if (action === 'push_alive' || action === 'push_gone') {   // alive: App offen und sichtbar, dann spricht sie selbst; gone: App wurde verlassen
       const st = await loadItems(redis);
@@ -326,6 +327,7 @@ async function handlePush(action, req, res, redis) {
     }
 
     if (action === 'push_test') {
+      await natPrepare(redis, data, Date.now());
       if (!data.subs.length) return res.status(200).json({ ok: false, sent: 0, error: 'Kein Handy angemeldet' });
       const payload = { title: 'Jarvis', body: 'Test: Diese Nachricht kommt auch bei geschlossener App an.', url: './' };
       const { sent, failed } = await sendToAll(redis, data, payload);
@@ -367,21 +369,59 @@ async function loadItems(redis) {
   return st;
 }
 
+// --- Meldungen für die Android-App (Jarvis-APK) ---
+// Im WebView der APK gibt es kein Web-Push. Die APK fragt darum jede Minute (Dienst) bzw. alle 5 Minuten (Wecker) per push_native nach.
+// Solange sie das tut (NATIVE_AKTIV_MS), landet jede Meldung zusätzlich in dieser Warteschlange. Eigener Speicherplatz, damit sich
+// push_due (schreibt den großen Zustand) und die Abfrage der App nicht in die Quere kommen.
+const NATQ_KEY = 'alltags-helfer:natq';
+const NATIVE_AKTIV_MS = 20 * 60000;
+const NATIVE_SUB = { native: true };   // Platzhalter in data.subs (nur im Speicher), damit "ist jemand angemeldet?" auch für die App gilt
+async function natLoad(redis) {
+  let q = { ts: 0, msgs: [] };
+  try { const raw = await redis('GET', NATQ_KEY); if (raw) q = JSON.parse(raw); } catch (e) {}
+  if (!q || typeof q !== 'object') q = { ts: 0, msgs: [] };
+  if (!Array.isArray(q.msgs)) q.msgs = [];
+  if (typeof q.ts !== 'number') q.ts = 0;
+  return q;
+}
+async function natPrepare(redis, data, now) {   // vor dem Senden: ist die App aktiv? Dann zählt sie wie ein angemeldetes Handy
+  const q = await natLoad(redis);
+  data.nativeOn = !!q.ts && now - q.ts < NATIVE_AKTIV_MS;
+  if (data.nativeOn && !data.subs.some(x => x && x.native)) data.subs = data.subs.concat([NATIVE_SUB]);
+  return q;
+}
+async function natPush(redis, payloadObj) {
+  const q = await natLoad(redis);
+  const m = { id: String(payloadObj.tag || 'm') + '-' + Date.now().toString(36), ts: Date.now(), title: String(payloadObj.title || 'Jarvis').slice(0, 120), body: String(payloadObj.body || '').slice(0, 400), tag: String(payloadObj.tag || ''), speak: !!payloadObj.speak };
+  if (payloadObj.doneUrl) m.doneUrl = String(payloadObj.doneUrl).slice(0, 300);
+  q.msgs.push(m);
+  q.msgs = q.msgs.slice(-20);
+  await redis('SET', NATQ_KEY, JSON.stringify(q));
+}
+
 async function sendToAll(redis, data, payloadObj) {
-  const mod = await import('web-push');
-  const webpush = mod.default || mod;
-  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'https://wo-ist-was-test.vercel.app/', process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
-  const payload = JSON.stringify(payloadObj);
+  const real = data.subs.filter(x => x && !x.native);
   let sent = 0, failed = 0; const keep = [];
-  for (const sub of data.subs) {
-    try { await webpush.sendNotification(sub, payload, { TTL: 600 }); sent++; keep.push(sub); }
-    catch (e) {
-      failed++;
-      if (e && (e.statusCode === 404 || e.statusCode === 410)) continue;   // Anmeldung ist abgelaufen: entfernen
-      keep.push(sub);
+  if (real.length) {
+    const mod = await import('web-push');
+    const webpush = mod.default || mod;
+    webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'https://wo-ist-was-test.vercel.app/', process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+    const payload = JSON.stringify(payloadObj);
+    for (const sub of real) {
+      try { await webpush.sendNotification(sub, payload, { TTL: 600 }); sent++; keep.push(sub); }
+      catch (e) {
+        failed++;
+        if (e && (e.statusCode === 404 || e.statusCode === 410)) continue;   // Anmeldung ist abgelaufen: entfernen
+        keep.push(sub);
+      }
     }
   }
-  if (keep.length !== data.subs.length) { data.subs = keep; await redis('SET', PUSH_KEY, JSON.stringify(data)); }
+  if (data.nativeOn) { try { await natPush(redis, payloadObj); sent++; } catch (e) { failed++; } }   // zusätzlich an die Android-App
+  if (keep.length !== real.length) {
+    data.subs = keep.concat(data.subs.filter(x => x && x.native));
+    const out = Object.assign({}, data, { subs: keep }); delete out.nativeOn;
+    await redis('SET', PUSH_KEY, JSON.stringify(out));
+  }
   return { sent, failed };
 }
 
@@ -930,16 +970,9 @@ async function runWatch(redis, st, data, now, appOpen) {
     if (w.last && now - w.last < WATCH_REPEAT_GAP_MS) { keep.push(w); continue; }
     let ok = false;
     if (appOpen) { st.watchMsg.push({ id: w.id, ts: now, title: res.title, body: res.body }); st.watchMsg = st.watchMsg.slice(-5); ok = true; }
-    else {
-      let pushed = false;
-      if (data.subs.length) {
-        const r = await sendToAll(redis, data, { title: res.title, body: res.body, tag: 'auftrag-' + w.id, url: './' });
-        pushed = r.sent > 0;
-      }
-      if (pushed) ok = true;
-      else if (st.natTs && now - st.natTs < 20 * 60000) {   // Android-App fragt regelmäßig nach: Meldung für sie hinterlegen
-        st.watchNat.push({ id: w.id, ts: now, title: res.title, body: res.body }); st.watchNat = st.watchNat.slice(-5); ok = true;
-      }
+    else if (data.subs.length) {   // Web-Push und/oder Android-App (dort spricht Jarvis die Meldung: speak)
+      const r = await sendToAll(redis, data, { title: res.title, body: res.body, tag: 'auftrag-' + w.id, url: './', speak: true });
+      ok = r.sent > 0;
     }
     if (ok) { sent++; w.last = now; if (!w.einmal) keep.push(w); } else keep.push(w);
   }
@@ -1276,6 +1309,7 @@ async function handleDue(req, res, redis) {
     let data = { subs: [] };
     try { const raw = await redis('GET', PUSH_KEY); if (raw) data = JSON.parse(raw); } catch (e) {}
     if (!Array.isArray(data.subs)) data.subs = [];
+    await natPrepare(redis, data, now);   // fragt die Android-App gerade nach? Dann gilt sie als angemeldet
 
     let sent = 0, skippedApp = 0, skippedQuiet = 0, departSent = 0, nagSent = 0, prepSent = 0;
     const doneBtn = (it) => ({ actions: [{ action: 'done', title: 'Erledigt' }], doneUrl: '/api/sync?action=push_done&id=' + encodeURIComponent(it.id) + '&t=' + doneToken(it.id) });

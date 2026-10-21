@@ -225,6 +225,7 @@ public class WakeService extends Service implements RecognitionListener {
         }
         alive = true;
         if (!watchdogOn) { watchdogOn = true; main.postDelayed(watchdog, 15000); }
+        if (!meldungenOn) { meldungenOn = true; main.postDelayed(meldungenRun, 20000); }   // jede Minute nach Meldungen vom Server fragen (statt Web-Push)
         wakeLockAnpassen();
         if (!ready()) {
             stopSpeech();   // z. B. nach Wechsel der Erkennung: die alte hört nicht weiter zu, bis die neue geladen ist
@@ -235,6 +236,17 @@ public class WakeService extends Service implements RecognitionListener {
         }
         return START_STICKY;
     }
+
+    // Meldungen vom Server (Erinnerungen, Abfahrt, Diesel, Aufträge ...): im WebView der App gibt es kein Web-Push, darum fragt der Dienst
+    // jede Minute nach (eine kleine Abfrage; AuftragReceiver macht daraus Meldungen). Nur wenn die Seite der App den App-Code übergeben hat.
+    private boolean meldungenOn = false;
+    private final Runnable meldungenRun = new Runnable() {
+        @Override public void run() {
+            try { AuftragReceiver.abfragenAsync(WakeService.this); } catch (Throwable ignored) { }
+            if (alive) main.postDelayed(this, 60000);
+            else meldungenOn = false;
+        }
+    };
 
     private boolean useOww() { return Prefs.engine(this) == 1; }
 
@@ -532,6 +544,7 @@ public class WakeService extends Service implements RecognitionListener {
     @Override
     public void onDestroy() {
         alive = false;
+        meldungenOn = false;
         inst = null;
         main.removeCallbacksAndMessages(null);
         stopSpeech();
