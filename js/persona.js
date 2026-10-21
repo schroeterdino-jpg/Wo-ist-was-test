@@ -91,11 +91,23 @@ const ACK_SCHRITTE = [
     [/Internet/, 'Ich suche das kurz im Internet.'],
     [/Standort/, 'Ich ermittle deinen Standort.']
 ];
+const ACK_THEMEN = [
+    [/route|navigi|wie komme ich|weg zu|wegbeschreibung|zeig mir den weg|fahrzeit|wie lange (?:fahr|brauch)/, 'Ich suche die Route heraus.'],
+    [/termin|kalender|geburtstag|feier/, 'Ich sehe im Kalender nach.'],
+    [/wetter|regen|regnet|temperatur|vorhersage/, 'Ich prüfe das Wetter.'],
+    [/bahn|zug|\bbus\b|verbindung/, 'Ich prüfe die Verbindungen.'],
+    [/tank|sprit|diesel|benzin/, 'Ich vergleiche die Spritpreise.'],
+    [/mail|post/, 'Ich schaue in den Posteingang.']
+];
 function ackPhraseNow(text) {
     try {
         const schritt = String(window.__jvArbeit || '');
         const hit = ACK_SCHRITTE.find(s => s[0].test(schritt));
         if (hit) return (jarvisTonAn() && Math.random() < 0.5 ? 'Einen Moment, Sir. ' : 'Einen Moment. ') + hit[1];
+        // kein passender Schritt (z. B. Warten auf die KI): nach dem Thema der Frage gehen
+        const t = String(text || '').toLowerCase();
+        const thema = ACK_THEMEN.find(x => x[0].test(t));
+        if (thema) return (jarvisTonAn() && Math.random() < 0.5 ? 'Einen Moment, Sir. ' : 'Einen Moment. ') + thema[1];
     } catch (e) { }
     return pickRandom(ackPhrasesFor(text));
 }
