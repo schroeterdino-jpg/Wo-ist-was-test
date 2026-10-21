@@ -320,7 +320,39 @@ function speak(text, onComplete, langCode) {
 
 /* Die bisherige, rein im Browser laufende Sprachausgabe - unverändert, dient jetzt als Grundeinstellung
    ("Nur Handy-Stimme") und als automatischer Rückfall, wenn die Cloud-Stimme mal nicht erreichbar ist. */
+/* Direkt nach dem Seitenstart (z. B. wenn "Hey Nova" die App öffnet) ist die Stimmenliste des Handys manchmal noch leer.
+   Dann würde die Standard-Stimme des Handys sprechen (bei Dino eine weibliche). Deshalb einmalig kurz warten, bis die Liste da ist. */
+let voicesWaited = false;
+
+function voicesReadyNow() {
+    if (!('speechSynthesis' in window) || voicesWaited) return true;
+    if (!allVoicesList.length) loadVoices();   // vielleicht ist die Liste inzwischen schon da
+    return allVoicesList.length > 0;
+}
+
+function whenVoicesReady(fn, maxMs) {
+    let done = false;
+    let iv = null;
+    let to = null;
+    const go = () => {
+        if (done) return;
+        done = true;
+        clearInterval(iv);
+        clearTimeout(to);
+        voicesWaited = true;   // nur beim ersten Mal warten; gibt es auf dem Gerät gar keine Stimmen, bremst es danach nicht mehr
+        loadVoices();
+        fn();
+    };
+    iv = setInterval(() => { loadVoices(); if (allVoicesList.length > 0) go(); }, 50);
+    to = setTimeout(go, maxMs);
+}
+
 function speakBrowser(cleanText, onComplete, langCode) {
+    if (!voicesReadyNow()) { whenVoicesReady(() => speakBrowserNow(cleanText, onComplete, langCode), 800); return; }
+    speakBrowserNow(cleanText, onComplete, langCode);
+}
+
+function speakBrowserNow(cleanText, onComplete, langCode) {
     if ('speechSynthesis' in window) {
         if (!ackActive) window.speechSynthesis.cancel();
 
@@ -394,6 +426,11 @@ function speakAck(text, onComplete) {
    sobald die Ansage fertig ist (egal ob erfolgreich oder mit Fehler) - z.B. um danach erst das Mikrofon
    für die Anschlussfrage zu starten, statt es gleichzeitig zur Ansage zu versuchen. */
 function speakAckBrowser(text, gen, onComplete) {
+    if (!voicesReadyNow()) { whenVoicesReady(() => speakAckBrowserNow(text, gen, onComplete), 800); return; }
+    speakAckBrowserNow(text, gen, onComplete);
+}
+
+function speakAckBrowserNow(text, gen, onComplete) {
     if (!('speechSynthesis' in window) || isRecording) { if (onComplete) onComplete(); return; }
     if (typeof gen === 'number' && gen !== speechGeneration) { if (onComplete) onComplete(); return; }   // echte Antwort kam inzwischen dazwischen
     const u = new SpeechSynthesisUtterance(text);
