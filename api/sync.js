@@ -283,6 +283,34 @@ async function handlePush(action, req, res, redis) {
       await redis('SET', ITEMS_KEY, JSON.stringify(st));
       return res.status(200).json({ ok: true, art, an: !st.aus[art] });
     }
+    if (action === 'push_watch_add') {   // Beobachtungsauftrag anlegen ("Sag Bescheid, wenn der Diesel unter 1,65 fällt")
+      const st = await loadItems(redis);
+      const w = cleanWatch(body);
+      if (!w) return res.status(400).json({ error: 'Ungültiger Auftrag' });
+      if (st.watch.length >= WATCH_MAX) return res.status(200).json({ ok: false, voll: true, list: st.watch });
+      st.watch.push(w);
+      await redis('SET', ITEMS_KEY, JSON.stringify(st));
+      return res.status(200).json({ ok: true, id: w.id, list: st.watch });
+    }
+    if (action === 'push_watch_del') {   // einen, alle oder alle einer Art löschen
+      const st = await loadItems(redis);
+      const n0 = st.watch.length;
+      if (body.all === true) st.watch = [];
+      else if (typeof body.id === 'string') st.watch = st.watch.filter(w => w.id !== body.id);
+      else if (typeof body.typ === 'string') st.watch = st.watch.filter(w => w.typ !== body.typ);
+      await redis('SET', ITEMS_KEY, JSON.stringify(st));
+      return res.status(200).json({ ok: true, entfernt: n0 - st.watch.length, list: st.watch });
+    }
+    if (action === 'push_watch_list') {   // aktuelle Aufträge
+      const st = await loadItems(redis);
+      return res.status(200).json({ ok: true, list: st.watch });
+    }
+    if (action === 'push_watch_poll') {   // die offene App holt Meldungen ab, die sie selbst sprechen soll
+      const st = await loadItems(redis);
+      const msgs = st.watchMsg.splice(0, 5);
+      if (msgs.length) await redis('SET', ITEMS_KEY, JSON.stringify(st));
+      return res.status(200).json({ ok: true, msgs, list: st.watch });
+    }
     if (action === 'push_alive' || action === 'push_gone') {   // alive: App offen und sichtbar, dann spricht sie selbst; gone: App wurde verlassen
       const st = await loadItems(redis);
       st.alive = action === 'push_alive' ? Date.now() : 0;
@@ -292,7 +320,7 @@ async function handlePush(action, req, res, redis) {
 
     if (action === 'push_test') {
       if (!data.subs.length) return res.status(200).json({ ok: false, sent: 0, error: 'Kein Handy angemeldet' });
-      const payload = { title: 'Zane', body: 'Test: Diese Nachricht kommt auch bei geschlossener App an.', url: './' };
+      const payload = { title: 'Jarvis', body: 'Test: Diese Nachricht kommt auch bei geschlossener App an.', url: './' };
       const { sent, failed } = await sendToAll(redis, data, payload);
       return res.status(200).json({ ok: sent > 0, sent, failed });
     }
@@ -326,6 +354,8 @@ async function loadItems(redis) {
   if (!st.rain || typeof st.rain !== 'object') st.rain = {};
   if (!st.imp || typeof st.imp !== 'object') st.imp = {};
   if (!st.imp.sent || typeof st.imp.sent !== 'object') st.imp.sent = {};
+  if (!Array.isArray(st.watch)) st.watch = [];       // Beobachtungsaufträge ("Sag Bescheid, wenn ...")
+  if (!Array.isArray(st.watchMsg)) st.watchMsg = []; // Meldungen für die offene App (sie spricht sie selbst)
   return st;
 }
 
@@ -795,6 +825,113 @@ async function runRain(redis, st, data, now, ctx) {
   } catch (e) { r.err = 'Regenvorhersage: ' + (e && e.message || 'Fehler'); r.lastCheck = now - RAIN_CHECK_MS + 3 * 60000; return false; }
 }
 
+
+// --- Beobachtungsaufträge: "Sag Bescheid, wenn der Diesel unter 1,65 fällt / es aufhört zu regnen / es unter 0 Grad geht" ---
+// Arten: diesel (op 'unter', wert in Euro), regen (op 'beginnt' oder 'endet'), temp (op 'unter' oder 'ueber', wert in Grad).
+// Ein Auftrag meldet sich standardmäßig einmal und löscht sich dann (einmal: false = jedes Mal, mit Pause). Höchstens 5 Aufträge.
+// Bei offener App kommt die Meldung in st.watchMsg (die App spricht sie), sonst als Push. Nachts (22 bis 5 Uhr) wird nichts gemeldet.
+const WATCH_MAX = 5;
+const WATCH_CHECK_MS = { diesel: 10 * 60000, regen: 5 * 60000, temp: 10 * 60000 };
+const WATCH_REPEAT_GAP_MS = 3 * 3600000;   // bei "jedes Mal" mindestens so viel Pause
+const WATCH_MAX_AGE_MS = 30 * 86400000;    // Aufträge verfallen nach 30 Tagen
+
+function cleanWatch(b) {
+  if (!b || typeof b !== 'object') return null;
+  const typ = String(b.typ || ''), op = String(b.op || '');
+  const w = { id: 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), typ, op, einmal: b.einmal !== false, ts: Date.now(), nc: 0 };
+  if (typ === 'diesel') {
+    const v = Number(b.wert);
+    if (op !== 'unter' || !Number.isFinite(v) || v < 0.8 || v > 3) return null;
+    w.wert = Math.round(v * 1000) / 1000;
+  } else if (typ === 'regen') {
+    if (op !== 'beginnt' && op !== 'endet') return null;
+  } else if (typ === 'temp') {
+    const v = Number(b.wert);
+    if ((op !== 'unter' && op !== 'ueber') || !Number.isFinite(v) || v < -40 || v > 50) return null;
+    w.wert = Math.round(v * 10) / 10;
+  } else return null;
+  return w;
+}
+function watchDue(st, now) {
+  const h = berlinHour(now);
+  if (h >= 22 || h < 5) return false;
+  return st.watch.some(w => (w.nc || 0) <= now);
+}
+const degTxt = v => String(v).replace('.', ',').replace('-', '−') + ' Grad';
+
+// Auswertung eines Auftrags; Rückgabe: null (nicht erfüllt, oder Daten fehlen) oder { title, body }
+async function checkWatch(w, st, now) {
+  const origin = originNow(st, now);
+  if (!origin) return { skip: true };
+  if (w.typ === 'diesel') {
+    const c = await cheapestDiesel(origin);
+    if (c.err || !(c.price < w.wert)) return null;
+    const ort = [c.street, c.place].filter(Boolean).join(', ');
+    const km = typeof c.dist === 'number' ? ', ' + c.dist.toFixed(1).replace('.', ',') + ' km entfernt' : '';
+    return { title: 'Diesel unter ' + eur(w.wert), body: 'Sir, der Diesel liegt jetzt bei ' + eur(c.price) + ': ' + c.name + (ort ? ' (' + ort + ')' : '') + km + '.' };
+  }
+  if (w.typ === 'temp') {
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + origin.lat.toFixed(3) + '&longitude=' + origin.lon.toFixed(3) + '&current=temperature_2m&timezone=Europe%2FBerlin',
+      { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(7000) });
+    if (!r.ok) return { skip: true };
+    const j = await r.json();
+    const t = j && j.current && Number(j.current.temperature_2m);
+    if (!Number.isFinite(t)) return { skip: true };
+    const ok = w.op === 'unter' ? t <= w.wert : t >= w.wert;
+    if (!ok) return null;
+    return { title: (w.op === 'unter' ? 'Unter ' : 'Über ') + degTxt(w.wert), body: 'Sir, draußen sind es jetzt ' + degTxt(Math.round(t * 10) / 10) + ' (dein Limit: ' + degTxt(w.wert) + ').' };
+  }
+  if (w.typ === 'regen') {
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + origin.lat.toFixed(3) + '&longitude=' + origin.lon.toFixed(3) +
+      '&minutely_15=precipitation&forecast_minutely_15=8&past_minutely_15=2&timezone=Europe%2FBerlin', { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(7000) });
+    if (!r.ok) return { skip: true };
+    const j = await r.json();
+    const m = j && j.minutely_15;
+    if (!m || !Array.isArray(m.time) || !Array.isArray(m.precipitation)) return { skip: true };
+    const bp = berlinParts(now), nowStr = bp.ymd + 'T' + hhmm(bp.min);
+    const past = [], fut = [];
+    m.time.forEach((t, i) => { const v = Number(m.precipitation[i]) || 0; if (t < nowStr) past.push(v); else fut.push({ t, v }); });
+    const regnetJetzt = past.slice(-2).some(v => v >= RAIN_STEP_MM) || (fut[0] && fut[0].v >= RAIN_STEP_MM);
+    const next = fut.slice(0, 4);   // nächste Stunde
+    if (w.op === 'beginnt') {
+      if (regnetJetzt) return null;
+      const first = next.findIndex(x => x.v >= RAIN_STEP_MM);
+      const sum = next.reduce((a, x) => a + x.v, 0);
+      if (first < 0 || sum < RAIN_MIN_SUM_MM) return null;
+      const at = next[first].t;
+      return { title: 'Es fängt gleich an zu regnen', body: 'Sir, ab etwa ' + at.slice(11, 16) + ' Uhr regnet es bei dir.' };
+    }
+    if (!regnetJetzt) return null;                       // 'endet': es muss gerade regnen ...
+    if (next.some(x => x.v >= RAIN_STEP_MM)) return null; // ... und die nächste Stunde trocken bleiben
+    return { title: 'Der Regen hat aufgehört', body: 'Sir, es regnet bei dir nicht mehr, und die nächste Stunde bleibt trocken.' };
+  }
+  return null;
+}
+
+async function runWatch(redis, st, data, now, appOpen) {
+  let sent = 0, checked = 0;
+  const keep = [];
+  for (const w of st.watch) {
+    if (now - w.ts > WATCH_MAX_AGE_MS) continue;   // verfallen
+    if ((w.nc || 0) > now || checked >= 2) { keep.push(w); continue; }
+    checked++;
+    let res = null;
+    try { res = await checkWatch(w, st, now); } catch (e) { res = { skip: true }; }
+    w.nc = now + (WATCH_CHECK_MS[w.typ] || 10 * 60000);
+    if (!res || res.skip) { keep.push(w); continue; }
+    if (w.last && now - w.last < WATCH_REPEAT_GAP_MS) { keep.push(w); continue; }
+    let ok = false;
+    if (appOpen) { st.watchMsg.push({ id: w.id, ts: now, title: res.title, body: res.body }); st.watchMsg = st.watchMsg.slice(-5); ok = true; }
+    else if (data.subs.length) {
+      const r = await sendToAll(redis, data, { title: res.title, body: res.body, tag: 'auftrag-' + w.id, url: './' });
+      ok = r.sent > 0;
+    }
+    if (ok) { sent++; w.last = now; if (!w.einmal) keep.push(w); } else keep.push(w);
+  }
+  st.watch = keep;
+  return sent;
+}
+
 /* Termin ohne Ortsangabe oder mit nicht berechenbarer Strecke: einfache Vorwarnung 15 Minuten vorher */
 /* --- Situations-Impulse: Zane meldet sich von selbst, wenn die Lage passt (ohne dass ein Termin dranhängt) ---
    Regeln (je Regel höchstens einmal am Tag, insgesamt höchstens 2 am Tag, mindestens 25 Minuten Abstand, nur bei geschlossener App):
@@ -1114,8 +1251,9 @@ async function handleDue(req, res, redis) {
     const mailNow = aus.mail ? null : mailDue(st, now);
     const rainNow = aus.wetter ? null : rainDue(st, now, appOpen);
     const hsvNow = aus.hsv ? null : hsvDue(st, now);
+    const watchNow = watchDue(st, now);
     const planDue = st.plan.filter(p => !st.sent[p.id] && p.at <= now && now - p.at <= 20 * 60000);   // Planer-Meldungen (Wochenüberblick)
-    if (!planDue.length && !due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow && !impNow && !mailNow && !rainNow && !hsvNow) return res.status(200).json({ ok: true, due: 0 });
+    if (!planDue.length && !due.length && !brief && !depList.length && !nagList.length && !tankNow && !wxNow && !impNow && !mailNow && !rainNow && !hsvNow && !watchNow) return res.status(200).json({ ok: true, due: 0 });
 
     // Sperre: nie zwei Läufe gleichzeitig (sonst käme alles doppelt)
     const lock = await redis('SET', 'alltags-helfer:pushlock', '1', 'NX', 'EX', '40');
@@ -1234,6 +1372,10 @@ async function handleDue(req, res, redis) {
     // 8) HSV-Endstand (nur Hamburger SV)
     let hsvSent = false;
     if (hsvNow) { try { hsvSent = await runHsv(redis, st, data, now); } catch (e) { } }
+
+    // 9) Beobachtungsaufträge ("Sag Bescheid, wenn ...")
+    let watchSent = 0;
+    if (watchNow) { try { watchSent = await runWatch(redis, st, data, now, appOpen); } catch (e) { } }
 
     let briefSent = false;
     if (brief) {
