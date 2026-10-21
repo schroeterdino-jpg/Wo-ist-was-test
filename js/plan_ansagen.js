@@ -318,6 +318,10 @@
             }
             const sh = schichtAm(ymd);
             if (sh) {
+                try {   // Schicht-Briefing: in der Android-App weckt Nova den Bildschirm und erzählt es zur Briefing-Zeit (Früh ab 3:30, Spät ab 12:00)
+                    const bt = S().load().times;
+                    if (bt && Number.isFinite(bt[sh])) out.push({ id: 'brief|' + ymd, at: berlinMs(ymd, bt[sh]), text: 'Dein Briefing ist bereit. Tippe, dann erzähle ich es dir.' });
+                } catch (e) { }
                 const start = beginn(sh), fahrt = letzteFahrt();
                 const abfahrt = start - fahrt - PUFFER_ARBEIT, ansage = abfahrt - VOR_ABFAHRT;
                 const staumin = Math.max(ansage - STAU_VOR, sh === 'frueh' ? weckzeit() + 10 : 0);
@@ -389,6 +393,14 @@
             if (art === 'aufbruch' && (nu.ymd !== ymd || nu.min >= beginn(schichtAm(ymd) || 'frueh'))) return false;
             if (art === 'wecker' && (nu.ymd !== ymd || nu.min > 23 * 60)) return false;
             if (art === 'stau' && (nu.ymd !== ymd || !schichtAm(ymd) || nu.min >= beginn(schichtAm(ymd)) - 30)) return false;
+        }
+        if (art === 'brief') {   // Schicht-Briefing, einmal pro Tag (nicht doppelt, wenn schicht.js es schon gesagt hat)
+            let schon = ''; try { schon = String(getPersistentData('jv_schicht_last', '') || ''); } catch (e) { }
+            if (!erzwingen && (schon === ymd || nu.ymd !== ymd || nu.min > 15 * 60)) return false;
+            merkeGesagt(id);
+            try { setPersistentData('jv_schicht_last', ymd); } catch (e) { }
+            if (typeof triggerDailyBriefing === 'function') { try { triggerDailyBriefing(); return true; } catch (e) { return false; } }
+            return false;
         }
         merkeGesagt(id);
         if (art === 'ort') { try { return !!(window.jvOrte && window.jvOrte.ansage(id)); } catch (e) { return false; } }   // Orts-Erinnerung (orte.js)
