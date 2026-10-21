@@ -71,6 +71,13 @@ final class OwwEngine implements AutoCloseable {
         }
     }
 
+    /** Nach einer Pause (Stille-Schranke): Puffer leeren, ohne Rauschen zu rechnen. Danach den Vorlauf mit echtem Ton einspeisen. */
+    void softReset() {
+        java.util.Arrays.fill(melBuf, 1f);
+        java.util.Arrays.fill(feat, 0f);
+        tailN = 0;
+    }
+
     /** Ein Block von genau 1280 Samples (16 Bit, mono, 16 kHz). Liefert den Wert 0..1 für "Weckwort gehört". */
     float process(short[] chunk) throws Exception {
         // 1. Mel-Spektrogramm über (Nachlauf des letzten Blocks + neuer Block)

@@ -21,6 +21,9 @@ class OwwSpeech {
     }
 
     private static final int RATE = 16000;
+    private static final int VORLAUF = 16;          // 16 x 80 ms = 1,3 s Vorlauf
+    private static final int NACHLAUF = 19;         // 1,5 s Stille nach der letzten Lautstärke, dann wird wieder pausiert
+    private static final double DAUERLAERM = 600;   // Ruhepegel ab dem durchgehend gerechnet wird (Auto)
 
     private final Context ctx;
     private final OwwEngine eng;
@@ -55,6 +58,12 @@ class OwwSpeech {
     private void loop(final Listener l) {
         try { Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND); } catch (Throwable ignored) { }
         short[] block = new short[OwwEngine.CHUNK];
+        short[][] ring = new short[VORLAUF][OwwEngine.CHUNK];   // die letzten 1,3 s, falls "Hey" schon vor dem Anspringen fiel
+        int ringN = 0, ringPos = 0;       // ringPos: Platz für den nächsten Block
+        double boden = 60;                // geschätzter Ruhepegel der Umgebung
+        boolean rechnet = false;
+        int still = 0, lautSerie = 0, ignorieren = 0;
+        long blocksWin = 0, blocksWinRech = 0;
         try {
             eng.reset();   // Puffer auffüllen; das Mikrofon startet erst danach
             if (!run) return;
@@ -72,28 +81,71 @@ class OwwSpeech {
                     got += n;
                 }
                 if (!run) break;
-                long t0 = System.nanoTime();
-                float score = eng.process(block);
-                long t1 = System.nanoTime();
-                busyAll += t1 - t0;
-                busyWin += t1 - t0;
-                if (score > peak) peak = score;
-                if (sperre > 0) sperre--;
-                else if (score >= threshold) {
-                    sperre = 25;   // 2 s Ruhe nach einem Treffer
-                    try { Prefs.setLast(ctx, "erkannt: " + String.format(Locale.US, "%.2f", score)); } catch (Throwable ignored) { }
-                    final float s = score;
-                    main.post(() -> { try { l.onWake(s); } catch (Throwable ignored) { } });
+
+                // Stille-Schranke: nur rechnen, wenn es hörbar lauter ist als die Umgebung (wie beim alten Modus)
+                double sum = 0;
+                for (int i = 0; i < block.length; i++) sum += (double) block[i] * block[i];
+                double rms = Math.sqrt(sum / block.length);
+                boolean laut = rms > boden * 2.2 + 60;
+                if (!laut) { boden = Math.max(25, Math.min(3000, boden * 0.97 + rms * 0.03)); lautSerie = 0; }
+                else if (++lautSerie > 38) boden = Math.min(3000, boden * 0.9 + rms * 0.1);   // seit über 3 s durchgehend laut: Dauerlärm, die Schranke passt sich an
+                boolean aktiv = laut || boden > DAUERLAERM;   // im Auto (hoher Ruhepegel) rechnet er immer durch, damit nichts verpasst wird
+
+                blocksWin++;
+                if (!rechnet && aktiv) {
+                    rechnet = true;
+                    still = 0;
+                    eng.softReset();
+                    ignorieren = VORLAUF - ringN;   // war der Vorlauf nicht voll (direkt nach dem Start), die ersten Werte nicht bewerten
+                    int first = ringN < VORLAUF ? 0 : ringPos;
+                    for (int k = 0; k < ringN; k++) eng.process(ring[(first + k) % VORLAUF]);   // Puffer mit echtem Ton auffüllen, Wert wird nicht bewertet
+                    ringN = 0;
+                    ringPos = 0;
                 }
-                if (t1 - winStart >= 10_000_000_000L) {   // alle 10 Sekunden: Messwerte für die Einstellungen
+                if (!rechnet) {
+                    System.arraycopy(block, 0, ring[ringPos], 0, block.length);
+                    ringPos = (ringPos + 1) % VORLAUF;
+                    if (ringN < VORLAUF) ringN++;
+                } else {
+                    blocksWinRech++;
+                    long t0 = System.nanoTime();
+                    float score = eng.process(block);
+                    long t1 = System.nanoTime();
+                    busyAll += t1 - t0;
+                    busyWin += t1 - t0;
+                    if (ignorieren > 0) {
+                        ignorieren--;
+                    } else {
+                        if (score > peak) peak = score;
+                        if (sperre > 0) sperre--;
+                        else if (score >= threshold) {
+                            sperre = 25;   // 2 s Ruhe nach einem Treffer
+                            try { Prefs.setLast(ctx, "erkannt: " + String.format(Locale.US, "%.2f", score)); } catch (Throwable ignored) { }
+                            final float s = score;
+                            main.post(() -> { try { l.onWake(s); } catch (Throwable ignored) { } });
+                        }
+                    }
+                    if (aktiv) still = 0;
+                    else if (++still >= NACHLAUF) {
+                        rechnet = false;
+                        still = 0;
+                        ringN = 0;
+                        ringPos = 0;
+                    }
+                }
+                long now = System.nanoTime();
+                if (now - winStart >= 10_000_000_000L) {   // alle 10 Sekunden: Messwerte für die Einstellungen
                     try {
-                        Prefs.setStat(ctx, Math.round(100.0 * busyWin / (t1 - winStart)) + " % zuletzt, "
-                                + Math.round(100.0 * busyAll / (t1 - start)) + " % seit Start (openWakeWord, gemessene Rechenzeit)");
+                        Prefs.setStat(ctx, Math.round(100.0 * busyWin / (now - winStart)) + " % zuletzt, "
+                                + Math.round(100.0 * busyAll / (now - start)) + " % seit Start (openWakeWord, gemessene Rechenzeit); Schranke: rechnet in "
+                                + Math.round(100.0 * blocksWinRech / Math.max(1, blocksWin)) + " % der Zeit");
                         Prefs.setLast(ctx, "höchster Wert zuletzt: " + String.format(Locale.US, "%.2f", peak)
                                 + " (löst ab " + String.format(Locale.US, "%.2f", threshold) + " aus)");
                     } catch (Throwable ignored) { }
-                    winStart = t1;
+                    winStart = now;
                     busyWin = 0;
+                    blocksWin = 0;
+                    blocksWinRech = 0;
                     peak = 0f;
                 }
             }
