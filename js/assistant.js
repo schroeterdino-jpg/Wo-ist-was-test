@@ -66,7 +66,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
     const SMALLTALK_NO_ACK = /^(?:(?:na|hey|hi|hallo|moin|servus)[,\s]*)?(?:(?:guten (?:morgen|tag|abend)|gute nacht)[,\s]*)?(?:(?:jarvis|zane)[,\s]*)?(?:wie geht(?:'?s| es)(?: dir| ihnen)?|alles (?:klar|gut|ok|okay)(?: bei dir| bei ihnen)?|was machst du(?: gerade| so)?|wie läuft'?s(?: bei dir)?)?[?!.\s]*$/i;
     const ackTimer = SMALLTALK_NO_ACK.test(text.trim()) ? null : setTimeout(() => {
         if (opts.collect) return;   // im Protokoll wird nicht zwischendurch gesprochen
-        speakAck(pickRandom(ackPhrasesFor(text)));
+        speakAck(ackPhraseNow(text));
     }, ACK_START_MS);
     window.__groqAckTimer = ackTimer;   // damit die Schutzhülle (sendToGroqSmart) ihn bei einem frühen Fehler stoppen kann
 
@@ -109,6 +109,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
     const now = new Date();
     const nowGermanIso = now.toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).replace(' ', 'T');
     const nearbyFuelData = await tankFuerFrage(text);   // auch für die HUD-Karten unten genutzt
+    typeWriterStatus("Gleiche mit dem Gedächtnis ab...");
     const semanticMemoryHits = await searchSemanticMemory(text);   // bedeutungsähnliche Erinnerungen zur aktuellen Frage
 
     const contextData = {
@@ -147,6 +148,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
         ...chatHistory.slice(-16)
     ];
 
+    typeWriterStatus("Formuliere die Antwort...");
     try {
         const res = await apiFetch('/api/groq', {
             method: 'POST',
