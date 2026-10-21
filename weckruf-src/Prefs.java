@@ -28,6 +28,8 @@ final class Prefs {
     static void setStatus(Context c, String s) { sp(c).edit().putString("status", s).apply(); }
     static String last(Context c) { return sp(c).getString("last", "-"); }
     static void setLast(Context c, String s) { sp(c).edit().putString("last", s).apply(); }
+    static String stat(Context c) { return sp(c).getString("stat", "noch keine Messung"); }
+    static void setStat(Context c, String s) { sp(c).edit().putString("stat", s).apply(); }
     static int hits(Context c) { return sp(c).getInt("hits", 0); }
     static void addHit(Context c) { sp(c).edit().putInt("hits", hits(c) + 1).apply(); }
 }

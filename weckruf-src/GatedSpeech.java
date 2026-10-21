@@ -20,6 +20,7 @@ class GatedSpeech {
     private static final int VORLAUF = 5;        // 5 x 100 ms
     private static final int NACHLAUF = 12;      // 1,2 s Stille nach der letzten Lautstärke, dann Ergebnis abholen
 
+    private final android.content.Context ctx;
     private final Recognizer rec;
     private final int rate;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -27,7 +28,8 @@ class GatedSpeech {
     private Thread th;
     private volatile boolean run = false;
 
-    GatedSpeech(Recognizer rec, float rate) {
+    GatedSpeech(android.content.Context ctx, Recognizer rec, float rate) {
+        this.ctx = ctx.getApplicationContext();
         this.rec = rec;
         this.rate = (int) rate;
     }
@@ -61,7 +63,8 @@ class GatedSpeech {
         int ringN = 0, ringPos = 0;       // ringPos: Platz für den nächsten Block
         double boden = 60;                // geschätzter Ruhepegel der Umgebung
         boolean rechnet = false;
-        int still = 0;
+        int still = 0, lautSerie = 0;
+        long gesamt = 0, gerechnet = 0, fenster = 0, fensterRechnet = 0;
         try {
             while (run) {
                 int n = ar.read(cur, 0, chunk);
@@ -71,8 +74,15 @@ class GatedSpeech {
                 for (int i = 0; i < n; i++) sum += (double) cur[i] * cur[i];
                 double rms = Math.sqrt(sum / n);
                 boolean laut = rms > boden * 2.2 + 60;
-                if (!laut) boden = Math.max(25, Math.min(3000, boden * 0.97 + rms * 0.03));
+                if (!laut) { boden = Math.max(25, Math.min(3000, boden * 0.97 + rms * 0.03)); lautSerie = 0; }
+                else if (++lautSerie > 30) boden = Math.min(3000, boden * 0.9 + rms * 0.1);   // seit über 3 s durchgehend laut: Dauerlärm (Fernseher, Auto), nicht "Hey Nova" - die Schranke passt sich an
 
+                gesamt++; fenster++;
+                if (rechnet) { gerechnet++; fensterRechnet++; }
+                if (fenster >= 100) {   // alle 10 Sekunden: Messwert für die Einstellungen
+                    try { Prefs.setStat(ctx, Math.round(100.0 * fensterRechnet / fenster) + " % zuletzt, " + Math.round(100.0 * gerechnet / gesamt) + " % seit Start"); } catch (Throwable ignored) { }
+                    fenster = 0; fensterRechnet = 0;
+                }
                 if (!rechnet) {
                     if (laut) {
                         rechnet = true;

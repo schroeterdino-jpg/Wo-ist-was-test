@@ -343,7 +343,7 @@ public class WakeService extends Service implements RecognitionListener {
         try {
             Recognizer rec = new Recognizer(model, 16000.0f, grammar());
             rec.setWords(true);
-            speech = new GatedSpeech(rec, 16000.0f);
+            speech = new GatedSpeech(this, rec, 16000.0f);
             speech.startListening(this);
             speechSince = System.currentTimeMillis();
             Prefs.setStatus(this, "lauscht auf „Hey Nova“");
