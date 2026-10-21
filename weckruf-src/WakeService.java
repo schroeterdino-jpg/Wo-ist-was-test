@@ -25,6 +25,7 @@ import org.vosk.Recognizer;
 import org.vosk.android.RecognitionListener;
 import org.vosk.android.SpeechService;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -49,6 +50,8 @@ public class WakeService extends Service implements RecognitionListener {
     private final Handler main = new Handler(Looper.getMainLooper());
     private Model model;
     private GatedSpeech speech;
+    private OwwEngine oww;           // openWakeWord (Engine 1), sonst bleibt Vosk (Engine 0) im Einsatz
+    private OwwSpeech owwSpeech;
     private PowerManager.WakeLock wakeLock;
     private boolean loading = false;
     private boolean alive = false;
@@ -70,7 +73,7 @@ public class WakeService extends Service implements RecognitionListener {
                 if (pageBusy && jetzt - busySince > 600000) { pageBusy = false; geloest = true; }
                 if (geloest) evalVosk();
                 if (want()) {
-                    if (speech == null && !startPending) evalVosk();
+                    if (!listening() && !startPending) evalVosk();
                     else if (speech != null && System.currentTimeMillis() - speechSince > 240000) {
                         stopSpeech();
                         evalVosk();
@@ -190,7 +193,7 @@ public class WakeService extends Service implements RecognitionListener {
         PendingIntent togPi = PendingIntent.getService(this, 2, tog, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         return new Notification.Builder(this, CH_LISTEN)
                 .setContentTitle(manuell ? "Nova ist aus" : aus ? "Nova schläft (Nachtruhe)" : "Nova hört zu")
-                .setContentText(manuell ? "„Hey Nova“ ist ausgeschaltet" : aus ? "Nachtruhe bis " + Prefs.hhmm(Prefs.nightTo(this)) + " Uhr" : "Sag „Hey Nova“")
+                .setContentText(manuell ? "„" + weckwort() + "“ ist ausgeschaltet" : aus ? "Nachtruhe bis " + Prefs.hhmm(Prefs.nightTo(this)) + " Uhr" : "Sag „" + weckwort() + "“")
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                 .setOngoing(true)
                 .setContentIntent(pi)
@@ -223,7 +226,8 @@ public class WakeService extends Service implements RecognitionListener {
         alive = true;
         if (!watchdogOn) { watchdogOn = true; main.postDelayed(watchdog, 15000); }
         wakeLockAnpassen();
-        if (model == null) {
+        if (!ready()) {
+            stopSpeech();   // z. B. nach Wechsel der Erkennung: die alte hört nicht weiter zu, bis die neue geladen ist
             loadModel();
         } else {
             stopSpeech();   // z. B. nach Änderung der Empfindlichkeit: mit neuer Wortliste neu starten
@@ -232,8 +236,48 @@ public class WakeService extends Service implements RecognitionListener {
         return START_STICKY;
     }
 
+    private boolean useOww() { return Prefs.engine(this) == 1; }
+
+    /** Name des Weckworts für Anzeigen; im openWakeWord-Test ist es das fertige Modell "Hey Jarvis". */
+    private String weckwort() { return useOww() ? "Hey Jarvis" : "Hey Nova"; }
+
+    /** Ist die gewählte Erkennung geladen? */
+    private boolean ready() { return useOww() ? oww != null : model != null; }
+
+    private boolean listening() { return speech != null || owwSpeech != null; }
+
+    private byte[] assetBytes(String name) throws Exception {
+        try (InputStream in = getAssets().open(name); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buf = new byte[65536];
+            int r;
+            while ((r = in.read(buf)) > 0) out.write(buf, 0, r);
+            return out.toByteArray();
+        }
+    }
+
+    private void loadOww() {
+        loading = true;
+        Prefs.setStatus(this, "lädt openWakeWord …");
+        new Thread(() -> {
+            try {
+                OwwEngine e = new OwwEngine(assetBytes("oww/melspectrogram.onnx"), assetBytes("oww/embedding_model.onnx"), assetBytes("oww/wake.onnx"));
+                main.post(() -> {
+                    loading = false;
+                    if (!alive || !useOww()) { e.close(); return; }
+                    if (model != null) { model.close(); model = null; }   // Vosk wird in diesem Modus nicht gebraucht, das spart Speicher
+                    oww = e;
+                    evalVosk();
+                });
+            } catch (Throwable e) {
+                loading = false;
+                Prefs.setStatus(this, "Fehler beim Laden (openWakeWord): " + e);
+            }
+        }).start();
+    }
+
     private void loadModel() {
         if (loading) return;
+        if (useOww()) { loadOww(); return; }
         loading = true;
         Prefs.setStatus(this, "lädt Sprachmodell …");
         new Thread(() -> {
@@ -248,7 +292,8 @@ public class WakeService extends Service implements RecognitionListener {
                 Model m = new Model(dir.getAbsolutePath());
                 main.post(() -> {
                     loading = false;
-                    if (!alive) { m.close(); return; }
+                    if (!alive || useOww()) { m.close(); return; }
+                    if (oww != null) { oww.close(); oww = null; }
                     model = m;
                     evalVosk();
                 });
@@ -283,7 +328,7 @@ public class WakeService extends Service implements RecognitionListener {
 
     // ---- Wann lauschen wir? Nicht, wenn Nova spricht/zuhört oder die Spracherkennung läuft ----
     private boolean want() {
-        if (!alive || model == null) return false;
+        if (!alive || !ready()) return false;
         if (ausgeschaltet()) return false;
         if (recActive) return false;
         if (System.currentTimeMillis() < holdUntil) return false;
@@ -293,7 +338,7 @@ public class WakeService extends Service implements RecognitionListener {
 
     private final Runnable startRun = () -> {
         startPending = false;
-        if (want() && speech == null) startSpeech();
+        if (want() && !listening()) startSpeech();
     };
 
     void evalVosk() {
@@ -305,16 +350,16 @@ public class WakeService extends Service implements RecognitionListener {
                 Prefs.setStatus(this, Prefs.muted(this) ? "aus (Knopf in der Benachrichtigung)" : "Nachtruhe bis " + Prefs.hhmm(Prefs.nightTo(this)) + " Uhr");
                 return;
             }
-            if (speech != null) {
+            if (listening()) {
                 stopSpeech();
                 Prefs.setStatus(this, "Pause (" + (recActive ? "Spracherkennung läuft" : System.currentTimeMillis() < holdUntil ? "Ordner oder Kamera offen, oder Nova gerade geweckt" : "Nova spricht oder hört zu") + ")");
             }
-            if (alive && model != null && System.currentTimeMillis() < holdUntil) {
+            if (alive && ready() && System.currentTimeMillis() < holdUntil) {
                 main.postDelayed(this::evalVosk, holdUntil - System.currentTimeMillis() + 100);
             }
             return;
         }
-        if (speech == null && !startPending) {
+        if (!listening() && !startPending) {
             startPending = true;
             main.postDelayed(startRun, 1500);   // kurz warten, damit Nova-Ton nicht ins Weckwort fällt
         }
@@ -337,9 +382,39 @@ public class WakeService extends Service implements RecognitionListener {
         return g.toString();
     }
 
+    // ---- openWakeWord: Schwelle je nach Empfindlichkeit (0 streng, 1 normal, 2 empfindlich) ----
+    private float owwSchwelle() {
+        int l = Prefs.level(this);
+        return l == 0 ? 0.75f : (l == 1 ? 0.5f : 0.35f);
+    }
+
+    private void startOww() {
+        try {
+            owwSpeech = new OwwSpeech(this, oww, owwSchwelle());
+            owwSpeech.startListening(new OwwSpeech.Listener() {
+                @Override public void onWake(float score) {
+                    if (owwSpeech == null) return;   // inzwischen pausiert: Treffer verwerfen
+                    trigger();
+                }
+                @Override public void onError(Exception e) {
+                    Prefs.setStatus(WakeService.this, "Fehler: " + e);
+                    stopSpeech();
+                    main.postDelayed(WakeService.this::evalVosk, 2000);
+                }
+            });
+            speechSince = System.currentTimeMillis();
+            Prefs.setStatus(this, "lauscht auf „" + weckwort() + "“ (openWakeWord)");
+        } catch (Throwable e) {
+            if (owwSpeech != null) { try { owwSpeech.shutdown(); } catch (Throwable ignored) { } }
+            owwSpeech = null;
+            Prefs.setStatus(this, "Fehler beim Lauschen: " + e);
+        }
+    }
+
     private void startSpeech() {
         stopSpeech();
-        if (model == null || !alive) return;
+        if (!alive || !ready()) return;
+        if (useOww()) { startOww(); return; }
         try {
             Recognizer rec = new Recognizer(model, 16000.0f, grammar());
             rec.setWords(true);
@@ -357,6 +432,11 @@ public class WakeService extends Service implements RecognitionListener {
         if (speech != null) {
             try { speech.stop(); speech.shutdown(); } catch (Throwable ignored) { }
             speech = null;
+        }
+        if (owwSpeech != null) {
+            OwwSpeech o = owwSpeech;
+            owwSpeech = null;
+            try { o.stop(); o.shutdown(); } catch (Throwable ignored) { }
         }
     }
 
@@ -456,6 +536,7 @@ public class WakeService extends Service implements RecognitionListener {
         main.removeCallbacksAndMessages(null);
         stopSpeech();
         if (model != null) { model.close(); model = null; }
+        if (oww != null) { oww.close(); oww = null; }
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         wakeLock = null;
         Prefs.setStatus(this, "aus");

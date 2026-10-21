@@ -41,11 +41,12 @@ android {
     }
 
     androidResources {
-        noCompress 'mdl', 'fst', 'conf', 'int', 'txt', 'mat', 'stats', 'ie', 'dubm', 'raw'
+        noCompress 'mdl', 'fst', 'conf', 'int', 'txt', 'mat', 'stats', 'ie', 'dubm', 'raw', 'onnx'
     }
 }
 
 dependencies {
     implementation 'com.alphacephei:vosk-android:0.3.47'
     implementation 'net.java.dev.jna:jna:5.13.0@aar'
+    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.19.2'
 }

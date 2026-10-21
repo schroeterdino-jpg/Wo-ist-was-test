@@ -53,6 +53,16 @@ jobs:
           rm model.zip
           du -sh app/src/main/assets/model
 
+      - name: openWakeWord-Modelle laden
+        run: |
+          cd weckruf
+          mkdir -p app/src/main/assets/oww
+          B=https://github.com/dscripka/openWakeWord/releases/download/v0.5.1
+          curl -fL -o app/src/main/assets/oww/melspectrogram.onnx $B/melspectrogram.onnx
+          curl -fL -o app/src/main/assets/oww/embedding_model.onnx $B/embedding_model.onnx
+          curl -fL -o app/src/main/assets/oww/wake.onnx $B/hey_jarvis_v0.1.onnx
+          du -sh app/src/main/assets/oww
+
       - name: APK bauen
         run: |
           cd weckruf
