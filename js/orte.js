@@ -1,10 +1,10 @@
 /* ============================================================
    ORTS-ERINNERUNGEN (nur in der Android-App): Kommst du an einem Supermarkt in Schwarzenbek an (Penny, Aldi, Edeka, Rewe, Lidl),
-   sagt Nova dir, was auf deiner Einkaufsliste steht. Das geht auch bei gesperrtem Handy: Die App lässt sich vom Handy bei
-   Standortänderungen wecken (OrtReceiver), schaltet den Bildschirm ein und holt Nova nach vorn; Nova spricht dann (plan_ansagen.js ruft ansage() hier auf).
+   sagt Jarvis dir, was auf deiner Einkaufsliste steht. Das geht auch bei gesperrtem Handy: Die App lässt sich vom Handy bei
+   Standortänderungen wecken (OrtReceiver), schaltet den Bildschirm ein und holt Jarvis nach vorn; Jarvis spricht dann (plan_ansagen.js ruft ansage() hier auf).
    - Orte: aus den Kartendaten (OpenStreetMap, wie die Orte-Suche), 14 Tage gemerkt.
    - Meldet höchstens alle 3 Stunden pro Markt, nur zwischen 8 und 21 Uhr und nur, wenn etwas auf der Einkaufsliste steht.
-   - Voraussetzung: Standort-Erlaubnis "Immer zulassen" für die Nova-App (Nova fragt einmal nach und öffnet die Einstellungen).
+   - Voraussetzung: Standort-Erlaubnis "Immer zulassen" für die Jarvis-App (Jarvis fragt einmal nach und öffnet die Einstellungen).
    Sprachbefehle: "Ortserinnerungen aus/an", "Wo meldest du dich?", "Teste die Ortserinnerung", "Ortszugriff einrichten".
    Braucht: window.ZaneNative.planOrte (neue App), shoppingEntries, jvOverpass (ortsuche.js) oder /api/overpass.
    ============================================================ */
@@ -179,12 +179,12 @@
         if (document.hidden) return;
         lsSet(K_FRAGE, String(Date.now()));
         frageOffen = Date.now();
-        karte([{ icon: '📍', title: 'Standort „Immer zulassen“', subtitle: 'Damit Nova dich im Supermarkt erinnern kann', onclick: 'jvOrte.rechte()' }]);
+        karte([{ icon: '📍', title: 'Standort „Immer zulassen“', subtitle: 'Damit Jarvis dich im Supermarkt erinnern kann', onclick: 'jvOrte.rechte()' }]);
         sagen('Ich kann dich im Supermarkt an deine Einkaufsliste erinnern. Dafür braucht die App den Standort mit der Einstellung „Immer zulassen“. Soll ich dir die Einstellungen öffnen?');
     }
     function rechte() {
         const n = window.ZaneNative;
-        if (!n || typeof n.ortRechte !== 'function') { sagen('Dafür brauchst du die neue Nova-App.'); return; }
+        if (!n || typeof n.ortRechte !== 'function') { sagen('Dafür brauchst du die neue Jarvis-App.'); return; }
         frageOffen = 0;
         n.ortRechte();
         sagen('Ich öffne die Einstellungen. Tippe auf Berechtigungen, dann auf Standort, und wähle „Immer zulassen“.');
@@ -213,7 +213,7 @@
         }
         if (/\b(orts ?erinnerung\w*|standort ?erinnerung\w*)\b/.test(t)) {
             if (/\b(test\w*|probe\w*)\b/.test(t)) {
-                if (!N()) { sagen('Die Ortserinnerungen gibt es nur in der Nova-App.'); return true; }
+                if (!N()) { sagen('Die Ortserinnerungen gibt es nur in der Jarvis-App.'); return true; }
                 if (!einkauf().length) { sagen('Deine Einkaufsliste ist leer, so gibt es nichts zu erinnern. Setz erst etwas auf die Liste.'); return true; }
                 ansage('ort|' + Date.now() + '|Edeka (Test)'); return true;
             }
@@ -221,13 +221,13 @@
             if (/\b(an\w*|ein\w*|aktiv\w*|starte\w*)\b/.test(t)) { lsSet(K_AN, '1'); senden(true); setTimeout(erlaubnisFragen, 1500); sagen('Okay, ich erinnere dich wieder, wenn du an einem Supermarkt ankommst.'); return true; }
         }
         if (/^(such\w*|lad\w*|aktualisier\w*) (die |deine )?(maerkte|supermaerkte|orte) neu$/.test(t)) {
-            if (!N()) { sagen('Die Ortserinnerungen gibt es nur in der Nova-App.'); return true; }
+            if (!N()) { sagen('Die Ortserinnerungen gibt es nur in der Jarvis-App.'); return true; }
             sagen('Ich suche die Märkte neu. Einen Moment.');
             ladeOrte(true).then(o => { senden(true, false); sagen(o && o.length ? 'Gefunden: ' + o.length + ' Märkte, ' + undListe([...new Set(o.map(x => x.name))]) + '.' : 'Ich habe keine Märkte gefunden. ' + (grundText() ? 'Grund: ' + grundText() + '.' : '')); }).catch(() => sagen('Das hat gerade nicht geklappt.'));
             return true;
         }
         if (/\b(wo|bei welchen)\b.*\b(meldest|erinnerst)\b.*\bdu\b|\bwelche (maerkte|supermaerkte|orte)\b.*\b(kennst|merkst|ueberwachst)\b/.test(t)) {
-            if (!N()) { sagen('Die Ortserinnerungen gibt es nur in der Nova-App.'); return true; }
+            if (!N()) { sagen('Die Ortserinnerungen gibt es nur in der Jarvis-App.'); return true; }
             ladeOrte(true).then(o => {
                 const s = status();
                 const namen = [...new Set((o || []).map(x => x.name))];

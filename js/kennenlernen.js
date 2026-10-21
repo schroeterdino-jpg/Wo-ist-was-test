@@ -1,14 +1,14 @@
 /* ============================================================
-   KENNENLERN-FRAGEN: Nova stellt dir von selbst ab und zu EINE Frage, damit sie dich besser kennenlernt.
+   KENNENLERN-FRAGEN: Jarvis stellt dir von selbst ab und zu EINE Frage, damit sie dich besser kennenlernt.
    - Höchstens 2 Fragen pro Tag, mindestens 2,5 Stunden Abstand, nur zwischen 9 und 20:30 Uhr.
    - Nur wenn Ruhe ist (wie bei zane_redet.js): App sichtbar, nichts läuft, du hast 20 Sekunden nichts getippt oder gesagt,
-     keine Ruhezeit (wachter.js) und "Nova meldet sich von selbst" ist an.
-     Schon 20 Sekunden nach dem Öffnen der App (und 20 Sekunden nach deiner letzten Eingabe) darf Nova fragen; du musst nichts eintragen.
-   - Die KI denkt sich die Frage selbst aus: passend zu dem, was Nova schon über dich weiß (Langzeitgedächtnis), zu Wochentag und Tageszeit,
-     ohne Wiederholung ("schon gefragt"). Nichts zu Gesundheit, Geld, Religion, Politik, Alter. Fällt die KI aus, nimmt Nova eine Frage aus einer festen Liste (40 Stück).
+     keine Ruhezeit (wachter.js) und "Jarvis meldet sich von selbst" ist an.
+     Schon 20 Sekunden nach dem Öffnen der App (und 20 Sekunden nach deiner letzten Eingabe) darf Jarvis fragen; du musst nichts eintragen.
+   - Die KI denkt sich die Frage selbst aus: passend zu dem, was Jarvis schon über dich weiß (Langzeitgedächtnis), zu Wochentag und Tageszeit,
+     ohne Wiederholung ("schon gefragt"). Nichts zu Gesundheit, Geld, Religion, Politik, Alter. Fällt die KI aus, nimmt Jarvis eine Frage aus einer festen Liste (40 Stück).
    - Nach der Frage öffnet sich das Mikrofon. Deine Antwort wird als kurzer Satz im Langzeitgedächtnis gespeichert (Kategorie Vorliebe).
      Sagst du etwas ganz anderes (einen Befehl), läuft das ganz normal weiter und die Frage verfällt.
-     Sensibles (Gesundheit, Geld, Religion, Politik, Sexualität ...) speichert Nova nicht.
+     Sensibles (Gesundheit, Geld, Religion, Politik, Sexualität ...) speichert Jarvis nicht.
    - Sprache: "Stell mir eine Frage" / "Frag mich was" (sofort eine), "Kennenlern-Fragen aus" / "an", "Frag mich nicht mehr",
      "Überspringen" / "Lieber nicht" / "Weiß ich nicht" als Antwort auf eine Frage.
    - Alles Gespeicherte siehst du im Fenster "Langzeitgedächtnis" und kannst es dort einzeln löschen.
@@ -74,7 +74,7 @@
         ['k36', 'Wunschprojekt', 'Gibt es ein Projekt zu Hause oder im Garten, das du unbedingt mal angehen willst?'],
         ['k37', 'Lieblingsort', 'Wo in deiner Umgebung bist du am liebsten?'],
         ['k38', 'Lieblingssatz', 'Gibt es einen Spruch oder ein Wort, das du oft benutzt?'],
-        ['k39', 'Nova', 'Was soll ich dir im Alltag am meisten abnehmen?'],
+        ['k39', 'Jarvis', 'Was soll ich dir im Alltag am meisten abnehmen?'],
         ['k40', 'Tagesablauf', 'Welche Tageszeit ist für dich die beste, wenn du Ruhe zum Nachdenken hast?']
     ];
     function fragenListe() { return FRAGEN.map(function (f) { return { id: f[0], thema: f[1], text: f[2] }; }); }
@@ -85,7 +85,7 @@
     function gefragt() { try { var a = JSON.parse(get(ASKED_KEY, '[]')); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
     function gefragtMerken(id) { var a = gefragt(); if (a.indexOf(id) < 0) a.push(id); set(ASKED_KEY, JSON.stringify(a.slice(-200))); }
 
-    /* ---------- Wann darf Nova fragen? ---------- */
+    /* ---------- Wann darf Jarvis fragen? ---------- */
     var geoeffnet = Date.now(), letzteAktion = Date.now(), laeuft = false, pending = null;
     ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) { document.addEventListener(ev, function () { letzteAktion = Date.now(); }, { passive: true, capture: true }); });
 
@@ -116,8 +116,8 @@
     function zufall(a) { return a[Math.floor(Math.random() * a.length)]; }
     function mischen(a) { var b = a.slice(); for (var i = b.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = b[i]; b[i] = b[j]; b[j] = t; } return b; }
 
-    /* Die KI denkt sich die Frage selbst aus: passend zu dem, was Nova schon über dich weiß, und zu Wochentag und Tageszeit.
-       Fällt die KI aus, nimmt Nova eine Frage aus der festen Liste oben. */
+    /* Die KI denkt sich die Frage selbst aus: passend zu dem, was Jarvis schon über dich weiß, und zu Wochentag und Tageszeit.
+       Fällt die KI aus, nimmt Jarvis eine Frage aus der festen Liste oben. */
     var TEXTE_KEY = 'jv_kennen_texte';
     var SENSIBEL_RX = /krank|gesundheit|arzt|medikament|diagnose|schulden|gehalt|verdien|geld|einkommen|steuer|politik|partei|wähl|religi|glaub|gott|sex|polizei|straf|gericht|missbrauch|depress|therapie|alter\b|wie alt/i;
     function gefragteTexte() { try { var a = JSON.parse(get(TEXTE_KEY, '[]')); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
@@ -128,7 +128,7 @@
     function erfinde(bek) {
         if (typeof apiFetch !== 'function') return Promise.resolve(null);
         var ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, 12000);
-        var system = 'Du bist Nova, der persönliche Sprachassistent von ' + name() + '. Du möchtest ihn besser kennenlernen und stellst ihm JETZT eine einzige Frage, die du dir selbst ausdenkst. ' +
+        var system = 'Du bist Jarvis, der persönliche Sprachassistent von ' + name() + '. Du möchtest ihn besser kennenlernen und stellst ihm JETZT eine einzige Frage, die du dir selbst ausdenkst. ' +
             'Regeln: Deutsch, duzen, wie ein neugieriger, netter Kumpel. Genau EINE Frage, höchstens 25 Wörter, laut vorgelesen, ohne Emojis, ohne Anführungszeichen, mit Fragezeichen am Ende. ' +
             'Frage über Alltag, Vorlieben, Hobbys, Essen, Musik, Filme, Reisen, Auto, Garten, Familienunternehmungen, Wünsche und Pläne, Gewohnheiten, Lieblingsorte, Technik. ' +
             'Wenn in "bekannt" etwas steht, kannst du daran anknüpfen und tiefer fragen ("Du hast mal erwähnt, dass ... Wie ...?"), oder ein neues Thema wählen. ' +
@@ -192,11 +192,11 @@
     function antwortAuswerten(text, frage) {
         if (typeof apiFetch !== 'function') return Promise.resolve(null);
         var ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, 12000);
-        var system = 'Nova (Sprachassistent) hat ' + name() + ' gerade eine Frage gestellt, und er hat per Spracheingabe (Fehler möglich) etwas gesagt. Entscheide: ' +
+        var system = 'Jarvis (Sprachassistent) hat ' + name() + ' gerade eine Frage gestellt, und er hat per Spracheingabe (Fehler möglich) etwas gesagt. Entscheide: ' +
             '(1) "antwort": true NUR wenn der Satz eine Antwort auf die Frage ist. Ein Befehl, eine Gegenfrage oder ein anderes Thema ist KEINE Antwort (false). ' +
             '(2) "fakt": die Antwort als EIN kurzer, klarer Satz über ihn in der dritten Person, zum Beispiel "' + name() + ' trinkt morgens am liebsten Kaffee." Nichts dazuerfinden. ' +
             '(3) "sensibel": true, wenn es um Gesundheit, Krankheit, Geld oder Schulden, Religion, Politik, Sexualität, Straftaten oder Kinder-Details geht. ' +
-            '(4) "ack": eine ganz kurze, freundliche Reaktion von Nova, ein Satz, max. 12 Wörter, duzen, ohne Emojis, passend zur Antwort (kein bloßes "Danke für die Antwort"). ' +
+            '(4) "ack": eine ganz kurze, freundliche Reaktion von Jarvis, ein Satz, max. 12 Wörter, duzen, ohne Emojis, passend zur Antwort (kein bloßes "Danke für die Antwort"). ' +
             'Antworte NUR mit JSON: {"antwort":bool,"fakt":"...","sensibel":bool,"ack":"..."}.';
         return apiFetch('/api/groq', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl.signal,

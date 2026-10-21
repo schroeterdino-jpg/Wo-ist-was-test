@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nova</title>
+    <title>Jarvis</title>
     <!-- FEHLERANZEIGE (steht absichtlich ganz vorn und unabhängig von allen js-Dateien): zeigt Programmfehler, nicht ladbare Dateien und fehlende Funktionen als roten Streifen unten -->
     <script>
     (function () {
@@ -123,7 +123,7 @@
     </style>
 </head>
 <body class="bg-[#050a10] text-slate-100 min-h-screen flex flex-col justify-between">
-    <script src="./js/boot.js?v=20261021-wb"></script>
+    <script src="./js/boot.js?v=20261021-jv"></script>
 
     <div class="scanline-overlay"></div>
     <div id="grid-canvas"></div>
@@ -136,7 +136,7 @@
         <div class="hud-corner hud-corner-br"></div>
         <div class="hud-badge hud-badge-tl">
             <span class="hud-dot"></span>
-            <span>NOVA <span class="hud-badge-sub">ONLINE</span></span>
+            <span>JARVIS <span class="hud-badge-sub">ONLINE</span></span>
         </div>
         <div class="hud-badge hud-badge-tr">
             <span id="hudClock">--:--</span>
@@ -149,7 +149,7 @@
             <div class="flex justify-between items-center max-w-md mx-auto">
                 <button onclick="playUiBeep(); openPanel('menu')" aria-label="Menü" class="bg-[#0a1621] hover:bg-cyan-950/50 text-[#49d7ff] p-2.5 rounded-lg text-sm shadow flex items-center justify-center border border-[rgba(93,209,255,.18)] transition w-10">☰</button>
                 <div>
-                    <h1 class="text-base font-black text-[#49d7ff] glow-cyan tracking-wider leading-tight">NOVA</h1>
+                    <h1 class="text-base font-black text-[#49d7ff] glow-cyan tracking-wider leading-tight">JARVIS</h1>
                     <p id="userNameDisplay" class="text-xs font-bold text-[#49d7ff]/80 tracking-widest uppercase mt-0.5 font-mono">Hallo, Dino!</p>
                 </div>
                 <button onclick="playUiBeep(); openPanel('settings')" class="bg-[#0a1621] hover:bg-cyan-950/50 text-[#49d7ff] p-2.5 rounded-lg text-sm shadow flex items-center justify-center border border-[rgba(93,209,255,.18)] transition">
@@ -211,7 +211,7 @@
                         <span id="hudSubtitleText" class="tracking-wide">System bereit. Warte auf Spracheingabe...</span>
                     </div>
 
-                    <span id="recordText" class="font-mono text-xs tracking-widest text-[#49d7ff]">NOVA / BEREIT</span>
+                    <span id="recordText" class="font-mono text-xs tracking-widest text-[#49d7ff]">JARVIS / BEREIT</span>
                     <p id="statusMessage" class="text-center font-semibold text-[#49d7ff] h-6 tracking-wide text-sm font-mono">Klicken zum Sprechen...</p>
                 </div>
 
@@ -376,7 +376,7 @@
                         </div>
                         <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer pt-1">
                             <input type="checkbox" id="proactiveToggle" class="w-5 h-5 accent-[#49d7ff]" checked>
-                            <span>Nova meldet sich von selbst (Abfahrtszeit, Regen, Unwetterwarnungen, Geburtstage)</span>
+                            <span>Jarvis meldet sich von selbst (Abfahrtszeit, Regen, Unwetterwarnungen, Geburtstage)</span>
                         </label>
                         <p class="text-xs text-[#5d7e91] font-mono pl-8">Nur solange die App offen ist, nie zwischen 22 und 7 Uhr. Per Sprache: „Melde dich nicht mehr von selbst" / „Melde dich von selbst".</p>
                     </div>
@@ -431,7 +431,7 @@
                     </summary>
                     <div class="p-4 space-y-3">
                         <div id="kopfRow">
-                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Kopf von Nova:</label>
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Kopf von Jarvis:</label>
                             <select id="kopfSelect" class="w-full p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
                                 <option value="jung">Jung (der bisherige Kopf)</option>
                                 <option value="reif">Reif (dunkle Haut, graue Haare)</option>
@@ -510,12 +510,12 @@
                         </label>
                         <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer pt-1">
                             <input type="checkbox" id="wakeWordToggle" class="w-5 h-5 accent-[#49d7ff]" onchange="setWakeWordEnabled(this.checked)">
-                            <span>Weckwort-Modus: hört auf „Hey Nova", solange die App offen ist</span>
+                            <span>Weckwort-Modus: hört auf „Hey Jarvis", solange die App offen ist</span>
                         </label>
                         <p class="text-xs text-[#5d7e91] font-mono pl-8">Braucht dauerhaften Mikrofon-Zugriff, zeigt dafür das Mikro-Symbol von Android permanent an und verbraucht etwas mehr Akku. Funktioniert nur, solange die App im Vordergrund ist.</p>
                         <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
                             <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Aussprache-Liste:</label>
-                            <p class="text-xs text-[#5d7e91] font-mono">Wie soll Nova ein Wort oder einen Namen sprechen? Per Sprache: „Sprich Alyssa so aus: Alischa." Oder hier eintragen. Angezeigt wird weiter die normale Schreibweise.</p>
+                            <p class="text-xs text-[#5d7e91] font-mono">Wie soll Jarvis ein Wort oder einen Namen sprechen? Per Sprache: „Sprich Alyssa so aus: Alischa." Oder hier eintragen. Angezeigt wird weiter die normale Schreibweise.</p>
                             <div class="flex gap-2">
                                 <input type="text" id="pronWordInput" placeholder="Wort, z.B. Alyssa" autocomplete="off" class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
                                 <input type="text" id="pronSpokenInput" placeholder="So sprechen, z.B. Alischa" autocomplete="off" class="w-1/2 p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff]">
@@ -541,7 +541,7 @@
                             <div class="flex justify-between text-xs text-[#5d7e91]"><span>leiser</span><span>lauter</span></div>
                         </div>
                         <button onclick="playUiBeep(); testSounds()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-lg text-sm font-bold border border-slate-700 uppercase">Töne testen</button>
-                        <p class="text-xs text-[#5d7e91] font-mono">Per Sprache: „Töne aus“, „Töne an“, „Töne leiser“, „Töne lauter“. Gilt nur für die Effekt-Töne, nicht für die Stimme von Nova.</p>
+                        <p class="text-xs text-[#5d7e91] font-mono">Per Sprache: „Töne aus“, „Töne an“, „Töne leiser“, „Töne lauter“. Gilt nur für die Effekt-Töne, nicht für die Stimme von Jarvis.</p>
                     </div>
                 </details>
 
@@ -705,7 +705,7 @@
 
         <!-- Fußzeile: ausgeblendet -->
         <footer class="ui-hidden bg-[#081424]/90 backdrop-blur border-t border-[rgba(93,209,255,.18)] text-center p-3 text-xs text-[#49d7ff]/80 flex justify-between items-center px-6 font-mono">
-            <span>NOVA HUD SHELL</span>
+            <span>JARVIS HUD SHELL</span>
             <span class="font-bold">v13.1 (Marvel Edition)</span>
         </footer>
     </div>
@@ -724,7 +724,7 @@
     </div>
 
     <!-- Reihenfolge ist wichtig: Jede Datei darf nur Dinge nutzen, die weiter oben geladen wurden. -->
-    <script src="./js/ui.js?v=20261020-untertitel"></script>
+    <script src="./js/ui.js?v=20261021-jv"></script>
     <script src="./js/audio.js"></script>
     <script src="./js/sphere.js?v=20261020-mund3"></script>
     <script src="./js/storage.js"></script>
@@ -739,9 +739,9 @@
     <script src="./js/nearby.js?v=20261013-recovery"></script>
     <script src="./js/smarttips.js"></script>
     <script src="./js/sync.js?v=20261021-abf"></script>
-    <script src="./js/native_speech.js?v=20261021-wb"></script>
-    <script src="./js/voice.js?v=20261021-stimme"></script>
-    <script src="./js/pronunciation.js?v=ein3"></script>
+    <script src="./js/native_speech.js?v=20261021-jv"></script>
+    <script src="./js/voice.js?v=20261021-jv"></script>
+    <script src="./js/pronunciation.js?v=20261021-jv"></script>
     <script src="./js/voicefix.js"></script>
     <script src="./js/speechrate.js"></script>
     <script src="./js/tempo.js"></script>
@@ -759,11 +759,11 @@
     <!-- JARVIS: natürlicher Gesprächskontext + stilles Mitdenken -->
     <script src="./js/contextplus.js?v=20261014-zane"></script>
     <script src="./js/ki_mitdenken.js?v=20261015-e"></script>
-    <script src="./js/alarm.js?v=20261020-brief"></script>
+    <script src="./js/alarm.js?v=20261021-jv"></script>
     <script src="./js/formulierungen.js?v=20261014-zane"></script>
     <script src="./js/mailwatch.js?v=20261021-ruhe"></script>
     <script src="./js/fristen.js?v=20261021-ruhe"></script>
-    <script src="./js/help.js?v=20261021-wb"></script>
+    <script src="./js/help.js?v=20261021-jv"></script>
     <script src="./js/birthdays.js"></script>
     <script src="./js/weathermap.js"></script>
     <script src="./js/waehrung.js"></script>
@@ -775,24 +775,24 @@
     <script src="./js/hud_fenster.js?v=20261014-zane"></script>
     <script src="./js/rechnungen.js?v=20261014-zane"></script>
     <script src="./js/schicht.js?v=20261021-abf"></script>
-    <script src="./js/jarvis.js?v=20261021-mit"></script>
+    <script src="./js/jarvis.js?v=20261021-jv"></script>
     <script src="./js/kacheln.js?v=20261021-1"></script>
-    <script src="./js/synapsen.js?v=20261020-1"></script>
+    <script src="./js/synapsen.js?v=20261021-jv"></script>
     <script src="./js/wetterfx.js?v=20261021-abf"></script>
-    <script src="./js/ruhe.js?v=20261021-1"></script>
-    <script src="./js/vibration.js?v=20261020-1"></script>
+    <script src="./js/ruhe.js?v=20261021-jv"></script>
+    <script src="./js/vibration.js?v=20261021-jv"></script>
     <script src="./js/routinen.js?v=20261014-zane"></script>
     <script src="./js/proaktiv.js?v=20261018-vorb"></script>
     <script src="./js/fahrtcheck.js?v=20261014-zane"></script>
     <script src="./js/stadtverkehr.js?v=20261019-abf"></script>
     <script src="./js/lagebild.js?v=20261020-sv"></script>
-    <script src="./js/systemcheck_voll.js?v=20261018-1"></script>
-    <script src="./js/jvfenster.js?v=20261018-1"></script>
-    <script src="./js/laune.js?v=20261018-1"></script>
+    <script src="./js/systemcheck_voll.js?v=20261021-jv"></script>
+    <script src="./js/jvfenster.js?v=20261021-jv"></script>
+    <script src="./js/laune.js?v=20261021-jv"></script>
     <script src="./js/ergebnisse.js?v=20261018-1"></script>
     <script src="./js/bundesliga.js?v=20261019-1"></script>
-    <script src="./js/mitnehmen.js?v=20261021-mit"></script>
-    <script src="./js/einfuehrung.js?v=20261018-1"></script>
+    <script src="./js/mitnehmen.js?v=20261021-jv"></script>
+    <script src="./js/einfuehrung.js?v=20261021-jv"></script>
     <script src="./js/festnamen.js"></script>
     <script src="./js/konto.js?v=20261021-ruhe"></script>
     <script src="./js/hoerkorrektur.js?v=20261021-sich"></script>
@@ -800,7 +800,7 @@
     <script src="./js/wake_start.js"></script>
     <script src="./js/urlaub.js"></script>
     <!-- JARVIS Push: geschlossene App, Termin-/Wetter-/Mail-Synchronisierung -->
-    <script src="./js/push.js?v=20261019-diag"></script>
+    <script src="./js/push.js?v=20261021-jv"></script>
     <script src="./js/pushsync.js?v=20261020-notizen"></script>
     <script src="./js/mailpush.js?v=20261014-zane"></script>
     <script src="./js/satztest.js"></script>
@@ -816,12 +816,12 @@
     <script src="./js/foto_person.js?v=20261014-zane"></script>
     <script src="./js/karte_zu.js"></script>
     <script src="./js/foto_erkennen.js?v=20261015-auto"></script>
-    <script src="./js/foto_rezept.js?v=20261016-rz3"></script>
+    <script src="./js/foto_rezept.js?v=20261021-jv"></script>
     <!-- Neu: Feiertage, Sonne und Mond (mit Fenster), Weltzeit, Unwetterwarnungen, Filmtipps. erweiterungen.js hängt sie ein und muss danach kommen. -->
     <script src="./js/extrafenster.js"></script>
     <script src="./js/schliessen.js?v=20261015-zu"></script>
-    <script src="./js/mailaktionen.js?v=20261016-ma"></script>
-    <script src="./js/mail_nacht.js?v=20261021-ruhe"></script>
+    <script src="./js/mailaktionen.js?v=20261021-jv"></script>
+    <script src="./js/mail_nacht.js?v=20261021-jv"></script>
     <script src="./js/feiertage.js"></script>
     <script src="./js/sonnemond.js"></script>
     <script src="./js/weltzeit.js"></script>
@@ -834,8 +834,8 @@
     <script src="./js/fish.js"></script>
     <!-- JARVIS 3D v6 SAFE: bewährter v5-FaceCap-Kopf + Fish-Audio-Lippensynchronisation -->
     <script src="./js/worldqueryfix.js?v=65"></script>
-    <script src="./js/avatar3d.js?v=20261021-abf"></script>
-    <script src="./js/kopf.js?v=k2"></script>
+    <script src="./js/avatar3d.js?v=20261021-jv"></script>
+    <script src="./js/kopf.js?v=20261021-jv"></script>
     <script>
     // v6.1: Mimik-Befehle lokal abfangen, bevor sie an die KI gehen.
     (function(){
@@ -862,18 +862,18 @@
     <script src="./js/ansicht.js?v=20261019-kopf"></script>
     <script src="./js/mimik.js"></script>
     <script src="./js/holo_look.js?v=20261018-farbe2"></script>
-    <script src="./js/name.js"></script>
+    <script src="./js/name.js?v=20261021-jv"></script>
     <script src="./js/zane_redet.js"></script>
-    <script src="./js/kennenlernen.js?v=20261016-kl2"></script>
-    <script src="./js/loeschen_fragen.js"></script>
+    <script src="./js/kennenlernen.js?v=20261021-jv"></script>
+    <script src="./js/loeschen_fragen.js?v=20261021-jv"></script>
     <script src="./js/loesch_notiz.js?v=20261018-1"></script>
-    <script src="./js/teilen.js"></script>
-    <script src="./js/fotosenden.js"></script>
-    <script src="./js/plan_ansagen.js?v=20261021-abf"></script>
-    <script src="./js/schichtauskunft.js?v=20261018-1"></script>
-    <script src="./js/vorbereitung.js?v=20261018-3"></script>
-    <script src="./js/orte.js?v=20261016-o3"></script>
-    <script src="./js/karten_weg.js?v=20261016-kw1"></script>
+    <script src="./js/teilen.js?v=20261021-jv"></script>
+    <script src="./js/fotosenden.js?v=20261021-jv"></script>
+    <script src="./js/plan_ansagen.js?v=20261021-jv"></script>
+    <script src="./js/schichtauskunft.js?v=20261021-jv"></script>
+    <script src="./js/vorbereitung.js?v=20261021-jv"></script>
+    <script src="./js/orte.js?v=20261021-jv"></script>
+    <script src="./js/karten_weg.js?v=20261021-jv"></script>
 
     <!-- Die Zane-Texte (Untertitel, Status) erscheinen nur, solange er spricht, zuhört oder gerade etwas gesagt hat, und blenden sich dann wieder aus -->
     <script>

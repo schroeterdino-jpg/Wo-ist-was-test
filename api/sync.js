@@ -215,7 +215,7 @@ async function handlePush(action, req, res, redis) {
       for (const it of list.slice(0, 200)) {
         if (!it || typeof it.id !== 'string' || typeof it.x !== 'string' || typeof it.at !== 'number' || !Number.isFinite(it.at)) continue;
         if (it.k === 'p') {   // Planer-Meldung (Wochenüberblick): voller Text, wird immer geschickt, auch bei offener App
-          if (plan.length < 10) plan.push({ id: it.id.slice(0, 40), k: 'p', t: String(it.t || 'Nova').slice(0, 40), x: it.x.slice(0, 700), at: Math.round(it.at) });
+          if (plan.length < 10) plan.push({ id: it.id.slice(0, 40), k: 'p', t: String(it.t || 'Jarvis').slice(0, 40), x: it.x.slice(0, 700), at: Math.round(it.at) });
           continue;
         }
         if (it.k !== 'r' && it.k !== 'e') continue;

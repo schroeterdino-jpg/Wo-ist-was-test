@@ -1,5 +1,5 @@
 /* ============================================================
-   JARVIS-TON: Nova spricht dich mit "Sir" an (sparsam), bestätigt knapp ("Erledigt, Sir.") und mischt trockene mit sachlichen Sätzen.
+   JARVIS-TON: Jarvis spricht dich mit "Sir" an (sparsam), bestätigt knapp ("Erledigt, Sir.") und mischt trockene mit sachlichen Sätzen.
    Dazu eine kurze START-ANSAGE: einmal am Tag beim ersten Öffnen, z. B. "Systeme online. Guten Morgen, Sir. Heute Frühschicht. Draußen 7 Grad, trocken."
    Sie erscheint sofort als kleine Karte oben; gesprochen wird sie beim ersten Antippen (der Browser erlaubt Sprache erst nach einem Tipp).
    Ein/Aus per Sprache: "Jarvis-Ton aus" / "Jarvis-Ton an" (nur dieser Ton), "Start-Ansage aus" / "Start-Ansage an". Standard: beides an.

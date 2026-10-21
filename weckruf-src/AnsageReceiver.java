@@ -17,9 +17,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
- * Geplante Ansagen: Die Seite (Nova) meldet eine Liste [{id, at, text}], die App löst sie zur Uhrzeit selbst aus,
- * auch bei gesperrtem Handy. Sie schaltet den Bildschirm ein, zeigt eine Meldung mit dem Text und holt Nova nach vorn;
- * Nova spricht die Ansage dann (und rechnet sie vorher frisch aus, zum Beispiel mit der aktuellen Verkehrslage).
+ * Geplante Ansagen: Die Seite (Jarvis) meldet eine Liste [{id, at, text}], die App löst sie zur Uhrzeit selbst aus,
+ * auch bei gesperrtem Handy. Sie schaltet den Bildschirm ein, zeigt eine Meldung mit dem Text und holt Jarvis nach vorn;
+ * Jarvis spricht die Ansage dann (und rechnet sie vorher frisch aus, zum Beispiel mit der aktuellen Verkehrslage).
  * Nach einem Neustart des Handys werden die Ansagen aus dem Speicher neu geplant.
  */
 public class AnsageReceiver extends BroadcastReceiver {
@@ -145,11 +145,11 @@ public class AnsageReceiver extends BroadcastReceiver {
     }
 
     private static String titel(String id) {
-        if (id.startsWith("wochen")) return "Nova: Dein Wochenüberblick";
-        if (id.startsWith("aufbruch")) return "Nova: Zeit zum Losfahren";
-        if (id.startsWith("wecker")) return "Nova: Wecker für morgen?";
-        if (id.startsWith("ort|")) return "Nova: Einkaufsliste";
-        return "Nova";
+        if (id.startsWith("wochen")) return "Jarvis: Dein Wochenüberblick";
+        if (id.startsWith("aufbruch")) return "Jarvis: Zeit zum Losfahren";
+        if (id.startsWith("wecker")) return "Jarvis: Wecker für morgen?";
+        if (id.startsWith("ort|")) return "Jarvis: Einkaufsliste";
+        return "Jarvis";
     }
 
     // ---------- Auslösen ----------
@@ -174,7 +174,7 @@ public class AnsageReceiver extends BroadcastReceiver {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         try {
             NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
-            nm.createNotificationChannel(new NotificationChannel(CH, "Nova Ansagen", NotificationManager.IMPORTANCE_HIGH));
+            nm.createNotificationChannel(new NotificationChannel(CH, "Jarvis Ansagen", NotificationManager.IMPORTANCE_HIGH));
             PendingIntent opi = PendingIntent.getActivity(c, 3, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
             String t = text == null ? "" : text;
             Notification.Builder b = new Notification.Builder(c, CH)
@@ -188,7 +188,7 @@ public class AnsageReceiver extends BroadcastReceiver {
             if (gesperrt) b.setFullScreenIntent(opi, true);
             nm.notify(id.hashCode(), b.build());
         } catch (Throwable ignored) { }
-        // Mit der Erlaubnis "Über anderen Apps einblenden" darf die App Nova sofort selbst nach vorn holen
+        // Mit der Erlaubnis "Über anderen Apps einblenden" darf die App Jarvis sofort selbst nach vorn holen
         try { c.startActivity(open); } catch (Throwable ignored) { }
     }
 }

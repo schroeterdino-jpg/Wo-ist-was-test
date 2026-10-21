@@ -717,7 +717,7 @@ function syncAvatarState(now){
  return st;
 }
 // ================= v7: Schlafen, Blick zum Finger, Spiegeln, Kopfhaltung, Zubehör =================
-const JV_SCHLAF=true;           // nachts im Leerlauf schläft Nova (false = nie)
+const JV_SCHLAF=true;           // nachts im Leerlauf schläft Jarvis (false = nie)
 const SCHLAF_VON=22, SCHLAF_BIS=5, SCHLAF_NACH_MS=120000;   // 22 bis 5 Uhr, nach 2 Minuten Ruhe
 const JV_BLICK_FINGER=true;     // Augen und Kopf folgen deinem Finger
 const JV_SPIEGELN=true;         // reagiert mit Mimik schon auf das, was du sagst
@@ -769,7 +769,7 @@ function updatePose(now,dt,st){
   }
   const k=1-Math.exp(-dt*3.2); pose.x+=(tx-pose.x)*k; pose.y+=(ty-pose.y)*k; pose.z+=(tz-pose.z)*k;
 }
-// ---- Spiegeln: Nova reagiert auf das, was DU sagst, noch bevor sie antwortet ----
+// ---- Spiegeln: Jarvis reagiert auf das, was DU sagst, noch bevor sie antwortet ----
 function nova_spricht(){ const a=window.__jvLipAudio; return !!(a&&!a.paused&&!a.ended); }
 function spiegeln(text){
   if(!JV_SPIEGELN||!text) return;
@@ -972,7 +972,7 @@ window.handleAvatarExpressionCommand=function(text){
    const t=String(text||'').toLowerCase().replace(/[.,!?;:]+/g,' ').replace(/\s+/g,' ').trim();
    try{ const a=zubBefehl(t); if(a){ sag(a.text,a.exp); return true; } }catch(e){ console.warn(e); }
    try{
-     if(JV_SCHLAF&&/\b(geh schlafen|schlaf jetzt|schlaf ein|mach (die )?augen zu|schlafmodus|leg dich schlafen|schlaf gut nova)\b/.test(t)){
+     if(JV_SCHLAF&&/\b(geh schlafen|schlaf jetzt|schlaf ein|mach (die )?augen zu|schlafmodus|leg dich schlafen|schlaf gut (?:nova|jarvis))\b/.test(t)){
        sleepForced=true; forcedGrace=performance.now()+10000; sag('Gute Nacht.',null,true); return true; }
      if(/\b(wach auf|aufwachen|augen auf)\b/.test(t)){ sleepForced=false; lastActive=performance.now(); sag('Bin wach.','friendly'); return true; }
    }catch(e){}

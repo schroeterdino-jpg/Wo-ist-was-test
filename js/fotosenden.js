@@ -3,7 +3,7 @@
    ============================================================
    - Nach jedem Foto erscheint in der Auswahl eine Karte "Per WhatsApp senden".
    - Sprache: "Schick das Foto per WhatsApp" / "Verschick das Bild über WhatsApp".
-   - In der Nova-App (ab v22) wird das Foto an WhatsApp übergeben, dort suchst du die Person aus.
+   - In der Jarvis-App (ab v22) wird das Foto an WhatsApp übergeben, dort suchst du die Person aus.
      Im Browser öffnet sich stattdessen das Teilen-Fenster des Handys, sofern es Dateien teilen kann.
    Braucht: photo.js (lastPhoto, runLastPhotoTask), places.js (showActionCards), commands.js (jvCommands). Wird ganz am Ende der Skripte geladen.
    ============================================================ */
@@ -36,14 +36,14 @@
             sagen('Das Foto konnte ich nicht an WhatsApp übergeben.');
             return false;
         }
-        if (N) { sagen('Zum Verschicken von Fotos brauchst du die neue Nova-App. Bitte installiere die neueste Version.'); return false; }
+        if (N) { sagen('Zum Verschicken von Fotos brauchst du die neue Jarvis-App. Bitte installiere die neueste Version.'); return false; }
         // Browser: Teilen-Fenster des Handys
         try {
             const blob = await (await fetch(f.dataUrl)).blob();
-            const file = new File([blob], 'Nova.jpg', { type: 'image/jpeg' });
+            const file = new File([blob], 'Jarvis.jpg', { type: 'image/jpeg' });
             if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return true; }
         } catch (e) { if (e && e.name === 'AbortError') return true; }
-        sagen('Das Foto kann ich nur aus der Nova-App verschicken.');
+        sagen('Das Foto kann ich nur aus der Jarvis-App verschicken.');
         return false;
     }
 

@@ -32,13 +32,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Locale;
 
-/** Lauscht im Hintergrund auf "Hey Nova" (Vosk) und weckt Nova. Pausiert, solange Nova spricht oder zuhört. */
+/** Lauscht im Hintergrund auf "Hey Jarvis" (Vosk) und weckt Jarvis. Pausiert, solange Jarvis spricht oder zuhört. */
 public class WakeService extends Service implements RecognitionListener {
 
     private static final String CH_LISTEN = "zane_listen";
     private static final String CH_WAKE = "zane_wake";
 
-    // Zustand, den Nova (Seite) und die Spracherkennung melden
+    // Zustand, den Jarvis (Seite) und die Spracherkennung melden
     static volatile boolean pageBusy = false;
     static volatile boolean recActive = false;
     static volatile boolean activityResumed = false;
@@ -101,8 +101,8 @@ public class WakeService extends Service implements RecognitionListener {
         super.onCreate();
         inst = this;
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        nm.createNotificationChannel(new NotificationChannel(CH_LISTEN, "Nova hört zu", NotificationManager.IMPORTANCE_LOW));
-        nm.createNotificationChannel(new NotificationChannel(CH_WAKE, "Hey Nova erkannt", NotificationManager.IMPORTANCE_HIGH));
+        nm.createNotificationChannel(new NotificationChannel(CH_LISTEN, "Jarvis hört zu", NotificationManager.IMPORTANCE_LOW));
+        nm.createNotificationChannel(new NotificationChannel(CH_WAKE, "Hey Jarvis erkannt", NotificationManager.IMPORTANCE_HIGH));
     }
 
     static final String ACTION_TOGGLE = "de.dino.zaneweckruf.TOGGLE";
@@ -192,7 +192,7 @@ public class WakeService extends Service implements RecognitionListener {
         tog.setAction(ACTION_TOGGLE);
         PendingIntent togPi = PendingIntent.getService(this, 2, tog, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         return new Notification.Builder(this, CH_LISTEN)
-                .setContentTitle(manuell ? "Nova ist aus" : aus ? "Nova schläft (Nachtruhe)" : "Nova hört zu")
+                .setContentTitle(manuell ? "Jarvis ist aus" : aus ? "Jarvis schläft (Nachtruhe)" : "Jarvis hört zu")
                 .setContentText(manuell ? "„" + weckwort() + "“ ist ausgeschaltet" : aus ? "Nachtruhe bis " + Prefs.hhmm(Prefs.nightTo(this)) + " Uhr" : "Sag „" + weckwort() + "“")
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                 .setOngoing(true)
@@ -239,7 +239,7 @@ public class WakeService extends Service implements RecognitionListener {
     private boolean useOww() { return Prefs.engine(this) == 1; }
 
     /** Name des Weckworts für Anzeigen; im openWakeWord-Test ist es das fertige Modell "Hey Jarvis". */
-    private String weckwort() { return useOww() ? "Hey Jarvis" : "Hey Nova"; }
+    private String weckwort() { return useOww() ? "Hey Jarvis" : "Hey Jarvis"; }
 
     /** Ist die gewählte Erkennung geladen? */
     private boolean ready() { return useOww() ? oww != null : model != null; }
@@ -326,7 +326,7 @@ public class WakeService extends Service implements RecognitionListener {
         f.delete();
     }
 
-    // ---- Wann lauschen wir? Nicht, wenn Nova spricht/zuhört oder die Spracherkennung läuft ----
+    // ---- Wann lauschen wir? Nicht, wenn Jarvis spricht/zuhört oder die Spracherkennung läuft ----
     private boolean want() {
         if (!alive || !ready()) return false;
         if (ausgeschaltet()) return false;
@@ -352,7 +352,7 @@ public class WakeService extends Service implements RecognitionListener {
             }
             if (listening()) {
                 stopSpeech();
-                Prefs.setStatus(this, "Pause (" + (recActive ? "Spracherkennung läuft" : System.currentTimeMillis() < holdUntil ? "Ordner oder Kamera offen, oder Nova gerade geweckt" : "Nova spricht oder hört zu") + ")");
+                Prefs.setStatus(this, "Pause (" + (recActive ? "Spracherkennung läuft" : System.currentTimeMillis() < holdUntil ? "Ordner oder Kamera offen, oder Jarvis gerade geweckt" : "Jarvis spricht oder hört zu") + ")");
             }
             if (alive && ready() && System.currentTimeMillis() < holdUntil) {
                 main.postDelayed(this::evalVosk, holdUntil - System.currentTimeMillis() + 100);
@@ -361,15 +361,15 @@ public class WakeService extends Service implements RecognitionListener {
         }
         if (!listening() && !startPending) {
             startPending = true;
-            main.postDelayed(startRun, 1500);   // kurz warten, damit Nova-Ton nicht ins Weckwort fällt
+            main.postDelayed(startRun, 1500);   // kurz warten, damit Jarvis-Ton nicht ins Weckwort fällt
         }
     }
 
     // ---- Weckwort-Erkennung ----
     private static final String[][] NAMEN = {
-            {"nova"},
-            {"nova", "novo"},
-            {"nova", "novo", "noah", "nover"}
+            {"jarvis"},
+            {"jarvis", "jarvas"},
+            {"jarvis", "jarvas", "jarvus", "service"}
     };
     private static final String[] ABLENKER = {"hey", "hey there", "hey you", "hey man", "hey guys", "hey john", "hey jay",
             "hey siri", "hey google", "hey alexa", "hey sam", "hey dan", "hey ben", "hey jack", "hey mate", "okay", "hello", "hi there"};
@@ -421,7 +421,7 @@ public class WakeService extends Service implements RecognitionListener {
             speech = new GatedSpeech(this, rec, 16000.0f);
             speech.startListening(this);
             speechSince = System.currentTimeMillis();
-            Prefs.setStatus(this, "lauscht auf „Hey Nova“");
+            Prefs.setStatus(this, "lauscht auf „Hey Jarvis“");
         } catch (Throwable e) {
             speech = null;
             Prefs.setStatus(this, "Fehler beim Lauschen: " + e);
@@ -472,9 +472,9 @@ public class WakeService extends Service implements RecognitionListener {
         if (now - lastTrigger < 5000) return;
         lastTrigger = now;
         Prefs.addHit(this);
-        holdUntil = now + 8000;   // Nova braucht einen Moment, bis er "Ja?" sagt und als beschäftigt gilt
+        holdUntil = now + 8000;   // Jarvis braucht einen Moment, bis er "Ja?" sagt und als beschäftigt gilt
         stopSpeech();
-        Prefs.setStatus(this, "Hey Nova erkannt");
+        Prefs.setStatus(this, "Hey Jarvis erkannt");
         try {
             new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80).startTone(ToneGenerator.TONE_PROP_BEEP, 150);
         } catch (Throwable ignored) { }
@@ -491,15 +491,15 @@ public class WakeService extends Service implements RecognitionListener {
             }
         } catch (Throwable ignored) { }
         final Runnable meldung = () -> {
-            if (activityResumed) return;   // Nova ist schon offen: keine Meldung nötig
-            // Notlösung: Ohne "Über anderen Apps einblenden" darf Android Nova nicht von selbst nach vorn holen
+            if (activityResumed) return;   // Jarvis ist schon offen: keine Meldung nötig
+            // Notlösung: Ohne "Über anderen Apps einblenden" darf Android Jarvis nicht von selbst nach vorn holen
             try {
                 Intent i = new Intent(this, MainActivity.class).putExtra("wake", true)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                 PendingIntent pi = PendingIntent.getActivity(this, 1, i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
                 Notification n = new Notification.Builder(this, CH_WAKE)
-                        .setContentTitle("Hey Nova erkannt")
-                        .setContentText("Tippen, um Nova zu öffnen")
+                        .setContentTitle("Hey Jarvis erkannt")
+                        .setContentText("Tippen, um Jarvis zu öffnen")
                         .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                         .setCategory(Notification.CATEGORY_ALARM)
                         .setAutoCancel(true)
@@ -512,7 +512,7 @@ public class WakeService extends Service implements RecognitionListener {
             } catch (Throwable ignored) { }
         };
         if (gesperrt) {
-            meldung.run();   // gesperrter Bildschirm: sofort, nur so geht Nova über dem Sperrbildschirm auf
+            meldung.run();   // gesperrter Bildschirm: sofort, nur so geht Jarvis über dem Sperrbildschirm auf
         } else if (!android.provider.Settings.canDrawOverlays(this)) {
             main.postDelayed(meldung, 3000);
         }

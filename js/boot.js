@@ -15,7 +15,7 @@
     window.jvBootAn = an;
     window.jvBootSetzen = function (ein) { try { localStorage.setItem(KEY, ein ? 'an' : 'aus'); sessionStorage.setItem(KEY, ein ? 'an' : 'aus'); } catch (e) {} };
     function weniger() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
-    /* Von "Hey Nova" geweckt: keine Startanimation, Nova soll sofort "Ja?" sagen und zuhören (native_speech.js setzt __zaneWakeAt) */
+    /* Von "Hey Jarvis" geweckt: keine Startanimation, Jarvis soll sofort "Ja?" sagen und zuhören (native_speech.js setzt __zaneWakeAt) */
     try { if (window.__zaneWakePending || Date.now() - (window.__zaneWakeAt || 0) < 15000) return; } catch (e) {}
     if (!an() || weniger() || /[?&](brief|nostart)=/.test(location.search) || window.__jvBootGelaufen) return;
     window.__jvBootGelaufen = true;
@@ -103,7 +103,7 @@
 
     pruefen(function (r) {
         if (beendet) return;
-        var Z = [['NOVA KERNEL 5.1', true], ['SPRACHE', r.sprache], ['STIMME', r.stimme], ['GEDÄCHTNIS', r.gedaechtnis], ['KALENDER', r.kalender],
+        var Z = [['JARVIS KERNEL 5.1', true], ['SPRACHE', r.sprache], ['STIMME', r.stimme], ['GEDÄCHTNIS', r.gedaechtnis], ['KALENDER', r.kalender],
                  ['STANDORT', r.standort], ['WETTER', r.wetter], ['VERKEHR', r.verkehr], ['SCHICHTPLAN', r.schicht], ['SYNAPSEN', r.synapsen]];
         var box = document.getElementById('jvBootZ'), bar = document.getElementById('jvBootB'), end = document.getElementById('jvBootEnde');
         var start = 150, schritt = 300, breite = Math.max(24, Math.min(34, Math.floor((window.innerWidth - 44) / 8.7)));

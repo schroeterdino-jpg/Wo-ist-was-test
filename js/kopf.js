@@ -1,6 +1,6 @@
 /* ============================================================
-   KOPF WECHSELN: zwei Köpfe für Nova (Jung = der bisherige, Reif = dunkle Haut, graue Haare) und dazu je eine eigene Fish-Stimme.
-   - Einstellungen > Stimme & Gespräch > "Kopf von Nova": Auswahl, Haken "Stimme wechselt mit dem Kopf", zwei Felder für die Stimmen-IDs.
+   KOPF WECHSELN: zwei Köpfe für Jarvis (Jung = der bisherige, Reif = dunkle Haut, graue Haare) und dazu je eine eigene Fish-Stimme.
+   - Einstellungen > Stimme & Gespräch > "Kopf von Jarvis": Auswahl, Haken "Stimme wechselt mit dem Kopf", zwei Felder für die Stimmen-IDs.
    - Per Sprache: "Reifer Kopf", "Junger Kopf", "Kopf wechseln".
    - Beim Wechseln lädt avatar3d.js den passenden Kopf (window.jvAvatar3D.setHead). Fehlt die Datei models/mann.glb, bleibt der junge Kopf.
    - Die Stimme wird über die vorhandene Fish-Einstellung gesetzt (setFishVoice). Leere ID = Standardstimme vom Server.

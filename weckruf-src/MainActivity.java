@@ -150,7 +150,7 @@ public class MainActivity extends Activity {
                         android.content.ContentValues cv = new android.content.ContentValues();
                         cv.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "nova_" + System.currentTimeMillis() + ".jpg");
                         cv.put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-                        if (Build.VERSION.SDK_INT >= 29) cv.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Nova");
+                        if (Build.VERSION.SDK_INT >= 29) cv.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Jarvis");
                         camUri = getContentResolver().insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
                         if (camUri != null) {
                             Intent ci = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
@@ -177,7 +177,7 @@ public class MainActivity extends Activity {
         });
 
         handleIntent(getIntent());   // zuerst: Wurde die App durch das Weckwort gestartet? Dann muss schon der erste Seitenaufruf das wissen
-        // Von "Hey ..." geweckt: Seite ohne Startanimation laden (Schalter ?nostart=1 kennt die Seite schon), Nova sagt sofort "Ja?"
+        // Von "Hey ..." geweckt: Seite ohne Startanimation laden (Schalter ?nostart=1 kennt die Seite schon), Jarvis sagt sofort "Ja?"
         web.loadUrl(pendingWake ? ZANE_URL + "?nostart=1" : ZANE_URL);
         askPermissions();
     }
@@ -252,7 +252,7 @@ public class MainActivity extends Activity {
 
     private Uri letzterShare = null;
 
-    /** Foto (JPEG als Datenadresse) in einen eigenen Bilderordner "Nova" legen und an WhatsApp übergeben (sonst Android-Auswahl). */
+    /** Foto (JPEG als Datenadresse) in einen eigenen Bilderordner "Jarvis" legen und an WhatsApp übergeben (sonst Android-Auswahl). */
     boolean shareImage(String dataUrl, String text) {
         try {
             if (Build.VERSION.SDK_INT < 29 || dataUrl == null) return false;
@@ -265,9 +265,9 @@ public class MainActivity extends Activity {
                 letzterShare = null;
             }
             android.content.ContentValues v = new android.content.ContentValues();
-            v.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "Nova_" + System.currentTimeMillis() + ".jpg");
+            v.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "Jarvis_" + System.currentTimeMillis() + ".jpg");
             v.put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-            v.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Nova");
+            v.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Jarvis");
             final Uri uri = cr.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v);
             if (uri == null) return false;
             java.io.OutputStream out = cr.openOutputStream(uri);
@@ -332,7 +332,7 @@ public class MainActivity extends Activity {
         super.onNewIntent(i);
         setIntent(i);
         handleIntent(i);
-        if (pendingAnsage != null) {   // Nova ist schon offen (onResume kommt dann nicht noch einmal): Seite sofort anstoßen
+        if (pendingAnsage != null) {   // Jarvis ist schon offen (onResume kommt dann nicht noch einmal): Seite sofort anstoßen
             h.postDelayed(() -> js("if(window.jvPlan&&window.jvPlan.pruefe)window.jvPlan.pruefe();"), 500);
         }
     }
@@ -392,7 +392,7 @@ public class MainActivity extends Activity {
             Intent i = new Intent(android.provider.AlarmClock.ACTION_SET_ALARM)
                     .putExtra(android.provider.AlarmClock.EXTRA_HOUR, stunde)
                     .putExtra(android.provider.AlarmClock.EXTRA_MINUTES, minute)
-                    .putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, text == null ? "Nova" : text)
+                    .putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, text == null ? "Jarvis" : text)
                     .putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, true);
             startActivity(i);
             return true;
@@ -405,8 +405,8 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         WakeService.setActivityResumed(false);
-        // Strom sparen: ist Nova eine Weile nicht sichtbar und nichts los (kein Sprechen, kein Zuhören), wird die Seite angehalten.
-        // onResume weckt sie sofort wieder auf (resumeTimers/onResume), geplante Ansagen und "Hey Nova" starten Nova ohnehin neu nach vorn.
+        // Strom sparen: ist Jarvis eine Weile nicht sichtbar und nichts los (kein Sprechen, kein Zuhören), wird die Seite angehalten.
+        // onResume weckt sie sofort wieder auf (resumeTimers/onResume), geplante Ansagen und "Hey Jarvis" starten Jarvis ohnehin neu nach vorn.
         freezeHandler.removeCallbacks(freezeRun);
         freezeHandler.postDelayed(freezeRun, 45000);
     }
@@ -431,7 +431,7 @@ public class MainActivity extends Activity {
         if (recognizer != null) { try { recognizer.destroy(); } catch (Throwable ignored) { } recognizer = null; }
         WakeService.setRecActive(false);
         WakeService.setPageBusy(false);
-        // Fenster weggewischt: Seite und Sprachausgabe sofort beenden, sonst redet Nova im Hintergrund weiter
+        // Fenster weggewischt: Seite und Sprachausgabe sofort beenden, sonst redet Jarvis im Hintergrund weiter
         if (web != null) {
             try { web.stopLoading(); web.loadUrl("about:blank"); web.removeAllViews(); web.destroy(); } catch (Throwable ignored) { }
             web = null;

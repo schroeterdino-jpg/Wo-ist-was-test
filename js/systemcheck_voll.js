@@ -43,24 +43,24 @@
     async function pruefMikro() {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         let st = ''; try { if (navigator.permissions) st = (await navigator.permissions.query({ name: 'microphone' })).state; } catch (e) {}
-        const wo = IN_APP() ? 'Nova' : 'Chrome';
+        const wo = IN_APP() ? 'Jarvis' : 'Chrome';
         if (st === 'denied') return schlecht('blockiert', 'Android: Einstellungen > Apps > ' + wo + ' > Berechtigungen > Mikrofon erlauben');
-        if (!SR && !IN_APP()) return schlecht('Spracherkennung fehlt in diesem Browser', 'Chrome oder die Nova-App benutzen');
+        if (!SR && !IN_APP()) return schlecht('Spracherkennung fehlt in diesem Browser', 'Chrome oder die Jarvis-App benutzen');
         return ok(st === 'prompt' ? 'bereit (wird beim ersten Mal gefragt)' : (IN_APP() ? 'erlaubt, Spracherkennung der App' : 'erlaubt'));
     }
     async function pruefKamera() {
         if (!document.getElementById('photoInput')) return schlecht('Foto-Eingabe fehlt', 'index.html und js/photo.js prüfen');
         if (typeof window.openPhotoCamera !== 'function') return schlecht('Kamera-Funktion fehlt', 'js/photo.js fehlt oder hat einen Fehler');
         let st = ''; try { if (navigator.permissions) st = (await navigator.permissions.query({ name: 'camera' })).state; } catch (e) {}
-        if (st === 'denied') return schlecht('blockiert', 'Android: Einstellungen > Apps > ' + (IN_APP() ? 'Nova' : 'Chrome') + ' > Berechtigungen > Kamera erlauben');
+        if (st === 'denied') return schlecht('blockiert', 'Android: Einstellungen > Apps > ' + (IN_APP() ? 'Jarvis' : 'Chrome') + ' > Berechtigungen > Kamera erlauben');
         let n = -1; try { if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) n = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput').length; } catch (e) {}
         if (n === 0 && !IN_APP()) return hinweis('keine Kamera gefunden', 'Handy neu starten oder Chrome-Berechtigung prüfen');
-        return ok('bereit' + (IN_APP() ? ' (in der Nova-App startet der Knopf die Handy-Kamera)' : '') + ', zum Echttest den Kamera-Knopf antippen');
+        return ok('bereit' + (IN_APP() ? ' (in der Jarvis-App startet der Knopf die Handy-Kamera)' : '') + ', zum Echttest den Kamera-Knopf antippen');
     }
     async function pruefPush() {
         const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'nicht unterstützt';
         if (perm === 'nicht unterstützt') return IN_APP() ? hinweis('in der App nicht verfügbar', 'Erinnerungen laufen in der App über die Weckruf-Funktion') : schlecht('nicht unterstützt', 'Chrome benutzen');
-        if (perm === 'denied') return schlecht('blockiert', 'Chrome-Seiteneinstellungen oder Android: Benachrichtigungen für ' + (IN_APP() ? 'Nova' : 'Chrome') + ' erlauben');
+        if (perm === 'denied') return schlecht('blockiert', 'Chrome-Seiteneinstellungen oder Android: Benachrichtigungen für ' + (IN_APP() ? 'Jarvis' : 'Chrome') + ' erlauben');
         if (perm !== 'granted') return hinweis('noch nicht erlaubt', 'in den Einstellungen "Push" einschalten');
         let sub = null, swok = false;
         try { if ('serviceWorker' in navigator) { const reg = await mit(navigator.serviceWorker.getRegistration(), 4000); swok = !!reg; if (reg && reg.pushManager) sub = await mit(reg.pushManager.getSubscription(), 4000); } } catch (e) {}
@@ -97,7 +97,7 @@
             }
         } catch (e) {}
         const de = voices.filter(v => /^de/i.test(v.lang)).length;
-        if (!('speechSynthesis' in window) && IN_APP()) return ok('in der Nova-App nicht eingebaut, Nova nutzt dort die Server-Stimmen (Fish, Edge)');
+        if (!('speechSynthesis' in window) && IN_APP()) return ok('in der Jarvis-App nicht eingebaut, Jarvis nutzt dort die Server-Stimmen (Fish, Edge)');
         if (!('speechSynthesis' in window)) return hinweis('Handy-Stimme (Ausweichstimme) nicht verfügbar', 'Chrome-Sprachausgabe in den Android-Einstellungen prüfen');
         if (!de) teile.push('keine deutsche Handy-Stimme');
         let ac = '';
@@ -109,7 +109,7 @@
         if (navigator.onLine === false) return schlecht('offline', 'WLAN oder mobile Daten einschalten');
         const c = navigator.connection || {};
         const art = c.effectiveType ? c.effectiveType.toUpperCase() : '';
-        if (c.saveData) return hinweis('Datensparmodus an', 'Android: Datensparmodus für Nova/Chrome ausnehmen');
+        if (c.saveData) return hinweis('Datensparmodus an', 'Android: Datensparmodus für Jarvis/Chrome ausnehmen');
         if (art === 'SLOW-2G' || art === '2G') return hinweis('sehr langsam (' + art + ')', 'besseren Empfang oder WLAN suchen');
         return ok('online' + (art ? ' (' + art + ')' : ''));
     }
@@ -250,7 +250,7 @@
             const fv = (typeof window.getFishVoice === 'function') ? window.getFishVoice() : '';
             const { r, d } = await api('/api/stau?tts=1&engine=fish&diag=1&text=Test&fishVoice=' + encodeURIComponent(fv), {}, 20000);
             if (d && d.ok && d.engineUsed === 'fish') return ok('Fish-Stimme antwortet' + (/keine Stimmen-ID/.test(String(d.voice || '')) ? ' (ohne feste Stimmen-ID)' : ''));
-            return schlecht(String((d && d.error) || ('Status ' + r.status)).slice(0, 140), 'bei Vercel FISH_AUDIO_API_KEY und Guthaben prüfen; solange spricht Nova mit der nächsten Stimme');
+            return schlecht(String((d && d.error) || ('Status ' + r.status)).slice(0, 140), 'bei Vercel FISH_AUDIO_API_KEY und Guthaben prüfen; solange spricht Jarvis mit der nächsten Stimme');
         } catch (e) { return schlecht(warum(e), 'Netz oder Vercel prüfen'); }
     }
     async function pruefYoutube() {
@@ -265,22 +265,22 @@
     async function pruefAdresse(key, name) {
         const v = String(pd(key, '') || '').trim();
         if (v) return ok(v.length > 48 ? v.slice(0, 46) + '…' : v);
-        return hinweis('nicht gespeichert', 'sag "Merk dir meine ' + name + ': Straße Nr, Ort". Browser und Nova-App haben getrennte Speicher, jede merkt sich die Adresse für sich');
+        return hinweis('nicht gespeichert', 'sag "Merk dir meine ' + name + ': Straße Nr, Ort". Browser und Jarvis-App haben getrennte Speicher, jede merkt sich die Adresse für sich');
     }
 
     /* ---------------- Weckruf-App ---------------- */
     async function pruefApp() {
         const N = window.ZaneNative;
-        if (!N) return hinweis('Seite läuft im Browser, nicht in der Nova-App', 'Weckwort im Hintergrund, Wecker-Ansagen und Kamera-Knopf brauchen die Nova-App');
+        if (!N) return hinweis('Seite läuft im Browser, nicht in der Jarvis-App', 'Weckwort im Hintergrund, Wecker-Ansagen und Kamera-Knopf brauchen die Jarvis-App');
         const fehlt = ['recStart', 'printHtml', 'shareImage', 'planAnsagen', 'holeAnsage', 'weckerStellen', 'openSetup'].filter(f => typeof N[f] !== 'function');
         if (fehlt.length) return hinweis('App ist älter, es fehlt: ' + fehlt.join(', '), 'neue APK bei GitHub bauen lassen (Releases) und installieren');
-        return ok('Nova-App erkannt, alle Funktionen da');
+        return ok('Jarvis-App erkannt, alle Funktionen da');
     }
     async function pruefWeckwort() {
         let an = null;
         try { if (typeof wakeWordEnabled !== 'undefined') an = !!wakeWordEnabled; } catch (e) {}
         if (an === null) return hinweis('Status nicht lesbar', '');
-        return an ? ok('Weckwort-Modus an') : hinweis('Weckwort-Modus aus', 'in den Einstellungen einschalten, wenn Nova auf "Hey Nova" hören soll');
+        return an ? ok('Weckwort-Modus an') : hinweis('Weckwort-Modus aus', 'in den Einstellungen einschalten, wenn Jarvis auf "Hey Jarvis" hören soll');
     }
 
 
@@ -300,7 +300,7 @@
         const p = await posHolen();
         if (p.ok) return ok('gefunden');
         return p.text === 'nicht erlaubt'
-            ? schlecht('nicht erlaubt', 'Android: Einstellungen > Apps > ' + (IN_APP() ? 'Nova' : 'Chrome') + ' > Berechtigungen > Standort erlauben')
+            ? schlecht('nicht erlaubt', 'Android: Einstellungen > Apps > ' + (IN_APP() ? 'Jarvis' : 'Chrome') + ' > Berechtigungen > Standort erlauben')
             : schlecht(p.text, 'Standort und GPS am Handy einschalten, kurz nach draußen oder ans Fenster');
     }
     let googleStatus = null;
@@ -408,7 +408,7 @@
         ['Server', 'Mail-Wächter', pruefMailWaechter], ['Server', 'Nachrichten', pruefNachrichten], ['Server', 'Filme', pruefFilme], ['Server', 'Stimme Edge', pruefEdge],
         ['Server', 'Stimme Fish', pruefFish, true], ['Server', 'YouTube', pruefYoutube, true],
         ['Daten', 'Heimatadresse', () => pruefAdresse('helfer_home_address', 'Heimatadresse')], ['Daten', 'Arbeitsadresse', () => pruefAdresse('helfer_work_address', 'Arbeitsadresse')],
-        ['Weckruf-App', 'Nova-App', pruefApp], ['Weckruf-App', 'Weckwort', pruefWeckwort]
+        ['Weckruf-App', 'Jarvis-App', pruefApp], ['Weckruf-App', 'Weckwort', pruefWeckwort]
     ];
 
     async function sammeln(leicht) {
@@ -437,7 +437,7 @@
         });
         const bad = res.filter(r => r.ok === false).length, hin = res.filter(r => r.ok === null).length;
         out += '\n' + (bad === 0 ? 'Alles in Ordnung.' : bad + ' Problem' + (bad > 1 ? 'e' : '') + ' gefunden.') + (hin ? ' ' + hin + ' Hinweis' + (hin > 1 ? 'e' : '') + '.' : '');
-        out += '\n(' + new Date().toLocaleString('de-DE') + (IN_APP() ? ', Nova-App' : ', Browser') + ')';
+        out += '\n(' + new Date().toLocaleString('de-DE') + (IN_APP() ? ', Jarvis-App' : ', Browser') + ')';
         return out;
     }
     window.__jvCheckText = alsText;

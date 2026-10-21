@@ -145,7 +145,7 @@
         if (waking) return;
         window.__zaneWakePending = false;
         window.__zaneWakeAt = Date.now();
-        try { if (window.jvBootBeenden) window.jvBootBeenden(); } catch (e) { }   // läuft die Startanimation schon, sofort beenden: sonst hört Nova unter ihr zu
+        try { if (window.jvBootBeenden) window.jvBootBeenden(); } catch (e) { }   // läuft die Startanimation schon, sofort beenden: sonst hört Jarvis unter ihr zu
         waking = true;
         setTimeout(function () { waking = false; }, 3000);
         const weiter = function () { try { startListening(false); } catch (e) { } };

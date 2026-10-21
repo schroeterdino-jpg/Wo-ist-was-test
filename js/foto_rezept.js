@@ -251,7 +251,7 @@
             '.st{margin-bottom:8px;padding-left:22px;text-indent:-22px;break-inside:avoid}.grp2{font-weight:bold;margin:12px 0 6px}.foot{margin-top:22px;font-size:8.5pt;color:#888}' +
             '</style></head><body><h1>' + esc(rez.titel || 'Rezept') + '</h1>' + (meta ? '<div class="meta">' + meta + '</div>' : '') +
             (zut ? '<h2>Zutaten</h2><ul>' + zut + '</ul>' : '') + (sch ? '<h2>Zubereitung</h2><div>' + sch + '</div>' : '') +
-            '<div class="foot">Aus Nova</div></body></html>';
+            '<div class="foot">Aus Jarvis</div></body></html>';
     }
 
     function drucken(rez) {
@@ -430,7 +430,7 @@
 
     // Auf welches Rezept bezieht sich "das Rezept"? Name im Satz, sonst das zuletzt benutzte, sonst das einzige
     let zuletzt = null;     // { id, at }
-    let warte = null;       // { aktion, at }: Nova hat gefragt "Welches Rezept?"
+    let warte = null;       // { aktion, at }: Jarvis hat gefragt "Welches Rezept?"
     function merke(r) { if (r && r.id) zuletzt = { id: r.id, at: Date.now() }; }
     function ziel(t) {
         const r = finde(t);
@@ -475,7 +475,7 @@
             if (/^(?:nein|nee|nicht|lieber nicht|abbrechen|verwerfen|vergiss es|lass (?:es|das))$/.test(t)) { draft = null; cards([]); say('Gut, ich habe nichts gespeichert.'); return true; }
         }
 
-        // Nova hat gefragt "Welches Rezept?": Antwort mit Namen, "das erste", "das letzte"
+        // Jarvis hat gefragt "Welches Rezept?": Antwort mit Namen, "das erste", "das letzte"
         if (warte && Date.now() - warte.at < 2 * 60000) {
             if (/^(?:nein|nee|abbrechen|vergiss es|lass (?:es|das)|doch nicht)$/.test(t)) { warte = null; cards([]); say('Gut, ich lasse alles, wie es ist.'); return true; }
             const list = loadAll();

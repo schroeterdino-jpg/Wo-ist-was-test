@@ -1,5 +1,5 @@
 /* ============================================================
-   RUHE WÄHREND DES BRIEFINGS: Meldungen von selbst (Bank, E-Mail, Fristen, Wächter) warten, solange Nova ein Briefing erzählt oder gerade
+   RUHE WÄHREND DES BRIEFINGS: Meldungen von selbst (Bank, E-Mail, Fristen, Wächter) warten, solange Jarvis ein Briefing erzählt oder gerade
    gesprochen/gerechnet hat. Vorher konnte eine Bank-Meldung in die Lücke zwischen zwei Sätzen oder vor den Beginn des Briefings fallen.
    - Nach jedem Sprechen/Rechnen bleibt es noch 9 Sekunden ruhig.
    - Ab dem Start eines Briefings (Knopf, Sprache, Schichtzeit) bleibt es 4 Minuten ruhig; die Meldungen kommen danach und gehen nicht verloren.

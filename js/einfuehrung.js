@@ -1,8 +1,8 @@
 /* ============================================================
    EINFÜHRUNG: Erklärung für Leute, die die App nicht kennen. Ein Fenster mit drei Teilen:
-     1) So sprichst du mit Nova   2) Das richtest du zuerst ein (Adressen, Schicht, Benachrichtigungen ...)   3) Alles, was er kann
+     1) So sprichst du mit Jarvis   2) Das richtest du zuerst ein (Adressen, Schicht, Benachrichtigungen ...)   3) Alles, was er kann
    Teil 3 wird AUTOMATISCH aus der Hilfe (help.js, HELP_TOPICS) gebaut: wird dort etwas ergänzt, steht es hier von selbst mit drin.
-   Dazu sagt Nova eine kurze Begrüßung.
+   Dazu sagt Jarvis eine kurze Begrüßung.
    Sagen: "Wie gehe ich mit dir um?" · "Wie bediene ich dich?" · "Erklär mir die App" · "Was kannst du für mich erledigen?" · "Einführung" · "Anleitung"
    ("Hilfe" und "Was kannst du?" bleiben wie bisher die Themenliste.)
    Braucht: extrafenster.js (openExtraWindow), help.js (HELP_TOPICS), commands.js, voice.js (speak). Wird nach help.js geladen.
@@ -14,7 +14,7 @@
     function sag(t) { try { speak(t, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} }
     function norm(t) { return String(t || '').toLowerCase().replace(/[.,!?;:"„“”]/g, ' ').replace(/\s+/g, ' ').trim(); }
 
-    var BEGRUESSUNG = 'Ich bin Nova, dein Sprachassistent. Tippe unten auf den Kreis und sprich ganz normal mit mir, so wie mit einem Menschen. ' +
+    var BEGRUESSUNG = 'Ich bin Jarvis, dein Sprachassistent. Tippe unten auf den Kreis und sprich ganz normal mit mir, so wie mit einem Menschen. ' +
         'Ich trage Termine und Erinnerungen ein, sage dir, wann du losfahren musst, auch mit Stau, suche Bus und Bahn, nenne das Wetter, führe Listen und merke mir Dinge. ' +
         'Ich melde mich auch von selbst, zum Beispiel vor der Abfahrt zur Arbeit. Ich habe dir eine Anleitung geöffnet: oben, was du zuerst einrichten solltest, darunter alles, was ich kann. Wenn du etwas Bestimmtes suchst, sag einfach Hilfe.';
 

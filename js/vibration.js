@@ -1,5 +1,5 @@
 /* ============================================================
-   VIBRATION: Das Handy vibriert kurz beim Antippen von Knöpfen und Kacheln und etwas deutlicher, wenn Nova anfängt zuzuhören.
+   VIBRATION: Das Handy vibriert kurz beim Antippen von Knöpfen und Kacheln und etwas deutlicher, wenn Jarvis anfängt zuzuhören.
    Sprache: "Vibration aus" / "Vibration an". Standard: an. Geräte ohne Vibration (z. B. iPhone) merken nichts davon.
    Braucht: storage.js, commands.js (optional). Fehlt etwas, passiert einfach nichts.
    ============================================================ */
@@ -12,7 +12,7 @@
     function brr(ms) { try { if (an() && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 
     function start() {
-        // Antippen: Knöpfe, Kacheln, Hauptfläche (Nova antippen)
+        // Antippen: Knöpfe, Kacheln, Hauptfläche (Jarvis antippen)
         document.addEventListener('pointerdown', function (e) {
             if (e.pointerType === 'mouse') return;
             var t = e.target && e.target.closest ? e.target.closest('button, .jvk, #recordBtn, [role=button], a') : null;

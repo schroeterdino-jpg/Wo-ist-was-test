@@ -1,18 +1,18 @@
 /* ============================================================
-   plan_ansagen.js – Nova meldet sich zur richtigen Zeit von selbst (auch bei gesperrtem Handy, nur in der Nova-App)
+   plan_ansagen.js – Jarvis meldet sich zur richtigen Zeit von selbst (auch bei gesperrtem Handy, nur in der Jarvis-App)
    ============================================================
    - WOCHENÜBERBLICK: Sonntag 18:00. Schicht der kommenden Woche (mit Urlaubstagen), Termine, Erinnerungen, offene Aufgaben, fällige Rechnungen.
    - AUFBRUCHSZEIT: an jedem Arbeitstag (Mo-Fr, nicht im Urlaub), Früh- und Spätschicht, 10 Minuten vor der Abfahrt.
      Abfahrt = Schichtbeginn minus Fahrzeit (mit aktueller Verkehrslage, kurz vor der Ansage frisch abgefragt) minus 10 Minuten Puffer.
      Schichtbeginn: Früh 5:10, Spät 13:45 (änderbar per Sprache: "Meine Frühschicht beginnt um 5 Uhr 30").
      Abfahrt fest: Früh 4:30, Spät 13:20 ("Meine Abfahrt in der Frühschicht ist um 4 Uhr 30"); bei deutlich längerer Fahrt (ab 10 Minuten mehr) entsprechend früher.
-   - STAU-CHECK: 20 Minuten vor der Aufbruchs-Ansage (Frühschicht frühestens 10 Minuten nach dem Aufstehen) prüft Nova still die Verkehrslage. Sie spricht nur bei Stau
+   - STAU-CHECK: 20 Minuten vor der Aufbruchs-Ansage (Frühschicht frühestens 10 Minuten nach dem Aufstehen) prüft Jarvis still die Verkehrslage. Sie spricht nur bei Stau
      oder wenn die Fahrt mindestens 10 Minuten länger dauert als sonst ("normal" = Mittelwert der letzten Messungen). Test: "Teste den Stau-Check".
    - WECKER-FRAGE: Am Abend vor einer Frühschicht um 20:30: "Soll ich den Wecker auf 3 Uhr 30 stellen?" Ja = Wecker in der Uhr-App des Handys.
    - WECKER per Sprache: "Stell den Wecker auf 6 Uhr 15", "Weck mich um 5", "Wecker in 20 Minuten".
    - Rechnung: "Trag die Frist in den Kalender ein" nach einer ausgewerteten Rechnung (zusätzlich zur Erinnerung).
    So klappt das Von-selbst: Diese Datei meldet der App eine Liste mit Uhrzeiten (ZaneNative.planAnsagen). Die App löst sie zur Zeit selbst aus,
-   schaltet den Bildschirm ein und holt Nova nach vorn; Nova holt die Ansage ab (ZaneNative.holeAnsage) und spricht sie. Im Browser gibt es das nicht.
+   schaltet den Bildschirm ein und holt Jarvis nach vorn; Jarvis holt die Ansage ab (ZaneNative.holeAnsage) und spricht sie. Im Browser gibt es das nicht.
    Sprache: "Wochenüberblick" (jederzeit) · "Wann muss ich zur Arbeit los?" · "Was ist geplant?" · "Planer aus" / "Planer an" · "Teste die Wecker-Frage"
    Braucht: schicht.js (_schichtTest), urlaub.js, commands.js, voice.js (speak), travel.js (fetchRouteMapData), calendar.js, lists, rechnungen.js. Wird ganz am Ende geladen.
    ============================================================ */
@@ -333,7 +333,7 @@
             }
             const sh = schichtAm(ymd);
             if (sh) {
-                try {   // Schicht-Briefing: in der Android-App weckt Nova den Bildschirm und erzählt es zur Briefing-Zeit (Früh ab 3:30, Spät ab 12:00)
+                try {   // Schicht-Briefing: in der Android-App weckt Jarvis den Bildschirm und erzählt es zur Briefing-Zeit (Früh ab 3:30, Spät ab 12:00)
                     const bt = S().load().times;
                     if (bt && Number.isFinite(bt[sh])) out.push({ id: 'brief|' + ymd, at: berlinMs(ymd, bt[sh]), text: 'Dein Briefing ist bereit. Tippe, dann erzähle ich es dir.' });
                 } catch (e) { }
@@ -442,7 +442,7 @@
         const min = f.min || normal;
         const stau = ISTSTAU.test(f.stau || '') ? f.stau.trim() : '';
         const mehr = min - normal;
-        if (!immer && mehr < 10 && !stau) return false;   // alles normal: Nova bleibt still
+        if (!immer && mehr < 10 && !stau) return false;   // alles normal: Jarvis bleibt still
         const abfahrt = abfahrtFuer(sh, min, normal), nu = jetzt();
         let t = mehr >= 10 ? 'Auf deinem Arbeitsweg ist heute mehr los. Die Fahrt dauert rund ' + min + ' Minuten statt sonst ' + normal + '.' : 'Die Fahrt dauert rund ' + min + ' Minuten.';
         if (stau) t += ' ' + stau;
@@ -478,10 +478,10 @@
     function weckerSetzen(h, m, label) {
         const n = N();
         if (!n) {
-            // Ohne Nova-App (normale Web-Seite im Browser): Android-Uhr-App per Link öffnen; der Wecker muss dort einmal bestätigt werden.
+            // Ohne Jarvis-App (normale Web-Seite im Browser): Android-Uhr-App per Link öffnen; der Wecker muss dort einmal bestätigt werden.
             if (!/Android/i.test(navigator.userAgent || '')) return 'kein-app';
             const url = 'intent:#Intent;action=android.intent.action.SET_ALARM;i.android.intent.extra.alarm.HOUR=' + h + ';i.android.intent.extra.alarm.MINUTES=' + m +
-                ';S.android.intent.extra.alarm.MESSAGE=' + encodeURIComponent(label || 'Nova') + ';end';
+                ';S.android.intent.extra.alarm.MESSAGE=' + encodeURIComponent(label || 'Jarvis') + ';end';
             try { if (navigator.userActivation && navigator.userActivation.isActive) { location.href = url; return 'intent-offen'; } } catch (e) { }
             weckerIntentUrl = url;
             try {
@@ -493,7 +493,7 @@
         }
         if (typeof n.weckerStellen !== 'function') return 'alt';
         let ok = false;
-        try { ok = !!n.weckerStellen(h, m, label || 'Nova'); } catch (e) { ok = false; }
+        try { ok = !!n.weckerStellen(h, m, label || 'Jarvis'); } catch (e) { ok = false; }
         return ok ? 'ok' : 'fehler';
     }
     function weckerAntwort(r, h, m) {
@@ -502,15 +502,15 @@
         if (r === 'ok') return 'Der Wecker ist gestellt, ' + wann + ' um ' + uhr(ziel) + '. Du findest ihn in der Uhr-App.';
         if (r === 'intent-karte') return 'Tippe auf die Karte, dann öffnet sich die Uhr-App mit dem Wecker um ' + uhr(ziel) + '. Dort musst du ihn nur noch speichern.';
         if (r === 'intent-offen') return 'Ich öffne die Uhr-App mit dem Wecker um ' + uhr(ziel) + '. Bitte dort noch auf Speichern tippen.';
-        if (r === 'kein-app') return 'Einen Wecker kann ich nur in der Nova-App auf dem Handy stellen.';
-        if (r === 'alt') return 'Dafür brauchst du die neueste Nova-App. Bitte installiere die aktuelle Version.';
+        if (r === 'kein-app') return 'Einen Wecker kann ich nur in der Jarvis-App auf dem Handy stellen.';
+        if (r === 'alt') return 'Dafür brauchst du die neueste Jarvis-App. Bitte installiere die aktuelle Version.';
         return 'Den Wecker konnte ich nicht stellen. Prüfe, ob die Uhr-App des Handys erreichbar ist.';
     }
     function weckerJa() {
         const w = offenesWecker; offenesWecker = null; karten();
         if (!w) { sagen('Gerade ist keine Wecker-Frage offen.', false); return; }
         const h = Math.floor(w.min / 60), m = w.min % 60;
-        const r = weckerSetzen(h, m, 'Nova: Frühschicht');
+        const r = weckerSetzen(h, m, 'Jarvis: Frühschicht');
         if (r === 'ok' || r === 'intent-offen' || r === 'intent-karte') lsSet(K_WECKER + w.ymd, 'ja');
         sagen(weckerAntwort(r, h, m) + (r === 'ok' ? ' Gute Nacht.' : ''), false);
     }
@@ -562,7 +562,7 @@
             if (/\b(abends|nachmittags|mittags)\b/.test(t) && h < 12) h += 12;
         }
         if (h < 0 || h > 23 || m < 0 || m > 59) return next(text);
-        const r = weckerSetzen(h, m, 'Nova');
+        const r = weckerSetzen(h, m, 'Jarvis');
         sagen(weckerAntwort(r, h, m), false);
         return true;
     }
@@ -673,7 +673,7 @@
     /* ---------- Start ---------- */
     window.jvPlan = { abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
-    setTimeout(pruefe, 12000);   // Nova war beim Start noch nicht fertig: Ansage später noch einmal abholen
+    setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);
     try {
         document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(() => { planSenden(false); pruefe(); }, 1500); });

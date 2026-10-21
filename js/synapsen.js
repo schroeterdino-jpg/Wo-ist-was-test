@@ -1,5 +1,5 @@
 /* ============================================================
-   SYNAPSEN: Während Nova nachdenkt (nach deiner Frage, vor der Antwort), blitzt um den Kopf ein Netz aus Punkten und Linien auf.
+   SYNAPSEN: Während Jarvis nachdenkt (nach deiner Frage, vor der Antwort), blitzt um den Kopf ein Netz aus Punkten und Linien auf.
    Lichtimpulse laufen an den Linien entlang, dazu blitzen Stichworte, was er gerade abruft (KALENDER, WETTER, VERKEHR ...),
    und unter dem Kopf steht "SYSTEME WERDEN DURCHSUCHT...". Der Kopf selbst bleibt unverändert.
    Läuft nur, solange isProcessing wahr ist; sonst wird nichts gezeichnet (Akku). Bei "Bewegung reduzieren" bleibt nur der Text.

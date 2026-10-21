@@ -1,8 +1,8 @@
 /* ============================================================
-   loeschen_fragen.js – Nova fragt nach, bevor sie etwas löscht
+   loeschen_fragen.js – Jarvis fragt nach, bevor sie etwas löscht
    ============================================================
    Gilt für: Einträge im Langzeitgedächtnis ("erledigt", "vergiss das"), Kalendertermine und Erinnerungen.
-   Ablauf: Die KI will löschen -> Nova sagt "Soll ich ... wirklich löschen?" und löscht noch nichts.
+   Ablauf: Die KI will löschen -> Jarvis sagt "Soll ich ... wirklich löschen?" und löscht noch nichts.
            "Ja" (gesprochen oder auf den Knopf getippt) löscht, "Nein" lässt alles, wie es ist.
            Sagt der User etwas ganz anderes, gilt die Frage als erledigt und der Satz läuft normal weiter.
    Braucht: actions.js (executeAction), commands.js (jvCommands), voice.js (speak). Wird ganz am Ende der Skripte geladen.

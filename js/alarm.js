@@ -86,7 +86,7 @@
         if (o.sprechen !== false) setTimeout(() => { try { if (el && typeof speak === 'function') speak(titel + '. ' + text); } catch (e) {} }, 2200);
     }
     /* Briefing-Karte: Tippen auf die Schicht-Briefing-Push-Nachricht zeigt den Text und einen großen Knopf "VORLESEN".
-       Der Browser erlaubt Sprache erst nach einem Tipp, deshalb liest Nova erst nach diesem Tipp vor. */
+       Der Browser erlaubt Sprache erst nach einem Tipp, deshalb liest Jarvis erst nach diesem Tipp vor. */
     let bk = null;
     function briefKarte(o) {
         try {
