@@ -1,0 +1,54 @@
+name: OWW Pruefung
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/oww-test.yml'
+      - 'weckruf-test/**'
+      - 'weckruf-src/OwwEngine.java'
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Modelle, Sprachbeispiele und ONNX Runtime laden
+        run: |
+          mkdir -p t/models t/lib
+          B=https://github.com/dscripka/openWakeWord/releases/download/v0.5.1
+          for f in melspectrogram.onnx embedding_model.onnx alexa_v0.1.onnx hey_mycroft_v0.1.onnx; do
+            curl -fL -o t/models/$f $B/$f
+          done
+          for w in alexa_test hey_mycroft_test; do
+            curl -fL -o t/$w.wav https://raw.githubusercontent.com/dscripka/openWakeWord/main/tests/data/$w.wav
+          done
+          curl -fL -o t/lib/ort.jar https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime/1.19.2/onnxruntime-1.19.2.jar
+          ls -l t t/models t/lib
+
+      - name: Python-Vorlage vorbereiten
+        run: |
+          pip install onnxruntime numpy scipy scikit-learn requests tqdm
+          pip install --no-deps openwakeword
+
+      - name: Referenz (Python)
+        run: python weckruf-test/referenz.py t
+
+      - name: Java-Umsetzung
+        run: |
+          mkdir -p t/out
+          javac -cp t/lib/ort.jar -d t/out weckruf-src/OwwEngine.java weckruf-test/OwwCheck.java
+          java -cp t/out:t/lib/ort.jar de.dino.zaneweckruf.OwwCheck t
+
+      - name: Vergleich
+        run: python weckruf-test/vergleich.py t

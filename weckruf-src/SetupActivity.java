@@ -97,6 +97,25 @@ public class SetupActivity extends Activity {
         });
         root.addView(rg);
 
+        // Erkennung: neue, stromsparende Erkennung (Test) oder die bisherige
+        TextView eng = new TextView(this);
+        eng.setText("\nErkennung:");
+        root.addView(eng);
+        RadioGroup rge = new RadioGroup(this);
+        String[] engNames = {"bisher (Vosk, Weckwort „Hey Nova“)", "neu (openWakeWord, Test mit „Hey Jarvis“, spart Strom)"};
+        for (int i = 0; i < engNames.length; i++) {
+            RadioButton rb = new RadioButton(this);
+            rb.setText(engNames[i]);
+            rb.setId(200 + i);
+            rge.addView(rb);
+        }
+        rge.check(200 + Prefs.engine(this));
+        rge.setOnCheckedChangeListener((g, id) -> {
+            Prefs.setEngine(this, id - 200);
+            if (Prefs.enabled(this) && WakeService.inst != null) startAll();
+        });
+        root.addView(rge);
+
         // Nachtruhe: das Weckwort schläft zwischen zwei Uhrzeiten
         TextView nacht = new TextView(this);
         nacht.setText("\nNachtruhe (Weckwort schläft):");
@@ -168,6 +187,7 @@ public class SetupActivity extends Activity {
         info.setText("Status: " + Prefs.status(this)
                 + "\nZuletzt gehört: " + Prefs.last(this)
                 + "\nErkennungen: " + Prefs.hits(this)
+                + "\nRechenzeit der Erkennung: " + Prefs.stat(this)
                 + "\nÜber anderen Apps einblenden: " + (overlay ? "erlaubt" : "NICHT erlaubt")
                 + "\nVollbild-Benachrichtigung: " + fullScreenOk());
     }
