@@ -92,6 +92,10 @@ const HELP_TOPICS = [
         'Der Wochenüberblick (Sonntag 18 Uhr) kommt als Nachricht mit dem ganzen Text und wird zusätzlich gesprochen, auch wenn die App gerade offen ist',
         'Meldungen nachlesen: "Meine Meldungen" / "Was hast du mir gesagt?" / "Was habe ich verpasst?" (Wochenüberblick, Aufbruchszeit, Stau-Hinweis der letzten Tage)',
         'Wochenüberblick, Aufbruchszeit und Stau-Hinweis öffnen beim Sprechen auch ein Fenster zum Nachlesen; "Zeig mir den Wochenüberblick" jederzeit'] },
+    { key: 'auftraege', icon: '👁️', title: 'Aufträge: Sag Bescheid, wenn ...', words: /auftr(?:ä|ae)ge|bescheid|beobacht|(?:ü|ue)berwach/, examples: [
+        'Sag mir Bescheid, wenn der Diesel unter 1,65 fällt (Preis in deiner Umgebung)', 'Sag Bescheid, wenn es aufhört zu regnen (auch: wenn es anfängt zu regnen)', 'Meld dich, wenn es unter 0 Grad geht (auch: über 25 Grad, oder: wenn es Frost gibt)',
+        'Ein Auftrag meldet sich einmal und löscht sich dann; mit "jedes Mal" bleibt er: Sag mir jedes Mal Bescheid, wenn der Diesel unter 1,65 fällt',
+        'Welche Aufträge hast du? / Lösch alle Aufträge / Lösch den Dieselauftrag', 'Höchstens fünf Aufträge gleichzeitig, nachts zwischen 22 und 5 Uhr kommt keine Meldung. Bei offener App spricht Jarvis, sonst kommt eine Benachrichtigung aufs Handy (dafür müssen Benachrichtigungen an sein)'] },
     { key: 'routinen', icon: '🔁', title: 'Routinen', words: /routine|gelernt|gewohnheit/, examples: [
         'Welche Routinen kennst du? / Was hast du gelernt?', 'Zane merkt sich still nur Art und Uhrzeit (nie den Inhalt), was du wann tust, und fragt dich höchstens einmal am Tag, ob er eine Routine merken soll',
         'Antworte einfach Ja oder Nein', 'Vergiss die Routine Einkauf / Vergiss alle Routinen', 'Routinen aus / Routinen an'] },

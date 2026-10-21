@@ -53,7 +53,7 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - **Mail/Geld:** `mail.js`, `mailaktionen.js`, `mail_nacht.js`, `mailwatch.js`, `mailpush.js`, `konto.js`, `fristen.js`, `rechnungen.js`, `kuendigung.js`, `waehrung.js`
 - **Foto:** `photo.js`, `foto_erkennen.js`, `foto_brief.js`, `foto_rezept.js`, `foto_abtippen.js`, `foto_adresse.js`, `foto_stundenplan.js`, `foto_person.js`, `fotosenden.js`
 - **Gedächtnis/Mitdenken:** `langzeit.js`, `langzeit_erinnern.js`, `gedaechtnis.js`, `gedaechtnis_zeit.js`, `kontext_lokal.js`, `mitdenken.js`, `proaktiv.js`, `wachter.js`, `routinen.js`, `vorbereitung.js`, `smarttips.js`, `ruhe.js`
-- **Push/Sync:** `push.js`, `pushsync.js`, `sync.js`
+- **Push/Sync:** `push.js`, `pushsync.js`, `sync.js`, `auftraege.js` ("Sag Bescheid, wenn ...": Diesel, Regen, Temperatur; Server: `push_watch_*` in `api/sync.js`, Prüfung jede Minute in `push_due`)
 - **Sonstiges:** `bundesliga.js`, `ergebnisse.js`, `filme.js`, `tagesueberblick.js`, `help.js`, `einfuehrung.js`, `teilen.js`, `schliessen.js`, `loeschen_fragen.js`, `loesch_notiz.js`
 - **Diagnose:** `diagnose.js`, `systemcheck_voll.js`, `satztest.js`, `fehlerort.js`, `erweiterungen.js`
 
