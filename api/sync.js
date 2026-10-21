@@ -287,6 +287,8 @@ async function handlePush(action, req, res, redis) {
       const st = await loadItems(redis);
       const w = cleanWatch(body);
       if (!w) return res.status(400).json({ error: 'Ungültiger Auftrag' });
+      const gleich = st.watch.find(x => x.typ === w.typ && x.op === w.op && x.wert === w.wert);   // denselben Auftrag nicht doppelt anlegen
+      if (gleich) { if (gleich.einmal && !w.einmal) gleich.einmal = false; await redis('SET', ITEMS_KEY, JSON.stringify(st)); return res.status(200).json({ ok: true, doppelt: true, id: gleich.id, list: st.watch }); }
       if (st.watch.length >= WATCH_MAX) return res.status(200).json({ ok: false, voll: true, list: st.watch });
       st.watch.push(w);
       await redis('SET', ITEMS_KEY, JSON.stringify(st));
