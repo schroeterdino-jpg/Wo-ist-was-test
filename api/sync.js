@@ -22,6 +22,7 @@ const ALLOWED_KEYS = [
   'jv_schicht',
   'jv_urlaub',
   'jv_plan_beginn',
+  'jv_plan_abfahrt',
   'jv_hoerkorrektur',
   'helfer_pronunciations',
   'jv_mitnehmen',

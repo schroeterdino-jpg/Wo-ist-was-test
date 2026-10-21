@@ -918,10 +918,12 @@ function repaintPulse(){
    pulseN++; pulseEl.style.opacity=(pulseN%2)?'.01':'.02';
  }catch(e){}
 }
-function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);const dt=Math.min(.05,(now-(loop.last||now))/1000);loop.last=now;
+function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);
  let speaking=!!(window.__jvLipAudio&&!window.__jvLipAudio.paused&&!window.__jvLipAudio.ended);
+ if(!speaking&&loop.ruhig&&now-(loop.last||0)<30)return;   /* Strom sparen: im Leerlauf nur ca. 30 Bilder pro Sekunde (Handy bleibt kühler); beim Sprechen, Zuhören und Denken volle Rate */
+ const dt=Math.min(.05,(now-(loop.last||now))/1000);loop.last=now;
  if(speaking||generischSpricht()) repaintPulse();
- const st=syncAvatarState(now); updateLook(now,dt,st,speaking); applyMorphs(dt,speaking,now);
+ const st=syncAvatarState(now); loop.ruhig=(st==='idle'&&!speaking&&!generischSpricht()); updateLook(now,dt,st,speaking); applyMorphs(dt,speaking,now);
  schlafStep(dt,now,st);
  const baseY=Math.sin(now*.00055)*.035*(1-sleepLevel), baseX=Math.sin(now*.0007)*.008;
  root.rotation.y=baseY+(st==='thinking'?.055:0)+look.y+pose.y;
