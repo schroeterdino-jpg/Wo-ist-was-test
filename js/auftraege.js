@@ -87,6 +87,7 @@
             const r = await post('push_watch_add', a);
             if (r && r.voll) { sagen('Ich beobachte schon fünf Dinge, Sir. Lösch erst einen Auftrag, zum Beispiel mit: Lösch alle Aufträge.'); return; }
             if (!r || !r.ok) { sagen('Das konnte ich nicht anlegen.'); return; }
+            if (r.doppelt) { sagen('Das beobachte ich schon, Sir. Ich melde mich, sobald ' + beschreibe(a) + '.'); return; }
             const wann = a.einmal ? 'einmal' : 'jedes Mal';
             let s = 'Verstanden, Sir. Ich melde mich ' + wann + ', sobald ' + beschreibe(a) + '.';
             if (!pushAn() && !inApp()) s += ' Aber die Benachrichtigungen sind aus. Sag: Benachrichtigungen an, dann erreiche ich dich auch bei geschlossener App.';
