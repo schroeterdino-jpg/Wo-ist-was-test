@@ -103,7 +103,20 @@
                 ctx.fillStyle = 'rgba(190,248,255,' + al + ')'; ctx.fillText(w, px, py);
             }
         });
-        txt.textContent = '● SYSTEME WERDEN DURCHSUCHT' + '...'.slice(0, 1 + Math.floor(t * 4) % 3);
+        txt.textContent = '● ' + schritt() + '...'.slice(0, 1 + Math.floor(t * 4) % 3);
+    }
+
+    /* Was gerade wirklich passiert (window.__jvArbeit, gesetzt von typeWriterStatus in ui.js); kurz genug für eine Zeile */
+    var SCHRITTE = [
+        [/Wetter/, 'WETTERDATEN WERDEN ABGERUFEN'], [/Standort/, 'STANDORT WIRD ERMITTELT'], [/Kalender/, 'KALENDER WIRD DURCHSUCHT'],
+        [/E-Mail/, 'POSTEINGANG WIRD GEPRÜFT'], [/Fahrzeit/, 'VERKEHR WIRD ABGEGLICHEN'], [/Tankstellen/, 'TANKSTELLEN WERDEN VERGLICHEN'],
+        [/in der Nähe/, 'UMGEBUNG WIRD ABGESUCHT'], [/Verbindung/, 'VERBINDUNGEN WERDEN GEPRÜFT'], [/Internet/, 'INTERNET WIRD DURCHSUCHT'],
+        [/Gedächtnis/, 'GEDÄCHTNIS WIRD ABGEGLICHEN'], [/Antwort/, 'ANTWORT WIRD FORMULIERT']
+    ];
+    function schritt() {
+        var a = String(window.__jvArbeit || '');
+        for (var i = 0; i < SCHRITTE.length; i++) if (SCHRITTE[i][0].test(a)) return SCHRITTE[i][1];
+        return 'SYSTEME WERDEN DURCHSUCHT';
     }
 
     function schleife(now) {
@@ -119,7 +132,7 @@
         aktiv = true; alpha = 1; t0 = performance.now(); worte = stichworte(letzterText);
         if (!messen()) { aktiv = false; return; }
         cv.style.opacity = 1; txt.style.opacity = 1;
-        if (weniger()) txt.textContent = '● SYSTEME WERDEN DURCHSUCHT...';
+        if (weniger()) txt.textContent = '● ' + schritt() + '...';
         if (!raf) raf = requestAnimationFrame(schleife);
     }
     function stop() {

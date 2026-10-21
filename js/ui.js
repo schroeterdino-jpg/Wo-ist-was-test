@@ -119,6 +119,7 @@ function setHudSubtitleSynced(text, utterance) {
 
 let typewriterTimeout = null;
 function typeWriterStatus(text) {
+    try { window.__jvArbeit = String(text || ''); } catch (e) { }   // aktueller Arbeitsschritt (für Synapsen-Zeile und Zwischenansage)
     const el = document.getElementById('statusMessage');
     if (!el) return;
     if (typewriterTimeout) clearTimeout(typewriterTimeout);

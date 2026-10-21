@@ -78,6 +78,28 @@ function ackPhrasesFor(text) {
     return neutral;
 }
 
+/* Zwischenansage passend zu dem, was gerade wirklich läuft (der Schritt steht in window.__jvArbeit, gesetzt von typeWriterStatus).
+   Nur eine Auskunft, kein Versprechen. Kein bekannter Schritt: wie bisher die allgemeinen Sätze. */
+const ACK_SCHRITTE = [
+    [/Fahrzeit/, 'Ich gleiche Route und Verkehr ab.'],
+    [/Wetter/, 'Ich rufe die Wetterdaten ab.'],
+    [/Kalender/, 'Ich sehe kurz im Kalender nach.'],
+    [/E-Mail/, 'Ich schaue in den Posteingang.'],
+    [/Tankstellen/, 'Ich vergleiche die Preise entlang der Strecke.'],
+    [/in der Nähe/, 'Ich sehe mich in der Umgebung um.'],
+    [/Verbindung/, 'Ich prüfe die Verbindungen.'],
+    [/Internet/, 'Ich suche das kurz im Internet.'],
+    [/Standort/, 'Ich ermittle deinen Standort.']
+];
+function ackPhraseNow(text) {
+    try {
+        const schritt = String(window.__jvArbeit || '');
+        const hit = ACK_SCHRITTE.find(s => s[0].test(schritt));
+        if (hit) return (jarvisTonAn() && Math.random() < 0.5 ? 'Einen Moment, Sir. ' : 'Einen Moment. ') + hit[1];
+    } catch (e) { }
+    return pickRandom(ackPhrasesFor(text));
+}
+
 /* ---------- Begrüßung: "Hallo Zane", "Guten Abend", "Na Zane" ----------
    Beantwortet Zane selbst, ohne Umweg über die KI: sofort, ohne "Einen Moment" und mit der Anrede,
    die wirklich zur Uhrzeit passt (die KI hat nachts manchmal "Guten Tag" gesagt). */
