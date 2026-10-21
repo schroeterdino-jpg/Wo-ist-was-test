@@ -168,6 +168,7 @@ public class SetupActivity extends Activity {
         info.setText("Status: " + Prefs.status(this)
                 + "\nZuletzt gehört: " + Prefs.last(this)
                 + "\nErkennungen: " + Prefs.hits(this)
+                + "\nRechenzeit der Erkennung: " + Prefs.stat(this)
                 + "\nÜber anderen Apps einblenden: " + (overlay ? "erlaubt" : "NICHT erlaubt")
                 + "\nVollbild-Benachrichtigung: " + fullScreenOk());
     }
