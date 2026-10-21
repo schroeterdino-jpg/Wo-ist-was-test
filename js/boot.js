@@ -15,6 +15,8 @@
     window.jvBootAn = an;
     window.jvBootSetzen = function (ein) { try { localStorage.setItem(KEY, ein ? 'an' : 'aus'); sessionStorage.setItem(KEY, ein ? 'an' : 'aus'); } catch (e) {} };
     function weniger() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+    /* Von "Hey Nova" geweckt: keine Startanimation, Nova soll sofort "Ja?" sagen und zuhören (native_speech.js setzt __zaneWakeAt) */
+    try { if (window.__zaneWakePending || Date.now() - (window.__zaneWakeAt || 0) < 15000) return; } catch (e) {}
     if (!an() || weniger() || /[?&](brief|nostart)=/.test(location.search) || window.__jvBootGelaufen) return;
     window.__jvBootGelaufen = true;
 
@@ -95,6 +97,7 @@
         setTimeout(function () { if (fl) { fl.style.transition = 'opacity .3s'; fl.style.opacity = 0; } raus(); }, 160);
     }
     ov.addEventListener('pointerdown', function () { ende(true); });
+    window.jvBootBeenden = function () { try { ende(true); } catch (e) {} };
     document.addEventListener('visibilitychange', function () { if (document.hidden) ende(true); });
     spaeter(function () { ende(true); }, DAUER + 1500);   // Sicherung: bleibt nie hängen
 
