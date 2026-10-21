@@ -149,6 +149,7 @@ public class AnsageReceiver extends BroadcastReceiver {
         if (id.startsWith("aufbruch")) return "Jarvis: Zeit zum Losfahren";
         if (id.startsWith("wecker")) return "Jarvis: Wecker für morgen?";
         if (id.startsWith("ort|")) return "Jarvis: Einkaufsliste";
+        if (id.startsWith("auftrag|")) return "Jarvis meldet sich";
         return "Jarvis";
     }
 

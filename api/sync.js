@@ -311,6 +311,13 @@ async function handlePush(action, req, res, redis) {
       if (msgs.length) await redis('SET', ITEMS_KEY, JSON.stringify(st));
       return res.status(200).json({ ok: true, msgs, list: st.watch });
     }
+    if (action === 'push_watch_native') {   // die Android-App fragt nach erfüllten Aufträgen (im WebView gibt es kein Web-Push)
+      const st = await loadItems(redis);
+      st.natTs = Date.now();
+      const msgs = st.watchNat.splice(0, 5);
+      await redis('SET', ITEMS_KEY, JSON.stringify(st));
+      return res.status(200).json({ ok: true, msgs, n: st.watch.length });
+    }
     if (action === 'push_alive' || action === 'push_gone') {   // alive: App offen und sichtbar, dann spricht sie selbst; gone: App wurde verlassen
       const st = await loadItems(redis);
       st.alive = action === 'push_alive' ? Date.now() : 0;
@@ -356,6 +363,7 @@ async function loadItems(redis) {
   if (!st.imp.sent || typeof st.imp.sent !== 'object') st.imp.sent = {};
   if (!Array.isArray(st.watch)) st.watch = [];       // Beobachtungsaufträge ("Sag Bescheid, wenn ...")
   if (!Array.isArray(st.watchMsg)) st.watchMsg = []; // Meldungen für die offene App (sie spricht sie selbst)
+  if (!Array.isArray(st.watchNat)) st.watchNat = []; // Meldungen für die Android-App (sie fragt alle paar Minuten nach)
   return st;
 }
 
@@ -922,9 +930,16 @@ async function runWatch(redis, st, data, now, appOpen) {
     if (w.last && now - w.last < WATCH_REPEAT_GAP_MS) { keep.push(w); continue; }
     let ok = false;
     if (appOpen) { st.watchMsg.push({ id: w.id, ts: now, title: res.title, body: res.body }); st.watchMsg = st.watchMsg.slice(-5); ok = true; }
-    else if (data.subs.length) {
-      const r = await sendToAll(redis, data, { title: res.title, body: res.body, tag: 'auftrag-' + w.id, url: './' });
-      ok = r.sent > 0;
+    else {
+      let pushed = false;
+      if (data.subs.length) {
+        const r = await sendToAll(redis, data, { title: res.title, body: res.body, tag: 'auftrag-' + w.id, url: './' });
+        pushed = r.sent > 0;
+      }
+      if (pushed) ok = true;
+      else if (st.natTs && now - st.natTs < 20 * 60000) {   // Android-App fragt regelmäßig nach: Meldung für sie hinterlegen
+        st.watchNat.push({ id: w.id, ts: now, title: res.title, body: res.body }); st.watchNat = st.watchNat.slice(-5); ok = true;
+      }
     }
     if (ok) { sent++; w.last = now; if (!w.einmal) keep.push(w); } else keep.push(w);
   }
