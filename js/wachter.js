@@ -67,6 +67,7 @@ function wachterIdle() {
     if (typeof document !== 'undefined' && document.hidden) return false;
     if (typeof isProcessing !== 'undefined' && isProcessing) return false;
     if (typeof isSpeaking === 'function' && isSpeaking()) return false;
+    if (typeof window.jvRuhe === 'function' && window.jvRuhe()) return false;   // Briefing läuft oder gerade gesprochen (ruhe.js)
     if (typeof interpreter !== 'undefined' && interpreter) return false;
     if (typeof isRecording !== 'undefined' && isRecording && !(typeof wakeWordListening !== 'undefined' && wakeWordListening)) return false;   // du sprichst gerade
     return true;

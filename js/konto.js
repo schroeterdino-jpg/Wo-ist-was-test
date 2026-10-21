@@ -38,6 +38,7 @@
             if (typeof document !== 'undefined' && document.hidden) return true;
             if (typeof isProcessing !== 'undefined' && isProcessing) return true;
             if (typeof isSpeaking === 'function' && isSpeaking()) return true;
+            if (typeof window.jvRuhe === 'function' && window.jvRuhe()) return true;   // Briefing läuft oder gerade gesprochen (ruhe.js)
             if (typeof recordBtn !== 'undefined' && recordBtn && recordBtn.classList && recordBtn.classList.contains('recording')) return true;
             if (window.jvMailWatch && typeof window.jvMailWatch.waiting === 'function' && window.jvMailWatch.waiting()) return true;
         } catch (e) {}
