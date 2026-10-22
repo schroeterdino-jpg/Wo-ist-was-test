@@ -70,6 +70,11 @@
                 (typeof ackActive !== 'undefined' && ackActive) ||
                 window.__zaneAckBusy === true;
             window.ZaneNative.setBusy(!!busy);
+            // Spricht Jarvis gerade? Nur dann darf die App beim Weckwort unterbrechen (Einstellung "Unterbrechen"); ältere Apps kennen das nicht
+            if (typeof window.ZaneNative.setSprechen === 'function') {
+                const spricht = (typeof isSpeaking === 'function' && isSpeaking()) || window.__zaneAckBusy === true;
+                if (spricht !== window.__jvSprechenGemeldet) { window.__jvSprechenGemeldet = spricht; window.ZaneNative.setSprechen(!!spricht); }
+            }
         } catch (e) { }
     }, 300);
 
@@ -145,6 +150,7 @@
         if (waking) return;
         window.__zaneWakePending = false;
         window.__zaneWakeAt = Date.now();
+        try { if (typeof isSpeaking === 'function' && isSpeaking() && typeof interruptSpeaking === 'function') interruptSpeaking(); } catch (e) { }   // Weckwort während Jarvis spricht: sofort still sein und zuhören
         try { if (window.jvBootBeenden) window.jvBootBeenden(); } catch (e) { }   // läuft die Startanimation schon, sofort beenden: sonst hört Jarvis unter ihr zu
         waking = true;
         setTimeout(function () { waking = false; }, 3000);

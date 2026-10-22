@@ -19,7 +19,9 @@ const HELP_TOPICS = [
     { key: 'gedaechtnis', icon: '🧠', title: 'Gedächtnis', words: /gedächtnis|gedaechtnis|merk/, examples: [
         'Merk dir, der Ersatzschlüssel hängt am Klemmbrett', 'Wo ist mein Ersatzschlüssel?', 'Ich lege meinen Schlüssel unters Kopfkissen (Kurzzeitgedächtnis)', 'Wann habe ich den Schlüssel abgelegt?'] },
     { key: 'auto', icon: '🚗', title: 'Auto & Parkplatz', words: /parkplatz|geparkt|\bauto\b/, examples: [
-        'Merk dir, wo ich geparkt habe', 'Wo ist mein Auto?', 'Bring mich zu meinem Auto'] },
+        'Merk dir, wo ich geparkt habe', 'Wo ist mein Auto?', 'Bring mich zu meinem Auto',
+        'Automatisch: In den Jarvis-Einstellungen (App) "Auto per Bluetooth wählen". Trennt sich das Handy vom Auto, merkt sich Jarvis den Parkplatz (nicht, wenn du zu Hause bist, höchstens 150 m).',
+        'Unterbrechen: In den Jarvis-Einstellungen "Jarvis beim Sprechen unterbrechen" einschalten (Test). Dann reicht "Hey Jarvis", während er spricht.'] },
     { key: 'fahrten', icon: '🗺️', title: 'Fahrten & Verkehr', words: /fahr|verkehr|stau|navig|route|weg\b|karte/, examples: [
         'Ich möchte heute zu Alyssa fahren', 'Wann muss ich zum Zahnarzt losfahren?', 'Ist Stau auf meiner Strecke zur Arbeit?', 'Bring mich nach Hause', 'Zeig mir die Karte', 'Schließ die Karte (schließt die offene Karte, auch die Wetterkarte)',
         'Die Fahrzeit kommt von Google Maps mit aktuellem Verkehr; bei der alten Route rechnet Zane gemeldete Staus (mit Minuten) zusätzlich ein, dazu immer 10 Minuten Puffer: "Abfahrt bis ..."',

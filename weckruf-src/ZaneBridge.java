@@ -20,6 +20,18 @@ class ZaneBridge {
     @JavascriptInterface
     public void setBusy(boolean busy) { WakeService.setPageBusy(busy); }
 
+    /** Jarvis spricht gerade (true) oder nicht: nur dann darf das Weckwort zum Unterbrechen mithören (wenn in den Einstellungen an). */
+    @JavascriptInterface
+    public void setSprechen(boolean sprechen) { WakeService.setSprechen(sprechen); }
+
+    /** Parkplatz, der beim Trennen vom Auto vorgemerkt wurde (JSON mit lat, lon, acc, at), sonst leer. Wird dabei gelöscht. */
+    @JavascriptInterface
+    public String holeParkplatz() {
+        String s = Prefs.parkPending(act);
+        if (!s.isEmpty()) Prefs.setParkPending(act, "");
+        return s;
+    }
+
     @JavascriptInterface
     public void printHtml(String title, String html) { act.printHtml(title, html); }
 
