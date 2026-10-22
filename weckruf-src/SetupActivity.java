@@ -149,6 +149,55 @@ public class SetupActivity extends Activity {
         });
         root.addView(von);
         root.addView(bis);
+
+        // Unterbrechen per Sprache (Test)
+        TextView unt = new TextView(this);
+        unt.setText("\nUnterbrechen:");
+        root.addView(unt);
+        android.widget.CheckBox cbu = new android.widget.CheckBox(this);
+        cbu.setText("Jarvis beim Sprechen mit „Hey Jarvis“ unterbrechen (Test, nur neue Erkennung)");
+        cbu.setChecked(Prefs.unterbrechen(this));
+        cbu.setOnCheckedChangeListener((b, an) -> { Prefs.setUnterbrechen(this, an); WakeService.neuStarten(); });
+        root.addView(cbu);
+
+        // Auto (Bluetooth) für den automatischen Parkplatz
+        TextView auto = new TextView(this);
+        auto.setText("\nAuto (Parkplatz automatisch merken):");
+        root.addView(auto);
+        btn(root, "Auto per Bluetooth wählen", v -> autoWaehlen());
+        btn(root, "Standort „Immer zulassen“ einstellen", v ->
+                startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()))));
+    }
+
+    /** Liste der gekoppelten Bluetooth-Geräte zeigen; das gewählte gilt als Auto. */
+    private void autoWaehlen() {
+        try {
+            if (Build.VERSION.SDK_INT >= 31 && checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.BLUETOOTH_CONNECT}, 3);
+                return;
+            }
+            android.bluetooth.BluetoothManager bm = (android.bluetooth.BluetoothManager) getSystemService(BLUETOOTH_SERVICE);
+            android.bluetooth.BluetoothAdapter ad = bm == null ? null : bm.getAdapter();
+            if (ad == null) { info.setText("Dieses Handy hat kein Bluetooth."); return; }
+            final ArrayList<String> namen = new ArrayList<>();
+            final ArrayList<String> adressen = new ArrayList<>();
+            namen.add("Kein Auto (aus)");
+            adressen.add("");
+            for (android.bluetooth.BluetoothDevice d : ad.getBondedDevices()) {
+                String n = d.getName();
+                namen.add(n == null || n.isEmpty() ? d.getAddress() : n);
+                adressen.add(d.getAddress());
+            }
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("Welches Gerät ist dein Auto?")
+                    .setItems(namen.toArray(new String[0]), (dlg, which) -> {
+                        Prefs.setCar(this, adressen.get(which), which == 0 ? "" : namen.get(which));
+                        refresh();
+                    })
+                    .show();
+        } catch (Throwable e) {
+            info.setText("Bluetooth-Liste nicht verfügbar: " + e);
+        }
     }
 
     private void startAll() {
@@ -168,6 +217,11 @@ public class SetupActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
         super.onRequestPermissionsResult(code, perms, res);
+        if (code == 3) {   // Bluetooth-Erlaubnis für die Auto-Wahl
+            if (Build.VERSION.SDK_INT < 31 || checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) autoWaehlen();
+            else info.setText("Ohne Bluetooth-Erlaubnis kann ich das Auto nicht erkennen.");
+            return;
+        }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startAll();
         else info.setText("Ohne Mikrofon-Erlaubnis geht es nicht.");
     }
@@ -189,7 +243,9 @@ public class SetupActivity extends Activity {
                 + "\nErkennungen: " + Prefs.hits(this)
                 + "\nRechenzeit der Erkennung: " + Prefs.stat(this)
                 + "\nÜber anderen Apps einblenden: " + (overlay ? "erlaubt" : "NICHT erlaubt")
-                + "\nVollbild-Benachrichtigung: " + fullScreenOk());
+                + "\nVollbild-Benachrichtigung: " + fullScreenOk()
+                + "\nAuto (Bluetooth): " + (Prefs.carAddr(this).isEmpty() ? "keins gewählt" : Prefs.carName(this))
+                + "\nParkplatz: " + Prefs.parkInfo(this));
     }
 
     @Override protected void onResume() { super.onResume(); h.post(tick); }

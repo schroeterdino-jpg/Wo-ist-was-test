@@ -45,6 +45,7 @@ public class WakeService extends Service implements RecognitionListener {
     static volatile long holdUntil = 0;
     static volatile long recSince = 0;
     static volatile long busySince = 0;
+    static volatile boolean sprechen = false;   // Jarvis spricht gerade (die Seite meldet es), für das Unterbrechen per Sprache
     static WakeService inst;
 
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -60,6 +61,7 @@ public class WakeService extends Service implements RecognitionListener {
     private long lastTrigger = 0;
     private long speechSince = 0;
     private boolean watchdogOn = false;
+    private CarWatcher car;          // Bluetooth des Autos: Parkplatz automatisch merken
 
     // Wächter: startet das Lauschen neu, wenn es still gestorben ist, und frischt es alle paar Minuten auf
     private final Runnable watchdog = new Runnable() {
@@ -86,6 +88,19 @@ public class WakeService extends Service implements RecognitionListener {
     };
 
     static void setPageBusy(boolean b) { if (pageBusy != b) { pageBusy = b; if (b) busySince = System.currentTimeMillis(); poke(); } }
+    static void setSprechen(boolean b) {
+        if (sprechen == b) return;
+        sprechen = b;
+        final WakeService s = inst;
+        // Unterbrechen per Sprache: beim Beginn und Ende des Sprechens neu starten, damit die passende Schwelle gilt
+        if (s != null && Prefs.unterbrechen(s) && s.useOww()) s.main.post(() -> { s.stopSpeech(); s.evalVosk(); });
+    }
+    /** Von den Einstellungen: Unterbrechen an/aus geändert. */
+    static void neuStarten() {
+        final WakeService s = inst;
+        if (s != null) s.main.post(() -> { s.stopSpeech(); s.evalVosk(); });
+    }
+    private boolean unterbrechenMoeglich() { return sprechen && !recActive && Prefs.unterbrechen(this) && useOww(); }
     static void setRecActive(boolean b) { if (b && !recActive) recSince = System.currentTimeMillis(); recActive = b; poke(); }
     static void setActivityResumed(boolean b) { activityResumed = b; poke(); }
 
@@ -104,6 +119,7 @@ public class WakeService extends Service implements RecognitionListener {
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         nm.createNotificationChannel(new NotificationChannel(CH_LISTEN, "Jarvis hört zu", NotificationManager.IMPORTANCE_LOW));
         nm.createNotificationChannel(new NotificationChannel(CH_WAKE, "Hey Jarvis erkannt", NotificationManager.IMPORTANCE_HIGH));
+        try { car = CarWatcher.registrieren(this); } catch (Throwable ignored) { }   // Parkplatz automatisch merken (Auto-Bluetooth)
     }
 
     static final String ACTION_TOGGLE = "de.dino.zaneweckruf.TOGGLE";
@@ -351,7 +367,7 @@ public class WakeService extends Service implements RecognitionListener {
         if (ausgeschaltet()) return false;
         if (recActive) return false;
         if (System.currentTimeMillis() < holdUntil) return false;
-        if (activityResumed && pageBusy) return false;
+        if (activityResumed && pageBusy && !unterbrechenMoeglich()) return false;   // Jarvis spricht/hört zu: Pause (außer er darf unterbrochen werden)
         return true;
     }
 
@@ -409,7 +425,9 @@ public class WakeService extends Service implements RecognitionListener {
 
     private void startOww() {
         try {
-            owwSpeech = new OwwSpeech(this, oww, owwSchwelle(), vad);
+            float schwelle = owwSchwelle();
+            if (unterbrechenMoeglich()) schwelle = Math.min(0.9f, schwelle + 0.25f);   // Jarvis' eigene Stimme soll das Weckwort nicht auslösen: strenger
+            owwSpeech = new OwwSpeech(this, oww, schwelle, vad);
             owwSpeech.startListening(new OwwSpeech.Listener() {
                 @Override public void onWake(float score) {
                     if (owwSpeech == null) return;   // inzwischen pausiert: Treffer verwerfen
@@ -553,6 +571,7 @@ public class WakeService extends Service implements RecognitionListener {
         alive = false;
         meldungenOn = false;
         inst = null;
+        if (car != null) { car.beenden(); car = null; }
         main.removeCallbacksAndMessages(null);
         stopSpeech();
         if (model != null) { model.close(); model = null; }

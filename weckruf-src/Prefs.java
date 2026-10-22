@@ -33,6 +33,17 @@ final class Prefs {
     static void setEngine(Context c, int v) { sp(c).edit().putInt("engine", v).apply(); }
     static String stat(Context c) { return sp(c).getString("stat", "noch keine Messung"); }
     static void setStat(Context c, String s) { sp(c).edit().putString("stat", s).apply(); }
+    // Unterbrechen per Sprache (Test): Jarvis hört beim Sprechen weiter auf "Hey Jarvis" (strengere Schwelle)
+    static boolean unterbrechen(Context c) { return sp(c).getBoolean("unterbrechen", false); }
+    static void setUnterbrechen(Context c, boolean v) { sp(c).edit().putBoolean("unterbrechen", v).apply(); }
+    // Auto (Bluetooth) für den automatischen Parkplatz
+    static String carAddr(Context c) { return sp(c).getString("carAddr", ""); }
+    static String carName(Context c) { return sp(c).getString("carName", ""); }
+    static void setCar(Context c, String addr, String name) { sp(c).edit().putString("carAddr", addr == null ? "" : addr).putString("carName", name == null ? "" : name).apply(); }
+    static String parkPending(Context c) { return sp(c).getString("parkPending", ""); }
+    static void setParkPending(Context c, String s) { sp(c).edit().putString("parkPending", s == null ? "" : s).apply(); }
+    static String parkInfo(Context c) { return sp(c).getString("parkInfo", "noch nichts"); }
+    static void setParkInfo(Context c, String s) { sp(c).edit().putString("parkInfo", s).apply(); }
     static int hits(Context c) { return sp(c).getInt("hits", 0); }
     static void addHit(Context c) { sp(c).edit().putInt("hits", hits(c) + 1).apply(); }
 }
