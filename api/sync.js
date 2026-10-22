@@ -649,6 +649,15 @@ async function geoCached(st, text) {
 }
 
 /* Dieselpreis: billigste geöffnete Tankstelle im Umkreis; Verlauf merken; bei deutlich günstigerem Preis melden */
+// Name für die Ansage: echte Marke, sonst der Name der Station; "freie Tankstelle" ist keine Marke
+function tankName(b) {
+  const cl = v => String(v || '').trim();
+  const generisch = v => !v || /^(freie?|frei|tankstelle|sonstige)(\s+tankstelle)?$/i.test(v);
+  const brand = cl(b.brand), name = cl(b.name);
+  if (!generisch(brand)) return brand;
+  if (name && !generisch(name)) return name;
+  return 'freie Tankstelle';
+}
 async function cheapestDiesel(origin) {
   const key = process.env.TANKER_API_KEY || process.env.TANKERKOENIG_API_KEY;
   if (!key) return { err: 'Schlüssel fehlt (TANKER_API_KEY)' };
@@ -661,7 +670,7 @@ async function cheapestDiesel(origin) {
     if (!list.length) return { err: 'keine geöffnete Tankstelle mit Preis' };
     list.sort((a, b) => a.price - b.price);
     const b = list[0];
-    return { price: b.price, name: b.brand || b.name || 'Tankstelle', street: [b.street, b.houseNumber].filter(Boolean).join(' ').trim(), place: b.place || '', dist: b.dist };
+    return { price: b.price, name: tankName(b), street: [b.street, b.houseNumber].filter(Boolean).join(' ').trim(), place: b.place || '', dist: b.dist };
   } catch (e) { return { err: 'nicht erreichbar' }; }
 }
 function tankDue(st, now) {
