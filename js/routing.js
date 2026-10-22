@@ -212,7 +212,7 @@ function contactList() {
     if (!raw) return [];
     const pick = (v, fallbackName) => {
         if (!v || typeof v !== 'object') return { name: fallbackName || '', address: '' };
-        return { name: v.name || v.key || v.label || fallbackName || '', address: v.address || v.adresse || v.addr || v.ort || v.location || '' };
+        return { name: v.name || v.originalName || v.key || v.label || fallbackName || '', address: v.address || v.adresse || v.addr || v.ort || v.location || '' };
     };
     if (Array.isArray(raw)) return raw.map(v => pick(v, ''));
     return Object.keys(raw).map(k => pick(raw[k], k));
@@ -244,17 +244,32 @@ function withDefaultRegion(address) {
     return addr;
 }
 
-/* Gibt die Adresse des Kontakts zurück, dessen Name dem Ziel entspricht; sonst null (dann ist es ein normaler Ort) */
+/* Gibt die Adresse des Kontakts zurück, dessen Name dem Ziel entspricht; sonst null (dann ist es ein normaler Ort).
+   Nennt das Ziel nur einen Vornamen ("Anna"), gilt der Kontakt, der so beginnt. Passen mehrere, wird nachgefragt (rueckfrage.js)
+   und die Frage in contactAsk gemerkt; eine frühere Wahl wird übernommen. */
+let contactAsk = null;
 function resolveContactDestination(dest) {
     const d = contactKey(dest);
     if (!d) return null;
-    const hit = contactList().find(c => c.address && contactKey(c.name) === d);
-    return hit ? withDefaultRegion(hit.address) : null;
+    const mitAdresse = contactList().filter(c => c.address);
+    const hit = mitAdresse.find(c => contactKey(c.name) === d);
+    if (hit) return withDefaultRegion(hit.address);
+    if (d.length < 3) return null;
+    const vor = mitAdresse.filter(c => { const w = String(c.name || '').trim().split(/\s+/); return w.length > 1 && plainKey(w[0]) === d; });
+    if (vor.length === 1) return withDefaultRegion(vor[0].address);
+    if (vor.length > 1) {
+        const namen = vor.map(c => c.name);
+        const g = window.jvRueckfrage ? window.jvRueckfrage.gemerkt(dest, namen) : null;
+        if (g) return withDefaultRegion(vor.find(c => c.name === g).address);
+        if (window.jvRueckfrage) contactAsk = { dest: String(dest), namen };
+    }
+    return null;
 }
 
 /* Wendet das auf die Aktionen der KI an: Fahrziele, die ein Kontakt sind, werden durch die Adresse ersetzt.
    Fehlt eine Fahr-Aktion ganz ("Ich möchte zu Alyssa fahren" nur als Antwort), wird eine Fahrzeit-Abfrage ergänzt. */
 function resolveContactsInActions(actions, text) {
+    contactAsk = null;
     const fields = { navigate: ['nav_to', 'nav_from'], travel_time: ['travel_destination'], bahn: ['bahn_to', 'bahn_from'], fuel_route: ['fuel_destination'] };
     actions.forEach(a => {
         (fields[a.type] || []).forEach(f => {
@@ -264,6 +279,11 @@ function resolveContactsInActions(actions, text) {
         });
     });
 
+    if (contactAsk && window.jvRueckfrage) {   // mehrere Kontakte passen: nichts ausführen, stattdessen nachfragen
+        actions._rueckfrage = window.jvRueckfrage.vorbereiten(contactAsk.dest, contactAsk.namen, text, true);
+        contactAsk = null;
+        return actions;
+    }
     const hasRoute = actions.some(a => fields[a.type]);
     const onlyChat = actions.every(a => !a.type || a.type === 'chat' || a.type === 'memory_search');
     if (!hasRoute && onlyChat && /\b(fahren|fahr|hinfahren|hin\s*fahren|navigier\w*|bring mich|weg zu|route zu)\b/i.test(String(text || ''))) {

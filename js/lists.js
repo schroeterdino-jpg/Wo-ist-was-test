@@ -283,6 +283,14 @@ function resolveListTargets(entries, query, place) {
     const partial = q ? entries.filter(e => normalizeKey(e.text).includes(q)) : [];
     if (partial.length === 0) throw userError(`„${query}" habe ich ${place} nicht gefunden.`);
     if (partial.length > 1) {
+        try {   // Zurückfragen (rueckfrage.js): frühere Wahl nutzen, sonst die Frage merken, damit "die zweite" als Antwort reicht
+            if (window.jvRueckfrage) {
+                const kontakt = place === 'in den Kontakten', namen = partial.map(e => e.text);
+                const g = kontakt ? window.jvRueckfrage.gemerkt(query, namen) : null;
+                if (g) return partial.filter(e => e.text === g);
+                window.jvRueckfrage.vorbereiten(query, namen, window.jvLetzterText, kontakt);
+            }
+        } catch (e) { }
         throw userError(`Zu „${query}" gibt es mehrere Einträge: ${partial.map(e => e.text).join(', ')}. Welchen meinst du?`);
     }
     return partial;
