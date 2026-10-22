@@ -58,7 +58,7 @@ async function fetchUpcomingBirthdays(days) {
     return [...found.values()]
         .sort((a, b) => a.date - b.date)
         .slice(0, BIRTHDAY_MAX_LISTED)
-        .map(x => ({ titel: x.title, tag: relativeDayLabel(x.date, todayStart) }));
+        .map(x => ({ titel: x.title, tag: relativeDayLabel(x.date, todayStart), ymd: x.date.getFullYear() + '-' + String(x.date.getMonth() + 1).padStart(2, '0') + '-' + String(x.date.getDate()).padStart(2, '0') }));
 }
 
 /* Vorname/Kern aus dem Titel ("Julias Geburtstag" -> "julia"), um zu prüfen, ob der Briefing-Text ihn schon nennt */
