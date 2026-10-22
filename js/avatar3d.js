@@ -877,19 +877,30 @@ function sag(text,exp,ohneWeiter){
 }
 
 // Kopf schaut von selbst mal hierhin, mal dorthin (Augen schauen zuerst), nickt leicht beim Sprechen.
-const look={y:0,x:0,z:0,ty:0,tx:0,tz:0,next:0,nod:0,avert:false};
+const look={y:0,x:0,z:0,ty:0,tx:0,tz:0,next:0,nod:0,avert:false,engaged:false};
 function updateLook(now,dt,st,speaking){
   if(!JV_KOPFBEWEGUNG){look.y=look.x=look.z=0;return}
   const gz=JV_BLICK_FINGER&&now<gaze.until&&sleepLevel<.3;
   gaze.w+=((gz?1:0)-gaze.w)*(1-Math.exp(-dt*(gz?9:2.5)));
+  // Blickkontakt: beim Sprechen und Zuhören bleibt der Kopf fast gerade und die Augen schauen zu dir (nur selten kurz weg); sonst schaut er wie bisher umher
+  const engaged=(speaking||st==='listening')&&!gz;
+  if(engaged!==look.engaged){ look.engaged=engaged; look.next=0; }
   if(now>look.next){
     const quiet=Math.random()<.35;
     const amp=(st==='thinking')?.55:(speaking?.45:.7);
-    look.ty=quiet?(Math.random()-.5)*.12:(Math.random()<.5?-1:1)*(.18+Math.random()*.22)*amp/.7;
-    look.tx=(Math.random()-.45)*(quiet?.05:.16);
-    look.tz=(Math.random()-.5)*(quiet?.03:.09);
-    look.next=now+(speaking?2200:3200)+Math.random()*(speaking?3200:6500);
-    look.avert=!quiet&&Math.random()<.2;   // nur selten schaut er beim Sprechen kurz weg, sonst bleiben die Augen bei dir
+    if(engaged){
+      look.avert=speaking&&Math.random()<.05;   // etwa jeder 20. Wechsel: kurzer Blick zur Seite, sonst Blickkontakt
+      look.ty=look.avert?(Math.random()<.5?-1:1)*(.16+Math.random()*.08):(Math.random()-.5)*.07;
+      look.tx=(Math.random()-.5)*.03;
+      look.tz=(Math.random()-.5)*.02;
+      look.next=now+(look.avert?900+Math.random()*600:2200+Math.random()*3200);
+    } else {
+      look.ty=quiet?(Math.random()-.5)*.12:(Math.random()<.5?-1:1)*(.18+Math.random()*.22)*amp/.7;
+      look.tx=(Math.random()-.45)*(quiet?.05:.16);
+      look.tz=(Math.random()-.5)*(quiet?.03:.09);
+      look.next=now+(speaking?2200:3200)+Math.random()*(speaking?3200:6500);
+      look.avert=!quiet&&Math.random()<.2;
+    }
   }
   if(gz){ look.ty=gaze.x*.30; look.tx=gaze.y*.13; look.tz=0; look.next=Math.max(look.next,gaze.until+500); }
   if(sleepLevel>.3){ look.ty=look.tx=look.tz=0; look.next=now+1500; }
@@ -900,7 +911,7 @@ function updateLook(now,dt,st,speaking){
   // Augen schauen etwas früher in die Blickrichtung
   if(expression!=='thinking'||gaze.w>.02){
     let d=Math.max(-1,Math.min(1,look.ty/.4))*.6;
-    if(speaking&&!look.avert&&gaze.w<.02) d=-Math.max(-1,Math.min(1,look.y/.4))*.85;   // beim Sprechen dreht der Kopf mit, die Augen halten Blickkontakt
+    if(engaged&&!look.avert&&gaze.w<.02) d=-Math.max(-1,Math.min(1,look.y/.4))*.85;   // beim Sprechen und Zuhören dreht der Kopf (wenig) mit, die Augen halten Blickkontakt
     if(gaze.w>.01) d=d*(1-gaze.w)+Math.max(-1,Math.min(1,gaze.x))*.95*gaze.w;
     const u=Math.max(0,d), v=Math.max(0,-d);
     setMorph('eyeLookOut_L',u);setMorph('eyeLookIn_R',u);setMorph('eyeLookIn_L',v);setMorph('eyeLookOut_R',v);
