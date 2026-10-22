@@ -51,6 +51,10 @@ class ZaneBridge {
     @JavascriptInterface
     public boolean weckerStellen(int stunde, int minute, String text) { return act.weckerStellen(stunde, minute, text); }
 
+    /** Nummer direkt anrufen (fragt beim ersten Mal nach der Telefon-Erlaubnis). */
+    @JavascriptInterface
+    public boolean anrufen(String nummer) { return act.anrufen(nummer); }
+
     /** Orte und Einkaufsliste für die Orts-Erinnerungen übergeben (JSON). */
     @JavascriptInterface
     public boolean planOrte(String json) { return OrtReceiver.setzen(act, json); }

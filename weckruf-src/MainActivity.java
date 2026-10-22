@@ -312,9 +312,39 @@ public class MainActivity extends Activity {
         else requestPermissions(need.toArray(new String[0]), 1);
     }
 
+    private String anrufWartet = null;
+
+    /** Nummer direkt wählen. Fehlt die Telefon-Erlaubnis, wird einmal gefragt und danach gewählt. */
+    boolean anrufen(String nummer) {
+        String n = nummer == null ? "" : nummer.replaceAll("[^0-9+*#]", "");
+        if (n.length() < 3) return false;
+        try {
+            if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+                anrufWartet = n;
+                runOnUiThread(() -> requestPermissions(new String[]{Manifest.permission.CALL_PHONE}, 3));
+                return true;
+            }
+            Intent i = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(n))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+            return true;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
         super.onRequestPermissionsResult(code, perms, res);
+        if (code == 3) {
+            String n = anrufWartet; anrufWartet = null;
+            if (n != null) {
+                try {
+                    boolean ok = res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED;
+                    startActivity(new Intent(ok ? Intent.ACTION_CALL : Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(n))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                } catch (Throwable ignored) { }
+            }
+            return;
+        }
         try { OrtReceiver.anmelden(this); } catch (Throwable ignored) { }
         startWake();
     }

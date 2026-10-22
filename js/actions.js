@@ -231,7 +231,15 @@ async function executeAction(action, text, ctx) {
         }
         updateTerminalStream("NAVIGATION: LINK_READY");
     } else if (action.type === 'call') {
-        ctx.cards.push(buildCallCard(action));
+        const callCard = buildCallCard(action);
+        ctx.cards.push(callCard);
+        // In der Jarvis-App wählt das Handy selbst (kurz verzögert, damit Jarvis "Ich rufe ... an" noch sagen kann); sonst bleibt die Karte zum Antippen
+        try {
+            if (window.ZaneNative && typeof window.ZaneNative.anrufen === 'function' && callCard && /^tel:/.test(callCard.href || '')) {
+                const nummer = callCard.href.slice(4);
+                setTimeout(function () { try { window.ZaneNative.anrufen(nummer); } catch (e) { } }, 1800);
+            }
+        } catch (e) { }
         updateTerminalStream("CALL: LINK_READY");
     } else if (action.type === 'whatsapp') {
         ctx.cards.push(buildWhatsAppCard(action));

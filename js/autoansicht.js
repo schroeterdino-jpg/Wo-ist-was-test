@@ -29,7 +29,20 @@
         '#aa-layer .knopf span{font-size:clamp(28px,7vmin,46px)}' +
         '#aa-layer .mic{border:2px solid #49d7ff;border-radius:40px;padding:12px;text-align:center;color:#49d7ff;font-size:clamp(15px,3vmin,20px);background:none;font-family:inherit}' +
         '#aa-layer #actionCards{max-height:30vh;overflow:auto}' +
-        '#aa-layer .dim{color:#8fb4c8}.grn{color:#4cffb0}.org{color:#ffb347}';
+        '#aa-layer .dim{color:#8fb4c8}.grn{color:#4cffb0}.org{color:#ffb347}' +
+        /* Querformat (niedriger Bildschirm): alles kompakter, nichts darf die Zeile unten überdecken */
+        '@media (orientation:landscape) and (max-height:520px){' +
+          '#aa-layer{padding:6px 12px 8px;gap:6px}' +
+          '#aa-layer .mitte{flex:1 1 auto;flex-wrap:nowrap;gap:10px;min-height:0;overflow:hidden}' +
+          '#aa-layer .heim{flex:1 1 45%;padding:8px 12px;min-width:0;overflow:hidden}' +
+          '#aa-layer .gross{font-size:clamp(34px,15vh,70px)}' +
+          '#aa-layer .grid{flex:1 1 55%;gap:8px;min-width:0}' +
+          '#aa-layer .knopf{min-height:0;gap:2px;font-size:clamp(13px,4.6vh,18px)}' +
+          '#aa-layer .knopf span{font-size:clamp(20px,8vh,32px)}' +
+          '#aa-layer .x{padding:5px 12px;font-size:13px}' +
+          '#aa-layer .mic{flex:0 0 auto;padding:6px;font-size:13px}' +
+          '#aa-layer #actionCards{max-height:26vh}' +
+        '}';
 
     function bauen() {
         const st = document.createElement('style'); st.id = 'aa-style'; st.textContent = CSS; document.head.appendChild(st);
