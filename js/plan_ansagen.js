@@ -456,6 +456,9 @@
     }
 
     /* ---------- Plan an die App melden ---------- */
+    /* Merkt, dass Jarvis für diesen Tag einen Wecker gestellt hat (Minute des Tages), damit die Karte am Startbild nichts Falsches behauptet */
+    function merkeWecker(ymdTag, min) { lsSet('jv_plan_wzeit_' + ymdTag, String(min)); }
+    function weckerStand(ymdTag) { const v = Number(lsGet('jv_plan_wzeit_' + ymdTag)); return Number.isFinite(v) && lsGet('jv_plan_wzeit_' + ymdTag) ? v : null; }
     function gefragt(ymd) { return !!lsGet(K_WECKER + ymd); }
     function bauePlan() {
         const out = [];
@@ -667,7 +670,7 @@
         if (!w) { sagen('Gerade ist keine Wecker-Frage offen.', false); return; }
         const h = Math.floor(w.min / 60), m = w.min % 60;
         const r = weckerSetzen(h, m, 'Jarvis: Frühschicht');
-        if (r === 'ok' || r === 'intent-offen' || r === 'intent-karte') lsSet(K_WECKER + w.ymd, 'ja');
+        if (r === 'ok' || r === 'intent-offen' || r === 'intent-karte') { lsSet(K_WECKER + w.ymd, 'ja'); merkeWecker(ymdPlus(w.ymd, 1), w.min); }
         sagen(weckerAntwort(r, h, m) + (r === 'ok' ? ' Gute Nacht.' : ''), false);
     }
     function weckerNein() {
@@ -719,6 +722,7 @@
         }
         if (h < 0 || h > 23 || m < 0 || m > 59) return next(text);
         const r = weckerSetzen(h, m, 'Jarvis');
+        if (r === 'ok') { const nu = jetzt(); merkeWecker(h * 60 + m > nu.min ? nu.ymd : ymdPlus(nu.ymd, 1), h * 60 + m); }
         sagen(weckerAntwort(r, h, m), false);
         return true;
     }
@@ -854,7 +858,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { beginn, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { weckerStand, beginn, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);

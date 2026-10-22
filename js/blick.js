@@ -1,6 +1,6 @@
 /* ============================================================
    BLICK AUF EINEN BLICK: eine Karte unter den Kacheln am Startbildschirm mit dem Wichtigsten zur nächsten Schicht.
-   Zeigt: Schicht (heute noch aktiv, sonst die nächste), Abfahrt (mit "Frost: vorgezogen", wenn Jarvis sie vorgezogen hat), Wecker (Frühschicht)
+   Zeigt: Schicht (heute noch aktiv, sonst die nächste), Abfahrt (mit "Frost: vorgezogen", wenn Jarvis sie vorgezogen hat), Wecker (Frühschicht; nur "Wecker" mit Haken, wenn Jarvis ihn gestellt hat, sonst "Aufstehen ... noch kein Wecker")
    und, falls vorhanden, den ersten Terminkonflikt mit der Arbeit. Antippen öffnet den Wochenüberblick.
    Aus mit "Kacheln aus" (gleiche Einstellung wie die Kacheln). Braucht: plan_ansagen.js (window.jvPlan), kacheln.js (#jvKacheln).
    ============================================================ */
@@ -41,7 +41,12 @@
             if (vor > 0) abfZ = '<span class="org">❄ Abfahrt <b>' + hm(abf) + '</b> (statt ' + hm(abf + vor) + ')</span>';
             else abfZ = '🚗 Abfahrt <b>' + hm(abf) + '</b>';
         }
-        if (sh === 'frueh' && !z.heute) weckZ = '⏰ Wecker <b>' + hm(p.weckzeit() - vor) + '</b>';
+        if (sh === 'frueh' && !z.heute) {
+            // Nur "Wecker" sagen, wenn Jarvis wirklich einen gestellt hat; sonst ist 3:30 nur die Aufstehzeit
+            var gest = p.weckerStand ? p.weckerStand(z.ymd) : null;
+            if (gest != null) weckZ = '⏰ Wecker <b>' + hm(gest) + '</b> ✓';
+            else weckZ = '<span class="org">⏰ Aufstehen <b>' + hm(p.weckzeit() - vor) + '</b> · noch kein Wecker</span>';
+        }
         if (abfZ || weckZ) rows.push('<div>' + [abfZ, weckZ].filter(Boolean).join(' · ') + '</div>');
         try {
             var k = p.terminKonflikte(); if (k && k.length) rows.push('<div class="org">⚠ ' + esc(String(k[0]).slice(0, 70)) + '</div>');
