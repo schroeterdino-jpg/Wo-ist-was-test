@@ -59,6 +59,10 @@ class ZaneBridge {
     @JavascriptInterface
     public double naechsterWecker() { return act.naechsterWecker(); }
 
+    /** Den nächsten Wecker in der Uhr-App ausschalten/löschen lassen (Antwort kommt nicht zurück; danach mit naechsterWecker() prüfen). */
+    @JavascriptInterface
+    public boolean weckerAus() { return act.weckerAus(); }
+
     /** Nummer direkt anrufen (fragt beim ersten Mal nach der Telefon-Erlaubnis). */
     @JavascriptInterface
     public boolean anrufen(String nummer) { return act.anrufen(nummer); }

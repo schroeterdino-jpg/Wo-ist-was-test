@@ -323,6 +323,21 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** Bittet die Uhr-App, den nächsten Wecker zu löschen (Android 12+) oder zumindest auszuschalten. Ob es geklappt hat, prüft die Seite danach. */
+    boolean weckerAus() {
+        String[] aktionen = {"android.intent.action.DELETE_ALARM", android.provider.AlarmClock.ACTION_DISMISS_ALARM};
+        for (String a : aktionen) {
+            try {
+                Intent i = new Intent(a)
+                        .putExtra(android.provider.AlarmClock.EXTRA_ALARM_SEARCH_MODE, android.provider.AlarmClock.ALARM_SEARCH_MODE_NEXT)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+                return true;
+            } catch (Throwable ignored) { }
+        }
+        return false;
+    }
+
     /** Zeitpunkt des nächsten Weckers in der Uhr-App (egal wer ihn gestellt hat); 0 = keiner, -1 = nicht lesbar. */
     double naechsterWecker() {
         try {
