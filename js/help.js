@@ -89,7 +89,7 @@ const HELP_TOPICS = [
         'Benachrichtigungen an (dann auf die Karte tippen und zulassen)', 'Sende eine Test-Nachricht (muss auch bei geschlossener App ankommen)', 'Benachrichtigungen aus / Status Benachrichtigungen',
         'Bei Terminen mit Ort sagt dir Zane aufs Handy, wann du losfahren musst (mit Stau, ab deinem letzten Standort oder Zuhause)', 'Wichtige Erinnerungen kommen alle 10 Minuten wieder, bis du am Sperrbildschirm auf Erledigt tippst',
         'Nach jedem HSV-Spiel kommt von selbst eine Nachricht mit dem Endstand (gewonnen, verloren oder unentschieden); nachts zwischen 22 und 7 Uhr erst morgens',
-        'Der Wochenüberblick (Sonntag 18 Uhr) kommt als Nachricht mit dem ganzen Text und wird zusätzlich gesprochen, auch wenn die App gerade offen ist',
+        'In der Jarvis-App (APK) kommen alle Meldungen ohne Browser: die App fragt jede Minute beim Server nach und zeigt sie als Benachrichtigung (Erinnerungen mit Erledigt-Knopf)', 'Der Wochenüberblick (Sonntag 18 Uhr) kommt als Nachricht mit dem ganzen Text und wird zusätzlich gesprochen, auch wenn die App gerade offen ist',
         'Meldungen nachlesen: "Meine Meldungen" / "Was hast du mir gesagt?" / "Was habe ich verpasst?" (Wochenüberblick, Aufbruchszeit, Stau-Hinweis der letzten Tage)',
         'Wochenüberblick, Aufbruchszeit und Stau-Hinweis öffnen beim Sprechen auch ein Fenster zum Nachlesen; "Zeig mir den Wochenüberblick" jederzeit'] },
     { key: 'auftraege', icon: '👁️', title: 'Aufträge: Sag Bescheid, wenn ...', words: /auftr(?:ä|ae)ge|bescheid|beobacht|(?:ü|ue)berwach/, examples: [
