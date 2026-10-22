@@ -51,6 +51,10 @@ class ZaneBridge {
     @JavascriptInterface
     public boolean weckerStellen(int stunde, int minute, String text) { return act.weckerStellen(stunde, minute, text); }
 
+    /** "Hey Jarvis" ausschalten: Lauschen beenden (wie "Lauschen beenden" in den Einstellungen). Wieder an per Hand (Einstellungen: Lauschen starten). */
+    @JavascriptInterface
+    public boolean lauschenAus() { return act.lauschenAus(); }
+
     /** Nächster gestellter Wecker des Handys (Zeitpunkt in Millisekunden), 0 = keiner, -1 = nicht lesbar. */
     @JavascriptInterface
     public double naechsterWecker() { return act.naechsterWecker(); }

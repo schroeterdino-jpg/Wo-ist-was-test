@@ -312,6 +312,17 @@ public class MainActivity extends Activity {
         else requestPermissions(need.toArray(new String[0]), 1);
     }
 
+    /** Dauerhaftes Lauschen auf "Hey Jarvis" beenden (Einstellung aus, Dienst stoppen). */
+    boolean lauschenAus() {
+        try {
+            Prefs.setEnabled(this, false);
+            stopService(new Intent(this, WakeService.class));
+            return true;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
     /** Zeitpunkt des nächsten Weckers in der Uhr-App (egal wer ihn gestellt hat); 0 = keiner, -1 = nicht lesbar. */
     double naechsterWecker() {
         try {

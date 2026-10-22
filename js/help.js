@@ -22,6 +22,7 @@ const HELP_TOPICS = [
         'Merk dir, wo ich geparkt habe', 'Wo ist mein Auto?', 'Bring mich zu meinem Auto',
         'Automatisch: In den Jarvis-Einstellungen (App) "Auto per Bluetooth wählen". Trennt sich das Handy vom Auto, merkt sich Jarvis den Parkplatz (nicht, wenn du zu Hause bist, höchstens 150 m).',
         'Anrufen: "Ruf Schatz an" - in der Jarvis-App wählt das Handy selbst (beim ersten Mal fragt Android nach der Telefon-Erlaubnis).',
+        'Lauschen ausschalten: Sag "Hey Jarvis" und dann "Lauschen ausschalten" (oder "Weckwort aus"). Jarvis hört danach nicht mehr auf "Hey Jarvis". Wieder an: Einstellungen, "Lauschen starten".',
         'Autoansicht: Sag "Autoansicht" - Vollbild (auch quer) mit Heimweg-Zeit, Tanktipp und vier großen Knöpfen (Nach Hause, Anrufen, Tanken, Parkplatz). Beenden: "Autoansicht beenden" oder das ✕.',
         'Unterbrechen: In den Jarvis-Einstellungen "Jarvis beim Sprechen unterbrechen" einschalten (Test). Dann reicht "Hey Jarvis", während er spricht.'] },
     { key: 'fahrten', icon: '🗺️', title: 'Fahrten & Verkehr', words: /fahr|verkehr|stau|navig|route|weg\b|karte/, examples: [
