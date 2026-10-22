@@ -323,26 +323,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** App (Name, sonst Paketname), die den nächsten Wecker bei Android eingetragen hat. */
-    String naechsterWeckerVon() {
-        try {
-            android.app.AlarmManager am = (android.app.AlarmManager) getSystemService(ALARM_SERVICE);
-            android.app.AlarmManager.AlarmClockInfo i = am == null ? null : am.getNextAlarmClock();
-            if (i == null || i.getShowIntent() == null) return "";
-            String pkg = i.getShowIntent().getCreatorPackage();
-            if (pkg == null) return "";
-            try {
-                android.content.pm.PackageManager pm = getPackageManager();
-                CharSequence l = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0));
-                return l == null ? pkg : l.toString() + " (" + pkg + ")";
-            } catch (Throwable e) {
-                return pkg;
-            }
-        } catch (Throwable e) {
-            return "";
-        }
-    }
-
     /** Zeitpunkt des nächsten Weckers in der Uhr-App (egal wer ihn gestellt hat); 0 = keiner, -1 = nicht lesbar. */
     double naechsterWecker() {
         try {
