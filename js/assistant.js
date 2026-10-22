@@ -45,6 +45,7 @@ async function sendToGroqSmart(text, opts = {}) {
 }
 
 async function sendToGroqSmartCore(text, opts = {}) {
+    window.jvLetzterText = text;   // für das Zurückfragen (rueckfrage.js): der Satz, der nach der Antwort noch einmal ausgeführt wird
     isProcessing = true;
     try { if (typeof diagStart === 'function') diagStart(text); } catch (e) {}   // Diagnose-Fenster (nur wenn eingeschaltet)
     clearActionCards();
@@ -175,6 +176,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
 
         // Fahrziele, die ein gespeicherter Kontakt sind ("zu Anna", "zu meiner Tochter"), werden durch dessen Adresse ersetzt
         resolveContactsInActions(actions, text);
+        if (actions._rueckfrage) { ai.reply = actions._rueckfrage; actions.length = 0; }   // mehrere Kontakte passen: Jarvis fragt nach (rueckfrage.js)
 
         // Wünsche und Sorgen: immer ins Langzeitgedächtnis (langzeit.js), auch wenn die KI es vergessen hat
         try { if (typeof window.jvWunschAktion === 'function') window.jvWunschAktion(text, actions); } catch (e) { }
