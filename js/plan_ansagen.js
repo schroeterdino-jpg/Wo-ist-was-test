@@ -8,6 +8,8 @@
      Abfahrt fest: Früh 4:30, Spät 13:20 ("Meine Abfahrt in der Frühschicht ist um 4 Uhr 30"); bei deutlich längerer Fahrt (ab 10 Minuten mehr) entsprechend früher.
    - STAU-CHECK: 20 Minuten vor der Aufbruchs-Ansage (Frühschicht frühestens 10 Minuten nach dem Aufstehen) prüft Jarvis still die Verkehrslage. Sie spricht nur bei Stau
      oder wenn die Fahrt mindestens 10 Minuten länger dauert als sonst ("normal" = Mittelwert der letzten Messungen). Test: "Teste den Stau-Check".
+   - HEIMWEG: kurz nach Schichtende (Früh 14:37, Spät 22:12, änderbar: "Meine Frühschicht endet um 14 Uhr 40") sagt Jarvis, wie lange die Heimfahrt dauert
+     und ob auf der Strecke Stau gemeldet ist (ab deinem Standort zur Heimatadresse). Test: "Teste den Heimweg" / "Wie ist der Heimweg?".
    - WECKER-FRAGE: Am Abend vor einer Frühschicht um 20:30: "Soll ich den Wecker auf 3 Uhr 30 stellen?" Ja = Wecker in der Uhr-App des Handys.
    - WECKER per Sprache: "Stell den Wecker auf 6 Uhr 15", "Weck mich um 5", "Wecker in 20 Minuten".
    - Rechnung: "Trag die Frist in den Kalender ein" nach einer ausgewerteten Rechnung (zusätzlich zur Erinnerung).
@@ -26,8 +28,9 @@
     const VOR_ABFAHRT = 10;          // so viele Minuten vor der Abfahrt kommt die Ansage
     const WOCHEN_MIN = 18 * 60;      // Sonntag 18:00
     const WECKER_MIN = 20 * 60 + 30; // Abend vor der Frühschicht 20:30
+    const HEIM_NACH = 3;             // so viele Minuten nach Schichtende kommt die Heimweg-Ansage
     const TAGE_VORAUS = 5;
-    const K_AUS = 'jv_plan_aus', K_FAHRT = 'jv_plan_fahrt', K_BEGINN = 'jv_plan_beginn', K_ABF = 'jv_plan_abfahrt', K_GESAGT = 'jv_plan_gesagt', K_WECKER = 'jv_plan_wecker_';
+    const K_AUS = 'jv_plan_aus', K_FAHRT = 'jv_plan_fahrt', K_BEGINN = 'jv_plan_beginn', K_ABF = 'jv_plan_abfahrt', K_GESAGT = 'jv_plan_gesagt', K_WECKER = 'jv_plan_wecker_', K_ENDE = 'jv_plan_ende', K_HEIM = 'jv_plan_heim';
 
     /* ---------- Hilfen ---------- */
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -150,6 +153,15 @@
         let o = {}; try { o = JSON.parse(pd(K_BEGINN, '') || '{}') || {}; } catch (e) { }
         o[sh] = min; sd(K_BEGINN, JSON.stringify(o));
     }
+    const ENDE_STD = { frueh: 14 * 60 + 37, spaet: 22 * 60 + 12 };
+    function ende(sh) {
+        try { const o = JSON.parse(pd(K_ENDE, '') || 'null'); if (o && Number.isFinite(o[sh])) return o[sh]; } catch (e) { }
+        return ENDE_STD[sh];
+    }
+    function setEnde(sh, min) {
+        let o = {}; try { o = JSON.parse(pd(K_ENDE, '') || '{}') || {}; } catch (e) { }
+        o[sh] = min; sd(K_ENDE, JSON.stringify(o));
+    }
     function weckzeit() { const T = S(), st = T && T.load(); return st && st.times && Number.isFinite(st.times.frueh) ? st.times.frueh : 210; }
     const NAME = { frueh: 'Frühschicht', spaet: 'Spätschicht' };
 
@@ -211,6 +223,62 @@
         };
         w._plan = true;
         window.jvSchichtInfo = w;
+    }
+
+    /* ---------- Heimweg (ab deinem Standort zur Heimatadresse) ---------- */
+    function heimAdresse() {
+        try {
+            if (typeof homeAddress === 'string') return homeAddress;
+            return (homeAddress && (homeAddress.address || homeAddress.text || homeAddress.label)) || '';
+        } catch (e) { return ''; }
+    }
+    function heimMessungen() {
+        try { const a = JSON.parse(lsGet(K_HEIM) || '[]'); return Array.isArray(a) ? a.filter(x => x && x.min >= 3 && x.min <= 180) : []; } catch (e) { return []; }
+    }
+    function heimNormal() {
+        const m = heimMessungen().map(x => x.min).sort((a, b) => a - b);
+        return m.length >= 3 ? m[Math.floor(m.length / 2)] : null;   // erst nach 3 Messungen gibt es einen Vergleichswert
+    }
+    function merkeHeim(min) {
+        if (!(min >= 3 && min <= 180)) return;
+        const a = heimMessungen(); a.push({ min, at: Date.now() });
+        lsSet(K_HEIM, JSON.stringify(a.slice(-9)));
+    }
+    async function heimFrisch() {
+        let min = null, stau = '', st = 0;
+        const ziel = heimAdresse();
+        try {
+            if (ziel) {
+                if (typeof fetchRouteMapData === 'function') {
+                    const d = await Promise.race([fetchRouteMapData(ziel), new Promise(r => setTimeout(() => r(null), 14000))]);
+                    if (d && d.fahrtMin) {
+                        min = d.fahrtMin; st = d.stauMin || 0;
+                        stau = (typeof lastStauText === 'string') ? lastStauText.trim() : '';
+                    }
+                }
+                if (!min && typeof wachterDriveMinutes === 'function') {
+                    const m = await Promise.race([wachterDriveMinutes(ziel), new Promise(r => setTimeout(() => r(null), 6000))]);
+                    if (m) min = m;
+                }
+            }
+        } catch (e) { }
+        return { min: min ? min + st : min, st, stau, ziel: !!ziel };
+    }
+    /* Text für die Heimfahrt; leer nur, wenn du schon zu Hause bist (und es kein Test ist) */
+    async function heimText(immer) {
+        const f = await heimFrisch();
+        if (!f.ziel) return 'Ich habe keine Heimatadresse gespeichert. Sag zum Beispiel: Merk dir meine Heimatadresse, Verbrüderungsring 13.';
+        if (!f.min) return 'Feierabend! Den Heimweg konnte ich gerade nicht berechnen. Ist der Standortzugriff erlaubt?';
+        if (f.min <= 3 && !immer) return '';   // schon zu Hause
+        const normal = heimNormal();
+        merkeHeim(f.min - (f.st || 0));
+        const mehr = normal ? f.min - normal : 0;
+        let t = 'Feierabend! Der Heimweg dauert rund ' + f.min + ' Minuten.';
+        if (mehr >= 10) t += ' Das sind ' + mehr + ' Minuten mehr als sonst.';
+        if (f.stau) t += ' ' + f.stau;
+        if (f.st) t += ' Darin sind etwa ' + f.st + ' Minuten Stau schon eingerechnet.';
+        else if (!f.stau && mehr < 10) t += ' Auf der Strecke ist alles frei.';
+        return t + ' Gute Heimfahrt.';
     }
 
     /* ---------- Texte ---------- */
@@ -341,6 +409,7 @@
                 const abfahrt = abfFix(sh), ansage = abfahrt - VOR_ABFAHRT;
                 const staumin = Math.max(ansage - STAU_VOR, sh === 'frueh' ? weckzeit() + 10 : 0);
                 if (ansage >= 0 && staumin <= ansage - 5) out.push({ id: 'stau|' + ymd, at: berlinMs(ymd, staumin), text: 'Ich prüfe kurz die Verkehrslage auf deinem Arbeitsweg. Ist alles frei, sage ich nichts.' });
+                out.push({ id: 'heim|' + ymd, at: berlinMs(ymd, ende(sh) + HEIM_NACH), text: 'Feierabend. Tippe, dann sage ich dir, wie der Heimweg aussieht.' });
                 if (ansage >= 0) out.push({ id: 'aufbruch|' + ymd, at: berlinMs(ymd, ansage), text: 'Abfahrt gegen ' + uhrHM(abfahrt) + ' Uhr (' + NAME[sh] + ' ab ' + uhrHM(start) + ', Fahrt rund ' + fahrt + ' Minuten). Tippe, dann sage ich dir die aktuelle Lage.' });
             }
             const morgen = ymdPlus(ymd, 1);
@@ -407,6 +476,7 @@
             if (art === 'wochen' && nu.ymd !== ymd) return false;
             if (art === 'aufbruch' && (nu.ymd !== ymd || nu.min >= beginn(schichtAm(ymd) || 'frueh'))) return false;
             if (art === 'wecker' && (nu.ymd !== ymd || nu.min > 23 * 60)) return false;
+            if (art === 'heim') { const sh0 = schichtAm(ymd); if (nu.ymd !== ymd || !sh0 || nu.min < ende(sh0) || nu.min > ende(sh0) + 120) return false; }
             if (art === 'stau' && (nu.ymd !== ymd || !schichtAm(ymd) || nu.min >= beginn(schichtAm(ymd)) - 30)) return false;
         }
         if (art === 'brief') {   // Schicht-Briefing, einmal pro Tag (nicht doppelt, wenn schicht.js es schon gesagt hat)
@@ -434,6 +504,12 @@
             const r = await aufbruchText(ymd, true);
             if (!r.text) return false;
             sagenMeldung('🚗 Aufbruchszeit', r.text);
+            return true;
+        }
+        if (art === 'heim') {
+            const t = await heimText(!!erzwingen);
+            if (!t) return false;
+            sagenMeldung('🏠 Heimweg', t);
             return true;
         }
         if (art === 'wecker') { weckerFrage(ymd); return true; }
@@ -600,6 +676,26 @@
                 return true;
             }
         }
+        // Schichtende ändern ("Meine Frühschicht endet um 14 Uhr 40")
+        m = t.match(/\b(fruehschicht|spaetschicht)\b.*\b(endet|ende|aus|schluss|feierabend)\b/) || t.match(/\b(ende|schluss|feierabend)\b.*\b(fruehschicht|spaetschicht)\b/);
+        if (m && /\b(meine|mein|die|der)\b/.test(t) && !/\b(beginnt|faengt an|startet)\b/.test(t)) {
+            const sh = /fruehschicht/.test(t) ? 'frueh' : 'spaet';
+            const z = parseZeit(t.replace(/\b(fruehschicht|spaetschicht)\b/g, ''));
+            if (z && z.h != null) {
+                setEnde(sh, z.h * 60 + z.m);
+                planSenden(true);
+                sagen('Gut, deine ' + NAME[sh] + ' endet um ' + uhr(z.h * 60 + z.m) + '. Kurz danach sage ich dir, wie der Heimweg aussieht.', false);
+                return true;
+            }
+        }
+        // Heimweg jederzeit / Test
+        if (/\b(heimweg|heimfahrt|feierabend.?(ansage|meldung|briefing))\b/.test(t) && !/\b(endet|ende)\b/.test(t)) {
+            (async () => {
+                const r = await heimText(true);
+                if (r) sagenMeldung('🏠 Heimweg', r); else sagen('Zum Heimweg habe ich gerade nichts.', false);
+            })();
+            return true;
+        }
         // Planer ein/aus
         if (/^(den |der |nova )?(planer|tagesplaner)\s+(aus|an|ein)(schalten)?$/.test(t) || /^(schalte? )?(den )?planer (aus|an|ein)(schalten)?$/.test(t)) {
             const an = /\b(an|ein)\b/.test(t) && !/\baus\b/.test(t);
@@ -612,7 +708,7 @@
             const p = bauePlan();
             if (!p.length) sagen(aus() ? 'Der Planer ist aus.' : 'Im Moment ist nichts geplant. Ist die Schicht eingestellt?', false);
             else {
-                const art = { wochen: 'Wochenüberblick', aufbruch: 'Aufbruchszeit', wecker: 'Wecker-Frage', stau: 'Stau-Check' };
+                const art = { wochen: 'Wochenüberblick', aufbruch: 'Aufbruchszeit', wecker: 'Wecker-Frage', stau: 'Stau-Check', heim: 'Heimweg' };
                 sagen('Geplant: ' + p.slice(0, 4).map(e => art[e.id.split('|')[0]] + ' ' + tagName(parts(e.at).ymd) + ' um ' + uhr(parts(e.at).min)).join('; ') + '.', false);
             }
             return true;
@@ -677,7 +773,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { heimText, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);
