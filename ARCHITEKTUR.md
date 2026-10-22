@@ -62,10 +62,11 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - `WakeService`: Vordergrunddienst, lauscht aufs Weckwort. **Zwei Erkennungen**, einstellbar in den Jarvis-Einstellungen unter "Erkennung":
   - bisher: Vosk mit Weckwort "Hey Jarvis" (`GatedSpeech` mit Stille-Schranke)
   - neu: openWakeWord (`OwwEngine` rechnet Mel, Embedding, Weckwort-Modell je 80 ms; `OwwSpeech` ist die Mikrofon-Schleife mit Stille-Schranke seit PR #44). Weckwort: fertiges Modell "Hey Jarvis".
+  - Sprach-Schranke: `OwwVad` (Silero VAD, MIT, `oww/vad.onnx`, vom Bau geladen) prüft, ob wirklich gesprochen wird; die Engine rechnet nur bei Sprache (Schwelle 0,35, ca. 1 s Halt). Maschinenlärm öffnet nur die Lautstärke-Schranke, nicht die Engine. Fehlt das Modell oder gibt es einen Fehler, gilt wie früher nur die Lautstärke. Messzeile zeigt "Sprachfilter an/aus".
 - **Meldungen vom Server in der APK:** Im WebView gibt es kein Web-Push. `AuftragReceiver` fragt per `push_native` (`api/sync.js`) nach, jede Minute im `WakeService` und alle 5 Minuten über den Wecker. Der Server legt jede Meldung (`sendToAll`) zusätzlich in eine eigene Warteschlange (`alltags-helfer:natq`), solange die APK in den letzten 20 Minuten nachgefragt hat. Normale Meldungen werden Benachrichtigungen (Erinnerungen mit "Erledigt"), erfüllte Aufträge spricht Jarvis. `pushsync.js` behandelt die APK wie "Benachrichtigungen an", damit der Server Erinnerungen, Schicht und Standort bekommt. Der App-Code kommt über `ZaneBridge.auftraege()` in die APK. Browser-Version und APK gleichzeitig = doppelte Meldungen.
 - Nachtruhe (Standard 23 bis 04 Uhr), Pause während Jarvis spricht oder zuhört, Ein/Aus in der Benachrichtigung.
 - `MainActivity` (WebView der Web-App), `ZaneBridge` (JavaScript-Brücke), `SetupActivity` (Jarvis-Einstellungen mit Messzeile), `AnsageReceiver` (geplante Ansagen bei gesperrtem Handy), `OrtReceiver` (Orts-Erinnerungen), `Prefs`.
-- Bau: `.github/workflows/zane-weckruf.yml` (bei Änderungen in `weckruf-src`, lädt Vosk- und openWakeWord-Modelle, veröffentlicht `Zane-Weckruf.apk` als Release "weckruf-N"). `oww-test.yml` prüft `OwwEngine` gegen die Python-Vorlage (`weckruf-test/`).
+- Bau: `.github/workflows/zane-weckruf.yml` (bei Änderungen in `weckruf-src`, lädt Vosk- und openWakeWord-Modelle, veröffentlicht `Zane-Weckruf.apk` als Release "weckruf-N"). `oww-test.yml` prüft `OwwEngine` und `OwwVad` gegen die Python-Vorlagen (`weckruf-test/`).
 
 ## 7. Arbeitsweise und Stolperfallen
 
