@@ -701,6 +701,21 @@
         if ((m = t.match(/\bum (\d{1,2})\b/))) return { h: +m[1], m: 0 };
         return null;
     }
+    function weckerAusSprache(n) {
+        let vor = 0;
+        try { vor = Number(n.naechsterWecker()); } catch (e) { }
+        if (!(vor > 0)) { sagen('Es ist kein Wecker gestellt.', false); return; }
+        const um = uhr(parts(Math.round(vor / 60000) * 60000).min);
+        let ok = false;
+        try { ok = !!n.weckerAus(); } catch (e) { }
+        if (!ok) { sagen('Das kann ich mit dieser Uhr-App nicht. Schalte den Wecker bitte selbst aus.', false); return; }
+        setTimeout(function () {
+            let nach = 0;
+            try { nach = Number(n.naechsterWecker()); } catch (e) { }
+            if (!(nach > 0) || Math.abs(nach - vor) > 60000) sagen('Erledigt, der Wecker um ' + um + ' ist aus.', false);
+            else sagen('Der Wecker um ' + um + ' ist noch an. Die Uhr hat es nicht angenommen oder er kommt von einer anderen App. Schalte ihn bitte selbst aus.', false);
+        }, 2500);
+    }
     function weckerBefehl(text, next) {
         const t = norm(text);
         if (!t || t.split(' ').length > 16) return next(text);
@@ -709,7 +724,12 @@
             if (/^(ja|jawohl|jep|jo|joa|klar|gerne|gern|okay|ok|bitte|mach|stell|mach das|genau|gut)\b/.test(t)) { weckerJa(); return true; }
         }
         if (!/\bwecker\b|\bweck mich\b|\bwecke mich\b|\bweck\b/.test(t)) return next(text);
-        if (/\b(loesch|loeschen|aus|ausschalten|abbrechen|entfern\w*)\b/.test(t)) return next(text);
+        if (/\b(loesch\w*|aus|ausschalten|ausmachen|abschalten|abbrechen|entfern\w*|deaktivier\w*)\b/.test(t)) {
+            // "Wecker aus" / "Lösche den Wecker": in der Jarvis-App die Uhr bitten, den nächsten Wecker zu löschen, und danach nachsehen, ob er wirklich weg ist
+            const n = N();
+            if (n && typeof n.weckerAus === 'function' && typeof n.naechsterWecker === 'function' && !/\b(alarm|alle)\b/.test(t) && !parseZeit(t)) { weckerAusSprache(n); return true; }
+            return next(text);
+        }
         let z = parseZeit(t);
         if (!z && /\bfrueh\s?schicht\b|\bfruehschicht\b/.test(t)) { const w = weckzeit(); z = { h: Math.floor(w / 60), m: w % 60 }; }
         if (!z) return next(text);
