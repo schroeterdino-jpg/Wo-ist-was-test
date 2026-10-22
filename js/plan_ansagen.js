@@ -30,7 +30,7 @@
     const WECKER_MIN = 20 * 60 + 30; // Abend vor der Frühschicht 20:30
     const HEIM_NACH = 3;             // so viele Minuten nach Schichtende kommt die Heimweg-Ansage
     const TAGE_VORAUS = 5;
-    const K_AUS = 'jv_plan_aus', K_FAHRT = 'jv_plan_fahrt', K_BEGINN = 'jv_plan_beginn', K_ABF = 'jv_plan_abfahrt', K_GESAGT = 'jv_plan_gesagt', K_WECKER = 'jv_plan_wecker_', K_ENDE = 'jv_plan_ende', K_HEIM = 'jv_plan_heim';
+    const K_AUS = 'jv_plan_aus', K_FAHRT = 'jv_plan_fahrt', K_BEGINN = 'jv_plan_beginn', K_ABF = 'jv_plan_abfahrt', K_GESAGT = 'jv_plan_gesagt', K_WECKER = 'jv_plan_wecker_', K_ENDE = 'jv_plan_ende', K_HEIM = 'jv_plan_heim', K_VOR = 'jv_plan_vor_';
 
     /* ---------- Hilfen ---------- */
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -177,7 +177,10 @@
         let o = {}; try { o = JSON.parse(pd(K_ABF, '') || '{}') || {}; } catch (e) { }
         o[sh] = min; sd(K_ABF, JSON.stringify(o));
     }
-    function abfahrtFuer(sh, min, normal) { const mehr = (min || 0) - (normal || 0); return abfFix(sh) - (mehr >= 10 ? mehr : 0); }
+    /* Tages-Vorzug: Jarvis zieht die Abfahrt (und die Wecker-Zeit) an einem bestimmten Tag um N Minuten vor, zum Beispiel bei Frost (zuvorkommend.js). Rückgängig: auf 0 setzen. */
+    function tagVor(ymd) { const v = Number(lsGet(K_VOR + ymd)); return Number.isFinite(v) && v > 0 && v <= 60 ? Math.round(v) : 0; }
+    function setTagVor(ymd, min) { if (min > 0) lsSet(K_VOR + ymd, String(Math.round(min))); else { try { localStorage.removeItem(K_VOR + ymd); } catch (e) { } } }
+    function abfahrtFuer(sh, min, normal, ymd) { const mehr = (min || 0) - (normal || 0); return abfFix(sh) - (ymd ? tagVor(ymd) : 0) - (mehr >= 10 ? mehr : 0); }
 
     /* ---------- Fahrzeit zur Arbeit ---------- */
     /* "Normale" Fahrzeit = Mittelwert (Median) der letzten Messungen; einzelne Staus verfälschen sie kaum */
@@ -318,7 +321,7 @@
         let min, stau = '', st = 0;
         if (mitFrisch) { const f = await fahrtFrisch(); min = f.min || letzteFahrt(); stau = f.stau || ''; st = f.min ? (f.st || 0) : 0; }
         else min = letzteFahrt();
-        const abfahrt = abfahrtFuer(sh, min, normal);
+        const abfahrt = abfahrtFuer(sh, min, normal, ymd);
         const nu = jetzt();
         const diff = abfahrt - nu.min;
         let t;
@@ -471,7 +474,7 @@
                     if (bt && Number.isFinite(bt[sh])) out.push({ id: 'brief|' + ymd, at: berlinMs(ymd, bt[sh]), text: 'Dein Briefing ist bereit. Tippe, dann erzähle ich es dir.' });
                 } catch (e) { }
                 const start = beginn(sh), fahrt = letzteFahrt();
-                const abfahrt = abfFix(sh), ansage = abfahrt - VOR_ABFAHRT;
+                const abfahrt = abfFix(sh) - tagVor(ymd), ansage = abfahrt - VOR_ABFAHRT;
                 const staumin = Math.max(ansage - STAU_VOR, sh === 'frueh' ? weckzeit() + 10 : 0);
                 if (ansage >= 0 && staumin <= ansage - 5) out.push({ id: 'stau|' + ymd, at: berlinMs(ymd, staumin), text: 'Ich prüfe kurz die Verkehrslage auf deinem Arbeitsweg. Ist alles frei, sage ich nichts.' });
                 out.push({ id: 'heim|' + ymd, at: berlinMs(ymd, ende(sh) + HEIM_NACH), text: 'Feierabend. Tippe, dann sage ich dir, wie der Heimweg aussieht.' });
@@ -479,9 +482,10 @@
             }
             const morgen = ymdPlus(ymd, 1);
             if ((d <= 3 || d === 6) && schichtAm(morgen) === 'frueh' && !gefragt(ymd)) {
-                out.push({ id: 'wecker|' + ymd, at: berlinMs(ymd, WECKER_MIN), text: 'Morgen ist Frühschicht. Soll ich den Wecker auf ' + uhrHM(weckzeit()) + ' Uhr stellen? Tippe, dann frage ich dich.' });
+                out.push({ id: 'wecker|' + ymd, at: berlinMs(ymd, WECKER_MIN), text: 'Morgen ist Frühschicht. Soll ich den Wecker auf ' + uhrHM(weckzeit() - tagVor(morgen)) + ' Uhr stellen? Tippe, dann frage ich dich.' });
             }
         }
+        try { if (window.jvZuvor && window.jvZuvor.planEintraege) window.jvZuvor.planEintraege().forEach(e => out.push(e)); } catch (e) { }   // Geburtstags-Vorfragen
         return out.filter(e => e.at > jetztMs + 20000).sort((a, b) => a.at - b.at);
     }
     /* Für den Server (pushsync.js): Wochenüberblick als Push-Nachricht mit vollem Text, auch wenn die App offen ist */
@@ -577,7 +581,12 @@
             sagenMeldung('🏠 Heimweg', t);
             return true;
         }
-        if (art === 'wecker') { weckerFrage(ymd); return true; }
+        if (art === 'wecker') {
+            let vorsatz = '';
+            try { if (window.jvZuvor && window.jvZuvor.vorWecker) vorsatz = await window.jvZuvor.vorWecker(ymd) || ''; } catch (e) { }   // zuvorkommend.js: z. B. Frost -> Abfahrt vorgezogen
+            weckerFrage(ymd, vorsatz); return true;
+        }
+        if (art === 'geb') { try { return !!(window.jvZuvor && window.jvZuvor.gebAnsage(id)); } catch (e) { return false; } }   // Geburtstags-Vorfrage (zuvorkommend.js)
         if (art === 'stau') { return stauCheck(ymd, !!erzwingen); }
         return false;
     }
@@ -590,7 +599,7 @@
         const stau = ISTSTAU.test(f.stau || '') ? f.stau.trim() : '';
         const mehr = min - normal;
         if (!immer && mehr < 10 && !stau) return false;   // alles normal: Jarvis bleibt still
-        const abfahrt = abfahrtFuer(sh, min, normal), nu = jetzt();
+        const abfahrt = abfahrtFuer(sh, min, normal, ymd), nu = jetzt();
         let t = mehr >= 10 ? 'Auf deinem Arbeitsweg ist heute mehr los. Die Fahrt dauert rund ' + min + ' Minuten statt sonst ' + normal + '.' : 'Die Fahrt dauert rund ' + min + ' Minuten.';
         if (stau) t += ' ' + stau;
         if (f.min && f.st) t += ' Darin sind etwa ' + f.st + ' Minuten Stau schon eingerechnet.';
@@ -608,8 +617,8 @@
     }
 
     /* ---------- Wecker ---------- */
-    function weckerFrage(ymd) {
-        const min = weckzeit();
+    function weckerFrage(ymd, vorsatz) {
+        const min = weckzeit() - tagVor(ymdPlus(ymd, 1));
         offenesWecker = { ymd, min, at: Date.now() };
         try {
             if (typeof showActionCards === 'function') showActionCards([
@@ -617,7 +626,7 @@
                 { icon: '🙅', title: 'Nein danke', subtitle: '', onclick: 'jvPlan.weckerNein()' }
             ]);
         } catch (e) { }
-        sagen('Morgen ist Frühschicht. Soll ich den Wecker auf ' + uhr(min) + ' stellen?', true);
+        sagen((vorsatz ? vorsatz + ' ' : '') + 'Morgen ist Frühschicht. Soll ich den Wecker auf ' + uhr(min) + ' stellen?', true);
     }
     function karten() { try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) { } }
     let weckerIntentUrl = '';
@@ -845,7 +854,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);
