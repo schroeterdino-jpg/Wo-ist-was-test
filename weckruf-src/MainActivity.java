@@ -312,6 +312,17 @@ public class MainActivity extends Activity {
         else requestPermissions(need.toArray(new String[0]), 1);
     }
 
+    /** Zeitpunkt des nächsten Weckers in der Uhr-App (egal wer ihn gestellt hat); 0 = keiner, -1 = nicht lesbar. */
+    double naechsterWecker() {
+        try {
+            android.app.AlarmManager am = (android.app.AlarmManager) getSystemService(ALARM_SERVICE);
+            android.app.AlarmManager.AlarmClockInfo i = am == null ? null : am.getNextAlarmClock();
+            return i == null ? 0 : (double) i.getTriggerTime();
+        } catch (Throwable e) {
+            return -1;
+        }
+    }
+
     private String anrufWartet = null;
 
     /** Nummer direkt wählen. Fehlt die Telefon-Erlaubnis, wird einmal gefragt und danach gewählt. */

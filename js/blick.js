@@ -42,10 +42,11 @@
             else abfZ = '🚗 Abfahrt <b>' + hm(abf) + '</b>';
         }
         if (sh === 'frueh' && !z.heute) {
-            // Nur "Wecker" sagen, wenn Jarvis wirklich einen gestellt hat; sonst ist 3:30 nur die Aufstehzeit
-            var gest = p.weckerStand ? p.weckerStand(z.ymd) : null;
-            if (gest != null) weckZ = '<span class="grn">⏰ Wecker <b>' + hm(gest) + '</b> ✓</span>';
-            else weckZ = '<span class="rot">⏰ Wecker <b>' + hm(p.weckzeit() - vor) + '</b> ✗ nicht gestellt</span>';
+            // Den echten Wecker des Handys abfragen (APK): grün nur, wenn morgen vor der Abfahrt wirklich einer klingelt (egal wer ihn gestellt hat).
+            // Ohne die App (Browser, alte APK) lässt sich das nicht wissen, dann steht hier nichts.
+            var wk = weckerEcht(p, z.ymd, abf);
+            if (wk && wk.ok) weckZ = '<span class="grn">⏰ Wecker <b>' + hm(wk.min) + '</b> ✓</span>';
+            else if (wk) weckZ = '<span class="rot">⏰ Wecker <b>' + hm(p.weckzeit() - vor) + '</b> ✗ nicht gestellt</span>';
         }
         // Eine Zeile nur, wenn sie auf den Bildschirm passt (Wecker gestellt, kein Frost); sonst zwei Zeilen, damit nichts abgeschnitten wird
         if (abfZ && weckZ && vor === 0 && weckZ.indexOf('✓') >= 0) rows.push('<div>' + abfZ + ' · ' + weckZ + '</div>');
@@ -54,6 +55,20 @@
             var k = p.terminKonflikte(); if (k && k.length) rows.push('<div class="org">⚠ ' + esc(kurzKonflikt(k[0])) + '</div>'); 
         } catch (e) { }
         return rows.join('');
+    }
+
+    /* Nächster Wecker des Handys: { ok, min } wenn er am Schichttag vor der Abfahrt klingelt, { ok: false } wenn nicht, null wenn nicht abfragbar */
+    function weckerEcht(p, ymd, abfMin) {
+        try {
+            var n = window.ZaneNative;
+            if (!n || typeof n.naechsterWecker !== 'function') return null;
+            var t = Number(n.naechsterWecker());
+            if (!isFinite(t) || t < 0) return null;
+            if (t === 0) return { ok: false };
+            if (t < p.berlinMs(ymd, 0) || t > p.berlinMs(ymd, abfMin)) return { ok: false };
+            var u = new Date(t).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', hour12: false }).split(':');
+            return { ok: true, min: Number(u[0]) * 60 + Number(u[1]) };
+        } catch (e) { return null; }
     }
 
     /* "Dienstag um 14 Uhr KJP liegt in deiner Spätschicht (Feierabend 22 Uhr 12)" -> "Dienstag 14 Uhr KJP · Spätschicht" */
