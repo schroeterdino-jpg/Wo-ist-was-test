@@ -46,7 +46,7 @@
             // Ohne die App (Browser, alte APK) lässt sich das nicht wissen, dann steht hier nichts.
             var wk = weckerEcht(p, z.ymd, abf);
             if (wk && wk.ok) weckZ = '<span class="grn">⏰ Wecker <b>' + hm(wk.min) + '</b> ✓</span>';
-            else if (wk) weckZ = '<span class="rot">⏰ Wecker <b>' + hm(p.weckzeit() - vor) + '</b> ✗ nicht gestellt</span>';
+            else if (wk) weckZ = '<span class="rot">⏰ Wecker <b>' + hm(p.weckzeit() - vor) + '</b> ✗ ' + (wk.anderer ? 'nächster: ' + esc(wk.anderer) : 'nicht gestellt') + '</span>';
         }
         // Eine Zeile nur, wenn sie auf den Bildschirm passt (Wecker gestellt, kein Frost); sonst zwei Zeilen, damit nichts abgeschnitten wird
         if (abfZ && weckZ && vor === 0 && weckZ.indexOf('✓') >= 0) rows.push('<div>' + abfZ + ' · ' + weckZ + '</div>');
@@ -65,7 +65,11 @@
             var t = Number(n.naechsterWecker());
             if (!isFinite(t) || t < 0) return null;
             if (t === 0) return { ok: false };
-            if (t < p.berlinMs(ymd, 0) || t > p.berlinMs(ymd, abfMin)) return { ok: false };
+            if (t < p.berlinMs(ymd, 0) || t > p.berlinMs(ymd, abfMin)) {
+                // Es gibt einen Wecker, aber nicht zur richtigen Zeit: den nächsten zeigen, damit man sieht, was Jarvis sieht
+                var w = new Date(t).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).replace(',', '');
+                return { ok: false, anderer: w };
+            }
             var u = new Date(t).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', hour12: false }).split(':');
             return { ok: true, min: Number(u[0]) * 60 + Number(u[1]) };
         } catch (e) { return null; }
@@ -113,7 +117,9 @@
             try { if (typeof window.handleLocalCommand === 'function') window.handleLocalCommand('Zeig mir den Wochenüberblick'); } catch (e) { }
         });
         zeichne();
-        setInterval(zeichne, 60000);
+        setInterval(zeichne, 15000);
+        window.addEventListener('focus', zeichne);
+        window.addEventListener('pageshow', zeichne);
         document.addEventListener('visibilitychange', function () { if (!document.hidden) zeichne(); });
         return true;
     }
