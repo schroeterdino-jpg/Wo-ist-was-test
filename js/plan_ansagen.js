@@ -264,6 +264,33 @@
         } catch (e) { }
         return { min: min ? min + st : min, st, stau, ziel: !!ziel };
     }
+    /* Tanken auf dem Heimweg: fragt den Server nach einer deutlich günstigeren Tankstelle nahe der Strecke (mind. 4 Cent unter dem Schnitt, höchstens 5 Minuten Umweg).
+       Rückgabe: Satz, oder '' wenn nichts Passendes da ist (mit zeigeKeins=true dann ein Satz, warum nicht) */
+    async function heimTank(zeigeKeins) {
+        const keins = t => zeigeKeins ? t : '';
+        try {
+            const ziel = heimAdresse();
+            if (!ziel || typeof geocodeAddress !== 'function' || typeof apiFetch !== 'function') return keins('Dafür fehlt mir die Heimatadresse.');
+            const h = await Promise.race([geocodeAddress(ziel), new Promise(r => setTimeout(() => r(null), 6000))]);
+            if (!h) return keins('Ich konnte deine Heimatadresse nicht auf der Karte finden.');
+            let pos;
+            try { pos = await getPosition({ timeout: 9000, enableHighAccuracy: false, maximumAge: 120000 }); } catch (e) { return keins('Ich kenne deinen Standort gerade nicht. Ist der Standortzugriff erlaubt?'); }
+            const res = await Promise.race([
+                apiFetch('/api/sync?action=tank_heim', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lat: pos.coords.latitude, lon: pos.coords.longitude, hlat: h.lat, hlon: h.lon }) }),
+                new Promise(r => setTimeout(() => r(null), 10000))]);
+            if (!res || !res.ok) return keins('Die Spritpreise konnte ich gerade nicht abrufen.');
+            const r = await res.json();
+            if (!r || !r.found) {
+                if (r && r.nah) return keins('Du bist schon fast zu Hause.');
+                return keins('Auf deinem Heimweg ist gerade nichts deutlich Günstigeres dabei.');
+            }
+            const preis = (Math.round(r.price * 100) / 100).toFixed(2).replace('.', ',');
+            const ort = r.place ? ' in ' + r.place : '';
+            const um = r.umwegMin <= 1 ? 'kaum Umweg' : r.umwegMin + ' Minuten Umweg';
+            return 'Übrigens: ' + r.name + ort + ' hat Diesel für ' + preis + ' Euro, ' + r.ct + ' Cent günstiger als im Schnitt hier, ' + um + '.';
+        } catch (e) { return keins('Das hat gerade nicht geklappt.'); }
+    }
     /* Text für die Heimfahrt; leer nur, wenn du schon zu Hause bist (und es kein Test ist) */
     async function heimText(immer) {
         const f = await heimFrisch();
@@ -278,6 +305,8 @@
         if (f.stau) t += ' ' + f.stau;
         if (f.st) t += ' Darin sind etwa ' + f.st + ' Minuten Stau schon eingerechnet.';
         else if (!f.stau && mehr < 10) t += ' Auf der Strecke ist alles frei.';
+        const tank = await heimTank(false);
+        if (tank) t += ' ' + tank;
         return t + ' Gute Heimfahrt.';
     }
 
@@ -816,7 +845,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { arbeitsFenster, konfliktMit, terminKonflikte, heimText, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);
