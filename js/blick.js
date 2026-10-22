@@ -44,8 +44,8 @@
         if (sh === 'frueh' && !z.heute) {
             // Nur "Wecker" sagen, wenn Jarvis wirklich einen gestellt hat; sonst ist 3:30 nur die Aufstehzeit
             var gest = p.weckerStand ? p.weckerStand(z.ymd) : null;
-            if (gest != null) weckZ = '⏰ Wecker <b>' + hm(gest) + '</b> ✓';
-            else weckZ = '<span class="org">⏰ Aufstehen <b>' + hm(p.weckzeit() - vor) + '</b> · kein Wecker</span>';
+            if (gest != null) weckZ = '<span class="grn">⏰ Wecker <b>' + hm(gest) + '</b> ✓</span>';
+            else weckZ = '<span class="rot">⏰ Wecker <b>' + hm(p.weckzeit() - vor) + '</b> ✗ nicht gestellt</span>';
         }
         // Eine Zeile nur, wenn sie auf den Bildschirm passt (Wecker gestellt, kein Frost); sonst zwei Zeilen, damit nichts abgeschnitten wird
         if (abfZ && weckZ && vor === 0 && weckZ.indexOf('✓') >= 0) rows.push('<div>' + abfZ + ' · ' + weckZ + '</div>');
@@ -59,6 +59,7 @@
     /* "Dienstag um 14 Uhr KJP liegt in deiner Spätschicht (Feierabend 22 Uhr 12)" -> "Dienstag 14 Uhr KJP · Spätschicht" */
     function kurzKonflikt(t) {
         t = String(t).replace(/\s*\([^)]*\)\s*$/, '').replace(/ um (\d)/, ' $1');
+        t = t.replace(/^(Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag)\b/, function (w) { return w.slice(0, 2); });
         var m = t.match(/^(.*?) liegt in deiner (\S+)/);
         return (m ? m[1] + ' · ' + m[2] : t).slice(0, 60);
     }
@@ -71,6 +72,7 @@
             'clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))}' +
             '#jvBlick>div{background:rgba(4,14,24,.9);padding:5px 9px 6px;clip-path:polygon(0 0,calc(100% - 9px) 0,100% 9px,100% 100%,9px 100%,0 calc(100% - 9px))}' +
             '#jvBlick .bl{font-size:7px;letter-spacing:.18em;color:#5ee7ff;text-transform:uppercase}' +
+            '#jvBlick .grn{color:#4cffb0}#jvBlick .rot{color:#ff5c5c}' +
             '#jvBlick .bz{font-size:10.5px;color:#e6f6ff;margin-top:2px;line-height:1.45}#jvBlick .bz>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#jvBlick .bz .org{color:#ffb347}' +
             '#jvBlick.aus{display:none}';
         document.head.appendChild(st);
