@@ -13,6 +13,8 @@ import java.util.Locale;
 /**
  * Mikrofon-Schleife für die openWakeWord-Erkennung: liest Blöcke von 80 ms, lässt sie von {@link OwwEngine} bewerten
  * und meldet einen Treffer, wenn der Wert über der Schwelle liegt. Misst außerdem, wie viel Zeit die Erkennung wirklich rechnet.
+ * Sprach-Schranke: Zusätzlich zur Lautstärke prüft {@link OwwVad}, ob wirklich jemand spricht. Maschinenlärm öffnet die Schranke dann nicht mehr.
+ * Fehlt das Modell oder gibt es einen Fehler, gilt wieder nur die Lautstärke (wie bisher).
  */
 class OwwSpeech {
     interface Listener {
@@ -24,19 +26,24 @@ class OwwSpeech {
     private static final int VORLAUF = 16;          // 16 x 80 ms = 1,3 s Vorlauf
     private static final int NACHLAUF = 19;         // 1,5 s Stille nach der letzten Lautstärke, dann wird wieder pausiert
     private static final double DAUERLAERM = 600;   // Ruhepegel ab dem durchgehend gerechnet wird (Auto)
+    private static final float SPRACHE = 0.35f;     // ab diesem Wert gilt ein 32-ms-Stück als Sprache (Test: Lärm blieb unter 0,15, Sprache wird auch bei 0 dB Lärm erkannt)
+    private static final int SPRACH_HALT = 12;      // so viele Blöcke (ca. 1 s) bleibt die Schranke nach dem letzten Sprachstück offen
+    private static final int VAD_AUS = 12;          // so lange ohne Lautstärke, dann ruht auch die Sprach-Erkennung
 
     private final Context ctx;
     private final OwwEngine eng;
     private final float threshold;
+    private OwwVad vad;
     private final Handler main = new Handler(Looper.getMainLooper());
     private AudioRecord ar;
     private Thread th;
     private volatile boolean run = false;
 
-    OwwSpeech(Context ctx, OwwEngine eng, float threshold) {
+    OwwSpeech(Context ctx, OwwEngine eng, float threshold, OwwVad vad) {
         this.ctx = ctx.getApplicationContext();
         this.eng = eng;
         this.threshold = threshold;
+        this.vad = vad;
     }
 
     boolean startListening(final Listener l) {
@@ -63,7 +70,9 @@ class OwwSpeech {
         double boden = 60;                // geschätzter Ruhepegel der Umgebung
         boolean rechnet = false;
         int still = 0, lautSerie = 0, ignorieren = 0;
-        long blocksWin = 0, blocksWinRech = 0;
+        long blocksWin = 0, blocksWinRech = 0, blocksWinLaut = 0;
+        int sprachHalt = 0, vadStill = VAD_AUS;
+        boolean vadLauft = false;
         try {
             eng.reset();   // Puffer auffüllen; das Mikrofon startet erst danach
             if (!run) return;
@@ -89,9 +98,29 @@ class OwwSpeech {
                 boolean laut = rms > boden * 2.2 + 60;
                 if (!laut) { boden = Math.max(25, Math.min(3000, boden * 0.97 + rms * 0.03)); lautSerie = 0; }
                 else if (++lautSerie > 38) boden = Math.min(3000, boden * 0.9 + rms * 0.1);   // seit über 3 s durchgehend laut: Dauerlärm, die Schranke passt sich an
-                boolean aktiv = laut || boden > DAUERLAERM;   // im Auto (hoher Ruhepegel) rechnet er immer durch, damit nichts verpasst wird
+                boolean energie = laut || boden > DAUERLAERM;   // im Auto (hoher Ruhepegel) ist die Lautstärke-Schranke immer offen
+                boolean aktiv = energie;
+                if (vad != null) {
+                    // Sprach-Schranke: nur wenn die Lautstärke offen ist (oder gerade war), läuft die Sprach-Erkennung; die Engine rechnet nur bei Sprache
+                    try {
+                        if (energie) vadStill = 0; else if (vadStill < VAD_AUS) vadStill++;
+                        if (vadStill < VAD_AUS) {
+                            if (!vadLauft) { vad.reset(); vadLauft = true; }
+                            float p = vad.feed(block, block.length);
+                            if (p >= SPRACHE) sprachHalt = SPRACH_HALT; else if (sprachHalt > 0) sprachHalt--;
+                        } else {
+                            vadLauft = false;
+                            if (sprachHalt > 0) sprachHalt--;
+                        }
+                        aktiv = sprachHalt > 0;
+                    } catch (Throwable ve) {
+                        vad = null;   // Fehler in der Sprach-Erkennung: weiter nur mit der Lautstärke-Schranke
+                        aktiv = energie;
+                    }
+                }
 
                 blocksWin++;
+                if (energie) blocksWinLaut++;
                 if (!rechnet && aktiv) {
                     rechnet = true;
                     still = 0;
@@ -138,7 +167,8 @@ class OwwSpeech {
                     try {
                         Prefs.setStat(ctx, Math.round(100.0 * busyWin / (now - winStart)) + " % zuletzt, "
                                 + Math.round(100.0 * busyAll / (now - start)) + " % seit Start (openWakeWord, gemessene Rechenzeit); Schranke: rechnet in "
-                                + Math.round(100.0 * blocksWinRech / Math.max(1, blocksWin)) + " % der Zeit");
+                                + Math.round(100.0 * blocksWinRech / Math.max(1, blocksWin)) + " % der Zeit (Lautstärke offen "
+                                + Math.round(100.0 * blocksWinLaut / Math.max(1, blocksWin)) + " %, Sprachfilter " + (vad != null ? "an" : "aus") + ")");
                         Prefs.setLast(ctx, "höchster Wert zuletzt: " + String.format(Locale.US, "%.2f", peak)
                                 + " (löst ab " + String.format(Locale.US, "%.2f", threshold) + " aus)");
                     } catch (Throwable ignored) { }
@@ -146,6 +176,7 @@ class OwwSpeech {
                     busyWin = 0;
                     blocksWin = 0;
                     blocksWinRech = 0;
+                    blocksWinLaut = 0;
                     peak = 0f;
                 }
             }

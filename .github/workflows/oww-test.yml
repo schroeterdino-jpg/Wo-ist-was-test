@@ -7,6 +7,7 @@ on:
       - '.github/workflows/oww-test.yml'
       - 'weckruf-test/**'
       - 'weckruf-src/OwwEngine.java'
+      - 'weckruf-src/OwwVad.java'
 
 jobs:
   pruefen:
@@ -33,6 +34,9 @@ jobs:
           for w in alexa_test hey_mycroft_test; do
             curl -fL -o t/$w.wav https://raw.githubusercontent.com/dscripka/openWakeWord/main/tests/data/$w.wav
           done
+          V=https://github.com/snakers4/silero-vad/raw/066409f3d9db45a30d21dfcbf9147826ffdd7052
+          curl -fL -o t/models/vad.onnx $V/src/silero_vad/data/silero_vad_16k_op15.onnx
+          curl -fL -o t/vad_test.wav $V/tests/data/test.wav
           curl -fL -o t/lib/ort.jar https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime/1.19.2/onnxruntime-1.19.2.jar
           ls -l t t/models t/lib
 
@@ -52,3 +56,15 @@ jobs:
 
       - name: Vergleich
         run: python weckruf-test/vergleich.py t
+
+      - name: Sprach-Schranke, Referenz (Python)
+        run: python weckruf-test/vad_referenz.py t
+
+      - name: Sprach-Schranke, Java-Umsetzung
+        run: |
+          mkdir -p t/out2
+          javac -cp t/lib/ort.jar -d t/out2 weckruf-src/OwwVad.java weckruf-test/VadCheck.java
+          java -cp t/out2:t/lib/ort.jar de.dino.zaneweckruf.VadCheck t
+
+      - name: Sprach-Schranke, Vergleich
+        run: python weckruf-test/vad_vergleich.py t

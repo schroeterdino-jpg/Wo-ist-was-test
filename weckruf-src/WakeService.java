@@ -51,6 +51,7 @@ public class WakeService extends Service implements RecognitionListener {
     private Model model;
     private GatedSpeech speech;
     private OwwEngine oww;           // openWakeWord (Engine 1), sonst bleibt Vosk (Engine 0) im Einsatz
+    private OwwVad vad;              // Sprach-Schranke (Silero VAD); fehlt sie, gilt nur die Lautstärke
     private OwwSpeech owwSpeech;
     private PowerManager.WakeLock wakeLock;
     private boolean loading = false;
@@ -273,9 +274,14 @@ public class WakeService extends Service implements RecognitionListener {
         new Thread(() -> {
             try {
                 OwwEngine e = new OwwEngine(assetBytes("oww/melspectrogram.onnx"), assetBytes("oww/embedding_model.onnx"), assetBytes("oww/wake.onnx"));
+                OwwVad v0 = null;
+                try { v0 = new OwwVad(assetBytes("oww/vad.onnx")); } catch (Throwable ignored) { }   // ohne Sprach-Modell läuft es wie bisher
+                final OwwVad v = v0;
                 main.post(() -> {
                     loading = false;
-                    if (!alive || !useOww()) { e.close(); return; }
+                    if (!alive || !useOww()) { e.close(); if (v != null) v.close(); return; }
+                    if (vad != null) { vad.close(); vad = null; }
+                    vad = v;
                     if (model != null) { model.close(); model = null; }   // Vosk wird in diesem Modus nicht gebraucht, das spart Speicher
                     oww = e;
                     evalVosk();
@@ -306,6 +312,7 @@ public class WakeService extends Service implements RecognitionListener {
                     loading = false;
                     if (!alive || useOww()) { m.close(); return; }
                     if (oww != null) { oww.close(); oww = null; }
+                    if (vad != null) { vad.close(); vad = null; }
                     model = m;
                     evalVosk();
                 });
@@ -402,7 +409,7 @@ public class WakeService extends Service implements RecognitionListener {
 
     private void startOww() {
         try {
-            owwSpeech = new OwwSpeech(this, oww, owwSchwelle());
+            owwSpeech = new OwwSpeech(this, oww, owwSchwelle(), vad);
             owwSpeech.startListening(new OwwSpeech.Listener() {
                 @Override public void onWake(float score) {
                     if (owwSpeech == null) return;   // inzwischen pausiert: Treffer verwerfen
@@ -550,6 +557,7 @@ public class WakeService extends Service implements RecognitionListener {
         stopSpeech();
         if (model != null) { model.close(); model = null; }
         if (oww != null) { oww.close(); oww = null; }
+        if (vad != null) { vad.close(); vad = null; }
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         wakeLock = null;
         Prefs.setStatus(this, "aus");

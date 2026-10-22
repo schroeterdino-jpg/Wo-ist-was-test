@@ -61,6 +61,8 @@ jobs:
           curl -fL -o app/src/main/assets/oww/melspectrogram.onnx $B/melspectrogram.onnx
           curl -fL -o app/src/main/assets/oww/embedding_model.onnx $B/embedding_model.onnx
           curl -fL -o app/src/main/assets/oww/wake.onnx $B/hey_jarvis_v0.1.onnx
+          # Sprach-Schranke: Silero VAD (MIT-Lizenz), feste Version
+          curl -fL -o app/src/main/assets/oww/vad.onnx https://github.com/snakers4/silero-vad/raw/066409f3d9db45a30d21dfcbf9147826ffdd7052/src/silero_vad/data/silero_vad_16k_op15.onnx
           du -sh app/src/main/assets/oww
 
       - name: APK bauen
