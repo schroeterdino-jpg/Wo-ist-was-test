@@ -62,7 +62,7 @@
             '<button type="button" class="mic" id="aa-mic">🎤 Tippen oder sag „Hey Jarvis“</button>';
         document.body.appendChild(layer);
         $('aa-x').onclick = schliessen;
-        $('aa-anruf').onclick = function () { sagen('Wen soll ich anrufen?', true); };
+        $('aa-anruf').onclick = function () { try { if (window.jvAnruf) window.jvAnruf.warte(); } catch (e) { } sagen('Wen soll ich anrufen?', true); };
         $('aa-tanken').onclick = function () { frage('Wo ist die nächste Tankstelle'); };
         $('aa-park').onclick = function () { frage('Wo ist mein Auto'); };
         $('aa-mic').onclick = function () { try { if (typeof startListening === 'function') startListening(false); } catch (e) { } };
