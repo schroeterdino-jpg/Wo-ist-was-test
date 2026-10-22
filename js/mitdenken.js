@@ -68,6 +68,17 @@ function mdCheckBasics(notes, text, p) {
         const t = `${mdDayText(clash.start)} um ${mdTimeText(clash.start)}`;
         notes.push({ prio: 10, text: mdCheeky() ? `Achtung, ${a}: ${t.charAt(0).toUpperCase() + t.slice(1)} steht schon „${clash.text}“ im Kalender. Ich beherrsche Vieles, aber nicht das Teilen.` : `Achtung, ${a}: Das überschneidet sich mit „${clash.text}“, ${t}.` });
     }
+    // Liegt der Termin in der Arbeitszeit (Abfahrt bis Feierabend) oder knapp danach?
+    try {
+        const jp = window.jvPlan;
+        if (jp && typeof jp.konfliktMit === 'function') {
+            const ev = { ymd: day, zeit: p.date.getHours() * 60 + p.date.getMinutes(), text };
+            const k = jp.konfliktMit(ev), ende = k ? mdTimeText(new Date(p.date.getFullYear(), p.date.getMonth(), p.date.getDate(), Math.floor(k.ende / 60), k.ende % 60)) : '';
+            const sn = k ? (k.sh === 'frueh' ? 'Frühschicht' : 'Spätschicht') : '';
+            if (k && k.art === 'drin') notes.push({ prio: 10, text: `Achtung, ${a}: Das liegt in deiner ${sn}. Dein Feierabend ist um ${ende}.` });
+            else if (k) notes.push({ prio: 8, text: `Hinweis, ${a}: Das ist nur ${k.luft} Minuten nach deinem Feierabend um ${ende}, plus Heimweg und Fahrt.` });
+        }
+    } catch (e) {}
     // Ungewöhnliche Uhrzeit
     const h = p.date.getHours();
     if (h < 6) notes.push({ prio: 2, text: mdCheeky() ? `${h === 0 ? 'Mitternacht' : h + ' Uhr früh'}? Mutig, ${a}.` : `Das ist ein sehr früher Termin, ${a}.` });

@@ -366,6 +366,10 @@
         }
         const term = termineInWoche(montag, ab);
         teile.push(term.length ? 'Termine: ' + liste(term, 6) + '.' : 'Keine Termine im Kalender.');
+        try {
+            const kf = term.map(e => { const k = konfliktMit(e); return k ? konfliktText(e, k) : ''; }).filter(Boolean);
+            if (kf.length) teile.push('Achtung: ' + kf.slice(0, 3).join('; ') + '.');
+        } catch (e) { }
         const erin = erinnerungenInWoche(montag, ab);
         if (erin.length) teile.push('Erinnerungen: ' + liste(erin, 3) + '.');
         try {
@@ -380,6 +384,38 @@
             }
         } catch (e) { }
         return teile.join(' ');
+    }
+    /* ---------- Terminkonflikte mit der Arbeit ---------- */
+    /* Arbeitszeit an einem Tag: Abfahrt bis Schichtende (Minuten seit Mitternacht); null ohne Schicht (Wochenende, Urlaub) */
+    function arbeitsFenster(ymd) {
+        const sh = schichtAm(ymd);
+        return sh ? { sh, von: abfFix(sh), ende: ende(sh) } : null;
+    }
+    /* Ein Termin ({ ymd, zeit, text }) gegen die Arbeit: { art: 'drin' | 'knapp', sh, ende, luft } oder null */
+    function konfliktMit(ev) {
+        if (!ev || ev.zeit == null) return null;
+        const w = arbeitsFenster(ev.ymd); if (!w) return null;
+        if (ev.zeit >= w.von && ev.zeit <= w.ende) return { art: 'drin', sh: w.sh, ende: w.ende };
+        if (ev.zeit > w.ende && ev.zeit - w.ende <= 45) return { art: 'knapp', sh: w.sh, ende: w.ende, luft: ev.zeit - w.ende };
+        return null;
+    }
+    function konfliktText(ev, k) {
+        const wann = tagName(ev.ymd) + ' um ' + uhr(ev.zeit) + ' ' + ev.text;
+        return k.art === 'drin'
+            ? wann + ' liegt in deiner ' + NAME[k.sh] + ' (Feierabend ' + uhr(k.ende) + ')'
+            : wann + ' beginnt nur ' + k.luft + ' Minuten nach deinem Feierabend um ' + uhr(k.ende);
+    }
+    /* Termine der nächsten zwei Wochen: Konflikte mit der Arbeit und Termine, die sich gegenseitig überschneiden */
+    function terminKonflikte() {
+        const h = jetzt().ymd;
+        const alle = termineInWoche(h, h).concat(termineInWoche(ymdPlus(h, 7), ymdPlus(h, 7))).filter(e => e.zeit != null);
+        const out = [];
+        alle.forEach(e => { const k = konfliktMit(e); if (k) out.push(konfliktText(e, k)); });
+        for (let i = 0; i < alle.length; i++) for (let j = i + 1; j < alle.length; j++) {
+            const a = alle[i], b = alle[j];
+            if (a.ymd === b.ymd && Math.abs(a.zeit - b.zeit) < 60) out.push(tagName(a.ymd) + ' um ' + uhr(a.zeit) + ' ' + a.text + ' und um ' + uhr(b.zeit) + ' ' + b.text + ' überschneiden sich');
+        }
+        return out;
     }
     function wocheJetzt() {   // Sonntag: die kommende Woche, sonst die laufende
         const h = jetzt().ymd, d = dow(h);
@@ -696,6 +732,13 @@
             })();
             return true;
         }
+        // Terminkonflikte prüfen
+        if (/\b(terminkonflikte?|termin.?ueberschneidung\w*|ueberschneidung\w*|kollision\w*|kollidier\w*)\b/.test(t) || /\bkonflikte?\b.*\btermin\w*|\btermin\w*.*\bkonflikte?\b/.test(t)) {
+            const k = terminKonflikte();
+            if (!k.length) sagenMeldung('📅 Terminprüfung', 'In den nächsten zwei Wochen passt alles zusammen: Kein Termin liegt in deiner Arbeitszeit oder überschneidet sich mit einem anderen.');
+            else sagenMeldung('📅 Terminprüfung', 'Ich habe ' + (k.length === 1 ? 'einen Konflikt' : k.length + ' Konflikte') + ' gefunden. ' + k.slice(0, 4).join('. ') + '.' + (k.length > 4 ? ' Dazu kommen noch ' + (k.length - 4) + ' weitere.' : ''));
+            return true;
+        }
         // Planer ein/aus
         if (/^(den |der |nova )?(planer|tagesplaner)\s+(aus|an|ein)(schalten)?$/.test(t) || /^(schalte? )?(den )?planer (aus|an|ein)(schalten)?$/.test(t)) {
             const an = /\b(an|ein)\b/.test(t) && !/\baus\b/.test(t);
@@ -773,7 +816,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { heimText, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { arbeitsFenster, konfliktMit, terminKonflikte, heimText, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);
