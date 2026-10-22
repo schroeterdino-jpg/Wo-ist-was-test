@@ -45,13 +45,22 @@
             // Nur "Wecker" sagen, wenn Jarvis wirklich einen gestellt hat; sonst ist 3:30 nur die Aufstehzeit
             var gest = p.weckerStand ? p.weckerStand(z.ymd) : null;
             if (gest != null) weckZ = '⏰ Wecker <b>' + hm(gest) + '</b> ✓';
-            else weckZ = '<span class="org">⏰ Aufstehen <b>' + hm(p.weckzeit() - vor) + '</b> · noch kein Wecker</span>';
+            else weckZ = '<span class="org">⏰ Aufstehen <b>' + hm(p.weckzeit() - vor) + '</b> · kein Wecker</span>';
         }
-        if (abfZ || weckZ) rows.push('<div>' + [abfZ, weckZ].filter(Boolean).join(' · ') + '</div>');
+        // Eine Zeile nur, wenn sie auf den Bildschirm passt (Wecker gestellt, kein Frost); sonst zwei Zeilen, damit nichts abgeschnitten wird
+        if (abfZ && weckZ && vor === 0 && weckZ.indexOf('✓') >= 0) rows.push('<div>' + abfZ + ' · ' + weckZ + '</div>');
+        else { if (abfZ) rows.push('<div>' + abfZ + '</div>'); if (weckZ) rows.push('<div>' + weckZ + '</div>'); }
         try {
-            var k = p.terminKonflikte(); if (k && k.length) rows.push('<div class="org">⚠ ' + esc(String(k[0]).slice(0, 70)) + '</div>');
+            var k = p.terminKonflikte(); if (k && k.length) rows.push('<div class="org">⚠ ' + esc(kurzKonflikt(k[0])) + '</div>'); 
         } catch (e) { }
         return rows.join('');
+    }
+
+    /* "Dienstag um 14 Uhr KJP liegt in deiner Spätschicht (Feierabend 22 Uhr 12)" -> "Dienstag 14 Uhr KJP · Spätschicht" */
+    function kurzKonflikt(t) {
+        t = String(t).replace(/\s*\([^)]*\)\s*$/, '').replace(/ um (\d)/, ' $1');
+        var m = t.match(/^(.*?) liegt in deiner (\S+)/);
+        return (m ? m[1] + ' · ' + m[2] : t).slice(0, 60);
     }
 
     function css() {
