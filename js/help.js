@@ -91,7 +91,8 @@ const HELP_TOPICS = [
         'Nach jedem HSV-Spiel kommt von selbst eine Nachricht mit dem Endstand (gewonnen, verloren oder unentschieden); nachts zwischen 22 und 7 Uhr erst morgens',
         'In der Jarvis-App (APK) kommen alle Meldungen ohne Browser: die App fragt jede Minute beim Server nach und zeigt sie als Benachrichtigung (Erinnerungen mit Erledigt-Knopf)', 'Der Wochenüberblick (Sonntag 18 Uhr) kommt als Nachricht mit dem ganzen Text und wird zusätzlich gesprochen, auch wenn die App gerade offen ist',
         'Meldungen nachlesen: "Meine Meldungen" / "Was hast du mir gesagt?" / "Was habe ich verpasst?" (Wochenüberblick, Aufbruchszeit, Stau-Hinweis der letzten Tage)',
-        'Wochenüberblick, Aufbruchszeit und Stau-Hinweis öffnen beim Sprechen auch ein Fenster zum Nachlesen; "Zeig mir den Wochenüberblick" jederzeit'] },
+        'Wochenüberblick, Aufbruchszeit und Stau-Hinweis öffnen beim Sprechen auch ein Fenster zum Nachlesen; "Zeig mir den Wochenüberblick" jederzeit',
+        'Heimweg: kurz nach Schichtende (Früh 14:37, Spät 22:12) sagt Jarvis, wie lange die Heimfahrt dauert und ob Stau gemeldet ist. Ändern: "Meine Frühschicht endet um 14 Uhr 40". Testen: "Wie ist der Heimweg?"'] },
     { key: 'auftraege', icon: '👁️', title: 'Aufträge: Sag Bescheid, wenn ...', words: /auftr(?:ä|ae)ge|bescheid|beobacht|(?:ü|ue)berwach/, examples: [
         'Sag mir Bescheid, wenn der Diesel unter 1,65 fällt (Preis in deiner Umgebung)', 'Sag Bescheid, wenn es aufhört zu regnen (auch: wenn es anfängt zu regnen)', 'Meld dich, wenn es unter 0 Grad geht (auch: über 25 Grad, oder: wenn es Frost gibt)',
         'Ein Auftrag meldet sich einmal und löscht sich dann; mit "jedes Mal" bleibt er: Sag mir jedes Mal Bescheid, wenn der Diesel unter 1,65 fällt',
