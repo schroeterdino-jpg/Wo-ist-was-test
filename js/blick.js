@@ -45,7 +45,8 @@
             // Den echten Wecker des Handys abfragen (APK): grün nur, wenn morgen vor der Abfahrt wirklich einer klingelt (egal wer ihn gestellt hat).
             // Ohne die App (Browser, alte APK) lässt sich das nicht wissen, dann steht hier nichts.
             var wk = weckerEcht(p, z.ymd, abf);
-            if (wk && wk.ok) weckZ = '<span class="grn">⏰ Wecker <b>' + hm(wk.min) + '</b> ✓</span>';
+            // Manche Uhr-Apps (Samsung) melden die Weckzeit 1 Minute früher (3:29 statt 3:30): bis 2 Minuten Abweichung gilt die geplante Zeit
+            if (wk && wk.ok) { var plan = p.weckzeit() - vor; weckZ = '<span class="grn">⏰ Wecker <b>' + hm(Math.abs(wk.min - plan) <= 2 ? plan : wk.min) + '</b> ✓</span>'; }
             else if (wk) weckZ = '<span class="rot">⏰ Wecker <b>' + hm(p.weckzeit() - vor) + '</b> ✗ nicht gestellt</span>';
         }
         // Eine Zeile nur, wenn sie auf den Bildschirm passt (Wecker gestellt, kein Frost); sonst zwei Zeilen, damit nichts abgeschnitten wird
