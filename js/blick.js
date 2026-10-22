@@ -62,15 +62,15 @@
         try {
             var n = window.ZaneNative;
             if (!n || typeof n.naechsterWecker !== 'function') return null;
-            var t = Number(n.naechsterWecker());
+            var t = Number(n.naechsterWecker());   // Das Handy kann ein paar Sekunden vor der vollen Minute melden (3:29:5x): auf die nächste Minute runden
             if (!isFinite(t) || t < 0) return null;
             if (t === 0) return { ok: false };
             if (t < p.berlinMs(ymd, 0) || t > p.berlinMs(ymd, abfMin)) {
                 // Es gibt einen Wecker, aber nicht zur richtigen Zeit: den nächsten zeigen, damit man sieht, was Jarvis sieht
-                var w = new Date(t).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).replace(',', '');
+                var w = new Date(Math.round(t / 60000) * 60000).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).replace(',', '');
                 return { ok: false, anderer: w };
             }
-            var u = new Date(t).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', hour12: false }).split(':');
+            var u = new Date(Math.round(t / 60000) * 60000).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', hour12: false }).split(':');
             return { ok: true, min: Number(u[0]) * 60 + Number(u[1]) };
         } catch (e) { return null; }
     }
