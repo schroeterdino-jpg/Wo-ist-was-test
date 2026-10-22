@@ -35,14 +35,16 @@
         var tag = z.heute ? 'Heute' : (z.tage === 1 ? 'Morgen' : wochentag(z.ymd));
         var icon = sh === 'frueh' ? '🌅' : '🌆';
         rows.push('<div>' + icon + ' <b>' + esc(tag) + '</b> · ' + NAME[sh] + (z.heute && z.nu.min >= beginn ? ' bis ' + hm(ende) : ' ab ' + hm(beginn)) + '</div>');
+        var abfZ = '', weckZ = '';
         var vor = p.tagVor(z.ymd), abf = p.abfahrtMin(sh) - vor;
         if (!z.heute || z.nu.min < abf) {
-            if (vor > 0) rows.push('<div class="org">❄ Frost: Abfahrt <b>' + hm(abf) + '</b> statt ' + hm(abf + vor) + '</div>');
-            else rows.push('<div>🚗 Abfahrt <b>' + hm(abf) + '</b></div>');
+            if (vor > 0) abfZ = '<span class="org">❄ Abfahrt <b>' + hm(abf) + '</b> (statt ' + hm(abf + vor) + ')</span>';
+            else abfZ = '🚗 Abfahrt <b>' + hm(abf) + '</b>';
         }
-        if (sh === 'frueh' && !z.heute) rows.push('<div>⏰ Wecker <b>' + hm(p.weckzeit() - vor) + '</b></div>');
+        if (sh === 'frueh' && !z.heute) weckZ = '⏰ Wecker <b>' + hm(p.weckzeit() - vor) + '</b>';
+        if (abfZ || weckZ) rows.push('<div>' + [abfZ, weckZ].filter(Boolean).join(' · ') + '</div>');
         try {
-            var k = p.terminKonflikte(); if (k && k.length) rows.push('<div class="org">⚠ ' + esc(String(k[0]).slice(0, 90)) + '</div>');
+            var k = p.terminKonflikte(); if (k && k.length) rows.push('<div class="org">⚠ ' + esc(String(k[0]).slice(0, 70)) + '</div>');
         } catch (e) { }
         return rows.join('');
     }
@@ -51,11 +53,11 @@
         if (document.getElementById('jvBlickCss')) return;
         var st = document.createElement('style'); st.id = 'jvBlickCss';
         st.textContent =
-            '#jvBlick{width:100%;margin-top:8px;font-family:ui-monospace,Menlo,Consolas,monospace;cursor:pointer;background:linear-gradient(135deg,rgba(94,231,255,.28),rgba(94,231,255,.08));padding:1px;' +
+            '#jvBlick{width:100%;margin-top:6px;font-family:ui-monospace,Menlo,Consolas,monospace;cursor:pointer;background:linear-gradient(135deg,rgba(94,231,255,.28),rgba(94,231,255,.08));padding:1px;' +
             'clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))}' +
-            '#jvBlick>div{background:rgba(4,14,24,.9);padding:7px 10px 8px;clip-path:polygon(0 0,calc(100% - 9px) 0,100% 9px,100% 100%,9px 100%,0 calc(100% - 9px))}' +
-            '#jvBlick .bl{font-size:8px;letter-spacing:.18em;color:#5ee7ff;text-transform:uppercase}' +
-            '#jvBlick .bz{font-size:12px;color:#e6f6ff;margin-top:4px;line-height:1.65}#jvBlick .bz .org{color:#ffb347}' +
+            '#jvBlick>div{background:rgba(4,14,24,.9);padding:5px 9px 6px;clip-path:polygon(0 0,calc(100% - 9px) 0,100% 9px,100% 100%,9px 100%,0 calc(100% - 9px))}' +
+            '#jvBlick .bl{font-size:7px;letter-spacing:.18em;color:#5ee7ff;text-transform:uppercase}' +
+            '#jvBlick .bz{font-size:10.5px;color:#e6f6ff;margin-top:2px;line-height:1.45}#jvBlick .bz>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#jvBlick .bz .org{color:#ffb347}' +
             '#jvBlick.aus{display:none}';
         document.head.appendChild(st);
     }
