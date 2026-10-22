@@ -51,6 +51,10 @@ class ZaneBridge {
     @JavascriptInterface
     public boolean weckerStellen(int stunde, int minute, String text) { return act.weckerStellen(stunde, minute, text); }
 
+    /** Nächster gestellter Wecker des Handys (Zeitpunkt in Millisekunden), 0 = keiner, -1 = nicht lesbar. */
+    @JavascriptInterface
+    public double naechsterWecker() { return act.naechsterWecker(); }
+
     /** Nummer direkt anrufen (fragt beim ersten Mal nach der Telefon-Erlaubnis). */
     @JavascriptInterface
     public boolean anrufen(String nummer) { return act.anrufen(nummer); }
