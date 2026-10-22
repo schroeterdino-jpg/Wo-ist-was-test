@@ -207,6 +207,23 @@
         } catch (e) { }
     };
 
+    // Sprachbefehl "Lauschen ausschalten" / "Weckwort aus" / "Hey Jarvis ausschalten": beendet das Lauschen auf "Hey Jarvis" (Einschalten per Hand in den Einstellungen)
+    function lauschenCmd() {
+        if (!window.jvCommands || typeof window.jvCommands.use !== 'function') return false;
+        window.jvCommands.use('lauschen_aus', function (text, next) {
+            const t = String(text || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[.,!?;:]/g, ' ').replace(/\s+/g, ' ').trim();
+            const wort = /\b(lausch\w*|weckwort|hey jarvis|zuhoeren|zuzuhoeren)\b/.test(t);
+            const aus = /\b(aus|ausschalten|ausmachen|abschalten|beenden|beende|stopp|stoppen|deaktivieren)\b|hoer auf|hoere auf/.test(t);
+            if (!(wort && aus) || t.split(' ').length > 9 || /\b(an|einschalten|starten|aktivieren)\b/.test(t)) return next(text);
+            let ok = false;
+            try { ok = typeof window.ZaneNative.lauschenAus === 'function' && !!window.ZaneNative.lauschenAus(); } catch (e) { }
+            try { speak(ok ? 'Gut, ich höre nicht mehr auf Hey Jarvis. Zum Einschalten: Einstellungen, Lauschen starten.' : 'Das geht nur mit der neuesten Jarvis-App. Bitte installiere die aktuelle Version.'); } catch (e) { }
+            return true;
+        }, 0.2);
+        return true;
+    }
+    if (!lauschenCmd()) { let k = 0; const iv = setInterval(function () { if (lauschenCmd() || ++k > 40) clearInterval(iv); }, 250); }
+
     // Falls die Seite beim Wecken noch lud
     window.addEventListener('load', function () {
         setTimeout(function () { if (window.__zaneWakePending) window.zaneWake(); }, 800);
