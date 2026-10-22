@@ -277,6 +277,9 @@
         return ok('Jarvis-App erkannt, alle Funktionen da');
     }
     async function pruefWeckwort() {
+        /* In der Jarvis-App hört die App selbst auf "Hey Jarvis" (Einstellungen der App, openWakeWord oder Vosk).
+           Der Schalter der Seite gilt nur im Browser, darum wäre "aus" dort eine falsche Warnung. */
+        if (window.ZaneNative) return ok('Weckwort läuft über die Jarvis-App (Einstellungen dort)');
         let an = null;
         try { if (typeof wakeWordEnabled !== 'undefined') an = !!wakeWordEnabled; } catch (e) {}
         if (an === null) return hinweis('Status nicht lesbar', '');
