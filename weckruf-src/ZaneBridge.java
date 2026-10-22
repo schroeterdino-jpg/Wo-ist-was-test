@@ -59,6 +59,10 @@ class ZaneBridge {
     @JavascriptInterface
     public double naechsterWecker() { return act.naechsterWecker(); }
 
+    /** Name der App, die den nächsten Wecker eingetragen hat (leer, wenn unbekannt). */
+    @JavascriptInterface
+    public String naechsterWeckerVon() { return act.naechsterWeckerVon(); }
+
     /** Nummer direkt anrufen (fragt beim ersten Mal nach der Telefon-Erlaubnis). */
     @JavascriptInterface
     public boolean anrufen(String nummer) { return act.anrufen(nummer); }

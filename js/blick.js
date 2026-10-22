@@ -35,7 +35,7 @@
         var tag = z.heute ? 'Heute' : (z.tage === 1 ? 'Morgen' : wochentag(z.ymd));
         var icon = sh === 'frueh' ? '🌅' : '🌆';
         rows.push('<div>' + icon + ' <b>' + esc(tag) + '</b> · ' + NAME[sh] + (z.heute && z.nu.min >= beginn ? ' bis ' + hm(ende) : ' ab ' + hm(beginn)) + '</div>');
-        var abfZ = '', weckZ = '';
+        var abfZ = '', weckZ = '', weckX = '';
         var vor = p.tagVor(z.ymd), abf = p.abfahrtMin(sh) - vor;
         if (!z.heute || z.nu.min < abf) {
             if (vor > 0) abfZ = '<span class="org">❄ Abfahrt <b>' + hm(abf) + '</b> (statt ' + hm(abf + vor) + ')</span>';
@@ -46,11 +46,13 @@
             // Ohne die App (Browser, alte APK) lässt sich das nicht wissen, dann steht hier nichts.
             var wk = weckerEcht(p, z.ymd, abf);
             if (wk && wk.ok) weckZ = '<span class="grn">⏰ Wecker <b>' + hm(wk.min) + '</b> ✓</span>';
-            else if (wk) weckZ = '<span class="rot">⏰ Wecker <b>' + hm(p.weckzeit() - vor) + '</b> ✗ ' + (wk.anderer ? 'nächster: ' + esc(wk.anderer) : 'nicht gestellt') + '</span>';
+            else if (wk) weckZ = '<span class="rot">⏰ Wecker <b>' + hm(p.weckzeit() - vor) + '</b> ✗ nicht gestellt</span>';
+            if (wk && wk.anderer) weckX = '<div class="rot" style="white-space:normal">Nächster Wecker: ' + esc(wk.anderer) + (wk.von ? ' · von ' + esc(wk.von) : '') + '</div>';
         }
         // Eine Zeile nur, wenn sie auf den Bildschirm passt (Wecker gestellt, kein Frost); sonst zwei Zeilen, damit nichts abgeschnitten wird
         if (abfZ && weckZ && vor === 0 && weckZ.indexOf('✓') >= 0) rows.push('<div>' + abfZ + ' · ' + weckZ + '</div>');
         else { if (abfZ) rows.push('<div>' + abfZ + '</div>'); if (weckZ) rows.push('<div>' + weckZ + '</div>'); }
+        if (weckX) rows.push(weckX);
         try {
             var k = p.terminKonflikte(); if (k && k.length) rows.push('<div class="org">⚠ ' + esc(kurzKonflikt(k[0])) + '</div>'); 
         } catch (e) { }
@@ -68,7 +70,8 @@
             if (t < p.berlinMs(ymd, 0) || t > p.berlinMs(ymd, abfMin)) {
                 // Es gibt einen Wecker, aber nicht zur richtigen Zeit: den nächsten zeigen, damit man sieht, was Jarvis sieht
                 var w = new Date(Math.round(t / 60000) * 60000).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).replace(',', '');
-                return { ok: false, anderer: w };
+                var von = ''; try { if (typeof n.naechsterWeckerVon === 'function') von = String(n.naechsterWeckerVon() || ''); } catch (e) { }
+                return { ok: false, anderer: w, von: von };
             }
             var u = new Date(Math.round(t / 60000) * 60000).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', hour12: false }).split(':');
             return { ok: true, min: Number(u[0]) * 60 + Number(u[1]) };
