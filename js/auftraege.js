@@ -120,6 +120,16 @@
         if (/^(?:l(?:ö|oe)sch(?:e)?|entferne|vergiss|storniere|beende)\b/.test(t) && /\b(?:auftr(?:ä|ae)ge|beobachtungen)\b/.test(t) && /\b(?:alle|sämtliche|saemtliche)\b/.test(t)) { loeschen({ all: true }); return true; }
         const m = t.match(/^(?:l(?:ö|oe)sch(?:e)?|entferne|vergiss|storniere|beende) (?:den |die |meinen )?(diesel|dieselpreis|regen|temperatur)(?:-| )?(?:auftrag|beobachtung)/);
         if (m) { loeschen({ typ: /diesel/.test(m[1]) ? 'diesel' : m[1] === 'regen' ? 'regen' : 'temp' }, 'Diesen Auftrag gab es nicht.'); return true; }
+        // Eigenarbeit: "Such den günstigsten Diesel auf dem Heimweg und melde dich" -> sofort nachsehen und sagen, was unterwegs günstig ist
+        if (/\b(?:g(?:ü|ue)nstigst\w*|billigst\w*|beste\w*)\b/.test(t) && /\b(?:diesel|sprit|tankstelle|tanken)\b/.test(t) && /\bheimweg|\bnach hause|\bheimfahrt/.test(t)) {
+            (async function () {
+                sagen('Ich schaue nach.');
+                let r = '';
+                try { r = window.jvPlan && window.jvPlan.heimTank ? await window.jvPlan.heimTank(true) : ''; } catch (e) { }
+                sagen(r || 'Das konnte ich gerade nicht prüfen.');
+            })();
+            return true;
+        }
         const a = parseAuftrag(t);
         if (!a) return next(text);
         if (a.fehler) { sagen(a.fehler); return true; }

@@ -245,6 +245,12 @@ async function handlePush(action, req, res, redis) {
       await redis('SET', ITEMS_KEY, JSON.stringify(st));
       return res.status(200).json({ ok: true });
     }
+    if (action === 'tank_heim') {   // Tanken auf dem Heimweg: günstige Tankstelle nahe der Strecke (Standort und Zuhause kommen von der App)
+      const pts = [body.lat, body.lon, body.hlat, body.hlon];
+      if (!pts.every(v => Number.isFinite(v)) || Math.abs(body.lat) > 90 || Math.abs(body.hlat) > 90 || Math.abs(body.lon) > 180 || Math.abs(body.hlon) > 180) return res.status(400).json({ error: 'Ungültig' });
+      const r = await tankHeim({ lat: body.lat, lon: body.lon }, { lat: body.hlat, lon: body.hlon });
+      return res.status(200).json(Object.assign({ ok: true }, r));
+    }
     if (action === 'push_config') {   // Schichtplan und Strecke zur Arbeit (nur Zahlen), für die Briefing-Nachricht
       const st = await loadItems(redis);
       const cfg = {};
@@ -672,6 +678,44 @@ async function cheapestDiesel(origin) {
     const b = list[0];
     return { price: b.price, name: tankName(b), street: [b.street, b.houseNumber].filter(Boolean).join(' ').trim(), place: b.place || '', dist: b.dist };
   } catch (e) { return { err: 'nicht erreichbar' }; }
+}
+// Tanken auf dem Heimweg: alle Tankstellen um die Strecke holen, den Durchschnitt bilden und die günstigste mit kleinem Umweg suchen.
+// Gemeldet wird nur, wenn sie mindestens HEIM_TANK_CT Cent unter dem Durchschnitt liegt und der Umweg höchstens HEIM_UMWEG_MIN Minuten dauert.
+const HEIM_TANK_CT = 4;
+const HEIM_UMWEG_MIN = 5;
+const HEIM_UMWEG_KMH = 45;      // Annahme für den Umweg
+const HEIM_UMWEG_FAKTOR = 1.4;  // Luftlinie -> Straße
+function heimUmwegMin(a, s, h) {
+  const km = Math.max(0, distKm(a, s) + distKm(s, h) - distKm(a, h)) * HEIM_UMWEG_FAKTOR;
+  return Math.round(km / HEIM_UMWEG_KMH * 60);
+}
+async function tankHeim(a, h) {
+  const key = process.env.TANKER_API_KEY || process.env.TANKERKOENIG_API_KEY;
+  if (!key) return { found: false, err: 'Schlüssel fehlt' };
+  const total = distKm(a, h);
+  if (total < 3) return { found: false, nah: true };   // schon fast zu Hause
+  const mid = { lat: (a.lat + h.lat) / 2, lon: (a.lon + h.lon) / 2 };
+  const rad = Math.max(5, Math.min(25, Math.ceil(total / 2 + 3)));
+  try {
+    const url = 'https://creativecommons.tankerkoenig.de/json/list.php?lat=' + mid.lat.toFixed(5) + '&lng=' + mid.lon.toFixed(5) + '&rad=' + rad + '&sort=dist&type=diesel&apikey=' + encodeURIComponent(key);
+    const r = await fetch(url, { signal: AbortSignal.timeout(7000) });
+    const d = await r.json();
+    if (!d || d.ok === false) return { found: false, err: 'Tankerkönig: ' + ((d && d.message) || 'Fehler') };
+    const list = (d.stations || []).filter(x => x && x.isOpen && typeof x.price === 'number' && x.price > 0.5 && x.price < 5 && Number.isFinite(x.lat) && Number.isFinite(x.lng));
+    if (list.length < 4) return { found: false, wenige: true };
+    const avg = list.reduce((s, x) => s + x.price, 0) / list.length;
+    let best = null;
+    for (const x of list) {
+      if (avg - x.price < HEIM_TANK_CT / 100 - 0.0005) continue;
+      const um = heimUmwegMin(a, { lat: x.lat, lon: x.lng }, h);
+      if (um > HEIM_UMWEG_MIN) continue;
+      if (!best || x.price < best.price || (x.price === best.price && um < best.um)) best = { price: x.price, um, b: x };
+    }
+    if (!best) return { found: false, avg: Math.round(avg * 1000) / 1000 };
+    const b = best.b;
+    return { found: true, price: best.price, avg: Math.round(avg * 1000) / 1000, ct: Math.round((avg - best.price) * 100), umwegMin: best.um,
+      name: tankName(b), street: [b.street, b.houseNumber].filter(Boolean).join(' ').trim(), place: b.place || '' };
+  } catch (e) { return { found: false, err: 'nicht erreichbar' }; }
 }
 function tankDue(st, now) {
   return now - (st.tank.lastCheck || 0) >= TANK_CHECK_MS;
