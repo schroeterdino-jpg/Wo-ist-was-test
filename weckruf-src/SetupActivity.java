@@ -259,6 +259,8 @@ public class SetupActivity extends Activity {
         LinearLayout ac = card(root, "Auto & Parkplatz", LINE);
         autoVal = zeile(ac, "Auto (Bluetooth)", "wählen  ›", CYAN, v -> autoWaehlen());
         trenner(ac);
+        schalter(ac, "Autoansicht beim Einsteigen", Prefs.autoEinsteigen(this), (b, an) -> Prefs.setAutoEinsteigen(this, an));
+        trenner(ac);
         bgVal = zeile(ac, "Standort „Immer zulassen“", "", GREEN, v ->
                 startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()))));
 

@@ -40,6 +40,11 @@ final class Prefs {
     static String carAddr(Context c) { return sp(c).getString("carAddr", ""); }
     static String carName(Context c) { return sp(c).getString("carName", ""); }
     static void setCar(Context c, String addr, String name) { sp(c).edit().putString("carAddr", addr == null ? "" : addr).putString("carName", name == null ? "" : name).apply(); }
+    // Autoansicht von selbst öffnen, wenn das Handy sich mit dem Auto verbindet (Standard: an)
+    static boolean autoEinsteigen(Context c) { return sp(c).getBoolean("autoEinsteigen", true); }
+    static void setAutoEinsteigen(Context c, boolean v) { sp(c).edit().putBoolean("autoEinsteigen", v).apply(); }
+    static long autoZuletzt(Context c) { return sp(c).getLong("autoZuletzt", 0); }
+    static void setAutoZuletzt(Context c, long t) { sp(c).edit().putLong("autoZuletzt", t).apply(); }
     static String parkPending(Context c) { return sp(c).getString("parkPending", ""); }
     static void setParkPending(Context c, String s) { sp(c).edit().putString("parkPending", s == null ? "" : s).apply(); }
     static String parkInfo(Context c) { return sp(c).getString("parkInfo", "noch nichts"); }
