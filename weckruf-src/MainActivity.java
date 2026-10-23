@@ -313,6 +313,22 @@ public class MainActivity extends Activity {
         else requestPermissions(need.toArray(new String[0]), 1);
     }
 
+    private boolean kontakteWartet = false;
+    /** Mehrfachauswahl der Schlafmodus-Kontakte; fragt bei Bedarf zuerst nach der Kontakte-Erlaubnis. */
+    boolean kontakteWaehlen() {
+        runOnUiThread(() -> {
+            try {
+                if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+                    kontakteWartet = true;
+                    requestPermissions(new String[]{Manifest.permission.READ_CONTACTS}, 4);
+                } else {
+                    KontaktWahl.zeigen(this);
+                }
+            } catch (Throwable ignored) { }
+        });
+        return true;
+    }
+
     /** Öffnet die Android-Seite für den Benachrichtigungszugriff (Schlafmodus: WhatsApp-Nachrichten lesen und beantworten). */
     boolean nachrichtenZugriffOeffnen() {
         try {
@@ -383,6 +399,11 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
         super.onRequestPermissionsResult(code, perms, res);
+        if (code == 4) {
+            boolean w = kontakteWartet; kontakteWartet = false;
+            if (w && res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED) { try { KontaktWahl.zeigen(this); } catch (Throwable ignored) { } }
+            return;
+        }
         if (code == 3) {
             String n = anrufWartet; anrufWartet = null;
             if (n != null) {

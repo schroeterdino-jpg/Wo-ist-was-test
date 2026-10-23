@@ -69,4 +69,8 @@ final class Prefs {
     static void setSchlafAntworten(Context c, String s) { sp(c).edit().putString("schlafAntworten", s == null ? "" : s).apply(); }
     static String schlafText(Context c) { return sp(c).getString("schlafText", "Hallo, hier ist Jarvis, der Assistent von Dino. Dino schläft gerade und meldet sich bei dir, sobald er wach ist."); }
     static void setSchlafText(Context c, String s) { sp(c).edit().putString("schlafText", s == null ? "" : s).apply(); }
+    static String schlafKey(Context c) { return sp(c).getString("schlafKey", ""); }
+    static void setSchlafKey(Context c, String s) { if (s != null && !s.isEmpty()) sp(c).edit().putString("schlafKey", s).apply(); }
+    static boolean schlafKi(Context c) { return sp(c).getBoolean("schlafKi", true); }       // true: Jarvis formuliert kurze Antworten selbst (KI), false: immer der feste Text
+    static void setSchlafKi(Context c, boolean v) { sp(c).edit().putBoolean("schlafKi", v).apply(); }
 }
