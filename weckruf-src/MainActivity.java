@@ -46,6 +46,7 @@ public class MainActivity extends Activity {
     static MainActivity current;
     static boolean pendingWake = false;
     static volatile boolean pendingAuto = false;   // Auto per Bluetooth verbunden: die Seite soll die Autoansicht öffnen
+    static volatile String pendingMeldung = null;   // Meldung von Jarvis (Vertretung): Seite holt sie ab und zeigt/spricht sie
     static volatile String pendingAnsage = null;   // geplante Ansage (aus AnsageReceiver), wartet darauf, dass die Seite sie abholt
 
     private WebView web;
@@ -439,7 +440,12 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void meldungAnstossen() {
+        if (pendingMeldung != null) h.postDelayed(() -> js("if(window.jvSchlaf&&window.jvSchlaf.pruefe)window.jvSchlaf.pruefe();"), 800);
+    }
+
     private void handleIntent(Intent i) {
+        meldungAnstossen();
         if (i != null && i.getBooleanExtra("wake", false)) pendingWake = true;
         if (i != null && i.getBooleanExtra("auto", false)) pendingAuto = true;
         if (i != null) {
@@ -455,6 +461,7 @@ public class MainActivity extends Activity {
         try { if (web != null) { web.resumeTimers(); web.onResume(); } } catch (Throwable ignored) { }   // nie eingefroren starten
         freezeHandler.removeCallbacks(freezeRun);
         WakeService.setActivityResumed(true);
+        meldungAnstossen();
         try {
             ((android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE)).cancel(2);   // "Hey Zane erkannt"-Meldung wegräumen
         } catch (Throwable ignored) { }
