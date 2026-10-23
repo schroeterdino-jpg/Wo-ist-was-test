@@ -73,4 +73,14 @@ final class Prefs {
     static void setSchlafKey(Context c, String s) { if (s != null && !s.isEmpty()) sp(c).edit().putString("schlafKey", s).apply(); }
     static boolean schlafKi(Context c) { return sp(c).getBoolean("schlafKi", true); }       // true: Jarvis formuliert kurze Antworten selbst (KI), false: immer der feste Text
     static void setSchlafKi(Context c, boolean v) { sp(c).edit().putBoolean("schlafKi", v).apply(); }
+    // Vertretung: antwortet ein erlaubter Kontakt-Chat nach N Minuten ungelesen noch steht, springt Jarvis ein
+    static boolean vertretung(Context c) { return sp(c).getBoolean("vertretung", false); }
+    static void setVertretung(Context c, boolean v) { sp(c).edit().putBoolean("vertretung", v).apply(); }
+    static int vertrMin(Context c) { return sp(c).getInt("vertrMin", 10); }
+    static void setVertrMin(Context c, int m) { sp(c).edit().putInt("vertrMin", Math.max(5, Math.min(120, m))).apply(); }
+    static String vertrZeiten(Context c) { return sp(c).getString("vertrZeiten", ""); }          // Zeilen "name=ts,ts,ts" (Zeitpunkte der Vertretungs-Antworten)
+    static void setVertrZeiten(Context c, String s) { sp(c).edit().putString("vertrZeiten", s == null ? "" : s).apply(); }
+    static String kontextTag(Context c) { return sp(c).getString("kontextTag", ""); }
+    static String kontextText(Context c) { return sp(c).getString("kontextText", ""); }
+    static void setKontext(Context c, String tag, String text) { sp(c).edit().putString("kontextTag", tag == null ? "" : tag).putString("kontextText", text == null ? "" : text).apply(); }
 }
