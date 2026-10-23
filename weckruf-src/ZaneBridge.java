@@ -89,4 +89,53 @@ class ZaneBridge {
 
     @JavascriptInterface
     public void openSetup() { act.runOnUiThread(() -> act.startActivity(new android.content.Intent(act, SetupActivity.class))); }
+
+    // ---- Schlafmodus (WhatsApp beantworten, solange du schläfst) ----
+    /** Ist der Benachrichtigungszugriff für Jarvis in Android erlaubt? */
+    @JavascriptInterface
+    public boolean schlafZugriff() { return NachrichtenService.zugriff(act); }
+
+    /** Öffnet die Android-Seite, auf der man den Benachrichtigungszugriff für Jarvis erlaubt. */
+    @JavascriptInterface
+    public boolean schlafZugriffOeffnen() { return act.nachrichtenZugriffOeffnen(); }
+
+    @JavascriptInterface
+    public void schlafSetzen(boolean an) { Prefs.setSchlaf(act, an); }
+
+    /** Zustand als JSON: an, zugriff, erlaubt (Liste), text. */
+    @JavascriptInterface
+    public String schlafStand() {
+        try {
+            org.json.JSONObject o = new org.json.JSONObject();
+            o.put("an", Prefs.schlaf(act));
+            o.put("zugriff", NachrichtenService.zugriff(act));
+            org.json.JSONArray a = new org.json.JSONArray();
+            for (String n : Prefs.erlaubt(act).split("\n")) if (!n.trim().isEmpty()) a.put(n.trim());
+            o.put("erlaubt", a);
+            o.put("text", Prefs.schlafText(act));
+            return o.toString();
+        } catch (Throwable e) { return "{}"; }
+    }
+
+    /** Kontakt (Name wie in WhatsApp gespeichert) für Antworten erlauben oder wieder entfernen. */
+    @JavascriptInterface
+    public void schlafKontakt(String name, boolean erlauben) {
+        String n = NachrichtenService.norm(name);
+        if (n.isEmpty()) return;
+        java.util.LinkedHashSet<String> l = new java.util.LinkedHashSet<>();
+        for (String x : Prefs.erlaubt(act).split("\n")) if (!x.trim().isEmpty()) l.add(x.trim());
+        if (erlauben) l.add(n); else l.remove(n);
+        Prefs.setErlaubt(act, android.text.TextUtils.join("\n", l));
+    }
+
+    @JavascriptInterface
+    public void schlafText(String text) { Prefs.setSchlafText(act, text); }
+
+    /** Gemerkte Nachrichten (JSON-Liste mit n, t, at, a); mit loeschen=true werden sie danach gelöscht. */
+    @JavascriptInterface
+    public String schlafNachrichten(boolean loeschen) {
+        String s = Prefs.nachrichten(act);
+        if (loeschen) Prefs.setNachrichten(act, "[]");
+        return s;
+    }
 }

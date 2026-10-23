@@ -53,4 +53,20 @@ final class Prefs {
     static void setParkInfo(Context c, String s) { sp(c).edit().putString("parkInfo", s).apply(); }
     static int hits(Context c) { return sp(c).getInt("hits", 0); }
     static void addHit(Context c) { sp(c).edit().putInt("hits", hits(c) + 1).apply(); }
+    // Schlafmodus: Jarvis antwortet erlaubten WhatsApp-Kontakten (nur 1:1) mit einem festen Text und merkt sich alle Nachrichten fürs Vorlesen am Morgen
+    static boolean schlaf(Context c) { return sp(c).getBoolean("schlaf", false); }
+    static long schlafSeit(Context c) { return sp(c).getLong("schlafSeit", 0L); }
+    static void setSchlaf(Context c, boolean v) {
+        SharedPreferences.Editor e = sp(c).edit().putBoolean("schlaf", v).putLong("schlafSeit", v ? System.currentTimeMillis() : 0L);
+        if (v) e.putString("schlafAntworten", "");   // pro Schlafphase höchstens eine Antwort je Kontakt
+        e.apply();
+    }
+    static String erlaubt(Context c) { return sp(c).getString("schlafErlaubt", ""); }       // Namen, getrennt durch Zeilenumbruch (klein, ohne Umlaute)
+    static void setErlaubt(Context c, String s) { sp(c).edit().putString("schlafErlaubt", s == null ? "" : s).apply(); }
+    static String nachrichten(Context c) { return sp(c).getString("schlafNachrichten", "[]"); }
+    static void setNachrichten(Context c, String s) { sp(c).edit().putString("schlafNachrichten", s == null ? "[]" : s).apply(); }
+    static String schlafAntworten(Context c) { return sp(c).getString("schlafAntworten", ""); }
+    static void setSchlafAntworten(Context c, String s) { sp(c).edit().putString("schlafAntworten", s == null ? "" : s).apply(); }
+    static String schlafText(Context c) { return sp(c).getString("schlafText", "Hallo, hier ist Jarvis, der Assistent von Dino. Dino schläft gerade und meldet sich bei dir, sobald er wach ist."); }
+    static void setSchlafText(Context c, String s) { sp(c).edit().putString("schlafText", s == null ? "" : s).apply(); }
 }
