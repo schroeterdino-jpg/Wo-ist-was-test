@@ -25,6 +25,7 @@ const HELP_TOPICS = [
         'Wecker ausschalten: Sag "Wecker aus" oder "Lösche den Wecker". Jarvis bittet die Uhr-App, den nächsten Wecker zu löschen, und prüft danach, ob er wirklich weg ist. Weckern anderer Apps (zum Beispiel Modi und Routinen) kann er nichts tun.',
         'Lauschen ausschalten: Sag "Hey Jarvis" und dann "Lauschen ausschalten" (oder "Weckwort aus"). Jarvis hört danach nicht mehr auf "Hey Jarvis". Wieder an: Einstellungen, "Lauschen starten".',
         'Autoansicht beim Einsteigen: Verbindet sich das Handy mit dem gewählten Auto (Bluetooth), öffnet Jarvis die Autoansicht von selbst. Aus: Einstellungen, Auto & Parkplatz, "Autoansicht beim Einsteigen". Klappt auch ohne Lauschen.',
+        'Was steht heute an: Frag "Was wollte ich heute noch machen?", "Hatte ich heute was vor?" oder "Was steht heute an?" - Jarvis liest Termine, Erinnerungen, offene Aufgaben (die mit "heute" zuerst) und die Einkaufsliste vor.',
         'Autoansicht: Sag "Autoansicht" - Vollbild (auch quer) mit Heimweg-Zeit, Tanktipp und vier großen Knöpfen (Nach Hause, Anrufen, Tanken, Parkplatz). Beenden: "Autoansicht beenden" oder das ✕.',
         'Unterbrechen: In den Jarvis-Einstellungen "Jarvis beim Sprechen unterbrechen" einschalten (Test). Dann reicht "Hey Jarvis", während er spricht.'] },
     { key: 'fahrten', icon: '🗺️', title: 'Fahrten & Verkehr', words: /fahr|verkehr|stau|navig|route|weg\b|karte/, examples: [
