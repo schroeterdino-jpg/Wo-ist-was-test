@@ -8,6 +8,7 @@ import android.content.Intent;
 public class EntwurfReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(final Context c, Intent i) {
+        if (i != null && i.getBooleanExtra("alarmAus", false)) { NachrichtenService.alarmAus(c.getApplicationContext()); return; }   // Alarm-Meldung weggewischt oder "Alarm aus" getippt
         final int id = i == null ? -1 : i.getIntExtra("id", -1);
         final boolean senden = i != null && i.getBooleanExtra("senden", false);
         final PendingResult pr = goAsync();

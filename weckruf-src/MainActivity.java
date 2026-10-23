@@ -446,6 +446,7 @@ public class MainActivity extends Activity {
 
     private void handleIntent(Intent i) {
         meldungAnstossen();
+        if (i != null && i.getBooleanExtra("alarmAus", false)) NachrichtenService.alarmAus(this);   // Alarm-Meldung angetippt: Ton aus
         if (i != null && i.getBooleanExtra("wake", false)) pendingWake = true;
         if (i != null && i.getBooleanExtra("auto", false)) pendingAuto = true;
         if (i != null) {
