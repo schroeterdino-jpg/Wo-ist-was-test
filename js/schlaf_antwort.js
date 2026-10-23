@@ -24,6 +24,10 @@
             const ymd = P.jetzt().ymd, sh = P.schichtAm(ymd);
             const text = sh ? 'Dino arbeitet heute ' + (sh === 'frueh' ? 'Frühschicht' : 'Spätschicht') + ' bis ' + P.uhrHM(P.ende(sh)) + ' Uhr.' : 'Dino hat heute keine Schicht.';
             n.schlafKontext(ymd, text);
+            if (typeof n.schlafArbeit === 'function') {
+                const w = P.arbeitsFenster ? P.arbeitsFenster(ymd) : null;
+                if (w) n.schlafArbeit(P.berlinMs(ymd, w.von), w.ende && w.ende > 1440 ? P.berlinMs(ymd, 0) + w.ende * 60000 : P.berlinMs(ymd, w.ende)); else n.schlafArbeit(0, 0);
+            }
         } catch (e) { }
     }
     function secret() { try { return String(getPersistentData('app_secret', '') || ''); } catch (e) { return ''; } }
@@ -57,7 +61,57 @@
         sagen((s.an ? 'Guten Morgen. Der Schlafmodus ist aus. ' : 'Der Schlafmodus war schon aus. ') + vorlesen(arr));
     }
 
+    /* ---------- Wissensblatt ---------- */
+    function wissen() { try { return String(N().wissenListe() || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); } catch (e) { return []; } }
+    function wissenBefehl(txt) {
+        if (!N() || typeof N().wissenListe !== 'function') return null;
+        const raw = String(txt || '').trim(), t = norm(raw);
+        let m;
+        if ((m = raw.match(/^(?:hey |hallo |ok |okay )?(?:jarvis |zane )?(?:bitte )?merk(?:e)? dir (?:f[uü]rs|f[uü]r das|auf dem|im|ins) wissensblatt[:,]?\s*(.+)$/i)) || (m = raw.match(/^(?:jarvis |zane )?(?:schreib|trag)(?:e)? (?:bitte )?(?:auf|ins|in das) (?:das |dein )?wissensblatt[:,]?\s*(.+)$/i))) {
+            const z = m[1].trim().replace(/\s+/g, ' ').slice(0, 200), l = wissen();
+            if (l.length >= 40) return 'Das Wissensblatt ist voll. Streich erst etwas weg.';
+            l.push(z); N().wissenSetzen(l.join('\n'));
+            return 'Gemerkt fürs Wissensblatt: ' + z + '. Jarvis darf das jetzt Leuten sagen, wenn sie danach fragen. Geld, Passwörter, Adressen und Links sage ich trotzdem nie.';
+        }
+        if (/\bwas steht (?:alles )?(?:auf|im) (?:dem |meinem )?wissensblatt\b|\bles(?:e)? (?:mir )?(?:das |mein )?wissensblatt (?:vor)?\b|\bzeig(?:e)? (?:mir )?(?:das |mein )?wissensblatt\b/.test(t)) {
+            const l = wissen();
+            return l.length ? 'Auf dem Wissensblatt steht: ' + l.map(function (x, i) { return (i + 1) + '. ' + x; }).join(' ') : 'Auf dem Wissensblatt steht noch nichts. Ich sage dann nur, dass ich dein Assistent bin und weiterleite.';
+        }
+        if ((m = raw.match(/(?:streich|streiche|l[oö]sch|l[oö]sche|entfern|entferne)\s+(.+?)\s+(?:vom|von dem|aus dem|im) wissensblatt/i))) {
+            const q = norm(m[1]), l = wissen(), n = /^(?:alles|alle|das ganze)$/.test(q) ? l.length : 0;
+            if (n) { N().wissenSetzen(''); return 'Das Wissensblatt ist jetzt leer.'; }
+            const rest = l.filter(function (x) { return norm(x).indexOf(q) < 0; });
+            if (rest.length === l.length) return 'Dazu habe ich nichts auf dem Wissensblatt gefunden.';
+            N().wissenSetzen(rest.join('\n')); return 'Gestrichen. Es steht noch ' + rest.length + ' Punkt' + (rest.length === 1 ? '' : 'e') + ' drauf.';
+        }
+        return null;
+    }
+    /* Meldung von Jarvis (Vertretung): bei der Arbeit nur Text, sonst auch sprechen */
+    function pruefe() {
+        try {
+            const n = N(); if (!n || typeof n.holeMeldung !== 'function') return;
+            const r = String(n.holeMeldung() || ''); if (!r) return;
+            const o = JSON.parse(r), titel = o.titel || 'Jarvis', text = o.text || '';
+            if (!text) return;
+            if (o.nurText) {
+                try { if (typeof openExtraWindow === 'function') openExtraWindow('🤖 ' + titel, '<div style="font-size:15px;line-height:1.55;white-space:pre-wrap">' + String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>'); } catch (e) { }
+                try { const P = window.jvPlan; if (P && P.sagenMeldung && typeof P.sagenMeldung === 'function') { /* nur merken, nicht sprechen */ } } catch (e) { }
+            } else {
+                const P = window.jvPlan;
+                if (P && typeof P.sagenMeldung === 'function') P.sagenMeldung(titel, text); else sagen(titel + '. ' + text);
+            }
+        } catch (e) { }
+    }
     function befehl(txt, next) {
+        const wb = wissenBefehl(txt); if (wb) { sagen(wb); return true; }
+        try {
+            const tn = norm(txt);
+            if (N() && typeof N().vertretungProtokoll === 'function' && /(warum|wieso|weshalb).*(nicht|kein).*(geantwortet|geschrieben|reagiert|eingesprungen)|\b(vertretung|vertretungs) ?(protokoll|log)\b|\bwas ist mit der vertretung\b/.test(tn)) {
+                const z = String(N().vertretungProtokoll() || '').split('\n').filter(Boolean);
+                sagen(z.length ? 'Das steht im Protokoll, neueste zuletzt: ' + z.slice(-5).join('. ') : 'Im Protokoll steht noch nichts. Entweder ist die Vertretung aus, oder seit dem Einschalten hat kein ausgewählter Kontakt geschrieben.');
+                return true;
+            }
+        } catch (e) { }
         const t = norm(txt).replace(/^(?:hey |hallo |ok |okay )?(?:jarvis|zane|nova) /, '').replace(/^bitte /, '');
         if (!t || t.split(' ').length > 14) return next(txt);
         let m;
@@ -127,5 +181,6 @@
     }
     if (!cmd()) { let n = 0; const iv = setInterval(function () { if (cmd() || ++n > 40) clearInterval(iv); }, 250); }
     setTimeout(kontextSenden, 7000);
-    window.jvSchlaf = { befehl: befehl, vorlesen: vorlesen };
+    window.jvSchlaf = { befehl: befehl, vorlesen: vorlesen, pruefe: pruefe };
+    setTimeout(pruefe, 3000);
 })();

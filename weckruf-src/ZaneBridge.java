@@ -164,4 +164,23 @@ class ZaneBridge {
     /** Was Jarvis über Dinos heutigen Tag sagen darf (z. B. "Dino arbeitet heute Frühschicht bis 14:37 Uhr."), mit Tag (yyyy-MM-dd). */
     @JavascriptInterface
     public void schlafKontext(String tag, String text) { Prefs.setKontext(act, tag, text); }
+
+    /** Wissensblatt: Aussagen, die Jarvis über Dino machen darf (eine pro Zeile). */
+    @JavascriptInterface
+    public String wissenListe() { return Prefs.wissen(act); }
+
+    @JavascriptInterface
+    public void wissenSetzen(String zeilen) { Prefs.setWissen(act, zeilen); }
+
+    /** Arbeitszeit von heute (Beginn und Ende in Millisekunden, 0/0 = keine Schicht): damit weiß Jarvis, ob du bei der Arbeit bist. */
+    @JavascriptInterface
+    public void schlafArbeit(double von, double bis) { Prefs.setArbeit(act, (long) von, (long) bis); }
+
+    /** Eine wartende Meldung von Jarvis (JSON mit titel, text, nurText) abholen, leer wenn keine wartet. */
+    @JavascriptInterface
+    public String holeMeldung() { String s = MainActivity.pendingMeldung; MainActivity.pendingMeldung = null; return s == null ? "" : s; }
+
+    /** Protokoll der Vertretung: warum Jarvis geantwortet hat oder nicht (die letzten Einträge, ein Eintrag pro Zeile). */
+    @JavascriptInterface
+    public String vertretungProtokoll() { return Prefs.vertrLog(act); }
 }

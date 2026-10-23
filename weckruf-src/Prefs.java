@@ -67,7 +67,7 @@ final class Prefs {
     static void setNachrichten(Context c, String s) { sp(c).edit().putString("schlafNachrichten", s == null ? "[]" : s).apply(); }
     static String schlafAntworten(Context c) { return sp(c).getString("schlafAntworten", ""); }
     static void setSchlafAntworten(Context c, String s) { sp(c).edit().putString("schlafAntworten", s == null ? "" : s).apply(); }
-    static String schlafText(Context c) { return sp(c).getString("schlafText", "Hallo, hier ist Jarvis, der Assistent von Dino. Dino schläft gerade und meldet sich bei dir, sobald er wach ist."); }
+    static String schlafText(Context c) { return sp(c).getString("schlafText", "Hallo, hier ist Jarvis, der KI-Assistent von Dino. Dino schläft gerade und meldet sich bei dir, sobald er wach ist."); }
     static void setSchlafText(Context c, String s) { sp(c).edit().putString("schlafText", s == null ? "" : s).apply(); }
     static String schlafKey(Context c) { return sp(c).getString("schlafKey", ""); }
     static void setSchlafKey(Context c, String s) { if (s != null && !s.isEmpty()) sp(c).edit().putString("schlafKey", s).apply(); }
@@ -83,4 +83,12 @@ final class Prefs {
     static String kontextTag(Context c) { return sp(c).getString("kontextTag", ""); }
     static String kontextText(Context c) { return sp(c).getString("kontextText", ""); }
     static void setKontext(Context c, String tag, String text) { sp(c).edit().putString("kontextTag", tag == null ? "" : tag).putString("kontextText", text == null ? "" : text).apply(); }
+    // Wissensblatt: Aussagen, die Jarvis über Dino machen darf (eine pro Zeile); Arbeitszeit von heute (Millisekunden) für "ist bei der Arbeit"
+    static String wissen(Context c) { return sp(c).getString("wissen", ""); }
+    static void setWissen(Context c, String s) { sp(c).edit().putString("wissen", s == null ? "" : s).apply(); }
+    static long arbeitVon(Context c) { return sp(c).getLong("arbeitVon", 0L); }
+    static long arbeitBis(Context c) { return sp(c).getLong("arbeitBis", 0L); }
+    static void setArbeit(Context c, long von, long bis) { sp(c).edit().putLong("arbeitVon", von).putLong("arbeitBis", bis).apply(); }
+    static String vertrLog(Context c) { return sp(c).getString("vertrLog", ""); }
+    static void setVertrLog(Context c, String s) { sp(c).edit().putString("vertrLog", s == null ? "" : s).apply(); }
 }
