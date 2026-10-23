@@ -4,6 +4,7 @@
    "Erlaube Schatz im Schlafmodus" / "Verbiete Schatz im Schlafmodus" / "Wem antwortest du?" -> Liste der erlaubten Kontakte (Name wie in WhatsApp).
    "Wer hat mir geschrieben?" liest die gemerkten Nachrichten vor (ohne sie zu löschen). "Meine Schlafantwort ist ..." ändert den Antworttext.
    Geantwortet wird nur in Einzelchats, nur erlaubten Kontakten und höchstens dreimal pro Person und Schlafphase. Die KI (api/groq, mit festen Regeln) formuliert 1 bis 2 Sätze; bei heiklen Themen (Geld, Passwörter, Adressen ...) oder Ausfall kommt ein fester Text; bei Notfallwörtern ein lauter Alarm. "Schlafmodus feste Antwort" schaltet die KI aus. "Kontakte für den Schlafmodus auswählen" zeigt eine Mehrfachauswahl der Handy-Kontakte.
+   Vertretung: "Vertretung an" / "Spring ein, wenn ich nicht antworte" - antwortet ein erlaubter Kontakt nach 10 Minuten ungelesen noch steht, antwortet Jarvis, was er sicher kann, und leitet sonst weiter ("Ich bin der Assistent von Dino, er meldet sich"). "Vertretung aus", "Vertretung nach 15 Minuten", "Was habe ich verpasst?".
    Die App (NachrichtenService) braucht den Benachrichtigungszugriff in Android; ohne ihn öffnet Jarvis die Einstellung. Order 0.36.
    Braucht: window.ZaneNative (schlafZugriff, schlafZugriffOeffnen, schlafSetzen, schlafStand, schlafKontakt, schlafText, schlafNachrichten), commands.js, voice.js.
    ============================================================ */
@@ -16,16 +17,25 @@
     function schoen(n) { return String(n || '').replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }); }
     function nachrichten(loeschen) { try { return JSON.parse(N().schlafNachrichten(!!loeschen) || '[]'); } catch (e) { return []; } }
 
+    function kontextSenden() {
+        try {
+            const n = N(); const P = window.jvPlan;
+            if (!n || typeof n.schlafKontext !== 'function' || !P || typeof P.schichtAm !== 'function') return;
+            const ymd = P.jetzt().ymd, sh = P.schichtAm(ymd);
+            const text = sh ? 'Dino arbeitet heute ' + (sh === 'frueh' ? 'Frühschicht' : 'Spätschicht') + ' bis ' + P.uhrHM(P.ende(sh)) + ' Uhr.' : 'Dino hat heute keine Schicht.';
+            n.schlafKontext(ymd, text);
+        } catch (e) { }
+    }
     function secret() { try { return String(getPersistentData('app_secret', '') || ''); } catch (e) { return ''; } }
-    function vorlesen(arr) {
-        if (!arr.length) return 'Während du geschlafen hast, hat dir niemand geschrieben.';
+    function vorlesen(arr, neutral) {
+        if (!arr.length) return neutral ? 'Es gibt nichts Neues. Ich habe für niemanden geantwortet.' : 'Während du geschlafen hast, hat dir niemand geschrieben.';
         const von = {}, reihe = [];
-        arr.forEach(function (m) { const k = m.n; if (!von[k]) { von[k] = { n: k, texte: [], a: false, e: false, r: '' }; reihe.push(von[k]); } von[k].texte.push(m.t); if (m.a) { von[k].a = true; if (m.r) von[k].r = m.r; } if (m.e) von[k].e = true; });
+        arr.forEach(function (m) { const k = m.n; if (!von[k]) { von[k] = { n: k, texte: [], a: false, e: false, w: false, r: '' }; reihe.push(von[k]); } von[k].texte.push(m.t); if (m.a) { von[k].a = true; if (m.r) von[k].r = m.r; } if (m.e) von[k].e = true; if (m.w) von[k].w = true; });
         const teile = reihe.slice(0, 6).map(function (v) {
             const t = v.texte.slice(-2).join(' ... ');
-            return (v.e ? 'Dringend! ' : '') + v.n + (v.texte.length > 1 ? ' (' + v.texte.length + ' Nachrichten)' : '') + ': ' + t + (v.a ? (v.r ? ' (Ich habe geantwortet: ' + v.r + ')' : ' (Ich habe geantwortet, dass du schläfst.)') : '');
+            return (v.e ? 'Dringend! ' : '') + v.n + (v.texte.length > 1 ? ' (' + v.texte.length + ' Nachrichten)' : '') + ': ' + t + (v.a ? (v.r ? ' (Ich habe geantwortet: ' + v.r + ')' : ' (Ich habe geantwortet, dass du schläfst.)') : '') + (v.w ? ' Du sollst dich melden.' : '');
         });
-        return 'Während du geschlafen hast, haben geschrieben: ' + teile.join('. ') + '.' + (reihe.length > 6 ? ' Und ' + (reihe.length - 6) + ' weitere.' : '');
+        return (neutral ? 'Das habe ich für dich beantwortet: ' : 'Während du geschlafen hast, haben geschrieben: ') + '' + '' + teile.join('. ') + '.' + (reihe.length > 6 ? ' Und ' + (reihe.length - 6) + ' weitere.' : '');
     }
 
     function an() {
@@ -52,6 +62,20 @@
         if (!t || t.split(' ').length > 14) return next(txt);
         let m;
         const smt = /(schlaf ?modus)/.test(t);
+        if (N() && typeof N().vertretungSetzen === 'function') {
+            if (/\b(vertretung|vertretungsmodus)\b.*\b(an|ein|einschalten|aktivieren)\b|\b(spring|springe) (bitte )?(fuer mich )?ein\b|\bwenn ich nicht antworte\b.*\bantworte du\b|\bantworte fuer mich wenn ich nicht antworte\b/.test(t)) {
+                const s0 = stand();
+                if (!s0.zugriff) { try { N().schlafZugriffOeffnen(); } catch (e) { } sagen('Dafür muss Android mir erlauben, deine Benachrichtigungen zu lesen. Ich habe die Einstellung geöffnet. Schalte dort Jarvis an und sag danach noch einmal: Vertretung an.'); return true; }
+                try { if (typeof N().schlafSchluessel === 'function') N().schlafSchluessel(secret()); } catch (e) { }
+                N().vertretungSetzen(true); kontextSenden();
+                const e0 = s0.erlaubt || [];
+                sagen('Die Vertretung ist an. Wenn du auf eine WhatsApp ' + (e0.length ? 'von ' + liste(e0.map(schoen)) : 'von einem erlaubten Kontakt') + ' ' + (s0.minuten || 10) + ' Minuten nicht reagierst, springe ich ein. Ich antworte nur, was ich sicher beantworten kann. Alles andere leite ich an dich weiter und sage dem Absender, dass du dich meldest.' + (e0.length ? '' : ' Sag zuerst: Kontakte für den Schlafmodus auswählen.'));
+                return true;
+            }
+            if (/\b(vertretung|vertretungsmodus)\b.*\b(aus|ausschalten|beenden|deaktivieren)\b/.test(t)) { N().vertretungSetzen(false); sagen('Die Vertretung ist aus. Ich antworte nicht mehr für dich, außer im Schlafmodus.'); return true; }
+            if ((m = t.match(/\b(?:vertretung|springe? ein)\b.*?\bnach (\d{1,3}) minuten\b/)) || (m = t.match(/\bnach (\d{1,3}) minuten\b.*\b(?:vertretung|springe? ein)\b/))) { const mi = Math.max(5, Math.min(120, parseInt(m[1], 10))); N().vertretungMinuten(mi); sagen('Ich springe jetzt nach ' + mi + ' Minuten ein.'); return true; }
+            if (/\bwas habe ich verpasst\b|\bwer hat fuer mich geantwortet\b|\bwas hast du fuer mich geantwortet\b/.test(t)) { sagen(vorlesen(nachrichten(false), true)); return true; }
+        }
         if (N() && typeof N().schlafKontakteWaehlen === 'function' && (/\bkontakte?\b/.test(t) && /(auswaehl|aussuch|waehl|oeffne|zeig|bearbeit|aender|festlegen)/.test(t) && /(schlaf|antwort)/.test(t) || /\bschlaf ?modus kontakte\b/.test(t))) {
             N().schlafKontakteWaehlen();
             sagen('Ich zeige dir deine Kontakte. Tippe die an, denen ich im Schlafmodus antworten darf, und dann auf Fertig.');
@@ -102,5 +126,6 @@
         return true;
     }
     if (!cmd()) { let n = 0; const iv = setInterval(function () { if (cmd() || ++n > 40) clearInterval(iv); }, 250); }
+    setTimeout(kontextSenden, 7000);
     window.jvSchlaf = { befehl: befehl, vorlesen: vorlesen };
 })();

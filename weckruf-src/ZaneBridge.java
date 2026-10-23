@@ -114,6 +114,8 @@ class ZaneBridge {
             o.put("erlaubt", a);
             o.put("text", Prefs.schlafText(act));
             o.put("ki", Prefs.schlafKi(act));
+            o.put("vertretung", Prefs.vertretung(act));
+            o.put("minuten", Prefs.vertrMin(act));
             return o.toString();
         } catch (Throwable e) { return "{}"; }
     }
@@ -151,4 +153,15 @@ class ZaneBridge {
     /** Zeigt die Mehrfachauswahl der Kontakte (fragt beim ersten Mal nach der Kontakte-Erlaubnis). */
     @JavascriptInterface
     public boolean schlafKontakteWaehlen() { return act.kontakteWaehlen(); }
+
+    // ---- Vertretung: nach der Wartezeit antwortet Jarvis auf ungelesene WhatsApp-Nachrichten erlaubter Kontakte ----
+    @JavascriptInterface
+    public void vertretungSetzen(boolean an) { Prefs.setVertretung(act, an); }
+
+    @JavascriptInterface
+    public void vertretungMinuten(int minuten) { Prefs.setVertrMin(act, minuten); }
+
+    /** Was Jarvis über Dinos heutigen Tag sagen darf (z. B. "Dino arbeitet heute Frühschicht bis 14:37 Uhr."), mit Tag (yyyy-MM-dd). */
+    @JavascriptInterface
+    public void schlafKontext(String tag, String text) { Prefs.setKontext(act, tag, text); }
 }

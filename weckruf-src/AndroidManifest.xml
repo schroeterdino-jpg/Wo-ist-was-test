@@ -97,6 +97,10 @@
         </receiver>
 
         <receiver
+            android:name=".VertretungReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".ParkReceiver"
             android:exported="false" />
 
