@@ -295,6 +295,18 @@
         } catch (e) { return keins('Das hat gerade nicht geklappt.'); }
     }
     /* Text für die Heimfahrt; leer nur, wenn du schon zu Hause bist (und es kein Test ist) */
+    /* offene Aufgaben, in denen "heute" steht (nur die werden beim Feierabend genannt) */
+    function heuteAufgaben() {
+        const l = (typeof todoEntries !== 'undefined' && Array.isArray(todoEntries)) ? todoEntries : [];
+        return l.filter(e => e && !e.done && /\bheute\b/i.test(String(e.text || ''))).map(e => String(e.text).trim());
+    }
+    function heuteAufgabenText() {
+        const a = heuteAufgaben();
+        if (!a.length) return '';
+        const k = a.map(x => x.replace(/\s*\b(noch\s+)?heute\b\s*/i, ' ').replace(/\s+/g, ' ').trim().replace(/^noch\s+/i, '')).filter(Boolean);
+        if (!k.length) return '';
+        return k.length === 1 ? 'Du wolltest heute noch: ' + k[0] + '.' : 'Du wolltest heute noch: ' + k.slice(0, 3).join(', ') + '.';
+    }
     async function heimText(immer) {
         const f = await heimFrisch();
         if (!f.ziel) return 'Ich habe keine Heimatadresse gespeichert. Sag zum Beispiel: Merk dir meine Heimatadresse, Verbrüderungsring 13.';
@@ -308,6 +320,8 @@
         if (f.stau) t += ' ' + f.stau;
         if (f.st) t += ' Darin sind etwa ' + f.st + ' Minuten Stau schon eingerechnet.';
         else if (!f.stau && mehr < 10) t += ' Auf der Strecke ist alles frei.';
+        const heute = heuteAufgabenText();
+        if (heute) t += ' ' + heute;
         const tank = await heimTank(false);
         if (tank) t += ' ' + tank;
         return t + ' Gute Heimfahrt.';
