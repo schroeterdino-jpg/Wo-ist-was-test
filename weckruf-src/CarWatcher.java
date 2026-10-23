@@ -74,13 +74,17 @@ final class CarWatcher extends BroadcastReceiver {
         } catch (Throwable ignored) { }
     }
 
-    /** Beim Einsteigen (Bluetooth verbunden) Jarvis nach vorn holen und die Autoansicht öffnen lassen. Höchstens alle 5 Minuten (Bluetooth flackert gern). */
+    /** Beim Einsteigen (Bluetooth verbunden) Jarvis nach vorn holen und die Autoansicht öffnen lassen. Höchstens einmal pro Minute (Bluetooth flackert gern). */
     private void autoOeffnen() {
         try {
-            if (!Prefs.autoEinsteigen(ctx)) return;
+            String zeit = new java.text.SimpleDateFormat("HH:mm:ss", Locale.GERMANY).format(new java.util.Date());
+            if (!Prefs.autoEinsteigen(ctx)) { Prefs.setAutoInfo(ctx, zeit + " verbunden, aber Schalter „Autoansicht beim Einsteigen“ ist aus"); return; }
             long jetzt = System.currentTimeMillis();
-            if (jetzt - Prefs.autoZuletzt(ctx) < 5 * 60000L) return;
+            long vor = (jetzt - Prefs.autoZuletzt(ctx)) / 1000;
+            if (vor < 60) { Prefs.setAutoInfo(ctx, zeit + " verbunden, übersprungen (letzter Start erst vor " + vor + " s)"); return; }
             Prefs.setAutoZuletzt(ctx, jetzt);
+            boolean ueber = android.provider.Settings.canDrawOverlays(ctx);
+            Prefs.setAutoInfo(ctx, zeit + " verbunden, Start angefordert (Über anderen Apps einblenden: " + (ueber ? "ja" : "NEIN") + ")");
             try {   // Bildschirm einschalten, falls das Handy gesperrt in der Tasche liegt
                 android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
                 @SuppressWarnings("deprecation")
@@ -106,8 +110,8 @@ final class CarWatcher extends BroadcastReceiver {
                 nm.notify(4, n);
                 main.postDelayed(() -> { try { nm.cancel(4); } catch (Throwable ignored) { } }, 60000L);
             } catch (Throwable ignored) { }
-            try { ctx.startActivity(open); } catch (Throwable ignored) { }
-        } catch (Throwable ignored) { }
+            try { ctx.startActivity(open); } catch (Throwable e) { Prefs.setAutoInfo(ctx, Prefs.autoInfo(ctx) + " – Öffnen gescheitert: " + e); }
+        } catch (Throwable e) { Prefs.setAutoInfo(ctx, "Fehler beim Autoansicht-Start: " + e); }
     }
 
     private void geparkt() {

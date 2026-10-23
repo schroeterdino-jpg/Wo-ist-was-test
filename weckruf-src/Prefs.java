@@ -45,6 +45,8 @@ final class Prefs {
     static void setAutoEinsteigen(Context c, boolean v) { sp(c).edit().putBoolean("autoEinsteigen", v).apply(); }
     static long autoZuletzt(Context c) { return sp(c).getLong("autoZuletzt", 0); }
     static void setAutoZuletzt(Context c, long t) { sp(c).edit().putLong("autoZuletzt", t).apply(); }
+    static String autoInfo(Context c) { return sp(c).getString("autoInfo", "noch nichts"); }
+    static void setAutoInfo(Context c, String s) { sp(c).edit().putString("autoInfo", s).apply(); }
     static String parkPending(Context c) { return sp(c).getString("parkPending", ""); }
     static void setParkPending(Context c, String s) { sp(c).edit().putString("parkPending", s == null ? "" : s).apply(); }
     static String parkInfo(Context c) { return sp(c).getString("parkInfo", "noch nichts"); }
