@@ -45,6 +45,7 @@ public class MainActivity extends Activity {
     static final String ZANE_URL = "https://wo-ist-was-test.vercel.app/";
     static MainActivity current;
     static boolean pendingWake = false;
+    static volatile boolean pendingAuto = false;   // Auto per Bluetooth verbunden: die Seite soll die Autoansicht öffnen
     static volatile String pendingAnsage = null;   // geplante Ansage (aus AnsageReceiver), wartet darauf, dass die Seite sie abholt
 
     private WebView web;
@@ -402,10 +403,14 @@ public class MainActivity extends Activity {
         if (pendingAnsage != null) {   // Jarvis ist schon offen (onResume kommt dann nicht noch einmal): Seite sofort anstoßen
             h.postDelayed(() -> js("if(window.jvPlan&&window.jvPlan.pruefe)window.jvPlan.pruefe();"), 500);
         }
+        if (pendingAuto) {
+            h.postDelayed(() -> js("if(window.jvAutoansicht&&window.jvAutoansicht.start)window.jvAutoansicht.start();"), 500);
+        }
     }
 
     private void handleIntent(Intent i) {
         if (i != null && i.getBooleanExtra("wake", false)) pendingWake = true;
+        if (i != null && i.getBooleanExtra("auto", false)) pendingAuto = true;
         if (i != null) {
             String an = i.getStringExtra("ansage");
             if (an != null && !an.isEmpty()) pendingAnsage = an;
@@ -428,6 +433,9 @@ public class MainActivity extends Activity {
         }
         if (pendingAnsage != null) {   // geplante Ansage: die Seite holt sie ab (bei frisch gestarteter Seite macht sie das selbst nach dem Laden)
             h.postDelayed(() -> js("if(window.jvPlan&&window.jvPlan.pruefe)window.jvPlan.pruefe();"), 700);
+        }
+        if (pendingAuto) {
+            h.postDelayed(() -> js("if(window.jvAutoansicht&&window.jvAutoansicht.start)window.jvAutoansicht.start();"), 900);
         }
     }
 

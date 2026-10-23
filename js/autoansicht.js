@@ -145,5 +145,13 @@
         return true;
     }
     if (!cmd()) { let n = 0; const iv = setInterval(function () { if (cmd() || ++n > 40) clearInterval(iv); }, 250); }
-    window.jvAutoansicht = { oeffnen, schliessen, offen: function () { return !!layer; } };
+    /* Beim Einsteigen (Auto-Bluetooth, APK) holt die App Jarvis nach vorn und meldet das mit einem Merker; dann geht die Autoansicht von selbst auf */
+    function start() {
+        try {
+            const n = window.ZaneNative;
+            if (n && typeof n.holeAutoansicht === 'function' && n.holeAutoansicht()) { if (!layer) { oeffnen(); sagen('Autoansicht ist an.', false); } }
+        } catch (e) { }
+    }
+    setTimeout(start, 1800);   // Seite wurde vom Auto-Bluetooth frisch gestartet
+    window.jvAutoansicht = { oeffnen, schliessen, start, offen: function () { return !!layer; } };
 })();

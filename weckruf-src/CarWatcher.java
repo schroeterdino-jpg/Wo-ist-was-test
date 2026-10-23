@@ -65,11 +65,48 @@ final class CarWatcher extends BroadcastReceiver {
             if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(i.getAction())) {
                 if (offen != null) { main.removeCallbacks(offen); offen = null; }
                 Prefs.setParkInfo(ctx, "Auto verbunden (" + Prefs.carName(ctx) + ")");
+                autoOeffnen();
             } else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(i.getAction())) {
                 if (offen != null) main.removeCallbacks(offen);
                 offen = this::geparkt;
                 main.postDelayed(offen, ENTPRELLEN_MS);
             }
+        } catch (Throwable ignored) { }
+    }
+
+    /** Beim Einsteigen (Bluetooth verbunden) Jarvis nach vorn holen und die Autoansicht öffnen lassen. Höchstens alle 5 Minuten (Bluetooth flackert gern). */
+    private void autoOeffnen() {
+        try {
+            if (!Prefs.autoEinsteigen(ctx)) return;
+            long jetzt = System.currentTimeMillis();
+            if (jetzt - Prefs.autoZuletzt(ctx) < 5 * 60000L) return;
+            Prefs.setAutoZuletzt(ctx, jetzt);
+            try {   // Bildschirm einschalten, falls das Handy gesperrt in der Tasche liegt
+                android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+                @SuppressWarnings("deprecation")
+                android.os.PowerManager.WakeLock w = pm.newWakeLock(android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK
+                        | android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP | android.os.PowerManager.ON_AFTER_RELEASE, "nova:auto");
+                w.acquire(15000);
+            } catch (Throwable ignored) { }
+            MainActivity.pendingAuto = true;
+            Intent open = new Intent(ctx, MainActivity.class).putExtra("auto", true)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+            try {   // Meldung als Notlösung (falls Android das Öffnen von selbst nicht erlaubt): Tippen öffnet die Autoansicht
+                NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+                nm.createNotificationChannel(new NotificationChannel("zane_auto", "Autoansicht", NotificationManager.IMPORTANCE_HIGH));
+                PendingIntent pi = PendingIntent.getActivity(ctx, 4, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+                Notification n = new Notification.Builder(ctx, "zane_auto")
+                        .setContentTitle("Autoansicht")
+                        .setContentText("Auto verbunden. Tippen, um die Autoansicht zu öffnen.")
+                        .setSmallIcon(android.R.drawable.ic_dialog_map)
+                        .setAutoCancel(true)
+                        .setContentIntent(pi)
+                        .setFullScreenIntent(pi, true)
+                        .build();
+                nm.notify(4, n);
+                main.postDelayed(() -> { try { nm.cancel(4); } catch (Throwable ignored) { } }, 60000L);
+            } catch (Throwable ignored) { }
+            try { ctx.startActivity(open); } catch (Throwable ignored) { }
         } catch (Throwable ignored) { }
     }
 

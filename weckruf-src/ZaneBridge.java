@@ -63,6 +63,10 @@ class ZaneBridge {
     @JavascriptInterface
     public boolean weckerAus() { return act.weckerAus(); }
 
+    /** Wurde Jarvis gerade vom Auto-Bluetooth geöffnet, damit die Autoansicht startet? (true, einmalig) */
+    @JavascriptInterface
+    public boolean holeAutoansicht() { boolean a = MainActivity.pendingAuto; MainActivity.pendingAuto = false; return a; }
+
     /** Nummer direkt anrufen (fragt beim ersten Mal nach der Telefon-Erlaubnis). */
     @JavascriptInterface
     public boolean anrufen(String nummer) { return act.anrufen(nummer); }
