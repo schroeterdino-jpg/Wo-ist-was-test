@@ -543,6 +543,7 @@
             if (typeof speak !== 'function') return false;
             if (typeof isProcessing !== 'undefined' && isProcessing) return false;
             if (typeof isSpeaking === 'function' && isSpeaking()) return false;
+            if (document.getElementById('jvBoot')) return false;   // Startanimation läuft noch: erst danach sprechen
             return true;
         } catch (e) { return true; }
     }
@@ -554,9 +555,9 @@
     }
 
     let offenesWecker = null;   // { ymd, min, at }
-    async function ansage(id, erzwingen) {
+    async function ansage(id, erzwingen, angetippt) {   // angetippt: die Meldung wurde angetippt, dann nicht wegen "schon gesagt" schweigen
         id = String(id || ''); if (!id) return false;
-        if (!erzwingen && gesagt().includes(id)) return false;
+        if (!erzwingen && !angetippt && gesagt().includes(id)) return false;
         const art = id.split('|')[0], ymd = id.split('|')[1] || jetzt().ymd, nu = jetzt();
         if (!(await warteBereit(30000))) return false;
         if (!erzwingen) {   // abgelaufene Ansage (zum Beispiel alte Meldung angetippt): nichts sagen
@@ -594,8 +595,8 @@
             return true;
         }
         if (art === 'heim') {
-            const t = await heimText(!!erzwingen);
-            if (!t) return false;
+            const t = await heimText(!!erzwingen || !!angetippt);
+            if (!t) { try { const a = gesagt().filter(x => x !== id); lsSet(K_GESAGT, JSON.stringify(a)); } catch (e) { } return false; }
             sagenMeldung('🏠 Heimweg', t);
             return true;
         }
@@ -630,7 +631,7 @@
             const n = N();
             if (!n || typeof n.holeAnsage !== 'function') return;
             const id = String(n.holeAnsage() || '');
-            if (id) ansage(id, false);
+            if (id) ansage(id, false, true);
         } catch (e) { }
     }
 
