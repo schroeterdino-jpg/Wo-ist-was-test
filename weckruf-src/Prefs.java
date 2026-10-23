@@ -91,4 +91,7 @@ final class Prefs {
     static void setArbeit(Context c, long von, long bis) { sp(c).edit().putLong("arbeitVon", von).putLong("arbeitBis", bis).apply(); }
     static String vertrLog(Context c) { return sp(c).getString("vertrLog", ""); }
     static void setVertrLog(Context c, String s) { sp(c).edit().putString("vertrLog", s == null ? "" : s).apply(); }
+    // Wie sich Jarvis bei wem vorstellt: Zeilen "name=papa" oder "name=mann" (sonst Dino). Standard: Töchter Papa, Schatz Mann.
+    static String anrede(Context c) { return sp(c).getString("anrede", "alyssa=papa\njulia=papa\nisabel=papa\nschatz=mann"); }
+    static void setAnrede(Context c, String s) { sp(c).edit().putString("anrede", s == null ? "" : s).apply(); }
 }
