@@ -169,22 +169,22 @@ async function executeAction(action, text, ctx) {
         updateTerminalStream("CALENDAR: EVENT_DELETED");
     } else if (action.type === 'calendar_update') {
         let targetId = action.calendar_id;
+        if (targetId && !calendarEntries.some(c => String(c.id) === String(targetId))) targetId = null;   // erfundene ID der KI ignorieren
         if (!targetId && action.calendar_query) {
             const q = action.calendar_query.toLowerCase();
             const found = calendarEntries.find(c => c.text.toLowerCase().includes(q) || q.includes(c.text.toLowerCase()));
             if (found) targetId = found.id;
         }
-        if (!targetId && calendarEntries.length > 0) {
-            targetId = calendarEntries[0].id;
-        }
         let updDone;
         if (targetId) {
             updDone = await updateGoogleCalendarEvent(targetId, action.calendar_text, action.calendar_time, action.calendar_location);
+            if (updDone === 'unveraendert') { ctx.notes.push('Ich konnte den Termin bei Google nicht ändern. Bitte prüfe ihn im Kalender.'); updDone = false; }
+            else if (updDone === false) googleNotSynced(ctx, 'Die Änderung gilt nur in der App');
+            else openGoogleCalendarApp(action.calendar_time);
         } else {
-            updDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, action.calendar_location || extractLocationFallback(text));
+            // Nie einfach irgendeinen Termin ändern: lieber ehrlich sagen, dass keiner gefunden wurde
+            ctx.notes.push('Ich habe keinen passenden Termin zum Ändern gefunden, es wurde nichts geändert.');
         }
-        if (updDone === false) googleNotSynced(ctx, 'Die Änderung gilt nur in der App');
-        if (updDone !== false) openGoogleCalendarApp(action.calendar_time);
         updateTerminalStream("CALENDAR: EVENT_UPDATED");
     } else if (action.type === 'parking_save') {
         const accuracy = await saveParkingSpot(String(action.parking_note || '').trim());

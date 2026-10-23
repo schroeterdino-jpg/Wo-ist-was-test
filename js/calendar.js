@@ -390,23 +390,37 @@ async function addGoogleCalendarEvent(text, isoStartString, location, recurrence
 }
 
 async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString, newLocation) {
-    // Ohne neue Zeit (nur Titel oder Ort geändert) bleibt die Startzeit des Termins, wie sie ist
+    const alt = calendarEntries.find(e => String(e.id) === String(eventId));
+    const istGanz = !!(alt && /^\d{4}-\d{2}-\d{2}$/.test(String(alt.isoDate || '')));
+    // Neue Zeit nur, wenn sie sich wirklich vom Termin unterscheidet (die KI schickt oft die alte Zeit mit; das machte aus Ganztägigem einen Termin mit Uhrzeit)
     let eventDate = newIsoStartString ? new Date(newIsoStartString) : null;
     if (eventDate && isNaN(eventDate.getTime())) eventDate = null;
+    if (eventDate && alt && alt.isoDate) {
+        const tag = d => new Date(d).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+        const altD = istGanz ? new Date(alt.isoDate + 'T12:00:00') : new Date(alt.isoDate);
+        if (!isNaN(altD.getTime())) {
+            if (istGanz ? tag(eventDate) === tag(altD) : Math.abs(eventDate.getTime() - altD.getTime()) < 60000) eventDate = null;
+        }
+    }
     const zeitNeu = !!eventDate;
     if (!eventDate) eventDate = new Date();
     const endDate = new Date(eventDate.getTime() + 60 * 60000);
+    // Gehört der Termin zu einer Serie (z. B. jährlicher Geburtstag) und ändert sich nur Titel oder Ort, wird die ganze Serie geändert, nicht nur dieses eine Jahr
+    const patchId = (alt && alt.seriesId && !zeitNeu) ? alt.seriesId : eventId;
 
     clearGoogleProblem();
     const isLocalEvent = String(eventId || '').startsWith('local_');
     if (isGoogleAuthorized() && eventId && !isLocalEvent) {
         try {
             const patchData = {};
-            if (zeitNeu) { patchData.start = { dateTime: eventDate.toISOString() }; patchData.end = { dateTime: endDate.toISOString() }; }
+            if (zeitNeu && istGanz) {
+                const iso = d => d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+                patchData.start = { date: iso(eventDate) }; patchData.end = { date: iso(new Date(eventDate.getTime() + 86400000)) };
+            } else if (zeitNeu) { patchData.start = { dateTime: eventDate.toISOString() }; patchData.end = { dateTime: endDate.toISOString() }; }
             if (newText) patchData.summary = newText;
             if (newLocation) patchData.location = newLocation;
 
-            const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, {
+            const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(patchId)}`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
@@ -418,7 +432,10 @@ async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString, ne
                 markGoogleExpired();
                 setGoogleProblem('abgelaufen', 401);
             } else if (res.ok) {
+                let stimmt = true;   // Antwort prüfen: steht der neue Titel wirklich drin?
+                try { const r = await res.json(); if (newText && r && typeof r.summary === 'string' && r.summary !== newText) stimmt = false; } catch (e) { }
                 fetchGoogleCalendarEvents();
+                if (!stimmt) return 'unveraendert';
                 return true;
             } else {
                 await recordGoogleHttpError(res);
