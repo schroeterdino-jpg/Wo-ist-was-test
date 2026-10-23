@@ -86,6 +86,19 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".CarReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
+                <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".ParkReceiver"
+            android:exported="false" />
+
         <service
             android:name=".WakeService"
             android:exported="false"
