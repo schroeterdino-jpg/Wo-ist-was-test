@@ -1,7 +1,7 @@
 /* ============================================================
    KACHELN am Startbildschirm: drei eckige HUD-Kacheln zwischen Begrüßung und Kopf.
    Wetter | Nächster Termin | Arbeitsweg, dazu Statuszeile (Systeme online, Schicht, Datum), Linie unter dem Kopf, eckige Knöpfe unten und leuchtender Rand bei Meldung/Termin in unter 1 Stunde. Antippen: Wetterkarte / Termine / Lagebild mit der Fahrt.
-   Arbeitsweg nur mit gespeicherter Arbeitsadresse (workAddress); wird höchstens alle 15 Min. neu berechnet und nur bei sichtbarer Seite.
+   Arbeitsweg nur mit gespeicherter Arbeitsadresse (workAddress); bist du schon dort (höchstens 3 Min.), wird daraus von selbst der Heimweg; wird höchstens alle 15 Min. neu berechnet und nur bei sichtbarer Seite.
    Ein/Aus per Sprache: "Kacheln aus" / "Kacheln an". Standard: an.
    Braucht: storage.js, briefing.js (fetchWeatherData), travel.js (fetchRouteMapData), ui.js (weatherEmojiForCode). Fehlt etwas, bleibt die Kachel leer.
    ============================================================ */
@@ -108,7 +108,7 @@
         if (!wa) return kachel('weg', 'Arbeitsweg', '–', 'Adresse fehlt');
         if (!weg) return kachel('weg', 'Arbeitsweg', '–', wegBusy ? 'berechne …' : 'Tippen');
         var stau = weg.stauMin > 0 || (weg.warnings && weg.warnings.length);
-        return kachel('weg', 'Arbeitsweg', weg.fahrtMin + (weg.stauMin ? '+' + weg.stauMin : '') + ' Min', stau ? (weg.stauMin ? 'Stau +' + weg.stauMin + ' Min' : 'Meldung') : 'frei', stau);
+        return kachel('weg', weg.art === 'heim' ? 'Heimweg' : 'Arbeitsweg', weg.fahrtMin + (weg.stauMin ? '+' + weg.stauMin : '') + ' Min', stau ? (weg.stauMin ? 'Stau +' + weg.stauMin + ' Min' : 'Meldung') : 'frei', stau);
     }
 
     function zeichne() {
@@ -129,7 +129,14 @@
         wegBusy = true;
         Promise.resolve(fetchRouteMapData(wa, null)).then(function (d) {
             wegAt = Date.now();
-            weg = d && d.fahrtMin ? { fahrtMin: d.fahrtMin, stauMin: d.stauMin || 0, warnings: d.warnings || [] } : null;
+            weg = d && d.fahrtMin ? { fahrtMin: d.fahrtMin, stauMin: d.stauMin || 0, warnings: d.warnings || [], art: 'arbeit' } : null;
+            // Bist du schon bei der Arbeit (höchstens 3 Minuten bis dorthin), zeigt die Kachel von selbst den Heimweg
+            if (weg && weg.fahrtMin <= 3 && window.jvPlan && typeof window.jvPlan.heimAdresse === 'function') {
+                var heim = ''; try { heim = window.jvPlan.heimAdresse() || ''; } catch (e) {}
+                if (heim) return Promise.resolve(fetchRouteMapData(heim, null)).then(function (h) {
+                    if (h && h.fahrtMin && h.fahrtMin > 3) weg = { fahrtMin: h.fahrtMin, stauMin: h.stauMin || 0, warnings: h.warnings || [], art: 'heim' };
+                }).catch(function () {});
+            }
         }).catch(function () { wegAt = Date.now(); }).then(function () { wegBusy = false; zeichne(); });
     }
 
@@ -164,6 +171,10 @@
             if (k === 'termin') { if (typeof openPanel === 'function') openPanel('termine'); }
             else if (k === 'wetter') { if (typeof handleWeatherMapCommand === 'function') handleWeatherMapCommand('Zeig mir die Wetterkarte'); }
             else if (k === 'weg') {
+                if (weg && weg.art === 'heim' && window.jvPlan && typeof window.jvPlan.heimText === 'function') {
+                    window.jvPlan.heimText(true).then(function (t) { if (t) speak(t); }).catch(function () { speak('Den Heimweg konnte ich gerade nicht berechnen.'); });
+                    return;
+                }
                 var wa = ''; try { wa = (workAddress || '').trim(); } catch (e) {}
                 if (!wa) { speak('Deine Arbeitsadresse fehlt noch. Sag zum Beispiel: Meine Arbeit ist in Hamburg, Musterstraße 1.'); return; }
                 if (typeof window.computeDepartureAdvice === 'function') {
