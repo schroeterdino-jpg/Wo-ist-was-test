@@ -313,6 +313,16 @@ public class MainActivity extends Activity {
         else requestPermissions(need.toArray(new String[0]), 1);
     }
 
+    /** Öffnet die Android-Seite für den Benachrichtigungszugriff (Schlafmodus: WhatsApp-Nachrichten lesen und beantworten). */
+    boolean nachrichtenZugriffOeffnen() {
+        try {
+            startActivity(new Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            return true;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
     /** Dauerhaftes Lauschen auf "Hey Jarvis" beenden (Einstellung aus, Dienst stoppen). */
     boolean lauschenAus() {
         try {
