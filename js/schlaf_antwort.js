@@ -49,6 +49,21 @@
         const t = norm(txt).replace(/^(?:hey |hallo |ok |okay )?(?:jarvis|zane|nova) /, '').replace(/^bitte /, '');
         if (!t || t.split(' ').length > 14) return next(txt);
         let m;
+        const sm = /(schlaf ?modus|schlafen|antwort)/.test(t);
+        if (sm && (m = t.match(/^(?:erlaub\w*|erlauben)\s+(?:dass\s+)?(.+?)(?:\s+(?:darf|soll|im schlaf ?modus|zu antworten|antworten|auch|eine antwort|bekommt|bekommen|an|ein))*$/) || t.match(/^(.+?)\s+darf\s+(?:im schlaf ?modus\s+)?antworten\b/) || t.match(/^schlaf ?modus\s+(?:fuer|mit)\s+(.+?)\s+(?:erlauben|an)$/))) {
+            if (!N()) return next(txt);
+            const name = m[1].trim(); if (!name || name.split(' ').length > 3) return next(txt);
+            N().schlafKontakt(name, true);
+            sagen(schoen(name) + ' bekommt im Schlafmodus eine Antwort. Der Name muss genauso in WhatsApp gespeichert sein, sonst erkenne ich ihn nicht.');
+            return true;
+        }
+        if (sm && (m = t.match(/^(?:verbiet\w*|verbieten|entfern\w*)\s+(.+?)(?:\s+(?:im schlaf ?modus|aus dem schlaf ?modus|aus der antwortliste|nicht mehr antworten))*$/))) {
+            if (!N()) return next(txt);
+            const name = m[1].trim(); if (!name || name.split(' ').length > 3) return next(txt);
+            N().schlafKontakt(name, false);
+            sagen(schoen(name) + ' bekommt im Schlafmodus keine Antwort mehr.');
+            return true;
+        }
         if (/\b(schlafmodus|schlaf modus)\b.*\b(an|ein|einschalten|aktivieren|starten)\b|\bich (gehe|geh) (jetzt |gleich )?schlafen\b|\bich schlafe (jetzt|gleich)\b|\bantworte (bitte )?fuer mich\b/.test(t)) {
             if (!N()) { sagen('Den Schlafmodus gibt es nur in der Jarvis-App auf dem Handy.'); return true; }
             an(); return true;
@@ -63,25 +78,12 @@
             sagen(e.length ? 'Im Schlafmodus antworte ich: ' + liste(e.map(schoen)) + '.' : 'Im Schlafmodus antworte ich noch niemandem.');
             return true;
         }
-        if ((m = t.match(/^(?:erlaube|erlauben)\s+(.+?)(?:\s+(?:im schlafmodus|zu antworten|auch|eine antwort))*$/)) && /(schlaf|antwort)/.test(t)) {
-            if (!N()) return next(txt);
-            const name = m[1].trim(); if (!name || name.split(' ').length > 3) return next(txt);
-            N().schlafKontakt(name, true);
-            sagen(schoen(name) + ' bekommt im Schlafmodus eine Antwort. Der Name muss genauso in WhatsApp gespeichert sein, sonst erkenne ich ihn nicht.');
-            return true;
-        }
-        if ((m = t.match(/^(?:verbiete|verbieten|entferne|entfernen)\s+(.+?)(?:\s+(?:im schlafmodus|aus dem schlafmodus|aus der antwortliste))*$/)) && /(schlaf|antwort)/.test(t)) {
-            if (!N()) return next(txt);
-            const name = m[1].trim(); if (!name || name.split(' ').length > 3) return next(txt);
-            N().schlafKontakt(name, false);
-            sagen(schoen(name) + ' bekommt im Schlafmodus keine Antwort mehr.');
-            return true;
-        }
         if ((m = String(txt).match(/(?:meine )?schlaf\s?antwort (?:ist|lautet|soll sein)[:,]?\s+(.{5,300})$/i)) && N()) {
             N().schlafText(m[1].trim());
             sagen('Verstanden. Ich schreibe im Schlafmodus: ' + m[1].trim());
             return true;
         }
+        if (/schlaf ?modus/.test(t) && N()) { sagen('Ich habe Schlafmodus verstanden, aber nicht, was ich tun soll. Gehört habe ich: ' + String(txt).slice(0, 80) + '. Sag zum Beispiel: Erlaube Schatz im Schlafmodus, oder: Ich gehe schlafen.'); return true; }
         return next(txt);
     }
     function cmd() {
