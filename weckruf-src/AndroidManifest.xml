@@ -101,6 +101,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".EntwurfReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".ParkReceiver"
             android:exported="false" />
 
