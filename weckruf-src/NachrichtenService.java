@@ -135,6 +135,8 @@ public class NachrichtenService extends NotificationListenerService {
         if (text.matches("(?s).*\\d+ (neue )?(Nachrichten|messages).*") && text.length() < 40) return;   // Sammelmeldung
 
         if (!Prefs.schlaf(ctx)) {   // nur Vertretung: nach der Wartezeit nachsehen, ob die Meldung noch ungelesen dasteht
+            if (!erlaubtName(ctx, name)) logV(ctx, name + " schrieb, ist aber nicht in deiner Kontaktliste. Ich tue nichts.");
+            else logV(ctx, name + " schrieb. Ich warte " + Prefs.vertrMin(ctx) + " Minuten, ob du reagierst.");
             if (erlaubtName(ctx, name)) {
                 vertretungPlanen(ctx, sbn.getKey());
                 if (Prefs.vertretung(ctx) && kuerzlichVertreten(ctx, norm(name))) oeffnen(ctx, name + " hat geantwortet", name + " hat dir geschrieben: " + kurz(text, 300));
@@ -524,19 +526,36 @@ public class NachrichtenService extends NotificationListenerService {
         return false;
     }
 
+    /** Kleines Protokoll der Vertretung (die letzten 20 Einträge), damit man nachlesen kann, warum Jarvis geantwortet hat oder nicht. */
+    static void logV(Context ctx, String zeile) {
+        try {
+            java.text.SimpleDateFormat f = new java.text.SimpleDateFormat("HH:mm", Locale.GERMANY);
+            f.setTimeZone(java.util.TimeZone.getTimeZone("Europe/Berlin"));
+            String neu = f.format(new java.util.Date()) + " " + zeile;
+            synchronized (NachrichtenService.class) {
+                String[] alt = Prefs.vertrLog(ctx).split("\n");
+                StringBuilder sb = new StringBuilder();
+                int von = Math.max(0, alt.length - 19);
+                for (int i = von; i < alt.length; i++) if (!alt[i].isEmpty()) sb.append(alt[i]).append('\n');
+                sb.append(neu);
+                Prefs.setVertrLog(ctx, sb.toString());
+            }
+        } catch (Throwable ignored) { }
+    }
+
     private static String kurz(String t, int n) { return t.length() > n ? t.substring(0, n) + " ..." : t; }
 
     /** Wird vom VertretungReceiver nach der Wartezeit aufgerufen. */
     static void vertreten(Context ctx, String key) {
         try {
-            if (key == null) return;
+            if (key == null) { logV(ctx, "Wartezeit abgelaufen, aber ohne Chat-Kennung."); return; }
             vertretungAbbrechen(ctx, key);   // diese Runde ist abgelaufen
-            if (!Prefs.vertretung(ctx)) return;
+            if (!Prefs.vertretung(ctx)) { logV(ctx, "Wartezeit abgelaufen, aber die Vertretung ist aus."); return; }
             NachrichtenService s = inst;
-            if (s == null) return;
+            if (s == null) { logV(ctx, "Wartezeit abgelaufen, aber der Benachrichtigungszugriff war nicht verbunden. Prüfe in den Android-Einstellungen, ob Jarvis dort noch an ist."); return; }
             StatusBarNotification sbn = null;
             for (StatusBarNotification x : s.getActiveNotifications()) if (key.equals(x.getKey())) { sbn = x; break; }
-            if (sbn == null) return;   // gelesen oder weggewischt: nichts tun
+            if (sbn == null) { logV(ctx, "Wartezeit abgelaufen: die Nachricht war schon gelesen oder weggewischt. Ich tue nichts."); return; }
             Notification n = sbn.getNotification();
             Bundle ex = n == null ? null : n.extras;
             if (ex == null || (n.flags & Notification.FLAG_GROUP_SUMMARY) != 0) return;
@@ -544,9 +563,9 @@ public class NachrichtenService extends NotificationListenerService {
             CharSequence ti = ex.getCharSequence("android.title");
             if (ti == null) return;
             String name = ti.toString().trim(), text = texte(n).trim();
-            if (name.isEmpty() || text.isEmpty() || !erlaubtName(ctx, name)) return;
+            if (name.isEmpty() || text.isEmpty() || !erlaubtName(ctx, name)) { logV(ctx, "Wartezeit abgelaufen, aber Name oder Text fehlte oder der Kontakt ist nicht in der Liste."); return; }
             String nk = norm(name), nt = norm(text);
-            if (!vertretungErlaubt(ctx, nk)) return;
+            if (!vertretungErlaubt(ctx, nk)) { logV(ctx, name + ": schon zu oft vertreten (höchstens 3 in 24 Stunden, mindestens 20 Minuten Abstand). Ich tue nichts."); return; }
             boolean notfall = NOTFALL.matcher(nt).find();
             String antwort, stufe;
             if (notfall) {
@@ -556,18 +575,22 @@ public class NachrichtenService extends NotificationListenerService {
                 antwort = WEITER; stufe = "B";
             } else {
                 String[] r = kiStufe(ctx, name, text);
-                if (r == null) return;   // KI nicht erreichbar: lieber gar nichts schreiben
-                antwort = r[0]; stufe = r[1];
-                if (!pruefer(ctx, name, text, antwort)) { antwort = WEITER; stufe = "B"; }   // Prüfer sagt nein: nur die sichere Weiterleitung
+                if (r == null) { logV(ctx, name + ": KI nicht erreichbar oder Antwort unbrauchbar. Ich schicke nur den sicheren Weiterleitungs-Satz."); antwort = WEITER; stufe = "B"; }
+                else {
+                    antwort = r[0]; stufe = r[1];
+                    if (!pruefer(ctx, name, text, antwort)) { logV(ctx, name + ": der Prüfer hat meine Antwort abgelehnt. Ich schicke nur den Weiterleitungs-Satz."); antwort = WEITER; stufe = "B"; }
+                }
             }
             if ("C".equals(stufe)) {
                 if (entwurfAnlegen(ctx, n, name, text, antwort)) {
+                    logV(ctx, name + ": Entwurf angelegt (Meldung mit Senden/Verwerfen).");
                     oeffnen(ctx, "Jarvis hat einen Entwurf für dich", name + " hat dir geschrieben: " + kurz(text, 200) + ". Mein Entwurf: " + kurz(antwort, 250) + " Tippe in der Meldung auf Senden oder Verwerfen.");
                     return;
                 }
                 antwort = WEITER; stufe = "B";
             }
-            if (!s.antworten(ctx, n, antwort)) return;
+            if (!s.antworten(ctx, n, antwort)) { logV(ctx, name + ": Senden hat nicht geklappt (WhatsApp bot keine Antwort-Funktion an)."); return; }
+            logV(ctx, name + ": geantwortet (Stufe " + stufe + ").");
             vertretungGezaehlt(ctx, nk);
             boolean weiter = !"A".equals(stufe);
             synchronized (NachrichtenService.class) {
@@ -582,7 +605,7 @@ public class NachrichtenService extends NotificationListenerService {
             }
             meldenVertretung(ctx, name, text, mitVorstellung(antwort), weiter);
             oeffnen(ctx, "Jarvis hat für dich geantwortet", name + " hat dir geschrieben: " + kurz(text, 200) + ". Ich habe geantwortet: " + kurz(mitVorstellung(antwort), 250) + (weiter ? " Bitte melde dich bei " + name + "." : ""));
-        } catch (Throwable ignored) { }
+        } catch (Throwable e) { logV(ctx, "Fehler in der Vertretung: " + e); }
     }
 
     /** Höchstens 3 Vertretungs-Antworten je Kontakt in 24 Stunden und mindestens 20 Minuten Abstand. */

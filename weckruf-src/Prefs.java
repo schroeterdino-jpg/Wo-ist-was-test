@@ -89,4 +89,6 @@ final class Prefs {
     static long arbeitVon(Context c) { return sp(c).getLong("arbeitVon", 0L); }
     static long arbeitBis(Context c) { return sp(c).getLong("arbeitBis", 0L); }
     static void setArbeit(Context c, long von, long bis) { sp(c).edit().putLong("arbeitVon", von).putLong("arbeitBis", bis).apply(); }
+    static String vertrLog(Context c) { return sp(c).getString("vertrLog", ""); }
+    static void setVertrLog(Context c, String s) { sp(c).edit().putString("vertrLog", s == null ? "" : s).apply(); }
 }

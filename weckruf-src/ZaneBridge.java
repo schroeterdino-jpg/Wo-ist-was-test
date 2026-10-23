@@ -179,4 +179,8 @@ class ZaneBridge {
     /** Eine wartende Meldung von Jarvis (JSON mit titel, text, nurText) abholen, leer wenn keine wartet. */
     @JavascriptInterface
     public String holeMeldung() { String s = MainActivity.pendingMeldung; MainActivity.pendingMeldung = null; return s == null ? "" : s; }
+
+    /** Protokoll der Vertretung: warum Jarvis geantwortet hat oder nicht (die letzten Einträge, ein Eintrag pro Zeile). */
+    @JavascriptInterface
+    public String vertretungProtokoll() { return Prefs.vertrLog(act); }
 }

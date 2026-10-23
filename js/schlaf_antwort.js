@@ -104,6 +104,14 @@
     }
     function befehl(txt, next) {
         const wb = wissenBefehl(txt); if (wb) { sagen(wb); return true; }
+        try {
+            const tn = norm(txt);
+            if (N() && typeof N().vertretungProtokoll === 'function' && /(warum|wieso|weshalb).*(nicht|kein).*(geantwortet|geschrieben|reagiert|eingesprungen)|\b(vertretung|vertretungs) ?(protokoll|log)\b|\bwas ist mit der vertretung\b/.test(tn)) {
+                const z = String(N().vertretungProtokoll() || '').split('\n').filter(Boolean);
+                sagen(z.length ? 'Das steht im Protokoll, neueste zuletzt: ' + z.slice(-5).join('. ') : 'Im Protokoll steht noch nichts. Entweder ist die Vertretung aus, oder seit dem Einschalten hat kein ausgewählter Kontakt geschrieben.');
+                return true;
+            }
+        } catch (e) { }
         const t = norm(txt).replace(/^(?:hey |hallo |ok |okay )?(?:jarvis|zane|nova) /, '').replace(/^bitte /, '');
         if (!t || t.split(' ').length > 14) return next(txt);
         let m;
