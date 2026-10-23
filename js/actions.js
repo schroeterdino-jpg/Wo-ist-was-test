@@ -113,8 +113,10 @@ async function executeAction(action, text, ctx) {
         }
     } else if (action.type === 'todo') {
         const items = action.todo_items || (action.todo_text ? [action.todo_text] : []);
+        // Sagt der User "heute", streicht die KI das Wort gern aus dem Aufgabentext; darum merken wir den Tag (due) und nennen die Aufgabe am Feierabend
+        const dueHeute = /\b(heute|noch heute)\b/i.test(String(text || '')) ? new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }) : '';
         items.forEach((item) => {
-            if (item && item.trim()) todoEntries.unshift({ id: Date.now() + ctx.counter++, text: item.trim(), createdDate: 'Per Sprache' });
+            if (item && item.trim()) { const eintrag = { id: Date.now() + ctx.counter++, text: item.trim(), createdDate: 'Per Sprache' }; if (dueHeute) eintrag.due = dueHeute; todoEntries.unshift(eintrag); }
         });
         setPersistentData('helfer_todo_entries', JSON.stringify(todoEntries));
         updateTerminalStream("TASKS: ENTRY_ADDED");

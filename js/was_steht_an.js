@@ -42,7 +42,7 @@
         arr(typeof todoEntries !== 'undefined' ? todoEntries : []).forEach(function (e) {
             if (!e || e.done || !String(e.text || '').trim()) return;
             const t = String(e.text).trim();
-            if (/\bheute\b/i.test(t)) { const k = ohneHeute(t); if (k) out.heuteAufg.push(k); } else out.aufgaben.push(t);
+            if (e.due === heute || /\bheute\b|^noch\b/i.test(t)) { const k = ohneHeute(t); if (k) out.heuteAufg.push(k); } else out.aufgaben.push(t);
         });
         arr(typeof shoppingEntries !== 'undefined' ? shoppingEntries : []).forEach(function (e) {
             if (e && !e.done && String(e.text || '').trim()) out.einkauf.push(String(e.text).trim());

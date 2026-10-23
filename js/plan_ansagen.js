@@ -298,7 +298,8 @@
     /* offene Aufgaben, in denen "heute" steht (nur die werden beim Feierabend genannt) */
     function heuteAufgaben() {
         const l = (typeof todoEntries !== 'undefined' && Array.isArray(todoEntries)) ? todoEntries : [];
-        return l.filter(e => e && !e.done && /\bheute\b|^\s*noch\b/i.test(String(e.text || ''))).map(e => String(e.text).trim());
+        const heute = jetzt().ymd;
+        return l.filter(e => e && !e.done && (e.due === heute || /\bheute\b|^\s*noch\b/i.test(String(e.text || '')))).map(e => String(e.text).trim());
     }
     function heuteAufgabenText() {
         const a = heuteAufgaben();
