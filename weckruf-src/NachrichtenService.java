@@ -170,6 +170,7 @@ public class NachrichtenService extends NotificationListenerService {
         if (text.matches("(?s).*\\d+ (neue )?(Nachrichten|messages).*") && text.length() < 40) return;   // Sammelmeldung
 
         if (!Prefs.schlaf(ctx)) {   // nur Vertretung: nach der Wartezeit nachsehen, ob die Meldung noch ungelesen dasteht
+            if (Prefs.vertretung(ctx) && erlaubtName(ctx, name) && NOTFALL.matcher(norm(text)).find() && notfallSofort(ctx, sbn, n, name, text)) return;   // Notfall: nicht warten
             if (!erlaubtName(ctx, name)) logV(ctx, name + " schrieb, ist aber nicht in deiner Kontaktliste. Ich tue nichts.");
             else logV(ctx, name + " schrieb. Ich warte " + Prefs.vertrMin(ctx) + " Minuten, ob du reagierst.");
             if (erlaubtName(ctx, name)) {
@@ -198,7 +199,7 @@ public class NachrichtenService extends NotificationListenerService {
         if (bisher >= MAX_ANTWORTEN + (notfall ? 1 : 0)) return;
 
         String antwort;
-        if (notfall) antwort = fix(ctx, name, "Hier ist Jarvis, der KI-Assistent von {D}. Ich habe {A} gerade sofort Bescheid gegeben, er wird informiert.");
+        if (notfall) antwort = fix(ctx, name, "Hier ist Jarvis, der KI-Assistent von {D}. Ich informiere {A} jetzt sofort.");
         else if (HEIKEL.matcher(nt).find()) antwort = fix(ctx, name, "Hier ist Jarvis, der KI-Assistent von {D}. {N} schläft gerade. Dazu kann ich nichts sagen oder tun, er meldet sich morgen bei dir.");
         else {
             antwort = Prefs.schlafKi(ctx) ? ki(ctx, name, text) : null;
@@ -581,6 +582,37 @@ public class NachrichtenService extends NotificationListenerService {
 
     private static String kurz(String t, int n) { return t.length() > n ? t.substring(0, n) + " ..." : t; }
 
+    private static final Map<String, Long> NOTFALL_ZEIT = new HashMap<>();
+
+    /** Notfall-Wörter (Krankenhaus, dringend, Unfall ...) von einem erlaubten Kontakt: sofort lauter Alarm, sofort kurze Antwort, Jarvis öffnet sich. Ohne Wartezeit. */
+    private boolean notfallSofort(Context ctx, StatusBarNotification sbn, Notification n, String name, String text) {
+        try {
+            String nk = norm(name);
+            long jetzt = System.currentTimeMillis();
+            synchronized (NOTFALL_ZEIT) {   // WhatsApp meldet dieselbe Nachricht oft mehrfach: höchstens alle 5 Minuten pro Person
+                Long l = NOTFALL_ZEIT.get(nk);
+                if (l != null && jetzt - l < 300000L) return true;
+                NOTFALL_ZEIT.put(nk, jetzt);
+            }
+            vertretungAbbrechen(ctx, sbn.getKey());   // sonst käme nach der Wartezeit noch eine zweite Antwort
+            logV(ctx, name + ": Notfall-Wort erkannt. Alarm und sofortige Antwort, ohne Wartezeit.");
+            alarm(ctx, name, text, true);
+            String antwort = fix(ctx, name, "Hier ist Jarvis, der KI-Assistent von {D}. Ich informiere {A} jetzt sofort.");
+            boolean ok = antworten(ctx, n, antwort);
+            synchronized (NachrichtenService.class) {
+                JSONArray log = new JSONArray(Prefs.nachrichten(ctx));
+                JSONObject o = new JSONObject();
+                o.put("n", name); o.put("t", text); o.put("at", jetzt); o.put("a", ok); o.put("r", antwort); o.put("v", true); o.put("w", true); o.put("e", true);
+                log.put(o);
+                if (log.length() > 40) { JSONArray neu = new JSONArray(); for (int i = log.length() - 40; i < log.length(); i++) neu.put(log.get(i)); log = neu; }
+                Prefs.setNachrichten(ctx, log.toString());
+            }
+            meldenVertretung(ctx, name, text, antwort, true);
+            oeffnen(ctx, "Dringend: " + name + " hat geschrieben", name + " schreibt: " + kurz(text, 250) + (ok ? " Ich habe geantwortet, dass du informiert wirst." : " Ich konnte nicht antworten.") + " Bitte melde dich bei " + name + ".");
+            return true;
+        } catch (Throwable e) { return false; }
+    }
+
     /** Wird vom VertretungReceiver nach der Wartezeit aufgerufen. */
     static void vertreten(Context ctx, String key) {
         try {
@@ -606,7 +638,7 @@ public class NachrichtenService extends NotificationListenerService {
             String antwort, stufe;
             if (notfall) {
                 alarm(ctx, name, text, Prefs.schlaf(ctx));
-                antwort = fix(ctx, name, "Hier ist Jarvis, der KI-Assistent von {D}. Ich habe {A} gerade sofort Bescheid gegeben, er wird informiert."); stufe = "B";
+                antwort = fix(ctx, name, "Hier ist Jarvis, der KI-Assistent von {D}. Ich informiere {A} jetzt sofort."); stufe = "B";
             } else if (HEIKEL.matcher(nt).find()) {
                 antwort = weiter(ctx, name); stufe = "B";
             } else {
