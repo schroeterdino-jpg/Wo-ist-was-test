@@ -100,7 +100,7 @@ class ZaneBridge {
     public boolean schlafZugriffOeffnen() { return act.nachrichtenZugriffOeffnen(); }
 
     @JavascriptInterface
-    public void schlafSetzen(boolean an) { Prefs.setSchlaf(act, an); }
+    public void schlafSetzen(boolean an) { Prefs.setSchlaf(act, an); if (!an) NachrichtenService.alarmAus(); }
 
     /** Zustand als JSON: an, zugriff, erlaubt (Liste), text. */
     @JavascriptInterface
@@ -113,6 +113,7 @@ class ZaneBridge {
             for (String n : Prefs.erlaubt(act).split("\n")) if (!n.trim().isEmpty()) a.put(n.trim());
             o.put("erlaubt", a);
             o.put("text", Prefs.schlafText(act));
+            o.put("ki", Prefs.schlafKi(act));
             return o.toString();
         } catch (Throwable e) { return "{}"; }
     }
@@ -138,4 +139,16 @@ class ZaneBridge {
         if (loeschen) Prefs.setNachrichten(act, "[]");
         return s;
     }
+
+    /** App-Code für die KI-Antworten des Schlafmodus (wird von der Seite beim Einschalten übergeben). */
+    @JavascriptInterface
+    public void schlafSchluessel(String key) { Prefs.setSchlafKey(act, key); }
+
+    /** true: Jarvis formuliert kurze Antworten selbst (KI), false: immer der feste Text. */
+    @JavascriptInterface
+    public void schlafKi(boolean an) { Prefs.setSchlafKi(act, an); }
+
+    /** Zeigt die Mehrfachauswahl der Kontakte (fragt beim ersten Mal nach der Kontakte-Erlaubnis). */
+    @JavascriptInterface
+    public boolean schlafKontakteWaehlen() { return act.kontakteWaehlen(); }
 }
