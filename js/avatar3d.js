@@ -983,7 +983,7 @@ window.handleAvatarExpressionCommand=function(text){
    const t=String(text||'').toLowerCase().replace(/[.,!?;:]+/g,' ').replace(/\s+/g,' ').trim();
    try{ const a=zubBefehl(t); if(a){ sag(a.text,a.exp); return true; } }catch(e){ console.warn(e); }
    try{
-     if(JV_SCHLAF&&/\b(geh schlafen|schlaf jetzt|schlaf ein|mach (die )?augen zu|schlafmodus|leg dich schlafen|schlaf gut (?:nova|jarvis))\b/.test(t)){
+     if(JV_SCHLAF&&/\b(geh schlafen|schlaf jetzt|schlaf ein|mach (die )?augen zu|leg dich schlafen|schlaf gut (?:nova|jarvis))\b/.test(t)){
        sleepForced=true; forcedGrace=performance.now()+10000; sag('Gute Nacht.',null,true); return true; }
      if(/\b(wach auf|aufwachen|augen auf)\b/.test(t)){ sleepForced=false; lastActive=performance.now(); sag('Bin wach.','friendly'); return true; }
    }catch(e){}
