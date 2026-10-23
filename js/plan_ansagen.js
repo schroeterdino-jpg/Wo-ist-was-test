@@ -298,7 +298,7 @@
     /* offene Aufgaben, in denen "heute" steht (nur die werden beim Feierabend genannt) */
     function heuteAufgaben() {
         const l = (typeof todoEntries !== 'undefined' && Array.isArray(todoEntries)) ? todoEntries : [];
-        return l.filter(e => e && !e.done && /\bheute\b/i.test(String(e.text || ''))).map(e => String(e.text).trim());
+        return l.filter(e => e && !e.done && /\bheute\b|^\s*noch\b/i.test(String(e.text || ''))).map(e => String(e.text).trim());
     }
     function heuteAufgabenText() {
         const a = heuteAufgaben();
@@ -494,7 +494,7 @@
                 const abfahrt = abfFix(sh) - tagVor(ymd), ansage = abfahrt - VOR_ABFAHRT;
                 const staumin = Math.max(ansage - STAU_VOR, sh === 'frueh' ? weckzeit() + 10 : 0);
                 if (ansage >= 0 && staumin <= ansage - 5) out.push({ id: 'stau|' + ymd, at: berlinMs(ymd, staumin), text: 'Ich prüfe kurz die Verkehrslage auf deinem Arbeitsweg. Ist alles frei, sage ich nichts.' });
-                out.push({ id: 'heim|' + ymd, at: berlinMs(ymd, ende(sh) + HEIM_NACH), text: 'Feierabend. Tippe, dann sage ich dir, wie der Heimweg aussieht.' });
+                out.push({ id: 'heim|' + ymd, at: berlinMs(ymd, ende(sh) + HEIM_NACH), text: 'Feierabend. ' + (heuteAufgabenText() ? heuteAufgabenText() + ' ' : '') + 'Tippe, dann sage ich dir, wie der Heimweg aussieht.' });
                 if (ansage >= 0) out.push({ id: 'aufbruch|' + ymd, at: berlinMs(ymd, ansage), text: 'Abfahrt gegen ' + uhrHM(abfahrt) + ' Uhr (' + NAME[sh] + ' ab ' + uhrHM(start) + ', Fahrt rund ' + fahrt + ' Minuten). Tippe, dann sage ich dir die aktuelle Lage.' });
             }
             const morgen = ymdPlus(ymd, 1);
