@@ -370,7 +370,8 @@ public class SetupActivity extends Activity {
           .append("\nErkennungen: ").append(String.valueOf(Prefs.hits(this)))
           .append("\nRechenzeit: ").append(String.valueOf(Prefs.stat(this)))
           .append("\nAuto: ").append(Prefs.carAddr(this).isEmpty() ? "keins gewählt" : Prefs.carName(this))
-          .append("\nParkplatz: ").append(String.valueOf(Prefs.parkInfo(this)));
+          .append("\nParkplatz: ").append(String.valueOf(Prefs.parkInfo(this)))
+          .append("\nAutoansicht: ").append(String.valueOf(Prefs.autoInfo(this)));
         info.setText(sb);
         setzeWert(ovVal, overlay);
         String fs = fullScreenOk();
