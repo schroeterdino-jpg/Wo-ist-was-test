@@ -183,4 +183,22 @@ class ZaneBridge {
     /** Protokoll der Vertretung: warum Jarvis geantwortet hat oder nicht (die letzten Einträge, ein Eintrag pro Zeile). */
     @JavascriptInterface
     public String vertretungProtokoll() { return Prefs.vertrLog(act); }
+
+    /** Anrede je Kontakt: "name=papa" / "name=mann" / "name=dino" (eine Zeile pro Person). */
+    @JavascriptInterface
+    public String anredeListe() { return Prefs.anrede(act); }
+
+    @JavascriptInterface
+    public void anredeSetzen(String name, String rolle) {
+        String k = NachrichtenService.norm2(name), r = rolle == null ? "dino" : rolle.trim().toLowerCase(java.util.Locale.GERMANY);
+        if (k.isEmpty()) return;
+        StringBuilder sb = new StringBuilder();
+        for (String z : Prefs.anrede(act).split("\n")) {
+            int e = z.indexOf('=');
+            if (e <= 0 || NachrichtenService.norm2(z.substring(0, e)).equals(k)) continue;
+            sb.append(z).append('\n');
+        }
+        if (!"dino".equals(r)) sb.append(k).append('=').append(r);
+        Prefs.setAnrede(act, sb.toString().trim());
+    }
 }

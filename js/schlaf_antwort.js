@@ -105,6 +105,21 @@
     function befehl(txt, next) {
         const wb = wissenBefehl(txt); if (wb) { sagen(wb); return true; }
         try {
+            if (N() && typeof N().anredeSetzen === 'function') {
+                const tn2 = norm(txt); let mm;
+                if ((mm = tn2.match(/^(?:jarvis )?(?:fuer|zu|bei) (.{2,30}?) (?:bin ich|sagst du|sagst du dass ich bin|bin ich fuer dich) (?:der |dein |deinem )?(papa|mann|dino)$/))) {
+                    N().anredeSetzen(mm[1], mm[2]);
+                    sagen('Gemerkt. Bei ' + mm[1].replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }) + ' stelle ich mich als KI-Assistent von ' + (mm[2] === 'papa' ? 'deinem Papa' : mm[2] === 'mann' ? 'deinem Mann' : 'Dino') + ' vor.');
+                    return true;
+                }
+                if (/\bwie stellst du dich (?:bei )?(?:wem )?vor\b|\bwer nennt mich papa\b|\bwen nenne ich papa\b/.test(tn2)) {
+                    const z = String(N().anredeListe() || '').split('\n').filter(Boolean).map(function (x) { const i = x.indexOf('='); return x.slice(0, i) + ': ' + x.slice(i + 1); });
+                    sagen(z.length ? 'Ich stelle mich so vor: ' + z.join(', ') + '. Alle anderen bekommen: Assistent von Dino.' : 'Alle bekommen von mir: Assistent von Dino.');
+                    return true;
+                }
+            }
+        } catch (e) { }
+        try {
             const tn = norm(txt);
             if (N() && typeof N().vertretungProtokoll === 'function' && /(warum|wieso|weshalb).*(nicht|kein).*(geantwortet|geschrieben|reagiert|eingesprungen)|\b(vertretung|vertretungs) ?(protokoll|log)\b|\bwas ist mit der vertretung\b/.test(tn)) {
                 const z = String(N().vertretungProtokoll() || '').split('\n').filter(Boolean);
