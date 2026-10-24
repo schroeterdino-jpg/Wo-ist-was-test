@@ -81,11 +81,29 @@
         var b = document.getElementById('anzeigeInfo');
         if (b) b.addEventListener('click', function () { sagen(groesseText()); });
     }
+    /* Großer Schließen-Knopf unten in der Mitte für Lagebild und andere Fenster: oben am Rand kommt am Autobildschirm kein Tippen an.
+       Nur im breiten Layout; die Autoansicht hat ihren eigenen "beenden"-Knopf unten. */
+    function zuKnopf() {
+        var b = document.createElement('button');
+        b.type = 'button'; b.id = 'anzeigeZu'; b.textContent = '✕ Schließen';
+        b.style.cssText = 'display:none;position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:99999;min-width:220px;min-height:56px;padding:12px 28px;font:700 20px ui-monospace,monospace;color:#ffd6d6;background:rgba(60,10,14,.95);border:2px solid #ff6b6b;border-radius:10px';
+        b.addEventListener('click', function () {
+            try { if (window.jvLage && window.jvLage.isOpen()) { window.jvLage.close(); return; } } catch (e) { }
+            try { if (typeof closePanel === 'function') closePanel(); } catch (e) { }
+        });
+        document.body.appendChild(b);
+        setInterval(function () {
+            var offen = false;
+            try { offen = document.documentElement.classList.contains('jv-breit') && !(window.jvAutoansicht && window.jvAutoansicht.offen()) &&
+                ((window.jvLage && window.jvLage.isOpen()) || (typeof isPanelOpen === 'function' && isPanelOpen())); } catch (e) { }
+            b.style.display = offen ? 'block' : 'none';
+        }, 400);
+    }
     window.addEventListener('resize', anwenden);
     window.addEventListener('orientationchange', function () { setTimeout(anwenden, 200); });
 
     lies();
-    function start() { binde(); anwenden(); }
+    function start() { binde(); anwenden(); zuKnopf(); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
     window.jvAnzeige = { setZoom: setZoom, setLayout: setLayout, text: groesseText };
 })();
