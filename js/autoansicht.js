@@ -49,7 +49,7 @@
         const st = document.createElement('style'); st.id = 'aa-style'; st.textContent = CSS; document.head.appendChild(st);
         layer = document.createElement('div'); layer.id = 'aa-layer';
         layer.innerHTML =
-            '<div class="kopf"><span class="lab">● Autoansicht</span><span><span id="aa-uhr" class="dim" style="font-size:15px;margin-right:14px"></span><button type="button" class="x" id="aa-x">✕ beenden</button></span></div>' +
+            '<div class="kopf"><span class="lab">● Autoansicht <span id="aa-fw" class="dim" style="text-transform:none;letter-spacing:0;margin-left:8px"></span></span><span><span id="aa-uhr" class="dim" style="font-size:15px;margin-right:14px"></span><button type="button" class="x" id="aa-x">✕ beenden</button></span></div>' +
             '<div class="mitte">' +
               '<div class="karte heim"><div class="lab grn">Heimweg</div><div id="aa-min" class="gross">…</div><div id="aa-sub" class="dim" style="font-size:clamp(14px,3vmin,20px);margin-top:8px">wird berechnet</div><div id="aa-tank" style="font-size:clamp(13px,2.7vmin,18px);margin-top:16px;line-height:1.5"></div></div>' +
               '<div class="grid">' +
@@ -110,10 +110,20 @@
     /* Der APK sagen, ob der Fahrmodus läuft: nur dann gibt sie WhatsApp von erlaubten Kontakten zum Vorlesen weiter (fahr_whatsapp.js) */
     function fahrFlag(an) { try { const n = window.ZaneNative; if (n && typeof n.setFahrmodus === 'function') n.setFahrmodus(!!an); } catch (e) { } }
 
+    function fahrAnzeige() {
+        try {
+            const e = $('aa-fw'); if (!e) return;
+            const n = window.ZaneNative;
+            if (!n || typeof n.fahrAn !== 'function') { e.textContent = '· WhatsApp-Vorlesen: nur in der neuen APK'; return; }
+            e.textContent = n.fahrAn() ? '· WhatsApp-Vorlesen: an' : '· WhatsApp-Vorlesen: AUS';
+        } catch (x) { }
+    }
+
     function oeffnen() {
         if (layer) return;
         bauen();
         fahrFlag(true);
+        setTimeout(fahrAnzeige, 600);
         // Kartenbereich hierher umziehen, damit Anruf- und Routenkarten sichtbar sind
         kartenBox = document.getElementById('actionCards');
         if (kartenBox) { kartenParent = kartenBox.parentNode; kartenNext = kartenBox.nextSibling; $('aa-karten').appendChild(kartenBox); }

@@ -6,7 +6,8 @@
    Wer vorgelesen wird, bestimmt die Kontaktauswahl vom Schlafmodus (Prefs.erlaubt). Nur Einzelchats.
    Die APK (NachrichtenService) ruft window.jvFahrWA.nachricht({id, name, text, kann}) auf, solange Prefs.fahren an ist;
    autoansicht.js schaltet das per ZaneNative.setFahrmodus(true/false). Mehrere Nachrichten werden nacheinander abgearbeitet.
-   Braucht: window.ZaneNative (fahrSenden, fahrVerwerfen), commands.js (jvCommands), voice.js (speak, continueConversation). Order 0.1.
+   Protokoll: "Warum hast du nicht vorgelesen?" oder "Fahrmodus Protokoll" liest die letzten Fahrmodus-Zeilen aus dem Protokoll der APK vor.
+   Braucht: window.ZaneNative (fahrSenden, fahrVerwerfen, fahrAn, vertretungProtokoll), commands.js (jvCommands), voice.js (speak, continueConversation). Order 0.1.
    ============================================================ */
 (function () {
     function N() { const n = window.ZaneNative; return n && typeof n.fahrSenden === 'function' ? n : null; }
@@ -120,7 +121,17 @@
     }
 
     /* Sprachbefehl: nur aktiv, solange eine Nachricht offen ist */
+    function protokoll(raw) {
+        const n = norm(raw);
+        if (!/(warum|wieso|weshalb).*(nicht).*(vorgelesen|vorlesen|gelesen)|\bfahrmodus ?(protokoll|log)\b|\bwas ist mit (dem )?fahrmodus\b/.test(n)) return false;
+        let z = [];
+        try { z = String(window.ZaneNative.vertretungProtokoll() || '').split('\n').filter(function (x) { return x.indexOf('Fahrmodus') >= 0; }); } catch (e) { }
+        sagen(z.length ? 'Das steht im Protokoll: ' + z.slice(-4).join('. ') : 'Im Protokoll steht nichts vom Fahrmodus. Entweder ist bei mir keine WhatsApp-Meldung angekommen, oder der Fahrmodus war aus.', false);
+        return true;
+    }
+
     function sprache(text, next) {
+        if (protokoll(text)) return true;
         if (!cur) return next(text);
         const raw = String(text || '').trim(), n = norm(raw), w = n ? n.split(' ').length : 0;
         if (!n) return next(text);
