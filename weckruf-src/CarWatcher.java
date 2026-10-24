@@ -139,6 +139,10 @@ final class CarWatcher extends BroadcastReceiver {
         new Thread(() -> {
             try {
                 if (Prefs.carAddr(ctx).isEmpty()) return;
+                try {   // Auto ist weg: Fahrmodus (WhatsApp vorlesen) aus und Autoansicht schließen
+                    Prefs.setFahren(ctx, false);
+                    MainActivity.jsAus("window.jvAutoansicht&&window.jvAutoansicht.offen()&&window.jvAutoansicht.schliessen();");
+                } catch (Throwable ignored) { }
                 Location l = standort(ctx);
                 if (l == null) { Prefs.setParkInfo(ctx, "Auto getrennt, aber kein Standort (Standort „Immer zulassen“ und GPS an?)"); return; }
                 JSONObject o = new JSONObject();

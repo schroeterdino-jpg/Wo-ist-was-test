@@ -210,6 +210,13 @@
         tankAktualisieren(); tankTimer = setInterval(tankAktualisieren, 10 * 60000);
         try { if (navigator.wakeLock && navigator.wakeLock.request) navigator.wakeLock.request('screen').then(function (w) { wake = w; }).catch(function () { }); } catch (e) { }
     }
+    /* Sicherung: bleibt der Bildschirm länger als 15 Minuten aus (Handy in der Tasche, Auto längst verlassen), schließt sich die Autoansicht und der Fahrmodus geht aus.
+       Im Auto bleibt der Bildschirm an (Spiegelung und Wachhalten), dort greift das nie. */
+    let dunkelT = null;
+    document.addEventListener('visibilitychange', function () {
+        clearTimeout(dunkelT); dunkelT = null;
+        if (document.visibilityState === 'hidden' && layer) dunkelT = setTimeout(function () { if (layer && document.visibilityState === 'hidden') schliessen(); }, 15 * 60000);
+    });
     function schliessen() {
         if (!layer) return;
         clearInterval(tick); clearInterval(heimTimer); clearInterval(tankTimer); clearInterval(kartenTimer);
