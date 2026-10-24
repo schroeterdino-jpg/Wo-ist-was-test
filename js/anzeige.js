@@ -86,8 +86,16 @@
         if (m) { setZoom(zoom + (m[1] === 'kleiner' ? -10 : 10)); sagen('Anzeige ' + zoom + ' Prozent.'); return true; }
         m = t.match(/^(?:anzeige|ansicht|anordnung) (breit|normal|automatisch)$/);
         if (m) { setLayout(m[1] === 'automatisch' ? 'auto' : m[1]); sagen('Anordnung ' + m[1] + '.'); return true; }
-        m = t.match(/^mund (spaeter|frueher)$/);
-        if (m) { var v = mundSetze(mundHole() + (m[1] === 'spaeter' ? 50 : -50)); sagen('Mund-Verzögerung ' + v + ' Millisekunden.'); return true; }
+        /* Spracherkennung versteht "Mund später" oft falsch ("und später", "Mundspäter", "Mund spät"): deshalb viele Schreibweisen */
+        m = t.match(/^(?:bitte )?(?:mach )?(?:den )?(?:mund|und|mundbewegung|lippen|verzoegerung|mund verzoegerung)(?: verzoegerung)? (viel |ganz |etwas |bisschen )?(spaeter|spaet|frueher|frueh|mehr|weniger|hoeher|niedriger|langsamer|schneller)$/) ||
+            t.match(/^(?:bitte )?(mund)(spaeter|frueher)$/);
+        if (m) {
+            var wort = m[2] || '', gross = /viel|ganz/.test(m[1] || ''), kl = /bisschen|etwas/.test(m[1] || '');
+            var schritt = gross ? 200 : (kl ? 50 : 100);
+            var plus = /^(spaeter|spaet|mehr|hoeher|langsamer)$/.test(wort);
+            var v = mundSetze(mundHole() + (plus ? schritt : -schritt));
+            sagen('Mund-Verzögerung ' + v + ' Millisekunden.'); return true;
+        }
         if (/^(audio ausgang|audioausgang|wohin geht der ton|wo laeuft der ton)$/.test(t)) { sagen(audioText()); return true; }
         return next(text);
     }
