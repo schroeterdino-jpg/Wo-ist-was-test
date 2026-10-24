@@ -208,29 +208,45 @@ function setHead(name){
  morphMeshes.length=0; morphNames=new Set(); modelReady=false;
  ladeKopf(); return true;
 }
-// Reifer Kopf: Der Bart ist in die Gesichtsfarben (Vertexfarben) eingebrannt und war lückig. Hier wird er
-// so grau und dicht wie das Kopfhaar gefärbt. Lippen und Nase bleiben unverändert. Abschalten: JV_BART_VOLL=false.
+// Reifer Kopf: Haare und Bart sind als Vertexfarben in das Gesicht eingebrannt, der Bart war lückig.
+// Hier bekommt die Bartzone (Wangen bis Kinn, unter der Nase) dieselbe graue Farbe UND dieselbe Helligkeitsverteilung
+// (= Strähnenstruktur) wie das Kopfhaar. Lippen und Nase bleiben unverändert. Abschalten: JV_BART_VOLL=false.
 const JV_BART_VOLL=true;
 function bartVoller(geo){
  if(!JV_BART_VOLL||!geo||geo.userData.jvBartVoll) return;
  const pa=geo.attributes.position, ca=geo.attributes.color; if(!pa||!ca||ca.itemSize<3) return;
- let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9,sz=0; const n=pa.count;
+ const n=pa.count; let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9,sz=0;
  for(let i=0;i<n;i++){const x=pa.getX(i),y=pa.getY(i); if(x<mnx)mnx=x;if(x>mxx)mxx=x;if(y<mny)mny=y;if(y>mxy)mxy=y; sz+=pa.getZ(i);}
  const h=mxy-mny, cx=(mnx+mxx)/2, zm=sz/n, K=736;
  const sm=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t)};
- const HC=[.248,.239,.218], BL=.136;
+ const lin=(xs,ys,v)=>{ if(v<=xs[0]) return ys[0]; for(let k=1;k<xs.length;k++){ if(v<=xs[k]) return ys[k-1]+(ys[k]-ys[k-1])*(v-xs[k-1])/(xs[k]-xs[k-1]); } return ys[ys.length-1]; };
+ const W=new Float32Array(n), LUM=new Float32Array(n), hair=[], beard=[]; let hr=0,hg=0,hb=0;
  for(let i=0;i<n;i++){
+   const r=ca.getX(i),g=ca.getY(i),b=ca.getZ(i), lum=.299*r+.587*g+.114*b; LUM[i]=lum;
    if(pa.getZ(i)<=zm) continue;
    const sx=(pa.getX(i)-cx)/h*K, sy=400-((pa.getY(i)-mny)/h-.5)*K, dx=Math.abs(sx);
-   let zone=sm(372,386,sy)*(1-sm(500,530,sy));
-   zone=Math.max(zone, sm(320,370,sy)*sm(85,125,dx)*(1-sm(500,530,sy)));
+   if(sy<170){ hair.push(lum); hr+=r; hg+=g; hb+=b; }
+   // Bartkante: unter der Nase fast waagerecht, zu den Ohren hin schräg nach oben (Koteletten)
+   const yb=lin([0,40,70,90,110,125,140],[384,388,384,370,352,340,332],dx);
+   const zone=sm(0,1,(sy-(yb-5))/16)*(1-sm(500,530,sy));
    if(zone<=0) continue;
-   const lq=(sx/78)**2+((sy-428)/20)**2, lip=sm(0,.35,Math.max(0,1-lq));
-   const nq=(sx/42)**2+((sy-368)/24)**2, nose=sm(0,.3,Math.max(0,1-nq));
-   const w=Math.max(0,Math.min(1,zone*(1-lip)*(1-nose)))*.9; if(w<=0) continue;
-   const r=ca.getX(i),g=ca.getY(i),b=ca.getZ(i), lum=.299*r+.587*g+.114*b;
-   const v=Math.max(.6,Math.min(1.5,lum/BL)), f=Math.max(.7,Math.min(1.2,.75+.5*(v-.6)/.9));
-   ca.setXYZ(i, r*(1-w)+HC[0]*f*w, g*(1-w)+HC[1]*f*w, b*(1-w)+HC[2]*f*w);
+   const lip=sm(0,.35,Math.max(0,1-((sx/78)**2+((sy-428)/20)**2)));
+   const nose=sm(0,.3,Math.max(0,1-((sx/42)**2+((sy-368)/24)**2)));
+   const w=Math.max(0,Math.min(1,zone*(1-lip)*(1-nose))); W[i]=w; if(w>.5) beard.push(lum);
+ }
+ if(hair.length<20||beard.length<50) return;
+ hair.sort((a,b)=>a-b); beard.sort((a,b)=>a-b);
+ let hm=0; for(const v of hair) hm+=v; hm/=hair.length;
+ const hue=[hr/hair.length/hm, hg/hair.length/hm, hb/hair.length/hm];
+ const qh=(r)=>{const p=r*(hair.length-1), i0=Math.floor(p), i1=Math.min(hair.length-1,i0+1); return hair[i0]+(hair[i1]-hair[i0])*(p-i0)};
+ const rank=(v)=>{ if(v<=beard[0]) return 0; if(v>=beard[beard.length-1]) return 1; let lo=0,hi=beard.length-1; while(hi-lo>1){const m=(lo+hi)>>1; if(beard[m]<=v)lo=m; else hi=m;} const f=(v-beard[lo])/Math.max(1e-9,beard[hi]-beard[lo]); return (lo+f)/(beard.length-1); };
+ const TL=new Float32Array(n); let tm=0;
+ for(let i=0;i<n;i++){ TL[i]=qh(rank(LUM[i])); tm+=TL[i]; } tm/=n;
+ for(let i=0;i<n;i++){
+   const w=W[i]*.95; if(w<=0) continue;
+   const t=Math.max(.04,Math.min(.40,tm+(TL[i]-tm)*1.6));
+   const r=ca.getX(i),g=ca.getY(i),b=ca.getZ(i);
+   ca.setXYZ(i, r*(1-w)+hue[0]*t*w, g*(1-w)+hue[1]*t*w, b*(1-w)+hue[2]*t*w);
  }
  ca.needsUpdate=true; geo.userData.jvBartVoll=true;
 }
@@ -737,6 +753,9 @@ function applyMorphs(dt,speaking,now){
      mundBuf.push({t:now,v}); while(mundBuf.length>2&&mundBuf[1].t<=now-D) mundBuf.shift();
      const o=mundBuf[0]; if(o&&o.t<=now-D){ for(const n in o.v) shown[n]=o.v[n]; } else { for(const n in v) shown[n]=0; }
    } }
+ // Mund immer gerade: linke und rechte Mundform bekommen denselben Wert, seitliches Verschieben von Mund/Kiefer entfällt. Brauen und Augen dürfen schief sein.
+ for(const b of ['mouthSmile','mouthDimple','mouthFrown','mouthStretch','mouthPress','mouthUpperUp','mouthLowerDown']){ const l=resolveMorphName(b+'_L'), r=resolveMorphName(b+'_R'); if(l&&r){ const v=((shown[l]||0)+(shown[r]||0))/2; shown[l]=v; shown[r]=v; } }
+ for(const n of morphNames){ if(/^(mouth|jaw)(_?(L|R)|Left|Right)$/.test(n)) shown[n]=0; }
  for(const m of morphMeshes)for(const n of morphNames){const i=morphIndex(m,n);if(i>=0)m.morphTargetInfluences[i]=shown[n]||0}
 }
 let lastAvatarState='';
