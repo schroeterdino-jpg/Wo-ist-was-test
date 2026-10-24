@@ -10,6 +10,9 @@
 (function () {
     let layer = null, tick = null, heimTimer = null, kartenTimer = null, tankTimer = null, wake = null;
     let kartenBox = null, kartenParent = null, kartenNext = null;
+    let kopfHolder = null, kopfParent = null, kopfNext = null;   // Kopf-Ansicht: der 3D-Kopf zieht in die Autoansicht um
+    function kopfModus() { try { return localStorage.getItem('jv_aa_kopf') === '1'; } catch (e) { return false; } }
+    function kopfSpeichern(an) { try { localStorage.setItem('jv_aa_kopf', an ? '1' : '0'); } catch (e) { } }
 
     function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
     function sagen(t, weiter) { try { speak(t, weiter && typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) { } }
@@ -34,6 +37,16 @@
         '#aa-layer .mic{border:2px solid #49d7ff;border-radius:40px;padding:12px;text-align:center;color:#49d7ff;font-size:clamp(15px,3vmin,20px);background:none;font-family:inherit}' +
         '#aa-layer #actionCards{max-height:30vh;overflow:auto}' +
         '#aa-layer .dim{color:#8fb4c8}.grn{color:#4cffb0}.org{color:#ffb347}' +
+        '#aa-layer.km .mitte{flex-wrap:nowrap;overflow:hidden;gap:10px}' +
+        '#aa-layer.km .heim{flex:0 0 24%;min-width:0;padding:8px 10px;overflow:hidden}' +
+        '#aa-layer.km .grid{flex:0 0 22%;min-width:0;grid-template-columns:1fr;gap:8px}' +
+        '#aa-layer.km .kopfmitte{flex:1 1 auto;min-width:0;min-height:160px;display:flex;align-items:center;justify-content:center;position:relative}' +
+        '#aa-layer.km .kopfmitte .holo-container{height:100%!important;width:auto!important;aspect-ratio:1/1;max-width:100%;max-height:100%}' +
+        '#aa-layer.km .gross{font-size:clamp(24px,8vh,44px)!important;white-space:nowrap}' +
+        '#aa-layer.km #aa-sub{font-size:clamp(11px,2.8vh,15px)!important;margin-top:4px!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}' +
+        '#aa-layer.km #aa-tank{display:none}' +
+        '#aa-layer.km .knopf{flex-direction:row;gap:8px;min-height:0;font-size:clamp(12px,3.2vh,16px)!important}' +
+        '#aa-layer.km .knopf span{font-size:clamp(18px,5vh,28px)!important}' +
         '#aa-layer .aa-map{display:none;position:relative;overflow:hidden;padding:0}' +
         '#aa-layer .aa-map .kacheln{position:absolute;inset:0;overflow:hidden;filter:invert(.92) hue-rotate(180deg) saturate(.7)}' +
         '#aa-layer .aa-map .kacheln img{position:absolute;width:256px;height:256px;max-width:none}' +
@@ -81,11 +94,17 @@
                 '<button type="button" class="karte knopf" id="aa-tanken"><span>⛽</span>Tanken</button>' +
                 '<button type="button" class="karte knopf" id="aa-park"><span>🅿️</span>Parkplatz</button>' +
               '</div>' +
-              '<div class="karte aa-map" id="aa-map"><span class="lab">Du und dein Ziel</span></div>' +
+              (kopfModus() ? '<div class="kopfmitte" id="aa-kopf"></div>' : '<div class="karte aa-map" id="aa-map"><span class="lab">Du und dein Ziel</span></div>') +
             '</div>' +
             '<div id="aa-karten"></div>' +
             '<div class="fuss"><button type="button" class="mic" id="aa-mic">🎤 Tippen oder sag „Hey Jarvis“</button><button type="button" class="x" id="aa-x">✕ beenden</button></div>';
         document.body.appendChild(layer);
+        if (kopfModus()) {   // 3D-Kopf (nur das Bild) in die Mitte holen; beim Schließen geht er zurück
+            layer.classList.add('km');
+            const h = document.querySelector('.holo-container');
+            if (h && h.parentNode && $('aa-kopf')) { kopfHolder = h; kopfParent = h.parentNode; kopfNext = h.nextSibling; $('aa-kopf').appendChild(h); }
+            if ($('aa-kopf')) $('aa-kopf').onclick = function () { try { if (typeof startListening === 'function') startListening(false); } catch (e) { } };
+        }
         $('aa-x').onclick = schliessen;
         $('aa-anruf').onclick = function () { sagen('Wen soll ich anrufen?', true); };
         $('aa-tanken').onclick = function () { frage('Wo ist die nächste Tankstelle'); };
@@ -224,6 +243,8 @@
         try { if (wake) wake.release(); } catch (e) { } wake = null;
         if (kartenBox && kartenParent) { try { kartenParent.insertBefore(kartenBox, kartenNext && kartenNext.parentNode === kartenParent ? kartenNext : null); } catch (e) { } }
         kartenBox = kartenParent = kartenNext = null;
+        if (kopfHolder && kopfParent) { try { kopfParent.insertBefore(kopfHolder, kopfNext && kopfNext.parentNode === kopfParent ? kopfNext : null); } catch (e) { } }
+        kopfHolder = kopfParent = kopfNext = null;
         try { layer.remove(); const s = document.getElementById('aa-style'); if (s) s.remove(); } catch (e) { }
         layer = null;
     }
@@ -233,6 +254,13 @@
         if (!t || t.split(' ').length > 6 || !/\bauto ?ansicht\b/.test(t)) return next(text);
         if (/\b(beenden|beende|aus|ausschalten|schliess\w*|schliesse|zu|verlassen|stopp|ende)\b/.test(t)) {
             if (layer) { schliessen(); sagen('Autoansicht beendet.', false); } else sagen('Die Autoansicht ist gar nicht an.', false);
+            return true;
+        }
+        const mitKopf = /\bmit (?:dem )?kopf\b|\bkopf ?ansicht\b/.test(t), ohneKopf = /\bohne (?:den )?kopf\b/.test(t);
+        if (mitKopf || ohneKopf) {
+            kopfSpeichern(mitKopf);
+            if (layer) schliessen();
+            oeffnen(); sagen(mitKopf ? 'Autoansicht mit Kopf ist an.' : 'Autoansicht ohne Kopf ist an.', false);
             return true;
         }
         if (layer) { sagen('Die Autoansicht ist schon an.', false); return true; }
