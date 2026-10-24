@@ -108,30 +108,30 @@
     }
     function erfolg(r) { return r.status >= 200 && r.status < 300; }
 
+    /* Immer dieses Handy nehmen (nicht das zuletzt benutzte Gerät, z. B. Alexa) */
     async function geraet() {
         const r = await ruf('GET', '/me/player/devices');
         const l = (r.json && r.json.devices) || [];
-        return l.find(function (d) { return d.is_active; }) || l.find(function (d) { return /smartphone/i.test(d.type || ''); }) || l[0] || null;
+        return { handy: l.find(function (d) { return /smartphone/i.test(d.type || ''); }) || null, alle: l };
     }
     /* Musik starten; body = { context_uri } oder { uris } oder leer (weiterspielen) */
     async function abspielen(body, ansage, schon) {
-        let r = await ruf('PUT', '/me/player/play', body || undefined);
-        if (r.status === 404) {
-            let g = await geraet();
-            if (!g && !schon) {
-                speichern(PENDING, { body: body || null, ansage: ansage, t: Date.now() });
-                let offen = false; try { offen = !!(window.ZaneNative && ZaneNative.spotifyOeffnen && ZaneNative.spotifyOeffnen()); } catch (e) { }
-                if (!offen) { speichern(PENDING, null); sagen('Ich finde kein Spotify-Gerät. Öffne bitte die Spotify-App einmal.'); return; }
-                for (let i = 0; i < 8 && !g; i++) { await schlaf(1500); g = await geraet(); }
+        let d = await geraet();
+        let g = d.handy;
+        if (!g && !schon) {
+            speichern(PENDING, { body: body || null, ansage: ansage, t: Date.now() });
+            let offen = false; try { offen = !!(window.ZaneNative && ZaneNative.spotifyOeffnen && ZaneNative.spotifyOeffnen()); } catch (e) { }
+            if (!offen) { speichern(PENDING, null); g = d.alle[0] || null; if (!g) { sagen('Ich finde kein Spotify-Gerät. Öffne bitte die Spotify-App einmal.'); return; } }
+            else {
+                for (let i = 0; i < 8 && !g; i++) { await schlaf(1500); g = (await geraet()).handy; }
                 if (!g) { sagen('Spotify ist offen. Komm zu Jarvis zurück, dann starte ich die Musik.'); return; }
                 speichern(PENDING, null);
             }
-            if (g) {
-                if (!g.is_active) { await ruf('PUT', '/me/player', { device_ids: [g.id], play: false }); await schlaf(1200); }
-                r = await ruf('PUT', '/me/player/play?device_id=' + encodeURIComponent(g.id), body || undefined);
-            }
-            else { sagen('Ich finde kein Spotify-Gerät.'); return; }
         }
+        if (!g) g = d.alle[0] || null;
+        if (!g) { sagen('Ich finde kein Spotify-Gerät.'); return; }
+        if (!g.is_active) { await ruf('PUT', '/me/player', { device_ids: [g.id], play: false }); await schlaf(1200); }
+        const r = await ruf('PUT', '/me/player/play?device_id=' + encodeURIComponent(g.id), body || undefined);
         if (erfolg(r)) { if (ansage) sagen(ansage); return; }
         fehlerZeigen(r); sagen(fehlerText(r));
     }
