@@ -301,7 +301,7 @@
     function bild(b) { return (b && b.length ? (b[b.length > 1 ? b.length - 2 : 0] || b[0]).url : '') || ''; }
     function zeile(name, sub, img, body, ansage) {
         const id = 'sp' + Math.random().toString(36).slice(2, 8);
-        zeile._k[id] = { body: body, ansage: ansage };
+        zeile._k[id] = { body: body, ansage: ansage, name: name, sub: sub };
         return '<div class="sp-z"><div class="sp-b" style="' + (img ? 'background-image:url(\'' + esc(img) + '\')' : '') + '"></div><div class="sp-t"><div class="sp-n">' + esc(name) + '</div><div class="sp-s">' + esc(sub) + '</div></div><button type="button" class="sp-p" data-k="' + id + '" aria-label="Abspielen">▶</button></div>';
     }
     zeile._k = {};
@@ -344,7 +344,10 @@
             b.onclick = async function () {
                 const k = zeile._k[b.getAttribute('data-k')]; if (!k) return;
                 fensterZu();   // sofort zu (das Starten kann einige Sekunden dauern), Jarvis ist wieder zu sehen
-                abspielen(k.body, k.ansage);
+                const u = (k.body && ((k.body.uris && k.body.uris[0]) || k.body.context_uri)) || '';
+                const ty = (u.split(':')[1] || 'track');
+                const info = { typ: ty, titel: k.name || '', kuenstler: (ty === 'track' || ty === 'album') ? (k.sub || '') : '', uri: u };
+                abspielen(k.body, k.ansage, undefined, info);
             };
         });
     }
@@ -397,7 +400,7 @@
             if (alb) {
                 h = '<div class="sp-ue">GESPEICHERTE ALBEN</div><div class="sp-gitter">' + l.map(function (x) {
                     const id = 'sp' + Math.random().toString(36).slice(2, 8); const im = bild(x.images);
-                    zeile._k[id] = { body: { context_uri: x.uri }, ansage: 'Ich spiele das Album ' + x.name + '.' };
+                    zeile._k[id] = { body: { context_uri: x.uri }, ansage: 'Ich spiele das Album ' + x.name + '.', name: x.name, sub: kue(x) };
                     return '<button type="button" class="sp-kachel" data-k="' + id + '"><div class="sp-kb" style="' + (im ? 'background-image:url(\'' + esc(im) + '\')' : '') + '"></div><div class="sp-n">' + esc(x.name) + '</div><div class="sp-s">' + esc(kue(x)) + '</div></button>';
                 }).join('') + '</div>';
             } else {
