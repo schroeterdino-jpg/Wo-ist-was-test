@@ -235,9 +235,9 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'call') {
         const callCard = buildCallCard(action);
         ctx.cards.push(callCard);
-        // In der Jarvis-App wählt das Handy selbst (kurz verzögert, damit Jarvis "Ich rufe ... an" noch sagen kann); sonst bleibt die Karte zum Antippen
+        // In der Jarvis-App wählt das Handy selbst, aber NUR wenn der Nutzer wirklich anrufen/telefonieren/wählen gesagt hat (sonst nur die Karte zum Antippen) (kurz verzögert, damit Jarvis "Ich rufe ... an" noch sagen kann); sonst bleibt die Karte zum Antippen
         try {
-            if (window.ZaneNative && typeof window.ZaneNative.anrufen === 'function' && callCard && /^tel:/.test(callCard.href || '')) {
+            if (window.ZaneNative && typeof window.ZaneNative.anrufen === 'function' && callCard && /^tel:/.test(callCard.href || '') && /anruf|ruf\w*\s.*\ban\b|\bruf\b.*\ban\b|telefon|\bw(ä|ae)hl|durchklingel|durchrufen/i.test(String(text || ''))) {
                 const nummer = callCard.href.slice(4);
                 window.__jvAnrufBis = Date.now() + 120000;   // solange hört Jarvis nicht von selbst wieder zu (sonst piept die Spracherkennung mitten ins Wählen)
                 setTimeout(function () {
