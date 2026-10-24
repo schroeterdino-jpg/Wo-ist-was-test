@@ -89,7 +89,7 @@
         if (/einkauf|auf die liste|setz\w* .* liste/.test(t)) return 'einkauf';
         if (/\bfoto|\bbild\b|fotografier/.test(t)) return 'foto';
         if (/\bstau|verkehr|\broute|fahrzeit|wie lange .*(fahr|brauch)/.test(t)) return 'stau';
-        if (/wetter|regnet|\bregen\b|temperatur|schirm/.test(t)) return 'wetter';
+        if (/wetter|regn|\bregen\b|temperatur|schirm/.test(t)) return 'wetter';
         if (/\bpark/.test(t)) return 'parken';
         return null;
     }

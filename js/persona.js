@@ -94,7 +94,7 @@ const ACK_SCHRITTE = [
 const ACK_THEMEN = [
     [/route|navigi|wie komme ich|weg zu|wegbeschreibung|zeig mir den weg|fahrzeit|wie lange (?:fahr|brauch)/, 'Ich suche die Route heraus.'],
     [/termin|kalender|geburtstag|feier/, 'Ich sehe im Kalender nach.'],
-    [/wetter|regen|regnet|temperatur|vorhersage/, 'Ich prüfe das Wetter.'],
+    [/wetter|regen|regn|schneit|temperatur|vorhersage/, 'Ich prüfe das Wetter.'],
     [/bahn|zug|\bbus\b|verbindung/, 'Ich prüfe die Verbindungen.'],
     [/tank|sprit|diesel|benzin/, 'Ich vergleiche die Spritpreise.'],
     [/mail|post/, 'Ich schaue in den Posteingang.']

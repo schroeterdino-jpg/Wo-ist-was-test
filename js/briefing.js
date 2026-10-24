@@ -74,6 +74,25 @@ async function fetchUserLocationData() {
 }
 
 /* --- Wetter --- */
+/* Standort fürs Wetter: erst grob und schnell (Netz/Funk reicht, GPS nicht nötig), dann die zuletzt bekannte Position.
+   Vorher scheiterte das Wetter, wenn das GPS drinnen nicht in 5 Sekunden fertig war. */
+function wetterPosition() {
+    return new Promise((resolve) => {
+        const KEY = 'jv_wetter_pos';
+        const merken = (lat, lon) => { try { localStorage.setItem(KEY, JSON.stringify({ lat, lon, at: Date.now() })); } catch (e) { } };
+        const gemerkt = () => { try { const o = JSON.parse(localStorage.getItem(KEY) || 'null'); return o && isFinite(o.lat) && isFinite(o.lon) ? o : null; } catch (e) { return null; } };
+        const fallback = () => { const o = gemerkt(); resolve(o ? { lat: o.lat, lon: o.lon, alt: true } : null); };
+        if (!navigator.geolocation) return fallback();
+        let fertig = false;
+        const timer = setTimeout(() => { if (!fertig) { fertig = true; fallback(); } }, 9000);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => { if (fertig) return; fertig = true; clearTimeout(timer); merken(pos.coords.latitude, pos.coords.longitude); resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }); },
+            () => { if (fertig) return; fertig = true; clearTimeout(timer); fallback(); },
+            { timeout: 8000, enableHighAccuracy: false, maximumAge: 600000 }
+        );
+    });
+}
+
 async function fetchWeatherData() {
     return new Promise((resolve) => {
         const getMeteo = async (lat, lon) => {
@@ -120,15 +139,7 @@ async function fetchWeatherData() {
             }
         };
 
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => getMeteo(pos.coords.latitude, pos.coords.longitude),
-                () => resolve({ fehler: "Standort für Wetterabfrage nicht verfügbar." }),
-                { timeout: 5000, enableHighAccuracy: true }
-            );
-        } else {
-            resolve({ fehler: "Geolokalisierung nicht unterstützt." });
-        }
+        wetterPosition().then((p) => { if (p) getMeteo(p.lat, p.lon); else resolve({ fehler: "Standort für Wetterabfrage nicht verfügbar." }); });
     });
 }
 
@@ -167,9 +178,9 @@ function getDailyAdvice(day) {
 
 async function fetchWeatherForecast() {
     try {
-        const pos = await new Promise((ok, err) =>
-            navigator.geolocation.getCurrentPosition(ok, err, { timeout: 7000, maximumAge: 300000 }));
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max&timezone=Europe%2FBerlin&forecast_days=7`);
+        const pos = await wetterPosition();
+        if (!pos) return { fehler: 'Der Standort für die Vorhersage ist nicht verfügbar.' };
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pos.lat}&longitude=${pos.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max&timezone=Europe%2FBerlin&forecast_days=7`);
         const data = await res.json();
         const d = data.daily;
         if (!d || !d.time) return { fehler: 'Die Vorhersage konnte nicht geladen werden.' };
