@@ -773,6 +773,7 @@ public class MainActivity extends Activity {
             recRunning = true;
             final int sess = ++recSession;
             WakeService.setRecActive(true);
+            hoerFokusHolen();
             final Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
             i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
             i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang == null ? "de-DE" : lang);
@@ -793,6 +794,45 @@ public class MainActivity extends Activity {
         });
     }
 
+    // Musik (z. B. Spotify) hält an, solange Jarvis zuhört, und läuft danach von selbst weiter
+    private android.media.AudioFocusRequest hoerFokus = null;
+    private void hoerFokusHolen() {
+        try {
+            if (hoerFokus != null) return;
+            android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+            if (am == null) return;
+            hoerFokus = new android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                    .setAudioAttributes(new android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                    .setOnAudioFocusChangeListener(fc -> { }).build();
+            am.requestAudioFocus(hoerFokus);
+        } catch (Throwable e) { hoerFokus = null; }
+    }
+    private void hoerFokusFreigeben() {
+        try {
+            if (hoerFokus == null) return;
+            android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+            if (am != null) am.abandonAudioFocusRequest(hoerFokus);
+        } catch (Throwable ignored) { }
+        hoerFokus = null;
+    }
+
+    /** Medien-Lautstärke des Handys ändern (delta > 0 lauter, < 0 leiser); gibt die neue Stufe in Prozent zurück. */
+    int musikLautstaerke(int delta) {
+        try {
+            android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+            if (am == null) return -1;
+            if (delta != 0) {
+                int max = am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
+                int schritt = Math.max(1, Math.round(max * Math.abs(delta) / 100f));
+                for (int k = 0; k < schritt; k++) am.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, delta > 0 ? android.media.AudioManager.ADJUST_RAISE : android.media.AudioManager.ADJUST_LOWER, k == schritt - 1 ? android.media.AudioManager.FLAG_SHOW_UI : 0);
+            }
+            int max = Math.max(1, am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC));
+            return Math.round(100f * am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) / max);
+        } catch (Throwable e) { return -1; }
+    }
+
     void nativeRecStop() {
         runOnUiThread(() -> { if (recognizer != null && recRunning) { try { recognizer.stopListening(); } catch (Throwable ignored) { } } });
     }
@@ -810,6 +850,7 @@ public class MainActivity extends Activity {
     private void finishRec(String error) {
         recRunning = false;
         WakeService.setRecActive(false);
+        hoerFokusFreigeben();
         if (error != null) send("error", "{\"error\":" + JSONObject.quote(error) + "}");
         send("end", null);
     }

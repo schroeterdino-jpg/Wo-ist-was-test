@@ -19,6 +19,9 @@
     function roh(t) { return String(t || '').toLowerCase().replace(/[.,!?;:"„“]+/g, ' ').replace(/\s+/g, ' ').trim(); }
     function laden(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
     function speichern(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } }
+    const AKTIV = 'jv_spotify_aktiv';
+    function aktivMerken() { try { localStorage.setItem(AKTIV, String(Date.now())); } catch (e) { } }
+    function aktivJetzt() { try { return Date.now() - parseInt(localStorage.getItem(AKTIV) || '0', 10) < 3 * 3600 * 1000; } catch (e) { return false; } }
     function verbunden() { const t = laden(KEY); return !!(t && t.refresh); }
     function schlaf(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
     function hinweis(text) {
@@ -132,7 +135,7 @@
         if (!g) { sagen('Ich finde kein Spotify-Gerät.'); return; }
         if (!g.is_active) { await ruf('PUT', '/me/player', { device_ids: [g.id], play: false }); await schlaf(1200); }
         const r = await ruf('PUT', '/me/player/play?device_id=' + encodeURIComponent(g.id), body || undefined);
-        if (erfolg(r)) { if (ansage) sagen(ansage); return; }
+        if (erfolg(r)) { aktivMerken(); if (ansage) sagen(ansage); return; }
         fehlerZeigen(r); sagen(fehlerText(r));
     }
     async function suchenUndSpielen(anfrage, art) {
@@ -168,6 +171,16 @@
         sagen(fehlerText(r || { status: 0 }));
     }
     async function lautstaerke(ziel, schritt) {
+        try {   // Handy-Lautstärke direkt ändern (Spotify erlaubt das bei Handys nicht per Fernsteuerung)
+            if (window.ZaneNative && typeof ZaneNative.musikLautstaerke === 'function') {
+                let aktuell = ZaneNative.musikLautstaerke(0);
+                if (aktuell >= 0) {
+                    const delta = ziel != null ? ziel - aktuell : schritt;
+                    if (delta !== 0) aktuell = ZaneNative.musikLautstaerke(delta);
+                    if (aktuell >= 0) return;
+                }
+            }
+        } catch (e) { }
         let v = ziel;
         if (v == null) {
             const s = await ruf('GET', '/me/player');
@@ -291,8 +304,9 @@
             '<div class="sp-such"><input id="sp-q" type="search" placeholder="🔍  Suchen …" autocomplete="off" value="' + esc(suchText) + '"></div>' +
             '<div class="sp-tabs"><button type="button" class="sp-tab an" data-t="playlists">Playlists</button><button type="button" class="sp-tab" data-t="alben">Alben</button><button type="button" class="sp-tab" data-t="lieder">Lieder</button><button type="button" class="sp-tab" data-t="kuenstler">Künstler</button></div>' +
             '<div class="sp-liste"></div>' +
-            '<div class="sp-fuss"><div class="sp-jetzt"></div><div class="sp-steu"><button type="button" id="sp-zr">⏮</button><button type="button" id="sp-pp" class="gr">⏸</button><button type="button" id="sp-vor">⏭</button><button type="button" id="sp-lei">🔉</button><button type="button" id="sp-lau">🔊</button></div></div>';
+            '<div class="sp-fuss"><div class="sp-jetzt"></div><div class="sp-steu"><button type="button" id="sp-zr">⏮</button><button type="button" id="sp-pp" class="gr">⏸</button><button type="button" id="sp-vor">⏭</button><button type="button" id="sp-lei">🔉</button><button type="button" id="sp-lau">🔊</button><button type="button" id="sp-zu">✕</button></div></div>';
         document.body.appendChild(FL);
+        aktivMerken();
         tab = 'playlists';
         FL.querySelector('#sp-x').onclick = fensterZu;
         FL.querySelectorAll('.sp-tab').forEach(function (b) { b.onclick = function () { tab = b.getAttribute('data-t'); FL.querySelectorAll('.sp-tab').forEach(function (c) { c.classList.toggle('an', c === b); }); fuellen(); }; });
@@ -308,6 +322,7 @@
         };
         FL.querySelector('#sp-lei').onclick = function () { lautstaerke(null, -15); };
         FL.querySelector('#sp-lau').onclick = function () { lautstaerke(null, 15); };
+        FL.querySelector('#sp-zu').onclick = fensterZu;
         fuellen(); jetzt();
         pollT = setInterval(jetzt, 5000);
     }
@@ -315,7 +330,7 @@
     /* ---------- Sprachbefehle ---------- */
     function befehl(text, next) {
         const t = roh(text);
-        if (!t || t.split(' ').length > 14 || !/spotify|musik|lied|song|titel|playlist|album|spiel|n(ä|ae)chst|(ü|ue)berspring|vorherig|zur(ü|ue)ck|l(ä|ae)uft|spielt|lauter|leiser/.test(t)) return next(text);
+        if (!t || t.split(' ').length > 14 || !/spotify|musik|lied|song|titel|playlist|album|spiel|n(ä|ae)chst|(ü|ue)berspring|vorherig|zur(ü|ue)ck|l(ä|ae)uft|spielt|lauter|leiser|weiter|pause|stop|anhalten|halt|skip|fortsetzen/.test(t)) return next(text);
         const S = '(?:bitte )?';
         const nein = function (msg) { sagen(msg || 'Spotify ist noch nicht verbunden. Sag: Spotify verbinden.'); return true; };
 
@@ -327,6 +342,13 @@
         if (/^(?:bitte )?spotify (?:schlie(?:ß|ss)en|zu|beenden|fenster zu)$/.test(t)) { fensterZu(); return true; }
         let ms = t.match(/^(?:bitte )?(?:zeig(?:e)?|such(?:e)?)(?: mir)?(?: nach)? (.+?) (?:auf|bei|in) spotify$/) || t.match(/^(?:bitte )?spotify (?:such(?:e|en)?|zeig(?:e)?)(?: mir)?(?: nach)? (.+)$/);
         if (ms) { if (!verbunden()) return nein(); fenster(ms[1].replace(/^(?:die |das |den |der )+/, '')); return true; }
+        if (verbunden() && (aktivJetzt() || FL)) {
+            if (/^(?:bitte )?(?:weiter|n(?:ä|ae)chstes|n(?:ä|ae)chster|n(?:ä|ae)chste|skip|(?:ü|ue)berspringen)$/.test(t)) { steuern('naechste'); return true; }
+            if (/^(?:bitte )?(?:zur(?:ü|ue)ck|vorheriges|vorheriger|vorherige)$/.test(t)) { steuern('zurueck'); return true; }
+            if (/^(?:bitte )?(?:pause|stopp|stop|anhalten|halt)$/.test(t)) { steuern('pause'); return true; }
+            if (/^(?:bitte )?(?:lauter|leiser)$/.test(t)) { lautstaerke(null, /lauter/.test(t) ? 15 : -15); return true; }
+            if (/^(?:bitte )?(?:weiterspielen|fortsetzen)$/.test(t)) { steuern('weiter'); return true; }
+        }
         const aktion = function (fn) { if (!verbunden()) return nein(); fn(); return true; };
         let m;
         if (new RegExp('^' + S + '(?:mach )?(?:die )?(?:musik|spotify)(?: bitte)? (?:pause|pausieren|stopp|stop|aus|anhalten|ausmachen|ausschalten)$').test(t) || /^musik (?:pausieren|anhalten|ausmachen|stoppen)$/.test(t) || /^pausiere (?:die )?musik$/.test(t))
