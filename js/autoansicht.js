@@ -32,7 +32,10 @@
         '#aa-layer #actionCards{max-height:30vh;overflow:auto}' +
         '#aa-layer .dim{color:#8fb4c8}.grn{color:#4cffb0}.org{color:#ffb347}' +
         '#aa-layer .aa-map{display:none;position:relative;overflow:hidden;padding:0}' +
-        '#aa-layer .aa-map iframe{position:absolute;inset:0;width:100%;height:100%;border:0;filter:invert(.92) hue-rotate(180deg) saturate(.7)}' +
+        '#aa-layer .aa-map .kacheln{position:absolute;inset:0;overflow:hidden;filter:invert(.92) hue-rotate(180deg) saturate(.7)}' +
+        '#aa-layer .aa-map .kacheln img{position:absolute;width:256px;height:256px;max-width:none}' +
+        '#aa-layer .aa-map .pkt{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;border:2px solid #fff;z-index:2}' +
+        '#aa-layer .aa-map .hin{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px;font-size:13px;color:#8fb4c8}' +
         '#aa-layer .aa-map .lab{position:absolute;left:8px;bottom:6px;z-index:2;background:rgba(3,8,16,.8);padding:3px 8px;border-radius:4px;font-size:11px}' +
         /* Sehr breit (Auto-Display): drei Spalten, Karte rechts */
         '@media (orientation:landscape) and (min-aspect-ratio:16/10){' +
@@ -40,6 +43,13 @@
           '#aa-layer .heim{flex:1 1 28%;min-width:0}' +
           '#aa-layer .grid{flex:1 1 30%;min-width:0}' +
           '#aa-layer .aa-map{display:block;flex:1 1 42%;min-width:0}' +
+          '#aa-layer .heim{padding:8px 10px;overflow:hidden}' +
+          '#aa-layer .gross{font-size:clamp(26px,9vh,48px)!important;line-height:1.05;margin-top:2px;white-space:nowrap}' +
+          '#aa-layer #aa-sub{font-size:clamp(11px,3vh,15px)!important;margin-top:4px!important;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+          '#aa-layer #aa-tank{display:none}' +
+          '#aa-layer .knopf{font-size:clamp(11px,3.2vh,16px)!important;white-space:nowrap;overflow:hidden;padding:2px;gap:2px}' +
+          '#aa-layer .knopf span{font-size:clamp(16px,5vh,26px)!important}' +
+          '#aa-layer .lab{font-size:11px;letter-spacing:.1em}' +
         '}' +
         /* Querformat (niedriger Bildschirm): alles kompakter, nichts darf die Zeile unten überdecken */
         '@media (orientation:landscape) and (max-height:520px){' +
@@ -110,23 +120,54 @@
     }
     /* Karte (nur auf sehr breiten Displays): OpenStreetMap-Ausschnitt mit deinem Standort, Bildausschnitt reicht bis zur Heimatadresse */
     let kartenKey = '';
+    function merc(lat, lon, z) {
+        const n = 256 * Math.pow(2, z), r = lat * Math.PI / 180;
+        return { x: (lon + 180) / 360 * n, y: (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n };
+    }
+    function hinweis(box, t) {
+        box.querySelectorAll('.kacheln,.pkt,.hin').forEach(function (e) { e.remove(); });
+        const d = document.createElement('div'); d.className = 'hin'; d.textContent = t; box.insertBefore(d, box.firstChild);
+    }
     async function kartenAktualisieren() {
         if (!layer) return;
         try {
             const box = $('aa-map'); if (!box || box.offsetWidth < 50) return;
-            const ziel = heimZiel(); if (!ziel || typeof geocodeAddress !== 'function' || typeof getPosition !== 'function') return;
-            const h = await geocodeAddress(ziel); if (!h) return;
-            const pos = await getPosition({ timeout: 9000, enableHighAccuracy: false, maximumAge: 120000 });
-            if (!layer || !pos) return;
+            const ziel = heimZiel();
+            if (!ziel || typeof geocodeAddress !== 'function' || typeof getPosition !== 'function') { hinweis(box, 'Heimatadresse fehlt'); return; }
+            const h = await geocodeAddress(ziel);
+            if (!h) { hinweis(box, 'Heimatadresse nicht gefunden'); return; }
+            let pos = null;
+            try { pos = await getPosition({ timeout: 9000, enableHighAccuracy: false, maximumAge: 120000 }); } catch (e) { }
+            if (!layer) return;
+            if (!pos) { hinweis(box, 'Standort fehlt (Standortzugriff erlaubt?)'); return; }
             const la = pos.coords.latitude, lo = pos.coords.longitude;
-            const pad = 0.012;
-            const w = Math.min(la, h.lat) - pad, e = Math.max(la, h.lat) + pad, s = Math.min(lo, h.lon) - pad, n = Math.max(lo, h.lon) + pad;
-            const key = [la, lo, h.lat, h.lon].map(function (v) { return v.toFixed(3); }).join('|');
+            const key = [la, lo, h.lat, h.lon].map(function (v) { return v.toFixed(3); }).join('|') + '|' + box.offsetWidth + 'x' + box.offsetHeight;
             if (key === kartenKey) return; kartenKey = key;
-            const src = 'https://www.openstreetmap.org/export/embed.html?bbox=' + [s, w, n, e].join('%2C') + '&layer=mapnik&marker=' + la + '%2C' + lo;
-            let f = box.querySelector('iframe');
-            if (!f) { f = document.createElement('iframe'); f.setAttribute('title', 'Karte'); f.setAttribute('loading', 'lazy'); box.insertBefore(f, box.firstChild); }
-            f.src = src;
+            const W = box.offsetWidth, H = box.offsetHeight;
+            let z = 15;
+            for (let t = 15; t >= 4; t--) {
+                const a = merc(la, lo, t), b = merc(h.lat, h.lon, t);
+                if (Math.abs(a.x - b.x) <= W * 0.7 && Math.abs(a.y - b.y) <= H * 0.7) { z = t; break; }
+                z = t;
+            }
+            const A = merc(la, lo, z), B = merc(h.lat, h.lon, z);
+            const cx = (A.x + B.x) / 2, cy = (A.y + B.y) / 2, x0 = cx - W / 2, y0 = cy - H / 2, n = Math.pow(2, z);
+            box.querySelectorAll('.kacheln,.pkt,.hin').forEach(function (e) { e.remove(); });
+            const k = document.createElement('div'); k.className = 'kacheln';
+            for (let tx = Math.floor(x0 / 256); tx <= Math.floor((x0 + W) / 256); tx++) {
+                for (let ty = Math.floor(y0 / 256); ty <= Math.floor((y0 + H) / 256); ty++) {
+                    if (ty < 0 || ty >= n) continue;
+                    const im = document.createElement('img');
+                    im.alt = ''; im.style.left = Math.round(tx * 256 - x0) + 'px'; im.style.top = Math.round(ty * 256 - y0) + 'px';
+                    im.src = 'https://tile.openstreetmap.org/' + z + '/' + (((tx % n) + n) % n) + '/' + ty + '.png';
+                    k.appendChild(im);
+                }
+            }
+            box.insertBefore(k, box.firstChild);
+            [[A, '#378ADD'], [B, '#E24B4A']].forEach(function (p) {
+                const d = document.createElement('div'); d.className = 'pkt'; d.style.background = p[1];
+                d.style.left = Math.round(p[0].x - x0) + 'px'; d.style.top = Math.round(p[0].y - y0) + 'px'; box.appendChild(d);
+            });
         } catch (e) { }
     }
     async function tankAktualisieren() {
@@ -146,8 +187,8 @@
         try {
             const e = $('aa-fw'); if (!e) return;
             const n = window.ZaneNative;
-            if (!n || typeof n.fahrAn !== 'function') { e.textContent = '· WhatsApp-Vorlesen: nur in der neuen APK'; return; }
-            e.textContent = n.fahrAn() ? '· WhatsApp-Vorlesen: an' : '· WhatsApp-Vorlesen: AUS';
+            if (!n || typeof n.fahrAn !== 'function') { e.textContent = '· Vorlesen: neue APK nötig'; return; }
+            e.textContent = n.fahrAn() ? '· Vorlesen an' : '· Vorlesen AUS';
         } catch (x) { }
     }
 
