@@ -123,6 +123,7 @@
     async function abspielen(body, ansage, schon) {
         let d = await geraet();
         let g = d.handy;
+        let kalt = false;
         if (!g && !schon) {
             speichern(PENDING, { body: body || null, ansage: ansage, t: Date.now() });
             let offen = false; try { offen = !!(window.ZaneNative && ZaneNative.spotifyOeffnen && ZaneNative.spotifyOeffnen()); } catch (e) { }
@@ -131,6 +132,7 @@
                 for (let i = 0; i < 8 && !g; i++) { await schlaf(1500); g = (await geraet()).handy; }
                 if (!g) { sagen('Spotify ist offen. Komm zu Jarvis zurück, dann starte ich die Musik.'); return; }
                 speichern(PENDING, null);
+                kalt = true; await schlaf(4500);   /* frisch gestartete App braucht einen Moment, bevor sie Befehle wirklich ausführt */
             }
         }
         if (!g) g = d.alle[0] || null;
@@ -141,12 +143,17 @@
         if (erfolg(r)) {
             /* Spotify bestätigt den Befehl oft, obwohl das Handy noch gar nicht spielt (frisch geöffnete App). Darum nachprüfen und notfalls erneut senden. */
             let stand = null, laeuft = false;
-            for (let k = 0; k < 4 && !laeuft; k++) {
-                await schlaf(k === 0 ? 1800 : 2200);
+            const versuche = kalt ? 7 : 4;
+            for (let k = 0; k < versuche && !laeuft; k++) {
+                await schlaf(k === 0 ? 1800 : (kalt ? 2800 : 2200));
                 const st = await ruf('GET', '/me/player');
                 stand = st.json || null;
                 laeuft = !!(stand && stand.is_playing && (!body || !body.uris || (stand.item && stand.item.uri === body.uris[0])));
-                if (!laeuft && k < 3) await ruf('PUT', pfadPlay, body || undefined);
+                if (!laeuft && k < versuche - 1) {
+                    /* Kaltstart: jeden zweiten Versuch das Handy neu als Abspielgerät setzen, dann erst Play */
+                    if (kalt && k % 2 === 1) { await ruf('PUT', '/me/player', { device_ids: [g.id], play: false }); await schlaf(1200); }
+                    await ruf('PUT', pfadPlay, body || undefined);
+                }
             }
             if (laeuft) { aktivMerken(); setTimeout(miniAktualisieren, 1500); if (ansage) sagen(ansage); return; }
             try {
