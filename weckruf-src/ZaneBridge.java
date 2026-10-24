@@ -71,6 +71,10 @@ class ZaneBridge {
     @JavascriptInterface
     public void setFahrmodus(boolean an) { Prefs.setFahren(act, an); }
 
+    /** Ist der Fahrmodus in der APK gerade an? (zur Kontrolle in der Autoansicht) */
+    @JavascriptInterface
+    public boolean fahrAn() { return Prefs.fahren(act); }
+
     /** Antwort auf eine vorgelesene WhatsApp senden (id aus der Meldung an die Seite); true, wenn WhatsApp sie angenommen hat. */
     @JavascriptInterface
     public boolean fahrSenden(String id, String text) { return NachrichtenService.fahrSenden(act, id, text); }

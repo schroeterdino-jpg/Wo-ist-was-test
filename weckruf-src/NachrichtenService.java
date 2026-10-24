@@ -171,7 +171,10 @@ public class NachrichtenService extends NotificationListenerService {
         if (name.isEmpty() || text.isEmpty() || "WhatsApp".equalsIgnoreCase(name)) return;
         if (text.matches("(?s).*\\d+ (neue )?(Nachrichten|messages).*") && text.length() < 40) return;   // Sammelmeldung
 
-        if (Prefs.fahren(ctx) && erlaubtName(ctx, name)) fahrNachricht(ctx, n, name, text);   // Fahrmodus: Jarvis liest vor und fragt nach; läuft unabhängig von Schlafmodus und Vertretung
+        if (Prefs.fahren(ctx)) {   // Fahrmodus: Jarvis liest vor und fragt nach; läuft unabhängig von Schlafmodus und Vertretung
+            if (erlaubtName(ctx, name)) fahrNachricht(ctx, n, name, text);
+            else logV(ctx, "Fahrmodus: " + name + " schrieb, steht aber nicht in deiner Auswahl. Ich lese nichts vor.");
+        }
 
         if (!Prefs.schlaf(ctx)) {   // nur Vertretung: nach der Wartezeit nachsehen, ob die Meldung noch ungelesen dasteht
             if (!Prefs.vertretung(ctx)) return;   // nur Fahrmodus: hier ist nichts weiter zu tun
@@ -265,7 +268,7 @@ public class NachrichtenService extends NotificationListenerService {
             synchronized (FAHR) {
                 String k = norm(name) + "|" + norm(text);
                 Long z = FAHR_GESEHEN.get(k);
-                if (z != null && jetzt - z < 180000L) return;
+                if (z != null && jetzt - z < 180000L) { logV(ctx, "Fahrmodus: " + name + " - dieselbe Nachricht kam doppelt, einmal reicht."); return; }
                 if (FAHR_GESEHEN.size() > 60) FAHR_GESEHEN.clear();
                 FAHR_GESEHEN.put(k, jetzt);
                 id = "f" + (++fahrNr);
@@ -273,7 +276,9 @@ public class NachrichtenService extends NotificationListenerService {
             }
             JSONObject o = new JSONObject();
             o.put("id", id); o.put("name", name); o.put("text", kurz(text, 400)); o.put("kann", act != null);
-            MainActivity.jsAus("window.jvFahrWA&&window.jvFahrWA.nachricht(" + o.toString() + ");");
+            boolean da = MainActivity.jsAus("window.jvFahrWA&&window.jvFahrWA.nachricht(" + o.toString() + ");");
+            logV(ctx, da ? "Fahrmodus: Nachricht von " + name + " an Jarvis zum Vorlesen gegeben" + (act == null ? " (ohne Antwort-Knopf, Antworten geht nicht)." : ".")
+                         : "Fahrmodus: Nachricht von " + name + " da, aber die Jarvis-Seite war nicht offen.");
         } catch (Throwable ignored) { }
     }
 
