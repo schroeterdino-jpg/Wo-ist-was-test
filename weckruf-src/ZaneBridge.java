@@ -133,6 +133,10 @@ class ZaneBridge {
     @JavascriptInterface
     public void fahrVerwerfen(String id) { NachrichtenService.fahrVerwerfen(id); }
 
+    /** Spotify-App öffnen (für Sprachbefehle "Spiel ... auf Spotify"). */
+    @JavascriptInterface
+    public boolean spotifyOeffnen() { return act.spotifyOeffnen(); }
+
     /** Nummer direkt anrufen (fragt beim ersten Mal nach der Telefon-Erlaubnis). */
     @JavascriptInterface
     public boolean anrufen(String nummer) { return act.anrufen(nummer); }

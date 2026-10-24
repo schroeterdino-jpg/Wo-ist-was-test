@@ -213,6 +213,7 @@ public class MainActivity extends Activity {
         String host = u.getHost();
         if (host == null || scheme == null || !(scheme.equals("https") || scheme.equals("http"))) return false;
         if (host.endsWith("vercel.app")) return true;
+        if (host.equals("accounts.spotify.com")) return true;
         return host.equals("accounts.google.com") || host.equals("accounts.youtube.com")
                 || host.equals("myaccount.google.com") || host.endsWith(".gstatic.com") || host.equals("www.gstatic.com")
                 || host.equals("oauth2.googleapis.com");
@@ -221,6 +222,7 @@ public class MainActivity extends Activity {
     private boolean handleUrl(Uri u) {
         String host = u.getHost();
         if (host != null && host.endsWith("vercel.app") && "https".equals(u.getScheme())) return false;
+        if ("accounts.spotify.com".equals(host) && "https".equals(u.getScheme())) return false;   // Spotify-Anmeldung bleibt in der App, sonst landet der Rückweg im Browser
         openExternal(u);
         return true;
     }
@@ -385,6 +387,14 @@ public class MainActivity extends Activity {
         } catch (Throwable e) {
             return -1;
         }
+    }
+
+    /** Spotify-App nach vorn holen (damit ein Abspielgerät da ist). */
+    boolean spotifyOeffnen() {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("spotify:")).setPackage("com.spotify.music").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            return true;
+        } catch (Throwable e) { return false; }
     }
 
     private String anrufWartet = null;
