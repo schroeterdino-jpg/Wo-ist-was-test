@@ -50,6 +50,23 @@
     function setZoom(z) { zoom = Math.max(50, Math.min(120, Math.round(z))); schreibe(); anwenden(); }
     function setLayout(l) { layout = l; schreibe(); anwenden(); }
 
+    var K_MUND = 'jv_mund_delay';
+    function mundHole() { try { var w = parseInt(localStorage.getItem(K_MUND), 10); return (w >= 0 && w <= 800) ? w : 250; } catch (e) { return 250; } }
+    function mundSetze(ms) {
+        ms = Math.max(0, Math.min(800, Math.round(ms / 50) * 50));
+        try { localStorage.setItem(K_MUND, String(ms)); } catch (e) { }
+        var r = document.getElementById('mundVerz'); if (r) r.value = String(ms);
+        var o = document.getElementById('mundVerzOut'); if (o) o.textContent = ms + ' ms';
+        return ms;
+    }
+    function audioText() {
+        try {
+            var z = window.ZaneNative;
+            if (!z || typeof z.audioAusgang !== 'function') return 'Das geht nur in der neuen APK.';
+            var t = z.audioAusgang();
+            return 'Ich sehe diese Ausgänge: ' + (t || 'keine') + '. ' + (z.audioExtern() ? 'Der Ton läuft über etwas Externes, der Mund wird um ' + mundHole() + ' Millisekunden verzögert.' : 'Der Ton läuft über das Handy, keine Verzögerung.');
+        } catch (e) { return 'Das konnte ich nicht prüfen.'; }
+    }
     function sagen(t) { try { speak(t, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) { } }
     function groesseText() {
         var w = Math.round(window.innerWidth), h = Math.round(window.innerHeight);
@@ -69,6 +86,9 @@
         if (m) { setZoom(zoom + (m[1] === 'kleiner' ? -10 : 10)); sagen('Anzeige ' + zoom + ' Prozent.'); return true; }
         m = t.match(/^(?:anzeige|ansicht|anordnung) (breit|normal|automatisch)$/);
         if (m) { setLayout(m[1] === 'automatisch' ? 'auto' : m[1]); sagen('Anordnung ' + m[1] + '.'); return true; }
+        m = t.match(/^mund (spaeter|frueher)$/);
+        if (m) { var v = mundSetze(mundHole() + (m[1] === 'spaeter' ? 50 : -50)); sagen('Mund-Verzögerung ' + v + ' Millisekunden.'); return true; }
+        if (/^(audio ausgang|audioausgang|wohin geht der ton|wo laeuft der ton)$/.test(t)) { sagen(audioText()); return true; }
         return next(text);
     }
     if (window.jvCommands && typeof window.jvCommands.use === 'function') window.jvCommands.use('anzeige', befehl, 6.5);
@@ -78,6 +98,10 @@
         if (r) r.addEventListener('input', function () { setZoom(parseInt(r.value, 10)); });
         var s = document.getElementById('anzeigeLayout');
         if (s) s.addEventListener('change', function () { setLayout(s.value); });
+        var mv = document.getElementById('mundVerz');
+        if (mv) { mv.value = String(mundHole()); var mo = document.getElementById('mundVerzOut'); if (mo) mo.textContent = mundHole() + ' ms'; mv.addEventListener('input', function () { mundSetze(parseInt(mv.value, 10)); }); }
+        var ab = document.getElementById('audioInfo');
+        if (ab) ab.addEventListener('click', function () { sagen(audioText()); });
         var b = document.getElementById('anzeigeInfo');
         if (b) b.addEventListener('click', function () { sagen(groesseText()); });
     }

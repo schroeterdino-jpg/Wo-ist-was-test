@@ -442,6 +442,11 @@
                                 <option value="normal">Immer normal</option>
                             </select>
                         </div>
+                        <div>
+                            <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Mund-Verzögerung (nur bei Bluetooth/Stick): <span id="mundVerzOut">250 ms</span></label>
+                            <input type="range" id="mundVerz" min="0" max="800" step="50" value="250" class="w-full">
+                        </div>
+                        <button id="audioInfo" type="button" class="w-full bg-[#49d7ff]/20 text-[#49d7ff] border border-[#49d7ff] py-2.5 rounded-lg text-sm font-bold">Audio-Ausgang vorlesen</button>
                         <button id="anzeigeInfo" type="button" class="w-full bg-[#49d7ff]/20 text-[#49d7ff] border border-[#49d7ff] py-2.5 rounded-lg text-sm font-bold">Bildschirmgröße vorlesen</button>
                     </div>
                 </details>
@@ -858,7 +863,7 @@
     <script src="./js/fish.js"></script>
     <!-- JARVIS 3D v6 SAFE: bewährter v5-FaceCap-Kopf + Fish-Audio-Lippensynchronisation -->
     <script src="./js/worldqueryfix.js?v=65"></script>
-    <script src="./js/avatar3d.js?v=20261023-sk"></script>
+    <script src="./js/avatar3d.js?v=20261024-mv"></script>
     <script src="./js/kopf.js?v=20261021-jv"></script>
     <script>
     // v6.1: Mimik-Befehle lokal abfangen, bevor sie an die KI gehen.
@@ -901,7 +906,7 @@
     <script src="./js/rueckfrage.js?v=20261022-rf"></script>
     <script src="./js/parkplatz_auto.js?v=20261022-pa"></script>
     <script src="./js/autoansicht.js?v=20261024-sz"></script>
-    <script src="./js/anzeige.js?v=20261024-s2"></script>
+    <script src="./js/anzeige.js?v=20261024-mv"></script>
     <script src="./js/fahr_whatsapp.js?v=20261024-fp"></script>
     <script src="./js/blick.js?v=20261022-to"></script>
     <script src="./js/schichtauskunft.js?v=20261021-jv"></script>
