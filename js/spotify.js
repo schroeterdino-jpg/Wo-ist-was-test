@@ -119,11 +119,20 @@
         const l = (r.json && r.json.devices) || [];
         return { handy: l.find(function (d) { return /smartphone/i.test(d.type || ''); }) || null, alle: l };
     }
-    /* Musik starten; body = { context_uri } oder { uris } oder leer (weiterspielen) */
-    async function abspielen(body, ansage, schon) {
+    /* Neue APK: Spotify direkt auf dem Handy starten lassen (klappt auch bei geschlossener App). Ohne neue APK oder ohne Angaben: false. */
+    function nativSpielen(info) {
+        try { return !!(info && info.titel && window.ZaneNative && ZaneNative.spotifySpielen && ZaneNative.spotifySpielen(JSON.stringify(info))); } catch (e) { return false; }
+    }
+    async function nativErgebnis(ansage) {
+        aktivMerken(); if (ansage) sagen(ansage);
+        setTimeout(miniAktualisieren, 6000);
+    }
+    /* Musik starten; body = { context_uri } oder { uris } oder leer (weiterspielen); info = { typ, titel, kuenstler } für den direkten Start über die App */
+    async function abspielen(body, ansage, schon, info) {
         let d = await geraet();
         let g = d.handy;
         let kalt = false;
+        if (!g && !schon && nativSpielen(info)) { await nativErgebnis(ansage); return; }
         if (!g && !schon) {
             speichern(PENDING, { body: body || null, ansage: ansage, t: Date.now() });
             let offen = false; try { offen = !!(window.ZaneNative && ZaneNative.spotifyOeffnen && ZaneNative.spotifyOeffnen()); } catch (e) { }
@@ -142,6 +151,7 @@
             let aktiv = false; try { const h = (await geraet()).handy; aktiv = !!(h && h.is_active); } catch (e) { }
             /* Spotify führt eine geschlossene App weiter als "Gerät" in der Liste, schickt aber nichts an sie.
                Wird das Handy nach dem Umschalten nicht aktiv, ist die App zu: dann erst öffnen und warten, bis sie wirklich aktiv ist. */
+            if (!aktiv && !schon && /smartphone/i.test(g.type || '') && nativSpielen(info)) { await nativErgebnis(ansage); return; }
             if (!aktiv && !schon && /smartphone/i.test(g.type || '')) {
                 speichern(PENDING, { body: body || null, ansage: ansage, t: Date.now() });
                 let offen = false; try { offen = !!(window.ZaneNative && ZaneNative.spotifyOeffnen && ZaneNative.spotifyOeffnen()); } catch (e) { }
@@ -209,7 +219,7 @@
                 const liste = ok((rr.json || {}).tracks);
                 if (!liste.length) continue;
                 const gut = liste.find(function (x) { return passtT(x) && passtK(x); }) || (k === versuche.length - 1 ? (liste.find(passtT) || null) : null);
-                if (gut) return abspielen({ uris: [gut.uri] }, 'Ich spiele ' + gut.name + (gut.artists && gut.artists[0] ? ' von ' + gut.artists[0].name : '') + '.');
+                if (gut) return abspielen({ uris: [gut.uri] }, 'Ich spiele ' + gut.name + (gut.artists && gut.artists[0] ? ' von ' + gut.artists[0].name : '') + '.', false, { typ: 'track', titel: gut.name, kuenstler: (gut.artists && gut.artists[0] ? gut.artists[0].name : '') });
             }
             if (!titelQ) { /* ohne "von": weiter unten Künstler/Playlist-Suche wie bisher */ }
             else { sagen('Dazu habe ich bei Spotify nichts gefunden.'); return; }
@@ -218,15 +228,15 @@
         if (!erfolg(r)) { fehlerZeigen(r); sagen(fehlerText(r)); return; }
         const j = r.json || {};
         const kue = ok(j.artists), tit = ok(j.tracks), pl = ok(j.playlists), al = ok(j.albums);
-        if (art === 'playlist') { const eigene = await meinePlaylists(); const nq = norm(q); const e = eigene.find(function (x) { const n = norm(x.name); return n === nq || n.indexOf(nq) >= 0; }); if (e) return abspielen({ context_uri: e.uri }, 'Ich spiele deine Playlist ' + e.name + '.'); }
-        if (art === 'playlist') { if (pl[0]) return abspielen({ context_uri: pl[0].uri }, 'Ich spiele die Playlist ' + pl[0].name + '.'); }
-        else if (art === 'album') { if (al[0]) return abspielen({ context_uri: al[0].uri }, 'Ich spiele das Album ' + al[0].name + '.'); }
+        if (art === 'playlist') { const eigene = await meinePlaylists(); const nq = norm(q); const e = eigene.find(function (x) { const n = norm(x.name); return n === nq || n.indexOf(nq) >= 0; }); if (e) return abspielen({ context_uri: e.uri }, 'Ich spiele deine Playlist ' + e.name + '.', false, { typ: 'playlist', titel: e.name }); }
+        if (art === 'playlist') { if (pl[0]) return abspielen({ context_uri: pl[0].uri }, 'Ich spiele die Playlist ' + pl[0].name + '.', false, { typ: 'playlist', titel: pl[0].name }); }
+        else if (art === 'album') { if (al[0]) return abspielen({ context_uri: al[0].uri }, 'Ich spiele das Album ' + al[0].name + '.', false, { typ: 'album', titel: al[0].name, kuenstler: (al[0].artists && al[0].artists[0] ? al[0].artists[0].name : '') }); }
         else {
             const nq = norm(q);
             const treffer = kue.find(function (a) { return norm(a.name) === nq; });
-            if (treffer) return abspielen({ context_uri: treffer.uri }, 'Ich spiele ' + treffer.name + '.');
-            if (tit[0]) return abspielen({ uris: [tit[0].uri] }, 'Ich spiele ' + tit[0].name + (tit[0].artists && tit[0].artists[0] ? ' von ' + tit[0].artists[0].name : '') + '.');
-            if (kue[0]) return abspielen({ context_uri: kue[0].uri }, 'Ich spiele ' + kue[0].name + '.');
+            if (treffer) return abspielen({ context_uri: treffer.uri }, 'Ich spiele ' + treffer.name + '.', false, { typ: 'artist', titel: treffer.name });
+            if (tit[0]) return abspielen({ uris: [tit[0].uri] }, 'Ich spiele ' + tit[0].name + (tit[0].artists && tit[0].artists[0] ? ' von ' + tit[0].artists[0].name : '') + '.', false, { typ: 'track', titel: tit[0].name, kuenstler: (tit[0].artists && tit[0].artists[0] ? tit[0].artists[0].name : '') });
+            if (kue[0]) return abspielen({ context_uri: kue[0].uri }, 'Ich spiele ' + kue[0].name + '.', false, { typ: 'artist', titel: kue[0].name });
         }
         sagen('Dazu habe ich bei Spotify nichts gefunden.');
     }
