@@ -4,7 +4,11 @@
       Bei Frost, Schnee oder Glätte zieht er deine Abfahrt um 10 bis 15 Minuten vor (plan_ansagen.js: tagVor), damit Zeit zum Kratzen bleibt,
       und schlägt den Wecker entsprechend früher vor. "Mach rückgängig" stellt alles zurück.
    2) Familie/Geburtstage: 5 Tage vorher fragt Jarvis um 18 Uhr, ob schon ein Geschenk da ist, und legt auf Wunsch eine Erinnerung an.
-      Abstellen: "Frag nicht mehr nach Geburtstagen" (wieder an: "Frag wieder nach Geburtstagen").
+      Abstellen: "Frag nicht mehr nach Geburtstagen" (wieder an: "Frag wieder nach Geburtstagen"). Gilt auch für 3).
+   3) Glückwunsch: Am Vortag um 18:15 und am Geburtstag selbst (8 Uhr, bei Frühschicht 15:30) meldet sich Jarvis mit einem fertigen Gratulations-Entwurf,
+      passend zur Person (Tochter, Schatz, Mama, Enkelin, sonst freundlich). Am Geburtstag fragt er, ob er WhatsApp mit dem Text öffnen soll
+      (Karte zum Antippen oder "Ja"); abgeschickt wird in WhatsApp mit einem Tipp auf Senden. "Schon gratuliert" streicht die Erinnerung am Geburtstag.
+      Probe: "Teste den Glückwunsch für Alyssa". Plan-Einträge: gebv|ymd|titel (Vortag) und gebt|ymd|titel (Tag selbst), gesprochen über plan_ansagen.js (ansage).
    Braucht: plan_ansagen.js (window.jvPlan), birthdays.js (fetchUpcomingBirthdays), calendar.js (addGoogleCalendarReminder), commands.js (jvCommands).
    ============================================================ */
 (function () {
@@ -107,7 +111,7 @@
                 if (at > jetztMs + 20000) { out.push({ id: 'geb|' + b.ymd + '|' + b.titel, at, text: 'Bald ist ein Geburtstag: ' + b.titel + '. Tippe, dann frage ich dich kurz etwas dazu.' }); break; }
             }
         });
-        return out;
+        return out.concat(grussEintraege());
     }
     let offenGeb = null;   // { ymd, titel, at }
     function gebAnsage(id) {
@@ -148,11 +152,141 @@
         sagen(g ? 'Prima, dann ist das schon erledigt.' : 'Gerade ist keine Geburtstags-Frage offen.', false);
     }
 
+    /* ---------- 3) Glückwunsch mit Entwurf ---------- */
+    const GRUSS_VORTAG_MIN = 18 * 60 + 15;   // 15 Minuten nach der Geschenk-Frage (18 Uhr), damit sich beide nicht überlagern
+    const REL = { alyssa: 'kind', julia: 'kind', isabel: 'kind', schatz: 'partner', mama: 'mutter', finja: 'enkel' };
+    const STOP = /^(geburtstag|geburtstags|birthday|bday|von|vom|der|die|das|des|zum|alles|gute|hat|ist|heute|morgen)$/i;
+    function gruSchluessel(art, ymd, titel) { return 'jv_zuvor_gruss_' + art + '_' + ymd + '_' + String(titel).toLowerCase().replace(/[^a-zäöüß0-9]/g, '').slice(0, 30); }
+    function gebWas(titel) { return /geburtstag|birthday|bday/i.test(titel) ? 'ist ' + titel : 'hat ' + titel + ' Geburtstag'; }
+    function kontaktZu(titel) {
+        try {
+            const raw = (typeof savedContacts !== 'undefined') ? savedContacts : null;
+            if (!raw || typeof contactKey !== 'function') return null;
+            const lst = Array.isArray(raw) ? raw : Object.keys(raw).map(k => raw[k]);
+            const worte = String(titel || '').replace(/['’`´]s\b/gi, '').split(/\s+/).filter(w => w && !STOP.test(w));
+            for (const w of worte) {
+                for (const cand of [w, (/s$/i.test(w) && w.length > 3) ? w.slice(0, -1) : null]) {
+                    if (!cand) continue;
+                    const ck = contactKey(cand); if (!ck) continue;
+                    const hit = lst.find(c => { const nk = contactKey((c && (c.originalName || c.name)) || ''); return nk && (nk === ck || nk.split(' ')[0] === ck); });
+                    if (hit) return hit;
+                }
+            }
+        } catch (e) { }
+        return null;
+    }
+    function beziehung(name) {
+        let r = null;
+        try {
+            const k = contactKey(name), n = window.ZaneNative;
+            if (n && typeof n.anredeListe === 'function') String(n.anredeListe() || '').split('\n').forEach(z => {
+                const i = z.indexOf('='); if (i > 0 && contactKey(z.slice(0, i)) === k) { const v = z.slice(i + 1).trim(); r = v === 'papa' ? 'kind' : v === 'mann' ? 'partner' : r; }
+            });
+            if (!r) r = REL[k] || null;
+        } catch (e) { }
+        return r;
+    }
+    function hash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
+    function entwurf(name, rel, seed) {
+        const N = name ? ', ' + name : '';
+        const v = {
+            kind: ['Alles Liebe zum Geburtstag' + N + '! Ich wünsche dir einen ganz wundervollen Tag. Dein Papa 🎂', 'Happy Birthday' + N + '! Hab einen tollen Tag und lass dich schön feiern. Dein Papa ❤️'],
+            partner: ['Alles Liebe zum Geburtstag, mein Schatz! Ich freue mich auf einen schönen Tag mit dir. ❤️', 'Happy Birthday, mein Schatz! Ich hab dich lieb. 🎂❤️'],
+            mutter: ['Alles Liebe zum Geburtstag, liebe Mama! Ich wünsche dir einen schönen Tag und vor allem Gesundheit. Dein Dino 🎂', 'Herzlichen Glückwunsch zum Geburtstag, liebe Mama! Feier schön und lass dich verwöhnen. Dein Dino ❤️'],
+            enkel: ['Alles Liebe zum Geburtstag' + N + '! Dein Opa wünscht dir einen ganz tollen Tag. 🎂', 'Happy Birthday' + N + '! Lass dich schön feiern. Dein Opa hat dich lieb. ❤️'],
+            sonst: ['Alles Gute zum Geburtstag' + N + '! Ich wünsche dir einen schönen Tag und alles, was du dir wünschst. 🎉', 'Herzlichen Glückwunsch zum Geburtstag' + N + '! Feier schön und lass es dir gutgehen. 🎂']
+        }[rel || 'sonst'];
+        return v[seed % v.length];
+    }
+    function ohneEmoji(t) {   // fürs Vorlesen: ohne Emojis, mit Satzende
+        let s = String(t);
+        try { s = s.replace(/[\p{Extended_Pictographic}️]/gu, ''); } catch (e) { }
+        s = s.replace(/\s+/g, ' ').trim();
+        return /[.!?]$/.test(s) ? s : s + '.';
+    }
+    /* "hat Alyssa Geburtstag" (Kontakt bekannt), sonst wie im Kalender-Titel */
+    function wasGeb(titel) {
+        const c = kontaktZu(titel), n = c ? String(c.originalName || c.name || '').trim().split(/\s+/)[0] : '';
+        return n ? 'hat ' + n + ' Geburtstag' : gebWas(titel);
+    }
+
+    let offenGruss = null;   // { art, ymd, titel, text, url, anzeige, at }
+    function gebGruss(id, test) {
+        const p = P(); if (!p || (!test && gebAus())) return false;
+        const teile = String(id).split('|'), art = teile[0], ymd = teile[1], titel = teile.slice(2).join('|');
+        if (!ymd || !titel) return false;
+        if (!test) {
+            const bis = tageZwischen(p.jetzt().ymd, ymd);
+            if (art === 'gebv' ? bis !== 1 : bis !== 0) return false;                  // abgelaufen
+            if (lsGet(gruSchluessel('fertig', ymd, titel))) return false;                // schon gratuliert
+        }
+        const c = kontaktZu(titel);
+        let name = '';
+        if (c) name = String(c.originalName || c.name || '').trim().split(/\s+/)[0];
+        else if (!/geburtstag|birthday|bday/i.test(titel)) name = String(titel).trim().split(/\s+/)[0];   // "Julia" allein ist ein Name, "Julias Geburtstag" nicht sicher
+        const rel = name ? beziehung(name) : null;
+        const text = entwurf(name, rel, hash(titel + ymd));
+        let url = 'https://wa.me/?text=' + encodeURIComponent(text);
+        try { const num = c && c.phone && typeof phoneForWhatsApp === 'function' ? phoneForWhatsApp(c.phone) : ''; if (num) url = 'https://wa.me/' + num + '?text=' + encodeURIComponent(text); } catch (e) { }
+        const anzeige = name || String(titel).replace(/\s*geburtstag\w*/i, '').trim() || 'Geburtstag';
+        offenGeb = null;
+        offenGruss = { art, ymd, titel, text, url, anzeige, at: Date.now() };
+        try {
+            if (typeof showActionCards === 'function') showActionCards([
+                { icon: '💬', title: 'WhatsApp an ' + anzeige + ' öffnen', subtitle: text, href: url },
+                { icon: '✅', title: 'Schon gratuliert', subtitle: '', onclick: 'jvZuvor.grussFertig()' }
+            ]);
+        } catch (e) { }
+        if (art === 'gebv') {
+            sagen('Morgen ' + wasGeb(titel) + '. Ich habe schon einen Glückwunsch vorbereitet: ' + ohneEmoji(text) + ' Morgen früh erinnere ich dich noch einmal. Die Karte öffnet WhatsApp mit dem Text.', false);
+        } else {
+            sagen('Heute ' + wasGeb(titel) + '. Mein Vorschlag für den Glückwunsch: ' + ohneEmoji(text) + ' Soll ich WhatsApp mit dem Text öffnen?', true);
+        }
+        return true;
+    }
+    function grussOeffnen() {
+        const g = offenGruss;
+        if (!g) { sagen('Gerade ist kein Glückwunsch offen.', false); return; }
+        offenGruss = null; karten();
+        if (g.art === 'gebt') lsSet(gruSchluessel('fertig', g.ymd, g.titel), '1');
+        try {
+            const w = window.open(g.url, '_blank');
+            if (!w && !window.ZaneNative) window.location.href = g.url;
+            sagen('WhatsApp öffnet sich mit dem Text. Du musst nur noch auf Senden tippen.', false);
+        } catch (e) { sagen('WhatsApp konnte ich nicht öffnen. Tippe auf die Karte.', false); }
+    }
+    function grussFertig() {
+        const g = offenGruss; offenGruss = null; karten();
+        if (g) lsSet(gruSchluessel('fertig', g.ymd, g.titel), '1');
+        sagen(g ? 'Prima, dann ist das erledigt.' : 'Gerade ist kein Glückwunsch offen.', false);
+        try { if (P()) P().planSenden(true); } catch (e) { }
+    }
+    /* Einträge für den Plan: Vortag 18:15 und Geburtstag selbst (8 Uhr, bei Frühschicht 15:30 nach der Arbeit) */
+    function grussEintraege() {
+        const p = P(), out = [];
+        if (!p || gebAus()) return out;
+        const jetztMs = Date.now();
+        gebListe().forEach(b => {
+            if (lsGet(gruSchluessel('fertig', b.ymd, b.titel))) return;
+            const atV = p.berlinMs(p.ymdPlus(b.ymd, -1), GRUSS_VORTAG_MIN);
+            if (atV > jetztMs + 20000) out.push({ id: 'gebv|' + b.ymd + '|' + b.titel, at: atV, text: 'Morgen ' + wasGeb(b.titel) + '. Tippe, dann zeige ich dir einen Glückwunsch zum Senden.' });
+            const atT = p.berlinMs(b.ymd, p.schichtAm(b.ymd) === 'frueh' ? 15 * 60 + 30 : 8 * 60);
+            if (atT > jetztMs + 20000) out.push({ id: 'gebt|' + b.ymd + '|' + b.titel, at: atT, text: 'Heute ' + wasGeb(b.titel) + '. Tippe, dann öffne ich WhatsApp mit einem Glückwunsch.' });
+        });
+        return out;
+    }
+
     /* ---------- Sprache ---------- */
     function befehl(text, next) {
         const t = norm(text).replace(/^(?:hey |hallo |ok |okay )?(?:jarvis|zane|nova) /, '').replace(/^bitte /, '');
         if (!t || t.split(' ').length > 12) return next(text);
         if (/\b(?:mach(?:e)?|nimm|nehm)\b.*\brueckgaengig\b|^rueckgaengig\b|\bnimm (?:das|es) zurueck\b/.test(t)) { rueckgaengig(); return true; }
+        let mt = t.match(/\b(?:teste|test|probe)\w*\b.*\bglueckwunsch\b(?:.*\bfuer (.+))?$/);
+        if (mt) { const nm = (mt[1] || 'Schatz').replace(/^(?:meine |meinen |mein )/, '').trim(); gebGruss('gebt|' + P().jetzt().ymd + '|' + nm.replace(/\b[a-z]/g, c => c.toUpperCase()), true); return true; }
+        if (offenGruss && Date.now() - offenGruss.at < 40 * 60000 && (!offenGeb || offenGruss.at >= offenGeb.at)) {
+            if (/^(nein|nee|ne|schon gratuliert|hab ich schon|habe ich schon|ist erledigt|erledigt|brauche ich nicht|nicht noetig|nein danke|spaeter)\b/.test(t)) { grussFertig(); return true; }
+            if (/^(ja|jawohl|jep|jo|joa|klar|gerne|gern|okay|ok|bitte|mach das|genau|gut|oeffne|offne|mach auf)\b/.test(t)) { grussOeffnen(); return true; }
+        }
         if (offenGeb && Date.now() - offenGeb.at < 40 * 60000) {
             if (/^(nein|nee|ne|schon erledigt|hab ich schon|habe ich schon|ist erledigt|erledigt|brauche ich nicht|nicht noetig|nein danke)\b/.test(t)) { gebNein(); return true; }
             if (/^(ja|jawohl|jep|jo|joa|klar|gerne|gern|okay|ok|bitte|mach das|genau|gut|erinner mich|erinnere mich)\b/.test(t)) { gebJa(); return true; }
@@ -172,5 +306,5 @@
     setTimeout(function () { aktualisiert = 0; gebAktualisieren(); }, 90000);   // falls Google zu Beginn noch nicht verbunden war
     setInterval(function () { aktualisiert = 0; gebAktualisieren(); }, 3 * 3600000);
     try { document.addEventListener('visibilitychange', function () { if (!document.hidden) setTimeout(gebAktualisieren, 4000); }); } catch (e) { }
-    window.jvZuvor = { vorWecker, rueckgaengig, planEintraege, gebAnsage, gebJa, gebNein, gebAktualisieren };
+    window.jvZuvor = { vorWecker, rueckgaengig, planEintraege, gebAnsage, gebJa, gebNein, gebAktualisieren, gebGruss, grussOeffnen, grussFertig };
 })();
