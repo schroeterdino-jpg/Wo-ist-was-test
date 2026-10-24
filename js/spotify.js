@@ -142,10 +142,29 @@
         let q = anfrage.replace(/\s+/g, ' ').trim();
         if (!q) { return abspielen(null, 'Okay.'); }
         const typ = art || 'track,artist';
-        const r = await ruf('GET', '/search?q=' + encodeURIComponent(q) + '&type=' + typ + '&limit=5');
+        const ok = function (a) { return ((a && a.items) || []).filter(Boolean); };
+        /* "Titel von Künstler": gezielt nach Titel UND Künstler suchen, sonst findet Spotify mit dem Wort "von" oft das falsche Lied */
+        let titelQ = null, kuenstlerQ = null;
+        if (!art) { const tv = q.match(/^(.+?) (?:von|vom|by) (.+)$/); if (tv) { titelQ = tv[1].trim(); kuenstlerQ = tv[2].trim(); } }
+        let r = null;
+        if (titelQ) {
+            const r1 = await ruf('GET', '/search?q=' + encodeURIComponent('track:' + titelQ + ' artist:' + kuenstlerQ) + '&type=track&limit=10');
+            if (erfolg(r1) && ok((r1.json || {}).tracks).length) {
+                const nt = norm(titelQ), nk = norm(kuenstlerQ), liste = ok(r1.json.tracks);
+                const gut = liste.find(function (x) { return norm(x.name).indexOf(nt) >= 0 && (x.artists || []).some(function (a) { return norm(a.name).indexOf(nk) >= 0 || nk.indexOf(norm(a.name)) >= 0; }); }) || liste.find(function (x) { return norm(x.name).indexOf(nt) >= 0; }) || liste[0];
+                return abspielen({ uris: [gut.uri] }, 'Ich spiele ' + gut.name + (gut.artists && gut.artists[0] ? ' von ' + gut.artists[0].name : '') + '.');
+            }
+            /* zweiter Versuch: ohne "von", nur die Wörter */
+            const r2 = await ruf('GET', '/search?q=' + encodeURIComponent(titelQ + ' ' + kuenstlerQ) + '&type=track&limit=10');
+            if (erfolg(r2) && ok((r2.json || {}).tracks).length) {
+                const nt = norm(titelQ), liste = ok(r2.json.tracks);
+                const gut = liste.find(function (x) { return norm(x.name).indexOf(nt) >= 0; }) || liste[0];
+                return abspielen({ uris: [gut.uri] }, 'Ich spiele ' + gut.name + (gut.artists && gut.artists[0] ? ' von ' + gut.artists[0].name : '') + '.');
+            }
+        }
+        r = await ruf('GET', '/search?q=' + encodeURIComponent(q) + '&type=' + typ + '&limit=5');
         if (!erfolg(r)) { fehlerZeigen(r); sagen(fehlerText(r)); return; }
         const j = r.json || {};
-        const ok = function (a) { return ((a && a.items) || []).filter(Boolean); };
         const kue = ok(j.artists), tit = ok(j.tracks), pl = ok(j.playlists), al = ok(j.albums);
         if (art === 'playlist') { const eigene = await meinePlaylists(); const nq = norm(q); const e = eigene.find(function (x) { const n = norm(x.name); return n === nq || n.indexOf(nq) >= 0; }); if (e) return abspielen({ context_uri: e.uri }, 'Ich spiele deine Playlist ' + e.name + '.'); }
         if (art === 'playlist') { if (pl[0]) return abspielen({ context_uri: pl[0].uri }, 'Ich spiele die Playlist ' + pl[0].name + '.'); }
