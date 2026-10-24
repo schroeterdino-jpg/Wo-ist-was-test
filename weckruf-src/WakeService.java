@@ -305,6 +305,7 @@ public class WakeService extends Service implements RecognitionListener {
         }
         alive = true;
         if (!watchdogOn) { watchdogOn = true; main.postDelayed(watchdog, 15000); }
+        if (!gespraechOn) { gespraechOn = true; main.postDelayed(gespraechPruefen, 2000); }   // Telefonat erkennen: Mikrofon freigeben
         if (!meldungenOn) { meldungenOn = true; main.postDelayed(meldungenRun, 20000); }   // jede Minute nach Meldungen vom Server fragen (statt Web-Push)
         wakeLockAnpassen();
         if (!ready()) {
@@ -425,9 +426,35 @@ public class WakeService extends Service implements RecognitionListener {
     }
 
     // ---- Wann lauschen wir? Nicht, wenn Jarvis spricht/zuhört oder die Spracherkennung läuft ----
+    /** Läuft gerade ein Telefonat (auch über Bluetooth/Auto)? Dann gibt Jarvis das Mikrofon frei, sonst stört er das Gespräch. */
+    private boolean inGespraech() {
+        try {
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am == null) return false;
+            int m = am.getMode();
+            return m == AudioManager.MODE_IN_CALL || m == AudioManager.MODE_IN_COMMUNICATION || m == AudioManager.MODE_RINGTONE;
+        } catch (Throwable e) { return false; }
+    }
+    private boolean letzteGespraech = false, gespraechOn = false;
+    private final Runnable gespraechPruefen = new Runnable() {
+        @Override public void run() {
+            if (!alive) return;
+            try {
+                boolean jetzt = inGespraech();
+                if (jetzt != letzteGespraech) {
+                    letzteGespraech = jetzt;
+                    if (jetzt) { stopSpeech(); Prefs.setStatus(WakeService.this, "Pause (Telefonat läuft)"); }
+                    else audioNeuPlanen(2500);   // Gespräch zu Ende: Weckwort kurz danach wieder an
+                }
+            } catch (Throwable ignored) { }
+            main.postDelayed(this, 2000);
+        }
+    };
+
     private boolean want() {
         if (!alive || !ready()) return false;
         if (ausgeschaltet()) return false;
+        if (inGespraech()) return false;
         if (recActive) return false;
         if (System.currentTimeMillis() < holdUntil) return false;
         if (activityResumed && pageBusy && !unterbrechenMoeglich()) return false;   // Jarvis spricht/hört zu: Pause (außer er darf unterbrochen werden)
