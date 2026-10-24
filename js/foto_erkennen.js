@@ -22,6 +22,7 @@
         einkaufsliste: { task: 'shopping', text: 'Einkaufszettel' },
         brief: { task: 'letter', text: 'Brief oder Rechnung' },
         stundenplan: { task: 'stundenplan', text: 'Stundenplan' },
+        essensplan: { task: 'essensplan', text: 'Essensplan' },
         termin: { task: 'events', text: 'Termin oder Kalender' },
         visitenkarte: { task: 'contact', text: 'Visitenkarte' },
         tabelle: { task: 'abtippen', text: 'Plan oder Tabelle' },
@@ -32,10 +33,11 @@
 
     function prompt() {
         return 'Du erkennst, was auf einem Foto zu sehen ist, damit eine Assistenz-App die passende Funktion starten kann. Antworte NUR mit JSON: ' +
-            '{"art":"einkaufsliste|brief|stundenplan|termin|visitenkarte|tabelle|parkschild|warnleuchte|rezept|sonstiges","sicher":true oder false,"beschreibung":"ein kurzer deutscher Satz, was zu sehen ist, zum Beispiel: ein Ausmalbild mit einem Bären"}. ' +
+            '{"art":"einkaufsliste|brief|stundenplan|essensplan|termin|visitenkarte|tabelle|parkschild|warnleuchte|rezept|sonstiges","sicher":true oder false,"beschreibung":"ein kurzer deutscher Satz, was zu sehen ist, zum Beispiel: ein Ausmalbild mit einem Bären"}. ' +
             'Bedeutung: einkaufsliste = handgeschriebener oder gedruckter Einkaufszettel mit Artikeln; ' +
             'brief = Brief, Rechnung, Mahnung, Bescheid, Vertragsschreiben, Behördenpost, Kontoauszug; ' +
             'stundenplan = Schulstundenplan mit Wochentagen und Fächern; ' +
+            'essensplan = Speiseplan oder Kantinenplan einer Woche mit Wochentagen und Gerichten (Mittagessen); ' +
             'termin = Plakat, Flyer, Einladung, Kalenderblatt oder Terminliste mit Datum und Uhrzeit; ' +
             'visitenkarte = Visitenkarte oder Kontaktdaten einer Person oder Firma; ' +
             'tabelle = Tabelle, Plan, Aufstellung oder Liste mit mehreren Zahlen oder Daten (zum Beispiel Ratenplan, Dienstplan, Preisliste), die keiner der anderen Arten entspricht; ' +
