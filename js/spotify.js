@@ -135,7 +135,7 @@
         if (!g) { sagen('Ich finde kein Spotify-Gerät.'); return; }
         if (!g.is_active) { await ruf('PUT', '/me/player', { device_ids: [g.id], play: false }); await schlaf(1200); }
         const r = await ruf('PUT', '/me/player/play?device_id=' + encodeURIComponent(g.id), body || undefined);
-        if (erfolg(r)) { aktivMerken(); if (ansage) sagen(ansage); return; }
+        if (erfolg(r)) { aktivMerken(); setTimeout(miniAktualisieren, 1500); if (ansage) sagen(ansage); return; }
         fehlerZeigen(r); sagen(fehlerText(r));
     }
     async function suchenUndSpielen(anfrage, art) {
@@ -327,6 +327,72 @@
         pollT = setInterval(jetzt, 5000);
     }
 
+
+    /* ---------- Kleiner Player (normale Ansicht unter der Kugel, Autoansicht unten) ---------- */
+    let miniN = null, miniA = null, miniT = null, miniLetzt = 0;
+    function miniHtml() {
+        return '<div class="spm-b"></div><div class="spm-t"><div class="spm-n">–</div><div class="spm-s"></div></div>' +
+            '<button type="button" class="spm-k" data-a="zurueck" aria-label="Zurück">⏮</button><button type="button" class="spm-k spm-g" data-a="pp" aria-label="Pause oder Weiter">⏸</button><button type="button" class="spm-k" data-a="naechste" aria-label="Weiter">⏭</button>';
+    }
+    function miniCss() {
+        if (document.getElementById('spm-style')) return;
+        const st = document.createElement('style'); st.id = 'spm-style';
+        st.textContent =
+            '.spm{display:none;align-items:center;gap:10px;box-sizing:border-box;width:100%;max-width:460px;margin:6px auto;background:#071521;border:1px solid #4cffb0;border-radius:12px;padding:8px 10px;font-family:"DejaVu Sans Mono",ui-monospace,monospace;color:#e8f3f9}' +
+            '.spm.an{display:flex}.spm .spm-b{width:38px;height:38px;border-radius:6px;background:#12303f center/cover no-repeat;flex:none}.spm .spm-t{flex:1;min-width:0}' +
+            '.spm .spm-n{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.spm .spm-s{font-size:10px;color:#8fb4c8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+            '.spm .spm-k{width:40px;height:40px;border-radius:10px;border:1px solid #1b3a4a;background:transparent;color:#49d7ff;font-size:17px;flex:none}.spm .spm-g{border-color:#4cffb0;color:#4cffb0}' +
+            '#aa-layer .spm{max-width:none;margin:0 0 8px;padding:10px 14px;gap:14px}#aa-layer .spm .spm-b{width:48px;height:48px}#aa-layer .spm .spm-n{font-size:clamp(14px,3vmin,20px)}#aa-layer .spm .spm-s{font-size:clamp(11px,2.2vmin,15px)}' +
+            '#aa-layer .spm .spm-k{width:clamp(52px,10vmin,80px);height:clamp(44px,8vmin,64px);font-size:clamp(20px,4vmin,30px)}';
+        document.head.appendChild(st);
+    }
+    function miniBauen(host, vor) {
+        const d = document.createElement('div'); d.className = 'spm'; d.innerHTML = miniHtml();
+        if (vor && vor.parentNode === host) host.insertBefore(d, vor); else host.appendChild(d);
+        d.querySelector('.spm-b').onclick = function () { fenster(''); };
+        d.querySelectorAll('.spm-k').forEach(function (b) {
+            b.onclick = async function () {
+                const a = b.getAttribute('data-a');
+                if (a === 'pp') { const r = await ruf('GET', '/me/player'); if (r.json && r.json.is_playing) await steuern('pause'); else await steuern('weiter'); }
+                else await steuern(a);
+                aktivMerken(); setTimeout(miniAktualisieren, 1200);
+            };
+        });
+        return d;
+    }
+    function miniHolen() {
+        try {
+            miniCss();
+            if (!miniN || !miniN.isConnected) { const sm = document.getElementById('statusMessage'); miniN = sm && sm.parentNode ? miniBauen(sm.parentNode, sm) : null; }
+            const aa = document.getElementById('aa-layer');
+            if (aa) { if (!miniA || !miniA.isConnected) { const f = aa.querySelector('.fuss'); miniA = f ? miniBauen(aa, f) : null; } } else miniA = null;
+        } catch (e) { }
+    }
+    async function miniAktualisieren() {
+        try {
+            miniHolen();
+            const ziele = [miniN, miniA].filter(Boolean);
+            if (!ziele.length) return;
+            if (!verbunden() || !aktivJetzt() || document.visibilityState !== 'visible') { ziele.forEach(function (z) { z.classList.remove('an'); }); return; }
+            const r = await ruf('GET', '/me/player');
+            const it = r.json && r.json.item;
+            if (!it) { ziele.forEach(function (z) { z.classList.remove('an'); }); return; }
+            const img = bild(it.album && it.album.images);
+            ziele.forEach(function (z) {
+                z.classList.add('an');
+                z.querySelector('.spm-b').style.backgroundImage = img ? 'url("' + img + '")' : '';
+                z.querySelector('.spm-n').textContent = it.name;
+                z.querySelector('.spm-s').textContent = (it.artists || []).map(function (a) { return a.name; }).join(', ');
+                z.querySelector('.spm-g').textContent = r.json.is_playing ? '⏸' : '▶';
+            });
+        } catch (e) { }
+    }
+    function miniStarten() {
+        if (miniT) return;
+        miniT = setInterval(miniAktualisieren, 5000);
+        setTimeout(miniAktualisieren, 2500);
+    }
+
     /* ---------- Sprachbefehle ---------- */
     function befehl(text, next) {
         const t = roh(text);
@@ -353,7 +419,7 @@
             if (!verbunden()) return nein();
             try { localStorage.removeItem(AKTIV); } catch (e) { }
             fensterZu();
-            ruf('PUT', '/me/player/pause').then(function () { sagen('Okay, die Musik ist aus.'); });
+            ruf('PUT', '/me/player/pause').then(function () { sagen('Okay, die Musik ist aus.'); miniAktualisieren(); });
             return true;
         }
         const aktion = function (fn) { if (!verbunden()) return nein(); fn(); return true; };
@@ -410,4 +476,6 @@
 
     window.jvSpotify = { verbunden: verbunden, login: login, oeffnen: function (q) { if (verbunden()) fenster(q || ''); else sagen('Spotify ist noch nicht verbunden. Sag: Spotify verbinden.'); }, schliessen: fensterZu };
     rueckweg();
+    miniStarten();
+    window.jvSpotify.mini = miniAktualisieren;
 })();
