@@ -149,3 +149,4 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - Fenster-Wiedergabe (bindPlay) übergibt jetzt info {typ,titel,kuenstler,uri} an abspielen(): dadurch greift der native Rückweg auch bei Treffern aus der Suche (z. B. wenn Spotify per Wegwischen beendet wurde, aber noch als aktives Gerät gemeldet wird).
 - Abspielen (warm) prüft bei vorhandenem nativem Notweg nur 2 Mal (ca. 4 s), dann startet die App direkt; ohne Notweg weiter 4 Mal.
 - Fenster öffnen ist locker: Füllwörter (bitte, mal, doch, Jarvis ...) werden ignoriert; Verben öffne/starte/spiele/mach/zeig + Spotify (App/Fenster/Bibliothek).
+- **Anzeigegröße gilt nur in der Autoansicht:** `anzeige.js` wendet den Zoom nur an, solange `jvAutoansicht.offen()` wahr ist (Prüfung alle 300 ms); die normale Ansicht bleibt immer 100 %. Der Regler stellt den Wert ein (Schlüssel `jv_anzeige_zoom`), sichtbar wird er in der Autoansicht.

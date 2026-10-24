@@ -31,10 +31,14 @@
         'html.jv-breit .app-shell{min-height:0!important}';
     document.head.appendChild(css);
 
+    /* Die Anzeigegröße gilt nur, solange die Autoansicht offen ist. Die normale Jarvis-Ansicht bleibt immer bei 100 %. */
+    function autoOffen() { try { return !!(window.jvAutoansicht && window.jvAutoansicht.offen()); } catch (e) { return false; } }
+    function zoomJetzt() { return autoOffen() ? zoom : 100; }
+    var zuletztAuto = false;
     function breitJetzt() {
         if (layout === 'breit') return true;
         if (layout === 'normal') return false;
-        var w = window.innerWidth / (zoom / 100), h = window.innerHeight / (zoom / 100);
+        var zj = zoomJetzt(); var w = window.innerWidth / (zj / 100), h = window.innerHeight / (zj / 100);
         return w >= 1.6 * h && w >= 640;
     }
     var K_RAND = 'jv_anzeige_rand';
@@ -54,7 +58,7 @@
     function anwenden() {
         randAnwenden();
         var root = document.documentElement;
-        try { root.style.zoom = zoom === 100 ? '' : String(zoom / 100); } catch (e) { }
+        try { var zj = zoomJetzt(); root.style.zoom = zj === 100 ? '' : String(zj / 100); } catch (e) { }
         var sp = document.getElementById('recordBtn');
         if (sp && sp.parentElement) sp.parentElement.classList.add('jv-hauptspalte');
         root.classList.toggle('jv-breit', breitJetzt());
@@ -153,6 +157,7 @@
             b.style.display = offen ? 'block' : 'none';
         }, 400);
     }
+    setInterval(function () { var a = autoOffen(); if (a !== zuletztAuto) { zuletztAuto = a; anwenden(); } }, 300);
     window.addEventListener('resize', anwenden);
     window.addEventListener('orientationchange', function () { setTimeout(anwenden, 200); });
 
