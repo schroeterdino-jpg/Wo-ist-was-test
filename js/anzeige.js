@@ -82,7 +82,7 @@
         if (b) b.addEventListener('click', function () { sagen(groesseText()); });
     }
     /* Großer Schließen-Knopf unten in der Mitte für Lagebild und andere Fenster: oben am Rand kommt am Autobildschirm kein Tippen an.
-       Nur im breiten Layout; die Autoansicht hat ihren eigenen "beenden"-Knopf unten. */
+       Nur im breiten Layout oder bei offener Autoansicht (Lagebild kann über ihr liegen). */
     function zuKnopf() {
         var b = document.createElement('button');
         b.type = 'button'; b.id = 'anzeigeZu'; b.textContent = '✕ Schließen';
@@ -94,8 +94,11 @@
         document.body.appendChild(b);
         setInterval(function () {
             var offen = false;
-            try { offen = document.documentElement.classList.contains('jv-breit') && !(window.jvAutoansicht && window.jvAutoansicht.offen()) &&
-                ((window.jvLage && window.jvLage.isOpen()) || (typeof isPanelOpen === 'function' && isPanelOpen())); } catch (e) { }
+            try {
+                var fenster = (window.jvLage && window.jvLage.isOpen()) || (typeof isPanelOpen === 'function' && isPanelOpen());
+                var auto = !!(window.jvAutoansicht && window.jvAutoansicht.offen());   // Lagebild liegt oft über der offenen Autoansicht
+                offen = !!fenster && (auto || document.documentElement.classList.contains('jv-breit'));
+            } catch (e) { }
             b.style.display = offen ? 'block' : 'none';
         }, 400);
     }
