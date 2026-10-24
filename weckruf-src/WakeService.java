@@ -120,6 +120,69 @@ public class WakeService extends Service implements RecognitionListener {
         nm.createNotificationChannel(new NotificationChannel(CH_LISTEN, "Jarvis hört zu", NotificationManager.IMPORTANCE_LOW));
         nm.createNotificationChannel(new NotificationChannel(CH_WAKE, "Hey Jarvis erkannt", NotificationManager.IMPORTANCE_HIGH));
         try { car = CarWatcher.registrieren(this); } catch (Throwable ignored) { }   // Parkplatz automatisch merken (Auto-Bluetooth)
+        audioBeobachten();
+    }
+
+    // ---- Mikrofon im Auto: Wechselt das Audio-Gerät (Bluetooth, Android Auto) oder nimmt eine andere App das Mikrofon weg, lauscht das Weckwort sonst stumm weiter ----
+    private final Runnable audioNeu = () -> {
+        if (!alive || !want()) return;
+        stopSpeech();
+        evalVosk();
+    };
+    private android.media.AudioDeviceCallback audioGeraete;
+    private android.media.AudioManager.AudioRecordingCallback audioAufnahme;
+    private long letzteStumm = 0;
+
+    void audioNeuPlanen(long ms) {
+        main.removeCallbacks(audioNeu);
+        main.postDelayed(audioNeu, ms);
+    }
+
+    /** Vom CarWatcher: Auto per Bluetooth verbunden. Android Auto und das Mikrofon brauchen einige Sekunden, daher zweimal neu starten. */
+    static void audioNeuNachAuto() {
+        final WakeService s = inst;
+        if (s == null) return;
+        s.main.post(() -> {
+            s.audioNeuPlanen(6000);
+            s.main.postDelayed(s::audioNeuPlanenSpaet, 20000);
+        });
+    }
+    private void audioNeuPlanenSpaet() { audioNeuPlanen(500); }
+
+    private void audioBeobachten() {
+        try {
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am == null) return;
+            audioGeraete = new android.media.AudioDeviceCallback() {
+                @Override public void onAudioDevicesAdded(android.media.AudioDeviceInfo[] a) { audioNeuPlanen(3000); }
+                @Override public void onAudioDevicesRemoved(android.media.AudioDeviceInfo[] a) { audioNeuPlanen(3000); }
+            };
+            am.registerAudioDeviceCallback(audioGeraete, main);
+            audioAufnahme = new android.media.AudioManager.AudioRecordingCallback() {
+                @Override public void onRecordingConfigChanged(java.util.List<android.media.AudioRecordingConfiguration> l) {
+                    try {
+                        if (Build.VERSION.SDK_INT < 29 || l == null || !listening()) return;
+                        for (android.media.AudioRecordingConfiguration c : l) {
+                            if (c.isClientSilenced()) {   // Android hat unser Mikrofon stumm geschaltet (andere App hat es): später neu starten, höchstens alle 20 s
+                                long now = System.currentTimeMillis();
+                                if (now - letzteStumm > 20000) { letzteStumm = now; audioNeuPlanen(4000); }
+                                return;
+                            }
+                        }
+                    } catch (Throwable ignored) { }
+                }
+            };
+            am.registerAudioRecordingCallback(audioAufnahme, main);
+        } catch (Throwable ignored) { }
+    }
+    private void audioNichtMehr() {
+        try {
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if (am == null) return;
+            if (audioGeraete != null) am.unregisterAudioDeviceCallback(audioGeraete);
+            if (audioAufnahme != null) am.unregisterAudioRecordingCallback(audioAufnahme);
+        } catch (Throwable ignored) { }
+        audioGeraete = null; audioAufnahme = null;
     }
 
     static final String ACTION_TOGGLE = "de.dino.zaneweckruf.TOGGLE";
@@ -572,6 +635,7 @@ public class WakeService extends Service implements RecognitionListener {
         meldungenOn = false;
         inst = null;
         if (car != null) { car.beenden(); car = null; }
+        audioNichtMehr();
         main.removeCallbacksAndMessages(null);
         stopSpeech();
         if (model != null) { model.close(); model = null; }

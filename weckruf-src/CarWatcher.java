@@ -65,6 +65,7 @@ final class CarWatcher extends BroadcastReceiver {
             if (d == null || !car.equalsIgnoreCase(d.getAddress())) return;
             if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(i.getAction())) {
                 parkAbbrechen(ctx);
+                try { WakeService.audioNeuNachAuto(); } catch (Throwable ignored) { }   // Weckwort-Mikrofon neu starten, sobald das Auto da ist
                 Prefs.setParkInfo(ctx, "Auto verbunden (" + Prefs.carName(ctx) + ")");
                 autoOeffnen(ctx);
             } else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(i.getAction())) {
