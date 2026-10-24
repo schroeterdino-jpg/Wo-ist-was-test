@@ -346,7 +346,7 @@
                 if (knopf) b.textContent = '…';
                 await abspielen(k.body, k.ansage);
                 if (knopf) b.textContent = '▶';
-                setTimeout(jetzt, 1500);
+                fensterZu();   // Lied gestartet: Fenster zu, Jarvis ist wieder zu sehen
             };
         });
     }
