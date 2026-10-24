@@ -149,6 +149,7 @@ function phoneForWhatsApp(p) {
     if (s.startsWith('+')) s = s.slice(1);
     else if (s.startsWith('00')) s = s.slice(2);
     else if (s.startsWith('0')) s = '49' + s.slice(1);
+    else if (/^1[567]\d{8,10}$/.test(s)) s = '49' + s;   // deutsche Handynummer ohne führende 0 (z. B. per Sprache gespeichert): 15574... -> 4915574...
     return s.replace(/\D/g, '');
 }
 
