@@ -143,24 +143,29 @@
         if (!q) { return abspielen(null, 'Okay.'); }
         const typ = art || 'track,artist';
         const ok = function (a) { return ((a && a.items) || []).filter(Boolean); };
-        /* "Titel von Künstler": gezielt nach Titel UND Künstler suchen, sonst findet Spotify mit dem Wort "von" oft das falsche Lied */
+        /* "Titel von Künstler": gezielt nach Titel UND Künstler suchen, sonst findet Spotify mit dem Wort "von" oft das falsche Lied.
+           Die Spracherkennung verhört Namen gern ("Lene Fischer"), darum mehrere Versuche vom genauen zum freien. */
         let titelQ = null, kuenstlerQ = null;
-        if (!art) { const tv = q.match(/^(.+?) (?:von|vom|by) (.+)$/); if (tv) { titelQ = tv[1].trim(); kuenstlerQ = tv[2].trim(); } }
+        if (!art) { const tv = q.match(/^(.+?) (?:von der|von dem|von den|von die|von|vom|by) (.+)$/); if (tv) { titelQ = tv[1].trim(); kuenstlerQ = tv[2].trim(); } }
         let r = null;
-        if (titelQ) {
-            const r1 = await ruf('GET', '/search?q=' + encodeURIComponent('track:' + titelQ + ' artist:' + kuenstlerQ) + '&type=track&limit=10');
-            if (erfolg(r1) && ok((r1.json || {}).tracks).length) {
-                const nt = norm(titelQ), nk = norm(kuenstlerQ), liste = ok(r1.json.tracks);
-                const gut = liste.find(function (x) { return norm(x.name).indexOf(nt) >= 0 && (x.artists || []).some(function (a) { return norm(a.name).indexOf(nk) >= 0 || nk.indexOf(norm(a.name)) >= 0; }); }) || liste.find(function (x) { return norm(x.name).indexOf(nt) >= 0; }) || liste[0];
-                return abspielen({ uris: [gut.uri] }, 'Ich spiele ' + gut.name + (gut.artists && gut.artists[0] ? ' von ' + gut.artists[0].name : '') + '.');
+        if (!art) {
+            const nt = norm(titelQ || q), nk = norm(kuenstlerQ || '');
+            const kwort = nk.split(' ').filter(function (w) { return w.length >= 4; });
+            const passtK = function (x) { return !nk || (x.artists || []).some(function (a) { const na = norm(a.name); return na.indexOf(nk) >= 0 || nk.indexOf(na) >= 0 || kwort.some(function (w) { return na.indexOf(w) >= 0 || (w.length > 5 && na.indexOf(w.slice(1)) >= 0); }); }); };
+            const passtT = function (x) { return norm(x.name).indexOf(nt) >= 0; };
+            const versuche = titelQ
+                ? ['track:' + titelQ + ' artist:' + kuenstlerQ, titelQ + ' ' + kuenstlerQ, titelQ]
+                : [q];
+            for (let k = 0; k < versuche.length; k++) {
+                const rr = await ruf('GET', '/search?q=' + encodeURIComponent(versuche[k]) + '&type=track&limit=10');
+                if (!erfolg(rr)) { if (k === versuche.length - 1 && !r) { fehlerZeigen(rr); sagen(fehlerText(rr)); return; } continue; }
+                const liste = ok((rr.json || {}).tracks);
+                if (!liste.length) continue;
+                const gut = liste.find(function (x) { return passtT(x) && passtK(x); }) || (k === versuche.length - 1 ? (liste.find(passtT) || null) : null);
+                if (gut) return abspielen({ uris: [gut.uri] }, 'Ich spiele ' + gut.name + (gut.artists && gut.artists[0] ? ' von ' + gut.artists[0].name : '') + '.');
             }
-            /* zweiter Versuch: ohne "von", nur die Wörter */
-            const r2 = await ruf('GET', '/search?q=' + encodeURIComponent(titelQ + ' ' + kuenstlerQ) + '&type=track&limit=10');
-            if (erfolg(r2) && ok((r2.json || {}).tracks).length) {
-                const nt = norm(titelQ), liste = ok(r2.json.tracks);
-                const gut = liste.find(function (x) { return norm(x.name).indexOf(nt) >= 0; }) || liste[0];
-                return abspielen({ uris: [gut.uri] }, 'Ich spiele ' + gut.name + (gut.artists && gut.artists[0] ? ' von ' + gut.artists[0].name : '') + '.');
-            }
+            if (!titelQ) { /* ohne "von": weiter unten Künstler/Playlist-Suche wie bisher */ }
+            else { sagen('Dazu habe ich bei Spotify nichts gefunden.'); return; }
         }
         r = await ruf('GET', '/search?q=' + encodeURIComponent(q) + '&type=' + typ + '&limit=5');
         if (!erfolg(r)) { fehlerZeigen(r); sagen(fehlerText(r)); return; }
@@ -508,15 +513,17 @@
             wasLaeuft().then(function (ok) { if (!ok) { try { next(text); } catch (e) { } } }); return true;
         }
 
-        /* Spielen: mit "Spotify" im Satz immer, ohne nur wenn verbunden und es nach Musik klingt */
+        /* Spielen: "Spotify" darf irgendwo im Satz stehen (auch mitten drin), und ist nicht nötig, sobald Spotify verbunden ist */
         let q = null;
-        m = t.match(new RegExp('^' + S + '(?:spiel|spiele|spielt|starte|start|mach|leg|lege|h(?:ö|oe)re|h(?:ö|oe)r) (?:mir )?(.+?) (?:auf|bei|mit|(?:ü|ue)ber|in|per) spotify(?: ab| an)?$'));
-        if (m) q = m[1];
-        if (q == null) { m = t.match(new RegExp('^' + S + 'spotify (?:spiel|spiele|starte|start) (?:mir )?(.+)$')); if (m) q = m[1]; }
+        const VERB = '(?:spiel|spiele|spielt|starte|start|mach|leg|lege|h(?:ö|oe)re|h(?:ö|oe)r)';
+        if (/\bspotify\b/.test(t)) {
+            m = t.match(new RegExp('^' + S + VERB + ' (?:mir )?(.+)$')) || t.match(/^spotify (?:spiel|spiele|starte|start) (?:mir )?(.+)$/);
+            if (m) { q = m[1].replace(/\s*\b(?:auf|bei|mit|(?:ü|ue)ber|in|per|via)\s+spotify\b/g, ' ').replace(/\bspotify\b/g, ' ').replace(/\s+(?:ab|an)$/, '').replace(/\s+/g, ' ').trim(); if (!q) q = null; }
+        }
         let mitSpotify = q != null;
-        if (q == null && verbunden() && /(musik|lied|song|titel|playlist|album| von | vom )/.test(' ' + t + ' ')) {
-            m = t.match(new RegExp('^' + S + '(?:spiel|spiele|spielt) (?:mir )?(.+?)(?: ab)?$'));
-            if (m) q = m[1];
+        if (q == null && verbunden()) {
+            m = t.match(new RegExp('^' + S + '(?:spiel|spiele|spielt|leg|lege) (?:mir )?(.+?)(?: ab)?$'));
+            if (m && !/^(?:die |das |den )?(?:start[- ]?ansage|ansage|briefing|nachricht|nachrichten|video|film|serie|spiel|spiele|quiz|schach|memory|vier gewinnt|tic tac toe|aufnahme|sprachnachricht|mailbox|alarm|wecker)\b/.test(m[1])) q = m[1];
         }
         if (q == null) return next(text);
         if (!verbunden()) return nein();
