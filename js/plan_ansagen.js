@@ -308,6 +308,16 @@
         if (!k.length) return '';
         return k.length === 1 ? 'Du wolltest heute noch: ' + k[0] + '.' : 'Du wolltest heute noch: ' + k.slice(0, 3).join(', ') + '.';
     }
+    /* Termine, die heute noch kommen (ab jetzt, dazu Ganztägiges); Geburtstage zählen hier nicht */
+    function termineHeuteText() {
+        try {
+            const nu = jetzt();
+            const t = termineInWoche(nu.ymd, nu.ymd).filter(x => x.ymd === nu.ymd && !/geburtstag|birthday|bday/i.test(x.text) && (x.zeit == null || x.zeit >= nu.min));
+            if (!t.length) return '';
+            const teile = t.slice(0, 4).map(x => x.zeit != null ? 'um ' + uhr(x.zeit) + ' ' + x.text : x.text + ' (ganztägig)');
+            return (t.length === 1 ? 'Heute steht noch ein Termin an: ' : 'Heute stehen noch Termine an: ') + teile.join('; ') + (t.length > 4 ? '; und ' + (t.length - 4) + ' weitere' : '') + '.';
+        } catch (e) { return ''; }
+    }
     async function heimText(immer) {
         const f = await heimFrisch();
         if (!f.ziel) return 'Ich habe keine Heimatadresse gespeichert. Sag zum Beispiel: Merk dir meine Heimatadresse, Verbrüderungsring 13.';
@@ -323,6 +333,8 @@
         else if (!f.stau && mehr < 10) t += ' Auf der Strecke ist alles frei.';
         const heute = heuteAufgabenText();
         if (heute) t += ' ' + heute;
+        const termine = termineHeuteText();
+        if (termine) t += ' ' + termine;
         const tank = await heimTank(false);
         if (tank) t += ' ' + tank;
         return t + ' Gute Heimfahrt.';
@@ -606,6 +618,7 @@
             weckerFrage(ymd, vorsatz); return true;
         }
         if (art === 'geb') { try { return !!(window.jvZuvor && window.jvZuvor.gebAnsage(id)); } catch (e) { return false; } }   // Geburtstags-Vorfrage (zuvorkommend.js)
+        if (art === 'gebv' || art === 'gebt') { try { return !!(window.jvZuvor && window.jvZuvor.gebGruss(id)); } catch (e) { return false; } }   // Glückwunsch-Entwurf am Vortag / am Geburtstag (zuvorkommend.js)
         if (art === 'stau') { return stauCheck(ymd, !!erzwingen); }
         return false;
     }
