@@ -120,7 +120,7 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - Nach jedem Merge: auf den APK-Bau warten, prüfen, dass das Release zum Stand von `main` passt (`git/ref/tags/weckruf-NN` gleich `main`), und die APK mit SendUserFile schicken. Installation: Play Protect kurz aus; bei grauen Berechtigungen (SMS) erst "Eingeschränkte Einstellungen zulassen" in der App-Info.
 - In den Android-Einstellungen heißt die App **Jarvis**, nicht Nova/Zane.
 
-## Jarvis' Bart (reifer Kopf)
+## Jarvis' Bart und Mund (reifer Kopf)
 - Haare und Bart stecken als graue Farben fest in `models/mann.glb` (Vertexfarben). Der Bart war lückig.
-- `bartVoller()` in `js/avatar3d.js` färbt beim Laden die Bartzone (unter der Nase, Kinn, Koteletten) so grau und dicht wie das Kopfhaar. Lippen und Nase bleiben unberührt.
-- Abschalten: `JV_BART_VOLL=false`.
+- `bartVoller()` in `js/avatar3d.js` färbt beim Laden die Bartzone (unter der Nase, Wangen schräg bis zu den Koteletten, Kinn) in Haarfarbe und gibt ihr dieselbe Helligkeitsverteilung (Strähnenstruktur) wie dem Kopfhaar. Lippen und Nase bleiben unberührt. Abschalten: `JV_BART_VOLL=false`.
+- Der Mund ist immer gerade: kurz vor dem Zeichnen werden linke und rechte Mundformen (Lächeln, Grübchen, Frown, Stretch, Press, UpperUp, LowerDown) auf denselben Wert gesetzt, und `mouth_L/R`, `jaw_L/R` (seitliches Verschieben) bleiben bei 0. Brauen und Augen dürfen weiter schief sein.
