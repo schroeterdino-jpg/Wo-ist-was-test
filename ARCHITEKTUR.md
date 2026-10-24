@@ -140,3 +140,4 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 ## Spotify-Fenster: Bibliothek und Sprachsuche
 - Neue Reiter "Meine Alben" (GET /me/albums, Kachel-Raster) und "Lieblingssongs" (GET /me/tracks). Brauchen den Scope `user-library-read` (in SCOPES); wer vorher verbunden war, muss einmal "Spotify verbinden" sagen (Knopf "Mit Spotify neu verbinden" erscheint im Reiter).
 - 🎤-Knopf neben dem Suchfeld (`sprachSuche()`): startet `startListening()` und setzt den Haken `window.__jvAbfangen`; `handleRecognizedText()` in voice.js ruft ihn zuerst auf. Gibt er true zurück, wird der Satz NICHT an die KI geschickt, sondern landet im Suchfeld (Füllwörter wie "suche nach" und "auf Spotify" werden entfernt, Reiter wechselt auf "Lieder").
+- Fenster öffnen per Sprache: "Öffne/Zeig mir Spotify", "Spotify öffnen", "meine Bibliothek"; "Zeig mir meine Alben" / "meine Lieblingssongs (auf Spotify)" öffnet direkt den Reiter.

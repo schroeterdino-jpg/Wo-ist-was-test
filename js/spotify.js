@@ -578,7 +578,7 @@
     /* ---------- Sprachbefehle ---------- */
     function befehl(text, next) {
         const t = roh(text);
-        if (!t || t.split(' ').length > 14 || !/spotify|musik|lied|song|titel|playlist|album|spiel|n(ä|ae)chst|(ü|ue)berspring|vorherig|zur(ü|ue)ck|l(ä|ae)uft|spielt|lauter|leiser|weiter|pause|stop|anhalten|halt|skip|fortsetzen|auto[ -]?playlist|beim einsteigen|im auto/.test(t)) return next(text);
+        if (!t || t.split(' ').length > 14 || !/spotify|musik|lied|song|titel|playlist|album|alben|bibliothek|lieblings|spiel|n(ä|ae)chst|(ü|ue)berspring|vorherig|zur(ü|ue)ck|l(ä|ae)uft|spielt|lauter|leiser|weiter|pause|stop|anhalten|halt|skip|fortsetzen|auto[ -]?playlist|beim einsteigen|im auto/.test(t)) return next(text);
         const S = '(?:bitte )?';
         const nein = function (msg) { sagen(msg || 'Spotify ist noch nicht verbunden. Sag: Spotify verbinden.'); return true; };
 
@@ -587,6 +587,9 @@
         if (/^spotify status$/.test(t)) { sagen(verbunden() ? 'Spotify ist verbunden.' : 'Spotify ist nicht verbunden.'); return true; }
 
         if (/^(?:bitte )?(?:spotify|spotify (?:öffnen|oeffnen|fenster|zeigen|anzeigen))$/.test(t)) { if (!verbunden()) return nein(); fenster(''); return true; }
+        if (/^(?:bitte )?(?:(?:öffne|oeffne|zeig(?:e)?(?: mir)?|starte|mach|mache|zeig mir)(?: mir)?(?: die| das| den| mal)? )?(?:spotify(?:[ -]?(?:fenster|app|bibliothek))?|(?:meine )?bibliothek(?: (?:auf|bei|in) spotify)?)(?: auf| an)?$/.test(t) && /spotify|bibliothek|^(?:bitte )?(?:öffne|oeffne|zeig|zeige|starte|mach)/.test(t)) { if (!verbunden()) return nein(); fenster(''); return true; }
+        const mb = t.match(/^(?:bitte )?(?:(?:öffne|oeffne|zeig(?:e)?|zeig mir|starte)(?: mir)? )?(?:meine |die )?(gespeicherten alben|alben|lieblingssongs|lieblingslieder|lieblingstitel|lieblingsmusik)(?: (?:auf|bei|in) spotify)?$/);
+        if (mb && /^(?:bitte )?(?:öffne|oeffne|zeig|zeige|starte|meine|die|gespeicherten|lieblings|alben)/.test(t)) { if (!verbunden()) return nein(); fenster(''); const tb = FL && FL.querySelector('[data-t="' + (/alben/.test(mb[1]) ? 'meinealben' : 'lieblinge') + '"]'); if (tb) tb.click(); return true; }
         if (/^(?:bitte )?spotify (?:schlie(?:ß|ss)en|zu|beenden|fenster zu)$/.test(t)) { fensterZu(); return true; }
         let ms = t.match(/^(?:bitte )?(?:zeig(?:e)?|such(?:e)?)(?: mir)?(?: nach)? (.+?) (?:auf|bei|in) spotify$/) || t.match(/^(?:bitte )?spotify (?:such(?:e|en)?|zeig(?:e)?)(?: mir)?(?: nach)? (.+)$/);
         if (ms) { if (!verbunden()) return nein(); fenster(ms[1].replace(/^(?:die |das |den |der )+/, '')); return true; }
