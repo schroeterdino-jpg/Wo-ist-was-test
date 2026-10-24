@@ -412,6 +412,7 @@ public class MainActivity extends Activity {
                     v.setPackage("com.spotify.music");
                     v.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     startActivity(v);
+                    jarvisNachVorn();
                     return true;
                 } catch (Throwable e1) { /* weiter mit dem Suchweg */ }
             }
@@ -438,8 +439,27 @@ public class MainActivity extends Activity {
             }
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(i);
+            jarvisNachVorn();
             return true;
         } catch (Throwable e) { return false; }
+    }
+
+    /** Nach dem Musikstart holt sich Jarvis selbst wieder nach vorn, damit man nicht erst die Spotify-App wegdrücken muss.
+     *  Android erlaubt das aus dem Hintergrund nicht auf jedem Gerät; dann bleibt es beim alten Verhalten. */
+    private void jarvisNachVorn() {
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override public void run() {
+                try {
+                    android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
+                    if (am != null) am.moveTaskToFront(getTaskId(), 0);
+                } catch (Throwable e1) { }
+                try {
+                    Intent b = new Intent(MainActivity.this, MainActivity.class);
+                    b.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    startActivity(b);
+                } catch (Throwable e2) { }
+            }
+        }, 2500);
     }
 
     private String anrufWartet = null;
