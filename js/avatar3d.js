@@ -648,7 +648,7 @@ function mundVerzoegerung(now){
    if(now-mundExtAt>2000){ mundExtAt=now; const z=window.ZaneNative; mundExt=!!(z&&typeof z.audioExtern==='function'&&z.audioExtern()); }
    if(!mundExt) return 0;
    const w=parseInt(localStorage.getItem('jv_mund_delay'),10);
-   return (w>=0&&w<=800)?w:250;
+   return (w>=0&&w<=2000)?w:250;
  }catch(e){ return 0; }
 }
 function applyMorphs(dt,speaking,now){

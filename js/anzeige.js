@@ -51,9 +51,9 @@
     function setLayout(l) { layout = l; schreibe(); anwenden(); }
 
     var K_MUND = 'jv_mund_delay';
-    function mundHole() { try { var w = parseInt(localStorage.getItem(K_MUND), 10); return (w >= 0 && w <= 800) ? w : 250; } catch (e) { return 250; } }
+    function mundHole() { try { var w = parseInt(localStorage.getItem(K_MUND), 10); return (w >= 0 && w <= 2000) ? w : 250; } catch (e) { return 250; } }
     function mundSetze(ms) {
-        ms = Math.max(0, Math.min(800, Math.round(ms / 50) * 50));
+        ms = Math.max(0, Math.min(2000, Math.round(ms / 50) * 50));
         try { localStorage.setItem(K_MUND, String(ms)); } catch (e) { }
         var r = document.getElementById('mundVerz'); if (r) r.value = String(ms);
         var o = document.getElementById('mundVerzOut'); if (o) o.textContent = ms + ' ms';
