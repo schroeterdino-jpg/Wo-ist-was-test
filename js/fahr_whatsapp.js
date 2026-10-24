@@ -57,6 +57,7 @@
         try {
             if (!o || !o.name || !o.text) return;
             if (!window.jvAutoansicht || !window.jvAutoansicht.offen()) return;   // nur im Fahrmodus
+            if (document.visibilityState === 'hidden') return;   // Bildschirm aus (Handy in der Tasche): nicht vorlesen
             queue.push(o);
             if (!cur) weiter();
         } catch (e) { }
@@ -132,6 +133,11 @@
 
     function sprache(text, next) {
         if (protokoll(text)) return true;
+        if (/^(?:bitte\s+)?fahrmodus (?:aus|beenden|ausschalten)$|^(?:whatsapp |nachrichten )?vorlesen aus(?:schalten)?$/.test(norm(text))) {
+            try { if (window.jvAutoansicht && window.jvAutoansicht.offen()) window.jvAutoansicht.schliessen(); else if (window.ZaneNative && window.ZaneNative.setFahrmodus) window.ZaneNative.setFahrmodus(false); } catch (e) { }
+            sagen('Fahrmodus ist aus. Ich lese keine WhatsApp mehr vor.', false);
+            return true;
+        }
         if (!cur) return next(text);
         const raw = String(text || '').trim(), n = norm(raw), w = n ? n.split(' ').length : 0;
         if (!n) return next(text);
