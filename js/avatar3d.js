@@ -208,6 +208,32 @@ function setHead(name){
  morphMeshes.length=0; morphNames=new Set(); modelReady=false;
  ladeKopf(); return true;
 }
+// Reifer Kopf: Der Bart ist in die Gesichtsfarben (Vertexfarben) eingebrannt und war lückig. Hier wird er
+// so grau und dicht wie das Kopfhaar gefärbt. Lippen und Nase bleiben unverändert. Abschalten: JV_BART_VOLL=false.
+const JV_BART_VOLL=true;
+function bartVoller(geo){
+ if(!JV_BART_VOLL||!geo||geo.userData.jvBartVoll) return;
+ const pa=geo.attributes.position, ca=geo.attributes.color; if(!pa||!ca||ca.itemSize<3) return;
+ let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9,sz=0; const n=pa.count;
+ for(let i=0;i<n;i++){const x=pa.getX(i),y=pa.getY(i); if(x<mnx)mnx=x;if(x>mxx)mxx=x;if(y<mny)mny=y;if(y>mxy)mxy=y; sz+=pa.getZ(i);}
+ const h=mxy-mny, cx=(mnx+mxx)/2, zm=sz/n, K=736;
+ const sm=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t)};
+ const HC=[.248,.239,.218], BL=.136;
+ for(let i=0;i<n;i++){
+   if(pa.getZ(i)<=zm) continue;
+   const sx=(pa.getX(i)-cx)/h*K, sy=400-((pa.getY(i)-mny)/h-.5)*K, dx=Math.abs(sx);
+   let zone=sm(372,386,sy)*(1-sm(500,530,sy));
+   zone=Math.max(zone, sm(320,370,sy)*sm(85,125,dx)*(1-sm(500,530,sy)));
+   if(zone<=0) continue;
+   const lq=(sx/78)**2+((sy-428)/20)**2, lip=sm(0,.35,Math.max(0,1-lq));
+   const nq=(sx/42)**2+((sy-368)/24)**2, nose=sm(0,.3,Math.max(0,1-nq));
+   const w=Math.max(0,Math.min(1,zone*(1-lip)*(1-nose)))*.9; if(w<=0) continue;
+   const r=ca.getX(i),g=ca.getY(i),b=ca.getZ(i), lum=.299*r+.587*g+.114*b;
+   const v=Math.max(.6,Math.min(1.5,lum/BL)), f=Math.max(.7,Math.min(1.2,.75+.5*(v-.6)/.9));
+   ca.setXYZ(i, r*(1-w)+HC[0]*f*w, g*(1-w)+HC[1]*f*w, b*(1-w)+HC[2]*f*w);
+ }
+ ca.needsUpdate=true; geo.userData.jvBartVoll=true;
+}
 let ladeNr=0, zubEyes=[], zubHeadMesh=null;
 function ladeKopf(){
 const meine=++ladeNr, art=kopfArt; zubEyes=[]; zubHeadMesh=null;
@@ -227,6 +253,7 @@ gltfLoader.load(KOPF_URL[art],g=>{
    const ancestry=ancestryName(o);
    const part=/teeth/.test(ancestry)?'teeth':(/eyeleft|eyeright|grp_eye/.test(ancestry)?'eye':(/head/.test(ancestry)?'head':'other'));
    if(part==='eye')zubEyes.push(o); if(part==='head'&&!zubHeadMesh)zubHeadMesh=o;
+   if(part==='head'&&art==='reif'){ try{ bartVoller(o.geometry); }catch(e){ console.warn('Bart-Anpassung',e); } }
 
    function makeEyeMaterial(oldMat){
      // Original-Augen-Textur behalten (damit Augenweiß + Pupille erhalten bleiben),

@@ -119,3 +119,8 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - Nutzer arbeitet am Handy, antwortet knapp ("Gemerged", Screenshots). Vor dem Bau kurz klären, was er will, dann bauen; Pull Request immer **direkt auf `main`**, nicht auf einen anderen Zweig (gestapelte PRs sind schon einmal im Nebenzweig gelandet und haben eine Funktion verloren).
 - Nach jedem Merge: auf den APK-Bau warten, prüfen, dass das Release zum Stand von `main` passt (`git/ref/tags/weckruf-NN` gleich `main`), und die APK mit SendUserFile schicken. Installation: Play Protect kurz aus; bei grauen Berechtigungen (SMS) erst "Eingeschränkte Einstellungen zulassen" in der App-Info.
 - In den Android-Einstellungen heißt die App **Jarvis**, nicht Nova/Zane.
+
+## Jarvis' Bart (reifer Kopf)
+- Haare und Bart stecken als graue Farben fest in `models/mann.glb` (Vertexfarben). Der Bart war lückig.
+- `bartVoller()` in `js/avatar3d.js` färbt beim Laden die Bartzone (unter der Nase, Kinn, Koteletten) so grau und dicht wie das Kopfhaar. Lippen und Nase bleiben unberührt.
+- Abschalten: `JV_BART_VOLL=false`.
