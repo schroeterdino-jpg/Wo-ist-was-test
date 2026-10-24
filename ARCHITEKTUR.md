@@ -147,3 +147,4 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - Zusätzlich pausiert MainActivity.onDestroy (wenn isFinishing) die Musik, weil WakeService.onTaskRemoved auf dem Handy nicht griff.
 - Beim Wegwischen: Medientaste STOP, nach 1,5 s killBackgroundProcesses(com.spotify.music) (Permission KILL_BACKGROUND_PROCESSES). Android erlaubt das Beenden fremder Apps nur eingeschränkt.
 - Fenster-Wiedergabe (bindPlay) übergibt jetzt info {typ,titel,kuenstler,uri} an abspielen(): dadurch greift der native Rückweg auch bei Treffern aus der Suche (z. B. wenn Spotify per Wegwischen beendet wurde, aber noch als aktives Gerät gemeldet wird).
+- Abspielen (warm) prüft bei vorhandenem nativem Notweg nur 2 Mal (ca. 4 s), dann startet die App direkt; ohne Notweg weiter 4 Mal.
