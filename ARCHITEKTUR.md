@@ -126,3 +126,4 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - Der Mund ist immer gerade: kurz vor dem Zeichnen werden linke und rechte Mundformen (Lächeln, Grübchen, Frown, Stretch, Press, UpperUp, LowerDown) auf denselben Wert gesetzt, und `mouth_L/R`, `jaw_L/R` (seitliches Verschieben) bleiben bei 0. Brauen und Augen dürfen weiter schief sein.
 
 - Spotify „Titel von Künstler“: `suchenUndSpielen()` in `js/spotify.js` sucht gezielt `track:… artist:…` (danach ohne „von“) und nimmt das Lied, dessen Name zum Titel passt. Erst wenn das nichts bringt, läuft die freie Suche wie vorher.
+- Bart-Wangen: Dort war die Fläche glatt (nur am Kinn echte Strähnen). `bartVoller()` erzeugt für die Wangen eine Zufallsstruktur mit der Helligkeitsverteilung des Kinnbarts (fester Startwert, über die Nachbarpunkte leicht geglättet).
