@@ -73,7 +73,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
 
     let liveWeather = null;
     let liveForecast = null;
-    if (/wetter|regen|regnet|regenschirm|schirm|temperatur|grad|jacke|kalt|warm|sonne|wind|schnee|gewitter|sturm|vorhersage/i.test(text)) {
+    if (/wetter|regen|regn|nieselt|nieseln|regenschirm|schirm|temperatur|grad|jacke|kalt|kuehl|kühl|warm|heiss|heiß|hitze|frost|sonne|sonnig|wolk|bewoelkt|bewölkt|wind|schnee|schneit|schneien|gewitter|donner|sturm|unwetter|trocken|vorhersage/i.test(text)) {
         typeWriterStatus("Rufe aktuelle Wetterdaten ab...");
         updateTerminalStream("API_FETCH: WEATHER_DATA", "FETCHING");
         const [rawWeather, forecast] = await Promise.all([fetchWeatherData(), fetchWeatherForecast()]);
