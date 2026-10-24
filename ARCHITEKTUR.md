@@ -136,3 +136,7 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - Spotify-Notfall: Startet die Musik nach dem Web-Befehl nicht (Handy aktiv, aber „spielt: nein“, kein Lied), bittet `abspielen()` danach noch die App direkt über `ZaneNative.spotifySpielen` (APK 103 oder neuer).
 - Spotify-Suche mit `market=DE` und nur abspielbare Titel (`is_playable`): Ohne Markt lieferte die Suche Titel, die in Deutschland nicht spielbar sind; Spotify nahm Play an (204), spielte aber nichts.
 - `spotifySpielen` (APK) öffnet zuerst die Spotify-Adresse mit `:play` (z. B. `spotify:track:ID:play`, `ACTION_VIEW`, Paket `com.spotify.music`). Das öffnet die App und startet sofort. Erst wenn das nicht geht, der Suchweg `MEDIA_PLAY_FROM_SEARCH` (der nur die Suchseite zeigt, aber nicht spielt). Quelle: Spotify-Community-Forum (Tasker-Nutzer), nicht offiziell dokumentiert.
+
+## Spotify-Fenster: Bibliothek und Sprachsuche
+- Neue Reiter "Meine Alben" (GET /me/albums, Kachel-Raster) und "Lieblingssongs" (GET /me/tracks). Brauchen den Scope `user-library-read` (in SCOPES); wer vorher verbunden war, muss einmal "Spotify verbinden" sagen (Knopf "Mit Spotify neu verbinden" erscheint im Reiter).
+- 🎤-Knopf neben dem Suchfeld (`sprachSuche()`): startet `startListening()` und setzt den Haken `window.__jvAbfangen`; `handleRecognizedText()` in voice.js ruft ihn zuerst auf. Gibt er true zurück, wird der Satz NICHT an die KI geschickt, sondern landet im Suchfeld (Füllwörter wie "suche nach" und "auf Spotify" werden entfernt, Reiter wechselt auf "Lieder").
