@@ -94,4 +94,9 @@ final class Prefs {
     // Wie sich Jarvis bei wem vorstellt: Zeilen "name=papa" oder "name=mann" (sonst Dino). Standard: Töchter Papa, Schatz Mann.
     static String anrede(Context c) { return sp(c).getString("anrede", "alyssa=papa\njulia=papa\nisabel=papa\nschatz=mann"); }
     static void setAnrede(Context c, String s) { sp(c).edit().putString("anrede", s == null ? "" : s).apply(); }
+    // Verpasste Anrufe: Jarvis schreibt Kontakten aus der Auswahl eine SMS (höchstens eine je Person in 30 Minuten), Familie bekommt einen kurzen Alarm
+    static boolean anrufe(Context c) { return sp(c).getBoolean("anrufe", false); }
+    static void setAnrufe(Context c, boolean v) { sp(c).edit().putBoolean("anrufe", v).apply(); }
+    static String anrufZeiten(Context c) { return sp(c).getString("anrufZeiten", ""); }
+    static void setAnrufZeiten(Context c, String s) { sp(c).edit().putString("anrufZeiten", s == null ? "" : s).apply(); }
 }

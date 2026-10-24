@@ -143,6 +143,16 @@
             }
             if (/\b(vertretung|vertretungsmodus)\b.*\b(aus|ausschalten|beenden|deaktivieren)\b/.test(t)) { N().vertretungSetzen(false); sagen('Die Vertretung ist aus. Ich antworte nicht mehr für dich, außer im Schlafmodus.'); return true; }
             if ((m = t.match(/\b(?:vertretung|springe? ein)\b.*?\bnach (\d{1,3}) minuten\b/)) || (m = t.match(/\bnach (\d{1,3}) minuten\b.*\b(?:vertretung|springe? ein)\b/))) { const mi = Math.max(5, Math.min(120, parseInt(m[1], 10))); N().vertretungMinuten(mi); sagen('Ich springe jetzt nach ' + mi + ' Minuten ein.'); return true; }
+            if (typeof N().anrufeSetzen === 'function') {
+                if (/\bverpasste? anrufe?\b.*\b(aus|ausschalten|beenden|deaktivieren)\b|\b(aus|ausschalten|beenden)\b.*\bverpasste? anrufe?\b/.test(t)) { N().anrufeSetzen(false); sagen('Verpasste Anrufe beantworte ich nicht mehr.'); return true; }
+                if (/\bverpasste? anrufe?\b.*\b(an|ein|einschalten|aktivieren|beantworten)\b|\b(beantworte|beantworten)\b.*\bverpasste? anrufe?\b/.test(t)) {
+                    const s1 = stand();
+                    if (!s1.zugriff) { try { N().schlafZugriffOeffnen(); } catch (e) { } sagen('Dafür muss Android mir erlauben, deine Benachrichtigungen zu lesen. Ich habe die Einstellung geöffnet. Schalte dort Jarvis an und sag danach noch einmal: Verpasste Anrufe an.'); return true; }
+                    N().anrufeSetzen(true);
+                    sagen('Verpasste Anrufe sind an. Rufen dich Kontakte aus deiner Auswahl an und du gehst nicht ran, schicke ich ihnen eine SMS, dass du dich meldest. Bei deiner Familie bekommst du zusätzlich einen kurzen Alarm.' + (s1.sms ? '' : ' Android fragt gleich, ob ich SMS senden darf. Sag Ja.') + ((s1.erlaubt || []).length ? '' : ' Sag zuerst: Kontakte für den Schlafmodus auswählen.'));
+                    return true;
+                }
+            }
             if (/\bwas habe ich verpasst\b|\bwer hat fuer mich geantwortet\b|\bwas hast du fuer mich geantwortet\b/.test(t)) { sagen(vorlesen(nachrichten(false), true)); return true; }
         }
         if (N() && typeof N().schlafKontakteWaehlen === 'function' && (/\bkontakte?\b/.test(t) && /(auswaehl|aussuch|waehl|oeffne|zeig|bearbeit|aender|festlegen)/.test(t) && /(schlaf|antwort)/.test(t) || /\bschlaf ?modus kontakte\b/.test(t))) {

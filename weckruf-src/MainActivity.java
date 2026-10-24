@@ -316,6 +316,16 @@ public class MainActivity extends Activity {
 
     private boolean kontakteWartet = false;
     /** Mehrfachauswahl der Schlafmodus-Kontakte; fragt bei Bedarf zuerst nach der Kontakte-Erlaubnis. */
+    void smsErlaubnis() {
+        runOnUiThread(() -> {
+            try {
+                if (checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED
+                        || checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED)
+                    requestPermissions(new String[]{Manifest.permission.SEND_SMS, Manifest.permission.READ_CONTACTS}, 5);
+            } catch (Throwable ignored) { }
+        });
+    }
+
     boolean kontakteWaehlen() {
         runOnUiThread(() -> {
             try {

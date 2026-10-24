@@ -147,7 +147,7 @@ public class NachrichtenService extends NotificationListenerService {
     @Override
     public void onNotificationPosted(final StatusBarNotification sbn) {
         try {
-            if (sbn == null || (!Prefs.schlaf(this) && !Prefs.vertretung(this))) return;
+            if (sbn == null || (!Prefs.schlaf(this) && !Prefs.vertretung(this) && !Prefs.anrufe(this))) return;
             final Context ctx = getApplicationContext();
             EX.execute(() -> { try { verarbeite(ctx, sbn); } catch (Throwable ignored) { } });
         } catch (Throwable ignored) { }
@@ -157,6 +157,8 @@ public class NachrichtenService extends NotificationListenerService {
         long seit = Prefs.schlafSeit(ctx);
         if (Prefs.schlaf(ctx) && seit > 0 && System.currentTimeMillis() - seit > MAX_SCHLAF_MS) Prefs.setSchlaf(ctx, false);
         String pkg = sbn.getPackageName();
+        if (Prefs.anrufe(ctx) && verpassterAnruf(sbn)) { verpasst(ctx, sbn); return; }
+        if (!Prefs.schlaf(ctx) && !Prefs.vertretung(ctx)) return;
         if (!"com.whatsapp".equals(pkg) && !"com.whatsapp.w4b".equals(pkg)) return;
         Notification n = sbn.getNotification();
         if (n == null || (n.flags & Notification.FLAG_GROUP_SUMMARY) != 0) return;
@@ -473,6 +475,122 @@ public class NachrichtenService extends NotificationListenerService {
         } catch (Throwable e) { return null; }
     }
 
+    // ---- Verpasste Anrufe ----
+    private static final java.util.Set<String> ANRUF_GESEHEN = new java.util.HashSet<>();
+
+    private static boolean verpassterAnruf(StatusBarNotification sbn) {
+        try {
+            Notification n = sbn.getNotification();
+            if (n == null) return false;
+            if (Notification.CATEGORY_MISSED_CALL.equals(n.category)) return true;
+            String ch = n.getChannelId();
+            if (ch != null && ch.toLowerCase(Locale.ROOT).contains("missed")) return true;
+            String p = sbn.getPackageName() == null ? "" : sbn.getPackageName();
+            if (p.contains("dialer") || p.contains("incallui") || p.contains("telecom") || p.contains("phone")) {
+                Bundle ex = n.extras;
+                String t = ex == null ? "" : String.valueOf(ex.getCharSequence("android.title")) + " " + String.valueOf(ex.getCharSequence("android.text"));
+                return norm(t).contains("verpasst");
+            }
+        } catch (Throwable ignored) { }
+        return false;
+    }
+
+    /** Telefonnummer eines Kontakts (Handy bevorzugt) oder null. */
+    private static String nummerZu(Context ctx, String name) {
+        try (android.database.Cursor c = ctx.getContentResolver().query(android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                new String[]{android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER, android.provider.ContactsContract.CommonDataKinds.Phone.TYPE},
+                android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " = ?", new String[]{name}, null)) {
+            String erste = null;
+            while (c != null && c.moveToNext()) {
+                String nr = c.getString(0);
+                if (nr == null) continue;
+                if (erste == null) erste = nr;
+                if (c.getInt(1) == android.provider.ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE) return nr;
+            }
+            return erste;
+        } catch (Throwable e) { return null; }
+    }
+
+    /** Name zu einer Nummer aus den Kontakten (falls die Meldung nur die Nummer zeigt) oder null. */
+    private static String nameZu(Context ctx, String nummer) {
+        try (android.database.Cursor c = ctx.getContentResolver().query(android.net.Uri.withAppendedPath(android.provider.ContactsContract.PhoneLookup.CONTENT_FILTER_URI, android.net.Uri.encode(nummer)),
+                new String[]{android.provider.ContactsContract.PhoneLookup.DISPLAY_NAME}, null, null, null)) {
+            return c != null && c.moveToFirst() ? c.getString(0) : null;
+        } catch (Throwable e) { return null; }
+    }
+
+    private static boolean sms(Context ctx, String nummer, String text) {
+        try {
+            if (ctx.checkSelfPermission(android.Manifest.permission.SEND_SMS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return false;
+            android.telephony.SmsManager sm = Build.VERSION.SDK_INT >= 31 ? ctx.getSystemService(android.telephony.SmsManager.class) : android.telephony.SmsManager.getDefault();
+            sm.sendMultipartTextMessage(nummer, null, sm.divideMessage(text), null, null);
+            return true;
+        } catch (Throwable e) { return false; }
+    }
+
+    private static boolean anrufZeitOk(Context ctx, String nk) {   // höchstens eine SMS je Person in 30 Minuten
+        long jetzt = System.currentTimeMillis();
+        StringBuilder sb = new StringBuilder();
+        boolean ok = true;
+        for (String z : Prefs.anrufZeiten(ctx).split("\n")) {
+            int e = z.indexOf('=');
+            if (e <= 0) continue;
+            long t; try { t = Long.parseLong(z.substring(e + 1).trim()); } catch (Throwable x) { continue; }
+            if (jetzt - t > 3600000L) continue;
+            if (z.substring(0, e).equals(nk)) { if (jetzt - t < 1800000L) ok = false; else continue; }
+            sb.append(z).append('\n');
+        }
+        if (ok) sb.append(nk).append('=').append(jetzt);
+        Prefs.setAnrufZeiten(ctx, sb.toString().trim());
+        return ok;
+    }
+
+    /** Verpasster Anruf: bei Kontakten aus deiner Auswahl schreibt Jarvis eine SMS; bei Familie kommt zusätzlich ein kurzer, dezenter Alarm. */
+    private static void verpasst(Context ctx, StatusBarNotification sbn) {
+        try {
+            Notification n = sbn.getNotification();
+            if (n == null || (n.flags & Notification.FLAG_GROUP_SUMMARY) != 0 || n.extras == null) return;
+            synchronized (ANRUF_GESEHEN) {
+                String id = sbn.getKey() + "|" + n.when;
+                if (!ANRUF_GESEHEN.add(id)) return;
+                if (ANRUF_GESEHEN.size() > 60) ANRUF_GESEHEN.clear();
+            }
+            String ti = String.valueOf(n.extras.getCharSequence("android.title")), tx = String.valueOf(n.extras.getCharSequence("android.text"));
+            String name = null;
+            for (String c : new String[]{ti, tx}) {
+                String nc = norm(c);
+                if (c == null || c.trim().isEmpty() || "null".equals(c) || nc.contains("verpasst") || nc.contains("anruf") || nc.contains("missed")) continue;
+                name = c.trim(); break;
+            }
+            if (name == null) return;
+            if (name.replaceAll("[^0-9]", "").length() >= 6) { String k = nameZu(ctx, name); if (k == null) return; name = k; }   // unbekannte Nummern: nichts tun
+            if (!erlaubtName(ctx, name)) return;
+            String nk = norm(name);
+            boolean familie = !"dino".equals(rolle(ctx, name));
+            String smsText = fix(ctx, name, "Hier ist Jarvis, der KI-Assistent von {D}. {N} konnte gerade nicht ans Telefon gehen und ruft dich zurück.");
+            String nr = nummerZu(ctx, name);
+            boolean gesendet = false;
+            if (nr != null && anrufZeitOk(ctx, nk)) gesendet = sms(ctx, nr, smsText);
+            synchronized (NachrichtenService.class) {
+                JSONArray log = new JSONArray(Prefs.nachrichten(ctx));
+                JSONObject o = new JSONObject();
+                o.put("n", name); o.put("t", "Verpasster Anruf"); o.put("at", System.currentTimeMillis()); o.put("a", gesendet); o.put("r", smsText); o.put("v", true); o.put("w", true);
+                log.put(o);
+                if (log.length() > 40) { JSONArray neu = new JSONArray(); for (int i = log.length() - 40; i < log.length(); i++) neu.put(log.get(i)); log = neu; }
+                Prefs.setNachrichten(ctx, log.toString());
+            }
+            if (familie) alarmMitTitel(ctx, "Verpasster Anruf von " + name, "Bitte zurückrufen." + (gesendet ? " Ich habe " + name + " eine SMS geschickt." : ""), false);
+            else {
+                NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+                nm.createNotificationChannel(new NotificationChannel("zane_vertretung", "Jarvis hat geantwortet", NotificationManager.IMPORTANCE_DEFAULT));
+                nm.notify(4000 + (int) (System.currentTimeMillis() % 1000), new Notification.Builder(ctx, "zane_vertretung")
+                        .setContentTitle("Verpasster Anruf von " + name)
+                        .setContentText(gesendet ? "Ich habe " + name + " eine SMS geschickt, du meldest dich." : "Bitte zurückrufen.")
+                        .setSmallIcon(android.R.drawable.ic_dialog_email).setAutoCancel(true).setTimeoutAfter(6 * 3600000L).build());
+            }
+        } catch (Throwable ignored) { }
+    }
+
     // ---- Entwürfe zur Freigabe ----
     private static final Map<Integer, Object[]> ENTWUERFE = new HashMap<>();
     private static int entwurfNr = 100;
@@ -733,7 +851,9 @@ public class NachrichtenService extends NotificationListenerService {
     }
 
     // ---- lauter Alarm bei Dringendem ----
-    private static void alarm(Context ctx, String name, String text, boolean schleife) {
+    private static void alarm(Context ctx, String name, String text, boolean schleife) { alarmMitTitel(ctx, "Dringende Nachricht von " + name, text, schleife); }
+
+    private static void alarmMitTitel(Context ctx, String titel, String text, boolean schleife) {
         try {
             NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
             android.net.Uri ton = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
@@ -749,7 +869,7 @@ public class NachrichtenService extends NotificationListenerService {
             PendingIntent piTap = PendingIntent.getActivity(ctx, 7, tap, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
             PendingIntent piAus = PendingIntent.getBroadcast(ctx, 9, new Intent(ctx, EntwurfReceiver.class).setAction("de.dino.zaneweckruf.ALARMAUS").putExtra("alarmAus", true), PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
             Notification nf = new Notification.Builder(ctx, "zane_notfall2")
-                    .setContentTitle("Dringende Nachricht von " + name)
+                    .setContentTitle(titel)
                     .setContentText(text)
                     .setSmallIcon(android.R.drawable.ic_dialog_alert)
                     .setCategory(Notification.CATEGORY_ALARM)

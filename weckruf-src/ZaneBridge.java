@@ -116,6 +116,8 @@ class ZaneBridge {
             o.put("ki", Prefs.schlafKi(act));
             o.put("vertretung", Prefs.vertretung(act));
             o.put("minuten", Prefs.vertrMin(act));
+            o.put("anrufe", Prefs.anrufe(act));
+            o.put("sms", act.checkSelfPermission(android.Manifest.permission.SEND_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED);
             return o.toString();
         } catch (Throwable e) { return "{}"; }
     }
@@ -200,5 +202,12 @@ class ZaneBridge {
         }
         if (!"dino".equals(r)) sb.append(k).append('=').append(r);
         Prefs.setAnrede(act, sb.toString().trim());
+    }
+
+    /** Verpasste Anrufe beantworten (SMS) an oder aus; beim Einschalten fragt Android einmal nach der Erlaubnis für SMS. */
+    @JavascriptInterface
+    public void anrufeSetzen(boolean an) {
+        Prefs.setAnrufe(act, an);
+        if (an) act.smsErlaubnis();
     }
 }
