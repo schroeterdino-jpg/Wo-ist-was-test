@@ -186,6 +186,8 @@
                 }
             }
             if (laeuft) { aktivMerken(); setTimeout(miniAktualisieren, 1500); if (ansage) sagen(ansage); return; }
+            /* Spotify hat Play angenommen, spielt aber nichts: dann die App direkt bitten (neue APK) */
+            if (nativSpielen(info)) { await nativErgebnis(ansage); return; }
             try {
                 const dl = (await geraet()).alle.map(function (x) { return x.name + ' (' + x.type + (x.is_active ? ', aktiv' : '') + ')'; }).join('; ');
                 hinweis('Spotify-Stand: Befehl an ' + (g.name || '?') + ' (' + (g.type || '?') + ', ' + (g.is_active ? 'aktiv' : 'nicht aktiv') + ') gesendet, Antwort ' + r.status + '. Spotify meldet: ' + (stand && stand.device ? stand.device.name : 'kein Gerät') + ', spielt: ' + (stand && stand.is_playing ? 'ja' : 'nein') + (stand && stand.item ? ', Lied: ' + stand.item.name : '') + '. Geräte: ' + (dl || 'keine'), true);
