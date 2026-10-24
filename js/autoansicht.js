@@ -227,7 +227,7 @@
         heimAktualisieren(); heimTimer = setInterval(heimAktualisieren, 3 * 60000);
         kartenKey = ''; setTimeout(kartenAktualisieren, 1500); kartenTimer = setInterval(kartenAktualisieren, 2 * 60000);
         tankAktualisieren(); tankTimer = setInterval(tankAktualisieren, 10 * 60000);
-        try { if (navigator.wakeLock && navigator.wakeLock.request) navigator.wakeLock.request('screen').then(function (w) { wake = w; }).catch(function () { }); } catch (e) { }
+        try { if (navigator.wakeLock && navigator.wakeLock.request) navigator.wakeLock.request('screen').then(function (w) { wake = w; }).catch(function () { }); } catch (e) { }        try { setTimeout(function () { document.dispatchEvent(new CustomEvent('jv-autoansicht')); }, 4500); } catch (e) { }   // z. B. für spotify.js (Musik anbieten)
     }
     /* Sicherung: bleibt der Bildschirm länger als 15 Minuten aus (Handy in der Tasche, Auto längst verlassen), schließt sich die Autoansicht und der Fahrmodus geht aus.
        Im Auto bleibt der Bildschirm an (Spiegelung und Wachhalten), dort greift das nie. */
