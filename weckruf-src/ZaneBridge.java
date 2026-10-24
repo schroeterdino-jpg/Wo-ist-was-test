@@ -71,6 +71,56 @@ class ZaneBridge {
     @JavascriptInterface
     public void setFahrmodus(boolean an) { Prefs.setFahren(act, an); }
 
+    /** Audio-Ausgänge des Handys als Text (zur Kontrolle und für die Mund-Verzögerung), z. B. "Lautsprecher, Bluetooth". */
+    @JavascriptInterface
+    public String audioAusgang() {
+        try {
+            android.media.AudioManager am = (android.media.AudioManager) act.getSystemService(android.content.Context.AUDIO_SERVICE);
+            android.media.AudioDeviceInfo[] d = am.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS);
+            StringBuilder sb = new StringBuilder();
+            for (android.media.AudioDeviceInfo x : d) {
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(audioName(x.getType()));
+            }
+            return sb.toString();
+        } catch (Throwable e) { return ""; }
+    }
+
+    /** Läuft der Ton (auch) über etwas Externes (Bluetooth, USB, HDMI, Kopfhörer, Stick)? Dann kommt er etwas später an als das Bild. */
+    @JavascriptInterface
+    public boolean audioExtern() {
+        try {
+            android.media.AudioManager am = (android.media.AudioManager) act.getSystemService(android.content.Context.AUDIO_SERVICE);
+            for (android.media.AudioDeviceInfo x : am.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS)) {
+                int t = x.getType();
+                if (t != 1 && t != 2 && t != 18 && t != 24 && t != 25) return true;   // nicht: Hörmuschel, Lautsprecher, Telefon, Lautsprecher (sicher), Bildschirmaufnahme
+            }
+        } catch (Throwable ignored) { }
+        return false;
+    }
+
+    private static String audioName(int t) {
+        switch (t) {
+            case 1: return "Hörmuschel";
+            case 2: return "Lautsprecher";
+            case 3: return "Kabel-Headset";
+            case 4: return "Kabel-Kopfhörer";
+            case 7: return "Bluetooth (Telefon)";
+            case 8: return "Bluetooth (Musik)";
+            case 9: return "HDMI";
+            case 11: return "USB-Gerät";
+            case 18: return "Telefon";
+            case 21: return "Bus";
+            case 22: return "USB-Headset";
+            case 23: return "Hörgerät";
+            case 24: return "Lautsprecher (sicher)";
+            case 25: return "Bildschirmaufnahme";
+            case 26: return "Bluetooth LE Headset";
+            case 27: return "Bluetooth LE Lautsprecher";
+            default: return "Typ " + t;
+        }
+    }
+
     /** Ist der Fahrmodus in der APK gerade an? (zur Kontrolle in der Autoansicht) */
     @JavascriptInterface
     public boolean fahrAn() { return Prefs.fahren(act); }

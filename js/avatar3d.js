@@ -642,6 +642,15 @@ function generischSpricht(){
  }catch(e){}
  return false;
 }
+let mundBuf=[], mundExtAt=-1e9, mundExt=false;
+function mundVerzoegerung(now){
+ try{
+   if(now-mundExtAt>2000){ mundExtAt=now; const z=window.ZaneNative; mundExt=!!(z&&typeof z.audioExtern==='function'&&z.audioExtern()); }
+   if(!mundExt) return 0;
+   const w=parseInt(localStorage.getItem('jv_mund_delay'),10);
+   return (w>=0&&w<=800)?w:250;
+ }catch(e){ return 0; }
+}
 function applyMorphs(dt,speaking,now){
  syncEmotionToFish(); syncSentenceEmotion();
  const tn=tongueMorphName(); if(tn) setMorph(tn, performance.now()<tongueUntil ? .95 : 0);
@@ -693,6 +702,14 @@ function applyMorphs(dt,speaking,now){
  const shown=Object.assign({},current);
  if(now>microNext&&!micro&&MIMIK_STAERKE>0&&sleepLevel<.2){ const pool=MICROS.filter(m=>!(speaking&&m.mund)); micro=Object.assign({t0:now},pool[Math.floor(Math.random()*pool.length)]); microNext=now+1800+Math.random()*4200; }
  { const e=microEnvelope(now); if(e>0&&micro) for(const k in micro.n){ const r=resolveMorphName(k); if(r) shown[r]=Math.min(1,Math.max(shown[r]||0,micro.n[k]*e*MIMIK_STAERKE)); } }
+ // Mund-Verzögerung: läuft der Ton über Bluetooth/Stick, kommt er später an als das Bild. Dann zeigt der Mund die Werte von vor D Millisekunden (nur Kiefer, Mund, Zunge).
+ { const D=mundVerzoegerung(now);
+   if(D<=0){ if(mundBuf.length) mundBuf.length=0; }
+   else {
+     const v={}; for(const n of morphNames){ if(/^(jaw|mouth|tongue)/.test(n)) v[n]=shown[n]||0; }
+     mundBuf.push({t:now,v}); while(mundBuf.length>2&&mundBuf[1].t<=now-D) mundBuf.shift();
+     const o=mundBuf[0]; if(o&&o.t<=now-D){ for(const n in o.v) shown[n]=o.v[n]; } else { for(const n in v) shown[n]=0; }
+   } }
  for(const m of morphMeshes)for(const n of morphNames){const i=morphIndex(m,n);if(i>=0)m.morphTargetInfluences[i]=shown[n]||0}
 }
 let lastAvatarState='';
