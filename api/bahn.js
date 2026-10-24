@@ -119,12 +119,54 @@ function mapItinerary(it) {
   };
 }
 
+
+/* ---------- Paketverfolgung (DHL Shipment Tracking, Schlüssel DHL_API_KEY in Vercel) ---------- */
+const paketCache = new Map();
+async function paketAuskunft(res, q) {
+  const key = process.env.DHL_API_KEY;
+  if (!key) return res.status(503).json({ error: 'Der DHL-Schlüssel fehlt noch (DHL_API_KEY bei Vercel).', fehlt: true });
+  const nr = String(q.nr || '').replace(/\s+/g, '').toUpperCase();
+  if (!/^[A-Z0-9]{8,30}$/.test(nr)) return res.status(400).json({ error: 'Die Sendungsnummer sieht nicht richtig aus.' });
+  const hit = paketCache.get(nr);
+  if (hit && Date.now() - hit.t < 5 * 60 * 1000) return res.status(200).json(hit.data);
+  try {
+    const r = await fetch('https://api-eu.dhl.com/track/shipments?language=de&trackingNumber=' + encodeURIComponent(nr), {
+      headers: { 'DHL-API-Key': key, 'Accept': 'application/json', 'User-Agent': UA }, signal: AbortSignal.timeout(9000)
+    });
+    if (r.status === 404) return res.status(404).json({ error: 'DHL kennt diese Sendungsnummer nicht (oder noch nicht).', unbekannt: true });
+    if (r.status === 401 || r.status === 403) return res.status(502).json({ error: 'Der DHL-Schlüssel wird nicht angenommen.' });
+    if (r.status === 429) return res.status(429).json({ error: 'DHL bremst gerade. Versuch es später noch einmal.' });
+    if (!r.ok) return res.status(502).json({ error: 'DHL antwortet mit Fehler ' + r.status + '.' });
+    const j = await r.json();
+    const sh = (j.shipments && j.shipments[0]) || null;
+    if (!sh) return res.status(404).json({ error: 'DHL kennt diese Sendungsnummer nicht.', unbekannt: true });
+    const st = sh.status || {};
+    const ev = Array.isArray(sh.events) ? sh.events : [];
+    const data = {
+      nr,
+      code: String(st.statusCode || '').toLowerCase(),
+      status: String(st.status || '').slice(0, 120),
+      beschreibung: String(st.description || '').slice(0, 300),
+      zeit: st.timestamp || (ev[0] && ev[0].timestamp) || '',
+      ort: String((st.location && st.location.address && st.location.address.addressLocality) || (ev[0] && ev[0].location && ev[0].location.address && ev[0].location.address.addressLocality) || '').slice(0, 80),
+      erwartet: sh.estimatedTimeOfDelivery || (sh.estimatedDeliveryTimeFrame && sh.estimatedDeliveryTimeFrame.estimatedFrom) || '',
+      bis: (sh.estimatedDeliveryTimeFrame && sh.estimatedDeliveryTimeFrame.estimatedThrough) || '',
+      verlauf: ev.slice(0, 4).map(e => ({ zeit: e.timestamp || '', text: String(e.description || e.status || '').slice(0, 160) }))
+    };
+    paketCache.set(nr, { t: Date.now(), data });
+    return res.status(200).json(data);
+  } catch (e) {
+    return res.status(502).json({ error: 'DHL ist gerade nicht erreichbar.' });
+  }
+}
+
 export default async function handler(req, res) {
   const expected = process.env.APP_SECRET;
   if (!expected) return res.status(500).json({ error: 'Server: APP_SECRET fehlt' });
   if ((req.headers['x-app-key'] || '') !== expected) return res.status(401).json({ error: 'Nicht erlaubt' });
 
   const q = req.query;
+  if (q.aktion === 'paket') return paketAuskunft(res, q);
   const fromRaw = String(q.from || '').trim().slice(0, 100), toRaw = String(q.to || '').trim().slice(0, 100);
   if (!fromRaw) return res.status(400).json({ error: 'Der Startort fehlt.' });
   if (!toRaw) return res.status(400).json({ error: 'Das Ziel fehlt.' });
