@@ -744,8 +744,21 @@ function startListening(followUp = false, windowMs = FOLLOW_UP_WINDOW_MS) {
     }
 }
 
+/* Läuft der Ton über Bluetooth/Stick, kommt er später an, als die App "fertig gesprochen" meldet. Dann startet das Zuhören erst nach derselben Zeit wie die Mund-Verzögerung
+   (Einstellungen > Anzeige), sonst ist das Zuhör-Fenster schon halb vorbei, bevor man antworten kann. */
+function jvZuhoerVerzug() {
+    try {
+        const z = window.ZaneNative;
+        if (!z || typeof z.audioExtern !== 'function' || !z.audioExtern()) return 0;
+        const w = parseInt(localStorage.getItem('jv_mund_delay'), 10);
+        return Math.min(1500, (w >= 0 && w <= 2000) ? w : 250);
+    } catch (e) { return 0; }
+}
 function continueConversation() {
-    if (conversationMode) startListening(true);
+    if (!conversationMode) return;
+    const d = jvZuhoerVerzug();
+    if (d > 0) setTimeout(function () { if (conversationMode) startListening(true); }, d);
+    else startListening(true);
 }
 
 const END_PHRASE = /^((ok|okay|nein|gut|super) )?(danke( schön| dir)?|vielen dank|das war'?s|das wäre alles|das ist alles|nichts weiter|abbrechen|stopp?|ende|schluss)( danke)?$/;
