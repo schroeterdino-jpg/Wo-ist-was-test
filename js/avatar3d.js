@@ -220,28 +220,44 @@ function bartVoller(geo){
  const h=mxy-mny, cx=(mnx+mxx)/2, zm=sz/n, K=736;
  const sm=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t)};
  const lin=(xs,ys,v)=>{ if(v<=xs[0]) return ys[0]; for(let k=1;k<xs.length;k++){ if(v<=xs[k]) return ys[k-1]+(ys[k]-ys[k-1])*(v-xs[k-1])/(xs[k]-xs[k-1]); } return ys[ys.length-1]; };
- const W=new Float32Array(n), LUM=new Float32Array(n), hair=[], beard=[]; let hr=0,hg=0,hb=0;
+ const W=new Float32Array(n), LUM=new Float32Array(n), SY=new Float32Array(n), DX=new Float32Array(n), hair=[], beard=[], chin=[]; let hr=0,hg=0,hb=0;
  for(let i=0;i<n;i++){
    const r=ca.getX(i),g=ca.getY(i),b=ca.getZ(i), lum=.299*r+.587*g+.114*b; LUM[i]=lum;
    if(pa.getZ(i)<=zm) continue;
    const sx=(pa.getX(i)-cx)/h*K, sy=400-((pa.getY(i)-mny)/h-.5)*K, dx=Math.abs(sx);
    if(sy<170){ hair.push(lum); hr+=r; hg+=g; hb+=b; }
+   SY[i]=sy; DX[i]=dx; if(sy>448&&sy<515&&dx<58) chin.push(lum);
    // Bartkante: unter der Nase fast waagerecht, zu den Ohren hin schräg nach oben (Koteletten)
    const yb=lin([0,40,70,90,110,125,140],[384,388,384,370,352,340,332],dx);
    const zone=sm(0,1,(sy-(yb-5))/16)*(1-sm(500,530,sy));
    if(zone<=0) continue;
    const lip=sm(0,.35,Math.max(0,1-((sx/78)**2+((sy-428)/20)**2)));
    const nose=sm(0,.3,Math.max(0,1-((sx/42)**2+((sy-368)/24)**2)));
-   const w=Math.max(0,Math.min(1,zone*(1-lip)*(1-nose))); W[i]=w; if(w>.5) beard.push(lum);
+   const w=Math.max(0,Math.min(1,zone*(1-lip)*(1-nose))); W[i]=w;
  }
- if(hair.length<20||beard.length<50) return;
- hair.sort((a,b)=>a-b); beard.sort((a,b)=>a-b);
+ if(hair.length<20) return;
+ hair.sort((a,b)=>a-b);
  let hm=0; for(const v of hair) hm+=v; hm/=hair.length;
  const hue=[hr/hair.length/hm, hg/hair.length/hm, hb/hair.length/hm];
  const qh=(r)=>{const p=r*(hair.length-1), i0=Math.floor(p), i1=Math.min(hair.length-1,i0+1); return hair[i0]+(hair[i1]-hair[i0])*(p-i0)};
  const rank=(v)=>{ if(v<=beard[0]) return 0; if(v>=beard[beard.length-1]) return 1; let lo=0,hi=beard.length-1; while(hi-lo>1){const m=(lo+hi)>>1; if(beard[m]<=v)lo=m; else hi=m;} const f=(v-beard[lo])/Math.max(1e-9,beard[hi]-beard[lo]); return (lo+f)/(beard.length-1); };
+ // Strähnen: Der Kinnbart hat echte Struktur, die Wangen waren glatt wie Farbe. Für die Wangen wird eine Zufallsstruktur mit der
+ // Helligkeitsverteilung des Kinnbarts erzeugt (fester Startwert, damit es immer gleich aussieht) und über die Nachbarpunkte leicht geglättet.
+ if(chin.length<50) return; chin.sort((a,b)=>a-b);
+ let sd=12345; const rnd=()=>{ sd=(sd+0x6D2B79F5)|0; let t=Math.imul(sd^(sd>>>15),1|sd); t=(t+Math.imul(t^(t>>>7),61|t))^t; return ((t^(t>>>14))>>>0)/4294967296; };
+ let noise=new Float32Array(n); for(let i=0;i<n;i++) noise[i]=chin[Math.floor(rnd()*chin.length)];
+ const ix=geo.index;
+ if(ix){ const sum=new Float32Array(n), cnt=new Float32Array(n); const arr=ix.array;
+   for(let k=0;k<arr.length;k+=3){ const a=arr[k],b=arr[k+1],c=arr[k+2]; sum[a]+=noise[b]+noise[c]; cnt[a]+=2; sum[b]+=noise[a]+noise[c]; cnt[b]+=2; sum[c]+=noise[a]+noise[b]; cnt[c]+=2; }
+   const sm2=new Float32Array(n); for(let i=0;i<n;i++) sm2[i]=cnt[i]?.5*noise[i]+.5*sum[i]/cnt[i]:noise[i]; noise=sm2;
+   // nach dem Glätten wieder auf die Verteilung des Kinnbarts strecken (sonst wird es zu glatt)
+   const ord=Array.from({length:n},(_,i)=>i).sort((a,b)=>noise[a]-noise[b]); const nz=new Float32Array(n);
+   for(let k=0;k<n;k++){ const p=k/(n-1)*(chin.length-1), i0=Math.floor(p), i1=Math.min(chin.length-1,i0+1); nz[ord[k]]=chin[i0]+(chin[i1]-chin[i0])*(p-i0); } noise=nz; }
+ const EFF=new Float32Array(n);
+ for(let i=0;i<n;i++){ const own=sm(430,462,SY[i])*sm(100,60,DX[i]); EFF[i]=LUM[i]*own+noise[i]*(1-own); if(W[i]>.5) beard.push(EFF[i]); }
+ if(beard.length<50) return; beard.sort((a,b)=>a-b);
  const TL=new Float32Array(n); let tm=0;
- for(let i=0;i<n;i++){ TL[i]=qh(rank(LUM[i])); tm+=TL[i]; } tm/=n;
+ for(let i=0;i<n;i++){ TL[i]=qh(rank(EFF[i])); tm+=TL[i]; } tm/=n;
  for(let i=0;i<n;i++){
    const w=W[i]*.95; if(w<=0) continue;
    const t=Math.max(.04,Math.min(.40,tm+(TL[i]-tm)*1.6));
