@@ -349,6 +349,13 @@
             if (/^(?:bitte )?(?:lauter|leiser)$/.test(t)) { lautstaerke(null, /lauter/.test(t) ? 15 : -15); return true; }
             if (/^(?:bitte )?(?:weiterspielen|fortsetzen)$/.test(t)) { steuern('weiter'); return true; }
         }
+        if (new RegExp('^' + S + '(?:mach )?(?:die )?(?:musik|spotify)(?: bitte)? (?:beenden|aus|ausmachen|ausschalten|stoppen|schlie(?:ß|ss)en und stoppen)$').test(t) || /^(?:beende|stoppe) (?:die )?(?:musik|spotify)$/.test(t)) {
+            if (!verbunden()) return nein();
+            try { localStorage.removeItem(AKTIV); } catch (e) { }
+            fensterZu();
+            ruf('PUT', '/me/player/pause').then(function () { sagen('Okay, die Musik ist aus.'); });
+            return true;
+        }
         const aktion = function (fn) { if (!verbunden()) return nein(); fn(); return true; };
         let m;
         if (new RegExp('^' + S + '(?:mach )?(?:die )?(?:musik|spotify)(?: bitte)? (?:pause|pausieren|stopp|stop|aus|anhalten|ausmachen|ausschalten)$').test(t) || /^musik (?:pausieren|anhalten|ausmachen|stoppen)$/.test(t) || /^pausiere (?:die )?musik$/.test(t))
