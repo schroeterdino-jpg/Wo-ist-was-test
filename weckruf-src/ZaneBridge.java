@@ -133,6 +133,10 @@ class ZaneBridge {
     @JavascriptInterface
     public void fahrVerwerfen(String id) { NachrichtenService.fahrVerwerfen(id); }
 
+    /** Medien-Lautstärke ändern (Prozent-Schritt, negativ = leiser); gibt die neue Stufe in Prozent zurück, -1 bei Fehler. */
+    @JavascriptInterface
+    public int musikLautstaerke(int delta) { return act.musikLautstaerke(delta); }
+
     /** Spotify-App öffnen (für Sprachbefehle "Spiel ... auf Spotify"). */
     @JavascriptInterface
     public boolean spotifyOeffnen() { return act.spotifyOeffnen(); }
