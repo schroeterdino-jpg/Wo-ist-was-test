@@ -137,7 +137,27 @@
         }
         if (!g) g = d.alle[0] || null;
         if (!g) { sagen('Ich finde kein Spotify-Gerät.'); return; }
-        if (!g.is_active) { await ruf('PUT', '/me/player', { device_ids: [g.id], play: false }); await schlaf(1200); }
+        if (!g.is_active) {
+            await ruf('PUT', '/me/player', { device_ids: [g.id], play: false }); await schlaf(1500);
+            let aktiv = false; try { const h = (await geraet()).handy; aktiv = !!(h && h.is_active); } catch (e) { }
+            /* Spotify führt eine geschlossene App weiter als "Gerät" in der Liste, schickt aber nichts an sie.
+               Wird das Handy nach dem Umschalten nicht aktiv, ist die App zu: dann erst öffnen und warten, bis sie wirklich aktiv ist. */
+            if (!aktiv && !schon && /smartphone/i.test(g.type || '')) {
+                speichern(PENDING, { body: body || null, ansage: ansage, t: Date.now() });
+                let offen = false; try { offen = !!(window.ZaneNative && ZaneNative.spotifyOeffnen && ZaneNative.spotifyOeffnen()); } catch (e) { }
+                if (offen) {
+                    kalt = true;
+                    for (let i = 0; i < 9 && !aktiv; i++) {
+                        await schlaf(2000);
+                        if (i % 2 === 1) await ruf('PUT', '/me/player', { device_ids: [g.id], play: false });
+                        const h = (await geraet()).handy; aktiv = !!(h && h.is_active);
+                    }
+                    if (!aktiv) { sagen('Spotify ist offen. Komm zu Jarvis zurück, dann starte ich die Musik.'); return; }
+                    speichern(PENDING, null);
+                    await schlaf(2500);
+                } else { speichern(PENDING, null); }
+            }
+        }
         const pfadPlay = '/me/player/play?device_id=' + encodeURIComponent(g.id);
         const r = await ruf('PUT', pfadPlay, body || undefined);
         if (erfolg(r)) {
