@@ -645,8 +645,13 @@ public class MainActivity extends Activity {
                 Prefs.setMusikVonJarvis(this, false);
                 android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
                 if (am != null) {
-                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE));
-                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE));
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_STOP));
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_STOP));
+                    // Spotify danach ganz beenden (geht erst, wenn es nicht mehr abspielt)
+                    final android.app.ActivityManager aman = (android.app.ActivityManager) getApplicationContext().getSystemService(ACTIVITY_SERVICE);
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                        @Override public void run() { try { aman.killBackgroundProcesses("com.spotify.music"); } catch (Throwable e) { } }
+                    }, 1500);
                 }
             }
         } catch (Throwable ignored) { }
