@@ -147,7 +147,7 @@ public class NachrichtenService extends NotificationListenerService {
     @Override
     public void onNotificationPosted(final StatusBarNotification sbn) {
         try {
-            if (sbn == null || (!Prefs.schlaf(this) && !Prefs.vertretung(this) && !Prefs.anrufe(this))) return;
+            if (sbn == null || (!Prefs.schlaf(this) && !Prefs.vertretung(this) && !Prefs.anrufe(this) && !Prefs.fahren(this))) return;
             final Context ctx = getApplicationContext();
             EX.execute(() -> { try { verarbeite(ctx, sbn); } catch (Throwable ignored) { } });
         } catch (Throwable ignored) { }
@@ -158,7 +158,7 @@ public class NachrichtenService extends NotificationListenerService {
         if (Prefs.schlaf(ctx) && seit > 0 && System.currentTimeMillis() - seit > MAX_SCHLAF_MS) Prefs.setSchlaf(ctx, false);
         String pkg = sbn.getPackageName();
         if (Prefs.anrufe(ctx) && verpassterAnruf(sbn)) { verpasst(ctx, sbn); return; }
-        if (!Prefs.schlaf(ctx) && !Prefs.vertretung(ctx)) return;
+        if (!Prefs.schlaf(ctx) && !Prefs.vertretung(ctx) && !Prefs.fahren(ctx)) return;
         if (!"com.whatsapp".equals(pkg) && !"com.whatsapp.w4b".equals(pkg)) return;
         Notification n = sbn.getNotification();
         if (n == null || (n.flags & Notification.FLAG_GROUP_SUMMARY) != 0) return;
@@ -171,7 +171,10 @@ public class NachrichtenService extends NotificationListenerService {
         if (name.isEmpty() || text.isEmpty() || "WhatsApp".equalsIgnoreCase(name)) return;
         if (text.matches("(?s).*\\d+ (neue )?(Nachrichten|messages).*") && text.length() < 40) return;   // Sammelmeldung
 
+        if (Prefs.fahren(ctx) && erlaubtName(ctx, name)) fahrNachricht(ctx, n, name, text);   // Fahrmodus: Jarvis liest vor und fragt nach; läuft unabhängig von Schlafmodus und Vertretung
+
         if (!Prefs.schlaf(ctx)) {   // nur Vertretung: nach der Wartezeit nachsehen, ob die Meldung noch ungelesen dasteht
+            if (!Prefs.vertretung(ctx)) return;   // nur Fahrmodus: hier ist nichts weiter zu tun
             if (Prefs.vertretung(ctx) && erlaubtName(ctx, name) && NOTFALL.matcher(norm(text)).find() && notfallSofort(ctx, sbn, n, name, text)) return;   // Notfall: nicht warten
             if (!erlaubtName(ctx, name)) logV(ctx, name + " schrieb, ist aber nicht in deiner Kontaktliste. Ich tue nichts.");
             else logV(ctx, name + " schrieb. Ich warte " + Prefs.vertrMin(ctx) + " Minuten, ob du reagierst.");
@@ -241,6 +244,56 @@ public class NachrichtenService extends NotificationListenerService {
             Intent i = new Intent();
             Bundle b = new Bundle();
             String text = mitVorstellung(ctx, name, antwort);
+            for (RemoteInput ri : ris) b.putCharSequence(ri.getResultKey(), text);
+            RemoteInput.addResultsToIntent(ris, i, b);
+            a.actionIntent.send(ctx, 0, i);
+            return true;
+        } catch (Throwable e) { return false; }
+    }
+
+    // ---- Fahrmodus: WhatsApp vorlesen, nachfragen, gesprochene Antwort senden ----
+    private static final Map<String, Object[]> FAHR = new HashMap<>();      // id -> [Antwort-Aktion, Name]
+    private static final Map<String, Long> FAHR_GESEHEN = new HashMap<>();  // WhatsApp meldet dieselbe Nachricht gern mehrfach
+    private static int fahrNr = 0;
+
+    private static void fahrNachricht(Context ctx, Notification n, String name, String text) {
+        try {
+            Notification.Action act = null;
+            if (n.actions != null) for (Notification.Action a : n.actions) { RemoteInput[] ris = a.getRemoteInputs(); if (ris != null && ris.length > 0) { act = a; break; } }
+            String id;
+            long jetzt = System.currentTimeMillis();
+            synchronized (FAHR) {
+                String k = norm(name) + "|" + norm(text);
+                Long z = FAHR_GESEHEN.get(k);
+                if (z != null && jetzt - z < 180000L) return;
+                if (FAHR_GESEHEN.size() > 60) FAHR_GESEHEN.clear();
+                FAHR_GESEHEN.put(k, jetzt);
+                id = "f" + (++fahrNr);
+                if (act != null) { if (FAHR.size() > 20) FAHR.clear(); FAHR.put(id, new Object[]{act, name}); }
+            }
+            JSONObject o = new JSONObject();
+            o.put("id", id); o.put("name", name); o.put("text", kurz(text, 400)); o.put("kann", act != null);
+            MainActivity.jsAus("window.jvFahrWA&&window.jvFahrWA.nachricht(" + o.toString() + ");");
+        } catch (Throwable ignored) { }
+    }
+
+    /** Antwort des Fahrers senden: sein eigener Text, ohne Jarvis-Vorstellung. */
+    static boolean fahrSenden(Context ctx, String id, String text) {
+        if (id == null || text == null || text.trim().isEmpty()) return false;
+        Object[] e;
+        synchronized (FAHR) { e = FAHR.remove(id); }
+        if (e == null) return false;
+        return sendeRoh(ctx, (Notification.Action) e[0], text.trim());
+    }
+
+    static void fahrVerwerfen(String id) { synchronized (FAHR) { FAHR.remove(id); } }
+
+    private static boolean sendeRoh(Context ctx, Notification.Action a, String text) {
+        try {
+            RemoteInput[] ris = a.getRemoteInputs();
+            if (ris == null || ris.length == 0) return false;
+            Intent i = new Intent();
+            Bundle b = new Bundle();
             for (RemoteInput ri : ris) b.putCharSequence(ri.getResultKey(), text);
             RemoteInput.addResultsToIntent(ris, i, b);
             a.actionIntent.send(ctx, 0, i);

@@ -735,6 +735,14 @@ public class MainActivity extends Activity {
         if (web != null) web.evaluateJavascript(code, null);
     }
 
+    /** JavaScript in der offenen Seite ausführen (von Diensten aus); tut nichts, wenn Jarvis nicht offen ist. */
+    static boolean jsAus(final String code) {
+        final MainActivity m = current;
+        if (m == null || m.web == null) return false;
+        m.runOnUiThread(() -> m.js(code));
+        return true;
+    }
+
     private void send(String type, String json) {
         js("window.__zaneRec&&window.__zaneRec(" + JSONObject.quote(type) + "," + (json == null ? "null" : json) + ");");
     }
