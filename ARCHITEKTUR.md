@@ -146,3 +146,4 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - Musik-Stopp beim Wegwischen: JS meldet mit ZaneNative.musikMerken(true) beim Abspielen, dass Jarvis Musik gestartet hat (Prefs musikVonJarvis); WakeService.onTaskRemoved schickt dann die Medientaste Pause. Greift nur, solange der WakeService läuft. Änderung unter weckruf-src/ → neuer APK-Bau.
 - Zusätzlich pausiert MainActivity.onDestroy (wenn isFinishing) die Musik, weil WakeService.onTaskRemoved auf dem Handy nicht griff.
 - Beim Wegwischen: Medientaste STOP, nach 1,5 s killBackgroundProcesses(com.spotify.music) (Permission KILL_BACKGROUND_PROCESSES). Android erlaubt das Beenden fremder Apps nur eingeschränkt.
+- Fenster-Wiedergabe (bindPlay) übergibt jetzt info {typ,titel,kuenstler,uri} an abspielen(): dadurch greift der native Rückweg auch bei Treffern aus der Suche (z. B. wenn Spotify per Wegwischen beendet wurde, aber noch als aktives Gerät gemeldet wird).
