@@ -639,6 +639,17 @@ public class MainActivity extends Activity {
             try { web.stopLoading(); web.loadUrl("about:blank"); web.removeAllViews(); web.destroy(); } catch (Throwable ignored) { }
             web = null;
         }
+        // Jarvis wird beendet (z. B. weggewischt): Musik, die Jarvis gestartet hat, anhalten
+        try {
+            if (isFinishing() && Prefs.musikVonJarvis(this)) {
+                Prefs.setMusikVonJarvis(this, false);
+                android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+                if (am != null) {
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE));
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE));
+                }
+            }
+        } catch (Throwable ignored) { }
         super.onDestroy();
     }
 
