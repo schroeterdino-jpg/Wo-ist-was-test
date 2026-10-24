@@ -67,6 +67,18 @@ class ZaneBridge {
     @JavascriptInterface
     public boolean holeAutoansicht() { boolean a = MainActivity.pendingAuto; MainActivity.pendingAuto = false; return a; }
 
+    /** Fahrmodus (Autoansicht) an/aus: nur dann gibt die App WhatsApp-Nachrichten erlaubter Kontakte an die Seite zum Vorlesen weiter. */
+    @JavascriptInterface
+    public void setFahrmodus(boolean an) { Prefs.setFahren(act, an); }
+
+    /** Antwort auf eine vorgelesene WhatsApp senden (id aus der Meldung an die Seite); true, wenn WhatsApp sie angenommen hat. */
+    @JavascriptInterface
+    public boolean fahrSenden(String id, String text) { return NachrichtenService.fahrSenden(act, id, text); }
+
+    /** Vorgelesene WhatsApp ohne Antwort abhaken. */
+    @JavascriptInterface
+    public void fahrVerwerfen(String id) { NachrichtenService.fahrVerwerfen(id); }
+
     /** Nummer direkt anrufen (fragt beim ersten Mal nach der Telefon-Erlaubnis). */
     @JavascriptInterface
     public boolean anrufen(String nummer) { return act.anrufen(nummer); }

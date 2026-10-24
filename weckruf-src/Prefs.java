@@ -78,7 +78,10 @@ final class Prefs {
     static void setVertretung(Context c, boolean v) { sp(c).edit().putBoolean("vertretung", v).apply(); }
     static int vertrMin(Context c) { return sp(c).getInt("vertrMin", 10); }
     static void setVertrMin(Context c, int m) { sp(c).edit().putInt("vertrMin", Math.max(5, Math.min(120, m))).apply(); }
-    static String vertrZeiten(Context c) { return sp(c).getString("vertrZeiten", ""); }          // Zeilen "name=ts,ts,ts" (Zeitpunkte der Vertretungs-Antworten)
+    // Fahrmodus (Autoansicht offen): WhatsApp von erlaubten Kontakten wird vorgelesen; der Merker verfällt nach 12 Stunden von selbst
+    static boolean fahren(Context c) { long s = sp(c).getLong("fahrenSeit", 0); return s > 0 && System.currentTimeMillis() - s < 12L * 3600000L; }
+    static void setFahren(Context c, boolean v) { sp(c).edit().putLong("fahrenSeit", v ? System.currentTimeMillis() : 0).apply(); }
+    static String vertrZeiten(Context c) { return sp(c).getString("vertrZeiten", ""); }         // Zeilen "name=ts,ts,ts" (Zeitpunkte der Vertretungs-Antworten)
     static void setVertrZeiten(Context c, String s) { sp(c).edit().putString("vertrZeiten", s == null ? "" : s).apply(); }
     static String kontextTag(Context c) { return sp(c).getString("kontextTag", ""); }
     static String kontextText(Context c) { return sp(c).getString("kontextText", ""); }

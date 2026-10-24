@@ -4,6 +4,7 @@
    Zeigt: Heimweg-Zeit in großen Ziffern (alle 3 Minuten frisch), den Tanktipp (falls es einen gibt), vier große Knöpfe
    (Nach Hause, Anrufen, Tanken, Parkplatz) und eine Zeile zum Sprechen. Karten, die Jarvis dabei anlegt (Anruf, Route ...), erscheinen in der Ansicht,
    weil der Kartenbereich (#actionCards) solange hierher umgezogen wird.
+   Solange sie offen ist, ist der "Fahrmodus" an (ZaneNative.setFahrmodus): dann liest fahr_whatsapp.js WhatsApp-Nachrichten vor.
    Braucht: plan_ansagen.js (window.jvPlan: heimFrisch, heimTank, heimAdresse), places.js (buildMapsLink), voice.js (speak, startListening), commands.js.
    ============================================================ */
 (function () {
@@ -106,9 +107,13 @@
         } catch (e) { }
     }
 
+    /* Der APK sagen, ob der Fahrmodus läuft: nur dann gibt sie WhatsApp von erlaubten Kontakten zum Vorlesen weiter (fahr_whatsapp.js) */
+    function fahrFlag(an) { try { const n = window.ZaneNative; if (n && typeof n.setFahrmodus === 'function') n.setFahrmodus(!!an); } catch (e) { } }
+
     function oeffnen() {
         if (layer) return;
         bauen();
+        fahrFlag(true);
         // Kartenbereich hierher umziehen, damit Anruf- und Routenkarten sichtbar sind
         kartenBox = document.getElementById('actionCards');
         if (kartenBox) { kartenParent = kartenBox.parentNode; kartenNext = kartenBox.nextSibling; $('aa-karten').appendChild(kartenBox); }
@@ -121,6 +126,7 @@
     function schliessen() {
         if (!layer) return;
         clearInterval(tick); clearInterval(heimTimer); clearInterval(tankTimer);
+        fahrFlag(false);
         try { if (wake) wake.release(); } catch (e) { } wake = null;
         if (kartenBox && kartenParent) { try { kartenParent.insertBefore(kartenBox, kartenNext && kartenNext.parentNode === kartenParent ? kartenNext : null); } catch (e) { } }
         kartenBox = kartenParent = kartenNext = null;
@@ -151,6 +157,7 @@
             const n = window.ZaneNative;
             if (n && typeof n.holeAutoansicht === 'function' && n.holeAutoansicht()) { if (!layer) { oeffnen(); sagen('Autoansicht ist an.', false); } }
         } catch (e) { }
+        if (!layer) fahrFlag(false);   // Seite frisch geladen und Autoansicht zu: Fahrmodus-Merker der APK zurücksetzen
     }
     setTimeout(start, 1800);   // Seite wurde vom Auto-Bluetooth frisch gestartet
     window.jvAutoansicht = { oeffnen, schliessen, start, offen: function () { return !!layer; } };
