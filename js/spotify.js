@@ -134,8 +134,23 @@
         if (!g) g = d.alle[0] || null;
         if (!g) { sagen('Ich finde kein Spotify-Gerät.'); return; }
         if (!g.is_active) { await ruf('PUT', '/me/player', { device_ids: [g.id], play: false }); await schlaf(1200); }
-        const r = await ruf('PUT', '/me/player/play?device_id=' + encodeURIComponent(g.id), body || undefined);
-        if (erfolg(r)) { aktivMerken(); setTimeout(miniAktualisieren, 1500); if (ansage) sagen(ansage); return; }
+        const pfadPlay = '/me/player/play?device_id=' + encodeURIComponent(g.id);
+        const r = await ruf('PUT', pfadPlay, body || undefined);
+        if (erfolg(r)) {
+            /* Spotify bestätigt den Befehl oft, obwohl das Handy noch gar nicht spielt (frisch geöffnete App). Darum nachprüfen und notfalls erneut senden. */
+            let stand = null, laeuft = false;
+            for (let k = 0; k < 4 && !laeuft; k++) {
+                await schlaf(k === 0 ? 1800 : 2200);
+                const st = await ruf('GET', '/me/player');
+                stand = st.json || null;
+                laeuft = !!(stand && stand.is_playing && (!body || !body.uris || (stand.item && stand.item.uri === body.uris[0])));
+                if (!laeuft && k < 3) await ruf('PUT', pfadPlay, body || undefined);
+            }
+            if (laeuft) { aktivMerken(); setTimeout(miniAktualisieren, 1500); if (ansage) sagen(ansage); return; }
+            try { hinweis('Spotify-Stand: ' + (stand && stand.device ? stand.device.name : 'kein Gerät') + ', spielt: ' + (stand && stand.is_playing ? 'ja' : 'nein') + (stand && stand.item ? ', Lied: ' + stand.item.name : '')); } catch (e) { }
+            sagen('Spotify hat den Befehl angenommen, aber die Musik startet nicht. Tippe in Spotify einmal auf Play.');
+            return;
+        }
         fehlerZeigen(r); sagen(fehlerText(r));
     }
     async function suchenUndSpielen(anfrage, art) {
