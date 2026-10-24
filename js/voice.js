@@ -822,6 +822,7 @@ if (SpeechRecognition) {
 
     function handleRecognizedText(text) {
         text = fixKnownMishearings(text);
+        if (typeof window.__jvAbfangen === 'function') { try { if (window.__jvAbfangen(text)) { isFollowUp = false; clearFollowUpTimer(); setIdleUi(); return; } } catch (e) {} }
         isFollowUp = false;
         clearFollowUpTimer();
         typeWriterStatus('');   // dein Satz wird nicht mehr wiederholt (stört)

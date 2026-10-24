@@ -10,7 +10,7 @@
     'use strict';
     const CLIENT_ID = '038bf83d70064b9bbf36f33e3a1ee57f';
     const REDIRECT = 'https://wo-ist-was-test.vercel.app/';
-    const SCOPES = 'user-modify-playback-state user-read-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative';
+    const SCOPES = 'user-modify-playback-state user-read-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative user-library-read';
     const KEY = 'jv_spotify', PKCE = 'jv_spotify_pkce', PENDING = 'jv_spotify_pending';
     const API = 'https://api.spotify.com/v1';
 
@@ -296,6 +296,7 @@
         if (erfolg(r)) eigenCache = { t: Date.now(), l: l };
         return l;
     }
+    function hatBibRecht() { const t = laden(KEY); return !!(t && /user-library-read/.test(t.scope || '')); }
     function bild(b) { return (b && b.length ? (b[b.length > 1 ? b.length - 2 : 0] || b[0]).url : '') || ''; }
     function zeile(name, sub, img, body, ansage) {
         const id = 'sp' + Math.random().toString(36).slice(2, 8);
@@ -316,6 +317,8 @@
             '#sp-layer .sp-z{display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid #0e2230}#sp-layer .sp-b{width:52px;height:52px;border-radius:8px;background:#12303f center/cover no-repeat;flex:none}' +
             '#sp-layer .sp-t{flex:1;min-width:0}#sp-layer .sp-n{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#sp-layer .sp-s{font-size:12px;color:#8fb4c8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
             '#sp-layer .sp-p{width:46px;height:46px;border-radius:50%;border:1px solid #4cffb0;color:#4cffb0;background:transparent;font-size:17px;flex:none}' +
+            '#sp-layer .sp-such{display:flex;gap:8px}#sp-layer .sp-such input{flex:1;min-width:0}#sp-layer .sp-mic{width:54px;flex:none;border-radius:10px;border:1px solid #4cffb0;background:transparent;color:#4cffb0;font-size:22px}#sp-layer .sp-mic.hoert{background:#4cffb0;color:#04090f}' +
+            '#sp-layer .sp-gitter{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;padding:10px 14px}#sp-layer .sp-kachel{background:transparent;border:0;color:#e8f3f9;text-align:left;padding:0;font:inherit;min-width:0}#sp-layer .sp-kachel .sp-kb{width:100%;aspect-ratio:1;border-radius:8px;background:#12303f center/cover no-repeat}#sp-layer .sp-kachel .sp-n{margin-top:6px}' +
             '#sp-layer .sp-info{padding:18px 14px;font-size:13px;color:#8fb4c8;line-height:1.4}#sp-layer .sp-info button{margin-top:10px;padding:11px 14px;border-radius:10px;border:1px solid #4cffb0;color:#4cffb0;background:transparent;font:700 13px "DejaVu Sans Mono",monospace}' +
             '#sp-layer .sp-fuss{border-top:1px solid #4cffb0;background:#071521;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px))}#sp-layer .sp-jetzt{display:flex;align-items:center;gap:12px}' +
             '#sp-layer .sp-steu{display:flex;justify-content:space-around;margin-top:8px;gap:6px}#sp-layer .sp-steu button{flex:1;height:46px;border-radius:10px;border:1px solid #1b3a4a;background:transparent;color:#49d7ff;font-size:19px}#sp-layer .sp-steu .gr{color:#4cffb0;border-color:#4cffb0}';
@@ -335,6 +338,40 @@
         el.innerHTML = '<div class="sp-b" style="' + (img ? 'background-image:url(\'' + esc(img) + '\')' : '') + '"></div><div class="sp-t"><div class="sp-n">' + esc(it.name) + '</div><div class="sp-s">' + esc((it.artists || []).map(function (a) { return a.name; }).join(', ')) + (r.json.device ? ' · ' + esc(r.json.device.name) : '') + '</div></div>';
         const pb = FL.querySelector('#sp-pp'); if (pb) pb.textContent = r.json.is_playing ? '⏸' : '▶';
     }
+    function bindPlay(L) {
+        L.querySelectorAll('.sp-p,.sp-kachel').forEach(function (b) {
+            b.onclick = async function () {
+                const k = zeile._k[b.getAttribute('data-k')]; if (!k) return;
+                const knopf = b.classList.contains('sp-p');
+                if (knopf) b.textContent = '…';
+                await abspielen(k.body, k.ansage);
+                if (knopf) b.textContent = '▶';
+                setTimeout(jetzt, 1500);
+            };
+        });
+    }
+    function sprachSuche() {
+        const m = FL && FL.querySelector('#sp-mic');
+        if (typeof startListening !== 'function') { hinweis('Die Sprachsuche geht hier nicht.'); return; }
+        if (m) m.classList.add('hoert');
+        window.__jvAbfangen = function (text) {
+            window.__jvAbfangen = null;
+            if (!FL) return false;
+            if (m) m.classList.remove('hoert');
+            let t = String(text || '').replace(/[.!?]+$/, '').replace(/^\s*(suche|such|suchen|zeig mir|zeige mir|zeig|finde|such mir)( nach)?\s+/i, '').replace(/\s+(auf|bei|in) spotify\s*$/i, '').trim();
+            if (!t) return true;
+            suchText = t;
+            const inp = FL.querySelector('#sp-q'); if (inp) inp.value = t;
+            if (tab === 'playlists' || tab === 'meinealben' || tab === 'lieblinge') {
+                tab = 'lieder';
+                FL.querySelectorAll('.sp-tab').forEach(function (c) { c.classList.toggle('an', c.getAttribute('data-t') === 'lieder'); });
+            }
+            fuellen();
+            return true;
+        };
+        setTimeout(function () { if (m) m.classList.remove('hoert'); }, 15000);
+        startListening(false);
+    }
     async function fuellen() {
         if (!FL) return;
         const L = FL.querySelector('.sp-liste'); if (!L) return;
@@ -349,6 +386,27 @@
             if (!l.length) return q ? '' : '<div class="sp-info">Du hast keine eigenen Playlists.</div>';
             return '<div class="sp-ue">MEINE PLAYLISTS</div>' + l.map(function (x) { return zeile(x.name, (x.items && x.items.total != null ? x.items.total : (x.tracks && x.tracks.total != null ? x.tracks.total : '')) + ' Titel', bild(x.images), { context_uri: x.uri }, 'Ich spiele deine Playlist ' + x.name + '.'); }).join('');
         };
+        if (tab === 'meinealben' || tab === 'lieblinge') {
+            if (!hatBibRecht()) { if (!FL) return; L.innerHTML = '<div class="sp-info">Für deine Bibliothek braucht Jarvis eine zusätzliche Erlaubnis.<br><button type="button" id="sp-neu">Mit Spotify neu verbinden</button></div>'; L.querySelector('#sp-neu').onclick = function () { fensterZu(); login(); }; return; }
+            const alb = tab === 'meinealben';
+            const r = await ruf('GET', alb ? '/me/albums?limit=50' : '/me/tracks?limit=50');
+            if (!erfolg(r)) { fehlerZeigen(r); if (FL) L.innerHTML = '<div class="sp-info">' + esc(fehlerText(r)) + '</div>'; return; }
+            let l = ((r.json && r.json.items) || []).map(function (i) { return alb ? i.album : i.track; }).filter(Boolean);
+            if (q) l = l.filter(function (x) { return norm(x.name + ' ' + (x.artists || []).map(function (a) { return a.name; }).join(' ')).indexOf(norm(q)) >= 0; });
+            if (!FL) return;
+            if (!l.length) { L.innerHTML = '<div class="sp-info">' + (q ? 'Nichts gefunden.' : (alb ? 'Du hast noch keine Alben gespeichert.' : 'Du hast noch keine Lieblingssongs.')) + '</div>'; return; }
+            const kue = function (x) { return (x.artists || []).map(function (a) { return a.name; }).join(', '); };
+            if (alb) {
+                h = '<div class="sp-ue">GESPEICHERTE ALBEN</div><div class="sp-gitter">' + l.map(function (x) {
+                    const id = 'sp' + Math.random().toString(36).slice(2, 8); const im = bild(x.images);
+                    zeile._k[id] = { body: { context_uri: x.uri }, ansage: 'Ich spiele das Album ' + x.name + '.' };
+                    return '<button type="button" class="sp-kachel" data-k="' + id + '"><div class="sp-kb" style="' + (im ? 'background-image:url(\'' + esc(im) + '\')' : '') + '"></div><div class="sp-n">' + esc(x.name) + '</div><div class="sp-s">' + esc(kue(x)) + '</div></button>';
+                }).join('') + '</div>';
+            } else {
+                h = '<div class="sp-ue">LIEBLINGSSONGS</div>' + l.map(function (x) { return zeile(x.name, kue(x), bild(x.album && x.album.images), { uris: [x.uri] }, 'Ich spiele ' + x.name + '.'); }).join('');
+            }
+            L.innerHTML = h; bindPlay(L); return;
+        }
         const typ = { playlists: 'playlist', alben: 'album', lieder: 'track', kuenstler: 'artist' }[tab];
         if (tab === 'playlists') h += await mein();
         if (q || tab !== 'playlists') {
@@ -371,12 +429,7 @@
         }
         if (!FL) return;
         L.innerHTML = h;
-        L.querySelectorAll('.sp-p').forEach(function (b) {
-            b.onclick = async function () {
-                const k = zeile._k[b.getAttribute('data-k')]; if (!k) return;
-                b.textContent = '…'; await abspielen(k.body, k.ansage); b.textContent = '▶'; setTimeout(jetzt, 1500);
-            };
-        });
+        bindPlay(L);
         const nb = L.querySelector('#sp-neu'); if (nb) nb.onclick = function () { fensterZu(); login(); };
     }
     function fenster(q) {
@@ -384,8 +437,8 @@
         if (FL) fensterZu();
         FL = document.createElement('div'); FL.id = 'sp-layer';
         FL.innerHTML = '<div class="sp-kopf"><span class="sp-ti">♫ SPOTIFY</span><button type="button" class="sp-x" id="sp-x" aria-label="Schließen">✕</button></div>' +
-            '<div class="sp-such"><input id="sp-q" type="search" placeholder="🔍  Suchen …" autocomplete="off" value="' + esc(suchText) + '"></div>' +
-            '<div class="sp-tabs"><button type="button" class="sp-tab an" data-t="playlists">Playlists</button><button type="button" class="sp-tab" data-t="alben">Alben</button><button type="button" class="sp-tab" data-t="lieder">Lieder</button><button type="button" class="sp-tab" data-t="kuenstler">Künstler</button></div>' +
+            '<div class="sp-such"><input id="sp-q" type="search" placeholder="🔍  Suchen …" autocomplete="off" value="' + esc(suchText) + '"><button type="button" class="sp-mic" id="sp-mic" aria-label="Per Sprache suchen">🎤</button></div>' +
+            '<div class="sp-tabs"><button type="button" class="sp-tab an" data-t="playlists">Playlists</button><button type="button" class="sp-tab" data-t="meinealben">Meine Alben</button><button type="button" class="sp-tab" data-t="lieblinge">Lieblingssongs</button><button type="button" class="sp-tab" data-t="alben">Alben</button><button type="button" class="sp-tab" data-t="lieder">Lieder</button><button type="button" class="sp-tab" data-t="kuenstler">Künstler</button></div>' +
             '<div class="sp-liste"></div>' +
             '<div class="sp-fuss"><div class="sp-jetzt"></div><div class="sp-steu"><button type="button" id="sp-zr">⏮</button><button type="button" id="sp-pp" class="gr">⏸</button><button type="button" id="sp-vor">⏭</button><button type="button" id="sp-lei">🔉</button><button type="button" id="sp-lau">🔊</button><button type="button" id="sp-zu">✕</button></div></div>';
         document.body.appendChild(FL);
@@ -393,6 +446,7 @@
         tab = 'playlists';
         FL.querySelector('#sp-x').onclick = fensterZu;
         FL.querySelectorAll('.sp-tab').forEach(function (b) { b.onclick = function () { tab = b.getAttribute('data-t'); FL.querySelectorAll('.sp-tab').forEach(function (c) { c.classList.toggle('an', c === b); }); fuellen(); }; });
+        FL.querySelector('#sp-mic').onclick = sprachSuche;
         const inp = FL.querySelector('#sp-q');
         inp.oninput = function () { suchText = inp.value; clearTimeout(sucheT); sucheT = setTimeout(fuellen, 600); };
         inp.onkeydown = function (e) { if (e.key === 'Enter') { clearTimeout(sucheT); fuellen(); inp.blur(); } };
