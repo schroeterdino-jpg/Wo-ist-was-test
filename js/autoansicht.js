@@ -28,6 +28,9 @@
         '#aa-layer .grid{flex:1 1 320px;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:12px}' +
         '#aa-layer .knopf{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:84px;color:#d8f3ff;text-decoration:none;font:inherit;font-size:clamp(15px,3.4vmin,22px);cursor:pointer}' +
         '#aa-layer .knopf span{font-size:clamp(28px,7vmin,46px)}' +
+        '#aa-layer .fuss{display:flex;gap:10px;align-items:stretch}' +
+        '#aa-layer .fuss .mic{flex:3 1 0!important}' +
+        '#aa-layer .fuss .x{flex:1 1 0;min-width:0;min-height:0;padding:10px 8px}' +
         '#aa-layer .mic{border:2px solid #49d7ff;border-radius:40px;padding:12px;text-align:center;color:#49d7ff;font-size:clamp(15px,3vmin,20px);background:none;font-family:inherit}' +
         '#aa-layer #actionCards{max-height:30vh;overflow:auto}' +
         '#aa-layer .dim{color:#8fb4c8}.grn{color:#4cffb0}.org{color:#ffb347}' +
@@ -69,7 +72,7 @@
         const st = document.createElement('style'); st.id = 'aa-style'; st.textContent = CSS; document.head.appendChild(st);
         layer = document.createElement('div'); layer.id = 'aa-layer';
         layer.innerHTML =
-            '<div class="kopf"><span class="lab">● Autoansicht <span id="aa-fw" class="dim" style="text-transform:none;letter-spacing:0;margin-left:8px"></span></span><span><span id="aa-uhr" class="dim" style="font-size:15px;margin-right:14px"></span><button type="button" class="x" id="aa-x">✕ beenden</button></span></div>' +
+            '<div class="kopf"><span class="lab">● Autoansicht <span id="aa-fw" class="dim" style="text-transform:none;letter-spacing:0;margin-left:8px"></span></span><span><span id="aa-uhr" class="dim" style="font-size:15px;margin-right:14px"></span></span></div>' +
             '<div class="mitte">' +
               '<div class="karte heim"><div class="lab grn">Heimweg</div><div id="aa-min" class="gross">…</div><div id="aa-sub" class="dim" style="font-size:clamp(14px,3vmin,20px);margin-top:8px">wird berechnet</div><div id="aa-tank" style="font-size:clamp(13px,2.7vmin,18px);margin-top:16px;line-height:1.5"></div></div>' +
               '<div class="grid">' +
@@ -81,7 +84,7 @@
               '<div class="karte aa-map" id="aa-map"><span class="lab">Du und dein Ziel</span></div>' +
             '</div>' +
             '<div id="aa-karten"></div>' +
-            '<button type="button" class="mic" id="aa-mic">🎤 Tippen oder sag „Hey Jarvis“</button>';
+            '<div class="fuss"><button type="button" class="mic" id="aa-mic">🎤 Tippen oder sag „Hey Jarvis“</button><button type="button" class="x" id="aa-x">✕ beenden</button></div>';
         document.body.appendChild(layer);
         $('aa-x').onclick = schliessen;
         $('aa-anruf').onclick = function () { sagen('Wen soll ich anrufen?', true); };
