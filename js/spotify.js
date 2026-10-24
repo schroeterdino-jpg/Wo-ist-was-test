@@ -393,10 +393,55 @@
         setTimeout(miniAktualisieren, 2500);
     }
 
+
+    /* ---------- Musik anbieten, sobald die Autoansicht aufgeht ---------- */
+    const AUTO_LIST = 'jv_spotify_autoliste', AUTO_AUS = 'jv_spotify_auto_aus', AUTO_ZEIT = 'jv_spotify_gefragt';
+    let autoFrage = null;   // { stufe: 'ja' | 'name', t }
+    function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { } }
+    function sagenWeiter(t) { try { speak(t, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) { } }
+    async function autoAnbieten() {
+        try {
+            if (!verbunden() || lsGet(AUTO_AUS) === '1') return;
+            if (Date.now() - parseInt(lsGet(AUTO_ZEIT) || '0', 10) < 20 * 60000) return;   // höchstens alle 20 Minuten
+            if (!(window.jvAutoansicht && jvAutoansicht.offen())) return;
+            const r = await ruf('GET', '/me/player');
+            if (r.json && r.json.is_playing) return;   // es läuft schon Musik
+            lsSet(AUTO_ZEIT, String(Date.now()));
+            autoFrage = { stufe: 'ja', t: Date.now() };
+            sagenWeiter('Soll ich Musik spielen?');
+        } catch (e) { }
+    }
+    document.addEventListener('jv-autoansicht', autoAnbieten);
+    function autoAntwort(text, next) {
+        if (!autoFrage) return next(text);
+        if (Date.now() - autoFrage.t > 60000) { autoFrage = null; return next(text); }
+        const t = norm(text), n = t.split(' ').length;
+        if (/^(?:nein|nee|ne|noe|nicht|stopp|stop|abbrechen|lass es|lass|vergiss es|jetzt nicht|nicht jetzt|keine musik)\b/.test(t)) { autoFrage = null; sagen('Okay, keine Musik.'); return true; }
+        if (autoFrage.stufe === 'ja') {
+            if (!/^(?:ja|jawohl|jep|jo|joa|klar|genau|gerne|gern|okay|ok|bitte|ja bitte|mach|mach das|spiel|spiele|starte)\b/.test(t)) { autoFrage = null; return next(text); }
+            const liste = lsGet(AUTO_LIST);
+            if (liste) { autoFrage = null; suchenUndSpielen(liste, 'playlist'); return true; }
+            autoFrage = { stufe: 'name', t: Date.now() };
+            sagenWeiter('Welche Playlist soll ich im Auto spielen? Sag zum Beispiel den Namen deiner Playlist.');
+            return true;
+        }
+        if (n > 8) { autoFrage = null; return next(text); }
+        const name = t.replace(/^(?:die |meine |meiner |playlist |die playlist |spiel |spiele )+/, '').replace(/ playlist$/, '').trim();
+        autoFrage = null;
+        if (!name) return next(text);
+        lsSet(AUTO_LIST, name);
+        sagen('Okay, ich merke mir ' + name + ' als Auto-Playlist.');
+        suchenUndSpielen(name, 'playlist');
+        return true;
+    }
+    if (window.jvCommands && typeof window.jvCommands.use === 'function') window.jvCommands.use('spotify-auto', autoAntwort, 0.2);
+    window.jvSpotify_auto = { aus: function (an) { lsSet(AUTO_AUS, an ? '1' : null); } };
+
     /* ---------- Sprachbefehle ---------- */
     function befehl(text, next) {
         const t = roh(text);
-        if (!t || t.split(' ').length > 14 || !/spotify|musik|lied|song|titel|playlist|album|spiel|n(ä|ae)chst|(ü|ue)berspring|vorherig|zur(ü|ue)ck|l(ä|ae)uft|spielt|lauter|leiser|weiter|pause|stop|anhalten|halt|skip|fortsetzen/.test(t)) return next(text);
+        if (!t || t.split(' ').length > 14 || !/spotify|musik|lied|song|titel|playlist|album|spiel|n(ä|ae)chst|(ü|ue)berspring|vorherig|zur(ü|ue)ck|l(ä|ae)uft|spielt|lauter|leiser|weiter|pause|stop|anhalten|halt|skip|fortsetzen|auto[ -]?playlist|beim einsteigen|im auto/.test(t)) return next(text);
         const S = '(?:bitte )?';
         const nein = function (msg) { sagen(msg || 'Spotify ist noch nicht verbunden. Sag: Spotify verbinden.'); return true; };
 
@@ -422,6 +467,10 @@
             ruf('PUT', '/me/player/pause').then(function () { sagen('Okay, die Musik ist aus.'); miniAktualisieren(); });
             return true;
         }
+        let ma = t.match(/^(?:bitte )?(?:meine |die )?auto[ -]?playlist (?:ist|soll|heisst|heißt|wird|auf) (?:die |meine )?(.+)$/) || t.match(/^(?:bitte )?(?:merk dir|merke dir|nimm|nehme) (?:die |meine )?(?:playlist )?(.+?) als auto[ -]?playlist$/);
+        if (ma) { lsSet(AUTO_LIST, ma[1].replace(/ playlist$/, '').trim()); sagen('Okay, die Auto-Playlist ist ' + ma[1].replace(/ playlist$/, '').trim() + '.'); return true; }
+        if (/^(?:bitte )?(?:auto[ -]?playlist (?:ändern|aendern|zurücksetzen|zuruecksetzen|vergessen)|andere auto[ -]?playlist)$/.test(t)) { lsSet(AUTO_LIST, null); sagen('Okay. Beim nächsten Mal frage ich dich nach der Playlist.'); return true; }
+        if (/^(?:bitte )?musik (?:beim einsteigen|im auto|in der autoansicht) (aus|an|ausschalten|einschalten)$/.test(t)) { const an = /an|einschalten/.test(t.split(' ').pop()); lsSet(AUTO_AUS, an ? null : '1'); sagen(an ? 'Ich biete dir im Auto wieder Musik an.' : 'Ich frage im Auto nicht mehr nach Musik.'); return true; }
         const aktion = function (fn) { if (!verbunden()) return nein(); fn(); return true; };
         let m;
         if (new RegExp('^' + S + '(?:mach )?(?:die )?(?:musik|spotify)(?: bitte)? (?:pause|pausieren|stopp|stop|aus|anhalten|ausmachen|ausschalten)$').test(t) || /^musik (?:pausieren|anhalten|ausmachen|stoppen)$/.test(t) || /^pausiere (?:die )?musik$/.test(t))
