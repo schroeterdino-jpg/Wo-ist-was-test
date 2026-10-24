@@ -174,7 +174,8 @@
         if (erfolg(r)) {
             /* Spotify bestätigt den Befehl oft, obwohl das Handy noch gar nicht spielt (frisch geöffnete App). Darum nachprüfen und notfalls erneut senden. */
             let stand = null, laeuft = false;
-            const versuche = kalt ? 7 : 4;
+            const nativDa = !!(info && window.ZaneNative && typeof ZaneNative.spotifySpielen === 'function');
+            const versuche = kalt ? 7 : (nativDa ? 2 : 4);   // mit Notweg über die App nicht lange warten (ca. 4 s statt 9 s)
             for (let k = 0; k < versuche && !laeuft; k++) {
                 await schlaf(k === 0 ? 1800 : (kalt ? 2800 : 2200));
                 const st = await ruf('GET', '/me/player');
