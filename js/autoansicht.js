@@ -8,7 +8,7 @@
    Braucht: plan_ansagen.js (window.jvPlan: heimFrisch, heimTank, heimAdresse), places.js (buildMapsLink), voice.js (speak, startListening), commands.js.
    ============================================================ */
 (function () {
-    let layer = null, tick = null, heimTimer = null, tankTimer = null, wake = null;
+    let layer = null, tick = null, heimTimer = null, kartenTimer = null, tankTimer = null, wake = null;
     let kartenBox = null, kartenParent = null, kartenNext = null;
 
     function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -20,7 +20,7 @@
     const CSS = '#aa-layer{position:fixed;inset:0;z-index:8000;background:#030810;color:#d8f3ff;font-family:"DejaVu Sans Mono",ui-monospace,monospace;display:flex;flex-direction:column;padding:10px 16px 12px;gap:10px;overflow:auto}' +
         '#aa-layer .lab{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#49d7ff}' +
         '#aa-layer .kopf{display:flex;justify-content:space-between;align-items:center}' +
-        '#aa-layer .x{border:1px solid #49d7ff88;color:#49d7ff;background:none;padding:8px 14px;font:inherit;font-size:15px;border-radius:8px}' +
+        '#aa-layer .x{border:2px solid #ff6b6b;color:#ffd6d6;background:rgba(255,80,80,.18);padding:14px 28px;min-height:56px;min-width:150px;font:inherit;font-size:20px;font-weight:700;border-radius:10px}' +
         '#aa-layer .mitte{flex:1;display:flex;flex-wrap:wrap;gap:14px;min-height:0}' +
         '#aa-layer .karte{border:1px solid rgba(73,215,255,.45);background:linear-gradient(160deg,rgba(14,40,60,.85),rgba(5,16,26,.9));border-radius:6px}' +
         '#aa-layer .heim{flex:1 1 320px;border-color:#4cffb0;padding:16px 18px;display:flex;flex-direction:column;justify-content:center}' +
@@ -31,6 +31,16 @@
         '#aa-layer .mic{border:2px solid #49d7ff;border-radius:40px;padding:12px;text-align:center;color:#49d7ff;font-size:clamp(15px,3vmin,20px);background:none;font-family:inherit}' +
         '#aa-layer #actionCards{max-height:30vh;overflow:auto}' +
         '#aa-layer .dim{color:#8fb4c8}.grn{color:#4cffb0}.org{color:#ffb347}' +
+        '#aa-layer .aa-map{display:none;position:relative;overflow:hidden;padding:0}' +
+        '#aa-layer .aa-map iframe{position:absolute;inset:0;width:100%;height:100%;border:0;filter:invert(.92) hue-rotate(180deg) saturate(.7)}' +
+        '#aa-layer .aa-map .lab{position:absolute;left:8px;bottom:6px;z-index:2;background:rgba(3,8,16,.8);padding:3px 8px;border-radius:4px;font-size:11px}' +
+        /* Sehr breit (Auto-Display): drei Spalten, Karte rechts */
+        '@media (orientation:landscape) and (min-aspect-ratio:16/10){' +
+          '#aa-layer .mitte{flex-wrap:nowrap;overflow:hidden}' +
+          '#aa-layer .heim{flex:1 1 28%;min-width:0}' +
+          '#aa-layer .grid{flex:1 1 30%;min-width:0}' +
+          '#aa-layer .aa-map{display:block;flex:1 1 42%;min-width:0}' +
+        '}' +
         /* Querformat (niedriger Bildschirm): alles kompakter, nichts darf die Zeile unten überdecken */
         '@media (orientation:landscape) and (max-height:520px){' +
           '#aa-layer{padding:6px 12px 8px;gap:6px}' +
@@ -40,7 +50,7 @@
           '#aa-layer .grid{flex:1 1 55%;gap:8px;min-width:0}' +
           '#aa-layer .knopf{min-height:0;gap:2px;font-size:clamp(13px,4.6vh,18px)}' +
           '#aa-layer .knopf span{font-size:clamp(20px,8vh,32px)}' +
-          '#aa-layer .x{padding:5px 12px;font-size:13px}' +
+          '#aa-layer .x{padding:12px 24px;min-height:52px;font-size:18px}' +
           '#aa-layer .mic{flex:0 0 auto;padding:6px;font-size:13px}' +
           '#aa-layer #actionCards{max-height:26vh}' +
         '}';
@@ -58,6 +68,7 @@
                 '<button type="button" class="karte knopf" id="aa-tanken"><span>⛽</span>Tanken</button>' +
                 '<button type="button" class="karte knopf" id="aa-park"><span>🅿️</span>Parkplatz</button>' +
               '</div>' +
+              '<div class="karte aa-map" id="aa-map"><span class="lab">Du und dein Ziel</span></div>' +
             '</div>' +
             '<div id="aa-karten"></div>' +
             '<button type="button" class="mic" id="aa-mic">🎤 Tippen oder sag „Hey Jarvis“</button>';
@@ -97,6 +108,27 @@
             $('aa-sub').textContent = sub;
         } catch (e) { }
     }
+    /* Karte (nur auf sehr breiten Displays): OpenStreetMap-Ausschnitt mit deinem Standort, Bildausschnitt reicht bis zur Heimatadresse */
+    let kartenKey = '';
+    async function kartenAktualisieren() {
+        if (!layer) return;
+        try {
+            const box = $('aa-map'); if (!box || box.offsetWidth < 50) return;
+            const ziel = heimZiel(); if (!ziel || typeof geocodeAddress !== 'function' || typeof getPosition !== 'function') return;
+            const h = await geocodeAddress(ziel); if (!h) return;
+            const pos = await getPosition({ timeout: 9000, enableHighAccuracy: false, maximumAge: 120000 });
+            if (!layer || !pos) return;
+            const la = pos.coords.latitude, lo = pos.coords.longitude;
+            const pad = 0.012;
+            const w = Math.min(la, h.lat) - pad, e = Math.max(la, h.lat) + pad, s = Math.min(lo, h.lon) - pad, n = Math.max(lo, h.lon) + pad;
+            const key = [la, lo, h.lat, h.lon].map(function (v) { return v.toFixed(3); }).join('|');
+            if (key === kartenKey) return; kartenKey = key;
+            const src = 'https://www.openstreetmap.org/export/embed.html?bbox=' + [s, w, n, e].join('%2C') + '&layer=mapnik&marker=' + la + '%2C' + lo;
+            let f = box.querySelector('iframe');
+            if (!f) { f = document.createElement('iframe'); f.setAttribute('title', 'Karte'); f.setAttribute('loading', 'lazy'); box.insertBefore(f, box.firstChild); }
+            f.src = src;
+        } catch (e) { }
+    }
     async function tankAktualisieren() {
         if (!layer) return;
         try {
@@ -130,12 +162,13 @@
         const uhr = function () { const e = $('aa-uhr'); if (e) e.textContent = uhrzeit(Date.now()); };
         uhr(); tick = setInterval(uhr, 20000);
         heimAktualisieren(); heimTimer = setInterval(heimAktualisieren, 3 * 60000);
+        kartenKey = ''; setTimeout(kartenAktualisieren, 1500); kartenTimer = setInterval(kartenAktualisieren, 2 * 60000);
         tankAktualisieren(); tankTimer = setInterval(tankAktualisieren, 10 * 60000);
         try { if (navigator.wakeLock && navigator.wakeLock.request) navigator.wakeLock.request('screen').then(function (w) { wake = w; }).catch(function () { }); } catch (e) { }
     }
     function schliessen() {
         if (!layer) return;
-        clearInterval(tick); clearInterval(heimTimer); clearInterval(tankTimer);
+        clearInterval(tick); clearInterval(heimTimer); clearInterval(tankTimer); clearInterval(kartenTimer);
         fahrFlag(false);
         try { if (wake) wake.release(); } catch (e) { } wake = null;
         if (kartenBox && kartenParent) { try { kartenParent.insertBefore(kartenBox, kartenNext && kartenNext.parentNode === kartenParent ? kartenNext : null); } catch (e) { } }
