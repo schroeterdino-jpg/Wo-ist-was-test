@@ -91,3 +91,17 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 
 - **Wetter-Standort (`briefing.js`, `wetterPosition()`):** Aktuelles Wetter und Vorhersage holen die Position grob (ohne GPS-Zwang, 8 s, bis 10 Min. alt) und merken sie in `localStorage` (`jv_wetter_pos`); klappt die Ortung nicht, wird die zuletzt bekannte Position genommen. Früher scheiterte das Wetter mit "keine Wetterdaten", wenn das GPS drinnen nicht in 5 s fertig war.
 - **Wetter-Erkennung in Fragen (`assistant.js`):** Nur wenn die Frage ein Wetterwort enthält, holt Jarvis die Wetterdaten für die KI. Das Muster nimmt jetzt Wortformen (`regn` für regnen/regnet, `schneit`, `wolk`, `heiss` ...); vorher sagte Jarvis bei "Wie soll das heute regnen?" "keine Wetterdaten", weil "regnen" nicht erkannt wurde. Neue Wetterwörter dort UND in `persona.js` und `routinen.js` ergänzen.
+
+## 8. Projektstand und nächste Schritte (Stand 24.10.2026)
+
+**Fertig und vom Nutzer getestet:** Autoansicht und automatisches Parken, Feierabend-/Heimweg-Ansage, Schlafmodus und Vertretung per WhatsApp (KI mit Prüfer-KI, Wissensblatt, Entwurf mit Senden/Verwerfen, Notfall-Alarm ohne Wartezeit, Alarm aus per Antippen), Anrede je Kontakt (Töchter "Papa", Schatz "Mann"), verpasste Anrufe (SMS an Kontakte aus der Auswahl, kurzer Alarm bei Familie), Wetter (Wortformen wie "regnen", Standort mit Rückfall).
+
+**Vom Nutzer gewünscht, noch offen (Reihenfolge):**
+1. **WhatsApp im Fahrmodus vorlesen:** eingehende Nachrichten (Kontaktauswahl) vorlesen, danach fragen, ob er antworten will, Antwort per Sprache senden (Antwort-Knopf der WhatsApp-Meldung wie in `NachrichtenService.antworten`). Braucht neue APK.
+2. **Geburtstage/Termine:** Erinnerung am Vortag und am Tag selbst (Plan-Eintrag wie `geb|…` in `zuvorkommend.js`), mit Gratulations-Entwurf und Senden-Knopf. Termine des Tages beim Feierabend mit vorlesen.
+3. **Auto-Rückmeldung:** Jarvis meldet sich, wenn der Nutzer zu Hause bleibt, obwohl er laut Plan losfahren müsste (nach 5 Minuten).
+
+**Merken für die Arbeit:**
+- Nutzer arbeitet am Handy, antwortet knapp ("Gemerged", Screenshots). Vor dem Bau kurz klären, was er will, dann bauen; Pull Request immer **direkt auf `main`**, nicht auf einen anderen Zweig (gestapelte PRs sind schon einmal im Nebenzweig gelandet und haben eine Funktion verloren).
+- Nach jedem Merge: auf den APK-Bau warten, prüfen, dass das Release zum Stand von `main` passt (`git/ref/tags/weckruf-NN` gleich `main`), und die APK mit SendUserFile schicken. Installation: Play Protect kurz aus; bei grauen Berechtigungen (SMS) erst "Eingeschränkte Einstellungen zulassen" in der App-Info.
+- In den Android-Einstellungen heißt die App **Jarvis**, nicht Nova/Zane.
