@@ -201,7 +201,7 @@
         let q = anfrage.replace(/\s+/g, ' ').trim();
         if (!q) { return abspielen(null, 'Okay.'); }
         const typ = art || 'track,artist';
-        const ok = function (a) { return ((a && a.items) || []).filter(Boolean); };
+        const ok = function (a) { return ((a && a.items) || []).filter(function (x) { return x && x.is_playable !== false; }); };
         /* "Titel von Künstler": gezielt nach Titel UND Künstler suchen, sonst findet Spotify mit dem Wort "von" oft das falsche Lied.
            Die Spracherkennung verhört Namen gern ("Lene Fischer"), darum mehrere Versuche vom genauen zum freien. */
         let titelQ = null, kuenstlerQ = null;
@@ -216,29 +216,29 @@
                 ? ['track:' + titelQ + ' artist:' + kuenstlerQ, titelQ + ' ' + kuenstlerQ, titelQ]
                 : [q];
             for (let k = 0; k < versuche.length; k++) {
-                const rr = await ruf('GET', '/search?q=' + encodeURIComponent(versuche[k]) + '&type=track&limit=10');
+                const rr = await ruf('GET', '/search?q=' + encodeURIComponent(versuche[k]) + '&type=track&limit=10&market=DE');
                 if (!erfolg(rr)) { if (k === versuche.length - 1 && !r) { fehlerZeigen(rr); sagen(fehlerText(rr)); return; } continue; }
                 const liste = ok((rr.json || {}).tracks);
                 if (!liste.length) continue;
                 const gut = liste.find(function (x) { return passtT(x) && passtK(x); }) || (k === versuche.length - 1 ? (liste.find(passtT) || null) : null);
-                if (gut) return abspielen({ uris: [gut.uri] }, 'Ich spiele ' + gut.name + (gut.artists && gut.artists[0] ? ' von ' + gut.artists[0].name : '') + '.', false, { typ: 'track', titel: gut.name, kuenstler: (gut.artists && gut.artists[0] ? gut.artists[0].name : '') });
+                if (gut) return abspielen({ uris: [gut.uri] }, 'Ich spiele ' + gut.name + (gut.artists && gut.artists[0] ? ' von ' + gut.artists[0].name : '') + '.', false, { typ: 'track', titel: gut.name, uri: gut.uri, kuenstler: (gut.artists && gut.artists[0] ? gut.artists[0].name : '') });
             }
             if (!titelQ) { /* ohne "von": weiter unten Künstler/Playlist-Suche wie bisher */ }
             else { sagen('Dazu habe ich bei Spotify nichts gefunden.'); return; }
         }
-        r = await ruf('GET', '/search?q=' + encodeURIComponent(q) + '&type=' + typ + '&limit=5');
+        r = await ruf('GET', '/search?q=' + encodeURIComponent(q) + '&type=' + typ + '&limit=5&market=DE');
         if (!erfolg(r)) { fehlerZeigen(r); sagen(fehlerText(r)); return; }
         const j = r.json || {};
         const kue = ok(j.artists), tit = ok(j.tracks), pl = ok(j.playlists), al = ok(j.albums);
-        if (art === 'playlist') { const eigene = await meinePlaylists(); const nq = norm(q); const e = eigene.find(function (x) { const n = norm(x.name); return n === nq || n.indexOf(nq) >= 0; }); if (e) return abspielen({ context_uri: e.uri }, 'Ich spiele deine Playlist ' + e.name + '.', false, { typ: 'playlist', titel: e.name }); }
-        if (art === 'playlist') { if (pl[0]) return abspielen({ context_uri: pl[0].uri }, 'Ich spiele die Playlist ' + pl[0].name + '.', false, { typ: 'playlist', titel: pl[0].name }); }
-        else if (art === 'album') { if (al[0]) return abspielen({ context_uri: al[0].uri }, 'Ich spiele das Album ' + al[0].name + '.', false, { typ: 'album', titel: al[0].name, kuenstler: (al[0].artists && al[0].artists[0] ? al[0].artists[0].name : '') }); }
+        if (art === 'playlist') { const eigene = await meinePlaylists(); const nq = norm(q); const e = eigene.find(function (x) { const n = norm(x.name); return n === nq || n.indexOf(nq) >= 0; }); if (e) return abspielen({ context_uri: e.uri }, 'Ich spiele deine Playlist ' + e.name + '.', false, { typ: 'playlist', titel: e.name, uri: e.uri }); }
+        if (art === 'playlist') { if (pl[0]) return abspielen({ context_uri: pl[0].uri }, 'Ich spiele die Playlist ' + pl[0].name + '.', false, { typ: 'playlist', titel: pl[0].name, uri: pl[0].uri }); }
+        else if (art === 'album') { if (al[0]) return abspielen({ context_uri: al[0].uri }, 'Ich spiele das Album ' + al[0].name + '.', false, { typ: 'album', titel: al[0].name, uri: al[0].uri, kuenstler: (al[0].artists && al[0].artists[0] ? al[0].artists[0].name : '') }); }
         else {
             const nq = norm(q);
             const treffer = kue.find(function (a) { return norm(a.name) === nq; });
-            if (treffer) return abspielen({ context_uri: treffer.uri }, 'Ich spiele ' + treffer.name + '.', false, { typ: 'artist', titel: treffer.name });
-            if (tit[0]) return abspielen({ uris: [tit[0].uri] }, 'Ich spiele ' + tit[0].name + (tit[0].artists && tit[0].artists[0] ? ' von ' + tit[0].artists[0].name : '') + '.', false, { typ: 'track', titel: tit[0].name, kuenstler: (tit[0].artists && tit[0].artists[0] ? tit[0].artists[0].name : '') });
-            if (kue[0]) return abspielen({ context_uri: kue[0].uri }, 'Ich spiele ' + kue[0].name + '.', false, { typ: 'artist', titel: kue[0].name });
+            if (treffer) return abspielen({ context_uri: treffer.uri }, 'Ich spiele ' + treffer.name + '.', false, { typ: 'artist', titel: treffer.name, uri: treffer.uri });
+            if (tit[0]) return abspielen({ uris: [tit[0].uri] }, 'Ich spiele ' + tit[0].name + (tit[0].artists && tit[0].artists[0] ? ' von ' + tit[0].artists[0].name : '') + '.', false, { typ: 'track', titel: tit[0].name, uri: tit[0].uri, kuenstler: (tit[0].artists && tit[0].artists[0] ? tit[0].artists[0].name : '') });
+            if (kue[0]) return abspielen({ context_uri: kue[0].uri }, 'Ich spiele ' + kue[0].name + '.', false, { typ: 'artist', titel: kue[0].name, uri: kue[0].uri });
         }
         sagen('Dazu habe ich bei Spotify nichts gefunden.');
     }

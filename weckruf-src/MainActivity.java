@@ -404,6 +404,17 @@ public class MainActivity extends Activity {
             JSONObject o = new JSONObject(json == null ? "{}" : json);
             String typ = o.optString("typ", "track"), titel = o.optString("titel", ""), kuenstler = o.optString("kuenstler", "");
             if (titel.length() == 0) return false;
+            /* Erst der bewährte Weg: Spotify-Adresse mit ":play" öffnet die App und startet sofort (nicht offiziell, aber verbreitet) */
+            String uri = o.optString("uri", "");
+            if (uri.startsWith("spotify:")) {
+                try {
+                    Intent v = new Intent(Intent.ACTION_VIEW, Uri.parse(uri + ":play"));
+                    v.setPackage("com.spotify.music");
+                    v.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(v);
+                    return true;
+                } catch (Throwable e1) { /* weiter mit dem Suchweg */ }
+            }
             String focus, query = titel;
             if ("artist".equals(typ)) focus = android.provider.MediaStore.Audio.Artists.ENTRY_CONTENT_TYPE;
             else if ("album".equals(typ)) focus = android.provider.MediaStore.Audio.Albums.ENTRY_CONTENT_TYPE;
