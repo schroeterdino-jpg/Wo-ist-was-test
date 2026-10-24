@@ -48,6 +48,7 @@ const NAV_MODES = { transit: 'Bus & Bahn', walking: 'zu Fuß', bicycling: 'mit d
 function buildMapsLink(to, from, mode) {
     let url = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(to) + '&travelmode=' + mode;
     if (from) url += '&origin=' + encodeURIComponent(from);   // ohne Startpunkt gilt der Standort des Users
+    if (mode === 'driving' || mode === 'walking' || mode === 'bicycling') url += '&dir_action=navigate';   // startet die Navigation sofort, ohne den Knopf "Starten" (am Auto-Display nicht erreichbar)
     return url;
 }
 
