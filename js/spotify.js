@@ -342,11 +342,8 @@
         L.querySelectorAll('.sp-p,.sp-kachel').forEach(function (b) {
             b.onclick = async function () {
                 const k = zeile._k[b.getAttribute('data-k')]; if (!k) return;
-                const knopf = b.classList.contains('sp-p');
-                if (knopf) b.textContent = '…';
-                await abspielen(k.body, k.ansage);
-                if (knopf) b.textContent = '▶';
-                fensterZu();   // Lied gestartet: Fenster zu, Jarvis ist wieder zu sehen
+                fensterZu();   // sofort zu (das Starten kann einige Sekunden dauern), Jarvis ist wieder zu sehen
+                abspielen(k.body, k.ansage);
             };
         });
     }
