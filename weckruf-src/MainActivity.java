@@ -397,6 +397,40 @@ public class MainActivity extends Activity {
         } catch (Throwable e) { return false; }
     }
 
+    /** Spotify direkt auf dem Handy etwas spielen lassen (wie ein Google-Sprachbefehl), auch wenn die App geschlossen ist.
+     *  json: {typ:"track|artist|album|playlist", titel:"...", kuenstler:"..."} */
+    boolean spotifySpielen(String json) {
+        try {
+            JSONObject o = new JSONObject(json == null ? "{}" : json);
+            String typ = o.optString("typ", "track"), titel = o.optString("titel", ""), kuenstler = o.optString("kuenstler", "");
+            if (titel.length() == 0) return false;
+            String focus, query = titel;
+            if ("artist".equals(typ)) focus = android.provider.MediaStore.Audio.Artists.ENTRY_CONTENT_TYPE;
+            else if ("album".equals(typ)) focus = android.provider.MediaStore.Audio.Albums.ENTRY_CONTENT_TYPE;
+            else if ("playlist".equals(typ)) focus = android.provider.MediaStore.Audio.Playlists.ENTRY_CONTENT_TYPE;
+            else focus = "vnd.android.cursor.item/audio";
+            if (kuenstler.length() > 0 && !"artist".equals(typ)) query = titel + " " + kuenstler;
+            Intent i = new Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH);
+            i.setPackage("com.spotify.music");
+            i.putExtra(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, focus);
+            i.putExtra(android.app.SearchManager.QUERY, query);
+            if ("track".equals(typ)) {
+                i.putExtra(android.provider.MediaStore.EXTRA_MEDIA_TITLE, titel);
+                if (kuenstler.length() > 0) i.putExtra(android.provider.MediaStore.EXTRA_MEDIA_ARTIST, kuenstler);
+            } else if ("artist".equals(typ)) {
+                i.putExtra(android.provider.MediaStore.EXTRA_MEDIA_ARTIST, titel);
+            } else if ("album".equals(typ)) {
+                i.putExtra(android.provider.MediaStore.EXTRA_MEDIA_ALBUM, titel);
+                if (kuenstler.length() > 0) i.putExtra(android.provider.MediaStore.EXTRA_MEDIA_ARTIST, kuenstler);
+            } else if ("playlist".equals(typ)) {
+                i.putExtra("android.intent.extra.playlist", titel);
+            }
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+            return true;
+        } catch (Throwable e) { return false; }
+    }
+
     private String anrufWartet = null;
 
     /** Nummer direkt wählen. Fehlt die Telefon-Erlaubnis, wird einmal gefragt und danach gewählt. */

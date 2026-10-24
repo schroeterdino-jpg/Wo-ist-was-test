@@ -141,6 +141,10 @@ class ZaneBridge {
     @JavascriptInterface
     public boolean spotifyOeffnen() { return act.spotifyOeffnen(); }
 
+    /** Spotify auf dem Handy direkt etwas spielen lassen (auch bei geschlossener App). */
+    @JavascriptInterface
+    public boolean spotifySpielen(String json) { return act.spotifySpielen(json); }
+
     /** Nummer direkt anrufen (fragt beim ersten Mal nach der Telefon-Erlaubnis). */
     @JavascriptInterface
     public boolean anrufen(String nummer) { return act.anrufen(nummer); }
