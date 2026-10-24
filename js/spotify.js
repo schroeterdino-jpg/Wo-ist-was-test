@@ -24,11 +24,13 @@
     function aktivJetzt() { try { return Date.now() - parseInt(localStorage.getItem(AKTIV) || '0', 10) < 3 * 3600 * 1000; } catch (e) { return false; } }
     function verbunden() { const t = laden(KEY); return !!(t && t.refresh); }
     function schlaf(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
-    function hinweis(text) {
+    function hinweis(text, bleibt) {
         try {
             const d = document.createElement('div');
             d.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:90px;z-index:99999;background:#04090f;border:1px solid #4cffb0;color:#e8f3f9;padding:10px 16px;border-radius:10px;font:14px sans-serif;max-width:90vw';
-            d.textContent = text; document.body.appendChild(d); setTimeout(function () { try { d.remove(); } catch (e) { } }, 6000);
+            d.textContent = text;
+            if (bleibt) { d.textContent = text + '  (zum Schließen tippen)'; d.onclick = function () { try { d.remove(); } catch (e) { } }; document.body.appendChild(d); return; }
+            document.body.appendChild(d); setTimeout(function () { try { d.remove(); } catch (e) { } }, 6000);
         } catch (e) { }
     }
 
@@ -147,7 +149,10 @@
                 if (!laeuft && k < 3) await ruf('PUT', pfadPlay, body || undefined);
             }
             if (laeuft) { aktivMerken(); setTimeout(miniAktualisieren, 1500); if (ansage) sagen(ansage); return; }
-            try { hinweis('Spotify-Stand: ' + (stand && stand.device ? stand.device.name : 'kein Gerät') + ', spielt: ' + (stand && stand.is_playing ? 'ja' : 'nein') + (stand && stand.item ? ', Lied: ' + stand.item.name : '')); } catch (e) { }
+            try {
+                const dl = (await geraet()).alle.map(function (x) { return x.name + ' (' + x.type + (x.is_active ? ', aktiv' : '') + ')'; }).join('; ');
+                hinweis('Spotify-Stand: Befehl an ' + (g.name || '?') + ' (' + (g.type || '?') + ', ' + (g.is_active ? 'aktiv' : 'nicht aktiv') + ') gesendet, Antwort ' + r.status + '. Spotify meldet: ' + (stand && stand.device ? stand.device.name : 'kein Gerät') + ', spielt: ' + (stand && stand.is_playing ? 'ja' : 'nein') + (stand && stand.item ? ', Lied: ' + stand.item.name : '') + '. Geräte: ' + (dl || 'keine'), true);
+            } catch (e) { }
             sagen('Spotify hat den Befehl angenommen, aber die Musik startet nicht. Tippe in Spotify einmal auf Play.');
             return;
         }
