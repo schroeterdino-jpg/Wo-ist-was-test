@@ -756,6 +756,7 @@ function jvZuhoerVerzug() {
 }
 function continueConversation() {
     if (!conversationMode) return;
+    if (Date.now() < (window.__jvAnrufBis || 0)) return;   // gerade wird angerufen: nicht wieder zuhören
     const d = jvZuhoerVerzug();
     if (d > 0) setTimeout(function () { if (conversationMode) startListening(true); }, d);
     else startListening(true);

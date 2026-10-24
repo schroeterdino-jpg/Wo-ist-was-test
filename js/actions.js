@@ -239,7 +239,14 @@ async function executeAction(action, text, ctx) {
         try {
             if (window.ZaneNative && typeof window.ZaneNative.anrufen === 'function' && callCard && /^tel:/.test(callCard.href || '')) {
                 const nummer = callCard.href.slice(4);
-                setTimeout(function () { try { window.ZaneNative.anrufen(nummer); } catch (e) { } }, 1800);
+                window.__jvAnrufBis = Date.now() + 120000;   // solange hört Jarvis nicht von selbst wieder zu (sonst piept die Spracherkennung mitten ins Wählen)
+                setTimeout(function () {
+                    // Vor dem Wählen alles stoppen, was Ton macht oder das Mikrofon hält: Zuhören, Sprechen
+                    try { if (window.ZaneNative && typeof window.ZaneNative.recAbort === 'function') window.ZaneNative.recAbort(); } catch (e) { }
+                    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { }
+                    try { if (typeof currentAudio !== 'undefined' && currentAudio && !currentAudio.paused) currentAudio.pause(); } catch (e) { }
+                    setTimeout(function () { try { window.ZaneNative.anrufen(nummer); } catch (e) { } }, 300);
+                }, 3200);
             }
         } catch (e) { }
         updateTerminalStream("CALL: LINK_READY");
