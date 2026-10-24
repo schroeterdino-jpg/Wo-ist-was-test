@@ -211,7 +211,7 @@ function setHead(name){
 // Reifer Kopf: Haare und Bart sind als Vertexfarben in das Gesicht eingebrannt, der Bart war lückig.
 // Hier bekommt die Bartzone (Wangen bis Kinn, unter der Nase) dieselbe graue Farbe UND dieselbe Helligkeitsverteilung
 // (= Strähnenstruktur) wie das Kopfhaar. Lippen und Nase bleiben unverändert. Abschalten: JV_BART_VOLL=false.
-const JV_BART_VOLL=true;
+const JV_BART_VOLL=false;
 function bartVoller(geo){
  if(!JV_BART_VOLL||!geo||geo.userData.jvBartVoll) return;
  const pa=geo.attributes.position, ca=geo.attributes.color; if(!pa||!ca||ca.itemSize<3) return;
