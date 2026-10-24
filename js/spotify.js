@@ -129,6 +129,7 @@
     }
     /* Musik starten; body = { context_uri } oder { uris } oder leer (weiterspielen); info = { typ, titel, kuenstler } für den direkten Start über die App */
     async function abspielen(body, ansage, schon, info) {
+        try { if (window.ZaneNative && ZaneNative.musikMerken) ZaneNative.musikMerken(true); } catch (e) { }
         let d = await geraet();
         let g = d.handy;
         let kalt = false;

@@ -145,6 +145,10 @@ class ZaneBridge {
     @JavascriptInterface
     public boolean spotifySpielen(String json) { return act.spotifySpielen(json); }
 
+    /** Merkt, ob gerade Musik läuft, die Jarvis gestartet hat (wird beim Wegwischen der App angehalten). */
+    @JavascriptInterface
+    public void musikMerken(boolean an) { Prefs.setMusikVonJarvis(act, an); }
+
     /** Nummer direkt anrufen (fragt beim ersten Mal nach der Telefon-Erlaubnis). */
     @JavascriptInterface
     public boolean anrufen(String nummer) { return act.anrufen(nummer); }

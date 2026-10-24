@@ -656,6 +656,22 @@ public class WakeService extends Service implements RecognitionListener {
     }
     @Override public void onTimeout() { }
 
+    /** App wurde aus der Übersicht weggewischt: Musik, die Jarvis gestartet hat, anhalten. */
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        try {
+            if (Prefs.musikVonJarvis(this)) {
+                Prefs.setMusikVonJarvis(this, false);
+                AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                if (am != null) {
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE));
+                    am.dispatchMediaKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE));
+                }
+            }
+        } catch (Throwable e) { }
+        super.onTaskRemoved(rootIntent);
+    }
+
     @Override
     public void onDestroy() {
         alive = false;
