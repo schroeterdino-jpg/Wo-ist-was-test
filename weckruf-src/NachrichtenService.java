@@ -738,20 +738,25 @@ public class NachrichtenService extends NotificationListenerService {
             NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
             android.net.Uri ton = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
             AudioAttributes aa = new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
-            NotificationChannel ch = new NotificationChannel("zane_notfall", "Dringende Nachricht", NotificationManager.IMPORTANCE_HIGH);
-            ch.setSound(ton, aa);
+            NotificationChannel ch = new NotificationChannel("zane_notfall2", "Dringende Nachricht", NotificationManager.IMPORTANCE_HIGH);
+            ch.setSound(null, null);   // der Ton kommt aus dem Alarm unten, sonst klingt es doppelt und läuft länger
             ch.enableVibration(true);
             ch.setBypassDnd(true);
             nm.createNotificationChannel(ch);
             Intent open = new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            PendingIntent pi = PendingIntent.getActivity(ctx, 7, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-            Notification nf = new Notification.Builder(ctx, "zane_notfall")
+            PendingIntent pi = PendingIntent.getActivity(ctx, 8, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);   // Vollbild: lässt den Ton weiterlaufen
+            Intent tap = new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra("alarmAus", true);
+            PendingIntent piTap = PendingIntent.getActivity(ctx, 7, tap, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+            PendingIntent piAus = PendingIntent.getBroadcast(ctx, 9, new Intent(ctx, EntwurfReceiver.class).setAction("de.dino.zaneweckruf.ALARMAUS").putExtra("alarmAus", true), PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+            Notification nf = new Notification.Builder(ctx, "zane_notfall2")
                     .setContentTitle("Dringende Nachricht von " + name)
                     .setContentText(text)
                     .setSmallIcon(android.R.drawable.ic_dialog_alert)
                     .setCategory(Notification.CATEGORY_ALARM)
                     .setAutoCancel(true)
-                    .setContentIntent(pi)
+                    .setContentIntent(piTap)
+                    .setDeleteIntent(piAus)
+                    .addAction(new Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, android.R.drawable.ic_menu_close_clear_cancel), "Alarm aus", piAus).build())
                     .setFullScreenIntent(pi, true)
                     .build();
             nm.notify(7, nf);
@@ -763,7 +768,7 @@ public class NachrichtenService extends NotificationListenerService {
                     if (schleife && Build.VERSION.SDK_INT >= 28) alarmTon.setLooping(true);
                     alarmTon.play();
                     final Ringtone r = alarmTon;
-                    new Handler(Looper.getMainLooper()).postDelayed(() -> { try { r.stop(); } catch (Throwable ignored) { } }, schleife ? 45000L : 6000L);
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> { try { r.stop(); } catch (Throwable ignored) { } }, schleife ? 20000L : 6000L);
                 }
             }
         } catch (Throwable ignored) { }
@@ -775,5 +780,11 @@ public class NachrichtenService extends NotificationListenerService {
             try { if (alarmTon != null) alarmTon.stop(); } catch (Throwable ignored) { }
             alarmTon = null;
         }
+    }
+
+    /** Alarmton beenden und die Alarm-Meldung entfernen (antippen, wegwischen oder "Alarm aus"). */
+    static void alarmAus(Context ctx) {
+        alarmAus();
+        try { ((NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE)).cancel(7); } catch (Throwable ignored) { }
     }
 }
