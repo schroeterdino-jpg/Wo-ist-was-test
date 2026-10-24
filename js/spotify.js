@@ -589,6 +589,10 @@
         if (/^spotify status$/.test(t)) { sagen(verbunden() ? 'Spotify ist verbunden.' : 'Spotify ist nicht verbunden.'); return true; }
 
         if (/^(?:bitte )?(?:spotify|spotify (?:öffnen|oeffnen|fenster|zeigen|anzeigen))$/.test(t)) { if (!verbunden()) return nein(); fenster(''); return true; }
+        {   // Füllwörter (bitte, mal, doch, ...) stören nicht: "Öffne Spotify bitte", "Starte mal Spotify", "Spiele Spotify"
+            const k = t.replace(/\b(?:bitte|mal|doch|jetzt|bitte mal|einmal|schnell|kurz|für mich|mir|jarvis|zane|hey|ok|okay|noch|wieder)\b/g, ' ').replace(/\s+/g, ' ').trim();
+            if (/^(?:(?:öffne|oeffne|öffnen|oeffnen|starte|starten|spiel|spiele|spielen|mach|mache|machen|zeig|zeige|zeigen|rufe|ruf|geh|gehe|gehen)(?: die| das| den| zu| in| auf| nach)? )?spotify(?: ?app| ?fenster| ?bibliothek| ?starten| ?öffnen| ?oeffnen| ?auf| ?an)?(?: (?:auf|an))?$/.test(k)) { if (!verbunden()) return nein(); fenster(''); return true; }
+        }
         if (/^(?:bitte )?(?:(?:öffne|oeffne|zeig(?:e)?(?: mir)?|starte|mach|mache|zeig mir)(?: mir)?(?: die| das| den| mal)? )?(?:spotify(?:[ -]?(?:fenster|app|bibliothek))?|(?:meine )?bibliothek(?: (?:auf|bei|in) spotify)?)(?: auf| an)?$/.test(t) && /spotify|bibliothek|^(?:bitte )?(?:öffne|oeffne|zeig|zeige|starte|mach)/.test(t)) { if (!verbunden()) return nein(); fenster(''); return true; }
         const mb = t.match(/^(?:bitte )?(?:(?:öffne|oeffne|zeig(?:e)?|zeig mir|starte)(?: mir)? )?(?:meine |die )?(gespeicherten alben|alben|lieblingssongs|lieblingslieder|lieblingstitel|lieblingsmusik)(?: (?:auf|bei|in) spotify)?$/);
         if (mb && /^(?:bitte )?(?:öffne|oeffne|zeig|zeige|starte|meine|die|gespeicherten|lieblings|alben)/.test(t)) { if (!verbunden()) return nein(); fenster(''); const tb = FL && FL.querySelector('[data-t="' + (/alben/.test(mb[1]) ? 'meinealben' : 'lieblinge') + '"]'); if (tb) tb.click(); return true; }
