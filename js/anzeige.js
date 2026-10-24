@@ -37,7 +37,22 @@
         var w = window.innerWidth / (zoom / 100), h = window.innerHeight / (zoom / 100);
         return w >= 1.6 * h && w >= 640;
     }
+    var K_RAND = 'jv_anzeige_rand';
+    function randHole() { try { var r = parseInt(localStorage.getItem(K_RAND), 10); return (r >= 0 && r <= 20) ? r : 0; } catch (e) { return 0; } }
+    function randSetze(p) {
+        p = Math.max(0, Math.min(20, Math.round(p)));
+        try { localStorage.setItem(K_RAND, String(p)); } catch (e) { }
+        randAnwenden(); return p;
+    }
+    function randAnwenden() {
+        var p = randHole();
+        document.documentElement.style.setProperty('--aa-rand-x', Math.round(p / 100 * window.innerWidth) + 'px');
+        document.documentElement.style.setProperty('--aa-rand-y', Math.round(p / 100 * window.innerHeight) + 'px');
+        var r = document.getElementById('randZoom'); if (r) r.value = String(p);
+        var o = document.getElementById('randZoomOut'); if (o) o.textContent = p + ' %';
+    }
     function anwenden() {
+        randAnwenden();
         var root = document.documentElement;
         try { root.style.zoom = zoom === 100 ? '' : String(zoom / 100); } catch (e) { }
         var sp = document.getElementById('recordBtn');
@@ -86,6 +101,8 @@
         if (m) { setZoom(zoom + (m[1] === 'kleiner' ? -10 : 10)); sagen('Anzeige ' + zoom + ' Prozent.'); return true; }
         m = t.match(/^(?:anzeige|ansicht|anordnung) (breit|normal|automatisch)$/);
         if (m) { setLayout(m[1] === 'automatisch' ? 'auto' : m[1]); sagen('Anordnung ' + m[1] + '.'); return true; }
+        m = t.match(/^(?:bitte )?(?:den )?rand (groesser|kleiner|breiter|schmaler|aus)$/);
+        if (m) { var rp = m[1] === 'aus' ? 0 : randHole() + ((m[1] === 'groesser' || m[1] === 'breiter') ? 2 : -2); sagen('Rand ' + randSetze(rp) + ' Prozent.'); return true; }
         /* Spracherkennung versteht "Mund später" oft falsch ("und später", "Mundspäter", "Mund spät"): deshalb viele Schreibweisen */
         m = t.match(/^(?:bitte )?(?:mach )?(?:den )?(?:mund|und|mundbewegung|lippen|verzoegerung|mund verzoegerung)(?: verzoegerung)? (viel |ganz |etwas |bisschen )?(spaeter|spaet|frueher|frueh|mehr|weniger|hoeher|niedriger|langsamer|schneller)$/) ||
             t.match(/^(?:bitte )?(mund)(spaeter|frueher)$/);
@@ -106,6 +123,8 @@
         if (r) r.addEventListener('input', function () { setZoom(parseInt(r.value, 10)); });
         var s = document.getElementById('anzeigeLayout');
         if (s) s.addEventListener('change', function () { setLayout(s.value); });
+        var rz = document.getElementById('randZoom');
+        if (rz) rz.addEventListener('input', function () { randSetze(parseInt(rz.value, 10)); });
         var mv = document.getElementById('mundVerz');
         if (mv) { mv.value = String(mundHole()); var mo = document.getElementById('mundVerzOut'); if (mo) mo.textContent = mundHole() + ' ms'; mv.addEventListener('input', function () { mundSetze(parseInt(mv.value, 10)); }); }
         var ab = document.getElementById('audioInfo');

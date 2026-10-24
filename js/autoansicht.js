@@ -20,7 +20,7 @@
     function uhrzeit(ms) { return new Date(ms).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }); }
     function $(id) { return document.getElementById(id); }
 
-    const CSS = '#aa-layer{position:fixed;inset:0;z-index:8000;background:#030810;color:#d8f3ff;font-family:"DejaVu Sans Mono",ui-monospace,monospace;display:flex;flex-direction:column;padding:10px 16px 12px;gap:10px;overflow:auto}' +
+    const CSS = '#aa-layer{position:fixed;inset:0;box-sizing:border-box;border:solid #030810;border-width:var(--aa-rand-y,0px) var(--aa-rand-x,0px);z-index:8000;background:#030810;color:#d8f3ff;font-family:"DejaVu Sans Mono",ui-monospace,monospace;display:flex;flex-direction:column;padding:10px 16px 12px;gap:10px;overflow:auto}' +
         '#aa-layer .lab{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#49d7ff}' +
         '#aa-layer .kopf{display:flex;justify-content:space-between;align-items:center}' +
         '#aa-layer .x{border:2px solid #ff6b6b;color:#ffd6d6;background:rgba(255,80,80,.18);padding:14px 28px;min-height:56px;min-width:150px;font:inherit;font-size:20px;font-weight:700;border-radius:10px}' +
@@ -40,9 +40,9 @@
         '#aa-layer.km .mitte{flex-wrap:nowrap;overflow:hidden;gap:10px}' +
         '#aa-layer.km .heim{flex:0 0 24%;min-width:0;padding:8px 10px;overflow:hidden}' +
         '#aa-layer.km .grid{flex:0 0 22%;min-width:0;grid-template-columns:1fr;gap:8px}' +
-        '#aa-layer.km .kopfmitte{flex:1 1 auto;min-width:0;min-height:160px;display:flex;align-items:center;justify-content:center;position:relative}' +
+        '#aa-layer.km .kopfmitte{flex:1 1 auto;min-width:0;min-height:160px;overflow:hidden;isolation:isolate;display:flex;align-items:center;justify-content:center;position:relative}' +
         '#aa-layer.km .kopfmitte .holo-container{height:100%!important;width:auto!important;aspect-ratio:1/1;max-width:100%;max-height:100%}' +
-        '#aa-layer.km .gross{font-size:clamp(24px,8vh,44px)!important;white-space:nowrap}' +
+        '#aa-layer.km .gross{font-size:clamp(18px,min(6vh,3.2vw),38px)!important;white-space:normal;overflow-wrap:anywhere;line-height:1.05}' +
         '#aa-layer.km #aa-sub{font-size:clamp(11px,2.8vh,15px)!important;margin-top:4px!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}' +
         '#aa-layer.km #aa-tank{display:none}' +
         '#aa-layer.km .knopf{flex-direction:row;gap:8px;min-height:0;font-size:clamp(12px,3.2vh,16px)!important}' +
