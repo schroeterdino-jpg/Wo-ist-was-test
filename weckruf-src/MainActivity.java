@@ -447,19 +447,23 @@ public class MainActivity extends Activity {
     /** Nach dem Musikstart holt sich Jarvis selbst wieder nach vorn, damit man nicht erst die Spotify-App wegdrücken muss.
      *  Android erlaubt das aus dem Hintergrund nicht auf jedem Gerät; dann bleibt es beim alten Verhalten. */
     private void jarvisNachVorn() {
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override public void run() {
-                try {
-                    android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
-                    if (am != null) am.moveTaskToFront(getTaskId(), 0);
-                } catch (Throwable e1) { }
-                try {
-                    Intent b = new Intent(MainActivity.this, MainActivity.class);
-                    b.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                    startActivity(b);
-                } catch (Throwable e2) { }
-            }
-        }, 2500);
+        /* Spotify braucht beim Kaltstart einige Sekunden und holt sich dabei selbst wieder nach vorn: darum mehrere Versuche */
+        long[] zeiten = {2000, 4500, 8000};
+        for (long z : zeiten) {
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override public void run() {
+                    try {
+                        android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
+                        if (am != null) am.moveTaskToFront(getTaskId(), 0);
+                    } catch (Throwable e1) { }
+                    try {
+                        Intent b = new Intent(MainActivity.this, MainActivity.class);
+                        b.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                        startActivity(b);
+                    } catch (Throwable e2) { }
+                }
+            }, z);
+        }
     }
 
     private String anrufWartet = null;
