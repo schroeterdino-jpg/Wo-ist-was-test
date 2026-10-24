@@ -93,7 +93,7 @@
         } catch (e) { return { status: 0 }; }
         if (r.status === 401 && !schon) { const t = laden(KEY); if (t) { t.exp = 0; speichern(KEY, t); } return ruf(methode, pfad, body, true); }
         let j = null; try { if (r.status !== 204) j = await r.json(); } catch (e) { }
-        return { status: r.status, json: j };
+        return { status: r.status, json: j, pfad: methode + ' ' + pfad.split('?')[0] };
     }
     function fehlerText(r) {
         if (r.status === 401) return 'Spotify ist nicht verbunden. Sag Spotify verbinden.';
@@ -101,6 +101,10 @@
         if (r.status === 429) return 'Spotify bremst gerade. Versuch es gleich nochmal.';
         if (r.status === 0) return 'Ich komme gerade nicht ins Internet.';
         return 'Spotify meldet Fehler ' + r.status + '.';
+    }
+    /* Genaue Fehlermeldung zusätzlich als Text auf dem Bildschirm (zum Weitersagen an Claude) */
+    function fehlerZeigen(r) {
+        try { hinweis('Spotify ' + r.status + ' bei ' + (r.pfad || '?') + ': ' + ((r.json && r.json.error && (r.json.error.message || r.json.error.reason)) || 'ohne Text')); } catch (e) { }
     }
     function erfolg(r) { return r.status >= 200 && r.status < 300; }
 
@@ -122,18 +126,21 @@
                 if (!g) { sagen('Spotify ist offen. Komm zu Jarvis zurück, dann starte ich die Musik.'); return; }
                 speichern(PENDING, null);
             }
-            if (g) r = await ruf('PUT', '/me/player/play?device_id=' + encodeURIComponent(g.id), body || undefined);
+            if (g) {
+                if (!g.is_active) { await ruf('PUT', '/me/player', { device_ids: [g.id], play: false }); await schlaf(1200); }
+                r = await ruf('PUT', '/me/player/play?device_id=' + encodeURIComponent(g.id), body || undefined);
+            }
             else { sagen('Ich finde kein Spotify-Gerät.'); return; }
         }
         if (erfolg(r)) { if (ansage) sagen(ansage); return; }
-        sagen(fehlerText(r));
+        fehlerZeigen(r); sagen(fehlerText(r));
     }
     async function suchenUndSpielen(anfrage, art) {
         let q = anfrage.replace(/\s+/g, ' ').trim();
         if (!q) { return abspielen(null, 'Okay.'); }
         const typ = art || 'track,artist';
         const r = await ruf('GET', '/search?q=' + encodeURIComponent(q) + '&type=' + typ + '&limit=5');
-        if (!erfolg(r)) { sagen(fehlerText(r)); return; }
+        if (!erfolg(r)) { fehlerZeigen(r); sagen(fehlerText(r)); return; }
         const j = r.json || {};
         const ok = function (a) { return ((a && a.items) || []).filter(Boolean); };
         const kue = ok(j.artists), tit = ok(j.tracks), pl = ok(j.playlists), al = ok(j.albums);
@@ -156,6 +163,7 @@
         else if (was === 'zurueck') r = await ruf('POST', '/me/player/previous');
         if (r && (erfolg(r))) return;
         if (r && r.status === 404) { sagen('Es läuft gerade nichts auf Spotify.'); return; }
+        if (r) fehlerZeigen(r);
         sagen(fehlerText(r || { status: 0 }));
     }
     async function lautstaerke(ziel, schritt) {
