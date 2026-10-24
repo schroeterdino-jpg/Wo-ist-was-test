@@ -11,6 +11,9 @@ final class Prefs {
     static void setLevel(Context c, int v) { sp(c).edit().putInt("level2", v).apply(); }
     static boolean enabled(Context c) { return sp(c).getBoolean("enabled", true); }
     static void setEnabled(Context c, boolean v) { sp(c).edit().putBoolean("enabled", v).apply(); }
+    // Musik wurde von Jarvis gestartet: beim Wegwischen der App wird sie angehalten
+    static boolean musikVonJarvis(Context c) { return sp(c).getBoolean("musikVonJarvis", false); }
+    static void setMusikVonJarvis(Context c, boolean v) { sp(c).edit().putBoolean("musikVonJarvis", v).apply(); }
     static boolean muted(Context c) { return sp(c).getBoolean("muted", false); }
     static void setMuted(Context c, boolean v) { sp(c).edit().putBoolean("muted", v).apply(); }
     // Nachtruhe: das Weckwort schläft zwischen zwei Uhrzeiten (Minuten seit Mitternacht), Standard 23:00 bis 04:00
