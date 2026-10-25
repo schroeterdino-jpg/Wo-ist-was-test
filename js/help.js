@@ -133,6 +133,7 @@ const HELP_TOPICS = [
     { key: 'dolmetscher', icon: '🗣️', title: 'Dolmetscher', words: /dolmetsch|übersetz|uebersetz/, examples: [
         'Dolmetscher Türkisch (auch Englisch, Rumänisch, Polnisch, Russisch)', 'Übersetze Guten Tag ins Englische', 'Dolmetscher beenden'] },
     { key: 'einstellungen', icon: '⚙️', title: 'Stimme & Einstellungen', words: /einstellung|system|daten|stimme|tempo|aussprache|sicher/, examples: [
+        'Tour (auch: Rundgang, Führe mich durch die App): die geführte Tour zeigt Schritt für Schritt alles, was Jarvis kann, mit Beispielsätzen und Vorlesen. Auch unter Einstellungen > Geführte Tour.',
         'Töne aus (auch: Töne an, Töne leiser, Töne lauter; die Effekt-Töne für Bestätigung, Fehler und Warnung)', 'Menschliche Laute aus (auch: dezent, an; Zane seufzt bei Stau, kichert bei Sprüchen, atmet vor langen Antworten ein - nur mit Fish Audio)', 'Stimme: Einstellungen > Stimme & Gespräch > Sprachausgabe > Fish Audio (Stimmen-ID eintragen und „Fish-Stimme testen“)', 'Sprich langsamer', 'Sprich Alyssa so aus: Alischa', 'Wenn ich Hamlet sage, meine ich Hamiyet (Hör-Korrektur für falsch verstandene Namen)', 'Welche Hör-Korrekturen hast du?', 'Nenn mich Dino', 'Sichere meine Daten', 'Systemcheck'] }
 ];
 
