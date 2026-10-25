@@ -118,5 +118,6 @@
 
     window.handleUnwetterCommand = handleUnwetterCommand;
     window.unwetterWachterItems = unwetterWachterItems;
+    window.jvUnwetter = { warnungen: async function () { try { const l = await fetchAlerts(), now = Date.now(); return l.filter(a => SEVERITY_RANK[a.severity] >= 2 && a.onset <= now + 24 * 3600000).slice(0, 3).map(a => ({ art: a.event, stufe: SEVERITY_LABEL[a.severity], ab_in_stunden: Math.max(0, Math.round((a.onset - now) / 3600000)), bis_in_stunden: Math.max(0, Math.round((a.expires - now) / 3600000)) })); } catch (e) { return []; } } };
     window._unwetterTest = { fetchAlerts };   // nur zum Testen
 })();
