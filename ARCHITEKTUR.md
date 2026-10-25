@@ -181,3 +181,8 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - Antwort: eins/zwei/drei/Wochentag/andere/nein (`offen`, 4 Minuten). Eintragen über `addGoogleCalendarEvent(titel, iso, ort, null, false, null, dauerMin)` (neuer 7. Parameter = Länge in Minuten, Besuch 120, Erledigung 60).
 - Fahrzeit = OSRM-Dauer + Verkehrspuffer (20 %, mindestens 10 Min.); echter Stau wird erst am Tag selbst von der Abfahrts-Erinnerung in api/sync.js für Kalendertermine mit Ort berücksichtigt.
 - Ansage: nur der erste Vorschlag wird ausführlich vorgelesen (Schicht/frei, Abfahrt, Ankunft, "Zeit bis ..." bis zum nächsten Block minus Fahrzeit und Grund Arbeit/Termin); Vorschlag 2 und 3 nur mit Tag und Uhrzeit. `freieZeiten` liefert dafür `bis`, `grund`, `grundZeit` je Vorschlag.
+
+## Wunschliste mit Preissuche (`js/wunschliste.js`)
+- Liste aus Foto (Art `wunschliste` in foto_erkennen.js, hängt sich in photo.js ein wie foto_urlaubsplan.js), Sprache ("Neue Wunschliste für Liam: …", "Setz X auf die Wunschliste von Liam") oder von Hand im Fenster `#jvWl`. Speicher `jv_wunschlisten` (in api/sync.js gesichert).
+- Preise: `/api/maps?action=shopping&q=…` (in maps.js, keine neue Function) ruft serper.dev (Google Shopping, gl=de) mit `SERPER_API_KEY` auf, entfernt zu billige Ausreißer (unter 40 % des mittleren Preises) und liefert die 5 günstigsten. Ohne Schlüssel sagt Jarvis, dass der Eintrag in Vercel fehlt.
+- Sprache: "Suche Preise für die Wunschliste von Liam", "Zeig die Wunschliste von Liam", "Wunschliste von Liam löschen", "Hake McQueen auf der Wunschliste ab". jvCommands-Ordnung 0.36.
