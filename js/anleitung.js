@@ -60,7 +60,7 @@
           d: "Morgens um 9 Uhr (bei Frühschicht nachmittags um 15:45) und abends um 19 Uhr schaut Jarvis auf alles zusammen: Termine, Geburtstage, Wetter, Schicht, Einkauf, Wunschliste, Ausflüge, Pakete, offene Rechnungen, Feiertage, Unwetterwarnungen und das Langzeitgedächtnis. Er meldet sich nur, wenn sich etwas Brauchbares ergibt. Mit Ja führt er den Vorschlag aus, mit „Das interessiert mich nicht“ kommt das Thema nicht mehr.",
           s: ["Was hast du für mich?", "Warum hast du dich gemeldet?", "Das interessiert mich nicht", "Keine Tagesmeldungen mehr", "Tagesmeldungen an", "Alle Themen wieder"] },
         { g: "Alltag", i: "⭐", t: "Was ich besser kann", h: "termine", n: "Feste Antwort, keine KI nötig",
-          d: "Frag Jarvis, was ihn von anderen Assistenten unterscheidet. Er erzählt, was er für dich kann und andere nicht: dich und deinen Tag kennen, sich von selbst melden, mit dir planen. Dazu öffnet sich ein Fenster zum Nachlesen.",
+          d: "Frag Jarvis, was ihn von anderen Assistenten unterscheidet. Er erzählt, was er für dich kann und andere nicht: dich und deinen Tag kennen, sich von selbst melden, mit dir planen.",
           s: ["Was unterscheidet dich von anderen KI-Assistenten?", "Was kannst du besser als ChatGPT?", "Warum bist du besser?"] },
         { g: "Alltag", i: "🎁", t: "Wunschliste mit Preisen", h: "listen", n: "Preise kommen von Google Shopping; dafür braucht der Server den Eintrag SERPER_API_KEY",
           d: "Fotografiere einen Wunschzettel oder sag die Wünsche an. Jarvis legt eine Liste an, sucht zu jedem Punkt Preise (Amazon, Otto, MediaMarkt und andere) und zeigt das günstigste Angebot mit Shop. Abhaken geht im Fenster. Den Suchbegriff kannst du dort ändern.",
