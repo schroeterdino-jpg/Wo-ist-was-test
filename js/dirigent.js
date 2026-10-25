@@ -99,7 +99,7 @@
     }
 
     function prompt(stumm, zuletzt, direkt) {
-        return (direkt ? 'WICHTIG: Dino hat gerade AUSDRÜCKLICH gefragt "Was hast du für mich?". Antworte also immer mit melden true. Nimm das Nützlichste aus den Daten, auch wenn es eine Kleinigkeit ist (zum Beispiel Wetter und Schicht von morgen, eine Gelegenheit für Mama oder die Familie, der nächste Termin, ein Einkauf). Gibt es wirklich gar nichts, fasse in ein bis zwei Sätzen kurz zusammen, was heute und morgen ansteht. Die Regeln zu Wiederholungen und zur Wunschliste gelten dann nicht. ' : '') + 'Du bist Jarvis, der Sprachassistent von Dino (Schichtarbeiter, Familie, drei Töchter, Enkelin). Du schaust ' + 'zu einem festen Zeitpunkt auf seinen ganzen Tag und entscheidest, ob du dich meldest. Sprich ihn mit du an, freundlich, direkt und ruhig, wie ein guter Butler, ohne Floskeln und ohne Emojis. ' +
+        return (direkt === 'gruss' ? 'WICHTIG: Dino hat gerade die App geöffnet. Begrüße ihn mit ein bis zwei kurzen, lockeren Sätzen (Tageszeit passend) und nenne gleich das Wichtigste: zuerst die Schicht von heute oder morgen mit Beginn, wenn sie ihn betrifft, dann ein Termin, Geburtstag oder das Wetter. Antworte immer mit melden true. Mach kein Angebot und stelle keine Frage. Die Regeln zu Wiederholungen und zur Wunschliste gelten dann nicht. ' : direkt ? 'WICHTIG: Dino hat gerade AUSDRÜCKLICH gefragt "Was hast du für mich?". Antworte also immer mit melden true. Nimm das Nützlichste aus den Daten, auch wenn es eine Kleinigkeit ist (zum Beispiel Wetter und Schicht von morgen, eine Gelegenheit für Mama oder die Familie, der nächste Termin, ein Einkauf). Gibt es wirklich gar nichts, fasse in ein bis zwei Sätzen kurz zusammen, was heute und morgen ansteht. Die Regeln zu Wiederholungen und zur Wunschliste gelten dann nicht. ' : '') + 'Du bist Jarvis, der Sprachassistent von Dino (Schichtarbeiter, Familie, drei Töchter, Enkelin). Du schaust ' + 'zu einem festen Zeitpunkt auf seinen ganzen Tag und entscheidest, ob du dich meldest. Sprich ihn mit du an, freundlich, direkt und ruhig, wie ein guter Butler, ohne Floskeln und ohne Emojis. ' +
             'Antworte NUR mit JSON: {"melden":true oder false,"thema":"ein Wort, z.B. geburtstag, wetter, termin, einkauf, wunschliste, ausflug, besuch, familie, schicht, gedaechtnis","text":"gesprochener Text, höchstens drei kurze Sätze","aktion":"ausflug" oder "besuch:<Name>" oder "preise:<Listenname>" oder "keine","grund":"ein Satz: woran du es gemerkt hast"}. ' +
             'REGELN: Melde dich nur, wenn sich aus den Daten etwas wirklich Brauchbares für diesen Tag ergibt. Im Zweifel schweige (melden false). Es gibt höchstens EINE Meldung, also wähle das Wichtigste. ' +
             'Reihenfolge der Wichtigkeit: 1) Zeitkritisches (Termin oder Erinnerung heute, Geburtstag heute oder morgen, Regen oder Frost, der zu einem Termin oder dem Arbeitsweg passt, Einkauf, der zum Weg passt). 2) Gelegenheiten (freier Tag mit gutem Wetter: ein Ausflug mit den Kindern; ein freies Zeitfenster für einen Besuch bei jemandem aus der Familie, den er lange nicht besucht hat). 3) Langfristiges (Wunschliste vor Weihnachten, wenn noch viel offen ist oder Preise fehlen). 4) Passende Einzelheiten aus dem Langzeitgedächtnis. ' +
@@ -129,7 +129,7 @@
     }
 
     /* ---------- Ansage ---------- */
-    async function ansage(id, erzwingen) {
+    async function ansage(id, erzwingen, gruss) {
         const p = P(); if (!p) return false;
         const teile = String(id || '').split('|'), ymd = teile[1] || p.jetzt().ymd, slot = SLOTS[teile[2]] ? teile[2] : 'm', nu = p.jetzt();
         if (!erzwingen) {
@@ -137,9 +137,9 @@
             if (lsGet(K_HEUTE) === ymd) return false;
         }
         const k = await kontext(slot);
-        const r = await frageKI(k, slot, !!erzwingen);
+        const r = await frageKI(k, slot, gruss ? 'gruss' : !!erzwingen);
         if (!r || r.melden !== true || !String(r.text || '').trim()) {
-            if (erzwingen) sagen(r ? 'Im Moment fällt mir nichts ein, was dich heute weiterbringt.' : 'Ich konnte gerade nicht nachdenken. Versuch es gleich noch einmal.');
+            if (erzwingen && !gruss) sagen(r ? 'Im Moment fällt mir nichts ein, was dich heute weiterbringt.' : 'Ich konnte gerade nicht nachdenken. Versuch es gleich noch einmal.');
             return false;
         }
         const thema = String(r.thema || 'sonstiges').toLowerCase().slice(0, 30);
@@ -159,6 +159,21 @@
         } catch (e) { }
         return true;
     }
+
+    /* ---------- Begrüßung beim Öffnen: kurz sagen, was heute/morgen wichtig ist (höchstens alle 90 Minuten, nicht nachts) ---------- */
+    const K_GRUSS = 'jv_dirig_gruss';
+    function gruessen() {
+        try {
+            const p = P(); if (!p || aus() || document.hidden) return;
+            const nu = p.jetzt(); if (nu.min < 6 * 60 + 30 || nu.min > 21 * 60 + 30) return;
+            if (Date.now() - Number(lsGet(K_GRUSS) || 0) < 90 * 60000) return;
+            if (typeof isSpeaking === 'function' && isSpeaking()) return;
+            lsSet(K_GRUSS, String(Date.now()));
+            ansage('dirig|' + nu.ymd + '|' + (nu.min >= 17 * 60 ? 'a' : 'm'), true, true);
+        } catch (e) { }
+    }
+    setTimeout(gruessen, 9000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(gruessen, 4000); });
 
     /* ---------- Antworten ---------- */
     function befehlFuer(aktion, slot) {
