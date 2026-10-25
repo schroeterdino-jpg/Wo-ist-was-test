@@ -110,7 +110,7 @@
             if (d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }) !== iso) return;
             const p = d.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).split(':');
             const a = +p[0] * 60 + +p[1];
-            out.push([a, a + 60]);
+            out.push([a, a + 60, 'termin']);
         });
         return out;
     }
@@ -125,8 +125,8 @@
             const sh = frei ? null : schichtAm(iso, si);
             const busy = termineAm(iso);
             if (!frei) {
-                if (sh) busy.push([abf[sh] - 15, ende[sh] + 45]);
-                else busy.push([300, 960]);   // Schicht unbekannt: Arbeitstag grob 5 bis 16 Uhr
+                if (sh) busy.push([abf[sh] - 15, ende[sh] + 45, 'arbeit']);
+                else busy.push([300, 960, 'arbeit']);   // Schicht unbekannt: Arbeitstag grob 5 bis 16 Uhr
             }
             const vonMin = 8 * 60 + 30, bisMin = (a.art === 'besuch' ? 20 : 18) * 60;
             const ziel = frei || sh === 'spaet' ? 630 : 990;
@@ -136,7 +136,10 @@
                 if (busy.some(b => s0 < b[1] + 15 && s1 > b[0] - 15)) continue;
                 if (!best || Math.abs(arr - ziel) < Math.abs(best - ziel)) best = arr;
             }
-            if (best !== null) tage.push({ iso, arr: best, frei, sh });
+            if (best !== null) {
+                const spaeter = busy.filter(b => b[0] > best).sort((x, y) => x[0] - y[0])[0];
+                tage.push({ iso, arr: best, frei, sh, bis: spaeter ? spaeter[0] - 15 - fz : null, grund: spaeter ? spaeter[2] : '', grundZeit: spaeter ? spaeter[0] + (spaeter[2] === 'arbeit' ? 15 : 0) : null });
+            }
         }
         const order = tage.filter(x => x.frei).concat(tage.filter(x => !x.frei));
         return order;
@@ -162,8 +165,17 @@
                 subtitle: (o.a.fahrzeit ? 'Abfahrt ' + hm(s.arr - o.a.fahrzeit) + ' · ' : '') + o.a.titel, onclick: 'window.jvTerminWahl(' + i + ')'
             })));
         } catch (e) { }
-        const liste = teil.map((s, i) => (i + 1) + ', ' + datumSprech(s.iso) + ' um ' + sprech(s.arr)).join('. ');
-        sagen((o.seite === 0 ? o.a.titel + (o.a.fahrzeit ? ': die Fahrt dauert etwa ' + o.a.fahrzeit + ' Minuten. ' : '. ') + 'Frei bist du: ' : 'Weitere freie Zeiten: ') + liste + '. Welche soll ich eintragen? Sag eins, zwei oder drei, oder andere.');
+        const s1 = teil[0], a = o.a, ziel = a.art === 'besuch' ? 'zu ' + a.name + ' fahren' : a.titel;
+        let satz = 'Am ' + datumSprech(s1.iso) + ' könntest du ' + (a.art === 'besuch' ? ziel : 'das erledigen: ' + a.titel) + '. ';
+        const lage = s1.frei ? 'Da hast du frei. ' : s1.sh === 'spaet' ? 'Da hast du Spätschicht. ' : s1.sh === 'frueh' ? 'Da hast du Frühschicht. ' : '';
+        satz += lage;
+        if (a.fahrzeit) satz += 'Fahr um ' + sprech(s1.arr - a.fahrzeit) + ' los, dann bist du um ' + sprech(s1.arr) + ' da. ';
+        else satz += 'Passt gut um ' + sprech(s1.arr) + '. ';
+        if (s1.bis !== null && s1.bis > s1.arr + 15) satz += 'Du hast Zeit bis ' + sprech(s1.bis) + (a.fahrzeit ? ', dann musst du dich auf den Rückweg machen' : '') + ', weil du um ' + sprech(s1.grundZeit) + (s1.grund === 'arbeit' ? ' zur Arbeit los musst. ' : ' einen Termin hast. ');
+        else if (s1.bis === null && a.art === 'besuch') satz += 'Danach hast du nichts mehr vor, du kannst in Ruhe bleiben. ';
+        const rest = teil.slice(1).map((s, i) => (i + 2) + ', ' + datumSprech(s.iso) + ' um ' + sprech(s.arr)).join('. ');
+        const kopf = o.seite === 0 ? (a.art === 'besuch' ? '' : '') : 'Weitere freie Zeiten. ';
+        sagen(kopf + satz + (rest ? 'Weitere Möglichkeiten: ' + rest + '. ' : '') + 'Welche soll ich eintragen? Sag eins, zwei oder drei, oder andere.');
     }
     async function wahl(i) {
         const o = offen; if (!o || !o.aktuell || !o.aktuell[i]) return false;
