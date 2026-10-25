@@ -55,7 +55,7 @@
         if (/\bübermorgen\b|\buebermorgen\b/.test(t)) return plusTage(h, 2);
         if (/\bmorgen\b/.test(t) && !/\bmorgens\b/.test(t)) return plusTage(h, 1);
         const m = t.match(/\b(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/);
-        if (m) { const ziel = WT.indexOf(m[1]), jetzt = new Date(h + 'T12:00:00').getDay(); return plusTage(h, ((ziel - jetzt) + 7) % 7); }
+        if (m) { const ziel = WT.indexOf(m[1]), jetzt = new Date(h + 'T12:00:00').getDay(); let n = ((ziel - jetzt) + 7) % 7; if (n === 0 && /\bnaechst\w*\b/.test(t)) n = 7; return plusTage(h, n); }
         if (/\bwochenende\b/.test(t)) {
             const jetzt = new Date(h + 'T12:00:00').getDay();
             if (jetzt === 6 || jetzt === 0) return h;
@@ -196,7 +196,7 @@
     const FRAGE = [
         /\bwas\s+(?:koennen|wollen|sollen|duerfen|moechten|machen)\s+wir\b.*\b(?:machen|unternehmen)\b/,
         /\b(?:wir\s+)?(?:wollen|moechten|moechte|will)\b.*\b(?:was|etwas|irgendwas|irgendetwas)\b.*\b(?:unternehmen|machen)\b/,
-        /\b(?:was|wohin)\s+(?:kann|koennte|koennen|sollen)\s+(?:man|ich|wir)\b.*\b(?:unternehmen|machen|fahren)\b.*\b(?:kinder\w*|wochenende|samstag|sonntag|heute|morgen|enkel\w*|familie)\b/,
+        /\b(?:was|wohin)\s+(?:kann|koennte|koennen|sollen)\s+(?:man|ich|wir)\b(?=.*\b(?:unternehmen|machen|fahren)\b)(?=.*\b(?:kinder\w*|wochenende|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|heute|morgen|uebermorgen|enkel\w*|familie)\b)/,
         /\b(?:ausflug|ausfluege|ausflugsziel\w*|ausflugstipp\w*|ausflugsidee\w*)\b/,
         /\b(?:idee|ideen|tipp|tipps|vorschlag|vorschlaege)\b.*\b(?:wochenende|samstag|sonntag|ausflug|kinder\w*|unternehmung\w*)\b/,
         /\bwas\s+(?:ist|gibt es|gibts)\b.*\b(?:heute|morgen|am wochenende)\b.*\bin der naehe\b.*\blos\b|\bwas ist .*in der naehe los\b/,
