@@ -5,7 +5,7 @@
    - AUFBRUCHSZEIT: an jedem Arbeitstag (Mo-Fr, nicht im Urlaub), Früh- und Spätschicht, 10 Minuten vor der Abfahrt.
      Abfahrt = Schichtbeginn minus Fahrzeit (mit aktueller Verkehrslage, kurz vor der Ansage frisch abgefragt) minus 10 Minuten Puffer.
      Schichtbeginn: Früh 5:10, Spät 13:45 (änderbar per Sprache: "Meine Frühschicht beginnt um 5 Uhr 30").
-     Abfahrt fest: Früh 4:30, Spät 13:20 ("Meine Abfahrt in der Frühschicht ist um 4 Uhr 30"); bei deutlich längerer Fahrt (ab 10 Minuten mehr) entsprechend früher.
+     Abfahrt fest: Früh 4:30, Spät 13:00 ("Meine Abfahrt in der Frühschicht ist um 4 Uhr 30"); bei deutlich längerer Fahrt (ab 10 Minuten mehr) entsprechend früher.
    - STAU-CHECK: 20 Minuten vor der Aufbruchs-Ansage (Frühschicht frühestens 10 Minuten nach dem Aufstehen) prüft Jarvis still die Verkehrslage. Sie spricht nur bei Stau
      oder wenn die Fahrt mindestens 10 Minuten länger dauert als sonst ("normal" = Mittelwert der letzten Messungen). Test: "Teste den Stau-Check".
    - HEIMWEG: kurz nach Schichtende (Früh 14:37, Spät 22:12, änderbar: "Meine Frühschicht endet um 14 Uhr 40") sagt Jarvis, wie lange die Heimfahrt dauert
@@ -166,9 +166,9 @@
     const NAME = { frueh: 'Frühschicht', spaet: 'Spätschicht' };
 
     /* ---------- Abfahrtszeit ----------
-       Feste Zeit pro Schicht (Früh 4:30, Spät 13:20; änderbar per Sprache). Nur wenn die Fahrt heute deutlich länger dauert als sonst
+       Feste Zeit pro Schicht (Früh 4:30, Spät 13:00; änderbar per Sprache). Nur wenn die Fahrt heute deutlich länger dauert als sonst
        (10 Minuten oder mehr), wird entsprechend früher losgefahren. */
-    const ABF_STD = { frueh: 4 * 60 + 30, spaet: 13 * 60 + 20 };
+    const ABF_STD = { frueh: 4 * 60 + 30, spaet: 13 * 60 };
     function abfFix(sh) {
         try { const o = JSON.parse(pd(K_ABF, '') || 'null'); if (o && Number.isFinite(o[sh])) return o[sh]; } catch (e) { }
         return ABF_STD[sh];
