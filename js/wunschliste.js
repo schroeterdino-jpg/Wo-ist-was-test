@@ -129,6 +129,7 @@
             '#jvWl .wl-sum{font-size:14px;color:#cfeeff}#jvWl .wl-foot{display:flex;gap:8px;flex-wrap:wrap}';
         document.head.appendChild(st);
     }
+    function vergleichsLink(q) { return 'https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q=' + encodeURIComponent(q); }
     function link(text, href) { const a = document.createElement('a'); a.textContent = text; a.href = href || '#'; a.target = '_blank'; a.rel = 'noopener noreferrer'; return a; }
     function zeigeFenster(liste) {
         css();
@@ -155,9 +156,9 @@
         function preisZeile(r, it) {
             const p = r.querySelector('.wl-preis'); p.textContent = '';
             if (it.preis) {
-                p.appendChild(link('ab ' + euro(it.preis) + ' bei ' + (it.shop || 'Shop'), it.link));
+                p.appendChild(link('ab ' + euro(it.preis) + ' bei ' + (it.shop || 'Shop') + (it.link ? '' : ' (Preisvergleich)'), it.link || vergleichsLink(begriff(it) || it.t)));
                 if (it.q) { const g = document.createElement('div'); g.className = 'mehr'; g.textContent = 'gesucht: ' + it.q; p.appendChild(g); }
-                if (it.mehr && it.mehr.length) { const m = document.createElement('div'); m.className = 'mehr'; it.mehr.forEach((o, i) => { if (i) m.appendChild(document.createTextNode(' · ')); m.appendChild(link(euro(o.preis) + ' ' + (o.shop || ''), o.link)); }); p.appendChild(m); }
+                if (it.mehr && it.mehr.length) { const m = document.createElement('div'); m.className = 'mehr'; it.mehr.forEach((o, i) => { if (i) m.appendChild(document.createTextNode(' · ')); m.appendChild(link(euro(o.preis) + ' ' + (o.shop || ''), o.link || vergleichsLink(begriff(it) || it.t))); }); p.appendChild(m); }
             } else if (it.am) p.textContent = it.kein ? 'Dafür gibt es keinen Preis zu suchen. Ändere den Text, wenn du es genauer beschreiben willst.' : 'Kein Preis gefunden. Du kannst den Begriff ändern und noch einmal suchen.';
             p.style.display = p.textContent || p.firstChild ? '' : 'none';
         }

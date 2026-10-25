@@ -491,6 +491,8 @@ async function shopping(req, res) {
       const sorted = l.map(x => x.preis).sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
       l = l.filter(x => x.preis >= med * 0.4 && x.preis <= med * 4);
     }
+    // Google-Links führen auf eine Einwilligungs-/Anmeldeseite von Google: nur direkte Shop-Links durchreichen, sonst leer (die App nimmt dann eine Preisvergleichs-Suche)
+    l.forEach(x => { try { if (/(^|\.)google\./i.test(new URL(x.link).hostname)) x.link = ''; } catch (e) { x.link = ''; } });
     l.sort((a, b) => a.preis - b.preis);
     return res.status(200).json({ angebote: l.slice(0, 5) });
   } catch (e) {
