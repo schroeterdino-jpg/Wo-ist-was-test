@@ -486,7 +486,7 @@ async function shopping(req, res) {
     let l = (Array.isArray(d.shopping) ? d.shopping : []).map(x => ({
       titel: String(x.title || '').slice(0, 120), shop: String(x.source || ''), preisText: String(x.price || ''),
       preis: preisZahl(x.price), link: String(x.link || '')
-    })).filter(x => x.preis && x.preis > 0);
+    })).filter(x => x.preis && x.preis > 0 && !/kleinanzeigen|ebay|vinted|willhaben|momox|rebuy|mobile\.de|shpock/i.test(x.shop + ' ' + x.link));   // Gebrauchtes zeigt keine Neupreise und sein Link startet in der APK Jarvis neu
     if (l.length >= 3) {
       const sorted = l.map(x => x.preis).sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
       l = l.filter(x => x.preis >= med * 0.4 && x.preis <= med * 4);
