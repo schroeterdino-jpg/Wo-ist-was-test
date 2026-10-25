@@ -57,10 +57,10 @@
         } catch (e) { }
     }
     /* Meldung sprechen, zum Nachlesen merken und als Fenster zeigen */
-    function sagenMeldung(titel, text, ohneFenster) {
+    function sagenMeldung(titel, text, ohneFenster, weiter) {   // weiter: Jarvis hört danach zu (bei Fragen mit Ja/Nein)
         merkeMeldung(titel, text);
         if (!ohneFenster) zeigeMeldung(titel, text);
-        sagen(text, false);
+        sagen(text, !!weiter);
     }
     function verlaufFenster() {
         const a = meldungen().slice().reverse();
