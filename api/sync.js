@@ -21,6 +21,7 @@ const ALLOWED_KEYS = [
   'helfer_work_address',
   'jv_schicht',
   'jv_urlaub',
+  'jv_urlaub_liste',
   'jv_plan_beginn',
   'jv_plan_abfahrt',
   'jv_hoerkorrektur',

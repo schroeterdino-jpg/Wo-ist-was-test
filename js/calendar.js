@@ -317,7 +317,7 @@ function googleNeedsReconnect(p) {
 /* --- Termine anlegen / ändern ---
    'recurrenceRule' (optional): siehe addGoogleCalendarReminder() oben - dieselbe RRULE-Logik, nur hier für
    normale Termine statt Erinnerungen (z.B. "Trag jeden Montag Müll rausbringen ein"). */
-async function addGoogleCalendarEvent(text, isoStartString, location, recurrenceRule, allDay) {   // allDay: ganztägiger Termin (nur das Datum zählt)
+async function addGoogleCalendarEvent(text, isoStartString, location, recurrenceRule, allDay, lastDayIso) {   // allDay: ganztägiger Termin (nur das Datum zählt); lastDayIso: letzter Tag eines mehrtägigen Termins (JJJJ-MM-TT)
     let eventDate = isoStartString ? new Date(isoStartString) : new Date();
     if (isNaN(eventDate.getTime())) eventDate = new Date();
     if (recurrenceRule) eventDate = alignStartToRule(eventDate, recurrenceRule);
@@ -341,6 +341,10 @@ async function addGoogleCalendarEvent(text, isoStartString, location, recurrence
         const isoDay = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
         const d0 = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
         const d1 = new Date(d0); d1.setDate(d1.getDate() + 1);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(String(lastDayIso || ''))) {   // mehrtägig: Google rechnet das Ende ohne den letzten Tag
+            const ld = new Date(+lastDayIso.slice(0, 4), +lastDayIso.slice(5, 7) - 1, +lastDayIso.slice(8, 10));
+            if (ld >= d0) { d1.setTime(ld.getTime()); d1.setDate(d1.getDate() + 1); }
+        }
         allDayIso = isoDay(d0);
         eventData.start = { date: allDayIso };
         eventData.end = { date: isoDay(d1) };

@@ -57,9 +57,29 @@
         return n * (m[2].startsWith('woche') ? 7 : 1);
     }
 
+    /* Urlaubsliste (Jahresplan vom Foto, js/foto_urlaubsplan.js): [{von,bis,tage,kal}]. Gespeichert und benutzt wird immer nur EIN Urlaub
+       (jv_urlaub, den der Server kennt): der laufende oder der nächste aus der Liste. Ist er vorbei, rückt der nächste nach. */
+    const LKEY = 'jv_urlaub_liste';
+    function liste() {
+        try { const a = JSON.parse(getPersistentData(LKEY, '') || 'null'); return Array.isArray(a) ? a.filter(x => x && x.von && x.bis) : []; } catch (e) { return []; }
+    }
+    function einzeln() { try { return JSON.parse(getPersistentData(KEY, '') || 'null'); } catch (e) { return null; } }
+    function rolle() {
+        const l = liste().filter(x => x.bis >= today()).sort((a, b) => a.von < b.von ? -1 : a.von > b.von ? 1 : 0);
+        if (!l.length) return;
+        const n = l[0], c = einzeln();
+        const gueltig = c && c.von && c.bis && c.bis >= today();
+        const ausListe = c && liste().some(x => x.von === c.von && x.bis === c.bis);
+        if (!gueltig || (ausListe && (c.von !== n.von || c.bis !== n.bis))) set({ von: n.von, bis: n.bis });
+    }
+    function setListe(a) {
+        try { setPersistentData(LKEY, a && a.length ? JSON.stringify(a) : ''); } catch (e) {}
+        rolle();
+    }
     function get() {
+        rolle();
         try {
-            const u = JSON.parse(getPersistentData(KEY, '') || 'null');
+            const u = einzeln();
             if (u && u.von && u.bis && u.bis >= today()) return u;
         } catch (e) {}
         return null;
@@ -75,7 +95,8 @@
         const t = String(text || '').toLowerCase().replace(/[,!?;]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 140 || !WORD.test(t)) return false;
         if (ENDE.test(t)) {
-            const had = !!get(); set(null);
+            const cur = get(), had = !!cur; set(null);
+            if (cur) { const rest = liste().filter(x => !(x.von === cur.von && x.bis === cur.bis)); try { setPersistentData(LKEY, rest.length ? JSON.stringify(rest) : ''); } catch (e) {} }
             say(had ? 'Okay, der Urlaub ist gelöscht. Ab jetzt melde ich mich wieder wie gewohnt zum Arbeitsweg.' : 'Es war kein Urlaub eingetragen.');
             return true;
         }
@@ -127,7 +148,8 @@
         return false;
     }
 
-    window.jvUrlaub = { get, handle };
+    window.jvUrlaub = { get, handle, liste, setListe };
+    try { setTimeout(rolle, 3000); setInterval(rolle, 3600000); } catch (e) {}
     if (window.jvCommands) {
         window.jvCommands.use('urlaub', function (text, next) {
             try { if (handle(text)) return true; } catch (e) { console.error('Urlaub', e); }

@@ -28,12 +28,13 @@
         tabelle: { task: 'abtippen', text: 'Plan oder Tabelle' },
         parkschild: { task: 'parking', text: 'Parkschild' },
         warnleuchte: { task: 'car', text: 'Warnleuchte' },
-        rezept: { task: 'rezept', text: 'Rezept' }
+        rezept: { task: 'rezept', text: 'Rezept' },
+        urlaubsplan: { task: 'urlaubsplan', text: 'Urlaubsplan' }
     };
 
     function prompt() {
         return 'Du erkennst, was auf einem Foto zu sehen ist, damit eine Assistenz-App die passende Funktion starten kann. Antworte NUR mit JSON: ' +
-            '{"art":"einkaufsliste|brief|stundenplan|essensplan|termin|visitenkarte|tabelle|parkschild|warnleuchte|rezept|sonstiges","sicher":true oder false,"beschreibung":"ein kurzer deutscher Satz, was zu sehen ist, zum Beispiel: ein Ausmalbild mit einem Bären"}. ' +
+            '{"art":"einkaufsliste|brief|stundenplan|essensplan|termin|visitenkarte|tabelle|parkschild|warnleuchte|rezept|urlaubsplan|sonstiges","sicher":true oder false,"beschreibung":"ein kurzer deutscher Satz, was zu sehen ist, zum Beispiel: ein Ausmalbild mit einem Bären"}. ' +
             'Bedeutung: einkaufsliste = handgeschriebener oder gedruckter Einkaufszettel mit Artikeln; ' +
             'brief = Brief, Rechnung, Mahnung, Bescheid, Vertragsschreiben, Behördenpost, Kontoauszug; ' +
             'stundenplan = Schulstundenplan mit Wochentagen und Fächern; ' +
@@ -43,6 +44,7 @@
             'tabelle = Tabelle, Plan, Aufstellung oder Liste mit mehreren Zahlen oder Daten (zum Beispiel Ratenplan, Dienstplan, Preisliste), die keiner der anderen Arten entspricht; ' +
             'parkschild = Verkehrsschild zu Parken oder Halten; warnleuchte = Kontrollleuchte im Auto; ' +
             'rezept = Kochrezept oder Backrezept mit Zutaten und/oder Zubereitungsschritten (Kochbuchseite, Zettel, Zeitschrift, Bildschirmfoto); ' +
+            'urlaubsplan = Urlaubsplanung oder Urlaubsantrag: Formular mit Name und mehreren Zeiträumen von-bis für Jahresurlaub (handgeschrieben oder gedruckt); ' +
             'sonstiges = alles andere (Landschaft, Personen, Gegenstände, Tiere, Essen, einfache Textseiten). ' +
             '"sicher" ist false, wenn du dir nicht ziemlich sicher bist.';
     }
