@@ -6,7 +6,10 @@
    Gemerkte Ausflüge ("Da waren wir schon", "Wir waren gestern im Tierpark Hagenbeck, war super"): Ort, Datum, wer dabei war, Urteil.
    Bekannte Ziele kommen später wieder weiter hinten (bei Datum unbekannt oder unter 120 Tagen alt); schlecht Bewertete werden nicht mehr vorgeschlagen.
    Sprache:  "Wo waren wir schon?" (Liste), "Ausflugsliste löschen", "Da waren wir schon" (nach den Vorschlägen: Nummer oder Name dazusagen)
-   Speicher: jv_ausfluege = [{name, datum, mit, urteil:'gut'|'schlecht'|'', am}] (wird gesichert, siehe api/sync.js).
+   ERLEBNISSE (Situationsgedächtnis): auch Restaurants: "Wir waren im Restaurant Zur Linde essen, das Essen war gut, der Parkplatz schlecht, Simone fand es super".
+             Jarvis merkt Ort, Datum, wer dabei war und die Punkte mit Urteil (Essen +, Parkplatz -). Fragen: "Wo waren wir essen?", "Wo waren wir essen, wo Simone das Essen so gut fand?",
+             "Wie war es im Restaurant Zur Linde?". Restaurants werden nie als Ausflug vorgeschlagen.
+   Speicher: jv_ausfluege = [{name, art:'ausflug'|'essen', datum, mit, urteil:'gut'|'schlecht'|'', punkte:[{t,pol:'+'|'-',von}], am}] (wird gesichert, siehe api/sync.js).
    Grenzen: Eintrittspreise kennt die Orte-Suche nicht; Öffnungszeiten nur, wenn Google sie liefert (für "heute" werden geschlossene Ziele weggelassen).
    Fahrzeit ist eine Schätzung (Luftlinie mal 1,35, 55 km/h). Braucht: commands.js, calendar.js (calendarEntries), briefing.js (fetchWeatherForecast, wetterPosition), places.js (showActionCards), storage.js.
    ============================================================ */
@@ -15,7 +18,7 @@
     const KEY = 'jv_ausfluege';
     const RADIUS = 25000;
     const WT = ['sonntag', 'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag'];
-    const GENERISCH = /^(?:tierpark|wildpark|freizeitpark|museum|schwimmbad|hallenbad|spielplatz|minigolf|park|zoo|therme|kino|cafe|bowling|schloss|strand|strandbad|indoor|abenteuerspielplatz|aussichtspunkt|der|die|das|dem|den|und|von|vom|zum|zur|bei|beim|am|im|in)$/;
+    const GENERISCH = /^(?:tierpark|wildpark|freizeitpark|museum|schwimmbad|hallenbad|spielplatz|minigolf|park|zoo|therme|kino|cafe|bowling|schloss|strand|strandbad|indoor|abenteuerspielplatz|aussichtspunkt|restaurant|gasthof|gasthaus|pizzeria|imbiss|italiener|griechen|asiaten|eisdiele|biergarten|brunch|der|die|das|dem|den|und|von|vom|zum|zur|bei|beim|am|im|in)$/;
 
     function sagen(msg) { try { speak(msg, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) { } }
     function norm(t) { return String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim(); }
@@ -37,7 +40,7 @@
         const tb = tokens(b);
         return tokens(a).some(w => tb.includes(w));
     }
-    function bekannt(name) { return laden().filter(a => gleich(a.name, name)); }
+    function bekannt(name) { return laden().filter(a => a.art !== 'essen' && gleich(a.name, name)); }   // Restaurants zählen nicht für Ausflugs-Vorschläge
     function abzug(name) {
         const l = bekannt(name);
         if (!l.length) return 0;
@@ -224,10 +227,46 @@
         }
         return '';
     }
-    function urteilAus(t) {
-        if (/\b(?:langweilig|doof|schlecht|nicht so (?:schoen|toll|gut)|zu voll|zu teuer|nie wieder|bloed|blöd|enttaeuschend\w*|nicht mehr)\b/.test(t)) return 'schlecht';
-        if (/\b(?:super|toll|schoen|schön|klasse|prima|gut|top|genial|spitze|lohnt sich|gefallen)\b/.test(t)) return 'gut';
-        return '';
+    const NEG = /\b(?:nicht\s+(?:so\s+)?(?:gut|schoen|toll|lecker|sauber)|schlecht\w*|schlimm\w*|teuer\w*|ueberteuert\w*|zu\s+voll|voll|laut|langsam\w*|kalt\w*|lieblos\w*|mies\w*|bloed\w*|doof|langweilig\w*|eng|dreckig\w*|schmutzig\w*|enttaeuschend\w*|unfreundlich\w*|versalzen|nie\s+wieder|nicht\s+mehr|zu\s+weit|zu\s+klein)\b/;
+    const POS = /\b(?:gut\w*|super|toll\w*|lecker\w*|schoen\w*|klasse|prima|top|genial\w*|spitze|hervorragend\w*|perfekt\w*|freundlich\w*|guenstig\w*|sauber\w*|ausgezeichnet\w*|fantastisch\w*|herrlich\w*|gefallen|lohnt\s+sich|empfehlenswert\w*)\b/;
+    function polAus(n) { if (NEG.test(n)) return '-'; if (POS.test(n)) return '+'; return ''; }
+    const THEMA = /\b(?:essen|service|bedienung|parkplatz|parkplaetze|parken|preise?|preis|atmosphaere|ambiente|eis|kuchen|kaffee|pizza|pasta|spielplatz|toiletten?|wartezeit|portionen?|auswahl|kinderkarte|personal|lage|aussicht|wetter)\b/;
+    const NAME = /\b([A-ZÄÖÜ][a-zäöüß]{2,})\b/g;
+    const KEIN_NAME = /^(?:Wir|Das|Der|Die|Dort|Da|Es|Ich|Jarvis|Zane|Essen|Service|Parkplatz|Preise|Restaurant|Tierpark|Wildpark|Minigolf|Gestern|Heute|Letzten|Letzte|Wo|Wie|Was|Und|Aber|Mit|Fand|Fanden|Hat|Haben|War|Waren|Ist|Sind|Im|Beim|Zum|Zur|Gasthof|Pizzeria|Imbiss|Cafe|Café|Museum|Zoo|Park|Eis)$/;
+    /* Punkte mit Urteil aus dem Satz: "Das Essen war gut, der Parkplatz schlecht, Simone fand es super" -> Essen +, Parkplatz -, Insgesamt + (von Simone) */
+    function punkteAus(raw) {
+        const out = [];
+        String(raw || '').split(/[,;]|\s+und\s+|\s+aber\s+|\s+jedoch\s+|\s+dafuer\s+|\.\s+/i).forEach(c => {
+            const n = norm(c); if (!n) return;
+            const pol = polAus(n); if (!pol) return;
+            const mt = n.match(THEMA);
+            let von = '';
+            const mf = c.match(/\b([A-ZÄÖÜ][a-zäöüß]{2,})\s+(?:fand|fanden)\b/) || c.match(/\b(?:fand|fanden)\s+(?:es\s+|das\s+\w+\s+|der\s+\w+\s+|die\s+\w+\s+)?([A-ZÄÖÜ][a-zäöüß]{2,})\b/);
+            if (mf && !KEIN_NAME.test(mf[1])) von = mf[1];
+            if (mt || von || /\b(?:war|waren|ist|sind|fand|fanden)\b/.test(n)) out.push({ t: mt ? cap(mt[0] === 'parken' ? 'parkplatz' : mt[0]) : 'Insgesamt', pol, von });
+        });
+        return out;
+    }
+    function urteilAus(t, punkte) {
+        const p = punkte || [];
+        const gesamt = p.filter(x => x.t === 'Insgesamt');
+        if (gesamt.length) return gesamt.every(x => x.pol === '-') ? 'schlecht' : gesamt.every(x => x.pol === '+') ? 'gut' : '';
+        if (p.length) return p.every(x => x.pol === '-') ? 'schlecht' : p.every(x => x.pol === '+') ? 'gut' : '';
+        if (/\bnie\s+wieder\b/.test(t)) return 'schlecht';
+        const pol = polAus(t);
+        return pol === '-' ? 'schlecht' : pol === '+' ? 'gut' : '';
+    }
+    function artAus(t) {
+        if (/\b(?:restaurant|lokal|gasthof|gasthaus|pizzeria|imbiss|italiener|griechen|asiaten|eisdiele|biergarten|brunch|gegessen|mittagessen|abendessen|fruehstueck|doener)\b/.test(t)) return 'essen';
+        if (/\bwaren\s+wir\b.*\bessen\b(?!\s+(?:war|waren|ist|sind))|\bwir\s+waren\b.*\bessen\b(?!\s+(?:war|waren|ist|sind))/.test(t)) return 'essen';
+        return 'ausflug';
+    }
+    function mitAus(raw, t) {
+        const p = personen(t);
+        const namen = [];
+        String(raw || '').replace(/\bmit\s+([A-ZÄÖÜ][a-zäöüß]{2,}(?:\s+und\s+[A-ZÄÖÜ][a-zäöüß]{2,})?)/g, (m, x) => { x.split(/\s+und\s+/).forEach(y => { if (!KEIN_NAME.test(y)) namen.push(y); }); return m; });
+        if (namen.length) return namen.join(' und ');
+        return p ? p.mit : '';
     }
     function nummerAus(t) {
         const w = [/\b(?:1|eins|erste[nrs]?|ein)\b/, /\b(?:2|zwei|zweite[nrs]?)\b/, /\b(?:3|drei|dritte[nrs]?)\b/];
@@ -237,37 +276,88 @@
     function frischeVorschlaege() { return letzte.items.length && Date.now() - letzte.at < 6 * 3600000 ? letzte.items : []; }
     function namenImSatz(raw) {
         const t = String(raw || '');
-        const m = t.match(/\b(?:waren\s+wir|wir\s+waren|war\s+wir)\s+(?:\w+\s+){0,4}?(?:im|in\s+der|in\s+dem|in|beim|bei\s+der|bei|auf\s+dem|auf\s+der|am|an\s+der|im\s+\w+-?)\s+([A-ZÄÖÜ][\wäöüß.\-]*(?:\s+[A-ZÄÖÜa-zäöüß][\wäöüß.\-]*){0,3})/);
-        if (m) return m[1].replace(/\s+(?:und|das|es|war|schon|gestern|heute|letzte\w*|vor|mit|dort)\b.*$/i, '').trim();
+        const m = t.match(/\b(?:waren\s+wir|[Ww]ir\s+waren|war\s+wir)\s+(?:\w+\s+){0,4}?(?:im|in\s+der|in\s+dem|in|beim|bei\s+der|bei|auf\s+dem|auf\s+der|am|an\s+der|im\s+\w+-?)\s+([A-ZÄÖÜ][\wäöüß.\-]*(?:\s+[A-ZÄÖÜa-zäöüß][\wäöüß.\-]*){0,3})/);
+        if (m && /^(?:Oma|Opa|Mama|Papa|Mutti|Vati|Hause|Haus|Arbeit|Freunden|Freunde)\b/.test(m[1])) return '';
+        if (m) return m[1].replace(/\s+(?:und|das|der|die|es|war|waren|schon|gestern|heute|letzte\w*|vor|mit|dort|essen|gegessen|zum)\b.*$/i, '').trim();
         return '';
     }
-    function merken(name, t) {
+    function datumText(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('de-DE', { day: 'numeric', month: 'long' }) : ''; }
+    function punkteText(p) { return (p || []).filter(x => x.t !== 'Insgesamt').map(x => x.t + (x.pol === '+' ? ' gut' : ' schlecht') + (x.von ? ' (' + x.von + ')' : '')).join(', '); }
+    function merken(name, t, raw) {
         const a = laden();
-        const mit = (personen(t) || {}).mit || letzte.mit || '';
-        const eintrag = { name, datum: datumAus(t) || '', mit, urteil: urteilAus(t), am: heute() };
-        const i = a.findIndex(x => gleich(x.name, name));
-        if (i >= 0) a[i] = Object.assign({}, a[i], eintrag, { datum: eintrag.datum || a[i].datum || '', urteil: eintrag.urteil || a[i].urteil || '', mit: eintrag.mit || a[i].mit || '' }); else a.push(eintrag);
+        const punkte = punkteAus(raw || t);
+        const art = artAus(t);
+        const vonNamen = Array.from(new Set(punkte.map(x => x.von).filter(Boolean))).join(' und ');
+        const mit = mitAus(raw, t) || vonNamen || letzte.mit || '';
+        const eintrag = { name, art, datum: datumAus(t) || '', mit, urteil: urteilAus(t, punkte), punkte, am: heute() };
+        const i = a.findIndex(x => (x.art || 'ausflug') === art && gleich(x.name, name));
+        if (i >= 0) {
+            const o = a[i];
+            a[i] = Object.assign({}, o, eintrag, { datum: eintrag.datum || o.datum || '', urteil: eintrag.urteil || o.urteil || '', mit: eintrag.mit || o.mit || '', punkte: punkte.length ? punkte : (o.punkte || []) });
+        } else a.push(eintrag);
         speichern(a);
-        const folge = eintrag.urteil === 'schlecht' ? ' Das schlage ich dir nicht mehr vor.' : ' Das schlage ich so schnell nicht wieder vor.';
-        sagen('Gemerkt: ' + name + (eintrag.datum && eintrag.datum !== heute() ? ', am ' + new Date(eintrag.datum + 'T12:00:00').toLocaleDateString('de-DE', { day: 'numeric', month: 'long' }) : '') + (mit ? ', mit ' + mit : '') + '.' + folge);
+        const e = i >= 0 ? a[i] : eintrag;
+        const dt = datumText(e.datum);
+        const pt = punkteText(e.punkte);
+        const folge = art === 'essen' ? '' : (e.urteil === 'schlecht' ? ' Das schlage ich dir nicht mehr vor.' : ' Das schlage ich so schnell nicht wieder vor.');
+        sagen('Gemerkt: ' + name + (dt && e.datum !== heute() ? ', am ' + dt : '') + (e.mit ? ', mit ' + e.mit : '') + '.' + (pt ? ' ' + pt + '.' : '') + folge);
         return true;
     }
     function besuchBehandeln(raw, t) {
         const vor = frischeVorschlaege();
         const frei = namenImSatz(raw);
-        if (frei) return merken(frei, t);
+        if (frei) return merken(frei, t, raw);
         if (vor.length) {
             const treffer = vor.find(p => gleich(p.name, raw));
-            if (treffer) return merken(treffer.name, t);
+            if (treffer) return merken(treffer.name, t, raw);
             const i = nummerAus(t);
-            if (i >= 0 && vor[i]) return merken(vor[i].name, t);
-            if (vor.length === 1) return merken(vor[0].name, t);
-            wartet = { phase: 'wahl', at: Date.now(), t };
+            if (i >= 0 && vor[i]) return merken(vor[i].name, t, raw);
+            if (vor.length === 1) return merken(vor[0].name, t, raw);
+            wartet = { phase: 'wahl', at: Date.now(), t, raw };
             sagen('Welcher war es? Sag eins, zwei oder drei.');
             return true;
         }
-        wartet = { phase: 'name', at: Date.now(), t };
-        sagen('Wo wart ihr? Nenne mir den Ort, zum Beispiel: Tierpark Hagenbeck.');
+        wartet = { phase: 'name', at: Date.now(), t, raw };
+        sagen(artAus(t) === 'essen' ? 'Wie hieß das Lokal? Nenne mir den Namen.' : 'Wo wart ihr? Nenne mir den Ort, zum Beispiel: Tierpark Hagenbeck.');
+        return true;
+    }
+
+    /* ---------- Fragen an die Erlebnisse ---------- */
+    function bekannteNamen() {
+        const set = new Set(['finja', 'isabel', 'julia', 'alyssa']);
+        laden().forEach(a => { String(a.mit || '').split(/\s+und\s+/).forEach(x => x && set.add(norm(x))); (a.punkte || []).forEach(p => p.von && set.add(norm(p.von))); });
+        return Array.from(set);
+    }
+    function erlebnisFrage(raw, t) {
+        const essQ = /\bwo\s+(?:waren|war|haben|hatten)\s+wir\b.*\b(?:essen|gegessen|restaurant|lokal|pizzeria|italiener|griechen|asiaten|imbiss|eis|brunch)\b|\b(?:welche[sn]?)\s+(?:restaurant|lokal|italiener|griechen|asiaten)\w*\b|\bunsere\s+(?:restaurants?|lokale)\b/.test(t);
+        const wie = t.match(/\bwie\s+war\s+(?:es|das)\s+(?:im|in\s+der|in\s+dem|in|beim|bei\s+der|bei|am)\s+(.+)$/);
+        const l = laden();
+        if (wie && l.length) {
+            const e = l.find(x => gleich(x.name, wie[1]));
+            if (e) {
+                const pt = punkteText(e.punkte);
+                sagen(e.name + (e.datum ? ', am ' + datumText(e.datum) : '') + (e.mit ? ', mit ' + e.mit : '') + '. ' + (e.urteil === 'gut' ? 'Insgesamt gut. ' : e.urteil === 'schlecht' ? 'Insgesamt nicht gut. ' : '') + (pt ? pt + '.' : (e.urteil ? '' : 'Dazu habe ich kein Urteil gemerkt.')));
+                return true;
+            }
+            return false;
+        }
+        if (!essQ) return false;
+        const essen = l.filter(x => x.art === 'essen');
+        if (!essen.length) { sagen('Ich habe noch kein Restaurant gemerkt. Sag nach dem Essen zum Beispiel: Wir waren im Restaurant Zur Linde essen, das Essen war gut.'); return true; }
+        const namen = bekannteNamen().filter(nm => nm.length >= 3 && new RegExp('\\b' + nm + '\\b').test(t));
+        const alle = t.match(new RegExp(THEMA.source, 'g')) || [];
+        const pol = polAus(t.replace(/\bwo\s+waren\s+wir\b/, ''));
+        const thema = alle.find(x => x !== 'essen') || (pol ? (alle[0] || '') : '');   // "Wo waren wir essen?" allein ist kein Thema
+        let treffer = essen;
+        if (namen.length) treffer = treffer.filter(x => namen.some(nm => norm(x.mit).includes(nm) || (x.punkte || []).some(p => norm(p.von) === nm)));
+        if (thema || pol) {
+            const th = thema === 'parken' ? 'parkplatz' : thema;
+            const t2 = treffer.filter(x => (x.punkte || []).some(p => (!th || norm(p.t) === th || (th === 'essen' && p.t === 'Insgesamt')) && (!pol || p.pol === pol) && (!namen.length || !p.von || namen.some(nm => norm(p.von) === nm))));
+            if (t2.length) treffer = t2; else if (thema || pol) treffer = [];
+        }
+        if (!treffer.length) { sagen('Dazu habe ich nichts gemerkt.' + (essen.length ? ' Gemerkt sind ' + essen.length + (essen.length === 1 ? ' Restaurant' : ' Restaurants') + '. Sag „Wo waren wir essen?“ für die Liste.' : '')); return true; }
+        const teile = treffer.slice(-3).reverse().map(x => x.name + (x.datum ? ' am ' + datumText(x.datum) : '') + (punkteText(x.punkte) ? ' (' + punkteText(x.punkte) + ')' : ''));
+        sagen((namen.length || thema || pol ? 'Das passt: ' : 'Zuletzt wart ihr hier essen: ') + teile.join('; ') + '.');
         return true;
     }
 
@@ -290,16 +380,17 @@
                 const vor = frischeVorschlaege(), i = nummerAus(t);
                 const treffer = vor.find(p => gleich(p.name, raw));
                 const p = treffer || vor[i];
-                if (p) { wartet = null; return merken(p.name, w.t); }
+                if (p) { wartet = null; return merken(p.name, w.t, w.raw); }
                 return next(text);
             }
             if (w.phase === 'name') {
                 wartet = null;
                 const name = raw.replace(/^(?:im|in\s+der|in\s+dem|in|beim|bei|am|an\s+der)\s+/i, '').replace(/[.!?]+$/, '').trim();
                 if (name.length < 3 || name.split(' ').length > 6) return next(text);
-                return merken(name, w.t);
+                return merken(name, w.t, w.raw);
             }
         }
+        if (erlebnisFrage(raw, t)) return true;
         if (/\bwo\s+waren\s+wir\b.*\bschon\b|\bwelche\s+ausfluege\b|\bunsere\s+ausfluege\b|\bausflugsliste\b.*\b(?:zeig\w*|vorles\w*)|\b(?:zeig\w*|lies)\b.*\bausfluege\b/.test(t)) {
             const l = laden();
             if (!l.length) { sagen('Ich habe noch keinen Ausflug gemerkt. Sag nach einem Ausflug zum Beispiel: Wir waren im Tierpark Hagenbeck, das war super.'); return true; }
@@ -315,7 +406,7 @@
         const locker = /\bwir\s+waren\b/.test(t) && !/\bwo\s+war/.test(t);
         if (streng || locker || /\bmerk\w*\s+(?:dir\s+)?(?:den\s+|diesen\s+)?ausflug\b/.test(t)) {
             if (t.split(' ').length > 30) return next(text);
-            const ortWort = /\b(?:tierpark|wildpark|zoo|park|museum|schwimmbad|hallenbad|freizeit\w*|spielplatz|minigolf|therme|schloss|strand\w*|bowling|kino|ausflug\w*)\b/.test(t);
+            const ortWort = /\b(?:tierpark|wildpark|zoo|park|museum|schwimmbad|hallenbad|freizeit\w*|spielplatz|minigolf|therme|schloss|strand\w*|bowling|kino|ausflug\w*|restaurant|lokal|gasthof|gasthaus|pizzeria|imbiss|italiener|griechen|asiaten|eisdiele|biergarten|cafe)\b/.test(t) || (artAus(t) === 'essen' && !!namenImSatz(raw));
             const vorTreffer = frischeVorschlaege().some(p => gleich(p.name, raw));
             // "Da waren wir schon" gilt nur nach Vorschlägen (oder mit Ortswort); "Wir waren im Stau" o. ä. wird nicht abgefangen
             if (!((streng && (frischeVorschlaege().length || ortWort)) || ortWort || vorTreffer)) return next(text);
@@ -336,5 +427,5 @@
     if (window.jvCommands && typeof window.jvCommands.use === 'function') {
         window.jvCommands.use('ausflug', befehl, 0.35);   // früh: eine offene Rückfrage ("Wer kommt mit?") muss die Antwort vor allen anderen bekommen
     }
-    window.jvAusflug = { istFrage, tagAus, personen, kalenderText, waehle, gleich, abzug, datumAus, urteilAus, namenImSatz, laden };
+    window.jvAusflug = { erlebnisFrage, punkteAus, artAus, mitAus, istFrage, tagAus, personen, kalenderText, waehle, gleich, abzug, datumAus, urteilAus, namenImSatz, laden };
 })();
