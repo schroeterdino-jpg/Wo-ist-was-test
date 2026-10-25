@@ -159,3 +159,10 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 ## Adresse speichern (`js/adresse_speichern.js`, Order 0.55)
 - Sprache: "Speichere die Adresse (in meinen Kontakten)", "Kannst du bitte die Adresse speichern?" (Wort "speicher" plus Adresse/Ort/Standort/Ziel; nicht bei Foto, Termin, Liste, Parkplatz ...).
 - Quelle: zuletzt gefundener Ort (`ortsuche.js`: `window.jvLetzteOrte()`, erster Treffer) oder zuletzt berechnetes Routenziel (`travel.js`: `window.jvLetzteRoute` {at,label,lat,lon}; Adresse per `/api/reverse`), je nachdem, was neuer ist, höchstens 30 Min. alt. Speichern über `window.jvSavePlace` (= `savePlaceToAppContacts` in `ortsuche.js`: nichts doppelt, Adresse bei gleichnamigem Kontakt ohne Adresse ergänzt). Die bestehende Nachfrage nach einer Ortssuche (Zahl 1–4 oder Nein) bleibt. Nur Web-Seite.
+
+## Urlaubszettel fotografieren (`js/foto_urlaubsplan.js`)
+- Foto -> KI liest alle Zeiträume (JSON) -> Prüffenster (Datum, Tage, Zeilen ändern) -> "Eintragen".
+- Tage vom Zettel werden mit Montag bis Freitag verglichen (Feiertage zählt es nicht); Abweichung = orange Zeile (so fiel z. B. "22.7." statt "12.7." auf).
+- Speicher: `jv_urlaub_liste` (Liste, in `api/sync.js` gesichert) und `jv_urlaub_meta` (Anspruch, Pflicht, Abgabe). `js/urlaub.js` hält daraus weiter EINEN Urlaub in `jv_urlaub` (laufender oder nächster; `rolle()` rückt nach). Server (`api/sync.js` cfg.urlaub) unverändert.
+- Google Kalender: ganztägiger Mehrtages-Termin "Urlaub 🌴" über `addGoogleCalendarEvent(..., allDay, lastDayIso)`; Flag `kal` verhindert Doppeleinträge. Ohne Google nur in der App, Hinweis an den Nutzer.
+- Foto-Erkennung (`foto_erkennen.js`) kennt die Art `urlaubsplan`. Tour-Schritt in `js/anleitung.js`, Beispiel in `js/help.js` (Thema foto).
