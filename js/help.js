@@ -7,6 +7,7 @@
 
 const HELP_TOPICS = [
     { key: 'termine', icon: '📅', title: 'Termine & Kalender', words: /termin|kalender|geburtstag/, examples: [
+        'Tagesmeldungen: Was hast du für mich? / Warum hast du dich gemeldet? / Das interessiert mich nicht / Keine Tagesmeldungen mehr / Tagesmeldungen an (Jarvis schaut morgens und abends auf deinen Tag und meldet sich höchstens einmal am Tag)',
         'Zeit finden: Ich müsste mal zu meiner Mutter fahren / Ich muss demnächst zum Friseur / Wann habe ich Zeit, Anna zu besuchen? (ohne Tag und Uhrzeit; Jarvis prüft Kalender, Schicht und Urlaub, rechnet die Fahrzeit zu Kontakten mit Adresse mit und schlägt drei freie Zeiten vor; dann: eins, zwei, drei, andere oder nein)',
         'Trag morgen um 15 Uhr Zahnarzt in Hamburg ein', 'Wann hat Schatz Geburtstag?', 'Verschieb den Zahnarzt auf Freitag',
         'Trag jeden Montag Mülltonne rausstellen ein', 'Zeig meine Termine der nächsten Woche',
