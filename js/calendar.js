@@ -317,12 +317,12 @@ function googleNeedsReconnect(p) {
 /* --- Termine anlegen / ändern ---
    'recurrenceRule' (optional): siehe addGoogleCalendarReminder() oben - dieselbe RRULE-Logik, nur hier für
    normale Termine statt Erinnerungen (z.B. "Trag jeden Montag Müll rausbringen ein"). */
-async function addGoogleCalendarEvent(text, isoStartString, location, recurrenceRule, allDay, lastDayIso) {   // allDay: ganztägiger Termin (nur das Datum zählt); lastDayIso: letzter Tag eines mehrtägigen Termins (JJJJ-MM-TT)
+async function addGoogleCalendarEvent(text, isoStartString, location, recurrenceRule, allDay, lastDayIso, durationMin) {   // allDay: ganztägiger Termin (nur das Datum zählt); lastDayIso: letzter Tag eines mehrtägigen Termins (JJJJ-MM-TT)
     let eventDate = isoStartString ? new Date(isoStartString) : new Date();
     if (isNaN(eventDate.getTime())) eventDate = new Date();
     if (recurrenceRule) eventDate = alignStartToRule(eventDate, recurrenceRule);
 
-    const endDate = new Date(eventDate.getTime() + 60 * 60000);
+    const endDate = new Date(eventDate.getTime() + (durationMin > 0 ? durationMin : 60) * 60000);   // durationMin: Länge in Minuten (Standard 60)
     const eventData = {
         summary: text,
         start: { dateTime: eventDate.toISOString() },
