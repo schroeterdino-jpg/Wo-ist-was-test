@@ -48,27 +48,28 @@
     /* ---------- Alles zusammentragen ---------- */
     function ymdVon(iso) { try { return new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }); } catch (e) { return ''; } }
     function hm(iso) { try { return new Date(iso).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+    function wann(heute, y) { const n = Math.round((new Date(y + 'T12:00:00') - new Date(heute + 'T12:00:00')) / 86400000); return n === 0 ? 'heute' : n === 1 ? 'morgen' : n === 2 ? 'übermorgen' : WT[dow(y)]; }
     async function kontext(slot) {
         const p = P(), nu = p.jetzt(), heute = nu.ymd, k = {};
         k.heute = WT[dow(heute)] + ', ' + heute; k.uhrzeit = String(Math.floor(nu.min / 60)).padStart(2, '0') + ':' + String(nu.min % 60).padStart(2, '0'); k.zeitpunkt = slot === 'm' ? 'Morgen' : slot === 'a' ? 'Abend' : 'Nachmittag nach der Frühschicht';
-        try { k.schicht = []; for (let i = 0; i < 4; i++) { const y = p.ymdPlus(heute, i); k.schicht.push({ tag: WT[dow(y)] + ' ' + y, schicht: p.schichtAm(y) || 'keine (frei oder Urlaub)' }); } } catch (e) { }
+        try { k.schicht = []; for (let i = 0; i < 4; i++) { const y = p.ymdPlus(heute, i); k.schicht.push({ wann: wann(heute, y), tag: WT[dow(y)] + ' ' + y, schicht: p.schichtAm(y) || 'keine (frei oder Urlaub)' }); } } catch (e) { }
         try {
             const bis = p.ymdPlus(heute, 3);
-            k.termine = (typeof calendarEntries !== 'undefined' ? calendarEntries : []).filter(e => e && e.isoDate).map(e => ({ e, y: /^\d{4}-\d{2}-\d{2}$/.test(String(e.isoDate)) ? String(e.isoDate) : ymdVon(e.isoDate) })).filter(x => x.y >= heute && x.y <= bis).sort((a, b) => a.y < b.y ? -1 : 1).slice(0, 12).map(x => ({ tag: x.y, uhr: /^\d{4}-\d{2}-\d{2}$/.test(String(x.e.isoDate)) ? 'ganztägig' : hm(x.e.isoDate), titel: String(x.e.text || '').slice(0, 80), ort: x.e.location ? String(x.e.location).slice(0, 60) : undefined }));
+            k.termine = (typeof calendarEntries !== 'undefined' ? calendarEntries : []).filter(e => e && e.isoDate).map(e => ({ e, y: /^\d{4}-\d{2}-\d{2}$/.test(String(e.isoDate)) ? String(e.isoDate) : ymdVon(e.isoDate) })).filter(x => x.y >= heute && x.y <= bis).sort((a, b) => a.y < b.y ? -1 : 1).slice(0, 12).map(x => ({ wann: wann(heute, x.y), tag: x.y, uhr: /^\d{4}-\d{2}-\d{2}$/.test(String(x.e.isoDate)) ? 'ganztägig' : hm(x.e.isoDate), titel: String(x.e.text || '').slice(0, 80), ort: x.e.location ? String(x.e.location).slice(0, 60) : undefined }));
         } catch (e) { }
-        try { k.erinnerungen = (typeof reminderEntries !== 'undefined' ? reminderEntries : []).filter(r => r && r.time && ymdVon(r.time) >= heute && ymdVon(r.time) <= p.ymdPlus(heute, 3)).slice(0, 8).map(r => ({ tag: ymdVon(r.time), uhr: hm(r.time), text: String(r.text || '').slice(0, 80) })); } catch (e) { }
+        try { k.erinnerungen = (typeof reminderEntries !== 'undefined' ? reminderEntries : []).filter(r => r && r.time && ymdVon(r.time) >= heute && ymdVon(r.time) <= p.ymdPlus(heute, 3)).slice(0, 8).map(r => ({ wann: wann(heute, ymdVon(r.time)), tag: ymdVon(r.time), uhr: hm(r.time), text: String(r.text || '').slice(0, 80) })); } catch (e) { }
         try { k.einkaufsliste = (typeof shoppingEntries !== 'undefined' ? shoppingEntries : []).slice(0, 15).map(s => String(s.text || '').slice(0, 40)); } catch (e) { }
         try { k.aufgaben = (typeof todoEntries !== 'undefined' ? todoEntries : []).slice(0, 12).map(t => String(t.text || '').slice(0, 80)); } catch (e) { }
         try {
             if (typeof fetchUpcomingBirthdays === 'function') {
                 const g = await Promise.race([fetchUpcomingBirthdays(10), new Promise(r => setTimeout(() => r([]), 6000))]);
-                k.geburtstage = (g || []).slice(0, 6).map(x => ({ wer: String(x.title || '').slice(0, 60), tag: x.date ? new Date(x.date).toLocaleDateString('sv-SE') : '' }));
+                k.geburtstage = (g || []).slice(0, 6).map(x => { const y = x.date ? new Date(x.date).toLocaleDateString('sv-SE') : ''; return { wer: String(x.title || '').slice(0, 60), wann: y ? wann(heute, y) : '', tag: y }; });
             }
         } catch (e) { }
         try {
             if (typeof fetchWeatherForecast === 'function') {
                 const w = await Promise.race([fetchWeatherForecast(), new Promise(r => setTimeout(() => r(null), 8000))]);
-                if (w && w.tage) k.wetter = w.tage.slice(0, 3).map(t => ({ tag: t.datum, hoechstgrad: t.hoechstwert_grad, regen_prozent: t.regenwahrscheinlichkeit_prozent, regen_mm: t.niederschlag_mm }));
+                if (w && w.tage) k.wetter = w.tage.slice(0, 3).map((t, i) => ({ wann: ['heute', 'morgen', 'übermorgen'][i], tag: t.datum, hoechstgrad: t.hoechstwert_grad, regen_prozent: t.regenwahrscheinlichkeit_prozent, regen_mm: t.niederschlag_mm }));
             }
         } catch (e) { }
         try {
@@ -102,6 +103,8 @@
             'Antworte NUR mit JSON: {"melden":true oder false,"thema":"ein Wort, z.B. geburtstag, wetter, termin, einkauf, wunschliste, ausflug, besuch, familie, schicht, gedaechtnis","text":"gesprochener Text, höchstens drei kurze Sätze","aktion":"ausflug" oder "besuch:<Name>" oder "preise:<Listenname>" oder "keine","grund":"ein Satz: woran du es gemerkt hast"}. ' +
             'REGELN: Melde dich nur, wenn sich aus den Daten etwas wirklich Brauchbares für diesen Tag ergibt. Im Zweifel schweige (melden false). Es gibt höchstens EINE Meldung, also wähle das Wichtigste. ' +
             'Reihenfolge der Wichtigkeit: 1) Zeitkritisches (Termin oder Erinnerung heute, Geburtstag heute oder morgen, Regen oder Frost, der zu einem Termin oder dem Arbeitsweg passt, Einkauf, der zum Weg passt). 2) Gelegenheiten (freier Tag mit gutem Wetter: ein Ausflug mit den Kindern; ein freies Zeitfenster für einen Besuch bei jemandem aus der Familie, den er lange nicht besucht hat). 3) Langfristiges (Wunschliste vor Weihnachten, wenn noch viel offen ist oder Preise fehlen). 4) Passende Einzelheiten aus dem Langzeitgedächtnis. ' +
+            'SPRACHE UND INHALT: Sprich natürlich wie ein Mensch, nicht wie ein Bericht. Sage "heute", "morgen", "übermorgen" (steht als "wann" in den Daten) und nur sonst den Wochentag. Sage "Frühschicht" und "Spätschicht", nie "früher" oder "später Dienst". Gib in jeder Meldung einen konkreten Rat oder ein Angebot, nicht nur eine Feststellung (zum Beispiel statt "es könnte nass werden": "Nimm morgen die Regenjacke mit, die Abfahrt bleibt bei 13:20 Uhr"). Du darfst zwei zusammenhängende Dinge zu einer Meldung verbinden (zum Beispiel Regen und ein freier Vormittag), bleibst aber bei einem Thema. Beginne ohne Floskeln, ohne "Guten Morgen" und ohne Anrede. ' +
+            'FREIE ZEIT: Bei Spätschicht ist der Vormittag frei, bei Frühschicht der Abend ab etwa 16 Uhr, an Tagen ohne Schicht der ganze Tag (Termine in den Daten beachten). Ist freie Zeit da und das Wetter nicht schlecht, passt ein Angebot (aktion) für einen Besuch bei jemandem aus der Familie oder einen Ausflug. ' +
             'Nenne nur, was in den Daten steht, erfinde nichts (keine Preise, keine Zeiten, keine Orte). Zeitpunkt "Morgen": sieh auf heute; "Abend": sieh auf morgen. ' +
             'Wenn du etwas anbietest, das Jarvis für ihn tun kann (aktion), ende mit einer kurzen Frage ("Soll ich?"). Ohne Angebot ist aktion "keine". ' +
             (stumm.length ? 'STUMME THEMEN, dazu nie etwas sagen: ' + stumm.join(', ') + '. ' : '') +
