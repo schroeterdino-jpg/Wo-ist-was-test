@@ -47,6 +47,10 @@ class ZaneBridge {
     @JavascriptInterface
     public String holeAnsage() { return act.holeAnsage(); }
 
+    /** Webadresse im Browser öffnen, nie in einer Shop-App (Lidl, Kleinanzeigen ...). Gibt true zurück, wenn es geklappt hat. */
+    @JavascriptInterface
+    public boolean oeffneImBrowser(String url) { return act.oeffneImBrowser(url); }
+
     /** Wecker in der Uhr-App des Handys stellen. */
     @JavascriptInterface
     public boolean weckerStellen(int stunde, int minute, String text) { return act.weckerStellen(stunde, minute, text); }

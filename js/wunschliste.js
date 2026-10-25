@@ -130,7 +130,14 @@
         document.head.appendChild(st);
     }
     function vergleichsLink(q) { return 'https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q=' + encodeURIComponent(q); }
-    function link(text, href) { const a = document.createElement('a'); a.textContent = text; a.href = href || '#'; a.target = '_blank'; a.rel = 'noopener noreferrer'; return a; }
+    function link(text, href) {
+        const a = document.createElement('a'); a.textContent = text; a.href = href || '#'; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        // In der Handy-App immer im Browser öffnen, nie in einer Shop-App (Lidl, Kleinanzeigen): sonst wird Jarvis im Hintergrund beendet und startet neu
+        a.addEventListener('click', e => {
+            try { if (window.ZaneNative && typeof window.ZaneNative.oeffneImBrowser === 'function' && /^https?:/.test(a.href) && window.ZaneNative.oeffneImBrowser(a.href)) e.preventDefault(); } catch (err) { }
+        });
+        return a;
+    }
     function zeigeFenster(liste) {
         css();
         const old = document.getElementById('jvWl'); if (old) old.remove();
