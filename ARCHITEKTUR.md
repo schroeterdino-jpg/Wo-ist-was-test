@@ -166,3 +166,9 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - Speicher: `jv_urlaub_liste` (Liste, in `api/sync.js` gesichert) und `jv_urlaub_meta` (Anspruch, Pflicht, Abgabe). `js/urlaub.js` hält daraus weiter EINEN Urlaub in `jv_urlaub` (laufender oder nächster; `rolle()` rückt nach). Server (`api/sync.js` cfg.urlaub) unverändert.
 - Google Kalender: ganztägiger Mehrtages-Termin "Urlaub 🌴" über `addGoogleCalendarEvent(..., allDay, lastDayIso)`; Flag `kal` verhindert Doppeleinträge. Ohne Google nur in der App, Hinweis an den Nutzer.
 - Foto-Erkennung (`foto_erkennen.js`) kennt die Art `urlaubsplan`. Tour-Schritt in `js/anleitung.js`, Beispiel in `js/help.js` (Thema foto).
+
+## Ausflugs-Planer (`js/ausflug.js`)
+- Ein kleiner "Dirigent" nur für diese Situation; alle anderen Fragen laufen wie bisher. jvCommands-Ordnung 0.35 (eine offene Rückfrage "Wer kommt mit?" bekommt die Antwort vor allen anderen).
+- Ablauf: Satz erkennen (`istFrage`) -> Tag und Personen verstehen (fehlt "mit wem", fragt Jarvis) -> Kalender (`calendarEntries`) -> Vorhersage (`fetchWeatherForecast`, Regen = drinnen) -> Standort (`wetterPosition`) -> 4 Suchen über `/api/maps?action=places` (Radius 25 km) -> höchstens ein Ziel je Art, bekannte nach hinten -> 3 Karten mit Route + gesprochene Kurzfassung.
+- Speicher `jv_ausfluege` (in `api/sync.js` gesichert): Ort, Datum, wer dabei war, Urteil. "Da waren wir schon" gilt nur nach Vorschlägen oder mit Ortswort (sonst würde "Wir waren im Stau" abgefangen). Bei Urteil "schlecht" nie wieder vorgeschlagen; sonst 120 Tage (oder Datum unbekannt) nach hinten.
+- Grenzen: keine Eintrittspreise; Fahrzeit geschätzt; Öffnungszeiten nur wenn Google sie liefert (für heute werden geschlossene Ziele weggelassen).
