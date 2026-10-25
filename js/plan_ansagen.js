@@ -516,6 +516,7 @@
             }
         }
         try { if (window.jvZuvor && window.jvZuvor.planEintraege) window.jvZuvor.planEintraege().forEach(e => out.push(e)); } catch (e) { }   // Geburtstags-Vorfragen
+        try { if (window.jvDirigent && window.jvDirigent.planEintraege) window.jvDirigent.planEintraege().forEach(e => out.push(e)); } catch (e) { }   // Tagesmeldungen (dirigent.js)
         return out.filter(e => e.at > jetztMs + 20000).sort((a, b) => a.at - b.at);
     }
     /* Für den Server (pushsync.js): Wochenüberblick als Push-Nachricht mit vollem Text, auch wenn die App offen ist */
@@ -619,6 +620,7 @@
         }
         if (art === 'geb') { try { return !!(window.jvZuvor && window.jvZuvor.gebAnsage(id)); } catch (e) { return false; } }   // Geburtstags-Vorfrage (zuvorkommend.js)
         if (art === 'gebv' || art === 'gebt') { try { return !!(window.jvZuvor && window.jvZuvor.gebGruss(id)); } catch (e) { return false; } }   // Glückwunsch-Entwurf am Vortag / am Geburtstag (zuvorkommend.js)
+        if (art === 'dirig') { try { return !!(window.jvDirigent && await window.jvDirigent.ansage(id, !!erzwingen)); } catch (e) { return false; } }   // Tagesmeldung (dirigent.js)
         if (art === 'stau') { return stauCheck(ymd, !!erzwingen); }
         return false;
     }
