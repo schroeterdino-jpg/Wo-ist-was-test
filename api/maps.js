@@ -456,9 +456,52 @@ async function streetview(req, res) {
 }
 
 /* ------------------------------------------------------------------
+   shopping: Preise zu einem Suchbegriff (Google Shopping über serper.dev), z. B. für die Wunschliste.
+   ?action=shopping&q=Lightning McQueen Spielzeug  ->  { angebote: [{ titel, shop, preis, preisText, link }] } (günstigste zuerst)
+   Braucht die Variable SERPER_API_KEY in Vercel. Zu billige Ausreißer (Zubehör, Aufkleber) werden anhand des mittleren Preises entfernt.
+   ------------------------------------------------------------------ */
+function preisZahl(t) {
+  const x = String(t || '').replace(/\s/g, '');
+  let m = x.match(/(\d{1,3}(?:\.\d{3})*|\d+),(\d{1,2})(?!\d)/);          // 15,99 oder 1.019,00
+  if (m) return parseFloat(m[1].replace(/\./g, '') + '.' + m[2]);
+  m = x.match(/(\d+)\.(\d{2})(?!\d)/);                                      // 17.50
+  if (m) return parseFloat(m[1] + '.' + m[2]);
+  m = x.match(/(\d{1,3}(?:\.\d{3})+|\d+)/);                                 // 15 oder 1.019
+  return m ? parseFloat(m[1].replace(/\./g, '')) : null;
+}
+async function shopping(req, res) {
+  const q = String(req.query.q || '').trim().slice(0, 120);
+  if (!q) return res.status(400).json({ error: 'Kein Suchbegriff angegeben' });
+  const key = process.env.SERPER_API_KEY;
+  if (!key) return res.status(500).json({ error: 'Server: SERPER_API_KEY fehlt' });
+  try {
+    const r = await fetch('https://google.serper.dev/shopping', {
+      method: 'POST',
+      headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q, gl: 'de', hl: 'de', num: 12 }),
+      signal: AbortSignal.timeout(9000)
+    });
+    if (!r.ok) return res.status(502).json({ error: 'Preis-Dienst antwortet mit ' + r.status });
+    const d = await r.json();
+    let l = (Array.isArray(d.shopping) ? d.shopping : []).map(x => ({
+      titel: String(x.title || '').slice(0, 120), shop: String(x.source || ''), preisText: String(x.price || ''),
+      preis: preisZahl(x.price), link: String(x.link || '')
+    })).filter(x => x.preis && x.preis > 0);
+    if (l.length >= 3) {
+      const sorted = l.map(x => x.preis).sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
+      l = l.filter(x => x.preis >= med * 0.4 && x.preis <= med * 4);
+    }
+    l.sort((a, b) => a.preis - b.preis);
+    return res.status(200).json({ angebote: l.slice(0, 5) });
+  } catch (e) {
+    return res.status(502).json({ error: 'Preissuche nicht erreichbar' });
+  }
+}
+
+/* ------------------------------------------------------------------
    Verteiler: prüft zuerst den App-Code (wie bisher in jeder der vier Dateien) und ruft dann die passende Funktion auf
    ------------------------------------------------------------------ */
-const ACTIONS = { geocode, reverse, route, overpass, holidays, places, streetview };
+const ACTIONS = { geocode, reverse, route, overpass, holidays, places, streetview, shopping };
 
 export default async function handler(req, res) {
   const expected = process.env.APP_SECRET;

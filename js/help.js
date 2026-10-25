@@ -16,6 +16,7 @@ const HELP_TOPICS = [
         'Erinnere mich morgen um 8 Uhr an den Arzt', 'Erinnere mich alle zwei Wochen an die Wäsche', 'Wichtige Erinnerung: Paket abholen (er fragt nach, bis du erledigt sagst)',
         'In zehn Minuten nochmal', 'Lösche alle Erinnerungen'] },
     { key: 'listen', icon: '📝', title: 'Listen & Notizen', words: /liste|einkauf|notiz|aufgabe/, examples: [
+        'Wunschliste: Wunschzettel fotografieren / Neue Wunschliste für Liam: McQueen, T-Rex / Suche Preise für die Wunschliste von Liam (Jarvis sucht Preise bei Google Shopping und zeigt das günstigste Angebot mit Shop) / Zeig die Wunschliste von Liam',
         'Setz Milch auf die Einkaufsliste', 'Was steht auf meiner Einkaufsliste?', 'Notiere, dass ich noch Kabelschuhe brauche', 'Lösche Milch von der Liste'] },
     { key: 'gedaechtnis', icon: '🧠', title: 'Gedächtnis', words: /gedächtnis|gedaechtnis|merk/, examples: [
         'Merk dir, der Ersatzschlüssel hängt am Klemmbrett', 'Wo ist mein Ersatzschlüssel?', 'Ich lege meinen Schlüssel unters Kopfkissen (Kurzzeitgedächtnis)', 'Wann habe ich den Schlüssel abgelegt?'] },
