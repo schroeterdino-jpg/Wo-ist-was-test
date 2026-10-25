@@ -84,7 +84,7 @@
             const d = await r.json();
             const sec = d && d.routes && d.routes[0] && d.routes[0].duration;
             const min = sec ? Math.round(sec / 60) : null;
-            return min && min <= 300 ? min : null;
+            return min && min <= 300 ? min + Math.max(10, Math.round(min * 0.2)) : null;   // Puffer für Verkehr: 20 %, mindestens 10 Minuten
         } catch (e) { return null; }
     }
 
@@ -169,7 +169,7 @@
         let satz = 'Am ' + datumSprech(s1.iso) + ' könntest du ' + (a.art === 'besuch' ? ziel : 'das erledigen: ' + a.titel) + '. ';
         const lage = s1.frei ? 'Da hast du frei. ' : s1.sh === 'spaet' ? 'Da hast du Spätschicht. ' : s1.sh === 'frueh' ? 'Da hast du Frühschicht. ' : '';
         satz += lage;
-        if (a.fahrzeit) satz += 'Fahr um ' + sprech(s1.arr - a.fahrzeit) + ' los, dann bist du um ' + sprech(s1.arr) + ' da. ';
+        if (a.fahrzeit) satz += 'Ich rechne ' + a.fahrzeit + ' Minuten Fahrt mit Verkehr. Fahr um ' + sprech(s1.arr - a.fahrzeit) + ' los, dann bist du um ' + sprech(s1.arr) + ' da. ';
         else satz += 'Passt gut um ' + sprech(s1.arr) + '. ';
         if (s1.bis !== null && s1.bis > s1.arr + 15) satz += 'Du hast Zeit bis ' + sprech(s1.bis) + (a.fahrzeit ? ', dann musst du dich auf den Rückweg machen' : '') + ', weil du um ' + sprech(s1.grundZeit) + (s1.grund === 'arbeit' ? ' zur Arbeit los musst. ' : ' einen Termin hast. ');
         else if (s1.bis === null && a.art === 'besuch') satz += 'Danach hast du nichts mehr vor, du kannst in Ruhe bleiben. ';
