@@ -448,7 +448,9 @@
         return false;
     }
     window.jvOfferSave = offerSavePlaces;
-    let lastPlaces = [];
+    window.jvSavePlace = savePlaceToAppContacts;   // adresse_speichern.js: "Speichere die Adresse"
+    window.jvLetzteOrte = function () { return { at: lastPlacesAt, places: lastPlaces.map(p => ({ name: p.name, street: [p.street, p.city].filter(Boolean).join(', ') })) }; };
+    let lastPlaces = [], lastPlacesAt = 0;
     function openRoute(i) {
         const p = lastPlaces[Number(i) || 0];
         if (!p) { say('Ich habe gerade keinen Ort, zu dem ich die Route öffnen könnte.'); return false; }
@@ -499,7 +501,7 @@
             say(`Im Umkreis von ${usedRadius / 1000} Kilometern finde ich keinen Eintrag für ${label}. Die Kartendatenbank kennt eventuell nicht jedes Geschäft.`);
             return true;
         }
-        lastPlaces = places;
+        lastPlaces = places; lastPlacesAt = Date.now();
         const first = places[0], o = hoursInfo(first);
         showCards(places.map((p, i) => {
             const oi = hoursInfo(p);

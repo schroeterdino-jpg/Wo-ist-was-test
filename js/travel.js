@@ -502,6 +502,7 @@ async function computeDepartureAdvice(opts) {
         terminMs: (!target.keinFesterTermin && target.start) ? target.start.getTime() : null   // Beginn des Termins (für die Anzeige "Termin 20:00" im Lagebild)
     };
     lastRouteMapData = mapData;
+    try { window.jvLetzteRoute = { at: Date.now(), label: target.titel, lat: dest.lat, lon: dest.lon }; } catch (e) { }
 
     let sprit = null;
     if (opts.wantFuel) {
