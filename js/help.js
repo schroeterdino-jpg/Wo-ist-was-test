@@ -46,7 +46,7 @@ const HELP_TOPICS = [
         'Speichere die Adresse (in meinen Kontakten): nach einer Ortssuche oder einem genannten Ziel legt Jarvis den Ort mit Adresse als Kontakt an, nichts doppelt',
         'Wo ist der nächste Penny? (auch Aldi, Lidl, Rewe, Rossmann, McDonald\'s, Baumarkt, Werkstatt, Tankstelle, Bäcker ... Zane nennt den nächsten mit Entfernung und Öffnungszeit; ein Tipp auf die Karte öffnet die Route)', 'Navigiere mich zum nächsten Rossmann', 'Gibt es hier einen Baumarkt?', 'Wo ist die nächste Apotheke?', 'Wo kann ich Geld abheben?', 'Wo gibt es einen Supermarkt, der noch offen hat?', 'Wo ist die nächste Toilette?', 'Wo kann ich parken?', 'Wo finde ich eine Ladestation?', 'Wo ist eine Autowerkstatt?', 'Apotheke in Hamburg'] },
     { key: 'tanken', icon: '⛽', title: 'Tanken & Essen', words: /tank|sprit|diesel|benzin|restaurant|essen|hunger|pizza/, examples: [
-        'Wo tanke ich günstig auf meinem Weg zur Arbeit?', 'Was kostet Diesel in der Nähe?', 'Ich habe Lust auf Pizza, gibt es was in der Nähe?'] },
+        'Wo tanke ich günstig auf meinem Weg zur Arbeit?', 'Was kostet Diesel in der Nähe?', 'Ich habe Lust auf Pizza, gibt es was in der Nähe?', 'Gibt es in Reinbek ein mongolisches Restaurant? (auch: Pizzeria in Hamburg; Jarvis sucht dort, zeigt Adresse und Entfernung von dir, Tipp = Route)'] },
     { key: 'wetter', icon: '🌦️', title: 'Wetter & Unwetter', words: /wetter|regen|schirm|jacke|warnung/, examples: [
         'Wie wird das Wetter morgen?', 'Brauche ich einen Regenschirm?', 'Zeig mir das Wetter in Istanbul (mit Wetterkarte)', 'Wie wird das Wetter morgen in Wien?', 'Zeig das Regenradar',
         'Gibt es Unwetterwarnungen? (amtliche Warnungen des Deutschen Wetterdienstes; bei Warnungen meldet sich Zane auch von selbst)'] },
