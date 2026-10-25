@@ -315,5 +315,6 @@
     }
 
     window.handleFeiertageCommand = handleFeiertageCommand;
+    window.jvFeiertage = { naechste: function (tage) { try { const t = today(); return upcomingHolidays(t, tage || 7).map(h => ({ name: h.name, in_tagen: daysBetween(t, h.date) })); } catch (e) { return []; } } };
     window._feiertageTest = { easter, holidaysFor, bridgeDays, bridgeSpan };   // nur zum Testen
 })();

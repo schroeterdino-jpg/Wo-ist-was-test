@@ -94,12 +94,24 @@
                 k.langzeitgedaechtnis = out.slice(0, 10);
             }
         } catch (e) { }
+        try {
+            const pk = jl('jv_pakete', []).filter(p => p && p.code !== 'delivered');
+            if (pk.length) k.pakete_unterwegs = pk.slice(0, 4).map(p => ({ von: p.name || ('Nummer endet auf ' + String(p.nr || '').slice(-4)), status: p.beschr || p.status || '', erwartet: p.erwartet || '' }));
+            const zu = jl('jv_pakete', []).filter(p => p && p.code === 'delivered' && Date.now() - (p.zugestellt || 0) < 2 * 86400000);
+            if (zu.length) k.pakete_gerade_zugestellt = zu.slice(0, 3).map(p => p.name || ('Nummer endet auf ' + String(p.nr || '').slice(-4)));
+        } catch (e) { }
+        try {
+            if (window.jvRechnungen && window.jvRechnungen.offen) k.offene_rechnungen = window.jvRechnungen.offen().slice(0, 5).map(r => ({ von: r.absender, betrag_euro: r.betrag, faellig: r.ziel, art: r.typ, in_tagen: r.ziel ? Math.round((new Date(r.ziel + 'T12:00:00') - new Date(heute + 'T12:00:00')) / 86400000) : null }));
+        } catch (e) { }
+        try { if (window.jvFeiertage) { const f = window.jvFeiertage.naechste(7); if (f.length) k.feiertage = f; } } catch (e) { }
+        try { if (window.jvUnwetter) { const w = await Promise.race([window.jvUnwetter.warnungen(), new Promise(res => setTimeout(() => res([]), 6000))]); if (w && w.length) k.unwetterwarnungen = w; } } catch (e) { }
         try { if (typeof memoryItems === 'object' && memoryItems) k.gemerkte_dinge = Object.keys(memoryItems).slice(0, 12); } catch (e) { }
         return k;
     }
 
     function prompt(stumm, zuletzt, direkt) {
         return (direkt === 'gruss' ? 'WICHTIG: Dino hat gerade die App geöffnet. Begrüße ihn mit ein bis zwei kurzen, lockeren Sätzen (Tageszeit passend) und nenne gleich das Wichtigste: zuerst die Schicht von heute oder morgen mit Beginn, wenn sie ihn betrifft, dann ein Termin, Geburtstag oder das Wetter. Antworte immer mit melden true. Mach kein Angebot und stelle keine Frage. Die Regeln zu Wiederholungen und zur Wunschliste gelten dann nicht. ' : direkt ? 'WICHTIG: Dino hat gerade AUSDRÜCKLICH gefragt "Was hast du für mich?". Antworte also immer mit melden true. Nimm das Nützlichste aus den Daten, auch wenn es eine Kleinigkeit ist (zum Beispiel Wetter und Schicht von morgen, eine Gelegenheit für Mama oder die Familie, der nächste Termin, ein Einkauf). Gibt es wirklich gar nichts, fasse in ein bis zwei Sätzen kurz zusammen, was heute und morgen ansteht. Die Regeln zu Wiederholungen und zur Wunschliste gelten dann nicht. ' : '') + 'Du bist Jarvis, der Sprachassistent von Dino (Schichtarbeiter, Familie, drei Töchter, Enkelin). Du schaust ' + 'zu einem festen Zeitpunkt auf seinen ganzen Tag und entscheidest, ob du dich meldest. Sprich ihn mit du an, freundlich, direkt und ruhig, wie ein guter Butler, ohne Floskeln und ohne Emojis. ' +
+            'NEUE DATEN: Kommt ein Paket heute oder wurde gerade zugestellt, sag es. Eine Rechnung, die in drei Tagen oder früher fällig ist (oder überfällig), ist wichtig. Ein Feiertag morgen oder übermorgen ist wichtig, weil er frei oder Schicht anders sein kann. Eine Unwetterwarnung, die bald gilt, ist sehr wichtig (Themen: paket, rechnung, feiertag, unwetter). ' +
             'Antworte NUR mit JSON: {"melden":true oder false,"thema":"ein Wort, z.B. geburtstag, wetter, termin, einkauf, wunschliste, ausflug, besuch, familie, schicht, gedaechtnis","text":"gesprochener Text, höchstens drei kurze Sätze","aktion":"ausflug" oder "besuch:<Name>" oder "preise:<Listenname>" oder "keine","grund":"ein Satz: woran du es gemerkt hast"}. ' +
             'REGELN: Melde dich nur, wenn sich aus den Daten etwas wirklich Brauchbares für diesen Tag ergibt. Im Zweifel schweige (melden false). Es gibt höchstens EINE Meldung, also wähle das Wichtigste. ' +
             'Reihenfolge der Wichtigkeit: 1) Zeitkritisches (Termin oder Erinnerung heute, Geburtstag heute oder morgen, Regen oder Frost, der zu einem Termin oder dem Arbeitsweg passt, Einkauf, der zum Weg passt). 2) Gelegenheiten (freier Tag mit gutem Wetter: ein Ausflug mit den Kindern; ein freies Zeitfenster für einen Besuch bei jemandem aus der Familie, den er lange nicht besucht hat). 3) Langfristiges (Wunschliste vor Weihnachten, wenn noch viel offen ist oder Preise fehlen). 4) Passende Einzelheiten aus dem Langzeitgedächtnis. ' +
