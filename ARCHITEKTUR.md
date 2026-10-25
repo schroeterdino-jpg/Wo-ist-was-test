@@ -40,6 +40,8 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 | `memory.js` | Langzeitgedächtnis, täglicher Vercel-Cron `reflect` (macht nichts mehr) |
 | `maps.js` | Geocode, Reverse, Route, Overpass (alte Adressen per `vercel.json` umgeleitet) |
 | `stau.js`, `tankroute.js`, `tank.js` | Stau, Tanken entlang der Strecke, Spritpreise |
+
+Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`nearbyFuelReply`) direkt aus den Tankerkönig-Daten gebildet, dieselben wie die Karten (`buildNearbyFuelCards`, `routing.js`), mit drei Nachkommastellen. Früher las die KI die Preise vor und rundete sie falsch.
 | `bahn.js`, `news.js`, `filme.js`, `youtubelive.js` | Bahn, Nachrichten, Filmtipps, Live-Kameras |
 
 ## 5. Web-App nach Bereichen (`js/`)

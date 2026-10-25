@@ -122,7 +122,7 @@ async function tankFuerFrage(text) {
             return result;
         }
         const result = {
-            hinweis: "Preise in Euro pro Liter, nach Entfernung sortiert. Nenne die drei günstigsten Tankstellen für die erfragte Sorte, beginnend mit der günstigsten, jeweils mit Name, Straße und Preis. Bei 'Benzin' ohne Angabe nimm E10. Sprich Preise als Euro und Cent, z.B. 'zwei Euro zweiundzwanzig'. Das ist eine Liste, die Antwort darf daher länger sein. Fragt der User gezielt nach einer bestimmten Tankstelle aus dieser Liste, nenne nur deren Preis(e).",
+            hinweis: "Preise in Euro pro Liter, nach Entfernung sortiert. Nenne die drei günstigsten Tankstellen für die erfragte Sorte, beginnend mit der günstigsten, jeweils mit Name, Straße und Preis. Bei 'Benzin' ohne Angabe nimm E10. Nenne jeden Preis genau so, wie er in der Liste steht, mit allen drei Nachkommastellen (zum Beispiel 'zwei Komma zwei null neun Euro'); runde nichts und rechne nichts um. Das ist eine Liste, die Antwort darf daher länger sein. Fragt der User gezielt nach einer bestimmten Tankstelle aus dieser Liste, nenne nur deren Preis(e).",
             stationen: d.stations
         };
         lastTankCache = { time: Date.now(), data: result };
