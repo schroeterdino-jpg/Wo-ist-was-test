@@ -391,8 +391,18 @@ async function sendToGroqSmartCore(text, opts = {}) {
         }
 
         // Spritpreise in der Nähe als HUD-Karten (nicht entlang einer Strecke): die drei günstigsten der erfragten Sorte, günstigste grün markiert
+        let nearbyFuelReply = null;   // gesprochener Satz direkt aus denselben Daten wie die Karten (die KI hat Preise vorher falsch gerundet)
         if (nearbyFuelData && Array.isArray(nearbyFuelData.stationen) && nearbyFuelData.stationen.length) {
             buildNearbyFuelCards(nearbyFuelData.stationen, fuelTypeFromText(text)).forEach(c => ctx.cards.push(c));
+            try {
+                if (/benzin|diesel|sprit|tank|\be10\b|\be5\b|kraftstoff|\bsuper\b|zapfs/i.test(text) && !actions.some(a => a.type === 'fuel_route')) {
+                    const ft = fuelTypeFromText(text), lab = NEARBY_FUEL_LABELS[ft] || 'Diesel';
+                    const top = nearbyFuelData.stationen.map(s => ({ n: s.name || 'Tankstelle', st: s.strasse || '', p: s[ft] })).filter(r => typeof r.p === 'number' && r.p > 0).sort((a, b) => a.p - b.p).slice(0, 3);
+                    const pr = r => r.p.toFixed(3).replace('.', ',') + ' Euro';
+                    if (top.length) nearbyFuelReply = 'Am günstigsten ist ' + lab + ' bei ' + top[0].n + (top[0].st ? ', ' + top[0].st : '') + ', ' + pr(top[0]) + ' pro Liter.'
+                        + top.slice(1).map((r, i) => (i === 0 ? ' Danach ' : ' Dann ') + r.n + (r.st ? ', ' + r.st : '') + ', ' + pr(r) + '.').join('') + ' Die Karten zeigen die Preise genau so.';
+                }
+            } catch (e) { nearbyFuelReply = null; }
         }
 
         // Tankstellen entlang der Strecke (günstigste zuerst, mit Karten und Markierungen auf der Neon-Karte)
@@ -451,7 +461,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
             if (!webReply) webReply = "Die Suche im Internet hat gerade nicht geklappt. Versuch es bitte gleich noch einmal.";
         }
 
-        let replyText = searchReply || webReply || emailReply || travelReply || nearbyReply || fuelReply || bahnReply || ai.reply;
+        let replyText = searchReply || webReply || emailReply || travelReply || nearbyReply || fuelReply || nearbyFuelReply || bahnReply || ai.reply;
         // 3D-Kopf: Gesichtsausdruck pro Satz, den die KI selbst gewählt hat (nur wenn genau ihre Antwort gesprochen wird)
         try { window.__jvMimikKI = (replyText === ai.reply && Array.isArray(ai.mimik) && ai.mimik.length) ? { reply: String(ai.reply), list: ai.mimik.map(String), at: Date.now() } : null; } catch (e) { }
         if (!replyText) {
