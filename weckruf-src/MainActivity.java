@@ -299,6 +299,23 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** Nur http und https, immer im Browser (App-Links der Shops werden umgangen, damit Jarvis im Hintergrund nicht beendet wird). */
+    boolean oeffneImBrowser(String url) {
+        try {
+            Uri u = Uri.parse(String.valueOf(url));
+            String s = u.getScheme();
+            if (s == null || !(s.equals("https") || s.equals("http")) || u.getHost() == null) return false;
+            final Intent i = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_BROWSER);
+            i.setData(u);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            runOnUiThread(() -> {
+                try { startActivity(i); }
+                catch (Throwable e) { try { startActivity(new Intent(Intent.ACTION_VIEW, u).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Throwable ignored) { } }
+            });
+            return true;
+        } catch (Throwable e) { return false; }
+    }
+
     private void openExternal(Uri u) {
         if (openKalenderApp(u)) return;
         try {
