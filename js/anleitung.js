@@ -72,7 +72,7 @@
           d: "Alles, was du Jarvis erzählst, kann er sich dauerhaft merken und später wiederfinden. Du kannst nachsehen, was er über dich weiß. Im Plaudermodus unterhaltet ihr euch einfach.",
           s: ["Was weißt du über mich?", "Zeig das Langzeitgedächtnis", "Lass uns plaudern", "Plaudermodus aus"] },
         { g: "Alltag", i: "🌅", t: "Tagesüberblick und „Was steht an?“", h: "ueberblick",
-          d: "Jarvis zeigt deinen Tag als Kacheln: Termine, Erinnerungen, Aufgaben, Einkaufsliste. Am Morgen kommt das beim ersten Öffnen von selbst (einstellbar). Mit „Was steht heute an?“ liest er alles vor.",
+          d: "Jarvis zeigt deinen Tag als Kacheln: Termine, Erinnerungen, Aufgaben, Einkaufsliste. Am Morgen kommt das beim ersten Öffnen von selbst (einstellbar). Mit „Was steht heute an?“ oder „Was steht morgen an?“ (auch übermorgen oder „am Dienstag“) liest er alles vor, mit deiner Schicht und deren Beginn. Beim Öffnen der App begrüßt er dich kurz und sagt, was wichtig ist, und redet bei offener App öfter von selbst.",
           s: ["Tagesüberblick", "Zeig mir meinen Tag", "Was wollte ich heute noch machen?", "Zeig mir den Wochenüberblick"] },
         { g: "Alltag", i: "☀️", t: "Briefing am Morgen", h: "briefing",
           d: "Jarvis erzählt dir morgens von selbst, was wichtig ist: Wetter, Fahrzeit, Termine, Mitnehmen-Liste. In der Frühschicht ab 3:30 Uhr, in der Spätschicht ab 12 Uhr. Eigene Wünsche kannst du dazusagen.",

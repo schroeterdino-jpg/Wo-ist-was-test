@@ -19,16 +19,16 @@
     var STUFEN = {
         aus:    { min: 0,  max: 0,  tag: 0 },
         selten: { min: 60, max: 100, tag: 3 },
-        normal: { min: 25, max: 45, tag: 6 },
-        oft:    { min: 12, max: 22, tag: 10 }
+        normal: { min: 20, max: 35, tag: 8 },
+        oft:    { min: 10, max: 18, tag: 14 }
     };
-    var RUHE_MS = 60000;          // so lange darf nichts angetippt/gesagt worden sein
+    var RUHE_MS = 30000;          // so lange darf nichts angetippt/gesagt worden sein
     var ERST_MS = 75000;          // frühestens so lange nach dem Öffnen der App
 
     function get(k, d) { try { var v = getPersistentData(k, d); return v == null ? d : v; } catch (e) { return d; } }
     function set(k, v) { try { setPersistentData(k, v); } catch (e) {} }
     function heute() { return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }); }
-    function stufe() { var s = get(KEY, 'normal'); return STUFEN[s] ? s : 'normal'; }
+    function stufe() { var s = get(KEY, 'oft'); return STUFEN[s] ? s : 'oft'; }
 
     var geoeffnet = Date.now(), letzteAktion = Date.now(), laeuft = false, naechste = 0, memCache = { t: 0, liste: [] };
 
