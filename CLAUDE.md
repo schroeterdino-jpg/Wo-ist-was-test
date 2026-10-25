@@ -10,3 +10,4 @@ Wichtig:
 - Vercel Hobby: höchstens 12 Functions in `api/` (11 belegt). Neues in bestehende Dateien einbauen.
 - Änderungen unter `weckruf-src/` lösen einen neuen APK-Bau aus; der Nutzer muss die neue APK installieren.
 - Der Nutzer arbeitet am Handy, Antworten auf Deutsch, kurz und ohne Fachjargon.
+- Neue Funktion für den Nutzer: auch einen Schritt in `js/anleitung.js` (geführte Tour) und ein Beispiel in `js/help.js` ergänzen, sonst fehlt sie in der Tour.

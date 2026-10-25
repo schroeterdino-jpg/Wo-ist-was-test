@@ -150,3 +150,8 @@ Vercel Hobby erlaubt höchstens **12** Functions, belegt sind 11. Neue Funktione
 - Abspielen (warm) prüft bei vorhandenem nativem Notweg nur 2 Mal (ca. 4 s), dann startet die App direkt; ohne Notweg weiter 4 Mal.
 - Fenster öffnen ist locker: Füllwörter (bitte, mal, doch, Jarvis ...) werden ignoriert; Verben öffne/starte/spiele/mach/zeig + Spotify (App/Fenster/Bibliothek).
 - **Anzeigegröße gilt nur in der Autoansicht:** `anzeige.js` wendet den Zoom nur an, solange `jvAutoansicht.offen()` wahr ist (Prüfung alle 300 ms); die normale Ansicht bleibt immer 100 %. Der Regler stellt den Wert ein (Schlüssel `jv_anzeige_zoom`), sichtbar wird er in der Autoansicht.
+
+## Geführte Tour (`js/anleitung.js`)
+- Fenster `#al-layer` (Z 8700): ein Schritt pro Funktion (Symbol, Titel, Erklärung, "Sag zum Beispiel", optional Hinweis `n` und "Mehr Beispiele" `h` = Schlüssel aus `HELP_TOPICS`). Bedienung: Weiter/Zurück, Wischen, ☰ Inhaltsverzeichnis, 🔊 liest den Schritt vor. Aufruf: Einstellungen > "Geführte Tour" (`#tourStart`) oder Sprache "Tour", "Rundgang", "Führe mich durch die App" (jvCommands `tour`, Order 3.9, vor `einfuehrung` (4); das Wort "Anleitung" öffnet weiter die Einführung `einfuehrung.js`).
+- **Regel:** Wird in Jarvis etwas Neues eingebaut, kommt zusätzlich ein Schritt in `STEPS` (und ein Beispiel in `help.js`). Vollständigkeits-Check: jeder Schlüssel in `HELP_TOPICS` muss in einem Schritt als `h:` vorkommen (Python-Einzeiler: Schlüssel aus help.js lesen, mit `h: "…"` in anleitung.js vergleichen).
+- Nur Web-Seite, keine APK.
