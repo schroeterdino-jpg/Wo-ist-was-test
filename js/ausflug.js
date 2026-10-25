@@ -227,10 +227,10 @@
         }
         return '';
     }
-    const NEG = /\b(?:nicht\s+(?:so\s+)?(?:gut|schoen|toll|lecker|sauber)|schlecht\w*|schlimm\w*|teuer\w*|ueberteuert\w*|zu\s+voll|voll|laut|langsam\w*|kalt\w*|lieblos\w*|mies\w*|bloed\w*|doof|langweilig\w*|eng|dreckig\w*|schmutzig\w*|enttaeuschend\w*|unfreundlich\w*|versalzen|nie\s+wieder|nicht\s+mehr|zu\s+weit|zu\s+klein)\b/;
+    const NEG = /\b(?:nicht\s+(?:so\s+)?(?:gut|schoen|toll|lecker|sauber)|schlecht\w*|schlimm\w*|teuer\w*|ueberteuert\w*|zu\s+voll|voll|laut|langsam\w*|kalt\w*|lieblos\w*|mies\w*|bloed\w*|doof|langweilig\w*|eng|dreckig\w*|schmutzig\w*|enttaeuschend\w*|unfreundlich\w*|versalzen|nie\s+wieder|nicht\s+mehr|zu\s+weit|zu\s+klein|begrenzt\w*|schade|knapp\w*|wenig\w*|mager\w*|ueberfuellt\w*)\b/;
     const POS = /\b(?:gut\w*|super|toll\w*|lecker\w*|schoen\w*|klasse|prima|top|genial\w*|spitze|hervorragend\w*|perfekt\w*|freundlich\w*|guenstig\w*|sauber\w*|ausgezeichnet\w*|fantastisch\w*|herrlich\w*|gefallen|lohnt\s+sich|empfehlenswert\w*)\b/;
     function polAus(n) { if (NEG.test(n)) return '-'; if (POS.test(n)) return '+'; return ''; }
-    const THEMA = /\b(?:essen|service|bedienung|parkplatz|parkplaetze|parken|preise?|preis|atmosphaere|ambiente|eis|kuchen|kaffee|pizza|pasta|spielplatz|toiletten?|wartezeit|portionen?|auswahl|kinderkarte|personal|lage|aussicht|wetter)\b/;
+    const THEMA = /\b(?:essen|service|bedienung|parkplatz\w*|parkplaetze|parken|preise?|preis|atmosphaere|ambiente|eis|kuchen|kaffee|pizza|pasta|spielplatz|toiletten?|wartezeit|portionen?|auswahl|kinderkarte|personal|lage|aussicht|wetter)\b/;
     const NAME = /\b([A-ZÄÖÜ][a-zäöüß]{2,})\b/g;
     const KEIN_NAME = /^(?:Wir|Das|Der|Die|Dort|Da|Es|Ich|Jarvis|Zane|Essen|Service|Parkplatz|Preise|Restaurant|Tierpark|Wildpark|Minigolf|Gestern|Heute|Letzten|Letzte|Wo|Wie|Was|Und|Aber|Mit|Fand|Fanden|Hat|Haben|War|Waren|Ist|Sind|Im|Beim|Zum|Zur|Gasthof|Pizzeria|Imbiss|Cafe|Café|Museum|Zoo|Park|Eis)$/;
     /* Punkte mit Urteil aus dem Satz: "Das Essen war gut, der Parkplatz schlecht, Simone fand es super" -> Essen +, Parkplatz -, Insgesamt + (von Simone) */
@@ -239,11 +239,12 @@
         String(raw || '').split(/[,;]|\s+und\s+|\s+aber\s+|\s+jedoch\s+|\s+dafuer\s+|\.\s+/i).forEach(c => {
             const n = norm(c); if (!n) return;
             const pol = polAus(n); if (!pol) return;
+            if (out.length && !THEMA.test(n) && /^(?:und\s+)?(?:das|es|dies\w*)\s+(?:fand|finde)\s+ich\b|^(?:und\s+)?ich\s+(?:fand|finde)\s+(?:das|es|dies\w*)\b/.test(n)) return;   // "... und das fand ich schade" bezieht sich auf den Punkt davor
             const mt = n.match(THEMA);
             let von = '';
             const mf = c.match(/\b([A-ZÄÖÜ][a-zäöüß]{2,})\s+(?:fand|fanden)\b/) || c.match(/\b(?:fand|fanden)\s+(?:es\s+|das\s+\w+\s+|der\s+\w+\s+|die\s+\w+\s+)?([A-ZÄÖÜ][a-zäöüß]{2,})\b/);
             if (mf && !KEIN_NAME.test(mf[1])) von = mf[1];
-            if (mt || von || /\b(?:war|waren|ist|sind|fand|fanden)\b/.test(n)) out.push({ t: mt ? cap(mt[0] === 'parken' ? 'parkplatz' : mt[0]) : 'Insgesamt', pol, von });
+            if (mt || von || /\b(?:war|waren|ist|sind|fand|fanden)\b/.test(n)) out.push({ t: mt ? cap(/^park/.test(mt[0]) ? 'parkplatz' : mt[0]) : 'Insgesamt', pol, von });
         });
         return out;
     }
@@ -258,7 +259,7 @@
     }
     function artAus(t) {
         if (/\b(?:restaurant|lokal|gasthof|gasthaus|pizzeria|imbiss|italiener|griechen|asiaten|eisdiele|biergarten|brunch|gegessen|mittagessen|abendessen|fruehstueck|doener)\b/.test(t)) return 'essen';
-        if (/\bwaren\s+wir\b.*\bessen\b(?!\s+(?:war|waren|ist|sind))|\bwir\s+waren\b.*\bessen\b(?!\s+(?:war|waren|ist|sind))/.test(t)) return 'essen';
+        if (/\bwaren\s+wir\b.*\bessen\b(?!\s+(?:war|waren|ist|sind))|\b(?:wir\s+waren|ich\s+war|war\s+ich)\b.*\bessen\b(?!\s+(?:war|waren|ist|sind))/.test(t)) return 'essen';
         return 'ausflug';
     }
     function mitAus(raw, t) {
@@ -276,31 +277,32 @@
     function frischeVorschlaege() { return letzte.items.length && Date.now() - letzte.at < 6 * 3600000 ? letzte.items : []; }
     function namenImSatz(raw) {
         const t = String(raw || '');
-        const m = t.match(/\b(?:waren\s+wir|[Ww]ir\s+waren|war\s+wir)\s+(?:\w+\s+){0,4}?(?:im|in\s+der|in\s+dem|in|beim|bei\s+der|bei|auf\s+dem|auf\s+der|am|an\s+der|im\s+\w+-?)\s+([A-ZÄÖÜ][\wäöüß.\-]*(?:\s+[A-ZÄÖÜa-zäöüß][\wäöüß.\-]*){0,3})/);
+        const m = t.match(/\b(?:waren\s+wir|[Ww]ir\s+waren|war\s+wir|[Ii]ch\s+war|war\s+ich)\s+(?:\w+\s+){0,4}?(?:im|in\s+der|in\s+dem|in|beim|bei\s+der|bei|auf\s+dem|auf\s+der|am|an\s+der|im\s+\w+-?)\s+([A-ZÄÖÜ][\wäöüß.\-]*(?:\s+[A-ZÄÖÜa-zäöüß][\wäöüß.\-]*){0,3})/);
         if (m && /^(?:Oma|Opa|Mama|Papa|Mutti|Vati|Hause|Haus|Arbeit|Freunden|Freunde)\b/.test(m[1])) return '';
-        if (m) return m[1].replace(/\s+(?:und|das|der|die|es|war|waren|schon|gestern|heute|letzte\w*|vor|mit|dort|essen|gegessen|zum)\b.*$/i, '').trim();
+        if (m) return m[1].replace(/\s+(?:und|das|der|die|es|war|waren|schon|gestern|heute|letzte\w*|vor|mit|dort|essen|gegessen|zum|in|im|bei|am|um|aber)\b.*$/i, '').trim();
         return '';
     }
     function datumText(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('de-DE', { day: 'numeric', month: 'long' }) : ''; }
-    function punkteText(p) { return (p || []).filter(x => x.t !== 'Insgesamt').map(x => x.t + (x.pol === '+' ? ' gut' : ' schlecht') + (x.von ? ' (' + x.von + ')' : '')).join(', '); }
+    function punkteText(p) { return (p || []).filter(x => x.t !== 'Insgesamt').map(x => x.t + (x.pol === '+' ? ' gut' : ' nicht gut') + (x.von ? ' (' + x.von + ')' : '')).join(', '); }
     function merken(name, t, raw) {
         const a = laden();
         const punkte = punkteAus(raw || t);
         const art = artAus(t);
         const vonNamen = Array.from(new Set(punkte.map(x => x.von).filter(Boolean))).join(' und ');
         const mit = mitAus(raw, t) || vonNamen || letzte.mit || '';
-        const eintrag = { name, art, datum: datumAus(t) || '', mit, urteil: urteilAus(t, punkte), punkte, am: heute() };
+        const ortStadt = (typeof ortAusSatz === 'function') ? ortAusSatz(String(raw || '').replace(name, '')) : '';
+        const eintrag = { name, art, datum: datumAus(t) || '', mit, urteil: urteilAus(t, punkte), punkte, ort: ortStadt, am: heute() };
         const i = a.findIndex(x => (x.art || 'ausflug') === art && gleich(x.name, name));
         if (i >= 0) {
             const o = a[i];
-            a[i] = Object.assign({}, o, eintrag, { datum: eintrag.datum || o.datum || '', urteil: eintrag.urteil || o.urteil || '', mit: eintrag.mit || o.mit || '', punkte: punkte.length ? punkte : (o.punkte || []) });
+            a[i] = Object.assign({}, o, eintrag, { ort: eintrag.ort || o.ort || '', datum: eintrag.datum || o.datum || '', urteil: eintrag.urteil || o.urteil || '', mit: eintrag.mit || o.mit || '', punkte: punkte.length ? punkte : (o.punkte || []) });
         } else a.push(eintrag);
         speichern(a);
         const e = i >= 0 ? a[i] : eintrag;
         const dt = datumText(e.datum);
         const pt = punkteText(e.punkte);
         const folge = art === 'essen' ? '' : (e.urteil === 'schlecht' ? ' Das schlage ich dir nicht mehr vor.' : ' Das schlage ich so schnell nicht wieder vor.');
-        sagen('Gemerkt: ' + name + (dt && e.datum !== heute() ? ', am ' + dt : '') + (e.mit ? ', mit ' + e.mit : '') + '.' + (pt ? ' ' + pt + '.' : '') + folge);
+        sagen('Gemerkt: ' + name + (e.ort ? ' in ' + e.ort : '') + (dt && e.datum !== heute() ? ', am ' + dt : '') + (e.mit ? ', mit ' + e.mit : '') + '.' + (pt ? ' ' + pt + '.' : '') + folge);
         return true;
     }
     function besuchBehandeln(raw, t) {
@@ -329,14 +331,14 @@
         return Array.from(set);
     }
     function erlebnisFrage(raw, t) {
-        const essQ = /\bwo\s+(?:waren|war|haben|hatten)\s+wir\b.*\b(?:essen|gegessen|restaurant|lokal|pizzeria|italiener|griechen|asiaten|imbiss|eis|brunch)\b|\b(?:welche[sn]?)\s+(?:restaurant|lokal|italiener|griechen|asiaten)\w*\b|\bunsere\s+(?:restaurants?|lokale)\b/.test(t);
+        const essQ = /\bwo\s+(?:waren|war|haben|hatten)\s+wir\b.*\b(?:essen|gegessen|restaurant|lokal|pizzeria|italiener|griechen|asiaten|imbiss|eis|brunch)\b|\b(?:welche[sn]?)\s+(?:restaurant|lokal|italiener|griechen|asiaten)\w*\b|\bunsere\s+(?:restaurants?|lokale)\b|\bwo\s+(?:war|waren|gab)\b.*\b(?:parkplatz\w*|essen|service|bedienung|preise?)\b/.test(t);
         const wie = t.match(/\bwie\s+war\s+(?:es|das)\s+(?:im|in\s+der|in\s+dem|in|beim|bei\s+der|bei|am)\s+(.+)$/);
         const l = laden();
         if (wie && l.length) {
             const e = l.find(x => gleich(x.name, wie[1]));
             if (e) {
                 const pt = punkteText(e.punkte);
-                sagen(e.name + (e.datum ? ', am ' + datumText(e.datum) : '') + (e.mit ? ', mit ' + e.mit : '') + '. ' + (e.urteil === 'gut' ? 'Insgesamt gut. ' : e.urteil === 'schlecht' ? 'Insgesamt nicht gut. ' : '') + (pt ? pt + '.' : (e.urteil ? '' : 'Dazu habe ich kein Urteil gemerkt.')));
+                sagen(e.name + (e.ort ? ' in ' + e.ort : '') + (e.datum ? ', am ' + datumText(e.datum) : '') + (e.mit ? ', mit ' + e.mit : '') + '. ' + (e.urteil === 'gut' ? 'Insgesamt gut. ' : e.urteil === 'schlecht' ? 'Insgesamt nicht gut. ' : '') + (pt ? pt + '.' : (e.urteil ? '' : 'Dazu habe ich kein Urteil gemerkt.')));
                 return true;
             }
             return false;
@@ -356,7 +358,7 @@
             if (t2.length) treffer = t2; else if (thema || pol) treffer = [];
         }
         if (!treffer.length) { sagen('Dazu habe ich nichts gemerkt.' + (essen.length ? ' Gemerkt sind ' + essen.length + (essen.length === 1 ? ' Restaurant' : ' Restaurants') + '. Sag „Wo waren wir essen?“ für die Liste.' : '')); return true; }
-        const teile = treffer.slice(-3).reverse().map(x => x.name + (x.datum ? ' am ' + datumText(x.datum) : '') + (punkteText(x.punkte) ? ' (' + punkteText(x.punkte) + ')' : ''));
+        const teile = treffer.slice(-3).reverse().map(x => x.name + (x.ort ? ' in ' + x.ort : '') + (x.datum ? ' am ' + datumText(x.datum) : '') + (punkteText(x.punkte) ? ' (' + punkteText(x.punkte) + ')' : ''));
         sagen((namen.length || thema || pol ? 'Das passt: ' : 'Zuletzt wart ihr hier essen: ') + teile.join('; ') + '.');
         return true;
     }
@@ -402,8 +404,8 @@
             if (!laden().length) { sagen('Es ist kein Ausflug gemerkt.'); return true; }
             speichern([]); sagen('Die gemerkten Ausflüge sind gelöscht.'); return true;
         }
-        const streng = /\b(?:da|dort)\s+waren\s+wir\b|\bwaren\s+wir\s+(?:schon|bereits)\b/.test(t) && !/\bwo\s+waren\b/.test(t);
-        const locker = /\bwir\s+waren\b/.test(t) && !/\bwo\s+war/.test(t);
+        const streng = /\b(?:da|dort)\s+(?:waren\s+wir|war\s+ich)\b|\bwaren\s+wir\s+(?:schon|bereits)\b/.test(t) && !/\bwo\s+waren\b/.test(t);
+        const locker = /\b(?:wir\s+waren|ich\s+war)\b/.test(t) && !/\bwo\s+war/.test(t);
         if (streng || locker || /\bmerk\w*\s+(?:dir\s+)?(?:den\s+|diesen\s+)?ausflug\b/.test(t)) {
             if (t.split(' ').length > 30) return next(text);
             const ortWort = /\b(?:tierpark|wildpark|zoo|park|museum|schwimmbad|hallenbad|freizeit\w*|spielplatz|minigolf|therme|schloss|strand\w*|bowling|kino|ausflug\w*|restaurant|lokal|gasthof|gasthaus|pizzeria|imbiss|italiener|griechen|asiaten|eisdiele|biergarten|cafe)\b/.test(t) || (artAus(t) === 'essen' && !!namenImSatz(raw));
