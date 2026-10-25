@@ -113,43 +113,74 @@ function placeFromElement(el, userLat, userLon) {
 
 const distText = km => km < 1 ? Math.round(km * 1000) + ' Meter' : km.toFixed(1).replace('.', ',') + ' km';
 
+/* Ort im Satz erkennen: "Gibt es in Reinbek ein mongolisches Restaurant?", "Pizzeria in Bad Oldesloe", "Restaurants in Hamburg".
+   Der Ort wird über /api/geocode geprüft (nur Orte, Städte, Stadtteile gelten; "in Ordnung" o. ä. wird verworfen). */
+const NEARBY_KEIN_ORT = /^(?:der|die|das|dem|den|des|ein|eine|einer|einem|einen|meiner|meinem|meinen|deiner|deinem|unserer|unserem|dieser|diesem|jeder|jedem|ihrer|ihrem|etwa|hier|dort|nähe|naehe|umgebung|richtung|ordnung|ruhe|betrieb|gegend|stadt|dorf|frage|ordnung|sachen|moment|zukunft|ferne|urlaub|italien|spanien|restaurant\w*|mongolisch\w*|chinesisch\w*|italienisch\w*|griechisch\w*|türkisch\w*|indisch\w*|thai\w*|japanisch\w*|vietnamesisch\w*|asiatisch\w*|essen|pizza|sushi|döner|burger)$/i;
+function ortAusSatz(raw) {
+    const t = String(raw || '');
+    const m = /\b(?:in|im|bei|nahe|rund\s+um|um|aus)\s+([A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß\-]{2,})/i.exec(t);
+    if (!m || NEARBY_KEIN_ORT.test(m[1])) return '';
+    let ort = m[1];
+    const rest = t.slice(m.index + m[0].length).match(/^\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß\-]{2,})/);   // zweites Wort nur, wenn groß geschrieben ("Bad Oldesloe", "Neu Wulmstorf")
+    if (rest && !NEARBY_KEIN_ORT.test(rest[1]) && /^[A-ZÄÖÜ]/.test(m[1])) ort += ' ' + rest[1];
+    return ort;
+}
+async function geocodeOrt(name) {
+    try {
+        const res = await apiFetch('/api/geocode?q=' + encodeURIComponent(name + ', Deutschland'));
+        if (!res.ok) return null;
+        const d = await res.json();
+        const g = Array.isArray(d) ? d[0] : null;
+        if (!g || !isFinite(+g.lat) || !isFinite(+g.lon)) return null;
+        if (!/^(?:place|boundary)$/.test(String(g.class || ''))) return null;   // nur Orte, keine Straßen oder Läden
+        return { lat: +g.lat, lon: +g.lon, name: String(g.display_name || name).split(',')[0].trim() || name };
+    } catch (e) { return null; }
+}
+
 async function findNearbyRestaurants(query) {
     const loc = await fetchUserLocationData();
     if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Deinen Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
 
+    // Nennt der Satz einen Ort, wird dort gesucht (Mitte des Ortes), sonst um dich herum
+    let ortName = '', center = { lat: loc.latitude, lon: loc.longitude };
+    const ortWort = ortAusSatz(window.jvLetzterText || '');
+    if (ortWort) {
+        const g = await geocodeOrt(ortWort);
+        if (g) { ortName = g.name; center = { lat: g.lat, lon: g.lon }; }
+    }
+    if (ortName) {   // der Ortsname gehört nicht in den Suchbegriff
+        const weg = ortWort.toLowerCase().split(/\s+/);
+        query = String(query || '').split(/\s+/).filter(w => w && !weg.includes(w.toLowerCase())).join(' ');
+    }
+    const stufen = ortName ? [5000, 15000] : [2000, 5000, 15000];
+
     const cuisine = cuisineFilterFor(query);
-    let elements = await googlePlacesSearch(loc.latitude, loc.longitude, 2000, query);
-    if (elements === null) {
-        try {
-            elements = await overpassSearch(loc.latitude, loc.longitude, 2000, cuisine, query);
-        } catch (e) {
-            if (e && e.auth) throw e;
-            elements = null;
-        }
-    }
-    if (elements === null) throw userError('Die Suche nach Restaurants konnte gerade nicht durchgeführt werden.');
-
-    let places = elements.map(el => placeFromElement(el, loc.latitude, loc.longitude)).filter(Boolean);
-    let radiusUsed = 2;
-    if (places.length === 0) {
-        elements = await googlePlacesSearch(loc.latitude, loc.longitude, 5000, query);
+    let places = [], radiusUsed = 0, fehler = false;
+    for (const r of stufen) {
+        let elements = await googlePlacesSearch(center.lat, center.lon, r, query);
         if (elements === null) {
-            try { elements = await overpassSearch(loc.latitude, loc.longitude, 5000, cuisine, query); } catch (e) { elements = []; }
+            try { elements = await overpassSearch(center.lat, center.lon, r, cuisine, query); }
+            catch (e) { if (e && e.auth) throw e; elements = null; }
         }
-        places = (elements || []).map(el => placeFromElement(el, loc.latitude, loc.longitude)).filter(Boolean);
-        radiusUsed = 5;
+        if (elements === null) { fehler = true; break; }
+        places = elements.map(el => placeFromElement(el, loc.latitude, loc.longitude)).filter(Boolean);
+        radiusUsed = r / 1000;
+        if (places.length) break;
     }
+    if (fehler && !places.length) throw userError('Die Suche nach Restaurants konnte gerade nicht durchgeführt werden.');
 
-    places.sort((a, b) => a.distanzKm - b.distanzKm);
+    // Mit Ortsnamen: nach Nähe zur Ortsmitte sortieren, die Entfernung auf der Karte bleibt die von dir
+    const mitte = p => haversineKm(center.lat, center.lon, p.lat, p.lon);
+    places.sort(ortName ? (a, b) => mitte(a) - mitte(b) : (a, b) => a.distanzKm - b.distanzKm);
     const top = places.slice(0, 5);
 
     if (top.length === 0) {
         const art = query ? `zu "${query}" ` : '';
-        return { reply: `In der Nähe (bis ${radiusUsed} km) habe ich leider nichts ${art}gefunden.`, cards: [] };
+        return { reply: ortName ? `In ${ortName} und Umgebung (bis ${radiusUsed} km) habe ich leider nichts ${art}gefunden.` : `In der Nähe (bis ${radiusUsed} km) habe ich leider nichts ${art}gefunden.`, cards: [] };
     }
 
-    const namen = top.slice(0, 3).map(p => `${p.name}${p.strasse ? ' (' + p.strasse + ')' : ''}, ${distText(p.distanzKm)}`);
-    let reply = `In der Nähe gibt es zum Beispiel ${namen.join('; ')}.`;
+    const namen = top.slice(0, 3).map(p => `${p.name}${p.strasse ? ' (' + p.strasse + ')' : ''}, ${distText(p.distanzKm)}${ortName ? ' von dir' : ''}`);
+    let reply = (ortName ? `In ${ortName} gibt es zum Beispiel ` : 'In der Nähe gibt es zum Beispiel ') + namen.join('; ') + '.';
     // Adresse in den Kontakten speichern anbieten; die Antwort (Ja / den ersten ...) wertet ortsuche.js aus
     if (typeof window.jvOfferSave === 'function') {
         try {
@@ -161,7 +192,7 @@ async function findNearbyRestaurants(query) {
     const cards = top.map(p => ({
         icon: '🍽️',
         title: p.name,
-        subtitle: distText(p.distanzKm) + (p.strasse ? ' · ' + p.strasse : ''),
+        subtitle: distText(p.distanzKm) + (ortName ? ' von dir' : '') + (p.strasse || p.ort ? ' · ' + [p.strasse, p.ort].filter(Boolean).join(', ') : ''),
         href: buildMapsLink(p.strasse ? `${p.name}, ${p.strasse}` : p.name, '', p.distanzKm < 1.2 ? 'walking' : 'driving')
     }));
 
