@@ -1,7 +1,7 @@
 /* ============================================================
    ALLEINSTELLUNG: "Was unterscheidet dich von anderen KI-Assistenten?" / "Was kannst du besser als ChatGPT, Alexa oder Siri?" /
    "Warum bist du besser?" -> Jarvis erzählt ehrlich, was er für Dino kann, was allgemeine Assistenten nicht haben (feste Antwort, keine KI nötig).
-   Dazu ein Fenster zum Nachlesen. Wird die App um etwas Wichtiges erweitert, hier einen Punkt ergänzen.
+   Nur gesprochen (der Kopf redet), kein Fenster. Wird die App um etwas Wichtiges erweitert, hier einen Punkt ergänzen.
    Braucht: commands.js (jvCommands), voice.js (speak); extrafenster.js (openExtraWindow) ist optional. Order 4.1.
    ============================================================ */
 (function () {
@@ -31,7 +31,6 @@
         window.jvCommands.use('alleinstellung', function (text, next) {
             var t = norm(text);
             if (t.length > 120 || !RX.test(t)) return next(text);
-            try { if (typeof window.openExtraWindow === 'function') window.openExtraWindow('⭐ Was ich besser kann', html()); } catch (e) { }
             try { speak(SPRECH, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) { }
             return true;
         }, 4.1);
