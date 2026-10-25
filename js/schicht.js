@@ -99,7 +99,7 @@
             const b = berlin();
             if (b.min > st.times[sh] + 120) { o.schicht_laeuft_schon = true; window.__schichtStauCards = null; return o; }
         } catch (e) {}
-        try { if (window.jvPlan && window.jvPlan.abfahrtMin) o.abfahrt = 'um ' + spoken(window.jvPlan.abfahrtMin(sh)); } catch (e) {}   // feste Abfahrt (plan_ansagen.js): Früh 4:30, Spät 13:20
+        try { if (window.jvPlan && window.jvPlan.abfahrtMin) o.abfahrt = 'um ' + spoken(window.jvPlan.abfahrtMin(sh)); } catch (e) {}   // feste Abfahrt (plan_ansagen.js): Früh 4:30, Spät 13:00
         window.__schichtStauCards = null;
         try {
             if (typeof workAddress === 'string' && workAddress) {
