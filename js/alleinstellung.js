@@ -11,13 +11,14 @@
         ['Ich vergesse nichts', 'Restaurants, Ausflüge, Wünsche der Familie und alles, was du mir sagst, bleibt im Langzeitgedächtnis.'],
         ['Ich melde mich von selbst', 'Beim Öffnen der App, morgens und abends, bei Paketen, fälligen Rechnungen, Feiertagen und Unwetter. Ein normaler Assistent wartet, bis du fragst.'],
         ['Ich plane mit dir', 'Der Termin-Finder rechnet Fahrzeit mit Verkehr und Rückweg zur Arbeit ein. Die Wunschliste sucht Preise. Fotos von Briefen und Zetteln lese ich ab.'],
+        ['Ich schreibe für dich', 'Im Auto lese ich dir WhatsApp-Nachrichten vor und schicke deine gesprochene Antwort ab. Bist du nicht erreichbar, antworte ich nur bei Dingen, die ich sicher weiß. Alles, was du entscheiden musst, leite ich weiter.'],
         ['Ich bin für unterwegs gebaut', 'Ich laufe im Auto, höre auf Zuruf, sage dir, wann du losfahren musst, und rufe, wenn du aufstehen musst.'],
         ['Ich gehöre dir', 'Ich bin deine eigene App und wachse mit jeder Idee von dir. Du sagst, was fehlt, und es kommt dazu.']
     ];
     var SPRECH = 'Der größte Unterschied: Ich kenne dich. Ich weiß, wann du Schicht hast, was ansteht und was du mir erzählt hast, und ich vergesse es nicht. ' +
         'Ich melde mich von selbst, wenn etwas wichtig wird, zum Beispiel bei Paketen, Rechnungen, Feiertagen oder Unwetter. ' +
         'Ich plane mit dir, mit Fahrzeit und Verkehr, und ich suche Preise für die Wunschliste von Liam. ' +
-        'Ich bin für unterwegs gebaut, auch fürs Auto. Und ich gehöre dir: Was dir fehlt, bauen wir ein. ' +
+        'Ich bin für unterwegs gebaut, auch fürs Auto. Dort lese ich dir WhatsApp-Nachrichten vor und schreibe deine Antwort für dich, aber nur an die Kontakte, die du erlaubt hast. Wenn du nicht antworten kannst, melde ich mich nur bei Dingen, die ich sicher weiß, und alles, was du entscheiden musst, gebe ich an dich weiter. Und ich gehöre dir: Was dir fehlt, bauen wir ein. ' +
         'Beim reinen Allgemeinwissen sind die großen Assistenten auch gut. Mein Vorteil ist, dass ich dein Leben kenne.';
     function norm(t) { return String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim(); }
     var RX = /(?:was|wodurch|wie)\s+(?:unterscheid\w+ (?:dich|du)|bist du anders)\b|\bwas (?:kannst|machst) du (?:besser|anders)\b|\bwarum (?:bist du|soll ich dich nehmen).*\b(?:besser|nehmen)\b|\bwas (?:macht|kann) dich (?:besonders|besser)\b|\bwas ist (?:dein|das) besondere\b|\bwas hast du (?:anderen|vielen) (?:voraus|ki\w*)\b|\bwas kannst du,? was (?:andere|chatgpt|alexa|siri|gemini)/;
