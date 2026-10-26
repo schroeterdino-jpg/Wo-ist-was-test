@@ -71,6 +71,10 @@ function parseWeatherMapRequest(text) {
     // Füllwörter, die kein Ort sind: "auf der Karte", "für morgen" ("Zeig mir das Wetter für morgen auf der Karte" = dein Standort, morgen)
     const tk = t.replace(/(?<![\wäöüß])(?:auf|in)\s+(?:der|die|einer)\s+(?:wetter\s*)?karte(?![\wäöüß])|(?<![\wäöüß])(?:als|auf)\s+(?:wetter\s*)?karte(?![\wäöüß])/g, ' ')
         .replace(/(?<![\wäöüß])(?:für\s+)?(?:übermorgen|morgen|heute)(?![\wäöüß])/g, ' ').replace(/\s+/g, ' ').trim();
+    // Zwei Fragen in einem Satz ("Wie wird das Wetter morgen und was steht auf meiner Einkaufsliste"): nicht als Ortsangabe lesen ("auf meiner Einkaufsliste" war sonst der Ort), die KI beantwortet beide Teile
+    if (/\s(?:und|dann|danach|sowie|außerdem|ausserdem|aber)\s+(?:was|wie|wo|wann|wer|welche\w*|sag\w*|zeig\w*|lies\w*|ruf\w*|kannst|habe|hab|gibt|steht|muss|soll|mach\w*|erinner\w*|stell\w*|schreib\w*|setz\w*|füg\w*)(?![\wäöüß])/.test(tk)) return null;
+    // Zwei Fragen in einem Satz ("Wie wird das Wetter morgen und was steht auf meiner Einkaufsliste"): nicht als Ortsangabe lesen ("auf meiner Einkaufsliste" war sonst der Ort), die KI beantwortet beide Teile
+    if (/\s(?:und|dann|danach|sowie|außerdem|ausserdem|aber)\s+(?:was|wie|wo|wann|wer|welche\w*|sag\w*|zeig\w*|lies\w*|ruf\w*|kannst|habe|hab|gibt|steht|muss|soll|mach\w*|erinner\w*|stell\w*|schreib\w*|setz\w*|füg\w*)(?![\wäöüß])/.test(tk)) return null;
     if (/karte/.test(t) && /^(?:(?:zeig\w*|öffne\w*|mach\w*|ruf\w*|gib\w*)\s+)?(?:mir\s+)?(?:bitte\s+)?(?:mal\s+)?(?:die\s+|das\s+|eine\s+)?(?:wetter\s*karte|wettervorhersage|wetter)(?:\s+(?:bitte|mal))?$/.test(tk)) return { place: '', dayOffset };
 
     // ohne Ort: "Zeig mir die Wetterkarte" / "Wetterkarte"
