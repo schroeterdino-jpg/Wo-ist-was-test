@@ -51,6 +51,10 @@ class ZaneBridge {
     @JavascriptInterface
     public boolean oeffneImBrowser(String url) { return act.oeffneImBrowser(url); }
 
+    /** Webadresse in einem eigenen Fenster innerhalb von Jarvis öffnen (kein Wechsel in eine andere App, kein Neustart). */
+    @JavascriptInterface
+    public boolean oeffneImFenster(String url) { return act.oeffneImFenster(url); }
+
     /** Wecker in der Uhr-App des Handys stellen. */
     @JavascriptInterface
     public boolean weckerStellen(int stunde, int minute, String text) { return act.weckerStellen(stunde, minute, text); }

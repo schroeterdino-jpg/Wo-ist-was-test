@@ -316,6 +316,56 @@ public class MainActivity extends Activity {
         } catch (Throwable e) { return false; }
     }
 
+    /** Shop-Seite in einem eigenen Fenster INNERHALB von Jarvis (mit Schließen und Browser-Knopf). Jarvis bleibt im Vordergrund und startet nicht neu. */
+    boolean oeffneImFenster(String url) {
+        try {
+            final Uri u = Uri.parse(String.valueOf(url));
+            String sch = u.getScheme();
+            if (sch == null || !(sch.equals("https") || sch.equals("http")) || u.getHost() == null) return false;
+            runOnUiThread(() -> {
+                try {
+                    final android.app.Dialog dlg = new android.app.Dialog(MainActivity.this, android.R.style.Theme_DeviceDefault_Light_NoActionBar);
+                    android.widget.LinearLayout box = new android.widget.LinearLayout(MainActivity.this);
+                    box.setOrientation(android.widget.LinearLayout.VERTICAL);
+                    android.widget.LinearLayout bar = new android.widget.LinearLayout(MainActivity.this);
+                    bar.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+                    bar.setBackgroundColor(Color.parseColor("#03111a"));
+                    bar.setPadding(16, 16, 16, 16);
+                    final WebView wv = new WebView(MainActivity.this);
+                    android.widget.Button zu = new android.widget.Button(MainActivity.this);
+                    zu.setText("✕ Schließen");
+                    zu.setOnClickListener(v -> { try { dlg.dismiss(); } catch (Throwable ignored) { } });
+                    android.widget.Button zurueck = new android.widget.Button(MainActivity.this);
+                    zurueck.setText("◀");
+                    zurueck.setOnClickListener(v -> { try { if (wv.canGoBack()) wv.goBack(); else dlg.dismiss(); } catch (Throwable ignored) { } });
+                    android.widget.Button br = new android.widget.Button(MainActivity.this);
+                    br.setText("Im Browser");
+                    br.setOnClickListener(v -> { try { String cur = wv.getUrl(); oeffneImBrowser(cur != null ? cur : u.toString()); } catch (Throwable ignored) { } });
+                    bar.addView(zurueck); bar.addView(zu); bar.addView(br);
+                    box.addView(bar, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                    WebSettings st = wv.getSettings();
+                    st.setJavaScriptEnabled(true);
+                    st.setDomStorageEnabled(true);
+                    st.setAllowFileAccess(false);
+                    android.webkit.CookieManager.getInstance().setAcceptCookie(true);
+                    wv.setWebViewClient(new WebViewClient() {
+                        @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+                            Uri t = r.getUrl();
+                            String sc = t == null ? null : t.getScheme();
+                            return !(sc != null && (sc.equals("https") || sc.equals("http")));   // App-Links (intent://, market://) werden blockiert, Webseiten bleiben im Fenster
+                        }
+                    });
+                    box.addView(wv, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                    dlg.setContentView(box, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                    dlg.setOnDismissListener(d -> { try { wv.stopLoading(); wv.destroy(); } catch (Throwable ignored) { } });
+                    dlg.show();
+                    wv.loadUrl(u.toString());
+                } catch (Throwable ignored) { }
+            });
+            return true;
+        } catch (Throwable e) { return false; }
+    }
+
     private void openExternal(Uri u) {
         if (openKalenderApp(u)) return;
         try {
