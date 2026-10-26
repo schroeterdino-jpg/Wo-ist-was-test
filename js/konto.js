@@ -51,9 +51,9 @@
         if (allBanks().some(b => b.length >= 3 ? von.includes(b.toLowerCase()) : new RegExp('(?:^|[^a-zäöü])' + b.toLowerCase() + '(?:[^a-zäöü]|$)').test(von))) return true;
         return WORDS.test(bet);
     }
-    function gmailQuery() {
+    function gmailQuery(tage) {
         const from = ownBanks().concat(BASE_BANKS.filter(b => b !== 'bank')).map(b => 'from:' + b.replace(/\s+/g, '')).join(' OR ');
-        return `newer_than:2d (${from} OR subject:Kontobewegung OR subject:Umsatz OR subject:Gutschrift OR subject:Lastschrift OR subject:Kontoauszug OR subject:Abbuchung OR subject:Zahlungseingang)`;
+        return `newer_than:${tage || 2}d (${from} OR subject:Kontobewegung OR subject:Umsatz OR subject:Gutschrift OR subject:Lastschrift OR subject:Kontoauszug OR subject:Abbuchung OR subject:Zahlungseingang)`;
     }
     function euro(text) {
         const m = String(text || '').match(/(-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+,\d{2}|-?\d+(?:\.\d{2}))\s*(?:€|eur\b|euro)/i) || String(text || '').match(/(?:€|eur\b)\s*(-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+,\d{2}|-?\d+(?:\.\d{2}))/i);
@@ -77,6 +77,7 @@
         try { if (typeof fetchEmailFullText === 'function') { const f = await fetchEmailFullText(m.id); body = String((f && f.text) || ''); } } catch (e) {}
         const all = (m.betreff || '') + ' ' + body;
         const betrag = euro(all), dir = direction(all);
+        try { if (window.jvHaushalt) window.jvHaushalt.erfassen(m, all); } catch (e) {}   // Haushaltsbuch (haushalt.js)
         const bet = String(m.betreff || '').trim();
         if (betrag && dir === 'ein') return `Auf deinem Konto ist ein Eingang von ${betrag}. Betreff: ${bet}.`;
         if (betrag && dir === 'aus') return `Von deinem Konto wurden ${betrag} abgebucht. Betreff: ${bet}.`;
@@ -157,6 +158,10 @@
         const c2 = mk(body, 'div', 'km-card'); mk(c2, 'div', 'km-h', 'Jetzt prüfen');
         const pr = mk(c2, 'div', 'km-row'); mk(pr, 'span', '', 'Neue Bank-Mails der letzten zwei Tage');
         mk(pr, 'button', 'km-btn primary', 'Prüfen').addEventListener('click', () => { closeWin(); handle('prüf mal mein konto'); });
+        // Haushaltsbuch
+        const ch = mk(body, 'div', 'km-card'); mk(ch, 'div', 'km-h', 'Haushaltsbuch');
+        const hr = mk(ch, 'div', 'km-row'); mk(hr, 'span', '', 'Eingänge und Ausgaben aus den Bank-Mails');
+        mk(hr, 'button', 'km-btn primary', 'Öffnen').addEventListener('click', () => { closeWin(); if (window.jvHaushalt) window.jvHaushalt.fenster(); });
         // Banken
         const c3 = mk(body, 'div', 'km-card'); mk(c3, 'div', 'km-h', 'Meine Banken');
         const mine = ownBanks();
@@ -239,7 +244,7 @@
         try { document.addEventListener('visibilitychange', () => { if (!document.hidden) schedule(6000); }); } catch (e) {}
     }
 
-    window.jvKonto = { check, handle, isBankMail, euro, direction, queue: () => queue.slice(), describe };
+    window.jvKonto = { check, handle, isBankMail, euro, direction, queue: () => queue.slice(), describe, gmailQuery };
     if (window.jvCommands) {   // Befehlsliste (commands.js)
         window.jvCommands.use('konto', function (text, next) {
             try { if (handle(text)) return true; } catch (e) { console.error('Konto-Meldung', e); }

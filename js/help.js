@@ -129,6 +129,9 @@ const HELP_TOPICS = [
     { key: 'konto', icon: '🏦', title: 'Konto-Meldung', words: /konto|bank|überweisung|gutschrift|lastschrift|abbuchung|umsatz|eingang/, examples: [
         'Zane sagt von selbst an, wenn deine Bank dir eine Mail zu einer Kontobewegung schickt (Eingang, Abbuchung, Kontoauszug), nur bei offener App', 'Prüf mal mein Konto (schaut sofort nach neuen Bank-Mails)',
         'Meine Bank ist die Sparkasse Lauenburg (damit er deren Mails erkennt)', 'Welche Banken überwachst du?', 'Konto-Meldung aus / Konto-Meldung an'] },
+    { key: 'haushalt', icon: '📒', title: 'Haushaltsbuch', words: /haushalt|ausgaben|einnahmen|sparen|abos?\b|monat|fixkosten/, examples: [
+        'Jarvis merkt sich Eingänge und Ausgaben aus den Mails deiner Bank und wertet sie aus. Er sieht dein Konto nicht und kann nichts überweisen', 'Wie war mein Monat? (Eingang, Ausgaben, wofür am meisten)', 'Wie war der letzte Monat?',
+        'Welche Abos habe ich? (regelmäßige Abbuchungen mit Summe)', 'Wo kann ich sparen? (Tipps aus deinen Zahlen)', 'Haushaltsbuch einlesen (holt Bank-Mails der letzten zwei Monate nach)', 'Zeig mir das Haushaltsbuch'] },
     { key: 'kuendigung', icon: '✉️', title: 'Kündigung schreiben', words: /kündigung|kuendigung|kündigen|kuendigen|vertrag|abo\b|mitgliedschaft/, examples: [
         'Schreib mir eine Kündigung (Zane fragt: Anbieter, Vertrag, Kunden-/Vertragsnummer, Zeitpunkt, Name und Anschrift)', 'Kündigung für Vodafone aufsetzen', 'Ich möchte meinen Vertrag kündigen',
         'Zeig die letzte Kündigung', 'Zeig meine Kündigungen (die letzten 5 bleiben gespeichert, auch per Tipp auf Kündigung in der Kugel-Ansicht)', 'Im Fenster: Text ändern, PDF speichern, Drucken, Kopieren, Adresse suchen', 'Abbrechen (beendet die Fragen)'] },
