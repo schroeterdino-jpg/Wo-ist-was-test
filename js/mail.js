@@ -136,6 +136,7 @@ async function fetchEmailOverview(opts = {}) {
             kurztext: (m.snippet || '').replace(/\s+/g, ' ').trim(),
             ungelesen: (m.labelIds || []).includes('UNREAD'),
             _labels: m.labelIds || [],
+            _ms: Number(m.internalDate) || 0,
             _from: headerValue(m.payload && m.payload.headers, 'From')
         };
     }));
