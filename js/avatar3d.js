@@ -992,6 +992,7 @@ function sag(text,exp,ohneWeiter){
 }
 
 // Kopf schaut von selbst mal hierhin, mal dorthin (Augen schauen zuerst), nickt leicht beim Sprechen.
+const SCHAEDEL=new THREE.Vector3();
 const look={y:0,x:0,z:0,ty:0,tx:0,tz:0,next:0,nod:0,avert:false,engaged:false};
 function updateLook(now,dt,st,speaking){
   if(!JV_KOPFBEWEGUNG){look.y=look.x=look.z=0;return}
@@ -1057,6 +1058,16 @@ function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);
  const atem=Math.sin(now*.0017)*sleepLevel;
  root.position.y=Math.sin(now*.0011)*.012*(1-sleepLevel)+(st==='listening'?.008:0)+atem*.012-(1-zubS)*.55;
  root.scale.setScalar(zubS*(1+.006*atem));
+
+ // Der Schädel bleibt beim Drehen in der Bildmitte: Drehachse = Schädelmitte (Ohrhöhe), nicht die Mitte von Kopf plus Schultern.
+ // Dazu wird der Punkt der Schädelmitte nach der Drehung gemessen und die Figur seitlich so verschoben, dass er bei x = 0 liegt.
+ try{
+   if(model&&modelReady){
+     root.position.x=0; root.updateMatrixWorld(true);
+     SCHAEDEL.set(0,1.62,0.01); model.localToWorld(SCHAEDEL);
+     root.position.x=-SCHAEDEL.x;
+   }
+ }catch(e){}
  updateBackground(now,dt,st,speaking);
  renderer.render(scene,camera)}
 function setMode(on){active=!!on; const sphere=document.getElementById('jarvisSphere'); const holo=document.getElementById('jarvisHolo'); btn.classList.toggle('active',active); btn.textContent=active?'● 3D':'○ 3D'; if(!active){renderer.domElement.style.display='none';hideStatus();if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} if(!modelReady){renderer.domElement.style.display='none';showStatus('3D-Kopf wird geladen …');if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} renderer.domElement.style.display='block';hideStatus();if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
