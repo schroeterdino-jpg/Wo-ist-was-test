@@ -109,9 +109,13 @@ async function sendToGroqSmartCore(text, opts = {}) {
 
     const now = new Date();
     const nowGermanIso = now.toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).replace(' ', 'T');
-    const nearbyFuelData = await tankFuerFrage(text);   // auch für die HUD-Karten unten genutzt
     typeWriterStatus("Gleiche mit dem Gedächtnis ab...");
-    const semanticMemoryHits = await searchSemanticMemory(text);   // bedeutungsähnliche Erinnerungen zur aktuellen Frage
+    // Spritpreise (nur bei Tankfragen) und Gedächtnis-Suche laufen gleichzeitig statt nacheinander. Die Gedächtnis-Suche bekommt höchstens
+    // 1,5 Sekunden: lieber ohne bedeutungsähnliche Erinnerungen antworten als jede Frage ausbremsen.
+    const [nearbyFuelData, semanticMemoryHits] = await Promise.all([
+        tankFuerFrage(text),   // auch für die HUD-Karten unten genutzt
+        Promise.race([searchSemanticMemory(text), new Promise(res => setTimeout(() => res([]), 1500))])   // bedeutungsähnliche Erinnerungen zur aktuellen Frage
+    ]);
 
     const contextData = {
         heute_datum: nowGermanIso,
