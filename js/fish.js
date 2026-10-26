@@ -357,6 +357,7 @@
             if (!blob || blob.size === 0) return null;
             const h = (name) => (res.headers && res.headers.get && res.headers.get(name)) || null;
             const engine = h('x-voice-engine') || 'fish';
+            try { if (typeof diagAdd === 'function') diagAdd('⏱ Sprachstück (' + String(text || '').length + ' Zeichen): Modell ' + (h('x-fish-model') || '?') + ', Fish selbst ' + (h('x-fish-ms') || '?') + ' ms'); } catch (e) {}
             blob.__jvSpeech = true;                                                    // Sprach-Datei (für das Tempo beim Abspielen)
             blob.__jvLipText = String(text || '');                                      // v6: Text für FaceCap-Lippensynchronisation
             blob.__jvFish = engine === 'fish' && (sp === 1 || h('x-fish-speed') === 'applied');   // Tempo schon von Fish Audio eingebaut: beim Abspielen nicht noch einmal

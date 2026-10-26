@@ -51,6 +51,7 @@ export default async function handler(req, res) {
             body: JSON.stringify(body),
             signal: AbortSignal.timeout(15000)   // das kostenlose Modell ist manchmal langsam: Fish Audio bekommt Zeit, statt dass mitten drin eine andere Stimme einspringt
           });
+          const fishT0 = Date.now();
           let fRes = await fishCall(model);
           let usedModel = model;
           // Kennt Fish das neue Modell nicht (Name falsch, Konto ohne Zugang), bleibt die Stimme dieselbe: ein Versuch mit dem alten Modell statt Stimmenwechsel
@@ -62,6 +63,7 @@ export default async function handler(req, res) {
               res.setHeader('Content-Type', 'audio/mpeg');
               res.setHeader('X-Voice-Engine', 'fish');
               res.setHeader('X-Fish-Model', usedModel);
+              res.setHeader('X-Fish-Ms', String(Date.now() - fishT0));   // so lange hat Fish Audio selbst gebraucht (ohne Netz zur App)
               res.setHeader('Cache-Control', 'no-store');
               return res.status(200).send(buf);
             }
