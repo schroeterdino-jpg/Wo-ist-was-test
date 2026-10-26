@@ -145,10 +145,11 @@
         finally { clearTimeout(to); }
     }
     async function geschenke(name, satz) {
+        const wen = /^(?:Frau|Mann|Mutter|Vater|Tochter|Sohn|Enkel\w*|Enkelin|Kollegin|Kollegen|Freund\w*|Neffe|Nichte|Oma|Opa|Mama|Papa)$/.test(name) ? 'deine ' + name : name;   // "für deine Frau" statt "für Frau"
         if (laeuft) { sagen('Ich suche gerade schon. Einen Moment.'); return; }
         laeuft = true;
         try {
-            sagen('Ich suche Geschenkideen' + (name ? ' für ' + name : '') + ' und dazu die echten Preise. Das dauert etwa eine Minute.');
+            sagen('Ich suche Geschenkideen' + (name ? ' für ' + wen : '') + ' und dazu die echten Preise. Das dauert etwa eine Minute.');
             const wissen = [], seen = new Set();
             try {
                 if (typeof searchSemanticMemory === 'function') {
@@ -171,7 +172,7 @@
             const mit = ergebnisse.filter(e => e.a.length);
             if (!mit.length) { sagen('Ich habe zu meinen Ideen keine Preise gefunden. Versuch es später noch einmal.'); return; }
             fenster(mit);
-            sagen('Ich habe ' + mit.length + ' Ideen' + (name ? ' für ' + name : '') + ' mit echten Preisen gefunden. ' + mit.slice(0, 5).map(e => e.q + ' ab ' + euro(e.a[0].preis) + ' bei ' + (e.a[0].shop || 'einem Shop')).join('. ') + '. Alle Angebote mit Links siehst du im Fenster.');
+            sagen('Ich habe ' + mit.length + ' Ideen' + (name ? ' für ' + wen : '') + ' mit echten Preisen gefunden. ' + mit.slice(0, 5).map(e => e.q + ' ab ' + euro(e.a[0].preis) + ' bei ' + (e.a[0].shop || 'einem Shop')).join('. ') + '. Alle Angebote mit Links siehst du im Fenster.');
         } finally { laeuft = false; }
     }
 
@@ -263,10 +264,16 @@
 
         /* Geschenkideen mit Preisen */
         if (/geschenk\w*|schenken/.test(t) && /\b(?:geschenkideen?|such\w*|find\w*|raus\w*|zeig\w*|nenn\w*|vorschlag\w*|vorschlaege|ideen?|empfehl\w*|schlag\w*|was kann ich|was soll ich)\b/.test(t) && !/\b(?:erinner\w*|termin|geburtstag\s+von|karte|blumen|torte)\b/.test(t)) {
-            let n = raw.replace(/\b(?:Enkel\w*|Tochter|Sohn|Frau|Mann|Kollegin|Kollegen|Freund\w*|Neffe|Nichte)\s+(?=[A-ZÄÖÜ])/g, '').match(/(?:für|fuer|von)\s+(?:meinen\s+|meine\s+|meinem\s+|unseren\s+|den\s+|die\s+)?(?:enkel\w*\s+|tochter\s+|sohn\s+|frau\s+|mann\s+|kollegin\s+|kollegen\s+)?([A-ZÄÖÜ][a-zäöüß]{1,19})\b/);
-            let name = n ? n[1] : '';
+            const TITEL = '(?:Enkel\\w*|Tochter|Sohn|Frau|Mann|Kollegin|Kollegen|Freund\\w*|Neffe|Nichte)';
             const wl = window.jvWunschliste && window.jvWunschliste.laden ? window.jvWunschliste.laden() : [];
-            if (!name || /^(?:Mich|Mir|Dich|Dir|Ihn|Sie|Uns|Euch|Ein|Eine|Einen)$/.test(name)) name = (wl.find(l => t.includes(norm(l.name))) || (wl.length === 1 ? wl[0] : null) || { name: '' }).name;
+            let name = '';
+            // 1) "für meinen Enkel Liam" -> Liam;  2) "für meine Frau" -> Frau;  3) "für Matze" -> Matze;  4) Name einer Wunschliste im Satz
+            let n = raw.match(new RegExp('(?:für|fuer|von)\\s+(?:meine[nms]?|unsere[nms]?|mein|unser)\\s+' + TITEL + '\\s+([A-ZÄÖÜ][a-zäöüß]{1,19})\\b'));
+            if (n) name = n[1];
+            if (!name) { n = raw.match(/(?:für|fuer|von)\s+(?:meine[nms]?|unsere[nms]?|mein|unser)\s+([A-Za-zäöüÄÖÜß]{3,20})/i); if (n) name = n[1].charAt(0).toUpperCase() + n[1].slice(1).toLowerCase(); }
+            if (!name) { n = raw.match(/(?:für|fuer|von)\s+([A-ZÄÖÜ][a-zäöüß]{1,19})\b/); if (n && !/^(?:Mich|Mir|Dich|Dir|Ihn|Sie|Uns|Euch|Ein|Eine|Einen)$/.test(n[1])) name = n[1]; }
+            if (!name) { const g = wl.find(l => t.includes(norm(l.name))); if (g) name = g.name; }
+            if (!name) { sagen('Für wen soll ich Geschenke suchen? Sag zum Beispiel: Such Geschenke für meine Frau raus.'); return true; }
             geschenke(name, raw);
             return true;
         }
