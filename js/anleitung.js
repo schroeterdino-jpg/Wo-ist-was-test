@@ -267,7 +267,7 @@
           d: "Jarvis zeigt sich als 3D-Kopf mit Mimik, Blinzeln und Lippenbewegung. Bei Wetter, Terminen und Listen wirft eine Figur eine Karte, aus der das Fenster wird. Sie reagiert auch mit Regenschirm, Partyhut und mehr.",
           s: ["Figur-Animationen aus", "Realistischer Kopf an", "Synapsen aus", "Figur Test"] },
         { g: "Besonderes", i: "👤", t: "Kopf wechseln: jung oder reif", n: "Einstellungen > Stimme & Gespräch",
-          d: "Jarvis gibt es mit zwei Köpfen: jung (dunkle Haut, Glatze, Dreitagebart) oder reif (dunkle Haut, graue Haare). Zu jedem Kopf kann eine eigene Stimme gehören.",
+          d: "Jarvis gibt es mit zwei Köpfen: jung (dunkle Haut, Glatze) oder reif (dunkle Haut, graue Haare). Zu jedem Kopf kann eine eigene Stimme gehören.",
           s: ["Reifer Kopf", "Junger Kopf", "Kopf wechseln"] },
         { g: "Besonderes", i: "✨", t: "Effekte, Töne und Flackern", n: "Einstellungen > Effekte, Töne und Flacker-Test",
           d: "Flackert die Anzeige auf deinem Handy, wähle bei Effekte „Ruhig“ oder „Aus“. Nachts wird die Kugel dunkler. Der Flacker-Test schaltet Effekte einzeln ab, damit du siehst, welcher der Übeltäter ist.",

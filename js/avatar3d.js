@@ -3,12 +3,12 @@
 'use strict';
 const JV_HINTERGRUND=false; // Die alte Glaskugel samt Scan-Strahl ist aus; den Hologramm-Hintergrund zeichnet js/holo_look.js (true = alter Hintergrund)
 const JV_KOPFBEWEGUNG=true; // false = Kopf bleibt (fast) still
-const KOPF_URL={jung:'./models/mann.glb?v=6',reif:'./models/mann.glb?v=6'};   // beide Köpfe sind dieselbe Figur; der junge wird beim Laden verjüngt (siehe verjuengen)
+const KOPF_URL={jung:'./models/facecap.glb?v=5',reif:'./models/mann.glb?v=6'};
 // Feinabstimmung des reifen Kopfes: h = Gesamthoehe im Bild (Kopf plus Hals), cy = Hoehe im Modell, die in der Bildmitte liegen soll
 const KOPF_REIF={h:2.40,cy:1.630};
 function kopfLesen(){try{return localStorage.getItem('nova_kopf')==='reif'?'reif':'jung'}catch(e){return 'jung'}}
 let kopfArt=kopfLesen();
-const JV_HAARE=true; // false = glatzköpfig wie vorher
+const JV_HAARE=false; // false = glatzköpfig wie der Ursprungskopf
 const holder=document.querySelector('.holo-container'); if(!holder) return;
 let THREE,GLTFLoader,KTX2Loader,MeshoptDecoder;
 try{
@@ -308,7 +308,7 @@ function verjuengen(geo){
 }
 let ladeNr=0, zubEyes=[], zubHeadMesh=null;
 function ladeKopf(){
-const meine=++ladeNr, art=kopfArt, mann=true; zubEyes=[]; zubHeadMesh=null;   // mann: beide Köpfe nutzen mann.glb
+const meine=++ladeNr, art=kopfArt, mann=(kopfArt==='reif'); zubEyes=[]; zubHeadMesh=null;   // mann: beide Köpfe nutzen mann.glb
 gltfLoader.load(KOPF_URL[art],g=>{
  if(meine!==ladeNr) return;
  model=g.scene; faceRoot.add(model);
@@ -326,7 +326,6 @@ gltfLoader.load(KOPF_URL[art],g=>{
    const part=/teeth/.test(ancestry)?'teeth':(/eyeleft|eyeright|grp_eye/.test(ancestry)?'eye':(/head/.test(ancestry)?'head':'other'));
    if(part==='eye')zubEyes.push(o); if(part==='head'&&!zubHeadMesh)zubHeadMesh=o;
    if(part==='head'&&art==='reif'){ try{ bartVoller(o.geometry); }catch(e){ console.warn('Bart-Anpassung',e); } }
-   if(part==='head'&&art==='jung'){ try{ verjuengen(o.geometry); }catch(e){ console.warn('Verjüngung',e); } }
 
    function makeEyeMaterial(oldMat){
      // Original-Augen-Textur behalten (damit Augenweiß + Pupille erhalten bleiben),
@@ -394,19 +393,19 @@ gltfLoader.load(KOPF_URL[art],g=>{
              'float jvN = clamp(jvL/0.40, 0.0, 1.6);\n'+
              'vec3 jvLumSkin = vec3(0.66,0.285,0.17) * jvN;\n'+
              'vec3 jvTexWarm = diffuseColor.rgb * vec3(2.1,1.0,0.62);\n'+
-             'vec3 jvSkin = mix(jvTexWarm, jvLumSkin, 0.0) * vec3(0.96,0.86,0.78);\n'+
+             'vec3 jvSkin = mix(jvTexWarm, jvLumSkin, 0.0) * vec3(0.96,0.86,0.78) * vec3(0.52,0.44,0.40);\n'+
              'vec3 jvT = (vJvPos - jvBMin) / (jvBMax - jvBMin);\n'+
              'float jvUp = 1.0 - jvT.z;\n'+
              'float jvBand = smoothstep(0.57,0.60,jvUp)*(1.0-smoothstep(0.64,0.67,jvUp))*smoothstep(0.55,0.75,jvT.y);\n'+
              'float jvBrow = (1.0 - smoothstep(0.6, 1.05, jvN)) * jvBand;\n'+
              'jvSkin = mix(jvSkin, vec3(0.05,0.022,0.012), jvBrow*0.95);\n'+
              'float jvDark = 1.0 - smoothstep(0.15, 0.85, jvN);\n'+
-             'jvSkin = mix(jvSkin, vec3(0.60,0.33,0.24), jvDark*0.55*(1.0-jvBand));\n'+
+             'jvSkin = mix(jvSkin, vec3(0.31,0.145,0.10), jvDark*0.55*(1.0-jvBand));\n'+
              'float jvEyeB = smoothstep(0.38,0.43,jvUp)*(1.0-smoothstep(0.545,0.575,jvUp))*smoothstep(0.55,0.75,jvT.y);\n'+
              'float jvEyeDark = 1.0 - smoothstep(0.7, 1.35, jvN);\n'+
-             'jvSkin = mix(jvSkin, vec3(0.62,0.32,0.21), jvEyeDark*jvEyeB*0.7);\n'+
+             'jvSkin = mix(jvSkin, vec3(0.32,0.14,0.09), jvEyeDark*jvEyeB*0.7);\n'+
              'float jvLip = smoothstep(0.165,0.19,jvUp)*(1.0-smoothstep(0.225,0.25,jvUp))*(1.0-smoothstep(0.10,0.17,abs(jvT.x-0.5)))*smoothstep(0.7,0.85,jvT.y);\n'+
-             'jvSkin = mix(jvSkin, vec3(0.50,0.17,0.15), jvLip*0.5);\n'+
+             'jvSkin = mix(jvSkin, vec3(0.30,0.10,0.09), jvLip*0.5);\n'+
              'float jvFront = smoothstep(0.55, 0.80, jvT.y);\n'+
              'float jvSide = smoothstep(0.30, 0.50, abs(jvT.x-0.5));\n'+
              'float jvEar = smoothstep(0.26,0.34,abs(jvT.x-0.5)) * (1.0-smoothstep(0.35,0.55,jvT.y));\n'+
@@ -929,7 +928,7 @@ function zubLaden(){
   return zubLoading;
 }
 function kopfMasse(){
-  if(kopfArt==='reif'||kopfArt==='jung'||!zubHeadMesh||zubEyes.length<2) return null;   // beide Köpfe sind das Modell, auf das das Zubehör zugeschnitten ist
+  if(kopfArt==='reif'||!zubHeadMesh||zubEyes.length<2) return null;   // beide Köpfe sind das Modell, auf das das Zubehör zugeschnitten ist
   model.updateMatrixWorld(true);
   const inv=new THREE.Matrix4().copy(model.matrixWorld).invert();
   const boxes=zubEyes.slice(0,2).map(m=>new THREE.Box3().setFromObject(m).applyMatrix4(inv));
@@ -1067,11 +1066,11 @@ function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);
  // Der Schädel bleibt beim Drehen in der Bildmitte: Drehachse = Schädelmitte (Ohrhöhe), nicht die Mitte von Kopf plus Schultern.
  // Dazu wird der Punkt der Schädelmitte nach der Drehung gemessen und die Figur seitlich so verschoben, dass er bei x = 0 liegt.
  try{
-   if(model&&modelReady){
+   if(model&&modelReady&&kopfArt==='reif'){
      root.position.x=0; root.updateMatrixWorld(true);
      SCHAEDEL.set(0,1.62,0.01); model.localToWorld(SCHAEDEL);
      root.position.x=-SCHAEDEL.x;
-   }
+   } else if(root.position.x!==0) root.position.x=0;
  }catch(e){}
  updateBackground(now,dt,st,speaking);
  renderer.render(scene,camera)}

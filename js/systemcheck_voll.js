@@ -165,7 +165,7 @@
         return schlecht(echte.length + ' Programmfehler seit dem Start, zuletzt: ' + String(echte[echte.length - 1]).slice(0, 140), 'Screenshot der roten Fehleranzeige schicken; App neu öffnen leert die Liste');
     }
     async function pruefModelle() {
-        const liste = [['models/mann.glb', true], ['models/zubehoer.glb', false]];
+        const liste = [['models/facecap.glb', true], ['models/mann.glb', true], ['models/zubehoer.glb', false]];
         const fehlt = [], optional = [];
         await Promise.all(liste.map(async ([u, pflicht]) => {
             try { const r = await mit(fetch('./' + u, { method: 'HEAD', cache: 'no-store' }), 12000); if (!r.ok) (pflicht ? fehlt : optional).push(u); }
