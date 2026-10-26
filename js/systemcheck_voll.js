@@ -165,7 +165,7 @@
         return schlecht(echte.length + ' Programmfehler seit dem Start, zuletzt: ' + String(echte[echte.length - 1]).slice(0, 140), 'Screenshot der roten Fehleranzeige schicken; App neu öffnen leert die Liste');
     }
     async function pruefModelle() {
-        const liste = [['models/facecap.glb', true], ['models/mann.glb', false], ['models/zubehoer.glb', false]];
+        const liste = [['models/mann.glb', true], ['models/zubehoer.glb', false]];
         const fehlt = [], optional = [];
         await Promise.all(liste.map(async ([u, pflicht]) => {
             try { const r = await mit(fetch('./' + u, { method: 'HEAD', cache: 'no-store' }), 12000); if (!r.ok) (pflicht ? fehlt : optional).push(u); }
@@ -174,7 +174,7 @@
         let kopf = '';
         try { const a = window.jvAvatar3D; if (a) { const rd = typeof a.ready === 'function' ? a.ready() : a.ready; kopf = rd ? ', 3D-Kopf läuft' : ', 3D-Kopf lädt oder ist aus'; } else kopf = ', 3D-Kopf nicht geladen'; } catch (e) {}
         if (fehlt.length) return schlecht('fehlt: ' + fehlt.join(', '), 'Datei in den Ordner models bei GitHub hochladen');
-        if (optional.length) return hinweis('fehlt: ' + optional.join(', ') + kopf, 'Datei in den Ordner models hochladen (nur nötig für den reifen Kopf bzw. Brille/Mütze)');
+        if (optional.length) return hinweis('fehlt: ' + optional.join(', ') + kopf, 'Datei in den Ordner models hochladen (nur nötig für Brille/Mütze)');
         return ok('Modelle da' + kopf);
     }
 
