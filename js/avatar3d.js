@@ -8,7 +8,7 @@ const KOPF_URL={jung:'./models/facecap.glb?v=5',reif:'./models/mann.glb?v=6'};
 const KOPF_REIF={h:2.40,cy:1.630};
 function kopfLesen(){try{return localStorage.getItem('nova_kopf')==='reif'?'reif':'jung'}catch(e){return 'jung'}}
 let kopfArt=kopfLesen();
-const JV_HAARE=false; // false = glatzköpfig wie der Ursprungskopf
+const JV_HAARE=true; // false = glatzköpfig wie vorher
 const holder=document.querySelector('.holo-container'); if(!holder) return;
 let THREE,GLTFLoader,KTX2Loader,MeshoptDecoder;
 try{
@@ -266,49 +266,9 @@ function bartVoller(geo){
  }
  ca.needsUpdate=true; geo.userData.jvBartVoll=true;
 }
-/* Junger Kopf: dieselbe Figur wie der reife, aber mit Glatze, schwarzen Brauen, Dreitagebart und glatterer Haut.
-   Die Farben stecken als Punktfarben im Modell (graues Haar = wenig Farbsättigung). Das graue Haar wird schwarz, die Haut geglättet. */
-function verjuengen(geo){
- if(!geo||geo.userData.jvJung) return;
- const ca=geo.attributes.color, pa=geo.attributes.position, ix=geo.index; if(!ca||!pa||!ix||ca.itemSize<3) return;
- const n=ca.count, R=new Float32Array(n), G=new Float32Array(n), B=new Float32Array(n), H=new Float32Array(n), SAT=new Float32Array(n);
- for(let i=0;i<n;i++){ R[i]=ca.getX(i); G[i]=ca.getY(i); B[i]=ca.getZ(i); const mx=Math.max(R[i],G[i],B[i]), mn=Math.min(R[i],G[i],B[i]); SAT[i]=(mx-mn)/Math.max(mx,1e-5);
-   let h=Math.max(0,Math.min(1,(0.66-SAT[i])/0.18)); h=h*h*(3-2*h); H[i]=Math.pow(h,0.6); }
- const med=(arr)=>{ const a=Array.from(arr).sort((x,y)=>x-y); return a.length?a[a.length>>1]:0; };
- const sr=[],sg=[],sb=[]; for(let i=0;i<n;i++) if(SAT[i]>0.5){ sr.push(R[i]); sg.push(G[i]); sb.push(B[i]); }
- if(sr.length<100) return;
- const skin=[med(sr),med(sg),med(sb)];
- // Haut glätten (Falten sind in die Farbe eingebrannt): viermal mit den Nachbarpunkten mitteln
- const arr=ix.array; let sR=R, sG=G, sB=B;
- for(let it=0;it<4;it++){
-   const aR=new Float32Array(n), aG=new Float32Array(n), aB=new Float32Array(n), K=new Float32Array(n);
-   for(let k=0;k<arr.length;k+=3){ const t=[arr[k],arr[k+1],arr[k+2]];
-     for(let e=0;e<3;e++){ const a=t[e], b=t[(e+1)%3]; aR[a]+=sR[b]; aG[a]+=sG[b]; aB[a]+=sB[b]; K[a]++; aR[b]+=sR[a]; aG[b]+=sG[a]; aB[b]+=sB[a]; K[b]++; } }
-   const nR=new Float32Array(n), nG=new Float32Array(n), nB=new Float32Array(n);
-   for(let i=0;i<n;i++){ const k=Math.max(K[i],1); nR[i]=aR[i]/k; nG[i]=aG[i]/k; nB[i]=aB[i]/k; }
-   sR=nR; sG=nG; sB=nB;
- }
- for(let i=0;i<n;i++){
-   const y=pa.getY(i), face=(y<1.665&&y>1.40), glatt=(SAT[i]>0.35&&face);
-   let r=glatt?R[i]*.35+sR[i]*.65:R[i], g=glatt?G[i]*.35+sG[i]*.65:G[i], b=glatt?B[i]*.35+sB[i]*.65:B[i];
-   const h=H[i];
-   if(h>0){
-     const lum=.299*R[i]+.587*G[i]+.114*B[i], bart=(y>1.655)?1.0:0.62, w=h*bart;
-     const fr=r*(1-h)+skin[0]*.9*h, fg=g*(1-h)+skin[1]*.9*h, fb=b*(1-h)+skin[2]*.9*h;
-     r=fr*(1-w)+(0.007+0.045*lum)*w; g=fg*(1-w)+(0.006+0.040*lum)*w; b=fb*(1-w)+(0.006+0.038*lum)*w;
-   }
-   // Glatze: Kopfhaar (oben am Kopf, nicht die Brauen) wird zu Haut. Brauen und Bart bleiben.
-   if(h>0){
-     const x=pa.getX(i), z=pa.getZ(i), brauen=(y<=1.665&&z>0.09&&Math.abs(x)<0.065);
-     if(y>1.60&&!brauen){ const ws=Math.min(1,h*1.6); r=r*(1-ws)+skin[0]*1.12*ws; g=g*(1-ws)+skin[1]*1.12*ws; b=b*(1-ws)+skin[2]*1.12*ws; }
-   }
-   ca.setXYZ(i,Math.max(0,Math.min(1,r)),Math.max(0,Math.min(1,g)),Math.max(0,Math.min(1,b)));
- }
- ca.needsUpdate=true; geo.userData.jvJung=true;
-}
 let ladeNr=0, zubEyes=[], zubHeadMesh=null;
 function ladeKopf(){
-const meine=++ladeNr, art=kopfArt, mann=(kopfArt==='reif'); zubEyes=[]; zubHeadMesh=null;   // mann: beide Köpfe nutzen mann.glb
+const meine=++ladeNr, art=kopfArt; zubEyes=[]; zubHeadMesh=null;
 gltfLoader.load(KOPF_URL[art],g=>{
  if(meine!==ladeNr) return;
  model=g.scene; faceRoot.add(model);
@@ -349,7 +309,7 @@ gltfLoader.load(KOPF_URL[art],g=>{
      m.needsUpdate=true; return m;
    }
    function materialFor(oldMat){
-     if(part==='teeth'&&mann){
+     if(part==='teeth'&&art==='reif'){
        // Reifer Kopf: Zähne elfenbein, Zunge/Gaumen in Fleischfarbe (in mann.glb als Vertexfarben eingebrannt)
        const m=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.7,metalness:0,side:THREE.DoubleSide});
        m.needsUpdate=true; return m;
@@ -359,7 +319,7 @@ gltfLoader.load(KOPF_URL[art],g=>{
        const m=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.30,metalness:0,side:THREE.DoubleSide});
        m.needsUpdate=true; return m;
      }
-     if(mann){
+     if(art==='reif'){
        if(part==='eye'){const m=new THREE.MeshStandardMaterial({color:0xffffff,map:augenTextur(),roughness:.28,metalness:0,side:THREE.DoubleSide});m.needsUpdate=true;return m}
        if(part==='head'){const m=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.66,metalness:0,side:THREE.DoubleSide});m.needsUpdate=true;return m}
      }
@@ -393,19 +353,19 @@ gltfLoader.load(KOPF_URL[art],g=>{
              'float jvN = clamp(jvL/0.40, 0.0, 1.6);\n'+
              'vec3 jvLumSkin = vec3(0.66,0.285,0.17) * jvN;\n'+
              'vec3 jvTexWarm = diffuseColor.rgb * vec3(2.1,1.0,0.62);\n'+
-             'vec3 jvSkin = mix(jvTexWarm, jvLumSkin, 0.0) * vec3(0.96,0.86,0.78) * vec3(0.52,0.44,0.40);\n'+
+             'vec3 jvSkin = mix(jvTexWarm, jvLumSkin, 0.0) * vec3(0.96,0.86,0.78);\n'+
              'vec3 jvT = (vJvPos - jvBMin) / (jvBMax - jvBMin);\n'+
              'float jvUp = 1.0 - jvT.z;\n'+
              'float jvBand = smoothstep(0.57,0.60,jvUp)*(1.0-smoothstep(0.64,0.67,jvUp))*smoothstep(0.55,0.75,jvT.y);\n'+
              'float jvBrow = (1.0 - smoothstep(0.6, 1.05, jvN)) * jvBand;\n'+
              'jvSkin = mix(jvSkin, vec3(0.05,0.022,0.012), jvBrow*0.95);\n'+
              'float jvDark = 1.0 - smoothstep(0.15, 0.85, jvN);\n'+
-             'jvSkin = mix(jvSkin, vec3(0.31,0.145,0.10), jvDark*0.55*(1.0-jvBand));\n'+
+             'jvSkin = mix(jvSkin, vec3(0.60,0.33,0.24), jvDark*0.55*(1.0-jvBand));\n'+
              'float jvEyeB = smoothstep(0.38,0.43,jvUp)*(1.0-smoothstep(0.545,0.575,jvUp))*smoothstep(0.55,0.75,jvT.y);\n'+
              'float jvEyeDark = 1.0 - smoothstep(0.7, 1.35, jvN);\n'+
-             'jvSkin = mix(jvSkin, vec3(0.32,0.14,0.09), jvEyeDark*jvEyeB*0.7);\n'+
+             'jvSkin = mix(jvSkin, vec3(0.62,0.32,0.21), jvEyeDark*jvEyeB*0.7);\n'+
              'float jvLip = smoothstep(0.165,0.19,jvUp)*(1.0-smoothstep(0.225,0.25,jvUp))*(1.0-smoothstep(0.10,0.17,abs(jvT.x-0.5)))*smoothstep(0.7,0.85,jvT.y);\n'+
-             'jvSkin = mix(jvSkin, vec3(0.30,0.10,0.09), jvLip*0.5);\n'+
+             'jvSkin = mix(jvSkin, vec3(0.50,0.17,0.15), jvLip*0.5);\n'+
              'float jvFront = smoothstep(0.55, 0.80, jvT.y);\n'+
              'float jvSide = smoothstep(0.30, 0.50, abs(jvT.x-0.5));\n'+
              'float jvEar = smoothstep(0.26,0.34,abs(jvT.x-0.5)) * (1.0-smoothstep(0.35,0.55,jvT.y));\n'+
@@ -434,9 +394,9 @@ gltfLoader.load(KOPF_URL[art],g=>{
  // Robust zentrieren: erst Weltmatrizen aktualisieren, dann skalieren, danach erneut messen.
  model.updateMatrixWorld(true);
  let box=new THREE.Box3().setFromObject(model), size=new THREE.Vector3();box.getSize(size);
- const sc=(mann?KOPF_REIF.h:2.34)/Math.max(size.y,.001); model.scale.multiplyScalar(sc); model.updateMatrixWorld(true);
+ const sc=(art==='reif'?KOPF_REIF.h:2.34)/Math.max(size.y,.001); model.scale.multiplyScalar(sc); model.updateMatrixWorld(true);
  box=new THREE.Box3().setFromObject(model); const center=new THREE.Vector3();box.getCenter(center);
- model.position.x-=center.x; model.position.y-=(mann?KOPF_REIF.cy*sc:center.y)+.04; model.position.z-=center.z;
+ model.position.x-=center.x; model.position.y-=(art==='reif'?KOPF_REIF.cy*sc:center.y)+.04; model.position.z-=center.z;
  model.updateMatrixWorld(true);
  modelReady=true; try{zubAnbringen()}catch(e){console.warn('Zubehör:',e)} setExpression('friendly'); btn.textContent='● 3D'; hideStatus(); if(active){renderer.domElement.style.display='block'; const sphere=document.getElementById('jarvisSphere');const holo=document.getElementById('jarvisHolo');if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
  console.info('JARVIS 3D v6.7 bereit – Größe:',size,'Morph Targets:',[...morphNames]);
@@ -928,7 +888,7 @@ function zubLaden(){
   return zubLoading;
 }
 function kopfMasse(){
-  if(kopfArt==='reif'||!zubHeadMesh||zubEyes.length<2) return null;   // beide Köpfe sind das Modell, auf das das Zubehör zugeschnitten ist
+  if(kopfArt==='reif'||!zubHeadMesh||zubEyes.length<2) return null;
   model.updateMatrixWorld(true);
   const inv=new THREE.Matrix4().copy(model.matrixWorld).invert();
   const boxes=zubEyes.slice(0,2).map(m=>new THREE.Box3().setFromObject(m).applyMatrix4(inv));
@@ -996,7 +956,6 @@ function sag(text,exp,ohneWeiter){
 }
 
 // Kopf schaut von selbst mal hierhin, mal dorthin (Augen schauen zuerst), nickt leicht beim Sprechen.
-const SCHAEDEL=new THREE.Vector3();
 const look={y:0,x:0,z:0,ty:0,tx:0,tz:0,next:0,nod:0,avert:false,engaged:false};
 function updateLook(now,dt,st,speaking){
   if(!JV_KOPFBEWEGUNG){look.y=look.x=look.z=0;return}
@@ -1062,16 +1021,6 @@ function loop(now){if(!active){raf=0;return}raf=requestAnimationFrame(loop);
  const atem=Math.sin(now*.0017)*sleepLevel;
  root.position.y=Math.sin(now*.0011)*.012*(1-sleepLevel)+(st==='listening'?.008:0)+atem*.012-(1-zubS)*.55;
  root.scale.setScalar(zubS*(1+.006*atem));
-
- // Der Schädel bleibt beim Drehen in der Bildmitte: Drehachse = Schädelmitte (Ohrhöhe), nicht die Mitte von Kopf plus Schultern.
- // Dazu wird der Punkt der Schädelmitte nach der Drehung gemessen und die Figur seitlich so verschoben, dass er bei x = 0 liegt.
- try{
-   if(model&&modelReady&&kopfArt==='reif'){
-     root.position.x=0; root.updateMatrixWorld(true);
-     SCHAEDEL.set(0,1.62,0.01); model.localToWorld(SCHAEDEL);
-     root.position.x=-SCHAEDEL.x;
-   } else if(root.position.x!==0) root.position.x=0;
- }catch(e){}
  updateBackground(now,dt,st,speaking);
  renderer.render(scene,camera)}
 function setMode(on){active=!!on; const sphere=document.getElementById('jarvisSphere'); const holo=document.getElementById('jarvisHolo'); btn.classList.toggle('active',active); btn.textContent=active?'● 3D':'○ 3D'; if(!active){renderer.domElement.style.display='none';hideStatus();if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} if(!modelReady){renderer.domElement.style.display='none';showStatus('3D-Kopf wird geladen …');if(sphere)sphere.style.visibility='';if(holo)holo.style.visibility='';return;} renderer.domElement.style.display='block';hideStatus();if(sphere)sphere.style.visibility='hidden';if(holo)holo.style.visibility='hidden';if(!raf){loop.last=performance.now();raf=requestAnimationFrame(loop)}}
