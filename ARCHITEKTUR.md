@@ -123,7 +123,7 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 - In den Android-Einstellungen heißt die App **Jarvis**, nicht Nova/Zane.
 
 ## Köpfe (jung und reif)
-- Junger Kopf = `models/facecap.glb` (Original, mit Lippen-Ausdrücken, Haare per Shader, `JV_HAARE=true` in `avatar3d.js`). Reifer Kopf = `models/mann.glb` (Vertexfarben, graue Haare, Bart). Zubehör (Brille) passt auf beide.
+- Beide Köpfe sind dieselbe Figur (`models/mann.glb`). Der reife Kopf zeigt sie wie gespeichert (graue Haare, Bart). Der junge wird beim Laden in `avatar3d.js` `verjuengen()` umgefärbt: graue Punktfarben (wenig Farbsättigung) werden schwarz, Haut geglättet, Bart nur als Dreitagebart. `models/facecap.glb` gibt es nicht mehr. Das Zubehör (`zubehoer.glb`) ist auf diese Figur zugeschnitten und passt auf beide Köpfe (`kopfMasse()` gibt für beide null zurück, Maße 1:1).
 
 ## Jarvis' Bart und Mund (reifer Kopf)
 - Haare und Bart stecken als graue Farben fest in `models/mann.glb` (Vertexfarben). Der Bart war lückig.

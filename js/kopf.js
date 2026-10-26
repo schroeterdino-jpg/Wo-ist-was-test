@@ -37,7 +37,7 @@
         st.textContent = 'body.jv-holo.jv-kopf-reif #jarvisAvatar3D{opacity:' + KOPF_DECKKRAFT_REIF + '}';
         document.head.appendChild(st);
     } catch (e) { }
-    function klasse() { try { document.body.classList.toggle('jv-kopf-reif', kopf() === 'reif'); } catch (e) { } }
+    function klasse() { try { document.body.classList.add('jv-kopf-reif'); } catch (e) { } }   // beide Köpfe sind jetzt dieselbe feste Figur (82 % Deckkraft statt 50 %)
     klasse();
 
     let sperre = false;
