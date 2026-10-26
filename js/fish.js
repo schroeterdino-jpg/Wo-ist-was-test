@@ -324,6 +324,7 @@
 
     function setLastVoice(engine, ms, chars, parts, tags) {
         window.jvLastVoice = { engine, ms, chars, parts, tags, at: Date.now() };
+        try { if (typeof diagAdd === 'function') diagAdd('⏱ Stimme (' + engine + '): ' + ms + ' ms für das erste Stück' + (window.jvT0 ? ', Jarvis fängt an zu sprechen ' + (Date.now() - window.jvT0) + ' ms nach deiner Frage' : '')); } catch (e) {}
         try {
             const el = document.getElementById('fishLastVoice');
             if (el) {
