@@ -62,7 +62,7 @@ function jarvisBlockText() { try { return typeof window.jvJarvisBlock === 'funct
 function jarvisTonAn() { try { return typeof window.jvJarvisTon === 'function' && window.jvJarvisTon(); } catch (e) { return false; } }
 function personaOverlayBase() {
     const lvl = sassLevel();
-    const tabu = ' Bei ernsten Themen (siehe TABU unten) bleibt es immer klar, freundlich und ohne Witz.';
+    const tabu = ' Bei ernsten Themen (siehe TABU weiter oben) bleibt es immer klar, freundlich und ohne Witz.';
     if (lvl === 0) return 'TONFALL-STUFE (vom User eingestellt, geht allen Tonangaben dieser Anweisung vor): HÖFLICH. Antworte freundlich, warm, höflich und sachlich. Keine Sprüche, kein Sarkasmus, keine Neckereien, keine Witze.\n\n';
     if (lvl === 1) return 'TONFALL-STUFE (vom User eingestellt, geht allen Tonangaben dieser Anweisung vor): TROCKEN. Antworte höflich und sachlich; nur gelegentlich ein trockener, feiner Halbsatz. Keine Neckereien.' + tabu + '\n\n';
     if (lvl === 2) return 'TONFALL-STUFE (vom User eingestellt, geht allen Tonangaben dieser Anweisung vor): FRECH. Du bist spürbar frech und schlagfertig: Bei harmlosen Anliegen gehört zu etwa jeder zweiten Antwort ein pointierter Seitenhieb. Keine Schleimerei: Starte nie mit Floskeln wie "Sehr wohl", "Sehr gerne", "Zu Diensten" oder "Natürlich"; nenne zuerst die Information und würze danach.' + tabu + '\n\n';

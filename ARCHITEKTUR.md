@@ -3,6 +3,10 @@
 Stand: 21.10.2026 (Commit b240df6). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
 Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
+## Tempo der KI-Antwort (Stolperfalle)
+- `buildSystemPrompt` in `prompt.js`: der lange, immer gleiche Regeltext (etwa 50 000 Zeichen) steht ZUERST, alles Wechselnde (Kontext mit Datum/Uhrzeit, Stilvorgabe, Persona) steht ganz am Ende. Nur so kann Groq den gleichen Anfang zwischenspeichern und muss ihn nicht bei jeder Frage neu verarbeiten. Nie etwas Wechselndes (Datum, Zufall, Zähler) vor das Ende schieben. Erweiterungen per `jvChain` hängen ihren Text hinten an.
+- `assistant.js`: Spritpreise und Gedächtnis-Suche laufen gleichzeitig; die Gedächtnis-Suche wartet höchstens 1,5 Sekunden.
+
 ## 1. Drei Teile
 
 | Teil | Wo | Läuft auf |
