@@ -492,18 +492,15 @@
             return a ? a.blob : silentBlob();
         }
 
-        // Die weiteren Stücke werden schon JETZT angefordert, gleichzeitig mit dem ersten (statt erst danach): so ist Stück 2 meist fertig, wenn Stück 1 zu Ende gesprochen ist.
-        let frueh = null;
-        if (chunks.length > 1) { try { frueh = startQueue(chunks.slice(1), voice, 'fish'); } catch (e) { frueh = null; } }
+        // Gemessen: Werden Stück 1 und 2 gleichzeitig angefordert, startet der Server eine zweite, kalte Instanz und das erste Stück kam 2 s später (6,0 statt 5,4 s). Darum nacheinander.
         // Erstes (oder einziges) Stück: normale Kette. Fish Audio bekommt viel Zeit (Server 15 s), erst dann springt die Ersatzstimme ein.
         const r = await requestOne(chunks[0], voice, { timeout: 30000 });
         if (!r) return null;
         setLastVoice(r.engine, Date.now() - started, full.length, chunks.length, (full.match(/\[[a-z ]+\]/g) || []));
         if (chunks.length > 1) {
-            if (r.engine === 'fish' && frueh) { try { r.blob.__jvQ = frueh; } catch (e) {} }
-            else {   // Kam das erste Stück nicht von Fish Audio, wird der Rest einheitlich über dieselbe Ersatzkette geholt (die früh gestartete Warteschlange bleibt ungenutzt)
-                try { r.blob.__jvQ = startQueue([chunks.slice(1).join(' ')], voice, r.engine); } catch (e) {}
-            }
+            // Kam das erste Stück nicht von Fish Audio, wird der Rest einheitlich über dieselbe Ersatzkette geholt
+            const restChunks = r.engine === 'fish' ? chunks.slice(1) : [chunks.slice(1).join(' ')];
+            try { r.blob.__jvQ = startQueue(restChunks, voice, r.engine); } catch (e) {}
         }
         return r.blob;
     };
