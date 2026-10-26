@@ -283,7 +283,7 @@
     // nacheinander im Hintergrund und hängt sie nahtlos an, noch während das erste läuft (ein Stück Sprache dauert beim Abspielen viel länger als beim Erzeugen).
     // Nacheinander statt gleichzeitig, damit Fish Audio nicht wegen zu vieler Anfragen ablehnt. Alle Stücke bekommen dieselbe Fish-Stimme; hakt ein späteres Stück
     // auch nach zwei Versuchen, wird der RESTTEXT einmal über die normale Kette (OpenAI/Edge) gesprochen, damit nichts fehlt.
-    const CHUNK_MAX = 280, SINGLE_MAX = 200, FIRST_MIN = 45, FIRST_MAX = 120;   // kurzes erstes Stück = die Stimme fängt früher an (früher 320/60/170)
+    const CHUNK_MAX = 280, SINGLE_MAX = 70, FIRST_MIN = 25, FIRST_MAX = 90;   // kurzer erster Satz = Stimme startet früh (gemessen: Fish braucht etwa 3,5 s für 126 Zeichen)   // kurzes erstes Stück = die Stimme fängt früher an (früher 320/60/170)
 
     function sentencesOf(text) {
         const t = String(text).replace(/\s+/g, ' ').trim();
@@ -376,7 +376,7 @@
                 let r = null;
                 if (firstEngine === 'fish') {
                     r = await requestOne(chunks[i], voice, { timeout: 12000, fishOnly: true });
-                    if (!r) r = await requestOne(chunks[i], voice, { timeout: 12000, fishOnly: true });
+                    if (!r) { await new Promise(res => setTimeout(res, 1500)); r = await requestOne(chunks[i], voice, { timeout: 12000, fishOnly: true }); }   // kurz warten: bei gleichzeitigen Anfragen kann Fish Audio ablehnen
                 }
                 if (!r) {                                   // Rest in einem Stück über die Ersatzkette (ohne Fish, falls das erste Stück schon von der Ersatzstimme kam: eine Stimme für den ganzen Text)
                     const remaining = chunks.slice(i).join(' ');
@@ -492,14 +492,18 @@
             return a ? a.blob : silentBlob();
         }
 
+        // Die weiteren Stücke werden schon JETZT angefordert, gleichzeitig mit dem ersten (statt erst danach): so ist Stück 2 meist fertig, wenn Stück 1 zu Ende gesprochen ist.
+        let frueh = null;
+        if (chunks.length > 1) { try { frueh = startQueue(chunks.slice(1), voice, 'fish'); } catch (e) { frueh = null; } }
         // Erstes (oder einziges) Stück: normale Kette. Fish Audio bekommt viel Zeit (Server 15 s), erst dann springt die Ersatzstimme ein.
         const r = await requestOne(chunks[0], voice, { timeout: 30000 });
         if (!r) return null;
         setLastVoice(r.engine, Date.now() - started, full.length, chunks.length, (full.match(/\[[a-z ]+\]/g) || []));
         if (chunks.length > 1) {
-            // Kam das erste Stück nicht von Fish Audio, wird der Rest einheitlich über dieselbe Ersatzkette geholt
-            const restChunks = r.engine === 'fish' ? chunks.slice(1) : [chunks.slice(1).join(' ')];
-            try { r.blob.__jvQ = startQueue(restChunks, voice, r.engine); } catch (e) {}
+            if (r.engine === 'fish' && frueh) { try { r.blob.__jvQ = frueh; } catch (e) {} }
+            else {   // Kam das erste Stück nicht von Fish Audio, wird der Rest einheitlich über dieselbe Ersatzkette geholt (die früh gestartete Warteschlange bleibt ungenutzt)
+                try { r.blob.__jvQ = startQueue([chunks.slice(1).join(' ')], voice, r.engine); } catch (e) {}
+            }
         }
         return r.blob;
     };
