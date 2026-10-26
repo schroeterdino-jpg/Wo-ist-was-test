@@ -288,6 +288,7 @@ function verjuengen(geo){
    for(let i=0;i<n;i++){ const k=Math.max(K[i],1); nR[i]=aR[i]/k; nG[i]=aG[i]/k; nB[i]=aB[i]/k; }
    sR=nR; sG=nG; sB=nB;
  }
+ const YR=new Float32Array(n), YG=new Float32Array(n), YB=new Float32Array(n), WS=new Float32Array(n);
  for(let i=0;i<n;i++){
    const y=pa.getY(i), face=(y<1.665&&y>1.40), glatt=(SAT[i]>0.35&&face);
    let r=glatt?R[i]*.35+sR[i]*.65:R[i], g=glatt?G[i]*.35+sG[i]*.65:G[i], b=glatt?B[i]*.35+sB[i]*.65:B[i];
@@ -296,12 +297,29 @@ function verjuengen(geo){
      const lum=.299*R[i]+.587*G[i]+.114*B[i], bart=(y>1.655)?1.0:0.62, w=h*bart;
      const fr=r*(1-h)+skin[0]*.9*h, fg=g*(1-h)+skin[1]*.9*h, fb=b*(1-h)+skin[2]*.9*h;
      r=fr*(1-w)+(0.007+0.045*lum)*w; g=fg*(1-w)+(0.006+0.040*lum)*w; b=fb*(1-w)+(0.006+0.038*lum)*w;
-   }
-   // Glatze: Kopfhaar (oben am Kopf, nicht die Brauen) wird zu Haut. Brauen und Bart bleiben.
-   if(h>0){
+     // Glatze: Kopfhaar oben am Kopf (nicht die Brauen) fällt weg, Brauen und Bart bleiben
      const x=pa.getX(i), z=pa.getZ(i), brauen=(y<=1.665&&z>0.09&&Math.abs(x)<0.065);
-     if(y>1.60&&!brauen){ const ws=Math.min(1,h*1.6); r=r*(1-ws)+skin[0]*1.12*ws; g=g*(1-ws)+skin[1]*1.12*ws; b=b*(1-ws)+skin[2]*1.12*ws; }
+     if(y>1.60&&!brauen) WS[i]=Math.min(1,h*1.6);
    }
+   YR[i]=r; YG[i]=g; YB[i]=b;
+ }
+ // Die Kopfhaut bekommt die Farbe der Stirn: Haut von den Rändern her nach innen ausfüllen (Nachbarpunkte mitteln), kein harter Rand
+ const inMask=new Uint8Array(n); let mc=0; for(let i=0;i<n;i++) if(WS[i]>0.05){ inMask[i]=1; mc++; }
+ let FR=YR, FG=YG, FB=YB;
+ if(mc>0){
+   const nb=[]; for(let i=0;i<n;i++) nb.push(null);
+   const add=(a,b)=>{ if(!inMask[a]) return; (nb[a]||(nb[a]=[])).push(b); };
+   for(let k=0;k<arr.length;k+=3){ const a=arr[k],b=arr[k+1],c=arr[k+2]; add(a,b);add(a,c);add(b,a);add(b,c);add(c,a);add(c,b); }
+   FR=new Float32Array(YR); FG=new Float32Array(YG); FB=new Float32Array(YB);
+   for(let i=0;i<n;i++) if(inMask[i]){ FR[i]=skin[0]; FG[i]=skin[1]; FB[i]=skin[2]; }
+   let TR=new Float32Array(FR), TG=new Float32Array(FG), TB=new Float32Array(FB);
+   for(let it=0;it<150;it++){
+     for(let i=0;i<n;i++){ if(!inMask[i]) continue; const l=nb[i]; if(!l||!l.length) continue; let a=0,b=0,c=0; for(let q=0;q<l.length;q++){ const m=l[q]; a+=FR[m]; b+=FG[m]; c+=FB[m]; } TR[i]=a/l.length; TG[i]=b/l.length; TB[i]=c/l.length; }
+     const t1=FR; FR=TR; TR=t1; const t2=FG; FG=TG; TG=t2; const t3=FB; FB=TB; TB=t3;
+   }
+ }
+ for(let i=0;i<n;i++){
+   const w=WS[i]; const r=YR[i]*(1-w)+FR[i]*w, g=YG[i]*(1-w)+FG[i]*w, b=YB[i]*(1-w)+FB[i]*w;
    ca.setXYZ(i,Math.max(0,Math.min(1,r)),Math.max(0,Math.min(1,g)),Math.max(0,Math.min(1,b)));
  }
  ca.needsUpdate=true; geo.userData.jvJung=true;
