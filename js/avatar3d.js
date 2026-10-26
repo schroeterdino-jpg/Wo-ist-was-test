@@ -266,7 +266,7 @@ function bartVoller(geo){
  }
  ca.needsUpdate=true; geo.userData.jvBartVoll=true;
 }
-/* Junger Kopf: dieselbe Figur wie der reife, aber mit schwarzem Haar, schwarzen Brauen, Dreitagebart und glatterer Haut.
+/* Junger Kopf: dieselbe Figur wie der reife, aber mit Glatze, schwarzen Brauen, Dreitagebart und glatterer Haut.
    Die Farben stecken als Punktfarben im Modell (graues Haar = wenig Farbsättigung). Das graue Haar wird schwarz, die Haut geglättet. */
 function verjuengen(geo){
  if(!geo||geo.userData.jvJung) return;
@@ -296,6 +296,11 @@ function verjuengen(geo){
      const lum=.299*R[i]+.587*G[i]+.114*B[i], bart=(y>1.655)?1.0:0.62, w=h*bart;
      const fr=r*(1-h)+skin[0]*.9*h, fg=g*(1-h)+skin[1]*.9*h, fb=b*(1-h)+skin[2]*.9*h;
      r=fr*(1-w)+(0.007+0.045*lum)*w; g=fg*(1-w)+(0.006+0.040*lum)*w; b=fb*(1-w)+(0.006+0.038*lum)*w;
+   }
+   // Glatze: Kopfhaar (oben am Kopf, nicht die Brauen) wird zu Haut. Brauen und Bart bleiben.
+   if(h>0){
+     const x=pa.getX(i), z=pa.getZ(i), brauen=(y<=1.665&&z>0.09&&Math.abs(x)<0.065);
+     if(y>1.60&&!brauen){ const ws=Math.min(1,h*1.6); r=r*(1-ws)+skin[0]*1.12*ws; g=g*(1-ws)+skin[1]*1.12*ws; b=b*(1-ws)+skin[2]*1.12*ws; }
    }
    ca.setXYZ(i,Math.max(0,Math.min(1,r)),Math.max(0,Math.min(1,g)),Math.max(0,Math.min(1,b)));
  }
