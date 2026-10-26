@@ -201,6 +201,15 @@
         if (!s && e.sonst) s = e.sonst;
         return s;
     }
+    /* Zum Vorlesen: klar getrennt in "Vegetarisch: ..." und "Mit Fleisch: ...", jeweils als eigener Satz */
+    function ohnePunkt(x) { return String(x || '').trim().replace(/[.\s]+$/, ''); }
+    function getrennt(e) {
+        const t = [];
+        if (e.veg) t.push('Vegetarisch: ' + ohnePunkt(e.veg) + '.');
+        if (e.fleisch) t.push('Mit Fleisch: ' + ohnePunkt(e.fleisch) + '.');
+        if (!t.length && e.sonst) t.push(ohnePunkt(e.sonst) + '.');
+        return t.join(' ');
+    }
     function altHinweis(p) {
         try {
             const tage = (Date.parse(heuteIso()) - Date.parse(p.gespeichert)) / 86400000;
@@ -211,8 +220,8 @@
     function antwortTag(off, p) {
         const wd = berlinTag(off), name = WD[wd];
         const wort = off === 0 ? 'Heute' : off === 1 ? 'Morgen' : off === 2 ? 'Übermorgen' : 'Am ' + name;
-        if (p.tage[name]) return wort + (off >= 0 && off <= 2 ? ', ' + name + ',' : '') + ' gibt es ' + gerichte(p.tage[name]) + '.' + altHinweis(p);
-        if (wd === 0 || wd === 6) { const mo = p.tage.Montag; return wort + ' gibt es keinen Essensplan.' + (mo ? ' Am Montag gibt es ' + gerichte(mo) + '.' : '') + altHinweis(p); }
+        if (p.tage[name]) return wort + (off >= 0 && off <= 2 ? ', ' + name + ',' : '') + ' gibt es Folgendes. ' + getrennt(p.tage[name]) + altHinweis(p);
+        if (wd === 0 || wd === 6) { const mo = p.tage.Montag; return wort + ' gibt es keinen Essensplan.' + (mo ? ' Am Montag gibt es Folgendes. ' + getrennt(mo) : '') + altHinweis(p); }
         return 'Für ' + name + ' steht nichts im Essensplan.' + altHinweis(p);
     }
     function offsetAusSatz(t) {
@@ -234,8 +243,8 @@
         if (!p) return next(text);
         if (WORT.test(t) && /\b(?:zeig\w*|anzeigen|oeffne\w*|öffne\w*)\b/.test(t)) { zeigeFenster(p, true); sagen('Hier ist der Essensplan.'); return true; }
         if (WORT.test(t) && /\b(?:vorles\w*|lies|les\w*|woche|ganze\w*)\b/.test(t)) {
-            const teile = TAGE.filter(d => p.tage[d]).map(d => d + ': ' + gerichte(p.tage[d]) + '.');
-            sagen('Der Essensplan. ' + teile.join(' ') + altHinweis(p)); return true;
+            const teile = TAGE.filter(d => p.tage[d]).map(d => d + '.\n' + getrennt(p.tage[d]));
+            sagen('Der Essensplan.\n\n' + teile.join('\n\n') + altHinweis(p)); return true;
         }
         const frage = /^(?:was|welche[sn]?|gibt)\b/.test(t) && /\b(?:gibt|gibts|essen|kantine|mittag\w*|gericht\w*|kochen|kocht|zu essen)\b/.test(t) || WORT.test(t);
         if (!frage || /\b(?:fernsehen|tv|kino|neu\w*|nachricht\w*|wetter|film\w*|programm|termin\w*|arbeit|schicht\w*|tank\w*|sprit|diesel|zuhause|abend\w*|fruehstueck|frühstück)\b/.test(t)) return next(text);
