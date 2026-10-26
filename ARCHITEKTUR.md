@@ -3,6 +3,7 @@
 Stand: 21.10.2026 (Commit b240df6). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
 Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
+- Stimme: `api/stau.js` nimmt für Fish Audio standardmäßig das neue Modell `s2.1-pro-free` (schneller als das alte `s2-pro`, das früher 5-6 s bis zum ersten Ton brauchte); ein in Vercel gesetztes `FISH_AUDIO_MODEL` gilt weiter (außer `s2-pro`), bei einem 4xx-Fehler gibt es einen zweiten Versuch mit `s2-pro`. `fish.js`: erstes Sprachstück höchstens 120 Zeichen. Zeiten zeigt das Diagnose-Fenster ("Diagnose an").
 ## Tempo der KI-Antwort (Stolperfalle)
 - `buildSystemPrompt` in `prompt.js`: der lange, immer gleiche Regeltext (etwa 50 000 Zeichen) steht ZUERST, alles Wechselnde (Kontext mit Datum/Uhrzeit, Stilvorgabe, Persona) steht ganz am Ende. Nur so kann Groq den gleichen Anfang zwischenspeichern und muss ihn nicht bei jeder Frage neu verarbeiten. Nie etwas Wechselndes (Datum, Zufall, Zähler) vor das Ende schieben. Erweiterungen per `jvChain` hängen ihren Text hinten an.
 - `assistant.js`: Spritpreise und Gedächtnis-Suche laufen gleichzeitig; die Gedächtnis-Suche wartet höchstens 1,5 Sekunden.

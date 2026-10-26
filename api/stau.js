@@ -1,7 +1,7 @@
 // Verkehrsmeldungen (Stau, Baustellen), Webcams UND Sprachausgabe (Fish Audio + OpenAI + Edge-TTS) - alles in EINER
 // Datei, weil Vercel im kostenlosen Hobby-Plan höchstens 12 Serverless Functions pro Deployment erlaubt.
 // Kein API-Schlüssel nötig für Autobahn-Verkehr/Webcams (Stadtverkehr über TomTom: Variable TOMTOM_API_KEY). Sprachausgabe, in dieser Reihenfolge:
-//   1. Fish Audio (engine=fish; Schlüssel FISH_AUDIO_API_KEY, Stimme FISH_AUDIO_VOICE_ID oder ?fishVoice=..., Modell FISH_AUDIO_MODEL, Standard s2-pro)
+//   1. Fish Audio (engine=fish; Schlüssel FISH_AUDIO_API_KEY, Stimme FISH_AUDIO_VOICE_ID oder ?fishVoice=..., Modell FISH_AUDIO_MODEL, Standard s2.1-pro-free; fällt bei einem Fehler auf s2-pro zurück)
 //   2. OpenAI (gpt-4o-mini-tts, sehr natürlich, kostenpflichtig; Schlüssel OPENAI_API_KEY)
 //   3. Edge-TTS (kostenlos, kein Schlüssel)
 // Bei jedem Problem einer Stufe (kein Schlüssel, kein Guthaben, Ausfall, Zeitüberschreitung) geht es automatisch und sofort mit der nächsten weiter,
@@ -39,22 +39,29 @@ export default async function handler(req, res) {
         if (fdiag) return res.status(200).json({ engineUsed: 'none', error: 'Server: FISH_AUDIO_API_KEY fehlt - fällt normalerweise lautlos auf OpenAI/Edge-TTS zurück' });
       } else {
         const voiceId = String(req.query.fishVoice || process.env.FISH_AUDIO_VOICE_ID || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
-        const model = String(process.env.FISH_AUDIO_MODEL || 's2-pro').replace(/[^a-zA-Z0-9._-]/g, '') || 's2-pro';
+        // Standard: das neue, schnellere Modell (kostenlose Ausgabe). Ein in Vercel gesetztes FISH_AUDIO_MODEL gilt weiter, nur das alte 's2-pro' wird ersetzt.
+        const envModel = String(process.env.FISH_AUDIO_MODEL || '').replace(/[^a-zA-Z0-9._-]/g, '');
+        const model = (envModel && envModel !== 's2-pro') ? envModel : 's2.1-pro-free';
         try {
           const body = { text, format: 'mp3' };
           if (voiceId) body.reference_id = voiceId;
-          const fRes = await fetch('https://api.fish.audio/v1/tts', {
+          const fishCall = (m) => fetch('https://api.fish.audio/v1/tts', {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${fishKey}`, 'Content-Type': 'application/json', 'model': model },
+            headers: { 'Authorization': `Bearer ${fishKey}`, 'Content-Type': 'application/json', 'model': m },
             body: JSON.stringify(body),
             signal: AbortSignal.timeout(15000)   // das kostenlose Modell ist manchmal langsam: Fish Audio bekommt Zeit, statt dass mitten drin eine andere Stimme einspringt
           });
+          let fRes = await fishCall(model);
+          let usedModel = model;
+          // Kennt Fish das neue Modell nicht (Name falsch, Konto ohne Zugang), bleibt die Stimme dieselbe: ein Versuch mit dem alten Modell statt Stimmenwechsel
+          if (!fRes.ok && fRes.status >= 400 && fRes.status < 500 && fRes.status !== 429 && model !== 's2-pro') { fRes = await fishCall('s2-pro'); usedModel = 's2-pro'; }
           if (fRes.ok) {
             const buf = Buffer.from(await fRes.arrayBuffer());
             if (buf.length) {
-              if (fdiag) return res.status(200).json({ engineUsed: 'fish', ok: true, bytes: buf.length, model, voice: voiceId || '(Standardstimme, keine Stimmen-ID gesetzt)' });
+              if (fdiag) return res.status(200).json({ engineUsed: 'fish', ok: true, bytes: buf.length, model: usedModel, voice: voiceId || '(Standardstimme, keine Stimmen-ID gesetzt)' });
               res.setHeader('Content-Type', 'audio/mpeg');
               res.setHeader('X-Voice-Engine', 'fish');
+              res.setHeader('X-Fish-Model', usedModel);
               res.setHeader('Cache-Control', 'no-store');
               return res.status(200).send(buf);
             }

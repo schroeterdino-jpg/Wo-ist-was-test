@@ -283,7 +283,7 @@
     // nacheinander im Hintergrund und hängt sie nahtlos an, noch während das erste läuft (ein Stück Sprache dauert beim Abspielen viel länger als beim Erzeugen).
     // Nacheinander statt gleichzeitig, damit Fish Audio nicht wegen zu vieler Anfragen ablehnt. Alle Stücke bekommen dieselbe Fish-Stimme; hakt ein späteres Stück
     // auch nach zwei Versuchen, wird der RESTTEXT einmal über die normale Kette (OpenAI/Edge) gesprochen, damit nichts fehlt.
-    const CHUNK_MAX = 280, SINGLE_MAX = 320, FIRST_MIN = 60, FIRST_MAX = 170;
+    const CHUNK_MAX = 280, SINGLE_MAX = 200, FIRST_MIN = 45, FIRST_MAX = 120;   // kurzes erstes Stück = die Stimme fängt früher an (früher 320/60/170)
 
     function sentencesOf(text) {
         const t = String(text).replace(/\s+/g, ' ').trim();
