@@ -134,7 +134,13 @@
         const a = document.createElement('a'); a.textContent = text; a.href = href || '#'; a.target = '_blank'; a.rel = 'noopener noreferrer';
         // In der Handy-App immer im Browser öffnen, nie in einer Shop-App (Lidl, Kleinanzeigen): sonst wird Jarvis im Hintergrund beendet und startet neu
         a.addEventListener('click', e => {
-            try { if (window.ZaneNative && typeof window.ZaneNative.oeffneImBrowser === 'function' && /^https?:/.test(a.href) && window.ZaneNative.oeffneImBrowser(a.href)) e.preventDefault(); } catch (err) { }
+            try {
+                if (window.ZaneNative && /^https?:/.test(a.href)) {
+                    // erst im eigenen Fenster in Jarvis (kein Neustart), sonst (ältere APK) im Browser; in der APK nie die Standard-Öffnung zulassen
+                    const f = typeof window.ZaneNative.oeffneImFenster === 'function' ? window.ZaneNative.oeffneImFenster : window.ZaneNative.oeffneImBrowser;
+                    if (typeof f === 'function') { e.preventDefault(); f.call(window.ZaneNative, a.href); }
+                }
+            } catch (err) { }
         });
         return a;
     }
