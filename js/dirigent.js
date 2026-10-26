@@ -73,6 +73,9 @@
             }
         } catch (e) { }
         try {
+            if (window.jvPreisWaechter) { const pw = window.jvPreisWaechter.laden().filter(w => w.preis); if (pw.length) k.preiswaechter = pw.map(w => ({ produkt: w.q, preis_euro: w.preis, shop: w.shop, wunschpreis_euro: w.grenze || null })); }
+        } catch (e) { }
+        try {
             if (window.jvWunschliste) {
                 const adv = new Date(new Date().getFullYear(), 11, 24), tage = Math.round((adv - new Date(heute + 'T12:00:00')) / 86400000);
                 k.wunschlisten = window.jvWunschliste.laden().map(l => { const o = l.items.filter(i => !i.done); return { name: l.name, offen: o.length, gekauft: l.items.length - o.length, mit_preis: o.filter(i => i.preis).length, summe_guenstigste_euro: Math.round(o.reduce((s, i) => s + (i.preis || 0), 0)), preise_vor_tagen: (() => { const t = o.map(i => i.am || 0).filter(Boolean); return t.length ? Math.round((Date.now() - Math.max.apply(null, t)) / 86400000) : null; })() }; });

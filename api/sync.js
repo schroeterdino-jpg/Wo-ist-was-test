@@ -24,6 +24,7 @@ const ALLOWED_KEYS = [
   'jv_urlaub_liste',
   'jv_ausfluege',
   'jv_wunschlisten',
+  'jv_preiswaechter',
   'jv_plan_beginn',
   'jv_plan_abfahrt',
   'jv_hoerkorrektur',
