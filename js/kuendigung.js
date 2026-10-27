@@ -258,11 +258,11 @@
         try { if (typeof window.resumeJarvisSphere === 'function') window.resumeJarvisSphere(); } catch (e) {}
     }
     function fileName() { return 'Kuendigung_' + String((lastData && lastData.anbieter) || 'Vertrag').replace(/[^A-Za-z0-9ÄÖÜäöüß]+/g, '_').replace(/^_|_$/g, '') + '.pdf'; }
-    function savePdf(text) {
+    function savePdf(text, name) {
         try {
             const bytes = makePdf(text), blob = new Blob([bytes], { type: 'application/pdf' });
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob); a.download = fileName();
+            a.href = URL.createObjectURL(blob); a.download = name || fileName();
             document.body.appendChild(a); a.click();
             setTimeout(() => { try { URL.revokeObjectURL(a.href); a.remove(); } catch (e) {} }, 4000);
             return true;
@@ -637,6 +637,39 @@
             return;
         }
         next();
+    };
+    /* Allgemeines Brief-Fenster (für behoerdenbrief.js): Text ändern, PDF, Drucken, Kopieren, optional Gmail-Entwurf.
+       o = { titel, datei (PDF-Name), mailFn(adresse, text) } */
+    window.jvBriefFenster = function (text, o) {
+        o = o || {};
+        ensureStyle(); closeWin(); lastData = null;
+        const mk = (p, tag, cls, txt) => { const x = document.createElement(tag); if (cls) x.className = cls; if (txt !== undefined) x.textContent = txt; p.appendChild(x); return x; };
+        el = document.createElement('div'); el.id = 'jvKuend';
+        const head = mk(el, 'div', 'kd-head');
+        mk(head, 'div', 'kd-title', o.titel || 'BRIEF');
+        mk(head, 'div', 'kd-sub', 'Entwurf: Text lässt sich hier ändern. Lücken in [eckigen Klammern] bitte ausfüllen.');
+        const ta = mk(el, 'textarea'); ta.value = text; ta.spellcheck = false;
+        const bar = mk(el, 'div', 'kd-bar');
+        const note = txt => { try { say(txt); } catch (e) {} };
+        mk(bar, 'button', 'kd-btn primary', '📄 PDF speichern').addEventListener('click', () => { note(savePdf(ta.value, o.datei || 'Brief.pdf') ? 'Die PDF-Datei wurde gespeichert. Du findest sie bei den Downloads.' : 'Das PDF konnte nicht erstellt werden.'); });
+        mk(bar, 'button', 'kd-btn primary', '🖨️ Drucken').addEventListener('click', () => printText(ta.value));
+        mk(bar, 'button', 'kd-btn', '📋 Kopieren').addEventListener('click', () => {
+            const ok = () => note('Der Text ist kopiert.');
+            try { navigator.clipboard.writeText(ta.value).then(ok, () => { ta.select(); document.execCommand('copy'); ok(); }); } catch (e) { try { ta.select(); document.execCommand('copy'); ok(); } catch (x) {} }
+        });
+        if (typeof o.mailFn === 'function') {
+            const inp = mk(bar, 'input'); inp.type = 'email'; inp.placeholder = 'E-Mail-Adresse des Empfängers'; inp.setAttribute('autocomplete', 'off');
+            inp.style.cssText = 'grid-column:1/-1;padding:10px;border-radius:10px;border:1px solid rgba(93,209,255,.3);background:#fff;color:#111;font:15px Arial,sans-serif;min-width:0';
+            mk(bar, 'button', 'kd-btn', '✉️ Gmail-Entwurf').addEventListener('click', () => {
+                const a = inp.value.trim();
+                if (!/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(a)) { note('Bitte gib oben eine gültige E-Mail-Adresse ein.'); return; }
+                Promise.resolve(o.mailFn(a, ta.value)).catch(e => { console.error('Brief Entwurf', e); note('Das hat nicht geklappt.'); });
+            });
+        }
+        const closeBtn = mk(bar, 'button', 'kd-btn', 'Schließen'); closeBtn.addEventListener('click', closeWin); closeBtn.style.gridColumn = '1 / -1';
+        document.body.appendChild(el);
+        try { document.body.classList.add('panel-open'); } catch (e) {}
+        try { if (typeof window.pauseJarvisSphere === 'function') window.pauseJarvisSphere(); } catch (e) {}
     };
     window.handleKuendigungCommand = handle;
     window.kuendigungMenu = openMenu;
