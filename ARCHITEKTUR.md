@@ -232,3 +232,9 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 - Sprache (Order 0.33): "Was hast du für mich?", "Warum hast du dich gemeldet?", "Das interessiert mich nicht", "Keine Tagesmeldungen mehr" / "Tagesmeldungen an", "Alle Themen wieder".
 
 **Feierabend/Heimweg (27.10.2026):** `heim|<Tag>` ist nur noch eine Benachrichtigung (kurzer Text mit üblicher Heimweg-Dauer). `ansage('heim|…')` ohne `erzwingen` speichert die Meldung nur zum Nachlesen und zeigt sie, es wird nichts gesprochen. Die Sprache "Heimweg" / "Feierabend-Briefing" liest weiterhin vor.
+
+## Prüfstrecke (tests/)
+- `node tests/lauf.js`: alte Prüfungen (877), Aufbau und Syntax.
+- `node tests/jarvis_pruefstrecke.js`: neue Prüfstrecke. Lädt über `tests/umgebung.js` ALLE Skripte aus `index.html` in eine Attrappen-Umgebung (virtuelle Uhr, Attrappen für Netz, Speicher, Sprachausgabe, ZaneNative). Läuft auch in GitHub Actions ("App-Tests").
+- `check(...)` = bestätigtes Verhalten (muss grün bleiben). `ist(...)` = Bestandsaufnahme ohne Sollwert; Bericht mit `IST_BERICHT=tests/ist-zustand.md node tests/jarvis_pruefstrecke.js`.
+- Regel: nach jedem größeren Umbau beide Läufe; bei Rot zuerst den Fehler beheben.
