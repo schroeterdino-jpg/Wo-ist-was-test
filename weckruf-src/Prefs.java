@@ -79,7 +79,7 @@ final class Prefs {
     // Vertretung: antwortet ein erlaubter Kontakt-Chat nach N Minuten ungelesen noch steht, springt Jarvis ein
     static boolean vertretung(Context c) { return sp(c).getBoolean("vertretung", false); }
     static void setVertretung(Context c, boolean v) { sp(c).edit().putBoolean("vertretung", v).apply(); }
-    static int vertrMin(Context c) { return sp(c).getInt("vertrMin", 10); }
+    static int vertrMin(Context c) { return sp(c).getInt("vertrMin", 5); }
     static void setVertrMin(Context c, int m) { sp(c).edit().putInt("vertrMin", Math.max(5, Math.min(120, m))).apply(); }
     // Fahrmodus (Autoansicht offen): WhatsApp von erlaubten Kontakten wird vorgelesen; der Merker verfällt nach 12 Stunden von selbst
     static boolean fahren(Context c) { long s = sp(c).getLong("fahrenSeit", 0); return s > 0 && System.currentTimeMillis() - s < 12L * 3600000L; }
