@@ -255,6 +255,17 @@ async function verhalten() {
     }
     // Links: nie "#" ins Link-Fenster (das lädt Jarvis selbst)
     for (const f of ['preissuche.js', 'wunschliste.js']) { const src = lies('js/' + f); check(f + ': Link ohne Ziel öffnet nie das Link-Fenster (kein "#")', /if \(!href\) \{ e\.preventDefault\(\); return; \}/.test(src) && /nie "#"/.test(src)); }
+    // Preissuche: eingefügte Shop-Titel
+    {
+        const u4 = umgebung(); laden(u4, 'preissuche.js'); const T = u4.sb.jvPreisWaechter && u4.sb.jvPreisWaechter._teile;
+        if (T) {
+            const titel = 'Marvel Spidey und Seine Super-Freunde Web-Spinners Web-Quartier Spielset mit Spidey Action-Figur, Fahrzeug und Zubehör\nProduktbilder und -videos (KI-generierter Alternativtext)';
+            const r = T(titel);
+            check('Preissuche: ein eingefügter Amazon-Titel ist EIN Produkt, ohne Beiwerk und gekürzt', r.length === 1 && r[0] === 'Marvel Spidey und Seine Super-Freunde Web-Spinners Web-Quartier Spielset', JSON.stringify(r));
+            check('Preissuche: kurze Liste mit Komma wird weiter getrennt', T('Toni-Figur, Weihnachtsmann, KKG').length === 3);
+            check('Preissuche: "Weihnachtsmann und Co. KG" bleibt ein Produkt', T('Weihnachtsmann und Co. KG').length === 1);
+        } else check('Preissuche: _teile vorhanden', false);
+    }
     // Preissuche: welche Produkte werden aus dem Satz gesucht?
     {
         const u3 = umgebung(); laden(u3, 'preissuche.js');

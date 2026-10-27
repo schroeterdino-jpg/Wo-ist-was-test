@@ -48,7 +48,20 @@
         return String(s || '').replace(/\b(?:bitte|mal|doch|haben|kaufen|raus|heraus)\b/gi, ' ').replace(/^\s*(?:ein|eine|einen|einem|den|die|das|dieses|diese|diesen|mir)\s+/i, '').replace(/\s+/g, ' ').trim().slice(0, 80);
     }
     function korrigiere(p) { return String(p || '').replace(/\bToni[- ]Figur(en)?\b/gi, 'Tonie Figur$1'); }   // Spracherkennung schreibt "Toni" statt Tonie (Toniebox)
-    function teile(s) { return String(s || '').split(/\s*(?:,|;|\bund\b(?!\s+co\b)|\bsowie\b)\s*/i).map(bereinigen).map(korrigiere).filter(x => x.length > 1).slice(0, 6); }   // "und Co." gehört zum Namen (z. B. "Weihnachtsmann und Co. KG")
+    function entmuellen(t) {   // eingefügte Shop-Titel: Beiwerk von Amazon & Co. entfernen
+        return String(t || '').replace(/\bProduktbilder und -videos.*$/i, '').replace(/\(?KI-generierter Alternativtext\)?/gi, '').replace(/\bAmazon\.de\s*:\s*/gi, '').replace(/\b(?:Bewertungen?|Rezensionen?)\b.*$/i, '').replace(/\s+/g, ' ').trim();
+    }
+    function kurzBegriff(p) {   // ganze Shop-Titel sind zu lang für die Suche: die ersten Wörter (vor "mit"/"für") reichen
+        const w = String(p || '').split(/\s+/).filter(Boolean);
+        if (w.length <= 9) return String(p || '').trim();
+        let k = w.slice(0, 9); const m = k.findIndex((x, i) => i >= 4 && /^(?:mit|für|fuer|inkl\.?|ab)$/i.test(x));
+        if (m > 0) k = k.slice(0, m);
+        return k.join(' ');
+    }
+    function teile(s) {
+        s = entmuellen(s);
+        if (s.length > 80) return [korrigiere(bereinigen(kurzBegriff(s)))].filter(x => x.length > 1);   // langer Text = ein eingefügter Produkttitel, nicht mehrere Produkte
+        return String(s || '').split(/\s*(?:,|;|\bund\b(?!\s+co\b)|\bsowie\b)\s*/i).map(bereinigen).map(korrigiere).filter(x => x.length > 1).slice(0, 6); }   // "und Co." gehört zum Namen (z. B. "Weihnachtsmann und Co. KG")
 
     /* ---------- Fenster ---------- */
     function css() {
@@ -405,7 +418,7 @@
             return r;
         }, 100);
     } catch (e) { }
-    window.jvPreisWaechter = { laden, pruefen, suchen, oeffnen, finde, anlegen, entfernen, schalter };
+    window.jvPreisWaechter = { _teile: teile, laden, pruefen, suchen, oeffnen, finde, anlegen, entfernen, schalter };
     anstossen(45000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) anstossen(15000); });
 })();
