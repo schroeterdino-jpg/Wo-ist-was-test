@@ -329,14 +329,16 @@
         /* Freie Preissuche */
         const SUCH = [
             /(?:günstigst|guenstigst|billigst|beste)\w*\s+(?:preis|preise|angebot|angebote|shop)\w*\s+(?:für|fuer|von|bei|zu)\s+(.+)$/,
-            /^(?:jarvis\s+)?(?:such|find|recherchier|check|vergleich)\w*\s+(?:mir\s+)?(?:bitte\s+)?(?:mal\s+)?(?:die\s+)?(?:preise?|angebote?)\s+(?:für|fuer|von|zu|bei)\s+(.+)$/,
+            /^(?:jarvis\s+)?(?:such|find|recherchier|check|vergleich)\w*\s+(?:mir\s+)?(?:bitte\s+)?(?:mal\s+)?(?:die\s+)?(?:preise?|angebote?)\s+(?:(?:raus|heraus)\s+)?(?:für|fuer|von|zu|bei)\s+(.+)$/,
             /^(?:jarvis\s+)?(?:was\s+kostet|wo\s+(?:gibt\s+es|bekomme\s+ich|kriege\s+ich|kaufe\s+ich|finde\s+ich))\s+(.+?)\s+am\s+(?:günstigsten|guenstigsten|billigsten)$/,
+            /^(?:jarvis\s+)?(?:kannst|könntest|koenntest|würdest|wuerdest)\s+du\s+(?:mir\s+)?(?:bitte\s+)?(?:mal\s+)?(?:die\s+)?(?:preise?|angebote?)\s+(?:für|fuer|von|zu|bei)\s+(.+?)\s*(?:raus|heraus)?(?:such|find|schau|check|recherchier)\w*$/,
+            /^(?:jarvis\s+)?(?:ich\s+)?(?:suche|brauche|möchte|moechte|will|hätte|haette|würde|wuerde)(?:\s+gern\w*)?\s+(.+?)\s*[,.]?\s*(?:und\s+)?(?:kannst|könntest|koenntest|würdest|wuerdest|magst|sag|such|find|schau|check|recherchier|zeig)\w*\s+.*\bpreis\w*.*$/,
             /^(?:jarvis\s+)?(?:ich\s+)?(?:möchte|moechte|will|würde|wuerde|hätte|haette|brauche)(?:\s+gern\w*)?\s+(.+?)\s*(?:,|\.)?\s*(?:und\s+)?(?:such|find|zeig|sag|check|recherchier)\w*\s+(?:mir\s+)?(?:\w+\s+)?(?:den\s+|die\s+)?(?:günstigst|guenstigst|billigst|preis)\w*.*$/
         ];
         for (const rx of SUCH) {
             const s = M(rx);
             if (!s) continue;
-            const teilWoerter = s[1].replace(/\s+(?:raus|heraus)\b.*$/, '').replace(/\s+(?:haben|kaufen)\s*$/, '');
+            const teilWoerter = s[1].replace(/\s+(?:raus|heraus)\b.*$/, '').replace(/\s+(?:dafür|dafuer|dazu)\s*$/i, '').replace(/\s+(?:haben|kaufen)\s*$/, '');
             const produkte = teile(teilWoerter);
             if (!produkte.length) continue;
             if (produkte.every(p => /^(?:dieses|diese|diesen|das|dies|produkt|produkte|ding|dinge|artikel|teil|sache|sachen|etwas|was)$/i.test(p))) { sagen('Welches Produkt soll ich suchen? Nenn mir den Namen, am besten mit Marke und Modell.'); return true; }

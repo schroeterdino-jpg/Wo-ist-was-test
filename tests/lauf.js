@@ -57,7 +57,7 @@ function umgebung() {
     const sb = {
         console, setTimeout: () => 0, clearTimeout() { }, setInterval: () => 0, clearInterval() { }, Promise, JSON, Math, Date, Array, Object, String, Number, RegExp, Set, Map, Error, parseFloat, parseInt, isFinite, encodeURIComponent, decodeURIComponent, TextEncoder, URL, AbortController, btoa: s => Buffer.from(s, 'binary').toString('base64'), atob: s => Buffer.from(s, 'base64').toString('binary'),
         localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } },
-        document: { createElement: el, getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], addEventListener() { }, head: el(), body: el(), readyState: 'loading', hidden: false },
+        document: { createElement: el, createTextNode: () => el(), getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], addEventListener() { }, head: el(), body: el(), readyState: 'loading', hidden: false },
         navigator: { userAgent: 'test', language: 'de-DE' }, location: { href: 'http://test/', search: '', hash: '' },
         fetch: async () => { throw new Error('offline'); }, apiFetch: async () => { throw new Error('offline'); },
         speak: m => { gesagt.push(String(m)); }, continueConversation: undefined, accessToken: '', isProcessing: false
@@ -88,9 +88,16 @@ function route(u, satz) {
 }
 async function verhalten() {
     const u = umgebung();
-    for (const f of ['konto.js', 'haushalt.js', 'postfach.js', 'behoerdenbrief.js', 'antrag_pdf.js', 'antrag.js', 'kuendigung.js']) laden(u, f);
+    for (const f of ['preissuche.js', 'konto.js', 'haushalt.js', 'postfach.js', 'behoerdenbrief.js', 'antrag_pdf.js', 'antrag.js', 'kuendigung.js']) laden(u, f);
     const ROUTEN = [
         // [Satz, erwartete Stelle]
+        ['Ich suche eine Toni-Figur, Weihnachtsmann und KKG, kannst du mir Preise heraussuchen', 'preissuche'],
+        ['Ich suche eine Toni Figur, einen Weihnachtsmann und KKG. Kannst du mir dafür die Preise raussuchen?', 'preissuche'],
+        ['Kannst du mir Preise für eine Toni-Figur und den Weihnachtsmann heraussuchen', 'preissuche'],
+        ['Such mir Preise für Bosch Akkuschrauber raus', 'preissuche'],
+        ['Such mir die Preise raus für eine Kaffeemaschine und einen Toaster', 'preissuche'],
+        ['Ich suche einen guten Elektriker', 'KI'],
+        ['Wie entwickeln sich die Strompreise', 'KI'],
         ['Hilf mir beim Jobcenter-Antrag', 'antrag'],
         ['Antrag ausfüllen', 'antrag'],
         ['Füll den Antrag aus', 'antrag'],
@@ -228,6 +235,16 @@ async function verhalten() {
         check('Antrag-PDF: Datum der Unterschrift wird nie geschrieben', !zustand.dateUnterschriftPerson && !zustand.dateUnterschriftBetreuer);
         check('Antrag-PDF: Zeichen, die die PDF-Schrift nicht kann (ő), werden gemeldet und ersetzt', erg.warnungen.some(w => /ő/.test(w)) && zustand.txtfPersonGebOrt.t === 'Gy?r', JSON.stringify(erg.warnungen) + ' ' + (zustand.txtfPersonGebOrt || {}).t);
         check('Antrag-PDF: Kontrolle der gespeicherten Datei meldet keine Abweichung', erg.kontrolle.falsch.length === 0 && erg.kontrolle.anzahl >= 6, JSON.stringify(erg.kontrolle));
+    }
+    // Preissuche: welche Produkte werden aus dem Satz gesucht?
+    {
+        const u3 = umgebung(); laden(u3, 'preissuche.js');
+        const q = []; 
+        u3.sb.apiFetch = async url => { q.push(decodeURIComponent(String(url).split('&q=')[1] || '')); return { ok: true, json: async () => ({ angebote: [] }) }; };
+        let weiter = false;
+        u3.eintraege[0].fn('Ich suche eine Toni-Figur, Weihnachtsmann und KKG, kannst du mir Preise heraussuchen', () => { weiter = true; });
+        await new Promise(r => setTimeout(r, 200));
+        check('Preissuche: "Toni-Figur, Weihnachtsmann und KKG" werden einzeln gesucht', !weiter && q.join('|') === 'Toni-Figur|Weihnachtsmann|KKG', q.join('|') + ' / ' + u3.gesagt.join(' ').slice(0, 120));
     }
     // Preisalarm-Schalter (Speicher)
     {
