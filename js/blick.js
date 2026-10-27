@@ -31,7 +31,7 @@
 
     function zeilen() {
         var p = P(), z = ziel(); if (!p || !z) return null;
-        var rows = [], sh = z.sh, ende = p.ende(sh), beginn = p.beginn(sh);
+        var rows = [], sh = z.sh, ende = p.ende(sh), beginn = p.beginn(sh, z.ymd);
         var tag = z.heute ? 'Heute' : (z.tage === 1 ? 'Morgen' : wochentag(z.ymd));
         var icon = sh === 'frueh' ? '🌅' : '🌆';
         rows.push('<div>' + icon + ' <b>' + esc(tag) + '</b> · ' + NAME[sh] + (z.heute && z.nu.min >= beginn ? ' bis ' + hm(ende) : ' ab ' + hm(beginn)) + '</div>');

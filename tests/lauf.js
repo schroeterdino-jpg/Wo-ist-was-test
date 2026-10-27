@@ -341,6 +341,17 @@ async function verhalten() {
         check('Früher los: Rückgängig stellt die Abfahrt zurück', route(u, 'Mach die frühere Abfahrt rückgängig') === 'frueher-los' && Object.keys(tv).length === 0);
         check('Früher los: später als sonst oder Tag ohne Schicht läuft normal weiter (KI)', route(u, 'Ich muss Donnerstag um 14:30 auf der Arbeit sein') === 'KI' && route(u, 'Ich muss Samstag um 9:00 auf der Arbeit sein') === 'KI' && Object.keys(tv).length === 0);
     }
+    // Beginn-Ausnahme für einen Tag (plan_ansagen.js)
+    {
+        const u = umgebung(); const geladen = laden(u, 'plan_ansagen.js'); const PL = u.sb.jvPlan;
+        if (geladen && PL && PL.setBeginnTag) {
+            const normal = PL.beginn('spaet'), tag = '2026-10-29';
+            PL.setBeginnTag(tag, 13 * 60 + 15);
+            check('Beginn-Ausnahme: nur der eine Tag hat 13:15, andere Tage und der Standard bleiben', PL.beginn('spaet', tag) === 795 && PL.beginn('spaet', '2026-10-30') === normal && PL.beginn('spaet') === normal, JSON.stringify([PL.beginn('spaet', tag), normal]));
+            PL.setBeginnTag(tag, 0);
+            check('Beginn-Ausnahme: zurücksetzen stellt den Standard wieder her', PL.beginn('spaet', tag) === normal);
+        } else check('Beginn-Ausnahme: plan_ansagen.js lädt im Test', false);
+    }
     // Links: nie "#" ins Link-Fenster (das lädt Jarvis selbst)
     for (const f of ['preissuche.js', 'wunschliste.js']) { const src = lies('js/' + f); check(f + ': Link ohne Ziel öffnet nie das Link-Fenster (kein "#")', /if \(!href\) \{ e\.preventDefault\(\); return; \}/.test(src) && /nie "#"/.test(src)); }
     // Preissuche: eingefügte Shop-Titel
