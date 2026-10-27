@@ -474,11 +474,27 @@ const STOPP = new Set(['und', 'mit', 'fuer', 'der', 'die', 'das', 'ein', 'eine',
 function woerter(t) {
   return Array.from(new Set(String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').split(/[^a-z0-9]+/).filter(w => w.length >= 3 && !STOPP.has(w) && !/^\d+$/.test(w))));
 }
-function passung(frage, titel) {
+function norm(t) { return String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss'); }
+/* Gewicht je Suchwort: Wörter, die fast alle Treffer haben (Marke, Serie), zählen wenig; seltene (Web-Quartier, Spielset) zählen viel. */
+function gewichte(frage, titel) {
+  const fw = woerter(frage), tts = titel.map(t => norm(t).replace(/[^a-z0-9]+/g, '')), n = Math.max(titel.length, 1), g = {};
+  fw.forEach(w => { const df = tts.filter(t => t.includes(w)).length; g[w] = df === 0 ? 1 : 0.3 + 2 * (1 - df / n); });
+  return g;
+}
+function passung(frage, titel, gew) {
   const fw = woerter(frage); if (!fw.length) return 1;
-  const tt = String(titel || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '');
-  const tw = new Set(woerter(titel));
-  return fw.filter(w => tw.has(w) || (w.length >= 5 && tt.includes(w))).length / fw.length;
+  const tt = norm(titel).replace(/[^a-z0-9]+/g, '');
+  const tw = new Set(woerter(titel)); let summe = 0, treffer = 0;
+  fw.forEach(w => { const g = gew && gew[w] != null ? gew[w] : 1; summe += g; if (tw.has(w) || (w.length >= 5 && tt.includes(w))) treffer += g; });
+  return summe ? treffer / summe : 1;
+}
+/* Zweite, kürzere Suche ohne Marke und Beiwerk: "Spidey Super-Freunde Web-Spinners Web-Quartier Spielset" */
+function kernSuche(q) {
+  const w = String(q).split(/[\s,;]+/).filter(Boolean);
+  if (w.length < 6) return '';
+  const kurz = []; for (const x of w.slice(1)) { if (/^(mit|für|fuer|inkl\.?|ab|zum|zur)$/i.test(x)) break; if (!STOPP.has(norm(x))) kurz.push(x); }
+  const k = kurz.slice(0, 6).join(' ');
+  return k && norm(k) !== norm(q) ? k : '';
 }
 const AUSSCHLUSS_RX = /thangs|printables|thingiverse|cults3d|myminifactory/i;   // Vorlagen zum 3D-Drucken, keine Waren
 const GEBRAUCHT_RX = /kleinanzeigen|ebay|vinted|willhaben|momox|rebuy|mobile\.de|shpock/i;
@@ -505,14 +521,22 @@ async function shopping(req, res) {
   const key = process.env.SERPER_API_KEY;
   if (!key) return res.status(500).json({ error: 'Server: SERPER_API_KEY fehlt' });
   try {
-    const r = await fetch('https://google.serper.dev/shopping', {
-      method: 'POST',
-      headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ q, gl: 'de', hl: 'de', num: 12 }),
-      signal: AbortSignal.timeout(9000)
-    });
-    if (!r.ok) return res.status(502).json({ error: 'Preis-Dienst antwortet mit ' + r.status });
-    const d = await r.json();
+    const hole = async qq => {
+      const r = await fetch('https://google.serper.dev/shopping', {
+        method: 'POST',
+        headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: qq, gl: 'de', hl: 'de', num: 40 }),
+        signal: AbortSignal.timeout(9000)
+      });
+      if (!r.ok) { const e = new Error('Preis-Dienst antwortet mit ' + r.status); e.status = r.status; throw e; }
+      const j = await r.json(); return Array.isArray(j.shopping) ? j.shopping : [];
+    };
+    const kern = kernSuche(q);
+    const extra = kern ? [kern, kern + ' amazon'] : (woerter(q).length >= 3 ? [q + ' amazon'] : []);
+    const ergs = await Promise.all([hole(q)].concat(extra.map(e => hole(e).catch(() => []))).map((p, i) => i === 0 ? p.catch(e => e) : p));
+    if (ergs[0] instanceof Error) return res.status(502).json({ error: ergs[0].message });
+    const d = { shopping: [] }, gesehen = new Set();
+    ergs.forEach(arr => arr.forEach(x => { const k = String(x.link || '') + '|' + String(x.title || '') + '|' + String(x.price || ''); if (!gesehen.has(k)) { gesehen.add(k); d.shopping.push(x); } }));
     let ka = [];
     if (String(req.query.gebraucht || '') === '1') {
       try {
@@ -527,8 +551,8 @@ async function shopping(req, res) {
     let l = alle.filter(x => !GEBRAUCHT_RX.test(x.shop + ' ' + x.link));   // Gebrauchtes zeigt keine Neupreise und sein Link startet in der APK Jarvis neu
     let ungenau = false;
     if (woerter(q).length >= 3 && l.length) {   // nur bei längeren Suchen prüfen; kurze ("Bosch Akkuschrauber") bleiben wie sie sind
-      const sc = l.map(x => passung(q, x.titel)), best = Math.max.apply(null, sc);
-      if (best >= 0.25) l = l.filter((x, i) => sc[i] >= best * 0.5);
+      const gew = gewichte(q, l.map(x => x.titel)), sc = l.map(x => passung(q, x.titel, gew)), best = Math.max.apply(null, sc);
+      if (best >= 0.4) l = l.filter((x, i) => sc[i] >= best * 0.6);
       else ungenau = true;   // nichts passt wirklich: Ergebnis behalten, aber als ungenau melden
     }
     if (l.length >= 3) {   // Preis-Ausreißer erst NACH der Namensprüfung, sonst fliegt das teure, richtige Produkt raus
