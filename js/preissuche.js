@@ -135,7 +135,7 @@
                 titelZeile(row, e.a[0]);
                 e.a.slice(1, 3).forEach(m => { const s = document.createElement('div'); s.className = 'mehr'; s.appendChild(link(euroKurz(m.preis) + ' bei ' + (m.shop || 'Shop'), m.link, e.s || e.q)); row.appendChild(s); titelZeile(row, m); });
             }
-            if (e.a && e.a.length && e.a.ungenau) { const h = document.createElement('div'); h.textContent = 'Keine genauen Treffer, diese Angebote sind nur ähnlich. Prüf den Produktnamen.'; h.style.cssText = 'margin-top:6px;font-size:13px;color:#ffb36b'; row.appendChild(h); }
+            if (e.a && e.a.length && e.a.ungenau) { const h = document.createElement('div'); h.textContent = 'Dein Produkt wurde nicht gefunden, das hier sind nur ähnliche. Prüf den Produktnamen.'; h.style.cssText = 'margin-top:6px;font-size:13px;color:#ffb36b'; row.appendChild(h); const il = link('Bei Idealo suchen ›', '', e.s || e.q); il.style.cssText = 'display:inline-block;margin-top:4px;font-size:14px'; row.appendChild(il); }
             if (e.a && e.a.length && !e.a.ungenau) schalter(row, { begriff: e.s || e.q, preis: e.a[0].preis, shop: e.a[0].shop, link: e.a[0].link });
             if (e.g) {
                 const gb = document.createElement('div'); gb.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(94,231,255,.2);font-size:14px;line-height:1.6';
