@@ -252,6 +252,13 @@ async function verhalten() {
         check('Server: ohne Gebraucht-Wunsch bleibt die Antwort wie bisher (nur Neupreise, kein eBay)', neu.angebote.length === 3 && !neu.gebraucht && !neu.angebote.some(x => /ebay/i.test(x.shop)), JSON.stringify(neu).slice(0, 200));
         check('Server: Vorlagen zum 3D-Drucken (Thangs) werden nie als Angebot gezeigt', !JSON.stringify(neu).includes('Thangs') && !JSON.stringify(mit).includes('Thangs'));
         check('Server: Gebrauchtes kommt getrennt (Kleinanzeigen mit Preis, eBay), Neupreise bleiben gleich', mit.angebote.length === 3 && mit.gebraucht.map(x => x.shop + ' ' + x.preis).join('|') === 'Kleinanzeigen 12|eBay 14.5', JSON.stringify(mit.gebraucht));
+        const lang = await rufe({ action: 'shopping', q: 'Marvel Spidey Web-Quartier Spielset Action-Figur' });
+        check('Server: lange Suche, kein Titel passt -> Ergebnis bleibt, aber als ungenau markiert', lang.ungenau === true && lang.angebote.length === 3, JSON.stringify(lang).slice(0, 160));
+        const fake2 = async () => ({ ok: true, json: async () => ({ shopping: [{ title: 'Spidey Figur 7 cm', source: 'S1', price: '12,68 €', link: 'https://a.de/1' }, { title: 'Marvel Spidey Web-Quartier Spielset Fahrzeug', source: 'S2', price: '85,00 €', link: 'https://b.de/2' }, { title: 'Hasbro Spidey Friends', source: 'S3', price: '12,89 €', link: 'https://c.de/3' }] }) });
+        const mod2 = { exports: {} };
+        new Function('module', 'process', 'fetch', 'AbortSignal', 'URL', lies('api/maps.js').replace(/^export const config/m, 'const config').replace(/^export default /m, 'module.exports = '))(mod2, { env: { SERPER_API_KEY: 'x', APP_SECRET: 's' } }, fake2, { timeout: () => undefined }, URL);
+        let o2; await mod2.exports({ method: 'GET', query: { action: 'shopping', q: 'Marvel Spidey Web-Quartier Spielset Action-Figur' }, headers: { 'x-app-key': 's' } }, { status: c => ({ json: j => { o2 = j; }, end() { } }), setHeader() { }, json: j => { o2 = j; } });
+        check('Server: passende Angebote bleiben, Zufallstreffer (12 € Figur) fallen weg', o2 && !o2.ungenau && o2.angebote.length === 1 && o2.angebote[0].preis === 85, JSON.stringify(o2));
         check('Server: Kleinanzeigen-Treffer ohne Preis und Suchseiten werden weggelassen', !mit.gebraucht.some(x => /\/k0$|\/9$/.test(x.link)));
     }
     // Links: nie "#" ins Link-Fenster (das lädt Jarvis selbst)

@@ -469,6 +469,17 @@ function preisZahl(t) {
   m = x.match(/(\d{1,3}(?:\.\d{3})+|\d+)/);                                 // 15 oder 1.019
   return m ? parseFloat(m[1].replace(/\./g, '')) : null;
 }
+/* Passt der Angebotstitel zur Suche? Google Shopping liefert auch ähnliche, kleinere oder fremde Produkte (nach Preis sortiert). */
+const STOPP = new Set(['und', 'mit', 'fuer', 'der', 'die', 'das', 'ein', 'eine', 'einen', 'seine', 'seiner', 'and', 'his', 'with', 'for', 'the', 'von', 'bei', 'inkl', 'cm']);
+function woerter(t) {
+  return Array.from(new Set(String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').split(/[^a-z0-9]+/).filter(w => w.length >= 3 && !STOPP.has(w) && !/^\d+$/.test(w))));
+}
+function passung(frage, titel) {
+  const fw = woerter(frage); if (!fw.length) return 1;
+  const tt = String(titel || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '');
+  const tw = new Set(woerter(titel));
+  return fw.filter(w => tw.has(w) || (w.length >= 5 && tt.includes(w))).length / fw.length;
+}
 const AUSSCHLUSS_RX = /thangs|printables|thingiverse|cults3d|myminifactory/i;   // Vorlagen zum 3D-Drucken, keine Waren
 const GEBRAUCHT_RX = /kleinanzeigen|ebay|vinted|willhaben|momox|rebuy|mobile\.de|shpock/i;
 /* Kleinanzeigen hat keine offene Schnittstelle: Treffer kommen aus der Google-Suche (nur Anzeigen-Seiten, Preis aus Titel oder Beschreibung, sonst weglassen). */
@@ -514,7 +525,13 @@ async function shopping(req, res) {
       preis: preisZahl(x.price), link: String(x.link || '')
     })).filter(x => x.preis && x.preis > 0 && !AUSSCHLUSS_RX.test(x.shop + ' ' + x.link));
     let l = alle.filter(x => !GEBRAUCHT_RX.test(x.shop + ' ' + x.link));   // Gebrauchtes zeigt keine Neupreise und sein Link startet in der APK Jarvis neu
-    if (l.length >= 3) {
+    let ungenau = false;
+    if (woerter(q).length >= 3 && l.length) {   // nur bei längeren Suchen prüfen; kurze ("Bosch Akkuschrauber") bleiben wie sie sind
+      const sc = l.map(x => passung(q, x.titel)), best = Math.max.apply(null, sc);
+      if (best >= 0.25) l = l.filter((x, i) => sc[i] >= best * 0.5);
+      else ungenau = true;   // nichts passt wirklich: Ergebnis behalten, aber als ungenau melden
+    }
+    if (l.length >= 3) {   // Preis-Ausreißer erst NACH der Namensprüfung, sonst fliegt das teure, richtige Produkt raus
       const sorted = l.map(x => x.preis).sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
       l = l.filter(x => x.preis >= med * 0.4 && x.preis <= med * 4);
     }
@@ -522,6 +539,7 @@ async function shopping(req, res) {
     l.forEach(x => { try { if (/(^|\.)google\./i.test(new URL(x.link).hostname)) x.link = ''; } catch (e) { x.link = ''; } });
     l.sort((a, b) => a.preis - b.preis);
     const out = { angebote: l.slice(0, 5) };
+    if (ungenau) out.ungenau = true;
     if (String(req.query.gebraucht || '') === '1') {   // Gebrauchtes getrennt von den Neupreisen (zählt nie für Summe oder Preisalarm)
       const med = l.length ? l.map(x => x.preis).sort((a, b) => a - b)[Math.floor(l.length / 2)] : 0;
       const seen = new Set();
