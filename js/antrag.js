@@ -7,6 +7,8 @@
               Du tippst die Antworten ein oder sagst sie ("Per Sprache ausfüllen": Jarvis fragt Feld für Feld; "weiter", "zurück", "fertig", "abbrechen").
            3) Der Code prüft selbst (nicht die KI): Datum (gültig), PLZ (5 Ziffern), IBAN (Prüfsumme), E-Mail, Telefon, Beträge, Ja/Nein, leere Pflichtfelder.
            4) "Ausfüllhilfe erstellen": Liste "Nr. Feld → Eintrag", offene und zu prüfende Felder, Nachweise, Fristen. Wie bei Briefen: ändern, PDF, Drucken, Kopieren.
+   PDF mit echten Eingabefeldern (z. B. Jobcenter-Hauptantrag): antrag_pdf.js liest die Felder direkt aus der Datei und "Ausgefülltes PDF erstellen" schreibt die Antworten hinein
+   (danach Kontrolle: jede Angabe wird in der gespeicherten Datei noch einmal gelesen). Unterschrift und ihr Datum bleiben immer leer.
    Grenzen (steht auch im Fenster): Das Lesen vom Foto kann Felder übersehen. Darum steht die Zahl der gelesenen Felder da, und du vergleichst mit dem Formular.
    Unterschrift und Abschicken macht nur der Nutzer. Es gibt keine Rechtsberatung.
    Datenschutz: gespeichert werden nur die fünf Stammdaten (localStorage jv_antrag_profil, nicht in api/sync.js). Antworten, IBAN, Steuer-ID usw. bleiben nur im offenen
@@ -20,7 +22,7 @@
     const say = m => { try { speak(m, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) { } };
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
-    const PROFIL_FELDER = [['vorname', 'Vorname'], ['nachname', 'Familienname'], ['geb', 'Geburtsdatum (TT.MM.JJJJ)'], ['strasse', 'Straße und Hausnummer'], ['plz', 'Postleitzahl'], ['ort', 'Wohnort'], ['telefon', 'Telefon'], ['email', 'E-Mail']];
+    const PROFIL_FELDER = [['vorname', 'Vorname'], ['nachname', 'Familienname'], ['geb', 'Geburtsdatum (TT.MM.JJJJ)'], ['strasse', 'Straße und Hausnummer'], ['plz', 'Postleitzahl'], ['ort', 'Wohnort'], ['telefon', 'Telefon'], ['email', 'E-Mail'], ['geburtsort', 'Geburtsort'], ['geburtsland', 'Geburtsland'], ['staat', 'Staatsangehörigkeit'], ['krankenkasse', 'Krankenkasse (Name)']];
     function profil() {
         let p = {}; try { p = JSON.parse(lsGet(PROFIL_KEY) || '{}') || {}; } catch (e) { p = {}; }
         if (!p.vorname && !p.nachname) {   // Name und Anschrift aus dem Kündigungs-Profil als Startwert
@@ -44,25 +46,34 @@
         let rest = 0; for (let i = 0; i < r.length; i += 7) rest = Number(String(rest) + r.slice(i, i + 7)) % 97;
         return rest === 1;
     }
+    const leer = w => Array.isArray(w) ? !w.length : !String(w == null ? '' : w).trim();
     function pruefe(f, wert) {
-        const v = String(wert == null ? '' : wert).trim();
+        if (f.art === 'mehrfach') return '';
+        if (f.art === 'manuell') return '';
+        const v = (Array.isArray(wert) ? wert.join(', ') : String(wert == null ? '' : wert)).trim();
         if (!v) return f.pflicht === false ? '' : 'offen';
         switch (f.art) {
             case 'datum': return datumOk(v) ? '' : 'Datum bitte so: 03.05.1980 (gültiges Datum).';
             case 'plz': return /^\d{5}$/.test(v) ? '' : 'Postleitzahl hat 5 Ziffern.';
+            case 'steuerid': return /^\d{11}$/.test(v.replace(/\s+/g, '')) ? '' : 'Die steuerliche Identifikationsnummer hat 11 Ziffern.';
             case 'iban': return ibanOk(v) ? '' : 'Diese IBAN stimmt nicht (Prüfsumme falsch). Bitte noch einmal vergleichen.';
             case 'email': return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) ? '' : 'Das sieht nicht wie eine E-Mail-Adresse aus.';
             case 'telefon': return /^[+\d][\d\s\/()\-]{5,}$/.test(v) ? '' : 'Telefonnummer nur mit Ziffern.';
             case 'zahl': return /^-?\d+([.,]\d+)?$/.test(v) ? '' : 'Bitte nur eine Zahl.';
             case 'betrag': return /^-?\d{1,3}(\.\d{3})*(,\d{1,2})?$|^-?\d+([.,]\d{1,2})?$/.test(v.replace(/\s*(?:€|euro|eur)\s*$/i, '')) ? '' : 'Bitte einen Betrag, zum Beispiel 450,00.';
             case 'ja_nein': return /^(?:ja|nein)$/i.test(v) ? '' : 'Bitte Ja oder Nein.';
-            case 'auswahl': return (f.optionen && f.optionen.length && !f.optionen.some(o => norm(o) === norm(v))) ? 'Bitte eine der Möglichkeiten wählen.' : '';
+            case 'auswahl': return (f.optionen && f.optionen.length && !f.optionen.includes(v) && !f.optionen.some(o => norm(o) === norm(v))) ? 'Bitte eine der Möglichkeiten wählen.' : '';
             default: return '';
         }
     }
     function vorbelegung(f, p) {
         const b = norm(f.bezeichnung);
         if (f.art === 'unterschrift') return '';
+        if (/leistungstraeger|krankenkasse|einrichtung|behoerde|\bamt\b|vermieter|arbeitgeber|kontoinhaber|partner|kind\b|kinder|eltern|betreuer|vormund|wohnhaft bei/.test(b) && !/krankenkasse sind oder/.test(b)) return '';   // Angaben zu anderen Personen/Stellen nie aus deinen Daten füllen
+        if (/krankenkasse/.test(b)) return p.krankenkasse || '';
+        if (/geburtsort/.test(b)) return p.geburtsort || '';
+        if (/geburtsland/.test(b)) return p.geburtsland || '';
+        if (/staatsangehoerigkeit/.test(b)) return p.staat || '';
         if (/\bvorname/.test(b)) return p.vorname || '';
         if (/familienname|nachname|\bname\b/.test(b) && !/vorname|geburtsname|partner|kind|arbeitgeber|bank|kontoinhaber/.test(b)) return p.nachname || '';
         if (/geburtsdatum|geboren am/.test(b) && !/partner|kind|ehe/.test(b)) return p.geb || '';
@@ -93,13 +104,13 @@
         else if (f.art === 'ja_nein') v = /^(?:ja|jawohl|stimmt|richtig|korrekt)\b/i.test(v) ? 'Ja' : /^(?:nein|nee|nicht)\b/i.test(v) ? 'Nein' : v;
         else if (f.art === 'iban') v = v.replace(/\s+/g, '').toUpperCase().replace(/(.{4})/g, '$1 ').trim();
         else if (f.art === 'plz') v = v.replace(/\s+/g, '');
-        else if (f.art === 'auswahl' && f.optionen) { const o = f.optionen.find(x => norm(x) === norm(v) || norm(v).includes(norm(x)) && norm(x).length > 2); if (o) v = o; }
+        else if (f.art === 'auswahl' && f.optionen) { const kk = x => norm(x).replace(/\s*\(.*$/, '').trim(), o = f.optionen.find(x => kk(x) === kk(v) || (kk(x).length > 2 && kk(v).includes(kk(x))) || (kk(v).length > 3 && kk(x).includes(kk(v)))); if (o) v = o; }
         return v;
     }
 
     /* ---------- Zustand und Lesen ---------- */
     let A = null, win = null, sprache = null;
-    function neu() { return { felder: [], nachweise: [], fristen: [], formular: '', seiten: 0, werte: {}, vorgabe: {}, status: '', lese: false }; }
+    function neu() { return { felder: [], nachweise: [], fristen: [], formular: '', seiten: 0, werte: {}, vorgabe: {}, bestaetigt: {}, acro: null, status: '', lese: false }; }
     const ARTEN = ['text', 'datum', 'zahl', 'betrag', 'ja_nein', 'auswahl', 'iban', 'plz', 'telefon', 'email', 'unterschrift'];
     function seitePrompt() {
         return 'Du liest eine Seite eines deutschen Behördenformulars (Jobcenter, Agentur für Arbeit oder ähnlich). Liste JEDES Eingabefeld, jedes Ankreuzfeld und jede Ja/Nein-Frage dieser Seite in der Reihenfolge des Formulars. ' +
@@ -147,6 +158,16 @@
             let gesamt = 0;
             for (const file of files) {
                 A.status = 'Lese ' + (file.name || 'Foto') + ' …'; zeichne();
+                if (window.jvAntragPdf && typeof isPdfFile === 'function' && isPdfFile(file) && !A.acro) {   // PDF mit echten Eingabefeldern: Felder direkt aus der Datei, ohne Bilderkennung
+                    let r = null; try { r = await window.jvAntragPdf.felder(file); } catch (e) { console.error('Antrag: Formularfelder', e && e.message); }
+                    if (r && r.felder && r.felder.length >= 5) {
+                        const p = profil(); r.felder.forEach(f => { const v = vorbelegung(f, p); if (v) { A.werte[f.id] = v; A.vorgabe[f.id] = true; } });
+                        A.felder = A.felder.concat(r.felder); A.acro = { bytes: r.bytes, name: file.name || 'Antrag.pdf' };
+                        A.seiten = Math.max(A.seiten, Math.max.apply(null, r.felder.map(f => f.seite)));
+                        A.formular = A.formular || String(file.name || '').replace(/\.pdf$/i, '').slice(0, 60);
+                        gesamt += r.felder.length; continue;
+                    }
+                }
                 let seiten; try { seiten = await seitenAus(file); } catch (e) { console.error('Antrag: Datei', e); A.status = 'Diese Datei konnte ich nicht öffnen.'; zeichne(); continue; }
                 for (const s of seiten) {
                     A.seiten++; A.status = 'Lese Seite ' + A.seiten + ' …'; zeichne();
@@ -157,8 +178,8 @@
                     gesamt += felderEinlesen(o, A.seiten);
                 }
             }
-            A.status = A.felder.length ? A.felder.length + ' Felder auf ' + A.seiten + ' Seite' + (A.seiten === 1 ? '' : 'n') + ' gelesen. Vergleiche mit dem Formular, ob eines fehlt. Fehlt etwas, lies die Seite noch einmal ein.' : 'Ich habe keine Felder gefunden.';
-            say(gesamt ? 'Ich habe ' + gesamt + ' Felder gelesen. Vergleiche die Liste mit dem Formular. Du kannst sie eintippen oder sagen: Per Sprache ausfüllen.' : 'Ich konnte auf diesen Seiten keine Felder finden. Versuch es mit einem schärferen Foto oder der PDF-Datei.');
+            A.status = A.acro ? 'Das Formular hat echte Eingabefelder: ' + A.felder.length + ' Angaben, alle mit Nummer und Beschreibung aus der Datei. Ich kann es direkt ausfüllen.' : A.felder.length ? A.felder.length + ' Felder auf ' + A.seiten + ' Seite' + (A.seiten === 1 ? '' : 'n') + ' gelesen. Vergleiche mit dem Formular, ob eines fehlt. Fehlt etwas, lies die Seite noch einmal ein.' : 'Ich habe keine Felder gefunden.';
+            if (A.acro && gesamt) say('Das Formular hat echte Eingabefelder. Ich habe ' + gesamt + ' Angaben gefunden und kann es direkt ausfüllen. Tippe auf Per Sprache ausfüllen, oder trage die Antworten ein.'); else say(gesamt ? 'Ich habe ' + gesamt + ' Felder gelesen. Vergleiche die Liste mit dem Formular. Du kannst sie eintippen oder sagen: Per Sprache ausfüllen.' : 'Ich konnte auf diesen Seiten keine Felder finden. Versuch es mit einem schärferen Foto oder der PDF-Datei.');
         } finally { A.lese = false; zeichne(); }
     }
 
@@ -168,9 +189,9 @@
         let seite = 0; const offen = [], pruef = [];
         A.felder.forEach(f => {
             if (f.seite !== seite) { seite = f.seite; z.push('--- Seite ' + seite + ' ---'); }
-            const w = String(A.werte[f.id] || '').trim(), fe = f.art === 'unterschrift' ? '' : pruefe(f, w);
-            z.push((f.nr ? f.nr + '  ' : '') + f.bezeichnung + ' →  ' + (f.art === 'unterschrift' ? '[Hier unterschreibst du selbst]' : w || '[OFFEN]') + (fe && fe !== 'offen' ? '   ⚠ ' + fe : '') + (f.unsicher ? '   (vom Foto schlecht lesbar, bitte im Formular prüfen)' : ''));
-            if (f.art !== 'unterschrift') { if (!w && f.pflicht !== false) offen.push(f); else if (fe && fe !== 'offen') pruef.push(f); }
+            const w = (Array.isArray(A.werte[f.id]) ? A.werte[f.id].join(', ') : String(A.werte[f.id] || '')).trim(), fe = f.art === 'unterschrift' ? '' : pruefe(f, w);
+            z.push((f.nr ? f.nr + '  ' : '') + f.bezeichnung + ' →  ' + (f.art === 'unterschrift' ? '[Hier unterschreibst du selbst]' : f.art === 'manuell' ? '[bitte im PDF selbst ankreuzen]' : w || (f.art === 'mehrfach' ? '[nichts angekreuzt]' : '[OFFEN]')) + (fe && fe !== 'offen' ? '   ⚠ ' + fe : '') + (f.unsicher ? '   (vom Foto schlecht lesbar, bitte im Formular prüfen)' : ''));
+            if (f.art !== 'unterschrift' && f.art !== 'manuell' && f.art !== 'mehrfach') { if (!w && f.pflicht !== false) offen.push(f); else if (fe && fe !== 'offen') pruef.push(f); }
         });
         z.push('');
         z.push(offen.length ? 'NOCH OFFEN (' + offen.length + '): ' + offen.map(f => (f.nr || f.bezeichnung.slice(0, 30))).join(', ') : 'Keine offenen Felder.');
@@ -182,35 +203,75 @@
     }
 
     /* ---------- Sprache: Feld für Feld ---------- */
+    const schluessel = x => norm(x).replace(/\s*\(.*$/, '').trim();
     function fragen(i) {
         if (!A) return;
-        while (i < A.felder.length && A.felder[i].art === 'unterschrift') i++;
-        if (i >= A.felder.length) { sprache = null; say('Das war das letzte Feld. Tippe auf „Ausfüllhilfe erstellen“, dann prüfe ich alles und zeige die Liste.'); zeichne(); return; }
-        sprache = { i, at: Date.now() };
+        const ueb = !!(sprache && sprache.ueb);
+        while (i < A.felder.length && (A.felder[i].art === 'unterschrift' || A.felder[i].art === 'manuell' || (ueb && A.bestaetigt[A.felder[i].id] && !leer(A.werte[A.felder[i].id])))) i++;
+        if (i >= A.felder.length) { sprache = null; say('Das war die letzte Angabe. ' + (A.acro ? 'Tippe auf „Ausgefülltes PDF erstellen“.' : 'Tippe auf „Ausfüllhilfe erstellen“, dann prüfe ich alles und zeige die Liste.')); zeichne(); return; }
+        sprache = { i, at: Date.now(), ueb };
         const f = A.felder[i], v = A.werte[f.id];
-        let s = 'Feld ' + (i + 1) + ' von ' + A.felder.length + (f.nr ? ', Nummer ' + f.nr : '') + ': ' + f.bezeichnung + '.';
-        if (f.optionen && f.optionen.length) s += ' Möglich: ' + f.optionen.join(', ') + '.';
+        let s = 'Angabe ' + (i + 1) + ' von ' + A.felder.length + (f.nr ? ', Nummer ' + f.nr : '') + ': ' + f.bezeichnung + '.';
+        if (f.art === 'mehrfach') s += ' Du kannst mehrere nennen. Möglich: ' + f.optionen.map(o => o.replace(/\s*\(.*$/, '')).join(', ') + '. Oder sag „keine“.';
+        else if (f.optionen && f.optionen.length) s += ' Möglich: ' + f.optionen.map(o => o.replace(/\s*\(.*$/, '')).join(', ') + '.';
         if (f.hinweis) s += ' Hinweis: ' + f.hinweis;
-        if (v) s += ' Eingetragen ist: ' + v + '. Sag „weiter“, wenn das stimmt.';
+        const vs = Array.isArray(v) ? v.join(', ') : v;
+        if (vs) s += ' Eingetragen ist: ' + vs + '. Sag „weiter“, wenn das stimmt.';
         say(s); zeichne();
+    }
+    function startSprache() {
+        const vor = A.felder.filter(f => A.vorgabe[f.id] && !leer(A.werte[f.id]));
+        if (!vor.length) return fragen(0);
+        sprache = { i: -1, at: Date.now(), vorab: true, ueb: false };
+        say('Ich habe schon ' + vor.length + ' Angaben aus deinen Daten eingetragen: ' + vor.slice(0, 8).map(f => f.bezeichnung.replace(/\s+der antragstellenden Person/i, '') + ' ' + A.werte[f.id]).join(', ') + (vor.length > 8 ? ' und weitere' : '') + '. Stimmt das alles? Sag Ja, dann überspringe ich sie. Sag Nein, dann gehe ich alles einzeln durch.');
+        zeichne();
     }
     function handle(text) {
         if (!A || !sprache) return false;
         if (Date.now() - sprache.at > 10 * 60000) { sprache = null; return false; }
-        const t = norm(text), f = A.felder[sprache.i];
-        if (/^(?:abbrechen|abbruch|stopp|stop|fertig|ende|das reicht|schluss)\b/.test(t)) { sprache = null; say('In Ordnung. Du kannst jetzt die Ausfüllhilfe erstellen.'); zeichne(); return true; }
+        const t = norm(text);
+        if (/^(?:abbrechen|abbruch|stopp|stop|fertig|ende|das reicht|schluss)\b/.test(t)) { sprache = null; say('In Ordnung. ' + (A.acro ? 'Du kannst jetzt das ausgefüllte PDF erstellen.' : 'Du kannst jetzt die Ausfüllhilfe erstellen.')); zeichne(); return true; }
+        sprache.at = Date.now();
+        if (sprache.vorab) {
+            if (/^(?:ja|jawohl|stimmt|passt|genau|richtig|korrekt|alles richtig)\b/.test(t)) { Object.keys(A.vorgabe).forEach(id => { A.bestaetigt[id] = 1; delete A.vorgabe[id]; }); sprache.ueb = true; fragen(0); return true; }
+            if (/^(?:nein|nee|falsch|nicht ganz)\b/.test(t)) { sprache.vorab = false; say('In Ordnung, ich gehe alles einzeln durch.'); setTimeout(() => fragen(0), 500); return true; }
+            say('Bitte sag Ja oder Nein.'); return true;
+        }
+        const f = A.felder[sprache.i];
         if (/^(?:weiter|naechstes|naechste|ueberspringen|skip)\b/.test(t)) { fragen(sprache.i + 1); return true; }
         if (/^(?:zurueck|vorheriges|vorherige|davor)\b/.test(t)) { fragen(Math.max(0, sprache.i - 1)); return true; }
         if (/^(?:wiederhol\w*|noch einmal|nochmal)\b/.test(t)) { fragen(sprache.i); return true; }
         if (/^(?:loesch\w*|leer\w*)\b/.test(t)) { delete A.werte[f.id]; say('Gelöscht.'); fragen(sprache.i); return true; }
+        if (f.art === 'mehrfach') {
+            if (/^(?:keine?|keins|nichts)\b/.test(t)) { A.werte[f.id] = []; say('Nichts angekreuzt.'); setTimeout(() => fragen(sprache ? sprache.i + 1 : 0), 500); return true; }
+            const gew = f.optionen.filter(o => { const k = schluessel(o); return k.length > 2 && (t.includes(k) || (t.length > 3 && k.includes(t))); });
+            if (!gew.length) { say('Das habe ich nicht verstanden. Nenne eine der Möglichkeiten, oder sag „weiter“.'); return true; }
+            A.werte[f.id] = gew; delete A.vorgabe[f.id];
+            say('Angekreuzt: ' + gew.map(o => o.replace(/\s*\(.*$/, '')).join(', ') + '.'); setTimeout(() => fragen(sprache ? sprache.i + 1 : 0), 600); return true;
+        }
         const wert = bereinigt(f, text), fe = pruefe(f, wert);
-        if (fe && fe !== 'offen') { sprache.at = Date.now(); say(fe + ' Sag es bitte noch einmal, oder „weiter“.'); return true; }
-        A.werte[f.id] = wert; delete A.vorgabe[f.id]; sprache.at = Date.now();
+        if (fe && fe !== 'offen') { say(fe + ' Sag es bitte noch einmal, oder „weiter“.'); return true; }
+        A.werte[f.id] = wert; delete A.vorgabe[f.id];
         say('Eingetragen: ' + wert + '.'); setTimeout(() => fragen(sprache ? sprache.i + 1 : 0), 600);
         return true;
     }
 
     /* ---------- Fenster ---------- */
+    async function pdfErstellen(btn) {
+        if (!A || !A.acro || !window.jvAntragPdf) return;
+        const falsch = A.felder.filter(f => { const e = pruefe(f, A.werte[f.id]); return e && e !== 'offen'; });
+        btn.disabled = true; btn.textContent = 'Erstelle …';
+        try {
+            const r = await window.jvAntragPdf.fuellen(A.acro.bytes, A.felder, A.werte);
+            const blob = new Blob([r.bytes], { type: 'application/pdf' }), a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = String(A.acro.name || 'Antrag.pdf').replace(/\.pdf$/i, '').replace(/[^A-Za-z0-9ÄÖÜäöüß_\-]+/g, '_') + '_ausgefuellt.pdf';
+            document.body.appendChild(a); a.click(); setTimeout(() => { try { URL.revokeObjectURL(a.href); a.remove(); } catch (e) { } }, 4000);
+            const kf = r.kontrolle.falsch.length;
+            A.status = 'PDF gespeichert (bei den Downloads). Kontrolle: ' + (r.kontrolle.anzahl - kf) + ' von ' + r.kontrolle.anzahl + ' Angaben stehen genau so in der Datei.' + (kf ? ' NICHT übereinstimmend: ' + r.kontrolle.falsch.join(', ') + '.' : '') + (r.warnungen.length ? ' Hinweise: ' + r.warnungen.join(' ') : '') + (falsch.length ? ' Bitte prüfen (Eingabe auffällig): ' + falsch.map(f => f.nr || f.bezeichnung.slice(0, 20)).join(', ') + '.' : '');
+            say('Das ausgefüllte PDF ist gespeichert. ' + (kf ? kf + ' Angaben konnte ich in der Datei nicht bestätigen, schau bitte nach. ' : 'Ich habe jede Angabe in der gespeicherten Datei noch einmal geprüft, alle stimmen. ') + (falsch.length ? falsch.length + ' Eingaben sind auffällig, sie stehen markiert in der Liste. ' : '') + 'Prüfe es Seite für Seite. Datum und Unterschrift machst du selbst.');
+        } catch (e) { console.error('Antrag: PDF', e); A.status = 'Das PDF konnte nicht erstellt werden. Nimm die Ausfüllhilfe zum Abtippen.'; say('Das PDF konnte nicht erstellt werden. Nimm bitte die Ausfüllhilfe zum Abtippen.'); }
+        zeichne();
+    }
     function zu() {
         if (win) { try { win.remove(); } catch (e) { } win = null; }
         A = null; sprache = null;
@@ -247,6 +308,17 @@
         mk(c, 'div', 'an-lab', (f.nr ? f.nr + '  ' : '') + f.bezeichnung + (f.pflicht === true ? ' *' : '') + (f.unsicher ? '  (schlecht lesbar)' : ''));
         if (f.hinweis) mk(c, 'div', 'an-hint', f.hinweis);
         if (f.art === 'unterschrift') { mk(c, 'div', 'an-sub', 'Hier unterschreibst du selbst, auf dem Papier oder wie das Formular es verlangt.'); return; }
+        if (f.art === 'manuell') { mk(c, 'div', 'an-sub', 'Diese Auswahl konnte ich nicht sicher lesen. Bitte im PDF selbst ankreuzen.'); return; }
+        if (f.art === 'mehrfach') {
+            const gew = Array.isArray(A.werte[f.id]) ? A.werte[f.id] : [];
+            f.optionen.forEach(o => {
+                const lab = mk(c, 'label', 'an-lab'); lab.style.cssText = 'display:flex;gap:8px;align-items:flex-start;font-size:15px;margin:4px 0';
+                const cb = mk(lab, 'input'); cb.type = 'checkbox'; cb.style.cssText = 'width:22px;height:22px;flex:0 0 22px'; cb.checked = gew.includes(o);
+                mk(lab, 'span', '', o);
+                cb.addEventListener('change', () => { const a = (Array.isArray(A.werte[f.id]) ? A.werte[f.id] : []).filter(x => x !== o); if (cb.checked) a.push(o); A.werte[f.id] = a; delete A.vorgabe[f.id]; });
+            });
+            return;
+        }
         let inp;
         if (f.art === 'ja_nein' || (f.art === 'auswahl' && f.optionen.length)) {
             inp = mk(c, 'select'); const opts = f.art === 'ja_nein' ? ['Ja', 'Nein'] : f.optionen;
@@ -283,13 +355,14 @@
         mk(r, 'button', 'an-btn primary', '📁 PDF / Bilder wählen').addEventListener('click', () => wahl('image/*,application/pdf,.pdf', true, false));
         if (A.status) mk(body, 'div', 'an-sub', A.status);
         if (A.felder.length) {
-            const fehlend = A.felder.filter(f => f.art !== 'unterschrift' && pruefe(f, A.werte[f.id]) === 'offen' && f.pflicht !== false).length;
-            mk(body, 'div', 'an-sub', 'Stand: ' + fehlend + ' von ' + A.felder.filter(f => f.art !== 'unterschrift').length + ' Feldern noch offen. * = Pflichtfeld laut Formular.');
+            const zaehl = A.felder.filter(f => f.art !== 'unterschrift' && f.art !== 'manuell'), beantw = zaehl.filter(f => !leer(A.werte[f.id])).length;
+            mk(body, 'div', 'an-sub', 'Stand: ' + beantw + ' von ' + zaehl.length + ' Angaben beantwortet. Nicht jede Frage trifft auf dich zu: Folgefelder nach einem Nein darfst du leer lassen. * = Pflichtfeld laut Formular.');
             A.felder.forEach((f, i) => zeile(body, f, i));
         }
         const bar = mk(win, 'div', 'an-bar');
         if (A.felder.length) {
-            mk(bar, 'button', 'an-btn primary', sprache ? '🎤 Sprach-Ausfüllen läuft' : '🎤 Per Sprache ausfüllen').addEventListener('click', () => fragen(0));
+            mk(bar, 'button', 'an-btn primary', sprache ? '🎤 Sprach-Ausfüllen läuft' : '🎤 Per Sprache ausfüllen').addEventListener('click', startSprache);
+            if (A.acro) mk(bar, 'button', 'an-btn primary', '📄 Ausgefülltes PDF erstellen').addEventListener('click', function () { pdfErstellen(this); });
             mk(bar, 'button', 'an-btn primary', '📋 Ausfüllhilfe erstellen').addEventListener('click', () => {
                 if (typeof window.jvBriefFenster !== 'function') { say('Das Brief-Fenster ist gerade nicht verfügbar.'); return; }
                 const text = hilfeText(), datei = 'Ausfuellhilfe_' + String(A.formular || 'Antrag').replace(/[^A-Za-z0-9ÄÖÜäöüß]+/g, '_').replace(/^_|_$/g, '').slice(0, 30) + '.pdf';

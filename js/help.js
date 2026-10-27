@@ -133,7 +133,7 @@ const HELP_TOPICS = [
         'Jarvis merkt sich Eingänge und Ausgaben aus den Mails deiner Bank und wertet sie aus. Er sieht dein Konto nicht und kann nichts überweisen', 'Wie war mein Monat? (Eingang, Ausgaben, wofür am meisten)', 'Wie war der letzte Monat?',
         'Welche Abos habe ich? (regelmäßige Abbuchungen mit Summe)', 'Wo kann ich sparen? (Tipps aus deinen Zahlen)', 'Haushaltsbuch einlesen (holt Bank-Mails der letzten zwei Monate nach)', 'Zeig mir das Haushaltsbuch'] },
     { key: 'antrag', icon: '📝', title: 'Antrag ausfüllen (Jobcenter)', words: /antrag|formular|jobcenter|job center|arbeitsamt|arbeitsagentur|ausfüll/, examples: [
-        'Jarvis liest ein Formular (Foto oder PDF), fragt Feld für Feld und erstellt eine Ausfüllhilfe zum Abtippen. Er schickt nichts ab und unterschreibt nichts',
+        'Jarvis füllt Formulare aus. Hat die PDF echte Eingabefelder (zum Beispiel der Jobcenter-Hauptantrag), trägt er deine Antworten direkt in die PDF ein und prüft danach jede Angabe in der gespeicherten Datei. Bei Foto oder PDF ohne Felder gibt es eine Ausfüllhilfe zum Abtippen. Er schickt nichts ab und unterschreibt nichts',
         'Hilf mir beim Jobcenter-Antrag', 'Antrag ausfüllen', 'Formular ausfüllen', 'Per Sprache ausfüllen (im Fenster; dann: weiter, zurück, fertig, abbrechen)', 'Im Menü ☰: Antrag ausfüllen'] },
     { key: 'behoerdenbrief', icon: '🏛️', title: 'Behördenbriefe', words: /widerspruch|einspruch|beschwerde|antrag|behörde|behoerde|amt\b|bescheid|brief schreiben/, examples: [
         'Jarvis schreibt Widerspruch, Beschwerde, Antrag oder einen freien Brief. Er fragt nur, was fehlt, und der Brief steht im Fenster (ändern, PDF, Drucken, Kopieren, Gmail-Entwurf). Verschickt wird nichts',

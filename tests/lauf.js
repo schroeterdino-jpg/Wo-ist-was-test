@@ -86,9 +86,9 @@ function route(u, satz) {
     try { lauf(0, satz); } catch (e) { return 'FEHLER ' + e.message; }
     return wer;
 }
-function verhalten() {
+async function verhalten() {
     const u = umgebung();
-    for (const f of ['konto.js', 'haushalt.js', 'postfach.js', 'behoerdenbrief.js', 'antrag.js', 'kuendigung.js']) laden(u, f);
+    for (const f of ['konto.js', 'haushalt.js', 'postfach.js', 'behoerdenbrief.js', 'antrag_pdf.js', 'antrag.js', 'kuendigung.js']) laden(u, f);
     const ROUTEN = [
         // [Satz, erwartete Stelle]
         ['Hilf mir beim Jobcenter-Antrag', 'antrag'],
@@ -188,6 +188,47 @@ function verhalten() {
         check('Antrag: Unterschrift bleibt beim Nutzer', /unterschreibst du selbst/.test(t));
         check('Antrag: Nachweis und Frist stehen drin', /Kopie Mietvertrag/.test(t) && /15\.11\./.test(t));
     }
+    // Antrag-PDF: echtes Formular (Jobcenter-Hauptantrag 10/2026), Felder und Ja/Nein-Zuordnung aus tests/hauptantrag_ha.json
+    const PD = u.sb.jvAntragPdf;
+    if (PD) {
+        const fx = JSON.parse(lies('tests/hauptantrag_ha.json'));
+        const fl = PD.baue(fx.roh, fx.items);
+        const art = a => fl.filter(f => f.art === a);
+        check('Antrag-PDF: 116 Felder des Formulars werden zu 91 Angaben (Kästchengruppen zusammengefasst)', fl.length === 91, String(fl.length));
+        check('Antrag-PDF: 31 Ja/Nein-Fragen erkannt', art('ja_nein').length === 31, String(art('ja_nein').length));
+        check('Antrag-PDF: keine Auswahl bleibt unklar (manuell)', art('manuell').length === 0, art('manuell').map(f => f.nr).join(','));
+        check('Antrag-PDF: bei jeder Ja/Nein-Frage steht "Ja" für Knopf 0 und "Nein" für Knopf 1 (vom Text neben dem Knopf gelesen)', art('ja_nein').every(f => f.acro.optionen.find(o => o.label === 'Ja').wert === '0' && f.acro.optionen.find(o => o.label === 'Nein').wert === '1'));
+        check('Antrag-PDF: Familienstand ist eine Einzelwahl mit 7 Möglichkeiten', fl.some(f => f.nr === '32' && f.art === 'auswahl' && f.optionen.length === 7));
+        check('Antrag-PDF: Leistungen sind eine Mehrfachwahl mit 9 Möglichkeiten', fl.some(f => f.nr === '43' && f.art === 'mehrfach' && f.optionen.length === 9));
+        check('Antrag-PDF: Datum der Unterschrift bleibt leer (2 Stück)', art('unterschrift').length === 2);
+        check('Antrag-PDF: IBAN-, Steuer-ID- und PLZ-Felder erkannt', art('iban').length === 1 && art('steuerid').length === 1 && art('plz').length === 3);
+        check('Antrag-PDF: Felder 1 bis 84 vollständig außer 83 (Unterschrift)', [...Array(84)].map((_, i) => String(i + 1)).filter(n => !fl.some(f => f.nr === n)).join(',') === '83');
+        // Vorbelegung gegen das echte Formular: nur Angaben der antragstellenden Person, nie Dritte
+        const AN2 = u.sb.jvAntrag, pr2 = { vorname: 'Dino', nachname: 'Schroeter', geb: '01.02.1970', strasse: 'Verbrüderungsring 13', plz: '21493', ort: 'Schwarzenbek', telefon: '0123', geburtsort: 'Hamburg', staat: 'deutsch' };
+        const vb = {}; fl.forEach(f => { const v = AN2.vorbelegung(f, pr2); if (v) vb[f.nr + (f.art === 'text' ? '' : '')] = v; });
+        check('Antrag-PDF: Vorname, Nachname, Geburtsdatum, Geburtsort, Staatsangehörigkeit, Straße, Hausnummer, PLZ, Ort, Telefon vorbelegt', ['1', '2', '3', '5', '7', '9', '10', '11', '12', '14'].every(n => vb[n]), JSON.stringify(vb));
+        check('Antrag-PDF: Straße = Verbrüderungsring, Hausnummer = 13', vb['9'] === 'Verbrüderungsring' && vb['10'] === '13', vb['9'] + '|' + vb['10']);
+        check('Antrag-PDF: Leistungsträger, Arbeitgeber, Kontoinhaber werden NICHT mit deinen Daten gefüllt', ['17', '54', '55', '56', '57', '58', '62', '63', '64', '65', '66'].every(n => !vb[n]), JSON.stringify(vb));
+        // Schreiben mit einer Attrappe von pdf-lib (prüft unsere Zuordnung, nicht die Bibliothek)
+        const zustand = {}; const ladeFake = () => {
+            const st = JSON.parse(JSON.stringify(zustand));
+            const feld = n => { st[n] = st[n] || {}; return st[n]; };
+            class Doc { getForm() { return { getTextField: n => ({ setText: t => { feld(n).t = t; }, getText: () => feld(n).t }), getRadioGroup: n => ({ select: v => { feld(n).r = v; }, getSelected: () => feld(n).r }), getCheckBox: n => ({ check: () => { feld(n).c = true; }, uncheck: () => { feld(n).c = false; }, isChecked: () => !!feld(n).c }), updateFieldAppearances() { }, acroForm: { dict: { set() { } } } }; }
+                async embedFont() { return { encodeText: ch => { if (ch.charCodeAt(0) > 255) throw new Error('x'); return ch; } }; } async save() { Object.assign(zustand, st); return new TextEncoder().encode('FAKE'); } }
+            return Doc; };
+        const PDFLibFake = { PDFDocument: { load: async () => { const D = ladeFake(); return new D(); } }, StandardFonts: { Helvetica: 'H' }, PDFName: { of: x => x }, PDFBool: { True: true } };
+        u.sb.PDFLib = PDFLibFake;
+        const werte = {}; fl.forEach(f => { if (f.nr === '1') werte[f.id] = 'Dino'; if (f.nr === '3') werte[f.id] = '03.05.1980'; if (f.nr === '15') werte[f.id] = 'Nein'; if (f.nr === '24') werte[f.id] = 'Ja'; if (f.nr === '32') werte[f.id] = f.optionen[1]; if (f.nr === '43') werte[f.id] = [f.optionen[2], f.optionen[6]]; if (f.nr === '5') werte[f.id] = 'Győr'; if (f.art === 'unterschrift') werte[f.id] = '01.01.2026'; });
+        const erg = await PD.fuellen(new Uint8Array(1), fl, werte);
+        const id = nr => fl.find(f => f.nr === nr);
+        check('Antrag-PDF: Text wird in das richtige Feld geschrieben (Vorname, Geburtsdatum)', zustand.txtfPersonVorname && zustand.txtfPersonVorname.t === 'Dino' && zustand.datePersonGebDatum.t === '03.05.1980', JSON.stringify(zustand).slice(0, 200));
+        check('Antrag-PDF: "Nein" bei Frage 15 wählt Knopf 1, "Ja" bei Frage 24 wählt Knopf 0', zustand.rbtnWohnsitz.r === '1' && zustand.rbtnAsylbLG.r === '0', JSON.stringify([zustand.rbtnWohnsitz, zustand.rbtnAsylbLG]));
+        check('Antrag-PDF: Familienstand (Einzelwahl) kreuzt genau ein Kästchen an', id('32').acro.boxen.filter(b => zustand[b.name] && zustand[b.name].c).length === 1 && zustand.chbxFamStandVerheiratet.c === true);
+        check('Antrag-PDF: Leistungen (Mehrfachwahl) kreuzt genau Wohngeld und Kindergeld an', id('43').acro.boxen.filter(b => zustand[b.name] && zustand[b.name].c).map(b => b.name).sort().join(',') === 'chbxLeistungKG,chbxLeistungWohngeld', id('43').acro.boxen.filter(b => zustand[b.name] && zustand[b.name].c).map(b => b.name).join(','));
+        check('Antrag-PDF: Datum der Unterschrift wird nie geschrieben', !zustand.dateUnterschriftPerson && !zustand.dateUnterschriftBetreuer);
+        check('Antrag-PDF: Zeichen, die die PDF-Schrift nicht kann (ő), werden gemeldet und ersetzt', erg.warnungen.some(w => /ő/.test(w)) && zustand.txtfPersonGebOrt.t === 'Gy?r', JSON.stringify(erg.warnungen) + ' ' + (zustand.txtfPersonGebOrt || {}).t);
+        check('Antrag-PDF: Kontrolle der gespeicherten Datei meldet keine Abweichung', erg.kontrolle.falsch.length === 0 && erg.kontrolle.anzahl >= 6, JSON.stringify(erg.kontrolle));
+    }
     // Briefarten
     const B = u.sb.jvBehoerdenbrief;
     if (B) {
@@ -198,6 +239,7 @@ function verhalten() {
 
 console.log('Jarvis-Tests …');
 aufbau();
-verhalten();
-console.log(fehler ? '\n' + fehler + ' Prüfung(en) FEHLGESCHLAGEN, ' + ok + ' in Ordnung.' : '\nAlles in Ordnung (' + ok + ' Prüfungen).');
-process.exit(fehler ? 1 : 0);
+verhalten().then(() => {
+    console.log(fehler ? '\n' + fehler + ' Prüfung(en) FEHLGESCHLAGEN, ' + ok + ' in Ordnung.' : '\nAlles in Ordnung (' + ok + ' Prüfungen).');
+    process.exit(fehler ? 1 : 0);
+}, e => { console.log('FEHLER im Test: ' + (e && e.stack || e)); process.exit(1); });
