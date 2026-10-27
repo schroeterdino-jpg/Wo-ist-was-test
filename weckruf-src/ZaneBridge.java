@@ -47,6 +47,10 @@ class ZaneBridge {
     @JavascriptInterface
     public String holeAnsage() { return act.holeAnsage(); }
 
+    /** PDF (Base64) in den Ordner Download speichern und öffnen. Gibt true zurück, wenn es geklappt hat. */
+    @JavascriptInterface
+    public boolean speicherePdf(String name, String base64) { return act.speicherePdf(name, base64); }
+
     /** Webadresse im Browser öffnen, nie in einer Shop-App (Lidl, Kleinanzeigen ...). Gibt true zurück, wenn es geklappt hat. */
     @JavascriptInterface
     public boolean oeffneImBrowser(String url) { return act.oeffneImBrowser(url); }

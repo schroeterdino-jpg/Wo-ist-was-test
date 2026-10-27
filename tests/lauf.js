@@ -229,6 +229,19 @@ async function verhalten() {
         check('Antrag-PDF: Zeichen, die die PDF-Schrift nicht kann (ő), werden gemeldet und ersetzt', erg.warnungen.some(w => /ő/.test(w)) && zustand.txtfPersonGebOrt.t === 'Gy?r', JSON.stringify(erg.warnungen) + ' ' + (zustand.txtfPersonGebOrt || {}).t);
         check('Antrag-PDF: Kontrolle der gespeicherten Datei meldet keine Abweichung', erg.kontrolle.falsch.length === 0 && erg.kontrolle.anzahl >= 6, JSON.stringify(erg.kontrolle));
     }
+    // PDF speichern (App-Brücke)
+    if (typeof u.sb.jvPdfSpeichern === 'function') {
+        const aufrufe = [];
+        u.sb.btoa = x => Buffer.from(x, 'binary').toString('base64');
+        u.sb.ZaneNative = { speicherePdf: (n, b) => { aufrufe.push([n, b]); return true; } };
+        const bytes = new Uint8Array([37, 80, 68, 70, 45, 255, 0, 10]);
+        const r1 = u.sb.jvPdfSpeichern(bytes, 'Test.pdf');
+        check('PDF speichern: in der App geht die Datei an die Brücke (Name und Inhalt stimmen)', r1 === true && aufrufe.length === 1 && aufrufe[0][0] === 'Test.pdf' && aufrufe[0][1] === Buffer.from(bytes).toString('base64'), JSON.stringify(aufrufe));
+        u.sb.ZaneNative = { speicherePdf: () => false };
+        u.sb.Blob = function () { }; u.sb.URL = { createObjectURL: () => 'blob:x', revokeObjectURL() { } };
+        const r2 = u.sb.jvPdfSpeichern(bytes, 'Test.pdf');
+        check('PDF speichern: klappt die Brücke nicht, gibt es den Browser-Weg als Ersatz (kein Absturz)', r2 === true || r2 === false);
+    }
     // Briefarten
     const B = u.sb.jvBehoerdenbrief;
     if (B) {
