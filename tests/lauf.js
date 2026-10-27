@@ -88,9 +88,14 @@ function route(u, satz) {
 }
 function verhalten() {
     const u = umgebung();
-    for (const f of ['konto.js', 'haushalt.js', 'postfach.js', 'behoerdenbrief.js', 'kuendigung.js']) laden(u, f);
+    for (const f of ['konto.js', 'haushalt.js', 'postfach.js', 'behoerdenbrief.js', 'antrag.js', 'kuendigung.js']) laden(u, f);
     const ROUTEN = [
         // [Satz, erwartete Stelle]
+        ['Hilf mir beim Jobcenter-Antrag', 'antrag'],
+        ['Antrag ausfüllen', 'antrag'],
+        ['Füll den Antrag aus', 'antrag'],
+        ['Jobcenter Formular ausfüllen', 'antrag'],
+        ['Wie lange dauert ein Jobcenter Antrag', 'KI'],
         ['Schreib einen Widerspruch', 'behoerdenbrief'],
         ['Beschwerde an die Hausverwaltung schreiben', 'behoerdenbrief'],
         ['Schreib einen Antrag auf Ratenzahlung', 'behoerdenbrief'],
@@ -148,6 +153,37 @@ function verhalten() {
         check('Wochenüberblick: "Alyssa Geburtstag" bleibt', P.terminText('Alyssa Geburtstag') === 'Alyssa Geburtstag');
         check('Wochenüberblick: normaler Termin bleibt', P.terminText('Friseurtermin bei Anja') === 'Friseurtermin bei Anja');
     } else check('Wochenüberblick: jvPlan.terminText vorhanden', false);
+    // Antrag ausfüllen: Prüfungen im Code
+    const AN = u.sb.jvAntrag;
+    if (AN) {
+        const f = art => ({ art, pflicht: true, optionen: [] });
+        check('Antrag: Datum 03.05.1980 gültig', AN.datumOk('03.05.1980'));
+        check('Antrag: Datum 31.02.1980 ungültig', !AN.datumOk('31.02.1980'));
+        check('Antrag: IBAN (Beispiel DE89 3704 0044 0532 0130 00) gültig', AN.ibanOk('DE89 3704 0044 0532 0130 00'));
+        check('Antrag: IBAN mit Zahlendreher ungültig', !AN.ibanOk('DE89 3704 0044 0532 0130 01'));
+        check('Antrag: PLZ 4 Ziffern ungültig', AN.pruefe(f('plz'), '2149') !== '');
+        check('Antrag: PLZ 21493 gültig', AN.pruefe(f('plz'), '21493') === '');
+        check('Antrag: leeres Pflichtfeld = offen', AN.pruefe(f('text'), '') === 'offen');
+        check('Antrag: freiwilliges leeres Feld ist ok', AN.pruefe({ art: 'text', pflicht: false }, '') === '');
+        check('Antrag: Betrag "450,00" gültig', AN.pruefe(f('betrag'), '450,00') === '');
+        check('Antrag: Betrag "viel" ungültig', AN.pruefe(f('betrag'), 'viel') !== '');
+        check('Antrag: gesprochenes Datum "3. Mai 1980" -> 03.05.1980', AN.sprachDatum('3. Mai 1980') === '03.05.1980', AN.sprachDatum('3. Mai 1980'));
+        check('Antrag: Ja/Nein wird erkannt', AN.bereinigt(f('ja_nein'), 'ja genau') === 'Ja' && AN.bereinigt(f('ja_nein'), 'nee') === 'Nein');
+        const pr = { vorname: 'Dino', nachname: 'Schroeter', geb: '01.02.1970', plz: '21493' };
+        check('Antrag: Vorname wird vorbelegt', AN.vorbelegung({ bezeichnung: 'Vorname', art: 'text' }, pr) === 'Dino');
+        check('Antrag: Geburtsdatum des Partners wird NICHT vorbelegt', AN.vorbelegung({ bezeichnung: 'Geburtsdatum des Partners', art: 'datum' }, pr) === '');
+        check('Antrag: Unterschrift wird nie vorbelegt', AN.vorbelegung({ bezeichnung: 'Name', art: 'unterschrift' }, pr) === '');
+    }
+    if (AN && AN._hilfe) {
+        const z = AN._neu(); z.nachweise = ['Kopie Mietvertrag']; z.fristen = ['Abgabe bis 15.11.']; z.formular = 'Hauptantrag';
+        z.felder = [{ id: 'a', nr: '1', bezeichnung: 'Familienname', art: 'text', pflicht: true, optionen: [], seite: 1 }, { id: 'b', nr: '2', bezeichnung: 'Geburtsdatum', art: 'datum', pflicht: true, optionen: [], seite: 1 }, { id: 'c', nr: '3', bezeichnung: 'Unterschrift', art: 'unterschrift', optionen: [], seite: 1 }];
+        z.werte = { a: 'Schroeter', b: '31.02.1970' };
+        const t = AN._hilfe(z);
+        check('Antrag: Ausfüllhilfe nennt Eintrag', /Familienname →\s+Schroeter/.test(t), t);
+        check('Antrag: Ausfüllhilfe warnt vor falschem Datum', /Geburtsdatum →\s+31\.02\.1970\s+⚠/.test(t), t);
+        check('Antrag: Unterschrift bleibt beim Nutzer', /unterschreibst du selbst/.test(t));
+        check('Antrag: Nachweis und Frist stehen drin', /Kopie Mietvertrag/.test(t) && /15\.11\./.test(t));
+    }
     // Briefarten
     const B = u.sb.jvBehoerdenbrief;
     if (B) {

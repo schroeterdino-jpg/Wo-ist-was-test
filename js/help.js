@@ -132,6 +132,9 @@ const HELP_TOPICS = [
     { key: 'haushalt', icon: '📒', title: 'Haushaltsbuch', words: /haushalt|ausgaben|einnahmen|sparen|abos?\b|monat|fixkosten/, examples: [
         'Jarvis merkt sich Eingänge und Ausgaben aus den Mails deiner Bank und wertet sie aus. Er sieht dein Konto nicht und kann nichts überweisen', 'Wie war mein Monat? (Eingang, Ausgaben, wofür am meisten)', 'Wie war der letzte Monat?',
         'Welche Abos habe ich? (regelmäßige Abbuchungen mit Summe)', 'Wo kann ich sparen? (Tipps aus deinen Zahlen)', 'Haushaltsbuch einlesen (holt Bank-Mails der letzten zwei Monate nach)', 'Zeig mir das Haushaltsbuch'] },
+    { key: 'antrag', icon: '📝', title: 'Antrag ausfüllen (Jobcenter)', words: /antrag|formular|jobcenter|job center|arbeitsamt|arbeitsagentur|ausfüll/, examples: [
+        'Jarvis liest ein Formular (Foto oder PDF), fragt Feld für Feld und erstellt eine Ausfüllhilfe zum Abtippen. Er schickt nichts ab und unterschreibt nichts',
+        'Hilf mir beim Jobcenter-Antrag', 'Antrag ausfüllen', 'Formular ausfüllen', 'Per Sprache ausfüllen (im Fenster; dann: weiter, zurück, fertig, abbrechen)', 'Im Menü ☰: Antrag ausfüllen'] },
     { key: 'behoerdenbrief', icon: '🏛️', title: 'Behördenbriefe', words: /widerspruch|einspruch|beschwerde|antrag|behörde|behoerde|amt\b|bescheid|brief schreiben/, examples: [
         'Jarvis schreibt Widerspruch, Beschwerde, Antrag oder einen freien Brief. Er fragt nur, was fehlt, und der Brief steht im Fenster (ändern, PDF, Drucken, Kopieren, Gmail-Entwurf). Verschickt wird nichts',
         'Schreib einen Widerspruch (am besten vorher den Bescheid fotografieren, dann übernimmt er Absender, Aktenzeichen und Datum)', 'Beschwerde an die Hausverwaltung schreiben', 'Schreib einen Antrag auf Ratenzahlung', 'Schreib einen Brief an das Finanzamt', 'Abbrechen'] },
