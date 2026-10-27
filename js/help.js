@@ -132,6 +132,9 @@ const HELP_TOPICS = [
     { key: 'haushalt', icon: '📒', title: 'Haushaltsbuch', words: /haushalt|ausgaben|einnahmen|sparen|abos?\b|monat|fixkosten/, examples: [
         'Jarvis merkt sich Eingänge und Ausgaben aus den Mails deiner Bank und wertet sie aus. Er sieht dein Konto nicht und kann nichts überweisen', 'Wie war mein Monat? (Eingang, Ausgaben, wofür am meisten)', 'Wie war der letzte Monat?',
         'Welche Abos habe ich? (regelmäßige Abbuchungen mit Summe)', 'Wo kann ich sparen? (Tipps aus deinen Zahlen)', 'Haushaltsbuch einlesen (holt Bank-Mails der letzten zwei Monate nach)', 'Zeig mir das Haushaltsbuch'] },
+    { key: 'behoerdenbrief', icon: '🏛️', title: 'Behördenbriefe', words: /widerspruch|einspruch|beschwerde|antrag|behörde|behoerde|amt\b|bescheid|brief schreiben/, examples: [
+        'Jarvis schreibt Widerspruch, Beschwerde, Antrag oder einen freien Brief. Er fragt nur, was fehlt, und der Brief steht im Fenster (ändern, PDF, Drucken, Kopieren, Gmail-Entwurf). Verschickt wird nichts',
+        'Schreib einen Widerspruch (am besten vorher den Bescheid fotografieren, dann übernimmt er Absender, Aktenzeichen und Datum)', 'Beschwerde an die Hausverwaltung schreiben', 'Schreib einen Antrag auf Ratenzahlung', 'Schreib einen Brief an das Finanzamt', 'Abbrechen'] },
     { key: 'kuendigung', icon: '✉️', title: 'Kündigung schreiben', words: /kündigung|kuendigung|kündigen|kuendigen|vertrag|abo\b|mitgliedschaft/, examples: [
         'Schreib mir eine Kündigung (Zane fragt: Anbieter, Vertrag, Kunden-/Vertragsnummer, Zeitpunkt, Name und Anschrift)', 'Kündigung für Vodafone aufsetzen', 'Ich möchte meinen Vertrag kündigen',
         'Zeig die letzte Kündigung', 'Zeig meine Kündigungen (die letzten 5 bleiben gespeichert, auch per Tipp auf Kündigung in der Kugel-Ansicht)', 'Im Fenster: Text ändern, PDF speichern, Drucken, Kopieren, Adresse suchen', 'Abbrechen (beendet die Fragen)'] },

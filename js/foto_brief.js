@@ -336,7 +336,7 @@
                 say('Ich konnte auf dem Foto keinen Brief lesen. Liegt er gerade, ist er scharf und gut beleuchtet?');
                 return;
             }
-            window._lastLetter = L;
+            window._lastLetter = L; L.at = Date.now();
             if (window._briefKuend && Date.now() - window._briefKuend < 10 * 60000) {   // Karte "Kündigung aus Brief"
                 window._briefKuend = 0;
                 if (L.absender) { photoPending = null; cards([]); startKuendigungFromLetter(L); return; }

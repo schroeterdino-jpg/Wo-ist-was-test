@@ -118,6 +118,18 @@
         say('Ich habe die Antwort an ' + kurzName(m.replyTo || m.von) + ' in deine Entwürfe gelegt. Sie lautet: ' + text.replace(/\s+/g, ' ').slice(0, 300) + ' Abgeschickt wird nichts, das machst du selbst in Gmail.');
     }
 
+    /* Entwurf an eine Adresse (ohne Bezug auf eine Mail), z. B. für Behördenbriefe (behoerdenbrief.js). Gesendet wird nie etwas. */
+    async function entwurfAn(an, betreff, text) {
+        if (!(await verbunden())) { neuVerbinden('Google ist nicht verbunden. Tippe bitte auf die Karte, um zu verbinden.'); return false; }
+        const koerper = b64(String(text).replace(/\r?\n/g, '\r\n')).replace(/(.{76})/g, '$1\r\n');
+        const kopf = ['To: ' + String(an).replace(/[\r\n,;<>\s]+/g, ''), 'Subject: =?UTF-8?B?' + b64(String(betreff || '').replace(/[\r\n]+/g, ' ')) + '?=', 'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64'];
+        const r = await gapi('drafts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: { raw: b64url(kopf.join('\r\n') + '\r\n\r\n' + koerper) } }) });
+        if (fehlerBehandeln(r)) return false;
+        say('Der Entwurf liegt in deinem Gmail. Abgeschickt wird nichts, das machst du selbst.');
+        return true;
+    }
+    window.jvMailEntwurfAn = entwurfAn;
+
     /* ---------- Papierkorb ---------- */
     async function inPapierkorb(id) {
         const r = await gapi('messages/' + encodeURIComponent(id) + '/trash', { method: 'POST' });
