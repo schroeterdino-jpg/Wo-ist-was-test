@@ -616,7 +616,8 @@ async function shopping(req, res) {
     const out = { angebote: normal.length ? l.slice(0, 5) : [] };   // nur Marktplätze (OnBuy, easyShop ...): kein "ab"-Preis, sie kommen klein getrennt
     if (!normal.length && markt.length) out.marktplatz = markt.slice(0, 2).map(x => ({ shop: x.shop, preisText: x.preisText, preis: x.preis, titel: x.titel }));
     if (ungenau) out.ungenau = true;
-    out.diag = { g: d.shopping.length, k: kern || '', ir: diagI.roh, is: diagI.seiten, ip: idl.length, p: l.length };
+    out.diag = { g: d.shopping.length, k: kern || '', ir: diagI.roh, is: diagI.seiten, ip: idl.length, p: l.length , in: idl.map(x => String(x.titel).slice(0, 45) + ' ' + x.preis) };
+    if (ungenau || !normal.length) { const vs = idl.filter(x => !l.some(y => y.link === x.link)); if (vs.length) out.vorschlaege = vs.slice(0, 2).map(x => ({ shop: 'Idealo', titel: x.titel, preis: x.preis, link: x.link })); }
     if (String(req.query.gebraucht || '') === '1') {   // Gebrauchtes getrennt von den Neupreisen (zählt nie für Summe oder Preisalarm)
       const med = l.length ? l.map(x => x.preis).sort((a, b) => a - b)[Math.floor(l.length / 2)] : 0;
       const seen = new Set();
