@@ -243,13 +243,14 @@ async function verhalten() {
     {
         const mod = { exports: {} };
         const fakeFetch = async (url, o) => {
-            if (/shopping/.test(url)) return { ok: true, json: async () => ({ shopping: [{ title: 'A', source: 'Shop A', price: '19,99 €', link: 'https://a.de/x' }, { title: 'B', source: 'Shop B', price: '22,50 €', link: 'https://b.de/x' }, { title: 'C', source: 'Shop C', price: '25,00 €', link: 'https://c.de/x' }, { title: 'Gebr', source: 'eBay', price: '14,50 €', link: 'https://ebay.de/itm/1' }] }) };
+            if (/shopping/.test(url)) return { ok: true, json: async () => ({ shopping: [{ title: 'A', source: 'Shop A', price: '19,99 €', link: 'https://a.de/x' }, { title: 'B', source: 'Shop B', price: '22,50 €', link: 'https://b.de/x' }, { title: 'C', source: 'Shop C', price: '25,00 €', link: 'https://c.de/x' }, { title: 'Gebr', source: 'eBay', price: '14,50 €', link: 'https://ebay.de/itm/1' }, { title: '3D-Vorlage', source: 'Thangs 3D', price: '13,44 €', link: 'https://thangs.com/x' }] }) };
             return { ok: true, json: async () => ({ organic: [{ title: 'Toni 12 € VB - Kleinanzeigen', link: 'https://www.kleinanzeigen.de/s-anzeige/toni/123', snippet: 'Hamburg' }, { title: 'Toni verschenken', link: 'https://www.kleinanzeigen.de/s-anzeige/toni/9', snippet: 'Gratis' }, { title: 'Suche', link: 'https://www.kleinanzeigen.de/s-toni/k0', snippet: '5 €' }] }) };
         };
         new Function('module', 'process', 'fetch', 'AbortSignal', 'URL', lies('api/maps.js').replace(/^export const config/m, 'const config').replace(/^export default /m, 'module.exports = '))(mod, { env: { SERPER_API_KEY: 'x', APP_SECRET: 's' } }, fakeFetch, { timeout: () => undefined }, URL);
         const rufe = async query => { let out; await mod.exports({ method: 'GET', query, headers: { 'x-app-key': 's' } }, { status: c => ({ json: j => { out = j; }, end() { } }), setHeader() { }, json: j => { out = j; } }); return out; };
         const neu = await rufe({ action: 'shopping', q: 'Toni' }), mit = await rufe({ action: 'shopping', q: 'Toni', gebraucht: '1' });
         check('Server: ohne Gebraucht-Wunsch bleibt die Antwort wie bisher (nur Neupreise, kein eBay)', neu.angebote.length === 3 && !neu.gebraucht && !neu.angebote.some(x => /ebay/i.test(x.shop)), JSON.stringify(neu).slice(0, 200));
+        check('Server: Vorlagen zum 3D-Drucken (Thangs) werden nie als Angebot gezeigt', !JSON.stringify(neu).includes('Thangs') && !JSON.stringify(mit).includes('Thangs'));
         check('Server: Gebrauchtes kommt getrennt (Kleinanzeigen mit Preis, eBay), Neupreise bleiben gleich', mit.angebote.length === 3 && mit.gebraucht.map(x => x.shop + ' ' + x.preis).join('|') === 'Kleinanzeigen 12|eBay 14.5', JSON.stringify(mit.gebraucht));
         check('Server: Kleinanzeigen-Treffer ohne Preis und Suchseiten werden weggelassen', !mit.gebraucht.some(x => /\/k0$|\/9$/.test(x.link)));
     }
@@ -261,7 +262,7 @@ async function verhalten() {
         if (T) {
             const titel = 'Marvel Spidey und Seine Super-Freunde Web-Spinners Web-Quartier Spielset mit Spidey Action-Figur, Fahrzeug und Zubehör\nProduktbilder und -videos (KI-generierter Alternativtext)';
             const r = T(titel);
-            check('Preissuche: ein eingefügter Amazon-Titel ist EIN Produkt, ohne Beiwerk und gekürzt', r.length === 1 && r[0] === 'Marvel Spidey und Seine Super-Freunde Web-Spinners Web-Quartier Spielset', JSON.stringify(r));
+            check('Preissuche: ein eingefügter Amazon-Titel ist EIN Produkt (ganz, ohne Beiwerk)', r.length === 1 && r[0].startsWith('Marvel Spidey und Seine Super-Freunde Web-Spinners Web-Quartier Spielset mit Spidey Action-Figur') && !/Produktbilder|KI-generiert/.test(r[0]), JSON.stringify(r));
             check('Preissuche: kurze Liste mit Komma wird weiter getrennt', T('Toni-Figur, Weihnachtsmann, KKG').length === 3);
             check('Preissuche: "Weihnachtsmann und Co. KG" bleibt ein Produkt', T('Weihnachtsmann und Co. KG').length === 1);
         } else check('Preissuche: _teile vorhanden', false);
