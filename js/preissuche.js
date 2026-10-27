@@ -213,8 +213,12 @@
     function alarmListe() {
         const l = laden(); if (!l.length) return null;
         const box = document.createElement('div'); box.className = 'ps-alarme'; box.style.cssText = 'margin:0 0 12px;padding:10px 12px;border:1px solid rgba(94,231,255,.3);border-radius:12px;background:rgba(10,29,43,.7)';
-        const kopf = document.createElement('div'); kopf.style.cssText = 'color:#49d7ff;font-weight:700;font-size:13px;letter-spacing:.08em';
-        const zaehler = () => { kopf.textContent = '🔔 MEINE PREISALARME (' + box.querySelectorAll('.ps-al').length + ')'; };
+        const kopf = document.createElement('div'); kopf.style.cssText = 'color:#49d7ff;font-weight:700;font-size:13px;letter-spacing:.08em;display:flex;justify-content:space-between;gap:10px;cursor:pointer';
+        const kt = document.createElement('span'), pf = document.createElement('span'); pf.style.cssText = 'font-weight:400;letter-spacing:0;color:#8fb9c9'; kopf.appendChild(kt); kopf.appendChild(pf);
+        let offen = false;   // eingeklappt: Suchfeld und Ergebnisse bleiben sichtbar
+        const zeigen = () => { box.querySelectorAll('.ps-al').forEach(e => { e.style.display = offen ? '' : 'none'; }); pf.textContent = offen ? '▴ zuklappen' : '▾ zeigen'; };
+        const zaehler = () => { kt.textContent = '🔔 MEINE PREISALARME (' + box.querySelectorAll('.ps-al').length + ')'; };
+        kopf.addEventListener('click', () => { offen = !offen; zeigen(); });
         box.appendChild(kopf);
         l.forEach(w => {
             const z = document.createElement('div'); z.className = 'ps-al'; z.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid rgba(94,231,255,.2);font-size:14px;line-height:1.5';
@@ -230,7 +234,7 @@
             lo.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); entfernen(w.q); z.remove(); zaehler(); if (!box.querySelector('.ps-al')) box.remove(); });
             akt.appendChild(lo); z.appendChild(akt); box.appendChild(z);
         });
-        zaehler(); return box;
+        zaehler(); zeigen(); return box;
     }
 
     /* ---------- Suchen und vorlesen ---------- */
