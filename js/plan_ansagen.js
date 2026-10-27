@@ -518,7 +518,7 @@
                 const abfahrt = abfFix(sh) - tagVor(ymd), ansage = abfahrt - VOR_ABFAHRT;
                 const staumin = Math.max(ansage - STAU_VOR, sh === 'frueh' ? weckzeit() + 10 : 0);
                 if (ansage >= 0 && staumin <= ansage - 5) out.push({ id: 'stau|' + ymd, at: berlinMs(ymd, staumin), text: 'Ich prüfe kurz die Verkehrslage auf deinem Arbeitsweg. Ist alles frei, sage ich nichts.' });
-                out.push({ id: 'heim|' + ymd, at: berlinMs(ymd, ende(sh) + HEIM_NACH), text: 'Feierabend. ' + (heuteAufgabenText() ? heuteAufgabenText() + ' ' : '') + 'Tippe, dann sage ich dir, wie der Heimweg aussieht.' });
+                out.push({ id: 'heim|' + ymd, at: berlinMs(ymd, ende(sh) + HEIM_NACH), text: 'Feierabend.' + (heimNormal() ? ' Der Heimweg dauert normalerweise rund ' + heimNormal() + ' Minuten.' : '') + (heuteAufgabenText() ? ' ' + heuteAufgabenText() : '') + ' Tippe für Einzelheiten.' });
                 if (ansage >= 0) out.push({ id: 'aufbruch|' + ymd, at: berlinMs(ymd, ansage), text: 'Abfahrt gegen ' + uhrHM(abfahrt) + ' Uhr (' + NAME[sh] + ' ab ' + uhrHM(start) + ', Fahrt rund ' + fahrt + ' Minuten). Tippe, dann sage ich dir die aktuelle Lage.' });
             }
             const morgen = ymdPlus(ymd, 1);
@@ -621,6 +621,7 @@
         if (art === 'heim') {
             const t = await heimText(!!erzwingen || !!angetippt);
             if (!t) { try { const a = gesagt().filter(x => x !== id); lsSet(K_GESAGT, JSON.stringify(a)); } catch (e) { } return false; }
+            if (!erzwingen) { merkeMeldung('🏠 Heimweg', t); zeigeMeldung('🏠 Heimweg', t); return true; }   // Feierabend nur als Benachrichtigung: nachlesen, nichts von selbst sagen
             sagenMeldung('🏠 Heimweg', t);
             return true;
         }

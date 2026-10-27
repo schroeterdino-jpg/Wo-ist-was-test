@@ -230,3 +230,5 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 - **Begrüßung beim Öffnen** (`gruessen()`): 9 s nach dem Start und beim Zurückholen der App sagt Jarvis ein bis zwei Sätze (Schicht mit Beginn zuerst), höchstens alle 90 Min (`jv_dirig_gruss`), nicht vor 6:30 und nach 21:30; ohne Angebot, ohne Frage, zählt nicht gegen das Tageslimit. `ansage(id, erzwingen, gruss)`.
 - `was_steht_an.js` versteht heute/morgen/übermorgen/Wochentag (`tagVon`) und nennt die Schicht (`schichtSatz`, über `jvPlan.schichtAm` und `jvSchichtWissen`). `zane_redet.js`: Standard jetzt "oft" (alle 10–18 Min, 14 am Tag), Ruhezeit 30 s.
 - Sprache (Order 0.33): "Was hast du für mich?", "Warum hast du dich gemeldet?", "Das interessiert mich nicht", "Keine Tagesmeldungen mehr" / "Tagesmeldungen an", "Alle Themen wieder".
+
+**Feierabend/Heimweg (27.10.2026):** `heim|<Tag>` ist nur noch eine Benachrichtigung (kurzer Text mit üblicher Heimweg-Dauer). `ansage('heim|…')` ohne `erzwingen` speichert die Meldung nur zum Nachlesen und zeigt sie, es wird nichts gesprochen. Die Sprache "Heimweg" / "Feierabend-Briefing" liest weiterhin vor.
