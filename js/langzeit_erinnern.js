@@ -210,11 +210,16 @@
                             titel = String(action.calendar_text || '').replace(/\s+/g, ' ').trim().slice(0, 120);
                         }
                     }
+                    // Die KI wählt für "Ich muss Donnerstag um 13:15 auf der Arbeit sein" manchmal eine andere Aktion (Briefing-Hinweis, Aufgabe, Chat): die App erkennt den Termin trotzdem
+                    if (!s && /^(?:chat|briefing_add|todo|memory_store)$/.test(String(action.type || '')) && /\b(?:muss|soll|sollte)\b/i.test(String(text || '')) && !/\b(?:war|waren|gestern|vorhin|letzte\w*)\b/i.test(String(text || ''))) {
+                        s = ausText(text);
+                        if (s) titel = String(text || '').replace(/^\s*(?:jarvis[,\s]+)?(?:also[,\s]+)?(?:ich\s+)?(?:muss|soll|sollte)\s+/i, '').replace(/\s+(?:muss|soll)\s+ich\b/i, '').replace(/[.!?]+$/, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+                    }
                     if (s && titel) {
                         if (s.start.getTime() > Date.now() + 30 * 60000) {
                             const mitZeit = /\buhr\b|\d{1,2}[:.]\d{2}/i.test(titel) ? titel : titel + ' um ' + uhrText(s.h, s.mi);
                             pending = { text: mitZeit, start: s.start, at: Date.now(), kal: action.type !== 'episode_store' ? titel : '' };
-                            if (ctx && Array.isArray(ctx.notes)) ctx.notes.push('Wie viele Stunden vorher soll ich dich per Push erinnern?');
+                            if (ctx && Array.isArray(ctx.notes) && ctx.notes.indexOf('Wie viele Stunden vorher soll ich dich per Push erinnern?') < 0) ctx.notes.push('Wie viele Stunden vorher soll ich dich per Push erinnern?');
                         }
                     }
                 }
@@ -329,7 +334,7 @@
     if (window.jvChain) {
         window.jvChain.use('buildSystemPrompt', 'termin-erinnern', function (next) {
             let base = next();
-            if (isOn()) base += '\n\nZUSATZ zu \'episode_store\': Nennt der User bei einem zukünftigen Termin eine UHRZEIT (z.B. "übermorgen ist das Konzert von Xavier Naidoo um 20 Uhr"), setze zusätzlich \'episode_uhrzeit\' = die Uhrzeit als HH:MM (24 Stunden, "20 Uhr" = "20:00", "halb acht abends" = "19:30") und \'episode_erinnerung\' = kurzer Titel für die Erinnerung (z.B. "Konzert von Xavier Naidoo", ohne Uhrzeit und ohne "Der User"). Ohne genannte Uhrzeit lasse beide Felder weg, erfinde nie eine Uhrzeit. Die Rückfrage "Wie viele Stunden vorher soll ich dich erinnern?" stellt die App selbst, stelle sie NICHT zusätzlich und lege dafür auch keine eigene Erinnerung an.';
+            if (isOn()) base += '\n\nZUSATZ zu \'episode_store\': Nennt der User bei einem zukünftigen Termin eine UHRZEIT (z.B. "übermorgen ist das Konzert von Xavier Naidoo um 20 Uhr"), setze zusätzlich \'episode_uhrzeit\' = die Uhrzeit als HH:MM (24 Stunden, "20 Uhr" = "20:00", "halb acht abends" = "19:30") und \'episode_erinnerung\' = kurzer Titel für die Erinnerung (z.B. "Konzert von Xavier Naidoo", ohne Uhrzeit und ohne "Der User"). Ohne genannte Uhrzeit lasse beide Felder weg, erfinde nie eine Uhrzeit. Feste Termine mit Uhrzeit ("Ich muss Donnerstag um 13:15 auf der Arbeit sein") gehören in \'episode_store\' (oder \'calendar\'), NICHT in \'briefing_add\' oder \'memory_store\'. Die Rückfrage "Wie viele Stunden vorher soll ich dich erinnern?" stellt die App selbst, stelle sie NICHT zusätzlich und lege dafür auch keine eigene Erinnerung an.';
             return base;
         }, 215);
     }
