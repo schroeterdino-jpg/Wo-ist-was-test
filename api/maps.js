@@ -469,6 +469,7 @@ function preisZahl(t) {
   m = x.match(/(\d{1,3}(?:\.\d{3})+|\d+)/);                                 // 15 oder 1.019
   return m ? parseFloat(m[1].replace(/\./g, '')) : null;
 }
+const AUSSCHLUSS_RX = /thangs|printables|thingiverse|cults3d|myminifactory/i;   // Vorlagen zum 3D-Drucken, keine Waren
 const GEBRAUCHT_RX = /kleinanzeigen|ebay|vinted|willhaben|momox|rebuy|mobile\.de|shpock/i;
 /* Kleinanzeigen hat keine offene Schnittstelle: Treffer kommen aus der Google-Suche (nur Anzeigen-Seiten, Preis aus Titel oder Beschreibung, sonst weglassen). */
 function kleinanzeigenTreffer(d) {
@@ -511,7 +512,7 @@ async function shopping(req, res) {
     const alle = (Array.isArray(d.shopping) ? d.shopping : []).map(x => ({
       titel: String(x.title || '').slice(0, 120), shop: String(x.source || ''), preisText: String(x.price || ''),
       preis: preisZahl(x.price), link: String(x.link || '')
-    })).filter(x => x.preis && x.preis > 0);
+    })).filter(x => x.preis && x.preis > 0 && !AUSSCHLUSS_RX.test(x.shop + ' ' + x.link));
     let l = alle.filter(x => !GEBRAUCHT_RX.test(x.shop + ' ' + x.link));   // Gebrauchtes zeigt keine Neupreise und sein Link startet in der APK Jarvis neu
     if (l.length >= 3) {
       const sorted = l.map(x => x.preis).sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
