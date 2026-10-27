@@ -45,7 +45,6 @@ async function sendToGroqSmart(text, opts = {}) {
 }
 
 async function sendToGroqSmartCore(text, opts = {}) {
-    const _t0 = Date.now(); window.jvT0 = _t0;   // Zeitmessung für das Diagnose-Fenster ("Diagnose an")
     window.jvLetzterText = text;   // für das Zurückfragen (rueckfrage.js): der Satz, der nach der Antwort noch einmal ausgeführt wird
     isProcessing = true;
     try { if (typeof diagStart === 'function') diagStart(text); } catch (e) {}   // Diagnose-Fenster (nur wenn eingeschaltet)
@@ -145,7 +144,6 @@ async function sendToGroqSmartCore(text, opts = {}) {
     };
 
     const systemPrompt = buildSystemPrompt(text, contextData, nowGermanIso);
-    try { if (typeof diagAdd === 'function') diagAdd('⏱ Vorbereitung (Wetter, Gedächtnis, Spritpreise): ' + (Date.now() - _t0) + ' ms'); } catch (e) {}
     try { if (typeof diagPromptSize === 'function') diagPromptSize(systemPrompt); } catch (e) {}
 
     chatHistory.push({ role: "user", content: text });
@@ -170,7 +168,6 @@ async function sendToGroqSmartCore(text, opts = {}) {
 
         const data = await res.json();
         try { if (typeof diagApi === 'function') diagApi(res, data); } catch (e) {}
-        try { if (typeof diagAdd === 'function') diagAdd('⏱ KI hat geantwortet nach: ' + (Date.now() - _t0) + ' ms (insgesamt seit deiner Frage)'); } catch (e) {}
         const ai = JSON.parse(data.choices[0].message.content);
         try { if (typeof diagShow === 'function') diagShow(text, ai); } catch (e) {}
 
