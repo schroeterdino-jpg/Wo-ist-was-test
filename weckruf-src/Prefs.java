@@ -79,7 +79,11 @@ final class Prefs {
     // Vertretung: antwortet ein erlaubter Kontakt-Chat nach N Minuten ungelesen noch steht, springt Jarvis ein
     static boolean vertretung(Context c) { return sp(c).getBoolean("vertretung", false); }
     static void setVertretung(Context c, boolean v) { sp(c).edit().putBoolean("vertretung", v).apply(); }
-    static int vertrMin(Context c) { return sp(c).getInt("vertrMin", 5); }
+    static int vertrMin(Context c) {
+        SharedPreferences p = sp(c);
+        if (!p.getBoolean("vertrMin5", false)) { p.edit().putInt("vertrMin", 5).putBoolean("vertrMin5", true).apply(); return 5; }   // einmalig: Standard 5 Minuten (27.10.2026)
+        return p.getInt("vertrMin", 5);
+    }
     static void setVertrMin(Context c, int m) { sp(c).edit().putInt("vertrMin", Math.max(5, Math.min(120, m))).apply(); }
     // Fahrmodus (Autoansicht offen): WhatsApp von erlaubten Kontakten wird vorgelesen; der Merker verfällt nach 12 Stunden von selbst
     static boolean fahren(Context c) { long s = sp(c).getLong("fahrenSeit", 0); return s > 0 && System.currentTimeMillis() - s < 12L * 3600000L; }
@@ -90,7 +94,7 @@ final class Prefs {
     static String kontextText(Context c) { return sp(c).getString("kontextText", ""); }
     static void setKontext(Context c, String tag, String text) { sp(c).edit().putString("kontextTag", tag == null ? "" : tag).putString("kontextText", text == null ? "" : text).apply(); }
     // Wissensblatt: Aussagen, die Jarvis über Dino machen darf (eine pro Zeile); Arbeitszeit von heute (Millisekunden) für "ist bei der Arbeit"
-    static String wissen(Context c) { return sp(c).getString("wissen", ""); }
+    static String wissen(Context c) { return sp(c).getString("wissen", "Dino fährt vielleicht gerade und meldet sich nach der Fahrt."); }   // Vorgabe, bis Dino das Wissensblatt selbst ändert
     static void setWissen(Context c, String s) { sp(c).edit().putString("wissen", s == null ? "" : s).apply(); }
     static long arbeitVon(Context c) { return sp(c).getLong("arbeitVon", 0L); }
     static long arbeitBis(Context c) { return sp(c).getLong("arbeitBis", 0L); }
