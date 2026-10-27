@@ -281,6 +281,11 @@ async function verhalten() {
         let o6; await mod6.exports({ method: 'GET', query: { action: 'shopping', q: TITEL }, headers: { 'x-app-key': 's' } }, { status: c => ({ json: j => { o6 = j; }, end() { } }), setHeader() { }, json: j => { o6 = j; } });
         check('Server: andere Sets der gleichen Serie (ohne Web-Quartier) gelten als unsicher (ungenau)', o6 && o6.ungenau === true && o6.diag && o6.diag.p === o6.angebote.length, JSON.stringify(o6));
         check('Server: Diagnose-Zeile liefert Zähler (Google, Idealo)', o5 && o5.diag && o5.diag.g === 2 && o5.diag.ip === 1 && o5.diag.is === 1, JSON.stringify(o5 && o5.diag));
+        const fake7 = async url => /shopping/.test(url) ? { ok: true, json: async () => ({ shopping: [{ title: 'Spielset Web-Quartiere erstaunlichen Freunde', source: 'easyShop.com', price: '270,74 €', link: 'https://easyshop.com/1' }] }) } : { ok: true, json: async () => ({ organic: [] }) };
+        const mod7 = { exports: {} };
+        new Function('module', 'process', 'fetch', 'AbortSignal', 'URL', lies('api/maps.js').replace(/^export const config/m, 'const config').replace(/^export default /m, 'module.exports = '))(mod7, { env: { SERPER_API_KEY: 'x', APP_SECRET: 's' } }, fake7, { timeout: () => undefined }, URL);
+        let o7; await mod7.exports({ method: 'GET', query: { action: 'shopping', q: 'Spielset Web-Quartiere' }, headers: { 'x-app-key': 's' } }, { status: c => ({ json: j => { o7 = j; }, end() { } }), setHeader() { }, json: j => { o7 = j; } });
+        check('Server: nur Marktplatz-Treffer (easyShop 270 €) -> kein Angebot, nur klein als marktplatz', o7 && o7.angebote.length === 0 && o7.marktplatz && o7.marktplatz[0].preis === 270.74, JSON.stringify(o7));
         check('Server: passende Angebote bleiben, Zufallstreffer (12 € Figur) fallen weg', o2 && !o2.ungenau && o2.angebote.length === 1 && o2.angebote[0].preis === 85, JSON.stringify(o2));
         check('Server: Kleinanzeigen-Treffer ohne Preis und Suchseiten werden weggelassen', !mit.gebraucht.some(x => /\/k0$|\/9$/.test(x.link)));
     }
