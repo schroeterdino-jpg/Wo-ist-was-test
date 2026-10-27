@@ -47,7 +47,8 @@
     function bereinigen(s) {
         return String(s || '').replace(/\b(?:bitte|mal|doch|haben|kaufen|raus|heraus)\b/gi, ' ').replace(/^\s*(?:ein|eine|einen|einem|den|die|das|dieses|diese|diesen|mir)\s+/i, '').replace(/\s+/g, ' ').trim().slice(0, 80);
     }
-    function teile(s) { return String(s || '').split(/\s*(?:,|;|\bund\b|\bsowie\b)\s*/i).map(bereinigen).filter(x => x.length > 1).slice(0, 6); }
+    function korrigiere(p) { return String(p || '').replace(/\bToni[- ]Figur(en)?\b/gi, 'Tonie Figur$1'); }   // Spracherkennung schreibt "Toni" statt Tonie (Toniebox)
+    function teile(s) { return String(s || '').split(/\s*(?:,|;|\bund\b(?!\s+co\b)|\bsowie\b)\s*/i).map(bereinigen).map(korrigiere).filter(x => x.length > 1).slice(0, 6); }   // "und Co." gehört zum Namen (z. B. "Weihnachtsmann und Co. KG")
 
     /* ---------- Fenster ---------- */
     function css() {

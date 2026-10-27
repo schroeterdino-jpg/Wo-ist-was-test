@@ -263,7 +263,12 @@ async function verhalten() {
         let weiter = false;
         u3.eintraege[0].fn('Ich suche eine Toni-Figur, Weihnachtsmann und KKG, kannst du mir Preise heraussuchen', () => { weiter = true; });
         await new Promise(r => setTimeout(r, 200));
-        check('Preissuche: "Toni-Figur, Weihnachtsmann und KKG" werden einzeln gesucht', !weiter && q.join('|') === 'Toni-Figur|Weihnachtsmann|KKG', q.join('|') + ' / ' + u3.gesagt.join(' ').slice(0, 120));
+        check('Preissuche: "Toni-Figur, Weihnachtsmann und KKG" werden einzeln gesucht (Toni → Tonie)', !weiter && q.join('|') === 'Tonie Figur|Weihnachtsmann|KKG', q.join('|') + ' / ' + u3.gesagt.join(' ').slice(0, 120));
+
+        q.length = 0; u3.sb.setTimeout = (f) => { f(); return 0; };
+        u3.eintraege[0].fn('Ich suche eine Toni-Figur Weihnachtsmann und Co. KG, kannst du mir die Preise heraussuchen', () => { });
+        await new Promise(r => setTimeout(r, 200));
+        check('Preissuche: "Weihnachtsmann und Co. KG" bleibt ein Produkt (Tonie Figur Weihnachtsmann und Co. KG)', q.length === 1 && /^Tonie Figur Weihnachtsmann und Co\. KG$/i.test(q[0]), q.join('|'));
     }
     // Preisalarm-Schalter (Speicher)
     {
