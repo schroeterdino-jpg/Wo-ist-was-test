@@ -171,6 +171,10 @@ function verhalten() {
         check('Antrag: Ja/Nein wird erkannt', AN.bereinigt(f('ja_nein'), 'ja genau') === 'Ja' && AN.bereinigt(f('ja_nein'), 'nee') === 'Nein');
         const pr = { vorname: 'Dino', nachname: 'Schroeter', geb: '01.02.1970', plz: '21493' };
         check('Antrag: Vorname wird vorbelegt', AN.vorbelegung({ bezeichnung: 'Vorname', art: 'text' }, pr) === 'Dino');
+        const pa = { strasse: 'Verbrüderungsring 13' };
+        check('Antrag: Feld "Straße" ohne Hausnummer', AN.vorbelegung({ bezeichnung: 'Straße', art: 'text' }, pa) === 'Verbrüderungsring', AN.vorbelegung({ bezeichnung: 'Straße', art: 'text' }, pa));
+        check('Antrag: Feld "Hausnummer" nur die Nummer', AN.vorbelegung({ bezeichnung: 'Hausnummer', art: 'text' }, pa) === '13');
+        check('Antrag: "Straße und Hausnummer" beides', AN.vorbelegung({ bezeichnung: 'Straße und Hausnummer', art: 'text' }, pa) === 'Verbrüderungsring 13');
         check('Antrag: Geburtsdatum des Partners wird NICHT vorbelegt', AN.vorbelegung({ bezeichnung: 'Geburtsdatum des Partners', art: 'datum' }, pr) === '');
         check('Antrag: Unterschrift wird nie vorbelegt', AN.vorbelegung({ bezeichnung: 'Name', art: 'unterschrift' }, pr) === '');
     }
