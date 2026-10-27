@@ -43,6 +43,7 @@
         const out = (Array.isArray(d.angebote) ? d.angebote : []).filter(a => a && a.preis > 0);
         if (d.ungenau) out.ungenau = true;
         if (d.diag) out.diag = d.diag;
+        if (d.marktplatz && !out.length) out.marktplatz = d.marktplatz;
         if (mitGebraucht) out.gebraucht = (Array.isArray(d.gebraucht) ? d.gebraucht : []).filter(a => a && a.preis > 0);
         return out;
     }
@@ -130,7 +131,10 @@
         ergebnisse.forEach(e => {
             const row = document.createElement('div'); row.className = 'ps-row';
             const b = document.createElement('b'); b.textContent = e.q; row.appendChild(b); row.appendChild(document.createElement('br'));
-            if (!e.a || !e.a.length) { row.appendChild(document.createTextNode('Kein Preis gefunden.')); }
+            if (!e.a || !e.a.length) {
+                row.appendChild(document.createTextNode(e.a && e.a.marktplatz ? 'Kein sicherer Preis gefunden.' : 'Kein Preis gefunden.'));
+                if (e.a && e.a.marktplatz) { const mk = document.createElement('div'); mk.style.cssText = 'font-size:12px;color:#8fb9c9;margin-top:4px'; mk.textContent = 'Nur Marktplätze, Preis unsicher: ' + e.a.marktplatz.map(m => (m.shop || 'Shop') + ' ' + euroKurz(m.preis)).join(', ') + '. Schau bei Amazon oder Idealo.'; row.appendChild(mk); }
+            }
             else {
                 summe += e.a[0].preis; anzahl++;
                 row.appendChild(link('ab ' + euroKurz(e.a[0].preis) + ' bei ' + (e.a[0].shop || 'Shop'), e.a[0].link, e.s || e.q));
