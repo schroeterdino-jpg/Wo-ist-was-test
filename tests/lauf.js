@@ -229,6 +229,13 @@ async function verhalten() {
         check('Antrag-PDF: Zeichen, die die PDF-Schrift nicht kann (ő), werden gemeldet und ersetzt', erg.warnungen.some(w => /ő/.test(w)) && zustand.txtfPersonGebOrt.t === 'Gy?r', JSON.stringify(erg.warnungen) + ' ' + (zustand.txtfPersonGebOrt || {}).t);
         check('Antrag-PDF: Kontrolle der gespeicherten Datei meldet keine Abweichung', erg.kontrolle.falsch.length === 0 && erg.kontrolle.anzahl >= 6, JSON.stringify(erg.kontrolle));
     }
+    // Antrag: Erklärung
+    if (u.sb.jvAntrag && u.sb.jvAntrag._erklaerAnfrage) {
+        const q = u.sb.jvAntrag._erklaerAnfrage({ id: 'x', nr: '15', bezeichnung: 'Haben Sie keinen festen Wohnsitz?', art: 'ja_nein', optionen: [], hinweis: '' });
+        const sys = q.messages[0].content, usr = JSON.parse(q.messages[1].content);
+        check('Erklärung: Frage und Ja/Nein-Möglichkeiten gehen an die KI', usr.frage === 'Haben Sie keinen festen Wohnsitz?' && usr.moegliche_antworten.join() === 'Ja,Nein', q.messages[1].content);
+        check('Erklärung: KI darf nichts erfinden und nicht für den Nutzer entscheiden', /Entscheide NIE/.test(sys) && /Erfinde nichts/.test(sys) && /doppelte Verneinung/.test(sys));
+    }
     // PDF speichern (App-Brücke)
     if (typeof u.sb.jvPdfSpeichern === 'function') {
         const aufrufe = [];
