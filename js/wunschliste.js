@@ -131,9 +131,11 @@
     }
     function vergleichsLink(q) { return 'https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q=' + encodeURIComponent(q); }
     function link(text, href) {
+        if (!/^https?:\/\//i.test(String(href || ''))) href = '';   // nie "#" (= Jarvis selbst) ins Link-Fenster
         const a = document.createElement('a'); a.textContent = text; a.href = href || '#'; a.target = '_blank'; a.rel = 'noopener noreferrer';
         // In der Handy-App immer im Browser öffnen, nie in einer Shop-App (Lidl, Kleinanzeigen): sonst wird Jarvis im Hintergrund beendet und startet neu
         a.addEventListener('click', e => {
+            if (!href) { e.preventDefault(); return; }
             try {
                 if (window.ZaneNative && /^https?:/.test(a.href)) {
                     // erst im eigenen Fenster in Jarvis (kein Neustart), sonst (ältere APK) im Browser; in der APK nie die Standard-Öffnung zulassen
