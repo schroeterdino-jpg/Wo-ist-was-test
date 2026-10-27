@@ -525,6 +525,7 @@ async function shopping(req, res) {
       const med = l.length ? l.map(x => x.preis).sort((a, b) => a - b)[Math.floor(l.length / 2)] : 0;
       const seen = new Set();
       out.gebraucht = alle.filter(x => GEBRAUCHT_RX.test(x.shop + ' ' + x.link)).concat(ka)
+        .filter(x => { try { return !/(^|\.)google\./i.test(new URL(x.link).hostname); } catch (e) { return false; } })   // nur direkte Links (Google-Weiterleitungen führen auf eine Einwilligungsseite)
         .filter(x => !(med && l.length >= 3 && x.preis < med * 0.15))
         .filter(x => { const k = x.link || x.titel; if (seen.has(k)) return false; seen.add(k); return true; })
         .sort((a, b) => a.preis - b.preis).slice(0, 3);

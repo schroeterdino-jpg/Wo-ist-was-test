@@ -253,6 +253,8 @@ async function verhalten() {
         check('Server: Gebrauchtes kommt getrennt (Kleinanzeigen mit Preis, eBay), Neupreise bleiben gleich', mit.angebote.length === 3 && mit.gebraucht.map(x => x.shop + ' ' + x.preis).join('|') === 'Kleinanzeigen 12|eBay 14.5', JSON.stringify(mit.gebraucht));
         check('Server: Kleinanzeigen-Treffer ohne Preis und Suchseiten werden weggelassen', !mit.gebraucht.some(x => /\/k0$|\/9$/.test(x.link)));
     }
+    // Links: nie "#" ins Link-Fenster (das lädt Jarvis selbst)
+    for (const f of ['preissuche.js', 'wunschliste.js']) { const src = lies('js/' + f); check(f + ': Link ohne Ziel öffnet nie das Link-Fenster (kein "#")', /if \(!href\) \{ e\.preventDefault\(\); return; \}/.test(src) && /nie "#"/.test(src)); }
     // Preissuche: welche Produkte werden aus dem Satz gesucht?
     {
         const u3 = umgebung(); laden(u3, 'preissuche.js');

@@ -66,11 +66,14 @@
             '#jvPs .ps-go{background:rgba(94,231,255,.2);color:#fff;letter-spacing:.06em;text-transform:uppercase;font-size:14px}';
         document.head.appendChild(st);
     }
-    function link(text, href) {
+    function vergleichsLink(q) { return 'https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q=' + encodeURIComponent(q); }
+    function link(text, href, suchbegriff) {   // ohne direkten Shop-Link: Preisvergleichs-Suche (nie "#": das ist die Seite von Jarvis selbst und würde im Link-Fenster Jarvis laden)
+        if (!/^https?:\/\//i.test(String(href || ''))) href = suchbegriff ? vergleichsLink(suchbegriff) : '';
         const a = document.createElement('a'); a.textContent = text; a.href = href || '#'; a.target = '_blank'; a.rel = 'noopener noreferrer';
         // In der Handy-App immer im Browser öffnen, nie in einer Shop-App (sonst startet Jarvis im Hintergrund neu)
         a.addEventListener('click', e => {
             try {
+                if (!href) { e.preventDefault(); return; }
                 if (window.ZaneNative && /^https?:/.test(a.href)) {
                     // erst im eigenen Fenster in Jarvis (kein Neustart), sonst (ältere APK) im Browser; in der APK nie die Standard-Öffnung zulassen
                     const f = typeof window.ZaneNative.oeffneImFenster === 'function' ? window.ZaneNative.oeffneImFenster : window.ZaneNative.oeffneImBrowser;
@@ -112,13 +115,13 @@
             if (!e.a || !e.a.length) { row.appendChild(document.createTextNode('Kein Preis gefunden.')); }
             else {
                 summe += e.a[0].preis; anzahl++;
-                row.appendChild(link('ab ' + euroKurz(e.a[0].preis) + ' bei ' + (e.a[0].shop || 'Shop'), e.a[0].link));
-                e.a.slice(1, 3).forEach(m => { row.appendChild(document.createElement('br')); const s = document.createElement('span'); s.className = 'mehr'; s.appendChild(link(euroKurz(m.preis) + ' bei ' + (m.shop || 'Shop'), m.link)); row.appendChild(s); });
+                row.appendChild(link('ab ' + euroKurz(e.a[0].preis) + ' bei ' + (e.a[0].shop || 'Shop'), e.a[0].link, e.s || e.q));
+                e.a.slice(1, 3).forEach(m => { row.appendChild(document.createElement('br')); const s = document.createElement('span'); s.className = 'mehr'; s.appendChild(link(euroKurz(m.preis) + ' bei ' + (m.shop || 'Shop'), m.link, e.s || e.q)); row.appendChild(s); });
             }
             if (e.g) {
                 const gb = document.createElement('div'); gb.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(94,231,255,.2);font-size:14px;line-height:1.6';
                 const kopf = document.createElement('div'); kopf.textContent = 'GEBRAUCHT'; kopf.style.cssText = 'color:#ffb36b;font-weight:700;font-size:12px;letter-spacing:.08em'; gb.appendChild(kopf);
-                e.g.forEach(m => { const z = document.createElement('div'); const l = link(euroKurz(m.preis) + ' ' + (m.shop || ''), m.link); l.style.color = '#ffcf99'; z.appendChild(l); gb.appendChild(z); });
+                e.g.filter(m => /^https?:\/\//i.test(String(m.link || ''))).forEach(m => { const z = document.createElement('div'); const l = link(euroKurz(m.preis) + ' ' + (m.shop || ''), m.link); l.style.color = '#ffcf99'; z.appendChild(l); gb.appendChild(z); });
                 const alle = document.createElement('div'); const la = link('Alle Anzeigen auf Kleinanzeigen ansehen ›', kleinanzeigenLink(e.s || e.q)); la.style.cssText = 'font-size:13px;font-weight:400;color:#8fb9c9;text-decoration:underline'; alle.appendChild(la); gb.appendChild(alle);
                 row.appendChild(gb);
             }
