@@ -66,7 +66,12 @@
         if (/\bvorname/.test(b)) return p.vorname || '';
         if (/familienname|nachname|\bname\b/.test(b) && !/vorname|geburtsname|partner|kind|arbeitgeber|bank|kontoinhaber/.test(b)) return p.nachname || '';
         if (/geburtsdatum|geboren am/.test(b) && !/partner|kind|ehe/.test(b)) return p.geb || '';
-        if (/strasse|hausnummer/.test(b) && !/arbeitgeber|vermieter/.test(b)) return p.strasse || '';
+        if (/strasse|hausnummer/.test(b) && !/arbeitgeber|vermieter/.test(b)) {
+            const m = String(p.strasse || '').trim().match(/^(.*?)[\s,]+(\d+\s*[a-zA-Z]?(?:\s*[-\/]\s*\d+[a-zA-Z]?)?)$/);   // "Verbrüderungsring 13" -> Straße + Nummer
+            if (!m) return /hausnummer/.test(b) && !/strasse/.test(b) ? '' : (p.strasse || '');
+            if (/strasse/.test(b) && /hausnummer/.test(b)) return p.strasse;   // "Straße und Hausnummer": beides
+            return /hausnummer/.test(b) ? m[2].replace(/\s+/g, '') : m[1].trim();   // getrennte Felder
+        }
         if (/postleitzahl|\bplz\b/.test(b) && !/arbeitgeber|vermieter/.test(b)) return p.plz || '';
         if (/\bort\b|wohnort/.test(b) && !/geburtsort|arbeitgeber|vermieter|ausstell/.test(b)) return p.ort || '';
         if (/telefon|rufnummer|handy|mobil/.test(b)) return p.telefon || '';
