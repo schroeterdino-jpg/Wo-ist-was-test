@@ -516,6 +516,23 @@ function kleinanzeigenTreffer(d) {
   });
   return out;
 }
+/* Idealo-Produktseite aus der Google-Suche (site:idealo.de): Titel + "ab 85,83 €" aus dem Textauszug; nur direkte Idealo-Produktlinks. */
+function idealoTreffer(d) {
+  const out = [];
+  (Array.isArray(d && d.organic) ? d.organic : []).forEach(x => {
+    try {
+      const u = new URL(String(x.link || ''));
+      if (!/(^|\.)idealo\.de$/i.test(u.hostname) || !/\/preisvergleich\/OffersOfProduct\//i.test(u.pathname)) return;
+      const text = String(x.title || '') + ' ' + String(x.snippet || '');
+      const m = text.match(/(?:ab|Preise?\s+ab|ab\s+nur)\s*(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?\s*(?:€|EUR\b|Euro\b)/i) || text.match(/(\d{1,3}(?:\.\d{3})+|\d+),(\d{2})\s*(?:€|EUR\b)/);
+      if (!m) return;
+      const preis = parseFloat(m[1].replace(/\./g, '') + '.' + (m[2] || '0'));
+      if (!(preis > 0)) return;
+      out.push({ titel: String(x.title || '').replace(/\s*[-–|]\s*(?:Preisvergleich|idealo).*$/i, '').replace(/\s*(?:ab|Preise ab)\s*[\d.,]+\s*€.*$/i, '').slice(0, 120), shop: 'Idealo', preisText: m[0].trim(), preis, link: u.href });
+    } catch (e) { }
+  });
+  return out.slice(0, 2);
+}
 async function shopping(req, res) {
   const q = String(req.query.q || '').trim().slice(0, 120);
   if (!q) return res.status(400).json({ error: 'Kein Suchbegriff angegeben' });
@@ -549,7 +566,15 @@ async function shopping(req, res) {
       titel: String(x.title || '').slice(0, 120), shop: String(x.source || ''), preisText: String(x.price || ''),
       preis: preisZahl(x.price), link: String(x.link || '')
     })).filter(x => x.preis && x.preis > 0 && !AUSSCHLUSS_RX.test(x.shop + ' ' + x.link));
-    let l = alle.filter(x => !GEBRAUCHT_RX.test(x.shop + ' ' + x.link));   // Gebrauchtes zeigt keine Neupreise und sein Link startet in der APK Jarvis neu
+    let idl = [];
+    if (woerter(q).length >= 2) {   // Idealo kennt oft genau das Produkt, das Google Shopping nicht liefert
+      try {
+        const r3 = await fetch('https://google.serper.dev/search', { method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ q: 'site:idealo.de ' + q, gl: 'de', hl: 'de', num: 5 }), signal: AbortSignal.timeout(7000) });
+        if (r3.ok) idl = idealoTreffer(await r3.json());
+      } catch (e) { }
+    }
+    let l = alle.filter(x => !GEBRAUCHT_RX.test(x.shop + ' ' + x.link));
+    l = l.concat(idl);   // Gebrauchtes zeigt keine Neupreise und sein Link startet in der APK Jarvis neu
     let ungenau = false;
     if (woerter(q).length >= 3 && l.length) {   // nur bei längeren Suchen prüfen; kurze ("Bosch Akkuschrauber") bleiben wie sie sind
       const gew = gewichte(q, l.map(x => x.titel)), sc = l.map(x => passung(q, x.titel, gew)), best = Math.max.apply(null, sc);
