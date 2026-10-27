@@ -533,6 +533,16 @@ function idealoTreffer(d) {
   });
   return out.slice(0, 2);
 }
+/* Zusammengesetzte Wörter des Produktnamens (Web-Quartier, Super-Freunde): sie unterscheiden ähnliche Sets. Mindestens die Hälfte davon müssen im Angebot stehen. */
+function bindeWoerter(q) {
+  const core = []; for (const x of String(q).split(/\s+/)) { if (/,$/.test(x) || /^(mit|für|fuer|inkl\.?)$/i.test(x)) { if (/,$/.test(x)) core.push(x.replace(/,$/, '')); break; } core.push(x); }
+  return Array.from(new Set(core.filter(x => x.indexOf('-') > 0).map(x => norm(x).replace(/[^a-z0-9]+/g, '')).filter(x => x.length >= 7)));
+}
+function kernOk(comps, titel) {
+  const tt = norm(titel).replace(/[^a-z0-9]+/g, ''); let n = 0;
+  comps.forEach(c => { if (tt.includes(c) || tt.includes(c.replace(/e$/, ''))) n++; });
+  return n >= Math.ceil(comps.length * 0.5);
+}
 async function shopping(req, res) {
   const q = String(req.query.q || '').trim().slice(0, 120);
   if (!q) return res.status(400).json({ error: 'Kein Suchbegriff angegeben' });
@@ -566,11 +576,11 @@ async function shopping(req, res) {
       titel: String(x.title || '').slice(0, 120), shop: String(x.source || ''), preisText: String(x.price || ''),
       preis: preisZahl(x.price), link: String(x.link || '')
     })).filter(x => x.preis && x.preis > 0 && !AUSSCHLUSS_RX.test(x.shop + ' ' + x.link));
-    let idl = [];
+    let idl = [], diagI = { roh: 0, seiten: 0 };
     if (woerter(q).length >= 2) {   // Idealo kennt oft genau das Produkt, das Google Shopping nicht liefert
       try {
         const r3 = await fetch('https://google.serper.dev/search', { method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ q: 'site:idealo.de ' + q, gl: 'de', hl: 'de', num: 5 }), signal: AbortSignal.timeout(7000) });
-        if (r3.ok) idl = idealoTreffer(await r3.json());
+        if (r3.ok) { const j3 = await r3.json(); const orgs = Array.isArray(j3 && j3.organic) ? j3.organic : []; diagI.roh = orgs.length; diagI.seiten = orgs.filter(x => /idealo\.de\/preisvergleich\/OffersOfProduct\//i.test(String(x.link || ''))).length; idl = idealoTreffer(j3); }
       } catch (e) { }
     }
     let l = alle.filter(x => !GEBRAUCHT_RX.test(x.shop + ' ' + x.link));
@@ -578,8 +588,11 @@ async function shopping(req, res) {
     let ungenau = false;
     if (woerter(q).length >= 3 && l.length) {   // nur bei längeren Suchen prüfen; kurze ("Bosch Akkuschrauber") bleiben wie sie sind
       const gew = gewichte(q, l.map(x => x.titel)), sc = l.map(x => passung(q, x.titel, gew)), best = Math.max.apply(null, sc);
-      if (best >= 0.4) l = l.filter((x, i) => sc[i] >= best * 0.6);
-      else ungenau = true;   // nichts passt wirklich: Ergebnis behalten, aber als ungenau melden
+      if (best >= 0.4) {
+        l = l.filter((x, i) => sc[i] >= Math.max(best * 0.6, 0.5));
+        const comps = bindeWoerter(q);
+        if (comps.length >= 2) { const strikt = l.filter(x => kernOk(comps, x.titel)); if (strikt.length) l = strikt; else ungenau = true; }   // streng: Unterscheidendes (Web-Quartier) muss im Angebot stehen
+      } else ungenau = true;   // nichts passt wirklich: Ergebnis behalten, aber als ungenau melden
     }
     if (l.length >= 3) {   // Preis-Ausreißer erst NACH der Namensprüfung, sonst fliegt das teure, richtige Produkt raus
       const sorted = l.map(x => x.preis).sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
@@ -591,6 +604,7 @@ async function shopping(req, res) {
     l.sort((a, b) => (a.markt ? 1 : 0) - (b.markt ? 1 : 0) || a.preis - b.preis);   // Marktplätze nie vor normalen Shops
     const out = { angebote: l.slice(0, 5) };
     if (ungenau) out.ungenau = true;
+    out.diag = { g: d.shopping.length, k: kern || '', ir: diagI.roh, is: diagI.seiten, ip: idl.length, p: l.length };
     if (String(req.query.gebraucht || '') === '1') {   // Gebrauchtes getrennt von den Neupreisen (zählt nie für Summe oder Preisalarm)
       const med = l.length ? l.map(x => x.preis).sort((a, b) => a - b)[Math.floor(l.length / 2)] : 0;
       const seen = new Set();

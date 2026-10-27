@@ -42,6 +42,7 @@
         if (!r.ok) { const e = new Error(d && d.error || 'Fehler'); e.kein = /SERPER_API_KEY/.test(String(d && d.error)); throw e; }
         const out = (Array.isArray(d.angebote) ? d.angebote : []).filter(a => a && a.preis > 0);
         if (d.ungenau) out.ungenau = true;
+        if (d.diag) out.diag = d.diag;
         if (mitGebraucht) out.gebraucht = (Array.isArray(d.gebraucht) ? d.gebraucht : []).filter(a => a && a.preis > 0);
         return out;
     }
@@ -138,6 +139,7 @@
             }
             if (e.a && e.a.length && e.a.ungenau) { const h = document.createElement('div'); h.textContent = 'Dein Produkt wurde nicht gefunden, das hier sind nur ähnliche. Prüf den Produktnamen.'; h.style.cssText = 'margin-top:6px;font-size:13px;color:#ffb36b'; row.appendChild(h); }
             { const sz = document.createElement('div'); sz.style.cssText = 'margin-top:6px;font-size:14px;display:flex;gap:16px;flex-wrap:wrap'; const am = link('Bei Amazon suchen ›', amazonLink(e.s || e.q)); const il = link('Bei Idealo suchen ›', '', e.s || e.q); sz.appendChild(am); sz.appendChild(il); row.appendChild(sz); }
+            if (e.a && e.a.diag) { const dg = e.a.diag, z = document.createElement('div'); z.style.cssText = 'margin-top:6px;font-size:11px;color:#5d7f90'; z.textContent = 'Diagnose: Google ' + dg.g + ' Treffer · Idealo ' + dg.ir + ' Treffer, davon ' + dg.is + ' Produktseiten, ' + dg.ip + ' mit Preis · passend ' + dg.p; row.appendChild(z); }
             if (e.a && e.a.length && !e.a.ungenau) schalter(row, { begriff: e.s || e.q, preis: e.a[0].preis, shop: e.a[0].shop, link: e.a[0].link, titel: e.a[0].titel });
             if (e.g) {
                 const gb = document.createElement('div'); gb.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(94,231,255,.2);font-size:14px;line-height:1.6';
