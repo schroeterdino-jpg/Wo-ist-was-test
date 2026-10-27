@@ -371,6 +371,12 @@
         return { text: t, sh, min, abfahrt };
     }
 
+    /* Google-Geburtstage heißen oft "Geburtstag von Alyssa Geburtstag": das zweite "Geburtstag" (und ein Datum dahinter) weglassen */
+    function terminText(t) {
+        t = String(t || '').trim();
+        const m = t.match(/^(geburtstag(?:\s+von)?\s+.+?)\s+geburtstag\b.*$/i);
+        return m ? m[1].trim() : t;
+    }
     function termineInWoche(montag, ab) {
         const sonntag = ymdPlus(montag, 6), out = [];
         try {
@@ -381,7 +387,7 @@
                 if (iso.length === 10) ymd = iso;
                 else { const ms = Date.parse(iso); if (isNaN(ms)) return; const p = parts(ms); ymd = p.ymd; zeit = p.min; }
                 if (ymd < ab || ymd > sonntag) return;
-                const text = String(e.text || '').trim();
+                const text = terminText(e.text);
                 if (!text || /^(früh|spät)schicht$/i.test(text)) return;
                 out.push({ ymd, zeit, text });
             });
@@ -909,7 +915,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { weckerStand, beginn, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { terminText, weckerStand, beginn, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);

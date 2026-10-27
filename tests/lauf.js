@@ -140,6 +140,14 @@ function verhalten() {
         H.erfassen({ id: 'b2', betreff: 'Lastschrift Spotify', _ms: d2 }, 'Lastschrift Spotify 10,99 EUR');
         check('Haushalt: Abo (zwei Monate gleicher Betrag) erkannt', H.abos().some(a => /spotify/i.test(a.name)), JSON.stringify(H.abos()));
     }
+    // Wochenüberblick: doppeltes "Geburtstag"
+    laden(u, 'plan_ansagen.js');
+    const P = u.sb.jvPlan;
+    if (P && P.terminText) {
+        check('Wochenüberblick: "Geburtstag von Alyssa Geburtstag" wird "Geburtstag von Alyssa"', P.terminText('Geburtstag von Alyssa Geburtstag') === 'Geburtstag von Alyssa', P.terminText('Geburtstag von Alyssa Geburtstag'));
+        check('Wochenüberblick: "Alyssa Geburtstag" bleibt', P.terminText('Alyssa Geburtstag') === 'Alyssa Geburtstag');
+        check('Wochenüberblick: normaler Termin bleibt', P.terminText('Friseurtermin bei Anja') === 'Friseurtermin bei Anja');
+    } else check('Wochenüberblick: jvPlan.terminText vorhanden', false);
     // Briefarten
     const B = u.sb.jvBehoerdenbrief;
     if (B) {
