@@ -263,11 +263,10 @@
         btn.disabled = true; btn.textContent = 'Erstelle …';
         try {
             const r = await window.jvAntragPdf.fuellen(A.acro.bytes, A.felder, A.werte);
-            const blob = new Blob([r.bytes], { type: 'application/pdf' }), a = document.createElement('a');
-            a.href = URL.createObjectURL(blob); a.download = String(A.acro.name || 'Antrag.pdf').replace(/\.pdf$/i, '').replace(/[^A-Za-z0-9ÄÖÜäöüß_\-]+/g, '_') + '_ausgefuellt.pdf';
-            document.body.appendChild(a); a.click(); setTimeout(() => { try { URL.revokeObjectURL(a.href); a.remove(); } catch (e) { } }, 4000);
+            const dname = String(A.acro.name || 'Antrag.pdf').replace(/\.pdf$/i, '').replace(/[^A-Za-z0-9ÄÖÜäöüß_\-]+/g, '_') + '_ausgefuellt.pdf';
+            if (!(window.jvPdfSpeichern && window.jvPdfSpeichern(r.bytes, dname))) throw new Error('Speichern nicht möglich');
             const kf = r.kontrolle.falsch.length;
-            A.status = 'PDF gespeichert (bei den Downloads). Kontrolle: ' + (r.kontrolle.anzahl - kf) + ' von ' + r.kontrolle.anzahl + ' Angaben stehen genau so in der Datei.' + (kf ? ' NICHT übereinstimmend: ' + r.kontrolle.falsch.join(', ') + '.' : '') + (r.warnungen.length ? ' Hinweise: ' + r.warnungen.join(' ') : '') + (falsch.length ? ' Bitte prüfen (Eingabe auffällig): ' + falsch.map(f => f.nr || f.bezeichnung.slice(0, 20)).join(', ') + '.' : '');
+            A.status = 'PDF gespeichert im Ordner Download und geöffnet. Kontrolle: ' + (r.kontrolle.anzahl - kf) + ' von ' + r.kontrolle.anzahl + ' Angaben stehen genau so in der Datei.' + (kf ? ' NICHT übereinstimmend: ' + r.kontrolle.falsch.join(', ') + '.' : '') + (r.warnungen.length ? ' Hinweise: ' + r.warnungen.join(' ') : '') + (falsch.length ? ' Bitte prüfen (Eingabe auffällig): ' + falsch.map(f => f.nr || f.bezeichnung.slice(0, 20)).join(', ') + '.' : '');
             say('Das ausgefüllte PDF ist gespeichert. ' + (kf ? kf + ' Angaben konnte ich in der Datei nicht bestätigen, schau bitte nach. ' : 'Ich habe jede Angabe in der gespeicherten Datei noch einmal geprüft, alle stimmen. ') + (falsch.length ? falsch.length + ' Eingaben sind auffällig, sie stehen markiert in der Liste. ' : '') + 'Prüfe es Seite für Seite. Datum und Unterschrift machst du selbst.');
         } catch (e) { console.error('Antrag: PDF', e); A.status = 'Das PDF konnte nicht erstellt werden. Nimm die Ausfüllhilfe zum Abtippen.'; say('Das PDF konnte nicht erstellt werden. Nimm bitte die Ausfüllhilfe zum Abtippen.'); }
         zeichne();

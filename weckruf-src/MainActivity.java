@@ -299,6 +299,38 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** PDF (Base64) in den Ordner Download speichern und gleich öffnen. Gibt true zurück, wenn die Datei gespeichert ist. */
+    boolean speicherePdf(String name, String base64) {
+        try {
+            if (Build.VERSION.SDK_INT < 29 || base64 == null || base64.isEmpty()) return false;
+            int komma = base64.indexOf(',');
+            byte[] bytes = Base64.decode(komma >= 0 ? base64.substring(komma + 1) : base64, Base64.DEFAULT);
+            if (bytes.length < 100) return false;
+            String n = (name == null ? "" : name).replaceAll("[^A-Za-z0-9ÄÖÜäöüß_.\\-]+", "_");
+            if (n.isEmpty()) n = "Jarvis.pdf";
+            if (!n.toLowerCase().endsWith(".pdf")) n = n + ".pdf";
+            android.content.ContentResolver cr = getContentResolver();
+            android.content.ContentValues v = new android.content.ContentValues();
+            v.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, n);
+            v.put(android.provider.MediaStore.Downloads.MIME_TYPE, "application/pdf");
+            v.put(android.provider.MediaStore.Downloads.RELATIVE_PATH, "Download");
+            final Uri uri = cr.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+            if (uri == null) return false;
+            java.io.OutputStream out = cr.openOutputStream(uri);
+            if (out == null) return false;
+            try { out.write(bytes); } finally { out.close(); }
+            runOnUiThread(() -> {
+                try {
+                    Intent i = new Intent(Intent.ACTION_VIEW);
+                    i.setDataAndType(uri, "application/pdf");
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(i);
+                } catch (Throwable e) { Toast.makeText(this, "PDF gespeichert im Ordner Download", Toast.LENGTH_LONG).show(); }
+            });
+            return true;
+        } catch (Throwable e) { return false; }
+    }
+
     /** Nur http und https, immer im Browser (App-Links der Shops werden umgangen, damit Jarvis im Hintergrund nicht beendet wird). */
     boolean oeffneImBrowser(String url) {
         try {

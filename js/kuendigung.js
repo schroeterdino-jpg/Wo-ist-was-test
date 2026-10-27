@@ -258,15 +258,26 @@
         try { if (typeof window.resumeJarvisSphere === 'function') window.resumeJarvisSphere(); } catch (e) {}
     }
     function fileName() { return 'Kuendigung_' + String((lastData && lastData.anbieter) || 'Vertrag').replace(/[^A-Za-z0-9ÄÖÜäöüß]+/g, '_').replace(/^_|_$/g, '') + '.pdf'; }
-    function savePdf(text, name) {
+    /* PDF speichern: in der App in den Ordner Download und öffnen (die Web-Ansicht der App lädt sonst nichts herunter), im Browser als Download. */
+    function pdfSpeichern(bytes, name) {
         try {
-            const bytes = makePdf(text), blob = new Blob([bytes], { type: 'application/pdf' });
+            if (window.ZaneNative && typeof window.ZaneNative.speicherePdf === 'function') {
+                let bin = ''; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+                if (window.ZaneNative.speicherePdf(String(name), btoa(bin))) return true;
+            }
+        } catch (e) { console.error('PDF speichern (App)', e); }
+        try {
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob); a.download = name || fileName();
+            a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })); a.download = name;
             document.body.appendChild(a); a.click();
             setTimeout(() => { try { URL.revokeObjectURL(a.href); a.remove(); } catch (e) {} }, 4000);
             return true;
-        } catch (e) { console.error('Kündigung PDF', e); return false; }
+        } catch (e) { console.error('PDF speichern', e); return false; }
+    }
+    window.jvPdfSpeichern = pdfSpeichern;
+    function savePdf(text, name) {
+        try { return pdfSpeichern(makePdf(text), name || fileName()); }
+        catch (e) { console.error('Kündigung PDF', e); return false; }
     }
     function printText(text) {
         let box = document.getElementById('jvKuendPrint');
