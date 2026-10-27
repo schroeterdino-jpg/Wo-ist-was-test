@@ -139,8 +139,8 @@
             else if (!e.a.ungenau) {
                 summe += e.a[0].preis; anzahl++;
                 row.appendChild(link('ab ' + euroKurz(e.a[0].preis) + ' bei ' + (e.a[0].shop || 'Shop'), e.a[0].link, e.s || e.q));
-                titelZeile(row, e.a[0]);
-                e.a.slice(1, 3).forEach(m => { const s = document.createElement('div'); s.className = 'mehr'; s.appendChild(link(euroKurz(m.preis) + ' bei ' + (m.shop || 'Shop'), m.link, e.s || e.q)); row.appendChild(s); titelZeile(row, m); });
+                titelZeile(row, e.a[0]); alarmJe(row, e, e.a[0]);
+                e.a.slice(1, 3).forEach(m => { const s = document.createElement('div'); s.className = 'mehr'; s.appendChild(link(euroKurz(m.preis) + ' bei ' + (m.shop || 'Shop'), m.link, e.s || e.q)); row.appendChild(s); titelZeile(row, m); alarmJe(row, e, m); });
             }
             else { const h = document.createElement('div'); h.textContent = 'Dein Produkt wurde nicht gefunden.'; h.style.cssText = 'margin-top:4px;font-size:15px;color:#ffb36b'; row.appendChild(h); }   // unsicher: kein grüner "ab"-Preis für fremde Produkte
             { const sz = document.createElement('div'); sz.style.cssText = 'margin-top:6px;font-size:14px;display:flex;gap:16px;flex-wrap:wrap'; const am = link('Bei Amazon suchen ›', amazonLink(e.s || e.q)); const il = link('Bei Idealo suchen ›', '', e.s || e.q); sz.appendChild(am); sz.appendChild(il); row.appendChild(sz); }
@@ -156,7 +156,6 @@
                 az(); row.appendChild(ah); row.appendChild(ab);
             }
             if (e.a && e.a.diag) { const dg = e.a.diag, z = document.createElement('div'); z.style.cssText = 'margin-top:6px;font-size:11px;color:#5d7f90'; z.textContent = 'Diagnose: Google ' + dg.g + ' Treffer · Idealo ' + dg.ir + ' Treffer, davon ' + dg.is + ' Produktseiten, ' + dg.ip + ' mit Preis · passend ' + dg.p + (dg.in && dg.in.length ? ' · Idealo-Namen: ' + dg.in.join(' | ') : '') + (dg.ih ? ' · Idealo-Suchseite: ' + dg.ih : ''); row.appendChild(z); }
-            if (e.a && e.a.length && !e.a.ungenau) schalter(row, { begriff: e.s || e.q, preis: e.a[0].preis, shop: e.a[0].shop, link: e.a[0].link, titel: e.a[0].titel });
             if (e.g) {
                 const gb = document.createElement('div'); gb.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(94,231,255,.2);font-size:14px;line-height:1.6';
                 const kopf = document.createElement('div'); kopf.textContent = 'GEBRAUCHT'; kopf.style.cssText = 'color:#ffb36b;font-weight:700;font-size:12px;letter-spacing:.08em'; gb.appendChild(kopf);
@@ -174,25 +173,28 @@
     function oeffnen() { css(); fenster([], []); }
 
     /* ---------- Preisalarm-Schalter (Preissuche-Fenster und Wunschliste) ---------- */
-    function finde(q) { return laden().find(x => gleich(x.q, q)) || null; }
+    function tn(t) { return String(t || '').toLowerCase().replace(/[^a-z0-9äöüß]+/g, ''); }
+    function selbes(a, b) { const x = tn(a), y = tn(b); return !!x && !!y && (x === y || (Math.min(x.length, y.length) >= 100 && (x.includes(y) || y.includes(x)))); }   // Namen sind auf 120 Zeichen gekürzt: Enthaltensein zählt nur bei so langen Namen
+    function ist(w, q, ang) { return gleich(w.q, q) && (ang ? selbes(w.ang, ang) : !w.ang); }   // mit ang: genau dieses Angebot; ohne: der alte Such-Alarm
+    function finde(q, ang) { return laden().find(x => ist(x, q, ang)) || null; }
     function anlegen(q, p) {
-        const l = laden(), i = l.findIndex(x => gleich(x.q, q)); p = p || {};
+        const l = laden(), i = l.findIndex(x => ist(x, q, p && p.ang)); p = p || {};
         const preis = Number(p.preis) > 0 ? Number(p.preis) : null;
-        const w = { q, grenze: 0, preis, shop: p.shop || '', link: p.link || '', titel: String(p.titel || '').slice(0, 120), am: preis ? Date.now() : 0, gemeldet: null, start: preis };
+        const w = { q, ang: String(p.ang || '').slice(0, 120), grenze: 0, preis, shop: p.shop || '', link: p.link || '', titel: String(p.titel || '').slice(0, 120), am: preis ? Date.now() : 0, gemeldet: null, start: preis };
         if (i < 0) l.push(w);
         speichern(l); return i < 0 ? w : l[i];
     }
-    function entfernen(q) { speichern(laden().filter(x => !gleich(x.q, q))); }
-    function setzeGrenze(q, text) {
-        const l = laden(), w = l.find(x => gleich(x.q, q)); if (!w) return;
+    function entfernen(q, ang) { speichern(laden().filter(x => !ist(x, q, ang))); }
+    function setzeGrenze(q, text, ang) {
+        const l = laden(), w = l.find(x => ist(x, q, ang)); if (!w) return;
         const n = parseFloat(String(text || '').replace(',', '.').replace(/[^0-9.]/g, ''));
         w.grenze = n > 0 ? n : 0; if (w.grenze) w.gemeldet = null; speichern(l);
     }
     function schalter(parent, d) {   // d = {begriff, preis, shop, link}; baut Schalter und Wunschpreis-Feld unter ein Produkt
-        const q = String(d && d.begriff || '').trim(); if (!q) return null;
+        const q = String(d && d.begriff || '').trim(), ang = String(d && d.ang || '').trim(); if (!q) return null;
         const box = document.createElement('div'); box.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(94,231,255,.2)';
         const zeile = document.createElement('div'); zeile.style.cssText = 'display:flex;align-items:center;gap:10px;cursor:pointer';
-        const sw = document.createElement('div'); sw.setAttribute('role', 'switch'); sw.tabIndex = 0; sw.setAttribute('aria-label', 'Preisalarm für ' + q);
+        const sw = document.createElement('div'); sw.setAttribute('role', 'switch'); sw.tabIndex = 0; sw.setAttribute('aria-label', 'Preisalarm für ' + (ang || q));
         sw.style.cssText = 'width:46px;height:26px;border-radius:13px;position:relative;flex:none;transition:background .15s';
         const knopf = document.createElement('i'); knopf.style.cssText = 'position:absolute;top:3px;width:20px;height:20px;border-radius:50%;transition:left .15s';
         sw.appendChild(knopf);
@@ -206,20 +208,22 @@
         const kl = document.createElement('span'); kl.style.cssText = 'font-size:12px;color:#8fb9c9'; kl.textContent = '(leer = bei 5 % billiger)';
         [lab, eing, eu, kl].forEach(x => wp.appendChild(x));
         const zeig = () => {
-            const w = finde(q), an = !!w;
+            const w = finde(q, ang), an = !!w;
             sw.style.background = an ? '#2bd4a0' : '#33414d'; knopf.style.left = an ? '23px' : '3px'; knopf.style.background = an ? '#fff' : '#9fb4c2';
             sw.setAttribute('aria-checked', an ? 'true' : 'false');
             txt.textContent = an ? '🔔 Preisalarm an' : '🔔 Preisalarm';
             wp.style.display = an ? 'flex' : 'none';
             if (an && document.activeElement !== eing) eing.value = w.grenze ? String(w.grenze).replace('.', ',') : '';
         };
-        const wechsel = () => { if (finde(q)) entfernen(q); else { anlegen(q, d); pruefen(true, q).then(() => zeig()).catch(() => { }); } zeig(); };   // beim Einschalten sofort neu prüfen: ein falscher Preis bleibt nie stehen
+        const wechsel = () => { if (finde(q, ang)) entfernen(q, ang); else { anlegen(q, d); pruefen(true, q, ang).then(() => zeig()).catch(() => { }); } zeig(); };   // beim Einschalten sofort neu prüfen: ein falscher Preis bleibt nie stehen
         zeile.addEventListener('click', wechsel);
         sw.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); wechsel(); } });
-        eing.addEventListener('change', () => { setzeGrenze(q, eing.value); zeig(); });
+        eing.addEventListener('change', () => { setzeGrenze(q, eing.value, ang); zeig(); });
         box.appendChild(zeile); box.appendChild(wp); parent.appendChild(box); zeig();
         return box;
     }
+
+    function alarmJe(row, e, m) { if (m && m.titel && m.preis > 0) schalter(row, { begriff: e.s || e.q, ang: m.titel, preis: m.preis, shop: m.shop, link: m.link, titel: m.titel }); }   // Alarm je Angebot, nicht je Suche
 
     /* ---------- Liste "Meine Preisalarme" (oben im Preissuche-Fenster) ---------- */
     function alarmListe() {
@@ -234,7 +238,7 @@
         box.appendChild(kopf);
         l.forEach(w => {
             const z = document.createElement('div'); z.className = 'ps-al'; z.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid rgba(94,231,255,.2);font-size:14px;line-height:1.5';
-            const b = document.createElement('b'); b.textContent = String(w.q).slice(0, 90); z.appendChild(b);
+            const b = document.createElement('b'); b.textContent = String(w.ang || w.q).slice(0, 90); z.appendChild(b);
             const t = document.createElement('div'); t.style.cssText = 'color:#8fb9c9';
             t.textContent = (w.grenze ? 'Melden unter ' + euroKurz(w.grenze) : 'Melden bei 5 % billiger') + ' · ' + (w.preis ? 'jetzt ' + euroKurz(w.preis) + ' bei ' + (w.shop || 'Shop') : 'noch kein sicherer Preis');
             z.appendChild(t);
@@ -243,7 +247,7 @@
             const akt = document.createElement('div'); akt.style.cssText = 'margin-top:4px;display:flex;gap:18px;flex-wrap:wrap';
             if (w.preis) akt.appendChild(link('Ansehen ›', w.link, w.q));
             const lo = document.createElement('a'); lo.href = '#'; lo.textContent = 'Alarm löschen'; lo.style.cssText = 'color:#ff7b7b';
-            lo.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); entfernen(w.q); z.remove(); zaehler(); if (!box.querySelector('.ps-al')) box.remove(); });
+            lo.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); entfernen(w.q, w.ang); z.remove(); zaehler(); if (!box.querySelector('.ps-al')) box.remove(); });
             akt.appendChild(lo); z.appendChild(akt); box.appendChild(z);
         });
         zaehler(); zeigen(); return box;
@@ -340,15 +344,22 @@
         if (w.grenze) return w.preis <= w.grenze;
         return !!w.start && w.preis <= w.start * 0.95;
     }
-    async function pruefen(manuell, nurQ) {
+    async function pruefen(manuell, nurQ, nurAng) {
         const l = laden(); if (!l.length) return manuell ? { leer: true } : null;
         const gemeldet = [];
         for (const w of l) {
-            if (nurQ && !gleich(w.q, nurQ)) continue;
+            if (nurQ && !ist(w, nurQ, nurAng)) continue;
             if (!manuell && w.am && Date.now() - w.am < PRUEF_MS) continue;
             try {
                 const a = await angebote(w.q);
                 w.am = Date.now();
+                if (w.ang) {   // an ein bestimmtes Angebot gebunden: nur dieses beobachten, nie ein anderes Produkt
+                    const c = a.filter(x => selbes(x.titel, w.ang)).sort((x, y) => x.preis - y.preis)[0];
+                    if (c) { w.preis = c.preis; w.shop = c.shop; w.link = c.link; w.titel = w.ang; if (!w.start) w.start = c.preis; }
+                    else { w.preis = null; w.shop = ''; w.link = ''; w.start = null; }
+                    if (treffer(w)) { w.gemeldet = w.preis; gemeldet.push(w); }
+                    continue;
+                }
                 if (a.length && !a.ungenau) { if (!w.titel) w.start = a[0].preis; w.preis = a[0].preis; w.shop = a[0].shop; w.link = a[0].link; w.titel = String(a[0].titel || '').slice(0, 120); if (!w.start) w.start = a[0].preis; }
                 else { w.preis = null; w.shop = ''; w.link = ''; w.titel = ''; w.start = null; }   // nichts sicher Passendes: lieber keinen Preis als einen falschen
             } catch (e) { if (e.kein) { speichern(l); return { fehler: true }; } }
@@ -476,7 +487,7 @@
             return r;
         }, 100);
     } catch (e) { }
-    window.jvPreisWaechter = { _teile: teile, laden, pruefen, suchen, oeffnen, finde, anlegen, entfernen, schalter };
+    window.jvPreisWaechter = { _selbes: selbes, _teile: teile, laden, pruefen, suchen, oeffnen, finde, anlegen, entfernen, schalter };
     anstossen(45000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) anstossen(15000); });
 })();

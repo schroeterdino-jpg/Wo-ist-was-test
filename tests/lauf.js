@@ -351,6 +351,19 @@ async function verhalten() {
             u2.sb.apiFetch = async () => ({ ok: true, json: async () => ({ angebote: [{ titel: 'Anderes', shop: 'X', preis: 12, link: '' }], ungenau: true }) });
             await PW.pruefen(true, 'Spidey Web-Quartier Spielset');
             check('Preisalarm: unsichere Treffer löschen den Preis (lieber keiner als ein falscher)', PW.finde('Spidey Web-Quartier Spielset').preis === null, JSON.stringify(PW.finde('Spidey Web-Quartier Spielset')));
+            // Alarm je Angebot: beobachtet genau dieses Produkt, nie ein anderes aus der Suche
+            PW.anlegen('Spidey Set', { preis: 85.83, shop: 'Idealo', link: 'https://www.idealo.de/preisvergleich/OffersOfProduct/1.html', ang: 'Marvel Spidey Web-Quartier Spielset', titel: 'Marvel Spidey Web-Quartier Spielset' });
+            PW.anlegen('Spidey Set', { preis: 47.99, shop: 'Amazon.de', ang: 'Marvel Spidey Web-City Spielset' });
+            check('Alarm je Angebot: zwei Angebote derselben Suche sind zwei getrennte Alarme', PW.laden().filter(x => x.q === 'Spidey Set').length === 2 && PW.finde('Spidey Set', 'Marvel Spidey Web-Quartier Spielset').preis === 85.83 && PW.finde('Spidey Set', 'Marvel Spidey Web-City Spielset').preis === 47.99);
+            u2.sb.apiFetch = async () => ({ ok: true, json: async () => ({ angebote: [{ titel: 'Marvel Spidey Web-City Spielset', shop: 'Amazon.de', preis: 39.99, link: 'https://a' }, { titel: 'Marvel Spidey Web-Quartier Spielset', shop: 'Idealo', preis: 82.5, link: 'https://i' }] }) });
+            await PW.pruefen(true, 'Spidey Set', 'Marvel Spidey Web-Quartier Spielset');
+            check('Alarm je Angebot: Prüfung nimmt nur den Preis dieses Angebots (82,50), nicht den billigeren fremden (39,99)', PW.finde('Spidey Set', 'Marvel Spidey Web-Quartier Spielset').preis === 82.5 && PW.finde('Spidey Set', 'Marvel Spidey Web-City Spielset').preis === 47.99);
+            u2.sb.apiFetch = async () => ({ ok: true, json: async () => ({ angebote: [{ titel: 'Ganz anderes Produkt', shop: 'X', preis: 9, link: '' }] }) });
+            await PW.pruefen(true, 'Spidey Set', 'Marvel Spidey Web-Quartier Spielset');
+            check('Alarm je Angebot: Angebot nicht mehr gefunden -> kein Preis statt eines fremden', PW.finde('Spidey Set', 'Marvel Spidey Web-Quartier Spielset').preis === null);
+            PW.entfernen('Spidey Set', 'Marvel Spidey Web-City Spielset');
+            check('Alarm je Angebot: Entfernen trifft nur das gewählte Angebot', PW.laden().filter(x => x.q === 'Spidey Set').length === 1);
+            PW.entfernen('Spidey Set', 'Marvel Spidey Web-Quartier Spielset');
             PW.entfernen('Spidey Web-Quartier Spielset');
             PW.entfernen('Sony WH-1000XM5');
             check('Preisalarm: Ausschalten entfernt den Eintrag', PW.laden().length === 0 && !PW.finde('Sony WH-1000XM5'));
