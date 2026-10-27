@@ -370,10 +370,7 @@ public class MainActivity extends Activity {
                     android.widget.Button zurueck = new android.widget.Button(MainActivity.this);
                     zurueck.setText("◀");
                     zurueck.setOnClickListener(v -> { try { if (wv.canGoBack()) wv.goBack(); else dlg.dismiss(); } catch (Throwable ignored) { } });
-                    android.widget.Button br = new android.widget.Button(MainActivity.this);
-                    br.setText("Im Browser");
-                    br.setOnClickListener(v -> { try { String cur = wv.getUrl(); oeffneImBrowser(cur != null ? cur : u.toString()); } catch (Throwable ignored) { } });
-                    bar.addView(zurueck); bar.addView(zu); bar.addView(br);
+                    bar.addView(zurueck); bar.addView(zu);
                     box.addView(bar, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
                     WebSettings st = wv.getSettings();
                     st.setJavaScriptEnabled(true);
