@@ -136,19 +136,26 @@
                 row.appendChild(document.createTextNode(e.a && e.a.marktplatz ? 'Kein sicherer Preis gefunden.' : 'Kein Preis gefunden.'));
                 if (e.a && e.a.marktplatz) { const mk = document.createElement('div'); mk.style.cssText = 'font-size:12px;color:#8fb9c9;margin-top:4px'; mk.textContent = 'Nur Marktplätze, Preis unsicher: ' + e.a.marktplatz.map(m => (m.shop || 'Shop') + ' ' + euroKurz(m.preis)).join(', ') + '. Schau bei Amazon oder Idealo.'; row.appendChild(mk); }
             }
-            else {
+            else if (!e.a.ungenau) {
                 summe += e.a[0].preis; anzahl++;
                 row.appendChild(link('ab ' + euroKurz(e.a[0].preis) + ' bei ' + (e.a[0].shop || 'Shop'), e.a[0].link, e.s || e.q));
                 titelZeile(row, e.a[0]);
                 e.a.slice(1, 3).forEach(m => { const s = document.createElement('div'); s.className = 'mehr'; s.appendChild(link(euroKurz(m.preis) + ' bei ' + (m.shop || 'Shop'), m.link, e.s || e.q)); row.appendChild(s); titelZeile(row, m); });
             }
-            if (e.a && e.a.length && e.a.ungenau) { const h = document.createElement('div'); h.textContent = 'Dein Produkt wurde nicht gefunden, das hier sind nur ähnliche. Prüf den Produktnamen.'; h.style.cssText = 'margin-top:6px;font-size:13px;color:#ffb36b'; row.appendChild(h); }
+            else { const h = document.createElement('div'); h.textContent = 'Dein Produkt wurde nicht gefunden.'; h.style.cssText = 'margin-top:4px;font-size:15px;color:#ffb36b'; row.appendChild(h); }   // unsicher: kein grüner "ab"-Preis für fremde Produkte
             { const sz = document.createElement('div'); sz.style.cssText = 'margin-top:6px;font-size:14px;display:flex;gap:16px;flex-wrap:wrap'; const am = link('Bei Amazon suchen ›', amazonLink(e.s || e.q)); const il = link('Bei Idealo suchen ›', '', e.s || e.q); sz.appendChild(am); sz.appendChild(il); row.appendChild(sz); }
             if (e.a && e.a.vorschlaege && (!e.a.length || e.a.ungenau)) {
                 const vh = document.createElement('div'); vh.textContent = 'Möglich bei Idealo, bitte Namen prüfen:'; vh.style.cssText = 'margin-top:8px;font-size:13px;color:#ffb36b'; row.appendChild(vh);
                 e.a.vorschlaege.forEach(m => { const z = document.createElement('div'); z.appendChild(link(euroKurz(m.preis) + ' bei Idealo', m.link, e.s || e.q)); row.appendChild(z); titelZeile(row, m); });
             }
-            if (e.a && e.a.diag) { const dg = e.a.diag, z = document.createElement('div'); z.style.cssText = 'margin-top:6px;font-size:11px;color:#5d7f90'; z.textContent = 'Diagnose: Google ' + dg.g + ' Treffer · Idealo ' + dg.ir + ' Treffer, davon ' + dg.is + ' Produktseiten, ' + dg.ip + ' mit Preis · passend ' + dg.p + (dg.in && dg.in.length ? ' · Idealo-Namen: ' + dg.in.join(' | ') : ''); row.appendChild(z); }
+            if (e.a && e.a.length && e.a.ungenau) {
+                const ah = document.createElement('div'); ah.style.cssText = 'margin-top:8px;font-size:13px;color:#8fb9c9;cursor:pointer'; const ab = document.createElement('div'); ab.style.display = 'none';
+                let au = false; const az = () => { ah.textContent = (au ? '▴' : '▾') + ' Ähnliche Produkte (nicht dein Set)'; ab.style.display = au ? '' : 'none'; };
+                ah.addEventListener('click', () => { au = !au; az(); });
+                e.a.slice(0, 3).forEach(m => { const z = document.createElement('div'); z.style.cssText = 'font-size:12px;line-height:1.4;margin-top:4px'; const l = link(euroKurz(m.preis) + ' bei ' + (m.shop || 'Shop') + ' – ' + String(m.titel || '').slice(0, 60), m.link, e.s || e.q); l.style.cssText = 'color:#8fb9c9;font-weight:400'; z.appendChild(l); ab.appendChild(z); });
+                az(); row.appendChild(ah); row.appendChild(ab);
+            }
+            if (e.a && e.a.diag) { const dg = e.a.diag, z = document.createElement('div'); z.style.cssText = 'margin-top:6px;font-size:11px;color:#5d7f90'; z.textContent = 'Diagnose: Google ' + dg.g + ' Treffer · Idealo ' + dg.ir + ' Treffer, davon ' + dg.is + ' Produktseiten, ' + dg.ip + ' mit Preis · passend ' + dg.p + (dg.in && dg.in.length ? ' · Idealo-Namen: ' + dg.in.join(' | ') : '') + (dg.ih ? ' · Idealo-Suchseite: ' + dg.ih : ''); row.appendChild(z); }
             if (e.a && e.a.length && !e.a.ungenau) schalter(row, { begriff: e.s || e.q, preis: e.a[0].preis, shop: e.a[0].shop, link: e.a[0].link, titel: e.a[0].titel });
             if (e.g) {
                 const gb = document.createElement('div'); gb.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(94,231,255,.2);font-size:14px;line-height:1.6';

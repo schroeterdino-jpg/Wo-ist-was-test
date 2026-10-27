@@ -539,6 +539,21 @@ function idealoTreffer(d) {
   });
   return out.slice(0, 2);
 }
+/* Idealos eigene Suchseite (liefert genau, was man dort im Browser sieht). Kann von Idealo geblockt werden: dann bleibt es still bei der Google-Suche, die Diagnose nennt den Status. */
+function idealoSeite(html) {
+  const out = [], sehen = new Set();
+  const re = /<a\b[^>]*href="((?:https?:\/\/www\.idealo\.de)?\/preisvergleich\/OffersOfProduct\/[^"#?]+?\.html)[^"]*"[^>]*>/gi; let m;
+  while ((m = re.exec(html)) && out.length < 6) {
+    const href = m[1].startsWith('http') ? m[1] : 'https://www.idealo.de' + m[1]; if (sehen.has(href)) continue;
+    const rest = html.slice(m.index, m.index + 2500), text = rest.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, '\n').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').split('\n').map(x => x.trim()).filter(Boolean);
+    const pi = text.findIndex(x => /\d{1,3}(?:\.\d{3})*,\d{2}\s*€/.test(x)); if (pi < 0) continue;
+    const titel = text.slice(0, pi).filter(x => x.length >= 12 && !/^(Anzeige|Neu|Testsieger|Sponsored)/i.test(x))[0] || (m[0].match(/title="([^"]+)"/i) || [])[1] || '';
+    const pm = text[pi].match(/(\d{1,3}(?:\.\d{3})*),(\d{2})\s*€/), preis = parseFloat(pm[1].replace(/\./g, '') + '.' + pm[2]);
+    if (!titel || !(preis > 0)) continue;
+    sehen.add(href); out.push({ titel: titel.slice(0, 120), shop: 'Idealo', preisText: 'ab ' + pm[0], preis, link: href });
+  }
+  return out;
+}
 /* Zusammengesetzte Wörter des Produktnamens (Web-Quartier, Super-Freunde): sie unterscheiden ähnliche Sets. Mindestens die Hälfte davon müssen im Angebot stehen. */
 function bindeWoerter(q) {
   const core = []; for (const x of String(q).split(/\s+/)) { if (/,$/.test(x) || /^(mit|für|fuer|inkl\.?)$/i.test(x)) { if (/,$/.test(x)) core.push(x.replace(/,$/, '')); break; } core.push(x); }
@@ -592,6 +607,11 @@ async function shopping(req, res) {
       js.forEach(j3 => (Array.isArray(j3 && j3.organic) ? j3.organic : []).forEach(x => { const k = String(x.link || ''); if (!sehen.has(k)) { sehen.add(k); orgs.push(x); } }));
       diagI.roh = orgs.length; diagI.seiten = orgs.filter(x => /idealo\.de\/preisvergleich\/OffersOfProduct\//i.test(String(x.link || ''))).length;
       idl = idealoTreffer({ organic: orgs });
+      try {   // Idealos eigene Suche, genau wie im Browser
+        const rs = await fetch('https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q=' + encodeURIComponent(basis), { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 14; SM-S931B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36', 'Accept-Language': 'de-DE,de;q=0.9', 'Accept': 'text/html' }, signal: AbortSignal.timeout(7000) });
+        if (!rs.ok) diagI.seite = 'HTTP ' + rs.status;
+        else { const eg = idealoSeite(await rs.text()); diagI.seite = eg.length + ' Treffer'; const bekannt = new Set(idl.map(x => x.link)); idl = eg.filter(x => !bekannt.has(x.link)).concat(idl).slice(0, 4); }
+      } catch (e) { diagI.seite = 'Fehler'; }
     }
     let l = alle.filter(x => !GEBRAUCHT_RX.test(x.shop + ' ' + x.link));
     l = l.concat(idl);   // Gebrauchtes zeigt keine Neupreise und sein Link startet in der APK Jarvis neu
@@ -616,7 +636,7 @@ async function shopping(req, res) {
     const out = { angebote: normal.length ? l.slice(0, 5) : [] };   // nur Marktplätze (OnBuy, easyShop ...): kein "ab"-Preis, sie kommen klein getrennt
     if (!normal.length && markt.length) out.marktplatz = markt.slice(0, 2).map(x => ({ shop: x.shop, preisText: x.preisText, preis: x.preis, titel: x.titel }));
     if (ungenau) out.ungenau = true;
-    out.diag = { g: d.shopping.length, k: kern || '', ir: diagI.roh, is: diagI.seiten, ip: idl.length, p: l.length , in: idl.map(x => String(x.titel).slice(0, 45) + ' ' + x.preis) };
+    out.diag = { g: d.shopping.length, k: kern || '', ir: diagI.roh, is: diagI.seiten, ip: idl.length, p: l.length, ih: diagI.seite || '', in: idl.map(x => String(x.titel).slice(0, 45) + ' ' + x.preis) };
     if (ungenau || !normal.length) { const vs = idl.filter(x => !l.some(y => y.link === x.link)); if (vs.length) out.vorschlaege = vs.slice(0, 2).map(x => ({ shop: 'Idealo', titel: x.titel, preis: x.preis, link: x.link })); }
     if (String(req.query.gebraucht || '') === '1') {   // Gebrauchtes getrennt von den Neupreisen (zählt nie für Summe oder Preisalarm)
       const med = l.length ? l.map(x => x.preis).sort((a, b) => a - b)[Math.floor(l.length / 2)] : 0;
