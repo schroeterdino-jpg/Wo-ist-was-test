@@ -54,7 +54,10 @@
             '#jvPs .ps-body{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px}' +
             '#jvPs .ps-row{padding:10px;border:1px solid rgba(94,231,255,.35);border-radius:10px;background:rgba(94,231,255,.05);font-size:14px;color:#cfeeff;line-height:1.5}' +
             '#jvPs .ps-row b{color:#e8f6ff;font-size:15px}#jvPs .ps-row a{color:#7dff9b;text-decoration:none;font-weight:700}#jvPs .ps-row .mehr{font-size:12px;color:#8fb9c9}' +
-            '#jvPs .ps-sum{font-size:14px;color:#cfeeff}';
+            '#jvPs .ps-sum{font-size:14px;color:#cfeeff}' +
+            '#jvPs .ps-suche{display:flex;flex-direction:column;gap:6px}#jvPs .ps-hint{font-size:13px;color:#8fb9c9}' +
+            '#jvPs .ps-eing{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid rgba(94,231,255,.4);background:#fff;color:#111;font-size:16px;font-family:inherit}' +
+            '#jvPs .ps-go{background:rgba(94,231,255,.2);color:#fff;letter-spacing:.06em;text-transform:uppercase;font-size:14px}';
         document.head.appendChild(st);
     }
     function link(text, href) {
@@ -71,13 +74,27 @@
         });
         return a;
     }
-    function fenster(ergebnisse) {
+    function fenster(ergebnisse, texte) {
         css();
         const old = document.getElementById('jvPs'); if (old) old.remove();
         const wrap = document.createElement('div'); wrap.id = 'jvPs';
         const head = document.createElement('div'); head.className = 'ps-head';
         const title = document.createElement('span'); title.textContent = 'PREISSUCHE'; head.appendChild(title);
         const x = document.createElement('button'); x.textContent = '✕'; x.setAttribute('aria-label', 'Schließen'); x.onclick = () => wrap.remove(); head.appendChild(x);
+        const suche = document.createElement('div'); suche.className = 'ps-suche';
+        const hl = document.createElement('div'); hl.className = 'ps-hint'; hl.textContent = 'Was suchst du? (mehrere Produkte mit Komma trennen)';
+        const eing = document.createElement('input'); eing.type = 'text'; eing.className = 'ps-eing'; eing.setAttribute('autocomplete', 'off'); eing.setAttribute('enterkeyhint', 'search'); eing.setAttribute('aria-label', 'Was suchst du?');
+        eing.value = Array.isArray(texte) ? texte.join(', ') : '';
+        const knopf = document.createElement('button'); knopf.className = 'ps-go'; knopf.textContent = '🔍 Preise suchen';
+        const status = document.createElement('div'); status.className = 'ps-hint'; status.setAttribute('aria-live', 'polite');
+        const los = () => {
+            const prod = teile(eing.value).map(p => p.charAt(0).toUpperCase() + p.slice(1));
+            if (!prod.length) { status.textContent = 'Schreib zuerst, was du suchst.'; return; }
+            knopf.disabled = true; status.textContent = 'Suche läuft …';
+            suchen(prod, { leise: true, status }).then(() => { knopf.disabled = false; });
+        };
+        knopf.onclick = los; eing.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); los(); } });
+        suche.appendChild(hl); suche.appendChild(eing); suche.appendChild(knopf); suche.appendChild(status);
         const body = document.createElement('div'); body.className = 'ps-body';
         let summe = 0, anzahl = 0;
         ergebnisse.forEach(e => {
@@ -92,10 +109,12 @@
             if (e.a && e.a.length) schalter(row, { begriff: e.s || e.q, preis: e.a[0].preis, shop: e.a[0].shop, link: e.a[0].link });
             body.appendChild(row);
         });
-        wrap.appendChild(head); wrap.appendChild(body);
+        wrap.appendChild(head); wrap.appendChild(suche); wrap.appendChild(body);
         if (anzahl > 1) { const s = document.createElement('div'); s.className = 'ps-sum'; s.textContent = 'Zusammen (jeweils günstigstes Angebot): ' + euroKurz(summe); wrap.appendChild(s); }
         document.body.appendChild(wrap);
+        if (!ergebnisse || !ergebnisse.length) { try { eing.focus(); } catch (e) { } }
     }
+    function oeffnen() { css(); fenster([], []); }
 
     /* ---------- Preisalarm-Schalter (Preissuche-Fenster und Wunschliste) ---------- */
     function finde(q) { return laden().find(x => gleich(x.q, q)) || null; }
@@ -147,28 +166,29 @@
 
     /* ---------- Suchen und vorlesen ---------- */
     let laeuft = false;
-    async function suchen(produkte) {
+    async function suchen(produkte, opt) {
+        const leise = !!(opt && opt.leise), sag = leise ? () => { } : sagen;
         if (laeuft) { sagen('Ich suche gerade schon. Einen Moment.'); return; }
         laeuft = true;
         const ergebnisse = [];
         try {
-            sagen(produkte.length === 1 ? 'Ich suche den günstigsten Preis für ' + produkte[0] + '. Einen Moment.' : 'Ich suche die günstigsten Preise für ' + produkte.length + ' Produkte. Das dauert einen Moment.');
+            sag(produkte.length === 1 ? 'Ich suche den günstigsten Preis für ' + produkte[0] + '. Einen Moment.' : 'Ich suche die günstigsten Preise für ' + produkte.length + ' Produkte. Das dauert einen Moment.');
             for (const q of produkte) {
                 try { ergebnisse.push({ q, a: await angebote(q) }); }
                 catch (e) {
-                    if (e.kein) { sagen('Der Preis-Dienst ist noch nicht eingerichtet. In Vercel fehlt der Eintrag SERPER_API_KEY.'); return; }
+                    if (e.kein) { sagen('Der Preis-Dienst ist noch nicht eingerichtet. In Vercel fehlt der Eintrag SERPER_API_KEY.'); if (opt && opt.status) opt.status.textContent = 'Der Preis-Dienst ist noch nicht eingerichtet (SERPER_API_KEY fehlt in Vercel).'; return; }
                     ergebnisse.push({ q, a: [] });
                 }
             }
-            fenster(ergebnisse);
+            fenster(ergebnisse, produkte);
             const mit = ergebnisse.filter(e => e.a.length);
-            if (!mit.length) { sagen('Ich habe ' + (produkte.length === 1 ? 'zu diesem Produkt' : 'zu keinem der Produkte') + ' keinen Preis gefunden. Sag den Namen genauer, zum Beispiel mit Marke und Modell.'); return; }
+            if (!mit.length) { sag('Ich habe ' + (produkte.length === 1 ? 'zu diesem Produkt' : 'zu keinem der Produkte') + ' keinen Preis gefunden. Sag den Namen genauer, zum Beispiel mit Marke und Modell.'); return; }
             if (mit.length === 1 && produkte.length === 1) {
                 const a = mit[0].a[0], z = mit[0].a[1];
-                sagen('Am günstigsten ist ' + mit[0].q + ' bei ' + (a.shop || 'einem Shop') + ' für ' + euro(a.preis) + '.' + (z ? ' Danach kommt ' + (z.shop || 'ein anderer Shop') + ' mit ' + euro(z.preis) + '.' : '') + ' Alle Angebote mit Links siehst du im Fenster. Soll ich den Preis beobachten? Sag: Beobachte den Preis von ' + mit[0].q + ' unter einem Wunschpreis.');
+                sag('Am günstigsten ist ' + mit[0].q + ' bei ' + (a.shop || 'einem Shop') + ' für ' + euro(a.preis) + '.' + (z ? ' Danach kommt ' + (z.shop || 'ein anderer Shop') + ' mit ' + euro(z.preis) + '.' : '') + ' Alle Angebote mit Links siehst du im Fenster. Soll ich den Preis beobachten? Sag: Beobachte den Preis von ' + mit[0].q + ' unter einem Wunschpreis.');
             } else {
                 const summe = mit.reduce((s, e) => s + e.a[0].preis, 0);
-                sagen(ergebnisse.map(e => e.a.length ? e.q + ': ' + euro(e.a[0].preis) + ' bei ' + (e.a[0].shop || 'einem Shop') : e.q + ': kein Preis gefunden').join('. ') + '. Zusammen sind das ' + (mit.length > 1 ? 'etwa ' + Math.round(summe) + ' Euro' : euro(summe)) + '. Die Links siehst du im Fenster.');
+                sag(ergebnisse.map(e => e.a.length ? e.q + ': ' + euro(e.a[0].preis) + ' bei ' + (e.a[0].shop || 'einem Shop') : e.q + ': kein Preis gefunden').join('. ') + '. Zusammen sind das ' + (mit.length > 1 ? 'etwa ' + Math.round(summe) + ' Euro' : euro(summe)) + '. Die Links siehst du im Fenster.');
             }
         } finally { laeuft = false; }
     }
@@ -326,6 +346,7 @@
             geschenke(name, raw);
             return true;
         }
+        if (/^(?:jarvis\s+)?(?:(?:öffne|oeffne|zeig|starte|mach)\w*\s+(?:mir\s+)?(?:bitte\s+)?(?:die\s+|den\s+)?preissuche(?:\s+auf)?|preissuche(?:\s+(?:öffnen|oeffnen|starten|auf))?)$/i.test(raw)) { oeffnen(); return true; }
         /* Freie Preissuche */
         const SUCH = [
             /(?:günstigst|guenstigst|billigst|beste)\w*\s+(?:preis|preise|angebot|angebote|shop)\w*\s+(?:für|fuer|von|bei|zu)\s+(.+)$/,
@@ -349,7 +370,22 @@
     }
     if (window.jvCommands && typeof window.jvCommands.use === 'function') window.jvCommands.use('preissuche', befehl, 0.35);
 
-    window.jvPreisWaechter = { laden, pruefen, suchen, finde, anlegen, entfernen, schalter };
+    window.preissucheMenu = oeffnen;
+    try {
+        if (window.jvChain) window.jvChain.use('buildMenuPanel', 'preissuche', function (next) {
+            const r = next();
+            try {
+                if (r && typeof r.html === 'string' && r.html.indexOf('preissucheMenu') < 0) {
+                    const btn = '<button class="panel-row w-full flex items-center gap-3 text-left bg-black/60 border border-[rgba(73,215,255,.2)] rounded-lg p-3 mb-2" style="--i:12" onclick="playUiBeep(); closePanel(); window.preissucheMenu()">' +
+                        '<span class="text-2xl">💶</span><span class="flex-1"><b class="block text-[#49d7ff] text-sm">Preissuche</b><span class="text-xs text-slate-400">Günstigste Preise suchen, Preisalarm</span></span><span class="text-[#49d7ff]">›</span></button>';
+                    if (r.html.indexOf('<!--post-->') >= 0) r.html = r.html.replace('<!--post-->', btn + '<!--post-->');
+                    else { const m = r.html.match(/<button[^>]*openPanel\('planer'\)/); r.html = m ? r.html.replace(m[0], btn + m[0]) : r.html.replace(/<\/div>\s*$/, btn + '</div>'); }
+                }
+            } catch (e) { console.error('Preissuche Menü', e); }
+            return r;
+        }, 100);
+    } catch (e) { }
+    window.jvPreisWaechter = { laden, pruefen, suchen, oeffnen, finde, anlegen, entfernen, schalter };
     anstossen(45000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) anstossen(15000); });
 })();
