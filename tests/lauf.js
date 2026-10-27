@@ -286,6 +286,12 @@ async function verhalten() {
         new Function('module', 'process', 'fetch', 'AbortSignal', 'URL', lies('api/maps.js').replace(/^export const config/m, 'const config').replace(/^export default /m, 'module.exports = '))(mod7, { env: { SERPER_API_KEY: 'x', APP_SECRET: 's' } }, fake7, { timeout: () => undefined }, URL);
         let o7; await mod7.exports({ method: 'GET', query: { action: 'shopping', q: 'Spielset Web-Quartiere' }, headers: { 'x-app-key': 's' } }, { status: c => ({ json: j => { o7 = j; }, end() { } }), setHeader() { }, json: j => { o7 = j; } });
         check('Server: nur Marktplatz-Treffer (easyShop 270 €) -> kein Angebot, nur klein als marktplatz', o7 && o7.angebote.length === 0 && o7.marktplatz && o7.marktplatz[0].preis === 270.74, JSON.stringify(o7));
+        const idealoQ = [];
+        const fake8 = async (url, o) => { const bq = JSON.parse(o.body).q; if (/shopping/.test(url)) return { ok: true, json: async () => ({ shopping: [] }) }; idealoQ.push(bq); return { ok: true, json: async () => ({ organic: bq.length < 95 ? [{ title: 'Marvel Spidey und Seine Super-Freunde Web-Spinners Web-Quartier Spielset ab 85,83 € | idealo', link: 'https://www.idealo.de/preisvergleich/OffersOfProduct/9_-spidey.html', snippet: 'x' }] : [] }) }; };
+        const mod8 = { exports: {} };
+        new Function('module', 'process', 'fetch', 'AbortSignal', 'URL', lies('api/maps.js').replace(/^export const config/m, 'const config').replace(/^export default /m, 'module.exports = '))(mod8, { env: { SERPER_API_KEY: 'x', APP_SECRET: 's' } }, fake8, { timeout: () => undefined }, URL);
+        let o8; await mod8.exports({ method: 'GET', query: { action: 'shopping', q: TITEL }, headers: { 'x-app-key': 's' } }, { status: c => ({ json: j => { o8 = j; }, end() { } }), setHeader() { }, json: j => { o8 = j; } });
+        check('Server: Idealo-Abfrage ist kurz (ohne Marke) und doppelt gestellt; Treffer 85,83 € mit Diagnose', o8 && o8.angebote.length === 1 && !o8.ungenau && o8.angebote[0].preis === 85.83 && o8.diag.is === 1 && idealoQ.some(x => /^site:idealo\.de Spidey/.test(x)) && idealoQ.every(x => x.length < 95), JSON.stringify(o8) + ' | ' + idealoQ.join(' || '));
         check('Server: passende Angebote bleiben, Zufallstreffer (12 € Figur) fallen weg', o2 && !o2.ungenau && o2.angebote.length === 1 && o2.angebote[0].preis === 85, JSON.stringify(o2));
         check('Server: Kleinanzeigen-Treffer ohne Preis und Suchseiten werden weggelassen', !mit.gebraucht.some(x => /\/k0$|\/9$/.test(x.link)));
     }
