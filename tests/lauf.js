@@ -239,11 +239,25 @@ async function verhalten() {
         check('Antrag-PDF: Zeichen, die die PDF-Schrift nicht kann (ő), werden gemeldet und ersetzt', erg.warnungen.some(w => /ő/.test(w)) && zustand.txtfPersonGebOrt.t === 'Gy?r', JSON.stringify(erg.warnungen) + ' ' + (zustand.txtfPersonGebOrt || {}).t);
         check('Antrag-PDF: Kontrolle der gespeicherten Datei meldet keine Abweichung', erg.kontrolle.falsch.length === 0 && erg.kontrolle.anzahl >= 6, JSON.stringify(erg.kontrolle));
     }
+    // Server: Gebrauchtes getrennt von Neupreisen (api/maps.js mit Attrappen, ohne Netz)
+    {
+        const mod = { exports: {} };
+        const fakeFetch = async (url, o) => {
+            if (/shopping/.test(url)) return { ok: true, json: async () => ({ shopping: [{ title: 'A', source: 'Shop A', price: '19,99 €', link: 'https://a.de/x' }, { title: 'B', source: 'Shop B', price: '22,50 €', link: 'https://b.de/x' }, { title: 'C', source: 'Shop C', price: '25,00 €', link: 'https://c.de/x' }, { title: 'Gebr', source: 'eBay', price: '14,50 €', link: 'https://ebay.de/itm/1' }] }) };
+            return { ok: true, json: async () => ({ organic: [{ title: 'Toni 12 € VB - Kleinanzeigen', link: 'https://www.kleinanzeigen.de/s-anzeige/toni/123', snippet: 'Hamburg' }, { title: 'Toni verschenken', link: 'https://www.kleinanzeigen.de/s-anzeige/toni/9', snippet: 'Gratis' }, { title: 'Suche', link: 'https://www.kleinanzeigen.de/s-toni/k0', snippet: '5 €' }] }) };
+        };
+        new Function('module', 'process', 'fetch', 'AbortSignal', 'URL', lies('api/maps.js').replace(/^export const config/m, 'const config').replace(/^export default /m, 'module.exports = '))(mod, { env: { SERPER_API_KEY: 'x', APP_SECRET: 's' } }, fakeFetch, { timeout: () => undefined }, URL);
+        const rufe = async query => { let out; await mod.exports({ method: 'GET', query, headers: { 'x-app-key': 's' } }, { status: c => ({ json: j => { out = j; }, end() { } }), setHeader() { }, json: j => { out = j; } }); return out; };
+        const neu = await rufe({ action: 'shopping', q: 'Toni' }), mit = await rufe({ action: 'shopping', q: 'Toni', gebraucht: '1' });
+        check('Server: ohne Gebraucht-Wunsch bleibt die Antwort wie bisher (nur Neupreise, kein eBay)', neu.angebote.length === 3 && !neu.gebraucht && !neu.angebote.some(x => /ebay/i.test(x.shop)), JSON.stringify(neu).slice(0, 200));
+        check('Server: Gebrauchtes kommt getrennt (Kleinanzeigen mit Preis, eBay), Neupreise bleiben gleich', mit.angebote.length === 3 && mit.gebraucht.map(x => x.shop + ' ' + x.preis).join('|') === 'Kleinanzeigen 12|eBay 14.5', JSON.stringify(mit.gebraucht));
+        check('Server: Kleinanzeigen-Treffer ohne Preis und Suchseiten werden weggelassen', !mit.gebraucht.some(x => /\/k0$|\/9$/.test(x.link)));
+    }
     // Preissuche: welche Produkte werden aus dem Satz gesucht?
     {
         const u3 = umgebung(); laden(u3, 'preissuche.js');
         const q = []; 
-        u3.sb.apiFetch = async url => { q.push(decodeURIComponent(String(url).split('&q=')[1] || '')); return { ok: true, json: async () => ({ angebote: [] }) }; };
+        u3.sb.apiFetch = async url => { q.push(decodeURIComponent(String(url).split('&q=')[1] || '').replace(/&gebraucht=1$/, '')); return { ok: true, json: async () => ({ angebote: [] }) }; };
         let weiter = false;
         u3.eintraege[0].fn('Ich suche eine Toni-Figur, Weihnachtsmann und KKG, kannst du mir Preise heraussuchen', () => { weiter = true; });
         await new Promise(r => setTimeout(r, 200));
