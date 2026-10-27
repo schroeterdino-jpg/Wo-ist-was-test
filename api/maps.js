@@ -476,13 +476,19 @@ function woerter(t) {
 }
 function norm(t) { return String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss'); }
 /* Gewicht je Suchwort: Wörter, die fast alle Treffer haben (Marke, Serie), zählen wenig; seltene (Web-Quartier, Spielset) zählen viel. */
+/* Kern des Produktnamens: bis "mit", "für", "inkl." oder Komma; der Rest (Zubehör, Beiwerk) steht in Shop-Titeln oft nicht */
+function kernText(q) {
+  const ws = []; for (const x of String(q).split(/\s+/)) { if (/^(mit|für|fuer|inkl\.?)$/i.test(x)) break; ws.push(x.replace(/,$/, '')); if (/,$/.test(x)) break; }
+  return ws.length >= 3 ? ws.join(' ') : String(q);
+}
 function gewichte(frage, titel) {
+  frage = kernText(frage);
   const fw = woerter(frage), tts = titel.map(t => norm(t).replace(/[^a-z0-9]+/g, '')), n = Math.max(titel.length, 1), g = {};
   fw.forEach(w => { const df = tts.filter(t => t.includes(w)).length; g[w] = df === 0 ? 1 : 0.3 + 2 * (1 - df / n); });
   return g;
 }
 function passung(frage, titel, gew) {
-  const fw = woerter(frage); if (!fw.length) return 1;
+  const fw = woerter(kernText(frage)); if (!fw.length) return 1;
   const tt = norm(titel).replace(/[^a-z0-9]+/g, '');
   const tw = new Set(woerter(titel)); let summe = 0, treffer = 0;
   fw.forEach(w => { const g = gew && gew[w] != null ? gew[w] : 1; summe += g; if (tw.has(w) || (w.length >= 5 && tt.includes(w))) treffer += g; });
@@ -578,10 +584,14 @@ async function shopping(req, res) {
     })).filter(x => x.preis && x.preis > 0 && !AUSSCHLUSS_RX.test(x.shop + ' ' + x.link));
     let idl = [], diagI = { roh: 0, seiten: 0 };
     if (woerter(q).length >= 2) {   // Idealo kennt oft genau das Produkt, das Google Shopping nicht liefert
-      try {
-        const r3 = await fetch('https://google.serper.dev/search', { method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ q: 'site:idealo.de ' + q, gl: 'de', hl: 'de', num: 5 }), signal: AbortSignal.timeout(7000) });
-        if (r3.ok) { const j3 = await r3.json(); const orgs = Array.isArray(j3 && j3.organic) ? j3.organic : []; diagI.roh = orgs.length; diagI.seiten = orgs.filter(x => /idealo\.de\/preisvergleich\/OffersOfProduct\//i.test(String(x.link || ''))).length; idl = idealoTreffer(j3); }
-      } catch (e) { }
+      // Kurze Abfrage (ohne Marke und Beiwerk): mit dem ganzen Titel findet der Suchdienst bei Idealo nichts
+      let basis = kern; if (!basis) { const ws = []; for (const x of q.split(/\s+/)) { if (/^(mit|für|fuer|inkl\.?)$/i.test(x)) break; ws.push(x.replace(/,$/, '')); if (/,$/.test(x) || ws.length >= 8) break; } basis = ws.join(' '); }
+      const frage = async qq => { try { const r3 = await fetch('https://google.serper.dev/search', { method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ q: qq, gl: 'de', hl: 'de', num: 10 }), signal: AbortSignal.timeout(7000) }); return r3.ok ? (await r3.json()) : null; } catch (e) { return null; } };
+      const js = await Promise.all(['site:idealo.de ' + basis, basis + ' idealo Preisvergleich'].map(frage));
+      const orgs = [], sehen = new Set();
+      js.forEach(j3 => (Array.isArray(j3 && j3.organic) ? j3.organic : []).forEach(x => { const k = String(x.link || ''); if (!sehen.has(k)) { sehen.add(k); orgs.push(x); } }));
+      diagI.roh = orgs.length; diagI.seiten = orgs.filter(x => /idealo\.de\/preisvergleich\/OffersOfProduct\//i.test(String(x.link || ''))).length;
+      idl = idealoTreffer({ organic: orgs });
     }
     let l = alle.filter(x => !GEBRAUCHT_RX.test(x.shop + ' ' + x.link));
     l = l.concat(idl);   // Gebrauchtes zeigt keine Neupreise und sein Link startet in der APK Jarvis neu
