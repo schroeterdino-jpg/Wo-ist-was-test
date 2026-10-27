@@ -3,7 +3,7 @@
    - Einstellungen > Stimme & Gespräch > Sprachausgabe: neue Auswahl "Fish Audio" (steht oben), dazu Eingabe der Stimmen-ID und "Fish-Stimme testen".
    - Einmalige Umstellung: Beim ersten Start mit dieser Datei wird Fish Audio auf diesem Gerät zur Hauptstimme. Jederzeit änderbar.
    - Rückfallkette (auf dem Server, api/stau.js): Fish Audio -> OpenAI -> Edge-TTS; die Handy-Stimme bleibt der letzte Rückfall in voice.js.
-   - Menschliche Laute (Seufzen, Einatmen, Räuspern, Lachen, Pausen): siehe unten bei humanize(). Stufe in den Einstellungen oder per Sprache. Bei allen anderen Stimmen
+   - Menschliche Laute (Seufzen, Räuspern, Lachen, Pausen; kein hörbares Einatmen mehr, das wollte der Nutzer nicht): siehe unten bei humanize(). Stufe in den Einstellungen oder per Sprache. Bei allen anderen Stimmen
      wird nichts davon gesprochen oder angezeigt.
    - Der Schlüssel steht nur auf dem Server (Vercel: FISH_AUDIO_API_KEY; optional FISH_AUDIO_VOICE_ID und FISH_AUDIO_MODEL), nie im Browser.
    Lange Texte (Briefing): Das Sprechen startet nach dem ersten kurzen Stück, die weiteren folgen nahtlos (siehe startQueue).
@@ -153,7 +153,7 @@
     // ---------- Menschliche Laute (nur Fish Audio) ----------
     // Fish Audio versteht Anweisungen in eckigen Klammern. Hier werden sie vor dem Senden in den Text gesetzt, nie in der Anzeige und nie bei anderen Stimmen:
     //  [sigh] Seufzen: bei Stau und Unangenehmem (Stau, lange Fahrt, Sprit, Bahn) und manchmal bei "Einen Moment ...", dazu mal ein "Hmm."
-    //  [inhale] tiefes Einatmen vor langen Antworten, [clearing throat] Räuspern nach längerer Pause
+    //  [clearing throat] Räuspern nach längerer Pause (KEIN [inhale]: hörbares Einatmen am Satzanfang wurde bewusst entfernt)
     //  vor dem Spruch (sprueche.js setzt dort ein unsichtbares Zeichen): [laughing] / [chuckle] Lachen, oder [short pause] Pause vor der Pointe
     // Nie bei ernsten Themen (Warnungen, Fehler, Erinnerungen, Gesundheit, E-Mails, Geld ...) und höchstens je ein Laut am Anfang und einer vor dem Spruch.
     // Stufe: aus / dezent (halb so oft) / mittel (Standard). Einstellungen > Stimme, oder per Sprache "Menschliche Laute aus / dezent / an".
@@ -233,14 +233,13 @@
         const idle = lastFishAt && now - lastFishAt > 15 * 60000;
         lastFishAt = now;
         let start = '';
-        let out = strip(pre);
+        let out = strip(pre).replace(/\[inhale\]\s*/gi, '');   // nie hörbar einatmen (auch wenn die KI es selbst schreibt)
         if (!serious) {
             const cat = typeof window.jvClassify === 'function' ? (window.jvClassify(pre) || {}).cat : null;
             const plainLen = out.replace(/\s+/g, ' ').length;
             if (idle && roll(0.6)) start = '[clearing throat] ';
             else if (cat && SIGH_CATS[cat] && roll(SIGH_CATS[cat])) start = '[sigh] ';
             else if (plainLen <= 70 && THINKING.test(out.trim())) { if (roll(0.3)) start = '[sigh] '; else if (roll(0.2)) start = 'Hmm. '; }
-            else if (plainLen > 180 && roll(0.5)) start = '[inhale] ';
         }
         const boost = laughWish();                                       // "öfter lachen" ist gewünscht
         let mid = '';

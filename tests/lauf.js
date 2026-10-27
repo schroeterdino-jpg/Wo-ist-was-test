@@ -358,6 +358,7 @@ async function verhalten() {
             check('Beginn-Ausnahme: zurücksetzen stellt den Standard wieder her', PL.beginn('spaet', tag) === normal);
         } else check('Beginn-Ausnahme: plan_ansagen.js lädt im Test', false);
     }
+    check('Stimme: kein hörbares Einatmen mehr (fish.js setzt nie [inhale] und entfernt es aus dem Text)', !/start = '\[inhale\]/.test(lies('js/fish.js')) && /replace\(\/\\\[inhale\\\]/.test(lies('js/fish.js')));
     // Links: nie "#" ins Link-Fenster (das lädt Jarvis selbst)
     for (const f of ['preissuche.js', 'wunschliste.js']) { const src = lies('js/' + f); check(f + ': Link ohne Ziel öffnet nie das Link-Fenster (kein "#")', /if \(!href\) \{ e\.preventDefault\(\); return; \}/.test(src) && /nie "#"/.test(src)); }
     // Preissuche: eingefügte Shop-Titel
