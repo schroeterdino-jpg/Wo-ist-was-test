@@ -328,6 +328,19 @@ async function verhalten() {
             check('Termin-Erinnerung: ohne Uhrzeit oder ohne Tag kein Termin', !T.ausText('Ich muss Donnerstag zur Arbeit') && !T.ausText('Ich muss um 13 Uhr zur Arbeit'));
         } else check('Termin-Erinnerung: Modul lädt im Test', false);
     }
+    // Früher los: Arbeit beginnt an einem Tag früher als sonst -> Abfahrt wird vorgezogen
+    {
+        const u = umgebung(); u.sb.executeAction = async () => ({}); laden(u, 'langzeit_erinnern.js');
+        const tv = {}; let gesendet = 0;
+        u.sb.jvPlan = { schichtAm: ymd => (new Date(ymd + 'T12:00:00').getDay() === 4 ? 'spaet' : null), beginn: sh => 13 * 60 + 45, abfahrtMin: sh => 13 * 60, setTagVor: (y, m) => { if (m > 0) tv[y] = m; else delete tv[y]; }, tagVor: y => tv[y] || 0, planSenden: () => { gesendet++; }, uhr: m => Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0'), ymdPlus: (y, n) => y };
+        laden(u, 'frueher_los.js');
+        const ok = route(u, 'Ich muss Donnerstag um 13:15 auf der Arbeit sein');
+        const ys = Object.keys(tv);
+        check('Früher los: "Donnerstag um 13:15 auf der Arbeit" (Spätschicht normal 13:45) zieht die Abfahrt um 30 Minuten vor', ok === 'frueher-los' && ys.length === 1 && tv[ys[0]] === 30 && gesendet === 1 && new Date(ys[0] + 'T12:00:00').getDay() === 4, JSON.stringify([ok, tv, gesendet]));
+        check('Früher los: Jarvis nennt Beginn, Differenz und neue Abfahrt (12:30)', /13:15/.test(u.gesagt[u.gesagt.length - 1] || '') && /30 Minuten/.test(u.gesagt[u.gesagt.length - 1] || '') && /12:30/.test(u.gesagt[u.gesagt.length - 1] || ''), String(u.gesagt[u.gesagt.length - 1]));
+        check('Früher los: Rückgängig stellt die Abfahrt zurück', route(u, 'Mach die frühere Abfahrt rückgängig') === 'frueher-los' && Object.keys(tv).length === 0);
+        check('Früher los: später als sonst oder Tag ohne Schicht läuft normal weiter (KI)', route(u, 'Ich muss Donnerstag um 14:30 auf der Arbeit sein') === 'KI' && route(u, 'Ich muss Samstag um 9:00 auf der Arbeit sein') === 'KI' && Object.keys(tv).length === 0);
+    }
     // Links: nie "#" ins Link-Fenster (das lädt Jarvis selbst)
     for (const f of ['preissuche.js', 'wunschliste.js']) { const src = lies('js/' + f); check(f + ': Link ohne Ziel öffnet nie das Link-Fenster (kein "#")', /if \(!href\) \{ e\.preventDefault\(\); return; \}/.test(src) && /nie "#"/.test(src)); }
     // Preissuche: eingefügte Shop-Titel
