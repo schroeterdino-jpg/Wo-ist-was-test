@@ -41,6 +41,7 @@
         const d = await r.json().catch(() => ({}));
         if (!r.ok) { const e = new Error(d && d.error || 'Fehler'); e.kein = /SERPER_API_KEY/.test(String(d && d.error)); throw e; }
         const out = (Array.isArray(d.angebote) ? d.angebote : []).filter(a => a && a.preis > 0);
+        if (d.ungenau) out.ungenau = true;
         if (mitGebraucht) out.gebraucht = (Array.isArray(d.gebraucht) ? d.gebraucht : []).filter(a => a && a.preis > 0);
         return out;
     }
@@ -134,7 +135,8 @@
                 titelZeile(row, e.a[0]);
                 e.a.slice(1, 3).forEach(m => { const s = document.createElement('div'); s.className = 'mehr'; s.appendChild(link(euroKurz(m.preis) + ' bei ' + (m.shop || 'Shop'), m.link, e.s || e.q)); row.appendChild(s); titelZeile(row, m); });
             }
-            if (e.a && e.a.length) schalter(row, { begriff: e.s || e.q, preis: e.a[0].preis, shop: e.a[0].shop, link: e.a[0].link });
+            if (e.a && e.a.length && e.a.ungenau) { const h = document.createElement('div'); h.textContent = 'Keine genauen Treffer, diese Angebote sind nur ähnlich. Prüf den Produktnamen.'; h.style.cssText = 'margin-top:6px;font-size:13px;color:#ffb36b'; row.appendChild(h); }
+            if (e.a && e.a.length && !e.a.ungenau) schalter(row, { begriff: e.s || e.q, preis: e.a[0].preis, shop: e.a[0].shop, link: e.a[0].link });
             if (e.g) {
                 const gb = document.createElement('div'); gb.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(94,231,255,.2);font-size:14px;line-height:1.6';
                 const kopf = document.createElement('div'); kopf.textContent = 'GEBRAUCHT'; kopf.style.cssText = 'color:#ffb36b;font-weight:700;font-size:12px;letter-spacing:.08em'; gb.appendChild(kopf);
@@ -211,7 +213,7 @@
             for (const q of produkte) {
                 try {
                     const gb = gebrauchtAn(); let term = q, a = await angebote(term, gb);
-                    if (!a.length && term.split(/\s+/).length > 9) { term = kurzBegriff(term); a = await angebote(term, gb); }   // langer Titel ohne Treffer: kürzere Fassung
+                    if ((!a.length || a.ungenau) && term.split(/\s+/).length > 9) { const k = kurzBegriff(term), a2 = await angebote(k, gb); if (a2.length && (!a2.ungenau || !a.length)) { term = k; a = a2; } }   // langer Titel ohne (genaue) Treffer: kürzere Fassung
                     ergebnisse.push({ q, s: term, a, g: gb ? (a.gebraucht || []) : null });
                 }
                 catch (e) {
@@ -298,7 +300,7 @@
             try {
                 const a = await angebote(w.q);
                 w.am = Date.now();
-                if (a.length) { w.preis = a[0].preis; w.shop = a[0].shop; w.link = a[0].link; if (!w.start) w.start = a[0].preis; }
+                if (a.length && !a.ungenau) { w.preis = a[0].preis; w.shop = a[0].shop; w.link = a[0].link; if (!w.start) w.start = a[0].preis; }
             } catch (e) { if (e.kein) { speichern(l); return { fehler: true }; } }
             if (treffer(w)) { w.gemeldet = w.preis; gemeldet.push(w); }
         }
