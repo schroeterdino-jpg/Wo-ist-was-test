@@ -142,7 +142,11 @@
         const [y, m, d] = ymd.split('-').map(Number);
         return T.shiftOfWeek(st, T.weekNo({ y, m, d }));
     }
-    function beginn(sh) {
+    const K_BTAG = 'jv_plan_beginn_tag_';   // einmalige Ausnahme für einen Tag ("Donnerstag muss ich um 13:15 da sein")
+    function beginnTag(ymd) { const v = Number(lsGet(K_BTAG + ymd)); return ymd && Number.isFinite(v) && v > 0 && v < 1440 ? Math.round(v) : 0; }
+    function setBeginnTag(ymd, min) { if (min > 0) lsSet(K_BTAG + ymd, String(Math.round(min))); else { try { localStorage.removeItem(K_BTAG + ymd); } catch (e) { } } }
+    function beginn(sh, ymd) {
+        const ex = beginnTag(ymd); if (ex) return ex;
         try {
             const o = JSON.parse(pd(K_BEGINN, '') || 'null');
             if (o && Number.isFinite(o[sh])) return o[sh];
@@ -344,7 +348,7 @@
     async function aufbruchText(ymd, mitFrisch) {
         const sh = schichtAm(ymd);
         if (!sh) return { text: '', sh: null };
-        const start = beginn(sh), normal = letzteFahrt();
+        const start = beginn(sh, ymd), normal = letzteFahrt();
         let min, stau = '', st = 0;
         if (mitFrisch) { const f = await fahrtFrisch(); min = f.min || letzteFahrt(); stau = f.stau || ''; st = f.min ? (f.st || 0) : 0; }
         else min = letzteFahrt();
@@ -509,7 +513,7 @@
                     const bt = S().load().times;
                     if (bt && Number.isFinite(bt[sh])) out.push({ id: 'brief|' + ymd, at: berlinMs(ymd, bt[sh]), text: 'Dein Briefing ist bereit. Tippe, dann erzähle ich es dir.' });
                 } catch (e) { }
-                const start = beginn(sh), fahrt = letzteFahrt();
+                const start = beginn(sh, ymd), fahrt = letzteFahrt();
                 const abfahrt = abfFix(sh) - tagVor(ymd), ansage = abfahrt - VOR_ABFAHRT;
                 const staumin = Math.max(ansage - STAU_VOR, sh === 'frueh' ? weckzeit() + 10 : 0);
                 if (ansage >= 0 && staumin <= ansage - 5) out.push({ id: 'stau|' + ymd, at: berlinMs(ymd, staumin), text: 'Ich prüfe kurz die Verkehrslage auf deinem Arbeitsweg. Ist alles frei, sage ich nichts.' });
@@ -581,10 +585,10 @@
         if (!(await warteBereit(30000))) return false;
         if (!erzwingen) {   // abgelaufene Ansage (zum Beispiel alte Meldung angetippt): nichts sagen
             if (art === 'wochen' && nu.ymd !== ymd) return false;
-            if (art === 'aufbruch' && (nu.ymd !== ymd || nu.min >= beginn(schichtAm(ymd) || 'frueh'))) return false;
+            if (art === 'aufbruch' && (nu.ymd !== ymd || nu.min >= beginn(schichtAm(ymd) || 'frueh', ymd))) return false;
             if (art === 'wecker' && (nu.ymd !== ymd || nu.min > 23 * 60)) return false;
             if (art === 'heim') { const sh0 = schichtAm(ymd); if (nu.ymd !== ymd || !sh0 || nu.min < ende(sh0) || nu.min > ende(sh0) + 120) return false; }
-            if (art === 'stau' && (nu.ymd !== ymd || !schichtAm(ymd) || nu.min >= beginn(schichtAm(ymd)) - 30)) return false;
+            if (art === 'stau' && (nu.ymd !== ymd || !schichtAm(ymd) || nu.min >= beginn(schichtAm(ymd), ymd) - 30)) return false;
         }
         if (art === 'brief') {   // Schicht-Briefing, einmal pro Tag (nicht doppelt, wenn schicht.js es schon gesagt hat)
             let schon = ''; try { schon = String(getPersistentData('jv_schicht_last', '') || ''); } catch (e) { }
@@ -876,7 +880,7 @@
             (async () => {
                 const heute = jetzt().ymd;
                 let ymd = heute;
-                if (!schichtAm(ymd) || jetzt().min >= beginn(schichtAm(ymd))) {   // heute nichts mehr: nächster Arbeitstag
+                if (!schichtAm(ymd) || jetzt().min >= beginn(schichtAm(ymd), ymd)) {   // heute nichts mehr: nächster Arbeitstag
                     ymd = null;
                     for (let i = 1; i <= 7; i++) { const y = ymdPlus(heute, i); if (schichtAm(y)) { ymd = y; break; } }
                 }
@@ -915,7 +919,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { terminText, weckerStand, beginn, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { terminText, weckerStand, beginn, setBeginnTag, beginnTag, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);
