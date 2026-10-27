@@ -313,7 +313,7 @@ async function verhalten() {
             const r = T.ausText('Ich muss Donnerstag um 13:15 auf der Arbeit sein');
             check('Termin-Erinnerung: "Donnerstag um 13:15" wird aus dem Satz gelesen (nächster Donnerstag, 13:15)', r && r.start.getDay() === 4 && r.h === 13 && r.mi === 15 && r.start.getTime() > Date.now());
             const m = T.ausText('Morgen muss ich um 8 Uhr beim Arzt sein');
-            check('Termin-Erinnerung: "morgen um 8 Uhr" wird gelesen', m && m.h === 8 && m.mi === 0 && m.start.getDate() === new Date(Date.now() + 86400000).getDate());
+            check('Termin-Erinnerung: "morgen um 8 Uhr" wird gelesen', m && m.h === 8 && m.mi === 0 && m.start.getDate() === new Date(new Date(Date.now() + 86400000).toLocaleString('en-US', { timeZone: 'Europe/Berlin' })).getDate());   // Berlin-Datum, unabhängig von der Zeitzone des Rechners
             const d = T.ausText('Am 15.12. um 18:30 Uhr ist die Weihnachtsfeier');
             check('Termin-Erinnerung: Datum "15.12." + Uhrzeit wird gelesen', d && d.start.getMonth() === 11 && d.start.getDate() === 15 && d.h === 18 && d.mi === 30);
             for (const typ of ['briefing_add', 'chat', 'episode_store']) {
