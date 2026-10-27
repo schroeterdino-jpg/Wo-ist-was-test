@@ -497,6 +497,7 @@ function kernSuche(q) {
   return k && norm(k) !== norm(q) ? k : '';
 }
 const AUSSCHLUSS_RX = /thangs|printables|thingiverse|cults3d|myminifactory/i;   // Vorlagen zum 3D-Drucken, keine Waren
+const MARKTPLATZ_RX = /onbuy|easyshop|temu|aliexpress|wish\.com|joom|dhgate|banggood|shein/i;   // Marktplätze mit Importware: Preis oft unzuverlässig
 const GEBRAUCHT_RX = /kleinanzeigen|ebay|vinted|willhaben|momox|rebuy|mobile\.de|shpock/i;
 /* Kleinanzeigen hat keine offene Schnittstelle: Treffer kommen aus der Google-Suche (nur Anzeigen-Seiten, Preis aus Titel oder Beschreibung, sonst weglassen). */
 function kleinanzeigenTreffer(d) {
@@ -561,7 +562,8 @@ async function shopping(req, res) {
     }
     // Google-Links führen auf eine Einwilligungs-/Anmeldeseite von Google: nur direkte Shop-Links durchreichen, sonst leer (die App nimmt dann eine Preisvergleichs-Suche)
     l.forEach(x => { try { if (/(^|\.)google\./i.test(new URL(x.link).hostname)) x.link = ''; } catch (e) { x.link = ''; } });
-    l.sort((a, b) => a.preis - b.preis);
+    l.forEach(x => { if (MARKTPLATZ_RX.test(x.shop + ' ' + x.link)) x.markt = true; });
+    l.sort((a, b) => (a.markt ? 1 : 0) - (b.markt ? 1 : 0) || a.preis - b.preis);   // Marktplätze nie vor normalen Shops
     const out = { angebote: l.slice(0, 5) };
     if (ungenau) out.ungenau = true;
     if (String(req.query.gebraucht || '') === '1') {   // Gebrauchtes getrennt von den Neupreisen (zählt nie für Summe oder Preisalarm)

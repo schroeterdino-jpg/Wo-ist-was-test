@@ -264,6 +264,12 @@ async function verhalten() {
         new Function('module', 'process', 'fetch', 'AbortSignal', 'URL', lies('api/maps.js').replace(/^export const config/m, 'const config').replace(/^export default /m, 'module.exports = '))(mod3, { env: { SERPER_API_KEY: 'x', APP_SECRET: 's' } }, fake3, { timeout: () => undefined }, URL);
         let o3; await mod3.exports({ method: 'GET', query: { action: 'shopping', q: TITEL }, headers: { 'x-app-key': 's' } }, { status: c => ({ json: j => { o3 = j; }, end() { } }), setHeader() { }, json: j => { o3 = j; } });
         check('Server: zweite, kürzere Suche findet das teure Set; die Kleinfiguren (17 €) fallen weg', o3 && !o3.ungenau && o3.angebote.length === 1 && o3.angebote[0].preis === 85, JSON.stringify(o3));
+        const fake4 = async () => ({ ok: true, json: async () => ({ shopping: [{ title: 'Spielset Web-Quartier', source: 'OnBuy.com', price: '80,89 €', link: 'https://onbuy.com/1' }, { title: 'Spielset Web-Quartier', source: 'Spielzeug24', price: '89,00 €', link: 'https://sz24.de/2' }] }) });
+        const mod4 = { exports: {} };
+        new Function('module', 'process', 'fetch', 'AbortSignal', 'URL', lies('api/maps.js').replace(/^export const config/m, 'const config').replace(/^export default /m, 'module.exports = '))(mod4, { env: { SERPER_API_KEY: 'x', APP_SECRET: 's' } }, fake4, { timeout: () => undefined }, URL);
+        let o4; await mod4.exports({ method: 'GET', query: { action: 'shopping', q: 'Spielset Web-Quartier' }, headers: { 'x-app-key': 's' } }, { status: c => ({ json: j => { o4 = j; }, end() { } }), setHeader() { }, json: j => { o4 = j; } });
+        check('Server: Marktplätze (OnBuy) sind markiert und stehen hinter normalen Shops', o4 && o4.angebote[0].shop === 'Spielzeug24' && o4.angebote[1].markt === true, JSON.stringify(o4));
+        check('Preissuche: Knopf "Bei Amazon suchen" vorhanden', /amazon\.de\/s\?k=/.test(lies('js/preissuche.js')) && /Bei Amazon suchen/.test(lies('js/preissuche.js')));
         check('Server: passende Angebote bleiben, Zufallstreffer (12 € Figur) fallen weg', o2 && !o2.ungenau && o2.angebote.length === 1 && o2.angebote[0].preis === 85, JSON.stringify(o2));
         check('Server: Kleinanzeigen-Treffer ohne Preis und Suchseiten werden weggelassen', !mit.gebraucht.some(x => /\/k0$|\/9$/.test(x.link)));
     }

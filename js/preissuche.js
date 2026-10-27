@@ -81,6 +81,7 @@
             '#jvPs .ps-go{background:rgba(94,231,255,.2);color:#fff;letter-spacing:.06em;text-transform:uppercase;font-size:14px}';
         document.head.appendChild(st);
     }
+    function amazonLink(q) { return 'https://www.amazon.de/s?k=' + encodeURIComponent(String(q || '').slice(0, 120)); }
     function vergleichsLink(q) { return 'https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q=' + encodeURIComponent(q); }
     function link(text, href, suchbegriff) {   // ohne direkten Shop-Link: Preisvergleichs-Suche (nie "#": das ist die Seite von Jarvis selbst und würde im Link-Fenster Jarvis laden)
         if (!/^https?:\/\//i.test(String(href || ''))) href = suchbegriff ? vergleichsLink(suchbegriff) : '';
@@ -98,7 +99,7 @@
         });
         return a;
     }
-    function titelZeile(parent, m) { if (!m || !m.titel) return; const t = document.createElement('div'); t.textContent = String(m.titel).slice(0, 80); t.style.cssText = 'font-size:12px;font-weight:400;color:#8fb9c9;line-height:1.3;margin:0 0 4px'; parent.appendChild(t); }
+    function titelZeile(parent, m) { if (!m || !m.titel) return; const t = document.createElement('div'); t.textContent = String(m.titel).slice(0, 80) + (m.markt ? ' · Marktplatz, Preis prüfen' : ''); t.style.cssText = 'font-size:12px;font-weight:400;color:#8fb9c9;line-height:1.3;margin:0 0 4px'; parent.appendChild(t); }
     function fenster(ergebnisse, texte) {
         css();
         const old = document.getElementById('jvPs'); if (old) old.remove();
@@ -135,7 +136,8 @@
                 titelZeile(row, e.a[0]);
                 e.a.slice(1, 3).forEach(m => { const s = document.createElement('div'); s.className = 'mehr'; s.appendChild(link(euroKurz(m.preis) + ' bei ' + (m.shop || 'Shop'), m.link, e.s || e.q)); row.appendChild(s); titelZeile(row, m); });
             }
-            if (e.a && e.a.length && e.a.ungenau) { const h = document.createElement('div'); h.textContent = 'Dein Produkt wurde nicht gefunden, das hier sind nur ähnliche. Prüf den Produktnamen.'; h.style.cssText = 'margin-top:6px;font-size:13px;color:#ffb36b'; row.appendChild(h); const il = link('Bei Idealo suchen ›', '', e.s || e.q); il.style.cssText = 'display:inline-block;margin-top:4px;font-size:14px'; row.appendChild(il); }
+            if (e.a && e.a.length && e.a.ungenau) { const h = document.createElement('div'); h.textContent = 'Dein Produkt wurde nicht gefunden, das hier sind nur ähnliche. Prüf den Produktnamen.'; h.style.cssText = 'margin-top:6px;font-size:13px;color:#ffb36b'; row.appendChild(h); }
+            { const sz = document.createElement('div'); sz.style.cssText = 'margin-top:6px;font-size:14px;display:flex;gap:16px;flex-wrap:wrap'; const am = link('Bei Amazon suchen ›', amazonLink(e.s || e.q)); const il = link('Bei Idealo suchen ›', '', e.s || e.q); sz.appendChild(am); sz.appendChild(il); row.appendChild(sz); }
             if (e.a && e.a.length && !e.a.ungenau) schalter(row, { begriff: e.s || e.q, preis: e.a[0].preis, shop: e.a[0].shop, link: e.a[0].link });
             if (e.g) {
                 const gb = document.createElement('div'); gb.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(94,231,255,.2);font-size:14px;line-height:1.6';
