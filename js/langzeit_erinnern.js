@@ -42,6 +42,31 @@
         return { start: d, h: u.h, mi: u.mi };
     }
 
+    /* Fallback: Hat die KI Datum/Uhrzeit nicht geliefert ("Ich muss Donnerstag um 13:15 auf der Arbeit sein"), liest die App sie selbst aus dem Satz.
+       Erkannt: heute/morgen/übermorgen, Wochentag (nächster, auch "am Donnerstag"), "15.11." / "15.11.2026"; Uhrzeit "13:15", "13.15", "um 13 Uhr", "13:15 Uhr". */
+    const WTAGE = { sonntag: 0, montag: 1, dienstag: 2, mittwoch: 3, donnerstag: 4, freitag: 5, samstag: 6 };
+    function ausText(text) {
+        const t = String(text || '').toLowerCase(); if (!t) return null;
+        const um = t.match(/\b(\d{1,2}):(\d{2})\b/) || t.match(/\b(\d{1,2})\.(\d{2})\s*uhr\b/) || t.match(/\bum\s+(\d{1,2})\.(\d{2})\b(?!\.)/) || t.match(/\b(\d{1,2})\s*uhr\b/);
+        if (!um) return null;
+        const uhr = um[1] + ':' + (um[2] || '00'); if (!parseUhr(uhr)) return null;
+        const heute = new Date(todayIso() + 'T00:00:00'); let ziel = null;
+        const dm = t.match(/\b(\d{1,2})\.(\d{1,2})\.(?:(\d{4}))?/);
+        if (/\bübermorgen\b/.test(t)) ziel = new Date(heute.getTime() + 2 * 86400000);
+        else if (/\bmorgen\b/.test(t)) ziel = new Date(heute.getTime() + 86400000);
+        else if (/\bheute\b/.test(t)) ziel = new Date(heute.getTime());
+        else if (dm && +dm[1] >= 1 && +dm[1] <= 31 && +dm[2] >= 1 && +dm[2] <= 12) {
+            ziel = new Date(dm[3] ? +dm[3] : heute.getFullYear(), +dm[2] - 1, +dm[1]);
+            if (!dm[3] && ziel.getTime() < heute.getTime()) ziel = new Date(ziel.getFullYear() + 1, ziel.getMonth(), ziel.getDate());
+        } else {
+            const wm = t.match(/\b(sonntag|montag|dienstag|mittwoch|donnerstag|freitag|samstag)\b/);
+            if (wm) { const diff = (WTAGE[wm[1]] - heute.getDay() + 7) % 7; ziel = new Date(heute.getTime() + (diff || 7) * 86400000); }
+        }
+        if (!ziel || isNaN(ziel.getTime())) return null;
+        const ymd = ziel.getFullYear() + '-' + String(ziel.getMonth() + 1).padStart(2, '0') + '-' + String(ziel.getDate()).padStart(2, '0');
+        return startVon(ymd, uhr);
+    }
+
     function tagWort(start) {
         const heute = new Date(todayIso() + 'T00:00:00').getTime();
         const tage = Math.round((new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime() - heute) / 86400000);
@@ -172,9 +197,10 @@
                 if (selbstErinnert && action && action.type === 'reminder') pending = null;
                 if (isOn() && action && !selbstErinnert && action.type !== 'calendar_update' && action.type !== 'calendar_delete') {
                     let s = null, titel = '';
-                    if (action.type === 'episode_store' && action.episode_uhrzeit && action.episode_datum) {
-                        s = startVon(action.episode_datum, action.episode_uhrzeit);
-                        titel = String(action.episode_erinnerung || '').trim().slice(0, 120) ||
+                    if (action.type === 'episode_store') {
+                        s = (action.episode_uhrzeit && action.episode_datum) ? startVon(action.episode_datum, action.episode_uhrzeit) : null;
+                        if (!s && /\b(?:muss|soll|bin|habe|ist|sind|hab|treffen|termin)\b/i.test(String(text || '')) && !/\b(?:war|waren|gestern|vorhin|letzte\w*)\b/i.test(String(text || ''))) s = ausText(text);   // KI hat Datum/Uhrzeit nicht geliefert: aus dem Satz lesen
+                        if (s) titel = String(action.episode_erinnerung || '').trim().slice(0, 120) ||
                             String(action.episode_text || '').replace(/^Der User\s+/i, '').replace(/[.!]+$/, '').slice(0, 120);
                     } else if ((action.type === 'calendar' || action.calendar_text) && action.calendar_time && !hatSerie(action)) {
                         // Kalendertermin mit Uhrzeit (kein Ganztag, keine Wiederholung)
@@ -308,5 +334,5 @@
         }, 215);
     }
 
-    window.jvTerminErinnern = { handle, isOn, startVon, tagWort, _pending: () => pending };
+    window.jvTerminErinnern = { handle, isOn, startVon, tagWort, ausText, _pending: () => pending };
 })();

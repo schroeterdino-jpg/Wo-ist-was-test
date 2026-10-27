@@ -305,6 +305,20 @@ async function verhalten() {
         check('Server: passende Angebote bleiben, Zufallstreffer (12 € Figur) fallen weg', o2 && !o2.ungenau && o2.angebote.length === 1 && o2.angebote[0].preis === 85, JSON.stringify(o2));
         check('Server: Kleinanzeigen-Treffer ohne Preis und Suchseiten werden weggelassen', !mit.gebraucht.some(x => /\/k0$|\/9$/.test(x.link)));
     }
+    // Termin-Erinnerung: Datum + Uhrzeit aus dem Satz lesen, wenn die KI sie nicht liefert
+    {
+        const u = umgebung(); u.sb.executeAction = async () => ({}); laden(u, 'langzeit_erinnern.js');
+        const T = u.sb.jvTerminErinnern;
+        if (T && T.ausText) {
+            const r = T.ausText('Ich muss Donnerstag um 13:15 auf der Arbeit sein');
+            check('Termin-Erinnerung: "Donnerstag um 13:15" wird aus dem Satz gelesen (nächster Donnerstag, 13:15)', r && r.start.getDay() === 4 && r.h === 13 && r.mi === 15 && r.start.getTime() > Date.now());
+            const m = T.ausText('Morgen muss ich um 8 Uhr beim Arzt sein');
+            check('Termin-Erinnerung: "morgen um 8 Uhr" wird gelesen', m && m.h === 8 && m.mi === 0 && m.start.getDate() === new Date(Date.now() + 86400000).getDate());
+            const d = T.ausText('Am 15.12. um 18:30 Uhr ist die Weihnachtsfeier');
+            check('Termin-Erinnerung: Datum "15.12." + Uhrzeit wird gelesen', d && d.start.getMonth() === 11 && d.start.getDate() === 15 && d.h === 18 && d.mi === 30);
+            check('Termin-Erinnerung: ohne Uhrzeit oder ohne Tag kein Termin', !T.ausText('Ich muss Donnerstag zur Arbeit') && !T.ausText('Ich muss um 13 Uhr zur Arbeit'));
+        } else check('Termin-Erinnerung: Modul lädt im Test', false);
+    }
     // Links: nie "#" ins Link-Fenster (das lädt Jarvis selbst)
     for (const f of ['preissuche.js', 'wunschliste.js']) { const src = lies('js/' + f); check(f + ': Link ohne Ziel öffnet nie das Link-Fenster (kein "#")', /if \(!href\) \{ e\.preventDefault\(\); return; \}/.test(src) && /nie "#"/.test(src)); }
     // Preissuche: eingefügte Shop-Titel
