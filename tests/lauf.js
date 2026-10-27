@@ -341,6 +341,7 @@ async function verhalten() {
         check('Früher los: Rückgängig stellt die Abfahrt zurück', route(u, 'Mach die frühere Abfahrt rückgängig') === 'frueher-los' && Object.keys(tv).length === 0);
         check('Früher los: später als sonst oder Tag ohne Schicht läuft normal weiter (KI)', route(u, 'Ich muss Donnerstag um 14:30 auf der Arbeit sein') === 'KI' && route(u, 'Ich muss Samstag um 9:00 auf der Arbeit sein') === 'KI' && Object.keys(tv).length === 0);
     }
+    check('Briefing früher: das automatische Briefing (schicht.js) zieht briefingVor ab', /briefingVor\(b\.ymd\)/.test(lies('js/schicht.js')) && /bt\[sh\] - briefingVor\(ymd\)/.test(lies('js/plan_ansagen.js')));
     // Beginn-Ausnahme für einen Tag (plan_ansagen.js)
     {
         const u = umgebung(); const geladen = laden(u, 'plan_ansagen.js'); const PL = u.sb.jvPlan;
@@ -348,6 +349,11 @@ async function verhalten() {
             const normal = PL.beginn('spaet'), tag = '2026-10-29';
             PL.setBeginnTag(tag, 13 * 60 + 15);
             check('Beginn-Ausnahme: nur der eine Tag hat 13:15, andere Tage und der Standard bleiben', PL.beginn('spaet', tag) === 795 && PL.beginn('spaet', '2026-10-30') === normal && PL.beginn('spaet') === normal, JSON.stringify([PL.beginn('spaet', tag), normal]));
+            PL.setTagVor(tag, 30);
+            check('Briefing früher: an einem Tag mit früherem Beginn kommt es um die Vorzieh-Zeit (30) früher', PL.briefingVor(tag) === 30 && PL.briefingVor('2026-10-30') === 0);
+            PL.setBeginnTag(tag, 0);
+            check('Briefing früher: Frost-Vorziehen allein (ohne früheren Beginn) ändert das Briefing nicht', PL.briefingVor(tag) === 0);
+            PL.setTagVor(tag, 0); PL.setBeginnTag(tag, 13 * 60 + 15);
             PL.setBeginnTag(tag, 0);
             check('Beginn-Ausnahme: zurücksetzen stellt den Standard wieder her', PL.beginn('spaet', tag) === normal);
         } else check('Beginn-Ausnahme: plan_ansagen.js lädt im Test', false);

@@ -142,7 +142,8 @@
             if (!st || !st.auto || !allowed()) return;
             const b = berlin();
             if (getPersistentData(LAST_KEY, '') === b.ymd) return;
-            const at = st.times[shiftOfWeek(st, weekNo(b))];
+            let at = st.times[shiftOfWeek(st, weekNo(b))];
+            try { if (window.jvPlan && window.jvPlan.briefingVor) at -= window.jvPlan.briefingVor(b.ymd); } catch (e) { }   // Tag mit früherem Beginn: Briefing früher
             if (b.min < at || b.min > at + WINDOW_MIN) return;
             if (!idle() || typeof window.triggerDailyBriefing !== 'function') return;   // später noch einmal versuchen
             setPersistentData(LAST_KEY, b.ymd);

@@ -145,6 +145,7 @@
     const K_BTAG = 'jv_plan_beginn_tag_';   // einmalige Ausnahme für einen Tag ("Donnerstag muss ich um 13:15 da sein")
     function beginnTag(ymd) { const v = Number(lsGet(K_BTAG + ymd)); return ymd && Number.isFinite(v) && v > 0 && v < 1440 ? Math.round(v) : 0; }
     function setBeginnTag(ymd, min) { if (min > 0) lsSet(K_BTAG + ymd, String(Math.round(min))); else { try { localStorage.removeItem(K_BTAG + ymd); } catch (e) { } } }
+    function briefingVor(ymd) { return beginnTag(ymd) ? tagVor(ymd) : 0; }   // Tag mit früherem Beginn ("Früher los"): Briefing kommt um dieselbe Zeit früher wie die Abfahrt
     function beginn(sh, ymd) {
         const ex = beginnTag(ymd); if (ex) return ex;
         try {
@@ -511,7 +512,7 @@
             if (sh) {
                 try {   // Schicht-Briefing: in der Android-App weckt Jarvis den Bildschirm und erzählt es zur Briefing-Zeit (Früh ab 3:30, Spät ab 12:00)
                     const bt = S().load().times;
-                    if (bt && Number.isFinite(bt[sh])) out.push({ id: 'brief|' + ymd, at: berlinMs(ymd, bt[sh]), text: 'Dein Briefing ist bereit. Tippe, dann erzähle ich es dir.' });
+                    if (bt && Number.isFinite(bt[sh])) out.push({ id: 'brief|' + ymd, at: berlinMs(ymd, bt[sh] - briefingVor(ymd)), text: 'Dein Briefing ist bereit. Tippe, dann erzähle ich es dir.' });
                 } catch (e) { }
                 const start = beginn(sh, ymd), fahrt = letzteFahrt();
                 const abfahrt = abfFix(sh) - tagVor(ymd), ansage = abfahrt - VOR_ABFAHRT;
@@ -919,7 +920,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { terminText, weckerStand, beginn, setBeginnTag, beginnTag, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { terminText, weckerStand, beginn, setBeginnTag, beginnTag, briefingVor, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);
