@@ -32,11 +32,17 @@
     function gleich(a, b) { const x = norm(a), y = norm(b); return !!x && !!y && (x === y || (x.length >= 4 && y.includes(x)) || (y.length >= 4 && x.includes(y))); }
 
     /* ---------- Suche ---------- */
-    async function angebote(q) {
-        const r = await apiFetch('/api/maps?action=shopping&q=' + encodeURIComponent(q));
+    const GEBR_KEY = 'jv_ps_gebraucht';
+    function gebrauchtAn() { try { return localStorage.getItem(GEBR_KEY) !== '0'; } catch (e) { return true; } }
+    function gebrauchtSetzen(an) { try { localStorage.setItem(GEBR_KEY, an ? '1' : '0'); } catch (e) { } }
+    function kleinanzeigenLink(q) { return 'https://www.kleinanzeigen.de/s-' + encodeURIComponent(String(q).toLowerCase().replace(/[^a-z0-9äöüß]+/g, '-').replace(/^-+|-+$/g, '')) + '/k0'; }
+    async function angebote(q, mitGebraucht) {
+        const r = await apiFetch('/api/maps?action=shopping&q=' + encodeURIComponent(q) + (mitGebraucht ? '&gebraucht=1' : ''));
         const d = await r.json().catch(() => ({}));
         if (!r.ok) { const e = new Error(d && d.error || 'Fehler'); e.kein = /SERPER_API_KEY/.test(String(d && d.error)); throw e; }
-        return (Array.isArray(d.angebote) ? d.angebote : []).filter(a => a && a.preis > 0);
+        const out = (Array.isArray(d.angebote) ? d.angebote : []).filter(a => a && a.preis > 0);
+        if (mitGebraucht) out.gebraucht = (Array.isArray(d.gebraucht) ? d.gebraucht : []).filter(a => a && a.preis > 0);
+        return out;
     }
     function bereinigen(s) {
         return String(s || '').replace(/\b(?:bitte|mal|doch|haben|kaufen|raus|heraus)\b/gi, ' ').replace(/^\s*(?:ein|eine|einen|einem|den|die|das|dieses|diese|diesen|mir)\s+/i, '').replace(/\s+/g, ' ').trim().slice(0, 80);
@@ -86,6 +92,9 @@
         const eing = document.createElement('input'); eing.type = 'text'; eing.className = 'ps-eing'; eing.setAttribute('autocomplete', 'off'); eing.setAttribute('enterkeyhint', 'search'); eing.setAttribute('aria-label', 'Was suchst du?');
         eing.value = Array.isArray(texte) ? texte.join(', ') : '';
         const knopf = document.createElement('button'); knopf.className = 'ps-go'; knopf.textContent = '🔍 Preise suchen';
+        const hk = document.createElement('label'); hk.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:14px;color:#cfeeff';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = gebrauchtAn(); cb.style.cssText = 'width:20px;height:20px'; cb.addEventListener('change', () => gebrauchtSetzen(cb.checked));
+        const ct = document.createElement('span'); ct.textContent = 'Auch Gebrauchtes zeigen (Kleinanzeigen, eBay)'; hk.appendChild(cb); hk.appendChild(ct);
         const status = document.createElement('div'); status.className = 'ps-hint'; status.setAttribute('aria-live', 'polite');
         const los = () => {
             const prod = teile(eing.value).map(p => p.charAt(0).toUpperCase() + p.slice(1));
@@ -94,7 +103,7 @@
             suchen(prod, { leise: true, status }).then(() => { knopf.disabled = false; });
         };
         knopf.onclick = los; eing.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); los(); } });
-        suche.appendChild(hl); suche.appendChild(eing); suche.appendChild(knopf); suche.appendChild(status);
+        suche.appendChild(hl); suche.appendChild(eing); suche.appendChild(hk); suche.appendChild(knopf); suche.appendChild(status);
         const body = document.createElement('div'); body.className = 'ps-body';
         let summe = 0, anzahl = 0;
         ergebnisse.forEach(e => {
@@ -105,6 +114,13 @@
                 summe += e.a[0].preis; anzahl++;
                 row.appendChild(link('ab ' + euroKurz(e.a[0].preis) + ' bei ' + (e.a[0].shop || 'Shop'), e.a[0].link));
                 e.a.slice(1, 3).forEach(m => { row.appendChild(document.createElement('br')); const s = document.createElement('span'); s.className = 'mehr'; s.appendChild(link(euroKurz(m.preis) + ' bei ' + (m.shop || 'Shop'), m.link)); row.appendChild(s); });
+            }
+            if (e.g) {
+                const gb = document.createElement('div'); gb.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(94,231,255,.2);font-size:14px;line-height:1.6';
+                const kopf = document.createElement('div'); kopf.textContent = 'GEBRAUCHT'; kopf.style.cssText = 'color:#ffb36b;font-weight:700;font-size:12px;letter-spacing:.08em'; gb.appendChild(kopf);
+                e.g.forEach(m => { const z = document.createElement('div'); const l = link(euroKurz(m.preis) + ' ' + (m.shop || ''), m.link); l.style.color = '#ffcf99'; z.appendChild(l); gb.appendChild(z); });
+                const alle = document.createElement('div'); const la = link('Alle Anzeigen auf Kleinanzeigen ansehen ›', kleinanzeigenLink(e.s || e.q)); la.style.cssText = 'font-size:13px;font-weight:400;color:#8fb9c9;text-decoration:underline'; alle.appendChild(la); gb.appendChild(alle);
+                row.appendChild(gb);
             }
             if (e.a && e.a.length) schalter(row, { begriff: e.s || e.q, preis: e.a[0].preis, shop: e.a[0].shop, link: e.a[0].link });
             body.appendChild(row);
@@ -174,7 +190,7 @@
         try {
             sag(produkte.length === 1 ? 'Ich suche den günstigsten Preis für ' + produkte[0] + '. Einen Moment.' : 'Ich suche die günstigsten Preise für ' + produkte.length + ' Produkte. Das dauert einen Moment.');
             for (const q of produkte) {
-                try { ergebnisse.push({ q, a: await angebote(q) }); }
+                try { const gb = gebrauchtAn(), a = await angebote(q, gb); ergebnisse.push({ q, a, g: gb ? (a.gebraucht || []) : null }); }
                 catch (e) {
                     if (e.kein) { sagen('Der Preis-Dienst ist noch nicht eingerichtet. In Vercel fehlt der Eintrag SERPER_API_KEY.'); if (opt && opt.status) opt.status.textContent = 'Der Preis-Dienst ist noch nicht eingerichtet (SERPER_API_KEY fehlt in Vercel).'; return; }
                     ergebnisse.push({ q, a: [] });

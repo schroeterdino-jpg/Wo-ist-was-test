@@ -457,7 +457,7 @@ async function streetview(req, res) {
 
 /* ------------------------------------------------------------------
    shopping: Preise zu einem Suchbegriff (Google Shopping über serper.dev), z. B. für die Wunschliste.
-   ?action=shopping&q=Lightning McQueen Spielzeug  ->  { angebote: [{ titel, shop, preis, preisText, link }] } (günstigste zuerst)
+   ?action=shopping&q=Lightning McQueen Spielzeug  ->  { angebote: [{ titel, shop, preis, preisText, link }] } (günstigste zuerst); mit &gebraucht=1 zusätzlich { gebraucht: [...] } (Kleinanzeigen/eBay u. a., getrennt von den Neupreisen)
    Braucht die Variable SERPER_API_KEY in Vercel. Zu billige Ausreißer (Zubehör, Aufkleber) werden anhand des mittleren Preises entfernt.
    ------------------------------------------------------------------ */
 function preisZahl(t) {
@@ -468,6 +468,24 @@ function preisZahl(t) {
   if (m) return parseFloat(m[1] + '.' + m[2]);
   m = x.match(/(\d{1,3}(?:\.\d{3})+|\d+)/);                                 // 15 oder 1.019
   return m ? parseFloat(m[1].replace(/\./g, '')) : null;
+}
+const GEBRAUCHT_RX = /kleinanzeigen|ebay|vinted|willhaben|momox|rebuy|mobile\.de|shpock/i;
+/* Kleinanzeigen hat keine offene Schnittstelle: Treffer kommen aus der Google-Suche (nur Anzeigen-Seiten, Preis aus Titel oder Beschreibung, sonst weglassen). */
+function kleinanzeigenTreffer(d) {
+  const out = [];
+  (Array.isArray(d && d.organic) ? d.organic : []).forEach(x => {
+    try {
+      const u = new URL(String(x.link || ''));
+      if (!/(^|\.)kleinanzeigen\.de$/i.test(u.hostname) || !/\/s-anzeige\//.test(u.pathname)) return;
+      const text = String(x.title || '') + ' ' + String(x.snippet || '');
+      const m = text.match(/(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?\s*(?:€|EUR\b|Euro\b)/i);
+      if (!m) return;
+      const preis = parseFloat(m[1].replace(/\./g, '') + '.' + (m[2] || '0'));
+      if (!(preis > 0)) return;
+      out.push({ titel: String(x.title || '').replace(/\s*[-–|]\s*Kleinanzeigen.*$/i, '').slice(0, 120), shop: 'Kleinanzeigen', preisText: m[0].trim(), preis, link: u.href });
+    } catch (e) { }
+  });
+  return out;
 }
 async function shopping(req, res) {
   const q = String(req.query.q || '').trim().slice(0, 120);
@@ -483,10 +501,18 @@ async function shopping(req, res) {
     });
     if (!r.ok) return res.status(502).json({ error: 'Preis-Dienst antwortet mit ' + r.status });
     const d = await r.json();
-    let l = (Array.isArray(d.shopping) ? d.shopping : []).map(x => ({
+    let ka = [];
+    if (String(req.query.gebraucht || '') === '1') {
+      try {
+        const r2 = await fetch('https://google.serper.dev/search', { method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ q: q + ' site:kleinanzeigen.de', gl: 'de', hl: 'de', num: 10 }), signal: AbortSignal.timeout(7000) });
+        if (r2.ok) ka = kleinanzeigenTreffer(await r2.json());
+      } catch (e) { }
+    }
+    const alle = (Array.isArray(d.shopping) ? d.shopping : []).map(x => ({
       titel: String(x.title || '').slice(0, 120), shop: String(x.source || ''), preisText: String(x.price || ''),
       preis: preisZahl(x.price), link: String(x.link || '')
-    })).filter(x => x.preis && x.preis > 0 && !/kleinanzeigen|ebay|vinted|willhaben|momox|rebuy|mobile\.de|shpock/i.test(x.shop + ' ' + x.link));   // Gebrauchtes zeigt keine Neupreise und sein Link startet in der APK Jarvis neu
+    })).filter(x => x.preis && x.preis > 0);
+    let l = alle.filter(x => !GEBRAUCHT_RX.test(x.shop + ' ' + x.link));   // Gebrauchtes zeigt keine Neupreise und sein Link startet in der APK Jarvis neu
     if (l.length >= 3) {
       const sorted = l.map(x => x.preis).sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
       l = l.filter(x => x.preis >= med * 0.4 && x.preis <= med * 4);
@@ -494,7 +520,16 @@ async function shopping(req, res) {
     // Google-Links führen auf eine Einwilligungs-/Anmeldeseite von Google: nur direkte Shop-Links durchreichen, sonst leer (die App nimmt dann eine Preisvergleichs-Suche)
     l.forEach(x => { try { if (/(^|\.)google\./i.test(new URL(x.link).hostname)) x.link = ''; } catch (e) { x.link = ''; } });
     l.sort((a, b) => a.preis - b.preis);
-    return res.status(200).json({ angebote: l.slice(0, 5) });
+    const out = { angebote: l.slice(0, 5) };
+    if (String(req.query.gebraucht || '') === '1') {   // Gebrauchtes getrennt von den Neupreisen (zählt nie für Summe oder Preisalarm)
+      const med = l.length ? l.map(x => x.preis).sort((a, b) => a - b)[Math.floor(l.length / 2)] : 0;
+      const seen = new Set();
+      out.gebraucht = alle.filter(x => GEBRAUCHT_RX.test(x.shop + ' ' + x.link)).concat(ka)
+        .filter(x => !(med && l.length >= 3 && x.preis < med * 0.15))
+        .filter(x => { const k = x.link || x.titel; if (seen.has(k)) return false; seen.add(k); return true; })
+        .sort((a, b) => a.preis - b.preis).slice(0, 3);
+    }
+    return res.status(200).json(out);
   } catch (e) {
     return res.status(502).json({ error: 'Preissuche nicht erreichbar' });
   }
