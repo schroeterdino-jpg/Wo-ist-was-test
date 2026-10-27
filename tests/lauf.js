@@ -316,6 +316,15 @@ async function verhalten() {
             check('Termin-Erinnerung: "morgen um 8 Uhr" wird gelesen', m && m.h === 8 && m.mi === 0 && m.start.getDate() === new Date(Date.now() + 86400000).getDate());
             const d = T.ausText('Am 15.12. um 18:30 Uhr ist die Weihnachtsfeier');
             check('Termin-Erinnerung: Datum "15.12." + Uhrzeit wird gelesen', d && d.start.getMonth() === 11 && d.start.getDate() === 15 && d.h === 18 && d.mi === 30);
+            for (const typ of ['briefing_add', 'chat', 'episode_store']) {
+                const ctx = { notes: [], cards: [] }; T._pending() && 0;
+                await u.sb.executeAction({ type: typ, briefing_text: 'x', episode_text: 'Der User muss am Donnerstag um 13:15 auf der Arbeit sein.' }, 'Ich muss Donnerstag um 13:15 auf der Arbeit sein', ctx);
+                const p = T._pending();
+                check('Termin-Erinnerung: Rückfrage kommt auch bei KI-Aktion "' + typ + '" (Titel enthält Arbeit)', p && ctx.notes.some(n => /Wie viele Stunden vorher/.test(n)) && /Arbeit/.test(p.text), JSON.stringify([p, ctx.notes]));
+            }
+            const ctx2 = { notes: [], cards: [] };
+            await u.sb.executeAction({ type: 'chat' }, 'Ich mag Pizza', ctx2);
+            check('Termin-Erinnerung: normaler Satz löst keine Rückfrage aus', !ctx2.notes.some(n => /Wie viele Stunden vorher/.test(n)));
             check('Termin-Erinnerung: ohne Uhrzeit oder ohne Tag kein Termin', !T.ausText('Ich muss Donnerstag zur Arbeit') && !T.ausText('Ich muss um 13 Uhr zur Arbeit'));
         } else check('Termin-Erinnerung: Modul lädt im Test', false);
     }
