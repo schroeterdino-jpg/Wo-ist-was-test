@@ -172,6 +172,7 @@
                 p.appendChild(link('ab ' + euro(it.preis) + ' bei ' + (it.shop || 'Shop') + (it.link ? '' : ' (Preisvergleich)'), it.link || vergleichsLink(begriff(it) || it.t)));
                 if (it.q) { const g = document.createElement('div'); g.className = 'mehr'; g.textContent = 'gesucht: ' + it.q; p.appendChild(g); }
                 if (it.mehr && it.mehr.length) { const m = document.createElement('div'); m.className = 'mehr'; it.mehr.forEach((o, i) => { if (i) m.appendChild(document.createTextNode(' · ')); m.appendChild(link(euro(o.preis) + ' ' + (o.shop || ''), o.link || vergleichsLink(begriff(it) || it.t))); }); p.appendChild(m); }
+                try { if (window.jvPreisWaechter && window.jvPreisWaechter.schalter) window.jvPreisWaechter.schalter(p, { begriff: begriff(it) || it.t, preis: it.preis, shop: it.shop, link: it.link }); } catch (e) { }
             } else if (it.am) p.textContent = it.kein ? 'Dafür gibt es keinen Preis zu suchen. Ändere den Text, wenn du es genauer beschreiben willst.' : 'Kein Preis gefunden. Du kannst den Begriff ändern und noch einmal suchen.';
             p.style.display = p.textContent || p.firstChild ? '' : 'none';
         }

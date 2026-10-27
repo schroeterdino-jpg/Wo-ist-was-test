@@ -229,6 +229,19 @@ async function verhalten() {
         check('Antrag-PDF: Zeichen, die die PDF-Schrift nicht kann (ő), werden gemeldet und ersetzt', erg.warnungen.some(w => /ő/.test(w)) && zustand.txtfPersonGebOrt.t === 'Gy?r', JSON.stringify(erg.warnungen) + ' ' + (zustand.txtfPersonGebOrt || {}).t);
         check('Antrag-PDF: Kontrolle der gespeicherten Datei meldet keine Abweichung', erg.kontrolle.falsch.length === 0 && erg.kontrolle.anzahl >= 6, JSON.stringify(erg.kontrolle));
     }
+    // Preisalarm-Schalter (Speicher)
+    {
+        const u2 = umgebung(); laden(u2, 'preissuche.js'); const PW = u2.sb.jvPreisWaechter;
+        if (PW && PW.anlegen) {
+            PW.anlegen('Sony WH-1000XM5', { preis: 279, shop: 'Shop', link: 'https://x' });
+            const w = PW.finde('sony wh-1000xm5');
+            check('Preisalarm: Anlegen merkt Produkt und Startpreis (Treffer erst bei 5 % darunter)', !!w && w.start === 279 && w.preis === 279 && w.grenze === 0, JSON.stringify(w));
+            PW.anlegen('Sony WH-1000XM5', { preis: 250 });
+            check('Preisalarm: zweimal Anlegen macht keinen doppelten Eintrag und überschreibt den Startpreis nicht', PW.laden().length === 1 && PW.finde('Sony WH-1000XM5').start === 279);
+            PW.entfernen('Sony WH-1000XM5');
+            check('Preisalarm: Ausschalten entfernt den Eintrag', PW.laden().length === 0 && !PW.finde('Sony WH-1000XM5'));
+        } else check('Preisalarm: Schnittstelle vorhanden', false);
+    }
     // Antrag: Erklärung
     if (u.sb.jvAntrag && u.sb.jvAntrag._erklaerAnfrage) {
         const q = u.sb.jvAntrag._erklaerAnfrage({ id: 'x', nr: '15', bezeichnung: 'Haben Sie keinen festen Wohnsitz?', art: 'ja_nein', optionen: [], hinweis: '' });

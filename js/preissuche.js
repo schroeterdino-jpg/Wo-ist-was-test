@@ -89,11 +89,60 @@
                 row.appendChild(link('ab ' + euroKurz(e.a[0].preis) + ' bei ' + (e.a[0].shop || 'Shop'), e.a[0].link));
                 e.a.slice(1, 3).forEach(m => { row.appendChild(document.createElement('br')); const s = document.createElement('span'); s.className = 'mehr'; s.appendChild(link(euroKurz(m.preis) + ' bei ' + (m.shop || 'Shop'), m.link)); row.appendChild(s); });
             }
+            if (e.a && e.a.length) schalter(row, { begriff: e.s || e.q, preis: e.a[0].preis, shop: e.a[0].shop, link: e.a[0].link });
             body.appendChild(row);
         });
         wrap.appendChild(head); wrap.appendChild(body);
         if (anzahl > 1) { const s = document.createElement('div'); s.className = 'ps-sum'; s.textContent = 'Zusammen (jeweils günstigstes Angebot): ' + euroKurz(summe); wrap.appendChild(s); }
         document.body.appendChild(wrap);
+    }
+
+    /* ---------- Preisalarm-Schalter (Preissuche-Fenster und Wunschliste) ---------- */
+    function finde(q) { return laden().find(x => gleich(x.q, q)) || null; }
+    function anlegen(q, p) {
+        const l = laden(), i = l.findIndex(x => gleich(x.q, q)); p = p || {};
+        const preis = Number(p.preis) > 0 ? Number(p.preis) : null;
+        const w = { q, grenze: 0, preis, shop: p.shop || '', link: p.link || '', am: preis ? Date.now() : 0, gemeldet: null, start: preis };
+        if (i < 0) l.push(w);
+        speichern(l); return i < 0 ? w : l[i];
+    }
+    function entfernen(q) { speichern(laden().filter(x => !gleich(x.q, q))); }
+    function setzeGrenze(q, text) {
+        const l = laden(), w = l.find(x => gleich(x.q, q)); if (!w) return;
+        const n = parseFloat(String(text || '').replace(',', '.').replace(/[^0-9.]/g, ''));
+        w.grenze = n > 0 ? n : 0; if (w.grenze) w.gemeldet = null; speichern(l);
+    }
+    function schalter(parent, d) {   // d = {begriff, preis, shop, link}; baut Schalter und Wunschpreis-Feld unter ein Produkt
+        const q = String(d && d.begriff || '').trim(); if (!q) return null;
+        const box = document.createElement('div'); box.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(94,231,255,.2)';
+        const zeile = document.createElement('div'); zeile.style.cssText = 'display:flex;align-items:center;gap:10px;cursor:pointer';
+        const sw = document.createElement('div'); sw.setAttribute('role', 'switch'); sw.tabIndex = 0; sw.setAttribute('aria-label', 'Preisalarm für ' + q);
+        sw.style.cssText = 'width:46px;height:26px;border-radius:13px;position:relative;flex:none;transition:background .15s';
+        const knopf = document.createElement('i'); knopf.style.cssText = 'position:absolute;top:3px;width:20px;height:20px;border-radius:50%;transition:left .15s';
+        sw.appendChild(knopf);
+        const txt = document.createElement('span'); txt.style.cssText = 'font-size:14px;color:#cfeeff';
+        zeile.appendChild(sw); zeile.appendChild(txt);
+        const wp = document.createElement('div'); wp.style.cssText = 'margin-top:6px;display:none;align-items:center;gap:8px;font-size:13px;color:#cfeeff;flex-wrap:wrap';
+        const lab = document.createElement('span'); lab.textContent = 'Melden unter';
+        const eing = document.createElement('input'); eing.type = 'text'; eing.setAttribute('inputmode', 'decimal'); eing.setAttribute('autocomplete', 'off'); eing.setAttribute('aria-label', 'Wunschpreis in Euro');
+        eing.style.cssText = 'width:80px;box-sizing:border-box;padding:6px 10px;border-radius:8px;border:1px solid rgba(94,231,255,.4);background:#fff;color:#111;font-size:15px';
+        const eu = document.createElement('span'); eu.textContent = '€';
+        const kl = document.createElement('span'); kl.style.cssText = 'font-size:12px;color:#8fb9c9'; kl.textContent = '(leer = bei 5 % billiger)';
+        [lab, eing, eu, kl].forEach(x => wp.appendChild(x));
+        const zeig = () => {
+            const w = finde(q), an = !!w;
+            sw.style.background = an ? '#2bd4a0' : '#33414d'; knopf.style.left = an ? '23px' : '3px'; knopf.style.background = an ? '#fff' : '#9fb4c2';
+            sw.setAttribute('aria-checked', an ? 'true' : 'false');
+            txt.textContent = an ? '🔔 Preisalarm an' : '🔔 Preisalarm';
+            wp.style.display = an ? 'flex' : 'none';
+            if (an && document.activeElement !== eing) eing.value = w.grenze ? String(w.grenze).replace('.', ',') : '';
+        };
+        const wechsel = () => { if (finde(q)) entfernen(q); else anlegen(q, d); zeig(); };
+        zeile.addEventListener('click', wechsel);
+        sw.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); wechsel(); } });
+        eing.addEventListener('change', () => { setzeGrenze(q, eing.value); zeig(); });
+        box.appendChild(zeile); box.appendChild(wp); parent.appendChild(box); zeig();
+        return box;
     }
 
     /* ---------- Suchen und vorlesen ---------- */
@@ -163,7 +212,7 @@
             if (!ideen.length) { sagen('Mir fallen gerade keine Ideen ein. Erzähl mir kurz, was ' + (name || 'die Person') + ' mag, dann suche ich Geschenke dazu.'); return; }
             const ergebnisse = [];
             for (const i of ideen) {
-                try { ergebnisse.push({ q: i.titel || i.begriff, a: await angebote(i.begriff) }); }
+                try { ergebnisse.push({ q: i.titel || i.begriff, s: i.begriff, a: await angebote(i.begriff) }); }
                 catch (e) {
                     if (e.kein) { sagen('Der Preis-Dienst ist noch nicht eingerichtet. In Vercel fehlt der Eintrag SERPER_API_KEY.'); return; }
                     ergebnisse.push({ q: i.titel || i.begriff, a: [] });
@@ -298,7 +347,7 @@
     }
     if (window.jvCommands && typeof window.jvCommands.use === 'function') window.jvCommands.use('preissuche', befehl, 0.35);
 
-    window.jvPreisWaechter = { laden, pruefen, suchen };
+    window.jvPreisWaechter = { laden, pruefen, suchen, finde, anlegen, entfernen, schalter };
     anstossen(45000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) anstossen(15000); });
 })();
