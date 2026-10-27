@@ -315,6 +315,16 @@ async function verhalten() {
             check('Preisalarm: Anlegen merkt Produkt und Startpreis (Treffer erst bei 5 % darunter)', !!w && w.start === 279 && w.preis === 279 && w.grenze === 0, JSON.stringify(w));
             PW.anlegen('Sony WH-1000XM5', { preis: 250 });
             check('Preisalarm: zweimal Anlegen macht keinen doppelten Eintrag und überschreibt den Startpreis nicht', PW.laden().length === 1 && PW.finde('Sony WH-1000XM5').start === 279);
+            // Falscher alter Preis wird ersetzt; unsichere Suche behält nie einen Preis
+            PW.anlegen('Spidey Web-Quartier Spielset', { preis: 17.99, shop: 'Amazon.de' });
+            u2.sb.apiFetch = async () => ({ ok: true, json: async () => ({ angebote: [{ titel: 'Spidey Web-Quartier Spielset', shop: 'Idealo', preis: 85.83, link: 'https://www.idealo.de/preisvergleich/OffersOfProduct/1.html' }] }) });
+            await PW.pruefen(true, 'Spidey Web-Quartier Spielset');
+            const w2 = PW.finde('Spidey Web-Quartier Spielset');
+            check('Preisalarm: beim Prüfen ersetzt der sichere Preis (85,83) den falschen alten (17,99), Angebotsname wird gemerkt', w2.preis === 85.83 && w2.start === 85.83 && /Web-Quartier/.test(w2.titel), JSON.stringify(w2));
+            u2.sb.apiFetch = async () => ({ ok: true, json: async () => ({ angebote: [{ titel: 'Anderes', shop: 'X', preis: 12, link: '' }], ungenau: true }) });
+            await PW.pruefen(true, 'Spidey Web-Quartier Spielset');
+            check('Preisalarm: unsichere Treffer löschen den Preis (lieber keiner als ein falscher)', PW.finde('Spidey Web-Quartier Spielset').preis === null, JSON.stringify(PW.finde('Spidey Web-Quartier Spielset')));
+            PW.entfernen('Spidey Web-Quartier Spielset');
             PW.entfernen('Sony WH-1000XM5');
             check('Preisalarm: Ausschalten entfernt den Eintrag', PW.laden().length === 0 && !PW.finde('Sony WH-1000XM5'));
         } else check('Preisalarm: Schnittstelle vorhanden', false);
