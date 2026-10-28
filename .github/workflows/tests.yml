@@ -25,3 +25,6 @@ jobs:
       - run: node tests/meldungen.js
       - run: node tests/regeln.js
       - run: node tests/c1_stufe1.js
+      - run: node tests/reihenfolge.js
+      - run: node tests/timer.js
+      - run: node tests/landkarte.js

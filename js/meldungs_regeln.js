@@ -14,7 +14,7 @@
      nachlieferung  { moeglich, verfallMin, verfallZeit, grund }   (rein beschreibend; im Shadow wird nichts nachgeliefert)
      kanalSchutz    bei bewusst gesetzten Erinnerungen: welche Kanäle in einer späteren Stufe erhalten bleiben sollen, auch wenn Sprache nicht passt
                     (nur Datenmodell, ändert jetzt nichts)
-   STUFE 1 (C1 produktiv, nur LOW-Sprache von zane_redet und kennenlernen; Schalter jvRegeln.scharf, ausgeliefert: false):
+   STUFE 1 (C1 produktiv, nur LOW-Sprache von zane_redet und kennenlernen; Schalter jvRegeln.scharf, ausgeliefert: true = aktiv):
      jvRegeln.darfSprechen({quelle, grund, ausloeser, text, eigeneStufe}) wird von diesen beiden Quellen VOR dem Sprechen gefragt (vor jedem Zustand).
      Nur ein ausdrücklich berechnetes false verwirft die Meldung (kein Nachholen, keine Warteschlange). Alles andere ist true = wie bisher:
      Schalter aus, Regel-Datei aus/fehlt/wirft, andere Quelle/Meldungsart, Priorität ungleich NIEDRIG, ausloeser ungleich 'timer' (manuell, "Sag mal was"),
@@ -296,6 +296,6 @@
         aus: function () { an = false; }, einschalten: function () { an = true; }, istAn: function () { return an; },
         nutzerAktiv: nutzerAktiv, nachliefervorschau: nachliefervorschau,
         darfSprechen: darfSprechen, verworfene: function () { return verworfene.slice(); },
-        scharf: true   // Stufe 1: false = Verhalten wie bisher. Die Aktivierung ist ein eigener Mini-PR (nur diese Zeile)
+        scharf: true   // Stufe 1: false = Verhalten wie bisher. Stufe 1 ist aktiv (true); false stellt das alte Verhalten wieder her
     };
 })();
