@@ -51,6 +51,25 @@
         return go(0, text);
     }
 
+    /* B4: nur die genannten Einträge probieren (in ihrer Reihenfolge), ohne die übrigen und ohne localcommands.js. Gibt true zurück, wenn einer den Satz erledigt hat.
+       Gedacht für reine Auskünfte, die man einzeln und ohne Nebenwirkung ausführen darf (siehe mehrfach.js, Mehrfachfragen). */
+    function nur(namen, text) {
+        const set = Array.isArray(namen) ? namen : [namen];
+        const snap = entries.filter(e => set.indexOf(e.name) >= 0);
+        const go = function (i, t) {
+            if (i >= snap.length) return false;
+            const e = snap[i];
+            let called = false, res = false;
+            const next = function (t2) { called = true; res = go(i + 1, arguments.length ? t2 : t); return res; };
+            try { return e.mw(t, next); }
+            catch (err) {
+                console.error('Sprachbefehl "' + e.name + '" fehlgeschlagen', err);
+                return called ? res : go(i + 1, t);
+            }
+        };
+        return go(0, text);
+    }
+
     function dispatcher(text) {
         try { return run(text); }
         catch (e) { console.error('Fester Sprachbefehl fehlgeschlagen', e); return false; }
@@ -62,7 +81,7 @@
         dispatcher._jvCommands = true;
         window.handleLocalCommand = dispatcher;
     }
-    window.jvCommands = { use, remove, list };
+    window.jvCommands = { use, remove, list, nur };
     window.jvCommandsUse = use;
 
     /* ============================================================

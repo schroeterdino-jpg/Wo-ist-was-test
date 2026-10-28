@@ -248,6 +248,35 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 - Grund: Vercel Hobby erlaubt 1 Mio. CDN-Anfragen pro Monat (Stand 28.10.2026 rund 565 000). Mit langem Cache fragt das Handy bei unveränderten Dateien nicht mehr nach.
 - Fremde Skripte (Tailwind, Google) bekommen keinen Stempel. Skripte, die andere Skripte nachladen, laden nur Fremd-Adressen.
 
+## A5, Teil 1: Messnetz für die Aktions-Kette (`tests/aktionen.js`)
+Jede Aktion der KI läuft durch `executeAction`. Davor hängen heute 8 Umhüllungen; ihre Reihenfolge ergibt sich nur aus der Lade-Reihenfolge in `index.html`
+(innen nach außen): formulierungen, routinen, lagebild, langzeit, langzeit_erinnern, geburtstag_ganztag, gedaechtnis, loeschen_fragen (ganz außen).
+Das Messnetz hält fest, was die Kette HEUTE tut, damit ein späterer Umbau (A5 Teil 2, benannte Kette) nachweisbar nichts verändert. Es ändert keinen App-Code.
+- `tests/aktionen_szenarien.js`: die Szenarien (jedes startet eine frische App: feste Uhr Mi 28.10.2026 10:00, `Math.random` = 0.5, Netz und Handy-Brücke als Attrappe, Google als Attrappe mit Gedächtnis).
+- `tests/aktionen.js`: das Messprogramm. Fingerabdruck pro Schritt: Fehler (Name, Text, userMessage, auth), ctx (Zähler, Karten, Notizen, Fenster), Rückgabewert, Gesprochenes, geänderte Speicher-Schlüssel mit Wert (`jv_*`, `helfer_*` ...), Netzaufrufe in Reihenfolge (Methode, Adresse, Inhalt), Handy-Brücke, Zeitgeber (Art, Dauer, Anfang des Codes), `window.open`, Aufrufe der Hilfsfunktionen (Spione), ob die Löschfrage offen ist, Uhr. Am Ende: Merkmale der Endfunktion (`_loeschFrage`, `_gedaechtnis`).
+- `tests/aktionen_soll.json`: Fingerabdruck des Codes vor dem Umbau. Nur mit `node tests/aktionen.js --neu` neu schreiben, und nur, wenn sich das Verhalten gewollt ändert.
+- Es wird nichts herausgerechnet. Einzige Ausnahmen: Speicherwerte über 600 Zeichen stehen als Länge + Anfang + Prüfsumme, und der Aufrufer-Name der Sprachausgabe fehlt (hängt vom Stapel ab).
+- Prüft außerdem: Abdeckung aller 27 Grund-Aktionstypen und der 7 Typen der Umhüllungen, Wiederholung Bit für Bit identisch, und die **Wächterprobe**: lässt man eine der 8 Umhüllungs-Dateien weg (`ohneSkripte`), muss sich das Verhalten in mindestens 2 Szenarien sichtbar ändern. Aufruf: `node tests/aktionen.js` (ca. 30 s), `--schnell` ohne Wächterprobe, `--bericht` mit Listen.
+- Gegenprobe zur Reihenfolge (einmalig von Hand gemacht, nicht eingecheckt): `index.html` testweise umgestellt (Löschfrage hinter langzeit, Ganztag vor langzeit, lagebild hinter langzeit, routinen ganz außen, langzeit_erinnern vor langzeit): in jedem Fall schlug das Messnetz an.
+
+Bekannte bestehende Verhaltensweisen, die durch die Reihenfolge entstehen (werden in A5 NICHT repariert, nur festgehalten; die Szenarien pinnen sie):
+1. Löschfrage muss außerhalb von langzeit liegen, sonst löscht `episode_forget` ohne Rückfrage.
+2. Ganztags-Termine (Geburtstag, `calendar_allday`) liegen außerhalb von langzeit_erinnern/langzeit: keine Stundenfrage, kein Tageslog, kein Routinen-Zähler, kein Eintrag über `routinen`.
+3. `routinen` zählt nur, was bis zu ihm durchkommt (eine Löschfrage-Aktion oder ein Ganztags-Termin wird nicht gezählt; ein Fehler danach, z. B. Standort nicht ermittelbar bei `parking_save`, zählt trotzdem).
+4. Das Tageslog (`langzeit`) liegt außerhalb von `lagebild`: bei "Route zu X" mit Lagebild steht "Route geöffnet" im Tageslog, obwohl Maps nicht geöffnet wurde.
+
+## A5, Teil 2: benannte Aktions-Kette (`js/aktionen_kette.js`)
+Die acht Umhüllungen von `executeAction` melden sich jetzt bei `window.jvAktionen.huelle(name, rang, fabrik)` an, statt selbst um `window.executeAction` zu wickeln. Die Kette hängt damit nicht mehr von der Lade-Reihenfolge in `index.html` ab, sondern vom Rang (kleiner = weiter außen). `aktionen_kette.js` steht in `index.html` direkt hinter `actions.js`.
+Außen -> innen: 10 loeschen_fragen, 20 gedaechtnis, 30 geburtstag_ganztag, 40 langzeit_erinnern, 50 langzeit, 60 lagebild, 70 routinen, 80 formulierungen, dann `actions.js`.
+- `fabrik(innen)` bekommt die nächste Stufe (eine Hülle weiter innen, zuletzt die Basis) und liefert die Hülle. `innen` schlägt bei jedem Aufruf neu nach, deshalb ist die Reihenfolge der Anmeldung egal. Argumente, Rückgabe und Fehler werden unverändert durchgereicht.
+- `jvAktionen.liste()` = Namen und Ränge von außen nach innen. `jvAktionen.pruefe()` = `{ vollstaendig, fehlend, unerwartet, rangFalsch, fehler }`.
+- Doppelter Name wird ignoriert (nie zwei Hüllen gleichen Namens). Gleicher Rang, falscher Rang, eine `fabrik`, die wirft oder keine Funktion liefert, oder eine Datei, die `window.executeAction` noch auf die alte Art umwickelt hat: die Hülle wird NICHT eingebaut, es steht in `pruefe().fehler` und in `console.error`, die Kette gilt als unvollständig. Fehlt nach dem Start eine der acht Hüllen, erscheint das in der Fehleranzeige der App.
+- Rückfall: Fehlt `aktionen_kette.js`, legt jede der acht Dateien ihre Umhüllung wie früher selbst um `window.executeAction` (derselbe Code, `baue(...)` wird entweder bei der Sammelstelle angemeldet oder direkt umgelegt). Der Rückfall wird in einer späteren Aufräum-Stufe entfernt, nicht jetzt.
+- `window.executeAction` trägt dieselben Merkmale wie früher (`_loeschFrage`, `_gedaechtnis`): gedaechtnis und lagebild geben die Merkmale der inneren Funktion nicht weiter (`erbt: false`), die anderen schon.
+- Unverändert (absichtlich): `actions.js`, `assistant.js`, Bedeutung der Aktionen, die vier bekannten Reihenfolge-Eigenheiten aus Teil 1.
+- Neue Hülle anlegen: Datei mit `huelle('name', rang, fabrik)` anmelden, Name und Rang in `ERWARTET` (aktionen_kette.js) und `SOLL_LISTE` (tests/aktionen_kette.js) eintragen, Golden Master mit `--neu` bewusst neu schreiben.
+- Test: `node tests/aktionen_kette.js` (Sammelstelle allein mit Attrappen, vertauschte Anmeldung, doppelter Name, Fehler, fehlende Hülle, Rückfall ohne Datei, vertauschte Lade-Reihenfolge in der echten App). Zusammen mit `node tests/aktionen.js` (Golden Master, `aktionen_soll.json` blieb unverändert).
+
 ## Fähigkeiten-Verzeichnis (B1)
 - `js/faehigkeiten.js` beschreibt, was Jarvis kann (`window.jvFaehigkeiten`): acht Fähigkeiten (Kalender, Wetter, Fahrzeit und Navigation, Erinnerungen, Gedächtnis, Fotos, Schicht, Preissuche). Je Fähigkeit: Intents mit Sicherheitsstufe (lesen/ändern/kritisch), Beispielsätze (lokal oder KI), Abhängigkeiten, Handy-App-Bedarf, proaktive Auslöser, beteiligte Module, bekannte Grenzen.
 - Rein beschreibend: hängt sich nirgends ein, ändert kein Verhalten, wird noch von keiner Datei benutzt (die dynamische Hilfe folgt in B2).
@@ -259,6 +288,34 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 - `js/help.js`: die Übersicht („Was kannst du?“) zeigt zuerst acht Karten aus `window.jvFaehigkeiten`, danach unverändert die alten Themen (`HELP_TOPICS`). Tipp auf eine Fähigkeit (`showFaehigkeitHelp`): bis zu vier Beispielsätze, Hinweis-Karten (Handy-App, meldet sich von selbst, fragt vor dem Löschen nach) und „Alle Themen“. Fehlt das Verzeichnis, erscheinen nur die alten Themen.
 - Neue Felder je Fähigkeit: `icon`, `kurz` (Text der Karte). Beispielsätze mit `weg: 'lokal'` und `modul` werden im Test durch die echte Befehlskette geschickt und müssen von genau diesem Modul übernommen werden. Antworten auf Rückfragen (z. B. „30 Minuten vorher“) sind keine Beispielsätze.
 - Tour (`anleitung.js`) unverändert: es gibt keine neue Funktion, nur eine andere Darstellung der Hilfe.
+
+
+## Handy-App-Funktionen im Browser (B6)
+
+- Befehle, die nur mit der Jarvis-Handy-App gehen (Vertretung, Wissensblatt, Schlafmodus-Kontakte, verpasste Anrufe, Schlafantwort), antworten im Browser (ohne `ZaneNative`) mit „Diese Funktion geht nur in der Jarvis-Handy-App.“ statt still bei der KI zu landen. Das macht `nurAppBefehl` in `js/schlaf_antwort.js`; die Muster sind absichtlich eng. Mit Handy-App ändert sich nichts.
+- `window.jvFaehigkeiten.nurHandyApp` listet Schlafmodus/Vertretung, Wecker, Ortserinnerungen und Fahrmodus mit `handyApp` 'ja' oder 'teilweise'. Es sind keine neuen Hilfe-Karten.
+- Bewusst nicht abgefangen (könnten auch normale Fragen sein): „Wer hat mir geschrieben?“, „Was habe ich verpasst?“, „Wie stellst du dich vor?“, „Bei Mama bin ich der Papa“ (Anrede). Tests: `node tests/handyapp.js`.
+
+
+## Teilfehler sauber sagen (B3)
+
+- `js/antwort_bau.js` (reine Funktion `window.jvAntwort.baue`) setzt die gesprochene Antwort zusammen. `js/assistant.js` ruft sie nach dem Ausführen der Aktionen auf. Fehlt die Datei, gilt der alte Rückfall im Code.
+- Alles klappt: Antwort wie bisher. Mehrere Sonderergebnisse (Fahrzeit, Bahn, Tanken, Umgebung, Mail, Web, Kalendersuche) werden nacheinander gesprochen statt „erstes gewinnt“.
+- Etwas klappt nicht: erst die Ergebnisse, dann was geklappt hat („Termin gespeichert.“, nur bei Speichern/Ändern, nie bei Löschen), dann was nicht ging. Hinweise erfolgreicher Aktionen bleiben, Hinweise einer fehlgeschlagenen Aktion fallen weg.
+- `js/mitdenken.js` trägt Ausfälle von Wetter und Fahrzeit in `window.jvMdAusfall` ein (nur wenn `assistant.js` die Liste angelegt hat). Gemeldet wird nur, wenn die Prüfung für den Termin wirklich gestartet wurde (Wetter: Termin „draußen“, innerhalb von 6 Tagen; Fahrzeit: Ort bekannt und Termin davor/danach mit Ort, Lücke höchstens 150 Minuten). Timeout (7 s) zählt als Ausfall. Ausfälle zählen nur, wenn ein Termin gespeichert wurde.
+- `js/actions.js` ist dafür nicht geändert (Golden Master 97/97, `aktionen_soll.json` unverändert). Bekannte Grenze: Läuft gleichzeitig der Mail-Beobachter mit eigenem Termin-Check, kann dessen Ausfall in die Liste geraten (sehr selten).
+- Tests: `node tests/antwort.js`.
+
+
+## Mehrfachfragen, Stufe 1 (B4)
+
+- Der Befehl `mehrfachfrage` (Order 0.05, in `js/mehrfach.js`) steht VOR den lokalen Auskunftsbefehlen. Früher nahm zum Beispiel `was_steht_an` den ganzen Satz „Was steht Samstag an und was könnten wir danach …“ und beantwortete nur den ersten Teil.
+- Erkennung (eng): Satz beginnt mit Fragewort, getrennt wird nur bei „und“ oder „?“ plus weiterem Fragewort, höchstens 3 Fragen, jeder Teil mindestens 3 Wörter, nicht bei wenn/falls/sobald/Protokoll. Ein „und“ innerhalb einer Frage trennt nicht („Wann beginnt und endet meine Spätschicht?“).
+- Der neue Weg greift nur, wenn mindestens ein Teil eine **reine Auskunft** ist. Welche Befehle das sind, steht in der Registry (`reineAuskunft: true` in `js/faehigkeiten.js`, `jvFaehigkeiten.reineAuskuenfte()`): `was_steht_an`, `schicht_auskunft`, `gedaechtnis_zeit`. `tests/mehrfachfrage.js` beweist je Befehl: sofortiger Text, kein Speicher, kein Netz, kein Fenster, keine Navigation, keine Aktion, keine spätere Sprachausgabe. Sonst darf ein Befehl nicht markiert werden.
+- Ausführung: markierte Teile einzeln über `jvCommands.nur(namen, text)` (nur diese Einträge, ihre Sprachausgabe wird aufgefangen); alle übrigen Fragen in EINEM KI-Aufruf mit `collect` und `nurLesen` (die KI darf dabei nur lesende Aktionen ausführen, Schreibendes wird verworfen); Zusammensetzen mit `jvAntwort.baue` (B3); eine gesprochene Antwort. Fällt die KI aus, steht z. B. „Morgen: … Wetter konnte ich gerade nicht laden.“
+- Teile mit Bezugswort (danach, dort, dann, dabei, damit, davor, dazu) werden nicht zerlegt: der ganze Satz geht direkt an die KI (lokale Einzelbefehle übersprungen, Schutz gegen Wiederholung: `sperre`; Abschalten per `jvMehrfachfrage.umgehen = true`). Das gilt nur, wenn ein Teil sonst von einer reinen Auskunft verschluckt worden wäre.
+- Bewusst unverändert: Einzelfragen, Fragen nur für die KI (Wetter, Fahrzeit, Bahn), Aussage + Fragen („Ich habe morgen … Termin in Hamburg. Wie wird dort das Wetter …“), Wetter + Vollmond (Vollmond öffnet ein Fenster, ist noch keine reine Auskunft; geplant als B4.1b: Berechnung in `sonnemond.js` von der Anzeige trennen), der Mehrfach-Befehlsweg („… und dann stell/setz/trag …“).
+- Bekannte Grenze: Liefert die KI für einen Lese-Teil gar keinen Text, ergänzt `assistant.js` wie immer den Standardsatz („Ist passiert …“). Die Befehlsliste hat jetzt 95 Einträge.
 
 ## C1a: Meldungs-Beobachter (`js/meldungen.js`, nur Beobachtung)
 - `window.jvMeldungen.beobachte({quelle, kanal[], grund, ausloeser, ereignis, bezug, text})` zählt nur mit, wann sich Jarvis von selbst meldet. Er ändert **nichts**: keine Texte, Zeiten, Ruhezeiten, Mindestabstände, Einmal-Regeln; nichts wird blockiert, verzögert oder zusammengefasst.

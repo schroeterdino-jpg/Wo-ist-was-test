@@ -225,14 +225,18 @@ try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'routinen',
     /* ---------- Beobachter in den Aktionen (Sprache und Tippen) ---------- */
     try {
         if (typeof window.executeAction === 'function' && !window.executeAction._routinen) {
-            const original = window.executeAction;
-            const wrapped = function (action) {
-                try { const k = action && ACTION_KIND[action.type]; if (k) record(k); else if (action && action.calendar_text) record('termin'); } catch (e) {}
-                return original.apply(this, arguments);
+            // A5: Die Umhüllung wird über die Aktions-Kette (aktionen_kette.js) angemeldet, Rang 70. Fehlt die Kette, legt die Datei sie wie früher selbst um window.executeAction.
+            const baue = function (original) {
+                const wrapped = function (action) {
+                    try { const k = action && ACTION_KIND[action.type]; if (k) record(k); else if (action && action.calendar_text) record('termin'); } catch (e) {}
+                    return original.apply(this, arguments);
+                };
+                wrapped._routinen = true;
+                Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
+                return wrapped;
             };
-            wrapped._routinen = true;
-            Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
-            window.executeAction = wrapped;
+            if (window.jvAktionen && typeof window.jvAktionen.huelle === 'function') window.jvAktionen.huelle('routinen', 70, baue);
+            else window.executeAction = baue(window.executeAction);
         }
     } catch (e) {}
     ['openPhotoCamera', 'openPhotoGallery'].forEach(fn => {

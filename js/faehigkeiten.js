@@ -1,12 +1,14 @@
 /* ============================================================
    FÄHIGKEITEN-VERZEICHNIS (B1): beschreibt, was Jarvis kann. Rein beschreibend: diese Datei verändert kein Verhalten,
-   hängt sich nirgends ein und wird von keiner anderen Datei benutzt (die Hilfe folgt später, B2). Die Tests in
+   hängt sich nirgends ein und ändert kein Verhalten (die Hilfe liest sie, B2; js/mehrfach.js liest die Markierung reineAuskunft, B4). Die Tests in
    tests/jarvis_pruefstrecke.js prüfen, dass die Angaben hier zur echten App passen (Dateien, Aktionen, Befehle, ZaneNative).
 
    Zugriff:  window.jvFaehigkeiten.liste            alle Fähigkeiten (eingefroren, nur lesbar)
              window.jvFaehigkeiten.nach('kalender') eine Fähigkeit
              window.jvFaehigkeiten.besitzerVon('aktion', 'calendar_delete')  -> Fähigkeit, die diesen Intent besitzt
              window.jvFaehigkeiten.uebergreifend    Regeln, die für mehrere Fähigkeiten gelten (z. B. Rückfrage vor dem Löschen)
+             window.jvFaehigkeiten.reineAuskuenfte()  Namen der Befehle mit reineAuskunft (B4)
+             window.jvFaehigkeiten.nurHandyApp      Funktionen, die ganz ('ja') oder teilweise nur mit der Jarvis-Handy-App gehen (B6)
 
    Felder je Fähigkeit:
      id, name, beschreibung, icon + kurz (für die Hilfe-Karte, B2)
@@ -16,6 +18,8 @@
                       bezug  der Name, zum Beispiel 'calendar_delete' oder 'was_steht_an'
                       art    'lesen' = nur Auskunft; 'aendern' = ändert Daten/Einstellungen oder löst etwas aus (zum Beispiel startet die Navigation);
                              'kritisch' = löscht, schickt etwas an andere oder lässt sich nicht einfach rückgängig machen
+                      reineAuskunft  (nur bei 'befehl' + 'lesen', B4) true = antwortet sofort mit einem Text, ohne Speicheränderung, Netz, Fenster, Navigation und ohne spätere Sprachausgabe.
+                                     Nur solche Befehle darf js/mehrfach.js bei Mehrfachfragen einzeln ausführen; tests/mehrfachfrage.js beweist die Eigenschaften für jeden markierten Befehl.
                       vorgaenge, beispiele [{ satz, weg: 'lokal'|'ki', modul (nur bei lokal: Name in der Befehlsliste) }]
      abhaengigkeiten  was diese Fähigkeit verwendet, OHNE es zu besitzen:
                       { typ: 'faehigkeit', ref, wofuer, pflicht } | { typ: 'kontext', ref, wofuer, pflicht } | { typ: 'bereich', ref, wofuer }
@@ -50,7 +54,7 @@
                   beispiele: [{ satz: 'Lösch den Friseurtermin morgen', weg: 'ki' }] },
                 { typ: 'aktion', bezug: 'calendar_search', art: 'lesen', vorgaenge: ['Im Google Kalender nach Terminen und Geburtstagen suchen'],
                   beispiele: [{ satz: 'Wann hat Schatz Geburtstag?', weg: 'ki' }] },
-                { typ: 'befehl', bezug: 'was_steht_an', art: 'lesen', vorgaenge: ['Termine, Erinnerungen, Aufgaben und Einkaufsliste vorlesen'],
+                { typ: 'befehl', bezug: 'was_steht_an', art: 'lesen', reineAuskunft: true, vorgaenge: ['Termine, Erinnerungen, Aufgaben und Einkaufsliste vorlesen'],
                   beispiele: [{ satz: 'Was steht morgen in meinem Kalender?', weg: 'lokal', modul: 'was_steht_an' }, { satz: 'Was steht heute an?', weg: 'lokal', modul: 'was_steht_an' }] },
                 { typ: 'befehl', bezug: 'terminfinder', art: 'aendern', vorgaenge: ['Freie Zeiten finden und nach Auswahl eintragen'],
                   beispiele: [{ satz: 'Ich müsste mal zu meiner Mutter fahren', weg: 'lokal', modul: 'terminfinder' }] }
@@ -176,7 +180,7 @@
                   beispiele: [{ satz: 'Vergiss das mit dem Konzert', weg: 'ki' }] },
                 { typ: 'aktion', bezug: 'episode_asked', art: 'aendern', vorgaenge: ['Vermerken, dass nachgefragt wurde'] },
                 { typ: 'aktion', bezug: 'episode_nicht_fragen', art: 'aendern', vorgaenge: ['Zu einem Eintrag nicht mehr nachfragen'] },
-                { typ: 'befehl', bezug: 'gedaechtnis_zeit', art: 'lesen', vorgaenge: ['Wann wurde ein Gegenstand abgelegt?'],
+                { typ: 'befehl', bezug: 'gedaechtnis_zeit', art: 'lesen', reineAuskunft: true, vorgaenge: ['Wann wurde ein Gegenstand abgelegt?'],
                   beispiele: [{ satz: 'Wann habe ich den Schlüssel abgelegt?', weg: 'lokal', modul: 'gedaechtnis_zeit' }] }
             ],
             abhaengigkeiten: [
@@ -229,7 +233,7 @@
             intents: [
                 { typ: 'befehl', bezug: 'schicht', art: 'aendern', vorgaenge: ['Schicht der Woche setzen'],
                   beispiele: [{ satz: 'Diese Woche Frühschicht', weg: 'lokal', modul: 'schicht' }] },
-                { typ: 'befehl', bezug: 'schicht_auskunft', art: 'lesen', vorgaenge: ['Schichtzeiten und Aufstehzeit nennen'],
+                { typ: 'befehl', bezug: 'schicht_auskunft', art: 'lesen', reineAuskunft: true, vorgaenge: ['Schichtzeiten und Aufstehzeit nennen'],
                   beispiele: [{ satz: 'Wann beginnt meine Spätschicht?', weg: 'lokal', modul: 'schicht_auskunft' }] },
                 { typ: 'befehl', bezug: 'frueher-los', art: 'aendern', vorgaenge: ['Abfahrt und Briefing an einem Tag vorziehen (höchstens 60 Minuten)'],
                   beispiele: [{ satz: 'Ich muss Donnerstag um 13:15 auf der Arbeit sein', weg: 'lokal', modul: 'frueher-los' }] },
@@ -246,14 +250,14 @@
                 { typ: 'kontext', ref: 'Schicht der Woche eingetragen', wofuer: 'ohne Schicht keine Zeiten und Ansagen', pflicht: true },
                 { typ: 'kontext', ref: 'Heimatadresse', wofuer: 'Heimweg-Meldung braucht sie', pflicht: false }
             ],
-            handyApp: 'teilweise', handyAppDetail: 'Schichtplan und Auskunft laufen im Browser. Ansagen bei gesperrtem Handy planen nur über die Handy-App (ZaneNative.planAnsagen).',
+            handyApp: 'teilweise', handyAppDetail: 'Schichtplan und Auskunft laufen im Browser. Ansagen bei gesperrtem Handy planen und Wecker stellen gehen nur über die Handy-App (ZaneNative.planAnsagen).',
             proaktiv: { wert: 'ja', ausloeser: [
                 { modul: 'js/plan_ansagen.js', art: ['Sprache', 'Push'], wann: 'Wochenüberblick So 18:00, Aufbruch 10 Minuten vor Abfahrt, Briefing, Wecker-Frage, Feierabend nur als Benachrichtigung' },
                 { modul: 'js/zuvorkommend.js', art: ['Sprache'], wann: 'Frost vor der Frühschicht: Abfahrt wird vorgezogen' },
                 { modul: 'js/dirigent.js', art: ['Sprache', 'Push'], wann: 'Tagesmeldung unter Einbezug von Schicht und Urlaub' }
             ] },
             module: ['js/schicht.js', 'js/schichtauskunft.js', 'js/plan_ansagen.js', 'js/frueher_los.js', 'js/urlaub.js', 'js/zuvorkommend.js'],
-            bekannteGrenzen: ['Im Browser ohne Handy-App fällt "Vertretung nach 5 Minuten" still an die KI, kein Hinweis (24b, B)', 'Feierabend/Heimweg ist nur Benachrichtigung, Sprachausgabe nur auf Zuruf']
+            bekannteGrenzen: ['Feierabend/Heimweg ist nur Benachrichtigung, Sprachausgabe nur auf Zuruf']
         },
 
         /* ---------- 8. Preissuche ---------- */
@@ -285,7 +289,25 @@
           beschreibung: 'Rückfrage "Soll ich ... wirklich löschen?" vor jedem Löschen von Terminen, Erinnerungen und Langzeit-Einträgen; erst ein "Ja" löscht.' }
     ];
 
-    frieren(LISTE); frieren(UEBERGREIFEND);
+    /* B6: Funktionen, die ohne die Jarvis-Handy-App (ZaneNative) nicht oder nur zum Teil gehen. Sie gehören zu keiner der acht Fähigkeiten-Karten,
+       deshalb stehen sie hier getrennt (die Hilfe zeigt sie nicht). 'ja' = ganz nur mit Handy-App, 'teilweise' = einzelne Teile gehen auch im Browser.
+       Im Browser antwortet Jarvis auf die Beispielsätze mit einer klaren Meldung, nicht mit der KI (tests/handyapp.js prüft das). */
+    var NUR_HANDY_APP = [
+        { id: 'schlafmodus_vertretung', name: 'Schlafmodus und Vertretung', handyApp: 'ja',
+          handyAppDetail: 'Antworten auf WhatsApp, Wissensblatt, Kontakte und Protokoll brauchen die Handy-App (Benachrichtigungszugriff, ZaneNative.schlafStand). Im Browser kommt der Hinweis "Diese Funktion geht nur in der Jarvis-Handy-App."',
+          module: ['js/schlaf_antwort.js'], beispiele: ['Vertretung an', 'Vertretung nach 5 Minuten', 'Merk dir fürs Wissensblatt: Dino meldet sich nach der Fahrt', 'Was steht auf dem Wissensblatt?', 'Warum hast du nicht geantwortet?', 'Erlaube Mama im Schlafmodus', 'Wem antwortest du?'] },
+        { id: 'wecker', name: 'Wecker', handyApp: 'ja', gehoertZu: 'schicht',
+          handyAppDetail: 'Einen Wecker stellen kann nur die Handy-App. Im Browser sagt Jarvis das ausdrücklich (plan_ansagen.js).',
+          module: ['js/plan_ansagen.js'], beispiele: ['Stell einen Wecker auf 6 Uhr'] },
+        { id: 'ortserinnerungen', name: 'Ortserinnerungen', handyApp: 'teilweise',
+          handyAppDetail: 'Ein- und Ausschalten wird im Browser gemerkt; Einrichten, Testen und das Melden beim Ankommen am Supermarkt gehen nur in der Handy-App (ZaneNative.planOrte).',
+          module: ['js/orte.js'], beispiele: ['Ortszugriff einrichten'] },
+        { id: 'fahrmodus', name: 'Fahrmodus (WhatsApp vorlesen im Auto)', handyApp: 'teilweise',
+          handyAppDetail: 'Die Autoansicht geht auch im Browser. Das Vorlesen von WhatsApp-Nachrichten und das Protokoll dazu brauchen die Handy-App (ZaneNative.fahrSenden).',
+          module: ['js/autoansicht.js', 'js/fahr_whatsapp.js'], beispiele: [] }
+    ];
+
+    frieren(LISTE); frieren(UEBERGREIFEND); frieren(NUR_HANDY_APP);
 
     function nach(id) { for (var i = 0; i < LISTE.length; i++) if (LISTE[i].id === id) return LISTE[i]; return null; }
     function besitzerVon(typ, bezug) {
@@ -294,5 +316,10 @@
         }
         return null;
     }
-    window.jvFaehigkeiten = Object.freeze({ liste: LISTE, uebergreifend: UEBERGREIFEND, nach: nach, besitzerVon: besitzerVon });
+    function reineAuskuenfte() {
+        var out = [];
+        LISTE.forEach(function (f) { f.intents.forEach(function (it) { if (it.typ === 'befehl' && it.art === 'lesen' && it.reineAuskunft === true && out.indexOf(it.bezug) < 0) out.push(it.bezug); }); });
+        return out;
+    }
+    window.jvFaehigkeiten = Object.freeze({ reineAuskuenfte: reineAuskuenfte, liste: LISTE, uebergreifend: UEBERGREIFEND, nurHandyApp: NUR_HANDY_APP, nach: nach, besitzerVon: besitzerVon });
 })();
