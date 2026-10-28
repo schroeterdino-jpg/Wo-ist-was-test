@@ -14,6 +14,11 @@
      nachlieferung  { moeglich, verfallMin, verfallZeit, grund }   (rein beschreibend; im Shadow wird nichts nachgeliefert)
      kanalSchutz    bei bewusst gesetzten Erinnerungen: welche Kanäle in einer späteren Stufe erhalten bleiben sollen, auch wenn Sprache nicht passt
                     (nur Datenmodell, ändert jetzt nichts)
+   STUFE 1 (C1 produktiv, nur LOW-Sprache von zane_redet und kennenlernen; Schalter jvRegeln.scharf, ausgeliefert: false):
+     jvRegeln.darfSprechen({quelle, grund, ausloeser, text, eigeneStufe}) wird von diesen beiden Quellen VOR dem Sprechen gefragt (vor jedem Zustand).
+     Nur ein ausdrücklich berechnetes false verwirft die Meldung (kein Nachholen, keine Warteschlange). Alles andere ist true = wie bisher:
+     Schalter aus, Regel-Datei aus/fehlt/wirft, andere Quelle/Meldungsart, Priorität ungleich NIEDRIG, ausloeser ungleich 'timer' (manuell, "Sag mal was"),
+     unklare Ruhephase, jeder Fehler. NUTZER, KRITISCH, HOCH, NORMAL werden nie gefragt und nie verändert.
    Modell Version 2: version, prio (KRITISCH|HOCH|NORMAL|NIEDRIG|NUTZER), zweck, stufe, bewusstGesetzt, art (proaktiv|angefordert),
    ereignisId, merker[], regel, mikro (wie_bisher|nicht_automatisch|-)
    ============================================================ */
@@ -26,7 +31,9 @@
         zusammenfassMin: 10, mikroNutzerMin: 10, maxNachlieferSprache: 2
     };
     var an = true, entscheidungen = [], ausgeloest = 0, nutzerZeiten = [], ereignisse = {}, zugelassene = [], texte = {};
-    var letzteRuhe = null, ruheEnde = null;
+    var letzteRuhe = null, ruheEnde = null, verworfene = [];
+    /* Stufe 1: nur diese drei Meldungsarten (alle NIEDRIG, reine Sprache) fragen vorher an */
+    var STUFE1 = { 'zane_redet/redet-frage': 1, 'zane_redet/redet-satz': 1, 'kennenlernen/kennenlern-frage': 1 };
 
     /* ---------- Tabelle: quelle/grund -> [Priorität, Zweck, Stufe, bewusstGesetzt, Verfall in Minuten] ----------
        Verfall = wie lange eine zurückgestellte Meldung noch relevant wäre (0 = verfällt sofort, wird nicht nachgeliefert). Pro Meldungsart. */
@@ -119,6 +126,26 @@
 
     function wann(ms) { try { return new Date(ms).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return ''; } }
 
+    /* Bremsen für NIEDRIG mit Sprache (die erste greifende gewinnt). Reine Rechnung, ändert keinen Zustand.
+       limitsAn = false: Stunden-/Tageslimit entfällt (Nutzer hat selbst eine Redestufe gewählt). Rückgabe: [regel, merker, warum] oder null. */
+    function niedrigBremse(jetzt, q, text, limitsAn) {
+        var letzteSprache = null;
+        for (var i = zugelassene.length - 1; i >= 0; i--) { if (zugelassene[i].sprache) { letzteSprache = zugelassene[i].zeit; break; } }
+        var letzterNutzer = null;
+        for (var j = nutzerZeiten.length - 1; j >= 0; j--) { if (nutzerZeiten[j] <= jetzt) { letzterNutzer = nutzerZeiten[j]; break; } }
+        var niedrigStd = 0, niedrigTag = 0;
+        zugelassene.forEach(function (z) { if (z.niedrig && z.sprache) { if (jetzt - z.zeit < 3600000) niedrigStd++; if (jetzt - z.zeit < 86400000) niedrigTag++; } });
+        var textZeit = text == null ? undefined : texte[text];
+        var sperre = null;
+        if (q === false && ruheEnde !== null && jetzt - ruheEnde < P.nachlaufMin * 60000) sperre = ['niedrig-nachlauf', 'niedrig_in_ruhe', 'Nachlauf: Ruhephase endete vor weniger als ' + P.nachlaufMin + ' min'];
+        else if (letzteSprache !== null && jetzt - letzteSprache < P.niedrigAbstandMin * 60000) sperre = ['niedrig-abstand', 'niedrig_zu_dicht', 'weniger als ' + P.niedrigAbstandMin + ' min nach anderer zugelassener Sprach-Ausgabe (' + Math.round((jetzt - letzteSprache) / 1000) + ' s)'];
+        else if (letzterNutzer !== null && jetzt - letzterNutzer < P.niedrigNachNutzerMin * 60000) sperre = ['niedrig-nutzer', 'niedrig_zu_dicht', 'weniger als ' + P.niedrigNachNutzerMin + ' min nach Nutzeraktivität'];
+        else if (limitsAn && niedrigTag >= P.niedrigProTag) sperre = ['niedrig-tag', 'menge', 'mehr als ' + P.niedrigProTag + ' niedrige Sprach-Impulse pro Tag'];
+        else if (limitsAn && niedrigStd >= P.niedrigProStunde) sperre = ['niedrig-stunde', 'menge', 'mehr als ' + P.niedrigProStunde + ' niedrige Sprach-Impulse pro Stunde'];
+        else if (textZeit !== undefined && jetzt - textZeit < P.textFensterH * 3600000) sperre = ['niedrig-text', 'wiederholung', 'gleicher Text innerhalb ' + P.textFensterH + ' h schon gesagt'];
+        return sperre;
+    }
+
     function entscheide(e) {
         var q = ruheStand(), jetzt = e.zeit;
         var key = e.quelle + '/' + e.grund, t = TAB[key];
@@ -168,21 +195,9 @@
 
             /* Nur NIEDRIG mit Sprache: Bremsen (die erste greifende gewinnt) */
             if (r.prio === 'NIEDRIG' && r.entscheid === 'zugelassen' && hatSprache) {
-                var letzteSprache = null;
-                for (var i = zugelassene.length - 1; i >= 0; i--) { if (zugelassene[i].sprache) { letzteSprache = zugelassene[i].zeit; break; } }
-                var letzterNutzer = null;
-                for (var j = nutzerZeiten.length - 1; j >= 0; j--) { if (nutzerZeiten[j] <= jetzt) { letzterNutzer = nutzerZeiten[j]; break; } }
-                var niedrigStd = 0, niedrigTag = 0;
-                zugelassene.forEach(function (z) { if (z.niedrig && z.sprache) { if (jetzt - z.zeit < 3600000) niedrigStd++; if (jetzt - z.zeit < 86400000) niedrigTag++; } });
-                var textZeit = texte[e.text];
-                var sperre = null;
-                if (q === false && ruheEnde !== null && jetzt - ruheEnde < P.nachlaufMin * 60000) sperre = ['niedrig-nachlauf', 'niedrig_in_ruhe', 'Nachlauf: Ruhephase endete vor weniger als ' + P.nachlaufMin + ' min'];
-                else if (letzteSprache !== null && jetzt - letzteSprache < P.niedrigAbstandMin * 60000) sperre = ['niedrig-abstand', 'niedrig_zu_dicht', 'weniger als ' + P.niedrigAbstandMin + ' min nach anderer zugelassener Sprach-Ausgabe (' + Math.round((jetzt - letzteSprache) / 1000) + ' s)'];
-                else if (letzterNutzer !== null && jetzt - letzterNutzer < P.niedrigNachNutzerMin * 60000) sperre = ['niedrig-nutzer', 'niedrig_zu_dicht', 'weniger als ' + P.niedrigNachNutzerMin + ' min nach Nutzeraktivität'];
-                else if (niedrigTag >= P.niedrigProTag) sperre = ['niedrig-tag', 'menge', 'mehr als ' + P.niedrigProTag + ' niedrige Sprach-Impulse pro Tag'];
-                else if (niedrigStd >= P.niedrigProStunde) sperre = ['niedrig-stunde', 'menge', 'mehr als ' + P.niedrigProStunde + ' niedrige Sprach-Impulse pro Stunde'];
-                else if (textZeit !== undefined && jetzt - textZeit < P.textFensterH * 3600000) sperre = ['niedrig-text', 'wiederholung', 'gleicher Text innerhalb ' + P.textFensterH + ' h schon gesagt'];
-                if (sperre) { r.entscheid = 'spaeter'; r.regel = sperre[0]; r.merker.push(sperre[1]); r.warum = sperre[2]; e.kanal.forEach(function (c) { r.proKanal[c] = 'nein'; }); }
+                var sperre = STUFE1[key] && scharf() ? null : niedrigBremse(jetzt, q, e.text, true);   // Stufe 1 scharf: das Gate hat vor dem Sprechen schon entschieden
+                if (STUFE1[key] && scharf()) { r.regel = 'c1-stufe1-gate'; r.warum = 'Stufe 1: Quelle hat vor dem Sprechen angefragt und wurde freigegeben'; }
+                else if (sperre) { r.entscheid = 'spaeter'; r.regel = sperre[0]; r.merker.push(sperre[1]); r.warum = sperre[2]; e.kanal.forEach(function (c) { r.proKanal[c] = 'nein'; }); }
                 else { r.regel = 'niedrig-frei'; r.warum = 'keine Bremse greift'; }
             }
         }
@@ -212,6 +227,28 @@
             if (r.prio === 'NIEDRIG' && hatSprache) { texte[e.text] = jetzt; var tk = Object.keys(texte); if (tk.length > MAX) delete texte[tk[0]]; }
         }
         return r;
+    }
+
+    function scharf() { try { return !!window.jvRegeln && window.jvRegeln.scharf === true && an; } catch (e) { return false; } }
+
+    /* Stufe 1 (nur wenn jvRegeln.scharf === true): darf diese LOW-Sprachausgabe JETZT gesprochen werden? Nur ein berechnetes false verwirft sie.
+       Reine Rechnung, ändert keinen Zustand der Quelle; verworfen heißt endgültig (kein Nachholen). */
+    function darfSprechen(info) {
+        try {
+            if (!scharf() || !info || typeof info !== 'object') return true;
+            var key = info.quelle + '/' + info.grund;
+            if (!STUFE1[key] || !TAB[key] || TAB[key][0] !== 'NIEDRIG') return true;
+            if (info.ausloeser !== 'timer') return true;   // manuell ("Sag mal was") und alles Unklare: wie bisher
+            var q = ruheStand();
+            if (q === null) return true;   // Ruhephase nicht lesbar: wie bisher
+            var jetzt = Date.now(), sperre = null;
+            if (q === true) sperre = ['niedrig-ruhe', 'niedrig_in_ruhe', 'Ruhephase'];
+            else sperre = niedrigBremse(jetzt, q, typeof info.text === 'string' && info.text ? info.text : null, info.eigeneStufe === false);
+            if (!sperre) return true;
+            verworfene.push({ zeit: jetzt, quelle: info.quelle, grund: info.grund, regel: sperre[0], warum: sperre[2] });
+            if (verworfene.length > MAX) verworfene.shift();
+            return false;
+        } catch (err) { return true; }
     }
 
     function hoere(e) {
@@ -257,6 +294,8 @@
         ausgeloest: function () { return ausgeloest; },
         leeren: function () { entscheidungen.length = 0; },
         aus: function () { an = false; }, einschalten: function () { an = true; }, istAn: function () { return an; },
-        nutzerAktiv: nutzerAktiv, nachliefervorschau: nachliefervorschau
+        nutzerAktiv: nutzerAktiv, nachliefervorschau: nachliefervorschau,
+        darfSprechen: darfSprechen, verworfene: function () { return verworfene.slice(); },
+        scharf: false   // Stufe 1: false = Verhalten wie bisher. Die Aktivierung ist ein eigener Mini-PR (nur diese Zeile)
     };
 })();

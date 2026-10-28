@@ -24,3 +24,4 @@ jobs:
       - run: node tests/mehrfachfrage.js
       - run: node tests/meldungen.js
       - run: node tests/regeln.js
+      - run: node tests/c1_stufe1.js

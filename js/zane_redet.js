@@ -157,13 +157,22 @@
 
     var letzteFrage = { text: '', t: 0 };
 
-    function sprich(satz) {
+    /* C1 Stufe 1: darf Jarvis jetzt von selbst reden? Nur ein berechnetes "nein" verwirft (fail-open: fehlt C1, ist es aus oder wirft es, läuft alles wie bisher). */
+    function c1Darf(grund, text, erzwingen) {
+        try { return !(window.jvRegeln && typeof window.jvRegeln.darfSprechen === 'function' && window.jvRegeln.darfSprechen({ quelle: 'zane_redet', grund: grund, ausloeser: erzwingen ? 'manuell' : 'timer', text: text || null, eigeneStufe: stufeGewaehlt() }) === false); } catch (e) { return true; }
+    }
+    /* Hat der Nutzer selbst eine Redestufe gewählt (jv_redet gesetzt)? true / false; bei Unklarem undefined */
+    function stufeGewaehlt() {
+        try { var v = getPersistentData(KEY, null); if (v === null || v === undefined || v === '') return false; return !!STUFEN[v]; } catch (e) { return undefined; }
+    }
+
+    function sprich(satz, erzwingen) {
         letzteFrage = { text: satz.f ? satz.t : '', t: Date.now() };
         var l = log(); l.n++; l.texte.push(satz.t); l.texte = l.texte.slice(-12); logSave(l);
         try { if (Array.isArray(chatHistory)) chatHistory.push({ role: 'assistant', content: JSON.stringify({ type: 'chat', reply: satz.t }) }); } catch (e) {}
         var danach;
         if (satz.f && typeof startListening === 'function') danach = function () { try { startListening(true); } catch (e) {} };
-        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'zane_redet', kanal: ['sprache'], grund: satz.f ? 'redet-frage' : 'redet-satz', ausloeser: 'timer', ereignis: 'redet|' + l.n, bezug: null, frage: !!satz.f, mikro: danach ? 'ja' : 'nein', text: satz.t }) } catch (e) { }   // C1: nur Beobachtung
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'zane_redet', kanal: ['sprache'], grund: satz.f ? 'redet-frage' : 'redet-satz', ausloeser: erzwingen ? 'manuell' : 'timer', ereignis: 'redet|' + l.n, bezug: null, frage: !!satz.f, mikro: danach ? 'ja' : 'nein', text: satz.t }) } catch (e) { }   // C1: nur Beobachtung
         speak(satz.t, danach);
     }
 
@@ -176,7 +185,8 @@
             laeuft = false;
             if (!satz) satz = fertigsatz(k);
             if (!erzwingen && !ruhig()) { naechste = Date.now() + 3 * 60000; return; }   // inzwischen ist etwas los: später nochmal
-            sprich(satz); plane();
+            if (!erzwingen && !c1Darf(satz.f ? 'redet-frage' : 'redet-satz', satz.t, false)) { plane(); return; }   // C1 Stufe 1: verworfen, kein Zustand, kein Nachholen
+            sprich(satz, erzwingen); plane();
         }).catch(function () { laeuft = false; plane(); });
     }
 
@@ -185,6 +195,7 @@
         if (!st.tag || laeuft || Date.now() < naechste) return;
         if (log().n >= st.tag) { naechste = Date.now() + 30 * 60000; return; }
         if (!ruhig()) return;
+        if (!c1Darf('redet-satz', null, false)) { plane(); return; }   // C1 Stufe 1: dieser Zeitpunkt verfällt (spart auch die KI-Anfrage)
         los(false);
     }
     setInterval(takt, 30000);
@@ -214,7 +225,7 @@
         return false;
     }
     window.handleZaneRedetCommand = handle;
-    window.jvZaneRedet = { jetzt: function () { los(true); }, stufe: stufe, setStufe: setStufe };
+    window.jvZaneRedet = { jetzt: function () { los(true); }, stufe: stufe, setStufe: setStufe, stufeGewaehlt: stufeGewaehlt };
 
     /* Antwort auf Zanes Frage verstehen: Fragt er z. B. nach dem Urlaub und du sagst nur "vom 10. bis 16. Oktober",
        wird daraus "Ich habe Urlaub vom 10. bis 16. Oktober", damit der Urlaubs-Befehl (urlaub.js) greift und nicht die KI losrennt. */
