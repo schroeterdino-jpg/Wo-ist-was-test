@@ -107,10 +107,12 @@ function starte(opt) {
     if (opt.festerZufall) vm.runInContext('Math.random = function () { return 0.5; }', sb);   // vor dem Laden der Skripte: gleiche Zufallszahlen in jedem Lauf
     const html = lies('index.html');
     const reihenfolge = [...html.matchAll(/<script[^>]+src="\.\/js\/([^"?]+)/g)].map(m => m[1]).filter(f => !(opt.ohneSkripte || []).includes(f));
+    if (typeof opt.skriptReihenfolge === 'function') reihenfolge.splice(0, reihenfolge.length, ...opt.skriptReihenfolge(reihenfolge.slice()));   // nur für Reihenfolge-Tests (Gegenprobe): Ladereihenfolge künstlich ändern
     const ladefehler = [];
     const behandelt = [];
     for (const f of reihenfolge) {
-        try { vm.runInContext(lies('js/' + f), sb, { filename: f }); } catch (e) { ladefehler.push(f + ': ' + String(e.message).slice(0, 100)); }
+        try { vm.runInContext(typeof opt.quelleAendern === 'function' ? opt.quelleAendern(f, lies('js/' + f)) : lies('js/' + f), sb, { filename: f }); } catch (e) { ladefehler.push(f + ': ' + String(e.message).slice(0, 100)); }
+        if (typeof opt.nachSkript === 'function') opt.nachSkript(f, sb);   // nur für Reihenfolge-Tests: Beobachter nach jedem geladenen Skript
         if (f === 'commands.js' && sb.jvCommands && !sb.jvCommands._beobachtet) {   // Beobachter: wer übernimmt einen Satz?
             const orig = sb.jvCommands.use;
             sb.jvCommands.use = sb.jvCommandsUse = function (name, mw, order) {
@@ -130,7 +132,7 @@ function starte(opt) {
     // Sprachausgabe abfangen (nach dem Laden, denn voice.js/fish.js definieren speak selbst)
     const echtSpeak = sb.speak;
     let sprichBis = 0; const sprechzeiten = [];
-    sb.speak = function (t, fertig) {
+    if (!opt.echtesSpeak) sb.speak = function (t, fertig) {   // echtesSpeak: nur Reihenfolge-Tests behalten die echte speak-Kette
         const x = String(t == null ? '' : t); gesagt.push(x); ereignisse.push({ art: 'sprechen', zeit: hhmm(), ms: uhr.ms, modul: aufrufer(), text: x });
         let dauer = 2000;
         if (opt.sprechdauer) { dauer = Math.max(1500, Math.round(x.length / 14 * 1000)); const von = Math.max(uhr.ms, sprichBis); sprichBis = von + dauer; sprechzeiten.push({ ms: uhr.ms, von, bis: sprichBis, text: x }); dauer = sprichBis - uhr.ms; }

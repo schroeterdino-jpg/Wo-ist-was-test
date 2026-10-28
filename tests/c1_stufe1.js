@@ -1,7 +1,7 @@
 /* ============================================================
    TESTS für C1 Produktivstufe 1 (nur LOW-Sprache von zane_redet und kennenlernen). Start: node tests/c1_stufe1.js
-   Ausgeliefert ist der Schalter jvRegeln.scharf = false: dann ändert sich NICHTS. Mit scharf = true ändert sich ausschließlich die selbstständige
-   Sprache von zane_redet und kennenlernen.
+   Ausgeliefert ist der Schalter jvRegeln.scharf = true (Stufe 1 aktiv). Mit scharf = false ändert sich NICHTS (altes Verhalten); mit scharf = true ändert sich
+   ausschließlich die selbstständige Sprache von zane_redet und kennenlernen. Die Tests stellen den Schalter selbst ausdrücklich her.
    1. Einhängung (nur drei Dateien kennen jvRegeln, Schalter aus, Befehlskette unverändert)
    2. Gate-Regeln einzeln (darfSprechen): Ruhe, Nachlauf, Abstand, Nutzeraktivität, Limits, Wiederholung, Redestufe, Schicht
    3. Nicht betroffen: NUTZER/KRITISCH/HOCH/NORMAL, andere LOW-Quellen, manuell, Unklares

@@ -1,6 +1,7 @@
 # Jarvis: Architektur-Überblick
 
-Stand: 21.10.2026 (Commit b240df6). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
+Stand: 28.10.2026 (Commit 7802e22; Doku-Korrektur Phase 2). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
+Wo suche ich zuerst? → `LANDKARTE.md` (Problem → Datei → Abhängigkeiten, plus Zuordnung aller Skripte). Reihenfolge-Sicherheitsnetz: `tests/reihenfolge.js`; Timer-Register: `tests/timer.js` + `tests/timer_inventar.js`.
 Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
 - Stimme: `api/stau.js` nimmt für Fish Audio standardmäßig das neue Modell `s2.1-pro-free` (schneller als das alte `s2-pro`, das früher 5-6 s bis zum ersten Ton brauchte); ein in Vercel gesetztes `FISH_AUDIO_MODEL` gilt weiter (außer `s2-pro`), bei einem 4xx-Fehler gibt es einen zweiten Versuch mit `s2-pro`. `fish.js`: erstes Sprachstück höchstens 120 Zeichen. Zeiten zeigt das Diagnose-Fenster ("Diagnose an").
@@ -12,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (133 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (167 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -350,9 +351,9 @@ Außen -> innen: 10 loeschen_fragen, 20 gedaechtnis, 30 geburtstag_ganztag, 40 l
 - Tests: `node tests/regeln.js` (Pflicht: Shadow an/aus/fehlt/wirft -> identische Ausgaben; Einzelregeln; Soll gegen Ist mit `tests/regeln_entwurf.js`). Bericht: `REGELN_BERICHT=tests/regeln-bericht.md node tests/regeln.js`.
 - Testwelt: Aktionen warten jetzt, wenn sie auf einen Zeitgeber warten (`warteBereit`), statt zu hängen; die beiden Erinnerungen der Nacht haben verschiedene IDs.
 
-## C1: Meldungs-Sammelstelle, Gesamtübersicht (Stand 28.10.2026, SHADOW)
+## C1: Meldungs-Sammelstelle, Gesamtübersicht (Stand 28.10.2026: Produktivstufe 1 aktiv)
 
-**Wichtigster Satz: Aktuell verändert KEINE Entscheidung das Nutzerverhalten.** C1 beobachtet und rechnet nur mit. Es wird nichts blockiert, verzögert, zusammengefasst, abgeschaltet oder unterdrückt. Texte, Timer, Mindestabstände und Ruhezeiten sind unverändert. Eine echte Sammelstelle gibt es noch nicht; sie braucht eine eigene Freigabe. Die Teile C1a, C1b und C1c oben/unten beschreiben die Einzelschritte.
+**Wichtigster Satz: C1 ist nicht mehr nur Shadow. Produktivstufe 1 ist aktiv (`jvRegeln.scharf === true` in `js/meldungs_regeln.js`).** Sie verwirft ausschließlich die selbstständige LOW-Sprache von `zane_redet` und `kennenlernen`, wenn das Regelwerk ein ausdrückliches `false` berechnet (kein Nachholen, keine Warteschlange). Alle anderen Meldungen (NUTZER, KRITISCH, HOCH, NORMAL, andere Quellen) werden nur beobachtet und nicht verändert. Eine echte Sammelstelle für alle Meldungen gibt es noch nicht; sie braucht eine eigene Freigabe. Die Abschnitte C1a–C1c sind die Entstehungsgeschichte aus der Shadow-Zeit. Die Teile C1a, C1b und C1c oben/unten beschreiben die Einzelschritte.
 
 ### 1. Zwei Dateien, zwei Aufgaben
 - `js/meldungen.js` (Beobachter): jede Meldungsstelle meldet mit einem abgesicherten Einzeiler (`try { if (window.jvMeldungen) window.jvMeldungen.beobachte({...}) } catch (e) { }   // C1: nur Beobachtung`), **wenn wirklich eine Ausgabe für den Nutzer ausgelöst wird**. Ringpuffer 300, nur Arbeitsspeicher. Mitleser über `abonniere(fn)`.
@@ -395,7 +396,7 @@ Gruppe A (C1a): wachter, proaktiv, vorbereitung, travel, smarttips, calendar, pl
 
 ## C1 Produktivstufe 1 (nur LOW-Sprache von `zane_redet` und `kennenlernen`)
 
-Stand: eingebaut, aber **`jvRegeln.scharf = false`** (in `js/meldungs_regeln.js`). Solange der Schalter aus ist, ändert sich für den Nutzer nichts; die Shadow-Messung läuft wie vorher. Das Einschalten (`scharf = true`) ist ein eigener Mini-PR.
+Stand: eingebaut und **aktiv: `jvRegeln.scharf === true`** (in `js/meldungs_regeln.js`). Steht der Schalter auf `false`, verhält sich die App wie vor Stufe 1 und die Shadow-Messung läuft wie vorher.
 
 - **Gate:** `jvRegeln.darfSprechen({quelle, grund, ausloeser, text, eigeneStufe})`. Nur ein ausdrücklich berechnetes `false` verwirft. Fail-open: Schalter aus (muss genau `true` sein), Datei fehlt, Ausnahme, unbekannte Quelle/Grund, Priorität ≠ NIEDRIG, `ausloeser` ≠ `'timer'`, unklare Ruhephase → `true`. Die Module fragen in `try/catch` und sprechen bei jeder Unklarheit wie bisher.
 - **Betroffen:** nur `zane_redet/redet-satz`, `zane_redet/redet-frage`, `kennenlernen/kennenlern-frage`. Nicht betroffen: NUTZER (`ausloeser:'manuell'`, auch "Sag mal was", das als manuell geführt wird), KRITISCH, HOCH, NORMAL, Erinnerungen, Terminwarnungen, Abfahrtswarnungen, Routinen, Smarttips, Standortfragen, Tagesüberblick, Karten, Fenster, Push.
