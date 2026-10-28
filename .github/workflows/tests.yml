@@ -15,6 +15,7 @@ jobs:
         with:
           node-version: '20'
       - run: node tests/lauf.js
+      - run: node tests/aktionen.js
       - run: node tests/jarvis_pruefstrecke.js
       - run: node tests/faehigkeiten.js
       - run: node tests/meldungen.js
