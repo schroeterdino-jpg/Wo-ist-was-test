@@ -296,6 +296,6 @@
         aus: function () { an = false; }, einschalten: function () { an = true; }, istAn: function () { return an; },
         nutzerAktiv: nutzerAktiv, nachliefervorschau: nachliefervorschau,
         darfSprechen: darfSprechen, verworfene: function () { return verworfene.slice(); },
-        scharf: false   // Stufe 1: false = Verhalten wie bisher. Die Aktivierung ist ein eigener Mini-PR (nur diese Zeile)
+        scharf: true   // Stufe 1: false = Verhalten wie bisher. Die Aktivierung ist ein eigener Mini-PR (nur diese Zeile)
     };
 })();
