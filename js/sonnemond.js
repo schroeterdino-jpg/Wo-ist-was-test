@@ -266,7 +266,27 @@
         say(parts.join(' ') + guessNote(pos));
     }
 
+    /* B4.1b: reine Textfunktion für den nächsten Vollmond. Rechnet und baut den Satz, sonst nichts: keine Sprache, kein Fenster, keine Karte,
+       kein Speicher, kein Netz, keine Standortabfrage, keine Navigation. answerPhase(0.5) und die gezielte reine Auskunft 'vollmond_auskunft' benutzen sie beide. */
+    function vollmondErgebnis(now) {
+        now = now || new Date();
+        const ill = moonIllumination(now), d = nextPhase(0.5, now);
+        if (!d) return { ok: false, text: 'Den nächsten Vollmond kann ich gerade nicht berechnen.' };
+        const n = daysFromNow(d);
+        const now50 = ill.phase >= 0.485 && ill.phase <= 0.515;
+        const lead = now50 ? 'Gerade ist Vollmond. ' : '';
+        return { ok: true, text: `${lead}Der nächste Vollmond ist am ${dateText(d)}, also ${untilText(n)}.` };
+    }
+    function vollmondText(now) { return vollmondErgebnis(now).text; }
+
     function answerPhase(target) {
+        if (target === 0.5) {
+            const erg = vollmondErgebnis(new Date());
+            if (!erg.ok) { say(erg.text); return; }
+            openMoonWindow('full');
+            say(erg.text);
+            return;
+        }
         const now = new Date(), ill = moonIllumination(now), pct = Math.round(ill.fraction * 100);
         const d = nextPhase(target, now);
         const name = target === 0.5 ? 'Vollmond' : 'Neumond';
@@ -286,14 +306,28 @@
     }
 
     /* ---------- Sprachbefehle ---------- */
-    function handleSonneMondCommand(text) {
+    /* Gemeinsame Vorprüfung (Länge, Wetter-Sperre) und gemeinsame Erkennung der Phasen-Fragen: handleSonneMondCommand und vollmondFrage nutzen beide dieselbe Regel */
+    function saetzeAufbereiten(text) {
         const t = String(text || '').toLowerCase().replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim();
-        if (!t || t.length > 90) return false;
-        if (/\b(wetter|regen|schirm|temperatur|grad|scheint|scheinen|sonnenbrille|sonnencreme|uv|montag|mondschein)\b/.test(t) && !/(untergang|aufgang)/.test(t)) return false;
+        if (!t || t.length > 90) return null;
+        if (/\b(wetter|regen|schirm|temperatur|grad|scheint|scheinen|sonnenbrille|sonnencreme|uv|montag|mondschein)\b/.test(t) && !/(untergang|aufgang)/.test(t)) return null;
+        return t;
+    }
+    /* 0.5 = Frage nach dem nächsten Vollmond, 0 = nach dem nächsten Neumond, sonst null */
+    function phasenZiel(t) {
+        if (/\b(vollmond|neumond)\b/.test(t) && /\b(wann|nächste|nächsten|ist|kommt|haben)\b/.test(t)) return /neumond/.test(t) ? 0 : 0.5;
+        return null;
+    }
+    function vollmondFrage(text) { const t = saetzeAufbereiten(text); return t !== null && phasenZiel(t) === 0.5; }
+
+    function handleSonneMondCommand(text) {
+        const t = saetzeAufbereiten(text);
+        if (t === null) return false;
 
         // Mond
-        if (/\b(vollmond|neumond)\b/.test(t) && /\b(wann|nächste|nächsten|ist|kommt|haben)\b/.test(t)) {
-            answerPhase(/neumond/.test(t) ? 0 : 0.5);
+        const ziel = phasenZiel(t);
+        if (ziel !== null) {
+            answerPhase(ziel);
             return true;
         }
         if (/\b(mond|mondaufgang|monduntergang|mondphase)\b/.test(t)) {
@@ -316,6 +350,18 @@
         return false;
     }
 
+    /* B4.1b: reine Auskunft "nächster Vollmond" für Mehrfachfragen (mehrfach.js). Antwortet NUR, wenn sie gezielt über jvCommands.nur() aufgerufen wird;
+       im normalen Durchlauf reicht sie immer weiter, "Wann ist Vollmond?" läuft dort wie bisher mit Mondfenster und Sprache über 'erweiterungen'.
+       Sie spricht über say() ohne Fenster; mehrfach.js fängt die Sprache ab. */
+    function vollmondAuskunft(text, next) {
+        const C = window.jvCommands;
+        if (!C || typeof C.nurAktiv !== 'function' || C.nurAktiv() !== true) return next(text);
+        if (!vollmondFrage(text)) return next(text);
+        say(vollmondText(new Date()));
+        return true;
+    }
+    if (window.jvCommands && typeof window.jvCommands.use === 'function') window.jvCommands.use('vollmond_auskunft', vollmondAuskunft, 1190);
+
     window.handleSonneMondCommand = handleSonneMondCommand;
-    window._sonneMondTest = { sunTimes, moonTimes, moonIllumination, nextPhase, phaseName, moonSvg };   // nur zum Testen
+    window._sonneMondTest = { sunTimes, moonTimes, moonIllumination, nextPhase, phaseName, moonSvg, vollmondText, vollmondFrage };   // nur zum Testen
 })();
