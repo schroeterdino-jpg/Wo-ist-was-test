@@ -365,7 +365,7 @@ async function haupt() {
             try {
                 const code = quelle.replace(/^\s*export\s+default\s+/m, 'module.exports.handler = ').replace(/^\s*export\s+(async\s+)?function\s+(\w+)/gm, '$1function $2').replace(/^\s*export\s+const\s+/gm, 'const ').replace(/^\s*import[^;]*;/gm, '');
                 const mod = { exports: {} };
-                const procAttrappe = { env: { APP_SECRET: GEHEIM, PROFILE_CODES: '', PUSH_CRON_KEY: 'cron-geheim', CRON_SECRET: 'cron-geheim' } };
+                const procAttrappe = { env: { APP_SECRET: GEHEIM, PROFILE_CODES: '', PUSH_CRON_KEY: 'cron-geheim', CRON_SECRET: 'cron-geheim', UPSTASH_VECTOR_REST_URL: 'https://attrappe.invalid', UPSTASH_VECTOR_REST_TOKEN: 'attrappe' } };
                 new Function('module', 'exports', 'process', 'fetch', 'Buffer', 'require', code + '\n;')(mod, mod.exports, procAttrappe, async () => { throw new Error('Netz gesperrt'); }, Buffer, () => ({}));
                 handler = mod.exports.handler || mod.exports.default;
             } catch (e) { ergebnisse.push({ f, geladen: false, grund: kurz(e.message, 80) }); continue; }
@@ -385,6 +385,8 @@ async function haupt() {
             check('Server api/' + e.f + ': ohne Passwort kein Zugriff (401/403/405 oder Fehler, nie 200)', e.ohne !== 200, 'Ergebnis ohne Passwort: ' + e.ohne);
             check('Server api/' + e.f + ': falsches Passwort kein Zugriff (nie 200)', e.falsch !== 200, 'Ergebnis mit falschem Passwort: ' + e.falsch);
         }
+        const mem = geladen.find(e => e.f === 'memory.js');
+        check('Server api/memory.js (Fall 27): mit Datenbank-Attrappe liefert es ohne UND mit falschem Passwort 401 (Passwortschutz greift vor jedem Zugriff)', !!mem && mem.ohne === 401 && mem.falsch === 401, mem ? 'ohne ' + mem.ohne + ', falsch ' + mem.falsch : 'nicht geladen');
         ist('27', 'Server-Passwort', 'Alle api/-Dateien: ohne / falsch / richtig', { modul: 'api/*.js', aenderungen: {}, gesagt: [] },
             ergebnisse.map(e => e.geladen ? 'api/' + e.f + ': ohne ' + e.ohne + ', falsch ' + e.falsch + ', richtig ' + e.richtig : 'api/' + e.f + ': nicht ladbar (' + e.grund + ')'));
         const sync = lies('api/sync.js');
@@ -500,6 +502,29 @@ async function festeTests() {
         const BR = starte({ native: false, jetzt: SPAET_MI });
         const v = await BR.satz('Vertretung nach 5 Minuten');
         bekannterFehler('24b: im Browser ohne Handy-App kommt der Hinweis "nur in der Handy-App"', /Handy-App/i.test((v.gesagt || []).join(' ')), v.lokal ? 'lokal: ' + v.modul : 'geht still an die KI');
+    }
+    /* ===== Freigegebene Sollwerte aus der Kategorie D (Dino, 28.10.2026). Noch nicht erfüllt = bekannter Fehler ===== */
+    {
+        const Q = starte({ native: true, jetzt: SPAET_MI });
+        const q = await Q.satz('Da waren wir schon');
+        bekannterFehler('D2: "Da waren wir schon" ohne vorherigen Vorschlag fragt nach, wo ihr wart', q.lokal && /wo.*(wart|gewesen|war)/i.test((q.gesagt || []).join(' ')), q.lokal ? kurz((q.gesagt || []).join(' '), 100) : 'geht an die KI');
+
+        const P = starte({ native: true, jetzt: SPAET_MI, fetch: async () => ({ ok: false, status: 503, json: async () => ({}), text: async () => '' }) });
+        let n = P.aufrufe.length; const o1 = await P.satz('Wo ist Penny in Schwarzenbek?');
+        const u = decodeURIComponent(P.aufrufe.slice(n).join(' '));
+        bekannterFehler('D5a: ein genannter Ort (Schwarzenbek) reicht, die Suche verlangt keine Standortfreigabe', !/Ohne Standort/i.test((o1.gesagt || []).join(' ')) && /Schwarzenbek/.test(u), kurz((o1.gesagt || []).join(' '), 100) + ' | Anfragen: ' + (u || 'keine'));
+        const o2 = await P.satz('Zeig mir Restaurants in der Nähe');
+        bekannterFehler('D5b: "in der Nähe" wird lokal als Standortbezug behandelt (mit klarer Meldung, wenn der Standort fehlt)', o2.lokal && /Standort/i.test((o2.gesagt || []).join(' ')), o2.lokal ? kurz((o2.gesagt || []).join(' '), 100) : 'geht an die KI');
+
+        const M = starte({ native: true, jetzt: SPAET_MI });
+        await M.ki('Merk dir: mein Friseur ist Anja in der Bahnhofstraße', [{ type: 'memory_store', memory_key: 'friseur', memory_value: 'Anja in der Bahnhofstraße' }]);
+        const t = await M.ki('Friseurtermin morgen um 13 Uhr', [{ type: 'calendar', calendar_text: 'Friseurtermin', calendar_time: '2026-10-29T13:00:00' }]);
+        const alles = JSON.stringify(t.aenderungen) + ' ' + (t.notizen || []).join(' ') + ' ' + (M.store['helfer_calendar_entries'] || '');
+        bekannterFehler('D6: Termin "Friseurtermin" übernimmt die gemerkte Adresse als Ort und sagt es dazu', /Bahnhofstra/.test(M.store['helfer_calendar_entries'] || '') && /Adresse|Anja/.test((t.notizen || []).join(' ')), kurz(alles, 120));
+
+        const prompt = M.sb.buildSystemPrompt ? String(M.sb.buildSystemPrompt() || '') : '';
+        bekannterFehler('D3: die KI-Anweisung enthält die Regel "Termin ohne Ort bei Wetter/Abfahrt: nachfragen, nie raten"', /Wo ist der Termin/i.test(prompt), 'Regel nicht gefunden');
+        check('D3 (heute schon): die Anweisung kennt die Regel "Und der Ort?" beim Anlegen', /Und der Ort\?/.test(prompt), 'Länge ' + prompt.length);
     }
 }
 
