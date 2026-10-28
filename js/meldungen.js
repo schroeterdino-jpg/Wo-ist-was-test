@@ -25,12 +25,13 @@
      bezug      { art, schluessel, herkunft } einheitlich über alle Module; herkunft 'id' (stabile ID, bevorzugt),
                 'text+zeit' (Rückfall, wenn keine ID da ist) oder 'tag'
      text       die ersten 80 Zeichen des Meldungstextes
+   Mitleser:  window.jvMeldungen.abonniere(fn)  (meldungs_regeln.js rechnet damit im Shadow-Modus aus, was eine Sammelstelle entschieden hätte)
    Aufruf:  try { window.jvMeldungen && window.jvMeldungen.beobachte({ ... }); } catch (e) {}
    ============================================================ */
 (function () {
     'use strict';
     if (window.jvMeldungen) return;
-    var MAX = 300, puffer = [], zaehler = 0, startMs = Date.now();
+    var MAX = 300, puffer = [], zaehler = 0, startMs = Date.now(), hoerer = [];
 
     function s(x, n) { try { return String(x == null ? '' : x).replace(/\s+/g, ' ').trim().slice(0, n); } catch (e) { return ''; } }
 
@@ -56,6 +57,7 @@
             };
             puffer.push(Object.freeze(eintrag));
             if (puffer.length > MAX) puffer.splice(0, puffer.length - MAX);
+            for (var h = 0; h < hoerer.length; h++) { try { hoerer[h](eintrag); } catch (e2) { } }   // Mitleser (zum Beispiel meldungs_regeln.js); Fehler dort stören nichts
         } catch (e) { /* der Beobachter darf nie etwas stören */ }
     }
 
@@ -115,8 +117,11 @@
     /* Beschreibt, ob der Aufruf kurz nach dem Start oder später beim Zurückkommen in die App geschah (rein beschreibend) */
     function herkunftApp() { try { return Date.now() - startMs < 60000 ? 'app-start' : 'app-rueckkehr'; } catch (e) { return 'app-start'; } }
 
+    /* Mitleser anmelden: bekommt jeden neuen (eingefrorenen) Eintrag; kann nichts ändern */
+    function abonniere(fn) { try { if (typeof fn === 'function' && hoerer.length < 5) hoerer.push(fn); } catch (e) { } }
+
     window.jvMeldungen = Object.freeze({
-        beobachte: beobachte,
+        beobachte: beobachte, abonniere: abonniere,
         liste: function () { return puffer.slice(); },
         leeren: function () { puffer.length = 0; },
         bezugTerminId: bezugTerminId, bezugTermin: bezugTermin, bezugErinnerung: bezugErinnerung, bezugErinnerungTextZeit: bezugErinnerungTextZeit,

@@ -44,9 +44,9 @@ Nur Messwerte. Kein Urteil, keine Regel, kein Vorschlag. Alle Zahlen stammen aus
 | routinen | 2 (0) | 0 (0) | karte, sprache |
 | schlaf_antwort | 1 (0) | 1 (0) | fenster, sprache |
 | tagesueberblick | 0 (0) | 1 (0) | fenster |
-| zane_redet | 14 (0) | 19 (0) | sprache |
+| zane_redet | 14 (0) | 18 (0) | sprache |
 | briefing | 1 (0) | 1 (0) | sprache |
-| **Summe** | **47** (2) | **35** (2) | |
+| **Summe** | **47** (2) | **34** (2) | |
 
 ## 1. Nachmittag (Mi 28.10.2026, 12:00 bis 15:10)
 
@@ -99,24 +99,24 @@ Auslöser: apk 5, app-start 1, folge 1, manuell 1, plan 2, push 3, timer 34.
 
 ### 1.3 Zeitliche Abstände zwischen Ausgaben
 
-- Alle Ausgaben (47): kleinster Abstand 0 s, Mittelwert (Median) 4 min, größter 14 min.
-- Nur Ausgaben mit Sprache (44): kleinster 1 s, Median 4 min, größter 14 min.
-- Ausgaben höchstens 60 s nach der vorigen Ausgabe: 11.
+- Alle Ausgaben (47): kleinster Abstand 0 s, Mittelwert (Median) 4 min, größter 15 min.
+- Nur Ausgaben mit Sprache (44): kleinster 0 s, Median 4 min, größter 15 min.
+- Ausgaben höchstens 60 s nach der vorigen Ausgabe: 15.
 
 Die zehn kleinsten Abstände:
 
 | Abstand | vorige Ausgabe | nächste Ausgabe |
 |---|---|---|
 | 0 s | 12:00:01 alarm (briefing-karte) | 12:00:01 autoansicht (autoansicht-einsteigen) |
+| 0 s | 14:40:00 zane_redet (redet-frage) | 14:40:00 alarm (warnung) |
 | 1 s | 12:00:01 autoansicht (autoansicht-einsteigen) | 12:00:03 schlaf_antwort (app-meldung) |
 | 2 s | 12:00:07 parkplatz_auto (parkplatz-gemerkt) | 12:00:09 pakete (paket-zugestellt) |
+| 3 s | 13:00:00 zane_redet (redet-frage) | 13:00:03 plan_ansagen (aufbruchszeit) |
 | 4 s | 12:00:03 schlaf_antwort (app-meldung) | 12:00:07 parkplatz_auto (parkplatz-gemerkt) |
 | 5 s | 12:00:40 orte (standort-frage) | 12:00:45 preissuche (preis-treffer) |
-| 9 s | 12:00:31 kennenlernen (kennenlern-frage) | 12:00:40 orte (standort-frage) |
+| 15 s | 12:00:25 kennenlernen (kennenlern-frage) | 12:00:40 orte (standort-frage) |
 | 15 s | 12:50:30 proaktiv (termin-vorwarnung) | 12:50:45 fristen (frist-erinnerung) |
-| 22 s | 12:00:09 pakete (paket-zugestellt) | 12:00:31 kennenlernen (kennenlern-frage) |
-| 30 s | 13:00:00 plan_ansagen (aufbruchszeit) | 13:00:30 mail_nacht (mail-entwuerfe) |
-| 41 s | 12:20:44 konto (bank-mail) | 12:21:25 mailwatch (wichtige-mail) |
+| 16 s | 12:00:09 pakete (paket-zugestellt) | 12:00:25 kennenlernen (kennenlern-frage) |
 
 Abstände je Quelle (zwischen zwei Ausgaben derselben Quelle):
 
@@ -137,12 +137,12 @@ Abstände je Quelle (zwischen zwei Ausgaben derselben Quelle):
 **tag: 2026-10-28** (Herkunft tag): 4 Ausgaben von 4 Quelle(n) (alarm, jarvis, briefing, plan_ansagen), 4 verschiedene Text(e).
 - 12:00:01 | alarm | fenster | briefing-karte | Abstand zur vorigen: - | „Briefing. Guten Tag, Dino. Heute hast du Spätschicht.“
 - 12:03:00 | jarvis | sprache | start-ansage | Abstand zur vorigen: 3 min | „Systeme online. Guten Tag, Sir. Heute Spätschicht. 2 Termine heute, der nächste “
-- 12:45:04 | briefing | sprache | tagesbriefing | Abstand zur vorigen: 42 min | „Guten Tag, Dino. Es ist 12 Uhr 45. Heute hast du Spätschicht, Abfahrt um 13 Uhr.“
-- 13:00:00 | plan_ansagen | sprache+fenster | aufbruchszeit | Abstand zur vorigen: 15 min | „Es ist Zeit zum Losfahren. Die Fahrt dauert rund 30 Minuten, deine Spätschicht b“
+- 12:45:00 | briefing | sprache | tagesbriefing | Abstand zur vorigen: 42 min | „Guten Tag, Dino. Es ist 12 Uhr 45. Heute hast du Spätschicht, Abfahrt um 13 Uhr.“
+- 13:00:03 | plan_ansagen | sprache+fenster | aufbruchszeit | Abstand zur vorigen: 15 min | „Es ist Zeit zum Losfahren. Die Fahrt dauert rund 30 Minuten, deine Spätschicht b“
 
 **frage: k21** (Herkunft id): 2 Ausgaben von 1 Quelle(n) (kennenlernen), 1 verschiedene Text(e).
-- 12:00:31 | kennenlernen | sprache | kennenlern-frage | Abstand zur vorigen: - | „Hast du Haustiere, oder hättest du gern welche?“
-- 14:30:45 | kennenlernen | sprache | kennenlern-frage | Abstand zur vorigen: 2 h 30 min | „Hast du Haustiere, oder hättest du gern welche?“
+- 12:00:25 | kennenlernen | sprache | kennenlern-frage | Abstand zur vorigen: - | „Hast du Haustiere, oder hättest du gern welche?“
+- 14:30:25 | kennenlernen | sprache | kennenlern-frage | Abstand zur vorigen: 2 h 30 min | „Hast du Haustiere, oder hättest du gern welche?“
 
 **mail: bank_1** (Herkunft id): 2 Ausgaben von 2 Quelle(n) (konto, mailwatch), 2 verschiedene Text(e).
 - 12:20:44 | konto | sprache | bank-mail | Abstand zur vorigen: - | „Auf deinem Konto ist ein Eingang von 120 Euro. Betreff: Kontobewegung: Gutschrif“
@@ -169,8 +169,8 @@ Bezüge, in denen derselbe Text mehrfach vorkam: 1.
 
 | Text (80 Zeichen) | Anzahl | Quellen | Uhrzeiten |
 |---|---|---|---|
-| Dino, was liegt heute noch an? | 14 | zane_redet | 12:02:00, 12:16:00, 12:30:00, 12:44:00, 12:58:00, 13:12:00, 13:26:01, 13:40:40, 13:55:04, 14:10:00, 14:24:00, 14:38:00, 14:52:00, 15:06:00 |
-| Hast du Haustiere, oder hättest du gern welche? | 2 | kennenlernen | 12:00:31, 14:30:45 |
+| Dino, was liegt heute noch an? | 14 | zane_redet | 12:02:01, 12:16:40, 12:31:04, 12:46:00, 13:00:00, 13:14:01, 13:28:40, 13:43:01, 13:58:00, 14:12:00, 14:26:00, 14:40:00, 14:54:00, 15:08:00 |
+| Hast du Haustiere, oder hättest du gern welche? | 2 | kennenlernen | 12:00:25, 14:30:25 |
 
 ### 1.6 Meldungen während anderer Meldungen
 
@@ -192,14 +192,14 @@ Ausgaben in der Ruhezeit nach App-Regel: **0**; nach fester Regel 22 bis 7 Uhr: 
 
 ### 1.8 Ausgelöste Vorgänge gegenüber tatsächlichen Ausgaben
 
-- 12:00:04 jarvis stößt „start-ansage“ an (app-start) → bis zum Ende des Messlaufs keine zugehörige Ausgabe
-- 12:45:00 schicht stößt „schicht-briefing“ an (timer) → 12:45:04 briefing (tagesbriefing, folge, sprache), nach 4 s
+- 12:00:03 jarvis stößt „start-ansage“ an (app-start) → bis zum Ende des Messlaufs keine zugehörige Ausgabe
+- 12:45:00 schicht stößt „schicht-briefing“ an (timer) → 12:45:00 briefing (tagesbriefing, folge, sprache), nach 0 s
 
 Gezählte Nutzer-Ausgaben des Tagesbriefings: 1; tatsächlich gesprochene Briefings (Textanfang „Guten Tag/Morgen, <Name>. Es ist …“): 1.
 
 ## 2. Nacht (So 01.11.2026 21:00 bis Mo 02.11.2026 10:00)
 
-Ausgaben (Status "ausgegeben"): **35**. Ausgelöste Vorgänge ohne eigene Ausgabe (Status "ausgeloest"): **2**.
+Ausgaben (Status "ausgegeben"): **34**. Ausgelöste Vorgänge ohne eigene Ausgabe (Status "ausgeloest"): **2**.
 
 ### 2.1 Anzahl je Quelle
 
@@ -232,7 +232,7 @@ Ausgaben (Status "ausgegeben"): **35**. Ausgelöste Vorgänge ohne eigene Ausgab
 | routinen | 0 | 0 | 0 | 0 |
 | schlaf_antwort | 0 | 1 | 1 | 1 |
 | tagesueberblick | 0 | 1 | 0 | 1 |
-| zane_redet | 0 | 19 | 19 | 0 |
+| zane_redet | 0 | 18 | 18 | 0 |
 | briefing (spricht das angestoßene Briefing) | 0 | 1 | 1 | 0 |
 
 ### 2.2 Anzahl je Kanal
@@ -241,14 +241,14 @@ Ausgaben (Status "ausgegeben"): **35**. Ausgelöste Vorgänge ohne eigene Ausgab
 |---|---|
 | fenster | 6 |
 | karte | 4 |
-| sprache | 33 |
+| sprache | 32 |
 
-Auslöser: apk 3, app-rueckkehr 1, app-start 1, folge 1, manuell 1, push 2, timer 26.
+Auslöser: apk 3, app-rueckkehr 1, app-start 1, folge 1, manuell 1, push 2, timer 25.
 
 ### 2.3 Zeitliche Abstände zwischen Ausgaben
 
-- Alle Ausgaben (35): kleinster Abstand 1 s, Mittelwert (Median) 14 min, größter 2 h 0 min.
-- Nur Ausgaben mit Sprache (33): kleinster 1 s, Median 14 min, größter 2 h 23 min.
+- Alle Ausgaben (34): kleinster Abstand 1 s, Mittelwert (Median) 14 min, größter 2 h 0 min.
+- Nur Ausgaben mit Sprache (32): kleinster 1 s, Median 14 min, größter 2 h 23 min.
 - Ausgaben höchstens 60 s nach der vorigen Ausgabe: 3.
 
 Die zehn kleinsten Abstände:
@@ -256,37 +256,36 @@ Die zehn kleinsten Abstände:
 | Abstand | vorige Ausgabe | nächste Ausgabe |
 |---|---|---|
 | 1 s | So 21:00:01 autoansicht (autoansicht-einsteigen) | So 21:00:03 schlaf_antwort (app-meldung) |
-| 13 s | So 21:00:03 schlaf_antwort (app-meldung) | So 21:00:16 dirigent (tagesmeldung) |
-| 24 s | So 21:00:16 dirigent (tagesmeldung) | So 21:00:40 orte (standort-frage) |
-| 80 s | So 21:00:40 orte (standort-frage) | So 21:02:00 zane_redet (redet-frage) |
+| 17 s | So 21:00:03 schlaf_antwort (app-meldung) | So 21:00:19 dirigent (tagesmeldung) |
+| 21 s | So 21:00:19 dirigent (tagesmeldung) | So 21:00:40 orte (standort-frage) |
+| 81 s | So 21:00:40 orte (standort-frage) | So 21:02:01 zane_redet (redet-frage) |
 | 3 min | Mo 03:33:00 zane_redet (redet-frage) | Mo 03:35:30 proaktiv (erinnerung-vorwarnung) |
+| 3 min | So 21:02:01 zane_redet (redet-frage) | So 21:05:00 jarvis (start-ansage) |
 | 3 min | Mo 03:30:00 briefing (tagesbriefing) | Mo 03:33:00 zane_redet (redet-frage) |
-| 3 min | So 21:02:00 zane_redet (redet-frage) | So 21:05:00 jarvis (start-ansage) |
 | 3 min | Mo 04:01:34 zane_redet (redet-frage) | Mo 04:05:01 calendar (erinnerung) |
 | 11 min | Mo 04:05:01 calendar (erinnerung) | Mo 04:16:01 zane_redet (redet-frage) |
-| 11 min | So 21:05:00 jarvis (start-ansage) | So 21:16:01 zane_redet (redet-frage) |
+| 12 min | Mo 03:35:30 proaktiv (erinnerung-vorwarnung) | Mo 03:47:04 zane_redet (redet-frage) |
 
 Abstände je Quelle (zwischen zwei Ausgaben derselben Quelle):
 
 | Quelle | Ausgaben | kleinster Abstand | Median | größter |
 |---|---|---|---|---|
 | calendar | 2 | 5 h 35 min | 5 h 35 min | 5 h 35 min |
-| zane_redet | 19 | 14 min | 14 min | 5 h 34 min |
+| zane_redet | 18 | 14 min | 14 min | 5 h 47 min |
 
 ### 2.4 Ausgaben mit demselben Ereignis-Bezug
 
 **tag: 2026-11-01** (Herkunft tag): 2 Ausgaben von 2 Quelle(n) (dirigent, jarvis), 2 verschiedene Text(e).
-- So 21:00:16 | dirigent | sprache+fenster+karte | tagesmeldung | Abstand zur vorigen: - | „Guten Tag, Dino. Hier ist deine Tagesmeldung.“
+- So 21:00:19 | dirigent | sprache+fenster+karte | tagesmeldung | Abstand zur vorigen: - | „Guten Tag, Dino. Hier ist deine Tagesmeldung.“
 - So 21:05:00 | jarvis | sprache | start-ansage | Abstand zur vorigen: 5 min | „Systeme online. Guten Abend, Sir.“
-
-**erinnerung: 1793563200000** (Herkunft id): 3 Ausgaben von 2 Quelle(n) (calendar, proaktiv), 3 verschiedene Text(e).
-- So 22:30:01 | calendar | sprache | erinnerung | Abstand zur vorigen: - | „Zur Erinnerung: Mülltonnen rausstellen“
-- Mo 03:35:30 | proaktiv | karte | erinnerung-vorwarnung | Abstand zur vorigen: 5 h 5 min | „In 30 Minuten: Brotdose einpacken.“
-- Mo 04:05:01 | calendar | sprache | erinnerung | Abstand zur vorigen: 30 min | „Zur Erinnerung: Brotdose einpacken“
 
 **tag: 2026-11-02** (Herkunft tag): 2 Ausgaben von 2 Quelle(n) (briefing, tagesueberblick), 2 verschiedene Text(e).
 - Mo 03:30:00 | briefing | sprache | tagesbriefing | Abstand zur vorigen: - | „Guten Morgen, Dino. Es ist 3 Uhr 30. Heute hast du Frühschicht, Abfahrt um 4 Uhr“
 - Mo 07:05:01 | tagesueberblick | fenster | tagesueberblick-leer | Abstand zur vorigen: 3 h 35 min | „Tagesüberblick“
+
+**erinnerung: 1793563201500** (Herkunft id): 2 Ausgaben von 2 Quelle(n) (proaktiv, calendar), 2 verschiedene Text(e).
+- Mo 03:35:30 | proaktiv | karte | erinnerung-vorwarnung | Abstand zur vorigen: - | „In 30 Minuten: Brotdose einpacken.“
+- Mo 04:05:01 | calendar | sprache | erinnerung | Abstand zur vorigen: 30 min | „Zur Erinnerung: Brotdose einpacken“
 
 Bezüge, zu denen es mehr als einen verschiedenen Text gab: 3 von 3.
 Bezüge, in denen derselbe Text mehrfach vorkam: 0.
@@ -295,13 +294,13 @@ Bezüge, in denen derselbe Text mehrfach vorkam: 0.
 
 | Text (80 Zeichen) | Anzahl | Quellen | Uhrzeiten |
 |---|---|---|---|
-| Na, Dino? Wie läuft dein Abend bisher? | 19 | zane_redet | So 21:02:00, So 21:16:01, So 21:30:45, So 21:45:00, So 21:59:00, Mo 03:33:00, Mo 03:47:04, Mo 04:01:34, Mo 04:16:01, Mo 04:30:34, Mo 04:45:00, Mo 04:59:00, Mo 05:13:00, Mo 05:27:00, Mo 05:41:00, Mo 05:55:00, Mo 06:09:00, Mo 06:23:00, Mo 06:37:00 |
+| Na, Dino? Wie läuft dein Abend bisher? | 18 | zane_redet | So 21:02:01, So 21:16:40, So 21:31:04, So 21:46:00, Mo 03:33:00, Mo 03:47:04, Mo 04:01:34, Mo 04:16:01, Mo 04:30:34, Mo 04:45:00, Mo 04:59:00, Mo 05:13:00, Mo 05:27:00, Mo 05:41:00, Mo 05:55:00, Mo 06:09:00, Mo 06:23:00, Mo 06:37:00 |
 
 ### 2.6 Meldungen während anderer Meldungen
 
 Die Sprachausgabe der Attrappe dauert so lang wie echte Sprache (14 Zeichen pro Sekunde, mindestens 1,5 s) und meldet in dieser Zeit isSpeaking() = true. Hier gezählt: Sprachausgaben, die angefordert wurden, während noch eine andere lief (die Attrappe stellt sie dahinter).
 
-Anzahl: **1** von 33 Sprachausgaben.
+Anzahl: **1** von 32 Sprachausgaben.
 
 | Angefordert | Quelle (Eintrag) | lief noch | Wartezeit |
 |---|---|---|---|
@@ -356,41 +355,40 @@ Gezählte Nutzer-Ausgaben des Tagesbriefings: 1; tatsächlich gesprochene Briefi
 - Abstände zwischen zwei Meldungen: kleinster 14 min, Median 14 min, größter 15 min.
 - Verschiedene Texte: 1; Texte, die mehr als einmal kamen: 1 („Dino, was liegt heute noch an?“ 14×).
 - Fragen darunter: 14. Das Modul fordert nach der Frage selbst zum Zuhören auf (startListening als Rückruf): 14. Tatsächlicher Aufruf von startListening innerhalb von 5 s nach Ende der Sprachausgabe: 14.
-- Verteilung nach Uhrzeit (Stunde: Anzahl): 12: 5, 13: 4, 14: 4, 15: 1.
+- Verteilung nach Uhrzeit (Stunde: Anzahl): 12: 4, 13: 5, 14: 4, 15: 1.
 
 | Uhrzeit | Abstand zur vorigen | Frage | Mikrofon-Aufruf durch Modul | Text |
 |---|---|---|---|---|
-| 12:02:00 | - | ja | ja | Dino, was liegt heute noch an? |
-| 12:16:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
-| 12:30:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
-| 12:44:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
-| 12:58:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
-| 13:12:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
-| 13:26:01 | 14 min | ja | ja | Dino, was liegt heute noch an? |
-| 13:40:40 | 15 min | ja | ja | Dino, was liegt heute noch an? |
-| 13:55:04 | 14 min | ja | ja | Dino, was liegt heute noch an? |
-| 14:10:00 | 15 min | ja | ja | Dino, was liegt heute noch an? |
-| 14:24:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
-| 14:38:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
-| 14:52:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
-| 15:06:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
+| 12:02:01 | - | ja | ja | Dino, was liegt heute noch an? |
+| 12:16:40 | 15 min | ja | ja | Dino, was liegt heute noch an? |
+| 12:31:04 | 14 min | ja | ja | Dino, was liegt heute noch an? |
+| 12:46:00 | 15 min | ja | ja | Dino, was liegt heute noch an? |
+| 13:00:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
+| 13:14:01 | 14 min | ja | ja | Dino, was liegt heute noch an? |
+| 13:28:40 | 15 min | ja | ja | Dino, was liegt heute noch an? |
+| 13:43:01 | 14 min | ja | ja | Dino, was liegt heute noch an? |
+| 13:58:00 | 15 min | ja | ja | Dino, was liegt heute noch an? |
+| 14:12:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
+| 14:26:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
+| 14:40:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
+| 14:54:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
+| 15:08:00 | 14 min | ja | ja | Dino, was liegt heute noch an? |
 
 ### 3.2 zane_redet im Lauf „Nacht (So 01.11.2026 21:00 bis Mo 02.11.2026 10:00)“
 
-- Meldungen: **19**.
-- Abstände zwischen zwei Meldungen: kleinster 14 min, Median 14 min, größter 5 h 34 min.
-- Verschiedene Texte: 1; Texte, die mehr als einmal kamen: 1 („Na, Dino? Wie läuft dein Abend bisher?“ 19×).
-- Fragen darunter: 19. Das Modul fordert nach der Frage selbst zum Zuhören auf (startListening als Rückruf): 19. Tatsächlicher Aufruf von startListening innerhalb von 5 s nach Ende der Sprachausgabe: 19.
-- Verteilung nach Uhrzeit (Stunde: Anzahl): 3: 2, 4: 5, 5: 4, 6: 3, 21: 5.
+- Meldungen: **18**.
+- Abstände zwischen zwei Meldungen: kleinster 14 min, Median 14 min, größter 5 h 47 min.
+- Verschiedene Texte: 1; Texte, die mehr als einmal kamen: 1 („Na, Dino? Wie läuft dein Abend bisher?“ 18×).
+- Fragen darunter: 18. Das Modul fordert nach der Frage selbst zum Zuhören auf (startListening als Rückruf): 18. Tatsächlicher Aufruf von startListening innerhalb von 5 s nach Ende der Sprachausgabe: 18.
+- Verteilung nach Uhrzeit (Stunde: Anzahl): 3: 2, 4: 5, 5: 4, 6: 3, 21: 4.
 
 | Uhrzeit | Abstand zur vorigen | Frage | Mikrofon-Aufruf durch Modul | Text |
 |---|---|---|---|---|
-| So 21:02:00 | - | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
-| So 21:16:01 | 14 min | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
-| So 21:30:45 | 15 min | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
-| So 21:45:00 | 14 min | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
-| So 21:59:00 | 14 min | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
-| Mo 03:33:00 | 5 h 34 min | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
+| So 21:02:01 | - | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
+| So 21:16:40 | 15 min | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
+| So 21:31:04 | 14 min | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
+| So 21:46:00 | 15 min | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
+| Mo 03:33:00 | 5 h 47 min | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
 | Mo 03:47:04 | 14 min | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
 | Mo 04:01:34 | 15 min | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
 | Mo 04:16:01 | 14 min | ja | ja | Na, Dino? Wie läuft dein Abend bisher? |
@@ -414,58 +412,58 @@ Gezählte Nutzer-Ausgaben des Tagesbriefings: 1; tatsächlich gesprochene Briefi
 | 1 | 12:00:01 | alarm | ausgegeben | fenster | briefing-karte | push |  |  | tag: 2026-10-28 (tag) | Briefing. Guten Tag, Dino. Heute hast du Spätschicht. |
 | 2 | 12:00:01 | autoansicht | ausgegeben | fenster+sprache | autoansicht-einsteigen | apk |  |  |  | Autoansicht ist an. |
 | 3 | 12:00:03 | schlaf_antwort | ausgegeben | sprache+fenster | app-meldung | apk |  |  |  | Ich habe Mama auf ihre WhatsApp geantwortet. |
-| 4 | 12:00:04 | jarvis | ausgeloest | - | start-ansage | app-start |  |  | tag: 2026-10-28 (tag) | Systeme online. Guten Tag, Sir. Heute Spätschicht. 2 Termine heute, der nächste  |
+| 4 | 12:00:03 | jarvis | ausgeloest | - | start-ansage | app-start |  |  | tag: 2026-10-28 (tag) | Systeme online. Guten Tag, Sir. Heute Spätschicht. 2 Termine heute, der nächste  |
 | 5 | 12:00:07 | parkplatz_auto | ausgegeben | sprache | parkplatz-gemerkt | apk |  |  |  | Ich habe mir gemerkt, wo du geparkt hast: Koordinaten 53.58000, 10.12000. |
 | 6 | 12:00:09 | pakete | ausgegeben | hinweis+sprache | paket-zugestellt | app-start |  | bedingt | paket: 123456789012 (id) | Das Paket von Amazon ist zugestellt, heute um 10:50 Uhr. |
-| 7 | 12:00:31 | kennenlernen | ausgegeben | sprache | kennenlern-frage | timer | ja | ja | frage: k21 (id) | Hast du Haustiere, oder hättest du gern welche? |
+| 7 | 12:00:25 | kennenlernen | ausgegeben | sprache | kennenlern-frage | timer | ja | ja | frage: k21 (id) | Hast du Haustiere, oder hättest du gern welche? |
 | 8 | 12:00:40 | orte | ausgegeben | karte+sprache | standort-frage | timer | ja |  |  | Ich kann dich im Supermarkt an deine Einkaufsliste erinnern. Dafür braucht die A |
 | 9 | 12:00:45 | preissuche | ausgegeben | sprache | preis-treffer | timer |  | bedingt | produkt: Sony Kopfhörer (id) | Preis-Treffer. Sony Kopfhörer kostet jetzt 239,00 Euro bei Otto (Sony WH-1000XM4 |
-| 10 | 12:02:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
+| 10 | 12:02:01 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
 | 11 | 12:03:00 | jarvis | ausgegeben | sprache | start-ansage | manuell |  |  | tag: 2026-10-28 (tag) | Systeme online. Guten Tag, Sir. Heute Spätschicht. 2 Termine heute, der nächste  |
 | 12 | 12:05:00 | routinen | ausgegeben | karte+sprache | routine-vorschlag | timer | ja | bedingt | routine: einkauf@14 (id) | Mir ist etwas aufgefallen: Du schaust auf die Einkaufsliste mittwochs gegen 13 U |
 | 13 | 12:10:00 | fahr_whatsapp | ausgegeben | fenster+sprache | whatsapp-vorlesen | apk | ja | bedingt | nachricht: wa_1793185800000 (id) | Nachricht von Julia: Kannst du Milch mitbringen?. Willst du antworten? |
-| 14 | 12:16:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
+| 14 | 12:16:40 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
 | 15 | 12:20:44 | konto | ausgegeben | sprache | bank-mail | timer |  | bedingt | mail: bank_1 (id) | Auf deinem Konto ist ein Eingang von 120 Euro. Betreff: Kontobewegung: Gutschrif |
 | 16 | 12:21:25 | mailwatch | ausgegeben | sprache | wichtige-mail | timer | ja | bedingt | mail: bank_1 (id) | Du hast eine E-Mail von Sparkasse Lüneburg. Betreff: Kontobewegung: Gutschrift 1 |
-| 17 | 12:30:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
+| 17 | 12:31:04 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
 | 18 | 12:35:00 | smarttips | ausgegeben | sprache | mitnehmen-tipp | timer |  |  | termin: gcal_schwimmen_0816 (id) | In Kürze steht "Schwimmen Hallenbad" an. Übrigens: Denk an Badesachen und ein Ha |
 | 19 | 12:36:25 | mailwatch | ausgegeben | sprache | wichtige-mail | timer | ja | bedingt | mail: mw_1 (id) | Du hast eine E-Mail von Frau Becker. Betreff: Elternabend: bitte um Rückmeldung. |
 | 20 | 12:40:45 | fristen | ausgegeben | karte+sprache | frist-gefunden | timer |  | bedingt | mail: fr_1 (id) | Achtung, in einer E-Mail von Stadtwerke Schwarzenbek geht es um eine Mahnung: Di |
-| 21 | 12:44:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
-| 22 | 12:45:00 | schicht | ausgeloest | - | schicht-briefing | timer |  |  | tag: 2026-10-28 (tag) |  |
-| 23 | 12:45:04 | briefing | ausgegeben | sprache | tagesbriefing | folge |  |  | tag: 2026-10-28 (tag) | Guten Tag, Dino. Es ist 12 Uhr 45. Heute hast du Spätschicht, Abfahrt um 13 Uhr. |
+| 21 | 12:45:00 | schicht | ausgeloest | - | schicht-briefing | timer |  |  | tag: 2026-10-28 (tag) |  |
+| 22 | 12:45:00 | briefing | ausgegeben | sprache | tagesbriefing | folge |  |  | tag: 2026-10-28 (tag) | Guten Tag, Dino. Es ist 12 Uhr 45. Heute hast du Spätschicht, Abfahrt um 13 Uhr. |
+| 23 | 12:46:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
 | 24 | 12:50:30 | proaktiv | ausgegeben | karte | termin-vorwarnung | timer |  |  | termin: gcal_schwimmen_0816 (id) | In einer Stunde hast du: Schwimmen Hallenbad. |
 | 25 | 12:50:45 | fristen | ausgegeben | karte+sprache | frist-erinnerung | timer |  | bedingt | frist: frist_fr (id) | Erinnerung: Stadtwerke-Rechnung über 89,90 Euro ist übermorgen fällig |
-| 26 | 12:58:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
-| 27 | 13:00:00 | plan_ansagen | ausgegeben | sprache+fenster | aufbruchszeit | plan |  |  | tag: 2026-10-28 (tag) | Es ist Zeit zum Losfahren. Die Fahrt dauert rund 30 Minuten, deine Spätschicht b |
+| 26 | 13:00:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
+| 27 | 13:00:03 | plan_ansagen | ausgegeben | sprache+fenster | aufbruchszeit | plan |  |  | tag: 2026-10-28 (tag) | Es ist Zeit zum Losfahren. Die Fahrt dauert rund 30 Minuten, deine Spätschicht b |
 | 28 | 13:00:30 | mail_nacht | ausgegeben | karte+sprache | mail-entwuerfe | timer |  |  |  | Ich habe einen Antwort-Entwurf für dich vorbereitet: an Frau Becker zu „Elternab |
 | 29 | 13:10:00 | auftraege | ausgegeben | sprache | auftrag-erfuellt | push |  |  | auftrag: auftrag_diesel (id) | Diesel ist jetzt unter 1,65 Euro. Die günstigste Tankstelle ist Aral in Schwarze |
-| 30 | 13:12:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
-| 31 | 13:26:01 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
+| 30 | 13:14:01 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
+| 31 | 13:28:40 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
 | 32 | 13:30:25 | vorbereitung | ausgegeben | karte+sprache | termin-vorbereitet | timer |  |  | termin: gcal_arzt_0815 (id) | Ich habe mir erlaubt, deinen Termin Arzt Hamburg um 15:00 Uhr vorzubereiten. Ham |
 | 33 | 13:35:25 | wachter | ausgegeben | sprache | termin-gleich | timer |  |  | termin: gcal_schwimmen_0816 (id) | Dino, in 15 Minuten wartet „Schwimmen Hallenbad“. Nur zur Erinnerung. |
-| 34 | 13:40:40 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
-| 35 | 13:55:04 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
+| 34 | 13:43:01 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
+| 35 | 13:58:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
 | 36 | 14:00:30 | proaktiv | ausgegeben | karte | erinnerung-vorwarnung | timer |  |  | erinnerung: 1793185200000 (id) | In 30 Minuten: Unterlagen für den Arzt. |
 | 37 | 14:08:25 | wachter | ausgegeben | sprache | abfahrt | timer |  |  | termin: gcal_arzt_0815 (id) | Dino, es wird Zeit: Du solltest jetzt zu „Arzt Hamburg“ losfahren. Die Fahrt dau |
-| 38 | 14:10:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
+| 38 | 14:12:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
 | 39 | 14:15:00 | travel | ausgegeben | sprache | abfahrt | timer |  |  | termin: gcal_arzt_0815 (id) | Du solltest jetzt losfahren, sonst schaffst du es nicht rechtzeitig zu Arzt Hamb |
-| 40 | 14:24:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
+| 40 | 14:26:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
 | 41 | 14:30:01 | calendar | ausgegeben | sprache | erinnerung | timer |  |  | erinnerung: 1793185200000 (id) | Zur Erinnerung: Unterlagen für den Arzt |
-| 42 | 14:30:45 | kennenlernen | ausgegeben | sprache | kennenlern-frage | timer | ja | ja | frage: k21 (id) | Hast du Haustiere, oder hättest du gern welche? |
+| 42 | 14:30:25 | kennenlernen | ausgegeben | sprache | kennenlern-frage | timer | ja | ja | frage: k21 (id) | Hast du Haustiere, oder hättest du gern welche? |
 | 43 | 14:35:00 | routinen | ausgegeben | karte+sprache | routine-hinweis | timer |  |  | routine: wetter@15 (id) | Kleine Erinnerung: Um diese Zeit fragst du sonst nach dem Wetter. |
-| 44 | 14:38:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
+| 44 | 14:40:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
 | 45 | 14:40:00 | alarm | ausgegeben | fenster+sprache | warnung | push |  |  |  | Glatteis. Glättegefahr auf deiner Strecke. Plan mehr Zeit ein. |
-| 46 | 14:45:00 | zuvorkommend | ausgegeben | karte+sprache | geburtstag-vorfrage | plan |  |  | geburtstag: 2026-11-01/Geburtstag Oma Ute (text+zeit) | In 4 Tagen ist Geburtstag Oma Ute. Hast du schon ein Geschenk? Soll ich dich eri |
-| 47 | 14:50:00 | orte | ausgegeben | karte+sprache | einkaufsliste-markt | apk |  |  | markt: REWE Schwarzenbek (id) | Du bist bei REWE Schwarzenbek. Auf deiner Einkaufsliste stehen: Milch, Brot und  |
-| 48 | 14:52:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
-| 49 | 15:06:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
+| 46 | 14:45:01 | zuvorkommend | ausgegeben | karte+sprache | geburtstag-vorfrage | plan |  |  | geburtstag: 2026-11-01/Geburtstag Oma Ute (text+zeit) | In 4 Tagen ist Geburtstag Oma Ute. Hast du schon ein Geschenk? Soll ich dich eri |
+| 47 | 14:50:01 | orte | ausgegeben | karte+sprache | einkaufsliste-markt | apk |  |  | markt: REWE Schwarzenbek (id) | Du bist bei REWE Schwarzenbek. Auf deiner Einkaufsliste stehen: Milch, Brot und  |
+| 48 | 14:54:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
+| 49 | 15:08:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Dino, was liegt heute noch an? |
 
 Sprachausgaben ohne zugehörigen Eintrag (Antworten auf Sätze des Nutzers, Dialog-Folgen, andere Module): 1
 
 | Uhrzeit | Text (60 Zeichen) |
 |---|---|
-| 12:37:00 | Gut, ich lasse sie ungelesen. |
+| 12:37:01 | Gut, ich lasse sie ungelesen. |
 
 ### 4.2 Alle Einträge in zeitlicher Reihenfolge („Nacht (So 01.11.2026 21:00 bis Mo 02.11.2026 10:00)“)
 
@@ -474,40 +472,39 @@ Sprachausgaben ohne zugehörigen Eintrag (Antworten auf Sätze des Nutzers, Dial
 | 1 | So 21:00:01 | autoansicht | ausgegeben | fenster+sprache | autoansicht-einsteigen | apk |  |  |  | Autoansicht ist an. |
 | 2 | So 21:00:03 | schlaf_antwort | ausgegeben | sprache+fenster | app-meldung | apk |  |  |  | Ich habe Mama auf ihre WhatsApp geantwortet. |
 | 3 | So 21:00:05 | jarvis | ausgeloest | - | start-ansage | app-start |  |  | tag: 2026-11-01 (tag) | Systeme online. Guten Abend, Sir. |
-| 4 | So 21:00:16 | dirigent | ausgegeben | sprache+fenster+karte | tagesmeldung | app-start |  |  | tag: 2026-11-01 (tag) | Guten Tag, Dino. Hier ist deine Tagesmeldung. |
+| 4 | So 21:00:19 | dirigent | ausgegeben | sprache+fenster+karte | tagesmeldung | app-start |  |  | tag: 2026-11-01 (tag) | Guten Tag, Dino. Hier ist deine Tagesmeldung. |
 | 5 | So 21:00:40 | orte | ausgegeben | karte+sprache | standort-frage | timer | ja |  |  | Ich kann dich im Supermarkt an deine Einkaufsliste erinnern. Dafür braucht die A |
-| 6 | So 21:02:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 6 | So 21:02:01 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
 | 7 | So 21:05:00 | jarvis | ausgegeben | sprache | start-ansage | manuell |  |  | tag: 2026-11-01 (tag) | Systeme online. Guten Abend, Sir. |
-| 8 | So 21:16:01 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 9 | So 21:30:45 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 10 | So 21:45:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 11 | So 21:59:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 12 | So 22:30:01 | calendar | ausgegeben | sprache | erinnerung | timer |  |  | erinnerung: 1793563200000 (id) | Zur Erinnerung: Mülltonnen rausstellen |
-| 13 | So 23:00:00 | fahr_whatsapp | ausgegeben | fenster+sprache | whatsapp-vorlesen | apk | ja | bedingt | nachricht: wa_1793570400000 (id) | Nachricht von Julia: Kannst du Milch mitbringen?. Willst du antworten? |
-| 14 | Mo 01:00:00 | auftraege | ausgegeben | sprache | auftrag-erfuellt | push |  |  | auftrag: auftrag_diesel (id) | Diesel ist jetzt unter 1,65 Euro. Die günstigste Tankstelle ist Aral in Schwarze |
-| 15 | Mo 02:12:25 | mailwatch | ausgegeben | sprache | wichtige-mail | timer | ja | bedingt | mail: bank_2 (id) | Du hast eine E-Mail von Sparkasse Lüneburg. Betreff: Kontobewegung: Lastschrift  |
-| 16 | Mo 02:30:15 | mail_nacht | ausgegeben | karte+sprache | mail-entwuerfe | timer |  |  |  | Ich habe einen Antwort-Entwurf für dich vorbereitet: an Herr Krüger zu „Angebot  |
-| 17 | Mo 03:00:00 | alarm | ausgegeben | fenster+sprache | warnung | push |  |  |  | Glatteis. Glättegefahr auf deiner Strecke. Plan mehr Zeit ein. |
-| 18 | Mo 03:30:00 | schicht | ausgeloest | - | schicht-briefing | timer |  |  | tag: 2026-11-02 (tag) |  |
-| 19 | Mo 03:30:00 | briefing | ausgegeben | sprache | tagesbriefing | folge |  |  | tag: 2026-11-02 (tag) | Guten Morgen, Dino. Es ist 3 Uhr 30. Heute hast du Frühschicht, Abfahrt um 4 Uhr |
-| 20 | Mo 03:33:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 21 | Mo 03:35:30 | proaktiv | ausgegeben | karte | erinnerung-vorwarnung | timer |  |  | erinnerung: 1793563200000 (id) | In 30 Minuten: Brotdose einpacken. |
-| 22 | Mo 03:47:04 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 23 | Mo 04:01:34 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 24 | Mo 04:05:01 | calendar | ausgegeben | sprache | erinnerung | timer |  |  | erinnerung: 1793563200000 (id) | Zur Erinnerung: Brotdose einpacken |
-| 25 | Mo 04:16:01 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 26 | Mo 04:30:34 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 27 | Mo 04:45:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 28 | Mo 04:59:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 29 | Mo 05:13:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 30 | Mo 05:27:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 31 | Mo 05:41:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 32 | Mo 05:55:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 33 | Mo 06:09:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 34 | Mo 06:23:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 35 | Mo 06:37:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
-| 36 | Mo 07:05:01 | tagesueberblick | ausgegeben | fenster | tagesueberblick-leer | app-rueckkehr |  |  | tag: 2026-11-02 (tag) | Tagesüberblick |
-| 37 | Mo 09:00:25 | kennenlernen | ausgegeben | sprache | kennenlern-frage | timer | ja | ja | frage: k21 (id) | Hast du Haustiere, oder hättest du gern welche? |
+| 8 | So 21:16:40 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 9 | So 21:31:04 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 10 | So 21:46:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 11 | So 22:30:01 | calendar | ausgegeben | sprache | erinnerung | timer |  |  | erinnerung: 1793563200000 (id) | Zur Erinnerung: Mülltonnen rausstellen |
+| 12 | So 23:00:00 | fahr_whatsapp | ausgegeben | fenster+sprache | whatsapp-vorlesen | apk | ja | bedingt | nachricht: wa_1793570400000 (id) | Nachricht von Julia: Kannst du Milch mitbringen?. Willst du antworten? |
+| 13 | Mo 01:00:00 | auftraege | ausgegeben | sprache | auftrag-erfuellt | push |  |  | auftrag: auftrag_diesel (id) | Diesel ist jetzt unter 1,65 Euro. Die günstigste Tankstelle ist Aral in Schwarze |
+| 14 | Mo 02:12:25 | mailwatch | ausgegeben | sprache | wichtige-mail | timer | ja | bedingt | mail: bank_2 (id) | Du hast eine E-Mail von Sparkasse Lüneburg. Betreff: Kontobewegung: Lastschrift  |
+| 15 | Mo 02:30:15 | mail_nacht | ausgegeben | karte+sprache | mail-entwuerfe | timer |  |  |  | Ich habe einen Antwort-Entwurf für dich vorbereitet: an Herr Krüger zu „Angebot  |
+| 16 | Mo 03:00:00 | alarm | ausgegeben | fenster+sprache | warnung | push |  |  |  | Glatteis. Glättegefahr auf deiner Strecke. Plan mehr Zeit ein. |
+| 17 | Mo 03:30:00 | schicht | ausgeloest | - | schicht-briefing | timer |  |  | tag: 2026-11-02 (tag) |  |
+| 18 | Mo 03:30:00 | briefing | ausgegeben | sprache | tagesbriefing | folge |  |  | tag: 2026-11-02 (tag) | Guten Morgen, Dino. Es ist 3 Uhr 30. Heute hast du Frühschicht, Abfahrt um 4 Uhr |
+| 19 | Mo 03:33:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 20 | Mo 03:35:30 | proaktiv | ausgegeben | karte | erinnerung-vorwarnung | timer |  |  | erinnerung: 1793563201500 (id) | In 30 Minuten: Brotdose einpacken. |
+| 21 | Mo 03:47:04 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 22 | Mo 04:01:34 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 23 | Mo 04:05:01 | calendar | ausgegeben | sprache | erinnerung | timer |  |  | erinnerung: 1793563201500 (id) | Zur Erinnerung: Brotdose einpacken |
+| 24 | Mo 04:16:01 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 25 | Mo 04:30:34 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 26 | Mo 04:45:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 27 | Mo 04:59:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 28 | Mo 05:13:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 29 | Mo 05:27:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 30 | Mo 05:41:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 31 | Mo 05:55:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 32 | Mo 06:09:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 33 | Mo 06:23:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 34 | Mo 06:37:00 | zane_redet | ausgegeben | sprache | redet-frage | timer | ja | ja |  | Na, Dino? Wie läuft dein Abend bisher? |
+| 35 | Mo 07:05:01 | tagesueberblick | ausgegeben | fenster | tagesueberblick-leer | app-rueckkehr |  |  | tag: 2026-11-02 (tag) | Tagesüberblick |
+| 36 | Mo 09:00:25 | kennenlernen | ausgegeben | sprache | kennenlern-frage | timer | ja | ja | frage: k21 (id) | Hast du Haustiere, oder hättest du gern welche? |
 
 Sprachausgaben ohne zugehörigen Eintrag (Antworten auf Sätze des Nutzers, Dialog-Folgen, andere Module): 0
 

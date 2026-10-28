@@ -18,3 +18,4 @@ jobs:
       - run: node tests/jarvis_pruefstrecke.js
       - run: node tests/faehigkeiten.js
       - run: node tests/meldungen.js
+      - run: node tests/regeln.js
