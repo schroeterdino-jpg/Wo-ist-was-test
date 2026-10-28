@@ -168,6 +168,7 @@
         const log = jl(K_LOG, []); log.push({ direkt: !!erzwingen, am: Date.now(), ymd, slot: teile[2], thema, grund: String(r.grund || '').slice(0, 200), text }); lsSet(K_LOG, JSON.stringify(log.slice(-30)));
         if (!erzwingen) lsSet(K_HEUTE, ymd);
         offen = /^(ausflug|besuch:|preise:)/.test(aktion) ? { aktion, thema, slot: teile[2], at: Date.now() } : { aktion: 'keine', thema, slot: teile[2], at: Date.now() };
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'dirigent', kanal: ['sprache', 'fenster', 'karte'], grund: 'tagesmeldung', ausloeser: gruss ? window.jvMeldungen.herkunftApp() : (erzwingen ? 'manuell' : 'plan'), ereignis: String(id), bezug: window.jvMeldungen.bezugTag(ymd), text: text }) } catch (e) { }   // C1: nur Beobachtung
         p.sagenMeldung('🧭 Jarvis', text, false, offen.aktion !== 'keine');   // bei einem Angebot hört Jarvis danach zu (Ja / Nein)
         try {
             if (typeof showActionCards === 'function') showActionCards((offen.aktion !== 'keine' ? [{ icon: '✅', title: 'Ja, mach das', subtitle: '', onclick: 'window.jvDirigent.ja()' }] : []).concat([{ icon: '🙅', title: 'Das interessiert mich nicht', subtitle: 'Dazu melde ich mich dann nicht mehr', onclick: 'window.jvDirigent.stumm()' }]));

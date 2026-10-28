@@ -90,6 +90,7 @@
             if (!res || !res.reply) return false;
             const kopf = 'Ich habe mir erlaubt, deinen Termin ' + t.titel + ' um ' + HH(t.at) + ' Uhr vorzubereiten. ';
             try { if (res.card && typeof showActionCards === 'function') showActionCards([res.card].concat(res.stauCards || [])); } catch (e) { }
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'vorbereitung', kanal: res.card ? ['karte', 'sprache'] : ['sprache'], grund: 'termin-vorbereitet', ausloeser: manuell ? 'manuell' : 'timer', ereignis: t.id, bezug: window.jvMeldungen.bezugTerminId(String(t.id).slice(1).replace(/\|[^|]*$/, '')), text: kopf + res.reply }) } catch (e) { }   // C1: nur Beobachtung
             try { speak(kopf + res.reply, false); } catch (e) { }
             return true;
         } catch (e) {

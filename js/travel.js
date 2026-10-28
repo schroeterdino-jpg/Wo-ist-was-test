@@ -1102,6 +1102,7 @@ async function checkDepartureWarning() {
     if (now.getTime() >= cached.deadline.getTime()) {
         warned.add(key);
         saveWarnedEventIds(warned);
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'travel', kanal: ['sprache'], grund: 'abfahrt', ausloeser: 'timer', ereignis: key, bezug: window.jvMeldungen.bezugTerminId(key), text: `Du solltest jetzt losfahren, sonst schaffst du es nicht rechtzeitig zu ${cached.titel} um ${formatSpokenTime(cached.zeit)}.` }) } catch (e) { }   // C1: nur Beobachtung
         speak(`Du solltest jetzt losfahren, sonst schaffst du es nicht rechtzeitig zu ${cached.titel} um ${formatSpokenTime(cached.zeit)}.`);
     }
 }

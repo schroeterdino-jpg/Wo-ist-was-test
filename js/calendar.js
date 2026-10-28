@@ -56,6 +56,7 @@ setInterval(() => {
             if ('Notification' in window && Notification.permission === 'granted') {
                 jvLocalNotify(`Erinnerung für ${currentUserName}`, rem.text);
             }
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'calendar', kanal: ('Notification' in window && Notification.permission === 'granted') ? ['sprache', 'benachrichtigung'] : ['sprache'], grund: 'erinnerung', ausloeser: 'timer', ereignis: 'rem|' + rem.id, bezug: window.jvMeldungen.bezugErinnerung(rem), text: 'Zur Erinnerung: ' + rem.text }) } catch (e) { }   // C1: nur Beobachtung
             if (rem.important) {
                 rem.nagCount = 0;
                 rem.nextNagAt = now.getTime() + NAG_INTERVAL_MS;
@@ -73,6 +74,7 @@ setInterval(() => {
                 updated = true;
                 lastFiredReminder = rem;
                 lastFiredReminderAt = now.getTime();
+                try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'calendar', kanal: ('Notification' in window && Notification.permission === 'granted') ? ['sprache', 'benachrichtigung'] : ['sprache'], grund: 'erinnerung-nachfrage', ausloeser: 'timer', ereignis: 'nag|' + rem.id + '|' + rem.nagCount, bezug: window.jvMeldungen.bezugErinnerung(rem), text: (rem.nagCount >= NAG_MAX ? 'Letzte Erinnerung: ' : 'Noch einmal zur Erinnerung: ') + rem.text }) } catch (e) { }   // C1: nur Beobachtung
                 if (rem.nagCount >= NAG_MAX) {
                     rem.done = true;
                     speak(`Letzte Erinnerung: ${rem.text}. Ich frage nicht weiter nach.`);

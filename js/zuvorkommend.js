@@ -129,6 +129,7 @@
                 { icon: '✅', title: 'Schon erledigt', subtitle: '', onclick: 'jvZuvor.gebNein()' }
             ]);
         } catch (e) { }
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'zuvorkommend', kanal: ['karte', 'sprache'], grund: 'geburtstag-vorfrage', ausloeser: 'plan', ereignis: String(id), bezug: { art: 'geburtstag', schluessel: ymd + '|' + titel, herkunft: 'text+zeit' }, text: wann + ' ' + was + '. Hast du schon ein Geschenk? Soll ich dich erinnern, dass du eins besorgst?' }) } catch (e) { }   // C1: nur Beobachtung
         sagen(wann + ' ' + was + '. Hast du schon ein Geschenk? Soll ich dich erinnern, dass du eins besorgst?', true);
         return true;
     }
@@ -237,6 +238,7 @@
                 { icon: '✅', title: 'Schon gratuliert', subtitle: '', onclick: 'jvZuvor.grussFertig()' }
             ]);
         } catch (e) { }
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'zuvorkommend', kanal: ['karte', 'sprache'], grund: art === 'gebv' ? 'glueckwunsch-vortag' : 'glueckwunsch-tag', ausloeser: test ? 'manuell' : 'plan', ereignis: String(id), bezug: { art: 'geburtstag', schluessel: ymd + '|' + titel, herkunft: 'text+zeit' }, text: text }) } catch (e) { }   // C1: nur Beobachtung
         if (art === 'gebv') {
             sagen('Morgen ' + wasGeb(titel) + '. Ich habe schon einen Glückwunsch vorbereitet: ' + ohneEmoji(text) + ' Morgen früh erinnere ich dich noch einmal. Die Karte öffnet WhatsApp mit dem Text.', false);
         } else {

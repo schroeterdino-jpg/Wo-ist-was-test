@@ -91,6 +91,7 @@
         const ms = Math.max(60000, Math.min(30 * 60000, (o.endsAt || (Date.now() + 30 * 60000)) - Date.now()));
         current = { id: o.id, el, timer: setTimeout(hideCard, ms) };
         markDone(o.id);
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'proaktiv', kanal: (speakOn() && typeof speak === 'function' && !(typeof isSpeaking === 'function' && isSpeaking())) ? ['karte', 'sprache'] : ['karte'], grund: String(o.id).indexOf('rem|') === 0 ? 'erinnerung-vorwarnung' : 'termin-vorwarnung', ausloeser: 'timer', ereignis: o.id, bezug: (function () { const p = String(o.id).split('|'); return p[0] === 'rem' ? window.jvMeldungen.bezugErinnerungTextZeit(p.slice(1, -1).join('|'), p[p.length - 1]) : window.jvMeldungen.bezugTermin(p.slice(1, -1).join('|'), p[p.length - 1]); })(), text: o.spoken || o.msg }) } catch (e) { }   // C1: nur Beobachtung
         if (speakOn() && typeof speak === 'function') { try { if (!(typeof isSpeaking === 'function' && isSpeaking())) speak(o.spoken || o.msg); } catch (e) {} }
     }
 

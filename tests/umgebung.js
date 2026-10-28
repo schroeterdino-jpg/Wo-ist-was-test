@@ -5,7 +5,11 @@
    starte({ jetzt, native, dienste })  ->  App-Objekt:
      jetzt     Feste Uhrzeit (ISO mit Zone, Standard: Mittwoch 28.10.2026 10:00 Berlin), die Uhr tickt nicht.
      native    true: window.ZaneNative ist da (Attrappe der Handy-App-Brücke), false: normaler Browser.
-     dienste   { kalender, wetter, route, ... }: 'ok' oder 'aus' je Dienst. 'aus' lässt gezielt EINEN Dienst ausfallen.
+     sekundenTakt  true: auch der 1-Sekunden-Zeitgeber (Erinnerungs-Timer in calendar.js) läuft; sonst werden Zeitgeber unter 15 s ausgelassen.
+   sprechenBeendet  true: nach jeder Sprachausgabe wird der übergebene "fertig"-Rückruf nach 2 s (virtuelle Uhr) aufgerufen, wie bei echter Sprachausgabe (nicht der Gesprächs-Rückruf continueConversation).
+  festerZufall  true: Math.random liefert immer 0.5 (schon beim Laden der Skripte), damit zwei Läufe gleich ausfallen.
+   ohneSkripte   Liste von Dateinamen aus index.html, die NICHT geladen werden (zum Beispiel ['meldungen.js'] für den Vergleich mit und ohne Beobachter).
+   dienste   { kalender, wetter, route, ... }: 'ok' oder 'aus' je Dienst. 'aus' lässt gezielt EINEN Dienst ausfallen.
    App.satz(text)       Der Satz geht den echten Weg: erst die feste Befehls-Kette (handleLocalCommand). Ergebnis:
                         { lokal, modul, gesagt[], reaktionen[], aenderungen }
    App.ki(text, aktionen)  Der Satz geht an die (Attrappen-)KI. Die KI liefert die vorgegebenen Aktionen, die laufen durch
@@ -40,7 +44,7 @@ function starte(opt) {
         set: () => true, apply: () => el(), construct: () => el(), has: () => true
     });
     const timer = []; let tid = 1;
-    function plane(fn, ms, a, iv) { if (typeof fn !== 'function') return 0; if (iv === 0 && !(ms >= 0)) ms = 0; if (iv && !(+ms >= 15000)) return 0;   const id = tid++; timer.push({ id, at: uhr.ms + Math.max(0, +ms || 0), fn, a, iv }); return id; }
+    function plane(fn, ms, a, iv) { if (typeof fn !== 'function') return 0; if (iv === 0 && !(ms >= 0)) ms = 0; if (iv && !(+ms >= 15000) && !(opt.sekundenTakt && +ms === 1000)) return 0;   const id = tid++; timer.push({ id, at: uhr.ms + Math.max(0, +ms || 0), fn, a, iv }); return id; }
     function abbrechen(id) { const i = timer.findIndex(t => t.id === id); if (i >= 0) timer.splice(i, 1); }
     // Wer wollte sprechen? Aus dem Aufruf-Stapel: erste Datei, die nicht nur Sprach-Technik ist
     const TECHNIK = new Set(['voice.js', 'fish.js', 'tempo.js', 'speechrate.js', 'voicefix.js', 'native_speech.js', 'tts.js', 'audio.js', 'hoeren.js', 'pronunciation.js', 'umgebung.js']);
@@ -95,8 +99,9 @@ function starte(opt) {
     if (opt.native) sb.ZaneNative = opt.native === true ? nativeAttrappe() : opt.native;
 
     vm.createContext(sb);
+    if (opt.festerZufall) vm.runInContext('Math.random = function () { return 0.5; }', sb);   // vor dem Laden der Skripte: gleiche Zufallszahlen in jedem Lauf
     const html = lies('index.html');
-    const reihenfolge = [...html.matchAll(/<script[^>]+src="\.\/js\/([^"?]+)/g)].map(m => m[1]);
+    const reihenfolge = [...html.matchAll(/<script[^>]+src="\.\/js\/([^"?]+)/g)].map(m => m[1]).filter(f => !(opt.ohneSkripte || []).includes(f));
     const ladefehler = [];
     const behandelt = [];
     for (const f of reihenfolge) {
@@ -116,7 +121,8 @@ function starte(opt) {
     }
     // Sprachausgabe abfangen (nach dem Laden, denn voice.js/fish.js definieren speak selbst)
     const echtSpeak = sb.speak;
-    sb.speak = function (t) { const x = String(t == null ? '' : t); gesagt.push(x); ereignisse.push({ art: 'sprechen', zeit: hhmm(), modul: aufrufer(), text: x }); };
+    sb.speak = function (t, fertig) { const x = String(t == null ? '' : t); gesagt.push(x); ereignisse.push({ art: 'sprechen', zeit: hhmm(), modul: aufrufer(), text: x });
+        if (opt.sprechenBeendet && typeof fertig === 'function' && fertig !== sb.continueConversation) plane(function () { try { fertig(); } catch (e) { } }, 2000, []); };
     for (const fn of ['openExtraWindow', 'showSuggestionCard', 'showToast', 'zeigeKarte']) {   // Karten/Fenster, die Module von selbst öffnen
         const o = sb[fn]; if (typeof o !== 'function') continue;
         sb[fn] = function () { ereignisse.push({ art: 'karte', zeit: hhmm(), modul: aufrufer(), text: fn + ': ' + String(arguments[0]).slice(0, 60) }); try { return o.apply(this, arguments); } catch (e) { } };
