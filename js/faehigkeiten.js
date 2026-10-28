@@ -7,6 +7,7 @@
              window.jvFaehigkeiten.nach('kalender') eine Fähigkeit
              window.jvFaehigkeiten.besitzerVon('aktion', 'calendar_delete')  -> Fähigkeit, die diesen Intent besitzt
              window.jvFaehigkeiten.uebergreifend    Regeln, die für mehrere Fähigkeiten gelten (z. B. Rückfrage vor dem Löschen)
+             window.jvFaehigkeiten.nurHandyApp      Funktionen, die ganz ('ja') oder teilweise nur mit der Jarvis-Handy-App gehen (B6)
 
    Felder je Fähigkeit:
      id, name, beschreibung, icon + kurz (für die Hilfe-Karte, B2)
@@ -246,14 +247,14 @@
                 { typ: 'kontext', ref: 'Schicht der Woche eingetragen', wofuer: 'ohne Schicht keine Zeiten und Ansagen', pflicht: true },
                 { typ: 'kontext', ref: 'Heimatadresse', wofuer: 'Heimweg-Meldung braucht sie', pflicht: false }
             ],
-            handyApp: 'teilweise', handyAppDetail: 'Schichtplan und Auskunft laufen im Browser. Ansagen bei gesperrtem Handy planen nur über die Handy-App (ZaneNative.planAnsagen).',
+            handyApp: 'teilweise', handyAppDetail: 'Schichtplan und Auskunft laufen im Browser. Ansagen bei gesperrtem Handy planen und Wecker stellen gehen nur über die Handy-App (ZaneNative.planAnsagen).',
             proaktiv: { wert: 'ja', ausloeser: [
                 { modul: 'js/plan_ansagen.js', art: ['Sprache', 'Push'], wann: 'Wochenüberblick So 18:00, Aufbruch 10 Minuten vor Abfahrt, Briefing, Wecker-Frage, Feierabend nur als Benachrichtigung' },
                 { modul: 'js/zuvorkommend.js', art: ['Sprache'], wann: 'Frost vor der Frühschicht: Abfahrt wird vorgezogen' },
                 { modul: 'js/dirigent.js', art: ['Sprache', 'Push'], wann: 'Tagesmeldung unter Einbezug von Schicht und Urlaub' }
             ] },
             module: ['js/schicht.js', 'js/schichtauskunft.js', 'js/plan_ansagen.js', 'js/frueher_los.js', 'js/urlaub.js', 'js/zuvorkommend.js'],
-            bekannteGrenzen: ['Im Browser ohne Handy-App fällt "Vertretung nach 5 Minuten" still an die KI, kein Hinweis (24b, B)', 'Feierabend/Heimweg ist nur Benachrichtigung, Sprachausgabe nur auf Zuruf']
+            bekannteGrenzen: ['Feierabend/Heimweg ist nur Benachrichtigung, Sprachausgabe nur auf Zuruf']
         },
 
         /* ---------- 8. Preissuche ---------- */
@@ -285,7 +286,25 @@
           beschreibung: 'Rückfrage "Soll ich ... wirklich löschen?" vor jedem Löschen von Terminen, Erinnerungen und Langzeit-Einträgen; erst ein "Ja" löscht.' }
     ];
 
-    frieren(LISTE); frieren(UEBERGREIFEND);
+    /* B6: Funktionen, die ohne die Jarvis-Handy-App (ZaneNative) nicht oder nur zum Teil gehen. Sie gehören zu keiner der acht Fähigkeiten-Karten,
+       deshalb stehen sie hier getrennt (die Hilfe zeigt sie nicht). 'ja' = ganz nur mit Handy-App, 'teilweise' = einzelne Teile gehen auch im Browser.
+       Im Browser antwortet Jarvis auf die Beispielsätze mit einer klaren Meldung, nicht mit der KI (tests/handyapp.js prüft das). */
+    var NUR_HANDY_APP = [
+        { id: 'schlafmodus_vertretung', name: 'Schlafmodus und Vertretung', handyApp: 'ja',
+          handyAppDetail: 'Antworten auf WhatsApp, Wissensblatt, Kontakte und Protokoll brauchen die Handy-App (Benachrichtigungszugriff, ZaneNative.schlafStand). Im Browser kommt der Hinweis "Diese Funktion geht nur in der Jarvis-Handy-App."',
+          module: ['js/schlaf_antwort.js'], beispiele: ['Vertretung an', 'Vertretung nach 5 Minuten', 'Merk dir fürs Wissensblatt: Dino meldet sich nach der Fahrt', 'Was steht auf dem Wissensblatt?', 'Warum hast du nicht geantwortet?', 'Erlaube Mama im Schlafmodus', 'Wem antwortest du?'] },
+        { id: 'wecker', name: 'Wecker', handyApp: 'ja', gehoertZu: 'schicht',
+          handyAppDetail: 'Einen Wecker stellen kann nur die Handy-App. Im Browser sagt Jarvis das ausdrücklich (plan_ansagen.js).',
+          module: ['js/plan_ansagen.js'], beispiele: ['Stell einen Wecker auf 6 Uhr'] },
+        { id: 'ortserinnerungen', name: 'Ortserinnerungen', handyApp: 'teilweise',
+          handyAppDetail: 'Ein- und Ausschalten wird im Browser gemerkt; Einrichten, Testen und das Melden beim Ankommen am Supermarkt gehen nur in der Handy-App (ZaneNative.planOrte).',
+          module: ['js/orte.js'], beispiele: ['Ortszugriff einrichten'] },
+        { id: 'fahrmodus', name: 'Fahrmodus (WhatsApp vorlesen im Auto)', handyApp: 'teilweise',
+          handyAppDetail: 'Die Autoansicht geht auch im Browser. Das Vorlesen von WhatsApp-Nachrichten und das Protokoll dazu brauchen die Handy-App (ZaneNative.fahrSenden).',
+          module: ['js/autoansicht.js', 'js/fahr_whatsapp.js'], beispiele: [] }
+    ];
+
+    frieren(LISTE); frieren(UEBERGREIFEND); frieren(NUR_HANDY_APP);
 
     function nach(id) { for (var i = 0; i < LISTE.length; i++) if (LISTE[i].id === id) return LISTE[i]; return null; }
     function besitzerVon(typ, bezug) {
@@ -294,5 +313,5 @@
         }
         return null;
     }
-    window.jvFaehigkeiten = Object.freeze({ liste: LISTE, uebergreifend: UEBERGREIFEND, nach: nach, besitzerVon: besitzerVon });
+    window.jvFaehigkeiten = Object.freeze({ liste: LISTE, uebergreifend: UEBERGREIFEND, nurHandyApp: NUR_HANDY_APP, nach: nach, besitzerVon: besitzerVon });
 })();
