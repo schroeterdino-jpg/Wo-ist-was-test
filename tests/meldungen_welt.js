@@ -150,11 +150,17 @@ async function laufen(art, opt) {
     let M = null;
     const jetzt = () => (M ? M.uhr.ms : ms(def.start));
     const fetchFn = netz(def, jetzt, zust);
-    M = starte({ native: true, jetzt: def.start, sekundenTakt: true, weitereTakte: [10000], festerZufall: true, sprechenBeendet: true, sprechdauer: true, fetch: async (u, o) => fetchFn(u, o), ohneSkripte: opt.ohne ? ['meldungen.js'] : [] });
+    M = starte({ native: true, jetzt: def.start, sekundenTakt: true, weitereTakte: [10000], festerZufall: true, sprechenBeendet: true, sprechdauer: true, fetch: async (u, o) => fetchFn(u, o), ohneSkripte: opt.ohne ? ['meldungen.js', 'meldungs_regeln.js'] : (opt.ohneShadow ? ['meldungs_regeln.js'] : []) });
     const sb = M.sb;
     if (opt.kaputt) {
         const kaputt = () => { throw new Error('Beobachter kaputt'); };
         sb.jvMeldungen = { beobachte: kaputt, bezugTermin: kaputt, bezugTerminId: kaputt, bezugErinnerung: kaputt, bezugErinnerungTextZeit: kaputt, bezugTag: kaputt, bezugId: kaputt, folgeAusloeser: kaputt, bezugAusWaechterId: kaputt, herkunftApp: kaputt };
+    }
+    if (opt.shadowAus && sb.jvRegeln) sb.jvRegeln.aus();
+    if (opt.shadowKaputt) {   // Shadow wirft bei jedem Aufruf Fehler; zusätzlich meldet sich ein zweiter Mitleser, der ebenfalls immer wirft
+        const kaputtS = () => { throw new Error('Shadow kaputt'); };
+        if (sb.jvMeldungen && sb.jvMeldungen.abonniere) sb.jvMeldungen.abonniere(kaputtS);
+        if (sb.jvRegeln) ['liste', 'ausgeloest', 'leeren', 'aus', 'einschalten', 'istAn', 'nutzerAktiv', 'nachliefervorschau'].forEach(k => { try { sb.jvRegeln[k] = kaputtS; } catch (e) { } });
     }
     M.mikro = [];   // Aufrufe von startListening (Mikrofon wird geöffnet), mit virtueller Zeit
     { const echt = sb.startListening; sb.startListening = function () { M.mikro.push(M.uhr.ms); return typeof echt === 'function' ? echt.apply(this, arguments) : undefined; }; }
@@ -194,24 +200,28 @@ async function laufen(art, opt) {
 
     /* Erinnerungen wie vom Nutzer gesagt */
     const rems = def.erinnerungen || (def.erinnerung ? [def.erinnerung] : []);
-    for (const r of rems) await M.ki('Erinnere mich an ' + r.text, [{ type: 'reminder', reminder_text: r.text, reminder_time: r.zeit }]);
+    for (const r of rems) { await M.ki('Erinnere mich an ' + r.text, [{ type: 'reminder', reminder_text: r.text, reminder_time: r.zeit }]); await M.vorspulen(1500); }   // 1,5 s dazwischen: jede Erinnerung bekommt ihre eigene ID (die ID entsteht aus der Uhrzeit)
     await M.vorspulen(2000);
 
     async function spule(dauer) { while (dauer > 0) { const schritt = Math.min(dauer, 15 * 60000); await M.vorspulen(schritt); dauer -= schritt; } }   // in Stücken (der Zeitgeber-Lauf ist begrenzt)
+    const nutzer = () => { try { if (sb.jvRegeln && typeof sb.jvRegeln.nutzerAktiv === 'function') sb.jvRegeln.nutzerAktiv(); } catch (e) { } };   // meldet der Shadow-Datei die Handlung des simulierten Nutzers (Sprache hat in der Attrappe kein Tippen)
     const tun = {
-        tipp: async () => { taps.slice().forEach(fn => { try { fn({}); } catch (e) { } }); },
+        tipp: async () => { nutzer(); taps.slice().forEach(fn => { try { fn({}); } catch (e) { } }); },
         whatsapp: async () => { try { sb.jvFahrWA.nachricht({ id: 'wa_' + jetzt(), name: 'Julia', text: 'Kannst du Milch mitbringen?', kann: true }); } catch (e) { } },
         plan: async a => { try { await sb.jvPlan.ansage(a.id, false, true); } catch (e) { } },
         alarm: async () => { try { sb.jvAlarm({ stufe: 'rot', titel: 'Glatteis', text: 'Glättegefahr auf deiner Strecke. Plan mehr Zeit ein.' }); } catch (e) { } },
         ort: async () => { try { await sb.jvPlan.ansage('ort|' + jetzt() + '|REWE Schwarzenbek', false, true); } catch (e) { } },
-        satz: async a => { try { await M.satz(a.text); } catch (e) { } },
-        oeffnen: async () => { try { await sb.uebMaybeShow(); } catch (e) { } }
+        satz: async a => { nutzer(); try { await M.satz(a.text); } catch (e) { } },
+        oeffnen: async () => { nutzer(); try { await sb.uebMaybeShow(); } catch (e) { } }
     };
     for (const a of def.aktionen) {
         const bis = ms(a.at);
         if (bis > M.uhr.ms) await spule(bis - M.uhr.ms);
-        await tun[a.was](a);
+        let fertig = false;
+        const lauf = Promise.resolve(tun[a.was](a)).then(() => { fertig = true; }, () => { fertig = true; });
         await M.vorspulen(1000);
+        for (let i = 0; i < 60 && !fertig; i++) await M.vorspulen(1000);   // wartet die Handlung auf einen Zeitgeber (zum Beispiel "bereit?"), läuft die Zeit weiter statt zu hängen
+        await lauf;
     }
     const ende = ms(def.ende);
     if (ende > M.uhr.ms) await spule(ende - M.uhr.ms);

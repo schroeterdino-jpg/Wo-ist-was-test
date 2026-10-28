@@ -83,7 +83,7 @@ function unterschied(a, b) {
     /* ===== 2. Einhängestellen genau in den freigegebenen Dateien ===== */
     {
         const alle = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js')).map(f => f.replace(/\.js$/, ''));
-        const mit = alle.filter(f => /jvMeldungen/.test(lies('js/' + f + '.js')) && f !== 'meldungen').sort();
+        const mit = alle.filter(f => /jvMeldungen/.test(lies('js/' + f + '.js')) && f !== 'meldungen' && f !== 'meldungs_regeln').sort();
         check('Nur die freigegebenen Quellen (C1a: 10, C1b: 18 + briefing) rufen den Beobachter auf', mit.join() === ALLE.slice().sort().join(), mit.join());
         for (const f of ALLE) {
             const q = lies('js/' + f + '.js');
