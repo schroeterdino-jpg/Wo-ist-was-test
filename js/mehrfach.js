@@ -72,6 +72,101 @@
         return true;
     }
 
+    /* ============================================================
+       B4, Stufe 1: MEHRFACHFRAGEN (nur lesend). "Was steht morgen im Kalender und wie wird das Wetter?"
+       Ein früher fester Auskunftsbefehl (zum Beispiel "Was steht an") nahm den ganzen Satz und beantwortete nur seinen Teil.
+       Jetzt: erkennt dieser Eintrag (steht VOR den Auskunftsbefehlen) mehrere eigenständige Fragen und
+         - führt die Teile, die eine "reine Auskunft" sind (Markierung in js/faehigkeiten.js, jvFaehigkeiten.reineAuskuenfte()), einzeln aus
+           (ihre Sprachausgabe wird aufgefangen, nicht gesprochen),
+         - schickt alle anderen Fragen gebündelt in EINEM KI-Aufruf (Sammelmodus "collect", wie die Protokolle),
+         - setzt alles mit js/antwort_bau.js (B3) zu EINER gesprochenen Antwort zusammen; Teilfehler werden genannt, erfolgreiche Teile bleiben.
+       Geändert wird nichts: nur Teile, die als reine Auskunft markiert sind, laufen lokal. Schreibende Aktionen gehen nie über diesen Weg.
+       Greift nur, wenn mindestens ein Teil eine reine Auskunft ist; sonst läuft alles wie bisher (Fragen nur für die KI bleiben bei der KI).
+       Abhängige Teile ("danach", "dort", "dann", "dabei", "damit", "davor", "dazu"): werden NICHT zerlegt; der ganze Satz geht direkt an die KI,
+       die frühen lokalen Einzelbefehle werden übersprungen (kein Schleifenrisiko: der Satz läuft nicht noch einmal durch diesen Eintrag).
+       Erkennung (eng): Satz beginnt mit Fragewort; Trennung nur bei "und"/"?" + weiterem Fragewort; höchstens 3 Fragen; jeder Teil mindestens 3 Wörter;
+       nicht bei wenn/falls/sobald/Protokoll. Ein normales "und" in einer einzelnen Frage trennt nicht.
+       ============================================================ */
+    const FW = '(?:wann|wie|was|wo|wer|wem|wen|welche|welcher|welches|welchen|welchem|woher|wohin|warum|wieso|weshalb|wieviel|wieviele)';
+    const FRAGE_TRENNER = new RegExp('\\s*(?:\\?\\s*|,?\\s+und\\s+)(?=' + FW + '\\b)', 'i');
+    const FRAGE_START = new RegExp('^' + FW + '\\b', 'i');
+    const BEZUG = /\b(?:danach|dort|dann|dabei|damit|davor|dazu)\b/i;
+    const MAX_FRAGEN = 3, KI_GRENZE_MS = 45000;
+    let sperre = false;   // Schutz gegen erneutes Durchlaufen desselben Handlers (Bypass-Flag)
+
+    function frageAnalyse(text) {
+        const t = String(text || '').trim().replace(/[?!.\s]+$/, '');
+        if (!t || t.split(/\s+/).length > 40) return null;
+        if (/\b(wenn|falls|sobald|protokoll)\b/i.test(t)) return null;
+        if (!FRAGE_START.test(t)) return null;
+        const p = t.split(FRAGE_TRENNER).map(x => x.replace(/^[\s,;.]+|[\s,;.]+$/g, '')).filter(Boolean);
+        if (p.length < 2 || p.length > MAX_FRAGEN) return null;
+        if (p.some(x => x.split(/\s+/).length < 3 || !FRAGE_START.test(x))) return null;
+        return { teile: p.map(x => x.charAt(0).toUpperCase() + x.slice(1) + '?'), abhaengig: BEZUG.test(t) };
+    }
+    function sichereNamen() {
+        try { const F = window.jvFaehigkeiten; return F && typeof F.reineAuskuenfte === 'function' ? F.reineAuskuenfte() : []; } catch (e) { return []; }
+    }
+    /* Führt einen Teil als reine Auskunft aus, falls einer der markierten Befehle ihn übernimmt. Die Sprachausgabe wird aufgefangen. null = kein sicherer Befehl. */
+    function sichererTeil(teil, namen) {
+        const J = window.jvCommands;
+        if (!J || typeof J.nur !== 'function' || !namen.length) return null;
+        const fang = [], orig = window.speak;
+        window.speak = function (t) { fang.push(String(t == null ? '' : t)); };
+        let ok = false;
+        try { ok = !!J.nur(namen, teil); } catch (e) { ok = false; } finally { window.speak = orig; }
+        return ok ? { text: fang.join(' ').trim() } : null;
+    }
+    function ausfallText(kiTeile) {
+        return kiTeile.length && kiTeile.every(x => /wetter|regen|schirm|temperatur|\bgrad\b/i.test(x)) ? 'Wetter konnte ich gerade nicht laden.' : 'Dazu konnte ich gerade keine Antwort holen.';
+    }
+    function mitTimeout(p, ms) { return Promise.race([p, new Promise(res => setTimeout(() => res({ zeit: true }), ms))]); }
+
+    async function frageAusfuehren(a, erg) {
+        const plaetze = [], kiTeile = [];
+        let kiPlatz = -1;
+        a.teile.forEach((t, i) => {
+            if (erg[i]) plaetze.push({ ok: !!erg[i].text, text: erg[i].text || 'Dazu konnte ich gerade nichts ermitteln.' });
+            else { kiTeile.push(t); if (kiPlatz < 0) { kiPlatz = plaetze.length; plaetze.push(null); } }
+        });
+        let karten = [];
+        if (kiTeile.length) {
+            let antwort = '', fehler = false, fertig = false;
+            try {
+                const r = await mitTimeout(Promise.resolve(window.sendToGroqSmart(kiTeile.map((x, i) => (i ? x.charAt(0).toLowerCase() + x.slice(1) : x).replace(/\?$/, '')).join(' und ') + '?', { nurLesen: true, collect: (r, c, meta) => { fertig = true; antwort = String(r || ''); karten = c || []; if (meta && meta.fehler) fehler = true; } })), KI_GRENZE_MS);
+                if (r && r.zeit) fehler = true;
+            } catch (e) { fehler = true; }
+            if (!fertig || !antwort.trim()) fehler = true;
+            plaetze[kiPlatz] = fehler ? { ok: false, text: ausfallText(kiTeile) } : { ok: true, text: antwort };
+        }
+        const teile = plaetze.filter(Boolean);
+        const oks = teile.filter(x => x.ok).map(x => x.text);
+        let text;
+        try { text = window.jvAntwort && typeof window.jvAntwort.baue === 'function' ? window.jvAntwort.baue({ basis: oks.join(' '), sonder: teile, okAnzahl: oks.length }) : teile.map(x => x.text).join(' '); }
+        catch (e) { text = teile.map(x => x.text).join(' '); }
+        try { if (karten.length && typeof window.showActionCards === 'function') window.showActionCards(karten); } catch (e) { }
+        try { window.speak(text, typeof window.continueConversation === 'function' ? window.continueConversation : undefined); } catch (e) { }
+    }
+
+    function frageBefehl(text, next) {
+        if (sperre || (window.jvMehrfachfrage && window.jvMehrfachfrage.umgehen === true)) return next(text);
+        const a = frageAnalyse(text);
+        if (!a) return next(text);
+        const namen = sichereNamen();
+        if (!namen.length || !window.jvCommands || typeof window.jvCommands.nur !== 'function') return next(text);
+        const erg = a.teile.map(t => sichererTeil(t, namen));
+        if (!erg.some(Boolean)) return next(text);   // keine sichere lokale Auskunft dabei: alles wie bisher
+        if (a.abhaengig) {   // Teile hängen voneinander ab: nicht zerlegen, ganzer Satz direkt an die KI (lokale Einzelbefehle übersprungen)
+            sperre = true;
+            try { anKI(String(text)); } finally { sperre = false; }
+            return true;
+        }
+        frageAusfuehren(a, erg).catch(e => { console.error('Mehrfachfrage', e && e.message); });
+        return true;
+    }
+    window.jvMehrfachfrage = { analyse: frageAnalyse, umgehen: false };
+    if (window.jvCommands && typeof window.jvCommands.use === 'function') window.jvCommands.use('mehrfachfrage', frageBefehl, 0.05);
+
     window.jvMehrfach = { teile };
     if (window.jvCommands && typeof window.jvCommands.use === 'function') window.jvCommands.use('mehrfach', befehl, 0.5);
 })();

@@ -39,14 +39,18 @@
     }
 
     if (typeof window.executeAction === 'function' && !window.executeAction._gedaechtnis) {
-        const originalExecute = window.executeAction;
-        const wrappedExecute = async function (action, text) {
-            const result = await originalExecute.apply(this, arguments);
-            try { if (action && action.type === 'memory_store') rememberInLongTerm(action, text); } catch (e) {}
-            return result;
+        // A5: Die Umhüllung wird über die Aktions-Kette (aktionen_kette.js) angemeldet, Rang 20. Sie gibt (wie früher) die Merkmale der inneren Funktion NICHT weiter (erbt:false). Fehlt die Kette, legt die Datei sie wie früher selbst um window.executeAction.
+        const baue = function (originalExecute) {
+            const wrappedExecute = async function (action, text) {
+                const result = await originalExecute.apply(this, arguments);
+                try { if (action && action.type === 'memory_store') rememberInLongTerm(action, text); } catch (e) {}
+                return result;
+            };
+            wrappedExecute._gedaechtnis = true;
+            return wrappedExecute;
         };
-        wrappedExecute._gedaechtnis = true;
-        window.executeAction = wrappedExecute;
+        if (window.jvAktionen && typeof window.jvAktionen.huelle === 'function') window.jvAktionen.huelle('gedaechtnis', 20, baue, { erbt: false });
+        else window.executeAction = baue(window.executeAction);
     }
 
     /* ---------- 2) Fragen nach dem Gedächtnis richtig beantworten ---------- */

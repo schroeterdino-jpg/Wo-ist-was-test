@@ -116,7 +116,7 @@ const alleJs = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js
     check('faehigkeiten.js hängt sich nirgends ein', !/jvCommands|jvChain|executeAction|localStorage|sessionStorage|fetch\(|ZaneNative|speechSynthesis/.test(quelle));
     check('keine jv_/nova_ Schlüssel in faehigkeiten.js', !/['"](jv_|nova_)/.test(quelle));
     const chain0 = A.kette().length;
-    check('Befehlsliste unverändert (94 Einträge)', chain0 === 94, String(chain0));
+    check('Befehlsliste unverändert (95 Einträge: 94 + mehrfachfrage aus B4)', chain0 === 95, String(chain0));
 
     console.log(fehler ? '\n' + fehler + ' Fähigkeiten-Prüfung(en) FEHLGESCHLAGEN, ' + ok + ' in Ordnung.' : 'Fähigkeiten-Verzeichnis in Ordnung (' + ok + ' Prüfungen).');
     process.exit(fehler ? 1 : 0);
