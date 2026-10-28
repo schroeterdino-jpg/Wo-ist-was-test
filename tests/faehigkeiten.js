@@ -13,7 +13,12 @@ const lies = p => fs.readFileSync(path.join(ROOT, p), 'utf8');
 const alleJs = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js')).map(f => ({ f, t: lies('js/' + f) }));
 
 (async () => {
-    const A = await starte({});
+    const A = starte({ native: true, jetzt: '2026-10-28T10:00:00+01:00' });
+    /* Voraussetzungen für Beispielsätze: Schicht der Woche eingetragen, ein Gegenstand im Gedächtnis */
+    const spaetschicht = () => { A.store['jv_schicht'] = JSON.stringify({ base: A.sb._schichtTest.weekNo({ y: 2026, m: 10, d: 28 }), shift: 'spaet', times: { frueh: 420, spaet: 765 }, auto: true }); };
+    spaetschicht();
+    await A.ki('Ich lege meinen Schlüssel unters Kopfkissen', [{ type: 'memory_store', memory_key: 'schlüssel', memory_value: 'unterm Kopfkissen' }]);
+    A.vorspulen(2000);
     const F = A.sb.jvFaehigkeiten;
     check('Verzeichnis ist geladen', !!F && Array.isArray(F.liste));
     if (!F) { console.log('Abbruch'); process.exit(1); }
@@ -77,7 +82,36 @@ const alleJs = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js
     check('Fotos: WhatsApp-Senden braucht die Handy-App (fotosenden.js)', /ZaneNative/.test(lies('js/fotosenden.js')));
     check('Schicht: Ansagen planen über ZaneNative.planAnsagen', /planAnsagen/.test(lies('js/plan_ansagen.js')));
 
-    /* Rein beschreibend: keine Einhängung, kein Speicher, keine Netzaufrufe */
+    /* B2: Jeder lokale Beispielsatz mit Modul wird von genau diesem Modul übernommen (wie in der App) */
+    for (const f of F.liste) for (const it of f.intents) for (const b of it.beispiele || []) {
+        if (b.weg !== 'lokal' || !b.modul) continue;
+        spaetschicht();
+        const r = await A.satz(b.satz);
+        check('Beispielsatz "' + b.satz + '" wird von ' + b.modul + ' übernommen', r.lokal && String(r.modul).split('+').includes(b.modul), 'war: ' + r.lokal + ' ' + r.modul);
+        A.vorspulen(2000);
+    }
+
+    /* B2: Hilfe zeigt die Fähigkeiten zusätzlich zu den alten Themen */
+    let karten = null; A.sb.showActionCards = c => { karten = c; }; A.sb.clearActionCards = () => { karten = null; };
+    const helpTexte = lies('js/help.js');
+    const alteThemen = (helpTexte.match(/^\s+\{ key: '/gm) || []).length;
+    A.sb.showHelpOverview();
+    check('Hilfe-Übersicht: acht Fähigkeiten-Karten plus alle alten Themen', karten && karten.length === 8 + alteThemen, karten && karten.length + ' statt ' + (8 + alteThemen));
+    check('Hilfe-Übersicht: die ersten acht Karten sind die Fähigkeiten in dieser Reihenfolge', karten && F.liste.every((f, i) => karten[i].title === f.name && karten[i].onclick === "showFaehigkeitHelp('" + f.id + "')"));
+    check('Hilfe-Übersicht: alte Themen unverändert dahinter (Termine & Kalender zuerst)', karten && karten[8].title === 'Termine & Kalender');
+    for (const f of F.liste) {
+        A.sb.showFaehigkeitHelp(f.id);
+        const t = (karten || []).map(c => c.title);
+        const bsp = [].concat(...f.intents.map(i => (i.beispiele || []).map(b => b.satz)));
+        check('Hilfe ' + f.id + ': zeigt Beispielsätze (höchstens vier) und die Rückkehr-Karte', karten && bsp.slice(0, 4).every(x => t.includes(x)) && t[t.length - 1] === 'Alle Themen');
+        check('Hilfe ' + f.id + ': Handy-App-Hinweis genau dann, wenn die Fähigkeit sie braucht', (f.handyApp !== 'nein') === t.some(x => /Handy-App/.test(x)));
+        check('Hilfe ' + f.id + ': Hinweis "meldet sich von selbst" genau bei proaktiven Fähigkeiten', (f.proaktiv.wert !== 'nein') === t.some(x => /von selbst/.test(x)));
+        check('Hilfe ' + f.id + ': Rückfrage-Hinweis genau bei Fähigkeiten mit kritischem Schritt', f.intents.some(i => i.art === 'kritisch') === t.some(x => /Fragt vor/.test(x)));
+    }
+    A.sb.showFaehigkeitHelp('gibtsnicht');
+    check('Hilfe: unbekannte Fähigkeit führt zur Übersicht', karten && karten.length === 8 + alteThemen);
+
+    /* Rein beschreibend: keine Einhängung, kein Speicher, keine Netzaufrufe (die Hilfe liest nur) */
     const quelle = lies('js/faehigkeiten.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/'(?:[^'\\\n]|\\.)*'/g, "''");   // ohne Kommentare und ohne Text in Anführungszeichen
     check('faehigkeiten.js hängt sich nirgends ein', !/jvCommands|jvChain|executeAction|localStorage|sessionStorage|fetch\(|ZaneNative|speechSynthesis/.test(quelle));
     check('keine jv_/nova_ Schlüssel in faehigkeiten.js', !/['"](jv_|nova_)/.test(quelle));

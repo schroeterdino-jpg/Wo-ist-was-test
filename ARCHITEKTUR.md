@@ -254,3 +254,8 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 - Regel: jeder Intent (Aktionsart, Befehl, Grundfunktion) hat genau EINEN Hauptbesitzer. Andere Fähigkeiten nennen ihn nur unter `abhaengigkeiten`.
 - `node tests/faehigkeiten.js` prüft, dass die Angaben zur App passen (Dateien, Aktionsarten, Befehle der Kette, ZaneNative). Läuft in GitHub Actions mit.
 - Wer eine Fähigkeit baut, ändert oder entfernt, pflegt auch diese Datei, sonst wird der Test rot.
+
+### B2: Hilfe aus dem Verzeichnis
+- `js/help.js`: die Übersicht („Was kannst du?“) zeigt zuerst acht Karten aus `window.jvFaehigkeiten`, danach unverändert die alten Themen (`HELP_TOPICS`). Tipp auf eine Fähigkeit (`showFaehigkeitHelp`): bis zu vier Beispielsätze, Hinweis-Karten (Handy-App, meldet sich von selbst, fragt vor dem Löschen nach) und „Alle Themen“. Fehlt das Verzeichnis, erscheinen nur die alten Themen.
+- Neue Felder je Fähigkeit: `icon`, `kurz` (Text der Karte). Beispielsätze mit `weg: 'lokal'` und `modul` werden im Test durch die echte Befehlskette geschickt und müssen von genau diesem Modul übernommen werden. Antworten auf Rückfragen (z. B. „30 Minuten vorher“) sind keine Beispielsätze.
+- Tour (`anleitung.js`) unverändert: es gibt keine neue Funktion, nur eine andere Darstellung der Hilfe.
