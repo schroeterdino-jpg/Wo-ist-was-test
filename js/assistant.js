@@ -40,7 +40,7 @@ async function sendToGroqSmart(text, opts = {}) {
         try { if (typeof diagError === 'function') diagError(e); } catch (x) {}
         try { window.dispatchEvent(new ErrorEvent('error', { message: 'KI-Ablauf: ' + ((e && e.message) || e), filename: 'js/assistant.js', lineno: 0 })); } catch (x) {}
         const failText = 'Da ist bei mir intern etwas nicht in Ordnung, wahrscheinlich passt eine Programmdatei nicht zur anderen. Den Grund siehst du unten im Bild.';
-        if (opts && opts.collect) opts.collect(failText, []); else speak(failText);
+        if (opts && opts.collect) opts.collect(failText, [], { fehler: true }); else speak(failText);
     }
 }
 
@@ -248,6 +248,13 @@ async function sendToGroqSmartCore(text, opts = {}) {
         const onlyChat = actions.every(a => !a.type || a.type === 'chat');
         const searchAction = actions.find(a => a.type === 'memory_search');
         const wantsSearch = !!searchAction || (onlyChat && /suche|wo ist/i.test(text));
+
+        // B4: Mehrfachfragen (js/mehrfach.js) laufen nur lesend: alles, was etwas speichert, ändert oder öffnet, wird hier verworfen
+        if (opts.nurLesen) {
+            const LESEND = ['chat', 'memory_search', 'calendar_search', 'web_lookup', 'email_check', 'email_read', 'travel_time', 'nearby_places', 'fuel_route', 'bahn'];
+            const behalten = actions.filter(a => LESEND.includes(a.type));
+            actions.length = 0; behalten.forEach(a => actions.push(a));
+        }
 
         // Alle Aktionen nacheinander ausführen; eine kaputte Aktion stoppt die anderen nicht
         const ctx = { counter: 0, cards: [], notes: [], panel: null };
@@ -548,7 +555,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
             `Hm, da war wohl gerade niemand zu Hause am anderen Ende. Einen Moment, und nochmal bitte.`
         ]);
         clearTimeout(ackTimer);
-        if (opts.collect) opts.collect(failText, []); else speak(failText);
+        if (opts.collect) opts.collect(failText, [], { fehler: true }); else speak(failText);
     } finally {
         clearTimeout(ackTimer);
         stopThinkingSound();

@@ -1,12 +1,13 @@
 /* ============================================================
    FÄHIGKEITEN-VERZEICHNIS (B1): beschreibt, was Jarvis kann. Rein beschreibend: diese Datei verändert kein Verhalten,
-   hängt sich nirgends ein und wird von keiner anderen Datei benutzt (die Hilfe folgt später, B2). Die Tests in
+   hängt sich nirgends ein und ändert kein Verhalten (die Hilfe liest sie, B2; js/mehrfach.js liest die Markierung reineAuskunft, B4). Die Tests in
    tests/jarvis_pruefstrecke.js prüfen, dass die Angaben hier zur echten App passen (Dateien, Aktionen, Befehle, ZaneNative).
 
    Zugriff:  window.jvFaehigkeiten.liste            alle Fähigkeiten (eingefroren, nur lesbar)
              window.jvFaehigkeiten.nach('kalender') eine Fähigkeit
              window.jvFaehigkeiten.besitzerVon('aktion', 'calendar_delete')  -> Fähigkeit, die diesen Intent besitzt
              window.jvFaehigkeiten.uebergreifend    Regeln, die für mehrere Fähigkeiten gelten (z. B. Rückfrage vor dem Löschen)
+             window.jvFaehigkeiten.reineAuskuenfte()  Namen der Befehle mit reineAuskunft (B4)
              window.jvFaehigkeiten.nurHandyApp      Funktionen, die ganz ('ja') oder teilweise nur mit der Jarvis-Handy-App gehen (B6)
 
    Felder je Fähigkeit:
@@ -17,6 +18,8 @@
                       bezug  der Name, zum Beispiel 'calendar_delete' oder 'was_steht_an'
                       art    'lesen' = nur Auskunft; 'aendern' = ändert Daten/Einstellungen oder löst etwas aus (zum Beispiel startet die Navigation);
                              'kritisch' = löscht, schickt etwas an andere oder lässt sich nicht einfach rückgängig machen
+                      reineAuskunft  (nur bei 'befehl' + 'lesen', B4) true = antwortet sofort mit einem Text, ohne Speicheränderung, Netz, Fenster, Navigation und ohne spätere Sprachausgabe.
+                                     Nur solche Befehle darf js/mehrfach.js bei Mehrfachfragen einzeln ausführen; tests/mehrfachfrage.js beweist die Eigenschaften für jeden markierten Befehl.
                       vorgaenge, beispiele [{ satz, weg: 'lokal'|'ki', modul (nur bei lokal: Name in der Befehlsliste) }]
      abhaengigkeiten  was diese Fähigkeit verwendet, OHNE es zu besitzen:
                       { typ: 'faehigkeit', ref, wofuer, pflicht } | { typ: 'kontext', ref, wofuer, pflicht } | { typ: 'bereich', ref, wofuer }
@@ -51,7 +54,7 @@
                   beispiele: [{ satz: 'Lösch den Friseurtermin morgen', weg: 'ki' }] },
                 { typ: 'aktion', bezug: 'calendar_search', art: 'lesen', vorgaenge: ['Im Google Kalender nach Terminen und Geburtstagen suchen'],
                   beispiele: [{ satz: 'Wann hat Schatz Geburtstag?', weg: 'ki' }] },
-                { typ: 'befehl', bezug: 'was_steht_an', art: 'lesen', vorgaenge: ['Termine, Erinnerungen, Aufgaben und Einkaufsliste vorlesen'],
+                { typ: 'befehl', bezug: 'was_steht_an', art: 'lesen', reineAuskunft: true, vorgaenge: ['Termine, Erinnerungen, Aufgaben und Einkaufsliste vorlesen'],
                   beispiele: [{ satz: 'Was steht morgen in meinem Kalender?', weg: 'lokal', modul: 'was_steht_an' }, { satz: 'Was steht heute an?', weg: 'lokal', modul: 'was_steht_an' }] },
                 { typ: 'befehl', bezug: 'terminfinder', art: 'aendern', vorgaenge: ['Freie Zeiten finden und nach Auswahl eintragen'],
                   beispiele: [{ satz: 'Ich müsste mal zu meiner Mutter fahren', weg: 'lokal', modul: 'terminfinder' }] }
@@ -177,7 +180,7 @@
                   beispiele: [{ satz: 'Vergiss das mit dem Konzert', weg: 'ki' }] },
                 { typ: 'aktion', bezug: 'episode_asked', art: 'aendern', vorgaenge: ['Vermerken, dass nachgefragt wurde'] },
                 { typ: 'aktion', bezug: 'episode_nicht_fragen', art: 'aendern', vorgaenge: ['Zu einem Eintrag nicht mehr nachfragen'] },
-                { typ: 'befehl', bezug: 'gedaechtnis_zeit', art: 'lesen', vorgaenge: ['Wann wurde ein Gegenstand abgelegt?'],
+                { typ: 'befehl', bezug: 'gedaechtnis_zeit', art: 'lesen', reineAuskunft: true, vorgaenge: ['Wann wurde ein Gegenstand abgelegt?'],
                   beispiele: [{ satz: 'Wann habe ich den Schlüssel abgelegt?', weg: 'lokal', modul: 'gedaechtnis_zeit' }] }
             ],
             abhaengigkeiten: [
@@ -230,7 +233,7 @@
             intents: [
                 { typ: 'befehl', bezug: 'schicht', art: 'aendern', vorgaenge: ['Schicht der Woche setzen'],
                   beispiele: [{ satz: 'Diese Woche Frühschicht', weg: 'lokal', modul: 'schicht' }] },
-                { typ: 'befehl', bezug: 'schicht_auskunft', art: 'lesen', vorgaenge: ['Schichtzeiten und Aufstehzeit nennen'],
+                { typ: 'befehl', bezug: 'schicht_auskunft', art: 'lesen', reineAuskunft: true, vorgaenge: ['Schichtzeiten und Aufstehzeit nennen'],
                   beispiele: [{ satz: 'Wann beginnt meine Spätschicht?', weg: 'lokal', modul: 'schicht_auskunft' }] },
                 { typ: 'befehl', bezug: 'frueher-los', art: 'aendern', vorgaenge: ['Abfahrt und Briefing an einem Tag vorziehen (höchstens 60 Minuten)'],
                   beispiele: [{ satz: 'Ich muss Donnerstag um 13:15 auf der Arbeit sein', weg: 'lokal', modul: 'frueher-los' }] },
@@ -313,5 +316,10 @@
         }
         return null;
     }
-    window.jvFaehigkeiten = Object.freeze({ liste: LISTE, uebergreifend: UEBERGREIFEND, nurHandyApp: NUR_HANDY_APP, nach: nach, besitzerVon: besitzerVon });
+    function reineAuskuenfte() {
+        var out = [];
+        LISTE.forEach(function (f) { f.intents.forEach(function (it) { if (it.typ === 'befehl' && it.art === 'lesen' && it.reineAuskunft === true && out.indexOf(it.bezug) < 0) out.push(it.bezug); }); });
+        return out;
+    }
+    window.jvFaehigkeiten = Object.freeze({ reineAuskuenfte: reineAuskuenfte, liste: LISTE, uebergreifend: UEBERGREIFEND, nurHandyApp: NUR_HANDY_APP, nach: nach, besitzerVon: besitzerVon });
 })();
