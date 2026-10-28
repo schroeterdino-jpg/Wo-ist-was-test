@@ -102,7 +102,22 @@
             }
         } catch (e) { }
     }
+    /* B6: Befehle, die es nur mit der Jarvis-Handy-App gibt. Ohne ZaneNative (Browser) bekommt der Nutzer eine klare Antwort, statt dass der Satz still bei der KI landet.
+       Die Muster sind absichtlich eng (Schlafmodus/Vertretung/Wissensblatt-Wörter), damit normale Sätze nicht abgefangen werden. Mit Handy-App wird hier nichts geprüft. */
+    const NUR_APP = 'Diese Funktion geht nur in der Jarvis-Handy-App.';
+    function nurAppBefehl(txt) {
+        const t = norm(txt).replace(/^(?:hey |hallo |ok |okay )?(?:jarvis|zane|nova) /, '').replace(/^bitte /, '');
+        if (!t || t.split(' ').length > 14) return false;
+        const smt = /schlaf ?modus/.test(t);
+        return /\b(?:merke?|schreibe?|trage?) (?:dir |bitte )?(?:fuers|fuer das|auf dem|im|ins|auf|in das) (?:das |dein )?wissensblatt\b|\bwas steht (?:alles )?(?:auf|im) (?:dem |meinem )?wissensblatt\b|\b(?:lies|lese?|zeige?) (?:mir )?(?:das |mein )?wissensblatt\b|\b(?:streich|streiche|loesch|loesche|entfern|entferne) .+ (?:vom|von dem|aus dem|im) wissensblatt\b/.test(t)
+            || /\b(?:vertretung|vertretungsmodus)\b.*\b(?:an|ein|einschalten|aktivieren|aus|ausschalten|beenden|deaktivieren)\b|\b(?:vertretung|springe?) .*\bnach \d{1,3} minuten\b|\b(?:spring|springe) (?:bitte )?(?:fuer mich )?ein\b|\b(?:vertretung|vertretungs) ?(?:protokoll|log)\b|\bwas ist mit der vertretung\b/.test(t)
+            || /\b(?:warum|wieso|weshalb)\b.*\bdu\b.*\b(?:nicht|kein)\b.*\b(?:geantwortet|reagiert|eingesprungen)\b/.test(t)
+            || /\bverpasste? anrufe?\b.*\b(?:aus|ausschalten|beenden|deaktivieren|an|ein|einschalten|aktivieren|beantworten)\b/.test(t)
+            || /\bwer hat fuer mich geantwortet\b|\bwas hast du fuer mich geantwortet\b|\bwem antwortest du\b|\bwer darf (?:eine )?antwort\w*\b|\bschlaf ?antwort (?:ist|lautet|soll sein)\b/.test(t)
+            || (smt && (/\b(?:erlaube?|erlauben|verbiete?|verbieten)\b/.test(t) || /\bkontakte?\b/.test(t) || /(?:feste?[nm]? (?:antwort|text)|ohne ki|nur (?:den )?festen|freie?[nmr]? antwort|mit ki|selbst antworten)/.test(t)));
+    }
     function befehl(txt, next) {
+        if (!N() && nurAppBefehl(txt)) { sagen(NUR_APP); return true; }
         const wb = wissenBefehl(txt); if (wb) { sagen(wb); return true; }
         try {
             if (N() && typeof N().anredeSetzen === 'function') {
@@ -206,6 +221,6 @@
     }
     if (!cmd()) { let n = 0; const iv = setInterval(function () { if (cmd() || ++n > 40) clearInterval(iv); }, 250); }
     setTimeout(kontextSenden, 7000);
-    window.jvSchlaf = { befehl: befehl, vorlesen: vorlesen, pruefe: pruefe };
+    window.jvSchlaf = { befehl: befehl, vorlesen: vorlesen, pruefe: pruefe, nurAppBefehl: nurAppBefehl };
     setTimeout(pruefe, 3000);
 })();

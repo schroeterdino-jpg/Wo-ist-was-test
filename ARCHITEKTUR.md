@@ -289,6 +289,13 @@ Außen -> innen: 10 loeschen_fragen, 20 gedaechtnis, 30 geburtstag_ganztag, 40 l
 - Neue Felder je Fähigkeit: `icon`, `kurz` (Text der Karte). Beispielsätze mit `weg: 'lokal'` und `modul` werden im Test durch die echte Befehlskette geschickt und müssen von genau diesem Modul übernommen werden. Antworten auf Rückfragen (z. B. „30 Minuten vorher“) sind keine Beispielsätze.
 - Tour (`anleitung.js`) unverändert: es gibt keine neue Funktion, nur eine andere Darstellung der Hilfe.
 
+
+## Handy-App-Funktionen im Browser (B6)
+
+- Befehle, die nur mit der Jarvis-Handy-App gehen (Vertretung, Wissensblatt, Schlafmodus-Kontakte, verpasste Anrufe, Schlafantwort), antworten im Browser (ohne `ZaneNative`) mit „Diese Funktion geht nur in der Jarvis-Handy-App.“ statt still bei der KI zu landen. Das macht `nurAppBefehl` in `js/schlaf_antwort.js`; die Muster sind absichtlich eng. Mit Handy-App ändert sich nichts.
+- `window.jvFaehigkeiten.nurHandyApp` listet Schlafmodus/Vertretung, Wecker, Ortserinnerungen und Fahrmodus mit `handyApp` 'ja' oder 'teilweise'. Es sind keine neuen Hilfe-Karten.
+- Bewusst nicht abgefangen (könnten auch normale Fragen sein): „Wer hat mir geschrieben?“, „Was habe ich verpasst?“, „Wie stellst du dich vor?“, „Bei Mama bin ich der Papa“ (Anrede). Tests: `node tests/handyapp.js`.
+
 ## C1a: Meldungs-Beobachter (`js/meldungen.js`, nur Beobachtung)
 - `window.jvMeldungen.beobachte({quelle, kanal[], grund, ausloeser, ereignis, bezug, text})` zählt nur mit, wann sich Jarvis von selbst meldet. Er ändert **nichts**: keine Texte, Zeiten, Ruhezeiten, Mindestabstände, Einmal-Regeln; nichts wird blockiert, verzögert oder zusammengefasst.
 - Nur Arbeitsspeicher, Ringpuffer 300. Kein localStorage/sessionStorage, kein Netz, kein Server, **nicht** der Schlüssel `jv_meldungen` (der gehört plan_ansagen.js). Fehlt die Datei oder wirft sie, laufen alle Stellen wie vorher (jeder Aufruf steht in `try/catch`).
