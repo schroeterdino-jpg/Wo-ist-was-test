@@ -248,6 +248,23 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 - Grund: Vercel Hobby erlaubt 1 Mio. CDN-Anfragen pro Monat (Stand 28.10.2026 rund 565 000). Mit langem Cache fragt das Handy bei unveränderten Dateien nicht mehr nach.
 - Fremde Skripte (Tailwind, Google) bekommen keinen Stempel. Skripte, die andere Skripte nachladen, laden nur Fremd-Adressen.
 
+## A5, Teil 1: Messnetz für die Aktions-Kette (`tests/aktionen.js`)
+Jede Aktion der KI läuft durch `executeAction`. Davor hängen heute 8 Umhüllungen; ihre Reihenfolge ergibt sich nur aus der Lade-Reihenfolge in `index.html`
+(innen nach außen): formulierungen, routinen, lagebild, langzeit, langzeit_erinnern, geburtstag_ganztag, gedaechtnis, loeschen_fragen (ganz außen).
+Das Messnetz hält fest, was die Kette HEUTE tut, damit ein späterer Umbau (A5 Teil 2, benannte Kette) nachweisbar nichts verändert. Es ändert keinen App-Code.
+- `tests/aktionen_szenarien.js`: die Szenarien (jedes startet eine frische App: feste Uhr Mi 28.10.2026 10:00, `Math.random` = 0.5, Netz und Handy-Brücke als Attrappe, Google als Attrappe mit Gedächtnis).
+- `tests/aktionen.js`: das Messprogramm. Fingerabdruck pro Schritt: Fehler (Name, Text, userMessage, auth), ctx (Zähler, Karten, Notizen, Fenster), Rückgabewert, Gesprochenes, geänderte Speicher-Schlüssel mit Wert (`jv_*`, `helfer_*` ...), Netzaufrufe in Reihenfolge (Methode, Adresse, Inhalt), Handy-Brücke, Zeitgeber (Art, Dauer, Anfang des Codes), `window.open`, Aufrufe der Hilfsfunktionen (Spione), ob die Löschfrage offen ist, Uhr. Am Ende: Merkmale der Endfunktion (`_loeschFrage`, `_gedaechtnis`).
+- `tests/aktionen_soll.json`: Fingerabdruck des Codes vor dem Umbau. Nur mit `node tests/aktionen.js --neu` neu schreiben, und nur, wenn sich das Verhalten gewollt ändert.
+- Es wird nichts herausgerechnet. Einzige Ausnahmen: Speicherwerte über 600 Zeichen stehen als Länge + Anfang + Prüfsumme, und der Aufrufer-Name der Sprachausgabe fehlt (hängt vom Stapel ab).
+- Prüft außerdem: Abdeckung aller 27 Grund-Aktionstypen und der 7 Typen der Umhüllungen, Wiederholung Bit für Bit identisch, und die **Wächterprobe**: lässt man eine der 8 Umhüllungs-Dateien weg (`ohneSkripte`), muss sich das Verhalten in mindestens 2 Szenarien sichtbar ändern. Aufruf: `node tests/aktionen.js` (ca. 30 s), `--schnell` ohne Wächterprobe, `--bericht` mit Listen.
+- Gegenprobe zur Reihenfolge (einmalig von Hand gemacht, nicht eingecheckt): `index.html` testweise umgestellt (Löschfrage hinter langzeit, Ganztag vor langzeit, lagebild hinter langzeit, routinen ganz außen, langzeit_erinnern vor langzeit): in jedem Fall schlug das Messnetz an.
+
+Bekannte bestehende Verhaltensweisen, die durch die Reihenfolge entstehen (werden in A5 NICHT repariert, nur festgehalten; die Szenarien pinnen sie):
+1. Löschfrage muss außerhalb von langzeit liegen, sonst löscht `episode_forget` ohne Rückfrage.
+2. Ganztags-Termine (Geburtstag, `calendar_allday`) liegen außerhalb von langzeit_erinnern/langzeit: keine Stundenfrage, kein Tageslog, kein Routinen-Zähler, kein Eintrag über `routinen`.
+3. `routinen` zählt nur, was bis zu ihm durchkommt (eine Löschfrage-Aktion oder ein Ganztags-Termin wird nicht gezählt; ein Fehler danach, z. B. Standort nicht ermittelbar bei `parking_save`, zählt trotzdem).
+4. Das Tageslog (`langzeit`) liegt außerhalb von `lagebild`: bei "Route zu X" mit Lagebild steht "Route geöffnet" im Tageslog, obwohl Maps nicht geöffnet wurde.
+
 ## Fähigkeiten-Verzeichnis (B1)
 - `js/faehigkeiten.js` beschreibt, was Jarvis kann (`window.jvFaehigkeiten`): acht Fähigkeiten (Kalender, Wetter, Fahrzeit und Navigation, Erinnerungen, Gedächtnis, Fotos, Schicht, Preissuche). Je Fähigkeit: Intents mit Sicherheitsstufe (lesen/ändern/kritisch), Beispielsätze (lokal oder KI), Abhängigkeiten, Handy-App-Bedarf, proaktive Auslöser, beteiligte Module, bekannte Grenzen.
 - Rein beschreibend: hängt sich nirgends ein, ändert kein Verhalten, wird noch von keiner Datei benutzt (die dynamische Hilfe folgt in B2).
