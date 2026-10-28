@@ -247,3 +247,10 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 - Ablauf bei jeder Änderung an einer Datei in `js/` oder an `style.css`: `node tools/stempel.js` ausführen und `index.html` mit einchecken. Die Tests (`lauf.js`) schlagen sonst fehl.
 - Grund: Vercel Hobby erlaubt 1 Mio. CDN-Anfragen pro Monat (Stand 28.10.2026 rund 565 000). Mit langem Cache fragt das Handy bei unveränderten Dateien nicht mehr nach.
 - Fremde Skripte (Tailwind, Google) bekommen keinen Stempel. Skripte, die andere Skripte nachladen, laden nur Fremd-Adressen.
+
+## Fähigkeiten-Verzeichnis (B1)
+- `js/faehigkeiten.js` beschreibt, was Jarvis kann (`window.jvFaehigkeiten`): acht Fähigkeiten (Kalender, Wetter, Fahrzeit und Navigation, Erinnerungen, Gedächtnis, Fotos, Schicht, Preissuche). Je Fähigkeit: Intents mit Sicherheitsstufe (lesen/ändern/kritisch), Beispielsätze (lokal oder KI), Abhängigkeiten, Handy-App-Bedarf, proaktive Auslöser, beteiligte Module, bekannte Grenzen.
+- Rein beschreibend: hängt sich nirgends ein, ändert kein Verhalten, wird noch von keiner Datei benutzt (die dynamische Hilfe folgt in B2).
+- Regel: jeder Intent (Aktionsart, Befehl, Grundfunktion) hat genau EINEN Hauptbesitzer. Andere Fähigkeiten nennen ihn nur unter `abhaengigkeiten`.
+- `node tests/faehigkeiten.js` prüft, dass die Angaben zur App passen (Dateien, Aktionsarten, Befehle der Kette, ZaneNative). Läuft in GitHub Actions mit.
+- Wer eine Fähigkeit baut, ändert oder entfernt, pflegt auch diese Datei, sonst wird der Test rot.
