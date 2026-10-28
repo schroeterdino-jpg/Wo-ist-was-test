@@ -66,7 +66,8 @@ const erinn = id => ({ art: 'erinnerung', schluessel: String(id), herkunft: 'id'
         check('Shadow-Datei: berührt keinen bestehenden Schlüssel (jv_/nova_)', !/['"`](jv_|nova_)/.test(q));
         check('api/sync.js bleibt unberührt', !/jvRegeln|meldungs_regeln/.test(lies('api/sync.js')));
         const dateien = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && f !== 'meldungs_regeln.js' && f !== 'meldungen.js');
-        check('keine der Meldungsdateien (und keine andere) kennt die Shadow-Datei', dateien.every(f => !/jvRegeln|meldungs_regeln/.test(lies('js/' + f))));
+        const STUFE1_DATEIEN = ['zane_redet.js', 'kennenlernen.js', 'voice.js'];   // C1 Stufe 1: nur diese drei kennen jvRegeln (Gate und Nutzer-Zeitstempel), siehe tests/c1_stufe1.js
+        check('keine der Meldungsdateien (und keine andere) kennt die Shadow-Datei, außer den drei der Stufe 1 (zane_redet, kennenlernen, voice)', dateien.every(f => STUFE1_DATEIEN.includes(f) || !/jvRegeln|meldungs_regeln/.test(lies('js/' + f))));
         check('weckruf-src (APK) bleibt unberührt', !/jvRegeln|meldungs_regeln/.test(fs.readdirSync(path.join(ROOT, 'weckruf-src'), { recursive: true }).filter(f => /\.(java|kt|xml|gradle)$/.test(String(f))).map(f => lies('weckruf-src/' + f)).join('')));
     }
 

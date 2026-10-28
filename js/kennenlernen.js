@@ -158,6 +158,18 @@
         return bekanntes().then(function (bek) { return erfinde(bek); }).then(function (f) { return f || ausListe(); });
     }
 
+    /* C1 Stufe 1: darf Jarvis jetzt von selbst fragen? Nur ein berechnetes "nein" verwirft die Frage (dann kein Zustand, kein Nachholen: 30 min Pause,
+       nur im Arbeitsspeicher). Fail-open: fehlt C1, ist es aus oder wirft es, läuft alles wie bisher. */
+    var c1Bis = 0;
+    function c1Darf(text) {
+        try {
+            var eigene; try { eigene = window.jvZaneRedet && typeof window.jvZaneRedet.stufeGewaehlt === 'function' ? window.jvZaneRedet.stufeGewaehlt() : undefined; } catch (e2) { eigene = undefined; }
+            var nein = window.jvRegeln && typeof window.jvRegeln.darfSprechen === 'function' && window.jvRegeln.darfSprechen({ quelle: 'kennenlernen', grund: 'kennenlern-frage', ausloeser: 'timer', text: text || null, eigeneStufe: eigene }) === false;
+            if (nein) c1Bis = Date.now() + 30 * 60000;
+            return !nein;
+        } catch (e) { return true; }
+    }
+
     function stelle(erzwingen) {
         if (laeuft || pending) return;
         laeuft = true;
@@ -165,6 +177,7 @@
             laeuft = false;
             if (!f) { if (erzwingen) sag('Mir fällt gerade keine gute Frage ein. Erzähl mir einfach selbst, was dir einfällt.'); return; }
             if (!erzwingen && !ruhig()) return;   // inzwischen ist etwas los: beim nächsten Takt wieder
+            if (!erzwingen && !c1Darf(f.text)) return;   // C1 Stufe 1: verworfen, noch nichts gezählt oder gemerkt
             if (!erzwingen) { var l = log(); l.n++; l.last = Date.now(); logSave(l); }
             pending = { id: f.id, thema: f.thema, frage: f.text, t: Date.now() };
             textMerken(f.text);
@@ -182,6 +195,7 @@
         if (Date.now() - geoeffnet < ERST_MS) return;
         if (l.last && Date.now() - l.last < ABSTAND_MS) return;
         if (!zeitFenster() || !ruhig()) return;
+        if (Date.now() < c1Bis || !c1Darf(null)) return;   // C1 Stufe 1: dieser Zeitpunkt verfällt
         stelle(false);
     }
     setInterval(takt, 10000);

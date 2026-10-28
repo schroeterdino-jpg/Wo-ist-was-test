@@ -88,6 +88,8 @@ function starte(opt) {
         accessToken: '', isProcessing: false
     };
     sb.webkitAudioContext = sb.AudioContext;
+    const erkenner = [];
+    if (opt.spracherkennung) sb.SpeechRecognition = function () { erkenner.push(this); this.start = function () { }; this.stop = function () { }; this.abort = function () { }; };   // nur auf Wunsch: Attrappe für die Spracherkennung (A.erkenner[0].onresult(...))
     sb.window = sb; sb.globalThis = sb; sb.self = sb; sb.top = sb; sb.parent = sb;
     sb.innerWidth = 400; sb.innerHeight = 800;
 
@@ -212,7 +214,7 @@ function starte(opt) {
             return () => '';
         } });
     }
-    return { sprechzeiten, lassLaufen, vorspulen, ereignisse, uhr, sb, gesagt, store, aufrufe, ladefehler, satz, ki, zustand, setze, lese, behandelt, reihenfolge, kette: () => sb.jvCommands.list(), vm };
+    return { erkenner, sprechzeiten, lassLaufen, vorspulen, ereignisse, uhr, sb, gesagt, store, aufrufe, ladefehler, satz, ki, zustand, setze, lese, behandelt, reihenfolge, kette: () => sb.jvCommands.list(), vm };
 }
 
 module.exports = { starte, ROOT, lies };

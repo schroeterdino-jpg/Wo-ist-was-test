@@ -821,6 +821,7 @@ if (SpeechRecognition) {
     }
 
     function handleRecognizedText(text) {
+        try { if (window.jvRegeln && typeof window.jvRegeln.nutzerAktiv === 'function') window.jvRegeln.nutzerAktiv(); } catch (e) { }   // C1 Stufe 1: ein gesprochener Nutzersatz zählt wie Tippen (nur Zeitstempel)
         text = fixKnownMishearings(text);
         if (typeof window.__jvAbfangen === 'function') { try { if (window.__jvAbfangen(text)) { isFollowUp = false; clearFollowUpTimer(); setIdleUi(); return; } } catch (e) {} }
         isFollowUp = false;
