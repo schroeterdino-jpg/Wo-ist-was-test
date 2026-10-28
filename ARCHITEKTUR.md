@@ -306,6 +306,17 @@ Außen -> innen: 10 loeschen_fragen, 20 gedaechtnis, 30 geburtstag_ganztag, 40 l
 - `js/actions.js` ist dafür nicht geändert (Golden Master 97/97, `aktionen_soll.json` unverändert). Bekannte Grenze: Läuft gleichzeitig der Mail-Beobachter mit eigenem Termin-Check, kann dessen Ausfall in die Liste geraten (sehr selten).
 - Tests: `node tests/antwort.js`.
 
+
+## Mehrfachfragen, Stufe 1 (B4)
+
+- Der Befehl `mehrfachfrage` (Order 0.05, in `js/mehrfach.js`) steht VOR den lokalen Auskunftsbefehlen. Früher nahm zum Beispiel `was_steht_an` den ganzen Satz „Was steht Samstag an und was könnten wir danach …“ und beantwortete nur den ersten Teil.
+- Erkennung (eng): Satz beginnt mit Fragewort, getrennt wird nur bei „und“ oder „?“ plus weiterem Fragewort, höchstens 3 Fragen, jeder Teil mindestens 3 Wörter, nicht bei wenn/falls/sobald/Protokoll. Ein „und“ innerhalb einer Frage trennt nicht („Wann beginnt und endet meine Spätschicht?“).
+- Der neue Weg greift nur, wenn mindestens ein Teil eine **reine Auskunft** ist. Welche Befehle das sind, steht in der Registry (`reineAuskunft: true` in `js/faehigkeiten.js`, `jvFaehigkeiten.reineAuskuenfte()`): `was_steht_an`, `schicht_auskunft`, `gedaechtnis_zeit`. `tests/mehrfachfrage.js` beweist je Befehl: sofortiger Text, kein Speicher, kein Netz, kein Fenster, keine Navigation, keine Aktion, keine spätere Sprachausgabe. Sonst darf ein Befehl nicht markiert werden.
+- Ausführung: markierte Teile einzeln über `jvCommands.nur(namen, text)` (nur diese Einträge, ihre Sprachausgabe wird aufgefangen); alle übrigen Fragen in EINEM KI-Aufruf mit `collect` und `nurLesen` (die KI darf dabei nur lesende Aktionen ausführen, Schreibendes wird verworfen); Zusammensetzen mit `jvAntwort.baue` (B3); eine gesprochene Antwort. Fällt die KI aus, steht z. B. „Morgen: … Wetter konnte ich gerade nicht laden.“
+- Teile mit Bezugswort (danach, dort, dann, dabei, damit, davor, dazu) werden nicht zerlegt: der ganze Satz geht direkt an die KI (lokale Einzelbefehle übersprungen, Schutz gegen Wiederholung: `sperre`; Abschalten per `jvMehrfachfrage.umgehen = true`). Das gilt nur, wenn ein Teil sonst von einer reinen Auskunft verschluckt worden wäre.
+- Bewusst unverändert: Einzelfragen, Fragen nur für die KI (Wetter, Fahrzeit, Bahn), Aussage + Fragen („Ich habe morgen … Termin in Hamburg. Wie wird dort das Wetter …“), Wetter + Vollmond (Vollmond öffnet ein Fenster, ist noch keine reine Auskunft; geplant als B4.1b: Berechnung in `sonnemond.js` von der Anzeige trennen), der Mehrfach-Befehlsweg („… und dann stell/setz/trag …“).
+- Bekannte Grenze: Liefert die KI für einen Lese-Teil gar keinen Text, ergänzt `assistant.js` wie immer den Standardsatz („Ist passiert …“). Die Befehlsliste hat jetzt 95 Einträge.
+
 ## C1a: Meldungs-Beobachter (`js/meldungen.js`, nur Beobachtung)
 - `window.jvMeldungen.beobachte({quelle, kanal[], grund, ausloeser, ereignis, bezug, text})` zählt nur mit, wann sich Jarvis von selbst meldet. Er ändert **nichts**: keine Texte, Zeiten, Ruhezeiten, Mindestabstände, Einmal-Regeln; nichts wird blockiert, verzögert oder zusammengefasst.
 - Nur Arbeitsspeicher, Ringpuffer 300. Kein localStorage/sessionStorage, kein Netz, kein Server, **nicht** der Schlüssel `jv_meldungen` (der gehört plan_ansagen.js). Fehlt die Datei oder wirft sie, laufen alle Stellen wie vorher (jeder Aufruf steht in `try/catch`).
