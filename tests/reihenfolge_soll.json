@@ -1,6 +1,5 @@
 {
  "protokoll": [
-  "places.js -> showActionCards",
   "panels.js -> buildMenuPanel",
   "voice.js -> speak",
   "voice.js -> speakBrowser",
@@ -17,48 +16,8 @@
   "contextplus.js -> buildSystemPrompt",
   "formulierungen.js -> executeAction",
   "routinen.js -> executeAction",
-  "lagebild.js -> showActionCards",
   "lagebild.js -> executeAction",
   "mailpush.js -> handleLocalCommand",
-  "photo.js -> parsePhotoRequest",
-  "photo.js -> processPhoto",
-  "photo.js -> handlePhotoCommand",
-  "photo.js -> parseFollowupTask",
-  "foto_adresse.js -> parsePhotoRequest",
-  "foto_adresse.js -> processPhoto",
-  "foto_adresse.js -> handlePhotoCommand",
-  "foto_adresse.js -> parseFollowupTask",
-  "foto_brief.js -> parsePhotoRequest",
-  "foto_brief.js -> processPhoto",
-  "foto_brief.js -> handlePhotoCommand",
-  "foto_brief.js -> parseFollowupTask",
-  "foto_abtippen.js -> parsePhotoRequest",
-  "foto_abtippen.js -> processPhoto",
-  "foto_abtippen.js -> handlePhotoCommand",
-  "foto_abtippen.js -> parseFollowupTask",
-  "foto_stundenplan.js -> parsePhotoRequest",
-  "foto_stundenplan.js -> processPhoto",
-  "foto_stundenplan.js -> handlePhotoCommand",
-  "foto_stundenplan.js -> parseFollowupTask",
-  "foto_essensplan.js -> parsePhotoRequest",
-  "foto_essensplan.js -> processPhoto",
-  "foto_essensplan.js -> handlePhotoCommand",
-  "foto_essensplan.js -> parseFollowupTask",
-  "foto_urlaubsplan.js -> parsePhotoRequest",
-  "foto_urlaubsplan.js -> processPhoto",
-  "foto_urlaubsplan.js -> handlePhotoCommand",
-  "foto_urlaubsplan.js -> parseFollowupTask",
-  "wunschliste.js -> parsePhotoRequest",
-  "wunschliste.js -> processPhoto",
-  "wunschliste.js -> handlePhotoCommand",
-  "wunschliste.js -> parseFollowupTask",
-  "foto_person.js -> parsePhotoRequest",
-  "foto_person.js -> processPhoto",
-  "foto_person.js -> handlePhotoCommand",
-  "foto_rezept.js -> parsePhotoRequest",
-  "foto_rezept.js -> processPhoto",
-  "foto_rezept.js -> handlePhotoCommand",
-  "foto_rezept.js -> parseFollowupTask",
   "sprueche.js -> speak",
   "toene.js -> speak",
   "fish.js -> speak",
@@ -77,8 +36,7 @@
   "gedaechtnis.js -> executeAction",
   "name.js -> buildSystemPrompt",
   "loeschen_fragen.js -> executeAction",
-  "teilen.js -> speak",
-  "fotosenden.js -> showActionCards"
+  "teilen.js -> speak"
  ],
  "ladefehler": [],
  "foto": {
@@ -382,6 +340,89 @@
   ],
   "kartenKette": [
    "Probe-Karte | x"
+  ],
+  "fragenOhneFoto": [
+   "ohne lastPhoto |  | sagt: Das Foto ist da. Was soll ich damit tun? | Aufrufe: 2 | vision: ",
+   "  Aufruf 1: 🍽️ Rezept lesen → runLastPhotoTask('rezept')",
+   "  Aufruf 1: 📚 Stundenplan merken → runLastPhotoTask('stundenplan')",
+   "  Aufruf 1: 🎁 Wunschliste einlesen → runLastPhotoTask('wunschliste')",
+   "  Aufruf 1: 🌴 Urlaubsplan eintragen → runLastPhotoTask('urlaubsplan')",
+   "  Aufruf 1: 🍽️ Essensplan merken → runLastPhotoTask('essensplan')",
+   "  Aufruf 1: 📤 Per WhatsApp senden → jvFotoSenden.senden()",
+   "  Aufruf 2: 🍽️ Rezept lesen → runLastPhotoTask('rezept')",
+   "  Aufruf 2: 🖨️ Abtippen · Merken → runLastPhotoTask('abtippen')",
+   "  Aufruf 2: 🎁 Wunschliste einlesen → runLastPhotoTask('wunschliste')",
+   "  Aufruf 2: 🌴 Urlaubsplan eintragen → runLastPhotoTask('urlaubsplan')",
+   "  Aufruf 2: 🍽️ Essensplan merken → runLastPhotoTask('essensplan')",
+   "  Aufruf 2: 📚 Stundenplan merken → runLastPhotoTask('stundenplan')",
+   "  Aufruf 2: ✉️ Brief auswerten → runLastPhotoTask('letter')",
+   "  Aufruf 2: 🛒 Auf die Einkaufsliste → runLastPhotoTask('shopping')",
+   "  Aufruf 2: 📅 Termine eintragen → runLastPhotoTask('events')",
+   "  Aufruf 2: 📍 Dorthin navigieren → runLastPhotoTask('address')",
+   "  Aufruf 2: 👤 Kontakt anlegen → runLastPhotoTask('contact')",
+   "  Aufruf 2: 🔤 Vorlesen / übersetzen → runLastPhotoTask('read')",
+   "  Aufruf 2: 🔍 Beschreiben → runLastPhotoTask('describe')",
+   "  Aufruf 2: 📤 Per WhatsApp senden → jvFotoSenden.senden()",
+   "showActionCards nach dem Aufruf unverändert (vorübergehende Eingriffe zurückgenommen): true"
+  ],
+  "fragenMitFoto": [
+   "mit lastPhoto (Erkennung läuft) |  | sagt: Das Foto ist da. Was soll ich damit tun? | Aufrufe: 2 | vision: Du erkennst, was auf einem Foto zu sehen ist, da | Was ist auf diesem Foto?",
+   "  Aufruf 1: 🍽️ Rezept lesen → runLastPhotoTask('rezept')",
+   "  Aufruf 1: 📚 Stundenplan merken → runLastPhotoTask('stundenplan')",
+   "  Aufruf 1: 🎁 Wunschliste einlesen → runLastPhotoTask('wunschliste')",
+   "  Aufruf 1: 🌴 Urlaubsplan eintragen → runLastPhotoTask('urlaubsplan')",
+   "  Aufruf 1: 🍽️ Essensplan merken → runLastPhotoTask('essensplan')",
+   "  Aufruf 1: 📤 Per WhatsApp senden → jvFotoSenden.senden()",
+   "  Aufruf 2: 🍽️ Rezept lesen → runLastPhotoTask('rezept')",
+   "  Aufruf 2: 🖨️ Abtippen · Merken → runLastPhotoTask('abtippen')",
+   "  Aufruf 2: 🎁 Wunschliste einlesen → runLastPhotoTask('wunschliste')",
+   "  Aufruf 2: 🌴 Urlaubsplan eintragen → runLastPhotoTask('urlaubsplan')",
+   "  Aufruf 2: 🍽️ Essensplan merken → runLastPhotoTask('essensplan')",
+   "  Aufruf 2: 📚 Stundenplan merken → runLastPhotoTask('stundenplan')",
+   "  Aufruf 2: ✉️ Brief auswerten → runLastPhotoTask('letter')",
+   "  Aufruf 2: 🛒 Auf die Einkaufsliste → runLastPhotoTask('shopping')",
+   "  Aufruf 2: 📅 Termine eintragen → runLastPhotoTask('events')",
+   "  Aufruf 2: 📍 Dorthin navigieren → runLastPhotoTask('address')",
+   "  Aufruf 2: 👤 Kontakt anlegen → runLastPhotoTask('contact')",
+   "  Aufruf 2: 🔤 Vorlesen / übersetzen → runLastPhotoTask('read')",
+   "  Aufruf 2: 🔍 Beschreiben → runLastPhotoTask('describe')",
+   "  Aufruf 2: 📤 Per WhatsApp senden → jvFotoSenden.senden()",
+   "showActionCards nach dem Aufruf unverändert (vorübergehende Eingriffe zurückgenommen): true"
+  ],
+  "folgeaktion": [
+   "Aufgaben der Karten: rezept,stundenplan,wunschliste,urlaubsplan,essensplan,abtippen,letter,shopping,events,address,contact,read,describe",
+   "rezept =  | vision: Du liest ein Rezept von einem Foto (Kochbuchseit | Lies das Rezept von diesem Foto. | sagt: Ich konnte auf dem Foto kein Rezept erkennen. Ist es scharf und gut beleuchtet? | karten: ",
+   "stundenplan =  | vision: Du liest einen Schulstundenplan von einem Foto.  | Lies den Stundenplan von diesem Foto. | sagt: Ich lese den Stundenplan. Einen Moment. / Ich konnte auf dem Foto keinen Stunden | karten: ",
+   "wunschliste =  | vision: Du liest einen Wunschzettel (Wunschliste, oft vo | Lies den Wunschzettel von diesem Foto. | sagt: Ich lese den Wunschzettel. Einen Moment. / Ich konnte auf dem Foto keine Wünsche | karten: ",
+   "urlaubsplan =  | vision: Du liest einen Urlaubsplanungs-Zettel (Formular  | Lies den Urlaubszettel von diesem Foto. | sagt: Ich lese den Urlaubszettel. Einen Moment. / Ich konnte auf dem Foto keine Urlaub | karten: ",
+   "essensplan =  | vision: Du liest den Wochen-Essensplan einer Kantine von | Lies den Essensplan von diesem Foto. | sagt: Ich lese den Essensplan. Einen Moment. / Ich konnte auf dem Foto keinen Essenspl | karten: ",
+   "abtippen =  | vision: Du schreibst den kompletten Text von einem Foto  | Schreibe den Text auf diesem Foto vollständig ab | sagt: Ich tippe es ab. Einen Moment. / Ich konnte auf dem Foto keinen Text erkennen. I | karten: ",
+   "letter =  | vision: Du liest einen Brief (Rechnung, Mahnung, Vertrag | Lies diesen Brief und ordne ihn ein. | sagt: Ich konnte auf dem Foto keinen Brief lesen. Liegt er gerade, ist er scharf und g | karten: ",
+   "shopping =  | vision: Du liest einen Einkaufszettel oder eine Liste vo | Lies die Einkaufsliste von diesem Foto. | sagt: Ich konnte auf dem Zettel keine Artikel lesen. Ist er scharf und gut beleuchtet? | karten: ",
+   "events =  | vision: Du liest Termine aus dem Foto eines Kalenders, T | Lies die Termine aus diesem Foto. | sagt: Ich konnte keine Termine erkennen. Ist das Foto scharf, und ist der Kalender gut | karten: ",
+   "address =  | vision: Du liest von einem Foto die Adresse, zu der jema | Lies die Adresse von diesem Foto. | sagt: Ich konnte auf dem Foto keine Adresse erkennen. Ist sie scharf und gut zu lesen? | karten: ",
+   "contact =  | vision: Du liest die Kontaktdaten von einem Foto einer V | Lies die Kontaktdaten von diesem Foto. | sagt: Ich konnte auf dem Foto keinen Namen und keine Kontaktdaten erkennen. Ist die Ka | karten: ",
+   "read =  | vision: Du bist Zane, ein Assistent, der ein Foto auswer | Der Nutzer sagte: \"test read\". Mach, was er möch | sagt: {} | karten: ",
+   "describe =  | vision: Du bist Zane, ein Assistent, der ein Foto auswer | Der Nutzer sagte: \"test describe\". Mach, was er  | sagt: {} | karten: "
+  ],
+  "bestaetigen": [
+   "keine =  | sagt: Es gibt gerade nichts zu speichern. | öffnet:  | Karten:  | danach wartend: null",
+   "Adresse =  | sagt: Tippe unten auf die Karte, dann öffnet sich die Navigation. | öffnet: https://www.google.com/maps/dir/?api=1&travelmode=driving&de | Karten:  | danach wartend: \"address\"",
+   "Adresse abgelaufen =  | sagt: Es gibt gerade nichts zu starten. | öffnet:  | Karten:  | danach wartend: null",
+   "Brief ohne Plan =  | sagt:  | öffnet:  | Karten: 0,0 | danach wartend: null",
+   "Brief abgelaufen =  | sagt: Es gibt gerade nichts auszuführen. | öffnet:  | Karten:  | danach wartend: null",
+   "Kontakt =  | sagt: Bei Max Muster habe ich weder Nummer noch Adresse erkannt. Tragen Sie ihn bitte in den Einstellungen | öffnet:  | Karten: 0 | danach wartend: null",
+   "Einkauf =  | sagt: 1 Artikel steht auf der Einkaufsliste. ⁣Einkaufen: die Kunst, mit drei Artikeln und sieben Extras zu | öffnet:  | Karten: 0 | danach wartend: null",
+   "Befehl \"navigier los\" bei wartender Adresse = false | sagt:  | öffnet: ",
+   "Befehl \"ja\" bei wartender Adresse = true | sagt: Tippe unten auf die Karte, dann öffnet sich die Navigation. | öffnet: https://www.google.com/maps/dir/?api=1&travelmode=driving&de",
+   "Befehl \"fahr los\" bei wartender Adresse = true | sagt: Tippe unten auf die Karte, dann öffnet sich die Navigation. | öffnet: https://www.google.com/maps/dir/?api=1&travelmode=driving&de",
+   "Befehl \"nein\" bei wartender Adresse = true | sagt: Gut, ich habe nichts gespeichert. | öffnet: "
+  ],
+  "kartenKetteLang": [
+   "Foto-Auswahl => x A → runLastPhotoTask('read') ; 📤 Per WhatsApp senden → jvFotoSenden.senden()",
+   "normale Karten => y B → foo()",
+   "Foto-Auswahl mit schon vorhandener Sende-Karte =>  A → runLastPhotoTask('read') ;  S → jvFotoSenden.senden()",
+   "leer => "
   ]
  },
  "speak": {
@@ -609,5 +650,216 @@
   "Erzähl mir einen Witz => (Basis localcommands.js oder altes Einhängen)",
   "Frühere Schicht => KI",
   "Plan für morgen => KI"
- ]
+ ],
+ "fotoKette": {
+  "liste": {
+   "parsePhotoRequest": [
+    {
+     "name": "foto_rezept",
+     "rang": 10
+    },
+    {
+     "name": "foto_person",
+     "rang": 30
+    },
+    {
+     "name": "wunschliste",
+     "rang": 40
+    },
+    {
+     "name": "foto_urlaubsplan",
+     "rang": 50
+    },
+    {
+     "name": "foto_essensplan",
+     "rang": 60
+    },
+    {
+     "name": "foto_stundenplan",
+     "rang": 70
+    },
+    {
+     "name": "foto_abtippen",
+     "rang": 80
+    },
+    {
+     "name": "foto_brief",
+     "rang": 90
+    },
+    {
+     "name": "foto_adresse",
+     "rang": 100
+    }
+   ],
+   "processPhoto": [
+    {
+     "name": "foto_rezept",
+     "rang": 10
+    },
+    {
+     "name": "foto_person",
+     "rang": 30
+    },
+    {
+     "name": "wunschliste",
+     "rang": 40
+    },
+    {
+     "name": "foto_urlaubsplan",
+     "rang": 50
+    },
+    {
+     "name": "foto_essensplan",
+     "rang": 60
+    },
+    {
+     "name": "foto_stundenplan",
+     "rang": 70
+    },
+    {
+     "name": "foto_abtippen",
+     "rang": 80
+    },
+    {
+     "name": "foto_brief",
+     "rang": 90
+    },
+    {
+     "name": "foto_adresse",
+     "rang": 100
+    }
+   ],
+   "handlePhotoCommand": [
+    {
+     "name": "foto_rezept",
+     "rang": 10
+    },
+    {
+     "name": "foto_person",
+     "rang": 30
+    },
+    {
+     "name": "wunschliste",
+     "rang": 40
+    },
+    {
+     "name": "foto_urlaubsplan",
+     "rang": 50
+    },
+    {
+     "name": "foto_essensplan",
+     "rang": 60
+    },
+    {
+     "name": "foto_stundenplan",
+     "rang": 70
+    },
+    {
+     "name": "foto_abtippen",
+     "rang": 80
+    },
+    {
+     "name": "foto_brief",
+     "rang": 90
+    },
+    {
+     "name": "foto_adresse",
+     "rang": 100
+    }
+   ],
+   "parseFollowupTask": [
+    {
+     "name": "foto_rezept",
+     "rang": 10
+    },
+    {
+     "name": "wunschliste",
+     "rang": 40
+    },
+    {
+     "name": "foto_urlaubsplan",
+     "rang": 50
+    },
+    {
+     "name": "foto_essensplan",
+     "rang": 60
+    },
+    {
+     "name": "foto_stundenplan",
+     "rang": 70
+    },
+    {
+     "name": "foto_abtippen",
+     "rang": 80
+    },
+    {
+     "name": "foto_brief",
+     "rang": 90
+    },
+    {
+     "name": "foto_adresse",
+     "rang": 100
+    }
+   ],
+   "photoAskWhatToDo": [
+    {
+     "name": "foto_rezept",
+     "rang": 10
+    },
+    {
+     "name": "foto_erkennen",
+     "rang": 20
+    },
+    {
+     "name": "wunschliste",
+     "rang": 40
+    },
+    {
+     "name": "foto_urlaubsplan",
+     "rang": 50
+    },
+    {
+     "name": "foto_essensplan",
+     "rang": 60
+    },
+    {
+     "name": "foto_stundenplan",
+     "rang": 70
+    },
+    {
+     "name": "foto_abtippen",
+     "rang": 80
+    },
+    {
+     "name": "foto_brief",
+     "rang": 90
+    },
+    {
+     "name": "foto_adresse",
+     "rang": 100
+    }
+   ],
+   "confirmPhotoPending": [
+    {
+     "name": "foto_brief",
+     "rang": 90
+    },
+    {
+     "name": "foto_adresse",
+     "rang": 100
+    }
+   ],
+   "showActionCards": [
+    {
+     "name": "fotosenden",
+     "rang": 10
+    },
+    {
+     "name": "lagebild",
+     "rang": 20
+    }
+   ]
+  },
+  "text": "parsePhotoRequest: foto_rezept(10) > foto_person(30) > wunschliste(40) > foto_urlaubsplan(50) > foto_essensplan(60) > foto_stundenplan(70) > foto_abtippen(80) > foto_brief(90) > foto_adresse(100)\nprocessPhoto: foto_rezept(10) > foto_person(30) > wunschliste(40) > foto_urlaubsplan(50) > foto_essensplan(60) > foto_stundenplan(70) > foto_abtippen(80) > foto_brief(90) > foto_adresse(100)\nhandlePhotoCommand: foto_rezept(10) > foto_person(30) > wunschliste(40) > foto_urlaubsplan(50) > foto_essensplan(60) > foto_stundenplan(70) > foto_abtippen(80) > foto_brief(90) > foto_adresse(100)\nparseFollowupTask: foto_rezept(10) > wunschliste(40) > foto_urlaubsplan(50) > foto_essensplan(60) > foto_stundenplan(70) > foto_abtippen(80) > foto_brief(90) > foto_adresse(100)\nphotoAskWhatToDo: foto_rezept(10) > foto_erkennen(20) > wunschliste(40) > foto_urlaubsplan(50) > foto_essensplan(60) > foto_stundenplan(70) > foto_abtippen(80) > foto_brief(90) > foto_adresse(100)\nconfirmPhotoPending: foto_brief(90) > foto_adresse(100)\nshowActionCards: fotosenden(10) > lagebild(20)"
+ }
 }

@@ -47,22 +47,20 @@
         return false;
     }
 
-    /* Karte "Per WhatsApp senden" in jede Foto-Auswahl einfügen (die Auswahlkarten bauen mehrere Dateien) */
-    if (typeof window.showActionCards === 'function' && !window.showActionCards._fotoSenden) {
-        const orig = window.showActionCards;
-        const wrapped = function (cards) {
-            try {
-                if (Array.isArray(cards)
-                    && cards.some(c => c && typeof c.onclick === 'string' && c.onclick.indexOf('runLastPhotoTask(') >= 0)
-                    && !cards.some(c => c && typeof c.onclick === 'string' && c.onclick.indexOf('jvFotoSenden') >= 0)) {
-                    cards = cards.concat([{ icon: '📤', title: 'Per WhatsApp senden', subtitle: 'Das Foto selbst verschicken', onclick: 'jvFotoSenden.senden()' }]);
-                }
-            } catch (e) { }
-            return orig.call(this, cards);
-        };
-        wrapped._fotoSenden = true;
-        try { Object.keys(orig).forEach(k => { try { wrapped[k] = orig[k]; } catch (e) { } }); } catch (e) { }
-        window.showActionCards = wrapped;
+    /* Karte "Per WhatsApp senden" in jede Foto-Auswahl einfügen (die Auswahlkarten bauen mehrere Dateien). Läuft über die Foto-Kette (js/foto_kette.js), Rang 10 = ganz außen. */
+    if (typeof window.showActionCards === 'function') {
+        window.jvFotoKette.anmelden('showActionCards', 'fotosenden', 10, function (orig) {
+            return function (cards) {
+                try {
+                    if (Array.isArray(cards)
+                        && cards.some(c => c && typeof c.onclick === 'string' && c.onclick.indexOf('runLastPhotoTask(') >= 0)
+                        && !cards.some(c => c && typeof c.onclick === 'string' && c.onclick.indexOf('jvFotoSenden') >= 0)) {
+                        cards = cards.concat([{ icon: '📤', title: 'Per WhatsApp senden', subtitle: 'Das Foto selbst verschicken', onclick: 'jvFotoSenden.senden()' }]);
+                    }
+                } catch (e) { }
+                return orig.call(this, cards);
+            };
+        });
     }
 
     /* Sprachbefehl: "Schick das Foto per WhatsApp" */

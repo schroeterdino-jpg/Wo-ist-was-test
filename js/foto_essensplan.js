@@ -48,53 +48,58 @@
             || /^(?:das|es|dies\w*)\s+(?:ist|ist ein|ist der)\s+(?:ein\s+|der\s+)?(?:essens?\s?plan|speise\s?plan|kantinen\s?plan)$/.test(t);
     }
 
-    const origParse = window.parsePhotoRequest;
-    window.parsePhotoRequest = function (text) {
-        if (isEssensplan(text)) return { task: 'essensplan', question: norm(text) };
-        return origParse.apply(this, arguments);
-    };
+    window.jvFotoKette.anmelden('parsePhotoRequest', 'foto_essensplan', 60, function (origParse) {
+        return function (text) {
+            if (isEssensplan(text)) return { task: 'essensplan', question: norm(text) };
+            return origParse.apply(this, arguments);
+        };
+    });
     if (typeof window.parseFollowupTask === 'function') {
-        const origFollow = window.parseFollowupTask;
-        window.parseFollowupTask = function (text) {
-            if (isFollowup(text)) return { task: 'essensplan', question: norm(text) };
-            return origFollow.apply(this, arguments);
-        };
-    }
-    const origProcess = window.processPhoto;
-    window.processPhoto = async function (intent, dataUrl) {
-        if (intent && intent.task === 'essensplan') return processEssensplan(dataUrl);
-        return origProcess.apply(this, arguments);
-    };
-    if (typeof window.photoAskWhatToDo === 'function') {
-        const origAsk = window.photoAskWhatToDo;
-        window.photoAskWhatToDo = function () {
-            const origCards = window.showActionCards;
-            if (typeof origCards !== 'function') return origAsk.apply(this, arguments);
-            window.showActionCards = function (list) {
-                try { if (Array.isArray(list)) list.splice(Math.min(1, list.length), 0, { icon: '🍽️', title: 'Essensplan merken', subtitle: 'Wochenplan lesen und speichern', onclick: "runLastPhotoTask('essensplan')" }); } catch (e) { }
-                return origCards.apply(this, arguments);
+        window.jvFotoKette.anmelden('parseFollowupTask', 'foto_essensplan', 60, function (origFollow) {
+            return function (text) {
+                if (isFollowup(text)) return { task: 'essensplan', question: norm(text) };
+                return origFollow.apply(this, arguments);
             };
-            try { return origAsk.apply(this, arguments); } finally { window.showActionCards = origCards; }
+        });
+    }
+    window.jvFotoKette.anmelden('processPhoto', 'foto_essensplan', 60, function (origProcess) {
+        return async function (intent, dataUrl) {
+            if (intent && intent.task === 'essensplan') return processEssensplan(dataUrl);
+            return origProcess.apply(this, arguments);
         };
+    });
+    if (typeof window.photoAskWhatToDo === 'function') {
+        window.jvFotoKette.anmelden('photoAskWhatToDo', 'foto_essensplan', 60, function (origAsk) {
+            return function () {
+                const origCards = window.showActionCards;
+                if (typeof origCards !== 'function') return origAsk.apply(this, arguments);
+                window.showActionCards = function (list) {
+                    try { if (Array.isArray(list)) list.splice(Math.min(1, list.length), 0, { icon: '🍽️', title: 'Essensplan merken', subtitle: 'Wochenplan lesen und speichern', onclick: "runLastPhotoTask('essensplan')" }); } catch (e) { }
+                    return origCards.apply(this, arguments);
+                };
+                try { return origAsk.apply(this, arguments); } finally { window.showActionCards = origCards; }
+            };
+        });
     }
     if (typeof window.handlePhotoCommand === 'function') {
-        const origCmd = window.handlePhotoCommand;
-        window.handlePhotoCommand = function (text) {
-            try {
-                if (isEssensplan(text) || isFollowup(text)) {
-                    const fresh = typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < (typeof PHOTO_FOLLOWUP_MS !== 'undefined' ? PHOTO_FOLLOWUP_MS : 600000);
-                    if (fresh && !/\b(?:neu\w*|fotografier\w*|abfotografier\w*|mach\w*\s+(?:ein\s+)?foto)\b/.test(norm(text))) {
-                        runLastPhotoTask('essensplan', text).catch(() => say('Das Auswerten hat gerade nicht geklappt.'));
+        window.jvFotoKette.anmelden('handlePhotoCommand', 'foto_essensplan', 60, function (origCmd) {
+            return function (text) {
+                try {
+                    if (isEssensplan(text) || isFollowup(text)) {
+                        const fresh = typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < (typeof PHOTO_FOLLOWUP_MS !== 'undefined' ? PHOTO_FOLLOWUP_MS : 600000);
+                        if (fresh && !/\b(?:neu\w*|fotografier\w*|abfotografier\w*|mach\w*\s+(?:ein\s+)?foto)\b/.test(norm(text))) {
+                            runLastPhotoTask('essensplan', text).catch(() => say('Das Auswerten hat gerade nicht geklappt.'));
+                            return true;
+                        }
+                        photoIntent = { task: 'essensplan', question: String(text || ''), at: Date.now() };
+                        if (typeof showPhotoCards === 'function') showPhotoCards();
+                        say('Leg den Essensplan gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera.');
                         return true;
                     }
-                    photoIntent = { task: 'essensplan', question: String(text || ''), at: Date.now() };
-                    if (typeof showPhotoCards === 'function') showPhotoCards();
-                    say('Leg den Essensplan gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera.');
-                    return true;
-                }
-            } catch (e) { console.error('Essensplan-Befehl', e); }
-            return origCmd.apply(this, arguments);
-        };
+                } catch (e) { console.error('Essensplan-Befehl', e); }
+                return origCmd.apply(this, arguments);
+            };
+        });
     }
 
     /* ---------- Lesen ---------- */

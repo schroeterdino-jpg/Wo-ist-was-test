@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (167 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (168 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -277,6 +277,15 @@ Außen -> innen: 10 loeschen_fragen, 20 gedaechtnis, 30 geburtstag_ganztag, 40 l
 - Unverändert (absichtlich): `actions.js`, `assistant.js`, Bedeutung der Aktionen, die vier bekannten Reihenfolge-Eigenheiten aus Teil 1.
 - Neue Hülle anlegen: Datei mit `huelle('name', rang, fabrik)` anmelden, Name und Rang in `ERWARTET` (aktionen_kette.js) und `SOLL_LISTE` (tests/aktionen_kette.js) eintragen, Golden Master mit `--neu` bewusst neu schreiben.
 - Test: `node tests/aktionen_kette.js` (Sammelstelle allein mit Attrappen, vertauschte Anmeldung, doppelter Name, Fehler, fehlende Hülle, Rückfall ohne Datei, vertauschte Lade-Reihenfolge in der echten App). Zusammen mit `node tests/aktionen.js` (Golden Master, `aktionen_soll.json` blieb unverändert).
+
+## Phase 3: explizite Foto-Kette (`js/foto_kette.js`)
+Die Foto-Erweiterungen melden sich bei `window.jvFotoKette.anmelden(funktion, name, rang, fabrik)` an, statt selbst um `window.parsePhotoRequest` usw. zu wickeln. Es zählt der Rang (kleiner = weiter außen), nicht mehr die Reihenfolge der Skripte in `index.html`. `foto_kette.js` steht direkt hinter `places.js`.
+- Sieben Funktionen, jede mit eigener Kette: `parsePhotoRequest`, `processPhoto`, `handlePhotoCommand`, `parseFollowupTask`, `photoAskWhatToDo`, `confirmPhotoPending`, `showActionCards` (dauerhaft: fotosenden 10, lagebild 20). `runLastPhotoTask` ist bewusst nicht dabei. Die Ränge sind die damalige Lade-Reihenfolge (zuletzt geladen = außen), nicht verbessert; die vollständige Liste steht oben in `foto_kette.js` (`ERWARTET`).
+- Einsicht: `jvFotoKette.liste()` / `.text()` (aktive Reihenfolge je Funktion), `.pruefe()` (fehlend, unerwartet, falscher Rang, Anmeldefehler). Doppelter Name, doppelter Rang, ungültiger Rang, unbekannte Funktion, eine `fabrik`, die einen Fehler wirft oder keine Funktion liefert, und von außen ersetzte `window.<Funktion>` werden abgelehnt, gemeldet (`console.error`, `pruefe().fehler`) und nicht eingebaut. Fehlt nach dem Laden etwas, erscheint nach 3 s ein Fehler in der Fehleranzeige.
+- Kein Rückfall: Fehlt `foto_kette.js`, schlagen die Foto-Dateien laut fehl (und `tests/reihenfolge.js` ist rot). Die alten Marken `_jvLage` und `_fotoSenden` an `showActionCards` gibt es nicht mehr.
+- Die vorübergehenden `showActionCards`-Eingriffe von stundenplan, essensplan, urlaubsplan, wunschliste und rezept (nur während `photoAskWhatToDo`) sind KEINE Kettenglieder; sie stecken im Code der jeweiligen `photoAskWhatToDo`-Erweiterung und werden dort zurückgenommen.
+- Neue Foto-Erweiterung: in der Datei anmelden, Name + Rang in `ERWARTET` (`foto_kette.js`) und in `tests/reihenfolge_soll.json` (`fotoKette`) eintragen, Wirkung bewusst prüfen. Test: `node tests/reihenfolge.js` (Soll-Kette, Fehlerfälle, Gleichproben mit anderer Lade-Reihenfolge).
+- Foto-Problem? Zuerst `jvFotoKette.text()` und `jvFotoKette.pruefe()` ansehen, dann die Datei der betroffenen Erweiterung.
 
 ## Fähigkeiten-Verzeichnis (B1)
 - `js/faehigkeiten.js` beschreibt, was Jarvis kann (`window.jvFaehigkeiten`): acht Fähigkeiten (Kalender, Wetter, Fahrzeit und Navigation, Erinnerungen, Gedächtnis, Fotos, Schicht, Preissuche). Je Fähigkeit: Intents mit Sicherheitsstufe (lesen/ändern/kritisch), Beispielsätze (lokal oder KI), Abhängigkeiten, Handy-App-Bedarf, proaktive Auslöser, beteiligte Module, bekannte Grenzen.

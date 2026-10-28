@@ -71,79 +71,86 @@
         return false;
     }
 
-    /* ---------- Einhängen in photo.js ---------- */
-    const origParse = window.parsePhotoRequest;
-    window.parsePhotoRequest = function (text) {
-        if (isLetterRequest(text)) return { task: 'letter', question: norm(text) };
-        return origParse.apply(this, arguments);
-    };
+    /* ---------- Einhängen in photo.js (über die Foto-Kette, Rang 90; siehe js/foto_kette.js) ---------- */
+    window.jvFotoKette.anmelden('parsePhotoRequest', 'foto_brief', 90, function (origParse) {
+        return function (text) {
+            if (isLetterRequest(text)) return { task: 'letter', question: norm(text) };
+            return origParse.apply(this, arguments);
+        };
+    });
 
     if (typeof window.parseFollowupTask === 'function') {
-        const origFollow = window.parseFollowupTask;
-        window.parseFollowupTask = function (text) {
-            if (isLetterFollowup(text)) return { task: 'letter' };
-            return origFollow.apply(this, arguments);
-        };
+        window.jvFotoKette.anmelden('parseFollowupTask', 'foto_brief', 90, function (origFollow) {
+            return function (text) {
+                if (isLetterFollowup(text)) return { task: 'letter' };
+                return origFollow.apply(this, arguments);
+            };
+        });
     }
 
-    const origProcess = window.processPhoto;
-    window.processPhoto = async function (intent, dataUrl) {
-        if (intent && intent.task === 'letter') return processLetterPhoto(dataUrl);
-        return origProcess.apply(this, arguments);
-    };
+    window.jvFotoKette.anmelden('processPhoto', 'foto_brief', 90, function (origProcess) {
+        return async function (intent, dataUrl) {
+            if (intent && intent.task === 'letter') return processLetterPhoto(dataUrl);
+            return origProcess.apply(this, arguments);
+        };
+    });
 
     if (typeof window.confirmPhotoPending === 'function') {
-        const origConfirm = window.confirmPhotoPending;
-        window.confirmPhotoPending = async function () {
-            if (typeof photoPending !== 'undefined' && photoPending && photoPending.type === 'letter') {
-                const lifetime = typeof PHOTO_EVENTS_MS !== 'undefined' ? PHOTO_EVENTS_MS : 5 * 60000;
-                const pend = photoPending;
-                if (Date.now() - pend.at > lifetime) { photoPending = null; say('Es gibt gerade nichts auszuführen.'); return; }
-                photoPending = null;
-                cards([]);
-                return runPlan(pend.data.plan, pend.data);
-            }
-            return origConfirm.apply(this, arguments);
-        };
+        window.jvFotoKette.anmelden('confirmPhotoPending', 'foto_brief', 90, function (origConfirm) {
+            return async function () {
+                if (typeof photoPending !== 'undefined' && photoPending && photoPending.type === 'letter') {
+                    const lifetime = typeof PHOTO_EVENTS_MS !== 'undefined' ? PHOTO_EVENTS_MS : 5 * 60000;
+                    const pend = photoPending;
+                    if (Date.now() - pend.at > lifetime) { photoPending = null; say('Es gibt gerade nichts auszuführen.'); return; }
+                    photoPending = null;
+                    cards([]);
+                    return runPlan(pend.data.plan, pend.data);
+                }
+                return origConfirm.apply(this, arguments);
+            };
+        });
     }
 
-    /* Auswahlkarten nach einem Foto ohne vorherigen Befehl: "Brief auswerten" ergänzen (alle bisherigen Karten bleiben) */
+    /* Auswahlkarten nach einem Foto ohne vorherigen Befehl: "Brief auswerten" ergänzen (alle bisherigen Karten bleiben). Ersetzt die Funktion an dieser Stelle (ruft nichts weiter innen auf). */
     if (typeof window.photoAskWhatToDo === 'function') {
-        window.photoAskWhatToDo = function () {
-            cards([
-                { icon: '✉️', title: 'Brief auswerten', subtitle: 'Rechnung, Mahnung, Vertrag, Bescheid, Einladung', onclick: "runLastPhotoTask('letter')" },
-                { icon: '✍️', title: 'Kündigung aus Brief', subtitle: 'Anbieter, Nummer und Anschrift übernehmen', onclick: "window._briefKuend=Date.now();runLastPhotoTask('letter')" },
-                { icon: '🛒', title: 'Auf die Einkaufsliste', subtitle: 'Zettel lesen, Artikel eintragen', onclick: "runLastPhotoTask('shopping')" },
-                { icon: '📅', title: 'Termine eintragen', subtitle: 'Kalender, Plakat, Einladung', onclick: "runLastPhotoTask('events')" },
-                { icon: '📍', title: 'Dorthin navigieren', subtitle: 'Adresse lesen, Route starten', onclick: "runLastPhotoTask('address')" },
-                { icon: '👤', title: 'Kontakt anlegen', subtitle: 'Visitenkarte', onclick: "runLastPhotoTask('contact')" },
-                { icon: '🔤', title: 'Vorlesen / übersetzen', subtitle: 'Text auf dem Foto', onclick: "runLastPhotoTask('read')" },
-                { icon: '🔍', title: 'Beschreiben', subtitle: 'Was ist zu sehen?', onclick: "runLastPhotoTask('describe')" }
-            ]);
-            say('Das Foto ist da. Was soll ich damit tun?');
-        };
+        window.jvFotoKette.anmelden('photoAskWhatToDo', 'foto_brief', 90, function () {
+            return function () {
+                    cards([
+                        { icon: '✉️', title: 'Brief auswerten', subtitle: 'Rechnung, Mahnung, Vertrag, Bescheid, Einladung', onclick: "runLastPhotoTask('letter')" },
+                        { icon: '✍️', title: 'Kündigung aus Brief', subtitle: 'Anbieter, Nummer und Anschrift übernehmen', onclick: "window._briefKuend=Date.now();runLastPhotoTask('letter')" },
+                        { icon: '🛒', title: 'Auf die Einkaufsliste', subtitle: 'Zettel lesen, Artikel eintragen', onclick: "runLastPhotoTask('shopping')" },
+                        { icon: '📅', title: 'Termine eintragen', subtitle: 'Kalender, Plakat, Einladung', onclick: "runLastPhotoTask('events')" },
+                        { icon: '📍', title: 'Dorthin navigieren', subtitle: 'Adresse lesen, Route starten', onclick: "runLastPhotoTask('address')" },
+                        { icon: '👤', title: 'Kontakt anlegen', subtitle: 'Visitenkarte', onclick: "runLastPhotoTask('contact')" },
+                        { icon: '🔤', title: 'Vorlesen / übersetzen', subtitle: 'Text auf dem Foto', onclick: "runLastPhotoTask('read')" },
+                        { icon: '🔍', title: 'Beschreiben', subtitle: 'Was ist zu sehen?', onclick: "runLastPhotoTask('describe')" }
+                    ]);
+                    say('Das Foto ist da. Was soll ich damit tun?');
+            };
+        });
     }
 
     /* Ansage beim Befehl "Brief fotografieren": die Standard-Ansage von photo.js passt ("Halte die Kamera darauf"), wir machen sie genauer */
     if (typeof window.handlePhotoCommand === 'function') {
-        const origCmd = window.handlePhotoCommand;
-        window.handlePhotoCommand = function (text) {
-            try {
-                if (isLetterRequest(text) && !(typeof photoPending !== 'undefined' && photoPending && photoPending.type === 'letter')) {
-                    // Liegt gerade ein frisches Foto vor und der Satz bedeutet "werte es aus", direkt auswerten
-                    if (typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < (typeof PHOTO_FOLLOWUP_MS !== 'undefined' ? PHOTO_FOLLOWUP_MS : 600000) && DO_WORD.test(norm(text)) && !PHOTO_WORD.test(norm(text))) {
-                        photoPending = null;
-                        runLastPhotoTask('letter', text).catch(() => say('Die Auswertung hat gerade nicht geklappt.'));
+        window.jvFotoKette.anmelden('handlePhotoCommand', 'foto_brief', 90, function (origCmd) {
+            return function (text) {
+                try {
+                    if (isLetterRequest(text) && !(typeof photoPending !== 'undefined' && photoPending && photoPending.type === 'letter')) {
+                        // Liegt gerade ein frisches Foto vor und der Satz bedeutet "werte es aus", direkt auswerten
+                        if (typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < (typeof PHOTO_FOLLOWUP_MS !== 'undefined' ? PHOTO_FOLLOWUP_MS : 600000) && DO_WORD.test(norm(text)) && !PHOTO_WORD.test(norm(text))) {
+                            photoPending = null;
+                            runLastPhotoTask('letter', text).catch(() => say('Die Auswertung hat gerade nicht geklappt.'));
+                            return true;
+                        }
+                        photoIntent = { task: 'letter', question: String(text || ''), at: Date.now() };
+                        if (typeof showPhotoCards === 'function') showPhotoCards();
+                        say('Leg den Brief gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera. Bei mehreren Seiten fotografierst du zuerst die erste.');
                         return true;
                     }
-                    photoIntent = { task: 'letter', question: String(text || ''), at: Date.now() };
-                    if (typeof showPhotoCards === 'function') showPhotoCards();
-                    say('Leg den Brief gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera. Bei mehreren Seiten fotografierst du zuerst die erste.');
-                    return true;
-                }
-            } catch (e) { console.error('Brief-Befehl', e); }
-            return origCmd.apply(this, arguments);
-        };
+                } catch (e) { console.error('Brief-Befehl', e); }
+                return origCmd.apply(this, arguments);
+            };
+        });
     }
 
     /* ---------- Brief lesen ---------- */

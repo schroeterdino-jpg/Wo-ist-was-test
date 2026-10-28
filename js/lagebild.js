@@ -405,14 +405,15 @@
 
     /* ---------- Umleiten: alles läuft über das Lagebild ---------- */
     // Orte in der Nähe ("Wo ist der nächste Penny?"): die Treffer-Karten erscheinen zusätzlich im Lagebild
-    const origKarten = window.showActionCards;
-    if (typeof origKarten === 'function' && !origKarten._jvLage) {
-        window.showActionCards = function (cards) {
-            const r = origKarten.apply(this, arguments);
-            try { if (Array.isArray(cards) && cards.length && cards.every(istOrtKarte)) orte(cards); else if (Array.isArray(cards) && cards.length && cards.every(istTankKarte)) orte(cards, true); } catch (e) { console.error('Lagebild Orte', e); }
-            return r;
-        };
-        window.showActionCards._jvLage = true;
+    // Läuft über die Foto-Kette (js/foto_kette.js), Rang 20 (innerhalb von fotosenden, Rang 10). Die Marke _jvLage ist nicht mehr nötig: die Kette erkennt doppelte Namen selbst.
+    if (typeof window.showActionCards === 'function') {
+        window.jvFotoKette.anmelden('showActionCards', 'lagebild', 20, function (origKarten) {
+            return function (cards) {
+                const r = origKarten.apply(this, arguments);
+                try { if (Array.isArray(cards) && cards.length && cards.every(istOrtKarte)) orte(cards); else if (Array.isArray(cards) && cards.length && cards.every(istTankKarte)) orte(cards, true); } catch (e) { console.error('Lagebild Orte', e); }
+                return r;
+            };
+        });
     }
     // "Route zu X" / "Bring mich zu X" mit dem Auto: statt Google Maps zu öffnen erst rechnen und das Lagebild mit Fahrzeit, Stau und Wetter zeigen
     const origAktion = window.executeAction;
