@@ -70,11 +70,13 @@
         if (!cur.kann) {
             zeigen('WhatsApp · ' + cur.name, cur.text, 'Hier kann ich nicht antworten.', false);
             const c = cur; cur = null;
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'fahr_whatsapp', kanal: ['fenster', 'sprache'], grund: 'whatsapp-vorlesen', ausloeser: 'apk', ereignis: 'wa|' + c.id, bezug: window.jvMeldungen.bezugId('nachricht', c.id), text: 'Nachricht von ' + c.name + ': ' + c.text }) } catch (e) { }   // C1: nur Beobachtung
             sagen('Nachricht von ' + c.name + ': ' + c.text, false, function () { setTimeout(function () { wegBox(); weiter(); }, 1500); });
             return;
         }
         stufe = 'frage';
         zeigen('WhatsApp · ' + cur.name, cur.text, 'Sag „Ja“ zum Antworten oder „Nein“.', true);
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'fahr_whatsapp', kanal: ['fenster', 'sprache'], grund: 'whatsapp-vorlesen', ausloeser: 'apk', ereignis: 'wa|' + cur.id, bezug: window.jvMeldungen.bezugId('nachricht', cur.id), frage: true, mikro: 'bedingt', text: 'Nachricht von ' + cur.name + ': ' + cur.text + '. Willst du antworten?' }) } catch (e) { }   // C1: nur Beobachtung
         sagen('Nachricht von ' + cur.name + ': ' + cur.text + '. Willst du antworten?', true);
         timer = setTimeout(verwerfen, GUELTIG_MS + 20000);   // Vorlesen dauert, deshalb etwas mehr Zeit
     }

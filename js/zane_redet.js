@@ -163,6 +163,7 @@
         try { if (Array.isArray(chatHistory)) chatHistory.push({ role: 'assistant', content: JSON.stringify({ type: 'chat', reply: satz.t }) }); } catch (e) {}
         var danach;
         if (satz.f && typeof startListening === 'function') danach = function () { try { startListening(true); } catch (e) {} };
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'zane_redet', kanal: ['sprache'], grund: satz.f ? 'redet-frage' : 'redet-satz', ausloeser: 'timer', ereignis: 'redet|' + l.n, bezug: null, frage: !!satz.f, mikro: danach ? 'ja' : 'nein', text: satz.t }) } catch (e) { }   // C1: nur Beobachtung
         speak(satz.t, danach);
     }
 

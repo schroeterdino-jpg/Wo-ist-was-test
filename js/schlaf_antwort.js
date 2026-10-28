@@ -94,10 +94,12 @@
             const o = JSON.parse(r), titel = o.titel || 'Jarvis', text = o.text || '';
             if (!text) return;
             if (o.nurText) {
+                try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'schlaf_antwort', kanal: ['fenster'], grund: 'app-meldung', ausloeser: 'apk', ereignis: 'meldung|' + titel, bezug: null, text: titel + '. ' + text }) } catch (e) { }   // C1: nur Beobachtung
                 try { if (typeof openExtraWindow === 'function') openExtraWindow('🤖 ' + titel, '<div style="font-size:15px;line-height:1.55;white-space:pre-wrap">' + String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>'); } catch (e) { }
                 try { const P = window.jvPlan; if (P && P.sagenMeldung && typeof P.sagenMeldung === 'function') { /* nur merken, nicht sprechen */ } } catch (e) { }
             } else {
                 const P = window.jvPlan;
+                try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'schlaf_antwort', kanal: (P && typeof P.sagenMeldung === 'function') ? ['sprache', 'fenster'] : ['sprache'], grund: 'app-meldung', ausloeser: 'apk', ereignis: 'meldung|' + titel, bezug: null, text: (P && typeof P.sagenMeldung === 'function') ? text : titel + '. ' + text }) } catch (e) { }   // C1: nur Beobachtung
                 if (P && typeof P.sagenMeldung === 'function') P.sagenMeldung(titel, text); else sagen(titel + '. ' + text);
             }
         } catch (e) { }

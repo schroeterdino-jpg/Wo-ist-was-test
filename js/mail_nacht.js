@@ -162,6 +162,7 @@
     function ansagen() {
         const l = letzte(); if (!l || l.gesagt) { wartetAufAnsage = null; return; }
         if (!(l.entwuerfe || []).length) { wartetAufAnsage = null; return; }
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'mail_nacht', kanal: ['karte', 'sprache'], grund: 'mail-entwuerfe', ausloeser: 'timer', ereignis: 'entwuerfe|' + String(l.t || ''), bezug: null, text: zusammenfassung(l) }) } catch (e) { }   // C1: nur Beobachtung
         karte((l.entwuerfe || []).slice(0, 5).map(x => ({ icon: '📝', title: 'Entwurf an ' + x.an, subtitle: String(x.betreff).slice(0, 80) })));
         sagen(zusammenfassung(l));
         l.gesagt = true; lsSet(K_LAST, JSON.stringify(l));

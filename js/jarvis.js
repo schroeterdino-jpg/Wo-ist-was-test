@@ -111,7 +111,9 @@
             try {
                 if (typeof isSpeaking === 'function' && isSpeaking()) return;   // spricht schon etwas anderes
                 if (typeof window.wachterIdle === 'function' && !window.wachterIdle()) return;
-                if (typeof speak === 'function') setTimeout(function () { try { if (!(typeof isSpeaking === 'function' && isSpeaking())) speak(text); } catch (e) {} }, 350);
+                if (typeof speak === 'function') setTimeout(function () { try { if (!(typeof isSpeaking === 'function' && isSpeaking())) {
+                    try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'jarvis', kanal: ['sprache'], grund: 'start-ansage', ausloeser: 'manuell', ereignis: 'start-ansage', bezug: window.jvMeldungen.bezugTag(new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' })), text: text }) } catch (e) { }   // C1: nur Beobachtung
+                    speak(text); } } catch (e) {} }, 350);
             } catch (e) {}
             if (karte) { try { karte.remove(); } catch (e) {} karte = null; }
         }
@@ -129,8 +131,12 @@
         var t = terminSatz(); if (t) teile.push(t);
         var text = teile.join(' ');
         zeigen(text);
-        if (auchWennSchonHeute) { try { if (typeof speak === 'function') speak(text); } catch (e) {} }
-        else sprechenBeimTipp(text);
+        if (auchWennSchonHeute) {
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'jarvis', kanal: ['sprache'], grund: 'start-ansage', ausloeser: 'manuell', ereignis: 'start|' + heute, bezug: window.jvMeldungen.bezugTag(heute), text: text }) } catch (e) { }   // C1: nur Beobachtung
+            try { if (typeof speak === 'function') speak(text); } catch (e) {} }
+        else {
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'jarvis', status: 'ausgeloest', kanal: [], grund: 'start-ansage', ausloeser: window.jvMeldungen.herkunftApp(), ereignis: 'start|' + heute, bezug: window.jvMeldungen.bezugTag(heute), text: text }) } catch (e) { }   // C1: nur Beobachtung
+            sprechenBeimTipp(text); }
     }
     window.jvStartAnsage = startAnsage;
 

@@ -277,7 +277,9 @@
     function start() {
         try {
             const n = window.ZaneNative;
-            if (n && typeof n.holeAutoansicht === 'function' && n.holeAutoansicht()) { if (!layer) { oeffnen(); sagen('Autoansicht ist an.', false); } }
+            if (n && typeof n.holeAutoansicht === 'function' && n.holeAutoansicht()) { if (!layer) { oeffnen();
+                try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'autoansicht', kanal: ['fenster', 'sprache'], grund: 'autoansicht-einsteigen', ausloeser: 'apk', ereignis: 'autoansicht|einsteigen', bezug: null, text: 'Autoansicht ist an.' }) } catch (e) { }   // C1: nur Beobachtung
+                sagen('Autoansicht ist an.', false); } }
         } catch (e) { }
         if (!layer) fahrFlag(false);   // Seite frisch geladen und Autoansicht zu: Fahrmodus-Merker der APK zurücksetzen
     }

@@ -161,6 +161,7 @@
         o.routines.push({ id: r.id, k: r.k, m: r.m, wd: r.wd, n: r.n, status: 'offen' });
         save(o);
         pending = { id: r.id, until: Date.now() + PENDING_MS };
+try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'routinen', kanal: ['karte', 'sprache'], grund: 'routine-vorschlag', ausloeser: 'timer', ereignis: 'routine|' + r.id, bezug: window.jvMeldungen.bezugId('routine', r.id), frage: true, mikro: 'bedingt', text: offerText(r) }) } catch (e) { }   // C1: nur Beobachtung
         sayCard('Routine merken?', KINDS[r.k].label + ' · ' + dayText(r.wd) + ' · ' + hhmm(r.m) + ' · Sag Ja oder Nein', offerText(r), true);
         return true;
     }
@@ -195,6 +196,7 @@
             const done = o.log.some(e => e.k === r.k && e.d === b.day && Math.abs(e.m - r.m) <= WINDOW_MIN * 2);
             save(o);
             if (done) continue;
+try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'routinen', kanal: ['karte', 'sprache'], grund: 'routine-hinweis', ausloeser: 'timer', ereignis: 'routine|' + r.id + '|' + b.day, bezug: window.jvMeldungen.bezugId('routine', r.id), text: 'Kleine Erinnerung: ' + KINDS[r.k].hint }) } catch (e) { }   // C1: nur Beobachtung
             sayCard('Routine: ' + KINDS[r.k].label, 'Gegen ' + hhmm(r.m), 'Kleine Erinnerung: ' + KINDS[r.k].hint, false);
             return true;
         }

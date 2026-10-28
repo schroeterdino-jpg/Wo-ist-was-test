@@ -150,7 +150,10 @@
             if (!pushAn()) { if (!inApp()) { laeuft = false; return; } await post('push_alive', {}); }
             const r = await post('push_watch_poll', {});
             const msgs = (r && r.msgs) || [];
-            if (msgs.length) sagen(msgs.map(m => m.body).join(' '));
+            if (msgs.length) {
+                try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'auftraege', kanal: ['sprache'], grund: 'auftrag-erfuellt', ausloeser: 'push', ereignis: 'auftrag|' + msgs.map(m => m.id || '').join(','), bezug: (msgs[0] && msgs[0].id != null) ? window.jvMeldungen.bezugId('auftrag', msgs[0].id) : null, text: msgs.map(m => m.body).join(' ') }) } catch (e) { }   // C1: nur Beobachtung
+                sagen(msgs.map(m => m.body).join(' '));
+            }
         } catch (e) { }
         laeuft = false;
     }
