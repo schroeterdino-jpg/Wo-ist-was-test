@@ -176,9 +176,52 @@ function helpTopicCard(topic) {
     return { icon: topic.icon, title: topic.title, subtitle: topic.examples[0], onclick: `showHelpTopic('${topic.key}')` };
 }
 
+/* B2: Karten aus dem Fähigkeiten-Verzeichnis (js/faehigkeiten.js). Zusätzlich zu den alten Themen, ersetzen sie nicht. Ohne Verzeichnis: nur die alten Themen. */
+function helpFaehigkeitKarten() {
+    const F = typeof window !== 'undefined' && window.jvFaehigkeiten;
+    if (!F || !F.liste) return [];
+    return F.liste.map(f => ({ icon: f.icon || '✨', title: f.name, subtitle: f.kurz || f.beschreibung, onclick: `showFaehigkeitHelp('${f.id}')` }));
+}
+
+function helpFaehigkeitBeispiele(f) {
+    const s = [];
+    (f.intents || []).forEach(i => (i.beispiele || []).forEach(b => { if (b.satz && s.indexOf(b.satz) < 0) s.push(b.satz); }));
+    return s.slice(0, 4);
+}
+
+function helpFaehigkeitHinweise(f) {
+    const h = [];
+    if (f.handyApp && f.handyApp !== 'nein')
+        h.push({ icon: '📱', title: f.handyApp === 'ja' ? 'Nur in der Handy-App' : 'Teilweise nur in der Handy-App', subtitle: f.handyAppDetail });
+    if (f.proaktiv && f.proaktiv.wert !== 'nein') {
+        const art = []; f.proaktiv.ausloeser.forEach(a => a.art.forEach(x => { if (art.indexOf(x) < 0) art.push(x); }));
+        h.push({ icon: '🔊', title: f.proaktiv.wert === 'ja' ? 'Meldet sich von selbst' : 'Meldet sich teilweise von selbst', subtitle: art.join(', ') });
+    }
+    const kritisch = (f.intents || []).filter(i => i.art === 'kritisch');
+    if (kritisch.length) {
+        const nurLoeschen = kritisch.every(i => /lösch|vergess/i.test(i.vorgaenge.join(' ')));
+        h.push({ icon: '⚠️', title: nurLoeschen ? 'Fragt vor dem Löschen nach' : 'Fragt vor heiklen Schritten nach', subtitle: kritisch.map(i => i.vorgaenge[0]).join(', ') });
+    }
+    return h;
+}
+
+function showFaehigkeitHelp(id) {
+    const F = typeof window !== 'undefined' && window.jvFaehigkeiten;
+    const f = F && F.nach ? F.nach(id) : null;
+    if (!f) { showHelpOverview(); return; }
+    const bsp = helpFaehigkeitBeispiele(f);
+    const cards = bsp.map(e => ({ icon: '💬', title: e, subtitle: f.name }));
+    helpFaehigkeitHinweise(f).forEach(c => cards.push(c));
+    cards.push({ icon: '↩️', title: 'Alle Themen', subtitle: 'Zurück zur Übersicht', onclick: 'showHelpOverview()' });
+    if (typeof clearActionCards === 'function') clearActionCards();
+    if (typeof showActionCards === 'function') showActionCards(cards);
+    speak(`${f.name}: ${bsp[0] ? 'Sag zum Beispiel: ' + bsp[0] + '.' : f.beschreibung}${bsp[1] ? ' Oder: ' + bsp[1] + '.' : ''} Weitere Beispiele und Hinweise stehen unten.`,
+        typeof continueConversation === 'function' ? continueConversation : undefined);
+}
+
 function showHelpOverview() {
     if (typeof clearActionCards === 'function') clearActionCards();
-    if (typeof showActionCards === 'function') showActionCards(HELP_TOPICS.map(helpTopicCard));
+    if (typeof showActionCards === 'function') showActionCards(helpFaehigkeitKarten().concat(HELP_TOPICS.map(helpTopicCard)));
     speak('Ich kann dir bei vielen Dingen helfen: Termine und Erinnerungen, Listen, Fahrten und Verkehr, Bahn, Tanken, Wetter und Unwetterwarnungen, Feiertage, Sonne und Mond, Filmtipps, E-Mails, Anrufe, Nachrichten und mehr. Die Themen stehen unten. Tippe auf eines, oder sag zum Beispiel: Hilfe Fahrten.',
         typeof continueConversation === 'function' ? continueConversation : undefined);
 }

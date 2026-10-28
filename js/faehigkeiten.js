@@ -9,7 +9,7 @@
              window.jvFaehigkeiten.uebergreifend    Regeln, die für mehrere Fähigkeiten gelten (z. B. Rückfrage vor dem Löschen)
 
    Felder je Fähigkeit:
-     id, name, beschreibung
+     id, name, beschreibung, icon + kurz (für die Hilfe-Karte, B2)
      intents        EIGENE Intents (hier ist diese Fähigkeit der eindeutige Hauptbesitzer). Je Intent:
                       typ    'aktion' = Aktionsart der KI (action.type), 'befehl' = Name in der Befehlsliste (jvCommands),
                              'basis' = Funktion im Grundstock (localcommands.js), 'ki' = die KI antwortet aus dem Kontext (kein eigener Befehl)
@@ -39,6 +39,7 @@
         /* ---------- 1. Kalender ---------- */
         {
             id: 'kalender', name: 'Kalender',
+            icon: '📅', kurz: 'Termine anlegen, ändern, löschen, abfragen',
             beschreibung: 'Termine anlegen, ändern, löschen und abfragen (App-Kalender, mit Google Kalender, wenn verbunden). Findet auf Wunsch freie Zeiten und liest vor, was ansteht.',
             intents: [
                 { typ: 'aktion', bezug: 'calendar', art: 'aendern', vorgaenge: ['Termin anlegen', 'Geburtstag ganztägig anlegen'],
@@ -74,6 +75,7 @@
         /* ---------- 2. Wetter ---------- */
         {
             id: 'wetter', name: 'Wetter',
+            icon: '⛅', kurz: 'Wetter, 7 Tage, Karte, Unwetterwarnung',
             beschreibung: 'Wetter jetzt und die Vorhersage für 7 Tage, Wetterkarte zu jedem Ort, amtliche Unwetterwarnungen und Wetter-Effekt im Hintergrund.',
             intents: [
                 { typ: 'ki', bezug: 'wetter_frage', art: 'lesen', pruefung: 'wettervorhersage', vorgaenge: ['Wetter heute/morgen/Woche aus den Wetterdaten im Kontext beantworten'],
@@ -100,6 +102,7 @@
         /* ---------- 3. Fahrzeit / Navigation ---------- */
         {
             id: 'fahrzeit_navigation', name: 'Fahrzeit und Navigation',
+            icon: '🚗', kurz: 'Fahrzeit, Abfahrt, Route, Navigation',
             beschreibung: 'Fahrzeit und Abfahrtszeit zu einem Ziel oder Termin, Route (auch mit Tankstopp oder mit Bus und Bahn), Navigation starten, Lagebild mit Arbeitsweg und Verkehr.',
             intents: [
                 { typ: 'aktion', bezug: 'travel_time', art: 'lesen', vorgaenge: ['Fahrzeit ermitteln', 'Abfahrtszeit bestimmen', 'Route berechnen'],
@@ -134,14 +137,14 @@
         /* ---------- 4. Erinnerungen ---------- */
         {
             id: 'erinnerungen', name: 'Erinnerungen',
+            icon: '🔔', kurz: 'anlegen, wiederholen, löschen',
             beschreibung: 'Erinnerungen anlegen, wiederholen, abhaken und löschen. Zu einem Termin kann Jarvis nach der Vorlaufzeit fragen und eine Erinnerung dazu anlegen.',
             intents: [
                 { typ: 'aktion', bezug: 'reminder', art: 'aendern', vorgaenge: ['Erinnerung anlegen', 'Wiederholung und wichtige Erinnerung'],
                   beispiele: [{ satz: 'Erinnere mich morgen um 8 Uhr an den Arzt', weg: 'ki' }, { satz: 'Erinnere mich alle zwei Wochen an die Wäsche', weg: 'ki' }] },
                 { typ: 'aktion', bezug: 'reminder_delete', art: 'kritisch', vorgaenge: ['Erinnerung löschen (mit Rückfrage)', 'alle Erinnerungen löschen'],
                   beispiele: [{ satz: 'Lösche die Erinnerung Zahnarzt', weg: 'ki' }] },
-                { typ: 'befehl', bezug: 'termin-erinnern', art: 'aendern', vorgaenge: ['Nach einem Termin fragen "Wie viele Stunden vorher?" und Erinnerung mit dem Termin verknüpfen'],
-                  beispiele: [{ satz: '30 Minuten vorher.', weg: 'lokal', modul: 'termin-erinnern' }] }
+                { typ: 'befehl', bezug: 'termin-erinnern', art: 'aendern', vorgaenge: ['Nach einem Termin fragen "Wie viele Stunden vorher?" und Erinnerung mit dem Termin verknüpfen (nur als Antwort auf diese Frage, darum kein Beispielsatz)'] }
             ],
             abhaengigkeiten: [
                 { typ: 'faehigkeit', ref: 'kalender', wofuer: 'die Termin-Erinnerung gehört zu einem Termin und wandert mit, wenn der Termin verschoben wird', pflicht: false },
@@ -160,6 +163,7 @@
         /* ---------- 5. Gedächtnis ---------- */
         {
             id: 'gedaechtnis', name: 'Gedächtnis',
+            icon: '🧠', kurz: 'Dinge, Orte und Erlebnisse merken',
             beschreibung: 'Merkt sich Gegenstände und Orte (lokal) sowie Erlebnisse, Pläne und Vorlieben (Langzeitgedächtnis) und beantwortet Fragen dazu.',
             intents: [
                 { typ: 'aktion', bezug: 'memory_store', art: 'aendern', vorgaenge: ['Gegenstand oder Ort im lokalen Gedächtnis merken (überschreibt gleichen Schlüssel)'],
@@ -191,6 +195,7 @@
         /* ---------- 6. Fotos ---------- */
         {
             id: 'fotos', name: 'Fotos',
+            icon: '📷', kurz: 'Foto auswerten, Rezept, Brief, Plakat',
             beschreibung: 'Foto auswerten: erkennt Einkaufszettel, Rechnung, Brief, Plakat, Visitenkarte, Stundenplan, Parkschild, Warnleuchte, Rezept, Essensplan und Adressen. Jede Funktion fragt vor dem Speichern nach.',
             intents: [
                 { typ: 'befehl', bezug: 'foto-erkennung', art: 'aendern', vorgaenge: ['Foto erkennen und die passende Funktion starten'],
@@ -219,6 +224,7 @@
         /* ---------- 7. Schicht ---------- */
         {
             id: 'schicht', name: 'Schicht',
+            icon: '🏭', kurz: 'Schicht, Abfahrt, früher los, Urlaub',
             beschreibung: 'Früh-/Spätschicht im Wochenwechsel, Beginn, Abfahrt und Ende, Briefing zur richtigen Zeit, Urlaub, früherer Beginn an einzelnen Tagen und Meldungen zur Abfahrt und zum Feierabend.',
             intents: [
                 { typ: 'befehl', bezug: 'schicht', art: 'aendern', vorgaenge: ['Schicht der Woche setzen'],
@@ -253,6 +259,7 @@
         /* ---------- 8. Preissuche ---------- */
         {
             id: 'preissuche', name: 'Preissuche',
+            icon: '🏷️', kurz: 'günstigster Preis, Preiswächter',
             beschreibung: 'Günstigste Preise bei Google Shopping suchen, Geschenkideen mit echten Preisen, und Preiswächter, der meldet, wenn ein Preis unter die Grenze fällt.',
             intents: [
                 { typ: 'befehl', bezug: 'preissuche', art: 'aendern', vorgaenge: ['Preis suchen (nur lesen)', 'Geschenkideen mit Preisen', 'Preiswächter anlegen', 'Beobachtung beenden', 'Wächter sofort prüfen'],
