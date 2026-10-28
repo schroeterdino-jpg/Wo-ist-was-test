@@ -87,7 +87,8 @@
                 { typ: 'basis', bezug: 'handleWeatherMapCommand', art: 'lesen', vorgaenge: ['Wetterkarte und 7 Tage zu einem genannten Ort anzeigen'],
                   beispiele: [{ satz: 'Zeig mir das Wetter in Istanbul', weg: 'lokal' }, { satz: 'Wetterkarte Hamburg', weg: 'lokal' }] },
                 { typ: 'befehl', bezug: 'wetterfx', art: 'aendern', vorgaenge: ['Wetter-Effekt im Hintergrund an/aus oder als Vorschau'],
-                  beispiele: [{ satz: 'Wetter-Effekt aus', weg: 'lokal', modul: 'wetterfx' }] }
+                  beispiele: [{ satz: 'Wetter-Effekt aus', weg: 'lokal', modul: 'wetterfx' }] },
+                { typ: 'befehl', bezug: 'vollmond_auskunft', art: 'lesen', reineAuskunft: true, vorgaenge: ['Nächsten Vollmond nennen, nur als Teil einer Mehrfachfrage (Einzelfrage läuft über Mondfenster und Sprache wie bisher)'] }
             ],
             abhaengigkeiten: [
                 { typ: 'kontext', ref: 'Ort (genannt oder Standort)', wofuer: 'ohne Ortsnamen nutzt Jarvis den Standort', pflicht: false },
@@ -100,7 +101,7 @@
                 { modul: 'js/zuvorkommend.js', art: ['Sprache'], wann: 'Frost am Abend vor der Frühschicht: Abfahrt wird vorgezogen' }
             ] },
             module: ['js/weathermap.js', 'js/unwetter.js', 'js/wetterfx.js', 'js/briefing.js', 'js/prompt.js'],
-            bekannteGrenzen: ['Wetter plus anderes in einem Satz (Kalender, Vollmond) geht an die KI, keine gemeinsame Antwort (14, 15, C)']
+            bekannteGrenzen: ['Wetter plus Kalender oder Vollmond in einem Satz: Wetter geht an die KI, Kalender und Vollmond rechnet Jarvis selbst, eine gemeinsame Antwort (B4); andere Kombinationen gehen ganz an die KI']
         },
 
         /* ---------- 3. Fahrzeit / Navigation ---------- */

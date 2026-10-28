@@ -53,7 +53,13 @@
 
     /* B4: nur die genannten Einträge probieren (in ihrer Reihenfolge), ohne die übrigen und ohne localcommands.js. Gibt true zurück, wenn einer den Satz erledigt hat.
        Gedacht für reine Auskünfte, die man einzeln und ohne Nebenwirkung ausführen darf (siehe mehrfach.js, Mehrfachfragen). */
+    let nurFlag = false;   // nur während nur() gesetzt (kurzlebig, wird in finally zurückgesetzt); reine Auskünfte wie 'vollmond_auskunft' antworten nur dann
     function nur(namen, text) {
+        const vorher = nurFlag;
+        nurFlag = true;
+        try { return nurLauf(namen, text); } finally { nurFlag = vorher; }
+    }
+    function nurLauf(namen, text) {
         const set = Array.isArray(namen) ? namen : [namen];
         const snap = entries.filter(e => set.indexOf(e.name) >= 0);
         const go = function (i, t) {
@@ -81,7 +87,7 @@
         dispatcher._jvCommands = true;
         window.handleLocalCommand = dispatcher;
     }
-    window.jvCommands = { use, remove, list, nur };
+    window.jvCommands = { use, remove, list, nur, nurAktiv: function () { return nurFlag; } };
     window.jvCommandsUse = use;
 
     /* ============================================================

@@ -13,6 +13,7 @@ let ok = 0, fehler = 0;
 function check(name, b, info) { if (b) { ok++; return; } fehler++; console.log('✗ ' + name + (info ? '  →  ' + info : '')); }
 const gleich = (name, ist, soll) => check(name, JSON.stringify(ist) === JSON.stringify(soll), '\n      ist:  ' + JSON.stringify(ist) + '\n      soll: ' + JSON.stringify(soll));
 const JETZT = '2026-10-28T10:00:00+01:00', KI_ANTWORT = 'KI-Antwort: Morgen 12 Grad und leichter Regen.';
+const lies = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const ant = d => ({ ok: true, status: 200, json: async () => d });
 const tick = n => new Promise(async res => { for (let i = 0; i < (n || 5); i++) await new Promise(r => setImmediate(r)); res(); });
 
@@ -40,27 +41,28 @@ async function neueApp(o) {
 async function lauf(satz, o) {
     const { A, kiCalls } = await neueApp(o);
     kiCalls.length = 0;
-    const g0 = A.gesagt.length, z0 = JSON.stringify(A.zustand());
+    const g0 = A.gesagt.length, e0 = A.ereignisse.length, z0 = JSON.stringify(A.zustand());
     let behandelt;
     await A.lassLaufen(async () => {
         behandelt = A.sb.handleLocalCommand(satz);
         if (!behandelt) await A.sb.sendToGroqSmart(satz);
         await tick(80);
     });
-    return { A, kiCalls, behandelt, gesagt: A.gesagt.slice(g0), zustand0: z0, zustand1: JSON.stringify(A.zustand()), geaendert: JSON.stringify({ t: A.zustand().termine, e: A.zustand().erinnerungen, g: A.zustand().gedaechtnis }) };
+    return { A, kiCalls, behandelt, gesagt: A.gesagt.slice(g0), ereignisse: A.ereignisse.slice(e0).map(e => e.art + ':' + String(e.text).slice(0, 80)), zustand0: z0, zustand1: JSON.stringify(A.zustand()), geaendert: JSON.stringify({ t: A.zustand().termine, e: A.zustand().erinnerungen, g: A.zustand().gedaechtnis }) };
 }
 
 (async () => {
     /* ---------- 1. Beweis: reine Auskunft ---------- */
     const { A: A0 } = await neueApp();
     const F = A0.sb.jvFaehigkeiten;
-    gleich('Registry: genau diese drei Befehle sind als reine Auskunft markiert', F.reineAuskuenfte().slice().sort(), ['gedaechtnis_zeit', 'schicht_auskunft', 'was_steht_an']);
+    gleich('Registry: genau diese drei Befehle sind als reine Auskunft markiert', F.reineAuskuenfte().slice().sort(), ['gedaechtnis_zeit', 'schicht_auskunft', 'vollmond_auskunft', 'was_steht_an']);
     for (const f of F.liste) for (const it of f.intents) if (it.reineAuskunft) check(f.id + '/' + it.bezug + ': Markierung nur bei Befehl + lesen', it.typ === 'befehl' && it.art === 'lesen');
     check('Registry bleibt eingefroren', Object.isFrozen(F) && Object.isFrozen(F.liste[0].intents[0]));
     const SAETZE = {
         was_steht_an: ['Was steht heute an?', 'Was steht morgen an?', 'Was steht Samstag an?', 'Was steht morgen in meinem Kalender?'],
         schicht_auskunft: ['Wann beginnt meine Spätschicht?', 'Wann beginnt meine Frühschicht?'],
-        gedaechtnis_zeit: ['Wann habe ich den Schlüssel abgelegt?']
+        gedaechtnis_zeit: ['Wann habe ich den Schlüssel abgelegt?'],
+        vollmond_auskunft: ['Wann ist der nächste Vollmond?', 'Wann ist Vollmond?', 'Wann kommt der nächste Vollmond?']
     };
     for (const f of F.liste) for (const it of f.intents) if (it.reineAuskunft) for (const b of it.beispiele || []) if (b.weg === 'lokal' && b.modul === it.bezug && !SAETZE[it.bezug].includes(b.satz)) SAETZE[it.bezug].push(b.satz);
 
@@ -156,8 +158,8 @@ async function lauf(satz, o) {
     r = await lauf('Was steht morgen an und wie wird die Lage am Himmel?', { kiFehler: true });
     check('Teilfehler ohne Wetterwort: allgemeiner Satz, Kalender bleibt', r.gesagt.length === 1 && r.gesagt[0].endsWith('Dazu konnte ich gerade keine Antwort holen.') && r.gesagt[0].startsWith('Morgen:'), JSON.stringify(r.gesagt));
 
-    /* Fall 2: Wetter + Vollmond: wie bisher, nicht halb aufgeteilt */
-    for (const satz of ['Wie wird morgen das Wetter und wann ist der nächste Vollmond?', 'Ich habe morgen um 15 Uhr einen Termin in Hamburg. Wie wird dort das Wetter und wann muss ich los?']) {
+    /* Fall 2 (B4.1b: Wetter + Vollmond wird unten getrennt behandelt) und Fall 4: wie bisher, nicht halb aufgeteilt */
+    for (const satz of ['Ich habe morgen um 15 Uhr einen Termin in Hamburg. Wie wird dort das Wetter und wann muss ich los?']) {
         const neu = await lauf(satz), alt = await lauf(satz, { umgehen: true });
         gleich('Regression "' + satz.slice(0, 45) + '…": Verhalten identisch zum abgeschalteten Handler (gesprochen, KI-Aufrufe, Änderungen)', { g: neu.gesagt, k: neu.kiCalls, b: neu.behandelt, z: neu.geaendert }, { g: alt.gesagt, k: alt.kiCalls, b: alt.behandelt, z: alt.geaendert });
         check('Regression "' + satz.slice(0, 45) + '…": ganzer Satz in einem KI-Aufruf, nicht aufgeteilt', neu.kiCalls.length === 1 && neu.kiCalls[0].includes(satz), JSON.stringify(neu.kiCalls));
@@ -223,12 +225,114 @@ async function lauf(satz, o) {
         const kette = A0.kette();
         const iM = kette.findIndex(x => /mehrfachfrage$/.test(x)), iW = kette.findIndex(x => /was_steht_an$/.test(x)), iMe = kette.findIndex(x => / mehrfach$/.test(x));
         check('Befehlsliste: mehrfachfrage steht vor was_steht_an und vor mehrfach', iM >= 0 && iM < iW && iM < iMe, kette.slice(0, 8).join(' | '));
-        check('Befehlsliste: genau ein neuer Eintrag (95)', kette.length === 95, String(kette.length));
+        check('Befehlsliste: mehrfachfrage (B4) und vollmond_auskunft (B4.1b) sind neu (96)', kette.length === 96 && kette.some(x => / vollmond_auskunft$/.test(x)), String(kette.length));
     }
     {   /* Fehlt die Registry oder nur(), tut der Handler nichts */
         const { A } = await neueApp(); A.sb.jvFaehigkeiten = undefined;
         const g0 = A.gesagt.length; const h = A.sb.handleLocalCommand('Was steht morgen im Kalender und wie wird das Wetter?');
         check('Ohne Registry: Handler tut nichts (Satz geht wie früher weiter)', h === false || (A.gesagt.length === g0 && true));
+    }
+
+
+    /* ---------- 5. B4.1b: Vollmond als reine Auskunft ---------- */
+    const VM = 'Der nächste Vollmond ist am Dienstag, 24. November, also in 27 Tagen.';
+    const QUIP = 'Heulen ist erlaubt, bitte aber leise, wegen der Nachbarn.';
+    /* Messung VOR dem Umbau (Stand main nach #262): Einzelfrage "Wann ist der nächste Vollmond?" -> Text VM, Mondfenster, genau eine Sprachausgabe, Spruch (Kategorie vollmond) */
+    for (const satz of ['Wann ist der nächste Vollmond?', 'Wann ist Vollmond?']) {
+        const r = await lauf(satz);
+        gleich('B4.1b Einzelfrage "' + satz + '": wie vor dem Umbau (erst Mondfenster, dann genau eine Sprachausgabe, kein KI-Aufruf)', { e: r.ereignisse, k: r.kiCalls }, { e: ['karte:openExtraWindow: Mond', 'sprechen:' + VM], k: [] });
+        check('B4.1b Einzelfrage "' + satz + '": Text wie vor dem Umbau', r.gesagt[0] === VM, r.gesagt[0]);
+    }
+    {
+        const { A } = await neueApp(); A.sb.sassLevel = () => 3; A.sb.Math.random = () => 0;
+        const q = A.sb.jarvisQuip(VM);
+        check('B4.1b Einzelfrage: der Spruch der Kategorie "vollmond" wird wie vorher angehängt (sprueche.js unverändert, hängt in speak)', typeof q === 'string' && q.startsWith(VM) && q.endsWith(QUIP), q);
+        const sp = A.sb.jarvisQuip('Der nächste Neumond ist am Montag, 9. November, also in 12 Tagen.');
+        check('B4.1b Neumond-Spruch unverändert', /Stockdunkel dann/.test(sp), sp);
+    }
+    {   /* reine Textfunktion */
+        const { A } = await neueApp(); const T0 = A.sb._sonneMondTest;
+        check('vollmondText und vollmondFrage sind da', typeof T0.vollmondText === 'function' && typeof T0.vollmondFrage === 'function');
+        check('vollmondText(now) liefert denselben Satz wie die Einzelfrage', T0.vollmondText(new Date(JETZT)) === VM, T0.vollmondText(new Date(JETZT)));
+        for (const jetzt of ['2026-11-24T05:00:00+01:00', '2026-11-24T20:00:00+01:00', '2026-11-25T12:00:00+01:00', '2026-12-20T10:00:00+01:00']) {
+            const B = starte({ jetzt, festerZufall: true, fetch: async () => { throw new Error('x'); } });
+            const g0 = B.gesagt.length; await B.lassLaufen(async () => { B.sb.handleLocalCommand('Wann ist der nächste Vollmond?'); });
+            check('vollmondText = gesprochener Satz der Einzelfrage zur Zeit ' + jetzt, B.gesagt.slice(g0).length === 1 && B.sb._sonneMondTest.vollmondText(new Date(jetzt)) === B.gesagt[g0], B.gesagt.slice(g0).join('|') + ' <> ' + B.sb._sonneMondTest.vollmondText(new Date(jetzt)));
+        }
+        /* keine Nebenwirkung: weder Sprache, noch Fenster, noch Speicher, noch Netz */
+        const g0 = A.gesagt.length, e0 = A.ereignisse.length, z0 = JSON.stringify(A.zustand()), n0 = A.aufrufe.length;
+        T0.vollmondText(new Date(JETZT)); T0.vollmondFrage('Wann ist Vollmond?');
+        check('vollmondText/vollmondFrage: keine Sprache, kein Fenster, kein Speicher, kein Netz', A.gesagt.length === g0 && A.ereignisse.length === e0 && JSON.stringify(A.zustand()) === z0 && A.aufrufe.length === n0);
+        const quelle = lies('js/sonnemond.js'), kopf = quelle.slice(quelle.indexOf('function vollmondErgebnis'), quelle.indexOf('function answerPhase'));
+        check('vollmondErgebnis/vollmondText enthalten keinen Aufruf von say, speak, Fenster, Karten, Standort, Netz', !/\b(say|speak|openMoonWindow|showCards|showActionCards|position|navigator|fetch|localStorage|openExtraWindow)\s*\(/.test(kopf));
+    }
+    {   /* Erkennung: nicht breiter als heute */
+        const { A } = await neueApp(); const f = A.sb._sonneMondTest.vollmondFrage;
+        for (const s of ['Wann ist der nächste Vollmond?', 'Wann ist Vollmond?', 'Wann kommt der nächste Vollmond?', 'Wann haben wir Vollmond?']) check('vollmondFrage erkennt "' + s + '"', f(s) === true);
+        for (const s of ['Wann ist der nächste Neumond?', 'Wann ist Neumond und wann Vollmond?', 'Wann geht die Sonne unter?', 'Wann geht der Mond auf?', 'Wie ist der Mond heute?', 'Wetter bei Vollmond?', 'Wie wird das Wetter und wann ist Vollmond', 'Vollmond', 'Erzähl mir etwas über den Vollmond', 'Wann ist Vollmond ' + 'und so weiter '.repeat(10)])
+            check('vollmondFrage erkennt NICHT "' + s.slice(0, 50) + '"', f(s) === false);
+        /* dieselbe Regel wie der Befehl: sobald eine Wetterwort drin ist, erkennt keiner von beiden */
+        const g0 = A.gesagt.length; A.sb.handleLocalCommand('Wetter bei Vollmond?'); check('Befehl und Erkennung stimmen überein (Wetterwort sperrt beide)', !A.gesagt.slice(g0).some(x => /nächste Vollmond/.test(x)));
+    }
+    {   /* der Ketteneintrag */
+        const { A } = await neueApp(); const J = A.sb.jvCommands;
+        check('Merkflag nurAktiv ist im Normalzustand aus', J.nurAktiv() === false);
+        let drin = null, normal = null; J.use('probe_nur', (t, next) => { if (t === 'x') drin = J.nurAktiv(); return true; }, 5000); J.use('probe_normal', (t, next) => { if (t === 'Hallo zusammen') normal = J.nurAktiv(); return next(t); }, -5);
+        J.nur(['probe_nur'], 'x'); A.sb.handleLocalCommand('Hallo zusammen'); 
+        check('Merkflag: während nur() an, im normalen Durchlauf aus, danach aus', drin === true && normal === false && J.nurAktiv() === false, JSON.stringify({ drin, normal }));
+        J.remove('probe_nur'); J.remove('probe_normal');
+        const bad = []; bad.indexOf = () => { throw new Error('boom'); };
+        let geworfen = false; try { J.nur(bad, 'x'); } catch (e) { geworfen = true; }
+        check('Merkflag wird auch nach einem Fehler (Ausnahme in nur) zurückgesetzt', geworfen && J.nurAktiv() === false);
+        J.use('wirft', () => { throw new Error('kaputt'); }, 5000);
+        const e1 = console.error; console.error = () => {}; try { J.nur(['wirft'], 'x'); } finally { console.error = e1; }
+        check('Merkflag nach einem Fehler in einem Eintrag aus', J.nurAktiv() === false); J.remove('wirft');
+        check('commands.js setzt das Merkflag im finally zurück, keine zweite Zustandsvariable', /finally \{ nurFlag = vorher; \}/.test(lies('js/commands.js')) && (lies('js/commands.js').match(/\blet nurFlag\b/g) || []).length === 1);
+        /* im normalen Durchlauf antwortet vollmond_auskunft nie: die Einzelfrage läuft über 'erweiterungen' mit Fenster */
+        const g0 = A.gesagt.length, e0 = A.ereignisse.length; A.sb.handleLocalCommand('Wann ist der nächste Vollmond?');
+        const ev = A.ereignisse.slice(e0).map(e => e.art);
+        check('Normaler Durchlauf: Einzelfrage kommt mit Mondfenster und Sprache (vollmond_auskunft hat nicht geantwortet)', ev.includes('karte') && A.gesagt.length === g0 + 1, JSON.stringify(ev));
+        check('gezielter Aufruf: nur(["vollmond_auskunft"]) antwortet, ohne Fenster', (() => { const g = A.gesagt.length, e = A.ereignisse.length; const r = J.nur(['vollmond_auskunft'], 'Wann ist der nächste Vollmond?'); return r === true && A.gesagt.length === g + 1 && !A.ereignisse.slice(e).some(x => x.art === 'karte'); })());
+        check('gezielter Aufruf: Neumond, Sonne, Mondauf-/untergang, Mond heute werden NICHT beantwortet', ['Wann ist der nächste Neumond?', 'Wann geht die Sonne unter?', 'Wann geht der Mond auf?', 'Wann geht der Mond unter?', 'Wie ist der Mond heute?'].every(s => J.nur(['vollmond_auskunft'], s) === false));
+    }
+    /* Registry: nur Vollmond neu, die Sammel-Einträge bleiben draußen */
+    {
+        const R = A0.sb.jvFaehigkeiten.reineAuskuenfte();
+        for (const n of ['erweiterungen', 'lagebild', 'feiertage', 'weltzeit', 'sonne', 'sonnemond', 'mondzeiten', 'neumond']) check('Registry: ' + n + ' ist keine reine Auskunft', !R.includes(n));
+        check('Registry: erweiterungen wird nicht über Beispiele oder Intents als sicher geführt', !A0.sb.jvFaehigkeiten.liste.some(f => f.intents.some(i => i.bezug === 'erweiterungen' && i.reineAuskunft)));
+    }
+    /* Haupttest: Wetter + Vollmond */
+    {
+        let r = await lauf('Wie wird morgen das Wetter und wann ist der nächste Vollmond?');
+        check('Haupttest: vom neuen Weg übernommen', r.behandelt === true);
+        check('Haupttest: genau ein KI-Aufruf, nur mit der Wetterfrage, die KI bekommt keine Vollmondfrage zum Schätzen', r.kiCalls.length === 1 && /Wetter/.test(r.kiCalls[0]) && !/vollmond/i.test(r.kiCalls[0]), JSON.stringify(r.kiCalls));
+        gleich('Haupttest: genau eine gemeinsame Sprachausgabe: Wetter, dann Vollmond (Reihenfolge der Fragen)', r.gesagt, [KI_ANTWORT + ' ' + VM]);
+        check('Haupttest: kein Mondfenster, keine Karte', !r.ereignisse.some(x => /^karte:/.test(x)), JSON.stringify(r.ereignisse));
+        check('Haupttest: nichts geändert (Termine, Erinnerungen, Gedächtnis)', r.geaendert === (await lauf('Hallo')).geaendert);
+        r = await lauf('Wann ist der nächste Vollmond und wie wird morgen das Wetter?');
+        gleich('Vollmond + Wetter: eine gemeinsame Antwort in der Reihenfolge der Fragen', r.gesagt, [VM + ' ' + KI_ANTWORT]);
+        check('Vollmond + Wetter: ein KI-Aufruf nur mit dem Wetter', r.kiCalls.length === 1 && !/vollmond/i.test(r.kiCalls[0]), JSON.stringify(r.kiCalls));
+        r = await lauf('Wie wird morgen das Wetter und wann ist der nächste Vollmond?', { kiFehler: true });
+        check('Wetter fällt aus: Vollmond bleibt, Wetterausfall konkret genannt, genau eine Antwort', r.gesagt.length === 1 && r.gesagt[0].includes(VM) && r.gesagt[0].includes('Wetter konnte ich gerade nicht laden.') && !/Das meiste|Verzeih|HTTP|fetch/.test(r.gesagt[0]), JSON.stringify(r.gesagt));
+        r = await lauf('Wann ist der nächste Vollmond und wie wird morgen das Wetter?', { kiFehler: true });
+        check('Vollmond zuerst, Wetter fällt aus: Vollmond bleibt, Wetterausfall genannt', r.gesagt.length === 1 && r.gesagt[0].includes(VM) && r.gesagt[0].includes('Wetter konnte ich gerade nicht laden.'), JSON.stringify(r.gesagt));
+        r = await lauf('Was steht morgen an und wann ist der nächste Vollmond?');
+        check('Kalender + Vollmond: beides lokal, kein KI-Aufruf, eine Antwort, kein Fenster', r.kiCalls.length === 0 && r.gesagt.length === 1 && r.gesagt[0].includes(VM) && !r.ereignisse.some(x => /^karte:/.test(x)), JSON.stringify(r.gesagt));
+        r = await lauf('Wann beginnt meine Spätschicht und wann ist der nächste Vollmond und wie wird morgen das Wetter?');
+        check('Dreierfrage Schicht + Vollmond + Wetter: eine Antwort, ein KI-Aufruf nur mit dem Wetter', r.gesagt.length === 1 && r.gesagt[0].includes(VM) && r.gesagt[0].includes(KI_ANTWORT) && r.kiCalls.length === 1 && !/vollmond|schicht/i.test(r.kiCalls[0]), JSON.stringify([r.gesagt, r.kiCalls]));
+        check('Wetter + Vollmond: höchstens eine gesprochene Antwort', r.gesagt.length <= 1);
+        /* Bezugswort: nicht zerlegen, ganzer Satz an die KI */
+        r = await lauf('Wann ist der nächste Vollmond und was machen wir danach?');
+        check('Vollmond + Bezugswort: ganzer Satz an die KI, Vollmond spricht nicht allein', r.kiCalls.length === 1 && r.gesagt.length === 1 && r.gesagt[0] === KI_ANTWORT, JSON.stringify([r.kiCalls, r.gesagt]));
+    }
+    /* Unverändert: Neumond, Sonne, Mondauf-/untergang, Mond heute, Lagebild; auch in Kombination mit Wetter (alles an die KI wie bisher) */
+    for (const s of ['Wann ist der nächste Neumond?', 'Wann geht die Sonne unter?', 'Wann geht heute der Mond auf?', 'Wann geht der Mond unter?', 'Wie ist der Mond heute?', 'Zeig mir das Lagebild'])
+        await wieBisher('B4.1b Einzelfrage', s);
+    for (const s of ['Wie wird morgen das Wetter und wann ist der nächste Neumond?', 'Wie wird morgen das Wetter und wann geht die Sonne unter?', 'Wie wird morgen das Wetter und wann geht der Mond auf?'])
+        await wieBisher('B4.1b Kombination ohne Vollmond', s);
+    {
+        const r = await lauf('Wie wird morgen das Wetter und wann ist der nächste Neumond?');
+        check('Wetter + Neumond bleibt ganz bei der KI (ein Aufruf mit dem ganzen Satz)', r.kiCalls.length === 1 && /Neumond/.test(r.kiCalls[0]), JSON.stringify(r.kiCalls));
     }
 
     console.log(fehler ? '\n' + fehler + ' Mehrfachfragen-Prüfung(en) FEHLGESCHLAGEN, ' + ok + ' in Ordnung.' : 'Mehrfachfragen in Ordnung (' + ok + ' Prüfungen).');
