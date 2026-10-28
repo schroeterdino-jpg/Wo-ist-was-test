@@ -32,6 +32,22 @@ function aufbau() {
         check('index.html: ' + t.datei + ' existiert', fs.existsSync(path.join(ROOT, 'js', t.datei)));
         check('index.html: ' + t.datei + ' nur einmal eingebunden', !gesehen.has(t.datei)); gesehen.add(t.datei);
     }
+    // Cache-Stempel (A1): jede eigene Datei hat ?v=<Kurzkennung aus dem Inhalt>, Stempel stimmen mit dem Inhalt überein
+    const stempel = require('../tools/stempel.js');
+    const rohTags = [...html.matchAll(/<(?:script|link)\b[^>]*?\b(?:src|href)="(\.\/(?:js\/[^"?]+\.js|style\.css))(\?v=[^"]*)?"/g)];
+    for (const m of rohTags) {
+        check('Stempel: ' + m[1] + ' hat ?v=<8 Zeichen>', /^\?v=[0-9a-f]{8}$/.test(m[2] || ''), String(m[2]));
+        check('Stempel: ' + m[1] + ' passt zum Inhalt (node tools/stempel.js ausführen)', (m[2] || '') === '?v=' + stempel.stempelVon(m[1].replace(/^\.\//, '')));
+    }
+    check('Stempel: alle eigenen Skripte sind gestempelt (' + rohTags.length + ' Treffer, mindestens 160)', rohTags.length >= 160);
+    check('Stempel: das Werkzeug meldet keine Abweichung', stempel.berechne(html).abweichungen.length === 0, stempel.berechne(html).abweichungen.slice(0, 3).join(' | '));
+    check('Stempel: das Werkzeug ist wiederholbar (zweiter Durchlauf ändert nichts)', stempel.berechne(stempel.berechne(html).neu).neu === stempel.berechne(html).neu);
+    check('Stempel: fremde Skripte (https://) bleiben ohne Stempel', !/src="https?:\/\/[^"]*\?v=[0-9a-f]{8}"/.test(html));
+    const vc = JSON.parse(lies('vercel.json')), hdr = vc.headers || [];
+    const langCache = q => hdr.some(h => h.source === q && h.headers.some(x => x.key === 'Cache-Control' && /immutable/.test(x.value)));
+    check('Stempel: js/ und style.css dürfen lange zwischengespeichert werden', langCache('/js/(.*)') && langCache('/style.css'));
+    check('Stempel: index.html selbst wird NICHT lange zwischengespeichert', !hdr.some(h => /index|^\/\(\.\*\)$|^\/$/.test(h.source)));
+    check('Stempel: kein eigenes Skript wird ohne Stempel nachgeladen (nur Fremd-Adressen per createElement)', !/createElement\(['"]script['"]\)[^;]*;\s*\w+\.src\s*=\s*['"`]\.?\/?js\//.test(dateien('js').map(f => lies('js/' + f)).join('\n')));
     const ausnahmen = new Set(['diagnose.js']);   // wird ggf. anders geladen
     for (const f of dateien('js')) if (!gesehen.has(f) && !ausnahmen.has(f)) check('js/' + f + ' ist in index.html eingebunden (sonst löschen oder einhängen)', false);
     // Funktionen

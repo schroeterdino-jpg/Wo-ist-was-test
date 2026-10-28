@@ -111,7 +111,7 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 ## 7. Arbeitsweise und Stolperfallen
 
 - Dateien werden am Handy über GitHub eingespielt, bevorzugt als Pull Request. Nicht mehr benötigte Dateien sollen ganz raus.
-- Neue Skripte in `index.html` an der passenden Stelle einhängen; das Anhängsel `?v=…` ändern, wenn sich die Datei geändert hat.
+- Neue Skripte in `index.html` an der passenden Stelle einhängen, dann `node tools/stempel.js` ausführen. Das setzt hinter jedes eigene Skript und `style.css` ein `?v=<8 Zeichen aus dem Inhalt>`. Nie von Hand ändern; `lauf.js` prüft Vorhandensein und Aktualität.
 - Mehrere Module ersetzen zur Laufzeit Funktionen anderer (zum Beispiel `fish.js` die Sprachausgabe). Die Reihenfolge in `index.html` zählt.
 - Neue geräteübergreifende Einstellung: Schlüssel in `SYNC_KEYS` (`js/sync.js`) **und** `ALLOWED_KEYS` (`api/sync.js`) eintragen.
 - Push-Meldungen laufen im Server (`api/sync.js`), bei offener App spricht die App selbst (`wachter.js` und Co.). `api/sync.js` merkt sich per `push_alive`, ob die App offen ist.
@@ -240,3 +240,10 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 - Regel: nach jedem größeren Umbau beide Läufe; bei Rot zuerst den Fehler beheben.
 - Feste Tests (Funktion `festeTests` in `jarvis_pruefstrecke.js`): Kategorie A = `check(...)`, muss grün bleiben. Kategorie B = `bekannterFehler(...)` mit festgelegtem Sollwert: der Lauf bleibt grün, listet offene Fehler auf und meldet "behoben", sobald der Sollwert erreicht ist (dann auf `check` umstellen).
 - Achtung Testuhr: Die App vergibt IDs aus der Uhrzeit. Bei stehender Test-Uhr (`vorspulen(2000)` nutzen) bekommen zwei Einträge dieselbe ID.
+
+## Cache-Stempel (A1)
+- `tools/stempel.js` stempelt jede eigene Datei in `index.html` mit einer Kurzkennung ihres Inhalts (SHA-1, 8 Zeichen). Ändert sich eine Datei, ändert sich nur ihr Stempel; `--pruefen` ändert nichts und meldet Abweichungen.
+- `vercel.json` erlaubt für `/js/*` und `/style.css` lange Zwischenspeicherung (`immutable`). Das ist nur sicher, weil jede Adresse einen inhaltsgebundenen Stempel trägt. `index.html` selbst bleibt ohne langen Cache.
+- Ablauf bei jeder Änderung an einer Datei in `js/` oder an `style.css`: `node tools/stempel.js` ausführen und `index.html` mit einchecken. Die Tests (`lauf.js`) schlagen sonst fehl.
+- Grund: Vercel Hobby erlaubt 1 Mio. CDN-Anfragen pro Monat (Stand 28.10.2026 rund 565 000). Mit langem Cache fragt das Handy bei unveränderten Dateien nicht mehr nach.
+- Fremde Skripte (Tailwind, Google) bekommen keinen Stempel. Skripte, die andere Skripte nachladen, laden nur Fremd-Adressen.
