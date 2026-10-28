@@ -596,7 +596,7 @@
             if (!erzwingen && (schon === ymd || nu.ymd !== ymd || nu.min > 15 * 60)) return false;
             merkeGesagt(id);
             try { setPersistentData('jv_schicht_last', ymd); } catch (e) { }
-            if (typeof triggerDailyBriefing === 'function') { try { try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'plan_ansagen', kanal: ['sprache'], grund: 'schicht-briefing', ausloeser: erzwingen ? 'manuell' : 'plan', ereignis: 'brief|' + ymd, bezug: window.jvMeldungen.bezugTag(ymd), text: '' }) } catch (e) { }; triggerDailyBriefing(); return true; } catch (e) { return false; } }
+            if (typeof triggerDailyBriefing === 'function') { try { try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'plan_ansagen', status: 'ausgeloest', kanal: [], grund: 'schicht-briefing', ausloeser: erzwingen ? 'manuell' : 'plan', ereignis: 'brief|' + ymd, bezug: window.jvMeldungen.bezugTag(ymd), text: '' }) } catch (e) { }; triggerDailyBriefing(); return true; } catch (e) { return false; } }
             return false;
         }
         merkeGesagt(id);

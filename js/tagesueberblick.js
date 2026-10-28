@@ -293,7 +293,9 @@ function uebRender(d) {
         try {
             let d2 = d;
             try { d2 = Object.assign({}, d, { aufgaben: await uebSortTasks(d.aufgaben) }); } catch (e) { d2 = d; }   // Aufgaben nach Wichtigkeit
-            speak(uebSpeechText(d2));
+            const uebText = uebSpeechText(d2);
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'tagesueberblick', kanal: ['sprache'], grund: 'tagesueberblick-vorlesen', ausloeser: 'manuell', ereignis: 'ueb|' + uebDayKey(), bezug: window.jvMeldungen.bezugTag(uebDayKey()), text: uebText }) } catch (e) { }   // C1: nur Beobachtung
+            speak(uebText);
         } catch (e) {}
     });
     const closeBtn = mk(bar, 'button', 'ub-btn', 'Schließen');
@@ -325,6 +327,7 @@ async function showUeberblick(markShown) {
     try { if (uebEl) closeUeberblick(); } catch (e) {}
     const d = await uebGather();
     if (markShown) uebMarkShown();
+    try { if (markShown && window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'tagesueberblick', kanal: ['fenster'], grund: uebIsEmpty(d) ? 'tagesueberblick-leer' : 'tagesueberblick', ausloeser: window.jvMeldungen.herkunftApp(), ereignis: 'ueb|' + uebDayKey(), bezug: window.jvMeldungen.bezugTag(uebDayKey()), text: 'Tagesüberblick' }) } catch (e) { }   // C1: nur Beobachtung
     // Morgens automatisch und nichts offen: kurzer Hinweis. Von Hand geöffnet (auch als Ersatz fürs Dashboard): immer die volle Ansicht mit Standort.
     if (markShown && uebIsEmpty(d)) { uebRenderEmpty(); return; }
     uebRender(d);

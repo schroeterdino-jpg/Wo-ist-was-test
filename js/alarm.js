@@ -82,6 +82,7 @@
         document.body.appendChild(el);
         document.body.classList.add('jv-alarm'); document.body.classList.toggle('jv-alarm-orange', stufe === 'orange');
         killTimer = setTimeout(close, 10 * 60 * 1000);
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'alarm', kanal: (o.sprechen !== false ? ['fenster', 'sprache'] : ['fenster']), grund: 'warnung', ausloeser: titel === 'Testalarm' ? 'manuell' : 'push', ereignis: 'alarm|' + key, bezug: null, text: titel + '. ' + text }) } catch (e) { }   // C1: nur Beobachtung
         siren(stufe);
         if (o.sprechen !== false) setTimeout(() => { try { if (el && typeof speak === 'function') speak(titel + '. ' + text); } catch (e) {} }, 2200);
     }
@@ -102,9 +103,11 @@
             go.style.cssText = 'width:100%;padding:16px 8px;border-radius:12px;border:1px solid #49d7ff;background:rgba(73,215,255,.2);color:#49d7ff;font:700 16px "IBM Plex Mono",monospace;letter-spacing:.14em';
             const cl = document.createElement('button'); cl.type = 'button'; cl.textContent = 'Schließen';
             cl.style.cssText = 'width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px solid rgba(93,209,255,.3);background:transparent;color:#7fb8cf;font-size:14px';
-            go.addEventListener('click', () => { try { if (typeof speak === 'function') speak(titel + '. ' + text); } catch (e) {} go.textContent = '▶  NOCHMAL VORLESEN'; });
+            go.addEventListener('click', () => { try { if (typeof speak === 'function') { try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'alarm', kanal: ['sprache'], grund: 'briefing-vorlesen', ausloeser: 'manuell', ereignis: 'brief-karte|' + titel, bezug: window.jvMeldungen.bezugTag(new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' })), text: titel + '. ' + text }) } catch (e) { }   // C1: nur Beobachtung
+                speak(titel + '. ' + text); } } catch (e) {} go.textContent = '▶  NOCHMAL VORLESEN'; });
             cl.addEventListener('click', () => { try { bk.remove(); } catch (e) {} bk = null; });
             box.appendChild(h); box.appendChild(t); box.appendChild(go); box.appendChild(cl); bk.appendChild(box);
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'alarm', kanal: ['fenster'], grund: 'briefing-karte', ausloeser: 'push', ereignis: 'brief-karte|' + titel, bezug: window.jvMeldungen.bezugTag(new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' })), text: titel + '. ' + text }) } catch (e) { }   // C1: nur Beobachtung
             document.body.appendChild(bk);
         } catch (e) {}
     }

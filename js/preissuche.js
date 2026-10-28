@@ -375,7 +375,10 @@
         try {
             if (!laden().length) return;
             const r = await pruefen(false);
-            if (r && r.gemeldet && r.gemeldet.length) sagen('Preis-Treffer. ' + r.gemeldet.map(treffersatz).join(' '));
+            if (r && r.gemeldet && r.gemeldet.length) {
+                try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'preissuche', kanal: ['sprache'], grund: 'preis-treffer', ausloeser: 'timer', ereignis: 'preis|' + r.gemeldet.map(w => w.q).join(','), bezug: window.jvMeldungen.bezugId('produkt', r.gemeldet[0].q), mikro: 'bedingt', text: 'Preis-Treffer. ' + r.gemeldet.map(treffersatz).join(' ') }) } catch (e) { }   // C1: nur Beobachtung
+                sagen('Preis-Treffer. ' + r.gemeldet.map(treffersatz).join(' '));
+            }
         } catch (e) { console.error('Preiswächter', e && e.message); }
     }
     let letzterStart = 0;

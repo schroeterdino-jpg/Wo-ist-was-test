@@ -169,6 +169,7 @@
             pending = { id: f.id, thema: f.thema, frage: f.text, t: Date.now() };
             textMerken(f.text);
             try { if (Array.isArray(chatHistory)) chatHistory.push({ role: 'assistant', content: JSON.stringify({ type: 'chat', reply: f.text }) }); } catch (e) {}
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'kennenlernen', kanal: ['sprache'], grund: 'kennenlern-frage', ausloeser: erzwingen ? 'manuell' : 'timer', ereignis: 'frage|' + f.id, bezug: window.jvMeldungen.bezugId('frage', f.id), frage: true, mikro: 'ja', text: f.text }) } catch (e) { }   // C1: nur Beobachtung
             sag(f.text, true);
         }).catch(function () { laeuft = false; });
     }

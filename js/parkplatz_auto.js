@@ -40,6 +40,7 @@
             setPersistentData('helfer_parking', JSON.stringify(parkingSpot));
             try { renderAllLists(); } catch (e) { }
             if (Date.now() - at < 20 * 60000 && !document.hidden && typeof speak === 'function' && !(typeof isSpeaking === 'function' && isSpeaking())) {
+                try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'parkplatz_auto', kanal: ['sprache'], grund: 'parkplatz-gemerkt', ausloeser: 'apk', ereignis: 'park|' + at, bezug: null, text: 'Ich habe mir gemerkt, wo du geparkt hast: ' + adresse + '.' }) } catch (e) { }   // C1: nur Beobachtung
                 speak('Ich habe mir gemerkt, wo du geparkt hast: ' + adresse + '.');
             }
         } catch (e) { }

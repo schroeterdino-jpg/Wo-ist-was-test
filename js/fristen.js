@@ -114,6 +114,7 @@
         if (!pending.length) return;
         if (busy()) { setTimeout(announceFound, RETRY_BUSY_MS); return; }
         const items = pending.splice(0, 3);
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'fristen', kanal: (items.some(x => x.a.art === 'Mahnung' || x.a.art === 'Vertragsaenderung') ? ['karte', 'sprache'] : ['karte']), grund: 'frist-gefunden', ausloeser: 'timer', ereignis: 'fund|' + items.map(x => x.m.id).join(','), bezug: window.jvMeldungen.bezugId('mail', items[0].m.id), mikro: 'bedingt', text: (function () { var w = items.find(x => x.a.art === 'Mahnung' || x.a.art === 'Vertragsaenderung'); return w ? 'Achtung, in einer E-Mail von ' + w.m.von + ' geht es um ' + (w.a.art === 'Mahnung' ? 'eine Mahnung' : 'eine Vertragsänderung') + ': ' + w.a.zusammenfassung : items[0].a.art + ': ' + items[0].a.titel; })() }) } catch (e) { }   // C1: nur Beobachtung
         card(items.map(({ a, m }) => ({ icon: a.art === 'Mahnung' ? '⚠️' : '📅', title: `${artLabel(a.art)}: ${a.titel}`.slice(0, 80),
             subtitle: `${a.datum ? 'Frist ' + lesbar(a.datum) + ' · ' : ''}${a.betrag ? a.betrag + ' · ' : ''}${m.von}`.slice(0, 160) })));
         const wichtig = items.filter(x => x.a.art === 'Mahnung' || x.a.art === 'Vertragsaenderung');
@@ -138,6 +139,7 @@
             if (f.stufe === 'ueber') return `${was}${m.betrag ? ' über ' + m.betrag : ''} ist ${tageText(f.tage).replace('seit', 'seit')} überfällig`;
             return `${was}${m.betrag ? ' über ' + m.betrag : ''} ist ${tageText(f.tage)} fällig`;
         });
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'fristen', kanal: ['karte', 'sprache'], grund: 'frist-erinnerung', ausloeser: 'timer', ereignis: 'erinnerung|' + list.map(f => f.id).join(','), bezug: window.jvMeldungen.bezugId('frist', list[0].id), mikro: 'bedingt', text: 'Erinnerung: ' + parts.join('. Außerdem: ') }) } catch (e) { }   // C1: nur Beobachtung
         card(list.map(f => ({ icon: f.stufe === 'ueber' ? '⚠️' : '⏰', title: (f.metadata.titel || 'Frist').slice(0, 80), subtitle: `${tageText(f.tage)}${f.metadata.betrag ? ' · ' + f.metadata.betrag : ''}`.slice(0, 160) })));
         say('Erinnerung: ' + parts.join('. Außerdem: ') + '. Sag „bezahlt“ oder „erledigt“, wenn es erledigt ist.');
         for (const f of list) { try { await post({ action: 'mark', id: f.id, art: 'frist_' + f.stufe }); } catch (e) {} }
