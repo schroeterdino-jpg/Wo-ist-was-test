@@ -30,7 +30,7 @@ const INLINE = (html.split('<script>').slice(1).map(x => x.split('</script>')[0]
 
 /* ---------- Welt mit Beobachtern ---------- */
 function welt(extra) {
-    const prot = [], letzte = {}, aufz = { sprechen: [], karten: [], vision: [], toene: [] };
+    const prot = [], letzte = {}, aufz = { sprechen: [], karten: [], kartenRoh: [], vision: [], toene: [], oeffnen: [] };
     function beobachte(name, sb) {
         for (const n of BEOBACHTET) {
             const v = sb[n];
@@ -42,7 +42,7 @@ function welt(extra) {
         nachSkript: (f, sb) => {
             beobachte(f, sb);
             if (f === 'places.js') {   // ganz unten in der Karten-Kette: Aufzeichner statt DOM
-                sb.showActionCards = function (karten) { aufz.karten.push((karten || []).map(k => String((k && k.title) || '') + (k && k.subtitle ? ' | ' + String(k.subtitle).slice(0, 40) : ''))); };
+                sb.showActionCards = function (karten) { aufz.kartenRoh.push((karten || []).map(k => ({ icon: k && k.icon, title: k && k.title, onclick: k && k.onclick }))); aufz.karten.push((karten || []).map(k => String((k && k.title) || '') + (k && k.subtitle ? ' | ' + String(k.subtitle).slice(0, 40) : ''))); };
                 letzte.showActionCards = sb.showActionCards;
             }
             if (f === 'voice.js') {     // ganz unten in der speak-Kette: Aufzeichner statt Stimme
@@ -59,6 +59,7 @@ function welt(extra) {
     w.prot = prot; w.aufz = aufz;
     w.sb.askVision = async function (sys, q) { aufz.vision.push(String(sys).slice(0, 48) + ' | ' + String(q).slice(0, 48)); return '{}'; };
     w.sb.playTone = undefined;
+    w.sb.open = function (u) { aufz.oeffnen.push(String(u).slice(0, 60)); return null; };
     return w;
 }
 const tausche = (a, b) => l => { const x = l.indexOf(a), y = l.indexOf(b); if (x < 0 || y < 0) return l; l[x] = b; l[y] = a; return l; };
@@ -107,6 +108,68 @@ async function messeFoto(w) {
     a.karten.length = 0;
     sb.showActionCards([{ title: 'Probe-Karte', subtitle: 'x' }]);
     r.kartenKette = a.karten.map(k => k.join('; '));
+
+    /* ---- Phase 3: photoAskWhatToDo (Auswahlkarten nach einem Foto ohne Befehl), confirmPhotoPending, showActionCards-Kette ---- */
+    const kurz = k => (k || []).map(c => (c.icon || '') + ' ' + c.title + ' → ' + c.onclick);
+    const FOTO = { dataUrl: 'data:image/jpeg;base64,AAAA', at: w.uhr.ms };
+    const zurueck = () => { a.sprechen.length = 0; a.karten.length = 0; a.kartenRoh.length = 0; a.vision.length = 0; a.oeffnen.length = 0; };
+    const warteKurz = async () => { for (let i = 0; i < 4; i++) await new Promise(res => setImmediate(res)); };
+    r.fragenOhneFoto = []; r.fragenMitFoto = []; r.folgeaktion = [];
+    for (const [name, foto] of [['ohne lastPhoto', null], ['mit lastPhoto (Erkennung läuft)', FOTO]]) {
+        w.setze('lastPhoto', foto); w.setze('photoIntent', null);
+        zurueck();
+        const idVor = sb.showActionCards;
+        let fehl = '';
+        try { sb.photoAskWhatToDo(); } catch (e) { fehl = 'FEHLER ' + e.message; }
+        await warteKurz();
+        const ziel = foto ? r.fragenMitFoto : r.fragenOhneFoto;
+        ziel.push(name + ' | ' + fehl + ' | sagt: ' + a.sprechen.join(' / ').slice(0, 100) + ' | Aufrufe: ' + a.kartenRoh.length + ' | vision: ' + a.vision.join(' ## ').slice(0, 120));
+        a.kartenRoh.forEach((k, i) => kurz(k).forEach(z => ziel.push('  Aufruf ' + (i + 1) + ': ' + z)));
+        ziel.push('showActionCards nach dem Aufruf unverändert (vorübergehende Eingriffe zurückgenommen): ' + (sb.showActionCards === idVor));
+    }
+    /* Folgeaktion: jede Karte der Auswahl führt zu runLastPhotoTask(aufgabe); die Aufgabe läuft mit dem Foto bis zum unteren Ende */
+    {
+        w.setze('lastPhoto', FOTO); zurueck();
+        const aufgaben = [];
+        sb.photoAskWhatToDo(); await warteKurz();
+        a.kartenRoh.forEach(k => k.forEach(c => { const m = /runLastPhotoTask\('(\w+)'/.exec(String(c.onclick || '')); if (m && aufgaben.indexOf(m[1]) < 0) aufgaben.push(m[1]); }));
+        for (const t of aufgaben) {
+            w.setze('lastPhoto', FOTO); zurueck();
+            let fehl = '';
+            try { const x = await w.lassLaufen(() => sb.runLastPhotoTask(t, 'test ' + t)); if (x.haengt) fehl = 'HÄNGT'; } catch (e) { fehl = 'FEHLER ' + String(e.message).slice(0, 30); }
+            r.folgeaktion.push(t + ' = ' + fehl + ' | vision: ' + a.vision.join(' ## ').slice(0, 110) + ' | sagt: ' + a.sprechen.join(' / ').slice(0, 80) + ' | karten: ' + a.karten.map(k => k.join('; ')).join(' // ').slice(0, 100));
+        }
+        r.folgeaktion.unshift('Aufgaben der Karten: ' + aufgaben.join(','));
+    }
+    /* confirmPhotoPending: Wirkung je Art der wartenden Sache */
+    r.bestaetigen = [];
+    const PENDS = [['keine', null], ['Adresse', { type: 'address', at: w.uhr.ms, data: [{ dest: 'Teststraße 1, 12345 Teststadt', label: 'Teststraße 1' }] }],
+        ['Adresse abgelaufen', { type: 'address', at: w.uhr.ms - 99 * 60000, data: [{ dest: 'x' }] }],
+        ['Brief ohne Plan', { type: 'letter', at: w.uhr.ms, data: { plan: [] } }], ['Brief abgelaufen', { type: 'letter', at: w.uhr.ms - 99 * 60000, data: { plan: [] } }],
+        ['Kontakt', { type: 'contact', at: w.uhr.ms, data: { name: 'Max Muster', telefon: '', adresse: '' } }], ['Einkauf', { type: 'shopping', at: w.uhr.ms, data: ['Milch'] }]];
+    for (const [name, pend] of PENDS) {
+        w.setze('photoPending', pend); zurueck();
+        let fehl = '';
+        try { const x = await w.lassLaufen(() => sb.confirmPhotoPending()); if (x.haengt) fehl = 'HÄNGT'; } catch (e) { fehl = 'FEHLER ' + String(e.message).slice(0, 40); }
+        r.bestaetigen.push(name + ' = ' + fehl + ' | sagt: ' + a.sprechen.join(' / ').slice(0, 100) + ' | öffnet: ' + a.oeffnen.join(',') + ' | Karten: ' + a.kartenRoh.map(k => k.length).join(',') + ' | danach wartend: ' + JS(w.lese('photoPending') && w.lese('photoPending').type || null));
+    }
+    w.setze('photoPending', null);
+    /* handlePhotoCommand mit wartender Adresse: zusätzliche Ja-Wörter aus foto_adresse */
+    for (const t of ['navigier los', 'ja', 'fahr los', 'nein']) {
+        w.setze('photoPending', { type: 'address', at: w.uhr.ms, data: [{ dest: 'Teststraße 1' }] }); zurueck();
+        let ret; try { ret = sb.handlePhotoCommand(t); } catch (e) { ret = 'FEHLER'; }
+        await warteKurz();
+        r.bestaetigen.push('Befehl "' + t + '" bei wartender Adresse = ' + ret + ' | sagt: ' + a.sprechen.join(' / ').slice(0, 80) + ' | öffnet: ' + a.oeffnen.join(','));
+    }
+    w.setze('photoPending', null); w.setze('lastPhoto', null);
+    /* showActionCards-Kette (dauerhafte Erweiterungen): Foto-Auswahlkarten bekommen die WhatsApp-Karte, andere Listen nicht */
+    r.kartenKetteLang = [];
+    for (const [name, liste] of [['Foto-Auswahl', [{ icon: 'x', title: 'A', onclick: "runLastPhotoTask('read')" }]], ['normale Karten', [{ icon: 'y', title: 'B', onclick: 'foo()' }]],
+        ['Foto-Auswahl mit schon vorhandener Sende-Karte', [{ title: 'A', onclick: "runLastPhotoTask('read')" }, { title: 'S', onclick: 'jvFotoSenden.senden()' }]], ['leer', []]]) {
+        zurueck();
+        try { sb.showActionCards(liste.map(c => Object.assign({}, c))); } catch (e) { a.kartenRoh.push([{ title: 'FEHLER ' + e.message }]); }
+        r.kartenKetteLang.push(name + ' => ' + a.kartenRoh.map(k => kurz(k).join(' ; ')).join(' // '));
+    }
     return r;
 }
 
@@ -209,7 +272,7 @@ function anzahlAbweichungen(a, b) { const x = Array.isArray(a) ? a : [], y = Arr
         (() => { const r = starte({ festerZufall: true }).reihenfolge; const p = n => r.indexOf(n); return p('native_speech.js') < p('commands.js') && p('commands.js') < p('photo.js') && p('photo.js') < p('foto_rezept.js') && p('foto_rezept.js') < p('sprueche.js') && p('sprueche.js') < p('teilen.js') && p('teilen.js') < p('fotosenden.js'); })());
 
     console.log('B. Wirkung der Ketten (Foto, speak, Befehle)');
-    for (const k of ['parse', 'folge', 'befehl', 'auswertung', 'kartenKette']) {
+    for (const k of ['parse', 'folge', 'befehl', 'auswertung', 'kartenKette', 'fragenOhneFoto', 'fragenMitFoto', 'folgeaktion', 'bestaetigen', 'kartenKetteLang']) {
         const abw = anzahlAbweichungen(ist.foto[k], soll.foto[k]);
         check('Foto-Wirkung "' + k + '": ' + (soll.foto[k] || []).length + ' Proben wie eingefroren', abw === 0, abw + ' Abweichung(en), z. B. ' + (ist.foto[k].find((x, i) => x !== soll.foto[k][i]) || '').slice(0, 160));
     }
