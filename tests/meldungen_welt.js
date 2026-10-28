@@ -156,7 +156,7 @@ async function laufen(art, opt) {
         const kaputt = () => { throw new Error('Beobachter kaputt'); };
         sb.jvMeldungen = { beobachte: kaputt, bezugTermin: kaputt, bezugTerminId: kaputt, bezugErinnerung: kaputt, bezugErinnerungTextZeit: kaputt, bezugTag: kaputt, bezugId: kaputt, folgeAusloeser: kaputt, bezugAusWaechterId: kaputt, herkunftApp: kaputt };
     }
-    if (opt.scharf && sb.jvRegeln) sb.jvRegeln.scharf = true;   // C1 Stufe 1 scharf (nur für die Tests)
+    if (sb.jvRegeln) sb.jvRegeln.scharf = (opt.scharf === true);   // C1 Stufe 1: ausdrücklich herstellen (Standard aus), unabhängig vom ausgelieferten Wert
     if (opt.gateWirft && sb.jvRegeln) sb.jvRegeln.darfSprechen = () => { throw new Error('Gate kaputt'); };
     if (opt.shadowAus && sb.jvRegeln) sb.jvRegeln.aus();
     if (opt.shadowKaputt) {   // Shadow wirft bei jedem Aufruf Fehler; zusätzlich meldet sich ein zweiter Mitleser, der ebenfalls immer wirft

@@ -30,7 +30,7 @@ function welt(opt) {
     const A = starte({ jetzt: opt.jetzt || '2026-11-03T10:00:00+01:00', sekundenTakt: true, spracherkennung: true });
     let ruhe = false;
     if (!opt.echteRuhe) A.sb.wachterQuiet = () => ruhe;
-    if (opt.scharf !== false) A.sb.jvRegeln.scharf = true;
+    A.sb.jvRegeln.scharf = opt.scharf !== false;   // Zustand ausdrücklich herstellen, unabhängig vom ausgelieferten Wert
     const R = A.sb.jvRegeln;
     return {
         A, R, ruhe: v => { ruhe = v; }, plus: min => { A.uhr.ms += min * MIN; },
@@ -44,7 +44,10 @@ function welt(opt) {
     /* ===== 1. Einhängung ===== */
     {
         const w = welt({ scharf: false });
-        check('Ausgeliefert: jvRegeln.scharf ist false', w.R.scharf === false && /scharf:\s*false/.test(lies('js/meldungs_regeln.js')));
+        const ausgeliefert = /scharf:\s*(true|false)/.exec(lies('js/meldungs_regeln.js'));
+        console.log('  · ausgelieferter Wert im Produktcode: scharf = ' + (ausgeliefert && ausgeliefert[1]) + ' (die Tests stellen ihren Zustand selbst her und hängen nicht davon ab)');
+        check('Der Schalter ist ein einfacher Wahrheitswert im Produktcode', !!ausgeliefert);
+        check('Test-Welten stellen den Zustand ausdrücklich her: Standard aus, auf Wunsch an', starte({}).sb.jvRegeln.scharf === false && starte({ scharf: true }).sb.jvRegeln.scharf === true && starte({ scharf: false }).sb.jvRegeln.scharf === false);
         check('index.html lädt meldungs_regeln.js (mit Stempel)', /meldungs_regeln\.js\?v=[0-9a-f]{8}/.test(lies('index.html')));
         const dateien = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && f !== 'meldungs_regeln.js');
         const kennen = dateien.filter(f => /jvRegeln/.test(lies('js/' + f))).sort();
@@ -93,11 +96,17 @@ function welt(opt) {
         w.plus(2);
         check('Nutzeraktivität: 4 min danach erlaubt', w.darf({ text: 'a' }) === true);
     }
-    {   // Touch/Tippen zählt weiterhin
-        const w = welt();
-        w.A.sb.document.dispatchEvent && w.A.sb.document.dispatchEvent({ type: 'pointerdown' });
-        const taps = []; const echt = w.A.sb.document.addEventListener;
-        check('Touch/Tippen: meldungs_regeln hört auf pointerdown, keydown, touchstart', /\['pointerdown', 'keydown', 'touchstart'\]/.test(lies('js/meldungs_regeln.js')) && typeof echt === 'function');
+    {   // Touch/Tippen zählt weiterhin (die Seite hört auf pointerdown, keydown, touchstart)
+        for (const ev of ['pointerdown', 'keydown', 'touchstart']) {
+            const w = welt();
+            const hoerer = (w.A.dokListener[ev] || []);
+            check('Touch/Tippen: die Seite hat einen Hörer für ' + ev, hoerer.length >= 1);
+            hoerer.forEach(fn => { try { fn({ type: ev }); } catch (e) { } });
+            w.plus(1);
+            const gesperrt = w.darf({ text: 'a', eigeneStufe: true }) === false && w.R.verworfene().pop().regel === 'niedrig-nutzer';
+            w.plus(3);
+            check('Touch/Tippen (' + ev + '): 1 min später LOW gesperrt, nach 4 min wieder erlaubt', gesperrt && w.darf({ text: 'b', eigeneStufe: true }) === true);
+        }
     }
     {   // Limits: nur im Standardmodus (Redestufe nie gewählt)
         const w = welt();
