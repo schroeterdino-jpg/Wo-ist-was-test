@@ -60,17 +60,18 @@
         return origRun.apply(this, arguments);
     };
 
-    const origAsk = window.photoAskWhatToDo;
-    window.photoAskWhatToDo = function () {
-        if (!isOn() || typeof askVision !== 'function' || typeof lastPhoto === 'undefined' || !lastPhoto || !lastPhoto.dataUrl) return origAsk.apply(this, arguments);
-        const my = ++seq, foto = lastPhoto, dataUrl = lastPhoto.dataUrl;
-        // Auswahlkarten sofort zeigen (falls die Erkennung nichts bringt), aber noch nicht die Frage sprechen
-        const origSay = window.photoSay;
-        window.photoSay = function () {};
-        try { origAsk.apply(this, arguments); } finally { window.photoSay = origSay; }
-        try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Erkenne, was das ist...'); } catch (e) {}
-        erkennen(my, foto, dataUrl).catch(e => { console.error('Foto erkennen', e && e.message); fallback(my); });
-    };
+    window.jvFotoKette.anmelden('photoAskWhatToDo', 'foto_erkennen', 20, function (origAsk) {
+        return function () {
+            if (!isOn() || typeof askVision !== 'function' || typeof lastPhoto === 'undefined' || !lastPhoto || !lastPhoto.dataUrl) return origAsk.apply(this, arguments);
+            const my = ++seq, foto = lastPhoto, dataUrl = lastPhoto.dataUrl;
+            // Auswahlkarten sofort zeigen (falls die Erkennung nichts bringt), aber noch nicht die Frage sprechen
+            const origSay = window.photoSay;
+            window.photoSay = function () {};
+            try { origAsk.apply(this, arguments); } finally { window.photoSay = origSay; }
+            try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Erkenne, was das ist...'); } catch (e) {}
+            erkennen(my, foto, dataUrl).catch(e => { console.error('Foto erkennen', e && e.message); fallback(my); });
+        };
+    });
 
     function fallback(my, beschr) {
         if (my !== seq || userStarted === my) return;

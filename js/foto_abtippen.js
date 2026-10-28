@@ -50,67 +50,72 @@
     }
 
     /* ---------- Einhängen in photo.js ---------- */
-    const origParse = window.parsePhotoRequest;
-    window.parsePhotoRequest = function (text) {
-        if (isAbtippen(text)) return { task: 'abtippen', question: norm(text) };
-        return origParse.apply(this, arguments);
-    };
-    if (typeof window.parseFollowupTask === 'function') {
-        const origFollow = window.parseFollowupTask;
-        window.parseFollowupTask = function (text) {
-            if (isFollowup(text) || isMerkFollowup(text)) return { task: 'abtippen', question: isMerkFollowup(text) ? '__merken' : '' };
-            return origFollow.apply(this, arguments);
+    window.jvFotoKette.anmelden('parsePhotoRequest', 'foto_abtippen', 80, function (origParse) {
+        return function (text) {
+            if (isAbtippen(text)) return { task: 'abtippen', question: norm(text) };
+            return origParse.apply(this, arguments);
         };
+    });
+    if (typeof window.parseFollowupTask === 'function') {
+        window.jvFotoKette.anmelden('parseFollowupTask', 'foto_abtippen', 80, function (origFollow) {
+            return function (text) {
+                if (isFollowup(text) || isMerkFollowup(text)) return { task: 'abtippen', question: isMerkFollowup(text) ? '__merken' : '' };
+                return origFollow.apply(this, arguments);
+            };
+        });
     }
-    const origProcess = window.processPhoto;
-    window.processPhoto = async function (intent, dataUrl) {
-        if (intent && intent.task === 'abtippen') return processAbtippen(dataUrl, intent.question === MEHR, isMerken(intent.question) || isMerkFollowup(intent.question) || intent.question === '__merken');
-        return origProcess.apply(this, arguments);
-    };
+    window.jvFotoKette.anmelden('processPhoto', 'foto_abtippen', 80, function (origProcess) {
+        return async function (intent, dataUrl) {
+            if (intent && intent.task === 'abtippen') return processAbtippen(dataUrl, intent.question === MEHR, isMerken(intent.question) || isMerkFollowup(intent.question) || intent.question === '__merken');
+            return origProcess.apply(this, arguments);
+        };
+    });
 
     /* Auswahlkarten nach einem Foto ohne vorherigen Befehl: "Abtippen zum Ausdrucken" vorne dazu */
     if (typeof window.photoAskWhatToDo === 'function') {
-        const origAsk = window.photoAskWhatToDo;
-        window.photoAskWhatToDo = function () {
-            try {
-                if (typeof clearActionCards === 'function') clearActionCards();
-                if (typeof showActionCards === 'function') {
-                    showActionCards([
-                        { icon: '🖨️', title: 'Abtippen · Merken', subtitle: 'Text sauber abschreiben, drucken oder im Gedächtnis speichern', onclick: "runLastPhotoTask('abtippen')" },
-                        { icon: '✉️', title: 'Brief auswerten', subtitle: 'Rechnung, Mahnung, Vertrag, Bescheid, Einladung', onclick: "runLastPhotoTask('letter')" },
-                        { icon: '🛒', title: 'Auf die Einkaufsliste', subtitle: 'Zettel lesen, Artikel eintragen', onclick: "runLastPhotoTask('shopping')" },
-                        { icon: '📅', title: 'Termine eintragen', subtitle: 'Kalender, Plakat, Einladung', onclick: "runLastPhotoTask('events')" },
-                        { icon: '📍', title: 'Dorthin navigieren', subtitle: 'Adresse lesen, Route starten', onclick: "runLastPhotoTask('address')" },
-                        { icon: '👤', title: 'Kontakt anlegen', subtitle: 'Visitenkarte', onclick: "runLastPhotoTask('contact')" },
-                        { icon: '🔤', title: 'Vorlesen / übersetzen', subtitle: 'Text auf dem Foto', onclick: "runLastPhotoTask('read')" },
-                        { icon: '🔍', title: 'Beschreiben', subtitle: 'Was ist zu sehen?', onclick: "runLastPhotoTask('describe')" }
-                    ]);
-                }
-                say('Das Foto ist da. Was soll ich damit tun?');
-            } catch (e) { return origAsk.apply(this, arguments); }
-        };
+        window.jvFotoKette.anmelden('photoAskWhatToDo', 'foto_abtippen', 80, function (origAsk) {
+            return function () {
+                try {
+                    if (typeof clearActionCards === 'function') clearActionCards();
+                    if (typeof showActionCards === 'function') {
+                        showActionCards([
+                            { icon: '🖨️', title: 'Abtippen · Merken', subtitle: 'Text sauber abschreiben, drucken oder im Gedächtnis speichern', onclick: "runLastPhotoTask('abtippen')" },
+                            { icon: '✉️', title: 'Brief auswerten', subtitle: 'Rechnung, Mahnung, Vertrag, Bescheid, Einladung', onclick: "runLastPhotoTask('letter')" },
+                            { icon: '🛒', title: 'Auf die Einkaufsliste', subtitle: 'Zettel lesen, Artikel eintragen', onclick: "runLastPhotoTask('shopping')" },
+                            { icon: '📅', title: 'Termine eintragen', subtitle: 'Kalender, Plakat, Einladung', onclick: "runLastPhotoTask('events')" },
+                            { icon: '📍', title: 'Dorthin navigieren', subtitle: 'Adresse lesen, Route starten', onclick: "runLastPhotoTask('address')" },
+                            { icon: '👤', title: 'Kontakt anlegen', subtitle: 'Visitenkarte', onclick: "runLastPhotoTask('contact')" },
+                            { icon: '🔤', title: 'Vorlesen / übersetzen', subtitle: 'Text auf dem Foto', onclick: "runLastPhotoTask('read')" },
+                            { icon: '🔍', title: 'Beschreiben', subtitle: 'Was ist zu sehen?', onclick: "runLastPhotoTask('describe')" }
+                        ]);
+                    }
+                    say('Das Foto ist da. Was soll ich damit tun?');
+                } catch (e) { return origAsk.apply(this, arguments); }
+            };
+        });
     }
 
     /* Befehl vorher ("Ratenplan abtippen"): erst Kamera, mit einer passenden Ansage. Liegt schon ein frisches Foto vor, gleich abtippen. */
     if (typeof window.handlePhotoCommand === 'function') {
-        const origCmd = window.handlePhotoCommand;
-        window.handlePhotoCommand = function (text) {
-            try {
-                const freshNow = typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < (typeof PHOTO_FOLLOWUP_MS !== 'undefined' ? PHOTO_FOLLOWUP_MS : 600000);
-                if (isAbtippen(text) || isFollowup(text) || (isMerkFollowup(text) && freshNow)) {
-                    const fresh = freshNow;
-                    if (fresh && !/\b(?:neu\w*|fotografier\w*|abfotografier\w*|mach\w*\s+(?:ein\s+)?foto)\b/.test(norm(text))) {
-                        runLastPhotoTask('abtippen', text).catch(() => say('Das Abtippen hat gerade nicht geklappt.'));
+        window.jvFotoKette.anmelden('handlePhotoCommand', 'foto_abtippen', 80, function (origCmd) {
+            return function (text) {
+                try {
+                    const freshNow = typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < (typeof PHOTO_FOLLOWUP_MS !== 'undefined' ? PHOTO_FOLLOWUP_MS : 600000);
+                    if (isAbtippen(text) || isFollowup(text) || (isMerkFollowup(text) && freshNow)) {
+                        const fresh = freshNow;
+                        if (fresh && !/\b(?:neu\w*|fotografier\w*|abfotografier\w*|mach\w*\s+(?:ein\s+)?foto)\b/.test(norm(text))) {
+                            runLastPhotoTask('abtippen', text).catch(() => say('Das Abtippen hat gerade nicht geklappt.'));
+                            return true;
+                        }
+                        photoIntent = { task: 'abtippen', question: String(text || ''), at: Date.now() };
+                        if (typeof showPhotoCards === 'function') showPhotoCards();
+                        say(isMerken(text) ? 'Leg das Blatt gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera. Danach kannst du es im Gedächtnis speichern.' : 'Leg den Plan gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera. Bei mehreren Seiten machst du zuerst die erste.');
                         return true;
                     }
-                    photoIntent = { task: 'abtippen', question: String(text || ''), at: Date.now() };
-                    if (typeof showPhotoCards === 'function') showPhotoCards();
-                    say(isMerken(text) ? 'Leg das Blatt gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera. Danach kannst du es im Gedächtnis speichern.' : 'Leg den Plan gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera. Bei mehreren Seiten machst du zuerst die erste.');
-                    return true;
-                }
-            } catch (e) { console.error('Abtippen-Befehl', e); }
-            return origCmd.apply(this, arguments);
-        };
+                } catch (e) { console.error('Abtippen-Befehl', e); }
+                return origCmd.apply(this, arguments);
+            };
+        });
     }
 
     /* ---------- Mehrere Seiten: weitere Fotos werden hinten angehängt ---------- */

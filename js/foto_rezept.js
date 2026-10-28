@@ -534,67 +534,72 @@
     }
 
     /* ---------- Einhängen in photo.js und die anderen foto_*.js ---------- */
-    const origProcess = window.processPhoto;
-    window.processPhoto = async function (intent, dataUrl) {
-        if (intent && intent.task === 'rezept') {
-            const add = addMode && hasDraft() ? draft.rez : null;
-            return processRezept([dataUrl], add);
-        }
-        return origProcess.apply(this, arguments);
-    };
+    window.jvFotoKette.anmelden('processPhoto', 'foto_rezept', 10, function (origProcess) {
+        return async function (intent, dataUrl) {
+            if (intent && intent.task === 'rezept') {
+                const add = addMode && hasDraft() ? draft.rez : null;
+                return processRezept([dataUrl], add);
+            }
+            return origProcess.apply(this, arguments);
+        };
+    });
 
     if (typeof window.parsePhotoRequest === 'function') {
-        const origParse = window.parsePhotoRequest;
-        window.parsePhotoRequest = function (text) {
-            if (istRezeptFoto(text)) return { task: 'rezept', question: norm(text) };
-            return origParse.apply(this, arguments);
-        };
+        window.jvFotoKette.anmelden('parsePhotoRequest', 'foto_rezept', 10, function (origParse) {
+            return function (text) {
+                if (istRezeptFoto(text)) return { task: 'rezept', question: norm(text) };
+                return origParse.apply(this, arguments);
+            };
+        });
     }
 
     if (typeof window.handlePhotoCommand === 'function') {
-        const origCmd = window.handlePhotoCommand;
-        window.handlePhotoCommand = function (text) {
-            try {
-                if (istRezeptFoto(text)) {
-                    // Liegt gerade ein frisches Foto vor und der Satz heißt "werte es als Rezept aus", direkt auswerten
-                    if (typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < (typeof PHOTO_FOLLOWUP_MS !== 'undefined' ? PHOTO_FOLLOWUP_MS : 600000)
-                        && !/\b(?:mach\w*|nimm|aufnehm\w*|fotografier\w*|abfotografier\w*|kamera)\b/.test(norm(text))) {
-                        runLastPhotoTask('rezept', text).catch(() => say('Die Auswertung hat gerade nicht geklappt.'));
+        window.jvFotoKette.anmelden('handlePhotoCommand', 'foto_rezept', 10, function (origCmd) {
+            return function (text) {
+                try {
+                    if (istRezeptFoto(text)) {
+                        // Liegt gerade ein frisches Foto vor und der Satz heißt "werte es als Rezept aus", direkt auswerten
+                        if (typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < (typeof PHOTO_FOLLOWUP_MS !== 'undefined' ? PHOTO_FOLLOWUP_MS : 600000)
+                            && !/\b(?:mach\w*|nimm|aufnehm\w*|fotografier\w*|abfotografier\w*|kamera)\b/.test(norm(text))) {
+                            runLastPhotoTask('rezept', text).catch(() => say('Die Auswertung hat gerade nicht geklappt.'));
+                            return true;
+                        }
+                        photoIntent = { task: 'rezept', question: String(text || ''), at: Date.now() };
+                        if (typeof showPhotoCards === 'function') showPhotoCards();
+                        say('Lege das Rezept gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera. Hast du mehrere Seiten, wähl in deinen Dateien alle Bilder auf einmal aus.');
                         return true;
                     }
-                    photoIntent = { task: 'rezept', question: String(text || ''), at: Date.now() };
-                    if (typeof showPhotoCards === 'function') showPhotoCards();
-                    say('Lege das Rezept gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera. Hast du mehrere Seiten, wähl in deinen Dateien alle Bilder auf einmal aus.');
-                    return true;
-                }
-            } catch (e) { console.error('Rezept-Befehl', e); }
-            return origCmd.apply(this, arguments);
-        };
+                } catch (e) { console.error('Rezept-Befehl', e); }
+                return origCmd.apply(this, arguments);
+            };
+        });
     }
 
     // Folgesatz nach einem Foto: "Das ist ein Rezept", "Speichere das als Rezept"
     if (typeof window.parseFollowupTask === 'function') {
-        const origFollow = window.parseFollowupTask;
-        window.parseFollowupTask = function (text) {
-            const t = norm(text);
-            if (/\brezept\b/.test(t) && /\b(?:das|dies\w*|es)\b/.test(t) && /\b(?:speicher\w*|lies|les|lese|erkenn\w*|auswert\w*|abschreib\w*|ist ein|ablegen)\b/.test(t) && !/\b(?:was kann ich|zutaten)\b/.test(t)) return { task: 'rezept' };
-            return origFollow.apply(this, arguments);
-        };
+        window.jvFotoKette.anmelden('parseFollowupTask', 'foto_rezept', 10, function (origFollow) {
+            return function (text) {
+                const t = norm(text);
+                if (/\brezept\b/.test(t) && /\b(?:das|dies\w*|es)\b/.test(t) && /\b(?:speicher\w*|lies|les|lese|erkenn\w*|auswert\w*|abschreib\w*|ist ein|ablegen)\b/.test(t) && !/\b(?:was kann ich|zutaten)\b/.test(t)) return { task: 'rezept' };
+                return origFollow.apply(this, arguments);
+            };
+        });
     }
 
     // Auswahlkarten nach einem Foto ohne Befehl: eine Karte "Rezept" ergänzen
     if (typeof window.photoAskWhatToDo === 'function') {
-        const prev = window.photoAskWhatToDo;
-        window.photoAskWhatToDo = function () {
-            const realShow = window.showActionCards;
-            window.showActionCards = function (list) {
-                if (Array.isArray(list) && list.length > 2 && !list.some(c => /rezept/i.test(c.title || ''))) {
-                    list = [{ icon: '🍽️', title: 'Rezept lesen', subtitle: 'Speichern, ausdrucken, vorlesen', onclick: "runLastPhotoTask('rezept')" }].concat(list);
-                }
-                return realShow.call(this, list);
+        window.jvFotoKette.anmelden('photoAskWhatToDo', 'foto_rezept', 10, function (prev) {
+            return function () {
+                const realShow = window.showActionCards;
+                window.showActionCards = function (list) {
+                    if (Array.isArray(list) && list.length > 2 && !list.some(c => /rezept/i.test(c.title || ''))) {
+                        list = [{ icon: '🍽️', title: 'Rezept lesen', subtitle: 'Speichern, ausdrucken, vorlesen', onclick: "runLastPhotoTask('rezept')" }].concat(list);
+                    }
+                    return realShow.call(this, list);
+                };
+                try { return prev.apply(this, arguments); } finally { window.showActionCards = realShow; }
             };
-            try { return prev.apply(this, arguments); } finally { window.showActionCards = realShow; }
-        };
+        });
     }
 
     // Mehrere Bilder auf einmal aus der Galerie: werden zu EINEM Rezept zusammengesetzt

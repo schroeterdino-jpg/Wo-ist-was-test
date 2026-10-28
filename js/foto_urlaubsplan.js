@@ -56,53 +56,58 @@
             || /^(?:das|es|dies\w*)\s+(?:ist|ist ein|ist der|ist mein)\s+(?:ein\s+|der\s+|mein\s+)?(?:jahres\s?)?(?:urlaubs?\s?(?:plan|planung|zettel)|jahresurlaub)$/.test(t);
     }
 
-    const origParse = window.parsePhotoRequest;
-    window.parsePhotoRequest = function (text) {
-        if (isPlan(text)) return { task: 'urlaubsplan', question: norm(text) };
-        return origParse.apply(this, arguments);
-    };
+    window.jvFotoKette.anmelden('parsePhotoRequest', 'foto_urlaubsplan', 50, function (origParse) {
+        return function (text) {
+            if (isPlan(text)) return { task: 'urlaubsplan', question: norm(text) };
+            return origParse.apply(this, arguments);
+        };
+    });
     if (typeof window.parseFollowupTask === 'function') {
-        const origFollow = window.parseFollowupTask;
-        window.parseFollowupTask = function (text) {
-            if (isFollowup(text)) return { task: 'urlaubsplan', question: norm(text) };
-            return origFollow.apply(this, arguments);
-        };
-    }
-    const origProcess = window.processPhoto;
-    window.processPhoto = async function (intent, dataUrl) {
-        if (intent && intent.task === 'urlaubsplan') return verarbeiten(dataUrl);
-        return origProcess.apply(this, arguments);
-    };
-    if (typeof window.photoAskWhatToDo === 'function') {
-        const origAsk = window.photoAskWhatToDo;
-        window.photoAskWhatToDo = function () {
-            const origCards = window.showActionCards;
-            if (typeof origCards !== 'function') return origAsk.apply(this, arguments);
-            window.showActionCards = function (list) {
-                try { if (Array.isArray(list)) list.splice(Math.min(1, list.length), 0, { icon: '🌴', title: 'Urlaubsplan eintragen', subtitle: 'Zettel lesen, Urlaub und Kalender eintragen', onclick: "runLastPhotoTask('urlaubsplan')" }); } catch (e) { }
-                return origCards.apply(this, arguments);
+        window.jvFotoKette.anmelden('parseFollowupTask', 'foto_urlaubsplan', 50, function (origFollow) {
+            return function (text) {
+                if (isFollowup(text)) return { task: 'urlaubsplan', question: norm(text) };
+                return origFollow.apply(this, arguments);
             };
-            try { return origAsk.apply(this, arguments); } finally { window.showActionCards = origCards; }
+        });
+    }
+    window.jvFotoKette.anmelden('processPhoto', 'foto_urlaubsplan', 50, function (origProcess) {
+        return async function (intent, dataUrl) {
+            if (intent && intent.task === 'urlaubsplan') return verarbeiten(dataUrl);
+            return origProcess.apply(this, arguments);
         };
+    });
+    if (typeof window.photoAskWhatToDo === 'function') {
+        window.jvFotoKette.anmelden('photoAskWhatToDo', 'foto_urlaubsplan', 50, function (origAsk) {
+            return function () {
+                const origCards = window.showActionCards;
+                if (typeof origCards !== 'function') return origAsk.apply(this, arguments);
+                window.showActionCards = function (list) {
+                    try { if (Array.isArray(list)) list.splice(Math.min(1, list.length), 0, { icon: '🌴', title: 'Urlaubsplan eintragen', subtitle: 'Zettel lesen, Urlaub und Kalender eintragen', onclick: "runLastPhotoTask('urlaubsplan')" }); } catch (e) { }
+                    return origCards.apply(this, arguments);
+                };
+                try { return origAsk.apply(this, arguments); } finally { window.showActionCards = origCards; }
+            };
+        });
     }
     if (typeof window.handlePhotoCommand === 'function') {
-        const origCmd = window.handlePhotoCommand;
-        window.handlePhotoCommand = function (text) {
-            try {
-                if (isPlan(text) || isFollowup(text)) {
-                    const fresh = typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < (typeof PHOTO_FOLLOWUP_MS !== 'undefined' ? PHOTO_FOLLOWUP_MS : 600000);
-                    if (fresh && !/\b(?:neu\w*|fotografier\w*|abfotografier\w*|mach\w*\s+(?:ein\s+)?foto)\b/.test(norm(text))) {
-                        runLastPhotoTask('urlaubsplan', text).catch(() => say('Das Auswerten hat gerade nicht geklappt.'));
+        window.jvFotoKette.anmelden('handlePhotoCommand', 'foto_urlaubsplan', 50, function (origCmd) {
+            return function (text) {
+                try {
+                    if (isPlan(text) || isFollowup(text)) {
+                        const fresh = typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < (typeof PHOTO_FOLLOWUP_MS !== 'undefined' ? PHOTO_FOLLOWUP_MS : 600000);
+                        if (fresh && !/\b(?:neu\w*|fotografier\w*|abfotografier\w*|mach\w*\s+(?:ein\s+)?foto)\b/.test(norm(text))) {
+                            runLastPhotoTask('urlaubsplan', text).catch(() => say('Das Auswerten hat gerade nicht geklappt.'));
+                            return true;
+                        }
+                        photoIntent = { task: 'urlaubsplan', question: String(text || ''), at: Date.now() };
+                        if (typeof showPhotoCards === 'function') showPhotoCards();
+                        say('Leg den Urlaubszettel gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera.');
                         return true;
                     }
-                    photoIntent = { task: 'urlaubsplan', question: String(text || ''), at: Date.now() };
-                    if (typeof showPhotoCards === 'function') showPhotoCards();
-                    say('Leg den Urlaubszettel gut beleuchtet und gerade hin. Tippe unten auf die Karte, dann öffnet sich die Kamera.');
-                    return true;
-                }
-            } catch (e) { console.error('Urlaubsplan-Befehl', e); }
-            return origCmd.apply(this, arguments);
-        };
+                } catch (e) { console.error('Urlaubsplan-Befehl', e); }
+                return origCmd.apply(this, arguments);
+            };
+        });
     }
 
     /* ---------- Lesen ---------- */

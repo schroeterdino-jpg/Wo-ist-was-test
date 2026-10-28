@@ -44,70 +44,77 @@
         return false;
     }
 
-    /* ---------- Einhängen in photo.js ---------- */
-    const origParse = window.parsePhotoRequest;
-    window.parsePhotoRequest = function (text) {
-        if (isAddressRequest(text)) return { task: 'address', question: norm(text) };
-        return origParse.apply(this, arguments);
-    };
+    /* ---------- Einhängen in photo.js (über die Foto-Kette, Rang 100 = ganz innen; siehe js/foto_kette.js) ---------- */
+    window.jvFotoKette.anmelden('parsePhotoRequest', 'foto_adresse', 100, function (origParse) {
+        return function (text) {
+            if (isAddressRequest(text)) return { task: 'address', question: norm(text) };
+            return origParse.apply(this, arguments);
+        };
+    });
 
     if (typeof window.parseFollowupTask === 'function') {
-        const origFollow = window.parseFollowupTask;
-        window.parseFollowupTask = function (text) {
-            if (isAddressFollowup(text)) return { task: 'address' };
-            return origFollow.apply(this, arguments);
-        };
+        window.jvFotoKette.anmelden('parseFollowupTask', 'foto_adresse', 100, function (origFollow) {
+            return function (text) {
+                if (isAddressFollowup(text)) return { task: 'address' };
+                return origFollow.apply(this, arguments);
+            };
+        });
     }
 
-    const origProcess = window.processPhoto;
-    window.processPhoto = async function (intent, dataUrl) {
-        if (intent && intent.task === 'address') return processAddressPhoto(dataUrl);
-        return origProcess.apply(this, arguments);
-    };
+    window.jvFotoKette.anmelden('processPhoto', 'foto_adresse', 100, function (origProcess) {
+        return async function (intent, dataUrl) {
+            if (intent && intent.task === 'address') return processAddressPhoto(dataUrl);
+            return origProcess.apply(this, arguments);
+        };
+    });
 
     if (typeof window.confirmPhotoPending === 'function') {
-        const origConfirm = window.confirmPhotoPending;
-        window.confirmPhotoPending = async function () {
-            if (typeof photoPending !== 'undefined' && photoPending && photoPending.type === 'address') {
-                const lifetime = typeof PHOTO_EVENTS_MS !== 'undefined' ? PHOTO_EVENTS_MS : 5 * 60000;
-                if (Date.now() - photoPending.at > lifetime) { photoPending = null; say('Es gibt gerade nichts zu starten.'); return; }
-                startNavigation(0);
-                return;
-            }
-            return origConfirm.apply(this, arguments);
-        };
+        window.jvFotoKette.anmelden('confirmPhotoPending', 'foto_adresse', 100, function (origConfirm) {
+            return async function () {
+                if (typeof photoPending !== 'undefined' && photoPending && photoPending.type === 'address') {
+                    const lifetime = typeof PHOTO_EVENTS_MS !== 'undefined' ? PHOTO_EVENTS_MS : 5 * 60000;
+                    if (Date.now() - photoPending.at > lifetime) { photoPending = null; say('Es gibt gerade nichts zu starten.'); return; }
+                    startNavigation(0);
+                    return;
+                }
+                return origConfirm.apply(this, arguments);
+            };
+        });
     }
 
     /* Zusätzliche Wörter für "Ja", solange eine Adresse wartet: "Navigieren", "Route starten", "Fahr los" */
     if (typeof window.handlePhotoCommand === 'function') {
-        const origCmd = window.handlePhotoCommand;
-        window.handlePhotoCommand = function (text) {
-            try {
-                if (typeof photoPending !== 'undefined' && photoPending && photoPending.type === 'address') {
-                    const t = norm(text);
-                    if (/^(?:(?:jarvis|zane) )?(?:navigier\w*|route starten|starte? (?:die )?(?:route|navigation)|bring mich hin|fahr mich hin|fahr los|los geht s|start|starten)$/.test(t)) {
-                        window.confirmPhotoPending().catch(() => say('Die Navigation konnte ich nicht starten.'));
-                        return true;
+        window.jvFotoKette.anmelden('handlePhotoCommand', 'foto_adresse', 100, function (origCmd) {
+            return function (text) {
+                try {
+                    if (typeof photoPending !== 'undefined' && photoPending && photoPending.type === 'address') {
+                        const t = norm(text);
+                        if (/^(?:(?:jarvis|zane) )?(?:navigier\w*|route starten|starte? (?:die )?(?:route|navigation)|bring mich hin|fahr mich hin|fahr los|los geht s|start|starten)$/.test(t)) {
+                            window.confirmPhotoPending().catch(() => say('Die Navigation konnte ich nicht starten.'));
+                            return true;
+                        }
                     }
-                }
-            } catch (e) {}
-            return origCmd.apply(this, arguments);
-        };
+                } catch (e) {}
+                return origCmd.apply(this, arguments);
+            };
+        });
     }
 
-    /* Auswahlkarten nach dem Foto (wenn vorher nichts gesagt wurde): "Dorthin navigieren" ergänzen */
+    /* Auswahlkarten nach dem Foto (wenn vorher nichts gesagt wurde): "Dorthin navigieren" ergänzen. Ersetzt die Funktion an dieser Stelle (ruft nichts weiter innen auf). */
     if (typeof window.photoAskWhatToDo === 'function') {
-        window.photoAskWhatToDo = function () {
-            cards([
-                { icon: '🛒', title: 'Auf die Einkaufsliste', subtitle: 'Zettel lesen, Artikel eintragen', onclick: "runLastPhotoTask('shopping')" },
-                { icon: '📅', title: 'Termine eintragen', subtitle: 'Kalender, Plakat, Einladung', onclick: "runLastPhotoTask('events')" },
-                { icon: '📍', title: 'Dorthin navigieren', subtitle: 'Adresse lesen, Route starten', onclick: "runLastPhotoTask('address')" },
-                { icon: '👤', title: 'Kontakt anlegen', subtitle: 'Visitenkarte', onclick: "runLastPhotoTask('contact')" },
-                { icon: '🔤', title: 'Vorlesen / übersetzen', subtitle: 'Text auf dem Foto', onclick: "runLastPhotoTask('read')" },
-                { icon: '🔍', title: 'Beschreiben', subtitle: 'Was ist zu sehen?', onclick: "runLastPhotoTask('describe')" }
-            ]);
-            say('Das Foto ist da. Was soll ich damit tun?');
-        };
+        window.jvFotoKette.anmelden('photoAskWhatToDo', 'foto_adresse', 100, function () {
+            return function () {
+                cards([
+                    { icon: '🛒', title: 'Auf die Einkaufsliste', subtitle: 'Zettel lesen, Artikel eintragen', onclick: "runLastPhotoTask('shopping')" },
+                    { icon: '📅', title: 'Termine eintragen', subtitle: 'Kalender, Plakat, Einladung', onclick: "runLastPhotoTask('events')" },
+                    { icon: '📍', title: 'Dorthin navigieren', subtitle: 'Adresse lesen, Route starten', onclick: "runLastPhotoTask('address')" },
+                    { icon: '👤', title: 'Kontakt anlegen', subtitle: 'Visitenkarte', onclick: "runLastPhotoTask('contact')" },
+                    { icon: '🔤', title: 'Vorlesen / übersetzen', subtitle: 'Text auf dem Foto', onclick: "runLastPhotoTask('read')" },
+                    { icon: '🔍', title: 'Beschreiben', subtitle: 'Was ist zu sehen?', onclick: "runLastPhotoTask('describe')" }
+                ]);
+                say('Das Foto ist da. Was soll ich damit tun?');
+            };
+        });
     }
 
     /* ---------- Adresse lesen ---------- */

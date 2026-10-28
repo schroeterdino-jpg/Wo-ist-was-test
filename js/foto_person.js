@@ -51,37 +51,40 @@
     function slug(s) { return String(s || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'person'; }
 
     /* ---------- Einhängen ---------- */
-    const origParse = window.parsePhotoRequest;
-    window.parsePhotoRequest = function (text) {
-        const p = parse(text, false);
-        if (p && p.nurMerken) return { task: 'person', question: String(text || '') };
-        return origParse.apply(this, arguments);
-    };
-    const origProcess = window.processPhoto;
-    window.processPhoto = async function (intent, dataUrl) {
-        if (intent && intent.task === 'person') return processPerson(parse(intent.question, true) || parse(intent.question, false) || {}, dataUrl);
-        return origProcess.apply(this, arguments);
-    };
-    if (typeof window.handlePhotoCommand === 'function') {
-        const origCmd = window.handlePhotoCommand;
-        window.handlePhotoCommand = function (text) {
-            try {
-                const p = parse(text, fresh());
-                if (p) {
-                    if (fresh()) {
-                        runLastPhotoTask('person', text).catch(() => say('Das hat gerade nicht geklappt.'));
-                        return true;
-                    }
-                    if (p.nurMerken) {
-                        photoIntent = { task: 'person', question: String(text || ''), at: Date.now() };
-                        if (typeof showPhotoCards === 'function') showPhotoCards();
-                        say('Mach bitte ein Foto von ' + (p.name || (p.rel ? 'der Person' : 'der Person')) + '. Tippe unten auf die Karte, dann öffnet sich die Kamera. Ich beschreibe dann, was ich sehe, und frage, ob ich es mir merken soll.');
-                        return true;
-                    }
-                }
-            } catch (e) { console.error('Foto-Person', e); }
-            return origCmd.apply(this, arguments);
+    window.jvFotoKette.anmelden('parsePhotoRequest', 'foto_person', 30, function (origParse) {
+        return function (text) {
+            const p = parse(text, false);
+            if (p && p.nurMerken) return { task: 'person', question: String(text || '') };
+            return origParse.apply(this, arguments);
         };
+    });
+    window.jvFotoKette.anmelden('processPhoto', 'foto_person', 30, function (origProcess) {
+        return async function (intent, dataUrl) {
+            if (intent && intent.task === 'person') return processPerson(parse(intent.question, true) || parse(intent.question, false) || {}, dataUrl);
+            return origProcess.apply(this, arguments);
+        };
+    });
+    if (typeof window.handlePhotoCommand === 'function') {
+        window.jvFotoKette.anmelden('handlePhotoCommand', 'foto_person', 30, function (origCmd) {
+            return function (text) {
+                try {
+                    const p = parse(text, fresh());
+                    if (p) {
+                        if (fresh()) {
+                            runLastPhotoTask('person', text).catch(() => say('Das hat gerade nicht geklappt.'));
+                            return true;
+                        }
+                        if (p.nurMerken) {
+                            photoIntent = { task: 'person', question: String(text || ''), at: Date.now() };
+                            if (typeof showPhotoCards === 'function') showPhotoCards();
+                            say('Mach bitte ein Foto von ' + (p.name || (p.rel ? 'der Person' : 'der Person')) + '. Tippe unten auf die Karte, dann öffnet sich die Kamera. Ich beschreibe dann, was ich sehe, und frage, ob ich es mir merken soll.');
+                            return true;
+                        }
+                    }
+                } catch (e) { console.error('Foto-Person', e); }
+                return origCmd.apply(this, arguments);
+            };
+        });
     }
 
     /* ---------- Foto auswerten ---------- */

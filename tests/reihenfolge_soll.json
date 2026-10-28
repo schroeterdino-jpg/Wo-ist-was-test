@@ -1,6 +1,5 @@
 {
  "protokoll": [
-  "places.js -> showActionCards",
   "panels.js -> buildMenuPanel",
   "voice.js -> speak",
   "voice.js -> speakBrowser",
@@ -17,48 +16,8 @@
   "contextplus.js -> buildSystemPrompt",
   "formulierungen.js -> executeAction",
   "routinen.js -> executeAction",
-  "lagebild.js -> showActionCards",
   "lagebild.js -> executeAction",
   "mailpush.js -> handleLocalCommand",
-  "photo.js -> parsePhotoRequest",
-  "photo.js -> processPhoto",
-  "photo.js -> handlePhotoCommand",
-  "photo.js -> parseFollowupTask",
-  "foto_adresse.js -> parsePhotoRequest",
-  "foto_adresse.js -> processPhoto",
-  "foto_adresse.js -> handlePhotoCommand",
-  "foto_adresse.js -> parseFollowupTask",
-  "foto_brief.js -> parsePhotoRequest",
-  "foto_brief.js -> processPhoto",
-  "foto_brief.js -> handlePhotoCommand",
-  "foto_brief.js -> parseFollowupTask",
-  "foto_abtippen.js -> parsePhotoRequest",
-  "foto_abtippen.js -> processPhoto",
-  "foto_abtippen.js -> handlePhotoCommand",
-  "foto_abtippen.js -> parseFollowupTask",
-  "foto_stundenplan.js -> parsePhotoRequest",
-  "foto_stundenplan.js -> processPhoto",
-  "foto_stundenplan.js -> handlePhotoCommand",
-  "foto_stundenplan.js -> parseFollowupTask",
-  "foto_essensplan.js -> parsePhotoRequest",
-  "foto_essensplan.js -> processPhoto",
-  "foto_essensplan.js -> handlePhotoCommand",
-  "foto_essensplan.js -> parseFollowupTask",
-  "foto_urlaubsplan.js -> parsePhotoRequest",
-  "foto_urlaubsplan.js -> processPhoto",
-  "foto_urlaubsplan.js -> handlePhotoCommand",
-  "foto_urlaubsplan.js -> parseFollowupTask",
-  "wunschliste.js -> parsePhotoRequest",
-  "wunschliste.js -> processPhoto",
-  "wunschliste.js -> handlePhotoCommand",
-  "wunschliste.js -> parseFollowupTask",
-  "foto_person.js -> parsePhotoRequest",
-  "foto_person.js -> processPhoto",
-  "foto_person.js -> handlePhotoCommand",
-  "foto_rezept.js -> parsePhotoRequest",
-  "foto_rezept.js -> processPhoto",
-  "foto_rezept.js -> handlePhotoCommand",
-  "foto_rezept.js -> parseFollowupTask",
   "sprueche.js -> speak",
   "toene.js -> speak",
   "fish.js -> speak",
@@ -77,8 +36,7 @@
   "gedaechtnis.js -> executeAction",
   "name.js -> buildSystemPrompt",
   "loeschen_fragen.js -> executeAction",
-  "teilen.js -> speak",
-  "fotosenden.js -> showActionCards"
+  "teilen.js -> speak"
  ],
  "ladefehler": [],
  "foto": {
@@ -692,5 +650,216 @@
   "Erzähl mir einen Witz => (Basis localcommands.js oder altes Einhängen)",
   "Frühere Schicht => KI",
   "Plan für morgen => KI"
- ]
+ ],
+ "fotoKette": {
+  "liste": {
+   "parsePhotoRequest": [
+    {
+     "name": "foto_rezept",
+     "rang": 10
+    },
+    {
+     "name": "foto_person",
+     "rang": 30
+    },
+    {
+     "name": "wunschliste",
+     "rang": 40
+    },
+    {
+     "name": "foto_urlaubsplan",
+     "rang": 50
+    },
+    {
+     "name": "foto_essensplan",
+     "rang": 60
+    },
+    {
+     "name": "foto_stundenplan",
+     "rang": 70
+    },
+    {
+     "name": "foto_abtippen",
+     "rang": 80
+    },
+    {
+     "name": "foto_brief",
+     "rang": 90
+    },
+    {
+     "name": "foto_adresse",
+     "rang": 100
+    }
+   ],
+   "processPhoto": [
+    {
+     "name": "foto_rezept",
+     "rang": 10
+    },
+    {
+     "name": "foto_person",
+     "rang": 30
+    },
+    {
+     "name": "wunschliste",
+     "rang": 40
+    },
+    {
+     "name": "foto_urlaubsplan",
+     "rang": 50
+    },
+    {
+     "name": "foto_essensplan",
+     "rang": 60
+    },
+    {
+     "name": "foto_stundenplan",
+     "rang": 70
+    },
+    {
+     "name": "foto_abtippen",
+     "rang": 80
+    },
+    {
+     "name": "foto_brief",
+     "rang": 90
+    },
+    {
+     "name": "foto_adresse",
+     "rang": 100
+    }
+   ],
+   "handlePhotoCommand": [
+    {
+     "name": "foto_rezept",
+     "rang": 10
+    },
+    {
+     "name": "foto_person",
+     "rang": 30
+    },
+    {
+     "name": "wunschliste",
+     "rang": 40
+    },
+    {
+     "name": "foto_urlaubsplan",
+     "rang": 50
+    },
+    {
+     "name": "foto_essensplan",
+     "rang": 60
+    },
+    {
+     "name": "foto_stundenplan",
+     "rang": 70
+    },
+    {
+     "name": "foto_abtippen",
+     "rang": 80
+    },
+    {
+     "name": "foto_brief",
+     "rang": 90
+    },
+    {
+     "name": "foto_adresse",
+     "rang": 100
+    }
+   ],
+   "parseFollowupTask": [
+    {
+     "name": "foto_rezept",
+     "rang": 10
+    },
+    {
+     "name": "wunschliste",
+     "rang": 40
+    },
+    {
+     "name": "foto_urlaubsplan",
+     "rang": 50
+    },
+    {
+     "name": "foto_essensplan",
+     "rang": 60
+    },
+    {
+     "name": "foto_stundenplan",
+     "rang": 70
+    },
+    {
+     "name": "foto_abtippen",
+     "rang": 80
+    },
+    {
+     "name": "foto_brief",
+     "rang": 90
+    },
+    {
+     "name": "foto_adresse",
+     "rang": 100
+    }
+   ],
+   "photoAskWhatToDo": [
+    {
+     "name": "foto_rezept",
+     "rang": 10
+    },
+    {
+     "name": "foto_erkennen",
+     "rang": 20
+    },
+    {
+     "name": "wunschliste",
+     "rang": 40
+    },
+    {
+     "name": "foto_urlaubsplan",
+     "rang": 50
+    },
+    {
+     "name": "foto_essensplan",
+     "rang": 60
+    },
+    {
+     "name": "foto_stundenplan",
+     "rang": 70
+    },
+    {
+     "name": "foto_abtippen",
+     "rang": 80
+    },
+    {
+     "name": "foto_brief",
+     "rang": 90
+    },
+    {
+     "name": "foto_adresse",
+     "rang": 100
+    }
+   ],
+   "confirmPhotoPending": [
+    {
+     "name": "foto_brief",
+     "rang": 90
+    },
+    {
+     "name": "foto_adresse",
+     "rang": 100
+    }
+   ],
+   "showActionCards": [
+    {
+     "name": "fotosenden",
+     "rang": 10
+    },
+    {
+     "name": "lagebild",
+     "rang": 20
+    }
+   ]
+  },
+  "text": "parsePhotoRequest: foto_rezept(10) > foto_person(30) > wunschliste(40) > foto_urlaubsplan(50) > foto_essensplan(60) > foto_stundenplan(70) > foto_abtippen(80) > foto_brief(90) > foto_adresse(100)\nprocessPhoto: foto_rezept(10) > foto_person(30) > wunschliste(40) > foto_urlaubsplan(50) > foto_essensplan(60) > foto_stundenplan(70) > foto_abtippen(80) > foto_brief(90) > foto_adresse(100)\nhandlePhotoCommand: foto_rezept(10) > foto_person(30) > wunschliste(40) > foto_urlaubsplan(50) > foto_essensplan(60) > foto_stundenplan(70) > foto_abtippen(80) > foto_brief(90) > foto_adresse(100)\nparseFollowupTask: foto_rezept(10) > wunschliste(40) > foto_urlaubsplan(50) > foto_essensplan(60) > foto_stundenplan(70) > foto_abtippen(80) > foto_brief(90) > foto_adresse(100)\nphotoAskWhatToDo: foto_rezept(10) > foto_erkennen(20) > wunschliste(40) > foto_urlaubsplan(50) > foto_essensplan(60) > foto_stundenplan(70) > foto_abtippen(80) > foto_brief(90) > foto_adresse(100)\nconfirmPhotoPending: foto_brief(90) > foto_adresse(100)\nshowActionCards: fotosenden(10) > lagebild(20)"
+ }
 }

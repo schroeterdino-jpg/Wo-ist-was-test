@@ -10,6 +10,9 @@
       (Foto-Erkennung, Folgeaufgabe, Foto-Befehl, Foto-Auswertung mit Karten, gesprochener Text, Befehls-Gewinner).
    C. Gegenproben: dieselbe App wird mit künstlich vertauschter Reihenfolge (oder im Speicher veränderter Quelle) geladen. Der Test
       verlangt, dass das Protokoll bzw. die Wirkung dann ABWEICHT. Produktdateien auf der Platte werden nie verändert.
+   Phase 3: Die Foto-Funktionen (parsePhotoRequest, processPhoto, handlePhotoCommand, parseFollowupTask, photoAskWhatToDo, confirmPhotoPending, showActionCards)
+      laufen jetzt über die explizite Kette window.jvFotoKette (js/foto_kette.js, Ränge statt Ladereihenfolge). Sie stehen deshalb NICHT mehr im Ladeprotokoll (A),
+      sondern werden über die aktive Kette selbst (A2, Soll: fotoKette), ihre Wirkung (B), die Fehlerfälle der Anmeldung (A3) und Gleichproben mit anderer Ladereihenfolge (C) geschützt.
    D. native_speech.js: lädt vor commands.js und hat deshalb seinen Warte-/Wiederholungsweg (wird hier nur bewiesen, nicht repariert).
    ============================================================ */
 'use strict';
@@ -23,7 +26,7 @@ function check(name, bedingung, info) { if (bedingung) ok++; else { fehler++; co
 const JS = x => JSON.stringify(x);
 
 /* Funktionen, deren Ersetzung/Umhüllung protokolliert wird */
-const BEOBACHTET = ['parsePhotoRequest', 'processPhoto', 'handlePhotoCommand', 'parseFollowupTask', 'showActionCards', 'speak', 'speakBrowser', 'speakAck',
+const BEOBACHTET = ['speak', 'speakBrowser', 'speakAck',
     'handleLocalCommand', 'buildSystemPrompt', 'buildMenuPanel', 'executeAction', 'handleAvatarExpressionCommand'];
 const html = lies('index.html');
 const INLINE = (html.split('<script>').slice(1).map(x => x.split('</script>')[0]).filter(x => x.indexOf('handleAvatarExpressionCommand') >= 0)[0]) || '';
@@ -229,6 +232,7 @@ async function messeGewinner(w) {
 async function messeAlles() {
     const w = welt();
     const m = { protokoll: w.prot.slice(), ladefehler: w.ladefehler.slice() };
+    m.fotoKette = { liste: w.sb.jvFotoKette.liste(), text: w.sb.jvFotoKette.text(), pruefe: w.sb.jvFotoKette.pruefe() };   // vor messeFoto: Zustand direkt nach dem Laden
     m.foto = await messeFoto(w);
     const w2 = welt();
     m.speak = await messeSpeak(w2);
@@ -257,19 +261,70 @@ function anzahlAbweichungen(a, b) { const x = Array.isArray(a) ? a : [], y = Arr
         'erste Abweichung: ' + (ist.protokoll.find((x, i) => x !== soll.protokoll[i]) || '(Länge)'));
     const fuer = n => ist.protokoll.filter(x => x.endsWith(' -> ' + n)).map(x => x.split(' ')[0]);
     const kette = n => fuer(n).join(' > ');
-    check('Foto-Kette parsePhotoRequest: photo > adresse > brief > abtippen > stundenplan > essensplan > urlaubsplan > wunschliste > person > rezept',
-        kette('parsePhotoRequest') === 'photo.js > foto_adresse.js > foto_brief.js > foto_abtippen.js > foto_stundenplan.js > foto_essensplan.js > foto_urlaubsplan.js > wunschliste.js > foto_person.js > foto_rezept.js', kette('parsePhotoRequest'));
-    check('Foto-Kette processPhoto hat dieselbe Reihenfolge', kette('processPhoto') === kette('parsePhotoRequest'), kette('processPhoto'));
-    check('Foto-Kette handlePhotoCommand hat dieselbe Reihenfolge', kette('handlePhotoCommand') === kette('parsePhotoRequest'), kette('handlePhotoCommand'));
-    check('Foto-Kette parseFollowupTask: wie parsePhotoRequest, nur ohne foto_person.js', kette('parseFollowupTask') === kette('parsePhotoRequest').replace(' > foto_person.js', ''), kette('parseFollowupTask'));
-    check('showActionCards-Kette: places > lagebild > fotosenden (fotosenden ganz außen)', kette('showActionCards') === 'places.js > lagebild.js > fotosenden.js', kette('showActionCards'));
+    /* A2. Foto-Kette: explizit. Die Soll-Reihenfolge unten (außen -> innen) ist die HEUTIGE (vor Phase 3 gemessene) Reihenfolge der Ladung, umgedreht: zuletzt geladen = außen. */
+    const kt = ist.fotoKette;
+    const AUSSEN_INNEN = ['foto_rezept', 'foto_person', 'wunschliste', 'foto_urlaubsplan', 'foto_essensplan', 'foto_stundenplan', 'foto_abtippen', 'foto_brief', 'foto_adresse'];
+    const namen = f => kt.liste[f].map(e => e.name).join(' > ');
+    check('Foto-Kette parsePhotoRequest (außen -> innen): ' + AUSSEN_INNEN.join(' > '), namen('parsePhotoRequest') === AUSSEN_INNEN.join(' > '), namen('parsePhotoRequest'));
+    check('Foto-Kette processPhoto hat dieselbe Reihenfolge', namen('processPhoto') === namen('parsePhotoRequest'), namen('processPhoto'));
+    check('Foto-Kette handlePhotoCommand hat dieselbe Reihenfolge', namen('handlePhotoCommand') === namen('parsePhotoRequest'), namen('handlePhotoCommand'));
+    check('Foto-Kette parseFollowupTask: wie parsePhotoRequest, nur ohne foto_person', namen('parseFollowupTask') === AUSSEN_INNEN.filter(x => x !== 'foto_person').join(' > '), namen('parseFollowupTask'));
+    check('Foto-Kette photoAskWhatToDo: rezept > erkennen > wunschliste > urlaubsplan > essensplan > stundenplan > abtippen > brief > adresse (foto_person hat keine Auswahlkarten)',
+        namen('photoAskWhatToDo') === 'foto_rezept > foto_erkennen > wunschliste > foto_urlaubsplan > foto_essensplan > foto_stundenplan > foto_abtippen > foto_brief > foto_adresse', namen('photoAskWhatToDo'));
+    check('Foto-Kette confirmPhotoPending: foto_brief > foto_adresse', namen('confirmPhotoPending') === 'foto_brief > foto_adresse', namen('confirmPhotoPending'));
+    check('showActionCards-Kette (dauerhaft): fotosenden (ganz außen) > lagebild > places.js; die vorübergehenden Eingriffe der Plan-Dateien gehören nicht dazu', namen('showActionCards') === 'fotosenden > lagebild', namen('showActionCards'));
+    check('Aktive Foto-Kette (Namen + Ränge, alle 7 Funktionen) wie eingefroren', JS(kt.liste) === JS(soll.fotoKette.liste), JS(kt.liste).slice(0, 200));
+    check('Aktive Foto-Kette als Text wie eingefroren', kt.text === soll.fotoKette.text, kt.text);
+    check('Foto-Kette: pruefe() meldet "vollständig" (nichts fehlt, nichts Unerwartetes, kein Rang falsch, keine Anmeldefehler)', kt.pruefe.vollstaendig === true, JS(kt.pruefe));
+    check('Foto-Kette: pruefe() ohne Fehlermeldungen', kt.pruefe.fehler.length === 0, kt.pruefe.fehler.join(' | '));
+    check('Foto-Kette: jede Funktion hat nur eindeutige Namen und streng aufsteigende, gültige Ränge', Object.keys(kt.liste).every(f => {
+        const l = kt.liste[f]; return new Set(l.map(e => e.name)).size === l.length && l.every((e, i) => typeof e.name === 'string' && e.name && Number.isFinite(e.rang) && (i === 0 || l[i - 1].rang < e.rang));
+    }), JS(kt.liste).slice(0, 200));
+    check('Foto-Kette: genau diese 7 Funktionen, runLastPhotoTask gehört ausdrücklich NICHT dazu', JS(Object.keys(kt.liste).sort()) === JS(['parsePhotoRequest', 'processPhoto', 'handlePhotoCommand', 'parseFollowupTask', 'showActionCards', 'photoAskWhatToDo', 'confirmPhotoPending'].sort()) && !('runLastPhotoTask' in kt.liste), Object.keys(kt.liste).join(','));
+
     check('speak-Kette (innen nach außen): voice > voicefix > sprueche > toene > fish > kontext_lokal > teilen', kette('speak') === 'voice.js > voicefix.js > sprueche.js > toene.js > fish.js > kontext_lokal.js > teilen.js', kette('speak'));
     check('handleLocalCommand (innen nach außen): localcommands > commands (Verteiler) > mailpush > worldqueryfix > Inline-Skript in index.html > ortsuche (ortsuche ganz außen)',
         kette('handleLocalCommand') === 'localcommands.js > commands.js > mailpush.js > worldqueryfix.js > index.html(inline) > ortsuche.js', kette('handleLocalCommand'));
     check('Außen-Wrapper um den Verteiler: genau 3 Dateien + das Inline-Skript (erweiterungen.js nimmt zur Laufzeit den jvCommands-Weg, sein Wrapper-Zweig bleibt unbenutzt)',
         fuer('handleLocalCommand').filter(f => !/^(localcommands|commands)\.js$/.test(f)).length === 4 && fuer('handleLocalCommand').indexOf('erweiterungen.js') < 0);
+    check('Reihenfolge der Skripte in index.html: places < foto_kette < lagebild und foto_kette < photo < alle Foto-Dateien (die Kette steht vor allen, die sich bei ihr anmelden)',
+        (() => { const r = starte({ festerZufall: true }).reihenfolge; const p = n => r.indexOf(n); return p('places.js') >= 0 && p('places.js') < p('foto_kette.js') && p('foto_kette.js') < p('lagebild.js') && p('foto_kette.js') < p('photo.js') && ['foto_adresse', 'foto_brief', 'foto_abtippen', 'foto_stundenplan', 'foto_essensplan', 'foto_urlaubsplan', 'wunschliste', 'foto_person', 'foto_erkennen', 'foto_rezept', 'fotosenden'].every(n => p('photo.js') < p(n + '.js')); })());
     check('Reihenfolge der Skripte in index.html: native_speech < commands < photo < foto_rezept < sprueche < teilen < fotosenden',
         (() => { const r = starte({ festerZufall: true }).reihenfolge; const p = n => r.indexOf(n); return p('native_speech.js') < p('commands.js') && p('commands.js') < p('photo.js') && p('photo.js') < p('foto_rezept.js') && p('foto_rezept.js') < p('sprueche.js') && p('sprueche.js') < p('teilen.js') && p('teilen.js') < p('fotosenden.js'); })());
+
+    console.log('A3. Fehlerfälle der Foto-Kette: doppelte und ungültige Anmeldungen werden erkannt und NICHT eingebaut');
+    {
+        const w = welt(), K = w.sb.jvFotoKette, nop = innen => innen;
+        const vor = JS(K.liste()), vorFn = w.sb.parsePhotoRequest;
+        const faelle = [
+            ['doppelter Name (foto_adresse nochmal, anderer Rang)', () => K.anmelden('parsePhotoRequest', 'foto_adresse', 101, nop)],
+            ['Rang schon von einer anderen Erweiterung belegt', () => K.anmelden('parsePhotoRequest', 'zusatz', 100, nop)],
+            ['Rang ist Text statt Zahl', () => K.anmelden('parsePhotoRequest', 'zusatz', '5', nop)],
+            ['Rang ist NaN', () => K.anmelden('parsePhotoRequest', 'zusatz', NaN, nop)],
+            ['Name fehlt', () => K.anmelden('parsePhotoRequest', '', 5, nop)],
+            ['unbekannte Funktion', () => K.anmelden('speak', 'zusatz', 5, nop)],
+            ['runLastPhotoTask gehört nicht zur Kette', () => K.anmelden('runLastPhotoTask', 'zusatz', 5, nop)],
+            ['fabrik ist keine Funktion', () => K.anmelden('parsePhotoRequest', 'zusatz', 5, 'x')],
+            ['fabrik wirft einen Fehler', () => K.anmelden('parsePhotoRequest', 'zusatz', 5, () => { throw new Error('kaputt'); })],
+            ['fabrik liefert keine Funktion', () => K.anmelden('parsePhotoRequest', 'zusatz', 5, () => 42)]
+        ];
+        let n = 0;
+        for (const [name, tu] of faelle) {
+            const r = tu(); n++;
+            const p = K.pruefe();
+            check('Ungültige Anmeldung abgelehnt: ' + name, r === false);
+            check('  ... nichts eingebaut (Liste und window-Funktion unverändert): ' + name, JS(K.liste()) === vor && w.sb.parsePhotoRequest === vorFn);
+            check('  ... Fehler gemeldet (' + n + ' bisher), pruefe() nicht mehr vollständig: ' + name, p.fehler.length === n && p.vollstaendig === false, JS(p.fehler));
+        }
+        const w2 = welt(), K2 = w2.sb.jvFotoKette, fremd = function () { return null; };
+        w2.sb.parsePhotoRequest = fremd;
+        check('Von außen ersetzte window.parsePhotoRequest (alte Art zu umhüllen) wird erkannt: Anmeldung abgelehnt', K2.anmelden('parsePhotoRequest', 'zusatz', 5, nop) === false && w2.sb.parsePhotoRequest === fremd && K2.pruefe().vollstaendig === false);
+        const w3 = welt(), K3 = w3.sb.jvFotoKette;
+        check('Gültige, aber unerwartete Zusatz-Erweiterung wird eingebaut, steht außen, und pruefe() meldet sie als unerwartet', K3.anmelden('parsePhotoRequest', 'zusatz', 5, nop) === true && K3.liste().parsePhotoRequest[0].name === 'zusatz' && K3.pruefe().unerwartet.indexOf('parsePhotoRequest/zusatz') >= 0 && K3.pruefe().vollstaendig === false);
+        const w4 = welt(), K4 = w4.sb.jvFotoKette;
+        K4.anmelden('parsePhotoRequest', 'zusatz', 150, innen => function (t) { return String(t) === 'zz test' ? { task: 'zz' } : innen.apply(this, arguments); });
+        check('Eine Erweiterung mit höherem Rang (weiter innen) wird nach den bisherigen erreicht und gibt weiter', JS(w4.sb.parsePhotoRequest('zz test')) === JS({ task: 'zz' }) && JS(w4.sb.parsePhotoRequest('navigier dorthin')) === JS(w.sb.parsePhotoRequest('navigier dorthin')));
+    }
 
     console.log('B. Wirkung der Ketten (Foto, speak, Befehle)');
     for (const k of ['parse', 'folge', 'befehl', 'auswertung', 'kartenKette', 'fragenOhneFoto', 'fragenMitFoto', 'folgeaktion', 'bestaetigen', 'kartenKetteLang']) {
@@ -301,12 +356,43 @@ function anzahlAbweichungen(a, b) { const x = Array.isArray(a) ? a : [], y = Arr
         for (const k of erwarte.mussAbweichen || []) check('Gegenprobe "' + name + '": ' + k + ' muss abweichen', abweichungen.indexOf(k) >= 0, abweichungen.join(','));
         console.log('  · ' + name + ' → erkannt durch: ' + abweichungen.join(' + '));
     }
-    await gegenprobe('Foto: foto_abtippen und foto_essensplan vertauscht', { skriptReihenfolge: tausche('foto_abtippen.js', 'foto_essensplan.js') }, { foto: true, mussAbweichen: ['Protokoll', 'Foto-Wirkung'] });
-    await gegenprobe('Foto: foto_brief und foto_abtippen vertauscht', { skriptReihenfolge: tausche('foto_brief.js', 'foto_abtippen.js') }, { foto: true, mussAbweichen: ['Protokoll', 'Foto-Wirkung'] });
-    await gegenprobe('Foto: foto_abtippen und foto_rezept vertauscht', { skriptReihenfolge: tausche('foto_abtippen.js', 'foto_rezept.js') }, { foto: true, mussAbweichen: ['Protokoll', 'Foto-Wirkung'] });
-    await gegenprobe('Foto: photo.js und foto_brief vertauscht (Basis nicht mehr innen)', { skriptReihenfolge: tausche('photo.js', 'foto_brief.js') }, { foto: true, mussAbweichen: ['Protokoll', 'Foto-Wirkung'] });
-    await gegenprobe('Foto: wunschliste und foto_person vertauscht', { skriptReihenfolge: tausche('wunschliste.js', 'foto_person.js') }, { foto: true, mussAbweichen: ['Protokoll'] });
-    await gegenprobe('Foto: fotosenden und lagebild vertauscht (showActionCards-Kette)', { skriptReihenfolge: tausche('fotosenden.js', 'lagebild.js') }, { foto: true, mussAbweichen: ['Protokoll'] });
+    /* Foto: seit Phase 3 bestimmt NICHT mehr die Ladereihenfolge, wer außen greift. Andere Ladereihenfolge muss deshalb die aktive Kette UND die gesamte Wirkung
+       (Karteninhalt, Kartenreihenfolge, erkannte Aufgabe, Folgeaktion, Befehle, Bestätigen, Sende-Karte) unverändert lassen. */
+    const FOTO_DATEIEN = ['foto_adresse.js', 'foto_brief.js', 'foto_abtippen.js', 'foto_stundenplan.js', 'foto_essensplan.js', 'foto_urlaubsplan.js', 'wunschliste.js', 'foto_person.js', 'foto_erkennen.js', 'foto_rezept.js'];
+    const FOTO_MESSUNGEN = ['parse', 'folge', 'befehl', 'auswertung', 'kartenKette', 'fragenOhneFoto', 'fragenMitFoto', 'folgeaktion', 'bestaetigen', 'kartenKetteLang'];
+    const neuOrdnen = (namen, ordnung) => l => { const pos = namen.map(n => l.indexOf(n)).sort((a, b) => a - b); ordnung.forEach((n, i) => { l[pos[i]] = n; }); return l; };
+    function mischen(liste, saat) { const l = liste.slice(); let z = saat; for (let i = l.length - 1; i > 0; i--) { z = (z * 1103515245 + 12345) % 2147483648; const j = z % (i + 1); const t = l[i]; l[i] = l[j]; l[j] = t; } return l; }
+    async function gleichprobe(name, extra) {
+        const w = welt(extra);
+        const k = w.sb.jvFotoKette, p = k.pruefe();
+        const m = await messeFoto(w);
+        const abw = FOTO_MESSUNGEN.filter(key => anzahlAbweichungen(m[key], soll.foto[key]) > 0);
+        check('Gleichprobe "' + name + '": Ladefehler leer, Kette vollständig, keine Anmeldefehler', w.ladefehler.length === 0 && p.vollstaendig === true && p.fehler.length === 0, w.ladefehler.join('; ') + JS(p));
+        check('Gleichprobe "' + name + '": aktive Foto-Kette (Namen + Ränge) identisch zum Soll', JS(k.liste()) === JS(soll.fotoKette.liste) && k.text() === soll.fotoKette.text);
+        check('Gleichprobe "' + name + '": Wirkung identisch zum Golden Master (' + FOTO_MESSUNGEN.length + ' Messreihen: Erkennung, Folgeaufgabe, Befehle, Auswertung, Karteninhalt + -reihenfolge, Folgeaktion, Bestätigen)', abw.length === 0, abw.join(','));
+        const ohneLage = x => x.filter(e => !/^(lagebild|fotosenden)\.js -> /.test(e));   // lagebild.js umhüllt auch executeAction (eigene Kette), sein Platz im Protokoll hängt an seiner Ladeposition
+        check('Gleichprobe "' + name + '": Protokoll der übrigen Ketten (speak, Befehle, ...) unverändert', JS(ohneLage(w.prot)) === JS(ohneLage(soll.protokoll)));
+        console.log('  · ' + name + ' → Kette und Wirkung identisch: ' + (abw.length === 0 && p.vollstaendig));
+    }
+    {
+        const nachLadung = (a, b) => ({ skriptReihenfolge: tausche(a, b) });
+        await gleichprobe('foto_abtippen und foto_essensplan vertauscht', nachLadung('foto_abtippen.js', 'foto_essensplan.js'));
+        await gleichprobe('foto_stundenplan und foto_essensplan vertauscht (änderte früher die Kartenreihenfolge)', nachLadung('foto_stundenplan.js', 'foto_essensplan.js'));
+        await gleichprobe('foto_abtippen und foto_rezept vertauscht (änderte früher den Karteninhalt)', nachLadung('foto_abtippen.js', 'foto_rezept.js'));
+        await gleichprobe('foto_brief und foto_abtippen vertauscht', nachLadung('foto_brief.js', 'foto_abtippen.js'));
+        await gleichprobe('foto_adresse und foto_rezept vertauscht', nachLadung('foto_adresse.js', 'foto_rezept.js'));
+        await gleichprobe('wunschliste und foto_person vertauscht', nachLadung('wunschliste.js', 'foto_person.js'));
+        await gleichprobe('foto_erkennen und foto_urlaubsplan vertauscht', nachLadung('foto_erkennen.js', 'foto_urlaubsplan.js'));
+        await gleichprobe('fotosenden und lagebild vertauscht (showActionCards-Kette)', nachLadung('fotosenden.js', 'lagebild.js'));
+        await gleichprobe('alle 10 Foto-Dateien in umgekehrter Reihenfolge', { skriptReihenfolge: neuOrdnen(FOTO_DATEIEN, FOTO_DATEIEN.slice().reverse()) });
+        for (const saat of [1, 7, 42]) await gleichprobe('alle 10 Foto-Dateien gemischt (Saat ' + saat + ')', { skriptReihenfolge: neuOrdnen(FOTO_DATEIEN, mischen(FOTO_DATEIEN, saat)) });
+        await gleichprobe('fotosenden und lagebild vor die anderen Foto-Dateien gemischt + Foto-Dateien umgekehrt', { skriptReihenfolge: l => neuOrdnen(FOTO_DATEIEN, FOTO_DATEIEN.slice().reverse())(tausche('fotosenden.js', 'lagebild.js')(l)) });
+        /* Gegenprobe: ohne die Kette (photo.js vor die Foto-Dateien gestellt ist Pflicht): steht photo.js NACH einer Foto-Datei, gibt es die Basis noch nicht -> laut erkannt */
+        const w = welt({ skriptReihenfolge: tausche('photo.js', 'foto_brief.js') });
+        const p = w.sb.jvFotoKette.pruefe();
+        check('Gegenprobe "photo.js und foto_brief vertauscht (Basis fehlt bei der Anmeldung)": die Kette ist NICHT vollständig und meldet es', p.vollstaendig === false && (p.fehlend.length > 0 || p.fehler.length > 0), JS(p).slice(0, 200));
+        console.log('  · photo.js und foto_brief vertauscht (Basis nicht mehr innen) → erkannt durch: Kette unvollständig/Anmeldefehler');
+    }
     await gegenprobe('speak: fish und teilen vertauscht (teilen sieht dann den bereinigten Text)', { skriptReihenfolge: tausche('fish.js', 'teilen.js') }, { speak: true, mussAbweichen: ['Protokoll', 'speak-Wirkung'] });
     await gegenprobe('speak: sprueche und fish vertauscht', { skriptReihenfolge: tausche('sprueche.js', 'fish.js') }, { speak: true, mussAbweichen: ['Protokoll'] });
     await gegenprobe('speak: teilen und kontext_lokal vertauscht', { skriptReihenfolge: tausche('teilen.js', 'kontext_lokal.js') }, { speak: true, mussAbweichen: ['Protokoll'] });
