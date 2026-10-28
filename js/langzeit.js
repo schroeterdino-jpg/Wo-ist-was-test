@@ -103,19 +103,23 @@
     }
 
     if (typeof window.executeAction === 'function' && !window.executeAction._langzeit) {
-        const original = window.executeAction;
-        const wrapped = async function (action, text, ctx) {
-            if (action && action.type === 'episode_store') return storeEpisode(action, ctx);
-            if (action && action.type === 'episode_asked') { markAsked(action); return; }
-            if (action && action.type === 'episode_forget') return forgetEpisode(action, ctx);
-            if (action && action.type === 'episode_nicht_fragen') return noAnstoss(action, ctx);
-            const res = await original.apply(this, arguments);
-            try { logAktion(action); } catch (e) {}   // Tageszustand: was heute schon erledigt wurde
-            return res;
+        // A5: Die Umhüllung wird über die Aktions-Kette (aktionen_kette.js) angemeldet, Rang 50. Fehlt die Kette, legt die Datei sie wie früher selbst um window.executeAction.
+        const baue = function (original) {
+            const wrapped = async function (action, text, ctx) {
+                if (action && action.type === 'episode_store') return storeEpisode(action, ctx);
+                if (action && action.type === 'episode_asked') { markAsked(action); return; }
+                if (action && action.type === 'episode_forget') return forgetEpisode(action, ctx);
+                if (action && action.type === 'episode_nicht_fragen') return noAnstoss(action, ctx);
+                const res = await original.apply(this, arguments);
+                try { logAktion(action); } catch (e) {}   // Tageszustand: was heute schon erledigt wurde
+                return res;
+            };
+            wrapped._langzeit = true;
+            Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
+            return wrapped;
         };
-        wrapped._langzeit = true;
-        Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
-        window.executeAction = wrapped;
+        if (window.jvAktionen && typeof window.jvAktionen.huelle === 'function') window.jvAktionen.huelle('langzeit', 50, baue);
+        else window.executeAction = baue(window.executeAction);
     }
 
     /* ---------- 3) Suche: nur Einträge der neuen Art, mit Datum und Wochentag ---------- */

@@ -36,34 +36,39 @@
 
     const original = window.executeAction;
     if (!original._geburtstagGanztag) {
-        const wrapped = async function (action, text, ctx) {
-            try {
-                if (action && (action.type === 'calendar' || action.calendar_text)) {
-                    const titel = String(action.calendar_text || '').replace(/\s+/g, ' ').trim();
-                    const tag = isoDay(action.calendar_time);
-                    const fest = FEST.test(titel);
-                    const ganz = action.calendar_allday === true || action.calendar_allday === 'true';
-                    if (titel && tag && (fest || ganz)) {
-                        if (await schonDa(titel, tag)) {
-                            if (ctx && Array.isArray(ctx.notes)) ctx.notes.push('"' + titel + '" steht am ' + tag.split('-').slice(1).reverse().join('.') + '. schon im Kalender, ich habe es nicht doppelt eingetragen.');
-                            try { if (typeof openGoogleCalendarApp === 'function') openGoogleCalendarApp(tag + 'T12:00:00'); } catch (e) { }
+        // A5: Die Umhüllung wird über die Aktions-Kette (aktionen_kette.js) angemeldet, Rang 30. Fehlt die Kette, legt die Datei sie wie früher selbst um window.executeAction.
+        const baue = function (original) {
+            const wrapped = async function (action, text, ctx) {
+                try {
+                    if (action && (action.type === 'calendar' || action.calendar_text)) {
+                        const titel = String(action.calendar_text || '').replace(/\s+/g, ' ').trim();
+                        const tag = isoDay(action.calendar_time);
+                        const fest = FEST.test(titel);
+                        const ganz = action.calendar_allday === true || action.calendar_allday === 'true';
+                        if (titel && tag && (fest || ganz)) {
+                            if (await schonDa(titel, tag)) {
+                                if (ctx && Array.isArray(ctx.notes)) ctx.notes.push('"' + titel + '" steht am ' + tag.split('-').slice(1).reverse().join('.') + '. schon im Kalender, ich habe es nicht doppelt eingetragen.');
+                                try { if (typeof openGoogleCalendarApp === 'function') openGoogleCalendarApp(tag + 'T12:00:00'); } catch (e) { }
+                                return;
+                            }
+                            const rrule = fest && typeof buildRecurrenceRule === 'function' ? buildRecurrenceRule('JAHR', 1) : (typeof buildRecurrenceRule === 'function' ? buildRecurrenceRule(action.calendar_recurrence_unit, action.calendar_recurrence_interval) : null);
+                            const done = await addGoogleCalendarEvent(titel, tag + 'T12:00:00', '', rrule, true);
+                            if (done === false && typeof googleNotSynced === 'function') googleNotSynced(ctx, 'Der Eintrag ist nur in der App gespeichert, das Handy klingelt dazu nicht');
+                            // wie bei normalen Terminen: den echten Google Kalender als sichtbare Bestätigung öffnen
+                            if (done !== false) { try { if (typeof openGoogleCalendarApp === 'function') openGoogleCalendarApp(tag + 'T12:00:00'); } catch (e) { } }
+                            try { updateTerminalStream('CALENDAR: ALLDAY_ADDED'); } catch (e) {}
                             return;
                         }
-                        const rrule = fest && typeof buildRecurrenceRule === 'function' ? buildRecurrenceRule('JAHR', 1) : (typeof buildRecurrenceRule === 'function' ? buildRecurrenceRule(action.calendar_recurrence_unit, action.calendar_recurrence_interval) : null);
-                        const done = await addGoogleCalendarEvent(titel, tag + 'T12:00:00', '', rrule, true);
-                        if (done === false && typeof googleNotSynced === 'function') googleNotSynced(ctx, 'Der Eintrag ist nur in der App gespeichert, das Handy klingelt dazu nicht');
-                        // wie bei normalen Terminen: den echten Google Kalender als sichtbare Bestätigung öffnen
-                        if (done !== false) { try { if (typeof openGoogleCalendarApp === 'function') openGoogleCalendarApp(tag + 'T12:00:00'); } catch (e) { } }
-                        try { updateTerminalStream('CALENDAR: ALLDAY_ADDED'); } catch (e) {}
-                        return;
                     }
-                }
-            } catch (e) { console.error('Geburtstag ganztägig', e); }
-            return original.apply(this, arguments);
+                } catch (e) { console.error('Geburtstag ganztägig', e); }
+                return original.apply(this, arguments);
+            };
+            wrapped._geburtstagGanztag = true;
+            Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
+            return wrapped;
         };
-        wrapped._geburtstagGanztag = true;
-        Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
-        window.executeAction = wrapped;
+        if (window.jvAktionen && typeof window.jvAktionen.huelle === 'function') window.jvAktionen.huelle('geburtstag_ganztag', 30, baue);
+        else window.executeAction = baue(original);
     }
 
     if (window.jvChain) {

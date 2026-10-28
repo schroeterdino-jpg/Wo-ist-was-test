@@ -265,6 +265,18 @@ Bekannte bestehende Verhaltensweisen, die durch die Reihenfolge entstehen (werde
 3. `routinen` zählt nur, was bis zu ihm durchkommt (eine Löschfrage-Aktion oder ein Ganztags-Termin wird nicht gezählt; ein Fehler danach, z. B. Standort nicht ermittelbar bei `parking_save`, zählt trotzdem).
 4. Das Tageslog (`langzeit`) liegt außerhalb von `lagebild`: bei "Route zu X" mit Lagebild steht "Route geöffnet" im Tageslog, obwohl Maps nicht geöffnet wurde.
 
+## A5, Teil 2: benannte Aktions-Kette (`js/aktionen_kette.js`)
+Die acht Umhüllungen von `executeAction` melden sich jetzt bei `window.jvAktionen.huelle(name, rang, fabrik)` an, statt selbst um `window.executeAction` zu wickeln. Die Kette hängt damit nicht mehr von der Lade-Reihenfolge in `index.html` ab, sondern vom Rang (kleiner = weiter außen). `aktionen_kette.js` steht in `index.html` direkt hinter `actions.js`.
+Außen -> innen: 10 loeschen_fragen, 20 gedaechtnis, 30 geburtstag_ganztag, 40 langzeit_erinnern, 50 langzeit, 60 lagebild, 70 routinen, 80 formulierungen, dann `actions.js`.
+- `fabrik(innen)` bekommt die nächste Stufe (eine Hülle weiter innen, zuletzt die Basis) und liefert die Hülle. `innen` schlägt bei jedem Aufruf neu nach, deshalb ist die Reihenfolge der Anmeldung egal. Argumente, Rückgabe und Fehler werden unverändert durchgereicht.
+- `jvAktionen.liste()` = Namen und Ränge von außen nach innen. `jvAktionen.pruefe()` = `{ vollstaendig, fehlend, unerwartet, rangFalsch, fehler }`.
+- Doppelter Name wird ignoriert (nie zwei Hüllen gleichen Namens). Gleicher Rang, falscher Rang, eine `fabrik`, die wirft oder keine Funktion liefert, oder eine Datei, die `window.executeAction` noch auf die alte Art umwickelt hat: die Hülle wird NICHT eingebaut, es steht in `pruefe().fehler` und in `console.error`, die Kette gilt als unvollständig. Fehlt nach dem Start eine der acht Hüllen, erscheint das in der Fehleranzeige der App.
+- Rückfall: Fehlt `aktionen_kette.js`, legt jede der acht Dateien ihre Umhüllung wie früher selbst um `window.executeAction` (derselbe Code, `baue(...)` wird entweder bei der Sammelstelle angemeldet oder direkt umgelegt). Der Rückfall wird in einer späteren Aufräum-Stufe entfernt, nicht jetzt.
+- `window.executeAction` trägt dieselben Merkmale wie früher (`_loeschFrage`, `_gedaechtnis`): gedaechtnis und lagebild geben die Merkmale der inneren Funktion nicht weiter (`erbt: false`), die anderen schon.
+- Unverändert (absichtlich): `actions.js`, `assistant.js`, Bedeutung der Aktionen, die vier bekannten Reihenfolge-Eigenheiten aus Teil 1.
+- Neue Hülle anlegen: Datei mit `huelle('name', rang, fabrik)` anmelden, Name und Rang in `ERWARTET` (aktionen_kette.js) und `SOLL_LISTE` (tests/aktionen_kette.js) eintragen, Golden Master mit `--neu` bewusst neu schreiben.
+- Test: `node tests/aktionen_kette.js` (Sammelstelle allein mit Attrappen, vertauschte Anmeldung, doppelter Name, Fehler, fehlende Hülle, Rückfall ohne Datei, vertauschte Lade-Reihenfolge in der echten App). Zusammen mit `node tests/aktionen.js` (Golden Master, `aktionen_soll.json` blieb unverändert).
+
 ## Fähigkeiten-Verzeichnis (B1)
 - `js/faehigkeiten.js` beschreibt, was Jarvis kann (`window.jvFaehigkeiten`): acht Fähigkeiten (Kalender, Wetter, Fahrzeit und Navigation, Erinnerungen, Gedächtnis, Fotos, Schicht, Preissuche). Je Fähigkeit: Intents mit Sicherheitsstufe (lesen/ändern/kritisch), Beispielsätze (lokal oder KI), Abhängigkeiten, Handy-App-Bedarf, proaktive Auslöser, beteiligte Module, bekannte Grenzen.
 - Rein beschreibend: hängt sich nirgends ein, ändert kein Verhalten, wird noch von keiner Datei benutzt (die dynamische Hilfe folgt in B2).

@@ -417,24 +417,30 @@
     // "Route zu X" / "Bring mich zu X" mit dem Auto: statt Google Maps zu öffnen erst rechnen und das Lagebild mit Fahrzeit, Stau und Wetter zeigen
     const origAktion = window.executeAction;
     if (typeof origAktion === 'function' && !origAktion._jvLage) {
-        window.executeAction = async function (action, text, ctx) {
-            try {
-                if (action && action.type === 'navigate' && action.nav_to && !String(action.nav_from || '').trim() && /^(|driving)$/.test(String(action.nav_mode || '').toLowerCase().trim()) &&
-                    typeof resolveTravelDestination === 'function' && typeof window.computeDepartureAdvice === 'function' && ctx && Array.isArray(ctx.notes)) {
-                    const k = String(action.nav_to).toLowerCase().replace(/[^a-zäöüß]/g, '');
-                    if (!/^(parkplatz|meinparkplatz|auto|meinauto|geparktesauto)$/.test(k)) {
-                        const res = await window.computeDepartureAdvice({ query: text || String(action.nav_to), destination: resolveTravelDestination(text, action.nav_to), wantFuel: true });
-                        if (res && res.reply) {
-                            ctx.notes.push(res.reply);
-                            if (typeof updateTerminalStream === 'function') updateTerminalStream('LAGEBILD: ZIEL');
-                            return;
+        // A5: Die Umhüllung wird über die Aktions-Kette (aktionen_kette.js) angemeldet, Rang 60. Sie gibt (wie früher) die Merkmale der inneren Funktion NICHT weiter (erbt:false). Fehlt die Kette, legt die Datei sie wie früher selbst um window.executeAction.
+        const baue = function (origAktion) {
+            const wrapped = async function (action, text, ctx) {
+                try {
+                    if (action && action.type === 'navigate' && action.nav_to && !String(action.nav_from || '').trim() && /^(|driving)$/.test(String(action.nav_mode || '').toLowerCase().trim()) &&
+                        typeof resolveTravelDestination === 'function' && typeof window.computeDepartureAdvice === 'function' && ctx && Array.isArray(ctx.notes)) {
+                        const k = String(action.nav_to).toLowerCase().replace(/[^a-zäöüß]/g, '');
+                        if (!/^(parkplatz|meinparkplatz|auto|meinauto|geparktesauto)$/.test(k)) {
+                            const res = await window.computeDepartureAdvice({ query: text || String(action.nav_to), destination: resolveTravelDestination(text, action.nav_to), wantFuel: true });
+                            if (res && res.reply) {
+                                ctx.notes.push(res.reply);
+                                if (typeof updateTerminalStream === 'function') updateTerminalStream('LAGEBILD: ZIEL');
+                                return;
+                            }
                         }
                     }
-                }
-            } catch (e) { if (e && e.auth) throw e; console.error('Lagebild Ziel', e); }
-            return origAktion.apply(this, arguments);
+                } catch (e) { if (e && e.auth) throw e; console.error('Lagebild Ziel', e); }
+                return origAktion.apply(this, arguments);
+            };
+            wrapped._jvLage = true;
+            return wrapped;
         };
-        window.executeAction._jvLage = true;
+        if (window.jvAktionen && typeof window.jvAktionen.huelle === 'function') window.jvAktionen.huelle('lagebild', 60, baue, { erbt: false });
+        else window.executeAction = baue(origAktion);
     }
     // "Wo tanke ich günstig auf dem Weg zu X": Diesel an der Strecke im Lagebild zeigen, nicht auf der dunklen HUD-Karte (E10/E5 bleiben beim Alten)
     const origTank = window.fuelAlongRouteAdvice;
