@@ -283,3 +283,46 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 - `nachliefervorschau(ms)` ist reine Rechnung: höchstens 2 Meldungen dürften gesprochen werden, der Rest nur als stille Sammelkarte, Abgelaufenes verfällt, NIEDRIG wird verworfen (kein morgendlicher Sprachstau).
 - Tests: `node tests/regeln.js` (Pflicht: Shadow an/aus/fehlt/wirft -> identische Ausgaben; Einzelregeln; Soll gegen Ist mit `tests/regeln_entwurf.js`). Bericht: `REGELN_BERICHT=tests/regeln-bericht.md node tests/regeln.js`.
 - Testwelt: Aktionen warten jetzt, wenn sie auf einen Zeitgeber warten (`warteBereit`), statt zu hängen; die beiden Erinnerungen der Nacht haben verschiedene IDs.
+
+## C1: Meldungs-Sammelstelle, Gesamtübersicht (Stand 28.10.2026, SHADOW)
+
+**Wichtigster Satz: Aktuell verändert KEINE Entscheidung das Nutzerverhalten.** C1 beobachtet und rechnet nur mit. Es wird nichts blockiert, verzögert, zusammengefasst, abgeschaltet oder unterdrückt. Texte, Timer, Mindestabstände und Ruhezeiten sind unverändert. Eine echte Sammelstelle gibt es noch nicht; sie braucht eine eigene Freigabe. Die Teile C1a, C1b und C1c oben/unten beschreiben die Einzelschritte.
+
+### 1. Zwei Dateien, zwei Aufgaben
+- `js/meldungen.js` (Beobachter): jede Meldungsstelle meldet mit einem abgesicherten Einzeiler (`try { if (window.jvMeldungen) window.jvMeldungen.beobachte({...}) } catch (e) { }   // C1: nur Beobachtung`), **wenn wirklich eine Ausgabe für den Nutzer ausgelöst wird**. Ringpuffer 300, nur Arbeitsspeicher. Mitleser über `abonniere(fn)`.
+- `js/meldungs_regeln.js` (Shadow): hört darauf und rechnet je Ausgabe aus, was eine Sammelstelle entschieden **hätte**. Ebenfalls nur Arbeitsspeicher, kein eigener Zeitgeber, kein Netz, keine Schlüssel. Abschaltbar (`window.jvRegeln.aus()`), darf fehlen, darf Fehler werfen.
+
+### 2. Beobachtete Quellen (29)
+Gruppe A (C1a): wachter, proaktiv, vorbereitung, travel, smarttips, calendar, plan_ansagen, dirigent, zuvorkommend, schicht. Gruppe B/C/D (C1b): konto, mailwatch, fristen, mail_nacht, pakete, preissuche, auftraege, routinen, kennenlernen, zane_redet, jarvis, alarm, fahr_whatsapp, parkplatz_auto, schlaf_antwort, autoansicht, tagesueberblick, orte. Dazu briefing (spricht das Tagesbriefing).
+- Status `ausgegeben`: Sprache, Karte, Fenster, Hinweis oder Benachrichtigung wurde wirklich ausgelöst. Status `ausgeloest`: ein Modul stößt nur etwas an (schicht.js und plan_ansagen "brief" starten das Briefing, gesprochen wird es in briefing.js; jarvis.js legt die Start-Ansage bereit, gesprochen wird sie erst beim ersten Tipp). `ausgeloest` zählt nie als Nutzer-Meldung, Kanal leer.
+- Nicht beobachtet: Server-Push (`api/sync.js`, unverändert) und alles, was nur die APK macht.
+
+### 3. Nachrichtenmodell
+- **Version 1** (Beobachter): nr, zeit, quelle, kanal[] (sprache|karte|fenster|hinweis|benachrichtigung|push), grund, status, ausloeser (timer|app-start|app-rueckkehr|apk|push|plan|manuell|folge), frage, mikro (nein|bedingt|ja), ereignis, bezug {art, schluessel, herkunft id|text+zeit|tag}, text (80 Zeichen). Alle Einträge eingefroren.
+- **Version 2** (Shadow) ergänzt: `version`, `prio`, `zweck`, `stufe`, `bewusstGesetzt`, `art` (proaktiv|angefordert), `ereignisId`, `merker[]`, `proKanal{}`, `regel`, `warum`, `mikro` (wie_bisher|nicht_automatisch|-), `nachlieferung{moeglich, verfallMin, verfallZeit, grund}`, `kanalSchutz`.
+- **Aktuelle Entscheidung, Nachlieferbarkeit und Verfallszeit sind getrennte Felder.** `entscheid` ist `zugelassen`, `spaeter`, `nur_stiller_kanal` oder `unklar`. `spaeter` heißt NUR: "wäre zu diesem Zeitpunkt nicht ausgegeben worden". Es heißt nicht, dass nachgesprochen wird. Im Shadow wird nie etwas nachgeliefert.
+
+### 4. Ereignis + Zweck + Stufe
+- Ereignis = `bezug.art + bezug.schluessel` (echte IDs; `tag` ist zu grob und verbindet nichts). Zweck = wozu gemeldet wird (abfahrt, erinnerung, briefing, mail-wichtig …). Stufe = Rolle im Zweck (vorwarnung, faellig, haupt, info, frage …). Zuordnung steht in der Tabelle `quelle/grund` oben in `meldungs_regeln.js`.
+- Merker (beschreiben nur, blockieren nie): gleiches Ereignis + gleicher Zweck + gleiche Stufe = `gleicher_zweck` (+ `anderes_modul`); gleicher Zweck, andere Stufe = `gewollte_stufen` (Vorwarnung + fällig); anderer Zweck innerhalb 10 min = `zusammenfassbar`; anderer Zweck später = `selbes_ereignis_anderer_zweck`. Es wird nicht festgelegt, welche von zwei gleichen Meldungen gewinnt.
+
+### 5. Prioritätsmodell
+- **KRITISCH** (ernste Warnung: alarm/warnung, wachter/unwetter), **HOCH** (zeitgebunden oder bewusst gesetzt: Abfahrt, Termin gleich, Briefing, Erinnerungen, Vorwarnungen, Mahnung/überfällige Frist), **NORMAL** (persönliche Informationen: Mail, Konto, Paket, Preis, Auftrag, WhatsApp, normale Frist, Geburtstag, Tagesmeldung), **NIEDRIG** (Smalltalk, Routine-Vorschläge, Kennenlernen, Tipps, Standort-Frage, leerer Tagesüberblick). Dazu die Sonderspur **NUTZER**: alles, was der Nutzer angestoßen hat (`ausloeser: manuell`), hat Vorrang und läuft nie durch eine Bremse.
+- Fristen: Mahnung (das Modul spricht selbst) und "überfällig"/"heute fällig" (Wortlaut des Moduls) = HOCH, sonst NORMAL. Keine KI-Bewertung. fahr_whatsapp bleibt NORMAL.
+- Bewusst gesetzte Erinnerungen (`calendar/erinnerung`, `proaktiv/erinnerung-vorwarnung`) haben hohen Schutz und werden nie als Duplikat behandelt. `kanalSchutz` (nur Datenmodell): Hinweis/Benachrichtigung/Karte sollen in einer späteren Stufe erhalten bleiben können, Sprache ist nicht zwingend.
+
+### 6. Shadow-Regeln (Startwerte, keine endgültigen Regeln)
+- Ruhephase = `wachterQuiet()` (kennt Schichten, keine feste Sperre 22 bis 7). Erlaubte Kanäle in der Ruhephase: KRITISCH/HOCH/NUTZER alle; NORMAL nur Karte, Hinweis, Benachrichtigung (daher `nur_stiller_kanal` oder `spaeter`); NIEDRIG keine. Außerhalb der Ruhephase sind alle Kanäle erlaubt.
+- Nur für NIEDRIG mit Sprache (erste greifende Regel gewinnt): Nachlauf 60 min nach beobachtetem Ende der Ruhephase; 10 min Abstand zu anderer zugelassener Sprache; 3 min nach Nutzeraktivität (Tipp, Taste, Touch, Antwort); höchstens 6 pro Tag und 2 pro Stunde; exakt gleicher Text innerhalb 24 h nur einmal. Mikrofon nach einer Frage: nur "wie bisher", wenn der Nutzer in den letzten 10 min aktiv war, sonst `nicht_automatisch` (nur Absicht).
+- Zurückgestellte Meldungen zählen nicht als gesprochen. Alle Werte stehen in `window.jvRegeln.parameter`.
+
+### 7. Verfallsmodell (je Meldungsart, Spalte "Verfall" in der Tabelle)
+- NIEDRIG, NUTZER, KRITISCH: nicht nachlieferbar (sofort verfallen bzw. sofort ausgegeben). HOCH: nicht wegen Meldungsdichte verwerfen, Verfall je Art (Abfahrt/Termin gleich/Stau 30 min, Termin-Vorwarnung/Heimweg 1 h, Erinnerungen 2 h, Briefing 3 h).
+- NORMAL je Art: Autoansicht 5 min; Parkplatz, Einkauf 30 min; Preisfund, Vorbereitung, Wecker-Frage 1 h; WhatsApp, Paket unterwegs, Wetter, Tagesüberblick 2 h; Tagesmeldung 3 h; Mail-Entwürfe, Paket zugestellt, Geburtstag, Wochenüberblick 8 h; Frist-Erinnerung, wichtige Mail, Kontobewegung 12 h; Frist neu 24 h; Auftrag 6 h.
+- `nachliefervorschau(ms)` (reine Rechnung, gibt nichts aus): NIEDRIG wird verworfen, Abgelaufenes verfällt, gleiche Meldungsart zum selben Ereignis nur die neueste, **höchstens 2 Meldungen dürften gesprochen werden, der Rest nur als eine stille Sammelkarte** (kein morgendlicher Sprachstau).
+
+### 8. Wodurch C1 abgesichert ist
+- `node tests/meldungen.js` (71 Prüfungen): Beobachter, Einhängestellen (genaue Anzahl je Datei, alle abgesichert, `api/sync.js` unberührt), Messläufe Nachmittag und Nacht mit / ohne / kaputtem Beobachter identisch, jede Sprach-Ausgabe wirklich gesprochen, Briefing nur einmal gezählt. Bericht: `tests/meldungen-bericht.md`.
+- `node tests/regeln.js` (92 Prüfungen): Shadow an / aus / Datei fehlt / wirft Fehler und ganz ohne Beobachter liefern identische Sprache, Karten, Fenster, Befehlskette, Speicher, Netz, Mikrofon und Zustand; Einzelregeln (Ereignis/Zweck/Stufe, verschiedene Erinnerungs-IDs, bewusst gesetzt, Ruhephase je Stufe, Nutzeraktivität, Stunden-/Tageslimit, gleicher Text, mehrere Kanäle, Verfall, kein Sprachstau); **Soll gegen Ist**: unabhängiger Entwurf `tests/regeln_entwurf.js` gegen die eingebaute Logik, Nachmittag 47/47, Nacht 34/34, 0 Abweichungen. Bericht: `tests/regeln-bericht.md`.
+- Simulationen: `tests/meldungen_welt.js` (Nachmittag Mi 28.10.2026 12:00 bis 15:10, Spätschicht; Nacht So 01.11. 21:00 bis Mo 02.11. 10:00, Frühschicht) mit festen Attrappen für Netz, Handy-Brücke und Standort, Sprachdauer, `isSpeaking()`, Nutzerhandlungen. Grenzen: App die ganze Zeit offen, Server-Push nicht gemessen, KI-Texte durch Rückfall-Sätze ersetzt, Einzelbetrachtung ohne Folgeeffekte.
+- Regel für Änderungen: Wird `meldungs_regeln.js` oder eine Einhängestelle geändert, müssen beide Tests und die alten Suiten grün bleiben.
