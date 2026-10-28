@@ -63,6 +63,7 @@ function starte(opt) {
     const lauf = { chain: null };
     const RealDate = Date; const RealDateFmt = Date;
     const LOC = { href: 'http://test/', search: '', hash: '', origin: 'http://test', pathname: '/', reload() { } };
+    const dokListener = {};   // Ereignis-Hörer der Seite (document.addEventListener), damit Tests Tippen/Touch auslösen können
     const sb = {
         console: { log() { }, warn() { }, error() { }, info() { }, debug() { } },
         setTimeout: (fn, ms, ...a) => plane(fn, ms, a, 0), clearTimeout: id => abbrechen(id), setInterval: (fn, ms, ...a) => plane(fn, ms, a, Math.max(15000, +ms || 0)), clearInterval: id => abbrechen(id), queueMicrotask,
@@ -71,7 +72,7 @@ function starte(opt) {
         Date: festeDate(uhr, RealDate),
         localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; }, get length() { return Object.keys(store).length; }, key: i => Object.keys(store)[i] || null },
         sessionStorage: { getItem: k => (k in sess ? sess[k] : null), setItem: (k, v) => { sess[k] = String(v); }, removeItem: k => { delete sess[k]; } },
-        document: { createElement: el, createTextNode: () => el(), getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], addEventListener() { }, removeEventListener() { }, head: el(), body: el(), documentElement: el(), hidden: false, readyState: 'complete', cookie: '', title: 'Jarvis', location: LOC },
+        document: { createElement: el, createTextNode: () => el(), getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], addEventListener(t, fn) { (dokListener[t] = dokListener[t] || []).push(fn); }, removeEventListener() { }, head: el(), body: el(), documentElement: el(), hidden: false, readyState: 'complete', cookie: '', title: 'Jarvis', location: LOC },
         navigator: { userAgent: 'test', language: 'de-DE', onLine: true, geolocation: { getCurrentPosition(ok, err) { err && err({ code: 1 }); }, watchPosition() { return 0; }, clearWatch() { } }, mediaDevices: {}, serviceWorker: undefined, clipboard: { writeText: async () => { } }, permissions: { query: async () => ({ state: 'denied' }) } },
         location: LOC,
         performance: { now: () => 0 }, history: { pushState() { }, replaceState() { } },
@@ -123,6 +124,9 @@ function starte(opt) {
             sb.jvCommands._beobachtet = true;
         }
     }
+    /* C1-Schalter: jede Test-Welt stellt ihn AUSDRÜCKLICH her (Standard: aus), unabhängig vom ausgelieferten Wert im Produktcode.
+       Jede Welt ist ein frischer Kontext, ein Zustand kann also nicht in den nächsten Test durchsickern. */
+    if (sb.jvRegeln) sb.jvRegeln.scharf = (opt.scharf === true);
     // Sprachausgabe abfangen (nach dem Laden, denn voice.js/fish.js definieren speak selbst)
     const echtSpeak = sb.speak;
     let sprichBis = 0; const sprechzeiten = [];
@@ -214,7 +218,7 @@ function starte(opt) {
             return () => '';
         } });
     }
-    return { erkenner, sprechzeiten, lassLaufen, vorspulen, ereignisse, uhr, sb, gesagt, store, aufrufe, ladefehler, satz, ki, zustand, setze, lese, behandelt, reihenfolge, kette: () => sb.jvCommands.list(), vm };
+    return { dokListener, erkenner, sprechzeiten, lassLaufen, vorspulen, ereignisse, uhr, sb, gesagt, store, aufrufe, ladefehler, satz, ki, zustand, setze, lese, behandelt, reihenfolge, kette: () => sb.jvCommands.list(), vm };
 }
 
 module.exports = { starte, ROOT, lies };
