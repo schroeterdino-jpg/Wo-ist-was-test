@@ -25,6 +25,10 @@ function check(name, bedingung, info) {
     fehler++; console.log('✗ ' + name + (info ? '  →  ' + info : ''));
 }
 const IST = [];
+/* B = bekannter Fehler: Sollwert ist festgelegt, der Lauf bleibt aber grün, solange der Fehler besteht.
+   Sobald der Sollwert erfüllt ist, meldet der Lauf "behoben": dann den Eintrag in check() umstellen. */
+const BEKANNT = [];
+function bekannterFehler(name, sollErfuellt, info) { BEKANNT.push({ name, behoben: !!sollErfuellt, info: info || '' }); }
 const kurz = (t, n) => { t = String(t == null ? '' : t).replace(/\s+/g, ' ').trim(); return t.length > (n || 140) ? t.slice(0, n || 140) + '…' : t; };
 /* erg = Ergebnis von satz()/ki(); auffaellig = Liste von Hinweisen (Strings) */
 function ist(nr, thema, satz, erg, auffaellig, extra) {
@@ -387,6 +391,116 @@ async function haupt() {
         ist('28', 'Cron-Schlüssel', 'api/sync.js: Schlüssel auch über die Adresse?', { modul: 'api/sync.js', aenderungen: {}, gesagt: [] }, [
             /req\.query\.key/.test(sync) ? 'Ja: der Cron-Schlüssel wird auch aus der Web-Adresse (req.query.key) akzeptiert' : 'Nein: nur Header']);
     }
+    await festeTests();
+}
+
+/* ===== Feste Regressionstests (A = gewolltes Verhalten, freigegeben von Dino am 28.10.2026; B = bekannte Fehler) ===== */
+async function festeTests() {
+    const berlin = iso => new Date(iso).toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' });
+    const hat = (arr, re) => arr.some(x => re.test(x.text || ''));
+
+    /* A: Erinnerung löschen verlangt Rückfrage, nichts wird vorher gelöscht */
+    {
+        const E = starte({ native: true, jetzt: SPAET_MI });
+        await E.ki('Erinnere mich morgen um 15 Uhr an den Zahnarzt', [{ type: 'reminder', reminder_text: 'Zahnarzt', reminder_time: '2026-10-29T15:00:00' }]);
+        const l = await E.ki('Lösche die Erinnerung Zahnarzt', [{ type: 'reminder_delete', reminder_query: 'Zahnarzt' }]);
+        check('Löschen (Fall 9): Erinnerung löschen stellt eine Rückfrage', (l.fehler || []).some(f => /Zahnarzt.*löschen/.test(f)), JSON.stringify(l.fehler));
+        check('Löschen (Fall 9): vor der Bestätigung ist nichts gelöscht', E.zustand().erinnerungen.length === 1);
+        const ja = await E.satz('Ja');
+        check('Löschen (Fall 9): nach "Ja" ist genau diese Erinnerung weg', E.zustand().erinnerungen.length === 0, ja.modul);
+        const nein = starte({ native: true, jetzt: SPAET_MI });
+        await nein.ki('Erinnere mich morgen um 15 Uhr an den Zahnarzt', [{ type: 'reminder', reminder_text: 'Zahnarzt', reminder_time: '2026-10-29T15:00:00' }]);
+        await nein.ki('Lösche die Erinnerung Zahnarzt', [{ type: 'reminder_delete', reminder_query: 'Zahnarzt' }]);
+        await nein.satz('Nein');
+        check('Löschen (Fall 9): nach "Nein" bleibt die Erinnerung', nein.zustand().erinnerungen.length === 1);
+    }
+
+    /* A: Termin + verknüpfte Erinnerung gemeinsam löschen, fremde Erinnerung bleibt (3b2-a) */
+    {
+        const D = starte({ native: true, jetzt: SPAET_MI });
+        await D.ki('Erinnere mich morgen um 15 Uhr an den Zahnarzt', [{ type: 'reminder', reminder_text: 'Zahnarzt', reminder_time: '2026-10-29T15:00:00' }]);
+        await D.vorspulen(2000);   // die App vergibt IDs aus der Uhrzeit; bei stehender Test-Uhr wären sie gleich
+        await D.ki('Friseurtermin morgen um 13 Uhr', [{ type: 'calendar', calendar_text: 'Friseurtermin', calendar_time: '2026-10-29T13:00:00' }]);
+        await D.satz('30 Minuten vorher.');
+        const vor = D.zustand();
+        const fr = vor.erinnerungen.filter(x => /friseur/i.test(x.text));
+        check('Termin-Löschen (3b2-a): vor dem Löschen gibt es die Friseur-Erinnerung (30 Min vorher) und die Zahnarzt-Erinnerung', fr.length === 1 && hat(vor.erinnerungen, /zahnarzt/i), JSON.stringify(vor.erinnerungen));
+        if (fr.length === 1) check('Termin-Löschen: die Friseur-Erinnerung liegt 30 Minuten vor 13:00', berlin(fr[0].zeit) === '2026-10-29 12:30:00', fr[0].zeit);
+        await D.ki('Lösch den Friseurtermin morgen', [{ type: 'calendar_delete', calendar_query: 'Friseurtermin' }]);
+        check('Termin-Löschen: vor der Bestätigung bleibt alles', D.zustand().termine.length === 1 && D.zustand().erinnerungen.length === vor.erinnerungen.length);
+        await D.satz('Ja');
+        const nach = D.zustand();
+        check('Termin-Löschen: genau der Friseurtermin ist weg', nach.termine.length === 0);
+        check('Termin-Löschen: die verknüpfte Friseur-Erinnerung ist ebenfalls weg (keine verwaiste Erinnerung)', !hat(nach.erinnerungen, /friseur/i), JSON.stringify(nach.erinnerungen));
+        check('Termin-Löschen: die fremde Zahnarzt-Erinnerung bleibt', hat(nach.erinnerungen, /zahnarzt/i), JSON.stringify(nach.erinnerungen));
+    }
+
+    /* B: ein "Ja" bestätigt zwei unabhängige Löschfragen (3b2-b) */
+    {
+        const D = starte({ native: true, jetzt: SPAET_MI });
+        await D.ki('Erinnere mich morgen um 15 Uhr an den Zahnarzt', [{ type: 'reminder', reminder_text: 'Zahnarzt', reminder_time: '2026-10-29T15:00:00' }]);
+        await D.ki('Friseurtermin morgen um 13 Uhr', [{ type: 'calendar', calendar_text: 'Friseurtermin', calendar_time: '2026-10-29T13:00:00' }]);
+        await D.ki('Lösche die Erinnerung Zahnarzt', [{ type: 'reminder_delete', reminder_query: 'Zahnarzt' }]);
+        const l2 = await D.ki('Lösch den Friseurtermin morgen', [{ type: 'calendar_delete', calendar_query: 'Friseurtermin' }]);
+        await D.satz('Ja');
+        const z = D.zustand();
+        bekannterFehler('3b2-b: ein "Ja" bestätigt nur die aktuelle Löschfrage (Zahnarzt-Erinnerung bleibt, Friseurtermin weg)', z.termine.length === 0 && hat(z.erinnerungen, /zahnarzt/i),
+            'Ist: Termine ' + z.termine.length + ', Erinnerungen ' + z.erinnerungen.map(x => x.text).join(',') + '; 2. Frage: ' + JSON.stringify(l2.fehler));
+        bekannterFehler('3b: die Löschfrage zum Friseurtermin ist eigenständig (kein "Und den Termin …?")', !(l2.fehler || []).some(f => /^Und /.test(f)), JSON.stringify(l2.fehler));
+    }
+
+    /* B: Löschen ohne Treffer darf keinen anderen Termin vorschlagen (3d) */
+    {
+        const B = starte({ native: true, jetzt: SPAET_MI });
+        await B.ki('Friseur morgen 13 Uhr', [{ type: 'calendar', calendar_text: 'Friseur', calendar_time: '2026-10-29T13:00:00' }]);
+        await B.ki('Zahnarzt morgen 15 Uhr', [{ type: 'calendar', calendar_text: 'Zahnarzt', calendar_time: '2026-10-29T15:00:00' }]);
+        const d = await B.ki('Lösch den Tierarzttermin', [{ type: 'calendar_delete', calendar_query: 'Tierarzt' }]);
+        const text = (d.fehler || []).concat(d.gesagt || [], d.notizen || []).join(' ');
+        bekannterFehler('3d: ohne Treffer sagt Jarvis "keinen passenden Tierarzttermin gefunden" und fragt nichts anderes', !/Zahnarzt|Friseur/.test(text) && /nicht gefunden|keinen|kein /i.test(text), kurz(text, 160));
+        check('3d: ohne Bestätigung wird in keinem Fall ein Termin gelöscht', B.zustand().termine.length === 2);
+    }
+
+    /* A: Lesen und Orte */
+    {
+        const L = starte({ native: true, jetzt: SPAET_MI });
+        const k = await L.satz('Was steht morgen in meinem Kalender?');
+        check('Kalender lesen (Fall 10): lokal von was_steht_an beantwortet', k.lokal && k.modul === 'was_steht_an', k.modul);
+        const O = starte({ native: true, jetzt: SPAET_MI, fetch: async () => ({ ok: false, status: 503, json: async () => ({}), text: async () => '' }) });
+        let n = O.aufrufe.length; await O.satz('Gibt es Apotheken in Wentorf?');
+        const u1 = decodeURIComponent(O.aufrufe.slice(n).join(' '));
+        check('Ortssuche (13b): der genannte Ort Wentorf wird angefragt', /Wentorf/.test(u1), u1);
+        check('Ortssuche (13b): ein früherer Ort taucht nicht auf', !/Schwarzenbek/i.test(u1), u1);
+        await O.satz('Wo ist Penny in Schwarzenbek?');
+        n = O.aufrufe.length; await O.satz('Wie wird morgen das Wetter in Hamburg?');
+        const u2 = decodeURIComponent(O.aufrufe.slice(n).join(' '));
+        check('Kontextwechsel (16): der neue Ort Hamburg wird angefragt', /Hamburg/.test(u2), u2);
+        check('Kontextwechsel (16): Schwarzenbek überschreibt Hamburg nicht', !/Schwarzenbek/i.test(u2), u2);
+    }
+
+    /* A: Gedächtnis */
+    {
+        const G = starte({ native: true, jetzt: SPAET_MI });
+        const vor = G.store['helfer_memory'] || '';
+        await G.satz('Heute habe ich keine Lust auf Pizza');
+        check('Gedächtnis (17c): "keine Lust auf Pizza" landet nicht im Langzeitgedächtnis', (G.store['helfer_memory'] || '') === vor && !/pizza/i.test(JSON.stringify(G.store['helfer_memory'] || '')));
+    }
+
+    /* A: Avatar und Heimweg */
+    {
+        const H = starte({ native: true, jetzt: SPAET_MI });
+        const hw = await H.satz('Heimweg');
+        check('Heimweg (23): wird lokal von plan_ansagen übernommen', hw.lokal && /plan_ansagen/.test(hw.modul || ''), hw.modul);
+    }
+
+    /* B: Halbe Antwort und Browser ohne Handy-App */
+    {
+        const W = starte({ native: true, jetzt: SPAET_MI });
+        const w = await W.satz('Was steht Samstag an und was könnten wir danach mit den Kindern machen?');
+        bekannterFehler('15b: Antwort deckt beide Teile ab (Kalender und Ausflug) oder sagt, dass ein Teil fehlt', /Ausflug|Kinder|Vorschl|zweiten Teil|nicht beantworten/i.test((w.gesagt || []).join(' ')), kurz((w.gesagt || []).join(' '), 120));
+        const BR = starte({ native: false, jetzt: SPAET_MI });
+        const v = await BR.satz('Vertretung nach 5 Minuten');
+        bekannterFehler('24b: im Browser ohne Handy-App kommt der Hinweis "nur in der Handy-App"', /Handy-App/i.test((v.gesagt || []).join(' ')), v.lokal ? 'lokal: ' + v.modul : 'geht still an die KI');
+    }
 }
 
 function bericht() {
@@ -412,6 +526,10 @@ haupt().then(() => {
     clearTimeout(WACHHUND);
     if (process.env.IST_BERICHT) fs.writeFileSync(path.join(ROOT, process.env.IST_BERICHT), bericht());
     console.log('Ist-Zustand: ' + IST.length + ' Fälle dokumentiert' + (process.env.IST_BERICHT ? ' -> ' + process.env.IST_BERICHT : ' (mit IST_BERICHT=tests/ist-zustand.md die Tabelle schreiben)'));
+    const beh = BEKANNT.filter(b => b.behoben), off = BEKANNT.filter(b => !b.behoben);
+    console.log('\nBekannte Fehler (Kategorie B, Sollwert festgelegt): ' + off.length + ' offen, ' + beh.length + ' behoben');
+    off.forEach(b => console.log('  ○ offen: ' + b.name + (b.info ? '  →  ' + b.info : '')));
+    beh.forEach(b => console.log('  ✓ behoben: ' + b.name + '  (bitte in check() umstellen)'));
     if (fehler) { console.log('\n' + fehler + ' Prüfung(en) FEHLGESCHLAGEN, ' + ok + ' in Ordnung.'); process.exit(1); }
     console.log('\nPrüfstrecke in Ordnung (' + ok + ' Prüfungen).');
 }).catch(e => { console.log('Prüfstrecke abgebrochen: ' + (e && e.stack || e)); process.exit(1); });

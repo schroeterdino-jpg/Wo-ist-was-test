@@ -238,3 +238,5 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 - `node tests/jarvis_pruefstrecke.js`: neue Prüfstrecke. Lädt über `tests/umgebung.js` ALLE Skripte aus `index.html` in eine Attrappen-Umgebung (virtuelle Uhr, Attrappen für Netz, Speicher, Sprachausgabe, ZaneNative). Läuft auch in GitHub Actions ("App-Tests").
 - `check(...)` = bestätigtes Verhalten (muss grün bleiben). `ist(...)` = Bestandsaufnahme ohne Sollwert; Bericht mit `IST_BERICHT=tests/ist-zustand.md node tests/jarvis_pruefstrecke.js`.
 - Regel: nach jedem größeren Umbau beide Läufe; bei Rot zuerst den Fehler beheben.
+- Feste Tests (Funktion `festeTests` in `jarvis_pruefstrecke.js`): Kategorie A = `check(...)`, muss grün bleiben. Kategorie B = `bekannterFehler(...)` mit festgelegtem Sollwert: der Lauf bleibt grün, listet offene Fehler auf und meldet "behoben", sobald der Sollwert erreicht ist (dann auf `check` umstellen).
+- Achtung Testuhr: Die App vergibt IDs aus der Uhrzeit. Bei stehender Test-Uhr (`vorspulen(2000)` nutzen) bekommen zwei Einträge dieselbe ID.
