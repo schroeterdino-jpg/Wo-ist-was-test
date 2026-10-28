@@ -183,7 +183,6 @@ public class NachrichtenService extends NotificationListenerService {
             else logV(ctx, name + " schrieb. Ich warte " + Prefs.vertrMin(ctx) + " Minuten, ob du reagierst.");
             if (erlaubtName(ctx, name)) {
                 vertretungPlanen(ctx, sbn.getKey());
-                if (Prefs.vertretung(ctx) && kuerzlichVertreten(ctx, norm(name))) oeffnen(ctx, name + " hat geantwortet", name + " hat dir geschrieben: " + kurz(text, 300));
             }
             return;
         }
