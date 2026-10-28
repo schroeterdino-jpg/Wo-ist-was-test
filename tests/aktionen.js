@@ -20,6 +20,7 @@
    der Sprachausgabe fehlt (er hängt vom Stapel ab, nicht vom Verhalten).
    ============================================================ */
 'use strict';
+process.env.TZ = 'Europe/Berlin';   // wie auf dem Handy: viele Stellen der App rechnen mit der Ortszeit des Geräts (sonst fällt der Lauf auf einem UTC-Rechner anders aus)
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const { starte } = require('./umgebung.js');
 
