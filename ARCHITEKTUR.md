@@ -296,6 +296,16 @@ Außen -> innen: 10 loeschen_fragen, 20 gedaechtnis, 30 geburtstag_ganztag, 40 l
 - `window.jvFaehigkeiten.nurHandyApp` listet Schlafmodus/Vertretung, Wecker, Ortserinnerungen und Fahrmodus mit `handyApp` 'ja' oder 'teilweise'. Es sind keine neuen Hilfe-Karten.
 - Bewusst nicht abgefangen (könnten auch normale Fragen sein): „Wer hat mir geschrieben?“, „Was habe ich verpasst?“, „Wie stellst du dich vor?“, „Bei Mama bin ich der Papa“ (Anrede). Tests: `node tests/handyapp.js`.
 
+
+## Teilfehler sauber sagen (B3)
+
+- `js/antwort_bau.js` (reine Funktion `window.jvAntwort.baue`) setzt die gesprochene Antwort zusammen. `js/assistant.js` ruft sie nach dem Ausführen der Aktionen auf. Fehlt die Datei, gilt der alte Rückfall im Code.
+- Alles klappt: Antwort wie bisher. Mehrere Sonderergebnisse (Fahrzeit, Bahn, Tanken, Umgebung, Mail, Web, Kalendersuche) werden nacheinander gesprochen statt „erstes gewinnt“.
+- Etwas klappt nicht: erst die Ergebnisse, dann was geklappt hat („Termin gespeichert.“, nur bei Speichern/Ändern, nie bei Löschen), dann was nicht ging. Hinweise erfolgreicher Aktionen bleiben, Hinweise einer fehlgeschlagenen Aktion fallen weg.
+- `js/mitdenken.js` trägt Ausfälle von Wetter und Fahrzeit in `window.jvMdAusfall` ein (nur wenn `assistant.js` die Liste angelegt hat). Gemeldet wird nur, wenn die Prüfung für den Termin wirklich gestartet wurde (Wetter: Termin „draußen“, innerhalb von 6 Tagen; Fahrzeit: Ort bekannt und Termin davor/danach mit Ort, Lücke höchstens 150 Minuten). Timeout (7 s) zählt als Ausfall. Ausfälle zählen nur, wenn ein Termin gespeichert wurde.
+- `js/actions.js` ist dafür nicht geändert (Golden Master 97/97, `aktionen_soll.json` unverändert). Bekannte Grenze: Läuft gleichzeitig der Mail-Beobachter mit eigenem Termin-Check, kann dessen Ausfall in die Liste geraten (sehr selten).
+- Tests: `node tests/antwort.js`.
+
 ## C1a: Meldungs-Beobachter (`js/meldungen.js`, nur Beobachtung)
 - `window.jvMeldungen.beobachte({quelle, kanal[], grund, ausloeser, ereignis, bezug, text})` zählt nur mit, wann sich Jarvis von selbst meldet. Er ändert **nichts**: keine Texte, Zeiten, Ruhezeiten, Mindestabstände, Einmal-Regeln; nichts wird blockiert, verzögert oder zusammengefasst.
 - Nur Arbeitsspeicher, Ringpuffer 300. Kein localStorage/sessionStorage, kein Netz, kein Server, **nicht** der Schlüssel `jv_meldungen` (der gehört plan_ansagen.js). Fehlt die Datei oder wirft sie, laufen alle Stellen wie vorher (jeder Aufruf steht in `try/catch`).
