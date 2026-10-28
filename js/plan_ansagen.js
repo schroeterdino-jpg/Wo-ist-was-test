@@ -596,38 +596,43 @@
             if (!erzwingen && (schon === ymd || nu.ymd !== ymd || nu.min > 15 * 60)) return false;
             merkeGesagt(id);
             try { setPersistentData('jv_schicht_last', ymd); } catch (e) { }
-            if (typeof triggerDailyBriefing === 'function') { try { triggerDailyBriefing(); return true; } catch (e) { return false; } }
+            if (typeof triggerDailyBriefing === 'function') { try { try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'plan_ansagen', kanal: ['sprache'], grund: 'schicht-briefing', ausloeser: erzwingen ? 'manuell' : 'plan', ereignis: 'brief|' + ymd, bezug: window.jvMeldungen.bezugTag(ymd), text: '' }) } catch (e) { }; triggerDailyBriefing(); return true; } catch (e) { return false; } }
             return false;
         }
         merkeGesagt(id);
         if (art === 'auftrag') {   // Beobachtungsauftrag erfüllt (auftraege.js, AuftragReceiver der App): id = auftrag|<Auftrags-ID>|<Text>
             const text = id.split('|').slice(2).join('|');
             if (!text) return false;
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'plan_ansagen', kanal: ['sprache', 'fenster'], grund: 'auftrag', ausloeser: erzwingen ? 'manuell' : 'plan', ereignis: id, bezug: { art: 'auftrag', schluessel: String(id.split('|')[1] || ''), herkunft: 'id' }, text: text }) } catch (e) { }   // C1: nur Beobachtung
             sagenMeldung('👁️ Auftrag', text);
             return true;
         }
         if (art === 'ort') { try { return !!(window.jvOrte && window.jvOrte.ansage(id)); } catch (e) { return false; } }   // Orts-Erinnerung (orte.js)
         if (art === 'wochen') {
             const mo = ymdPlus(ymd, 1);
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'plan_ansagen', kanal: ['sprache', 'fenster'], grund: 'wochenueberblick', ausloeser: erzwingen ? 'manuell' : 'plan', ereignis: id, bezug: window.jvMeldungen.bezugTag(ymd), text: '📅 Wochenüberblick' }) } catch (e) { }   // C1: nur Beobachtung (Text wird erst beim Sprechen gebildet)
             sagenMeldung('📅 Wochenüberblick', wochenText(mo, mo, true));
             return true;
         }
         if (art === 'aufbruch') {
             const r = await aufbruchText(ymd, true);
             if (!r.text) return false;
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'plan_ansagen', kanal: ['sprache', 'fenster'], grund: 'aufbruchszeit', ausloeser: erzwingen ? 'manuell' : 'plan', ereignis: id, bezug: window.jvMeldungen.bezugTag(ymd), text: r.text }) } catch (e) { }   // C1: nur Beobachtung
             sagenMeldung('🚗 Aufbruchszeit', r.text);
             return true;
         }
         if (art === 'heim') {
             const t = await heimText(!!erzwingen || !!angetippt);
             if (!t) { try { const a = gesagt().filter(x => x !== id); lsSet(K_GESAGT, JSON.stringify(a)); } catch (e) { } return false; }
-            if (!erzwingen) { merkeMeldung('🏠 Heimweg', t); zeigeMeldung('🏠 Heimweg', t); return true; }   // Feierabend nur als Benachrichtigung: nachlesen, nichts von selbst sagen
+            if (!erzwingen) { try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'plan_ansagen', kanal: ['fenster'], grund: 'heimweg', ausloeser: 'plan', ereignis: id, bezug: window.jvMeldungen.bezugTag(ymd), text: t }) } catch (e) { }; merkeMeldung('🏠 Heimweg', t); zeigeMeldung('🏠 Heimweg', t); return true; }   // Feierabend nur als Benachrichtigung: nachlesen, nichts von selbst sagen
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'plan_ansagen', kanal: ['sprache', 'fenster'], grund: 'heimweg', ausloeser: 'manuell', ereignis: id, bezug: window.jvMeldungen.bezugTag(ymd), text: t }) } catch (e) { }   // C1: nur Beobachtung
             sagenMeldung('🏠 Heimweg', t);
             return true;
         }
         if (art === 'wecker') {
             let vorsatz = '';
             try { if (window.jvZuvor && window.jvZuvor.vorWecker) vorsatz = await window.jvZuvor.vorWecker(ymd) || ''; } catch (e) { }   // zuvorkommend.js: z. B. Frost -> Abfahrt vorgezogen
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'plan_ansagen', kanal: ['karte', 'sprache'], grund: 'wecker-frage', ausloeser: erzwingen ? 'manuell' : 'plan', ereignis: id, bezug: window.jvMeldungen.bezugTag(ymd), text: (vorsatz ? vorsatz + ' ' : '') + 'Morgen ist Frühschicht. Soll ich den Wecker stellen?' }) } catch (e) { }   // C1: nur Beobachtung
             weckerFrage(ymd, vorsatz); return true;
         }
         if (art === 'geb') { try { return !!(window.jvZuvor && window.jvZuvor.gebAnsage(id)); } catch (e) { return false; } }   // Geburtstags-Vorfrage (zuvorkommend.js)
@@ -650,6 +655,7 @@
         if (stau) t += ' ' + stau;
         if (f.min && f.st) t += ' Darin sind etwa ' + f.st + ' Minuten Stau schon eingerechnet.';
         t += abfahrt <= nu.min + 5 ? ' Fahr am besten gleich los.' : ' Fahr lieber um ' + uhr(abfahrt) + ' los.';
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'plan_ansagen', kanal: ['sprache', 'fenster'], grund: 'stau-arbeitsweg', ausloeser: immer ? 'manuell' : 'plan', ereignis: 'stau|' + ymd, bezug: window.jvMeldungen.bezugTag(ymd), text: t }) } catch (e) { }   // C1: nur Beobachtung
         sagenMeldung('🚦 Stau auf dem Arbeitsweg', t);
         return true;
     }

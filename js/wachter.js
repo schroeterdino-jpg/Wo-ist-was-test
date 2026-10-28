@@ -197,6 +197,7 @@ async function wachterTick() {
         if (!cands.length || !wachterIdle() || wachterQuiet() || !wachterEnabled()) return;   // zwischenzeitlich geändert: lieber still
         const c = cands[0];
         wachterLastTry = Date.now();
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'wachter', kanal: ['sprache'], grund: ({ leave: 'abfahrt', soon: 'termin-gleich', rain: 'regen', bday: 'geburtstag', uwarn: 'unwetter' })[String(c.id).split('|')[0]] || String(c.id).split('|')[0], ausloeser: 'timer', ereignis: c.id, bezug: window.jvMeldungen.bezugAusWaechterId(c.id), text: c.text }) } catch (e) { }   // C1: nur Beobachtung
         speak(c.text, () => { wachterMarkDone(c.id); wachterLastSpoken = Date.now(); });   // erst nach wirklich gesprochener Meldung als erledigt gezählt
     } catch (e) { /* der Wächter darf nie etwas stören */ }
     finally { wachterBusy = false; }

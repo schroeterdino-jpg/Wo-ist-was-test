@@ -259,3 +259,11 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 - `js/help.js`: die Übersicht („Was kannst du?“) zeigt zuerst acht Karten aus `window.jvFaehigkeiten`, danach unverändert die alten Themen (`HELP_TOPICS`). Tipp auf eine Fähigkeit (`showFaehigkeitHelp`): bis zu vier Beispielsätze, Hinweis-Karten (Handy-App, meldet sich von selbst, fragt vor dem Löschen nach) und „Alle Themen“. Fehlt das Verzeichnis, erscheinen nur die alten Themen.
 - Neue Felder je Fähigkeit: `icon`, `kurz` (Text der Karte). Beispielsätze mit `weg: 'lokal'` und `modul` werden im Test durch die echte Befehlskette geschickt und müssen von genau diesem Modul übernommen werden. Antworten auf Rückfragen (z. B. „30 Minuten vorher“) sind keine Beispielsätze.
 - Tour (`anleitung.js`) unverändert: es gibt keine neue Funktion, nur eine andere Darstellung der Hilfe.
+
+## C1a: Meldungs-Beobachter (`js/meldungen.js`, nur Beobachtung)
+- `window.jvMeldungen.beobachte({quelle, kanal[], grund, ausloeser, ereignis, bezug, text})` zählt nur mit, wann sich Jarvis von selbst meldet. Er ändert **nichts**: keine Texte, Zeiten, Ruhezeiten, Mindestabstände, Einmal-Regeln; nichts wird blockiert, verzögert oder zusammengefasst.
+- Nur Arbeitsspeicher, Ringpuffer 300. Kein localStorage/sessionStorage, kein Netz, kein Server, **nicht** der Schlüssel `jv_meldungen` (der gehört plan_ansagen.js). Fehlt die Datei oder wirft sie, laufen alle Stellen wie vorher (jeder Aufruf steht in `try/catch`).
+- Eintrag: `nr, zeit, quelle, kanal[], grund, ausloeser (timer|app-start|app-rueckkehr|apk|push|plan|manuell), ereignis, bezug{art,schluessel,herkunft}, text (80 Zeichen)`. Bezug: echte Termin-ID bevorzugt (`herkunft: id`), sonst Text+Zeit.
+- Protokolliert wird nur, wenn wirklich eine Ausgabe ausgelöst wird (keine Polls). Mehrere Kanäle derselben Meldung = ein Eintrag.
+- Eingehängt in genau zehn Dateien: wachter, proaktiv, vorbereitung, travel, smarttips, calendar, plan_ansagen, dirigent, zuvorkommend, schicht. Weitere Quellen kommen stufenweise (orte.js bewusst später).
+- Tests: `node tests/meldungen.js` (Pflicht: Lauf mit / ohne / mit kaputtem Beobachter ist identisch). Bericht: `MELDUNGEN_BERICHT=tests/meldungen-bericht.md node tests/meldungen.js`. Neue Test-Optionen in `umgebung.js`: `sekundenTakt`, `ohneSkripte`, `festerZufall`, `sprechenBeendet`.

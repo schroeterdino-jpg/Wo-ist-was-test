@@ -147,6 +147,7 @@
             if (b.min < at || b.min > at + WINDOW_MIN) return;
             if (!idle() || typeof window.triggerDailyBriefing !== 'function') return;   // später noch einmal versuchen
             setPersistentData(LAST_KEY, b.ymd);
+            try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'schicht', kanal: ['sprache'], grund: 'schicht-briefing', ausloeser: 'timer', ereignis: 'brief|' + b.ymd, bezug: window.jvMeldungen.bezugTag(b.ymd), text: '' }) } catch (e) { }   // C1: nur Beobachtung
             window.triggerDailyBriefing();
         } catch (e) { console.error('Schicht-Briefing', e); }
     }

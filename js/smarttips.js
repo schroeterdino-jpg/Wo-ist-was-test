@@ -73,6 +73,7 @@ async function checkSmartTips() {
     } catch (e) { /* ohne Wetter geht's auch, dann eben nur die Basis-Tipps */ }
 
     const satz = buildTipSentence(activity, weatherDay);
+    if (satz) { try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'smarttips', kanal: ['sprache'], grund: 'mitnehmen-tipp', ausloeser: 'timer', ereignis: String(due.id), bezug: window.jvMeldungen.bezugTerminId(due.id), text: `In Kürze steht "${due.text}" an. ${satz}` }) } catch (e) { } }   // C1: nur Beobachtung
     if (satz) speak(`In Kürze steht "${due.text}" an. ${satz}`);
 }
 
