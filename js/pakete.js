@@ -187,8 +187,12 @@
                 if (!r.daten) { if (r.fehlt) return; continue; }
                 const vorher = q.code;
                 const geaendert = uebernehmen(q, r.daten);
-                if (geaendert && q.code === 'delivered') { hinweis('📦 ' + satz(q)); sagen(satz(q)); }
-                else if (geaendert && vorher && /zustellung|zustell/i.test(q.beschr || q.status || '')) hinweis('📦 ' + satz(q));
+                if (geaendert && q.code === 'delivered') {
+                    try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'pakete', kanal: ['hinweis', 'sprache'], grund: 'paket-zugestellt', ausloeser: window.jvMeldungen.herkunftApp(), ereignis: 'paket|' + q.nr + '|delivered', bezug: window.jvMeldungen.bezugId('paket', q.nr), mikro: 'bedingt', text: satz(q) }) } catch (e) { }   // C1: nur Beobachtung
+                    hinweis('📦 ' + satz(q)); sagen(satz(q)); }
+                else if (geaendert && vorher && /zustellung|zustell/i.test(q.beschr || q.status || '')) {
+                    try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'pakete', kanal: ['hinweis'], grund: 'paket-zustellung', ausloeser: window.jvMeldungen.herkunftApp(), ereignis: 'paket|' + q.nr + '|' + q.code, bezug: window.jvMeldungen.bezugId('paket', q.nr), text: satz(q) }) } catch (e) { }   // C1: nur Beobachtung
+                    hinweis('📦 ' + satz(q)); }
             }
             speichern(alle);
         } catch (e) { }

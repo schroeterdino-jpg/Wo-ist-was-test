@@ -672,6 +672,7 @@ async function triggerDailyBriefing() {
         chatHistory.push({ role: "assistant", content: JSON.stringify({ type: "chat", reply: text }) });
 
         typeWriterStatus("Klicken zum Sprechen...");
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'briefing', kanal: (window.__schichtStauCards && window.__schichtStauCards.length) ? ['karte', 'sprache'] : ['sprache'], grund: 'tagesbriefing', ausloeser: window.jvMeldungen.folgeAusloeser('briefing', 180000), ereignis: 'brief|' + new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }), bezug: window.jvMeldungen.bezugTag(new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' })), text: text }) } catch (e) { }   // C1: nur Beobachtung
         try {   // Staumeldungen auf dem Weg zur Arbeit zusätzlich als Karten (antippen = Stelle auf der Karte)
             if (window.__schichtStauCards && window.__schichtStauCards.length && typeof showActionCards === 'function') { showActionCards(window.__schichtStauCards); }
             window.__schichtStauCards = null;

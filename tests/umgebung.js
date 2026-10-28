@@ -6,7 +6,9 @@
      jetzt     Feste Uhrzeit (ISO mit Zone, Standard: Mittwoch 28.10.2026 10:00 Berlin), die Uhr tickt nicht.
      native    true: window.ZaneNative ist da (Attrappe der Handy-App-Brücke), false: normaler Browser.
      sekundenTakt  true: auch der 1-Sekunden-Zeitgeber (Erinnerungs-Timer in calendar.js) läuft; sonst werden Zeitgeber unter 15 s ausgelassen.
-   sprechenBeendet  true: nach jeder Sprachausgabe wird der übergebene "fertig"-Rückruf nach 2 s (virtuelle Uhr) aufgerufen, wie bei echter Sprachausgabe (nicht der Gesprächs-Rückruf continueConversation).
+   weitereTakte  Liste von Intervallen in ms (zum Beispiel [10000]), die zusätzlich zum 1-Sekunden-Takt laufen dürfen (nur zusammen mit sekundenTakt).
+  sprechdauer  true (mit sprechenBeendet): Sprechen dauert wie echte Sprache (Zeichen / 14 pro Sekunde, mindestens 1,5 s); in dieser Zeit meldet isSpeaking() true, der fertig-Rückruf kommt danach. Zeiten stehen in App.sprechzeiten.
+  sprechenBeendet  true: nach jeder Sprachausgabe wird der übergebene "fertig"-Rückruf nach 2 s (virtuelle Uhr) aufgerufen, wie bei echter Sprachausgabe (nicht der Gesprächs-Rückruf continueConversation).
   festerZufall  true: Math.random liefert immer 0.5 (schon beim Laden der Skripte), damit zwei Läufe gleich ausfallen.
    ohneSkripte   Liste von Dateinamen aus index.html, die NICHT geladen werden (zum Beispiel ['meldungen.js'] für den Vergleich mit und ohne Beobachter).
    dienste   { kalender, wetter, route, ... }: 'ok' oder 'aus' je Dienst. 'aus' lässt gezielt EINEN Dienst ausfallen.
@@ -44,7 +46,7 @@ function starte(opt) {
         set: () => true, apply: () => el(), construct: () => el(), has: () => true
     });
     const timer = []; let tid = 1;
-    function plane(fn, ms, a, iv) { if (typeof fn !== 'function') return 0; if (iv === 0 && !(ms >= 0)) ms = 0; if (iv && !(+ms >= 15000) && !(opt.sekundenTakt && +ms === 1000)) return 0;   const id = tid++; timer.push({ id, at: uhr.ms + Math.max(0, +ms || 0), fn, a, iv }); return id; }
+    function plane(fn, ms, a, iv) { if (typeof fn !== 'function') return 0; if (iv === 0 && !(ms >= 0)) ms = 0; if (iv && !(+ms >= 15000) && !(opt.sekundenTakt && (+ms === 1000 || (Array.isArray(opt.weitereTakte) && opt.weitereTakte.indexOf(+ms) >= 0)))) return 0;   const id = tid++; timer.push({ id, at: uhr.ms + Math.max(0, +ms || 0), fn, a, iv }); return id; }
     function abbrechen(id) { const i = timer.findIndex(t => t.id === id); if (i >= 0) timer.splice(i, 1); }
     // Wer wollte sprechen? Aus dem Aufruf-Stapel: erste Datei, die nicht nur Sprach-Technik ist
     const TECHNIK = new Set(['voice.js', 'fish.js', 'tempo.js', 'speechrate.js', 'voicefix.js', 'native_speech.js', 'tts.js', 'audio.js', 'hoeren.js', 'pronunciation.js', 'umgebung.js']);
@@ -121,11 +123,17 @@ function starte(opt) {
     }
     // Sprachausgabe abfangen (nach dem Laden, denn voice.js/fish.js definieren speak selbst)
     const echtSpeak = sb.speak;
-    sb.speak = function (t, fertig) { const x = String(t == null ? '' : t); gesagt.push(x); ereignisse.push({ art: 'sprechen', zeit: hhmm(), modul: aufrufer(), text: x });
-        if (opt.sprechenBeendet && typeof fertig === 'function' && fertig !== sb.continueConversation) plane(function () { try { fertig(); } catch (e) { } }, 2000, []); };
+    let sprichBis = 0; const sprechzeiten = [];
+    sb.speak = function (t, fertig) {
+        const x = String(t == null ? '' : t); gesagt.push(x); ereignisse.push({ art: 'sprechen', zeit: hhmm(), ms: uhr.ms, modul: aufrufer(), text: x });
+        let dauer = 2000;
+        if (opt.sprechdauer) { dauer = Math.max(1500, Math.round(x.length / 14 * 1000)); const von = Math.max(uhr.ms, sprichBis); sprichBis = von + dauer; sprechzeiten.push({ ms: uhr.ms, von, bis: sprichBis, text: x }); dauer = sprichBis - uhr.ms; }
+        if (opt.sprechenBeendet && typeof fertig === 'function' && fertig !== sb.continueConversation) plane(function () { try { fertig(); } catch (e) { } }, dauer, []);
+    };
+    if (opt.sprechdauer) sb.isSpeaking = function () { return uhr.ms < sprichBis; };   // Sprechen dauert (Zeichen / 14 pro Sekunde, mindestens 1,5 s); solange gilt isSpeaking()
     for (const fn of ['openExtraWindow', 'showSuggestionCard', 'showToast', 'zeigeKarte']) {   // Karten/Fenster, die Module von selbst öffnen
         const o = sb[fn]; if (typeof o !== 'function') continue;
-        sb[fn] = function () { ereignisse.push({ art: 'karte', zeit: hhmm(), modul: aufrufer(), text: fn + ': ' + String(arguments[0]).slice(0, 60) }); try { return o.apply(this, arguments); } catch (e) { } };
+        sb[fn] = function () { ereignisse.push({ art: 'karte', zeit: hhmm(), ms: uhr.ms, modul: aufrufer(), text: fn + ': ' + String(arguments[0]).slice(0, 60) }); try { return o.apply(this, arguments); } catch (e) { } };
     }
     sb.sagenAttrappe = true;
     async function vorspulen(ms) {   // Uhr und Zeitgeber vorstellen; fällige Zeitgeber laufen der Reihe nach
@@ -204,7 +212,7 @@ function starte(opt) {
             return () => '';
         } });
     }
-    return { lassLaufen, vorspulen, ereignisse, uhr, sb, gesagt, store, aufrufe, ladefehler, satz, ki, zustand, setze, lese, behandelt, reihenfolge, kette: () => sb.jvCommands.list(), vm };
+    return { sprechzeiten, lassLaufen, vorspulen, ereignisse, uhr, sb, gesagt, store, aufrufe, ladefehler, satz, ki, zustand, setze, lese, behandelt, reihenfolge, kette: () => sb.jvCommands.list(), vm };
 }
 
 module.exports = { starte, ROOT, lies };

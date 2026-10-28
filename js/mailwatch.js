@@ -88,6 +88,7 @@
         state = { step: 'read', mail, until: Date.now() + ANSWER_WINDOW_MS };
         let text = (prefix || '') + `Du hast eine E-Mail von ${mail.von}. Betreff: ${mail.betreff}. Soll ich sie vorlesen?`;
         if (more && !prefix) text = `Du hast ${more + 1} neue E-Mails. Die erste ist von ${mail.von}. Betreff: ${mail.betreff}. Soll ich sie vorlesen?`;
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'mailwatch', kanal: ['sprache'], grund: 'wichtige-mail', ausloeser: 'timer', ereignis: 'mail|' + mail.id, bezug: window.jvMeldungen.bezugId('mail', mail.id), frage: true, mikro: 'bedingt', text: text }) } catch (e) { }   // C1: nur Beobachtung
         say(text);
     }
 

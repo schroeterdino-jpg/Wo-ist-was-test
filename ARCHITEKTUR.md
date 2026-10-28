@@ -324,3 +324,9 @@ Außen -> innen: 10 loeschen_fragen, 20 gedaechtnis, 30 geburtstag_ganztag, 40 l
 - Protokolliert wird nur, wenn wirklich eine Ausgabe ausgelöst wird (keine Polls). Mehrere Kanäle derselben Meldung = ein Eintrag.
 - Eingehängt in genau zehn Dateien: wachter, proaktiv, vorbereitung, travel, smarttips, calendar, plan_ansagen, dirigent, zuvorkommend, schicht. Weitere Quellen kommen stufenweise (orte.js bewusst später).
 - Tests: `node tests/meldungen.js` (Pflicht: Lauf mit / ohne / mit kaputtem Beobachter ist identisch). Bericht: `MELDUNGEN_BERICHT=tests/meldungen-bericht.md node tests/meldungen.js`. Neue Test-Optionen in `umgebung.js`: `sekundenTakt`, `ohneSkripte`, `festerZufall`, `sprechenBeendet`.
+
+### C1b: alle selbstständigen Quellen beobachtet (weiterhin nur Messung)
+- Neu im Eintrag: `status` (`ausgegeben` = Sprache/Karte/Fenster/Hinweis wirklich ausgelöst; `ausgeloest` = Modul stößt nur etwas an, Kanal leer, zählt NICHT als Nutzer-Meldung, z. B. schicht.js -> briefing.js), `frage`, `mikro` (nein|bedingt|ja), Auslöser `folge`. Hilfen: `bezugId`, `folgeAusloeser`.
+- Zusätzlich eingehängt (je `try/catch`, Kommentar "C1: nur Beobachtung"): konto, mailwatch, fristen, mail_nacht, pakete, preissuche, auftraege, routinen, kennenlernen, zane_redet, jarvis, alarm, fahr_whatsapp, parkplatz_auto, schlaf_antwort, autoansicht, tagesueberblick, orte, briefing. Insgesamt 29 Quellen. Der Test prüft die genaue Anzahl der Aufrufe je Datei.
+- Messläufe: `tests/meldungen_welt.js` (Nachmittag und Nacht, mit Attrappen), Auswertung `tests/meldungen_auswertung.js`. Neue Test-Optionen in `umgebung.js`: `weitereTakte`, `sprechdauer` (Sprache dauert, `isSpeaking()` stimmt).
+- Pflicht: mit / ohne / kaputter Beobachter ergeben in beiden Läufen identische Nutzer-Ausgaben. Server-Push (`api/sync.js`) unverändert. Noch keine echte Sammelstelle.

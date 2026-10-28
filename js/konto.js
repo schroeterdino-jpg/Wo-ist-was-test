@@ -112,6 +112,7 @@
         const text = await describe(m);
         if (busy()) { queue.unshift(m); setTimeout(announceNext, RETRY_BUSY_MS); return; }
         addLog({ at: Date.now(), von: String(m.von || '').replace(/<.*>/, '').trim(), betreff: String(m.betreff || ''), text: text });
+        try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'konto', kanal: ['sprache'], grund: 'bank-mail', ausloeser: 'timer', ereignis: 'mail|' + m.id, bezug: window.jvMeldungen.bezugId('mail', m.id), mikro: 'bedingt', text: text }) } catch (e) { }   // C1: nur Beobachtung
         say(text);
         if (queue.length) setTimeout(announceNext, 12000);
     }

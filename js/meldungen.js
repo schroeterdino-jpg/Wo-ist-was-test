@@ -14,7 +14,13 @@
      quelle     Datei/Modul, zum Beispiel 'wachter'
      kanal      Liste: 'sprache' | 'karte' | 'fenster' | 'benachrichtigung' | 'push'
      grund      kurzer Code des Anlasses, zum Beispiel 'abfahrt'
-     ausloeser  'timer' | 'app-start' | 'app-rueckkehr' | 'apk' | 'push' | 'plan' | 'manuell'   (rein beschreibend)
+     status     'ausgegeben' (Standard: Sprache/Karte/Fenster/Hinweis/Benachrichtigung wurde tatsächlich für den Nutzer ausgelöst)
+                oder 'ausgeloest' (ein Modul stößt nur einen Vorgang an, dessen Ausgabe woanders entsteht, zum Beispiel schicht.js -> briefing.js;
+                dann ist kanal leer und es zählt NICHT als Nutzer-Meldung)
+     ausloeser  'timer' | 'app-start' | 'app-rueckkehr' | 'apk' | 'push' | 'plan' | 'manuell' | 'folge'   (rein beschreibend; 'folge' = Ausgabe als
+                Folge eines kurz davor protokollierten 'ausgeloest'-Eintrags)
+     frage      true, wenn die Meldung eine Frage an den Nutzer ist
+     mikro      'nein' | 'bedingt' (Rückruf continueConversation: hört nur im Gesprächsmodus zu) | 'ja' (das Modul ruft nach dem Sprechen startListening selbst auf)
      ereignis   Schlüssel des Ereignisses, genau so wie das Modul ihn selbst führt (zum Beispiel 'leave|Arzt|2026-10-28T14:00:00+01:00')
      bezug      { art, schluessel, herkunft } einheitlich über alle Module; herkunft 'id' (stabile ID, bevorzugt),
                 'text+zeit' (Rückfall, wenn keine ID da ist) oder 'tag'
@@ -40,7 +46,10 @@
                 quelle: s(info.quelle, 40),
                 kanal: Object.freeze(kanal),
                 grund: s(info.grund, 40),
+                status: info.status === 'ausgeloest' ? 'ausgeloest' : 'ausgegeben',
                 ausloeser: s(info.ausloeser, 20),
+                frage: info.frage === true,
+                mikro: info.mikro === 'ja' || info.mikro === 'bedingt' ? info.mikro : 'nein',
                 ereignis: s(info.ereignis, 200),
                 bezug: b ? Object.freeze(b) : null,
                 text: s(info.text, 80)
@@ -77,6 +86,20 @@
         } catch (e) { }
         return { art: 'erinnerung', schluessel: s(text, 120) + '|' + s(time, 40), herkunft: 'text+zeit' };
     }
+    /* Allgemeine Bezüge für Meldungen, die kein Termin sind (Mail, Paket, Auftrag, Frist, Routine, Produkt …): die Kennung, die das Modul selbst führt */
+    function bezugId(art, id) { try { return { art: s(art, 30), schluessel: s(id, 200), herkunft: 'id' }; } catch (e) { return null; } }
+    /* War kurz vorher ein Eintrag mit Status 'ausgeloest' und passendem Grund im Puffer? Dann ist diese Ausgabe die Folge davon ('folge'), sonst 'manuell' */
+    function folgeAusloeser(grundTeil, ms) {
+        try {
+            var jetzt = Date.now();
+            for (var i = puffer.length - 1; i >= 0; i--) {
+                var e = puffer[i];
+                if (jetzt - e.zeit > (ms || 120000)) break;
+                if (e.status === 'ausgeloest' && e.grund.indexOf(grundTeil) >= 0) return 'folge';
+            }
+        } catch (e) { }
+        return 'manuell';
+    }
     function bezugTag(ymd) { try { return { art: 'tag', schluessel: s(ymd, 20), herkunft: 'tag' }; } catch (e) { return null; } }
     /* Bezug aus den Schlüsseln der Wächter-Meldungen: 'leave|<Text>|<Zeit>', 'soon|…', 'rain|…', 'bday|<Tag>', 'uwarn|<ID>' */
     function bezugAusWaechterId(id) {
@@ -97,6 +120,6 @@
         liste: function () { return puffer.slice(); },
         leeren: function () { puffer.length = 0; },
         bezugTerminId: bezugTerminId, bezugTermin: bezugTermin, bezugErinnerung: bezugErinnerung, bezugErinnerungTextZeit: bezugErinnerungTextZeit,
-        bezugTag: bezugTag, bezugAusWaechterId: bezugAusWaechterId, herkunftApp: herkunftApp
+        bezugTag: bezugTag, bezugId: bezugId, folgeAusloeser: folgeAusloeser, bezugAusWaechterId: bezugAusWaechterId, herkunftApp: herkunftApp
     });
 })();

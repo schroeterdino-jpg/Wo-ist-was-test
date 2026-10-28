@@ -179,6 +179,7 @@
         if (document.hidden) return;
         lsSet(K_FRAGE, String(Date.now()));
         frageOffen = Date.now();
+try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'orte', kanal: ['karte', 'sprache'], grund: 'standort-frage', ausloeser: 'timer', ereignis: 'ort|standort-frage', bezug: null, frage: true, text: 'Ich kann dich im Supermarkt an deine Einkaufsliste erinnern. Dafür braucht die App den Standort mit der Einstellung „Immer zulassen“.' }) } catch (e) { }   // C1: nur Beobachtung
         karte([{ icon: '📍', title: 'Standort „Immer zulassen“', subtitle: 'Damit Jarvis dich im Supermarkt erinnern kann', onclick: 'jvOrte.rechte()' }]);
         sagen('Ich kann dich im Supermarkt an deine Einkaufsliste erinnern. Dafür braucht die App den Standort mit der Einstellung „Immer zulassen“. Soll ich dir die Einstellungen öffnen?');
     }
@@ -198,6 +199,7 @@
         const l = einkauf();
         if (!l.length) return false;
         const zeig = l.slice(0, 10);
+try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'orte', kanal: ['karte', 'sprache'], grund: 'einkaufsliste-markt', ausloeser: 'apk', ereignis: String(id), bezug: window.jvMeldungen.bezugId('markt', name), text: 'Du bist bei ' + name + '. Auf deiner Einkaufsliste ' + (l.length === 1 ? 'steht: ' : 'stehen: ') + undListe(zeig) }) } catch (e) { }   // C1: nur Beobachtung
         karte([{ icon: '🛒', title: 'Einkaufsliste · ' + name, subtitle: zeig.join(', ') + (l.length > 10 ? ' …' : '') }]);
         sagen('Du bist bei ' + name + '. Auf deiner Einkaufsliste ' + (l.length === 1 ? 'steht: ' : 'stehen: ') + undListe(zeig) + (l.length > 10 ? ' und ' + (l.length - 10) + ' weitere.' : '.'));
         return true;
