@@ -254,16 +254,25 @@ async function sendToGroqSmartCore(text, opts = {}) {
         if (calendarLookup && calendarLookup.verbindung === 'getrennt') ctx.cards.push(googleReconnectCard());
         let okCount = 0;
         const errors = [];
+        const erfolgTypen = [];            // B3: welche Aktionsarten geklappt haben (für "Termin gespeichert." usw.)
+        const verworfeneHinweise = new Set();   // B3: Hinweise von Aktionen, die dann doch fehlgeschlagen sind
+        const sonderFehler = {};           // B3: welche Sonderaufgabe (Fahrzeit, Bahn ...) statt eines Ergebnisses eine Fehlermeldung geliefert hat
+        window.jvMdAusfall = [];           // B3: mitdenken.js trägt hier Zusatzprüfungen ein, die gestartet wurden und ausgefallen sind
         for (const action of actions) {
             if (action.type === 'calendar_search' || action.type === 'web_lookup' || action.type === 'email_check' || action.type === 'email_read' || action.type === 'travel_time' || action.type === 'nearby_places' || action.type === 'fuel_route' || action.type === 'bahn') continue; // kommen gleich
+            const hinweiseVorher = ctx.notes.length;
             try {
                 await executeAction(action, text, ctx);
                 okCount++;
+                erfolgTypen.push(action.type);
             } catch (err) {
                 console.error("Aktion fehlgeschlagen:", action, err);
                 errors.push(err.userMessage || "Einen Teil davon konnte ich leider nicht ausführen.");
+                for (let i = hinweiseVorher; i < ctx.notes.length; i++) verworfeneHinweise.add(i);
             }
         }
+        const mdAusfall = Array.isArray(window.jvMdAusfall) ? window.jvMdAusfall.slice() : [];
+        window.jvMdAusfall = null;
 
         // Kalendersuche: Ergebnis holen und die KI damit antworten lassen (zweiter Durchgang)
         let searchReply = null;
@@ -303,6 +312,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
                 if (data) emailReply = await answerWithEmailResults(messagesPayload, ai, data) || formatEmailFallback(data);
             } catch (e) {
                 emailReply = e.userMessage || "Die E-Mails konnten gerade nicht abgerufen werden.";
+                sonderFehler.email = true;
             }
         }
 
@@ -375,6 +385,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
                 if (!opts.collect && res.map && res.map.coords && STAU_TRIGGER.test(text)) ctx.panel = { name: 'karte', mapData: res.map };
             } catch (e) {
                 travelReply = e.userMessage || 'Die Fahrzeit konnte gerade nicht berechnet werden.';
+                sonderFehler.travel = true;
                 if (e.verbindung === 'getrennt' && !ctx.cards.some(c => c.onclick === 'loginWithGoogle(false)')) ctx.cards.push(googleReconnectCard());
             }
         }
@@ -391,6 +402,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
                 res.cards.forEach(c => ctx.cards.push(c));
             } catch (e) {
                 nearbyReply = e.userMessage || 'Die Suche in der Nähe konnte gerade nicht durchgeführt werden.';
+                sonderFehler.nearby = true;
             }
         }
 
@@ -428,6 +440,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
                 if (!opts.collect && res.map && res.map.coords) ctx.panel = { name: 'karte', mapData: res.map, fuel: res.fuel, fuelLabel: res.label };
             } catch (e) {
                 fuelReply = e.userMessage || 'Die Tankstellen an der Strecke konnte ich gerade nicht ermitteln.';
+                sonderFehler.fuel = true;
             }
         }
 
@@ -451,6 +464,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
                 bahnReply = e.userMessage || pickRandom(['Die Bahn-Daten wollen gerade nicht zu mir durchdringen.', 'Da streikt gerade die Verbindung, nicht die Bahn selbst.']);
                 if (e.fallbackCard) ctx.cards.push(e.fallbackCard);
                 // Fehlt Start oder Ziel, merkt sich die KI ihre Rückfrage, damit die nächste Antwort ("von Hamburg Hauptbahnhof") dazu passt
+                if (!/^(Von wo|Wohin)/.test(bahnReply)) sonderFehler.bahn = true;   // eine Rückfrage ("Von wo?") ist kein Ausfall
                 if (/^(Von wo|Wohin)/.test(bahnReply)) chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: bahnReply, actions: [] }) };
             }
         }
@@ -462,7 +476,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
             typeWriterStatus("Durchsuche das Internet...");
             updateTerminalStream("API_FETCH: WEB_SEARCH", "FETCHING");
             webReply = await answerWithWebSearch(text, webAction.web_query || '');
-            if (!webReply) webReply = "Die Suche im Internet hat gerade nicht geklappt. Versuch es bitte gleich noch einmal.";
+            if (!webReply) { webReply = "Die Suche im Internet hat gerade nicht geklappt. Versuch es bitte gleich noch einmal."; sonderFehler.web = true; }
         }
 
         let replyText = searchReply || webReply || emailReply || travelReply || nearbyReply || fuelReply || nearbyFuelReply || bahnReply || ai.reply;
@@ -485,14 +499,21 @@ async function sendToGroqSmartCore(text, opts = {}) {
             }
         }
 
-        // Ehrlich bleiben: Was nicht geklappt hat, sagt Zane auch so
-        if (errors.length > 0) {
-            if (searchReply) replyText = `${searchReply} ${errors.join(' ')}`;
-            else if (okCount > 0) replyText = `Das meiste ist erledigt, aber: ${errors.join(' ')}`;
-            else replyText = errors.join(' ');
+        // Ehrlich bleiben: Was geklappt hat und was nicht, sagt Jarvis konkret (js/antwort_bau.js, B3). Hinweise erfolgreicher Teile bleiben erhalten.
+        const hinweiseOk = ctx.notes.filter((n, i) => !verworfeneHinweise.has(i));
+        if (window.jvAntwort && typeof window.jvAntwort.baue === 'function') {
+            const sonder = [['search', searchReply], ['web', webReply], ['email', emailReply], ['travel', travelReply], ['nearby', nearbyReply], ['fuel', fuelReply], ['nearbyFuel', nearbyFuelReply], ['bahn', bahnReply]]
+                .filter(x => x[1]).map(x => ({ ok: !sonderFehler[x[0]], text: x[1] }));
+            const kalenderOk = erfolgTypen.some(t => t === 'calendar' || t === 'calendar_update');
+            replyText = window.jvAntwort.baue({ basis: replyText, sonder, erfolge: erfolgTypen, okAnzahl: okCount, fehler: errors, hinweise: hinweiseOk, ausfaelle: kalenderOk ? mdAusfall : [] });
+        } else {   // Rückfall (antwort_bau.js fehlt): Verhalten wie früher
+            if (errors.length > 0) {
+                if (searchReply) replyText = `${searchReply} ${errors.join(' ')}`;
+                else if (okCount > 0) replyText = `Das meiste ist erledigt, aber: ${errors.join(' ')}`;
+                else replyText = errors.join(' ');
+            }
+            if (ctx.notes.length > 0 && errors.length === 0) replyText += ' ' + ctx.notes.join(' ');
         }
-
-        if (ctx.notes.length > 0 && errors.length === 0) replyText += ' ' + ctx.notes.join(' ');
         if (opts.collect) {   // Protokoll-Lauf: Antwort und Karten abgeben, gesprochen wird am Ende alles zusammen
             opts.collect(replyText, ctx.cards);
             renderAllLists();

@@ -122,14 +122,23 @@ async function mdCoords(location) {
     return mdTimeout(new Promise((ok, err) => navigator.geolocation.getCurrentPosition(pos => ok({ lat: pos.coords.latitude, lon: pos.coords.longitude }), err, { timeout: 5000, maximumAge: 600000 })), 5500);
 }
 
-async function mdCheckWeather(notes, text, p, location) {
+/* B3: Ausfälle von Zusatzprüfungen. assistant.js legt vor dem Ausführen window.jvMdAusfall = [] an und liest es danach.
+   Gemeldet wird nur, wenn die Prüfung für diesen Termin wirklich gestartet wurde (zum Beispiel Wetter nur bei Terminen "draußen" in den nächsten 7 Tagen)
+   und dann fehlschlug oder nicht rechtzeitig fertig wurde. Ohne Sammelliste passiert nichts (Verhalten wie vorher). */
+function mdAusfallMelden(art, grund) {
+    try { const l = window.jvMdAusfall; if (Array.isArray(l) && !l.some(x => x.art === art)) l.push({ art: art, grund: grund }); } catch (e) {}
+}
+
+async function mdCheckWeather(notes, text, p, location, st) {
     if (!MD_OUTDOOR_RE.test(text + ' ' + (location || ''))) return;
     const diff = Math.round((new Date(mdLocalDay(p.date) + 'T12:00:00') - new Date(mdLocalDay(new Date()) + 'T12:00:00')) / 86400000);
     if (diff < 0 || diff > 6) return;
+    if (st) st.wetter = 'laeuft';
     const c = await mdCoords(location);
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&daily=precipitation_probability_max,precipitation_sum,wind_gusts_10m_max&timezone=Europe%2FBerlin&forecast_days=7`;
     const r = await mdTimeout(fetch(url), 6500);
     const d = await r.json();
+    if (st && (!d || !d.daily || !d.daily.time)) throw new Error('wetter');   // Antwort ohne Vorhersage zählt als Ausfall (die Fehlerbehandlung unten schluckt es wie bisher)
     const day = mdLocalDay(p.date);
     const i = d && d.daily && d.daily.time ? d.daily.time.indexOf(day) : -1;
     if (i < 0) return;
@@ -139,6 +148,7 @@ async function mdCheckWeather(notes, text, p, location) {
     const a = mdAddress();
     if (prob >= 60 || mm >= 3) notes.push({ prio: 4, text: mdCheeky() ? `Für ${mdDayText(p.date)} sind ${prob} Prozent Regenwahrscheinlichkeit gemeldet, ${a}, und der Termin klingt nach draußen. Vielleicht einen Schirm einplanen.` : `Für ${mdDayText(p.date)} sind ${prob} Prozent Regenwahrscheinlichkeit gemeldet. Der Termin klingt nach draußen.` });
     else if (gust >= 60) notes.push({ prio: 4, text: `Für ${mdDayText(p.date)} sind Sturmböen bis ${gust} Kilometer pro Stunde gemeldet, und der Termin klingt nach draußen.` });
+    if (st) st.wetter = 'fertig';
 }
 
 /* Fahrzeit in Minuten zwischen zwei Orten (OSRM über deinen Server); null, wenn nicht ermittelbar */
@@ -152,7 +162,7 @@ async function mdDriveMinutes(fromLoc, toLoc) {
     return sec ? Math.round(sec / 60) : null;
 }
 
-async function mdCheckTravel(notes, text, p, location) {
+async function mdCheckTravel(notes, text, p, location, st) {
     if (!location) return;
     const day = mdLocalDay(p.date);
     const same = mdTimedEntries().filter(e => e.location && mdLocalDay(e.start) === day && Math.abs(e.start - p.date) >= MD_EVENT_MINUTES * 60000);
@@ -163,13 +173,17 @@ async function mdCheckTravel(notes, text, p, location) {
     if (prev) jobs.push((async () => {
         const gap = Math.round((p.date - (prev.start.getTime() + MD_EVENT_MINUTES * 60000)) / 60000);
         if (gap > 150) return;
+        if (st) { st.fahrzeitOffen++; st.fahrzeitStart = true; }
         const drive = await mdDriveMinutes(prev.location, location);
+        if (st) { st.fahrzeitOffen--; if (drive === null) { st.fahrzeit = 'fehler'; mdAusfallMelden('fahrzeit', 'fehler'); } }
         if (drive !== null && gap < drive + 10) notes.push({ prio: 8, text: `Zwischen „${prev.text}“ und diesem Termin brauchst du etwa ${drive} Minuten Fahrt, es bleiben aber nur ${Math.max(gap, 0)}. Das wird knapp, ${a}.` });
     })());
     if (next) jobs.push((async () => {
         const gap = Math.round((next.start - (p.date.getTime() + MD_EVENT_MINUTES * 60000)) / 60000);
         if (gap > 150) return;
+        if (st) { st.fahrzeitOffen++; st.fahrzeitStart = true; }
         const drive = await mdDriveMinutes(location, next.location);
+        if (st) { st.fahrzeitOffen--; if (drive === null) { st.fahrzeit = 'fehler'; mdAusfallMelden('fahrzeit', 'fehler'); } }
         if (drive !== null && gap < drive + 10) notes.push({ prio: 8, text: `Von diesem Termin zu „${next.text}“ brauchst du etwa ${drive} Minuten Fahrt, es bleiben aber nur ${Math.max(gap, 0)}. Das wird knapp, ${a}.` });
     })());
     await Promise.all(jobs);
@@ -192,13 +206,19 @@ async function thoughtsForNewEvent(text, iso, location) {
     const notes = [];
     try { mdCheckBasics(notes, String(text || ''), p); } catch (e) {}
     const slow = [];
-    const guard = (fn) => Promise.resolve().then(fn).catch(() => {});
+    const st = { wetter: null, fahrzeit: null, fahrzeitOffen: 0, fahrzeitStart: false };   // B3: was wurde gestartet, was ist ausgefallen
+    const guard = (fn, art) => Promise.resolve().then(fn).catch(() => {
+        if (art === 'wetter' && st.wetter === 'laeuft') { st.wetter = 'fehler'; mdAusfallMelden('wetter', 'fehler'); }
+        if (art === 'fahrzeit' && st.fahrzeitStart && st.fahrzeit !== 'fehler') { st.fahrzeit = 'fehler'; mdAusfallMelden('fahrzeit', 'fehler'); }
+    });
     slow.push(guard(() => mdCheckHoliday(notes, p)));
     if (!p.allDay) {
         slow.push(guard(() => mdCheckSchoolHoliday(notes, String(text || ''), p)));
-        slow.push(guard(() => mdCheckWeather(notes, String(text || ''), p, location)));
-        slow.push(guard(() => mdCheckTravel(notes, String(text || ''), p, location)));
+        slow.push(guard(() => mdCheckWeather(notes, String(text || ''), p, location, st), 'wetter'));
+        slow.push(guard(() => mdCheckTravel(notes, String(text || ''), p, location, st), 'fahrzeit'));
     }
     await Promise.race([Promise.all(slow), new Promise(r => setTimeout(r, MD_TIME_LIMIT_MS))]);
+    if (st.wetter === 'laeuft') mdAusfallMelden('wetter', 'timeout');   // Zeitgrenze erreicht, bevor die gestartete Prüfung fertig war
+    if (st.fahrzeitOffen > 0) mdAusfallMelden('fahrzeit', 'timeout');
     return notes.slice().sort((x, y) => y.prio - x.prio).slice(0, MD_MAX_NOTES).map(n => n.text);
 }
