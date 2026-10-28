@@ -46,19 +46,23 @@
     const WISH_SAID = /(in zukunft|künftig|ab jetzt|ab sofort|von nun an|statt|anstatt|sondern|nicht mehr|formulier\w*|nenn(?:e)? mich|begrüß(?:e)? mich|merk dir)/i;
 
     if (typeof window.executeAction === 'function' && !window.executeAction._formulierungen) {
-        const original = window.executeAction;
-        const wrapped = async function (action, text, ctx) {
-            // Nur speichern, wenn der User wirklich eine neue Formulierung wünscht (die KI hat sonst schon beim Aufzählen ihrer Fähigkeiten einen Wunsch "gespeichert")
-            if (action && action.type === 'phrase_save') {
-                if (typeof text === 'string' && !WISH_SAID.test(text)) return;
-                return saveWish(action, ctx);
-            }
-            if (action && action.type === 'phrase_delete') return deleteWish(action, ctx);
-            return original.apply(this, arguments);
+        // A5: Die Umhüllung wird über die Aktions-Kette (aktionen_kette.js) angemeldet, Rang 80 = ganz innen, direkt vor actions.js. Fehlt die Kette, legt die Datei sie wie früher selbst um window.executeAction.
+        const baue = function (original) {
+            const wrapped = async function (action, text, ctx) {
+                // Nur speichern, wenn der User wirklich eine neue Formulierung wünscht (die KI hat sonst schon beim Aufzählen ihrer Fähigkeiten einen Wunsch "gespeichert")
+                if (action && action.type === 'phrase_save') {
+                    if (typeof text === 'string' && !WISH_SAID.test(text)) return;
+                    return saveWish(action, ctx);
+                }
+                if (action && action.type === 'phrase_delete') return deleteWish(action, ctx);
+                return original.apply(this, arguments);
+            };
+            wrapped._formulierungen = true;
+            Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
+            return wrapped;
         };
-        wrapped._formulierungen = true;
-        Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
-        window.executeAction = wrapped;
+        if (window.jvAktionen && typeof window.jvAktionen.huelle === 'function') window.jvAktionen.huelle('formulierungen', 80, baue);
+        else window.executeAction = baue(window.executeAction);
     }
 
     /* ---------- Anweisung an die KI (nur im normalen Gespräch, das Briefing nutzt buildSystemPrompt nicht) ---------- */

@@ -155,28 +155,34 @@
     }
 
     /* ---------- Ausführen abfangen ---------- */
-    const original = window.executeAction;
-    const wrapped = async function (action, text, ctx) {
-        if (action && TYPEN[action.type] && !action._bestaetigt) {
-            let b = null;
-            try { b = beschreibe(action, text); } catch (e) { b = null; }
-            if (b) {
-                const jetzt = Date.now();
-                const gleicheRunde = pending && (jetzt - pending.at) < GLEICHE_RUNDE_MS;
-                if (!gleicheRunde) { verwirf(); pending = { items: [], at: jetzt, timer: null }; }
-                pending.items.push({ action: Object.assign({}, action), text, art: b.art });
-                if (pending.timer) clearTimeout(pending.timer);
-                pending.timer = setTimeout(verwirf, GUELTIG_MS);
-                const satz = gleicheRunde ? 'Und ' + b.frage + '?' : 'Soll ich ' + b.frage + ' wirklich löschen?';
-                zeigeKnoepfe(pending.items.length > 1 ? 'Soll ich diese ' + pending.items.length + ' Einträge wirklich löschen?' : satz);
-                throw fehler(satz);
+    // A5: Die Umhüllung wird über die Aktions-Kette (aktionen_kette.js) angemeldet, Rang 10 = ganz außen. Fehlt die Kette, legt die Datei sie wie früher selbst um window.executeAction.
+    let original = null;
+    function baue(innen) {
+        original = innen;
+        const wrapped = async function (action, text, ctx) {
+            if (action && TYPEN[action.type] && !action._bestaetigt) {
+                let b = null;
+                try { b = beschreibe(action, text); } catch (e) { b = null; }
+                if (b) {
+                    const jetzt = Date.now();
+                    const gleicheRunde = pending && (jetzt - pending.at) < GLEICHE_RUNDE_MS;
+                    if (!gleicheRunde) { verwirf(); pending = { items: [], at: jetzt, timer: null }; }
+                    pending.items.push({ action: Object.assign({}, action), text, art: b.art });
+                    if (pending.timer) clearTimeout(pending.timer);
+                    pending.timer = setTimeout(verwirf, GUELTIG_MS);
+                    const satz = gleicheRunde ? 'Und ' + b.frage + '?' : 'Soll ich ' + b.frage + ' wirklich löschen?';
+                    zeigeKnoepfe(pending.items.length > 1 ? 'Soll ich diese ' + pending.items.length + ' Einträge wirklich löschen?' : satz);
+                    throw fehler(satz);
+                }
             }
-        }
-        return original.apply(this, arguments);
-    };
-    wrapped._loeschFrage = true;
-    try { Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) { } }); } catch (e) { }
-    window.executeAction = wrapped;
+            return original.apply(this, arguments);
+        };
+        wrapped._loeschFrage = true;
+        try { Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) { } }); } catch (e) { }
+        return wrapped;
+    }
+    if (window.jvAktionen && typeof window.jvAktionen.huelle === 'function') window.jvAktionen.huelle('loeschen_fragen', 10, baue);
+    else window.executeAction = baue(window.executeAction);
 
     if (window.jvCommands && typeof window.jvCommands.use === 'function') window.jvCommands.use('loeschen_fragen', sprache, 5);
     window.jvLoeschFrage = { offen: () => !!pending, antworte };

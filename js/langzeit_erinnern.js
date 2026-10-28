@@ -164,72 +164,77 @@
     /* ---------- Aktion abfangen ---------- */
     const original = window.executeAction;
     if (!original._langzeitErinnern) {
-        const wrapped = async function (action, text, ctx) {
-            let altEintrag = null, altLink = null;
-            try {
-                if (action && (action.type === 'calendar_update' || action.type === 'calendar_delete')) { altEintrag = eintragZu(action, text); altLink = linkZu(altEintrag); }
-            } catch (e) {}
-            try { if (isOn() && origOpen && action && action.type !== 'calendar_update' && action.type !== 'calendar_delete' && (action.type === 'calendar' || action.calendar_text) && action.calendar_time) { halten = true; offen = null; } } catch (e) {}
-            let res;
-            try { res = await original.apply(this, arguments); } catch (e) { freigeben(0); throw e; }
-            try {
-                if (action.type === 'calendar_delete' && altEintrag) {
-                    // Zuerst die sauber verknüpfte Erinnerung, bei älteren Terminen notfalls
-                    // eine eindeutig passende Zusatz-Erinnerung über Titel + Zeit finden.
-                    const rem = altLink ? erinnerungDa(altLink) : erinnerungZumTermin(altEintrag);
-                    if (altLink) linksSchreiben(linksLesen().filter(l => l.reminderId !== altLink.reminderId));
-                    if (rem) {
-                        const remDone = await deleteReminderEntry(rem.id);
-                        if (ctx && Array.isArray(ctx.notes)) {
-                            ctx.notes.push(remDone === false
-                                ? 'Den Termin habe ich gelöscht. Die zusätzliche Erinnerung konnte ich bei Google gerade nicht löschen.'
-                                : 'Die zusätzliche Erinnerung dazu habe ich ebenfalls gelöscht.');
+        // A5: Die Umhüllung wird über die Aktions-Kette (aktionen_kette.js) angemeldet, Rang 40. Fehlt die Kette, legt die Datei sie wie früher selbst um window.executeAction.
+        const baue = function (original) {
+            const wrapped = async function (action, text, ctx) {
+                let altEintrag = null, altLink = null;
+                try {
+                    if (action && (action.type === 'calendar_update' || action.type === 'calendar_delete')) { altEintrag = eintragZu(action, text); altLink = linkZu(altEintrag); }
+                } catch (e) {}
+                try { if (isOn() && origOpen && action && action.type !== 'calendar_update' && action.type !== 'calendar_delete' && (action.type === 'calendar' || action.calendar_text) && action.calendar_time) { halten = true; offen = null; } } catch (e) {}
+                let res;
+                try { res = await original.apply(this, arguments); } catch (e) { freigeben(0); throw e; }
+                try {
+                    if (action.type === 'calendar_delete' && altEintrag) {
+                        // Zuerst die sauber verknüpfte Erinnerung, bei älteren Terminen notfalls
+                        // eine eindeutig passende Zusatz-Erinnerung über Titel + Zeit finden.
+                        const rem = altLink ? erinnerungDa(altLink) : erinnerungZumTermin(altEintrag);
+                        if (altLink) linksSchreiben(linksLesen().filter(l => l.reminderId !== altLink.reminderId));
+                        if (rem) {
+                            const remDone = await deleteReminderEntry(rem.id);
+                            if (ctx && Array.isArray(ctx.notes)) {
+                                ctx.notes.push(remDone === false
+                                    ? 'Den Termin habe ich gelöscht. Die zusätzliche Erinnerung konnte ich bei Google gerade nicht löschen.'
+                                    : 'Die zusätzliche Erinnerung dazu habe ich ebenfalls gelöscht.');
+                            }
+                        }
+                    } else if (altLink && action.type === 'calendar_update' && action.calendar_time) {
+                        const neu = new Date(action.calendar_time);
+                        if (!isNaN(neu.getTime()) && Math.abs(neu.getTime() - new Date(altLink.start).getTime()) > 60000) await erinnerungMitnehmen(altLink, neu, ctx);
+                    }
+                } catch (e) { console.error('Termin-Erinnerung mitnehmen', e); }
+                try {
+                    // Hat der User die Erinnerung selbst verlangt ("... und erinnere mich zwei Stunden vorher"), wird nicht noch einmal gefragt
+                    const selbstErinnert = /\berinner\w*|\bbescheid\b|\bsag mir (?:\S+\s+){0,4}vorher\b/i.test(String(text || ''));
+                    if (selbstErinnert && action && action.type === 'reminder') pending = null;
+                    if (isOn() && action && !selbstErinnert && action.type !== 'calendar_update' && action.type !== 'calendar_delete') {
+                        let s = null, titel = '';
+                        if (action.type === 'episode_store') {
+                            s = (action.episode_uhrzeit && action.episode_datum) ? startVon(action.episode_datum, action.episode_uhrzeit) : null;
+                            if (!s && /\b(?:muss|soll|bin|habe|ist|sind|hab|treffen|termin)\b/i.test(String(text || '')) && !/\b(?:war|waren|gestern|vorhin|letzte\w*)\b/i.test(String(text || ''))) s = ausText(text);   // KI hat Datum/Uhrzeit nicht geliefert: aus dem Satz lesen
+                            if (s) titel = String(action.episode_erinnerung || '').trim().slice(0, 120) ||
+                                String(action.episode_text || '').replace(/^Der User\s+/i, '').replace(/[.!]+$/, '').slice(0, 120);
+                        } else if ((action.type === 'calendar' || action.calendar_text) && action.calendar_time && !hatSerie(action)) {
+                            // Kalendertermin mit Uhrzeit (kein Ganztag, keine Wiederholung)
+                            const m = String(action.calendar_time).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/);
+                            if (m && !(m[2] === '00' && m[3] === '00')) {
+                                s = startVon(m[1], m[2] + ':' + m[3]);
+                                titel = String(action.calendar_text || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+                            }
+                        }
+                        // Die KI wählt für "Ich muss Donnerstag um 13:15 auf der Arbeit sein" manchmal eine andere Aktion (Briefing-Hinweis, Aufgabe, Chat): die App erkennt den Termin trotzdem
+                        if (!s && /^(?:chat|briefing_add|todo|memory_store)$/.test(String(action.type || '')) && /\b(?:muss|soll|sollte)\b/i.test(String(text || '')) && !/\b(?:war|waren|gestern|vorhin|letzte\w*)\b/i.test(String(text || ''))) {
+                            s = ausText(text);
+                            if (s) titel = String(text || '').replace(/^\s*(?:jarvis[,\s]+)?(?:also[,\s]+)?(?:ich\s+)?(?:muss|soll|sollte)\s+/i, '').replace(/\s+(?:muss|soll)\s+ich\b/i, '').replace(/[.!?]+$/, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+                        }
+                        if (s && titel) {
+                            if (s.start.getTime() > Date.now() + 30 * 60000) {
+                                const mitZeit = /\buhr\b|\d{1,2}[:.]\d{2}/i.test(titel) ? titel : titel + ' um ' + uhrText(s.h, s.mi);
+                                pending = { text: mitZeit, start: s.start, at: Date.now(), kal: action.type !== 'episode_store' ? titel : '' };
+                                if (ctx && Array.isArray(ctx.notes) && ctx.notes.indexOf('Wie viele Stunden vorher soll ich dich per Push erinnern?') < 0) ctx.notes.push('Wie viele Stunden vorher soll ich dich per Push erinnern?');
+                            }
                         }
                     }
-                } else if (altLink && action.type === 'calendar_update' && action.calendar_time) {
-                    const neu = new Date(action.calendar_time);
-                    if (!isNaN(neu.getTime()) && Math.abs(neu.getTime() - new Date(altLink.start).getTime()) > 60000) await erinnerungMitnehmen(altLink, neu, ctx);
-                }
-            } catch (e) { console.error('Termin-Erinnerung mitnehmen', e); }
-            try {
-                // Hat der User die Erinnerung selbst verlangt ("... und erinnere mich zwei Stunden vorher"), wird nicht noch einmal gefragt
-                const selbstErinnert = /\berinner\w*|\bbescheid\b|\bsag mir (?:\S+\s+){0,4}vorher\b/i.test(String(text || ''));
-                if (selbstErinnert && action && action.type === 'reminder') pending = null;
-                if (isOn() && action && !selbstErinnert && action.type !== 'calendar_update' && action.type !== 'calendar_delete') {
-                    let s = null, titel = '';
-                    if (action.type === 'episode_store') {
-                        s = (action.episode_uhrzeit && action.episode_datum) ? startVon(action.episode_datum, action.episode_uhrzeit) : null;
-                        if (!s && /\b(?:muss|soll|bin|habe|ist|sind|hab|treffen|termin)\b/i.test(String(text || '')) && !/\b(?:war|waren|gestern|vorhin|letzte\w*)\b/i.test(String(text || ''))) s = ausText(text);   // KI hat Datum/Uhrzeit nicht geliefert: aus dem Satz lesen
-                        if (s) titel = String(action.episode_erinnerung || '').trim().slice(0, 120) ||
-                            String(action.episode_text || '').replace(/^Der User\s+/i, '').replace(/[.!]+$/, '').slice(0, 120);
-                    } else if ((action.type === 'calendar' || action.calendar_text) && action.calendar_time && !hatSerie(action)) {
-                        // Kalendertermin mit Uhrzeit (kein Ganztag, keine Wiederholung)
-                        const m = String(action.calendar_time).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/);
-                        if (m && !(m[2] === '00' && m[3] === '00')) {
-                            s = startVon(m[1], m[2] + ':' + m[3]);
-                            titel = String(action.calendar_text || '').replace(/\s+/g, ' ').trim().slice(0, 120);
-                        }
-                    }
-                    // Die KI wählt für "Ich muss Donnerstag um 13:15 auf der Arbeit sein" manchmal eine andere Aktion (Briefing-Hinweis, Aufgabe, Chat): die App erkennt den Termin trotzdem
-                    if (!s && /^(?:chat|briefing_add|todo|memory_store)$/.test(String(action.type || '')) && /\b(?:muss|soll|sollte)\b/i.test(String(text || '')) && !/\b(?:war|waren|gestern|vorhin|letzte\w*)\b/i.test(String(text || ''))) {
-                        s = ausText(text);
-                        if (s) titel = String(text || '').replace(/^\s*(?:jarvis[,\s]+)?(?:also[,\s]+)?(?:ich\s+)?(?:muss|soll|sollte)\s+/i, '').replace(/\s+(?:muss|soll)\s+ich\b/i, '').replace(/[.!?]+$/, '').replace(/\s+/g, ' ').trim().slice(0, 120);
-                    }
-                    if (s && titel) {
-                        if (s.start.getTime() > Date.now() + 30 * 60000) {
-                            const mitZeit = /\buhr\b|\d{1,2}[:.]\d{2}/i.test(titel) ? titel : titel + ' um ' + uhrText(s.h, s.mi);
-                            pending = { text: mitZeit, start: s.start, at: Date.now(), kal: action.type !== 'episode_store' ? titel : '' };
-                            if (ctx && Array.isArray(ctx.notes) && ctx.notes.indexOf('Wie viele Stunden vorher soll ich dich per Push erinnern?') < 0) ctx.notes.push('Wie viele Stunden vorher soll ich dich per Push erinnern?');
-                        }
-                    }
-                }
-            } catch (e) { console.error('Termin-Erinnerung', e); }
-            if (halten) { if (pending) { clearTimeout(haltTimer); haltTimer = setTimeout(function () { freigeben(0); }, PENDING_MS); } else freigeben(0); }
-            return res;
+                } catch (e) { console.error('Termin-Erinnerung', e); }
+                if (halten) { if (pending) { clearTimeout(haltTimer); haltTimer = setTimeout(function () { freigeben(0); }, PENDING_MS); } else freigeben(0); }
+                return res;
+            };
+            wrapped._langzeitErinnern = true;
+            Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
+            return wrapped;
         };
-        wrapped._langzeitErinnern = true;
-        Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
-        window.executeAction = wrapped;
+        if (window.jvAktionen && typeof window.jvAktionen.huelle === 'function') window.jvAktionen.huelle('langzeit_erinnern', 40, baue);
+        else window.executeAction = baue(original);
     }
 
     /* ---------- Antwort: wie viele Stunden vorher ---------- */
