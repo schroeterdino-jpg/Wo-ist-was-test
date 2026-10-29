@@ -1,0 +1,342 @@
+{
+ "ladeprotokoll": {
+  "laden": [
+   "storage.js -> apiFetch",
+   "render.js -> renderAllLists",
+   "lists.js -> renderContactList",
+   "pronunciation.js -> renderAllLists",
+   "voicefix.js -> startThinkingSound",
+   "voicefix.js -> speak",
+   "voicefix.js -> speakAck",
+   "speechrate.js -> Audio",
+   "tempo.js -> getSpeechRateFactor",
+   "tempo.js -> setSpeechRate",
+   "commands.js -> buildMenuPanel",
+   "commands.js -> buildSystemPrompt",
+   "commands.js -> handleLocalCommand",
+   "contextplus.js -> buildSystemPrompt",
+   "contextplus.js -> jvCommandsUse",
+   "formulierungen.js -> executeAction",
+   "weathermap.js -> openPanel",
+   "weathermap.js -> closePanel",
+   "weathermap.js -> refreshOpenPanel",
+   "ferien.js -> isPanelOpen",
+   "ferien.js -> openPanel",
+   "ferien.js -> closePanel",
+   "routinen.js -> executeAction",
+   "fahrtcheck.js -> computeDepartureAdvice",
+   "stadtverkehr.js -> routeDurationSeconds",
+   "stadtverkehr.js -> describeAutobahnStau",
+   "lagebild.js -> showActionCards",
+   "lagebild.js -> fuelAlongRouteAdvice",
+   "lagebild.js -> executeAction",
+   "laune.js -> getMood",
+   "pushsync.js -> onLocalDataChanged",
+   "mailpush.js -> handleLocalCommand",
+   "tagesueberblick.js -> isPanelOpen",
+   "tagesueberblick.js -> openPanel",
+   "tagesueberblick.js -> closePanel",
+   "welt_anflug.js -> weltDestroy",
+   "welt_anflug.js -> weltFlyTo",
+   "welt_anflug.js -> weltResetLive",
+   "foto_adresse.js -> parsePhotoRequest",
+   "foto_adresse.js -> confirmPhotoPending",
+   "foto_adresse.js -> processPhoto",
+   "foto_adresse.js -> photoAskWhatToDo",
+   "foto_adresse.js -> parseFollowupTask",
+   "foto_adresse.js -> handlePhotoCommand",
+   "foto_brief.js -> parsePhotoRequest",
+   "foto_brief.js -> confirmPhotoPending",
+   "foto_brief.js -> processPhoto",
+   "foto_brief.js -> photoAskWhatToDo",
+   "foto_brief.js -> parseFollowupTask",
+   "foto_brief.js -> handlePhotoCommand",
+   "foto_abtippen.js -> parsePhotoRequest",
+   "foto_abtippen.js -> processPhoto",
+   "foto_abtippen.js -> photoAskWhatToDo",
+   "foto_abtippen.js -> parseFollowupTask",
+   "foto_abtippen.js -> handlePhotoCommand",
+   "foto_stundenplan.js -> parsePhotoRequest",
+   "foto_stundenplan.js -> processPhoto",
+   "foto_stundenplan.js -> photoAskWhatToDo",
+   "foto_stundenplan.js -> parseFollowupTask",
+   "foto_stundenplan.js -> handlePhotoCommand",
+   "foto_essensplan.js -> parsePhotoRequest",
+   "foto_essensplan.js -> processPhoto",
+   "foto_essensplan.js -> photoAskWhatToDo",
+   "foto_essensplan.js -> parseFollowupTask",
+   "foto_essensplan.js -> handlePhotoCommand",
+   "foto_urlaubsplan.js -> parsePhotoRequest",
+   "foto_urlaubsplan.js -> processPhoto",
+   "foto_urlaubsplan.js -> photoAskWhatToDo",
+   "foto_urlaubsplan.js -> parseFollowupTask",
+   "foto_urlaubsplan.js -> handlePhotoCommand",
+   "wunschliste.js -> parsePhotoRequest",
+   "wunschliste.js -> processPhoto",
+   "wunschliste.js -> photoAskWhatToDo",
+   "wunschliste.js -> parseFollowupTask",
+   "wunschliste.js -> handlePhotoCommand",
+   "foto_person.js -> parsePhotoRequest",
+   "foto_person.js -> processPhoto",
+   "foto_person.js -> handlePhotoCommand",
+   "karte_zu.js -> openPanel",
+   "foto_erkennen.js -> photoAskWhatToDo",
+   "foto_erkennen.js -> runLastPhotoTask",
+   "foto_rezept.js -> parsePhotoRequest",
+   "foto_rezept.js -> openPhotoCamera",
+   "foto_rezept.js -> openPhotoGallery",
+   "foto_rezept.js -> processPhoto",
+   "foto_rezept.js -> photoAskWhatToDo",
+   "foto_rezept.js -> parseFollowupTask",
+   "foto_rezept.js -> handlePhotoCommand",
+   "mailaktionen.js -> resolveEmailRef",
+   "erweiterungen.js -> wachterCollect",
+   "sprueche.js -> speak",
+   "toene.js -> speak",
+   "lebendig.js -> jvListenIndicator",
+   "lebendig.js -> jvHearing",
+   "fish.js -> getTtsEngine",
+   "fish.js -> setTtsEngine",
+   "fish.js -> fetchCloudSpeechBlob",
+   "fish.js -> speak",
+   "fish.js -> speakBrowser",
+   "fish.js -> speakAck",
+   "fish.js -> buildSystemPrompt",
+   "worldqueryfix.js -> buildSystemPrompt",
+   "worldqueryfix.js -> handleLocalCommand",
+   "index.html(inline) -> handleLocalCommand",
+   "ortsuche.js -> handleLocalCommand",
+   "gedaechtnis_zeit.js -> setPersistentData",
+   "kontext_lokal.js -> speak",
+   "langzeit.js -> isPanelOpen",
+   "langzeit.js -> closePanel",
+   "langzeit.js -> executeAction",
+   "langzeit_erinnern.js -> openGoogleCalendarApp",
+   "langzeit_erinnern.js -> executeAction",
+   "geburtstag_ganztag.js -> executeAction",
+   "assistant.js -> searchSemanticMemory",
+   "fehlerort.js -> sendToGroqSmartCore",
+   "gedaechtnis.js -> executeAction",
+   "gedaechtnis.js -> buildSystemPrompt",
+   "name.js -> buildSystemPrompt",
+   "loeschen_fragen.js -> executeAction",
+   "loesch_notiz.js -> deleteTodoEntry",
+   "loesch_notiz.js -> deleteShoppingEntry",
+   "loesch_notiz.js -> deleteCalendarEntry",
+   "loesch_notiz.js -> deleteReminderEntry",
+   "teilen.js -> speak",
+   "fotosenden.js -> showActionCards",
+   "plan_ansagen.js -> jvSchichtInfo"
+  ],
+  "DCL": [
+   "DOMContentLoaded -> saveHomeAddress",
+   "DOMContentLoaded -> fetchCloudSpeechBlob",
+   "DOMContentLoaded -> speakBrowser",
+   "DOMContentLoaded -> speakAckBrowser",
+   "DOMContentLoaded -> saveWorkAddress",
+   "DOMContentLoaded -> openExtraWindow",
+   "DOMContentLoaded -> sendToGroqSmart"
+  ],
+  "load": [
+   "load -> triggerDailyBriefing",
+   "load -> searchSemanticMemory",
+   "load -> jvFristHinweis",
+   "load -> sendToGroqSmart"
+  ],
+  "zeit": [
+   "t+0.5s -> buildSystemPrompt"
+  ]
+ },
+ "messung": {
+  "prompt": {
+   "e0": {
+    "len": 64142,
+    "sha": "04674c6b25",
+    "kopfAnzahl": 5,
+    "kopfSha": "3b5d0e5e03",
+    "kontextPlus": 2,
+    "kopf": [
+     "FORMULIERUNGS-WÜNSCHE",
+     "GESPRÄCHSKONTEXT UND FOLGEFRAGEN",
+     "LAUTES LACHEN",
+     "KONTEXT-GEHIRN / AKTIVES LANGZEITGEDÄCHTNIS",
+     "GESPRÄCHSKONTEXT UND FOLGEFRAGEN"
+    ]
+   },
+   "e1": {
+    "len": 65033,
+    "sha": "121a046460",
+    "kopfAnzahl": 6,
+    "kopfSha": "bf10c5cbd4",
+    "kontextPlus": 2
+   },
+   "e2": {
+    "len": 64438,
+    "sha": "a6af52a5c3",
+    "kopfAnzahl": 7,
+    "kopfSha": "bc36865041",
+    "kontextPlus": 2
+   },
+   "e3": {
+    "len": 64482,
+    "sha": "0b4e5bc068",
+    "kopfAnzahl": 7,
+    "kopfSha": "bc36865041",
+    "kontextPlus": 2
+   },
+   "e4": {
+    "len": 64533,
+    "sha": "d4d2742f01",
+    "kopfAnzahl": 6,
+    "kopfSha": "e582daaa2f",
+    "kontextPlus": 2
+   },
+   "e5": {
+    "len": 64142,
+    "sha": "04674c6b25",
+    "kopfAnzahl": 5,
+    "kopfSha": "3b5d0e5e03",
+    "kontextPlus": 2
+   }
+  },
+  "lokal": [
+   "Mail Push einrichten => lokal=true | (Basis localcommands.js oder altes Einhängen) | gesagt=[\"Tippe unten auf den Knopf und bestätige bei Google.\"]",
+   "Wo ist aktuell Krieg auf der Welt? => lokal=false | - | gesagt=[]",
+   "Zwinker mal => lokal=true | mimik | gesagt=[\"Dafür müsste der Kopf gerade sichtbar sein.\"]",
+   "Wie spät ist es in Istanbul? => lokal=true | erweiterungen | gesagt=[\"In Istanbul ist es jetzt 12 Uhr. Das sind 2 Stunden mehr als bei dir.\"]",
+   "Wo ist der nächste Penny? => lokal=true | (Basis localcommands.js oder altes Einhängen) | gesagt=[\"Ohne Standort kann ich nichts in der Nähe suchen. Bitte erlauben Sie den Standort für die App.\"]",
+   "Gibt es eine Tankstelle in der Nähe? => lokal=false | - | gesagt=[]",
+   "Karte schließen => lokal=true | schliessen | gesagt=[\"Es ist gerade nichts offen.\"]",
+   "Zeig mir die Ferien => lokal=true | (Basis localcommands.js oder altes Einhängen) | gesagt=[\"Die Ferientermine kann ich gerade nicht laden. Versuch es bitte gleich noch einmal.\"]",
+   "Jarvis fahr zum Neu Galina Ring => lokal=false | - | gesagt=[]",
+   "Was steht heute an? => lokal=true | was_steht_an | gesagt=[\"Du hast keine Schicht, also frei.\"]",
+   "Wie wird morgen das Wetter? => lokal=false | - | gesagt=[]",
+   "Langzeit Gedächtnis öffnen => lokal=false | - | gesagt=[]",
+   "Das war Quatsch => lokal=false | - | gesagt=[]",
+   "Rezept merken => lokal=false | - | gesagt=[]"
+  ],
+  "groq": [
+   "Fahr zum Neu Galina Ring => Kern bekommt: [\"Fahr zum Neu Galina Ring\"] | Rückgabe Promise→\"KERN\"",
+   "Hallo Jarvis => Kern bekommt: [\"Hallo Jarvis\"] | Rückgabe Promise→\"KERN\"",
+   "Sag Schröter Bescheid => Kern bekommt: [\"Sag Schröter Bescheid\"] | Rückgabe Promise→\"KERN\"",
+   "Marken der äußersten Hülle: _wx",
+   "async: [object Function]|Function"
+  ],
+  "semantik": [
+   "\"Wann war ich schwimmen?\" => Anfragen [\"/api/memory {\\\"action\\\":\\\"search\\\",\\\"query\\\":\\\"Wann war ich schwimmen?\\\",\\\"topK\\\":5}\"] | Ergebnis []",
+   "\"ab\" => Anfragen [] | Ergebnis []",
+   "jvFristHinweis(\"Okay.\", \"hallo\") => \"Okay.\""
+  ],
+  "panels": [
+   "openPanel(\"einstellungen\") => false | Schließer [\"closeUeberblick\",\"closeFerienkalender\",\"closeWeatherMap\"]",
+   "openPanel(\"dashboard\") => null | Schließer []",
+   "openPanel(\"gibtesnicht\") => false | Schließer [\"closeUeberblick\",\"closeFerienkalender\",\"closeWeatherMap\"]",
+   "closePanel() => false | Schließer [\"closeUeberblick\",\"closeFerienkalender\",\"closeWeatherMap\"]",
+   "isPanelOpen() => false | Schließer []",
+   "refreshOpenPanel() => null | Schließer []"
+  ],
+  "swaps": [
+   "photoAskWhatToDo (normal): Rückgabe undefined, Fehler \"\", showActionCards wieder gleich=true, photoSay wieder gleich=true",
+   "photoAskWhatToDo (Karten werfen): Fehler \"\", showActionCards wieder die geworfene Attrappe=true"
+  ]
+ },
+ "promptFrueh": {
+  "e0": {
+   "len": 63238,
+   "sha": "f8d45ed2db",
+   "kopfAnzahl": 4,
+   "kopfSha": "ee7d6c5c14",
+   "kontextPlus": 1,
+   "kopf": [
+    "FORMULIERUNGS-WÜNSCHE",
+    "GESPRÄCHSKONTEXT UND FOLGEFRAGEN",
+    "LAUTES LACHEN",
+    "KONTEXT-GEHIRN / AKTIVES LANGZEITGEDÄCHTNIS"
+   ]
+  },
+  "e1": {
+   "len": 64129,
+   "sha": "6418071e7f",
+   "kopfAnzahl": 5,
+   "kopfSha": "99dbec8721",
+   "kontextPlus": 1
+  },
+  "e2": {
+   "len": 63386,
+   "sha": "04196fe3b3",
+   "kopfAnzahl": 5,
+   "kopfSha": "1877892aac",
+   "kontextPlus": 1
+  },
+  "e3": {
+   "len": 63408,
+   "sha": "705477f96a",
+   "kopfAnzahl": 5,
+   "kopfSha": "1877892aac",
+   "kontextPlus": 1
+  },
+  "e4": {
+   "len": 63629,
+   "sha": "9af1d2c049",
+   "kopfAnzahl": 5,
+   "kopfSha": "1051cd29c1",
+   "kontextPlus": 1
+  },
+  "e5": {
+   "len": 63238,
+   "sha": "f8d45ed2db",
+   "kopfAnzahl": 4,
+   "kopfSha": "ee7d6c5c14",
+   "kontextPlus": 1
+  }
+ },
+ "zeitgeber": {
+  "contextplus.js": [
+   "t0"
+  ],
+  "laune.js": [
+   "i14000",
+   "i1000",
+   "t300"
+  ],
+  "synapsen.js": [
+   "i200"
+  ],
+  "ki_mitdenken.js": [
+   "t4000"
+  ]
+ },
+ "zeitgeberOhneCommands": [
+  "adresse_speichern.js",
+  "alleinstellung.js",
+  "anleitung.js",
+  "einfuehrung.js",
+  "ergebnisse.js",
+  "laune.js",
+  "mitnehmen.js"
+ ],
+ "matrix": {
+  "prompt: contextplus.js <-> fish.js": "verändert in prompt: e0+e1+e2+e3+e4+e5",
+  "prompt: contextplus.js <-> worldqueryfix.js": "verändert in prompt: e0+e1+e2+e3+e4+e5",
+  "prompt: contextplus.js <-> gedaechtnis.js": "verändert in prompt: e0+e1+e2+e3+e4+e5",
+  "prompt: contextplus.js <-> name.js": "verändert in prompt: e0+e1+e2+e3+e4+e5",
+  "prompt: fish.js <-> worldqueryfix.js": "verändert in prompt: e4",
+  "prompt: fish.js <-> gedaechtnis.js": "verändert in prompt: e0+e1+e2+e3+e4+e5",
+  "prompt: fish.js <-> name.js": "verändert in prompt: e0+e1+e2+e3+e4+e5",
+  "prompt: worldqueryfix.js <-> gedaechtnis.js": "verändert in prompt: e4",
+  "prompt: worldqueryfix.js <-> name.js": "verändert in prompt: e4",
+  "prompt: gedaechtnis.js <-> name.js": "identisch",
+  "lokal: mailpush.js <-> worldqueryfix.js": "verändert in lokal: Karte schließen => lokal=true | schliessen | gesagt=[\"Erledigt.\"]  =>  Karte schließen => lokal=true | schliessen | gesagt=[\"Es ist gerade ni…",
+  "lokal: mailpush.js <-> ortsuche.js": "verändert in lokal: Karte schließen => lokal=true | schliessen | gesagt=[\"Erledigt.\"]  =>  Karte schließen => lokal=true | schliessen | gesagt=[\"Es ist gerade ni…",
+  "lokal: worldqueryfix.js <-> ortsuche.js": "verändert in lokal: Karte schließen => lokal=true | schliessen | gesagt=[\"Erledigt.\"]  =>  Karte schließen => lokal=true | schliessen | gesagt=[\"Es ist gerade ni…",
+  "fenster: weathermap.js <-> ferien.js": "verändert in panels: openPanel(\"einstellungen\") => false | Schließer [\"closeUeberblick\",\"cl…  =>  openPanel(\"einstellungen\") => false | Schließer [\"closeUeberblick\",\"cl…",
+  "fenster: weathermap.js <-> tagesueberblick.js": "verändert in panels: openPanel(\"einstellungen\") => false | Schließer [\"closeUeberblick\",\"cl…  =>  openPanel(\"einstellungen\") => false | Schließer [\"closeWeatherMap\",\"cl…",
+  "fenster: weathermap.js <-> karte_zu.js": "verändert in panels: openPanel(\"einstellungen\") => false | Schließer [\"closeUeberblick\",\"cl…  =>  openPanel(\"einstellungen\") => false | Schließer [\"closeWeatherMap\",\"cl…",
+  "fenster: ferien.js <-> tagesueberblick.js": "verändert in panels: openPanel(\"einstellungen\") => false | Schließer [\"closeUeberblick\",\"cl…  =>  openPanel(\"einstellungen\") => false | Schließer [\"closeFerienkalender\"…",
+  "fenster: ferien.js <-> karte_zu.js": "verändert in panels: openPanel(\"einstellungen\") => false | Schließer [\"closeUeberblick\",\"cl…  =>  openPanel(\"einstellungen\") => false | Schließer [\"closeFerienkalender\"…",
+  "fenster: tagesueberblick.js <-> karte_zu.js": "identisch",
+  "sonder: langzeit.js NACH assistant.js (searchSemanticMemory)": "verändert in semantik: \"Wann war ich schwimmen?\" => Anfragen [\"/api/memory {\\\"action\\\":\\\"sear…  =>  \"Wann war ich schwimmen?\" => Anfragen [\"/api/memory {\\\"action\\\":\\\"sear…",
+  "sonder: festnamen.js + hoerkorrektur.js NACH assistant.js (sendToGroqSmart)": "verändert in groq: Fahr zum Neu Galina Ring => Kern bekommt: [\"Fahr zum Neu Galina Ring\"]…  =>  Fahr zum Neu Galina Ring => Kern bekommt: [\"Fahr zum Neu-Galliner-Ring…",
+  "sonder: synapsen.js <-> weathermap.js (sendToGroqSmart: DCL- gegen load-Hülle)": "identisch | Protokoll gleich"
+ }
+}
