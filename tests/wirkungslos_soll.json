@@ -1,0 +1,2351 @@
+{
+ "suche": {
+  "01 keine Erinnerungen": {
+   "frage": "Wann war ich schwimmen?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": []
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [
+     "query topK=16"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": []
+   },
+   "urteil": "kein Unterschied"
+  },
+  "02 wenige Erinnerungen": {
+   "frage": "Wann war ich schwimmen?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026)",
+     "Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade.",
+     "Liam hat Geburtstag. (Dienstag, 3. November 2026)"
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [
+     "query topK=16"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Event: Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026) (erzählt am Dienstag, 27. Oktober 2026)",
+     "Vorliebe: Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade. (erzählt am Dienstag, 27. Oktober 2026)",
+     "Geburtstag: Liam hat Geburtstag. (Dienstag, 3. November 2026) (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "nur anders"
+  },
+  "03 viele Erinnerungen (Liam)": {
+   "frage": "Was weißt du über Liam?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Liam Notiz 0 vom Spielplatz",
+     "Liam Notiz 1 vom Spielplatz",
+     "Liam Notiz 2 vom Spielplatz",
+     "Liam Notiz 3 vom Spielplatz",
+     "Liam Notiz 4 vom Spielplatz"
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [
+     "query topK=16"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Event: Liam Notiz 0 vom Spielplatz (erzählt am Dienstag, 27. Oktober 2026)",
+     "Event: Liam Notiz 1 vom Spielplatz (erzählt am Dienstag, 27. Oktober 2026)",
+     "Event: Liam Notiz 2 vom Spielplatz (erzählt am Dienstag, 27. Oktober 2026)",
+     "Event: Liam Notiz 3 vom Spielplatz (erzählt am Dienstag, 27. Oktober 2026)",
+     "Event: Liam Notiz 4 vom Spielplatz (erzählt am Dienstag, 27. Oktober 2026)",
+     "Event: Liam Notiz 5 vom Spielplatz (erzählt am Dienstag, 27. Oktober 2026)",
+     "Event: Liam Notiz 6 vom Spielplatz (erzählt am Dienstag, 27. Oktober 2026)",
+     "Event: Liam Notiz 7 vom Spielplatz (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "nur anders"
+  },
+  "04 relevante Erinnerung (Zweitschlüssel, Merk-dir-Eintrag)": {
+   "frage": "Wo liegt der Zweitschlüssel?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Am 12.10.2026 um 18:00 hat der Nutzer ausdrücklich darum gebeten, sich Folgendes zu merken: \"Der Zweitschlüssel liegt bei der Nachbarin\" (gemerkt als: Zweitschlüssel - bei der Nachbarin)",
+     "Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026)",
+     "Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade."
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [
+     "query topK=16"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Event: Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026) (erzählt am Dienstag, 27. Oktober 2026)",
+     "Vorliebe: Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade. (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "potenziell schlechter"
+  },
+  "05 nur irrelevante Erinnerungen": {
+   "frage": "Wie funktioniert ein Hubschrauber?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade.",
+     "Der User liest gern Krimis.",
+     "Der User mag Müsli mit Äpfeln, Zimt & Süßem und sagt „Prost“ (ß, ü, ö)."
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [
+     "query topK=16"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Vorliebe: Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade. (erzählt am Dienstag, 27. Oktober 2026)",
+     "Vorliebe: Der User liest gern Krimis. (erzählt am Dienstag, 27. Oktober 2026)",
+     "Vorliebe: Der User mag Müsli mit Äpfeln, Zimt & Süßem und sagt „Prost“ (ß, ü, ö). (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "nur anders"
+  },
+  "06 doppelte Erinnerungen": {
+   "frage": "Was lese ich gern?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Der User liest gern Krimis.",
+     "Der User liest gern Krimis.",
+     "Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade."
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [
+     "query topK=16"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Vorliebe: Der User liest gern Krimis. (erzählt am Dienstag, 27. Oktober 2026)",
+     "Vorliebe: Der User liest gern Krimis. (erzählt am Dienstag, 27. Oktober 2026)",
+     "Vorliebe: Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade. (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "nur anders"
+  },
+  "07 alte und neue Erinnerung (Stimmung)": {
+   "frage": "Warum war ich gestresst wegen der Schicht?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Der User war gestresst wegen der Spätschicht und der Stimmung im Team.",
+     "Der User war gestresst wegen der Frühschicht und der Stimmung im Team.",
+     "Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade."
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [
+     "query topK=16"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Stimmung: Der User war gestresst wegen der Spätschicht und der Stimmung im Team. (erzählt am Dienstag, 27. Oktober 2026)",
+     "Stimmung: Der User war gestresst wegen der Frühschicht und der Stimmung im Team. (erzählt am Donnerstag, 30. Juli 2026)",
+     "Vorliebe: Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade. (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "nur anders"
+  },
+  "08 sehr lange Erinnerung": {
+   "frage": "Was erzähle ich vom Garten?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Der User erzählt ausführlich von seinem Garten. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. ",
+     "Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade."
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [
+     "query topK=16"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Vorliebe: Der User erzählt ausführlich von seinem Garten. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut. Die Beete sind sehr groß und die Tomaten wachsen gut.  (erzählt am Dienstag, 27. Oktober 2026)",
+     "Vorliebe: Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade. (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "nur anders"
+  },
+  "09 Sonderzeichen und Umlaute": {
+   "frage": "Was mag ich zum Müsli mit Äpfeln?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Der User mag Müsli mit Äpfeln, Zimt & Süßem und sagt „Prost“ (ß, ü, ö).",
+     "Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade."
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [
+     "query topK=16"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Vorliebe: Der User mag Müsli mit Äpfeln, Zimt & Süßem und sagt „Prost“ (ß, ü, ö). (erzählt am Dienstag, 27. Oktober 2026)",
+     "Vorliebe: Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade. (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "nur anders"
+  },
+  "10a API-Fehler (HTTP 502)": {
+   "frage": "Wann war ich schwimmen?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [],
+    "wartezeitMs": 0,
+    "ergebnis": []
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [],
+    "wartezeitMs": 0,
+    "ergebnis": []
+   },
+   "urteil": "kein Unterschied"
+  },
+  "10b API-Fehler (Netz weg)": {
+   "frage": "Wann war ich schwimmen?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [],
+    "wartezeitMs": 0,
+    "ergebnis": []
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [],
+    "wartezeitMs": 0,
+    "ergebnis": []
+   },
+   "urteil": "kein Unterschied"
+  },
+  "11 leere Antwort": {
+   "frage": "Wann war ich schwimmen?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [],
+    "wartezeitMs": 0,
+    "ergebnis": []
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [],
+    "wartezeitMs": 0,
+    "ergebnis": []
+   },
+   "urteil": "kein Unterschied"
+  },
+  "12a langsame Antwort (Suche 2 s)": {
+   "frage": "Wann war ich schwimmen?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [],
+    "wartezeitMs": 1500,
+    "ergebnis": []
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [],
+    "wartezeitMs": 1500,
+    "ergebnis": []
+   },
+   "urteil": "kein Unterschied"
+  },
+  "12b Datumsfrage, Suche schnell, Gesamtliste langsam (2 s)": {
+   "frage": "Was habe ich morgen vor?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026)",
+     "Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade."
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8",
+     "listall"
+    ],
+    "upstash": [
+     "query topK=16"
+    ],
+    "wartezeitMs": 1500,
+    "ergebnis": []
+   },
+   "urteil": "potenziell schlechter"
+  },
+  "13 Datumsfrage \"morgen\" mit Plan": {
+   "frage": "Was habe ich morgen vor?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026)",
+     "Der User fährt mit seiner Frau nach Sylt. (Freitag, 27. November 2026)",
+     "Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade."
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8",
+     "listall"
+    ],
+    "upstash": [
+     "query topK=16",
+     "range"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "GEPLANT am Donnerstag, 29. Oktober 2026: Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026)",
+     "Event: Der User fährt mit seiner Frau nach Sylt. (Freitag, 27. November 2026) (erzählt am Dienstag, 27. Oktober 2026)",
+     "Vorliebe: Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade. (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "nur anders"
+  },
+  "14 Datumsfrage \"diese Woche\"": {
+   "frage": "Was steht diese Woche an?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026)",
+     "Der User fährt mit seiner Frau nach Sylt. (Freitag, 27. November 2026)",
+     "Der User hat am 1. Notiz Nummer 1 zum Thema Haushalt aufgeschrieben.",
+     "Der User hat am 2. Notiz Nummer 2 zum Thema Haushalt aufgeschrieben.",
+     "Der User hat am 3. Notiz Nummer 3 zum Thema Haushalt aufgeschrieben."
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8",
+     "listall"
+    ],
+    "upstash": [
+     "query topK=16",
+     "range"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "GEPLANT am Donnerstag, 29. Oktober 2026: Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026)",
+     "GEPLANT am Dienstag, 3. November 2026: Liam hat Geburtstag. (Dienstag, 3. November 2026)",
+     "Event: Der User fährt mit seiner Frau nach Sylt. (Freitag, 27. November 2026) (erzählt am Dienstag, 27. Oktober 2026)",
+     "Event: Der User hat am 1. Notiz Nummer 1 zum Thema Haushalt aufgeschrieben. (erzählt am Dienstag, 27. Oktober 2026)",
+     "Event: Der User hat am 2. Notiz Nummer 2 zum Thema Haushalt aufgeschrieben. (erzählt am Dienstag, 27. Oktober 2026)",
+     "Event: Der User hat am 3. Notiz Nummer 3 zum Thema Haushalt aufgeschrieben. (erzählt am Dienstag, 27. Oktober 2026)",
+     "Event: Der User hat am 4. Notiz Nummer 4 zum Thema Haushalt aufgeschrieben. (erzählt am Dienstag, 27. Oktober 2026)",
+     "Event: Der User hat am 5. Notiz Nummer 5 zum Thema Haushalt aufgeschrieben. (erzählt am Dienstag, 27. Oktober 2026)",
+     "Event: Der User hat am 6. Notiz Nummer 6 zum Thema Haushalt aufgeschrieben. (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "tatsächlich besser"
+  },
+  "15 Wetterfrage mit \"morgen\" (kein Gedächtnisbezug)": {
+   "frage": "Wie wird morgen das Wetter?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026)",
+     "Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade."
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8",
+     "listall"
+    ],
+    "upstash": [
+     "query topK=16",
+     "range"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "GEPLANT am Donnerstag, 29. Oktober 2026: Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026)",
+     "Vorliebe: Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade. (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "nur anders"
+  },
+  "15b Satz mit \"los\" (Fahr gleich los) ohne Gedächtnisbezug": {
+   "frage": "Fahr gleich los",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026)",
+     "Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade."
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8",
+     "listall"
+    ],
+    "upstash": [
+     "query topK=16",
+     "range"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "GEPLANT am Donnerstag, 29. Oktober 2026: Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026)",
+     "Vorliebe: Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade. (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "nur anders"
+  },
+  "15c Satz mit \"vor\" (Lies mir etwas vor) ohne Gedächtnisbezug": {
+   "frage": "Lies mir etwas vor",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026)",
+     "Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade."
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8",
+     "listall"
+    ],
+    "upstash": [
+     "query topK=16",
+     "range"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "GEPLANT am Donnerstag, 29. Oktober 2026: Der User geht mit Finja schwimmen. (Donnerstag, 29. Oktober 2026)",
+     "Vorliebe: Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade. (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "nur anders"
+  },
+  "16 Frist-Eintrag im Speicher (Fristen kommen sonst über jvFristHinweis/dueBlock)": {
+   "frage": "Was muss ich kündigen?",
+   "heute": {
+    "anfragen": [
+     "search topK=5"
+    ],
+    "upstash": [
+     "query topK=10"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Vertrag kündigen",
+     "Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade."
+    ]
+   },
+   "langzeit": {
+    "anfragen": [
+     "search topK=8"
+    ],
+    "upstash": [
+     "query topK=16"
+    ],
+    "wartezeitMs": 0,
+    "ergebnis": [
+     "Vorliebe: Der User trinkt Kaffee ohne Zucker und mag zum Frühstück Brötchen mit Marmelade. (erzählt am Dienstag, 27. Oktober 2026)"
+    ]
+   },
+   "urteil": "nur anders"
+  }
+ },
+ "aufraeumen": {
+  "ersterStart": {
+   "geloescht": [
+    "m1",
+    "m2"
+   ],
+   "uebrig": [
+    "e1",
+    "e2",
+    "e3",
+    "f1",
+    "stundenplan_isabel_montag"
+   ],
+   "marke": true,
+   "delete": 1
+  },
+  "markeSchonGesetzt": {
+   "geloescht": [],
+   "uebrig": [
+    "e1",
+    "e2",
+    "e3",
+    "f1",
+    "m1",
+    "m2",
+    "stundenplan_isabel_montag"
+   ],
+   "marke": true,
+   "delete": 0
+  },
+  "neueInstallation": {
+   "geloescht": [
+    "m1",
+    "m2"
+   ],
+   "uebrig": [
+    "e1",
+    "e2",
+    "e3",
+    "f1",
+    "stundenplan_isabel_montag"
+   ],
+   "marke": true,
+   "delete": 1
+  },
+  "syncListe": false
+ },
+ "stundenplan": {
+  "geladenAn": "VOR assistant.js (Hülle greift ins Leere)",
+  "heuteHuelle": false,
+  "fragen": {
+   "Was hat Isabel morgen in der dritten Stunde?": {
+    "heute": {
+     "anfragen": [
+      "search topK=5"
+     ],
+     "plan": [],
+     "gesamt": 5
+    },
+    "mitHuelle": {
+     "anfragen": [
+      "search topK=5",
+      "listall"
+     ],
+     "plan": [
+      "Stundenplan von Isabel, Donnerstag: 1. M"
+     ],
+     "gesamt": 6
+    }
+   },
+   "Wann hat Isabel Sport?": {
+    "heute": {
+     "anfragen": [
+      "search topK=5"
+     ],
+     "plan": [
+      "Stundenplan von Isabel, Montag: 1. Mathe",
+      "Stundenplan von Isabel, Dienstag: 1. Mat",
+      "Stundenplan von Isabel, Mittwoch: 1. Mat",
+      "Stundenplan von Isabel, Donnerstag: 1. M"
+     ],
+     "gesamt": 5
+    },
+    "mitHuelle": {
+     "anfragen": [
+      "search topK=5"
+     ],
+     "plan": [
+      "Stundenplan von Isabel, Montag: 1. Mathe",
+      "Stundenplan von Isabel, Dienstag: 1. Mat",
+      "Stundenplan von Isabel, Mittwoch: 1. Mat",
+      "Stundenplan von Isabel, Donnerstag: 1. M"
+     ],
+     "gesamt": 5
+    }
+   },
+   "Wie wird morgen das Wetter?": {
+    "heute": {
+     "anfragen": [
+      "search topK=5"
+     ],
+     "plan": [],
+     "gesamt": 5
+    },
+    "mitHuelle": {
+     "anfragen": [
+      "search topK=5"
+     ],
+     "plan": [],
+     "gesamt": 5
+    }
+   }
+  }
+ },
+ "regeln": {
+  "festnamen": [
+   [
+    "Route zu Alicia",
+    "Route zu Alyssa",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Alycia kommt",
+    "Alyssa kommt",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Alisia",
+    "Alyssa",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Alissa",
+    "Alyssa",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Alyssia",
+    "Alyssa",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Alicias Geburtstag",
+    "Alyssas Geburtstag",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Alyssa",
+    "Alyssa",
+    "neg",
+    "wie gemeint"
+   ],
+   [
+    "Alissandro kommt",
+    "Alissandro kommt",
+    "neg",
+    "wie gemeint"
+   ],
+   [
+    "Alicante im Urlaub",
+    "Alicante im Urlaub",
+    "neg",
+    "wie gemeint"
+   ],
+   [
+    "Fahr zum Neu Galina Ring",
+    "Fahr zum Neu-Galliner-Ring",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Neu Gallin Ring",
+    "Neu-Galliner-Ring",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "neugalliner ring",
+    "Neu-Galliner-Ring",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Neu-Galliner-Ring",
+    "Neu-Galliner-Ring",
+    "neg",
+    "wie gemeint"
+   ],
+   [
+    "Neu Kalliner Ring",
+    "Neu Kalliner Ring",
+    "luecke",
+    "ANDERS"
+   ],
+   [
+    "Wie komme ich nach Schwarzenbeck",
+    "Wie komme ich nach Schwarzenbek",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Schwarzenbek",
+    "Schwarzenbek",
+    "neg",
+    "wie gemeint"
+   ],
+   [
+    "Mein Name ist Schröter",
+    "Mein Name ist Schroeter",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Ich bin Schroeter",
+    "Ich bin Schroeter",
+    "neg",
+    "wie gemeint"
+   ],
+   [
+    "Ruf Herrn Schröter von der Bank an",
+    "Ruf Herrn Schroeter von der Bank an",
+    "mehrdeutig",
+    "ANDERS"
+   ],
+   [
+    "Zum Verbrüderungs Ring",
+    "Zum Verbrüderungsring",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Verbrüderungsring 13",
+    "Verbrüderungsring 13",
+    "neg",
+    "wie gemeint"
+   ],
+   [
+    "Zain wie spät ist es",
+    "Zane wie spät ist es",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Zayn bitte",
+    "Zane bitte",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Sane sag mal",
+    "Zane sag mal",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Zaino Kaffee",
+    "Zaino Kaffee",
+    "neg",
+    "wie gemeint"
+   ],
+   [
+    "Sanierung am Haus",
+    "Sanierung am Haus",
+    "neg",
+    "wie gemeint"
+   ],
+   [
+    "Zane",
+    "Zane",
+    "neg",
+    "wie gemeint"
+   ],
+   [
+    "Hey Sein was gibt es Neues",
+    "Hey Zane was gibt es Neues",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Hallo zehn Euro sind zu wenig",
+    "Hallo Zane Euro sind zu wenig",
+    "falsch",
+    "ANDERS"
+   ],
+   [
+    "Hey sehn wir uns morgen",
+    "Hey Zane wir uns morgen",
+    "falsch",
+    "ANDERS"
+   ],
+   [
+    "Um zehn Uhr Termin",
+    "Um zehn Uhr Termin",
+    "neg",
+    "wie gemeint"
+   ],
+   [
+    "Ein Zein Protein",
+    "Ein Zane Protein",
+    "falsch",
+    "ANDERS"
+   ]
+  ],
+  "hoerkorrektur": [
+   [
+    "Wann hat Hamlet Feierabend",
+    "Wann hat Hamiyet Feierabend",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "hamlet",
+    "Hamiyet",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Wer hat Hamlet von Shakespeare geschrieben",
+    "Wer hat Hamiyet von Shakespeare geschrieben",
+    "falsch",
+    "ANDERS"
+   ],
+   [
+    "Hamlets Monolog",
+    "Hamlets Monolog",
+    "neg",
+    "wie gemeint"
+   ],
+   [
+    "Ruf Matthes an",
+    "Ruf Matze an",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Matthes Tisch",
+    "Matze Tisch",
+    "mehrdeutig",
+    "ANDERS"
+   ],
+   [
+    "Ruf haben jetzt an",
+    "Ruf Hamiyet an",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Wir haben jetzt Zeit",
+    "Wir haben jetzt Zeit",
+    "neg",
+    "wie gemeint"
+   ],
+   [
+    "Schreib mit haben jetzt",
+    "Schreib mit Hamiyet",
+    "pos",
+    "wie gemeint"
+   ],
+   [
+    "Wann haben jetzt Pause",
+    "Wann haben jetzt Pause",
+    "neg",
+    "wie gemeint"
+   ]
+  ]
+ },
+ "lernen": {
+  "gespeichert": [
+   "Mal",
+   "Ende",
+   "Hamlet"
+  ],
+  "danach": [
+   [
+    "Sag mal wie spät es ist",
+    "Sag Malte wie spät es ist"
+   ],
+   [
+    "Am Ende der Straße",
+    "Am Enne der Straße"
+   ],
+   [
+    "Wer ist der Mann",
+    "Wer ist der Mann"
+   ]
+  ]
+ },
+ "eingaben": [
+  {
+   "kat": "Unterhaltung",
+   "roh": "Hallo Jarvis wie geht es dir",
+   "erwartet": "Hallo Zane wie geht es dir",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": true,
+    "modul": "laune",
+    "ki": null
+   },
+   "B +festnamen": {
+    "lokal": true,
+    "modul": "laune",
+    "ki": null
+   },
+   "C +hoerkorrektur": {
+    "lokal": true,
+    "modul": "laune",
+    "ki": null
+   },
+   "D beide": {
+    "lokal": true,
+    "modul": "laune",
+    "ki": null
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "unverändert (lokaler Weg)",
+    "C +hoerkorrektur": "unverändert (lokaler Weg)",
+    "D beide": "unverändert (lokaler Weg)"
+   }
+  },
+  {
+   "kat": "Unterhaltung",
+   "roh": "Erzähl mir einen Witz",
+   "erwartet": "Erzähl mir einen Witz",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "B +festnamen": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "C +hoerkorrektur": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "D beide": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "unverändert (lokaler Weg)",
+    "C +hoerkorrektur": "unverändert (lokaler Weg)",
+    "D beide": "unverändert (lokaler Weg)"
+   }
+  },
+  {
+   "kat": "Unterhaltung",
+   "roh": "Hey sein was machst du so",
+   "erwartet": "Hey Zane was machst du so",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Hey Zane was machst du so"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Hey Zane was machst du so"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Hey Zane was machst du so"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Hey Zane was machst du so"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
+   }
+  },
+  {
+   "kat": "Unterhaltung",
+   "roh": "Hallo zehn Minuten Pause bitte",
+   "erwartet": "Hallo zehn Minuten Pause bitte",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Hallo Zane Minuten Pause bitte"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Hallo Zane Minuten Pause bitte"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Hallo Zane Minuten Pause bitte"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Hallo Zane Minuten Pause bitte"
+    ]
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
+   }
+  },
+  {
+   "kat": "Namen",
+   "roh": "Ruf Alicia an",
+   "erwartet": "Ruf Alyssa an",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Ruf Alyssa an"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Ruf Alyssa an"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Ruf Alyssa an"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Ruf Alyssa an"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
+   }
+  },
+  {
+   "kat": "Namen",
+   "roh": "Schreib Alycia eine Nachricht",
+   "erwartet": "Schreib Alyssa eine Nachricht",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Schreib Alycia eine Nachricht"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Schreib Alyssa eine Nachricht"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Schreib Alycia eine Nachricht"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Schreib Alyssa eine Nachricht"
+    ]
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "verbessert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "verbessert"
+   }
+  },
+  {
+   "kat": "Namen",
+   "roh": "Wann hat Alissa Geburtstag",
+   "erwartet": "Wann hat Alyssa Geburtstag",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wann hat Alyssa Geburtstag"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wann hat Alyssa Geburtstag"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wann hat Alyssa Geburtstag"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wann hat Alyssa Geburtstag"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
+   }
+  },
+  {
+   "kat": "Namen",
+   "roh": "Ist Herr Schröter heute da",
+   "erwartet": "Ist Herr Schröter heute da",
+   "mehrdeutig": true,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Ist Herr Schröter heute da"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Ist Herr Schroeter heute da"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Ist Herr Schröter heute da"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Ist Herr Schroeter heute da"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "fragwürdig",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "fragwürdig"
+   }
+  },
+  {
+   "kat": "Namen",
+   "roh": "Wer hat Hamlet geschrieben",
+   "erwartet": "Wer hat Hamlet geschrieben",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wer hat Hamlet geschrieben"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wer hat Hamlet geschrieben"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wer hat Hamiyet geschrieben"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wer hat Hamiyet geschrieben"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "verschlechtert",
+    "D beide": "verschlechtert"
+   }
+  },
+  {
+   "kat": "Namen",
+   "roh": "Wann hat Hamlet Feierabend",
+   "erwartet": "Wann hat Hamiyet Feierabend",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wann hat Hamlet Feierabend"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wann hat Hamlet Feierabend"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wann hat Hamiyet Feierabend"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wann hat Hamiyet Feierabend"
+    ]
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "verbessert",
+    "D beide": "verbessert"
+   }
+  },
+  {
+   "kat": "Namen",
+   "roh": "Zayn wie spät ist es",
+   "erwartet": "Zane wie spät ist es",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Zane wie spät ist es"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Zane wie spät ist es"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Zane wie spät ist es"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Zane wie spät ist es"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
+   }
+  },
+  {
+   "kat": "Orte",
+   "roh": "Fahr zum Neu Galina Ring",
+   "erwartet": "Fahr zum Neu-Galliner-Ring",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Fahr zum Neu Galina Ring"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Fahr zum Neu-Galliner-Ring"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Fahr zum Neu Galina Ring"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Fahr zum Neu-Galliner-Ring"
+    ]
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "verbessert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "verbessert"
+   }
+  },
+  {
+   "kat": "Orte",
+   "roh": "Wie komme ich nach Schwarzenbeck",
+   "erwartet": "Wie komme ich nach Schwarzenbek",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wie komme ich nach Schwarzenbeck"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wie komme ich nach Schwarzenbek"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wie komme ich nach Schwarzenbeck"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wie komme ich nach Schwarzenbek"
+    ]
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "verbessert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "verbessert"
+   }
+  },
+  {
+   "kat": "Orte",
+   "roh": "Navigier mich zum Verbrüderungs Ring",
+   "erwartet": "Navigier mich zum Verbrüderungsring",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Navigier mich zum Verbrüderungs Ring"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Navigier mich zum Verbrüderungsring"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Navigier mich zum Verbrüderungs Ring"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Navigier mich zum Verbrüderungsring"
+    ]
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "verbessert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "verbessert"
+   }
+  },
+  {
+   "kat": "Orte",
+   "roh": "Wo ist der Neugalliner Ring Parkplatz",
+   "erwartet": "Wo ist der Neu-Galliner-Ring Parkplatz",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "B +festnamen": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "C +hoerkorrektur": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "D beide": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "unverändert (lokaler Weg)",
+    "C +hoerkorrektur": "unverändert (lokaler Weg)",
+    "D beide": "unverändert (lokaler Weg)"
+   }
+  },
+  {
+   "kat": "Navigation",
+   "roh": "Wie lange brauche ich zur Arbeit",
+   "erwartet": "Wie lange brauche ich zur Arbeit",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wie lange brauche ich zur Arbeit"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wie lange brauche ich zur Arbeit"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wie lange brauche ich zur Arbeit"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wie lange brauche ich zur Arbeit"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
+   }
+  },
+  {
+   "kat": "Navigation",
+   "roh": "Route nach Alicia",
+   "erwartet": "Route nach Alyssa",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Route nach Alyssa"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Route nach Alyssa"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Route nach Alyssa"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Route nach Alyssa"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
+   }
+  },
+  {
+   "kat": "Navigation",
+   "roh": "Navigier mich nach Schwarzenbeck bei Hamburg",
+   "erwartet": "Navigier mich nach Schwarzenbek bei Hamburg",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Navigier mich nach Schwarzenbeck bei Hamburg"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Navigier mich nach Schwarzenbek bei Hamburg"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Navigier mich nach Schwarzenbeck bei Hamburg"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Navigier mich nach Schwarzenbek bei Hamburg"
+    ]
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "verbessert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "verbessert"
+   }
+  },
+  {
+   "kat": "Termine",
+   "roh": "Trag morgen um zehn Uhr einen Termin ein",
+   "erwartet": "Trag morgen um zehn Uhr einen Termin ein",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Trag morgen um zehn Uhr einen Termin ein"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Trag morgen um zehn Uhr einen Termin ein"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Trag morgen um zehn Uhr einen Termin ein"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Trag morgen um zehn Uhr einen Termin ein"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
+   }
+  },
+  {
+   "kat": "Termine",
+   "roh": "Termin mit Alicia am Freitag um 15 Uhr",
+   "erwartet": "Termin mit Alyssa am Freitag um 15 Uhr",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Termin mit Alyssa am Freitag um 15 Uhr"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Termin mit Alyssa am Freitag um 15 Uhr"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Termin mit Alyssa am Freitag um 15 Uhr"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Termin mit Alyssa am Freitag um 15 Uhr"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
+   }
+  },
+  {
+   "kat": "Termine",
+   "roh": "Termin mit Herrn Schröter am Montag",
+   "erwartet": "Termin mit Herrn Schröter am Montag",
+   "mehrdeutig": true,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Termin mit Herrn Schröter am Montag"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Termin mit Herrn Schroeter am Montag"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Termin mit Herrn Schröter am Montag"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Termin mit Herrn Schroeter am Montag"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "fragwürdig",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "fragwürdig"
+   }
+  },
+  {
+   "kat": "Erinnerungen",
+   "roh": "Erinner mich morgen an den Arzt",
+   "erwartet": "Erinner mich morgen an den Arzt",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Erinner mich morgen an den Arzt"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Erinner mich morgen an den Arzt"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Erinner mich morgen an den Arzt"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Erinner mich morgen an den Arzt"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
+   }
+  },
+  {
+   "kat": "Erinnerungen",
+   "roh": "Erinner mich an den Anruf bei Hamlet",
+   "erwartet": "Erinner mich an den Anruf bei Hamiyet",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Erinner mich an den Anruf bei Hamlet"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Erinner mich an den Anruf bei Hamlet"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Erinner mich an den Anruf bei Hamiyet"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Erinner mich an den Anruf bei Hamiyet"
+    ]
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "verbessert",
+    "D beide": "verbessert"
+   }
+  },
+  {
+   "kat": "Wetter",
+   "roh": "Wird es in Schwarzenbeck morgen regnen",
+   "erwartet": "Wird es in Schwarzenbek morgen regnen",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wird es in Schwarzenbeck morgen regnen"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wird es in Schwarzenbek morgen regnen"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wird es in Schwarzenbeck morgen regnen"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wird es in Schwarzenbek morgen regnen"
+    ]
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "verbessert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "verbessert"
+   }
+  },
+  {
+   "kat": "Wetter",
+   "roh": "Brauche ich heute einen Schirm",
+   "erwartet": "Brauche ich heute einen Schirm",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Brauche ich heute einen Schirm"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Brauche ich heute einen Schirm"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Brauche ich heute einen Schirm"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Brauche ich heute einen Schirm"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
+   }
+  },
+  {
+   "kat": "Schicht",
+   "roh": "Wann habe ich nächste Woche Frühschicht",
+   "erwartet": "Wann habe ich nächste Woche Frühschicht",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wann habe ich nächste Woche Frühschicht"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wann habe ich nächste Woche Frühschicht"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wann habe ich nächste Woche Frühschicht"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Wann habe ich nächste Woche Frühschicht"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
+   }
+  },
+  {
+   "kat": "Schicht",
+   "roh": "Habe ich am Wochenende Spätschicht",
+   "erwartet": "Habe ich am Wochenende Spätschicht",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": true,
+    "modul": "schicht",
+    "ki": null
+   },
+   "B +festnamen": {
+    "lokal": true,
+    "modul": "schicht",
+    "ki": null
+   },
+   "C +hoerkorrektur": {
+    "lokal": true,
+    "modul": "schicht",
+    "ki": null
+   },
+   "D beide": {
+    "lokal": true,
+    "modul": "schicht",
+    "ki": null
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "unverändert (lokaler Weg)",
+    "C +hoerkorrektur": "unverändert (lokaler Weg)",
+    "D beide": "unverändert (lokaler Weg)"
+   }
+  },
+  {
+   "kat": "Gedächtnis",
+   "roh": "Merk dir dass Alicia am Samstag kommt",
+   "erwartet": "Merk dir dass Alyssa am Samstag kommt",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Merk dir dass Alyssa am Samstag kommt"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Merk dir dass Alyssa am Samstag kommt"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Merk dir dass Alyssa am Samstag kommt"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Merk dir dass Alyssa am Samstag kommt"
+    ]
+   },
+   "heuteWieGemeint": true,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
+   }
+  },
+  {
+   "kat": "Gedächtnis",
+   "roh": "Merk dir mein Nachname ist Schröter",
+   "erwartet": "Merk dir mein Nachname ist Schroeter",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Merk dir mein Nachname ist Schröter"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Merk dir mein Nachname ist Schroeter"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Merk dir mein Nachname ist Schröter"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Merk dir mein Nachname ist Schroeter"
+    ]
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "verbessert",
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "verbessert"
+   }
+  },
+  {
+   "kat": "Gedächtnis",
+   "roh": "Was weißt du über mich",
+   "erwartet": "Was weißt du über mich",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": true,
+    "modul": "langzeit",
+    "ki": [
+     "Was weißt du über mich"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": true,
+    "modul": "langzeit",
+    "ki": [
+     "Was weißt du über mich"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": true,
+    "modul": "langzeit",
+    "ki": [
+     "Was weißt du über mich"
+    ]
+   },
+   "D beide": {
+    "lokal": true,
+    "modul": "langzeit",
+    "ki": [
+     "Was weißt du über mich"
+    ]
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "unverändert (lokaler Weg)",
+    "C +hoerkorrektur": "unverändert (lokaler Weg)",
+    "D beide": "unverändert (lokaler Weg)"
+   }
+  },
+  {
+   "kat": "Gedächtnis",
+   "roh": "Was habe ich mir über Hamlet gemerkt",
+   "erwartet": "Was habe ich mir über Hamiyet gemerkt",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Was habe ich mir über Hamlet gemerkt"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Was habe ich mir über Hamlet gemerkt"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Was habe ich mir über Hamiyet gemerkt"
+    ]
+   },
+   "D beide": {
+    "lokal": false,
+    "modul": null,
+    "ki": [
+     "Was habe ich mir über Hamiyet gemerkt"
+    ]
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "unverändert",
+    "C +hoerkorrektur": "verbessert",
+    "D beide": "verbessert"
+   }
+  },
+  {
+   "kat": "Foto",
+   "roh": "Mach ein Foto vom Brief an Schröter",
+   "erwartet": "Mach ein Foto vom Brief an Schröter",
+   "mehrdeutig": true,
+   "A heute": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "B +festnamen": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "C +hoerkorrektur": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "D beide": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "unverändert (lokaler Weg)",
+    "C +hoerkorrektur": "unverändert (lokaler Weg)",
+    "D beide": "unverändert (lokaler Weg)"
+   }
+  },
+  {
+   "kat": "Foto",
+   "roh": "Stundenplan von Alycia fotografieren",
+   "erwartet": "Stundenplan von Alyssa fotografieren",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "B +festnamen": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "C +hoerkorrektur": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "D beide": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "unverändert (lokaler Weg)",
+    "C +hoerkorrektur": "unverändert (lokaler Weg)",
+    "D beide": "unverändert (lokaler Weg)"
+   }
+  },
+  {
+   "kat": "Mehrfachfrage",
+   "roh": "Wie wird das Wetter in Schwarzenbeck und ruf Alicia an",
+   "erwartet": "Wie wird das Wetter in Schwarzenbek und ruf Alyssa an",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "B +festnamen": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "C +hoerkorrektur": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "D beide": {
+    "lokal": true,
+    "modul": "(Basis localcommands.js oder altes Einhängen)",
+    "ki": null
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "unverändert (lokaler Weg)",
+    "C +hoerkorrektur": "unverändert (lokaler Weg)",
+    "D beide": "unverändert (lokaler Weg)"
+   }
+  },
+  {
+   "kat": "Mehrfachfrage",
+   "roh": "Was habe ich heute vor und wie kalt ist es in Schwarzenbeck",
+   "erwartet": "Was habe ich heute vor und wie kalt ist es in Schwarzenbek",
+   "mehrdeutig": false,
+   "A heute": {
+    "lokal": true,
+    "modul": "was_steht_an+mehrfachfrage",
+    "ki": [
+     "Wie kalt ist es in Schwarzenbeck?"
+    ]
+   },
+   "B +festnamen": {
+    "lokal": true,
+    "modul": "was_steht_an+mehrfachfrage",
+    "ki": [
+     "Wie kalt ist es in Schwarzenbek?"
+    ]
+   },
+   "C +hoerkorrektur": {
+    "lokal": true,
+    "modul": "was_steht_an+mehrfachfrage",
+    "ki": [
+     "Wie kalt ist es in Schwarzenbeck?"
+    ]
+   },
+   "D beide": {
+    "lokal": true,
+    "modul": "was_steht_an+mehrfachfrage",
+    "ki": [
+     "Wie kalt ist es in Schwarzenbek?"
+    ]
+   },
+   "heuteWieGemeint": false,
+   "urteil": {
+    "B +festnamen": "KI-Teilsatz geändert",
+    "C +hoerkorrektur": "unverändert (lokaler Weg)",
+    "D beide": "KI-Teilsatz geändert"
+   }
+  }
+ ],
+ "lokalerText": [
+  "Termin mit Herrn Schröter am Montag => [\"Termin mit Herrn Schroeter am Montag\"]",
+  "Erinner mich an den Anruf bei Hamlet => [\"Erinner mich an den Anruf bei Hamiyet\"]",
+  "Schreib Alycia eine Nachricht => [\"Schreib Alyssa eine Nachricht\"]",
+  "Fahr zum Neu Galina Ring => [\"Fahr zum Neu-Galliner-Ring\"]",
+  "Wie komme ich nach Schwarzenbeck => [\"Wie komme ich nach Schwarzenbek\"]",
+  "Hey sehn wir uns morgen => [\"Hey Zane wir uns morgen\"]",
+  "Wer hat Hamlet geschrieben => [\"Wer hat Hamiyet geschrieben\"]"
+ ],
+ "textfluss": {
+  "chatVerlauf": true,
+  "letzterText": true,
+  "aktionenBekommenText": true,
+  "merkDirTextKommtAusText": true,
+  "festnamenBeimSpeichern": true,
+  "hoerenNutztFestnamenNurZumBewerten": true
+ }
+}
