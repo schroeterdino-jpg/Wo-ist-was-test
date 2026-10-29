@@ -1,0 +1,494 @@
+{
+ "inventar": {
+  "speak": [
+   "fish.js",
+   "kontext_lokal.js",
+   "mehrfach.js (nur vorübergehend)",
+   "sprueche.js",
+   "teilen.js",
+   "toene.js",
+   "voice.js (Basis)",
+   "voicefix.js"
+  ],
+  "speakBrowser": [
+   "fish.js",
+   "pronunciation.js",
+   "voice.js (Basis)"
+  ],
+  "speakAck": [
+   "fish.js",
+   "voice.js (Basis)",
+   "voicefix.js"
+  ],
+  "speakAckBrowser": [
+   "pronunciation.js",
+   "voice.js (Basis)"
+  ],
+  "fetchCloudSpeechBlob": [
+   "fish.js",
+   "pronunciation.js",
+   "voice.js (Basis)"
+  ],
+  "getTtsEngine": [
+   "fish.js",
+   "voice.js (Basis)"
+  ],
+  "startThinkingSound": [
+   "audio.js (Basis)",
+   "voicefix.js"
+  ],
+  "speechSynthesis.speak": [
+   "speechrate.js"
+  ],
+  "Audio": [
+   "speechrate.js"
+  ]
+ },
+ "temporaer": 2,
+ "ladefehler": [],
+ "proben": [
+  "kurz | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Okay.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "preis+gedankenstrich | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Das kostet zwölf Euro neunundneunzig, ein günstiger Preis\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "dezimalpreis tanken | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Diesel kostet aktuell zwei Euro achtzehn bei Aral, das ist günstig. Man sagt ja, Geld macht nicht glücklich. Sprit auch nicht, aber er bringt dich hin.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "strassen-grammatik | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Du wohnst im Hans-Dewitz-Ring und gehst in den Gartenweg.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "alyssa+datum+abkuerzung | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Alischa hat am 3. November 2026 Geburtstag, z.B. mit 50 Gästen im Jahr 2026\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "markdown-zeichen | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Das ist fett und Code und Titel\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "ton erfolg | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Das hat geklappt!\" rate=1 lang=de-DE ; CLOUD \"Test\" engine=edge ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "ton fehler | ret=undefined || TON fehler ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Das hat leider nicht geklappt.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "ton warnung | ret=undefined || TON warnung ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Achtung, das ist ein Alarm: der Akku ist fast leer.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "ton nicht bei fremdsprache | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Das hat geklappt!\" rate=1 lang=tr-TR ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "dolmetscher | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Merhaba, nasılsın?\" rate=1 lang=tr-TR ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "onComplete+rueckgabe | ret=undefined onComplete=1 || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Fertig gesprochen.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT) ; oncomplete {\"a\":\"oncomplete\"}",
+  "spruch (zufall 0.01) | ret=undefined || TON erfolg ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Das hat geklappt, ich habe es eingetragen.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "spruch wiederholt (zufall 0.01) | ret=undefined || TON erfolg ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Das hat geklappt, ich habe es eingetragen.\" rate=1 lang=de-DE ; ABBRUCH ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Das hat geklappt, ich habe es eingetragen.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "teilen merkt lange antwort | teilen=Das ist eine längere Antwort mit mehr als vierzig Zeichen für das Teilen. || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Das ist eine längere Antwort mit mehr als vierzig Zeichen für das Teilen.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "teilen merkt kurze nicht | teilen=Das ist eine längere Antwort mit mehr als vierzig Zeichen für das Teilen. || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Das ist eine längere Antwort mit mehr als vierzig Zeichen für das Teilen.\" rate=1 lang=de-DE ; ABBRUCH ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Okay.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "kontext_lokal verlauf | verlauf+2 letzter={\"reply\":\"In Tokio ist es jetzt 18 Uhr 01. Das sind 8 Stunden mehr als bei dir.\" || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"In Tokio ist es jetzt 18 Uhr 01. Das sind 8 Stunden mehr als bei dir. Falls du jemanden anrufen willst: vorher rechnen, nicht hinterher entschuldigen.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "teilen sieht text mit korrektur | teilen=Du wohnst in der Hans-Dewitz-Ring und das kostet 12,99 € – ein guter Preis für dich. || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Du wohnst im Hans-Dewitz-Ring und das kostet zwölf Euro neunundneunzig, ein guter Preis für dich.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "kontext_lokal sieht text der antwort | verlauf+2 letzter={\"reply\":\"Der Preis liegt bei 12,99 € – wirklich günstig, ganz ehrlich.\",\"actions\":[]} || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Der Preis liegt bei zwölf Euro neunundneunzig, wirklich günstig, ganz ehrlich.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "zwischenansage fish-engine | ack || CLOUD \"[playful] Einen Moment.\" engine=fish ; AUDIO neu blob:… ; AUDIO play rate=1",
+  "cloud fish mit spruch (zufall 0.01) | ret=undefined || TON erfolg ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; CLOUD \"[playful] 2 Termine eingetragen.\" engine=fish ; ABBRUCH ; TTS \"2 Termine eingetragen. Eingetragen. Jetzt musst du nur noch hingehen.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "cloud edge mit spruch (zufall 0.01) | ret=undefined || TON erfolg ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; CLOUD \"2 Termine eingetragen. Der Kalender ist beeindruckt von deiner Voraussicht.\"  ; ABBRUCH ; TTS \"2 Termine eingetragen. Der Kalender ist beeindruckt von deiner Voraussicht.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "browser mit spruch (zufall 0.01) | ret=undefined || TON erfolg ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"2 Termine eingetragen. Notiert. Ausreden gelten ab sofort nicht mehr.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "cloud edge: anfrage dann ersatzstimme | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; CLOUD \"Das kostet zwölf Euro neunundneunzig, ein günstiger Preis.\"  ; ABBRUCH ; TTS \"Das kostet zwölf Euro neunundneunzig, ein günstiger Preis.\" rate=1 lang=de-DE",
+  "cloud edge: zweimal gescheitert, dann ohne cloud | ret=undefined fail=2 || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; CLOUD \"Erste Antwort.\"  ; ABBRUCH ; TTS \"Erste Antwort.\" rate=1 lang=de-DE ; ABBRUCH ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; CLOUD \"Zweite Antwort.\"  ; ABBRUCH ; TTS \"Zweite Antwort.\" rate=1 lang=de-DE ; ABBRUCH ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Dritte Antwort.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "cloud fish: anfrage dann ersatzstimme | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; CLOUD \"[playful] Es ist einundzwanzig Uhr vierzig.\" engine=fish ; ABBRUCH ; TTS \"Es ist 21 Uhr 40. Das kostet zwei Euro achtzehn.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "cloud ok edge: audio statt stimme | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; CLOUD \"Cloud-Stimme klappt.\"  ; ANZEIGE setHudSubtitle() ; AUDIO neu blob:… ; AUDIO play rate=1",
+  "cloud ok fish: audio statt stimme | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; CLOUD \"[playful] Cloud-Stimme klappt.\" engine=fish ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT) ; ANZEIGE setHudSubtitle() ; AUDIO neu blob:… ; AUDIO play rate=1",
+  "zwischenansage browser | ack || TTS \"Einen Moment, Sir. Das kostet 2,5 Grad.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "zwischenansage unterdrueckt waehrend sprechen | ack unterdrückt, speaking=true || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Ich rede gerade.\" rate=1 lang=de-DE",
+  "zwischenansage + onComplete unterdrueckt | onComplete=1 || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Ich rede gerade.\" rate=1 lang=de-DE",
+  "antwort nach zwischenansage (wartet bis 2 s) | ret=undefined (Zwischenansage läuft, Stimme meldet speaking=true) || ABBRUCH ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Hier die eigentliche Antwort.\" rate=1 lang=de-DE @+2040ms ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "antwort ohne zwischenansage (wartet nicht) | ret=undefined || ABBRUCH ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Sofort sprechen.\" rate=1 lang=de-DE @+0ms ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)",
+  "neue ansage bricht laufende ab | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Erste lange Ansage.\" rate=1 lang=de-DE ; ABBRUCH ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Zweite Ansage.\" rate=1 lang=de-DE",
+  "nicht-text: undefined | FEHLER TypeError: Cannot read properties of undefined (reading 'replace') || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Na, Dino? Wie läuft dein Abend bisher?\" rate=1 lang=de-DE",
+  "nicht-text: zahl | FEHLER TypeError: text.replace is not a function || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...)",
+  "stimme wirft | FEHLER Error: Stimme kaputt (Attrappe) || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH",
+  "interruptSpeaking | spricht=false || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Lange Ansage.\" rate=1 lang=de-DE ; ABBRUCH ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+ ],
+ "reihenfolge": [
+  "voice.js@19",
+  "pronunciation.js@20",
+  "voicefix.js@21",
+  "speechrate.js@22",
+  "sprueche.js@111",
+  "toene.js@112",
+  "fish.js@114",
+  "kontext_lokal.js@126",
+  "teilen.js@146",
+  "mehrfach.js@149"
+ ],
+ "vertauschung": {
+  "voice.js <-> voicefix.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "strassen-grammatik",
+    "spruch wiederholt (zufall 0.01)",
+    "teilen merkt kurze nicht",
+    "teilen sieht text mit korrektur",
+    "cloud edge: zweimal gescheitert, dann ohne cloud",
+    "zwischenansage unterdrueckt waehrend sprechen",
+    "zwischenansage + onComplete unterdrueckt",
+    "antwort nach zwischenansage (wartet bis 2 s)",
+    "antwort ohne zwischenansage (wartet nicht)",
+    "neue ansage bricht laufende ab"
+   ],
+   "beispiel": "strassen-grammatik | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Du wohnst in der Hans-Dewitz-Ring und gehst in die Gartenweg.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+  },
+  "voice.js <-> sprueche.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "dezimalpreis tanken",
+    "strassen-grammatik",
+    "spruch wiederholt (zufall 0.01)",
+    "teilen merkt kurze nicht",
+    "kontext_lokal verlauf",
+    "teilen sieht text mit korrektur",
+    "cloud fish mit spruch (zufall 0.01)",
+    "cloud edge mit spruch (zufall 0.01)",
+    "browser mit spruch (zufall 0.01)",
+    "cloud edge: zweimal gescheitert, dann ohne cloud",
+    "zwischenansage unterdrueckt waehrend sprechen",
+    "zwischenansage + onComplete unterdrueckt",
+    "antwort nach zwischenansage (wartet bis 2 s)",
+    "antwort ohne zwischenansage (wartet nicht)",
+    "neue ansage bricht laufende ab"
+   ],
+   "beispiel": "dezimalpreis tanken | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Diesel kostet aktuell zwei Euro achtzehn bei Aral, das ist günstig.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+  },
+  "voice.js <-> toene.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "dezimalpreis tanken",
+    "strassen-grammatik",
+    "ton fehler",
+    "ton warnung",
+    "spruch (zufall 0.01)",
+    "spruch wiederholt (zufall 0.01)",
+    "teilen merkt kurze nicht",
+    "kontext_lokal verlauf",
+    "teilen sieht text mit korrektur",
+    "cloud fish mit spruch (zufall 0.01)",
+    "cloud edge mit spruch (zufall 0.01)",
+    "browser mit spruch (zufall 0.01)",
+    "cloud edge: zweimal gescheitert, dann ohne cloud",
+    "zwischenansage unterdrueckt waehrend sprechen",
+    "zwischenansage + onComplete unterdrueckt",
+    "antwort nach zwischenansage (wartet bis 2 s)",
+    "antwort ohne zwischenansage (wartet nicht)",
+    "neue ansage bricht laufende ab"
+   ],
+   "beispiel": "dezimalpreis tanken | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Diesel kostet aktuell zwei Euro achtzehn bei Aral, das ist günstig.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+  },
+  "voice.js <-> fish.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "preis+gedankenstrich",
+    "dezimalpreis tanken",
+    "strassen-grammatik",
+    "ton fehler",
+    "ton warnung",
+    "spruch (zufall 0.01)",
+    "spruch wiederholt (zufall 0.01)",
+    "teilen merkt kurze nicht",
+    "kontext_lokal verlauf",
+    "teilen sieht text mit korrektur",
+    "kontext_lokal sieht text der antwort",
+    "zwischenansage fish-engine",
+    "cloud fish mit spruch (zufall 0.01)",
+    "cloud edge mit spruch (zufall 0.01)",
+    "browser mit spruch (zufall 0.01)",
+    "cloud edge: anfrage dann ersatzstimme",
+    "cloud edge: zweimal gescheitert, dann ohne cloud",
+    "cloud fish: anfrage dann ersatzstimme",
+    "cloud ok fish: audio statt stimme",
+    "zwischenansage unterdrueckt waehrend sprechen",
+    "zwischenansage + onComplete unterdrueckt",
+    "antwort nach zwischenansage (wartet bis 2 s)",
+    "antwort ohne zwischenansage (wartet nicht)",
+    "neue ansage bricht laufende ab"
+   ],
+   "beispiel": "preis+gedankenstrich | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Das kostet 12,99 € – ein günstiger Preis\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+  },
+  "voice.js <-> kontext_lokal.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "preis+gedankenstrich",
+    "dezimalpreis tanken",
+    "strassen-grammatik",
+    "ton fehler",
+    "ton warnung",
+    "spruch (zufall 0.01)",
+    "spruch wiederholt (zufall 0.01)",
+    "teilen merkt kurze nicht",
+    "kontext_lokal verlauf",
+    "teilen sieht text mit korrektur",
+    "kontext_lokal sieht text der antwort",
+    "zwischenansage fish-engine",
+    "cloud fish mit spruch (zufall 0.01)",
+    "cloud edge mit spruch (zufall 0.01)",
+    "browser mit spruch (zufall 0.01)",
+    "cloud edge: anfrage dann ersatzstimme",
+    "cloud edge: zweimal gescheitert, dann ohne cloud",
+    "cloud fish: anfrage dann ersatzstimme",
+    "cloud ok fish: audio statt stimme",
+    "zwischenansage unterdrueckt waehrend sprechen",
+    "zwischenansage + onComplete unterdrueckt",
+    "antwort nach zwischenansage (wartet bis 2 s)",
+    "antwort ohne zwischenansage (wartet nicht)",
+    "neue ansage bricht laufende ab"
+   ],
+   "beispiel": "preis+gedankenstrich | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Das kostet 12,99 € – ein günstiger Preis\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+  },
+  "voice.js <-> teilen.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "preis+gedankenstrich",
+    "dezimalpreis tanken",
+    "strassen-grammatik",
+    "ton fehler",
+    "ton warnung",
+    "spruch (zufall 0.01)",
+    "spruch wiederholt (zufall 0.01)",
+    "teilen merkt lange antwort",
+    "teilen merkt kurze nicht",
+    "kontext_lokal verlauf",
+    "teilen sieht text mit korrektur",
+    "kontext_lokal sieht text der antwort",
+    "zwischenansage fish-engine",
+    "cloud fish mit spruch (zufall 0.01)",
+    "cloud edge mit spruch (zufall 0.01)",
+    "browser mit spruch (zufall 0.01)",
+    "cloud edge: anfrage dann ersatzstimme",
+    "cloud edge: zweimal gescheitert, dann ohne cloud",
+    "cloud fish: anfrage dann ersatzstimme",
+    "cloud ok fish: audio statt stimme",
+    "zwischenansage unterdrueckt waehrend sprechen",
+    "zwischenansage + onComplete unterdrueckt",
+    "antwort nach zwischenansage (wartet bis 2 s)",
+    "antwort ohne zwischenansage (wartet nicht)",
+    "neue ansage bricht laufende ab"
+   ],
+   "beispiel": "preis+gedankenstrich | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Das kostet 12,99 € – ein günstiger Preis\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+  },
+  "voicefix.js <-> sprueche.js": {
+   "ergebnis": "identisch",
+   "ladefehler": [],
+   "geaendert": [],
+   "beispiel": ""
+  },
+  "voicefix.js <-> toene.js": {
+   "ergebnis": "identisch",
+   "ladefehler": [],
+   "geaendert": [],
+   "beispiel": ""
+  },
+  "voicefix.js <-> fish.js": {
+   "ergebnis": "identisch",
+   "ladefehler": [],
+   "geaendert": [],
+   "beispiel": ""
+  },
+  "voicefix.js <-> kontext_lokal.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "kontext_lokal verlauf",
+    "kontext_lokal sieht text der antwort"
+   ],
+   "beispiel": "kontext_lokal verlauf | verlauf+0 || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"In Tokio ist es jetzt 18 Uhr 01. Das sind 8 Stunden mehr als bei dir. Falls du jemanden anrufen willst: vorher rechnen, nicht hinterher entschuldigen.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+  },
+  "voicefix.js <-> teilen.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "teilen sieht text mit korrektur"
+   ],
+   "beispiel": "teilen sieht text mit korrektur | teilen=Du wohnst im Hans-Dewitz-Ring und das kostet 12,99 €, ein guter Preis für dich. || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Du wohnst im Hans-Dewitz-Ring und das kostet zwölf Euro neunundneunzig, ein guter Preis für dich.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+  },
+  "sprueche.js <-> toene.js": {
+   "ergebnis": "identisch",
+   "ladefehler": [],
+   "geaendert": [],
+   "beispiel": ""
+  },
+  "sprueche.js <-> fish.js": {
+   "ergebnis": "identisch",
+   "ladefehler": [],
+   "geaendert": [],
+   "beispiel": ""
+  },
+  "sprueche.js <-> kontext_lokal.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "kontext_lokal verlauf",
+    "kontext_lokal sieht text der antwort"
+   ],
+   "beispiel": "kontext_lokal verlauf | verlauf+2 letzter={\"reply\":\"In Tokio ist es jetzt 18 Uhr 01. Das sind 8 Stunden mehr als bei dir.  || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"In Tokio ist es jetzt 18 Uhr 01. Das sind 8 Stunden mehr als bei dir. Falls du jemanden anrufen willst: vorher rechnen, nicht hinterher entschuldigen.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIG"
+  },
+  "sprueche.js <-> teilen.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "kontext_lokal verlauf",
+    "teilen sieht text mit korrektur"
+   ],
+   "beispiel": "kontext_lokal verlauf | verlauf+2 letzter={\"reply\":\"In Tokio ist es jetzt 18 Uhr 01. Das sind 8 Stunden mehr als bei dir.  || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"In Tokio ist es jetzt 18 Uhr 01. Das sind 8 Stunden mehr als bei dir. Falls du jemanden anrufen willst: vorher rechnen, nicht hinterher entschuldigen.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIG"
+  },
+  "toene.js <-> fish.js": {
+   "ergebnis": "identisch",
+   "ladefehler": [],
+   "geaendert": [],
+   "beispiel": ""
+  },
+  "toene.js <-> kontext_lokal.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "kontext_lokal sieht text der antwort"
+   ],
+   "beispiel": "kontext_lokal sieht text der antwort | verlauf+2 letzter={\"reply\":\"Der Preis liegt bei 12,99 €, wirklich günstig, ganz ehrlich.\",\"actions\":[]} || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Der Preis liegt bei zwölf Euro neunundneunzig, wirklich günstig, ganz ehrlich.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+  },
+  "toene.js <-> teilen.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "teilen sieht text mit korrektur"
+   ],
+   "beispiel": "teilen sieht text mit korrektur | teilen=Du wohnst in der Hans-Dewitz-Ring und das kostet 12,99 €, ein guter Preis für dich. || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Du wohnst im Hans-Dewitz-Ring und das kostet zwölf Euro neunundneunzig, ein guter Preis für dich.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+  },
+  "fish.js <-> kontext_lokal.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "kontext_lokal sieht text der antwort"
+   ],
+   "beispiel": "kontext_lokal sieht text der antwort | verlauf+2 letzter={\"reply\":\"Der Preis liegt bei 12,99 €, wirklich günstig, ganz ehrlich.\",\"actions\":[]} || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Der Preis liegt bei zwölf Euro neunundneunzig, wirklich günstig, ganz ehrlich.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+  },
+  "fish.js <-> teilen.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "teilen sieht text mit korrektur",
+    "kontext_lokal sieht text der antwort"
+   ],
+   "beispiel": "teilen sieht text mit korrektur | teilen=Du wohnst in der Hans-Dewitz-Ring und das kostet 12,99 €, ein guter Preis für dich. || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Du wohnst im Hans-Dewitz-Ring und das kostet zwölf Euro neunundneunzig, ein guter Preis für dich.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+  },
+  "kontext_lokal.js <-> teilen.js": {
+   "ergebnis": "identisch",
+   "ladefehler": [],
+   "geaendert": [],
+   "beispiel": ""
+  },
+  "pronunciation.js <-> voicefix.js": {
+   "ergebnis": "identisch",
+   "ladefehler": [],
+   "geaendert": [],
+   "beispiel": ""
+  },
+  "pronunciation.js <-> fish.js": {
+   "ergebnis": "identisch",
+   "ladefehler": [],
+   "geaendert": [],
+   "beispiel": ""
+  },
+  "pronunciation.js <-> voice.js": {
+   "ergebnis": "identisch",
+   "ladefehler": [],
+   "geaendert": [],
+   "beispiel": ""
+  },
+  "speechrate.js <-> voicefix.js": {
+   "ergebnis": "identisch",
+   "ladefehler": [],
+   "geaendert": [],
+   "beispiel": ""
+  },
+  "speechrate.js <-> fish.js": {
+   "ergebnis": "identisch",
+   "ladefehler": [],
+   "geaendert": [],
+   "beispiel": ""
+  },
+  "speechrate.js <-> voice.js": {
+   "ergebnis": "verändert",
+   "ladefehler": [],
+   "geaendert": [
+    "strassen-grammatik",
+    "spruch wiederholt (zufall 0.01)",
+    "teilen merkt kurze nicht",
+    "teilen sieht text mit korrektur",
+    "cloud edge: zweimal gescheitert, dann ohne cloud",
+    "zwischenansage unterdrueckt waehrend sprechen",
+    "zwischenansage + onComplete unterdrueckt",
+    "antwort nach zwischenansage (wartet bis 2 s)",
+    "antwort ohne zwischenansage (wartet nicht)",
+    "neue ansage bricht laufende ab"
+   ],
+   "beispiel": "strassen-grammatik | ret=undefined || ANZEIGE updateTerminalStream(AUDIO_OUT: TRANSMITTING...) ; ABBRUCH ; TTS \"Du wohnst in der Hans-Dewitz-Ring und gehst in die Gartenweg.\" rate=1 lang=de-DE ; ANZEIGE setIdleUi() ; ANZEIGE updateTerminalStream(SYS_IDLE: AWAITING_INPUT)"
+  },
+  "pronunciation.js <-> speechrate.js": {
+   "ergebnis": "identisch",
+   "ladefehler": [],
+   "geaendert": [],
+   "beispiel": ""
+  }
+ },
+ "mehrfach": {
+  "erfolg (echte Teilfragen)": {
+   "speakDanachGleich": true,
+   "speakDanachIstAndere": false,
+   "ret": true,
+   "fenster": [
+    "speak ersetzt=true",
+    "speak ersetzt=true"
+   ],
+   "ereignisse": [
+    "ABBRUCH",
+    "TTS \"Der nächste Vollmond ist am Dienstag, 24. November, also in 27 Tagen. Wetter konnte ich gerade nicht laden.\" rate=1 lang=de-DE"
+   ]
+  },
+  "fehler im Fenster (nur wirft)": {
+   "speakDanachGleich": true,
+   "speakDanachIstAndere": false,
+   "ret": false,
+   "fenster": [
+    "speak ersetzt=true",
+    "speak ersetzt=true"
+   ],
+   "ereignisse": []
+  },
+  "später Sprecher (setTimeout im Fenster)": {
+   "speakDanachGleich": true,
+   "speakDanachIstAndere": false,
+   "ret": true,
+   "fenster": [
+    "speak ersetzt=true",
+    "speak ersetzt=true"
+   ],
+   "ereignisse": [
+    "ABBRUCH",
+    "TTS \"sofort gesagt sofort gesagt\" rate=1 lang=de-DE",
+    "ABBRUCH",
+    "ABBRUCH",
+    "TTS \"Später Sprecher meldet sich.\" rate=1 lang=de-DE",
+    "ABBRUCH",
+    "ABBRUCH",
+    "TTS \"Später Sprecher meldet sich.\" rate=1 lang=de-DE"
+   ]
+  },
+  "nur gibt Promise zurück": {
+   "speakDanachGleich": true,
+   "speakDanachIstAndere": false,
+   "ret": true,
+   "fenster": [
+    "speak ersetzt=true",
+    "speak ersetzt=true"
+   ],
+   "ereignisse": [
+    "ABBRUCH",
+    "TTS \"Dazu konnte ich gerade nichts ermitteln.\" rate=1 lang=de-DE"
+   ]
+  },
+  "fremder Austausch im Fenster": {
+   "speakDanachGleich": true,
+   "speakDanachIstAndere": false,
+   "ret": true,
+   "fenster": [
+    "speak ersetzt=true",
+    "speak ersetzt=true"
+   ],
+   "ereignisse": [
+    "ABBRUCH",
+    "TTS \"Dazu konnte ich gerade nichts ermitteln.\" rate=1 lang=de-DE"
+   ]
+  }
+ }
+}
