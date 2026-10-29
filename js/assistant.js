@@ -81,6 +81,17 @@ async function sendToGroqSmart(text, opts = {}) {
     }
 }
 
+/* Die KOPIE des Nutzertextes für die KI-Nachricht (Phase 5D.2): läuft durch die Kette jvKiText (commands.js; Festnamen u. a.). Der Originaltext
+   bleibt überall sonst maßgeblich (Chat-Verlauf, jvLetzterText, Aktionen, Gedächtnis, Kalender, Erinnerungen). Jeder Fehler oder ein ungültiges
+   Ergebnis ergibt den unveränderten Text: eine optionale Schreibkorrektur lässt nie eine Anfrage ausfallen. */
+function jvKiTextFuer(text) {
+    try {
+        if (typeof text !== 'string' || typeof window.jvKiText !== 'function') return text;
+        const r = window.jvKiText(text);
+        return (typeof r === 'string' && r.trim()) ? r : text;
+    } catch (e) { return text; }
+}
+
 async function sendToGroqSmartCore(text, opts = {}) {
     window.jvLetzterText = text;   // für das Zurückfragen (rueckfrage.js): der Satz, der nach der Antwort noch einmal ausgeführt wird
     isProcessing = true;
@@ -183,11 +194,15 @@ async function sendToGroqSmartCore(text, opts = {}) {
     const systemPrompt = buildSystemPrompt(text, contextData, nowGermanIso);
     try { if (typeof diagPromptSize === 'function') diagPromptSize(systemPrompt); } catch (e) {}
 
-    chatHistory.push({ role: "user", content: text });
+    // Der Chat-Verlauf behält den ORIGINALtext; die KI bekommt (falls ein Normalisierer etwas korrigiert hat) die Kopie, auch bei späteren Anfragen im Verlauf.
+    const nutzerNachricht = { role: "user", content: text };
+    const kiText = jvKiTextFuer(text);
+    if (kiText !== text) Object.defineProperty(nutzerNachricht, 'jvKi', { value: kiText });   // nicht aufzählbar: erscheint in keinem Speicherabzug
+    chatHistory.push(nutzerNachricht);
 
     let messagesPayload = [
         { role: "system", content: systemPrompt },
-        ...chatHistory.slice(-16)
+        ...chatHistory.slice(-16).map(m => (m && typeof m.jvKi === 'string') ? { role: m.role, content: m.jvKi } : m)
     ];
 
     typeWriterStatus("Formuliere die Antwort...");

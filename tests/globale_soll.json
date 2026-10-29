@@ -324,7 +324,7 @@
   "fenster: ferien.js <-> karte_zu.js": "verändert in panels: openPanel(\"einstellungen\") => false | Schließer [\"closeUeberblick\",\"cl…  =>  openPanel(\"einstellungen\") => false | Schließer [\"closeFerienkalender\"…",
   "fenster: tagesueberblick.js <-> karte_zu.js": "identisch",
   "sonder: langzeit.js NACH assistant.js (searchSemanticMemory)": "identisch",
-  "sonder: festnamen.js + hoerkorrektur.js NACH assistant.js (sendToGroqSmart)": "verändert in groq: Fahr zum Neu Galina Ring => Kern bekommt: [\"Fahr zum Neu Galina Ring\"]…  =>  Fahr zum Neu Galina Ring => Kern bekommt: [\"Fahr zum Neu-Galliner-Ring…",
+  "sonder: festnamen.js + hoerkorrektur.js NACH assistant.js (sendToGroqSmart)": "identisch",
   "sonder: synapsen.js <-> weathermap.js (sendToGroqSmart: DCL- gegen load-Hülle)": "identisch | Protokoll gleich"
  },
  "promptZustaende": {
