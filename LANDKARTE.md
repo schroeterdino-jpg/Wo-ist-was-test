@@ -51,6 +51,7 @@ Alle Skripte sind klassische, synchrone `<script>`-Tags in `index.html` (kein de
 - **KI-Aktionen**: `aktionen_kette.js` (`jvAktionen`, 8 benannte Hüllen mit Rang 10–80 um die Basis in `actions.js`).
 - **Prompt**: `jvChain` (`buildSystemPrompt`, `buildMenuPanel`).
 - **Sonderfall `native_speech.js`**: liegt in `index.html` vor `commands.js` und wartet deshalb per Wiederholung (40 × 250 ms, gibt dann still auf).
+- **Noch implizite globale Hüllen (Stand Phase 5A, nur gemessen, nicht umgebaut)**: `buildSystemPrompt` (neben `jvChain` fünf direkte Hüllen: contextplus, fish, worldqueryfix, gedaechtnis, name; ROT), `searchSemanticMemory`/`jvFristHinweis` (die Suche aus `langzeit.js` geht beim Laden von `assistant.js` verloren; ROT, erst Entscheidung), `handleLocalCommand` (vier äußere Hüllen neben `jvCommands`; GELB), `sendToGroqSmart` (synapsen, weathermap; `festnamen`/`hoerkorrektur` greifen nie; GELB), Fenster `openPanel`/`closePanel`/`isPanelOpen` (GELB). Beschreibung: `tests/globale-ist-zustand.md`, Sicherheitsnetz: `tests/globale.js`.
 - **Neue Skripte**: in `index.html` ohne `?v=` einhängen, dann `node tools/stempel.js`. Nie Stempel von Hand ändern.
 
 ## 3. Hintergrundarbeit (Timer)

@@ -428,3 +428,9 @@ Stand: eingebaut und **aktiv: `jvRegeln.scharf === true`** (in `js/meldungs_rege
 
 ### C1-Tests unabhängig vom ausgelieferten Schalter
 Jede Test-Welt (`starte` in `tests/umgebung.js`, `laufen` in `tests/meldungen_welt.js`) setzt `jvRegeln.scharf` ausdrücklich: Standard aus, mit Option `scharf: true` an. Jede Welt ist ein frischer Kontext, ein Zustand kann nicht in den nächsten Test durchsickern. Der Produktwert ist für die Tests egal; geprüft ist, dass die komplette Suite mit `scharf: false` **und** mit probeweise `scharf: true` im Produktcode grün ist. `A.dokListener` erlaubt Tests, Tippen/Touch der Seite auszulösen.
+
+## Phase 5A: Bestandsaufnahme der übrigen globalen Hüllen (nur Analyse und Sicherheitsnetz)
+Nach Foto-Kette (Phase 3) und Speak-Kette (Phase 4B) wurden alle übrigen globalen Ersetzungen neu gemessen (138 Ersetzungen, 61 Namen). Kein Produktcode geändert. Ergebnis, Ampel und empfohlene Reihenfolge: `tests/globale-ist-zustand.md`. Sicherheitsnetz: `node tests/globale.js` (Soll `tests/globale_soll.json`).
+- ROT: `buildSystemPrompt` (zwei Architekturen parallel, Ergebnis hängt von Ladereihenfolge und vom Zeitpunkt des 0-ms-Zeitgebers in `contextplus.js` ab); `searchSemanticMemory` (die Suche aus `langzeit.js` wird beim Laden von `assistant.js` überschrieben, nie aktiv).
+- GELB: `handleLocalCommand`, `sendToGroqSmart` (`festnamen.js`/`hoerkorrektur.js` greifen nie), Fenster-Hüllen, Wiederholungskonstruktionen.
+- Empfohlen als Nächstes: `buildSystemPrompt` in die vorhandene `jvChain` überführen (Phase 5B).

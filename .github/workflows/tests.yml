@@ -29,3 +29,4 @@ jobs:
       - run: node tests/timer.js
       - run: node tests/landkarte.js
       - run: node tests/sprache.js
+      - run: node tests/globale.js
