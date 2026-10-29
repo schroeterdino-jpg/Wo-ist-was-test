@@ -2,7 +2,8 @@
 
 Rein technische Dokumentation für Entwickler und KI-Einstieg. Sie erzeugt keine Produktlogik und wird von keinem Skript der App gelesen.
 Stand: 29.10.2026 (Phase 8B, 169 Produktdateien in `js/`). Gehört zu `ARCHITEKTUR.md` (Überblick) und ist von `faehigkeiten.js` (Produktfunktion Hilfe/Mehrfachfragen) bewusst getrennt.
-Von einer Fähigkeit (`faehigkeiten.js`) zu den Dateien: die Fähigkeit nennt nur ihre Kerndateien; die übrigen Dateien des Bereichs stehen in der Tabelle unten (Spalte „Abhängigkeiten“) und in der Bereichsliste (Teil 4). Offene technische Punkte: `ARCHITEKTUR.md`, Abschnitt „Bekannte offene technische Punkte“.
+Von einer Fähigkeit (`faehigkeiten.js`) zu den Dateien: die Fähigkeit nennt nur ihre Kerndateien; die übrigen Dateien des Bereichs stehen in der Tabelle unten (Spalte „Abhängigkeiten“) und in der Bereichsliste (Teil 4). Das Fähigkeiten-Verzeichnis ist keine vollständige Funktionsliste und keine Liste aller Produktdateien (Einzelheiten: `ARCHITEKTUR.md`, Abschnitt „Fähigkeiten-Verzeichnis (B1)“). Offene technische Punkte: `ARCHITEKTUR.md`, Abschnitt „Bekannte offene technische Punkte“.
+Ergänzt durch die Fresh-AI-Nachbesserung: Anleitungen zum Erweitern (neuer Sprachbefehl, neue speak-Stufe), Java→JS-Rückrufe der APK, bekannte Gleichrang-Gruppen und die Test-Übersicht (Bereich → Tests): `ARCHITEKTUR.md`, Abschnitte „Rezepte und Nachschlagen für neue Entwickler“.
 Ein Test (`tests/landkarte.js`) prüft, dass jede Datei in `js/` genau einem Bereich zugeordnet ist und alle hier genannten Dateien existieren.
 
 Schreibweise: `jv…` = Globals im Browser, `[APK]` = `weckruf-src/`. Zeilennummern fehlen absichtlich (veralten schnell); mit `grep -n` suchen.
@@ -33,10 +34,11 @@ Schreibweise: `jv…` = Globals im Browser, `[APK]` = `weckruf-src/`. Zeilennumm
 | Proaktive Meldungen | wachter.js, proaktiv.js, dirigent.js, zane_redet.js, kennenlernen.js, vorbereitung.js, routinen.js | api/sync.js (Push), auftraege.js (Abholen), meldungen.js |
 | C1 | meldungen.js (Beobachter), meldungs_regeln.js (`jvRegeln.scharf`), ruhe.js | zane_redet.js + kennenlernen.js (`c1Darf`), tests/c1_stufe1.js, tests/regeln.js |
 | KI-Anfragen | assistant.js (`sendToGroqSmart`, Zeile 31), prompt.js | api/groq.js, persona/jarvis/charakter/laune/ki_mitdenken/contextplus/fehlerort, jvChain (11), Kette jvKiText (KI-Kopie des Nutzertextes, Phase 5D.2) |
+| Hilfe / „Was kannst du?“ / Fähigkeitenübersicht | help.js (`parseHelpRequest`, `handleHelpCommand`, `showHelpOverview`); aufgerufen als feste Zeile in `handleLocalCommandInner` in localcommands.js (Basisstufe, innerhalb aller `jvCommands`-Einträge); **aktuell kein eigener `jvCommands`-Rang** | faehigkeiten.js (liefert die Karten über `helpFaehigkeitKarten`/`showFaehigkeitHelp`), einfuehrung.js (liest `HELP_TOPICS`), anleitung.js (Tour verweist auf Hilfe-Gruppen), alleinstellung.js (eigener Befehl für „besser/anders“), tests/faehigkeiten.js |
 | KI-Aktionen | actions.js, aktionen_kette.js (8 Hüllen) | faehigkeiten.js, antwort_bau.js, tests/aktionen*.js |
 | Löschen/Bestätigen | loeschen_fragen.js (Rang 10, außen), rueckfrage.js | actions.js, loesch_notiz.js |
-| Android-Bridge | [APK] ZaneBridge.java (55 `@JavascriptInterface`), MainActivity.java | native_speech.js + 14 weitere JS-Dateien mit `ZaneNative`, tests/handyapp.js, faehigkeiten.js (`nurHandyApp`) |
-| Befehl wird nicht erkannt | commands.js (`jvCommands.list()`) → Rang der betroffenen Datei, dann die 5 Außen-Wrapper (D.3) | localcommands.js (Basis), mehrfach.js (trennt Sätze) |
+| Android-Bridge | [APK] ZaneBridge.java (55 `@JavascriptInterface`), MainActivity.java | native_speech.js + 22 weitere JS-Dateien mit Code-Zugriff auf `ZaneNative` (Stand 44c6c7e, ohne Kommentare und Texte gezählt; `faehigkeiten.js` nennt den Namen nur in Beschreibungstexten), tests/handyapp.js, faehigkeiten.js (`nurHandyApp`). **Java ruft auch JS auf** (`evaluateJavascript`): Liste der Rückrufziele in `ARCHITEKTUR.md`, Abschnitt „Android: Java ruft JS“, vor dem Löschen einer scheinbar unbenutzten JS-Funktion lesen |
+| Befehl wird nicht erkannt | commands.js (`jvCommands.list()`) → Rang der betroffenen Datei, dann die alten Außen-Wrapper um `handleLocalCommand` (5 im Code, 4 aktiv; Abschnitt 2, Punkt „Befehle“) | localcommands.js (Basis), mehrfach.js (trennt Sätze) |
 | Reihenfolge-/Ladefehler | index.html (Position), tools/stempel.js, tests/lauf.js | Aufbau-Tests (Syntax, jede Datei eingebunden) |
 
 ## 2. Reihenfolge ist Teil des Verhaltens (implizite Ketten)
