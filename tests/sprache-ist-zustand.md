@@ -2,6 +2,15 @@
 
 Referenz: `main` bei `0df3afb` (nach Phase 3). Kein Produktcode wurde geändert. Das Sicherheitsnetz ist `tests/sprache.js` mit dem Soll in `tests/sprache_soll.json` (Neu schreiben: `node tests/sprache.js --schreiben`, Gegenproben erklären: `node tests/sprache.js --details`).
 
+## Phase 4B (Nachtrag): die Speak-Kette ist jetzt explizit
+
+Seit Phase 4B (`js/speak_kette.js`, `window.jvSpeakKette`) ist die Reihenfolge der **sechs** dauerhaften `speak`-Hüllen ein Rang, nicht mehr die Ladereihenfolge: `teilen` 10 → `kontext_lokal` 20 → `fish._dash` 30 → `toene` 40 → `sprueche` 50 → `voicefix.speak` 60 → Basis `voice.js`. Die Tabelle und die Beschreibung unten beschreiben den Zustand VOR Phase 4B (Beweis, warum die Ränge so gewählt wurden). Der Golden Master (G1–G10) ist unverändert geblieben; geändert wurden nur die Matrix und die Gegenproben A/A2:
+- **Matrix `matrix`** (alte Messart: ganze Dateien an die Stelle der anderen setzen, 36 Paare) bleibt, mit neuen Ist-Werten. Alle früheren Unterschiede der sechs Speak-Stufen untereinander (sprueche↔toene/fish/kontext_lokal/teilen, fish↔teilen, toene↔teilen, voicefix↔toene/fish) sind jetzt identisch. Übrig sind nur Fälle, in denen eine Datei vor ihre NICHT-Speak-Voraussetzungen (`commands.js`) rutscht: voicefix↔kontext_lokal/teilen/mehrfach (G6/G7) und pronunciation/speechrate↔teilen (G6). Das ist keine Speak-Reihenfolge; die Fälle mit pronunciation/speechrate gehören nicht zur Sechser-Kette und bleiben unverändert (nur dokumentiert).
+- **Matrix `matrix_sechs`** (neu, der eigentliche Beweis von Phase 4B): die sechs Dateien werden nur im sicheren Ladebereich permutiert (die Plätze von sprueche/toene/fish/kontext_lokal/teilen, nach `commands.js`, plus ein sechster Platz vor `mehrfach.js` für voicefix). Grundordnung, alle 15 Paare, umgekehrt und 4 gemischte Reihenfolgen: überall **identisch**. Warum nach `commands.js`: sprueche (`jvChain`), kontext_lokal, teilen, mehrfach (`jvCommands`) brauchen `commands.js` beim Laden, toene `audio.js`, fish und voicefix `voice.js` (`speakAck`, `getTtsEngine`, `startThinkingSound`).
+- **Gegenproben A/A2** sind umgedreht: die Vertauschung fish↔teilen bzw. sprueche↔toene im sicheren Bereich darf NICHTS mehr ändern. Neu A3/A4: ein anderer **Rang** (teilen 55, sprueche 35) ändert das Verhalten sehr wohl.
+- **Neu: Kettenprüfungen** (Normalstart ohne Fehler und ohne Sprache, ungültige Anmeldungen, fehlende Stufe je Datei → genau ein Fehler für die Fehleranzeige, `voice.js` fehlt, `mehrfach.js`-Fang). `tests/reihenfolge.js`: die vier speak-Gegenproben (die früher eine Änderung der speak-Wirkung verlangten) sind zu Gleichproben geworden; nur das Ladeprotokoll ändert sich noch. Kein fachlicher Sollwert wurde angepasst.
+
+
 ## 1. Die ganze Kette, außen → innen
 
 Aufrufer rufen `speak(text, onComplete, langCode)` auf. Außen → innen läuft heute:
@@ -169,7 +178,7 @@ Der Aufzeichner sitzt ganz unten (Handy-Stimme, Audio, Netz, Töne, Anzeige-Funk
 | G8 | Fehlerverhalten: `undefined`/`null`/Zahl, Handy-Stimme wirft, Ton-Funktion fehlt, `sassLevel` wirft |
 | G9 | APK: Weckwort (Handy/Fish), `speak` mit Brücke, Weckwort während Jarvis spricht |
 | G10 | Tempo 0,5 / 0,8 / 1 / 1,3 / 1,4 / 3 |
-| M | Vertauschungs-Matrix mit 36 Paaren |
+| M | Vertauschungs-Matrix mit 36 Paaren (alte Messart) + `matrix_sechs` (Phase 4B, sicherer Bereich) |
 | A–E | 26 Gegenproben (Details mit `--details`) |
 
 Nicht messbar in der Test-Umgebung: echte Hörbarkeit, echte Cloud-Stimmen, echte DOM-Elemente (nur über die Anzeige-Funktionen), die Java-Seite der APK.

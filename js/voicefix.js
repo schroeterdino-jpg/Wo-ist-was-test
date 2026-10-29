@@ -48,9 +48,9 @@ function fixStreetGrammar(text) {
         check();
     }
 
-    if (typeof speak === 'function') {
-        const origSpeak = speak;
-
+    // Phase 4B: Stufe 60 (ganz innen, direkt vor voice.js) der Speak-Kette (js/speak_kette.js);
+    // "origSpeak" ist die nächste Stufe weiter innen. Nur dieser Speak-Wrapper ist in der Kette, speakAck etc. bleiben unten wie bisher.
+    window.jvSpeakKette.anmelden('voicefix.speak', 60, function (origSpeak) {
         /* Spricht wirklich: erst jede noch laufende Stimme beenden, dann die Original-Funktion aus voice.js aufrufen */
         const runSpeak = function (self, text, onComplete, langCode) {
             try {
@@ -69,7 +69,7 @@ function fixStreetGrammar(text) {
             return origSpeak.call(self, text, onComplete, langCode);
         };
 
-        speak = function (text, onComplete, langCode) {
+        return function (text, onComplete, langCode) {
             if (typeof text === 'string') text = fixStreetGrammar(text);
             if (ackIsPlaying()) {
                 // Zwischenansage ausreden lassen (höchstens 2 Sekunden), dann antworten - in jedem Fall, auch wenn sie hängen sollte
@@ -79,7 +79,7 @@ function fixStreetGrammar(text) {
             }
             return runSpeak(this, text, onComplete, langCode);
         };
-    }
+    });
     /* Das Brummen beim Nachdenken ist abgeschaltet: startThinkingSound() (audio.js) macht jetzt nichts mehr.
        stopThinkingSound() bleibt unverändert und ist ungefährlich, wenn nie etwas gestartet wurde. */
     try {

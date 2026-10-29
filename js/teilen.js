@@ -27,19 +27,16 @@
     }
 
     /* Jede längere Antwort von Jarvis merken (kurze Bestätigungen wie "Okay." nicht) */
-    if (typeof window.speak === 'function' && !window.speak._teilen) {
-        const orig = window.speak;
-        const wrapped = function (text) {
+    // Phase 4B: Stufe 10 (ganz außen) der Speak-Kette (js/speak_kette.js); "orig" ist die nächste Stufe weiter innen
+    window.jvSpeakKette.anmelden('teilen', 10, function (orig) {
+        return function (text) {
             try {
                 const t = String(text == null ? '' : text).trim();
                 if (!eigenesSagen && t.length >= 40) { lastReply = t; lastAt = Date.now(); }
             } catch (e) { }
             return orig.apply(this, arguments);
         };
-        wrapped._teilen = true;
-        try { Object.keys(orig).forEach(k => { try { wrapped[k] = orig[k]; } catch (e) { } }); } catch (e) { }
-        window.speak = wrapped;
-    }
+    });
 
     function listeAlsText(titel, eintraege) {
         const zeilen = (eintraege || []).map(e => (e && e.text) ? '• ' + String(e.text).trim() : '').filter(Boolean);

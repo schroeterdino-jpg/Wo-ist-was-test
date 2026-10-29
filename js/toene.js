@@ -33,15 +33,13 @@
     }
 
     /* speak() umhüllen: Ton auslösen, Text und alles andere unverändert weitergeben */
-    if (typeof window.speak === 'function' && !window.speak._toene) {
-        const original = window.speak;
-        const wrapped = function (text, onComplete, langCode) {
+    // Phase 4B: Stufe 40 der Speak-Kette (js/speak_kette.js); "original" ist die nächste Stufe weiter innen
+    window.jvSpeakKette.anmelden('toene', 40, function (original) {
+        return function (text, onComplete, langCode) {
             try { if (!langCode && typeof getSoundEnabled === 'function' && getSoundEnabled()) { const k = toneFor(text); if (k) playTone(k); } } catch (e) {}
             return original.apply(this, arguments);
         };
-        wrapped._toene = true;
-        window.speak = wrapped;
-    }
+    });
 
     /* Einstellungen (Schalter und Lautstärke) mit der Seite verbinden */
     function pct(v) { return Math.round(v * 100) + ' %'; }
