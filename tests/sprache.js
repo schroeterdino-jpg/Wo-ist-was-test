@@ -409,6 +409,25 @@ function vergleiche(name, ist, soll) {
 /* ---------- Paar-Vertauschung ---------- */
 const WRAPPER = ['voicefix.js', 'pronunciation.js', 'speechrate.js', 'sprueche.js', 'toene.js', 'fish.js', 'kontext_lokal.js', 'teilen.js', 'mehrfach.js'];
 const tausche = (a, b) => l => { const x = l.indexOf(a), y = l.indexOf(b); if (x < 0 || y < 0) return l; l[x] = b; l[y] = a; return l; };
+
+/* Phase 4B: die sechs Speak-Dateien dürfen nur dort permutiert werden, wo ihre Nicht-Speak-Voraussetzungen schon geladen sind.
+   Sicherer Bereich = die Plätze von sprueche, toene, fish, kontext_lokal, teilen (alle NACH commands.js, localcommands.js, audio.js, voice.js) plus ein sechster Platz
+   direkt vor mehrfach.js für voicefix.js (voicefix.js selbst ist an jeder Stelle nach voice.js/audio.js unkritisch, bewiesen durch die Verschiebeprobe).
+   Begründung je Datei (nur außerhalb ihres Speak-Wrappers): sprueche -> jvChain (commands.js); toene -> audio.js (Töne, Einstellungen); fish -> voice.js (getTtsEngine, speakBrowser, speakAck);
+   kontext_lokal/teilen -> jvCommands (commands.js); voicefix -> speakAck/startThinkingSound (voice.js, audio.js). Der gemeinsame sichere Bereich beginnt deshalb nach commands.js (Zeile 795 in index.html). */
+const SICHER_PLAETZE = ['sprueche.js', 'toene.js', 'fish.js', 'kontext_lokal.js', 'teilen.js', 'voicefix.js'];
+const sicher = reihe => l => {
+    const iv = l.indexOf('voicefix.js'); if (iv >= 0) l.splice(iv, 1);
+    const p = SICHER_PLAETZE.slice(0, 5).map(n => l.indexOf(n));
+    const m = l.indexOf('mehrfach.js');
+    if (m < 0 || p.some(x => x < 0)) return l;
+    l.splice(m, 0, 'voicefix.js');
+    const pos = p.concat([m]);
+    reihe.forEach((n, i) => { l[pos[i]] = n; });
+    return l;
+};
+const vertausche = (reihe, x, y) => { const r = reihe.slice(), i = r.indexOf(x), j = r.indexOf(y); r[i] = y; r[j] = x; return r; };
+function mischenReihe(liste, saat) { const l = liste.slice(); let z = saat; for (let i = l.length - 1; i > 0; i--) { z = (z * 1103515245 + 12345) % 2147483648; const j = z % (i + 1); const t = l[i]; l[i] = l[j]; l[j] = t; } return l; }
 async function messeKern(extra) {   // verkürzte Messung (wenige Welten), berührt trotzdem alle Stufen: Handy, Fish, Zufall 0, Zwischenansage, Wiederholungsregeln, Teilen/Kontext, Fang
     EXTRA = extra || {};
     const g = {};
@@ -482,6 +501,24 @@ async function kompakt(extra) {   // flach
         for (const k of Object.keys(ist.matrix)) check('Vertauschung ' + k + ' → ' + (sm[k] || '?').split(':')[0], ist.matrix[k] === sm[k], 'soll ' + sm[k] + ' | ist ' + ist.matrix[k]);
     }
 
+    /* M2. Phase 4B: Reihenfolge-Matrix der sechs Speak-Dateien im sicheren Ladebereich (alle 15 Paare, umgekehrt, gemischt) -> muss überall identisch sein */
+    ist.matrix_sechs = {};
+    const unterschiedStelle = (p, b) => { for (let k = 0; k < Math.max(p.length, b.length); k++) if (p[k] !== b[k]) return k; return -1; };
+    const messeSicher = async (name, reihe) => {
+        const p = await kompakt({ opt: { skriptReihenfolge: sicher(reihe) } });
+        const d = unterschiedStelle(p, basis);
+        ist.matrix_sechs[name] = d < 0 ? 'identisch' : 'verändert in ' + gruppenMitUnterschied(basis, p).join('+') + ': ' + kurz(basis[d], 70) + '  =>  ' + kurz(p[d], 70);
+    };
+    await messeSicher('Grundordnung (voicefix wandert an den sechsten Platz)', SICHER_PLAETZE);
+    for (let i = 0; i < SICHER_PLAETZE.length; i++) for (let j = i + 1; j < SICHER_PLAETZE.length; j++)
+        await messeSicher(SICHER_PLAETZE[i] + ' <-> ' + SICHER_PLAETZE[j], vertausche(SICHER_PLAETZE, SICHER_PLAETZE[i], SICHER_PLAETZE[j]));
+    await messeSicher('alle sechs umgekehrt', SICHER_PLAETZE.slice().reverse());
+    for (const saat of [1, 7, 42, 99]) await messeSicher('alle sechs gemischt (Saat ' + saat + ')', mischenReihe(SICHER_PLAETZE, saat));
+    if (SCHREIBEN) { fs.writeFileSync(SOLL_DATEI, JSON.stringify(ist, null, 1) + '\n'); }
+    else {
+        for (const k of Object.keys(ist.matrix_sechs)) check('Sicherer Bereich (Phase 4B): ' + k + ' → beobachtbares Verhalten identisch', ist.matrix_sechs[k] === 'identisch', ist.matrix_sechs[k]);
+    }
+
     if (!SCHREIBEN) for (const k of Object.keys(soll)) check('Soll-Schlüssel ' + k + ' wird noch gemessen', k in ist);
 
     /* Gegenproben A–E: künstliche Fehler müssen erkannt werden (Produktdateien auf der Platte bleiben unverändert) */
@@ -491,10 +528,17 @@ async function kompakt(extra) {   // flach
         if (DETAILS) { let k = -1; for (let i = 0; i < Math.max(x.length, y.length); i++) if (x[i] !== y[i]) { k = i; break; } console.log('   ↳ ' + (d ? 'verändert in ' + gruppenMitUnterschied(y, x).join('+') + ': ' + kurz(y[k], 90) + '  =>  ' + kurz(x[k], 90) : 'KEINE Änderung sichtbar')); }
         return d;
     };
-    { const p = await kompakt({ opt: { skriptReihenfolge: tausche('fish.js', 'teilen.js') } });
-      check('Gegenprobe A: Reihenfolge fish.js <-> teilen.js wird erkannt', unterschied(p, basis)); }
-    { const p = await kompakt({ opt: { skriptReihenfolge: tausche('sprueche.js', 'toene.js') } });
-      check('Gegenprobe A2: Reihenfolge sprueche.js <-> toene.js wird erkannt (Ton hängt am Spruch-Text)', unterschied(p, basis)); }
+    /* Gegenprobe A/A2 (seit Phase 4B umgedreht): Reihenfolge der sechs Speak-Dateien im sicheren Bereich darf NICHTS mehr verändern; dafür ändert ein anderer RANG sehr wohl das Verhalten */
+    { const p = await kompakt({ opt: { skriptReihenfolge: sicher(vertausche(SICHER_PLAETZE, 'fish.js', 'teilen.js')) } });
+      check('Gegenprobe A: fish.js <-> teilen.js (früher: teilen merkt 2,19 statt 2,193) verändert das Verhalten NICHT mehr', !unterschied(p, basis)); }
+    { const p = await kompakt({ opt: { skriptReihenfolge: sicher(vertausche(SICHER_PLAETZE, 'sprueche.js', 'toene.js')) } });
+      check('Gegenprobe A2: sprueche.js <-> toene.js (früher: Ton hing am Spruch-Text) verändert das Verhalten NICHT mehr', !unterschied(p, basis)); }
+    { const p = await kompakt({ opt: { quelleAendern: (f, q) => f === 'teilen.js' ? q.replace("anmelden('teilen', 10,", "anmelden('teilen', 55,") : q } });
+      check('Gegenprobe A3: ein anderer RANG (teilen 10 -> 55, also hinter sprueche) verändert das Verhalten sehr wohl (Reihenfolge steckt jetzt im Rang)', unterschied(p, basis));
+      check('Gegenprobe A3: die Quell-Ersetzung hat gegriffen', lies('js/teilen.js').indexOf("anmelden('teilen', 10,") >= 0); }
+    { const p = await kompakt({ opt: { quelleAendern: (f, q) => f === 'sprueche.js' ? q.replace("anmelden('sprueche', 50,", "anmelden('sprueche', 35,") : q } });
+      check('Gegenprobe A4: ein anderer RANG (sprueche 50 -> 35, also vor toene) verändert das Verhalten sehr wohl', unterschied(p, basis));
+      check('Gegenprobe A4: die Quell-Ersetzung hat gegriffen', lies('js/sprueche.js').indexOf("anmelden('sprueche', 50,") >= 0); }
     for (const f of ['sprueche.js', 'toene.js', 'fish.js', 'pronunciation.js', 'voicefix.js', 'teilen.js', 'kontext_lokal.js', 'speechrate.js']) {
         const p = await kompakt({ opt: { ohneSkripte: [f] } });
         check('Gegenprobe B: ohne ' + f + ' wird erkannt', unterschied(p, basis));
@@ -516,6 +560,99 @@ async function kompakt(extra) {   // flach
         const p = await kompakt({ opt: { quelleAendern: (f, q) => f === datei ? q.replace(von, nach) : q } });
         check('Gegenprobe E: veränderte Unterdrückungsbedingung (' + was + ') wird erkannt', unterschied(p, basis));
         check('Gegenprobe E: Quell-Ersetzung greift (' + was + ')', lies('js/' + datei).indexOf(von) >= 0);
+    }
+
+    /* ---------- Phase 4B: die Speak-Kette selbst ---------- */
+    const KETTE = [['teilen', 10], ['kontext_lokal', 20], ['fish._dash', 30], ['toene', 40], ['sprueche', 50], ['voicefix.speak', 60]];
+    const KETTE_TEXT = 'teilen(10) > kontext_lokal(20) > fish._dash(30) > toene(40) > sprueche(50) > voicefix.speak(60) > [Basis voice.js]';
+    const JS = x => JSON.stringify(x);
+    function ketteWelt(extra) {   // wie sprachWelt, merkt sich zusätzlich den load-Hörer der Kette (window.addEventListener ist in der Testumgebung sonst leer)
+        const lade = [], ex = Object.assign({}, extra || {});
+        const eigen = ex.nachSkript;
+        ex.nachSkript = (f, sb) => {
+            if (!sb.__ketteHoerer) { sb.__ketteHoerer = true; const a = sb.addEventListener; sb.addEventListener = function (t, fn) { if (t === 'load' && /speak_kette\.js/.test(String(new Error().stack))) lade.push(fn); return a.apply(this, arguments); }; }
+            if (eigen) eigen(f, sb);
+        };
+        const w = sprachWelt(ex); w.lade = lade; return w;
+    }
+    function verzoegertePruefung(w) {   // läuft die 3-Sekunden-Prüfung nach 'load' ab; liefert die Fehler, die sie in die Fehleranzeige werfen würde
+        const fehler = [], T = w.sb.setTimeout;
+        w.sb.setTimeout = function (fn) { try { fn(); } catch (e) { fehler.push(String(e && e.message)); } return 0; };
+        w.lade.forEach(f => { try { f({}); } catch (e) { } });
+        w.sb.setTimeout = T;
+        return fehler;
+    }
+    {   // normaler Start
+        const w = ketteWelt(), K = w.sb.jvSpeakKette;
+        w.start(); const fe = verzoegertePruefung(w); const ev = w.stopp();
+        check('Kette (Normalstart): genau eine verzögerte Prüfung angemeldet', w.lade.length === 1, String(w.lade.length));
+        check('Kette (Normalstart): Stufen und Ränge außen -> innen wie beauftragt', JS(K.liste().map(x => [x.name, x.rang])) === JS(KETTE), JS(K.liste()));
+        check('Kette (Normalstart): text() lesbar mit Basis voice.js', K.text() === KETTE_TEXT, K.text());
+        check('Kette (Normalstart): pruefe() vollständig, keine Anmeldefehler, nichts fehlt/unerwartet', K.pruefe().vollstaendig === true && K.pruefe().fehler.length === 0, JS(K.pruefe()));
+        check('Kette (Normalstart): KEINE neue Fehlermeldung nach der verzögerten Prüfung', fe.length === 0, JS(fe));
+        check('Kette (Normalstart): keine Sprache, keine Anzeige, kein Ton durch die Prüfung', ev.length === 0, JS(ev));
+        check('Kette (Normalstart): keine Ladefehler in den Skripten', w.ladefehler.length === 0, JS(w.ladefehler));
+        check('Kette (Normalstart): window.speak ist die äußerste Stufe (nicht voice.js direkt)', typeof w.sb.speak === 'function' && w.sb.speak.length >= 0 && w.sb.speak !== undefined);
+    }
+    {   // ungültige Anmeldungen
+        const w = ketteWelt(), K = w.sb.jvSpeakKette, nop = innen => function () { return innen.apply(this, arguments); };
+        const vorListe = JS(K.liste()), vorSpeak = w.sb.speak;
+        const faelle = [
+            ['doppelter Name (toene nochmal, anderer Rang)', () => K.anmelden('toene', 99, nop)],
+            ['doppelter Rang (40 gehört toene)', () => K.anmelden('zusatz', 40, nop)],
+            ['Rang ist Text', () => K.anmelden('zusatz', '5', nop)],
+            ['Rang ist NaN', () => K.anmelden('zusatz', NaN, nop)],
+            ['Name fehlt', () => K.anmelden('', 5, nop)],
+            ['fabrik ist keine Funktion', () => K.anmelden('zusatz', 5, 'x')],
+            ['fabrik wirft', () => K.anmelden('zusatz', 5, () => { throw new Error('kaputt'); })],
+            ['fabrik liefert keine Funktion', () => K.anmelden('zusatz', 5, () => 42)]
+        ];
+        let n = 0;
+        for (const [name, tu] of faelle) {
+            const r = tu(); n++;
+            check('Kette: ungültige Anmeldung abgelehnt und gemeldet: ' + name, r === false && K.pruefe().fehler.length === n && K.pruefe().vollstaendig === false, JS(K.pruefe().fehler));
+            check('Kette:   ... nichts eingebaut (Liste und window.speak unverändert): ' + name, JS(K.liste()) === vorListe && w.sb.speak === vorSpeak);
+        }
+        const w2 = ketteWelt(), K2 = w2.sb.jvSpeakKette, fremd = function () { };
+        w2.sb.speak = fremd;
+        check('Kette: von außen ersetztes window.speak (alte Art zu umhüllen) wird erkannt, Anmeldung abgelehnt, window.speak bleibt', K2.anmelden('zusatz', 5, nop) === false && w2.sb.speak === fremd && K2.pruefe().vollstaendig === false);
+        const w3 = ketteWelt(), K3 = w3.sb.jvSpeakKette;
+        check('Kette: gültige Zusatz-Stufe wird eingebaut, steht je nach Rang, pruefe() meldet sie als unerwartet',
+            K3.anmelden('zusatz', 5, nop) === true && K3.liste()[0].name === 'zusatz' && JS(K3.pruefe().unerwartet) === JS(['zusatz']) && K3.pruefe().vollstaendig === false);
+    }
+    for (const [datei, name] of [['teilen.js', 'teilen'], ['kontext_lokal.js', 'kontext_lokal'], ['fish.js', 'fish._dash'], ['toene.js', 'toene'], ['sprueche.js', 'sprueche'], ['voicefix.js', 'voicefix.speak']]) {   // Gegenprobe B
+        const w = ketteWelt({ opt: { ohneSkripte: [datei] } }), K = w.sb.jvSpeakKette;
+        w.start(); const fe = verzoegertePruefung(w); const ev = w.stopp();
+        check('Gegenprobe B (Kette): ohne ' + datei + ' meldet pruefe() "' + name + '" als fehlend und nicht vollständig', K.pruefe().vollstaendig === false && K.pruefe().fehlend.indexOf(name) >= 0, JS(K.pruefe()));
+        check('Gegenprobe B (Kette): ohne ' + datei + ' kommt genau EIN Fehler für die Fehleranzeige, mit dem Namen', fe.length === 1 && /Speak-Kette unvollständig/.test(fe[0]) && fe[0].indexOf(name) >= 0, JS(fe));
+        check('Gegenprobe B (Kette): ohne ' + datei + ' keine Sprache/Anzeige/Karte', ev.length === 0, JS(ev));
+    }
+    {   // Gegenprobe G: Basis voice.js fehlt
+        const w = ketteWelt({ opt: { ohneSkripte: ['voice.js'] } }), K = w.sb.jvSpeakKette;
+        w.start(); const fe = verzoegertePruefung(w); const ev = w.stopp();
+        check('Gegenprobe G (Kette): ohne voice.js ist KEINE Stufe eingebaut (kein stilles halbes Kettenverhalten)', K.liste().length === 0 && typeof w.sb.speak !== 'function', JS(K.liste()));
+        check('Gegenprobe G (Kette): verständliche Meldung, dass die Basis (voice.js) fehlt', K.pruefe().fehler.length > 0 && K.pruefe().fehler.every(x => /Basis window\.speak \(voice\.js\)/.test(x)), JS(K.pruefe().fehler));
+        check('Gegenprobe G (Kette): die verzögerte Prüfung wirft genau einen Fehler (Fehleranzeige), keine Sprache', fe.length === 1 && /Speak-Kette unvollständig/.test(fe[0]) && ev.length === 0, JS(fe));
+    }
+    {   // Gegenprobe F: mehrfach.js-Fang trifft die ganze Kette und stellt sie danach wieder her
+        const w = ketteWelt(); w.engine('browser'); const K = w.sb.jvSpeakKette;
+        const vorListe = JS(K.liste()), vor = w.sb.speak, fang = [];
+        w.start();
+        w.sb.speak = function (t) { fang.push(String(t)); };
+        w.sb.speak('Gefangen: Kettentest.');
+        w.sb.speak = vor;
+        await w.ruhig(100);
+        const evFang = w.stopp();
+        check('Gegenprobe F (Kette): während des Fangs erreicht nichts die Kette (keine Stimme, kein Ton)', fang.length === 1 && evFang.filter(z => /stimme:|ton:|audio:/.test(z)).length === 0, JS(evFang));
+        check('Gegenprobe F (Kette): nach dem Zurücksetzen spricht die Kette wieder, Stufen unverändert', (() => { w.start(); w.sb.speak('Danach spricht die Kette wieder.'); return true; })() && JS(K.liste()) === vorListe);
+        await w.ruhig(100);
+        check('Gegenprobe F (Kette): nach dem Fang ist die Sprache hörbar', w.stopp().some(z => /stimme: "Danach spricht/.test(z)));
+        const w2 = ketteWelt(); w2.engine('browser'); const vor2 = w2.sb.speak;
+        w2.sb.jvCommands.nur = function () { w2.sb.speak('Teil A.'); return true; };
+        w2.start();
+        await w2.lassLaufen(() => w2.sb.handleLocalCommand('Wie wird morgen das Wetter und wann ist der nächste Vollmond?'));
+        await w2.ruhig(300); w2.stopp();
+        check('Gegenprobe F (Kette): echter mehrfach.js-Lauf stellt window.speak exakt wieder her und lässt die Stufen unverändert', w2.sb.speak === vor2 && JS(w2.sb.jvSpeakKette.liste()) === JS(KETTE.map(([name, rang]) => ({ name, rang }))));
     }
 
     console.log(`\nSprach-Golden-Master: ${ok} Prüfungen ok, ${fehler} Fehler`);

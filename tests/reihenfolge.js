@@ -393,10 +393,29 @@ function anzahlAbweichungen(a, b) { const x = Array.isArray(a) ? a : [], y = Arr
         check('Gegenprobe "photo.js und foto_brief vertauscht (Basis fehlt bei der Anmeldung)": die Kette ist NICHT vollständig und meldet es', p.vollstaendig === false && (p.fehlend.length > 0 || p.fehler.length > 0), JS(p).slice(0, 200));
         console.log('  · photo.js und foto_brief vertauscht (Basis nicht mehr innen) → erkannt durch: Kette unvollständig/Anmeldefehler');
     }
-    await gegenprobe('speak: fish und teilen vertauscht (teilen sieht dann den bereinigten Text)', { skriptReihenfolge: tausche('fish.js', 'teilen.js') }, { speak: true, mussAbweichen: ['Protokoll', 'speak-Wirkung'] });
-    await gegenprobe('speak: sprueche und fish vertauscht', { skriptReihenfolge: tausche('sprueche.js', 'fish.js') }, { speak: true, mussAbweichen: ['Protokoll'] });
-    await gegenprobe('speak: teilen und kontext_lokal vertauscht', { skriptReihenfolge: tausche('teilen.js', 'kontext_lokal.js') }, { speak: true, mussAbweichen: ['Protokoll'] });
-    await gegenprobe('speak: toene und sprueche vertauscht', { skriptReihenfolge: tausche('toene.js', 'sprueche.js') }, { speak: true, mussAbweichen: ['Protokoll'] });
+    /* speak: seit Phase 4B bestimmt NICHT mehr die Ladereihenfolge, wer außen greift (js/speak_kette.js, Ränge 10..60). Die Datei-Reihenfolge ändert nur noch das Ladeprotokoll
+       (welche Datei window.speak zuerst setzt), aber weder die aktive Kette noch die Wirkung. Früher musste fish<->teilen & Co. die speak-Wirkung ändern - jetzt muss sie gleich bleiben. */
+    const SPEAK_KETTE = [['teilen', 10], ['kontext_lokal', 20], ['fish._dash', 30], ['toene', 40], ['sprueche', 50], ['voicefix.speak', 60]];
+    async function speakGleichprobe(name, extra) {
+        const w = welt(extra), K = w.sb.jvSpeakKette;
+        const m = await messeSpeak(welt(extra));
+        const abw = anzahlAbweichungen(m.kette, soll.speak.kette) + anzahlAbweichungen(m.wiederholung, soll.speak.wiederholung) + unterschied(m.mehrfach, soll.speak.mehrfach);
+        check('Gleichprobe "' + name + '": Ladefehler leer, speak-Kette vollständig, keine Anmeldefehler', w.ladefehler.length === 0 && K.pruefe().vollstaendig === true && K.pruefe().fehler.length === 0, w.ladefehler.join('; ') + JS(K.pruefe()));
+        check('Gleichprobe "' + name + '": aktive speak-Kette (Namen + Ränge) unverändert', JS(K.liste().map(x => [x.name, x.rang])) === JS(SPEAK_KETTE));
+        check('Gleichprobe "' + name + '": speak-Wirkung identisch zum Golden Master (Texte, Wiederholung, Mehrfachfrage-Fang)', abw === 0, String(abw));
+        console.log('  · ' + name + ' → Kette und speak-Wirkung identisch: ' + (abw === 0 && K.pruefe().vollstaendig));
+    }
+    await gegenprobe('speak: fish und teilen vertauscht (nur das Ladeprotokoll ändert sich)', { skriptReihenfolge: tausche('fish.js', 'teilen.js') }, { mussAbweichen: ['Protokoll'] });
+    await speakGleichprobe('speak: fish und teilen vertauscht (teilen sah früher den bereinigten Text)', { skriptReihenfolge: tausche('fish.js', 'teilen.js') });
+    await speakGleichprobe('speak: sprueche und fish vertauscht', { skriptReihenfolge: tausche('sprueche.js', 'fish.js') });
+    await speakGleichprobe('speak: teilen und kontext_lokal vertauscht', { skriptReihenfolge: tausche('teilen.js', 'kontext_lokal.js') });
+    await speakGleichprobe('speak: toene und sprueche vertauscht (änderte früher den Ton)', { skriptReihenfolge: tausche('toene.js', 'sprueche.js') });
+    {
+        const SECHS = ['sprueche.js', 'toene.js', 'fish.js', 'kontext_lokal.js', 'teilen.js', 'voicefix.js'];
+        const sicherOrdnen = reihe => l => { const iv = l.indexOf('voicefix.js'); if (iv >= 0) l.splice(iv, 1); const pp = SECHS.slice(0, 5).map(n => l.indexOf(n)); const mm = l.indexOf('mehrfach.js'); l.splice(mm, 0, 'voicefix.js'); const pos = pp.concat([mm]); reihe.forEach((n, i) => { l[pos[i]] = n; }); return l; };
+        await speakGleichprobe('alle 6 speak-Dateien umgekehrt (sicherer Ladebereich)', { skriptReihenfolge: sicherOrdnen(SECHS.slice().reverse()) });
+        for (const saat of [3, 11]) await speakGleichprobe('alle 6 speak-Dateien gemischt (Saat ' + saat + ', sicherer Ladebereich)', { skriptReihenfolge: sicherOrdnen(mischen(SECHS, saat)) });
+    }
     await gegenprobe('Befehle: mailpush und ortsuche vertauscht (Außen-Wrapper)', { skriptReihenfolge: tausche('mailpush.js', 'ortsuche.js') }, { befehle: true, mussAbweichen: ['Protokoll'] });
     await gegenprobe('Befehle: urlaub und mailaktionen vertauscht (Gleichrang 120)', { skriptReihenfolge: tausche('urlaub.js', 'mailaktionen.js') }, { befehle: true, mussAbweichen: ['Befehls-Reihenfolge'] });
     await gegenprobe('Befehle: einfuehrung und plan_ansagen vertauscht (Gleichrang 4)', { skriptReihenfolge: tausche('einfuehrung.js', 'plan_ansagen.js') }, { befehle: true, mussAbweichen: ['Befehls-Reihenfolge'] });
