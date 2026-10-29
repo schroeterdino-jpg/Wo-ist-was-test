@@ -441,3 +441,10 @@ Nach Foto-Kette (Phase 3) und Speak-Kette (Phase 4B) wurden alle übrigen global
 - Neue Erweiterungen an der KI-Anweisung gehören ausschließlich per `jvChain.use('buildSystemPrompt', Name, Funktion, Rang)` eingetragen, nie mehr per Hand um `buildSystemPrompt` gelegt. Freie Ränge: 60–99 (zwischen den fünf späten Zusätzen und den zehn Fach-Einträgen).
 - Fehler in einem Eintrag fängt `jvChain` je Eintrag ab (Anweisung ohne diesen Block, Fehler in der Fehlerbox); früher brach `buildSystemPrompt` bei `contextplus`/`name` ab.
 - Sicherheitsnetz: `node tests/globale.js` (Abschnitt E, Gegenproben A–H). Beschreibung: `tests/globale-ist-zustand.md`.
+
+## Phase 5C: wirkungslose Funktionen geprüft (nur Analyse)
+- Kein Produktcode geändert. Geprüft: `searchSemanticMemory` (Langzeit-Variante), `foto_stundenplan`-Hülle, `festnamen`, `hoerkorrektur`. Alle vier sind heute ohne Wirkung und sollen **nicht einfach eingeschaltet werden**.
+- Wichtig: Die Langzeit-Suche filtert auf `typ==='episode'` und würde Merk-dir-Einträge und Fristen nicht mehr finden. `cleanupOnce()` in `langzeit.js` ist heute live und löscht einmalig pro Gerät alle Einträge ohne `typ` episode/frist.
+- `festnamen`: Regel Schröter→Schroeter verändert echte Namen. `hoerkorrektur`: fester Eintrag Hamlet→Hamiyet und gelernte Wörter wie „Mal“ verfälschen normale Sätze.
+- Eine Korrektur gehört nur auf die KI-Kopie, nie auf Chatverlauf, Aktionen oder Speicher.
+- Ergebnis, Matrix und Zielarchitektur: `tests/wirkungslos-analyse.md`. Netz: `node tests/wirkungslos.js`.
