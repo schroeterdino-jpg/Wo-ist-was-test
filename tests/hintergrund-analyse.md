@@ -1,5 +1,7 @@
 # Phase 6A: Timer und Hintergrundprozesse (nur Analyse, kein Produktcode geändert)
 
+> Nachtrag: Dieser Text beschreibt den Stand von Phase 6A (main `4b93261`). Phase 6B.1 hat danach mimik, holo_look und anzeige versteckt pausiert, siehe `tests/hintergrund-6b1.md`. Die 6A-Messung ist als `tests/hintergrund_laufzeit_6a.json` eingefroren.
+
 Stand: main `dcf81d6`, Messung 29.10.2026. Prozesstabelle: `tests/hintergrund-tabelle.md` (erzeugt mit `node tests/hintergrund_doku.js`).
 Sicherheitsnetz: `node tests/hintergrund.js` (57 Prüfungen). Messwerkzeug (nur lokal, braucht Playwright): `node tests/hintergrund_messen.js`; sein Ergebnis ist als `tests/hintergrund_laufzeit.json` eingecheckt. Soll: `tests/hintergrund_soll.json`.
 

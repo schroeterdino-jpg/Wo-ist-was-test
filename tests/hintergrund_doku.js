@@ -19,10 +19,10 @@ const A_BELEG = {
 const F_GRUND = {
     'gedaechtnis_zeit.js#1': 'ensureProxy alle 3 s: Zweck (Schutz gegen Überschreiben von memoryItems?) und Stopbedingung nicht belegt',
     'kacheln.js#2': 'Wetter-Kachel alle 60 s ohne Stop; nur sinnvoll, solange die Kachel sichtbar ist (nicht belegt, ob geprüft)',
-    'anzeige.js#1': '400 ms Intervall in zuKnopf: Zweck nur aus dem Namen ableitbar, Stop fehlt',
     'blick.js#1': '15 s Intervall in aufbauen ohne gespeicherte Kennung'
 };
-const UI = new Set(['mimik.js#1', 'holo_look.js#1', 'synapsen.js#1', 'anzeige.js#2', 'laune.js#2', 'laune.js#4', 'wetterfx.js#1', 'ui.js#1', 'ui.js#2', 'ui.js#3', 'ui.js#4', 'panels.js#1']);
+/* Phase 6B.1: anzeige.js#1 (400 ms) war in 6A "F" (Zweck unklar); beim Lesen geklärt: blendet den Schließen-Knopf ein/aus, rein Darstellung → C */
+const UI = new Set(['mimik.js#1', 'holo_look.js#1', 'synapsen.js#1', 'anzeige.js#1', 'anzeige.js#2', 'laune.js#2', 'laune.js#4', 'wetterfx.js#1', 'ui.js#1', 'ui.js#2', 'ui.js#3', 'ui.js#4', 'panels.js#1']);
 function kategorie(a) {
     if (A_BELEG[a.id]) return 'A';
     if (F_GRUND[a.id]) return 'F';

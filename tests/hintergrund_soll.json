@@ -50,9 +50,9 @@
    "anfang": "ab Laden",
    "start": "funktion",
    "guard": "keiner",
-   "stop": "nie gestoppt",
+   "stop": "clearInterval",
    "begrenzt": false,
-   "doppel": "keiner (mehrfacher Aufruf der Funktion möglich)",
+   "doppel": "clear vor Neustart",
    "netz": false,
    "nativ": false
   },
@@ -62,11 +62,11 @@
    "ms": 300,
    "klasse": "dauerlauf",
    "anfang": "ab Laden",
-   "start": "laden",
+   "start": "funktion",
    "guard": "keiner",
-   "stop": "nie gestoppt",
+   "stop": "clearInterval",
    "begrenzt": false,
-   "doppel": "einmalig beim Laden",
+   "doppel": "clear vor Neustart",
    "netz": false,
    "nativ": false
   },
@@ -412,11 +412,11 @@
    "ms": 700,
    "klasse": "dauerlauf",
    "anfang": "ab Laden",
-   "start": "laden",
+   "start": "funktion",
    "guard": "indirekt",
-   "stop": "nie gestoppt",
+   "stop": "clearInterval",
    "begrenzt": false,
-   "doppel": "einmalig beim Laden",
+   "doppel": "clear vor Neustart",
    "netz": false,
    "nativ": false
   },
@@ -748,11 +748,11 @@
    "ms": 120,
    "klasse": "dauerlauf",
    "anfang": "ab Laden",
-   "start": "laden",
+   "start": "funktion",
    "guard": "indirekt",
-   "stop": "nie gestoppt",
+   "stop": "clearInterval",
    "begrenzt": false,
-   "doppel": "einmalig beim Laden",
+   "doppel": "clear vor Neustart",
    "netz": false,
    "nativ": false
   },
@@ -1561,8 +1561,8 @@
  ],
  "laufzeit": {
   "startIntervalle": [
-   "anzeige.js:150 @400",
-   "anzeige.js:160 @300",
+   "anzeige.js:171 @400",
+   "anzeige.js:172 @300",
    "auftraege.js:167 @60000",
    "blick.js:119 @15000",
    "blick.js:125 @500",
@@ -1570,7 +1570,7 @@
    "calendar.js:260 @30000",
    "calendar.js:42 @1000",
    "gedaechtnis_zeit.js:55 @3000",
-   "holo_look.js:254 @700",
+   "holo_look.js:259 @700",
    "kacheln.js:210 @250",
    "kacheln.js:212 @60000",
    "kennenlernen.js:201 @10000",
@@ -1579,7 +1579,7 @@
    "laune.js:191 @1000",
    "mail_nacht.js:218 @1800000",
    "mail_nacht.js:219 @15000",
-   "mimik.js:202 @120",
+   "mimik.js:211 @120",
    "parkplatz_auto.js:50 @60000",
    "plan_ansagen.js:933 @600000",
    "pushsync.js:201 @120000",
@@ -1637,15 +1637,15 @@
    "systemcheck_voll.js:19·t": 189
   },
   "verstecktPausiert": [
+   "anzeige.js:171",
+   "anzeige.js:172",
+   "holo_look.js:259",
+   "mimik.js:211",
    "sphere.js:342·r"
   ],
   "verstecktWeiter": [
-   "anzeige.js:150",
-   "anzeige.js:160",
    "calendar.js:42",
    "gedaechtnis_zeit.js:55",
-   "holo_look.js:254",
-   "mimik.js:202",
    "ruhe.js:18",
    "spotify.js:531",
    "synapsen.js:153"
@@ -1663,6 +1663,10 @@
    ],
    "startVersteckt": [],
    "versteckt": [
+    "anzeige.js:171 x12",
+    "anzeige.js:172 x12",
+    "holo_look.js:259 x12",
+    "mimik.js:211 x12",
     "voice.js:346 x2"
    ]
   },
@@ -1677,6 +1681,7 @@
   ]
  },
  "sichtbarkeitsHoerer": [
+  "anzeige.js",
   "auftraege.js",
   "autoansicht.js",
   "blick.js",
@@ -1692,6 +1697,7 @@
   "mail_nacht.js",
   "mailwatch.js",
   "meldungs_regeln.js",
+  "mimik.js",
   "orte.js",
   "pakete.js",
   "parkplatz_auto.js",

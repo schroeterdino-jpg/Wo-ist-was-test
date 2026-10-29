@@ -251,7 +251,16 @@
     function kick() { applyBody(); if (!raf && an && headActive() && !document.hidden) { running = true; raf = requestAnimationFrame(frame); } }
 
     /* Zustandswechsel (Ansicht, Fenster auf/zu) bemerken, ohne den Takt dauernd laufen zu lassen */
-    setInterval(function () { applyBody(); if (!raf) kick(); }, 700);
+    /* Phase 6B.1: Versteckt wird nichts gezeichnet und niemand sieht die Körper-Klassen, darum pausiert der Takt; beim Sichtbarwerden
+       wird der Zustand einmal sofort angewendet (kick tut das ohnehin schon über visibilitychange, applyBody hier zusätzlich) und der Takt neu gestartet. */
+    var wachId = 0;
+    function wachSteuern(sichtbarGeworden) {
+        if (document.hidden) { if (wachId) { clearInterval(wachId); wachId = 0; } return; }
+        if (!wachId) wachId = setInterval(function () { applyBody(); if (!raf) kick(); }, 700);
+        if (sichtbarGeworden) { applyBody(); if (!raf) kick(); }
+    }
+    document.addEventListener('visibilitychange', function () { wachSteuern(true); });
+    wachSteuern(false);
 
     /* ---------- Sprache ---------- */
     var RX_AUS = /^(?:bitte\s+)?(?:hologramm(?:\s*-?\s*(?:look|effekt|modus))?\s+(?:aus|ausschalten|abschalten)|kein\s+hologramm|(?:schalte|mach)\s+(?:das\s+)?hologramm\s+aus)$/;
