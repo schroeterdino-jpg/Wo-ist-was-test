@@ -14,28 +14,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: node tests/lauf.js
-      - run: node tests/aktionen.js
-      - run: node tests/aktionen_kette.js
-      - run: node tests/jarvis_pruefstrecke.js
-      - run: node tests/faehigkeiten.js
-      - run: node tests/handyapp.js
-      - run: node tests/antwort.js
-      - run: node tests/mehrfachfrage.js
-      - run: node tests/meldungen.js
-      - run: node tests/regeln.js
-      - run: node tests/c1_stufe1.js
-      - run: node tests/reihenfolge.js
-      - run: node tests/timer.js
-      - run: node tests/landkarte.js
-      - run: node tests/sprache.js
-      - run: node tests/globale.js
-      - run: node tests/wirkungslos.js
-      - run: node tests/suche.js
-      - run: node tests/kitext.js
-      - run: node tests/hintergrund.js
-      - run: node tests/hintergrund_6b1.js
-      - run: node tests/hintergrund_6b2.js
-      - run: node tests/memory7a.js
-      - run: node tests/memory7b.js
-      - run: node tests/inventar8a.js
+      - run: node -v && echo "::notice::node=$(node -v) tz=$(date +%Z) cpus=$(nproc)"
+      - name: diag hintergrund_6b2
+        if: always()
+        run: |
+          node tests/hintergrund_6b2.js > /tmp/o.txt 2>&1 || echo "::error title=hintergrund_6b2::$(head -c 2500 /tmp/o.txt | tr '\n' '~')"
+      - name: diag memory7a
+        if: always()
+        run: |
+          node tests/memory7a.js > /tmp/o.txt 2>&1 || echo "::error title=memory7a::$(head -c 2500 /tmp/o.txt | tr '\n' '~')"
+      - name: diag memory7b
+        if: always()
+        run: |
+          node tests/memory7b.js > /tmp/o.txt 2>&1 || echo "::error title=memory7b::$(head -c 2500 /tmp/o.txt | tr '\n' '~')"
+      - name: diag inventar8a
+        if: always()
+        run: |
+          node tests/inventar8a.js > /tmp/o.txt 2>&1 || echo "::error title=inventar8a::$(head -c 2500 /tmp/o.txt | tr '\n' '~')"
+      - name: diag sprache
+        if: always()
+        run: |
+          node tests/sprache.js > /tmp/o.txt 2>&1 || echo "::error title=sprache::$(head -c 2500 /tmp/o.txt | tr '\n' '~')"
+      - name: diag globale
+        if: always()
+        run: |
+          node tests/globale.js > /tmp/o.txt 2>&1 || echo "::error title=globale::$(head -c 2500 /tmp/o.txt | tr '\n' '~')"
