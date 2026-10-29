@@ -82,16 +82,14 @@
     // alles, was vor dem Sprechen aufgeräumt wird (Gedankenstriche, Preise)
     function normalizeSpoken(t) { return roundPrices(fixDashes(t)); }
     window.jvRoundPrices = roundPrices;
-    if (typeof window.speak === 'function' && !window.speak._dash) {
-        const originalSpeak = window.speak;
-        const wrappedSpeak = function () {
+    // Phase 4B: Stufe 30 der Speak-Kette (js/speak_kette.js); "originalSpeak" ist die nächste Stufe weiter innen
+    window.jvSpeakKette.anmelden('fish._dash', 30, function (originalSpeak) {
+        return function () {
             const a = Array.prototype.slice.call(arguments);
             if (typeof a[0] === 'string') a[0] = normalizeSpoken(a[0]);
             return originalSpeak.apply(this, a);
         };
-        wrappedSpeak._dash = true;
-        window.speak = wrappedSpeak;
-    }
+    });
 
     // ---------- Zahlen und Uhrzeiten als Wörter ----------
     // Fish Audio liest "Es ist 21 Uhr 40." als "... vierzigste", weil es "40." am Satzende für eine Ordnungszahl hält (so ähnlich wie "der 40."). Darum werden

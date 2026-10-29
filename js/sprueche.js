@@ -147,10 +147,10 @@
     }
 
     /* ---------- 1) speak() umhüllen ---------- */
-    if (typeof window.speak === 'function' && !window.speak._quipped) {
-        const original = window.speak;
+    // Phase 4B: Stufe 50 der Speak-Kette (js/speak_kette.js); "original" ist die nächste Stufe weiter innen
+    window.jvSpeakKette.anmelden('sprueche', 50, function (original) {
         let lastIn = '', lastAt = 0;
-        const wrapped = function (text) {
+        return function (text) {
             const args = Array.prototype.slice.call(arguments);
             try {
                 // Wird derselbe Text kurz hintereinander noch einmal gesprochen (Wiederholung, Nachspielen), bleibt er unverändert
@@ -161,9 +161,7 @@
             } catch (e) { /* bei jedem Problem bleibt der Text, wie er ist */ }
             return original.apply(this, args);
         };
-        wrapped._quipped = true;
-        window.speak = wrapped;
-    }
+    });
 
     /* ---------- 2) KI-Anweisung ergänzen ---------- */
     if (window.jvChain) {   // Ergänzungs-Liste (commands.js)

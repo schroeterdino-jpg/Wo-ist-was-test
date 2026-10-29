@@ -25,9 +25,9 @@
     }
 
     /* Die erste gesprochene Antwort nach einem festen Befehl wandert in den Verlauf */
-    if (typeof window.speak === 'function' && !window.speak._kl) {
-        const prevSpeak = window.speak;
-        const wrapped = function (text) {
+    // Phase 4B: Stufe 20 der Speak-Kette (js/speak_kette.js); "prevSpeak" ist die nächste Stufe weiter innen
+    window.jvSpeakKette.anmelden('kontext_lokal', 20, function (prevSpeak) {
+        return function (text) {
             try {
                 if (pending && Date.now() - pending.at < REPLY_WAIT_MS && typeof text === 'string' && text.trim()) {
                     remember(pending.text, text);
@@ -36,9 +36,7 @@
             } catch (e) {}
             return prevSpeak.apply(this, arguments);
         };
-        wrapped._kl = true;
-        window.speak = wrapped;
-    }
+    });
 
     if (window.jvCommands) {   // Befehlsliste (commands.js)
         window.jvCommands.use('kontext_lokal', function (text, next) {
