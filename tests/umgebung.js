@@ -18,6 +18,9 @@
                         executeAction mit ALLEN Umhüllungen, so wie in assistant.js. Ergebnis wie satz().
    ============================================================ */
 'use strict';
+// ZEITZONEN-VERTRAG (Phase 8B): Die App rechnet mit der lokalen Uhr des Geräts (z. B. getHours() in laune.js, jarvis.js, konto.js). Die Testwelt ist ein Gerät in Deutschland;
+// die feste Uhr (Standard 10:00 Berlin) ist nur dann überall gleich, wenn auch die Zeitzone fest ist. Deshalb zentral hier, unabhängig von der Zeitzone des Rechners (GitHub: UTC).
+process.env.TZ = 'Europe/Berlin';
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const RealTimeout = setTimeout; const RealNow = () => process.hrtime.bigint() / 1000000n > 0n ? Number(process.hrtime.bigint() / 1000000n) : 0;
 const ROOT = path.join(__dirname, '..');

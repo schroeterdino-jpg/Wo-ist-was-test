@@ -1,6 +1,6 @@
 # Jarvis: Architektur-Überblick
 
-Stand: 28.10.2026 (Commit 7802e22; Doku-Korrektur Phase 2). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
+Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 169 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
 Wo suche ich zuerst? → `LANDKARTE.md` (Problem → Datei → Abhängigkeiten, plus Zuordnung aller Skripte). Reihenfolge-Sicherheitsnetz: `tests/reihenfolge.js`; Timer-Register: `tests/timer.js` + `tests/timer_inventar.js`.
 Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (168 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (169 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -121,7 +121,8 @@ Hinweis Spritpreise in der Nähe: Der gesprochene Satz wird in `assistant.js` (`
 - **Wetter-Standort (`briefing.js`, `wetterPosition()`):** Aktuelles Wetter und Vorhersage holen die Position grob (ohne GPS-Zwang, 8 s, bis 10 Min. alt) und merken sie in `localStorage` (`jv_wetter_pos`); klappt die Ortung nicht, wird die zuletzt bekannte Position genommen. Früher scheiterte das Wetter mit "keine Wetterdaten", wenn das GPS drinnen nicht in 5 s fertig war.
 - **Wetter-Erkennung in Fragen (`assistant.js`):** Nur wenn die Frage ein Wetterwort enthält, holt Jarvis die Wetterdaten für die KI. Das Muster nimmt jetzt Wortformen (`regn` für regnen/regnet, `schneit`, `wolk`, `heiss` ...); vorher sagte Jarvis bei "Wie soll das heute regnen?" "keine Wetterdaten", weil "regnen" nicht erkannt wurde. Neue Wetterwörter dort UND in `persona.js` und `routinen.js` ergänzen.
 
-## 8. Projektstand und nächste Schritte (Stand 24.10.2026)
+## 8. Projektstand und nächste Schritte (Stand 24.10.2026, historisch)
+_Dieser Abschnitt ist eine Momentaufnahme vom 24.10.2026 (Funktionsstand der App und Wunschliste). Der Stand der Aufräum-Phasen 2 bis 8 steht in den Phasen-Abschnitten weiter unten und in „Bekannte offene technische Punkte“; ob die hier genannten Wünsche inzwischen getestet sind, steht hier nicht._
 
 **Fertig und vom Nutzer getestet:** Autoansicht und automatisches Parken, Feierabend-/Heimweg-Ansage, Schlafmodus und Vertretung per WhatsApp (KI mit Prüfer-KI, Wissensblatt, Entwurf mit Senden/Verwerfen, Notfall-Alarm ohne Wartezeit, Alarm aus per Antippen), Anrede je Kontakt (Töchter "Papa", Schatz "Mann"), verpasste Anrufe (SMS an Kontakte aus der Auswahl, kurzer Alarm bei Familie), Wetter (Wortformen wie "regnen", Standort mit Rückfall).
 
@@ -504,4 +505,17 @@ Nach Foto-Kette (Phase 3) und Speak-Kette (Phase 4B) wurden alle übrigen global
 - Prüfungen: `tests/memory7a.js` (Zustand vor 7B), `tests/memory7b.js` (vorher/nachher). Keine Phase 8 begonnen.
 
 ## Phase 8A: Schlussinventur (nur Analyse, kein Produktcode)
-Zahlen, Klassen A–E aller Produktdateien, Ketten, Reste, Duplikate, Doku-/Testbestand, Android/API und Löschkandidaten stehen in `tests/inventar8a-analyse.md`; Prüfung `tests/inventar8a.js`. Ergebnis: keine Datei nachweislich tot, 8 Dateien mit altem Rückfallzweig (Klasse C). GitHub-Actions ist rot wegen fehlender Zeitzone in zwei Tests (Phase 8B).
+Zahlen, Klassen A–E aller Produktdateien, Ketten, Reste, Duplikate, Doku-/Testbestand, Android/API und Löschkandidaten stehen in `tests/inventar8a-analyse.md`; Prüfung `tests/inventar8a.js`. Ergebnis: 169 Produkt-JS (A 144, B 16, C 8, D 0, E 0), keine Datei nachweislich tot, 8 Dateien mit altem Rückfallzweig (Klasse C: `formulierungen`, `geburtstag_ganztag`, `gedaechtnis`, `lagebild`, `langzeit`, `langzeit_erinnern`, `loeschen_fragen`, `routinen`); diese bleiben samt Rückfallzweig bestehen.
+
+## Phase 8B: CI-Zeitzone und Enddokumentation (kein Produktcode)
+Die GitHub-Fehler in `tests/sprache.js` (5) und `tests/globale.js` (3) kamen daher, dass die Testwelt eine feste Uhr (10:00 Berlin), aber die Zeitzone des Rechners hatte; die App nutzt die lokale Stunde (z. B. `getHours()` in `laune.js` für die Stimmung), GitHub läuft in UTC. **Zeitzonen-Vertrag: Die Testwelt ist ein Gerät in Deutschland, `tests/umgebung.js` setzt zentral `process.env.TZ = 'Europe/Berlin'`.** Neue Tests, die `umgebung.js` nutzen, bekommen das automatisch. Die Fachlogik erwartet die lokale Gerätezeit; sie wurde nicht geändert. Zweite CI-Ursache: `tests/hintergrund_6b2.js` liest mit `git show` den Stand vor 6B.2 aus dem Git-Verlauf; der Workflow holt deshalb den vollen Verlauf (`fetch-depth: 0` beim Checkout), sonst fehlt der Commit im flachen GitHub-Klon. Prüfung beider Verträge: `tests/inventar8a.js` (Soll `tests/inventar8a_soll.json`). Einzelheiten: `tests/inventar8a-analyse.md`, Abschnitt „Phase 8B“.
+
+## Bekannte offene technische Punkte
+Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch zu behebenden Fehler**. Vor jeder Änderung die verlinkte Analyse lesen und erst nach Rücksprache mit dem Nutzer anfassen.
+- **Gedächtnis (`memoryItems`, `helfer_memory`)**, Details `tests/memory7a-analyse.md` und `tests/memory7b-analyse.md`: Proxy-Stempel ×3, 3-s-Takt (`ensureProxy`) ohne Sichtbarkeitsprüfung, Referenzersetzung im Datenabgleich, Gesamtwert-Abgleich bei zwei Geräten, `searchMemory()` kann bei sehr kurzen Suchwerten breite Teiltreffer liefern.
+- **Globale Hüllen und Rückfallzweige**, Details `tests/globale-ist-zustand.md`, `tests/inventar8a-analyse.md`: 8 Dateien der Klasse C mit altem Rückfallzweig der Aktions-Kette, Guard-Marker (`xyz._name = true`) und Testhaken `window._xTest`; `handleLocalCommand`/`sendToGroqSmart` mit Fenster-Hüllen und Wiederholungskonstruktionen (`festnamen.js`/`hoerkorrektur.js` greifen nie).
+- **Hintergrundtakte**, Details `tests/hintergrund-6b1.md`, `tests/hintergrund-6b2.md`, `tests/hintergrund-analyse.md` (Stand 6A): weitere Takte ohne hidden-Pause sind erfasst, bewusst nicht angefasst.
+- **Duplikate**: viele lokale Hilfen (`norm`, `sagen`, `say`, `esc`, `befehl`) in unterschiedlichen Fassungen; bewusst nicht zusammengeführt, weil jede Fassung eigene Sonderfälle hat (`tests/inventar8a-analyse.md`).
+- **Service Worker**: `sw.js` hat nur Push, keinen Fetch-/Cache-Pfad; das Laden neuer Dateien hängt allein an den `?v=`-Stempeln.
+- **Capability-Verzeichnis** (`js/faehigkeiten.js`): 8 Fähigkeiten nennen 41 Dateien, die übrigen sind Hilfs-/Querschnittsdateien. Der Weg von einer Fähigkeit zu den Dateien führt über `LANDKARTE.md`.
+- **Historische Momentaufnahmen** (nicht als aktueller Stand lesen): `tests/ist-zustand.md`, `tests/hintergrund-tabelle.md`, `tests/meldungen-bericht.md`, `tests/regeln-bericht.md`, `tests/memory7a-analyse.md` und die übrigen Dateien mit „Ist-Zustand“ im Namen.

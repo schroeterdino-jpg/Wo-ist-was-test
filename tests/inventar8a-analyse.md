@@ -79,3 +79,22 @@ Ohne Verweis irgendwo: `models/.gitkeep`, `weckruf-src/liesmich.txt`, `package.j
 
 ## 13. Neue Suite
 Prüft u. a.: Produktdatei fehlt in der Landkarte, Script doppelt, Script-Datei fehlt, Chain-Datei fehlt, genannter Besitzer fehlt, Capability zeigt auf fehlende Datei, verwaister Script-Tag, js-Datei ohne Tag, wichtige Architekturdatei fehlt, Dead-Code-Erkenner. Gegenproben ändern nur den Prüf-Eingang im Speicher.
+
+## Phase 8B: CI-Zeitzone (Ergebnis, Nachtrag)
+**Ursache der 8 Fehler (gemessen, kein Raten).** Die Testwelt (`tests/umgebung.js`) hat eine feste Uhr (Standard Mittwoch 28.10.2026 10:00 Berlin), aber die Zeitzone kam vom Rechner. Die App liest die lokale Gerätestunde (`new Date().getHours()` in `js/laune.js` Zeile 70, weitere Stellen z. B. `jarvis.js`, `konto.js`, `persona.js`). Unter UTC ist es in der Testwelt 9 statt 10 Uhr, `laune.js` wählt andere Stimmungsgewichte, und ein Zufallswert (festgesetzt auf 0.5) fällt auf eine andere Stimmung.
+| Prüfung | erwartet (Berlin) | UTC-Wert | betroffene Funktion |
+|---|---|---|---|
+| sprache G3_fish | `[playful] Okay.` | `[cheerful] Okay.` | Stimmungs-Tag der Cloud-Stimme (`laune.js`) |
+| sprache G3b_fish_lang | `[playful] Heute ist ein schöner Tag …` | `[cheerful] …` | dasselbe |
+| sprache G4_ack | `[playful] Einen Moment.` | `[cheerful] Einen Moment.` | dasselbe |
+| sprache G9_native | `[playful] Zu Diensten, Sir.` | `[cheerful] Zu Diensten, Sir.` | dasselbe |
+| sprache G1b_sprueche | `[cheerful] Diesel kostet …` | `[excited] Diesel kostet …` | dasselbe |
+| globale B1 Spät-Variante | SPRACHSTIL „verschmitzt und neckisch“ | „richtig gut gelaunt …“ | `buildSystemPrompt`, Stimmungssatz aus `laune.js` |
+| globale B1 Früh-Variante | wie oben | wie oben | dasselbe |
+| globale B1 Einstellungen (Lachwunsch/Lachen aus) | wie oben | wie oben | dasselbe |
+Die Fachlogik erwartet ausdrücklich die lokale Gerätezeit (Jarvis läuft auf einem Handy in Deutschland, die Stimmung hängt an der Tageszeit). Der Prompt-Unterschied unter UTC ist ein einzelner Satz (Diff geprüft), nicht die Logik.
+**Entscheidung: Variante 1 (Testvertrag ist Europe/Berlin).** Begründung: die Stimmung ist fachlich Ortszeit; ein zeitzonenunabhängiger Test würde die Uhr der Testwelt anders deuten als das Gerät. **Änderung:** eine Zeile in `tests/umgebung.js` (`process.env.TZ = 'Europe/Berlin';` vor dem ersten `require`), also zentral für alle Suiten, die die Testwelt nutzen. Workflow, Node-Version (20) und Testbefehle unverändert, weil sie kein Problem darstellen. Produktcode, Soll-Werte und Assertions unverändert.
+**Gegenprobe:** `sprache.js` 178 und `globale.js` 93 Prüfungen, 0 Fehler unter `TZ=UTC`, `Europe/Berlin`, `America/Los_Angeles`, `Asia/Tokyo`. Die Suite `tests/inventar8a.js` prüft den Vertrag (Zeile vorhanden, vor dem ersten `require`, `sprache.js`/`globale.js` hängen an `umgebung.js`).
+**Weitere Workflows:** `oww-test.yml` und `zane-weckruf.yml` laufen nur bei Änderungen an `weckruf-*` bzw. manuell, haben mit den Tests nichts zu tun und wurden nicht geändert.
+
+**Zweite Ursache für die rote CI (erst nach dem Zeitzonen-Fix sichtbar).** Der Workflow bricht beim ersten Fehler ab, deshalb blieben spätere Schritte bisher verdeckt. Nach dem Fix schlug auf GitHub `tests/hintergrund_6b2.js` fehl (Schritt 25 in null Sekunden). Die Fehlermeldung ließ sich über eine temporäre Diagnose-Ausgabe lesen (Annotation, Node v20.20.2, UTC, 4 CPUs): `git show 4d5b9e6:js/synapsen.js` → `fatal: invalid object name '4d5b9e6'`. `actions/checkout@v4` holt standardmäßig nur den letzten Commit; der Test vergleicht mit dem Stand vor 6B.2 aus dem Git-Verlauf. Lokal gab es den Fehler nie, weil dort der volle Verlauf vorhanden ist. Es ist der einzige Test, der `git show` nutzt. **Änderung:** `fetch-depth: 0` beim Checkout im Workflow (Testvertrag: der Test braucht den Verlauf). Testcode, Soll-Werte und Assertions unverändert. `memory7a`, `memory7b`, `inventar8a` liefen in der Diagnose ohne eigenen Fehler.

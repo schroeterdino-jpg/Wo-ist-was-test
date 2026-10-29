@@ -1,3 +1,5 @@
+> **Historische Momentaufnahme aus Phase 6A (Hintergrundprozesse).** Zahlen und Architekturstand entsprechen diesem Zeitpunkt und sind nicht automatisch der aktuelle Repository-Stand. Seit 6B.1/6B.2 pausieren zwei Takte bei hidden (siehe `ARCHITEKTUR.md`). Die Tabelle wird von `node tests/hintergrund_doku.js` erzeugt; nach einer Neuerzeugung diesen Hinweis wieder voranstellen. Aktueller Stand: `ARCHITEKTUR.md`, `tests/inventar8a-analyse.md`.
+
 | Prozess | Datei:Zeile | Frequenz | Start | Stop | hidden | I/O | Kat | Risiko |
 |---|---|---|---|---|---|---|---|---|
 | adresse_speichern.js#1 (r) | adresse_speichern.js:58 | 500 ms | ab Laden (Schleife r) | Bedingung im Körper | Wächter keiner (nicht gemessen) |  | E | GRÜN |

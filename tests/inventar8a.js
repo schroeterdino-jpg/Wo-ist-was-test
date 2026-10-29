@@ -184,11 +184,27 @@ function dokubestand(L) {
     const markiert = md.filter(p => /Nachtrag|Stand Phase|historisch|überholt|Stand vor/i.test(L.lies(p)));
     return { unklassifiziert: md.filter(p => !klasse[p]), klasseOhneDatei: Object.keys(klasse).filter(p => !L.gibt(p)), momentaufnahmeOhneHistorischHinweis: DOKU_KLASSE.momentaufnahme.filter(p => !markiert.includes(p)).sort(), anzahl: md.length };
 }
+function dokuRegeln8b(L) {
+    const ar = L.lies('ARCHITEKTUR.md'), lk = L.lies('LANDKARTE.md'), n = dateien(L, 'js', /\.js$/).length, m = [];
+    const zahl = (ar.match(/`js\/` \((\d+) Skripte\)/) || [])[1];
+    if (Number(zahl) !== n) m.push('ARCHITEKTUR.md nennt ' + zahl + ' Skripte, vorhanden sind ' + n);
+    if (!new RegExp('Stand: [^\\n]*' + n + ' Produkt-JS').test(ar) && !new RegExp(n + ' Produktdateien').test(lk)) m.push('Produktzahl im Kopf der Doku fehlt/falsch');
+    const k = ar.indexOf('## Bekannte offene technische Punkte');
+    if (k < 0) m.push('Abschnitt "Bekannte offene technische Punkte" fehlt');
+    else {
+        const abschnitt = ar.slice(k, ar.indexOf('\n## ', k + 5) < 0 ? undefined : ar.indexOf('\n## ', k + 5));
+        for (const d of ['tests/memory7a-analyse.md', 'tests/memory7b-analyse.md', 'tests/inventar8a-analyse.md']) { if (!abschnitt.includes(d)) m.push('offene Punkte verweisen nicht auf ' + d); if (!L.gibt(d)) m.push('Analyse-Verweis existiert nicht: ' + d); }
+        for (const d of Array.from(new Set(abschnitt.match(/tests\/[a-z0-9_-]+\.md/g) || []))) if (!L.gibt(d)) m.push('Analyse-Verweis existiert nicht: ' + d);
+        if (!/keine automatisch zu behebenden Fehler/.test(abschnitt)) m.push('Hinweis "keine automatisch zu behebenden Fehler" fehlt');
+    }
+    for (const d of ['tests/ist-zustand.md', 'tests/hintergrund-tabelle.md', 'tests/meldungen-bericht.md', 'tests/regeln-bericht.md', 'tests/memory7a-analyse.md']) if (L.gibt(d) && !/^> \*\*Historische Momentaufnahme/m.test(L.lies(d).slice(0, 400))) m.push('Momentaufnahme nicht eindeutig markiert: ' + d);
+    return m;
+}
 function ci(L) {
     const wf = L.lies('.github/workflows/tests.yml');
     const schritte = Array.from(wf.matchAll(/node (tests\/[a-z0-9_]+\.js)/g)).map(m => m[1]);
     const tzFix = f => /process\.env\.TZ\s*=/.test(L.lies(f));
-    return { nodeVersion: (wf.match(/node-version:\s*'?([0-9]+)/) || [])[1], schritte: schritte.length, fehlendeDatei: schritte.filter(p => !L.gibt(p)), zeitzoneImWorkflow: /\bTZ:/.test(wf), zeitzoneFixiert: Object.fromEntries(['tests/sprache.js', 'tests/globale.js', 'tests/memory7a.js', 'tests/memory7b.js', 'tests/umgebung.js'].map(f => [f, tzFix(f)])), npmInstall: /npm (ci|install)/.test(wf), workflows: L.liste('.github/workflows').map(p => path.basename(p)) };
+    return { nodeVersion: (wf.match(/node-version:\s*'?([0-9]+)/) || [])[1], schritte: schritte.length, fehlendeDatei: schritte.filter(p => !L.gibt(p)), zeitzoneImWorkflow: /\bTZ:/.test(wf), zeitzonenVertragZentral: /^process\.env\.TZ\s*=\s*'Europe\/Berlin';/m.test(L.lies('tests/umgebung.js')), vertragVorErstemRequire: (function () { const u = L.lies('tests/umgebung.js'); const a = u.search(/^process\.env\.TZ\s*=/m), b = u.indexOf("require('fs')"); return a >= 0 && a < b; })(), nutzerOhneVertrag: ['sprache', 'globale'].filter(n => !/require\('\.\/umgebung\.js'\)/.test(L.lies('tests/' + n + '.js'))), zeitzoneFixiert: Object.fromEntries(['tests/sprache.js', 'tests/globale.js', 'tests/memory7a.js', 'tests/memory7b.js', 'tests/umgebung.js'].map(f => [f, tzFix(f)])), npmInstall: /npm (ci|install)/.test(wf), vollerGitVerlauf: /actions\/checkout@v4\s*\n\s*with:\s*\n\s*fetch-depth:\s*0\b/.test(wf), testsMitGit: dateien(L, 'tests', /\.js$/).filter(f => /execSync\([^)]*git show/.test(L.lies('tests/' + f))), workflows: L.liste('.github/workflows').map(p => path.basename(p)) };
 }
 function orphans(L) {
     const alle = []; (function lauf(d) { for (const e of fs.readdirSync(path.join(ROOT, d), { withFileTypes: true })) { if (e.name === '.git' || e.name === 'node_modules') continue; const p = d ? d + '/' + e.name : e.name; if (e.isDirectory()) lauf(p); else alle.push(p); } })('');
@@ -246,7 +262,7 @@ function messen() {
     return {
         zahlen: zahlen(L),
         index: { doppelt: idx.doppelt, fehlendeDatei: idx.fehlendeDatei, ohneTag: idx.ohneTag, ohneStempel: idx.ohneStempel, drittHosts: idx.drittHosts, positionen: { 'actions.js': idx.pos('actions.js'), 'aktionen_kette.js': idx.pos('aktionen_kette.js'), 'places.js': idx.pos('places.js'), 'foto_kette.js': idx.pos('foto_kette.js'), 'voice.js': idx.pos('voice.js'), 'speak_kette.js': idx.pos('speak_kette.js'), 'commands.js': idx.pos('commands.js'), 'storage.js': idx.pos('storage.js') } },
-        konsistenz: konsistenz(L), klasse: K, klassenZahl: je, kleineDateien: js.filter(f => F[f].zeilen <= 80).sort(), reste: reste(L), duplikate: duplikate(L),
+        konsistenz: konsistenz(L), doku8b: dokuRegeln8b(L), klasse: K, klassenZahl: je, kleineDateien: js.filter(f => F[f].zeilen <= 80).sort(), reste: reste(L), duplikate: duplikate(L),
         ketten: caps, capabilityNichtReferenziert: js.filter(f => !moduleSet.has(f)).length, tests: testbestand(L), doku: dokubestand(L), ci: ci(L), verwaiste: orphans(L), serviceWorker: serviceWorker(L), android: android(L), api: apiBefund(L),
         dokuAbweichungen: {
             architekturStandZeile: (L.lies('ARCHITEKTUR.md').match(/^Stand: [^\n]*/m) || [''])[0].slice(0, 80), architekturSkriptzahl: (L.lies('ARCHITEKTUR.md').match(/js\/` \((\d+) Skripte\)/) || [])[1] || null,
@@ -299,8 +315,12 @@ function tabelle(m) {
     check('Android: keine native Methode ungenutzt, keine fehlende, jeder Rückruf hat ein Ziel im Web-Code', m.android.ungenutzteNative.length === 0 && m.android.jsRuftFehlendeNative.length === 0 && m.android.rueckrufeOhneJs.length === 0, m.android);
     check('API: Funktionsgrenze eingehalten, jede Datei hat einen Aufrufer', m.api.hobbyGrenzeOk && m.api.ohneClient.length === 0, m.api);
     check('Service Worker: nur Push, kein fetch-Handler, keine Cache-Liste; Manifest-Icons vorhanden', m.serviceWorker.pushHandler && !m.serviceWorker.fetchHandler && !m.serviceWorker.cacheListe && m.serviceWorker.iconsVorhanden);
-    /* Bekannte Befunde, bewusst festgehalten (Phase 8B soll sie beheben; dann ändert sich dieser Sollwert) */
-    check('BEKANNT (CI): Workflow nutzt Node 20 ohne Zeitzone; sprache.js und globale.js fixieren die Zeitzone NICHT (Ursache der GitHub-Fehler, siehe tests/inventar8a-analyse.md)', m.ci.nodeVersion === '20' && !m.ci.zeitzoneImWorkflow && m.ci.zeitzoneFixiert['tests/sprache.js'] === false && m.ci.zeitzoneFixiert['tests/globale.js'] === false, m.ci);
+    /* Phase 8B: Zeitzonen-Vertrag der Testwelt und Enddokumentation (Soll bleibt grün, solange der Vertrag steht) */
+    check('CI-Vertrag: umgebung.js setzt die Zeitzone zentral auf Europe/Berlin, und zwar vor dem ersten require', m.ci.zeitzonenVertragZentral && m.ci.vertragVorErstemRequire, m.ci);
+    check('CI-Vertrag: sprache.js und globale.js hängen an umgebung.js (erben den Vertrag), Node-Version im Workflow unverändert 20', m.ci.nutzerOhneVertrag.length === 0 && m.ci.nodeVersion === '20', m.ci);
+    check('CI-Vertrag: Workflow holt den vollen Git-Verlauf (fetch-depth: 0), solange ein Test `git show` nutzt', m.ci.testsMitGit.length === 0 || m.ci.vollerGitVerlauf, m.ci);
+    check('Doku 8B: Produktzahl, offene Punkte mit Verweisen, Momentaufnahmen markiert', m.doku8b.length === 0, m.doku8b);
+    check('Doku 8B: kein Momentaufnahme-Dokument ohne Hinweis mehr', m.doku.momentaufnahmeOhneHistorischHinweis.length === 0, m.doku.momentaufnahmeOhneHistorischHinweis);
 
     /* ---------- 8  Gegenproben ---------- */
     const idxText = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), lkText = fs.readFileSync(path.join(ROOT, 'LANDKARTE.md'), 'utf8'), arText = fs.readFileSync(path.join(ROOT, 'ARCHITEKTUR.md'), 'utf8');
@@ -341,6 +361,24 @@ function tabelle(m) {
     {   // CI: Zeitzone im Workflow gesetzt wird erkannt (Folge-Phase 8B ändert den Sollwert bewusst)
         const c = ci(leser({ ersatz: { '.github/workflows/tests.yml': t => t.replace('    runs-on: ubuntu-latest', '    runs-on: ubuntu-latest\n    env:\n      TZ: Europe/Berlin') } }));
         check('Gegenprobe: Zeitzone im Workflow wird erkannt', c.zeitzoneImWorkflow === true);
+    }
+    {   // Phase 8B Gegenproben (nur Prüf-Eingang im Speicher verändert)
+        check('Kontrolle 8B: unveränderter Eingang ergibt keine Meldung', dokuRegeln8b(leser()).length === 0);
+        const e = (name, ueber, rx) => { const mm = dokuRegeln8b(leser(ueber)); check('Gegenprobe 8B: ' + name, mm.some(x => rx.test(x)), mm); };
+        e('falsche Produktzahl in ARCHITEKTUR.md', { ersatz: { 'ARCHITEKTUR.md': t => t.replace('(169 Skripte)', '(168 Skripte)') } }, /nennt 168 Skripte/);
+        e('Abschnitt offene Punkte fehlt', { ersatz: { 'ARCHITEKTUR.md': t => t.replace('## Bekannte offene technische Punkte', '## Anderes') } }, /Abschnitt .* fehlt/);
+        e('Verweis auf memory7b-analyse fehlt', { ersatz: { 'ARCHITEKTUR.md': t => t.replace(/(## Bekannte offene technische Punkte[\s\S]*)tests\/memory7b-analyse\.md/, '$1tests/memory7b.md') } }, /verweisen nicht auf tests\/memory7b-analyse\.md|nicht existiert|existiert nicht/);
+        e('Analyse-Datei existiert nicht', { geloescht: ['tests/memory7a-analyse.md'] }, /existiert nicht: tests\/memory7a-analyse\.md/);
+        e('Momentaufnahme nicht markiert', { ersatz: { 'tests/ist-zustand.md': t => t.replace(/^> \*\*Historische Momentaufnahme[^\n]*\n\n/, '') } }, /nicht eindeutig markiert: tests\/ist-zustand\.md/);
+        e('Hinweis "keine automatisch zu behebenden Fehler" entfernt', { ersatz: { 'ARCHITEKTUR.md': t => t.replace('keine automatisch zu behebenden Fehler', 'Fehler') } }, /Hinweis/);
+        const g = ci(leser({ ersatz: { '.github/workflows/tests.yml': t => t.replace(/\n\s*with:\s*\n\s*fetch-depth: 0[^\n]*/, '') } }));
+        check('Gegenprobe 8B: fehlender voller Git-Verlauf im Workflow wird erkannt', g.vollerGitVerlauf === false && g.testsMitGit.includes('hintergrund_6b2.js'), g);
+        const c1 = ci(leser({ ersatz: { 'tests/umgebung.js': t => t.replace("process.env.TZ = 'Europe/Berlin';", '') } }));
+        check('Gegenprobe 8B: fehlender Zeitzonen-Vertrag in umgebung.js wird erkannt', c1.zeitzonenVertragZentral === false);
+        const c2 = ci(leser({ ersatz: { 'tests/umgebung.js': t => t.replace("process.env.TZ = 'Europe/Berlin';", '').replace("const fs = require('fs')", "const fs0 = require('fs'); process.env.TZ = 'Europe/Berlin';\nconst fs = require('fs')") } }));
+        check('Gegenprobe 8B: Zeitzone erst nach dem ersten require wird erkannt', c2.vertragVorErstemRequire === false, c2);
+        const c3 = ci(leser({ ersatz: { 'tests/globale.js': t => t.replace("require('./umgebung.js')", "require('./andere.js')") } }));
+        check('Gegenprobe 8B: Test ohne Anbindung an umgebung.js wird erkannt', c3.nutzerOhneVertrag.includes('globale'), c3.nutzerOhneVertrag);
     }
     console.log('PHASE 8A: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
