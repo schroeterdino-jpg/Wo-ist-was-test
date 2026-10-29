@@ -1,0 +1,1010 @@
+{
+ "statisch": {
+  "fundstellen": 47,
+  "fundstellenJeDatei": {
+   "actions.js": 4,
+   "answers.js": 1,
+   "assistant.js": 1,
+   "briefing.js": 3,
+   "dirigent.js": 1,
+   "fish.js": 1,
+   "gedaechtnis_zeit.js": 6,
+   "langzeit.js": 1,
+   "lists.js": 18,
+   "render.js": 2,
+   "storage.js": 3,
+   "sync.js": 1,
+   "travel.js": 5
+  },
+  "definiert": [
+   "storage.js"
+  ],
+  "ersetztIn": [
+   "gedaechtnis_zeit.js",
+   "langzeit.js",
+   "lists.js",
+   "storage.js",
+   "sync.js"
+  ],
+  "schluesselAnzahl": 170,
+  "jvNova": [
+   "jv_aa_kopf",
+   "jv_ansage_zuletzt",
+   "jv_ansagen",
+   "jv_antrag_profil",
+   "jv_anzeige_layout",
+   "jv_anzeige_rand",
+   "jv_anzeige_zoom",
+   "jv_arbeit_via",
+   "jv_ausfluege",
+   "jv_autocheck",
+   "jv_autocheck_tag",
+   "jv_dirig_aus",
+   "jv_dirig_gruss",
+   "jv_dirig_heute",
+   "jv_dirig_log",
+   "jv_dirig_stumm",
+   "jv_essensplan",
+   "jv_fahrtcheck",
+   "jv_fenster_stil",
+   "jv_fish_init",
+   "jv_formulierungen",
+   "jv_foto_erkennen",
+   "jv_fristen_an",
+   "jv_fristen_gesehen",
+   "jv_frueher_letzt",
+   "jv_haushalt",
+   "jv_heute",
+   "jv_hoerkorrektur",
+   "jv_holo",
+   "jv_human",
+   "jv_karte_auto_zu",
+   "jv_kennen_an",
+   "jv_kennen_gefragt",
+   "jv_kennen_log",
+   "jv_kennen_texte",
+   "jv_ki_mitdenken",
+   "jv_ki_mitdenken_stufe",
+   "jv_konto_an",
+   "jv_konto_banken",
+   "jv_konto_gesehen",
+   "jv_konto_verlauf",
+   "jv_kuend_letzte",
+   "jv_kuend_liste",
+   "jv_kuend_profil",
+   "jv_langzeit_anstoss_tag",
+   "jv_langzeit_aufgeraeumt_v1",
+   "jv_langzeit_frist_tag",
+   "jv_langzeit_nachfrage_tag",
+   "jv_laune",
+   "jv_laune_aus",
+   "jv_laune_last",
+   "jv_mailwatch_on",
+   "jv_mailwatch_seen",
+   "jv_meldungen",
+   "jv_mimik",
+   "jv_mitnehmen",
+   "jv_mn_an",
+   "jv_mn_done",
+   "jv_mn_last",
+   "jv_mund_delay",
+   "jv_news_tag",
+   "jv_orte_an",
+   "jv_orte_cache",
+   "jv_orte_frage",
+   "jv_orte_places_aus",
+   "jv_orte_versuch",
+   "jv_pakete",
+   "jv_plan_abfahrt",
+   "jv_plan_aus",
+   "jv_plan_beginn",
+   "jv_plan_beginn_tag_",
+   "jv_plan_ende",
+   "jv_plan_fahrt",
+   "jv_plan_gesagt",
+   "jv_plan_heim",
+   "jv_plan_vor_",
+   "jv_plan_wecker_",
+   "jv_plan_wzeit_",
+   "jv_plauder_bis",
+   "jv_preiswaechter",
+   "jv_ps_gebraucht",
+   "jv_push",
+   "jv_push_geo",
+   "jv_push_route",
+   "jv_rechnungen",
+   "jv_redet",
+   "jv_redet_log",
+   "jv_restored",
+   "jv_routinen",
+   "jv_routinen_aus",
+   "jv_rueckblick_tag",
+   "jv_rueckblicke",
+   "jv_rueckfrage_gemerkt",
+   "jv_schicht",
+   "jv_schicht_last",
+   "jv_sound_on",
+   "jv_sound_vol",
+   "jv_speech_rate_local",
+   "jv_spotify",
+   "jv_spotify_aktiv",
+   "jv_spotify_auto_aus",
+   "jv_spotify_autoliste",
+   "jv_spotify_gefragt",
+   "jv_spotify_pending",
+   "jv_spotify_pkce",
+   "jv_stundenplan_name",
+   "jv_tageslog",
+   "jv_termin_erinnern",
+   "jv_termin_links",
+   "jv_tour_pos",
+   "jv_urlaub",
+   "jv_urlaub_liste",
+   "jv_urlaub_meta",
+   "jv_vorb_aus",
+   "jv_vorb_done",
+   "jv_weltuhr",
+   "jv_wetter_pos",
+   "jv_wunschlisten",
+   "jv_zuvor_geb",
+   "jv_zuvor_geb_aus",
+   "jv_zuvor_gefragt_",
+   "jv_zuvor_gruss_",
+   "jv_zuvor_letzt",
+   "nova_kopf",
+   "nova_kopf_init",
+   "nova_kopf_stimme",
+   "nova_stimme_",
+   "nova_zubehoer"
+  ],
+  "gedaechtnisSchluesselSchreiber": [
+   "actions.js",
+   "gedaechtnis_zeit.js",
+   "lists.js",
+   "storage.js",
+   "sync.js"
+  ],
+  "zeitSchluesselDateien": [
+   "gedaechtnis_zeit.js"
+  ],
+  "syncJs": [
+   "helfer_shopping",
+   "helfer_todo_entries",
+   "helfer_memory",
+   "helfer_contacts",
+   "helfer_briefing_wishes",
+   "helfer_parking",
+   "helfer_rezepte",
+   "helfer_home_address",
+   "user_custom_name",
+   "helfer_work_address",
+   "jv_schicht",
+   "jv_urlaub",
+   "jv_plan_beginn",
+   "jv_plan_abfahrt",
+   "jv_hoerkorrektur",
+   "helfer_pronunciations",
+   "jv_mitnehmen",
+   "nova_kopf",
+   "nova_zubehoer",
+   "tts_engine",
+   "tts_openai_voice",
+   "tts_edge_voice",
+   "night_dim",
+   "jv_sound_vol",
+   "jv_sound_on",
+   "helfer_untertitel",
+   "helfer_bootton",
+   "helfer_wetterfx",
+   "helfer_vibration",
+   "wake_word_enabled",
+   "fx_flags",
+   "fx_mode",
+   "conversation_mode",
+   "proaktiv_sprechen"
+  ],
+  "syncApi": [
+   "helfer_shopping",
+   "helfer_todo_entries",
+   "helfer_memory",
+   "helfer_contacts",
+   "helfer_briefing_wishes",
+   "helfer_parking",
+   "helfer_rezepte",
+   "user_custom_name",
+   "helfer_home_address",
+   "helfer_work_address",
+   "jv_schicht",
+   "jv_urlaub",
+   "jv_urlaub_liste",
+   "jv_ausfluege",
+   "jv_wunschlisten",
+   "jv_preiswaechter",
+   "jv_haushalt",
+   "jv_plan_beginn",
+   "jv_plan_abfahrt",
+   "jv_hoerkorrektur",
+   "helfer_pronunciations",
+   "jv_mitnehmen",
+   "nova_kopf",
+   "nova_zubehoer",
+   "tts_engine",
+   "tts_openai_voice",
+   "tts_edge_voice",
+   "night_dim",
+   "jv_sound_vol",
+   "jv_sound_on",
+   "helfer_untertitel",
+   "helfer_bootton",
+   "helfer_wetterfx",
+   "helfer_vibration",
+   "wake_word_enabled",
+   "fx_flags",
+   "fx_mode",
+   "conversation_mode",
+   "proaktiv_sprechen"
+  ],
+  "nurImClient": [],
+  "nurAmServer": [
+   "jv_urlaub_liste",
+   "jv_ausfluege",
+   "jv_wunschlisten",
+   "jv_preiswaechter",
+   "jv_haushalt"
+  ],
+  "nativ": {
+   "AnsageReceiver.java": [
+    "nova_ansage",
+    "nova_ansagen"
+   ],
+   "OrtReceiver.java": [
+    "nova_orte",
+    "nova_orte_status"
+   ]
+  }
+ },
+ "szenarien": {
+  "S01_startLeer": {
+   "ladefehler": [],
+   "typ": "object",
+   "schluessel": [],
+   "proxy": true,
+   "takte": 1,
+   "schreibenBeimStart": {}
+  },
+  "S02_startMitEintraegen": {
+   "ladefehler": [],
+   "schluessel": [
+    "schlüssel",
+    "brille"
+   ],
+   "proxy": true,
+   "takte": 1,
+   "schreibenBeimStart": {},
+   "zeitUnveraendert": true
+  },
+  "S03_merkDir": {
+   "sofort": {
+    "speicher": {
+     "schlüssel": "unter dem Kopfkissen",
+     "brille": "auf dem Tisch",
+     "zweitschlüssel": "im Blumentopf"
+    },
+    "zeit": [
+     "zweitschlüssel"
+    ],
+    "schreiben": {
+     "helfer_memory_zeit": {
+      "L": 3,
+      "S": 3
+     },
+     "helfer_memory": {
+      "L": 1,
+      "S": 1
+     },
+     "helfer_sync_meta": {
+      "L": 1
+     }
+    },
+    "langzeitAufrufe": [
+     "store"
+    ],
+    "refGleich": true,
+    "proxy": true,
+    "fehler": []
+   },
+   "lesen": {
+    "suche": [
+     {
+      "key": "schlüssel",
+      "value": "unter dem Kopfkissen"
+     },
+     {
+      "key": "zweitschlüssel",
+      "value": "im Blumentopf"
+     }
+    ],
+    "zeitantwort": {
+     "lokal": true,
+     "modul": "gedaechtnis_zeit",
+     "gesagt": [
+      "Dazu habe ich kein Datum gespeichert. Schlüssel steht bei mir unter dem Kopfkissen, aber n…"
+     ]
+    }
+   }
+  },
+  "S03b_merkDirSatz": {
+   "lokal": false,
+   "modul": null,
+   "aenderungen": [
+    "speicherSchluessel"
+   ],
+   "schreiben": {}
+  },
+  "S04_erinnerung": {
+   "schreiben": {
+    "helfer_reminders": {
+     "L": 1,
+     "S": 1
+    }
+   },
+   "erinnerungen": 1,
+   "gedaechtnisUnberuehrt": true,
+   "fehler": []
+  },
+  "S05_langzeitLesen": {
+   "zeilen": [
+    "Merk-dir: Der Zweitschlüssel liegt im Blumentopf."
+   ],
+   "aufrufe": [
+    "search topK=5"
+   ],
+   "speicherGeschrieben": 0,
+   "lokalesGedaechtnisUnberuehrt": true
+  },
+  "S05b_langzeitSpeichern": {
+   "aufrufe": [
+    "store"
+   ],
+   "textEnthaeltOriginalsatz": true
+  },
+  "S06_aendern": {
+   "nachNeu": {
+    "mem": {
+     "schlüssel": "in der Jacke",
+     "brille": "auf dem Tisch"
+    },
+    "zeit": {
+     "schlüssel": "2026-10-28T09:01:00.000Z"
+    },
+    "schreiben": {
+     "helfer_memory_zeit": {
+      "L": 3,
+      "S": 3
+     },
+     "helfer_memory": {
+      "L": 1,
+      "S": 1
+     }
+    }
+   },
+   "nachGleich": {
+    "zeitGeaendert": true,
+    "schreiben": {
+     "helfer_memory_zeit": {
+      "L": 2,
+      "S": 2
+     },
+     "helfer_memory": {
+      "L": 1,
+      "S": 1
+     }
+    }
+   },
+   "nachListEdit": {
+    "mem": {
+     "schlüssel": "in der Jacke",
+     "brille": "in der Tasche"
+    },
+    "schreiben": {
+     "helfer_memory_zeit": {
+      "L": 2,
+      "S": 2
+     },
+     "helfer_memory": {
+      "L": 1,
+      "S": 1
+     }
+    }
+   },
+   "nachVariante": {
+    "schluessel": [
+     "brille",
+     "schlüsselort"
+    ],
+    "zeitSchluessel": [
+     "brille",
+     "schlüsselort"
+    ]
+   },
+   "refGleich": true
+  },
+  "S07_loeschen": {
+   "a": {
+    "mem": [
+     "schlüssel",
+     "zweitschlüssel"
+    ],
+    "zeit": [
+     "schlüssel"
+    ],
+    "fehler": [],
+    "schreiben": {
+     "helfer_memory_zeit": {
+      "L": 1,
+      "S": 1
+     },
+     "helfer_memory": {
+      "L": 1,
+      "S": 1
+     }
+    }
+   },
+   "b": {
+    "mem": [
+     "zweitschlüssel"
+    ],
+    "fehler": []
+   },
+   "c": {
+    "mem": [
+     "ersatzschlüssel",
+     "zweitschlüssel"
+    ],
+    "fehler": [
+     "Zu „schlüssel\" gibt es mehrere Einträge: ersatzschlüssel, zweitschlüssel. Welchen meinst d…"
+    ]
+   },
+   "d": {
+    "mem": [
+     "schlüssel"
+    ],
+    "zeit": [
+     "schlüssel"
+    ],
+    "schreiben": {
+     "helfer_memory_zeit": {
+      "L": 1,
+      "S": 1
+     },
+     "helfer_memory": {
+      "L": 1,
+      "S": 1
+     }
+    }
+   },
+   "e": {
+    "fehler": [
+     "Das komplette Gedächtnis leere ich nur über den Knopf im Gedächtnis-Tab."
+    ],
+    "mem": [
+     "schlüssel"
+    ]
+   },
+   "f": {
+    "mem": {},
+    "zeit": {},
+    "refGleich": false,
+    "proxy": true
+   }
+  },
+  "S08_neustart": {
+   "schluesselNachNeustart": [
+    "schlüssel",
+    "brille",
+    "zweitschlüssel"
+   ],
+   "proxy": true,
+   "zeitNachNeustart": [
+    "zweitschlüssel"
+   ],
+   "schreibenBeimStart": {},
+   "speicherGleich": true,
+   "referenzNeu": true,
+   "nurSitzung": [
+    "nur"
+   ]
+  },
+  "S09_schnell": {
+   "mem": {
+    "schlüssel": "unter dem Kopfkissen",
+    "brille": "auf dem Tisch",
+    "a": "1",
+    "b": "2",
+    "c": "3",
+    "d": "5"
+   },
+   "zeit": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "schreiben": {
+    "helfer_memory_zeit": {
+     "L": 15,
+     "S": 15
+    },
+    "helfer_memory": {
+     "L": 5,
+     "S": 5
+    }
+   },
+   "refGleich": true
+  },
+  "S10_fremderZugriff": {
+   "ramSiehtExternen": false,
+   "nachSchreibenInA": [
+    "brille",
+    "neu",
+    "schlüssel"
+   ],
+   "externerEintragVerloren": true
+  },
+  "S11_syncFehler": {
+   "fehler500": {
+    "lokal": [
+     "brille",
+     "schlüssel"
+    ],
+    "ramGleich": true,
+    "refGleich": true,
+    "serverAnfragen": [
+     "GET"
+    ],
+    "schreibenMem": {}
+   },
+   "offline": {
+    "lokal": [
+     "brille",
+     "schlüssel"
+    ],
+    "ramGleich": true,
+    "refGleich": true,
+    "serverAnfragen": [
+     "GET"
+    ],
+    "schreibenMem": {}
+   },
+   "leer": {
+    "lokal": [
+     "brille",
+     "schlüssel"
+    ],
+    "ramGleich": true,
+    "refGleich": true,
+    "serverAnfragen": [
+     "GET",
+     "POST"
+    ],
+    "schreibenMem": {}
+   },
+   "kaputt": {
+    "lokal": [
+     "brille",
+     "schlüssel"
+    ],
+    "ramGleich": true,
+    "refGleich": true,
+    "serverAnfragen": [
+     "GET",
+     "POST"
+    ],
+    "schreibenMem": {}
+   }
+  },
+  "S12_syncNormal": {
+   "serverKenntNichts": {
+    "serverHat": [
+     "brille",
+     "schlüssel"
+    ],
+    "anfragen": [
+     "GET:",
+     "POST:helfer_memory"
+    ]
+   },
+   "serverNeuer": {
+    "lokal": {
+     "schlüssel": "im Auto",
+     "neu": "x"
+    },
+    "refGleich": false,
+    "proxyDirekt": false,
+    "zeit": [
+     "neu",
+     "schlüssel"
+    ],
+    "schreibenMem": {
+     "helfer_memory": {
+      "L": 1,
+      "S": 1
+     },
+     "helfer_memory_zeit": {
+      "L": 1,
+      "S": 1
+     }
+    },
+    "proxyNach3s": true
+   },
+   "geraetNeuer": {
+    "serverHat": [
+     "brille",
+     "schlüssel"
+    ],
+    "lokal": [
+     "brille",
+     "schlüssel"
+    ]
+   },
+   "nieAbgeglichen": {
+    "lokal": {
+     "schlüssel": "im Auto",
+     "brille": "auf dem Tisch",
+     "neu": "x"
+    },
+    "serverHat": [
+     "brille",
+     "neu",
+     "schlüssel"
+    ]
+   },
+   "geraetLeer": {
+    "lokal": {
+     "vom": "server"
+    },
+    "keys": [
+     "vom"
+    ]
+   },
+   "parallel": {
+    "lokal": [
+     "schlüssel"
+    ],
+    "extraVerloren": true
+   },
+   "siebenNeue": {
+    "anzahl": 7,
+    "zeitEintraege": 0
+   }
+  },
+  "S13_rennen": {
+   "getVerspaetet": {
+    "lokal": [
+     "brille",
+     "lokalneu",
+     "schlüssel"
+    ],
+    "serverHat": [
+     "brille",
+     "lokalneu",
+     "schlüssel"
+    ],
+    "lokalGewinnt": true
+   },
+   "postVerspaetet": {
+    "anfragen": [
+     "GET",
+     "POST"
+    ],
+    "serverNachErstemLauf": [
+     "brille",
+     "schlüssel"
+    ],
+    "lokal": [
+     "brille",
+     "schlüssel",
+     "waehrendupload"
+    ],
+    "serverNachZweitemLauf": [
+     "brille",
+     "schlüssel",
+     "waehrendupload"
+    ]
+   },
+   "aliasUeberErsetzung": {
+    "ramHat": [
+     "fern"
+    ],
+    "speicherHat": [
+     "fern"
+    ],
+    "aliasWriteVerloren": true
+   }
+  },
+  "S14_kaputt": {
+   "kaputtesJson": {
+    "ladefehler": [
+     "storage.js: Expected property name or '}"
+    ],
+    "memoryItems": {
+     "fehler": "memoryItems is not defined"
+    },
+    "kontakte": {
+     "fehler": "savedContacts is not defined"
+    },
+    "speicherUnveraendert": true,
+    "nachSchreibversuch": {
+     "speicher": "{kaputt",
+     "fehler": [
+      "memoryItems is not defined"
+     ]
+    }
+   },
+   "kaputtesJsonMitServer": {
+    "speicher": "{\"gut\":\"x\"}",
+    "nachNeustart": [
+     "gut"
+    ]
+   },
+   "arrayStattObjekt": {
+    "istArray": true,
+    "speicher": "[]",
+    "eintragVerloren": true
+   }
+  },
+  "S15_proxy": {
+   "proxy": true,
+   "flagAufzaehlbar": false,
+   "flagImJson": false,
+   "setEinKey": {
+    "helfer_memory_zeit": {
+     "L": 1,
+     "S": 1
+    }
+   },
+   "deleteEinKey": {
+    "schreiben": {
+     "helfer_memory_zeit": {
+      "L": 1,
+      "S": 1
+     }
+    },
+    "zeit": []
+   },
+   "assignZwei": {
+    "helfer_memory_zeit": {
+     "L": 2,
+     "S": 2
+    }
+   },
+   "verschachteltetAenderung": {
+    "schreiben": {}
+   },
+   "einTickStabil": true,
+   "nachTicksSchreiben": {},
+   "setNachTicksZeitSchreibungen": {
+    "helfer_memory_zeit": {
+     "L": 1,
+     "S": 1
+    }
+   },
+   "nichtObjekt": [
+    {
+     "wert": "null",
+     "proxyNach3s": false
+    },
+    {
+     "wert": "[]",
+     "proxyNach3s": true
+    },
+    {
+     "wert": "5",
+     "proxyNach3s": false
+    }
+   ]
+  },
+  "S16_dreiSekunden": {
+   "takte": 1,
+   "intervall": [
+    3000
+   ],
+   "zwoelfSekunden": {
+    "referenzGleich": true,
+    "proxy": true,
+    "speicherLesen": "nicht gemessen (nur Schreibzugriffe)",
+    "schreibenMemory": {}
+   },
+   "nachErsetzung": {
+    "proxy": false,
+    "nach2900ms": false,
+    "nach3100ms": true,
+    "referenzNachWeiterenTicks": true
+   },
+   "versteckt": {
+    "hiddenIst": true,
+    "proxyTrotzdem": true
+   },
+   "taktSchreibt": {}
+  },
+  "S17_doppelteInit": {
+   "takte": 1,
+   "nachZweitemLaden": {
+    "takte": 2,
+    "proxy": true
+   },
+   "einWriteDanach": {
+    "helfer_memory_zeit": {
+     "L": 4,
+     "S": 4
+    },
+    "helfer_memory": {
+     "L": 1,
+     "S": 1
+    }
+   }
+  },
+  "S18_hintergrundTakte": {
+   "ensureProxy": 1,
+   "intervalle3s": 1
+  }
+ },
+ "server": {
+  "sync": {
+   "ohneKey": 401,
+   "falscherKey": 401,
+   "ohneSecret": 500,
+   "ohneSpeicher": 500,
+   "methodePut": 405,
+   "postLiefertAlles": {
+    "status": 200,
+    "schluessel": [
+     "helfer_memory"
+    ]
+   },
+   "aelterZeitstempel": {
+    "gespeichert": "1"
+   },
+   "gleicherZeitstempel": {
+    "gespeichert": "3"
+   },
+   "neuererZeitstempel": {
+    "gespeichert": "4"
+   },
+   "ungueltigeEingaben": {
+    "status": 200,
+    "schluesselDanach": [
+     "helfer_memory"
+    ]
+   },
+   "kaputtesJsonAlsWert": 200,
+   "kaputtesJsonAlsWertWirdGespeichert": true,
+   "beschaedigterGesamtwert": {
+    "status": 200,
+    "danach": [
+     "helfer_memory"
+    ]
+   },
+   "zuGross": {
+    "status": 413
+   },
+   "redisWeg": 500,
+   "redisWegFehlertext": "Sync-Fehler: Redis nicht erreichbar",
+   "getLeerLiefert": "{\"items\":{}}",
+   "gleichzeitigeBereiche": {
+    "gespeichert": [
+     "helfer_contacts"
+    ],
+    "hinweis": "Zwei gleichzeitige POSTs lesen beide den alten Gesamtstand; der zuletzt schreibende ersetzt den anderen (ein Gerät lädt beim nächsten Abgleich erneut hoch)"
+   }
+  },
+  "memory": {
+   "ohneKey": 401,
+   "falscherKey": 401,
+   "ohneUmgebung": 500,
+   "getStattPost": 405,
+   "optionen": 405,
+   "unbekannteAktion": 400,
+   "storeOhneText": 400,
+   "deleteOhneIds": 400,
+   "searchOhneText": 400,
+   "storeKuerztAuf": {
+    "status": 200,
+    "laenge": 2000
+   },
+   "gleicheIdUeberschreibt": {
+    "anzahl": 1,
+    "text": "zweite Fassung"
+   },
+   "upstashFehler": 502,
+   "upstashNetz": 500,
+   "leereAntwortSearch": {
+    "status": 200,
+    "treffer": 0
+   },
+   "leereAntwortList": {
+    "status": 200,
+    "treffer": 0
+   },
+   "leereAntwortListall": {
+    "status": 200,
+    "eintraege": 0
+   },
+   "topKbegrenzt": 200,
+   "reflectOhneCron": 500,
+   "gleichzeitigeMarkierungen": {
+    "anstoss_tag": false,
+    "anstoss_aus": true
+   },
+   "markUnbekannteId": 404,
+   "profilCode": {
+    "status": 200,
+    "namensraum": "/range/pbce2207514"
+   },
+   "profilCodeUnbekannt": 401
+  },
+  "aufrufer": {
+   "memory": {
+    "assistant.js": [
+     "listall",
+     "search"
+    ],
+    "briefing.js": [
+     "store"
+    ],
+    "foto_abtippen.js": [
+     "delete",
+     "listall",
+     "store"
+    ],
+    "foto_person.js": [
+     "delete",
+     "store"
+    ],
+    "foto_stundenplan.js": [
+     "delete",
+     "listall",
+     "store"
+    ],
+    "fristen.js": [
+     "fristen",
+     "mark",
+     "store"
+    ],
+    "kennenlernen.js": [
+     "list",
+     "store"
+    ],
+    "ki_mitdenken.js": [
+     "listall"
+    ],
+    "langzeit.js": [
+     "delete",
+     "due",
+     "listall",
+     "mark",
+     "search",
+     "store"
+    ],
+    "systemcheck_voll.js": [
+     "list"
+    ],
+    "tagesueberblick.js": [
+     "listall"
+    ],
+    "zane_redet.js": [
+     "list"
+    ]
+   },
+   "sync": [
+    "alarm.js",
+    "auftraege.js",
+    "mailpush.js",
+    "plan_ansagen.js",
+    "push.js",
+    "pushsync.js",
+    "sync.js"
+   ]
+  }
+ }
+}
