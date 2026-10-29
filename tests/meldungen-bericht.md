@@ -1,3 +1,5 @@
+> **Historische Momentaufnahme aus Phase C1 (Meldungs-Beobachter).** Zahlen und Architekturstand entsprechen diesem Zeitpunkt und sind nicht automatisch der aktuelle Repository-Stand. Der Bericht wird von `MELDUNGEN_BERICHT=… node tests/meldungen.js` erzeugt; nach einer Neuerzeugung diesen Hinweis wieder voranstellen. Aktueller Stand: `ARCHITEKTUR.md`, `tests/inventar8a-analyse.md`.
+
 # C1 Gesamtbericht der Messung (alle instrumentierten App-Meldungsquellen)
 
 Nur Messwerte. Kein Urteil, keine Regel, kein Vorschlag. Alle Zahlen stammen aus simulierten Läufen mit festen Attrappen für Netz, Handy-Brücke und Standort (siehe `tests/meldungen_welt.js`), nicht aus echtem Betrieb.

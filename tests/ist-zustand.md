@@ -1,3 +1,5 @@
+> **Historische Momentaufnahme aus der Prüfstrecke (Stufe 1, Phase 1).** Zahlen und Architekturstand entsprechen diesem Zeitpunkt und sind nicht automatisch der aktuelle Repository-Stand. Aktueller Stand: `ARCHITEKTUR.md`, `tests/inventar8a-analyse.md`.
+
 # Ist-Zustand der Jarvis-Prüfstrecke (Bestandsaufnahme, Stufe 1)
 
 Stand: 28.10.2026, feste Uhr Mittwoch 10:00 Berlin, Spätschicht. Nichts davon ist ein Sollwert. Erst nach Freigabe wird daraus ein fester Test oder ein Eintrag in die Fehlerliste.

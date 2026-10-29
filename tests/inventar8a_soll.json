@@ -57,6 +57,7 @@
   }
  },
  "konsistenz": [],
+ "doku8b": [],
  "klasse": {
   "actions.js": "A",
   "adress_normal.js": "B",
@@ -454,13 +455,7 @@
  "doku": {
   "unklassifiziert": [],
   "klasseOhneDatei": [],
-  "momentaufnahmeOhneHistorischHinweis": [
-   "tests/hintergrund-tabelle.md",
-   "tests/ist-zustand.md",
-   "tests/meldungen-bericht.md",
-   "tests/memory7a-analyse.md",
-   "tests/regeln-bericht.md"
-  ],
+  "momentaufnahmeOhneHistorischHinweis": [],
   "anzahl": 18
  },
  "ci": {
@@ -468,12 +463,15 @@
   "schritte": 25,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
+  "zeitzonenVertragZentral": true,
+  "vertragVorErstemRequire": true,
+  "nutzerOhneVertrag": [],
   "zeitzoneFixiert": {
    "tests/sprache.js": false,
    "tests/globale.js": false,
    "tests/memory7a.js": true,
    "tests/memory7b.js": true,
-   "tests/umgebung.js": false
+   "tests/umgebung.js": true
   },
   "npmInstall": false,
   "workflows": [
@@ -516,9 +514,9 @@
   "ohneClient": []
  },
  "dokuAbweichungen": {
-  "architekturStandZeile": "Stand: 28.10.2026 (Commit 7802e22; Doku-Korrektur Phase 2). Zweck: schnell wiede",
-  "architekturSkriptzahl": "168",
-  "landkarteStandZeile": "Stand: 28.10.2026 (Phase 4B, 169 Produktdateien in `js/`). G",
-  "architekturProjektstandAbschnitt": "## 8. Projektstand und nächste Schritte (Stand 24.10.2026)"
+  "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 169 Produkt-JS-Dateie",
+  "architekturSkriptzahl": "169",
+  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 169 Produktdateien in `js/`). G",
+  "architekturProjektstandAbschnitt": "## 8. Projektstand und nächste Schritte (Stand 24.10.2026, historisch)"
  }
 }

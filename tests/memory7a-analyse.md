@@ -1,3 +1,5 @@
+> **Historische Momentaufnahme aus Phase 7A (Zustand vor 7B).** Zahlen und Architekturstand entsprechen diesem Zeitpunkt und sind nicht automatisch der aktuelle Repository-Stand. Das darin genannte ROT (Zeitfrage) ist seit 7B behoben, siehe `tests/memory7b-analyse.md`. Aktueller Stand: `ARCHITEKTUR.md`, `tests/inventar8a-analyse.md`.
+
 # Phase 7A – Lokales Gedächtnis (memoryItems) und Speicher-Kopplungen
 
 Nur Analyse. Kein Produktcode, keine Migration, keine Umbenennung, keine Löschung. Ausgangs-HEAD: main d31aec9.

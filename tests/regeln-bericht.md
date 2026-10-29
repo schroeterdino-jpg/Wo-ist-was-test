@@ -1,3 +1,5 @@
+> **Historische Momentaufnahme aus Phase C1 (Shadow-Regeln).** Zahlen und Architekturstand entsprechen diesem Zeitpunkt und sind nicht automatisch der aktuelle Repository-Stand. Der Bericht wird von `REGELN_BERICHT=… node tests/regeln.js` erzeugt; nach einer Neuerzeugung diesen Hinweis wieder voranstellen. Aktueller Stand: `ARCHITEKTUR.md`, `tests/inventar8a-analyse.md`.
+
 # Shadow-Regeln: Soll gegen Ist auf den beiden Messläufen
 
 Nur Messwerte. Die Shadow-Logik (`js/meldungs_regeln.js`) hat in beiden Läufen mitgerechnet; die tatsächlichen Ausgaben sind in allen Varianten identisch (Test „Shadow an / aus / Datei fehlt / wirft Fehler“). Alle Zahlen stammen aus simulierten Läufen mit Attrappen, nicht aus dem echten Betrieb. „Später“ heißt nur: *Diese Meldung wäre zu diesem Zeitpunkt nicht ausgegeben worden.* Es wird nichts nachgeliefert.
