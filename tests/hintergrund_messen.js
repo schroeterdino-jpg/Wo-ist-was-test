@@ -14,7 +14,9 @@
 'use strict';
 const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
 let chromium; try { chromium = require('playwright').chromium; } catch (e) { try { chromium = require(require('child_process').execSync('npm root -g').toString().trim() + '/playwright').chromium; } catch (e2) { try { chromium = require(require('child_process').execSync('npm root -g').toString().trim() + '/@playwright/test').chromium; } catch (e3) { console.log('Playwright nicht gefunden – Messung nicht möglich.'); process.exit(3); } } }
-const ROOT = path.join(__dirname, '..'), AUS = path.join(__dirname, 'hintergrund_laufzeit.json');
+const ROOT = path.join(__dirname, '..');
+const ARG_AUS = (process.argv.find(a => a.startsWith('--aus=')) || '').slice(6);
+const AUS = ARG_AUS ? path.resolve(ARG_AUS) : path.join(__dirname, 'hintergrund_laufzeit.json');
 const KURZ = process.argv.includes('--kurz');
 const IDLE_MS = KURZ ? 15000 : 60000, START_MS = KURZ ? 5000 : 10000, SZENARIO_MS = KURZ ? 3000 : 8000;
 const warte = ms => new Promise(r => setTimeout(r, ms));
@@ -79,6 +81,7 @@ async function lauf(browser, port, name, opt) {
     const ctx = await browser.newContext({ serviceWorkers: 'block' }); const page = await ctx.newPage();
     const extern = []; let phase = 'laden';
     page.on('request', rq => { const u = rq.url(); if (!u.startsWith('http://localhost:' + port)) { try { const x = new URL(u); extern.push(phase + '|' + x.host); } catch (e) { } } });
+    page.on('console', m => { if (m.type() === 'error') (page.__konsole = page.__konsole || []).push(phase + '|' + String(m.text()).slice(0, 110)); });
     page.on('pageerror', e => { (page.__fehler = page.__fehler || []).push('pageerror: ' + String(e.message).slice(0, 90)); });
     await ctx.route('**/*', async r => {
         const u = r.request().url();
@@ -99,6 +102,12 @@ async function lauf(browser, port, name, opt) {
         await page.evaluate(() => window.__hg.verstecke(true));
         await setPhase('idle_versteckt'); await warte(IDLE_MS); await ende('idle_versteckt');
         await page.evaluate(() => window.__hg.verstecke(false));
+        // Phase 6B.1: Rückkehr und 10 schnelle Sichtbarkeitswechsel (Aktive Intervalle danach = Anzahl darf nicht wachsen)
+        await setPhase('rueckkehr'); await warte(KURZ ? 2000 : 5000); await ende('rueckkehr');
+        await setPhase('wechsel10');
+        for (let i = 0; i < 10; i++) { await page.evaluate(() => window.__hg.verstecke(true)); await warte(300); await page.evaluate(() => window.__hg.verstecke(false)); await warte(300); }
+        await ende('wechsel10');
+        await setPhase('nach_wechsel'); await warte(KURZ ? 2000 : 5000); await ende('nach_wechsel');
     }
     if (opt.szenarien) {
         const S = async (n, js) => { await setPhase(n); try { await page.evaluate(js); } catch (e) { (ergebnis.szenarioFehler = ergebnis.szenarioFehler || {})[n] = String(e.message).slice(0, 80); } await warte(SZENARIO_MS); await ende(n); };
@@ -116,6 +125,7 @@ async function lauf(browser, port, name, opt) {
     ergebnis.phasen = await page.evaluate(() => window.__hg.p);
     ergebnis.extern = extern.reduce((a, k) => { a[k] = (a[k] || 0) + 1; return a; }, {});
     ergebnis.seitenfehler = page.__fehler || [];
+    ergebnis.konsole = page.__konsole || [];
     await ctx.close();
     return ergebnis;
 }

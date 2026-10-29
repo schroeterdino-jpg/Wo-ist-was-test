@@ -34,3 +34,4 @@ jobs:
       - run: node tests/suche.js
       - run: node tests/kitext.js
       - run: node tests/hintergrund.js
+      - run: node tests/hintergrund_6b1.js

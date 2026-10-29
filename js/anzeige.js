@@ -147,7 +147,7 @@
             try { if (typeof closePanel === 'function') closePanel(); } catch (e) { }
         });
         document.body.appendChild(b);
-        setInterval(function () {
+        knopfTakt = function () {
             var offen = false;
             try {
                 var fenster = (window.jvLage && window.jvLage.isOpen()) || (typeof isPanelOpen === 'function' && isPanelOpen());
@@ -155,9 +155,25 @@
                 offen = !!fenster && (auto || document.documentElement.classList.contains('jv-breit'));
             } catch (e) { }
             b.style.display = offen ? 'block' : 'none';
-        }, 400);
+        };
+        taktSteuern(false);
     }
-    setInterval(function () { var a = autoOffen(); if (a !== zuletztAuto) { zuletztAuto = a; anwenden(); } }, 300);
+    /* Phase 6B.1: Beide Anzeige-Takte (Autoansicht 300 ms, Schließen-Knopf 400 ms) nur bei sichtbarer Seite. Versteckt pausieren sie;
+       beim Sichtbarwerden läuft jeder einmal sofort (Zustand stimmt gleich) und danach im alten Takt. Je Takt höchstens eine Kennung. */
+    var knopfTakt = null, autoId = 0, knopfId = 0;
+    function autoTakt() { var a = autoOffen(); if (a !== zuletztAuto) { zuletztAuto = a; anwenden(); } }
+    function taktSteuern(sichtbarGeworden) {
+        if (document.hidden) {
+            if (autoId) { clearInterval(autoId); autoId = 0; }
+            if (knopfId) { clearInterval(knopfId); knopfId = 0; }
+            return;
+        }
+        if (knopfTakt && !knopfId) knopfId = setInterval(knopfTakt, 400);
+        if (!autoId) autoId = setInterval(autoTakt, 300);
+        if (sichtbarGeworden) { autoTakt(); if (knopfTakt) knopfTakt(); }
+    }
+    document.addEventListener('visibilitychange', function () { taktSteuern(true); });
+    taktSteuern(false);
     window.addEventListener('resize', anwenden);
     window.addEventListener('orientationchange', function () { setTimeout(anwenden, 200); });
 

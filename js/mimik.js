@@ -199,7 +199,19 @@
             letzterZustand = st;
         }
     }
-    setInterval(takt, 120);
+    /* Phase 6B.1: Der Takt läuft nur, solange die Seite sichtbar ist. Versteckt tat er ohnehin nichts außer einmal die Überlagerung zu löschen
+       (bereit() ist dann falsch); jetzt wird der Takt dabei wirklich angehalten und beim Sichtbarwerden neu gestartet (höchstens ein Takt). */
+    var taktId = 0;
+    function taktSteuern() {
+        if (document.hidden) {
+            if (taktId) { clearInterval(taktId); taktId = 0; }
+            if (meinAktiv) loesche();
+            return;
+        }
+        if (!taktId) taktId = setInterval(takt, 120);
+    }
+    document.addEventListener('visibilitychange', taktSteuern);
+    taktSteuern();
 
     /* ---------- Sprache ---------- */
     function sag(t) { try { if (typeof window.speak === 'function') window.speak(t, typeof window.continueConversation === 'function' ? window.continueConversation : undefined); } catch (e) {} }

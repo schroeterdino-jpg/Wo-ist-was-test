@@ -3,8 +3,8 @@
 | adresse_speichern.js#1 (r) | adresse_speichern.js:58 | 500 ms | ab Laden (Schleife r) | Bedingung im Körper | Wächter keiner (nicht gemessen) |  | E | GRÜN |
 | alleinstellung.js#1 (r) | alleinstellung.js:48 | 500 ms | von außen/Ereignis (Schleife r) | Bedingung im Körper | Wächter keiner (nicht gemessen) | V | E | GRÜN |
 | anleitung.js#1 (r) | anleitung.js:415 | 500 ms | von außen/Ereignis (Schleife r) | Bedingung im Körper | Wächter keiner (nicht gemessen) | D V | E | GRÜN |
-| anzeige.js#1 | anzeige.js:150 | 400 ms | ab Laden (in zuKnopf) | nie gestoppt | läuft unverändert weiter | D | F | GELB |
-| anzeige.js#2 | anzeige.js:160 | 300 ms | ab Laden | nie gestoppt | läuft unverändert weiter | D | C | GRÜN |
+| anzeige.js#1 | anzeige.js:171 | 400 ms | ab Laden (in taktSteuern) | clearInterval(knopfId) | pausiert | D | C | GRÜN |
+| anzeige.js#2 | anzeige.js:172 | 300 ms | ab Laden (in taktSteuern) | clearInterval(autoId) | pausiert | D | C | GRÜN |
 | auftraege.js#1 | auftraege.js:166 | 250 ms | ab Laden | clearInterval(iv) | Wächter keiner (nicht gemessen) |  | E | GRÜN |
 | auftraege.js#2 | auftraege.js:167 | 1 min | ab Laden | nie gestoppt | Wächter direkt (nicht gemessen) | N A D V | A | ROT |
 | autoansicht.js#1 | autoansicht.js:226 | 20 s | ab Laden (in oeffnen) | clearInterval(tick) | Wächter keiner (nicht gemessen) | D | B | GELB |
@@ -29,7 +29,7 @@
 | fristen.js#3 (schedule) | fristen.js:210 | dynamisch | ab Laden (Schleife schedule) | Bedingung im Körper | Wächter indirekt (nicht gemessen) | N D V | D | GELB |
 | frueher_los.js#1 | frueher_los.js:49 | 250 ms | ab Laden | clearInterval(iv) | Wächter keiner (nicht gemessen) |  | E | GRÜN |
 | gedaechtnis_zeit.js#1 | gedaechtnis_zeit.js:55 | 3 s | ab Laden | nie gestoppt | läuft unverändert weiter |  | F | GELB |
-| holo_look.js#1 | holo_look.js:254 | 700 ms | ab Laden | nie gestoppt | läuft unverändert weiter | D | C | GRÜN |
+| holo_look.js#1 | holo_look.js:259 | 700 ms | ab Laden (in wachSteuern) | clearInterval(wachId) | pausiert | D | C | GRÜN |
 | jarvis.js#1 (beimOeffnen) | jarvis.js:146 | 1.5 s | ab Laden (Schleife beimOeffnen) | Bedingung im Körper | Wächter direkt (nicht gemessen) | n? D V | B | GELB |
 | jarvis.js#2 | jarvis.js:178 | 250 ms | ab Laden | clearInterval(iv) | Wächter keiner (nicht gemessen) |  | E | GRÜN |
 | kacheln.js#1 | kacheln.js:210 | 250 ms | ab Laden (in aufbauen) | clearInterval(piv) | Wächter keiner (nicht gemessen) | D | E | GRÜN |
@@ -53,7 +53,7 @@
 | mailwatch.js#1 (announceNext) | mailwatch.js:85 | 20 s | ab Laden (Schleife announceNext) | Bedingung im Körper | Wächter indirekt (nicht gemessen) | N D V | D | GELB |
 | mailwatch.js#2 (schedule) | mailwatch.js:213 | dynamisch | ab Laden (Schleife schedule) | Bedingung im Körper | Wächter indirekt (nicht gemessen) | N D | D | GELB |
 | mehrfach.js#1 (schau) | mehrfach.js:42 | 500 ms | von außen/Ereignis (Schleife schau) | Bedingung im Körper | Wächter keiner (nicht gemessen) |  | E | GRÜN |
-| mimik.js#1 | mimik.js:202 | 120 ms | ab Laden | nie gestoppt | läuft unverändert weiter | D | C | GRÜN |
+| mimik.js#1 | mimik.js:211 | 120 ms | ab Laden (in taktSteuern) | clearInterval(taktId) | pausiert | D | C | GRÜN |
 | mitnehmen.js#1 (r) | mitnehmen.js:51 | 500 ms | von außen/Ereignis (Schleife r) | Bedingung im Körper | Wächter keiner (nicht gemessen) | S V | E | GRÜN |
 | native_speech.js#1 | native_speech.js:65 | 300 ms | ab Laden | nie gestoppt | Wächter keiner (nicht gemessen) | A | A | ROT |
 | native_speech.js#2 (weiter) | native_speech.js:144 | 1.5 s | bei Bedarf (Schleife weiter) | Bedingung im Körper | Wächter keiner (nicht gemessen) | N A S | D | GELB |
