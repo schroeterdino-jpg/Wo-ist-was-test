@@ -301,7 +301,8 @@ Die sechs dauerhaften Umhüllungen von `speak()` melden sich bei `window.jvSpeak
 
 ## Fähigkeiten-Verzeichnis (B1)
 - `js/faehigkeiten.js` beschreibt, was Jarvis kann (`window.jvFaehigkeiten`): acht Fähigkeiten (Kalender, Wetter, Fahrzeit und Navigation, Erinnerungen, Gedächtnis, Fotos, Schicht, Preissuche). Je Fähigkeit: Intents mit Sicherheitsstufe (lesen/ändern/kritisch), Beispielsätze (lokal oder KI), Abhängigkeiten, Handy-App-Bedarf, proaktive Auslöser, beteiligte Module, bekannte Grenzen.
-- Rein beschreibend: hängt sich nirgends ein, ändert kein Verhalten, wird noch von keiner Datei benutzt (die dynamische Hilfe folgt in B2).
+- Rein beschreibend: hängt sich nirgends ein und ändert selbst kein Verhalten. Gelesen wird es von `js/help.js` (Hilfe-Karten, seit B2) und von `js/mehrfach.js` (`reineAuskuenfte()`, seit B4). (Der frühere Satz „wird noch von keiner Datei benutzt“ galt nur vor B2 und ist überholt.)
+- **Bedeutung:** Das Verzeichnis ist eine Übersicht zentral beschriebener Fähigkeiten und ihrer Kerndateien. Es ist **nicht** automatisch eine vollständige Liste aller Jarvis-Funktionen und **keine** Liste aller 169 Produktdateien. Bereiche wie Spotify, Bundesliga, Pakete, Konto/Mail, Filme, Ausflug, Haushalt oder Weltuhr sind darin bewusst nicht als Fähigkeiten geführt (Stand 44c6c7e); wo eine Datei hingehört, sagt `LANDKARTE.md`.
 - Regel: jeder Intent (Aktionsart, Befehl, Grundfunktion) hat genau EINEN Hauptbesitzer. Andere Fähigkeiten nennen ihn nur unter `abhaengigkeiten`.
 - `node tests/faehigkeiten.js` prüft, dass die Angaben zur App passen (Dateien, Aktionsarten, Befehle der Kette, ZaneNative). Läuft in GitHub Actions mit.
 - Wer eine Fähigkeit baut, ändert oder entfernt, pflegt auch diese Datei, sonst wird der Test rot.
@@ -510,6 +511,76 @@ Zahlen, Klassen A–E aller Produktdateien, Ketten, Reste, Duplikate, Doku-/Test
 ## Phase 8B: CI-Zeitzone und Enddokumentation (kein Produktcode)
 Die GitHub-Fehler in `tests/sprache.js` (5) und `tests/globale.js` (3) kamen daher, dass die Testwelt eine feste Uhr (10:00 Berlin), aber die Zeitzone des Rechners hatte; die App nutzt die lokale Stunde (z. B. `getHours()` in `laune.js` für die Stimmung), GitHub läuft in UTC. **Zeitzonen-Vertrag: Die Testwelt ist ein Gerät in Deutschland, `tests/umgebung.js` setzt zentral `process.env.TZ = 'Europe/Berlin'`.** Neue Tests, die `umgebung.js` nutzen, bekommen das automatisch. Die Fachlogik erwartet die lokale Gerätezeit; sie wurde nicht geändert. Zweite CI-Ursache: `tests/hintergrund_6b2.js` liest mit `git show` den Stand vor 6B.2 aus dem Git-Verlauf; der Workflow holt deshalb den vollen Verlauf (`fetch-depth: 0` beim Checkout), sonst fehlt der Commit im flachen GitHub-Klon. Prüfung beider Verträge: `tests/inventar8a.js` (Soll `tests/inventar8a_soll.json`). Einzelheiten: `tests/inventar8a-analyse.md`, Abschnitt „Phase 8B“.
 
+## Rezepte und Nachschlagen für neue Entwickler
+Reine Orientierung, Stand 44c6c7e (Fresh-AI-Nachbesserung). Es gelten die Regeln aus `CLAUDE.md`. Es werden hier keine neuen Rangregeln eingeführt.
+
+### Rezept: neuen lokalen Sprachbefehl anlegen
+1. Eintragen mit `jvCommands.use(name, function(text, next){ … return true; … return next(text); }, order)` (`js/commands.js`). Gleicher Name ersetzt den alten Eintrag.
+2. Kleinere Zahl = früher/weiter außen. Aktuelle Ränge zeigt `jvCommands.list()`.
+3. Möglichst einen eindeutigen Rang wählen. Gleiche Ränge sind erlaubt, dann entscheidet die Registrierungsreihenfolge (= Reihenfolge der Skripte in `index.html`). Deshalb keinen neuen Gleichrang ohne bewusste Begründung.
+4. Der Befehlsrang ist in `tests/reihenfolge_soll.json` eingefroren. Ein neuer Eintrag lässt `node tests/reihenfolge.js` rot werden, bis der Sollwert bewusst nachgezogen wird (`--schreiben`, nur absichtlich).
+5. Tests laufen lassen: `reihenfolge.js`, `faehigkeiten.js`, `mehrfachfrage.js`, `globale.js`, `landkarte.js`, `lauf.js` (Übersicht unten).
+6. Nur wenn eine **neue Produktdatei** entsteht oder eine Produktdatei geändert wird: Skript in `index.html` ohne `?v=` einhängen, danach `node tools/stempel.js`; neue Datei in `LANDKARTE.md` einordnen. Reine Doku-Änderungen brauchen das nicht.
+7. Nach `CLAUDE.md`: neue Nutzerfunktion bekommt einen Schritt in `js/anleitung.js` und ein Beispiel in `js/help.js`.
+- Die Hilfe („Was kannst du?“) hat aktuell keinen eigenen `jvCommands`-Rang: `js/help.js` wird als feste Zeile in `handleLocalCommandInner` (`js/localcommands.js`) aufgerufen.
+
+### Rezept: neue speak-Stufe
+1. `jvSpeakKette.anmelden(name, rang, fabrik)` (`js/speak_kette.js`). Name und Rang müssen eindeutig sein; Doppelte werden abgelehnt und stehen in `pruefe().fehler`.
+2. Die Stufe in `ERWARTET` in `js/speak_kette.js` eintragen, sonst meldet die Kette nach 3 s einen Fehler.
+3. Datei erst nach `voice.js` und `speak_kette.js` laden.
+4. `window.speak` nicht dauerhaft selbst umhüllen: das umgeht die Kette und wird als „außerhalb der Kette verändert“ abgelehnt. (Einzige Ausnahme im Bestand: `mehrfach.js`, vorübergehend, im `finally` zurückgesetzt.)
+5. Tests: `node tests/sprache.js` und `node tests/reihenfolge.js` (Sollwert: `SPEAK_KETTE` dort und Schlüssel `speak` in `tests/reihenfolge_soll.json`); bei Änderungen auch `globale.js`. Neue Produktdatei: Stempel wie oben.
+- Aktuelle Reihenfolge: 10 teilen, 20 kontext_lokal, 30 fish._dash, 40 toene, 50 sprueche, 60 voicefix.speak, Basis `voice.js`. Die Aktions-Kette hat ein eigenes Rezept in „A5, Teil 2“, die Foto-Kette steht in „Phase 3“.
+
+### Android: Java ruft JS (vor dem Löschen einer „unbenutzten“ JS-Funktion lesen)
+Neben JS→Java (`ZaneNative`, 55 `@JavascriptInterface`-Methoden in `ZaneBridge`) ruft auch Java JS auf (per `evaluateJavascript`). Solche Aufrufe sieht man in `js/` nicht. Gefundene Ziele (Stand 44c6c7e, gegen `weckruf-src/` und `js/` geprüft):
+
+| Rückrufziel | Java-Seite | JS-Seite |
+|---|---|---|
+| `window.__zaneChange` | MainActivity (liest `window.__zaneChange`) | gesetzt in `native_speech.js` |
+| `window.__zaneFiles(liste)` | MainActivity | definiert in `native_speech.js` |
+| `window.__zaneRec(typ, daten)` | MainActivity | `native_speech.js` |
+| `window.__zaneWakePending` und `window.zaneWake()` | MainActivity | `native_speech.js`; `boot.js` liest `__zaneWakePending` |
+| `jvPlan.pruefe()` | MainActivity | `plan_ansagen.js` |
+| `jvAutoansicht.start()` | MainActivity | `autoansicht.js` |
+| `jvAutoansicht.offen()` / `.schliessen()` | CarWatcher (über `MainActivity.jsAus`) | `autoansicht.js` |
+| `jvSchlaf.pruefe()` | MainActivity | `schlaf_antwort.js` |
+| `jvFahrWA.nachricht(obj)` | NachrichtenService (über `MainActivity.jsAus`) | `fahr_whatsapp.js` |
+
+- Auffinden: in `weckruf-src/*.java` nach `evaluateJavascript`, `jsAus(` und `js("` suchen. `tests/inventar8a.js` liest aus dem Java-Code alle `window.(jv…|__zane…|zane…)`-Namen und prüft, dass jeder ein JS-Ziel hat.
+- Weitere indirekte Aufrufer in JS: `onclick`-Texte in Hilfe-Karten (`help.js`) und Inline-`onclick` in `index.html`.
+- `ZaneNative` wird im Code von `native_speech.js` und **22 weiteren** Dateien benutzt (gezählt ohne Kommentare und Texte): actions, anzeige, auftraege, autoansicht, avatar3d, blick, fahr_whatsapp, foto_rezept, fotosenden, kuendigung, orte, parkplatz_auto, plan_ansagen, preissuche, pushsync, schlaf_antwort, spotify, systemcheck_voll, teilen, voice, wunschliste, zuvorkommend. `faehigkeiten.js` nennt den Namen nur in Beschreibungstexten. Die frühere Angabe „14 weitere“ war veraltet.
+- Änderungen unter `weckruf-src/` lösen einen APK-Bau aus (siehe `CLAUDE.md`). `weckruf-src/liesmich.txt` nicht anfassen.
+
+### Gleichrang (bekannt, nur dokumentiert)
+- **`jvChain`** (`js/commands.js`) lässt Gleichrang still zu (stabile Sortierung): bei gleicher Zahl entscheidet die Registrierungsreihenfolge, also die Skriptreihenfolge. Anders als Foto-, Speak- und Aktions-Kette, die gleiche Ränge ablehnen. Neue Erweiterungen sollen nach Möglichkeit einen eindeutigen Rang bekommen.
+- `buildSystemPrompt`: **Rang 210 haben zwei Einträge**, `rechnungen` (`js/rechnungen.js`) und `stundenplan` (`js/foto_stundenplan.js`); in `index.html` steht `rechnungen.js` vor `foto_stundenplan.js`, und `jvChain.list()` zeigt `rechnungen` zuerst.
+- `buildMenuPanel`: Rang 100 haben `konto`, `preissuche` und `antrag` (in dieser Reihenfolge). `jvKiText` hat keinen Gleichrang.
+- **`jvCommands`**: 19 bekannte Gleichrang-Gruppen, eingefroren in `tests/reihenfolge_soll.json` (Reihenfolge innerhalb der Gruppe in Klammern): 0.3 (postfach > autoansicht), 0.35 (preissuche > ausflug > was_steht_an), 0.36 (wunschliste > schlaf_antwort), 20 (routinen > satztest), 30 (push > mailpush), 36 (kacheln > auftraege), 37 (synapsen > wetterfx), 94 (karte-zu > rezepte), 96 (kopf > termin-erinnern), 97 (foto-person > orte), 98 (mail_nacht > antrag), 120 (urlaub > mailaktionen), 150 (rechnungen > autocheck > ansicht > holo), 155 (lokalnews > mimik), 160 (ansagen > jvfenster > zane_redet) sowie vier weitere Gruppen mit ganzen und gebrochenen Rängen aus den Bereichen mail_nacht/orte, schliessen/schicht_auskunft, laune/plan_wecker und einfuehrung/fotosenden/plan_ansagen/plan_frist. Die genauen Ränge dieser vier stehen im Sollwert.
+- Es wurden keine Ränge geändert.
+
+### Test-Übersicht: Bereich → Tests
+Alle Skripte laufen mit `node tests/<name>.js` und stehen in `.github/workflows/tests.yml` (25 Stück: lauf, aktionen, aktionen_kette, jarvis_pruefstrecke, faehigkeiten, handyapp, antwort, mehrfachfrage, meldungen, regeln, c1_stufe1, reihenfolge, timer, landkarte, sprache, globale, wirkungslos, suche, kitext, hintergrund, hintergrund_6b1, hintergrund_6b2, memory7a, memory7b, inventar8a).
+
+| Bereich | Tests |
+|---|---|
+| Commands / Reihenfolge | `reihenfolge.js` (Sollwert `reihenfolge_soll.json`), `mehrfachfrage.js`, `globale.js` |
+| Actions | `aktionen.js`, `aktionen_kette.js` |
+| Foto | `reihenfolge.js` (Schlüssel `fotoKette`), `globale.js`, `kitext.js` |
+| Speak | `sprache.js`, `reihenfolge.js` |
+| Prompt / KI-Text | `kitext.js`, `suche.js`, `antwort.js`, `wirkungslos.js` |
+| Memory | `memory7a.js`, `memory7b.js` |
+| Timer / Hintergrund | `timer.js`, `hintergrund.js`, `hintergrund_6b1.js`, `hintergrund_6b2.js` |
+| Meldungen (C1) | `meldungen.js`, `regeln.js`, `c1_stufe1.js` |
+| Capabilities / Hilfe | `faehigkeiten.js`, `mehrfachfrage.js` |
+| Android / APK | `handyapp.js`, `inventar8a.js` (Java→JS-Ziele) |
+| Landkarte / Inventar | `landkarte.js`, `inventar8a.js` (Soll `inventar8a_soll.json`) |
+| Allgemeine Prüfstrecke | `lauf.js`, `jarvis_pruefstrecke.js` |
+
+- Getrennt von `tests.yml`: `.github/workflows/oww-test.yml` und `zane-weckruf.yml` (APK-Bau). `tests/hintergrund_messen.js` ist nur lokal (Playwright) und nicht in der CI.
+- Cache-Stempel prüfen ohne zu ändern: `node tools/stempel.js --pruefen`.
+- Die Zuordnung folgt den Test-Namen und ist eine Einstiegshilfe, keine vollständige Abdeckungsliste.
+
 ## Bekannte offene technische Punkte
 Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch zu behebenden Fehler**. Vor jeder Änderung die verlinkte Analyse lesen und erst nach Rücksprache mit dem Nutzer anfassen.
 - **Gedächtnis (`memoryItems`, `helfer_memory`)**, Details `tests/memory7a-analyse.md` und `tests/memory7b-analyse.md`: Proxy-Stempel ×3, 3-s-Takt (`ensureProxy`) ohne Sichtbarkeitsprüfung, Referenzersetzung im Datenabgleich, Gesamtwert-Abgleich bei zwei Geräten, `searchMemory()` kann bei sehr kurzen Suchwerten breite Teiltreffer liefern.
@@ -517,5 +588,5 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 - **Hintergrundtakte**, Details `tests/hintergrund-6b1.md`, `tests/hintergrund-6b2.md`, `tests/hintergrund-analyse.md` (Stand 6A): weitere Takte ohne hidden-Pause sind erfasst, bewusst nicht angefasst.
 - **Duplikate**: viele lokale Hilfen (`norm`, `sagen`, `say`, `esc`, `befehl`) in unterschiedlichen Fassungen; bewusst nicht zusammengeführt, weil jede Fassung eigene Sonderfälle hat (`tests/inventar8a-analyse.md`).
 - **Service Worker**: `sw.js` hat nur Push, keinen Fetch-/Cache-Pfad; das Laden neuer Dateien hängt allein an den `?v=`-Stempeln.
-- **Capability-Verzeichnis** (`js/faehigkeiten.js`): 8 Fähigkeiten nennen 41 Dateien, die übrigen sind Hilfs-/Querschnittsdateien. Der Weg von einer Fähigkeit zu den Dateien führt über `LANDKARTE.md`.
+- **Capability-Verzeichnis** (`js/faehigkeiten.js`): 8 Fähigkeiten nennen in `module` 43 verschiedene Dateien (gemessen, Stand 44c6c7e); alle übrigen Produktdateien sind nicht darin geführt. Das Verzeichnis ist keine Gesamtliste. Der Weg von einer Fähigkeit zu den Dateien führt über `LANDKARTE.md`.
 - **Historische Momentaufnahmen** (nicht als aktueller Stand lesen): `tests/ist-zustand.md`, `tests/hintergrund-tabelle.md`, `tests/meldungen-bericht.md`, `tests/regeln-bericht.md`, `tests/memory7a-analyse.md` und die übrigen Dateien mit „Ist-Zustand“ im Namen.
