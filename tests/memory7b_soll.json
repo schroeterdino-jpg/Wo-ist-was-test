@@ -1,0 +1,970 @@
+{
+ "vorher": {
+  "zeit": {
+   "01_exakt_nach_teilwort": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Schlüssel, im Flurschrank: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "02_exakt_vor_teilwort": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Zweitschlüssel, im Blumentopf: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "03_nur_teilwort": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Zweitschlüssel, im Blumentopf: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "04_mehrere_teilwort": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Zweitschlüssel, im Blumentopf: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "05_grossklein": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Schlüssel, im Flurschrank: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "06_umlaute": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Schlüssel, im Flurschrank: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "07_bindestrich": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Schlüssel, im Flurschrank: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "08_leerzeichen": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Schlüssel, im Flurschrank: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "09_kein_treffer": {
+    "lokal": false,
+    "modul": null,
+    "gesagt": [],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "10_aehnlich_anderer_begriff": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Brille, im Flurschrank: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "11_mehrere_aehnliche": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Schlüssel, im Flurschrank: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "12_zwei_exakte_kandidaten": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Schlüssel, im Flurschrank: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "13_tippfehler_unscharf": {
+    "lokal": false,
+    "modul": null,
+    "gesagt": [],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "14_ohne_zeitstempel": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Dazu habe ich kein Datum gespeichert. Schlüssel steht bei mir im Flurschrank, aber nicht, seit wann."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "15_wert_gleich_frage": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Tisch, schlüssel: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   }
+  },
+  "lesefehler": {
+   "A_nur_memory_kaputt": {
+    "ladefehler": [
+     "storage.js: Expected property name or '}' in JSON "
+    ],
+    "memoryItems": {
+     "fehler": "memoryItems is not defined"
+    },
+    "schluessel": {
+     "fehler": "memoryItems is not defined"
+    },
+    "istArray": {
+     "fehler": "memoryItems is not defined"
+    },
+    "kontakte": {
+     "fehler": "savedContacts is not defined"
+    },
+    "chatHistory": {
+     "fehler": "chatHistory is not defined"
+    },
+    "briefing": {
+     "fehler": "briefingWishes is not defined"
+    },
+    "home": {
+     "fehler": "homeAddress is not defined"
+    },
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": {
+     "fehler": "memoryItems is not defined"
+    },
+    "takte": 1,
+    "refStabil": {
+     "fehler": "memoryItems is not defined"
+    }
+   },
+   "A2_memory_abgeschnitten": {
+    "ladefehler": [
+     "storage.js: Expected ',' or '}' after property val"
+    ],
+    "memoryItems": {
+     "fehler": "memoryItems is not defined"
+    },
+    "schluessel": {
+     "fehler": "memoryItems is not defined"
+    },
+    "istArray": {
+     "fehler": "memoryItems is not defined"
+    },
+    "kontakte": {
+     "fehler": "savedContacts is not defined"
+    },
+    "chatHistory": {
+     "fehler": "chatHistory is not defined"
+    },
+    "briefing": {
+     "fehler": "briefingWishes is not defined"
+    },
+    "home": {
+     "fehler": "homeAddress is not defined"
+    },
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": {
+     "fehler": "memoryItems is not defined"
+    },
+    "takte": 1,
+    "refStabil": {
+     "fehler": "memoryItems is not defined"
+    }
+   },
+   "B_memory_korrekt": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [
+     "schlüssel"
+    ],
+    "istArray": false,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   },
+   "C_memory_leer_objekt": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [],
+    "istArray": false,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   },
+   "C2_memory_leerer_text": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [],
+    "istArray": false,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   },
+   "D_schluessel_fehlt": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [],
+    "istArray": false,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "fehlt",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   },
+   "E_gueltiges_leeres_array": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [],
+    "istArray": true,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   },
+   "F_gueltige_eintraege": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [
+     "schlüssel",
+     "brille",
+     "zweitschlüssel"
+    ],
+    "istArray": false,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   }
+  }
+ },
+ "nachher": {
+  "zeit": {
+   "01_exakt_nach_teilwort": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Zweitschlüssel, im Blumentopf: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "02_exakt_vor_teilwort": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Schlüssel, im Flurschrank: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "03_nur_teilwort": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Zweitschlüssel, im Blumentopf: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "04_mehrere_teilwort": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Zweitschlüssel, im Blumentopf: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "05_grossklein": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Zweitschlüssel, im Blumentopf: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "06_umlaute": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Büro schlüssel, im Blumentopf: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "07_bindestrich": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Zweit-schlüssel, im Blumentopf: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "08_leerzeichen": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Zweiter schlüssel, im Blumentopf: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "09_kein_treffer": {
+    "lokal": false,
+    "modul": null,
+    "gesagt": [],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "10_aehnlich_anderer_begriff": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Brille, im Flurschrank: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "11_mehrere_aehnliche": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Schlüssel auto, in der Garage: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "12_zwei_exakte_kandidaten": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Schlüssel, im Flurschrank: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "13_tippfehler_unscharf": {
+    "lokal": false,
+    "modul": null,
+    "gesagt": [],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "14_ohne_zeitstempel": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Dazu habe ich kein Datum gespeichert. Zweitschlüssel steht bei mir im Blumentopf, aber nicht, seit wann."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   },
+   "15_wert_gleich_frage": {
+    "lokal": true,
+    "modul": "gedaechtnis_zeit",
+    "gesagt": [
+     "Tisch, schlüssel: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+    ],
+    "speicherUnveraendert": true,
+    "memSchreib": 0
+   }
+  },
+  "suche": {
+   "schlüssel": [
+    {
+     "key": "schlüssel",
+     "value": "A"
+    },
+    {
+     "key": "zweitschlüssel",
+     "value": "B"
+    },
+    {
+     "key": "ersatz schlüssel",
+     "value": "C"
+    },
+    {
+     "key": "tisch",
+     "value": "schlüssel"
+    }
+   ],
+   "zweitschlüssel": [
+    {
+     "key": "schlüssel",
+     "value": "A"
+    },
+    {
+     "key": "zweitschlüssel",
+     "value": "B"
+    },
+    {
+     "key": "ersatz schlüssel",
+     "value": "C"
+    },
+    {
+     "key": "tisch",
+     "value": "schlüssel"
+    }
+   ],
+   "SCHLÜSSEL": [
+    {
+     "key": "schlüssel",
+     "value": "A"
+    },
+    {
+     "key": "zweitschlüssel",
+     "value": "B"
+    },
+    {
+     "key": "ersatz schlüssel",
+     "value": "C"
+    },
+    {
+     "key": "tisch",
+     "value": "schlüssel"
+    }
+   ],
+   "brille": [
+    {
+     "key": "zweitschlüssel",
+     "value": "B"
+    },
+    {
+     "key": "brille",
+     "value": "D"
+    }
+   ],
+   "brile": [
+    {
+     "key": "zweitschlüssel",
+     "value": "B"
+    }
+   ],
+   "hammer": [
+    {
+     "key": "schlüssel",
+     "value": "A"
+    }
+   ],
+   "ersatz schlüssel": [
+    {
+     "key": "schlüssel",
+     "value": "A"
+    },
+    {
+     "key": "ersatz schlüssel",
+     "value": "C"
+    },
+    {
+     "key": "tisch",
+     "value": "schlüssel"
+    }
+   ],
+   "tisch": [
+    {
+     "key": "ersatz schlüssel",
+     "value": "C"
+    },
+    {
+     "key": "tisch",
+     "value": "schlüssel"
+    }
+   ]
+  },
+  "lesefehler": {
+   "A_nur_memory_kaputt": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [],
+    "istArray": false,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   },
+   "A2_memory_abgeschnitten": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [],
+    "istArray": false,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   },
+   "B_memory_korrekt": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [
+     "schlüssel"
+    ],
+    "istArray": false,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   },
+   "C_memory_leer_objekt": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [],
+    "istArray": false,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   },
+   "C2_memory_leerer_text": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [],
+    "istArray": false,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   },
+   "D_schluessel_fehlt": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [],
+    "istArray": false,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "fehlt",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   },
+   "E_gueltiges_leeres_array": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [],
+    "istArray": true,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   },
+   "F_gueltige_eintraege": {
+    "ladefehler": [],
+    "memoryItems": "object",
+    "schluessel": [
+     "schlüssel",
+     "brille",
+     "zweitschlüssel"
+    ],
+    "istArray": false,
+    "kontakte": [
+     "testoma"
+    ],
+    "chatHistory": "object",
+    "briefing": "object",
+    "home": "string",
+    "originalImSpeicher": "unveraendert",
+    "schreibenBeimStart": [
+     "L-:__jvb",
+     "L:__jvb",
+     "L:helfer_protocols",
+     "L:helfer_sync_meta",
+     "L:jv_fish_init",
+     "L:nova_kopf_init",
+     "L:tts_engine",
+     "S:helfer_protocols",
+     "S:tts_engine"
+    ],
+    "schreibenNach12s": [
+     "L:helfer_jarvis_start_tag",
+     "L:jv_ansage_zuletzt",
+     "L:jv_dirig_gruss",
+     "L:jv_rueckblick_tag",
+     "S:helfer_jarvis_start_tag"
+    ],
+    "proxy": true,
+    "takte": 1,
+    "refStabil": true
+   }
+  }
+ }
+}

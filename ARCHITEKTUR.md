@@ -493,3 +493,6 @@ Nach Foto-Kette (Phase 3) und Speak-Kette (Phase 4B) wurden alle übrigen global
 
 ## Phase 7A: lokales Gedächtnis (memoryItems) analysiert (nur Analyse, kein Produktcode)
 `memoryItems` wird einmal in `storage.js` definiert, aber von lists.js, actions.js, sync.js und storage.js geschrieben; `gedaechtnis_zeit.js` beobachtet per Proxy und 3-s-Takt (`ensureProxy`). Der Takt ändert keine Daten. Das einzige ROT: Zeitfrage nutzt `searchMemory()[0]` (Teilwort-Treffer kann den falschen Eintrag liefern). Alles Weitere GELB/GRÜN. Prüfung `tests/memory7a.js`, Beschreibung `tests/memory7a-analyse.md`. Phase 7B nur nach Freigabe.
+
+## Phase 7B: Zeitfrage und Lesefehler von helfer_memory (zwei Produktzeilen)
+`gedaechtnis_zeit.js` (`answer`): exakter Name vor Teilwort-Treffer, sonst wie bisher der erste Treffer; `searchMemory()` unverändert. `storage.js`: ungültiges JSON in `helfer_memory` wird nur an dieser Stelle abgefangen (Gedächtnis startet leer, Original bleibt unverändert, Kontakte/Tageslog laden weiter). Prüfung `tests/memory7b.js`, Beschreibung `tests/memory7b-analyse.md`; `tests/memory7a.js` prüft weiter den Zustand vor 7B (`tests/memory7b_alt.js`).

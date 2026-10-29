@@ -24,7 +24,10 @@ const gleich = (a, b) => J(a) === J(b);
 
 /* ---------------- 1  Statische Funde ---------------- */
 const jsDateien = fs.readdirSync(path.join(ROOT, 'js')).filter(f => /\.js$/.test(f)).sort();
-const leseJs = d => lies('js/' + d);
+/* Phase 7B hat Zeitfrage und Lesefehler korrigiert. Diese Prüfung hält den Analysestand VOR 7B fest (Golden Master unverändert):
+   der alte Zustand wird mit tests/memory7b_alt.js im Speicher nachgebaut. Den heutigen Stand prüft tests/memory7b.js. */
+const { zustandVor7b: ALT } = require('./memory7b_alt.js');
+const leseJs = d => ALT(d, lies('js/' + d));
 
 /* Jede Zeile, die das Wort memoryItems enthält, je Datei. Zuweisungen an die Variable selbst (Referenzersetzung) getrennt gezählt. */
 function fundstellen(lese) {
@@ -120,7 +123,7 @@ function chromiumPruefen() {
 
 /* ---------------- 6  Gegenproben ---------------- */
 const ersetze = (text, von, nach, alle) => { if (!text.includes(von)) throw new Error('Gegenprobe: Muster nicht gefunden: ' + von.slice(0, 60)); return alle ? text.split(von).join(nach) : text.replace(von, () => nach); };
-const mut = (datei, fn) => (d, t) => d === datei ? fn(t) : t;
+const mut = (datei, fn) => (d, t) => d === datei ? fn(ALT(d, t)) : ALT(d, t);
 const GEGENPROBEN = {
     A: { text: 'Besitzer geändert (travel.js ersetzt memoryItems)', statisch: true, quelle: mut('travel.js', t => t + '\nmemoryItems = {};\n') },
     B: { text: 'Proxy entfernt (ensureProxy tut nichts)', szen: ['S01_startLeer', 'S15_proxy'], quelle: mut('gedaechtnis_zeit.js', t => ersetze(t, 'function ensureProxy() {\n        try {', 'function ensureProxy() {\n        return; try {')) },
@@ -140,7 +143,7 @@ const GEGENPROBEN = {
 };
 
 async function main() {
-    const R = { statisch, szenarien: await sz.alle(), server: await srv.alle() };
+    const R = { statisch, szenarien: await sz.alle({ quelleAendern: ALT }), server: await srv.alle() };
     /* Serverwerte auf die Bausteine der Einstufung abbilden (aus den echten Messwerten) */
     const sv = R.server;
     R.einstufung = einstufung({ szenarien: R.szenarien, server: sv }, statisch).map(e => ({ name: e.name, farbe: e.farbe, ok: e.bedingung }));
@@ -163,8 +166,8 @@ async function main() {
     /* Gegenproben */
     const basis = R.szenarien;
     const kontrollen = {
-        unveraendert: await sz.alle({ quelleAendern: (d, t) => t }),
-        nurKommentar: await sz.alle({ quelleAendern: (d, t) => d === 'gedaechtnis_zeit.js' ? '/* nur ein Kommentar */\n' + t : t })
+        unveraendert: await sz.alle({ quelleAendern: ALT }),
+        nurKommentar: await sz.alle({ quelleAendern: (d, t) => d === 'gedaechtnis_zeit.js' ? '/* nur ein Kommentar */\n' + ALT(d, t) : ALT(d, t) })
     };
     for (const [n, k] of Object.entries(kontrollen)) check('Kontrolle "' + n + '": alle Szenarien gleich wie Ist', gleich(basis, JSON.parse(J(k))));
     const stat0 = fundstellen(leseJs);
