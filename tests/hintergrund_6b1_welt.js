@@ -16,11 +16,11 @@ function lade(datei, opt) {
     const quelle = opt.quelle != null ? opt.quelle : fs.readFileSync(path.join(ROOT, 'js', datei), 'utf8');
     let jetzt = 1000000, idZaehler = 0, saat = 12345;
     const timer = new Map();   // id -> { fn, ms, naechster, wiederholt, art }
-    const z = { setInterval: 0, clearInterval: 0, intervalAufrufe: 0, timeoutAufrufe: 0, rafAufrufe: 0, setTimeout: 0, speicherSchreiben: 0, netz: 0, fehler: [] };
+    const z = { clearRect: 0, setInterval: 0, clearInterval: 0, intervalAufrufe: 0, timeoutAufrufe: 0, rafAufrufe: 0, setTimeout: 0, speicherSchreiben: 0, netz: 0, ctxAufrufe: 0, fehler: [] };
     const hoerer = {}, ls = new Map(Object.entries(opt.speicher || {}));
     let versteckt = !!opt.startVersteckt;
 
-    const ctx2d = new Proxy({}, { get: (t, k) => (k === 'then' ? undefined : (...a) => ctx2d), set: () => true });
+    const ctx2d = new Proxy({}, { get: (t, k) => (k === 'then' ? undefined : (...a) => { z.ctxAufrufe++; if (k === 'clearRect') z.clearRect = (z.clearRect || 0) + 1; return ctx2d; }), set: () => true });
     function el(tag) {
         const e = {
             tag, children: [], style: { setProperty(k, v) { this[k] = v; }, removeProperty(k) { delete this[k]; } }, dataset: {}, _cls: new Set(), parentElement: null, textContent: '', innerHTML: '', id: '', className: '', value: '',
@@ -80,6 +80,7 @@ function lade(datei, opt) {
         const k = { ready: true, active: true, state: 'idle', busy: false, protokoll: [], grimasse(m) { k.protokoll.push(m === null ? 'grimasse:null' : 'grimasse:' + Object.keys(m).sort().join(',')); }, setExpression(x) { k.protokoll.push('ausdruck:' + x); } };
         return k;
     }
+    if (typeof opt.global === 'function') Object.assign(sb, opt.global(sb, z));   // Phase 6B.2: Vorab-Globale der Prüfdatei (z. B. isProcessing, sendToGroqSmart)
     let ladeFehler = null;
     try { vm.runInContext(quelle, kontext, { filename: datei }); } catch (e) { ladeFehler = e; }
 

@@ -1086,9 +1086,9 @@
    "anfang": "ab Laden",
    "start": "funktion",
    "guard": "direkt",
-   "stop": "nie gestoppt",
+   "stop": "clearInterval",
    "begrenzt": false,
-   "doppel": "keiner (mehrfacher Aufruf der Funktion möglich)",
+   "doppel": "clear vor Neustart",
    "netz": false,
    "nativ": false
   },
@@ -1589,7 +1589,7 @@
    "schicht.js:154 @30000",
    "smarttips.js:80 @60000",
    "spotify.js:531 @5000",
-   "synapsen.js:153 @200",
+   "synapsen.js:163 @200",
    "sync.js:229 @180000",
    "travel.js:1110 @60000",
    "ui.js:312 @60000",
@@ -1641,14 +1641,14 @@
    "anzeige.js:172",
    "holo_look.js:259",
    "mimik.js:211",
-   "sphere.js:342·r"
+   "sphere.js:342·r",
+   "synapsen.js:163"
   ],
   "verstecktWeiter": [
    "calendar.js:42",
    "gedaechtnis_zeit.js:55",
    "ruhe.js:18",
-   "spotify.js:531",
-   "synapsen.js:153"
+   "spotify.js:531"
   ],
   "netzSichtbarIdle": 190,
   "netzVerstecktIdle": 0,
@@ -1667,6 +1667,7 @@
     "anzeige.js:172 x12",
     "holo_look.js:259 x12",
     "mimik.js:211 x12",
+    "synapsen.js:163 x12",
     "voice.js:346 x2"
    ]
   },
@@ -1707,6 +1708,7 @@
   "schicht.js",
   "sphere.js",
   "spotify.js",
+  "synapsen.js",
   "sync.js",
   "tagesueberblick.js",
   "voice.js",

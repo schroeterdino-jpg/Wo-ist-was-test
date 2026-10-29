@@ -480,3 +480,10 @@ Nach Foto-Kette (Phase 3) und Speak-Kette (Phase 4B) wurden alle übrigen global
 - **Nicht geändert (bewusst):** `laune.js` (der 14-s-Takt ruft `ensure()` auf, das eine neue Stimmung würfelt und speichert), `synapsen.js` (zurückgestellt), UI-Schreibmaschine (läuft nur beim Tippen), alle Kategorie-A-Prozesse, Netzwerk-/Native-Poller, Tagescheck.
 - **Wirkung (Chromium, 60 s versteckt):** Rückrufe 1531 → 590 (−61,5 %); sichtbar unverändert; Netz sichtbar 190 / versteckt 0 wie vorher.
 - **Regeln:** Neue visuelle Takte, die versteckt weiterlaufen, sind kein Fehler, aber ein Pausen-Takt darf nie vermehrt werden: `tests/hintergrund_6b1.js` (Prüfwelt, 10 Wechsel, Gegenproben A–J) und `tests/hintergrund.js` (Golden Master). Alter Zustand eingefroren: `tests/hintergrund_soll_6a.json`, `tests/hintergrund_laufzeit_6a.json`, `tests/hintergrund_6b1_vorher.json`. Beschreibung: `tests/hintergrund-6b1.md`.
+
+## Phase 6B.2: der 200-ms-Takt in synapsen.js pausiert bei hidden
+- **Befund (Stufe A):** Der Takt gleicht nur ab "denkt Jarvis (isProcessing)?" → Anzeige an/aus. Kein Speicher, kein Netz, kein Native, keine KI, keine Sprache, kein Memory, keine proaktive Logik; kein anderer Code liest seine Werte. Klasse GRÜN.
+- **Geändert:** nur `synapsen.js` (`taktSteuern`): versteckt `clearInterval`, beim Sichtbarwerden höchstens ein neuer Takt plus eine sofortige Prüfung. Die Hülle um `sendToGroqSmart` ist unverändert.
+- **Wirkung (Chromium, 60 s versteckt):** Rückrufe 590 → 290; sichtbar, Netz, Native unverändert.
+- **Regeln:** `tests/hintergrund_6b2.js`; alter Zustand eingefroren in `tests/hintergrund_soll_6b1.json`, `tests/hintergrund_laufzeit_6b1.json`, `tests/hintergrund_6b2_vorher.json`. Beschreibung: `tests/hintergrund-6b2.md`.
+
