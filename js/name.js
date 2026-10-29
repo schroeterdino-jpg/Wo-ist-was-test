@@ -52,14 +52,11 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
     else start();
 
-    // Ansprache der KI: Sie heißt Jarvis
+    // Ansprache der KI: Sie heißt Jarvis. Eintrag in der Ergänzungs-Liste der KI-Anweisung (commands.js, jvChain), Rang 10 = ganz außen: wirkt auf den fertigen Text.
     try {
-        if (typeof buildSystemPrompt === 'function') {
-            const orig = buildSystemPrompt;
-            buildSystemPrompt = function () {
-                const r = orig.apply(this, arguments);
-                return typeof r === 'string' ? ersetze(r) : r;
-            };
-        }
+        if (window.jvChain) window.jvChain.use('buildSystemPrompt', 'name', function (next) {
+            const r = next();
+            return typeof r === 'string' ? ersetze(r) : r;
+        }, 10);
     } catch (e) { }
 })();

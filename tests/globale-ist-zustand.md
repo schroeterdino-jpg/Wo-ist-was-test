@@ -1,4 +1,4 @@
-# Globale Wrapper und Ersetzungen: Ist-Zustand (Phase 5A, nur Analyse und Sicherheitsnetz)
+# Globale Wrapper und Ersetzungen: Ist-Zustand (Phase 5A, nur Analyse und Sicherheitsnetz; Stand Phase 5B: `buildSystemPrompt` ist umgebaut, siehe Abschnitt 2)
 
 Referenz: `main` bei `573abd3` (nach Phase 4B). Kein Produktcode wurde geändert. Das Sicherheitsnetz ist `tests/globale.js` mit dem Soll in `tests/globale_soll.json` (neu schreiben: `node tests/globale.js --schreiben`, nur nach bewusster Entscheidung; Unterschiede zeigt der Test selbst).
 
@@ -11,7 +11,28 @@ Gemessen wurde der aktuelle Code, nicht alte Berichte: Die App wird wie im Brows
 - Statisch: 294 verschiedene `window.X =`-Namen, 16 davon aus mehr als einer Datei beschrieben, 5 Inline-Skripte (nur eines umhüllt etwas: `handleLocalCommand`).
 - Die alten Schutzmarken (`_mailpush`, `_globalInfo65`, `_ortsuche`, `_contextPlus`, `_fishLach`, `_gedaechtnis`, `_festnamen`, `_hoerkorrektur`, `_jvSyn`, `_wx`, `_ki`, `__laune`, `_jvLage`, `_jvCommands`, `_jvChain`) werden **nur in der eigenen Datei** gelesen (Doppelwrap-Schutz). Ausnahme: `Object.keys`-Kopien (contextplus, fish, worldqueryfix, gedaechtnis) tragen die Marken der inneren Hüllen nach außen; das ist der Grund für die Ketten-Eigenheit bei `buildSystemPrompt` (Abschnitt 2).
 
-## 2. buildSystemPrompt (ROT)
+## 2. buildSystemPrompt (war ROT, seit Phase 5B GRÜN)
+
+**Stand nach Phase 5B:** `buildSystemPrompt` besitzt nur noch EINE Erweiterungsarchitektur: `jvChain` (`commands.js`). Keine direkten Hüllen mehr, keine Schutzmarken (`_contextPlus`, `_fishLach`, `_globalInfo65`, `_gedaechtnis`), kein Zeitgeber mehr zum Nachhängen. Die fünf früheren Hüllen sind Einträge der Kette:
+
+| Rang | Eintrag | Datei | Wirkung |
+|---|---|---|---|
+| 10 (ganz außen) | `name` | `name.js` | ersetzt im fertigen Text „Zane“ durch „Jarvis“ |
+| 20 | `gedaechtnis` | `gedaechtnis.js` | Gedächtnis-Fragen-Regel (nur bei passender Frage), Kontext-Gehirn-Regel, Lach-Wunsch |
+| 30 | `worldqueryfix` | `worldqueryfix.js` | Regel „globale Lagefrage“ (nur bei passender Frage) |
+| 40 | `fish` | `fish.js` | Regel „lautes Lachen“ (nicht bei „Menschliche Laute aus“) |
+| 50 | `contextplus` | `contextplus.js` | Folgefragen-Regeln und Antworttiefe |
+| 100–500 | die zehn bisherigen | unverändert | formulierungen, langzeit, rechnungen, stundenplan, foto-person, termin-erinnern, geburtstag-ganztag, ki-mitdenken, sprueche, charakter |
+
+Kleine Zahl = außen = wird zuletzt angehängt. Die Ränge 10–50 liegen vor allen bisherigen Rängen (kein Konflikt) und bilden **genau** die alte Reihenfolge nach (innen zuerst: contextplus, fish, worldqueryfix, gedaechtnis; `name` zuletzt über den ganzen Text). **Wichtig:** Die Zahlen 10 = contextplus … 50 = name (umgekehrt) würden die Reihenfolge der angehängten Blöcke ändern; gemessen: gleiche Länge, anderer Hash. Deshalb gilt die obige Zuordnung.
+
+- Kontext+-Block: genau 1× in der fertigen Anweisung, bei jedem Start gleich. Der alte 0-ms-Zeitgeber von `contextplus.js` entfällt (er diente nur dem Nachhängen der alten Hülle). Der frühere Unterschied „Browser 1×, Testumgebung 2×“ ist damit weg; die Spät-Messung im Test ist jetzt gleich der Früh-Messung (einzige erlaubte Änderung am Soll, abgesichert durch die Browser-Referenz unten).
+- Echter Browser (Chromium, Seite lädt, 14 Starts je Stand): nach Abzug der zwei Zufallszeilen (Stilvorgabe des Spruch-Zufalls, Sprachstil) sind alle Starts von vorher (main `c894dbd`) und nachher in Hash und Länge gleich (62223 Zeichen), Kontext+ immer 1×, keine alte Schutzmarke mehr, 15 Einträge in der Kette.
+- Reihenfolge der fünf Dateien im Skript-Bereich nach `commands.js`/`prompt.js` ist egal: alle 10 Paar-Vertauschungen, die Umkehrung und vier gemischte Reihenfolgen geben dieselbe Anweisung, dieselbe Kette, keine Ladefehler (`tests/globale.js`, Abschnitt E).
+- Fehlerverhalten (bewusste, geprüfte Änderung): `jvChain` fängt Fehler je Eintrag. Wirft ein Eintrag, kommt die Anweisung ohne diesen Block zurück und der Fehler wird gemeldet. Früher flog die Ausnahme bei `contextplus` und `name` durch `buildSystemPrompt`.
+- Ohne `commands.js` (kein `jvChain`) tragen sich die fünf nicht ein, wie bei den zehn bisherigen Einträgen; in der App steht `commands.js` weit vor allen fünf.
+
+Die folgende Beschreibung ist der Ist-Zustand VOR Phase 5B (zur Nachvollziehbarkeit):
 
 | Punkt | Befund |
 |---|---|
@@ -22,9 +43,9 @@ Gemessen wurde der aktuelle Code, nicht alte Berichte: Die App wird wie im Brows
 | Besonderheit | `contextplus.js` hängt sich beim Laden UND noch einmal per `setTimeout(install, 0)` ein. Der Schutz ist die Marke `_contextPlus`; `name.js` (außen) trägt sie nicht. Läuft der Zeitgeber vor `name.js`, bleibt es bei einer Hülle (echtes Chromium gemessen: Kontext+-Block 1×). Läuft er danach (jede Testumgebung), kommt der Block **2×** in die Anweisung (64142 statt 63238 Zeichen). Das Ergebnis hängt also vom Zeitpunkt des 0-ms-Zeitgebers ab. |
 | Nebenwirkungen | keine (reiner Text), Storage nur lesend (`getHumanLevel`, `jvLaughWish`) |
 | Fehlerverhalten | direkte Hüllen fangen nichts ab (außer `try` um Einzelteile); `jvChain` fängt Fehler je Eintrag und geht zum nächsten |
-| Reihenfolge-Wirkung | Von 10 Paar-Vertauschungen innerhalb der Plätze der fünf Dateien ändern 9 die Anweisung (Reihenfolge der angehängten Abschnitte, bei Fragen nach der Weltlage zusätzlich der Text); nur `gedaechtnis ↔ name` ist gleich. Klasse A. |
+| Reihenfolge-Wirkung | Von 10 Paar-Vertauschungen innerhalb der Plätze der fünf Dateien änderten 9 die Anweisung (Reihenfolge der angehängten Abschnitte, bei Fragen nach der Weltlage zusätzlich der Text); nur `gedaechtnis ↔ name` war gleich. Klasse A (seit 5B behoben: alle 10 gleich). |
 
-**Zielarchitektur (Vorschlag, Phase 5B):** Die fünf direkten Hüllen werden Einträge der vorhandenen `jvChain` mit Rängen außerhalb des bisherigen Bereichs (z. B. name 10, gedaechtnis 20, worldqueryfix 30, fish 40, contextplus 50; die bisherigen 100–500 bleiben). `contextplus` hängt sich genau einmal ein. Golden Master: `tests/globale.js` (Hash, Länge und Abschnittsreihenfolge für 6 Eingaben in zwei Zeitvarianten); Ziel ist die Früh-Variante (echter Browser), die Spät-Variante muss dabei verschwinden. Umfang: 5 Dateien, je wenige Zeilen. Risiko: mittel (der Text geht an die KI; Reihenfolge und Doppel-Block müssen bewusst festgelegt werden, `jvChain` fängt Fehler anders als die direkten Hüllen).
+**Zielarchitektur (Vorschlag aus Phase 5A, umgesetzt in Phase 5B mit den Rängen oben):** Die fünf direkten Hüllen werden Einträge der vorhandenen `jvChain` mit Rängen außerhalb des bisherigen Bereichs (z. B. name 10, gedaechtnis 20, worldqueryfix 30, fish 40, contextplus 50; die bisherigen 100–500 bleiben). `contextplus` hängt sich genau einmal ein. Golden Master: `tests/globale.js` (Hash, Länge und Abschnittsreihenfolge für 6 Eingaben in zwei Zeitvarianten); Ziel ist die Früh-Variante (echter Browser), die Spät-Variante muss dabei verschwinden. Umfang: 5 Dateien, je wenige Zeilen. Risiko: mittel (der Text geht an die KI; Reihenfolge und Doppel-Block müssen bewusst festgelegt werden, `jvChain` fängt Fehler anders als die direkten Hüllen).
 
 ## 3. handleLocalCommand (GELB)
 
@@ -110,20 +131,20 @@ Gegenprobe im Test: ohne `commands.js` wiederholen die sieben Dateien tatsächli
 
 ## 10. Einteilung nach Klassen (A–D) und Ampel
 
-- **A echte Wrapper-Reihenfolgeabhängigkeit:** `buildSystemPrompt` (5 Hüllen + `contextplus`-Zeitgeber), `searchSemanticMemory` (`langzeit` ↔ `assistant`), `sendToGroqSmart` (`festnamen`/`hoerkorrektur` ↔ `assistant`).
+- **A echte Wrapper-Reihenfolgeabhängigkeit:** `buildSystemPrompt` (bis Phase 5B: 5 Hüllen + `contextplus`-Zeitgeber, jetzt Klasse D), `searchSemanticMemory` (`langzeit` ↔ `assistant`), `sendToGroqSmart` (`festnamen`/`hoerkorrektur` ↔ `assistant`).
 - **B allgemeine Datei-/Initialisierungsabhängigkeit:** alle Einzel-Hüllen (Abschnitt 7), die `register()`/`hook()`-Wiederholungen, `runSystemCheckSpoken`.
 - **C absichtlich oder unabhängig:** Fenster-Hüllen, `handleLocalCommand`-Hüllen (bei den gemessenen Eingaben), `plFetchElements`, temporäre Ersetzungen.
 - **D bereits explizit gelöst:** `jvFotoKette`, `jvSpeakKette`, `jvAktionen`, `jvChain`, `jvCommands`.
 
 | Ampel | Kandidat |
 |---|---|
-| ROT | 1. `buildSystemPrompt` (zwei Architekturen, Ergebnis hängt von Ladereihenfolge und Zeitpunkt ab) · 2. `searchSemanticMemory`/`jvFristHinweis` (Funktion still verloren; erst Entscheidung nötig) |
+| ROT | 1. ~~`buildSystemPrompt`~~ (erledigt in Phase 5B, jetzt GRÜN) · 2. `searchSemanticMemory`/`jvFristHinweis` (Funktion still verloren; erst Entscheidung nötig) |
 | GELB | `handleLocalCommand` · `sendToGroqSmart` (zwei tote Hüllen) · Fenster-Hüllen · `runSystemCheckSpoken` · Wiederholungskonstruktionen · Hüllen auf `HTMLMediaElement.prototype`/`Storage.prototype` |
 | GRÜN | Foto-, Speak-, Aktions-Kette, `jvChain`, `jvCommands`, `mehrfach`-Fang, alle Einzel-Hüllen, temporäre Ersetzungen mit `finally` |
 
 ## 11. Empfohlene Reihenfolge ab Phase 5B
 
-1. **5B: `buildSystemPrompt`** in die vorhandene `jvChain` überführen (siehe Abschnitt 2). Golden Master steht (`tests/globale.js`); Zielzustand = Früh-Variante.
+1. **5B (erledigt): `buildSystemPrompt`** in die vorhandene `jvChain` überführt (siehe Abschnitt 2). Zielzustand = Früh-Variante des echten Browsers.
 2. **5C (Entscheidung des Nutzers, kein reiner Umbau):** `searchSemanticMemory` (Langzeit-Suche einschalten oder Totcode entfernen) und die toten `sendToGroqSmart`-Hüllen (`festnamen`/`hoerkorrektur`) einschalten oder entfernen.
 3. **5D (optional):** `handleLocalCommand`-Hüllen als `jvCommands`-Einträge (`mailpush`, `worldqueryfix`, Mimik, `ortsuche`); toter Rückfall in `erweiterungen.js` entfernen.
 4. Rest (Fenster, Einzel-Hüllen, Wiederholungen): nur bei Bedarf, keine Eile.
@@ -131,9 +152,10 @@ Gegenprobe im Test: ohne `commands.js` wiederholen die sieben Dateien tatsächli
 ## 12. Neues Sicherheitsnetz (`tests/globale.js`)
 
 - A: Ersetzungsprotokoll je Skript und Start-Phase (138 Ersetzungen) eingefroren.
-- B1: `buildSystemPrompt` für 6 Eingaben in zwei Zeitvarianten (Länge, Hash, Abschnittsreihenfolge, Kontext+-Anzahl).
+- B1: `buildSystemPrompt` für 6 Eingaben, früher Moment (direkt nach `name.js`) gegen Endstand (müssen gleich sein), dazu die Einstellungen Lachwunsch / „Lachen aus“ (Länge, Hash, Abschnittsreihenfolge, Kontext+-Anzahl).
+- E (Phase 5B): `jvChain`-Liste (15 Einträge, Ränge), Verteiler ohne alte Marken, jeder Block in erwarteter Anzahl und Reihenfolge, Fehlerpfade (contextplus, name), alle 10 Paare + Umkehrung + 4 gemischte Reihenfolgen, Gegenproben A–H (Registrierung entfernt, Ränge vertauscht, Blocktext geändert, doppelt registriert, Zeitpunkt verändert, alter Wrapper wieder aktiv).
 - B2: `handleLocalCommand` für 14 Eingaben (Ergebnis, Modul, gesprochener Text).
 - B3: `sendToGroqSmart` (was der Kern bekommt, Rückgabe, Marke), B4: `searchSemanticMemory`/`jvFristHinweis` (Anfragen), B5: Fenster (Schließer), B6: vorübergehende Ersetzungen (auch bei Ausnahme).
 - C: Zeitgeber der Wartekonstruktionen und Beweis, dass sie ohne `commands.js` wirklich warten.
-- D: 19 Paar-Vertauschungen (10 Prompt, 3 Befehle, 6 Fenster) innerhalb der Plätze der beteiligten Dateien plus 3 Sonderproben (Datei hinter ihre Basis).
+- D: 19 Paar-Vertauschungen (10 Prompt – seit 5B alle gleich –, 3 Befehle, 6 Fenster) innerhalb der Plätze der beteiligten Dateien plus 3 Sonderproben (Datei hinter ihre Basis).
 - Sachaussagen („Befunde“) und Gegenproben (veränderte Quelle, fehlende Datei muss abweichen).

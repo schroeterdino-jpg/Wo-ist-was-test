@@ -14,7 +14,6 @@
    "commands.js -> buildMenuPanel",
    "commands.js -> buildSystemPrompt",
    "commands.js -> handleLocalCommand",
-   "contextplus.js -> buildSystemPrompt",
    "contextplus.js -> jvCommandsUse",
    "formulierungen.js -> executeAction",
    "weathermap.js -> openPanel",
@@ -101,8 +100,6 @@
    "fish.js -> speak",
    "fish.js -> speakBrowser",
    "fish.js -> speakAck",
-   "fish.js -> buildSystemPrompt",
-   "worldqueryfix.js -> buildSystemPrompt",
    "worldqueryfix.js -> handleLocalCommand",
    "index.html(inline) -> handleLocalCommand",
    "ortsuche.js -> handleLocalCommand",
@@ -117,8 +114,6 @@
    "assistant.js -> searchSemanticMemory",
    "fehlerort.js -> sendToGroqSmartCore",
    "gedaechtnis.js -> executeAction",
-   "gedaechtnis.js -> buildSystemPrompt",
-   "name.js -> buildSystemPrompt",
    "loeschen_fragen.js -> executeAction",
    "loesch_notiz.js -> deleteTodoEntry",
    "loesch_notiz.js -> deleteShoppingEntry",
@@ -143,60 +138,57 @@
    "load -> jvFristHinweis",
    "load -> sendToGroqSmart"
   ],
-  "zeit": [
-   "t+0.5s -> buildSystemPrompt"
-  ]
+  "zeit": []
  },
  "messung": {
   "prompt": {
    "e0": {
-    "len": 64142,
-    "sha": "04674c6b25",
-    "kopfAnzahl": 5,
-    "kopfSha": "3b5d0e5e03",
-    "kontextPlus": 2,
+    "len": 63238,
+    "sha": "f8d45ed2db",
+    "kopfAnzahl": 4,
+    "kopfSha": "ee7d6c5c14",
+    "kontextPlus": 1,
     "kopf": [
      "FORMULIERUNGS-WÜNSCHE",
      "GESPRÄCHSKONTEXT UND FOLGEFRAGEN",
      "LAUTES LACHEN",
-     "KONTEXT-GEHIRN / AKTIVES LANGZEITGEDÄCHTNIS",
-     "GESPRÄCHSKONTEXT UND FOLGEFRAGEN"
+     "KONTEXT-GEHIRN / AKTIVES LANGZEITGEDÄCHTNIS"
     ]
    },
    "e1": {
-    "len": 65033,
-    "sha": "121a046460",
-    "kopfAnzahl": 6,
-    "kopfSha": "bf10c5cbd4",
-    "kontextPlus": 2
+    "len": 64129,
+    "sha": "6418071e7f",
+    "kopfAnzahl": 5,
+    "kopfSha": "99dbec8721",
+    "kontextPlus": 1
    },
    "e2": {
-    "len": 64438,
-    "sha": "a6af52a5c3",
-    "kopfAnzahl": 7,
-    "kopfSha": "bc36865041",
-    "kontextPlus": 2
+    "len": 63386,
+    "sha": "04196fe3b3",
+    "kopfAnzahl": 5,
+    "kopfSha": "1877892aac",
+    "kontextPlus": 1
    },
    "e3": {
-    "len": 64482,
-    "sha": "0b4e5bc068",
-    "kopfAnzahl": 7,
-    "kopfSha": "bc36865041",
-    "kontextPlus": 2
+    "len": 63408,
+    "sha": "705477f96a",
+    "kopfAnzahl": 5,
+    "kopfSha": "1877892aac",
+    "kontextPlus": 1
    },
    "e4": {
-    "len": 64533,
-    "sha": "d4d2742f01",
-    "kopfAnzahl": 6,
-    "kopfSha": "e582daaa2f",
-    "kontextPlus": 2
+    "len": 63629,
+    "sha": "9af1d2c049",
+    "kopfAnzahl": 5,
+    "kopfSha": "1051cd29c1",
+    "kontextPlus": 1
    },
    "e5": {
-    "len": 64142,
-    "sha": "04674c6b25",
-    "kopfAnzahl": 5,
-    "kopfSha": "3b5d0e5e03",
-    "kontextPlus": 2
+    "len": 63238,
+    "sha": "f8d45ed2db",
+    "kopfAnzahl": 4,
+    "kopfSha": "ee7d6c5c14",
+    "kontextPlus": 1
    }
   },
   "lokal": [
@@ -291,9 +283,6 @@
   }
  },
  "zeitgeber": {
-  "contextplus.js": [
-   "t0"
-  ],
   "laune.js": [
    "i14000",
    "i1000",
@@ -316,15 +305,15 @@
   "mitnehmen.js"
  ],
  "matrix": {
-  "prompt: contextplus.js <-> fish.js": "verändert in prompt: e0+e1+e2+e3+e4+e5",
-  "prompt: contextplus.js <-> worldqueryfix.js": "verändert in prompt: e0+e1+e2+e3+e4+e5",
-  "prompt: contextplus.js <-> gedaechtnis.js": "verändert in prompt: e0+e1+e2+e3+e4+e5",
-  "prompt: contextplus.js <-> name.js": "verändert in prompt: e0+e1+e2+e3+e4+e5",
-  "prompt: fish.js <-> worldqueryfix.js": "verändert in prompt: e4",
-  "prompt: fish.js <-> gedaechtnis.js": "verändert in prompt: e0+e1+e2+e3+e4+e5",
-  "prompt: fish.js <-> name.js": "verändert in prompt: e0+e1+e2+e3+e4+e5",
-  "prompt: worldqueryfix.js <-> gedaechtnis.js": "verändert in prompt: e4",
-  "prompt: worldqueryfix.js <-> name.js": "verändert in prompt: e4",
+  "prompt: contextplus.js <-> fish.js": "identisch",
+  "prompt: contextplus.js <-> worldqueryfix.js": "identisch",
+  "prompt: contextplus.js <-> gedaechtnis.js": "identisch",
+  "prompt: contextplus.js <-> name.js": "identisch",
+  "prompt: fish.js <-> worldqueryfix.js": "identisch",
+  "prompt: fish.js <-> gedaechtnis.js": "identisch",
+  "prompt: fish.js <-> name.js": "identisch",
+  "prompt: worldqueryfix.js <-> gedaechtnis.js": "identisch",
+  "prompt: worldqueryfix.js <-> name.js": "identisch",
   "prompt: gedaechtnis.js <-> name.js": "identisch",
   "lokal: mailpush.js <-> worldqueryfix.js": "verändert in lokal: Karte schließen => lokal=true | schliessen | gesagt=[\"Erledigt.\"]  =>  Karte schließen => lokal=true | schliessen | gesagt=[\"Es ist gerade ni…",
   "lokal: mailpush.js <-> ortsuche.js": "verändert in lokal: Karte schließen => lokal=true | schliessen | gesagt=[\"Erledigt.\"]  =>  Karte schließen => lokal=true | schliessen | gesagt=[\"Es ist gerade ni…",
@@ -338,5 +327,130 @@
   "sonder: langzeit.js NACH assistant.js (searchSemanticMemory)": "verändert in semantik: \"Wann war ich schwimmen?\" => Anfragen [\"/api/memory {\\\"action\\\":\\\"sear…  =>  \"Wann war ich schwimmen?\" => Anfragen [\"/api/memory {\\\"action\\\":\\\"sear…",
   "sonder: festnamen.js + hoerkorrektur.js NACH assistant.js (sendToGroqSmart)": "verändert in groq: Fahr zum Neu Galina Ring => Kern bekommt: [\"Fahr zum Neu Galina Ring\"]…  =>  Fahr zum Neu Galina Ring => Kern bekommt: [\"Fahr zum Neu-Galliner-Ring…",
   "sonder: synapsen.js <-> weathermap.js (sendToGroqSmart: DCL- gegen load-Hülle)": "identisch | Protokoll gleich"
+ },
+ "promptZustaende": {
+  "normal": [
+   {
+    "sha": "f8d45ed2db",
+    "len": 63238,
+    "bloecke": {
+     "kontextplus": 1,
+     "fish": 1,
+     "worldqueryfix": 0,
+     "gedaechtnisFrage": 0,
+     "gedaechtnisGehirn": 1,
+     "lachwunsch": 0,
+     "zane": 0
+    }
+   },
+   {
+    "sha": "6418071e7f",
+    "len": 64129,
+    "bloecke": {
+     "kontextplus": 1,
+     "fish": 1,
+     "worldqueryfix": 0,
+     "gedaechtnisFrage": 1,
+     "gedaechtnisGehirn": 1,
+     "lachwunsch": 0,
+     "zane": 0
+    }
+   },
+   {
+    "sha": "9af1d2c049",
+    "len": 63629,
+    "bloecke": {
+     "kontextplus": 1,
+     "fish": 1,
+     "worldqueryfix": 1,
+     "gedaechtnisFrage": 0,
+     "gedaechtnisGehirn": 1,
+     "lachwunsch": 0,
+     "zane": 0
+    }
+   }
+  ],
+  "lachen": [
+   {
+    "sha": "a6cfd7b3a8",
+    "len": 63626,
+    "bloecke": {
+     "kontextplus": 1,
+     "fish": 1,
+     "worldqueryfix": 0,
+     "gedaechtnisFrage": 0,
+     "gedaechtnisGehirn": 1,
+     "lachwunsch": 1,
+     "zane": 0
+    }
+   },
+   {
+    "sha": "9acb496d5b",
+    "len": 64517,
+    "bloecke": {
+     "kontextplus": 1,
+     "fish": 1,
+     "worldqueryfix": 0,
+     "gedaechtnisFrage": 1,
+     "gedaechtnisGehirn": 1,
+     "lachwunsch": 1,
+     "zane": 0
+    }
+   },
+   {
+    "sha": "ec67db5f8c",
+    "len": 64017,
+    "bloecke": {
+     "kontextplus": 1,
+     "fish": 1,
+     "worldqueryfix": 1,
+     "gedaechtnisFrage": 0,
+     "gedaechtnisGehirn": 1,
+     "lachwunsch": 1,
+     "zane": 0
+    }
+   }
+  ],
+  "aus": [
+   {
+    "sha": "9b93a22da8",
+    "len": 62940,
+    "bloecke": {
+     "kontextplus": 1,
+     "fish": 0,
+     "worldqueryfix": 0,
+     "gedaechtnisFrage": 0,
+     "gedaechtnisGehirn": 1,
+     "lachwunsch": 0,
+     "zane": 0
+    }
+   },
+   {
+    "sha": "7558c1f418",
+    "len": 63831,
+    "bloecke": {
+     "kontextplus": 1,
+     "fish": 0,
+     "worldqueryfix": 0,
+     "gedaechtnisFrage": 1,
+     "gedaechtnisGehirn": 1,
+     "lachwunsch": 0,
+     "zane": 0
+    }
+   },
+   {
+    "sha": "a75fe59197",
+    "len": 63331,
+    "bloecke": {
+     "kontextplus": 1,
+     "fish": 0,
+     "worldqueryfix": 1,
+     "gedaechtnisFrage": 0,
+     "gedaechtnisGehirn": 1,
+     "lachwunsch": 0,
+     "zane": 0
+    }
+   }
+  ]
  }
 }

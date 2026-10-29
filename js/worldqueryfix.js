@@ -25,15 +25,13 @@
   }
 
   // Der KI klar sagen, dass globale Lagefragen aktuelle Web-Infos brauchen und NICHT world_news mit leerem Ort.
-  if(typeof window.buildSystemPrompt==='function' && !window.buildSystemPrompt._globalInfo65){
-    const oldPrompt=window.buildSystemPrompt;
-    const wrappedPrompt=function(text){
-      let p=oldPrompt.apply(this,arguments);
+  // Eintrag in der Ergänzungs-Liste der KI-Anweisung (commands.js, jvChain), Rang 30
+  if(window.jvChain){
+    window.jvChain.use('buildSystemPrompt','worldqueryfix',function(next,args){
+      const text=args[0];
+      let p=next();
       if(isGlobalInfoQuestion(text)) p += '\n\nGLOBALE LAGEFRAGE: Der Nutzer fragt nach mehreren Orten/Regionen weltweit (z.B. wo aktuell Krieg ist). Nutze dafür web_lookup mit einer aktuellen, präzisen Suchanfrage und beantworte die Frage inhaltlich. Nutze NICHT world_news mit leerem news_place und öffne nicht nur die Weltkugel. Die normale world_news-Logik für konkrete Orte wie „Was ist aktuell in Spanien los?“ bleibt unverändert.';
       return p;
-    };
-    wrappedPrompt._globalInfo65=true;
-    Object.keys(oldPrompt).forEach(k=>{try{wrappedPrompt[k]=oldPrompt[k]}catch(e){}});
-    window.buildSystemPrompt=wrappedPrompt;
+    },30);
   }
 })();
