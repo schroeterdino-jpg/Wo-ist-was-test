@@ -1,0 +1,60 @@
+{
+ "zeitfrage": {
+  "zweit": {
+   "behandelt": true,
+   "gesagt": [
+    "Zweitschlüssel, im Testtopf: Das habe ich am Freitag, 2. Oktober um 11 Uhr 30 gespeichert."
+   ]
+  },
+  "erst": {
+   "behandelt": true,
+   "gesagt": [
+    "Schlüssel, unter dem Testkissen: Das habe ich am Donnerstag, 1. Oktober um 10 Uhr gespeichert."
+   ]
+  },
+  "keiner": {
+   "behandelt": false,
+   "gesagt": []
+  }
+ },
+ "kaputt": {
+  "memoryItems": "object",
+  "schluessel": [],
+  "kontakte": [
+   "testoma"
+  ],
+  "chatHistory": "object",
+  "originalWert": "{kaputt",
+  "schreibzugriffe": {},
+  "proxy": true,
+  "originalGleich": true
+ },
+ "konsole": [
+  "laden|error|Failed to load resource: net::ERR_FAILED",
+  "laden|error|Failed to load resource: net::ERR_FAILED",
+  "laden|error|Failed to load resource: net::ERR_FAILED",
+  "laden|error|Failed to load resource: net::ERR_FAILED",
+  "laden|error|JARVIS 3D: Loader konnten nicht geladen werden TypeError: Failed to fetch dynamically imported module: https://esm.sh/th",
+  "laden|warning|The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page. https://dev",
+  "laden|warning|The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page. https://dev",
+  "laden|warning|The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page. https://dev",
+  "laden|warning|Service Worker registration blocked by Playwright",
+  "laden|error|Aufräumen des Langzeitgedächtnisses fehlgeschlagen (wird später erneut versucht) Error: Gesamtliste ungültig\n    at clea",
+  "kaputt|error|Failed to load resource: net::ERR_FAILED",
+  "kaputt|error|Failed to load resource: net::ERR_FAILED",
+  "kaputt|error|Failed to load resource: net::ERR_FAILED",
+  "kaputt|warning|helfer_memory ist kein gültiges JSON: Gedächtnis startet leer, der gespeicherte Wert bleibt unverändert.",
+  "kaputt|error|Failed to load resource: net::ERR_FAILED",
+  "kaputt|error|JARVIS 3D: Loader konnten nicht geladen werden TypeError: Failed to fetch dynamically imported module: https://esm.sh/th",
+  "kaputt|warning|The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page. https://dev",
+  "kaputt|warning|The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page. https://dev",
+  "kaputt|warning|The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page. https://dev",
+  "kaputt|warning|Service Worker registration blocked by Playwright",
+  "kaputt|error|Aufräumen des Langzeitgedächtnisses fehlgeschlagen (wird später erneut versucht) Error: Gesamtliste ungültig\n    at clea"
+ ],
+ "seitenfehler": [
+  "laden|tailwind is not defined",
+  "kaputt|tailwind is not defined"
+ ],
+ "gemessen": "2026-10-29"
+}

@@ -85,7 +85,7 @@ let calendarEntries = JSON.parse(getPersistentData('helfer_calendar_entries', '[
 let todoEntries = JSON.parse(getPersistentData('helfer_todo_entries', '[]')) || [];
 let reminderEntries = JSON.parse(getPersistentData('helfer_reminders', '[]')) || [];
 let shoppingEntries = JSON.parse(getPersistentData('helfer_shopping', '[]')) || [];
-let memoryItems = JSON.parse(getPersistentData('helfer_memory', '{}')) || {};
+let memoryItems = (() => { try { return JSON.parse(getPersistentData('helfer_memory', '{}')) || {}; } catch (e) { console.warn('helfer_memory ist kein gültiges JSON: Gedächtnis startet leer, der gespeicherte Wert bleibt unverändert.'); return {}; } })();   // Lesefehler nur hier abfangen, damit Kontakte, Tageslog usw. weiterladen (nichts wird überschrieben)
 let savedContacts = JSON.parse(getPersistentData('helfer_contacts', '{}')) || {};
 /* Briefing-Wünsche: { id, type: 'text' (freier Hinweis) oder 'item' (Gedächtnis-Begriff), text } */
 let briefingWishes = JSON.parse(getPersistentData('helfer_briefing_wishes', '[]')) || [];

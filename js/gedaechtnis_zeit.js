@@ -78,7 +78,7 @@
 
     function answer(term) {
         let hit = null;
-        try { hit = (typeof searchMemory === 'function' ? searchMemory(term) : [])[0] || null; } catch (e) { hit = null; }
+        try { const res = (typeof searchMemory === 'function' ? searchMemory(term) : []), nt = String(term || '').toLowerCase().replace(/\s+/g, ' ').trim(); hit = res.find(r => !r.unscharf && String(r.key).toLowerCase().replace(/\s+/g, ' ').trim() === nt) || res[0] || null; } catch (e) { hit = null; }   // genauer Name vor Teilwort-Treffer; sonst wie bisher der erste Treffer
         if (!hit || hit.unscharf) return null;   // kein Gegenstand dieses Namens im Gedächtnis: die normale Verarbeitung (KI) übernimmt
         const ts = load()[hit.key];
         const val = (typeof parseMemoryValue === 'function' && memoryItems && hit.key in memoryItems) ? parseMemoryValue(memoryItems[hit.key]) : (hit.value || '');
