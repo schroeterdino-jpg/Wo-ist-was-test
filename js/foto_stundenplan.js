@@ -270,7 +270,7 @@
         if (cache && Date.now() - cache.t < 60000) return cache.liste;
         const d = await post({ action: 'listall' });
         const liste = (d.eintraege || []).filter(e => e && e.metadata && e.metadata.kategorie === 'Stundenplan' && e.text)
-            .map(e => ({ tag: e.metadata.wochentag, person: e.metadata.person, text: e.text }));
+            .map(e => ({ id: e.id, tag: e.metadata.wochentag, person: e.metadata.person, text: e.text }));
         cache = { t: Date.now(), liste };
         return liste;
     }
@@ -286,23 +286,25 @@
         if (/\bheute\b/.test(t)) return berlin(0);
         return '';
     }
-    const origSearch = window.searchSemanticMemory;
-    if (typeof origSearch === 'function') {
-        window.searchSemanticMemory = async function (text) {
-            const basis = await origSearch.apply(this, arguments);
-            try {
-                const t = norm(text);
-                if (!SCHULE.test(t)) return basis;
-                const liste = await alleStundenplan();
-                if (!liste.length) return basis;
-                let tag = tagAusFrage(t);
-                if (tag === 'Sonntag' || tag === 'Samstag') tag = 'Montag';
-                const treffer = (tag ? liste.filter(e => e.tag === tag) : liste).map(e => e.text);
-                const rest = (Array.isArray(basis) ? basis : []).filter(x => !treffer.some(y => String(x).includes(y.slice(0, 40))));
-                return treffer.concat(rest);
-            } catch (e) { return basis; }
-        };
-    }
+    /* Zusatzquelle für die Gedächtnis-Suche (searchSemanticMemory in assistant.js, trägt sich unabhängig von der Ladereihenfolge ein): bei Fragen zur Schule
+       kommen die Stundenplan-Einträge gezielt dazu. Die Gesamtliste holt assistant.js (höchstens EINE pro Frage, auch wenn mehrere Quellen sie brauchen);
+       diese Datei macht keine eigene Abfrage und überschreibt searchSemanticMemory nicht. */
+    function planSchonLeerBekannt() { return !!(cache && cache.liste && !cache.liste.length && Date.now() - cache.t < 600000); }
+    (window.jvSuchQuellen = window.jvSuchQuellen || []).push({
+        name: 'stundenplan',
+        rang: 200,
+        braucht: q => SCHULE.test(norm(q)) && !planSchonLeerBekannt(),
+        liefere: function (q, gesamt) {
+            const liste = (Array.isArray(gesamt) ? gesamt : []).filter(e => e && e.metadata && e.metadata.kategorie === 'Stundenplan' && e.text)
+                .map(e => ({ id: e.id, tag: e.metadata.wochentag, person: e.metadata.person, text: e.text }));
+            cache = { t: Date.now(), liste };   // merkt sich auch "kein Plan vorhanden", damit später nicht mehr umsonst gefragt wird
+            if (!liste.length) return [];
+            const t = norm(q);
+            let tag = tagAusFrage(t);
+            if (tag === 'Sonntag' || tag === 'Samstag') tag = 'Montag';
+            return (tag ? liste.filter(e => e.tag === tag) : liste).map(e => ({ id: e.id, text: e.text, zeile: e.text }));
+        }
+    });
     if (window.jvChain) {
         window.jvChain.use('buildSystemPrompt', 'stundenplan', function (next) {
             let base = next();

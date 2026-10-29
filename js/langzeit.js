@@ -5,15 +5,16 @@
    1) Aktion "episode_store": speichert einen Eintrag mit Datum, Kategorie und Status im Vektorgedächtnis, wartet auf die Antwort des Servers und
       zeigt danach die Karte "Im Langzeitgedächtnis gespeichert". Klappt es nicht, sagt Zane das ehrlich.
    2) Aktion "episode_asked": die KI meldet, dass sie die Nachfrage gestellt hat; dann wird sie vermerkt und es gibt heute keine weitere.
-   3) Die Suche (searchSemanticMemory) liefert nur noch solche Einträge, mit Datum und Wochentag ("Wann war ich schwimmen?").
+   3) Suche: Besitzer von searchSemanticMemory ist assistant.js (eine Suche über ALLE Einträge, ohne Filter nach Eintragsart). Diese Datei trägt sich dort nur als Zusatzquelle
+      ein (window.jvSuchQuellen): bei echten Planungsfragen ("Was habe ich morgen vor?") kommen Pläne, Geburtstage und Fristen des Zeitraums als Zeilen dazu,
+      und Erlebnisse werden mit Kategorie und "erzählt am" beschriftet. Unabhängig von der Ladereihenfolge.
    4) Nachfragen: einmal am Tag höchstens EINE Nachfrage zu einem vergangenen Plan oder Geburtstag (Kontext "langzeit_nachfragen"); im Briefing nie.
       Dazu alle 2-3 Tage ein beiläufiger Anstoß zu einem undatierten Eintrag ("Wie geht es eigentlich Finja?"), pro Eintrag höchstens alle 10 Tage; abstellbar mit "Frag nicht mehr nach ...".
       "Was weißt du über mich?" lässt Zane die Einträge vorlesen (Kontext "langzeit_alles"); das Fenster öffnet "Zeig mir das Langzeitgedächtnis".
    5) Fenster "Langzeitgedächtnis" (Menü, oder per Sprache): alle Einträge ansehen und einzeln löschen. "Vergiss das mit dem Schwimmen" löscht per Sprache.
    7) Tageslog (lokal), Tagesrückblick um 21:30 (2-3 Sätze, Kategorie "Rückblick") und Plauder-Modus ("Lass uns plaudern" / "Okay, genug").
-   6) Einmaliges Aufräumen: alte Vektor-Einträge ohne Datum/Kategorie (Altlasten aus der Zeit vor der Trennung) werden gelöscht.
-   Braucht: api/memory.js, actions.js (executeAction), assistant.js (searchSemanticMemory), prompt.js (buildSystemPrompt), apiFetch.
-   Muss NACH assistant.js und gedaechtnis.js geladen werden.
+   6) Einmaliges Aufräumen: löscht NUR eindeutig leere Einträge (Text leer UND keinerlei Angaben). Alles Unbekannte bleibt (Merk-dir, Briefing-Fakten, Fristen ...).
+   Braucht: api/memory.js, actions.js (executeAction), prompt.js (buildSystemPrompt), apiFetch. Die Suche selbst liegt in assistant.js (searchSemanticMemory).
    ============================================================ */
 (function () {
     const FOLLOW_KEY = 'jv_langzeit_nachfrage_tag';
@@ -122,11 +123,22 @@
         else window.executeAction = baue(window.executeAction);
     }
 
-    /* ---------- 3) Suche: nur Einträge der neuen Art, mit Datum und Wochentag ---------- */
-    /* Zeitbezogene Fragen ("Habe ich morgen was vor?"): Einträge nach Datum holen, nicht nur nach Bedeutung */
+    /* ---------- 3) Suche: Zusatzquelle für assistant.js (searchSemanticMemory), kein eigener Suchweg ---------- */
+    /* Zeitbezogene Fragen ("Habe ich morgen was vor?"): Einträge nach Datum zusätzlich holen, nicht nur nach Bedeutung */
     function addDays(iso, n) {
         const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n);
         return d.toLocaleDateString('sv-SE');
+    }
+    /* Fremde Befehle mit Zeitwort ("Wie wird morgen das Wetter?", "Lies mir morgen etwas vor", "Ich fahr gleich los") sind KEINE Fragen an das Gedächtnis */
+    const KEIN_GEDAECHTNIS = /\b(?:wetter|temperatur|regen|regnet|schnee|sonne|route|navig\w*|fahr|fahre|fahren|fährst|lies|lese|vorlesen|erinner\w*|wecker|timer|alarm|anruf\w*|ruf|rufe|schick\w*|stell\w*|öffne\w*|spiel\w*|such\w*|tank\w*|diesel|benzin|bestell\w*|kauf\w*|karte)\b/;
+    function istPlanungsfrage(q) {
+        const l = String(q || '').toLowerCase().replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!l || KEIN_GEDAECHTNIS.test(l)) return false;
+        return /\bwas (?:habe|hab|hätte|mache|machen|steht|stehen|liegt|liegen|ist|sind|muss|soll|gibt|passiert)\b.*\b(?:vor|an|geplant|erledigen|termine?|zu tun|los|ansteht|anstehen|anliegt)\b/.test(l)
+            || /\b(?:habe|hab|haben) (?:ich|wir)\b.*\b(?:etwas|was|termine?|termin|pläne?|geplant|vor|zeit|zu tun|zu erledigen)\b/.test(l)
+            || /\bwelche (?:termine|pläne|aufgaben|dinge|geburtstage|fristen)\b/.test(l)
+            || /\bwas (?:muss|soll|will) ich\b.*\b(?:noch|erledigen|machen|tun)\b/.test(l)
+            || /\b(?:ist|steht|liegt) (?:bei mir |für mich )?(?:etwas|was|irgendwas) (?:an|geplant|los)\b/.test(l);
     }
     function zeitraum(q) {
         const t = todayIso(); const l = String(q).toLowerCase();
@@ -141,46 +153,40 @@
         for (let i = 0; i < 7; i++) {
             if (new RegExp('\\b' + tage[i]).test(l)) { const d = addDays(t, ((i - wd + 7) % 7) || 7); return [d, d]; }
         }
-        if (/\b(vor|vorhaben|geplant|los|anstehen|ansteht|termin)/.test(l)) return [t, addDays(t, 7)];
+        if (/\b(?:vor|vorhaben|geplant|anstehen|ansteht|termine?)\b/.test(l)) return [t, addDays(t, 7)];
         return null;
     }
-    async function plaeneImZeitraum(q) {
-        const z = zeitraum(q);
-        if (!z) return [];
-        try {
-            const data = await post({ action: 'listall' });
-            const liste = Array.isArray(data.eintraege) ? data.eintraege : [];
-            return liste.filter(e => e && e.metadata && e.metadata.typ === 'episode' && isIsoDay(e.metadata.ereignis_datum)
-                    && e.metadata.ereignis_datum >= z[0] && e.metadata.ereignis_datum <= z[1])
-                .sort((a, b) => a.metadata.ereignis_datum < b.metadata.ereignis_datum ? -1 : 1)
-                .map(e => `GEPLANT am ${lesbar(e.metadata.ereignis_datum)}: ${e.text}`);
-        } catch (e) { return []; }
+    /* Beschriftung nur, wenn sie stimmt: Frist = Frist, Geburtstag = Geburtstag, Ereignis/Projekt/ohne Kategorie = geplant; Stimmung, Vorlieben ... keine Zeile */
+    function planMarke(m) {
+        if (m.typ === 'frist' || m.frist === true || m.frist === 'true') return 'FRIST';
+        if (m.typ !== 'episode') return null;
+        if (m.kategorie === 'Geburtstag') return 'GEBURTSTAG';
+        if (!m.kategorie || m.kategorie === 'Event' || m.kategorie === 'Projekt') return 'GEPLANT';
+        return null;
     }
-
-    window.searchSemanticMemory = async function (text) {
-        const q = String(text || '').trim();
-        if (!q || q.length < 4) return [];
-        try {
-            const [data, plaene] = await Promise.all([
-                post({ action: 'search', query: q, topK: 8 }),
-                plaeneImZeitraum(q)
-            ]);
-            const treffer = (Array.isArray(data.treffer) ? data.treffer : [])
-                .filter(t => t && t.text && t.metadata && t.metadata.typ === 'episode')
-                .map(t => {
-                    const m = t.metadata;
-                    const gesagt = isIsoDay(m.datum_gesagt) ? ` (erzählt am ${lesbar(m.datum_gesagt)})` : '';
-                    return `${m.kategorie || 'Eintrag'}: ${t.text}${gesagt}`;   // das Datum des Ereignisses steht schon im Text
-                });
-            const rest = treffer.filter(x => {
-                const kern = x.split(': ').slice(1).join(': ').split(' (erzählt')[0];
-                return !plaene.some(p => p.includes(kern));
-            });
-            return plaene.concat(rest);
-        } catch (e) {
-            return [];
+    (window.jvSuchQuellen = window.jvSuchQuellen || []).push({
+        name: 'langzeit',
+        rang: 100,
+        braucht: q => istPlanungsfrage(q) && !!zeitraum(q),
+        liefere: function (q, gesamt) {
+            const z = zeitraum(q);
+            if (!z) return [];
+            return (Array.isArray(gesamt) ? gesamt : []).filter(e => e && e.metadata && typeof e.text === 'string' && e.text && isIsoDay(e.metadata.ereignis_datum)
+                    && e.metadata.ereignis_datum >= z[0] && e.metadata.ereignis_datum <= z[1] && e.metadata.status !== 'erledigt' && planMarke(e.metadata))
+                .sort((a, b) => a.metadata.ereignis_datum < b.metadata.ereignis_datum ? -1 : a.metadata.ereignis_datum > b.metadata.ereignis_datum ? 1 : 0)
+                .slice(0, 10)
+                .map(e => ({ id: e.id, text: e.text, zeile: `${planMarke(e.metadata)} am ${lesbar(e.metadata.ereignis_datum)}: ${e.text}` }));
+        },
+        /* Erlebnisse mit Kategorie beschriften; nur Angaben, die wirklich da sind (keine erfundene Kategorie oder Datum) */
+        formatiere: function (t) {
+            const m = t && t.metadata;
+            if (!m || typeof m.kategorie !== 'string' || !m.kategorie || m.typ !== 'episode') return null;
+            const kat = m.kategorie.trim();
+            const vorn = String(t.text).toLowerCase().indexOf(kat.toLowerCase()) === 0 ? '' : kat + ': ';
+            const gesagt = (isIsoDay(m.datum_gesagt) && (m.quelle === 'gespraech')) ? ` (erzählt am ${lesbar(m.datum_gesagt)})` : '';
+            return vorn + t.text + gesagt;
         }
-    };
+    });
 
     /* ---------- 4) Nachfragen, höchstens eine pro Tag, nie im Briefing (das Briefing nutzt buildSystemPrompt nicht) ---------- */
     let dueCache = null;        // { tag, liste }
@@ -684,15 +690,20 @@
         return '\n\nplauder_modus (AKTIV: der User möchte sich gerade einfach unterhalten wie mit einem guten Bekannten): Du darfst jetzt bis zu 4 oder 5 Sätze antworten, persönlicher, neugieriger und lockerer, mit eigener Meinung, kleinem Witz und manchmal einer Gegenfrage am Ende (nicht jedes Mal). Knüpfe an Erinnerungen an (\'gedächtnis_semantisch\', \'tagesrueckblick\'), wenn es passt, zum Beispiel "Wie war es eigentlich gestern ...?". Lege keine Aktionen an, außer der User will ausdrücklich etwas erledigt haben. Bei Aufträgen antworte wie gewohnt knapp. Das Beenden übernimmt die App.';
     }
 
-    /* ---------- 6) Einmaliges Aufräumen der Altlasten ---------- */
+    /* ---------- 6) Einmaliges Aufräumen ---------- */
+    /* Grundregel: Unbekannt bedeutet BEHALTEN. Früher löschte dieses Aufräumen alles ohne typ "episode"/"frist" und traf damit auch "Merk dir"-Einträge und
+       Briefing-Fakten. Jetzt nur noch Einträge, die nachweislich leer sind: Text leer UND keinerlei Angaben (Metadaten). Die Marke bleibt dieselbe (V1):
+       Geräte, auf denen das alte Aufräumen schon lief, machen nichts mehr; neue Geräte löschen nur noch solche leeren Einträge. */
     async function cleanupOnce() {
         if (lsGet(CLEAN_KEY)) return;
         try {
             const d = await post({ action: 'listall' });
-            const alt = (d.eintraege || []).filter(e => !(e.metadata && (e.metadata.typ === 'episode' || e.metadata.typ === 'frist'))).map(e => e.id);
-            for (let i = 0; i < alt.length; i += 100) await post({ action: 'delete', ids: alt.slice(i, i + 100) });
+            if (!d || !Array.isArray(d.eintraege)) throw new Error('Gesamtliste ungültig');
+            const leer = d.eintraege.filter(e => e && e.id && typeof e.text === 'string' && !e.text.trim()
+                && (!e.metadata || (typeof e.metadata === 'object' && !Object.keys(e.metadata).length))).map(e => e.id);
+            for (let i = 0; i < leer.length; i += 100) await post({ action: 'delete', ids: leer.slice(i, i + 100) });
             lsSet(CLEAN_KEY, new Date().toISOString());
-            console.log('Langzeitgedächtnis aufgeräumt, gelöscht: ' + alt.length);
+            console.log('Langzeitgedächtnis aufgeräumt, leere Einträge gelöscht: ' + leer.length);
         } catch (e) {
             console.error('Aufräumen des Langzeitgedächtnisses fehlgeschlagen (wird später erneut versucht)', e);
         }
