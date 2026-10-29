@@ -433,4 +433,11 @@ Jede Test-Welt (`starte` in `tests/umgebung.js`, `laufen` in `tests/meldungen_we
 Nach Foto-Kette (Phase 3) und Speak-Kette (Phase 4B) wurden alle übrigen globalen Ersetzungen neu gemessen (138 Ersetzungen, 61 Namen). Kein Produktcode geändert. Ergebnis, Ampel und empfohlene Reihenfolge: `tests/globale-ist-zustand.md`. Sicherheitsnetz: `node tests/globale.js` (Soll `tests/globale_soll.json`).
 - ROT: `buildSystemPrompt` (zwei Architekturen parallel, Ergebnis hängt von Ladereihenfolge und vom Zeitpunkt des 0-ms-Zeitgebers in `contextplus.js` ab); `searchSemanticMemory` (die Suche aus `langzeit.js` wird beim Laden von `assistant.js` überschrieben, nie aktiv).
 - GELB: `handleLocalCommand`, `sendToGroqSmart` (`festnamen.js`/`hoerkorrektur.js` greifen nie), Fenster-Hüllen, Wiederholungskonstruktionen.
-- Empfohlen als Nächstes: `buildSystemPrompt` in die vorhandene `jvChain` überführen (Phase 5B).
+- Empfohlen als Nächstes: `buildSystemPrompt` in die vorhandene `jvChain` überführen (Phase 5B, siehe unten).
+
+## Phase 5B: buildSystemPrompt nur noch über jvChain
+- Die fünf direkten Hüllen um `buildSystemPrompt` (`contextplus.js`, `fish.js`, `worldqueryfix.js`, `gedaechtnis.js`, `name.js`) sind Einträge der vorhandenen `jvChain` (`commands.js`): `name` 10, `gedaechtnis` 20, `worldqueryfix` 30, `fish` 40, `contextplus` 50; die zehn bisherigen Einträge (100–500) sind unverändert. Kleine Zahl = außen = wird zuletzt angehängt, die Ränge bilden die alte Reihenfolge exakt nach.
+- Der 0-ms-Zeitgeber in `contextplus.js` entfällt (er hängte nur die alte Hülle nach). Der Kontext+-Block steht genau 1× in der Anweisung, bei jedem Start gleich. Keine Schutzmarken, keine Eigenschafts-Kopien mehr.
+- Neue Erweiterungen an der KI-Anweisung gehören ausschließlich per `jvChain.use('buildSystemPrompt', Name, Funktion, Rang)` eingetragen, nie mehr per Hand um `buildSystemPrompt` gelegt. Freie Ränge: 60–99 (zwischen den fünf späten Zusätzen und den zehn Fach-Einträgen).
+- Fehler in einem Eintrag fängt `jvChain` je Eintrag ab (Anweisung ohne diesen Block, Fehler in der Fehlerbox); früher brach `buildSystemPrompt` bei `contextplus`/`name` ab.
+- Sicherheitsnetz: `node tests/globale.js` (Abschnitt E, Gegenproben A–H). Beschreibung: `tests/globale-ist-zustand.md`.

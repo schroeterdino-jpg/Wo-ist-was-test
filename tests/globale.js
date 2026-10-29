@@ -6,7 +6,7 @@
    Die App wird wie im Browser geladen (document.readyState 'loading', danach DOMContentLoaded, load, Zeitgeber), alle Skripte in der echten Reihenfolge
    (das Inline-Skript mit den Mimik-Befehlen steht an seiner Stelle). Gemessen wird:
    A. Ersetzungsprotokoll: nach jedem Skript und nach jeder Start-Phase, welche globale Funktion durch eine andere ersetzt wurde (Ladereihenfolge-Landkarte).
-   B. Wirkung: buildSystemPrompt (zwei Zeitvarianten des 0-ms-Zeitgebers in contextplus.js), handleLocalCommand (Eingabe -> Ergebnis), sendToGroqSmart (was beim Kern
+   B. Wirkung: buildSystemPrompt (seit Phase 5B nur noch die Kette jvChain; früher Moment gegen Endstand), handleLocalCommand (Eingabe -> Ergebnis), sendToGroqSmart (was beim Kern
       ankommt), searchSemanticMemory (welche Anfrage geht raus), openPanel/closePanel (welche Schließer laufen).
    C. Wartekonstruktionen: Zeitgeber, die beim Laden entstehen (Wiederholung "warte auf jvCommands"), und der Beweis, dass sie bei fehlender Datei wirklich warten.
    D. Paar-Vertauschungen INNERHALB der Plätze der beteiligten Wrapper-Dateien (nie eine Datei vor ihre Voraussetzungen ziehen): friert ein, was sich ändert.
@@ -88,6 +88,27 @@ function messePrompt(w) {
     });
     return r;
 }
+
+/* Marker der fünf Blöcke; Anzahl je Block in der fertigen KI-Anweisung */
+const BLOECKE = { kontextplus: 'GESPRÄCHSKONTEXT UND FOLGEFRAGEN', fish: 'LAUTES LACHEN:', worldqueryfix: 'GLOBALE LAGEFRAGE:', gedaechtnisFrage: 'GEDÄCHTNIS-FRAGEN:', gedaechtnisGehirn: 'KONTEXT-GEHIRN / AKTIVES LANGZEITGEDÄCHTNIS', lachwunsch: 'LACHEN: Der Nutzer wünscht' };
+const anzahl = (p, m) => String(p).split(m).length - 1;
+const zaehle = p => { const r = {}; for (const k of Object.keys(BLOECKE)) r[k] = anzahl(p, BLOECKE[k]); r.zane = (String(p).match(/ZANE(?![A-Z_])|\bZane/g) || []).length; return r; };
+const ZUSTAENDE = { normal: {}, lachen: { jvLaughWish: () => true }, aus: { getHumanLevel: () => 'aus' } };
+function messeZustaende(w) {   // Zustand der Einstellungen ändert, welche Blöcke dazukommen (Lachwunsch, "Menschliche Laute aus")
+    const r = {}, sb = w.sb;
+    for (const z of Object.keys(ZUSTAENDE)) {
+        const alt = {}; for (const k of Object.keys(ZUSTAENDE[z])) { alt[k] = sb[k]; sb[k] = ZUSTAENDE[z][k]; }
+        r[z] = [0, 1, 4].map(i => { const p = sb.buildSystemPrompt(PROMPT_EINGABEN[i], {}, '2026-10-29T08:00:00+01:00'); return { sha: sha(p), len: String(p).length, bloecke: zaehle(p) }; });
+        for (const k of Object.keys(alt)) sb[k] = alt[k];
+    }
+    return r;
+}
+const kette = w => { const f = w.sb.buildSystemPrompt; return { liste: w.sb.jvChain.list('buildSystemPrompt'), dispatcher: f._jvChain === true, schluessel: Object.keys(f) }; };
+const KETTE_NEU = ['10 name', '20 gedaechtnis', '30 worldqueryfix', '40 fish', '50 contextplus'];
+const KETTE_ALT = ['100 formulierungen', '200 langzeit', '210 rechnungen', '210 stundenplan', '212 foto-person', '215 termin-erinnern', '216 geburtstag-ganztag', '230 ki-mitdenken', '400 sprueche', '500 charakter'];
+const FUENF = ['contextplus.js', 'fish.js', 'worldqueryfix.js', 'gedaechtnis.js', 'name.js'];
+const permutiere = neu => l => { const plaetze = FUENF.map(f => l.indexOf(f)).sort((a, b) => a - b); neu.forEach((f, i) => { l[plaetze[i]] = f; }); return l; };
+function mitFehlerLog() { const log = []; return { log, nachSkript: (f, sb) => { try { sb.console.error = function () { log.push(Array.prototype.slice.call(arguments).map(a => String(a && a.message || a)).join(' ')); }; } catch (e) { } } }; }
 
 /* ---------- B2: handleLocalCommand ---------- */
 const LOKAL_EINGABEN = [
@@ -228,9 +249,12 @@ function erstesDiff(ist, soll) {   // kurze Beschreibung des ersten Unterschieds
     const m = await messeAlles(basis);
     ist.messung = m;
 
-    /* Frühe Variante: Der Browser lässt den 0-ms-Zeitgeber zwischen zwei Skripten laufen (echtes Chromium, gemessen); gleichwertig: contextplus.js hängt sich nur einmal ein */
-    const frueh = await baue({ quelleAendern: (f, q) => f === 'contextplus.js' ? q.replace('setTimeout(install,0);', '') : q });
-    ist.promptFrueh = messePrompt(frueh);
+    /* Früher Moment: die KI-Anweisung gleich nach dem Laden von name.js, noch vor DOMContentLoaded/load/Zeitgebern. Das ist die Früh-Variante des echten Browsers (echtes Chromium gemessen:
+       Kontext+-Block 1x). Seit Phase 5B gibt es keinen Zeitgeber mehr, der etwas nachhängt; früher Moment und Endstand müssen deshalb identisch sein. */
+    let fruehMoment = null;
+    await baue({ nachSkript: (f, sb) => { if (f === 'name.js') fruehMoment = messePrompt({ sb }); } });
+    ist.promptFrueh = fruehMoment;
+    ist.promptZustaende = messeZustaende(basis);
 
     /* Zeitgeber beim Laden (Wartekonstruktionen) */
     ist.zeitgeber = zeitgeberLaden(basis);
@@ -275,13 +299,15 @@ function erstesDiff(ist, soll) {   // kurze Beschreibung des ersten Unterschieds
 
     /* Vergleich mit dem Soll */
     if (SCHREIBEN) {
-        fs.writeFileSync(SOLL_DATEI, JSON.stringify({ ladeprotokoll: ist.ladeprotokoll, messung: ist.messung, promptFrueh: ist.promptFrueh, zeitgeber: ist.zeitgeber, zeitgeberOhneCommands: ist.zeitgeberOhneCommands, matrix: ist.matrix }, null, 1) + '\n');
+        fs.writeFileSync(SOLL_DATEI, JSON.stringify({ ladeprotokoll: ist.ladeprotokoll, messung: ist.messung, promptFrueh: ist.promptFrueh, zeitgeber: ist.zeitgeber, zeitgeberOhneCommands: ist.zeitgeberOhneCommands, matrix: ist.matrix, promptZustaende: ist.promptZustaende }, null, 1) + '\n');
         console.log('Soll-Zustand geschrieben: ' + SOLL_DATEI);
         process.exit(0);
     }
     for (const ph of ['laden', 'DCL', 'load', 'zeit']) check('A. Ersetzungsprotokoll "' + ph + '" wie eingefroren (' + (soll.ladeprotokoll[ph] || []).length + ' Ersetzungen)', JS(ist.ladeprotokoll[ph]) === JS(soll.ladeprotokoll[ph]), kurz(JS(ist.ladeprotokoll[ph].filter(x => (soll.ladeprotokoll[ph] || []).indexOf(x) < 0)), 200));
     check('B1. buildSystemPrompt (Spät-Variante) wie eingefroren', JS(ist.messung.prompt) === JS(soll.messung.prompt), erstesDiff({ p: [JS(ist.messung.prompt)] }, { p: [JS(soll.messung.prompt)] }).slice(0, 60));
     check('B1. buildSystemPrompt (Früh-Variante, wie im echten Browser) wie eingefroren', JS(ist.promptFrueh) === JS(soll.promptFrueh));
+    check('B1. buildSystemPrompt: Einstellungen (Lachwunsch, Lachen aus) wie eingefroren', JS(ist.promptZustaende) === JS(soll.promptZustaende));
+    check('B1. buildSystemPrompt: früher Moment (nach name.js) und Endstand (nach allen Zeitgebern) sind identisch', JS(ist.promptFrueh) === JS(ist.messung.prompt));
     check('B2. handleLocalCommand: ' + LOKAL_EINGABEN.length + ' Eingaben wie eingefroren', JS(ist.messung.lokal) === JS(soll.messung.lokal), ist.messung.lokal.find((x, i) => x !== soll.messung.lokal[i]));
     check('B3. sendToGroqSmart wie eingefroren', JS(ist.messung.groq) === JS(soll.messung.groq), ist.messung.groq.find((x, i) => x !== soll.messung.groq[i]));
     check('B4. searchSemanticMemory / jvFristHinweis wie eingefroren', JS(ist.messung.semantik) === JS(soll.messung.semantik), ist.messung.semantik.find((x, i) => x !== soll.messung.semantik[i]));
@@ -295,8 +321,8 @@ function erstesDiff(ist, soll) {   // kurze Beschreibung des ersten Unterschieds
     /* Sachaussagen über den Ist-Zustand (aus den eingefrorenen Werten abgeleitet, damit Befunde nicht still verschwinden) */
     const lp = ist.ladeprotokoll;
     const folge = key => [].concat(lp.laden, lp.DCL, lp.load, lp.zeit).filter(x => x.endsWith(' -> ' + key)).map(x => x.split(' -> ')[0]);
-    check('Befund buildSystemPrompt: sechs Hüllen beim Laden (commands.js = jvChain, contextplus, fish, worldqueryfix, gedaechtnis, name), contextplus.js zusätzlich noch einmal nach dem Laden (0-ms-Zeitgeber)', JS(folge('buildSystemPrompt')) === JS(['commands.js', 'contextplus.js', 'fish.js', 'worldqueryfix.js', 'gedaechtnis.js', 'name.js', 't+0.5s']), JS(folge('buildSystemPrompt')));
-    check('Befund buildSystemPrompt: in der Spät-Variante steht der Kontext+-Block zweimal, in der Früh-Variante (echter Browser) einmal', ist.messung.prompt.e0.kontextPlus === 2 && ist.promptFrueh.e0.kontextPlus === 1, ist.messung.prompt.e0.kontextPlus + '/' + ist.promptFrueh.e0.kontextPlus);
+    check('Befund buildSystemPrompt (5B): nur noch EINE Ersetzung beim Laden (commands.js = jvChain-Verteiler), keine direkten Hüllen, kein Nachhängen per Zeitgeber', JS(folge('buildSystemPrompt')) === JS(['commands.js']), JS(folge('buildSystemPrompt')));
+    check('Befund buildSystemPrompt (5B): Kontext+-Block in früher und später Messung genau einmal', ist.messung.prompt.e0.kontextPlus === 1 && ist.promptFrueh.e0.kontextPlus === 1, ist.messung.prompt.e0.kontextPlus + '/' + ist.promptFrueh.e0.kontextPlus);
     check('Befund handleLocalCommand: genau diese Ersetzer in dieser Reihenfolge (innen -> außen)', JS(folge('handleLocalCommand')) === JS(['commands.js', 'mailpush.js', 'worldqueryfix.js', 'index.html(inline)', 'ortsuche.js']), JS(folge('handleLocalCommand')));
     check('Befund sendToGroqSmart: nach dem Start nur synapsen.js (DCL) und weathermap.js (load) als Hüllen; festnamen.js/hoerkorrektur.js greifen nie (assistant.js lädt später)', JS(folge('sendToGroqSmart')) === JS(['DOMContentLoaded', 'load']), JS(folge('sendToGroqSmart')));
     check('Befund searchSemanticMemory: die Ersetzung in langzeit.js geht beim Laden von assistant.js verloren (Funktionsdeklaration überschreibt)', /topK\\*":5/.test(ist.messung.semantik[0]) && ist.messung.semantik[0].indexOf('listall') < 0, ist.messung.semantik[0]);
@@ -312,6 +338,95 @@ function erstesDiff(ist, soll) {   // kurze Beschreibung des ersten Unterschieds
         check('Gegenprobe: ohne die Umbenennung in name.js ändert sich buildSystemPrompt', JS(messePrompt(w2)) !== JS(ist.messung.prompt));
         const w3 = await baue({ ohneSkripte: ['weathermap.js'] });
         check('Gegenprobe: ohne weathermap.js ändert sich das Ersetzungsprotokoll', JS(w3.proto) !== JS(ist.ladeprotokoll));
+    }
+
+
+    /* ---------- E. Phase 5B: buildSystemPrompt hat nur noch EINE Erweiterungsarchitektur (jvChain) ---------- */
+    {
+        const bas = kette(basis);
+        check('E1. jvChain: Reihenfolge außen -> innen = die fünf neuen Einträge (Rang 10..50) vor den zehn bisherigen (100..500)', JS(bas.liste) === JS(KETTE_NEU.concat(KETTE_ALT)), JS(bas.liste));
+        check('E1. jvChain: die zehn bisherigen Einträge sind unverändert (Namen, Ränge, Reihenfolge)', JS(bas.liste.slice(5)) === JS(KETTE_ALT));
+        check('E1. buildSystemPrompt ist der jvChain-Verteiler ohne eigene Merkmale (nur die Verteiler-Marke _jvChain, keine alten Schutzmarken _contextPlus/_fishLach/_globalInfo65/_gedaechtnis)', bas.dispatcher && JS(bas.schluessel) === JS(['_jvChain']), JS(bas.schluessel));
+        check('E1. kein Rang der fünf kollidiert mit einem bisherigen Eintrag', new Set(bas.liste.map(x => x.split(' ')[0])).size === bas.liste.map(x => x.split(' ')[0]).filter((v, i, a) => a.indexOf(v) === i).length && KETTE_NEU.every(x => KETTE_ALT.every(y => x.split(' ')[0] !== y.split(' ')[0])));
+        check('E1. contextplus.js legt keinen Zeitgeber mehr an (nichts mehr nur zum Einhängen)', !('contextplus.js' in ist.zeitgeber), JS(ist.zeitgeber));
+
+        /* Blöcke: jeder in erwarteter Anzahl und in erwarteter Reihenfolge (innen zuerst angehängt: contextplus, fish, worldqueryfix, gedaechtnis) */
+        PROMPT_EINGABEN.forEach((t, i) => {
+            const p = basis.sb.buildSystemPrompt(t, {}, '2026-10-29T08:00:00+01:00'), c = zaehle(p), ix = k => p.indexOf(BLOECKE[k]);
+            const soll5 = { kontextplus: 1, fish: 1, worldqueryfix: i === 4 ? 1 : 0, gedaechtnisFrage: i === 1 ? 1 : 0, gedaechtnisGehirn: 1, lachwunsch: 0, zane: 0 };
+            check('E2. Eingabe ' + i + ': jeder Block genau in erwarteter Anzahl, keine Doppelblöcke, keine "Zane"-Reste', JS(c) === JS(soll5), JS(c));
+            const reihe = ['kontextplus', 'fish', 'worldqueryfix', 'gedaechtnisFrage', 'gedaechtnisGehirn'].filter(k => ix(k) >= 0).map(ix);
+            check('E2. Eingabe ' + i + ': Blöcke in der Reihenfolge contextplus < fish < worldqueryfix < gedaechtnis', reihe.every((v, j) => j === 0 || reihe[j - 1] < v), JS(reihe));
+        });
+        const z = ist.promptZustaende;
+        check('E2. Lachwunsch: Lach-Block genau einmal; "Lachen aus": Fish-Block fehlt, Rest bleibt', z.lachen.every(x => x.bloecke.lachwunsch === 1 && x.bloecke.fish === 1) && z.aus.every(x => x.bloecke.fish === 0 && x.bloecke.lachwunsch === 0 && x.bloecke.kontextplus === 1 && x.bloecke.gedaechtnisGehirn === 1), JS(z.aus.map(x => x.bloecke)));
+
+        /* Fehlerpfade: Ein Eintrag, der wirft, darf die KI-Anweisung nicht verhindern (jvChain fängt pro Eintrag; früher flog die Ausnahme durch buildSystemPrompt) */
+        {
+            const f1 = mitFehlerLog();
+            const w = await baue({ nachSkript: f1.nachSkript, quelleAendern: (f, q) => f === 'contextplus.js' ? q.replace('function extraRules(text){', "function extraRules(text){ throw new Error('kaputt');") : q });
+            let p = '', err = ''; try { p = w.sb.buildSystemPrompt(PROMPT_EINGABEN[0], {}, '2026-10-29T08:00:00+01:00'); } catch (e) { err = e.message; }
+            const c = zaehle(p);
+            check('E3. Fehlerpfad contextplus: kein Abbruch, nur der Kontext+-Block fehlt, die übrigen Blöcke bleiben, der Fehler wird gemeldet', err === '' && c.kontextplus === 0 && c.fish === 1 && c.gedaechtnisGehirn === 1 && f1.log.some(x => x.indexOf('contextplus') >= 0), err + ' ' + JS(c) + ' ' + JS(f1.log));
+            const f2 = mitFehlerLog();
+            const w2 = await baue({ nachSkript: f2.nachSkript, quelleAendern: (f, q) => f === 'name.js' ? q.replace("return typeof r === 'string' ? ersetze(r) : r;", "throw new Error('kaputt');") : q });
+            let p2 = '', err2 = ''; try { p2 = w2.sb.buildSystemPrompt(PROMPT_EINGABEN[0], {}, '2026-10-29T08:00:00+01:00'); } catch (e) { err2 = e.message; }
+            check('E3. Fehlerpfad name: kein Abbruch, der fertige Text kommt unverändert zurück (ohne Umbenennung), der Fehler wird gemeldet', err2 === '' && p2.length > 1000 && zaehle(p2).kontextplus === 1 && f2.log.some(x => x.indexOf('name') >= 0), err2 + ' ' + f2.log.join(';'));
+        }
+
+        /* Reihenfolge-Unabhängigkeit: alle 10 Paare (oben in der Matrix), Umkehrung, gemischte Reihenfolgen. Die fünf tauschen nur ihre Plätze untereinander (alle liegen nach commands.js und prompt.js) */
+        const paare = Object.keys(ist.matrix).filter(k => k.indexOf('prompt: ') === 0);
+        check('E4. alle 10 Paarvertauschungen der fünf Dateien: identische KI-Anweisung', paare.length === 10 && paare.every(k => ist.matrix[k] === 'identisch'), paare.filter(k => ist.matrix[k] !== 'identisch').join(' | '));
+        const reihen = {
+            'umgekehrt': FUENF.slice().reverse(),
+            'gemischt 1': ['gedaechtnis.js', 'name.js', 'contextplus.js', 'worldqueryfix.js', 'fish.js'],
+            'gemischt 2': ['worldqueryfix.js', 'contextplus.js', 'name.js', 'fish.js', 'gedaechtnis.js'],
+            'gemischt 3': ['name.js', 'fish.js', 'gedaechtnis.js', 'contextplus.js', 'worldqueryfix.js'],
+            'gemischt 4': ['fish.js', 'gedaechtnis.js', 'worldqueryfix.js', 'name.js', 'contextplus.js']
+        };
+        for (const n of Object.keys(reihen)) {
+            const w = await baue({ skriptReihenfolge: permutiere(reihen[n]) });
+            check('E4. Reihenfolge "' + n + '" (' + reihen[n].map(x => x.replace('.js', '')).join(' > ') + '): identische KI-Anweisung, gleiche Kette, keine Ladefehler', JS(messePrompt(w)) === JS(ist.messung.prompt) && JS(kette(w)) === JS(bas) && w.ladefehler.length === 0, kurz(JS(w.ladefehler), 120));
+        }
+
+        /* Gegenproben A-H (nur veränderter Quelltext oder Ladeumfang im Test, keine Datei im Repo wird angefasst) */
+        const mess = async opt => { const w = await baue(opt); let p; try { p = messePrompt(w); } catch (e) { p = 'FEHLER'; } return { w, p, k: kette(w) }; };
+        const gleich = r => JS(r.p) === JS(ist.messung.prompt) && JS(r.k) === JS(bas);
+        for (const d of FUENF) {
+            const n = d.replace('.js', '');
+            const r = await mess({ quelleAendern: (f, q) => f === d ? q.split("window.jvChain.use('buildSystemPrompt'").join("(function(){})('buildSystemPrompt'") .split("window.jvChain.use('buildSystemPrompt',").join("(function(){})('buildSystemPrompt',") : q });
+            check('Gegenprobe A (' + n + '): Registrierung entfernt -> Kette und/oder KI-Anweisung weichen ab (Sicherheitsnetz rot)', !gleich(r) && r.k.liste.length === 14, r.k.liste.length + ' Einträge');
+        }
+        {   // B: zwei Ränge vertauschen
+            const r = await mess({ quelleAendern: (f, q) => f === 'contextplus.js' ? q.replace(/\},50\);/, '},15);') : f === 'gedaechtnis.js' ? q.replace(/\}, 20\);/, '}, 55);') : q });
+            check('Gegenprobe B: zwei Ränge vertauscht -> Reihenfolge-Prüfung (Kette) und KI-Anweisung weichen ab', JS(r.k.liste) !== JS(bas.liste) && JS(r.p) !== JS(ist.messung.prompt), JS(r.k.liste.slice(0, 5)));
+        }
+        {   // C: Blocktext ändern
+            const r = await mess({ quelleAendern: (f, q) => f === 'contextplus.js' ? q.replace('GESPRÄCHSKONTEXT UND FOLGEFRAGEN', 'GESPRÄCHSKONTEXT GEÄNDERT') : q });
+            check('Gegenprobe C: Blocktext geändert -> Golden Master rot', JS(r.p) !== JS(ist.messung.prompt) && JS(r.p) !== JS(soll.messung.prompt));
+        }
+        {   // D: Registrierung doppelt ausführen (Datei zweimal laden / zweimal in die Kette)
+            const r = await mess({ skriptReihenfolge: l => { const i = l.indexOf('contextplus.js'); l.splice(i + 1, 0, 'contextplus.js'); const j = l.indexOf('fish.js'); l.splice(j + 1, 0, 'fish.js'); const k = l.indexOf('name.js'); l.splice(k + 1, 0, 'name.js'); return l; } });
+            check('Gegenprobe D: dieselbe Registrierung doppelt ausgeführt -> kein Doppelblock, identisch (gleicher Name ersetzt den Eintrag)', gleich(r) && r.p.e0.kontextPlus === 1, kurz(JS(r.k.liste), 150));
+            const r2 = await mess({ quelleAendern: (f, q) => f === 'contextplus.js' ? q.replace(/\},50\);\s*$/m, "},50);\nif(window.jvChain) window.jvChain.use('buildSystemPrompt','contextplus-zweiter',function(next,args){ return next()+extraRules(args[0]); },51);") : q });
+            check('Gegenprobe D2: unter zweitem Namen registriert -> Doppelblock wird vom Sicherheitsnetz erkannt', r2.p.e0.kontextPlus === 2 && !gleich(r2) && r2.k.liste.length === 16, r2.p.e0.kontextPlus + ' / ' + r2.k.liste.length);
+        }
+        {   // E: umgekehrt, F: gemischt -> siehe E4 oben (positive Proben); hier die Gegenseite: ohne Rang-Schutz würde die Datei-Reihenfolge wirken
+            const r = await mess({ skriptReihenfolge: permutiere(reihen['umgekehrt']), quelleAendern: (f, q) => f === 'fish.js' ? q.replace(/\}, 40\);/, '}, 500);') : q });
+            check('Gegenprobe E/F: Datei-Reihenfolge ist nur dann egal, wenn die Ränge eindeutig sind (gleicher Rang wie ein bestehender Eintrag wird erkannt)', JS(r.k.liste) !== JS(bas.liste), JS(r.k.liste.slice(0, 6)));
+        }
+        {   // G: contextplus-Timing künstlich ändern
+            const spaet = (name) => "\nsetTimeout(function(){ if(window.jvChain) window.jvChain.use('buildSystemPrompt','" + name + "',function(next,args){ return next()+extraRules(args[0]); },50); },0);\n})();";
+            const g1 = await mess({ quelleAendern: (f, q) => f === 'contextplus.js' ? q.replace(/\}\)\(\);\s*$/, spaet('contextplus')) : q });
+            check('Gegenprobe G1: verspätete Registrierung unter demselben Namen -> weiterhin genau ein Block (kein Rennen), aber der Zeitgeber wird erkannt', gleich(g1) && 'contextplus.js' in zeitgeberLaden(g1.w), JS(zeitgeberLaden(g1.w)));
+            const g2 = await mess({ quelleAendern: (f, q) => f === 'contextplus.js' ? q.replace(/\}\)\(\);\s*$/, spaet('contextplus-spaet')) : q });
+            check('Gegenprobe G2: verspätete Registrierung unter anderem Namen -> Doppelblock und Fehl-Reihenfolge werden erkannt', g2.p.e0.kontextPlus === 2 && !gleich(g2) && 'contextplus.js' in zeitgeberLaden(g2.w), g2.p.e0.kontextPlus + '');
+        }
+        {   // H: alten direkten Wrapper (mit setTimeout(0)) wieder aktivieren
+            const alt = "\nfunction install(){ if(typeof window.buildSystemPrompt!=='function' || window.buildSystemPrompt._contextPlus)return; const original=window.buildSystemPrompt; const wrapped=function(text){ return original.apply(this,arguments)+extraRules(text); }; Object.keys(original).forEach(k=>{try{wrapped[k]=original[k]}catch(e){}}); wrapped._contextPlus=true; window.buildSystemPrompt=wrapped; }\ninstall();\nsetTimeout(install,0);\n})();";
+            const h = await mess({ quelleAendern: (f, q) => f === 'contextplus.js' ? q.replace(/\}\)\(\);\s*$/, alt) : q });
+            check('Gegenprobe H: alter direkter Wrapper wieder aktiv -> Doppelblock, alte Schutzmarke taucht auf, Protokoll/Zeitgeber weichen ab', h.p.e0.kontextPlus === 2 && h.k.schluessel.indexOf('_contextPlus') >= 0 && !gleich(h) && JS(h.w.proto) !== JS(ist.ladeprotokoll) && 'contextplus.js' in zeitgeberLaden(h.w), h.p.e0.kontextPlus + ' / ' + JS(h.k.schluessel));
+        }
     }
 
     console.log('\nGlobale Ersetzungen: ' + ok + ' Prüfungen ok, ' + fehler + ' Fehler');

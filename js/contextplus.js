@@ -14,13 +14,7 @@ function extraRules(text){
    r+='\nANTWORTTIEFE: Der User verlangt diesmal mehr Details. Du darfst deutlich ausführlicher als die normale 1-2-Satz-Regel antworten, aber bleibe relevant und gut sprechbar.\n';
  return r;
 }
-function install(){
- if(typeof window.buildSystemPrompt!=='function' || window.buildSystemPrompt._contextPlus)return;
- const original=window.buildSystemPrompt;
- const wrapped=function(text){ return original.apply(this,arguments)+extraRules(text); };
- Object.keys(original).forEach(k=>{try{wrapped[k]=original[k]}catch(e){}});
- wrapped._contextPlus=true; window.buildSystemPrompt=wrapped;
-}
-install();
-setTimeout(install,0);
+/* Einmal in die Ergänzungs-Liste der KI-Anweisung (commands.js, jvChain) eintragen. Rang 50 = innerster der fünf späten Zusätze (kommt zuerst ans Ende).
+   Gleicher Name = gleicher Eintrag, doppeltes Ausführen ergibt also nie einen zweiten Block. Kein Nachhängen per Zeitgeber mehr nötig. */
+if(window.jvChain) window.jvChain.use('buildSystemPrompt','contextplus',function(next,args){ return next()+extraRules(args[0]); },50);
 })();

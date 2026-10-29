@@ -202,18 +202,12 @@
     const LOUD_RULE =
         '\n\nLAUTES LACHEN: Nur wenn der Nutzer etwas wirklich Lustiges sagt oder du selbst einen sarkastischen Spruch bringst, hänge direkt danach ein kurzes "Hahaha!" an. ' +
         'Sonst nie. Höchstens einmal pro Antwort, und bei ernsten Themen (Warnungen, Gesundheit, Arzt, Geld, Fehler, Erinnerungen) lachst du nie.';
-    if (typeof window.buildSystemPrompt === 'function' && !window.buildSystemPrompt._fishLach) {
-        const originalPrompt = window.buildSystemPrompt;
-        const wrappedPrompt = function () {
-            let base = originalPrompt.apply(this, arguments);
-            try { if (window.getHumanLevel() !== 'aus') base += LOUD_RULE; } catch (e) {}
-            return base;
-        };
-        // Eigenschaften der vorherigen Hülle behalten, damit nichts doppelt einhängt
-        Object.keys(originalPrompt).forEach(k => { try { wrappedPrompt[k] = originalPrompt[k]; } catch (e) {} });
-        wrappedPrompt._fishLach = true;
-        window.buildSystemPrompt = wrappedPrompt;
-    }
+    // Eintrag in der Ergänzungs-Liste der KI-Anweisung (commands.js, jvChain), Rang 40
+    if (window.jvChain) window.jvChain.use('buildSystemPrompt', 'fish', function (next) {
+        let base = next();
+        try { if (window.getHumanLevel() !== 'aus') base += LOUD_RULE; } catch (e) {}
+        return base;
+    }, 40);
 
     function humanize(text) {
         const level = window.getHumanLevel();

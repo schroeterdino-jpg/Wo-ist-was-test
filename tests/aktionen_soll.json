@@ -5226,6 +5226,11 @@
        "fn": "async function wachterTick() { if (wachterBusy || !wachterEnabled() ||"
       },
       {
+       "art": "setInterval",
+       "ms": 60000,
+       "fn": "function tick() { if (busy || current) return; if (!enabled() || quiet"
+      },
+      {
        "art": "setTimeout",
        "ms": 9000,
        "fn": "() => rej(new Error('Zeitüberschreitung'))"
@@ -5244,11 +5249,6 @@
        "art": "setTimeout",
        "ms": 40000,
        "fn": "() => controller.abort()"
-      },
-      {
-       "art": "setInterval",
-       "ms": 60000,
-       "fn": "function tick() { if (busy || current) return; if (!enabled() || quiet"
       },
       {
        "art": "setTimeout",
