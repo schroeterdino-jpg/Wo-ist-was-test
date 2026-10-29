@@ -57,6 +57,7 @@ Alle Skripte sind klassische, synchrone `<script>`-Tags in `index.html` (kein de
 ## 3. Hintergrundarbeit (Timer)
 
 Inventar und Regeln: `tests/timer_inventar.js` (beschreibend) und `tests/timer.js`. Ein neuer dauerhafter Timer/Poller macht den Test rot, bis er dort eingetragen ist.
+Zusätzlich (Phase 6A): `tests/hintergrund.js` (Golden Master der Hintergrundprozesse, Laufzeit-Messstand `tests/hintergrund_laufzeit.json`), Analyse `tests/hintergrund-analyse.md`, Tabelle `tests/hintergrund-tabelle.md`.
 
 ## 4. Zuordnung aller Produktdateien zu Hauptbereichen
 

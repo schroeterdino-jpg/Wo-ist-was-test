@@ -33,3 +33,4 @@ jobs:
       - run: node tests/wirkungslos.js
       - run: node tests/suche.js
       - run: node tests/kitext.js
+      - run: node tests/hintergrund.js

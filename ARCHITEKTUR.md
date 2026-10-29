@@ -468,3 +468,9 @@ Nach Foto-Kette (Phase 3) und Speak-Kette (Phase 4B) wurden alle übrigen global
 - **Mehrfachfragen:** korrigiert wird nur dort, wo KI-Text entsteht (ganze KI-Anfrage, KI-Teilsätze, restliche KI-Frage); die lokale Aufteilung bleibt unverändert.
 - **Sicherheitsnetz:** `node tests/kitext.js` (Vorher-Zustand `tests/kitext_vorher.json`, Soll `tests/kitext_soll.json`, Beschreibung `tests/kitext-ist-zustand.md`): 48 Eingaben in 13 Kategorien, Reihenfolge-Welten, Fehlerisolation, Gegenproben A–L. `tests/globale.js` und `tests/wirkungslos.js` messen den neuen Zustand (begründet in `tests/kitext-ist-zustand.md`).
 
+## Phase 6A: Timer und Hintergrundprozesse (nur Analyse, kein Produktcode)
+- **Zahlen unverändert:** 102 Konstrukte = 72 `setInterval` + 30 selbst ansetzende `setTimeout` in 58 Dateien; 16 rAF-Stellen in 6 Dateien; 38 Dateien mit Sichtbarkeitsprüfung.
+- **Messung:** `node tests/hintergrund_messen.js` (lokal, Playwright/Chromium; Ergebnis eingecheckt als `tests/hintergrund_laufzeit.json`). Gemessen wird nur Jarvis' eigene Sichtbarkeitslogik, nicht das Drosseln versteckter Tabs durch den Browser.
+- **Befunde:** versteckt 0 Netzaufrufe; die kurzen Anzeige-/Animationstakte (mimik, synapsen, anzeige, ruhe, holo_look) und der 1-s-Erinnerungstakt laufen versteckt unverändert weiter, nur die Kugel (rAF) pausiert. Der Tagescheck 45 s nach dem Start erzeugt einen Schub aus rund 189 Einmal-Timern und Serveraufrufen.
+- **Sicherheitsnetz:** `node tests/hintergrund.js` (57 Prüfungen, Golden Master `tests/hintergrund_soll.json`, Gegenproben A–L). Tabelle: `tests/hintergrund-tabelle.md`, Auswertung und Kandidaten (GRÜN/GELB/ROT): `tests/hintergrund-analyse.md`.
+- **Regel:** ein neuer oder geänderter Hintergrundprozess macht `tests/hintergrund.js` und `tests/timer.js` rot, bis er bewusst eingetragen ist (`--schreiben`). Kategorie A (Erinnerung, Weckwort, native Statusmeldung, Wächter, pushsync) nie ohne eigene Phase ändern.

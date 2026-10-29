@@ -112,4 +112,4 @@ function scanne(datei, quelle) {   // quelle (optional): Text statt der Datei (f
 }
 function alleDateien() { return fs.readdirSync(path.join(ROOT, 'js')).filter(f => /\.js$/.test(f)).sort(); }
 function scanneAlle() { let r = []; for (const f of alleDateien()) r = r.concat(scanne(f)); return r; }
-module.exports = { maskiere, scanne, scanneAlle, alleDateien, ROOT };
+module.exports = { maskiere, scanne, scanneAlle, alleDateien, ROOT, funktionen, klammerEnde, argumente, zeileVon, rechne };
