@@ -19,7 +19,7 @@ function check(name, c, info) { if (c) ok++; else { fehler++; console.log('FEHLE
 const JS = x => JSON.stringify(x);
 const quelle = d => fs.readFileSync(path.join(__dirname, '..', 'js', d), 'utf8');
 
-const alt = lesen('hintergrund_soll_6a.json'), neu = lesen('hintergrund_soll.json'), vorher = lesen('hintergrund_6b1_vorher.json').messung;
+const alt = lesen('hintergrund_soll_6a.json'), neu = lesen('hintergrund_soll_6b1.json'), vorher = lesen('hintergrund_6b1_vorher.json').messung;
 
 /* ===== A. Umfang: genau vier Prozesse ändern ihr Verhalten, sonst nichts ===== */
 console.log('A. Umfang (alt = Phase 6A, neu = 6B.1)');
@@ -88,7 +88,7 @@ check('Einsparung in 30 s versteckt (Prüfwelt): mimik ' + ersparnis('mimik') + 
 
 /* ===== C. Chromium-Messstand alt (6A) gegen neu (nach 6B.1) ===== */
 console.log('C. Chromium-Messstand (alt gegen neu)');
-const lAlt = lesen('hintergrund_laufzeit_6a.json'), lNeu = lesen('hintergrund_laufzeit.json');
+const lAlt = lesen('hintergrund_laufzeit_6a.json'), lNeu = lesen('hintergrund_laufzeit_6b1.json');
 const A6 = aw.auswerten(lAlt), N6 = aw.auswerten(lNeu);
 check('Messfenster gleich (10 s Start, 60 s Leerlauf, Modus voll) – exakt die 60-s-Messung der Phase 6A', lNeu.modus === 'voll' && lAlt.modus === 'voll' && lNeu.fensterMs.idle === 60000 && lAlt.fensterMs.idle === 60000 && lNeu.fensterMs.start === 10000);
 const prozent = (a, b) => Math.round((a - b) / a * 1000) / 10;

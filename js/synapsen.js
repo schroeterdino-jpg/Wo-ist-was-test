@@ -150,7 +150,18 @@
                 sendToGroqSmart._jvSyn = true;
             }
         } catch (e) {}
-        setInterval(function () { if (document.hidden) return; if (denkt()) start(); else stop(); }, 200);
+        taktSteuern(false);
+        document.addEventListener('visibilitychange', function () { taktSteuern(true); });
+    }
+
+    /* Phase 6B.2: Der 200-ms-Abgleich "denkt Jarvis?" → Anzeige an/aus tat versteckt schon bisher nichts (sofortiger Rücksprung). Jetzt wird er dabei
+       wirklich angehalten und beim Sichtbarwerden neu gestartet (höchstens ein Takt) und läuft einmal sofort, damit die Anzeige gleich stimmt. */
+    var taktId = 0;
+    function takt() { if (document.hidden) return; if (denkt()) start(); else stop(); }
+    function taktSteuern(sichtbarGeworden) {
+        if (document.hidden) { if (taktId) { clearInterval(taktId); taktId = 0; } return; }
+        if (!taktId) taktId = setInterval(takt, 200);
+        if (sichtbarGeworden) takt();
     }
 
     function befehl(text, next) {
