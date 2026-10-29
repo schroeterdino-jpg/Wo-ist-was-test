@@ -141,7 +141,8 @@ async function sprechweg(w, roh) {   // wie voice.js handleRecognizedText: erst 
     /* ===== E. wohin der Text läuft (Quelltext-Fakten) ===== */
     const ass = lies('js/assistant.js');
     ist.textfluss = {
-        chatVerlauf: /chatHistory\.push\(\{ role: "user", content: text \}\)/.test(ass),
+        chatVerlaufOriginal: /const nutzerNachricht = \{ role: "user", content: text \}/.test(ass) && /chatHistory\.push\(nutzerNachricht\)/.test(ass),
+        kiKopieGetrennt: /const kiText = jvKiTextFuer\(text\)/.test(ass) && /m\.jvKi/.test(ass),
         letzterText: /window\.jvLetzterText = text/.test(ass),
         aktionenBekommenText: /await executeAction\(action, text, ctx\)/.test(ass),
         merkDirTextKommtAusText: /const said = String\(text \|\| ''\)/.test(lies('js/gedaechtnis.js')),
@@ -164,8 +165,11 @@ async function sprechweg(w, roh) {   // wie voice.js handleRecognizedText: erst 
     const F = ist.eingaben;
     check('Befund Korrektur: die Welten B/C/D ändern den lokalen Weg nicht (gleiches Ergebnis wie heute)', F.every(z => ['B +festnamen', 'C +hoerkorrektur', 'D beide'].every(n => z.urteil[n] !== 'ANDERER WEG')));
     check('Befund Korrektur: 35 Eingaben, alle vier Welten gemessen', F.length === 35 && F.every(z => 'A heute' in z && 'D beide' in z));
-    check('Befund Korrektur: es gibt echte Verbesserungen UND echte Verschlechterungen (Hamlet-Frage, "Hallo zehn ..."/Schröter mehrdeutig)', F.some(z => Object.values(z.urteil).includes('verbessert')) && F.some(z => Object.values(z.urteil).includes('verschlechtert') || Object.values(z.urteil).includes('fragwürdig')));
-    check('Befund Textfluss: die korrigierte Fassung (nicht das Original) landet im Chat-Verlauf, in jvLetzterText, im Aktionskontext und im Merk-dir-Text', ist.textfluss.chatVerlauf && ist.textfluss.letzterText && ist.textfluss.aktionenBekommenText && ist.textfluss.merkDirTextKommtAusText);
+    /* Phase 5D.2: die KI-Kopie wird in JEDER Ladereihenfolge gleich korrigiert (festnamen ist ein Eintrag der Kette jvKiText), hoerkorrektur ist nicht aktiv */
+    check('Befund Korrektur (5D.2): alle vier Welten liefern der KI denselben Text (Ladereihenfolge egal)', F.every(z => ['B +festnamen', 'C +hoerkorrektur', 'D beide'].every(n => z.urteil[n] === 'unverändert' || z.urteil[n] === 'unverändert (lokaler Weg)')));
+    check('Befund Korrektur (5D.2): bewusst nicht korrigiert bleiben Hamlet, Schröter und "Hallo zehn ..." (keine Verschlechterung durch die KI-Kopie)', ['Wer hat Hamlet geschrieben', 'Ist Herr Schröter heute da', 'Wann hat Hamlet Feierabend'].every(r => { const z = F.find(q => q.roh === r); return !z['A heute'].lokal && (z['A heute'].ki || [])[0] === r; }));
+    check('Befund Korrektur (5D.2): der Kern (sendToGroqSmartCore) bekommt weiter das ORIGINAL; die Festnamen-Kopie entsteht erst darin (gemessen in tests/kitext.js)', (F.find(q => q.roh === 'Wie komme ich nach Schwarzenbeck')['A heute'].ki || [''])[0] === 'Wie komme ich nach Schwarzenbeck');
+    check('Befund Textfluss (5D.2): Chat-Verlauf, jvLetzterText, Aktionskontext und Merk-dir-Text behalten das ORIGINAL; die KI bekommt eine getrennte Kopie', ist.textfluss.chatVerlaufOriginal && ist.textfluss.kiKopieGetrennt && ist.textfluss.letzterText && ist.textfluss.aktionenBekommenText && ist.textfluss.merkDirTextKommtAusText);
 
     check('Befund lokaler Weg: festnamen/hoerkorrektur wirken HEUTE schon auf alle lokalen Befehle (Schröter -> Schroeter, Hamlet -> Hamiyet, Alycia -> Alyssa, Neu Galina Ring -> Neu-Galliner-Ring)', /Schroeter/.test(ist.lokalerText[0]) && /Hamiyet/.test(ist.lokalerText[1]) && /Alyssa/.test(ist.lokalerText[2]) && /Neu-Galliner-Ring/.test(ist.lokalerText[3]) && /Schwarzenbek/.test(ist.lokalerText[4]), JS(ist.lokalerText));
     check('Befund Doppelkorrektur: Alicia/Alissa/Alisha und Zain/Zayn/Zein/Zeyn/Sane/Jarvis und "Hey sein/sain/zehn/seyn" korrigiert schon voice.js (fixKnownMishearings); die Welten B/C/D ändern diese Namen nicht', ist.eingaben.filter(z => /Alicia|Alissa|Zayn|Hey sein/.test(z.roh) && !z['A heute'].lokal).every(z => z.urteil['D beide'] === 'unverändert'));

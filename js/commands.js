@@ -138,6 +138,13 @@
         return true;
     }
     function chainList(fnName) { const c = chains[fnName]; return c ? c.entries.map(e => e.order + ' ' + e.name) : []; }
-    ['buildSystemPrompt', 'buildMenuPanel'].forEach(chainInstall);   // gleich jetzt einhängen, ganz innen: alles, was später per Hand umhüllt, liegt außen wie bisher
+    /* jvKiText(text): die Kette für die KOPIE des Nutzertextes, die als Nachricht an die KI geht (Phase 5D.2). Eingetragene Normalisierer
+       (zum Beispiel Festnamen in festnamen.js) bekommen den Text und geben ihn korrigiert zurück:
+           jvChain.use('jvKiText', 'meinname', function (next, args) { return meineKorrektur(next()); }, 100);
+       GROSSE Zahl = innen = läuft ZUERST, kleine Zahl läuft zuletzt. Reserviert: 100 festnamen, 200 hoerkorrektur (kontextabhängig, noch NICHT eingetragen).
+       Aufgerufen wird die Kette nur in assistant.js (jvKiTextFuer), nur für die KI-Nachricht. Der Originaltext (Chat-Verlauf, jvLetzterText, Aktionen,
+       Gedächtnis, Kalender, Erinnerungen) bleibt unverändert. Wirft ein Eintrag oder kommt kein Text zurück, geht der unveränderte Text an die KI. */
+    window.jvKiText = function (text) { return text; };
+    ['buildSystemPrompt', 'buildMenuPanel', 'jvKiText'].forEach(chainInstall);   // gleich jetzt einhängen, ganz innen: alles, was später per Hand umhüllt, liegt außen wie bisher
     window.jvChain = { use: chainUse, list: chainList };
 })();

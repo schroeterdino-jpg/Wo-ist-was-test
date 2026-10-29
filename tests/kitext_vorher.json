@@ -1,0 +1,767 @@
+{
+ "eingaben": [
+  {
+   "kat": "Unterhaltung",
+   "roh": "Hallo Jarvis wie geht es dir",
+   "nachVoice": "Hallo Zane wie geht es dir",
+   "weg": "lokal",
+   "kiNachrichten": [],
+   "historyUser": [],
+   "letzterText": null,
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Unterhaltung",
+   "roh": "Erzähl mir einen Witz",
+   "nachVoice": "Erzähl mir einen Witz",
+   "weg": "lokal",
+   "kiNachrichten": [],
+   "historyUser": [],
+   "letzterText": null,
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Unterhaltung",
+   "roh": "Sag mal, wie wird das Wetter?",
+   "nachVoice": "Sag mal, wie wird das Wetter?",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Sag mal, wie wird das Wetter?",
+    "{\"heute\":\"Mittwoch, 2026-10-28\",\"uhrzeit\":\"10:00\",\"zeitpunkt\":\"Morgen\",\"schicht\":[{\"wann\":\"heute\",\"tag\":\"Mittwoch 2026-10-28\",\"schicht\":\"keine (frei oder Urlaub)\"},{\"wann\":\"morgen\",\"tag\":\"Donnerstag 2026-10-29\",\"schicht\":\"keine (frei oder Urlaub)\"},{\"wann\":\"übermorgen\",\"tag\":\"Freitag 2026-10-30\",\"schicht\":\"keine (frei oder Urlaub)\"},{\"wann\":\"Samstag\",\"tag\":\"Samstag 2026-10-31\",\"schicht\":\"keine (frei oder Urlaub)\"}],\"termine\":[],\"erinnerungen\":[],\"einkaufsliste\":[],\"aufgaben\":[],\"geburtstage\":[],\"wunschlisten\":[],\"tage_bis_heiligabend\":57,\"urlaub\":[],\"langzeitgedaechtnis\":[],\"offene_rechnungen\":[],\"feiertage\":[{\"name\":\"Reformationstag\",\"in_tagen\":3}],\"gemerkte_dinge\":[]}"
+   ],
+   "historyUser": [
+    "Sag mal, wie wird das Wetter?"
+   ],
+   "letzterText": "Sag mal, wie wird das Wetter?",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Unterhaltung",
+   "roh": "Am Ende der Straße gibt es einen Laden",
+   "nachVoice": "Am Ende der Straße gibt es einen Laden",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Am Ende der Straße gibt es einen Laden"
+   ],
+   "historyUser": [
+    "Am Ende der Straße gibt es einen Laden"
+   ],
+   "letzterText": "Am Ende der Straße gibt es einen Laden",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Unterhaltung",
+   "roh": "Hallo zehn Minuten Pause bitte",
+   "nachVoice": "Hallo Zane Minuten Pause bitte",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Hallo Zane Minuten Pause bitte"
+   ],
+   "historyUser": [
+    "Hallo Zane Minuten Pause bitte"
+   ],
+   "letzterText": "Hallo Zane Minuten Pause bitte",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Festnamen",
+   "roh": "Zain erzähl mir etwas über Segelschiffe",
+   "nachVoice": "Zane erzähl mir etwas über Segelschiffe",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Zane erzähl mir etwas über Segelschiffe"
+   ],
+   "historyUser": [
+    "Zane erzähl mir etwas über Segelschiffe"
+   ],
+   "letzterText": "Zane erzähl mir etwas über Segelschiffe",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Festnamen",
+   "roh": "Zaine was gibt es Neues",
+   "nachVoice": "Zaine was gibt es Neues",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Zaine was gibt es Neues"
+   ],
+   "historyUser": [
+    "Zaine was gibt es Neues"
+   ],
+   "letzterText": "Zaine was gibt es Neues",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Festnamen",
+   "roh": "Ein Zaino Kaffee bitte",
+   "nachVoice": "Ein Zaino Kaffee bitte",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Ein Zaino Kaffee bitte"
+   ],
+   "historyUser": [
+    "Ein Zaino Kaffee bitte"
+   ],
+   "letzterText": "Ein Zaino Kaffee bitte",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Festnamen",
+   "roh": "Sanierung am Haus planen",
+   "nachVoice": "Sanierung am Haus planen",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Sanierung am Haus planen"
+   ],
+   "historyUser": [
+    "Sanierung am Haus planen"
+   ],
+   "letzterText": "Sanierung am Haus planen",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Personen",
+   "roh": "Ruf Alicia an",
+   "nachVoice": "Ruf Alyssa an",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Ruf Alyssa an"
+   ],
+   "historyUser": [
+    "Ruf Alyssa an"
+   ],
+   "letzterText": "Ruf Alyssa an",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Personen",
+   "roh": "Schreib Alycia eine Nachricht",
+   "nachVoice": "Schreib Alycia eine Nachricht",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Schreib Alycia eine Nachricht"
+   ],
+   "historyUser": [
+    "Schreib Alycia eine Nachricht"
+   ],
+   "letzterText": "Schreib Alycia eine Nachricht",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Personen",
+   "roh": "Erzähl mir etwas über Alicias Schule",
+   "nachVoice": "Erzähl mir etwas über Alicias Schule",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Erzähl mir etwas über Alicias Schule"
+   ],
+   "historyUser": [
+    "Erzähl mir etwas über Alicias Schule"
+   ],
+   "letzterText": "Erzähl mir etwas über Alicias Schule",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Personen",
+   "roh": "Wann hat Alissa Geburtstag",
+   "nachVoice": "Wann hat Alyssa Geburtstag",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Wann hat Alyssa Geburtstag"
+   ],
+   "historyUser": [
+    "Wann hat Alyssa Geburtstag"
+   ],
+   "letzterText": "Wann hat Alyssa Geburtstag",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Personen",
+   "roh": "Ist Herr Schröter heute da",
+   "nachVoice": "Ist Herr Schröter heute da",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Ist Herr Schröter heute da"
+   ],
+   "historyUser": [
+    "Ist Herr Schröter heute da"
+   ],
+   "letzterText": "Ist Herr Schröter heute da",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Personen",
+   "roh": "Erzähl mir etwas über Herrn Schröter von der Bank",
+   "nachVoice": "Erzähl mir etwas über Herrn Schröter von der Bank",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Erzähl mir etwas über Herrn Schröter von der Bank"
+   ],
+   "historyUser": [
+    "Erzähl mir etwas über Herrn Schröter von der Bank"
+   ],
+   "letzterText": "Erzähl mir etwas über Herrn Schröter von der Bank",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Hamiyet/Hamlet",
+   "roh": "Wer hat Hamlet geschrieben",
+   "nachVoice": "Wer hat Hamlet geschrieben",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Wer hat Hamlet geschrieben"
+   ],
+   "historyUser": [
+    "Wer hat Hamlet geschrieben"
+   ],
+   "letzterText": "Wer hat Hamlet geschrieben",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Hamiyet/Hamlet",
+   "roh": "Worum geht es in Hamlet",
+   "nachVoice": "Worum geht es in Hamlet",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Worum geht es in Hamlet"
+   ],
+   "historyUser": [
+    "Worum geht es in Hamlet"
+   ],
+   "letzterText": "Worum geht es in Hamlet",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Hamiyet/Hamlet",
+   "roh": "Wann hat Hamlet Feierabend",
+   "nachVoice": "Wann hat Hamlet Feierabend",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Wann hat Hamlet Feierabend"
+   ],
+   "historyUser": [
+    "Wann hat Hamlet Feierabend"
+   ],
+   "letzterText": "Wann hat Hamlet Feierabend",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Hamiyet/Hamlet",
+   "roh": "Hamlet kommt morgen zu Besuch",
+   "nachVoice": "Hamlet kommt morgen zu Besuch",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Hamlet kommt morgen zu Besuch"
+   ],
+   "historyUser": [
+    "Hamlet kommt morgen zu Besuch"
+   ],
+   "letzterText": "Hamlet kommt morgen zu Besuch",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Orte",
+   "roh": "Erzähl mir etwas über den Neu Galina Ring",
+   "nachVoice": "Erzähl mir etwas über den Neu Galina Ring",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Erzähl mir etwas über den Neu Galina Ring"
+   ],
+   "historyUser": [
+    "Erzähl mir etwas über den Neu Galina Ring"
+   ],
+   "letzterText": "Erzähl mir etwas über den Neu Galina Ring",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Orte",
+   "roh": "Wo ist der Neu Galliner Ring",
+   "nachVoice": "Wo ist der Neu Galliner Ring",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Wo ist der Neu Galliner Ring"
+   ],
+   "historyUser": [
+    "Wo ist der Neu Galliner Ring"
+   ],
+   "letzterText": "Wo ist der Neu Galliner Ring",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Orte",
+   "roh": "Neu Gallin Ring ist weit weg",
+   "nachVoice": "Neu Gallin Ring ist weit weg",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Neu Gallin Ring ist weit weg"
+   ],
+   "historyUser": [
+    "Neu Gallin Ring ist weit weg"
+   ],
+   "letzterText": "Neu Gallin Ring ist weit weg",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Orte",
+   "roh": "Erzähl mir etwas über den Neu-Galliner-Ring",
+   "nachVoice": "Erzähl mir etwas über den Neu-Galliner-Ring",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Erzähl mir etwas über den Neu-Galliner-Ring"
+   ],
+   "historyUser": [
+    "Erzähl mir etwas über den Neu-Galliner-Ring"
+   ],
+   "letzterText": "Erzähl mir etwas über den Neu-Galliner-Ring",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Orte",
+   "roh": "Wie viele Einwohner hat Schwarzenbeck",
+   "nachVoice": "Wie viele Einwohner hat Schwarzenbeck",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Wie viele Einwohner hat Schwarzenbeck"
+   ],
+   "historyUser": [
+    "Wie viele Einwohner hat Schwarzenbeck"
+   ],
+   "letzterText": "Wie viele Einwohner hat Schwarzenbeck",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Orte",
+   "roh": "Erzähl mir etwas über den Verbrüderungs Ring",
+   "nachVoice": "Erzähl mir etwas über den Verbrüderungs Ring",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Erzähl mir etwas über den Verbrüderungs Ring"
+   ],
+   "historyUser": [
+    "Erzähl mir etwas über den Verbrüderungs Ring"
+   ],
+   "letzterText": "Erzähl mir etwas über den Verbrüderungs Ring",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Orte",
+   "roh": "Ist Schwarzenbek schön",
+   "nachVoice": "Ist Schwarzenbek schön",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Ist Schwarzenbek schön"
+   ],
+   "historyUser": [
+    "Ist Schwarzenbek schön"
+   ],
+   "letzterText": "Ist Schwarzenbek schön",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Orte",
+   "roh": "Neu Kalliner Ring",
+   "nachVoice": "Neu Kalliner Ring",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Neu Kalliner Ring"
+   ],
+   "historyUser": [
+    "Neu Kalliner Ring"
+   ],
+   "letzterText": "Neu Kalliner Ring",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Navigation",
+   "roh": "Fahr zum Neu Galina Ring",
+   "nachVoice": "Fahr zum Neu Galina Ring",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Fahr zum Neu Galina Ring"
+   ],
+   "historyUser": [
+    "Fahr zum Neu Galina Ring"
+   ],
+   "letzterText": "Fahr zum Neu Galina Ring",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Navigation",
+   "roh": "Navigier mich nach Schwarzenbeck bei Hamburg",
+   "nachVoice": "Navigier mich nach Schwarzenbeck bei Hamburg",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Navigier mich nach Schwarzenbeck bei Hamburg"
+   ],
+   "historyUser": [
+    "Navigier mich nach Schwarzenbeck bei Hamburg"
+   ],
+   "letzterText": "Navigier mich nach Schwarzenbeck bei Hamburg",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Navigation",
+   "roh": "Wie lange brauche ich zur Arbeit",
+   "nachVoice": "Wie lange brauche ich zur Arbeit",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Wie lange brauche ich zur Arbeit"
+   ],
+   "historyUser": [
+    "Wie lange brauche ich zur Arbeit"
+   ],
+   "letzterText": "Wie lange brauche ich zur Arbeit",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Wetter",
+   "roh": "Wird es in Schwarzenbeck morgen regnen",
+   "nachVoice": "Wird es in Schwarzenbeck morgen regnen",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Wird es in Schwarzenbeck morgen regnen"
+   ],
+   "historyUser": [
+    "Wird es in Schwarzenbeck morgen regnen"
+   ],
+   "letzterText": "Wird es in Schwarzenbeck morgen regnen",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Wetter",
+   "roh": "Brauche ich heute einen Schirm",
+   "nachVoice": "Brauche ich heute einen Schirm",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Brauche ich heute einen Schirm"
+   ],
+   "historyUser": [
+    "Brauche ich heute einen Schirm"
+   ],
+   "letzterText": "Brauche ich heute einen Schirm",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Kalender",
+   "roh": "Trag morgen um zehn Uhr einen Termin ein",
+   "nachVoice": "Trag morgen um zehn Uhr einen Termin ein",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Trag morgen um zehn Uhr einen Termin ein"
+   ],
+   "historyUser": [
+    "Trag morgen um zehn Uhr einen Termin ein"
+   ],
+   "letzterText": "Trag morgen um zehn Uhr einen Termin ein",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Kalender",
+   "roh": "Termin mit Alicia am Freitag um 15 Uhr",
+   "nachVoice": "Termin mit Alyssa am Freitag um 15 Uhr",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Termin mit Alyssa am Freitag um 15 Uhr"
+   ],
+   "historyUser": [
+    "Termin mit Alyssa am Freitag um 15 Uhr"
+   ],
+   "letzterText": "Termin mit Alyssa am Freitag um 15 Uhr",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Kalender",
+   "roh": "Termin mit Herrn Schröter am Montag",
+   "nachVoice": "Termin mit Herrn Schröter am Montag",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Termin mit Herrn Schröter am Montag"
+   ],
+   "historyUser": [
+    "Termin mit Herrn Schröter am Montag"
+   ],
+   "letzterText": "Termin mit Herrn Schröter am Montag",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Erinnerungen",
+   "roh": "Erinner mich morgen an den Arzt",
+   "nachVoice": "Erinner mich morgen an den Arzt",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Erinner mich morgen an den Arzt"
+   ],
+   "historyUser": [
+    "Erinner mich morgen an den Arzt"
+   ],
+   "letzterText": "Erinner mich morgen an den Arzt",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Erinnerungen",
+   "roh": "Erinner mich an den Anruf bei Alicia",
+   "nachVoice": "Erinner mich an den Anruf bei Alyssa",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Erinner mich an den Anruf bei Alyssa"
+   ],
+   "historyUser": [
+    "Erinner mich an den Anruf bei Alyssa"
+   ],
+   "letzterText": "Erinner mich an den Anruf bei Alyssa",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Memory",
+   "roh": "Merk dir dass Alicia am Samstag kommt",
+   "nachVoice": "Merk dir dass Alyssa am Samstag kommt",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Merk dir dass Alyssa am Samstag kommt"
+   ],
+   "historyUser": [
+    "Merk dir dass Alyssa am Samstag kommt"
+   ],
+   "letzterText": "Merk dir dass Alyssa am Samstag kommt",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Memory",
+   "roh": "Merk dir mein Nachname ist Schröter",
+   "nachVoice": "Merk dir mein Nachname ist Schröter",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Merk dir mein Nachname ist Schröter"
+   ],
+   "historyUser": [
+    "Merk dir mein Nachname ist Schröter"
+   ],
+   "letzterText": "Merk dir mein Nachname ist Schröter",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Memory",
+   "roh": "Das Auto steht am Neu Galina Ring merk dir das",
+   "nachVoice": "Das Auto steht am Neu Galina Ring merk dir das",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Das Auto steht am Neu Galina Ring merk dir das"
+   ],
+   "historyUser": [
+    "Das Auto steht am Neu Galina Ring merk dir das"
+   ],
+   "letzterText": "Das Auto steht am Neu Galina Ring merk dir das",
+   "aktionen": [
+    {
+     "typ": "memory_store",
+     "text": "Das Auto steht am Neu Galina Ring merk dir das"
+    }
+   ],
+   "gespeichert": [
+    "Am Mittwoch, 28. Oktober 2026 um 10:01 hat der Nutzer ausdrücklich darum gebeten, sich Folgendes zu merken: \"Das Auto steht am Neu Galina Ring merk dir das\" (gemerkt als: auto - am Ring)"
+   ],
+   "aenderungen": {
+    "gedaechtnis": [
+     "[\"auto\",\"am Ring\"]"
+    ]
+   }
+  },
+  {
+   "kat": "Memory",
+   "roh": "Was weißt du über mich",
+   "nachVoice": "Was weißt du über mich",
+   "weg": "lokal",
+   "kiNachrichten": [
+    "Was weißt du über mich"
+   ],
+   "historyUser": [
+    "Was weißt du über mich"
+   ],
+   "letzterText": "Was weißt du über mich",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Schicht",
+   "roh": "Wann habe ich nächste Woche Frühschicht",
+   "nachVoice": "Wann habe ich nächste Woche Frühschicht",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Wann habe ich nächste Woche Frühschicht"
+   ],
+   "historyUser": [
+    "Wann habe ich nächste Woche Frühschicht"
+   ],
+   "letzterText": "Wann habe ich nächste Woche Frühschicht",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Schicht",
+   "roh": "Habe ich am Wochenende Spätschicht",
+   "nachVoice": "Habe ich am Wochenende Spätschicht",
+   "weg": "lokal",
+   "kiNachrichten": [],
+   "historyUser": [],
+   "letzterText": "Wann habe ich nächste Woche Frühschicht",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Foto",
+   "roh": "Stundenplan von Alycia fotografieren",
+   "nachVoice": "Stundenplan von Alycia fotografieren",
+   "weg": "lokal",
+   "kiNachrichten": [],
+   "historyUser": [],
+   "letzterText": "Wann habe ich nächste Woche Frühschicht",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Foto",
+   "roh": "Mach ein Foto vom Brief an Schröter",
+   "nachVoice": "Mach ein Foto vom Brief an Schröter",
+   "weg": "lokal",
+   "kiNachrichten": [],
+   "historyUser": [],
+   "letzterText": "Wann habe ich nächste Woche Frühschicht",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Mehrfachfragen",
+   "roh": "Wie wird das Wetter in Schwarzenbeck und ruf Alicia an",
+   "nachVoice": "Wie wird das Wetter in Schwarzenbeck und ruf Alyssa an",
+   "weg": "lokal",
+   "kiNachrichten": [
+    "ruf Alyssa an"
+   ],
+   "historyUser": [
+    "ruf Alyssa an"
+   ],
+   "letzterText": "ruf Alyssa an",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Mehrfachfragen",
+   "roh": "Was habe ich heute vor und wie kalt ist es in Schwarzenbeck",
+   "nachVoice": "Was habe ich heute vor und wie kalt ist es in Schwarzenbeck",
+   "weg": "lokal",
+   "kiNachrichten": [
+    "Wie kalt ist es in Schwarzenbeck?"
+   ],
+   "historyUser": [
+    "Wie kalt ist es in Schwarzenbeck?"
+   ],
+   "letzterText": "Wie kalt ist es in Schwarzenbeck?",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  },
+  {
+   "kat": "Mehrfachfragen",
+   "roh": "Fahr zum Neu Galina Ring und wie wird das Wetter",
+   "nachVoice": "Fahr zum Neu Galina Ring und wie wird das Wetter",
+   "weg": "KI",
+   "kiNachrichten": [
+    "Fahr zum Neu Galina Ring und wie wird das Wetter"
+   ],
+   "historyUser": [
+    "Fahr zum Neu Galina Ring und wie wird das Wetter"
+   ],
+   "letzterText": "Fahr zum Neu Galina Ring und wie wird das Wetter",
+   "aktionen": [],
+   "gespeichert": [],
+   "aenderungen": {}
+  }
+ ],
+ "kette": {
+  "sendToGroqSmartDirekteHuellen": []
+ }
+}

@@ -479,7 +479,7 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Schreib Alyssa eine Nachricht"
+     "Schreib Alycia eine Nachricht"
     ]
    },
    "C +hoerkorrektur": {
@@ -493,14 +493,14 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Schreib Alyssa eine Nachricht"
+     "Schreib Alycia eine Nachricht"
     ]
    },
    "heuteWieGemeint": false,
    "urteil": {
-    "B +festnamen": "verbessert",
+    "B +festnamen": "unverändert",
     "C +hoerkorrektur": "unverändert",
-    "D beide": "verbessert"
+    "D beide": "unverändert"
    }
   },
   {
@@ -559,7 +559,7 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Ist Herr Schroeter heute da"
+     "Ist Herr Schröter heute da"
     ]
    },
    "C +hoerkorrektur": {
@@ -573,14 +573,14 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Ist Herr Schroeter heute da"
+     "Ist Herr Schröter heute da"
     ]
    },
    "heuteWieGemeint": true,
    "urteil": {
-    "B +festnamen": "fragwürdig",
+    "B +festnamen": "unverändert",
     "C +hoerkorrektur": "unverändert",
-    "D beide": "fragwürdig"
+    "D beide": "unverändert"
    }
   },
   {
@@ -606,21 +606,21 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Wer hat Hamiyet geschrieben"
+     "Wer hat Hamlet geschrieben"
     ]
    },
    "D beide": {
     "lokal": false,
     "modul": null,
     "ki": [
-     "Wer hat Hamiyet geschrieben"
+     "Wer hat Hamlet geschrieben"
     ]
    },
    "heuteWieGemeint": true,
    "urteil": {
     "B +festnamen": "unverändert",
-    "C +hoerkorrektur": "verschlechtert",
-    "D beide": "verschlechtert"
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
    }
   },
   {
@@ -646,21 +646,21 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Wann hat Hamiyet Feierabend"
+     "Wann hat Hamlet Feierabend"
     ]
    },
    "D beide": {
     "lokal": false,
     "modul": null,
     "ki": [
-     "Wann hat Hamiyet Feierabend"
+     "Wann hat Hamlet Feierabend"
     ]
    },
    "heuteWieGemeint": false,
    "urteil": {
     "B +festnamen": "unverändert",
-    "C +hoerkorrektur": "verbessert",
-    "D beide": "verbessert"
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
    }
   },
   {
@@ -719,7 +719,7 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Fahr zum Neu-Galliner-Ring"
+     "Fahr zum Neu Galina Ring"
     ]
    },
    "C +hoerkorrektur": {
@@ -733,14 +733,14 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Fahr zum Neu-Galliner-Ring"
+     "Fahr zum Neu Galina Ring"
     ]
    },
    "heuteWieGemeint": false,
    "urteil": {
-    "B +festnamen": "verbessert",
+    "B +festnamen": "unverändert",
     "C +hoerkorrektur": "unverändert",
-    "D beide": "verbessert"
+    "D beide": "unverändert"
    }
   },
   {
@@ -759,7 +759,7 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Wie komme ich nach Schwarzenbek"
+     "Wie komme ich nach Schwarzenbeck"
     ]
    },
    "C +hoerkorrektur": {
@@ -773,14 +773,14 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Wie komme ich nach Schwarzenbek"
+     "Wie komme ich nach Schwarzenbeck"
     ]
    },
    "heuteWieGemeint": false,
    "urteil": {
-    "B +festnamen": "verbessert",
+    "B +festnamen": "unverändert",
     "C +hoerkorrektur": "unverändert",
-    "D beide": "verbessert"
+    "D beide": "unverändert"
    }
   },
   {
@@ -799,7 +799,7 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Navigier mich zum Verbrüderungsring"
+     "Navigier mich zum Verbrüderungs Ring"
     ]
    },
    "C +hoerkorrektur": {
@@ -813,14 +813,14 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Navigier mich zum Verbrüderungsring"
+     "Navigier mich zum Verbrüderungs Ring"
     ]
    },
    "heuteWieGemeint": false,
    "urteil": {
-    "B +festnamen": "verbessert",
+    "B +festnamen": "unverändert",
     "C +hoerkorrektur": "unverändert",
-    "D beide": "verbessert"
+    "D beide": "unverändert"
    }
   },
   {
@@ -951,7 +951,7 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Navigier mich nach Schwarzenbek bei Hamburg"
+     "Navigier mich nach Schwarzenbeck bei Hamburg"
     ]
    },
    "C +hoerkorrektur": {
@@ -965,14 +965,14 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Navigier mich nach Schwarzenbek bei Hamburg"
+     "Navigier mich nach Schwarzenbeck bei Hamburg"
     ]
    },
    "heuteWieGemeint": false,
    "urteil": {
-    "B +festnamen": "verbessert",
+    "B +festnamen": "unverändert",
     "C +hoerkorrektur": "unverändert",
-    "D beide": "verbessert"
+    "D beide": "unverändert"
    }
   },
   {
@@ -1071,7 +1071,7 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Termin mit Herrn Schroeter am Montag"
+     "Termin mit Herrn Schröter am Montag"
     ]
    },
    "C +hoerkorrektur": {
@@ -1085,14 +1085,14 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Termin mit Herrn Schroeter am Montag"
+     "Termin mit Herrn Schröter am Montag"
     ]
    },
    "heuteWieGemeint": true,
    "urteil": {
-    "B +festnamen": "fragwürdig",
+    "B +festnamen": "unverändert",
     "C +hoerkorrektur": "unverändert",
-    "D beide": "fragwürdig"
+    "D beide": "unverändert"
    }
   },
   {
@@ -1158,21 +1158,21 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Erinner mich an den Anruf bei Hamiyet"
+     "Erinner mich an den Anruf bei Hamlet"
     ]
    },
    "D beide": {
     "lokal": false,
     "modul": null,
     "ki": [
-     "Erinner mich an den Anruf bei Hamiyet"
+     "Erinner mich an den Anruf bei Hamlet"
     ]
    },
    "heuteWieGemeint": false,
    "urteil": {
     "B +festnamen": "unverändert",
-    "C +hoerkorrektur": "verbessert",
-    "D beide": "verbessert"
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
    }
   },
   {
@@ -1191,7 +1191,7 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Wird es in Schwarzenbek morgen regnen"
+     "Wird es in Schwarzenbeck morgen regnen"
     ]
    },
    "C +hoerkorrektur": {
@@ -1205,14 +1205,14 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Wird es in Schwarzenbek morgen regnen"
+     "Wird es in Schwarzenbeck morgen regnen"
     ]
    },
    "heuteWieGemeint": false,
    "urteil": {
-    "B +festnamen": "verbessert",
+    "B +festnamen": "unverändert",
     "C +hoerkorrektur": "unverändert",
-    "D beide": "verbessert"
+    "D beide": "unverändert"
    }
   },
   {
@@ -1383,7 +1383,7 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Merk dir mein Nachname ist Schroeter"
+     "Merk dir mein Nachname ist Schröter"
     ]
    },
    "C +hoerkorrektur": {
@@ -1397,14 +1397,14 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Merk dir mein Nachname ist Schroeter"
+     "Merk dir mein Nachname ist Schröter"
     ]
    },
    "heuteWieGemeint": false,
    "urteil": {
-    "B +festnamen": "verbessert",
+    "B +festnamen": "unverändert",
     "C +hoerkorrektur": "unverändert",
-    "D beide": "verbessert"
+    "D beide": "unverändert"
    }
   },
   {
@@ -1470,21 +1470,21 @@
     "lokal": false,
     "modul": null,
     "ki": [
-     "Was habe ich mir über Hamiyet gemerkt"
+     "Was habe ich mir über Hamlet gemerkt"
     ]
    },
    "D beide": {
     "lokal": false,
     "modul": null,
     "ki": [
-     "Was habe ich mir über Hamiyet gemerkt"
+     "Was habe ich mir über Hamlet gemerkt"
     ]
    },
    "heuteWieGemeint": false,
    "urteil": {
     "B +festnamen": "unverändert",
-    "C +hoerkorrektur": "verbessert",
-    "D beide": "verbessert"
+    "C +hoerkorrektur": "unverändert",
+    "D beide": "unverändert"
    }
   },
   {
@@ -1599,7 +1599,7 @@
     "lokal": true,
     "modul": "was_steht_an+mehrfachfrage",
     "ki": [
-     "Wie kalt ist es in Schwarzenbek?"
+     "Wie kalt ist es in Schwarzenbeck?"
     ]
    },
    "C +hoerkorrektur": {
@@ -1613,14 +1613,14 @@
     "lokal": true,
     "modul": "was_steht_an+mehrfachfrage",
     "ki": [
-     "Wie kalt ist es in Schwarzenbek?"
+     "Wie kalt ist es in Schwarzenbeck?"
     ]
    },
    "heuteWieGemeint": false,
    "urteil": {
-    "B +festnamen": "KI-Teilsatz geändert",
+    "B +festnamen": "unverändert (lokaler Weg)",
     "C +hoerkorrektur": "unverändert (lokaler Weg)",
-    "D beide": "KI-Teilsatz geändert"
+    "D beide": "unverändert (lokaler Weg)"
    }
   }
  ],
@@ -1634,7 +1634,8 @@
   "Wer hat Hamlet geschrieben => [\"Wer hat Hamiyet geschrieben\"]"
  ],
  "textfluss": {
-  "chatVerlauf": true,
+  "chatVerlaufOriginal": true,
+  "kiKopieGetrennt": true,
   "letzterText": true,
   "aktionenBekommenText": true,
   "merkDirTextKommtAusText": true,

@@ -96,15 +96,6 @@
             return next(fixed);
         }, 400);
     }
-    if (typeof window.sendToGroqSmart === 'function' && !window.sendToGroqSmart._hoerkorrektur) {
-        const original = window.sendToGroqSmart;
-        const wrapped = function (text) {
-            const args = Array.prototype.slice.call(arguments);
-            if (typeof text === 'string') args[0] = fix(text);
-            return original.apply(this, args);
-        };
-        wrapped._hoerkorrektur = true;
-        Object.keys(original).forEach(k => { try { wrapped[k] = original[k]; } catch (e) {} });
-        window.sendToGroqSmart = wrapped;
-    }
+    /* Für die KI-Kopie ist diese Korrektur bewusst NICHT eingetragen (Phase 5D.2): blinde Ersetzungen wie Hamlet->Hamiyet oder Mal->Malte beschädigen
+       normale Sätze. Sie bekommt später einen eigenen, kontextabhängigen Eintrag in der Kette jvKiText (Rang 200, siehe commands.js). */
 })();

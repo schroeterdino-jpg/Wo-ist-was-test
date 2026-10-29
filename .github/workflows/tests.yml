@@ -32,3 +32,4 @@ jobs:
       - run: node tests/globale.js
       - run: node tests/wirkungslos.js
       - run: node tests/suche.js
+      - run: node tests/kitext.js
