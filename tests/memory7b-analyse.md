@@ -17,6 +17,7 @@ Der alte Phase-7A-Golden-Master (`tests/memory7a_soll.json`) bleibt unverändert
 - **Korrektur (1 Zeile):** nur dieser eine Lesevorgang fängt den Fehler ab, das Gedächtnis startet leer, eine Warnung steht in der Konsole.
 - Der kaputte Originalwert bleibt unverändert (kein `removeItem`, kein Überschreiben, keine neuen Schreibzugriffe, keine Reparatur, kein Sync-Eingriff). Gültige, leere, fehlende und Array-Werte verhalten sich wie vorher.
 - Restpunkt: andere Schlüssel in `storage.js` (z. B. Kontakte) sind weiter ungeschützt – nicht Teil von 7B. Schreibt der Nutzer später einen neuen Gedächtnis-Eintrag, ersetzt dieser den kaputten Wert (Nutzeraktion, wie jedes Speichern). Der Datenabgleich verhält sich wie vorher (guter Server-Stand ersetzt den kaputten lokalen Wert).
+- Restpunkt (nur dokumentiert, kein neuer ROT-Befund, keine Änderung abgeleitet): `searchMemory()` kann bei sehr kurzen Suchwerten (und sehr kurzen gespeicherten Werten) weiterhin breite Teilwort-Treffer liefern. `searchMemory()` bleibt unverändert.
 
 ## Nicht geändert
 `memoryItems`-Architektur, Proxy, 3000-ms-Takt, Sync, `/api/memory`, Server, Android, Schlüsselnamen.
