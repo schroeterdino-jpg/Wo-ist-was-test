@@ -487,3 +487,7 @@ Nach Foto-Kette (Phase 3) und Speak-Kette (Phase 4B) wurden alle übrigen global
 - **Wirkung (Chromium, 60 s versteckt):** Rückrufe 590 → 290; sichtbar, Netz, Native unverändert.
 - **Regeln:** `tests/hintergrund_6b2.js`; alter Zustand eingefroren in `tests/hintergrund_soll_6b1.json`, `tests/hintergrund_laufzeit_6b1.json`, `tests/hintergrund_6b2_vorher.json`. Beschreibung: `tests/hintergrund-6b2.md`.
 
+## Phase 6: abgeschlossen
+- **Ergebnis (Chromium, 60 s versteckt):** 1531 (Ausgang 6A) → 590 (6B.1) → 290 (6B.2) Rückrufe; Einsparung ca. 1241 (ca. 81 %). Sichtbar, Netz (190/0) und Native (ca. 200/min) unverändert.
+- **Bewusst NICHT weiter optimiert:** `laune.js` (fachliche Zustandsänderung + Speicherung), Netzwerk-Poller, Native-Poller, Tagescheck, Kategorie A, Erinnerungen, Wecker, Wächter, Push und sonstige funktional notwendige Hintergrundarbeit. Das Anfassen geht nur mit eigenem Auftrag. Keine Phase 6B.3.
+
