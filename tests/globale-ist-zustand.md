@@ -73,13 +73,13 @@ Eine explizite Kette wäre sinnvoll, ist aber kein Muss: Die vier Hüllen sind i
 | Fehlerpfade | Schutzhülle in `assistant.js` (Fehler vor dem Kern → Fehlerbox + Ansage) |
 | Reihenfolge-Wirkung | `synapsen ↔ weathermap` vertauschen: identisch (Ereignisse DOMContentLoaded vor load legen die Reihenfolge fest, Klasse D) |
 
-## 5. searchSemanticMemory und jvFristHinweis (ROT, braucht erst eine Entscheidung)
+## 5. searchSemanticMemory und jvFristHinweis (seit Phase 5D.1 GRÜN)
 
-- `langzeit.js` (909) setzt `window.searchSemanticMemory = async function ...` (eigene Suche mit Plänen und Datum, `topK` 8, zweite Anfrage `listall`). `assistant.js` (913) deklariert danach `async function searchSemanticMemory`; die Deklaration überschreibt die Zuweisung. **Ergebnis: Die Suche aus `langzeit.js` ist nie aktiv** (gemessen im Test und im echten Chromium: eine einzige Anfrage mit `topK` 5, keine `listall`-Anfrage).
-- `foto_stundenplan.js` (856) hängt sich an `searchSemanticMemory` an, aber die Funktion gibt es dort noch nicht: toter Zweig.
-- Lebend: `ki_mitdenken.js` (bei load, Marke `_ki`) umhüllt die Suche und `jvFristHinweis` (Basis `langzeit.js`, aufgerufen in `assistant.js`).
-- Reihenfolge-Wirkung: `langzeit.js` hinter `assistant.js` laden schaltet die Langzeit-Suche ein (Klasse A, ändert das Verhalten und die Anfragen an den Server).
-- Das ist kein reiner Umbau, sondern eine Entscheidung (Funktion einschalten oder Totcode entfernen). Deshalb erst klären, dann bauen.
+- **Stand bis 5C (Geschichte):** `langzeit.js` setzte eine eigene Suche, `assistant.js` überschrieb sie beim Laden; die Suche aus `langzeit.js` war nie aktiv, die Stundenplan-Hülle aus `foto_stundenplan.js` griff ins Leere.
+- **Seit Phase 5D.1:** Besitzer ist `assistant.js` (genau EINE Fassung). `langzeit.js` und `foto_stundenplan.js` tragen sich nur als Zusatzquellen in `window.jvSuchQuellen` ein (unabhängig von der Ladereihenfolge, Messung in `tests/suche.js`). `langzeit.js` setzt `window.searchSemanticMemory` nicht mehr.
+- Lebend: `ki_mitdenken.js` (bei load, Marke `_ki`) umhüllt die Suche und `jvFristHinweis` (Basis `langzeit.js`, aufgerufen in `assistant.js`). Unverändert.
+- Reihenfolge-Wirkung: `langzeit.js` hinter `assistant.js` laden ändert nichts mehr (identisch, Sonderprobe in `globale.js`).
+- Beschreibung und Sicherheitsnetz: `tests/suche-ist-zustand.md`, `node tests/suche.js`.
 
 ## 6. Fenster: openPanel, closePanel, isPanelOpen, refreshOpenPanel (GELB)
 
@@ -138,7 +138,7 @@ Gegenprobe im Test: ohne `commands.js` wiederholen die sieben Dateien tatsächli
 
 | Ampel | Kandidat |
 |---|---|
-| ROT | 1. ~~`buildSystemPrompt`~~ (erledigt in Phase 5B, jetzt GRÜN) · 2. `searchSemanticMemory`/`jvFristHinweis` (Funktion still verloren; erst Entscheidung nötig) |
+| ROT | 1. ~~`buildSystemPrompt`~~ (erledigt in Phase 5B, jetzt GRÜN) · 2. ~~`searchSemanticMemory`~~ (erledigt in Phase 5D.1, jetzt GRÜN) |
 | GELB | `handleLocalCommand` · `sendToGroqSmart` (zwei tote Hüllen) · Fenster-Hüllen · `runSystemCheckSpoken` · Wiederholungskonstruktionen · Hüllen auf `HTMLMediaElement.prototype`/`Storage.prototype` |
 | GRÜN | Foto-, Speak-, Aktions-Kette, `jvChain`, `jvCommands`, `mehrfach`-Fang, alle Einzel-Hüllen, temporäre Ersetzungen mit `finally` |
 

@@ -111,7 +111,6 @@
    "langzeit_erinnern.js -> openGoogleCalendarApp",
    "langzeit_erinnern.js -> executeAction",
    "geburtstag_ganztag.js -> executeAction",
-   "assistant.js -> searchSemanticMemory",
    "fehlerort.js -> sendToGroqSmartCore",
    "gedaechtnis.js -> executeAction",
    "loeschen_fragen.js -> executeAction",
@@ -134,8 +133,8 @@
   ],
   "load": [
    "load -> triggerDailyBriefing",
-   "load -> searchSemanticMemory",
    "load -> jvFristHinweis",
+   "load -> searchSemanticMemory",
    "load -> sendToGroqSmart"
   ],
   "zeit": []
@@ -324,7 +323,7 @@
   "fenster: ferien.js <-> tagesueberblick.js": "verändert in panels: openPanel(\"einstellungen\") => false | Schließer [\"closeUeberblick\",\"cl…  =>  openPanel(\"einstellungen\") => false | Schließer [\"closeFerienkalender\"…",
   "fenster: ferien.js <-> karte_zu.js": "verändert in panels: openPanel(\"einstellungen\") => false | Schließer [\"closeUeberblick\",\"cl…  =>  openPanel(\"einstellungen\") => false | Schließer [\"closeFerienkalender\"…",
   "fenster: tagesueberblick.js <-> karte_zu.js": "identisch",
-  "sonder: langzeit.js NACH assistant.js (searchSemanticMemory)": "verändert in semantik: \"Wann war ich schwimmen?\" => Anfragen [\"/api/memory {\\\"action\\\":\\\"sear…  =>  \"Wann war ich schwimmen?\" => Anfragen [\"/api/memory {\\\"action\\\":\\\"sear…",
+  "sonder: langzeit.js NACH assistant.js (searchSemanticMemory)": "identisch",
   "sonder: festnamen.js + hoerkorrektur.js NACH assistant.js (sendToGroqSmart)": "verändert in groq: Fahr zum Neu Galina Ring => Kern bekommt: [\"Fahr zum Neu Galina Ring\"]…  =>  Fahr zum Neu Galina Ring => Kern bekommt: [\"Fahr zum Neu-Galliner-Ring…",
   "sonder: synapsen.js <-> weathermap.js (sendToGroqSmart: DCL- gegen load-Hülle)": "identisch | Protokoll gleich"
  },

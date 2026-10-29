@@ -4,22 +4,59 @@
    localcommands.js, systemcheck.js. Diese Datei muss NACH allen davon geladen werden.
    ============================================================ */
 
-/* Durchsucht das semantische Gedächtnis (api/memory.js -> Upstash Vector) nach Erinnerungen, die
-   inhaltlich zur aktuellen Frage passen - findet auch Umschreibungen, nicht nur ähnliche Wörter wie das
-   normale Gedächtnis (searchMemory). Kein Fehler-Popup bei Problemen: liefert dann einfach eine leere
-   Liste, die App funktioniert auch ganz ohne semantisches Gedächtnis weiter. */
+/* DIE Suche im semantischen Gedächtnis (api/memory.js -> Upstash Vector). Besitzer ist diese Datei; es gibt keine zweite Fassung.
+   Alles, was Fragen zur aktuellen Frage passt, kommt aus EINER bedeutungsähnlichen Suche über ALLE Einträge (Merk-dir, Briefing-Fakten, Fristen,
+   Erlebnisse ...): kein Filter nach Eintragsart. Zusätzlich dürfen Zusatzquellen (window.jvSuchQuellen, tragen sich selbst ein, egal in welcher
+   Ladereihenfolge: langzeit.js = Pläne/Fristen für Datumsfragen, foto_stundenplan.js = Stundenplan) Zeilen beisteuern. Sie brauchen dafür dieselbe
+   Gesamtliste: es gibt HÖCHSTENS EINE Gesamtliste-Abfrage pro Frage, und nur wenn eine Quelle sie wirklich braucht (quelle.braucht(frage)).
+   Fehlerisolation: die Gesamtliste bekommt höchstens 1 Sekunde; ist sie langsam oder kaputt, bleiben die Treffer der normalen Suche erhalten
+   (der Aufrufer in sendToGroqSmart wartet insgesamt höchstens 1,5 Sekunden). Kein Fehler-Popup: bei Problemen kommt einfach eine leere Liste,
+   die App funktioniert auch ganz ohne semantisches Gedächtnis weiter. Rückgabe: Liste von Texten (Zeilen für den Prompt).
+   Zusatzquelle: { name, rang, braucht(frage) -> bool, liefere(frage, gesamtliste) -> [{ id, text, zeile }], formatiere(treffer) -> Zeile oder null }. */
+window.jvSuchQuellen = window.jvSuchQuellen || [];
+const SUCH_TOPK = 5, SUCH_MAX_ZEILEN = 12, SUCH_ZUSATZ_MS = 1000;
+async function suchePost(body) {
+    try {
+        const res = await apiFetch('/api/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!res || !res.ok) return null;
+        return await res.json();
+    } catch (e) { return null; }
+}
 async function searchSemanticMemory(text) {
     const q = String(text || '').trim();
     if (!q || q.length < 4) return [];
     try {
-        const res = await apiFetch('/api/memory', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'search', query: q, topK: 5 })
+        const quellen = (Array.isArray(window.jvSuchQuellen) ? window.jvSuchQuellen : []).filter(s => {
+            try { return s && typeof s.liefere === 'function' && s.braucht(q); } catch (e) { return false; }
+        }).sort((a, b) => (a.rang || 0) - (b.rang || 0));
+        const basis = suchePost({ action: 'search', query: q, topK: SUCH_TOPK }).then(d => (d && Array.isArray(d.treffer)) ? d.treffer : null);
+        let uhr = null;
+        const zusatz = !quellen.length ? Promise.resolve(null) : Promise.race([
+            suchePost({ action: 'listall' }).then(d => (d && Array.isArray(d.eintraege)) ? d.eintraege : null),
+            new Promise(res => { uhr = setTimeout(() => res(null), SUCH_ZUSATZ_MS); })
+        ]);
+        const [treffer, gesamt] = await Promise.all([basis, zusatz]);
+        if (uhr) clearTimeout(uhr);
+        const zeilen = [], ids = new Set(), gesehen = new Set();
+        const nimm = (id, roh, zeile) => {   // gleiche Id oder gleicher Text samt gleicher Zeile = dieselbe Erinnerung nur einmal
+            const schluessel = String(roh).replace(/\s+/g, ' ').trim().toLowerCase() + '|' + zeile.toLowerCase();
+            if ((id != null && ids.has(String(id))) || gesehen.has(schluessel)) return;
+            if (id != null) ids.add(String(id));
+            gesehen.add(schluessel);
+            zeilen.push(zeile);
+        };
+        if (gesamt) quellen.forEach(s => {
+            try { (s.liefere(q, gesamt) || []).forEach(z => { if (z && typeof z.zeile === 'string' && z.zeile) nimm(z.id, z.text == null ? z.zeile : z.text, z.zeile); }); } catch (e) { }
         });
-        if (!res.ok) return [];
-        const data = await res.json();
-        return Array.isArray(data.treffer) ? data.treffer.map(t => t.text) : [];
+        (treffer || []).forEach(t => {
+            if (!t || typeof t.text !== 'string' || !t.text.trim()) return;
+            let zeile = t.text;
+            for (const s of window.jvSuchQuellen) {
+                try { const f = typeof s.formatiere === 'function' ? s.formatiere(t) : null; if (typeof f === 'string' && f) { zeile = f; break; } } catch (e) { }
+            }
+            nimm(t.id, t.text, zeile);
+        });
+        return zeilen.slice(0, SUCH_MAX_ZEILEN);
     } catch (e) {
         return [];
     }

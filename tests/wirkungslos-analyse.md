@@ -1,5 +1,7 @@
 # Phase 5C – Wirkungslose Funktionen (Analyse, kein Produktcode)
 
+> **Nachtrag Phase 5D.1:** Die Befunde zu `searchSemanticMemory`, `cleanupOnce` und `foto_stundenplan` (Abschnitte 1–3) sind umgesetzt: eine Suche in `assistant.js`, Zusatzquellen statt Hüllen, Aufräumen ohne Datenverlust. Siehe `tests/suche-ist-zustand.md`. Die Messung der damaligen toten Varianten steht nur noch hier; `festnamen`/`hoerkorrektur` (Abschnitte 4–8) sind unverändert.
+
 Stand: main = e930766. Messung: `node tests/wirkungslos.js` (98 Prüfungen, Soll in `wirkungslos_soll.json`).
 Methode: echte `api/memory.js` mit nachgebautem Upstash, echte Skriptreihenfolge im Testbrowser, tote Varianten nur im Test hinter `assistant.js` eingehängt.
 Grenze: Die Ähnlichkeitssuche ist im Test ein Stellvertreter (Stichwort-Treffer). Wie gut die echte Vektorsuche ist, lässt sich offline nicht messen.
