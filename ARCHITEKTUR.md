@@ -496,3 +496,10 @@ Nach Foto-Kette (Phase 3) und Speak-Kette (Phase 4B) wurden alle übrigen global
 
 ## Phase 7B: Zeitfrage und Lesefehler von helfer_memory (zwei Produktzeilen)
 `gedaechtnis_zeit.js` (`answer`): exakter Name vor Teilwort-Treffer, sonst wie bisher der erste Treffer; `searchMemory()` unverändert. `storage.js`: ungültiges JSON in `helfer_memory` wird nur an dieser Stelle abgefangen (Gedächtnis startet leer, Original bleibt unverändert, Kontakte/Tageslog laden weiter). Prüfung `tests/memory7b.js`, Beschreibung `tests/memory7b-analyse.md`; `tests/memory7a.js` prüft weiter den Zustand vor 7B (`tests/memory7b_alt.js`).
+
+## Phase 7: abgeschlossen
+- **7A (nur Analyse):** Speicher und `memoryItems` vollständig vermessen (47 Fundstellen, eine Definition in `storage.js`, verteilte Schreiber, ein `ensureProxy`-Takt mit 3000 ms, Speicherwege, Datenflüsse, Rennen, Datenverlust-Risiken, Server, Android). Ergebnis: 1 ROT, mehrere GELB, Rest GRÜN. Ein großer `jvMemory`-Umbau ist derzeit nicht gerechtfertigt.
+- **7B (zwei Produktzeilen):** der einzige ROT-Befund (Zeitfrage wählte bei Teilwort-Treffern den falschen Eintrag) ist behoben; ein kaputtes `helfer_memory` blockiert die unabhängigen Ladevorgänge (Kontakte, Tageslog) nicht mehr, das defekte Original bleibt unverändert.
+- **Bewusst nicht Teil dieser Runde (GELB, dokumentiert in `tests/memory7a-analyse.md`):** Proxy-Stempel ×3, 3-s-Takt ohne Sichtbarkeitsprüfung, Referenzersetzung im Datenabgleich, Gesamtwert-Abgleich (zwei Geräte), zweiter Tab, ungeschützte Parser anderer Schlüssel in `storage.js`, gleichzeitige Schreibzugriffe und `mark`-Rennen am Server, kurze Werte in `searchMemory`.
+- Prüfungen: `tests/memory7a.js` (Zustand vor 7B), `tests/memory7b.js` (vorher/nachher). Keine Phase 8 begonnen.
+
