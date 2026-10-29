@@ -62,6 +62,7 @@ Phase 6B.1 (mimik, holo_look, anzeige pausieren versteckt): `tests/hintergrund_6
 Phase 6B.2 (synapsen-200-ms-Takt pausiert versteckt): `tests/hintergrund_6b2.js`, Beschreibung `tests/hintergrund-6b2.md`.
 Phase 7A (lokales Gedächtnis memoryItems, nur Analyse): `tests/memory7a.js`, Beschreibung `tests/memory7a-analyse.md`.
 Phase 7B (Zeitfrage exakter Name zuerst, Lesefehler von helfer_memory isoliert): `tests/memory7b.js`, Beschreibung `tests/memory7b-analyse.md`.
+Phase 8A (Schlussinventur, nur Analyse): `tests/inventar8a.js`, Beschreibung `tests/inventar8a-analyse.md`.
 
 ## 4. Zuordnung aller Produktdateien zu Hauptbereichen
 

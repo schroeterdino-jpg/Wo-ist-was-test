@@ -38,3 +38,4 @@ jobs:
       - run: node tests/hintergrund_6b2.js
       - run: node tests/memory7a.js
       - run: node tests/memory7b.js
+      - run: node tests/inventar8a.js

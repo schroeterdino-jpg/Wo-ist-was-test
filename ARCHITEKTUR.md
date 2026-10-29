@@ -503,3 +503,5 @@ Nach Foto-Kette (Phase 3) und Speak-Kette (Phase 4B) wurden alle übrigen global
 - **Bewusst nicht Teil dieser Runde (GELB, dokumentiert in `tests/memory7a-analyse.md` und `tests/memory7b-analyse.md`):** Proxy-Stempel ×3, 3-s-Takt ohne Sichtbarkeitsprüfung, Referenzersetzung im Datenabgleich, Gesamtwert-Abgleich (zwei Geräte), zweiter Tab, ungeschützte Parser anderer Schlüssel in `storage.js`, gleichzeitige Schreibzugriffe und `mark`-Rennen am Server, kurze Werte in `searchMemory`.
 - Prüfungen: `tests/memory7a.js` (Zustand vor 7B), `tests/memory7b.js` (vorher/nachher). Keine Phase 8 begonnen.
 
+## Phase 8A: Schlussinventur (nur Analyse, kein Produktcode)
+Zahlen, Klassen A–E aller Produktdateien, Ketten, Reste, Duplikate, Doku-/Testbestand, Android/API und Löschkandidaten stehen in `tests/inventar8a-analyse.md`; Prüfung `tests/inventar8a.js`. Ergebnis: keine Datei nachweislich tot, 8 Dateien mit altem Rückfallzweig (Klasse C). GitHub-Actions ist rot wegen fehlender Zeitzone in zwei Tests (Phase 8B).
