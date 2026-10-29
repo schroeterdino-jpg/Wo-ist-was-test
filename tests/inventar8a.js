@@ -204,7 +204,7 @@ function ci(L) {
     const wf = L.lies('.github/workflows/tests.yml');
     const schritte = Array.from(wf.matchAll(/node (tests\/[a-z0-9_]+\.js)/g)).map(m => m[1]);
     const tzFix = f => /process\.env\.TZ\s*=/.test(L.lies(f));
-    return { nodeVersion: (wf.match(/node-version:\s*'?([0-9]+)/) || [])[1], schritte: schritte.length, fehlendeDatei: schritte.filter(p => !L.gibt(p)), zeitzoneImWorkflow: /\bTZ:/.test(wf), zeitzonenVertragZentral: /^process\.env\.TZ\s*=\s*'Europe\/Berlin';/m.test(L.lies('tests/umgebung.js')), vertragVorErstemRequire: (function () { const u = L.lies('tests/umgebung.js'); const a = u.search(/^process\.env\.TZ\s*=/m), b = u.indexOf("require('fs')"); return a >= 0 && a < b; })(), nutzerOhneVertrag: ['sprache', 'globale'].filter(n => !/require\('\.\/umgebung\.js'\)/.test(L.lies('tests/' + n + '.js'))), zeitzoneFixiert: Object.fromEntries(['tests/sprache.js', 'tests/globale.js', 'tests/memory7a.js', 'tests/memory7b.js', 'tests/umgebung.js'].map(f => [f, tzFix(f)])), npmInstall: /npm (ci|install)/.test(wf), workflows: L.liste('.github/workflows').map(p => path.basename(p)) };
+    return { nodeVersion: (wf.match(/node-version:\s*'?([0-9]+)/) || [])[1], schritte: schritte.length, fehlendeDatei: schritte.filter(p => !L.gibt(p)), zeitzoneImWorkflow: /\bTZ:/.test(wf), zeitzonenVertragZentral: /^process\.env\.TZ\s*=\s*'Europe\/Berlin';/m.test(L.lies('tests/umgebung.js')), vertragVorErstemRequire: (function () { const u = L.lies('tests/umgebung.js'); const a = u.search(/^process\.env\.TZ\s*=/m), b = u.indexOf("require('fs')"); return a >= 0 && a < b; })(), nutzerOhneVertrag: ['sprache', 'globale'].filter(n => !/require\('\.\/umgebung\.js'\)/.test(L.lies('tests/' + n + '.js'))), zeitzoneFixiert: Object.fromEntries(['tests/sprache.js', 'tests/globale.js', 'tests/memory7a.js', 'tests/memory7b.js', 'tests/umgebung.js'].map(f => [f, tzFix(f)])), npmInstall: /npm (ci|install)/.test(wf), vollerGitVerlauf: /actions\/checkout@v4\s*\n\s*with:\s*\n\s*fetch-depth:\s*0\b/.test(wf), testsMitGit: dateien(L, 'tests', /\.js$/).filter(f => /execSync\([^)]*git show/.test(L.lies('tests/' + f))), workflows: L.liste('.github/workflows').map(p => path.basename(p)) };
 }
 function orphans(L) {
     const alle = []; (function lauf(d) { for (const e of fs.readdirSync(path.join(ROOT, d), { withFileTypes: true })) { if (e.name === '.git' || e.name === 'node_modules') continue; const p = d ? d + '/' + e.name : e.name; if (e.isDirectory()) lauf(p); else alle.push(p); } })('');
@@ -318,6 +318,7 @@ function tabelle(m) {
     /* Phase 8B: Zeitzonen-Vertrag der Testwelt und Enddokumentation (Soll bleibt grün, solange der Vertrag steht) */
     check('CI-Vertrag: umgebung.js setzt die Zeitzone zentral auf Europe/Berlin, und zwar vor dem ersten require', m.ci.zeitzonenVertragZentral && m.ci.vertragVorErstemRequire, m.ci);
     check('CI-Vertrag: sprache.js und globale.js hängen an umgebung.js (erben den Vertrag), Node-Version im Workflow unverändert 20', m.ci.nutzerOhneVertrag.length === 0 && m.ci.nodeVersion === '20', m.ci);
+    check('CI-Vertrag: Workflow holt den vollen Git-Verlauf (fetch-depth: 0), solange ein Test `git show` nutzt', m.ci.testsMitGit.length === 0 || m.ci.vollerGitVerlauf, m.ci);
     check('Doku 8B: Produktzahl, offene Punkte mit Verweisen, Momentaufnahmen markiert', m.doku8b.length === 0, m.doku8b);
     check('Doku 8B: kein Momentaufnahme-Dokument ohne Hinweis mehr', m.doku.momentaufnahmeOhneHistorischHinweis.length === 0, m.doku.momentaufnahmeOhneHistorischHinweis);
 
@@ -370,6 +371,8 @@ function tabelle(m) {
         e('Analyse-Datei existiert nicht', { geloescht: ['tests/memory7a-analyse.md'] }, /existiert nicht: tests\/memory7a-analyse\.md/);
         e('Momentaufnahme nicht markiert', { ersatz: { 'tests/ist-zustand.md': t => t.replace(/^> \*\*Historische Momentaufnahme[^\n]*\n\n/, '') } }, /nicht eindeutig markiert: tests\/ist-zustand\.md/);
         e('Hinweis "keine automatisch zu behebenden Fehler" entfernt', { ersatz: { 'ARCHITEKTUR.md': t => t.replace('keine automatisch zu behebenden Fehler', 'Fehler') } }, /Hinweis/);
+        const g = ci(leser({ ersatz: { '.github/workflows/tests.yml': t => t.replace(/\n\s*with:\s*\n\s*fetch-depth: 0[^\n]*/, '') } }));
+        check('Gegenprobe 8B: fehlender voller Git-Verlauf im Workflow wird erkannt', g.vollerGitVerlauf === false && g.testsMitGit.includes('hintergrund_6b2.js'), g);
         const c1 = ci(leser({ ersatz: { 'tests/umgebung.js': t => t.replace("process.env.TZ = 'Europe/Berlin';", '') } }));
         check('Gegenprobe 8B: fehlender Zeitzonen-Vertrag in umgebung.js wird erkannt', c1.zeitzonenVertragZentral === false);
         const c2 = ci(leser({ ersatz: { 'tests/umgebung.js': t => t.replace("process.env.TZ = 'Europe/Berlin';", '').replace("const fs = require('fs')", "const fs0 = require('fs'); process.env.TZ = 'Europe/Berlin';\nconst fs = require('fs')") } }));

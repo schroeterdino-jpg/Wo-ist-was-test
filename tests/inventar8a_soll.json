@@ -474,6 +474,10 @@
    "tests/umgebung.js": true
   },
   "npmInstall": false,
+  "vollerGitVerlauf": true,
+  "testsMitGit": [
+   "hintergrund_6b2.js"
+  ],
   "workflows": [
    "oww-test.yml",
    "tests.yml",

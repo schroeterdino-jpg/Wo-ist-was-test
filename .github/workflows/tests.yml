@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # tests/hintergrund_6b2.js liest mit `git show 4d5b9e6:js/synapsen.js` den Stand vor Phase 6B.2; ein flacher Klon kennt den Commit nicht
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
