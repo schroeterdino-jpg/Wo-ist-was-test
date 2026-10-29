@@ -491,3 +491,5 @@ Nach Foto-Kette (Phase 3) und Speak-Kette (Phase 4B) wurden alle übrigen global
 - **Ergebnis (Chromium, 60 s versteckt):** 1531 (Ausgang 6A) → 590 (6B.1) → 290 (6B.2) Rückrufe; Einsparung ca. 1241 (ca. 81 %). Sichtbar, Netz (190/0) und Native (ca. 200/min) unverändert.
 - **Bewusst NICHT weiter optimiert:** `laune.js` (fachliche Zustandsänderung + Speicherung), Netzwerk-Poller, Native-Poller, Tagescheck, Kategorie A, Erinnerungen, Wecker, Wächter, Push und sonstige funktional notwendige Hintergrundarbeit. Das Anfassen geht nur mit eigenem Auftrag. Keine Phase 6B.3.
 
+## Phase 7A: lokales Gedächtnis (memoryItems) analysiert (nur Analyse, kein Produktcode)
+`memoryItems` wird einmal in `storage.js` definiert, aber von lists.js, actions.js, sync.js und storage.js geschrieben; `gedaechtnis_zeit.js` beobachtet per Proxy und 3-s-Takt (`ensureProxy`). Der Takt ändert keine Daten. Das einzige ROT: Zeitfrage nutzt `searchMemory()[0]` (Teilwort-Treffer kann den falschen Eintrag liefern). Alles Weitere GELB/GRÜN. Prüfung `tests/memory7a.js`, Beschreibung `tests/memory7a-analyse.md`. Phase 7B nur nach Freigabe.

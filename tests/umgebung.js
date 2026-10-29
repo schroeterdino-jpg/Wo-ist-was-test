@@ -37,7 +37,7 @@ function starte(opt) {
     const uhr = { ms: new Date(opt.jetzt || '2026-10-28T10:00:00+01:00').getTime() };
     const startMs = uhr.ms;
     const dienste = Object.assign({ kalender: 'ok', wetter: 'ok', route: 'ok', ort: 'ok', gedaechtnis: 'ok', ki: 'ok' }, opt.dienste || {});
-    const gesagt = [], store = {}, sess = {}, aufrufe = [], reaktionen = [];
+    const gesagt = [], store = Object.assign({}, opt.speicher || {}), sess = Object.assign({}, opt.sitzung || {}), aufrufe = [], reaktionen = [];   // speicher/sitzung: nur Tests (Vorbelegung, Phase 7A); speicherProtokoll: Liste, in die jeder Schreibzugriff eingetragen wird
     const wer = { aktuell: null };
     const el = () => new Proxy(function () { }, {
         get: (t, k) => k === 'style' ? new Proxy({}, { get: (a, b) => b === 'setProperty' || b === 'removeProperty' || b === 'getPropertyValue' ? () => '' : '', set: () => true }) : k === 'classList' ? { add() { }, remove() { }, contains() { return false; }, toggle() { } } : k === 'children' || k === 'childNodes' ? [] :
@@ -66,12 +66,12 @@ function starte(opt) {
     const dokListener = {};   // Ereignis-Hörer der Seite (document.addEventListener), damit Tests Tippen/Touch auslösen können
     const sb = {
         console: { log() { }, warn() { }, error() { }, info() { }, debug() { } },
-        setTimeout: (fn, ms, ...a) => plane(fn, ms, a, 0), clearTimeout: id => abbrechen(id), setInterval: (fn, ms, ...a) => plane(fn, ms, a, Math.max(15000, +ms || 0)), clearInterval: id => abbrechen(id), queueMicrotask,
+        setTimeout: (fn, ms, ...a) => plane(fn, ms, a, 0), clearTimeout: id => abbrechen(id), setInterval: (fn, ms, ...a) => plane(fn, ms, a, opt.echteTakte ? Math.max(1, +ms || 0) : Math.max(15000, +ms || 0)), clearInterval: id => abbrechen(id), queueMicrotask,
         Promise, JSON, Math, Array, Object, String, Number, Boolean, RegExp, Set, Map, WeakMap, Symbol, Error, TypeError, parseFloat, parseInt, isNaN, isFinite,
         encodeURIComponent, decodeURIComponent, encodeURI, decodeURI, escape, unescape, Intl, URL, URLSearchParams, Blob, TextEncoder, TextDecoder, Uint8Array, ArrayBuffer, atob, btoa,
         Date: festeDate(uhr, RealDate),
-        localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; }, get length() { return Object.keys(store).length; }, key: i => Object.keys(store)[i] || null },
-        sessionStorage: { getItem: k => (k in sess ? sess[k] : null), setItem: (k, v) => { sess[k] = String(v); }, removeItem: k => { delete sess[k]; } },
+        localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); if (opt.speicherProtokoll) opt.speicherProtokoll.push(['L', k, String(v)]); }, removeItem: k => { delete store[k]; if (opt.speicherProtokoll) opt.speicherProtokoll.push(['L-', k]); }, get length() { return Object.keys(store).length; }, key: i => Object.keys(store)[i] || null },
+        sessionStorage: { getItem: k => (k in sess ? sess[k] : null), setItem: (k, v) => { sess[k] = String(v); if (opt.speicherProtokoll) opt.speicherProtokoll.push(['S', k, String(v)]); }, removeItem: k => { delete sess[k]; if (opt.speicherProtokoll) opt.speicherProtokoll.push(['S-', k]); } },
         document: { createElement: el, createTextNode: () => el(), getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], addEventListener(t, fn) { (dokListener[t] = dokListener[t] || []).push(fn); }, removeEventListener() { }, head: el(), body: el(), documentElement: el(), hidden: false, readyState: 'complete', cookie: '', title: 'Jarvis', location: LOC },
         navigator: { userAgent: 'test', language: 'de-DE', onLine: true, geolocation: { getCurrentPosition(ok, err) { err && err({ code: 1 }); }, watchPosition() { return 0; }, clearWatch() { } }, mediaDevices: {}, serviceWorker: undefined, clipboard: { writeText: async () => { } }, permissions: { query: async () => ({ state: 'denied' }) } },
         location: LOC,
@@ -220,7 +220,7 @@ function starte(opt) {
             return () => '';
         } });
     }
-    return { dokListener, erkenner, sprechzeiten, lassLaufen, vorspulen, ereignisse, uhr, sb, gesagt, store, aufrufe, ladefehler, satz, ki, zustand, setze, lese, behandelt, reihenfolge, kette: () => sb.jvCommands.list(), vm };
+    return { sess, timerListe: () => timer.map(t => ({ name: t.fn.name || '', iv: t.iv || 0, in: t.at - uhr.ms })), dokListener, erkenner, sprechzeiten, lassLaufen, vorspulen, ereignisse, uhr, sb, gesagt, store, aufrufe, ladefehler, satz, ki, zustand, setze, lese, behandelt, reihenfolge, kette: () => sb.jvCommands.list(), vm };
 }
 
 module.exports = { starte, ROOT, lies };

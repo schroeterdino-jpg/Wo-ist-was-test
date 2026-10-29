@@ -1,0 +1,567 @@
+{
+ "ergebnis": {
+  "extern": {
+   "accounts.google.com": 4,
+   "cdn.tailwindcss.com": 4,
+   "esm.sh": 4,
+   "fonts.googleapis.com": 4
+  },
+  "hinzufuegen": "ok",
+  "konsole": [
+   "laden|Failed to load resource: net::ERR_FAILED",
+   "laden|Failed to load resource: net::ERR_FAILED",
+   "laden|Failed to load resource: net::ERR_FAILED",
+   "laden|Failed to load resource: net::ERR_FAILED",
+   "laden|JARVIS 3D: Loader konnten nicht geladen werden TypeError: Failed to fetch dynamically imported module: https:/",
+   "start|Aufräumen des Langzeitgedächtnisses fehlgeschlagen (wird später erneut versucht) Error: Gesamtliste ungültig\n ",
+   "ruhe12s|Dirigent: KI Cannot read properties of undefined (reading '0')",
+   "neustart_vorher|Failed to load resource: net::ERR_FAILED",
+   "neustart_vorher|Failed to load resource: net::ERR_FAILED",
+   "neustart_vorher|Failed to load resource: net::ERR_FAILED",
+   "neustart_vorher|Failed to load resource: net::ERR_FAILED",
+   "neustart_vorher|JARVIS 3D: Loader konnten nicht geladen werden TypeError: Failed to fetch dynamically imported module: https:/",
+   "neustart|Aufräumen des Langzeitgedächtnisses fehlgeschlagen (wird später erneut versucht) Error: Gesamtliste ungültig\n ",
+   "serverfehler|Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+   "serverfehler|Sync-Fehler Error: Server kaputt\n    at readSyncResponse (http://localhost:8933/js/sync.js?v=4d78f542:139:24)\n",
+   "kaputtes_json|Failed to load resource: net::ERR_FAILED",
+   "kaputtes_json|Failed to load resource: net::ERR_FAILED",
+   "kaputtes_json|Failed to load resource: net::ERR_FAILED",
+   "kaputtes_json|Tageslog ReferenceError: chatHistory is not defined\n    at http://localhost:8933/js/langzeit.js?v=861bac8f:569",
+   "kaputtes_json|Failed to load resource: net::ERR_FAILED",
+   "kaputtes_json|JARVIS 3D: Loader konnten nicht geladen werden TypeError: Failed to fetch dynamically imported module: https:/",
+   "kaputtes_json|Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+   "kaputtes_json|Sync-Fehler Error: Server kaputt\n    at readSyncResponse (http://localhost:8933/js/sync.js?v=4d78f542:139:24)\n",
+   "kaputt_geheilt|Sync: Wert konnte nicht gelesen werden helfer_memory ReferenceError: Cannot access 'memoryItems' before initia",
+   "kaputt_geheilt|Sync-Fehler ReferenceError: memoryItems is not defined\n    at renderAllLists (http://localhost:8933/js/render.",
+   "kaputt_geheilt|Aufräumen des Langzeitgedächtnisses fehlgeschlagen (wird später erneut versucht) Error: Gesamtliste ungültig\n ",
+   "kaputt_geheilt|Failed to load resource: net::ERR_FAILED",
+   "kaputt_geheilt|Failed to load resource: net::ERR_FAILED",
+   "kaputt_geheilt|Failed to load resource: net::ERR_FAILED",
+   "kaputt_geheilt|Failed to load resource: net::ERR_FAILED",
+   "kaputt_geheilt|JARVIS 3D: Loader konnten nicht geladen werden TypeError: Failed to fetch dynamically imported module: https:/"
+  ],
+  "phasen": {
+   "ep": {
+    "angelegtProSeite": 1,
+    "ms": 3000
+   },
+   "st": {
+    "aendern": {
+     "helfer_memory": {
+      "get": 1,
+      "remove": 0,
+      "set": 1
+     },
+     "helfer_memory_zeit": {
+      "get": 4,
+      "remove": 0,
+      "set": 3
+     },
+     "helfer_sync_meta": {
+      "get": 0,
+      "remove": 0,
+      "set": 2
+     }
+    },
+    "hinzufuegen": {
+     "helfer_memory": {
+      "get": 1,
+      "remove": 0,
+      "set": 1
+     },
+     "helfer_memory_zeit": {
+      "get": 4,
+      "remove": 0,
+      "set": 3
+     },
+     "helfer_sync_meta": {
+      "get": 0,
+      "remove": 0,
+      "set": 2
+     }
+    },
+    "kaputt_geheilt": {
+     "helfer_memory": {
+      "get": 2,
+      "remove": 0,
+      "set": 1
+     },
+     "helfer_memory_zeit": {
+      "get": 1,
+      "remove": 0,
+      "set": 1
+     },
+     "helfer_sync_meta": {
+      "get": 0,
+      "remove": 0,
+      "set": 1
+     }
+    },
+    "laden": {
+     "helfer_memory": {
+      "get": 9,
+      "remove": 0,
+      "set": 1
+     },
+     "helfer_sync_meta": {
+      "get": 4,
+      "remove": 0,
+      "set": 2
+     }
+    },
+    "loeschen": {
+     "helfer_memory": {
+      "get": 2,
+      "remove": 0,
+      "set": 1
+     },
+     "helfer_memory_zeit": {
+      "get": 3,
+      "remove": 0,
+      "set": 1
+     },
+     "helfer_sync_meta": {
+      "get": 0,
+      "remove": 0,
+      "set": 3
+     }
+    },
+    "nach_reparatur": {
+     "helfer_memory": {
+      "get": 2,
+      "remove": 0,
+      "set": 0
+     },
+     "helfer_memory_zeit": {
+      "get": 1,
+      "remove": 0,
+      "set": 0
+     },
+     "helfer_sync_meta": {
+      "get": 0,
+      "remove": 0,
+      "set": 1
+     }
+    },
+    "neustart": {
+     "helfer_memory": {
+      "get": 3,
+      "remove": 0,
+      "set": 0
+     },
+     "helfer_memory_zeit": {
+      "get": 2,
+      "remove": 0,
+      "set": 0
+     },
+     "helfer_sync_meta": {
+      "get": 0,
+      "remove": 0,
+      "set": 1
+     }
+    },
+    "neustart_vorher": {
+     "helfer_memory": {
+      "get": 1,
+      "remove": 0,
+      "set": 0
+     },
+     "helfer_memory_zeit": {
+      "get": 1,
+      "remove": 0,
+      "set": 0
+     }
+    },
+    "ruhe12s": {
+     "helfer_memory": {
+      "get": 1,
+      "remove": 0,
+      "set": 0
+     },
+     "helfer_memory_zeit": {
+      "get": 1,
+      "remove": 0,
+      "set": 0
+     }
+    },
+    "schnell5": {
+     "helfer_memory": {
+      "get": 1,
+      "remove": 0,
+      "set": 5
+     },
+     "helfer_memory_zeit": {
+      "get": 16,
+      "remove": 0,
+      "set": 15
+     },
+     "helfer_sync_meta": {
+      "get": 0,
+      "remove": 0,
+      "set": 10
+     }
+    },
+    "serverfehler": {
+     "helfer_memory": {
+      "get": 3,
+      "remove": 0,
+      "set": 1
+     },
+     "helfer_memory_zeit": {
+      "get": 3,
+      "remove": 0,
+      "set": 0
+     },
+     "helfer_sync_meta": {
+      "get": 0,
+      "remove": 0,
+      "set": 1
+     }
+    },
+    "start": {
+     "helfer_memory": {
+      "get": 2,
+      "remove": 0,
+      "set": 0
+     },
+     "helfer_memory_zeit": {
+      "get": 1,
+      "remove": 0,
+      "set": 0
+     },
+     "helfer_sync_meta": {
+      "get": 0,
+      "remove": 0,
+      "set": 1
+     }
+    },
+    "sync_neuer": {
+     "helfer_memory": {
+      "get": 4,
+      "remove": 0,
+      "set": 1
+     },
+     "helfer_memory_zeit": {
+      "get": 4,
+      "remove": 0,
+      "set": 1
+     },
+     "helfer_sync_meta": {
+      "get": 0,
+      "remove": 0,
+      "set": 1
+     }
+    },
+    "versteckt": {
+     "helfer_memory": {
+      "get": 1,
+      "remove": 0,
+      "set": 0
+     },
+     "helfer_memory_zeit": {
+      "get": 1,
+      "remove": 0,
+      "set": 0
+     }
+    }
+   },
+   "ticks": {
+    "hinzufuegen": 1,
+    "laden": 1,
+    "loeschen": 1,
+    "nach_reparatur": 1,
+    "neustart": 1,
+    "ruhe12s": 4,
+    "start": 1,
+    "sync_neuer": 1,
+    "versteckt": 3
+   }
+  },
+  "schnappschuss": {
+   "aendern": {
+    "gespeichert": [
+     "testbrille",
+     "testneu",
+     "testschluessel"
+    ],
+    "proxy": true,
+    "referenzGleich": true,
+    "schluessel": [
+     "testbrille",
+     "testneu",
+     "testschluessel"
+    ],
+    "typ": "object",
+    "wert": "testwert zwei",
+    "zeit": [
+     "testneu"
+    ]
+   },
+   "hinzufuegen": {
+    "gespeichert": [
+     "testbrille",
+     "testneu",
+     "testschluessel"
+    ],
+    "proxy": true,
+    "referenzGleich": true,
+    "schluessel": [
+     "testbrille",
+     "testneu",
+     "testschluessel"
+    ],
+    "typ": "object",
+    "zeit": [
+     "testneu"
+    ]
+   },
+   "kaputt_geheilt": {
+    "chatHistory": "FEHLER ReferenceError",
+    "kontakte": "FEHLER ReferenceError",
+    "memoryItems": "FEHLER ReferenceError",
+    "speicher": "{\"testgeheilt\":\"vom server\"}"
+   },
+   "kaputtes_json": {
+    "chatHistory": "FEHLER ReferenceError",
+    "kontakte": "FEHLER ReferenceError",
+    "memoryItems": "FEHLER ReferenceError",
+    "speicher": "{kaputt"
+   },
+   "loeschen": {
+    "gespeichert": [
+     "testbrille",
+     "testschluessel",
+     "testschnell1",
+     "testschnell2",
+     "testschnell3",
+     "testschnell4",
+     "testschnell5"
+    ],
+    "proxy": true,
+    "referenzGleich": true,
+    "schluessel": [
+     "testbrille",
+     "testschluessel",
+     "testschnell1",
+     "testschnell2",
+     "testschnell3",
+     "testschnell4",
+     "testschnell5"
+    ],
+    "typ": "object",
+    "zeit": [
+     "testschnell1",
+     "testschnell2",
+     "testschnell3",
+     "testschnell4",
+     "testschnell5"
+    ]
+   },
+   "nach_reparatur": {
+    "gespeichert": [
+     "testgeheilt"
+    ],
+    "proxy": true,
+    "schluessel": [
+     "testgeheilt"
+    ],
+    "typ": "object",
+    "zeit": [
+     "testgeheilt"
+    ]
+   },
+   "neustart": {
+    "gespeichert": [
+     "testbrille",
+     "testschluessel",
+     "testschnell1",
+     "testschnell2",
+     "testschnell3",
+     "testschnell4",
+     "testschnell5"
+    ],
+    "gleicheSchluesselWieVorher": true,
+    "proxy": true,
+    "schluessel": [
+     "testbrille",
+     "testschluessel",
+     "testschnell1",
+     "testschnell2",
+     "testschnell3",
+     "testschnell4",
+     "testschnell5"
+    ],
+    "typ": "object",
+    "zeit": [
+     "testschnell1",
+     "testschnell2",
+     "testschnell3",
+     "testschnell4",
+     "testschnell5"
+    ]
+   },
+   "ruhe": {
+    "gespeichert": [
+     "testbrille",
+     "testschluessel"
+    ],
+    "proxy": true,
+    "referenzGleich": true,
+    "schluessel": [
+     "testbrille",
+     "testschluessel"
+    ],
+    "typ": "object",
+    "zeit": []
+   },
+   "schnell5": {
+    "gespeichert": [
+     "testbrille",
+     "testneu",
+     "testschluessel",
+     "testschnell1",
+     "testschnell2",
+     "testschnell3",
+     "testschnell4",
+     "testschnell5"
+    ],
+    "proxy": true,
+    "referenzGleich": true,
+    "schluessel": [
+     "testbrille",
+     "testneu",
+     "testschluessel",
+     "testschnell1",
+     "testschnell2",
+     "testschnell3",
+     "testschnell4",
+     "testschnell5"
+    ],
+    "typ": "object",
+    "zeit": [
+     "testneu",
+     "testschnell1",
+     "testschnell2",
+     "testschnell3",
+     "testschnell4",
+     "testschnell5"
+    ]
+   },
+   "serverfehler": {
+    "gespeichert": [
+     "testfern",
+     "testschluessel"
+    ],
+    "proxy": true,
+    "schluessel": [
+     "testfern",
+     "testschluessel"
+    ],
+    "typ": "object",
+    "unveraendert": true,
+    "zeit": [
+     "testfern",
+     "testschluessel"
+    ]
+   },
+   "start": {
+    "gespeichert": [
+     "testbrille",
+     "testschluessel"
+    ],
+    "proxy": true,
+    "schluessel": [
+     "testbrille",
+     "testschluessel"
+    ],
+    "typ": "object",
+    "zeit": []
+   },
+   "sync_neuer_direkt": {
+    "gespeichert": [
+     "testfern",
+     "testschluessel"
+    ],
+    "proxy": false,
+    "referenzGleich": false,
+    "schluessel": [
+     "testfern",
+     "testschluessel"
+    ],
+    "typ": "object",
+    "zeit": [
+     "testfern",
+     "testschluessel"
+    ]
+   },
+   "sync_neuer_nach3s": {
+    "gespeichert": [
+     "testfern",
+     "testschluessel"
+    ],
+    "proxy": true,
+    "referenzGleich": false,
+    "schluessel": [
+     "testfern",
+     "testschluessel"
+    ],
+    "typ": "object",
+    "zeit": [
+     "testfern",
+     "testschluessel"
+    ]
+   },
+   "versteckt_direkt": {
+    "gespeichert": [
+     "testfern",
+     "testschluessel"
+    ],
+    "proxy": false,
+    "schluessel": [
+     "testfern",
+     "testschluessel"
+    ],
+    "typ": "object",
+    "zeit": [
+     "testfern",
+     "testschluessel"
+    ]
+   },
+   "versteckt_nach7s": {
+    "gespeichert": [
+     "testfern",
+     "testschluessel"
+    ],
+    "proxy": true,
+    "schluessel": [
+     "testfern",
+     "testschluessel"
+    ],
+    "typ": "object",
+    "zeit": [
+     "testfern",
+     "testschluessel"
+    ]
+   }
+  },
+  "seitenfehler": [
+   "laden|tailwind is not defined",
+   "neustart_vorher|tailwind is not defined",
+   "kaputtes_json|tailwind is not defined",
+   "kaputtes_json|Expected property name or '}' in JSON at position 1 (line 1 column 2)",
+   "kaputtes_json|memoryItems is not defined",
+   "kaputt_geheilt|tailwind is not defined"
+  ],
+  "serverAnfragen": 10,
+  "serverNachAbgleich": [
+   "testbrille",
+   "testschluessel",
+   "testschnell1",
+   "testschnell2",
+   "testschnell3",
+   "testschnell4",
+   "testschnell5"
+  ]
+ },
+ "gemessen": "2026-10-29"
+}
