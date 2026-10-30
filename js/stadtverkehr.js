@@ -102,6 +102,10 @@
         return best;
     }
 
+    /* Schwere einer TomTom-Meldung (klein = wichtiger): 0 Sperrung (auch Stufe 4) und Unfall, 1 Gefahrenstelle, Fahrstreifen gesperrt, große Verzögerung, 2 der Rest.
+       Eine Sperrung meldet TomTom oft mit 0 Sekunden Verzögerung; nach Sekunden allein fiele sie hinter kleine Staus. */
+    const schwere = i => ([1, 8].includes(i.kategorie) || i.stufe >= 4) ? 0 : ([3, 7].includes(i.kategorie) || i.stufe === 3) ? 1 : 2;
+
     async function stadtMeldungen(fLat, fLon, tLat, tLon) {
         let pts = routeCoords;
         if (!pts) pts = [[fLat, fLon], [tLat, tLon]];
@@ -118,7 +122,7 @@
         const doppelt = (i) => (typeof lastStauWarnings !== 'undefined' ? lastStauWarnings : []).some(w => km(w.lat, w.lon, i.lat, i.lon) < 1.5);
         const wichtig = d.incidents.filter(i => ![4, 10].includes(i.kategorie) && (i.stufe >= 2 || i.verzoegerung_s >= 120 || [1, 8].includes(i.kategorie)))
             .filter(i => distToLine(i.lat, i.lon, pts) <= ([7, 8].includes(i.kategorie) ? 0.25 : 1.2) && !doppelt(i))   // Sperrungen nur, wenn sie wirklich auf der Strecke liegen (Google fährt um sie herum)
-            .sort((a, b) => (b.verzoegerung_s - a.verzoegerung_s) || (b.stufe - a.stufe)).slice(0, 3);
+            .sort((a, b) => (schwere(a) - schwere(b)) || (b.verzoegerung_s - a.verzoegerung_s) || (b.stufe - a.stufe)).slice(0, 3);   // erst Schwere (Sperrung/Unfall zuerst), dann Verzögerung
         return wichtig;
     }
 
