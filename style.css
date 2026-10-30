@@ -633,6 +633,6 @@ body.panel-open .hud-decor { opacity: 0; transition: opacity .2s ease; }
 .app-shell > header { padding-top: 6px !important; padding-bottom: 2px !important; }
 #userNameDisplay { display: none; }
 body main.container { padding-top: 0; padding-bottom: 1rem; }
-#uebersicht #hudSubtitleBox { position: static; margin: 8px 0 0; min-height: 0; padding: 6px 10px; font-size: 11px; }
+#uebersicht #hudSubtitleBox { position: fixed; left: 12px; right: 12px; bottom: 10px; margin: 0; z-index: 5; min-height: 0; padding: 6px 10px; font-size: 11px; }
 #uebersicht { position: relative; }
 #sec-speak { padding-top: 0 !important; padding-bottom: 0 !important; }
