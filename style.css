@@ -589,18 +589,21 @@ body.panel-open .hud-decor { opacity: 0; transition: opacity .2s ease; }
 
 /* ============ Startseite "Übersicht" (js/uebersicht.js) ============ */
 #uebersicht { max-width: 440px; margin: 0 auto; font-family: var(--font-ui, "Rajdhani", system-ui, sans-serif); }
-#uebKopf { display: flex; align-items: center; gap: 12px; margin-bottom: 2px; }
+#uebKopf { display: grid; grid-template-columns: auto 1fr; column-gap: 6px; align-items: center; margin-bottom: 2px; }
+#uebKopf #recordBtn { grid-row: 1 / span 2; }
+#uebGrussBox { grid-column: 2; grid-row: 1; }
+#uebUhrBox { grid-column: 2; grid-row: 2; }
 #uebKopf #recordBtn { padding: 0; flex: none; }
 #uebKopf #reactor-wrap { padding: 0; }
-#uebKopf .holo-container { width: 104px; height: 104px; }
-#uebKopf #jarvisSphere { width: 104px; height: 104px; }
+#uebKopf .holo-container { width: 130px; height: 130px; position: relative; }
+#uebKopf #jarvisSphere { position: absolute; left: 50%; top: 50%; width: 200px !important; height: 200px !important; max-width: none !important; margin: -100px 0 0 -100px; }
 #uebGrussBox { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 #uebGruss { font-size: 17px; letter-spacing: .06em; color: var(--cyan); text-transform: uppercase; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #uebSchichtZeile, #uebHinweis { font-size: 12px; color: var(--muted, #6f90a3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #uebHinweis { font-size: 10px; letter-spacing: .04em; opacity: .8; margin-top: 2px; }
-#uebUhrBox { text-align: right; line-height: 1; flex: none; }
+#uebUhrBox { display: flex; align-items: baseline; gap: 10px; line-height: 1; margin-top: 4px; }
 #uebUhr { display: block; font-family: var(--font-mono); font-size: 26px; white-space: nowrap; font-weight: 600; color: #d9e9f2; }
-#uebDatum { display: block; margin-top: 3px; font-size: 12px; letter-spacing: .06em; color: var(--muted, #6f90a3); }
+#uebDatum { display: block; margin-top: 0; font-size: 12px; letter-spacing: .06em; color: var(--muted, #6f90a3); }
 #uebEq { display: flex; align-items: flex-end; justify-content: center; gap: 3px; height: 14px; margin-bottom: 4px; }
 #uebEq i { display: block; width: 4px; height: 3px; border-radius: 2px; background: rgba(93, 209, 255, .25); transition: height .06s linear; }
 #uebEq.jarvis i { background: var(--good); box-shadow: 0 0 6px rgba(87, 224, 161, .55); }
@@ -630,6 +633,6 @@ body.panel-open .hud-decor { opacity: 0; transition: opacity .2s ease; }
 .app-shell > header { padding-top: 6px !important; padding-bottom: 2px !important; }
 #userNameDisplay { display: none; }
 body main.container { padding-top: 0; padding-bottom: 1rem; }
-#uebersicht #hudSubtitleBox { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; min-height: 0; }
+#uebersicht #hudSubtitleBox { position: static; margin: 8px 0 0; min-height: 0; padding: 6px 10px; font-size: 11px; }
 #uebersicht { position: relative; }
 #sec-speak { padding-top: 0 !important; padding-bottom: 0 !important; }
