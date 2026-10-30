@@ -43,3 +43,4 @@ jobs:
       - run: node tests/inventar8a.js
       - run: node tests/verkehr.js
       - run: node tests/dirigent_fragen.js
+      - run: node tests/pending_reihenfolge.js

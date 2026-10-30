@@ -121,6 +121,7 @@
         if (!ymd || !titel || bis < 1 || bis > GEB_VORLAUF_TAGE || lsGet(gebKey(ymd, titel))) return false;
         lsSet(gebKey(ymd, titel), '1');
         offenGeb = { ymd, titel, at: Date.now() };
+        try { window.jvFrage && window.jvFrage.neu('zuvorkommend'); } catch (e) { }
         const wann = bis === 1 ? 'Morgen' : 'In ' + bis + ' Tagen';
         const was = /geburtstag|birthday|bday/i.test(titel) ? (bis === 1 ? 'ist ' : 'ist ') + titel : 'hat ' + titel + ' Geburtstag';
         try {
@@ -232,6 +233,7 @@
         const anzeige = name || String(titel).replace(/\s*geburtstag\w*/i, '').trim() || 'Geburtstag';
         offenGeb = null;
         offenGruss = { art, ymd, titel, text, url, anzeige, at: Date.now() };
+        try { window.jvFrage && window.jvFrage.neu('zuvorkommend'); } catch (e) { }
         try {
             if (typeof showActionCards === 'function') showActionCards([
                 { icon: '💬', title: 'WhatsApp an ' + anzeige + ' öffnen', subtitle: text, href: url },

@@ -176,6 +176,7 @@
                     pending.items.push({ action: Object.assign({}, action), text, art: b.art });
                     if (pending.timer) clearTimeout(pending.timer);
                     pending.timer = setTimeout(verwirf, GUELTIG_MS);
+                    try { window.jvFrage && window.jvFrage.neu('loeschen_fragen'); } catch (e) { }
                     const satz = gleicheRunde ? 'Und ' + b.frage + '?' : 'Soll ich ' + b.frage + ' wirklich löschen?';
                     zeigeKnoepfe(pending.items.length > 1 ? 'Soll ich diese ' + pending.items.length + ' Einträge wirklich löschen?' : satz);
                     throw fehler(satz);

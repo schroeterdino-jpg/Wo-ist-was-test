@@ -15,18 +15,18 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 318,
-  "produktJs": 169,
-  "jsZeilen": 43661,
-  "jsBytes": 3077961,
-  "jsGzip": 928246,
-  "scriptTags": 176,
-  "eigeneScripts": 169,
+  "repoDateien": 320,
+  "produktJs": 170,
+  "jsZeilen": 43720,
+  "jsBytes": 3083329,
+  "jsGzip": 929998,
+  "scriptTags": 177,
+  "eigeneScripts": 170,
   "drittScripts": 2,
   "inlineScripts": 5,
   "api": 11,
-  "testsGesamt": 87,
-  "testsJs": 49,
+  "testsGesamt": 88,
+  "testsJs": 50,
   "testsMd": 15,
   "testsJson": 23,
   "workflows": 3,
@@ -56,8 +56,13 @@
    "storage.js": 5
   }
  },
- "konsistenz": [],
- "doku8b": [],
+ "konsistenz": [
+  "Landkarte: Produktdatei nicht genau einmal zugeordnet: fragen_reihenfolge"
+ ],
+ "doku8b": [
+  "ARCHITEKTUR.md nennt 169 Skripte, vorhanden sind 170",
+  "Produktzahl im Kopf der Doku fehlt/falsch"
+ ],
  "klasse": {
   "actions.js": "A",
   "adress_normal.js": "B",
@@ -115,6 +120,7 @@
   "foto_stundenplan.js": "A",
   "foto_urlaubsplan.js": "A",
   "fotosenden.js": "A",
+  "fragen_reihenfolge.js": "B",
   "fristen.js": "A",
   "frueher_los.js": "B",
   "geburtstag_ganztag.js": "C",
@@ -231,7 +237,7 @@
  },
  "klassenZahl": {
   "A": 144,
-  "B": 17,
+  "B": 18,
   "C": 8,
   "D": 0,
   "E": 0
@@ -247,6 +253,7 @@
   "extrafenster.js",
   "fehlerort.js",
   "festnamen.js",
+  "fragen_reihenfolge.js",
   "frueher_los.js",
   "hoeren.js",
   "karte_zu.js",
@@ -306,7 +313,7 @@
  },
  "duplikate": {
   "identischeGruppen": 17,
-  "identischeStellen": 61,
+  "identischeStellen": 62,
   "grosseGruppen": [
    "kennenlernen.js:ruhig = zane_redet.js:ruhig",
    "mail_nacht.js:rohMail = mailaktionen.js:rohMail"
@@ -314,7 +321,7 @@
   "gleichnamigeGlobale": [],
   "lokaleHilfen": {
    "norm": {
-    "kopien": 43,
+    "kopien": 44,
     "fassungen": 19
    },
    "sagen": {
@@ -435,16 +442,16 @@
   },
   "ladefehler": []
  },
- "capabilityNichtReferenziert": 128,
+ "capabilityNichtReferenziert": 129,
  "tests": {
   "unklassifiziert": [],
   "klasseOhneDatei": [],
   "workflowOhneDatei": [],
   "workflowDoppelt": [],
   "regressionNichtImWorkflow": [],
-  "imWorkflow": 27,
+  "imWorkflow": 28,
   "jeKlasse": {
-   "regression": 15,
+   "regression": 16,
    "goldenMaster": 8,
    "inventar": 3,
    "historischEingefroren": 1,
@@ -460,7 +467,7 @@
  },
  "ci": {
   "nodeVersion": "20",
-  "schritte": 27,
+  "schritte": 28,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
   "zeitzonenVertragZentral": true,

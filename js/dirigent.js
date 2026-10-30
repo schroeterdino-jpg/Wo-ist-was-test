@@ -205,6 +205,7 @@
         if (!erzwingen) lsSet(K_HEUTE, ymd);
         offen = rf ? { aktion: rf.aktion, thema, slot: teile[2], at: Date.now() } : null;
         letzte = { thema, at: Date.now() };
+        if (offen) try { window.jvFrage && window.jvFrage.neu('dirigent'); } catch (e) { }   // nur bei einer wirklich gestellten Frage
         try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'dirigent', kanal: ['sprache', 'fenster', 'karte'], grund: 'tagesmeldung', ausloeser: gruss ? window.jvMeldungen.herkunftApp() : (erzwingen ? 'manuell' : 'plan'), ereignis: String(id), bezug: window.jvMeldungen.bezugTag(ymd), text: text }) } catch (e) { }   // C1: nur Beobachtung
         p.sagenMeldung('🧭 Jarvis', text, false, !!offen);   // bei einem Angebot hört Jarvis danach zu (Ja / Nein)
         try {
