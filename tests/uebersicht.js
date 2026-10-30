@@ -86,7 +86,7 @@ setImmediate(() => setImmediate(() => {
     check('Regen: Uhrzeit groß, Hinweis in 90 min', /21:30 Uhr/.test(R) && /90 min/.test(R), R);
     check('Diesel: 1,589 € und Tankstelle', /1,589/.test(D) && /Aral/.test(D), D);
     check('Termin mit Fahrzeit (15 min)', /Zahnarzt .*Fahrzeit 15 min/.test(T), T);
-    check('Wetter morgen: Tief 6°, Hoch 13°, bewölkt', /6°/.test(WE) && /13°/.test(WE) && /bewölkt/i.test(WE), WE);
+    check('Wetter morgen: Tief 6, Hoch 13°, bewölkt', /6 \/ 13°/.test(WE) && /bewölkt/i.test(WE), WE);
     check('Lagebild wird nur zwischengespeichert verlangt (10 Minuten)', W.calls.daten.length >= 1 && W.calls.daten.every(ms => ms === 600000), W.calls.daten);
     check('Keine Netz-Timer: nur zwei lokale Takte (20 s, 250 ms)', JSON.stringify(W.intervalle) === JSON.stringify([20000, 250]), W.intervalle);
 

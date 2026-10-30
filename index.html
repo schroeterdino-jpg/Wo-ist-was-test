@@ -105,7 +105,7 @@
         document.documentElement.dataset.fx = (function () { try { return localStorage.getItem('fx_mode') || 'calm'; } catch (e) { return 'calm'; } })();
         (function () { try { JSON.parse(localStorage.getItem('fx_flags') || '[]').forEach(function (f) { document.documentElement.classList.add('nofx-' + f); }); } catch (e) {} })();
     </script>
-    <link rel="stylesheet" href="./style.css?v=0d24f66f">
+    <link rel="stylesheet" href="./style.css?v=daae1942">
 
     <!-- Reduzierte Startseite: nur die Kugel ist dauerhaft sichtbar. Alles andere bleibt im Hintergrund erhalten
          (andere Dateien schreiben dort hinein), ist aber ausgeblendet. Die Zane-Texte erscheinen nur, solange er spricht oder zuhört. -->
@@ -207,7 +207,7 @@
                         <div class="ueb-karte ueb-breit" id="uebTermine"></div>
                         <div class="ueb-karte" id="uebErinnerung"></div>
                         <div class="ueb-karte" id="uebEinkauf"></div>
-                        <div class="ueb-karte ueb-breit" id="uebWetter"></div>
+                        <div class="ueb-karte" id="uebWetter"></div>
                     </div>
                     <button id="uebMic" type="button" onclick="toggleSpeechRecognition()" aria-label="Sprechen">🎙</button>
                     <div id="uebHinweis">„HEY JARVIS“ ODER TIPPEN</div>
@@ -830,7 +830,7 @@
     <script src="./js/fahrtcheck.js?v=f1ffc75f"></script>
     <script src="./js/stadtverkehr.js?v=84dec10b"></script>
     <script src="./js/lagebild.js?v=45c2721b"></script>
-    <script src="./js/uebersicht.js?v=e1bb6c5b"></script>
+    <script src="./js/uebersicht.js?v=3d6a7104"></script>
     <script src="./js/systemcheck_voll.js?v=30aee3b3"></script>
     <script src="./js/jvfenster.js?v=b75b585c"></script>
     <script src="./js/laune.js?v=a50b95f5"></script>

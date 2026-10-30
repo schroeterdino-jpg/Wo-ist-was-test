@@ -106,7 +106,7 @@
         let sub = 'nichts offen';
         if (liste.length) {
             const min = Math.max(0, Math.round((new Date(liste[0].time) - Date.now()) / 60000));
-            sub = 'nächste ' + (min < 60 ? 'in ' + min + ' min' : min < 1440 ? 'in ' + Math.round(min / 60) + ' Std.' : 'in ' + Math.round(min / 1440) + ' Tg.');
+            sub = (min < 60 ? 'in ' + min + ' min' : min < 1440 ? 'in ' + Math.round(min / 60) + ' Std.' : 'in ' + Math.round(min / 1440) + ' Tg.');
         }
         return '<div class="ueb-gross">' + liste.length + '</div><div class="ueb-sub">' + sub + '</div>';
     }
@@ -124,9 +124,9 @@
         if (w.fehler || !w.tage || !w.tage.length) return '<div class="ueb-sub">Vorhersage gerade nicht verfügbar.</div>';
         const t = w.tage.find(x => x.tag === 'morgen') || w.tage[1];
         if (!t) return '<div class="ueb-sub">keine Vorhersage</div>';
+        const kurz = (t.wetter || '').replace(/^leicht /, '');
         const regenText = t.niederschlag_mm >= 0.5 ? 'Regen ' + String(t.niederschlag_mm).replace('.', ',') + ' mm' : 'trocken';
-        return '<div class="ueb-zeile ueb-wetter"><span><b>' + esc(t.wetter ? t.wetter.charAt(0).toUpperCase() + t.wetter.slice(1) : '') + '</b></span><span>' + regenText + '</span></div>' +
-            '<div class="ueb-gross">' + t.tiefstwert_grad + '°<small>bis</small> ' + t.hoechstwert_grad + '°</div>';
+        return '<div class="ueb-gross">' + t.tiefstwert_grad + '<small>/</small>' + t.hoechstwert_grad + '°</div><div class="ueb-sub">' + esc(kurz) + (t.niederschlag_mm >= 0.5 ? ' · ' + regenText : '') + '</div>';
     }
 
     /* ---------- Zeichnen ---------- */
