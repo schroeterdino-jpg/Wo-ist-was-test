@@ -445,6 +445,10 @@ function anzahlAbweichungen(a, b) { const x = Array.isArray(a) ? a : [], y = Arr
         check('Nach dem ersten 250-ms-Wiederholungsversuch ist "lauschen_aus" genau einmal registriert (der Warteweg wird gebraucht)', nach.length === 1, nach.join(','));
         await w.vorspulen(60000);
         check('Weitere Wiederholungen registrieren nichts doppelt', w.sb.jvCommands.list().filter(x => / lauschen_aus$/.test(x)).length === 1);
+        const hl = w.sb.jvCommands.list(), iSp = hl.indexOf('0.2 spotify-auto'), iLa = hl.indexOf('0.21 lauschen_aus');
+        check('Handy-Welt: "lauschen_aus" (0.21) steht fest hinter "spotify-auto" (0.2), kein Gleichrang mehr', iSp >= 0 && iLa > iSp, hl.filter(x => /spotify-auto|lauschen_aus/.test(x)).join(','));
+        const hr = hl.map(x => x.split(' ')[0]);
+        check('Handy-Welt: genau die 19 bekannten Gleichrang-Gruppen (keine zusätzliche durch lauschen_aus)', new Set(hr.filter((r, i) => hr.indexOf(r) !== i)).size === 19, String(new Set(hr.filter((r, i) => hr.indexOf(r) !== i)).size));
         const ohne = starte({ festerZufall: true, native: true, sekundenTakt: true, weitereTakte: [250], ohneSkripte: ['commands.js'] });
         await ohne.vorspulen(30000);
         check('Gibt es nie jvCommands, bleibt es still: keine Registrierung, kein Fehler (der Warteweg gibt nach 40 Versuchen leise auf)', ohne.sb.jvCommands === undefined);

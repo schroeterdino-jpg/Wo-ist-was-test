@@ -219,7 +219,7 @@
             try { ok = typeof window.ZaneNative.lauschenAus === 'function' && !!window.ZaneNative.lauschenAus(); } catch (e) { }
             try { speak(ok ? 'Gut, ich höre nicht mehr auf Hey Jarvis. Zum Einschalten: Einstellungen, Lauschen starten.' : 'Das geht nur mit der neuesten Jarvis-App. Bitte installiere die aktuelle Version.'); } catch (e) { }
             return true;
-        }, 0.2);
+        }, 0.21);
         return true;
     }
     if (!lauschenCmd()) { let k = 0; const iv = setInterval(function () { if (lauschenCmd() || ++k > 40) clearInterval(iv); }, 250); }
