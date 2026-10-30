@@ -106,8 +106,17 @@ async function messeAufraeumen(handler, db, vorher, opt) {
     const soll = fs.existsSync(DATEI('suche_soll.json')) ? JSON.parse(fs.readFileSync(DATEI('suche_soll.json'), 'utf8')) : {};
     const ist = {};
     const aufraeumenEnv = H.envSetzen();
-    const handler = await H.ladeHandler();
+    const handlerEcht = await H.ladeHandler();
     const w0 = welt(); const d0 = H.heuteIso(w0), fx = H.fixture(d0);
+    /* Die Server-Datei api/memory.js liest die Uhr selbst (new Date(), z. B. Gewichtung nach Frische), die Testwelt dagegen läuft auf der festen Uhr
+       (Standard 28.10.2026). Ohne diese Klammer hing das Ergebnis vom echten Kalendertag ab. Darum sieht der Server während jedes Aufrufs dieselbe feste Uhr. */
+    const FEST_MS = w0.uhr.ms, DateEcht = Date;
+    class DateFest extends DateEcht { constructor(...a) { if (a.length) super(...a); else super(FEST_MS); } static now() { return FEST_MS; } }
+    let fest = 0;
+    const handler = async (req, res) => {
+        if (!fest++) global.Date = DateFest;
+        try { return await handlerEcht(req, res); } finally { if (!--fest) global.Date = DateEcht; }
+    };
     check('Testwelt lädt ohne Ladefehler', w0.ladefehler.length === 0, JS(w0.ladefehler));
 
     ist.suche = {};
