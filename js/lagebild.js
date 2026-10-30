@@ -115,8 +115,8 @@
         const [tank, stau, regen, termin, route] = await Promise.all([ladeTank(lat, lon), ladeStau(lat, lon), ladeRegen(lat, lon), ladeTermin(lat, lon), arbeitP]);
         let arbeit = null;
         if (route && Array.isArray(route.coords) && route.coords.length > 1) {
-            // Sperrungen zählen nur, wenn sie wirklich auf der Strecke liegen (Google fährt um Sperrungen herum), alles andere bis ~600 m neben der Linie
-            const auf = (route.warnings || []).filter(w => distToLine(w.lat, w.lon, route.coords) <= (/sperr|gesperrt/i.test((w.title || '') + ' ' + (w.text || '')) ? 0.25 : 0.6));
+            // Nur Meldungen AUF der Route (gleiche Regel wie der gesprochene Satz: routenRelevanz in travel.js)
+            const auf = aufStrecke({ warnings: route.warnings, coords: route.coords });
             arbeit = { min: route.fahrtMin + (route.stauMin || 0), km: Math.round(Number(route.km)), coords: route.coords, meldungen: auf };
         }
         // Verkehr in der Nähe: nicht auf dem Arbeitsweg und nicht doppelt zu einer Autobahn-Meldung
@@ -340,9 +340,10 @@
         try { layer.scrollTo(0, 0); } catch (e) {}
         return true;
     }
-    /* Meldungen, die wirklich auf der Strecke liegen (Sperrungen enger, sonst 600 m); auch für den gesprochenen Satz (fahrtcheck.js) */
+    /* Meldungen, die wirklich AUF der Strecke liegen (bis 250 m neben der Linie, für alle Arten gleich: routenRelevanz in travel.js); auch für den gesprochenen Satz (fahrtcheck.js).
+       Nur NAHE oder weiter entfernte Meldungen und Meldungen ohne Linienverlauf zählen hier nicht. */
     function aufStrecke(m) {
-        return (m && m.warnings || []).filter(w => m.coords && distToLine(w.lat, w.lon, m.coords) <= (/sperr|gesperrt/i.test((w.title || '') + ' ' + (w.text || '')) ? 0.25 : 0.6));
+        return (m && m.warnings || []).filter(w => m.coords && routenRelevanz(w.lat, w.lon, m.coords).klasse === 'auf');
     }
     function zeichneZiel() {
         const d = zielD, m = d.map, min = m.fahrtMin + (m.stauMin || 0), km = Math.round(Number(m.km));
