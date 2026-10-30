@@ -7,8 +7,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  tests:
+  gruppe:
+    # Die Tests laufen in 5 Gruppen gleichzeitig (spart etwa die Hälfte der Zeit)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        gruppe: [A, B, C, D, E]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -16,32 +21,49 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: node tests/lauf.js
-      - run: node tests/aktionen.js
-      - run: node tests/aktionen_kette.js
-      - run: node tests/jarvis_pruefstrecke.js
-      - run: node tests/faehigkeiten.js
-      - run: node tests/handyapp.js
-      - run: node tests/antwort.js
-      - run: node tests/mehrfachfrage.js
-      - run: node tests/meldungen.js
-      - run: node tests/regeln.js
-      - run: node tests/c1_stufe1.js
-      - run: node tests/reihenfolge.js
-      - run: node tests/timer.js
-      - run: node tests/landkarte.js
-      - run: node tests/sprache.js
-      - run: node tests/globale.js
-      - run: node tests/wirkungslos.js
-      - run: node tests/suche.js
-      - run: node tests/kitext.js
-      - run: node tests/hintergrund.js
-      - run: node tests/memory7a.js
-      - run: node tests/memory7b.js
-      - run: node tests/inventar8a.js
-      - run: node tests/verkehr.js
-      - run: node tests/dirigent_fragen.js
-      - run: node tests/pending_reihenfolge.js
-      - run: node tests/pending_zweite_stufe.js
-      - run: node tests/vercelignore.js
-      - run: node tests/uebersicht.js
+      - if: matrix.gruppe == 'A'
+        run: |
+          node tests/inventar8a.js
+      - if: matrix.gruppe == 'B'
+        run: |
+          node tests/c1_stufe1.js
+          node tests/regeln.js
+      - if: matrix.gruppe == 'C'
+        run: |
+          node tests/aktionen.js
+          node tests/memory7b.js
+          node tests/aktionen_kette.js
+      - if: matrix.gruppe == 'D'
+        run: |
+          node tests/meldungen.js
+          node tests/sprache.js
+          node tests/hintergrund.js
+          node tests/memory7a.js
+      - if: matrix.gruppe == 'E'
+        run: |
+          node tests/antwort.js
+          node tests/dirigent_fragen.js
+          node tests/faehigkeiten.js
+          node tests/globale.js
+          node tests/handyapp.js
+          node tests/jarvis_pruefstrecke.js
+          node tests/kitext.js
+          node tests/landkarte.js
+          node tests/lauf.js
+          node tests/mehrfachfrage.js
+          node tests/pending_reihenfolge.js
+          node tests/pending_zweite_stufe.js
+          node tests/reihenfolge.js
+          node tests/suche.js
+          node tests/timer.js
+          node tests/uebersicht.js
+          node tests/vercelignore.js
+          node tests/verkehr.js
+          node tests/wirkungslos.js
+
+  tests:
+    # Sammelstelle: grün, wenn alle Gruppen grün sind
+    needs: gruppe
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Alle Test-Gruppen grün"
