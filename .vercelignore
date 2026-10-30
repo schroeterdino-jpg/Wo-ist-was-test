@@ -1,0 +1,11 @@
+# Dateien, die Vercel NICHT mit ausliefern muss (nur Entwicklung/Tests/Android-Bau).
+# Die laufende Web-App (index.html, js/, api/, models/, Bilder, sw.js, manifest.json) bleibt komplett erhalten.
+# Nur konkrete Pfade, keine Platzhalter. tests/vercelignore.js prüft das bei jedem Lauf.
+/tests/
+/tools/
+/weckruf-src/
+/weckruf-test/
+/.github/
+/ARCHITEKTUR.md
+/LANDKARTE.md
+/CLAUDE.md

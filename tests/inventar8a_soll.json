@@ -15,7 +15,7 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 321,
+  "repoDateien": 323,
   "produktJs": 170,
   "jsZeilen": 43743,
   "jsBytes": 3086508,
@@ -25,8 +25,8 @@
   "drittScripts": 2,
   "inlineScripts": 5,
   "api": 11,
-  "testsGesamt": 89,
-  "testsJs": 51,
+  "testsGesamt": 90,
+  "testsJs": 52,
   "testsMd": 15,
   "testsJson": 23,
   "workflows": 3,
@@ -444,9 +444,9 @@
   "workflowOhneDatei": [],
   "workflowDoppelt": [],
   "regressionNichtImWorkflow": [],
-  "imWorkflow": 29,
+  "imWorkflow": 30,
   "jeKlasse": {
-   "regression": 17,
+   "regression": 18,
    "goldenMaster": 8,
    "inventar": 3,
    "historischEingefroren": 1,
@@ -462,7 +462,7 @@
  },
  "ci": {
   "nodeVersion": "20",
-  "schritte": 29,
+  "schritte": 30,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
   "zeitzonenVertragZentral": true,
