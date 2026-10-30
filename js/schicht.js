@@ -281,10 +281,10 @@
         // Briefing jetzt (noch einmal) starten: "Starte mein Briefing", "Briefing nochmal", "Spiel das Schicht-Briefing ab", "Briefing starten"
         if (/briefing/.test(t) && t.split(' ').length <= 7 && !/\d|\b(?:um|wann|aus|ein|ausschalten|einschalten|eintragen|ändern|woche|wunsch|wünsche|nicht)\b/.test(t) && !WHEN_RX.test(t) &&
             (/^(?:(?:nova|jarvis|zane) )?(?:mein |das |dein )?(?:schicht[- ]?|tages[- ]?)?briefing(?: bitte| jetzt)?$/.test(t) ||
-             /\b(?:start\w*|spiel\w*|wiederhol\w*|nochmal|noch einmal|abspielen|jetzt|erzähl\w*|sag\w*|gib|zeig\w*|lies|les\w*|brief\w*)\b/.test(t))) {
+             /\b(?:ausf[üu]hrlich\w*|start\w*|spiel\w*|wiederhol\w*|nochmal|noch einmal|abspielen|jetzt|erzähl\w*|sag\w*|gib|zeig\w*|lies|les\w*|brief\w*)\b/.test(t))) {
             if (typeof window.triggerDailyBriefing !== 'function') return say('Das Briefing ist gerade nicht verfügbar.');
             try { setPersistentData(LAST_KEY, berlin().ymd); } catch (e) {}   // heute kommt es dann nicht noch einmal von selbst
-            window.triggerDailyBriefing();
+            window.triggerDailyBriefing(/ausf[üu]hrlich|komplett|\blang/.test(t));   // „ausführliches Briefing“ liest den vollen Text vor
             return true;
         }
 

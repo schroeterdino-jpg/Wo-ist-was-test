@@ -98,7 +98,7 @@ const HELP_TOPICS = [
     { key: 'schicht', icon: '🕒', title: 'Schicht und Briefing', words: /schicht|frühschicht|spätschicht|früh|spät|dienstplan|briefing/, examples: [
         'Diese Woche Frühschicht / Nächste Woche Spätschicht (danach wechselt Zane jeden Montag von selbst)', 'Welche Schicht habe ich? / Welche Schicht habe ich nächste Woche?',
         'Das Briefing kommt von selbst: Frühschicht ab 3 Uhr 30, Spätschicht ab 12 Uhr, nur bei offener App, einmal am Tag', 'Briefing in der Spätschicht um 11 Uhr (Zeit ändern) / Wann kommt mein Briefing?',
-        'Starte mein Briefing / Briefing nochmal (spielt das Briefing jederzeit sofort ab)',
+        'Starte mein Briefing / Briefing nochmal (spielt das Briefing jederzeit sofort ab; Jarvis sagt nur das Wichtigste, den ganzen Text siehst du als Karte)', 'Ausführliches Briefing (liest alles vor)',
         'Keine Dieselmeldungen mehr / Wettermeldungen aus / Keine Mails mehr / HSV aus / Keine Vorbereitung mehr (schaltet diese Push-Meldungen ab; "… wieder an" schaltet sie wieder ein)',
         'Schicht-Briefing aus / Schicht-Briefing an', 'In der Frühschicht ist Zane von 21 Uhr 30 bis zur Briefing-Zeit still',
         'Wann beginnt meine Spätschicht? / Wann fange ich an? / Schichtbeginn nächste Woche (Früh 5 Uhr 10, Spät 13 Uhr 45, änderbar mit: Meine Frühschicht beginnt um 5 Uhr 30)', 'Wann stehe ich auf? (Frühschicht: Aufstehzeit, Spätschicht: Briefing-Zeit)'] },
