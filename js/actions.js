@@ -7,6 +7,7 @@
    (siehe lastGoogleProblem in calendar.js) und zeigt die Karte zum erneuten Verbinden nur, wenn das wirklich hilft. */
 function googleNotSynced(ctx, what) {
     const problem = (typeof lastGoogleProblem !== 'undefined' && lastGoogleProblem) || null;
+    ctx[Symbol.for('jv.googleTeilfehler')] = true;   // Merker für loeschen_fragen.js: keine zusätzliche "…ist gelöscht."-Meldung
     ctx.notes.push(`${googleProblemText(problem)} ${what}.`);
     if (googleNeedsReconnect(problem) && !ctx.cards.some(c => c.onclick === 'loginWithGoogle(false)')) ctx.cards.push(googleReconnectCard());
 }

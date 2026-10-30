@@ -15,6 +15,10 @@
     const GUELTIG_MS = 120000;     // so lange wartet die Frage auf eine Antwort
     const GLEICHE_RUNDE_MS = 4000; // mehrere Löschwünsche aus einem Satz werden zusammen gefragt
 
+    /* actions.js (googleNotSynced) setzt diesen Merker am ctx, wenn etwas bei Google nicht geklappt hat. Dann steht die ehrliche
+       Notiz schon in ctx.notes und "…ist gelöscht." darf nicht zusätzlich angehängt werden. (Symbol: erscheint nicht in JSON/Logs.) */
+    const GOOGLE_TEILFEHLER = Symbol.for('jv.googleTeilfehler');
+
     let pending = null;            // { items: [{ action, text, art }], at, timer }
     let box = null;
 
@@ -122,7 +126,9 @@
         const probleme = [];
         for (const it of p.items) {
             try {
+                ctx[GOOGLE_TEILFEHLER] = false;
                 await original(Object.assign({}, it.action, { _bestaetigt: true }), it.text, ctx);
+                if (ctx[GOOGLE_TEILFEHLER]) continue;   // lokal gelöscht, bei Google nicht: die ehrliche Notiz steht schon da, keine widersprüchliche Erfolgsmeldung
                 if (it.art === 'termin') ctx.notes.push('Der Termin ist gelöscht.');
                 else if (it.art === 'erinnerung') ctx.notes.push('Die Erinnerung ist gelöscht.');
             } catch (e) {
