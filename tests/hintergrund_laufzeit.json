@@ -1,11 +1,11 @@
 {
- "dauerMs": 150015,
+ "dauerMs": 151611,
  "fensterMs": {
   "idle": 60000,
   "start": 10000,
   "szenario": 8000
  },
- "gemessen": "2026-10-29",
+ "gemessen": "2026-10-30",
  "lauf": {
   "nativ": {
    "aktiv": {
@@ -30,7 +30,7 @@
       "native_speech.js:65 @300": 1,
       "orte.js:258 @45000": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -51,7 +51,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {
       "sphere.js:342·r": 1
@@ -79,7 +79,7 @@
       "native_speech.js:65 @300": 1,
       "orte.js:258 @45000": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
       "routinen.js:223 @60000": 1,
@@ -98,7 +98,7 @@
       "vorbereitung.js:140 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {
       "sphere.js:342·r": 1
@@ -136,13 +136,13 @@
     "idle": {
      "audio": 2,
      "benachr": 0,
-     "dom": 115,
-     "domAttr": 62,
+     "dom": 113,
+     "domAttr": 97,
      "nativ": {
       "holeAnsage@plan_ansagen.js": 1,
       "holeParkplatz@parkplatz_auto.js": 1,
       "ortStatus@orte.js": 1,
-      "setBusy@native_speech.js": 201
+      "setBusy@native_speech.js": 200
      },
      "net": {
       "/api/filme": {
@@ -197,10 +197,10 @@
        }
       },
       "/api/stau": {
-       "ausTimer": 3,
-       "n": 6,
+       "ausTimer": 2,
+       "n": 5,
        "von": {
-        "fish.js": 4,
+        "fish.js": 3,
         "systemcheck_voll.js": 2
        }
       },
@@ -661,6 +661,13 @@
        }
       },
       "/js/fotosenden.js": {
+       "ausTimer": 0,
+       "n": 1,
+       "von": {
+        "systemcheck_voll.js": 1
+       }
+      },
+      "/js/fragen_reihenfolge.js": {
        "ausTimer": 0,
        "n": 1,
        "von": {
@@ -1574,7 +1581,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:110·t": {
+      "dirigent.js:114·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -1582,7 +1589,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:65·t": {
+      "dirigent.js:69·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -1590,7 +1597,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:71·t": {
+      "dirigent.js:75·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -1598,7 +1605,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:95·t": {
+      "dirigent.js:99·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -1617,13 +1624,12 @@
        "x": 0
       },
       "fish.js:337·t": {
-       "ausCb": 2,
-       "c": 4,
+       "ausCb": 1,
+       "c": 3,
        "f": 0,
        "k": "to",
        "ms": {
         "12000": 1,
-        "20000": 1,
         "30000": 1
        },
        "x": 0
@@ -1649,7 +1655,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 85,
+       "f": 86,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -1674,7 +1680,7 @@
       },
       "index.html·t": {
        "ausCb": 0,
-       "c": 20,
+       "c": 19,
        "f": 2,
        "k": "to",
        "ms": {
@@ -1729,7 +1735,7 @@
       "laune.js:191": {
        "ausCb": 0,
        "c": 0,
-       "f": 9,
+       "f": 10,
        "k": "iv",
        "ms": {},
        "x": 1
@@ -1778,8 +1784,8 @@
       },
       "name.js:43·t": {
        "ausCb": 0,
-       "c": 18,
-       "f": 18,
+       "c": 19,
+       "f": 19,
        "k": "to",
        "ms": {
         "50": 1
@@ -1788,18 +1794,16 @@
       },
       "native_speech.js:144·t": {
        "ausCb": 0,
-       "c": 1,
-       "f": 2,
+       "c": 0,
+       "f": 1,
        "k": "to",
-       "ms": {
-        "1500": 1
-       },
+       "ms": {},
        "x": 0
       },
       "native_speech.js:65": {
        "ausCb": 0,
        "c": 0,
-       "f": 201,
+       "f": 200,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -1849,7 +1853,7 @@
        "ms": {},
        "x": 0
       },
-      "plan_ansagen.js:932·t": {
+      "plan_ansagen.js:933·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -1924,9 +1928,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 483,
-       "c": 483,
-       "f": 483,
+       "ausCb": 551,
+       "c": 551,
+       "f": 551,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -1949,8 +1953,8 @@
       },
       "systemcheck_voll.js:19·t": {
        "ausCb": 21,
-       "c": 189,
-       "f": 189,
+       "c": 190,
+       "f": 190,
        "k": "to",
        "ms": {
         "2000": 1,
@@ -2075,7 +2079,7 @@
        "ms": {},
        "x": 0
       },
-      "zuvorkommend.js:307·t": {
+      "zuvorkommend.js:309·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -2086,20 +2090,20 @@
      },
      "sprache": 4,
      "store": {
-      "get": 895,
+      "get": 872,
       "remove": 1,
       "set": 10
      },
      "storeVon": {
       "auftraege.js": 6,
       "briefing.js": 1,
-      "charakter.js": 6,
-      "fish.js": 37,
+      "charakter.js": 4,
+      "fish.js": 26,
       "fristen.js": 4,
       "kacheln.js": 6,
       "kennenlernen.js": 26,
       "konto.js": 1,
-      "laune.js": 8,
+      "laune.js": 7,
       "mail_nacht.js": 2,
       "mailwatch.js": 1,
       "mimik.js": 501,
@@ -2108,18 +2112,18 @@
       "plan_ansagen.js": 4,
       "preissuche.js": 2,
       "proaktiv.js": 4,
-      "pronunciation.js": 14,
+      "pronunciation.js": 12,
       "pushsync.js": 20,
       "rechnungen.js": 1,
       "routinen.js": 2,
       "schicht.js": 96,
-      "speechrate.js": 20,
+      "speechrate.js": 18,
       "spotify.js": 12,
       "sync.js": 10,
       "systemcheck_voll.js": 33,
-      "tempo.js": 10,
+      "tempo.js": 9,
       "ui.js": 12,
-      "voice.js": 14,
+      "voice.js": 10,
       "vorbereitung.js": 6,
       "wachter.js": 13,
       "zane_redet.js": 8
@@ -2129,10 +2133,10 @@
     "laden": {
      "audio": 0,
      "benachr": 0,
-     "dom": 38,
-     "domAttr": 22,
+     "dom": 51,
+     "domAttr": 29,
      "nativ": {
-      "setBusy@native_speech.js": 10,
+      "setBusy@native_speech.js": 3,
       "setSprechen@native_speech.js": 1
      },
      "net": {
@@ -2158,7 +2162,7 @@
       "alarm.js:145·t": {
        "ausCb": 0,
        "c": 1,
-       "f": 1,
+       "f": 0,
        "k": "to",
        "ms": {
         "1800": 1
@@ -2178,7 +2182,7 @@
       "anzeige.js:171": {
        "ausCb": 0,
        "c": 1,
-       "f": 0,
+       "f": 1,
        "k": "iv",
        "ms": {
         "400": 1
@@ -2188,7 +2192,7 @@
       "anzeige.js:172": {
        "ausCb": 0,
        "c": 1,
-       "f": 2,
+       "f": 1,
        "k": "iv",
        "ms": {
         "300": 1
@@ -2246,9 +2250,9 @@
        "x": 1
       },
       "boot.js:43·t": {
-       "ausCb": 30,
-       "c": 43,
-       "f": 40,
+       "ausCb": 15,
+       "c": 28,
+       "f": 19,
        "k": "to",
        "ms": {
         "28": 1,
@@ -2311,14 +2315,14 @@
       "calendar.js:42": {
        "ausCb": 0,
        "c": 1,
-       "f": 3,
+       "f": 1,
        "k": "iv",
        "ms": {
         "1000": 1
        },
        "x": 0
       },
-      "dirigent.js:191·t": {
+      "dirigent.js:229·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -2422,12 +2426,12 @@
       "kacheln.js:210": {
        "ausCb": 0,
        "c": 1,
-       "f": 8,
+       "f": 3,
        "k": "iv",
        "ms": {
         "250": 1
        },
-       "x": 0
+       "x": 1
       },
       "kacheln.js:212": {
        "ausCb": 0,
@@ -2522,7 +2526,7 @@
       "laune.js:191": {
        "ausCb": 0,
        "c": 1,
-       "f": 2,
+       "f": 1,
        "k": "iv",
        "ms": {
         "1000": 1
@@ -2582,7 +2586,7 @@
       "mimik.js:211": {
        "ausCb": 0,
        "c": 1,
-       "f": 10,
+       "f": 2,
        "k": "iv",
        "ms": {
         "120": 1
@@ -2612,7 +2616,7 @@
       "native_speech.js:225": {
        "ausCb": 0,
        "c": 1,
-       "f": 3,
+       "f": 1,
        "k": "iv",
        "ms": {
         "250": 1
@@ -2632,7 +2636,7 @@
       "native_speech.js:65": {
        "ausCb": 0,
        "c": 1,
-       "f": 10,
+       "f": 3,
        "k": "iv",
        "ms": {
         "300": 1
@@ -2699,7 +2703,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:931·t": {
+      "plan_ansagen.js:932·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -2709,7 +2713,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:932·t": {
+      "plan_ansagen.js:933·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -2719,7 +2723,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:933": {
+      "plan_ansagen.js:934": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -2822,7 +2826,7 @@
       "ruhe.js:18": {
        "ausCb": 0,
        "c": 1,
-       "f": 5,
+       "f": 2,
        "k": "iv",
        "ms": {
         "400": 1
@@ -2890,9 +2894,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 1,
-       "c": 1,
-       "f": 0,
+       "ausCb": 2,
+       "c": 2,
+       "f": 1,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -2928,7 +2932,7 @@
       "synapsen.js:163": {
        "ausCb": 0,
        "c": 1,
-       "f": 0,
+       "f": 1,
        "k": "iv",
        "ms": {
         "200": 1
@@ -3116,7 +3120,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:307·t": {
+      "zuvorkommend.js:309·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -3126,7 +3130,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:308·t": {
+      "zuvorkommend.js:310·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -3136,7 +3140,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:309": {
+      "zuvorkommend.js:311": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -3149,7 +3153,7 @@
      },
      "sprache": 0,
      "store": {
-      "get": 178,
+      "get": 154,
       "remove": 1,
       "set": 9
      },
@@ -3171,12 +3175,12 @@
       "langzeit.js": 1,
       "laune.js": 3,
       "localcommands.js": 2,
-      "mimik.js": 10,
+      "mimik.js": 2,
       "persona.js": 2,
       "pronunciation.js": 4,
       "pushsync.js": 6,
       "routing.js": 2,
-      "schicht.js": 34,
+      "schicht.js": 18,
       "speechrate.js": 6,
       "sphere.js": 1,
       "storage.js": 24,
@@ -3194,8 +3198,8 @@
     "start": {
      "audio": 0,
      "benachr": 0,
-     "dom": 8,
-     "domAttr": 15,
+     "dom": 36,
+     "domAttr": 22,
      "nativ": {
       "holeAnsage@plan_ansagen.js": 1,
       "holeAutoansicht@autoansicht.js": 1,
@@ -3205,7 +3209,7 @@
       "planOrte@orte.js": 1,
       "schlafArbeit@schlaf_antwort.js": 1,
       "schlafKontext@schlaf_antwort.js": 1,
-      "setBusy@native_speech.js": 33,
+      "setBusy@native_speech.js": 34,
       "setFahrmodus@autoansicht.js": 1
      },
      "net": {
@@ -3241,10 +3245,10 @@
        }
       },
       "/api/stau": {
-       "ausTimer": 4,
-       "n": 4,
+       "ausTimer": 5,
+       "n": 5,
        "von": {
-        "fish.js": 4
+        "fish.js": 5
        }
       },
       "/api/sync?action=push_alive": {
@@ -3299,6 +3303,14 @@
        "ms": {},
        "x": 0
       },
+      "alarm.js:145·t": {
+       "ausCb": 0,
+       "c": 0,
+       "f": 1,
+       "k": "to",
+       "ms": {},
+       "x": 0
+      },
       "ansicht.js:54·t": {
        "ausCb": 0,
        "c": 0,
@@ -3340,11 +3352,13 @@
        "x": 0
       },
       "boot.js:43·t": {
-       "ausCb": 0,
-       "c": 0,
-       "f": 2,
+       "ausCb": 15,
+       "c": 15,
+       "f": 23,
        "k": "to",
-       "ms": {},
+       "ms": {
+        "28": 1
+       },
        "x": 0
       },
       "boot.js:92·t": {
@@ -3395,7 +3409,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:110·t": {
+      "dirigent.js:114·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -3405,7 +3419,7 @@
        },
        "x": 0
       },
-      "dirigent.js:134·t": {
+      "dirigent.js:138·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -3415,7 +3429,7 @@
        },
        "x": 0
       },
-      "dirigent.js:191·t": {
+      "dirigent.js:229·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -3423,7 +3437,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:65·t": {
+      "dirigent.js:69·t": {
        "ausCb": 1,
        "c": 1,
        "f": 0,
@@ -3433,7 +3447,7 @@
        },
        "x": 0
       },
-      "dirigent.js:71·t": {
+      "dirigent.js:75·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -3443,7 +3457,7 @@
        },
        "x": 0
       },
-      "dirigent.js:95·t": {
+      "dirigent.js:99·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -3454,8 +3468,8 @@
        "x": 0
       },
       "fish.js:337·t": {
-       "ausCb": 4,
-       "c": 4,
+       "ausCb": 5,
+       "c": 5,
        "f": 0,
        "k": "to",
        "ms": {
@@ -3490,7 +3504,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 15,
+       "f": 14,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -3546,14 +3560,6 @@
        "k": "to",
        "ms": {},
        "x": 0
-      },
-      "kacheln.js:210": {
-       "ausCb": 0,
-       "c": 0,
-       "f": 1,
-       "k": "iv",
-       "ms": {},
-       "x": 1
       },
       "kennenlernen.js:201": {
        "ausCb": 0,
@@ -3623,8 +3629,8 @@
       },
       "name.js:43·t": {
        "ausCb": 0,
-       "c": 5,
-       "f": 6,
+       "c": 12,
+       "f": 13,
        "k": "to",
        "ms": {
         "50": 1
@@ -3641,8 +3647,8 @@
       },
       "native_speech.js:144·t": {
        "ausCb": 0,
-       "c": 4,
-       "f": 3,
+       "c": 5,
+       "f": 4,
        "k": "to",
        "ms": {
         "1500": 1
@@ -3660,7 +3666,7 @@
       "native_speech.js:65": {
        "ausCb": 0,
        "c": 0,
-       "f": 33,
+       "f": 34,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -3710,7 +3716,7 @@
        "ms": {},
        "x": 0
       },
-      "plan_ansagen.js:931·t": {
+      "plan_ansagen.js:932·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -3775,9 +3781,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 84,
-       "c": 84,
-       "f": 84,
+       "ausCb": 111,
+       "c": 111,
+       "f": 111,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -3841,7 +3847,7 @@
      },
      "sprache": 0,
      "store": {
-      "get": 316,
+      "get": 339,
       "remove": 0,
       "set": 7
      },
@@ -3849,33 +3855,33 @@
       "assistant.js": 8,
       "auftraege.js": 8,
       "briefing.js": 3,
-      "charakter.js": 8,
+      "charakter.js": 10,
       "dirigent.js": 9,
       "feiertage.js": 2,
-      "fish.js": 54,
+      "fish.js": 65,
       "foto_stundenplan.js": 2,
       "hud_fenster.js": 4,
       "jarvis.js": 6,
       "kennenlernen.js": 4,
       "ki_mitdenken.js": 8,
       "langzeit.js": 7,
-      "laune.js": 5,
+      "laune.js": 6,
       "mimik.js": 83,
       "native_speech.js": 5,
       "orte.js": 18,
       "pakete.js": 1,
       "plan_ansagen.js": 2,
       "preissuche.js": 2,
-      "pronunciation.js": 8,
+      "pronunciation.js": 10,
       "rechnungen.js": 2,
       "schicht.js": 18,
-      "speechrate.js": 10,
+      "speechrate.js": 12,
       "spotify.js": 3,
       "sync.js": 9,
       "tagesueberblick.js": 7,
-      "tempo.js": 5,
+      "tempo.js": 6,
       "urlaub.js": 4,
-      "voice.js": 16,
+      "voice.js": 20,
       "wunschliste.js": 2
      },
      "wake": 0
@@ -3906,7 +3912,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -3927,7 +3933,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {}
     },
@@ -3950,7 +3956,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -3971,7 +3977,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {
       "sphere.js:342·r": 1
@@ -3996,7 +4002,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -4017,7 +4023,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {}
     },
@@ -4040,7 +4046,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -4061,7 +4067,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {}
     },
@@ -4084,7 +4090,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -4105,7 +4111,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {
       "sphere.js:342·r": 1
@@ -4130,7 +4136,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -4151,7 +4157,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {}
     },
@@ -4174,7 +4180,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -4195,7 +4201,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {}
     },
@@ -4218,7 +4224,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -4239,7 +4245,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {
       "sphere.js:342·r": 1
@@ -4265,7 +4271,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
       "routinen.js:223 @60000": 1,
@@ -4284,7 +4290,7 @@
       "vorbereitung.js:140 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {
       "sphere.js:342·r": 1
@@ -4309,7 +4315,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -4330,7 +4336,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {}
     }
@@ -4357,7 +4363,7 @@
      "audio": 0,
      "benachr": 0,
      "dom": 6,
-     "domAttr": 3,
+     "domAttr": 2,
      "nativ": {},
      "net": {
       "/api/memory": {
@@ -4406,7 +4412,7 @@
       "gedaechtnis_zeit.js:55": {
        "ausCb": 0,
        "c": 0,
-       "f": 3,
+       "f": 2,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -4414,7 +4420,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 11,
+       "f": 12,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -4464,7 +4470,7 @@
       "spotify.js:531": {
        "ausCb": 0,
        "c": 0,
-       "f": 2,
+       "f": 1,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -4499,7 +4505,7 @@
      },
      "sprache": 0,
      "store": {
-      "get": 75,
+      "get": 74,
       "remove": 0,
       "set": 0
      },
@@ -4508,7 +4514,7 @@
       "kennenlernen.js": 2,
       "laune.js": 1,
       "mimik.js": 67,
-      "spotify.js": 2,
+      "spotify.js": 1,
       "tagesueberblick.js": 2
      },
      "wake": 0
@@ -4517,7 +4523,7 @@
      "audio": 0,
      "benachr": 0,
      "dom": 235,
-     "domAttr": 91,
+     "domAttr": 93,
      "nativ": {},
      "net": {},
      "sites": {
@@ -4566,7 +4572,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 16,
+       "f": 17,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -4590,7 +4596,7 @@
       "mimik.js:211": {
        "ausCb": 0,
        "c": 0,
-       "f": 98,
+       "f": 97,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -4628,7 +4634,7 @@
       "ruhe.js:18": {
        "ausCb": 0,
        "c": 0,
-       "f": 30,
+       "f": 29,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -4642,9 +4648,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 398,
-       "c": 398,
-       "f": 397,
+       "ausCb": 438,
+       "c": 438,
+       "f": 437,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -4678,14 +4684,14 @@
      },
      "sprache": 0,
      "store": {
-      "get": 103,
+      "get": 102,
       "remove": 0,
       "set": 0
      },
      "storeVon": {
       "kennenlernen.js": 2,
       "laune.js": 1,
-      "mimik.js": 98,
+      "mimik.js": 97,
       "spotify.js": 2
      },
      "wake": 0
@@ -4759,7 +4765,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 11,
+       "f": 12,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -4835,7 +4841,7 @@
       "synapsen.js:163": {
        "ausCb": 0,
        "c": 0,
-       "f": 40,
+       "f": 41,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -5372,6 +5378,13 @@
         "systemcheck_voll.js": 1
        }
       },
+      "/js/fragen_reihenfolge.js": {
+       "ausTimer": 0,
+       "n": 1,
+       "von": {
+        "systemcheck_voll.js": 1
+       }
+      },
       "/js/fristen.js": {
        "ausTimer": 0,
        "n": 1,
@@ -6258,7 +6271,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:110·t": {
+      "dirigent.js:114·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -6266,7 +6279,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:65·t": {
+      "dirigent.js:69·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -6274,7 +6287,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:71·t": {
+      "dirigent.js:75·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -6282,22 +6295,12 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:95·t": {
+      "dirigent.js:99·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
        "k": "to",
        "ms": {},
-       "x": 0
-      },
-      "erweiterungen.js:60·t": {
-       "ausCb": 0,
-       "c": 1,
-       "f": 1,
-       "k": "to",
-       "ms": {
-        "9000": 1
-       },
        "x": 0
       },
       "fish.js:337·t": {
@@ -6331,7 +6334,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 85,
+       "f": 86,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -6451,7 +6454,7 @@
        "x": 0
       },
       "mailwatch.js:213·t": {
-       "ausCb": 0,
+       "ausCb": 1,
        "c": 1,
        "f": 1,
        "k": "to",
@@ -6463,7 +6466,7 @@
       "mimik.js:211": {
        "ausCb": 0,
        "c": 0,
-       "f": 500,
+       "f": 499,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -6486,7 +6489,7 @@
        "ms": {},
        "x": 0
       },
-      "plan_ansagen.js:932·t": {
+      "plan_ansagen.js:933·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -6561,9 +6564,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 478,
-       "c": 478,
-       "f": 478,
+       "ausCb": 552,
+       "c": 552,
+       "f": 552,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -6586,8 +6589,8 @@
       },
       "systemcheck_voll.js:19·t": {
        "ausCb": 21,
-       "c": 189,
-       "f": 189,
+       "c": 190,
+       "f": 190,
        "k": "to",
        "ms": {
         "2000": 1,
@@ -6694,16 +6697,6 @@
        "ms": {},
        "x": 0
       },
-      "wachter.js:85·t": {
-       "ausCb": 0,
-       "c": 1,
-       "f": 1,
-       "k": "to",
-       "ms": {
-        "9000": 1
-       },
-       "x": 0
-      },
       "zane_redet.js:201": {
        "ausCb": 0,
        "c": 0,
@@ -6712,7 +6705,7 @@
        "ms": {},
        "x": 0
       },
-      "zuvorkommend.js:307·t": {
+      "zuvorkommend.js:309·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -6723,7 +6716,7 @@
      },
      "sprache": 2,
      "store": {
-      "get": 772,
+      "get": 767,
       "remove": 1,
       "set": 9
      },
@@ -6738,9 +6731,8 @@
       "konto.js": 1,
       "laune.js": 7,
       "mail_nacht.js": 2,
-      "mailwatch.js": 1,
-      "mimik.js": 500,
-      "persona.js": 4,
+      "mimik.js": 499,
+      "persona.js": 2,
       "preissuche.js": 2,
       "proaktiv.js": 4,
       "pronunciation.js": 6,
@@ -6755,7 +6747,7 @@
       "ui.js": 6,
       "voice.js": 4,
       "vorbereitung.js": 6,
-      "wachter.js": 13,
+      "wachter.js": 12,
       "zane_redet.js": 8
      },
      "wake": 0
@@ -6783,9 +6775,9 @@
       },
       "/api/stau": {
        "ausTimer": 0,
-       "n": 1,
+       "n": 2,
        "von": {
-        "fish.js": 1
+        "fish.js": 2
        }
       }
      },
@@ -6793,7 +6785,7 @@
       "anzeige.js:171": {
        "ausCb": 0,
        "c": 0,
-       "f": 20,
+       "f": 21,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -6801,12 +6793,12 @@
       "anzeige.js:172": {
        "ausCb": 0,
        "c": 0,
-       "f": 26,
+       "f": 27,
        "k": "iv",
        "ms": {},
        "x": 0
       },
-      "assistant.js:116·t": {
+      "assistant.js:117·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -6816,7 +6808,7 @@
        },
        "x": 0
       },
-      "assistant.js:165·t": {
+      "assistant.js:166·t": {
        "ausCb": 0,
        "c": 1,
        "f": 1,
@@ -6844,10 +6836,11 @@
       },
       "fish.js:337·t": {
        "ausCb": 0,
-       "c": 1,
+       "c": 2,
        "f": 0,
        "k": "to",
        "ms": {
+        "12000": 1,
         "30000": 1
        },
        "x": 0
@@ -6863,7 +6856,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 12,
+       "f": 11,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -6939,7 +6932,7 @@
       "synapsen.js:163": {
        "ausCb": 0,
        "c": 0,
-       "f": 41,
+       "f": 40,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -6957,7 +6950,7 @@
      },
      "sprache": 2,
      "store": {
-      "get": 179,
+      "get": 188,
       "remove": 0,
       "set": 1
      },
@@ -6965,7 +6958,7 @@
       "assistant.js": 4,
       "charakter.js": 4,
       "diagnose.js": 8,
-      "fish.js": 13,
+      "fish.js": 17,
       "formulierungen.js": 2,
       "jarvis.js": 4,
       "kennenlernen.js": 2,
@@ -6978,22 +6971,30 @@
       "pronunciation.js": 8,
       "rechnungen.js": 1,
       "schicht.js": 20,
-      "speechrate.js": 8,
+      "speechrate.js": 10,
       "spotify.js": 2,
       "sync.js": 1,
-      "tempo.js": 4,
+      "tempo.js": 5,
       "ui.js": 6,
-      "voice.js": 4
+      "voice.js": 6
      },
      "wake": 0
     },
     "laden": {
      "audio": 0,
      "benachr": 0,
-     "dom": 40,
-     "domAttr": 23,
+     "dom": 41,
+     "domAttr": 24,
      "nativ": {},
-     "net": {},
+     "net": {
+      "/api/memory": {
+       "ausTimer": 1,
+       "n": 1,
+       "von": {
+        "langzeit.js": 1
+       }
+      }
+     },
      "sites": {
       "aktionen_kette.js:91·t": {
        "ausCb": 0,
@@ -7038,7 +7039,7 @@
       "anzeige.js:172": {
        "ausCb": 0,
        "c": 1,
-       "f": 2,
+       "f": 3,
        "k": "iv",
        "ms": {
         "300": 1
@@ -7098,7 +7099,7 @@
       "boot.js:43·t": {
        "ausCb": 30,
        "c": 43,
-       "f": 40,
+       "f": 39,
        "k": "to",
        "ms": {
         "28": 1,
@@ -7161,14 +7162,14 @@
       "calendar.js:42": {
        "ausCb": 0,
        "c": 1,
-       "f": 2,
+       "f": 3,
        "k": "iv",
        "ms": {
         "1000": 1
        },
        "x": 0
       },
-      "dirigent.js:191·t": {
+      "dirigent.js:229·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -7221,7 +7222,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 1,
-       "f": 1,
+       "f": 2,
        "k": "iv",
        "ms": {
         "700": 1
@@ -7277,7 +7278,7 @@
        "ms": {
         "250": 1
        },
-       "x": 0
+       "x": 1
       },
       "kacheln.js:212": {
        "ausCb": 0,
@@ -7322,7 +7323,7 @@
       "langzeit.js:712·t": {
        "ausCb": 0,
        "c": 1,
-       "f": 0,
+       "f": 1,
        "k": "to",
        "ms": {
         "1500": 1
@@ -7479,7 +7480,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:931·t": {
+      "plan_ansagen.js:932·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -7489,7 +7490,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:932·t": {
+      "plan_ansagen.js:933·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -7499,7 +7500,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:933": {
+      "plan_ansagen.js:934": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -7688,7 +7689,7 @@
       "synapsen.js:163": {
        "ausCb": 0,
        "c": 1,
-       "f": 0,
+       "f": 1,
        "k": "iv",
        "ms": {
         "200": 1
@@ -7876,7 +7877,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:307·t": {
+      "zuvorkommend.js:309·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -7886,7 +7887,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:308·t": {
+      "zuvorkommend.js:310·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -7896,7 +7897,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:309": {
+      "zuvorkommend.js:311": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -7909,7 +7910,7 @@
      },
      "sprache": 0,
      "store": {
-      "get": 175,
+      "get": 178,
       "remove": 1,
       "set": 9
      },
@@ -7928,7 +7929,7 @@
       "jvfenster.js": 1,
       "kacheln.js": 8,
       "kopf.js": 8,
-      "langzeit.js": 1,
+      "langzeit.js": 4,
       "laune.js": 3,
       "localcommands.js": 2,
       "mimik.js": 11,
@@ -8020,7 +8021,7 @@
       "calendar.js:42": {
        "ausCb": 0,
        "c": 0,
-       "f": 11,
+       "f": 10,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -8292,7 +8293,7 @@
       "anzeige.js:172": {
        "ausCb": 0,
        "c": 0,
-       "f": 26,
+       "f": 27,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -8334,7 +8335,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 12,
+       "f": 11,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -8402,9 +8403,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 239,
-       "c": 239,
-       "f": 239,
+       "ausCb": 319,
+       "c": 319,
+       "f": 319,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -8460,7 +8461,7 @@
      "audio": 0,
      "benachr": 0,
      "dom": 8,
-     "domAttr": 15,
+     "domAttr": 14,
      "nativ": {},
      "net": {
       "/api/groq": {
@@ -8471,13 +8472,13 @@
        }
       },
       "/api/memory": {
-       "ausTimer": 4,
-       "n": 8,
+       "ausTimer": 3,
+       "n": 7,
        "von": {
         "assistant.js": 4,
         "foto_stundenplan.js": 1,
         "ki_mitdenken.js": 1,
-        "langzeit.js": 2
+        "langzeit.js": 1
        }
       }
      },
@@ -8509,7 +8510,7 @@
       "anzeige.js:172": {
        "ausCb": 0,
        "c": 0,
-       "f": 34,
+       "f": 33,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -8533,7 +8534,7 @@
       "boot.js:43·t": {
        "ausCb": 0,
        "c": 0,
-       "f": 2,
+       "f": 3,
        "k": "to",
        "ms": {},
        "x": 0
@@ -8586,7 +8587,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:110·t": {
+      "dirigent.js:114·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -8596,7 +8597,7 @@
        },
        "x": 0
       },
-      "dirigent.js:134·t": {
+      "dirigent.js:138·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -8606,7 +8607,7 @@
        },
        "x": 0
       },
-      "dirigent.js:191·t": {
+      "dirigent.js:229·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -8614,7 +8615,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:65·t": {
+      "dirigent.js:69·t": {
        "ausCb": 1,
        "c": 1,
        "f": 0,
@@ -8624,7 +8625,7 @@
        },
        "x": 0
       },
-      "dirigent.js:71·t": {
+      "dirigent.js:75·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -8634,7 +8635,7 @@
        },
        "x": 0
       },
-      "dirigent.js:95·t": {
+      "dirigent.js:99·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -8671,7 +8672,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 15,
+       "f": 14,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -8728,14 +8729,6 @@
        "ms": {},
        "x": 0
       },
-      "kacheln.js:210": {
-       "ausCb": 0,
-       "c": 0,
-       "f": 1,
-       "k": "iv",
-       "ms": {},
-       "x": 1
-      },
       "kennenlernen.js:201": {
        "ausCb": 0,
        "c": 0,
@@ -8745,14 +8738,6 @@
        "x": 0
       },
       "ki_mitdenken.js:209·t": {
-       "ausCb": 0,
-       "c": 0,
-       "f": 1,
-       "k": "to",
-       "ms": {},
-       "x": 0
-      },
-      "langzeit.js:712·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -8794,8 +8779,8 @@
       },
       "name.js:43·t": {
        "ausCb": 0,
-       "c": 6,
-       "f": 7,
+       "c": 5,
+       "f": 6,
        "k": "to",
        "ms": {
         "50": 1
@@ -8818,7 +8803,7 @@
        "ms": {},
        "x": 0
       },
-      "plan_ansagen.js:931·t": {
+      "plan_ansagen.js:932·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -8875,9 +8860,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 87,
-       "c": 87,
-       "f": 87,
+       "ausCb": 105,
+       "c": 105,
+       "f": 105,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -8941,7 +8926,7 @@
      },
      "sprache": 0,
      "store": {
-      "get": 176,
+      "get": 173,
       "remove": 0,
       "set": 5
      },
@@ -8956,7 +8941,7 @@
       "jarvis.js": 6,
       "kennenlernen.js": 4,
       "ki_mitdenken.js": 8,
-      "langzeit.js": 7,
+      "langzeit.js": 4,
       "mimik.js": 83,
       "pakete.js": 1,
       "preissuche.js": 2,
@@ -8976,7 +8961,7 @@
      "audio": 0,
      "benachr": 0,
      "dom": 33,
-     "domAttr": 10,
+     "domAttr": 11,
      "nativ": {},
      "net": {},
      "sites": {
@@ -8991,7 +8976,7 @@
       "anzeige.js:172": {
        "ausCb": 0,
        "c": 0,
-       "f": 27,
+       "f": 26,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -9031,7 +9016,7 @@
       "gedaechtnis_zeit.js:55": {
        "ausCb": 0,
        "c": 0,
-       "f": 2,
+       "f": 3,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -9039,7 +9024,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 12,
+       "f": 11,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -9125,7 +9110,7 @@
       "spotify.js:531": {
        "ausCb": 0,
        "c": 0,
-       "f": 1,
+       "f": 2,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -9164,7 +9149,7 @@
        "ms": {},
        "x": 0
       },
-      "zuvorkommend.js:308·t": {
+      "zuvorkommend.js:310·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -9175,7 +9160,7 @@
      },
      "sprache": 0,
      "store": {
-      "get": 98,
+      "get": 99,
       "remove": 0,
       "set": 1
      },
@@ -9184,7 +9169,7 @@
       "mimik.js": 67,
       "proaktiv.js": 4,
       "schicht.js": 20,
-      "spotify.js": 1,
+      "spotify.js": 2,
       "sync.js": 1,
       "wachter.js": 2,
       "zane_redet.js": 2
@@ -9217,7 +9202,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -9238,7 +9223,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {
       "sphere.js:342·r": 1
@@ -9264,7 +9249,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
       "routinen.js:223 @60000": 1,
@@ -9283,7 +9268,7 @@
       "vorbereitung.js:140 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {
       "sphere.js:342·r": 1
@@ -9382,7 +9367,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 85,
+       "f": 86,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -9424,7 +9409,7 @@
       "laune.js:191": {
        "ausCb": 0,
        "c": 0,
-       "f": 9,
+       "f": 10,
        "k": "iv",
        "ms": {},
        "x": 1
@@ -9466,7 +9451,7 @@
       "mimik.js:211": {
        "ausCb": 0,
        "c": 0,
-       "f": 500,
+       "f": 501,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -9489,7 +9474,7 @@
        "ms": {},
        "x": 0
       },
-      "plan_ansagen.js:932·t": {
+      "plan_ansagen.js:933·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -9564,9 +9549,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 491,
-       "c": 491,
-       "f": 491,
+       "ausCb": 558,
+       "c": 558,
+       "f": 558,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -9661,7 +9646,7 @@
        "ms": {},
        "x": 0
       },
-      "zuvorkommend.js:307·t": {
+      "zuvorkommend.js:309·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -9672,7 +9657,7 @@
      },
      "sprache": 0,
      "store": {
-      "get": 657,
+      "get": 658,
       "remove": 0,
       "set": 1
      },
@@ -9681,7 +9666,7 @@
       "kennenlernen.js": 24,
       "laune.js": 5,
       "mail_nacht.js": 2,
-      "mimik.js": 500,
+      "mimik.js": 501,
       "preissuche.js": 2,
       "pushsync.js": 8,
       "routinen.js": 2,
@@ -9698,18 +9683,10 @@
     "laden": {
      "audio": 0,
      "benachr": 0,
-     "dom": 45,
-     "domAttr": 26,
+     "dom": 42,
+     "domAttr": 25,
      "nativ": {},
-     "net": {
-      "/api/memory": {
-       "ausTimer": 1,
-       "n": 1,
-       "von": {
-        "langzeit.js": 1
-       }
-      }
-     },
+     "net": {},
      "sites": {
       "aktionen_kette.js:91·t": {
        "ausCb": 0,
@@ -9754,7 +9731,7 @@
       "anzeige.js:172": {
        "ausCb": 0,
        "c": 1,
-       "f": 5,
+       "f": 1,
        "k": "iv",
        "ms": {
         "300": 1
@@ -9791,30 +9768,20 @@
        },
        "x": 0
       },
-      "blick.js:119": {
-       "ausCb": 1,
+      "blick.js:125": {
+       "ausCb": 0,
        "c": 1,
        "f": 0,
        "k": "iv",
        "ms": {
-        "15000": 1
+        "500": 1
        },
        "x": 0
       },
-      "blick.js:125": {
-       "ausCb": 0,
-       "c": 1,
-       "f": 1,
-       "k": "iv",
-       "ms": {
-        "500": 1
-       },
-       "x": 1
-      },
       "boot.js:43·t": {
-       "ausCb": 26,
-       "c": 39,
-       "f": 34,
+       "ausCb": 28,
+       "c": 41,
+       "f": 37,
        "k": "to",
        "ms": {
         "28": 1,
@@ -9884,7 +9851,7 @@
        },
        "x": 0
       },
-      "dirigent.js:191·t": {
+      "dirigent.js:229·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -9937,7 +9904,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 1,
-       "f": 2,
+       "f": 1,
        "k": "iv",
        "ms": {
         "700": 1
@@ -9988,7 +9955,7 @@
       "kacheln.js:210": {
        "ausCb": 0,
        "c": 1,
-       "f": 9,
+       "f": 6,
        "k": "iv",
        "ms": {
         "250": 1
@@ -10038,7 +10005,7 @@
       "langzeit.js:712·t": {
        "ausCb": 0,
        "c": 1,
-       "f": 1,
+       "f": 0,
        "k": "to",
        "ms": {
         "1500": 1
@@ -10088,7 +10055,7 @@
       "laune.js:191": {
        "ausCb": 0,
        "c": 1,
-       "f": 2,
+       "f": 1,
        "k": "iv",
        "ms": {
         "1000": 1
@@ -10148,7 +10115,7 @@
       "mimik.js:211": {
        "ausCb": 0,
        "c": 1,
-       "f": 14,
+       "f": 4,
        "k": "iv",
        "ms": {
         "120": 1
@@ -10195,7 +10162,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:931·t": {
+      "plan_ansagen.js:932·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -10205,7 +10172,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:932·t": {
+      "plan_ansagen.js:933·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -10215,7 +10182,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:933": {
+      "plan_ansagen.js:934": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -10298,7 +10265,7 @@
       "ruhe.js:18": {
        "ausCb": 0,
        "c": 1,
-       "f": 6,
+       "f": 4,
        "k": "iv",
        "ms": {
         "400": 1
@@ -10592,7 +10559,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:307·t": {
+      "zuvorkommend.js:309·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -10602,7 +10569,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:308·t": {
+      "zuvorkommend.js:310·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -10612,7 +10579,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:309": {
+      "zuvorkommend.js:311": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -10625,7 +10592,7 @@
      },
      "sprache": 0,
      "store": {
-      "get": 181,
+      "get": 136,
       "remove": 1,
       "set": 9
      },
@@ -10644,15 +10611,15 @@
       "jvfenster.js": 1,
       "kacheln.js": 8,
       "kopf.js": 8,
-      "langzeit.js": 4,
+      "langzeit.js": 1,
       "laune.js": 3,
       "localcommands.js": 2,
-      "mimik.js": 14,
+      "mimik.js": 4,
       "persona.js": 2,
       "pronunciation.js": 4,
       "pushsync.js": 2,
       "routing.js": 2,
-      "schicht.js": 34,
+      "schicht.js": 2,
       "speechrate.js": 6,
       "sphere.js": 1,
       "storage.js": 24,
@@ -10670,17 +10637,17 @@
     "start": {
      "audio": 0,
      "benachr": 0,
-     "dom": 15,
-     "domAttr": 16,
+     "dom": 12,
+     "domAttr": 15,
      "nativ": {},
      "net": {
       "/api/memory": {
-       "ausTimer": 3,
-       "n": 3,
+       "ausTimer": 4,
+       "n": 4,
        "von": {
         "foto_stundenplan.js": 1,
         "ki_mitdenken.js": 1,
-        "langzeit.js": 1
+        "langzeit.js": 2
        }
       }
      },
@@ -10712,7 +10679,7 @@
       "anzeige.js:172": {
        "ausCb": 0,
        "c": 0,
-       "f": 33,
+       "f": 34,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -10733,10 +10700,28 @@
        "ms": {},
        "x": 0
       },
+      "blick.js:119": {
+       "ausCb": 1,
+       "c": 1,
+       "f": 0,
+       "k": "iv",
+       "ms": {
+        "15000": 1
+       },
+       "x": 0
+      },
+      "blick.js:125": {
+       "ausCb": 0,
+       "c": 0,
+       "f": 1,
+       "k": "iv",
+       "ms": {},
+       "x": 1
+      },
       "boot.js:43·t": {
-       "ausCb": 4,
-       "c": 4,
-       "f": 8,
+       "ausCb": 2,
+       "c": 2,
+       "f": 5,
        "k": "to",
        "ms": {
         "28": 1
@@ -10781,7 +10766,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:191·t": {
+      "dirigent.js:229·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -10808,7 +10793,7 @@
       "gedaechtnis_zeit.js:55": {
        "ausCb": 0,
        "c": 0,
-       "f": 4,
+       "f": 3,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -10816,7 +10801,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 15,
+       "f": 14,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -10869,6 +10854,14 @@
        "ms": {},
        "x": 0
       },
+      "langzeit.js:712·t": {
+       "ausCb": 0,
+       "c": 0,
+       "f": 1,
+       "k": "to",
+       "ms": {},
+       "x": 0
+      },
       "langzeit.js:713·t": {
        "ausCb": 0,
        "c": 0,
@@ -10896,15 +10889,15 @@
       "mimik.js:211": {
        "ausCb": 0,
        "c": 0,
-       "f": 84,
+       "f": 83,
        "k": "iv",
        "ms": {},
        "x": 0
       },
       "name.js:43·t": {
        "ausCb": 0,
-       "c": 8,
-       "f": 9,
+       "c": 6,
+       "f": 7,
        "k": "to",
        "ms": {
         "50": 1
@@ -10927,7 +10920,7 @@
        "ms": {},
        "x": 0
       },
-      "plan_ansagen.js:931·t": {
+      "plan_ansagen.js:932·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -10984,9 +10977,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 85,
-       "c": 85,
-       "f": 85,
+       "ausCb": 105,
+       "c": 105,
+       "f": 105,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -11050,7 +11043,7 @@
      },
      "sprache": 0,
      "store": {
-      "get": 118,
+      "get": 136,
       "remove": 0,
       "set": 1
      },
@@ -11060,9 +11053,9 @@
       "hud_fenster.js": 2,
       "kennenlernen.js": 4,
       "ki_mitdenken.js": 2,
-      "langzeit.js": 4,
-      "mimik.js": 84,
-      "schicht.js": 2,
+      "langzeit.js": 7,
+      "mimik.js": 83,
+      "schicht.js": 18,
       "speechrate.js": 2,
       "spotify.js": 3,
       "sync.js": 3,
@@ -11098,7 +11091,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -11119,7 +11112,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {
       "sphere.js:342·r": 1
@@ -11140,7 +11133,7 @@
       "mail_nacht.js:218 @1800000": 1,
       "mail_nacht.js:219 @15000": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -11160,7 +11153,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {}
     },
@@ -11183,7 +11176,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -11204,7 +11197,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {
       "sphere.js:342·r": 1
@@ -11229,7 +11222,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -11250,7 +11243,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {
       "sphere.js:342·r": 1
@@ -11276,7 +11269,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
       "routinen.js:223 @60000": 1,
@@ -11295,7 +11288,7 @@
       "vorbereitung.js:140 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {
       "sphere.js:342·r": 1
@@ -11320,7 +11313,7 @@
       "mail_nacht.js:219 @15000": 1,
       "mimik.js:211 @120": 1,
       "parkplatz_auto.js:50 @60000": 1,
-      "plan_ansagen.js:933 @600000": 1,
+      "plan_ansagen.js:934 @600000": 1,
       "proaktiv.js:218 @60000": 1,
       "pushsync.js:201 @120000": 1,
       "pushsync.js:202 @600000": 1,
@@ -11341,7 +11334,7 @@
       "wachter.js:231 @60000": 1,
       "wetterfx.js:140 @300000": 1,
       "zane_redet.js:201 @30000": 1,
-      "zuvorkommend.js:309 @10800000": 1
+      "zuvorkommend.js:311 @10800000": 1
      },
      "raf": {
       "sphere.js:342·r": 1
@@ -11367,8 +11360,8 @@
     "idle": {
      "audio": 1,
      "benachr": 0,
-     "dom": 102,
-     "domAttr": 43,
+     "dom": 103,
+     "domAttr": 59,
      "nativ": {},
      "net": {
       "/api/filme": {
@@ -11850,6 +11843,13 @@
         "systemcheck_voll.js": 1
        }
       },
+      "/js/fragen_reihenfolge.js": {
+       "ausTimer": 0,
+       "n": 1,
+       "von": {
+        "systemcheck_voll.js": 1
+       }
+      },
       "/js/fristen.js": {
        "ausTimer": 0,
        "n": 1,
@@ -12736,7 +12736,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:110·t": {
+      "dirigent.js:114·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -12744,7 +12744,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:65·t": {
+      "dirigent.js:69·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -12752,7 +12752,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:71·t": {
+      "dirigent.js:75·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -12760,7 +12760,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:95·t": {
+      "dirigent.js:99·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -12809,7 +12809,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 86,
+       "f": 85,
        "k": "iv",
        "ms": {},
        "x": 1
@@ -12834,7 +12834,7 @@
       },
       "index.html·t": {
        "ausCb": 0,
-       "c": 12,
+       "c": 13,
        "f": 1,
        "k": "to",
        "ms": {
@@ -12899,7 +12899,7 @@
       "laune.js:191": {
        "ausCb": 0,
        "c": 0,
-       "f": 10,
+       "f": 9,
        "k": "iv",
        "ms": {},
        "x": 1
@@ -12941,7 +12941,7 @@
       "mimik.js:211": {
        "ausCb": 0,
        "c": 0,
-       "f": 501,
+       "f": 499,
        "k": "iv",
        "ms": {},
        "x": 1
@@ -12974,7 +12974,7 @@
        "ms": {},
        "x": 0
       },
-      "plan_ansagen.js:932·t": {
+      "plan_ansagen.js:933·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -13049,9 +13049,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 489,
-       "c": 489,
-       "f": 489,
+       "ausCb": 540,
+       "c": 540,
+       "f": 541,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -13074,8 +13074,8 @@
       },
       "systemcheck_voll.js:19·t": {
        "ausCb": 21,
-       "c": 189,
-       "f": 189,
+       "c": 190,
+       "f": 190,
        "k": "to",
        "ms": {
         "2000": 1,
@@ -13200,7 +13200,7 @@
        "ms": {},
        "x": 0
       },
-      "zuvorkommend.js:307·t": {
+      "zuvorkommend.js:309·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -13211,7 +13211,7 @@
      },
      "sprache": 2,
      "store": {
-      "get": 785,
+      "get": 783,
       "remove": 1,
       "set": 9
      },
@@ -13227,7 +13227,7 @@
       "laune.js": 7,
       "mail_nacht.js": 2,
       "mailwatch.js": 1,
-      "mimik.js": 501,
+      "mimik.js": 499,
       "persona.js": 4,
       "preissuche.js": 2,
       "proaktiv.js": 4,
@@ -13318,7 +13318,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:192·t": {
+      "dirigent.js:230·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -13484,7 +13484,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:935·t": {
+      "plan_ansagen.js:936·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -13583,7 +13583,7 @@
       "sphere.js:342·r": {
        "ausCb": 1,
        "c": 1,
-       "f": 1,
+       "f": 0,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -13684,7 +13684,7 @@
        "ms": {},
        "x": 0
       },
-      "zuvorkommend.js:308·t": {
+      "zuvorkommend.js:310·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -13692,7 +13692,7 @@
        "ms": {},
        "x": 0
       },
-      "zuvorkommend.js:310·t": {
+      "zuvorkommend.js:312·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -13728,7 +13728,7 @@
      "audio": 0,
      "benachr": 0,
      "dom": 44,
-     "domAttr": 25,
+     "domAttr": 26,
      "nativ": {},
      "net": {},
      "sites": {
@@ -13745,7 +13745,7 @@
       "alarm.js:145·t": {
        "ausCb": 0,
        "c": 1,
-       "f": 0,
+       "f": 1,
        "k": "to",
        "ms": {
         "1800": 1
@@ -13775,7 +13775,7 @@
       "anzeige.js:172": {
        "ausCb": 0,
        "c": 1,
-       "f": 3,
+       "f": 1,
        "k": "iv",
        "ms": {
         "300": 1
@@ -13812,30 +13812,20 @@
        },
        "x": 0
       },
-      "blick.js:119": {
-       "ausCb": 1,
+      "blick.js:125": {
+       "ausCb": 0,
        "c": 1,
        "f": 0,
        "k": "iv",
        "ms": {
-        "15000": 1
+        "500": 1
        },
        "x": 0
       },
-      "blick.js:125": {
-       "ausCb": 0,
-       "c": 1,
-       "f": 1,
-       "k": "iv",
-       "ms": {
-        "500": 1
-       },
-       "x": 1
-      },
       "boot.js:43·t": {
-       "ausCb": 13,
-       "c": 26,
-       "f": 17,
+       "ausCb": 28,
+       "c": 41,
+       "f": 37,
        "k": "to",
        "ms": {
         "28": 1,
@@ -13898,14 +13888,14 @@
       "calendar.js:42": {
        "ausCb": 0,
        "c": 1,
-       "f": 1,
+       "f": 2,
        "k": "iv",
        "ms": {
         "1000": 1
        },
        "x": 0
       },
-      "dirigent.js:191·t": {
+      "dirigent.js:229·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -13958,7 +13948,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 1,
-       "f": 1,
+       "f": 0,
        "k": "iv",
        "ms": {
         "700": 1
@@ -14009,7 +13999,7 @@
       "kacheln.js:210": {
        "ausCb": 0,
        "c": 1,
-       "f": 4,
+       "f": 9,
        "k": "iv",
        "ms": {
         "250": 1
@@ -14109,7 +14099,7 @@
       "laune.js:191": {
        "ausCb": 0,
        "c": 1,
-       "f": 1,
+       "f": 2,
        "k": "iv",
        "ms": {
         "1000": 1
@@ -14169,7 +14159,7 @@
       "mimik.js:211": {
        "ausCb": 0,
        "c": 1,
-       "f": 6,
+       "f": 2,
        "k": "iv",
        "ms": {
         "120": 1
@@ -14216,7 +14206,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:931·t": {
+      "plan_ansagen.js:932·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -14226,7 +14216,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:932·t": {
+      "plan_ansagen.js:933·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -14236,7 +14226,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:933": {
+      "plan_ansagen.js:934": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -14319,7 +14309,7 @@
       "ruhe.js:18": {
        "ausCb": 0,
        "c": 1,
-       "f": 3,
+       "f": 6,
        "k": "iv",
        "ms": {
         "400": 1
@@ -14387,9 +14377,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 3,
-       "c": 3,
-       "f": 2,
+       "ausCb": 1,
+       "c": 1,
+       "f": 0,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -14476,7 +14466,7 @@
       "tempo.js:43·t": {
        "ausCb": 0,
        "c": 1,
-       "f": 0,
+       "f": 1,
        "k": "to",
        "ms": {
         "1500": 1
@@ -14613,7 +14603,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:307·t": {
+      "zuvorkommend.js:309·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -14623,7 +14613,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:308·t": {
+      "zuvorkommend.js:310·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -14633,7 +14623,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:309": {
+      "zuvorkommend.js:311": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -14646,7 +14636,7 @@
      },
      "sprache": 0,
      "store": {
-      "get": 151,
+      "get": 134,
       "remove": 1,
       "set": 9
      },
@@ -14668,18 +14658,18 @@
       "langzeit.js": 1,
       "laune.js": 3,
       "localcommands.js": 2,
-      "mimik.js": 6,
+      "mimik.js": 2,
       "persona.js": 2,
       "pronunciation.js": 4,
       "pushsync.js": 2,
       "routing.js": 2,
-      "schicht.js": 18,
-      "speechrate.js": 4,
+      "schicht.js": 2,
+      "speechrate.js": 6,
       "sphere.js": 1,
       "storage.js": 24,
       "sync.js": 9,
       "tagesueberblick.js": 6,
-      "tempo.js": 1,
+      "tempo.js": 2,
       "ui.js": 1,
       "voice.js": 12,
       "wachter.js": 2,
@@ -14728,7 +14718,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:192·t": {
+      "dirigent.js:230·t": {
        "ausCb": 0,
        "c": 0,
        "f": 7,
@@ -14824,7 +14814,7 @@
        "ms": {},
        "x": 0
       },
-      "plan_ansagen.js:935·t": {
+      "plan_ansagen.js:936·t": {
        "ausCb": 0,
        "c": 0,
        "f": 2,
@@ -14865,9 +14855,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 170,
-       "c": 170,
-       "f": 170,
+       "ausCb": 192,
+       "c": 192,
+       "f": 192,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -14922,7 +14912,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:310·t": {
+      "zuvorkommend.js:312·t": {
        "ausCb": 0,
        "c": 0,
        "f": 7,
@@ -14957,7 +14947,7 @@
      "audio": 0,
      "benachr": 0,
      "dom": 5,
-     "domAttr": 7,
+     "domAttr": 6,
      "nativ": {},
      "net": {},
      "sites": {
@@ -14985,14 +14975,6 @@
        "ms": {},
        "x": 0
       },
-      "blick.js:119": {
-       "ausCb": 0,
-       "c": 0,
-       "f": 1,
-       "k": "iv",
-       "ms": {},
-       "x": 0
-      },
       "calendar.js:42": {
        "ausCb": 0,
        "c": 0,
@@ -15001,7 +14983,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:192·t": {
+      "dirigent.js:230·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -15095,7 +15077,7 @@
        "ms": {},
        "x": 0
       },
-      "plan_ansagen.js:935·t": {
+      "plan_ansagen.js:936·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -15128,9 +15110,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 167,
-       "c": 167,
-       "f": 167,
+       "ausCb": 188,
+       "c": 188,
+       "f": 188,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -15175,7 +15157,7 @@
        "ms": {},
        "x": 0
       },
-      "zuvorkommend.js:310·t": {
+      "zuvorkommend.js:312·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -15186,7 +15168,7 @@
      },
      "sprache": 0,
      "store": {
-      "get": 79,
+      "get": 63,
       "remove": 0,
       "set": 0
      },
@@ -15198,7 +15180,7 @@
       "mimik.js": 41,
       "pakete.js": 1,
       "pushsync.js": 2,
-      "schicht.js": 18,
+      "schicht.js": 2,
       "spotify.js": 1,
       "sync.js": 2,
       "tagesueberblick.js": 7
@@ -15208,8 +15190,8 @@
     "start": {
      "audio": 0,
      "benachr": 0,
-     "dom": 41,
-     "domAttr": 24,
+     "dom": 12,
+     "domAttr": 15,
      "nativ": {},
      "net": {
       "/api/groq": {
@@ -15232,14 +15214,6 @@
      },
      "sites": {
       "aktionen_kette.js:91·t": {
-       "ausCb": 0,
-       "c": 0,
-       "f": 1,
-       "k": "to",
-       "ms": {},
-       "x": 0
-      },
-      "alarm.js:145·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -15287,10 +15261,28 @@
        "ms": {},
        "x": 0
       },
+      "blick.js:119": {
+       "ausCb": 1,
+       "c": 1,
+       "f": 0,
+       "k": "iv",
+       "ms": {
+        "15000": 1
+       },
+       "x": 0
+      },
+      "blick.js:125": {
+       "ausCb": 0,
+       "c": 0,
+       "f": 1,
+       "k": "iv",
+       "ms": {},
+       "x": 1
+      },
       "boot.js:43·t": {
-       "ausCb": 17,
-       "c": 17,
-       "f": 25,
+       "ausCb": 2,
+       "c": 2,
+       "f": 5,
        "k": "to",
        "ms": {
         "28": 1
@@ -15345,7 +15337,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:110·t": {
+      "dirigent.js:114·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -15355,7 +15347,7 @@
        },
        "x": 0
       },
-      "dirigent.js:134·t": {
+      "dirigent.js:138·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -15365,7 +15357,7 @@
        },
        "x": 0
       },
-      "dirigent.js:191·t": {
+      "dirigent.js:229·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -15373,7 +15365,7 @@
        "ms": {},
        "x": 0
       },
-      "dirigent.js:65·t": {
+      "dirigent.js:69·t": {
        "ausCb": 1,
        "c": 1,
        "f": 0,
@@ -15383,7 +15375,7 @@
        },
        "x": 0
       },
-      "dirigent.js:71·t": {
+      "dirigent.js:75·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -15393,7 +15385,7 @@
        },
        "x": 0
       },
-      "dirigent.js:95·t": {
+      "dirigent.js:99·t": {
        "ausCb": 0,
        "c": 1,
        "f": 0,
@@ -15430,7 +15422,7 @@
       "holo_look.js:259": {
        "ausCb": 0,
        "c": 0,
-       "f": 14,
+       "f": 15,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -15545,8 +15537,8 @@
       },
       "name.js:43·t": {
        "ausCb": 0,
-       "c": 16,
-       "f": 17,
+       "c": 7,
+       "f": 8,
        "k": "to",
        "ms": {
         "50": 1
@@ -15569,7 +15561,7 @@
        "ms": {},
        "x": 0
       },
-      "plan_ansagen.js:931·t": {
+      "plan_ansagen.js:932·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -15652,7 +15644,7 @@
       "synapsen.js:163": {
        "ausCb": 0,
        "c": 0,
-       "f": 51,
+       "f": 50,
        "k": "iv",
        "ms": {},
        "x": 0
@@ -15666,14 +15658,6 @@
        "x": 0
       },
       "tagesueberblick.js:380·t": {
-       "ausCb": 0,
-       "c": 0,
-       "f": 1,
-       "k": "to",
-       "ms": {},
-       "x": 0
-      },
-      "tempo.js:43·t": {
        "ausCb": 0,
        "c": 0,
        "f": 1,
@@ -15700,7 +15684,7 @@
      },
      "sprache": 0,
      "store": {
-      "get": 180,
+      "get": 193,
       "remove": 0,
       "set": 5
      },
@@ -15720,12 +15704,12 @@
       "pakete.js": 1,
       "preissuche.js": 2,
       "rechnungen.js": 2,
-      "schicht.js": 12,
-      "speechrate.js": 4,
+      "schicht.js": 28,
+      "speechrate.js": 2,
       "spotify.js": 3,
       "sync.js": 7,
       "tagesueberblick.js": 7,
-      "tempo.js": 2,
+      "tempo.js": 1,
       "urlaub.js": 4,
       "wunschliste.js": 2
      },
@@ -15735,7 +15719,7 @@
      "audio": 0,
      "benachr": 0,
      "dom": 86,
-     "domAttr": 56,
+     "domAttr": 57,
      "nativ": {},
      "net": {},
      "sites": {
@@ -15752,7 +15736,7 @@
       "anzeige.js:172": {
        "ausCb": 0,
        "c": 10,
-       "f": 9,
+       "f": 10,
        "k": "iv",
        "ms": {
         "300": 1
@@ -15769,15 +15753,23 @@
        },
        "x": 0
       },
-      "calendar.js:42": {
+      "blick.js:119": {
        "ausCb": 0,
        "c": 0,
-       "f": 6,
+       "f": 1,
        "k": "iv",
        "ms": {},
        "x": 0
       },
-      "dirigent.js:192·t": {
+      "calendar.js:42": {
+       "ausCb": 0,
+       "c": 0,
+       "f": 7,
+       "k": "iv",
+       "ms": {},
+       "x": 0
+      },
+      "dirigent.js:230·t": {
        "ausCb": 0,
        "c": 10,
        "f": 3,
@@ -15911,7 +15903,7 @@
        },
        "x": 0
       },
-      "plan_ansagen.js:935·t": {
+      "plan_ansagen.js:936·t": {
        "ausCb": 0,
        "c": 10,
        "f": 8,
@@ -15968,9 +15960,9 @@
        "x": 0
       },
       "sphere.js:342·r": {
-       "ausCb": 110,
-       "c": 110,
-       "f": 110,
+       "ausCb": 120,
+       "c": 120,
+       "f": 120,
        "k": "raf",
        "ms": {},
        "x": 0
@@ -16031,7 +16023,7 @@
        },
        "x": 0
       },
-      "zuvorkommend.js:310·t": {
+      "zuvorkommend.js:312·t": {
        "ausCb": 0,
        "c": 10,
        "f": 3,
@@ -16044,7 +16036,7 @@
      },
      "sprache": 0,
      "store": {
-      "get": 608,
+      "get": 624,
       "remove": 0,
       "set": 0
      },
@@ -16058,7 +16050,7 @@
       "mimik.js": 20,
       "pakete.js": 8,
       "pushsync.js": 80,
-      "schicht.js": 256,
+      "schicht.js": 272,
       "spotify.js": 11,
       "sync.js": 20,
       "tagesueberblick.js": 63

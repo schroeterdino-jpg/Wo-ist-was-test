@@ -1,6 +1,6 @@
 # Jarvis: Architektur-Überblick
 
-Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 169 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
+Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 170 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
 Wo suche ich zuerst? → `LANDKARTE.md` (Problem → Datei → Abhängigkeiten, plus Zuordnung aller Skripte). Reihenfolge-Sicherheitsnetz: `tests/reihenfolge.js`; Timer-Register: `tests/timer.js` + `tests/timer_inventar.js`.
 Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (169 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (170 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 

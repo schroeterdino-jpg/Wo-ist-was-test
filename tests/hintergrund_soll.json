@@ -1581,7 +1581,7 @@
    "mail_nacht.js:219 @15000",
    "mimik.js:211 @120",
    "parkplatz_auto.js:50 @60000",
-   "plan_ansagen.js:933 @600000",
+   "plan_ansagen.js:934 @600000",
    "pushsync.js:201 @120000",
    "pushsync.js:202 @600000",
    "routinen.js:223 @60000",
@@ -1600,7 +1600,7 @@
    "vorbereitung.js:140 @60000",
    "wetterfx.js:140 @300000",
    "zane_redet.js:201 @30000",
-   "zuvorkommend.js:309 @10800000"
+   "zuvorkommend.js:311 @10800000"
   ],
   "startAktivIntervalle": 38,
   "idleAktivIntervalle": 39,
@@ -1634,7 +1634,7 @@
    "zane_redet.js": "gering (1–9/min)"
   },
   "idleBurstTimeouts": {
-   "systemcheck_voll.js:19·t": 189
+   "systemcheck_voll.js:19·t": 190
   },
   "verstecktPausiert": [
    "anzeige.js:171",
@@ -1650,7 +1650,7 @@
    "ruhe.js:18",
    "spotify.js:531"
   ],
-  "netzSichtbarIdle": 190,
+  "netzSichtbarIdle": 191,
   "netzVerstecktIdle": 0,
   "doppelstartNeueIntervalle": [],
   "doppelstartAktivGeaendert": [],

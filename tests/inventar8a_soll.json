@@ -56,13 +56,8 @@
    "storage.js": 5
   }
  },
- "konsistenz": [
-  "Landkarte: Produktdatei nicht genau einmal zugeordnet: fragen_reihenfolge"
- ],
- "doku8b": [
-  "ARCHITEKTUR.md nennt 169 Skripte, vorhanden sind 170",
-  "Produktzahl im Kopf der Doku fehlt/falsch"
- ],
+ "konsistenz": [],
+ "doku8b": [],
  "klasse": {
   "actions.js": "A",
   "adress_normal.js": "B",
@@ -525,9 +520,9 @@
   "ohneClient": []
  },
  "dokuAbweichungen": {
-  "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 169 Produkt-JS-Dateie",
-  "architekturSkriptzahl": "169",
-  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 169 Produktdateien in `js/`). G",
+  "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 170 Produkt-JS-Dateie",
+  "architekturSkriptzahl": "170",
+  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 170 Produktdateien in `js/`). G",
   "architekturProjektstandAbschnitt": "## 8. Projektstand und nächste Schritte (Stand 24.10.2026, historisch)"
  }
 }

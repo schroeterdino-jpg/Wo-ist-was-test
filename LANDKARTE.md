@@ -1,7 +1,7 @@
 # LANDKARTE: wo suche ich zuerst?
 
 Rein technische Dokumentation für Entwickler und KI-Einstieg. Sie erzeugt keine Produktlogik und wird von keinem Skript der App gelesen.
-Stand: 29.10.2026 (Phase 8B, 169 Produktdateien in `js/`). Gehört zu `ARCHITEKTUR.md` (Überblick) und ist von `faehigkeiten.js` (Produktfunktion Hilfe/Mehrfachfragen) bewusst getrennt.
+Stand: 29.10.2026 (Phase 8B, 170 Produktdateien in `js/`). Gehört zu `ARCHITEKTUR.md` (Überblick) und ist von `faehigkeiten.js` (Produktfunktion Hilfe/Mehrfachfragen) bewusst getrennt.
 Von einer Fähigkeit (`faehigkeiten.js`) zu den Dateien: die Fähigkeit nennt nur ihre Kerndateien; die übrigen Dateien des Bereichs stehen in der Tabelle unten (Spalte „Abhängigkeiten“) und in der Bereichsliste (Teil 4). Das Fähigkeiten-Verzeichnis ist keine vollständige Funktionsliste und keine Liste aller Produktdateien (Einzelheiten: `ARCHITEKTUR.md`, Abschnitt „Fähigkeiten-Verzeichnis (B1)“). Offene technische Punkte: `ARCHITEKTUR.md`, Abschnitt „Bekannte offene technische Punkte“.
 Ergänzt durch die Fresh-AI-Nachbesserung: Anleitungen zum Erweitern (neuer Sprachbefehl, neue speak-Stufe), Java→JS-Rückrufe der APK, bekannte Gleichrang-Gruppen und die Test-Übersicht (Bereich → Tests): `ARCHITEKTUR.md`, Abschnitte „Rezepte und Nachschlagen für neue Entwickler“.
 Ein Test (`tests/landkarte.js`) prüft, dass jede Datei in `js/` genau einem Bereich zugeordnet ist und alle hier genannten Dateien existieren.
@@ -71,7 +71,7 @@ Phase 8A (Schlussinventur, nur Analyse): `tests/inventar8a.js`, Beschreibung `te
 
 Jede Datei in `js/` steht genau einmal (Name ohne `js/` und `.js`).
 
-- **Kern/Commands** (26): `adress_normal`, `aktionen_kette`, `alleinstellung`, `anleitung`, `answers`, `boot`, `commands`, `einfuehrung`, `erweiterungen`, `festnamen`, `help`, `hoerkorrektur`, `lists`, `localcommands`, `loesch_notiz`, `loeschen_fragen`, `mehrfach`, `name`, `reminders`, `render`, `rueckfrage`, `schliessen`, `storage`, `ui`, `was_steht_an`, `worldqueryfix`
+- **Kern/Commands** (27): `adress_normal`, `aktionen_kette`, `alleinstellung`, `anleitung`, `answers`, `boot`, `commands`, `einfuehrung`, `erweiterungen`, `festnamen`, `fragen_reihenfolge`, `help`, `hoerkorrektur`, `lists`, `localcommands`, `loesch_notiz`, `loeschen_fragen`, `mehrfach`, `name`, `reminders`, `render`, `rueckfrage`, `schliessen`, `storage`, `ui`, `was_steht_an`, `worldqueryfix`
 - **KI/Prompt/Actions** (19): `actions`, `antwort_bau`, `assistant`, `charakter`, `contextplus`, `faehigkeiten`, `fehlerort`, `formulierungen`, `jarvis`, `kennenlernen`, `ki_mitdenken`, `kontext_lokal`, `laune`, `mitdenken`, `persona`, `prompt`, `routing`, `sprueche`, `zane_redet`
 - **Avatar/Mimik/Optik** (18): `ansicht`, `anzeige`, `avatar3d`, `blick`, `extrafenster`, `holo_look`, `hud_fenster`, `jvfenster`, `kacheln`, `kopf`, `lebendig`, `mimik`, `sphere`, `synapsen`, `vibration`, `welt_anflug`, `weltuhr`, `wetterfx`
 - **Fotos/Dokumente** (18): `antrag`, `antrag_pdf`, `behoerdenbrief`, `foto_abtippen`, `foto_adresse`, `foto_brief`, `foto_erkennen`, `foto_essensplan`, `foto_kette`, `foto_person`, `foto_rezept`, `foto_stundenplan`, `foto_urlaubsplan`, `fotosenden`, `kuendigung`, `photo`, `rechnungen`, `wunschliste`
