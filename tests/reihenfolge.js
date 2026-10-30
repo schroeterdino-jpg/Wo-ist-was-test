@@ -283,10 +283,10 @@ function anzahlAbweichungen(a, b) { const x = Array.isArray(a) ? a : [], y = Arr
     check('Foto-Kette: genau diese 7 Funktionen, runLastPhotoTask gehört ausdrücklich NICHT dazu', JS(Object.keys(kt.liste).sort()) === JS(['parsePhotoRequest', 'processPhoto', 'handlePhotoCommand', 'parseFollowupTask', 'showActionCards', 'photoAskWhatToDo', 'confirmPhotoPending'].sort()) && !('runLastPhotoTask' in kt.liste), Object.keys(kt.liste).join(','));
 
     check('speak-Kette (innen nach außen): voice > voicefix > sprueche > toene > fish > kontext_lokal > teilen', kette('speak') === 'voice.js > voicefix.js > sprueche.js > toene.js > fish.js > kontext_lokal.js > teilen.js', kette('speak'));
-    check('handleLocalCommand (innen nach außen): localcommands > commands (Verteiler) > mailpush > worldqueryfix > Inline-Skript in index.html > ortsuche (ortsuche ganz außen)',
-        kette('handleLocalCommand') === 'localcommands.js > commands.js > mailpush.js > worldqueryfix.js > index.html(inline) > ortsuche.js', kette('handleLocalCommand'));
-    check('Außen-Wrapper um den Verteiler: genau 3 Dateien + das Inline-Skript (erweiterungen.js nimmt zur Laufzeit den jvCommands-Weg, sein Wrapper-Zweig bleibt unbenutzt)',
-        fuer('handleLocalCommand').filter(f => !/^(localcommands|commands)\.js$/.test(f)).length === 4 && fuer('handleLocalCommand').indexOf('erweiterungen.js') < 0);
+    check('handleLocalCommand (innen nach außen): localcommands > commands (Verteiler) > mailpush > worldqueryfix > ortsuche (ortsuche ganz außen)',
+        kette('handleLocalCommand') === 'localcommands.js > commands.js > mailpush.js > worldqueryfix.js > ortsuche.js', kette('handleLocalCommand'));
+    check('Außen-Wrapper um den Verteiler: genau 3 Dateien (das frühere Inline-Skript mit den Mimik-Befehlen ist entfernt; erweiterungen.js nimmt zur Laufzeit den jvCommands-Weg, sein Wrapper-Zweig bleibt unbenutzt)',
+        fuer('handleLocalCommand').filter(f => !/^(localcommands|commands)\.js$/.test(f)).length === 3 && fuer('handleLocalCommand').indexOf('erweiterungen.js') < 0);
     check('Reihenfolge der Skripte in index.html: places < foto_kette < lagebild und foto_kette < photo < alle Foto-Dateien (die Kette steht vor allen, die sich bei ihr anmelden)',
         (() => { const r = starte({ festerZufall: true }).reihenfolge; const p = n => r.indexOf(n); return p('places.js') >= 0 && p('places.js') < p('foto_kette.js') && p('foto_kette.js') < p('lagebild.js') && p('foto_kette.js') < p('photo.js') && ['foto_adresse', 'foto_brief', 'foto_abtippen', 'foto_stundenplan', 'foto_essensplan', 'foto_urlaubsplan', 'wunschliste', 'foto_person', 'foto_erkennen', 'foto_rezept', 'fotosenden'].every(n => p('photo.js') < p(n + '.js')); })());
     check('Reihenfolge der Skripte in index.html: native_speech < commands < photo < foto_rezept < sprueche < teilen < fotosenden',

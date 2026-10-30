@@ -886,18 +886,7 @@
     <script src="./js/toene.js?v=968d16f2"></script>
     <script src="./js/lebendig.js?v=4ce832a3"></script>
     <script src="./js/fish.js?v=3967f099"></script>
-    <!-- JARVIS 3D v6 SAFE: bewährter v5-FaceCap-Kopf + Fish-Audio-Lippensynchronisation -->
     <script src="./js/worldqueryfix.js?v=12f00081"></script>
-    <script>
-    // v6.1: Mimik-Befehle lokal abfangen, bevor sie an die KI gehen.
-    (function(){
-      const oldLocal = window.handleLocalCommand;
-      window.handleLocalCommand = function(text){
-        try { if (typeof window.handleAvatarExpressionCommand === 'function' && window.handleAvatarExpressionCommand(text)) return true; } catch(e) {}
-        return typeof oldLocal === 'function' ? oldLocal.apply(this, arguments) : false;
-      };
-    })();
-    </script>
     <script src="./js/nearbymore.js?v=aadc78ae"></script>
     <script src="./js/ortsuche.js?v=e32bdbd2"></script>
     <script src="./js/adresse_speichern.js?v=6272d82e"></script>

@@ -20,10 +20,10 @@
   "jsZeilen": 42127,
   "jsBytes": 2974748,
   "jsGzip": 891476,
-  "scriptTags": 173,
+  "scriptTags": 172,
   "eigeneScripts": 166,
   "drittScripts": 2,
-  "inlineScripts": 5,
+  "inlineScripts": 4,
   "api": 11,
   "testsGesamt": 80,
   "testsJs": 48,
@@ -56,9 +56,7 @@
    "storage.js": 5
   }
  },
- "konsistenz": [
-  "Doku nennt nicht vorhandene Datei: ARCHITEKTUR.md -> js/avatar3d.js"
- ],
+ "konsistenz": [],
  "doku8b": [],
  "klasse": {
   "actions.js": "A",

@@ -296,7 +296,7 @@ function tabelle(m) {
     const z = m.zahlen;
     check('Zahlen: eigene Script-Tags = Produkt-JS-Dateien', z.eigeneScripts === z.produktJs, z);
     check('Zahlen: Vercel Hobby höchstens 12 Functions', z.api <= 12, z.api);
-    check('Zahlen: weiterhin 2 Drittanbieter-Scripts und 5 Inline-Scripts (wie Phase 1)', z.drittScripts === 2 && z.inlineScripts === 5);
+    check('Zahlen: weiterhin 2 Drittanbieter-Scripts und 4 Inline-Scripts (Phase 1: 5, das Mimik-Skript ist entfernt)', z.drittScripts === 2 && z.inlineScripts === 4);
     check('Zahlen: seit Phase 1 +4 Produktdateien (foto_kette, speak_kette, fragen_reihenfolge, uebersicht) und -5 (Kopf: avatar3d, kopf, mimik, holo_look, ansicht)', z.produktJs - PHASE1.produktJs === -1);
     check('index.html: keine doppelten, fehlenden oder verwaisten Skripte, alle mit Stempel', m.konsistenz.filter(x => /Script|js-Datei/.test(x)).length === 0, m.konsistenz);
     check('Konsistenz: ganze Eingangsprüfung ohne Meldung', m.konsistenz.length === 0, m.konsistenz);
@@ -327,14 +327,14 @@ function tabelle(m) {
     const erkannt = (name, ueber, rx) => { const mm = konsistenz(leser(ueber)); check('Gegenprobe: ' + name, mm.some(x => rx.test(x)), mm); };
     check('Kontrolle: unveränderter Eingang ergibt keine Meldung', konsistenz(leser()).length === 0);
     check('Kontrolle: Leerzeichen in der Landkarte ändern nichts', konsistenz(leser({ ersatz: { 'LANDKARTE.md': t => t + '\n \n' } })).length === 0);
-    erkannt('Produktdatei fehlt in der Landkarte', { ersatz: { 'LANDKARTE.md': t => t.replace(/`mimik`/g, 'mimik') } }, /Landkarte: .*mimik/);
-    erkannt('Produktdatei steht zweimal in der Landkarte', { ersatz: { 'LANDKARTE.md': t => t + '\n- `mimik` nochmal\n' } }, /Landkarte: .*mimik/);
-    erkannt('Script doppelt geladen', { ersatz: { 'index.html': t => t.replace(/(<script[^>]*src="\.\/js\/mimik\.js[^>]*><\/script>)/, '$1\n$1') } }, /Script doppelt geladen: mimik\.js/);
-    erkannt('Script-Datei fehlt', { geloescht: ['js/mimik.js'] }, /Script-Tag ohne Datei: mimik\.js/);
+    erkannt('Produktdatei fehlt in der Landkarte', { ersatz: { 'LANDKARTE.md': t => t.replace(/`synapsen`/g, 'synapsen') } }, /Landkarte: .*synapsen/);
+    erkannt('Produktdatei steht zweimal in der Landkarte', { ersatz: { 'LANDKARTE.md': t => t + '\n- `synapsen` nochmal\n' } }, /Landkarte: .*synapsen/);
+    erkannt('Script doppelt geladen', { ersatz: { 'index.html': t => t.replace(/(<script[^>]*src="\.\/js\/synapsen\.js[^>]*><\/script>)/, '$1\n$1') } }, /Script doppelt geladen: synapsen\.js/);
+    erkannt('Script-Datei fehlt', { geloescht: ['js/synapsen.js'] }, /Script-Tag ohne Datei: synapsen\.js/);
     erkannt('verwaister Script-Tag auf nicht vorhandene Datei', { ersatz: { 'index.html': t => t.replace('</body>', '<script src="./js/gibtes_nicht.js?v=1"></script></body>') } }, /Script-Tag ohne Datei: gibtes_nicht\.js/);
     erkannt('js-Datei ohne Script-Tag', { zusatz: { 'js/niemand_laedt_mich.js': '// nichts' } }, /js-Datei ohne Script-Tag: niemand_laedt_mich\.js/);
     erkannt('Chain-Datei fehlt', { geloescht: ['js/foto_kette.js'] }, /Chain-Datei fehlt: foto_kette\.js/);
-    erkannt('Script ohne Stempel', { ersatz: { 'index.html': t => t.replace(/(src="\.\/js\/mimik\.js)\?v=[^"]*"/, '$1"') } }, /Script ohne Stempel: mimik\.js/);
+    erkannt('Script ohne Stempel', { ersatz: { 'index.html': t => t.replace(/(src="\.\/js\/synapsen\.js)\?v=[^"]*"/, '$1"') } }, /Script ohne Stempel: synapsen\.js/);
     erkannt('dokumentierter Besitzer fehlt (Doku nennt nicht vorhandene Datei)', { ersatz: { 'ARCHITEKTUR.md': t => t.replace(/js\/foto_kette\.js/g, 'js/foto_kette_alt.js') } }, /Doku nennt nicht vorhandene Datei: ARCHITEKTUR\.md -> js\/foto_kette_alt\.js/);
     erkannt('wichtige Architekturdatei fehlt (ARCHITEKTUR.md)', { geloescht: ['ARCHITEKTUR.md'] }, /wichtige Datei fehlt: ARCHITEKTUR\.md/);
     erkannt('wichtige Datei fehlt (LANDKARTE.md)', { geloescht: ['LANDKARTE.md'] }, /wichtige Datei fehlt: LANDKARTE\.md/);
