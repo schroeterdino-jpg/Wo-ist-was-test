@@ -401,7 +401,8 @@ async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString, ne
     // Neue Zeit nur, wenn sie sich wirklich vom Termin unterscheidet (die KI schickt oft die alte Zeit mit; das machte aus Ganztägigem einen Termin mit Uhrzeit)
     let eventDate = newIsoStartString ? new Date(newIsoStartString) : null;
     if (eventDate && isNaN(eventDate.getTime())) eventDate = null;
-    if (eventDate && alt && alt.isoDate) {
+    const mitUhrzeit = !!(istGanz && eventDate && /(\d{1,2}[:.]\d{2}|\buhr\b|\bum \d)/i.test(String(window.jvLetzterText || '')) && eventDate.toLocaleTimeString('sv-SE', { timeZone: 'Europe/Berlin' }) !== '00:00:00');   // Uhrzeit für einen ganztägigen Termin genannt: wird zum Termin mit Uhrzeit
+    if (eventDate && alt && alt.isoDate && !mitUhrzeit) {
         const tag = d => new Date(d).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
         const altD = istGanz ? new Date(alt.isoDate + 'T12:00:00') : new Date(alt.isoDate);
         if (!isNaN(altD.getTime())) {
@@ -419,10 +420,10 @@ async function updateGoogleCalendarEvent(eventId, newText, newIsoStartString, ne
     if (isGoogleAuthorized() && eventId && !isLocalEvent) {
         try {
             const patchData = {};
-            if (zeitNeu && istGanz) {
+            if (zeitNeu && istGanz && !mitUhrzeit) {
                 const iso = d => d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
                 patchData.start = { date: iso(eventDate) }; patchData.end = { date: iso(new Date(eventDate.getTime() + 86400000)) };
-            } else if (zeitNeu) { patchData.start = { dateTime: eventDate.toISOString() }; patchData.end = { dateTime: endDate.toISOString() }; }
+            } else if (zeitNeu) { patchData.start = { dateTime: eventDate.toISOString() }; patchData.end = { dateTime: endDate.toISOString() }; if (mitUhrzeit) { patchData.start.date = null; patchData.end.date = null; } }   // ganztägig -> mit Uhrzeit: das alte Datum muss weg
             if (newText) patchData.summary = newText;
             if (newLocation) patchData.location = newLocation;
 
