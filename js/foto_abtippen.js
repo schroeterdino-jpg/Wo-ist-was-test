@@ -89,6 +89,7 @@
                             { icon: '🔍', title: 'Beschreiben', subtitle: 'Was ist zu sehen?', onclick: "runLastPhotoTask('describe')" }
                         ]);
                     }
+                    try { window.jvFrage && window.jvFrage.neu('photo'); } catch (e) { }
                     say('Das Foto ist da. Was soll ich damit tun?');
                 } catch (e) { return origAsk.apply(this, arguments); }
             };

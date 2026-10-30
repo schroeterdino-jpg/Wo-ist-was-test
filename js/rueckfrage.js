@@ -24,6 +24,7 @@
     function vorbereiten(query, namen, text, merken) {
         const liste = (namen || []).filter(Boolean).slice(0, 6);
         offen = { query: String(query || ''), namen: liste, text: String(text || ''), merken: merken !== false, at: Date.now() };
+        try { window.jvFrage && window.jvFrage.neu('rueckfrage'); } catch (e) { }
         return 'Welchen meinst du: ' + liste.slice(0, -1).join(', ') + ' oder ' + liste[liste.length - 1] + '?';
     }
     function nimmOffen() { return offen && Date.now() - offen.at < FRIST_MS ? offen : null; }

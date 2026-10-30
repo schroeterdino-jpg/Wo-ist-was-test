@@ -333,10 +333,12 @@
             if (i >= 0 && vor[i]) return merken(vor[i].name, t, raw);
             if (vor.length === 1) return merken(vor[0].name, t, raw);
             wartet = { phase: 'wahl', at: Date.now(), t, raw };
+            try { window.jvFrage && window.jvFrage.neu('ausflug'); } catch (e) { }
             sagen('Welcher war es? Sag eins, zwei oder drei.');
             return true;
         }
         wartet = { phase: 'name', at: Date.now(), t, raw };
+        try { window.jvFrage && window.jvFrage.neu('ausflug'); } catch (e) { }
         sagen(artAus(t) === 'essen' ? 'Wie hieß das Lokal? Nenne mir den Namen.' : 'Wo wart ihr? Nenne mir den Ort, zum Beispiel: Tierpark Hagenbeck.');
         return true;
     }
@@ -435,6 +437,7 @@
             const iso = tagAus(t), p = personen(t);
             if (!p) {
                 wartet = { phase: 'wer', at: Date.now(), iso };
+                try { window.jvFrage && window.jvFrage.neu('ausflug'); } catch (e) { }
                 sagen('Gern. Wer kommt mit? Sag zum Beispiel: die Kinder, Finja oder nur wir.');
                 return true;
             }

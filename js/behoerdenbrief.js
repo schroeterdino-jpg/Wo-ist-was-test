@@ -33,7 +33,7 @@
     let S = null;
 
     /* ---------- Gespräch ---------- */
-    function frage(q) { say(q); }
+    function frage(q) { try { window.jvFrage && window.jvFrage.neu('behoerdenbrief'); } catch (e) { } say(q); }
     function lueckeAdresse() { return '[Anschrift bitte ergänzen]'; }
     function weiter() {
         const d = S.d, art = S.art;

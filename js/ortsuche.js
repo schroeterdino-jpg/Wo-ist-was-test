@@ -422,6 +422,7 @@
         const list = (Array.isArray(places) ? places : []).map(cleanSavePlace).filter(Boolean).slice(0, 4);
         if (!list.length) { pendingSavePlaces = null; return { ask: '' }; }
         pendingSavePlaces = { at: Date.now(), label: label || 'Ort', places: list };
+        try { window.jvFrage && window.jvFrage.neu('ortsuche'); } catch (e) { }
         const nums = list.map((_, i) => i + 1);
         return { ask: ` Möchten Sie eine dieser Adressen in Ihren App-Kontakten speichern? Sagen Sie ${nums.join(', ')} oder Nein.` };
     }
@@ -552,7 +553,7 @@
         const originalLocal = window.handleLocalCommand;
         const hooked = function (text) {
             try { patchOldPlacesFetch(); } catch (e) {}
-            try { if (handlePendingSaveAnswer(text)) return true; } catch (e) { console.error('Kontakt-Auswahl', e); }
+            try { if (!(window.jvFrage && window.jvFrage.sperrt('ortsuche', text)) && handlePendingSaveAnswer(text)) return true; } catch (e) { console.error('Kontakt-Auswahl', e); }
             const handled = originalLocal.apply(this, arguments);
             if (handled) return handled;
             try { if (handleOrtsucheCommand(text)) return true; } catch (e) { console.error('Ortssuche', e); }

@@ -107,6 +107,7 @@
         if (!text) { say(o ? 'Auf dem Foto kann ich keine Person erkennen. Versuch es bitte nochmal, etwas näher und gut beleuchtet.' : 'Das Foto konnte ich gerade nicht auswerten.'); return; }
         const mehr = o.mehrere === true ? ' Es sind mehrere Personen zu sehen, ich habe nur eine beschrieben.' : '';
         pending = { name: p.name, rel: p.rel, text, at: Date.now() };
+        try { window.jvFrage && window.jvFrage.neu('foto-person'); } catch (e) { }
         say('Das sehe ich bei ' + who + ': ' + text + mehr + ' Soll ich mir das merken? Ein Gesicht erkenne ich später damit nicht wieder, ich merke mir nur diese Beschreibung.');
     }
 

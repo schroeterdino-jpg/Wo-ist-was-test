@@ -341,7 +341,7 @@
             if (!l) return next(text);
             const wort = norm(raw.replace(/wunsch(?:liste|zettel).*$/i, '').replace(/\b(?:hake|haken|streich|mach|setz)\w*|\b(?:ab|durch|ist|sind|bei|auf|von|der|die|das|dem|gekauft|erledigt|einen|ein|eine)\b/gi, ' '));
             const it = wort ? l.items.find(i => gleichPunkt(i.t, wort) || norm(i.t).split(' ').some(w => w.length >= 4 && wort.includes(w))) : null;
-            if (!it) { sagen('Welchen Punkt meinst du? Sag zum Beispiel: Hake McQueen auf der Wunschliste ab.'); return true; }
+            if (!it) { try { window.jvFrage && window.jvFrage.neu('wunschliste'); } catch (e) { } sagen('Welchen Punkt meinst du? Sag zum Beispiel: Hake McQueen auf der Wunschliste ab.'); return true; }
             it.done = true; ablegen(l); sagen(suchbegriff(it.t) + ' ist abgehakt.'); return true;
         }
         if (/\b(?:preis\w*|kostet|kosten|guenstig\w*|vergleich\w*|teuer)\b/.test(t)) {

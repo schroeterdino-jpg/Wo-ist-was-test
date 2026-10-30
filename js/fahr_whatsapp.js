@@ -75,6 +75,7 @@
             return;
         }
         stufe = 'frage';
+        try { window.jvFrage && window.jvFrage.neu('fahr_whatsapp'); } catch (e) { }
         zeigen('WhatsApp · ' + cur.name, cur.text, 'Sag „Ja“ zum Antworten oder „Nein“.', true);
         try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'fahr_whatsapp', kanal: ['fenster', 'sprache'], grund: 'whatsapp-vorlesen', ausloeser: 'apk', ereignis: 'wa|' + cur.id, bezug: window.jvMeldungen.bezugId('nachricht', cur.id), frage: true, mikro: 'bedingt', text: 'Nachricht von ' + cur.name + ': ' + cur.text + '. Willst du antworten?' }) } catch (e) { }   // C1: nur Beobachtung
         sagen('Nachricht von ' + cur.name + ': ' + cur.text + '. Willst du antworten?', true);
@@ -91,6 +92,7 @@
     function fragen() {
         if (!cur) return;
         stufe = 'diktat';
+        try { window.jvFrage && window.jvFrage.neu('fahr_whatsapp'); } catch (e) { }
         clearTimeout(timer); timer = setTimeout(verwerfen, GUELTIG_MS);
         zeigen('WhatsApp an ' + cur.name, 'Ich höre zu …', 'Sprich deine Antwort. Zum Abbrechen sag „Abbrechen“.', false);
         sagen('Was soll ich schreiben?', true);

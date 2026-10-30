@@ -35,11 +35,13 @@
     function remove(name) { const i = entries.findIndex(e => e.name === name); if (i >= 0) entries.splice(i, 1); return i >= 0; }
     function list() { return entries.map(e => e.order + ' ' + e.name); }
 
+    function gesperrt(name, t) { try { return !!(window.jvFrage && window.jvFrage.sperrt(name, t)); } catch (e) { return false; } }
     function run(text) {
         const snap = entries.slice();   // wer sich während des Laufs einträgt, ändert diesen Durchlauf nicht
         const go = function (i, t) {
             if (i >= snap.length) return base ? base(t) : false;
             const e = snap[i];
+            if (gesperrt(e.name, t)) return go(i + 1, t);   // nacktes Ja/Nein gehört der jüngsten Frage (js/fragen_reihenfolge.js)
             let called = false, res = false;
             const next = function (t2) { called = true; res = go(i + 1, arguments.length ? t2 : t); return res; };
             try { return e.mw(t, next); }

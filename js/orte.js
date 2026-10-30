@@ -179,6 +179,7 @@
         if (document.hidden) return;
         lsSet(K_FRAGE, String(Date.now()));
         frageOffen = Date.now();
+        try { window.jvFrage && window.jvFrage.neu('orte'); } catch (e) { }
 try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'orte', kanal: ['karte', 'sprache'], grund: 'standort-frage', ausloeser: 'timer', ereignis: 'ort|standort-frage', bezug: null, frage: true, text: 'Ich kann dich im Supermarkt an deine Einkaufsliste erinnern. Dafür braucht die App den Standort mit der Einstellung „Immer zulassen“.' }) } catch (e) { }   // C1: nur Beobachtung
         karte([{ icon: '📍', title: 'Standort „Immer zulassen“', subtitle: 'Damit Jarvis dich im Supermarkt erinnern kann', onclick: 'jvOrte.rechte()' }]);
         sagen('Ich kann dich im Supermarkt an deine Einkaufsliste erinnern. Dafür braucht die App den Standort mit der Einstellung „Immer zulassen“. Soll ich dir die Einstellungen öffnen?');

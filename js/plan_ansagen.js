@@ -672,6 +672,7 @@
     function weckerFrage(ymd, vorsatz) {
         const min = weckzeit() - tagVor(ymdPlus(ymd, 1));
         offenesWecker = { ymd, min, at: Date.now() };
+        try { window.jvFrage && window.jvFrage.neu('plan_wecker'); } catch (e) { }
         try {
             if (typeof showActionCards === 'function') showActionCards([
                 { icon: '⏰', title: 'Wecker auf ' + uhrHM(min) + ' Uhr stellen', subtitle: 'Frühschicht morgen', onclick: 'jvPlan.weckerJa()' },

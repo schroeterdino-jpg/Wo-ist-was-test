@@ -325,7 +325,7 @@ function handleLocalCommandInner(text) {
     if (typeof handleUeberblickCommand === 'function' && handleUeberblickCommand(text)) return true;
     if (typeof handleAnflugCommand === 'function' && handleAnflugCommand(text)) return true;
     if (typeof handleDiagCommand === 'function' && handleDiagCommand(text)) return true;
-    if (typeof handlePhotoCommand === 'function' && handlePhotoCommand(text)) return true;
+    if (typeof handlePhotoCommand === 'function' && !(window.jvFrage && window.jvFrage.sperrt('photo', text)) && handlePhotoCommand(text)) return true;
     if (typeof handleHelpCommand === 'function' && handleHelpCommand(text)) return true;
     if (typeof handleSpeechRateCommand === 'function' && handleSpeechRateCommand(text)) return true;
     if (typeof handleWeatherMapCommand === 'function' && handleWeatherMapCommand(text)) return true;

@@ -76,7 +76,7 @@
     function fallback(my, beschr) {
         if (my !== seq || userStarted === my) return;
         const b = String(beschr || '').replace(/\s+/g, ' ').replace(/[.!?]+$/, '').trim().slice(0, 140);
-        if (!b) { try { window.photoSay('Das Foto ist da. Was soll ich damit tun?'); } catch (e) {} return; }
+        if (!b) { try { window.jvFrage && window.jvFrage.neu('photo'); } catch (e) { } try { window.photoSay('Das Foto ist da. Was soll ich damit tun?'); } catch (e) {} return; }
         // Unbekanntes Foto: Zane beschreibt es sofort selbst. Die Karten (z. B. WhatsApp senden) bleiben stehen.
         mine = true;
         Promise.resolve().then(() => origRun.call(window, 'describe', ''))

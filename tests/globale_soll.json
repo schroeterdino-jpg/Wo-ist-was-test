@@ -14,7 +14,7 @@
    "commands.js -> buildMenuPanel",
    "commands.js -> buildSystemPrompt",
    "commands.js -> handleLocalCommand",
-   "contextplus.js -> jvCommandsUse",
+   "fragen_reihenfolge.js -> jvCommandsUse",
    "formulierungen.js -> executeAction",
    "weathermap.js -> openPanel",
    "weathermap.js -> closePanel",

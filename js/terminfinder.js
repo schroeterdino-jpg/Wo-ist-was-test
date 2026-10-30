@@ -175,6 +175,7 @@
         else if (s1.bis === null && a.art === 'besuch') satz += 'Danach hast du nichts mehr vor, du kannst in Ruhe bleiben. ';
         const rest = teil.slice(1).map((s, i) => (i + 2) + ', ' + datumSprech(s.iso) + ' um ' + sprech(s.arr)).join('. ');
         const kopf = o.seite === 0 ? (a.art === 'besuch' ? '' : '') : 'Weitere freie Zeiten. ';
+        try { window.jvFrage && window.jvFrage.neu('terminfinder'); } catch (e) { }
         sagen(kopf + satz + (rest ? 'Weitere Möglichkeiten: ' + rest + '. ' : '') + 'Welche soll ich eintragen? Sag eins, zwei oder drei, oder andere.');
     }
     async function wahl(i) {

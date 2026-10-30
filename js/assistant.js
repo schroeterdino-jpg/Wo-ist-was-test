@@ -93,6 +93,7 @@ function jvKiTextFuer(text) {
 }
 
 async function sendToGroqSmartCore(text, opts = {}) {
+    const jvFrageVorher = (window.jvFrage && window.jvFrage.zaehler) ? window.jvFrage.zaehler() : 0;   // js/fragen_reihenfolge.js: hat in diesem Durchlauf ein Modul gefragt?
     window.jvLetzterText = text;   // für das Zurückfragen (rueckfrage.js): der Satz, der nach der Antwort noch einmal ausgeführt wird
     isProcessing = true;
     try { if (typeof diagStart === 'function') diagStart(text); } catch (e) {}   // Diagnose-Fenster (nur wenn eingeschaltet)
@@ -594,6 +595,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
         if (wantsSearch) updateTerminalStream("MEMORY_READ: QUERY_EXEC");
         clearTimeout(ackTimer);   // VOR speak(), nicht erst im finally-Block - schließt das Zeitfenster für eine überlappende Zwischenansage ganz
         try { if (typeof window.jvFristHinweis === 'function') replyText = window.jvFristHinweis(replyText, text) || replyText; } catch (e) {}   // nahende Frist beiläufig anhängen (js/langzeit.js)
+        try { if (window.jvFrage) window.jvFrage.kiFrage(jvFrageVorher, replyText); } catch (e) {}   // freie Frage der KI: jüngste Frage (überholt ältere Modul-Fragen)
         speak(replyText, continueConversation);
     } catch (e) {
         renderAllLists();

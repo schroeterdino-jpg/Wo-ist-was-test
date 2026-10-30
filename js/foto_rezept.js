@@ -181,6 +181,7 @@
         if (!m) msg += ' Die Zubereitung fehlt noch. Mit „Foto hinzufügen“ ergänzt du sie.';
         else if (!n) msg += ' Die Zutaten fehlen noch. Mit „Foto hinzufügen“ ergänzt du sie.';
         msg += ' Soll ich es speichern, ausdrucken, vorlesen oder die Zutaten auf deine Einkaufsliste setzen?';
+        try { window.jvFrage && window.jvFrage.neu('rezepte'); } catch (e) { }
         say(msg);
     }
 

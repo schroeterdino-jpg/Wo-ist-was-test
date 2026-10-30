@@ -171,6 +171,7 @@
         const m = await meta(id);
         if (m.fehler) { fehlerBehandeln(m.fehler); return; }
         pending = { art: 'einzeln', id, bis: Date.now() + 60000 };
+        try { window.jvFrage && window.jvFrage.neu('mailaktionen'); } catch (e) { }
         card([{ icon: '🗑️', title: 'In den Papierkorb?', subtitle: (kurzName(m.von) + ' · ' + m.betreff).slice(0, 150) }]);
         say('Soll ich die Mail von ' + kurzName(m.von) + ' mit dem Betreff „' + m.betreff.slice(0, 80) + '“ in den Papierkorb legen?');
     }
@@ -181,6 +182,7 @@
         const ids = ((r.data && r.data.messages) || []).map(x => x.id);
         if (!ids.length) { say('Im Reiter Werbung deines Posteingangs liegt gerade nichts.'); return; }
         pending = { art: 'werbung', ids, bis: Date.now() + 60000 };
+        try { window.jvFrage && window.jvFrage.neu('mailaktionen'); } catch (e) { }
         const n = ids.length >= 100 ? 'mindestens 100' : String(ids.length);
         card([{ icon: '🗑️', title: n + ' Werbe-Mails in den Papierkorb?', subtitle: 'Reiter Werbung im Posteingang · Sag ja oder nein' }]);
         say('Im Reiter Werbung liegen ' + n + ' Mails. Soll ich sie alle in den Papierkorb legen?');
@@ -249,6 +251,7 @@
             const d = diktatAus(roh);
             if (d.length >= 8) { entwurfAnlegen(d).catch(e => { console.error('Entwurf', e); say('Das hat nicht geklappt.'); }); return true; }
             pending = { art: 'diktat', bis: Date.now() + 90000 };
+            try { window.jvFrage && window.jvFrage.neu('mailaktionen'); } catch (e) { }
             say('Was soll ich antworten?');
             return true;
         }

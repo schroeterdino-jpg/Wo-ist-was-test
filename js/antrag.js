@@ -233,6 +233,7 @@
         while (i < A.felder.length && (A.felder[i].art === 'unterschrift' || A.felder[i].art === 'manuell' || (ueb && A.bestaetigt[A.felder[i].id] && !leer(A.werte[A.felder[i].id])))) i++;
         if (i >= A.felder.length) { sprache = null; say('Das war die letzte Angabe. ' + (A.acro ? 'Tippe auf „Ausgefülltes PDF erstellen“.' : 'Tippe auf „Ausfüllhilfe erstellen“, dann prüfe ich alles und zeige die Liste.')); zeichne(); return; }
         sprache = { i, at: Date.now(), ueb };
+        try { window.jvFrage && window.jvFrage.neu('antrag'); } catch (e) { }
         const f = A.felder[i], v = A.werte[f.id];
         let s = 'Angabe ' + (i + 1) + ' von ' + A.felder.length + (f.nr ? ', Nummer ' + f.nr : '') + ': ' + f.bezeichnung + '.';
         if (f.art === 'mehrfach') s += ' Du kannst mehrere nennen. Möglich: ' + f.optionen.map(o => o.replace(/\s*\(.*$/, '')).join(', ') + '. Oder sag „keine“.';
@@ -246,6 +247,7 @@
         const vor = A.felder.filter(f => A.vorgabe[f.id] && !leer(A.werte[f.id]));
         if (!vor.length) return fragen(0);
         sprache = { i: -1, at: Date.now(), vorab: true, ueb: false };
+        try { window.jvFrage && window.jvFrage.neu('antrag'); } catch (e) { }
         say('Ich habe schon ' + vor.length + ' Angaben aus deinen Daten eingetragen: ' + vor.slice(0, 8).map(f => f.bezeichnung.replace(/\s+der antragstellenden Person/i, '') + ' ' + A.werte[f.id]).join(', ') + (vor.length > 8 ? ' und weitere' : '') + '. Stimmt das alles? Sag Ja, dann überspringe ich sie. Sag Nein, dann gehe ich alles einzeln durch.');
         zeichne();
     }
