@@ -89,26 +89,15 @@
         const a = Math.sin(dLa / 2) ** 2 + Math.cos(t(la1)) * Math.cos(t(la2)) * Math.sin(dLo / 2) ** 2;
         return R * 2 * Math.asin(Math.sqrt(a));
     };
-    function distToLine(lat, lon, pts) {
-        let best = Infinity;
-        for (let i = 0; i < pts.length - 1; i++) {
-            const a = pts[i], b = pts[i + 1];
-            const kx = Math.cos(lat * Math.PI / 180), ax = (a[1] - lon) * kx, ay = a[0] - lat, bx = (b[1] - lon) * kx, by = b[0] - lat;
-            const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
-            let t = L > 0 ? -(ax * dx + ay * dy) / L : 0; t = Math.max(0, Math.min(1, t));
-            const d = Math.hypot(ax + t * dx, ay + t * dy) * 111.2;
-            if (d < best) best = d;
-        }
-        return best;
-    }
-
     /* Schwere einer TomTom-Meldung (klein = wichtiger): 0 Sperrung (auch Stufe 4) und Unfall, 1 Gefahrenstelle, Fahrstreifen gesperrt, große Verzögerung, 2 der Rest.
        Eine Sperrung meldet TomTom oft mit 0 Sekunden Verzögerung; nach Sekunden allein fiele sie hinter kleine Staus. */
     const schwere = i => ([1, 8].includes(i.kategorie) || i.stufe >= 4) ? 0 : ([3, 7].includes(i.kategorie) || i.stufe === 3) ? 1 : 2;
 
-    async function stadtMeldungen(fLat, fLon, tLat, tLon) {
-        let pts = routeCoords;
-        if (!pts) pts = [[fLat, fLon], [tLat, tLon]];
+    /* Phase 2: Abstand und Klasse (auf / nahe) kommen aus routenRelevanz (travel.js). Ohne echten Linienverlauf gilt nur die Luftlinie Start-Ziel: dann bleibt es
+       beim bisherigen Streifen und keine Meldung gilt als belegt "auf" oder "nahe" der Route (Klasse "gebiet"). */
+    async function stadtMeldungen(fLat, fLon, tLat, tLon, linie) {
+        const echt = !!(linie && linie.length > 1);
+        let pts = echt ? linie : [[fLat, fLon], [tLat, tLon]];
         if (pts.length > 400) { const step = Math.ceil(pts.length / 400); pts = pts.filter((_, i) => i % step === 0 || i === pts.length - 1); }
         const lats = pts.map(p => p[0]), lons = pts.map(p => p[1]), pad = 0.02;
         const bbox = [Math.min(...lons) - pad, Math.min(...lats) - pad, Math.max(...lons) + pad, Math.max(...lats) + pad].map(n => n.toFixed(5)).join(',');
@@ -119,11 +108,13 @@
             d = await r.json();
         } catch (e) { return null; }
         if (!d || !Array.isArray(d.incidents)) return null;
-        const doppelt = (i) => (typeof lastStauWarnings !== 'undefined' ? lastStauWarnings : []).some(w => km(w.lat, w.lon, i.lat, i.lon) < 1.5);
-        const wichtig = d.incidents.filter(i => ![4, 10].includes(i.kategorie) && (i.stufe >= 2 || i.verzoegerung_s >= 120 || [1, 8].includes(i.kategorie)))
-            .filter(i => distToLine(i.lat, i.lon, pts) <= ([7, 8].includes(i.kategorie) ? 0.25 : 1.2) && !doppelt(i))   // Sperrungen nur, wenn sie wirklich auf der Strecke liegen (Google fährt um sie herum)
-            .sort((a, b) => (schwere(a) - schwere(b)) || (b.verzoegerung_s - a.verzoegerung_s) || (b.stufe - a.stufe)).slice(0, 3);   // erst Schwere (Sperrung/Unfall zuerst), dann Verzögerung
-        return wichtig;
+        const bekannt = (typeof lastStauWarnings !== 'undefined' ? lastStauWarnings : []).concat(typeof lastStauNahe !== 'undefined' ? lastStauNahe : []);
+        const doppelt = (i) => bekannt.some(w => km(w.lat, w.lon, i.lat, i.lon) < 1.5);
+        const ordnen = l => l.sort((a, b) => (schwere(a) - schwere(b)) || (b.verzoegerung_s - a.verzoegerung_s) || (b.stufe - a.stufe));   // erst Schwere (Sperrung/Unfall zuerst), dann Verzögerung
+        const mitKlasse = d.incidents.filter(i => ![4, 10].includes(i.kategorie) && (i.stufe >= 2 || i.verzoegerung_s >= 120 || [1, 8].includes(i.kategorie)))
+            .map(i => { const r = routenRelevanz(i.lat, i.lon, pts); return { i, ok: r.km <= ([7, 8].includes(i.kategorie) ? ROUTE_AUF_KM : ROUTE_NAHE_KM), klasse: echt ? r.klasse : 'gebiet' }; })   // Sperrungen nur, wenn sie wirklich auf der Strecke liegen (Google fährt um sie herum)
+            .filter(x => x.ok && !doppelt(x.i)).map(x => Object.assign({}, x.i, { klasse: x.klasse }));
+        return { auf: ordnen(mitKlasse.filter(i => i.klasse !== 'nahe')).slice(0, 3), neben: ordnen(mitKlasse.filter(i => i.klasse === 'nahe')).slice(0, 2) };
     }
 
     if (window.jvCommands) {
@@ -147,26 +138,29 @@
         }, 145);
     }
 
-    window.describeAutobahnStau = async function (autobahnen, fLat, fLon, tLat, tLon) {
+    window.describeAutobahnStau = async function (autobahnen, fLat, fLon, tLat, tLon, coords) {
         window.jvStauMin = 0;   // Minuten Verzögerung durch Meldungen auf der Strecke (travel.js rechnet sie in die Abfahrtszeit ein)
-        let text = await origDesc.apply(this, arguments);
+        const linie = Array.isArray(coords) && coords.length > 1 ? coords : routeCoords;   // dieselbe Linie für autobahn.de (travel.js) und TomTom
+        let text = await origDesc.call(this, autobahnen, fLat, fLon, tLat, tLon, linie);
         try {
-            const w = await stadtMeldungen(fLat, fLon, tLat, tLon);
-            if (w && w.length) {
-                window.jvStauMin = Math.min(60, w.reduce((s, i) => s + (i.verzoegerung_s >= 120 ? Math.round(i.verzoegerung_s / 60) : 0), 0));
+            const erg = await stadtMeldungen(fLat, fLon, tLat, tLon, linie), w = erg ? erg.auf : [], neben = erg ? erg.neben : [];
+            if (w.length || neben.length) {
+                window.jvStauMin = Math.min(60, w.reduce((s, i) => s + (i.verzoegerung_s >= 120 ? Math.round(i.verzoegerung_s / 60) : 0), 0));   // nur Meldungen auf der Route verlängern die Fahrt
                 // TomTom nennt bei Autobahn-Ausfahrten oft nur "Abfahrt [8a]" ohne Straße: dann die Autobahn der Route nehmen (wenn es nur eine gibt) und die eckigen Klammern weglassen
                 const sauber = s => String(s || '').replace(/\[([^\]]+)\]/g, '$1').trim();
                 const strasse = i => (i.strassen && i.strassen[0]) || ((/^(?:abfahrt|ausfahrt|auffahrt|anschlussstelle|as)\b/i.test(sauber(i.von)) && Array.isArray(autobahnen) && autobahnen.length === 1) ? autobahnen[0] : '');
-                const teile = w.map(i => {
+                const teilText = i => {
                     const von = sauber(i.von), nach = sauber(i.nach);
                     const wo = von && nach && von !== nach ? ' zwischen ' + von + ' und ' + nach : (von ? ' bei ' + von : '');
                     const min = Math.round(i.verzoegerung_s / 60);
                     return i.art + (strasse(i) ? ' auf der ' + strasse(i) : '') + wo + (min >= 2 ? ', etwa ' + min + ' Minuten länger' : '');
-                });
-                text += ' Außerdem gemeldet: ' + teile.join('; ') + '.';
+                };
+                const teile = w.map(teilText), nebenTeile = neben.map(teilText);
+                if (teile.length) text += ' Außerdem gemeldet: ' + teile.join('; ') + '.';
+                if (nebenTeile.length) text += ' Außerdem gemeldet, nahe deiner Route: ' + nebenTeile.join('; ') + '.';
                 const ICON = { 'Unfall': '🚨', 'Stau': '🚦', 'Sperrung': '⛔', 'Fahrstreifen gesperrt': '🚧', 'Baustelle': '🚧', 'Pannenfahrzeug': '🚗', 'Gefahrenstelle': '⚠️', 'Glätte': '❄️', 'Nebel': '🌫️', 'Überflutung': '🌊' };
                 w.forEach((i, k) => {
-                    lastStauWarnings.push({ lat: i.lat, lon: i.lon, road: strasse(i) || 'Stadt', title: teile[k], text: i.text || '' });
+                    lastStauWarnings.push({ lat: i.lat, lon: i.lon, road: strasse(i) || 'Stadt', klasse: i.klasse, title: teile[k], text: i.text || '' });
                     lastStauCards.push({
                         icon: ICON[i.art] || '⚠️',
                         title: i.art + ' · ' + (strasse(i) || sauber(i.von) || 'Strecke'),
@@ -174,6 +168,12 @@
                         href: 'https://www.google.com/maps?q=' + i.lat + ',' + i.lon
                     });
                 });
+                neben.forEach(i => lastStauCards.push({   // nur NAHE der Route: Karte ja, aber nicht in lastStauWarnings (Karte/Lagebild/Kacheln zählen nur Meldungen auf der Route)
+                    icon: ICON[i.art] || '⚠️',
+                    title: i.art + ' · ' + (strasse(i) || sauber(i.von) || 'Strecke') + ' · nahe der Route',
+                    subtitle: (i.von ? sauber(i.von) + (i.nach ? ' → ' + sauber(i.nach) : '') : (i.text || 'Verkehrsmeldung')) + (i.verzoegerung_s >= 120 ? ' · +' + Math.round(i.verzoegerung_s / 60) + ' min' : ''),
+                    href: 'https://www.google.com/maps?q=' + i.lat + ',' + i.lon
+                }));
                 if (typeof lastStauText !== 'undefined') lastStauText = text;
             }
         } catch (e) { console.error('Stadtverkehr', e); }

@@ -8,7 +8,7 @@
 const TRAVEL_BUFFER_MINUTES = 10;   // Puffer, damit man nicht auf die Minute genau losfahren muss
 
 // Daten der zuletzt berechneten Route, damit die HUD-Karte sie ohne zweite Abfrage zeichnen kann
-let lastStauWarnings = [];
+let lastStauWarnings = [], lastStauNahe = [];   // Meldungen AUF der Route (Karte, Lagebild) / nur NAHE der Route (nur Satz, Karten und Doppelt-Prüfung), siehe routenRelevanz am Dateiende
 let lastStauText = '';     // der zuletzt gesprochene Satz zur Verkehrslage auf der Strecke (siehe describeAutobahnStau; fürs Schicht-Briefing)
 let lastRouteMapData = null;
 let lastWebcamCards = [];   // Webcam-Bildkarten der zuletzt berechneten Route (siehe describeAutobahnStau)
@@ -472,7 +472,7 @@ async function computeDepartureAdvice(opts) {
     }
 
     const kmText = km >= 10 ? Math.round(km) + ' Kilometer' : km.toFixed(1).replace('.', ',') + ' Kilometer';
-    const staumeldung = await describeAutobahnStau(route.autobahnen, loc.latitude, loc.longitude, dest.lat, dest.lon);
+    const staumeldung = await describeAutobahnStau(route.autobahnen, loc.latitude, loc.longitude, dest.lat, dest.lon, route.coords);
     const mitVerkehr = route.quelle === 'google';   // Googles Fahrzeit enthält den aktuellen Verkehr schon: Stau-Minuten dann NICHT noch einmal addieren
     const stauMin = mitVerkehr ? 0 : Math.max(0, Math.round(Number(window.jvStauMin) || 0));   // gemeldete Verzögerung auf der Strecke: kommt zur Fahrzeit dazu
 
@@ -573,8 +573,8 @@ const WARNING_ICONS = {
     'Stau': '🚦', 'Gefahrenstelle': '⚠️', 'Kurzzeitbaustelle': '🚧', 'Verkehrsstörung': '⚠️'
 };
 
-async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) {
-    lastStauWarnings = [];
+async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon, coords) {   // coords: Linienverlauf der Route ([Breite, Länge]); ohne ihn bleibt es beim groben Fahrschlauch
+    lastStauWarnings = []; lastStauNahe = [];
     lastWebcamCards = [];
     lastStauCards = [];
     lastStauText = '';
@@ -590,8 +590,8 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
         return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
     };
 
-    const relevant = autobahnen.slice(0, 2);   // nicht zu viele Abfragen bei langen Strecken mit vielen Autobahnen
-    const meldungen = [];
+    const relevant = autobahnen.slice(0, 2), linie = Array.isArray(coords) && coords.length > 1 ? coords : null;   // nicht zu viele Abfragen bei langen Strecken mit vielen Autobahnen
+    const meldungen = [], naheMeldungen = [];
     const geprueft = [];   // Autobahnen, deren Abfrage wirklich geklappt hat
     // Ein Aufruf pro Autobahn liefert Stau-/Baustellenmeldungen UND Webcams zusammen
     const alleDaten = await Promise.all(relevant.map(road => fetchAutobahnData(road)));
@@ -601,18 +601,18 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
         if (!data) continue;   // Dienst gerade nicht erreichbar: nichts behaupten, kein Fehler-Lärm
         geprueft.push(road);
         const warnings = data.warning;
-        const nahe = warnings.filter(relevanteMeldung).map((w, i) => ({ w, i, r: warnungRang(classifyWarning(w)) })).sort((a, b) => (a.r - b.r) || (a.i - b.i)).map(x => x.w);   // Schwere zuerst, dann erst begrenzen (siehe Ende der Datei)
-        nahe.slice(0, 6).forEach(w => {
+        const eing = meldungenEinordnen(warnings, linie, relevanteMeldung), nahe = eing.auf, neben = eing.neben, karte = linie ? nahe : neben; neben.forEach(w => lastStauNahe.push({ lat: Number(w.coordinate.lat), lon: Number(w.coordinate.long) }));   // Rangfolge (Phase 1) und Routennähe (Phase 2): siehe Ende der Datei
+        karte.slice(0, 6).forEach(w => {
             const titel = (w.title || '').split('|').pop().trim() || 'Verkehrsmeldung', belegt = meldungNenntAutobahn(w, road);
             lastStauWarnings.push({
-                lat: Number(w.coordinate.lat), lon: Number(w.coordinate.long), road, autobahnBelegt: belegt, title: belegt ? titel : meldungOhneAutobahn(w),
+                lat: Number(w.coordinate.lat), lon: Number(w.coordinate.long), road, klasse: linie ? 'auf' : 'gebiet', autobahnBelegt: belegt, title: belegt ? titel : meldungOhneAutobahn(w),
                 text: (w.description || []).slice(0, 3).join(' · ')
             });
         });
         // Dieselbe Stelle in beiden Fahrtrichtungen ("Hamburg-Stillhorn - Norderelbbrücke" und "Hamburg-Südost - Norderelbbrücke", beide Gefahrenstelle) nur einmal nennen:
         // gleiche Art und entweder gleicher Ortsname am Ende des Titels oder weniger als etwa 500 Meter Abstand
         const gesehenStelle = [];
-        nahe.filter(w => {
+        [[nahe, meldungen, ''], [neben, naheMeldungen, ' · nahe der Route']].forEach(([liste, ziel, zusatz]) => liste.filter(w => {   // erst die Meldungen AUF der Route, dann die nur NAHEN (eigener Satz)
             const art = classifyWarning(w);
             const name = String((w.title || '').split('|').pop() || '').split(/\s+[-–]\s+|,\s*/).pop().trim().toLowerCase();
             const lat = w.coordinate ? Number(w.coordinate.lat) : NaN, lon = w.coordinate ? Number(w.coordinate.long) : NaN;
@@ -624,16 +624,16 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
         }).slice(0, 2).forEach(w => {
             const kurz = (w.title || '').split('|').pop().trim();
             const art = classifyWarning(w);
-            meldungen.push(meldungNenntAutobahn(w, road) ? `${road}${kurz ? ': ' + kurz : ''} (${art})` : meldungOhneAutobahn(w));
+            ziel.push(meldungNenntAutobahn(w, road) ? `${road}${kurz ? ': ' + kurz : ''} (${art})` : meldungOhneAutobahn(w));
             const lat = w.coordinate && Number(w.coordinate.lat), lon = w.coordinate && Number(w.coordinate.long);
             const beschreibung = (w.description || []).slice(0, 2).join(' · ');
             lastStauCards.push({
                 icon: WARNING_ICONS[art] || '⚠️',
-                title: meldungNenntAutobahn(w, road) ? `${art} · ${road}` : art,
+                title: (meldungNenntAutobahn(w, road) ? `${art} · ${road}` : art) + zusatz,
                 subtitle: (kurz || 'Verkehrsmeldung') + (beschreibung ? ' · ' + beschreibung : ''),
                 href: (isFinite(lat) && isFinite(lon)) ? `https://www.google.com/maps?q=${lat},${lon}` : undefined
             });
-        });
+        }));
 
         // Webcams auf derselben Autobahn, die im Fahrschlauch liegen - höchstens 2 pro Autobahn, damit es nicht zu viele werden
         (data.webcam || []).filter(relevanteMeldung).slice(0, 2).forEach(w => {
@@ -646,8 +646,8 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
             });
         });
     }
-    if (meldungen.length > 0) return (lastStauText = ' Achtung, auf der Strecke aktuell gemeldet: ' + meldungen.join('; ') + '.');
-    if (geprueft.length > 0) return (lastStauText = ` Auf der ${geprueft.join(' und ')} sind aktuell keine Staumeldungen bekannt.`);
+    const nebenSatz = naheMeldungen.length ? ' Außerdem gemeldet, ' + (linie ? 'nahe deiner Route' : 'im Gebiet der Strecke') + ': ' + naheMeldungen.join('; ') + '.' : '';   // "Außerdem gemeldet" erkennt plan_ansagen.js (ISTSTAU)
+    if (meldungen.length > 0 || naheMeldungen.length > 0 || geprueft.length > 0) return (lastStauText = (meldungen.length > 0 ? ' Achtung, auf der Strecke aktuell gemeldet: ' + meldungen.join('; ') + '.' : naheMeldungen.length > 0 ? '' : ` Auf der ${geprueft.join(' und ')} sind aktuell keine Staumeldungen bekannt.`) + nebenSatz);
     return '';
 }
 
@@ -1133,4 +1133,50 @@ function meldungNenntAutobahn(w, road) {
 function meldungOhneAutobahn(w) {
     const ort = String((w && w.title) || '').split('|').pop().trim(), art = classifyWarning(w);
     return ort ? art + ' bei ' + ort : art;
+}
+
+/* ============================================================
+   ROUTENRELEVANZ (Phase 2, tests/verkehr.js): liegt eine Meldung AUF der Route, NAHE der Route oder nur in der UMGEBUNG?
+   Reine Hilfsfunktion, ruft nichts ab: Meldungsposition gegen den Linienverlauf der Route, der schon da ist ([Breite, Länge]-Paare).
+   Schwellen aus den bisherigen Regeln (0,25 / 0,6 / 1,2 km) zu einer einzigen Regel vereint, für alle Arten gleich (Schwere macht eine Meldung nicht "näher"):
+   - AUF    bis 0,25 km: bisher die engste Regel (Sperrungen); gilt jetzt für alles, was als "auf der Strecke" gesagt wird. Die Linie ist vereinfacht (Straße und Linie
+            können ein paar hundert Meter auseinanderliegen), mehr als 250 m neben der Linie ist darum nicht mehr sicher "darauf".
+   - NAHE   bis 1,2 km: bisher der weiteste Streifen für Meldungen in der Stadt (stadtverkehr.js). Wird als "nahe deiner Route" gesagt, nie als "auf der Strecke".
+            Die 0,6 km für "auf der Strecke" entfallen: 0,25 bis 0,6 km war bisher "darauf", ist jetzt "nahe".
+   - UMGEBUNG darüber: wird nicht als Streckenmeldung gesagt (kein Satz, keine Karte, keine Markierung).
+   Die Fahrtrichtung kennt sie bewusst nicht: eine Meldung der Gegenrichtung kann "auf der Route" liegen.
+   ============================================================ */
+const ROUTE_AUF_KM = 0.25, ROUTE_NAHE_KM = 1.2;
+
+/* Kleinster Abstand eines Punktes zur Linie in km (Ebene um den Punkt, für kurze Abstände genau genug) */
+function abstandZurLinieKm(lat, lon, pts) {
+    let best = Infinity;
+    const kx = Math.cos(lat * Math.PI / 180);
+    for (let i = 0; i < pts.length - 1; i++) {
+        const a = pts[i], b = pts[i + 1];
+        const ax = (a[1] - lon) * kx, ay = a[0] - lat, bx = (b[1] - lon) * kx, by = b[0] - lat, dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+        let t = L > 0 ? -(ax * dx + ay * dy) / L : 0; t = Math.max(0, Math.min(1, t));
+        const d = Math.hypot(ax + t * dx, ay + t * dy) * 111.2;
+        if (d < best) best = d;
+    }
+    return best;
+}
+
+/* { km, klasse: 'auf' | 'nahe' | 'umgebung' } */
+function routenRelevanz(lat, lon, linie) {
+    const km = abstandZurLinieKm(lat, lon, linie);
+    return { km, klasse: km <= ROUTE_AUF_KM ? 'auf' : km <= ROUTE_NAHE_KM ? 'nahe' : 'umgebung' };
+}
+
+/* autobahn.de-Meldungen einer Autobahn: { auf: [...], neben: [...] }, jede Liste nach Schwere geordnet (Phase 1), bei gleichem Rang bleibt die Reihenfolge der Quelle.
+   Mit Linie: Abstand zur Linie entscheidet (UMGEBUNG fällt weg, das Rechteck wird nicht mehr gebraucht). Ohne Linie (nicht bekannt): nur der grobe Fahrschlauch (imSchlauch),
+   alles landet in "neben", denn dass es auf der Route liegt, ist dann nicht belegt. */
+function meldungenEinordnen(warnings, linie, imSchlauch) {
+    const liste = (warnings || []).map((w, i) => {
+        const lat = w && w.coordinate && Number(w.coordinate.lat), lon = w && w.coordinate && Number(w.coordinate.long);
+        const ok = linie ? (isFinite(lat) && isFinite(lon)) : imSchlauch(w);
+        return ok ? { w, i, r: warnungRang(classifyWarning(w)), k: linie ? routenRelevanz(lat, lon, linie).klasse : 'nahe' } : null;
+    }).filter(Boolean);
+    const ordnen = k => liste.filter(x => x.k === k).sort((a, b) => (a.r - b.r) || (a.i - b.i)).map(x => x.w);
+    return { auf: ordnen('auf'), neben: ordnen('nahe') };
 }
