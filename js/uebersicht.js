@@ -46,10 +46,10 @@
         if (l.fehler) return '<div class="ueb-gross">–</div><div class="ueb-sub">' + esc(l.fehler) + '</div>';
         if (!l.hatArbeit) return '<div class="ueb-gross">–</div><div class="ueb-sub">Arbeitsadresse fehlt</div>';
         if (!l.arbeit) return '<div class="ueb-gross">–</div><div class="ueb-sub">Route nicht verfügbar</div>';
-        const an = hhmm(new Date(Date.now() + l.arbeit.min * 60000));
-        const m = l.arbeit.meldungen || [];
+        const w = l.heimweg || l.arbeit; const an = hhmm(new Date(Date.now() + w.min * 60000));
+        const m = w.meldungen || [];
         const lage = m.length ? '<span class="ueb-warn">' + m.length + (m.length === 1 ? ' Meldung' : ' Meldungen') + '</span>' : '<span class="ueb-ok">frei</span>';
-        return '<div class="ueb-gross">' + l.arbeit.min + '<small>min</small></div><div class="ueb-sub">Ankunft ' + an + ' · ' + lage + '</div>';
+        return '<div class="ueb-gross">' + w.min + '<small>min</small></div><div class="ueb-sub">' + 'Ankunft ' + an + ' · ' + lage + '</div>';
     }
     function regen(l) {
         if (!l || l.fehler) return '<div class="ueb-gross">–</div><div class="ueb-sub">' + (l ? 'keine Daten' : 'lädt …') + '</div>';
@@ -133,7 +133,7 @@
     function lokal() {
         kopf();
         const l = stand.lage;
-        setze('uebArbeit', arbeitsweg(l));
+        setze('uebArbeit', arbeitsweg(l)); { const ka = $('uebArbeit'); if (ka) ka.classList.toggle('heim', !!(l && l.heimweg && l.arbeit)); }   // Beschriftung "Heimweg" statt "Arbeitsweg"
         setze('uebRegen', regen(l));
         setze('uebDiesel', diesel(l));
         setze('uebSchicht', schicht());
