@@ -355,7 +355,7 @@ function tabelle(m) {
         check('Gegenprobe: neue Testdatei ohne Klasse wird gemeldet', t1.unklassifiziert.includes('neu_ohne_klasse'));
         const t2 = testbestand(leser({ ersatz: { '.github/workflows/tests.yml': t => t + '      - run: node tests/gibtes_nicht.js\n' } }));
         check('Gegenprobe: Workflow-Schritt auf fehlende Testdatei wird gemeldet', t2.workflowOhneDatei.includes('gibtes_nicht'));
-        const t3 = testbestand(leser({ ersatz: { '.github/workflows/tests.yml': t => t.replace('      - run: node tests/memory7b.js\n', '') } }));
+        const t3 = testbestand(leser({ ersatz: { '.github/workflows/tests.yml': t => t.replace('          node tests/memory7b.js\n', '') } }));
         check('Gegenprobe: Regressionsprüfung fehlt im Workflow wird gemeldet', t3.regressionNichtImWorkflow.includes('memory7b'));
     }
     {   // CI: Zeitzone im Workflow gesetzt wird erkannt (Folge-Phase 8B ändert den Sollwert bewusst)
