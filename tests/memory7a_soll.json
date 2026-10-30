@@ -26,7 +26,7 @@
    "storage.js",
    "sync.js"
   ],
-  "schluesselAnzahl": 170,
+  "schluesselAnzahl": 165,
   "jvNova": [
    "jv_aa_kopf",
    "jv_ansage_zuletzt",
@@ -56,7 +56,6 @@
    "jv_haushalt",
    "jv_heute",
    "jv_hoerkorrektur",
-   "jv_holo",
    "jv_human",
    "jv_karte_auto_zu",
    "jv_kennen_an",
@@ -82,7 +81,6 @@
    "jv_mailwatch_on",
    "jv_mailwatch_seen",
    "jv_meldungen",
-   "jv_mimik",
    "jv_mitnehmen",
    "jv_mn_an",
    "jv_mn_done",
@@ -152,9 +150,6 @@
    "jv_zuvor_gruss_",
    "jv_zuvor_letzt",
    "nova_kopf",
-   "nova_kopf_init",
-   "nova_kopf_stimme",
-   "nova_stimme_",
    "nova_zubehoer"
   ],
   "gedaechtnisSchluesselSchreiber": [

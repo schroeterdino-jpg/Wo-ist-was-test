@@ -283,10 +283,10 @@ function anzahlAbweichungen(a, b) { const x = Array.isArray(a) ? a : [], y = Arr
     check('Foto-Kette: genau diese 7 Funktionen, runLastPhotoTask gehört ausdrücklich NICHT dazu', JS(Object.keys(kt.liste).sort()) === JS(['parsePhotoRequest', 'processPhoto', 'handlePhotoCommand', 'parseFollowupTask', 'showActionCards', 'photoAskWhatToDo', 'confirmPhotoPending'].sort()) && !('runLastPhotoTask' in kt.liste), Object.keys(kt.liste).join(','));
 
     check('speak-Kette (innen nach außen): voice > voicefix > sprueche > toene > fish > kontext_lokal > teilen', kette('speak') === 'voice.js > voicefix.js > sprueche.js > toene.js > fish.js > kontext_lokal.js > teilen.js', kette('speak'));
-    check('handleLocalCommand (innen nach außen): localcommands > commands (Verteiler) > mailpush > worldqueryfix > Inline-Skript in index.html > ortsuche (ortsuche ganz außen)',
-        kette('handleLocalCommand') === 'localcommands.js > commands.js > mailpush.js > worldqueryfix.js > index.html(inline) > ortsuche.js', kette('handleLocalCommand'));
-    check('Außen-Wrapper um den Verteiler: genau 3 Dateien + das Inline-Skript (erweiterungen.js nimmt zur Laufzeit den jvCommands-Weg, sein Wrapper-Zweig bleibt unbenutzt)',
-        fuer('handleLocalCommand').filter(f => !/^(localcommands|commands)\.js$/.test(f)).length === 4 && fuer('handleLocalCommand').indexOf('erweiterungen.js') < 0);
+    check('handleLocalCommand (innen nach außen): localcommands > commands (Verteiler) > mailpush > worldqueryfix > ortsuche (ortsuche ganz außen)',
+        kette('handleLocalCommand') === 'localcommands.js > commands.js > mailpush.js > worldqueryfix.js > ortsuche.js', kette('handleLocalCommand'));
+    check('Außen-Wrapper um den Verteiler: genau 3 Dateien (das frühere Inline-Skript mit den Mimik-Befehlen ist entfernt; erweiterungen.js nimmt zur Laufzeit den jvCommands-Weg, sein Wrapper-Zweig bleibt unbenutzt)',
+        fuer('handleLocalCommand').filter(f => !/^(localcommands|commands)\.js$/.test(f)).length === 3 && fuer('handleLocalCommand').indexOf('erweiterungen.js') < 0);
     check('Reihenfolge der Skripte in index.html: places < foto_kette < lagebild und foto_kette < photo < alle Foto-Dateien (die Kette steht vor allen, die sich bei ihr anmelden)',
         (() => { const r = starte({ festerZufall: true }).reihenfolge; const p = n => r.indexOf(n); return p('places.js') >= 0 && p('places.js') < p('foto_kette.js') && p('foto_kette.js') < p('lagebild.js') && p('foto_kette.js') < p('photo.js') && ['foto_adresse', 'foto_brief', 'foto_abtippen', 'foto_stundenplan', 'foto_essensplan', 'foto_urlaubsplan', 'wunschliste', 'foto_person', 'foto_erkennen', 'foto_rezept', 'fotosenden'].every(n => p('photo.js') < p(n + '.js')); })());
     check('Reihenfolge der Skripte in index.html: native_speech < commands < photo < foto_rezept < sprueche < teilen < fotosenden',
@@ -448,7 +448,7 @@ function anzahlAbweichungen(a, b) { const x = Array.isArray(a) ? a : [], y = Arr
         const hl = w.sb.jvCommands.list(), iSp = hl.indexOf('0.2 spotify-auto'), iLa = hl.indexOf('0.21 lauschen_aus');
         check('Handy-Welt: "lauschen_aus" (0.21) steht fest hinter "spotify-auto" (0.2), kein Gleichrang mehr', iSp >= 0 && iLa > iSp, hl.filter(x => /spotify-auto|lauschen_aus/.test(x)).join(','));
         const hr = hl.map(x => x.split(' ')[0]);
-        check('Handy-Welt: genau die 19 bekannten Gleichrang-Gruppen (keine zusätzliche durch lauschen_aus)', new Set(hr.filter((r, i) => hr.indexOf(r) !== i)).size === 19, String(new Set(hr.filter((r, i) => hr.indexOf(r) !== i)).size));
+        check('Handy-Welt: genau die 17 bekannten Gleichrang-Gruppen (keine zusätzliche durch lauschen_aus)', new Set(hr.filter((r, i) => hr.indexOf(r) !== i)).size === 17, String(new Set(hr.filter((r, i) => hr.indexOf(r) !== i)).size));
         const ohne = starte({ festerZufall: true, native: true, sekundenTakt: true, weitereTakte: [250], ohneSkripte: ['commands.js'] });
         await ohne.vorspulen(30000);
         check('Gibt es nie jvCommands, bleibt es still: keine Registrierung, kein Fehler (der Warteweg gibt nach 40 Versuchen leise auf)', ohne.sb.jvCommands === undefined);

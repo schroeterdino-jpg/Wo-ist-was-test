@@ -101,7 +101,6 @@
    "fish.js -> speakBrowser",
    "fish.js -> speakAck",
    "worldqueryfix.js -> handleLocalCommand",
-   "index.html(inline) -> handleLocalCommand",
    "ortsuche.js -> handleLocalCommand",
    "gedaechtnis_zeit.js -> setPersistentData",
    "kontext_lokal.js -> speak",
@@ -193,7 +192,7 @@
   "lokal": [
    "Mail Push einrichten => lokal=true | (Basis localcommands.js oder altes Einhängen) | gesagt=[\"Tippe unten auf den Knopf und bestätige bei Google.\"]",
    "Wo ist aktuell Krieg auf der Welt? => lokal=false | - | gesagt=[]",
-   "Zwinker mal => lokal=true | mimik | gesagt=[\"Dafür müsste der Kopf gerade sichtbar sein.\"]",
+   "Zwinker mal => lokal=false | - | gesagt=[]",
    "Wie spät ist es in Istanbul? => lokal=true | erweiterungen | gesagt=[\"In Istanbul ist es jetzt 12 Uhr. Das sind 2 Stunden mehr als bei dir.\"]",
    "Wo ist der nächste Penny? => lokal=true | (Basis localcommands.js oder altes Einhängen) | gesagt=[\"Ohne Standort kann ich nichts in der Nähe suchen. Bitte erlauben Sie den Standort für die App.\"]",
    "Gibt es eine Tankstelle in der Nähe? => lokal=false | - | gesagt=[]",

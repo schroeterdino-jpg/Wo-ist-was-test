@@ -225,7 +225,7 @@ async function lauf(satz, o) {
         const kette = A0.kette();
         const iM = kette.findIndex(x => /mehrfachfrage$/.test(x)), iW = kette.findIndex(x => /was_steht_an$/.test(x)), iMe = kette.findIndex(x => / mehrfach$/.test(x));
         check('Befehlsliste: mehrfachfrage steht vor was_steht_an und vor mehrfach', iM >= 0 && iM < iW && iM < iMe, kette.slice(0, 8).join(' | '));
-        check('Befehlsliste: mehrfachfrage (B4) und vollmond_auskunft (B4.1b) sind neu (96)', kette.length === 96 && kette.some(x => / vollmond_auskunft$/.test(x)), String(kette.length));
+        check('Befehlsliste: mehrfachfrage (B4) und vollmond_auskunft (B4.1b) sind neu (92)', kette.length === 92 && kette.some(x => / vollmond_auskunft$/.test(x)), String(kette.length));
     }
     {   /* Fehlt die Registry oder nur(), tut der Handler nichts */
         const { A } = await neueApp(); A.sb.jvFaehigkeiten = undefined;

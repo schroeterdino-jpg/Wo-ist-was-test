@@ -407,20 +407,6 @@
    "nativ": false
   },
   {
-   "id": "holo_look.js#1",
-   "art": "intervall",
-   "ms": 700,
-   "klasse": "dauerlauf",
-   "anfang": "ab Laden",
-   "start": "funktion",
-   "guard": "indirekt",
-   "stop": "clearInterval",
-   "begrenzt": false,
-   "doppel": "clear vor Neustart",
-   "netz": false,
-   "nativ": false
-  },
-  {
    "id": "jarvis.js#1",
    "art": "selbstansetzend",
    "ms": 1500,
@@ -739,20 +725,6 @@
    "stop": "Bedingung im Körper",
    "begrenzt": true,
    "doppel": "Selbstaufruf (Start je Aufruf der Funktion)",
-   "netz": false,
-   "nativ": false
-  },
-  {
-   "id": "mimik.js#1",
-   "art": "intervall",
-   "ms": 120,
-   "klasse": "dauerlauf",
-   "anfang": "ab Laden",
-   "start": "funktion",
-   "guard": "indirekt",
-   "stop": "clearInterval",
-   "begrenzt": false,
-   "doppel": "clear vor Neustart",
    "netz": false,
    "nativ": false
   },
@@ -1135,6 +1107,34 @@
    "nativ": false
   },
   {
+   "id": "uebersicht.js#1",
+   "art": "intervall",
+   "ms": 20000,
+   "klasse": "dauerlauf",
+   "anfang": "ab Laden",
+   "start": "funktion",
+   "guard": "indirekt",
+   "stop": "nie gestoppt",
+   "begrenzt": false,
+   "doppel": "keiner (mehrfacher Aufruf der Funktion möglich)",
+   "netz": false,
+   "nativ": false
+  },
+  {
+   "id": "uebersicht.js#2",
+   "art": "intervall",
+   "ms": 250,
+   "klasse": "dauerlauf",
+   "anfang": "ab Laden",
+   "start": "funktion",
+   "guard": "direkt",
+   "stop": "nie gestoppt",
+   "begrenzt": false,
+   "doppel": "keiner (mehrfacher Aufruf der Funktion möglich)",
+   "netz": false,
+   "nativ": false
+  },
+  {
    "id": "ui.js#1",
    "art": "selbstansetzend",
    "ms": 25,
@@ -1431,46 +1431,6 @@
  ],
  "raf": [
   {
-   "id": "avatar3d.js#r1",
-   "funktion": "ladeKopf",
-   "schleife": false,
-   "start": "rueckruf",
-   "guard": false,
-   "cancel": false
-  },
-  {
-   "id": "avatar3d.js#r2",
-   "funktion": "loop",
-   "schleife": true,
-   "start": "funktion",
-   "guard": false,
-   "cancel": false
-  },
-  {
-   "id": "avatar3d.js#r3",
-   "funktion": "setMode",
-   "schleife": false,
-   "start": "funktion",
-   "guard": false,
-   "cancel": false
-  },
-  {
-   "id": "holo_look.js#r1",
-   "funktion": "frame",
-   "schleife": true,
-   "start": "funktion",
-   "guard": true,
-   "cancel": false
-  },
-  {
-   "id": "holo_look.js#r2",
-   "funktion": "kick",
-   "schleife": false,
-   "start": "funktion",
-   "guard": true,
-   "cancel": false
-  },
-  {
    "id": "sphere.js#r1",
    "funktion": "start",
    "schleife": false,
@@ -1513,6 +1473,22 @@
   {
    "id": "synapsen.js#r2",
    "funktion": "start",
+   "schleife": false,
+   "start": "funktion",
+   "guard": true,
+   "cancel": false
+  },
+  {
+   "id": "uebersicht.js#r1",
+   "funktion": "eqBild",
+   "schleife": true,
+   "start": "funktion",
+   "guard": true,
+   "cancel": false
+  },
+  {
+   "id": "uebersicht.js#r2",
+   "funktion": "eqPruefen",
    "schleife": false,
    "start": "funktion",
    "guard": true,
@@ -1570,7 +1546,6 @@
    "calendar.js:260 @30000",
    "calendar.js:42 @1000",
    "gedaechtnis_zeit.js:55 @3000",
-   "holo_look.js:259 @700",
    "kacheln.js:210 @250",
    "kacheln.js:212 @60000",
    "kennenlernen.js:201 @10000",
@@ -1579,7 +1554,6 @@
    "laune.js:191 @1000",
    "mail_nacht.js:218 @1800000",
    "mail_nacht.js:219 @15000",
-   "mimik.js:211 @120",
    "parkplatz_auto.js:50 @60000",
    "plan_ansagen.js:934 @600000",
    "pushsync.js:201 @120000",
@@ -1592,6 +1566,8 @@
    "synapsen.js:163 @200",
    "sync.js:229 @180000",
    "travel.js:1110 @60000",
+   "uebersicht.js:208 @20000",
+   "uebersicht.js:209 @250",
    "ui.js:312 @60000",
    "ui.js:314 @900000",
    "ui.js:315 @900000",
@@ -1605,7 +1581,7 @@
   "startAktivIntervalle": 38,
   "idleAktivIntervalle": 39,
   "idleAktivRaf": [
-   "sphere.js:342·r"
+   "sphere.js:344·r"
   ],
   "idleProMinuteStufe": {
    "anzeige.js": "hoch (ab 100/min)",
@@ -1613,12 +1589,10 @@
    "blick.js": "gering (1–9/min)",
    "calendar.js": "mittel (10–99/min)",
    "gedaechtnis_zeit.js": "mittel (10–99/min)",
-   "holo_look.js": "mittel (10–99/min)",
    "kacheln.js": "gering (1–9/min)",
    "kennenlernen.js": "gering (1–9/min)",
    "laune.js": "mittel (10–99/min)",
    "mail_nacht.js": "gering (1–9/min)",
-   "mimik.js": "hoch (ab 100/min)",
    "parkplatz_auto.js": "gering (1–9/min)",
    "routinen.js": "gering (1–9/min)",
    "ruhe.js": "hoch (ab 100/min)",
@@ -1628,29 +1602,29 @@
    "spotify.js": "mittel (10–99/min)",
    "synapsen.js": "hoch (ab 100/min)",
    "travel.js": "gering (1–9/min)",
+   "uebersicht.js": "hoch (ab 100/min)",
    "ui.js": "gering (1–9/min)",
    "voice.js": "mittel (10–99/min)",
    "vorbereitung.js": "gering (1–9/min)",
    "zane_redet.js": "gering (1–9/min)"
   },
   "idleBurstTimeouts": {
-   "systemcheck_voll.js:19·t": 190
+   "systemcheck_voll.js:19·t": 184
   },
   "verstecktPausiert": [
    "anzeige.js:171",
    "anzeige.js:172",
-   "holo_look.js:259",
-   "mimik.js:211",
-   "sphere.js:342·r",
+   "sphere.js:344·r",
    "synapsen.js:163"
   ],
   "verstecktWeiter": [
    "calendar.js:42",
    "gedaechtnis_zeit.js:55",
    "ruhe.js:18",
-   "spotify.js:531"
+   "spotify.js:531",
+   "uebersicht.js:209"
   ],
-  "netzSichtbarIdle": 191,
+  "netzSichtbarIdle": 185,
   "netzVerstecktIdle": 0,
   "doppelstartNeueIntervalle": [],
   "doppelstartAktivGeaendert": [],
@@ -1665,8 +1639,6 @@
    "versteckt": [
     "anzeige.js:171 x12",
     "anzeige.js:172 x12",
-    "holo_look.js:259 x12",
-    "mimik.js:211 x12",
     "synapsen.js:163 x12",
     "voice.js:346 x2"
    ]
@@ -1676,7 +1648,6 @@
   "externeZiele": [
    "laden|accounts.google.com",
    "laden|cdn.tailwindcss.com",
-   "laden|esm.sh",
    "laden|fonts.googleapis.com",
    "panel_wechsel|www.tagesschau.de"
   ]
@@ -1690,7 +1661,6 @@
   "calendar.js",
   "dirigent.js",
   "fristen.js",
-  "holo_look.js",
   "jarvis.js",
   "kacheln.js",
   "konto.js",
@@ -1698,7 +1668,6 @@
   "mail_nacht.js",
   "mailwatch.js",
   "meldungs_regeln.js",
-  "mimik.js",
   "orte.js",
   "pakete.js",
   "parkplatz_auto.js",
@@ -1711,6 +1680,7 @@
   "synapsen.js",
   "sync.js",
   "tagesueberblick.js",
+  "uebersicht.js",
   "voice.js",
   "wetterfx.js",
   "zuvorkommend.js"

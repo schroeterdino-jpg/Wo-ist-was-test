@@ -1,7 +1,7 @@
 # LANDKARTE: wo suche ich zuerst?
 
 Rein technische Dokumentation für Entwickler und KI-Einstieg. Sie erzeugt keine Produktlogik und wird von keinem Skript der App gelesen.
-Stand: 29.10.2026 (Phase 8B, 170 Produktdateien in `js/`). Gehört zu `ARCHITEKTUR.md` (Überblick) und ist von `faehigkeiten.js` (Produktfunktion Hilfe/Mehrfachfragen) bewusst getrennt.
+Stand: 29.10.2026 (Phase 8B, 166 Produktdateien in `js/`). Gehört zu `ARCHITEKTUR.md` (Überblick) und ist von `faehigkeiten.js` (Produktfunktion Hilfe/Mehrfachfragen) bewusst getrennt.
 Von einer Fähigkeit (`faehigkeiten.js`) zu den Dateien: die Fähigkeit nennt nur ihre Kerndateien; die übrigen Dateien des Bereichs stehen in der Tabelle unten (Spalte „Abhängigkeiten“) und in der Bereichsliste (Teil 4). Das Fähigkeiten-Verzeichnis ist keine vollständige Funktionsliste und keine Liste aller Produktdateien (Einzelheiten: `ARCHITEKTUR.md`, Abschnitt „Fähigkeiten-Verzeichnis (B1)“). Offene technische Punkte: `ARCHITEKTUR.md`, Abschnitt „Bekannte offene technische Punkte“.
 Ergänzt durch die Fresh-AI-Nachbesserung: Anleitungen zum Erweitern (neuer Sprachbefehl, neue speak-Stufe), Java→JS-Rückrufe der APK, bekannte Gleichrang-Gruppen und die Test-Übersicht (Bereich → Tests): `ARCHITEKTUR.md`, Abschnitte „Rezepte und Nachschlagen für neue Entwickler“.
 Ein Test (`tests/landkarte.js`) prüft, dass jede Datei in `js/` genau einem Bereich zugeordnet ist und alle hier genannten Dateien existieren.
@@ -22,8 +22,7 @@ Schreibweise: `jv…` = Globals im Browser, `[APK]` = `weckruf-src/`. Zeilennumm
 | Ortssuche | ortsuche.js, nearby.js, nearbymore.js, orte.js | places.js, routing.js, api/maps.js (Overpass), streetview.js |
 | Gedächtnis speichern | actions.js (`memory_store`) → gedaechtnis.js (lokal), langzeit.js (`episode_store`) | gedaechtnis_zeit.js, langzeit_erinnern.js, api/memory.js |
 | Gedächtnis lesen | assistant.js (`searchSemanticMemory`, Besitzer), gedaechtnis.js, langzeit.js (Zusatzquelle) | assistant.js (Kontext), kontext_lokal.js, prompt.js |
-| Avatar | avatar3d.js (`jvAvatar3D`), kopf.js | holo_look.js, ansicht.js, models/mann.glb |
-| Mimik | mimik.js (Takt 120 ms), avatar3d.js (`setExpression`) | laune.js, charakter.js, lebendig.js |
+| Startseite | uebersicht.js (`jvUebersicht`) | sphere.js, lagebild.js (`jvLage.daten`) |
 | Sprache/TTS | voice.js (`speak`), **speak_kette.js** (`jvSpeakKette`, Reihenfolge der 6 `speak`-Hüllen), fish.js (Hauptstimme) | audio.js, toene.js, speechrate.js, tempo.js, voicefix.js, pronunciation.js, sprueche.js, teilen.js, kontext_lokal.js, **api/stau.js** (Fish-Weiterleitung), [APK] AnsageReceiver |
 | Spracheingabe | voice.js (Browser), native_speech.js (APK/Vosk) | wake_start.js, hoeren.js, hoerkorrektur.js, festnamen.js, [APK] WakeService, OwwEngine/OwwSpeech/OwwVad |
 | WhatsApp | [APK] NachrichtenService.java, ZaneBridge.java; Web: fahr_whatsapp.js, schlaf_antwort.js | zuvorkommend.js (Glückwunsch), teilen.js, KontaktWahl.java, Prefs.java |
@@ -61,8 +60,8 @@ Alle Skripte sind klassische, synchrone `<script>`-Tags in `index.html` (kein de
 
 Inventar und Regeln: `tests/timer_inventar.js` (beschreibend) und `tests/timer.js`. Ein neuer dauerhafter Timer/Poller macht den Test rot, bis er dort eingetragen ist.
 Zusätzlich (Phase 6A): `tests/hintergrund.js` (Golden Master der Hintergrundprozesse, Laufzeit-Messstand `tests/hintergrund_laufzeit.json`), Analyse `tests/hintergrund-analyse.md`, Tabelle `tests/hintergrund-tabelle.md`.
-Phase 6B.1 (mimik, holo_look, anzeige pausieren versteckt): `tests/hintergrund_6b1.js`, Beschreibung `tests/hintergrund-6b1.md`.
-Phase 6B.2 (synapsen-200-ms-Takt pausiert versteckt): `tests/hintergrund_6b2.js`, Beschreibung `tests/hintergrund-6b2.md`.
+Phase 6B.1 (mimik, holo_look, anzeige pausieren versteckt): Test stillgelegt, weil Mimik und Hologramm-Look mit dem 3D-Kopf entfernt wurden.
+Phase 6B.2 (synapsen-200-ms-Takt pausiert versteckt): Vergleichstest stillgelegt (sein Vergleichsstand enthielt Mimik und Hologramm-Look); der heutige Stand ist in `tests/hintergrund.js` eingefroren.
 Phase 7A (lokales Gedächtnis memoryItems, nur Analyse): `tests/memory7a.js`, Beschreibung `tests/memory7a-analyse.md`.
 Phase 7B (Zeitfrage exakter Name zuerst, Lesefehler von helfer_memory isoliert): `tests/memory7b.js`, Beschreibung `tests/memory7b-analyse.md`.
 Phase 8A (Schlussinventur, nur Analyse): `tests/inventar8a.js`, Beschreibung `tests/inventar8a-analyse.md`.
@@ -73,7 +72,7 @@ Jede Datei in `js/` steht genau einmal (Name ohne `js/` und `.js`).
 
 - **Kern/Commands** (27): `adress_normal`, `aktionen_kette`, `alleinstellung`, `anleitung`, `answers`, `boot`, `commands`, `einfuehrung`, `erweiterungen`, `festnamen`, `fragen_reihenfolge`, `help`, `hoerkorrektur`, `lists`, `localcommands`, `loesch_notiz`, `loeschen_fragen`, `mehrfach`, `name`, `reminders`, `render`, `rueckfrage`, `schliessen`, `storage`, `ui`, `was_steht_an`, `worldqueryfix`
 - **KI/Prompt/Actions** (19): `actions`, `antwort_bau`, `assistant`, `charakter`, `contextplus`, `faehigkeiten`, `fehlerort`, `formulierungen`, `jarvis`, `kennenlernen`, `ki_mitdenken`, `kontext_lokal`, `laune`, `mitdenken`, `persona`, `prompt`, `routing`, `sprueche`, `zane_redet`
-- **Avatar/Mimik/Optik** (18): `ansicht`, `anzeige`, `avatar3d`, `blick`, `extrafenster`, `holo_look`, `hud_fenster`, `jvfenster`, `kacheln`, `kopf`, `lebendig`, `mimik`, `sphere`, `synapsen`, `vibration`, `welt_anflug`, `weltuhr`, `wetterfx`
+- **Startseite/Optik** (14): `anzeige`, `blick`, `extrafenster`, `hud_fenster`, `jvfenster`, `kacheln`, `lebendig`, `sphere`, `uebersicht`, `synapsen`, `vibration`, `welt_anflug`, `weltuhr`, `wetterfx`
 - **Fotos/Dokumente** (18): `antrag`, `antrag_pdf`, `behoerdenbrief`, `foto_abtippen`, `foto_adresse`, `foto_brief`, `foto_erkennen`, `foto_essensplan`, `foto_kette`, `foto_person`, `foto_rezept`, `foto_stundenplan`, `foto_urlaubsplan`, `fotosenden`, `kuendigung`, `photo`, `rechnungen`, `wunschliste`
 - **Orte/Navigation/Fahrzeit** (16): `autoansicht`, `fahrtcheck`, `karte_zu`, `karten_weg`, `lagebild`, `nearby`, `nearbymore`, `orte`, `ortsuche`, `parkplatz_auto`, `places`, `sonnemond`, `stadtverkehr`, `streetview`, `travel`, `weltzeit`
 - **Mail/Geld** (12): `fristen`, `haushalt`, `konto`, `mail`, `mail_nacht`, `mailaktionen`, `mailpush`, `mailwatch`, `pakete`, `postfach`, `preissuche`, `waehrung`

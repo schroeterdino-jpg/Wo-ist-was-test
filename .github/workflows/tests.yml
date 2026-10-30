@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # tests/hintergrund_6b2.js liest mit `git show 4d5b9e6:js/synapsen.js` den Stand vor Phase 6B.2; ein flacher Klon kennt den Commit nicht
+          fetch-depth: 0   # voller Verlauf bleibt an (frühere Tests lasen mit `git show` alte Stände); schadet nicht
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -36,8 +36,6 @@ jobs:
       - run: node tests/suche.js
       - run: node tests/kitext.js
       - run: node tests/hintergrund.js
-      - run: node tests/hintergrund_6b1.js
-      - run: node tests/hintergrund_6b2.js
       - run: node tests/memory7a.js
       - run: node tests/memory7b.js
       - run: node tests/inventar8a.js
@@ -46,3 +44,4 @@ jobs:
       - run: node tests/pending_reihenfolge.js
       - run: node tests/pending_zweite_stufe.js
       - run: node tests/vercelignore.js
+      - run: node tests/uebersicht.js

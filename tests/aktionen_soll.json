@@ -1792,6 +1792,16 @@
       },
       {
        "art": "setTimeout",
+       "ms": 15000,
+       "fn": "() => r(null)"
+      },
+      {
+       "art": "setTimeout",
+       "ms": 9000,
+       "fn": "() => { if (!fertig) { fertig = true; fallback(); } }"
+      },
+      {
+       "art": "setTimeout",
        "ms": 300,
        "fn": "function () { try { window.ZaneNative.anrufen(nummer); } catch (e) { }"
       },
@@ -4963,6 +4973,16 @@
       },
       {
        "art": "setTimeout",
+       "ms": 15000,
+       "fn": "() => r(null)"
+      },
+      {
+       "art": "setTimeout",
+       "ms": 9000,
+       "fn": "() => { if (!fertig) { fertig = true; fallback(); } }"
+      },
+      {
+       "art": "setTimeout",
        "ms": 4500,
        "fn": "function () { if (!fertig) { fertig = true; resolve(''); } }"
       },
@@ -5333,14 +5353,6 @@
        "u": "./sw.js"
       },
       {
-       "m": "HEAD",
-       "u": "./models/mann.glb"
-      },
-      {
-       "m": "HEAD",
-       "u": "./models/zubehoer.glb"
-      },
-      {
        "m": "GET",
        "u": "/api/tank?lat=53.55&lng=10.0&rad=5"
       },
@@ -5409,6 +5421,16 @@
       },
       {
        "art": "setTimeout",
+       "ms": 15000,
+       "fn": "() => r(null)"
+      },
+      {
+       "art": "setTimeout",
+       "ms": 9000,
+       "fn": "() => { if (!fertig) { fertig = true; fallback(); } }"
+      },
+      {
+       "art": "setTimeout",
        "ms": 4500,
        "fn": "function () { if (!fertig) { fertig = true; resolve(''); } }"
       },
@@ -5468,11 +5490,6 @@
        "fn": "async function wachterTick() { if (wachterBusy || !wachterEnabled() ||"
       },
       {
-       "art": "setInterval",
-       "ms": 60000,
-       "fn": "function tick() { if (busy || current) return; if (!enabled() || quiet"
-      },
-      {
        "art": "setTimeout",
        "ms": 9000,
        "fn": "() => rej(new Error('Zeitüberschreitung'))"
@@ -5491,6 +5508,11 @@
        "art": "setTimeout",
        "ms": 40000,
        "fn": "() => controller.abort()"
+      },
+      {
+       "art": "setInterval",
+       "ms": 60000,
+       "fn": "function tick() { if (busy || current) return; if (!enabled() || quiet"
       },
       {
        "art": "setTimeout",
@@ -5515,16 +5537,6 @@
       {
        "art": "setTimeout",
        "ms": 8000,
-       "fn": "() => rej(new Error(msg || 'antwortet nicht'))"
-      },
-      {
-       "art": "setTimeout",
-       "ms": 12000,
-       "fn": "() => rej(new Error(msg || 'antwortet nicht'))"
-      },
-      {
-       "art": "setTimeout",
-       "ms": 12000,
        "fn": "() => rej(new Error(msg || 'antwortet nicht'))"
       },
       {
