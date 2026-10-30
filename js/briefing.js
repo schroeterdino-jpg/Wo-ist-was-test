@@ -472,7 +472,7 @@ async function composeBriefingWithModel(data) {
     "- Uhrzeiten immer exakt in 24-Stunden-Zählung nennen (z. B. '16 Uhr 17'), niemals runden, aber natürlich einbetten.\n" +
     "- Vermeide hölzerne Aufzählungen oder stakkatoartige Abfolgen. Verbinde die Informationen mit natürlichen Übergängen ('Übrigens', 'Werfen wir einen Blick auf deinen Tag', 'Was deine Termine angeht').\n" +
     "- Du duzt ihn IMMER (du, dich, dir, dein/deine), niemals Sie, Ihnen oder Ihr. Sprich ihn gerne gelegentlich persönlich an.\n- Mache nach jedem Themenblock (Wetter, Termine, Gegenstände) einen Punkt und beginne einen neuen Satz, nie ein Komma als Satzende. Halte die Sätze kurz.\n\n" +
-    "Antworte ausschließlich mit einem JSON-Objekt der Form {\"briefing\": \"...\"}.";
+    "Antworte ausschließlich mit einem JSON-Objekt der Form {\"briefing\": \"...\", \"kurz\": \"...\"}. 'briefing' ist der volle Text wie oben beschrieben. 'kurz' ist die Kurzfassung zum Vorlesen: höchstens zwei kurze Sätze mit nur dem Wichtigsten des Tages (zuerst Schicht und Abfahrt oder der nächste Termin, danach Regen oder eine Warnung, falls es etwas gibt), ohne Begrüßung und ohne Uhrzeit, in der Du-Form. Alles andere steht ohnehin auf dem Bildschirm.";
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
@@ -492,7 +492,7 @@ async function composeBriefingWithModel(data) {
         });
         const json = await res.json();
         const parsed = JSON.parse(json.choices[0].message.content);
-        let text = (parsed.briefing || '').trim();
+        let text = (parsed.briefing || '').trim(); window.__briefingKurz = String(parsed.kurz || '').trim().slice(0, 400);
         if (!data.parkplatz) text = stripUnwantedParkingRemark(text);
         return text.length > 0 ? text : null;
     } catch (e) {
@@ -624,7 +624,7 @@ function storeSemanticMemory(text, metadata) {
     }).catch(() => {});
 }
 
-async function triggerDailyBriefing() {
+async function triggerDailyBriefing(ausfuehrlich) {
     if (isProcessing) return;
     if (isSpeaking()) interruptSpeaking();
 
@@ -659,7 +659,9 @@ async function triggerDailyBriefing() {
         } catch (e) {}
 
         typeWriterStatus("Stelle Briefing zusammen...");
+        window.__briefingKurz = '';
         let text = await composeBriefingWithModel(data);
+        const roh = text, kurz0 = window.__briefingKurz || '';   // Kurzfassung (Ein Satz + Karte): gesprochen wird kurz, der volle Text bleibt als Karte lesbar
         if (!text) text = buildFallbackBriefing(data);
         else {
             text = ensureItemsMentioned(text, data);
@@ -675,10 +677,14 @@ async function triggerDailyBriefing() {
         typeWriterStatus("Klicken zum Sprechen...");
         try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'briefing', kanal: (window.__schichtStauCards && window.__schichtStauCards.length) ? ['karte', 'sprache'] : ['sprache'], grund: 'tagesbriefing', ausloeser: window.jvMeldungen.folgeAusloeser('briefing', 180000), ereignis: 'brief|' + new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }), bezug: window.jvMeldungen.bezugTag(new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' })), text: text }) } catch (e) { }   // C1: nur Beobachtung
         try {   // Staumeldungen auf dem Weg zur Arbeit zusätzlich als Karten (antippen = Stelle auf der Karte)
-            if (window.__schichtStauCards && window.__schichtStauCards.length && typeof showActionCards === 'function') { showActionCards(window.__schichtStauCards); }
+            const karten = (sprechen !== text && typeof escapeHtml === 'function') ? [{ html: '<b style="color:#49d7ff;font-size:13px">Briefing</b><div style="font-size:12px;line-height:1.5;margin-top:4px">' + escapeHtml(text) + '</div>' }] : [];
+            if (window.__schichtStauCards && window.__schichtStauCards.length) karten.push.apply(karten, window.__schichtStauCards);
+            if (karten.length && typeof showActionCards === 'function') { showActionCards(karten); }
             window.__schichtStauCards = null;
         } catch (e) {}
-        speak(text);   // ohne continueConversation: nach dem Briefing hört Zane nicht von selbst weiter zu (keine Rückfrage)
+        let sprechen = text;   // Kurzfassung nur, wenn die KI eine geliefert hat; Anhänge (Wünsche, Geburtstage, Mitnehmen) werden weiter vorgelesen
+        if (!ausfuehrlich && kurz0.length > 10 && roh && text.indexOf(roh) === 0 && kurz0.length < roh.length) sprechen = (kurz0 + ' ' + text.slice(roh.length).trim()).trim();
+        speak(sprechen);   // ohne continueConversation: nach dem Briefing hört Zane nicht von selbst weiter zu (keine Rückfrage)
         learnFromConversations();
     } finally {
         stopThinkingSound();
