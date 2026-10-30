@@ -122,7 +122,7 @@
         // Verkehr in der Nähe: nicht auf dem Arbeitsweg und nicht doppelt zu einer Autobahn-Meldung
         const aufWeg = i => (arbeit && distToLine(i.lat, i.lon, arbeit.coords) <= 1.5) || (route && (route.warnings || []).some(w => distKm(w.lat, w.lon, i.lat, i.lon) < 1.5));
         const rest = [];
-        stau.items.filter(i => distKm(lat, lon, i.lat, i.lon) <= 10 && [1, 6].includes(i.kategorie) && !aufWeg(i))   // abseits der Strecke nur Unfälle und Stau im Umkreis von 10 km.sort((a, b) => b.min - a.min).forEach(i => { if (!rest.some(o => distKm(o.lat, o.lon, i.lat, i.lon) < 1.5)) rest.push(i); });
+        stau.items.filter(i => distKm(lat, lon, i.lat, i.lon) <= 10 && [1, 6].includes(i.kategorie) && !aufWeg(i)).sort((a, b) => b.min - a.min).forEach(i => { if (!rest.some(o => distKm(o.lat, o.lon, i.lat, i.lon) < 1.5)) rest.push(i); });   // abseits der Strecke nur Unfälle und Stau im Umkreis von 10 km
         return { lat, lon, ort: loc.ort || '', tank, stau: { fehler: stau.fehler, rest }, regen, termin, arbeit, hatArbeit: !!work, routeFehlt: !!work && !arbeit, zeit: Date.now() };
     }
 
