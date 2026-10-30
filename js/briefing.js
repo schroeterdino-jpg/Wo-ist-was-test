@@ -132,6 +132,7 @@ async function fetchWeatherData() {
                     windstaerke: data.current.wind_speed_10m,
                     boeen: data.current.windgusts_10m,
                     wettercode: upcomingWeatherCode,
+                    aktuellerCode: data.current.weather_code,   // Wetter JETZT (wettercode oben kann die Vorhersage der nächsten 3 Stunden sein); für die Regen-Animation (wetterfx.js)
                     koordinaten: { lat, lon }
                 });
             } catch (e) {
