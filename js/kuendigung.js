@@ -402,7 +402,7 @@
         if (!S.d.art) { const m = String(raw || '').toLowerCase().match(/([\wäöüß-]*(?:vertrag|abo|abonnement|mitgliedschaft|versicherung|internet|handy|mobilfunk|strom|gas|fitness\w*|dsl|miete|wohnung|zeitung|streaming)[\wäöüß-]*)\s+k(?:ü|ue)ndigen/); if (m) S.d.art = m[1]; }
         next();
     }
-    function ask(q) { say(q); }
+    function ask(q) { try { window.jvFrage && window.jvFrage.neu('kuendigung'); } catch (e) { } say(q); }
     /* KI-Vorschlag für die Kündigungsadresse (aus ihrem Wissen, ungeprüft). Gibt Text oder '' zurück. */
     async function suggestProviderAddress(anbieter) {
         const controller = new AbortController();
@@ -644,6 +644,7 @@
             if (d.vertragsnr) teile.push('Vertragsnummer ' + d.vertragsnr);
             if (d.rufnr) teile.push('Rufnummer ' + d.rufnr);
             if (d.anbAdresse) teile.push('Anschrift ' + d.anbAdresse);
+            try { window.jvFrage && window.jvFrage.neu('kuendigung'); } catch (e) { }
             say('Ich habe vom Brief gelesen: ' + teile.join(', ') + '. Stimmt das?');
             return;
         }

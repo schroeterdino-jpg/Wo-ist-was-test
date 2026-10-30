@@ -548,6 +548,7 @@
             if (r.json && r.json.is_playing) return;   // es läuft schon Musik
             lsSet(AUTO_ZEIT, String(Date.now()));
             autoFrage = { stufe: 'ja', t: Date.now() };
+            try { window.jvFrage && window.jvFrage.neu('spotify-auto'); } catch (e) { }
             sagenWeiter('Soll ich Musik spielen?');
         } catch (e) { }
     }
@@ -562,6 +563,7 @@
             const liste = lsGet(AUTO_LIST);
             if (liste) { autoFrage = null; suchenUndSpielen(liste, 'playlist'); return true; }
             autoFrage = { stufe: 'name', t: Date.now() };
+            try { window.jvFrage && window.jvFrage.neu('spotify-auto'); } catch (e) { }
             sagenWeiter('Welche Playlist soll ich im Auto spielen? Sag zum Beispiel den Namen deiner Playlist.');
             return true;
         }

@@ -361,6 +361,7 @@
                 const label = { reminder: ['🔔', 'Erinnerung anlegen', P.plan.kind === 'reminder' ? `${whenText(P.plan.datum)} um ${P.plan.stunde} Uhr` : ''], kuendigung: ['✍️', 'Kündigung vorbereiten', `${L.absender || 'Anbieter'}${P.plan.grund ? ' · ' + P.plan.grund : ''}`], calendar: ['📅', 'In den Kalender eintragen', `${P.plan.titel}`] }[P.plan.kind];
                 list.push({ icon: label[0], title: label[1], subtitle: label[2], onclick: 'confirmPhotoPending()' });
                 photoPending = { type: 'letter', data: Object.assign({}, L, { plan: P.plan }), at: Date.now() };
+                try { window.jvFrage && window.jvFrage.neu('photo'); } catch (e) { }
             } else {
                 photoPending = null;
             }

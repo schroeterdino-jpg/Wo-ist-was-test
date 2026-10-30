@@ -1846,6 +1846,7 @@ async function weltShowLive(nameOrKey) {
     weltResetLive();
     if (!place) {
         weltStatus('Sag zum Beispiel: „Zeig mir Rom live".');
+        try { window.jvFrage && window.jvFrage.neu('panels'); } catch (e) { }
         speak('Welchen Ort möchten Sie live sehen?', continueConversation);
         return;
     }

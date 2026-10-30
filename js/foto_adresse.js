@@ -151,6 +151,7 @@
             const list = parseAddresses(content);
             if (!list.length) { say('Ich konnte auf dem Foto keine Adresse erkennen. Ist sie scharf und gut zu lesen?'); return; }
             photoPending = { type: 'address', data: list, at: Date.now() };
+            try { window.jvFrage && window.jvFrage.neu('photo'); } catch (e) { }
             showAddressCards();
             const first = list[0];
             const what = first.name && first.adresse ? `${first.name}, ${first.adresse}` : first.dest;

@@ -85,7 +85,7 @@
         if (busy()) { setTimeout(() => announceNext(prefix), RETRY_BUSY_MS); return; }
         const mail = queue.shift();
         const more = queue.length;
-        state = { step: 'read', mail, until: Date.now() + ANSWER_WINDOW_MS };
+        state = { step: 'read', mail, until: Date.now() + ANSWER_WINDOW_MS }; try { window.jvFrage && window.jvFrage.neu('mailwatch'); } catch (e) { }
         let text = (prefix || '') + `Du hast eine E-Mail von ${mail.von}. Betreff: ${mail.betreff}. Soll ich sie vorlesen?`;
         if (more && !prefix) text = `Du hast ${more + 1} neue E-Mails. Die erste ist von ${mail.von}. Betreff: ${mail.betreff}. Soll ich sie vorlesen?`;
         try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'mailwatch', kanal: ['sprache'], grund: 'wichtige-mail', ausloeser: 'timer', ereignis: 'mail|' + mail.id, bezug: window.jvMeldungen.bezugId('mail', mail.id), frage: true, mikro: 'bedingt', text: text }) } catch (e) { }   // C1: nur Beobachtung
@@ -165,10 +165,10 @@
         const { step, mail } = state, termin = state.termin;
         state = null;
         if (step === 'termin') {
-            if (no) { state = { step: 'reply', mail, until: Date.now() + ANSWER_WINDOW_MS }; say('Gut, ich trage nichts ein. Willst du antworten?'); return true; }
+            if (no) { state = { step: 'reply', mail, until: Date.now() + ANSWER_WINDOW_MS }; try { window.jvFrage && window.jvFrage.neu('mailwatch'); } catch (e) { } say('Gut, ich trage nichts ein. Willst du antworten?'); return true; }
             let r = null;
             try { r = await terminEintragen(termin); } catch (e) { r = null; }
-            state = { step: 'reply', mail, until: Date.now() + ANSWER_WINDOW_MS };
+            state = { step: 'reply', mail, until: Date.now() + ANSWER_WINDOW_MS }; try { window.jvFrage && window.jvFrage.neu('mailwatch'); } catch (e) { }
             if (!r) { say('Der Termin konnte nicht eingetragen werden. Willst du antworten?'); return true; }
             say((r.ok ? 'Eingetragen. ' : 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht. ') + r.gedanken.join(' ') + ' Willst du antworten?');
             return true;
@@ -179,10 +179,10 @@
                 const full = await fetchEmailFullText(mail.id);
                 const t = await terminAusMail(full);
                 if (t) {
-                    state = { step: 'termin', mail, termin: t, until: Date.now() + ANSWER_WINDOW_MS };
+                    state = { step: 'termin', mail, termin: t, until: Date.now() + ANSWER_WINDOW_MS }; try { window.jvFrage && window.jvFrage.neu('mailwatch'); } catch (e) { }
                     say(`E-Mail von ${full.von}. Betreff: ${full.betreff}. ${full.text} In der Mail steht ein Termin: ${terminSatz(t)}. Soll ich ihn in den Kalender eintragen?`);
                 } else {
-                    state = { step: 'reply', mail, until: Date.now() + ANSWER_WINDOW_MS };
+                    state = { step: 'reply', mail, until: Date.now() + ANSWER_WINDOW_MS }; try { window.jvFrage && window.jvFrage.neu('mailwatch'); } catch (e) { }
                     say(`E-Mail von ${full.von}. Betreff: ${full.betreff}. ${full.text} Willst du antworten?`);
                 }
             } catch (e) {

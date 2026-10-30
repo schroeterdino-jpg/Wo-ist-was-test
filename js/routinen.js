@@ -161,6 +161,7 @@
         o.routines.push({ id: r.id, k: r.k, m: r.m, wd: r.wd, n: r.n, status: 'offen' });
         save(o);
         pending = { id: r.id, until: Date.now() + PENDING_MS };
+        try { window.jvFrage && window.jvFrage.neu('routinen'); } catch (e) { }
 try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'routinen', kanal: ['karte', 'sprache'], grund: 'routine-vorschlag', ausloeser: 'timer', ereignis: 'routine|' + r.id, bezug: window.jvMeldungen.bezugId('routine', r.id), frage: true, mikro: 'bedingt', text: offerText(r) }) } catch (e) { }   // C1: nur Beobachtung
         sayCard('Routine merken?', KINDS[r.k].label + ' · ' + dayText(r.wd) + ' · ' + hhmm(r.m) + ' · Sag Ja oder Nein', offerText(r), true);
         return true;

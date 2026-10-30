@@ -11,9 +11,11 @@
    - Eine freie Frage der KI im Chat meldet assistant.js als 'ki' an (nur wenn währenddessen kein Modul gefragt hat, zum Beispiel eine Löschfrage über den KI-Weg).
    - Einträge, die sich nie anmelden, werden nie gesperrt und verhalten sich wie bisher.
    - Nur im Speicher: ein Neustart der App vergisst alles (wie die Pending-Zustände der Module). Keine Anfragen, keine Zeitgeber.
-   Angemeldet (Stand jetzt): dirigent, plan_wecker, zuvorkommend, loeschen_fragen, mailaktionen, terminfinder, ausflug, rueckfrage, ki.
-   Noch nicht angemeldet (verhalten sich wie bisher; je ein Aufruf nachrüstbar): mailwatch, foto/photo-Familie, foto_person, foto_rezept, langzeit_erinnern,
-   routinen, kuendigung, orte, spotify, fahr_whatsapp.
+   Angemeldet: dirigent, plan_wecker, zuvorkommend, loeschen_fragen, mailaktionen, terminfinder, ausflug, rueckfrage, ki, mailwatch, termin-erinnern (langzeit_erinnern),
+   routinen, kuendigung, orte, spotify-auto, fahr_whatsapp, photo (photo.js, foto_brief, foto_adresse, foto_erkennen, foto_abtippen), foto-person, rezepte (foto_rezept),
+   antrag, behoerdenbrief, ortsuche, wunschliste, preissuche, panels (die letzten drei fragen ohne eigenen Zustand: sie sperren nur ältere Ja/Nein-Fragen).
+   Zwei Antworter hängen nicht in der Befehlskette, sondern direkt in localcommands.js (photo) bzw. in der Hülle um handleLocalCommand (ortsuche): dort prüft je ein
+   jvFrage.sperrt('photo'|'ortsuche', text), damit auch ihre alte Frage nach einer neueren nicht zurückkommt.
    ============================================================ */
 (function () {
     'use strict';

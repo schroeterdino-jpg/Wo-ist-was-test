@@ -220,7 +220,7 @@
                         if (s && titel) {
                             if (s.start.getTime() > Date.now() + 30 * 60000) {
                                 const mitZeit = /\buhr\b|\d{1,2}[:.]\d{2}/i.test(titel) ? titel : titel + ' um ' + uhrText(s.h, s.mi);
-                                pending = { text: mitZeit, start: s.start, at: Date.now(), kal: action.type !== 'episode_store' ? titel : '' };
+                                pending = { text: mitZeit, start: s.start, at: Date.now(), kal: action.type !== 'episode_store' ? titel : '' }; try { window.jvFrage && window.jvFrage.neu('termin-erinnern'); } catch (e) { }
                                 if (ctx && Array.isArray(ctx.notes) && ctx.notes.indexOf('Wie viele Stunden vorher soll ich dich per Push erinnern?') < 0) ctx.notes.push('Wie viele Stunden vorher soll ich dich per Push erinnern?');
                             }
                         }
@@ -269,7 +269,7 @@
         const p = pending; pending = null;
         if (!p) return;
         const remind = new Date(p.start.getTime() - stunden * 3600000);
-        if (remind.getTime() <= Date.now() + 30000) { say('Dann wäre der Zeitpunkt schon vorbei. Nenne mir bitte eine kürzere Zeit.'); pending = p; pending.at = Date.now(); return; }
+        if (remind.getTime() <= Date.now() + 30000) { say('Dann wäre der Zeitpunkt schon vorbei. Nenne mir bitte eine kürzere Zeit.'); pending = p; pending.at = Date.now(); try { window.jvFrage && window.jvFrage.neu('termin-erinnern'); } catch (e) { } return; }
         try {
             if (typeof addGoogleCalendarReminder !== 'function') { say('Erinnerungen sind in dieser Version nicht erreichbar.'); return; }
             const r = await addGoogleCalendarReminder(p.text, remind.toISOString(), null, false);
@@ -317,6 +317,7 @@
             setTimeout(function () {
                 try {
                     if (pending !== p || (typeof isRecording !== 'undefined' && isRecording)) return;
+                    try { window.jvFrage && window.jvFrage.neu('termin-erinnern'); } catch (e) { }
                     say('Wie viele Stunden vorher soll ich dich erinnern?');
                 } catch (e) {}
             }, 900);

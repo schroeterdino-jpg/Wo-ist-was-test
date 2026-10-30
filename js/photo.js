@@ -542,6 +542,7 @@ async function processPhoto(intent, dataUrl) {
             const { events, hint } = parsePhotoEvents(content);
             if (!events.length) { photoSay('Ich konnte keine Termine erkennen. Ist das Foto scharf, und ist der Kalender gut zu sehen?' + (hint ? ' ' + hint : '')); return; }
             photoEvents = events; photoEventsAt = Date.now();
+            try { window.jvFrage && window.jvFrage.neu('photo'); } catch (e) { }
             showPhotoEventCards();
             const unsure = events.filter(e => e.unsicher).length;
             const names = events.slice(0, 3).map(e => `${e.titel}, ${photoEventWhen(e)}`).join('; ');
@@ -553,6 +554,7 @@ async function processPhoto(intent, dataUrl) {
             const c = parsePhotoContact(await askVision(photoContactPrompt(), 'Lies die Kontaktdaten von diesem Foto.', dataUrl, true));
             if (!c) { photoSay('Ich konnte auf dem Foto keinen Namen und keine Kontaktdaten erkennen. Ist die Karte scharf und gerade im Bild?'); return; }
             photoPending = { type: 'contact', data: c, at: Date.now() };
+            try { window.jvFrage && window.jvFrage.neu('photo'); } catch (e) { }
             showPhotoPendingCards();
             photoSay(`Ich habe gelesen: ${c.name}${c.telefon ? ', Nummer ' + c.telefon.split('').join(' ') : ''}${c.adresse ? ', ' + c.adresse : ''}. Soll ich ihn in Ihre Kontakte speichern? Sagen Sie Ja, oder tippen Sie unten auf die Karte.`);
             return;
@@ -561,6 +563,7 @@ async function processPhoto(intent, dataUrl) {
             const items = parsePhotoShopping(await askVision(photoShoppingPrompt(), 'Lies die Einkaufsliste von diesem Foto.', dataUrl, true));
             if (!items.length) { photoSay('Ich konnte auf dem Zettel keine Artikel lesen. Ist er scharf und gut beleuchtet?'); return; }
             photoPending = { type: 'shopping', data: items, at: Date.now() };
+            try { window.jvFrage && window.jvFrage.neu('photo'); } catch (e) { }
             showPhotoPendingCards();
             photoSay(`Ich habe ${items.length} ${items.length === 1 ? 'Artikel' : 'Artikel'} gelesen: ${items.slice(0, 5).join(', ')}${items.length > 5 ? ' und weitere' : ''}. Soll ich ${items.length === 1 ? 'ihn' : 'sie'} auf die Einkaufsliste setzen? Sagen Sie Ja, oder tippen Sie unten auf die Karte.`);
             return;
@@ -601,6 +604,7 @@ function photoAskWhatToDo() {
             ]);
         }
     } catch (e) {}
+    try { window.jvFrage && window.jvFrage.neu('photo'); } catch (e) { }
     photoSay('Das Foto ist da. Was soll ich damit tun?');
 }
 
