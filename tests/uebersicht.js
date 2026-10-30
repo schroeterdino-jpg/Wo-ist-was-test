@@ -34,6 +34,11 @@ for (const f of ['js/avatar3d.js', 'js/kopf.js', 'js/mimik.js', 'js/holo_look.js
     check('nicht mehr eingebunden: ' + f, idx.indexOf(f) < 0 && !/\.glb/.test(idx));
 }
 
+/* 2b Regen-Animation: nur das Wetter JETZT (nicht die Vorhersage der nächsten 3 Stunden) */
+const fx = fs.readFileSync(path.join(ROOT, 'js/wetterfx.js'), 'utf8'), br = fs.readFileSync(path.join(ROOT, 'js/briefing.js'), 'utf8');
+check('briefing.js liefert das aktuelle Wetter als eigenen Wert (aktuellerCode = data.current.weather_code)', /aktuellerCode:\s*data\.current\.weather_code/.test(br));
+check('wetterfx.js nimmt für die Animation aktuellerCode, nicht den Vorhersage-Code', /artAusCode\(d\.aktuellerCode !== undefined \? d\.aktuellerCode : d\.wettercode/.test(fx) && !/artAusCode\(d\.wettercode/.test(fx));
+
 /* 3/4/5 Verhalten */
 function welt(opt) {
     const el = {}; const intervalle = [];

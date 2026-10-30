@@ -118,7 +118,7 @@
             wxAt = Date.now();
             if (!d || d.fehler) return;
             var mm = Number(d.niederschlag) || 0;
-            setzen(artAusCode(d.wettercode, mm), mm > 2 ? 1.5 : 1, Number(d.windstaerke) || 0);
+            setzen(artAusCode(d.aktuellerCode !== undefined ? d.aktuellerCode : d.wettercode, mm), mm > 2 ? 1.5 : 1, Number(d.windstaerke) || 0);   // nur das Wetter JETZT (wettercode kann die Vorhersage der nächsten 3 Stunden sein)
         }).catch(function () {}).then(function () { wxBusy = false; });
     }
 
