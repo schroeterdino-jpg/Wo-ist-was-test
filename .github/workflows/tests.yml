@@ -42,3 +42,4 @@ jobs:
       - run: node tests/memory7b.js
       - run: node tests/inventar8a.js
       - run: node tests/verkehr.js
+      - run: node tests/dirigent_fragen.js

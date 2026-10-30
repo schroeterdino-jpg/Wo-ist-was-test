@@ -5,8 +5,11 @@
    Zeiten (Plan-Einträge `dirig|JJJJ-MM-TT|m|n|a`, gesprochen über plan_ansagen.js, in der Handy-App auch bei gesperrtem Handy):
    - m = Morgen 9:00 (nicht bei Frühschicht), n = Nachmittag 15:45 (nur bei Frühschicht), a = Abend 19:00 (nicht bei Spätschicht, nicht Sonntag: da kommt der Wochenüberblick).
    - Höchstens EINE Meldung pro Tag; hat der Morgen schon etwas gesagt, schweigt der Abend.
+   Rückfrage: Die KI schreibt nur den Haupttext. Die Frage am Ende baut der Code aus der Aktion und sagt genau, was "Ja" tut (Ausflugsideen suchen / freien Zeitpunkt für einen Besuch suchen /
+   Preise der Wunschliste prüfen). Keine Frage, wenn nichts ausführbar ist: Aktion "keine" oder unbekannt, Preise ohne Liste mit offenen Punkten, Besuch mit Tagesbezug im Text
+   (heute, morgen, übermorgen, Wochentag, Datum: die Terminsuche kann den Tag noch nicht übernehmen). Fragen der KI im Text werden entfernt; es bleibt höchstens EINE (die lokale).
    Antworten: "Ja" / Karte (führt den Vorschlag aus: Ausflug planen, freie Zeit für Besuch finden, Wunschliste-Preise), "Nein" oder "Später" (nichts passiert),
-   "Das interessiert mich nicht" (Thema wird stumm, kommt nicht mehr).
+   "Das interessiert mich nicht" (Thema wird stumm, kommt nicht mehr). Ja und Nein gelten nur, solange die Frage offen ist (10 Minuten).
    Sprache: "Was hast du für mich?" / "Was gibt es Neues?" (jetzt prüfen) · "Warum hast du dich gemeldet?" (nennt den Grund der letzten Meldung) ·
             "Keine Tagesmeldungen mehr" / "Tagesmeldungen an" · "Alle Themen wieder" (stumme Themen zurücksetzen)
    Speicher: jv_dirig_aus ('1' = aus), jv_dirig_stumm (Liste stummer Themen), jv_dirig_log (letzte Meldungen mit Thema und Grund), jv_dirig_heute (Datum der letzten Meldung).
@@ -18,7 +21,8 @@
     const SLOTS = { m: { von: 9 * 60, bis: 13 * 60, h: 9 * 60 }, n: { von: 15 * 60 + 45, bis: 19 * 60, h: 15 * 60 + 45 }, a: { von: 19 * 60, bis: 21 * 60 + 30, h: 19 * 60 } };
     const TAGE_VORAUS = 3;   // die App behält höchstens 24 geplante Ansagen (die frühesten), daher nur die nächsten Tage
     const WT = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-    let offen = null;   // { aktion, thema, grund, slot, at }
+    let offen = null;   // offene Rückfrage { aktion, thema, slot, at }: nur, wenn wirklich eine Frage gestellt wurde
+    let letzte = null;  // letzte Meldung { thema, at }: nur für "Das interessiert mich nicht", auch wenn keine Frage gestellt wurde
 
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
@@ -143,6 +147,40 @@
         finally { clearTimeout(to); }
     }
 
+    /* ---------- Rückfrage aus der Aktion bauen ---------- */
+    const ANGEBOT = /\b(?:soll ich|sollen wir|moechtest du|moechten sie|willst du|wollen wir|kann ich|darf ich|magst du|hast du lust)\b/;
+    const TAGESBEZUG = /\b(?:heute|morgen|uebermorgen|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)s?\b|\bwochenende\b|\bnaechste[nrms]? woche\b|\b\d{1,2} (?:januar|februar|maerz|april|mai|juni|juli|august|september|oktober|november|dezember)\b|\b\d{1,2} \d{1,2}(?: \d{2,4})?\b/;
+    function saetze(t) { return String(t || '').split(/(?<=[.!?])(?<!\d\.)(?<!(?:^|[^A-Za-zÄÖÜäöüß])[A-Za-zÄÖÜäöüß]\.)\s+/).map(x => x.trim()).filter(Boolean); }
+    /* Fragen der KI entfernen: Angebotsfragen überall, jede Frage am Ende. Sonstiger Text bleibt. */
+    function ohneKiFragen(t) {
+        const teile = saetze(t).filter(x => !(/\?\s*$/.test(x) && ANGEBOT.test(norm(x))) && !/^(?:soll ich|moechtest du|willst du|wollen wir)\b/.test(norm(x)));
+        while (teile.length && /\?\s*$/.test(teile[teile.length - 1])) teile.pop();
+        return teile.join(' ').trim();
+    }
+    function wunschliste(name) {
+        try {
+            const w = window.jvWunschliste; if (!w || !String(name || '').trim()) return null;
+            const l = w.finde(name) || (w.laden().length === 1 ? w.laden()[0] : null);
+            return l && l.items.some(i => !i.done) ? l : null;
+        } catch (e) { return null; }
+    }
+    /* null = keine Frage (nichts Ausführbares); sonst { aktion, frage } mit genau der Frage, die zum "Ja" passt */
+    function rueckfrage(aktion, original) {
+        if (aktion === 'ausflug') return { aktion, frage: 'Soll ich passende Ausflugsideen dafür suchen?' };
+        let m = aktion.match(/^besuch:\s*(.+)$/);
+        if (m) {
+            const name = m[1].trim().slice(0, 40);
+            if (!/[a-zäöüß]/i.test(name) || TAGESBEZUG.test(norm(original))) return null;   // mit Tag im Text würde "Ja" eine allgemeine 14-Tage-Suche starten: lieber keine Frage
+            return { aktion: 'besuch:' + name, frage: 'Soll ich nach einem passenden freien Zeitpunkt für einen Besuch bei ' + name + ' suchen?' };
+        }
+        m = aktion.match(/^preise:\s*(.+)$/);
+        if (m) {
+            const l = wunschliste(m[1].trim()); if (!l) return null;
+            return { aktion: 'preise:' + l.name, frage: 'Soll ich nach den Preisen für ' + (norm(l.name) === 'wunschliste' ? 'deine Wunschliste' : 'die Wunschliste von ' + l.name) + ' schauen?' };
+        }
+        return null;
+    }
+
     /* ---------- Ansage ---------- */
     async function ansage(id, erzwingen, gruss) {
         const p = P(); if (!p) return false;
@@ -159,19 +197,18 @@
         }
         const thema = String(r.thema || 'sonstiges').toLowerCase().slice(0, 30);
         if (jl(K_STUMM, []).includes(thema)) return false;
-        let text = String(r.text).trim().slice(0, 500);
-        const aktion = String(r.aktion || 'keine');
-        if (!/^(ausflug|besuch:|preise:)/.test(aktion) && /\?\s*$/.test(text)) {   // Frage ohne Angebot: nutzlos, weil Ja nichts auslösen könnte -> letzten Satz weglassen
-            const teile = text.split(/(?<=[.!?])\s+/); teile.pop(); text = teile.join(' ').trim();
-            if (!text) return false;
-        }
+        let text = ohneKiFragen(String(r.text).trim().slice(0, 500));
+        if (!text) return false;
+        const rf = rueckfrage(String(r.aktion || 'keine'), String(r.text));
+        if (rf) text += ' ' + rf.frage;
         const log = jl(K_LOG, []); log.push({ direkt: !!erzwingen, am: Date.now(), ymd, slot: teile[2], thema, grund: String(r.grund || '').slice(0, 200), text }); lsSet(K_LOG, JSON.stringify(log.slice(-30)));
         if (!erzwingen) lsSet(K_HEUTE, ymd);
-        offen = /^(ausflug|besuch:|preise:)/.test(aktion) ? { aktion, thema, slot: teile[2], at: Date.now() } : { aktion: 'keine', thema, slot: teile[2], at: Date.now() };
+        offen = rf ? { aktion: rf.aktion, thema, slot: teile[2], at: Date.now() } : null;
+        letzte = { thema, at: Date.now() };
         try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'dirigent', kanal: ['sprache', 'fenster', 'karte'], grund: 'tagesmeldung', ausloeser: gruss ? window.jvMeldungen.herkunftApp() : (erzwingen ? 'manuell' : 'plan'), ereignis: String(id), bezug: window.jvMeldungen.bezugTag(ymd), text: text }) } catch (e) { }   // C1: nur Beobachtung
-        p.sagenMeldung('🧭 Jarvis', text, false, offen.aktion !== 'keine');   // bei einem Angebot hört Jarvis danach zu (Ja / Nein)
+        p.sagenMeldung('🧭 Jarvis', text, false, !!offen);   // bei einem Angebot hört Jarvis danach zu (Ja / Nein)
         try {
-            if (typeof showActionCards === 'function') showActionCards((offen.aktion !== 'keine' ? [{ icon: '✅', title: 'Ja, mach das', subtitle: '', onclick: 'window.jvDirigent.ja()' }] : []).concat([{ icon: '🙅', title: 'Das interessiert mich nicht', subtitle: 'Dazu melde ich mich dann nicht mehr', onclick: 'window.jvDirigent.stumm()' }]));
+            if (typeof showActionCards === 'function') showActionCards((offen ? [{ icon: '✅', title: 'Ja, mach das', subtitle: '', onclick: 'window.jvDirigent.ja()' }] : []).concat([{ icon: '🙅', title: 'Das interessiert mich nicht', subtitle: 'Dazu melde ich mich dann nicht mehr', onclick: 'window.jvDirigent.stumm()' }]));
         } catch (e) { }
         return true;
     }
@@ -201,7 +238,7 @@
     function ja() {
         const o = offen; offen = null;
         try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) { }
-        if (!o || o.aktion === 'keine') return false;
+        if (!o) return false;
         const cmd = befehlFuer(o.aktion, o.slot);
         let ok = false;
         try { if (cmd && typeof window.handleLocalCommand === 'function') ok = !!window.handleLocalCommand(cmd); } catch (e) { console.error('Dirigent: ja', e); }
@@ -209,7 +246,7 @@
         return true;
     }
     function stumm() {
-        const o = offen; offen = null;
+        const o = offen || letzte; offen = null; letzte = null;
         try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) { }
         const log = jl(K_LOG, []), thema = o ? o.thema : (log.length ? log[log.length - 1].thema : '');
         if (!thema) { sagen('Okay.'); return true; }
@@ -223,9 +260,10 @@
         const t = norm(text);
         if (!t || t.split(' ').length > 14) return next(text);
         if (offen && Date.now() - offen.at > 10 * 60000) offen = null;
+        if (letzte && Date.now() - letzte.at > 10 * 60000) letzte = null;
+        if ((offen || letzte) && /^(?:das )?(?:interessiert mich nicht|nervt|hoer auf damit|nicht mehr)\b/.test(t)) return stumm();
         if (offen) {
-            if (/^(?:das )?(?:interessiert mich nicht|nervt|hoer auf damit|nicht mehr)\b/.test(t)) return stumm();
-            if (/^(?:ja|jo|jawohl|gerne|gern|ja bitte|mach das|ja mach das|ok mach das|okay mach das|bitte|klar)$/.test(t) && offen.aktion !== 'keine') return ja();
+            if (/^(?:ja|jo|jawohl|gerne|gern|ja bitte|mach das|ja mach das|ok mach das|okay mach das|bitte|klar)$/.test(t)) return ja();
             if (/^(?:nein|nee|nicht jetzt|spaeter|lieber nicht|danke nein)$/.test(t)) { offen = null; try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) { } sagen('Okay.'); return true; }
         }
         if (/^(?:was hast du (?:heute )?fuer mich|was gibt es neues|was gibts neues|was gibt s neues|hast du etwas fuer mich|was liegt an heute|schau mal auf meinen tag)\b/.test(t)) {
