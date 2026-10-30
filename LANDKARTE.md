@@ -22,8 +22,7 @@ Schreibweise: `jv…` = Globals im Browser, `[APK]` = `weckruf-src/`. Zeilennumm
 | Ortssuche | ortsuche.js, nearby.js, nearbymore.js, orte.js | places.js, routing.js, api/maps.js (Overpass), streetview.js |
 | Gedächtnis speichern | actions.js (`memory_store`) → gedaechtnis.js (lokal), langzeit.js (`episode_store`) | gedaechtnis_zeit.js, langzeit_erinnern.js, api/memory.js |
 | Gedächtnis lesen | assistant.js (`searchSemanticMemory`, Besitzer), gedaechtnis.js, langzeit.js (Zusatzquelle) | assistant.js (Kontext), kontext_lokal.js, prompt.js |
-| Avatar | avatar3d.js (`jvAvatar3D`), kopf.js | holo_look.js, ansicht.js, models/mann.glb |
-| Mimik | mimik.js (Takt 120 ms), avatar3d.js (`setExpression`) | laune.js, charakter.js, lebendig.js |
+| Startseite | uebersicht.js (`jvUebersicht`) | sphere.js, lagebild.js (`jvLage.daten`) |
 | Sprache/TTS | voice.js (`speak`), **speak_kette.js** (`jvSpeakKette`, Reihenfolge der 6 `speak`-Hüllen), fish.js (Hauptstimme) | audio.js, toene.js, speechrate.js, tempo.js, voicefix.js, pronunciation.js, sprueche.js, teilen.js, kontext_lokal.js, **api/stau.js** (Fish-Weiterleitung), [APK] AnsageReceiver |
 | Spracheingabe | voice.js (Browser), native_speech.js (APK/Vosk) | wake_start.js, hoeren.js, hoerkorrektur.js, festnamen.js, [APK] WakeService, OwwEngine/OwwSpeech/OwwVad |
 | WhatsApp | [APK] NachrichtenService.java, ZaneBridge.java; Web: fahr_whatsapp.js, schlaf_antwort.js | zuvorkommend.js (Glückwunsch), teilen.js, KontaktWahl.java, Prefs.java |
@@ -73,7 +72,7 @@ Jede Datei in `js/` steht genau einmal (Name ohne `js/` und `.js`).
 
 - **Kern/Commands** (27): `adress_normal`, `aktionen_kette`, `alleinstellung`, `anleitung`, `answers`, `boot`, `commands`, `einfuehrung`, `erweiterungen`, `festnamen`, `fragen_reihenfolge`, `help`, `hoerkorrektur`, `lists`, `localcommands`, `loesch_notiz`, `loeschen_fragen`, `mehrfach`, `name`, `reminders`, `render`, `rueckfrage`, `schliessen`, `storage`, `ui`, `was_steht_an`, `worldqueryfix`
 - **KI/Prompt/Actions** (19): `actions`, `antwort_bau`, `assistant`, `charakter`, `contextplus`, `faehigkeiten`, `fehlerort`, `formulierungen`, `jarvis`, `kennenlernen`, `ki_mitdenken`, `kontext_lokal`, `laune`, `mitdenken`, `persona`, `prompt`, `routing`, `sprueche`, `zane_redet`
-- **Avatar/Mimik/Optik** (18): `ansicht`, `anzeige`, `avatar3d`, `blick`, `extrafenster`, `holo_look`, `hud_fenster`, `jvfenster`, `kacheln`, `kopf`, `lebendig`, `mimik`, `sphere`, `synapsen`, `vibration`, `welt_anflug`, `weltuhr`, `wetterfx`
+- **Startseite/Optik** (14): `anzeige`, `blick`, `extrafenster`, `hud_fenster`, `jvfenster`, `kacheln`, `lebendig`, `sphere`, `uebersicht`, `synapsen`, `vibration`, `welt_anflug`, `weltuhr`, `wetterfx`
 - **Fotos/Dokumente** (18): `antrag`, `antrag_pdf`, `behoerdenbrief`, `foto_abtippen`, `foto_adresse`, `foto_brief`, `foto_erkennen`, `foto_essensplan`, `foto_kette`, `foto_person`, `foto_rezept`, `foto_stundenplan`, `foto_urlaubsplan`, `fotosenden`, `kuendigung`, `photo`, `rechnungen`, `wunschliste`
 - **Orte/Navigation/Fahrzeit** (16): `autoansicht`, `fahrtcheck`, `karte_zu`, `karten_weg`, `lagebild`, `nearby`, `nearbymore`, `orte`, `ortsuche`, `parkplatz_auto`, `places`, `sonnemond`, `stadtverkehr`, `streetview`, `travel`, `weltzeit`
 - **Mail/Geld** (12): `fristen`, `haushalt`, `konto`, `mail`, `mail_nacht`, `mailaktionen`, `mailpush`, `mailwatch`, `pakete`, `postfach`, `preissuche`, `waehrung`

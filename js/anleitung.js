@@ -118,9 +118,9 @@
         { g: "Unterwegs", i: "🏠", t: "Arbeitsweg und Heimweg", h: "push",
           d: "Kurz nach Schichtende sagt Jarvis, wie lange der Heimweg dauert und ob Stau ist, und nennt eine günstige Tankstelle auf dem Weg. Fährst du immer über denselben Ort, merkt er sich einen Zwischenpunkt.",
           s: ["Wie ist der Heimweg?", "Such den günstigsten Diesel auf dem Heimweg", "Ich fahre zur Arbeit über Lanken", "Arbeitsweg ohne Zwischenpunkt"] },
-        { g: "Unterwegs", i: "🧩", t: "Startkacheln und „Blick auf einen Blick“", h: "charakter",
-          d: "Unter dem Kopf siehst du Wetter, nächsten Termin und Arbeitsweg mit Stau. Darunter zeigt „Blick auf einen Blick“ die nächste Schicht, die Abfahrt, den Wecker und den ersten Terminkonflikt. Antippen öffnet die Details.",
-          s: ["Kacheln aus", "Kacheln an", "Zeig mir den Wochenüberblick"] },
+        { g: "Unterwegs", i: "🧩", t: "Startseite „Übersicht“", h: "charakter",
+          d: "Die Startseite „Übersicht“ zeigt oben links die kleine Kugel (grüner Glow, wenn Jarvis spricht), Begrüßung, Schicht und Uhr. Darunter: Arbeitsweg mit Stau, Regen, Diesel, Schicht, die nächsten Termine mit Fahrzeit, Erinnerungen, Einkauf und das Wetter von morgen. Antippen öffnet die Details. Wo vorhanden, zeigt „Blick auf einen Blick“ die nächste Schicht, die Abfahrt, den Wecker und den ersten Terminkonflikt. Antippen öffnet die Details.",
+          s: ["Zeig mir den Wochenüberblick", "Kacheln an", "Kacheln aus"] },
         { g: "Unterwegs", i: "📡", t: "Lagebild und Radar", n: "Zeigt Route, Verkehr und Wetter in einer Karte",
           d: "Das Lagebild ist die große Karte zu deiner Strecke. Bei einer Route kannst du Restaurants, Tankstellen, Baumärkte, Supermärkte und Cafés entlang der Strecke suchen und mit Zwischenstopp losfahren.",
           s: ["Zeig das Lagebild", "Zeig mir die Karte", "Schließ die Karte"] },
@@ -204,7 +204,7 @@
 
         /* ---------- Wissen ---------- */
         { g: "Wissen", i: "🌦️", t: "Wetter und Unwetter", h: "wetter",
-          d: "Das Wetter für jeden Ort, mit Wetterkarte und Regenradar. Bei amtlichen Unwetterwarnungen meldet sich Jarvis von selbst. Hinter dem Kopf fällt passend Regen, Schnee oder Nebel (abschaltbar).",
+          d: "Das Wetter für jeden Ort, mit Wetterkarte und Regenradar. Bei amtlichen Unwetterwarnungen meldet sich Jarvis von selbst. Passend dazu fällt im Hintergrund Regen, Schnee oder Nebel (abschaltbar).",
           s: ["Wie wird das Wetter morgen?", "Brauche ich einen Regenschirm?", "Zeig das Regenradar", "Gibt es Unwetterwarnungen?", "Wetter-Effekt aus"] },
         { g: "Wissen", i: "🧊", t: "Glätte-Alarm", n: "Rotes Warnfenster mit Ton",
           d: "Droht Glätte oder Gefahr auf deiner Strecke, zeigt Jarvis ein rotes Warnfenster. Du kannst es zum Ansehen testen.",
@@ -278,12 +278,9 @@
           s: ["Ja", "Meine Auto-Playlist ist Autofahrt", "Musik beim Einsteigen aus", "Auto-Playlist ändern"] },
 
         /* ---------- Besonderes ---------- */
-        { g: "Besonderes", i: "🪄", t: "Figur und 3D-Kopf", h: "figur",
-          d: "Jarvis zeigt sich als 3D-Kopf mit Mimik, Blinzeln und Lippenbewegung. Bei Wetter, Terminen und Listen wirft eine Figur eine Karte, aus der das Fenster wird. Sie reagiert auch mit Regenschirm, Partyhut und mehr.",
-          s: ["Figur-Animationen aus", "Realistischer Kopf an", "Synapsen aus", "Figur Test"] },
-        { g: "Besonderes", i: "👤", t: "Kopf wechseln: jung oder reif", n: "Einstellungen > Stimme & Gespräch",
-          d: "Jarvis gibt es mit zwei Köpfen: jung (dunkle Haut, schwarze Haare, Dreitagebart) oder reif (dunkle Haut, graue Haare). Zu jedem Kopf kann eine eigene Stimme gehören.",
-          s: ["Reifer Kopf", "Junger Kopf", "Kopf wechseln"] },
+        { g: "Besonderes", i: "🪄", t: "Figur", h: "figur",
+          d: "Bei Wetter, Terminen und Listen wirft eine Figur eine Karte, aus der das Fenster wird. Sie reagiert auch mit Regenschirm, Partyhut und mehr.",
+          s: ["Figur-Animationen aus", "Synapsen aus", "Figur Test"] },
         { g: "Besonderes", i: "✨", t: "Effekte, Töne und Flackern", n: "Einstellungen > Effekte, Töne und Flacker-Test",
           d: "Flackert die Anzeige auf deinem Handy, wähle bei Effekte „Ruhig“ oder „Aus“. Nachts wird die Kugel dunkler. Der Flacker-Test schaltet Effekte einzeln ab, damit du siehst, welcher der Übeltäter ist.",
           s: ["Töne leiser", "Töne lauter", "Wetter-Effekt aus"] },

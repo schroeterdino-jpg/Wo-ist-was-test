@@ -3,7 +3,7 @@
    Ersetzt systemcheck.js und selbsttest.js (die beiden gibt es nicht mehr). Prüft:
    - Google/Dienste: Kalender, Gmail, Wetter, Spritpreise, Karten, KI, Google-Route, Verkehr, Diesel-Suche, Standort
    - Handy: Mikrofon, Spracherkennung, Kamera, Benachrichtigungen/Push, Speicher, Stimme, Netz, Uhrzeit
-   - Programm: alle Programmdateien erreichbar, Funktionen geladen, Programmfehler seit dem Start, 3D-Kopf und Modelle
+   - Programm: alle Programmdateien erreichbar, Funktionen geladen, Programmfehler seit dem Start
    - Server: App-Code, Langzeitgedächtnis, Abgleich, Push-Server, Mail-Wächter, Nachrichten, Filme, Stimmen (Fish, Edge)
    - Daten: Heimat- und Arbeitsadresse
    - Weckruf-App: erkannt? Weckwort? Funktionen der App
@@ -164,20 +164,6 @@
         if (!echte.length) return ok('keine Programmfehler seit dem Start');
         return schlecht(echte.length + ' Programmfehler seit dem Start, zuletzt: ' + String(echte[echte.length - 1]).slice(0, 140), 'Screenshot der roten Fehleranzeige schicken; App neu öffnen leert die Liste');
     }
-    async function pruefModelle() {
-        const liste = [['models/mann.glb', true], ['models/zubehoer.glb', false]];
-        const fehlt = [], optional = [];
-        await Promise.all(liste.map(async ([u, pflicht]) => {
-            try { const r = await mit(fetch('./' + u, { method: 'HEAD', cache: 'no-store' }), 12000); if (!r.ok) (pflicht ? fehlt : optional).push(u); }
-            catch (e) { (pflicht ? fehlt : optional).push(u); }
-        }));
-        let kopf = '';
-        try { const a = window.jvAvatar3D; if (a) { const rd = typeof a.ready === 'function' ? a.ready() : a.ready; kopf = rd ? ', 3D-Kopf läuft' : ', 3D-Kopf lädt oder ist aus'; } else kopf = ', 3D-Kopf nicht geladen'; } catch (e) {}
-        if (fehlt.length) return schlecht('fehlt: ' + fehlt.join(', '), 'Datei in den Ordner models bei GitHub hochladen');
-        if (optional.length) return hinweis('fehlt: ' + optional.join(', ') + kopf, 'Datei in den Ordner models hochladen (nur nötig für Brille/Mütze)');
-        return ok('Modelle da' + kopf);
-    }
-
     /* ---------------- Server ---------------- */
     async function pruefAppCode() {
         if (!pd('app_secret', '')) return schlecht('nicht eingetragen', 'Einstellungen > App-Code eintragen (derselbe wie APP_SECRET bei Vercel)');
@@ -400,7 +386,7 @@
     const PRUEFUNGEN = [
         ['Handy', 'Standort', pruefStandort], ['Handy', 'Mikrofon', pruefMikro], ['Handy', 'Kamera', pruefKamera], ['Handy', 'Benachrichtigungen', pruefPush],
         ['Handy', 'Speicher', pruefSpeicher], ['Handy', 'Stimme (Handy)', pruefStimme], ['Handy', 'Netz', pruefNetz], ['Handy', 'Uhrzeit', pruefUhr],
-        ['Programm', 'Programmdateien', pruefDateien], ['Programm', 'Bausteine', pruefBausteine], ['Programm', 'Funktionen', pruefFunktionen], ['Programm', 'Programmfehler', pruefFehler], ['Programm', '3D-Kopf', pruefModelle],
+        ['Programm', 'Programmdateien', pruefDateien], ['Programm', 'Bausteine', pruefBausteine], ['Programm', 'Funktionen', pruefFunktionen], ['Programm', 'Programmfehler', pruefFehler],
         ['Google', 'Google Kalender', pruefKalender], ['Google', 'Gmail', pruefGmail],
         ['Dienste', 'Wetter', pruefWetter], ['Dienste', 'Spritpreise', pruefSprit], ['Dienste', 'Karten', pruefKarten], ['Dienste', 'KI', pruefKI, true],
         ['Dienste', 'Google-Route', pruefRoute, true], ['Dienste', 'Verkehr', pruefVerkehr], ['Dienste', 'Diesel-Suche', pruefDiesel],

@@ -2,7 +2,7 @@
    KACHELN am Startbildschirm: drei eckige HUD-Kacheln zwischen Begrüßung und Kopf.
    Wetter | Nächster Termin | Arbeitsweg, dazu Statuszeile (Systeme online, Schicht, Datum), Linie unter dem Kopf, eckige Knöpfe unten und leuchtender Rand bei Meldung/Termin in unter 1 Stunde. Antippen: Wetterkarte / Termine / Lagebild mit der Fahrt.
    Arbeitsweg nur mit gespeicherter Arbeitsadresse (workAddress); bist du schon dort (höchstens 3 Min.), wird daraus von selbst der Heimweg; wird höchstens alle 15 Min. neu berechnet und nur bei sichtbarer Seite.
-   Ein/Aus per Sprache: "Kacheln aus" / "Kacheln an". Standard: an.
+   Ein/Aus per Sprache: "Kacheln aus" / "Kacheln an". Standard: aus (seit der Übersicht-Startseite, js/uebersicht.js).
    Braucht: storage.js, briefing.js (fetchWeatherData), travel.js (fetchRouteMapData), ui.js (weatherEmojiForCode). Fehlt etwas, bleibt die Kachel leer.
    ============================================================ */
 (function () {
@@ -13,7 +13,7 @@
 
     function pd(k, d) { try { return getPersistentData(k, d); } catch (e) { return d; } }
     function sd(k, v) { try { setPersistentData(k, v); } catch (e) {} }
-    function an() { return pd(KEY, 'an') !== 'aus'; }
+    function an() { return pd(KEY, 'aus') === 'an'; }   // Standard jetzt AUS: die Startseite (js/uebersicht.js) zeigt Wetter, Termin und Arbeitsweg selbst
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
     function css() {

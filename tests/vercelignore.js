@@ -5,7 +5,7 @@
      1  .vercelignore besteht nur aus Kommentaren und KONKRETEN Pfaden (/ordner/ oder /datei), keine Platzhalter, kein Verneinen
      2  ausgeschlossen werden dürfen nur die Pfade auf der ERLAUBT-Liste (Tests, Doku, Android-Bau, Werkzeuge, GitHub-Dateien)
      3  alles, was die App zur Laufzeit lädt, ist NICHT ausgeschlossen: index.html, style.css, manifest.json, sw.js, vercel.json, package.json,
-        Symbole, alle Skripte aus index.html, alle Dateien in js/, alle 11 Functions in api/, alle Avatar-Modelle in models/
+        Symbole, alle Skripte aus index.html, alle Dateien in js/, alle 11 Functions in api/, alle Dateien in models/ (falls vorhanden)
      4  nichts in der Laufzeit (index.html, js/, api/, sw.js, manifest.json, vercel.json) lädt etwas aus einem ausgeschlossenen Pfad
      5  Gegenproben: wird ein Laufzeitpfad oder ein Platzhalter eingetragen, schlägt der Test an
    Es werden keine Dateien verändert.
@@ -66,7 +66,7 @@ check('index.html: Skripte gefunden', skripte.length > 100, skripte.length);
 for (const p of skripte) if (!fs.existsSync(path.join(ROOT, p)) || ausgeschlossen(p, rs)) check('Skript aus index.html vorhanden und nicht ausgeschlossen: ' + p, false);
 const api = alle.filter(p => /^api\/[^/]+\.js$/.test(p));
 check('alle 11 Functions in api/ vorhanden und nicht ausgeschlossen', api.length === 11 && api.every(p => !ausgeschlossen(p, rs)), api.length);
-check('Avatar-Modelle vorhanden und nicht ausgeschlossen (mann.glb, zubehoer.glb)', ['models/mann.glb', 'models/zubehoer.glb'].every(p => fs.existsSync(path.join(ROOT, p)) && !ausgeschlossen(p, rs)));
+check('alle Dateien in models/ (falls vorhanden) nicht ausgeschlossen', modelle.every(p => !ausgeschlossen(p, rs)));
 check('alle Dateien in js/ nicht ausgeschlossen', alle.filter(p => p.startsWith('js/')).every(p => !ausgeschlossen(p, rs)));
 
 /* ---------- 4  die Laufzeit lädt nichts aus einem ausgeschlossenen Pfad ---------- */

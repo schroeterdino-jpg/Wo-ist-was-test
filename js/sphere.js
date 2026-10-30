@@ -269,7 +269,9 @@
 
             // Weiches Neon-Schimmern um die ganze Kugel (CSS-Glow auf dem <canvas> selbst, günstiger als
             // ein Schatten je Linie/Punkt und zieht die Farbe automatisch mit, wenn sie wechselt)
-            canvas.style.filter = `drop-shadow(0 0 6px rgba(${rgb},${(0.9 * lvl).toFixed(2)})) drop-shadow(0 0 16px rgba(${rgb},${(0.7 * lvl).toFixed(2)})) drop-shadow(0 0 34px rgba(${rgb},${(0.4 * lvl).toFixed(2)}))`;
+            // Spricht Jarvis, kommt ein schwacher grüner Schein dazu, der mit der Lautstärke atmet
+            const sprechGlow = colorKey === 'speaking' ? 0.3 + 0.45 * Math.min(1, liveLevel * 1.6) : 0;
+            canvas.style.filter = `drop-shadow(0 0 6px rgba(${rgb},${(0.9 * lvl).toFixed(2)})) drop-shadow(0 0 16px rgba(${rgb},${(0.7 * lvl).toFixed(2)})) drop-shadow(0 0 34px rgba(${rgb},${(0.4 * lvl).toFixed(2)}))` + (sprechGlow ? ` drop-shadow(0 0 ${Math.round(10 + 14 * sprechGlow)}px rgba(87,224,161,${sprechGlow.toFixed(2)}))` : '');
 
             ctx.globalAlpha = 1;
             ctx.clearRect(0, 0, SIZE, SIZE);

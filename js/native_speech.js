@@ -37,6 +37,8 @@
 
     // Wird von der App aufgerufen
     window.__zaneRec = function (type, data) {
+        // Lautstärke der Nutzerstimme (nur für die Anzeige auf der Startseite), kein Ereignis für die Erkennung
+        if (type === 'rms') { window.jvUserRms = (data && +data.v) || 0; window.jvUserRmsZeit = Date.now(); return; }
         const r = cur;
         if (!r) return;
         if (type === 'end') {

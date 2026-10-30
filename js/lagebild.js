@@ -405,7 +405,14 @@
     const istTankKarte = c => c && /^(🟢|⛽)/.test(String(c.icon || '')) && /\d,\d{3} €\s*$/.test(String(c.title || ''));
     const istOrtKarte = c => c && c.href && / · /.test(String(c.title || '')) && /google\.com\/maps\/dir\/\?[^ ]*destination=-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?/.test(c.href);
 
-    window.jvLage = { open, close, isOpen: () => !!layer, ziel, orte, aufStrecke };
+    /* Für die Startseite (js/uebersicht.js): dieselben Daten wie das Lagebild, aber zwischengespeichert. Ist der Stand jünger als maxAlterMs, wird nichts neu geholt (keine zusätzlichen Abrufe). */
+    let datenStand = null, datenLauf = null;
+    function daten(maxAlterMs) {
+        if (datenStand && Date.now() - datenStand.zeit < (maxAlterMs || 600000)) return Promise.resolve(datenStand);
+        if (!datenLauf) datenLauf = laden().then(d => { if (d && !d.fehler) datenStand = d; return d; }).catch(() => null).then(d => { datenLauf = null; return d; });
+        return datenLauf;
+    }
+    window.jvLage = { open, close, isOpen: () => !!layer, ziel, orte, aufStrecke, daten, regenInfo };
     window.jvRadar = window.jvLage;   // alte Bezeichnung bleibt gültig
 
     /* ---------- Umleiten: alles läuft über das Lagebild ---------- */

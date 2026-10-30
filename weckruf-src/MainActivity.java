@@ -934,6 +934,8 @@ public class MainActivity extends Activity {
         return true;
     }
 
+    private long rmsLetzte = 0;
+
     private void send(String type, String json) {
         js("window.__zaneRec&&window.__zaneRec(" + JSONObject.quote(type) + "," + (json == null ? "null" : json) + ");");
     }
@@ -1039,7 +1041,13 @@ public class MainActivity extends Activity {
     private final RecognitionListener listener = new RecognitionListener() {
         @Override public void onReadyForSpeech(Bundle b) { send("start", null); send("audiostart", null); }
         @Override public void onBeginningOfSpeech() { send("soundstart", null); send("speechstart", null); }
-        @Override public void onRmsChanged(float v) { }
+        @Override public void onRmsChanged(float v) {
+            // Lautstärke der Nutzerstimme für die Anzeige (höchstens ca. 12x pro Sekunde)
+            long jetzt = android.os.SystemClock.uptimeMillis();
+            if (jetzt - rmsLetzte < 80) return;
+            rmsLetzte = jetzt;
+            send("rms", "{\"v\":" + Math.round(Math.max(0f, v) * 10f) / 10f + "}");
+        }
         @Override public void onBufferReceived(byte[] b) { }
         @Override public void onEndOfSpeech() { send("speechend", null); send("soundend", null); send("audioend", null); }
         @Override public void onPartialResults(Bundle b) { }
