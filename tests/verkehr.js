@@ -1,5 +1,5 @@
 /* ============================================================
-   VERKEHR PHASE 1 + 2 (Start: node tests/verkehr.js)
+   VERKEHR PHASE 1 + 2 + LAGEBILD "VERKEHR IN DER NÄHE" (Start: node tests/verkehr.js)
    PHASE 1 sichert zwei belegte Fehler ab:
    1. Schwere Meldungen (Sperrung, Unfall) dürfen nicht hinter kleinen Meldungen aus der begrenzten Auswahl fallen
       (autobahn.de: erst ordnen, dann auf 2 begrenzen; TomTom: erst Schwere, dann Verzögerung, dann die ersten 3).
@@ -7,7 +7,9 @@
    Gemessen wird mit der echten Skript-Reihenfolge (tests/umgebung.js) und festen Attrappen für /api/route und /api/stau; kein echtes Netz.
    PHASE 2 (Abschnitt 9 ff.): Routenrelevanz. Eine Meldung gilt nur "auf der Strecke", wenn sie höchstens 250 m neben dem Linienverlauf der Route liegt; bis 1,2 km heißt sie
    "nahe deiner Route", darüber wird sie nicht als Streckenmeldung gesagt. Schwere ändert daran nichts, sie ordnet nur innerhalb der Meldungen, die die Route betreffen.
-   NICHT geprüft (bewusst, noch nicht gebaut): Fahrtrichtung / Gegenrichtung, Lagebild "Verkehr in der Nähe", die Server-Kopie in api/sync.js.
+   LAGEBILD-NÄHE (Abschnitt 17 ff.): "⚠ VERKEHR – ABSEITS DEINER STRECKE" zeigt Unfälle und Stau bis 10 km um den Standort, die nicht an der Arbeitsstrecke liegen; fehlende Ortsnamen
+   holt orteNachladen bei Nominatim (höchstens 3 je Laden, pro Stelle einmal dank ortCache, direkt aus dem Browser).
+   NICHT geprüft (bewusst, noch nicht gebaut): Fahrtrichtung / Gegenrichtung, die Server-Kopie in api/sync.js.
    ============================================================ */
 'use strict';
 const { starte } = require('./umgebung.js');
@@ -254,6 +256,89 @@ const teilNah = t => (/Außerdem gemeldet, nahe deiner Route:([^]*)$/.exec(t) ||
         check('V16 dieselbe nahe Stelle von autobahn.de und TomTom wird nur einmal genannt', (l.text.match(/Reinbek/g) || []).length === 1 && /Billstedt/.test(l.text), l.text);
     }
 
-    console.log('VERKEHR PHASE 1 + 2: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');
+    /* ======================= LAGEBILD "VERKEHR IN DER NÄHE" ======================= */
+    /* Lagebild-Fenster (Ansicht "Umkreis") mit festem Standort am Start der Route, einer Arbeitsstrecke (A -> B) und den übergebenen TomTom-Meldungen. Nominatim antwortet mit
+       einer Attrappe, die jede Abfrage mitzählt. Alle Texte, die das Fenster setzt, werden gesammelt. */
+    const PE = (f, dN, dE) => ({ lat: A[1] + (B[1] - A[1]) * f + dN / 111.2, lon: A[0] + (B[0] - A[0]) * f + (dE || 0) / (111.2 * Math.cos(53.5 * Math.PI / 180)) });
+    const TQ = (art, kategorie, sek, p, von) => Object.assign({ art, kategorie, stufe: 2, verzoegerung_s: sek, laenge_m: 300, von: von || '', nach: '', strassen: [], text: '' }, p);
+    const LINIE_LB = GEO.map(c => [c[1], c[0]]);   // [Breite, Länge]
+    async function lageUmkreis(incidents, routenWarnungen) {
+        const urls = [];
+        const app = starte({ festerZufall: true, fetch: async u => {
+            urls.push(u);
+            if (/nominatim\.openstreetmap\.org/.test(u)) { const m = /lat=([-\d.]+)&lon=([-\d.]+)/.exec(u) || /lon=([-\d.]+)&lat=([-\d.]+)/.exec(u); return antwort({ address: { road: 'Teststraße ' + (m ? Number(m[1]).toFixed(3) : ''), suburb: 'Testort' } }); }
+            if (/\/api\/stau\?traffic=1/.test(u)) return antwort({ incidents });
+            throw new Error('offline (Attrappe): ' + u); } });
+        const sb = app.sb, texte = [];
+        app.setze('workAddress', 'Arbeit 1');
+        sb.fetchUserLocationData = async () => ({ latitude: A[1], longitude: A[0], ort: 'Schwarzenbek' });
+        sb.fetchRouteMapData = async () => ({ coords: LINIE_LB, warnings: routenWarnungen || [], fahrtMin: 30, stauMin: 0, km: 35 });
+        const rec = () => new Proxy(function () { }, { get(t, k) { return k === 'textContent' ? '' : (k === Symbol.toPrimitive ? () => '' : rec()); }, set(t, k, v) { if (k === 'textContent') texte.push(String(v)); return true; }, apply() { return rec(); } });
+        sb.document.createElement = () => rec();
+        const lade = async () => { await app.lassLaufen(async () => { sb.jvLage.open(false); for (let i = 0; i < 300; i++) await new Promise(r => setImmediate(r)); }); };
+        const nominatim = () => urls.filter(u => /nominatim\.openstreetmap\.org/.test(u)).length;
+        await lade();
+        return { app, sb, texte, urls, nominatim, nochmal: async () => { sb.jvLage.close(); texte.length = 0; await lade(); } };
+    }
+    const nahe = t => t.filter(x => /ABSEITS DEINER STRECKE|Unfall|Stau|Min\. länger|bei |Teststraße/.test(x));
+    /* ---------- 17. Nähe-Meldung erscheint wieder (Kommentarfehler in lagebild.js Zeile 125) ---------- */
+    {
+        const L = await lageUmkreis([TQ('Unfall', 1, 900, PE(0.0, 7), 'Nordost')]);
+        check('V17 1 Meldung ~7 km vom Standort, nicht an der Strecke: Karte "ABSEITS DEINER STRECKE"', L.texte.some(x => /ABSEITS DEINER STRECKE/.test(x)), JSON.stringify(nahe(L.texte)));
+        check('V17 1 ... mit Unfall, Ort und Entfernung', L.texte.some(x => /bei Nordost: Unfall · 15 Min\. länger · 7 km/.test(x)), JSON.stringify(nahe(L.texte)));
+        check('V17 1 ... und die Kachel "Ruhig" erscheint dann nicht', !L.texte.some(x => /Ruhig/.test(x)), JSON.stringify(L.texte));
+    }
+    /* ---------- 18. Meldungen, die nicht in "Verkehr in der Nähe" gehören ---------- */
+    {
+        const L = await lageUmkreis([TQ('Stau', 6, 600, PE(0.0, 20), 'Zuweit'), TQ('Baustelle', 9, 600, PE(0.0, 5), 'Baustelle'), TQ('Stau', 6, 600, PE(0.1, 0), 'AufRoute'), TQ('Stau', 6, 600, PE(0.05, 0.9), 'NaheRoute')]);
+        check('V18 4 entfernte Meldung (20 km), Baustelle, Meldung auf der Strecke und Meldung 0,9 km neben der Strecke erscheinen NICHT unter "Verkehr in der Nähe"', !L.texte.some(x => /Zuweit|Baustelle|AufRoute|NaheRoute|ABSEITS/.test(x)), JSON.stringify(nahe(L.texte)));
+        check('V18 6 ohne passende Meldung: keine leere Nähe-Karte, stattdessen "Ruhig"', L.texte.some(x => /Ruhig/.test(x)) && !L.texte.some(x => /ABSEITS DEINER STRECKE/.test(x)), JSON.stringify(L.texte));
+        check('V18 5 ... und keine Nominatim-Abfrage für Meldungen, die gar nicht in die Nähe-Liste kommen (auch ohne Namen)', L.nominatim() === 0, String(L.nominatim()));
+        const K = await lageUmkreis([TQ('Stau', 6, 600, PE(0.0, 20)), TQ('Baustelle', 9, 600, PE(0.0, 5)), TQ('Stau', 6, 600, PE(0.1, 0)), TQ('Stau', 6, 600, PE(0.05, 0.9))]);
+        check('V18 5 namenlose Meldungen außerhalb der Nähe-Liste verursachen 0 Nominatim-Abfragen', K.nominatim() === 0, String(K.nominatim()));
+        const leer = await lageUmkreis([]);
+        check('V18 6 keine Verkehrsmeldungen: "Ruhig", keine Karte, keine Nominatim-Abfrage', leer.texte.some(x => /Ruhig/.test(x)) && !leer.texte.some(x => /ABSEITS/.test(x)) && leer.nominatim() === 0, JSON.stringify(leer.texte));
+    }
+    /* ---------- 19. Mehrere Nähe-Meldungen: vorhandene Sortierung (längste Verzögerung zuerst), nahe Dubletten nur einmal ---------- */
+    {
+        const L = await lageUmkreis([TQ('Stau', 6, 600, PE(0.0, 3), 'Klein'), TQ('Unfall', 1, 1200, PE(0.0, 6), 'Gross'), TQ('Stau', 6, 900, PE(0.0, 9), 'Mittel'), TQ('Stau', 6, 700, PE(0.0, 9.5), 'Doppelt')]);
+        const z = L.texte.filter(x => /Min\. länger/.test(x));
+        check('V19 5 Sortierung: 20 Min vor 15 Min vor 10 Min', z.length === 3 && /Gross/.test(z[0]) && /Mittel/.test(z[1]) && /Klein/.test(z[2]), JSON.stringify(z));
+        check('V19 5 ... Meldung unter 1,5 km neben einer bereits genannten wird nicht doppelt aufgeführt', !L.texte.some(x => /Doppelt/.test(x)), JSON.stringify(z));
+        check('V19 Titel zählt die Meldungen', L.texte.some(x => /^3 Meldungen$/.test(x)), JSON.stringify(L.texte));
+    }
+    /* ---------- 20. Strecke + Nähe zusammen: Phase 1 / Phase 2 / "In den Plantagen" bleiben ---------- */
+    {
+        const sperr = { lat: PE(0.1, 0).lat, lon: PE(0.1, 0).lon, road: 'A24', klasse: 'auf', autobahnBelegt: false, title: 'Sperrung bei In den Plantagen', text: '' };
+        const L = await lageUmkreis([TQ('Stau', 6, 600, PE(0.0, 4), 'Klein')], [sperr]);
+        check('V20 F schwere Streckenmeldung bleibt im Arbeitsweg-Bereich, ohne A24-Behauptung', L.texte.some(x => x === '⚠ Sperrung bei In den Plantagen'), JSON.stringify(L.texte.filter(x => /Plantagen|A24/.test(x))));
+        check('V20 F ... und die kleine Nähe-Meldung verdrängt sie nicht, steht aber auch in "Verkehr in der Nähe"', L.texte.some(x => /bei Klein: Stau · 10 Min\. länger · 4 km/.test(x)) && L.texte.some(x => /ABSEITS DEINER STRECKE/.test(x)), JSON.stringify(nahe(L.texte)));
+    }
+    /* ---------- 21. Nominatim (orteNachladen): Aufrufzahl, Obergrenze, Cache ---------- */
+    {
+        const mit = await lageUmkreis([TQ('Unfall', 1, 900, PE(0.0, 7), 'Mit Namen'), TQ('Stau', 6, 600, PE(0.0, 4), 'Auch Name')]);
+        check('V21 1 Meldungen mit vorhandenem Ortsnamen: 0 Nominatim-Aufrufe', mit.nominatim() === 0 && mit.texte.some(x => /ABSEITS/.test(x)), String(mit.nominatim()));
+        const str = await lageUmkreis([Object.assign(TQ('Stau', 6, 600, PE(0.0, 4)), { strassen: ['B404'] })]);
+        check('V21 1 ... auch bei vorhandener Straßennummer ohne Ortsnamen: 0 Aufrufe', str.nominatim() === 0, String(str.nominatim()));
+        const eine = await lageUmkreis([TQ('Unfall', 1, 900, PE(0.0, 7))]);
+        check('V21 2 eine namenlose Meldung: genau 1 Nominatim-Abfrage', eine.nominatim() === 1, String(eine.nominatim()));
+        check('V21 2 ... und der gefundene Name erscheint in der Karte', eine.texte.some(x => /bei Teststraße [\d.]+, Testort: Unfall/.test(x)), JSON.stringify(nahe(eine.texte)));
+        const viele = await lageUmkreis([TQ('Unfall', 1, 1300, PE(0.0, 3)), TQ('Stau', 6, 1200, PE(0.0, 5)), TQ('Stau', 6, 1100, PE(0.0, 7)), TQ('Stau', 6, 1000, PE(0.0, 9)), TQ('Stau', 6, 900, PE(0.0, 6, 4))]);
+        check('V21 3 fünf namenlose Meldungen: höchstens 3 Nominatim-Abfragen', viele.nominatim() === 3, String(viele.nominatim()));
+        check('V21 3 ... und es sind die 3 mit der längsten Verzögerung (Reihenfolge der Liste)', /lat=53\.5\d*/.test(viele.urls.filter(u => /nominatim/.test(u))[0] || '') && viele.urls.filter(u => /nominatim/.test(u)).length === 3);
+        const n1 = viele.nominatim();
+        await viele.nochmal();
+        check('V21 4/6 erneutes Laden/Zeichnen derselben Stellen: keine weitere Nominatim-Abfrage (ortCache)', viele.nominatim() === n1, n1 + ' -> ' + viele.nominatim());
+        check('V21 4/6 ... die Karte zeigt die Namen auch beim zweiten Laden', viele.texte.some(x => /Teststraße/.test(x)), JSON.stringify(nahe(viele.texte)));
+    }
+    /* ---------- 22. Netzwerk insgesamt: nichts Neues außer den vorhandenen Abfragen ---------- */
+    {
+        const L = await lageUmkreis([TQ('Unfall', 1, 900, PE(0.0, 7), 'Nordost')]);
+        const unbekannt = L.urls.filter(u => !/\/api\/stau\?traffic=1|\/api\/tankroute|open-meteo\.com|nominatim\.openstreetmap\.org/.test(u));
+        check('V22 10 Lagebild fragt nur Bekanntes ab (TomTom über /api/stau, Tankerkönig, Wetter, Nominatim), nichts Neues', unbekannt.length === 0, JSON.stringify(unbekannt));
+        check('V22 10 /api/stau?traffic=1 wird beim Öffnen genau 1x abgefragt (wie vorher)', L.urls.filter(u => /\/api\/stau\?traffic=1/.test(u)).length === 1, JSON.stringify(L.urls));
+    }
+
+    console.log('VERKEHR PHASE 1 + 2 + LAGEBILD-NÄHE: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
