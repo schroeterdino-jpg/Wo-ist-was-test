@@ -595,42 +595,41 @@ body.panel-open .hud-decor { opacity: 0; transition: opacity .2s ease; }
 #uebKopf .holo-container { width: 72px; height: 72px; }
 #uebKopf #jarvisSphere { width: 72px; height: 72px; }
 #uebGrussBox { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-#uebGruss { font-size: 21px; letter-spacing: .08em; color: var(--cyan); text-transform: uppercase; line-height: 1.1; }
-#uebSchichtZeile { font-size: 13px; color: var(--muted, #6f90a3); }
-#uebUhrBox { text-align: right; line-height: 1; }
-#uebUhr { display: block; font-family: var(--font-mono); font-size: 30px; font-weight: 600; color: #d9e9f2; }
+#uebGruss { font-size: 17px; letter-spacing: .06em; color: var(--cyan); text-transform: uppercase; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#uebSchichtZeile, #uebHinweis { font-size: 12px; color: var(--muted, #6f90a3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#uebHinweis { font-size: 10px; letter-spacing: .04em; opacity: .8; margin-top: 2px; }
+#uebUhrBox { text-align: right; line-height: 1; flex: none; }
+#uebUhr { display: block; font-family: var(--font-mono); font-size: 26px; white-space: nowrap; font-weight: 600; color: #d9e9f2; }
 #uebDatum { display: block; margin-top: 3px; font-size: 12px; letter-spacing: .06em; color: var(--muted, #6f90a3); }
-#uebEq { display: flex; align-items: flex-end; justify-content: center; gap: 3px; height: 20px; margin-bottom: 6px; }
+#uebEq { display: flex; align-items: flex-end; justify-content: center; gap: 3px; height: 14px; margin-bottom: 4px; }
 #uebEq i { display: block; width: 4px; height: 3px; border-radius: 2px; background: rgba(93, 209, 255, .25); transition: height .06s linear; }
 #uebEq.jarvis i { background: var(--good); box-shadow: 0 0 6px rgba(87, 224, 161, .55); }
 #uebEq.nutzer i { background: var(--amber, #ff9a44); box-shadow: 0 0 6px rgba(255, 154, 68, .55); }
-#uebRaster { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+#uebRaster { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
 .ueb-karte { grid-column: span 3; }
 #uebErinnerung, #uebEinkauf, #uebWetter { grid-column: span 2; }
 .ueb-karte { background: rgba(10, 22, 33, .78); border: 1px solid rgba(93, 209, 255, .18); border-radius: 6px; padding: 7px 10px; min-height: 0; overflow: hidden; min-width: 0; }
 .ueb-karte::before { display: block; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted, #6f90a3); font-weight: 600; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ueb-breit { grid-column: span 6; }
 #uebArbeit { --t: "Arbeitsweg"; } #uebArbeit.heim { --t: "Heimweg"; } #uebRegen { --t: "Regen"; } #uebDiesel { --t: "Diesel"; } #uebSchicht { --t: "Schicht"; }
-#uebTermine { --t: "Nächste Termine"; } #uebErinnerung { --t: "Erinnerungen"; } #uebEinkauf { --t: "Einkauf"; } #uebWetter { --t: "Wetter morgen"; }
+#uebTermine { --t: "Nächste Termine"; } #uebErinnerung { --t: "Erinnern"; } #uebEinkauf { --t: "Einkauf"; } #uebWetter { --t: "Morgen"; }
 .ueb-karte::before { content: var(--t); }
 #uebArbeit, #uebRegen, #uebDiesel, #uebTermine, #uebErinnerung, #uebEinkauf { cursor: pointer; }
-.ueb-gross { font-size: 26px; font-weight: 600; line-height: 1.05; color: #d9e9f2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ueb-gross { font-size: 24px; font-weight: 600; line-height: 1.05; color: #d9e9f2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ueb-gross small { font-size: 12px; color: var(--muted, #6f90a3); font-weight: 500; margin: 0 3px; }
 .ueb-gross.ueb-klein { font-size: 16px; padding-top: 5px; }
 .ueb-sub { font-size: 12px; color: var(--muted, #6f90a3); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ueb-ok { color: var(--good); } .ueb-warn { color: var(--amber, #ff9a44); }
-.ueb-zeile { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 2px 0; border-top: 1px solid rgba(93, 209, 255, .08); }
+.ueb-zeile { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; padding: 1px 0; border-top: 1px solid rgba(93, 209, 255, .08); }
 .ueb-zeile:first-of-type { border-top: 0; }
 .ueb-zeile > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ueb-zeile > span:last-child { color: var(--amber, #ff9a44); font-family: var(--font-mono); font-size: 13px; white-space: nowrap; flex: none; }
 .ueb-wetter { border-top: 0; padding-top: 0; }
-#uebMic { display: flex; align-items: center; justify-content: center; margin: 10px auto 0; width: 54px; height: 54px; border-radius: 50%; border: 2px solid var(--cyan); background: transparent; color: var(--cyan); font-size: 22px; box-shadow: 0 0 22px rgba(73, 215, 255, .4); }
-#uebMic:active { background: rgba(73, 215, 255, .15); }
-#uebHinweis { text-align: center; font-family: var(--font-mono); font-size: 12px; letter-spacing: .1em; color: var(--muted, #6f90a3); margin-top: 6px; }
 
 /* Kein Scrollen auf der Startseite: Kopfzeile schlank, Untertitel-Kasten nimmt keinen Platz weg */
 .app-shell > header { padding-top: 6px !important; padding-bottom: 2px !important; }
 #userNameDisplay { display: none; }
-main.container { padding-top: 4px; padding-bottom: 5.5rem; }
+body main.container { padding-top: 0; padding-bottom: 1rem; }
 #uebersicht #hudSubtitleBox { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; min-height: 0; }
 #uebersicht { position: relative; }
+#sec-speak { padding-top: 0 !important; padding-bottom: 0 !important; }

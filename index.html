@@ -105,7 +105,7 @@
         document.documentElement.dataset.fx = (function () { try { return localStorage.getItem('fx_mode') || 'calm'; } catch (e) { return 'calm'; } })();
         (function () { try { JSON.parse(localStorage.getItem('fx_flags') || '[]').forEach(function (f) { document.documentElement.classList.add('nofx-' + f); }); } catch (e) {} })();
     </script>
-    <link rel="stylesheet" href="./style.css?v=13bbf78a">
+    <link rel="stylesheet" href="./style.css?v=dcf40dda">
 
     <!-- Reduzierte Startseite: nur die Kugel ist dauerhaft sichtbar. Alles andere bleibt im Hintergrund erhalten
          (andere Dateien schreiben dort hinein), ist aber ausgeblendet. Die Zane-Texte erscheinen nur, solange er spricht oder zuhört. -->
@@ -195,7 +195,7 @@
                             </div>
                         </div>
                     </div>
-                        <div id="uebGrussBox"><b id="uebGruss">Hallo</b><span id="uebSchichtZeile"></span></div>
+                        <div id="uebGrussBox"><b id="uebGruss">Hallo</b><span id="uebSchichtZeile"></span><span id="uebHinweis">Kugel tippen oder „Hey Jarvis“</span></div>
                         <div id="uebUhrBox"><span id="uebUhr">--:--</span><small id="uebDatum"></small></div>
                     </div>
                     <div id="uebEq" aria-hidden="true"></div>
@@ -209,8 +209,6 @@
                         <div class="ueb-karte" id="uebEinkauf"></div>
                         <div class="ueb-karte" id="uebWetter"></div>
                     </div>
-                    <button id="uebMic" type="button" onclick="toggleSpeechRecognition()" aria-label="Sprechen">🎙</button>
-                    <div id="uebHinweis">„HEY JARVIS“ ODER TIPPEN</div>
                     <div id="hudSubtitleBox" class="mt-3 w-full bg-[#0a1621]/90 backdrop-blur rounded-lg p-3 border border-[rgba(93,209,255,.25)] border-glow-cyan font-mono text-xs text-center min-h-[48px] flex items-center justify-center text-[#49d7ff] transition-all">
                         <span id="hudSubtitleText" class="tracking-wide">System bereit. Warte auf Spracheingabe...</span>
                     </div>
@@ -830,7 +828,7 @@
     <script src="./js/fahrtcheck.js?v=f1ffc75f"></script>
     <script src="./js/stadtverkehr.js?v=84dec10b"></script>
     <script src="./js/lagebild.js?v=51531337"></script>
-    <script src="./js/uebersicht.js?v=d16706bb"></script>
+    <script src="./js/uebersicht.js?v=51210433"></script>
     <script src="./js/systemcheck_voll.js?v=30aee3b3"></script>
     <script src="./js/jvfenster.js?v=b75b585c"></script>
     <script src="./js/laune.js?v=a50b95f5"></script>
@@ -839,7 +837,7 @@
     <script src="./js/mitnehmen.js?v=594e9461"></script>
     <script src="./js/einfuehrung.js?v=41b018c9"></script>
     <script src="./js/alleinstellung.js?v=45a23283"></script>
-    <script src="./js/anleitung.js?v=a995d033"></script>
+    <script src="./js/anleitung.js?v=817ccede"></script>
     <script src="./js/festnamen.js?v=e8a9a06a"></script>
     <script src="./js/konto.js?v=18f7a8b5"></script>
     <script src="./js/haushalt.js?v=fcd85b53"></script>
@@ -928,7 +926,7 @@
     <script src="./js/fahr_whatsapp.js?v=2fe8cd7f"></script>
     <script src="./js/spotify.js?v=b106db10"></script>
     <script src="./js/pakete.js?v=a40ba2a6"></script>
-    <script src="./js/blick.js?v=ce29f693"></script>
+    <script src="./js/blick.js?v=a66ab718"></script>
     <script src="./js/schichtauskunft.js?v=c8388055"></script>
     <script src="./js/vorbereitung.js?v=a6c26bf6"></script>
     <script src="./js/orte.js?v=f8589384"></script>

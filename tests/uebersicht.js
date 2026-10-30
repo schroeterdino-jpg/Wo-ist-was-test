@@ -1,7 +1,7 @@
 /* ============================================================
    STARTSEITE "ÜBERSICHT" (Start: node tests/uebersicht.js)
    Prüft ohne Browser (kleine Attrappe für document/window):
-     1  index.html: alle Felder der Startseite in der vereinbarten Reihenfolge, Kugel (#recordBtn, #jarvisSphere), Mikro-Knopf, Tonbalken; kein Rest vom 3D-Kopf
+     1  index.html: alle Felder der Startseite in der vereinbarten Reihenfolge, Kugel (#recordBtn, #jarvisSphere), Tonbalken (kein eigener Mikro-Knopf, Tippen auf die Kugel startet das Sprechen); kein Rest vom 3D-Kopf
      2  js/uebersicht.js ist genau einmal eingehängt, und die gelöschten Kopf-Dateien (avatar3d, kopf, mimik, holo_look, ansicht, models/*.glb) sind weg und nirgends mehr eingebunden
      3  Die Felder werden aus Lagebild, Kalender, Erinnerungen, Einkauf, Schicht und Wetter gefüllt (Zahlen, Texte, Reihenfolge der Termine, Fahrzeit)
      4  Ohne Daten (Lagebild fehlt/Fehler) bleiben die Felder lesbar, es gibt keinen Absturz
@@ -21,9 +21,9 @@ const FELDER = ['uebArbeit', 'uebRegen', 'uebDiesel', 'uebSchicht', 'uebTermine'
 const pos = FELDER.map(f => idx.indexOf('id="' + f + '"'));
 check('alle 8 Felder vorhanden', pos.every(p => p > 0), pos);
 check('Felder in der vereinbarten Reihenfolge (Arbeitsweg, Regen, Diesel, Schicht, Termine, Erinnerungen, Einkauf, Wetter morgen)', pos.every((p, i) => i === 0 || p > pos[i - 1]));
-for (const id of ['recordBtn', 'jarvisSphere', 'uebMic', 'uebEq', 'uebGruss', 'uebUhr', 'uebHinweis', 'hudSubtitleBox']) check('Element vorhanden: #' + id, idx.indexOf('id="' + id + '"') > 0);
+for (const id of ['recordBtn', 'jarvisSphere', 'uebEq', 'uebGruss', 'uebUhr', 'uebHinweis', 'hudSubtitleBox']) check('Element vorhanden: #' + id, idx.indexOf('id="' + id + '"') > 0);
 check('Kugel liegt vor den Feldern (oben links)', idx.indexOf('id="jarvisSphere"') < idx.indexOf('id="uebArbeit"'));
-check('Hinweis "HEY JARVIS ODER TIPPEN" steht unter dem Mikro-Knopf', idx.indexOf('id="uebMic"') < idx.indexOf('ODER TIPPEN'));
+check('Kein eigener Mikro-Knopf mehr: Tippen auf die Kugel startet das Sprechen, Hinweis steht in der Kopfzeile', idx.indexOf('id="uebMic"') < 0 && /id="recordBtn" onclick="toggleSpeechRecognition\(\)"/.test(idx) && idx.indexOf('id="uebHinweis"') > idx.indexOf('id="uebGruss"') && idx.indexOf('id="uebHinweis"') < idx.indexOf('id="uebArbeit"'));
 check('Kein Rest vom Kopf in index.html (kopfRow, jvAvatar, 3D-Kopf)', !/kopfRow|jvAvatar3D|avatar3d|3D-Kopf/i.test(idx));
 
 /* 2 Dateien */

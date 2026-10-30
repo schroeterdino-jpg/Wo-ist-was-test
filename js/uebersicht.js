@@ -56,7 +56,7 @@
         let r = null; try { r = window.jvLage.regenInfo(l); } catch (e) {}
         if (!r) return '<div class="ueb-gross">–</div><div class="ueb-sub">keine Daten</div>';
         const uhr = /^Regen ab (\d{1,2}:\d{2}) Uhr$/.exec(r.gross);
-        if (uhr) return '<div class="ueb-gross ueb-warn">' + uhr[1] + '<small>Uhr</small></div><div class="ueb-sub">Regen, ' + esc(r.text.replace(/^In etwa /, 'in ').replace(/ Minuten/, ' min')) + '</div>';
+        if (uhr) return '<div class="ueb-gross ueb-warn">' + uhr[1] + '<small>Uhr</small></div><div class="ueb-sub">' + esc(r.text.replace(/^In etwa /, 'in ').replace(/ Minuten/, ' min').replace(/, aus /, ' · ').replace(/, bei dir/, '')) + '</div>';
         return '<div class="ueb-gross ' + (r.ok ? 'ueb-ok' : 'ueb-warn') + ' ueb-klein">' + esc(r.gross) + '</div><div class="ueb-sub">' + esc(r.text) + '</div>';
     }
     function diesel(l) {
@@ -186,7 +186,7 @@
         if (eq) eq.className = z === 'nutzer' ? 'nutzer' : 'jarvis';
         for (let i = 0; i < balken.length; i++) {
             const form = 0.45 + 0.55 * Math.abs(Math.sin(eqPhase + i * 0.55) * Math.cos(eqPhase * 0.6 + i * 0.21));
-            balken[i].style.height = Math.max(3, Math.round(3 + 21 * eqPegel * form)) + 'px';
+            balken[i].style.height = Math.max(3, Math.round(3 + 11 * eqPegel * form)) + 'px';
         }
         requestAnimationFrame(eqBild);
     }

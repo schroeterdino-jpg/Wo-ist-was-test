@@ -11,7 +11,7 @@
     function P() { return window.jvPlan || null; }
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
     function hm(min) { return Math.floor(min / 60) + ':' + String(min % 60).padStart(2, '0'); }
-    function an() { try { return getPersistentData('helfer_kacheln', 'an') !== 'aus'; } catch (e) { return true; } }
+    function an() { try { return getPersistentData('helfer_kacheln', 'aus') === 'an'; } catch (e) { return false; } }   // Standard AUS wie die Kacheln: die Startseite (uebersicht.js) zeigt Schicht und Termine selbst
     function wochentag(ymd) {
         var p = ymd.split('-').map(Number);
         return new Date(Date.UTC(p[0], p[1] - 1, p[2], 12)).toLocaleDateString('de-DE', { timeZone: 'UTC', weekday: 'long' });
