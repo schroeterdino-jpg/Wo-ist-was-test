@@ -42,7 +42,7 @@ check('wetterfx.js nimmt für die Animation aktuellerCode, nicht den Vorhersage-
 /* 3/4/5 Verhalten */
 function welt(opt) {
     const el = {}; const intervalle = [];
-    const mk = id => el[id] || (el[id] = { id, textContent: '', innerHTML: '', className: '', style: {}, children: [], classList: { contains: () => false, add() {}, remove() {} }, addEventListener() {}, appendChild(c) { this.children.push(c); } });
+    const mk = id => el[id] || (el[id] = { id, textContent: '', innerHTML: '', className: '', style: {}, children: [], classList: { contains: () => false, add() {}, remove() {}, toggle() {} }, addEventListener() {}, appendChild(c) { this.children.push(c); } });
     const doc = { hidden: false, readyState: 'complete', body: { classList: { contains: () => false } }, getElementById: mk, createElement: () => ({ style: {} }), addEventListener() {} };
     const jetzt = Date.now(), in1 = h => new Date(jetzt + h * 3600000).toISOString();
     const calls = { daten: [], wetter: 0 };
@@ -58,6 +58,7 @@ function welt(opt) {
     vm.createContext(sb); vm.runInContext(code, sb);
     return { sb, el, intervalle, calls, jetzt, in1 };
 }
+function await_(fn) { setImmediate(() => setImmediate(fn)); }
 const aus = e => (e.innerHTML || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
 const w = welt({});
@@ -87,6 +88,12 @@ setImmediate(() => setImmediate(() => {
     check('Diesel: 1,589 € und Tankstelle', /1,589/.test(D) && /Aral/.test(D), D);
     check('Termin mit Fahrzeit (15 min)', /Zahnarzt .*Fahrzeit 15 min/.test(T), T);
     check('Wetter morgen: Tief 6, Hoch 13°, bewölkt', /6 \/ 13°/.test(WE) && /bewölkt/i.test(WE), WE);
+    const H = welt({ lage: { hatArbeit: true, arbeit: { min: 0, meldungen: [] }, heimweg: { min: 31, meldungen: [{ title: 'Stau' }] }, tank: [], regen: [], termin: null } });
+    H.sb.window.jvUebersicht.auffrischen();
+    await_(() => {
+        const HA = aus(H.el.uebArbeit);
+        check('Bei der Arbeit (0 min): Heimweg 31 min mit Meldung statt "0 min"', /^31 min/.test(HA) && /1 Meldung/.test(HA), HA);
+    });
     check('Lagebild wird nur zwischengespeichert verlangt (10 Minuten)', W.calls.daten.length >= 1 && W.calls.daten.every(ms => ms === 600000), W.calls.daten);
     check('Keine Netz-Timer: nur zwei lokale Takte (20 s, 250 ms)', JSON.stringify(W.intervalle) === JSON.stringify([20000, 250]), W.intervalle);
 

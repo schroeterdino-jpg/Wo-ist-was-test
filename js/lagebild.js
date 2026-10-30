@@ -119,11 +119,20 @@
             const auf = aufStrecke({ warnings: route.warnings, coords: route.coords });
             arbeit = { min: route.fahrtMin + (route.stauMin || 0), km: Math.round(Number(route.km)), coords: route.coords, meldungen: auf };
         }
+        // Bist du schon bei der Arbeit (höchstens 3 Minuten dorthin), kommt der Heimweg dazu (für die Startseite, js/uebersicht.js; das Lagebild selbst bleibt beim Arbeitsweg)
+        let heimweg = null;
+        try {
+            const heim = (arbeit && arbeit.min <= 3 && window.jvPlan && typeof window.jvPlan.heimAdresse === 'function') ? (window.jvPlan.heimAdresse() || '') : '';
+            if (heim && typeof fetchRouteMapData === 'function') {
+                const h = await mit(fetchRouteMapData(heim, loc).catch(() => null), 16000);
+                if (h && h.fahrtMin && h.fahrtMin > 3) heimweg = { min: h.fahrtMin + (h.stauMin || 0), km: Math.round(Number(h.km)), meldungen: Array.isArray(h.coords) && h.coords.length > 1 ? aufStrecke({ warnings: h.warnings, coords: h.coords }) : [] };
+            }
+        } catch (e) {}
         // Verkehr in der Nähe: nicht auf dem Arbeitsweg und nicht doppelt zu einer Autobahn-Meldung
         const aufWeg = i => (arbeit && distToLine(i.lat, i.lon, arbeit.coords) <= 1.5) || (route && (route.warnings || []).some(w => distKm(w.lat, w.lon, i.lat, i.lon) < 1.5));
         const rest = [];
         stau.items.filter(i => distKm(lat, lon, i.lat, i.lon) <= 10 && [1, 6].includes(i.kategorie) && !aufWeg(i)).sort((a, b) => b.min - a.min).forEach(i => { if (!rest.some(o => distKm(o.lat, o.lon, i.lat, i.lon) < 1.5)) rest.push(i); });   // abseits der Strecke nur Unfälle und Stau im Umkreis von 10 km
-        return { lat, lon, ort: loc.ort || '', tank, stau: { fehler: stau.fehler, rest }, regen, termin, arbeit, hatArbeit: !!work, routeFehlt: !!work && !arbeit, zeit: Date.now() };
+        return { lat, lon, ort: loc.ort || '', tank, stau: { fehler: stau.fehler, rest }, regen, termin, arbeit, heimweg, hatArbeit: !!work, routeFehlt: !!work && !arbeit, zeit: Date.now() };
     }
 
     /* ---------- Texte ---------- */
