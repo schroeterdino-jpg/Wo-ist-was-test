@@ -127,6 +127,10 @@
     }
 
     /* ---------- Texte ---------- */
+    /* Zeile einer Streckenmeldung. Die Autobahnnummer kommt nur dazu, wenn die Meldung sie selbst belegt (travel.js: autobahnBelegt), nicht schon weil der Feed dieser Autobahn abgefragt wurde. */
+    function meldungText(x) {
+        return '⚠ ' + x.title + (x.road && x.autobahnBelegt !== false && /^A\d+$/.test(x.road) && String(x.title).indexOf(x.road) < 0 ? ' (' + x.road + ')' : '');
+    }
     function stauText(p) {
         const strasse = p.strassen && p.strassen[0] ? p.strassen[0] : '';
         const wo = p.von && p.nach && p.von !== p.nach ? 'zwischen ' + p.von + ' und ' + p.nach : (p.von ? 'bei ' + p.von : '');
@@ -213,7 +217,7 @@
         // Arbeitsweg
         if (s.arbeit) {
             const m = s.arbeit.meldungen;
-            const z = m.length ? m.slice(0, 3).map(x => ({ t: '⚠ ' + x.title + (x.road && /^A\d+$/.test(x.road) && String(x.title).indexOf(x.road) < 0 ? ' (' + x.road + ')' : ''), c: 'bad' })) : [{ t: '✓ Frei, keine Meldungen auf deiner Strecke', c: 'ok' }];
+            const z = m.length ? m.slice(0, 3).map(x => ({ t: meldungText(x), c: 'bad' })) : [{ t: '✓ Frei, keine Meldungen auf deiner Strecke', c: 'ok' }];
             if (m.length > 3) z.push({ t: '+ ' + (m.length - 3) + ' weitere Meldungen', c: 'dim' });
             body.appendChild(karte('🚗 ARBEITSWEG', 'ANKUNFT ' + hhmm(new Date(Date.now() + s.arbeit.min * 60000)), s.arbeit.min + ' Min · ' + s.arbeit.km + ' km', z));
         } else if (s.routeFehlt) body.appendChild(karte('🚗 ARBEITSWEG', '', 'Nicht verfügbar', [{ t: 'Die Route konnte gerade nicht berechnet werden.', c: 'dim' }]));
@@ -345,7 +349,7 @@
         const auf = aufStrecke(m);
         const z = [];
         if (d.untertitel) { const ab = String(d.untertitel).match(/Abfahrt bis .+$/); if (ab) z.push({ t: ab[0].replace(/(\d{1,2}) Uhr (\d{1,2})\b/, (x, h, m) => h.padStart(2, '0') + ':' + m.padStart(2, '0') + ' Uhr'), c: 'dim' }); }
-        if (auf.length) auf.slice(0, 3).forEach(x => z.push({ t: '⚠ ' + x.title + (x.road && /^A\d+$/.test(x.road) && String(x.title).indexOf(x.road) < 0 ? ' (' + x.road + ')' : ''), c: 'bad' }));
+        if (auf.length) auf.slice(0, 3).forEach(x => z.push({ t: meldungText(x), c: 'bad' }));
         else z.push({ t: '✓ Frei, keine Meldungen auf der Strecke', c: 'ok' });
         if (auf.length > 3) z.push({ t: '+ ' + (auf.length - 3) + ' weitere Meldungen', c: 'dim' });
         body.appendChild(karte('🎯 ' + String(d.titel || 'ZIEL').toUpperCase().slice(0, 48), (m.terminMs && m.terminMs - Date.now() > (min || 0) * 60000 + 5 * 60000) ? 'TERMIN ' + hhmm(new Date(m.terminMs)) : 'ANKUNFT ' + hhmm(new Date(Date.now() + (min || 0) * 60000)), min + ' Min · ' + km + ' km', z));

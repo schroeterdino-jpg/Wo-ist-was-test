@@ -601,11 +601,11 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
         if (!data) continue;   // Dienst gerade nicht erreichbar: nichts behaupten, kein Fehler-Lärm
         geprueft.push(road);
         const warnings = data.warning;
-        const nahe = warnings.filter(relevanteMeldung);
+        const nahe = warnings.filter(relevanteMeldung).map((w, i) => ({ w, i, r: warnungRang(classifyWarning(w)) })).sort((a, b) => (a.r - b.r) || (a.i - b.i)).map(x => x.w);   // Schwere zuerst, dann erst begrenzen (siehe Ende der Datei)
         nahe.slice(0, 6).forEach(w => {
-            const titel = (w.title || '').split('|').pop().trim() || 'Verkehrsmeldung';
+            const titel = (w.title || '').split('|').pop().trim() || 'Verkehrsmeldung', belegt = meldungNenntAutobahn(w, road);
             lastStauWarnings.push({
-                lat: Number(w.coordinate.lat), lon: Number(w.coordinate.long), road, title: titel,
+                lat: Number(w.coordinate.lat), lon: Number(w.coordinate.long), road, autobahnBelegt: belegt, title: belegt ? titel : meldungOhneAutobahn(w),
                 text: (w.description || []).slice(0, 3).join(' · ')
             });
         });
@@ -624,12 +624,12 @@ async function describeAutobahnStau(autobahnen, fromLat, fromLon, toLat, toLon) 
         }).slice(0, 2).forEach(w => {
             const kurz = (w.title || '').split('|').pop().trim();
             const art = classifyWarning(w);
-            meldungen.push(`${road}${kurz ? ': ' + kurz : ''} (${art})`);
+            meldungen.push(meldungNenntAutobahn(w, road) ? `${road}${kurz ? ': ' + kurz : ''} (${art})` : meldungOhneAutobahn(w));
             const lat = w.coordinate && Number(w.coordinate.lat), lon = w.coordinate && Number(w.coordinate.long);
             const beschreibung = (w.description || []).slice(0, 2).join(' · ');
             lastStauCards.push({
                 icon: WARNING_ICONS[art] || '⚠️',
-                title: `${art} · ${road}`,
+                title: meldungNenntAutobahn(w, road) ? `${art} · ${road}` : art,
                 subtitle: (kurz || 'Verkehrsmeldung') + (beschreibung ? ' · ' + beschreibung : ''),
                 href: (isFinite(lat) && isFinite(lon)) ? `https://www.google.com/maps?q=${lat},${lon}` : undefined
             });
@@ -1108,3 +1108,29 @@ async function checkDepartureWarning() {
 }
 
 setInterval(() => { checkDepartureWarning(); }, 60000);
+
+/* ============================================================
+   VERKEHRSMELDUNGEN (autobahn.de): Reihenfolge und Autobahnbezug (Phase 1, tests/verkehr.js). Steht am Dateiende, damit die Zeilen davor gleich bleiben.
+   ============================================================ */
+/* Rang einer Meldung (klein = wichtiger), abgeleitet aus den Arten von classifyWarning: Sperrung und Unfall zuerst, dann Gefahren, Stau, Baustellen,
+   zuletzt sonstige Meldungen. Gleicher Rang = Reihenfolge der Quelle bleibt. */
+const WARNUNG_RANG = {
+    'Sperrung': 0, 'Unfall': 0,
+    'Falschfahrer-Warnung': 1, 'Hindernis auf der Fahrbahn': 1, 'Gefahrenstelle': 1, 'Glätte': 1, 'Nebel': 1,
+    'Pannenfahrzeug': 2, 'Stau': 2,
+    'Fahrstreifenverengung': 3, 'Baustelle': 3, 'Kurzzeitbaustelle': 3
+};
+function warnungRang(art) { return Object.prototype.hasOwnProperty.call(WARNUNG_RANG, art) ? WARNUNG_RANG[art] : 4; }
+
+/* Nennt die Meldung selbst die Autobahn (z. B. Titel "A24 | AS Witzhave - AS Reinbek")? Nur dann darf die Nummer in der Aussage stehen.
+   Dass wir den Feed dieser Autobahn abgefragt haben, belegt es nicht (der Feed kann auch Namen von Zubringern oder Ortsstraßen enthalten). */
+function meldungNenntAutobahn(w, road) {
+    const m = /^A(\d{1,3})$/.exec(String(road || ''));
+    return !!m && new RegExp('(^|[^A-Za-z0-9])A\\s?' + m[1] + '(?![0-9])', 'i').test(String((w && w.title) || ''));
+}
+
+/* Aussage ohne belegte Autobahn: nur Art und Ort ("Sperrung bei In den Plantagen"), keine Behauptung über die Autobahn */
+function meldungOhneAutobahn(w) {
+    const ort = String((w && w.title) || '').split('|').pop().trim(), art = classifyWarning(w);
+    return ort ? art + ' bei ' + ort : art;
+}
