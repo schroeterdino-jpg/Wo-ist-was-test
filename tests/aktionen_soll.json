@@ -4045,6 +4045,248 @@
     "offeneFrage": false
    }
   },
+  "loeschen calendar_delete Google-Löschen schlägt fehl (nach Ja)": {
+   "schritte": [
+    {
+     "aktion": "{\"type\":\"calendar_delete\",\"calendar_query\":\"zahnarzt\"}",
+     "text": "Lösche den Zahnarzt",
+     "fehler": {
+      "name": "Error",
+      "text": "Soll ich den Termin „Zahnarzt“ am Donnerstag, 29. Oktober wirklich löschen?",
+      "userMessage": true,
+      "auth": false
+     },
+     "rueckgabe": "undefined",
+     "ctx": {
+      "counter": 0,
+      "karten": [],
+      "notizen": [],
+      "fenster": "null"
+     },
+     "gesagt": [],
+     "speicher": {},
+     "netz": [],
+     "bruecke": [],
+     "zeitgeber": [
+      {
+       "art": "setTimeout",
+       "ms": 120000,
+       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+      }
+     ],
+     "open": [],
+     "spione": [],
+     "frageOffen": true,
+     "uhr": "2026-10-28T09:00:00.000Z"
+    },
+    {
+     "satz": "Ja",
+     "fehler": null,
+     "rueckgabe": "true",
+     "ctx": {
+      "counter": 0,
+      "karten": [],
+      "notizen": [],
+      "fenster": "null"
+     },
+     "gesagt": [
+      "Google hat gerade selbst ein Problem, bitte versuch es gleich noch einmal. Der Termin ist in der App gelöscht, bei Google steht er noch."
+     ],
+     "speicher": {
+      "jv_laune_last": "1793178000000",
+      "jv_laune": "{\"id\":\"schelmisch\",\"until\":1793181900000,\"why\":\"zeit\"}",
+      "helfer_calendar_entries": "[]"
+     },
+     "netz": [
+      {
+       "m": "DELETE",
+       "u": "https://www.googleapis.com/calendar/v3/calendars/primary/events/g1"
+      }
+     ],
+     "bruecke": [],
+     "zeitgeber": [
+      {
+       "art": "setTimeout",
+       "ms": 300,
+       "fn": "function faceTick() { try { var av = window.jvAvatar3D; if (!an() || !"
+      },
+      {
+       "art": "setTimeout",
+       "ms": 4000,
+       "fn": "() => send(false)"
+      }
+     ],
+     "open": [],
+     "spione": [
+      {
+       "f": "deleteCalendarEntry",
+       "a": [
+        "\"g1\""
+       ],
+       "r": "false"
+      },
+      {
+       "f": "googleNotSynced",
+       "a": [
+        "{\"counter\":0,\"cards\":[],\"notes\":[],\"panel\":null}",
+        "\"Der Termin ist in der App gelöscht, bei Google steht er noch\""
+       ],
+       "r": "undefined"
+      },
+      {
+       "f": "speak",
+       "a": [
+        "\"Google hat gerade selbst ein Problem, bitte versuch es gleich noch einmal. Der Termin ist",
+        "(Funktion)"
+       ],
+       "r": "undefined"
+      }
+     ],
+     "frageOffen": false,
+     "uhr": "2026-10-28T09:00:00.000Z"
+    }
+   ],
+   "ende": {
+    "ctx": {
+     "counter": 0,
+     "karten": 0,
+     "notizen": 0
+    },
+    "merkmale": [
+     "_gedaechtnis",
+     "_loeschFrage",
+     "function",
+     "AsyncFunction"
+    ],
+    "speicherGesamt": [
+     "helfer_calendar_entries",
+     "jv_laune",
+     "jv_laune_last"
+    ],
+    "offeneFrage": false
+   }
+  },
+  "loeschen reminder_delete Google-Löschen schlägt fehl (nach Ja)": {
+   "schritte": [
+    {
+     "aktion": "{\"type\":\"reminder_delete\",\"reminder_query\":\"tabletten\"}",
+     "text": "Lösche die Erinnerung Tabletten",
+     "fehler": {
+      "name": "Error",
+      "text": "Soll ich die Erinnerung „Tabletten nehmen“ wirklich löschen?",
+      "userMessage": true,
+      "auth": false
+     },
+     "rueckgabe": "undefined",
+     "ctx": {
+      "counter": 0,
+      "karten": [],
+      "notizen": [],
+      "fenster": "null"
+     },
+     "gesagt": [],
+     "speicher": {},
+     "netz": [],
+     "bruecke": [],
+     "zeitgeber": [
+      {
+       "art": "setTimeout",
+       "ms": 120000,
+       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+      }
+     ],
+     "open": [],
+     "spione": [],
+     "frageOffen": true,
+     "uhr": "2026-10-28T09:00:00.000Z"
+    },
+    {
+     "satz": "Ja",
+     "fehler": null,
+     "rueckgabe": "true",
+     "ctx": {
+      "counter": 0,
+      "karten": [],
+      "notizen": [],
+      "fenster": "null"
+     },
+     "gesagt": [
+      "Google hat gerade selbst ein Problem, bitte versuch es gleich noch einmal. Die Erinnerung ist in der App gelöscht, bei Google steht sie noch."
+     ],
+     "speicher": {
+      "jv_laune_last": "1793178000000",
+      "jv_laune": "{\"id\":\"schelmisch\",\"until\":1793181900000,\"why\":\"zeit\"}",
+      "helfer_reminders": "[]"
+     },
+     "netz": [
+      {
+       "m": "DELETE",
+       "u": "https://www.googleapis.com/calendar/v3/calendars/primary/events/g1"
+      }
+     ],
+     "bruecke": [],
+     "zeitgeber": [
+      {
+       "art": "setTimeout",
+       "ms": 300,
+       "fn": "function faceTick() { try { var av = window.jvAvatar3D; if (!an() || !"
+      },
+      {
+       "art": "setTimeout",
+       "ms": 4000,
+       "fn": "() => send(false)"
+      }
+     ],
+     "open": [],
+     "spione": [
+      {
+       "f": "deleteReminderEntry",
+       "a": [
+        "\"g1\""
+       ],
+       "r": "false"
+      },
+      {
+       "f": "googleNotSynced",
+       "a": [
+        "{\"counter\":0,\"cards\":[],\"notes\":[],\"panel\":null}",
+        "\"Die Erinnerung ist in der App gelöscht, bei Google steht sie noch\""
+       ],
+       "r": "undefined"
+      },
+      {
+       "f": "speak",
+       "a": [
+        "\"Google hat gerade selbst ein Problem, bitte versuch es gleich noch einmal. Die Erinnerung",
+        "(Funktion)"
+       ],
+       "r": "undefined"
+      }
+     ],
+     "frageOffen": false,
+     "uhr": "2026-10-28T09:00:00.000Z"
+    }
+   ],
+   "ende": {
+    "ctx": {
+     "counter": 0,
+     "karten": 0,
+     "notizen": 0
+    },
+    "merkmale": [
+     "_gedaechtnis",
+     "_loeschFrage",
+     "function",
+     "AsyncFunction"
+    ],
+    "speicherGesamt": [
+     "helfer_reminders",
+     "jv_laune",
+     "jv_laune_last"
+    ],
+    "offeneFrage": false
+   }
+  },
   "loeschen calendar_delete Frage dann Nein (Satz)": {
    "schritte": [
     {
