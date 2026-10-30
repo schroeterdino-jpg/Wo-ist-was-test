@@ -1,6 +1,6 @@
 # Jarvis: Architektur-Überblick
 
-Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 170 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
+Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 166 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
 Wo suche ich zuerst? → `LANDKARTE.md` (Problem → Datei → Abhängigkeiten, plus Zuordnung aller Skripte). Reihenfolge-Sicherheitsnetz: `tests/reihenfolge.js`; Timer-Register: `tests/timer.js` + `tests/timer_inventar.js`.
 Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (170 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (166 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -464,13 +464,13 @@ Nach Foto-Kette (Phase 3) und Speak-Kette (Phase 4B) wurden alle übrigen global
 - **Geändert:** `mimik.js` (120 ms), `holo_look.js` (700 ms), `anzeige.js` (Autoansicht 300 ms und Schließen-Knopf 400 ms). Versteckt wird das Intervall wirklich gestoppt (`clearInterval`), beim Sichtbarwerden startet höchstens ein neues; `holo_look` und `anzeige` stellen den Zustand dabei einmal sofort richtig. Kein zentraler Helfer, kein Power-Manager.
 - **Nicht geändert (bewusst):** `laune.js` (der 14-s-Takt ruft `ensure()` auf, das eine neue Stimmung würfelt und speichert), `synapsen.js` (zurückgestellt), UI-Schreibmaschine (läuft nur beim Tippen), alle Kategorie-A-Prozesse, Netzwerk-/Native-Poller, Tagescheck.
 - **Wirkung (Chromium, 60 s versteckt):** Rückrufe 1531 → 590 (−61,5 %); sichtbar unverändert; Netz sichtbar 190 / versteckt 0 wie vorher.
-- **Regeln:** Neue visuelle Takte, die versteckt weiterlaufen, sind kein Fehler, aber ein Pausen-Takt darf nie vermehrt werden: `tests/hintergrund_6b1.js` (Prüfwelt, 10 Wechsel, Gegenproben A–J) und `tests/hintergrund.js` (Golden Master). Alter Zustand eingefroren: `tests/hintergrund_soll_6a.json`, `tests/hintergrund_laufzeit_6a.json`, `tests/hintergrund_6b1_vorher.json`. Beschreibung: `tests/hintergrund-6b1.md`.
+- **Regeln:** Neue visuelle Takte, die versteckt weiterlaufen, sind kein Fehler, aber ein Pausen-Takt darf nie vermehrt werden: `tests/hintergrund.js` (der frühere 6B.1-Test ist stillgelegt, da mimik/holo_look entfernt sind) und `tests/hintergrund.js` (Golden Master). Alter Zustand eingefroren: `tests/hintergrund_soll_6a.json`, `tests/hintergrund_laufzeit_6a.json`, `tests/hintergrund_6b1_vorher.json`. Beschreibung: `tests/hintergrund-6b1.md`.
 
 ## Phase 6B.2: der 200-ms-Takt in synapsen.js pausiert bei hidden
 - **Befund (Stufe A):** Der Takt gleicht nur ab "denkt Jarvis (isProcessing)?" → Anzeige an/aus. Kein Speicher, kein Netz, kein Native, keine KI, keine Sprache, kein Memory, keine proaktive Logik; kein anderer Code liest seine Werte. Klasse GRÜN.
 - **Geändert:** nur `synapsen.js` (`taktSteuern`): versteckt `clearInterval`, beim Sichtbarwerden höchstens ein neuer Takt plus eine sofortige Prüfung. Die Hülle um `sendToGroqSmart` ist unverändert.
 - **Wirkung (Chromium, 60 s versteckt):** Rückrufe 590 → 290; sichtbar, Netz, Native unverändert.
-- **Regeln:** `tests/hintergrund_6b2.js`; alter Zustand eingefroren in `tests/hintergrund_soll_6b1.json`, `tests/hintergrund_laufzeit_6b1.json`, `tests/hintergrund_6b2_vorher.json`. Beschreibung: `tests/hintergrund-6b2.md`.
+- **Regeln:** Der Vergleichstest `hintergrund_6b2.js` ist stillgelegt (Vergleichsstand mit mimik/holo_look); der heutige Stand ist in `tests/hintergrund.js` eingefroren.
 
 ## Phase 6: abgeschlossen
 - **Ergebnis (Chromium, 60 s versteckt):** 1531 (Ausgang 6A) → 590 (6B.1) → 290 (6B.2) Rückrufe; Einsparung ca. 1241 (ca. 81 %). Sichtbar, Netz (190/0) und Native (ca. 200/min) unverändert.
@@ -539,11 +539,11 @@ Neben JS→Java (`ZaneNative`, 55 `@JavascriptInterface`-Methoden in `ZaneBridge
 - **`jvChain`** (`js/commands.js`) lässt Gleichrang still zu (stabile Sortierung): bei gleicher Zahl entscheidet die Registrierungsreihenfolge, also die Skriptreihenfolge. Anders als Foto-, Speak- und Aktions-Kette, die gleiche Ränge ablehnen. Neue Erweiterungen sollen nach Möglichkeit einen eindeutigen Rang bekommen.
 - `buildSystemPrompt`: **Rang 210 haben zwei Einträge**, `rechnungen` (`js/rechnungen.js`) und `stundenplan` (`js/foto_stundenplan.js`); in `index.html` steht `rechnungen.js` vor `foto_stundenplan.js`, und `jvChain.list()` zeigt `rechnungen` zuerst.
 - `buildMenuPanel`: Rang 100 haben `konto`, `preissuche` und `antrag` (in dieser Reihenfolge). `jvKiText` hat keinen Gleichrang.
-- **`jvCommands`**: 19 bekannte Gleichrang-Gruppen, eingefroren in `tests/reihenfolge_soll.json` (Reihenfolge innerhalb der Gruppe in Klammern): 0.3 (postfach > autoansicht), 0.35 (preissuche > ausflug > was_steht_an), 0.36 (wunschliste > schlaf_antwort), 20 (routinen > satztest), 30 (push > mailpush), 36 (kacheln > auftraege), 37 (synapsen > wetterfx), 94 (karte-zu > rezepte), 96 (kopf > termin-erinnern), 97 (foto-person > orte), 98 (mail_nacht > antrag), 120 (urlaub > mailaktionen), 150 (rechnungen > autocheck > ansicht > holo), 155 (lokalnews > mimik), 160 (ansagen > jvfenster > zane_redet) sowie vier weitere Gruppen mit ganzen und gebrochenen Rängen aus den Bereichen mail_nacht/orte, schliessen/schicht_auskunft, laune/plan_wecker und einfuehrung/fotosenden/plan_ansagen/plan_frist. Die genauen Ränge dieser vier stehen im Sollwert.
-- Browser: weiterhin 19 bekannte Gleichrang-Gruppen. Der zusätzlich mögliche Handy-Gleichrang `spotify-auto` / `lauschen_aus` (beide 0.2; `lauschen_aus` meldet sich in `js/native_speech.js` über einen Wiederholungsversuch an, die Reihenfolge hing so von der Ladegeschwindigkeit ab) ist durch den eindeutigen Rang 0.21 für `lauschen_aus` deterministisch aufgelöst (`spotify-auto` bleibt davor). Keine anderen Gleichränge wurden verändert; `tests/reihenfolge.js` prüft das.
+- **`jvCommands`**: 17 bekannte Gleichrang-Gruppen, eingefroren in `tests/reihenfolge_soll.json` (Reihenfolge innerhalb der Gruppe in Klammern): 0.3 (postfach > autoansicht), 0.35 (preissuche > ausflug > was_steht_an), 0.36 (wunschliste > schlaf_antwort), 20 (routinen > satztest), 30 (push > mailpush), 36 (kacheln > auftraege), 37 (synapsen > wetterfx), 94 (karte-zu > rezepte), 97 (foto-person > orte), 98 (mail_nacht > antrag), 120 (urlaub > mailaktionen), 150 (rechnungen > autocheck), 160 (ansagen > jvfenster > zane_redet) sowie vier weitere Gruppen mit ganzen und gebrochenen Rängen aus den Bereichen mail_nacht/orte, schliessen/schicht_auskunft, laune/plan_wecker und einfuehrung/fotosenden/plan_ansagen/plan_frist. Die genauen Ränge dieser vier stehen im Sollwert.
+- Browser: weiterhin 17 bekannte Gleichrang-Gruppen. Der zusätzlich mögliche Handy-Gleichrang `spotify-auto` / `lauschen_aus` (beide 0.2; `lauschen_aus` meldet sich in `js/native_speech.js` über einen Wiederholungsversuch an, die Reihenfolge hing so von der Ladegeschwindigkeit ab) ist durch den eindeutigen Rang 0.21 für `lauschen_aus` deterministisch aufgelöst (`spotify-auto` bleibt davor). Keine anderen Gleichränge wurden verändert; `tests/reihenfolge.js` prüft das.
 
 ### Test-Übersicht: Bereich → Tests
-Alle Skripte laufen mit `node tests/<name>.js` und stehen in `.github/workflows/tests.yml` (25 Stück: lauf, aktionen, aktionen_kette, jarvis_pruefstrecke, faehigkeiten, handyapp, antwort, mehrfachfrage, meldungen, regeln, c1_stufe1, reihenfolge, timer, landkarte, sprache, globale, wirkungslos, suche, kitext, hintergrund, hintergrund_6b1, hintergrund_6b2, memory7a, memory7b, inventar8a).
+Alle Skripte laufen mit `node tests/<name>.js` und stehen in `.github/workflows/tests.yml` (23 Stück: lauf, aktionen, aktionen_kette, jarvis_pruefstrecke, faehigkeiten, handyapp, antwort, mehrfachfrage, meldungen, regeln, c1_stufe1, reihenfolge, timer, landkarte, sprache, globale, wirkungslos, suche, kitext, hintergrund, memory7a, memory7b, inventar8a).
 
 | Bereich | Tests |
 |---|---|
@@ -553,7 +553,7 @@ Alle Skripte laufen mit `node tests/<name>.js` und stehen in `.github/workflows/
 | Speak | `sprache.js`, `reihenfolge.js` |
 | Prompt / KI-Text | `kitext.js`, `suche.js`, `antwort.js`, `wirkungslos.js` |
 | Memory | `memory7a.js`, `memory7b.js` |
-| Timer / Hintergrund | `timer.js`, `hintergrund.js`, `hintergrund_6b1.js`, `hintergrund_6b2.js` |
+| Timer / Hintergrund | `timer.js`, `hintergrund.js` |
 | Meldungen (C1) | `meldungen.js`, `regeln.js`, `c1_stufe1.js` |
 | Capabilities / Hilfe | `faehigkeiten.js`, `mehrfachfrage.js` |
 | Android / APK | `handyapp.js`, `inventar8a.js` (Java→JS-Ziele) |
@@ -568,14 +568,14 @@ Alle Skripte laufen mit `node tests/<name>.js` und stehen in `.github/workflows/
 Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch zu behebenden Fehler**. Vor jeder Änderung die verlinkte Analyse lesen und erst nach Rücksprache mit dem Nutzer anfassen.
 - **Gedächtnis (`memoryItems`, `helfer_memory`)**, Details `tests/memory7a-analyse.md` und `tests/memory7b-analyse.md`: Proxy-Stempel ×3, 3-s-Takt (`ensureProxy`) ohne Sichtbarkeitsprüfung, Referenzersetzung im Datenabgleich, Gesamtwert-Abgleich bei zwei Geräten, `searchMemory()` kann bei sehr kurzen Suchwerten breite Teiltreffer liefern.
 - **Globale Hüllen und Rückfallzweige**, Details `tests/globale-ist-zustand.md`, `tests/inventar8a-analyse.md`: 8 Dateien der Klasse C mit altem Rückfallzweig der Aktions-Kette, Guard-Marker (`xyz._name = true`) und Testhaken `window._xTest`; `handleLocalCommand`/`sendToGroqSmart` mit Fenster-Hüllen und Wiederholungskonstruktionen (`festnamen.js`/`hoerkorrektur.js` greifen nie).
-- **Hintergrundtakte**, Details `tests/hintergrund-6b1.md`, `tests/hintergrund-6b2.md`, `tests/hintergrund-analyse.md` (Stand 6A): weitere Takte ohne hidden-Pause sind erfasst, bewusst nicht angefasst.
+- **Hintergrundtakte**, Details `tests/hintergrund-analyse.md` (Stand 6A): weitere Takte ohne hidden-Pause sind erfasst, bewusst nicht angefasst.
 - **Duplikate**: viele lokale Hilfen (`norm`, `sagen`, `say`, `esc`, `befehl`) in unterschiedlichen Fassungen; bewusst nicht zusammengeführt, weil jede Fassung eigene Sonderfälle hat (`tests/inventar8a-analyse.md`).
 - **Service Worker**: `sw.js` hat nur Push, keinen Fetch-/Cache-Pfad; das Laden neuer Dateien hängt allein an den `?v=`-Stempeln.
 - **Capability-Verzeichnis** (`js/faehigkeiten.js`): 8 Fähigkeiten nennen in `module` 43 verschiedene Dateien (gemessen, Stand 44c6c7e); alle übrigen Produktdateien sind nicht darin geführt. Das Verzeichnis ist keine Gesamtliste. Der Weg von einer Fähigkeit zu den Dateien führt über `LANDKARTE.md`.
 - **Historische Momentaufnahmen** (nicht als aktueller Stand lesen): `tests/ist-zustand.md`, `tests/hintergrund-tabelle.md`, `tests/meldungen-bericht.md`, `tests/regeln-bericht.md`, `tests/memory7a-analyse.md` und die übrigen Dateien mit „Ist-Zustand“ im Namen.
 
 ## Startseite "Übersicht" (seit dem Entfernen des 3D-Kopfs)
-- `js/avatar3d.js`, `kopf.js`, `mimik.js`, `holo_look.js`, `ansicht.js` und `models/*.glb` sind gelöscht. Die Startseite ist `#uebersicht` in `index.html`, befüllt von `js/uebersicht.js`: kleine Kugel (`#recordBtn`, `sphere.js`) oben links, Gruß, Schicht, Uhr, darunter feste Felder (Arbeitsweg, Regen, Diesel, Schicht, Nächste Termine mit Fahrzeit, Erinnerungen, Einkauf, Wetter morgen), Mikro-Knopf `#uebMic`.
+- Der 3D-Kopf (Dateien avatar3d, kopf, mimik, holo_look, ansicht und die Modelle in `models/`) ist gelöscht. Die Startseite ist `#uebersicht` in `index.html`, befüllt von `js/uebersicht.js`: kleine Kugel (`#recordBtn`, `sphere.js`) oben links, Gruß, Schicht, Uhr, darunter feste Felder (Arbeitsweg, Regen, Diesel, Schicht, Nächste Termine mit Fahrzeit, Erinnerungen, Einkauf, Wetter morgen), Mikro-Knopf `#uebMic`.
 - Daten: Lagebild-Felder über `window.jvLage.daten(maxAlterMs)` (zwischengespeichert, 10 Minuten), Wettervorhersage 30 Minuten; neu geholt nur beim Start und wenn die App wieder sichtbar wird. Kalender, Erinnerungen und Einkauf kommen lokal (Auffrischen alle 20 s nur bei sichtbarer Seite).
 - Kugel: grüner Schein beim Sprechen (`sphere.js`, pulsiert mit der Lautstärke). Tonbalken `#uebEq`: grün = Jarvis, orange = du. Deine Lautstärke kommt aus der APK (`onRmsChanged` in `MainActivity.java` → `__zaneRec('rms')` → `window.jvUserRms`); ohne neue APK bewegen sich die orangen Balken gleichmäßig.
 - `kacheln.js` ist jetzt standardmäßig AUS (doppelte Anzeige und eigene Abrufe); "Kacheln an" schaltet sie wieder ein. Schlüssel `nova_kopf` und `jv_mund_delay` bleiben bestehen (Sync bzw. Hörverzögerung in `voice.js`).

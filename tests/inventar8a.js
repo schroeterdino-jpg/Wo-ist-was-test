@@ -155,16 +155,16 @@ function duplikate(L) {
 
 /* ---------- 7  Tests, Doku, CI, Orphans, SW, Android, API ---------- */
 const TEST_KLASSE = {
-    regression: ['lauf', 'aktionen_kette', 'jarvis_pruefstrecke', 'faehigkeiten', 'handyapp', 'antwort', 'mehrfachfrage', 'c1_stufe1', 'meldungen', 'regeln', 'hintergrund_6b1', 'hintergrund_6b2', 'memory7b', 'verkehr', 'dirigent_fragen', 'pending_reihenfolge', 'pending_zweite_stufe', 'vercelignore'],
+    regression: ['lauf', 'aktionen_kette', 'jarvis_pruefstrecke', 'faehigkeiten', 'handyapp', 'antwort', 'mehrfachfrage', 'c1_stufe1', 'meldungen', 'regeln', 'uebersicht', 'memory7b', 'verkehr', 'dirigent_fragen', 'pending_reihenfolge', 'pending_zweite_stufe', 'vercelignore'],
     goldenMaster: ['aktionen', 'reihenfolge', 'sprache', 'globale', 'wirkungslos', 'suche', 'kitext', 'hintergrund'],
     inventar: ['landkarte', 'timer', 'inventar8a'],
     historischEingefroren: ['memory7a'],
-    hilfe: ['umgebung', 'aktionen_szenarien', 'hintergrund_6b1_szenarien', 'hintergrund_6b1_welt', 'hintergrund_6b2_szenarien', 'hintergrund_analyse', 'hintergrund_auswertung', 'meldungen_auswertung', 'meldungen_welt', 'regeln_bericht', 'regeln_entwurf', 'timer_inventar', 'timer_scan', 'vektor_hilfen', 'memory7a_server', 'memory7a_szenarien', 'memory7a_welt', 'memory7b_alt'],
+    hilfe: ['umgebung', 'aktionen_szenarien', 'hintergrund_analyse', 'hintergrund_auswertung', 'meldungen_auswertung', 'meldungen_welt', 'regeln_bericht', 'regeln_entwurf', 'timer_inventar', 'timer_scan', 'vektor_hilfen', 'memory7a_server', 'memory7a_szenarien', 'memory7a_welt', 'memory7b_alt'],
     werkzeugLokal: ['hintergrund_doku', 'hintergrund_messen', 'memory7a_messen', 'memory7b_messen']
 };
 const MOEGLICH_UEBERLAPPEND = ['aktionen', 'hintergrund', 'memory7a'];   // nur Hinweis, kein Löschgrund (siehe tests/inventar8a-analyse.md)
 const DOKU_KLASSE = {
-    aktuell: ['ARCHITEKTUR.md', 'LANDKARTE.md', 'CLAUDE.md', 'tests/memory7b-analyse.md', 'tests/hintergrund-6b1.md', 'tests/hintergrund-6b2.md', 'tests/kitext-ist-zustand.md', 'tests/suche-ist-zustand.md', 'tests/inventar8a-analyse.md'],
+    aktuell: ['ARCHITEKTUR.md', 'LANDKARTE.md', 'CLAUDE.md', 'tests/memory7b-analyse.md', 'tests/kitext-ist-zustand.md', 'tests/suche-ist-zustand.md', 'tests/inventar8a-analyse.md'],
     momentaufnahme: ['tests/ist-zustand.md', 'tests/sprache-ist-zustand.md', 'tests/globale-ist-zustand.md', 'tests/wirkungslos-analyse.md', 'tests/hintergrund-analyse.md', 'tests/hintergrund-tabelle.md', 'tests/meldungen-bericht.md', 'tests/regeln-bericht.md', 'tests/memory7a-analyse.md']
 };
 function testbestand(L) {
@@ -297,7 +297,7 @@ function tabelle(m) {
     check('Zahlen: eigene Script-Tags = Produkt-JS-Dateien', z.eigeneScripts === z.produktJs, z);
     check('Zahlen: Vercel Hobby höchstens 12 Functions', z.api <= 12, z.api);
     check('Zahlen: weiterhin 2 Drittanbieter-Scripts und 5 Inline-Scripts (wie Phase 1)', z.drittScripts === 2 && z.inlineScripts === 5);
-    check('Zahlen: nur 3 neue Produktdateien seit Phase 1 (foto_kette, speak_kette, fragen_reihenfolge)', z.produktJs - PHASE1.produktJs === 3);
+    check('Zahlen: seit Phase 1 +4 Produktdateien (foto_kette, speak_kette, fragen_reihenfolge, uebersicht) und -5 (Kopf: avatar3d, kopf, mimik, holo_look, ansicht)', z.produktJs - PHASE1.produktJs === -1);
     check('index.html: keine doppelten, fehlenden oder verwaisten Skripte, alle mit Stempel', m.konsistenz.filter(x => /Script|js-Datei/.test(x)).length === 0, m.konsistenz);
     check('Konsistenz: ganze Eingangsprüfung ohne Meldung', m.konsistenz.length === 0, m.konsistenz);
     const p = m.index.positionen;
@@ -365,14 +365,14 @@ function tabelle(m) {
     {   // Phase 8B Gegenproben (nur Prüf-Eingang im Speicher verändert)
         check('Kontrolle 8B: unveränderter Eingang ergibt keine Meldung', dokuRegeln8b(leser()).length === 0);
         const e = (name, ueber, rx) => { const mm = dokuRegeln8b(leser(ueber)); check('Gegenprobe 8B: ' + name, mm.some(x => rx.test(x)), mm); };
-        e('falsche Produktzahl in ARCHITEKTUR.md', { ersatz: { 'ARCHITEKTUR.md': t => t.replace('(170 Skripte)', '(168 Skripte)') } }, /nennt 168 Skripte/);
+        e('falsche Produktzahl in ARCHITEKTUR.md', { ersatz: { 'ARCHITEKTUR.md': t => t.replace('(166 Skripte)', '(168 Skripte)') } }, /nennt 168 Skripte/);
         e('Abschnitt offene Punkte fehlt', { ersatz: { 'ARCHITEKTUR.md': t => t.replace('## Bekannte offene technische Punkte', '## Anderes') } }, /Abschnitt .* fehlt/);
         e('Verweis auf memory7b-analyse fehlt', { ersatz: { 'ARCHITEKTUR.md': t => t.replace(/(## Bekannte offene technische Punkte[\s\S]*)tests\/memory7b-analyse\.md/, '$1tests/memory7b.md') } }, /verweisen nicht auf tests\/memory7b-analyse\.md|nicht existiert|existiert nicht/);
         e('Analyse-Datei existiert nicht', { geloescht: ['tests/memory7a-analyse.md'] }, /existiert nicht: tests\/memory7a-analyse\.md/);
         e('Momentaufnahme nicht markiert', { ersatz: { 'tests/ist-zustand.md': t => t.replace(/^> \*\*Historische Momentaufnahme[^\n]*\n\n/, '') } }, /nicht eindeutig markiert: tests\/ist-zustand\.md/);
         e('Hinweis "keine automatisch zu behebenden Fehler" entfernt', { ersatz: { 'ARCHITEKTUR.md': t => t.replace('keine automatisch zu behebenden Fehler', 'Fehler') } }, /Hinweis/);
         const g = ci(leser({ ersatz: { '.github/workflows/tests.yml': t => t.replace(/\n\s*with:\s*\n\s*fetch-depth: 0[^\n]*/, '') } }));
-        check('Gegenprobe 8B: fehlender voller Git-Verlauf im Workflow wird erkannt', g.vollerGitVerlauf === false && g.testsMitGit.includes('hintergrund_6b2.js'), g);
+        check('Gegenprobe 8B: fehlender voller Git-Verlauf im Workflow wird erkannt', g.vollerGitVerlauf === false, g);
         const c1 = ci(leser({ ersatz: { 'tests/umgebung.js': t => t.replace("process.env.TZ = 'Europe/Berlin';", '') } }));
         check('Gegenprobe 8B: fehlender Zeitzonen-Vertrag in umgebung.js wird erkannt', c1.zeitzonenVertragZentral === false);
         const c2 = ci(leser({ ersatz: { 'tests/umgebung.js': t => t.replace("process.env.TZ = 'Europe/Berlin';", '').replace("const fs = require('fs')", "const fs0 = require('fs'); process.env.TZ = 'Europe/Berlin';\nconst fs = require('fs')") } }));

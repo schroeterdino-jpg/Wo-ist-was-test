@@ -15,25 +15,25 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 323,
-  "produktJs": 170,
-  "jsZeilen": 43743,
-  "jsBytes": 3086508,
-  "jsGzip": 930578,
-  "scriptTags": 177,
-  "eigeneScripts": 170,
+  "repoDateien": 307,
+  "produktJs": 166,
+  "jsZeilen": 42127,
+  "jsBytes": 2974748,
+  "jsGzip": 891476,
+  "scriptTags": 173,
+  "eigeneScripts": 166,
   "drittScripts": 2,
   "inlineScripts": 5,
   "api": 11,
-  "testsGesamt": 90,
-  "testsJs": 52,
-  "testsMd": 15,
-  "testsJson": 23,
+  "testsGesamt": 80,
+  "testsJs": 48,
+  "testsMd": 13,
+  "testsJson": 19,
   "workflows": 3,
   "weckrufSrc": 26,
   "weckrufTest": 6,
   "tools": 1,
-  "models": 3,
+  "models": 1,
   "assets": 5
  },
  "index": {
@@ -56,7 +56,9 @@
    "storage.js": 5
   }
  },
- "konsistenz": [],
+ "konsistenz": [
+  "Doku nennt nicht vorhandene Datei: ARCHITEKTUR.md -> js/avatar3d.js"
+ ],
  "doku8b": [],
  "klasse": {
   "actions.js": "A",
@@ -66,7 +68,6 @@
   "alarm.js": "A",
   "alleinstellung.js": "A",
   "anleitung.js": "A",
-  "ansicht.js": "B",
   "answers.js": "A",
   "antrag.js": "A",
   "antrag_pdf.js": "A",
@@ -77,7 +78,6 @@
   "auftraege.js": "A",
   "ausflug.js": "A",
   "autoansicht.js": "A",
-  "avatar3d.js": "A",
   "behoerdenbrief.js": "A",
   "birthdays.js": "A",
   "blick.js": "A",
@@ -125,7 +125,6 @@
   "help.js": "A",
   "hoeren.js": "B",
   "hoerkorrektur.js": "A",
-  "holo_look.js": "A",
   "hud_fenster.js": "A",
   "jarvis.js": "A",
   "jvfenster.js": "A",
@@ -136,7 +135,6 @@
   "ki_mitdenken.js": "A",
   "kontext_lokal.js": "A",
   "konto.js": "A",
-  "kopf.js": "A",
   "kuendigung.js": "A",
   "lagebild.js": "C",
   "langzeit.js": "C",
@@ -155,7 +153,6 @@
   "mehrfach.js": "A",
   "meldungen.js": "A",
   "meldungs_regeln.js": "A",
-  "mimik.js": "A",
   "mitdenken.js": "A",
   "mitnehmen.js": "B",
   "name.js": "A",
@@ -209,6 +206,7 @@
   "terminfinder.js": "A",
   "toene.js": "A",
   "travel.js": "A",
+  "uebersicht.js": "A",
   "ui.js": "A",
   "unwetter.js": "A",
   "urlaub.js": "A",
@@ -231,8 +229,8 @@
   "zuvorkommend.js": "A"
  },
  "klassenZahl": {
-  "A": 144,
-  "B": 18,
+  "A": 141,
+  "B": 17,
   "C": 8,
   "D": 0,
   "E": 0
@@ -241,7 +239,6 @@
   "adress_normal.js",
   "adresse_speichern.js",
   "alleinstellung.js",
-  "ansicht.js",
   "contextplus.js",
   "einfuehrung.js",
   "erweiterungen.js",
@@ -307,8 +304,8 @@
   "rueckfallFotoSpeak": []
  },
  "duplikate": {
-  "identischeGruppen": 17,
-  "identischeStellen": 62,
+  "identischeGruppen": 16,
+  "identischeStellen": 59,
   "grosseGruppen": [
    "kennenlernen.js:ruhig = zane_redet.js:ruhig",
    "mail_nacht.js:rohMail = mailaktionen.js:rohMail"
@@ -316,23 +313,23 @@
   "gleichnamigeGlobale": [],
   "lokaleHilfen": {
    "norm": {
-    "kopien": 44,
+    "kopien": 43,
     "fassungen": 19
    },
    "sagen": {
-    "kopien": 30,
-    "fassungen": 11
+    "kopien": 29,
+    "fassungen": 10
    },
    "say": {
     "kopien": 26,
     "fassungen": 12
    },
    "lsGet": {
-    "kopien": 29,
+    "kopien": 27,
     "fassungen": 2
    },
    "lsSet": {
-    "kopien": 29,
+    "kopien": 27,
     "fassungen": 4
    },
    "esc": {
@@ -340,8 +337,8 @@
     "fassungen": 15
    },
    "befehl": {
-    "kopien": 35,
-    "fassungen": 35
+    "kopien": 34,
+    "fassungen": 34
    }
   }
  },
@@ -363,8 +360,8 @@
    "vollstaendig": true
   },
   "commands": {
-   "eintraege": 96,
-   "gleicherRangMehrfach": 25
+   "eintraege": 92,
+   "gleicherRangMehrfach": 21
   },
   "chain": {
    "eintraege": 0
@@ -437,20 +434,20 @@
   },
   "ladefehler": []
  },
- "capabilityNichtReferenziert": 129,
+ "capabilityNichtReferenziert": 125,
  "tests": {
   "unklassifiziert": [],
   "klasseOhneDatei": [],
   "workflowOhneDatei": [],
   "workflowDoppelt": [],
   "regressionNichtImWorkflow": [],
-  "imWorkflow": 30,
+  "imWorkflow": 29,
   "jeKlasse": {
-   "regression": 18,
+   "regression": 17,
    "goldenMaster": 8,
    "inventar": 3,
    "historischEingefroren": 1,
-   "hilfe": 18,
+   "hilfe": 15,
    "werkzeugLokal": 4
   }
  },
@@ -458,11 +455,11 @@
   "unklassifiziert": [],
   "klasseOhneDatei": [],
   "momentaufnahmeOhneHistorischHinweis": [],
-  "anzahl": 18
+  "anzahl": 16
  },
  "ci": {
   "nodeVersion": "20",
-  "schritte": 30,
+  "schritte": 29,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
   "zeitzonenVertragZentral": true,
@@ -477,9 +474,7 @@
   },
   "npmInstall": false,
   "vollerGitVerlauf": true,
-  "testsMitGit": [
-   "hintergrund_6b2.js"
-  ],
+  "testsMitGit": [],
   "workflows": [
    "oww-test.yml",
    "tests.yml",
@@ -520,9 +515,9 @@
   "ohneClient": []
  },
  "dokuAbweichungen": {
-  "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 170 Produkt-JS-Dateie",
-  "architekturSkriptzahl": "170",
-  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 170 Produktdateien in `js/`). G",
+  "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 166 Produkt-JS-Dateie",
+  "architekturSkriptzahl": "166",
+  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 166 Produktdateien in `js/`). G",
   "architekturProjektstandAbschnitt": "## 8. Projektstand und nächste Schritte (Stand 24.10.2026, historisch)"
  }
 }

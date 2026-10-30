@@ -76,7 +76,7 @@ async function haupt() {
 
     /* ===== 1. Befehls-Weg (lokal) ===== */
     let r = await A.satz('Lächle mal');
-    check('Befehl "Lächle mal" wird lokal von mimik übernommen', r.lokal && r.modul === 'mimik', r.modul);
+    check('Befehl "Lächle mal": der Kopf (mimik) ist entfernt, kein Modul "mimik" übernimmt ihn mehr', r.modul !== 'mimik', r.modul);
     ist('1', 'Avatar', 'Lächle mal', r);
 
     r = await A.satz('Streck die Zunge raus');

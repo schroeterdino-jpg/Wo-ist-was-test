@@ -76,8 +76,8 @@ for (const k of Object.keys(mark)) console.log('  ' + k + ': ' + mark[k].length)
 console.log('  Dauerläufer unter 1 s: ' + mark['unter 1 s'].filter(x => x.e && x.e.klasse === 'dauerlauf').map(x => x.datei + ' ' + x.ms + ' ms').join(', '));
 check('Jede Takt-Kategorie ist belegt (Einordnung funktioniert)', mark['unter 1 s'].length > 0 && mark['höchstens 1 min'].length > mark['unter 10 s'].length && mark['reine Init-/Warte-Poller'].length > 20);
 check('Alle bekannten Warte-Poller (Phase-1-Befund: mindestens 25 Konstrukte) sind als solche markiert', mark['reine Init-/Warte-Poller'].length >= 25, String(mark['reine Init-/Warte-Poller'].length));
-const BEKANNT_UNTER_1S = ['anzeige.js 300', 'anzeige.js 400', 'holo_look.js 700', 'mimik.js 120', 'native_speech.js 300', 'ruhe.js 400', 'synapsen.js 200'];
-check('Dauerläufer unter 1 s sind genau die sieben bekannten (ein neuer fällt hier gezielt auf)', JSON.stringify(mark['unter 1 s'].filter(x => x.e && x.e.klasse === 'dauerlauf').map(x => x.datei + ' ' + x.ms).sort()) === JSON.stringify(BEKANNT_UNTER_1S), mark['unter 1 s'].filter(x => x.e && x.e.klasse === 'dauerlauf').map(x => x.datei + ' ' + x.ms).join(', '));
+const BEKANNT_UNTER_1S = ['anzeige.js 300', 'anzeige.js 400', 'native_speech.js 300', 'ruhe.js 400', 'synapsen.js 200', 'uebersicht.js 250'];
+check('Dauerläufer unter 1 s sind genau die sechs bekannten (ein neuer fällt hier gezielt auf)', JSON.stringify(mark['unter 1 s'].filter(x => x.e && x.e.klasse === 'dauerlauf').map(x => x.datei + ' ' + x.ms).sort()) === JSON.stringify(BEKANNT_UNTER_1S), mark['unter 1 s'].filter(x => x.e && x.e.klasse === 'dauerlauf').map(x => x.datei + ' ' + x.ms).join(', '));
 
 console.log('D. Gegenproben (der Test muss neue Hintergrundarbeit erkennen, aber nicht jede Verzögerung)');
 {

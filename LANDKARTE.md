@@ -1,7 +1,7 @@
 # LANDKARTE: wo suche ich zuerst?
 
 Rein technische Dokumentation für Entwickler und KI-Einstieg. Sie erzeugt keine Produktlogik und wird von keinem Skript der App gelesen.
-Stand: 29.10.2026 (Phase 8B, 170 Produktdateien in `js/`). Gehört zu `ARCHITEKTUR.md` (Überblick) und ist von `faehigkeiten.js` (Produktfunktion Hilfe/Mehrfachfragen) bewusst getrennt.
+Stand: 29.10.2026 (Phase 8B, 166 Produktdateien in `js/`). Gehört zu `ARCHITEKTUR.md` (Überblick) und ist von `faehigkeiten.js` (Produktfunktion Hilfe/Mehrfachfragen) bewusst getrennt.
 Von einer Fähigkeit (`faehigkeiten.js`) zu den Dateien: die Fähigkeit nennt nur ihre Kerndateien; die übrigen Dateien des Bereichs stehen in der Tabelle unten (Spalte „Abhängigkeiten“) und in der Bereichsliste (Teil 4). Das Fähigkeiten-Verzeichnis ist keine vollständige Funktionsliste und keine Liste aller Produktdateien (Einzelheiten: `ARCHITEKTUR.md`, Abschnitt „Fähigkeiten-Verzeichnis (B1)“). Offene technische Punkte: `ARCHITEKTUR.md`, Abschnitt „Bekannte offene technische Punkte“.
 Ergänzt durch die Fresh-AI-Nachbesserung: Anleitungen zum Erweitern (neuer Sprachbefehl, neue speak-Stufe), Java→JS-Rückrufe der APK, bekannte Gleichrang-Gruppen und die Test-Übersicht (Bereich → Tests): `ARCHITEKTUR.md`, Abschnitte „Rezepte und Nachschlagen für neue Entwickler“.
 Ein Test (`tests/landkarte.js`) prüft, dass jede Datei in `js/` genau einem Bereich zugeordnet ist und alle hier genannten Dateien existieren.
@@ -60,8 +60,8 @@ Alle Skripte sind klassische, synchrone `<script>`-Tags in `index.html` (kein de
 
 Inventar und Regeln: `tests/timer_inventar.js` (beschreibend) und `tests/timer.js`. Ein neuer dauerhafter Timer/Poller macht den Test rot, bis er dort eingetragen ist.
 Zusätzlich (Phase 6A): `tests/hintergrund.js` (Golden Master der Hintergrundprozesse, Laufzeit-Messstand `tests/hintergrund_laufzeit.json`), Analyse `tests/hintergrund-analyse.md`, Tabelle `tests/hintergrund-tabelle.md`.
-Phase 6B.1 (mimik, holo_look, anzeige pausieren versteckt): `tests/hintergrund_6b1.js`, Beschreibung `tests/hintergrund-6b1.md`.
-Phase 6B.2 (synapsen-200-ms-Takt pausiert versteckt): `tests/hintergrund_6b2.js`, Beschreibung `tests/hintergrund-6b2.md`.
+Phase 6B.1 (mimik, holo_look, anzeige pausieren versteckt): Test stillgelegt, weil Mimik und Hologramm-Look mit dem 3D-Kopf entfernt wurden.
+Phase 6B.2 (synapsen-200-ms-Takt pausiert versteckt): Vergleichstest stillgelegt (sein Vergleichsstand enthielt Mimik und Hologramm-Look); der heutige Stand ist in `tests/hintergrund.js` eingefroren.
 Phase 7A (lokales Gedächtnis memoryItems, nur Analyse): `tests/memory7a.js`, Beschreibung `tests/memory7a-analyse.md`.
 Phase 7B (Zeitfrage exakter Name zuerst, Lesefehler von helfer_memory isoliert): `tests/memory7b.js`, Beschreibung `tests/memory7b-analyse.md`.
 Phase 8A (Schlussinventur, nur Analyse): `tests/inventar8a.js`, Beschreibung `tests/inventar8a-analyse.md`.
