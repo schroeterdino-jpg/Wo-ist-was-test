@@ -481,14 +481,75 @@ function classifyWarning(w) {
   return 'Verkehrsstörung';
 }
 
-/* Verkehrsmeldungen auf der Strecke. Gibt { geprueft: true/false, meldungen: [Text] } zurück; geprueft=false: Dienst nicht erreichbar, dann nichts behaupten. */
+/* Routenlinie für Termin-Abfahrten (wie Phase 2 im Browser, js/travel.js): AUF <= 0,25 km, NAHE <= 1,2 km, darüber UMGEBUNG. Die Linie kommt aus den Step-Geometrien der
+   ohnehin gestellten OSRM-Anfrage (steps=true, Standard = Polyline mit 5 Stellen, wie decodePolyline in api/maps.js). Kaputt oder lückenhaft = keine Linie (nie raten). */
+const ROUTE_AUF_KM = 0.25, ROUTE_NAHE_KM = 1.2;
+function decodePoly5(str) {   // -> [[Breite, Länge], ...] oder null
+  if (typeof str !== 'string' || !str || /[^\x3f-\x7e]/.test(str)) return null;
+  const pts = []; let i = 0, lat = 0, lon = 0;
+  while (i < str.length) {
+    for (let axis = 0; axis < 2; axis++) {
+      let shift = 0, result = 0, b;
+      do { if (i >= str.length || shift > 30) return null; b = str.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      const d = (result & 1) ? ~(result >> 1) : (result >> 1);
+      if (axis === 0) lat += d; else lon += d;
+    }
+    if (Math.abs(lat) > 9000000 || Math.abs(lon) > 18000000) return null;
+    pts.push([lat / 1e5, lon / 1e5]);
+  }
+  return pts;
+}
+function encodePoly5(pts) {
+  let out = '', pa = 0, po = 0;
+  const enc = v => { v = v < 0 ? ~(v << 1) : v << 1; let o = ''; while (v >= 0x20) { o += String.fromCharCode((0x20 | (v & 31)) + 63); v >>= 5; } return o + String.fromCharCode(v + 63); };
+  for (const p of pts) { const a = Math.round(p[0] * 1e5), o = Math.round(p[1] * 1e5); out += enc(a - pa) + enc(o - po); pa = a; po = o; }
+  return out;
+}
+function kmZwischen(a, b) { return Math.hypot((a[1] - b[1]) * Math.cos(a[0] * Math.PI / 180), a[0] - b[0]) * 111.2; }
+/* Kleinster Abstand eines Punktes zur Linie in km (wie abstandZurLinieKm in js/travel.js) */
+function abstandZurLinieKm(lat, lon, pts) {
+  let best = Infinity;
+  const kx = Math.cos(lat * Math.PI / 180);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    const ax = (a[1] - lon) * kx, ay = a[0] - lat, bx = (b[1] - lon) * kx, by = b[0] - lat, dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+    let t = L > 0 ? -(ax * dx + ay * dy) / L : 0; t = Math.max(0, Math.min(1, t));
+    const d = Math.hypot(ax + t * dx, ay + t * dy) * 111.2;
+    if (d < best) best = d;
+  }
+  return best;
+}
+/* Linie aus routes[0] der OSRM-Antwort als kompakter Text (ausgedünnt auf ca. 100 m Abstand, Fehler unter 30 m) oder null */
+function linieAusRoute(rt, a, b) {
+  try {
+    const pts = [];
+    for (const leg of (rt.legs || [])) for (const step of (leg.steps || [])) {
+      if (!step.geometry && step.distance === 0) continue;   // Ankunfts-Step ohne Länge darf ohne Geometrie sein
+      const p = decodePoly5(step.geometry);
+      if (!p) return null;
+      p.forEach(q => { const l = pts[pts.length - 1]; if (!l || l[0] !== q[0] || l[1] !== q[1]) pts.push(q); });
+    }
+    if (pts.length < 2) return null;
+    if (kmZwischen(pts[0], [a.lat, a.lon]) > 5 || kmZwischen(pts[pts.length - 1], [b.lat, b.lon]) > 5) return null;   // Anfang/Ende müssen zu Start/Ziel passen
+    const duenn = [pts[0]];
+    for (let i = 1; i < pts.length - 1; i++) if (kmZwischen(duenn[duenn.length - 1], pts[i]) >= 0.1) duenn.push(pts[i]);
+    duenn.push(pts[pts.length - 1]);
+    return encodePoly5(duenn);
+  } catch (e) { return null; }
+}
+
+/* Verkehrsmeldungen auf der Strecke. Gibt { geprueft: true/false, meldungen: [Text], nahe: [Text], kostMin, ohneLinie } zurück; geprueft=false: Dienst nicht erreichbar, dann nichts behaupten.
+   Mit route.lin (Routenlinie, nur Termin-Abfahrten): meldungen = nur AUF der Strecke (nur sie zählen Zusatzminuten), nahe = bis 1,2 km daneben (nur Hinweis, 0 Minuten), weiter weg entfällt.
+   Ohne brauchbare Linie: wie bisher das grobe Rechteck als allgemeiner Hinweis, aber NIE geschätzte Zusatzminuten (kostMin 0). */
 async function checkStau(route) {
   const roads = (route && route.autobahnen) || [];
   if (!roads.length) return { geprueft: false, meldungen: [] };
+  const linie = route.lin ? decodePoly5(route.lin) : null;
+  const mitLinie = !!(linie && linie.length >= 2);
   const pad = 0.35;
   const minLat = Math.min(route.from.lat, route.to.lat) - pad, maxLat = Math.max(route.from.lat, route.to.lat) + pad;
   const minLon = Math.min(route.from.lon, route.to.lon) - pad, maxLon = Math.max(route.from.lon, route.to.lon) + pad;
-  const meldungen = []; let geprueft = 0, kostMin = 0;
+  const meldungen = [], nahe = []; let geprueft = 0, kostMin = 0;
   const results = await Promise.all(roads.map(async road => {
     try {
       const r = await fetch('https://verkehr.autobahn.de/o/autobahn/' + road + '/services/warning', { signal: AbortSignal.timeout(5000) });
@@ -501,24 +562,38 @@ async function checkStau(route) {
     if (!warnings) return;
     geprueft++;
     const seen = [];
-    warnings.filter(w => {
+    warnings.map(w => {
       const lat = w.coordinate && Number(w.coordinate.lat), lon = w.coordinate && Number(w.coordinate.long);
-      return isFinite(lat) && isFinite(lon) && lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
-    }).forEach(w => {
+      if (!(isFinite(lat) && isFinite(lon))) return null;
+      if (!mitLinie) return (lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon) ? { w, k: 'gebiet' } : null;
+      const km = abstandZurLinieKm(lat, lon, linie);
+      return km <= ROUTE_AUF_KM ? { w, k: 'auf' } : km <= ROUTE_NAHE_KM ? { w, k: 'nahe' } : null;
+    }).filter(Boolean).forEach(({ w, k }) => {
       const art = classifyWarning(w);
       const kurz = String(w.title || '').split('|').pop().trim();
       const name = kurz.split(/\s+[-–]\s+|,\s*/).pop().trim().toLowerCase();
-      if (seen.some(g => g.art === art && g.name === name)) return;   // dieselbe Stelle in beiden Richtungen nur einmal
-      seen.push({ art, name });
-      if (art === 'Stau' || art === 'Unfall' || art === 'Sperrung') {   // Zeitverlust: aus der Meldung, sonst 10 Minuten pro Stelle
+      if (seen.some(g => g.art === art && g.name === name && g.k === k)) return;   // dieselbe Stelle in beiden Richtungen nur einmal
+      seen.push({ art, name, k });
+      if (k === 'auf' && (art === 'Stau' || art === 'Unfall' || art === 'Sperrung')) {   // Zeitverlust: aus der Meldung, sonst 10 Minuten pro Stelle
         const txt = ((w.title || '') + ' ' + (w.description || []).join(' '));
         const m = txt.match(/(?:verz[öo]gerung|zeitverlust|verlustzeit)[^0-9]{0,25}(\d{1,3})\s*min/i) || txt.match(/(\d{1,3})\s*min(?:uten)?\s*(?:verz[öo]gerung|zeitverlust|l[äa]nger)/i);
         kostMin += m ? Math.min(60, Math.max(1, parseInt(m[1], 10))) : 10;
       }
-      if (meldungen.length < 3) meldungen.push(roads[i] + (kurz ? ' ' + kurz : '') + ' (' + art + ')');
+      const text = roads[i] + (kurz ? ' ' + kurz : '') + ' (' + art + ')';
+      if (k === 'nahe') { if (nahe.length < 2) nahe.push(text); }
+      else if (meldungen.length < 3) meldungen.push(text);
     });
   });
-  return { geprueft: geprueft > 0, meldungen, kostMin: Math.min(45, kostMin) };
+  return { geprueft: geprueft > 0, meldungen, nahe, kostMin: Math.min(45, kostMin), ohneLinie: !mitLinie };
+}
+
+/* Sätze zu den Verkehrsmeldungen einer Termin-Nachricht: AUF der Strecke, "nahe deiner Route" nur als Hinweis; ohne Linie nur "im Gebiet der Strecke" (nichts als sicher auf der Strecke behaupten) */
+function stauSaetze(stau) {
+  const t = [];
+  if (stau.meldungen.length) t.push((stau.ohneLinie ? 'Im Gebiet der Strecke: ' : 'Auf der Strecke: ') + stau.meldungen.join('; ') + '.');
+  else if (stau.geprueft) t.push('Keine Staumeldungen auf der Strecke.');
+  if (stau.nahe && stau.nahe.length) t.push('Außerdem gemeldet, nahe deiner Route: ' + stau.nahe.join('; ') + '.');
+  return t;
 }
 
 // Bank-Buchungen seit gestern aus Gmail (nur lesen): Eingänge und Ausgaben mit Summe. Ohne Mail-Push-Anmeldung: leer.
@@ -637,7 +712,7 @@ async function routeServer(a, b) {
     const j = await r.json();
     const rt = j && j.routes && j.routes[0];
     if (!rt || !isFinite(rt.duration)) return null;
-    return { fahrtMin: Math.round(rt.duration / 60), autobahnen: autobahnRefs(rt).slice(0, 2) };
+    return { fahrtMin: Math.round(rt.duration / 60), autobahnen: autobahnRefs(rt).slice(0, 2), lin: linieAusRoute(rt, a, b) };
   } catch (e) { return null; }
 }
 function originNow(st, now) {
@@ -1155,9 +1230,8 @@ async function sendPrep(redis, data, it, dep, now) {
   const leaveAt = it.at - (fahrt + BUFFER_MIN) * 60000;
   const teile = ['Ich habe mir erlaubt, deinen Termin „' + it.x + '“ um ' + berlinClock(it.at) + ' Uhr vorzubereiten.'];
   teile.push('Die Fahrt dauert etwa ' + fahrt + ' Minuten' + (dep.stauMin ? ' (darin ' + dep.stauMin + ' Minuten Stau)' : '') + (dep.quelle === 'zuhause' ? ' ab Zuhause' : '') + '. Fahr gegen ' + berlinClock(leaveAt) + ' Uhr los.');
-  const stau = await checkStau({ autobahnen: dep.autobahnen, from: dep.from, to: dep.to });
-  if (stau.meldungen.length) teile.push('Auf der Strecke: ' + stau.meldungen.join('; ') + '.');
-  else if (stau.geprueft) teile.push('Keine Staumeldungen auf der Strecke.');
+  const stau = await checkStau({ autobahnen: dep.autobahnen, from: dep.from, to: dep.to, lin: dep.lin });
+  stauSaetze(stau).forEach(x => teile.push(x));
   const wetter = await wetterAmZielServer(dep.to, it.at);
   if (wetter) teile.push(wetter);
   if (/supermarkt|edeka|rewe|lidl|aldi|penny|netto|kaufland|einkaufen|bäcker|markt\b/i.test((it.l || '') + ' ' + it.x)) {
@@ -1385,8 +1459,8 @@ async function handleDue(req, res, redis) {
         const r = (origin && g) ? await routeServer(origin, g) : null;
         if (!r) { st.dep[it.id] = dep && !dep.fail ? Object.assign({}, dep, { ts: now }) : { fail: origin ? (g ? 'route' : 'ort') : 'standort', ts: now }; dep = st.dep[it.id]; }
         else {
-          const sc = await checkStau({ autobahnen: r.autobahnen, from: origin, to: g });
-          dep = st.dep[it.id] = { fahrtMin: r.fahrtMin, autobahnen: r.autobahnen, from: { lat: origin.lat, lon: origin.lon }, to: g, quelle: origin.src, stauMin: sc.kostMin || 0, ts: now };
+          const sc = await checkStau({ autobahnen: r.autobahnen, from: origin, to: g, lin: r.lin });
+          dep = st.dep[it.id] = { fahrtMin: r.fahrtMin, autobahnen: r.autobahnen, from: { lat: origin.lat, lon: origin.lon }, to: g, quelle: origin.src, stauMin: sc.kostMin || 0, lin: r.lin || undefined, ts: now };
         }
       }
       if (!dep || dep.fail) continue;
@@ -1404,14 +1478,13 @@ async function handleDue(req, res, redis) {
       if (appOpen) { skippedApp++; continue; }
       if (quietDep) { skippedQuiet++; continue; }
       if (!data.subs.length) continue;
-      const stau = await checkStau({ autobahnen: dep.autobahnen, from: dep.from, to: dep.to });
+      const stau = await checkStau({ autobahnen: dep.autobahnen, from: dep.from, to: dep.to, lin: dep.lin });
       const mins = Math.round((leaveAt - now) / 60000);
       const wann = mins > 0 ? 'Du musst in ' + mins + ' Minuten losfahren (um ' + berlinClock(leaveAt) + ' Uhr)' : 'Du solltest jetzt losfahren';
       const teile = [wann + ' zu „' + it.x + '“ um ' + berlinClock(it.at) + ' Uhr. Fahrt etwa ' + dep.fahrtMin + ' Minuten' + (dep.stauMin ? ' ohne Stau' : '') + (dep.quelle === 'zuhause' ? ' (ab Zuhause)' : '') + '.'];
-      if (stau.meldungen.length) {
-        teile.push('Auf der Strecke: ' + stau.meldungen.join('; ') + '.');
-        if (dep.stauMin) teile.push('Der Stau kostet etwa ' + dep.stauMin + ' Minuten, die sind schon eingerechnet.');
-      } else if (stau.geprueft) teile.push('Keine Staumeldungen auf der Strecke.');
+      const saetze = stauSaetze(stau);
+      if (stau.meldungen.length && dep.stauMin) saetze.splice(1, 0, 'Der Stau kostet etwa ' + dep.stauMin + ' Minuten, die sind schon eingerechnet.');
+      saetze.forEach(x => teile.push(x));
       const r2 = await sendToAll(redis, data, { title: 'Abfahrt: ' + it.x, body: teile.join(' '), tag: 'd-' + it.id, url: './' });
       if (r2.sent > 0) departSent++;
     }

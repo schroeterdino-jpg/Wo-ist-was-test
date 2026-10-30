@@ -1,5 +1,5 @@
 /* ============================================================
-   VERKEHR PHASE 1 + 2 + LAGEBILD "VERKEHR IN DER NÄHE" (Start: node tests/verkehr.js)
+   VERKEHR PHASE 1 + 2 + LAGEBILD "VERKEHR IN DER NÄHE" + SERVER-ROUTENRELEVANZ (Start: node tests/verkehr.js)
    PHASE 1 sichert zwei belegte Fehler ab:
    1. Schwere Meldungen (Sperrung, Unfall) dürfen nicht hinter kleinen Meldungen aus der begrenzten Auswahl fallen
       (autobahn.de: erst ordnen, dann auf 2 begrenzen; TomTom: erst Schwere, dann Verzögerung, dann die ersten 3).
@@ -9,7 +9,9 @@
    "nahe deiner Route", darüber wird sie nicht als Streckenmeldung gesagt. Schwere ändert daran nichts, sie ordnet nur innerhalb der Meldungen, die die Route betreffen.
    LAGEBILD-NÄHE (Abschnitt 17 ff.): "⚠ VERKEHR – ABSEITS DEINER STRECKE" zeigt Unfälle und Stau bis 10 km um den Standort, die nicht an der Arbeitsstrecke liegen; fehlende Ortsnamen
    holt orteNachladen bei Nominatim (höchstens 3 je Laden, pro Stelle einmal dank ortCache, direkt aus dem Browser).
-   NICHT geprüft (bewusst, noch nicht gebaut): Fahrtrichtung / Gegenrichtung, die Server-Kopie in api/sync.js.
+   SERVER (Abschnitt 23 ff.): Termin-Abfahrten in api/sync.js zählen Zusatzminuten nur für Meldungen höchstens 250 m neben der Routenlinie (aus den Step-Geometrien der vorhandenen OSRM-Anfrage);
+   bis 1,2 km nur als Hinweis "nahe deiner Route", ohne Minuten; ohne brauchbare Linie nie geschätzte Minuten. Alles mit festen Attrappen (OSRM, autobahn.de, Redis), kein Netz.
+   NICHT geprüft (bewusst, noch nicht gebaut): Fahrtrichtung / Gegenrichtung, Briefing und Phase-1-Reihenfolge auf dem Server.
    ============================================================ */
 'use strict';
 const { starte } = require('./umgebung.js');
@@ -339,6 +341,188 @@ const teilNah = t => (/Außerdem gemeldet, nahe deiner Route:([^]*)$/.exec(t) ||
         check('V22 10 /api/stau?traffic=1 wird beim Öffnen genau 1x abgefragt (wie vorher)', L.urls.filter(u => /\/api\/stau\?traffic=1/.test(u)).length === 1, JSON.stringify(L.urls));
     }
 
-    console.log('VERKEHR PHASE 1 + 2 + LAGEBILD-NÄHE: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');
+    /* ======================= SERVER: ROUTENRELEVANZ BEI TERMIN-ABFAHRTEN (api/sync.js) ======================= */
+    /* api/sync.js wird als echte Datei geladen (Kopie mit zwei zusätzlichen Zeilen am Ende, die nur die inneren Funktionen herausreichen). Alle Netzwerkantworten sind feste Attrappen:
+       OSRM im dokumentierten Format (steps=true: je Step eine geometry als Polyline mit 5 Stellen), autobahn.de-Feed der A24 und ein Redis aus dem Speicher. Kein Zugriff auf das echte Netz. */
+    const nodeFs = require('fs'), nodeOs = require('os'), nodePath = require('path'), nodeUrl = require('url');
+    let serverModul = null;
+    async function ladeServer() {
+        if (serverModul) return serverModul;
+        const tmp = nodePath.join(nodeOs.tmpdir(), 'verkehr_server_' + process.pid + '.mjs');
+        nodeFs.writeFileSync(tmp, nodeFs.readFileSync(nodePath.join(__dirname, '..', 'api', 'sync.js'), 'utf8') +
+            "\nexport const __t = { checkStau, routeServer, decode: typeof decodePoly5 === 'function' ? decodePoly5 : null, saetze: typeof stauSaetze === 'function' ? stauSaetze : null };\nexport default handler;\n".replace('export default handler;\n', ''));
+        const m = await import(nodeUrl.pathToFileURL(tmp).href);
+        const hdl = (await import(nodeUrl.pathToFileURL(tmp).href)).default;
+        try { nodeFs.unlinkSync(tmp); } catch (e) { }
+        serverModul = { t: m.__t, handler: hdl };
+        return serverModul;
+    }
+    /* Polyline mit 5 Stellen (Google-Format) - eigene, unabhängige Umsetzung für die Attrappe */
+    const polyCodiere = pts => { let s = '', pb = 0, pl = 0; const e = v => { v = v < 0 ? ~(v << 1) : v << 1; let o = ''; while (v >= 0x20) { o += String.fromCharCode((0x20 | (v & 31)) + 63); v >>= 5; } return o + String.fromCharCode(v + 63); }; for (const p of pts) { const b = Math.round(p[1] * 1e5), l = Math.round(p[0] * 1e5); s += e(b - pb) + e(l - pl); pb = b; pl = l; } return s; };   // pts = [Länge, Breite]
+    const osrmAntwort = (opt) => {
+        opt = opt || {};
+        const teile = [GEO.slice(0, 8), GEO.slice(7, 15), GEO.slice(14)];
+        const steps = teile.map((t, i) => ({ ref: 'A24', name: '', distance: 12000, duration: 600, geometry: opt.ohneGeometrie ? undefined : (opt.kaputt === i ? 'abä!' : polyCodiere(t)) }));
+        steps.push({ ref: '', name: '', distance: 0, duration: 0, geometry: opt.ankunftLeer ? '' : polyCodiere([GEO[20], GEO[20]]) });
+        return { code: 'Ok', routes: opt.leer ? [] : [{ duration: 1800, distance: 35000, legs: [{ steps }] }] };
+    };
+    /* Meldung im Feed, genau km neben der Route (senkrecht zur Linie), an Stelle f */
+    const SEITL = (f, km) => { const kx = 111.2 * Math.cos(53.5 * Math.PI / 180), dx = (B[0] - A[0]) * kx, dy = (B[1] - A[1]) * 111.2, L = Math.hypot(dx, dy); return { lat: A[1] + (B[1] - A[1]) * f + (dx / L) * km / 111.2, lon: A[0] + (B[0] - A[0]) * f + (-dy / L) * km / kx }; };
+    const SW = (title, f, km, desc) => { const p = SEITL(f, km); return { title, description: desc || [], coordinate: { lat: p.lat.toFixed(5), long: p.lon.toFixed(5) }, icon: '101' }; };
+    /* Netz-Attrappe für den Server: zählt Aufrufe, redis = Speicher (Schlüssel -> Text) */
+    async function mitNetz(opt, fn) {
+        const log = { osrm: [], autobahn: [], sonst: [] }, daten = Object.assign({}, opt.redis || {}), alt = global.fetch, env = {};
+        for (const [k, v] of Object.entries({ PUSH_CRON_KEY: 'k', VAPID_PUBLIC_KEY: 'x', VAPID_PRIVATE_KEY: 'y', KV_REST_API_URL: 'https://kv.test', KV_REST_API_TOKEN: 't' })) { env[k] = process.env[k]; process.env[k] = v; }
+        global.fetch = async (u, o) => {
+            u = String(u);
+            if (u === 'https://kv.test') { const c = JSON.parse(o.body); let r = null; if (c[0] === 'GET') r = daten[c[1]] === undefined ? null : daten[c[1]]; else if (c[0] === 'SET') { daten[c[1]] = c[2]; r = 'OK'; } return { ok: true, status: 200, json: async () => ({ result: r }) }; }
+            if (/router\.project-osrm\.org\/route\/v1\/driving\//.test(u)) { log.osrm.push(u); if (opt.osrmFehler === 'netz') throw new Error('offline'); if (opt.osrmFehler === 500) return { ok: false, status: 500, json: async () => ({}) }; return antwort(opt.osrm || osrmAntwort()); }
+            if (/verkehr\.autobahn\.de\/o\/autobahn\/A24\/services\/warning/.test(u)) { log.autobahn.push(u); return antwort({ warning: opt.feed || [] }); }
+            log.sonst.push(u); throw new Error('offline (Attrappe): ' + u);
+        };
+        try { return await fn({ log, daten }); }
+        finally { global.fetch = alt; for (const [k, v] of Object.entries(env)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } }
+    }
+    async function terminLauf(feed, osrmOpt, opt) {
+        const S = await ladeServer(), jetzt = Date.now();
+        const st = { items: [{ id: 't1', k: 'e', x: 'Zahnarzt', at: jetzt + 3 * 3600000, l: 'Hamburg Hbf', g: { lat: B[1], lon: B[0] } }], sent: {}, alive: 0, cfg: {}, loc: { lat: A[1], lon: A[0], ts: jetzt } };
+        return mitNetz({ feed, osrm: osrmAntwort(osrmOpt), redis: { 'alltags-helfer:pushitems': JSON.stringify(st) }, osrmFehler: opt && opt.osrmFehler }, async ({ log, daten }) => {
+            let status = 0; const res = { status(c) { status = c; return this; }, json() { return this; } };
+            await S.handler({ query: { action: 'push_due', key: 'k' }, headers: {} }, res);
+            const neu = JSON.parse(daten['alltags-helfer:pushitems']);
+            return { status, dep: neu.dep && neu.dep.t1, log, S };
+        });
+    }
+    const STAU = 'Stau Ahrensburg', SPERR = 'Vollsperrung Billstedt', UNF = 'Unfall Reinbek';
+    /* ---------- 23. Grundlagen: Decodierung (bekannter Vergleichswert) und Anfrage unverändert ---------- */
+    {
+        const S = await ladeServer();
+        const d = S.t.decode && S.t.decode('_p~iF~ps|U_ulLnnqC_mqNvxq`@');   // Beispiel aus der Google-Polyline-Beschreibung
+        check('V23 5/7 Server decodiert Polyline5 richtig (Vergleichswert 38.5/-120.2, 40.7/-120.95, 43.252/-126.453)', !!d && d.length === 3 && Math.abs(d[0][0] - 38.5) < 1e-9 && Math.abs(d[0][1] + 120.2) < 1e-9 && Math.abs(d[1][0] - 40.7) < 1e-9 && Math.abs(d[2][1] + 126.453) < 1e-9, JSON.stringify(d));
+        check('V23 5/7 ... kaputte, leere und fremde Zeichenketten ergeben null statt Absturz', !!S.t.decode && [null, '', 'abä!', '_p~iF~ps|U_ulL', undefined, 12].every(x => S.t.decode(x) === null), '');
+        const r = await mitNetz({}, async ({ log }) => ({ r: await S.t.routeServer({ lat: A[1], lon: A[0] }, { lat: B[1], lon: B[0] }), log }));
+        check('V23 29 OSRM-Anfrage unverändert (overview=false&steps=true) und genau 1 Aufruf', r.log.osrm.length === 1 && /\?overview=false&steps=true$/.test(r.log.osrm[0]), JSON.stringify(r.log.osrm));
+        check('V23 5 Linie aus den Step-Geometrien entsteht (Text) und Fahrzeit/Autobahn bleiben', typeof r.r.lin === 'string' && r.r.lin.length > 10 && r.r.fahrtMin === 30 && r.r.autobahnen.join() === 'A24', JSON.stringify(r.r).slice(0, 200));
+        const pts = r.r.lin && S.t.decode ? S.t.decode(r.r.lin) : null;
+        check('V23 5 ... die Linie beginnt am Start, endet am Ziel und deckt die ganze Strecke ab', !!pts && Math.abs(pts[0][0] - A[1]) < 1e-3 && Math.abs(pts[0][1] - A[0]) < 1e-3 && Math.abs(pts[pts.length - 1][0] - B[1]) < 1e-3 && Math.abs(pts[pts.length - 1][1] - B[0]) < 1e-3, pts ? pts.length + ' Punkte' : 'keine');
+    }
+    /* ---------- 24. Einordnung und Zusatzminuten je Abstand (checkStau mit Linie) ---------- */
+    {
+        const S = await ladeServer();
+        const lin = (await mitNetz({}, async () => (await S.t.routeServer({ lat: A[1], lon: A[0] }, { lat: B[1], lon: B[0] })))).lin;
+        const route = { autobahnen: ['A24'], from: { lat: A[1], lon: A[0] }, to: { lat: B[1], lon: B[0] }, lin };
+        const pruefe = async (feed, r) => (await mitNetz({ feed }, async () => S.t.checkStau(r || route)));
+        const e1 = await pruefe([SW(STAU, 0.5, 0.1)]);
+        check('V24 1 Stau 0,1 km neben der Linie (AUF): Text und 10 Zusatzminuten', e1.kostMin === 10 && e1.meldungen.length === 1 && /Ahrensburg/.test(e1.meldungen[0]), JSON.stringify(e1));
+        const e2 = await pruefe([SW(STAU, 0.5, 0.24)]);
+        check('V24 2 Grenzfall 0,24 km (noch AUF): Zusatzminuten', e2.kostMin === 10 && e2.meldungen.length === 1, JSON.stringify(e2));
+        const e2b = await pruefe([SW(STAU, 0.5, 0.27)]);
+        check('V24 2 knapp über 0,25 km (0,27): nicht mehr AUF, keine Zusatzminuten', e2b.kostMin === 0 && e2b.meldungen.length === 0, JSON.stringify(e2b));
+        for (const km of [0.5, 1.0]) {
+            const n = await pruefe([SW(SPERR, 0.5, km)]);
+            check('V24 3/4 Vollsperrung ' + km + ' km daneben (NAHE): als "nahe" erlaubt, 0 Zusatzminuten, nicht unter "auf der Strecke"', n.kostMin === 0 && (n.meldungen || []).length === 0 && (n.nahe || []).length === 1 && /Billstedt/.test(n.nahe[0]), JSON.stringify(n));
+        }
+        for (const km of [4, 15, 8]) {
+            const u = await pruefe([SW(STAU, 0.5, km)]);
+            check('V24 5/6 Stau ' + km + ' km daneben (UMGEBUNG): kein Text, 0 Zusatzminuten', u.kostMin === 0 && (u.meldungen || []).length === 0 && (u.nahe || []).length === 0, JSON.stringify(u));
+        }
+        const sp = await pruefe([SW(SPERR, 0.5, 4)]);
+        check('V24 7 schwere Sperrung 4 km abseits: 0 Zusatzminuten', sp.kostMin === 0 && (sp.meldungen || []).length === 0, JSON.stringify(sp));
+        const un = await pruefe([SW(UNF, 0.3, 0.05)]);
+        check('V24 9 Unfall AUF: bestehende Minutenlogik (10)', un.kostMin === 10 && /Unfall/.test(un.meldungen.join()), JSON.stringify(un));
+        const m20 = await pruefe([SW(STAU, 0.5, 0.05, ['Verzögerung: 20 Minuten'])]);
+        check('V24 10 Meldungstext mit 20 Minuten AUF: 20 Minuten bleiben', m20.kostMin === 20, JSON.stringify(m20));
+        const m3 = await pruefe([SW('Stau Ahrensburg', 0.2, 0.05), SW('Stau Reinbek', 0.5, 0.05), SW('Stau Billstedt', 0.8, 0.05)]);
+        check('V24 11 drei AUF-Meldungen: 30 Minuten, 3 Texte', m3.kostMin === 30 && m3.meldungen.length === 3, JSON.stringify(m3));
+        const m6 = await pruefe(['Ahrensburg', 'Reinbek', 'Billstedt', 'Glinde', 'Wentorf', 'Hamm'].map((n, i) => SW('Stau ' + n, 0.1 + i * 0.15, 0.05)));
+        check('V24 11 sechs AUF-Meldungen: Obergrenze 45 Minuten, höchstens 3 Texte', m6.kostMin === 45 && m6.meldungen.length === 3, JSON.stringify(m6));
+        const gemischt = await pruefe([SW(STAU, 0.5, 4), SW(SPERR, 0.6, 0.5), SW(UNF, 0.3, 0.05)]);
+        check('V24 18 gemischt: nur die AUF-Meldung zählt (10 Min.), NAHE nur als Hinweis, UMGEBUNG fehlt', gemischt.kostMin === 10 && gemischt.meldungen.length === 1 && gemischt.nahe.length === 1 && !/Ahrensburg/.test(JSON.stringify(gemischt)), JSON.stringify(gemischt));
+    }
+    /* ---------- 25. Ohne brauchbare Linie: Rückfall ohne geschätzte Zusatzminuten ---------- */
+    {
+        const S = await ladeServer();
+        const basis = { autobahnen: ['A24'], from: { lat: A[1], lon: A[0] }, to: { lat: B[1], lon: B[0] } };
+        const pruefe = async (feed, r) => (await mitNetz({ feed }, async () => S.t.checkStau(r)));
+        const f1 = await pruefe([SW(STAU, 0.5, 4)], basis);
+        check('V25 12 keine Linie: allgemeiner Hinweis erlaubt, aber 0 Zusatzminuten (4 km abseits)', f1.kostMin === 0, JSON.stringify(f1));
+        const f2 = await pruefe([SW(STAU, 0.5, 15), SW(SPERR, 0.5, 0.05)], basis);
+        check('V25 12 keine Linie: auch eine Meldung direkt an der Strecke und eine 15 km daneben ergeben keine geschätzten Minuten', f2.kostMin === 0 && f2.geprueft === true, JSON.stringify(f2));
+        const f3 = await pruefe([SW(STAU, 0.5, 0.05)], Object.assign({ lin: 'abä!kaputt' }, basis));
+        check('V25 13 kaputte Linie: kein Absturz, 0 Zusatzminuten', f3.kostMin === 0 && f3.geprueft === true, JSON.stringify(f3));
+        const f4 = await pruefe([SW(STAU, 0.5, 0.05)], Object.assign({ lin: '' }, basis));
+        check('V25 15 leere Linie: kein Absturz, 0 Zusatzminuten', f4.kostMin === 0, JSON.stringify(f4));
+        const f5 = await pruefe([SW(STAU, 0.5, 0.05)], Object.assign({ lin: polyCodiere([[A[0], A[1]]]) }, basis));
+        check('V25 15 Linie mit nur einem Punkt: 0 Zusatzminuten', f5.kostMin === 0, JSON.stringify(f5));
+        const f6 = await pruefe([], Object.assign({}, basis, { autobahnen: [] }));
+        check('V25 ohne Autobahn auf der Strecke: wie bisher nicht geprüft', f6.geprueft === false && (f6.meldungen || []).length === 0, JSON.stringify(f6));
+    }
+    /* ---------- 26. routeServer: fehlende/kaputte/teilweise kaputte Geometrie, leere Route, OSRM-Fehler ---------- */
+    {
+        const S = await ladeServer();
+        const rs = async (opt) => mitNetz(opt, async () => S.t.routeServer({ lat: A[1], lon: A[0] }, { lat: B[1], lon: B[0] }));
+        const ohne = await rs({ osrm: osrmAntwort({ ohneGeometrie: true }) });
+        check('V26 12 fehlende Step-Geometrie: Fahrzeit und Autobahn bleiben, keine Linie', !!ohne && ohne.fahrtMin === 30 && ohne.autobahnen.join() === 'A24' && !ohne.lin, JSON.stringify(ohne));
+        const kaputt = await rs({ osrm: osrmAntwort({ kaputt: 1 }) });
+        check('V26 13/14 ein kaputter Step: keine Linie (kein Loch erraten), Fahrzeit bleibt', !!kaputt && kaputt.fahrtMin === 30 && !kaputt.lin, JSON.stringify(kaputt));
+        const ankunft = await rs({ osrm: osrmAntwort({ ankunftLeer: true }) });
+        check('V26 14 leere Geometrie bei dem Ankunfts-Step ohne Länge stört nicht (Linie entsteht)', !!ankunft && typeof ankunft.lin === 'string' && ankunft.lin.length > 10, JSON.stringify(ankunft));
+        const leer = await rs({ osrm: osrmAntwort({ leer: true }) });
+        check('V26 15 leere Route (keine routes): wie bisher null', leer === null, JSON.stringify(leer));
+        const f500 = await rs({ osrmFehler: 500 }), fNetz = await rs({ osrmFehler: 'netz' });
+        check('V26 16 OSRM-Fehler (500 / Netz): wie bisher null, kein Absturz', f500 === null && fNetz === null, JSON.stringify([f500, fNetz]));
+        const S2 = await ladeServer();
+        const teil = await mitNetz({ osrm: osrmAntwort({ kaputt: 0 }), feed: [SW(STAU, 0.5, 0.05)] }, async () => { const r = await S2.t.routeServer({ lat: A[1], lon: A[0] }, { lat: B[1], lon: B[0] }); return S2.t.checkStau({ autobahnen: r.autobahnen, from: { lat: A[1], lon: A[0] }, to: { lat: B[1], lon: B[0] }, lin: r.lin }); });
+        check('V26 14 teilweise kaputte Steps ergeben nie Zusatzminuten (sicher und immer gleich)', teil.kostMin === 0, JSON.stringify(teil));
+    }
+    /* ---------- 27. Ganzer Weg: Termin-Abfahrt (Zeitgeber-Lauf) mit Redis-Attrappe ---------- */
+    {
+        const fall = async (name, feed, erwartet, osrmOpt) => {
+            const r = await terminLauf(feed, osrmOpt);
+            check('V27 ' + name + ': Abfahrt wird berechnet (Zusatzminuten ' + erwartet + ')', r.status === 200 && !!r.dep && !r.dep.fail && r.dep.fahrtMin === 30 && (r.dep.stauMin || 0) === erwartet, JSON.stringify(r.dep).slice(0, 220) + ' status ' + r.status);
+            return r;
+        };
+        const a4 = await fall('11 4-km-Offroute-Stau', [SW(STAU, 0.5, 4)], 0);
+        const a15 = await fall('12 15-km-Offroute-Sperrung', [SW(SPERR, 0.5, 15)], 0);
+        const n05 = await fall('13 NAHE 0,5 km', [SW(SPERR, 0.5, 0.5)], 0);
+        const n10 = await fall('14 NAHE 1,0 km', [SW(SPERR, 0.5, 1.0)], 0);
+        const auf = await fall('8 kleiner Stau AUF', [SW(STAU, 0.5, 0.05)], 10);
+        await fall('15 AUF mit 20-Minuten-Meldung', [SW(STAU, 0.5, 0.05, ['Verzögerung: 20 Minuten'])], 20);
+        await fall('16 mehrere AUF-Meldungen, Obergrenze', ['Ahrensburg', 'Reinbek', 'Billstedt', 'Glinde', 'Wentorf'].map((n, i) => SW('Stau ' + n, 0.1 + i * 0.18, 0.05)), 45);
+        await fall('17 ohne Geometrie (Rückfall) mit Meldung 4 km daneben', [SW(STAU, 0.5, 4)], 0, { ohneGeometrie: true });
+        await fall('18 kaputte Geometrie (Rückfall) mit Meldung auf der Strecke', [SW(STAU, 0.5, 0.05)], 0, { kaputt: 2 });
+        const abfahrtMin = r => r.dep.fahrtMin + (r.dep.stauMin || 0) + 10;   // wie leaveAt0 in api/sync.js: Fahrzeit + Aufschlag + 10 Minuten Puffer
+        check('V27 18/19/21 UMGEBUNG (4 km) und NAHE ziehen die Abfahrtszeit nicht vor (Abfahrt 40 Minuten vor dem Termin, wie ohne Meldung); eine Meldung AUF der Strecke schon (50)', abfahrtMin(a4) === 40 && abfahrtMin(a15) === 40 && abfahrtMin(n05) === 40 && abfahrtMin(n10) === 40 && abfahrtMin(auf) === 50, [a4, a15, n05, n10, auf].map(abfahrtMin).join(','));
+        check('V27 25-29 genau 1 OSRM-Aufruf (unverändert) und 1 autobahn.de-Aufruf je Berechnung, nichts anderes', auf.log.osrm.length === 1 && auf.log.autobahn.length === 1 && /\?overview=false&steps=true$/.test(auf.log.osrm[0]) && auf.log.sonst.every(u => !/osrm|autobahn/.test(u)), JSON.stringify({ osrm: auf.log.osrm.length, a: auf.log.autobahn.length }));
+        check('V27 Speicher: die Linie wird kompakt mit dem Termin gemerkt (unter 2000 Zeichen)', typeof auf.dep.lin === 'string' && auf.dep.lin.length > 10 && auf.dep.lin.length < 2000, String(auf.dep.lin && auf.dep.lin.length));
+        const S = await ladeServer();
+        const spaeter = await mitNetz({ feed: [SW(STAU, 0.5, 0.05), SW(SPERR, 0.6, 0.5), SW(STAU + ' 2', 0.4, 4)] }, async () => S.t.checkStau({ autobahnen: auf.dep.autobahnen, from: auf.dep.from, to: auf.dep.to, lin: auf.dep.lin }));
+        check('V27 spätere Prüfung (Abfahrts-/Vorbereitungs-Nachricht) nutzt die gemerkte Linie: 1 auf der Strecke, 1 nahe, die 4-km-Meldung fehlt', spaeter.meldungen.length === 1 && spaeter.nahe.length === 1 && spaeter.kostMin === 10 && !/ 2/.test(JSON.stringify(spaeter)), JSON.stringify(spaeter));
+    }
+    /* ---------- 27b. Sätze der Termin-Nachricht ---------- */
+    {
+        const S = await ladeServer(), sa = S.t.saetze || (() => ['(fehlt)']);
+        const mit = sa({ geprueft: true, meldungen: ['A24 Stau X (Stau)'], nahe: ['A24 Sperrung Y (Sperrung)'], kostMin: 10, ohneLinie: false });
+        check('V27b 6 mit Linie: "Auf der Strecke" und getrennt "Außerdem gemeldet, nahe deiner Route"', mit.length === 2 && /^Auf der Strecke: A24 Stau X/.test(mit[0]) && /^Außerdem gemeldet, nahe deiner Route: A24 Sperrung Y/.test(mit[1]), JSON.stringify(mit));
+        const nurNah = sa({ geprueft: true, meldungen: [], nahe: ['A24 Sperrung Y (Sperrung)'], kostMin: 0, ohneLinie: false });
+        check('V27b 6 nur eine nahe Meldung: "Keine Staumeldungen auf der Strecke" plus Hinweis (die nahe Meldung wird nicht als sicher auf der Strecke gesagt)', nurNah.length === 2 && /^Keine Staumeldungen auf der Strecke/.test(nurNah[0]) && /nahe deiner Route/.test(nurNah[1]), JSON.stringify(nurNah));
+        const ohne = sa({ geprueft: true, meldungen: ['A24 Stau X (Stau)'], nahe: [], kostMin: 0, ohneLinie: true });
+        check('V27b 7 ohne Linie: nur "Im Gebiet der Strecke", nicht "Auf der Strecke"', ohne.length === 1 && /^Im Gebiet der Strecke: /.test(ohne[0]) && !/Auf der Strecke/.test(ohne[0]), JSON.stringify(ohne));
+    }
+    /* ---------- 28. Browser und Server stufen dieselben Koordinaten gleich ein ---------- */
+    {
+        const S = await ladeServer(), app = starte({ festerZufall: true, fetch: async () => { throw new Error('offline'); } });
+        const lin = (await mitNetz({}, async () => (await S.t.routeServer({ lat: A[1], lon: A[0] }, { lat: B[1], lon: B[0] })))).lin;
+        const ungleich = [];
+        for (const km of [0.05, 0.1, 0.24, 0.3, 0.5, 1.0, 1.15, 1.3, 4, 15]) {
+            const p = SEITL(0.5, km), client = app.sb.routenRelevanz(p.lat, p.lon, LINIE_LB).klasse;
+            const r = await mitNetz({ feed: [SW(STAU, 0.5, km)] }, async () => S.t.checkStau({ autobahnen: ['A24'], from: { lat: A[1], lon: A[0] }, to: { lat: B[1], lon: B[0] }, lin }));
+            const server = (r.meldungen || []).length ? 'auf' : (r.nahe || []).length ? 'nahe' : 'umgebung';
+            if (client !== server) ungleich.push(km + ' km: Browser ' + client + ', Server ' + server);
+        }
+        check('V28 20 Browser (routenRelevanz) und Server ordnen 10 Abstände von 0,05 bis 15 km gleich ein', ungleich.length === 0, ungleich.join(' | '));
+    }
+
+    console.log('VERKEHR PHASE 1 + 2 + LAGEBILD-NÄHE + SERVER-ROUTENRELEVANZ: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
