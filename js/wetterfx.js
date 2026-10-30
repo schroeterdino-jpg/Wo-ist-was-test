@@ -22,7 +22,7 @@
         if (c === 45 || c === 48) return 'nebel';
         if (c >= 95) return 'gewitter';
         if ((c >= 71 && c <= 77) || c === 85 || c === 86) return 'schnee';
-        if ((c >= 51 && c <= 67) || (c >= 80 && c <= 82)) return 'regen';
+        if ((c >= 51 && c <= 67) || (c >= 80 && c <= 82)) return mm > 0.1 ? 'regen' : '';
         if (mm > 0.1) return 'regen';
         return '';
     }
