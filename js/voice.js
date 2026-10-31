@@ -57,7 +57,7 @@ function setIdleUi() {
     const waveEl = document.getElementById('waveform');
     if (waveEl) waveEl.classList.remove('speaking');
 
-    if (recordText) recordText.textContent = "ZANE / BEREIT";
+    if (recordText) recordText.textContent = "ZANE / BEREIT"; if (window.__jvHoertZu) { window.__jvHoertZu = false; try { setHudSubtitle(''); } catch (e) {} }   // „Höre zu …“ nicht stehen lassen, wenn er gar nicht mehr zuhört
     updateTerminalStream("SYS_IDLE: AWAITING_INPUT", "ONLINE");
     if (wakeWordEnabled) startWakeWordListening();
 }
@@ -716,7 +716,7 @@ function setListeningUi(followUp) {
     if (recordText) recordText.textContent = "ZANE / HÖRE...";
     if (!wakeWordListening) jvListenIndicator(true);   // im stillen Weckwort-Modus keine Anzeige
     typeWriterStatus(followUp ? "Ich höre weiter zu..." : "Höre zu...");
-    setHudSubtitle(followUp ? "Höre weiter zu..." : "Aktiviert. Ich höre zu...");
+    setHudSubtitle(followUp ? "Höre weiter zu..." : "Aktiviert. Ich höre zu..."); window.__jvHoertZu = true;
     updateTerminalStream("VOICE_RECOGNITION: ACTIVE", "LISTENING");
 }
 
@@ -738,7 +738,7 @@ function startListening(followUp = false, windowMs = FOLLOW_UP_WINDOW_MS) {
     if (followUp) {
         followUpTimer = setTimeout(() => {
             if (isRecording && isFollowUp) {
-                try { recognition.stop(); } catch (e) {}
+                try { recognition.stop(); } catch (e) {} setTimeout(() => { if (isRecording && isFollowUp) { isFollowUp = false; try { resetRecordingState(); } catch (e) {} } }, 2500);   // Sicherheitsnetz: meldet die Erkennung ihr Ende nicht, bleibt „Höre weiter zu“ nicht ewig stehen
             }
         }, windowMs);
     }
