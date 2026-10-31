@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (166 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (167 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -579,3 +579,7 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 - Daten: Lagebild-Felder über `window.jvLage.daten(maxAlterMs)` (zwischengespeichert, 10 Minuten), Wettervorhersage 30 Minuten; neu geholt nur beim Start und wenn die App wieder sichtbar wird. Kalender, Erinnerungen und Einkauf kommen lokal (Auffrischen alle 20 s nur bei sichtbarer Seite).
 - Kugel: grüner Schein beim Sprechen (`sphere.js`, pulsiert mit der Lautstärke). Tonbalken `#uebEq`: grün = Jarvis, orange = du. Deine Lautstärke kommt aus der APK (`onRmsChanged` in `MainActivity.java` → `__zaneRec('rms')` → `window.jvUserRms`); ohne neue APK bewegen sich die orangen Balken gleichmäßig.
 - `kacheln.js` ist jetzt standardmäßig AUS (doppelte Anzeige und eigene Abrufe); "Kacheln an" schaltet sie wieder ein. Schlüssel `nova_kopf` und `jv_mund_delay` bleiben bestehen (Sync bzw. Hörverzögerung in `voice.js`).
+
+## Startseite anpassen (`js/startseite_anpassen.js`)
+- ☰-Menü > „Startseite anpassen“ (Eintrag in `buildMenuPanel`, `panels.js`): Fenster mit den 8 Feldern der Startseite; je Feld Schalter An/Aus und ▲ ▼. Bedienung nur per Tippen. Nur lokal (`jv_ueb_felder`, kein Abgleich, kein Server).
+- Technik: ändert nur die Anzeige (CSS `order` am Feld und Klasse `ueb-aus`); `uebersicht.js` füllt die Felder unverändert weiter. `window.jvStartAnpassen = { oeffnen, anwenden, zuruecksetzen, felder }`.

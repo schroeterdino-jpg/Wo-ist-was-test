@@ -21,6 +21,31 @@ const FELDER = ['uebArbeit', 'uebRegen', 'uebDiesel', 'uebSchicht', 'uebTermine'
 const pos = FELDER.map(f => idx.indexOf('id="' + f + '"'));
 check('alle 8 Felder vorhanden', pos.every(p => p > 0), pos);
 check('Felder in der vereinbarten Reihenfolge (Arbeitsweg, Regen, Diesel, Schicht, Termine, Erinnerungen, Einkauf, Wetter morgen)', pos.every((p, i) => i === 0 || p > pos[i - 1]));
+
+/* 6 Startseite anpassen (js/startseite_anpassen.js): Felder ein-/ausschalten und verschieben, nur lokal, Standard unverändert */
+{
+    const anp = fs.readFileSync(path.join(ROOT, 'js/startseite_anpassen.js'), 'utf8'), idx = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), pan = fs.readFileSync(path.join(ROOT, 'js/panels.js'), 'utf8'), css = fs.readFileSync(path.join(ROOT, 'style.css'), 'utf8');
+    check('Anpassen: Skript steht nach uebersicht.js in index.html (genau einmal)', (idx.match(/startseite_anpassen\.js/g) || []).length === 1 && idx.indexOf('startseite_anpassen.js') > idx.indexOf('js/uebersicht.js'));
+    check('Anpassen: Menüeintrag im ☰-Menü und CSS für ausgeblendete Felder', /Startseite anpassen/.test(pan) && /\.ueb-karte\.ueb-aus\s*\{\s*display:\s*none/.test(css));
+    check('Anpassen: kein Netz, kein Timer', !/fetch\(|apiFetch|setInterval|setTimeout/.test(anp));
+    const IDS = ['uebArbeit', 'uebRegen', 'uebDiesel', 'uebSchicht', 'uebTermine', 'uebErinnerung', 'uebEinkauf', 'uebWetter'];
+    const els = {}; IDS.forEach(id => { els[id] = { style: {}, set: new Set(), classList: { toggle(c, on) { if (on) els[id].set.add(c); else els[id].set.delete(c); }, remove(c) { els[id].set.delete(c); } } }; });
+    const store = {};
+    const sb = { window: {}, document: { readyState: 'complete', getElementById: id => els[id] || null, body: { classList: { add() {}, remove() {} } } }, localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } }, console };
+    vm.runInNewContext(anp, sb);
+    const A = sb.window.jvStartAnpassen;
+    check('Anpassen: Standard = Reihenfolge der Seite, nichts ausgeblendet', IDS.every((id, i) => els[id].style.order === String(i) && !els[id].set.has('ueb-aus')));
+    store.jv_ueb_felder = JSON.stringify({ reihenfolge: ['uebSchicht', 'uebDiesel', 'gibtsnicht', 'uebSchicht'], aus: ['uebDiesel', 'unbekannt'] });
+    A.anwenden();
+    check('Anpassen: Reihenfolge übernommen, fehlende Felder hinten, Unbekanntes und Doppeltes ignoriert', els.uebSchicht.style.order === '0' && els.uebDiesel.style.order === '1' && els.uebArbeit.style.order === '2' && els.uebWetter.style.order === '7', IDS.map(id => els[id].style.order));
+    check('Anpassen: nur das gewählte Feld ist ausgeblendet', els.uebDiesel.set.has('ueb-aus') && IDS.filter(id => els[id].set.has('ueb-aus')).length === 1);
+    store.jv_ueb_felder = '{kaputt';
+    A.anwenden();
+    check('Anpassen: kaputte Einstellung ergibt wieder den Standard (kein Absturz)', IDS.every((id, i) => els[id].style.order === String(i) && !els[id].set.has('ueb-aus')));
+    store.jv_ueb_felder = JSON.stringify({ reihenfolge: IDS.slice().reverse(), aus: ['uebRegen'] });
+    A.anwenden(); A.zuruecksetzen();
+    check('Anpassen: Zurücksetzen stellt alles wie vorher (keine Reihenfolge, nichts ausgeblendet)', IDS.every(id => els[id].style.order === '' && !els[id].set.has('ueb-aus')) && store.jv_ueb_felder === '{}');
+}
 for (const id of ['recordBtn', 'jarvisSphere', 'uebEq', 'uebGruss', 'uebUhr', 'uebHinweis', 'hudSubtitleBox']) check('Element vorhanden: #' + id, idx.indexOf('id="' + id + '"') > 0);
 check('Kugel liegt vor den Feldern (oben links)', idx.indexOf('id="jarvisSphere"') < idx.indexOf('id="uebArbeit"'));
 check('Kein eigener Mikro-Knopf mehr: Tippen auf die Kugel startet das Sprechen, Hinweis steht in der Kopfzeile', idx.indexOf('id="uebMic"') < 0 && /id="recordBtn" onclick="toggleSpeechRecognition\(\)"/.test(idx) && idx.indexOf('id="uebHinweis"') > idx.indexOf('id="uebGruss"') && idx.indexOf('id="uebHinweis"') < idx.indexOf('id="uebArbeit"'));

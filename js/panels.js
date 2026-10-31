@@ -245,6 +245,7 @@ function buildMenuPanel() {
         row('🔔', 'Erinnerungen', 'Alle anstehenden', "openPanel('erinnerungen')") +
         row('🗓️', 'Planer', 'Neue Erinnerung anlegen', "openPanel('planer')") +
         row('📝', 'Listen', 'Einkauf und Aufgaben', "openPanel('einkauf')") +
+        row('🧩', 'Startseite anpassen', 'Felder ein- und ausschalten, verschieben', "closePanel(); window.jvStartAnpassen && window.jvStartAnpassen.oeffnen()") +
         head('MERKEN') +
         row('🔎', 'Wo ist was?', 'Parkplatz, Dinge wiederfinden, Briefing-Wünsche', "openPanel('gedaechtnis')") +
         row('🧠', 'Langzeitgedächtnis', 'Erlebnisse, Pläne, Geburtstage', "closePanel(); showLangzeit()") +
