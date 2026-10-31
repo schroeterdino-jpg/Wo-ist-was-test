@@ -250,6 +250,7 @@ function buildMenuPanel() {
         row('🧠', 'Langzeitgedächtnis', 'Erlebnisse, Pläne, Geburtstage', "closePanel(); showLangzeit()") +
         head('UNTERWEGS') +
         row('🗺️', 'Karte', 'Standort, Route zur Arbeit, Stau', "openPanel('karte')") +
+        row('🚙', 'Auto-Akte', 'TÜV, Inspektion, Reifen, Versicherung', "closePanel(); window.jvAutoAkte && window.jvAutoAkte.fenster()") +
         head('POST &amp; GELD') +
         '<!--post-->' +
         head('MEHR') +

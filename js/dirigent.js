@@ -110,7 +110,7 @@
         try {
             if (window.jvRechnungen && window.jvRechnungen.offen) k.offene_rechnungen = window.jvRechnungen.offen().slice(0, 5).map(r => ({ von: r.absender, betrag_euro: r.betrag, faellig: r.ziel, art: r.typ, in_tagen: r.ziel ? Math.round((new Date(r.ziel + 'T12:00:00') - new Date(heute + 'T12:00:00')) / 86400000) : null }));
         } catch (e) { }
-        try { if (window.jvFeiertage) { const f = window.jvFeiertage.naechste(7); if (f.length) k.feiertage = f; } } catch (e) { }
+        try { if (window.jvFeiertage) { const f = window.jvFeiertage.naechste(7); if (f.length) k.feiertage = f; } } catch (e) { } try { if (window.jvAutoAkte) { const f = window.jvAutoAkte.faellig(45); if (f.length) k.auto_fristen = f; } } catch (e) { }
         try { if (window.jvUnwetter) { const w = await Promise.race([window.jvUnwetter.warnungen(), new Promise(res => setTimeout(() => res([]), 6000))]); if (w && w.length) k.unwetterwarnungen = w; } } catch (e) { }
         try { if (typeof memoryItems === 'object' && memoryItems) k.gemerkte_dinge = Object.keys(memoryItems).slice(0, 12); } catch (e) { }
         return k;

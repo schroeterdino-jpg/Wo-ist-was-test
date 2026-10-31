@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (166 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (167 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -579,3 +579,7 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 - Daten: Lagebild-Felder über `window.jvLage.daten(maxAlterMs)` (zwischengespeichert, 10 Minuten), Wettervorhersage 30 Minuten; neu geholt nur beim Start und wenn die App wieder sichtbar wird. Kalender, Erinnerungen und Einkauf kommen lokal (Auffrischen alle 20 s nur bei sichtbarer Seite).
 - Kugel: grüner Schein beim Sprechen (`sphere.js`, pulsiert mit der Lautstärke). Tonbalken `#uebEq`: grün = Jarvis, orange = du. Deine Lautstärke kommt aus der APK (`onRmsChanged` in `MainActivity.java` → `__zaneRec('rms')` → `window.jvUserRms`); ohne neue APK bewegen sich die orangen Balken gleichmäßig.
 - `kacheln.js` ist jetzt standardmäßig AUS (doppelte Anzeige und eigene Abrufe); "Kacheln an" schaltet sie wieder ein. Schlüssel `nova_kopf` und `jv_mund_delay` bleiben bestehen (Sync bzw. Hörverzögerung in `voice.js`).
+
+## Auto-Akte (`js/auto_akte.js`)
+- ☰-Menü > „Auto-Akte“ (Eintrag in `buildMenuPanel`, `panels.js`): Fenster mit TÜV (Monat), Inspektion, Reifenwechsel, Versicherung (je Datum), Bedienung nur per Tippen. Daten nur lokal (`jv_auto_akte`, kein Abgleich, kein Server).
+- `window.jvAutoAkte.faellig(45)` liefert fällige Fristen; `dirigent.js` hängt sie als `auto_fristen` an den Kontext der Tagesmeldung (die KI entscheidet, ob sie sich meldet, höchstens eine Meldung pro Tag).

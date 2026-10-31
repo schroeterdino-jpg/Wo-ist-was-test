@@ -15,13 +15,13 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 307,
-  "produktJs": 166,
-  "jsZeilen": 42151,
-  "jsBytes": 2980012,
-  "jsGzip": 893263,
-  "scriptTags": 172,
-  "eigeneScripts": 166,
+  "repoDateien": 308,
+  "produktJs": 167,
+  "jsZeilen": 42265,
+  "jsBytes": 2988907,
+  "jsGzip": 895921,
+  "scriptTags": 173,
+  "eigeneScripts": 167,
   "drittScripts": 2,
   "inlineScripts": 4,
   "api": 11,
@@ -75,6 +75,7 @@
   "audio.js": "A",
   "auftraege.js": "A",
   "ausflug.js": "A",
+  "auto_akte.js": "A",
   "autoansicht.js": "A",
   "behoerdenbrief.js": "A",
   "birthdays.js": "A",
@@ -227,7 +228,7 @@
   "zuvorkommend.js": "A"
  },
  "klassenZahl": {
-  "A": 141,
+  "A": 142,
   "B": 17,
   "C": 8,
   "D": 0,
@@ -323,11 +324,11 @@
     "fassungen": 12
    },
    "lsGet": {
-    "kopien": 27,
+    "kopien": 28,
     "fassungen": 2
    },
    "lsSet": {
-    "kopien": 27,
+    "kopien": 28,
     "fassungen": 4
    },
    "esc": {
@@ -432,7 +433,7 @@
   },
   "ladefehler": []
  },
- "capabilityNichtReferenziert": 125,
+ "capabilityNichtReferenziert": 126,
  "tests": {
   "unklassifiziert": [],
   "klasseOhneDatei": [],
@@ -514,8 +515,8 @@
  },
  "dokuAbweichungen": {
   "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 166 Produkt-JS-Dateie",
-  "architekturSkriptzahl": "166",
-  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 166 Produktdateien in `js/`). G",
+  "architekturSkriptzahl": "167",
+  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 167 Produktdateien in `js/`). G",
   "architekturProjektstandAbschnitt": "## 8. Projektstand und nächste Schritte (Stand 24.10.2026, historisch)"
  }
 }

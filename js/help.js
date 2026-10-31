@@ -93,6 +93,8 @@ const HELP_TOPICS = [
         'Das ist meine Tochter Julia (nach einem Foto)', 'Merk dir, wie Julia aussieht', 'Vergiss, wie Julia aussieht', '(Zane beschreibt nur das äußere Aussehen und fragt vorher, ob er es merken soll. Das Foto selbst wird nicht gespeichert, ein Gesicht erkennt er später nicht wieder.)'] },
     { key: 'internet', icon: '🌐', title: 'Aus dem Internet', words: /internet|fernseh|paket|öffnungszeit|oeffnungszeit/, examples: [
         'Was läuft heute Abend im Fernsehen?', 'Wo ist mein Paket?', 'Wann hat der Baumarkt heute auf?', 'Was läuft heute Abend im Kino in Hamburg?'] },
+    { key: 'autoakte', icon: '🚙', title: 'Auto-Akte', words: /auto-?akte|t(?:ü|u)v|inspektion|reifenwechsel|kfz/, examples: [
+        '☰-Menü > Auto-Akte öffnen und Datum für TÜV, Inspektion, Reifenwechsel und Versicherung eintragen (nur Tippen)', 'Jarvis meldet sich von selbst, wenn eine Frist näher kommt'] },
     { key: 'briefing', icon: '🌅', title: 'Briefing & Protokolle', words: /briefing|protokoll/, examples: [
         'Erwähne im Briefing immer, wo mein Ladekabel ist', 'Starte Protokoll Feierabend', 'Lege ein Protokoll Morgen an: Wetter und Fahrzeit zur Arbeit'] },
     { key: 'schicht', icon: '🕒', title: 'Schicht und Briefing', words: /schicht|frühschicht|spätschicht|früh|spät|dienstplan|briefing/, examples: [
