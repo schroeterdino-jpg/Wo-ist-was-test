@@ -349,7 +349,7 @@ async function places(req, res) {
   const q = String(req.query.q || '').trim().slice(0, 60);
   if (!q || !isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return res.status(400).json({ error: 'Suchbegriff oder Koordinaten fehlen' });
 
-  const cacheKey = 'gmaps:places:' + q.toLowerCase() + ':' + lat.toFixed(3) + ',' + lon.toFixed(3) + ':' + Math.round(radius / 1000);
+  const cacheKey = 'gmaps:places2:' + q.toLowerCase() + ':' + lat.toFixed(3) + ',' + lon.toFixed(3) + ':' + Math.round(radius / 1000);
   const cached = await redisCmd(['GET', cacheKey]);
   if (cached) { try { const o = JSON.parse(cached); o.zwischengespeichert = true; return res.status(200).json(o); } catch (e) {} }
 
@@ -365,7 +365,7 @@ async function places(req, res) {
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': key,
-        'X-Goog-FieldMask': 'places.displayName,places.addressComponents,places.location,places.regularOpeningHours,places.currentOpeningHours,places.rating,places.userRatingCount,places.nationalPhoneNumber,places.businessStatus'
+        'X-Goog-FieldMask': 'places.displayName,places.addressComponents,places.location,places.regularOpeningHours,places.currentOpeningHours,places.rating,places.userRatingCount,places.nationalPhoneNumber,places.websiteUri,places.businessStatus'
       },
       body: JSON.stringify({
         textQuery: q,
@@ -393,6 +393,7 @@ async function places(req, res) {
       if (o.openNow === false && cur && cur.nextOpenTime) { const t = berlinTime(cur.nextOpenTime); if (t && t.sameDay) o.opensAt = t.hhmm; }
       if (typeof p.rating === 'number') { o.rating = p.rating; o.ratingCount = p.userRatingCount || 0; }
       if (p.nationalPhoneNumber) o.phone = p.nationalPhoneNumber;
+      if (p.websiteUri) o.website = p.websiteUri;   // fehlt = der Betrieb hat bei Google keine Website eingetragen (Website-Bauer)
       out.push(o);
     });
     const result = { quelle: 'google', places: out };
