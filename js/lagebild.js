@@ -28,7 +28,7 @@
         }
         return 'Quelle: OpenStreetMap. Öffnungszeiten können fehlen oder veraltet sein.';
     }
-    let layer = null, body = null, timer = 0, state = null, ladeNr = 0, view = 'umkreis', zielD = null, orteD = null, orteTank = false, wegD = null;
+    let layer = null, body = null, timer = 0, state = null, ladeNr = 0, view = 'umkreis', zielD = null, orteD = null, orteTank = false, wegD = null, nurDiesel = false;
     const sagen = t => { try { if (typeof speak === 'function') speak(t, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} };
     const mit = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
     const euro = p => p.toFixed(3).replace('.', ',') + ' €';
@@ -214,6 +214,25 @@
     }
     const navi = adr => () => { try { if (typeof buildMapsLink === 'function') window.open(buildMapsLink(adr, '', 'driving'), '_blank'); } catch (e) {} };
 
+    function dieselKarte(s) {
+        if (s.tank.length) {
+            const k = el('div', 'k'); const t = el('div', 't'); t.appendChild(el('span', '', '⛽ DIESEL'));
+            t.appendChild(el('span', '', 'IM UMKREIS ' + TANK_KM + ' KM')); k.appendChild(t);
+            s.tank.forEach((x, i) => {
+                const row = el('div', 'z'); row.style.cssText = 'cursor:pointer;' + (i ? 'margin-top:9px' : '');
+                const a = el('div', 'g p1', euro(x.preis)); if (i) a.style.fontSize = '17px';
+                a.appendChild(el('span', 'n ' + (i === 0 ? 'ok' : ''), x.name + ' · ' + x.km.toFixed(1).replace('.', ',') + ' km'));
+                row.appendChild(a);
+                row.appendChild(el('div', 'dim', x.strasse || ''));
+                row.addEventListener('click', navi([x.strasse, x.ort].filter(Boolean).join(', ')));
+                k.appendChild(row);
+            });
+            body.appendChild(k);
+        }
+
+        else body.appendChild(karte('⛽ DIESEL', 'IM UMKREIS ' + TANK_KM + ' KM', 'Keine Tankstelle', [{ t: 'Im Umkreis von ' + TANK_KM + ' km gibt es keine Tankstelle mit Dieselpreis.', c: 'dim' }]));
+    }
+
     function zeichne() {
         if (!body) return;
         body.textContent = '';
@@ -222,6 +241,7 @@
         const s = state;
         if (!s) { body.appendChild(karte('LAGEBILD', '', 'Lade Daten …', [{ t: 'Standort, Verkehr, Wetter und Preise werden geholt.', c: 'dim' }])); return; }
         if (s.fehler) { body.appendChild(karte('LAGEBILD', '', 'Kein Standort', [{ t: s.fehler, c: 'bad' }])); return; }
+        if (nurDiesel) { dieselKarte(s); return; }   // Tipp auf das Diesel-Feld der Startseite: nur die günstigsten Tankstellen
 
         // Arbeitsweg
         if (s.arbeit) {
@@ -245,22 +265,7 @@
         if (r && !regenRuhig) body.appendChild(karte('☂ REGEN', 'NÄCHSTE 3 STD', r.gross, [{ t: r.text, c: r.ok ? 'ok' : 'dim' }]));
 
         // Diesel
-        if (s.tank.length) {
-            const k = el('div', 'k'); const t = el('div', 't'); t.appendChild(el('span', '', '⛽ DIESEL'));
-            t.appendChild(el('span', '', 'IM UMKREIS ' + TANK_KM + ' KM')); k.appendChild(t);
-            s.tank.forEach((x, i) => {
-                const row = el('div', 'z'); row.style.cssText = 'cursor:pointer;' + (i ? 'margin-top:9px' : '');
-                const a = el('div', 'g p1', euro(x.preis)); if (i) a.style.fontSize = '17px';
-                a.appendChild(el('span', 'n ' + (i === 0 ? 'ok' : ''), x.name + ' · ' + x.km.toFixed(1).replace('.', ',') + ' km'));
-                row.appendChild(a);
-                row.appendChild(el('div', 'dim', x.strasse || ''));
-                row.addEventListener('click', navi([x.strasse, x.ort].filter(Boolean).join(', ')));
-                k.appendChild(row);
-            });
-            body.appendChild(k);
-        }
-
-        else body.appendChild(karte('⛽ DIESEL', 'IM UMKREIS ' + TANK_KM + ' KM', 'Keine Tankstelle', [{ t: 'Im Umkreis von ' + TANK_KM + ' km gibt es keine Tankstelle mit Dieselpreis.', c: 'dim' }]));
+        dieselKarte(s);
 
         // Verkehr in der Nähe
         if (s.stau.fehler) body.appendChild(karte('⚠ VERKEHR', 'IN DER NÄHE', 'Nicht verfügbar', [{ t: 'Die Verkehrsdaten konnten gerade nicht geladen werden.', c: 'dim' }]));
@@ -324,10 +329,12 @@
     }
     function kopfText() {
         if (!layer || !layer._klein) return;
+        try { layer._klein.previousSibling.textContent = nurDiesel ? 'DIESEL' : 'LAGEBILD'; } catch (e) {}
         layer._klein.textContent = view === 'ziel' ? 'Zane · deine Fahrt' : view === 'orte' ? 'Zane · in deiner Nähe' : 'Zane · dein Umkreis';
     }
-    function open(sprich) {
+    function open(sprich, nur) {
         if (layer && view === 'umkreis') return;
+        nurDiesel = nur === 'diesel';
         layerBauen();
         view = 'umkreis'; kopfText();
         clearInterval(timer);
@@ -337,7 +344,7 @@
     }
     function close() {
         if (!layer) return;
-        clearInterval(timer); ladeNr++; layer.remove(); layer = null; body = null; state = null; view = 'umkreis'; zielD = null; orteD = null; wegD = null;
+        clearInterval(timer); ladeNr++; layer.remove(); layer = null; body = null; state = null; view = 'umkreis'; nurDiesel = false; zielD = null; orteD = null; wegD = null;
     }
 
     /* ---------- Ansicht "Ziel": Route zu X, Wann losfahren, Stau auf der Strecke ---------- */
