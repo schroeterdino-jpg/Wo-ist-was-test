@@ -199,7 +199,7 @@
         eqBauen();
         tippe('uebArbeit', () => { if (window.jvLage && window.jvLage.open) window.jvLage.open(); });
         tippe('uebRegen', () => { if (window.jvLage && window.jvLage.open) window.jvLage.open(); });
-        tippe('uebDiesel', () => { if (window.jvLage && window.jvLage.open) window.jvLage.open(); });
+        tippe('uebDiesel', () => { if (window.jvLage && window.jvLage.open) window.jvLage.open(false, 'diesel'); });
         tippe('uebTermine', panel('termine'));
         tippe('uebErinnerung', panel('erinnerungen'));
         tippe('uebEinkauf', panel('einkauf'));
