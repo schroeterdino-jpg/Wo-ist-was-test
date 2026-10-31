@@ -195,10 +195,10 @@ function closeWeatherMap() {
     return true;
 }
 
-function showWeatherMap(label, lat, lon, data) {
+function showWeatherMap(label, lat, lon, data, ebene) {
     wxEnsureStyle();
     closeWeatherMap();
-    wxLayerNow = 'temp';
+    wxLayerNow = WX_LAYERS.some(l => l[0] === ebene) ? ebene : 'temp';   // ebene: z. B. 'rain' (Tipp auf das Regen-Feld der Startseite)
     const el = document.createElement('div');
     el.id = 'wxMap';
     const add = (parent, tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text !== undefined) x.textContent = text; parent.appendChild(x); return x; };
@@ -220,13 +220,13 @@ function showWeatherMap(label, lat, lon, data) {
     const frame = document.createElement('iframe');
     frame.setAttribute('title', 'Wetterkarte');
     frame.setAttribute('loading', 'lazy');
-    frame.src = windyEmbedUrl(lat, lon, 'temp');
+    frame.src = windyEmbedUrl(lat, lon, wxLayerNow);
     frameBox.appendChild(frame);
 
     const layers = add(el, 'div', 'wx-layers');
     const link = document.createElement('a');
     WX_LAYERS.forEach(([key, name]) => {
-        const b = add(layers, 'button', 'wx-layer' + (key === 'temp' ? ' on' : ''), name);
+        const b = add(layers, 'button', 'wx-layer' + (key === wxLayerNow ? ' on' : ''), name);
         b.addEventListener('click', () => {
             wxLayerNow = key;
             frame.src = windyEmbedUrl(lat, lon, key);
@@ -245,7 +245,7 @@ function showWeatherMap(label, lat, lon, data) {
     });
 
     const linkBox = add(el, 'div', 'wx-link');
-    link.href = windyOpenUrl(lat, lon, 'temp');
+    link.href = windyOpenUrl(lat, lon, wxLayerNow);
     link.target = '_blank';
     link.rel = 'noopener';
     link.textContent = 'Karte in Windy öffnen';
@@ -274,9 +274,12 @@ async function runWeatherMap(req) {
     const data = await wxFetchWeather(lat, lon);
     if (!data) { say(`Die Wetterdaten für ${isLocal ? 'deinen Standort' : label} konnte ich gerade nicht laden.`); return; }
     try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) {}
-    showWeatherMap(label, lat, lon, data);
-    say(wxSummary(label, data, req.dayOffset, isLocal) + ' Die Karte ist offen.');
+    showWeatherMap(label, lat, lon, data, req.ebene);
+    if (!req.still) say(wxSummary(label, data, req.dayOffset, isLocal) + ' Die Karte ist offen.');   // still: Tipp auf der Startseite, ohne Vorlesen
 }
+
+/* Tipp auf das Regen-Feld der Startseite: Wetterkarte für deinen Standort mit der Regen-Ebene, ohne Vorlesen */
+window.jvWetterkarte = { oeffnen: function (ebene) { return runWeatherMap({ place: '', dayOffset: 0, ebene: ebene || 'temp', still: true }); } };
 
 function handleWeatherMapCommand(text) {
     // Ist die Wetterkarte offen, wird "Karte schließen" hier erledigt (und nicht an die KI weitergereicht)
