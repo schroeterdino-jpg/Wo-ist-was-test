@@ -636,3 +636,4 @@ body main.container { padding-top: 0; padding-bottom: 1rem; }
 #uebersicht #hudSubtitleBox { position: fixed; left: 12px; right: 12px; bottom: 10px; margin: 0; z-index: 5; min-height: 0; padding: 6px 10px; font-size: 11px; }
 #uebersicht { position: relative; }
 #sec-speak { padding-top: 0 !important; padding-bottom: 0 !important; }
+.ueb-karte.ueb-aus { display: none; }   /* Startseite anpassen (js/startseite_anpassen.js) */
