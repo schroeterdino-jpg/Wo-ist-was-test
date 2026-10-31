@@ -22,6 +22,14 @@ const pos = FELDER.map(f => idx.indexOf('id="' + f + '"'));
 check('alle 8 Felder vorhanden', pos.every(p => p > 0), pos);
 check('Felder in der vereinbarten Reihenfolge (Arbeitsweg, Regen, Diesel, Schicht, Termine, Erinnerungen, Einkauf, Wetter morgen)', pos.every((p, i) => i === 0 || p > pos[i - 1]));
 
+/* 5b Tipp auf das Regen-Feld öffnet die Wetterkarte (Regen-Ebene, still), nicht das Lagebild */
+{
+    const ue = fs.readFileSync(path.join(ROOT, 'js/uebersicht.js'), 'utf8'), wm = fs.readFileSync(path.join(ROOT, 'js/weathermap.js'), 'utf8');
+    check('Regen-Feld: Tipp öffnet die Wetterkarte mit Regen-Ebene (Rückfall: Lagebild)', /tippe\('uebRegen', \(\) => \{ if \(window\.jvWetterkarte\) window\.jvWetterkarte\.oeffnen\('rain'\)/.test(ue));
+    check('Wetterkarte: jvWetterkarte.oeffnen startet still (kein Vorlesen) und mit gewählter Ebene', /window\.jvWetterkarte = \{ oeffnen: function \(ebene\)[^}]*still: true/.test(wm) && /if \(!req\.still\) say\(wxSummary/.test(wm) && /wxLayerNow = WX_LAYERS\.some\(l => l\[0\] === ebene\) \? ebene : 'temp'/.test(wm));
+    check('Diesel-Feld öffnet weiter nur die Diesel-Ansicht', /tippe\('uebDiesel'.*open\(false, 'diesel'\)/.test(ue));
+}
+
 /* 6 Startseite anpassen (js/startseite_anpassen.js): Felder ein-/ausschalten und verschieben, nur lokal, Standard unverändert */
 {
     const anp = fs.readFileSync(path.join(ROOT, 'js/startseite_anpassen.js'), 'utf8'), idx = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), pan = fs.readFileSync(path.join(ROOT, 'js/panels.js'), 'utf8'), css = fs.readFileSync(path.join(ROOT, 'style.css'), 'utf8');
