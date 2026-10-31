@@ -645,3 +645,17 @@ body main.container { padding-top: 0; padding-bottom: 1rem; }
 #jvTippBar[hidden] { display: none; }
 #jvTippInput { flex: 1 1 auto; min-width: 0; background: #000; border: 1px solid rgba(93,209,255,.25); border-radius: 10px; padding: 11px; color: #e6f3fa; font-size: 16px; outline: none; }
 #jvTippSenden { padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(87,224,161,.6); background: rgba(87,224,161,.18); color: #57e0a1; font: 700 13px "IBM Plex Mono", monospace; letter-spacing: .08em; }
+
+/* Startseite Seite 2 (js/uebersicht.js: seiteZwei) */
+#uebSeite2 { display: none; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 8px; }
+#uebersicht.ueb-s2 #uebRaster { display: none; }
+#uebersicht.ueb-s2 #uebSeite2 { display: grid; }
+.ueb-s2-knopf { display: flex; align-items: center; gap: 10px; background: rgba(10, 22, 33, .78); border: 1px solid rgba(93, 209, 255, .18); border-radius: 6px; padding: 12px 10px; min-height: 64px; color: #49d7ff; text-align: left; min-width: 0; }
+.ueb-s2-knopf svg { flex: none; filter: drop-shadow(0 0 4px rgba(73, 215, 255, .5)); }
+.ueb-s2-knopf span { min-width: 0; display: flex; flex-direction: column; }
+.ueb-s2-knopf small { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted, #6f90a3); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ueb-s2-knopf b { font-size: 17px; color: #e6f3fa; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#uebPunkte { position: fixed; left: 0; right: 0; bottom: 26px; z-index: 59; display: flex; justify-content: center; gap: 22px; pointer-events: none; }
+#uebPunkte button { pointer-events: auto; width: 28px; height: 28px; border-radius: 50%; background: transparent; border: 0; position: relative; }
+#uebPunkte button::after { content: ""; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: #49d7ff; opacity: .3; }
+#uebPunkte button.on::after { opacity: 1; box-shadow: 0 0 8px #49d7ff; }

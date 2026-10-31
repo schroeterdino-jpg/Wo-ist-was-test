@@ -44,6 +44,15 @@ check('Felder in der vereinbarten Reihenfolge (Arbeitsweg, Regen, Diesel, Schich
     check('panels.js: keine ungeschützten currentPanel.name-Zugriffe nach isPanelOpen()', !/!isPanelOpen\(\) \|\| currentPanel\.name/.test(pa) && /if \(!currentPanel \|\| !isPanelOpen\(\) \|\| !\['termine', 'erinnerungen'\]/.test(pa));
 }
 
+/* 5e Seite 2 der Startseite: Knöpfe, Wischen, Punkte */
+{
+    const ue = fs.readFileSync(path.join(ROOT, 'js/uebersicht.js'), 'utf8'), cs = fs.readFileSync(path.join(ROOT, 'style.css'), 'utf8');
+    check('Seite 2: wird beim Start aufgebaut', /eqBauen\(\); tippLeiste\(\); seiteZwei\(\);/.test(ue));
+    check('Seite 2: acht Knöpfe (Foto, Bild, Briefing, Überblick, Einkauf, Preissuche, Karte, Parkplatz) mit den vorhandenen Aufrufen', ['openPhotoCamera(true)', 'openPhotoGallery()', 'triggerDailyBriefing()', 'showUeberblick(false)', "openPanel('einkauf')", 'jvPreisWaechter.oeffnen', "openPanel('karte')", 'parkButtonTap()'].every(x => ue.indexOf(x) >= 0));
+    check('Seite 2: Wischen nach links/rechts (mind. 60 px, überwiegend waagerecht) und Tippen auf die Punkte', /Math\.abs\(dx\) > 60 && Math\.abs\(dx\) > Math\.abs\(dy\) \* 1\.5/.test(ue) && /p2\.addEventListener\('click'/.test(ue));
+    check('Seite 2: Seite 1 (uebRaster) wird nur per Klasse ausgeblendet, nicht verändert', /#uebersicht\.ueb-s2 #uebRaster \{ display: none; \}/.test(cs) && /#uebersicht\.ueb-s2 #uebSeite2 \{ display: grid; \}/.test(cs));
+}
+
 /* 6 Startseite anpassen (js/startseite_anpassen.js): Felder ein-/ausschalten und verschieben, nur lokal, Standard unverändert */
 {
     const anp = fs.readFileSync(path.join(ROOT, 'js/startseite_anpassen.js'), 'utf8'), idx = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), pan = fs.readFileSync(path.join(ROOT, 'js/panels.js'), 'utf8'), css = fs.readFileSync(path.join(ROOT, 'style.css'), 'utf8');

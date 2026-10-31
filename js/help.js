@@ -93,6 +93,8 @@ const HELP_TOPICS = [
         'Das ist meine Tochter Julia (nach einem Foto)', 'Merk dir, wie Julia aussieht', 'Vergiss, wie Julia aussieht', '(Zane beschreibt nur das äußere Aussehen und fragt vorher, ob er es merken soll. Das Foto selbst wird nicht gespeichert, ein Gesicht erkennt er später nicht wieder.)'] },
     { key: 'internet', icon: '🌐', title: 'Aus dem Internet', words: /internet|fernseh|paket|öffnungszeit|oeffnungszeit/, examples: [
         'Was läuft heute Abend im Fernsehen?', 'Wo ist mein Paket?', 'Wann hat der Baumarkt heute auf?', 'Was läuft heute Abend im Kino in Hamburg?'] },
+    { key: 'seite2', icon: '📱', title: 'Zweite Startseite', words: /seite 2|zweite seite|wischen|knöpfe|foto.*startseite/, examples: [
+        'Auf der Startseite nach links wischen (oder auf die zwei Punkte unten tippen): Seite 2 mit Knöpfen für Foto, Bild aus Dateien, Briefing, Überblick, Einkauf, Preissuche, Karte und Parkplatz', 'Nach rechts wischen bringt dich zurück zu Seite 1'] },
     { key: 'tippen', icon: '⌨', title: 'Eintippen statt sprechen', words: /tippen|schreiben|tastatur|eingeben/, examples: [
         'Unten rechts auf der Startseite das ⌨-Symbol antippen, den Satz eintippen und auf Senden tippen: Jarvis behandelt ihn wie einen gesprochenen Satz', 'Zum Beispiel: Wann habe ich morgen Schicht? / Stell einen Wecker auf 6 Uhr'] },
     { key: 'startseite', icon: '🧩', title: 'Startseite anpassen', words: /startseite|felder|dashboard/, examples: [

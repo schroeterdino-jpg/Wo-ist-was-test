@@ -196,7 +196,7 @@
     }
 
     function start() {
-        eqBauen(); tippLeiste();
+        eqBauen(); tippLeiste(); seiteZwei();
         tippe('uebArbeit', () => { if (window.jvLage && window.jvLage.open) window.jvLage.open(); });
         tippe('uebRegen', () => { if (window.jvWetterkarte) window.jvWetterkarte.oeffnen('rain'); else if (window.jvLage && window.jvLage.open) window.jvLage.open(); });
         tippe('uebDiesel', () => { if (window.jvLage && window.jvLage.open) window.jvLage.open(false, 'diesel'); });
@@ -211,6 +211,58 @@
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
     window.jvUebersicht = { auffrischen, lokal };
+
+    /* Seite 2 der Startseite: große Knöpfe für Foto, Bild, Briefing, Überblick, Einkauf, Preissuche, Karte, Parkplatz.
+       Wechsel durch Wischen nach links/rechts auf freier Fläche oder durch Tippen auf die zwei Punkte; Seite 1 bleibt unverändert. */
+    function seiteZwei() {
+        const box = $('uebersicht'), raster = $('uebRaster'); if (!box || !raster || $('uebSeite2')) return;
+        const SVG = {
+            cam: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+            img: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 18l5-5 4 3 3-3 4 4"/>',
+            sun: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/>',
+            mon: '<rect x="3.5" y="4.5" width="17" height="11" rx="1.5"/><path d="M9 19.5h6M12 15.5v4"/>',
+            lst: '<path d="M8 7h12M8 12h12M8 17h12"/><circle cx="4.5" cy="7" r=".8"/><circle cx="4.5" cy="12" r=".8"/><circle cx="4.5" cy="17" r=".8"/>',
+            tag: '<path d="M3.5 12.5V4.5h8l9 9-8 8z"/><circle cx="8" cy="9" r="1.3"/>',
+            map: '<path d="M4 6l5-2 6 2 5-2v14l-5 2-6-2-5 2z"/><path d="M9 4v14M15 6v14"/>',
+            par: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M10 17V8h3.5a2.7 2.7 0 010 5.4H10"/>'
+        };
+        const aufruf = f => () => { try { f(); } catch (e) { } };
+        const T = [
+            ['cam', 'Foto', 'Kamera öffnen', aufruf(() => openPhotoCamera(true))],
+            ['img', 'Bild', 'aus Dateien', aufruf(() => openPhotoGallery())],
+            ['sun', 'Briefing', 'Tag in Kürze', aufruf(() => triggerDailyBriefing())],
+            ['mon', 'Überblick', 'dein Tag', aufruf(() => { if (typeof closePanel === 'function') closePanel(); showUeberblick(false); })],
+            ['lst', 'Einkauf', 'Liste', aufruf(() => openPanel('einkauf')), 'uebS2Einkauf'],
+            ['tag', 'Preissuche', 'günstig finden', aufruf(() => { if (window.jvPreisWaechter && window.jvPreisWaechter.oeffnen) window.jvPreisWaechter.oeffnen(); })],
+            ['map', 'Karte', 'Standort, Route', aufruf(() => openPanel('karte'))],
+            ['par', 'Parkplatz', 'Auto finden', aufruf(() => parkButtonTap())]
+        ];
+        const g = document.createElement('div'); g.id = 'uebSeite2';
+        T.forEach(t => {
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'ueb-s2-knopf';
+            b.innerHTML = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' + SVG[t[0]] + '</svg><span><small' + (t[4] ? ' id="' + t[4] + '"' : '') + '>' + t[2] + '</small><b>' + t[1] + '</b></span>';
+            b.addEventListener('click', () => { try { if (typeof playUiBeep === 'function') playUiBeep(); } catch (e) { } t[3](); });
+            g.appendChild(b);
+        });
+        raster.parentNode.insertBefore(g, raster.nextSibling);
+        const punkte = document.createElement('div'); punkte.id = 'uebPunkte';
+        const p1 = document.createElement('button'), p2 = document.createElement('button');
+        [p1, p2].forEach((p, i) => { p.type = 'button'; p.setAttribute('aria-label', 'Seite ' + (i + 1)); punkte.appendChild(p); });
+        box.appendChild(punkte);
+        function zeige(n) {
+            box.classList.toggle('ueb-s2', n === 2); p1.classList.toggle('on', n === 1); p2.classList.toggle('on', n === 2);
+            try { const e = $('uebS2Einkauf'), l = (typeof shoppingEntries !== 'undefined' && shoppingEntries) ? shoppingEntries.length : 0; if (e) e.textContent = l ? l + (l === 1 ? ' Ding' : ' Dinge') : 'Liste'; } catch (e) { }
+        }
+        p1.addEventListener('click', () => zeige(1)); p2.addEventListener('click', () => zeige(2)); zeige(1);
+        let x0 = null, y0 = null;
+        box.addEventListener('touchstart', e => { const t = e.touches && e.touches[0]; if (t && !(e.target.closest && e.target.closest('input,textarea'))) { x0 = t.clientX; y0 = t.clientY; } else x0 = null; }, { passive: true });
+        box.addEventListener('touchend', e => {
+            if (x0 === null) return; const t = e.changedTouches && e.changedTouches[0]; if (!t) return;
+            const dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) zeige(dx < 0 ? 2 : 1);
+        }, { passive: true });
+        window.jvUebersicht.seite = zeige;
+    }
 
     /* Eingabeleiste: ein getippter Satz geht denselben Weg wie ein gesprochener (voice.js: window.jvTippen). Das Tastatur-Symbol klappt die Leiste auf. */
     function tippLeiste() {
