@@ -93,6 +93,8 @@ const HELP_TOPICS = [
         'Das ist meine Tochter Julia (nach einem Foto)', 'Merk dir, wie Julia aussieht', 'Vergiss, wie Julia aussieht', '(Zane beschreibt nur das äußere Aussehen und fragt vorher, ob er es merken soll. Das Foto selbst wird nicht gespeichert, ein Gesicht erkennt er später nicht wieder.)'] },
     { key: 'internet', icon: '🌐', title: 'Aus dem Internet', words: /internet|fernseh|paket|öffnungszeit|oeffnungszeit/, examples: [
         'Was läuft heute Abend im Fernsehen?', 'Wo ist mein Paket?', 'Wann hat der Baumarkt heute auf?', 'Was läuft heute Abend im Kino in Hamburg?'] },
+    { key: 'assistent', icon: '🎙', title: 'Jarvis per Google öffnen', words: /hey google|bixby|akku|strom|sprachtaste/, examples: [
+        'Sag "Hey Google, öffne Jarvis" (oder "Hey Bixby"): Jarvis öffnet sich, sagt "Ja?" und hört zu. So kannst du das Weckwort in den Jarvis-Einstellungen ausschalten und Akku sparen (nur Handy-App)'] },
     { key: 'seite2', icon: '📱', title: 'Zweite Startseite', words: /seite 2|zweite seite|wischen|knöpfe|foto.*startseite/, examples: [
         'Auf der Startseite nach links wischen (oder auf die zwei Punkte unten tippen): Seite 2 mit Knöpfen für Foto, Bild aus Dateien, Briefing, Überblick, Einkauf, Preissuche, Karte und Parkplatz', 'Nach rechts wischen bringt dich zurück zu Seite 1'] },
     { key: 'tippen', icon: '⌨', title: 'Eintippen statt sprechen', words: /tippen|schreiben|tastatur|eingeben/, examples: [
