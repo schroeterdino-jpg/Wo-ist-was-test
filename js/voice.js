@@ -780,7 +780,7 @@ if (SpeechRecognition) {
     recognition.onspeechstart = () => jvHearing(true);
     recognition.onspeechend = () => jvHearing(false);
     recognition.onsoundend = () => jvHearing(false);
-    recognition.onresult = (event) => {
+    window.jvTippen = handleRecognizedText; recognition.onresult = (event) => {
         const text = event.results[event.results.length - 1][0].transcript;
 
         if (wakeWordListening) {
