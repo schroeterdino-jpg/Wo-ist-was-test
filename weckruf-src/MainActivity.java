@@ -629,10 +629,24 @@ public class MainActivity extends Activity {
         if (pendingMeldung != null) h.postDelayed(() -> js("if(window.jvSchlaf&&window.jvSchlaf.pruefe)window.jvSchlaf.pruefe();"), 800);
     }
 
+    /** Wurde die App vom Sprachassistenten (Google, Gemini, Bixby) oder per Sprachtaste (Headset, Auto) geöffnet? Dann soll Jarvis gleich zuhören. */
+    private boolean vonSprachassistent(Intent i) {
+        try {
+            String a = i.getAction();
+            if (Intent.ACTION_VOICE_COMMAND.equals(a) || Intent.ACTION_ASSIST.equals(a)) return true;
+            Uri r = getReferrer();
+            String h = r == null ? null : r.getHost();
+            return h != null && (h.equals("com.google.android.googlequicksearchbox") || h.equals("com.google.android.apps.bard") || h.startsWith("com.samsung.android.bixby"));
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     private void handleIntent(Intent i) {
         meldungAnstossen();
         if (i != null && i.getBooleanExtra("alarmAus", false)) NachrichtenService.alarmAus(this);   // Alarm-Meldung angetippt: Ton aus
         if (i != null && i.getBooleanExtra("wake", false)) pendingWake = true;
+        if (i != null && vonSprachassistent(i)) pendingWake = true;   // "Hey Google, öffne Jarvis" / Sprachtaste: Jarvis sagt "Ja?" und hört zu
         if (i != null && i.getBooleanExtra("auto", false)) pendingAuto = true;
         if (i != null) {
             String an = i.getStringExtra("ansage");
