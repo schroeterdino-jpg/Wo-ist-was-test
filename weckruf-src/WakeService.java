@@ -222,8 +222,8 @@ public class WakeService extends Service implements RecognitionListener {
     }
 
     private void wakeLockAnpassen() {
-        if (ausgeschaltet()) {
-            // ausgeschaltet: kein Dauer-Wachhalten, das spart Akku
+        if (ausgeschaltet() || Prefs.testOhneWachsperre(this)) {
+            // ausgeschaltet (Knopf/Nachtruhe) oder Testschalter "Wach-Sperre deaktivieren (Test)": kein Dauer-Wachhalten
             if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
             wakeLock = null;
         } else if (wakeLock == null) {
@@ -255,6 +255,12 @@ public class WakeService extends Service implements RecognitionListener {
             nachtPlanen();
             evalVosk();
         } catch (Throwable ignored) { }
+    }
+
+    /** Testschalter Wach-Sperre wurde umgestellt: Sperre sofort freigeben bzw. wieder holen, ohne Neustart des Dienstes. */
+    static void wachsperreGeaendert() {
+        final WakeService s = inst;
+        if (s != null) s.main.post(s::wakeLockAnpassen);
     }
 
     static void nachtGeaendert() {
