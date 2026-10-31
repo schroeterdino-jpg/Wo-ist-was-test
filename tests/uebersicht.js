@@ -38,6 +38,12 @@ check('Felder in der vereinbarten Reihenfolge (Arbeitsweg, Regen, Diesel, Schich
     check('Eingabeleiste: Enter sendet, Symbol klappt die Leiste auf und zu', /e\.key === 'Enter'/.test(ue) && /bar\.hidden = false/.test(ue));
 }
 
+/* 5d Tagesüberblick offen: isPanelOpen() ist wahr, currentPanel aber null - refreshOpenPanel darf dann nicht abstürzen */
+{
+    const pa = fs.readFileSync(path.join(ROOT, 'js/panels.js'), 'utf8');
+    check('panels.js: keine ungeschützten currentPanel.name-Zugriffe nach isPanelOpen()', !/!isPanelOpen\(\) \|\| currentPanel\.name/.test(pa) && /if \(!currentPanel \|\| !isPanelOpen\(\) \|\| !\['termine', 'erinnerungen'\]/.test(pa));
+}
+
 /* 6 Startseite anpassen (js/startseite_anpassen.js): Felder ein-/ausschalten und verschieben, nur lokal, Standard unverändert */
 {
     const anp = fs.readFileSync(path.join(ROOT, 'js/startseite_anpassen.js'), 'utf8'), idx = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), pan = fs.readFileSync(path.join(ROOT, 'js/panels.js'), 'utf8'), css = fs.readFileSync(path.join(ROOT, 'style.css'), 'utf8');
