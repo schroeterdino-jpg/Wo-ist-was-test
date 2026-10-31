@@ -165,7 +165,7 @@ function buildTerminePanel(options = {}, now = new Date()) {
    als Karten im Fenster zeigen UND einmal laut vorlesen. */
 let terminRouteToken = 0;
 async function initTerminRouteSummaries() {
-    if (!isPanelOpen() || currentPanel.name !== 'termine') return;
+    if (!isPanelOpen() || !currentPanel || currentPanel.name !== 'termine') return;
     const box = document.getElementById('terminRouteBox');
     if (!box || typeof appointmentDepartureSummaries !== 'function') return;
     const token = ++terminRouteToken;
@@ -173,7 +173,7 @@ async function initTerminRouteSummaries() {
     box.innerHTML = `<p class="text-[#5d7e91] mt-2">Route &amp; Verkehr werden geprüft ...</p>`;
     let result;
     try { result = await appointmentDepartureSummaries(); } catch (e) { result = null; }
-    if (token !== terminRouteToken || !isPanelOpen() || currentPanel.name !== 'termine') return;
+    if (token !== terminRouteToken || !isPanelOpen() || !currentPanel || currentPanel.name !== 'termine') return;
 
     if (!result || (!result.termine.length && !result.sprit)) { box.innerHTML = ''; return; }
 
@@ -399,7 +399,7 @@ function closePanel() {
 /* Wird von renderAllLists() aufgerufen: aktualisiert ein offenes Termine- oder Erinnerungen-Fenster,
    ohne die Animation noch einmal abzuspielen (und nur, wenn sich wirklich etwas geändert hat). */
 function refreshOpenPanel() {
-    if (!isPanelOpen() || !['termine', 'erinnerungen'].includes(currentPanel.name)) return;
+    if (!currentPanel || !isPanelOpen() || !['termine', 'erinnerungen'].includes(currentPanel.name)) return;
     const body = document.getElementById('panelBody');
     if (!body) return;
     const built = buildDynamicPanel(currentPanel.name, currentPanel.options);
@@ -803,7 +803,7 @@ function hudAddMarker(cls, inner, lat, lon, popupHtml, group) {
 }
 
 async function initHudMap(options = {}) {
-    if (!document.getElementById('hudMap') || !isPanelOpen() || currentPanel.name !== 'karte') return;
+    if (!document.getElementById('hudMap') || !isPanelOpen() || !currentPanel || currentPanel.name !== 'karte') return;
     hudMapDestroy();
     hudMapStatus('Lade Karte ...');
     const pre = hudMapPre || (hudMapPrefetch(options), hudMapPre);
@@ -817,7 +817,7 @@ async function initHudMap(options = {}) {
     }
     const base = await baseP;
     const el = document.getElementById('hudMap');
-    if (!el || !isPanelOpen() || currentPanel.name !== 'karte') return;
+    if (!el || !isPanelOpen() || !currentPanel || currentPanel.name !== 'karte') return;
     injectHudMapStyles();
 
     let map;
@@ -1071,7 +1071,7 @@ function buildNachrichtenPanel(options = {}) {
 }
 
 async function initNachrichtenPanel(options = {}) {
-    if (!isPanelOpen() || currentPanel.name !== 'nachrichten') return;
+    if (!isPanelOpen() || !currentPanel || currentPanel.name !== 'nachrichten') return;
     const place = options.place || 'Deutschland';
     weltStatus(`Suche Nachrichten zu ${place} ...`);
     const isGermany = normalizeKey(place) === 'deutschland';
@@ -1082,7 +1082,7 @@ async function initNachrichtenPanel(options = {}) {
     } catch (e) {
         news = { articles: [], video: null, fehler: 'Nachrichten gerade nicht verfügbar.' };
     }
-    if (!isPanelOpen() || currentPanel.name !== 'nachrichten') return;
+    if (!isPanelOpen() || !currentPanel || currentPanel.name !== 'nachrichten') return;
     weltRenderNews(place, news);
 }
 
@@ -1103,7 +1103,7 @@ function buildTabellePanel(options = {}) {
 }
 
 async function initTabellePanel(options = {}) {
-    if (!isPanelOpen() || currentPanel.name !== 'tabelle') return;
+    if (!isPanelOpen() || !currentPanel || currentPanel.name !== 'tabelle') return;
     const liga = options.liga === 'bl2' ? 'bl2' : 'bl1';
     const statusEl = document.getElementById('tabelleStatus');
     const box = document.getElementById('tabelleBox');
@@ -1111,7 +1111,7 @@ async function initTabellePanel(options = {}) {
     const season = bundesligaSeasonYear();
     try {
         const res = await fetch(`https://api.openligadb.de/getbltable/${liga}/${season}`);
-        if (!isPanelOpen() || currentPanel.name !== 'tabelle') return;
+        if (!isPanelOpen() || !currentPanel || currentPanel.name !== 'tabelle') return;
         if (!res.ok) throw new Error('Status ' + res.status);
         const table = await res.json();
         if (!Array.isArray(table) || !table.length) {
@@ -1327,7 +1327,7 @@ function weltCreateGlobe() {
 }
 
 async function initWelt(options = {}) {
-    if (!document.getElementById('hudGlobe') || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (!document.getElementById('hudGlobe') || !isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     const my = weltToken;
     injectWeltStyles();
     weltStatus('Lade Weltkugel ...');
@@ -1337,7 +1337,7 @@ async function initWelt(options = {}) {
         const loaded = await weltWithTimeout(ensureGlobeGl().then(() => true), 6000, false);
         if (!loaded) throw new Error('Zeitüberschreitung beim Laden');
     } catch (e) { libOk = false; weltStatus('Die Weltkugel konnte nicht geladen werden. Besteht eine Internetverbindung?'); }
-    if (my !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (my !== weltToken || !isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     if (libOk) {
         try { weltCreateGlobe(); }
         catch (e) { console.error('Weltkugel konnte nicht gestartet werden', e); weltStatus('Die Weltkugel konnte nicht aufgebaut werden. Unterstützt der Browser WebGL?'); }
@@ -1452,7 +1452,7 @@ async function weltSummary(place, articles) {
 /* Zu einem Ort drehen, Meldungen zeigen und vorlesen. Funktioniert auch, wenn das Fenster schon offen ist ("Und in Portugal?"). */
 async function weltShowPlace(place) {
     place = String(place || '').trim();
-    if (!place || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (!place || !isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     const token = ++weltToken;
     const pre = (weltPre && weltPre.place.toLowerCase() === place.toLowerCase()) ? weltPre : null;
     weltPre = null;
@@ -1467,13 +1467,13 @@ async function weltShowPlace(place) {
     renderWeltWiki(null);   // alten Absatz vom vorigen Ort sofort weg, statt kurz stehen zu lassen
 
     const [geo, news, wiki] = await Promise.all([geoP, newsP, wikiP]);
-    if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (token !== weltToken || !isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     if (geo && weltGlobe) weltFlyTo(geo.lat, geo.lon, place);
     renderWeltWiki(wiki);
     weltRenderNews(place, news);
 
     let spoken = await weltWithTimeout(weltSummary(place, news.articles), 14000, (news.articles || []).length ? `Zu ${place}: ${news.articles.slice(0, 2).map(a => a.title).join('. ')}.` : '');
-    if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (token !== weltToken || !isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     if (!spoken) spoken = news.fehler ? 'Der Nachrichtendienst antwortet gerade nicht.' : `Zu ${place} habe ich gerade keine aktuellen Meldungen gefunden.`;
     // Gibt es ein Video, startet es nach der Zusammenfassung (das Mikrofon bleibt währenddessen aus, sonst hört es das Video mit)
     const video = news && news.video && /^https:\/\//i.test(news.video.url || '') ? news.video : null;
@@ -1576,12 +1576,12 @@ function weltIssUpdate(p, fly) {
 }
 
 async function weltShowIss() {
-    if (!isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (!isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     const token = ++weltToken;
     weltStatus('Suche die ISS ...');
     weltResetLive();
     const p = await fetchIss();
-    if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (token !== weltToken || !isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     if (!p) {
         weltStatus('Die ISS-Daten sind gerade nicht erreichbar.');
         speak('Die Positionsdaten der ISS sind gerade nicht erreichbar.', continueConversation);
@@ -1589,7 +1589,7 @@ async function weltShowIss() {
     }
     weltIssUpdate(p, true);
     const where = await weltIssPlaceName(p);
-    if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (token !== weltToken || !isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     const km = weltNum(Math.round(p.altitude));
     const speed = weltNum(Math.round(p.velocity / 100) * 100);
     speak(`Die Internationale Raumstation befindet sich gerade ${where}, in ${km} Kilometern Höhe, mit etwa ${speed} Kilometern pro Stunde.`, continueConversation);
@@ -1605,7 +1605,7 @@ async function weltShowIss() {
 function quakeColor(m) { return m >= 6 ? '#ff3b3b' : m >= 5 ? '#ff7a1a' : m >= 4 ? '#ffb703' : '#ffe08a'; }
 
 async function weltShowQuakes() {
-    if (!isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (!isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     const token = ++weltToken;
     weltStatus('Lade Erdbebendaten ...');
     weltResetLive();
@@ -1618,7 +1618,7 @@ async function weltShowQuakes() {
             lat: Number(f.geometry.coordinates[1]), lng: Number(f.geometry.coordinates[0]), url: f.properties.url
         })).filter(q => isFinite(q.mag) && isFinite(q.lat) && isFinite(q.lng)).sort((a, b) => b.mag - a.mag);
     } catch (e) { list = null; }
-    if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (token !== weltToken || !isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     if (!list || !list.length) {
         weltStatus(list ? 'In den letzten 24 Stunden gab es keine Beben ab Stärke 2,5.' : 'Die Erdbebendaten sind gerade nicht erreichbar.');
         speak(list ? 'In den letzten 24 Stunden gab es keine Erdbeben ab Stärke 2,5.' : 'Die Erdbebendaten sind gerade nicht erreichbar.', continueConversation);
@@ -1656,13 +1656,13 @@ function weltDispatch(place, mode) {
 
 /* "Wo befinde ich mich?" auf der Weltkugel: zoomt zum eigenen, aktuellen Standort (keine Nachrichten dazu, nur die Position) */
 async function weltShowMyLocation() {
-    if (!isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (!isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     const token = ++weltToken;
     weltStatus('Ermittle Standort ...');
     weltResetLive();
     let loc;
     try { loc = await fetchUserLocationData(); } catch (e) { loc = null; }
-    if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (token !== weltToken || !isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     if (!loc || loc.fehler || loc.latitude === undefined) {
         weltStatus('Standort nicht verfügbar. Ist der Standortzugriff erlaubt?');
         speak('Ihren Standort konnte ich gerade nicht ermitteln.', continueConversation);
@@ -1839,7 +1839,7 @@ async function fetchLiveCams(place) {
 }
 
 async function weltShowLive(nameOrKey) {
-    if (!isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (!isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     const token = ++weltToken;
     const q = String(nameOrKey || '').trim();
     const cam = weltFindCam(q);                    // bekannte Namen ("newyork" -> "New York"), sonst der genannte Ort
@@ -1855,7 +1855,7 @@ async function weltShowLive(nameOrKey) {
     const geoP = weltWithTimeout(weltGeocode(cam ? cam.where : place), 8000, null);
     const resP = weltWithTimeout(fetchLiveCams(place), 15000, { items: [], fehler: 'Zeitüberschreitung' });
     const [geo, res] = await Promise.all([geoP, resP]);
-    if (token !== weltToken || !isPanelOpen() || currentPanel.name !== 'welt') return;
+    if (token !== weltToken || !isPanelOpen() || !currentPanel || currentPanel.name !== 'welt') return;
     if (geo && weltGlobe) weltFlyTo(geo.lat, geo.lon, place);
 
     if (!res.items.length) {
@@ -2360,7 +2360,7 @@ const DASHBOARD_REVEAL_MS = 1050;  // Abstand, mit dem jede Kachel EINZELN im Bi
 /* Kacheln erscheinen nacheinander im DOM (nicht nur zeitversetzt animiert, sondern wirklich erst eine, dann die nächste) -
    das Laden der Daten je Kachel läuft parallel im Hintergrund und darf die anderen Kacheln nicht aufhalten. */
 async function initDashboard() {
-    if (!isPanelOpen() || currentPanel.name !== 'dashboard') return;
+    if (!isPanelOpen() || !currentPanel || currentPanel.name !== 'dashboard') return;
     const token = ++dashboardToken;
     const container = document.getElementById('dashTiles');
     if (!container) return;
@@ -2376,7 +2376,7 @@ async function initDashboard() {
     const wideIndex = visible.length % 2 === 1 ? visible.length - 1 : -1;
     const reveal = dashboardZigzagOrder(visible.length);   // z.B. bei 5 Kacheln: 0, 4, 1, 3, 2 - kreuz und quer statt der Reihe nach
     for (let n = 0; n < reveal.length; n++) {
-        if (token !== dashboardToken || !isPanelOpen() || currentPanel.name !== 'dashboard') return;
+        if (token !== dashboardToken || !isPanelOpen() || !currentPanel || currentPanel.name !== 'dashboard') return;
         const gridIndex = reveal[n];
         const c = visible[gridIndex];
         const wrap = document.createElement('div');
