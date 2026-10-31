@@ -37,6 +37,9 @@ final class Prefs {
     static String stat(Context c) { return sp(c).getString("stat", "noch keine Messung"); }
     static void setStat(Context c, String s) { sp(c).edit().putString("stat", s).apply(); }
     // Unterbrechen per Sprache (Test): Jarvis hört beim Sprechen weiter auf "Hey Jarvis" (strengere Schwelle)
+    /** NUR TEST: Wach-Sperre (PARTIAL_WAKE_LOCK) des Weckwort-Dienstes nicht halten. Standard aus = bisheriges Verhalten. */
+    static boolean testOhneWachsperre(Context c) { return sp(c).getBoolean("testOhneWachsperre", false); }
+    static void setTestOhneWachsperre(Context c, boolean v) { sp(c).edit().putBoolean("testOhneWachsperre", v).apply(); }
     static boolean unterbrechen(Context c) { return sp(c).getBoolean("unterbrechen", false); }
     static void setUnterbrechen(Context c, boolean v) { sp(c).edit().putBoolean("unterbrechen", v).apply(); }
     // Auto (Bluetooth) für den automatischen Parkplatz

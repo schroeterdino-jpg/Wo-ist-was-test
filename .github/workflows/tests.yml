@@ -54,6 +54,7 @@ jobs:
           node tests/pending_reihenfolge.js
           node tests/pending_zweite_stufe.js
           node tests/reihenfolge.js
+          node tests/stromtest.js
           node tests/suche.js
           node tests/timer.js
           node tests/uebersicht.js

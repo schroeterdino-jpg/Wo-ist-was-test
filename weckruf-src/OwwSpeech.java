@@ -71,6 +71,7 @@ class OwwSpeech {
         boolean rechnet = false;
         int still = 0, lautSerie = 0, ignorieren = 0;
         long blocksWin = 0, blocksWinRech = 0, blocksWinLaut = 0;
+        long blocksAll = 0, vadWin = 0, vadPosWin = 0, vadAll = 0, vadPosAll = 0, trefferAll = 0;   // nur Zähler für die Messzeile, sie beeinflussen keine Entscheidung
         int sprachHalt = 0, vadStill = VAD_AUS;
         boolean vadLauft = false;
         try {
@@ -107,7 +108,8 @@ class OwwSpeech {
                         if (vadStill < VAD_AUS) {
                             if (!vadLauft) { vad.reset(); vadLauft = true; }
                             float p = vad.feed(block, block.length);
-                            if (p >= SPRACHE) sprachHalt = SPRACH_HALT; else if (sprachHalt > 0) sprachHalt--;
+                            vadWin++;
+                            if (p >= SPRACHE) { sprachHalt = SPRACH_HALT; vadPosWin++; } else if (sprachHalt > 0) sprachHalt--;
                         } else {
                             vadLauft = false;
                             if (sprachHalt > 0) sprachHalt--;
@@ -119,7 +121,7 @@ class OwwSpeech {
                     }
                 }
 
-                blocksWin++;
+                blocksWin++; blocksAll++;
                 if (energie) blocksWinLaut++;
                 if (!rechnet && aktiv) {
                     rechnet = true;
@@ -149,6 +151,7 @@ class OwwSpeech {
                         if (sperre > 0) sperre--;
                         else if (score >= threshold) {
                             sperre = 25;   // 2 s Ruhe nach einem Treffer
+                            trefferAll++;
                             try { Prefs.setLast(ctx, "erkannt: " + String.format(Locale.US, "%.2f", score)); } catch (Throwable ignored) { }
                             final float s = score;
                             main.post(() -> { try { l.onWake(s); } catch (Throwable ignored) { } });
@@ -165,10 +168,15 @@ class OwwSpeech {
                 long now = System.nanoTime();
                 if (now - winStart >= 10_000_000_000L) {   // alle 10 Sekunden: Messwerte für die Einstellungen
                     try {
+                        vadAll += vadWin; vadPosAll += vadPosWin;
                         Prefs.setStat(ctx, Math.round(100.0 * busyWin / (now - winStart)) + " % zuletzt, "
                                 + Math.round(100.0 * busyAll / (now - start)) + " % seit Start (openWakeWord, gemessene Rechenzeit); Schranke: rechnet in "
                                 + Math.round(100.0 * blocksWinRech / Math.max(1, blocksWin)) + " % der Zeit (Lautstärke offen "
-                                + Math.round(100.0 * blocksWinLaut / Math.max(1, blocksWin)) + " %, Sprachfilter " + (vad != null ? "an" : "aus") + ")");
+                                + Math.round(100.0 * blocksWinLaut / Math.max(1, blocksWin)) + " %, Sprachfilter " + (vad != null ? "an" : "aus") + ")"
+                                + "\nSprachfilter geprüft: " + Math.round(100.0 * vadWin / Math.max(1, blocksWin)) + " % der Blöcke, davon Sprache "
+                                + Math.round(100.0 * vadPosWin / Math.max(1, vadWin)) + " % (seit Start: geprüft "
+                                + Math.round(100.0 * vadAll / Math.max(1, blocksAll)) + " %, Sprache " + Math.round(100.0 * vadPosAll / Math.max(1, vadAll)) + " %)"
+                                + "\nMessdauer: " + ((now - start) / 60_000_000_000L) + " Min., Treffer seit Start: " + trefferAll);
                         Prefs.setLast(ctx, "höchster Wert zuletzt: " + String.format(Locale.US, "%.2f", peak)
                                 + " (löst ab " + String.format(Locale.US, "%.2f", threshold) + " aus)");
                     } catch (Throwable ignored) { }
@@ -177,6 +185,8 @@ class OwwSpeech {
                     blocksWin = 0;
                     blocksWinRech = 0;
                     blocksWinLaut = 0;
+                    vadWin = 0;
+                    vadPosWin = 0;
                     peak = 0f;
                 }
             }

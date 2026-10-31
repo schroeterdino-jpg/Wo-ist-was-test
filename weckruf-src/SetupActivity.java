@@ -230,6 +230,8 @@ public class SetupActivity extends Activity {
         });
         trenner(wc);
         schalter(wc, "Jarvis beim Sprechen unterbrechen", Prefs.unterbrechen(this), (b, an) -> { Prefs.setUnterbrechen(this, an); WakeService.neuStarten(); });
+        trenner(wc);
+        schalter(wc, "Wach-Sperre deaktivieren (Test)", Prefs.testOhneWachsperre(this), (b, an) -> { Prefs.setTestOhneWachsperre(this, an); WakeService.wachsperreGeaendert(); });
 
         // Nachtruhe
         LinearLayout nc = card(root, "Nachtruhe", LINE);
