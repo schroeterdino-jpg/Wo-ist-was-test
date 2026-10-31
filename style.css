@@ -637,3 +637,11 @@ body main.container { padding-top: 0; padding-bottom: 1rem; }
 #uebersicht { position: relative; }
 #sec-speak { padding-top: 0 !important; padding-bottom: 0 !important; }
 .ueb-karte.ueb-aus { display: none; }   /* Startseite anpassen (js/startseite_anpassen.js) */
+
+/* Eingabeleiste der Startseite (js/uebersicht.js: tippLeiste) */
+#jvTippBtn { position: fixed; right: 14px; bottom: 14px; z-index: 60; width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgba(93,209,255,.5); background: rgba(6,14,22,.92); color: #49d7ff; font-size: 22px; line-height: 1; }
+#jvTippBtn.on { background: rgba(73,215,255,.2); }
+#jvTippBar { position: fixed; left: 10px; right: 70px; bottom: 10px; z-index: 61; display: flex; gap: 8px; align-items: center; background: rgba(6,14,22,.96); border: 1px solid rgba(93,209,255,.55); border-radius: 14px; padding: 8px 10px; box-shadow: 0 0 18px rgba(73,215,255,.25); }
+#jvTippBar[hidden] { display: none; }
+#jvTippInput { flex: 1 1 auto; min-width: 0; background: #000; border: 1px solid rgba(93,209,255,.25); border-radius: 10px; padding: 11px; color: #e6f3fa; font-size: 16px; outline: none; }
+#jvTippSenden { padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(87,224,161,.6); background: rgba(87,224,161,.18); color: #57e0a1; font: 700 13px "IBM Plex Mono", monospace; letter-spacing: .08em; }

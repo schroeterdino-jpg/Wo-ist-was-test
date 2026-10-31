@@ -30,6 +30,14 @@ check('Felder in der vereinbarten Reihenfolge (Arbeitsweg, Regen, Diesel, Schich
     check('Diesel-Feld öffnet weiter nur die Diesel-Ansicht', /tippe\('uebDiesel'.*open\(false, 'diesel'\)/.test(ue));
 }
 
+/* 5c Eingabeleiste: getippter Satz geht denselben Weg wie ein gesprochener */
+{
+    const ue = fs.readFileSync(path.join(ROOT, 'js/uebersicht.js'), 'utf8'), vo = fs.readFileSync(path.join(ROOT, 'js/voice.js'), 'utf8');
+    check('Eingabeleiste: voice.js gibt window.jvTippen = handleRecognizedText frei', /window\.jvTippen = handleRecognizedText;/.test(vo));
+    check('Eingabeleiste: Senden ruft jvTippen mit dem getippten Satz (Rückfall sendToGroqSmart), leerer Satz sendet nichts', /window\.jvTippen\(t\)/.test(ue) && /if \(!t\) \{ zu\(\); return; \}/.test(ue) && /sendToGroqSmart\(t\)/.test(ue));
+    check('Eingabeleiste: Enter sendet, Symbol klappt die Leiste auf und zu', /e\.key === 'Enter'/.test(ue) && /bar\.hidden = false/.test(ue));
+}
+
 /* 6 Startseite anpassen (js/startseite_anpassen.js): Felder ein-/ausschalten und verschieben, nur lokal, Standard unverändert */
 {
     const anp = fs.readFileSync(path.join(ROOT, 'js/startseite_anpassen.js'), 'utf8'), idx = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), pan = fs.readFileSync(path.join(ROOT, 'js/panels.js'), 'utf8'), css = fs.readFileSync(path.join(ROOT, 'style.css'), 'utf8');

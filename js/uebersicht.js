@@ -196,7 +196,7 @@
     }
 
     function start() {
-        eqBauen();
+        eqBauen(); tippLeiste();
         tippe('uebArbeit', () => { if (window.jvLage && window.jvLage.open) window.jvLage.open(); });
         tippe('uebRegen', () => { if (window.jvWetterkarte) window.jvWetterkarte.oeffnen('rain'); else if (window.jvLage && window.jvLage.open) window.jvLage.open(); });
         tippe('uebDiesel', () => { if (window.jvLage && window.jvLage.open) window.jvLage.open(false, 'diesel'); });
@@ -211,4 +211,23 @@
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
     window.jvUebersicht = { auffrischen, lokal };
+
+    /* Eingabeleiste: ein getippter Satz geht denselben Weg wie ein gesprochener (voice.js: window.jvTippen). Das Tastatur-Symbol klappt die Leiste auf. */
+    function tippLeiste() {
+        const box = $('uebersicht'); if (!box || $('jvTippBtn')) return;
+        const btn = document.createElement('button'); btn.id = 'jvTippBtn'; btn.type = 'button'; btn.textContent = '⌨'; btn.setAttribute('aria-label', 'Jarvis etwas schreiben');
+        const bar = document.createElement('div'); bar.id = 'jvTippBar'; bar.hidden = true;
+        const inp = document.createElement('input'); inp.type = 'text'; inp.id = 'jvTippInput'; inp.placeholder = 'Jarvis etwas schreiben…'; inp.autocomplete = 'off'; inp.enterKeyHint = 'send';
+        const ok = document.createElement('button'); ok.type = 'button'; ok.id = 'jvTippSenden'; ok.textContent = 'SENDEN';
+        bar.appendChild(inp); bar.appendChild(ok); box.appendChild(btn); box.appendChild(bar);
+        function zu() { bar.hidden = true; btn.classList.remove('on'); inp.blur(); }
+        function senden() {
+            const t = inp.value.trim(); if (!t) { zu(); return; }
+            inp.value = ''; zu();
+            try { if (typeof window.jvTippen === 'function') window.jvTippen(t); else if (typeof sendToGroqSmart === 'function') sendToGroqSmart(t); } catch (e) { }
+        }
+        btn.addEventListener('click', () => { try { if (typeof playUiBeep === 'function') playUiBeep(); } catch (e) { } if (bar.hidden) { bar.hidden = false; btn.classList.add('on'); setTimeout(() => inp.focus(), 50); } else zu(); });
+        ok.addEventListener('click', senden);
+        inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); senden(); } else if (e.key === 'Escape') zu(); });
+    }
 })();
