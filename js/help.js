@@ -97,6 +97,8 @@ const HELP_TOPICS = [
         'Sag "Hey Google, öffne Jarvis" (oder "Hey Bixby"): Jarvis öffnet sich, sagt "Ja?" und hört zu. So kannst du das Weckwort in den Jarvis-Einstellungen ausschalten und Akku sparen (nur Handy-App)'] },
     { key: 'seite2', icon: '📱', title: 'Zweite Startseite', words: /seite 2|zweite seite|wischen|knöpfe|foto.*startseite/, examples: [
         'Auf der Startseite nach links wischen (oder auf die zwei Punkte unten tippen): Seite 2 mit Knöpfen für Foto, Bild aus Dateien, Briefing, Überblick, Einkauf, Preissuche, Karte und Parkplatz', 'Nach rechts wischen bringt dich zurück zu Seite 1'] },
+    { key: 'webbau', icon: '🛠', title: 'Website bauen', words: /website|webseite|homepage|internetseite|ohne website/, examples: [
+        'Finde einen Friseur ohne Website (auch Café oder Handwerker): Jarvis sucht in deiner Nähe einen Betrieb ohne Website und baut ihm eine, du siehst es live', 'Bau eine Website für Haarwerk Linde', 'Am Ende: Ansehen, Als Datei speichern oder Teilen. Es wird nichts veröffentlicht, es ist ein Entwurf'] },
     { key: 'tippen', icon: '⌨', title: 'Eintippen statt sprechen', words: /tippen|schreiben|tastatur|eingeben/, examples: [
         'Unten rechts auf der Startseite das ⌨-Symbol antippen, den Satz eintippen und auf Senden tippen: Jarvis behandelt ihn wie einen gesprochenen Satz', 'Zum Beispiel: Wann habe ich morgen Schicht? / Stell einen Wecker auf 6 Uhr'] },
     { key: 'startseite', icon: '🧩', title: 'Startseite anpassen', words: /startseite|felder|dashboard/, examples: [
