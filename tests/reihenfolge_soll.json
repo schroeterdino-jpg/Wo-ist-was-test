@@ -561,6 +561,7 @@
    "  Aufruf 1: 🌴 Urlaubsplan eintragen → runLastPhotoTask('urlaubsplan')",
    "  Aufruf 1: 🍽️ Essensplan merken → runLastPhotoTask('essensplan')",
    "  Aufruf 1: 📤 Per WhatsApp senden → jvFotoSenden.senden()",
+   "  Aufruf 1: 🔎 Ähnliches suchen → jvFotoSenden.lens()",
    "  Aufruf 2: 🍽️ Rezept lesen → runLastPhotoTask('rezept')",
    "  Aufruf 2: 🖨️ Abtippen · Merken → runLastPhotoTask('abtippen')",
    "  Aufruf 2: 🎁 Wunschliste einlesen → runLastPhotoTask('wunschliste')",
@@ -575,6 +576,7 @@
    "  Aufruf 2: 🔤 Vorlesen / übersetzen → runLastPhotoTask('read')",
    "  Aufruf 2: 🔍 Beschreiben → runLastPhotoTask('describe')",
    "  Aufruf 2: 📤 Per WhatsApp senden → jvFotoSenden.senden()",
+   "  Aufruf 2: 🔎 Ähnliches suchen → jvFotoSenden.lens()",
    "showActionCards nach dem Aufruf unverändert (vorübergehende Eingriffe zurückgenommen): true"
   ],
   "fragenMitFoto": [
@@ -585,6 +587,7 @@
    "  Aufruf 1: 🌴 Urlaubsplan eintragen → runLastPhotoTask('urlaubsplan')",
    "  Aufruf 1: 🍽️ Essensplan merken → runLastPhotoTask('essensplan')",
    "  Aufruf 1: 📤 Per WhatsApp senden → jvFotoSenden.senden()",
+   "  Aufruf 1: 🔎 Ähnliches suchen → jvFotoSenden.lens()",
    "  Aufruf 2: 🍽️ Rezept lesen → runLastPhotoTask('rezept')",
    "  Aufruf 2: 🖨️ Abtippen · Merken → runLastPhotoTask('abtippen')",
    "  Aufruf 2: 🎁 Wunschliste einlesen → runLastPhotoTask('wunschliste')",
@@ -599,6 +602,7 @@
    "  Aufruf 2: 🔤 Vorlesen / übersetzen → runLastPhotoTask('read')",
    "  Aufruf 2: 🔍 Beschreiben → runLastPhotoTask('describe')",
    "  Aufruf 2: 📤 Per WhatsApp senden → jvFotoSenden.senden()",
+   "  Aufruf 2: 🔎 Ähnliches suchen → jvFotoSenden.lens()",
    "showActionCards nach dem Aufruf unverändert (vorübergehende Eingriffe zurückgenommen): true"
   ],
   "folgeaktion": [
@@ -631,7 +635,7 @@
    "Befehl \"nein\" bei wartender Adresse = true | sagt: Gut, ich habe nichts gespeichert. | öffnet: "
   ],
   "kartenKetteLang": [
-   "Foto-Auswahl => x A → runLastPhotoTask('read') ; 📤 Per WhatsApp senden → jvFotoSenden.senden()",
+   "Foto-Auswahl => x A → runLastPhotoTask('read') ; 📤 Per WhatsApp senden → jvFotoSenden.senden() ; 🔎 Ähnliches suchen → jvFotoSenden.lens()",
    "normale Karten => y B → foo()",
    "Foto-Auswahl mit schon vorhandener Sende-Karte =>  A → runLastPhotoTask('read') ;  S → jvFotoSenden.senden()",
    "leer => "

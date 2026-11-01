@@ -83,7 +83,7 @@
         try { window.jvFrage && window.jvFrage.neu('photo'); } catch (e) { }
         if (!b) { try { window.photoSay('Das Foto ist da. Was soll ich damit tun?'); } catch (e) {} return; }
         // Unbekanntes Foto: Jarvis sagt kurz, was er sieht, und fragt, was er damit tun soll. Die Auswahlkarten (z. B. WhatsApp senden) bleiben stehen.
-        const tipp = (frisch() && stand.name) ? ' Ich kann zum Beispiel die Preise vergleichen oder schauen, wo du es in der Nähe kaufen kannst.' : '';
+        const tipp = (frisch() && stand.name) ? ' Ich kann zum Beispiel die Preise vergleichen, schauen, wo du es in der Nähe kaufen kannst, oder mit Google Lens etwas Ähnliches suchen.' : '';
         try { window.photoSay('Ich sehe: ' + b + '. Was soll ich damit tun?' + tipp); } catch (e) {}
     }
 
