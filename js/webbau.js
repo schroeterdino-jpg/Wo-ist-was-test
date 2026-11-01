@@ -6,7 +6,7 @@
            bei Fehler stehen feste Ersatztexte da -> Seite baut sich Stück für Stück in der Bau-Ansicht auf (Protokoll links, Handy + Laptop rechts).
    Am Ende: FERTIG, Ansehen (Vollbild), Als Datei speichern (eine .html-Datei), Teilen. Es wird nichts veröffentlicht und nichts an den Betrieb geschickt.
    Fotos: es werden keine fremden Fotos benutzt, nur gezeichnete Bewegung im Hintergrund.
-   Braucht: webbau_vorlagen.js (jvWebSeite), apiFetch (/api/maps, /api/groq), speak. Ordnung 97.
+   Braucht: webbau_vorlagen.js (jvWebSeite), apiFetch (/api/maps, /api/groq), speak. Ordnung 96.5.
    ============================================================ */
 (function () {
     'use strict';
@@ -264,7 +264,7 @@
         window.jvCommands.use('webbau', function (text, next) {
             try { if (handle(text)) return true; } catch (e) { console.error('Website-Bauer', e); }
             return next(text);
-        }, 97);
+        }, 96.5);
     }
     window.jvWebbau = { start, erkenne, zeiten, schliessen, _zustand: () => S };
 })();

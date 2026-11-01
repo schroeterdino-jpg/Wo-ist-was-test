@@ -18,8 +18,8 @@
   "repoDateien": 312,
   "produktJs": 169,
   "jsZeilen": 42710,
-  "jsBytes": 3032038,
-  "jsGzip": 910385,
+  "jsBytes": 3032042,
+  "jsGzip": 910386,
   "scriptTags": 175,
   "eigeneScripts": 169,
   "drittScripts": 2,
@@ -362,7 +362,7 @@
   },
   "commands": {
    "eintraege": 93,
-   "gleicherRangMehrfach": 22
+   "gleicherRangMehrfach": 21
   },
   "chain": {
    "eintraege": 0
