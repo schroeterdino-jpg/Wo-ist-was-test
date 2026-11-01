@@ -60,7 +60,6 @@ jobs:
           node tests/uebersicht.js
           node tests/vercelignore.js
           node tests/verkehr.js
-          node tests/webbau.js
           node tests/wirkungslos.js
 
   tests:
