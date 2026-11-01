@@ -155,7 +155,7 @@ function duplikate(L) {
 
 /* ---------- 7  Tests, Doku, CI, Orphans, SW, Android, API ---------- */
 const TEST_KLASSE = {
-    regression: ['lauf', 'aktionen_kette', 'jarvis_pruefstrecke', 'faehigkeiten', 'handyapp', 'antwort', 'mehrfachfrage', 'c1_stufe1', 'meldungen', 'regeln', 'uebersicht', 'stromtest', 'memory7b', 'verkehr', 'dirigent_fragen', 'pending_reihenfolge', 'pending_zweite_stufe', 'vercelignore'],
+    regression: ['lauf', 'aktionen_kette', 'jarvis_pruefstrecke', 'faehigkeiten', 'handyapp', 'antwort', 'mehrfachfrage', 'c1_stufe1', 'meldungen', 'regeln', 'uebersicht', 'stromtest', 'memory7b', 'verkehr', 'dirigent_fragen', 'pending_reihenfolge', 'pending_zweite_stufe', 'vercelignore', 'kontakte_xss'],
     goldenMaster: ['aktionen', 'reihenfolge', 'sprache', 'globale', 'wirkungslos', 'suche', 'kitext', 'hintergrund'],
     inventar: ['landkarte', 'timer', 'inventar8a'],
     historischEingefroren: ['memory7a'],
