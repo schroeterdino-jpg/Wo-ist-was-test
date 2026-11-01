@@ -15,18 +15,18 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 316,
+  "repoDateien": 317,
   "produktJs": 167,
-  "jsZeilen": 42702,
-  "jsBytes": 3029932,
-  "jsGzip": 907696,
+  "jsZeilen": 42727,
+  "jsBytes": 3032517,
+  "jsGzip": 908548,
   "scriptTags": 173,
   "eigeneScripts": 167,
   "drittScripts": 2,
   "inlineScripts": 4,
   "api": 11,
-  "testsGesamt": 88,
-  "testsJs": 56,
+  "testsGesamt": 89,
+  "testsJs": 57,
   "testsMd": 13,
   "testsJson": 19,
   "workflows": 3,
@@ -440,9 +440,9 @@
   "workflowOhneDatei": [],
   "workflowDoppelt": [],
   "regressionNichtImWorkflow": [],
-  "imWorkflow": 37,
+  "imWorkflow": 38,
   "jeKlasse": {
-   "regression": 25,
+   "regression": 26,
    "goldenMaster": 8,
    "inventar": 3,
    "historischEingefroren": 1,
@@ -458,7 +458,7 @@
  },
  "ci": {
   "nodeVersion": "20",
-  "schritte": 37,
+  "schritte": 38,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
   "zeitzonenVertragZentral": true,
@@ -492,7 +492,7 @@
   "iconsVorhanden": true
  },
  "android": {
-  "nativeMethoden": 55,
+  "nativeMethoden": 56,
   "ungenutzteNative": [],
   "jsRuftFehlendeNative": [],
   "webRueckrufe": [
