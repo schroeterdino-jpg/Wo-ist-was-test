@@ -369,6 +369,9 @@ async function addGoogleCalendarEvent(text, isoStartString, location, recurrence
                 markGoogleExpired();
                 setGoogleProblem('abgelaufen', 401);
             } else if (res.ok) {
+                // Die Antwort von Google enthält die echte Termin-ID (schon geladen, kein zusätzlicher Aufruf). Sie dient nur intern als Erfolgsnachweis, Rückgabe bleibt true.
+                window.jvLetzterGoogleTermin = null;
+                try { const antwort = await res.json(); if (antwort && typeof antwort.id === 'string' && antwort.id) window.jvLetzterGoogleTermin = { id: antwort.id, text: text }; } catch (e) { /* Antwort ohne lesbaren Inhalt: der Termin ist trotzdem angelegt */ }
                 fetchGoogleCalendarEvents();
                 return true;
             } else {

@@ -808,13 +808,10 @@
      "text": "Verschiebe den Friseur",
      "fehler": null,
      "rueckgabe": "undefined",
-     "ctxVorher": "{\"counter\":0,\"cards\":[],\"notes\":[],\"panel\":null}",
      "ctx": {
       "counter": 0,
       "karten": [],
-      "notizen": [
-       "Ich habe keinen passenden Termin zum Ändern gefunden, es wurde nichts geändert."
-      ],
+      "notizen": [],
       "fenster": "null"
      },
      "gesagt": [],
@@ -832,7 +829,7 @@
     "ctx": {
      "counter": 0,
      "karten": 0,
-     "notizen": 1
+     "notizen": 0
     },
     "merkmale": [
      "_gedaechtnis",

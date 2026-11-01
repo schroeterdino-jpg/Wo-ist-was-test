@@ -314,6 +314,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
         if (calendarLookup && calendarLookup.verbindung === 'getrennt') ctx.cards.push(googleReconnectCard());
         let okCount = 0;
         const errors = [];
+        const nichtsSaetze = [];           // G.1: Aktionen, die ohne Fehler bewusst nichts verändert haben (Eintrag schon da, kein Treffer)
         const erfolgTypen = [];            // B3: welche Aktionsarten geklappt haben (für "Termin gespeichert." usw.)
         const verworfeneHinweise = new Set();   // B3: Hinweise von Aktionen, die dann doch fehlgeschlagen sind
         const sonderFehler = {};           // B3: welche Sonderaufgabe (Fahrzeit, Bahn ...) statt eines Ergebnisses eine Fehlermeldung geliefert hat
@@ -322,9 +323,15 @@ async function sendToGroqSmartCore(text, opts = {}) {
             if (action.type === 'calendar_search' || action.type === 'web_lookup' || action.type === 'email_check' || action.type === 'email_read' || action.type === 'travel_time' || action.type === 'nearby_places' || action.type === 'fuel_route' || action.type === 'bahn') continue; // kommen gleich
             const hinweiseVorher = ctx.notes.length;
             try {
+                const nichtsVorher = (ctx[Symbol.for('jv.nichtsGetan')] || []).length;
                 await executeAction(action, text, ctx);
-                okCount++;
-                erfolgTypen.push(action.type);
+                const nichtsNachher = ctx[Symbol.for('jv.nichtsGetan')] || [];
+                if (nichtsNachher.length > nichtsVorher) {   // G.1: nichts verändert -> nicht als erledigt zählen, aber auch kein Fehler
+                    for (let i = nichtsVorher; i < nichtsNachher.length; i++) nichtsSaetze.push(nichtsNachher[i]);
+                } else {
+                    okCount++;
+                    erfolgTypen.push(action.type);
+                }
             } catch (err) {
                 console.error("Aktion fehlgeschlagen:", action, err);
                 errors.push(err.userMessage || "Einen Teil davon konnte ich leider nicht ausführen.");
@@ -565,7 +572,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
             const sonder = [['search', searchReply], ['web', webReply], ['email', emailReply], ['travel', travelReply], ['nearby', nearbyReply], ['fuel', fuelReply], ['nearbyFuel', nearbyFuelReply], ['bahn', bahnReply]]
                 .filter(x => x[1]).map(x => ({ ok: !sonderFehler[x[0]], text: x[1] }));
             const kalenderOk = erfolgTypen.some(t => t === 'calendar' || t === 'calendar_update');
-            replyText = window.jvAntwort.baue({ basis: replyText, sonder, erfolge: erfolgTypen, okAnzahl: okCount, fehler: errors, hinweise: hinweiseOk, ausfaelle: kalenderOk ? mdAusfall : [] });
+            replyText = window.jvAntwort.baue({ basis: replyText, sonder, erfolge: erfolgTypen, okAnzahl: okCount, fehler: errors, nichts: nichtsSaetze, hinweise: hinweiseOk, ausfaelle: kalenderOk ? mdAusfall : [] });
         } else {   // Rückfall (antwort_bau.js fehlt): Verhalten wie früher
             if (errors.length > 0) {
                 if (searchReply) replyText = `${searchReply} ${errors.join(' ')}`;
@@ -573,6 +580,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
                 else replyText = errors.join(' ');
             }
             if (ctx.notes.length > 0 && errors.length === 0) replyText += ' ' + ctx.notes.join(' ');
+            if (nichtsSaetze.length > 0) replyText = okCount > 0 ? replyText + ' ' + nichtsSaetze.join(' ') : nichtsSaetze.join(' ');
         }
         if (opts.collect) {   // Protokoll-Lauf: Antwort und Karten abgeben, gesprochen wird am Ende alles zusammen
             opts.collect(replyText, ctx.cards);
