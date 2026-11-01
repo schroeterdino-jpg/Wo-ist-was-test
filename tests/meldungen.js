@@ -77,7 +77,7 @@ function unterschied(a, b) {
         const q = lies('js/meldungen.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
         check('meldungen.js: kein Speichern, kein Netz, keine Ausgabe, kein bestehender Schlüssel', !/localStorage|sessionStorage|indexedDB|cookie|fetch\(|XMLHttpRequest|sendBeacon|WebSocket|console\.|jv_meldungen|setPersistentData|getPersistentData/.test(q));
         const kette = A.kette();
-        check('Befehlskette unverändert (92 Einträge: 90 + mehrfachfrage (B4) + vollmond_auskunft (B4.1b), Beobachter hängt sich nicht ein)', kette.length === 92, String(kette.length));
+        check('Befehlskette unverändert (93 Einträge: 91 + mehrfachfrage (B4) + vollmond_auskunft (B4.1b) + webbau, Beobachter hängt sich nicht ein)', kette.length === 93, String(kette.length));
     }
 
     /* ===== 2. Einhängestellen genau in den freigegebenen Dateien ===== */
