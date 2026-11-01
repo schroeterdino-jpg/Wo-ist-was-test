@@ -142,7 +142,7 @@
             if (!st || !st.auto || !allowed()) return;
             const b = berlin();
             if (getPersistentData(LAST_KEY, '') === b.ymd) return;
-            let at = st.times[shiftOfWeek(st, weekNo(b))]; try { const u = window.jvUrlaub.get(); if (!(u && u.von <= b.ymd && u.bis >= b.ymd) && window.jvArbeitstagHeute && !window.jvArbeitstagHeute()) return; } catch (e) { }   // eindeutig freier Tag (kein Arbeitstag laut jvPlan, kein Urlaub): kein Arbeits-Briefing von selbst; Sonderarbeit (gesetzter Beginn) gilt als Arbeitstag
+            let at = st.times[shiftOfWeek(st, weekNo(b))]; try { if (window.jvArbeitstagHeute && !window.jvArbeitstagHeute()) return; } catch (e) { }   // freier Tag (Wochenende, Urlaub): kein Briefing von selbst; Sonderarbeit (gesetzter Beginn) gilt als Arbeitstag; Sonderarbeit (gesetzter Beginn) gilt als Arbeitstag
             try { if (window.jvPlan && window.jvPlan.briefingVor) at -= window.jvPlan.briefingVor(b.ymd); } catch (e) { }   // Tag mit früherem Beginn: Briefing früher
             if (b.min < at || b.min > at + WINDOW_MIN) return;
             if (!idle() || typeof window.triggerDailyBriefing !== 'function') return;   // später noch einmal versuchen
