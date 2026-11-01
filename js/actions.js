@@ -310,7 +310,10 @@ async function executeAction(action, text, ctx) {
         // Mitdenken: vor dem Eintragen prüfen (Überschneidung, Feiertag, Wetter, Fahrzeit ...); die Hinweise hängen an der gesprochenen Antwort
         let thoughts = [];
         try { if (typeof thoughtsForNewEvent === 'function' && !rrule) thoughts = await thoughtsForNewEvent(action.calendar_text || text, action.calendar_time, ort); } catch (e) { thoughts = []; }
-        const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort, rrule);
+        // calendar_duration: optionale Länge in Minuten (Ausflug); ohne sie bleibt der Aufruf genau wie bisher (Standard 60 Minuten)
+        const addDone = action.calendar_duration > 0
+            ? await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort, rrule, undefined, undefined, +action.calendar_duration)
+            : await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort, rrule);
         thoughts.forEach(n => ctx.notes.push(n));
         if (addDone === true && window.jvLetzterGoogleTermin && window.jvLetzterGoogleTermin.id) ctx[Symbol.for('jv.googleTerminId')] = window.jvLetzterGoogleTermin.id;   // echte Google-ID, nur intern (wird nicht vorgelesen)
         if (addDone === false) googleNotSynced(ctx, 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht');
