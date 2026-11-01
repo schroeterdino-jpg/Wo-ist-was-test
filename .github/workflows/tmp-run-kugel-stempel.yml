@@ -1,0 +1,34 @@
+name: Temporaer Kugel-Stempel Branch reparieren
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix-kugel-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: kugel-ruhiger
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Cache-Stempel aktualisieren
+        run: node tools/stempel.js
+      - name: Korrektur auf Kugel-Branch committen
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "Kein Stempel-Update notwendig."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Cache-Stempel fuer Kugel aktualisieren"
+          git push origin HEAD:kugel-ruhiger
