@@ -46,6 +46,7 @@ jobs:
           node tests/ausflug_agent.js
           node tests/mitnehmen_briefing.js
           node tests/schicht_freier_tag.js
+          node tests/mail_loeschen.js
           node tests/dirigent_fragen.js
           node tests/faehigkeiten.js
           node tests/globale.js
