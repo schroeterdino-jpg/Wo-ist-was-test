@@ -15,18 +15,18 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 312,
-  "produktJs": 169,
-  "jsZeilen": 42710,
-  "jsBytes": 3032042,
-  "jsGzip": 910386,
-  "scriptTags": 175,
-  "eigeneScripts": 169,
+  "repoDateien": 309,
+  "produktJs": 167,
+  "jsZeilen": 42347,
+  "jsBytes": 2998007,
+  "jsGzip": 898855,
+  "scriptTags": 173,
+  "eigeneScripts": 167,
   "drittScripts": 2,
   "inlineScripts": 4,
   "api": 11,
-  "testsGesamt": 82,
-  "testsJs": 50,
+  "testsGesamt": 81,
+  "testsJs": 49,
   "testsMd": 13,
   "testsJson": 19,
   "workflows": 3,
@@ -218,8 +218,6 @@
   "wake_start.js": "B",
   "was_steht_an.js": "A",
   "weathermap.js": "A",
-  "webbau.js": "A",
-  "webbau_vorlagen.js": "A",
   "welt_anflug.js": "A",
   "weltuhr.js": "A",
   "weltzeit.js": "A",
@@ -230,7 +228,7 @@
   "zuvorkommend.js": "A"
  },
  "klassenZahl": {
-  "A": 144,
+  "A": 142,
   "B": 17,
   "C": 8,
   "D": 0,
@@ -305,8 +303,8 @@
   "rueckfallFotoSpeak": []
  },
  "duplikate": {
-  "identischeGruppen": 17,
-  "identischeStellen": 61,
+  "identischeGruppen": 16,
+  "identischeStellen": 59,
   "grosseGruppen": [
    "kennenlernen.js:ruhig = zane_redet.js:ruhig",
    "mail_nacht.js:rohMail = mailaktionen.js:rohMail"
@@ -361,7 +359,7 @@
    "vollstaendig": true
   },
   "commands": {
-   "eintraege": 93,
+   "eintraege": 92,
    "gleicherRangMehrfach": 21
   },
   "chain": {
@@ -435,16 +433,16 @@
   },
   "ladefehler": []
  },
- "capabilityNichtReferenziert": 128,
+ "capabilityNichtReferenziert": 126,
  "tests": {
   "unklassifiziert": [],
   "klasseOhneDatei": [],
   "workflowOhneDatei": [],
   "workflowDoppelt": [],
   "regressionNichtImWorkflow": [],
-  "imWorkflow": 31,
+  "imWorkflow": 30,
   "jeKlasse": {
-   "regression": 19,
+   "regression": 18,
    "goldenMaster": 8,
    "inventar": 3,
    "historischEingefroren": 1,
@@ -460,7 +458,7 @@
  },
  "ci": {
   "nodeVersion": "20",
-  "schritte": 31,
+  "schritte": 30,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
   "zeitzonenVertragZentral": true,
@@ -517,8 +515,8 @@
  },
  "dokuAbweichungen": {
   "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 166 Produkt-JS-Dateie",
-  "architekturSkriptzahl": "169",
-  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 169 Produktdateien in `js/`). G",
+  "architekturSkriptzahl": "167",
+  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 167 Produktdateien in `js/`). G",
   "architekturProjektstandAbschnitt": "## 8. Projektstand und nächste Schritte (Stand 24.10.2026, historisch)"
  }
 }

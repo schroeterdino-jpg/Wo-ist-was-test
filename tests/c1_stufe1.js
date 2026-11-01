@@ -53,7 +53,7 @@ function welt(opt) {
         const kennen = dateien.filter(f => /jvRegeln/.test(lies('js/' + f))).sort();
         check('Nur zane_redet, kennenlernen und voice kennen jvRegeln', JSON.stringify(kennen) === JSON.stringify(['kennenlernen.js', 'voice.js', 'zane_redet.js']), kennen.join(', '));
         check('Jeder Aufruf im Modul ist abgesichert (try/catch, fail-open)', /function c1Darf[\s\S]{0,700}catch \(e\) \{ return true; \}/.test(lies('js/zane_redet.js')) && /function c1Darf[\s\S]{0,900}catch \(e\) \{ return true; \}/.test(lies('js/kennenlernen.js')) && /try \{ if \(window\.jvRegeln && typeof window\.jvRegeln\.nutzerAktiv === 'function'\) window\.jvRegeln\.nutzerAktiv\(\); \} catch \(e\) \{ \}/.test(lies('js/voice.js')));
-        check('Befehlskette unverändert (93 Einträge, kein neuer Eintrag durch Stufe 1)', w.A.kette().length === 93, String(w.A.kette().length));
+        check('Befehlskette unverändert (92 Einträge, kein neuer Eintrag durch Stufe 1)', w.A.kette().length === 92, String(w.A.kette().length));
         check('Gate kennt genau drei Meldungsarten', JSON.stringify(Object.keys(w.R.tabelle).filter(k => /^(zane_redet|kennenlernen)\//.test(k)).sort()) === JSON.stringify(['kennenlernen/kennenlern-frage', 'zane_redet/redet-frage', 'zane_redet/redet-satz']));
         const q = lies('js/meldungs_regeln.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
         check('Regel-Datei: kein Speicher, kein Netz, keine Sprache, kein jv_/nova_-Schlüssel', !/localStorage|sessionStorage|fetch\(|XMLHttpRequest|indexedDB/.test(q) && !/\b(speak|say|sayCard|startListening)\s*\(/.test(q) && !/['"`](jv_|nova_)/.test(q));
