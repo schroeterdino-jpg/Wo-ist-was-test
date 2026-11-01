@@ -257,6 +257,17 @@ function showWeatherMap(label, lat, lon, data, ebene) {
     try { if (typeof window.pauseJarvisSphere === 'function') window.pauseJarvisSphere(); } catch (e) {}
 }
 
+/* Ortsname zum Standort (Nominatim, höchstens 3 Sekunden); leer, wenn er nicht zu ermitteln ist, dann steht wie früher "Hier" im Kopf */
+async function wxOrtsname(lat, lon) {
+    try {
+        const c = new AbortController(); const t = setTimeout(() => c.abort(), 3000);
+        const r = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=14&accept-language=de&lat=' + lat + '&lon=' + lon, { signal: c.signal });
+        clearTimeout(t);
+        const d = r && r.ok ? await r.json() : null, a = (d && d.address) || {};
+        return String(a.village || a.town || a.suburb || a.city || a.municipality || '').trim();
+    } catch (e) { return ''; }
+}
+
 /* ---------- Ablauf ---------- */
 async function runWeatherMap(req) {
     const say = (msg) => speak(msg, typeof continueConversation === 'function' ? continueConversation : undefined);
@@ -264,7 +275,7 @@ async function runWeatherMap(req) {
     let label, lat, lon;
     const isLocal = !req.place;
     if (isLocal) {
-        try { const p = await wxCurrentPosition(); lat = p.lat; lon = p.lon; label = 'Hier'; }
+        try { const p = await wxCurrentPosition(); lat = p.lat; lon = p.lon; label = await wxOrtsname(lat, lon) || 'Hier'; }
         catch (e) { say('Deinen Standort kann ich gerade nicht ermitteln.'); return; }
     } else {
         const geo = await wxGeocode(req.place);
