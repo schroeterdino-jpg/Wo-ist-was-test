@@ -452,6 +452,8 @@
             return true;
         }
         if (/^(?:jarvis\s+)?(?:(?:öffne|oeffne|zeig|starte|mach)\w*\s+(?:mir\s+)?(?:bitte\s+)?(?:die\s+|den\s+)?preissuche(?:\s+auf)?|preissuche(?:\s+(?:öffnen|oeffnen|starten|auf))?)$/i.test(raw)) { oeffnen(); return true; }
+        /* Preisfrage zum Foto ("Preise vergleichen", "Such die Preise für dieses Parfüm"): Produktname kommt aus foto_erkennen.js */
+        try { const fp = window.jvFotoProdukt && window.jvFotoProdukt.preisAnfrage(raw); if (fp !== null && fp !== undefined) { if (fp) suchen([fp]); return true; } } catch (e) { }
         /* Freie Preissuche */
         const SUCH = [
             /(?:günstigst|guenstigst|billigst|beste)\w*\s+(?:preis|preise|angebot|angebote|shop)\w*\s+(?:für|fuer|von|bei|zu)\s+(.+)$/,
