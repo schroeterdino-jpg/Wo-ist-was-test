@@ -43,6 +43,7 @@ jobs:
         run: |
           node tests/antwort.js
           node tests/aktionserfolg.js
+          node tests/ausflug_agent.js
           node tests/dirigent_fragen.js
           node tests/faehigkeiten.js
           node tests/globale.js
