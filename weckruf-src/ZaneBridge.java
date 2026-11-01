@@ -39,6 +39,10 @@ class ZaneBridge {
     @JavascriptInterface
     public boolean shareImage(String dataUrl, String text) { return act.shareImage(dataUrl, text); }
 
+    /** Foto (JPEG als Datenadresse) an Google Lens übergeben (ähnliche Produkte suchen). Gibt true zurück, wenn die Übergabe gestartet wurde. */
+    @JavascriptInterface
+    public boolean lensSuchen(String dataUrl) { return act.lensSuchen(dataUrl); }
+
     /** Geplante Ansagen (JSON-Liste mit id, at in Millisekunden, text) an die App übergeben. */
     @JavascriptInterface
     public boolean planAnsagen(String json) { return AnsageReceiver.setzen(act, json); }

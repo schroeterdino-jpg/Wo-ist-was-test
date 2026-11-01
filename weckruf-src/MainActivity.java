@@ -299,6 +299,48 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** Foto (JPEG als Datenadresse) an Google Lens übergeben ("Finde etwas Ähnliches"). Lens sucht selbst ähnliche Produkte.
+     *  Erst direkt an die Lens-Teilen-Seite der Google-App, sonst die Teilen-Liste des Handys (dort "Lens" antippen). true = Übergabe gestartet. */
+    boolean lensSuchen(String dataUrl) {
+        try {
+            if (Build.VERSION.SDK_INT < 29 || dataUrl == null) return false;
+            int komma = dataUrl.indexOf(',');
+            if (komma < 0) return false;
+            byte[] bytes = Base64.decode(dataUrl.substring(komma + 1), Base64.DEFAULT);
+            android.content.ContentResolver cr = getContentResolver();
+            if (letzterShare != null) {   // das vorige übergebene Foto wieder aus der Galerie nehmen
+                try { cr.delete(letzterShare, null, null); } catch (Throwable ignored) { }
+                letzterShare = null;
+            }
+            android.content.ContentValues v = new android.content.ContentValues();
+            v.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "Jarvis_" + System.currentTimeMillis() + ".jpg");
+            v.put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+            v.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Jarvis");
+            final Uri uri = cr.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v);
+            if (uri == null) return false;
+            java.io.OutputStream out = cr.openOutputStream(uri);
+            if (out == null) return false;
+            try { out.write(bytes); } finally { out.close(); }
+            letzterShare = uri;
+            runOnUiThread(() -> {
+                Intent i = new Intent(Intent.ACTION_SEND);
+                i.setType("image/jpeg");
+                i.putExtra(Intent.EXTRA_STREAM, uri);
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try {
+                    Intent l = new Intent(i);
+                    l.setClassName("com.google.android.googlequicksearchbox", "com.google.android.apps.search.lens.LensShareEntryPointActivity");
+                    startActivity(l);
+                } catch (Throwable e) {
+                    try { startActivity(Intent.createChooser(i, "Mit Google Lens suchen")); } catch (Throwable ignored) { }
+                }
+            });
+            return true;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
     /** PDF (Base64) in den Ordner Download speichern und gleich öffnen. Gibt true zurück, wenn die Datei gespeichert ist. */
     boolean speicherePdf(String name, String base64) {
         try {
