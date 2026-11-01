@@ -9,6 +9,7 @@
        erfolge    ['calendar', 'reminder', ...]  Aktionsarten, die geklappt haben
        okAnzahl   Zahl der geklappten Aktionen (auch solche ohne Satz, zum Beispiel reine Antworten)
        fehler     [Text]  Meldungen der Aktionen, die nicht geklappt haben (schon in Alltagssprache)
+       nichts     [Text]  Sätze von Aktionen, die ohne Fehler bewusst nichts verändert haben ("Milch steht bereits ...", "kein passender Termin ..."); sie zählen nicht als geklappt
        hinweise   [Text]  Hinweise der geklappten Aktionen (zum Beispiel "bei Google nicht abgeglichen" oder eine Rückfrage)
        ausfaelle  [{ art: 'wetter'|'fahrzeit', grund: 'fehler'|'timeout' }]  Zusatzprüfungen, die gestartet wurden und ausgefallen sind
    })  ->  Text
@@ -17,6 +18,7 @@
    - Alles klappt, nichts ist ausgefallen: wie bisher (basis plus Hinweise). Nur mehrere erfolgreiche Sonderergebnisse werden zusammengesetzt statt "erstes gewinnt".
    - Etwas hat nicht geklappt: zuerst die Ergebnisse, dann was geklappt hat (kurz), dann was nicht geklappt hat. Hinweise erfolgreicher Teile bleiben.
    - Ausfall einer Zusatzprüfung (Wetter, Fahrzeit) wird in einem kurzen Satz genannt, auch wenn sonst alles geklappt hat. Timeout zählt als Ausfall.
+   - Nichts verändert (nichts): Der Satz steht anstelle der Erfolgsmeldung der KI. Ist sonst nichts Benanntes geklappt, wird nur dieser Satz gesprochen. Klappt daneben etwas, steht erst der Erfolg, dann der Satz.
    - Keine Technik-Texte: es werden nur die übergebenen Alltagssätze und die festen Sätze unten verwendet.
    - Keine doppelten Aussagen, die Reihenfolge ist fest.
    ============================================================ */
@@ -64,14 +66,22 @@
         var sonderFehl = sauber(sonder.filter(function (s) { return s.ok === false; }).map(function (s) { return s.text; }));
         var fehler = sauber(e.fehler), hinweise = ohneDoppelte(sauber(e.hinweise)), ausfall = ausfallSaetze(e.ausfaelle);
         var basis = String(e.basis == null ? '' : e.basis).trim();
+        var nichts = ohneDoppelte(sauber(e.nichts));
         var teile;
-        if (!fehler.length && !sonderFehl.length) {
+        if (!fehler.length && !sonderFehl.length && !nichts.length) {
             teile = [sonderOk.length > 1 ? sonderOk.join(' ') : basis].concat(ausfall, hinweise);
+        } else if (!fehler.length && !sonderFehl.length) {
+            // Nur "nichts verändert": die Erfolgsmeldung der KI (basis) kann falsch sein, darum nur wahre Sätze verwenden
+            var erfolgN = erfolgsSaetze(e.erfolge);
+            var benannt = sonderOk.length || erfolgN.length;
+            var vorn = sonderOk.length ? sonderOk : erfolgN;
+            if (!benannt && (e.okAnzahl || 0) > 0 && basis) vorn = [basis];   // geklappt hat etwas ohne eigenen Satz (zum Beispiel eine reine Antwort)
+            teile = vorn.concat(nichts, ausfall, hinweise);
         } else {
             var erfolg = erfolgsSaetze(e.erfolge), schlecht = fehler.concat(sonderFehl, ausfall);
-            var nichtsBenannt = !sonderOk.length && !erfolg.length;
+            var nichtsBenannt = !sonderOk.length && !erfolg.length && !nichts.length;
             if (nichtsBenannt && (e.okAnzahl || 0) > 0 && fehler.length) schlecht = ['Das meiste ist erledigt, aber: ' + schlecht.join(' ')];
-            teile = sonderOk.concat(erfolg, schlecht, hinweise);
+            teile = sonderOk.concat(erfolg, nichts, schlecht, hinweise);
         }
         return ohneDoppelte(teile.map(function (t) { return String(t).trim(); }).filter(Boolean)).join(' ');
     }

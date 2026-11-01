@@ -12,6 +12,15 @@ function googleNotSynced(ctx, what) {
     if (googleNeedsReconnect(problem) && !ctx.cards.some(c => c.onclick === 'loginWithGoogle(false)')) ctx.cards.push(googleReconnectCard());
 }
 
+/* Bewusst nichts getan (Eintrag war schon da, kein passender Treffer ...): Die Aktion hat KEINEN Fehler, aber auch nichts verändert.
+   Der Satz wandert im ctx unter einem Symbol-Schlüssel mit (wie beim Teilfehler-Merker), damit sich der Rückgabewert von executeAction
+   und alle Hüllen darum nicht ändern. assistant.js liest ihn nach jeder Aktion und zählt sie dann nicht als "erledigt". */
+const JV_NICHTS_GETAN = Symbol.for('jv.nichtsGetan');
+function nichtsGetan(ctx, satz) {
+    if (!Array.isArray(ctx[JV_NICHTS_GETAN])) ctx[JV_NICHTS_GETAN] = [];
+    ctx[JV_NICHTS_GETAN].push(String(satz));
+}
+
 /* Öffnet den ECHTEN Google Kalender (App oder Web) am Tag des gerade angelegten/geänderten Termins, als
    sichtbare Bestätigung, dass er wirklich eingetragen wurde. Normaler https-Link über window.open() -
    genau der Weg, der sich beim Maps-Öffnen als zuverlässig herausgestellt hat (im Gegensatz zu
@@ -95,6 +104,8 @@ async function executeAction(action, text, ctx) {
                 items = [text.replace(/bitte|füge|hinzu|auf|die|einkaufsliste/gi, '').trim() || text];
             }
 
+            const schonDa = [];   // Einträge, die schon auf der Liste standen
+            let neuAnzahl = 0;
             items.forEach((item) => {
                 let cleanItem = item ? String(item).trim() : '';
                 if (cleanItem && cleanItem.length < 40 && 
@@ -106,11 +117,18 @@ async function executeAction(action, text, ctx) {
                     const alreadyExists = shoppingEntries.some(e => e.text.toLowerCase() === cleanItem.toLowerCase());
                     if (!alreadyExists) {
                         shoppingEntries.unshift({ id: Date.now() + ctx.counter++, text: cleanItem });
+                        neuAnzahl++;
+                    } else if (!schonDa.includes(cleanItem)) {
+                        schonDa.push(cleanItem);
                     }
                 }
             });
             setPersistentData('helfer_shopping', JSON.stringify(shoppingEntries));
             updateTerminalStream("SHOPPING_LIST: ITEM_ADDED");
+            // Nur wenn gar nichts Neues dazukam und alles schon da war, ehrlich "nichts getan" melden
+            if (neuAnzahl === 0 && schonDa.length > 0) {
+                nichtsGetan(ctx, schonDa.length === 1 ? `${schonDa[0]} steht bereits auf deiner Einkaufsliste.` : `${schonDa.join(' und ')} stehen bereits auf deiner Einkaufsliste.`);
+            }
         }
     } else if (action.type === 'todo') {
         const items = action.todo_items || (action.todo_text ? [action.todo_text] : []);
@@ -153,6 +171,7 @@ async function executeAction(action, text, ctx) {
             if (found) targets = [found];
             else if (reminderEntries.length > 0) targets = [reminderEntries[0]];
         }
+        if (targets.length === 0) nichtsGetan(ctx, 'Ich habe keine Erinnerung gefunden, deshalb wurde nichts gelöscht.');
         let remDone = true;
         for (const t of targets) {   // eine Serie wird beim ersten Treffer komplett gelöscht, die übrigen Termine daraus sind dann schon weg
             if (!reminderEntries.some(r => r.id === t.id)) continue;
@@ -166,6 +185,7 @@ async function executeAction(action, text, ctx) {
         const deleteTarget = found || (calendarEntries.length > 0 ? calendarEntries[0] : null);
         const deletedDay = deleteTarget && deleteTarget.isoDate ? deleteTarget.isoDate : null;
         let calDone = true;
+        if (!deleteTarget) nichtsGetan(ctx, 'Ich habe keinen Termin gefunden, deshalb wurde nichts gelöscht.');
         if (deleteTarget) calDone = await deleteCalendarEntry(deleteTarget.id);
         if (calDone === false) googleNotSynced(ctx, 'Der Termin ist in der App gelöscht, bei Google steht er noch');
         if (deleteTarget && calDone !== false) openGoogleCalendarApp(deletedDay);
@@ -186,7 +206,7 @@ async function executeAction(action, text, ctx) {
             else openGoogleCalendarApp(action.calendar_time);
         } else {
             // Nie einfach irgendeinen Termin ändern: lieber ehrlich sagen, dass keiner gefunden wurde
-            ctx.notes.push('Ich habe keinen passenden Termin zum Ändern gefunden, es wurde nichts geändert.');
+            nichtsGetan(ctx, 'Ich habe keinen passenden Termin gefunden, deshalb wurde nichts geändert.');
         }
         updateTerminalStream("CALENDAR: EVENT_UPDATED");
     } else if (action.type === 'parking_save') {
@@ -292,6 +312,7 @@ async function executeAction(action, text, ctx) {
         try { if (typeof thoughtsForNewEvent === 'function' && !rrule) thoughts = await thoughtsForNewEvent(action.calendar_text || text, action.calendar_time, ort); } catch (e) { thoughts = []; }
         const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort, rrule);
         thoughts.forEach(n => ctx.notes.push(n));
+        if (addDone === true && window.jvLetzterGoogleTermin && window.jvLetzterGoogleTermin.id) ctx[Symbol.for('jv.googleTerminId')] = window.jvLetzterGoogleTermin.id;   // echte Google-ID, nur intern (wird nicht vorgelesen)
         if (addDone === false) googleNotSynced(ctx, 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht');
         // Den ECHTEN Google Kalender öffnen (nicht das eigene Termine-Fenster), als sichtbare Bestätigung,
         // dass der Termin wirklich eingetragen wurde. Nur wenn er tatsächlich bei Google gelandet ist -
