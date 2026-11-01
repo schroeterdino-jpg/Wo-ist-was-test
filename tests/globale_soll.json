@@ -88,6 +88,7 @@
    "foto_rezept.js -> photoAskWhatToDo",
    "foto_rezept.js -> parseFollowupTask",
    "foto_rezept.js -> handlePhotoCommand",
+   "mailaktionen.js -> fetchEmailOverview",
    "mailaktionen.js -> resolveEmailRef",
    "erweiterungen.js -> wachterCollect",
    "sprueche.js -> speak",

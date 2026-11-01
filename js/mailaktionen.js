@@ -8,6 +8,9 @@
      (Jarvis fragt dann "Was soll ich antworten?", du diktierst; oder gleich: "Schreib eine Antwort: Ich komme morgen um zehn.")
    - "Lösche die Mail" / "Lösche die erste Mail" / "Lösche die Mail von Anna" -> Jarvis fragt nach, du sagst "ja" -> Papierkorb.
    - "Lösche alle Werbe-Mails" -> Jarvis nennt die Anzahl und fragt nach, du sagst "ja" -> Papierkorb.
+   - Nach einer Mailübersicht (die Liste der zuletzt gezeigten Mails): "Lösch alle" / "Die können alle weg" / "Lösch die ersten drei" /
+     "Lösch Nummer 2 und 4" / "Die zweite und dritte können weg" -> Jarvis nennt die Mails und fragt "Richtig?", bei "ja" ein Sammel-Papierkorb (batchModify).
+     Kurze Sätze ohne das Wort Mail gelten nur, wenn du gerade (10 Minuten) eine Mailübersicht hattest oder eine Mail vorgelesen wurde.
    Braucht die Google-Berechtigung "gmail.modify" (calendar.js, Scope). Ohne sie bittet Jarvis, neu zu verbinden.
    Braucht: mail.js, calendar.js (accessToken, isGoogleAuthorized, ensureGoogleAuth, markGoogleExpired, googleReconnectCard),
             commands.js (jvCommands), voice.js (speak), places.js (showActionCards), api/groq (für die Formulierung).
@@ -34,6 +37,19 @@
         window.resolveEmailRef = w;
     })();
     function aktuelleId() { return aktuell && Date.now() - aktuell.t < AKTUELL_MS ? aktuell.id : null; }
+
+    /* Wann wurde die Mailliste zuletzt gezeigt? (mail.js merkt sich die Liste, aber ohne Uhrzeit.) Kurze Sätze wie "Lösch alle" gelten nur bei frischem Mail-Kontext. */
+    const BARE_MS = 10 * 60 * 1000;
+    let listeT = 0;
+    (function wrapUebersicht() {
+        const orig = window.fetchEmailOverview;
+        if (typeof orig !== 'function' || orig._jvMA) return;
+        const w = async function () { const r = await orig.apply(this, arguments); try { if (r && Array.isArray(r.emails) && r.emails.length) listeT = Date.now(); } catch (e) {} return r; };
+        w._jvMA = true;
+        window.fetchEmailOverview = w;
+    })();
+    const listeFrisch = ms => liste().length > 0 && Date.now() - listeT < ms;
+    const aktuellFrisch = ms => !!(aktuell && Date.now() - aktuell.t < ms);
 
     /* ---------- Gmail ---------- */
     async function verbunden() {
@@ -135,25 +151,80 @@
         const r = await gapi('messages/' + encodeURIComponent(id) + '/trash', { method: 'POST' });
         return r;
     }
-    const ORD = { erste: 1, ersten: 1, zweite: 2, zweiten: 2, dritte: 3, dritten: 3, vierte: 4, vierten: 4, fünfte: 5, fünften: 5, sechste: 6, sechsten: 6, siebte: 7, siebten: 7, achte: 8, achten: 8 };
-    function zielMail(t) {
+    const ORD = { erste: 1, ersten: 1, zweite: 2, zweiten: 2, dritte: 3, dritten: 3, vierte: 4, vierten: 4, fünfte: 5, fünften: 5, fuenfte: 5, fuenften: 5, sechste: 6, sechsten: 6, siebte: 7, siebten: 7, achte: 8, achten: 8, neunte: 9, neunten: 9, zehnte: 10, zehnten: 10 };
+    const ORD_RX = '(?:' + Object.keys(ORD).join('|') + ')';
+    const ZAHL = { ein: 1, eine: 1, eins: 1, zwei: 2, drei: 3, vier: 4, fünf: 5, fuenf: 5, sechs: 6, sieben: 7, acht: 8, neun: 9, zehn: 10, elf: 11, zwölf: 12, zwoelf: 12 };
+    const ZAHL_RX = '(?:\\d{1,3}|' + Object.keys(ZAHL).join('|') + ')';
+    const zahlWert = w => /^\d{1,3}$/.test(w) ? parseInt(w, 10) : ZAHL[w];
+    function zielMail(t, sel) {
         const l = liste();
-        const mo = t.match(/\b(erste|ersten|zweite|zweiten|dritte|dritten|vierte|vierten|fünfte|fünften|sechste|sechsten|siebte|siebten|achte|achten)\b/) || t.match(/\b(?:nummer\s+)?(\d{1,2})\.?\s+(?:e-?)?mail/);
+        if (sel && sel.typ === 'pos' && sel.pos.length === 1) {   // "Lösch Nummer 3", "Mail Nummer 5 löschen"
+            const n = sel.pos[0];
+            if (l[n - 1]) return { id: l[n - 1].id };
+            return { frage: 'Die ' + n + '. Mail habe ich gerade nicht in der Liste. Frag mich zuerst, ob du E-Mails hast.' };
+        }
+        const mo = t.match(new RegExp('\\b(' + ORD_RX + ')\\b')) || t.match(/\b(?:nummer\s+)?(\d{1,2})\.?\s+(?:e-?)?mail/);
         if (mo) {
             const n = ORD[mo[1]] || parseInt(mo[1], 10);
             if (l[n - 1]) return { id: l[n - 1].id };
             return { frage: 'Die ' + n + '. Mail habe ich gerade nicht in der Liste. Frag mich zuerst, ob du E-Mails hast.' };
         }
-        const mv = t.match(/\b(?:von|vom)\s+(.+?)(?:\s+(?:weg|raus|bitte|in den papierkorb|in papierkorb))*$/);
+        const mv = t.match(/\b(?:von|vom)\s+(.+?)(?:\s+(?:weg|raus|bitte|kann|können|koennen|darf|dürfen|soll|in den papierkorb|in papierkorb))*$/);
         if (mv) return { von: mv[1].trim() };
         const a = aktuelleId();
         if (a) return { id: a };
         if (l.length === 1) return { id: l[0].id };
         return { frage: 'Welche Mail meinst du? Sag zum Beispiel: Lösche die erste Mail, oder: Lösche die Mail von Anna.' };
     }
-    async function einzelnLoeschenFragen(t) {
+    /* Welche Mails aus der aktuellen Liste sind gemeint? Nur aus dem Satz, nie aus der Wichtigkeit.
+       Ergebnis: { typ: 'alle' } | { typ: 'erste', n } | { typ: 'pos', pos: [2, 4] } | { typ: 'unklar' } | null */
+    function auswahl(t) {
+        if (/\b(?:au(?:ß|ss)er|ausgenommen|bis auf|abgesehen|nur nicht|nicht alle|nicht die)\b/.test(t)) return { typ: 'unklar' };   // "alle außer ..." nie raten
+        const mN = t.match(new RegExp('\\bersten?\\s+(' + ZAHL_RX + ')\\b'));
+        if (mN) { const n = zahlWert(mN[1]); if (n >= 1) return n === 1 ? { typ: 'pos', pos: [1] } : { typ: 'erste', n }; }
+        const pos = [];
+        let m; const orx = new RegExp('\\b(' + ORD_RX + ')\\b', 'g');
+        while ((m = orx.exec(t))) pos.push(ORD[m[1]]);
+        const mk = t.match(new RegExp('\\b(?:nummer|nr|(?:e-?)?mails?|nachrichten?)\\s+(?=' + ZAHL_RX + '\\b)'));
+        if (mk) {
+            const toks = t.slice(mk.index + mk[0].length).split(' ');
+            for (const w of toks) { if (w === 'und' || w === 'sowie') continue; const n = zahlWert(w); if (n === undefined) break; pos.push(n); }
+        }
+        if (pos.length) return { typ: 'pos', pos: Array.from(new Set(pos)).sort((a, b) => a - b) };
+        if (/\balle[sn]?\b/.test(t)) return { typ: 'alle' };
+        return null;
+    }
+    function posText(p) { return p.length < 2 ? String(p[0]) : p.slice(0, -1).join(', ') + ' und ' + p[p.length - 1]; }
+    const TEXT_KEINE_LISTE = 'Dafür brauche ich zuerst eine Mailübersicht. Frag mich: Habe ich E-Mails?';
+    const TEXT_UNKLAR = 'Das habe ich nicht sicher verstanden, deshalb lösche ich nichts. Sag zum Beispiel: Lösch die ersten drei Mails, oder: Lösch Nummer 2 und 4.';
+
+    /* Mehrere Mails aus der Liste: Auswahl merken (IDs jetzt festhalten), einmal nachfragen */
+    async function mehrfachFragen(sel) {
         if (!(await verbunden())) { neuVerbinden('Google ist nicht verbunden. Tippe bitte auf die Karte, um zu verbinden.'); return; }
-        const z = zielMail(t);
+        const l = liste();
+        if (!l.length) { say(TEXT_KEINE_LISTE); return; }
+        let idx, wortlaut;
+        if (sel.typ === 'alle') { idx = l.map((_, i) => i); wortlaut = 'alle ' + l.length + ' Mails'; }
+        else if (sel.typ === 'erste') {
+            if (sel.n > l.length) { say('In deiner Liste sind nur ' + l.length + ' Mails, so viele kann ich nicht auswählen.'); return; }
+            idx = l.slice(0, sel.n).map((_, i) => i); wortlaut = 'die ersten ' + sel.n + ' Mails';
+        } else {
+            const max = sel.pos[sel.pos.length - 1];
+            if (max > l.length) { say('Die ' + max + '. Mail habe ich gerade nicht in der Liste, dort sind nur ' + l.length + ' Mails.'); return; }
+            idx = sel.pos.map(n => n - 1); wortlaut = 'die Mails ' + posText(sel.pos);
+        }
+        const ids = idx.map(i => l[i].id).filter(Boolean);
+        if (!ids.length) { say(TEXT_KEINE_LISTE); return; }
+        pending = { art: 'auswahl', ids, bis: Date.now() + 60000 };
+        try { window.jvFrage && window.jvFrage.neu('mailaktionen'); } catch (e) { }
+        const vorschau = idx.slice(0, 3).map(i => kurzName(l[i].von) + ': ' + (l[i].betreff || '')).join(' · ');
+        card([{ icon: '🗑️', title: ids.length + (ids.length === 1 ? ' Mail' : ' Mails') + ' in den Papierkorb?', subtitle: (vorschau + (ids.length > 3 ? ' · …' : '')).slice(0, 150) }]);
+        say('Ich verschiebe ' + wortlaut + ' in den Papierkorb. Richtig?');
+    }
+
+    async function einzelnLoeschenFragen(t, sel) {
+        if (!(await verbunden())) { neuVerbinden('Google ist nicht verbunden. Tippe bitte auf die Karte, um zu verbinden.'); return; }
+        const z = zielMail(t, sel);
         if (z.frage) { say(z.frage); return; }
         let id = z.id;
         if (!id && z.von) {
@@ -197,6 +268,13 @@
             try { const l = liste(); const i = l.findIndex(e => e.id === p.id); if (i >= 0) l.splice(i, 1); } catch (e) {}
             if (aktuell && aktuell.id === p.id) aktuell = null;
             say('Erledigt, die Mail liegt im Papierkorb. Du kannst sie dort 30 Tage lang zurückholen.');
+        } else if (p.art === 'auswahl') {
+            /* Sammel-Papierkorb (Gmail batchModify). Erfolg erst melden, wenn Gmail es bestätigt hat. */
+            const r = await gapi('messages/batchModify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: p.ids, addLabelIds: ['TRASH'], removeLabelIds: ['INBOX'] }) });
+            if (fehlerBehandeln(r)) return;
+            try { const l = liste(); for (let i = l.length - 1; i >= 0; i--) if (p.ids.indexOf(l[i].id) >= 0) l.splice(i, 1); } catch (e) {}
+            if (aktuell && p.ids.indexOf(aktuell.id) >= 0) aktuell = null;
+            say('Erledigt, ' + (p.ids.length === 1 ? 'eine Mail liegt' : p.ids.length + ' Mails liegen') + ' im Papierkorb. Du kannst sie dort 30 Tage lang zurückholen.');
         } else if (p.art === 'werbung') {
             const r = await gapi('messages/batchModify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: p.ids, addLabelIds: ['TRASH'], removeLabelIds: ['INBOX'] }) });
             if (fehlerBehandeln(r)) return;
@@ -206,7 +284,7 @@
 
     /* ---------- Sprache ---------- */
     const norm = s => String(s || '').toLowerCase().replace(/[.,!?;]+/g, ' ').replace(/\s+/g, ' ').trim();
-    const JA = /^(?:ja|jawohl|jep|jo|ok|okay|mach(?:e)?(?: das| es)?|bitte|gerne|klar|genau|los|in ordnung|tu(?: es)?|lösch(?:e)?(?: sie| es| die| das)?)(?: bitte| gerne| ruhig)?$/;
+    const JA = /^(?:ja|jawohl|jep|jo|ok|okay|mach(?:e)?(?: das| es)?|bitte|gerne|klar|genau|richtig|stimmt|korrekt|passt|los|in ordnung|tu(?: es)?|lösch(?:e)?(?: sie| es| die| das)?)(?: bitte| gerne| ruhig)?$/;
     const NEIN = /^(?:nein|nee|nö|stopp?|abbrechen|lass(?:e)?(?: es| das)?|doch nicht|nicht|vergiss es)(?: bitte)?(?: sein)?$/;
     const KONTEXT = () => !!(aktuelleId() || liste().length);
 
@@ -223,6 +301,13 @@
         return s.replace(/\s+/g, ' ').replace(/^[,\s]+|[,\s]+$/g, '').trim();
     }
     const LOESCH_START = /^(?:bitte\s+)?(?:(?:l[öo]sch|entfern|wirf|werf|schmei(?:ß|ss)|räum)\w*|(?:verschieb|leg)\w*(?=.*papierkorb))\s/;
+    /* Kurze Sätze ohne das Wort Mail dürfen NUR aus Lösch-Wörtern, Füllwörtern, Zahlen und Positionen bestehen ("Lösch alle Bilder" ist keine Mail-Sache). */
+    const FUELL = new Set(['bitte', 'ruhig', 'jetzt', 'auch', 'mal', 'doch', 'einfach', 'sie', 'die', 'der', 'das', 'den', 'diese', 'dieses', 'diesen', 'alle', 'alles', 'allen', 'ersten', 'erste', 'nummer', 'nr', 'und', 'sowie', 'in', 'im', 'papierkorb', 'können', 'koennen', 'kann', 'darf', 'dürfen', 'duerfen', 'soll', 'sollen', 'weg', 'raus', 'damit', 'mail', 'mails', 'email', 'emails', 'e-mail', 'e-mails', 'nachricht', 'nachrichten', 'ja', 'nein', 'außer', 'ausser', 'ausgenommen', 'bis', 'auf', 'nicht', 'nur']);
+    const nurFuellwoerter = t => t.split(' ').every(w => FUELL.has(w) || ORD[w] !== undefined || ZAHL[w] !== undefined || /^\d{1,3}$/.test(w) || /^(?:l[öo]sch|entfern|wirf|werf|schmei[ßs]|räum|verschieb|leg)\w*$/.test(w));
+    const LOESCH_ENDE = /\b(?:l[öo]sch\w*|entfern\w*|wirf|werf\w*|schmei(?:ß|ss)\w*|räum\w*)(?:\s+(?:bitte|ruhig|jetzt|weg|raus|auch))*$/;
+    const WEG = /\b(?:kann|können|koennen|darf|dürfen|duerfen|soll|sollen)\b.*\bweg\b|\bweg damit\b/;
+    /* "Lösch die", "Lösch diese", "Die kann weg", "Weg damit": gemeint ist die Mail, die gerade vorgelesen wurde */
+    const BARE_DIESE = /^(?:bitte\s+)?(?:(?:l[öo]sch|entfern|wirf|werf|schmei(?:ß|ss)|räum)\w*\s+(?:sie|die|diese|diesen|dieses|das|es)(?:\s+(?:mail|nachricht))?(?:\s+(?:bitte|weg|raus|auch))*|(?:die|das|diese|sie|es)(?:\s+(?:mail|nachricht))?\s+(?:kann|können|darf|dürfen)\s+weg|weg damit)$/;
     const WERBUNG = /\b(?:werbung|werbe-?\s?e?-?mails?|werbe-?nachrichten|newsletter|promotion\w*)\b/;
 
     function handle(original, next) {
@@ -257,9 +342,34 @@
         }
 
         /* 3) Papierkorb */
-        if (LOESCH_START.test(t) && /\b(?:e-?mails?|mails?)\b/.test(t) && !/\b(?:liste|einkauf|aufgabe|erinnerung|termin|kontakt|gedächtnis|notiz)\w*\b/.test(t)) {
-            if (WERBUNG.test(t)) { werbungZaehlen().catch(e => { console.error('Werbung', e); say('Das hat nicht geklappt.'); }); return true; }
-            if (KONTEXT() || /\b(?:von|vom)\s+\S/.test(t)) { einzelnLoeschenFragen(t).catch(e => { console.error('Mail löschen', e); say('Das hat nicht geklappt.'); }); return true; }
+        const mailWort = /\b(?:e-?mails?|mails?)\b/.test(t);
+        const fremd = /\b(?:liste|einkauf|aufgabe|erinnerung|termin|kontakt|gedächtnis|notiz|wecker|alarm|timer|wunsch|geburtstag|todo|to-do|schicht|urlaub|eintrag|ereignis)\w*\b/.test(t);
+        const sel = auswahl(t);
+        const hatVon = /\b(?:von|vom)\s+\S/.test(t);
+        const loesch = LOESCH_START.test(t) || LOESCH_ENDE.test(t) || (WEG.test(t) && !/\b(?:nicht|nie|kein\w*)\b/.test(t)) || (!!sel && /\bin\s+(?:den\s+)?papierkorb\b/.test(t));
+        if (loesch && !fremd && t.length <= 160) {
+            const fehler = (n) => e => { console.error(n, e); say('Das hat nicht geklappt.'); };
+            if (mailWort) {
+                if (WERBUNG.test(t)) { werbungZaehlen().catch(fehler('Werbung')); return true; }
+                if (sel && sel.typ === 'unklar') { say(TEXT_UNKLAR); return true; }
+                const mehrere = sel && (sel.typ === 'erste' || sel.typ === 'alle' || (sel.typ === 'pos' && sel.pos.length > 1));
+                if (mehrere && hatVon && sel.typ !== 'alle') { say(TEXT_UNKLAR); return true; }
+                if (mehrere && !(sel.typ === 'alle' && hatVon)) {
+                    if (!liste().length) { say(TEXT_KEINE_LISTE); return true; }
+                    if (!listeFrisch(AKTUELL_MS)) { say('Meine Mailliste ist schon etwas älter. Frag mich bitte noch einmal, ob du E-Mails hast.'); return true; }
+                    mehrfachFragen(sel).catch(fehler('Mail löschen')); return true;
+                }
+                if (KONTEXT() || hatVon) { einzelnLoeschenFragen(t, sel).catch(fehler('Mail löschen')); return true; }
+            } else if (t.length <= 80 && !WERBUNG.test(t) && nurFuellwoerter(t) && (listeFrisch(BARE_MS) || aktuellFrisch(BARE_MS))) {
+                /* kurze Sätze ohne das Wort Mail ("Lösch alle", "Die ersten drei können weg", "Die kann weg"): nur mit frischem Mail-Kontext */
+                if (sel) {
+                    if (sel.typ === 'unklar') { say(TEXT_UNKLAR); return true; }
+                    if (sel.typ === 'pos' && sel.pos.length === 1) { if (!liste().length) return next(original); einzelnLoeschenFragen(t, sel).catch(fehler('Mail löschen')); return true; }
+                    if (liste().length && listeFrisch(BARE_MS)) { mehrfachFragen(sel).catch(fehler('Mail löschen')); return true; }
+                } else if (!sel && BARE_DIESE.test(t) && aktuellFrisch(BARE_MS)) {
+                    einzelnLoeschenFragen(t).catch(fehler('Mail löschen')); return true;   // zielMail nimmt die zuletzt vorgelesene Mail
+                }
+            }
         }
         return next(original);
     }

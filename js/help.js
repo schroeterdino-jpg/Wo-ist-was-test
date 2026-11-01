@@ -67,7 +67,7 @@ const HELP_TOPICS = [
         'Gib mir einen guten Horrorfilm (auch Action, Komödie, Thriller, Science-Fiction ...)', 'Hast du einen Filmtipp? (ohne Genre: Horror oder Action)', 'Was soll ich heute schauen?',
         'Was läuft im Kino? (bundesweit aktuelle Filme)', 'Wo kann ich Dune streamen?', 'Auf welchem Streamingdienst ist Squid Game?'] },
     { key: 'mail', icon: '📧', title: 'E-Mails (nur lesen)', words: /mail|post/, examples: [
-        'Habe ich neue E-Mails? (Jarvis sortiert nach Wichtigkeit: nennt Rechnungen, Fristen, Termine und Mails mit Frage, legt Antwort-Entwürfe an und überspringt Werbung)', 'Was ist im Postfach wichtig?', 'Nur wichtige E-Mails, keine Werbung', 'Lies mir die erste vor'] },
+        'Habe ich neue E-Mails? (Jarvis sortiert nach Wichtigkeit: nennt Rechnungen, Fristen, Termine und Mails mit Frage, legt Antwort-Entwürfe an und überspringt Werbung)', 'Was ist im Postfach wichtig?', 'Nur wichtige E-Mails, keine Werbung', 'Lies mir die erste vor', 'Lösch die ersten drei / Lösch Nummer 2 und 4 / Lösch alle (nach einer Mailübersicht; Jarvis fragt „Richtig?“, bei Ja kommen die Mails in den Papierkorb, 30 Tage zurückholbar)'] },
     { key: 'kontakte', icon: '📞', title: 'Anrufen & WhatsApp', words: /kontakt|anruf|ruf\b|whatsapp|telefon/, examples: [
         'Ruf Mama an', 'Schick Schatz eine WhatsApp: Bin gleich da', '(Zane bereitet es vor, du tippst auf die Karte)'] },
     { key: 'welt', icon: '🌍', title: 'Welt, Nachrichten & Sport', words: /welt|nachricht|sport|bundesliga|iss\b|erdbeb|live/, examples: [
