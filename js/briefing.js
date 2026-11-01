@@ -624,7 +624,8 @@ function storeSemanticMemory(text, metadata) {
     }).catch(() => {});
 }
 
-/* Mitnehmen-Liste (mitnehmen.js) nur an einem echten Arbeitstag: dieselbe Prüfung wie die Aufbruchsansage (plan_ansagen.js: Mo-Fr, nicht im Urlaub, Schicht eingestellt).
+/* Steht heute wirklich Arbeit an? Gilt für die Mitnehmen-Liste, den Satz "Heute hast du …schicht" und den Auto-Trigger (schicht.js).
+   Mitnehmen-Liste (mitnehmen.js) nur an einem echten Arbeitstag: dieselbe Prüfung wie die Aufbruchsansage (plan_ansagen.js: Mo-Fr, nicht im Urlaub, Schicht eingestellt).
    Ausnahme: Für heute ist ausdrücklich ein Arbeitsbeginn gesetzt ("Heute muss ich um 13:15 da sein"), dann gilt auch ein Wochenendtag als Arbeitstag.
    Fehlt plan_ansagen.js, bleibt es beim bisherigen Verhalten (Liste anhängen), damit sie an Arbeitstagen nicht verloren geht. */
 function mitnehmenArbeitstagHeute() {
@@ -636,6 +637,7 @@ function mitnehmenArbeitstagHeute() {
         return !!(typeof P.beginnTag === 'function' && P.beginnTag(ymd) > 0);
     } catch (e) { return true; }
 }
+window.jvArbeitstagHeute = mitnehmenArbeitstagHeute;   // schicht.js nutzt dieselbe Prüfung für den Auto-Trigger
 
 async function triggerDailyBriefing(ausfuehrlich) {
     if (isProcessing) return;
@@ -669,6 +671,8 @@ async function triggerDailyBriefing(ausfuehrlich) {
         // Schicht und Fahrzeit zur Arbeit (schicht.js); ein Fehler dort lässt sie einfach weg
         try {
             if (typeof window.jvSchichtInfo === 'function') data.schicht = await window.jvSchichtInfo();
+            /* Wochen-Schicht ist nicht "heute Arbeit": an einem freien Tag (Wochenende ohne gesetzten Beginn) keine Schichtaussage. Urlaubshinweis bleibt. */
+            if (data.schicht && !data.schicht.urlaub_bis && !mitnehmenArbeitstagHeute()) data.schicht = null;
         } catch (e) {}
 
         typeWriterStatus("Stelle Briefing zusammen...");
