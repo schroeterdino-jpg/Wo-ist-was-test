@@ -101,9 +101,10 @@ function welt(opt) {
     const el = {}; const intervalle = [];
     const mk = id => el[id] || (el[id] = { id, textContent: '', innerHTML: '', className: '', style: {}, children: [], classList: { contains: () => false, add() {}, remove() {}, toggle() {} }, addEventListener() {}, appendChild(c) { this.children.push(c); } });
     const doc = { hidden: false, readyState: 'complete', body: { classList: { contains: () => false } }, getElementById: mk, createElement: () => ({ style: {} }), addEventListener() {} };
-    const jetzt = Date.now(), in1 = h => new Date(jetzt + h * 3600000).toISOString();
+    const jetzt = opt.wann || Date.UTC(2026, 10, 4, 10, 0), in1 = h => new Date(jetzt + h * 3600000).toISOString();   // Standard: Mittwoch 4.11.2026, 11:00 Berlin (die Tests hängen nicht vom echten Wochentag ab)
+    const Fix = class extends Date { constructor(...a) { if (a.length) super(...a); else super(jetzt); } static now() { return jetzt; } };
     const calls = { daten: [], wetter: 0 };
-    const sb = { document: doc, console, Date, Math, Intl, Promise, Number, String, JSON, Array, Object, isFinite, isNaN, parseInt,
+    const sb = { document: doc, console, Date: Fix, Math, Intl, Promise, Number, String, JSON, Array, Object, isFinite, isNaN, parseInt,
         setTimeout: fn => { sb.__spaeter = fn; return 1; }, setInterval: (fn, ms) => { intervalle.push(ms); return 2; }, requestAnimationFrame() {},
         calendarEntries: opt.kalender || [], reminderEntries: opt.erinnerungen || [], shoppingEntries: opt.einkauf || [],
         parseEventDate: iso => /^\d{4}-\d{2}-\d{2}$/.test(iso) ? { date: new Date(iso + 'T00:00:00'), allDay: true } : { date: new Date(iso), allDay: false },
@@ -137,6 +138,18 @@ check('Erinnerungen: nur offene, zukünftige (2)', /^2\b/.test(aus(W.el.uebErinn
 check('Einkauf: 4 Dinge mit den ersten Namen', /^4 Dinge Milch, Brot, Penny/.test(aus(W.el.uebEinkauf)), aus(W.el.uebEinkauf));
 check('Schicht: Spät mit Abfahrt 13:00', /Spät/.test(aus(W.el.uebSchicht)) && /13:00/.test(aus(W.el.uebSchicht)), aus(W.el.uebSchicht));
 check('Gruß, Uhr und Schicht-Zeile gesetzt', W.el.uebGruss.textContent.length > 3 && /^\d\d:\d\d$/.test(W.el.uebUhr.textContent) && /Spätschicht/.test(W.el.uebSchichtZeile.textContent));
+/* 5a Wochenende und Gruß: am Samstag/Sonntag keine Schicht, Gruß nach der Uhrzeit (Berlin) */
+{
+    const lauf = (wann, schicht) => { const X = welt({ wann, schicht }); X.sb.window.jvUebersicht.lokal(); return { gruss: X.el.uebGruss.textContent, zeile: X.el.uebSchichtZeile.textContent, feld: aus(X.el.uebSchicht) }; };
+    const so = lauf(Date.UTC(2026, 10, 1, 9, 10), 'Spätschicht'), mi = lauf(Date.UTC(2026, 10, 4, 9, 10), 'Spätschicht');
+    check('Sonntag 10:10: oben "Wochenende", nicht "Spätschicht heute"', so.zeile === 'Wochenende', so);
+    check('Sonntag: Schicht-Feld "Frei, Wochenende", keine Abfahrt', /Frei/.test(so.feld) && /Wochenende/.test(so.feld) && !/Abfahrt/.test(so.feld), so);
+    check('Sonntag 10:10: Gruß "Guten Morgen" (nicht immer "Guten Abend")', so.gruss === 'Guten Morgen', so);
+    check('Mittwoch: weiter "Spätschicht heute" und Abfahrt 13:00', mi.zeile === 'Spätschicht heute' && /13:00/.test(mi.feld), mi);
+    const g = (h, tag) => lauf(Date.UTC(2026, 10, 4, h - 1, 0)).gruss;
+    check('Gruß nach Uhrzeit: 3 Uhr Nacht, 8 Uhr Morgen, 13 Uhr Tag, 19 Uhr Abend', g(3) === 'Gute Nacht' && g(8) === 'Guten Morgen' && g(13) === 'Guten Tag' && g(19) === 'Guten Abend', [g(3), g(8), g(13), g(19)]);
+}
+
 W.sb.window.jvUebersicht.auffrischen();
 setImmediate(() => setImmediate(() => {
     const A = aus(W.el.uebArbeit), R = aus(W.el.uebRegen), D = aus(W.el.uebDiesel), T = aus(W.el.uebTermine), WE = aus(W.el.uebWetter);

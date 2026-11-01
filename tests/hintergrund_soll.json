@@ -1566,8 +1566,8 @@
    "synapsen.js:163 @200",
    "sync.js:229 @180000",
    "travel.js:1110 @60000",
-   "uebersicht.js:208 @20000",
-   "uebersicht.js:209 @250",
+   "uebersicht.js:214 @20000",
+   "uebersicht.js:215 @250",
    "ui.js:312 @60000",
    "ui.js:314 @900000",
    "ui.js:315 @900000",
@@ -1622,7 +1622,7 @@
    "gedaechtnis_zeit.js:55",
    "ruhe.js:18",
    "spotify.js:531",
-   "uebersicht.js:209"
+   "uebersicht.js:215"
   ],
   "netzSichtbarIdle": 185,
   "netzVerstecktIdle": 0,

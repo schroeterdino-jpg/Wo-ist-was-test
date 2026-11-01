@@ -28,14 +28,19 @@
     function tippe(id, fn) { const el = $(id); if (el && !el.__uebTap) { el.__uebTap = 1; el.addEventListener('click', () => { try { if (typeof playUiBeep === 'function') playUiBeep(); fn(); } catch (e) {} }); } }
     function panel(name) { return () => { if (typeof openPanel === 'function') openPanel(name); }; }
 
+    /* Stunde (0-23) in Berlin. Nicht "hour: numeric" als Zahl lesen: de-DE liefert dort "10 Uhr", das war NaN und der Gruß blieb immer "Guten Abend". */
+    function berlinStunde(d) { const p = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', hourCycle: 'h23' }).formatToParts(d).find(x => x.type === 'hour'); return p ? parseInt(p.value, 10) : 12; }
+    /* Samstag/Sonntag in Berlin: kein Schichtdienst (die Schicht im Wechsel gilt nur Montag bis Freitag, wie in jarvis.js) */
+    function wochenende(d) { return /^(Sat|Sun)$/.test(new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Berlin', weekday: 'short' }).format(d)); }
+
     /* ---------- Kopfzeile: Gruß, Schicht, Uhr ---------- */
     function kopf() {
         const jetzt = new Date();
-        const h = +new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: 'numeric', hourCycle: 'h23' }).format(jetzt);
+        const h = berlinStunde(jetzt);
         const gruss = h < 5 ? 'Gute Nacht' : h < 11 ? 'Guten Morgen' : h < 17 ? 'Guten Tag' : 'Guten Abend';
-        let sh = ''; try { sh = (window.jvSchichtHeute && window.jvSchichtHeute()) || ''; } catch (e) {}
+        let sh = ''; try { sh = wochenende(jetzt) ? '' : (window.jvSchichtHeute && window.jvSchichtHeute()) || ''; } catch (e) {}
         const g = $('uebGruss'); if (g && g.textContent !== gruss) g.textContent = gruss;
-        const s = $('uebSchichtZeile'); const st = sh ? sh + ' heute' : 'Kein Schichtplan heute'; if (s && s.textContent !== st) s.textContent = st;
+        const s = $('uebSchichtZeile'); const st = wochenende(jetzt) ? 'Wochenende' : sh ? sh + ' heute' : 'Kein Schichtplan heute'; if (s && s.textContent !== st) s.textContent = st;
         const u = $('uebUhr'); const ut = hhmm(jetzt); if (u && u.textContent !== ut) u.textContent = ut;
         const d = $('uebDatum'); const dt = jetzt.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit' }).replace(',', '').toUpperCase(); if (d && d.textContent !== dt) d.textContent = dt;
     }
@@ -69,6 +74,7 @@
     /* ---------- Schicht ---------- */
     function schicht() {
         let name = ''; try { name = (window.jvSchichtHeute && window.jvSchichtHeute()) || ''; } catch (e) {}
+        if (wochenende(new Date())) return '<div class="ueb-gross ueb-klein">Frei</div><div class="ueb-sub">Wochenende</div>';
         if (!name) return '<div class="ueb-gross ueb-klein">Frei</div><div class="ueb-sub">kein Schichtplan heute</div>';
         const sh = /^Fr/.test(name) ? 'frueh' : 'spaet';
         let abf = ''; try { const m = window.jvPlan && window.jvPlan.abfahrtMin && window.jvPlan.abfahrtMin(sh); if (Number.isFinite(m)) abf = Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0'); } catch (e) {}
