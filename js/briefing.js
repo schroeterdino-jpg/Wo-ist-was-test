@@ -624,6 +624,19 @@ function storeSemanticMemory(text, metadata) {
     }).catch(() => {});
 }
 
+/* Mitnehmen-Liste (mitnehmen.js) nur an einem echten Arbeitstag: dieselbe Prüfung wie die Aufbruchsansage (plan_ansagen.js: Mo-Fr, nicht im Urlaub, Schicht eingestellt).
+   Ausnahme: Für heute ist ausdrücklich ein Arbeitsbeginn gesetzt ("Heute muss ich um 13:15 da sein"), dann gilt auch ein Wochenendtag als Arbeitstag.
+   Fehlt plan_ansagen.js, bleibt es beim bisherigen Verhalten (Liste anhängen), damit sie an Arbeitstagen nicht verloren geht. */
+function mitnehmenArbeitstagHeute() {
+    try {
+        const P = window.jvPlan;
+        if (!P || typeof P.schichtAm !== 'function' || typeof P.jetzt !== 'function') return true;
+        const ymd = P.jetzt().ymd;
+        if (P.schichtAm(ymd)) return true;
+        return !!(typeof P.beginnTag === 'function' && P.beginnTag(ymd) > 0);
+    } catch (e) { return true; }
+}
+
 async function triggerDailyBriefing(ausfuehrlich) {
     if (isProcessing) return;
     if (isSpeaking()) interruptSpeaking();
@@ -668,8 +681,8 @@ async function triggerDailyBriefing(ausfuehrlich) {
             if (typeof ensureBirthdaysMentioned === 'function') text = ensureBirthdaysMentioned(text, data);
         }
 
-        try {   // Mitnehmen-Liste (mitnehmen.js) ans Ende, wenn eine Schicht ansteht und es noch Vormittag ist
-            if (data.schicht && window.jvMitnehmen && new Date().getHours() < 15 && !/nimm mit/i.test(text)) text += ' ' + window.jvMitnehmen.text();
+        try {   // Mitnehmen-Liste (mitnehmen.js) ans Ende, wenn heute wirklich ein Arbeitstag ansteht (nicht Wochenende, nicht Urlaub) und es noch Vormittag ist
+            if (data.schicht && window.jvMitnehmen && new Date().getHours() < 15 && !/nimm mit/i.test(text) && mitnehmenArbeitstagHeute()) text += ' ' + window.jvMitnehmen.text();
         } catch (e) {}
 
         chatHistory.push({ role: "assistant", content: JSON.stringify({ type: "chat", reply: text }) });
