@@ -57,7 +57,8 @@ const falsch = t => /Heute hast du (Früh|Spät)schicht/.test(t) || /(Früh|Spä
     const ur = await briefing('2026-10-28T12:05:00+01:00', { urlaub: URLAUB });
     check('9 Urlaub: keine heutige Schichtaussage', !falsch(ur), ur);
     check('10 Urlaubshinweis bleibt erhalten', /Urlaub/.test(ur), ur);
-    check('10b Urlaub: Auto-Briefing mit Urlaubshinweis kommt weiterhin', await autoTick('2026-10-28T12:05:00+01:00', { urlaub: URLAUB }) === 1);
+    check('10b Urlaub unter der Woche: Auto-Briefing kommt nicht von selbst', await autoTick('2026-10-28T12:05:00+01:00', { urlaub: URLAUB }) === 0);
+    check('10c Urlaub am Wochenende: Auto-Briefing kommt nicht von selbst', await autoTick('2026-10-31T12:05:00+01:00', { urlaub: { von: '2026-10-26', bis: '2026-11-02' } }) === 0);
     check('11 Manuell "Briefing" am freien Sonntag funktioniert', await (async () => {
         const A = neu('2026-11-01T12:05:00+01:00'), g0 = A.gesagt.length;
         A.vm.runInContext('window.__brief = 0; var __o = window.triggerDailyBriefing; window.triggerDailyBriefing = function () { window.__brief++; return __o.apply(this, arguments); };', A.sb);
