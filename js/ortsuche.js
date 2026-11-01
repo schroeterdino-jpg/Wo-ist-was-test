@@ -36,6 +36,7 @@
         { names: ['bäckerei', 'bäcker', 'backshop'], label: 'Bäckerei', icon: '🥖', f: ['["shop"="bakery"]'] },
         { names: ['metzgerei', 'metzger', 'fleischerei', 'fleischer'], label: 'Metzgerei', icon: '🥩', f: ['["shop"="butcher"]'] },
         { names: ['drogerie', 'drogeriemarkt'], label: 'Drogerie', icon: '🧴', f: ['["shop"="chemist"]'] },
+        { names: ['parfümerie', 'parfuemerie', 'parfümgeschäft', 'parfümladen'], label: 'Parfümerie oder Drogerie', icon: '🧴', f: ['["shop"="perfumery"]', '["shop"="chemist"]'] },
         { names: ['apotheke', 'apotheken'], label: 'Apotheke', icon: '💊', f: ['["amenity"="pharmacy"]'] },
         { names: ['geldautomat', 'geldautomaten', 'bankautomat', 'atm'], label: 'Geldautomat', icon: '🏧', f: ['["amenity"="atm"]'] },
         { names: ['bank', 'sparkasse', 'volksbank', 'bankfiliale'], label: 'Bank', icon: '🏦', f: ['["amenity"="bank"]'] },

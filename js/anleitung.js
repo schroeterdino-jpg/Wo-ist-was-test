@@ -254,8 +254,8 @@
 
         /* ---------- Foto und Papier ---------- */
         { g: "Foto und Papier", i: "📷", t: "Foto auswerten", h: "foto",
-          d: "Tippe auf 📷, mach ein Foto und sag, was Jarvis damit tun soll: übersetzen, auf die Einkaufsliste setzen, in den Kalender eintragen, eine Adresse anfahren, abtippen. Plakate, Briefe und Schilder erkennt er auch von selbst.",
-          s: ["Übersetze dieses Schild", "Erkläre mir diese Warnleuchte", "Trag den Termin von diesem Plakat ein", "Darf ich hier parken?", "Tippe das Foto ab"] },
+          d: "Tippe auf 📷, mach ein Foto und sag, was Jarvis damit tun soll: übersetzen, auf die Einkaufsliste setzen, in den Kalender eintragen, eine Adresse anfahren, abtippen. Plakate, Briefe und Schilder erkennt er auch von selbst. Bei allem anderen sagt er kurz, was er sieht, und fragt, was er damit tun soll. Bei einem Produkt (zum Beispiel einem Parfüm) kannst du die Preise vergleichen lassen oder fragen, wo du es in der Nähe kaufen kannst.",
+          s: ["Übersetze dieses Schild", "Erkläre mir diese Warnleuchte", "Trag den Termin von diesem Plakat ein", "Darf ich hier parken?", "Tippe das Foto ab", "Preise vergleichen für dieses Parfüm", "Wo kann ich das in der Nähe kaufen?"] },
         { g: "Foto und Papier", i: "💬", t: "Foto per WhatsApp verschicken",
           d: "Nach jedem Foto gibt es eine Karte „Per WhatsApp senden“. In der Handy-App suchst du in WhatsApp die Person aus.",
           s: ["Schick das Foto per WhatsApp"] },
