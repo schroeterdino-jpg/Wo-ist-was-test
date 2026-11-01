@@ -27,6 +27,7 @@ check('Felder in der vereinbarten Reihenfolge (Arbeitsweg, Regen, Diesel, Schich
     const ue = fs.readFileSync(path.join(ROOT, 'js/uebersicht.js'), 'utf8'), wm = fs.readFileSync(path.join(ROOT, 'js/weathermap.js'), 'utf8');
     check('Regen-Feld: Tipp öffnet die Wetterkarte mit Regen-Ebene (Rückfall: Lagebild)', /tippe\('uebRegen', \(\) => \{ if \(window\.jvWetterkarte\) window\.jvWetterkarte\.oeffnen\('rain'\)/.test(ue));
     check('Wetterkarte: jvWetterkarte.oeffnen startet still (kein Vorlesen) und mit gewählter Ebene', /window\.jvWetterkarte = \{ oeffnen: function \(ebene\)[^}]*still: true/.test(wm) && /if \(!req\.still\) say\(wxSummary/.test(wm) && /wxLayerNow = WX_LAYERS\.some\(l => l\[0\] === ebene\) \? ebene : 'temp'/.test(wm));
+    check('Wetterkarte: am eigenen Standort steht der Ortsname im Kopf (Rückfall: Hier)', /label = await wxOrtsname\(lat, lon\) \|\| 'Hier'/.test(wm) && /async function wxOrtsname/.test(wm));
     check('Diesel-Feld öffnet weiter nur die Diesel-Ansicht', /tippe\('uebDiesel'.*open\(false, 'diesel'\)/.test(ue));
 }
 
