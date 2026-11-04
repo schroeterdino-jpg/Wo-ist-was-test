@@ -1,7 +1,7 @@
 /* ============================================================
    GESPRÄCHSGEDÄCHTNIS (Phase 4): merkt sich, worüber gerade gesprochen wird, damit Folgefragen verstanden werden können.
      "Suche drei Restaurants in Hamburg" -> Ergebnisse   |   "Das zweite gefällt mir" -> Auswahl   |   "Wie komme ich dahin?" -> das ausgewählte Restaurant
-   ISOLIERT und NICHT PRODUKTIV: Keine App-Datei benutzt es, nur die Tests. Es ändert nichts am Verhalten von Jarvis.
+   Seit Phase 5 benutzt NUR js/gespraech_ort.js es (Ortssuche: Ergebnisse merken, Folgefragen beantworten). Sonst benutzt es keine App-Datei.
    Es ist etwas ANDERES als das Langzeitgedächtnis (Langzeit-Speicher, "Merk dir ..."): kein Zugriff darauf, kein localStorage, kein Netz, keine Zeitgeber.
    Alles liegt nur im Arbeitsspeicher und verfällt (siehe STANDARD). Gespeichert werden Ergebnisse (Name, Beschreibung, Link) und Jarvis' eigene Rückfragen,
    NIE die Sätze des Nutzers.
@@ -22,6 +22,8 @@
         abgebrochen    "nein, keins davon" auf eine offene Auswahl-Rückfrage
         kein_bezug     der Satz bezieht sich auf nichts Gemerktes: ganz normal weiterverarbeiten
    .frage({ text, optionen?, thema?, art? })   eigene offene Rückfrage anlegen (art: 'auswahl' | 'ja_nein'); .offeneFragen(); .beantworte(text); .schliesse(id)
+   .fehlgeschlagen()                     eine Suche ist gescheitert: bisherige Ergebnisse und Auswahl verwerfen (kein alter Ort darf als neuer gelten)
+   Ergebnisse dürfen zusätzlich lat, lon (Koordinaten), adresse und distanzKm tragen (nur gültige Zahlen/Texte werden übernommen).
    .status()   Überblick ohne Inhalte (Anzahl, Alter, veraltet)   .vergiss()   alles löschen
    ============================================================ */
 (function () {
@@ -33,7 +35,7 @@
     var W = '[A-Za-zÄÖÜäöüß]';
     var NR = { erste: 1, zweite: 2, dritte: 3, vierte: 4, fünfte: 5, fuenfte: 5, sechste: 6, siebte: 7, siebente: 7, achte: 8, neunte: 9, zehnte: 10 };
     var ZAHLWORT = { eins: 1, ein: 1, zwei: 2, drei: 3, vier: 4, fünf: 5, fuenf: 5, sechs: 6, sieben: 7, acht: 8, neun: 9, zehn: 10 };
-    var RX_ORD = new RegExp('(?:^|[^A-Za-zÄÖÜäöüß])(?:das|die|der|den|dem|des)\\s+(vorletzte|letzte|mittlere|' + Object.keys(NR).join('|') + ')(?:n|s|r|m)?(?![A-Za-zÄÖÜäöüß])(?!\\s+(?:mal|male|hilfe|klasse|liga|halbzeit|hälfte|haelfte|jahr|woche|monat|quartal|runde|zeit|nacht|stunde|minute|tag|reihe|seite|etage|stock))', 'i');
+    var RX_ORD = new RegExp('(?:^|[^A-Za-zÄÖÜäöüß])(?:das|die|der|den|dem|des|zum|zur|vom|beim)\\s+(vorletzte|letzte|mittlere|' + Object.keys(NR).join('|') + ')(?:n|s|r|m)?(?![A-Za-zÄÖÜäöüß])(?!\\s+(?:mal|male|hilfe|klasse|liga|halbzeit|hälfte|haelfte|jahr|woche|monat|quartal|runde|zeit|nacht|stunde|minute|tag|reihe|seite|etage|stock|januar|februar|m[aä]rz|april|mai|juni|juli|august|september|oktober|november|dezember))', 'i');
     var RX_NUMMER = /(?:nummer|nr\.?|option|platz|ergebnis|punkt)\s*(\d{1,2}|eins|zwei|drei|vier|fünf|fuenf|sechs|sieben|acht|neun|zehn)(?![A-Za-zÄÖÜäöüß])/i;
     var RX_AUSWAHL = /gef[aä]llt|gefaellt|\bnehm(e|en)\b|\bnimm\b|w[aä]hl(e|en)?\b|entscheid|das ist es|\bich will\b|ich m[oö]chte|\blieber\b|\bmag ich\b|passt (mir|gut)|ist gut|nehmen wir/i;
     var THEMEN = [
@@ -42,11 +44,13 @@
         ['entfernung', /wie weit|entfernung|wie lange (dauert|brauche|fahre)|wie viele kilometer/i],
         ['telefon', /telefon|\banrufen\b|ruf .* an\b|rufnummer/i],
         ['adresse', /adresse|\bwo (ist|liegt|finde)\b|in welcher stra[sß]e/i],
+        ['parken', /parkpl[aä]tz|parkhaus|\bparken\b|parkm[oö]glichkeit/i],
         ['preise', /preis|kostet|teuer|g[uü]nstig/i]
     ];
     /* Bezugswörter ohne Zahl und Namen: bestimmte Ortswörter ("dahin"), Artikel + Ortsbegriff ("zum Restaurant") oder ein Fürwort am Satzende ("Wie weit ist das?").
        "Was kostet das Brot?" gehört bewusst NICHT dazu (das Fürwort steht nicht am Ende). */
-    var RX_DEIKTISCH = /(?:^|[^A-Za-zÄÖÜäöüß])(?:dahin|dorthin|dort|davon|dazu|hierhin|(?:hat|ist)\s+(?:das|es)\s+(?:auf|offen|ge[oö]ffnet|weit|teuer|g[uü]nstig)|(?:das|der|die|dem|zum|zur|im)\s+(?:restaurant|lokal|caf[eé]|laden|ort|hotel|geschäft|geschaeft|kneipe|imbiss|pizzeria))(?![A-Za-zÄÖÜäöüß])|(?:^|[^A-Za-zÄÖÜäöüß])(?:das|es|dieses|diese[nrs]?)\s*[?.!]*\s*$/i;
+    var RX_DEIKTISCH = /(?:^|[^A-Za-zÄÖÜäöüß])(?:dahin|dorthin|dort|davon|dazu|hierhin|(?:hat|ist|liegt)\s+(?:das|es)\s+(?:auf|offen|ge[oö]ffnet|weit|teuer|g[uü]nstig|entfernt|weg)|(?:das|der|die|dem|zum|zur|im)\s+(?:restaurant|lokal|caf[eé]|laden|ort|hotel|geschäft|geschaeft|kneipe|imbiss|pizzeria))(?![A-Za-zÄÖÜäöüß])|(?:^|[^A-Za-zÄÖÜäöüß])(?:das|es|dieses|diese[nrs]?)\s*[?.!]*\s*$/i;
+    var RX_KORREKTUR = /ich meinte|meinte ich|\bnicht das\b|\bnicht dieses\b|das andere|die andere|ein anderes|doch nicht/i;
     var RX_AUSWAHL_DEIXIS = /^\s*(?:ja\W+)?(?:das|dieses|diese[nrs]?)\b/i;
     var RX_JA = /^\s*(ja|jo|jep|genau|okay|ok|klar|gern|gerne|mach das|bitte|stimmt|richtig)\b/i, RX_NEIN = /^\s*(nein|nee|nö|lieber nicht|abbrechen|vergiss es|keins|keines|keine|nichts davon|egal)\b/i;
     var GENERISCH = /^(restaurant|restaurants|pizzeria|cafe|café|bar|haus|zum|zur|zu|der|die|das|und|bei|am|im|an|gasthaus|gaststätte|imbiss|lokal|stube)$/i;
@@ -87,7 +91,12 @@
         function normalisiere(liste) {
             return (Array.isArray(liste) ? liste : []).slice(0, Z.maxErgebnisse).map(function (e, i) {
                 var o = (e && typeof e === 'object') ? e : { name: e };
-                return { nr: i + 1, name: String(o.name != null ? o.name : (o.title != null ? o.title : '')).slice(0, 120), beschreibung: String(o.beschreibung != null ? o.beschreibung : (o.subtitle != null ? o.subtitle : '')).slice(0, 200), link: String(o.link != null ? o.link : (o.href != null ? o.href : '')).slice(0, 400) };
+                var r = { nr: i + 1, name: String(o.name != null ? o.name : (o.title != null ? o.title : '')).slice(0, 120), beschreibung: String(o.beschreibung != null ? o.beschreibung : (o.subtitle != null ? o.subtitle : '')).slice(0, 200), link: String(o.link != null ? o.link : (o.href != null ? o.href : '')).slice(0, 400) };
+                var la = Number(o.lat), lo = Number(o.lon);
+                if (o.lat != null && o.lon != null && o.lat !== '' && o.lon !== '' && isFinite(la) && isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && !(la === 0 && lo === 0)) { r.lat = la; r.lon = lo; }
+                if (typeof o.adresse === 'string' && o.adresse.trim()) r.adresse = o.adresse.trim().slice(0, 200);
+                if (typeof o.distanzKm === 'number' && isFinite(o.distanzKm) && o.distanzKm >= 0) r.distanzKm = o.distanzKm;
+                return r;
             }).filter(function (e) { return e.name; }).map(function (e, i) { e.nr = i + 1; return e; });
         }
         function ergebnisse(art, liste, quelle) {
@@ -100,6 +109,7 @@
             beruehre();
             return items.length;
         }
+        function fehlgeschlagen() { aufraeumen(); s.listen = []; s.auswahl = null; s.fragen = []; beruehre(); return true; }
         function verarbeite(r) {
             aufraeumen();
             if (!r || typeof r !== 'object' || typeof r.faehigkeit !== 'string') return false;
@@ -109,7 +119,8 @@
                 return true;
             }
             if (r.status === 'SUCCESS' && !r.trocken) { absicht(r.faehigkeit); return true; }
-            return false;   // Fehler, Rückfragen, Trockenläufe ändern das Gedächtnis nicht
+            if (r.faehigkeit === 'ortssuche' && r.status === 'TOOL_FAILED' && !r.trocken) fehlgeschlagen();   // eine gescheiterte Suche lässt keinen alten Ort als aktuellen stehen
+            return false;   // sonst ändern Fehler, Rückfragen, Trockenläufe das Gedächtnis nicht
         }
 
         /* ---- Bezüge ---- */
@@ -133,6 +144,12 @@
             if (w === 'vorletzte') return { n: anzahl - 1, art: 'vorletzte' };
             if (w === 'mittlere') return (anzahl >= 3 && anzahl % 2 === 1) ? { n: (anzahl + 1) / 2, art: 'mittlere' } : { n: -1, art: 'mittlere' };
             return { n: NR[w], art: 'zahl' };
+        }
+        function ordinalAmEnde(text) {
+            var w = String(text).toLowerCase().replace(/[?.!,]+/g, ' ').split(/\s+/).filter(Boolean);
+            while (w.length && /^(bitte|mal|doch|noch|auch)$/.test(w[w.length - 1])) w.pop();
+            var letzt = w[w.length - 1] || '';
+            return /^(vorletzte|letzte|mittlere|erste|zweite|dritte|vierte|fünfte|fuenfte|sechste|siebte|siebente|achte|neunte|zehnte)(n|s|r|m)?$/.test(letzt);
         }
         function thema(text) { for (var i = 0; i < THEMEN.length; i++) if (THEMEN[i][1].test(text)) return THEMEN[i][0]; return ''; }
 
@@ -179,15 +196,15 @@
         }
 
         /* Auswahl übernehmen oder Rückfrage stellen (und als offene Rückfrage merken) */
-        function abschluss(l, w, themaName, art) {
+        function abschluss(l, w, themaName, art, grund) {
             if (w.ziel) {
                 s.auswahl = { item: w.ziel, art: l.art, zeit: jetzt() }; beruehre();
-                return ergebnisObj(themaName ? 'folgefrage' : art, { ziel: kopie(w.ziel), thema: themaName });
+                return ergebnisObj(themaName ? 'folgefrage' : art, { ziel: kopie(w.ziel), thema: themaName, grund: grund || '' });
             }
             var opts = w.mehrdeutig || l.items;
             var frage = w.ausserhalb !== undefined
                 ? 'Ich habe nur ' + l.items.length + ' Ergebnis' + (l.items.length === 1 ? '' : 'se') + '. Welches meinst du? ' + listeNachFrage(l)
-                : 'Welches meinst du? ' + (w.mehrdeutig ? opts.map(function (i) { return i.nr + ': ' + i.name; }).join(', ') : listeNachFrage(l));
+                : 'Welches meinst du? ' + (w.mehrdeutig ? opts.map(function (i, k) { return (k + 1) + ': ' + i.name; }).join(', ') : listeNachFrage(l));
             var id = frageAnlegen({ text: frage, art: 'auswahl', thema: themaName, optionen: opts, liste: l });
             return ergebnisObj('rueckfrage', { frage: frage, optionen: opts.map(function (i) { return i.name; }), grund: w.ausserhalb !== undefined ? 'ausserhalb' : (w.grund || 'mehrdeutig'), thema: themaName, frageId: id });
         }
@@ -226,17 +243,28 @@
             var ord = ordinal(t, l ? l.items.length : 0);
             var nameTreffer = (l && l.items.length) ? nachName(l, t) : [];
             var deiktisch = (RX_DEIKTISCH.test(t) && (th !== '' || hatAuswahlWort)) || (hatAuswahlWort && RX_AUSWAHL_DEIXIS.test(t));
-            var bezugGenannt = !!ord || nameTreffer.length > 0 || deiktisch;
+            var korrektur = RX_KORREKTUR.test(t) && !ord && !nameTreffer.length;
+            /* Eine bloße Ordnungszahl ohne Thema, Auswahlwort oder Ortswort zählt nur, wenn sie das letzte Wort ist ("Zeig mir das erste", "Und das letzte?") und der Satz kurz ist:
+               sonst würde "Erinner mich an das dritte Treffen" eine Auswahl auslösen. */
+            if (ord && th === '' && !hatAuswahlWort && !deiktisch && !nameTreffer.length && !RX_NUMMER.test(t) && !ordinalAmEnde(t)) ord = null;
+            if (ord && t.split(/\s+/).length > 10) ord = null;
+            var bezugGenannt = !!ord || nameTreffer.length > 0 || deiktisch || korrektur;
             if (!bezugGenannt) return ergebnisObj('kein_bezug');
-            if (!ord && !nameTreffer.length && !deiktisch) return ergebnisObj('kein_bezug');
+            if (!ord && !nameTreffer.length && !deiktisch && !korrektur) return ergebnisObj('kein_bezug');
 
             if (!l || !l.items.length) {
-                if (!ord && !deiktisch) return ergebnisObj('kein_bezug');
+                if (!ord && !deiktisch && !korrektur) return ergebnisObj('kein_bezug');
                 return ergebnisObj('ohne_bezug', { thema: th, frage: 'Worauf bezieht sich das? Ich habe gerade keine Ergebnisse gemerkt.' });
             }
             /* Frist: eine frische Auswahl des Nutzers gilt auch dann, wenn die Liste selbst schon alt ist */
-            if (veraltet(l) && !(deiktisch && !ord && s.auswahl)) {
+            if (veraltet(l) && !(deiktisch && !ord && !korrektur && s.auswahl)) {
                 return ergebnisObj('veraltet', { thema: th, frage: 'Die Ergebnisse sind schon etwas älter. Soll ich noch einmal suchen?', grund: 'veraltet' });
+            }
+            /* "Nein, ich meinte das andere": das bisher gewählte ausschließen; bleibt genau eines übrig, ist es das gemeinte, sonst wird nachgefragt */
+            if (korrektur) {
+                var rest = l.items.filter(function (i) { return !(s.auswahl && s.auswahl.item.nr === i.nr); });
+                if (rest.length === 1 && s.auswahl) return abschluss(l, { ziel: rest[0] }, th, 'auswahl', 'korrektur');
+                return abschluss(l, { mehrdeutig: rest, grund: 'korrektur' }, th, 'auswahl');
             }
             /* Ordinal oder Name: aus der Liste wählen */
             if (ord || nameTreffer.length) {
@@ -260,7 +288,7 @@
         function vergiss() { leer(); return true; }
 
         return { absicht: absicht, ergebnisse: ergebnisse, verarbeite: verarbeite, waehle: waehle, ausgewaehlt: ausgewaehlt, aufloesen: aufloesen, frage: frageAnlegen, offeneFragen: offeneFragen,
-                 beantworte: beantworte, schliesse: schliesse, status: status, vergiss: vergiss, erzeuge: erzeuge, ZEITEN: Object.freeze(Object.assign({}, Z)) };
+                 beantworte: beantworte, schliesse: schliesse, status: status, vergiss: vergiss, fehlgeschlagen: fehlgeschlagen, erzeuge: erzeuge, ZEITEN: Object.freeze(Object.assign({}, Z)) };
     }
 
     window.jvGespraech = erzeuge();

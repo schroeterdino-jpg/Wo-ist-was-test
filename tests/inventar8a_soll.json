@@ -15,18 +15,18 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 327,
-  "produktJs": 172,
-  "jsZeilen": 43775,
-  "jsBytes": 3109459,
-  "jsGzip": 931145,
-  "scriptTags": 178,
-  "eigeneScripts": 172,
+  "repoDateien": 331,
+  "produktJs": 174,
+  "jsZeilen": 44022,
+  "jsBytes": 3130162,
+  "jsGzip": 937012,
+  "scriptTags": 180,
+  "eigeneScripts": 174,
   "drittScripts": 2,
   "inlineScripts": 4,
   "api": 11,
-  "testsGesamt": 94,
-  "testsJs": 61,
+  "testsGesamt": 96,
+  "testsJs": 63,
   "testsMd": 14,
   "testsJson": 19,
   "workflows": 3,
@@ -120,6 +120,7 @@
   "gedaechtnis.js": "C",
   "gedaechtnis_zeit.js": "A",
   "gespraech.js": "A",
+  "gespraech_ort.js": "A",
   "haushalt.js": "A",
   "help.js": "A",
   "hoeren.js": "B",
@@ -185,6 +186,7 @@
   "ruhe.js": "B",
   "satztest.js": "A",
   "schatten.js": "A",
+  "schatten_ansicht.js": "A",
   "schicht.js": "A",
   "schichtauskunft.js": "A",
   "schlaf_antwort.js": "A",
@@ -233,7 +235,7 @@
   "zuvorkommend.js": "A"
  },
  "klassenZahl": {
-  "A": 147,
+  "A": 149,
   "B": 17,
   "C": 8,
   "D": 0,
@@ -263,6 +265,7 @@
   "rueckfrage.js",
   "ruhe.js",
   "satztest.js",
+  "schatten_ansicht.js",
   "schliessen.js",
   "tempo.js",
   "vibration.js",
@@ -303,8 +306,8 @@
    "unwetter.js",
    "weltzeit.js"
   ],
-  "guardMarkerDateien": 23,
-  "guardMarkerGesamt": 29,
+  "guardMarkerDateien": 24,
+  "guardMarkerGesamt": 30,
   "rueckfallFotoSpeak": []
  },
  "duplikate": {
@@ -325,8 +328,8 @@
     "fassungen": 10
    },
    "say": {
-    "kopien": 26,
-    "fassungen": 12
+    "kopien": 27,
+    "fassungen": 13
    },
    "lsGet": {
     "kopien": 28,
@@ -438,16 +441,16 @@
   },
   "ladefehler": []
  },
- "capabilityNichtReferenziert": 131,
+ "capabilityNichtReferenziert": 133,
  "tests": {
   "unklassifiziert": [],
   "klasseOhneDatei": [],
   "workflowOhneDatei": [],
   "workflowDoppelt": [],
   "regressionNichtImWorkflow": [],
-  "imWorkflow": 42,
+  "imWorkflow": 44,
   "jeKlasse": {
-   "regression": 30,
+   "regression": 32,
    "goldenMaster": 8,
    "inventar": 3,
    "historischEingefroren": 1,
@@ -463,7 +466,7 @@
  },
  "ci": {
   "nodeVersion": "20",
-  "schritte": 42,
+  "schritte": 44,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
   "zeitzonenVertragZentral": true,
@@ -520,8 +523,8 @@
  },
  "dokuAbweichungen": {
   "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 166 Produkt-JS-Dateie",
-  "architekturSkriptzahl": "172",
-  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 172 Produktdateien in `js/`). G",
+  "architekturSkriptzahl": "174",
+  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 174 Produktdateien in `js/`). G",
   "architekturProjektstandAbschnitt": "## 8. Projektstand und nächste Schritte (Stand 24.10.2026, historisch)"
  }
 }

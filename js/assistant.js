@@ -473,9 +473,11 @@ async function sendToGroqSmartCore(text, opts = {}) {
                 const res = await findNearbyRestaurants(nearbyAction.places_query || '');
                 nearbyReply = res.reply;
                 res.cards.forEach(c => ctx.cards.push(c));
+                try { if (window.jvOrtGespraech) window.jvOrtGespraech.merke(res.orte || [], 'ki'); } catch (e2) { }   // Phase 5: nur echte Treffer merken
             } catch (e) {
                 nearbyReply = e.userMessage || 'Die Suche in der Nähe konnte gerade nicht durchgeführt werden.';
                 sonderFehler.nearby = true;
+                try { if (window.jvOrtGespraech) window.jvOrtGespraech.fehler(); } catch (e2) { }
             }
         }
 

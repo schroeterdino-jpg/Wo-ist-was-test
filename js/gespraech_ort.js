@@ -1,0 +1,124 @@
+/* ============================================================
+   GESPRÄCHSGEDÄCHTNIS FÜR ORTE (Phase 5): verbindet js/gespraech.js mit der Ortssuche.
+     "Suche drei Restaurants in Hamburg" -> Treffer werden gemerkt | "Das zweite gefällt mir" -> Auswahl | "Wie komme ich dahin?" -> Route zum gewählten Ort
+   Es gibt KEINE zweite Gesprächsspeicherung: alles liegt in window.jvGespraech (nur Arbeitsspeicher, verfällt, siehe gespraech.js).
+
+   window.jvOrtGespraech.merke(orte, quelle)   nach einer ERFOLGREICHEN Ortssuche (nearby.js über assistant.js, ortsuche.js); orte = [{ name, adresse, lat, lon, distanzKm, link }]
+                                               eine leere Liste ersetzt den alten Bezug (die neue Suche fand nichts, alte Orte gelten nicht mehr)
+   window.jvOrtGespraech.fehler()              nach einer GESCHEITERTEN Suche: alter Bezug wird verworfen (kein alter oder fremder Ort)
+   window.jvOrtGespraech.behandle(text)        wird vom Sprachbefehl-Einstieg vor allen anderen Befehlen gefragt; true = beantwortet, false = alles läuft wie bisher
+
+   Verhalten:
+   - Ist nichts gemerkt oder bezieht sich der Satz auf nichts Gemerktes, tut dieses Skript NICHTS (alles läuft wie vorher: feste Befehle, dann KI).
+   - Mehrdeutig -> Rückfrage ("Welches meinst du?"), abgelaufen -> bitte neu suchen. Es wird nie geraten.
+   - Route nur für eindeutig gewählte Orte mit Koordinaten oder Link; sie wird als Karte angeboten (Tippen öffnet die Navigation), nichts öffnet sich von selbst.
+   - Entfernung und Adresse kommen aus den gemerkten Daten (Entfernung = Luftlinie). Fragen, die lokal nicht zu beantworten sind (Öffnungszeiten, Parkplätze, Telefon, Preise),
+     gehen an die bestehende KI, mit dem Ort als Zusatz im Satz und dem Hinweis, nichts zu erfinden.
+   - Eine bloße Antwort auf die offene Frage "Adresse speichern?" der Ortssuche ("die zweite", "Nein") gehört weiter ihr (ortsuche.js: jvSpeichernAntwort); längere Sätze wie "Das zweite gefällt mir" beantwortet das Gedächtnis.
+   - Kein Kalender, keine Erinnerung, kein Langzeitgedächtnis, kein Netz.
+   ============================================================ */
+(function () {
+    'use strict';
+    if (window.jvOrtGespraech) return;
+
+    function G() { return window.jvGespraech || null; }
+    function say(msg) { try { if (typeof window.speak === 'function') window.speak(msg, typeof window.continueConversation === 'function' ? window.continueConversation : undefined); } catch (e) { } }
+    function karten(liste) {
+        try {
+            if (typeof window.clearActionCards === 'function') window.clearActionCards();
+            if (typeof window.showActionCards === 'function') window.showActionCards(liste);
+        } catch (e) { }
+    }
+
+    function merke(orte, quelle) {
+        try {
+            var g = G(); if (!g) return false;
+            g.fehlgeschlagen();   // eine neue Suche ersetzt den bisherigen Bezug vollständig: ältere Treffer bleiben nicht übrig
+            g.ergebnisse('ortssuche', Array.isArray(orte) ? orte : [], quelle || 'ortssuche');
+            g.absicht('ortssuche');
+            return true;
+        } catch (e) { return false; }
+    }
+    function fehler() { try { var g = G(); return g ? g.fehlgeschlagen() : false; } catch (e) { return false; } }
+
+    function hatKoordinaten(z) { return !!z && typeof z.lat === 'number' && typeof z.lon === 'number' && isFinite(z.lat) && isFinite(z.lon); }
+    function eindeutig(z) { return !!z && !!z.name && (hatKoordinaten(z) || !!z.link); }
+    function routeUrl(z) {
+        if (hatKoordinaten(z)) return 'https://www.google.com/maps/dir/?api=1&travelmode=' + ((typeof z.distanzKm === 'number' && z.distanzKm < 0.9) ? 'walking' : 'driving') + '&destination=' + z.lat.toFixed(6) + ',' + z.lon.toFixed(6);
+        return z.link || '';
+    }
+    function entfernungText(km) {
+        if (km < 0.95) return 'etwa ' + Math.max(10, Math.round(km * 100) * 10) + ' Meter';
+        return 'etwa ' + (Math.round(km * 10) / 10).toFixed(1).replace('.', ',') + ' Kilometer';
+    }
+    function nameMitAdresse(z) { return z.name + (z.adresse ? ', ' + z.adresse : ''); }
+
+    function beantworte(r, text) {
+        var z = r.ziel;
+        switch (r.art) {
+            case 'rueckfrage':
+                say(r.frage); return true;
+            case 'veraltet':
+                say('Die Ergebnisse sind schon etwas älter, ich nehme lieber keinen alten Ort. Such bitte noch einmal, dann beziehe ich mich auf die neuen Treffer.'); return true;
+            case 'abgebrochen':
+                say('Alles klar, ich lasse es.'); return true;
+            case 'auswahl':
+                say('Okay, ' + z.name + (r.grund === 'korrektur' ? ' ist es dann.' : '.') + ' Sag „Wie komme ich dahin“, dann zeige ich dir die Route.');
+                karten([{ icon: '📍', title: z.name, subtitle: z.adresse || z.beschreibung || '' }]);
+                return true;
+            case 'folgefrage':
+                break;
+            default:
+                return false;   // kein_bezug, ohne_bezug, antwort: alles wie bisher
+        }
+        /* Folgefrage zu einem eindeutig gewählten Ort */
+        switch (r.thema) {
+            case 'route':
+                if (!eindeutig(z)) { say('Zu ' + z.name + ' habe ich keine genaue Adresse, deshalb biete ich dir dafür keine Navigation an.'); return true; }
+                say('Hier ist die Route zu ' + z.name + '. Tippe auf die Karte, dann öffnet sich die Navigation.');
+                karten([{ icon: '🧭', title: 'Route zu ' + z.name, subtitle: z.adresse || 'Tippen: Navigation öffnen', href: routeUrl(z) }]);
+                return true;
+            case 'entfernung':
+                if (typeof z.distanzKm === 'number') { say(z.name + ' ist ' + entfernungText(z.distanzKm) + ' Luftlinie von dir entfernt. Die Fahrzeit kenne ich nicht, die zeigt dir die Navigation.'); return true; }
+                break;
+            case 'adresse':
+                if (z.adresse) { say(z.name + ' ist hier: ' + z.adresse + '.'); return true; }
+                break;
+            default: break;
+        }
+        /* Rest geht an die bestehende KI, mit dem eindeutigen Ort als Zusatz */
+        if (typeof window.sendToGroqSmart === 'function') {
+            window.sendToGroqSmart(text + ' (Gemeint ist ' + nameMitAdresse(z) + '. Erfinde keine Angaben zu Öffnungszeiten, Parkplätzen, Preisen oder Fahrzeiten; sage ehrlich, wenn du etwas nicht sicher weißt.)');
+            return true;
+        }
+        return false;
+    }
+
+    function behandle(text) {
+        var g = G(); if (!g || typeof text !== 'string') return false;
+        var st = g.status();
+        if (!st.listen.length && !st.offeneFragen) return false;                         // nichts gemerkt: alles wie bisher
+        try { if (typeof window.jvSpeichernAntwort === 'function' && window.jvSpeichernAntwort(text)) return false; } catch (e) { }   // ein bloßes "die zweite" auf die offene Frage "Adresse speichern?" gehört der Ortssuche
+        var r = g.aufloesen(text);
+        if (!r || r.art === 'kein_bezug') return false;
+        return beantworte(r, text);
+    }
+
+    /* Einhängen: vor alle bisherigen festen Befehle. Ohne Bezug auf Gemerktes reicht der Hook den Satz unverändert weiter. */
+    function installieren() {
+        if (typeof window.handleLocalCommand !== 'function' || window.handleLocalCommand._jvOrtGespraech) return;
+        var orig = window.handleLocalCommand;
+        var h = function (text) {
+            var erledigt = false;
+            try { erledigt = behandle(text) === true; } catch (e) { erledigt = false; }
+            if (erledigt) return true;
+            return orig.apply(this, arguments);
+        };
+        try { Object.keys(orig).forEach(function (k) { h[k] = orig[k]; }); } catch (e) { }
+        h._jvOrtGespraech = true;
+        window.handleLocalCommand = h;
+    }
+
+    window.jvOrtGespraech = { merke: merke, fehler: fehler, behandle: behandle };
+    installieren();
+})();

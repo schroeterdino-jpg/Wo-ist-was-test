@@ -427,13 +427,10 @@
         const nums = list.map((_, i) => i + 1);
         return { ask: ` Möchten Sie eine dieser Adressen in Ihren App-Kontakten speichern? Sagen Sie ${nums.join(', ')} oder Nein.` };
     }
-    function handlePendingSaveAnswer(text) {
-        if (!pendingSavePlaces) return false;
-        if (Date.now() - pendingSavePlaces.at > 120000) { pendingSavePlaces = null; return false; }
+    /* Was würde die offene Frage "Adresse speichern?" aus diesem Satz machen? 'nein' | 'ja' | Zahl (Index) | null (gehört ihr nicht). Ohne Nebenwirkung; handlePendingSaveAnswer und jvSpeichernAntwort teilen sich das. */
+    function speicherAntwortArt(text) {
         const t = norm(text);
-        if (/^(nein|nee|ne|abbrechen|keine|keinen|keins|nichts)$/.test(t)) {
-            pendingSavePlaces = null; say('Alles klar, ich speichere keine Adresse.'); return true;
-        }
+        if (/^(nein|nee|ne|abbrechen|keine|keinen|keins|nichts)$/.test(t)) return 'nein';
         const words = [
             /^(1|eins|ein|erste|ersten|erstes|die erste|den ersten)$/, /^(2|zwei|zweite|zweiten|zweites|die zweite|den zweiten)$/,
             /^(3|drei|dritte|dritten|drittes|die dritte|den dritten)$/, /^(4|vier|vierte|vierten|viertes|die vierte|den vierten)$/
@@ -442,14 +439,22 @@
         if (idx < 0) {
             const m=t.match(/(?:nummer|nr)?\s*([1-4])\b/); if(m) idx=Number(m[1])-1;
         }
-        if (/^(ja|ja bitte|gerne|speichern)$/.test(t) && pendingSavePlaces.places.length === 1) idx=0;
-        if (/^(ja|ja bitte|gerne|speichern)$/.test(t) && pendingSavePlaces.places.length > 1) {
-            say(`Gerne. Welche Adresse? Sagen Sie eine Zahl von 1 bis ${pendingSavePlaces.places.length}.`); return true;
-        }
-        if (idx >= 0 && idx < pendingSavePlaces.places.length) return savePlaceToAppContacts(pendingSavePlaces.places[idx]);
+        const ja = /^(ja|ja bitte|gerne|speichern)$/.test(t);
+        if (ja && pendingSavePlaces.places.length === 1) idx=0;
+        if (ja && pendingSavePlaces.places.length > 1) return 'ja';
+        return idx >= 0 && idx < pendingSavePlaces.places.length ? idx : null;
+    }
+    function handlePendingSaveAnswer(text) {
+        if (!pendingSavePlaces) return false;
+        if (Date.now() - pendingSavePlaces.at > 120000) { pendingSavePlaces = null; return false; }
+        const art = speicherAntwortArt(text);
+        if (art === 'nein') { pendingSavePlaces = null; say('Alles klar, ich speichere keine Adresse.'); return true; }
+        if (art === 'ja') { say(`Gerne. Welche Adresse? Sagen Sie eine Zahl von 1 bis ${pendingSavePlaces.places.length}.`); return true; }
+        if (typeof art === 'number') return savePlaceToAppContacts(pendingSavePlaces.places[art]);
         return false;
     }
     window.jvOfferSave = offerSavePlaces;
+    window.jvSpeichernAntwort = function (text) { try { return !!pendingSavePlaces && Date.now() - pendingSavePlaces.at <= 120000 && speicherAntwortArt(text) !== null; } catch (e) { return false; } };   // Phase 5: gehört dieser Satz der offenen Frage "Adresse speichern?" (dann bleibt er bei ihr)
     window.jvSavePlace = savePlaceToAppContacts;   // adresse_speichern.js: "Speichere die Adresse"
     window.jvLetzteOrte = function () { return { at: lastPlacesAt, places: lastPlaces.map(p => ({ name: p.name, street: [p.street, p.city].filter(Boolean).join(', ') })) }; };
     let lastPlaces = [], lastPlacesAt = 0;
@@ -477,6 +482,7 @@
         let pos;
         try { pos = await position(); }
         catch (e) {
+            try { if (window.jvOrtGespraech) window.jvOrtGespraech.fehler(); } catch (e2) { }
             showCards([{ icon: '⚠️', title: 'Ortssuche: kein Standort', subtitle: String((e && e.message) || 'Standort nicht erlaubt oder nicht verfügbar').slice(0, 120) }]);
             say('Ohne Standort kann ich nichts in der Nähe suchen. Bitte erlauben Sie den Standort für die App.');
             return true;
@@ -494,16 +500,19 @@
             }
         } catch (e) {
             console.error('Ortssuche fehlgeschlagen:', e && e.message);
+            try { if (window.jvOrtGespraech) window.jvOrtGespraech.fehler(); } catch (e2) { }
             showCards([{ icon: '⚠️', title: 'Ortssuche: Kartendaten nicht erreichbar', subtitle: String((e && e.message) || 'unbekannter Fehler').slice(0, 160) }]);
             say('Die Ortssuche antwortet gerade nicht. Bitte versuchen Sie es in einer Minute noch einmal.');
             return true;
         }
         if (!places.length) {
+            try { if (window.jvOrtGespraech) window.jvOrtGespraech.fehler(); } catch (e2) { }
             showCards([{ icon: '🔎', title: `Kein Treffer für ${label}`, subtitle: `Im Umkreis von ${usedRadius / 1000} km nichts in den Kartendaten` }]);
             say(`Im Umkreis von ${usedRadius / 1000} Kilometern finde ich keinen Eintrag für ${label}. Die Kartendatenbank kennt eventuell nicht jedes Geschäft.`);
             return true;
         }
         lastPlaces = places; lastPlacesAt = Date.now();
+        try { if (window.jvOrtGespraech) window.jvOrtGespraech.merke(places.map(p => ({ name: p.name, adresse: [p.street, p.city].filter(Boolean).join(', '), lat: p.lat, lon: p.lon, distanzKm: p.dist / 1000, link: routeUrl(p) })), 'ortsuche'); } catch (e) { }   // Phase 5: Gesprächsgedächtnis
         const first = places[0], o = hoursInfo(first);
         showCards(places.map((p, i) => {
             const oi = hoursInfo(p);

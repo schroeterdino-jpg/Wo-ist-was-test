@@ -196,7 +196,9 @@ async function findNearbyRestaurants(query, ortVorgabe) {   // ortVorgabe (optio
         href: buildMapsLink(p.strasse ? `${p.name}, ${p.strasse}` : p.name, '', p.distanzKm < 1.2 ? 'walking' : 'driving')
     }));
 
-    return { reply, cards };
+    // Phase 5: dieselben Treffer mit Koordinaten für das Gesprächsgedächtnis (js/gespraech_ort.js); die Karten bleiben unverändert
+    const orte = top.map(p => ({ name: p.name, adresse: [p.strasse, p.ort].filter(Boolean).join(', '), lat: p.lat, lon: p.lon, distanzKm: p.distanzKm, link: buildMapsLink(p.strasse ? `${p.name}, ${p.strasse}` : p.name, '', p.distanzKm < 1.2 ? 'walking' : 'driving') }));
+    return { reply, cards, orte };
 }
 
 /* --- Test für die Einstellungen --- */

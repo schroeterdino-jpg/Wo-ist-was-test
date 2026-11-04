@@ -53,6 +53,8 @@ jobs:
           node tests/registry.js
           node tests/schatten.js
           node tests/gespraech.js
+          node tests/gespraech_ort.js
+          node tests/schatten_ansicht.js
           node tests/dirigent_fragen.js
           node tests/faehigkeiten.js
           node tests/globale.js
