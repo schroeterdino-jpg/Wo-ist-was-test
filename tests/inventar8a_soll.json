@@ -15,18 +15,18 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 331,
-  "produktJs": 174,
-  "jsZeilen": 44035,
-  "jsBytes": 3133146,
-  "jsGzip": 937886,
-  "scriptTags": 180,
-  "eigeneScripts": 174,
+  "repoDateien": 333,
+  "produktJs": 175,
+  "jsZeilen": 44466,
+  "jsBytes": 3167850,
+  "jsGzip": 948062,
+  "scriptTags": 181,
+  "eigeneScripts": 175,
   "drittScripts": 2,
   "inlineScripts": 4,
   "api": 11,
-  "testsGesamt": 96,
-  "testsJs": 63,
+  "testsGesamt": 97,
+  "testsJs": 64,
   "testsMd": 14,
   "testsJson": 19,
   "workflows": 3,
@@ -84,6 +84,7 @@
   "bundesliga.js": "A",
   "calendar.js": "A",
   "charakter.js": "A",
+  "chef.js": "A",
   "commands.js": "A",
   "contextplus.js": "B",
   "diagnose.js": "A",
@@ -235,7 +236,7 @@
   "zuvorkommend.js": "A"
  },
  "klassenZahl": {
-  "A": 149,
+  "A": 150,
   "B": 17,
   "C": 8,
   "D": 0,
@@ -311,8 +312,8 @@
   "rueckfallFotoSpeak": []
  },
  "duplikate": {
-  "identischeGruppen": 16,
-  "identischeStellen": 59,
+  "identischeGruppen": 18,
+  "identischeStellen": 63,
   "grosseGruppen": [
    "kennenlernen.js:ruhig = zane_redet.js:ruhig",
    "mail_nacht.js:rohMail = mailaktionen.js:rohMail"
@@ -328,7 +329,7 @@
     "fassungen": 10
    },
    "say": {
-    "kopien": 27,
+    "kopien": 28,
     "fassungen": 13
    },
    "lsGet": {
@@ -441,16 +442,16 @@
   },
   "ladefehler": []
  },
- "capabilityNichtReferenziert": 133,
+ "capabilityNichtReferenziert": 134,
  "tests": {
   "unklassifiziert": [],
   "klasseOhneDatei": [],
   "workflowOhneDatei": [],
   "workflowDoppelt": [],
   "regressionNichtImWorkflow": [],
-  "imWorkflow": 44,
+  "imWorkflow": 45,
   "jeKlasse": {
-   "regression": 32,
+   "regression": 33,
    "goldenMaster": 8,
    "inventar": 3,
    "historischEingefroren": 1,
@@ -466,7 +467,7 @@
  },
  "ci": {
   "nodeVersion": "20",
-  "schritte": 44,
+  "schritte": 45,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
   "zeitzonenVertragZentral": true,
@@ -523,8 +524,8 @@
  },
  "dokuAbweichungen": {
   "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 166 Produkt-JS-Dateie",
-  "architekturSkriptzahl": "174",
-  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 174 Produktdateien in `js/`). G",
+  "architekturSkriptzahl": "175",
+  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 175 Produktdateien in `js/`). G",
   "architekturProjektstandAbschnitt": "## 8. Projektstand und nächste Schritte (Stand 24.10.2026, historisch)"
  }
 }

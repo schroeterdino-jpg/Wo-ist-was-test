@@ -284,9 +284,9 @@ const merkTreffer = A => G(A).status().listen.length ? G(A).waehle(1) : null;
     /* ---------- Statisch ---------- */
     const code = lies('js/gespraech_ort.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     check('11a Klebstoff-Datei: kein Netz, kein Speichern, keine Zeitgeber, kein Langzeitgedächtnis, kein Kalender, keine Erinnerung, keine Aktionen', !/fetch\(|apiFetch|localStorage|sessionStorage|setPersistentData|setItem|setTimeout|setInterval|memoryItems|searchMemory|addMemory|calendarEntries|reminderEntries|executeAction|window\.open|location\./.test(code), (code.match(/fetch\(|apiFetch|localStorage|setItem|setTimeout|memoryItems|calendarEntries|reminderEntries|executeAction|window\.open/) || [])[0]);
-    const nutzer = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && !/^(gespraech|gespraech_ort)\.js$/.test(f)).filter(f => /jvGespraech\b/.test(lies('js/' + f)));
-    check('11b nur gespraech_ort.js benutzt window.jvGespraech (keine zweite Gesprächsspeicherung)', nutzer.length === 0, nutzer.join());
-    const aufr = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && f !== 'gespraech_ort.js').filter(f => /jvOrtGespraech/.test(lies('js/' + f)));
+    const nutzer = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && !/^(gespraech|gespraech_ort|chef)\.js$/.test(f)).filter(f => /jvGespraech\b/.test(lies('js/' + f)));
+    check('11b nur gespraech_ort.js (und die Chef-KI, Phase 6) benutzt window.jvGespraech (keine zweite Gesprächsspeicherung)', nutzer.length === 0, nutzer.join());
+    const aufr = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && f !== 'gespraech_ort.js' && f !== 'chef.js').filter(f => /jvOrtGespraech/.test(lies('js/' + f)));
     check('11c die Ortssuche meldet nur über abgesicherte Einzeiler (assistant.js, ortsuche.js)', aufr.sort().join() === 'assistant.js,ortsuche.js' && (lies('js/assistant.js').match(/jvOrtGespraech/g) || []).length === 4 && (lies("js/ortsuche.js").match(/jvOrtGespraech/g) || []).length === 13 && !/jvOrtGespraech\.(?!merke|fehler|behandle|hatFrage)/.test(lies('js/assistant.js') + lies('js/ortsuche.js')), aufr.join());
     check('11d weckruf-src unberührt (kein neuer APK-Bau nötig)', !fs.existsSync(path.join(ROOT, 'weckruf-src')) || !/gespraech|jvOrt/.test(require('child_process').execSync('git status --short weckruf-src || true', { cwd: ROOT }).toString()));
 

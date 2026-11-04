@@ -568,6 +568,8 @@
             const handled = originalLocal.apply(this, arguments);
             if (handled) return handled;
             try { if (handleOrtsucheCommand(text)) return true; } catch (e) { console.error('Ortssuche', e); }
+            // Phase 6: Chef-KI (standardmäßig AUS, dann sofort false). Erst NACH allen festen Befehlen gefragt, übernimmt nur natürliche Ortsanfragen, nie einen bestehenden Befehl.
+            try { if (window.jvChef && window.jvChef.behandle(text) === true) return true; } catch (e) { console.error('Chef-KI', e); }
             return handled;
         };
         hooked._ortsuche = true;
