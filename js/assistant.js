@@ -321,6 +321,9 @@ async function sendToGroqSmartCore(text, opts = {}) {
         window.jvMdAusfall = [];           // B3: mitdenken.js trägt hier Zusatzprüfungen ein, die gestartet wurden und ausgefallen sind
         for (const action of actions) {
             if (action.type === 'calendar_search' || action.type === 'web_lookup' || action.type === 'email_check' || action.type === 'email_read' || action.type === 'travel_time' || action.type === 'nearby_places' || action.type === 'fuel_route' || action.type === 'bahn') continue; // kommen gleich
+            if (window.jvSicher && !window.jvSicher.bekannt(action)) {   // Phase 1: die KI hat eine Aktion erfunden, die es nicht gibt: kein Erfolg, ehrliche Meldung
+                window.jvSicher.merke('fehlt', action.type); if (errors.indexOf(window.jvSicher.texte.fehlt) < 0) errors.push(window.jvSicher.texte.fehlt); continue;
+            }
             const hinweiseVorher = ctx.notes.length;
             try {
                 const nichtsVorher = (ctx[Symbol.for('jv.nichtsGetan')] || []).length;
@@ -549,6 +552,8 @@ async function sendToGroqSmartCore(text, opts = {}) {
         let replyText = searchReply || webReply || emailReply || travelReply || nearbyReply || fuelReply || nearbyFuelReply || bahnReply || ai.reply;
         // 3D-Kopf: Gesichtsausdruck pro Satz, den die KI selbst gewählt hat (nur wenn genau ihre Antwort gesprochen wird)
         try { window.__jvMimikKI = (replyText === ai.reply && Array.isArray(ai.mimik) && ai.mimik.length) ? { reply: String(ai.reply), list: ai.mimik.map(String), at: Date.now() } : null; } catch (e) { }
+        if (typeof replyText !== 'string') replyText = (typeof replyText === 'number') ? String(replyText) : '';
+        if (!replyText.trim()) replyText = '';   // Phase 1: nur Leerzeichen zählt als leer
         if (!replyText) {
             if (wantsSearch) {
                 const results = searchMemory((searchAction && searchAction.memory_search_query) || text);
@@ -559,6 +564,8 @@ async function sendToGroqSmartCore(text, opts = {}) {
                 } else {
                     replyText = `Ich habe Folgendes in meinen Registern gefunden: ${results.map(r => `${r.key}:${r.value}`).join(', ')}`;
                 }
+            } else if (window.jvSicher && window.jvSicher.ohneWirkung(erfolgTypen, okCount, errors, nichtsSaetze)) {   // Phase 1: nichts Echtes geschehen: nie "Erledigt" sagen
+                window.jvSicher.merke('unklar', 'leere Antwort'); replyText = window.jvSicher.texte.unklar;
             } else {
                 replyText = sassLevel() >= 3 ? pickRandom([`Erledigt, ${currentUserName}. Du darfst jetzt klatschen.`, `Ist passiert. Deine Dankbarkeit nehme ich bar entgegen.`, `Fertig. Das war leichter als dein Gesichtsausdruck vermuten ließ.`])
                     : sassLevel() >= 2 ? pickRandom([`Erledigt, ${currentUserName}. Applaus ist optional.`, `Ist passiert. Du musst nichts weiter tun.`, `Fertig. Das ging schneller als dein Gedanke dazu.`])
@@ -582,6 +589,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
             if (ctx.notes.length > 0 && errors.length === 0) replyText += ' ' + ctx.notes.join(' ');
             if (nichtsSaetze.length > 0) replyText = okCount > 0 ? replyText + ' ' + nichtsSaetze.join(' ') : nichtsSaetze.join(' ');
         }
+        if (!String(replyText == null ? '' : replyText).trim()) { replyText = (window.jvSicher && window.jvSicher.texte.unklar) || 'Dazu habe ich gerade keine Antwort.'; }   // Phase 1: nie mit leerem Text enden
         if (opts.collect) {   // Protokoll-Lauf: Antwort und Karten abgeben, gesprochen wird am Ende alles zusammen
             opts.collect(replyText, ctx.cards);
             renderAllLists();
