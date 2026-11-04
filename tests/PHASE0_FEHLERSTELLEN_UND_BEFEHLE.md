@@ -2,7 +2,7 @@
 
 # Phase 0: Fehlerstellen und Einstufung der Befehle
 
-Stand: main e47c52f. Gemessen im Test-Gerüst (tests/umgebung.js, KI und Netz abgeschaltet), gelesen im echten Code. Die Test-Baseline steht in `tests/PHASE0_BASELINE.md`.
+Stand: main e47c52f. Gemessen im Test-Gerüst (tests/umgebung.js, KI und Netz abgeschaltet), gelesen im echten Code. Die Test-Baseline steht unten in Abschnitt D.
 
 ## A. Tatsächliche Fehlerstellen (Eingabe geht verloren oder falscher Erfolg)
 
@@ -50,3 +50,51 @@ Hinweis: "Stopp.", "Lauter." und "Öffne die Einstellungen." laufen nicht durch 
 - Keine Änderung an den 94 Befehlen, keine Änderung an deren Reihenfolge.
 - Kein Zeitgeber ("Wächter") über stille feste Befehle. Grund: F6 ist nicht belegt, und stille Befehle sind teils gewollt. Ein Wächter würde Fehlalarme und doppelte Antworten riskieren. Vorschlag für eine spätere Phase: erst messen (Liste aller Befehle, die `true` zurückgeben ohne `speak()`/Karte/Fenster), dann nur für echte Lücken.
 - Kein Fehlerprotokoll auf der Platte (Phase 9). Es gibt nur eine Arbeitsspeicher-Liste der letzten 20 Vorfälle (Art und Aktionsname, nie der Satz).
+
+## D. Test-Baseline (Phase 0)
+
+Alle Schritte aus `.github/workflows/tests.yml`, einzeln gestartet. "main" = unveränderter Stand e47c52f (sauberer Arbeitsordner), "Phase 1" = Stand dieses Branches. Zeiten in Sekunden, Ergebnis = letzte Ausgabezeile.
+
+| Test | main | Phase 1 |
+|---|---|---|
+| inventar8a | ok | ok |
+| c1_stufe1 | ok | ok |
+| regeln | ok | ok |
+| aktionen | ok | ok |
+| memory7b | ok | ok |
+| aktionen_kette | ok | ok |
+| meldungen | ok | ok |
+| sprache | ok | ok |
+| hintergrund | ok | ok |
+| memory7a | ok | ok |
+| antwort | ok | ok |
+| aktionserfolg | ok | ok |
+| ausflug_agent | ok | ok |
+| mitnehmen_briefing | ok | ok |
+| schicht_freier_tag | ok | ok |
+| mail_loeschen | ok | ok |
+| foto_produkt | ok | ok |
+| foto_lens | ok | ok |
+| dirigent_fragen | ok | ok |
+| faehigkeiten | ok | ok |
+| globale | ok | ok |
+| handyapp | ok | ok |
+| jarvis_pruefstrecke | ok | ok |
+| kitext | ok | ok |
+| kontakte_xss | ok | ok |
+| landkarte | ok | ok |
+| lauf | ok | ok |
+| mehrfachfrage | ok | ok |
+| pending_reihenfolge | ok | ok |
+| pending_zweite_stufe | ok | ok |
+| reihenfolge | ok | ok |
+| stromtest | ok | ok |
+| suche | ok | ok |
+| timer | ok | ok |
+| uebersicht | ok | ok |
+| vercelignore | ok | ok |
+| verkehr | ok | ok |
+| wirkungslos | ok | ok |
+| sicherheit (neu) | - | ok |
+
+Ergebnis: main 38 von 38 grün, Phase 1 39 von 39 grün. In Phase 1 wurden nur Zählerstände in `tests/inventar8a_soll.json` neu geschrieben (neue Datei `js/sicherheit.js`, neuer Test, neue Dokumentationsdatei) und in `tests/inventar8a.js` zwei feste Zahlen für die neue Datei angepasst (Produktzahl +1, ARCHITEKTUR-Gegenprobe 168 statt 167). Kein Test gelöscht oder abgeschwächt.
