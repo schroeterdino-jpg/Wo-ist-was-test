@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (167 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (168 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -585,3 +585,10 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 ## Startseite anpassen (`js/startseite_anpassen.js`)
 - ☰-Menü > „Startseite anpassen“ (Eintrag in `buildMenuPanel`, `panels.js`): Fenster mit den 8 Feldern der Startseite; je Feld Schalter An/Aus und ▲ ▼. Bedienung nur per Tippen. Nur lokal (`jv_ueb_felder`, kein Abgleich, kein Server).
 - Technik: ändert nur die Anzeige (CSS `order` am Feld und Klasse `ueb-aus`); `uebersicht.js` füllt die Felder unverändert weiter. `window.jvStartAnpassen = { oeffnen, anwenden, zuruecksetzen, felder }`.
+
+## Phase 1 Sicherheit (`js/sicherheit.js`, Test `tests/sicherheit.js`)
+- Ziel: Jarvis meldet nie fälschlich Erfolg und endet nie mit leerem Text. Erstes Stück des Umbaus zum denkenden Assistenten (Analyse und Fehlerstellen: `tests/PHASE0_FEHLERSTELLEN_UND_BEFEHLE.md`).
+- `assistant.js` fragt vor jeder Aktion `jvSicher.bekannt(action)`. Ein ausdrücklich erfundener Typ zählt nicht als Erfolg und ergibt den Satz "... dafür fehlt mir noch die passende Fähigkeit". Aktionen ohne Typ (reine Antwort) und harmlose Wörter wie `none`/`answer` bleiben unverändert.
+- Leere KI-Antwort (auch nur Leerzeichen, Objekt, fehlendes Feld) ergibt nie "Erledigt", wenn nichts Echtes geschah, sondern die Rückfrage "Ich bin mir nicht sicher, was du damit möchtest ...". Vor `speak()` und im Protokoll-Lauf (`collect`) gilt eine letzte Absicherung.
+- **Neue Aktionsart einbauen:** Sie muss in `BEKANNT` in `js/sicherheit.js` stehen, sonst meldet Jarvis sie als fehlende Fähigkeit. `tests/sicherheit.js` prüft die Liste gegen den Code und gegen die Liste in `prompt.js` und schlägt sonst fehl.
+- Bewusst nicht enthalten: Wächter über stille feste Befehle (manche sind gewollt still), Fehlerprotokoll auf der Platte. Im Arbeitsspeicher liegen nur die letzten 20 Vorfälle (`jvSicher.vorfaelle()`).

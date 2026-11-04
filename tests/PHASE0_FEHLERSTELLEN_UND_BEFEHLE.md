@@ -1,3 +1,5 @@
+> **Historische Momentaufnahme aus Phase 0 des Umbaus zum denkenden Assistenten (main e47c52f, 04.11.2026).** Zahlen und Befehlsliste entsprechen diesem Zeitpunkt und sind nicht automatisch der aktuelle Repository-Stand. Aktueller Stand: `ARCHITEKTUR.md`.
+
 # Phase 0: Fehlerstellen und Einstufung der Befehle
 
 Stand: main e47c52f. Gemessen im Test-Gerüst (tests/umgebung.js, KI und Netz abgeschaltet), gelesen im echten Code. Die Test-Baseline steht in `tests/PHASE0_BASELINE.md`.
