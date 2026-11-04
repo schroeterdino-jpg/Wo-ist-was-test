@@ -80,7 +80,7 @@
         try {
             var typen = [], map = aktionZuFaehigkeit(), benutzt = [];
             (Array.isArray(aktionen) ? aktionen : []).forEach(function (a) {
-                if (a && typeof a === 'object' && typeof a.type === 'string' && a.type) {
+                if (a && typeof a === 'object' && typeof (a.type) === 'string' && a.type) {
                     if (typen.indexOf(a.type) < 0) typen.push(a.type);
                     if (map[a.type] && benutzt.indexOf(map[a.type]) < 0) benutzt.push(map[a.type]);
                 }

@@ -97,7 +97,7 @@ function fakten(L) {
             const re = new RegExp('(?:(?<![\\w$.])|(?<=window\\.))' + n.replace(/\$/g, '\\$') + '(?![\\w$])');
             if (js.some(g => g !== f && re.test(T[g])) || re.test(html) || new RegExp('\\b' + n.replace(/\$/g, '\\$') + '\\b').test(java) || new RegExp('\\b' + n.replace(/\$/g, '\\$') + '\\b').test(api)) ext++;
         }
-        const wirkung = /jvCommands\.use|jvAktionen\.|jvChain\.|jvSpeakKette\.|jvFotoKette\.|jvKiText|jvSuchQuellen|jvFaehigkeiten\.|jvRegistry|jvMeldungen\.|jvRegeln\.|addEventListener|\.on[a-z]+\s*=[^=]|setInterval|setTimeout|requestAnimationFrame|MutationObserver|fetch\(|apiFetch\(|ZaneBridge|ZaneNative|window\[[a-zA-Z_]+\]\s*=|window\.[A-Za-z_$][\w$]*\s*=\s*function|document\.(?:body|getElementById|createElement)/.test(t);
+        const wirkung = /jvCommands\.use|jvAktionen\.|jvChain\.|jvSpeakKette\.|jvFotoKette\.|jvKiText|jvSuchQuellen|jvFaehigkeiten\.|jvRegistry|jvGespraech|jvMeldungen\.|jvRegeln\.|addEventListener|\.on[a-z]+\s*=[^=]|setInterval|setTimeout|requestAnimationFrame|MutationObserver|fetch\(|apiFetch\(|ZaneBridge|ZaneNative|window\[[a-zA-Z_]+\]\s*=|window\.[A-Za-z_$][\w$]*\s*=\s*function|document\.(?:body|getElementById|createElement)/.test(t);
         out[f] = { zeilen: t.split('\n').length, bytes: Buffer.byteLength(t), ext, wirkung };
     }
     return out;

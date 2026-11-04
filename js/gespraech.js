@@ -2,14 +2,14 @@
    GESPRÄCHSGEDÄCHTNIS (Phase 4): merkt sich, worüber gerade gesprochen wird, damit Folgefragen verstanden werden können.
      "Suche drei Restaurants in Hamburg" -> Ergebnisse   |   "Das zweite gefällt mir" -> Auswahl   |   "Wie komme ich dahin?" -> das ausgewählte Restaurant
    ISOLIERT und NICHT PRODUKTIV: Keine App-Datei benutzt es, nur die Tests. Es ändert nichts am Verhalten von Jarvis.
-   Es ist etwas ANDERES als das Langzeitgedächtnis (memoryItems, "Merk dir ..."): kein Zugriff darauf, kein localStorage, kein Netz, keine Zeitgeber.
+   Es ist etwas ANDERES als das Langzeitgedächtnis (Langzeit-Speicher, "Merk dir ..."): kein Zugriff darauf, kein localStorage, kein Netz, keine Zeitgeber.
    Alles liegt nur im Arbeitsspeicher und verfällt (siehe STANDARD). Gespeichert werden Ergebnisse (Name, Beschreibung, Link) und Jarvis' eigene Rückfragen,
    NIE die Sätze des Nutzers.
 
    window.jvGespraech.erzeuge(opt)       eine eigene Instanz (opt.jetzt = Uhr für Tests, opt.zeiten = andere Fristen); window.jvGespraech ist die gemeinsame Instanz
    .absicht(name?, daten?)               aktuelle Gesprächsabsicht setzen / lesen ({ name, seitMs })
    .ergebnisse(art, liste, quelle?)      letzte Ergebnisse merken (löscht die bisherige Auswahl), max. 10 je Liste, die letzten 3 Listen
-   .verarbeite(registryErgebnis)         nimmt ein Ergebnis von jvRegistry.fuehreAus (Fähigkeit ortssuche: Karten werden zu Ergebnissen), sonst nur die Absicht
+   .verarbeite(registryErgebnis)         nimmt ein Ergebnis von der Registry (fuehreAus) (Fähigkeit ortssuche: Karten werden zu Ergebnissen), sonst nur die Absicht
    .waehle(bezug)                        Zahl (1 = erstes) oder Text ("das zweite", "Roma", "das letzte") -> Auswahl oder Rückfrage
    .ausgewaehlt()                        das gewählte Ergebnis (Kopie) oder null (auch null, wenn die Auswahl verfallen ist)
    .aufloesen(text)                      Folgesatz verstehen -> { art, ziel, thema, frage, optionen, grund, frageId }, art:
