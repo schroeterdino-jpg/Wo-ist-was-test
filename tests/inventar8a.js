@@ -155,7 +155,7 @@ function duplikate(L) {
 
 /* ---------- 7  Tests, Doku, CI, Orphans, SW, Android, API ---------- */
 const TEST_KLASSE = {
-    regression: ['lauf', 'aktionen_kette', 'jarvis_pruefstrecke', 'faehigkeiten', 'handyapp', 'antwort', 'mehrfachfrage', 'c1_stufe1', 'meldungen', 'regeln', 'uebersicht', 'stromtest', 'memory7b', 'verkehr', 'dirigent_fragen', 'pending_reihenfolge', 'pending_zweite_stufe', 'vercelignore', 'kontakte_xss', 'aktionserfolg', 'ausflug_agent', 'mitnehmen_briefing', 'schicht_freier_tag', 'mail_loeschen', 'foto_produkt', 'foto_lens', 'sicherheit', 'registry', 'schatten', 'gespraech', 'gespraech_ort', 'schatten_ansicht'],
+    regression: ['lauf', 'aktionen_kette', 'jarvis_pruefstrecke', 'faehigkeiten', 'handyapp', 'antwort', 'mehrfachfrage', 'c1_stufe1', 'meldungen', 'regeln', 'uebersicht', 'stromtest', 'memory7b', 'verkehr', 'dirigent_fragen', 'pending_reihenfolge', 'pending_zweite_stufe', 'vercelignore', 'kontakte_xss', 'aktionserfolg', 'ausflug_agent', 'mitnehmen_briefing', 'schicht_freier_tag', 'mail_loeschen', 'foto_produkt', 'foto_lens', 'sicherheit', 'registry', 'schatten', 'gespraech', 'gespraech_ort', 'schatten_ansicht', 'chef'],
     goldenMaster: ['aktionen', 'reihenfolge', 'sprache', 'globale', 'wirkungslos', 'suche', 'kitext', 'hintergrund'],
     inventar: ['landkarte', 'timer', 'inventar8a'],
     historischEingefroren: ['memory7a'],
@@ -297,7 +297,7 @@ function tabelle(m) {
     check('Zahlen: eigene Script-Tags = Produkt-JS-Dateien', z.eigeneScripts === z.produktJs, z);
     check('Zahlen: Vercel Hobby höchstens 12 Functions', z.api <= 12, z.api);
     check('Zahlen: weiterhin 2 Drittanbieter-Scripts und 4 Inline-Scripts (Phase 1: 5, das Mimik-Skript ist entfernt)', z.drittScripts === 2 && z.inlineScripts === 4);
-    check('Zahlen: seit Phase 1 +5 Produktdateien (foto_kette, speak_kette, fragen_reihenfolge, uebersicht, startseite_anpassen) und -5 (Kopf: avatar3d, kopf, mimik, holo_look, ansicht), +5 (sicherheit, Phase 1 des Orchestrator-Umbaus; registry und registry_faehigkeiten, Phase 2; schatten und gespraech, Phase 3+4; gespraech_ort und schatten_ansicht, Phase 5)', z.produktJs - PHASE1.produktJs === 7);
+    check('Zahlen: seit Phase 1 +5 Produktdateien (foto_kette, speak_kette, fragen_reihenfolge, uebersicht, startseite_anpassen) und -5 (Kopf: avatar3d, kopf, mimik, holo_look, ansicht), +5 (sicherheit, Phase 1 des Orchestrator-Umbaus; registry und registry_faehigkeiten, Phase 2; schatten und gespraech, Phase 3+4; gespraech_ort und schatten_ansicht, Phase 5; chef, Phase 6)', z.produktJs - PHASE1.produktJs === 8);
     check('index.html: keine doppelten, fehlenden oder verwaisten Skripte, alle mit Stempel', m.konsistenz.filter(x => /Script|js-Datei/.test(x)).length === 0, m.konsistenz);
     check('Konsistenz: ganze Eingangsprüfung ohne Meldung', m.konsistenz.length === 0, m.konsistenz);
     const p = m.index.positionen;
@@ -365,7 +365,7 @@ function tabelle(m) {
     {   // Phase 8B Gegenproben (nur Prüf-Eingang im Speicher verändert)
         check('Kontrolle 8B: unveränderter Eingang ergibt keine Meldung', dokuRegeln8b(leser()).length === 0);
         const e = (name, ueber, rx) => { const mm = dokuRegeln8b(leser(ueber)); check('Gegenprobe 8B: ' + name, mm.some(x => rx.test(x)), mm); };
-        e('falsche Produktzahl in ARCHITEKTUR.md', { ersatz: { 'ARCHITEKTUR.md': t => t.replace('(174 Skripte)', '(176 Skripte)') } }, /nennt 176 Skripte/);
+        e('falsche Produktzahl in ARCHITEKTUR.md', { ersatz: { 'ARCHITEKTUR.md': t => t.replace('(175 Skripte)', '(177 Skripte)') } }, /nennt 177 Skripte/);
         e('Abschnitt offene Punkte fehlt', { ersatz: { 'ARCHITEKTUR.md': t => t.replace('## Bekannte offene technische Punkte', '## Anderes') } }, /Abschnitt .* fehlt/);
         e('Verweis auf memory7b-analyse fehlt', { ersatz: { 'ARCHITEKTUR.md': t => t.replace(/(## Bekannte offene technische Punkte[\s\S]*)tests\/memory7b-analyse\.md/, '$1tests/memory7b.md') } }, /verweisen nicht auf tests\/memory7b-analyse\.md|nicht existiert|existiert nicht/);
         e('Analyse-Datei existiert nicht', { geloescht: ['tests/memory7a-analyse.md'] }, /existiert nicht: tests\/memory7a-analyse\.md/);

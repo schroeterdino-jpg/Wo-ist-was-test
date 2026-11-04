@@ -112,7 +112,7 @@
         beschreibung: 'Sucht Restaurants und Lokale in der Nähe oder in einem genannten Ort und liefert die nächsten Treffer mit Entfernung und Kartenlink.',
         pflicht: [{ name: 'suchbegriff', typ: 'text', beschreibung: 'Was gesucht wird, zum Beispiel "Pizzeria" oder "Restaurant".' }],
         optional: [{ name: 'ort', typ: 'text', beschreibung: 'Ort, in dem gesucht wird. Ohne Angabe wird um den Standort des Nutzers gesucht.' }],
-        rueckgabe: { beschreibung: 'Gesprochener Satz plus Karten der bis zu fünf nächsten Treffer.', felder: ['reply', 'cards', 'nachricht'] },
+        rueckgabe: { beschreibung: 'Gesprochener Satz plus Karten der bis zu fünf nächsten Treffer.', felder: ['reply', 'cards', 'orte', 'nachricht'] },
         fehler: [
             { status: 'NO_RESULTS', wann: 'Im Umkreis wurde nichts gefunden.' },
             { status: 'TOOL_FAILED', wann: 'Standort nicht verfügbar oder Suchdienst nicht erreichbar.' },
@@ -129,7 +129,7 @@
             /* Der Ort wird der bestehenden Funktion als zweiter Wert übergeben ('' = um den Nutzer herum). window.jvLetzterText wird dabei weder gelesen noch verändert,
                darum können parallele Suchen und der normale Sprachablauf einander nicht stören. */
             var res = await findNearbyRestaurants(String(p.suchbegriff), p.ort ? String(p.ort).trim() : '');
-            return { reply: res.reply, cards: res.cards, nachricht: res.reply };
+            return { reply: res.reply, cards: res.cards, orte: Array.isArray(res.orte) ? res.orte : [], nachricht: res.reply };
         }
     });
 
