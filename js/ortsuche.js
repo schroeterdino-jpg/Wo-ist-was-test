@@ -450,6 +450,7 @@
         return false;
     }
     window.jvOfferSave = offerSavePlaces;
+    window.jvSpeichernOffen = function () { return !!pendingSavePlaces && Date.now() - pendingSavePlaces.at <= 120000; };   // Phase 5: für das Gesprächsgedächtnis ("das zweite": Lokal wählen oder Adresse speichern?)
     window.jvSavePlace = savePlaceToAppContacts;   // adresse_speichern.js: "Speichere die Adresse"
     window.jvLetzteOrte = function () { return { at: lastPlacesAt, places: lastPlaces.map(p => ({ name: p.name, street: [p.street, p.city].filter(Boolean).join(', ') })) }; };
     let lastPlaces = [], lastPlacesAt = 0;
@@ -477,6 +478,7 @@
         let pos;
         try { pos = await position(); }
         catch (e) {
+            try { if (window.jvOrtGespraech) window.jvOrtGespraech.fehler(); } catch (e2) { }
             showCards([{ icon: '⚠️', title: 'Ortssuche: kein Standort', subtitle: String((e && e.message) || 'Standort nicht erlaubt oder nicht verfügbar').slice(0, 120) }]);
             say('Ohne Standort kann ich nichts in der Nähe suchen. Bitte erlauben Sie den Standort für die App.');
             return true;
@@ -494,16 +496,19 @@
             }
         } catch (e) {
             console.error('Ortssuche fehlgeschlagen:', e && e.message);
+            try { if (window.jvOrtGespraech) window.jvOrtGespraech.fehler(); } catch (e2) { }
             showCards([{ icon: '⚠️', title: 'Ortssuche: Kartendaten nicht erreichbar', subtitle: String((e && e.message) || 'unbekannter Fehler').slice(0, 160) }]);
             say('Die Ortssuche antwortet gerade nicht. Bitte versuchen Sie es in einer Minute noch einmal.');
             return true;
         }
         if (!places.length) {
+            try { if (window.jvOrtGespraech) window.jvOrtGespraech.fehler(); } catch (e2) { }
             showCards([{ icon: '🔎', title: `Kein Treffer für ${label}`, subtitle: `Im Umkreis von ${usedRadius / 1000} km nichts in den Kartendaten` }]);
             say(`Im Umkreis von ${usedRadius / 1000} Kilometern finde ich keinen Eintrag für ${label}. Die Kartendatenbank kennt eventuell nicht jedes Geschäft.`);
             return true;
         }
         lastPlaces = places; lastPlacesAt = Date.now();
+        try { if (window.jvOrtGespraech) window.jvOrtGespraech.merke(places.map(p => ({ name: p.name, adresse: [p.street, p.city].filter(Boolean).join(', '), lat: p.lat, lon: p.lon, distanzKm: p.dist / 1000, link: routeUrl(p) })), 'ortsuche'); } catch (e) { }   // Phase 5: Gesprächsgedächtnis (js/gespraech_ort.js)
         const first = places[0], o = hoursInfo(first);
         showCards(places.map((p, i) => {
             const oi = hoursInfo(p);
@@ -554,7 +559,12 @@
         const originalLocal = window.handleLocalCommand;
         const hooked = function (text) {
             try { patchOldPlacesFetch(); } catch (e) {}
+            // Phase 5: hat das Gesprächsgedächtnis zuletzt selbst gefragt ("Welches meinst du?"), gehört ihm die kurze Antwort, nicht der älteren Frage "Adresse speichern?"
+            try { if (window.jvOrtGespraech && window.jvOrtGespraech.hatFrage() && window.jvOrtGespraech.behandle(text) === true) return true; } catch (e) { console.error('Gesprächsgedächtnis', e); }
             try { if (!(window.jvFrage && window.jvFrage.sperrt('ortsuche', text)) && handlePendingSaveAnswer(text)) return true; } catch (e) { console.error('Kontakt-Auswahl', e); }
+            // Phase 5: Folgesätze zu gemerkten Treffern ("Das zweite gefällt mir", "Wie komme ich dahin?"); ohne Bezug auf Gemerktes gibt das false zurück und alles läuft wie bisher.
+            // Eine bloße Antwort auf "Adresse speichern?" ist oben schon erledigt worden.
+            try { if (window.jvOrtGespraech && window.jvOrtGespraech.behandle(text) === true) return true; } catch (e) { console.error('Gesprächsgedächtnis', e); }
             const handled = originalLocal.apply(this, arguments);
             if (handled) return handled;
             try { if (handleOrtsucheCommand(text)) return true; } catch (e) { console.error('Ortssuche', e); }

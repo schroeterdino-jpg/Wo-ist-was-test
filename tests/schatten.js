@@ -210,8 +210,8 @@ const zustand = A => JSON.stringify({ s: A.store, m: A.lese('memoryItems'), r: A
     /* Einbindung */
     const asst = lies('js/assistant.js');
     check('11a assistant.js ruft den Schatten nur lesend und abgesichert auf (try/catch, nur ki())', /try \{ if \(window\.jvSchatten && window\.jvSchatten\.ki\) window\.jvSchatten\.ki\(actions, text, !!opts\.nurLesen\); \} catch \(e\) \{ \}/.test(asst) && (asst.match(/jvSchatten/g) || []).length === 3);
-    const andere = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && !/^(schatten|assistant)\.js$/.test(f)).filter(f => /jvSchatten/.test(lies('js/' + f)));
-    check('11b keine andere App-Datei kennt den Schatten', andere.length === 0, andere.join());
+    const andere = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && !/^(schatten|assistant|schatten_ansicht)\.js$/.test(f)).filter(f => /jvSchatten/.test(lies('js/' + f)));
+    check('11b keine andere App-Datei kennt den Schatten (außer der Diagnoseansicht der Einstellungen, Phase 5)', andere.length === 0, andere.join());
     const arch = lies('ARCHITEKTUR.md'), karte = lies('LANDKARTE.md');
     check('11c Doku nennt den Schattenbetrieb und die Datei', /Schattenbetrieb/.test(arch) && /js\/schatten\.js/.test(arch) && /schatten\.js/.test(karte));
 

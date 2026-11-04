@@ -10,6 +10,7 @@
    window.jvSchatten.protokoll()     die letzten 50 Vorgänge (Kopie), nur im Arbeitsspeicher
    window.jvSchatten.zaehler()       Anzahl je Urteil
    window.jvSchatten.vergiss()       Protokoll und Zähler löschen
+   window.jvSchatten.zusammenfassung()  Zahlen und letzte Vorgänge für die Diagnoseansicht (Einstellungen), nur echte Beobachtungen
    window.jvSchatten.ki(aktionen, text, nurLesen)   wird von sendToGroqSmart (assistant.js) aufgerufen, nachdem die KI-Aktionen feststehen; ist der Schatten aus, tut es nichts.
 
    Beobachtungswege: (1) handleLocalCommand (fester Sprachbefehl erledigt die Anfrage: Weg "lokal"; der Name des Befehls ist von außen nicht sichtbar),
@@ -145,13 +146,21 @@
         original = null; huelle = null;
         return true;
     }
+    /* Für die Diagnoseansicht (js/schatten_ansicht.js): nur tatsächlich beobachtete Vorgänge, nichts Erfundenes. Zahlen = seit Einschalten/Löschen; "letzte" = höchstens die letzten 10 aus dem Protokoll. */
+    var ABWEICHUNG = ['lokal_statt_faehigkeit', 'ki_ohne_aktion', 'andere_faehigkeit', 'unerwartete_faehigkeit'];
+    function zusammenfassung() {
+        var z = JSON.parse(JSON.stringify(zaehlerObj)), beobachtet = 0, abw = 0;
+        ['uebereinstimmung', 'lokal_statt_faehigkeit', 'ki_ohne_aktion', 'andere_faehigkeit', 'unerwartete_faehigkeit', 'keine_faehigkeit'].forEach(function (u) { beobachtet += z[u] || 0; if (ABWEICHUNG.indexOf(u) >= 0) abw += z[u] || 0; });
+        return { an: an, beobachtet: beobachtet, uebereinstimmung: z.uebereinstimmung || 0, abweichungen: abw, keineFaehigkeit: z.keine_faehigkeit || 0, eigeneFehler: z.eigeneFehler || 0, je: z,
+                 letzte: protokoll.slice(-10).reverse().map(function (e) { return JSON.parse(JSON.stringify(e)); }), abweichungsUrteile: ABWEICHUNG.slice() };
+    }
     function vergiss() { protokoll = []; zaehlerObj = { eigeneFehler: 0 }; nr = 0; offen = null; }
 
     window.jvSchatten = {
         an: einschalten, aus: ausschalten, istAn: function () { return an; }, erkenne: erkenne, ki: ki,
         protokoll: function () { return protokoll.map(function (e) { return JSON.parse(JSON.stringify(e)); }); },
         zaehler: function () { return JSON.parse(JSON.stringify(zaehlerObj)); },
-        vergiss: vergiss,
+        vergiss: vergiss, zusammenfassung: zusammenfassung,
         _hinweise: function () { return Object.keys(HINWEISE); }, _ohneErkennung: function () { return OHNE_ERKENNUNG.slice(); }
     };
 
