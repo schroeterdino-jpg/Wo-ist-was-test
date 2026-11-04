@@ -50,6 +50,7 @@ jobs:
           node tests/foto_produkt.js
           node tests/foto_lens.js
           node tests/sicherheit.js
+          node tests/registry.js
           node tests/dirigent_fragen.js
           node tests/faehigkeiten.js
           node tests/globale.js
