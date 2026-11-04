@@ -21,10 +21,22 @@ const PL = [
 
 function umgebung(opt) {
     opt = opt || {};
-    const st = { places: opt.places || PL, placesFehler: false, placesLeer: false, groq: 0, places_n: 0, urls: [], geocode: null };
-    const A = starte({ jetzt: '2026-11-05T10:00:00+01:00', festerZufall: true, speicher: opt.speicher, fetch: async (u, o) => {
+    const st = { places: opt.places || PL, placesFehler: false, placesLeer: false, groq: 0, entscheider: 0, entscheiderNachrichten: [], normaleSaetze: [], entscheiderVerhalten: '', entscheiderAntwort: '{"schritte":[]}', places_n: 0, urls: [], geocode: null };
+    const A = starte({ jetzt: '2026-11-05T10:00:00+01:00', festerZufall: true, speicher: opt.speicher, spracherkennung: true, fetch: async (u, o) => {
         st.urls.push(String(u).replace(/\?.*$/, ''));
-        if (/\/api\/groq/.test(u)) { st.groq++; return ant({ choices: [{ message: { content: JSON.stringify({ reply: 'Okay.', actions: [] }) } }] }); }
+        if (/\/api\/groq/.test(u)) {
+            let msgs = []; try { msgs = JSON.parse(o.body).messages || []; } catch (e) { }
+            if (msgs[0] && /Du planst für einen Sprachassistenten/.test(String(msgs[0].content))) {   // Anfrage des KI-Entscheiders
+                st.entscheider++; st.entscheiderNachrichten.push(msgs);
+                if (st.entscheiderVerhalten === 'haengt') return new Promise(() => { });
+                if (st.entscheiderVerhalten === 'fehler') return { ok: false, status: 500, json: async () => ({}) };
+                if (st.entscheiderVerhalten === 'netz') throw new Error('offline');
+                const a = typeof st.entscheiderAntwort === 'function' ? st.entscheiderAntwort(msgs) : st.entscheiderAntwort;
+                return ant({ choices: [{ message: { content: typeof a === 'string' ? a : JSON.stringify(a) } }] });
+            }
+            st.groq++; st.normaleSaetze.push(String((msgs[msgs.length - 1] || {}).content || '').slice(0, 80));
+            return ant({ choices: [{ message: { content: JSON.stringify({ reply: 'Okay.', actions: [] }) } }] });
+        }
         if (/action=places/.test(u)) { st.places_n++; if (st.placesFehler) return { ok: false, status: 500, json: async () => ({}) }; return ant({ places: st.placesLeer ? [] : st.places }); }
         if (/api\/geocode/.test(u)) return st.geocode === 'leer' ? ant([]) : ant([{ lat: '53.55', lon: '10.0', class: 'place', display_name: 'Hamburg, Deutschland' }]);
         throw new Error('offline (Attrappe) ' + u);
@@ -256,6 +268,123 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
     r = await sag(A, 'nein');
     check('K2 eine jüngere Termin-Frage behält ihr "nein"; die Chef-KI nimmt nichts', !/ich lasse es/.test(r.text) && A.st.places_n === 1);
 
+    /* ---------- KI-Entscheider im ECHTEN Sprachweg (voice.js: handleRecognizedText, hier über jvTippen) ---------- */
+    const sprich = async (A, satz, n, lang) => {
+        const g0 = A.gesagt.length, k0 = A.karten.length;
+        if (lang) await A.lassLaufen(async () => { A.sb.jvTippen(satz); await new Promise(res => A.sb.setTimeout(res, 9000)); await warte(n || 30); });   // virtuelle Uhr vorstellen: lässt das Zeitlimit der Chef-KI ablaufen
+        else { await A.lassLaufen(() => A.sb.jvTippen(satz)); await A.lassLaufen(async () => { await warte(n || 30); }); }
+        return { gesagt: A.gesagt.slice(g0), karten: A.karten.slice(k0).filter(c => c.length), text: A.gesagt.slice(g0).join(' ') };
+    };
+    const ortsplan = (begriff, ort) => ({ absicht: 'ortssuche', schritte: [{ faehigkeit: 'ortssuche', params: ort ? { suchbegriff: begriff, ort } : { suchbegriff: begriff } }] });
+    const NATUERLICH = [
+        ['Mir knurrt der Magen, wo gibt es hier was Warmes?', 'Restaurant'],
+        ['Wir wollen heute Abend auswärts speisen, irgendwas mit Meerblick', 'Restaurant'],
+        ['Ich brauche dringend was Süßes, wo kriege ich hier etwas?', 'Bäckerei'],
+        ['Kennst du einen netten Laden für heute Abend, nichts Teures?', 'Restaurant']
+    ];
+    /* Ausgangslage: diese Sätze erkennen weder die festen Befehle noch die lokalen Muster */
+    A = umgebung(); A.sb.jvChef.an();
+    let lokalNichts = true;
+    for (const [satzN] of NATUERLICH) { const pl = await A.sb.jvChef.plane(satzN); const l = await A.lassLaufen(() => A.sb.handleLocalCommand(satzN)); if (pl.plan.schritte.length || l.wert) lokalNichts = false; }
+    check('KI0 Ausgangslage: die vier natürlichen Sätze werden weder von den lokalen Essen-/Lokal-Mustern noch von festen Befehlen erkannt', lokalNichts && A.st.places_n === 0 && A.st.entscheider === 0);
+
+    /* 11/12: die KI-Entscheidung wird im echten Sprachweg erreicht */
+    A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = ortsplan('Restaurant');
+    r = await sprich(A, NATUERLICH[0][0]);
+    check('KI1 echter Sprachweg: genau EINE Entscheider-Anfrage, Ortssuche lief, die normale KI wurde NICHT zusätzlich gefragt', A.st.entscheider === 1 && A.st.places_n === 1 && A.st.groq === 0, JSON.stringify({ e: A.st.entscheider, p: A.st.places_n, g: A.st.groq }));
+    check('KI2 … Treffer gesprochen und als Karten gezeigt, im Gesprächsgedächtnis (3), Protokoll Weg ki', r.karten.length === 1 && /Trattoria Roma|Fischerhaus|Alten Hafen/.test(r.text) && G(A).status().listen[0].anzahl === 3 && A.sb.jvChef.protokoll().some(e => e.weg === 'ki' && e.status === 'SUCCESS'), r.text);
+    const folge = await sag(A, 'Das zweite gefällt mir');
+    check('KI3 … Folgesatz "Das zweite gefällt mir" nutzt die Treffer der KI-Suche', G(A).ausgewaehlt() && G(A).ausgewaehlt().nr === 2 && folge.lokal);
+    check('KI4 Prompt: nur die Fähigkeit ortssuche beschrieben, kein Schreibzugriff, kein Gedächtnisinhalt; die Nutzernachricht ist der Satz', (() => { const m = A.st.entscheiderNachrichten[0]; const sys = String(m[0].content); return /ortssuche/.test(sys) && !/erinnerung_erstellen|termin_erstellen|gedaechtnis_speichern|websuche/.test(sys) && m.length === 2 && m[1].content === NATUERLICH[0][0] && !/memoryItems|Trattoria/.test(JSON.stringify(m)); })());
+
+    A = umgebung(); A.sb.jvChef.an(); let alle = true, d = [];
+    for (const [satzN, begriff] of NATUERLICH) { A.st.entscheiderAntwort = ortsplan(begriff); const n0 = A.st.places_n; await sprich(A, satzN); A.uhr.ms += 6000; if (A.st.places_n !== n0 + 1) { alle = false; d.push(satzN); } }
+    check('KI5 vier unterschiedliche natürliche Formulierungen -> je eine Ortssuche über die KI-Entscheidung', alle && A.st.entscheider === 4 && A.st.groq === 0, d.join('|') + ' ' + A.st.entscheider);
+    A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = ortsplan('Restaurant', 'Hamburg'); await sprich(A, 'Wo gibt es in Hamburg etwas Nettes für heute Abend?');
+    check('KI6 die KI kann auch einen Ort nennen (wird an die Registry-Ortssuche übergeben)', A.st.places_n === 1 && A.st.urls.some(u => /geocode/.test(u)));
+
+    /* 6: ohne Chef-KI keine zusätzlichen KI-Aufrufe */
+    A = umgebung(); A.st.entscheiderAntwort = ortsplan('Restaurant');
+    r = await sprich(A, NATUERLICH[0][0]);
+    check('KI7 Chef-KI AUS: kein Entscheider-Aufruf, keine Suche über die Chef-KI, der bisherige Ablauf (normale KI) läuft genau einmal', A.st.entscheider === 0 && A.st.places_n === 0 && A.st.groq === 1 && A.st.normaleSaetze[0].includes('knurrt'), JSON.stringify({ e: A.st.entscheider, g: A.st.groq }));
+    A.sb.jvChef.an(); A.sb.jvChef.aus(); const e1 = A.st.entscheider; await sprich(A, NATUERLICH[1][0]);
+    check('KI8 nach EIN und wieder AUS: weiter kein Entscheider-Aufruf', A.st.entscheider === e1 && A.sb.jvChef.kiWeg(NATUERLICH[1][0]) === false && A.sb.jvChef.kiZaehler().anfragen === 0);
+
+    /* 5: feste Befehle haben Vorrang */
+    A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = ortsplan('Restaurant');
+    const fest = ['Wo ist die nächste Tankstelle?', 'Wie spät ist es?', 'Wo bin ich gerade?'];
+    let festOk = true; for (const f of fest) { const e0 = A.st.entscheider; const lokal = (await A.lassLaufen(() => A.sb.handleLocalCommand(f))).wert; if (lokal) { await sprich(A, f); if (A.st.entscheider !== e0) festOk = false; } }
+    check('KI9 ein Satz, den ein fester Befehl beantwortet, erreicht den KI-Entscheider nie', festOk);
+
+    /* 9: sicherer Rückfall – genau einmal der bisherige Ablauf */
+    const rueckfaelle = [
+        ['kein Ortswunsch (schritte leer)', { entscheiderAntwort: '{"schritte":[]}' }],
+        ['ungültiges JSON', { entscheiderAntwort: 'das ist kein json' }],
+        ['leere Antwort', { entscheiderAntwort: '' }],
+        ['Netzwerkfehler', { entscheiderVerhalten: 'netz' }],
+        ['Serverfehler 500', { entscheiderVerhalten: 'fehler' }],
+        ['KI hängt (Zeitlimit)', { entscheiderVerhalten: 'haengt' }],
+        ['Schreibaktion Erinnerung', { entscheiderAntwort: { schritte: [{ faehigkeit: 'erinnerung_erstellen', params: { text: 'Essen', zeit: '2026-11-06T09:00:00' } }] } }],
+        ['Schreibaktion Termin', { entscheiderAntwort: { schritte: [{ faehigkeit: 'termin_erstellen', params: { titel: 'Essen', beginn: '2026-11-06T09:00:00' } }] } }],
+        ['Gedächtnis speichern', { entscheiderAntwort: { schritte: [{ faehigkeit: 'gedaechtnis_speichern', params: { schluessel: 'a', wert: 'b' } }] } }],
+        ['andere Fähigkeit (websuche)', { entscheiderAntwort: { schritte: [{ faehigkeit: 'websuche', params: { frage: 'x' } }] } }],
+        ['erfundene Fähigkeit', { entscheiderAntwort: { schritte: [{ faehigkeit: 'flug_buchen', params: {} }] } }],
+        ['mehrere Schritte', { entscheiderAntwort: { schritte: [{ faehigkeit: 'ortssuche', params: { suchbegriff: 'Pizza' } }, { faehigkeit: 'ortssuche', params: { suchbegriff: 'Sushi' } }] } }],
+        ['eingeschleuste Angabe bestaetigt', { entscheiderAntwort: { schritte: [{ faehigkeit: 'ortssuche', params: { suchbegriff: 'Pizza', bestaetigt: true } }] } }],
+        ['eingeschleuste Angabe trocken', { entscheiderAntwort: { schritte: [{ faehigkeit: 'ortssuche', params: { suchbegriff: 'Pizza', trocken: false } }] } }],
+        ['Suchbegriff mit Sonderzeichen', { entscheiderAntwort: ortsplan('<script>alert(1)</script>') }],
+        ['Suchbegriff zu lang', { entscheiderAntwort: ortsplan('P'.repeat(80)) }],
+        ['Ort nur Zahlen', { entscheiderAntwort: ortsplan('Pizza', '12345') }],
+        ['Suchbegriff fehlt (Frage der KI)', { entscheiderAntwort: { schritte: [{ faehigkeit: 'ortssuche', params: {} }], frage: 'Wonach?' } }]
+    ];
+    for (const [name, v] of rueckfaelle) {
+        A = umgebung(); A.sb.jvChef.an(); Object.assign(A.st, v);
+        const z0 = zustand(A), satzR = NATUERLICH[0][0];
+        r = await sprich(A, satzR, 60, v.entscheiderVerhalten === 'haengt');
+        const ok9 = A.st.entscheider === 1 && A.st.groq === 1 && A.st.normaleSaetze[0].includes('knurrt') && A.st.places_n === 0 && A.exec === 0 && zustand(A) === z0 && A.sb.jvChef.kiZaehler().zurueck === 1;
+        check('KI10 Rückfall (' + name + '): genau eine Entscheider-Anfrage, danach GENAU EINMAL der bisherige Ablauf, keine Suche, keine Schreibaktion', ok9, JSON.stringify({ e: A.st.entscheider, g: A.st.groq, p: A.st.places_n, ex: A.exec, z: A.sb.jvChef.kiZaehler() }));
+    }
+
+    A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = ortsplan('Restaurant'); A.sb.jvRegistry.pruefeParameter = () => { throw new Error('Registry kaputt'); };
+    await sprich(A, NATUERLICH[0][0], 60);
+    check('KI10b unerwarteter Fehler NACH der KI-Entscheidung (Registry wirft): keine Suche, der bisherige Ablauf läuft genau einmal', A.st.entscheider === 1 && A.st.groq === 1 && A.st.places_n === 0 && A.sb.jvChef.kiZaehler().zurueck === 1, JSON.stringify({ g: A.st.groq, z: A.sb.jvChef.kiZaehler() }));
+
+    /* 10: keine doppelten Anfragen, keine Schleifen */
+    A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = ortsplan('Restaurant');
+    await Promise.all([sprich(A, NATUERLICH[0][0]), sprich(A, NATUERLICH[0][0])]); await sprich(A, NATUERLICH[0][0]);
+    check('KI11 derselbe Satz dreimal kurz hintereinander: eine Entscheider-Anfrage, eine Suche', A.st.entscheider === 1 && A.st.places_n === 1, JSON.stringify({ e: A.st.entscheider, p: A.st.places_n }));
+    A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = '{"schritte":[]}'; await sprich(A, NATUERLICH[1][0]);
+    check('KI12 nach dem Rückfall keine Schleife: der bisherige Ablauf ruft den Entscheider nicht erneut (1 Anfrage, 1 normale KI)', A.st.entscheider === 1 && A.st.groq === 1);
+    A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderVerhalten = 'haengt';
+    const pA = A.lassLaufen(() => A.sb.jvTippen(NATUERLICH[0][0])); await warte(5);
+    A.st.entscheiderVerhalten = ''; A.st.entscheiderAntwort = ortsplan('Restaurant');
+    await sprich(A, NATUERLICH[2][0]); await pA;
+    check('KI13 ein neuer Satz überholt einen hängenden: der alte wird verworfen (keine doppelte Antwort), der neue läuft', A.st.places_n === 1 && A.st.groq === 0, JSON.stringify({ p: A.st.places_n, g: A.st.groq, e: A.st.entscheider }));
+
+    /* Vorfilter: kein zusätzlicher Aufruf bei Geplauder, Kürze oder Schreibwünschen */
+    A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = ortsplan('Restaurant');
+    for (const f of ['Wie geht es dir heute so?', 'Erzähl mir etwas Lustiges', 'Hunger', 'Erinner mich heute Abend daran, Brot zu kaufen', 'Merk dir wo ich gern essen gehe']) await sprich(A, f);
+    check('KI14 Geplauder, zu kurze Sätze und Schreibwünsche lösen keinen Entscheider-Aufruf aus', A.st.entscheider === 0 && A.st.places_n === 0 && A.sb.jvChef.kiZaehler().anfragen === 0, String(A.st.entscheider));
+
+    /* Ausschalten während die KI noch denkt */
+    A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = () => { A.sb.jvChef.aus(); return ortsplan('Restaurant'); };
+    await sprich(A, NATUERLICH[0][0]);
+    check('KI15 wird die Chef-KI ausgeschaltet, während die KI noch antwortet: keine Suche, der Satz geht den bisherigen Weg', A.st.places_n === 0 && A.st.groq === 1);
+
+    /* Suche ohne Treffer / Netzfehler nach KI-Entscheidung: ehrlich, nicht zusätzlich die normale KI (keine doppelte Antwort) */
+    A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = ortsplan('Restaurant'); A.st.placesLeer = true;
+    r = await sprich(A, NATUERLICH[0][0]);
+    check('KI16 keine Treffer nach KI-Entscheidung: gezielte Nachfrage nach dem Ort, die normale KI wird nicht zusätzlich gefragt', /In welchem Ort soll ich suchen/.test(r.text) && A.st.groq === 0);
+    A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = ortsplan('Restaurant'); A.st.placesFehler = true;
+    r = await sprich(A, NATUERLICH[0][0]);
+    check('KI17 Suchfehler nach KI-Entscheidung: ehrliche Meldung, keine erfundenen Orte, keine zusätzliche normale KI', r.text.length > 0 && !/Trattoria|Fischerhaus|Alten Hafen/.test(r.text) && A.st.groq === 0 && G(A).status().listen.length === 0, r.text);
+
+    /* Kosten & Netz */
+    A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = ortsplan('Restaurant'); await sprich(A, NATUERLICH[0][0]);
+    check('KI18 Netzaufrufe nur: ein Entscheider-Aufruf (/api/groq) und die Ortssuche (places/geocode)', A.st.urls.filter(u => /api\/groq/.test(u)).length === 1 && A.st.urls.every(u => /api\/groq|api\/maps|api\/geocode|places/.test(u)), JSON.stringify(A.st.urls));
+    const befehleNachher = A.sb.jvCommands.list().map(c => c.name || c).join('|');
+    check('KI19 die Befehlsliste (Anzahl und Reihenfolge) bleibt unverändert', befehleNachher === befehle0);
+
     /* ---------- Statische Prüfungen ---------- */
     const chefJs = lies('js/chef.js'), orts = lies('js/ortsuche.js'), html = lies('index.html');
     check('S1 chef.js legt keine Hülle um handleLocalCommand und nimmt keine feste Befehlsliste', !/window\.handleLocalCommand\s*=/.test(chefJs) && !/jvCommands\.register|jvCommands\.add/.test(chefJs));
@@ -264,6 +393,9 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
     check('S4 chef.js nutzt weder localStorage-Gedächtnis noch eigene Gesprächsspeicherung (nur den Schalter-Merker jv_chef)', (chefJs.match(/localStorage/g) || []).length <= 8 && !/memory[I]tems|jvLangzeit/.test(chefJs) && (chefJs.match(/setItem\(/g) || []).length === 1);
     check('S5 keine zusätzliche Vercel-Function, keine neue Datei in api/', fs.readdirSync(path.join(ROOT, 'api')).filter(f => /\.js$/.test(f)).length <= 12);
     check('S6 kein direkter Aufruf von fetch/apiFetch in chef.js (kein eigener Netzweg)', !/\bfetch\s*\(|apiFetch\s*\(|XMLHttpRequest/.test(chefJs));
+    const voice = lies('js/voice.js');
+    check('S6b genau ein Haken in voice.js: nach den festen Befehlen, vor dem normalen KI-Aufruf, abgesichert', (voice.match(/jvChef\.kiWeg/g) || []).length === 1 && voice.indexOf('jvChef.kiWeg') > voice.indexOf('handleLocalCommand(text)) return;') && voice.indexOf('jvChef.kiWeg') < voice.indexOf('sendToGroqSmart(text);', voice.indexOf('jvChef.kiWeg')) && /try \{ if \(window\.jvChef && window\.jvChef\.kiWeg\(text\) === true\) return; \} catch/.test(voice));
+    check('S6c der KI-Weg nutzt den bestehenden Endpunkt /api/groq (genau eine Stelle), keine neue Function in api/', (chefJs.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '').match(/\/api\/groq/g) || []).length === 1 && !fs.existsSync(path.join(ROOT, 'api/chef.js')));
     check('S7 Anleitung und Hilfe kennen die Chef-KI', /Chef-KI/.test(lies('js/anleitung.js')) && /Chef-KI/.test(lies('js/help.js')));
 
     console.log('CHEF-KI: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');

@@ -848,6 +848,8 @@ if (SpeechRecognition) {
         }
         // Feste Sprachbefehle (Karte, Arbeitsadresse, Protokolle) ohne Umweg über die KI
         if (typeof handleLocalCommand === 'function' && handleLocalCommand(text)) return;
+        // Phase 6: Chef-KI-Testfreigabe (Standard AUS -> sofort false, kein Netz). EIN: KI-Entscheider nur für Ortswünsche, sonst läuft unten genau einmal der bisherige Ablauf.
+        try { if (window.jvChef && window.jvChef.kiWeg(text) === true) return; } catch (e) { console.error('Chef-KI', e); }
         sendToGroqSmart(text);
     }
     recognition.onerror = (event) => {

@@ -17,6 +17,9 @@
    window.jvChef.behandle(text)                     Haken im Sprachweg (ortsuche.js, NACH allen festen Befehlen): true = übernommen. AUS -> false.
    window.jvChef.plane(text, opts)                  async: Plan erstellen und prüfen (führt nichts aus)
    window.jvChef.verarbeite(text, opts)             async: Plan, Prüfung, Ausführung (opts.entscheider, opts.trocken)
+   window.jvChef.kiWeg(text)                        Haken im ECHTEN Sprachweg (voice.js, nach den festen Befehlen, vor dem normalen KI-Aufruf). AUS -> sofort false, KEIN Netz, KEIN KI-Aufruf.
+                                                    EIN -> höchstens EINE zusätzliche KI-Anfrage (bestehender Weg /api/groq, Zeitlimit): Ist der Satz ein Ortswunsch, sucht die Chef-KI; sonst (kein Ortswunsch, ungültige Antwort,
+                                                    Zeitüberschreitung, KI-Ausfall, Netzfehler) läuft GENAU EINMAL der bisherige Ablauf (sendToGroqSmart). Nie Schreibaktionen, nie eine andere Fähigkeit als ortssuche.
    window.jvChef.pruefePlan(plan)                   rein: { ok, plan, probleme[], fehlendeFaehigkeiten[] }
    window.jvChef.kiEntscheider(sende)               baut einen Entscheider, der `sende(nachrichten)` (Text zurück) benutzt
    window.jvChef.protokoll() / vergiss()            letzte 20 Entscheidungen / alles löschen
@@ -143,13 +146,13 @@
     entscheider = function (text) { return lokalEntscheiden(text); };
 
     /* ---------- KI-Entscheider (nur mit von außen gegebener Sende-Funktion) ---------- */
-    function kiEntscheider(sende) {
+    function kiEntscheider(sende, nur) {
         return async function (text) {
             if (typeof sende !== 'function') throw new Error('Keine Sende-Funktion');
             var reg = R();
-            var faehig = reg ? reg.beschreibe().map(function (d) { return { name: d.name, beschreibung: d.beschreibung, pflicht: d.pflicht.map(function (x) { return x.name; }), optional: d.optional.map(function (x) { return x.name; }) }; }) : [];
+            var faehig = reg ? reg.beschreibe().filter(function (d) { return !Array.isArray(nur) || nur.indexOf(d.name) >= 0; }).map(function (d) { return { name: d.name, beschreibung: d.beschreibung, pflicht: d.pflicht.map(function (x) { return x.name; }), optional: d.optional.map(function (x) { return x.name; }) }; }) : [];
             var antwort = await sende([
-                { role: 'system', content: 'Du planst für einen Sprachassistenten. Antworte NUR mit JSON: {"absicht":"...","schritte":[{"faehigkeit":"name","params":{}}],"frage":"...","hinweis":"...","benoetigt":["name"]}. Nutze nur diese Fähigkeiten: ' + JSON.stringify(faehig) + '. Erfinde keine Preise, Öffnungszeiten, Verfügbarkeiten oder Fahrzeiten. Fehlt eine Angabe, setze "frage".' },
+                { role: 'system', content: 'Du planst für einen Sprachassistenten. Antworte NUR mit JSON: {"absicht":"...","schritte":[{"faehigkeit":"name","params":{}}],"frage":"...","hinweis":"...","benoetigt":["name"]}. Nutze nur diese Fähigkeiten: ' + JSON.stringify(faehig) + '. Erfinde keine Preise, Öffnungszeiten, Verfügbarkeiten oder Fahrzeiten. Fehlt eine Angabe, setze "frage". Ist der Satz kein Wunsch zu einer dieser Fähigkeiten, antworte {"schritte":[]}.' },
                 { role: 'user', content: String(text) }
             ]);
             return antwort;
@@ -311,8 +314,81 @@
         } catch (e) { return false; }
     }
 
-    function schalten(an) { istAn = !!an; if (!istAn) offen = null; try { if (window.localStorage) { if (istAn) window.localStorage.setItem('jv_chef', '1'); else window.localStorage.removeItem('jv_chef'); } } catch (e) { } zeichne(); return istAn; }
-    function vergiss() { protokollListe = []; offen = null; letzteAusfuehrung = {}; nr = 0; zeichne(); return true; }
+    /* ---------- KI-Weg im echten Sprachweg (voice.js) ---------- */
+    var KI_ZEITLIMIT_MS = 7000, kiGen = 0, kiLetzter = { text: '', at: 0 }, kiZaehler = { anfragen: 0, ortssuchen: 0, zurueck: 0 }, sendeFunktion = null;
+    /* Vorfilter NUR zur Kostenbegrenzung: reines Geplauder ("Wie geht's dir?") kostet keine zusätzliche KI-Anfrage. Entschieden wird NICHT hier, sondern von der KI. */
+    var RX_KI_VORFILTER = /\b(wo|wohin|hier|in der n[äa]he|umgebung|gegend|ecke|unterwegs|auswärts|ausw[äa]rts|ausgehen|essen|speisen|trinken|hunger|durst|magen|lust auf|empfiehl\w*|tipp|find\w*|such\w*|gibt es|gibts|kennst du|abend|mittag|fr[üu]hst[üu]ck\w*|snack|happen|bissen|gemütlich|gem[üu]tlich|romantisch|date|feiern|laden|lokal|schmaus\w*)\b/i;
+
+    function sendeStandard(nachrichten, signal) {   // bestehende KI-Anbindung (apiFetch -> /api/groq), kein neuer Server
+        var f = (typeof apiFetch === 'function') ? apiFetch : (typeof window.apiFetch === 'function' ? window.apiFetch : null);
+        if (!f) return Promise.reject(new Error('Keine KI-Anbindung'));
+        return f('/api/groq', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: signal,
+            body: JSON.stringify({ model: 'openai/gpt-oss-120b', reasoning_effort: 'low', response_format: { type: 'json_object' }, messages: nachrichten })
+        }).then(function (res) { return res.json(); }).then(function (d) {
+            var c = d && d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content;
+            if (typeof c !== 'string' || !c.trim()) throw new Error('Leere KI-Antwort');
+            return c;
+        });
+    }
+    function saubererBegriff(v) { return typeof v === 'string' && v.trim().length > 0 && v.length <= 60 && /^[A-Za-zÄÖÜäöüß0-9 .,&'’-]+$/.test(v) && /[A-Za-zÄÖÜäöüß]/.test(v); }
+    /* Nur ein einziger Ortssuch-Schritt mit sauberen Angaben ist erlaubt; alles andere geht zurück in den bisherigen Ablauf. */
+    function nurOrtssuche(plan) {
+        if (!plan || plan.schritte.length !== 1 || plan.schritte[0].faehigkeit !== 'ortssuche' || plan.frage) return false;
+        var p = plan.schritte[0].params;
+        if (!saubererBegriff(p.suchbegriff)) return false;
+        if (p.ort !== undefined && !saubererBegriff(p.ort)) return false;
+        return Object.keys(p).every(function (k) { return k === 'suchbegriff' || k === 'ort'; });
+    }
+
+    async function kiEntscheideImSprachweg(text, gen) {
+        var zurueck = false, ctrl = null, timer = null;
+        function zurueckInsNormale() {
+            if (zurueck || gen !== kiGen) return;   // nur einmal und nur, wenn der Satz nicht überholt wurde
+            zurueck = true; kiZaehler.zurueck++;
+            try { if (typeof window.sendToGroqSmart === 'function') window.sendToGroqSmart(text); } catch (e) { }
+        }
+        try {
+            try { ctrl = (typeof AbortController === 'function') ? new AbortController() : null; } catch (e) { ctrl = null; }
+            var limit = new Promise(function (_, reject) { timer = setTimeout(function () { try { if (ctrl) ctrl.abort(); } catch (e) { } reject(new Error('Zeitlimit')); }, KI_ZEITLIMIT_MS); });
+            var sende = sendeFunktion || sendeStandard;
+            var entsch = kiEntscheider(function (m) { return Promise.race([Promise.resolve(sende(m, ctrl ? ctrl.signal : undefined)), limit]); }, ['ortssuche']);
+            var pr = await Promise.race([plane(text, { entscheider: entsch }), limit.catch(function () { return { ok: false, zeitlimit: true }; })]);
+            try { clearTimeout(timer); } catch (e) { }
+            if (gen !== kiGen) { protokolliere('ki_ueberholt', [], 'VERWORFEN'); return; }
+            if (!pr || !pr.ok || !nurOrtssuche(pr.plan)) { protokolliere('ki_zurueck', [], pr && pr.zeitlimit ? 'ZEITLIMIT' : (pr && pr.ok ? 'KEIN_ORTSWUNSCH' : 'UNGUELTIG')); zurueckInsNormale(); return; }
+            if (!istAn) { zurueckInsNormale(); return; }                 // inzwischen ausgeschaltet: der Satz geht den bisherigen Weg
+            kiZaehler.ortssuchen++;
+            var aus = { weg: 'ki', status: 'OK', plan: pr.plan, probleme: pr.probleme, schritte: [], gesagt: [], frage: '' };
+            await ausfuehrenUndAusgeben(pr.plan, text, { gespraech: false }, aus);
+        } catch (e) {
+            try { clearTimeout(timer); } catch (x) { }
+            protokolliere('ki_zurueck', [], 'FEHLER'); zurueckInsNormale();
+        }
+    }
+
+    /* Haken im echten Sprachweg: true = die Chef-KI hat den Satz übernommen (läuft asynchron weiter und fällt im Zweifel genau einmal auf den bisherigen Ablauf zurück). */
+    function kiWeg(text) {
+        if (!istAn) return false;                                              // AUS: nichts, kein Netz
+        try {
+            if (typeof text !== 'string') return false;
+            var t = text.trim(), woerter = t ? t.split(/\s+/).length : 0;
+            if (woerter < 3 || woerter > 30 || t.length > 240) return false;
+            if (RX_SCHREIB.test(t) || !RX_KI_VORFILTER.test(t)) return false;  // Schreibwünsche und Geplauder: bisheriger Weg
+            if (!R() || !R().hole('ortssuche')) return false;
+            var n = jetzt();
+            if (kiLetzter.text === t && n - kiLetzter.at < DOPPELT_MS) return false;   // derselbe Satz kurz hintereinander: keine zweite Anfrage
+            kiLetzter = { text: t, at: n };
+            var gen = ++kiGen;                                                  // ein neuer Satz überholt einen noch laufenden
+            kiZaehler.anfragen++;
+            try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Verarbeite Anweisung...'); } catch (e) { }
+            kiEntscheideImSprachweg(t, gen).catch(function () { });
+            return true;
+        } catch (e) { return false; }
+    }
+
+    function schalten(an) { istAn = !!an; if (!istAn) { offen = null; } try { if (window.localStorage) { if (istAn) window.localStorage.setItem('jv_chef', '1'); else window.localStorage.removeItem('jv_chef'); } } catch (e) { } zeichne(); return istAn; }
+    function vergiss() { protokollListe = []; offen = null; letzteAusfuehrung = {}; nr = 0; kiLetzter = { text: '', at: 0 }; zeichne(); return true; }
 
     /* ---------- Einstellungen: Schalter ---------- */
     function el(id) { return document.getElementById(id); }
@@ -339,10 +415,10 @@
 
     window.jvChef = {
         an: function () { return schalten(true); }, aus: function () { return schalten(false); }, istAn: function () { return istAn; },
-        behandle: behandle, plane: plane, verarbeite: verarbeite, pruefePlan: pruefePlan, kiEntscheider: kiEntscheider,
+        behandle: behandle, kiWeg: kiWeg, plane: plane, verarbeite: verarbeite, pruefePlan: pruefePlan, kiEntscheider: kiEntscheider,
         protokoll: function () { return protokollListe.map(function (e) { return { nr: e.nr, zeit: e.zeit, weg: e.weg, faehigkeiten: e.faehigkeiten.slice(), status: e.status }; }); },
-        vergiss: vergiss, FREIGEGEBEN: FREIGEGEBEN, SCHREIB: SCHREIB,
-        _lokal: lokalEntscheiden, _setzeEntscheider: function (f) { entscheider = typeof f === 'function' ? f : function (t) { return lokalEntscheiden(t); }; }
+        vergiss: vergiss, kiZaehler: function () { return { anfragen: kiZaehler.anfragen, ortssuchen: kiZaehler.ortssuchen, zurueck: kiZaehler.zurueck }; }, FREIGEGEBEN: FREIGEGEBEN, SCHREIB: SCHREIB,
+        _lokal: lokalEntscheiden, _setzeSende: function (f) { sendeFunktion = typeof f === 'function' ? f : null; }, _setzeZeitlimit: function (ms) { KI_ZEITLIMIT_MS = ms > 0 ? ms : 7000; }, _setzeEntscheider: function (f) { entscheider = typeof f === 'function' ? f : function (t) { return lokalEntscheiden(t); }; }
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
