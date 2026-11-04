@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (170 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (172 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -607,3 +607,19 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 - **Neue Fähigkeit einbauen:** neue Datei mit `window.jvRegistry.registriere({...})`, in `index.html` einhängen (ohne `?v=`, danach `node tools/stempel.js`). Kern und KI-Steuerung müssen nicht geändert werden. Wirkt sie auf Daten, muss `pruefeErfolg` die Wirkung belegen. Die Aktionsart muss zusätzlich in `BEKANNT` (`js/sicherheit.js`) stehen.
 - **Tests ohne Nebenwirkungen:** `tests/registry.js` läuft in der Testumgebung (`tests/umgebung.js`) mit Attrappen für Netz, Speicher und Kalender, jede Umgebung startet leer. Der Trockenlauf beweist, dass nichts aufgerufen wird. Netz, Standort und Suchdienste sind Attrappen.
 - **Bekannte Grenzen:** Bestätigung ist für alle fünf `noetig:false` (wie bisher fragt Jarvis dort nicht nach); `ortssuche` übergibt den Ort als zweiten, optionalen Wert an `findNearbyRestaurants(query, ortVorgabe)` und berührt `window.jvLetzterText` nicht (parallele Suchen und der normale Sprachablauf stören einander nicht; ohne zweiten Wert liest die Funktion den Ort wie bisher aus dem Satz); Fallbacks werden genannt, aber nicht selbst ausgeführt. Grenzen des Nachweises: Speichert das Gedächtnis denselben Wert, der schon dastand, gilt der Zustand als erfüllt (`unveraendert:true`); die Termindauer wird nicht geprüft.
+
+## Phase 3 Schattenbetrieb (`js/schatten.js`, Test `tests/schatten.js`)
+- **Ziel:** beobachten, welche Registry-Fähigkeit zu einer Anfrage vermutlich passt, und mit dem tatsächlich gewählten Weg vergleichen. Grundlage, um später der Chef-KI zu vertrauen. `window.jvSchatten`.
+- **Standardmäßig AUS.** Aus: hängt sich nirgends ein, `handleLocalCommand` bleibt das Original. Einschalten nur bewusst: `jvSchatten.an()` (diese Sitzung) oder von Hand `localStorage jv_schatten = "1"` (wird nur gelesen). `aus()` stellt das Original wieder her.
+- **Verändert nichts:** keine Aktion, keine zweite KI-Anfrage, kein Schreiben, kein Netz, keine Sprachausgabe, keine Zeitgeber. `tests/schatten.js` beweist es: 12 Anfragen laufen mit und ohne Schatten mit identischer Sprachausgabe, Speicher, Netzaufrufen und Aktionszahl; ein kaputter Schatten (Registry wirft, Uhr wirft) stört die App nicht, Fehler werden nur gezählt.
+- **Beobachtungswege:** (1) Hülle um `handleLocalCommand` (nur wenn an): Weg "lokal"; der Name des festen Befehls ist von außen nicht sichtbar (Befehlsliste bleibt bei 94 und unverändert). (2) EINE abgesicherte Zeile in `assistant.js` (`jvSchatten.ki(actions, text, nurLesen)`, try/catch, nach dem Filtern der Aktionen): Weg "ki".
+- **Urteile:** uebereinstimmung, lokal_statt_faehigkeit, ki_ohne_aktion, andere_faehigkeit, unerwartete_faehigkeit, keine_faehigkeit. Erkennungsmuster je Fähigkeit stehen in `schatten.js` (`HINWEISE`); der Test verlangt für jede neue Registry-Fähigkeit ein Muster. Aktionsart → Fähigkeit kommt aus der Registry (`verbindung.aktion`), keine zweite Liste.
+- **Datenschutz:** nur im Arbeitsspeicher, höchstens 50 Einträge, nie der Satz (nur Nummer, Zeit, Weg, Fähigkeiten, Aktionsarten, Urteil, Längenklasse; für die Zuordnung eine Kurzprüfsumme). `vergiss()` löscht alles.
+
+## Phase 4 Gesprächsgedächtnis (`js/gespraech.js`, Test `tests/gespraech.js`)
+- **Ziel:** Folgefragen verstehen: "Suche drei Restaurants in Hamburg" → "Das zweite gefällt mir" → "Wie komme ich dahin?" erkennt das gewählte Restaurant. `window.jvGespraech` (gemeinsame Instanz; `erzeuge(opt)` für eigene Instanzen/Tests).
+- **Isoliert, nicht produktiv:** keine App-Datei benutzt es (Test prüft das). Völlig getrennt vom Langzeitgedächtnis (kein `memoryItems`, kein localStorage, kein Netz, keine Zeitgeber).
+- **Kann:** aktuelle Absicht, letzte Ergebnisse (max. 10 je Liste, 3 Listen; aus Registry-Ergebnissen über `verarbeite()`), Auswahl, offene Rückfragen (max. 3), Bezüge per Ordnungszahl ("das zweite", "das letzte", "die mittlere"), "Nummer N" und Name; Themen route, Öffnungszeiten, Entfernung, Telefon, Adresse, Preise.
+- **Nicht raten:** mehrdeutig oder außerhalb der Liste → Rückfrage ("Welches meinst du?"), die nächste Antwort ("das zweite") beantwortet sie. Zu alte Ergebnisse → "veraltet" (soll ich neu suchen?). Sätze ohne Bezug ("Was kostet das Brot?", "zum ersten Mal") bleiben "kein_bezug".
+- **Verfall (nur beim Zugriff geprüft):** Ergebnisse veraltet nach 10 min, Auswahl 15 min, Rückfrage 2 min, nach 30 min Ruhe wird alles vergessen. Es werden nur Ergebnisse (Name, Beschreibung, Link) und Jarvis' eigene Fragen gespeichert, nie Sätze des Nutzers.
+- **Bekannte Grenzen:** noch nicht an Sprache/KI angeschlossen; Erkennung der Bezüge ist deutsch und musterbasiert.

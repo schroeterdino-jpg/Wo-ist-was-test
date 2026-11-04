@@ -310,6 +310,8 @@ async function sendToGroqSmartCore(text, opts = {}) {
             actions.length = 0; behalten.forEach(a => actions.push(a));
         }
 
+        // Phase 3: Schattenbetrieb (js/schatten.js) schaut nur zu, standardmäßig aus; verändert nichts
+        try { if (window.jvSchatten && window.jvSchatten.ki) window.jvSchatten.ki(actions, text, !!opts.nurLesen); } catch (e) { }
         // Alle Aktionen nacheinander ausführen; eine kaputte Aktion stoppt die anderen nicht
         const ctx = { counter: 0, cards: [], notes: [], panel: null };
         if (calendarLookup && calendarLookup.verbindung === 'getrennt') ctx.cards.push(googleReconnectCard());
