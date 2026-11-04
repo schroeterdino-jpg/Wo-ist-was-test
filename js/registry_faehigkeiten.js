@@ -30,6 +30,15 @@
         } catch (e) { }
         return '';
     }
+    /* Welcher Wert nach dem Speichern UNTER DEM STICHWORT stehen muss: dieselben bestehenden Funktionen wie in executeAction (parseMemoryValue, jvFestnamen),
+       danach so, wie searchMemory ihn zurückgibt. */
+    function erwarteterWert(a) {
+        try {
+            var s = String(parseMemoryValue(a.memory_value || 'gespeichert'));
+            try { if (typeof window.jvFestnamen === 'function') s = window.jvFestnamen(s); } catch (e) { }
+            return String(parseMemoryValue(s));
+        } catch (e) { return ''; }
+    }
     function ctxNeu(kontext) {
         var c = kontext && kontext.ctx;
         if (c && Array.isArray(c.cards) && Array.isArray(c.notes)) return c;
@@ -50,16 +59,50 @@
     }
     function actionsDa() { return typeof executeAction === 'function'; }
 
-    /* Gemeinsamer Ablauf der drei Schreib-Fähigkeiten: bestehende executeAction aufrufen, vorher/nachher messen. */
-    async function schreibe(aktion, text, kontext, zaehler) {
-        var ctx = ctxNeu(kontext);
-        var vorher = zaehler();
-        var nichtsVorher = (ctx[Symbol.for('jv.nichtsGetan')] || []).length;
-        await executeAction(aktion, text, ctx);
-        var nachher = zaehler();
-        var nichts = (ctx[Symbol.for('jv.nichtsGetan')] || []).slice(nichtsVorher);
-        return { vorher: vorher, nachher: nachher, hinweise: ctx.notes.slice(), nichtsGetan: nichts, nachricht: nichts[0] || ctx.notes.join(' ') };
+    /* ---- Erfolgsnachweis der Schreib-Fähigkeiten: nicht "es sind mehr Einträge", sondern "genau der gewünschte neue Eintrag ist da" ---- */
+    var BERLIN = 'Europe/Berlin';
+    function gleicherText(a, b) { return String(a == null ? '' : a).trim().toLowerCase() === String(b == null ? '' : b).trim().toLowerCase(); }
+    function tagVon(d) { return d.toLocaleDateString('sv-SE', { timeZone: BERLIN }); }
+    function uhrVon(d) { return d.toLocaleTimeString('sv-SE', { timeZone: BERLIN, hour: '2-digit', minute: '2-digit' }); }
+    /* Bei einer Wiederholung verschiebt die bestehende Funktion den ersten Termin auf den passenden Wochentag: dann zählt nur die Uhrzeit. */
+    function wiederholungMoeglich(p, kontext) {
+        return !!(p.wiederholung_einheit || p.wiederholung_intervall || /\bjede[nrms]?\b|täglich|wöchentlich|monatlich|jährlich|\balle\s+\d|werktags/i.test(String((kontext && kontext.text) || '')));
     }
+    function zeitPasst(eintragZeit, gewuenscht, locker) {
+        var b = new Date(gewuenscht);
+        if (isNaN(b.getTime())) return false;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(String(eintragZeit))) return String(eintragZeit) === tagVon(b);   // ganztägiger Eintrag: nur der Tag
+        var a = new Date(eintragZeit);
+        if (isNaN(a.getTime())) return false;
+        return locker ? uhrVon(a) === uhrVon(b) : Math.abs(a.getTime() - b.getTime()) < 60000;
+    }
+    function erinnerungPasst(e, p, kontext) {
+        return !!e && gleicherText(e.text, p.text) && zeitPasst(e.time, p.zeit || e.time, wiederholungMoeglich(p, kontext) || !p.zeit)
+            && (p.wichtig !== true && p.wichtig !== 'true' || e.important === true);
+    }
+    function terminPasst(e, p, kontext) {
+        return !!e && gleicherText(e.text, p.text) && zeitPasst(e.isoDate, p.zeit, wiederholungMoeglich(p, kontext))
+            && (!p.ort || gleicherText(e.location, p.ort));
+    }
+
+    /* Gemeinsamer Ablauf der zwei Listen-Fähigkeiten (Erinnerung, Termin): bestehende executeAction aufrufen und danach prüfen, welche Einträge NEU sind
+       (Vergleich der Einträge selbst, nicht der Anzahl) und ob einer davon genau der gewünschte ist. */
+    async function schreibe(aktion, text, kontext, welche, passt, p) {
+        var ctx = ctxNeu(kontext), SYM_N = Symbol.for('jv.nichtsGetan'), SYM_G = Symbol.for('jv.googleTerminId');
+        var vorherListe = (liste(welche) || []).slice();
+        var nichtsVorher = (ctx[SYM_N] || []).length, googleVorher = ctx[SYM_G];
+        await executeAction(aktion, text, ctx);
+        var nachherListe = liste(welche) || [];
+        var neu = nachherListe.filter(function (e) { return vorherListe.indexOf(e) < 0; });
+        var passend = neu.filter(function (e) { return passt(e, p, kontext); });
+        var nichts = (ctx[SYM_N] || []).slice(nichtsVorher);
+        /* Google hat den Termin angenommen und eine echte Termin-ID geliefert (die App lädt die Liste erst danach neu): gilt als Nachweis, wenn der Titel stimmt. */
+        var gId = ctx[SYM_G];
+        var googleBestaetigt = welche === 'calendarEntries' && !!gId && gId !== googleVorher && !!window.jvLetzterGoogleTermin && gleicherText(window.jvLetzterGoogleTermin.text, p.text);
+        return { vorher: vorherListe.length, nachher: nachherListe.length, neu: neu.length, passend: passend.length, unerwartet: neu.length - passend.length,
+                 googleBestaetigt: googleBestaetigt, hinweise: ctx.notes.slice(), nichtsGetan: nichts, nachricht: nichts[0] || ctx.notes.join(' ') };
+    }
+    function listeBelegt(d) { return !!d && (d.passend >= 1 || d.googleBestaetigt === true) && (!d.nichtsGetan || d.nichtsGetan.length === 0); }
 
     var STAND = 'Wie bisher legt Jarvis das ohne Rückfrage an; die Registry ändert daran in dieser Phase nichts.';
 
@@ -83,14 +126,10 @@
         verfuegbar: function () { return typeof findNearbyRestaurants === 'function'; },
         leer: function (d) { return !!d && Array.isArray(d.cards) && d.cards.length === 0; },
         ausfuehren: async function (p) {
-            /* Die bestehende Funktion liest den Ort aus window.jvLetzterText. Für den Aufruf setzen wir ihn auf den gewünschten Ort (oder leer = um den Nutzer herum)
-               und stellen ihn danach sofort wieder her. */
-            var alt = window.jvLetzterText;
-            window.jvLetzterText = p.ort ? 'in ' + String(p.ort).trim() : '';
-            try {
-                var res = await findNearbyRestaurants(String(p.suchbegriff));
-                return { reply: res.reply, cards: res.cards, nachricht: res.reply };
-            } finally { window.jvLetzterText = alt; }
+            /* Der Ort wird der bestehenden Funktion als zweiter Wert übergeben ('' = um den Nutzer herum). window.jvLetzterText wird dabei weder gelesen noch verändert,
+               darum können parallele Suchen und der normale Sprachablauf einander nicht stören. */
+            var res = await findNearbyRestaurants(String(p.suchbegriff), p.ort ? String(p.ort).trim() : '');
+            return { reply: res.reply, cards: res.cards, nachricht: res.reply };
         }
     });
 
@@ -137,20 +176,20 @@
             { name: 'wiederholung_einheit', typ: 'text', beschreibung: 'Einheit der Wiederholung (zum Beispiel day, week).' },
             { name: 'wiederholung_intervall', typ: 'zahl', beschreibung: 'Alle wie viele Einheiten die Erinnerung wiederkehrt.' }
         ],
-        rueckgabe: { beschreibung: 'Anzahl der Erinnerungen vorher und nachher, Hinweise (zum Beispiel "nur in der App gespeichert").', felder: ['vorher', 'nachher', 'hinweise', 'nichtsGetan', 'nachricht'] },
+        rueckgabe: { beschreibung: 'Anzahl der Erinnerungen vorher/nachher, wie viele Einträge neu und wie viele davon genau die gewünschten sind, Hinweise (zum Beispiel "nur in der App gespeichert").', felder: ['vorher', 'nachher', 'neu', 'passend', 'unerwartet', 'hinweise', 'nichtsGetan', 'nachricht'] },
         fehler: [
             { status: 'NEEDS_INFORMATION', wann: 'Kein Erinnerungstext angegeben.' },
-            { status: 'TOOL_FAILED', wann: 'Es wurde keine Erinnerung nachweisbar angelegt, oder ein technischer Fehler trat auf.' },
+            { status: 'TOOL_FAILED', wann: 'Es gibt keinen neuen Eintrag mit dem gewünschten Text und der gewünschten Zeit, oder ein technischer Fehler trat auf.' },
             { status: 'CAPABILITY_MISSING', wann: 'Die Aktionsausführung ist in dieser Umgebung nicht geladen.' }
         ],
         fallbacks: ['termin_erstellen'],
         bestaetigung: { noetig: false, grund: STAND },
-        pruefeErfolg: function (d) { return !!d && d.nachher > d.vorher && (!d.nichtsGetan || d.nichtsGetan.length === 0); },
+        pruefeErfolg: listeBelegt,
         verbindung: { datei: 'js/actions.js', funktion: 'executeAction', aktion: 'reminder' },
         verfuegbar: function () { return actionsDa() && !!liste('reminderEntries'); },
         vorpruefung: function (p) { return sicherheit(erinnerungAktion(p)); },
         ausfuehren: function (p, kontext) {
-            return schreibe(erinnerungAktion(p), satzDesNutzers(kontext, p, 'text'), kontext, function () { var l = liste('reminderEntries'); return l ? l.length : 0; });
+            return schreibe(erinnerungAktion(p), satzDesNutzers(kontext, p, 'text'), kontext, 'reminderEntries', erinnerungPasst, p);
         }
     });
 
@@ -176,20 +215,20 @@
             { name: 'wiederholung_einheit', typ: 'text', beschreibung: 'Einheit der Wiederholung (zum Beispiel day, week).' },
             { name: 'wiederholung_intervall', typ: 'zahl', beschreibung: 'Alle wie viele Einheiten der Termin wiederkehrt.' }
         ],
-        rueckgabe: { beschreibung: 'Anzahl der Termine vorher und nachher, Hinweise (zum Beispiel "nur in der App gespeichert").', felder: ['vorher', 'nachher', 'hinweise', 'nichtsGetan', 'nachricht'] },
+        rueckgabe: { beschreibung: 'Anzahl der Termine vorher/nachher, wie viele Einträge neu und wie viele davon genau die gewünschten sind (oder von Google bestätigt), Hinweise (zum Beispiel "nur in der App gespeichert").', felder: ['vorher', 'nachher', 'neu', 'passend', 'unerwartet', 'googleBestaetigt', 'hinweise', 'nichtsGetan', 'nachricht'] },
         fehler: [
             { status: 'NEEDS_INFORMATION', wann: 'Titel oder Zeit fehlen.' },
-            { status: 'TOOL_FAILED', wann: 'Es wurde kein Termin nachweisbar angelegt, oder ein technischer Fehler trat auf.' },
+            { status: 'TOOL_FAILED', wann: 'Es gibt keinen neuen Eintrag mit dem gewünschten Titel und der gewünschten Zeit (und Google hat ihn auch nicht bestätigt), oder ein technischer Fehler trat auf.' },
             { status: 'CAPABILITY_MISSING', wann: 'Die Aktionsausführung ist in dieser Umgebung nicht geladen.' }
         ],
         fallbacks: ['erinnerung_erstellen'],
         bestaetigung: { noetig: false, grund: STAND },
-        pruefeErfolg: function (d) { return !!d && d.nachher > d.vorher && (!d.nichtsGetan || d.nichtsGetan.length === 0); },
+        pruefeErfolg: listeBelegt,
         verbindung: { datei: 'js/actions.js', funktion: 'executeAction', aktion: 'calendar' },
         verfuegbar: function () { return actionsDa() && !!liste('calendarEntries'); },
         vorpruefung: function (p) { return sicherheit(terminAktion(p)); },
         ausfuehren: function (p, kontext) {
-            return schreibe(terminAktion(p), satzDesNutzers(kontext, p, 'text'), kontext, function () { var l = liste('calendarEntries'); return l ? l.length : 0; });
+            return schreibe(terminAktion(p), satzDesNutzers(kontext, p, 'text'), kontext, 'calendarEntries', terminPasst, p);
         }
     });
 
@@ -204,25 +243,27 @@
         beschreibung: 'Merkt sich eine Information unter einem Stichwort, damit Jarvis sie später wiederfindet.',
         pflicht: [{ name: 'schluessel', typ: 'text', beschreibung: 'Stichwort, unter dem gemerkt wird, zum Beispiel "schlüssel".' }],
         optional: [{ name: 'wert', typ: 'text', beschreibung: 'Was gemerkt wird, zum Beispiel "im Auto". Ohne Angabe speichert die bestehende Funktion "gespeichert".' }],
-        rueckgabe: { beschreibung: 'Stichwort und der tatsächlich gespeicherte Wert.', felder: ['schluessel', 'gespeichert', 'hinweise', 'nichtsGetan', 'nachricht'] },
+        rueckgabe: { beschreibung: 'Stichwort, der Wert vorher, der erwartete und der tatsächlich gespeicherte Wert (erfolgreich nur, wenn gespeichert = erwartet).', felder: ['schluessel', 'vorher', 'erwartet', 'gespeichert', 'ueberschrieben', 'unveraendert', 'hinweise', 'nichtsGetan', 'nachricht'] },
         fehler: [
             { status: 'NEEDS_INFORMATION', wann: 'Kein Stichwort angegeben.' },
-            { status: 'TOOL_FAILED', wann: 'Der Eintrag ist danach nicht im Gedächtnis zu finden, oder ein technischer Fehler trat auf.' },
+            { status: 'TOOL_FAILED', wann: 'Unter dem Stichwort steht danach nicht der gewünschte Wert (zum Beispiel noch der alte), oder ein technischer Fehler trat auf.' },
             { status: 'CAPABILITY_MISSING', wann: 'Die Aktionsausführung ist in dieser Umgebung nicht geladen.' }
         ],
         fallbacks: [],
         bestaetigung: { noetig: false, grund: STAND },
-        pruefeErfolg: function (d) { return !!d && typeof d.gespeichert === 'string' && d.gespeichert.length > 0 && (!d.nichtsGetan || d.nichtsGetan.length === 0); },
+        pruefeErfolg: function (d) { return !!d && typeof d.gespeichert === 'string' && d.gespeichert.length > 0 && d.gespeichert === d.erwartet && (!d.nichtsGetan || d.nichtsGetan.length === 0); },
         verbindung: { datei: 'js/actions.js', funktion: 'executeAction', aktion: 'memory_store' },
         verfuegbar: function () { return actionsDa() && typeof searchMemory === 'function'; },
         vorpruefung: function (p) { return sicherheit(gedaechtnisAktion(p)); },
         ausfuehren: async function (p, kontext) {
-            var a = gedaechtnisAktion(p), ctx = ctxNeu(kontext);
+            var a = gedaechtnisAktion(p), ctx = ctxNeu(kontext), key = a.memory_key.toLowerCase().trim();
             var nichtsVorher = (ctx[Symbol.for('jv.nichtsGetan')] || []).length;
+            var vorher = gemerkt(key);
             await executeAction(a, satzDesNutzers(kontext, p, 'schluessel'), ctx);
-            var key = a.memory_key.toLowerCase().trim();
             var nichts = (ctx[Symbol.for('jv.nichtsGetan')] || []).slice(nichtsVorher);
-            return { schluessel: key, gespeichert: gemerkt(key), hinweise: ctx.notes.slice(), nichtsGetan: nichts, nachricht: nichts[0] || ctx.notes.join(' ') };
+            var gespeichert = gemerkt(key);
+            return { schluessel: key, vorher: vorher, erwartet: erwarteterWert(a), gespeichert: gespeichert, ueberschrieben: vorher !== '' && vorher !== gespeichert, unveraendert: vorher !== '' && vorher === gespeichert,
+                     hinweise: ctx.notes.slice(), nichtsGetan: nichts, nachricht: nichts[0] || ctx.notes.join(' ') };
         }
     });
 

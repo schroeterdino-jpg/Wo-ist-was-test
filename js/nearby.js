@@ -137,13 +137,13 @@ async function geocodeOrt(name) {
     } catch (e) { return null; }
 }
 
-async function findNearbyRestaurants(query) {
+async function findNearbyRestaurants(query, ortVorgabe) {   // ortVorgabe (optional, Text): Ort direkt vorgeben ('' = um den Nutzer herum); ohne Angabe wird er wie bisher aus dem letzten Satz gelesen
     const loc = await fetchUserLocationData();
     if (!loc || loc.fehler || loc.latitude === undefined) throw userError('Deinen Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?');
 
     // Nennt der Satz einen Ort, wird dort gesucht (Mitte des Ortes), sonst um dich herum
     let ortName = '', center = { lat: loc.latitude, lon: loc.longitude };
-    const ortWort = ortAusSatz(window.jvLetzterText || '');
+    const ortWort = typeof ortVorgabe === 'string' ? ortVorgabe.trim() : ortAusSatz(window.jvLetzterText || '');
     if (ortWort) {
         const g = await geocodeOrt(ortWort);
         if (g) { ortName = g.name; center = { lat: g.lat, lon: g.lon }; }

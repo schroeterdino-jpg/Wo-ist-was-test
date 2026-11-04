@@ -331,20 +331,20 @@ const FELDER = 'alternativen,ausgefuehrt,daten,faehigkeit,fehlend,grund,nachrich
 
     /* --- Ortssuche --- */
     {
-        const O = umgebung(); let gesehen = null, ortWaehrend = null;
+        const O = umgebung(); let gesehen = null, ortWaehrend = null, ortArg = null;
         O.sb.window.jvLetzterText = 'Ursprünglicher Satz';
-        O.sb.findNearbyRestaurants = async (q) => { gesehen = q; ortWaehrend = O.sb.window.jvLetzterText; return { reply: 'In Reinbek gibt es zum Beispiel Roma.', cards: [{ title: 'Roma' }] }; };
+        O.sb.findNearbyRestaurants = async (q, ort) => { gesehen = q; ortArg = ort; ortWaehrend = O.sb.window.jvLetzterText; return { reply: 'In Reinbek gibt es zum Beispiel Roma.', cards: [{ title: 'Roma' }] }; };
         r = await ruf(O, 'ortssuche', { suchbegriff: 'Pizzeria', ort: 'Reinbek' });
         check('28a Ortssuche: SUCCESS, Suchbegriff wird an die bestehende Funktion gegeben, Daten = Antwort + Karten', r.status === 'SUCCESS' && gesehen === 'Pizzeria' && r.daten.cards.length === 1 && /Roma/.test(r.nachricht), JSON.stringify(r));
-        check('28b Ortssuche: während des Aufrufs gilt der gewünschte Ort, danach ist der ursprüngliche Satz wieder da', ortWaehrend === 'in Reinbek' && O.sb.window.jvLetzterText === 'Ursprünglicher Satz', String(ortWaehrend));
+        check('28b Ortssuche: der Ort geht als zweiter Wert an die Funktion; window.jvLetzterText bleibt davor, währenddessen und danach unberührt', ortArg === 'Reinbek' && ortWaehrend === 'Ursprünglicher Satz' && O.sb.window.jvLetzterText === 'Ursprünglicher Satz', String(ortArg) + ' / ' + ortWaehrend);
         await ruf(O, 'ortssuche', { suchbegriff: 'Pizzeria' });
-        check('28c Ortssuche ohne Ort: kein alter Ort aus dem letzten Satz wird benutzt', ortWaehrend === '' && O.sb.window.jvLetzterText === 'Ursprünglicher Satz');
+        check('28c Ortssuche ohne Ort: leerer Ort (= um den Nutzer herum) wird übergeben, kein alter Ort aus dem letzten Satz', ortArg === '' && typeof ortArg === 'string' && ortWaehrend === 'Ursprünglicher Satz' && O.sb.window.jvLetzterText === 'Ursprünglicher Satz');
         O.sb.findNearbyRestaurants = async () => ({ reply: 'In der Nähe habe ich leider nichts gefunden.', cards: [] });
         r = await ruf(O, 'ortssuche', { suchbegriff: 'Sushi' });
         check('28d Ortssuche ohne Treffer: NO_RESULTS, Alternative "websuche"', r.status === 'NO_RESULTS' && r.ausgefuehrt === true && r.alternativen.join() === 'websuche' && /nichts gefunden/.test(r.nachricht), JSON.stringify(r));
-        O.sb.findNearbyRestaurants = async () => { ortWaehrend = O.sb.window.jvLetzterText; const e = new Error('x'); e.userMessage = 'Deinen Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?'; throw e; };
+        O.sb.findNearbyRestaurants = async () => { const e = new Error('x'); e.userMessage = 'Deinen Standort konnte ich gerade nicht ermitteln. Ist der Standortzugriff erlaubt?'; throw e; };
         r = await ruf(O, 'ortssuche', { suchbegriff: 'Sushi', ort: 'Hamburg' });
-        check('28e Ortssuche, Standort fehlt: TOOL_FAILED mit verständlicher Meldung; Satz wird auch nach dem Fehler wiederhergestellt', r.status === 'TOOL_FAILED' && /Standort/.test(r.nachricht) && O.sb.window.jvLetzterText === 'Ursprünglicher Satz');
+        check('28e Ortssuche, Standort fehlt: TOOL_FAILED mit verständlicher Meldung; der Satz bleibt auch nach dem Fehler unberührt', r.status === 'TOOL_FAILED' && /Standort/.test(r.nachricht) && O.sb.window.jvLetzterText === 'Ursprünglicher Satz');
         const O2 = umgebung();
         r = await ruf(O2, 'ortssuche', { suchbegriff: 'Pizzeria' });
         check('28f echte bestehende Funktion ohne Standort/Netz: TOOL_FAILED, kein Absturz, kein Hängen', r.status === 'TOOL_FAILED' && r.ausgefuehrt === true && !!r.nachricht, JSON.stringify(r));
@@ -381,6 +381,186 @@ const FELDER = 'alternativen,ausgefuehrt,daten,faehigkeit,fehlend,grund,nachrich
         r = await ruf(F, 'neue_faehigkeit', { text: 'a' });
         check('30a sechste Fähigkeit läuft neben den fünf, Fallback auf eine bestehende wird erkannt', reg.ok && r.status === 'SUCCESS' && F.sb.jvRegistry.namen().length === 6 && F.sb.jvRegistry.pruefeVerweise().length === 0);
         check('30b die fünf Namen lassen sich nicht überschreiben', F.sb.jvRegistry.registriere(frisch({ name: 'ortssuche' })).ok === false && F.sb.jvRegistry.hole('ortssuche').verbindung.funktion === 'findNearbyRestaurants');
+    }
+
+    /* ================= Teil 3: gezielte Prüfung der drei Schwachstellen (Erfolgsnachweis und globaler Zustand) ================= */
+    const stumm = A2 => { A2.sb.executeAction = async () => { A2.zaehler.exec++; }; return A2; };   // Aktion läuft ohne Fehler, schreibt aber nichts
+    const mem = (A2, o) => { const m = A2.lese('memoryItems'); Object.keys(o).forEach(k => { m[k] = o[k]; }); };
+
+    /* --- Punkt 1: Gedächtnis --- */
+    {
+        const G = umgebung();
+        await ruf(G, 'gedaechtnis_speichern', { schluessel: 'Schlüssel', wert: 'im Auto' });
+        r = await ruf(G, 'gedaechtnis_speichern', { schluessel: 'Schlüssel', wert: 'in der Tasche' });
+        check('40a echtes Überschreiben: SUCCESS, neuer Wert steht da, als überschrieben gekennzeichnet', r.status === 'SUCCESS' && G.lese('memoryItems')['schlüssel'] === 'in der Tasche' && r.daten.ueberschrieben === true && r.daten.vorher === 'im Auto' && r.daten.erwartet === 'in der Tasche', JSON.stringify(r.daten));
+        stumm(G);
+        r = await ruf(G, 'gedaechtnis_speichern', { schluessel: 'Schlüssel', wert: 'beim Nachbarn' });
+        check('40b Überschreiben ohne Wirkung: der alte Treffer zählt NICHT als Erfolg (TOOL_FAILED)', r.status === 'TOOL_FAILED' && r.grund === 'Erfolg nicht nachgewiesen' && r.daten.gespeichert === 'in der Tasche' && r.daten.erwartet === 'beim Nachbarn' && G.lese('memoryItems')['schlüssel'] === 'in der Tasche', JSON.stringify(r));
+        const G2 = umgebung(); mem(G2, { 'schlüssel': 'im Auto' });
+        G2.sb.executeAction = async () => { G2.lese('memoryItems')['schlüssel'] = 'ein ganz anderer Wert'; };
+        r = await ruf(G2, 'gedaechtnis_speichern', { schluessel: 'Schlüssel', wert: 'in der Tasche' });
+        check('40c falscher Wert unter dem richtigen Stichwort → TOOL_FAILED', r.status === 'TOOL_FAILED' && r.daten.gespeichert === 'ein ganz anderer Wert');
+        const G3 = umgebung(); mem(G3, { 'schlüssel': 'im Auto' });
+        G3.sb.executeAction = async () => { G3.lese('memoryItems')['anderes stichwort'] = 'in der Tasche'; };
+        r = await ruf(G3, 'gedaechtnis_speichern', { schluessel: 'Schlüssel', wert: 'in der Tasche' });
+        check('40d richtiger Wert unter einem ANDEREN Stichwort → TOOL_FAILED', r.status === 'TOOL_FAILED' && r.daten.gespeichert === 'im Auto');
+        const G4 = stumm(umgebung());
+        r = await ruf(G4, 'gedaechtnis_speichern', { schluessel: 'Neu', wert: 'x' });
+        check('40e neues Stichwort, nichts geschrieben → TOOL_FAILED (gespeichert leer)', r.status === 'TOOL_FAILED' && r.daten.gespeichert === '');
+        const G5 = umgebung(); mem(G5, { 'schlüssel': 'im Auto' });
+        r = await ruf(G5, 'gedaechtnis_speichern', { schluessel: 'Schlüssel', wert: 'im Auto' });
+        check('40f gleicher Wert wie vorher: Zustand stimmt → SUCCESS, aber als "unverändert" gekennzeichnet (bekannte Grenze)', r.status === 'SUCCESS' && r.daten.unveraendert === true && r.daten.ueberschrieben === false);
+        const G6 = umgebung(); mem(G6, { 'schlüssel': 'im Auto' });
+        r = await ruf(G6, 'gedaechtnis_speichern', { schluessel: '  SCHLÜSSEL ', wert: 'in der Tasche' });
+        check('40g Stichwort mit Großbuchstaben/Leerzeichen: gleiches Stichwort wird überschrieben, kein zweites angelegt', r.status === 'SUCCESS' && Object.keys(G6.lese('memoryItems')).length === 1 && G6.lese('memoryItems')['schlüssel'] === 'in der Tasche');
+        const G7 = umgebung(); mem(G7, { 'schlüssel': 'im Auto' });
+        r = await ruf(G7, 'gedaechtnis_speichern', { schluessel: 'Schlüssel' });
+        check('40h ohne Wert speichert die bestehende Funktion "gespeichert": das wird erwartet und nachgewiesen', r.status === 'SUCCESS' && r.daten.erwartet === 'gespeichert' && G7.lese('memoryItems')['schlüssel'] === 'gespeichert');
+        const G8 = stumm(umgebung()); mem(G8, { 'schlüssel': 'gespeichert' });
+        r = await ruf(G8, 'gedaechtnis_speichern', { schluessel: 'Schlüssel' });
+        check('40i (Randfall, bekannte Grenze) Standardwert schon vorhanden und nichts geschrieben: Zustand stimmt → SUCCESS, "unverändert"', r.status === 'SUCCESS' && r.daten.unveraendert === true);
+        const G9 = umgebung(); mem(G9, { 'schlüsselbund': 'im Flur', 'auto': 'schlüssel im Handschuhfach' });
+        stumm(G9);
+        r = await ruf(G9, 'gedaechtnis_speichern', { schluessel: 'Schlüssel', wert: 'in der Tasche' });
+        check('40j ähnliche Treffer (Teilwort im Stichwort, Wort im Wert) zählen nicht: nur genau dieses Stichwort', r.status === 'TOOL_FAILED' && r.daten.gespeichert === '' && r.daten.vorher === '', JSON.stringify(r.daten));
+        const G10 = umgebung();
+        r = await ruf(G10, 'gedaechtnis_speichern', { schluessel: 'Name', wert: 'Herr Schröter' });
+        check('40k Namensumschreibung der bestehenden Funktion (jvFestnamen) wird vorhergesagt: SUCCESS, Wert = was wirklich gespeichert wurde', r.status === 'SUCCESS' && r.daten.gespeichert === G10.lese('memoryItems')['name'] && r.daten.erwartet === r.daten.gespeichert, JSON.stringify(r.daten));
+        const G11 = umgebung();
+        r = await ruf(G11, 'gedaechtnis_speichern', { schluessel: 'Ort', wert: '{"value":"Reinbek"}' });
+        check('40l Wert als JSON-Text: erwartet wird, was die bestehende Funktion daraus macht', r.status === 'SUCCESS' && r.daten.erwartet === r.daten.gespeichert, JSON.stringify(r.daten));
+        const G12 = umgebung();
+        r = await ruf(G12, 'gedaechtnis_speichern', { schluessel: 'Zahl', wert: 0 });
+        check('40m Wert 0 / leer: wie in der bestehenden Funktion wird "gespeichert" erwartet (kein Fehlalarm)', r.status === 'SUCCESS' && r.daten.erwartet === 'gespeichert');
+    }
+
+    /* --- Punkt 2: Erinnerungen und Termine --- */
+    const ZEIT = '2026-11-06T08:00:00', ZEIT_T = '2026-11-06T10:00:00';
+    const mitEintrag = (A2, welche, e) => { A2.sb.executeAction = async () => { A2.zaehler.exec++; A2.lese(welche).unshift(e); }; return A2; };
+    const iso = z => new Date(z).toISOString();
+    {
+        let q; const L = umgebung();
+        r = await ruf(L, 'erinnerung_erstellen', { text: 'Kaffee kaufen', zeit: ZEIT });
+        check('41a Erinnerung echt: SUCCESS, genau der neue Eintrag ist der gewünschte', r.status === 'SUCCESS' && r.daten.neu === 1 && r.daten.passend === 1 && r.daten.unerwartet === 0, JSON.stringify(r.daten).slice(0, 250));
+        const fall = async (titel, welche, name, p, eintrag, erwartetStatus, vorher, kontext) => {
+            const A2 = umgebung(); if (vorher) vorher(A2);
+            if (eintrag === 'stumm') stumm(A2); else if (eintrag) mitEintrag(A2, welche, eintrag);
+            const q = await ruf(A2, name, p, kontext ? { kontext } : undefined);
+            check(titel, q.status === erwartetStatus && (erwartetStatus !== 'TOOL_FAILED' || q.grund === 'Erfolg nicht nachgewiesen'), q.status + ' ' + q.grund + ' ' + JSON.stringify(q.daten).slice(0, 200));
+            return q;
+        };
+        const R = (text, zeit, extra) => Object.assign({ id: 5, googleId: null, text, time: iso(zeit), triggered: false, recurrence: null, important: false }, extra || {});
+        const T = (text, zeit, extra) => Object.assign({ id: 'local_5', text, date: 'x', isoDate: iso(zeit), location: '' }, extra || {});
+        const rp = { text: 'Kaffee kaufen', zeit: ZEIT }, tp = { text: 'Zahnarzt', zeit: ZEIT_T };
+        /* Erinnerung */
+        await fall('41b Erinnerung: Liste unverändert → TOOL_FAILED', 'reminderEntries', 'erinnerung_erstellen', rp, 'stumm', 'TOOL_FAILED');
+        await fall('41c Erinnerung: neuer Eintrag mit FALSCHEM TEXT, Anzahl +1 → TOOL_FAILED', 'reminderEntries', 'erinnerung_erstellen', rp, R('Brot kaufen', ZEIT), 'TOOL_FAILED');
+        await fall('41d Erinnerung: richtiger Text, Uhrzeit eine Stunde später → TOOL_FAILED', 'reminderEntries', 'erinnerung_erstellen', rp, R('Kaffee kaufen', '2026-11-06T09:00:00'), 'TOOL_FAILED');
+        await fall('41e Erinnerung: richtiger Text, richtige Uhrzeit, falscher Tag → TOOL_FAILED', 'reminderEntries', 'erinnerung_erstellen', rp, R('Kaffee kaufen', '2026-11-07T08:00:00'), 'TOOL_FAILED');
+        await fall('41f Erinnerung: Zeit um 5 Minuten daneben → TOOL_FAILED', 'reminderEntries', 'erinnerung_erstellen', rp, R('Kaffee kaufen', '2026-11-06T08:05:00'), 'TOOL_FAILED');
+        await fall('41g Erinnerung: gleicher Text, nur 59 Sekunden Abweichung → SUCCESS (Toleranz unter einer Minute)', 'reminderEntries', 'erinnerung_erstellen', rp, R('Kaffee kaufen', '2026-11-06T08:00:59'), 'SUCCESS');
+        await fall('41h Erinnerung: Groß-/Kleinschreibung und Leerzeichen im Text sind egal → SUCCESS', 'reminderEntries', 'erinnerung_erstellen', rp, R('  KAFFEE kaufen ', ZEIT), 'SUCCESS');
+        await fall('41i Erinnerung: ALTER gleicher Eintrag war schon da, nichts Neues geschrieben → TOOL_FAILED (alter Treffer zählt nicht)', 'reminderEntries', 'erinnerung_erstellen', rp, 'stumm', 'TOOL_FAILED', A2 => A2.lese('reminderEntries').push(R('Kaffee kaufen', ZEIT)));
+        await fall('41j Erinnerung: alter Eintrag ersetzt durch falschen (Anzahl gleich) → TOOL_FAILED', 'reminderEntries', 'erinnerung_erstellen', rp, null, 'TOOL_FAILED', A2 => { A2.lese('reminderEntries').push(R('Alt', ZEIT)); A2.sb.executeAction = async () => { const l = A2.lese('reminderEntries'); l.length = 0; l.push(R('Brot', ZEIT)); }; });
+        q = await fall('41k Erinnerung: richtiger Eintrag UND ein zusätzlicher unpassender → SUCCESS, der Zusatz wird gemeldet (unerwartet=1)', 'reminderEntries', 'erinnerung_erstellen', rp, null, 'SUCCESS', A2 => { A2.sb.executeAction = async () => { const l = A2.lese('reminderEntries'); l.unshift(R('Zusatz', ZEIT)); l.unshift(R('Kaffee kaufen', ZEIT)); }; });
+        check('41l … und der Zusatz steht in den Daten', q.daten.neu === 2 && q.daten.passend === 1 && q.daten.unerwartet === 1);
+        await fall('41m Erinnerung wichtig verlangt, Eintrag nicht wichtig → TOOL_FAILED', 'reminderEntries', 'erinnerung_erstellen', { text: 'Kaffee kaufen', zeit: ZEIT, wichtig: true }, R('Kaffee kaufen', ZEIT, { important: false }), 'TOOL_FAILED');
+        await fall('41n Erinnerung wichtig verlangt, Eintrag wichtig → SUCCESS', 'reminderEntries', 'erinnerung_erstellen', { text: 'Kaffee kaufen', zeit: ZEIT, wichtig: true }, R('Kaffee kaufen', ZEIT, { important: true }), 'SUCCESS');
+        await fall('41o Erinnerung echt mit wichtig:true → SUCCESS und wirklich wichtig', 'reminderEntries', 'erinnerung_erstellen', { text: 'Kaffee kaufen', zeit: ZEIT, wichtig: true }, undefined, 'SUCCESS');
+        await fall('41p Erinnerung mit Wiederholung ("jeden Montag"): Tag darf wandern, die Uhrzeit nicht → SUCCESS bei gleicher Uhrzeit', 'reminderEntries', 'erinnerung_erstellen', rp, R('Kaffee kaufen', '2026-11-09T08:00:00'), 'SUCCESS', null, { text: 'Erinner mich jeden Montag um acht an Kaffee kaufen' });
+        await fall('41q Erinnerung mit Wiederholung: falsche Uhrzeit → TOOL_FAILED', 'reminderEntries', 'erinnerung_erstellen', rp, R('Kaffee kaufen', '2026-11-09T09:00:00'), 'TOOL_FAILED', null, { text: 'Erinner mich jeden Montag um acht an Kaffee kaufen' });
+        await fall('41r ohne Wiederholungswunsch darf der Tag NICHT wandern → TOOL_FAILED', 'reminderEntries', 'erinnerung_erstellen', rp, R('Kaffee kaufen', '2026-11-09T08:00:00'), 'TOOL_FAILED', null, { text: 'Erinner mich morgen um acht an Kaffee kaufen' });
+        /* Termin */
+        q = await ruf(L, 'termin_erstellen', { text: 'Zahnarzt', zeit: ZEIT_T }, { kontext: { text: 'Trag Zahnarzt ein' } });
+        check('42a Termin echt: SUCCESS, genau der neue Eintrag ist der gewünschte', q.status === 'SUCCESS' && q.daten.neu === 1 && q.daten.passend === 1 && q.daten.unerwartet === 0, JSON.stringify(q.daten).slice(0, 250));
+        await fall('42b Termin: Liste unverändert → TOOL_FAILED', 'calendarEntries', 'termin_erstellen', tp, 'stumm', 'TOOL_FAILED');
+        await fall('42c Termin: neuer Eintrag mit FALSCHEM TITEL, Anzahl +1 → TOOL_FAILED', 'calendarEntries', 'termin_erstellen', tp, T('Friseur', ZEIT_T), 'TOOL_FAILED');
+        await fall('42d Termin: richtiger Titel, falsche Uhrzeit (11 statt 10) → TOOL_FAILED', 'calendarEntries', 'termin_erstellen', tp, T('Zahnarzt', '2026-11-06T11:00:00'), 'TOOL_FAILED');
+        await fall('42e Termin: richtiger Titel, richtige Uhrzeit, falscher Tag → TOOL_FAILED', 'calendarEntries', 'termin_erstellen', tp, T('Zahnarzt', '2026-11-07T10:00:00'), 'TOOL_FAILED');
+        await fall('42f Termin: ALTER gleicher Eintrag war schon da, nichts Neues geschrieben → TOOL_FAILED', 'calendarEntries', 'termin_erstellen', tp, 'stumm', 'TOOL_FAILED', A2 => A2.lese('calendarEntries').push(T('Zahnarzt', ZEIT_T)));
+        await fall('42g Termin: alter Eintrag ersetzt durch falschen (Anzahl gleich) → TOOL_FAILED', 'calendarEntries', 'termin_erstellen', tp, null, 'TOOL_FAILED', A2 => { A2.lese('calendarEntries').push(T('Alt', ZEIT_T)); A2.sb.executeAction = async () => { const l = A2.lese('calendarEntries'); l.length = 0; l.push(T('Friseur', ZEIT_T)); }; });
+        q = await fall('42h Termin: richtiger Eintrag UND ein zusätzlicher unpassender → SUCCESS mit unerwartet=1', 'calendarEntries', 'termin_erstellen', tp, null, 'SUCCESS', A2 => { A2.sb.executeAction = async () => { const l = A2.lese('calendarEntries'); l.unshift(T('Zusatz', ZEIT_T)); l.unshift(T('Zahnarzt', ZEIT_T)); }; });
+        check('42i … der Zusatz steht in den Daten', q.daten.neu === 2 && q.daten.passend === 1 && q.daten.unerwartet === 1);
+        await fall('42j Termin mit Ort verlangt, Eintrag mit anderem Ort → TOOL_FAILED', 'calendarEntries', 'termin_erstellen', { text: 'Zahnarzt', zeit: ZEIT_T, ort: 'Hamburg' }, T('Zahnarzt', ZEIT_T, { location: 'Berlin' }), 'TOOL_FAILED');
+        await fall('42k Termin mit Ort verlangt, Eintrag mit diesem Ort → SUCCESS', 'calendarEntries', 'termin_erstellen', { text: 'Zahnarzt', zeit: ZEIT_T, ort: 'Hamburg' }, T('Zahnarzt', ZEIT_T, { location: 'hamburg' }), 'SUCCESS');
+        await fall('42l Termin echt mit Ort → SUCCESS und Ort wirklich gespeichert', 'calendarEntries', 'termin_erstellen', { text: 'Zahnarzt', zeit: ZEIT_T, ort: 'Hamburg' }, undefined, 'SUCCESS');
+        await fall('42m ganztägiger Eintrag (nur Datum) am richtigen Tag → SUCCESS, am falschen → TOOL_FAILED', 'calendarEntries', 'termin_erstellen', tp, { id: 'x', text: 'Zahnarzt', date: 'x', isoDate: '2026-11-06', location: '' }, 'SUCCESS');
+        await fall('42n ganztägiger Eintrag am falschen Tag → TOOL_FAILED', 'calendarEntries', 'termin_erstellen', tp, { id: 'x', text: 'Zahnarzt', date: 'x', isoDate: '2026-11-08', location: '' }, 'TOOL_FAILED');
+        await fall('42o Eintrag mit unlesbarer Zeit → TOOL_FAILED', 'calendarEntries', 'termin_erstellen', tp, { id: 'x', text: 'Zahnarzt', date: 'x', isoDate: 'kaputt', location: '' }, 'TOOL_FAILED');
+        await fall('42p Termin mit Wiederholung: richtige Uhrzeit, Tag verschoben → SUCCESS', 'calendarEntries', 'termin_erstellen', tp, T('Zahnarzt', '2026-11-09T10:00:00'), 'SUCCESS', null, { text: 'Trag jeden Montag Zahnarzt ein' });
+        /* Google hat den Termin angenommen (echte ID), die App lädt die Liste erst danach neu */
+        const googleMock = (A2, id, text) => { A2.sb.executeAction = async (a, t, ctx) => { A2.zaehler.exec++; A2.sb.window.jvLetzterGoogleTermin = { id, text }; ctx[Symbol.for('jv.googleTerminId')] = id; }; return A2; };
+        q = await ruf(googleMock(umgebung(), 'g123', 'Zahnarzt'), 'termin_erstellen', tp);
+        check('43a Google bestätigt (echte ID, richtiger Titel), Liste noch nicht neu geladen → SUCCESS mit googleBestaetigt', q.status === 'SUCCESS' && q.daten.googleBestaetigt === true && q.daten.passend === 0, JSON.stringify(q.daten).slice(0, 200));
+        q = await ruf(googleMock(umgebung(), 'g123', 'Friseur'), 'termin_erstellen', tp);
+        check('43b Google bestätigt einen ANDEREN Titel → TOOL_FAILED', q.status === 'TOOL_FAILED' && q.daten.googleBestaetigt === false);
+        {
+            const A2 = googleMock(umgebung(), 'g123', 'Zahnarzt'); const ctx = { counter: 0, cards: [], notes: [], panel: null }; ctx[Symbol.for('jv.googleTerminId')] = 'g123';
+            q = await ruf(A2, 'termin_erstellen', tp, { kontext: { ctx } });
+            check('43c alte Google-ID aus einem früheren Aufruf (nicht neu) zählt nicht → TOOL_FAILED', q.status === 'TOOL_FAILED' && q.daten.googleBestaetigt === false);
+        }
+        q = await ruf(googleMock(umgebung(), 'g123', 'Zahnarzt'), 'erinnerung_erstellen', rp);
+        check('43d Google-Nachweis gilt nur für Termine, nicht für Erinnerungen → TOOL_FAILED', q.status === 'TOOL_FAILED');
+        /* der echte Weg über Google (Attrappe als Google-Server) */
+        {
+            const gesendet = [];
+            const Gg = umgebung(u => {
+                if (/googleapis\.com\/calendar\/v3\/calendars\/primary\/events/.test(u)) { gesendet.push(u); return ant({ id: 'g-echt-1', items: [] }); }
+                return null;
+            });
+            Gg.setze('accessToken', 'attrappe'); Gg.setze('googleTokenExpiresAt', Number.MAX_SAFE_INTEGER);
+            q = await ruf(Gg, 'termin_erstellen', tp, { kontext: { text: 'Trag Zahnarzt ein' } });
+            check('43e echter Google-Weg (Attrappe): SUCCESS durch die echte Google-ID, nur die Attrappe wurde angesprochen', q.status === 'SUCCESS' && (q.daten.googleBestaetigt === true || q.daten.passend >= 1) && gesendet.length >= 1 && Gg.aufrufe.every(u => u.startsWith('/') || /googleapis\.com/.test(u)), q.status + ' ' + JSON.stringify(q.daten).slice(0, 200) + ' ' + Gg.aufrufe.join());
+        }
+    }
+
+    /* --- Punkt 3: Ortssuche und globaler Zustand --- */
+    {
+        const quellReg = lies('js/registry_faehigkeiten.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+        check('44a die Registry-Datei benutzt window.jvLetzterText überhaupt nicht mehr (außerhalb von Kommentaren)', !/jvLetzterText/.test(quellReg));
+        const P = umgebung(); P.sb.window.jvLetzterText = 'Original'; const log = [];
+        P.sb.findNearbyRestaurants = async (q, ort) => { log.push(q + '|' + ort + '|' + P.sb.window.jvLetzterText); await new Promise(res => setImmediate(res)); log.push('ende ' + ort + '|' + P.sb.window.jvLetzterText); return { reply: 'Treffer in ' + ort, cards: [{}] }; };
+        const [a, b] = await Promise.all([ruf(P, 'ortssuche', { suchbegriff: 'Pizza', ort: 'Reinbek' }), ruf(P, 'ortssuche', { suchbegriff: 'Sushi', ort: 'Hamburg' })]);
+        check('44b zwei parallele Suchen: jede bekommt IHREN Ort und ihr Ergebnis, nichts vermischt', a.status === 'SUCCESS' && b.status === 'SUCCESS' && a.nachricht === 'Treffer in Reinbek' && b.nachricht === 'Treffer in Hamburg' && log.includes('Pizza|Reinbek|Original') && log.includes('Sushi|Hamburg|Original'), log.join(' / '));
+        check('44c … und jvLetzterText ist danach unverändert', P.sb.window.jvLetzterText === 'Original' && log.every(x => /Original$/.test(x)));
+        const V = umgebung(); V.sb.window.jvLetzterText = 'Original'; const orte = [];
+        V.sb.findNearbyRestaurants = async (q, ort) => { await new Promise(res => setTimeout(res, 1)); await new Promise(res => setImmediate(res)); orte.push(ort); return { reply: 'in ' + ort, cards: [{}] }; };
+        const alle = await Promise.all(['A-Stadt', 'B-Stadt', 'C-Stadt', 'D-Stadt', 'E-Stadt', ''].map(o => V.lassLaufen(() => V.sb.jvRegistry.fuehreAus('ortssuche', { suchbegriff: 'x', ort: o || undefined })).then(x => x.wert)));
+        check('44d sechs parallele Suchen (auch ohne Ort): jede Antwort passt zu ihrer Anfrage', alle.map(x => x.nachricht).join() === 'in A-Stadt,in B-Stadt,in C-Stadt,in D-Stadt,in E-Stadt,in ' && V.sb.window.jvLetzterText === 'Original', alle.map(x => x.nachricht).join());
+        const Fh = umgebung(); Fh.sb.window.jvLetzterText = 'Original';
+        Fh.sb.findNearbyRestaurants = async (q, ort) => { await new Promise(res => setImmediate(res)); if (ort === 'Fehlerstadt') { const e = new Error('x'); e.userMessage = 'Kaputt.'; throw e; } return { reply: 'ok ' + ort, cards: [{}] }; };
+        const [f1, f2, f3] = await Promise.all([ruf(Fh, 'ortssuche', { suchbegriff: 'x', ort: 'Fehlerstadt' }), ruf(Fh, 'ortssuche', { suchbegriff: 'x', ort: 'Gutstadt' }), ruf(Fh, 'ortssuche', { suchbegriff: 'x' })]);
+        check('44e ein Fehler in einer Suche stört die parallelen nicht; jvLetzterText bleibt unverändert', f1.status === 'TOOL_FAILED' && f1.nachricht === 'Kaputt.' && f2.status === 'SUCCESS' && f2.nachricht === 'ok Gutstadt' && f3.status === 'SUCCESS' && Fh.sb.window.jvLetzterText === 'Original');
+        const Us = umgebung(); Us.sb.window.jvLetzterText = 'Original';
+        Us.sb.findNearbyRestaurants = async () => { await new Promise(res => setImmediate(res)); Us.sb.window.jvLetzterText = 'Neuer Satz des Nutzers'; await new Promise(res => setImmediate(res)); return { reply: 'x', cards: [{}] }; };
+        await ruf(Us, 'ortssuche', { suchbegriff: 'x', ort: 'Reinbek' });
+        check('44f spricht der Nutzer währenddessen (neuer Satz), bleibt sein Satz erhalten und wird NICHT mit dem alten überschrieben', Us.sb.window.jvLetzterText === 'Neuer Satz des Nutzers');
+        const Ab = umgebung(); Ab.sb.window.jvLetzterText = 'Original';
+        Ab.sb.findNearbyRestaurants = async () => { throw new Error('technisch'); };
+        await ruf(Ab, 'ortssuche', { suchbegriff: 'x', ort: 'Reinbek' });
+        check('44g Absturz der Suche (ohne Meldung): jvLetzterText unverändert', Ab.sb.window.jvLetzterText === 'Original');
+        /* die ECHTE bestehende Funktion (nur Netz, Standort und Orte sind Attrappen) */
+        const geo = [], plaetze = [];
+        const Rl = umgebung(u => {
+            if (/^\/api\/geocode/.test(u)) { geo.push(decodeURIComponent(u)); const ort = /q=([^,&]+)/.exec(decodeURIComponent(u)); return ant([{ lat: '53.6', lon: '10.2', class: 'place', display_name: (ort ? ort[1] : '') + ', Deutschland' }]); }
+            if (/^\/api\/maps\?action=places/.test(u)) { plaetze.push(u); return ant({ places: [{ name: 'Roma', lat: 53.61, lon: 10.21, street: 'Hauptstr.', housenumber: '1', city: 'Reinbek', postcode: '21465' }] }); }
+            return null;
+        });
+        Rl.sb.fetchUserLocationData = async () => ({ latitude: 53.5, longitude: 10.0 });
+        const zeiger = { lesen: 0, schreiben: 0 }; let wert = 'Original-Satz';
+        Object.defineProperty(Rl.sb.window, 'jvLetzterText', { get() { zeiger.lesen++; return wert; }, set(v) { zeiger.schreiben++; wert = v; }, configurable: true });
+        r = await ruf(Rl, 'ortssuche', { suchbegriff: 'Pizzeria', ort: 'Reinbek' });
+        check('45a echte Funktion über die Registry: SUCCESS, der übergebene Ort wird gesucht (Geocoding von "Reinbek")', r.status === 'SUCCESS' && geo.some(x => /Reinbek/.test(x)) && /Roma/.test(r.nachricht) && r.daten.cards.length === 1, r.status + ' ' + geo.join() + ' ' + r.nachricht);
+        check('45b … und dabei wurde window.jvLetzterText weder gelesen noch geschrieben', zeiger.lesen === 0 && zeiger.schreiben === 0 && wert === 'Original-Satz', JSON.stringify(zeiger));
+        geo.length = 0; r = await ruf(Rl, 'ortssuche', { suchbegriff: 'Pizzeria' });
+        check('45c ohne Ort: kein Geocoding, Suche um den Nutzer herum (kein Ort aus dem alten Satz)', r.status === 'SUCCESS' && geo.length === 0 && zeiger.lesen === 0 && zeiger.schreiben === 0);
+        /* Der bisherige Weg der App (ein Wert, Ort steht im Satz) bleibt unverändert */
+        wert = 'Gibt es in Reinbek eine Pizzeria'; zeiger.lesen = 0; geo.length = 0;
+        const alt = await Rl.lassLaufen(() => Rl.sb.findNearbyRestaurants('Pizzeria'));
+        check('45d bestehender Aufruf mit EINEM Wert liest den Ort weiter aus dem Satz (nearby.js unverändert im Verhalten)', !alt.haengt && zeiger.lesen >= 1 && geo.some(x => /Reinbek/.test(x)) && /Roma/.test(alt.wert.reply), geo.join() + ' lesen=' + zeiger.lesen);
+        wert = 'Gibt es in Reinbek eine Pizzeria'; geo.length = 0;
+        await Rl.lassLaufen(() => Rl.sb.findNearbyRestaurants('Pizzeria', ''));
+        check('45e leerer Ort als zweiter Wert überstimmt den Satz (Suche um den Nutzer herum)', geo.length === 0);
     }
 
     /* --- Registry-Skripte sind die einzigen Neuzugänge im Code; die Dokumentation nennt sie --- */
