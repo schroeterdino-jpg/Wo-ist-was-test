@@ -17,9 +17,9 @@
  "zahlen": {
   "repoDateien": 320,
   "produktJs": 168,
-  "jsZeilen": 42790,
-  "jsBytes": 3037695,
-  "jsGzip": 910462,
+  "jsZeilen": 42829,
+  "jsBytes": 3042300,
+  "jsGzip": 912089,
   "scriptTags": 174,
   "eigeneScripts": 168,
   "drittScripts": 2,
@@ -185,7 +185,7 @@
   "schichtauskunft.js": "A",
   "schlaf_antwort.js": "A",
   "schliessen.js": "A",
-  "sicherheit.js": "B",
+  "sicherheit.js": "A",
   "smarttips.js": "A",
   "sonnemond.js": "A",
   "speak_kette.js": "A",
@@ -229,8 +229,8 @@
   "zuvorkommend.js": "A"
  },
  "klassenZahl": {
-  "A": 142,
-  "B": 18,
+  "A": 143,
+  "B": 17,
   "C": 8,
   "D": 0,
   "E": 0
@@ -260,7 +260,6 @@
   "ruhe.js",
   "satztest.js",
   "schliessen.js",
-  "sicherheit.js",
   "tempo.js",
   "vibration.js",
   "wake_start.js",

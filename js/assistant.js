@@ -230,6 +230,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
         const actions = Array.isArray(ai.actions)
             ? ai.actions.filter(a => a && typeof a === 'object')
             : [ai];
+        const verworfeneTexte = Array.isArray(ai.actions) ? ai.actions.filter(a => typeof a === 'string' && a.trim()).length : 0;   // Phase 1: eine Aktion als bloßer Text statt als Objekt: nicht ausführbar
 
         // Fahrziele, die ein gespeicherter Kontakt sind ("zu Anna", "zu meiner Tochter"), werden durch dessen Adresse ersetzt
         resolveContactsInActions(actions, text);
@@ -319,11 +320,11 @@ async function sendToGroqSmartCore(text, opts = {}) {
         const verworfeneHinweise = new Set();   // B3: Hinweise von Aktionen, die dann doch fehlgeschlagen sind
         const sonderFehler = {};           // B3: welche Sonderaufgabe (Fahrzeit, Bahn ...) statt eines Ergebnisses eine Fehlermeldung geliefert hat
         window.jvMdAusfall = [];           // B3: mitdenken.js trägt hier Zusatzprüfungen ein, die gestartet wurden und ausgefallen sind
+        if (verworfeneTexte > 0 && window.jvSicher) { window.jvSicher.merke('unvollstaendig', 'Text statt Objekt'); errors.push(window.jvSicher.texte.unvollstaendig); }
         for (const action of actions) {
             if (action.type === 'calendar_search' || action.type === 'web_lookup' || action.type === 'email_check' || action.type === 'email_read' || action.type === 'travel_time' || action.type === 'nearby_places' || action.type === 'fuel_route' || action.type === 'bahn') continue; // kommen gleich
-            if (window.jvSicher && !window.jvSicher.bekannt(action)) {   // Phase 1: die KI hat eine Aktion erfunden, die es nicht gibt: kein Erfolg, ehrliche Meldung
-                window.jvSicher.merke('fehlt', action.type); if (errors.indexOf(window.jvSicher.texte.fehlt) < 0) errors.push(window.jvSicher.texte.fehlt); continue;
-            }
+            const sichArt = window.jvSicher ? window.jvSicher.pruefe(action) : null;   // Phase 1: erfundener Typ ('fehlt') oder Schreib-Angaben ohne gültigen Typ / Pflichtangabe ('unvollstaendig'): kein Erfolg, ehrliche Meldung
+            if (sichArt) { window.jvSicher.merke(sichArt, action.type); if (errors.indexOf(window.jvSicher.texte[sichArt]) < 0) errors.push(window.jvSicher.texte[sichArt]); continue; }
             const hinweiseVorher = ctx.notes.length;
             try {
                 const nichtsVorher = (ctx[Symbol.for('jv.nichtsGetan')] || []).length;
@@ -575,6 +576,8 @@ async function sendToGroqSmartCore(text, opts = {}) {
 
         // Ehrlich bleiben: Was geklappt hat und was nicht, sagt Jarvis konkret (js/antwort_bau.js, B3). Hinweise erfolgreicher Teile bleiben erhalten.
         const hinweiseOk = ctx.notes.filter((n, i) => !verworfeneHinweise.has(i));
+        // Phase 1: behauptet die KI, etwas gespeichert/eingetragen zu haben, obwohl keine Aktion es geschafft hat? Dann nicht aussprechen (nicht bei reinen Lese-Läufen)
+        const behauptungOhneTat = !opts.nurLesen && window.jvSicher && replyText === ai.reply && window.jvSicher.ohneWirkung(erfolgTypen, okCount, errors, nichtsSaetze) && window.jvSicher.behauptetErfolg(replyText, text);
         if (window.jvAntwort && typeof window.jvAntwort.baue === 'function') {
             const sonder = [['search', searchReply], ['web', webReply], ['email', emailReply], ['travel', travelReply], ['nearby', nearbyReply], ['fuel', fuelReply], ['nearbyFuel', nearbyFuelReply], ['bahn', bahnReply]]
                 .filter(x => x[1]).map(x => ({ ok: !sonderFehler[x[0]], text: x[1] }));
@@ -589,6 +592,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
             if (ctx.notes.length > 0 && errors.length === 0) replyText += ' ' + ctx.notes.join(' ');
             if (nichtsSaetze.length > 0) replyText = okCount > 0 ? replyText + ' ' + nichtsSaetze.join(' ') : nichtsSaetze.join(' ');
         }
+        if (behauptungOhneTat) { window.jvSicher.merke('nichtAusgefuehrt', 'Behauptung ohne Aktion'); replyText = window.jvSicher.texte.nichtAusgefuehrt; }
         if (!String(replyText == null ? '' : replyText).trim()) { replyText = (window.jvSicher && window.jvSicher.texte.unklar) || 'Dazu habe ich gerade keine Antwort.'; }   // Phase 1: nie mit leerem Text enden
         if (opts.collect) {   // Protokoll-Lauf: Antwort und Karten abgeben, gesprochen wird am Ende alles zusammen
             opts.collect(replyText, ctx.cards);

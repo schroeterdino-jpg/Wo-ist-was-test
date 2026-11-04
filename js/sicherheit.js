@@ -30,20 +30,55 @@
     var TEXTE = {
         fehlt: 'Das habe ich verstanden, aber dafür fehlt mir noch die passende Fähigkeit. Ich kann es gerade nicht ausführen.',
         unklar: 'Ich bin mir nicht sicher, was du damit möchtest. Soll ich etwas suchen oder speichern, oder möchtest du nur darüber reden?',
-        technik: 'Dabei ist bei mir technisch etwas schiefgelaufen. Versuch es bitte gleich noch einmal.'
+        technik: 'Dabei ist bei mir technisch etwas schiefgelaufen. Versuch es bitte gleich noch einmal.',
+        unvollstaendig: 'Dazu waren die Angaben unvollständig, deshalb habe ich nichts gespeichert. Sag es bitte noch einmal.',
+        nichtAusgefuehrt: 'Moment, das habe ich nicht ausgeführt. Es wurde nichts gespeichert oder eingetragen. Sag es bitte noch einmal.'
     };
 
-    function bekannt(a) {
-        if (!a || typeof a !== 'object') return true;
+    /* Schreib-Parameter einer Aktion (Namen wie in actions.js). Hat ein Objekt solche Angaben, aber keinen gültigen Typ, würde nichts geschrieben,
+       die KI-Antwort aber Erfolg behaupten. Ausnahme: calendar_text (executeAction legt dann einen Termin an, auch ohne Typ). */
+    var SCHREIB = /^(?:shopping|todo|memory|reminder|calendar|parking|home|work|briefing|protocol|list|episode|phrase|nav|call|whatsapp)_|^new_name$/;
+    function leer(v) { return v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length); }
+    function hatSchreibParameter(a) { return Object.keys(a).some(function (k) { return SCHREIB.test(k) && !leer(a[k]); }); }
+    function text(v) { return typeof v === 'string' && v.trim() !== ''; }
+    function pflichtFehlt(a, t) {   // nur die Typen, bei denen die Aktionsausführung ohne diese Angabe NICHTS tut (sonst bleibt das bisherige Verhalten)
+        if (t === 'memory_store') return !text(a.memory_key);
+        if (t === 'name_change') return !text(a.new_name);
+        if (t === 'todo') return !(text(a.todo_text) || (Array.isArray(a.todo_items) && a.todo_items.some(text)));
+        return false;
+    }
+    /* pruefe(action): null = in Ordnung, 'fehlt' = erfundener Typ, 'unvollstaendig' = Schreib-Angaben ohne gültigen Typ oder Pflichtangabe fehlt */
+    function pruefe(a) {
+        if (!a || typeof a !== 'object') return null;
         var t = a.type;
-        if (t === undefined || t === null || t === '') return true;
-        if (typeof t === 'string' && BEKANNT[t]) return true;
-        if (a.calendar_text) return true;
-        return !!HARMLOS[String(t).trim().toLowerCase()];
+        var ohneTyp = t === undefined || t === null || t === '';
+        var harmlos = typeof t === 'string' && (t === 'chat' || (!BEKANNT[t] && HARMLOS[t.trim().toLowerCase()]));
+        if (ohneTyp || harmlos) return a.calendar_text ? null : (hatSchreibParameter(a) ? 'unvollstaendig' : null);
+        if (typeof t === 'string' && BEKANNT[t]) return pflichtFehlt(a, t) ? 'unvollstaendig' : null;
+        return a.calendar_text ? null : 'fehlt';
+    }
+    function bekannt(a) { return pruefe(a) === null; }
+
+    /* Behauptet die KI-Antwort, etwas getan zu haben ("Ich habe den Termin eingetragen", "Die Erinnerung ist gespeichert")? Wird nur zusammen mit ohneWirkung() benutzt:
+       geschah nichts Echtes, ist die Behauptung falsch. Verneinte Sätze, Fragen und Sätze zu Fragen des Nutzers (Auskunft: "Der Termin ist eingetragen") zählen nicht. */
+    var PART = '(?:eingetragen|gespeichert|angelegt|notiert|hinzugefügt|aufgeschrieben|erstellt|gelöscht|entfernt|gemerkt|gesetzt|verschoben|geändert|gebucht|vermerkt|eingeplant|eingestellt|aktualisiert|abgespeichert|eingefügt|abgehakt)';
+    var RX_ICH = new RegExp('\\b(?:ich habe|ich hab|habe ich|hab ich)\\b[^.!?]*\\b' + PART + '\\b');
+    var RX_PASSIV = new RegExp('\\b(?:ist|sind|wurde|wurden|steht|stehen)\\b[^.!?]{0,40}\\b' + PART + '\\b|^(?:alles |ist )?(?:erledigt|' + PART + ')\\b');
+    var RX_NEG = /\b(?:nicht|nichts|nie|niemals|kein|keine|keinen|keinem|noch nicht|leider|konnte|kann)\b/;
+    var RX_FRAGE = /^\s*(?:jarvis[, ]+|zane[, ]+)?(?:ist|sind|hab|habe|hast|hat|gibt|steht|stehen|wann|was|wie|wo|welche[rsmn]?|wer|warum|wieso|kann|kannst|könnte|könntest|wird|werden)\b/i;
+    function behauptetErfolg(reply, nutzerText) {
+        var frage = /\?/.test(String(nutzerText || '')) || RX_FRAGE.test(String(nutzerText || ''));
+        var teile = String(reply || '').toLowerCase().match(/[^.!?]+[.!?]*/g) || [];
+        return teile.some(function (satz) {
+            var st = satz.trim();
+            if (!st || /\?\s*$/.test(st) || RX_NEG.test(st)) return false;
+            if (RX_ICH.test(st)) return true;
+            return !frage && RX_PASSIV.test(st);
+        });
     }
     function ohneWirkung(erfolgTypen, okAnzahl, fehler, nichts) {
         if ((fehler && fehler.length) || (nichts && nichts.length)) return false;
-        return (erfolgTypen || []).every(function (t) { return !t || t === 'chat' || t === 'memory_search'; });
+        return (erfolgTypen || []).every(function (t) { return !t || t === 'chat' || t === 'memory_search' || (typeof t === 'string' && HARMLOS[t.toLowerCase()] === true); });
     }
     var vorfaelle = [];
     function merke(art, typ) {
@@ -51,5 +86,5 @@
         if (vorfaelle.length > 20) vorfaelle.shift();
         try { console.warn('Jarvis-Sicherheit:', art, typ || ''); } catch (e) { }
     }
-    window.jvSicher = { bekannt: bekannt, ohneWirkung: ohneWirkung, texte: TEXTE, merke: merke, vorfaelle: function () { return vorfaelle.slice(); }, _bekannteTypen: function () { return Object.keys(BEKANNT); } };
+    window.jvSicher = { bekannt: bekannt, pruefe: pruefe, behauptetErfolg: behauptetErfolg, ohneWirkung: ohneWirkung, texte: TEXTE, merke: merke, vorfaelle: function () { return vorfaelle.slice(); }, _bekannteTypen: function () { return Object.keys(BEKANNT); } };
 })();

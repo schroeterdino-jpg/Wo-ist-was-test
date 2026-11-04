@@ -108,6 +108,74 @@ const FEHLT = 'fehlt mir noch die passende Fähigkeit', UNKLAR = 'Ich bin mir ni
     const A2 = kopf(() => ant({ error: 'Rate limit' })); const g2 = A2.gesagt.length; await A2.lassLaufen(() => A2.sb.sendToGroqSmart('Erzähl mir was')); await new Promise(res => setImmediate(res));
     check('8c KI-Antwort ohne choices (Fehlerantwort): genau eine verständliche Antwort', A2.gesagt.length - g2 === 1 && A2.gesagt[A2.gesagt.length - 1].length > 10, A2.gesagt.slice(g2).join('|'));
 
+    /* ---------- Teil 4: Fall 1, die KI BEHAUPTET Erfolg, liefert aber keine passende Aktion ---------- */
+    const NICHT = 'das habe ich nicht ausgeführt', UNVOLL = 'Angaben unvollständig';
+    const listen = A => JSON.stringify([A.lese('shoppingEntries').length, A.lese('reminderEntries').length, A.lese('todoEntries').length, A.lese('calendarEntries').length, JSON.stringify(A.lese('memoryItems'))]);
+    async function fall(satz, aktionen, reply, o) { const A = null; return lauf(satz, aktionen, reply, o); }
+    const behauptungen = [
+        ['Ich habe den Termin eingetragen.', 'Trag morgen um 10 den Zahnarzt ein'],
+        ['Die Erinnerung ist gespeichert.', 'Erinner mich morgen an Kaffee'],
+        ['Ich habe dir das notiert!', 'Schreib dir das auf'],
+        ['Ist erledigt.', 'Setz Milch auf die Liste'],
+        ['Der Termin wurde angelegt.', 'Leg einen Termin an'],
+        ['Alles klar, ich habe den Wecker gesetzt und die Erinnerung angelegt.', 'Stell einen Wecker'],
+        ['Gespeichert.', 'Merk dir das']
+    ];
+    for (const [beh, satz] of behauptungen) {
+        for (const akt of [[], [{ type: 'chat' }], [{ type: 'none' }]]) {
+            r = await lauf(satz, akt, beh);
+            check('9a Behauptung ohne Aktion wird nicht ausgesprochen: "' + beh + '" (' + JSON.stringify(akt) + ')', r.text.includes(NICHT) && !r.text.includes(beh.replace(/[.!]$/, '')) && r.gesagt.length === 1, r.text);
+        }
+    }
+    r = await lauf('Trag morgen um 10 den Zahnarzt ein', undefined, 'Ich habe den Termin eingetragen.', { roh: JSON.stringify({ reply: 'Ich habe den Termin eingetragen.' }) });
+    check('9b Behauptung, KI-Antwort ganz ohne actions-Feld: nicht ausgesprochen', r.text.includes(NICHT), r.text);
+    r = await lauf('Setz Milch auf die Einkaufsliste', [{ type: 'shopping', shopping_items: ['Milch'] }], 'Ich habe Milch auf die Einkaufsliste gesetzt.');
+    check('9c Behauptung MIT echter Aktion: bleibt (Erfolg wurde wirklich geschrieben)', r.A.lese('shoppingEntries').some(e => e.text === 'Milch') && !r.text.includes(NICHT) && /Milch|Einkaufsliste/.test(r.text), r.text);
+    r = await lauf('Ist mein Zahnarzttermin eingetragen?', [{ type: 'chat' }], 'Ja, der Termin ist eingetragen.');
+    check('9d Auskunft auf eine Frage ("Der Termin ist eingetragen") bleibt unverändert', r.text === 'Ja, der Termin ist eingetragen.', r.text);
+    r = await lauf('Hab ich einen Termin morgen', [{ type: 'chat' }], 'Ja, morgen um zehn steht der Zahnarzt, er ist bei dir eingetragen.');
+    check('9e Auskunft auf eine Frage ohne Fragezeichen bleibt unverändert', !r.text.includes(NICHT), r.text);
+    r = await lauf('Trag den Termin ein', [{ type: 'chat' }], 'Ich habe den Termin nicht eingetragen, mir fehlt die Uhrzeit.');
+    check('9f verneinte Aussage bleibt unverändert', r.text === 'Ich habe den Termin nicht eingetragen, mir fehlt die Uhrzeit.', r.text);
+    r = await lauf('Wie ist das Wetter', [{ type: 'chat' }], 'Ich habe nachgeschaut: Es regnet leicht.');
+    check('9g "ich habe nachgeschaut" ist keine Schreib-Behauptung', r.text === 'Ich habe nachgeschaut: Es regnet leicht.', r.text);
+    r = await lauf('Erzähl mir was', [{ type: 'chat' }], 'Es war einmal ein Termin, der wurde nie eingetragen.');
+    check('9h verneinte Geschichte bleibt', !r.text.includes(NICHT), r.text);
+    let gesammelt2;
+    await lauf('Trag den Termin ein', [{ type: 'chat' }], 'Ich habe den Termin eingetragen.', { opts: { nurLesen: true, collect: t => { gesammelt2 = t; } } });
+    check('9i reiner Lese-Lauf (Mehrfachfragen) bleibt unverändert', gesammelt2 === 'Ich habe den Termin eingetragen.', String(gesammelt2));
+    const B = sb0.window.jvSicher;
+    check('9j behauptetErfolg: Beispiele', B.behauptetErfolg('Ich habe den Termin eingetragen.', 'Trag ein') && B.behauptetErfolg('Die Erinnerung ist gespeichert.', 'Erinner mich') && !B.behauptetErfolg('Die Erinnerung ist gespeichert.', 'Ist die Erinnerung da?') && !B.behauptetErfolg('Ich habe nichts eingetragen, weil die Zeit fehlt.', 'x') && !B.behauptetErfolg('Es ist sonnig.', 'x') && !B.behauptetErfolg('', 'x') && !B.behauptetErfolg('Habe ich den Termin eingetragen?', 'x'));
+
+    /* ---------- Teil 5: Fall 2, fehlerhafte oder unvollständige Aktionsobjekte ---------- */
+    async function nichtsGeschrieben(titel, satz, aktionen, reply, erwartet) {
+        const x = await lauf(satz, aktionen, reply);
+        check(titel + ': nichts geschrieben', listen(x.A) === listen(x.A) && x.A.lese('shoppingEntries').length === 0 && x.A.lese('reminderEntries').length === 0 && x.A.lese('todoEntries').length === 0 && x.A.lese('calendarEntries').length === 0 && Object.keys(x.A.lese('memoryItems')).length === Object.keys(starte({ jetzt: JETZT, festerZufall: true, fetch: async () => { throw new Error('x'); } }).lese('memoryItems')).length, listen(x.A));
+        check(titel + ': keine falsche Erfolgsmeldung, ehrliche Meldung, genau EINE Antwort', x.text.includes(erwartet) && !x.text.includes(reply.replace(/[.!]$/, '')) && x.gesagt.length === 1, x.text);
+    }
+    await nichtsGeschrieben('10a ohne type, Einkauf-Parameter', 'Setz Milch auf die Liste', [{ shopping_items: ['Milch'] }], 'Milch ist eingetragen.', UNVOLL);
+    await nichtsGeschrieben('10b ohne type, Erinnerungs-Parameter', 'Erinner mich morgen an Kaffee', [{ reminder_text: 'Kaffee', reminder_time: '2026-10-29T08:00:00' }], 'Erinnerung gespeichert.', UNVOLL);
+    await nichtsGeschrieben('10c type "none" mit Schreib-Parametern', 'Setz Milch auf die Liste', [{ type: 'none', shopping_items: ['Milch'] }], 'Milch ist eingetragen.', UNVOLL);
+    await nichtsGeschrieben('10d type "chat" mit Schreib-Parametern', 'Setz Milch auf die Liste', [{ type: 'chat', shopping_items: ['Milch'] }], 'Milch ist eingetragen.', UNVOLL);
+    await nichtsGeschrieben('10e leerer type mit Schreib-Parametern', 'Merk dir das', [{ type: '', memory_key: 'schlüssel', memory_value: 'im Auto' }], 'Gemerkt.', UNVOLL);
+    await nichtsGeschrieben('10f todo ohne Text', 'Neue Aufgabe', [{ type: 'todo' }], 'Aufgabe gespeichert.', UNVOLL);
+    await nichtsGeschrieben('10g todo mit leeren Einträgen', 'Neue Aufgabe', [{ type: 'todo', todo_items: ['', '  '] }], 'Aufgabe gespeichert.', UNVOLL);
+    await nichtsGeschrieben('10h memory_store ohne Schlüssel', 'Merk dir das', [{ type: 'memory_store', memory_value: 'im Auto' }], 'Gemerkt.', UNVOLL);
+    await nichtsGeschrieben('10i name_change ohne neuen Namen', 'Nenn mich anders', [{ type: 'name_change' }], 'Alles klar, ich nenne dich jetzt anders.', UNVOLL);
+    await nichtsGeschrieben('10j Aktion als bloßer Text statt Objekt', 'Setz Milch auf die Liste', ['shopping'], 'Milch ist eingetragen.', UNVOLL);
+    await nichtsGeschrieben('10k erfundener Typ MIT Schreib-Parametern', 'Setz Milch auf die Liste', [{ type: 'liste_pflegen', shopping_items: ['Milch'] }], 'Milch ist eingetragen.', FEHLT);
+    await nichtsGeschrieben('10l Typ ist eine Zahl mit Schreib-Parametern', 'Setz Milch auf die Liste', [{ type: 5, shopping_items: ['Milch'] }], 'Milch ist eingetragen.', FEHLT);
+    /* unverändertes Verhalten (nicht angefasst): calendar_text ohne Typ legt weiter einen Termin an, reminder/calendar/shopping ohne Einzelangaben nehmen weiter den Satz des Nutzers */
+    r = await lauf('Trag Zahnarzt ein', [{ calendar_text: 'Zahnarzt', calendar_time: '2026-10-29T10:00:00' }], 'Termin eingetragen.');
+    check('10m calendar_text ohne Typ: Termin wird weiter angelegt (bisheriges Verhalten)', r.A.lese('calendarEntries').length === 1 && !r.text.includes(UNVOLL) && !r.text.includes(FEHLT), r.text);
+    r = await lauf('Erinner mich morgen an Kaffee', [{ type: 'reminder' }], 'Erinnerung gespeichert.');
+    check('10n reminder ohne Einzelangaben: weiter aus dem Satz des Nutzers (bisheriges Verhalten)', r.A.lese('reminderEntries').length === 1 && !r.text.includes(UNVOLL), r.text);
+    for (const leerAkt of [[null], [''], [{}], [{ type: 'none' }], [{ reply: 'x' }]]) {
+        r = await lauf('Hallo', leerAkt, 'Hallo, schön dich zu hören.');
+        check('10o leere/harmlose Einträge in actions ' + JSON.stringify(leerAkt) + ': kein Fehlalarm', r.text === 'Hallo, schön dich zu hören.', r.text);
+    }
+    check('10p pruefe(): Rückgabewerte', B.pruefe({ type: 'shopping', shopping_items: ['x'] }) === null && B.pruefe({ shopping_items: ['x'] }) === 'unvollstaendig' && B.pruefe({ type: 'xyz' }) === 'fehlt' && B.pruefe({ type: 'todo' }) === 'unvollstaendig' && B.pruefe({ calendar_text: 'x' }) === null && B.pruefe({ reply: 'x' }) === null && B.pruefe(null) === null);
+
     console.log(`SICHERHEIT: ${ok} Prüfungen in Ordnung, ${fehler} Fehler`);
     process.exit(fehler ? 1 : 0);
 })();
