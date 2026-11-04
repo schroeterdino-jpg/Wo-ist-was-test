@@ -47,7 +47,7 @@ const merkTreffer = A => G(A).status().listen.length ? G(A).waehle(1) : null;
 (async () => {
     /* ---------- Grundweg ---------- */
     let A = umgebung();
-    check('0a keine Ladefehler, Anbindung vorhanden', A.ladefehler.length === 0 && typeof A.sb.jvOrtGespraech === 'object' && A.sb.handleLocalCommand._jvOrtGespraech === true, A.ladefehler.join(';'));
+    check('0a keine Ladefehler, Anbindung vorhanden', A.ladefehler.length === 0 && typeof A.sb.jvOrtGespraech === 'object' && A.sb.handleLocalCommand._ortsuche === true, A.ladefehler.join(';'));
     await sucheKI(A);
     const st = G(A).status();
     check('1a nach einer erfolgreichen Suche sind genau die 3 Treffer gemerkt', st.listen.length === 1 && st.listen[0].anzahl === 3 && st.absicht === 'ortssuche', JSON.stringify(st));
@@ -165,7 +165,7 @@ const merkTreffer = A => G(A).status().listen.length ? G(A).waehle(1) : null;
         return true;
     })());
     check('7b die Befehlsliste (jvCommands) ist unverändert und enthält nichts vom Gesprächsgedächtnis', !/gespraech|ort_gespraech/i.test(JSON.stringify(A.sb.jvCommands.list())) && A.sb.jvCommands.list().length === k);
-    check('7c der Hook behält die Eigenschaften der Befehlskette (_jvCommands)', A.sb.handleLocalCommand._jvCommands === umgebung().sb.handleLocalCommand._jvCommands);
+    check('7c keine neue Hülle um handleLocalCommand: die äußerste bleibt die der Ortssuche (Reihenfolge der Hüllen unverändert)', A.sb.handleLocalCommand._ortsuche === true && !A.sb.handleLocalCommand._jvOrtGespraech && A.sb.handleLocalCommand._jvCommands === umgebung().sb.handleLocalCommand._jvCommands);
     const cardsOld = (await A.lassLaufen(() => A.sb.findNearbyRestaurants('Restaurant', 'Hamburg'))).wert;
     check('7d die Karten der bestehenden Ortssuche sind unverändert (nur title/subtitle/icon/href), zusätzlich nur "orte"', cardsOld.cards.every(c => Object.keys(c).sort().join() === 'href,icon,subtitle,title') && Object.keys(cardsOld).sort().join() === 'cards,orte,reply');
     A = umgebung(); await sucheKI(A);
@@ -176,14 +176,14 @@ const merkTreffer = A => G(A).status().listen.length ? G(A).waehle(1) : null;
 
     /* ---------- Adresse-speichern-Frage der Ortssuche ---------- */
     A = umgebung(); await sucheKI(A);   // die Suche bietet "Adresse speichern? 1, 2, 3 oder Nein" an
-    check('8a die Speichern-Frage ist offen und erkennt ihre Antworten ("die zweite", "Nein"), nicht aber längere Sätze', A.sb.jvSpeichernAntwort('die zweite') === true && A.sb.jvSpeichernAntwort('Nein') === true && A.sb.jvSpeichernAntwort('Das zweite gefällt mir') === false && A.sb.jvSpeichernAntwort('Wie komme ich dahin?') === false);
+    check('8a die Speichern-Frage der Ortssuche ist nach der Suche offen (ortsuche.js unverändert)', /Adressen in Ihren App-Kontakten speichern/.test(A.gesagt.join(' ')));
     r = await sag(A, 'Das zweite gefällt mir');
     check('8b "Das zweite gefällt mir" wird trotz offener Speichern-Frage vom Gesprächsgedächtnis beantwortet', r.lokal && G(A).ausgewaehlt() !== null);
     A = umgebung(); await sucheKI(A);
     r = await sag(A, 'die zweite');
     check('8c ein bloßes "die zweite" bleibt bei der Speichern-Frage (bisheriges Verhalten): das Gedächtnis wählt nichts', G(A).ausgewaehlt() === null, JSON.stringify(r.gesagt));
     A = umgebung(); await sucheKI(A); await sag(A, 'Nein');
-    check('8d "Nein" schließt die Speichern-Frage wie bisher', A.sb.jvSpeichernAntwort('die zweite') === false);
+    check('8d "Nein" schließt die Speichern-Frage wie bisher (Antwort der Ortssuche, kein Gedächtnis-Eingriff)', A.gesagt.slice(-1)[0] === 'Alles klar, ich speichere keine Adresse.' && G(A).ausgewaehlt() === null, A.gesagt.slice(-1)[0]);
 
     /* ---------- Fehlerfestigkeit ---------- */
     A = umgebung(); A.sb.jvOrtGespraech.merke(erwartet, 'test'); G(A).aufloesen = () => { throw new Error('kaputt'); };
@@ -209,7 +209,7 @@ const merkTreffer = A => G(A).status().listen.length ? G(A).waehle(1) : null;
     const nutzer = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && !/^(gespraech|gespraech_ort)\.js$/.test(f)).filter(f => /jvGespraech\b/.test(lies('js/' + f)));
     check('11b nur gespraech_ort.js benutzt window.jvGespraech (keine zweite Gesprächsspeicherung)', nutzer.length === 0, nutzer.join());
     const aufr = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && f !== 'gespraech_ort.js').filter(f => /jvOrtGespraech/.test(lies('js/' + f)));
-    check('11c die Ortssuche meldet nur über abgesicherte Einzeiler (assistant.js, ortsuche.js)', aufr.sort().join() === 'assistant.js,ortsuche.js' && (lies('js/assistant.js').match(/jvOrtGespraech/g) || []).length === 4 && !/jvOrtGespraech\.(?!merke|fehler)/.test(lies('js/assistant.js') + lies('js/ortsuche.js')), aufr.join());
+    check('11c die Ortssuche meldet nur über abgesicherte Einzeiler (assistant.js, ortsuche.js)', aufr.sort().join() === 'assistant.js,ortsuche.js' && (lies('js/assistant.js').match(/jvOrtGespraech/g) || []).length === 4 && (lies('js/ortsuche.js').match(/jvOrtGespraech/g) || []).length === 10 && !/jvOrtGespraech\.(?!merke|fehler|behandle)/.test(lies('js/assistant.js') + lies('js/ortsuche.js')), aufr.join());
     check('11d weckruf-src unberührt (kein neuer APK-Bau nötig)', !fs.existsSync(path.join(ROOT, 'weckruf-src')) || !/gespraech|jvOrt/.test(require('child_process').execSync('git status --short weckruf-src || true', { cwd: ROOT }).toString()));
 
     console.log(`GESPRÄCH_ORT: ${ok} Prüfungen in Ordnung, ${fehler} Fehler`);

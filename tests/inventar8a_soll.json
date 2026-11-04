@@ -17,9 +17,9 @@
  "zahlen": {
   "repoDateien": 331,
   "produktJs": 174,
-  "jsZeilen": 44022,
-  "jsBytes": 3130162,
-  "jsGzip": 937012,
+  "jsZeilen": 44004,
+  "jsBytes": 3129194,
+  "jsGzip": 936797,
   "scriptTags": 180,
   "eigeneScripts": 174,
   "drittScripts": 2,
@@ -306,8 +306,8 @@
    "unwetter.js",
    "weltzeit.js"
   ],
-  "guardMarkerDateien": 24,
-  "guardMarkerGesamt": 30,
+  "guardMarkerDateien": 23,
+  "guardMarkerGesamt": 29,
   "rueckfallFotoSpeak": []
  },
  "duplikate": {
