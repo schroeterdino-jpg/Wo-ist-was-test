@@ -7,7 +7,7 @@
    Neue Fähigkeit später: in eine NEUE Datei window.jvRegistry.registriere({...}) schreiben und in index.html einhängen. Der Kern (registry.js) und
    die KI-Steuerung müssen dafür nicht geändert werden. Wirkt die Fähigkeit auf Daten, MUSS pruefeErfolg die Wirkung nachweisen (siehe registry.js).
 
-   Zugriff auf den Zustand der App (Listen) nur lesend und nur für die Erfolgsprüfung; geschrieben wird ausschließlich von der bestehenden Funktion.
+   Zugriff auf den Zustand der App (Listen, Gedächtnis über die bestehende Suche searchMemory) nur lesend und nur für die Erfolgsprüfung; geschrieben wird ausschließlich von der bestehenden Funktion.
    ============================================================ */
 (function () {
     'use strict';
@@ -22,7 +22,14 @@
         } catch (e) { }
         return null;
     }
-    function speicher() { try { return typeof memoryItems !== 'undefined' && memoryItems && typeof memoryItems === 'object' ? memoryItems : null; } catch (e) { return null; } }
+    function gemerkt(key) {   // liest über die bestehende Suche (nur lesend) und nimmt nur den Treffer mit genau diesem Stichwort
+        try {
+            if (typeof searchMemory !== 'function') return '';
+            var t = searchMemory(key) || [];
+            for (var n = 0; n < t.length; n++) if (t[n] && String(t[n].key).toLowerCase() === key && typeof t[n].value === 'string') return t[n].value;
+        } catch (e) { }
+        return '';
+    }
     function ctxNeu(kontext) {
         var c = kontext && kontext.ctx;
         if (c && Array.isArray(c.cards) && Array.isArray(c.notes)) return c;
@@ -207,15 +214,15 @@
         bestaetigung: { noetig: false, grund: STAND },
         pruefeErfolg: function (d) { return !!d && typeof d.gespeichert === 'string' && d.gespeichert.length > 0 && (!d.nichtsGetan || d.nichtsGetan.length === 0); },
         verbindung: { datei: 'js/actions.js', funktion: 'executeAction', aktion: 'memory_store' },
-        verfuegbar: function () { return actionsDa() && !!speicher(); },
+        verfuegbar: function () { return actionsDa() && typeof searchMemory === 'function'; },
         vorpruefung: function (p) { return sicherheit(gedaechtnisAktion(p)); },
         ausfuehren: async function (p, kontext) {
             var a = gedaechtnisAktion(p), ctx = ctxNeu(kontext);
             var nichtsVorher = (ctx[Symbol.for('jv.nichtsGetan')] || []).length;
             await executeAction(a, satzDesNutzers(kontext, p, 'schluessel'), ctx);
-            var m = speicher(), key = a.memory_key.toLowerCase().trim();
+            var key = a.memory_key.toLowerCase().trim();
             var nichts = (ctx[Symbol.for('jv.nichtsGetan')] || []).slice(nichtsVorher);
-            return { schluessel: key, gespeichert: (m && typeof m[key] === 'string') ? m[key] : '', hinweise: ctx.notes.slice(), nichtsGetan: nichts, nachricht: nichts[0] || ctx.notes.join(' ') };
+            return { schluessel: key, gespeichert: gemerkt(key), hinweise: ctx.notes.slice(), nichtsGetan: nichts, nachricht: nichts[0] || ctx.notes.join(' ') };
         }
     });
 
