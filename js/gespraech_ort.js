@@ -16,6 +16,10 @@
    - Entfernung und Adresse kommen aus den gemerkten Daten (Entfernung = Luftlinie). Fragen, die lokal nicht zu beantworten sind (Öffnungszeiten, Parkplätze, Telefon, Preise),
      gehen an die bestehende KI, mit dem Ort als Zusatz im Satz und dem Hinweis, nichts zu erfinden.
    - Eine bloße Antwort auf die offene Frage "Adresse speichern?" der Ortssuche ("die zweite", "Nein") erledigt weiter ortsuche.js (läuft im Haken VOR diesem Aufruf); längere Sätze wie "Das zweite gefällt mir" beantwortet das Gedächtnis.
+   - LETZTE FRAGE GEWINNT (js/fragen_reihenfolge.js): Kurze Antworten ("ja", "nein", "das zweite", "das andere") gehören der Rückfrage, die Jarvis zuletzt gestellt hat.
+     Hat nach unserem letzten Stand ein anderes Modul gefragt (Termin-/Erinnerungsfrage, Kontakt-Rückfrage ...), geben wir kurze Antworten NICHT an uns, sondern lassen sie weiterlaufen.
+     Stellen wir selbst eine Rückfrage ("Welches meinst du?"), melden wir sie dort an (jvFrage.neu('gespraech_ort')) und werden mit unserer Antwort vor "Adresse speichern?" gefragt.
+     Eine kurze Ordnungszahl, die nicht eindeutig ist, solange "Adresse speichern?" offen ist ("das zweite": Lokal wählen oder Adresse speichern?), wird nachgefragt, nicht geraten.
    - Kein Kalender, keine Erinnerung, kein Langzeitgedächtnis, kein Netz.
    ============================================================ */
 (function () {
@@ -31,16 +35,28 @@
         } catch (e) { }
     }
 
+    /* ---- Letzte Frage gewinnt ---- */
+    var stand = 0;   // Zähler von jvFrage zu dem Zeitpunkt, als wir zuletzt dran waren
+    function fz() { try { return window.jvFrage && typeof window.jvFrage.zaehler === 'function' ? window.jvFrage.zaehler() : 0; } catch (e) { return 0; } }
+    function fremdJuenger() { return fz() !== stand; }   // seit unserem Stand hat ein anderes Modul eine Frage gestellt
+    function setzeStand() { stand = fz(); }
+    function speichernOffen() { try { return typeof window.jvSpeichernOffen === 'function' && window.jvSpeichernOffen() === true; } catch (e) { return false; } }
+    /* nur eine Zahl/Reihenfolge oder "das andere" (evtl. mit "nein, ich meinte ..."), sonst nichts */
+    var RX_KURZ = /^\s*(?:(?:nein|nee|ne|doch)\W+)?(?:(?:ich meinte|meinte ich)\s+)?(?:(?:das|die|den|der|dem)\s+)?(?:erste[ns]?|zweite[ns]?|dritte[ns]?|vierte[ns]?|f(?:ü|ue)nfte[ns]?|letzte[ns]?|mittlere[ns]?|vorletzte[ns]?|andere[ns]?|(?:nummer|nr\.?)\s*\d{1,2}|\d{1,2})\s*[.!?]*\s*$/i;
+    var RX_JANEIN = /^\s*(?:ja|jo|jep|jawohl|doch|nein|nee|ne|noe|okay|ok|klar|gern|gerne|bitte|keins|keines|keine|nichts|egal|abbrechen)\b/i;
+    function kurzeAntwort(t) { t = String(t == null ? '' : t); return RX_KURZ.test(t) || (t.trim().split(/\s+/).length <= 4 && RX_JANEIN.test(t)); }
+
     function merke(orte, quelle) {
         try {
             var g = G(); if (!g) return false;
             g.fehlgeschlagen();   // eine neue Suche ersetzt den bisherigen Bezug vollständig: ältere Treffer bleiben nicht übrig
             g.ergebnisse('ortssuche', Array.isArray(orte) ? orte : [], quelle || 'ortssuche');
             g.absicht('ortssuche');
+            setzeStand();
             return true;
         } catch (e) { return false; }
     }
-    function fehler() { try { var g = G(); return g ? g.fehlgeschlagen() : false; } catch (e) { return false; } }
+    function fehler() { try { var g = G(); setzeStand(); return g ? g.fehlgeschlagen() : false; } catch (e) { return false; } }
 
     function hatKoordinaten(z) { return !!z && typeof z.lat === 'number' && typeof z.lon === 'number' && isFinite(z.lat) && isFinite(z.lon); }
     function eindeutig(z) { return !!z && !!z.name && (hatKoordinaten(z) || !!z.link); }
@@ -58,6 +74,7 @@
         var z = r.ziel;
         switch (r.art) {
             case 'rueckfrage':
+                try { if (window.jvFrage && typeof window.jvFrage.neu === 'function') window.jvFrage.neu('gespraech_ort'); } catch (e) { }   // wir haben gerade gefragt: unsere Frage ist die jüngste
                 say(r.frage); return true;
             case 'veraltet':
                 say('Die Ergebnisse sind schon etwas älter, ich nehme lieber keinen alten Ort. Such bitte noch einmal, dann beziehe ich mich auf die neuen Treffer.'); return true;
@@ -95,14 +112,25 @@
         return false;
     }
 
+    function hatFrage() { try { var g = G(); return !!g && g.offeneFragen().length > 0 && !fremdJuenger(); } catch (e) { return false; } }
+
     function behandle(text) {
         var g = G(); if (!g || typeof text !== 'string') return false;
         var st = g.status();
         if (!st.listen.length && !st.offeneFragen) return false;                         // nichts gemerkt: alles wie bisher
+        var kurz = kurzeAntwort(text), eigeneFrage = g.offeneFragen().length > 0;
+        if (kurz && fremdJuenger()) return false;                                        // ein anderes Modul hat nach uns gefragt: kurze Antworten gehören ihm
+        if (kurz && !eigeneFrage && RX_KURZ.test(text) && speichernOffen() && !g.ausgewaehlt()) {           // "das zweite" bei offener Frage "Adresse speichern?" und noch keiner Auswahl: Lokal wählen oder Adresse speichern? Nicht raten.
+            say('Meinst du eine Adresse speichern oder ein Lokal auswählen? Zum Speichern sag „die zweite“ oder „Nein“, zum Auswählen „Das zweite gefällt mir“.');
+            setzeStand();
+            return true;
+        }
         var r = g.aufloesen(text);
         if (!r || r.art === 'kein_bezug') return false;
-        return beantworte(r, text);
+        var erledigt = beantworte(r, text);
+        if (erledigt) setzeStand();                                                      // wir waren zuletzt dran (bei einer Rückfrage ist die Anmeldung oben schon erfolgt)
+        return erledigt;
     }
 
-    window.jvOrtGespraech = { merke: merke, fehler: fehler, behandle: behandle };
+    window.jvOrtGespraech = { merke: merke, fehler: fehler, behandle: behandle, hatFrage: hatFrage };
 })();

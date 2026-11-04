@@ -450,6 +450,7 @@
         return false;
     }
     window.jvOfferSave = offerSavePlaces;
+    window.jvSpeichernOffen = function () { return !!pendingSavePlaces && Date.now() - pendingSavePlaces.at <= 120000; };   // Phase 5: für das Gesprächsgedächtnis ("das zweite": Lokal wählen oder Adresse speichern?)
     window.jvSavePlace = savePlaceToAppContacts;   // adresse_speichern.js: "Speichere die Adresse"
     window.jvLetzteOrte = function () { return { at: lastPlacesAt, places: lastPlaces.map(p => ({ name: p.name, street: [p.street, p.city].filter(Boolean).join(', ') })) }; };
     let lastPlaces = [], lastPlacesAt = 0;
@@ -558,6 +559,8 @@
         const originalLocal = window.handleLocalCommand;
         const hooked = function (text) {
             try { patchOldPlacesFetch(); } catch (e) {}
+            // Phase 5: hat das Gesprächsgedächtnis zuletzt selbst gefragt ("Welches meinst du?"), gehört ihm die kurze Antwort, nicht der älteren Frage "Adresse speichern?"
+            try { if (window.jvOrtGespraech && window.jvOrtGespraech.hatFrage() && window.jvOrtGespraech.behandle(text) === true) return true; } catch (e) { console.error('Gesprächsgedächtnis', e); }
             try { if (!(window.jvFrage && window.jvFrage.sperrt('ortsuche', text)) && handlePendingSaveAnswer(text)) return true; } catch (e) { console.error('Kontakt-Auswahl', e); }
             // Phase 5: Folgesätze zu gemerkten Treffern ("Das zweite gefällt mir", "Wie komme ich dahin?"); ohne Bezug auf Gemerktes gibt das false zurück und alles läuft wie bisher.
             // Eine bloße Antwort auf "Adresse speichern?" ist oben schon erledigt worden.

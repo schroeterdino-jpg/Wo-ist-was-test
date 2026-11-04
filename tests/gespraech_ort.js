@@ -203,13 +203,91 @@ const merkTreffer = A => G(A).status().listen.length ? G(A).waehle(1) : null;
     };
     check('10 Schattenbetrieb EIN verändert nichts: gleiche Antworten, gleicher Speicher, keine zusätzlichen Aktionen/Aufrufe', await lauf(false) === await lauf(true));
 
+    /* ---------- Mehrere Rückfragen gleichzeitig offen: Letzte Frage gewinnt ---------- */
+    const terminKI = [{ type: 'calendar', calendar_text: 'Zahnarzt', calendar_time: '2026-11-06T10:00:00' }];
+    const JF = A => A.sb.jvFrage;
+    async function terminFrage(X) {   // echte Termin-Erinnerungsfrage: "Wie viele Stunden vorher soll ich dich per Push erinnern?"
+        const alt = X.st.kiAktionen; X.st.kiAktionen = terminKI; await sucheKI(X, 'Trag morgen um zehn Zahnarzt ein'); X.st.kiAktionen = alt;
+        return JF(X).aktuell() === 'termin-erinnern';
+    }
+    /* a) Ortsauswahl UND "Adresse speichern?" offen, die Ortsfrage ist die jüngste */
+    A = umgebung(); await sucheKI(A);
+    check('12a Ausgangslage: Treffer gemerkt und "Adresse speichern?" offen', G(A).status().listen[0].anzahl === 3 && A.sb.jvSpeichernOffen() === true && JF(A).aktuell() === 'ortsuche');
+    r = await sag(A, 'Wie komme ich dahin?');
+    check('12b Rückfrage "Welches meinst du?" ist offen und die jüngste Frage; "Adresse speichern?" bleibt offen', /Welches/.test(r.gesagt.join(' ')) && G(A).offeneFragen().length === 1 && JF(A).aktuell() === 'gespraech_ort' && A.sb.jvSpeichernOffen() === true);
+    const storeVor = JSON.stringify(A.store);
+    r = await sag(A, 'nein');
+    check('12c "nein" beantwortet die jüngste Frage (Ortsauswahl), NICHT "Adresse speichern?"', r.lokal && /lasse es/.test(r.gesagt.join(' ')) && !/speichere keine Adresse/.test(r.gesagt.join(' ')) && A.sb.jvSpeichernOffen() === true && G(A).offeneFragen().length === 0, r.gesagt.join(' '));
+    A = umgebung(); await sucheKI(A); await sag(A, 'Wie komme ich dahin?');
+    const s0 = JSON.stringify(A.store);
+    r = await sag(A, 'die zweite');
+    check('12d "die zweite" wählt das Lokal (jüngste Frage) und speichert KEINE Adresse', r.lokal && G(A).ausgewaehlt() && G(A).ausgewaehlt().nr === 2 && r.karten[0] && /Route zu/.test(r.karten[0][0].title) && !/gespeichert|Kontakt/i.test(r.gesagt.join(' ')) && JSON.stringify(A.store) === s0, r.gesagt.join(' '));
+    /* b) nur "Adresse speichern?" offen */
+    A = umgebung(); await sucheKI(A);
+    r = await sag(A, 'die zweite');
+    check('12e bloßes "die zweite" gehört der offenen Frage "Adresse speichern?" (bisheriges Verhalten), das Gedächtnis wählt nichts', G(A).ausgewaehlt() === null && !/Okay,|Route zu/.test(r.gesagt.join(' ')), r.gesagt.join(' '));
+    A = umgebung(); await sucheKI(A);
+    r = await sag(A, 'Nein');
+    check('12f "Nein" schließt "Adresse speichern?" wie bisher', /speichere keine Adresse/.test(r.gesagt.join(' ')) && G(A).ausgewaehlt() === null);
+    A = umgebung(); await sucheKI(A);
+    r = await sag(A, 'Das zweite');
+    check('12g mehrdeutiges "Das zweite" bei offener Speichern-Frage und ohne Auswahl: es wird nachgefragt, nichts gewählt, nichts gespeichert', r.lokal && /Adresse speichern oder ein Lokal auswählen/.test(r.gesagt.join(' ')) && G(A).ausgewaehlt() === null && G(A).offeneFragen().length === 0 && !/gespeichert/.test(r.gesagt.join(' ')), r.gesagt.join(' '));
+    r = await sag(A, 'Das zweite gefällt mir');
+    check('12h eindeutiger Satz "Das zweite gefällt mir" wird trotz offener Speichern-Frage beantwortet', r.lokal && G(A).ausgewaehlt() && G(A).ausgewaehlt().nr === 2);
+    r = await sag(A, 'Das erste');
+    check('12i nach einer ausdrücklichen Auswahl ist der Ortsdialog der jüngste: "Das erste" wählt das erste Lokal', r.lokal && G(A).ausgewaehlt().nr === 1, r.gesagt.join(' '));
+    /* c) echte Termin-Erinnerungsfrage ist jünger als die Ortsergebnisse */
+    A = umgebung(); await sucheKI(A);
+    check('12j echte Termin-Erinnerungsfrage wird nach der Ortssuche gestellt und ist die jüngste', await terminFrage(A) && /Stunden vorher/.test((A.gesagt.concat(A.ereignisse.map(e => e.text || ''))).join(' ')) || JF(A).aktuell() === 'termin-erinnern');
+    r = await sag(A, 'nein');
+    check('12k "nein" gehört der Termin-Erinnerungsfrage ("dann erinnere ich dich nicht"), nicht dem Ort', r.lokal && /erinnere ich dich nicht/.test(r.gesagt.join(' ')) && G(A).ausgewaehlt() === null && G(A).offeneFragen().length === 0, r.gesagt.join(' '));
+    A = umgebung(); await sucheKI(A); await terminFrage(A);
+    r = await sag(A, 'das zweite');
+    check('12l bloßes "das zweite" wird bei jüngerer Termin-Erinnerungsfrage NICHT als Ortsauswahl gewertet', G(A).ausgewaehlt() === null && !/Okay,/.test(r.gesagt.join(' ')) && G(A).offeneFragen().length === 0, r.gesagt.join(' '));
+    r = await sag(A, 'das andere');
+    check('12m "das andere" ebenso', G(A).ausgewaehlt() === null && G(A).offeneFragen().length === 0);
+    r = await sag(A, 'Zeig mir das erste und wie komme ich dahin');
+    check('12n ein ausdrücklicher Ortssatz wird trotzdem beantwortet, und die Termin-Frage gerät nicht durcheinander', r.lokal && G(A).ausgewaehlt() !== null);
+    r = await sag(A, 'nein');
+    check('12o die Termin-Erinnerungsfrage ist weiter unbeantwortet und die jüngste Frage: ein späteres "nein" gehört ihr (richtig zugeordnet), nicht dem Ort', r.lokal && /erinnere ich dich nicht/.test(r.gesagt.join(' ')) && G(A).ausgewaehlt() !== null, r.gesagt.join(' '));
+    /* d) Ortsfrage ist jünger als eine Termin-Erinnerungsfrage */
+    A = umgebung(); await terminFrage(A); await sucheKI(A);
+    r = await sag(A, 'Wie komme ich dahin?');
+    check('12p Termin-Erinnerungsfrage ist älter, die Ortsfrage jünger: "Welches meinst du?" ist offen und die jüngste', /Welches/.test(r.gesagt.join(' ')) && JF(A).aktuell() === 'gespraech_ort');
+    r = await sag(A, 'nein');
+    check('12q "nein" beantwortet die jüngere Ortsfrage; die ältere Termin-Frage bleibt unberührt (nicht abgesagt)', r.lokal && /lasse es/.test(r.gesagt.join(' ')) && !/erinnere ich dich nicht/.test(r.gesagt.join(' ')));
+    A = umgebung(); await terminFrage(A); await sucheKI(A); await sag(A, 'Wie komme ich dahin?');
+    r = await sag(A, 'ja');
+    check('12r "ja" bei jüngster Ortsfrage geht an niemanden (nicht an die ältere Termin-Frage): keine Erinnerung angelegt', !r.lokal && !/erinnere|Erinnerung/.test(r.gesagt.join(' ')) && (A.lese('reminderEntries') || []).length === 0, r.gesagt.join(' '));
+    /* e) Kontakt-Rückfrage ("Welchen meinst du: Anna Müller oder Anna Schmidt?") jünger */
+    A = umgebung(); await sucheKI(A);
+    A.sb.jvRueckfrage.vorbereiten('Anna', ['Anna Müller', 'Anna Schmidt'], 'Ruf Anna an', false);
+    r = await sag(A, 'das zweite');
+    check('12s "das zweite" beantwortet die jüngere Kontakt-Rückfrage, nicht die Ortsauswahl', G(A).ausgewaehlt() === null && A.sb.jvRueckfrage.offen() === null && G(A).offeneFragen().length === 0, r.gesagt.join(' '));
+    /* f) weitere Module, die ein Modul "zuletzt gefragt" haben: kurze Antworten bleiben bei ihnen */
+    for (const modul of ['plan_wecker', 'dirigent', 'zuvorkommend', 'terminfinder', 'mailaktionen', 'ausflug']) {
+        const X = umgebung(); X.sb.jvOrtGespraech.merke(erwartet, 'test');
+        X.sb.jvFrage.neu(modul);
+        const res = [];
+        for (const satz of ['das zweite', 'das andere', 'nein', 'ja', 'die erste', 'Nummer 2']) { const q = await sag(X, satz); res.push(G(X).ausgewaehlt() === null && G(X).offeneFragen().length === 0); }
+        check('12t kurze Antworten bleiben bei der jüngeren Frage von "' + modul + '" (6 Sätze, nichts gewählt)', res.every(Boolean), JSON.stringify(res));
+        const e = await sag(X, 'Wie komme ich dahin?');
+        check('12u … ein ausdrücklicher Ortssatz wird weiter beantwortet (' + modul + ')', e.lokal && /Welches/.test(e.gesagt.join(' ')));
+    }
+    /* g) die Fristen: eine abgelaufene Ortsfrage blockiert niemanden */
+    A = umgebung(); await sucheKI(A); await sag(A, 'Wie komme ich dahin?');
+    A.uhr.ms += 3 * MIN;
+    check('12v nach 3 Minuten ist die Ortsfrage verfallen (kein offener Zustand mehr)', G(A).offeneFragen().length === 0);
+    /* h) Schutztests unverändert vorhanden */
+    check('12w die Schutztests der Fragen-Reihenfolge laufen weiter (Datei vorhanden, nichts abgeschwächt)', fs.existsSync(path.join(ROOT, 'tests/pending_reihenfolge.js')) && fs.existsSync(path.join(ROOT, 'tests/pending_zweite_stufe.js')) && fs.existsSync(path.join(ROOT, 'tests/dirigent_fragen.js')));
+
     /* ---------- Statisch ---------- */
     const code = lies('js/gespraech_ort.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     check('11a Klebstoff-Datei: kein Netz, kein Speichern, keine Zeitgeber, kein Langzeitgedächtnis, kein Kalender, keine Erinnerung, keine Aktionen', !/fetch\(|apiFetch|localStorage|sessionStorage|setPersistentData|setItem|setTimeout|setInterval|memoryItems|searchMemory|addMemory|calendarEntries|reminderEntries|executeAction|window\.open|location\./.test(code), (code.match(/fetch\(|apiFetch|localStorage|setItem|setTimeout|memoryItems|calendarEntries|reminderEntries|executeAction|window\.open/) || [])[0]);
     const nutzer = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && !/^(gespraech|gespraech_ort)\.js$/.test(f)).filter(f => /jvGespraech\b/.test(lies('js/' + f)));
     check('11b nur gespraech_ort.js benutzt window.jvGespraech (keine zweite Gesprächsspeicherung)', nutzer.length === 0, nutzer.join());
     const aufr = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && f !== 'gespraech_ort.js').filter(f => /jvOrtGespraech/.test(lies('js/' + f)));
-    check('11c die Ortssuche meldet nur über abgesicherte Einzeiler (assistant.js, ortsuche.js)', aufr.sort().join() === 'assistant.js,ortsuche.js' && (lies('js/assistant.js').match(/jvOrtGespraech/g) || []).length === 4 && (lies('js/ortsuche.js').match(/jvOrtGespraech/g) || []).length === 10 && !/jvOrtGespraech\.(?!merke|fehler|behandle)/.test(lies('js/assistant.js') + lies('js/ortsuche.js')), aufr.join());
+    check('11c die Ortssuche meldet nur über abgesicherte Einzeiler (assistant.js, ortsuche.js)', aufr.sort().join() === 'assistant.js,ortsuche.js' && (lies('js/assistant.js').match(/jvOrtGespraech/g) || []).length === 4 && (lies("js/ortsuche.js").match(/jvOrtGespraech/g) || []).length === 13 && !/jvOrtGespraech\.(?!merke|fehler|behandle|hatFrage)/.test(lies('js/assistant.js') + lies('js/ortsuche.js')), aufr.join());
     check('11d weckruf-src unberührt (kein neuer APK-Bau nötig)', !fs.existsSync(path.join(ROOT, 'weckruf-src')) || !/gespraech|jvOrt/.test(require('child_process').execSync('git status --short weckruf-src || true', { cwd: ROOT }).toString()));
 
     console.log(`GESPRÄCH_ORT: ${ok} Prüfungen in Ordnung, ${fehler} Fehler`);
