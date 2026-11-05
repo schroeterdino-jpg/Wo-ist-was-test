@@ -135,13 +135,17 @@
         /\b(?:was|welche)\b.*\b(?:steht|stehen|habe ich|hab ich)\b.*\b(?:kalender|termine?|aufgaben)\b|\b(?:sag|zeig|lies)\w*\b.*\b(?:kalender|termine|aufgaben)\b|\bvorles\w*/   // Kalender/Aufgaben vorlesen
     ];
     var RX_VERBINDER = /\b(?:und|dann|danach|außerdem|ausserdem|sowie|gleichzeitig|zusätzlich|zusaetzlich)\b/;
-    function mehrteilig(text) {
-        if (!istAn || typeof text !== 'string') return false;
+    var MEHR_NAMEN = ['Termin', 'Erinnerung', 'Aufgabe', 'Kontakt oder Adresse', 'Merken', 'Vorlesen'];
+    var MEHR_FAEHIG = [['termin_erstellen', 'termine_lesen'], ['erinnerung_erstellen'], ['aufgabe_erstellen', 'aufgaben_lesen'], ['kontakt_speichern'], ['gedaechtnis_speichern'], ['termine_lesen', 'aufgaben_lesen']];   // welche Schritte eine verlangte Aktion erfüllen
+    function mehrGruppen(text) {   // Nummern der ausdrücklich verlangten, verschiedenen Aktionen (leer = nicht mehrteilig)
+        if (typeof text !== 'string') return [];
         var t = text.toLowerCase().replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim();
-        if (!t || t.length > 240 || t.split(' ').length > 30 || !RX_VERBINDER.test(t)) return false;
-        var n = 0; MEHR_GRUPPEN.forEach(function (g) { if (g.test(t)) n++; });
-        return n >= 2;
+        if (!t || t.length > 240 || t.split(' ').length > 30 || !RX_VERBINDER.test(t)) return [];
+        var t0 = t.replace(/\ban\s+(?:den|meinen|die|das|unseren|diesen)\s+termin\w*/g, ' ');   // "erinnere mich an den Termin" ist KEIN Termin eintragen
+        var g = []; MEHR_GRUPPEN.forEach(function (rx, i) { if (rx.test(i === 0 ? t0 : t)) g.push(i); });
+        return g.length >= 2 ? g : [];
     }
+    function mehrteilig(text) { return istAn && mehrGruppen(text).length >= 2; }
     var RX_B2A = /\b(erinner\w*|termin\w*|merk(?:e)? dir|speicher\w*|trag(?:e)? \w+ ein|aufgabe\w*|to-?do\w*|kontakt\w*|notier\w*|adresse\w*|kalender)\b/i;   // B2a: Wünsche, die die Chef-KI jetzt selbst ausführen darf
     var RX_SCHREIB = /\b(erinner\w*|termin\w*|merk(?:e)? dir|speicher\w*|trag(?:e)? \w+ ein)\b/i;
 
@@ -246,6 +250,7 @@
         schritt_fehler: 'Ein Schritt hat nicht geklappt',
         budget_ueberschritten: 'Zeitbudget überschritten',
         ort_unklar: 'Ort unklar ("dort"/"da"): Rückfrage statt eigener Standort',
+        auftrag_unvollstaendig: 'Auftrag nicht vollständig erkannt: vor dem Schreiben angehalten, nichts ausgeführt',
         verschieben_gesperrt: 'Verschieben ist mit der Chef-KI noch gesperrt: angehalten, nichts geändert',
         ort_bezug: '"dort"/"da" auf den zuletzt genannten Ort bezogen',
         schreiben_ausgefuehrt: 'Schreib-/Lese-Aktion ausgeführt (Termin, Erinnerung, Aufgabe, Kontakt, Gedächtnis)',
@@ -715,7 +720,13 @@
                 vermerke(eingang, !pr ? 'ki_fehler' : (pr.zeitlimit || pr.grund === 'Zeitlimit') ? 'ki_zeitlimit' : pr.fehler ? 'ki_fehler' : !pr.ok ? 'ki_ungueltig'
                     : (pr.plan.schritte.length === 0 && !pr.plan.frage) ? 'ki_kein_ortswunsch' : 'ki_nicht_erlaubt');
                 protokolliere('ki_zurueck', [], pr && pr.zeitlimit ? 'ZEITLIMIT' : (pr && pr.ok ? 'KEIN_ORTSWUNSCH' : 'UNGUELTIG')); zurueckInsNormale(); return; }
-            if (mehr && pr.plan.schritte.length === 1) { vermerke(eingang, 'ki_nicht_erlaubt'); protokolliere('ki_zurueck', [], 'EIN_SCHRITT'); zurueckInsNormale(); return; }   // der Planer hat nur einen Teil erkannt: nichts davon ausführen, der Rest ginge verloren
+            if (mehr && pr.plan.schritte.length) {   // der Planer muss ALLE ausdrücklich verlangten Aktionen erkannt haben, sonst wird VOR dem Schreiben angehalten und erklärt (nichts halb erledigt)
+                var fehlt = mehrGruppen(text).filter(function (gi) { return !pr.plan.schritte.some(function (x) { return MEHR_FAEHIG[gi].indexOf(x.faehigkeit) >= 0; }); });
+                if (fehlt.length) {
+                    vermerke(eingang, 'auftrag_unvollstaendig'); protokolliere('ki_gestoppt', pr.plan.schritte.map(function (x) { return x.faehigkeit; }), 'UNVOLLSTAENDIG');
+                    say('Ich konnte nicht alles aus deinem Auftrag sicher erkennen (' + fehlt.map(function (gi) { return MEHR_NAMEN[gi]; }).join(', ') + ' fehlt). Deshalb habe ich nichts ausgeführt. Sag es bitte noch einmal, am besten Schritt für Schritt.'); return;
+                }
+            }
             if (!istAn) { vermerke(eingang, 'ausgeschaltet'); zurueckInsNormale(); return; }                 // inzwischen ausgeschaltet: der Satz geht den bisherigen Weg
             var plan = pr.plan;
             if (!plan.schritte.length) {                                  // unklarer Wunsch: EINE kurze Rückfrage, sonst nichts

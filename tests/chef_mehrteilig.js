@@ -119,7 +119,18 @@ const kont = A => Object.keys(A.lese('savedContacts') || {}).length;
     A = umgebung(); await satz(A, '{kaputt', S2);
     check('3b ungültige KI-Antwort: nichts geschrieben; der feste Befehl/alte Weg übernimmt genau einmal (keine doppelte Antwort)', geschrieben(A) === 0 && A.gesagt.length <= 2 && (A.st.groq + (A.gesagt.length ? 0 : 0)) <= 1, JSON.stringify([A.gesagt, A.st.groq]));
     A = umgebung(); await satz(A, plan(AUF('Milch kaufen')), S1);
-    check('3c Planer erkennt nur EINEN Teil eines mehrteiligen Satzes: nichts davon ausgeführt (sonst ginge der Rest verloren)', geschrieben(A) === 0 && A.st.groq <= 1, JSON.stringify([geschrieben(A), A.st.groq, A.gesagt]));
+    check('3c Planer erkennt nur EINEN Teil (Aufgabe, der Termin fehlt): VOR dem Schreiben angehalten, nichts ausgeführt, verständliche Erklärung, kein Rückfall auf alte Wege', geschrieben(A) === 0 && A.st.groq === 0 && A.gesagt.length === 1 && /nicht alles/.test(A.gesagt[0]) && /Termin/.test(A.gesagt[0]) && /nichts ausgeführt/.test(A.gesagt[0]), JSON.stringify([geschrieben(A), A.st.groq, A.gesagt]));
+    const S3A = 'Trag morgen um 15 Uhr Zahnarzt in den Kalender ein, erinnere mich eine Stunde vorher und setz Blumen kaufen auf meine Aufgabenliste';
+    A = umgebung(); await satz(A, plan(TER('Zahnarzt', Z1), ERI('Zahnarzt', '2026-11-06T14:00:00'), AUF('Blumen kaufen')), S3A);
+    check('3c1 drei verlangte Aktionen, drei Schritte: alle drei genau einmal, eine Sprachausgabe', n(A, 'calendarEntries') === 1 && n(A, 'reminderEntries') === 1 && n(A, 'todoEntries') === 1 && A.gesagt.length === 1 && A.st.groq === 0, JSON.stringify([n(A, 'calendarEntries'), n(A, 'reminderEntries'), n(A, 'todoEntries'), A.gesagt]));
+    for (const [name, p] of [['Aufgabe fehlt', plan(TER('Zahnarzt', Z1), ERI('Zahnarzt', '2026-11-06T14:00:00'))], ['Erinnerung fehlt', plan(TER('Zahnarzt', Z1), AUF('Blumen kaufen'))], ['Termin fehlt', plan(ERI('Zahnarzt', '2026-11-06T14:00:00'), AUF('Blumen kaufen'))]]) {
+        A = umgebung(); await satz(A, p, S3A);
+        check('3c2 drei verlangte Aktionen, nur zwei geplant (' + name + '): NICHTS ausgeführt (nicht still nur zwei), Erklärung, kein Rückfall', geschrieben(A) === 0 && A.st.groq === 0 && A.gesagt.length === 1 && /nicht alles/.test(A.gesagt[0]) && /nichts ausgeführt/.test(A.gesagt[0]), name + ' ' + JSON.stringify([geschrieben(A), A.st.groq, A.gesagt]));
+    }
+    A = umgebung(); await satz(A, plan(TLES('heute'), ALES), 'Zeig mir meine Termine und meine Aufgaben');
+    check('3c3 „Termine und Aufgaben“ vorlesen: beide Lese-Schritte erkannt, eine Antwort', A.gesagt.length === 1 && A.st.groq === 0 && A.st.ent === 1, JSON.stringify(A.gesagt));
+    A = umgebung(); await satz(A, plan(ERI('Zahnarzt', Z1), AUF('Blumen kaufen')), 'Erinnere mich morgen an den Termin beim Zahnarzt und setz Blumen kaufen auf meine Aufgabenliste');
+    check('3c4 „erinnere mich an den Termin“ zählt nicht als Termin eintragen: Erinnerung + Aufgabe laufen ohne falschen Stopp', n(A, 'reminderEntries') === 1 && n(A, 'todoEntries') === 1 && A.st.groq === 0, JSON.stringify(A.gesagt));
     A = umgebung();
     await satz(A, plan(ERI('Rezept', Z1), KON({ name: 'Matze' })), S4);
     check('3d nach einer ausgeführten Aktion KEIN Rückfall: der feste Befehl „adresse-speichern“ läuft NICHT, der alte KI-Weg auch nicht; ehrlicher Teilerfolg', n(A, 'reminderEntries') === 1 && kont(A) === 0 && !/keine Adresse, die ich speichern könnte/.test(A.gesagt.join(' ')) && A.st.groq === 0 && A.gesagt.length === 1 && /Erledigt/.test(A.gesagt[0]), JSON.stringify([A.gesagt, A.st.groq]));
