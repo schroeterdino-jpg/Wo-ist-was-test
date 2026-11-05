@@ -54,6 +54,8 @@ function parsePlacesRequest(text) {
     // Terminwünsche sind KEINE Ortssuche. Beispiel: "Ich brauche einen Friseurtermin bei Anja"
     // muss an Kalender/KI weiterlaufen und darf nicht wegen "Friseur" hier abgefangen werden.
     if (/\b(?:termin|termine|termins|terminen|terminwunsch|friseurtermin|arzttermin|zahnarzttermin|werkstatttermin)\w*\b/.test(t)) return null;
+    // Kalender-, Erinnerungs- und Aufgabenbefehle sind ebenfalls KEINE Ortssuche ("Trag morgen um 15 Uhr Zahnarzt in den Kalender ein": "Kalender Ein" ist kein Ort).
+    if (/\bkalender\b|\baufgabenliste\w*|\baufgaben?\b|\bto-?do\w*|\berinner\w*|\btrag\w*\b.*\bein\b/.test(t)) return null;
     if (/\b(?:wetter|kurs|euro|lira|dollar|tanke|tanken|sprit|diesel|benzin|restaurant\w*|hunger|pizza\w*|döner|zug|züge|zuges|bus|busse|fährt|fahrt|abfahrt|abfahrten|ankunft|verbindung\w*|fahrplan|bahnfahrt|losfahren|umstieg\w*|ice|regionalbahn|s-bahn|u-bahn)\b/.test(t)) return null;   // gehört anderen Funktionen
     const cat = PLACE_CATEGORIES.find(c => c.words.test(t));
     if (!cat) return null;

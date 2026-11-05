@@ -262,7 +262,7 @@ const SWK = 'Wie wird das Wetter morgen und schau mal nach was heute im Kino lä
     { const fi = lies('js/fish.js');
       check('22b Sprachausgabe: nach Unterbrechung keine alten Stücke mehr (Abbruchprüfung vor und nach dem Abruf, Warteschlange stoppt)', /unterbrochen\(\)/.test(fi) && /stopped/.test(fi) && (fi.match(/unterbrochen\(\)/g) || []).length >= 2); }
     { const vo = lies('js/voice.js'); const nb = lies('js/nearbymore.js');
-      check('22c Android-Brücke und voice.js unverändert, Ortsmessung nur Zahlen (keine Namen/Koordinaten im Protokoll)', (vo.match(/jvChef\.kiWeg/g) || []).length === 1 && !/weckruf/.test(nb) && !/jvOrtZeiten[^\n]*(lat|lon|name)/.test(nb)); }
+      check('22c Android-Brücke und voice.js unverändert, Ortsmessung nur Zahlen (keine Namen/Koordinaten im Protokoll)', (vo.match(/jvChef\.kiWeg/g) || []).length === 2 && !/weckruf/.test(nb) && !/jvOrtZeiten[^\n]*(lat|lon|name)/.test(nb)); }
 
     /* ---------- Werkstatt-Rückfall (PR #342) und Handler-Audit: statisch ---------- */
     const nm = lies('js/nearbymore.js');
@@ -270,7 +270,7 @@ const SWK = 'Wie wird das Wetter morgen und schau mal nach was heute im Kino lä
     check('19a Handler-Audit: Mehrfachfrage, Lagebild-Weg und Mail-Antwort melden einen Fehler nicht mehr stumm', /Mehrfachfrage[^\n]*window\.speak\(/.test(lies('js/mehrfach.js')) && /Lagebild Weg[^\n]*sagen\(/.test(lies('js/lagebild.js')) && /Mail-Antwort[^\n]*say\(/.test(lies('js/mailwatch.js')));
     const chefJs = lies('js/chef.js').replace(/\/\*[\s\S]*?\*\//g, '');
     check('19b Quelltext: nie bestaetigt:true, Entscheider-Fähigkeiten nur ortssuche/websuche/wetter, ein einziges Zeitbudget', !/bestaetigt\s*:\s*true/.test(chefJs) && /KI_FAEHIGKEITEN = Object\.freeze\(\['ortssuche', 'websuche', 'wetter'\]\)/.test(chefJs) && /GESAMT_MS = 20000/.test(chefJs));
-    check('19c voice.js unverändert (kein Umbau): ein Haken befehlVorrang, ein Haken kiWeg', (lies('js/voice.js').match(/befehlVorrang/g) || []).length === 1 && (lies('js/voice.js').match(/jvChef\.kiWeg/g) || []).length === 1);
+    check('19c voice.js: kein Umbau der Reihenfolge: ein Haken befehlVorrang, kiWeg nach den festen Befehlen plus (B2a) ein vorgezogener Haken nur für mehrteilige Sätze', (lies('js/voice.js').match(/befehlVorrang/g) || []).length === 1 && (lies('js/voice.js').match(/jvChef\.kiWeg/g) || []).length === 2);
 
     console.log('CHEF-PAKET: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);

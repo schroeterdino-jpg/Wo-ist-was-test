@@ -124,6 +124,28 @@
     var RX_FRAGEWORT = /^(wie|was|wer|wann|wo|woher|wohin|warum|wieso|weshalb|welche[rsmn]?|kannst|kann|ist|sind|hast|hat|gibt|ruf|schalt\w*|stell\w*|mach\w*|zeig\w*|such\w*|erinner\w*|sag\w*)\b/i;
     var RX_VERSCHIEBEN = /\b(verschieb\w*|verleg\w*|umbuch\w*|umleg\w*|vorverleg\w*|nachverleg\w*)\b/i;   // B2a: Verschieben ist bei EINGESCHALTETER Chef-KI gesperrt (kommt mit Bestätigung in B2b), auch kein Rückfall auf den alten KI-Weg
     var TEXT_VERSCHIEBEN = 'Termine verschieben kann ich mit der Chef-KI noch nicht, weil dafür deine Bestätigung nötig ist. Ich habe nichts geändert.';
+    /* Mehrteilige Anfragen: mindestens zwei AUSDRÜCKLICH verschiedene Aktionen, verbunden durch "und/dann/…". Nur dann fragt voice.js die Chef-KI VOR den festen Befehlen
+       (sonst fängt ein fester Befehl wie "Ortssuche" oder "was steht an" den ganzen Satz ab und der Rest geht verloren). Einfache Sätze bleiben beim bisherigen Weg. */
+    var MEHR_GRUPPEN = [
+        /\btermin\w*|\b(?:in|im)\s+(?:den\s+|meinen\s+|meinem\s+)?kalender\b|\bkalender\s+ein\b/,                                   // Termin eintragen / Termine
+        /\berinner\w*/,                                                                                                            // Erinnerung
+        /\baufgabe\w*|\bto-?do\w*|\baufgabenliste\w*/,                                                                           // Aufgabe
+        /\bkontakt\w*|\badresse\b.*\bspeicher\w*|\bspeicher\w*.*\badresse\b/,                                                       // Kontakt / Adresse speichern
+        /\bmerk(?:e)?\s+dir\b/,                                                                                                  // Gedächtnis
+        /\b(?:was|welche)\b.*\b(?:steht|stehen|habe ich|hab ich)\b.*\b(?:kalender|termine?|aufgaben)\b|\b(?:sag|zeig|lies)\w*\b.*\b(?:kalender|termine|aufgaben)\b|\bvorles\w*/   // Kalender/Aufgaben vorlesen
+    ];
+    var RX_VERBINDER = /\b(?:und|dann|danach|außerdem|ausserdem|sowie|gleichzeitig|zusätzlich|zusaetzlich)\b/;
+    var MEHR_NAMEN = ['Termin', 'Erinnerung', 'Aufgabe', 'Kontakt oder Adresse', 'Merken', 'Vorlesen'];
+    var MEHR_FAEHIG = [['termin_erstellen', 'termine_lesen'], ['erinnerung_erstellen'], ['aufgabe_erstellen', 'aufgaben_lesen'], ['kontakt_speichern'], ['gedaechtnis_speichern'], ['termine_lesen', 'aufgaben_lesen']];   // welche Schritte eine verlangte Aktion erfüllen
+    function mehrGruppen(text) {   // Nummern der ausdrücklich verlangten, verschiedenen Aktionen (leer = nicht mehrteilig)
+        if (typeof text !== 'string') return [];
+        var t = text.toLowerCase().replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!t || t.length > 240 || t.split(' ').length > 30 || !RX_VERBINDER.test(t)) return [];
+        var t0 = t.replace(/\ban\s+(?:den|meinen|die|das|unseren|diesen)\s+termin\w*/g, ' ');   // "erinnere mich an den Termin" ist KEIN Termin eintragen
+        var g = []; MEHR_GRUPPEN.forEach(function (rx, i) { if (rx.test(i === 0 ? t0 : t)) g.push(i); });
+        return g.length >= 2 ? g : [];
+    }
+    function mehrteilig(text) { return istAn && mehrGruppen(text).length >= 2; }
     var RX_B2A = /\b(erinner\w*|termin\w*|merk(?:e)? dir|speicher\w*|trag(?:e)? \w+ ein|aufgabe\w*|to-?do\w*|kontakt\w*|notier\w*|adresse\w*|kalender)\b/i;   // B2a: Wünsche, die die Chef-KI jetzt selbst ausführen darf
     var RX_SCHREIB = /\b(erinner\w*|termin\w*|merk(?:e)? dir|speicher\w*|trag(?:e)? \w+ ein)\b/i;
 
@@ -228,6 +250,7 @@
         schritt_fehler: 'Ein Schritt hat nicht geklappt',
         budget_ueberschritten: 'Zeitbudget überschritten',
         ort_unklar: 'Ort unklar ("dort"/"da"): Rückfrage statt eigener Standort',
+        auftrag_unvollstaendig: 'Auftrag nicht vollständig erkannt: vor dem Schreiben angehalten, nichts ausgeführt',
         verschieben_gesperrt: 'Verschieben ist mit der Chef-KI noch gesperrt: angehalten, nichts geändert',
         ort_bezug: '"dort"/"da" auf den zuletzt genannten Ort bezogen',
         schreiben_ausgefuehrt: 'Schreib-/Lese-Aktion ausgeführt (Termin, Erinnerung, Aufgabe, Kontakt, Gedächtnis)',
@@ -657,13 +680,16 @@
         return { art: 'rueckfall', ki: ki };
     }
 
-    async function kiEntscheideImSprachweg(text, gen, eingang, kontext, ohneFrage, ortBezug) {
+    async function kiEntscheideImSprachweg(text, gen, eingang, kontext, ohneFrage, ortBezug, mehr) {
         var zurueck = false, ctrl = null, timer = null, t0 = jetzt(), kiN = 1, st = { begonnen: false };   // 1 = die Entscheider-Anfrage selbst; st.begonnen = es wurde schon geschrieben
         function zurueckInsNormale() {
             if (zurueck) return;                      // nur einmal
             if (st.begonnen) return;                  // B2a: nach einer Schreibaktion NIE zurück zum alten KI-Weg (er könnte dasselbe noch einmal schreiben)
             if (gen !== kiGen) { vermerke(eingang, 'ki_ueberholt'); return; }   // und nur, wenn der Satz nicht überholt wurde
             zurueck = true; kiZaehler.zurueck++; kiN++; vermerke(eingang, 'rueckfall');
+            if (mehr) {   // mehrteiliger Satz, nichts geschrieben: erst darf der feste Befehl, den wir vorgezogen haben, wie bisher antworten
+                try { if (typeof handleLocalCommand === 'function' && handleLocalCommand(text)) { vermerke(eingang, 'befehl_vorrang'); return; } } catch (e) { }
+            }
             try { if (typeof window.sendToGroqSmart === 'function') window.sendToGroqSmart(text); } catch (e) { }
         }
         try {
@@ -694,6 +720,13 @@
                 vermerke(eingang, !pr ? 'ki_fehler' : (pr.zeitlimit || pr.grund === 'Zeitlimit') ? 'ki_zeitlimit' : pr.fehler ? 'ki_fehler' : !pr.ok ? 'ki_ungueltig'
                     : (pr.plan.schritte.length === 0 && !pr.plan.frage) ? 'ki_kein_ortswunsch' : 'ki_nicht_erlaubt');
                 protokolliere('ki_zurueck', [], pr && pr.zeitlimit ? 'ZEITLIMIT' : (pr && pr.ok ? 'KEIN_ORTSWUNSCH' : 'UNGUELTIG')); zurueckInsNormale(); return; }
+            if (mehr && pr.plan.schritte.length) {   // der Planer muss ALLE ausdrücklich verlangten Aktionen erkannt haben, sonst wird VOR dem Schreiben angehalten und erklärt (nichts halb erledigt)
+                var fehlt = mehrGruppen(text).filter(function (gi) { return !pr.plan.schritte.some(function (x) { return MEHR_FAEHIG[gi].indexOf(x.faehigkeit) >= 0; }); });
+                if (fehlt.length) {
+                    vermerke(eingang, 'auftrag_unvollstaendig'); protokolliere('ki_gestoppt', pr.plan.schritte.map(function (x) { return x.faehigkeit; }), 'UNVOLLSTAENDIG');
+                    say('Ich konnte nicht alles aus deinem Auftrag sicher erkennen (' + fehlt.map(function (gi) { return MEHR_NAMEN[gi]; }).join(', ') + ' fehlt). Deshalb habe ich nichts ausgeführt. Sag es bitte noch einmal, am besten Schritt für Schritt.'); return;
+                }
+            }
             if (!istAn) { vermerke(eingang, 'ausgeschaltet'); zurueckInsNormale(); return; }                 // inzwischen ausgeschaltet: der Satz geht den bisherigen Weg
             var plan = pr.plan;
             if (!plan.schritte.length) {                                  // unklarer Wunsch: EINE kurze Rückfrage, sonst nichts
@@ -740,7 +773,7 @@
     }
 
     /* Haken im echten Sprachweg: true = die Chef-KI hat den Satz übernommen (läuft asynchron weiter und fällt im Zweifel genau einmal auf den bisherigen Ablauf zurück). */
-    function kiWeg(text) {
+    function kiWeg(text, mehr) {
         if (!istAn) return false;                                              // AUS: nichts, kein Netz
         try {
             vomChefBehandelt = 0;
@@ -791,7 +824,7 @@
             var eingang = neuerEingang(kopf || 'ki_aufgerufen');
             if (kopf) vermerke(eingang, 'ki_aufgerufen');
             try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Verarbeite Anweisung...'); } catch (e) { }
-            kiEntscheideImSprachweg(t, gen, eingang, kontextText(), kopf === 'nachfrage_antwort', ortBezug).catch(function () { });
+            kiEntscheideImSprachweg(t, gen, eingang, kontextText(), kopf === 'nachfrage_antwort', ortBezug, mehr === true).catch(function () { });
             return true;
         } catch (e) { return false; }
     }
@@ -832,7 +865,7 @@
     window.jvChef = {
         starte: start,
         an: function () { return schalten(true); }, aus: function () { return schalten(false); }, istAn: function () { return istAn; },
-        behandle: behandle, kiWeg: kiWeg, befehlVorrang: befehlVorrang, uebergabeAlteSuche: uebergabeAlteSuche, eingaenge: eingaengeKopie, grundText: function (c) { return GRUND[c] || ''; }, GRUENDE: GRUND, plane: plane, verarbeite: verarbeite, pruefePlan: pruefePlan, kiEntscheider: kiEntscheider,
+        behandle: behandle, kiWeg: kiWeg, mehrteilig: mehrteilig, befehlVorrang: befehlVorrang, uebergabeAlteSuche: uebergabeAlteSuche, eingaenge: eingaengeKopie, grundText: function (c) { return GRUND[c] || ''; }, GRUENDE: GRUND, plane: plane, verarbeite: verarbeite, pruefePlan: pruefePlan, kiEntscheider: kiEntscheider,
         protokoll: function () { return protokollListe.map(function (e) { return { nr: e.nr, zeit: e.zeit, weg: e.weg, faehigkeiten: e.faehigkeiten.slice(), status: e.status }; }); },
         vergiss: vergiss, kiZaehler: function () { return { anfragen: kiZaehler.anfragen, ortssuchen: kiZaehler.ortssuchen, zurueck: kiZaehler.zurueck, websuchen: kiZaehler.websuchen, wetter: kiZaehler.wetter }; }, GESAMT_MS: GESAMT_MS, thema: function () { return themaFrisch() ? { art: thema.art, tag: thema.tag || '', begriff: thema.begriff || '' } : null; }, planErlaubt: planErlaubt, FREIGEGEBEN: FREIGEGEBEN, SCHREIB: SCHREIB, B2A_NEU: B2A_NEU, B2A_SCHREIBT: B2A_SCHREIBT,
         ortMerken: ortMerken, ort: function () { return ortFrisch() ? ortMerker.name : null; }, _setzeOrtPruefer: function (f) { ortPruefer = typeof f === 'function' ? f : null; }, ORT_MS: ORT_MS,
