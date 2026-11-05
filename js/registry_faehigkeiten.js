@@ -157,6 +157,48 @@
         }
     });
 
+    /* ---------------- 2b. Wetter (lesend, ohne KI-Kosten) ---------------- */
+    R.registriere({
+        name: 'wetter',
+        beschreibung: 'Sagt das Wetter am Standort des Nutzers: jetzt/heute, morgen oder übermorgen, mit Temperatur, Regen und Kleidungstipp. Für andere Orte nicht zuständig.',
+        pflicht: [],
+        optional: [{ name: 'tag', typ: 'text', beschreibung: 'heute (Standard), morgen oder uebermorgen.' }],
+        rueckgabe: { beschreibung: 'Der gesprochene Wettersatz, lokal aus den Wetterdaten gebaut (keine KI-Anfrage).', felder: ['nachricht'] },
+        fehler: [
+            { status: 'TOOL_FAILED', wann: 'Standort oder Wetterdaten nicht verfügbar.' },
+            { status: 'CAPABILITY_MISSING', wann: 'Die Wetterdaten sind in dieser Umgebung nicht geladen.' }
+        ],
+        fallbacks: ['websuche'],
+        bestaetigung: { noetig: false, grund: 'Reine Auskunft ohne Änderung von Daten.' },
+        pruefeErfolg: function (d) { return !!d && typeof d.nachricht === 'string' && !!d.nachricht.trim(); },
+        verbindung: { datei: 'js/briefing.js', funktion: 'fetchWeatherData' },
+        verfuegbar: function () { return typeof fetchWeatherData === 'function' && typeof fetchWeatherForecast === 'function' && typeof getWeatherAdvice === 'function' && typeof weatherCodeText === 'function'; },
+        ausfuehren: async function (p) {
+            var tag = String(p.tag || 'heute').toLowerCase().replace('ü', 'ue');
+            if (tag !== 'heute' && tag !== 'morgen' && tag !== 'uebermorgen') tag = 'heute';
+            function fehlschlag(m) { var e = new Error(m); e.userMessage = m; throw e; }
+            var teile = await Promise.all([tag === 'heute' ? fetchWeatherData() : Promise.resolve(null), fetchWeatherForecast()]);
+            var jetztD = teile[0], vor = teile[1];
+            var tage = vor && Array.isArray(vor.tage) ? vor.tage : [];
+            function g(n) { return String(n).replace('.', ','); }
+            var satz = '';
+            if (tag === 'heute') {
+                if (!jetztD || jetztD.fehler) fehlschlag('Die Wetterdaten sind gerade nicht verfügbar.');
+                var rat = getWeatherAdvice(jetztD);
+                satz = 'Aktuell sind es ' + g(jetztD.temperatur) + ' Grad, gefühlt ' + g(jetztD.gefuehlteTemperatur) + ', ' + weatherCodeText(jetztD.aktuellerCode !== undefined ? jetztD.aktuellerCode : jetztD.wettercode) + '.';
+                var heute = tage.filter(function (t) { return t.tag === 'heute'; })[0];
+                if (heute) satz += ' Heute werden es zwischen ' + g(heute.tiefstwert_grad) + ' und ' + g(heute.hoechstwert_grad) + ' Grad, die Regenwahrscheinlichkeit liegt bei ' + g(heute.regenwahrscheinlichkeit_prozent) + ' Prozent.';
+                satz += ' ' + rat.schirm + '. ' + rat.jacke + '.';
+                if (rat.sturm) satz += ' ' + rat.sturm + '.';
+            } else {
+                var t = tage.filter(function (x) { return String(x.tag).replace('ü', 'ue') === tag; })[0];   // die Vorhersage nennt den Tag mit ü (übermorgen)
+                if (!t) fehlschlag('Die Vorhersage ist gerade nicht verfügbar.');
+                satz = 'Das Wetter ' + (tag === 'morgen' ? 'morgen' : 'übermorgen') + ': ' + t.wetter + ', zwischen ' + g(t.tiefstwert_grad) + ' und ' + g(t.hoechstwert_grad) + ' Grad. Die Regenwahrscheinlichkeit liegt bei ' + g(t.regenwahrscheinlichkeit_prozent) + ' Prozent. ' + t.regenschirm_empfehlung + '. ' + t.jacken_empfehlung + '.';
+            }
+            return { nachricht: satz };
+        }
+    });
+
     /* ---------------- 3. Erinnerung erstellen ---------------- */
     function erinnerungAktion(p) {
         var a = { type: 'reminder', reminder_text: String(p.text).trim() };

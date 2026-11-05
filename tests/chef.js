@@ -72,7 +72,7 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
     check('0b Standard: AUS', A.sb.jvChef.istAn() === false);
     const befehle0 = A.sb.jvCommands.list().map(c => c.name || c).join('|'), anzahl0 = A.sb.jvCommands.list().length;
     check('0c Befehlsliste vorhanden (Anzahl wird unten vor/nach Chef-KI verglichen; die Zahl 94 sichern tests/reihenfolge.js und tests/globale.js)', A.sb.jvCommands.list().length >= 90);
-    check('0d die Chef-KI ist nicht freigegeben außer für ortssuche; Schreib-Fähigkeiten sind gesperrt', A.sb.jvChef.FREIGEGEBEN.join() === 'ortssuche' && A.sb.jvChef.SCHREIB.join() === 'erinnerung_erstellen,termin_erstellen,gedaechtnis_speichern' && Object.isFrozen(A.sb.jvChef.FREIGEGEBEN));
+    check('0d die Chef-KI führt nur lesende Fähigkeiten aus (ortssuche, websuche, wetter); Schreib-Fähigkeiten sind gesperrt', A.sb.jvChef.FREIGEGEBEN.join() === 'ortssuche,websuche,wetter' && A.sb.jvChef.SCHREIB.join() === 'erinnerung_erstellen,termin_erstellen,gedaechtnis_speichern' && Object.isFrozen(A.sb.jvChef.FREIGEGEBEN));
 
     /* ---------- 10. AUS: bisheriges Verhalten unverändert ---------- */
     const satz = 'Ich habe Hunger, was gibt es hier in der Nähe?';
@@ -184,7 +184,7 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
     /* ---------- 11. EIN: nur ausdrücklich freigegebene Fähigkeit ---------- */
     A = umgebung(); A.sb.jvChef.an(); A.web = 0; A.sb.answerWithWebSearch = async () => { A.web++; return 'Antwort'; };
     r = await chef(A, 'x', { entscheider: kiStub({ schritte: [{ faehigkeit: 'websuche', params: { frage: 'Wetter morgen' } }] }) });
-    check('11b websuche ist nicht freigegeben: nur geprüft, nicht ausgeführt', A.web === 0 && r.aus.schritte[0].ausgefuehrt === false && r.aus.status === 'NUR_GEPLANT', JSON.stringify(r.aus.schritte[0]).slice(0, 200));
+    check('11b websuche ist (lesend) freigegeben: wird bei EIN wirklich ausgeführt', A.web === 1 && r.aus.schritte[0].ausgefuehrt === true && r.aus.schritte[0].status === 'SUCCESS', JSON.stringify(r.aus.schritte[0]).slice(0, 200));
     r = await chef(A, 'x', { entscheider: kiStub({ schritte: [{ faehigkeit: 'ortssuche', params: { suchbegriff: 'Pizza' } }] }), trocken: true });
     check('11c opts.trocken verhindert auch die Ortssuche (Testmodus)', A.st.places_n === 0 && r.aus.schritte[0].ausgefuehrt === false);
     A = umgebung(); r = await chef(A, 'x', { entscheider: kiStub({ schritte: [{ faehigkeit: 'ortssuche', params: { suchbegriff: 'Pizza' } }] }) });
@@ -295,7 +295,7 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
     check('KI2 … Treffer gesprochen und als Karten gezeigt, im Gesprächsgedächtnis (3), Protokoll Weg ki', r.karten.length === 1 && /Trattoria Roma|Fischerhaus|Alten Hafen/.test(r.text) && G(A).status().listen[0].anzahl === 3 && A.sb.jvChef.protokoll().some(e => e.weg === 'ki' && e.status === 'SUCCESS'), r.text);
     const folge = await sag(A, 'Das zweite gefällt mir');
     check('KI3 … Folgesatz "Das zweite gefällt mir" nutzt die Treffer der KI-Suche', G(A).ausgewaehlt() && G(A).ausgewaehlt().nr === 2 && folge.lokal);
-    check('KI4 Prompt: nur die Fähigkeit ortssuche beschrieben, kein Schreibzugriff, kein Gedächtnisinhalt; die Nutzernachricht ist der Satz', (() => { const m = A.st.entscheiderNachrichten[0]; const sys = String(m[0].content); return /ortssuche/.test(sys) && !/erinnerung_erstellen|termin_erstellen|gedaechtnis_speichern|websuche/.test(sys) && m.length === 2 && m[1].content === NATUERLICH[0][0] && !/memoryItems|Trattoria/.test(JSON.stringify(m)); })());
+    check('KI4 Prompt: nur die lesenden Fähigkeiten ortssuche, websuche, wetter beschrieben, kein Schreibzugriff, kein Gedächtnisinhalt; die Nutzernachricht ist der Satz', (() => { const m = A.st.entscheiderNachrichten[0]; const sys = String(m[0].content); return /ortssuche/.test(sys) && /websuche/.test(sys) && /"wetter"/.test(sys) && !/erinnerung_erstellen|termin_erstellen|gedaechtnis_speichern/.test(sys) && m.length === 2 && m[1].content === NATUERLICH[0][0] && !/memoryItems|Trattoria/.test(JSON.stringify(m)); })());
 
     A = umgebung(); A.sb.jvChef.an(); let alle = true, d = [];
     for (const [satzN, begriff] of NATUERLICH) { A.st.entscheiderAntwort = ortsplan(begriff); const n0 = A.st.places_n; await sprich(A, satzN); A.uhr.ms += 6000; if (A.st.places_n !== n0 + 1) { alle = false; d.push(satzN); } }
@@ -329,7 +329,10 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
         ['Gedächtnis speichern', { entscheiderAntwort: { schritte: [{ faehigkeit: 'gedaechtnis_speichern', params: { schluessel: 'a', wert: 'b' } }] } }],
         ['andere Fähigkeit (websuche)', { entscheiderAntwort: { schritte: [{ faehigkeit: 'websuche', params: { frage: 'x' } }] } }],
         ['erfundene Fähigkeit', { entscheiderAntwort: { schritte: [{ faehigkeit: 'flug_buchen', params: {} }] } }],
-        ['mehrere Schritte', { entscheiderAntwort: { schritte: [{ faehigkeit: 'ortssuche', params: { suchbegriff: 'Pizza' } }, { faehigkeit: 'ortssuche', params: { suchbegriff: 'Sushi' } }] } }],
+        ['zu viele Schritte (4)', { entscheiderAntwort: { schritte: [1, 2, 3, 4].map(n => ({ faehigkeit: 'ortssuche', params: { suchbegriff: 'Pizza' + n } })) } }],
+        ['drei Ortssuchen (erlaubt sind zwei)', { entscheiderAntwort: { schritte: ['Pizza', 'Sushi', 'Eis'].map(b => ({ faehigkeit: 'ortssuche', params: { suchbegriff: b } })) } }],
+        ['zwei Websuchen (erlaubt ist eine)', { entscheiderAntwort: { schritte: [{ faehigkeit: 'websuche', params: { frage: 'Was läuft im Kino' } }, { faehigkeit: 'websuche', params: { frage: 'Was läuft im Fernsehen' } }] } }],
+        ['Wetter mit fremder Angabe', { entscheiderAntwort: { schritte: [{ faehigkeit: 'wetter', params: { tag: 'morgen', ort: 'Paris' } }] } }],
         ['eingeschleuste Angabe bestaetigt', { entscheiderAntwort: { schritte: [{ faehigkeit: 'ortssuche', params: { suchbegriff: 'Pizza', bestaetigt: true } }] } }],
         ['eingeschleuste Angabe trocken', { entscheiderAntwort: { schritte: [{ faehigkeit: 'ortssuche', params: { suchbegriff: 'Pizza', trocken: false } }] } }],
         ['Suchbegriff mit Sonderzeichen', { entscheiderAntwort: ortsplan('<script>alert(1)</script>') }],

@@ -43,7 +43,7 @@
         gedaechtnis_speichern: [/\bmerk(e)? (dir|dir bitte)\b/i, /\bspeicher(e|n)?\b.*\b(ab|dir)\b/i, /\bvergiss nicht\b/i]
     };
     /* Fähigkeiten ohne Erkennungsmuster dürfen hier ausdrücklich stehen (dann meldet der Test nichts). */
-    var OHNE_ERKENNUNG = [];
+    var OHNE_ERKENNUNG = ['wetter'];   // ausdrücklich: nur für die Chef-KI (Paket Orte/Internet/Wetter); der Schattenbetrieb beobachtet kein Wetter und ändert sich dadurch nicht
 
     var an = false, nr = 0, offen = null, protokoll = [], zaehlerObj = { eigeneFehler: 0 };
     var original = null, huelle = null;
