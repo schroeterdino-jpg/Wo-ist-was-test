@@ -560,7 +560,7 @@
             if (!m2 || !m2[1] || /^(?:stau|regen|wetter|diesel|tankstelle für diesel)$/.test(m2[1])) return next(text);
             const was = m2[1].replace(/^(?:gibt es|gibt's|ist|sind)\s+/, '').replace(/\b(?:so|mal|vielleicht|bitte|noch|irgendwo)\b/g, '').replace(/\s+/g, ' ').trim();
             if (!was) return next(text);
-            suchAufDemWeg(was.charAt(0).toUpperCase() + was.slice(1)).catch(e => console.error('Lagebild Weg', e));
+            suchAufDemWeg(was.charAt(0).toUpperCase() + was.slice(1)).catch(e => { console.error('Lagebild Weg', e); sagen('Die Suche auf dem Weg hat gerade nicht geklappt.'); });
             return true;
         }, 139);
     }

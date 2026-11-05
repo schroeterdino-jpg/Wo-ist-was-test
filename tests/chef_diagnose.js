@@ -172,7 +172,7 @@ const ortsplan = (b, o) => ({ schritte: [{ faehigkeit: 'ortssuche', params: o ? 
     await mikro(A, NAT); await tippen(A, 'wir wollen heute abend auswärts speisen irgendwas mit meerblick'); A.uhr.ms += 6000; await mikro(A, 'ich habe hunger was gibt es hier in der nähe'); await tippen(A, 'was kannst du');
     const roh = JSON.stringify(A.sb.jvChef.eingaenge()) + JSON.stringify(A.sb.jvChef.protokoll()) + A.dom.chefLetzte.textContent + A.dom.chefListe.children.map(c => c.textContent).join('|') + JSON.stringify(A.store);
     check('8a keine Nutzersätze in Diagnose, Anzeige oder Speicher', !geheim.some(w => roh.includes(w)) && !/Erinner|ich habe/.test(roh.replace(/Gültige Ortssuche[^"]*/g, '')), roh.slice(0, 300));
-    check('8b ein Eintrag hat nur Nummer, Zeit und Statuscodes', A.sb.jvChef.eingaenge().every(e => Object.keys(e).sort().join() === 'codes,nr,text,zeit' && e.codes.every(c => /^[a-z_]+$/.test(c))));
+    check('8b ein Eintrag hat nur Nummer, Zeit, Statuscodes und (KI-Weg) zwei Zahlen: Dauer und Anzahl KI-Anfragen', A.sb.jvChef.eingaenge().every(e => Object.keys(e).filter(k => k !== 'ms' && k !== 'ki').sort().join() === 'codes,nr,text,zeit' && (e.ms === undefined || (typeof e.ms === 'number' && typeof e.ki === 'number')) && e.codes.every(c => /^[a-z_]+$/.test(c))));
     const chefJs = lies('js/chef.js').replace(/\/\*[\s\S]*?\*\//g, '');
     check('8c Quelltext: Einträge entstehen nur aus Statuscodes (neuerEingang/vermerke bekommen keinen Text), kein localStorage-Zugriff dafür', /function neuerEingang\(code\)/.test(chefJs) && /function vermerke\(e, code\)/.test(chefJs) && !/vermerke\([^)]*text[^)]*\)/.test(chefJs));
 
@@ -184,7 +184,7 @@ const ortsplan = (b, o) => ({ schritte: [{ faehigkeit: 'ortssuche', params: o ? 
     A.dom.chefLoeschen.feuer('click');
     check('9c Löschen leert Diagnose und Anzeige', A.sb.jvChef.eingaenge().length === 0 && A.dom.chefListe.children.length === 0 && /Noch keine Eingabe/.test(A.dom.chefLetzte.textContent), A.dom.chefLetzte.textContent);
     A = umgebung(); A.dom.chefSchalter.checked = true; A.dom.chefSchalter.feuer('change');
-    check('9d Schalter in den Einstellungen schaltet EIN, Status sichtbar', A.sb.jvChef.istAn() === true && A.dom.chefStatus.textContent === 'EIN (nur Ortssuche)' && /Noch keine Eingabe/.test(A.dom.chefLetzte.textContent));
+    check('9d Schalter in den Einstellungen schaltet EIN, Status sichtbar', A.sb.jvChef.istAn() === true && A.dom.chefStatus.textContent === 'EIN (Orte, Internet, Wetter)' && /Noch keine Eingabe/.test(A.dom.chefLetzte.textContent));
     A.dom.chefSchalter.checked = false; A.dom.chefSchalter.feuer('change');
     check('9e … und AUS; danach wird nichts mehr beobachtet', A.sb.jvChef.istAn() === false && A.dom.chefStatus.textContent === 'AUS' && (await tippen(A, 'was kannst du'), A.sb.jvChef.eingaenge().length === 0));
     const html = lies('index.html');

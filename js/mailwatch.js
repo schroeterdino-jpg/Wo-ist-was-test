@@ -227,7 +227,7 @@
             if (state) {
                 // Antwort auf die Meldung; der Rest passiert asynchron, hier nur "behandelt" melden
                 const s = state, raw = String(text || '');
-                if (Date.now() <= s.until && (YES.test(raw) || NO.test(raw))) { handleAnswer(raw).catch(() => {}); return true; }
+                if (Date.now() <= s.until && (YES.test(raw) || NO.test(raw))) { handleAnswer(raw).catch(e => { console.error('Mail-Antwort', e); say('Das hat gerade nicht geklappt.'); }); return true; }
                 state = null; queue = [];
             }
             return next(text);

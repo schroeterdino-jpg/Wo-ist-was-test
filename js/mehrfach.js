@@ -161,7 +161,7 @@
             try { anKI(String(text)); } finally { sperre = false; }
             return true;
         }
-        frageAusfuehren(a, erg).catch(e => { console.error('Mehrfachfrage', e && e.message); });
+        frageAusfuehren(a, erg).catch(e => { console.error('Mehrfachfrage', e && e.message); try { window.speak('Das hat gerade nicht geklappt. Bitte frag noch einmal.', typeof window.continueConversation === 'function' ? window.continueConversation : undefined); } catch (x) { } });   // nie stumm: gesprochen wird erst ganz am Ende, ein Fehler davor hieße sonst Stille
         return true;
     }
     window.jvMehrfachfrage = { analyse: frageAnalyse, umgehen: false };
