@@ -425,6 +425,7 @@ async function runPlacesInner(req, originalText, S, M) {
         subtitle: [r.street, plOpenShort(r.status)].filter(Boolean).join(' · ') || 'Weg zeigen', href: plMapsUrl(r)
     }));
     try { if (typeof clearActionCards === 'function') clearActionCards(); if (typeof showActionCards === 'function') showActionCards(cards); } catch (e) {}
+    try { if (window.jvSchreibkern) window.jvSchreibkern.merkeOrte(results.slice(0, 4).map(r => ({ name: r.name || cat.label, adresse: r.street || '', lat: r.lat, lon: r.lon })), cat.label); } catch (e) {}   // B1: für "Speichere die Adresse von der Apotheke"
     await say(msg);
 }
 

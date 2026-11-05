@@ -90,6 +90,11 @@
     async function schreibe(aktion, text, kontext, welche, passt, p) {
         var ctx = ctxNeu(kontext), SYM_N = Symbol.for('jv.nichtsGetan'), SYM_G = Symbol.for('jv.googleTerminId');
         var vorherListe = (liste(welche) || []).slice();
+        /* Doppelschutz (B1): gibt es genau diesen Eintrag (gleicher Text, gleiche Minute) schon, wird nichts angelegt. Bei Wiederholungen entscheidet nur die Uhrzeit, dort kein Vorab-Urteil. */
+        if (p.zeit && !wiederholungMoeglich(p, kontext) && vorherListe.some(function (e) { return passt(e, p, kontext); })) {
+            return { vorher: vorherListe.length, nachher: vorherListe.length, neu: 0, passend: 0, unerwartet: 0, googleBestaetigt: false, schonVorhanden: true, hinweise: [], nichtsGetan: [],
+                     nachricht: 'Das gibt es schon, ich habe nichts doppelt angelegt.' };
+        }
         var nichtsVorher = (ctx[SYM_N] || []).length, googleVorher = ctx[SYM_G];
         await executeAction(aktion, text, ctx);
         var nachherListe = liste(welche) || [];
@@ -102,7 +107,7 @@
         return { vorher: vorherListe.length, nachher: nachherListe.length, neu: neu.length, passend: passend.length, unerwartet: neu.length - passend.length,
                  googleBestaetigt: googleBestaetigt, hinweise: ctx.notes.slice(), nichtsGetan: nichts, nachricht: nichts[0] || ctx.notes.join(' ') };
     }
-    function listeBelegt(d) { return !!d && (d.passend >= 1 || d.googleBestaetigt === true) && (!d.nichtsGetan || d.nichtsGetan.length === 0); }
+    function listeBelegt(d) { return !!d && (d.schonVorhanden === true || d.passend >= 1 || d.googleBestaetigt === true) && (!d.nichtsGetan || d.nichtsGetan.length === 0); }
 
     var STAND = 'Wie bisher legt Jarvis das ohne Rückfrage an; die Registry ändert daran in dieser Phase nichts.';
 
@@ -307,7 +312,12 @@
         pruefeErfolg: function (d) { return !!d && typeof d.gespeichert === 'string' && d.gespeichert.length > 0 && d.gespeichert === d.erwartet && (!d.nichtsGetan || d.nichtsGetan.length === 0); },
         verbindung: { datei: 'js/actions.js', funktion: 'executeAction', aktion: 'memory_store' },
         verfuegbar: function () { return actionsDa() && typeof searchMemory === 'function'; },
-        vorpruefung: function (p) { return sicherheit(gedaechtnisAktion(p)); },
+        vorpruefung: function (p, kontext) {
+            var s = sicherheit(gedaechtnisAktion(p));
+            if (s) return s;
+            /* B1: eine feste Schichtregel, die dem wöchentlich wechselnden Schichtplan widerspricht, wird erst nach Rückfrage gemerkt */
+            return (window.jvSchreibkern && typeof window.jvSchreibkern.schichtPruefung === 'function') ? window.jvSchreibkern.schichtPruefung(p, kontext) : null;
+        },
         ausfuehren: async function (p, kontext) {
             var a = gedaechtnisAktion(p), ctx = ctxNeu(kontext), key = a.memory_key.toLowerCase().trim();
             var nichtsVorher = (ctx[Symbol.for('jv.nichtsGetan')] || []).length;
