@@ -33,7 +33,8 @@ function umgebung(opt) {
             st.groq++; st.normaleSaetze.push(String((m[m.length - 1] || {}).content || ''));
             return ant({ choices: [{ message: { content: JSON.stringify({ reply: 'Okay.', actions: [] }) } }] });
         }
-        if (/open-meteo/.test(u)) { st.wetterN++; if (st.wetter === 'fehler') throw new Error('offline'); return ant(/daily=/.test(u) ? WETTER_TAGE : WETTER_JETZT); }
+        if (/api\/geocode/.test(u)) { st.geoN = (st.geoN || 0) + 1; const q = decodeURIComponent((u.match(/q=([^&]*)/) || [])[1] || ''); st.geoQ = (st.geoQ || []).concat(q); if (st.geo === 'leer') return ant([]); return ant([{ lat: '53.55', lon: '10.0', display_name: q + ', Deutschland', class: st.geoKlasse || 'boundary', type: 'administrative' }]); }
+        if (/open-meteo/.test(u)) { (st.wetterUrls = st.wetterUrls || []).push(u); st.wetterN++; if (st.wetter === 'fehler') throw new Error('offline'); return ant(/daily=/.test(u) && /current=/.test(u) ? Object.assign({}, WETTER_JETZT, WETTER_TAGE) : /daily=/.test(u) ? WETTER_TAGE : WETTER_JETZT); }
         if (/action=places/.test(u)) { st.placesN++; if (st.places === 'fehler') return { ok: false, status: 500, json: async () => ({}) }; return ant({ places: st.places === 'leer' ? [] : PL }); }
         if (/api\/memory/.test(u)) return ant({});
         throw new Error('offline (Attrappe) ' + u);
@@ -162,7 +163,8 @@ const SWK = 'Wie wird das Wetter morgen und schau mal nach was heute im Kino lä
         ['zwei Wetter', plan(W('heute'), W('morgen'))],
         ['Schreibaktion Erinnerung', plan({ faehigkeit: 'erinnerung_erstellen', params: { text: 'Essen' } })],
         ['Schreibaktion neben Wetter', plan(W('heute'), { faehigkeit: 'gedaechtnis_speichern', params: { schluessel: 'a', wert: 'b' } })],
-        ['Wetter mit Ort', plan({ faehigkeit: 'wetter', params: { tag: 'heute', ort: 'Paris' } })],
+        ['Wetter mit Ort als Zahl', plan({ faehigkeit: 'wetter', params: { tag: 'heute', ort: 42 } })],
+        ['Wetter mit unbekanntem Zusatz', plan({ faehigkeit: 'wetter', params: { tag: 'heute', ort: 'Paris', zusatz: 1 } })],
         ['Wetter mit falschem Tag', plan(W('gestern'))],
         ['Frage zusammen mit Schritten', { schritte: [W('heute')], frage: 'Welcher Tag?' }],
         ['Websuche ohne Frage', plan({ faehigkeit: 'websuche', params: {} })],
@@ -216,6 +218,51 @@ const SWK = 'Wie wird das Wetter morgen und schau mal nach was heute im Kino lä
     const roh = JSON.stringify(eing(A)) + JSON.stringify(A.sb.jvChef.protokoll()) + JSON.stringify(A.sb.jvChef.thema());
     check('17 keine Sätze in Diagnose und Protokoll; Messwerte nur Zahlen', !/Wetter, wo|Kino|Essen und/.test(roh) && eing(A).every(e => e.ms === undefined || (typeof e.ms === 'number' && typeof e.ki === 'number')) && eing(A)[0].codes.length <= 8, roh.slice(0, 300));
     check('17b nichts geschrieben: Erinnerungen, Termine, Gedächtnis unverändert', JSON.stringify([A.lese('reminderEntries'), A.lese('calendarEntries')]) === JSON.stringify([umgebung().lese('reminderEntries'), umgebung().lese('calendarEntries')]));
+
+    /* ---------- Gesprächsort ("dort"), Wetter mit Ort, kürzere Antworten, Unterbrechung (Verbesserungspaket) ---------- */
+    const SDORT = 'Und wie wird dort das Wetter?';
+    const eigenerOrt = A => (A.st.wetterUrls || []).some(u => /latitude=53\.5(&|$)/.test(u));
+    { const A = umgebung(); A.st.plan = plan(W('heute'));
+      const g0 = await tippen(A, 'Was kannst du mir zu Hamburg erzählen?');   // nennt genau einen Ort
+      check('20a Ort im Satz wird gemerkt (nur Arbeitsspeicher)', A.sb.jvChef.ort() === 'Hamburg', String(A.sb.jvChef.ort()));
+      A.st.wetterUrls = []; A.st.wetterN = 0; const g = await tippen(A, SDORT);
+      check('20b "dort" -> Wetter für Hamburg (Geocode geprüft), nicht der eigene Standort', g.length === 1 && /Hamburg/.test(g[0]) && (A.st.wetterUrls || []).length >= 1 && !eigenerOrt(A) && A.st.geoQ.indexOf('Hamburg') >= 0 && /ort_bezug/.test(codes(A)), JSON.stringify({ g, urls: A.st.wetterUrls, c: codes(A) })); }
+    { const A = umgebung(); A.st.plan = plan(W('heute'));
+      await tippen(A, 'Was kannst du mir zu Hamburg erzählen?'); await A.vorspulen(11 * 60000);
+      check('20c nach 10 Minuten ist der Ort vergessen', A.sb.jvChef.ort() === null);
+      A.st.wetterN = 0; A.st.wetterUrls = []; const e0 = A.st.ent; const g = await tippen(A, SDORT);
+      check('20d abgelaufen -> Rückfrage "Welchen Ort meinst du?", kein Wetter, keine KI-Anfrage, nie still der eigene Standort', g.length === 1 && /Welchen Ort meinst du/.test(g[0]) && A.st.wetterN === 0 && A.st.ent === e0 && /ort_unklar/.test(codes(A)), JSON.stringify({ g, c: codes(A), w: A.st.wetterN }));
+      const g2 = await tippen(A, 'Paris');
+      check('20e Antwort "Paris" ersetzt "dort": Wetter für Paris, genau eine Antwort', g2.length === 1 && /Paris/.test(g2[0]) && A.st.geoQ.indexOf('Paris') >= 0 && !eigenerOrt(A), JSON.stringify({ g2, q: A.st.geoQ })); }
+    { const A = umgebung(); A.st.plan = plan(W('heute'));
+      await tippen(A, 'Wie weit ist es von Hamburg nach Berlin'); A.st.wetterN = 0;
+      check('20f zwei Orte im Satz -> keiner wird angenommen', A.sb.jvChef.ort() === null, String(A.sb.jvChef.ort()));
+      const g = await tippen(A, SDORT);
+      check('20g bei mehreren Orten fragt die App nach, Wetter wird nicht geholt', /Welchen Ort meinst du/.test(g.join('|')) && A.st.wetterN === 0, JSON.stringify(g)); }
+    { const A = umgebung(); A.st.plan = plan(W('heute')); A.sb.jvChef._setzeOrtPruefer(async () => false);
+      await tippen(A, 'Was kannst du mir zu Hamburg erzählen?'); A.st.wetterN = 0; const g = await tippen(A, SDORT);
+      check('20h Name ist kein Ort (Prüfung negativ) -> Rückfrage statt Wetter', /Welchen Ort meinst du/.test(g.join('|')) && A.st.wetterN === 0, JSON.stringify(g)); }
+    { const A = umgebung(); A.st.plan = plan(W('heute')); A.sb.jvChef.aus();
+      const ok1 = A.sb.jvChef.ortMerken('Hamburg', true);
+      check('20i Chef-KI AUS: nichts wird gemerkt, nichts geändert', ok1 === false && A.sb.jvChef.ort() === null && A.st.ent === 0 && A.st.geoN === undefined, String(ok1)); }
+    { const A = umgebung(); A.st.plan = plan(W('morgen'));
+      A.sb.jvChef.ortMerken('Hamburg', true); A.st.wetterUrls = [];
+      const g = await tippen(A, 'Wie wird das Wetter morgen dort');
+      check('21a Wetter mit Ort, morgen: Hamburg, mit Vorhersage-Daten', g.length === 1 && /Hamburg/.test(g[0]) && /morgen/i.test(g[0]) && !eigenerOrt(A), JSON.stringify({ g, u: A.st.wetterUrls }));
+      const g2 = await tippen(A, 'und übermorgen?');
+      check('21b Anschlussfrage nach Wetter für einen Ort bleibt beim Ort', g2.length <= 1 && !eigenerOrt(A), JSON.stringify({ g2, u: A.st.wetterUrls })); }
+    { const A = umgebung(); A.st.plan = plan({ faehigkeit: 'wetter', params: { tag: 'heute', ort: 'Atlantis' } }); A.st.geo = 'leer';
+      const g = await tippen(A, 'Wie wird das Wetter in Atlantis');
+      check('21c unbekannter Ort: ehrliche Meldung, keine erfundenen Werte, kein eigener Standort', g.length >= 1 && /Atlantis/.test(g.join('|')) && /nicht gefunden/.test(g.join('|')) && A.st.wetterN === 0, JSON.stringify(g)); }
+    { const A = umgebung(); A.st.plan = plan(W('heute'));
+      const g = await tippen(A, SW);   // Wetter am Standort: unverändert
+      check('21d Wetter ohne Ort bleibt Wetter am eigenen Standort', g.length === 1 && A.st.geoN === undefined && eigenerOrt(A), JSON.stringify({ g, u: A.st.wetterUrls })); }
+    { const pr = lies('js/prompt.js');
+      check('22a Prompt: Wissensantworten standardmäßig 2-3 Sätze, mehr auf Wunsch, Listen/Warnungen nie kürzen', /ERKLÄRUNGEN UND WISSENSANTWORTEN/.test(pr) && /2 bis 3 verständliche Sätze/.test(pr) && /erzähl mehr/i.test(pr) && /Listen/.test(pr) && /Warn/i.test(pr)); }
+    { const fi = lies('js/fish.js');
+      check('22b Sprachausgabe: nach Unterbrechung keine alten Stücke mehr (Abbruchprüfung vor und nach dem Abruf, Warteschlange stoppt)', /unterbrochen\(\)/.test(fi) && /stopped/.test(fi) && (fi.match(/unterbrochen\(\)/g) || []).length >= 2); }
+    { const vo = lies('js/voice.js'); const nb = lies('js/nearbymore.js');
+      check('22c Android-Brücke und voice.js unverändert, Ortsmessung nur Zahlen (keine Namen/Koordinaten im Protokoll)', (vo.match(/jvChef\.kiWeg/g) || []).length === 1 && !/weckruf/.test(nb) && !/jvOrtZeiten[^\n]*(lat|lon|name)/.test(nb)); }
 
     /* ---------- Werkstatt-Rückfall (PR #342) und Handler-Audit: statisch ---------- */
     const nm = lies('js/nearbymore.js');

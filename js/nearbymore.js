@@ -263,46 +263,142 @@ function plUebergabe(text) {
     } catch (e) { return false; }
 }
 
+/* ---------- Tempo: Google Places zuerst, Zeitmessung, Zwischenansage ---------- */
+/* Nur Geschäfte und Einrichtungen, die Google Places zuverlässig kennt. Toiletten, Parkplätze, Parkhäuser, Geldautomaten, Briefkästen, Packstationen, Ladesäulen,
+   Bahnhöfe und Spielplätze bleiben bei den Kartendaten (OpenStreetMap kennt dort mehr, z. B. "kostenpflichtig"). "Bank" fehlt absichtlich (Sitzbank-Verwechslung). */
+const PL_GOOGLE_ZUERST = ['apotheke', 'supermarkt', 'baecker', 'drogerie', 'baumarkt', 'zahnarzt', 'arzt', 'krankenhaus', 'tierarzt', 'post', 'cafe', 'eisdiele', 'kino', 'fahrradladen', 'friseur', 'optiker', 'schwimmbad', 'werkstatt', 'waschanlage'];
+const PL_GOOGLE_MS = 6000;   // so lange wird auf Google gewartet, danach gilt der bisherige Weg über die Kartendaten
+const PL_ACK_MS = 4000;      // so lange wird still gesucht, danach kommt EINE kurze Zwischenansage
+const PL_ACK_WARTEN_MS = 2500;   // so lange wartet die Antwort höchstens auf eine gerade laufende Zwischenansage (kein Übereinanderreden)
+
+/* Google Places über den vorhandenen Server (/api/maps?action=places: 10 Minuten zwischengespeichert, Monatslimit im Server). EIN Aufruf mit dem größeren Umkreis
+   ersetzt die zwei Runden nacheinander: Treffer sind nach Entfernung sortiert, der nächste steht also vorn. null = nicht verfügbar (Fehler, Limit, Zeit), [] = nichts gefunden. */
+async function plGoogle(cat, lat, lon) {
+    if (typeof apiFetch !== 'function') return null;
+    try {
+        const url = '/api/maps?action=places&q=' + encodeURIComponent(cat.label) + '&lat=' + encodeURIComponent(lat.toFixed(6)) + '&lon=' + encodeURIComponent(lon.toFixed(6)) + '&radius=' + encodeURIComponent(cat.radius[1]) + '&kanal=orte';   // kanal: nur zur Unterscheidung (Server ignoriert es, Tests nutzen es)
+        const r = await plTimeout(apiFetch(url), PL_GOOGLE_MS);
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d || !Array.isArray(d.places)) return null;
+        return d.places.map(p => {
+            const la = Number(p.lat), lo = Number(p.lon);
+            const status = p.openNow === true ? { open: true, until: p.until || null, opensAt: null } : p.openNow === false ? { open: false, until: null, opensAt: p.opensAt || null } : { open: null, until: null, opensAt: null };
+            return { name: String(p.name || ''), street: [p.street, p.housenumber].filter(Boolean).join(' '), lat: la, lon: lo, dist: plDistanceM(lat, lon, la, lo), status, fee: false };
+        }).filter(x => x.name && isFinite(x.lat) && isFinite(x.lon)).sort((a, b) => a.dist - b.dist);
+    } catch (e) { return null; }
+}
+
+/* Zeitmessung (nur Zahlen und die Art der Suche, nie ein Satz, nur im Arbeitsspeicher; sichtbar in Einstellungen > Chef-KI) */
+const plZeiten = [];
+let plNr = 0;
+function plSek(ms) { return typeof ms === 'number' ? (ms / 1000).toFixed(1).replace('.', ',') + ' s' : '–'; }
+function plZeitenZeichnen() {
+    try {
+        const el = document.getElementById('ortZeitListe');
+        if (!el) return;
+        el.textContent = '';
+        plZeiten.slice().reverse().forEach(z => {
+            const d = document.createElement('div');
+            const t = new Date(z.zeit), hh = ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2) + ':' + ('0' + t.getSeconds()).slice(-2);
+            d.textContent = 'Orte #' + z.nr + ' · ' + hh + ' · ' + z.kat + ' · Standort ' + plSek(z.pos) + (z.google !== null ? ' · Google ' + plSek(z.google) : '') + (z.osm !== null ? ' · Karten ' + plSek(z.osm) + ' (' + z.runden + ' Runde' + (z.runden === 1 ? '' : 'n') + ')' : '') + ' · Antwort nach ' + plSek(z.gesamt) + ' · ' + z.quelle + ' · ' + z.ergebnis + (z.ack ? ' · Zwischenansage' : '');
+            el.appendChild(d);
+        });
+    } catch (e) { }
+}
+function plZeitenSpeichern(m) { plZeiten.push(m); if (plZeiten.length > 10) plZeiten.shift(); plZeitenZeichnen(); }
+window.jvOrtZeiten = { liste: () => plZeiten.map(z => Object.assign({}, z)), zeichne: plZeitenZeichnen, vergiss: () => { plZeiten.length = 0; plZeitenZeichnen(); } };
+
+/* Zwischenansage bei langer Suche: EINMAL, kurz, ohne danach das Zuhören zu starten (das Ende zählt nur für die Antwort). Die Antwort wartet höchstens PL_ACK_WARTEN_MS darauf. */
+function plAckStart(S) {
+    try {
+        if (S.fertig || S.ackP || typeof speakAck !== 'function') return;
+        S.ackAt = Date.now();
+        S.ackP = new Promise(res => { try { speakAck('Einen Moment, ich suche noch.', res); } catch (e) { res(); } });
+    } catch (e) { }
+}
+async function plAckAbwarten(S) {
+    try {
+        if (!S.ackP) return;
+        const rest = PL_ACK_WARTEN_MS - (Date.now() - S.ackAt);
+        if (rest > 0) await Promise.race([S.ackP, new Promise(r => setTimeout(r, rest))]);
+    } catch (e) { }
+}
+
 /* ---------- Ablauf ---------- */
 async function runPlaces(req, originalText) {
+    const S = { fertig: false, ackP: null, ackAt: 0 };
+    const M = { nr: ++plNr, zeit: Date.now(), kat: req.cat.label, pos: null, quelle: 'keine', google: null, osm: null, runden: 0, ack: false, gesamt: null, ergebnis: 'fehler' };
+    const timer = setTimeout(() => { if (!S.fertig) { M.ack = true; plAckStart(S); } }, PL_ACK_MS);
+    try { await runPlacesInner(req, originalText, S, M); }
+    finally { S.fertig = true; clearTimeout(timer); if (M.gesamt === null) M.gesamt = Date.now() - M.zeit; plZeitenSpeichern(M); }
+}
+
+async function runPlacesInner(req, originalText, S, M) {
     let uebergeben = false;   // je Anfrage höchstens eine Übergabe
-    const say = (msg) => speak(msg, typeof continueConversation === 'function' ? continueConversation : undefined);
+    /* Jede Antwort geht hier durch: wartet kurz auf eine laufende Zwischenansage und beendet die Suche (keine weitere Zwischenansage). */
+    const say = async (msg) => {
+        S.fertig = true;
+        await plAckAbwarten(S);
+        if (M.gesamt === null) M.gesamt = Date.now() - M.zeit;
+        speak(msg, typeof continueConversation === 'function' ? continueConversation : undefined);
+    };
     const cat = req.cat;
     try { if (typeof typeWriterStatus === 'function') typeWriterStatus(`Suche ${cat.label}...`); } catch (e) {}
     let lat, lon, where = '';
     const nearMe = !req.place;
+    const tPos = Date.now();
     if (nearMe) {
-        try { const p = await plPosition(); lat = p.lat; lon = p.lon; }
-        catch (e) { say('Ihren Standort kann ich gerade nicht ermitteln.'); return; }
+        try { const p = await plPosition(); lat = p.lat; lon = p.lon; M.pos = Date.now() - tPos; }
+        catch (e) {
+            M.pos = Date.now() - tPos; M.ergebnis = 'standort';
+            await say(e && e.code === 1 ? 'Der Standort ist für die App nicht erlaubt. Bitte erlauben Sie ihn in den Einstellungen.' : 'Ihren Standort kann ich gerade nicht ermitteln.');
+            return;
+        }
     } else {
         const geo = (typeof wxGeocode === 'function') ? await wxGeocode(req.place) : null;
-        if (!geo) { say(`Den Ort ${req.place} habe ich nicht gefunden.`); return; }
+        M.pos = Date.now() - tPos;
+        if (!geo) { M.ergebnis = 'ort_unbekannt'; await say(`Den Ort ${req.place} habe ich nicht gefunden.`); return; }
         lat = geo.lat; lon = geo.lon; where = ` in ${geo.short}`;
-    }
-
-    let elements = [];
-    let radiusUsed = cat.radius[0];
-    try {
-        elements = await plFetchElements(plBuildQuery(cat, lat, lon, cat.radius[0]));
-        if (!elements.length) { radiusUsed = cat.radius[1]; elements = await plFetchElements(plBuildQuery(cat, lat, lon, cat.radius[1])); }
-    } catch (e) {
-        if (!uebergeben && (uebergeben = true) && plUebergabe(originalText)) return;
-        say('Die Kartendaten sind gerade nicht erreichbar. Versuchen Sie es bitte gleich noch einmal.');
-        return;
+        try { if (window.jvChef && typeof window.jvChef.ortMerken === 'function') window.jvChef.ortMerken(geo.short); } catch (e) {}   // Gesprächsort für "dort" (nur bei eingeschalteter Chef-KI)
     }
 
     const now = new Date();
-    let results = plBuildResults(cat, elements, lat, lon, now, nearMe);
+    let results = null, radiusUsed = cat.radius[0];
+    const googleErst = PL_GOOGLE_ZUERST.includes(cat.key);
+    if (googleErst) {
+        const tg = Date.now();
+        const g = await plGoogle(cat, lat, lon);
+        M.google = Date.now() - tg;
+        if (g && g.length) { results = g; radiusUsed = cat.radius[1]; M.quelle = 'google'; }
+    }
+    if (!results) {   // bisheriger Weg über die Kartendaten (auch Rückfall, wenn Google nichts liefert)
+        const to = Date.now();
+        let elements = [];
+        try {
+            M.runden = 1;
+            elements = await plFetchElements(plBuildQuery(cat, lat, lon, cat.radius[0]));
+            if (!elements.length) { radiusUsed = cat.radius[1]; M.runden = 2; elements = await plFetchElements(plBuildQuery(cat, lat, lon, cat.radius[1])); }
+        } catch (e) {
+            M.osm = Date.now() - to; M.ergebnis = 'fehler';
+            if (!uebergeben && (uebergeben = true) && (S.fertig = true) && plUebergabe(originalText)) { M.ergebnis = 'uebergeben'; return; }
+            await say('Die Kartendaten sind gerade nicht erreichbar. Versuchen Sie es bitte gleich noch einmal.');
+            return;
+        }
+        M.osm = Date.now() - to; M.quelle = googleErst ? 'karten_nach_google' : 'karten';
+        results = plBuildResults(cat, elements, lat, lon, now, nearMe);
+    }
     results.forEach(r => { r.status.art = cat.art; });
     if (req.onlyOpen && nearMe) {
         const open = results.filter(r => r.status.open !== false);
         if (open.length) results = open;
     }
     if (!results.length) {
-        if (!uebergeben && (uebergeben = true) && plUebergabe(originalText)) return;
-        say(`Im Umkreis von ${Math.round(radiusUsed / 1000)} Kilometern${where} habe ich in den Kartendaten keinen Treffer für ${cat.label} gefunden. Die Daten sind nicht überall vollständig.`);
+        M.ergebnis = 'leer';
+        if (!uebergeben && (uebergeben = true) && (S.fertig = true) && plUebergabe(originalText)) { M.ergebnis = 'uebergeben'; return; }
+        await say(`Im Umkreis von ${Math.round(radiusUsed / 1000)} Kilometern${where} habe ich in den Kartendaten keinen Treffer für ${cat.label} gefunden. Die Daten sind nicht überall vollständig.`);
         return;
     }
+    M.ergebnis = 'treffer';
 
     const first = results[0];
     const adj = cat.art === 'der' ? 'Der nächste' : cat.art === 'das' ? 'Das nächste' : 'Die nächste';
@@ -329,7 +425,7 @@ async function runPlaces(req, originalText) {
         subtitle: [r.street, plOpenShort(r.status)].filter(Boolean).join(' · ') || 'Weg zeigen', href: plMapsUrl(r)
     }));
     try { if (typeof clearActionCards === 'function') clearActionCards(); if (typeof showActionCards === 'function') showActionCards(cards); } catch (e) {}
-    say(msg);
+    await say(msg);
 }
 
 function handlePlacesCommand(text) {

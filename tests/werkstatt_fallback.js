@@ -20,7 +20,7 @@ const PL = [{ name: 'Werkstatt Google Treffer', street: 'Hauptstr.', housenumber
 
 function umgebung(opt) {
     opt = opt || {};
-    const st = { overpass: 'ok', places: 'ok', ort: 'ok', calls: { overpass: 0, places: 0, public: 0, groq: 0, ent: 0 } };
+    const st = { overpass: 'ok', places: 'ok', nbGoogle: 'aus', ort: 'ok', calls: { overpass: 0, places: 0, public: 0, groq: 0, ent: 0, nb: 0 } };
     const A = starte({ jetzt: '2026-11-05T10:00:00+01:00', festerZufall: true, spracherkennung: !opt.native, native: opt.native, fetch: async (u, o) => {
         u = String(u);
         if (/api\/overpass/.test(u)) {
@@ -29,6 +29,13 @@ function umgebung(opt) {
             return ant({ elements: st.overpass === 'leer' ? [] : EL });
         }
         if (/overpass/.test(u)) { st.calls.public++; if (st.overpass === 'fehler') throw new Error('offline'); return ant({ elements: st.overpass === 'leer' ? [] : EL }); }
+        if (/action=places/.test(u) && /kanal=orte/.test(u)) {   // Google-Anfrage der alten Orte-Suche (nearbymore.js): Standard AUS, damit die Rückfall-Tests unten den Weg über die Kartendaten prüfen
+            st.calls.nb++;
+            if (st.nbGoogle === 'ok') return ant({ places: [{ name: 'Nah Google', street: 'Marktstr.', housenumber: '2', city: 'Schwarzenbek', lat: 53.502, lon: 10.1, openNow: true, until: '18:00' }, { name: 'Weit Google', street: 'Ringstr.', housenumber: '9', lat: 53.55, lon: 10.2, openNow: false, opensAt: '08:00' }] });
+            if (st.nbGoogle === 'leer') return ant({ places: [] });
+            if (st.nbGoogle === 'haengt') { await new Promise(r => { st.frei = r; }); return ant({ places: [{ name: 'Spaet Google', street: 'Lange Str.', housenumber: '1', lat: 53.503, lon: 10.1, openNow: true }] }); }
+            return { ok: false, status: 500, json: async () => ({}) };
+        }
         if (/action=places/.test(u)) { st.calls.places++; if (st.places === 'fehler') return { ok: false, status: 500, json: async () => ({}) }; return ant({ places: st.places === 'leer' ? [] : PL }); }
         if (/api\/groq/.test(u)) { let m = []; try { m = JSON.parse(o.body).messages || []; } catch (e) { } if (m[0] && /Du planst für einen Sprachassistenten/.test(String(m[0].content))) st.calls.ent++; else st.calls.groq++; return ant({ choices: [{ message: { content: JSON.stringify({ reply: 'Okay.', actions: [] }) } }] }); }
         if (/api\/memory/.test(u)) return ant({});
@@ -115,9 +122,38 @@ const ALTFEHLER = /Kartendaten sind gerade nicht erreichbar/, ALTLEER = /keinen 
     { const A = umgebung(); A.sb.jvChef.an(); const befehle = A.sb.jvCommands.list().length; const B = umgebung();
       check('10d Befehlsliste unverändert', befehle === B.sb.jvCommands.list().length && befehle >= 92); }
 
+    /* 12: Tempo (Google Places zuerst, Rückfall auf die Kartendaten, Zeitmessung, Zwischenansage, Standortfehler) */
+    const APO = 'Wo ist die nächste Apotheke?';
+    { const A = umgebung(); A.st.nbGoogle = 'ok'; const g = await tippen(A, APO);
+      check('12a Apotheke: Google zuerst -> eine Antwort mit dem nächsten Treffer, keine Kartendaten-Anfrage, keine Ortssuche-Anfrage', g.length === 1 && /Die nächste Apotheke: Nah Google/.test(g[0]) && /geöffnet bis/.test(g[0]) && A.st.calls.nb === 1 && A.st.calls.overpass === 0 && A.st.calls.public === 0 && A.st.calls.places === 0, JSON.stringify({ g, c: A.st.calls }));
+      check('12a2 genau EINE Google-Anfrage (ein Umkreis statt zwei Runden), Karten zeigen beide Treffer', A.karten.length >= 1 && A.karten[A.karten.length - 1].length === 2, JSON.stringify(A.karten.map(k => k.length))); }
+    { const A = umgebung(); A.st.nbGoogle = 'leer'; const g = await tippen(A, APO);
+      check('12b Google ohne Treffer -> bisheriger Weg über die Kartendaten antwortet, genau eine Antwort', g.length === 1 && /Kfz Meier/.test(g[0]) && A.st.calls.nb === 1 && A.st.calls.overpass >= 1, JSON.stringify({ g, c: A.st.calls })); }
+    { const A = umgebung(); A.st.nbGoogle = 'aus'; const g = await tippen(A, APO);
+      check('12c Google fällt aus (Fehler/Limit) -> Kartendaten wie bisher', g.length === 1 && /Kfz Meier/.test(g[0]) && A.st.calls.overpass >= 1, JSON.stringify({ g, c: A.st.calls })); }
+    { const A = umgebung(); A.st.nbGoogle = 'ok'; const g = await tippen(A, 'Wo ist die nächste Toilette?');
+      check('12d Toilette bleibt bei den Kartendaten (keine Google-Anfrage)', g.length === 1 && A.st.calls.nb === 0 && A.st.calls.overpass >= 1, JSON.stringify({ g, c: A.st.calls })); }
+    { const A = umgebung(); A.st.nbGoogle = 'ok'; await tippen(A, APO);
+      const z = A.sb.jvOrtZeiten.liste();
+      check('12e Zeitmessung: ein Eintrag, nur Zahlen/Art, Quelle google, Ergebnis Treffer', z.length === 1 && z[0].quelle === 'google' && z[0].ergebnis === 'treffer' && typeof z[0].pos === 'number' && typeof z[0].google === 'number' && z[0].osm === null && typeof z[0].gesamt === 'number' && z[0].kat === 'Apotheke' && Object.keys(z[0]).sort().join() === ['ack', 'gesamt', 'google', 'kat', 'nr', 'osm', 'pos', 'quelle', 'runden', 'ergebnis', 'zeit'].sort().join(), JSON.stringify(z)); }
+    { const A = umgebung({ keinStandort: true }); A.st.nbGoogle = 'ok'; const g = await tippen(A, APO);
+      check('12f Standort nicht erlaubt: klare Meldung, keine Anfrage', g.length === 1 && /nicht erlaubt/.test(g[0]) && A.st.calls.nb === 0 && A.st.calls.overpass === 0 && A.sb.jvOrtZeiten.liste()[0].ergebnis === 'standort', JSON.stringify({ g, c: A.st.calls })); }
+    { const A = umgebung(); A.st.nbGoogle = 'ok'; const acks = []; A.sb.speakAck = (t, cb) => { acks.push(t); if (cb) cb(); };
+      await tippen(A, APO); await A.vorspulen(6000);
+      check('12g schnelle Suche: keine Zwischenansage', acks.length === 0, JSON.stringify(acks)); }
+    { const A = umgebung(); A.st.nbGoogle = 'haengt'; const acks = []; A.sb.speakAck = (t, cb) => { acks.push(t); if (cb) cb(); };
+      A.sb.jvTippen(APO); await warte(40); await A.vorspulen(2000);
+      check('12h lange Suche: nach 2 s weder Antwort noch Zwischenansage', A.gesagt.length === 0 && acks.length === 0, JSON.stringify({ g: A.gesagt, acks }));
+      await A.vorspulen(2500);
+      check('12h2 nach 4,5 s: genau EINE kurze Zwischenansage, noch keine Ergebnisantwort', acks.length === 1 && /ich suche noch/.test(acks[0]) && A.gesagt.filter(x => /Spaet Google/.test(String(x))).length === 0, JSON.stringify({ acks, g: A.gesagt }));
+      const g0 = A.gesagt.length; A.st.frei && A.st.frei(); await warte(60); await A.vorspulen(100); await warte(60);
+      const g2 = A.gesagt.slice(g0);
+      check('12h3 danach genau EINE Ergebnisantwort (keine doppelte), Zwischenansage nicht wiederholt', g2.length === 1 && /Spaet Google/.test(g2[0]) && acks.length === 1, JSON.stringify({ g2, acks }));
+      check('12h4 Messung vermerkt die Zwischenansage', A.sb.jvOrtZeiten.liste().length === 1 && A.sb.jvOrtZeiten.liste()[0].ack === true, JSON.stringify(A.sb.jvOrtZeiten.liste())); }
+
     /* Statisch: nur die freigegebenen Stellen */
     const nm = lies('js/nearbymore.js');
-    check('11a nearbymore.js: genau zwei Übergabestellen (Fehler, kein Treffer), nicht beim Standortfehler', (nm.match(/plUebergabe\(originalText\)/g) || []).length === 2 && /catch \(e\) \{ say\('Ihren Standort kann ich gerade nicht ermitteln\.'\); return; \}/.test(nm));
+    check('11a nearbymore.js: genau zwei Übergabestellen (Fehler, kein Treffer), nicht beim Standortfehler', (nm.match(/plUebergabe\(originalText\)/g) || []).length === 2 && /M\.ergebnis = 'standort';\s*await say\(e && e\.code === 1/.test(nm) && !/M\.ergebnis = 'standort';[^}]*plUebergabe/.test(nm));
     check('11b Übergabe nur mit Chef-KI AN, nur über window.handleOrtsucheCommand, höchstens einmal je Anfrage', /istAn\(\)\)\) return false/.test(nm.replace(/\s+/g, ' ').replace('!window.jvChef.istAn()) return false', 'istAn())) return false')) && /window\.handleOrtsucheCommand\(text\)/.test(nm) && (nm.match(/!uebergeben && \(uebergeben = true\)/g) || []).length === 2);
     check('11c voice.js unverändert (kein Umbau)', (lies('js/voice.js').match(/befehlVorrang/g) || []).length === 1);
 
