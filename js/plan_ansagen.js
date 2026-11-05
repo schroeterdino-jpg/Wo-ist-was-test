@@ -299,7 +299,7 @@
             return 'Übrigens: ' + r.name + ort + ' hat Diesel für ' + preis + ' Euro, ' + r.ct + ' Cent günstiger als im Schnitt hier, ' + um + '.';
         } catch (e) { return keins('Das hat gerade nicht geklappt.'); }
     }
-    /* Text für die Heimfahrt; leer nur, wenn du schon zu Hause bist (und es kein Test ist) */
+    /* Text für die Heimfahrt. immer=true (ausdrücklich gefragt): antwortet immer, ohne Standort ehrlich. immer=false (automatisch): leer, wenn schon zu Hause oder kein verlässlicher Standort */
     /* offene Aufgaben, in denen "heute" steht (nur die werden beim Feierabend genannt) */
     function heuteAufgaben() {
         const l = (typeof todoEntries !== 'undefined' && Array.isArray(todoEntries)) ? todoEntries : [];
@@ -325,8 +325,8 @@
     }
     async function heimText(immer) {
         const f = await heimFrisch();
-        if (!f.ziel) return 'Ich habe keine Heimatadresse gespeichert. Sag zum Beispiel: Merk dir meine Heimatadresse, Verbrüderungsring 13.';
-        if (!f.min) return 'Feierabend! Den Heimweg konnte ich gerade nicht berechnen. Ist der Standortzugriff erlaubt?';
+        if (!f.ziel) return immer ? 'Ich habe keine Heimatadresse gespeichert. Sag zum Beispiel: Merk dir meine Heimatadresse, Verbrüderungsring 13.' : '';
+        if (!f.min) return immer ? 'Den Heimweg kann ich gerade nicht berechnen, weil ich deinen Standort nicht bestimmen konnte. Ist der Standortzugriff erlaubt?' : '';
         if (f.min <= 3 && !immer) return '';   // schon zu Hause
         const normal = heimNormal();
         merkeHeim(f.min - (f.st || 0));
@@ -622,7 +622,7 @@
             return true;
         }
         if (art === 'heim') {
-            const t = await heimText(!!erzwingen || !!angetippt);
+            const t = await heimText(!!erzwingen);   // angetippt/vom Wecker geholt zählt NICHT als ausdrückliche Frage (sonst wird die Zuhause-Prüfung umgangen)
             if (!t) { try { const a = gesagt().filter(x => x !== id); lsSet(K_GESAGT, JSON.stringify(a)); } catch (e) { } return false; }
             if (!erzwingen) { try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'plan_ansagen', kanal: ['fenster'], grund: 'heimweg', ausloeser: 'plan', ereignis: id, bezug: window.jvMeldungen.bezugTag(ymd), text: t }) } catch (e) { }; merkeMeldung('🏠 Heimweg', t); zeigeMeldung('🏠 Heimweg', t); return true; }   // Feierabend nur als Benachrichtigung: nachlesen, nichts von selbst sagen
             try { if (window.jvMeldungen) window.jvMeldungen.beobachte({ quelle: 'plan_ansagen', kanal: ['sprache', 'fenster'], grund: 'heimweg', ausloeser: 'manuell', ereignis: id, bezug: window.jvMeldungen.bezugTag(ymd), text: t }) } catch (e) { }   // C1: nur Beobachtung
