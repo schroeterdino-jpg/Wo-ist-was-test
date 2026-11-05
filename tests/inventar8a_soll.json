@@ -15,18 +15,18 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 333,
+  "repoDateien": 334,
   "produktJs": 175,
-  "jsZeilen": 44466,
-  "jsBytes": 3167850,
-  "jsGzip": 948062,
+  "jsZeilen": 44538,
+  "jsBytes": 3174020,
+  "jsGzip": 949750,
   "scriptTags": 181,
   "eigeneScripts": 175,
   "drittScripts": 2,
   "inlineScripts": 4,
   "api": 11,
-  "testsGesamt": 97,
-  "testsJs": 64,
+  "testsGesamt": 98,
+  "testsJs": 65,
   "testsMd": 14,
   "testsJson": 19,
   "workflows": 3,
@@ -312,8 +312,8 @@
   "rueckfallFotoSpeak": []
  },
  "duplikate": {
-  "identischeGruppen": 18,
-  "identischeStellen": 63,
+  "identischeGruppen": 19,
+  "identischeStellen": 65,
   "grosseGruppen": [
    "kennenlernen.js:ruhig = zane_redet.js:ruhig",
    "mail_nacht.js:rohMail = mailaktionen.js:rohMail"
@@ -449,9 +449,9 @@
   "workflowOhneDatei": [],
   "workflowDoppelt": [],
   "regressionNichtImWorkflow": [],
-  "imWorkflow": 45,
+  "imWorkflow": 46,
   "jeKlasse": {
-   "regression": 33,
+   "regression": 34,
    "goldenMaster": 8,
    "inventar": 3,
    "historischEingefroren": 1,
@@ -467,7 +467,7 @@
  },
  "ci": {
   "nodeVersion": "20",
-  "schritte": 45,
+  "schritte": 46,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
   "zeitzonenVertragZentral": true,
