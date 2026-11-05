@@ -251,8 +251,21 @@ function plOpenSpoken(st, art) {
     return '';
 }
 
+/* Übergabe an die neuere Ortssuche (ortsuche.js: Google Places zuerst, dann Kartenserver), nur bei eingeschalteter Chef-KI und nur einmal je Anfrage.
+   true = die Ortssuche hat die Anfrage übernommen und antwortet selbst (auch mit eigener Fehlermeldung); false = alte Meldung sprechen. */
+function plUebergabe(text) {
+    try {
+        if (!text || !window.jvChef || typeof window.jvChef.istAn !== 'function' || !window.jvChef.istAn()) return false;
+        if (typeof window.handleOrtsucheCommand !== 'function') return false;
+        if (window.handleOrtsucheCommand(text) !== true) return false;
+        try { window.jvChef.uebergabeAlteSuche(); } catch (e) {}
+        return true;
+    } catch (e) { return false; }
+}
+
 /* ---------- Ablauf ---------- */
-async function runPlaces(req) {
+async function runPlaces(req, originalText) {
+    let uebergeben = false;   // je Anfrage höchstens eine Übergabe
     const say = (msg) => speak(msg, typeof continueConversation === 'function' ? continueConversation : undefined);
     const cat = req.cat;
     try { if (typeof typeWriterStatus === 'function') typeWriterStatus(`Suche ${cat.label}...`); } catch (e) {}
@@ -273,6 +286,7 @@ async function runPlaces(req) {
         elements = await plFetchElements(plBuildQuery(cat, lat, lon, cat.radius[0]));
         if (!elements.length) { radiusUsed = cat.radius[1]; elements = await plFetchElements(plBuildQuery(cat, lat, lon, cat.radius[1])); }
     } catch (e) {
+        if (!uebergeben && (uebergeben = true) && plUebergabe(originalText)) return;
         say('Die Kartendaten sind gerade nicht erreichbar. Versuchen Sie es bitte gleich noch einmal.');
         return;
     }
@@ -285,6 +299,7 @@ async function runPlaces(req) {
         if (open.length) results = open;
     }
     if (!results.length) {
+        if (!uebergeben && (uebergeben = true) && plUebergabe(originalText)) return;
         say(`Im Umkreis von ${Math.round(radiusUsed / 1000)} Kilometern${where} habe ich in den Kartendaten keinen Treffer für ${cat.label} gefunden. Die Daten sind nicht überall vollständig.`);
         return;
     }
@@ -320,6 +335,6 @@ async function runPlaces(req) {
 function handlePlacesCommand(text) {
     const req = parsePlacesRequest(text);
     if (!req) return false;
-    runPlaces(req).catch(() => { try { speak('Die Suche hat gerade nicht geklappt.'); } catch (e) {} });
+    runPlaces(req, text).catch(() => { try { speak('Die Suche hat gerade nicht geklappt.'); } catch (e) {} });
     return true;
 }
