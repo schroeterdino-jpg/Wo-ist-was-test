@@ -105,7 +105,7 @@ const ortsplan = (b, o) => ({ schritte: [{ faehigkeit: 'ortssuche', params: o ? 
     check('4a zu kurz -> "Vorfilter: übersprungen (zu kurz oder zu lang)"', codes(A) === 'vorfilter_laenge', codes(A));
     await tippen(A, 'erzähl mir bitte etwas über die geschichte von rom');
     check('4b kein Ortsstichwort -> Vorfilter übersprungen, der bisherige Ablauf (normale KI) lief, kein Entscheider-Aufruf', codes(A) === 'vorfilter_stichwort' && A.st.ent === 0 && A.st.groq === 2, codes(A) + ' groq ' + A.st.groq);
-    check('4c Schreibwunsch (direkt am Haken geprüft) -> Vorfilter übersprungen', A.sb.jvChef.kiWeg('erinnere mich heute abend zu essen in der nähe') === false && codes(A) === 'vorfilter_schreiben', codes(A));
+    check('4c Schreibwunsch (B2a): kein Vorfilter mehr, die Chef-KI prüft den Satz (ein Entscheider-Aufruf)', A.sb.jvChef.kiWeg('erinnere mich heute abend zu essen in der nähe') === true && /ki_aufgerufen/.test(codes(A)), codes(A));
     check('4d zu lang -> Vorfilter', A.sb.jvChef.kiWeg(Array(40).fill('hier').join(' ')) === false && codes(A) === 'vorfilter_laenge');
     A.st.antwort = ortsplan('Restaurant');
     await mikro(A, NAT); const n0 = A.st.ent; await mikro(A, NAT);
@@ -184,7 +184,7 @@ const ortsplan = (b, o) => ({ schritte: [{ faehigkeit: 'ortssuche', params: o ? 
     A.dom.chefLoeschen.feuer('click');
     check('9c Löschen leert Diagnose und Anzeige', A.sb.jvChef.eingaenge().length === 0 && A.dom.chefListe.children.length === 0 && /Noch keine Eingabe/.test(A.dom.chefLetzte.textContent), A.dom.chefLetzte.textContent);
     A = umgebung(); A.dom.chefSchalter.checked = true; A.dom.chefSchalter.feuer('change');
-    check('9d Schalter in den Einstellungen schaltet EIN, Status sichtbar', A.sb.jvChef.istAn() === true && A.dom.chefStatus.textContent === 'EIN (Orte, Internet, Wetter)' && /Noch keine Eingabe/.test(A.dom.chefLetzte.textContent));
+    check('9d Schalter in den Einstellungen schaltet EIN, Status sichtbar', A.sb.jvChef.istAn() === true && A.dom.chefStatus.textContent === 'EIN (Orte, Internet, Wetter, Kalender, Aufgaben, Notizen)' && /Noch keine Eingabe/.test(A.dom.chefLetzte.textContent));
     A.dom.chefSchalter.checked = false; A.dom.chefSchalter.feuer('change');
     check('9e … und AUS; danach wird nichts mehr beobachtet', A.sb.jvChef.istAn() === false && A.dom.chefStatus.textContent === 'AUS' && (await tippen(A, 'was kannst du'), A.sb.jvChef.eingaenge().length === 0));
     const html = lies('index.html');

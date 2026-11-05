@@ -295,7 +295,7 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
     check('KI2 … Treffer gesprochen und als Karten gezeigt, im Gesprächsgedächtnis (3), Protokoll Weg ki', r.karten.length === 1 && /Trattoria Roma|Fischerhaus|Alten Hafen/.test(r.text) && G(A).status().listen[0].anzahl === 3 && A.sb.jvChef.protokoll().some(e => e.weg === 'ki' && e.status === 'SUCCESS'), r.text);
     const folge = await sag(A, 'Das zweite gefällt mir');
     check('KI3 … Folgesatz "Das zweite gefällt mir" nutzt die Treffer der KI-Suche', G(A).ausgewaehlt() && G(A).ausgewaehlt().nr === 2 && folge.lokal);
-    check('KI4 Prompt: nur die lesenden Fähigkeiten ortssuche, websuche, wetter beschrieben, kein Schreibzugriff, kein Gedächtnisinhalt; die Nutzernachricht ist der Satz', (() => { const m = A.st.entscheiderNachrichten[0]; const sys = String(m[0].content); return /ortssuche/.test(sys) && /websuche/.test(sys) && /"wetter"/.test(sys) && !/erinnerung_erstellen|termin_erstellen|gedaechtnis_speichern/.test(sys) && m.length === 2 && m[1].content === NATUERLICH[0][0] && !/memoryItems|Trattoria/.test(JSON.stringify(m)); })());
+    check('KI4 Prompt: ortssuche, websuche, wetter und (B2a) die Kalender-/Aufgaben-Fähigkeiten beschrieben, aber nie termin_verschieben und kein Gedächtnisinhalt; die Nutzernachricht ist der Satz', (() => { const m = A.st.entscheiderNachrichten[0]; const sys = String(m[0].content); return /ortssuche/.test(sys) && /websuche/.test(sys) && /"wetter"/.test(sys) && /termin_erstellen/.test(sys) && !/termin_verschieben/.test(sys) && m.length === 2 && m[1].content === NATUERLICH[0][0] && !/memoryItems|Trattoria/.test(JSON.stringify(m)); })());
 
     A = umgebung(); A.sb.jvChef.an(); let alle = true, d = [];
     for (const [satzN, begriff] of NATUERLICH) { A.st.entscheiderAntwort = ortsplan(begriff); const n0 = A.st.places_n; await sprich(A, satzN); A.uhr.ms += 6000; if (A.st.places_n !== n0 + 1) { alle = false; d.push(satzN); } }
@@ -324,7 +324,7 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
         ['Netzwerkfehler', { entscheiderVerhalten: 'netz' }],
         ['Serverfehler 500', { entscheiderVerhalten: 'fehler' }],
         ['KI hängt (Zeitlimit)', { entscheiderVerhalten: 'haengt' }],
-        ['Schreibaktion Erinnerung', { entscheiderAntwort: { schritte: [{ faehigkeit: 'erinnerung_erstellen', params: { text: 'Essen', zeit: '2026-11-06T09:00:00' } }] } }],
+        ['Erinnerung mit Wiederholung (B2a: gesperrt)', { entscheiderAntwort: { schritte: [{ faehigkeit: 'erinnerung_erstellen', params: { text: 'Essen', zeit: '2026-11-06T09:00:00', wiederholung_einheit: 'day' } }] } }],
         ['Schreibaktion Termin', { entscheiderAntwort: { schritte: [{ faehigkeit: 'termin_erstellen', params: { titel: 'Essen', beginn: '2026-11-06T09:00:00' } }] } }],
         ['Gedächtnis speichern', { entscheiderAntwort: { schritte: [{ faehigkeit: 'gedaechtnis_speichern', params: { schluessel: 'a', wert: 'b' } }] } }],
         ['andere Fähigkeit (websuche)', { entscheiderAntwort: { schritte: [{ faehigkeit: 'websuche', params: { frage: 'x' } }] } }],
@@ -366,8 +366,8 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
 
     /* Vorfilter: kein zusätzlicher Aufruf bei Geplauder, Kürze oder Schreibwünschen */
     A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = ortsplan('Restaurant');
-    for (const f of ['Wie geht es dir heute so?', 'Erzähl mir etwas Lustiges', 'Hunger', 'Erinner mich heute Abend daran, Brot zu kaufen', 'Merk dir wo ich gern essen gehe']) await sprich(A, f);
-    check('KI14 Geplauder, zu kurze Sätze und Schreibwünsche lösen keinen Entscheider-Aufruf aus', A.st.entscheider === 0 && A.st.places_n === 0 && A.sb.jvChef.kiZaehler().anfragen === 0, String(A.st.entscheider));
+    for (const f of ['Wie geht es dir heute so?', 'Erzähl mir etwas Lustiges', 'Hunger', 'Wie spät ist es eigentlich']) await sprich(A, f);
+    check('KI14 Geplauder und zu kurze Sätze lösen keinen Entscheider-Aufruf aus', A.st.entscheider === 0 && A.st.places_n === 0 && A.sb.jvChef.kiZaehler().anfragen === 0, String(A.st.entscheider));
 
     /* Ausschalten während die KI noch denkt */
     A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = () => { A.sb.jvChef.aus(); return ortsplan('Restaurant'); };

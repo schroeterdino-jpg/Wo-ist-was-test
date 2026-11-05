@@ -161,7 +161,7 @@ const SWK = 'Wie wird das Wetter morgen und schau mal nach was heute im Kino lä
         ['drei Ortssuchen', plan(O('Pizza'), O('Sushi'), O('Eis'))],
         ['zwei Websuchen', plan(WEB('Was läuft im Kino heute'), WEB('Was läuft im Fernsehen heute'))],
         ['zwei Wetter', plan(W('heute'), W('morgen'))],
-        ['Schreibaktion Erinnerung', plan({ faehigkeit: 'erinnerung_erstellen', params: { text: 'Essen' } })],
+        ['Erinnerung mit Wiederholung (B2a: gesperrt)', plan({ faehigkeit: 'erinnerung_erstellen', params: { text: 'Essen', wiederholung_einheit: 'day' } })],
         ['Schreibaktion neben Wetter', plan(W('heute'), { faehigkeit: 'gedaechtnis_speichern', params: { schluessel: 'a', wert: 'b' } })],
         ['Wetter mit Ort als Zahl', plan({ faehigkeit: 'wetter', params: { tag: 'heute', ort: 42 } })],
         ['Wetter mit unbekanntem Zusatz', plan({ faehigkeit: 'wetter', params: { tag: 'heute', ort: 'Paris', zusatz: 1 } })],

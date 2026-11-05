@@ -59,6 +59,7 @@ jobs:
           node tests/chef_diagnose.js
           node tests/werkstatt_fallback.js
           node tests/heimweg_karte.js
+          node tests/chef_b2a.js
           node tests/chef_paket.js
           node tests/schreibkern.js
           node tests/dirigent_fragen.js
