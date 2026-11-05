@@ -190,7 +190,7 @@
         if (!faehig.some(function (f) { return B2A_NEU.indexOf(f.name) >= 0 || B2B_NAMEN.indexOf(f.name) >= 0; })) return '';
         var d = new Date(Date.now()), tage = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
         function z2(n) { return ('0' + n).slice(-2); }
-        return ' Kalender, Erinnerungen, Aufgaben, Kontakte und Gedächtnis: Heute ist ' + tage[d.getDay()] + ', ' + d.getFullYear() + '-' + z2(d.getMonth() + 1) + '-' + z2(d.getDate()) + ', ' + z2(d.getHours()) + ':' + z2(d.getMinutes()) + ' Uhr. Schreibende Fähigkeiten (termin_erstellen, erinnerung_erstellen, aufgabe_erstellen, kontakt_speichern, gedaechtnis_speichern) nur, wenn der Nutzer die Aktion eindeutig verlangt und alle nötigen Angaben genannt hat. Zeiten immer als ISO-Zeit JJJJ-MM-TTTHH:MM:00 in der Zukunft. Fehlt eine Angabe, setze nur "frage" und keine Schritte. Genau ein Schritt je Wunsch, dieselbe Aktion nie zweimal; ein späterer Schritt darf von einem früheren abhängen (zum Beispiel erst ortssuche, dann kontakt_speichern). termin_verschieben nur mit params.suche (Stichwort aus dem Titel des Termins) und optional params.tag (der BISHERIGE Tag: heute, morgen, uebermorgen oder JJJJ-MM-TT); die neue Zeit gibst du NIE an, sie wird aus dem Satz gelesen. Ändern, Löschen und Wiederholungen planst du NICHT: antworte dann {"schritte":[]}.';
+        return ' Kalender, Erinnerungen, Aufgaben, Kontakte und Gedächtnis: Heute ist ' + tage[d.getDay()] + ', ' + d.getFullYear() + '-' + z2(d.getMonth() + 1) + '-' + z2(d.getDate()) + ', ' + z2(d.getHours()) + ':' + z2(d.getMinutes()) + ' Uhr. Schreibende Fähigkeiten (termin_erstellen, erinnerung_erstellen, aufgabe_erstellen, kontakt_speichern, gedaechtnis_speichern) nur, wenn der Nutzer die Aktion eindeutig verlangt und alle nötigen Angaben genannt hat. Zeiten immer als ISO-Zeit JJJJ-MM-TTTHH:MM:00 in der Zukunft. Fehlt eine Angabe, setze nur "frage" und keine Schritte. Genau ein Schritt je Wunsch, dieselbe Aktion nie zweimal; ein späterer Schritt darf von einem früheren abhängen (zum Beispiel erst ortssuche, dann kontakt_speichern). termin_verschieben, wenn der Nutzer einen bestehenden Termin auf eine andere Zeit legen will, auch ohne das Wort verschieben (zum Beispiel \"passt mir nicht mehr\", \"auf morgen legen\", \"später machen\", \"eine Stunde früher\"): params.suche ist ein Stichwort aus dem Titel des Termins, aber NUR wenn der Nutzer den Termin nennt (sonst lass params leer {}), optional params.tag (der BISHERIGE Tag: heute, morgen, uebermorgen oder JJJJ-MM-TT); die neue Zeit gibst du NIE an, sie wird aus dem Satz gelesen. Ändern, Löschen und Wiederholungen planst du NICHT: antworte dann {"schritte":[]}.';
     }
     function kiEntscheider(sende, nur, kontext) {
         return async function (text) {
@@ -550,7 +550,7 @@
     }
     function nurKeys(ks, erlaubt) { return ks.every(function (k) { return erlaubt.indexOf(k) >= 0; }); }
     function b2aParamsOk(name, p, ks) {   // Paket B2a: strenge Prüfung der Angaben je Fähigkeit (Wiederholungen, Verschieben usw. gibt es hier nicht)
-        if (name === 'termin_verschieben') return nurKeys(ks, ['suche', 'tag']) && textOk(p.suche, 60) && (p.tag === undefined || ['heute', 'morgen', 'uebermorgen', 'übermorgen'].indexOf(String(p.tag).toLowerCase()) >= 0 || /^\d{4}-\d{2}-\d{2}$/.test(String(p.tag)));   // die neue Zeit liest die Chef-KI selbst aus dem Satz (nie vom Planer)
+        if (name === 'termin_verschieben') return nurKeys(ks, ['suche', 'tag']) && (p.suche === undefined || textOk(p.suche, 60)) && (p.tag === undefined || ['heute', 'morgen', 'uebermorgen', 'übermorgen'].indexOf(String(p.tag).toLowerCase()) >= 0 || /^\d{4}-\d{2}-\d{2}$/.test(String(p.tag)));   // die neue Zeit liest die Chef-KI selbst aus dem Satz (nie vom Planer)
         if (name === 'aufgaben_lesen') return ks.length === 0;
         if (name === 'termine_lesen') return nurKeys(ks, ['tag']) && (p.tag === undefined || ['heute', 'morgen', 'uebermorgen', 'übermorgen'].indexOf(String(p.tag).toLowerCase()) >= 0 || /^\d{4}-\d{2}-\d{2}$/.test(String(p.tag)));
         if (name === 'aufgabe_erstellen') return nurKeys(ks, ['text']) && textOk(p.text);
@@ -686,6 +686,10 @@
         } catch (x) { return ''; }
     }
     /* Findet den EINEN Termin und rechnet die neue Zeit aus. Ergebnis: { art:'frage', was, frage } | { art:'fehler', nachricht } | { art:'bestaetigen', params, vorher, titel } */
+    function saubereSuche(v) {   // "Meinen Termin beim Zahnarzt" -> "zahnarzt"; nur "Termin" -> '' (dann wird gefragt, nie geraten)
+        var w = nz(v).replace(/[.]+$/, '').split(' ').filter(function (x) { return x && !/^(mein\w*|dein\w*|unser\w*|der|die|das|den|dem|des|ein\w*|beim|bei|vom|von|zum|zur|zu|am|im|um|wegen|termin\w*|gern\w*|bitte)$/.test(x); }).map(function (x) { return x.replace(/termine?$/, ''); }).filter(function (x) { return x.length >= 2; });
+        return w.join(' ');
+    }
     function klausel(text) {   // bei mehreren Wünschen in einem Satz zählt nur der Teil mit dem Verschieben ("... und erinnere mich eine Stunde vorher" gehört nicht dazu)
         var teile = String(text).split(/\s+(?:und|dann|danach|außerdem|ausserdem|sowie|zusätzlich|zusaetzlich)\s+/i);
         for (var i = 0; i < teile.length; i++) if (RX_VERSCHIEBEN.test(teile[i])) return teile[i];
@@ -695,7 +699,8 @@
         zus = zus || {};
         var text = klausel(text0), sk = window.jvSchreibkern, n = nz(text);
         if (!sk || typeof sk.kandidatenTermine !== 'function') return { art: 'fehler', nachricht: 'Der Kalender ist gerade nicht erreichbar, deshalb habe ich nichts verschoben.' };
-        var p0 = { suche: String(zus.suche || (s.params && s.params.suche) || '') };
+        var p0 = { suche: saubereSuche(zus.suche || (s.params && s.params.suche) || '') };
+        if (!p0.suche) return { art: 'frage', was: 'suche', frage: 'Welchen Termin möchtest du verschieben?', zus: { tag: zus.tag || '' } };
         var tag = (s.params && s.params.tag) || zus.tag || altTag(text);
         if (tag) p0.tag = tag;
         var k = sk.kandidatenTermine(p0);
@@ -900,7 +905,7 @@
         var zus = null;
         if (p.was === 'zeit') { var z = leseZiel(text, true); if (z) zus = { ziel: z }; }
         else if (p.was === 'wahl') { var o = ordinalAus(nz(text), true); if (o) zus = { nummer: o }; }
-        else if (p.was === 'suche') { var sn = String(text).trim().replace(/[.!?]+$/, ''); if (sn && sn.split(/\s+/).length <= 6 && !RX_VERSCHIEBEN.test(sn) && antwort !== 'ja') zus = { suche: sn }; }
+        else if (p.was === 'suche') { var sn = String(text).trim().replace(/[.!?]+$/, ''); if (sn && sn.split(/\s+/).length <= 6 && !RX_VERSCHIEBEN.test(sn) && antwort !== 'ja' && saubereSuche(sn)) zus = { suche: sn }; }
         if (zus) { pause = null; var g2 = ++kiGen, e2 = neuerEingang('rueckfrage_antwort'); pauseFortsetzen(p, zus, g2, e2); return true; }
         if (antwort === 'unklar' || antwort === 'ja') return nochmal();
         pause = null; vermerke(neuerEingang('bestaetigung_ersetzt'), 'bestaetigung_ersetzt'); return false;
@@ -943,6 +948,9 @@
             if (pr && pr.ok && pr.plan) pr.plan.schritte.forEach(function (x) { if (x.faehigkeit === 'termin_verschieben' && x.params) { var np = {}; ['suche', 'tag'].forEach(function (k) { if (x.params[k] !== undefined) np[k] = x.params[k]; }); x.params = np; } });   // die neue Zeit kommt nie vom Planer
             var hatV = !!(pr && pr.ok && pr.plan && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'termin_verschieben'; }));
             if (hatV) keinRueck = true;
+            if (versch && !hatV && !(pr && pr.ok && pr.plan && pr.plan.schritte.length > 0)) {   // Wunsch klar, Planer hat aber nichts geliefert: gezielt nach dem Termin fragen (nichts wird geraten oder geändert)
+                pr = { ok: true, plan: { absicht: '', schritte: [{ faehigkeit: 'termin_verschieben', params: {} }], frage: '', hinweis: '', benoetigt: [] } }; hatV = true; keinRueck = true;
+            }
             if (versch && !hatV && !(pr && pr.ok && pr.plan && pr.plan.schritte.length === 0 && pr.plan.frage && planErlaubt(pr.plan, ohneFrage))) {   // Verschiebe-Wunsch nicht sicher erkannt: nichts tun, KEIN Rückfall auf den alten Weg
                 vermerke(eingang, 'verschieben_unklar'); protokolliere('verschieben_gesperrt', [], 'UNKLAR'); say(TEXT_VERSCHIEBEN); return;
             }

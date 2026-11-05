@@ -199,7 +199,7 @@ const geschrieben = A => A.lese('todoEntries').length + A.lese('reminderEntries'
     /* ===== 11 Verschieben (B2b-1: nur mit Bestätigung, Ausführlicheres in chef_b2b.js) – nie Rückfall auf den alten KI-Weg (Chef-KI EIN) ===== */
     A = umgebung(); A.lese('calendarEntries').push({ id: 'local_1', text: 'Zahnarzt', date: 'x', isoDate: '2026-11-06T15:00:00+01:00', location: '' }); { const sv = stand(A);
     await tippen(A, 'Verschiebe den Zahnarzttermin auf Freitag um vier');
-    check('11a Satz mit „verschieb…“ bei Chef-KI EIN: angehalten, keine Planer-Anfrage, KEIN alter KI-Weg, nichts geändert, eine ehrliche Antwort', A.st.ent === 1 && A.st.groq === 0 && stand(A) === sv && A.gesagt.length === 1 && /nicht sicher erkennen/.test(A.gesagt[0]) && /nichts geändert/.test(A.gesagt[0]), JSON.stringify([A.st.ent, A.st.groq, A.gesagt]));
+    check('11a Satz mit „verschieb…“ bei Chef-KI EIN: angehalten, keine Planer-Anfrage, KEIN alter KI-Weg, nichts geändert, eine ehrliche Antwort', A.st.ent === 1 && A.st.groq === 0 && stand(A) === sv && A.gesagt.length === 1 && /Welchen Termin/.test(A.gesagt[0]), JSON.stringify([A.st.ent, A.st.groq, A.gesagt]));
     A.st.plan = plan({ faehigkeit: 'termin_verschieben', params: { suche: 'Zahnarzt', neue_zeit: Z2 } });
     await tippen(A, 'Mein Termin beim Zahnarzt soll jetzt am Freitag stattfinden');
     check('11b Planer will verschieben (Satz ohne „verschieb…“): nichts geändert, KEIN alter KI-Weg', A.st.ent === 2 && A.st.groq === 0 && stand(A) === sv && /nichts geändert/.test(A.gesagt.join(' ')), JSON.stringify([A.st.ent, A.st.groq, A.gesagt]));
