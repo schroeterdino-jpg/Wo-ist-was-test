@@ -69,7 +69,7 @@ const SK = 'Wie wird das Wetter morgen und wo gibt es hier ein Restaurant';
 const SWK = 'Wie wird das Wetter morgen und schau mal nach was heute im Kino läuft';
 
 
-const SATZ = 'Bitte erledige das mit meinen Aufgaben und Terminen heute';
+const SATZ = 'Bitte erledige das mit meiner Aufgabenliste heute';
 const AUF = t => ({ faehigkeit: 'aufgabe_erstellen', params: { text: t } });
 const ERI = (t, z) => ({ faehigkeit: 'erinnerung_erstellen', params: z ? { text: t, zeit: z } : { text: t } });
 const TER = (t, z, extra) => ({ faehigkeit: 'termin_erstellen', params: Object.assign({ text: t, zeit: z }, extra || {}) });
