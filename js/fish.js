@@ -360,8 +360,10 @@
     // Warteschlange der Folge-Stücke: parts[i] ist ein Versprechen auf den Ton von Stück i (oder null, wenn übersprungen)
     function startQueue(chunks, voice, firstEngine) {
         const parts = chunks.map(() => { let res; const p = new Promise(r => { res = r; }); return { p, res }; });
+        let stopped = false;   // nach einer Unterbrechung werden keine weiteren Stücke mehr bei Fish Audio abgerufen
         (async () => {
             for (let i = 0; i < chunks.length; i++) {
+                if (stopped) { for (let k = i; k < chunks.length; k++) parts[k].res(null); return; }
                 let r = null;
                 if (firstEngine === 'fish') {
                     r = await requestOne(chunks[i], voice, { timeout: 12000, fishOnly: true });
@@ -378,7 +380,7 @@
             }
         })();
         let idx = 0;
-        return { next: async () => { while (idx < parts.length) { const b = await parts[idx++].p; if (b) return b; } return null; } };
+        return { next: async () => { while (idx < parts.length) { const b = await parts[idx++].p; if (b) return b; } return null; }, stop: () => { idx = parts.length; stopped = true; } };
     }
 
     // Abspielen: voice.js spielt das erste Stück ab; endet es, kommt das nächste. voice.js bekommt erst Bescheid, wenn alle Stücke gespielt sind.
@@ -421,11 +423,15 @@
     function chainPlayback(el, q) {
         const origEnded = el.onended;
         const urls = [];
+        const startGen = (typeof speechGeneration === 'number') ? speechGeneration : null;   // Stand der Sprachausgabe, zu der dieser Text gehört
+        const unterbrochen = () => { try { return startGen !== null && typeof interruptedGen === 'number' && startGen <= interruptedGen; } catch (e) { return false; } };   // interruptSpeaking() hat seither die Ausgabe beendet
         let rate = el.playbackRate;                         // aktuelles Abspiel-Tempo; je nach Stück neu bestimmt (Fish hat das Tempo schon eingebaut)
         const keepPitch = el.preservesPitch;
         el.onended = async function (ev) {
             try {
+                if (unterbrochen()) { try { q.stop && q.stop(); } catch (e) { } urls.forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} }); return; }   // unterbrochen: nichts mehr abspielen, auch kein Ende melden (voice.js hat schon aufgeräumt)
                 const blob = await q.next();
+                if (unterbrochen()) { try { q.stop && q.stop(); } catch (e) { } urls.forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} }); return; }   // während des Wartens unterbrochen
                 if (blob) {
                     const u = URL.createObjectURL(blob);
                     urls.push(u);

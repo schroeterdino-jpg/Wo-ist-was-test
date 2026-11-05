@@ -160,9 +160,9 @@
     /* ---------------- 2b. Wetter (lesend, ohne KI-Kosten) ---------------- */
     R.registriere({
         name: 'wetter',
-        beschreibung: 'Sagt das Wetter am Standort des Nutzers: jetzt/heute, morgen oder übermorgen, mit Temperatur, Regen und Kleidungstipp. Für andere Orte nicht zuständig.',
+        beschreibung: 'Sagt das Wetter am Standort des Nutzers oder, mit Ortsangabe, für einen genannten Ort: jetzt/heute, morgen oder übermorgen, mit Temperatur und Regen (am Standort zusätzlich Kleidungstipp).',
         pflicht: [],
-        optional: [{ name: 'tag', typ: 'text', beschreibung: 'heute (Standard), morgen oder uebermorgen.' }],
+        optional: [{ name: 'tag', typ: 'text', beschreibung: 'heute (Standard), morgen oder uebermorgen.' }, { name: 'ort', typ: 'text', beschreibung: 'Ortsname, wenn nicht der Standort des Nutzers gemeint ist (z. B. Hamburg).' }],
         rueckgabe: { beschreibung: 'Der gesprochene Wettersatz, lokal aus den Wetterdaten gebaut (keine KI-Anfrage).', felder: ['nachricht'] },
         fehler: [
             { status: 'TOOL_FAILED', wann: 'Standort oder Wetterdaten nicht verfügbar.' },
@@ -177,6 +177,17 @@
             var tag = String(p.tag || 'heute').toLowerCase().replace('ü', 'ue');
             if (tag !== 'heute' && tag !== 'morgen' && tag !== 'uebermorgen') tag = 'heute';
             function fehlschlag(m) { var e = new Error(m); e.userMessage = m; throw e; }
+            var ortName = typeof p.ort === 'string' ? p.ort.trim() : '';
+            if (ortName) {   // anderer Ort: Ortsauflösung und Wetterdaten der Wetterkarte (weathermap.js); nie der eigene Standort, nie erfundene Werte
+                if (typeof wxGeocode !== 'function' || typeof wxFetchWeather !== 'function' || typeof wxSummary !== 'function') fehlschlag('Das Wetter für andere Orte ist gerade nicht verfügbar.');
+                var geo = await wxGeocode(ortName);
+                if (!geo) fehlschlag('Den Ort ' + ortName + ' habe ich nicht gefunden.');
+                var wd = await wxFetchWeather(geo.lat, geo.lon);
+                if (!wd) fehlschlag('Die Wetterdaten für ' + geo.short + ' sind gerade nicht verfügbar.');
+                var off = tag === 'morgen' ? 1 : tag === 'uebermorgen' ? 2 : 0;
+                if (off > 0 && !(wd.days && wd.days[off])) fehlschlag('Die Vorhersage für ' + geo.short + ' ist gerade nicht verfügbar.');
+                return { nachricht: wxSummary(geo.short, wd, off, false) };
+            }
             var teile = await Promise.all([tag === 'heute' ? fetchWeatherData() : Promise.resolve(null), fetchWeatherForecast()]);
             var jetztD = teile[0], vor = teile[1];
             var tage = vor && Array.isArray(vor.tage) ? vor.tage : [];

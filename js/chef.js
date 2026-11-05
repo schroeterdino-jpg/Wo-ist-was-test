@@ -160,7 +160,7 @@
             var reg = R();
             var faehig = reg ? reg.beschreibe().filter(function (d) { return !Array.isArray(nur) || nur.indexOf(d.name) >= 0; }).map(function (d) { return { name: d.name, beschreibung: d.beschreibung, pflicht: d.pflicht.map(function (x) { return x.name; }), optional: d.optional.map(function (x) { return x.name; }) }; }) : [];
             var nachrichten = [
-                { role: 'system', content: 'Du planst für einen Sprachassistenten. Antworte NUR mit JSON: {"absicht":"...","schritte":[{"faehigkeit":"name","params":{}}],"frage":"...","hinweis":"...","benoetigt":["name"]}. Nutze nur diese Fähigkeiten: ' + JSON.stringify(faehig) + '. Regeln: höchstens 3 Schritte, davon höchstens 1 websuche, 2 ortssuche und 1 wetter. wetter gilt nur für den Standort des Nutzers (params.tag: heute, morgen oder uebermorgen); wird das Wetter für einen anderen Ort gefragt, antworte {"schritte":[]}. websuche nur für aktuelle Auskünfte aus dem Internet (Nachrichten, Ergebnisse, Fernsehprogramm, Öffnungszeiten, Preise) mit der Frage des Nutzers im Wortlaut als params.frage. ortssuche für Orte, Läden und Lokale in der Nähe oder in einem genannten Ort. Sind mehrere Wünsche in einem Satz, plane sie der Reihe nach. Ist der Wunsch zu unklar, setze nur "frage" (eine kurze Rückfrage) und keine Schritte. Reines Gespräch, Smalltalk, Wissensfragen, Kalender, Erinnerungen, Listen und alles andere: antworte {"schritte":[]}. Erfinde keine Preise, Öffnungszeiten, Verfügbarkeiten oder Fahrzeiten.' }
+                { role: 'system', content: 'Du planst für einen Sprachassistenten. Antworte NUR mit JSON: {"absicht":"...","schritte":[{"faehigkeit":"name","params":{}}],"frage":"...","hinweis":"...","benoetigt":["name"]}. Nutze nur diese Fähigkeiten: ' + JSON.stringify(faehig) + '. Regeln: höchstens 3 Schritte, davon höchstens 1 websuche, 2 ortssuche und 1 wetter. wetter gilt für den Standort des Nutzers (params.tag: heute, morgen oder uebermorgen); wird ein bestimmter Ort genannt, setze params.ort auf den Ortsnamen (nur der Name). Mit "dort", "da" oder "in dieser Stadt" ist nur dann ein Ort gemeint, wenn er im Kontext steht; steht dort keiner, setze nur "frage" ("Welchen Ort meinst du?") und keine Schritte. websuche nur für aktuelle Auskünfte aus dem Internet (Nachrichten, Ergebnisse, Fernsehprogramm, Öffnungszeiten, Preise) mit der Frage des Nutzers im Wortlaut als params.frage. ortssuche für Orte, Läden und Lokale in der Nähe oder in einem genannten Ort. Sind mehrere Wünsche in einem Satz, plane sie der Reihe nach. Ist der Wunsch zu unklar, setze nur "frage" (eine kurze Rückfrage) und keine Schritte. Reines Gespräch, Smalltalk, Wissensfragen, Kalender, Erinnerungen, Listen und alles andere: antworte {"schritte":[]}. Erfinde keine Preise, Öffnungszeiten, Verfügbarkeiten oder Fahrzeiten.' }
             ];
             if (typeof kontext === 'string' && kontext) nachrichten.push({ role: 'system', content: kontext });
             nachrichten.push({ role: 'user', content: String(text) });
@@ -212,7 +212,9 @@
         wetter_ausgefuehrt: 'Wetter gesagt (aus den Wetterdaten)',
         mehrere_schritte: 'Mehrere Schritte, eine zusammengefasste Antwort',
         schritt_fehler: 'Ein Schritt hat nicht geklappt',
-        budget_ueberschritten: 'Zeitbudget überschritten'
+        budget_ueberschritten: 'Zeitbudget überschritten',
+        ort_unklar: 'Ort unklar ("dort"/"da"): Rückfrage statt eigener Standort',
+        ort_bezug: '"dort"/"da" auf den zuletzt genannten Ort bezogen'
     });
     function neuerEingang(code) {
         eingangNr++;
@@ -405,6 +407,64 @@
 
     /* ---------- KI-Weg im echten Sprachweg (voice.js) ---------- */
     var KI_ZEITLIMIT_MS = 7000, kiGen = 0, kiLetzter = { text: '', at: 0 }, kiZaehler = { anfragen: 0, ortssuchen: 0, zurueck: 0, websuchen: 0, wetter: 0 }, sendeFunktion = null;
+    /* Gesprächsort: der zuletzt EINDEUTIG genannte Ort (nur der Name, nur Arbeitsspeicher, 10 Minuten). Er wird nur für "dort", "da", "in dieser Stadt" gebraucht.
+       Gemerkt wird nur bei eingeschalteter Chef-KI; ein Satz mit mehreren Orten löscht ihn (nie raten). Vor der Benutzung wird er einmal beim Kartendienst geprüft (Ort, nicht irgendein Hauptwort). */
+    var ORT_MS = 10 * 60000, ortMerker = null, ortPruefer = null;
+    var RX_ORTSBEZUG = /(?<![\wäöüß])(?:dort|dorthin|dortige[nrms]?|in dieser stadt|in diesem ort|in dieser gegend|in diesem dorf|in dieser region|da(?!\s+(?:es|ich|du|wir|ihr|man|er|sie)(?![\wäöüß])))(?![\wäöüß])/i;
+    var RX_ORTSBEZUG_G = new RegExp(RX_ORTSBEZUG.source, 'gi');
+    var ORT_KEIN = /^(?:Urlaub|Betrieb|Arbeit|Ordnung|Ruhe|Eile|Bezug|Zukunft|Gefahr|Betracht|Frage|Not|Kürze|Vergangenheit|Wahrheit|Hause|Haus|Mitte|Zeit|Folge|Wahl|Anfang|Ende|Fall|Sicht|Ordnung)$/;
+    function ortFrisch() { return !!ortMerker && jetzt() - ortMerker.at <= ORT_MS; }
+    function ortMerken(name, geprueft) {
+        if (!istAn) return false;
+        var n = typeof name === 'string' ? name.trim() : '';
+        if (!saubererBegriff(n) || RX_ORTSBEZUG.test(n)) return false;
+        ortMerker = { name: n, at: jetzt(), geprueft: geprueft === true };
+        return true;
+    }
+    /* Orte im Satz: großgeschriebenes Wort nach in/nach/aus/bei/über/von/zu/für/um (Spracherkennung schreibt Namen groß). [] = keiner, 1 Name = eindeutig, mehrere = mehrdeutig. */
+    function ortKandidaten(text) {
+        var rx = /(?:^|[\s,])(?:in|nach|aus|bei|über|ueber|von|zu|für|fuer|um)\s+((?:(?:Bad|Sankt|St\.?|New|Los|Las|San|Santa)\s+)?[A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]{2,})/g, m, namen = [];
+        var t = String(text || '');
+        while ((m = rx.exec(t)) !== null) {
+            var n = m[1].trim();
+            if (ORT_KEIN.test(n)) continue;
+            if (namen.indexOf(n) < 0) namen.push(n);
+        }
+        return namen;
+    }
+    function ortAusAntwort(t) {
+        var s = String(t || '').replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
+        for (var i = 0; i < 2; i++) s = s.replace(/^(?:ich\s+meine|meine|in|nach|von|für|fuer|aus|bei|die\s+stadt|den\s+ort)\s+/i, '');
+        if (!s || s.split(' ').length > 3) return '';
+        var name = s.split(' ').map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
+        return saubererBegriff(name) && !RX_ORTSBEZUG.test(name) ? name : '';
+    }
+    /* Ist der Name ein Ort? Kartendienst (/api/geocode) liefert Klasse place/boundary für Städte und Dörfer; sonst false. */
+    function ortPruefen(name) {
+        if (typeof ortPruefer === 'function') { try { return Promise.resolve(ortPruefer(name)).then(function (v) { return v === true; }, function () { return false; }); } catch (e) { return Promise.resolve(false); } }
+        return Promise.resolve().then(function () {
+            var f = (typeof apiFetch === 'function') ? apiFetch : (typeof window.apiFetch === 'function' ? window.apiFetch : null);
+            if (!f) return false;
+            var t; var limit = new Promise(function (res) { t = setTimeout(function () { res(false); }, 6000); });
+            var arbeit = f('/api/geocode?q=' + encodeURIComponent(name)).then(function (r) { return r && r.ok ? r.json() : null; }).then(function (d) {
+                var h = Array.isArray(d) ? d[0] : null; return !!h && /^(?:place|boundary)$/.test(String(h.class || ''));
+            });
+            return Promise.race([arbeit, limit]).then(function (v) { clearTimeout(t); return v === true; }, function () { clearTimeout(t); return false; });
+        }).catch(function () { return false; });
+    }
+    /* Setzt den gemeinten Ort in einen geprüften Plan ein (nie dem Modell überlassen): Wetter/Ortssuche ohne Ort bekommen ihn, "dort" in der Internetfrage wird ersetzt. */
+    function ortEinsetzen(plan, ort) {
+        try {
+            if (!plan || !Array.isArray(plan.schritte)) return;
+            plan.schritte.forEach(function (st) {
+                if (!st) return;
+                if (!st.params || typeof st.params !== 'object') st.params = {};
+                if (st.faehigkeit === 'wetter' || st.faehigkeit === 'ortssuche') {
+                    if (st.params.ort === undefined || st.params.ort === '' || (typeof st.params.ort === 'string' && RX_ORTSBEZUG.test(st.params.ort))) st.params.ort = ort;
+                } else if (st.faehigkeit === 'websuche' && typeof st.params.frage === 'string') st.params.frage = st.params.frage.replace(RX_ORTSBEZUG_G, 'in ' + ort);
+            });
+        } catch (e) { }
+    }
     var thema = null, offenKi = null;   // Thema der letzten Antwort (nur Art/Tag/Stichwort, 10 Minuten) und eine offene Rückfrage des KI-Weges (2 Minuten); nur Arbeitsspeicher
     /* Vorfilter NUR zur Kostenbegrenzung: reines Geplauder ("Wie geht's dir?") kostet keine zusätzliche KI-Anfrage. Entschieden wird NICHT hier, sondern von der KI. */
     var RX_KI_VORFILTER = /\b(wo|wohin|hier|in der n[äa]he|umgebung|gegend|ecke|unterwegs|auswärts|ausw[äa]rts|ausgehen|essen|speisen|trinken|hunger|durst|magen|lust auf|empfiehl\w*|tipp|find\w*|such\w*|gibt es|gibts|kennst du|abend|mittag|fr[üu]hst[üu]ck\w*|snack|happen|bissen|gemütlich|gem[üu]tlich|romantisch|date|feiern|laden|lokal|schmaus\w*|wetter|regen\w*|schirm|jacke|temperatur|grad|sonnig|schnee|gewitter|sturm|nachrichten|neuigkeiten|aktuell\w*|fernseh\w*|kino|programm|öffnungszeit\w*|ergebnis\w*|spielstand|tabelle|internet|google|recherchier\w*|nachschlagen|nachsehen)\b/i;
@@ -446,7 +506,8 @@
                 if (!ks.every(function (k) { return k === 'frage' || k === 'suchbegriff'; })) return false;
             } else {
                 if (p.tag !== undefined && ['heute', 'morgen', 'uebermorgen', 'übermorgen'].indexOf(String(p.tag).toLowerCase()) < 0) return false;
-                if (!ks.every(function (k) { return k === 'tag'; })) return false;
+                if (p.ort !== undefined && !saubererBegriff(p.ort)) return false;
+                if (!ks.every(function (k) { return k === 'tag' || k === 'ort'; })) return false;
             }
         }
         return zaehl.ortssuche <= 2 && zaehl.websuche <= 1 && zaehl.wetter <= 1;
@@ -456,7 +517,7 @@
     function themaFrisch() { return !!thema && jetzt() - thema.at <= THEMA_MS; }
     function kontextText() {
         if (!themaFrisch()) return '';
-        return 'Nur zur Einordnung kurzer Anschlussfragen: das letzte Thema war ' + (thema.art === 'wetter' ? 'das Wetter (Tag: ' + (thema.tag || 'heute') + ')' : thema.art === 'orte' ? 'eine Ortssuche' + (thema.begriff ? ' (' + thema.begriff + ')' : '') : 'eine Internetauskunft') + '.';
+        return 'Nur zur Einordnung kurzer Anschlussfragen: das letzte Thema war ' + (thema.art === 'wetter' ? 'das Wetter (Tag: ' + (thema.tag || 'heute') + (thema.ort ? ', Ort: ' + thema.ort : '') + ')' : thema.art === 'orte' ? 'eine Ortssuche' + (thema.begriff ? ' (' + thema.begriff + ')' : '') : 'eine Internetauskunft') + '.';
     }
     function notiz(name) { return name === 'websuche' ? 'Bei der Internetsuche hat es leider nicht geklappt.' : name === 'wetter' ? 'Die Wetterdaten waren gerade nicht erreichbar.' : 'Bei der Ortssuche hat es leider nicht geklappt.'; }
     function mitRest(p, ende) {
@@ -499,7 +560,7 @@
         return { art: 'rueckfall', ki: ki };
     }
 
-    async function kiEntscheideImSprachweg(text, gen, eingang, kontext, ohneFrage) {
+    async function kiEntscheideImSprachweg(text, gen, eingang, kontext, ohneFrage, ortBezug) {
         var zurueck = false, ctrl = null, timer = null, t0 = jetzt(), kiN = 1;   // 1 = die Entscheider-Anfrage selbst
         function zurueckInsNormale() {
             if (zurueck) return;                      // nur einmal
@@ -510,11 +571,24 @@
         try {
             try { ctrl = (typeof AbortController === 'function') ? new AbortController() : null; } catch (e) { ctrl = null; }
             var limit = new Promise(function (_, reject) { timer = setTimeout(function () { try { if (ctrl) ctrl.abort(); } catch (e) { } reject(new Error('Zeitlimit')); }, KI_ZEITLIMIT_MS); });
+            if (ortBezug) {   // "dort"/"da": erst prüfen, ob der gemerkte Name wirklich ein Ort ist; sonst fragen, nie den eigenen Standort einsetzen
+                var ortOk = (ortMerker && ortMerker.name === ortBezug && ortMerker.geprueft === true) ? true : await ortPruefen(ortBezug);
+                if (gen !== kiGen) { try { clearTimeout(timer); } catch (e) { } protokolliere('ki_ueberholt', [], 'VERWORFEN'); vermerke(eingang, 'ki_ueberholt'); return; }
+                if (!ortOk) {
+                    try { clearTimeout(timer); } catch (e) { }
+                    ortMerker = null; vermerke(eingang, 'ort_unklar'); protokolliere('ki_nachfrage', [], 'FRAGE');
+                    frageAnmelden(); offenKi = { at: jetzt(), text: text, frage: 'Welchen Ort meinst du?', bezug: true }; say('Welchen Ort meinst du?'); return;
+                }
+                if (ortMerker && ortMerker.name === ortBezug) ortMerker.geprueft = true;
+                vermerke(eingang, 'ort_bezug');
+                kontext = (kontext ? kontext + ' ' : '') + 'Mit „dort“, „da“ oder „in dieser Stadt“ ist ' + ortBezug + ' gemeint (params.ort = "' + ortBezug + '").';
+            }
             var sende = sendeFunktion || sendeStandard;
             var entsch = kiEntscheider(function (m) { return Promise.race([Promise.resolve(sende(m, ctrl ? ctrl.signal : undefined)), limit]); }, KI_FAEHIGKEITEN, kontext);
             var pr = await Promise.race([plane(text, { entscheider: entsch }), limit.catch(function () { return { ok: false, zeitlimit: true }; })]);
             try { clearTimeout(timer); } catch (e) { }
             if (gen !== kiGen) { protokolliere('ki_ueberholt', [], 'VERWORFEN'); vermerke(eingang, 'ki_ueberholt'); return; }
+            if (ortBezug && pr && pr.ok && pr.plan) ortEinsetzen(pr.plan, ortBezug);
             if (!pr || !pr.ok || !planErlaubt(pr.plan, ohneFrage)) {
                 vermerke(eingang, !pr ? 'ki_fehler' : (pr.zeitlimit || pr.grund === 'Zeitlimit') ? 'ki_zeitlimit' : pr.fehler ? 'ki_fehler' : !pr.ok ? 'ki_ungueltig'
                     : (pr.plan.schritte.length === 0 && !pr.plan.frage) ? 'ki_kein_ortswunsch' : 'ki_nicht_erlaubt');
@@ -542,9 +616,9 @@
             if (r.fehl.length && !r.ortsFehler) vermerke(eingang, 'schritt_fehler');
             gespraechMerken({ schritte: r.schritte });
             var letzter = r.erfolge.length ? r.erfolge[r.erfolge.length - 1] : '';
-            if (letzter === 'wetter') { var ws = plan.schritte.filter(function (x) { return x.faehigkeit === 'wetter'; })[0]; thema = { art: 'wetter', tag: String((ws.params && ws.params.tag) || 'heute').toLowerCase().replace('ü', 'ue'), at: jetzt() }; }
+            if (letzter === 'wetter') { var ws = plan.schritte.filter(function (x) { return x.faehigkeit === 'wetter'; })[0]; thema = { art: 'wetter', tag: String((ws.params && ws.params.tag) || 'heute').toLowerCase().replace('ü', 'ue'), ort: String((ws.params && ws.params.ort) || '').slice(0, 40), at: jetzt() }; if (ws.params && ws.params.ort) ortMerken(String(ws.params.ort), true); }
             else if (letzter === 'websuche') thema = { art: 'web', at: jetzt() };
-            else if (letzter === 'ortssuche') { var os = plan.schritte.filter(function (x) { return x.faehigkeit === 'ortssuche'; })[0]; thema = { art: 'orte', begriff: String(os.params.suchbegriff).slice(0, 40), at: jetzt() }; }
+            else if (letzter === 'ortssuche') { var os = plan.schritte.filter(function (x) { return x.faehigkeit === 'ortssuche'; })[0]; thema = { art: 'orte', begriff: String(os.params.suchbegriff).slice(0, 40), at: jetzt() }; if (os.params.ort) ortMerken(String(os.params.ort), true); }
             if (r.karten && r.karten.length) karten(r.karten);
             say(r.text);                                                  // EINE zusammenhängende Antwort
             protokolliere('ki', plan.schritte.map(function (x) { return x.faehigkeit; }), 'SUCCESS');
@@ -562,12 +636,22 @@
         try {
             vomChefBehandelt = 0;
             if (typeof text !== 'string') return false;
+            var ortNeu = '';
+            var ks = ortKandidaten(text);   // Gesprächsort: genau ein Ort im Satz = merken, mehrere = keinen annehmen
+            if (ks.length === 1) ortMerken(ks[0], false); else if (ks.length > 1) ortMerker = null;
             var t = text.trim(), woerter = t ? t.split(/\s+/).length : 0, kopf = '';
             /* offene Rückfrage des KI-Weges: die kurze Antwort gehört zur ursprünglichen Frage (beides zusammen geht an den Entscheider) */
             if (offenKi && jetzt() - offenKi.at <= FRAGE_MS && jungeFrageGehoertUns()) {
                 var f = offenKi; offenKi = null;
                 if (/^\s*(nein|nee|abbrechen|lass(?: es)?|vergiss es|egal)\b/i.test(t)) { neuerEingang('nachfrage_antwort'); vermerke(eingaenge[eingaenge.length - 1], 'abgebrochen'); say('Alles klar, ich lasse es.'); return true; }
-                if (woerter >= 1 && woerter <= 8 && !RX_SCHREIB.test(t)) { t = f.text + ' ' + t; kopf = 'nachfrage_antwort'; }
+                if (woerter >= 1 && woerter <= 8 && !RX_SCHREIB.test(t)) {
+                    if (f.bezug) {   // Antwort auf "Welchen Ort meinst du?": der Ort ersetzt "dort" im ursprünglichen Satz
+                        var on = ortAusAntwort(t);
+                        if (!on) { neuerEingang('nachfrage_antwort'); vermerke(eingaenge[eingaenge.length - 1], 'abgebrochen'); say('Den Ort habe ich nicht verstanden. Nenne mir bitte den Namen der Stadt.'); return true; }
+                        ortMerken(on, false); ortNeu = on;
+                        t = f.text.replace(RX_ORTSBEZUG_G, 'in ' + on); kopf = 'nachfrage_antwort';
+                    } else { t = f.text + ' ' + t; kopf = 'nachfrage_antwort'; }
+                }
             } else if (offenKi) offenKi = null;
             var anschluss = !kopf && themaFrisch() && woerter >= 1 && woerter <= 8 && RX_FOLGE.test(t) && !RX_SCHREIB.test(t);
             if (anschluss) kopf = 'anschluss';
@@ -575,6 +659,18 @@
             if (RX_SCHREIB.test(t)) { neuerEingang('vorfilter_schreiben'); return false; }
             if (!kopf && !RX_KI_VORFILTER.test(t)) { neuerEingang('vorfilter_stichwort'); return false; }
             if (!R() || !R().hole('ortssuche')) { neuerEingang('faehigkeit_fehlt'); return false; }
+            /* "dort"/"da"/"in dieser Stadt" ohne genannten Ort im Satz: gemerkten Ort nehmen, sonst FRAGEN (nie still den eigenen Standort) */
+            var ortBezug = ortNeu;   // Antwort auf "Welchen Ort meinst du?": der genannte Ort wird (nach Prüfung) fest in den Plan eingesetzt
+            if (kopf !== 'nachfrage_antwort' && ks.length === 0) {
+                if (RX_ORTSBEZUG.test(t)) {
+                    if (ortFrisch()) ortBezug = ortMerker.name;
+                    else {
+                        neuerEingang('ort_unklar'); frageAnmelden();
+                        offenKi = { at: jetzt(), text: t, frage: 'Welchen Ort meinst du?', bezug: true };
+                        say('Welchen Ort meinst du?'); return true;
+                    }
+                } else if (kopf === 'anschluss' && thema && thema.art === 'wetter' && thema.ort) ortBezug = thema.ort;   // "und morgen?" nach Wetter für einen Ort
+            }
             var n = jetzt();
             if (kiLetzter.text === t && n - kiLetzter.at < DOPPELT_MS) { neuerEingang('vorfilter_doppelt'); return false; }   // derselbe Satz kurz hintereinander: keine zweite Anfrage
             kiLetzter = { text: t, at: n };
@@ -583,13 +679,13 @@
             var eingang = neuerEingang(kopf || 'ki_aufgerufen');
             if (kopf) vermerke(eingang, 'ki_aufgerufen');
             try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Verarbeite Anweisung...'); } catch (e) { }
-            kiEntscheideImSprachweg(t, gen, eingang, kontextText(), kopf === 'nachfrage_antwort').catch(function () { });
+            kiEntscheideImSprachweg(t, gen, eingang, kontextText(), kopf === 'nachfrage_antwort', ortBezug).catch(function () { });
             return true;
         } catch (e) { return false; }
     }
 
-    function schalten(an) { istAn = !!an; if (!istAn) { offen = null; offenKi = null; thema = null; } try { if (window.localStorage) { if (istAn) window.localStorage.setItem('jv_chef', '1'); else window.localStorage.removeItem('jv_chef'); } } catch (e) { } zeichne(); return istAn; }
-    function vergiss() { protokollListe = []; eingaenge = []; offen = null; offenKi = null; thema = null; letzteAusfuehrung = {}; nr = 0; kiLetzter = { text: '', at: 0 }; zeichne(); return true; }
+    function schalten(an) { istAn = !!an; if (!istAn) { offen = null; offenKi = null; thema = null; ortMerker = null; } try { if (window.localStorage) { if (istAn) window.localStorage.setItem('jv_chef', '1'); else window.localStorage.removeItem('jv_chef'); } } catch (e) { } zeichne(); return istAn; }
+    function vergiss() { protokollListe = []; eingaenge = []; offen = null; offenKi = null; thema = null; ortMerker = null; letzteAusfuehrung = {}; nr = 0; kiLetzter = { text: '', at: 0 }; zeichne(); return true; }
 
     /* ---------- Einstellungen: Schalter ---------- */
     function el(id) { return document.getElementById(id); }
@@ -601,6 +697,7 @@
             if (!sw || !st) return;
             sw.checked = istAn; st.textContent = istAn ? 'EIN (Orte, Internet, Wetter)' : 'AUS'; st.style.color = istAn ? '#4cffb0' : '#5d7e91';
             if (le) le.textContent = !istAn ? 'Die Chef-KI ist aus: es wird nichts beobachtet.' : (eingaenge.length ? 'Letzte Eingabe: ' + eingaenge[eingaenge.length - 1].codes.map(function (c) { return GRUND[c] || c; }).join(' → ') : 'Noch keine Eingabe seit dem Einschalten.');
+            try { if (window.jvOrtZeiten) window.jvOrtZeiten.zeichne(); } catch (e) { }
             if (li) {
                 li.textContent = '';
                 eingaenge.slice().reverse().forEach(function (e) { var d = document.createElement('div'); d.textContent = zeile(e); li.appendChild(d); });
@@ -626,6 +723,7 @@
         behandle: behandle, kiWeg: kiWeg, befehlVorrang: befehlVorrang, uebergabeAlteSuche: uebergabeAlteSuche, eingaenge: eingaengeKopie, grundText: function (c) { return GRUND[c] || ''; }, GRUENDE: GRUND, plane: plane, verarbeite: verarbeite, pruefePlan: pruefePlan, kiEntscheider: kiEntscheider,
         protokoll: function () { return protokollListe.map(function (e) { return { nr: e.nr, zeit: e.zeit, weg: e.weg, faehigkeiten: e.faehigkeiten.slice(), status: e.status }; }); },
         vergiss: vergiss, kiZaehler: function () { return { anfragen: kiZaehler.anfragen, ortssuchen: kiZaehler.ortssuchen, zurueck: kiZaehler.zurueck, websuchen: kiZaehler.websuchen, wetter: kiZaehler.wetter }; }, GESAMT_MS: GESAMT_MS, thema: function () { return themaFrisch() ? { art: thema.art, tag: thema.tag || '', begriff: thema.begriff || '' } : null; }, planErlaubt: planErlaubt, FREIGEGEBEN: FREIGEGEBEN, SCHREIB: SCHREIB,
+        ortMerken: ortMerken, ort: function () { return ortFrisch() ? ortMerker.name : null; }, _setzeOrtPruefer: function (f) { ortPruefer = typeof f === 'function' ? f : null; }, ORT_MS: ORT_MS,
         _lokal: lokalEntscheiden, _setzeSende: function (f) { sendeFunktion = typeof f === 'function' ? f : null; }, _setzeZeitlimit: function (ms) { KI_ZEITLIMIT_MS = ms > 0 ? ms : 7000; }, _setzeEntscheider: function (f) { entscheider = typeof f === 'function' ? f : function (t) { return lokalEntscheiden(t); }; }
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
