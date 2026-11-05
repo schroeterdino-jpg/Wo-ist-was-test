@@ -179,7 +179,7 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
     const mitBest = { absicht: 'erinnern', bestaetigt: true, trocken: false, schritte: [{ faehigkeit: 'erinnerung_erstellen', bestaetigt: true, trocken: false, params: { text: 'Zahnarzt', zeit: '2026-11-06T09:00:00' } }] };
     r = await chef(A, 'x', { entscheider: kiStub(mitBest) });
     check('9c "bestaetigt:true" aus einem KI-Plan zählt NIE: Felder verworfen, nichts geschrieben', r.aus.probleme.some(p => /bestaetigt/.test(p)) && zustand(A) === z0 && A.exec === 0 && r.aus.schritte[0].ausgefuehrt === false, JSON.stringify(r.aus.probleme));
-    check('9d Quelltext: die Chef-KI ruft die Registry nie mit bestaetigt auf', !/bestaetigt\s*:\s*true/.test(lies('js/chef.js').replace(/\/\*[\s\S]*?\*\//g, '')) );
+    check('9d Quelltext: die Chef-KI setzt bestaetigt:true nur an EINER Stelle (B2b-1: nach der ausdrücklichen Zustimmung zu genau einem Verschieben) und sonst nie', (lies('js/chef.js').replace(/\/\*[\s\S]*?\*\//g, '').match(/bestaetigt\s*:\s*true/g) || []).length === 1);
 
     /* ---------- 11. EIN: nur ausdrücklich freigegebene Fähigkeit ---------- */
     A = umgebung(); A.sb.jvChef.an(); A.web = 0; A.sb.answerWithWebSearch = async () => { A.web++; return 'Antwort'; };
@@ -295,7 +295,7 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
     check('KI2 … Treffer gesprochen und als Karten gezeigt, im Gesprächsgedächtnis (3), Protokoll Weg ki', r.karten.length === 1 && /Trattoria Roma|Fischerhaus|Alten Hafen/.test(r.text) && G(A).status().listen[0].anzahl === 3 && A.sb.jvChef.protokoll().some(e => e.weg === 'ki' && e.status === 'SUCCESS'), r.text);
     const folge = await sag(A, 'Das zweite gefällt mir');
     check('KI3 … Folgesatz "Das zweite gefällt mir" nutzt die Treffer der KI-Suche', G(A).ausgewaehlt() && G(A).ausgewaehlt().nr === 2 && folge.lokal);
-    check('KI4 Prompt: ortssuche, websuche, wetter und (B2a) die Kalender-/Aufgaben-Fähigkeiten beschrieben, aber nie termin_verschieben und kein Gedächtnisinhalt; die Nutzernachricht ist der Satz', (() => { const m = A.st.entscheiderNachrichten[0]; const sys = String(m[0].content); return /ortssuche/.test(sys) && /websuche/.test(sys) && /"wetter"/.test(sys) && /termin_erstellen/.test(sys) && !/termin_verschieben/.test(sys) && m.length === 2 && m[1].content === NATUERLICH[0][0] && !/memoryItems|Trattoria/.test(JSON.stringify(m)); })());
+    check('KI4 Prompt: ortssuche, websuche, wetter und (B2a) die Kalender-/Aufgaben-Fähigkeiten beschrieben, (B2b-1) termin_verschieben nur mit suche/tag und kein Gedächtnisinhalt; die Nutzernachricht ist der Satz', (() => { const m = A.st.entscheiderNachrichten[0]; const sys = String(m[0].content); return /ortssuche/.test(sys) && /websuche/.test(sys) && /"wetter"/.test(sys) && /termin_erstellen/.test(sys) && /termin_verschieben/.test(sys) && /NIE an/.test(sys) && m.length === 2 && m[1].content === NATUERLICH[0][0] && !/memoryItems|Trattoria/.test(JSON.stringify(m)); })());
 
     A = umgebung(); A.sb.jvChef.an(); let alle = true, d = [];
     for (const [satzN, begriff] of NATUERLICH) { A.st.entscheiderAntwort = ortsplan(begriff); const n0 = A.st.places_n; await sprich(A, satzN); A.uhr.ms += 6000; if (A.st.places_n !== n0 + 1) { alle = false; d.push(satzN); } }

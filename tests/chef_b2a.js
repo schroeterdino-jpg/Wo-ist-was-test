@@ -151,7 +151,7 @@ const geschrieben = A => A.lese('todoEntries').length + A.lese('reminderEntries'
     await tippen(A, SATZ);
     check('5a Fehler NACH erfolgreichem Schreiben: Eintrag steht, kein alter KI-Weg, keine zweite Ausführung, ehrliche Antwort', n(A, 'todoEntries') <= 1 && A.zaehle === 1 && A.st.groq === 0 && A.gesagt.length === 1, JSON.stringify([A.zaehle, A.st.groq, A.gesagt, n(A, 'todoEntries')]));
     A = umgebung(); await satz(A, plan(AUF('Blumen kaufen'), { faehigkeit: 'termin_verschieben', params: { suche: 'Zahnarzt', neue_zeit: Z1 } }));
-    check('5b Plan mit termin_verschieben (auch mit anderem Schritt): gar nichts ausgeführt, angehalten, KEIN Rückfall auf den alten Weg', n(A, 'todoEntries') === 0 && A.st.groq === 0 && /nichts geändert/.test(A.gesagt.join(' ')), JSON.stringify([n(A, 'todoEntries'), A.st.groq, A.gesagt]));
+    check('5b Plan mit termin_verschieben (Termin gibt es nicht): erster Schritt ehrlich erledigt, Verschieben fragt nach statt zu raten, nichts verschoben, KEIN Rückfall auf den alten Weg', n(A, 'todoEntries') === 1 && n(A, 'calendarEntries') === 0 && A.st.groq === 0 && /keinen passenden Termin/.test(A.gesagt.join(' ')), JSON.stringify([n(A, 'todoEntries'), A.st.groq, A.gesagt]));
     A = umgebung(); A.st.plan = '{kaputt'; await tippen(A, 'Setz Blumen kaufen auf meine Aufgabenliste');
     check('5c ungültige KI-Antwort bei Schreibwunsch: nichts geschrieben von der Chef-KI, genau einmal der bisherige Weg', A.st.groq === 1 && A.st.ent === 1 && n(A, 'todoEntries') === 0);
     A = umgebung(); A.st.verhalten = 'fehler'; await tippen(A, 'Setz Blumen kaufen auf meine Aufgabenliste');
@@ -170,14 +170,14 @@ const geschrieben = A => A.lese('todoEntries').length + A.lese('reminderEntries'
     /* ===== 7 bestätigungspflichtig / mehrdeutig: nicht ausgeführt ===== */
     A = umgebung(); A.setze('savedContacts', { matze: { address: 'Alte Str. 1', originalName: 'Matze' } });
     await satz(A, plan(KON({ name: 'Matze', adresse: 'Neue Str. 2' })));
-    check('7a Kontakt mit abweichender Adresse (Überschreiben): NICHT geändert, verständlicher Hinweis, kein „Ja“ nötig oder wirksam', /Alte Str/.test(JSON.stringify(A.lese('savedContacts'))) && !/Neue Str/.test(JSON.stringify(A.lese('savedContacts'))) && A.gesagt.length === 1 && /Bestätigung/.test(A.gesagt[0]) && A.st.groq === 0, JSON.stringify([A.gesagt, A.lese('savedContacts')]));
+    check('7a Kontakt mit abweichender Adresse (Überschreiben): NICHT geändert, verständlicher Hinweis, kein „Ja“ nötig oder wirksam', /Alte Str/.test(JSON.stringify(A.lese('savedContacts'))) && !/Neue Str/.test(JSON.stringify(A.lese('savedContacts'))) && A.gesagt.length === 1 && /Soll ich/.test(A.gesagt[0]) && A.st.groq === 0, JSON.stringify([A.gesagt, A.lese('savedContacts')]));
     A = umgebung(); A.sb.executeAction({ type: 'memory_store', memory_key: 'schlüssel', memory_value: 'im Auto' }, 'merk dir schlüssel im auto', {}); await warte(20);
     const g7 = stand(A);
     await satz(A, plan(GED('schlüssel', 'im Keller')));
-    check('7b Gedächtnis überschreiben: NICHT überschrieben, Hinweis, nichts geändert', !/im Keller/.test(stand(A)) && A.gesagt.length === 1 && /Bestätigung/.test(A.gesagt[0]), JSON.stringify([A.gesagt]));
+    check('7b Gedächtnis überschreiben: NICHT überschrieben, Hinweis, nichts geändert', !/im Keller/.test(stand(A)) && A.gesagt.length === 1 && /Soll ich/.test(A.gesagt[0]), JSON.stringify([A.gesagt]));
     A = umgebung(); A.setze('savedContacts', { matze: { address: 'A 1', originalName: 'Matze' } });
     await satz(A, plan(AUF('Blumen kaufen'), KON({ name: 'Matze', adresse: 'B 2' }), ERI('Brot kaufen', Z1)));
-    check('7c Mehrschritt mit bestätigungspflichtigem Schritt 2: Aufgabe steht (ehrlich genannt), Schritt 2 und 3 NICHT ausgeführt', n(A, 'todoEntries') === 1 && n(A, 'reminderEntries') === 0 && /A 1/.test(JSON.stringify(A.lese('savedContacts'))) && /Bestätigung/.test(A.gesagt[0]) && /Erledigt/.test(A.gesagt[0]) && A.st.groq === 0, JSON.stringify(A.gesagt));
+    check('7c Mehrschritt mit bestätigungspflichtigem Schritt 2: Aufgabe steht (ehrlich genannt), Schritt 2 und 3 NICHT ausgeführt', n(A, 'todoEntries') === 1 && n(A, 'reminderEntries') === 0 && /A 1/.test(JSON.stringify(A.lese('savedContacts'))) && /Soll ich/.test(A.gesagt[0]) && /Erledigt/.test(A.gesagt[0]) && A.st.groq === 0, JSON.stringify(A.gesagt));
     A = umgebung(); await satz(A, plan(AUF('Blumen kaufen')), 'Setz Blumen kaufen auf meine Aufgabenliste');
     const gj = await tippen(A, 'Ja');
     check('7d „Ja“ nach einer abgeschlossenen Chef-KI-Aktion löst nichts aus (es gibt keine offene Aktion)', n(A, 'todoEntries') === 1 && geschrieben(A) === 1, JSON.stringify([n(A, 'todoEntries'), n(A, 'reminderEntries'), n(A, 'calendarEntries'), gj]));
@@ -196,15 +196,15 @@ const geschrieben = A => A.lese('todoEntries').length + A.lese('reminderEntries'
     check('9a neuer Satz überholt einen hängenden: nur die neue Aufgabe, keine doppelte Antwort', n(A, 'todoEntries') === 1 && A.lese('todoEntries')[0].text === 'Milch holen', JSON.stringify(A.lese('todoEntries')));
 
 
-    /* ===== 11 Verschieben bleibt gesperrt – auch ohne Rückfall auf den alten KI-Weg (Chef-KI EIN) ===== */
+    /* ===== 11 Verschieben (B2b-1: nur mit Bestätigung, Ausführlicheres in chef_b2b.js) – nie Rückfall auf den alten KI-Weg (Chef-KI EIN) ===== */
     A = umgebung(); A.lese('calendarEntries').push({ id: 'local_1', text: 'Zahnarzt', date: 'x', isoDate: '2026-11-06T15:00:00+01:00', location: '' }); { const sv = stand(A);
     await tippen(A, 'Verschiebe den Zahnarzttermin auf Freitag um vier');
-    check('11a Satz mit „verschieb…“ bei Chef-KI EIN: angehalten, keine Planer-Anfrage, KEIN alter KI-Weg, nichts geändert, eine ehrliche Antwort', A.st.ent === 0 && A.st.groq === 0 && stand(A) === sv && A.gesagt.length === 1 && /noch nicht/.test(A.gesagt[0]) && /nichts geändert/.test(A.gesagt[0]), JSON.stringify([A.st.ent, A.st.groq, A.gesagt]));
+    check('11a Satz mit „verschieb…“ bei Chef-KI EIN: angehalten, keine Planer-Anfrage, KEIN alter KI-Weg, nichts geändert, eine ehrliche Antwort', A.st.ent === 1 && A.st.groq === 0 && stand(A) === sv && A.gesagt.length === 1 && /Welchen Termin/.test(A.gesagt[0]), JSON.stringify([A.st.ent, A.st.groq, A.gesagt]));
     A.st.plan = plan({ faehigkeit: 'termin_verschieben', params: { suche: 'Zahnarzt', neue_zeit: Z2 } });
     await tippen(A, 'Mein Termin beim Zahnarzt soll jetzt am Freitag stattfinden');
-    check('11b Planer will verschieben (Satz ohne „verschieb…“): angehalten, KEIN alter KI-Weg, nichts geändert', A.st.ent === 1 && A.st.groq === 0 && stand(A) === sv && /nichts geändert/.test(A.gesagt.join(' ')), JSON.stringify([A.st.ent, A.st.groq, A.gesagt]));
+    check('11b Planer will verschieben (Satz ohne „verschieb…“): nichts geändert, KEIN alter KI-Weg', A.st.ent === 2 && A.st.groq === 0 && stand(A) === sv && /nichts geändert/.test(A.gesagt.join(' ')), JSON.stringify([A.st.ent, A.st.groq, A.gesagt]));
     A.sb.jvChef.aus(); const g0 = A.st.groq; await tippen(A, 'Verschiebe den Zahnarzttermin auf Freitag um vier');
-    check('11c Chef-KI AUS: unverändert, der Satz geht wie bisher an den alten Weg (keine Planer-Anfrage)', A.st.ent === 1 && A.st.groq === g0 + 1, JSON.stringify([A.st.ent, A.st.groq]));
+    check('11c Chef-KI AUS: unverändert, der Satz geht wie bisher an den alten Weg (keine Planer-Anfrage)', A.st.ent === 2 && A.st.groq === g0 + 1, JSON.stringify([A.st.ent, A.st.groq]));
     A.sb.jvChef.an(); const e0 = A.st.ent; await tippen(A, 'Setz Blumen kaufen auf meine Aufgabenliste');
     check('11d normale Schreibwünsche gehen weiter an die Chef-KI (nur „verschieb…“ ist gesperrt)', A.st.ent === e0 + 1); }
 
@@ -219,7 +219,7 @@ const geschrieben = A => A.lese('todoEntries').length + A.lese('reminderEntries'
     /* ===== 10 Prompt und Netz ===== */
     A = umgebung(); await satz(A, plan(AUF('Blumen kaufen')));
     const sys = String(((A.st.entNachrichten[0] || [])[0] || {}).content || '');
-    check('10a Prompt nennt die B2a-Fähigkeiten und das heutige Datum, aber nie termin_verschieben; weiter nur 2 Nachrichten', /termin_erstellen/.test(sys) && /aufgabe_erstellen/.test(sys) && /2026-11-05/.test(sys) && !/termin_verschieben/.test(sys) && A.st.entNachrichten[0].length === 2);
+    check('10a Prompt nennt die B2a-Fähigkeiten und das heutige Datum, (B2b-1) termin_verschieben nur mit suche/tag; weiter nur 2 Nachrichten', /termin_erstellen/.test(sys) && /aufgabe_erstellen/.test(sys) && /2026-11-05/.test(sys) && /termin_verschieben/.test(sys) && A.st.entNachrichten[0].length === 2);
     check('10b genau EINE zusätzliche KI-Anfrage je Schreibwunsch, kein weiteres Netz', A.st.ent === 1 && A.st.groq === 0 && A.st.placesN === 0 && A.st.wetterN === 0 && A.st.webN === 0);
     check('10c Diagnose: ohne Satzinhalt, mit Codes für die Schreib-Aktion', /schreiben_ausgefuehrt/.test(codes(A)) && !/Blumen/.test(JSON.stringify(A.sb.jvChef.eingaenge())) && !/Blumen/.test(JSON.stringify(A.sb.jvChef.protokoll())));
     const cs = lies('js/chef.js').replace(/\/\*[\s\S]*?\*\//g, '');
