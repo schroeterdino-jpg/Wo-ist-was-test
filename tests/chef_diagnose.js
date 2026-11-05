@@ -184,7 +184,7 @@ const ortsplan = (b, o) => ({ schritte: [{ faehigkeit: 'ortssuche', params: o ? 
     A.dom.chefLoeschen.feuer('click');
     check('9c Löschen leert Diagnose und Anzeige', A.sb.jvChef.eingaenge().length === 0 && A.dom.chefListe.children.length === 0 && /Noch keine Eingabe/.test(A.dom.chefLetzte.textContent), A.dom.chefLetzte.textContent);
     A = umgebung(); A.dom.chefSchalter.checked = true; A.dom.chefSchalter.feuer('change');
-    check('9d Schalter in den Einstellungen schaltet EIN, Status sichtbar', A.sb.jvChef.istAn() === true && A.dom.chefStatus.textContent === 'EIN (Orte, Internet, Wetter, Kalender, Aufgaben, Notizen)' && /Noch keine Eingabe/.test(A.dom.chefLetzte.textContent));
+    check('9d Schalter in den Einstellungen schaltet EIN, Status sichtbar', A.sb.jvChef.istAn() === true && A.dom.chefStatus.textContent === 'EIN (Orte, Internet, Wetter, Kalender, Aufgaben, Notizen, Termine verschieben nach Bestätigung)' && /Noch keine Eingabe/.test(A.dom.chefLetzte.textContent));
     A.dom.chefSchalter.checked = false; A.dom.chefSchalter.feuer('change');
     check('9e … und AUS; danach wird nichts mehr beobachtet', A.sb.jvChef.istAn() === false && A.dom.chefStatus.textContent === 'AUS' && (await tippen(A, 'was kannst du'), A.sb.jvChef.eingaenge().length === 0));
     const html = lies('index.html');

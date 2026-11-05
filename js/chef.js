@@ -38,9 +38,10 @@
     /* Paket B2a: nur im echten Sprachweg (KI-Weg, Chef-KI EIN) darf die Chef-KI diese Fähigkeiten wirklich ausführen. Verschieben, Löschen und alles, was eine Bestätigung braucht, bleibt gesperrt (kommt erst in B2b). */
     var B2A_NEU = Object.freeze(['termine_lesen', 'aufgaben_lesen', 'aufgabe_erstellen', 'erinnerung_erstellen', 'termin_erstellen', 'kontakt_speichern', 'gedaechtnis_speichern']);
     var B2A_SCHREIBT = Object.freeze(['aufgabe_erstellen', 'erinnerung_erstellen', 'termin_erstellen', 'kontakt_speichern', 'gedaechtnis_speichern']);
-    var KI_PLAN = Object.freeze(['ortssuche', 'websuche', 'wetter'].concat(B2A_NEU));        // das darf der KI-Entscheider im Sprachweg planen
-    var LESBAR = { termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', aufgabe_erstellen: 'Aufgabe anlegen', erinnerung_erstellen: 'Erinnerung anlegen', termin_erstellen: 'Termin eintragen', kontakt_speichern: 'Kontakt speichern', gedaechtnis_speichern: 'Merken', ortssuche: 'Ortssuche', websuche: 'Internetsuche', wetter: 'Wetter' };
-    var MAX_SCHRITTE = 3, MAX_PROTOKOLL = 20, FRAGE_MS = 2 * 60000, DOPPELT_MS = 4000;
+    var B2B_NAMEN = Object.freeze(['termin_verschieben']);   // Paket B2b-1: Verschieben nur nach ausdrücklicher Bestätigung (nie Löschen)
+    var KI_PLAN = Object.freeze(['ortssuche', 'websuche', 'wetter'].concat(B2A_NEU, B2B_NAMEN));        // das darf der KI-Entscheider im Sprachweg planen
+    var LESBAR = { termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', aufgabe_erstellen: 'Aufgabe anlegen', erinnerung_erstellen: 'Erinnerung anlegen', termin_erstellen: 'Termin eintragen', kontakt_speichern: 'Kontakt speichern', gedaechtnis_speichern: 'Merken', termin_verschieben: 'Termin verschieben', ortssuche: 'Ortssuche', websuche: 'Internetsuche', wetter: 'Wetter' };
+    var MAX_SCHRITTE = 3, MAX_PROTOKOLL = 20, FRAGE_MS = 2 * 60000, DOPPELT_MS = 4000, PAUSE_MS = 2 * 60000;
     var GESAMT_MS = 20000, THEMA_MS = 10 * 60000;                                            // Gesamtzeitbudget je Eingabe im Sprachweg; wie lange ein Thema für Anschlussfragen gilt
     var KI_FAEHIGKEITEN = Object.freeze(['ortssuche', 'websuche', 'wetter']);                 // das darf der KI-Entscheider planen
     var PLAN_KEYS = ['absicht', 'schritte', 'frage', 'hinweis', 'benoetigt'];
@@ -48,6 +49,7 @@
     var NAME_RX = /^[a-z][a-z0-9_]*$/;
 
     var istAn = false, nr = 0, protokollListe = [], offen = null, letzteAusfuehrung = {};
+    var pause = null;   // Paket B2b-1: EINE offene Rückfrage/Bestätigung zu genau einem Schritt eines Plans (2 Minuten, nur Arbeitsspeicher)
     var entscheider = null;
 
     function R() { return window.jvRegistry || null; }
@@ -59,7 +61,7 @@
             if (typeof window.showActionCards === 'function') window.showActionCards(liste);
         } catch (e) { }
     }
-    function frageAnmelden() { try { if (window.jvFrage && typeof window.jvFrage.neu === 'function') window.jvFrage.neu('chef'); } catch (e) { } }
+    function frageAnmelden(behalten) { if (behalten !== true) pause = null; try { if (window.jvFrage && typeof window.jvFrage.neu === 'function') window.jvFrage.neu('chef'); } catch (e) { } }
     function jungeFrageGehoertUns() { try { return !window.jvFrage || window.jvFrage.aktuell() === 'chef'; } catch (e) { return true; } }
 
     /* ---------- Plan prüfen ---------- */
@@ -123,7 +125,7 @@
     var RX_WOCHENTAG = /\b(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|wochenende|morgen|heute)\b/i;
     var RX_FRAGEWORT = /^(wie|was|wer|wann|wo|woher|wohin|warum|wieso|weshalb|welche[rsmn]?|kannst|kann|ist|sind|hast|hat|gibt|ruf|schalt\w*|stell\w*|mach\w*|zeig\w*|such\w*|erinner\w*|sag\w*)\b/i;
     var RX_VERSCHIEBEN = /\b(verschieb\w*|verleg\w*|umbuch\w*|umleg\w*|vorverleg\w*|nachverleg\w*)\b/i;   // B2a: Verschieben ist bei EINGESCHALTETER Chef-KI gesperrt (kommt mit Bestätigung in B2b), auch kein Rückfall auf den alten KI-Weg
-    var TEXT_VERSCHIEBEN = 'Termine verschieben kann ich mit der Chef-KI noch nicht, weil dafür deine Bestätigung nötig ist. Ich habe nichts geändert.';
+    var TEXT_VERSCHIEBEN = 'Ich konnte nicht sicher erkennen, welchen Termin du wohin verschieben möchtest. Ich habe nichts geändert. Sag es bitte noch einmal, zum Beispiel: Verschiebe den Zahnarzt auf Freitag um 15 Uhr.';
     /* Mehrteilige Anfragen: mindestens zwei AUSDRÜCKLICH verschiedene Aktionen, verbunden durch "und/dann/…". Nur dann fragt voice.js die Chef-KI VOR den festen Befehlen
        (sonst fängt ein fester Befehl wie "Ortssuche" oder "was steht an" den ganzen Satz ab und der Rest geht verloren). Einfache Sätze bleiben beim bisherigen Weg. */
     var MEHR_GRUPPEN = [
@@ -136,7 +138,7 @@
     ];
     var RX_VERBINDER = /\b(?:und|dann|danach|außerdem|ausserdem|sowie|gleichzeitig|zusätzlich|zusaetzlich)\b/;
     var MEHR_NAMEN = ['Termin', 'Erinnerung', 'Aufgabe', 'Kontakt oder Adresse', 'Merken', 'Vorlesen'];
-    var MEHR_FAEHIG = [['termin_erstellen', 'termine_lesen'], ['erinnerung_erstellen'], ['aufgabe_erstellen', 'aufgaben_lesen'], ['kontakt_speichern'], ['gedaechtnis_speichern'], ['termine_lesen', 'aufgaben_lesen']];   // welche Schritte eine verlangte Aktion erfüllen
+    var MEHR_FAEHIG = [['termin_erstellen', 'termine_lesen', 'termin_verschieben'], ['erinnerung_erstellen'], ['aufgabe_erstellen', 'aufgaben_lesen'], ['kontakt_speichern'], ['gedaechtnis_speichern'], ['termine_lesen', 'aufgaben_lesen']];   // welche Schritte eine verlangte Aktion erfüllen
     function mehrGruppen(text) {   // Nummern der ausdrücklich verlangten, verschiedenen Aktionen (leer = nicht mehrteilig)
         if (typeof text !== 'string') return [];
         var t = text.toLowerCase().replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -185,10 +187,10 @@
 
     /* ---------- KI-Entscheider (nur mit von außen gegebener Sende-Funktion) ---------- */
     function b2aRegeln(faehig) {
-        if (!faehig.some(function (f) { return B2A_NEU.indexOf(f.name) >= 0; })) return '';
+        if (!faehig.some(function (f) { return B2A_NEU.indexOf(f.name) >= 0 || B2B_NAMEN.indexOf(f.name) >= 0; })) return '';
         var d = new Date(Date.now()), tage = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
         function z2(n) { return ('0' + n).slice(-2); }
-        return ' Kalender, Erinnerungen, Aufgaben, Kontakte und Gedächtnis: Heute ist ' + tage[d.getDay()] + ', ' + d.getFullYear() + '-' + z2(d.getMonth() + 1) + '-' + z2(d.getDate()) + ', ' + z2(d.getHours()) + ':' + z2(d.getMinutes()) + ' Uhr. Schreibende Fähigkeiten (termin_erstellen, erinnerung_erstellen, aufgabe_erstellen, kontakt_speichern, gedaechtnis_speichern) nur, wenn der Nutzer die Aktion eindeutig verlangt und alle nötigen Angaben genannt hat. Zeiten immer als ISO-Zeit JJJJ-MM-TTTHH:MM:00 in der Zukunft. Fehlt eine Angabe, setze nur "frage" und keine Schritte. Genau ein Schritt je Wunsch, dieselbe Aktion nie zweimal; ein späterer Schritt darf von einem früheren abhängen (zum Beispiel erst ortssuche, dann kontakt_speichern). Verschieben, Ändern, Löschen und Wiederholungen planst du NICHT: antworte dann {"schritte":[]}.';
+        return ' Kalender, Erinnerungen, Aufgaben, Kontakte und Gedächtnis: Heute ist ' + tage[d.getDay()] + ', ' + d.getFullYear() + '-' + z2(d.getMonth() + 1) + '-' + z2(d.getDate()) + ', ' + z2(d.getHours()) + ':' + z2(d.getMinutes()) + ' Uhr. Schreibende Fähigkeiten (termin_erstellen, erinnerung_erstellen, aufgabe_erstellen, kontakt_speichern, gedaechtnis_speichern) nur, wenn der Nutzer die Aktion eindeutig verlangt und alle nötigen Angaben genannt hat. Zeiten immer als ISO-Zeit JJJJ-MM-TTTHH:MM:00 in der Zukunft. Fehlt eine Angabe, setze nur "frage" und keine Schritte. Genau ein Schritt je Wunsch, dieselbe Aktion nie zweimal; ein späterer Schritt darf von einem früheren abhängen (zum Beispiel erst ortssuche, dann kontakt_speichern). termin_verschieben nur mit params.suche (Stichwort aus dem Titel des Termins) und optional params.tag (der BISHERIGE Tag: heute, morgen, uebermorgen oder JJJJ-MM-TT); die neue Zeit gibst du NIE an, sie wird aus dem Satz gelesen. Ändern, Löschen und Wiederholungen planst du NICHT: antworte dann {"schritte":[]}.';
     }
     function kiEntscheider(sende, nur, kontext) {
         return async function (text) {
@@ -251,11 +253,19 @@
         budget_ueberschritten: 'Zeitbudget überschritten',
         ort_unklar: 'Ort unklar ("dort"/"da"): Rückfrage statt eigener Standort',
         auftrag_unvollstaendig: 'Auftrag nicht vollständig erkannt: vor dem Schreiben angehalten, nichts ausgeführt',
-        verschieben_gesperrt: 'Verschieben ist mit der Chef-KI noch gesperrt: angehalten, nichts geändert',
+        verschieben_gesperrt: 'Verschieben angehalten: nichts geändert',
+        verschieben_unklar: 'Verschieben: Wunsch nicht sicher erkannt, nichts geändert, kein Rückfall auf den alten Weg',
+        pause_frage: 'Rückfrage beim Verschieben gestellt (Angabe fehlt oder mehrere Termine)',
+        bestaetigung_gefragt: 'Bestätigung eingeholt: nichts geändert, bis du Ja sagst',
+        bestaetigung_ja: 'Bestätigung Ja: genau diese eine Aktion ausgeführt',
+        bestaetigung_nein: 'Bestätigung Nein: nichts geändert',
+        bestaetigung_unklar: 'Antwort unklar: einmal nachgefragt',
+        bestaetigung_abgelaufen: 'Bestätigung abgelaufen (2 Minuten): nichts geändert',
+        bestaetigung_ersetzt: 'Neuer Befehl hat die offene Rückfrage beendet',
         ort_bezug: '"dort"/"da" auf den zuletzt genannten Ort bezogen',
         schreiben_ausgefuehrt: 'Schreib-/Lese-Aktion ausgeführt (Termin, Erinnerung, Aufgabe, Kontakt, Gedächtnis)',
         schreiben_gestoppt: 'Mehrschritt-Anfrage angehalten (Rückfrage, Fehler oder Bestätigung nötig)',
-        schreiben_bestaetigung: 'Bestätigung nötig: nichts geändert (kommt erst in B2b)'
+        schreiben_bestaetigung: 'Bestätigung nötig, aber nicht möglich: nichts geändert'
     });
     function neuerEingang(code) {
         eingangNr++;
@@ -312,8 +322,9 @@
             erg.status = 'NEEDS_INFORMATION'; erg.fehlend = pp.fehlend.concat(pp.ungueltig); erg.grund = 'Angabe fehlt';
             erg.nachricht = frageNach(erg.fehlend[0]); return erg;
         }
-        var b2a = opts.schreiben === true && B2A_NEU.indexOf(name) >= 0;   // nur der KI-Sprachweg setzt das (B2a); nie termin_verschieben
-        var darfEcht = istAn && ((FREIGEGEBEN.indexOf(name) >= 0 && SCHREIB.indexOf(name) < 0) || b2a) && !(d.bestaetigung && d.bestaetigung.noetig) && opts.trocken !== true;
+        var b2a = opts.schreiben === true && B2A_NEU.indexOf(name) >= 0;   // nur der KI-Sprachweg setzt das (B2a)
+        var b2b = opts.schreiben === true && opts.bestaetigt === true && B2B_NAMEN.indexOf(name) >= 0;   // B2b-1: Verschieben wirklich nur, wenn der Nutzer GENAU diese Änderung bestätigt hat
+        var darfEcht = istAn && ((FREIGEGEBEN.indexOf(name) >= 0 && SCHREIB.indexOf(name) < 0) || b2a || b2b) && (!(d.bestaetigung && d.bestaetigung.noetig) || b2b) && opts.trocken !== true;
         var trocken = !darfEcht;
         var schluessel = name + '|' + JSON.stringify(schritt.params);
         if (darfEcht) {
@@ -322,7 +333,7 @@
             letzteAusfuehrung[schluessel] = jetzt();
         }
         var r;
-        try { r = await reg.fuehreAus(name, schritt.params, { trocken: trocken, kontext: { text: String(text || '') } }); }   // bestaetigt wird NIE gesetzt
+        try { r = await reg.fuehreAus(name, schritt.params, { trocken: trocken, bestaetigt: b2b ? true : undefined, frage: typeof opts.frage === 'string' ? opts.frage : undefined, kontext: { text: String(text || ''), bestaetigt: opts.bestaetigt === true } }); }   // bestaetigt nur nach der ausdrücklichen Zustimmung des Nutzers zu genau diesem Schritt
         catch (e) { erg.status = 'TOOL_FAILED'; erg.grund = 'Ausnahme'; erg.nachricht = 'Dabei ist technisch etwas schiefgelaufen.'; return erg; }
         erg.status = r.status; erg.ausgefuehrt = !!r.ausgefuehrt; erg.trocken = !!r.trocken; erg.nachricht = r.nachricht || ''; erg.fehlend = r.fehlend || []; erg.grund = r.grund || '';
         erg.nurGeplant = trocken && r.status === 'SUCCESS';
@@ -539,6 +550,7 @@
     }
     function nurKeys(ks, erlaubt) { return ks.every(function (k) { return erlaubt.indexOf(k) >= 0; }); }
     function b2aParamsOk(name, p, ks) {   // Paket B2a: strenge Prüfung der Angaben je Fähigkeit (Wiederholungen, Verschieben usw. gibt es hier nicht)
+        if (name === 'termin_verschieben') return nurKeys(ks, ['suche', 'tag']) && textOk(p.suche, 60) && (p.tag === undefined || ['heute', 'morgen', 'uebermorgen', 'übermorgen'].indexOf(String(p.tag).toLowerCase()) >= 0 || /^\d{4}-\d{2}-\d{2}$/.test(String(p.tag)));   // die neue Zeit liest die Chef-KI selbst aus dem Satz (nie vom Planer)
         if (name === 'aufgaben_lesen') return ks.length === 0;
         if (name === 'termine_lesen') return nurKeys(ks, ['tag']) && (p.tag === undefined || ['heute', 'morgen', 'uebermorgen', 'übermorgen'].indexOf(String(p.tag).toLowerCase()) >= 0 || /^\d{4}-\d{2}-\d{2}$/.test(String(p.tag)));
         if (name === 'aufgabe_erstellen') return nurKeys(ks, ['text']) && textOk(p.text);
@@ -557,7 +569,7 @@
         for (var i = 0; i < n; i++) {
             var st = plan.schritte[i], p = st.params || {}, ks = Object.keys(p);
             if (KI_PLAN.indexOf(st.faehigkeit) < 0) return false;
-            if (B2A_NEU.indexOf(st.faehigkeit) >= 0) { if (!b2aParamsOk(st.faehigkeit, p, ks)) return false; if (plan.schritte.slice(0, i).some(function (v) { return v.faehigkeit === st.faehigkeit && JSON.stringify(v.params || {}) === JSON.stringify(p); })) return false; continue; }
+            if (B2A_NEU.indexOf(st.faehigkeit) >= 0 || B2B_NAMEN.indexOf(st.faehigkeit) >= 0) { if (!b2aParamsOk(st.faehigkeit, p, ks)) return false; if (plan.schritte.slice(0, i).some(function (v) { return v.faehigkeit === st.faehigkeit && JSON.stringify(v.params || {}) === JSON.stringify(p); })) return false; continue; }
             zaehl[st.faehigkeit]++;
             if (st.faehigkeit === 'ortssuche') {
                 if (!saubererBegriff(p.suchbegriff)) return false;
@@ -594,28 +606,171 @@
        Nach dem Zeitbudget wird alles Weitere verworfen (nichts wird nachträglich gesprochen). */
     /* Paket B2a: Plan mit Kalender-/Erinnerungs-/Aufgaben-/Kontakt-/Gedächtnis-Schritten. Strikt der Reihe nach; beim ersten Problem wird SOFORT gestoppt (spätere Schritte hängen oft vom früheren ab).
        Nichts wird wiederholt, nichts wird um eine Bestätigung herumgeführt. st.begonnen = es wurde schon (versucht) zu schreiben: dann gibt es keinen Rückfall auf den alten KI-Weg. */
-    function ueberschreibtGedaechtnis(p) {
+    function ueberschreibtGedaechtnis(p) {   // gibt den ALTEN Wert zurück, wenn der Eintrag mit einem anderen Wert überschrieben würde, sonst null
         try {
             var key = String(p.schluessel || '').toLowerCase().trim();
-            if (!key || typeof searchMemory !== 'function') return false;
+            if (!key || typeof searchMemory !== 'function') return null;
             var t = searchMemory(key) || [];
-            for (var n = 0; n < t.length; n++) if (t[n] && String(t[n].key).toLowerCase() === key && typeof t[n].value === 'string' && t[n].value.trim() !== '') return String(p.wert == null ? '' : p.wert).trim().toLowerCase() !== t[n].value.trim().toLowerCase();
+            for (var n = 0; n < t.length; n++) if (t[n] && String(t[n].key).toLowerCase() === key && typeof t[n].value === 'string' && t[n].value.trim() !== '') return String(p.wert == null ? '' : p.wert).trim().toLowerCase() !== t[n].value.trim().toLowerCase() ? t[n].value.trim() : null;
         } catch (e) { }
-        return false;
+        return null;
     }
-    async function ausfuehrenSchreibend(plan, text, gen, ende, st) {
-        var erledigt = [], kartenListe = [], schritte = [], stopp = null, doppelt = 0, versucht = 0;
-        for (var i = 0; i < plan.schritte.length; i++) {
-            var s = plan.schritte[i], name = s.faehigkeit, schreibt = B2A_SCHREIBT.indexOf(name) >= 0;
+
+    /* ---------- Paket B2b-1: Termine verschieben (nur nach ausdrücklicher Bestätigung) ---------- */
+    function nz(t) { return String(t == null ? '' : t).toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[?!,;]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+    var WTAG = { sonntag: 0, montag: 1, dienstag: 2, mittwoch: 3, donnerstag: 4, freitag: 5, samstag: 6 };
+    var ZAHLW = { ein: 1, eine: 1, einen: 1, einem: 1, eins: 1, zwei: 2, drei: 3, vier: 4, fuenf: 5, sechs: 6, sieben: 7, acht: 8, neun: 9, zehn: 10, zwoelf: 12 };
+    function tagIso(d) { return d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }); }
+    function zeitIso(d) { return d.toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).replace(' ', 'T').slice(0, 16) + ':00'; }
+    function mittag(iso) { return new Date(iso + 'T12:00:00'); }
+    function tagAusWort(n, heuteOk) {   // "morgen", "Freitag", "15.11." -> JJJJ-MM-TT oder ''
+        var h0 = tagIso(new Date()), h = mittag(h0), d;
+        if (/\buebermorgen\b/.test(n)) { d = mittag(h0); d.setDate(d.getDate() + 2); return tagIso(d); }
+        if (/\bmorgen\b/.test(n)) { d = mittag(h0); d.setDate(d.getDate() + 1); return tagIso(d); }
+        if (/\bheute\b/.test(n)) return h0;
+        var m = n.match(/\b(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/);
+        if (m) { var diff = (WTAG[m[1]] - h.getDay() + 7) % 7; if (diff === 0 && heuteOk !== true) diff = 7; d = mittag(h0); d.setDate(d.getDate() + diff); return tagIso(d); }
+        m = n.match(/\b(\d{1,2})\.(\d{1,2})\.(?:(\d{4}))?/);
+        if (m && +m[1] >= 1 && +m[1] <= 31 && +m[2] >= 1 && +m[2] <= 12) {
+            var jahr = m[3] ? +m[3] : h.getFullYear(); d = new Date(jahr, +m[2] - 1, +m[1], 12);
+            if (!m[3] && tagIso(d) < h0) d = new Date(jahr + 1, +m[2] - 1, +m[1], 12);
+            return tagIso(d);
+        }
+        return '';
+    }
+    function uhrAus(n) {   // "15 Uhr", "um 15:30", "halb vier"-Zahl ("halb 4") -> { h, m } oder null
+        var m = n.match(/(?:^|[^\d.])(\d{1,2}):(\d{2})\b/) || n.match(/(?:^|[^\d.])(\d{1,2})\.(\d{2})\s*uhr\b/); if (m && +m[1] <= 23 && +m[2] <= 59) return { h: +m[1], m: +m[2] };
+        m = n.match(/\bhalb (\d{1,2})\b/); if (m && +m[1] >= 1 && +m[1] <= 24) return { h: (+m[1] + 23) % 24, m: 30 };
+        m = n.match(/\b(\d{1,2})\s*uhr\b/); if (m && +m[1] <= 23) return { h: +m[1], m: 0 };
+        m = n.match(/\bum (\d{1,2})\b(?!\s*(?:stunde|stunden|minute|minuten|tag|tage|tagen|woche|wochen))/); if (m && +m[1] <= 23) return { h: +m[1], m: 0 };
+        return null;
+    }
+    function relativAus(n) {   // "eine Stunde später", "einen Tag nach hinten", "30 Minuten früher" -> { min, tage } oder null
+        var m = n.match(/\b(?:um\s+)?(\d+(?:[.,]\d+)?|eine halbe|halbe|anderthalb|eineinhalb|ein|eine|einen|einem|zwei|drei|vier|fuenf|sechs|sieben|acht|neun|zehn|zwoelf)\s*(stunden?|std|minuten?|min|viertelstunde|tage?n?|wochen?)\s+(spaeter|frueher|nach hinten|nach vorne|nach vorn|vorher|nachher)\b/);
+        if (!m) return null;
+        var zahl = /^\d/.test(m[1]) ? parseFloat(m[1].replace(',', '.')) : (m[1] === 'eine halbe' || m[1] === 'halbe') ? 0.5 : (m[1] === 'anderthalb' || m[1] === 'eineinhalb') ? 1.5 : ZAHLW[m[1]];
+        if (!zahl || zahl <= 0) return null;
+        var einheit = m[2].charAt(0) === 's' && m[2] !== 'std' ? 'h' : m[2] === 'std' ? 'h' : m[2].indexOf('viertel') === 0 ? 'v' : m[2].charAt(0) === 'm' ? 'm' : m[2].charAt(0) === 't' ? 't' : 'w';
+        var vor = /^(frueher|nach vorne|nach vorn|vorher)$/.test(m[3]), vz = vor ? -1 : 1, min = 0, tage = 0;
+        if (einheit === 'h') min = zahl * 60; else if (einheit === 'm') min = zahl; else if (einheit === 'v') min = zahl * 15; else if (einheit === 't') tage = zahl; else tage = zahl * 7;
+        if (tage !== Math.floor(tage) || min > 7 * 1440 || tage > 60) return null;
+        return { min: vz * Math.round(min), tage: vz * tage };
+    }
+    function leseZiel(text, antwort) {   // Wohin soll verschoben werden? { rel } oder { tag, uhr } oder null. Der BISHERIGE Tag steht vor "auf" und zählt hier nicht.
+        var n = nz(text), rel = relativAus(n);
+        if (rel) return { rel: rel };
+        var teile = n.split(/\bauf\b/), ziel = teile.length > 1 ? teile[teile.length - 1] : n;
+        var tag = tagAusWort(ziel, false), uhr = uhrAus(ziel);
+        return (tag || uhr) ? { tag: tag, uhr: uhr } : null;
+    }
+    function altTag(text) {   // "den Zahnarzt am Freitag auf Montag verschieben" / "morgen eine Stunde später": der Tag VOR dem Ziel gehört zum bestehenden Termin
+        var n = nz(text), vor;
+        if (relativAus(n)) vor = n; else { var t = n.split(/\bauf\b/); if (t.length < 2) return ''; vor = t.slice(0, -1).join(' auf '); }
+        return tagAusWort(vor, true);
+    }
+    function ordinalAus(n, antwort) {   // "den zweiten" -> 2, "den letzten" -> -1, in der Antwort auch "zwei", "Nummer 2", "2"
+        var m = n.match(/\b(erste|zweite|dritte|vierte|fuenfte)[nrms]?\b/);
+        if (m) return { erste: 1, zweite: 2, dritte: 3, vierte: 4, fuenfte: 5 }[m[1]];
+        if (/\bletzte[nrms]?\b/.test(n)) return -1;
+        if (antwort) {
+            m = n.match(/^(?:die |der |den |das )?(?:nummer |nr |termin )?(\d|eins|zwei|drei|vier|fuenf)$/);
+            if (m) return /^\d$/.test(m[1]) ? +m[1] : { eins: 1, zwei: 2, drei: 3, vier: 4, fuenf: 5 }[m[1]];
+        }
+        return 0;
+    }
+    function terminText(e) {
+        try {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(String(e.isoDate))) return mittag(e.isoDate).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long', day: 'numeric', month: 'long' }) + ', ganztägig';
+            var d = new Date(e.isoDate);
+            return d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long', day: 'numeric', month: 'long' }) + ' um ' + d.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: 'numeric', minute: '2-digit' }).replace(/:00$/, '') + ' Uhr';
+        } catch (x) { return ''; }
+    }
+    /* Findet den EINEN Termin und rechnet die neue Zeit aus. Ergebnis: { art:'frage', was, frage } | { art:'fehler', nachricht } | { art:'bestaetigen', params, vorher, titel } */
+    function klausel(text) {   // bei mehreren Wünschen in einem Satz zählt nur der Teil mit dem Verschieben ("... und erinnere mich eine Stunde vorher" gehört nicht dazu)
+        var teile = String(text).split(/\s+(?:und|dann|danach|außerdem|ausserdem|sowie|zusätzlich|zusaetzlich)\s+/i);
+        for (var i = 0; i < teile.length; i++) if (RX_VERSCHIEBEN.test(teile[i])) return teile[i];
+        return String(text);
+    }
+    function loeseVerschiebung(s, text0, zus) {
+        zus = zus || {};
+        var text = klausel(text0), sk = window.jvSchreibkern, n = nz(text);
+        if (!sk || typeof sk.kandidatenTermine !== 'function') return { art: 'fehler', nachricht: 'Der Kalender ist gerade nicht erreichbar, deshalb habe ich nichts verschoben.' };
+        var p0 = { suche: String(zus.suche || (s.params && s.params.suche) || '') };
+        var tag = (s.params && s.params.tag) || zus.tag || altTag(text);
+        if (tag) p0.tag = tag;
+        var k = sk.kandidatenTermine(p0);
+        if (!k.length) return { art: 'frage', was: 'suche', frage: 'Ich habe keinen passenden Termin gefunden. Wie heißt der Termin genau?', zus: { tag: tag || '' } };
+        if (k.length > 5) return { art: 'frage', was: 'suche', frage: 'Ich finde mehr als fünf passende Termine. Nenne mir bitte den genauen Namen des Termins.', zus: { tag: tag || '' } };
+        var zusNeu = { suche: p0.suche, tag: tag || '' };
+        if (k.length > 1) {
+            var nr = zus.nummer != null ? zus.nummer : ordinalAus(n, false), idx = nr === -1 ? k.length - 1 : nr - 1;
+            if (!nr) return { art: 'frage', was: 'wahl', frage: 'Ich finde mehrere passende Termine. ' + k.map(function (e, i) { return (i + 1) + ': ' + e.text + ', ' + terminText(e); }).join('. ') + '. Welchen meinst du?', zus: zusNeu };
+            if (idx < 0 || idx >= k.length) return { art: 'frage', was: 'wahl', frage: 'Die Nummer ' + nr + ' gibt es nicht. ' + k.map(function (e, i) { return (i + 1) + ': ' + e.text + ', ' + terminText(e); }).join('. ') + '. Welchen meinst du?', zus: zusNeu };
+            k = [k[idx]];
+        }
+        var e = k[0], ganz = /^\d{4}-\d{2}-\d{2}$/.test(String(e.isoDate));
+        var spec = zus.ziel || leseZiel(text, false);
+        if (!spec) return { art: 'frage', was: 'zeit', frage: 'Auf wann soll ich „' + e.text + '“ (' + terminText(e) + ') verschieben? Du kannst zum Beispiel sagen: Freitag um 15 Uhr, oder: eine Stunde später.', zus: zusNeu };
+        var neu;
+        if (spec.rel) {
+            if (ganz && spec.rel.min) return { art: 'frage', was: 'zeit', frage: '„' + e.text + '“ ist ganztägig, ich kann ihn nicht um Stunden verschieben. Auf welchen Tag soll ich ihn legen?', zus: zusNeu };
+            var d = ganz ? mittag(e.isoDate) : new Date(e.isoDate);
+            if (isNaN(d.getTime())) return { art: 'fehler', nachricht: 'Die Zeit des Termins ist unklar, deshalb habe ich nichts verschoben.' };
+            if (spec.rel.tage) d.setDate(d.getDate() + spec.rel.tage);
+            if (spec.rel.min) d.setMinutes(d.getMinutes() + spec.rel.min);
+            neu = ganz ? tagIso(d) + 'T00:00:00' : zeitIso(d);
+        } else {
+            var alt = ganz ? null : new Date(e.isoDate);
+            if (!ganz && isNaN(alt.getTime())) return { art: 'fehler', nachricht: 'Die Zeit des Termins ist unklar, deshalb habe ich nichts verschoben.' };
+            var tagNeu = spec.tag || (ganz ? e.isoDate : tagIso(alt));
+            if (!spec.uhr && !ganz) { var hm = zeitIso(alt).slice(11, 16); neu = tagNeu + 'T' + hm + ':00'; }
+            else if (!spec.uhr) neu = tagNeu + 'T00:00:00';
+            else neu = tagNeu + 'T' + ('0' + spec.uhr.h).slice(-2) + ':' + ('0' + spec.uhr.m).slice(-2) + ':00';
+        }
+        if (ganz ? neu.slice(0, 10) === e.isoDate : Math.abs(new Date(neu).getTime() - new Date(e.isoDate).getTime()) < 60000) return { art: 'fehler', nachricht: '„' + e.text + '“ liegt schon genau dann. Ich habe nichts geändert.' };
+        return { art: 'bestaetigen', params: { suche: e.text, termin_id: String(e.id), neue_zeit: neu }, vorher: e.isoDate, titel: e.text, zus: zusNeu };
+    }
+    function pruefeAktuell(res) {   // direkt vor dem Verschieben: gibt es den Termin noch genau so, wie bestätigt wurde?
+        var sk = window.jvSchreibkern, k = sk ? sk.kandidatenTermine({ suche: res.params.suche, termin_id: res.params.termin_id }) : [];
+        if (k.length !== 1 || String(k[0].isoDate) !== String(res.vorher)) return { art: 'fehler', nachricht: 'Der Termin hat sich inzwischen geändert oder ist nicht mehr da, deshalb habe ich nichts verschoben. Sag es bitte noch einmal.' };
+        return { art: 'los', params: res.params };
+    }
+
+    async function ausfuehrenSchreibend(plan, text, gen, ende, st, fort) {
+        fort = fort || {};
+        var start = fort.ab || 0, keinFall = fort.ab !== undefined || plan.schritte.some(function (x) { return B2B_NAMEN.indexOf(x.faehigkeit) >= 0; });   // beim Verschieben und nach einer Rückfrage gibt es nie einen Rückfall auf den alten Weg
+        var erledigt = (fort.erledigt || []).slice(), kartenListe = [], schritte = [], stopp = null, doppelt = 0, versucht = start;
+        for (var i = start; i < plan.schritte.length; i++) {
+            var s = plan.schritte[i], name = s.faehigkeit, schreibt = B2A_SCHREIBT.indexOf(name) >= 0 || B2B_NAMEN.indexOf(name) >= 0;
+            var istFort = fort.ab !== undefined && i === fort.ab, ja = istFort && fort.bestaetigt === true;
             if (gen !== kiGen) { if (st.begonnen && erledigt.length) { stopp = { art: 'ueberholt' }; break; } return { art: 'ueberholt', geschrieben: st.begonnen }; }   // schon Geschriebenes wird trotzdem ehrlich genannt
             if (jetzt() > ende) { stopp = { art: 'zeit' }; break; }
             if (name === 'websuche') kiZaehler.websuchen++; else if (name === 'wetter') kiZaehler.wetter++; else if (name === 'ortssuche') kiZaehler.ortssuchen++;
-            if (name === 'gedaechtnis_speichern' && ueberschreibtGedaechtnis(s.params)) { stopp = { art: 'bestaetigung', name: name }; break; }   // überschreiben: nur mit Bestätigung (B2b)
             var e;
-            if (schreibt) { e = await fuehreSchrittAus(s, text, { schreiben: true }); if (e.ausgefuehrt) st.begonnen = true; }
-            else if (B2A_NEU.indexOf(name) >= 0) e = await fuehreSchrittAus(s, text, { schreiben: true });   // lesend
-            else { e = await mitRest(fuehreSchrittAus(s, text, {}), ende); if (e && e.zeit) { stopp = { art: 'zeit' }; break; } }
-            versucht++; schritte.push(e);
+            if (name === 'termin_verschieben') {
+                var lv = ja && fort.resolved ? pruefeAktuell(fort.resolved) : loeseVerschiebung(s, text, istFort ? fort.zusatz : null);
+                if (lv.art === 'frage') { versucht++; stopp = { art: 'pause', pausenArt: 'info', was: lv.was, name: name, frage: lv.frage, zusatz: lv.zus || {}, index: i }; break; }
+                if (lv.art === 'fehler') { versucht++; stopp = { art: 'fehler', name: name, nachricht: lv.nachricht, ausgefuehrt: false, status: 'TOOL_FAILED' }; break; }
+                if (lv.art === 'bestaetigen') {   // erst fragen: der Registry-Lauf prüft alles (Trockenlauf) und liefert die genaue Frage; geändert wird nichts
+                    e = await fuehreSchrittAus({ faehigkeit: name, params: lv.params }, text, { schreiben: true, frage: window.jvSchreibkern.frageVerschieben(lv.params) });
+                    versucht++; schritte.push(e);
+                    if (e.status === 'NEEDS_CONFIRMATION') { stopp = { art: 'pause', pausenArt: 'bestaetigung', was: 'ja', name: name, frage: e.nachricht, resolved: { params: lv.params, vorher: lv.vorher }, zusatz: lv.zus || {}, index: i }; break; }
+                    if (e.status === 'NEEDS_INFORMATION') { stopp = { art: 'pause', pausenArt: 'info', was: 'zeit', name: name, frage: e.nachricht, zusatz: lv.zus || {}, index: i }; break; }
+                    stopp = { art: 'fehler', name: name, nachricht: e.nachricht || '', ausgefuehrt: false, status: e.status }; break;
+                }
+                e = await fuehreSchrittAus({ faehigkeit: name, params: lv.params }, text, { schreiben: true, bestaetigt: true });
+                if (e.ausgefuehrt) st.begonnen = true;
+            } else {
+                if (name === 'gedaechtnis_speichern' && !(ja && fort.ueberschreibenOk)) {   // überschreiben: nur mit Bestätigung für genau diesen Eintrag
+                    var alt = ueberschreibtGedaechtnis(s.params);
+                    if (alt !== null) { versucht++; stopp = { art: 'pause', pausenArt: 'bestaetigung', was: 'ja', name: name, frage: 'Unter „' + String(s.params.schluessel).trim() + '“ steht schon „' + alt + '“. Soll ich es durch „' + String(s.params.wert == null ? '' : s.params.wert).trim() + '“ ersetzen?', ueberschreiben: true, index: i }; break; }
+                }
+                if (schreibt) { e = await fuehreSchrittAus(s, text, { schreiben: true, bestaetigt: ja }); if (e.ausgefuehrt) st.begonnen = true; }
+                else if (B2A_NEU.indexOf(name) >= 0) e = await fuehreSchrittAus(s, text, { schreiben: true });   // lesend
+                else { e = await mitRest(fuehreSchrittAus(s, text, {}), ende); if (e && e.zeit) { stopp = { art: 'zeit' }; break; } }
+                versucht++; schritte.push(e);
+            }
+            if (name === 'termin_verschieben') { versucht++; schritte.push(e); }
             if (e.grund === 'doppelt') { doppelt++; continue; }
             if (e.status === 'SUCCESS' && e.ausgefuehrt) {
                 erledigt.push(e.nachricht || ('Erledigt: ' + LESBAR[name] + '.'));
@@ -623,16 +778,20 @@
                 continue;
             }
             if (e.status === 'NEEDS_INFORMATION') { stopp = { art: 'info', name: name, frage: e.nachricht || frageNach((e.fehlend || [])[0]) }; break; }
-            if (e.status === 'NEEDS_CONFIRMATION') { stopp = { art: 'bestaetigung', name: name }; break; }
+            if (e.status === 'NEEDS_CONFIRMATION' && !ja) { stopp = { art: 'pause', pausenArt: 'bestaetigung', was: 'ja', name: name, frage: e.nachricht, index: i }; break; }
             stopp = { art: 'fehler', name: name, nachricht: e.nachricht || '', ausgefuehrt: !!e.ausgefuehrt, status: e.status }; break;
         }
         if (gen !== kiGen && !(st.begonnen && erledigt.length)) return { art: 'ueberholt', geschrieben: st.begonnen };
         var rest = stopp && plan.schritte.length > versucht;
         if (!stopp && doppelt && doppelt === plan.schritte.length) return { art: 'still' };
-        if (stopp && !st.begonnen && !erledigt.length && (stopp.art === 'zeit' || (stopp.art === 'fehler' && !stopp.ausgefuehrt))) return { art: 'rueckfall' };   // noch nichts geschrieben: der bisherige Weg darf übernehmen
-        var teile = [], offenKiNeu = null, codes = [];
+        if (stopp && !keinFall && !st.begonnen && !erledigt.length && (stopp.art === 'zeit' || (stopp.art === 'fehler' && !stopp.ausgefuehrt))) return { art: 'rueckfall' };   // noch nichts geschrieben: der bisherige Weg darf übernehmen
+        var teile = [], offenKiNeu = null, codes = [], pauseNeu = null;
         if (erledigt.length) teile.push((stopp ? 'Erledigt: ' : '') + erledigt.join(' ')), codes.push('schreiben_ausgefuehrt');
-        if (stopp) {
+        if (stopp && stopp.art === 'pause') {
+            codes.push(stopp.pausenArt === 'bestaetigung' ? 'bestaetigung_gefragt' : 'pause_frage');
+            teile.push(stopp.frage + (stopp.pausenArt === 'bestaetigung' ? ' Sag Ja oder Nein.' : ''));
+            pauseNeu = { at: jetzt(), art: stopp.pausenArt, was: stopp.was, plan: plan, index: stopp.index, text: text, erledigt: erledigt.slice(), zusatz: stopp.zusatz || {}, frage: stopp.frage, nochmal: false, resolved: stopp.resolved || null, ueberschreiben: stopp.ueberschreiben === true, begonnen: st.begonnen === true };
+        } else if (stopp) {
             codes.push('schreiben_gestoppt');
             if (stopp.art === 'info') {
                 teile.push(stopp.frage);
@@ -645,11 +804,11 @@
             else if (stopp.art === 'zeit') teile.push('Das hat zu lange gedauert, deshalb habe ich die weiteren Schritte nicht mehr ausgeführt.');
             else teile.push('Bei „' + (LESBAR[stopp.name] || stopp.name.replace(/_/g, ' ')) + '“ hat es nicht geklappt.' + (stopp.nachricht ? ' ' + stopp.nachricht : '') + ' Ich habe nichts wiederholt' + (rest ? ' und die weiteren Schritte nicht mehr ausgeführt' : '') + '.');
         }
-        return { art: 'schreib', text: teile.join(' '), karten: kartenListe.slice(0, 5), offenKi: offenKiNeu, codes: codes, ok: !stopp, teilerfolg: !!stopp && erledigt.length > 0, schritte: schritte };
+        return { art: 'schreib', text: teile.join(' '), karten: kartenListe.slice(0, 5), offenKi: offenKiNeu, pause: pauseNeu, codes: codes, ok: !stopp || !!pauseNeu, teilerfolg: !!stopp && !pauseNeu && erledigt.length > 0, schritte: schritte };
     }
 
     async function ausfuehrenKI(plan, text, gen, ende, st) {
-        if (plan.schritte.some(function (x) { return B2A_NEU.indexOf(x.faehigkeit) >= 0; })) return ausfuehrenSchreibend(plan, text, gen, ende, st || { begonnen: false });
+        if (plan.schritte.some(function (x) { return B2A_NEU.indexOf(x.faehigkeit) >= 0 || B2B_NAMEN.indexOf(x.faehigkeit) >= 0; })) return ausfuehrenSchreibend(plan, text, gen, ende, st || { begonnen: false });
         var einzel = plan.schritte.length === 1, teile = [], kartenListe = [], erfolge = [], fehl = [], schritte = [], ki = 0, frage = '', frageCode = '', offenNeu = null, ortsFehler = '', leer = 0, doppelt = 0;
         for (var i = 0; i < plan.schritte.length; i++) {
             var s = plan.schritte[i];
@@ -680,12 +839,80 @@
         return { art: 'rueckfall', ki: ki };
     }
 
-    async function kiEntscheideImSprachweg(text, gen, eingang, kontext, ohneFrage, ortBezug, mehr) {
-        var zurueck = false, ctrl = null, timer = null, t0 = jetzt(), kiN = 1, st = { begonnen: false };   // 1 = die Entscheider-Anfrage selbst; st.begonnen = es wurde schon geschrieben
+
+    /* ---------- Paket B2b-1: Antworten auf eine offene Rückfrage/Bestätigung ---------- */
+    var RX_NEIN = /^(?:nein|nee|ne|noe|nicht|abbrechen|abbruch|stopp|stop|lass(?: es)?|vergiss es|auf keinen fall|bloss nicht|doch nicht)\b/;
+    var RX_JA = /^(?:ja|jawohl|jep|jo|joa|jup|klar|genau|okay|ok|gerne|gern|natuerlich|sicher|bitte|passt|stimmt|richtig|mach das|mach es|machs|mach|verschieb(?:e)? (?:es|ihn)|ersetz\w*|speicher\w*)\b/;
+    var RX_ABER = /\b(aber|nicht|lieber|statt|sondern|doch|vielleicht|eigentlich|oder|und)\b/;
+    function jaNein(text) {   // 'ja' | 'nein' | 'unklar' (kurz, aber nicht eindeutig) | 'neu' (ein neuer Satz)
+        var n = nz(text).replace(/[.]+$/, ''), w = n ? n.split(' ').length : 0;
+        if (!n || w > 5) return 'neu';
+        if (RX_NEIN.test(n) && !RX_JA.test(n)) return 'nein';
+        if (RX_JA.test(n) && w <= 4 && !RX_ABER.test(n)) return 'ja';
+        if (w <= 3 && !RX_B2A.test(n) && !RX_VERSCHIEBEN.test(n) && !RX_KI_VORFILTER.test(n)) return 'unklar';
+        return 'neu';
+    }
+    function ausgabeSchreib(r, plan, eingang) {
+        r.codes.forEach(function (c) { vermerke(eingang, c); });
+        if (plan.schritte.length > 1) vermerke(eingang, 'mehrere_schritte');
+        if (r.karten && r.karten.length) karten(r.karten);
+        if (r.offenKi) { frageAnmelden(); offenKi = r.offenKi; }
+        if (r.pause) { frageAnmelden(); offenKi = null; offen = null; pause = r.pause; frageAnmelden(true); }
+        say(r.text); protokolliere('ki', plan.schritte.map(function (x) { return x.faehigkeit; }), r.pause ? 'PAUSE' : r.ok ? 'SUCCESS' : (r.teilerfolg ? 'TEILERFOLG' : 'GESTOPPT'));
+    }
+    async function pauseFortsetzen(p, zus, gen, eingang) {
+        var st = { begonnen: p.begonnen === true }, t0 = jetzt();
+        try {
+            var r = await ausfuehrenSchreibend(p.plan, p.text, gen, t0 + GESAMT_MS, st, { ab: p.index, erledigt: p.erledigt, zusatz: Object.assign({}, p.zusatz, zus || {}), bestaetigt: p.art === 'bestaetigung', resolved: p.resolved, ueberschreibenOk: p.ueberschreiben === true });
+            if (r.art === 'schreib') ausgabeSchreib(r, p.plan, eingang);
+            else if (r.art === 'ueberholt') { vermerke(eingang, 'ki_ueberholt'); protokolliere('ki_ueberholt', [], 'VERWORFEN'); }
+            else if (r.art === 'still') { vermerke(eingang, 'doppelt_verhindert'); }
+            else { vermerke(eingang, 'schritt_fehler'); say('Das hat nicht geklappt. ' + (st.begonnen ? 'Bitte prüfe, was davon schon gespeichert wurde. ' : 'Ich habe nichts geändert. ') + 'Ich habe nichts wiederholt.'); }
+        } catch (e) {
+            vermerke(eingang, 'ki_fehler'); protokolliere('ki_zurueck', [], 'FEHLER');
+            say('Dabei ist etwas schiefgelaufen. Bitte prüfe im Kalender und in deinen Listen, ob schon etwas geändert wurde. Ich habe nichts wiederholt.');
+        }
+    }
+    function pauseAbbruch(p, code) {
+        var rest = p.plan.schritte.length - p.index - 1, was = p.plan.schritte[p.index] && p.plan.schritte[p.index].faehigkeit === 'termin_verschieben' ? 'verschoben' : 'geändert';
+        say('Alles klar, ich habe nichts ' + was + '.' + (p.erledigt.length ? ' Schon erledigt war: ' + p.erledigt.join(' ') : '') + (rest > 0 ? ' Die weiteren Schritte habe ich nicht ausgeführt.' : ''));
+        vermerke(neuerEingang('rueckfrage_antwort'), code);
+    }
+    /* true = die Antwort gehörte zur offenen Rückfrage und ist erledigt; false = nicht unsere Sache (die Rückfrage ist dann beendet) */
+    function pauseAntwort(text) {
+        var p = pause; if (!p) return false;
+        var antwort = jaNein(text), frisch = jetzt() - p.at <= PAUSE_MS, unsere = jungeFrageGehoertUns();
+        if (!frisch || !unsere) {
+            pause = null;
+            if (!frisch && unsere && p.art === 'bestaetigung' && (antwort === 'ja' || antwort === 'nein')) { say('Die Rückfrage ist abgelaufen, ich habe nichts geändert. Sag es bitte noch einmal.'); vermerke(neuerEingang('rueckfrage_antwort'), 'bestaetigung_abgelaufen'); return true; }
+            return false;
+        }
+        function nochmal(zusatz) {
+            if (!p.nochmal) { p.nochmal = true; frageAnmelden(true); say('Das habe ich nicht eindeutig verstanden. ' + p.frage + (p.art === 'bestaetigung' ? ' Bitte sag Ja oder Nein.' : '')); vermerke(neuerEingang('rueckfrage_antwort'), 'bestaetigung_unklar'); return true; }
+            pause = null; say('Ich habe dich nicht eindeutig verstanden, deshalb habe ich nichts geändert. Sag es bitte noch einmal.'); vermerke(neuerEingang('rueckfrage_antwort'), 'abgebrochen'); return true;
+        }
+        if (antwort === 'nein') { pause = null; kiGen++; pauseAbbruch(p, p.art === 'bestaetigung' ? 'bestaetigung_nein' : 'abgebrochen'); return true; }
+        if (p.art === 'bestaetigung') {
+            if (antwort === 'ja') { pause = null; var gen = ++kiGen, eing = neuerEingang('rueckfrage_antwort'); vermerke(eing, 'bestaetigung_ja'); pauseFortsetzen(p, {}, gen, eing); return true; }   // pause ist VOR dem Ausführen leer: ein zweites "Ja" kann nichts doppelt auslösen
+            if (antwort === 'unklar') return nochmal();
+            pause = null; vermerke(neuerEingang('bestaetigung_ersetzt'), 'bestaetigung_ersetzt'); return false;   // ein neuer, unabhängiger Befehl beendet die Bestätigung; er läuft normal weiter
+        }
+        var zus = null;
+        if (p.was === 'zeit') { var z = leseZiel(text, true); if (z) zus = { ziel: z }; }
+        else if (p.was === 'wahl') { var o = ordinalAus(nz(text), true); if (o) zus = { nummer: o }; }
+        else if (p.was === 'suche') { var sn = String(text).trim().replace(/[.!?]+$/, ''); if (sn && sn.split(/\s+/).length <= 6 && !RX_VERSCHIEBEN.test(sn) && antwort !== 'ja') zus = { suche: sn }; }
+        if (zus) { pause = null; var g2 = ++kiGen, e2 = neuerEingang('rueckfrage_antwort'); pauseFortsetzen(p, zus, g2, e2); return true; }
+        if (antwort === 'unklar' || antwort === 'ja') return nochmal();
+        pause = null; vermerke(neuerEingang('bestaetigung_ersetzt'), 'bestaetigung_ersetzt'); return false;
+    }
+
+    async function kiEntscheideImSprachweg(text, gen, eingang, kontext, ohneFrage, ortBezug, mehr, versch) {
+        var zurueck = false, ctrl = null, timer = null, t0 = jetzt(), kiN = 1, st = { begonnen: false }, keinRueck = versch === true;   // 1 = die Entscheider-Anfrage selbst; st.begonnen = es wurde schon geschrieben; keinRueck = Verschieben: nie zurück zum alten KI-Weg (er würde ohne Bestätigung verschieben)
         function zurueckInsNormale() {
             if (zurueck) return;                      // nur einmal
             if (st.begonnen) return;                  // B2a: nach einer Schreibaktion NIE zurück zum alten KI-Weg (er könnte dasselbe noch einmal schreiben)
             if (gen !== kiGen) { vermerke(eingang, 'ki_ueberholt'); return; }   // und nur, wenn der Satz nicht überholt wurde
+            if (keinRueck) { zurueck = true; vermerke(eingang, 'verschieben_unklar'); say(st.begonnen ? 'Dabei ist etwas schiefgelaufen. Ich habe nichts wiederholt.' : TEXT_VERSCHIEBEN); return; }
             zurueck = true; kiZaehler.zurueck++; kiN++; vermerke(eingang, 'rueckfall');
             if (mehr) {   // mehrteiliger Satz, nichts geschrieben: erst darf der feste Befehl, den wir vorgezogen haben, wie bisher antworten
                 try { if (typeof handleLocalCommand === 'function' && handleLocalCommand(text)) { vermerke(eingang, 'befehl_vorrang'); return; } } catch (e) { }
@@ -713,8 +940,11 @@
             try { clearTimeout(timer); } catch (e) { }
             if (gen !== kiGen) { protokolliere('ki_ueberholt', [], 'VERWORFEN'); vermerke(eingang, 'ki_ueberholt'); return; }
             if (ortBezug && pr && pr.ok && pr.plan) ortEinsetzen(pr.plan, ortBezug);
-            if (pr && pr.ok && pr.plan && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'termin_verschieben'; })) {   // der Planer will verschieben: ebenfalls anhalten, KEIN Rückfall auf den alten Weg
-                vermerke(eingang, 'schreiben_bestaetigung'); protokolliere('verschieben_gesperrt', [], 'GESPERRT'); say(TEXT_VERSCHIEBEN); return;
+            if (pr && pr.ok && pr.plan) pr.plan.schritte.forEach(function (x) { if (x.faehigkeit === 'termin_verschieben' && x.params) { var np = {}; ['suche', 'tag'].forEach(function (k) { if (x.params[k] !== undefined) np[k] = x.params[k]; }); x.params = np; } });   // die neue Zeit kommt nie vom Planer
+            var hatV = !!(pr && pr.ok && pr.plan && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'termin_verschieben'; }));
+            if (hatV) keinRueck = true;
+            if (versch && !hatV && !(pr && pr.ok && pr.plan && pr.plan.schritte.length === 0 && pr.plan.frage && planErlaubt(pr.plan, ohneFrage))) {   // Verschiebe-Wunsch nicht sicher erkannt: nichts tun, KEIN Rückfall auf den alten Weg
+                vermerke(eingang, 'verschieben_unklar'); protokolliere('verschieben_gesperrt', [], 'UNKLAR'); say(TEXT_VERSCHIEBEN); return;
             }
             if (!pr || !pr.ok || !planErlaubt(pr.plan, ohneFrage)) {
                 vermerke(eingang, !pr ? 'ki_fehler' : (pr.zeitlimit || pr.grund === 'Zeitlimit') ? 'ki_zeitlimit' : pr.fehler ? 'ki_fehler' : !pr.ok ? 'ki_ungueltig'
@@ -736,13 +966,7 @@
             var r = await ausfuehrenKI(plan, text, gen, t0 + GESAMT_MS, st);
             kiN += r.ki || 0;
             if (r.art === 'ueberholt') { protokolliere('ki_ueberholt', [], r.geschrieben ? 'VERWORFEN_NACH_SCHREIBEN' : 'VERWORFEN'); vermerke(eingang, 'ki_ueberholt'); return; }
-            if (r.art === 'schreib') {                                    // B2a: EINE zusammenfassende Antwort, ehrlich auch bei Teilerfolg
-                r.codes.forEach(function (c) { vermerke(eingang, c); });
-                if (plan.schritte.length > 1) vermerke(eingang, 'mehrere_schritte');
-                if (r.karten && r.karten.length) karten(r.karten);
-                if (r.offenKi) { frageAnmelden(); offenKi = r.offenKi; }
-                say(r.text); protokolliere('ki', plan.schritte.map(function (x) { return x.faehigkeit; }), r.ok ? 'SUCCESS' : (r.teilerfolg ? 'TEILERFOLG' : 'GESTOPPT')); return;
-            }
+            if (r.art === 'schreib') { ausgabeSchreib(r, plan, eingang); return; }   // B2a/B2b-1: EINE zusammenfassende Antwort, ehrlich auch bei Teilerfolg; ggf. mit offener Bestätigung
             if (r.art === 'zeit') { vermerke(eingang, 'budget_ueberschritten'); protokolliere('ki_zurueck', [], 'ZEITBUDGET'); zurueckInsNormale(); return; }
             if (r.art === 'still') { vermerke(eingang, 'doppelt_verhindert'); protokolliere('ki', [], 'DOPPELT'); return; }
             if (r.art === 'rueckfall') { vermerke(eingang, 'schritt_fehler'); protokolliere('ki_zurueck', plan.schritte.map(function (x) { return x.faehigkeit; }), 'FEHLER'); zurueckInsNormale(); return; }
@@ -778,10 +1002,7 @@
         try {
             vomChefBehandelt = 0;
             if (typeof text !== 'string') return false;
-            if (RX_VERSCHIEBEN.test(text)) {   // sicher anhalten: weder die Chef-KI noch der alte KI-Weg verschiebt etwas ohne die (noch fehlende) Bestätigung
-                offenKi = null; kiGen++; vermerke(neuerEingang('verschieben_gesperrt'), 'schreiben_bestaetigung');
-                protokolliere('verschieben_gesperrt', [], 'GESPERRT'); say(TEXT_VERSCHIEBEN); return true;
-            }
+            if (pause && pauseAntwort(text)) return true;   // B2b-1: Antwort auf eine offene Rückfrage/Bestätigung (Ja/Nein, Zeit, "den zweiten", ...)
             var ortNeu = '';
             var ks = ortKandidaten(text);   // Gesprächsort: genau ein Ort im Satz = merken, mehrere = keinen annehmen
             if (ks.length === 1) ortMerken(ks[0], false); else if (ks.length > 1) ortMerker = null;
@@ -799,6 +1020,16 @@
                     } else { t = f.text + ' ' + t; kopf = 'nachfrage_antwort'; }
                 }
             } else if (offenKi) offenKi = null;
+            if (RX_VERSCHIEBEN.test(t)) {   // B2b-1: Verschieben immer über die Chef-KI mit Bestätigung; NIE zum alten KI-Weg (er verschiebt ohne Rückfrage)
+                var nV = jetzt();
+                if (kiLetzter.text === t && nV - kiLetzter.at < DOPPELT_MS) { neuerEingang('vorfilter_doppelt'); return true; }
+                kiLetzter = { text: t, at: nV };
+                var genV = ++kiGen; kiZaehler.anfragen++;
+                var eingV = neuerEingang(kopf || 'ki_aufgerufen'); if (kopf) vermerke(eingV, 'ki_aufgerufen');
+                try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Verarbeite Anweisung...'); } catch (e) { }
+                kiEntscheideImSprachweg(t, genV, eingV, kontextText(), kopf === 'nachfrage_antwort', '', mehr === true, true).catch(function () { });
+                return true;
+            }
             var anschluss = !kopf && themaFrisch() && woerter >= 1 && woerter <= 8 && RX_FOLGE.test(t) && !RX_SCHREIB.test(t);
             if (anschluss) kopf = 'anschluss';
             if (!kopf && (woerter < 3 || woerter > 30 || t.length > 240)) { neuerEingang('vorfilter_laenge'); return false; }
@@ -829,8 +1060,8 @@
         } catch (e) { return false; }
     }
 
-    function schalten(an) { istAn = !!an; if (!istAn) { offen = null; offenKi = null; thema = null; ortMerker = null; } try { if (window.localStorage) { if (istAn) window.localStorage.setItem('jv_chef', '1'); else window.localStorage.removeItem('jv_chef'); } } catch (e) { } zeichne(); return istAn; }
-    function vergiss() { protokollListe = []; eingaenge = []; offen = null; offenKi = null; thema = null; ortMerker = null; letzteAusfuehrung = {}; nr = 0; kiLetzter = { text: '', at: 0 }; zeichne(); return true; }
+    function schalten(an) { istAn = !!an; if (!istAn) { pause = null; offen = null; offenKi = null; thema = null; ortMerker = null; } try { if (window.localStorage) { if (istAn) window.localStorage.setItem('jv_chef', '1'); else window.localStorage.removeItem('jv_chef'); } } catch (e) { } zeichne(); return istAn; }
+    function vergiss() { protokollListe = []; eingaenge = []; pause = null; offen = null; offenKi = null; thema = null; ortMerker = null; letzteAusfuehrung = {}; nr = 0; kiLetzter = { text: '', at: 0 }; zeichne(); return true; }
 
     /* ---------- Einstellungen: Schalter ---------- */
     function el(id) { return document.getElementById(id); }
@@ -840,7 +1071,7 @@
         try {
             var sw = el('chefSchalter'), st = el('chefStatus'), li = el('chefListe'), le = el('chefLetzte');
             if (!sw || !st) return;
-            sw.checked = istAn; st.textContent = istAn ? 'EIN (Orte, Internet, Wetter, Kalender, Aufgaben, Notizen)' : 'AUS'; st.style.color = istAn ? '#4cffb0' : '#5d7e91';
+            sw.checked = istAn; st.textContent = istAn ? 'EIN (Orte, Internet, Wetter, Kalender, Aufgaben, Notizen, Termine verschieben nach Bestätigung)' : 'AUS'; st.style.color = istAn ? '#4cffb0' : '#5d7e91';
             if (le) le.textContent = !istAn ? 'Die Chef-KI ist aus: es wird nichts beobachtet.' : (eingaenge.length ? 'Letzte Eingabe: ' + eingaenge[eingaenge.length - 1].codes.map(function (c) { return GRUND[c] || c; }).join(' → ') : 'Noch keine Eingabe seit dem Einschalten.');
             try { if (window.jvOrtZeiten) window.jvOrtZeiten.zeichne(); } catch (e) { }
             if (li) {
@@ -867,7 +1098,7 @@
         an: function () { return schalten(true); }, aus: function () { return schalten(false); }, istAn: function () { return istAn; },
         behandle: behandle, kiWeg: kiWeg, mehrteilig: mehrteilig, befehlVorrang: befehlVorrang, uebergabeAlteSuche: uebergabeAlteSuche, eingaenge: eingaengeKopie, grundText: function (c) { return GRUND[c] || ''; }, GRUENDE: GRUND, plane: plane, verarbeite: verarbeite, pruefePlan: pruefePlan, kiEntscheider: kiEntscheider,
         protokoll: function () { return protokollListe.map(function (e) { return { nr: e.nr, zeit: e.zeit, weg: e.weg, faehigkeiten: e.faehigkeiten.slice(), status: e.status }; }); },
-        vergiss: vergiss, kiZaehler: function () { return { anfragen: kiZaehler.anfragen, ortssuchen: kiZaehler.ortssuchen, zurueck: kiZaehler.zurueck, websuchen: kiZaehler.websuchen, wetter: kiZaehler.wetter }; }, GESAMT_MS: GESAMT_MS, thema: function () { return themaFrisch() ? { art: thema.art, tag: thema.tag || '', begriff: thema.begriff || '' } : null; }, planErlaubt: planErlaubt, FREIGEGEBEN: FREIGEGEBEN, SCHREIB: SCHREIB, B2A_NEU: B2A_NEU, B2A_SCHREIBT: B2A_SCHREIBT,
+        vergiss: vergiss, kiZaehler: function () { return { anfragen: kiZaehler.anfragen, ortssuchen: kiZaehler.ortssuchen, zurueck: kiZaehler.zurueck, websuchen: kiZaehler.websuchen, wetter: kiZaehler.wetter }; }, GESAMT_MS: GESAMT_MS, thema: function () { return themaFrisch() ? { art: thema.art, tag: thema.tag || '', begriff: thema.begriff || '' } : null; }, planErlaubt: planErlaubt, FREIGEGEBEN: FREIGEGEBEN, SCHREIB: SCHREIB, B2A_NEU: B2A_NEU, B2A_SCHREIBT: B2A_SCHREIBT, B2B_NAMEN: B2B_NAMEN, pauseOffen: function () { return pause ? { art: pause.art, was: pause.was, naechsterSchritt: pause.index } : null; }, PAUSE_MS: PAUSE_MS,
         ortMerken: ortMerken, ort: function () { return ortFrisch() ? ortMerker.name : null; }, _setzeOrtPruefer: function (f) { ortPruefer = typeof f === 'function' ? f : null; }, ORT_MS: ORT_MS,
         _lokal: lokalEntscheiden, _setzeSende: function (f) { sendeFunktion = typeof f === 'function' ? f : null; }, _setzeZeitlimit: function (ms) { KI_ZEITLIMIT_MS = ms > 0 ? ms : 7000; }, _setzeEntscheider: function (f) { entscheider = typeof f === 'function' ? f : function (t) { return lokalEntscheiden(t); }; }
     };
