@@ -652,3 +652,7 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 - Nur bei eingeschalteter Chef-KI; AUS = keinerlei Aufzeichnung, keine zusätzliche KI-Anfrage. Unabhängig vom Schattenbetrieb (chef.js kennt `jvSchatten` nicht).
 - Einziger Haken in `voice.js`: in der bestehenden Zeile des festen Befehls ruft `jvChef.befehlVorrang()` (abgesichert). Zeilenzahl von voice.js darf sich nicht ändern (Takt-Pin in tests/hintergrund*).
 - Mikrofon und Text laufen beide über `handleRecognizedText`; der Test deckt Erkenner-Ereignis, Handy-Brücke (`__zaneRec`) und `jvTippen` ab.
+
+### Werkstattsuche-Rückfall (`js/nearbymore.js`, Test `tests/werkstatt_fallback.js`)
+- Die alte Orte-Suche (`handlePlacesCommand`/`runPlaces`) bleibt der erste Weg und meldet dem Sprachweg sofort "erledigt". Endet sie mit "Kartendaten nicht erreichbar" oder "kein Treffer", übergibt `plUebergabe(originalText)` den Satz an `window.handleOrtsucheCommand` (Google Places zuerst), aber nur bei eingeschalteter Chef-KI, höchstens einmal je Anfrage, nie bei Standortfehler. Übernimmt die Ortssuche (true), antwortet sie selbst (jeder ihrer Zweige spricht); sonst bleibt die alte Meldung.
+- Diagnose: Code `alte_suche_uebergabe` (`jvChef.uebergabeAlteSuche()`), ohne Satz.

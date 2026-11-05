@@ -196,7 +196,8 @@
         doppelt_verhindert: 'Doppelte Ausführung verhindert',
         hinweis: 'Hinweis gegeben, nichts ausgeführt',
         abgebrochen: 'Rückfrage abgebrochen',
-        rueckfall: 'Rückfall auf den bisherigen Ablauf'
+        rueckfall: 'Rückfall auf den bisherigen Ablauf',
+        alte_suche_uebergabe: 'Alte Orte-Suche ohne Ergebnis, Ortssuche hat übernommen'
     });
     function neuerEingang(code) {
         eingangNr++;
@@ -215,6 +216,18 @@
             if (vomChefBehandelt && jetzt() - vomChefBehandelt < 2000) { vomChefBehandelt = 0; return true; }
             vomChefBehandelt = 0; neuerEingang('befehl_vorrang');
         } catch (e) { }
+        return true;
+    }
+
+    /* Haken in nearbymore.js: die alte Orte-Suche fand nichts (Kartendaten nicht erreichbar / kein Treffer) und hat die Anfrage an die Ortssuche übergeben.
+       Vermerkt wird nur der Statuscode, am jüngsten Eintrag "Befehl hatte Vorrang" (sonst neuer Eintrag). */
+    function uebergabeAlteSuche() {
+        if (!istAn) return false;
+        try {
+            var e = null;
+            for (var i = eingaenge.length - 1; i >= 0; i--) { if (eingaenge[i].codes.indexOf('befehl_vorrang') >= 0 && eingaenge[i].codes.indexOf('alte_suche_uebergabe') < 0) { e = eingaenge[i]; break; } }
+            if (e) vermerke(e, 'alte_suche_uebergabe'); else neuerEingang('alte_suche_uebergabe');
+        } catch (x) { }
         return true;
     }
 
@@ -487,7 +500,7 @@
     window.jvChef = {
         starte: start,
         an: function () { return schalten(true); }, aus: function () { return schalten(false); }, istAn: function () { return istAn; },
-        behandle: behandle, kiWeg: kiWeg, befehlVorrang: befehlVorrang, eingaenge: eingaengeKopie, grundText: function (c) { return GRUND[c] || ''; }, GRUENDE: GRUND, plane: plane, verarbeite: verarbeite, pruefePlan: pruefePlan, kiEntscheider: kiEntscheider,
+        behandle: behandle, kiWeg: kiWeg, befehlVorrang: befehlVorrang, uebergabeAlteSuche: uebergabeAlteSuche, eingaenge: eingaengeKopie, grundText: function (c) { return GRUND[c] || ''; }, GRUENDE: GRUND, plane: plane, verarbeite: verarbeite, pruefePlan: pruefePlan, kiEntscheider: kiEntscheider,
         protokoll: function () { return protokollListe.map(function (e) { return { nr: e.nr, zeit: e.zeit, weg: e.weg, faehigkeiten: e.faehigkeiten.slice(), status: e.status }; }); },
         vergiss: vergiss, kiZaehler: function () { return { anfragen: kiZaehler.anfragen, ortssuchen: kiZaehler.ortssuchen, zurueck: kiZaehler.zurueck }; }, FREIGEGEBEN: FREIGEGEBEN, SCHREIB: SCHREIB,
         _lokal: lokalEntscheiden, _setzeSende: function (f) { sendeFunktion = typeof f === 'function' ? f : null; }, _setzeZeitlimit: function (ms) { KI_ZEITLIMIT_MS = ms > 0 ? ms : 7000; }, _setzeEntscheider: function (f) { entscheider = typeof f === 'function' ? f : function (t) { return lokalEntscheiden(t); }; }
