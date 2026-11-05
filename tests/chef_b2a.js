@@ -151,7 +151,7 @@ const geschrieben = A => A.lese('todoEntries').length + A.lese('reminderEntries'
     await tippen(A, SATZ);
     check('5a Fehler NACH erfolgreichem Schreiben: Eintrag steht, kein alter KI-Weg, keine zweite Ausführung, ehrliche Antwort', n(A, 'todoEntries') <= 1 && A.zaehle === 1 && A.st.groq === 0 && A.gesagt.length === 1, JSON.stringify([A.zaehle, A.st.groq, A.gesagt, n(A, 'todoEntries')]));
     A = umgebung(); await satz(A, plan(AUF('Blumen kaufen'), { faehigkeit: 'termin_verschieben', params: { suche: 'Zahnarzt', neue_zeit: Z1 } }));
-    check('5b Plan mit termin_verschieben: von der Chef-KI nicht ausgeführt (nichts geschrieben), der bisherige Weg läuft genau einmal', n(A, 'todoEntries') === 0 && A.st.groq === 1, JSON.stringify([n(A, 'todoEntries'), A.st.groq]));
+    check('5b Plan mit termin_verschieben (auch mit anderem Schritt): gar nichts ausgeführt, angehalten, KEIN Rückfall auf den alten Weg', n(A, 'todoEntries') === 0 && A.st.groq === 0 && /nichts geändert/.test(A.gesagt.join(' ')), JSON.stringify([n(A, 'todoEntries'), A.st.groq, A.gesagt]));
     A = umgebung(); A.st.plan = '{kaputt'; await tippen(A, 'Setz Blumen kaufen auf meine Aufgabenliste');
     check('5c ungültige KI-Antwort bei Schreibwunsch: nichts geschrieben von der Chef-KI, genau einmal der bisherige Weg', A.st.groq === 1 && A.st.ent === 1 && n(A, 'todoEntries') === 0);
     A = umgebung(); A.st.verhalten = 'fehler'; await tippen(A, 'Setz Blumen kaufen auf meine Aufgabenliste');
@@ -194,6 +194,27 @@ const geschrieben = A => A.lese('todoEntries').length + A.lese('reminderEntries'
     const pA = A.lassLaufen(() => A.sb.jvTippen('Setz Blumen kaufen auf meine Aufgabenliste')); await warte(5);
     A.st.verhalten = ''; A.st.plan = plan(AUF('Milch holen')); await tippen(A, 'Setz Milch holen auf meine Aufgabenliste'); await pA;
     check('9a neuer Satz überholt einen hängenden: nur die neue Aufgabe, keine doppelte Antwort', n(A, 'todoEntries') === 1 && A.lese('todoEntries')[0].text === 'Milch holen', JSON.stringify(A.lese('todoEntries')));
+
+
+    /* ===== 11 Verschieben bleibt gesperrt – auch ohne Rückfall auf den alten KI-Weg (Chef-KI EIN) ===== */
+    A = umgebung(); A.lese('calendarEntries').push({ id: 'local_1', text: 'Zahnarzt', date: 'x', isoDate: '2026-11-06T15:00:00+01:00', location: '' }); { const sv = stand(A);
+    await tippen(A, 'Verschiebe den Zahnarzttermin auf Freitag um vier');
+    check('11a Satz mit „verschieb…“ bei Chef-KI EIN: angehalten, keine Planer-Anfrage, KEIN alter KI-Weg, nichts geändert, eine ehrliche Antwort', A.st.ent === 0 && A.st.groq === 0 && stand(A) === sv && A.gesagt.length === 1 && /noch nicht/.test(A.gesagt[0]) && /nichts geändert/.test(A.gesagt[0]), JSON.stringify([A.st.ent, A.st.groq, A.gesagt]));
+    A.st.plan = plan({ faehigkeit: 'termin_verschieben', params: { suche: 'Zahnarzt', neue_zeit: Z2 } });
+    await tippen(A, 'Mein Termin beim Zahnarzt soll jetzt am Freitag stattfinden');
+    check('11b Planer will verschieben (Satz ohne „verschieb…“): angehalten, KEIN alter KI-Weg, nichts geändert', A.st.ent === 1 && A.st.groq === 0 && stand(A) === sv && /nichts geändert/.test(A.gesagt.join(' ')), JSON.stringify([A.st.ent, A.st.groq, A.gesagt]));
+    A.sb.jvChef.aus(); const g0 = A.st.groq; await tippen(A, 'Verschiebe den Zahnarzttermin auf Freitag um vier');
+    check('11c Chef-KI AUS: unverändert, der Satz geht wie bisher an den alten Weg (keine Planer-Anfrage)', A.st.ent === 1 && A.st.groq === g0 + 1, JSON.stringify([A.st.ent, A.st.groq]));
+    A.sb.jvChef.an(); const e0 = A.st.ent; await tippen(A, 'Setz Blumen kaufen auf meine Aufgabenliste');
+    check('11d normale Schreibwünsche gehen weiter an die Chef-KI (nur „verschieb…“ ist gesperrt)', A.st.ent === e0 + 1); }
+
+    /* ===== 12 Unterbrechung mitten in einer Mehrschritt-Aufgabe ===== */
+    A = umgebung(); A.zaehle = 0; A.st.plan = plan(AUF('Blumen kaufen'), ERI('Brot kaufen', Z1)); {
+        const alt = A.sb.executeAction; A.sb.executeAction = async function () { A.zaehle++; const r = await alt.apply(this, arguments); if (A.zaehle === 1) { A.st.plan = plan(AUF('Milch holen')); A.sb.jvChef.kiWeg('Setz Milch holen auf meine Aufgabenliste'); } return r; }; }
+    await tippen(A, SATZ);
+    const alleSaetze = A.gesagt.join(' | ');
+    check('12a Unterbrechung nach Schritt 1: die erledigte Aufgabe bleibt und wird ehrlich genannt, Schritt 2 (Erinnerung) NICHT ausgeführt', n(A, 'reminderEntries') === 0 && A.lese('todoEntries').filter(e => e.text === 'Blumen kaufen').length === 1 && /Erledigt/.test(alleSaetze) && /Blumen/.test(alleSaetze) && /neuen Satz/.test(alleSaetze), alleSaetze);
+    check('12b … und die neue Aufgabe wird einmal angelegt; nichts doppelt, kein alter KI-Weg, keine falsche Erfolgsmeldung für die Erinnerung', A.lese('todoEntries').filter(e => e.text === 'Milch holen').length === 1 && n(A, 'todoEntries') === 2 && A.st.groq === 0 && !/Erinnerung/.test(A.gesagt.filter(x => /neuen Satz/.test(x)).join(' ')), JSON.stringify([A.lese('todoEntries'), A.st.groq]));
 
     /* ===== 10 Prompt und Netz ===== */
     A = umgebung(); await satz(A, plan(AUF('Blumen kaufen')));

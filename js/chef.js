@@ -122,6 +122,8 @@
     var RX_UNTERNEHMEN = /\b(unternehmen|ausflug|wochenende|etwas machen|was machen|was unternehmen)\b/i;
     var RX_WOCHENTAG = /\b(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|wochenende|morgen|heute)\b/i;
     var RX_FRAGEWORT = /^(wie|was|wer|wann|wo|woher|wohin|warum|wieso|weshalb|welche[rsmn]?|kannst|kann|ist|sind|hast|hat|gibt|ruf|schalt\w*|stell\w*|mach\w*|zeig\w*|such\w*|erinner\w*|sag\w*)\b/i;
+    var RX_VERSCHIEBEN = /\b(verschieb\w*|verleg\w*|umbuch\w*|umleg\w*|vorverleg\w*|nachverleg\w*)\b/i;   // B2a: Verschieben ist bei EINGESCHALTETER Chef-KI gesperrt (kommt mit Bestätigung in B2b), auch kein Rückfall auf den alten KI-Weg
+    var TEXT_VERSCHIEBEN = 'Termine verschieben kann ich mit der Chef-KI noch nicht, weil dafür deine Bestätigung nötig ist. Ich habe nichts geändert.';
     var RX_B2A = /\b(erinner\w*|termin\w*|merk(?:e)? dir|speicher\w*|trag(?:e)? \w+ ein|aufgabe\w*|to-?do\w*|kontakt\w*|notier\w*|adresse\w*|kalender)\b/i;   // B2a: Wünsche, die die Chef-KI jetzt selbst ausführen darf
     var RX_SCHREIB = /\b(erinner\w*|termin\w*|merk(?:e)? dir|speicher\w*|trag(?:e)? \w+ ein)\b/i;
 
@@ -226,6 +228,7 @@
         schritt_fehler: 'Ein Schritt hat nicht geklappt',
         budget_ueberschritten: 'Zeitbudget überschritten',
         ort_unklar: 'Ort unklar ("dort"/"da"): Rückfrage statt eigener Standort',
+        verschieben_gesperrt: 'Verschieben ist mit der Chef-KI noch gesperrt: angehalten, nichts geändert',
         ort_bezug: '"dort"/"da" auf den zuletzt genannten Ort bezogen',
         schreiben_ausgefuehrt: 'Schreib-/Lese-Aktion ausgeführt (Termin, Erinnerung, Aufgabe, Kontakt, Gedächtnis)',
         schreiben_gestoppt: 'Mehrschritt-Anfrage angehalten (Rückfrage, Fehler oder Bestätigung nötig)',
@@ -581,7 +584,7 @@
         var erledigt = [], kartenListe = [], schritte = [], stopp = null, doppelt = 0, versucht = 0;
         for (var i = 0; i < plan.schritte.length; i++) {
             var s = plan.schritte[i], name = s.faehigkeit, schreibt = B2A_SCHREIBT.indexOf(name) >= 0;
-            if (gen !== kiGen) return { art: 'ueberholt', geschrieben: st.begonnen };
+            if (gen !== kiGen) { if (st.begonnen && erledigt.length) { stopp = { art: 'ueberholt' }; break; } return { art: 'ueberholt', geschrieben: st.begonnen }; }   // schon Geschriebenes wird trotzdem ehrlich genannt
             if (jetzt() > ende) { stopp = { art: 'zeit' }; break; }
             if (name === 'websuche') kiZaehler.websuchen++; else if (name === 'wetter') kiZaehler.wetter++; else if (name === 'ortssuche') kiZaehler.ortssuchen++;
             if (name === 'gedaechtnis_speichern' && ueberschreibtGedaechtnis(s.params)) { stopp = { art: 'bestaetigung', name: name }; break; }   // überschreiben: nur mit Bestätigung (B2b)
@@ -600,7 +603,7 @@
             if (e.status === 'NEEDS_CONFIRMATION') { stopp = { art: 'bestaetigung', name: name }; break; }
             stopp = { art: 'fehler', name: name, nachricht: e.nachricht || '', ausgefuehrt: !!e.ausgefuehrt, status: e.status }; break;
         }
-        if (gen !== kiGen) return { art: 'ueberholt', geschrieben: st.begonnen };
+        if (gen !== kiGen && !(st.begonnen && erledigt.length)) return { art: 'ueberholt', geschrieben: st.begonnen };
         var rest = stopp && plan.schritte.length > versucht;
         if (!stopp && doppelt && doppelt === plan.schritte.length) return { art: 'still' };
         if (stopp && !st.begonnen && !erledigt.length && (stopp.art === 'zeit' || (stopp.art === 'fehler' && !stopp.ausgefuehrt))) return { art: 'rueckfall' };   // noch nichts geschrieben: der bisherige Weg darf übernehmen
@@ -615,7 +618,8 @@
             } else if (stopp.art === 'bestaetigung') {
                 codes.push('schreiben_bestaetigung');
                 teile.push('Dafür bräuchte ich deine ausdrückliche Bestätigung, die ich auf diesem Weg noch nicht einholen kann. Dort habe ich nichts geändert.' + (rest ? ' Die weiteren Schritte habe ich nicht ausgeführt.' : ''));
-            } else if (stopp.art === 'zeit') teile.push('Das hat zu lange gedauert, deshalb habe ich die weiteren Schritte nicht mehr ausgeführt.');
+            } else if (stopp.art === 'ueberholt') teile.push('Wegen deines neuen Satzes habe ich die weiteren Schritte nicht mehr ausgeführt.');
+            else if (stopp.art === 'zeit') teile.push('Das hat zu lange gedauert, deshalb habe ich die weiteren Schritte nicht mehr ausgeführt.');
             else teile.push('Bei „' + (LESBAR[stopp.name] || stopp.name.replace(/_/g, ' ')) + '“ hat es nicht geklappt.' + (stopp.nachricht ? ' ' + stopp.nachricht : '') + ' Ich habe nichts wiederholt' + (rest ? ' und die weiteren Schritte nicht mehr ausgeführt' : '') + '.');
         }
         return { art: 'schreib', text: teile.join(' '), karten: kartenListe.slice(0, 5), offenKi: offenKiNeu, codes: codes, ok: !stopp, teilerfolg: !!stopp && erledigt.length > 0, schritte: schritte };
@@ -683,6 +687,9 @@
             try { clearTimeout(timer); } catch (e) { }
             if (gen !== kiGen) { protokolliere('ki_ueberholt', [], 'VERWORFEN'); vermerke(eingang, 'ki_ueberholt'); return; }
             if (ortBezug && pr && pr.ok && pr.plan) ortEinsetzen(pr.plan, ortBezug);
+            if (pr && pr.ok && pr.plan && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'termin_verschieben'; })) {   // der Planer will verschieben: ebenfalls anhalten, KEIN Rückfall auf den alten Weg
+                vermerke(eingang, 'schreiben_bestaetigung'); protokolliere('verschieben_gesperrt', [], 'GESPERRT'); say(TEXT_VERSCHIEBEN); return;
+            }
             if (!pr || !pr.ok || !planErlaubt(pr.plan, ohneFrage)) {
                 vermerke(eingang, !pr ? 'ki_fehler' : (pr.zeitlimit || pr.grund === 'Zeitlimit') ? 'ki_zeitlimit' : pr.fehler ? 'ki_fehler' : !pr.ok ? 'ki_ungueltig'
                     : (pr.plan.schritte.length === 0 && !pr.plan.frage) ? 'ki_kein_ortswunsch' : 'ki_nicht_erlaubt');
@@ -738,6 +745,10 @@
         try {
             vomChefBehandelt = 0;
             if (typeof text !== 'string') return false;
+            if (RX_VERSCHIEBEN.test(text)) {   // sicher anhalten: weder die Chef-KI noch der alte KI-Weg verschiebt etwas ohne die (noch fehlende) Bestätigung
+                offenKi = null; kiGen++; vermerke(neuerEingang('verschieben_gesperrt'), 'schreiben_bestaetigung');
+                protokolliere('verschieben_gesperrt', [], 'GESPERRT'); say(TEXT_VERSCHIEBEN); return true;
+            }
             var ortNeu = '';
             var ks = ortKandidaten(text);   // Gesprächsort: genau ein Ort im Satz = merken, mehrere = keinen annehmen
             if (ks.length === 1) ortMerken(ks[0], false); else if (ks.length > 1) ortMerker = null;
