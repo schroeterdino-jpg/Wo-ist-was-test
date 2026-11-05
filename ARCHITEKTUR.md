@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (175 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (176 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -675,3 +675,11 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 - **Kürzere Antworten:** neue Prompt-Regel "ERKLÄRUNGEN UND WISSENSANTWORTEN" (2–3 Sätze, Angebot für mehr, länger bei "Erzähl mehr"; Listen/Warnungen/ausdrücklich lange Antworten nie gekürzt). Die Sprachausgabe selbst wird nicht gekürzt.
 - **Unterbrechung (`fish.js`):** Warteschlange hat `stop()`; `chainPlayback` prüft vor und nach dem Abruf des nächsten Stücks, ob unterbrochen wurde, und spielt dann nichts Altes mehr. `voice.js` und die Android-Brücke unverändert.
 - **Kosten:** eine Google-Places-Anfrage je Suche (vorher null bei Overpass-Erfolg); zählt zur bestehenden Monatsgrenze 900, danach automatisch Overpass. Keine neuen Server-Funktionen (11 von 12).
+
+## Paket B1 Schreibkern (`js/registry_schreibkern.js`, Test `tests/schreibkern.js`)
+- **Ziel:** sicherer Unterbau, damit die Chef-KI später (B2) Kalender, Erinnerungen, Aufgaben, Kontakte und Gedächtnis verbinden kann. **In B1 schreibt die Chef-KI NICHT:** `FREIGEGEBEN` ist unverändert (ortssuche, websuche, wetter), die neuen Schreibenden stehen in `SCHREIB`. Kein neuer Sprachbefehl, keine Änderung an `actions.js`, `assistant.js`, `voice.js`, Android-Brücke, Kugel. Chef-KI bleibt standardmäßig AUS, keine neue Serverfunktion, keine eigenen KI- oder Netz-Anfragen (keine Kosten).
+- **Neue Registry-Fähigkeiten:** `aufgabe_erstellen` (nutzt `executeAction` todo), `aufgaben_lesen`, `termine_lesen` (beide nur lesend), `termin_verschieben` (nutzt `executeAction` calendar_update; Registry-Bestätigung ist immer nötig), `kontakt_speichern`.
+- **Sicherheitsregeln:** Angaben vollständig? sonst NEEDS_INFORMATION mit Rückfrage. Doppelschutz: gibt es den Eintrag schon, wird nichts geschrieben (SUCCESS mit `daten.schonVorhanden`, gilt auch für `erinnerung_erstellen`/`termin_erstellen` bei gleicher Minute; Wiederholungen ausgenommen). Mehrere passende Termine/Orte -> nummerierte Rückfrage, nie raten (auch nicht mit Bestätigung). Verschieben: nur künftige Termine, neue Zeit nicht in der Vergangenheit, Wirkung wird bis zu 4 s abgewartet und nachgewiesen (sonst TOOL_FAILED "nicht bestätigt"); lokale Hinweise ("nur in der App") werden mitgeliefert. Kontakt: andere Adresse/Nummer zum selben Namen -> NEEDS_CONFIRMATION (`kontext.bestaetigt`), Ergänzen behält die vorhandenen Felder. Nichts wird gelöscht.
+- **Schichtregel:** `gedaechtnis_speichern` fragt nach (NEEDS_CONFIRMATION), wenn eine feste Regel ("freitags normalerweise Spätschicht") dem wöchentlich wechselnden Plan aus `jvSchichtWissen` widerspricht; ohne bekannten Plan keine Rückfrage.
+- **Zuletzt gefundene Orte:** `jvSchreibkern.merkeOrte(liste, art)` (10 Minuten, nur Arbeitsspeicher), gefüllt von `nearbymore.js` (Apotheke, Werkstatt ...) und über einen Anhang an `jvOrtGespraech.merke` (Ortssuche/KI). "Speichere die Adresse von der Apotheke" = `kontakt_speichern {ort:'Apotheke'}`; bei mehreren Treffern Rückfrage, `nummer` wählt aus. `saveContact()` wird nicht benutzt (arbeitet über Eingabefelder und spricht selbst); geschrieben wird in dieselbe Form (`savedContacts`, `helfer_contacts`).
+- **Bestehende Tests angepasst (bewusst):** `registry.js` (11 statt 6 Fähigkeiten; 41i/42f: schon vorhandener Eintrag ist jetzt SUCCESS "schon vorhanden" statt TOOL_FAILED), `schatten.js` (neue Namen in der Ausnahmeliste), `chef.js` (SCHREIB-Liste), `gespraech_ort.js` (Schreibkern hängt sich an `merke`), `landkarte` und `LANDKARTE.md`, Golden Master `inventar8a`.

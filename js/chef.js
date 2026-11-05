@@ -34,7 +34,7 @@
     if (window.jvChef) return;
 
     var FREIGEGEBEN = Object.freeze(['ortssuche', 'websuche', 'wetter']);                      // echte Ausführung nur hier (alles lesend)
-    var SCHREIB = Object.freeze(['erinnerung_erstellen', 'termin_erstellen', 'gedaechtnis_speichern']);   // nur Testmodus
+    var SCHREIB = Object.freeze(['erinnerung_erstellen', 'termin_erstellen', 'gedaechtnis_speichern', 'aufgabe_erstellen', 'termin_verschieben', 'kontakt_speichern']);   // nur Testmodus
     var MAX_SCHRITTE = 3, MAX_PROTOKOLL = 20, FRAGE_MS = 2 * 60000, DOPPELT_MS = 4000;
     var GESAMT_MS = 20000, THEMA_MS = 10 * 60000;                                            // Gesamtzeitbudget je Eingabe im Sprachweg; wie lange ein Thema für Anschlussfragen gilt
     var KI_FAEHIGKEITEN = Object.freeze(['ortssuche', 'websuche', 'wetter']);                 // das darf der KI-Entscheider planen
