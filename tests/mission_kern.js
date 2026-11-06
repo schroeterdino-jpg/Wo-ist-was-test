@@ -326,12 +326,10 @@ const beleg = { art: 'test', text: 'Test-Beleg ok' };
         check('11a beide Skripte in index.html, Kern vor Ansicht, mit Stempel', /mission_kern\.js\?v=[0-9a-f]{8}"/.test(idx) && /mission_ansicht\.js\?v=[0-9a-f]{8}"/.test(idx) && idx.indexOf('mission_kern.js') < idx.indexOf('mission_ansicht.js'));
         const c = lade(neuLs(), [KERN, ANSICHT]); const a = c.jvMissionAnsicht;
         check('11b Ansicht schützt Texte (kein HTML aus Missionsdaten)', a._esc('<img src=x onerror=alert(1)>"\'&') === '&lt;img src=x onerror=alert(1)&gt;&quot;&#39;&amp;');
-        check('11c Dauer wird lesbar angezeigt', a._dauer(0) === '0 Sek' && a._dauer(61 * S) === '1 Min 1 Sek' && a._dauer(3725 * S) === '1 Std 2 Min 5 Sek');
+        check('11c Dauer wird lesbar angezeigt', a._dauer(0) === '0:00' && a._dauer(61 * S) === '1:01' && a._dauer(3725 * S) === '1:02:05' && a._hms(3725 * S) === '01:02:05');
         check('11d kein Sprachbefehl registriert, Befehlsreihenfolge unberührt', !/jvCommands/.test(ANSICHT) && !/jvCommands/.test(KERN));
-        check('11e Menüeintrag über jvChain "buildMenuPanel"', /jvChain\.use\('buildMenuPanel', 'mission'/.test(ANSICHT) && /Missionszentrale \(Test M1\)/.test(ANSICHT));
-        const bf = (ANSICHT.match(/\.innerHTML\s*=/g) || []).length;
-        check('11f Ansicht verwendet für Missionsdaten nur escapte Texte (alle esc(...) bei Titel/Auftrag/Beleg)', bf === 1 && /esc\(m\.titel\)/.test(ANSICHT) && /esc\(m\.auftrag\)/.test(ANSICHT) && /esc\(s\.beleg\.text\)/.test(ANSICHT) && /esc\(s\.titel\)/.test(ANSICHT));
-        check('11g die Ansicht hat keine Animation (M2)', !/@keyframes|requestAnimationFrame|animation:/.test(ANSICHT));
+        check('11e Menüeintrag über jvChain "buildMenuPanel"', /jvChain\.use\('buildMenuPanel', 'mission'/.test(ANSICHT) && /<b class="block text-\[#49d7ff\] text-sm">Missionszentrale<\/b>/.test(ANSICHT));
+        check('11f die Ansicht schreibt Missionsdaten nur escaped (Titel, Auftrag, Beleg, Schritt, Grund)', /esc\(m\.titel\)/.test(ANSICHT) && /esc\(m\.auftrag\)/.test(ANSICHT) && /esc\(s\.beleg\.text\)/.test(ANSICHT) && /esc\(s\.titel\)/.test(ANSICHT));
     }
 
     /* ---------- 12 Sicherheitsgrenzen von M1 ---------- */

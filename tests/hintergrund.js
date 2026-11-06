@@ -46,9 +46,9 @@ function diff(soll, ist, schluessel) {
     const nIv = P.filter(p => p.art === 'intervall').length, nSelbst = P.filter(p => p.art === 'selbstansetzend').length, dateien = new Set(P.map(p => p.id.replace(/#.*/, '')));
     check('103 Konstrukte (73 setInterval + 30 selbstansetzende setTimeout) in 58 Dateien, wie das Register', P.length === 103 && nIv === 73 && nSelbst === 30 && dateien.size === 58, P.length + '/' + nIv + '/' + nSelbst + '/' + dateien.size);
     check('Jede Zeile hat einen Registereintrag (gleiche id wie tests/timer_inventar.js)', P.every(p => inventar.some(e => e.id === p.id)) && P.length === inventar.length);
-    check('13 requestAnimationFrame-Stellen in Dateien', ist.raf.length === 13 && new Set(ist.raf.map(r => r.id.replace(/#.*/, ''))).size === 5, ist.raf.length + '');
+    check('15 requestAnimationFrame-Stellen in Dateien (neu: mission_ansicht, 2 Stellen, Kugelbild der Missionszentrale)', ist.raf.length === 15 && new Set(ist.raf.map(r => r.id.replace(/#.*/, ''))).size === 6, ist.raf.length + '');
     /* Phase 6B.1: mimik.js und anzeige.js hören jetzt auch auf visibilitychange (Pause der visuellen Takte), holo_look.js tat es schon: 29 → 31 */
-    check('31 Dateien hören auf visibilitychange (6A: 29; neu in 6B.1: anzeige; neu in 6B.2: synapsen; mimik, holo_look entfernt; neu: uebersicht)', istSoll.sichtbarkeitsHoerer.length === 31, String(istSoll.sichtbarkeitsHoerer.length));
+    check('32 Dateien hören auf visibilitychange (6A: 29; neu in 6B.1: anzeige; neu in 6B.2: synapsen; mimik, holo_look entfernt; neu: uebersicht, mission_ansicht)', istSoll.sichtbarkeitsHoerer.length === 32, String(istSoll.sichtbarkeitsHoerer.length));
     check('Betrieb: ab Laden / bei Bedarf / von außen sind alle drei belegt (Einordnung funktioniert)', ['ab Laden', 'bei Bedarf', 'von außen/Ereignis'].every(k => P.some(p => p.anfang === k)));
 
     /* ===== B. Golden Master gegen die Soll-Datei ===== */
@@ -80,7 +80,7 @@ function diff(soll, ist, schluessel) {
     const raf = ist.raf;
     check('rAF: sphere.js hat genau eine Selbstschleife (frame), wetterfx.js eigene Schleifen, synapsen.js zwei Stellen', raf.filter(r => /^sphere\.js/.test(r.id) && r.schleife).length >= 1 && raf.some(r => /^wetterfx/.test(r.id)) && raf.filter(r => /^synapsen/.test(r.id)).length === 2);
     check('rAF: sphere, synapsen und wetterfx haben eine Sichtbarkeitsprüfung (avatar3d.js ist entfernt)', ['sphere.js', 'synapsen.js', 'wetterfx.js'].every(f => raf.filter(r => r.id.indexOf(f) === 0).every(r => r.guard)));
-    check('rAF: kein cancelAnimationFrame in den js-Dateien (alle Schleifen enden, indem sie sich nicht erneut anfordern)', raf.every(r => !r.cancel));
+    check('rAF: cancelAnimationFrame nur in mission_ansicht.js (Missionszentrale: Pause bei unsichtbarer App, Schließen); alle anderen Schleifen enden, indem sie sich nicht erneut anfordern', raf.every(r => !r.cancel || /^mission_ansicht\.js#/.test(r.id)));
 
     /* ===== D. Laufzeit-Messstand (Chromium) ===== */
     console.log('D. Chromium-Messstand');

@@ -1445,6 +1445,22 @@
  ],
  "raf": [
   {
+   "id": "mission_ansicht.js#r1",
+   "funktion": "kugelSchritt",
+   "schleife": true,
+   "start": "funktion",
+   "guard": true,
+   "cancel": true
+  },
+  {
+   "id": "mission_ansicht.js#r2",
+   "funktion": "kugelStart",
+   "schleife": false,
+   "start": "funktion",
+   "guard": true,
+   "cancel": true
+  },
+  {
    "id": "sphere.js#r1",
    "funktion": "start",
    "schleife": false,
@@ -1682,6 +1698,7 @@
   "mail_nacht.js",
   "mailwatch.js",
   "meldungs_regeln.js",
+  "mission_ansicht.js",
   "orte.js",
   "pakete.js",
   "parkplatz_auto.js",
