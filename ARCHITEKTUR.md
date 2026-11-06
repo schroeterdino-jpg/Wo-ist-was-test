@@ -734,3 +734,8 @@ Jarvis nimmt Arbeitsaufträge per Sprache an („Bau mir eine App“, „Recherc
 - **Ansagen:** Standard „wichtige“, Anrede „Chef“ (oder die eingestellte). Sprachbefehle: „Ansagen alle / nur wichtige / aus“, „Mission stumm/laut“, „Energiesparen an/aus“, „Studio an/aus“, „Wie weit ist die Mission“, „Pausiere/Setze fort/Abbrechen die Mission“. Schlüssel: `jv_studio`, `jv_regie_stufe`, `jv_regie_stumm`, `jv_regie_spar`.
 - **Kugel:** `sphere.js` nur minimal erweitert: `jvSphereArbeit` → Zustand „thinking“, `jvSphereImpuls` → kurzer Ring bei echtem Ereignis. Keine neue Animationsschleife.
 - **Tests:** `tests/studio.js` (Ende-zu-Ende mit echten Skripten, Dateien mit unzip/python-docx/python-pptx/LibreOffice geprüft), `tests/studio_server.js` (echter Servercode mit Netz-Attrappe), `tools/studio_browser_check.js` (echter Chromium, nicht in CI). Real erprobt: Build-Workflow (Branch-Push → signierte Debug-APK, ohne Berechtigungen).
+
+### Studio: APK-Fehlerdiagnose, Sprachmeldung, Arbeitsmodus (Nachtrag)
+- `api/maps.js`: Fehler von GitHub nennen den Schritt („Workflow-Läufe prüfen“, „Dateien anlegen (Tree)“, „Branch anlegen“ …) und bei 403/404 die von GitHub gemeldete nötige Token-Berechtigung (`X-Accepted-GitHub-Permissions`). Nie Token oder andere Header.
+- `js/studio_regie.js`: Abschluss und Fehler sind Prio 3; Prio-3-Meldungen verfallen erst nach 10 Min und warten, solange die App unsichtbar (Handy gesperrt) ist.
+- `js/studio_ansicht.js`: Vollbild-Arbeitsmodus (Klasse `jvStudioArbeit` am `<html>`): solange eine Mission läuft/wartet/pausiert/geplant ist, sind Übersicht, Raster, Uhr und Gruß weg; Kugel und Studio-Karte bleiben. Mit ✕ an der Karte oder am Ende der Mission kommt das Dashboard zurück.

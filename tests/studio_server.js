@@ -16,7 +16,7 @@ function check(n, b, info) { if (b) { ok++; return; } fehler++; console.log('✗
     const echtFetch = global.fetch; let netz = [], skript = () => ({ status: 404, body: '{}' });
     global.fetch = async (u, o) => {
         o = o || {}; netz.push({ url: String(u), o }); const r = await skript(String(u), o);
-        const kopf = new Map(Object.entries(Object.assign({ 'content-type': 'application/json' }, r.headers || {})));
+        const kopf = new Map(Object.entries(Object.assign({ 'content-type': 'application/json' }, r.headers || {})).map(([k, v]) => [k.toLowerCase(), v]));
         const roh = typeof r.body === 'string' ? r.body : JSON.stringify(r.body || {});
         return { ok: r.status >= 200 && r.status < 300, status: r.status, headers: { get: k => kopf.get(String(k).toLowerCase()) || null }, text: async () => roh, json: async () => JSON.parse(roh), body: null };
     };
@@ -106,6 +106,17 @@ function check(n, b, info) { if (b) { ok++; return; } fehler++; console.log('✗
     r = await ruf('studio_bau', {}, { method: 'POST', body: gut }); check('4i3 alte Läufe (älter als 1 Stunde) zählen nicht (hier scheitert erst der Folgeschritt, nicht die Grenze)', r.status === 502, r);
     skript = () => ({ status: 404, body: { message: 'Not Found' } });
     r = await ruf('studio_bau', {}, { method: 'POST', body: gut }); check('4i4 Workflow liegt nicht auf dem Standard-Branch → 409 mit klarer Meldung, nichts angelegt', r.status === 409 && /studio-apk\.yml/.test(r.payload.error), r);
+    /* 403-Diagnose: Fehlertext nennt den Schritt und die nötige Berechtigung, nie den Token */
+    const mit403 = (muster, kopf) => (u) => /studio-apk\.yml\/runs/.test(u) ? { status: 200, body: { workflow_runs: [] } } : /git\/ref\/heads\/main$/.test(u) ? { status: 200, body: { object: { sha: 'BASIS' } } } : /git\/commits\/BASIS$/.test(u) ? { status: 200, body: { tree: { sha: 'T' } } } : muster.test(u) ? { status: 403, headers: kopf, body: { message: 'Resource not accessible by personal access token' } } : { status: 201, body: { sha: 'X' } };
+    skript = (u) => /studio-apk\.yml\/runs/.test(u) ? { status: 403, headers: { 'X-Accepted-GitHub-Permissions': 'actions=read' }, body: { message: 'Resource not accessible by personal access token' } } : { status: 404, body: {} };
+    r = await ruf('studio_bau', {}, { method: 'POST', body: gut });
+    check('4j1 403 bei Workflow-Prüfung: Schritt und „actions=read“ im Fehlertext, kein Token', r.status === 502 && /Workflow-Läufe prüfen/.test(r.payload.error) && /actions=read/.test(r.payload.error) && !/ghp_TESTTOKEN/.test(JSON.stringify(r)), r);
+    skript = mit403(/git\/trees$/, { 'X-Accepted-GitHub-Permissions': 'contents=write' });
+    r = await ruf('studio_bau', {}, { method: 'POST', body: gut });
+    check('4j2 403 beim Anlegen der Dateien: Schritt „Tree“ und „contents=write“', r.status === 502 && /Tree/.test(r.payload.error) && /contents=write/.test(r.payload.error), r);
+    skript = mit403(/git\/refs$/, {});
+    r = await ruf('studio_bau', {}, { method: 'POST', body: gut });
+    check('4j3 403 ohne Berechtigungs-Kopf: Hinweis auf Token/Repository-Auswahl, Schritt „Branch anlegen“', r.status === 502 && /Branch anlegen/.test(r.payload.error) && /Repository-Auswahl/.test(r.payload.error), r);
     let parallel = [], blocker; skript = async (u) => { if (/studio-apk\.yml\/runs/.test(u)) { await new Promise(x => setTimeout(x, 30)); return { status: 200, body: { workflow_runs: [{ status: 'completed', created_at: '2020-01-01T00:00:00Z' }] } }; } return { status: 404, body: {} }; };
     parallel = await Promise.all([ruf('studio_bau', {}, { method: 'POST', body: gut }), ruf('studio_bau', {}, { method: 'POST', body: gut })]);
     check('4i5 zwei gleichzeitige Anfragen: die zweite wird abgewiesen (429)', parallel.some(x => x.status === 429 && /vorbereitet/.test(x.payload.error)), parallel.map(x => x.status));

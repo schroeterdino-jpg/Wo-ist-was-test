@@ -22,18 +22,33 @@
     function sichtbar() { try { return document.hidden !== true; } catch (e) { return true; } }
     function httpsLink(u) { return /^https:\/\/[^\s"'<>]+$/.test(String(u || '')) ? u : ''; }
 
-    var STIL = '<style>#studioKarte{margin:8px 0}#studioKarte .sk{background:rgba(10,22,33,.92);border:1px solid rgba(73,215,255,.45);border-radius:14px;padding:12px;font-family:ui-monospace,monospace;color:#e2e8f0}' +
+    var STIL = '<style>#studioKarte{margin:8px 0}#studioKarte .sk{box-sizing:border-box;width:100%;max-width:100%;overflow-wrap:anywhere;background:rgba(10,22,33,.92);border:1px solid rgba(73,215,255,.45);border-radius:14px;padding:12px;font-family:ui-monospace,monospace;color:#e2e8f0}' +
         '#studioKarte .skK{display:flex;align-items:center;gap:8px}#studioKarte h3{margin:0;font-size:14px;color:#49d7ff;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
         '#studioKarte .skChip{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}#studioKarte .skUhr{font-size:20px;color:#fff;margin:6px 0 2px}' +
         '#studioKarte .skKlein{font-size:12px;color:#94a3b8}#studioKarte ol,#studioKarte ul{list-style:none;margin:6px 0;padding:0}#studioKarte li{font-size:13px;padding:2px 0;display:flex;gap:6px}' +
         '#studioKarte .skZ{font-size:12px;color:#cbd5e1}#studioKarte .skZ time{color:#64748b;min-width:42px}' +
         '#studioKarte button,#studioKarte a.skB{min-height:44px;padding:0 14px;border-radius:10px;border:1px solid rgba(73,215,255,.5);background:rgba(73,215,255,.12);color:#49d7ff;font-size:14px;display:inline-flex;align-items:center;text-decoration:none;cursor:pointer}' +
         '#studioKarte button.skRot{border-color:#ff5c3c;color:#ff8a70;background:rgba(255,92,60,.1)}#studioKarte button.skGruen{border-color:#57e0a1;color:#57e0a1;background:rgba(87,224,161,.12)}' +
-        '#studioKarte .skReihe{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}#studioKarte .skFehler{border:1px solid #ff5c3c;border-radius:10px;padding:8px;margin-top:8px;font-size:13px;color:#ffb4a5}' +
+        '#studioKarte .skReihe>*{flex:1 1 auto;justify-content:center}#studioKarte .skReihe{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}#studioKarte .skFehler{border:1px solid #ff5c3c;border-radius:10px;padding:8px;margin-top:8px;font-size:13px;color:#ffb4a5}' +
         '#studioKarte .skFrage{border:1px solid #ffbe50;border-radius:10px;padding:8px;margin-top:8px;font-size:13px;color:#ffd98a}#studioKarte .skErg{border:1px solid rgba(87,224,161,.5);border-radius:10px;padding:8px;margin-top:8px;font-size:13px}' +
-        '#studioKarte a{color:#7dd3fc;word-break:break-all}#studioVorschau{position:fixed;inset:0;z-index:9999;background:#0b1620;display:flex;flex-direction:column}#studioVorschau header{display:flex;align-items:center;gap:8px;padding:8px 12px;color:#cbd5e1;font-size:13px}' +
-        '#studioVorschau iframe{flex:1;border:0;background:#fff;width:100%}#studioVorschau button{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid #49d7ff;background:transparent;color:#49d7ff;font-size:14px}</style>';
+        '#studioKarte a{color:#7dd3fc;word-break:break-all}#studioVorschau{position:fixed;top:0;left:0;right:0;bottom:0;height:100vh;height:100dvh;z-index:9999;background:#0b1620;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}#studioVorschau header{display:flex;align-items:center;gap:8px;padding:8px 12px;color:#cbd5e1;font-size:13px}' +
+        '#studioVorschau iframe{flex:1;min-height:0;border:0;background:#fff;width:100%}#studioVorschau button{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid #49d7ff;background:transparent;color:#49d7ff;font-size:14px}</style>';
 
+    /* ---------- Vollbild-Arbeitsmodus: solange ein Studio-Auftrag arbeitet, verschwindet das normale Dashboard; die Kugel und die Studio-Karte bleiben ---------- */
+    var ARBEIT_CSS = 'html.jvStudioArbeit #overviewLine,html.jvStudioArbeit #uebRaster,html.jvStudioArbeit #uebGrussBox,html.jvStudioArbeit #uebUhrBox,html.jvStudioArbeit #uebEq,html.jvStudioArbeit #quickAccessList{display:none!important}' +
+        'html.jvStudioArbeit #studioKarte{width:100%;margin:4px 0 12px;max-height:calc(100vh - 330px);max-height:calc(100dvh - 330px);min-height:140px;overflow-y:auto;-webkit-overflow-scrolling:touch}' +
+        'html.jvStudioArbeit #sec-speak{justify-content:flex-start}';
+    var arbeitModus = false;
+    function arbeitAktiv() { var m = zeigt && zeigt.art === 'mission' && M() && M().hole(zeigt.id); return !!(m && ['geplant', 'laeuft', 'wartet_freigabe', 'pausiert'].indexOf(m.status) >= 0); }
+    function arbeitModusSetzen(an) {
+        if (typeof document === 'undefined' || an === arbeitModus) return;
+        arbeitModus = an;
+        try {
+            if (an && !document.getElementById('studioArbeitCss')) { var st = document.createElement('style'); st.id = 'studioArbeitCss'; st.textContent = ARBEIT_CSS; document.head.appendChild(st); }
+            document.documentElement.classList.toggle('jvStudioArbeit', an);
+            if (an && window.scrollTo) window.scrollTo(0, 0);
+        } catch (e) { }
+    }
     function schrittZeichen(s) { return ({ erledigt: '✓', laeuft: '●', fehlgeschlagen: '✗', uebersprungen: '–', unterbrochen: '⏸', offen: '○' })[s] || '○'; }
     function ergebnisHtml(m) {
         var arb = P().arbeit.hole(m.id) || {}, pr = arb.projektId ? P().hole(arb.projektId) : null; if (!pr) return '';
@@ -93,8 +108,10 @@
     function zeichne() {
         var c = container(); if (!c) return;
         var h = html();
+        arbeitModusSetzen(arbeitAktiv());
         if (h === letztesHtml) return;
         letztesHtml = h; c.innerHTML = h;
+        arbeitModusSetzen(arbeitAktiv());
         c.style.display = h ? '' : 'none';
         if (!h) stopTakt(); else startTakt();
     }
@@ -140,7 +157,7 @@
     /* ---------- Bedienung ---------- */
     function aktion(name, arg) {
         var A = window.jvStudioAuftrag, mid = zeigt && zeigt.art === 'mission' ? zeigt.id : null, r;
-        if (name === 'zu') { zeigt = null; letztesHtml = ''; stopTakt(); zeichne(); return true; }
+        if (name === 'zu') { zeigt = null; letztesHtml = ''; stopTakt(); zeichne(); arbeitModusSetzen(false); return true; }
         if (name === 'vorschau') return vorschau(arg);
         if (name === 'vorschauZu') { schliesseVorschau(); return true; }
         if (name === 'zip') { var pr = P().hole(arg); if (!pr || !pr.dateien) return false; return laden(window.jvStudioWerkzeuge.dateiname(pr.name, 'zip'), 'application/zip', window.jvStudioDateien.zip(pr.dateien)); }
@@ -159,5 +176,5 @@
         return !!(r && r.ok !== false);
     }
 
-    window.jvStudioAnsicht = { zeige: zeige, zeigeProjekt: zeigeProjekt, neuZeichnen: neuZeichnen, aktion: aktion, html: html, schliesseVorschau: schliesseVorschau, _zustand: function () { return { zeigt: zeigt, takt: !!takt, bestaetige: bestaetige }; }, _esc: esc, _hms: hms };
+    window.jvStudioAnsicht = { zeige: zeige, zeigeProjekt: zeigeProjekt, neuZeichnen: neuZeichnen, aktion: aktion, html: html, schliesseVorschau: schliesseVorschau, _zustand: function () { return { zeigt: zeigt, takt: !!takt, bestaetige: bestaetige }; }, arbeitModus: function () { return arbeitModus; }, _esc: esc, _hms: hms };
 })();

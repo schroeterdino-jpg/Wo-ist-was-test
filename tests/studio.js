@@ -42,7 +42,8 @@ function welt(opt) {
         return antwort(404, { error: 'unbekannt' });
     };
     const elemente = {};
-    const doc = { hidden: false, body: { appendChild() { } }, getElementById: id => elemente[id] || null, createElement: () => ({ style: {}, setAttribute() { }, remove() { } }), addEventListener() { }, removeEventListener() { } };
+    const klassen = new Set();
+    const doc = { hidden: false, body: { appendChild() { } }, head: { appendChild() { } }, documentElement: { classList: { toggle: (k, an) => { an ? klassen.add(k) : klassen.delete(k); }, contains: k => klassen.has(k) } }, getElementById: id => elemente[id] || null, createElement: () => ({ style: {}, setAttribute() { }, remove() { } }), addEventListener() { }, removeEventListener() { } };
     const ctx = {
         console, JSON, Math, Object, Array, String, Number, Promise, isFinite, Date: FalschDate, Uint8Array, DataView, ArrayBuffer, TextEncoder, TextDecoder, Buffer, Set, Map, RegExp, Error, parseInt, parseFloat, AbortController,
         localStorage: ls, document: doc, apiFetch, navigator: {}, matchMedia: () => ({ matches: false }),
@@ -55,7 +56,7 @@ function welt(opt) {
     ctx.window = ctx; vm.createContext(ctx);
     if (opt.vorher) opt.vorher(ctx);
     (opt.dateien || DATEIEN).forEach(f => vm.runInContext(QUELLEN[f] || lies(f), ctx, { filename: f }));
-    return { c: ctx, ls, ctl, gesprochen, aufrufe, timers, elemente, doc };
+    return { c: ctx, ls, ctl, gesprochen, aufrufe, timers, elemente, doc, klassen };
 }
 const J = o => JSON.stringify(o);
 function tmp(name, daten) { const p = path.join(os.tmpdir(), 'studio_' + process.pid + '_' + name); fs.writeFileSync(p, Buffer.from(daten)); return p; }
@@ -407,6 +408,13 @@ async function auftrag(w, satz) { const r = w.c.jvStudioAuftrag.behandle(satz); 
         R._reset(); w.ls.setItem('jv_regie_stufe', 'wichtige'); w.ls.setItem('jv_regie_spar', '1'); check('10q Energiesparen: nur Wichtiges (Prio ≥ 2)', R.ansage('m1', 'x6', 1) === false && R.ansage('m1', 'x7', 2) === true);
         w.ls.setItem('jv_regie_spar', '0');
         R._reset(); w.c.document.hidden = true; check('10r App unsichtbar: nur Kritisches wird angesagt', R.ansage('m1', 'x8', 2) === false && R.ansage('m1', 'x9', 3) === true); w.c.document.hidden = false;
+        R._reset(); w.ctl.spricht = false; w.c.document.hidden = true; R.ansage('m1', 'Fertig-Test gesperrt', 3); R._pumpe();
+        check('10r2 Handy gesperrt: Fertig-/Fehlermeldung (Prio 3) wird NICHT verworfen, sondern wartet', w.gesprochen.indexOf('Fertig-Test gesperrt') < 0 && R._queue().some(q => q.text === 'Fertig-Test gesperrt'));
+        uhr.t += 5 * MIN; w.c.document.hidden = false; R._pumpe();
+        check('10r3 App wieder offen (auch nach Minuten): die Meldung wird jetzt gesprochen', w.gesprochen.indexOf('Fertig-Test gesperrt') >= 0, w.gesprochen.slice(-3));
+        w.ctl.spricht = false;
+        check('10r4 Abschluss einer Mission hat hohe Priorität (3) wie Fehler', /abschluss: 3/.test(QUELLEN['js/studio_regie.js']) && /mission_fehler: 3/.test(QUELLEN['js/studio_regie.js']));
+        check('10r5 Karte: volle Breite, Umbruch langer Wörter, Vorschau passt auf Handy-Bildschirm (dvh, Notch)', /width:100%;max-width:100%;overflow-wrap:anywhere/.test(QUELLEN['js/studio_ansicht.js']) && /height:100dvh/.test(QUELLEN['js/studio_ansicht.js']) && /safe-area-inset-top/.test(QUELLEN['js/studio_ansicht.js']));
         /* Budget */
         R._reset(); w.ctl.spricht = false; let ok1 = 0; for (let i = 0; i < 40; i++) if (R.ansage('mb', 'Ein längerer Satz Nummer ' + i + ' mit etwas Inhalt zum Zählen der Zeichen.', 2)) { ok1++; R._pumpe(); w.ctl.spricht = true; R._pumpe(); w.ctl.spricht = false; uhr.t += 5 * MIN; R._pumpe(); }
         check('10s Zeichenbudget je Mission begrenzt die Ansagen (nicht endlos)', ok1 > 0 && ok1 < 20, ok1);
@@ -460,6 +468,9 @@ async function auftrag(w, satz) { const r = w.c.jvStudioAuftrag.behandle(satz); 
         const ohneWerkzeug = K.neu({ titel: 'Ohne', auftrag: 'A', schritte: [{ titel: 'Manuell' }] }).mission.id;
         check('11f Schritte ohne Werkzeug (nicht messbar) → keine Prognose', R.prognose(ohneWerkzeug).moeglich === false);
         check('11g Karte zeigt entweder die Schätzung samt Grundlage oder den Grund, nie eine Zahl ohne Grundlage', (() => { w.c.jvStudioProjekte.arbeit.setze(alt, { studio: true }); w.c.jvStudioAnsicht.zeige(alt); const h = w.c.jvStudioAnsicht.html(); return /Schätzung: Nach früheren Messungen/.test(h) && /Grundlage:/.test(h); })());
+        w.elemente.actionCards = { parentNode: { insertBefore() { } } };
+        check('11h Vollbild-Arbeitsmodus: während eine Mission läuft ist das Dashboard weg (Klasse gesetzt), danach wieder da', (() => { const A = w.c.jvStudioAnsicht, Mi = w.c.jvMission; const x = Mi.neu({ titel: 'Arbeitsmodus-Test', auftrag: 'A', schritte: [{ titel: 'a' }] }); const mid = x.mission.id; Mi.starten(mid); A.zeige(mid); const an = w.klassen.has('jvStudioArbeit') && A.arbeitModus(); Mi.abbrechen(mid, 'test'); A.zeige(mid); const aus = !w.klassen.has('jvStudioArbeit') && !A.arbeitModus(); return an && aus; })());
+        check('11i Arbeitsmodus blendet nur Übersicht/Raster/Uhr/Gruß aus, NICHT die Kugel (#uebKopf, #jarvisSphere) und nicht die Karte', (() => { const q = QUELLEN['js/studio_ansicht.js']; const css = /ARBEIT_CSS = ([\s\S]*?);\n/.exec(q)[1]; return /#uebRaster/.test(css) && /#overviewLine/.test(css) && !/uebKopf|jarvisSphere|reactor|recordBtn|studioKarte\{display/.test(css.split("html.jvStudioArbeit #studioKarte{width")[0]); })());
     }
 
     /* ---------- 12 Messung der Fish-Stimme (Geschwindigkeit und Zeichen) ---------- */
