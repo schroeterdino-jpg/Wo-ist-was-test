@@ -56,6 +56,7 @@
             if (btn && btn.classList.contains('speaking')) return 'speaking';
             if (btn && btn.classList.contains('recording')) return 'recording';
             if (typeof isProcessing !== 'undefined' && isProcessing) return 'thinking';
+            if (window.jvSphereArbeit === true) return 'thinking';   // Jarvis Studio: nur solange ein Werkzeug WIRKLICH arbeitet (studio_regie.js)
             if (window.jvSphereAlert) return 'alert';
             return 'idle';
         }
@@ -292,6 +293,21 @@
                 ctx.arc(p.sx, p.sy, rad * 0.4, 0, Math.PI * 2);
                 ctx.fill();
             });
+
+            /* Jarvis Studio (studio_regie.js): kurzer Ring bei einem ECHTEN Ereignis (Schritt erledigt, Fehler, Freigabe nötig, Quelle gelesen). Keine eigene Schleife. */
+            const imp = window.jvSphereImpuls;
+            if (imp && typeof imp.start === 'number') {
+                const pr = (Date.now() - imp.start) / (imp.dauer || 1000);
+                if (pr >= 0 && pr < 1) {
+                    const IMP = { ok: '90,230,150', fehler: '255,90,80', frage: '255,190,80', quelle: '120,220,255', start: '180,235,255' }[imp.art] || rgb;
+                    ctx.globalAlpha = 1;
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = `rgba(${IMP},${(0.85 * (1 - pr)).toFixed(3)})`;
+                    ctx.beginPath();
+                    ctx.arc(SIZE / 2, SIZE / 2, coreRadius * (1.05 + 0.7 * pr), 0, Math.PI * 2);
+                    ctx.stroke();
+                } else if (pr >= 1) window.jvSphereImpuls = null;
+            }
 
             requestAnimationFrame(frame);
         }

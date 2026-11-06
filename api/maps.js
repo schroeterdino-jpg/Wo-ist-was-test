@@ -654,9 +654,187 @@ async function shopping(req, res) {
 }
 
 /* ------------------------------------------------------------------
+   Jarvis Studio (Server-Teil, vier Aktionen in dieser Datei, weil Vercel Hobby höchstens 12 Functions erlaubt)
+   studio_suche  : Websuche über Serper (SERPER_API_KEY), liefert Titel, Adresse, Kurztext
+   studio_seite  : lädt EINE öffentliche Webseite und gibt den lesbaren Text zurück (Schutz gegen Zugriffe auf interne Adressen)
+   studio_bau    : legt ein geprüftes Web-Projekt als Branch "studio/<id>" im Bau-Repository ab; dort baut GitHub Actions eine Debug-APK
+   studio_status : fragt den Stand dieses Baus ab (Lauf, Fehlerschritt, Download-Adresse der APK)
+   Das GitHub-Token (STUDIO_GITHUB_TOKEN) liegt NUR hier als Server-Variable, nie im Browser. Ohne Token antwortet studio_bau ehrlich mit "nicht eingerichtet".
+   ------------------------------------------------------------------ */
+const STUDIO_ERLAUBT = ['html', 'css', 'js', 'json', 'svg', 'txt', 'md'];
+const STUDIO_PFAD_RX = /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)*$/;
+let studioBauLaeuft = false;   // verhindert gleichzeitige Anfragen innerhalb einer Instanz
+const studioBauZeiten = [];   // nur Arbeitsspeicher dieser Instanz: weiche Grenze gegen Dauerbau (5 pro Stunde)
+
+function studioPrivat(ip) {
+  const a = String(ip || '').toLowerCase();
+  if (a.includes(':')) {
+    if (a === '::1' || a === '::' || /^f[cd]/.test(a) || /^fe[89ab]/.test(a)) return true;
+    const m = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(a);
+    if (m) return studioPrivat(m[1]);
+    const h = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(a);   // Node schreibt IPv4-in-IPv6 hexadezimal (::ffff:7f00:1)
+    if (h) { const hi = parseInt(h[1], 16), lo = parseInt(h[2], 16); return studioPrivat([hi >> 8, hi & 255, lo >> 8, lo & 255].join('.')); }
+    return false;
+  }
+  const t = a.split('.').map(Number);
+  if (t.length !== 4 || t.some(n => !(n >= 0 && n <= 255))) return true;
+  const [x, y] = t;
+  return x === 0 || x === 10 || x === 127 || (x === 169 && y === 254) || (x === 172 && y >= 16 && y <= 31) || (x === 192 && y === 168) || (x === 100 && y >= 64 && y <= 127) || x >= 224;
+}
+async function studioOeffentlich(u) {
+  if (u.protocol !== 'https:') throw new Error('Nur https-Adressen sind erlaubt.');
+  if (u.username || u.password) throw new Error('Adressen mit Zugangsdaten sind nicht erlaubt.');
+  if (u.port && u.port !== '443') throw new Error('Nur der Standard-Port ist erlaubt.');
+  const h = u.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (!h || h === 'localhost' || /\.(local|localhost|internal|localdomain|lan|home|corp)$/.test(h)) throw new Error('Interne Adressen sind nicht erlaubt.');
+  const istIp = /^[\d.]+$/.test(h) || h.includes(':');
+  if (istIp) { if (studioPrivat(h)) throw new Error('Interne Adressen sind nicht erlaubt.'); return; }
+  if (!h.includes('.')) throw new Error('Interne Adressen sind nicht erlaubt.');
+  const dns = await import('node:dns/promises');
+  const adr = await dns.lookup(h, { all: true });
+  if (!adr.length || adr.some(x => studioPrivat(x.address))) throw new Error('Interne Adressen sind nicht erlaubt.');
+}
+function studioText(html) {
+  const titel = (/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html) || [])[1] || '';
+  const meta = (/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["']/i.exec(html) || [])[1] || '';
+  let t = html.replace(/<(script|style|noscript|svg|template|iframe|head)\b[\s\S]*?<\/\1>/gi, ' ').replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<\/(p|div|li|h[1-6]|tr|section|article|br)\s*>|<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ');
+  const ent = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', auml: 'ä', ouml: 'ö', uuml: 'ü', Auml: 'Ä', Ouml: 'Ö', Uuml: 'Ü', szlig: 'ß' };
+  const dek = x => x.replace(/&#(\d+);/g, (m, n) => String.fromCharCode(+n)).replace(/&([a-zA-Z]+);/g, (m, n) => (n in ent ? ent[n] : m));
+  t = dek(t).replace(/[ \t\f\v ]+/g, ' ').replace(/ ?\n ?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return { titel: dek(titel).replace(/\s+/g, ' ').trim().slice(0, 200), beschreibung: dek(meta).trim().slice(0, 300), text: t };
+}
+async function studio_suche(req, res) {
+  const q = String(req.query.q || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (q.length < 3) return res.status(400).json({ error: 'Suchbegriff fehlt' });
+  const key = process.env.SERPER_API_KEY;
+  if (!key) return res.status(500).json({ error: 'Server: SERPER_API_KEY fehlt' });
+  try {
+    const r = await fetch('https://google.serper.dev/search', { method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ q, gl: 'de', hl: 'de', num: 8 }), signal: AbortSignal.timeout(9000) });
+    if (!r.ok) return res.status(502).json({ error: 'Suchdienst antwortet mit ' + r.status });
+    const j = await r.json();
+    const treffer = (Array.isArray(j.organic) ? j.organic : []).filter(x => /^https:\/\//i.test(String(x.link || ''))).slice(0, 8).map(x => {
+      let domain = ''; try { domain = new URL(x.link).hostname.replace(/^www\./, ''); } catch (e) { }
+      return { titel: String(x.title || '').slice(0, 160), url: String(x.link), snippet: String(x.snippet || '').slice(0, 300), domain, datum: String(x.date || '') };
+    });
+    return res.status(200).json({ treffer, abgerufen: new Date().toISOString() });
+  } catch (e) { return res.status(502).json({ error: 'Suchdienst nicht erreichbar' }); }
+}
+async function studio_seite(req, res) {
+  let u;
+  try { u = new URL(String(req.query.url || '')); } catch (e) { return res.status(400).json({ error: 'Ungültige Adresse' }); }
+  try {
+    let aktuell = u, r = null;
+    for (let i = 0; i < 4; i++) {
+      await studioOeffentlich(aktuell);
+      r = await fetch(aktuell.href, { redirect: 'manual', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; JarvisStudio/1.0)', 'Accept': 'text/html,text/plain,application/xhtml+xml,application/xml;q=0.8' }, signal: AbortSignal.timeout(8000) });
+      if (r.status >= 300 && r.status < 400 && r.headers.get('location')) { aktuell = new URL(r.headers.get('location'), aktuell); r = null; continue; }
+      break;
+    }
+    if (!r) return res.status(502).json({ error: 'Zu viele Weiterleitungen' });
+    if (!r.ok) return res.status(502).json({ error: 'Seite antwortet mit Status ' + r.status });
+    const typ = String(r.headers.get('content-type') || '').toLowerCase();
+    if (!/text\/(html|plain|xml)|application\/(xhtml\+xml|xml|json)/.test(typ)) return res.status(415).json({ error: 'Dieser Seitentyp wird nicht gelesen' });
+    const MAX = 1500000; let roh = '';
+    if (r.body && typeof r.body.getReader === 'function') {
+      const rd = r.body.getReader(), dec = new TextDecoder(); let n = 0;
+      for (;;) { const { done, value } = await rd.read(); if (done) break; n += value.length; roh += dec.decode(value, { stream: true }); if (n > MAX) { try { await rd.cancel(); } catch (e) { } break; } }
+    } else roh = String(await r.text()).slice(0, MAX);
+    const x = /html/.test(typ) ? studioText(roh) : { titel: '', beschreibung: '', text: roh.replace(/\s+/g, ' ').trim() };
+    const text = x.text.slice(0, 8000);
+    const crypto = await import('node:crypto');
+    return res.status(200).json({ url: u.href, endadresse: aktuell.href, titel: x.titel, beschreibung: x.beschreibung, text, zeichen: text.length, hash: crypto.createHash('sha256').update(text).digest('hex').slice(0, 16), abgerufen: new Date().toISOString() });
+  } catch (e) { return res.status(502).json({ error: String(e && e.message || 'Seite nicht lesbar').slice(0, 160) }); }
+}
+function studioPruefe(b) {
+  const d = b && b.dateien, f = [];
+  if (!Array.isArray(d) || !d.length || d.length > 40) return ['Dateiliste fehlt oder hat mehr als 40 Dateien'];
+  let sum = 0; const seen = new Set();
+  for (const x of d) {
+    const p = x && x.pfad, c = x && x.inhalt;
+    if (typeof p !== 'string' || !STUDIO_PFAD_RX.test(p) || p.length > 80 || p.includes('..')) { f.push('Ungültiger Dateiname'); continue; }
+    if (seen.has(p)) { f.push('Doppelte Datei'); continue; } seen.add(p);
+    if (!STUDIO_ERLAUBT.includes(p.split('.').pop())) f.push('Dateityp nicht erlaubt: ' + p);
+    if (typeof c !== 'string') { f.push('Inhalt fehlt: ' + p); continue; }
+    const n = Buffer.byteLength(c, 'utf8'); sum += n; if (n > 400000) f.push('Datei zu groß: ' + p);
+  }
+  if (sum > 1200000) f.push('Projekt zu groß');
+  if (!seen.has('index.html')) f.push('index.html fehlt');
+  return f;
+}
+async function studioGh(pfad, token, opt) {
+  const r = await fetch('https://api.github.com' + pfad, Object.assign({ headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'jarvis-studio', 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(15000) }, opt || {}));
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error('GitHub ' + r.status + ': ' + String(j.message || '').slice(0, 120)); e.status = r.status; throw e; }
+  return j;
+}
+function studioRepo() { const r = String(process.env.STUDIO_BUILD_REPO || 'schroeterdino-jpg/Wo-ist-was-test'); return /^[\w.-]+\/[\w.-]+$/.test(r) ? r : null; }
+async function studio_bau(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const token = process.env.STUDIO_GITHUB_TOKEN, repo = studioRepo();
+  if (!token || !repo) return res.status(501).json({ fehlt: 'STUDIO_GITHUB_TOKEN', error: 'Der APK-Bau ist auf dem Server noch nicht eingerichtet (Variable STUDIO_GITHUB_TOKEN fehlt).' });
+  const b = req.body || {};
+  if (b.freigabe !== true) return res.status(400).json({ error: 'Ohne ausdrückliche Freigabe wird nichts gebaut.' });
+  const probleme = studioPruefe(b);
+  if (probleme.length) return res.status(400).json({ error: 'Projekt abgelehnt: ' + probleme.slice(0, 3).join('; ') });
+  const jetzt = Date.now(); while (studioBauZeiten.length && jetzt - studioBauZeiten[0] > 3600000) studioBauZeiten.shift();
+  if (studioBauZeiten.length >= 5) return res.status(429).json({ error: 'Höchstens 5 Builds pro Stunde.' });
+  if (studioBauLaeuft) return res.status(429).json({ error: 'Es wird gerade ein Bau vorbereitet. Bitte kurz warten.' });
+  studioBauLaeuft = true;
+  try {
+  /* Dauerhafte Grenzen aus GitHub selbst (gelten über alle Server-Instanzen): höchstens 1 offener Bau, höchstens 5 Läufe pro Stunde; prüft zugleich, ob der Workflow auf dem Standard-Branch liegt */
+  try {
+    const wl = await studioGh('/repos/' + repo + '/actions/workflows/studio-apk.yml/runs?per_page=30', token);
+    const laeufe = wl.workflow_runs || [], t0 = Date.now();
+    if (laeufe.some(x => x.status !== 'completed')) return res.status(429).json({ error: 'Es läuft oder wartet bereits ein Bau. Erst danach kann der nächste starten.' });
+    if (laeufe.filter(x => t0 - Date.parse(x.created_at) < 3600000).length >= 5) return res.status(429).json({ error: 'Höchstens 5 Builds pro Stunde.' });
+  } catch (e) {
+    if (e && e.status === 404) return res.status(409).json({ error: 'Der Bau-Workflow studio-apk.yml liegt noch nicht auf dem Standard-Branch des Bau-Repositories (nach dem Merge vorhanden).' });
+    return res.status(502).json({ error: String(e && e.message || 'GitHub nicht erreichbar').slice(0, 200) });
+  }
+  const name = String(b.name || 'Jarvis App').replace(/[^A-Za-z0-9ÄÖÜäöüß .-]/g, '').trim().slice(0, 30) || 'Jarvis App';
+  const id = 'p' + jetzt.toString(36) + Math.floor(Math.random() * 1296).toString(36).padStart(2, '0');
+  const basis = /^[\w./-]{1,60}$/.test(String(process.env.STUDIO_BASE_REF || 'main')) ? String(process.env.STUDIO_BASE_REF || 'main') : 'main';
+  try {
+    const ref = await studioGh('/repos/' + repo + '/git/ref/heads/' + basis.split('/').map(encodeURIComponent).join('/'), token);
+    const c0 = await studioGh('/repos/' + repo + '/git/commits/' + ref.object.sha, token);
+    const eintraege = b.dateien.map(x => ({ path: 'studio-projekt/www/' + x.pfad, mode: '100644', type: 'blob', content: x.inhalt }))
+      .concat([{ path: 'studio-projekt/meta.json', mode: '100644', type: 'blob', content: JSON.stringify({ id, name, erstellt: new Date(jetzt).toISOString() }) }]);
+    const tree = await studioGh('/repos/' + repo + '/git/trees', token, { method: 'POST', body: JSON.stringify({ base_tree: c0.tree.sha, tree: eintraege }) });
+    const commit = await studioGh('/repos/' + repo + '/git/commits', token, { method: 'POST', body: JSON.stringify({ message: 'Jarvis Studio: Projekt ' + id + ' (' + name + ')', tree: tree.sha, parents: [ref.object.sha] }) });
+    await studioGh('/repos/' + repo + '/git/refs', token, { method: 'POST', body: JSON.stringify({ ref: 'refs/heads/studio/' + id, sha: commit.sha }) });
+    studioBauZeiten.push(jetzt);
+    return res.status(200).json({ branch: 'studio/' + id, id, commit: commit.sha, repo, basis });
+  } catch (e) { return res.status(502).json({ error: String(e && e.message || 'GitHub nicht erreichbar').slice(0, 200) }); }
+  } finally { studioBauLaeuft = false; }
+}
+async function studio_status(req, res) {
+  const token = process.env.STUDIO_GITHUB_TOKEN, repo = studioRepo();
+  if (!token || !repo) return res.status(501).json({ fehlt: 'STUDIO_GITHUB_TOKEN', error: 'Der APK-Bau ist auf dem Server noch nicht eingerichtet.' });
+  const branch = String(req.query.branch || '');
+  if (!/^studio\/p[a-z0-9]{6,20}$/.test(branch)) return res.status(400).json({ error: 'Ungültiger Branch' });
+  try {
+    const l = await studioGh('/repos/' + repo + '/actions/runs?event=push&per_page=5&branch=' + encodeURIComponent(branch), token);
+    const lauf = (l.workflow_runs || [])[0];
+    if (!lauf) return res.status(200).json({ zustand: 'wartet', hinweis: 'Der Bau ist noch nicht gestartet.' });
+    const aus = { run: lauf.id, run_url: lauf.html_url, status: lauf.status, ergebnis: lauf.conclusion || '' };
+    if (lauf.status !== 'completed') return res.status(200).json(Object.assign({ zustand: 'laeuft' }, aus));
+    if (lauf.conclusion !== 'success') {
+      let schritt = '';
+      try { const jobs = await studioGh('/repos/' + repo + '/actions/runs/' + lauf.id + '/jobs', token); const st = ((jobs.jobs || [])[0] || {}).steps || []; const bad = st.find(x => x.conclusion === 'failure'); schritt = bad ? String(bad.name) : ''; } catch (e) { }
+      return res.status(200).json(Object.assign({ zustand: 'fehlgeschlagen', fehlerSchritt: schritt }, aus));
+    }
+    const rel = await studioGh('/repos/' + repo + '/releases/tags/studio-' + branch.slice(7), token).catch(() => null);
+    const apk = rel && (rel.assets || []).find(x => /\.apk$/.test(x.name));
+    if (!apk) return res.status(200).json(Object.assign({ zustand: 'laeuft', hinweis: 'Gebaut, APK wird bereitgestellt.' }, aus));
+    return res.status(200).json(Object.assign({ zustand: 'fertig', apk_url: apk.browser_download_url, apk_bytes: apk.size, apk_name: apk.name }, aus));
+  } catch (e) { return res.status(502).json({ error: String(e && e.message || 'GitHub nicht erreichbar').slice(0, 200) }); }
+}
+
+/* ------------------------------------------------------------------
    Verteiler: prüft zuerst den App-Code (wie bisher in jeder der vier Dateien) und ruft dann die passende Funktion auf
    ------------------------------------------------------------------ */
-const ACTIONS = { geocode, reverse, route, overpass, holidays, places, streetview, shopping };
+const ACTIONS = { geocode, reverse, route, overpass, holidays, places, streetview, shopping, studio_suche, studio_seite, studio_bau, studio_status };
 
 export default async function handler(req, res) {
   const expected = process.env.APP_SECRET;

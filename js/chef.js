@@ -442,6 +442,7 @@
 
     /* Haken im Sprachweg: nur lokaler Entscheider, nur wenn EIN. true = übernommen (die Ausführung läuft asynchron weiter). */
     function behandle(text) {
+        try { if (window.jvStudioAuftrag && typeof text === 'string' && window.jvStudioAuftrag.behandle(text) === true) return true; } catch (e) { }   // Jarvis Studio (studio_auftrag.js): Sprachaufträge zum Bauen/Recherchieren, unabhängig vom Chef-KI-Schalter
         if (!istAn || typeof text !== 'string' || !text.trim()) return false;
         try {
             if (offen && jetzt() - offen.at <= FRAGE_MS && jungeFrageGehoertUns()) {
@@ -1020,6 +1021,7 @@
 
     /* Haken im echten Sprachweg: true = die Chef-KI hat den Satz übernommen (läuft asynchron weiter und fällt im Zweifel genau einmal auf den bisherigen Ablauf zurück). */
     function kiWeg(text, mehr) {
+        try { if (window.jvStudioAuftrag && typeof text === 'string' && window.jvStudioAuftrag.behandle(text) === true) return true; } catch (e) { }   // Jarvis Studio (studio_auftrag.js), vor dem Chef-KI-Schalter
         if (!istAn) return false;                                              // AUS: nichts, kein Netz
         try {
             vomChefBehandelt = 0;

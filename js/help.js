@@ -156,6 +156,10 @@ const HELP_TOPICS = [
         'Karte automatisch schließen aus (auch: an; die Karte schließt sich sonst nach dem Sprechen von selbst, ein Tippen darauf hält sie offen)'] },
     { key: 'spiele', icon: '🎲', title: 'Mini-Spiele', words: /spiel|münze|muenze|kopf oder zahl|schere|stein|papier|würfel/, examples: [
         'Münze werfen (oder: Kopf oder Zahl)', 'Schere Stein Papier (du sagst deine Wahl, die Figur antwortet mit einer geworfenen Karte)'] },
+    { key: 'studio', icon: '🛠️', title: 'Jarvis arbeitet für dich (Studio)', words: /studio|recherch|bau mir|programmier|präsentation|praesentation|apk|app von gestern|mission/, examples: [
+        'Bau mir eine App für meine Einkaufsliste', 'Recherchiere die besten Wallboxen 2026', 'Erstelle eine Präsentation über Solarenergie',
+        'Ändere die App von gestern (Jarvis findet dein gespeichertes Projekt und baut eine neue Fassung)', 'Mach eine APK aus der App von gestern (nur nach deiner Freigabe: Ja oder Nein)',
+        'Wie weit ist die Mission?', 'Pausiere die Mission / Setze die Mission fort / Mission abbrechen', 'Ansagen alle / Nur wichtige Ansagen / Ansagen aus / Mission stumm / Studio aus'] },
     { key: 'dolmetscher', icon: '🗣️', title: 'Dolmetscher', words: /dolmetsch|übersetz|uebersetz/, examples: [
         'Dolmetscher Türkisch (auch Englisch, Rumänisch, Polnisch, Russisch)', 'Übersetze Guten Tag ins Englische', 'Dolmetscher beenden'] },
     { key: 'einstellungen', icon: '⚙️', title: 'Stimme & Einstellungen', words: /einstellung|system|daten|stimme|tempo|aussprache|sicher/, examples: [

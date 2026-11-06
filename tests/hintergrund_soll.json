@@ -1065,6 +1065,20 @@
    "nativ": false
   },
   {
+   "id": "studio_ansicht.js#1",
+   "art": "intervall",
+   "ms": 1000,
+   "klasse": "bedingt",
+   "anfang": "von außen/Ereignis",
+   "start": "funktion",
+   "guard": "indirekt",
+   "stop": "clearInterval",
+   "begrenzt": false,
+   "doppel": "keiner (mehrfacher Aufruf der Funktion möglich)",
+   "netz": false,
+   "nativ": false
+  },
+  {
    "id": "synapsen.js#1",
    "art": "intervall",
    "ms": 200,
