@@ -233,6 +233,12 @@
     var REPORTER = function (tok) { return '<script>(function(){var t="' + tok + '";function s(m){try{parent.postMessage({jvStudio:t,fehler:String(m).slice(0,200)},"*")}catch(e){}}window.addEventListener("error",function(e){s((e.message||"Fehler")+(e.lineno?" (Zeile "+e.lineno+")":""))});window.addEventListener("unhandledrejection",function(e){s("Unbehandelte Zusage: "+(e.reason&&e.reason.message||e.reason))});window.addEventListener("load",function(){setTimeout(function(){try{parent.postMessage({jvStudio:t,fertig:1},"*")}catch(e){}},500)});})()</script>'; };
     /* Endlosschleifen beim Laden: Ein iframe teilt sich den Rechenfaden mit der App und könnte sie einfrieren. Darum läuft der Code VORHER in einem Worker
        (eigener Faden, ohne Seite, nur mit Platzhalter-Objekten) und wird nach 1,5 Sekunden hart beendet. Schleifen in Klick-Handlern erkennt das nicht. */
+    /* Attrappen im Worker des Endlosschleifen-Tests. Der Speicher verhält sich wie ein LEERER echter Speicher (getItem liefert null): eine Proxy-Attrappe würde über
+       JSON.parse(String(proxy)) die Zahl 0 ergeben, und gängiger App-Code (entries.sort, shifts.filter) bräche mit einem falschen TypeError ab. */
+    var WORKER_VOR = 'var st=new Proxy(function(){},{get:function(t,k){return k===Symbol.toPrimitive?function(){return 0}:st},apply:function(){return st},construct:function(){return st},set:function(){return true}});' +
+        'function sp(){return {getItem:function(){return null},setItem:function(){},removeItem:function(){},clear:function(){},key:function(){return null},length:0}}' +
+        'self.window=self;self.document=st;self.localStorage=sp();self.sessionStorage=sp();self.alert=st;self.confirm=st;self.prompt=st;self.requestAnimationFrame=st;self.addEventListener=function(){};' +
+        'self.fetch=st;self.Image=st;self.Audio=st;self.XMLHttpRequest=st;';
     function haengtBeimLaden(dateien) {
         return new Promise(function (fertig) {
             try {
@@ -240,14 +246,12 @@
                 var js = dateien.filter(function (f) { return /\.js$/.test(f.pfad); }).map(function (f) { return f.inhalt; });
                 (dateien.filter(function (f) { return /\.html?$/.test(f.pfad); })[0] || { inhalt: '' }).inhalt.replace(/<script\b(?![^>]*\bsrc\b)[^>]*>([\s\S]*?)<\/script>/gi, function (m, c) { js.push(c); return m; });
                 if (!js.length) return fertig(false);
-                var vor = 'var st=new Proxy(function(){},{get:function(t,k){return k===Symbol.toPrimitive?function(){return 0}:st},apply:function(){return st},construct:function(){return st},set:function(){return true}});' +
-                    'self.window=self;self.document=st;self.localStorage=st;self.sessionStorage=st;self.alert=st;self.confirm=st;self.prompt=st;self.requestAnimationFrame=st;self.addEventListener=function(){};' +
-                    'self.fetch=st;self.Image=st;self.Audio=st;self.XMLHttpRequest=st;';
+                var vor = WORKER_VOR;
                 var code = vor + 'postMessage("los");\n' + js.join('\n;\n') + '\n;postMessage("fertig");';
                 var url = URL.createObjectURL(new Blob([code], { type: 'text/javascript' })), w = new Worker(url), t;
                 function ende(h) { clearTimeout(t); try { w.terminate(); } catch (e) { } try { URL.revokeObjectURL(url); } catch (e) { } fertig(h); }
                 w.onmessage = function (ev) { if (ev.data === 'fertig') ende(false); };
-                w.onerror = function () { ende(false); };   // Fehler im Code meldet der Lauf im iframe
+                w.onerror = function (ev) { try { ev.preventDefault(); } catch (e) { } ende(false); };   // Fehler im Code meldet der Lauf im iframe; preventDefault: sonst erscheint er als „Uncaught …“ in der roten Fehleranzeige von Jarvis
                 t = setTimeout(function () { ende(true); }, 1500);
             } catch (e) { fertig(null); }
         });
@@ -406,5 +410,5 @@
         return true;
     }
     registriere();
-    window.jvStudioWerkzeuge = { _dateienAusText: dateienAusText, einstellungen: einstellungen, namen: LISTE.map(function (w) { return w[0]; }), registriere: registriere, zipPruefen: zipPruefen, b64: b64, ausB64: ausB64, dateiname: dateiname, _laufPruefung: null, _laufPruefungEcht: laufPruefung, _ki: ki };
+    window.jvStudioWerkzeuge = { _workerVor: WORKER_VOR, _dateienAusText: dateienAusText, einstellungen: einstellungen, namen: LISTE.map(function (w) { return w[0]; }), registriere: registriere, zipPruefen: zipPruefen, b64: b64, ausB64: ausB64, dateiname: dateiname, _laufPruefung: null, _laufPruefungEcht: laufPruefung, _ki: ki };
 })();

@@ -43,6 +43,22 @@ function check(n, b, info) { if (b) { ok++; console.log('✓ ' + n); } else { fe
     check('auch while(true) wird erkannt', r.fehler.some(e => /Endlosschleife/.test(e)), r);
     r = await lauf(html('<button id="b">x</button>', 'var n=0;for(var i=0;i<1e5;i++){n+=i}document.getElementById("b").onclick=function(){n++};setTimeout(function(){},10);'));
     check('normaler Code mit Schleife, Zeitgeber und Klick-Handler wird NICHT fälschlich blockiert', r.moeglich && r.geladen && r.fehler.length === 0, r);
+    /* Regression: typischer App-Code beim Laden (Daten aus dem Speicher, dann sort/filter) darf im Endlosschleifen-Test KEINEN Fehler erzeugen, der als „Uncaught TypeError“ in der roten Fehleranzeige von Jarvis landet */
+    await page.evaluate(() => { window.__globaleFehler = []; window.addEventListener('error', e => window.__globaleFehler.push(String(e.message))); });
+    const appCode = 'var entries=JSON.parse(localStorage.getItem("e")||"[]");entries.sort(function(a,b){return a-b});var shifts=JSON.parse(localStorage.getItem("s")||"[]");var f=shifts.filter(function(x){return x});document.getElementById("z").textContent=entries.length+f.length;';
+    r = await lauf(html('<h1 id="z">0</h1>', appCode));
+    await page.waitForTimeout(400);
+    const glob = await page.evaluate(() => window.__globaleFehler);
+    check('Speicher-Zugriff beim Laden (entries.sort / shifts.filter) erzeugt keinen globalen Fehler in Jarvis', glob.length === 0, glob);
+    check('(Hinweis: ohne try/catch meldet der Lauf im Frame den gesperrten Speicher, das ist gewollt und kein Jarvis-Fehler)', r.moeglich && r.geladen, r);
+    const guarded = 'function ld(k){try{return JSON.parse(localStorage.getItem(k)||"[]")}catch(e){return []}}var entries=ld("e");entries.sort(function(a,b){return a-b});var shifts=ld("s");var f=shifts.filter(function(x){return x});document.getElementById("z").textContent=entries.length+f.length;';
+    r = await lauf(html('<h1 id="z">0</h1>', guarded)); await page.waitForTimeout(300);
+    check('App mit abgesichertem Speicher (try/catch, wie die Regeln verlangen): Lauf im Frame fehlerfrei UND kein globaler Fehler in Jarvis', r.moeglich && r.geladen && r.fehler.length === 0 && (await page.evaluate(() => window.__globaleFehler)).length === glob.length, [r, await page.evaluate(() => window.__globaleFehler)]);
+    r = await lauf(html('<p>x</p>', 'var q=JSON.parse(localStorage.getItem("q")||"[]");q.sort();for(;;){}'));
+    check('Endlosschleife NACH dem Speicher-Zugriff wird weiterhin erkannt (der Test bricht nicht vorher mit einem Fehler ab)', r.fehler.some(e => /Endlosschleife/.test(e)), r);
+    r = await lauf(html('<p>x</p>', 'nichtDa.foo();'));
+    await page.waitForTimeout(300);
+    check('echter Code-Fehler wird gemeldet, ohne dass der Worker einen globalen Fehler in Jarvis auslöst', r.fehler.some(e => /nichtDa/.test(e)) && (await page.evaluate(() => window.__globaleFehler)).length === 0, await page.evaluate(() => window.__globaleFehler));
     const lebt = await Promise.race([page.evaluate(() => 1 + 1), new Promise(res => setTimeout(() => res('haengt'), 4000))]);
     check('die App-Seite reagiert danach noch', lebt === 2, lebt);
 
