@@ -735,6 +735,18 @@
         if (ganz ? neu.slice(0, 10) === e.isoDate : Math.abs(new Date(neu).getTime() - new Date(e.isoDate).getTime()) < 60000) return { art: 'fehler', nachricht: '„' + e.text + '“ liegt schon genau dann. Ich habe nichts geändert.' };
         return { art: 'bestaetigen', params: { suche: e.text, termin_id: String(e.id), neue_zeit: neu }, vorher: e.isoDate, titel: e.text, zus: zusNeu };
     }
+    /* Für den alten KI-Weg (B2b-2): sagt der Nutzer "eine Stunde später" / "einen Tag nach hinten", rechnet das hier deterministisch ab der ALTEN Terminzeit aus (nicht ab jetzt). Kein relativer Satz: null. */
+    function relativeNeueZeit(e, text) {
+        try {
+            var rel = relativAus(nz(klausel(text))); if (!rel || !e) return null;
+            var ganz = /^\d{4}-\d{2}-\d{2}$/.test(String(e.isoDate));
+            if (ganz && rel.min) return null;
+            var d = ganz ? mittag(e.isoDate) : new Date(e.isoDate); if (isNaN(d.getTime())) return null;
+            if (rel.tage) d.setDate(d.getDate() + rel.tage);
+            if (rel.min) d.setMinutes(d.getMinutes() + rel.min);
+            return ganz ? tagIso(d) + 'T00:00:00' : zeitIso(d);
+        } catch (x) { return null; }
+    }
     function pruefeAktuell(res) {   // direkt vor dem Verschieben: gibt es den Termin noch genau so, wie bestätigt wurde?
         var sk = window.jvSchreibkern, k = sk ? sk.kandidatenTermine({ suche: res.params.suche, termin_id: res.params.termin_id }) : [];
         if (k.length !== 1 || String(k[0].isoDate) !== String(res.vorher)) return { art: 'fehler', nachricht: 'Der Termin hat sich inzwischen geändert oder ist nicht mehr da, deshalb habe ich nichts verschoben. Sag es bitte noch einmal.' };
@@ -1106,7 +1118,7 @@
         an: function () { return schalten(true); }, aus: function () { return schalten(false); }, istAn: function () { return istAn; },
         behandle: behandle, kiWeg: kiWeg, mehrteilig: mehrteilig, befehlVorrang: befehlVorrang, uebergabeAlteSuche: uebergabeAlteSuche, eingaenge: eingaengeKopie, grundText: function (c) { return GRUND[c] || ''; }, GRUENDE: GRUND, plane: plane, verarbeite: verarbeite, pruefePlan: pruefePlan, kiEntscheider: kiEntscheider,
         protokoll: function () { return protokollListe.map(function (e) { return { nr: e.nr, zeit: e.zeit, weg: e.weg, faehigkeiten: e.faehigkeiten.slice(), status: e.status }; }); },
-        vergiss: vergiss, kiZaehler: function () { return { anfragen: kiZaehler.anfragen, ortssuchen: kiZaehler.ortssuchen, zurueck: kiZaehler.zurueck, websuchen: kiZaehler.websuchen, wetter: kiZaehler.wetter }; }, GESAMT_MS: GESAMT_MS, thema: function () { return themaFrisch() ? { art: thema.art, tag: thema.tag || '', begriff: thema.begriff || '' } : null; }, planErlaubt: planErlaubt, FREIGEGEBEN: FREIGEGEBEN, SCHREIB: SCHREIB, B2A_NEU: B2A_NEU, B2A_SCHREIBT: B2A_SCHREIBT, B2B_NAMEN: B2B_NAMEN, pauseOffen: function () { return pause ? { art: pause.art, was: pause.was, naechsterSchritt: pause.index } : null; }, PAUSE_MS: PAUSE_MS,
+        vergiss: vergiss, kiZaehler: function () { return { anfragen: kiZaehler.anfragen, ortssuchen: kiZaehler.ortssuchen, zurueck: kiZaehler.zurueck, websuchen: kiZaehler.websuchen, wetter: kiZaehler.wetter }; }, GESAMT_MS: GESAMT_MS, thema: function () { return themaFrisch() ? { art: thema.art, tag: thema.tag || '', begriff: thema.begriff || '' } : null; }, planErlaubt: planErlaubt, FREIGEGEBEN: FREIGEGEBEN, SCHREIB: SCHREIB, B2A_NEU: B2A_NEU, B2A_SCHREIBT: B2A_SCHREIBT, B2B_NAMEN: B2B_NAMEN, relativeNeueZeit: relativeNeueZeit, pauseOffen: function () { return pause ? { art: pause.art, was: pause.was, naechsterSchritt: pause.index } : null; }, PAUSE_MS: PAUSE_MS,
         ortMerken: ortMerken, ort: function () { return ortFrisch() ? ortMerker.name : null; }, _setzeOrtPruefer: function (f) { ortPruefer = typeof f === 'function' ? f : null; }, ORT_MS: ORT_MS,
         _lokal: lokalEntscheiden, _setzeSende: function (f) { sendeFunktion = typeof f === 'function' ? f : null; }, _setzeZeitlimit: function (ms) { KI_ZEITLIMIT_MS = ms > 0 ? ms : 7000; }, _setzeEntscheider: function (f) { entscheider = typeof f === 'function' ? f : function (t) { return lokalEntscheiden(t); }; }
     };

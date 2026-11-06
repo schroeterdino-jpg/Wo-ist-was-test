@@ -295,7 +295,7 @@
             if (k.length !== 1) throw fehler(k.length ? 'Es passen jetzt mehrere Termine, deshalb habe ich nichts verschoben.' : 'Der Termin ist nicht mehr da, deshalb habe ich nichts verschoben.');
             var e = k[0], ctx = ctxNeu(kontext), SYM_N = Symbol.for('jv.nichtsGetan'), nichtsVorher = (ctx[SYM_N] || []).length;
             var vorher = e.isoDate, id = e.id, titel = e.text;
-            await executeAction({ type: 'calendar_update', calendar_id: id, calendar_time: p.neue_zeit }, satzDesNutzers(kontext, p, 'suche'), ctx);
+            await executeAction({ type: 'calendar_update', calendar_id: id, calendar_time: p.neue_zeit, _bestaetigt: true }, satzDesNutzers(kontext, p, 'suche'), ctx);
             var steht = function () { var x = (listeTermine() || []).filter(function (t) { return t && String(t.id) === String(id); })[0]; return !!x && zeitPasst(x.isoDate, p.neue_zeit); };
             var verifiziert = await warteBis(steht, 4000);
             var jetztE = (listeTermine() || []).filter(function (t) { return t && String(t.id) === String(id); })[0];
