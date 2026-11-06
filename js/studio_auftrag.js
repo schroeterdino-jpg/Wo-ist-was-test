@@ -39,7 +39,7 @@
     function merkeProtokoll(art, extra) { protokoll.push(Object.assign({ zeit: jetzt(), art: art }, extra || {})); if (protokoll.length > 20) protokoll.shift(); }
 
     /* ---------- Erkennen ---------- */
-    var BARE_JA = /^(?:ja|jawohl|gerne|ok|okay|klar|ja bitte|ja gerne|ja klar|ja mach das|mach das|genau|richtig|ja baue es|ja bau es|ja so|so passt es|passt|ja passt|ja bauen)$/;
+    var BARE_JA = /^(?:ja|jawohl|gerne|ok|okay|klar|ja bitte|ja gerne|ja klar|ja mach das|mach das|genau|richtig)$/;
     var STEUER_ARTEN = ['steuer', 'ansagen', 'stumm', 'spar', 'studio_schalter', 'diagnose', 'zeigen', 'planung', 'plan_zeigen'];
     var RX_ANREDE = /^(?:(?:hey |hallo |ok |okay )?(?:jarvis|zane|nova)[ ,]+)/;
     var RX_HOEFLICH = /\b(bitte|mal|doch|eben|kurz|einfach|gern|gerne|jetzt|mir|fuer mich|fuer mich bitte)\b/g;
@@ -125,7 +125,7 @@
         var s = [];
         if (e.art === 'recherche') { s = PLAENE.recherche.slice(); if (e.ausgabe === 'bericht') s = s.concat(PLAENE.bericht); else s = s.concat(PLAENE[e.ausgabe]); }
         else if (e.art === 'dokument') s = PLAENE[e.ausgabe].slice();
-        else if (e.art === 'webapp') s = PLAENE.webapp.slice();
+        else if (e.art === 'webapp') { s = PLAENE.webapp.slice(); if (e.konzept) s.splice(2, 0, ['Abgleich mit dem Konzept', 'st_abgleich']); }
         else if (e.art === 'aendern') s = PLAENE.aendern.slice();
         else if (e.art === 'apk') s = PLAENE.apk.slice();
         if (e.mitApk && (e.art === 'webapp' || e.art === 'aendern' || e.art === 'apk')) s = s.concat(PLAENE.apkbau);
@@ -172,6 +172,7 @@
             return 'Die Recherche ist fertig: ' + b.punkte.length + ' belegte Aussagen aus ' + (arb.seiten || []).length + ' gelesenen Quellen. ' + erste;
         }
         if (pr && pr.apk && arb.mitApk) return 'Die Debug-APK für „' + pr.name + '“ ist gebaut. Du findest den Download in der Karte.';
+        if (pr && arb.art === 'webapp' && (arb.abweichungen || []).length) return 'Die Web-App „' + pr.name + '“ ist gespeichert und läuft, weicht aber vom freigegebenen Plan ab: ' + arb.abweichungen.join('; ') + '. Sag mir, ob ich das korrigieren soll.';
         if (pr && (arb.art === 'webapp' || arb.art === 'aendern')) return (arb.art === 'aendern' ? 'Die neue Fassung von „' : 'Die Web-App „') + pr.name + (arb.art === 'aendern' ? '“ ist gespeichert, geprüft und läuft ohne Fehler.' : '“ ist fertig, geprüft und gespeichert.');
         if (pr) return (pr.art === 'praesentation' ? 'Die Präsentation „' : 'Das Dokument „') + pr.name + '“ ist fertig.';
         return 'Der Auftrag ist erledigt.';
@@ -318,7 +319,30 @@
        Gespeichert (jv_studio_plan_v1) überlebt der Plan einen Neustart; nach einem Neustart genügt ein einzelnes Ja nicht (Jarvis nennt den Plan erst noch einmal). 20 Minuten ohne Antwort: verfallen. */
     var RX_PLAN_WEB = /\b(webseite|website|homepage|landingpage|shop|portal|plattform|onlineshop)\b/;
     var RX_PLAN_KLEIN = /\b(zaehler|rechner|taschenrechner|timer|stoppuhr|wuerfel|taschenlampe|muenzwurf|countdown)\b/;
+    var RX_PLAN_UMFANG = /\b(mit|und|sowie|export\w*|import\w*|speicher\w*|diagramm\w*|verlauf|historie|tabelle\w*|konto|login|statistik\w*|vergleich\w*|mehrere\w*|verschiedene\w*|bericht\w*|kalender|erinner\w*|grafik\w*|animation\w*)\b/;
     var RX_BEFEHLSART = /^(?:stell|setz|schreib|erinner|ruf|schick|spiel|starte|oeffne|zeig|navigier|fahr|such|lies|lösch|loesch|mach das licht|schalt|wecke?)/;
+    /* Sprachverständnis im Plan: lieber ein Wort zu viel verstehen als ein Wort zu wenig. Zustimmung = nur Zustimmungswörter, mindestens ein starkes. */
+    var ZW = 'ja jawohl gerne ok okay klar genau richtig passt einverstanden los mach macht es das so bau baue bauen leg fang an starte start bitte jetzt mal dann gut sehr sofort gleich doch ruhig schon natuerlich sicher perfekt super prima die der den sie ihn app website webseite seite homepage jarvis zane'.split(' ');
+    var ZS = 'ja jawohl gerne ok okay klar genau richtig passt einverstanden los mach bau baue bauen leg fang starte start perfekt'.split(' ');
+    var FW = 'danke dankeschoen vielen dank moment einen warte wart kurz sekunde augenblick hm hmm hmmm mhm aeh aehm ah oh ok okay gut super prima schoen cool nice toll also na mal gleich ich ueberlege denke nach noch nicht jetzt bitte sorry entschuldigung halt jarvis zane'.split(' ');
+    function nurAus(n, liste) { var t = n.split(' ').filter(Boolean); if (!t.length || t.length > 6) return false; return t.every(function (w) { return liste.indexOf(w) >= 0; }); }
+    function kernSatz(n) { return String(n || '').replace(RX_ANREDE, '').replace(/^(?:hey |hallo )/, '').trim(); }
+    function istZustimmung(n) { n = kernSatz(n); return nurAus(n, ZW) && n.split(' ').some(function (w) { return ZS.indexOf(w) >= 0; }); }
+    function istFloskel(n) { n = kernSatz(n); return nurAus(n, FW); }
+    function istNein(n) { return /^(?:nein|nee|ne|nicht so|lieber nicht|nein danke|nicht bauen|bau nicht|bau es nicht|mach es nicht|noch nicht bauen)$/.test(kernSatz(n)); }
+    function istMehrdeutig(n) {
+        n = kernSatz(n); var t = n.split(' ').filter(Boolean);
+        if (/\bja\b/.test(n) && /\bnein\b/.test(n)) return true;
+        if (t.length <= 8 && /\b(vielleicht|eigentlich|weiss nicht|keine ahnung|mal sehen|kommt drauf an|ja oder nein)\b/.test(n)) return true;
+        return t.length <= 3 && /^(?:ja|nein|na ja)\s+aber\b/.test(n);
+    }
+    function planPlatz(n) { n = kernSatz(n); var m = /^(?:(?:ich )?(?:nimm|nehme|nehm|will|moechte|lieber|dann)\s+)?(?:die\s+)?(?:(?:richtung|variante|entwurf|option)\s+)(a|b|eins|zwei|1|2)(?:\s+bitte)?$/.exec(n) || /^(?:(?:ich )?(?:nimm|nehme|nehm|lieber|dann)\s+)(?:die\s+)?(zweite|zweiten|erste|ersten)(?:\s+(?:richtung|variante|entwurf|option))?$/.exec(n) || /^(?:nimm|nehme|lieber|dann)\s+(a|b)$/.exec(n); if (!m) return null; return /^(b|zwei|2|zweite|zweiten)$/.test(m[1]) ? 'B' : 'A'; }
+
+    /* ---------- PLANUNGSDIALOG: vor jedem App-/Website-Auftrag entwickelt die KI ein individuelles Konzept; gebaut wird erst nach einem eindeutigen Ja ----------
+       Phasen: denkt (KI arbeitet) -> frage (höchstens EINE Rückfrage) -> bestaetigung („Soll ich das so bauen?“; Änderungswünsche überarbeiten nur den Plan) -> Mission.
+       verloren: ein Neustart hat die Antwort der KI gekostet; Jarvis sagt es und denkt auf Ja neu nach (gebaut wird dabei nichts).
+       Stufen: direkt (Kleinstwerkzeuge wie Zähler/Timer oder „Planung aus“: wie bisher), kompakt (App), ausfuehrlich (Website/größeres Projekt, mit zwei Gestaltungsrichtungen).
+       Gespeichert (jv_studio_plan_v1) überlebt der Plan einen Neustart; nach einem Neustart genügt ein einzelnes Ja nicht (Jarvis nennt den Plan erst noch einmal). 20 Minuten ohne Antwort: verfallen. */
     function planungAn() { return ls(K_PLANUNG) !== '0'; }
     function planSpeichern() {
         try { if (plan) localStorage.setItem(K_PLAN, JSON.stringify(plan)); else localStorage.removeItem(K_PLAN); } catch (e) { }
@@ -336,30 +360,31 @@
             var d = JSON.parse(roh);
             if (!d || typeof d !== 'object' || !d.e || !d.phase) throw new Error('x');
             if (jetzt() > d.bis) { planAbgelaufen = true; try { localStorage.removeItem(K_PLAN); } catch (e) { } return; }
-            if (d.phase === 'denkt') { try { localStorage.removeItem(K_PLAN); } catch (e) { } return; }   // die KI-Antwort ging mit dem Neustart verloren: nichts zu bestätigen
-            plan = d; plan.neustart = true; frageAnmelden();
+            if (d.phase === 'denkt') { d.phase = 'verloren'; d.konzept = d.konzept || null; }   // die Antwort der KI ging mit dem Neustart verloren: Jarvis meldet das
+            plan = d; plan.neustart = true; frageAnmelden(); planSpeichern();
         } catch (e) { try { localStorage.removeItem(K_PLAN); } catch (e2) { } plan = null; }
     }
     function planStufe(e) {
         if (!e || e.art !== 'webapp' || !planungAn()) return 'direkt';
-        var n = norm(e.thema || e.roh || '');
-        if (RX_PLAN_KLEIN.test(n) && !RX_PLAN_WEB.test(n)) return 'direkt';
-        return (RX_PLAN_WEB.test(n) || inhaltsWoerter(n).length >= 7) ? 'ausfuehrlich' : 'kompakt';
+        var n = norm(e.thema || e.roh || ''), w = inhaltsWoerter(n).length;
+        if (RX_PLAN_KLEIN.test(n) && !RX_PLAN_WEB.test(n) && w <= 3 && !RX_PLAN_UMFANG.test(n)) return 'direkt';   // nur wirklich kleine Werkzeuge; ein Rechner mit Verlauf/Export wird geplant
+        return (RX_PLAN_WEB.test(n) || w >= 7) ? 'ausfuehrlich' : 'kompakt';
     }
     function liste(a) { return (a || []).join(', '); }
     function konzeptSprache(k) {   // gesprochene Kurzfassung (die Karte zeigt alles)
-        var t = 'Mein Konzept für „' + k.name + '“: ' + k.stil;
+        var t = 'Mein Konzept für „' + k.name + '“' + (k.richtung ? ' (' + k.richtung + ')' : '') + ': ' + k.stil;
         if (k.farben) t += ' Farben: ' + k.farben;
+        if (k.animationen && !/^keine/i.test(k.animationen)) t += ' Bewegung: ' + k.animationen;
         t += ' Funktionen: ' + liste(k.funktionen.slice(0, 4)) + '.';
         if (k.begruendung) t += ' ' + k.begruendung;
         return t;
     }
-    function konzeptKompakt(p) {   // verbindlicher Text für die Studio-Werkzeuge
-        var k = p.konzept; if (!k) return '';
-        var t = k.name + '. Stil: ' + k.stil + ' Farben: ' + k.farben + ' Aufbau: ' + liste(k.aufbau) + '. Funktionen: ' + liste(k.funktionen) + '. Bedienung: ' + k.nutzbarkeit;
-        if ((p.antworten || []).length) t += ' Antwort des Nutzers: ' + p.antworten.join(' | ') + '.';
-        if ((p.aenderungenText || []).length) t += ' Gewünschte Änderungen: ' + p.aenderungenText.join(' | ') + '.';
-        return t.slice(0, 900);
+    function alternativeSprache(k) { var al = k && k.alternative; return al ? ' Es gibt auch eine zweite Richtung' + (al.richtung ? ': ' + al.richtung : '') + '. ' + al.stil + ' Farben: ' + al.farben + ' Sag „Richtung B“, wenn dir die lieber ist.' : ''; }
+    function konzeptFuerBau(p) {   // strukturiert und vollständig: das freigegebene Konzept samt Antworten und Änderungswünschen
+        var k = p.konzept; if (!k) return null;
+        var o = JSON.parse(JSON.stringify(k)); delete o.alternative; delete o.frage; delete o.bemerkung;
+        o.antworten = (p.antworten || []).slice(); o.aenderungen = (p.aenderungenText || []).slice(); o.stufe = p.stufe;
+        return o;
     }
     function planStart(e) {
         var stufe = planStufe(e); if (stufe === 'direkt') return false;
@@ -367,7 +392,7 @@
         plan = { id: 'pl' + jetzt().toString(36), phase: 'denkt', e: e, stufe: stufe, konzept: null, frage: '', antworten: [], aenderungenText: [], fragen: 0, humor: false, bis: jetzt() + PLAN_MS, neustart: false };
         planSpeichern(); frageAnmelden(); merkeProtokoll('plan_start', { stufe: stufe });
         sag((R() ? R().anrede() + ', ' : '') + 'ich überlege mir erst ein Konzept, bevor ich etwas baue.');
-        planDenken(plan.id, { thema: e.thema, stufe: stufe, frageErlaubt: true });
+        planDenken(plan.id, { thema: e.thema, stufe: stufe, frageErlaubt: true, zweiRichtungen: stufe === 'ausfuehrlich' });
         return true;
     }
     function planDenken(id, o) {
@@ -384,7 +409,7 @@
         var humor = (!o.aenderung && !plan.humor && k.bemerkung) ? ' ' + k.bemerkung : '';
         if (humor) plan.humor = true;
         planSpeichern(); frageAnmelden();
-        sag((o.aenderung ? 'Angepasst. ' : '') + konzeptSprache(k) + humor + ' Soll ich das so bauen?');
+        sag((o.aenderung ? 'Angepasst. ' : '') + konzeptSprache(k) + humor + alternativeSprache(k) + ' Soll ich das so bauen?');
     }
     function planFehler(err) {
         plan.phase = 'bestaetigung'; plan.konzept = null; plan.bis = jetzt() + PLAN_MS; planSpeichern(); frageAnmelden();
@@ -393,7 +418,7 @@
     function planStarten() {   // erst nach eindeutigem Ja (Sprache oder Knopf): die bestehende Studio-Mission
         var p = plan; if (!p || p.phase !== 'bestaetigung') return false;
         if (aktive().some(function (m) { return m.status === 'laeuft'; })) { sag('Es läuft schon eine Mission. Sag „Mission abbrechen“ oder warte, bis sie fertig ist. Der Plan bleibt erhalten.'); return true; }
-        var e2 = Object.assign({}, p.e); if (p.konzept) e2.konzept = konzeptKompakt(p);
+        var e2 = Object.assign({}, p.e), kb = konzeptFuerBau(p); if (kb) e2.konzept = kb;
         planWeg();
         if (!istBereit()) { sag('Das Studio ist auf diesem Gerät noch nicht vollständig geladen.'); return true; }
         var r = starteAuftrag(e2, null); if (!r.ok) sag(r.fehler);
@@ -401,22 +426,37 @@
     }
     function planNochmal(text, o) {   // Antwort oder Änderungswunsch: der Plan wird überarbeitet, es wird NICHT gebaut
         plan.phase = 'denkt'; plan.bis = jetzt() + PLAN_MS; planSpeichern();
-        planDenken(plan.id, Object.assign({ thema: plan.e.thema, stufe: plan.stufe, altKonzept: plan.konzept, frageErlaubt: false }, o));
+        planDenken(plan.id, Object.assign({ thema: plan.e.thema, stufe: plan.stufe, altKonzept: plan.konzept, frageErlaubt: false, zweiRichtungen: plan.stufe === 'ausfuehrlich' }, o));
+    }
+    function planRichtung(platz) {   // Wechsel zwischen den beiden Gestaltungsrichtungen: ohne neue KI-Anfrage, ohne Bau
+        var k = plan.konzept, al = k && k.alternative; if (!al) return false;
+        var haupt = { richtung: k.richtung, stil: k.stil, farben: k.farben, farbcodes: k.farbcodes, layout: k.layout, animationen: k.animationen, begruendung: k.begruendung };
+        ['richtung', 'stil', 'farben', 'farbcodes', 'layout', 'animationen', 'begruendung'].forEach(function (f) { if (al[f] !== undefined && al[f] !== '') k[f] = al[f]; });
+        k.alternative = haupt; plan.richtungB = !plan.richtungB; plan.bis = jetzt() + PLAN_MS; planSpeichern(); frageAnmelden();
+        sag('Gut, ' + (platz === 'B' ? 'Richtung B' : 'Richtung A') + ': ' + k.stil + ' Farben: ' + k.farben + ' Soll ich das so bauen?');
+        return true;
     }
     function planBehandle(text, n) {   // true = erledigt, false = an Jarvis weiterreichen (Zwischenfrage), null = nicht Sache des Plans
         if (!planGueltig()) return null;
-        var ja = BARE_JA.test(n), nein = /^(?:nein|nee|ne|nicht so|lieber nicht)$/.test(n);
-        var abbruch = /^(?:abbrechen|vergiss es|lass es|stopp|stop|doch nicht|verwirf den plan|plan verwerfen|plan abbrechen|vergiss den plan|ich will das nicht)$/.test(n);
-        if ((ja || nein) && !frageGehoertUns()) return null;
-        if ((ja || nein) && (plan.phase === 'bestaetigung' || plan.phase === 'frage') && (freigabeOffen || (offen && jetzt() <= offen.bis))) { merkeProtokoll('ja_mehrdeutig'); sag('Ich habe gerade mehrere offene Fragen. Sag „Plan bauen“ für den Plan oder „APK freigeben“ für den Bau, oder beantworte zuerst die andere Frage.'); return true; }
+        var ja = istZustimmung(n), nein = !ja && istNein(n), floskel = !ja && !nein && istFloskel(n), unklar = !ja && !nein && !floskel && istMehrdeutig(n);
+        var abbruch = /^(?:abbrechen|vergiss es|lass es|stopp|stop|doch nicht|verwirf den plan|plan verwerfen|plan abbrechen|vergiss den plan|ich will das nicht)$/.test(kernSatz(n));
+        if ((ja || nein || floskel || unklar) && !frageGehoertUns()) return null;
+        if ((ja || nein || unklar) && (plan.phase === 'bestaetigung' || plan.phase === 'frage' || plan.phase === 'verloren') && (freigabeOffen || (offen && jetzt() <= offen.bis))) { merkeProtokoll('ja_mehrdeutig'); sag('Ich habe gerade mehrere offene Fragen. Sag „Plan bauen“ für den Plan oder „APK freigeben“ für den Bau, oder beantworte zuerst die andere Frage.'); return true; }
         if (abbruch) { planWeg(); sag('Alles klar, ich verwerfe den Plan. Es wurde nichts gebaut.'); return true; }
         var e = erkenne(text);
         if (e && STEUER_ARTEN.indexOf(e.art) >= 0) return null;
         if (e && (e.art !== 'webapp' || RX_NEUE_APP.test(n))) { planWeg(); return null; }   // ein wirklich anderer Auftrag ersetzt den Plan
+        if (plan.phase === 'verloren') {
+            if (ja) { var ee = plan.e; planWeg(); return planStart(ee) ? true : (sag('Das Studio ist auf diesem Gerät noch nicht vollständig geladen.'), true); }
+            if (nein || floskel || unklar) { sag('Mein Konzept für „' + (plan.e.thema || 'deinen Auftrag') + '“ ging beim Neustart verloren. Sag Ja, dann überlege ich es mir neu, oder Abbrechen. Gebaut wird nichts.'); return true; }
+            return null;
+        }
         var frage = istFrage(text) && !RX_ZUSATZ_BEZUG.test(n);
-        if (plan.phase === 'denkt') { if (ja || nein) { sag('Einen Moment, ich überlege noch.'); return true; } return null; }
-        if (frage) { merkeProtokoll('zwischenfrage_plan'); return false; }
+        if (plan.phase === 'denkt') { if (ja || nein || unklar) { sag('Einen Moment, ich überlege noch.'); return true; } if (floskel) return true; return null; }
+        if (frage && !ja && !nein) { merkeProtokoll('zwischenfrage_plan'); return false; }
         var woerter = n.split(' ').length;
+        if (floskel) { sag(plan.phase === 'frage' ? 'Kein Stress. Meine Frage war: ' + plan.frage : 'Kein Stress, ich warte. Sag Ja zum Bauen, oder sag, was ich ändern soll.'); return true; }
+        if (unklar) { sag(plan.phase === 'frage' ? 'Das war nicht eindeutig. Meine Frage war: ' + plan.frage : 'Das habe ich nicht eindeutig verstanden. Sag „Ja“, dann baue ich. Oder sag, was ich am Plan ändern soll.'); return true; }
         if (plan.phase === 'frage') {
             if (!ja && !nein && (woerter > 14 || RX_BEFEHLSART.test(n))) return null;
             var antwort = ja ? 'Ja' : nein ? 'Nein' : themaAus(text).slice(0, 200);
@@ -428,7 +468,9 @@
             if (plan.neustart) { plan.neustart = false; planSpeichern(); frageAnmelden(); sag('Der Plan von vorhin: ' + (plan.konzept ? konzeptSprache(plan.konzept) : 'direkt bauen ohne Konzept') + ' Sag noch einmal Ja, dann baue ich.'); return true; }
             return planStarten();
         }
-        if (/^(?:plan bauen|bau den plan|bau es so)$/.test(n)) return planStarten();
+        if (/^(?:plan bauen|bau den plan|bau es so)$/.test(kernSatz(n))) return planStarten();
+        var platz = planPlatz(n);
+        if (platz && plan.konzept && plan.konzept.alternative) { if (platz === (plan.richtungB ? 'B' : 'A')) { sag('Das ist schon die aktuelle Richtung. Soll ich das so bauen?'); return true; } return planRichtung(platz); }
         if (nein) { sag('Okay. Was soll ich ändern? Oder sag Abbrechen.'); return true; }
         if (woerter > 40 || RX_BEFEHLSART.test(n)) return null;
         if ((plan.aenderungenText || []).length >= 5) { sag('Das war schon die fünfte Änderung. Sag Ja zum Bauen oder Abbrechen.'); return true; }
@@ -457,7 +499,7 @@
         try {
             var n = norm(text);
             var pb = planBehandle(text, n); if (pb !== null) return pb;   // Planungsdialog zuerst: ein Ja gehört zum Plan, nie heimlich zu etwas anderem
-            if (planAbgelaufen && BARE_JA.test(n) && frageGehoertUns()) { planAbgelaufen = false; sag('Der Plan ist abgelaufen. Sag mir den Auftrag bitte noch einmal.'); return true; }
+            if (planAbgelaufen && istZustimmung(n) && frageGehoertUns()) { planAbgelaufen = false; sag('Der Plan ist abgelaufen. Sag mir den Auftrag bitte noch einmal.'); return true; }
             /* Antworten auf eine offene Rückfrage oder Freigabe */
             if (freigabeOffen && offen && jetzt() <= offen.bis && frageGehoertUns() && BARE_JA.test(n)) {   // zwei offene Fragen gleichzeitig: ein nacktes Ja löst NICHTS aus
                 merkeProtokoll('ja_mehrdeutig');
@@ -498,7 +540,7 @@
             merkeProtokoll('erkannt', { art: e.art });
             if (e.art === 'studio_schalter') { lsSet(K_AN, e.an ? '1' : '0'); sag(e.an ? 'Das Studio ist an.' : 'Das Studio ist aus. Aufträge zum Bauen und Recherchieren nehme ich nicht mehr an.'); return true; }
             if (e.art === 'planung') { lsSet(K_PLANUNG, e.an ? '1' : '0'); sag(e.an ? 'Die Planung vor dem Bauen ist an.' : 'Die Planung ist aus. Ich baue neue Apps wieder sofort, ohne vorher ein Konzept zu zeigen.'); return true; }
-            if (e.art === 'plan_zeigen') { if (planGueltig() && plan.phase !== 'denkt') sag(plan.konzept ? konzeptSprache(plan.konzept) + (plan.phase === 'frage' ? ' Offen ist meine Frage: ' + plan.frage : ' Soll ich das so bauen?') : 'Offen ist der Auftrag ohne Konzept. Soll ich trotzdem direkt bauen?'); else sag(plan ? 'Ich überlege noch am Konzept.' : 'Es ist gerade kein Plan offen.'); return true; }
+            if (e.art === 'plan_zeigen') { if (planGueltig() && plan.phase === 'verloren') sag('Mein Konzept für „' + (plan.e.thema || 'deinen Auftrag') + '“ ging beim Neustart verloren. Sag Ja, dann überlege ich es mir neu.'); else if (planGueltig() && plan.phase !== 'denkt') sag(plan.konzept ? konzeptSprache(plan.konzept) + (plan.phase === 'frage' ? ' Offen ist meine Frage: ' + plan.frage : ' Soll ich das so bauen?') : 'Offen ist der Auftrag ohne Konzept. Soll ich trotzdem direkt bauen?'); else sag(plan ? 'Ich überlege noch am Konzept.' : 'Es ist gerade kein Plan offen.'); return true; }
             if (e.art === 'diagnose') {   // sichere Diagnose der APK-Verbindung: der Server prüft Repository und Schreibrecht (keine Geheimnisse in der Antwort)
                 var af = typeof apiFetch === 'function' ? apiFetch : (typeof window.apiFetch === 'function' ? window.apiFetch : null);
                 if (!af) { sag('Keine Verbindung zum Server.'); return true; }
@@ -527,12 +569,12 @@
     function istBereit() { return !!(M() && P() && R() && window.jvStudioWerkzeuge && window.jvStudioDateien); }
 
     /* ---------- nach einem Neustart: pausierte Studio-Missionen bleiben pausiert; "fortsetzen" setzt sie fort ---------- */
-    planLaden();
     window.jvStudioAuftrag = {
         behandle: behandle, erkenne: erkenne, planeSchritte: planeSchritte, starteAuftrag: starteAuftrag, laufen: laufen, freigeben: freigeben,
         steuere: steuere, aktive: aktive, letzte: letzte, istAn: istAn, statusSatz: statusSatz, protokoll: function () { return protokoll.slice(); },
         offeneFreigabe: function () { return freigabeOffen; }, klassifiziere: klassifiziere, ergaenze: ergaenze, dirigent: dirigent, offeneFrage: function () { return offen ? { art: offen.art } : null; },
-        plan: function () { return plan ? JSON.parse(JSON.stringify(plan)) : null; }, planStufe: planStufe, planBestaetigen: function () { return !!plan && plan.phase === 'bestaetigung' && planGueltig() && planStarten(); }, planAbbrechen: function () { if (plan) { planWeg(); sag('Alles klar, ich verwerfe den Plan. Es wurde nichts gebaut.'); } return true; },
-        _setzeOffen: function (o) { offen = o; }
+        plan: function () { return plan ? JSON.parse(JSON.stringify(plan)) : null; }, planStufe: planStufe, planBestaetigen: function () { if (!plan || !planGueltig()) return false; if (plan.phase === 'verloren') { var ee = plan.e; planWeg(); return planStart(ee); } return plan.phase === 'bestaetigung' && planStarten(); }, planAbbrechen: function () { if (plan) { planWeg(); sag('Alles klar, ich verwerfe den Plan. Es wurde nichts gebaut.'); } return true; },
+        _setzeOffen: function (o) { offen = o; }, abschlussSatz: abschlussSatz
     };
+    planLaden();   // erst nach der Anmeldung von jvStudioAuftrag: die Plan-Karte fragt den Plan dort ab
 })();

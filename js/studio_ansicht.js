@@ -77,14 +77,18 @@
     /* Plan-Karte (Planungsdialog): zeigt das Konzept vor dem Bauen; Bauen nur per Knopf „Ja, bauen“ oder gesprochenem Ja */
     function planHtml() {
         var Au = window.jvStudioAuftrag, pl = Au && Au.plan && Au.plan(); if (!pl || pl.phase === 'denkt') return '';
+        if (pl.phase === 'verloren') return STIL + '<div class="sk"><div class="skK"><h3>Plan verloren</h3><button type="button" aria-label="Schließen" onclick="jvStudioAnsicht.aktion(\'zu\')">✕</button></div><p>Mein Konzept für „' + esc((pl.e && pl.e.thema) || 'deinen Auftrag') + '“ ging beim Neustart verloren. Gebaut wurde nichts.</p><div class="skFrage"><b>Soll ich es mir neu überlegen?</b><div class="skReihe"><button type="button" class="skGruen" onclick="jvStudioAnsicht.aktion(\'planJa\')">Ja, neu überlegen</button><button type="button" class="skRot" onclick="jvStudioAnsicht.aktion(\'planAbbruch\')">Abbrechen</button></div></div></div>';
         var k = pl.konzept, t = '<div class="sk"><div class="skK"><h3>Plan' + (k ? ': ' + esc(k.name) : '') + '</h3><button type="button" aria-label="Schließen" onclick="jvStudioAnsicht.aktion(\'zu\')">✕</button></div>';
         if (k) {
-            t += '<p><b>Stil:</b> ' + esc(k.stil) + '</p><p><b>Farben:</b> ' + esc(k.farben) + '</p>';
+            t += '<p><b>Stil' + (k.richtung ? ' (' + esc(k.richtung) + ')' : '') + ':</b> ' + esc(k.stil) + '</p><p><b>Farben:</b> ' + esc(k.farben) + '</p>';
+            if (k.layout) t += '<p><b>Layout:</b> ' + esc(k.layout) + '</p>';
+            if (k.animationen) t += '<p><b>Bewegung:</b> ' + esc(k.animationen) + '</p>';
+            if (k.alternative) t += '<p><b>Zweite Richtung' + (k.alternative.richtung ? ' (' + esc(k.alternative.richtung) + ')' : '') + ':</b> ' + esc(k.alternative.stil) + ' ' + esc(k.alternative.farben) + ' <i>Sag „Richtung B“ zum Wechseln.</i></p>';
             t += '<p><b>Aufbau:</b> ' + esc((k.aufbau || []).join(' · ')) + '</p><p><b>Funktionen:</b></p><ul>' + (k.funktionen || []).map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul>';
             t += '<p><b>Bedienung:</b> ' + esc(k.nutzbarkeit) + '</p><p><b>Warum:</b> ' + esc(k.begruendung) + '</p>';
         } else t += '<p>Ohne Konzept: Jarvis könnte den Auftrag nur direkt bauen.</p>';
         if (pl.phase === 'frage') t += '<div class="skFrage"><b>Frage:</b> ' + esc(pl.frage) + '<div>Antworte per Sprache.</div></div>';
-        else t += '<div class="skFrage"><b>Soll ich das so bauen?</b><div class="skReihe"><button type="button" class="skGruen" onclick="jvStudioAnsicht.aktion(\'planJa\')">Ja, bauen</button><button type="button" class="skRot" onclick="jvStudioAnsicht.aktion(\'planAbbruch\')">Abbrechen</button></div><div>Änderungswunsch? Einfach sagen, z. B. „Mach die Farben blau“.</div></div>';
+        else t += '<div class="skUnten"><div class="skFrage"><b>Soll ich das so bauen?</b><div class="skReihe"><button type="button" class="skGruen" onclick="jvStudioAnsicht.aktion(\'planJa\')">Ja, bauen</button><button type="button" class="skRot" onclick="jvStudioAnsicht.aktion(\'planAbbruch\')">Abbrechen</button></div><div>Änderungswunsch? Einfach sagen, z. B. „Mach die Farben blau“.</div></div></div>';
         return STIL + t + '</div>';
     }
     function planNeuZeichnen() {

@@ -5,7 +5,7 @@
    Kosten der KI-Aufrufe sind unbekannt und werden als "unbekannt" gemeldet (kostenCent: null), nie geschätzt.
 
    Werkzeuge:  st_suchbegriffe  st_suche  st_lesen  st_auswerten  st_bericht            (Recherche)
-               st_anforderungen  st_code  st_aendern  st_pruefen  st_speichern         (Webseiten und Web-Apps)
+               st_anforderungen  st_code  st_abgleich  st_aendern  st_pruefen  st_speichern         (Webseiten und Web-Apps)
                st_gliederung  st_datei                                                  (Word und PowerPoint)
                st_apk_bau                                                               (Debug-APK über GitHub Actions, nur nach Freigabe)
    Sicherheit: erzeugter Code wird NIE in der App-Seite ausgeführt. Die Laufzeitprüfung läuft in einem iframe mit sandbox="allow-scripts"
@@ -174,32 +174,74 @@
     /* ---------- Webseiten und Web-Apps ---------- */
 
     /* ---------- Planungsdialog: KI entwickelt ein individuelles Konzept (Design, Farben, Aufbau, Funktionen, Nutzbarkeit), bevor irgendetwas programmiert wird ---------- */
+    var STIMMUNGEN = ['warm und handwerklich', 'technisch-minimal', 'verspielt und bunt', 'edel und dunkel', 'hell und luftig', 'retro mit Charakter', 'natürlich und organisch', 'kontrastreich und grafisch', 'sachlich-klar', 'sportlich-dynamisch', 'gemütlich-weich', 'magazin-artig mit großer Schrift'];
+    function farbcodes(x) { return (Array.isArray(x) ? x : []).map(function (c) { return String(c || '').trim().toLowerCase(); }).filter(function (c) { return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/.test(c); }).slice(0, 6); }
+    function konzeptNorm(j, erlaubeFrage) {
+        var name = kurz(j.name, 40), fkt = kurzListe(j.funktionen, 8, 140);
+        if (!name || fkt.length < 1) return null;
+        return { name: name, richtung: kurz(j.richtung, 60), stil: kurz(j.stil, 240), farben: kurz(j.farben, 240), farbcodes: farbcodes(j.farbcodes), layout: kurz(j.layout, 240), animationen: kurz(j.animationen, 200), grafik: kurz(j.grafik, 200),
+            aufbau: kurzListe(j.aufbau, 6, 90), funktionen: fkt, stichworte: kurzListe(j.stichworte, 8, 30), nutzbarkeit: kurz(j.nutzbarkeit, 220), begruendung: kurz(j.begruendung, 240),
+            frage: erlaubeFrage ? kurz(j.frage, 200) : '', bemerkung: kurz(j.bemerkung, 160) };
+    }
     async function planeKonzept(o) {
         o = o || {};
-        var sys = 'Du bist Jarvis, ein kreativer, erfahrener Entwickler und Designer mit trockenem, feinem Humor. Du entwickelst ein INDIVIDUELLES Konzept für den Auftrag, keine Standardvorlage: Stil, Farben und Aufbau müssen zum Auftrag und zur Zielgruppe passen. Du schreibst nichts Technisches, nur das Konzept. ' +
-            'Antworte NUR als JSON: {"name":"kurzer Name (2 bis 4 Wörter)","stil":"1 Satz zum Gesamteindruck","farben":"Farben mit Begründung in 1 Satz","aufbau":["3 bis 6 Bereiche/Seiten/Bildschirme in Reihenfolge"],"funktionen":["3 bis 8 konkrete Funktionen"],"nutzbarkeit":"1 Satz: was die Bedienung für Smartphone-Nutzer einfach macht","begruendung":"1 Satz: warum diese Entscheidungen","frage":"","bemerkung":""}. ' +
+        var sys = 'Du bist Jarvis, ein kreativer, erfahrener Entwickler und Designer mit trockenem, feinem Humor. Du entwickelst ein INDIVIDUELLES Konzept für den Auftrag, keine Standardvorlage: Stil, Farben, Layout und Bewegung müssen zum Auftrag und zur Zielgruppe passen. Vermeide die Standardkombination „dunkelblau/grau mit blauem Knopf“ und „alles dunkel“, wenn der Auftrag etwas anderes nahelegt. Du schreibst nichts Technisches, nur das Konzept. ' +
+            'Umsetzbar ist: eine einzige Seite (index.html mit Abschnitten), CSS (Verläufe, Animationen, Übergänge), Inline-SVG-Grafiken, Systemschriften, JavaScript ohne Bibliotheken und ohne Netz. NICHT umsetzbar: Fotos aus dem Internet, eigene Bilddateien, externe Schriften, Bezahlfunktionen, Server. Wo ein Foto üblich wäre, plane eine SVG-Grafik oder eine gestaltete Fläche und nenne sie ehrlich so. ' +
+            'Antworte NUR als JSON: {"name":"kurzer Name (2 bis 4 Wörter)","richtung":"Name der Gestaltungsrichtung (2 bis 4 Wörter)","stil":"1 Satz zum Gesamteindruck","farben":"Farben mit Begründung in 1 Satz","farbcodes":["2 bis 5 Hex-Farben wie #1a1a1a, die du wirklich verwendest"],"layout":"1 Satz zu Raster, Abständen, Schrift","animationen":"1 Satz zu sinnvoller Bewegung oder \'keine\'","grafik":"1 Satz zu SVG-Grafiken oder Flächen","aufbau":["3 bis 6 Bereiche/Bildschirme in Reihenfolge"],"funktionen":["3 bis 8 konkrete, bedienbare Funktionen"],"stichworte":["3 bis 6 Wörter, die im sichtbaren Text der fertigen Seite vorkommen müssen"],"nutzbarkeit":"1 Satz: was die Bedienung für Smartphone-Nutzer einfach macht","begruendung":"1 Satz: warum diese Entscheidungen","frage":"","bemerkung":""' +
+            (o.zweiRichtungen ? ',"alternative":{"richtung":"Name","stil":"1 Satz","farben":"1 Satz","farbcodes":["2 bis 5 Hex-Farben"],"layout":"1 Satz","animationen":"1 Satz","begruendung":"1 Satz, warum diese Richtung auch passt"}' : '') + '}. ' +
+            (o.zweiRichtungen ? '"alternative" ist eine zweite, deutlich ANDERE Gestaltungsrichtung (andere Farbwelt, anderes Layout), keine Variation der ersten. ' : '') +
             ((o.frageErlaubt) ? '"frage": EINE einzige, wirklich wichtige Frage (Ja/Nein oder kurze Auswahl), deren Antwort das Konzept deutlich verändert; leer lassen, wenn der Auftrag klar genug ist. ' : '"frage" bleibt leer. ') +
-            '"bemerkung": höchstens EIN kurzer, trockener, passender Scherz oder leer; im Zweifel leer. Kein Netzwerk, keine externen Dienste, keine Bilder aus dem Internet, keine Bezahlfunktionen.';
+            '"bemerkung": höchstens EIN kurzer, trockener, passender Scherz oder leer; im Zweifel leer.';
         var nutzer = 'Auftrag: ' + kurz(o.thema, 500) + '\nStufe: ' + (o.stufe === 'ausfuehrlich' ? 'Website oder größeres Projekt (ausführlich denken)' : 'kleine App (kompakt halten)');
+        var anstoss = o.anstoss !== undefined ? o.anstoss : (o.altKonzept ? '' : STIMMUNGEN[Math.floor(Math.random() * STIMMUNGEN.length)]);
+        if (anstoss) nutzer += '\nGestaltungsanstoß (nur Inspiration, ignoriere ihn, wenn er nicht zum Auftrag passt): ' + anstoss;
         if (o.antworten && o.antworten.length) nutzer += '\nAntworten des Nutzers auf deine Frage: ' + kurz(o.antworten.join(' | '), 300);
-        if (o.altKonzept) nutzer += '\nBisheriges Konzept (JSON): ' + kurz(JSON.stringify(o.altKonzept), 1200);
+        if (o.altKonzept) nutzer += '\nBisheriges Konzept (JSON): ' + kurz(JSON.stringify(o.altKonzept), 3000);
         if (o.aenderung) nutzer += '\nÄnderungswunsch des Nutzers zum bisherigen Konzept (einarbeiten, alles andere beibehalten): ' + kurz(o.aenderung, 300);
-        var j = await ki(sys, nutzer, { max: 1100 });
-        var name = kurz(j.name, 40), fkt = kurzListe(j.funktionen, 8, 140), aufbau = kurzListe(j.aufbau, 6, 80);
-        if (!name || fkt.length < 1) throw new Error('Die KI hat kein brauchbares Konzept geliefert.');
-        return { name: name, stil: kurz(j.stil, 220), farben: kurz(j.farben, 220), aufbau: aufbau, funktionen: fkt, nutzbarkeit: kurz(j.nutzbarkeit, 200), begruendung: kurz(j.begruendung, 220), frage: o.frageErlaubt ? kurz(j.frage, 200) : '', bemerkung: kurz(j.bemerkung, 160) };
+        var j = await ki(sys, nutzer, { max: o.zweiRichtungen ? 2400 : 1800 });
+        var k = konzeptNorm(j, !!o.frageErlaubt);
+        if (!k) throw new Error('Die KI hat kein brauchbares Konzept geliefert.');
+        if (o.zweiRichtungen && j.alternative && typeof j.alternative === 'object') {
+            var al = j.alternative, st = kurz(al.stil, 240), fa = kurz(al.farben, 240);
+            if (st && fa) k.alternative = { richtung: kurz(al.richtung, 60), stil: st, farben: fa, farbcodes: farbcodes(al.farbcodes), layout: kurz(al.layout, 240), animationen: kurz(al.animationen, 200), begruendung: kurz(al.begruendung, 240) };
+        }
+        return k;
+    }
+    /* Das bestätigte Konzept als vollständiger, strukturierter Text für die Codegenerierung (nichts wird gekürzt; die Felder sind schon einzeln begrenzt). */
+    function konzeptText(k) {
+        if (!k) return '';
+        if (typeof k === 'string') return kurz(k, 6000);
+        var z = [];
+        z.push('Konzept „' + k.name + '“' + (k.richtung ? ' (Richtung: ' + k.richtung + ')' : ''));
+        if (k.stil) z.push('Stil: ' + k.stil);
+        if (k.farben) z.push('Farben: ' + k.farben + ((k.farbcodes || []).length ? ' – verwende genau diese Farbcodes als CSS-Variablen in :root: ' + k.farbcodes.join(', ') : ''));
+        if (k.layout) z.push('Layout: ' + k.layout);
+        if (k.animationen) z.push('Animationen: ' + k.animationen + ' (nur CSS/SVG, respektiere prefers-reduced-motion)');
+        if (k.grafik) z.push('Grafik: ' + k.grafik);
+        if ((k.aufbau || []).length) z.push('Aufbau in dieser Reihenfolge: ' + k.aufbau.map(function (x, i) { return (i + 1) + '. ' + x; }).join(' '));
+        if ((k.funktionen || []).length) z.push('Funktionen (JEDE muss sichtbar und bedienbar sein): ' + k.funktionen.map(function (x) { return '- ' + x; }).join(' '));
+        if (k.nutzbarkeit) z.push('Bedienung: ' + k.nutzbarkeit);
+        if ((k.stichworte || []).length) z.push('Diese Begriffe müssen im sichtbaren Text vorkommen: ' + k.stichworte.join(', '));
+        if ((k.antworten || []).length) z.push('Antworten des Nutzers: ' + k.antworten.join(' | '));
+        if ((k.aenderungen || []).length) z.push('Änderungswünsche des Nutzers (bereits eingearbeitet): ' + k.aenderungen.join(' | '));
+        return kurz(z.join('\n'), 6000);
     }
     async function t_anforderungen(a) {
         var arb = arbeit(a);
         rg(a.mission.id, 'start', 'Ich analysiere die Anforderungen.');
-        var j = await ki('Du bist Produktplaner. Antworte NUR als JSON: {"name":"kurzer Name (2 bis 4 Wörter)","art":"app" oder "webseite","funktionen":["3 bis 8 konkrete Funktionen"],"design":"1 Satz zum Aussehen"}. "app" = bedienbares Programm (Rechner, Spiel, Liste ...), "webseite" = Informationsseite. Nur was der Auftrag verlangt oder zwingend braucht. Kein Netzwerk, keine externen Dienste.', 'Auftrag: ' + kurz(arb.thema, 600) + (arb.konzept ? '\nVom Nutzer freigegebenes Konzept (verbindlich, Funktionen daraus übernehmen): ' + kurz(arb.konzept, 900) : ''), { max: 900 });
+        if (arb.konzept && typeof arb.konzept === 'object' && arb.konzept.name && (arb.konzept.funktionen || []).length) {   // freigegebenes Konzept: die Anforderungen werden daraus übernommen, nicht neu erfunden
+            var kz = arb.konzept, spec0 = { name: kurz(kz.name, 40), art: kz.stufe === 'ausfuehrlich' ? 'webseite' : 'app', funktionen: kz.funktionen.slice(0, 8), design: kurz([kz.stil, kz.farben, kz.layout].filter(Boolean).join(' '), 400) };
+            merke(a, { spec: spec0 });
+            return ok('ergebnis', 'Anforderungen für „' + spec0.name + '“ aus dem freigegebenen Konzept übernommen (' + spec0.art + '): ' + spec0.funktionen.length + ' Funktionen: ' + spec0.funktionen.join('; '));
+        }
+        var j = await ki('Du bist Produktplaner. Antworte NUR als JSON: {"name":"kurzer Name (2 bis 4 Wörter)","art":"app" oder "webseite","funktionen":["3 bis 8 konkrete Funktionen"],"design":"1 Satz zum Aussehen"}. "app" = bedienbares Programm (Rechner, Spiel, Liste ...), "webseite" = Informationsseite. Nur was der Auftrag verlangt oder zwingend braucht. Kein Netzwerk, keine externen Dienste.', 'Auftrag: ' + kurz(arb.thema, 600) + (arb.konzept ? '\nVom Nutzer freigegebenes Konzept (verbindlich, Funktionen daraus übernehmen):\n' + konzeptText(arb.konzept) : ''), { max: 900 });
         var name = kurz(j.name, 40), fkt = (Array.isArray(j.funktionen) ? j.funktionen : []).map(function (x) { return kurz(x, 140); }).filter(Boolean).slice(0, 8);
         if (!name || fkt.length < 1) return fehl('Die KI hat keine brauchbaren Anforderungen geliefert.');
         var spec = { name: name, art: j.art === 'webseite' ? 'webseite' : 'app', funktionen: fkt, design: kurz(j.design, 200) };
         merke(a, { spec: spec });
         return ok('ergebnis', 'Anforderungen für „' + name + '“ (' + spec.art + '): ' + fkt.length + ' Funktionen: ' + fkt.join('; '));
     }
-    var CODE_REGELN = 'Regeln: Reines HTML, CSS und JavaScript ohne Bibliotheken, ohne Netzwerkzugriff (kein fetch, kein XMLHttpRequest, keine fremden Adressen, keine externen Schriften oder Bilder). Pflichtdatei index.html; weitere Dateien nur style.css und app.js (per <link> und <script src> eingebunden). Für Smartphones gemacht (viewport-Meta, große Bedienelemente, mindestens 16 px Schrift), deutsche Oberfläche, dunkles, ruhiges Design. Speichern nur mit localStorage in try/catch. Antworte NUR in diesem Format, ohne Erklärung und ohne Markdown-Zäune: Für jede Datei eine Zeile <<<DATEI pfad>>>, danach der komplette Inhalt, dann eine Zeile <<<ENDE>>>. Beispiel: <<<DATEI index.html>>> (Inhalt) <<<ENDE>>> <<<DATEI app.js>>> (Inhalt) <<<ENDE>>>. Dateinamen nur Kleinbuchstaben, Ziffern, Punkt, Minus.';
+    var CODE_REGELN = 'Regeln: Reines HTML, CSS und JavaScript ohne Bibliotheken, ohne Netzwerkzugriff (kein fetch, kein XMLHttpRequest, keine fremden Adressen, keine externen Schriften oder Bilder). Erlaubt und erwünscht: Inline-SVG im HTML, SVG als data:-Adresse, CSS-Verläufe, CSS-Animationen und Übergänge (mit @media (prefers-reduced-motion: reduce) abschaltbar), Systemschriften. Pflichtdatei index.html; weitere Dateien nur style.css und app.js (per <link> und <script src> eingebunden). Für Smartphones gemacht (viewport-Meta, große Bedienelemente, mindestens 16 px Schrift), deutsche Oberfläche. Gestaltung: Gibt es ein freigegebenes Konzept, gelten dessen Farben, Stil und Layout (hell oder dunkel, wie dort beschrieben); ohne Konzept ein ruhiges, gut lesbares Design mit ausreichend Kontrast. Speichern nur mit localStorage in try/catch. Antworte NUR in diesem Format, ohne Erklärung und ohne Markdown-Zäune: Für jede Datei eine Zeile <<<DATEI pfad>>>, danach der komplette Inhalt, dann eine Zeile <<<ENDE>>>. Beispiel: <<<DATEI index.html>>> (Inhalt) <<<ENDE>>> <<<DATEI app.js>>> (Inhalt) <<<ENDE>>>. Dateinamen nur Kleinbuchstaben, Ziffern, Punkt, Minus.';
     /* Dateiliste aus der Textantwort (<<<DATEI pfad>>> ... <<<ENDE>>>); zur Sicherheit wird auch die alte JSON-Form {"dateien":[...]} verstanden */
     function dateienAusText(txt) {
         txt = String(txt || ''); var aus = [], re = /<<<DATEI\s+([^>\n]+?)\s*>>>\r?\n?([\s\S]*?)\r?\n?<<<ENDE>>>/g, m;
@@ -220,7 +262,7 @@
         var arb = arbeit(a), spec = arb.spec;
         if (!spec) return fehl('Es gibt keine Anforderungen.');
         rg(a.mission.id, 'start', 'Ich schreibe jetzt den Code.');
-        var nutzer = 'Baue „' + spec.name + '“. Auftrag des Nutzers: ' + kurz(arb.thema, 600) + '\nFunktionen: ' + spec.funktionen.join('; ') + '\nDesign: ' + spec.design + (arb.konzept ? '\nVom Nutzer freigegebenes Konzept (verbindlich, Stil, Farben, Aufbau und Funktionen genau so umsetzen): ' + kurz(arb.konzept, 900) : '');
+        var nutzer = 'Baue „' + spec.name + '“. Auftrag des Nutzers: ' + kurz(arb.thema, 600) + '\nFunktionen: ' + spec.funktionen.join('; ') + '\nDesign: ' + spec.design + (arb.konzept ? '\nVom Nutzer freigegebenes Konzept (VERBINDLICH: Stil, Farben, Layout, Aufbau und Funktionen genau so umsetzen, nichts weglassen):\n' + konzeptText(arb.konzept) : '');
         var dateien = await codeVonKi('Du schreibst kleine, saubere Web-Apps. ' + CODE_REGELN, nutzer), pr = D().pruefeProjekt(dateien), versuch = 1;
         if (!pr.ok) {   // ein einziger, sichtbarer Korrekturversuch mit den echten Prüffehlern
             rg(a.mission.id, 'info', 'Die Prüfung fand Fehler, ich korrigiere einmal: ' + pr.fehler[0]);
@@ -303,6 +345,67 @@
             timer = setTimeout(function () { schluss(false); }, 5000);
             document.body.appendChild(fr);
         });
+    }
+
+    /* ---------- Abgleich: passt das Ergebnis zum freigegebenen Plan? Erst feste Prüfungen (Farbcodes, Pflichtbegriffe), dann eine zweite KI-Meinung (Funktionen, Aufbau). Höchstens EIN Korrekturversuch. ---------- */
+    function hex6(c) { c = String(c).toLowerCase(); return c.length === 4 ? '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3] : c; }
+    function dateiText(dateien) { return (dateien || []).map(function (f) { return String(f.inhalt || ''); }).join('\n'); }
+    async function abgleichen(k, dateien) {
+        var mangel = [], schwer = false, text = dateiText(dateien), klein = text.toLowerCase();
+        var codes = (k.farbcodes || []).map(hex6);
+        if (codes.length >= 2) {
+            var norm = klein.replace(/#([0-9a-f])([0-9a-f])([0-9a-f])(?![0-9a-f])/g, '#$1$1$2$2$3$3');
+            var fehlt = codes.filter(function (c) { return norm.indexOf(c) < 0; });
+            if (fehlt.length > codes.length / 2) mangel.push('Farben: nur ' + (codes.length - fehlt.length) + ' von ' + codes.length + ' Farbcodes aus dem Konzept kommen im Code vor (es fehlen ' + fehlt.join(', ') + ')');
+        }
+        var sw = k.stichworte || [];
+        if (sw.length) {
+            var weg = sw.filter(function (w) { var st = String(w).toLowerCase(); st = st.slice(0, Math.min(st.length, Math.max(5, Math.ceil(st.length * 0.6)))); return klein.indexOf(st) < 0; });
+            if (weg.length > sw.length / 2) { schwer = true; mangel.push('Inhalt: Begriffe aus dem Konzept fehlen fast ganz (' + weg.join(', ') + ')'); }
+            else if (weg.length) mangel.push('Inhalt: einzelne Begriffe fehlen (' + weg.join(', ') + ')');
+        }
+        var kiGeprueft = false, teil = false;
+        try {
+            var zeig = dateien.map(function (f) { return '=== ' + f.pfad + ' ===\n' + String(f.inhalt || ''); }).join('\n');
+            if (zeig.length > 24000) { zeig = zeig.slice(0, 24000); teil = true; }
+            var fk = k.funktionen || [];
+            var r = await ki('Du prüfst, ob fertiger Code zu einem freigegebenen Konzept passt. Sei streng, aber nur bei klaren Abweichungen. Antworte NUR als JSON: {"funktionen":[true oder false je Funktion in der Reihenfolge der Liste: im Code wirklich umgesetzt und bedienbar],"aufbau_passt":true oder false,"farben_passen":true oder false,"fehler":["offensichtliche Fehler oder fehlende Bestandteile, höchstens 3, sonst leer"]}.',
+                'Konzept:\n' + konzeptText(k) + '\n\nFunktionsliste (in dieser Reihenfolge):\n' + fk.map(function (x, i) { return (i + 1) + '. ' + x; }).join('\n') + '\n\nCode:\n' + zeig, { max: 700 });
+            kiGeprueft = true;
+            var fl = Array.isArray(r.funktionen) ? r.funktionen : [];
+            var nicht = fk.filter(function (x, i) { return fl[i] === false; });
+            if (nicht.length) { mangel.push('Funktionen nicht umgesetzt: ' + nicht.join('; ')); if (nicht.length >= Math.ceil(fk.length / 2)) schwer = true; }
+            if (r.aufbau_passt === false) mangel.push('Aufbau: Reihenfolge oder Bereiche weichen vom Konzept ab');
+            if (r.farben_passen === false && !mangel.some(function (m) { return /^Farben/.test(m); })) mangel.push('Farben: der Gesamteindruck passt nicht zum Konzept');
+            kurzListe(r.fehler, 3, 140).forEach(function (x) { mangel.push('Fehler: ' + x); });
+        } catch (e) { kiGeprueft = false; }
+        return { mangel: mangel, schwer: schwer, kiGeprueft: kiGeprueft, teilweise: teil };
+    }
+    async function t_abgleich(a) {
+        var arb = arbeit(a), k = arb.konzept, dateien = arb.dateien;
+        if (!k || typeof k !== 'object') return ok('pruefung', 'Kein freigegebenes Konzept: nichts abzugleichen.');
+        if (!dateien) return fehl('Es gibt keine Dateien zum Abgleichen.');
+        rg(a.mission.id, 'start', 'Ich vergleiche das Ergebnis mit dem Konzept.');
+        var p1 = await abgleichen(k, dateien), notiz = p1.kiGeprueft ? '' : ' Die zweite KI-Prüfung war nicht möglich; es gelten nur die festen Prüfungen.';
+        if (!p1.mangel.length) return ok('pruefung', 'Abgleich bestanden: Farbcodes, Pflichtbegriffe' + (p1.kiGeprueft ? ', Funktionen und Aufbau stimmen mit dem Konzept überein.' : ' stimmen mit dem Konzept überein.' + notiz) + (p1.teilweise ? ' (Die KI-Prüfung sah nur die ersten 24 KB.)' : ''));
+        rg(a.mission.id, 'info', 'Das Ergebnis weicht vom Konzept ab: ' + p1.mangel[0] + '. Ich korrigiere einmal gezielt.');
+        var neu = null, grund = '';
+        var json = JSON.stringify(dateien);
+        if (json.length > 40000) grund = 'Das Ergebnis ist zu groß für eine automatische Korrektur.';
+        else {
+            try {
+                neu = await codeVonKi('Du korrigierst eine kleine Web-App so, dass sie zum freigegebenen Konzept passt. Ändere nur, was nötig ist, und liefere die KOMPLETTE Dateiliste. ' + CODE_REGELN,
+                    'Konzept (verbindlich):\n' + konzeptText(k) + '\nAbweichungen, die behoben werden müssen:\n- ' + p1.mangel.join('\n- ') + '\nAktuelle Dateien (JSON): ' + json);
+            } catch (e) { grund = 'Die Korrektur konnte nicht erzeugt werden (' + kurz(e && e.message, 100) + ').'; }
+        }
+        var pr = neu && D().pruefeProjekt(neu);
+        if (neu && !pr.ok) { grund = 'Die korrigierte Fassung wurde abgelehnt (' + pr.fehler.slice(0, 2).join('; ') + '); die erste Fassung bleibt.'; neu = null; }
+        var p2 = p1, korrigiert = false;
+        if (neu) { p2 = await abgleichen(k, neu); korrigiert = true; if (p2.mangel.length <= p1.mangel.length) merke(a, { dateien: neu }); else { p2 = p1; korrigiert = false; grund = 'Die Korrektur war schlechter als die erste Fassung; die erste bleibt.'; } }
+        if (!p2.mangel.length) return ok('pruefung', 'Abgleich nach einer Korrektur bestanden. Behoben: ' + p1.mangel.join('; ') + '.' + notiz);
+        if (p2.schwer) return fehl('Nichts gespeichert: Das Ergebnis passt nicht zum freigegebenen Plan' + (korrigiert ? ' (auch nach einer Korrektur nicht)' : '') + (grund ? ' – ' + grund : '') + ': ' + p2.mangel.slice(0, 2).join('; ') + '.');
+        merke(a, { abweichungen: p2.mangel.slice(0, 4) });
+        return ok('pruefung', 'ACHTUNG, Abweichung vom Konzept' + (korrigiert ? ' (auch nach einer Korrektur)' : '') + ': ' + p2.mangel.join('; ') + '.' + (grund ? ' ' + grund : '') + notiz);
     }
     async function t_pruefen(a) {
         var arb = arbeit(a), dateien = arb.dateien;
@@ -415,7 +518,7 @@
         ['st_lesen', 'recherche', 'Lädt die Seiten wirklich und liest sie.', t_lesen], ['st_auswerten', 'recherche', 'Vergleicht die Quellen; jede Aussage braucht ein wörtliches Zitat.', t_auswerten],
         ['st_bericht', 'dokument', 'Schreibt den Recherche-Bericht als Word-Datei.', t_bericht],
         ['st_anforderungen', 'code', 'Leitet Anforderungen für eine Web-App ab (KI).', t_anforderungen], ['st_code', 'code', 'Schreibt eine Web-App (KI) und prüft die Dateien.', t_code],
-        ['st_aendern', 'code', 'Ändert ein gespeichertes Projekt nach Wunsch.', t_aendern], ['st_pruefen', 'code', 'Prüft Dateien und lässt die Seite abgeschottet laufen.', t_pruefen],
+        ['st_aendern', 'code', 'Ändert ein gespeichertes Projekt nach Wunsch.', t_aendern], ['st_pruefen', 'code', 'Prüft Dateien und lässt die Seite abgeschottet laufen.', t_pruefen], ['st_abgleich', 'code', 'Vergleicht das Ergebnis mit dem freigegebenen Konzept (ein Korrekturversuch).', t_abgleich],
         ['st_speichern', 'code', 'Speichert das Projekt im Projektgedächtnis.', t_speichern],
         ['st_gliederung', 'dokument', 'Plant Dokument oder Folien (KI).', t_gliederung], ['st_datei', 'dokument', 'Erzeugt die Word- oder PowerPoint-Datei und prüft sie.', t_datei],
         ['st_apk_bau', 'apk', 'Baut eine Debug-APK über GitHub Actions.', t_apk]
@@ -427,5 +530,5 @@
         return true;
     }
     registriere();
-    window.jvStudioWerkzeuge = { planeKonzept: planeKonzept, _workerVor: WORKER_VOR, _dateienAusText: dateienAusText, einstellungen: einstellungen, namen: LISTE.map(function (w) { return w[0]; }), registriere: registriere, zipPruefen: zipPruefen, b64: b64, ausB64: ausB64, dateiname: dateiname, _laufPruefung: null, _laufPruefungEcht: laufPruefung, _ki: ki };
+    window.jvStudioWerkzeuge = { planeKonzept: planeKonzept, konzeptText: konzeptText, abgleichen: abgleichen, _workerVor: WORKER_VOR, _dateienAusText: dateienAusText, einstellungen: einstellungen, namen: LISTE.map(function (w) { return w[0]; }), registriere: registriere, zipPruefen: zipPruefen, b64: b64, ausB64: ausB64, dateiname: dateiname, _laufPruefung: null, _laufPruefungEcht: laufPruefung, _ki: ki };
 })();
