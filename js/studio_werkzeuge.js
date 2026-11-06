@@ -43,24 +43,37 @@
 
     /* ---------- Anbindung: KI und Server (bestehende Wege) ---------- */
     function apiF() { return (typeof apiFetch === 'function') ? apiFetch : (typeof window.apiFetch === 'function' ? window.apiFetch : null); }
-    async function ki(system, nutzer, opt) {
+    /* Fehlertext des Anbieters (Groq): nur die kurze Meldung und der Fehlercode, NIE die erzeugte Rohantwort (failed_generation) und nie Zugangsdaten */
+    async function anbieterFehler(res) {
+        var m = '', code = '';
+        try { var j = await res.json(), e = j && j.error; if (typeof e === 'string') m = e; else if (e) { m = String(e.message || ''); code = String(e.code || e.type || ''); } } catch (x) { }
+        m = kurz(m.replace(/\s+/g, ' '), 160); code = code.replace(/[^\w.-]/g, '').slice(0, 40);
+        var err = new Error('Die KI antwortet mit Status ' + res.status + (code ? ' (' + code + ')' : '') + (m ? ': ' + m : ''));
+        err.status = res.status; err.code = code; return err;
+    }
+    /* Ein Aufruf der KI. text:true = freie Textantwort (für Code: nicht in JSON verpackt, sonst bricht der Anbieter bei Anführungszeichen/Zeilenumbrüchen im Code mit 400 "json_validate_failed" ab) */
+    async function kiRoh(system, nutzer, opt) {
         opt = opt || {};
         var f = apiF(); if (!f) throw new Error('Keine KI-Anbindung');
         var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null, t = ctl ? setTimeout(function () { ctl.abort(); }, einstellungen.kiZeitMs) : 0;
         try {
-            var res = await f('/api/groq', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl ? ctl.signal : undefined,
-                body: JSON.stringify({ model: 'openai/gpt-oss-120b', reasoning_effort: 'low', response_format: { type: 'json_object' }, max_completion_tokens: opt.max || 6000, messages: [{ role: 'system', content: system }, { role: 'user', content: nutzer }] }) });
-            if (!res.ok) throw new Error('Die KI antwortet mit Status ' + res.status);
+            var body = { model: 'openai/gpt-oss-120b', reasoning_effort: 'low', max_completion_tokens: opt.max || 6000, messages: [{ role: 'system', content: system }, { role: 'user', content: nutzer }] };
+            if (!opt.text) body.response_format = { type: 'json_object' };
+            var res = await f('/api/groq', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl ? ctl.signal : undefined, body: JSON.stringify(body) });
+            if (!res.ok) throw await anbieterFehler(res);
             var d = await res.json(), c = d && d.choices && d.choices[0];
             if (c && c.finish_reason === 'length') throw new Error('Die KI-Antwort wurde abgeschnitten (zu lang).');
             var txt = c && c.message && c.message.content;
             if (typeof txt !== 'string' || !txt.trim()) throw new Error('Leere KI-Antwort');
-            txt = txt.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
-            try { return JSON.parse(txt); } catch (e) { throw new Error('Die KI-Antwort war kein lesbares JSON.'); }
+            return txt.trim();
         } catch (e) {
             if (e && e.name === 'AbortError') throw new Error('Die KI hat zu lange gebraucht.');
             throw e;
         } finally { if (t) clearTimeout(t); }
+    }
+    async function ki(system, nutzer, opt) {
+        var txt = (await kiRoh(system, nutzer, opt)).replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+        try { return JSON.parse(txt); } catch (e) { throw new Error('Die KI-Antwort war kein lesbares JSON.'); }
     }
     async function server(pfad, opt) {
         var f = apiF(); if (!f) throw new Error('Keine Verbindung zum Server');
@@ -169,17 +182,32 @@
         merke(a, { spec: spec });
         return ok('ergebnis', 'Anforderungen für „' + name + '“ (' + spec.art + '): ' + fkt.length + ' Funktionen: ' + fkt.join('; '));
     }
-    var CODE_REGELN = 'Regeln: Reines HTML, CSS und JavaScript ohne Bibliotheken, ohne Netzwerkzugriff (kein fetch, kein XMLHttpRequest, keine fremden Adressen, keine externen Schriften oder Bilder). Pflichtdatei index.html; weitere Dateien nur style.css und app.js (per <link> und <script src> eingebunden). Für Smartphones gemacht (viewport-Meta, große Bedienelemente, mindestens 16 px Schrift), deutsche Oberfläche, dunkles, ruhiges Design. Speichern nur mit localStorage in try/catch. Antworte NUR als JSON: {"dateien":[{"pfad":"index.html","inhalt":"..."}]}. Dateinamen nur Kleinbuchstaben, Ziffern, Punkt, Minus.';
+    var CODE_REGELN = 'Regeln: Reines HTML, CSS und JavaScript ohne Bibliotheken, ohne Netzwerkzugriff (kein fetch, kein XMLHttpRequest, keine fremden Adressen, keine externen Schriften oder Bilder). Pflichtdatei index.html; weitere Dateien nur style.css und app.js (per <link> und <script src> eingebunden). Für Smartphones gemacht (viewport-Meta, große Bedienelemente, mindestens 16 px Schrift), deutsche Oberfläche, dunkles, ruhiges Design. Speichern nur mit localStorage in try/catch. Antworte NUR in diesem Format, ohne Erklärung und ohne Markdown-Zäune: Für jede Datei eine Zeile <<<DATEI pfad>>>, danach der komplette Inhalt, dann eine Zeile <<<ENDE>>>. Beispiel: <<<DATEI index.html>>> (Inhalt) <<<ENDE>>> <<<DATEI app.js>>> (Inhalt) <<<ENDE>>>. Dateinamen nur Kleinbuchstaben, Ziffern, Punkt, Minus.';
+    /* Dateiliste aus der Textantwort (<<<DATEI pfad>>> ... <<<ENDE>>>); zur Sicherheit wird auch die alte JSON-Form {"dateien":[...]} verstanden */
+    function dateienAusText(txt) {
+        txt = String(txt || ''); var aus = [], re = /<<<DATEI\s+([^>\n]+?)\s*>>>\r?\n?([\s\S]*?)\r?\n?<<<ENDE>>>/g, m;
+        while ((m = re.exec(txt))) aus.push({ pfad: kurz(m[1].replace(/^["'`]|["'`]$/g, ''), 80), inhalt: m[2].replace(/^```[a-z]*\r?\n/i, '').replace(/\r?\n```\s*$/, '') });
+        if (aus.length) return aus;
+        try { return dateienAusKi(JSON.parse(txt.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, ''))); } catch (e) { return []; }
+    }
+    /* Code von der KI holen: Textformat; bei Anbieter-Fehler 400 oder unlesbarer Antwort EIN weiterer Versuch mit Hinweis */
+    async function codeVonKi(system, nutzer) {
+        var d;
+        try { d = dateienAusText(await kiRoh(system, nutzer, { max: 9000, text: true })); }
+        catch (e) { if (!(e && e.status === 400)) throw e; d = null; }
+        if (d && d.length) return d;
+        return dateienAusText(await kiRoh(system, nutzer + '\nWichtig: Halte dich genau an das Format <<<DATEI pfad>>> Inhalt <<<ENDE>>>.', { max: 9000, text: true }));
+    }
     function dateienAusKi(j) { return (Array.isArray(j && j.dateien) ? j.dateien : []).map(function (f) { return { pfad: kurz(f && f.pfad, 80), inhalt: typeof (f && f.inhalt) === 'string' ? f.inhalt : '' }; }); }
     async function t_code(a) {
         var arb = arbeit(a), spec = arb.spec;
         if (!spec) return fehl('Es gibt keine Anforderungen.');
         rg(a.mission.id, 'start', 'Ich schreibe jetzt den Code.');
         var nutzer = 'Baue „' + spec.name + '“. Auftrag des Nutzers: ' + kurz(arb.thema, 600) + '\nFunktionen: ' + spec.funktionen.join('; ') + '\nDesign: ' + spec.design;
-        var dateien = dateienAusKi(await ki('Du schreibst kleine, saubere Web-Apps. ' + CODE_REGELN, nutzer, { max: 9000 })), pr = D().pruefeProjekt(dateien), versuch = 1;
+        var dateien = await codeVonKi('Du schreibst kleine, saubere Web-Apps. ' + CODE_REGELN, nutzer), pr = D().pruefeProjekt(dateien), versuch = 1;
         if (!pr.ok) {   // ein einziger, sichtbarer Korrekturversuch mit den echten Prüffehlern
             rg(a.mission.id, 'info', 'Die Prüfung fand Fehler, ich korrigiere einmal: ' + pr.fehler[0]);
-            dateien = dateienAusKi(await ki('Du schreibst kleine, saubere Web-Apps. ' + CODE_REGELN, nutzer + '\nDein letzter Versuch wurde abgelehnt: ' + pr.fehler.join('; ') + '. Liefere die komplette korrigierte Dateiliste.', { max: 9000 }));
+            dateien = await codeVonKi('Du schreibst kleine, saubere Web-Apps. ' + CODE_REGELN, nutzer + '\nDein letzter Versuch wurde abgelehnt: ' + pr.fehler.join('; ') + '. Liefere die komplette korrigierte Dateiliste.');
             pr = D().pruefeProjekt(dateien); versuch = 2;
         }
         if (!pr.ok) return fehl('Der erzeugte Code wurde abgelehnt: ' + pr.fehler.slice(0, 3).join('; '));
@@ -192,7 +220,7 @@
         var gesamt = pr0.dateien.reduce(function (s, f) { return s + f.inhalt.length; }, 0);
         if (gesamt > 30000) return fehl('Das Projekt ist mit ' + Math.round(gesamt / 1000) + ' KB zu groß für eine automatische Änderung. Es bleibt unverändert.');
         rg(a.mission.id, 'start', 'Ich ändere ' + pr0.name + '.');
-        var neu = dateienAusKi(await ki('Du änderst eine bestehende kleine Web-App nach Wunsch. Behalte alles, was nicht geändert werden soll, unverändert. Liefere die KOMPLETTE Dateiliste (alle Dateien, auch unveränderte). ' + CODE_REGELN, 'Änderungswunsch: ' + kurz(arb.thema, 600) + '\nAktuelle Dateien (JSON): ' + JSON.stringify(pr0.dateien), { max: 9000 }));
+        var neu = await codeVonKi('Du änderst eine bestehende kleine Web-App nach Wunsch. Behalte alles, was nicht geändert werden soll, unverändert. Liefere die KOMPLETTE Dateiliste (alle Dateien, auch unveränderte). ' + CODE_REGELN, 'Änderungswunsch: ' + kurz(arb.thema, 600) + '\nAktuelle Dateien (JSON): ' + JSON.stringify(pr0.dateien));
         var pr = D().pruefeProjekt(neu);
         if (!pr.ok) return fehl('Die geänderte Fassung wurde abgelehnt: ' + pr.fehler.slice(0, 3).join('; '));
         var alt = {}; pr0.dateien.forEach(function (f) { alt[f.pfad] = f.inhalt; });
@@ -378,5 +406,5 @@
         return true;
     }
     registriere();
-    window.jvStudioWerkzeuge = { einstellungen: einstellungen, namen: LISTE.map(function (w) { return w[0]; }), registriere: registriere, zipPruefen: zipPruefen, b64: b64, ausB64: ausB64, dateiname: dateiname, _laufPruefung: null, _laufPruefungEcht: laufPruefung, _ki: ki };
+    window.jvStudioWerkzeuge = { _dateienAusText: dateienAusText, einstellungen: einstellungen, namen: LISTE.map(function (w) { return w[0]; }), registriere: registriere, zipPruefen: zipPruefen, b64: b64, ausB64: ausB64, dateiname: dateiname, _laufPruefung: null, _laufPruefungEcht: laufPruefung, _ki: ki };
 })();
