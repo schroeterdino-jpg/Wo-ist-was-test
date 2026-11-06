@@ -65,6 +65,7 @@
         /* Einstellungen und Steuerung */
         var m;
         if ((m = /^(?:studio|jarvis studio) (an|aus|ein)$/.exec(n))) return { art: 'studio_schalter', an: m[1] !== 'aus' };
+        if (/^(?:studio|apk|apk bau) (?:diagnose|verbindung pruefen|verbindung testen)$|^(?:pruefe|teste) (?:die )?(?:studio |apk )?(?:apk )?verbindung$/.test(n)) return { art: 'diagnose' };
         if ((m = /^(?:ansagen|meldungen|mission ansagen|missions ansagen) (?:auf )?(alle|wichtige|nur wichtige|aus)$/.exec(n)) || (m = /^(?:nur wichtige|alle) (ansagen|meldungen)$/.exec(n))) { var w = m[1] === 'ansagen' || m[1] === 'meldungen' ? (/^nur/.test(n) ? 'wichtige' : 'alle') : m[1].replace('nur ', ''); return { art: 'ansagen', stufe: w }; }
         if (/^(?:keine ansagen|ansagen aus|mission stumm|mission leise|missionen stumm|stumm schalten mission)$/.test(n)) return { art: 'stumm', an: true };
         if (/^(?:mission laut|missionen laut|ansagen an|ansagen ein|mission wieder sprechen)$/.test(n)) return { art: 'stumm', an: false };
@@ -289,6 +290,15 @@
             if (e.art !== 'studio_schalter' && !istAn()) return false;
             merkeProtokoll('erkannt', { art: e.art });
             if (e.art === 'studio_schalter') { lsSet(K_AN, e.an ? '1' : '0'); sag(e.an ? 'Das Studio ist an.' : 'Das Studio ist aus. Aufträge zum Bauen und Recherchieren nehme ich nicht mehr an.'); return true; }
+            if (e.art === 'diagnose') {   // sichere Diagnose der APK-Verbindung: der Server prüft Repository und Schreibrecht (keine Geheimnisse in der Antwort)
+                var af = typeof apiFetch === 'function' ? apiFetch : (typeof window.apiFetch === 'function' ? window.apiFetch : null);
+                if (!af) { sag('Keine Verbindung zum Server.'); return true; }
+                sag('Ich prüfe die Verbindung zum APK-Bau.');
+                af('/api/maps?action=studio_diagnose').then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j || {} }; }); }).then(function (x) {
+                    var j = x.j; sag(x.ok && j.urteil ? j.urteil + (j.repo ? ' Repository: ' + j.repo + '.' : '') + (j.tokenAblauf && j.tokenAblauf !== 'unbekannt' ? ' Das Token läuft ab am ' + String(j.tokenAblauf).slice(0, 10) + '.' : '') : 'Die Diagnose hat nicht geklappt' + (j.error ? ': ' + String(j.error).slice(0, 120) : '.'));
+                }).catch(function () { sag('Die Diagnose hat nicht geklappt: Server nicht erreichbar.'); });
+                return true;
+            }
             if (!R()) return false;
             if (e.art === 'ansagen') { R().setzeStufe(e.stufe); sag(e.stufe === 'alle' ? 'Ich sage alle Arbeitsschritte an.' : e.stufe === 'aus' ? 'Ich sage nichts mehr an. Alles steht weiter in der Zeitleiste.' : 'Ich melde mich nur bei Wichtigem: Freigaben, Fehler, Ergebnis.'); return true; }
             if (e.art === 'stumm') { R().setzeStumm(e.an); sag(e.an ? 'Okay, ich bin still. Die Zeitleiste läuft weiter.' : 'Ich melde mich wieder.'); return true; }
