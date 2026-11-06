@@ -158,6 +158,10 @@ const HELP_TOPICS = [
         'Münze werfen (oder: Kopf oder Zahl)', 'Schere Stein Papier (du sagst deine Wahl, die Figur antwortet mit einer geworfenen Karte)'] },
     { key: 'dolmetscher', icon: '🗣️', title: 'Dolmetscher', words: /dolmetsch|übersetz|uebersetz/, examples: [
         'Dolmetscher Türkisch (auch Englisch, Rumänisch, Polnisch, Russisch)', 'Übersetze Guten Tag ins Englische', 'Dolmetscher beenden'] },
+    { key: 'mission', icon: '🛰️', title: 'Missionszentrale (Test)', words: /mission/, examples: [
+        'Öffnen: Menü ☰, dann „Missionszentrale (Test M1)“. Das ist nur eine Probe-Ansicht, es gibt keinen Sprachbefehl.',
+        'Neue Testmission anlegen, Start, Pause, Fortsetzen, Abbrechen: die Uhr zeigt aktive Zeit, Wartezeit und Pause getrennt. Nach einem Neustart der App ist eine laufende Mission pausiert und läuft nie von selbst weiter.',
+        'Kosten: „+5 Cent melden“, „Kosten unbekannt melden“ und „Budget 10 Cent“ ausprobieren. Ist das Budget erreicht, wartet die Mission auf deine Freigabe. Ein Schritt gilt nur mit Beleg als erledigt.'] },
     { key: 'einstellungen', icon: '⚙️', title: 'Stimme & Einstellungen', words: /einstellung|system|daten|stimme|tempo|aussprache|sicher/, examples: [
         'Tour (auch: Rundgang, Führe mich durch die App): die geführte Tour zeigt Schritt für Schritt alles, was Jarvis kann, mit Beispielsätzen und Vorlesen. Auch unter Einstellungen > Geführte Tour.',
         'Töne aus (auch: Töne an, Töne leiser, Töne lauter; die Effekt-Töne für Bestätigung, Fehler und Warnung)', 'Menschliche Laute aus (auch: dezent, an; Zane seufzt bei Stau, kichert bei Sprüchen, atmet vor langen Antworten ein - nur mit Fish Audio)', 'Stimme: Einstellungen > Stimme & Gespräch > Sprachausgabe > Fish Audio (Stimmen-ID eintragen und „Fish-Stimme testen“)', 'Sprich langsamer', 'Sprich Alyssa so aus: Alischa', 'Wenn ich Hamlet sage, meine ich Hamiyet (Hör-Korrektur für falsch verstandene Namen)', 'Welche Hör-Korrekturen hast du?', 'Nenn mich Dino', 'Sichere meine Daten', 'Systemcheck'] }

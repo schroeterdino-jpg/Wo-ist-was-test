@@ -44,7 +44,7 @@ function diff(soll, ist, schluessel) {
     console.log('A. Zahlen (neu gemessen auf main) und Anschluss an tests/timer.js');
     const P = ist.prozesse;
     const nIv = P.filter(p => p.art === 'intervall').length, nSelbst = P.filter(p => p.art === 'selbstansetzend').length, dateien = new Set(P.map(p => p.id.replace(/#.*/, '')));
-    check('102 Konstrukte (72 setInterval + 30 selbstansetzende setTimeout) in 57 Dateien, wie das Register', P.length === 102 && nIv === 72 && nSelbst === 30 && dateien.size === 57, P.length + '/' + nIv + '/' + nSelbst + '/' + dateien.size);
+    check('103 Konstrukte (73 setInterval + 30 selbstansetzende setTimeout) in 58 Dateien, wie das Register', P.length === 103 && nIv === 73 && nSelbst === 30 && dateien.size === 58, P.length + '/' + nIv + '/' + nSelbst + '/' + dateien.size);
     check('Jede Zeile hat einen Registereintrag (gleiche id wie tests/timer_inventar.js)', P.every(p => inventar.some(e => e.id === p.id)) && P.length === inventar.length);
     check('13 requestAnimationFrame-Stellen in Dateien', ist.raf.length === 13 && new Set(ist.raf.map(r => r.id.replace(/#.*/, ''))).size === 5, ist.raf.length + '');
     /* Phase 6B.1: mimik.js und anzeige.js hören jetzt auch auf visibilitychange (Pause der visuellen Takte), holo_look.js tat es schon: 29 → 31 */
@@ -75,7 +75,7 @@ function diff(soll, ist, schluessel) {
     const dgr = {}; P.forEach(p => { dgr[p.doppel] = (dgr[p.doppel] || 0) + 1; });
     /* Phase 6B.1: vier Takte (mimik, holo_look, anzeige 300/400) starten jetzt in einer Steuerfunktion mit Kennungsprüfung statt einmalig beim Laden:
        einmalig beim Laden 47 → 44, ohne Schutz 17 → 16 (anzeige 400 ms), mit clear vor Neustart 6 → 10 */
-    check('Doppelstart-Schutz (statisch, nach 6B.1): 44 einmalig beim Laden, 23 Selbstaufrufe, 17 ohne erkennbaren Schutz, 9 mit Flag/Kennungsprüfung, 9 mit clear vor Neustart (6B.2: synapsen.js#1 jetzt mit clear vor Neustart)', JS(dgr) === JS({ 'Selbstaufruf (Start je Aufruf der Funktion)': 23, 'clear vor Neustart': 9, 'einmalig beim Laden': 44, 'keiner (mehrfacher Aufruf der Funktion möglich)': 17, 'Flag/Kennung geprüft': 9 }), JS(dgr));
+    check('Doppelstart-Schutz (statisch, nach 6B.1): 44 einmalig beim Laden, 23 Selbstaufrufe, 18 ohne erkennbaren Schutz (davon mission_ansicht.js#1, Ansicht-Uhr mit eigener Prüfung auf doppeltes Öffnen), 9 mit Flag/Kennungsprüfung, 9 mit clear vor Neustart (6B.2: synapsen.js#1 jetzt mit clear vor Neustart)', JS(dgr) === JS({ 'Selbstaufruf (Start je Aufruf der Funktion)': 23, 'clear vor Neustart': 9, 'einmalig beim Laden': 44, 'keiner (mehrfacher Aufruf der Funktion möglich)': 18, 'Flag/Kennung geprüft': 9 }), JS(dgr));
     check('Stop: jedes bedingte Intervall (bedingt), das in einer Funktion startet, hat ein clearInterval, außer spotify.js#2 (Kennung gespeichert, aber nie gelöscht – nur beobachtet)', P.filter(p => p.klasse === 'bedingt' && p.art === 'intervall').every(p => /^clearInterval/.test(p.stop) || p.id === 'spotify.js#2'), JS(P.filter(p => p.klasse === 'bedingt' && p.art === 'intervall' && !/^clearInterval/.test(p.stop)).map(p => p.id)));
     const raf = ist.raf;
     check('rAF: sphere.js hat genau eine Selbstschleife (frame), wetterfx.js eigene Schleifen, synapsen.js zwei Stellen', raf.filter(r => /^sphere\.js/.test(r.id) && r.schleife).length >= 1 && raf.some(r => /^wetterfx/.test(r.id)) && raf.filter(r => /^synapsen/.test(r.id)).length === 2);

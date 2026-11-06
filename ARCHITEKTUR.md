@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (176 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (178 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -683,3 +683,21 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 - **Schichtregel:** `gedaechtnis_speichern` fragt nach (NEEDS_CONFIRMATION), wenn eine feste Regel ("freitags normalerweise Spätschicht") dem wöchentlich wechselnden Plan aus `jvSchichtWissen` widerspricht; ohne bekannten Plan keine Rückfrage.
 - **Zuletzt gefundene Orte:** `jvSchreibkern.merkeOrte(liste, art)` (10 Minuten, nur Arbeitsspeicher), gefüllt von `nearbymore.js` (Apotheke, Werkstatt ...) und über einen Anhang an `jvOrtGespraech.merke` (Ortssuche/KI). "Speichere die Adresse von der Apotheke" = `kontakt_speichern {ort:'Apotheke'}`; bei mehreren Treffern Rückfrage, `nummer` wählt aus. `saveContact()` wird nicht benutzt (arbeitet über Eingabefelder und spricht selbst); geschrieben wird in dieselbe Form (`savedContacts`, `helfer_contacts`).
 - **Bestehende Tests angepasst (bewusst):** `registry.js` (11 statt 6 Fähigkeiten; 41i/42f: schon vorhandener Eintrag ist jetzt SUCCESS "schon vorhanden" statt TOOL_FAILED), `schatten.js` (neue Namen in der Ausnahmeliste), `chef.js` (SCHREIB-Liste), `gespraech_ort.js` (Schreibkern hängt sich an `merke`), `landkarte` und `LANDKARTE.md`, Golden Master `inventar8a`.
+
+## Jarvis Studio M1: Missions-Kern (`js/mission_kern.js`, `js/mission_ansicht.js`, Test `tests/mission_kern.js`)
+Fundament für lange, mehrstufige Aufträge. M1 führt selbst **keine** KI-Aufträge aus, ruft keinen Server auf, führt keinen fremden Code aus und ändert keinen Sprachbefehl (Zugang nur über Menü ☰ „Missionszentrale (Test M1)“). Die Chef-KI bleibt die einzige zentrale Entscheiderin.
+- **Zustände:** geplant, laeuft, wartet_freigabe, pausiert, abgeschlossen, fehlgeschlagen, abgebrochen (letzte drei endgültig). Übergänge stehen in `jvMission.UEBERGAENGE`; alles andere wird abgelehnt.
+- **Zeit:** echte Zeitstempel. Getrennt: aktive Zeit, Wartezeit (auf Freigabe), Pause, Unterbrechung (App war zu). Rückwärts gestellte Uhr zählt nie negativ.
+- **Neustart:** eine laufende Mission wird beim Laden **pausiert** (Markierung „unterbrochen“), ihr laufender Schritt wird „unterbrochen“. Aktive Zeit zählt nur bis zum letzten Lebenszeichen (alle ≤10 s gespeichert, solange die Ansicht offen ist), der Rest ist „Unterbrechung“. Nichts läuft von selbst weiter, kein Schritt doppelt.
+- **Schritte:** „erledigt“ nur mit Beleg (Art + Text). Überspringen nur mit Grund. Abhängigkeiten nur auf frühere Schritte.
+- **Kosten:** ganze Cent. Geschätzt, gemeldet, unbekannt (Posten ohne Betrag) getrennt; nichts wird erfunden. Mit Budget sind unbekannte Kosten „nicht prüfbar“ und werden nicht freigegeben. Überschreitung hält die laufende Mission an (wartet_freigabe).
+- **Speicher:** localStorage `jv_missionen_v1` (+ `_bak`, `_defekt`), Prüfsumme. Beschädigte Daten werden gesichert statt überschrieben; ungültige einzelne Missionen werden beim Laden verworfen und gezählt. Bewusst **nicht** in `SYNC_KEYS`/`api/sync.js` (kein Geräte-Abgleich, kein verändertes Speicherformat).
+- **Werkzeug-Schnittstelle (nur Rahmen):** `jvMission.werkzeuge.registriere({name, art: recherche|code|dokument|apk|sonstiges, ausfuehren})` und `fuehreSchrittAus`. In M1 ist **kein** Werkzeug registriert. Ein Werkzeug muss Beleg und Kosten liefern, sonst gilt der Schritt als fehlgeschlagen; kein automatischer Zweitversuch.
+- **Bekannte Grenzen:** nur lokal, ein Gerät; zwei gleichzeitig offene Fenster werden nicht abgeglichen; höchstens 50 Missionen; Zeit, in der die App zu war, zählt als „Unterbrochen“, nicht als aktiv.
+
+### APP_SECRET: tatsächliches Risiko (nur dokumentiert, in M1 nicht geändert)
+- Der Wert steht **nicht** im Repository. Der Nutzer tippt ihn in den Einstellungen ein; er liegt im Browser (`localStorage`/`sessionStorage`, Schlüssel `app_secret`), wird von `apiFetch` (storage.js) als Header `x-app-key` gesendet und an Android übergeben (`ZaneBridge.auftraege`).
+- Jede Datei in `api/` vergleicht ihn einfach (`!==`) mit `process.env.APP_SECRET`. Ein einziges gemeinsames Geheimnis schützt KI (Kosten), Gedächtnis, Abgleich (alle Nutzerdaten), Karten, Tankpreise usw.
+- Es gibt keine CORS-Freigabe (fremde Webseiten im Browser sind ausgesperrt), aber **kein** Geheimnis pro Gerät, **keine** Ratenbegrenzung, **keinen** zeitkonstanten Vergleich.
+- **Risiko:** Wer das Geheimnis bekommt (Schadcode auf der Seite/XSS, Zugriff aufs Gerät, Weitergabe), hat vollen Zugriff und kann KI-Kosten verursachen. Das Repository ist öffentlich, ein Fund dort ist aber nur möglich, falls das Geheimnis versehentlich eingecheckt würde (nicht der Fall).
+- **Für später (Jarvis Studio, vor erzeugtem Code):** erzeugten Code nur in abgeschotteten iframes (ohne Zugriff auf die Seite) ausführen; serverseitige Budget- und Ratengrenzen; Freigabe je Mission. Keine Migration in M1.
