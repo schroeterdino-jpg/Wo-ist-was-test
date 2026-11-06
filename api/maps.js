@@ -762,10 +762,29 @@ function studioPruefe(b) {
   if (!seen.has('index.html')) f.push('index.html fehlt');
   return f;
 }
+/* Schritt-Namen: so zeigt ein Fehler genau, welcher GitHub-Aufruf scheiterte (nie Token, nie Header-Werte außer der Berechtigungs-Angabe) */
+function studioSchritt(pfad, opt) {
+  const m = (opt && opt.method) || 'GET';
+  if (/\/actions\/workflows\/[^/]+\/runs/.test(pfad)) return 'Workflow-Läufe prüfen';
+  if (/\/actions\/runs\/\d+\/jobs/.test(pfad)) return 'Bau-Schritte lesen';
+  if (/\/actions\/runs/.test(pfad)) return 'Bau-Status lesen';
+  if (/\/git\/ref\//.test(pfad)) return 'Basis-Branch lesen';
+  if (/\/git\/commits\//.test(pfad)) return 'Basis-Commit lesen';
+  if (/\/git\/trees/.test(pfad)) return 'Dateien anlegen (Tree)';
+  if (/\/git\/commits/.test(pfad)) return 'Commit anlegen';
+  if (/\/git\/refs/.test(pfad)) return m === 'POST' ? 'Branch anlegen' : 'Branch lesen';
+  if (/\/releases\//.test(pfad)) return 'APK-Release lesen';
+  return 'GitHub-Aufruf';
+}
 async function studioGh(pfad, token, opt) {
   const r = await fetch('https://api.github.com' + pfad, Object.assign({ headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'jarvis-studio', 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(15000) }, opt || {}));
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) { const e = new Error('GitHub ' + r.status + ': ' + String(j.message || '').slice(0, 120)); e.status = r.status; throw e; }
+  if (!r.ok) {
+    const noetig = String((r.headers && r.headers.get && r.headers.get('x-accepted-github-permissions')) || '').replace(/[^\w=,;:\-\s]/g, '').slice(0, 120);
+    const schritt = studioSchritt(pfad, opt);
+    const e = new Error('GitHub ' + r.status + ' bei „' + schritt + '“: ' + String(j.message || '').slice(0, 120) + (r.status === 403 || r.status === 404 ? (noetig ? ' – nötige Token-Berechtigung: ' + noetig : ' – Token-Berechtigung oder Repository-Auswahl prüfen') : ''));
+    e.status = r.status; e.schritt = schritt; throw e;
+  }
   return j;
 }
 function studioRepo() { const r = String(process.env.STUDIO_BUILD_REPO || 'schroeterdino-jpg/Wo-ist-was-test'); return /^[\w.-]+\/[\w.-]+$/.test(r) ? r : null; }

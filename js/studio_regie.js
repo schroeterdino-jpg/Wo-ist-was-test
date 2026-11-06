@@ -18,7 +18,7 @@
 
     var K_STUFE = 'jv_regie_stufe', K_STUMM = 'jv_regie_stumm', K_SPAR = 'jv_regie_spar', K_MESS = 'jv_regie_messung';
     var BUDGET_ZEICHEN = 700, MAX_ZEITLEISTE = 60, LANG_AB_MS = 45000, LANG_ABSTAND_MS = 120000, MAX_LANG_HINWEISE = 3;
-    var VERFALL = { 3: 90000, 2: 45000, 1: 20000, 0: 0 };
+    var VERFALL = { 3: 600000, 2: 45000, 1: 20000, 0: 0 };
     var zeitleiste = {};     // missionId -> [{ zeit, art, text, prio }]
     var gesehen = {};        // missionId -> Schlüssel des zuletzt verarbeiteten Protokolleintrags
     var queue = [], nextId = 1, imFlug = null, pauseBis = 0, budget = {}, langInfo = {}, abschluss = {}, ackText = {};
@@ -99,7 +99,7 @@
         if (art === 'abgebrochen') return 'Abgebrochen';
         return tx || art;
     }
-    var PRIO = { schritt_fehler: 3, mission_fehler: 3, freigabe: 3, abschluss: 2, pausiert: 1, abgebrochen: 1, unterbrochen: 1, schritt_ende: 1, schritt_start: 0, start: 0, weiter: 0, kosten: 0, info: 0, quelle: 0, lang: 2, werkzeug_start: 1 };
+    var PRIO = { schritt_fehler: 3, mission_fehler: 3, freigabe: 3, abschluss: 3, pausiert: 1, abgebrochen: 1, unterbrochen: 1, schritt_ende: 1, schritt_start: 0, start: 0, weiter: 0, kosten: 0, info: 0, quelle: 0, lang: 2, werkzeug_start: 1 };
     var IMPULS = { schritt_ende: 'ok', abschluss: 'ok', schritt_fehler: 'fehler', mission_fehler: 'fehler', freigabe: 'frage', quelle: 'quelle', info: 'quelle', start: 'start', schritt_start: 'start', weiter: 'start' };
 
     function schluessel(l) { return l.zeit + '|' + l.ereignis + '|' + l.text; }
@@ -127,7 +127,7 @@
         else if (art === 'schritt_fehler') { var mm = /^(.*?) fehlgeschlagen: (.*)$/.exec(String(l.text || '')); t = { text: 'Das hat nicht geklappt, ' + anrede() + '. ' + (mm ? mm[1] + ': ' + mm[2] : String(l.text || '')), prio: 3 }; }
         else if (art === 'mission_fehler') { t = { text: 'Die Mission ist fehlgeschlagen. ' + (l.text ? String(l.text).slice(0, 160) : ''), prio: 3, art: 'mission_fehler' }; }
         else if (art === 'freigabe') { var gr = String(l.text || '').replace(/^Freigabe nötig: /, '').slice(0, 200); t = { text: 'Ich brauche deine Freigabe, ' + anrede() + (gr ? ': ' + gr : '.') + ' Sag Ja oder Nein.', prio: 3 }; }
-        else if (art === 'abschluss') { t = { text: (abschluss[m.id] || 'Die Mission „' + m.titel + '“ ist abgeschlossen.') + ' Dauer: ' + dauerText((M().zeiten(m.id) || {}).aktivMs || 0) + '.', prio: 2 }; }
+        else if (art === 'abschluss') { t = { text: (abschluss[m.id] || 'Die Mission „' + m.titel + '“ ist abgeschlossen.') + ' Dauer: ' + dauerText((M().zeiten(m.id) || {}).aktivMs || 0) + '.', prio: 3 }; }
         else if (art === 'abgebrochen') t = { text: 'Die Mission wurde abgebrochen.', prio: 1 };
         else if (art === 'pausiert') t = { text: 'Die Mission ist pausiert.', prio: 1 };
         if (t) ansage(m.id, art, t.text, t.prio !== undefined ? t.prio : prio, t);
@@ -190,6 +190,7 @@
     function darf(q) {
         var t = jetzt();
         if (spricht() || aufnahme()) return false;
+        if (!sichtbar()) return false;                          // Handy gesperrt / App im Hintergrund: Meldung wartet (bis zu 10 Minuten) und wird gesprochen, sobald die App wieder offen ist
         if (t < pauseBis && q.prio < 3) return false;          // nach einem Unterbrechen eine Weile still
         if (q.prio < 3 && (ruhe() || nachtRuhe())) return false;
         return true;
@@ -282,7 +283,7 @@
         if (tTimer) return;
         var eilig = queue.length > 0 || !!imFlug;
         if (!eilig && !laeuftWas()) return;
-        tTimer = setTimeout(takt, eilig ? 300 : 5000);
+        tTimer = setTimeout(takt, eilig && sichtbar() ? 300 : (eilig ? 2000 : 5000));   // versteckt: nur selten nachsehen (wartende Meldung wird nach dem Öffnen der App gesprochen)
     }
 
     /* ---------- Anbindung ---------- */
