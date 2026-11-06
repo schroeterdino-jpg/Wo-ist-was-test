@@ -74,9 +74,28 @@
         if (pr.apk) h += '<div class="skKlein">Debug-APK: ohne Berechtigungen, auch ohne Internet. Zum Installieren erlaubt Android einmalig „Unbekannte Apps“ für deinen Browser.</div>';
         return h + '</div>';
     }
+    /* Plan-Karte (Planungsdialog): zeigt das Konzept vor dem Bauen; Bauen nur per Knopf „Ja, bauen“ oder gesprochenem Ja */
+    function planHtml() {
+        var Au = window.jvStudioAuftrag, pl = Au && Au.plan && Au.plan(); if (!pl || pl.phase === 'denkt') return '';
+        var k = pl.konzept, t = '<div class="sk"><div class="skK"><h3>Plan' + (k ? ': ' + esc(k.name) : '') + '</h3><button type="button" aria-label="Schließen" onclick="jvStudioAnsicht.aktion(\'zu\')">✕</button></div>';
+        if (k) {
+            t += '<p><b>Stil:</b> ' + esc(k.stil) + '</p><p><b>Farben:</b> ' + esc(k.farben) + '</p>';
+            t += '<p><b>Aufbau:</b> ' + esc((k.aufbau || []).join(' · ')) + '</p><p><b>Funktionen:</b></p><ul>' + (k.funktionen || []).map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul>';
+            t += '<p><b>Bedienung:</b> ' + esc(k.nutzbarkeit) + '</p><p><b>Warum:</b> ' + esc(k.begruendung) + '</p>';
+        } else t += '<p>Ohne Konzept: Jarvis könnte den Auftrag nur direkt bauen.</p>';
+        if (pl.phase === 'frage') t += '<div class="skFrage"><b>Frage:</b> ' + esc(pl.frage) + '<div>Antworte per Sprache.</div></div>';
+        else t += '<div class="skFrage"><b>Soll ich das so bauen?</b><div class="skReihe"><button type="button" class="skGruen" onclick="jvStudioAnsicht.aktion(\'planJa\')">Ja, bauen</button><button type="button" class="skRot" onclick="jvStudioAnsicht.aktion(\'planAbbruch\')">Abbrechen</button></div><div>Änderungswunsch? Einfach sagen, z. B. „Mach die Farben blau“.</div></div>';
+        return STIL + t + '</div>';
+    }
+    function planNeuZeichnen() {
+        var Au = window.jvStudioAuftrag, pl = Au && Au.plan && Au.plan(), offen = pl && pl.phase !== 'denkt';
+        if (offen && (!zeigt || zeigt.art === 'plan')) { zeigt = { art: 'plan' }; letztesHtml = ''; zeichne(); }
+        else if (!offen && zeigt && zeigt.art === 'plan') { zeigt = null; letztesHtml = ''; zeichne(); }
+    }
     function html() {
         if (!zeigt) return '';
         if (zeigt.art === 'projekt') { var pr = P().hole(zeigt.id); if (!pr) return ''; return STIL + '<div class="sk"><div class="skK"><h3>' + esc(pr.name) + '</h3><button type="button" aria-label="Schließen" onclick="jvStudioAnsicht.aktion(\'zu\')">✕</button></div>' + projektHtml(pr, true) + '</div>'; }
+        if (zeigt.art === 'plan') return planHtml();
         var m = M() && M().hole(zeigt.id); if (!m) return '';
         var st = STATUS[m.status] || ['?', '#9aa7b5'], z = M().zeiten(m.id) || {}, lf = m.schritte.filter(function (s) { return s.status === 'laeuft'; })[0];
         var h = STIL + '<div class="sk" role="region" aria-label="Studio-Mission"><div class="skK"><h3>' + esc(m.titel) + '</h3><span class="skChip" style="color:' + st[1] + '">' + esc(st[0]) + '</span><button type="button" aria-label="Karte schließen" onclick="jvStudioAnsicht.aktion(\'zu\')">✕</button></div>';
@@ -162,6 +181,8 @@
     function aktion(name, arg) {
         var A = window.jvStudioAuftrag, mid = zeigt && zeigt.art === 'mission' ? zeigt.id : null, r;
         if (name === 'zu') { zeigt = null; letztesHtml = ''; stopTakt(); zeichne(); arbeitModusSetzen(false); return true; }
+        if (name === 'planJa') return !!(A && A.planBestaetigen && A.planBestaetigen());
+        if (name === 'planAbbruch') return !!(A && A.planAbbrechen && A.planAbbrechen());
         if (name === 'vorschau') return vorschau(arg);
         if (name === 'vorschauZu') { schliesseVorschau(); return true; }
         if (name === 'zip') { var pr = P().hole(arg); if (!pr || !pr.dateien) return false; return laden(window.jvStudioWerkzeuge.dateiname(pr.name, 'zip'), 'application/zip', window.jvStudioDateien.zip(pr.dateien)); }
@@ -180,5 +201,5 @@
         return !!(r && r.ok !== false);
     }
 
-    window.jvStudioAnsicht = { zeige: zeige, zeigeProjekt: zeigeProjekt, neuZeichnen: neuZeichnen, aktion: aktion, html: html, schliesseVorschau: schliesseVorschau, _zustand: function () { return { zeigt: zeigt, takt: !!takt, bestaetige: bestaetige }; }, arbeitModus: function () { return arbeitModus; }, _esc: esc, _hms: hms };
+    window.jvStudioAnsicht = { zeige: zeige, zeigeProjekt: zeigeProjekt, neuZeichnen: neuZeichnen, planNeuZeichnen: planNeuZeichnen, aktion: aktion, html: html, schliesseVorschau: schliesseVorschau, _zustand: function () { return { zeigt: zeigt, takt: !!takt, bestaetige: bestaetige }; }, arbeitModus: function () { return arbeitModus; }, _esc: esc, _hms: hms };
 })();

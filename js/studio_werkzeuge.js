@@ -172,10 +172,27 @@
     }
 
     /* ---------- Webseiten und Web-Apps ---------- */
+
+    /* ---------- Planungsdialog: KI entwickelt ein individuelles Konzept (Design, Farben, Aufbau, Funktionen, Nutzbarkeit), bevor irgendetwas programmiert wird ---------- */
+    async function planeKonzept(o) {
+        o = o || {};
+        var sys = 'Du bist Jarvis, ein kreativer, erfahrener Entwickler und Designer mit trockenem, feinem Humor. Du entwickelst ein INDIVIDUELLES Konzept für den Auftrag, keine Standardvorlage: Stil, Farben und Aufbau müssen zum Auftrag und zur Zielgruppe passen. Du schreibst nichts Technisches, nur das Konzept. ' +
+            'Antworte NUR als JSON: {"name":"kurzer Name (2 bis 4 Wörter)","stil":"1 Satz zum Gesamteindruck","farben":"Farben mit Begründung in 1 Satz","aufbau":["3 bis 6 Bereiche/Seiten/Bildschirme in Reihenfolge"],"funktionen":["3 bis 8 konkrete Funktionen"],"nutzbarkeit":"1 Satz: was die Bedienung für Smartphone-Nutzer einfach macht","begruendung":"1 Satz: warum diese Entscheidungen","frage":"","bemerkung":""}. ' +
+            ((o.frageErlaubt) ? '"frage": EINE einzige, wirklich wichtige Frage (Ja/Nein oder kurze Auswahl), deren Antwort das Konzept deutlich verändert; leer lassen, wenn der Auftrag klar genug ist. ' : '"frage" bleibt leer. ') +
+            '"bemerkung": höchstens EIN kurzer, trockener, passender Scherz oder leer; im Zweifel leer. Kein Netzwerk, keine externen Dienste, keine Bilder aus dem Internet, keine Bezahlfunktionen.';
+        var nutzer = 'Auftrag: ' + kurz(o.thema, 500) + '\nStufe: ' + (o.stufe === 'ausfuehrlich' ? 'Website oder größeres Projekt (ausführlich denken)' : 'kleine App (kompakt halten)');
+        if (o.antworten && o.antworten.length) nutzer += '\nAntworten des Nutzers auf deine Frage: ' + kurz(o.antworten.join(' | '), 300);
+        if (o.altKonzept) nutzer += '\nBisheriges Konzept (JSON): ' + kurz(JSON.stringify(o.altKonzept), 1200);
+        if (o.aenderung) nutzer += '\nÄnderungswunsch des Nutzers zum bisherigen Konzept (einarbeiten, alles andere beibehalten): ' + kurz(o.aenderung, 300);
+        var j = await ki(sys, nutzer, { max: 1100 });
+        var name = kurz(j.name, 40), fkt = kurzListe(j.funktionen, 8, 140), aufbau = kurzListe(j.aufbau, 6, 80);
+        if (!name || fkt.length < 1) throw new Error('Die KI hat kein brauchbares Konzept geliefert.');
+        return { name: name, stil: kurz(j.stil, 220), farben: kurz(j.farben, 220), aufbau: aufbau, funktionen: fkt, nutzbarkeit: kurz(j.nutzbarkeit, 200), begruendung: kurz(j.begruendung, 220), frage: o.frageErlaubt ? kurz(j.frage, 200) : '', bemerkung: kurz(j.bemerkung, 160) };
+    }
     async function t_anforderungen(a) {
         var arb = arbeit(a);
         rg(a.mission.id, 'start', 'Ich analysiere die Anforderungen.');
-        var j = await ki('Du bist Produktplaner. Antworte NUR als JSON: {"name":"kurzer Name (2 bis 4 Wörter)","art":"app" oder "webseite","funktionen":["3 bis 8 konkrete Funktionen"],"design":"1 Satz zum Aussehen"}. "app" = bedienbares Programm (Rechner, Spiel, Liste ...), "webseite" = Informationsseite. Nur was der Auftrag verlangt oder zwingend braucht. Kein Netzwerk, keine externen Dienste.', 'Auftrag: ' + kurz(arb.thema, 600), { max: 900 });
+        var j = await ki('Du bist Produktplaner. Antworte NUR als JSON: {"name":"kurzer Name (2 bis 4 Wörter)","art":"app" oder "webseite","funktionen":["3 bis 8 konkrete Funktionen"],"design":"1 Satz zum Aussehen"}. "app" = bedienbares Programm (Rechner, Spiel, Liste ...), "webseite" = Informationsseite. Nur was der Auftrag verlangt oder zwingend braucht. Kein Netzwerk, keine externen Dienste.', 'Auftrag: ' + kurz(arb.thema, 600) + (arb.konzept ? '\nVom Nutzer freigegebenes Konzept (verbindlich, Funktionen daraus übernehmen): ' + kurz(arb.konzept, 900) : ''), { max: 900 });
         var name = kurz(j.name, 40), fkt = (Array.isArray(j.funktionen) ? j.funktionen : []).map(function (x) { return kurz(x, 140); }).filter(Boolean).slice(0, 8);
         if (!name || fkt.length < 1) return fehl('Die KI hat keine brauchbaren Anforderungen geliefert.');
         var spec = { name: name, art: j.art === 'webseite' ? 'webseite' : 'app', funktionen: fkt, design: kurz(j.design, 200) };
@@ -203,7 +220,7 @@
         var arb = arbeit(a), spec = arb.spec;
         if (!spec) return fehl('Es gibt keine Anforderungen.');
         rg(a.mission.id, 'start', 'Ich schreibe jetzt den Code.');
-        var nutzer = 'Baue „' + spec.name + '“. Auftrag des Nutzers: ' + kurz(arb.thema, 600) + '\nFunktionen: ' + spec.funktionen.join('; ') + '\nDesign: ' + spec.design;
+        var nutzer = 'Baue „' + spec.name + '“. Auftrag des Nutzers: ' + kurz(arb.thema, 600) + '\nFunktionen: ' + spec.funktionen.join('; ') + '\nDesign: ' + spec.design + (arb.konzept ? '\nVom Nutzer freigegebenes Konzept (verbindlich, Stil, Farben, Aufbau und Funktionen genau so umsetzen): ' + kurz(arb.konzept, 900) : '');
         var dateien = await codeVonKi('Du schreibst kleine, saubere Web-Apps. ' + CODE_REGELN, nutzer), pr = D().pruefeProjekt(dateien), versuch = 1;
         if (!pr.ok) {   // ein einziger, sichtbarer Korrekturversuch mit den echten Prüffehlern
             rg(a.mission.id, 'info', 'Die Prüfung fand Fehler, ich korrigiere einmal: ' + pr.fehler[0]);
@@ -410,5 +427,5 @@
         return true;
     }
     registriere();
-    window.jvStudioWerkzeuge = { _workerVor: WORKER_VOR, _dateienAusText: dateienAusText, einstellungen: einstellungen, namen: LISTE.map(function (w) { return w[0]; }), registriere: registriere, zipPruefen: zipPruefen, b64: b64, ausB64: ausB64, dateiname: dateiname, _laufPruefung: null, _laufPruefungEcht: laufPruefung, _ki: ki };
+    window.jvStudioWerkzeuge = { planeKonzept: planeKonzept, _workerVor: WORKER_VOR, _dateienAusText: dateienAusText, einstellungen: einstellungen, namen: LISTE.map(function (w) { return w[0]; }), registriere: registriere, zipPruefen: zipPruefen, b64: b64, ausB64: ausB64, dateiname: dateiname, _laufPruefung: null, _laufPruefungEcht: laufPruefung, _ki: ki };
 })();

@@ -761,3 +761,14 @@ Jarvis nimmt Arbeitsaufträge per Sprache an („Bau mir eine App“, „Recherc
 - Ursache lag in Jarvis, nicht im erzeugten App-Code: Der Endlosschleifen-Test (`haengtBeimLaden`, studio_werkzeuge.js) führt den App-Code in einem Worker aus einer Blob-URL aus. Dessen Attrappen ließen `localStorage.getItem(..)` einen Proxy liefern; `JSON.parse(proxy)` ergibt über `Symbol.toPrimitive` die Zahl 0, also war `entries` keine Liste. Der Fehler im Worker wurde nicht abgefangen und erschien als „Uncaught TypeError“ in der roten Fehleranzeige von Jarvis (Blob-URL = der Worker; zwei Blob-URLs = zwei Testläufe). Die fertige App (APK) war nie betroffen.
 - Lösung: Speicher-Attrappe verhält sich wie ein leerer echter Speicher (`getItem` → null), `onerror` ruft `preventDefault()`. Nachweis: `tools/studio_browser_check.js` (echtes Chromium) reproduziert die Meldung mit dem alten Stand, der neue Stand ist fehlerfrei; `tests/studio.js` 17a–17c.
 - Zusammenhang mit PR #361: keiner (Worker stammt aus dem Studio-Bau davor).
+
+## Studio 2.0 Phase 2: Planungsdialog (vor dem Bauen)
+
+- Ort: `js/studio_auftrag.js` (Abschnitt „PLANUNGSDIALOG“, vor `starteAuftrag`), KI-Aufruf `planeKonzept` in `js/studio_werkzeuge.js`, Karte in `js/studio_ansicht.js` (`planHtml`). Kein neuer Server, keine neue Datei.
+- Ablauf bei App-/Website-Auftrag (`art: webapp`): Stufe `direkt` (Kleinstwerkzeuge wie Zähler/Timer oder „Planung aus“ → wie bisher sofort), `kompakt` (App), `ausfuehrlich` (Website/größer). Phasen `denkt` → `frage` (höchstens EINE Rückfrage) → `bestaetigung` („Soll ich das so bauen?“). Erst ein eindeutiges Ja (oder Knopf „Ja, bauen“) ruft `starteAuftrag` mit dem Konzept (`arbeit.konzept`, geht verbindlich an `st_anforderungen` und `st_code`).
+- Änderungswünsche überarbeiten nur den Plan (höchstens 5 Runden). Zwischenfragen (Wetter …) gehen an normales Jarvis, der Plan bleibt. Ein anderer Auftrag ersetzt den Plan. „Abbrechen“ verwirft ihn.
+- Gespeichert: `jv_studio_plan_v1` (20 Minuten Gültigkeit). Nach einem Neustart genügt das erste Ja nicht: Jarvis nennt den Plan erst noch einmal. Ein Ja bei mehreren offenen Fragen (Plan, APK-Freigabe, Rückfrage) führt nichts aus.
+- Das Ja zum Plan ist KEINE APK-Freigabe; der APK-Bau und `api/maps.js` sind unverändert.
+- Schalter: „Planung aus/an“ (`jv_studio_planung`, Standard an). Sprache: „Wie war der Plan?“.
+- Stolperfalle: Fällt die KI aus, sagt Jarvis es und fragt „Soll ich trotzdem direkt bauen?“ – nie stiller Start.
+- Tests: `tests/studio.js` Abschnitt 18 (`welt()` setzt `jv_studio_planung=0`, außer `planung:true`).

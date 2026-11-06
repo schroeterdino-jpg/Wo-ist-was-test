@@ -23,6 +23,7 @@ function textVon(s) { return String(s); }
 function welt(opt) {
     opt = opt || {};
     const ls = opt.ls || speicher();
+    if (!opt.planung && ls.getItem('jv_studio_planung') == null) ls.setItem('jv_studio_planung', '0');   // alte Tests: Aufträge starten direkt wie vorher; die Planung testet Abschnitt 18
     const gesprochen = [], aufrufe = [], timers = [];
     const ctl = {   // Drehbuch der Attrappen; Tests setzen, was die "KI" und das "Netz" liefern
         ki: opt.ki || (() => ({})), suche: opt.suche || (() => ({ treffer: [] })), seite: opt.seite || (() => ({ status: 404, json: { error: 'nicht gefunden' } })),
@@ -640,6 +641,87 @@ async function auftrag(w, satz) { const r = w.c.jvStudioAuftrag.behandle(satz); 
         check('17b ohne gespeicherte Daten: getItem liefert null wie ein leerer echter Speicher; JSON.parse(null) und Standardwerte funktionieren', imWorker('if(localStorage.getItem("x")!==null)throw new Error("nicht null");var d=JSON.parse(localStorage.getItem("x"));if(d!==null)throw new Error("x");localStorage.setItem("a","b");') === 'ok');
         check('17c Worker meldet seine Fehler nicht mehr als „Uncaught …“ nach oben (preventDefault im onerror)', /w\.onerror = function \(ev\) \{ try \{ ev\.preventDefault\(\); \} catch \(e\) \{ \} ende\(false\)/.test(QUELLEN['js/studio_werkzeuge.js']));
         check('16n bestehende Sprachbefehle und die APK-Technik unangetastet: Server-Aufrufe und Freigabe-Pflicht wie vorher', /freigabe:true|freigabe: true/.test(QUELLEN['js/studio_werkzeuge.js']) && !/dirigent/i.test(QUELLEN['js/studio_werkzeuge.js']));
+    }
+
+    /* ---------- 18. Planungsdialog: erst Konzept, Rückfrage, Bestätigung – gebaut wird nur nach eindeutigem Ja ---------- */
+    {
+        const D = w => w.c.jvStudioAuftrag;
+        const KONZEPT = { name: 'Autohaus Schwarzgold', stil: 'Edel und ruhig, große Fahrzeugbilder im Vordergrund.', farben: 'Schwarz, Anthrazit und Gold: wirkt hochwertig.', aufbau: ['Start mit Hauptbild', 'Fahrzeugsuche', 'Fahrzeugliste', 'Kontakt'], funktionen: ['Fahrzeugsuche mit Filtern', 'Große Bildgalerie', 'Anfrageformular', 'Telefon-Knopf'], nutzbarkeit: 'Große Knöpfe, Suche oben.', begruendung: 'Dunkle Flächen lassen Lack und Chrom glänzen.', frage: 'Sollen Kunden Fahrzeuge direkt anfragen können?', bemerkung: 'Ein Autohändler ohne Glanz wäre wie ein Auto ohne Räder.' };
+        const planKi = (zaehler, gesehen) => (sys, nutzer, b) => {
+            if (/Du bist Jarvis, ein kreativer/.test(sys)) { zaehler.n++; gesehen.push({ sys, nutzer }); if (zaehler.fehler) return new Error('Netz weg'); return Object.assign({}, KONZEPT, /Blau/i.test(nutzer) && /Änderungswunsch/.test(nutzer) ? { farben: 'Tiefblau mit Silber.' } : {}); }
+            return appPlan({ code: (s2, n2) => { gesehen.push({ code: n2 }); return { dateien: APP_DATEIEN }; } }).ki(sys, nutzer);
+        };
+        const neuePlanWelt = (extra) => { const z = { n: 0, fehler: false }, g = []; const w = welt(Object.assign({ planung: true, ki: planKi(z, g) }, extra || {})); laufPruefOk(w); return { w, z, g }; };
+        const AUTO = 'Jarvis, bau mir eine Website für einen Autohändler';
+        const baus = w => w.aufrufe.filter(a => /studio_bau/.test(a.url)).length;
+        const gesagt = (w, rx) => w.gesprochen.some(t => rx.test(t));
+
+        /* 18a einfache App: Planung stuft auf „direkt“, KEIN Konzeptaufruf */
+        { const { w, z } = neuePlanWelt(); const a = await auftrag(w, 'Jarvis, bau mir eine Zähler App');
+          check('18a einfache App (Zähler): startet direkt wie bisher, ohne Konzept-Aufruf', a.r === true && D(w).aktive().length === 1 && z.n === 0 && D(w).plan() === null, [z.n]); }
+        /* 18b komplexe Website: Konzept + genau EINE Frage, nichts gebaut */
+        const { w, z, g } = neuePlanWelt();
+        const r1 = D(w).behandle(AUTO); await warteBis(() => D(w).plan() && D(w).plan().phase === 'frage', 3000);
+        check('18b Website: Jarvis denkt erst nach, stellt eine Frage und startet KEINE Mission', r1 === true && D(w).plan().phase === 'frage' && D(w).aktive().length === 0 && D(w).planStufe(D(w).plan().e) === 'ausfuehrlich' && gesagt(w, /Eine Frage: Sollen Kunden Fahrzeuge direkt anfragen/) && gesagt(w, /Schwarz, Anthrazit und Gold/), w.gesprochen);
+        check('18c der Plan ist gespeichert (jv_studio_plan_v1), Studio ist die Fragen-Besitzerin', !!w.ls.getItem('jv_studio_plan_v1') && (!w.c.jvFrage || w.c.jvFrage.aktuell() === 'studio'));
+        /* 18d Zwischenfrage mitten im Plan */
+        check('18d Zwischenfrage „Wie wird morgen das Wetter?“ geht an normales Jarvis (false), der Plan bleibt offen', D(w).behandle('Wie wird morgen das Wetter?') === false && D(w).plan().phase === 'frage');
+        /* 18e Antwort → endgültiger Plan, nur EINE Frage */
+        const n0 = z.n; D(w).behandle('Ja, direkt anfragen'); await warteBis(() => D(w).plan() && D(w).plan().phase === 'bestaetigung', 3000);
+        check('18e Antwort eingearbeitet: neuer Plan, „Soll ich das so bauen?“, keine zweite Frage, noch keine Mission', z.n === n0 + 1 && /Antworten des Nutzers auf deine Frage: .*direkt anfragen/.test(g[g.length - 1].nutzer) && gesagt(w, /Soll ich das so bauen\?/) && w.gesprochen.filter(t => /Eine Frage:/.test(t)).length === 1 && D(w).aktive().length === 0 && D(w).plan().phase === 'bestaetigung', [z.n - n0, g[g.length - 1].nutzer, w.gesprochen.slice(-3)]);
+        check('18f trockener Humor höchstens einmal im Plan', w.gesprochen.filter(t => /ohne Räder/.test(t)).length === 1);
+        /* 18g Änderungswunsch: Plan überarbeiten, NICHT bauen */
+        const sp = w.gesprochen.length; D(w).behandle('Mach die Farben lieber Blau'); await warteBis(() => D(w).plan() && D(w).plan().phase === 'bestaetigung' && D(w).plan().konzept.farben === 'Tiefblau mit Silber.', 3000);
+        check('18g Änderungswunsch ändert nur den Plan (Farben blau), Mission startet nicht, Humor wird nicht wiederholt', D(w).aktive().length === 0 && D(w).plan().konzept.farben === 'Tiefblau mit Silber.' && gesagt(w, /Angepasst\./) && !w.gesprochen.slice(sp).some(t => /ohne Räder/.test(t)) && baus(w) === 0);
+        /* 18h Nein fragt nach, Plan bleibt */
+        D(w).behandle('Nein'); check('18h „Nein“ im Plan: Jarvis fragt, was zu ändern ist; Plan bleibt, nichts gebaut', D(w).plan() && D(w).aktive().length === 0 && gesagt(w, /Was soll ich ändern/));
+        /* 18i zwei offene Fragen: Ja startet nichts */
+        D(w)._setzeOffen({ art: 'projektwahl', erkannt: { art: 'zeigen' }, kand: [], bis: uhr.t + 60000 });
+        D(w).behandle('Ja'); await pause(10);
+        check('18i Plan + zweite offene Frage: ein nacktes „Ja“ führt NICHTS aus', D(w).aktive().length === 0 && D(w).plan() && gesagt(w, /mehrere offene Fragen/), [D(w).aktive().length, D(w).plan() && D(w).plan().phase, w.gesprochen.slice(-2)]);
+        D(w)._setzeOffen(null);
+        /* 18j Neustart: Plan wird wiederhergestellt; erstes Ja nennt den Plan nur noch einmal */
+        const w2 = welt({ planung: true, ls: w.ls, ki: planKi(z, g) }); laufPruefOk(w2);
+        check('18j Neustart: Plan ist wiederhergestellt (Phase Bestätigung, blaue Farben)', D(w2).plan() && D(w2).plan().phase === 'bestaetigung' && D(w2).plan().konzept.farben === 'Tiefblau mit Silber.');
+        D(w2).behandle('Ja'); await pause(10);
+        check('18k nach Neustart startet das erste „Ja“ NICHT, Jarvis nennt den Plan und bittet um ein zweites Ja', D(w2).aktive().length === 0 && w2.gesprochen.some(t => /Sag noch einmal Ja/.test(t)));
+        /* 18l Ja baut: Mission mit freigegebenem Konzept */
+        D(w2).behandle('Ja'); await warteBis(() => D(w2).aktive().length === 1, 3000); const ml = D(w2).aktive()[0]; await missionFertig(w2, ml.id);
+        const arb = w2.c.jvStudioProjekte.arbeit.hole(ml.id) || {};
+        check('18l eindeutiges Ja startet die bestehende Studio-Mission; das Konzept (blau, Antwort) geht verbindlich an die Werkzeuge', !!ml && /Tiefblau/.test(arb.konzept || '') && /Ja, direkt anfragen/.test(arb.konzept || '') && g.some(x => x.code && /Vom Nutzer freigegebenes Konzept/.test(x.code)) && D(w2).plan() === null && !w2.ls.getItem('jv_studio_plan_v1'), [arb.konzept]);
+        /* 18m Abbruch */
+        { const { w: wa, z: za } = neuePlanWelt(); D(wa).behandle(AUTO); await warteBis(() => D(wa).plan() && D(wa).plan().phase === 'frage', 3000);
+          D(wa).behandle('Abbrechen'); check('18m Abbrechen verwirft den Plan: nichts gebaut, nichts gespeichert', D(wa).plan() === null && D(wa).aktive().length === 0 && !wa.ls.getItem('jv_studio_plan_v1') && gesagt(wa, /verwerfe den Plan/)); }
+        /* 18n Zeitablauf */
+        { const { w: wb } = neuePlanWelt(); D(wb).behandle(AUTO); await warteBis(() => D(wb).plan() && D(wb).plan().phase === 'frage', 3000);
+          uhr.t += 21 * 60000; D(wb).behandle('Ja'); await pause(10); uhr.t -= 21 * 60000;
+          check('18n 20 Minuten ohne Antwort: Plan verfällt, ein spätes „Ja“ baut nichts und Jarvis sagt es ehrlich', D(wb).plan() === null && D(wb).aktive().length === 0 && gesagt(wb, /Plan ist abgelaufen/)); }
+        /* 18o KI fällt aus: ehrlich melden, nicht heimlich bauen, mit Ja trotzdem direkt */
+        { const { w: wc, z: zc } = neuePlanWelt(); zc.fehler = true; D(wc).behandle(AUTO); await warteBis(() => D(wc).plan() && D(wc).plan().phase === 'bestaetigung', 3000);
+          check('18o KI-Fehler: Jarvis sagt es, fragt „trotzdem direkt bauen?“ und startet nichts von selbst', D(wc).aktive().length === 0 && D(wc).plan().konzept === null && gesagt(wc, /nicht entwickeln.*trotzdem direkt bauen/));
+          zc.fehler = false; D(wc).behandle('Ja'); await warteBis(() => D(wc).aktive().length === 1, 3000);
+          check('18p erst das ausdrückliche Ja startet dann direkt', D(wc).aktive().length === 1 && !(wc.c.jvStudioProjekte.arbeit.hole(D(wc).aktive()[0].id) || {}).konzept); }
+        /* 18q APK: das Ja zum Plan ist KEINE APK-Freigabe */
+        { const { w: wd } = neuePlanWelt(); D(wd).behandle('Jarvis, bau mir eine Website für einen Autohändler und mach eine APK daraus'); await warteBis(() => D(wd).plan() && D(wd).plan().phase !== 'denkt', 3000);
+          if (D(wd).plan() && D(wd).plan().phase === 'frage') { D(wd).behandle('Ja'); await warteBis(() => D(wd).plan() && D(wd).plan().phase === 'bestaetigung', 3000); }
+          D(wd).behandle('Ja'); await warteBis(() => D(wd).aktive().length === 1, 3000); const mq = D(wd).aktive()[0]; await missionFertig(wd, mq && mq.id);
+          check('18q Plan-Ja ≠ APK-Freigabe: die Mission wartet auf die eigene APK-Freigabe, kein Bau-Aufruf', !!mq && wd.c.jvMission.hole(mq.id).status === 'wartet_freigabe' && baus(wd) === 0, [mq && wd.c.jvMission.hole(mq.id).status, baus(wd)]); }
+        /* 18r Schalter und Nachfrage per Sprache */
+        { const { w: we } = neuePlanWelt(); check('18r „Wie war der Plan?“ ohne offenen Plan: ehrliche Antwort', D(we).behandle('Wie war der Plan?') === true && gesagt(we, /kein Plan offen/));
+          D(we).behandle('Planung aus'); check('18s „Planung aus“ schaltet auf direktes Bauen: Website startet sofort', we.ls.getItem('jv_studio_planung') === '0' && (D(we).behandle(AUTO), D(we).aktive().length === 1 && D(we).plan() === null)); }
+        /* 18t neuer, anderer Auftrag ersetzt einen offenen Plan nicht stillschweigend: Plan weg, neuer Auftrag läuft */
+        { const { w: wf } = neuePlanWelt(); D(wf).behandle(AUTO); await warteBis(() => D(wf).plan() && D(wf).plan().phase === 'frage', 3000);
+          D(wf).behandle('Jarvis, recherchiere die Preise für Wallboxen'); check('18t ein anderer Auftrag (Recherche) ersetzt den offenen Plan; es läuft genau eine Mission', D(wf).plan() === null && D(wf).aktive().length === 1 && wf.c.jvStudioProjekte.arbeit.hole(D(wf).aktive()[0].id).art === 'recherche'); }
+        /* 18v Plan-Karte: zeigt Konzept, Knopf „Ja, bauen“ startet; vorher nichts */
+        { const { w: wg } = neuePlanWelt(); D(wg).behandle(AUTO); await warteBis(() => D(wg).plan() && D(wg).plan().phase === 'frage', 3000);
+          const An = wg.c.jvStudioAnsicht, h1 = An.html();
+          check('18v Plan-Karte in der Frage-Phase: Konzept sichtbar, noch KEIN „Ja, bauen“-Knopf', /Autohaus Schwarzgold/.test(h1) && /Sollen Kunden Fahrzeuge/.test(h1) && !/planJa/.test(h1));
+          D(wg).behandle('Ja'); await warteBis(() => D(wg).plan() && D(wg).plan().phase === 'bestaetigung', 3000);
+          check('18w Plan-Karte in der Bestätigung: Knöpfe „Ja, bauen“ und „Abbrechen“, noch keine Mission', /planJa/.test(An.html()) && /planAbbruch/.test(An.html()) && D(wg).aktive().length === 0);
+          An.aktion('planJa'); await warteBis(() => D(wg).aktive().length === 1, 3000);
+          check('18x Knopf „Ja, bauen“ startet die Mission und der Plan ist weg', D(wg).aktive().length === 1 && D(wg).plan() === null); }
+        /* 18u APK-Technik und Server unverändert */
+        check('18u APK-Bau unangetastet: Freigabe-Pflicht im Werkzeug, Plan setzt nie freigabe', /freigabe:true|freigabe: true/.test(QUELLEN['js/studio_werkzeuge.js']) && !/freigeben\(/.test(QUELLEN['js/studio_auftrag.js'].split('PLANUNGSDIALOG')[1].split('Projekt finden')[0]));
     }
     console.log('STUDIO: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
