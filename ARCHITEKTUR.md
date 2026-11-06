@@ -744,3 +744,8 @@ Jarvis nimmt Arbeitsaufträge per Sprache an („Bau mir eine App“, „Recherc
 - Ursache: Die Studio-Karte liegt in `#sec-speak`, einer Spalte mit `items-center`. Als Flex-Kind ohne feste Breite schrumpft/wächst sie auf die Breite ihres Inhalts und wird dann **mittig** über beide Ränder hinaus gezeichnet (links und rechts abgeschnitten, Layout-Viewport wird breiter als das Gerät). Zusätzlich saß im Arbeitsmodus eine eigene Scroll-Box (max-height), in der Freigabe-/Pause-Knöpfe unten verschwanden.
 - Lösung: `#studioKarte{align-self:stretch;width:100%;min-width:0}`, keine eigene Scroll-Box (die Seite scrollt), Freigabe und Pause/Abbrechen in einem unten fest haftenden Bereich (`.skUnten`, sticky), Kugel im Arbeitsmodus zentriert.
 - Gegenprobe: `node tools/studio_layout_check.js` (misst Seitenüberlauf, Karte, alle Knöpfe; schlägt mit dem Stand vor diesem Fix fehl).
+
+### Studio: APK-Verbindung prüfen (Diagnose)
+- `STUDIO_BUILD_REPO` hat keinen stillen Standard mehr (früher das öffentliche Jarvis-Repository: Lesen klappt dort mit jedem Token, Schreiben nicht -> 403 „Resource not accessible“). Fehlt die Variable, antwortet der Server 501 „fehlt STUDIO_BUILD_REPO“.
+- GitHub-Fehler nennen jetzt auch das benutzte Repository.
+- `api/maps.js?action=studio_diagnose` (nur mit App-Code) und Sprachbefehl „Studio Diagnose“: meldet Repository, Lesbarkeit, Ablaufdatum des Tokens und prüft Schreiben mit einem einzelnen unverknüpften Blob. Keine Geheimnisse in der Antwort.

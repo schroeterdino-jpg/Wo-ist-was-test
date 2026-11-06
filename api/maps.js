@@ -781,17 +781,19 @@ async function studioGh(pfad, token, opt) {
   const j = await r.json().catch(() => ({}));
   if (!r.ok) {
     const noetig = String((r.headers && r.headers.get && r.headers.get('x-accepted-github-permissions')) || '').replace(/[^\w=,;:\-\s]/g, '').slice(0, 120);
-    const schritt = studioSchritt(pfad, opt);
-    const e = new Error('GitHub ' + r.status + ' bei „' + schritt + '“: ' + String(j.message || '').slice(0, 120) + (r.status === 403 || r.status === 404 ? (noetig ? ' – nötige Token-Berechtigung: ' + noetig : ' – Token-Berechtigung oder Repository-Auswahl prüfen') : ''));
+    const schritt = studioSchritt(pfad, opt), rp = /^\/repos\/([^/]+\/[^/]+)/.exec(pfad), repoTxt = rp ? ' im Repository ' + rp[1] : '';
+    const e = new Error('GitHub ' + r.status + ' bei „' + schritt + '“' + repoTxt + ': ' + String(j.message || '').slice(0, 120) + (r.status === 403 || r.status === 404 ? (noetig ? ' – nötige Token-Berechtigung: ' + noetig : ' – Token-Berechtigung oder Repository-Auswahl prüfen') : ''));
     e.status = r.status; e.schritt = schritt; throw e;
   }
   return j;
 }
-function studioRepo() { const r = String(process.env.STUDIO_BUILD_REPO || 'schroeterdino-jpg/Wo-ist-was-test'); return /^[\w.-]+\/[\w.-]+$/.test(r) ? r : null; }
+/* Kein stiller Standard mehr: ohne STUDIO_BUILD_REPO würde sonst das (öffentliche) Jarvis-Repository benutzt; lesen klappt dort mit jedem Token, schreiben nicht -> 403 */
+function studioRepo() { const r = String(process.env.STUDIO_BUILD_REPO || '').trim(); return /^[\w.-]+\/[\w.-]+$/.test(r) ? r : null; }
+function studioFehlt(token, repo) { return !token ? 'STUDIO_GITHUB_TOKEN' : (!repo ? 'STUDIO_BUILD_REPO' : ''); }
 async function studio_bau(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const token = process.env.STUDIO_GITHUB_TOKEN, repo = studioRepo();
-  if (!token || !repo) return res.status(501).json({ fehlt: 'STUDIO_GITHUB_TOKEN', error: 'Der APK-Bau ist auf dem Server noch nicht eingerichtet (Variable STUDIO_GITHUB_TOKEN fehlt).' });
+  if (!token || !repo) { const f = studioFehlt(token, repo); return res.status(501).json({ fehlt: f, error: 'Der APK-Bau ist auf dem Server noch nicht eingerichtet (Variable ' + f + ' fehlt oder ist ungültig, erwartet: besitzer/repository).' }); }
   const b = req.body || {};
   if (b.freigabe !== true) return res.status(400).json({ error: 'Ohne ausdrückliche Freigabe wird nichts gebaut.' });
   const probleme = studioPruefe(b);
@@ -829,7 +831,7 @@ async function studio_bau(req, res) {
 }
 async function studio_status(req, res) {
   const token = process.env.STUDIO_GITHUB_TOKEN, repo = studioRepo();
-  if (!token || !repo) return res.status(501).json({ fehlt: 'STUDIO_GITHUB_TOKEN', error: 'Der APK-Bau ist auf dem Server noch nicht eingerichtet.' });
+  if (!token || !repo) { const f = studioFehlt(token, repo); return res.status(501).json({ fehlt: f, error: 'Der APK-Bau ist auf dem Server noch nicht eingerichtet (Variable ' + f + ').' }); }
   const branch = String(req.query.branch || '');
   if (!/^studio\/p[a-z0-9]{6,20}$/.test(branch)) return res.status(400).json({ error: 'Ungültiger Branch' });
   try {
@@ -850,10 +852,40 @@ async function studio_status(req, res) {
   } catch (e) { return res.status(502).json({ error: String(e && e.message || 'GitHub nicht erreichbar').slice(0, 200) }); }
 }
 
+/* Sichere Diagnose der Bau-Verbindung (nur mit App-Code): zeigt Repository, Erreichbarkeit, Ablaufdatum des Tokens und ob SCHREIBEN wirklich erlaubt ist.
+   Schreibprobe: ein einzelner, unverknüpfter Blob (GitHub räumt ihn selbst auf; kein Branch, kein Commit, kein Build). Nie Token oder Rohantworten in der Antwort. */
+async function studio_diagnose(req, res) {
+  const token = process.env.STUDIO_GITHUB_TOKEN, repo = studioRepo();
+  const out = { repo: repo || null, repoVariable: process.env.STUDIO_BUILD_REPO ? 'gesetzt' : 'fehlt', tokenVariable: token ? 'gesetzt' : 'fehlt', basis: String(process.env.STUDIO_BASE_REF || 'main') };
+  if (!token || !repo) return res.status(200).json(Object.assign(out, { urteil: 'Variable ' + studioFehlt(token, repo) + ' fehlt oder ist ungültig (erwartet: besitzer/repository).' }));
+  const kopf = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'jarvis-studio', 'Content-Type': 'application/json' };
+  const ruf = async (pfad, opt) => {
+    try {
+      const r = await fetch('https://api.github.com' + pfad, Object.assign({ headers: kopf, signal: AbortSignal.timeout(15000) }, opt || {}));
+      const j = await r.json().catch(() => ({}));
+      return { status: r.status, j, ablauf: r.headers.get('github-authentication-token-expiration') || '', noetig: String(r.headers.get('x-accepted-github-permissions') || '').replace(/[^\w=,;:\-\s]/g, '').slice(0, 120) };
+    } catch (e) { return { status: 0, j: {}, ablauf: '', noetig: '' }; }
+  };
+  const r1 = await ruf('/repos/' + repo);
+  out.repoLesen = r1.status; out.tokenAblauf = r1.ablauf ? String(r1.ablauf).slice(0, 40) : 'unbekannt';
+  if (r1.status === 200) { out.repoName = String(r1.j.full_name || ''); out.privat = !!r1.j.private; out.archiviert = !!r1.j.archived; out.standardBranch = String(r1.j.default_branch || ''); }
+  const r2 = await ruf('/repos/' + repo + '/git/ref/heads/' + out.basis.split('/').map(encodeURIComponent).join('/'));
+  out.basisBranchLesen = r2.status;
+  const r3 = await ruf('/repos/' + repo + '/git/blobs', { method: 'POST', body: JSON.stringify({ content: 'jarvis-studio-diagnose', encoding: 'utf-8' }) });
+  out.schreibprobe = r3.status; if (r3.status >= 400) out.schreibprobeMeldung = String(r3.j.message || '').slice(0, 120) + (r3.noetig ? ' – nötig: ' + r3.noetig : '');
+  out.urteil = r1.status === 401 ? 'Token ungültig oder abgelaufen.'
+    : r1.status !== 200 ? 'Repository ' + repo + ' nicht lesbar (Status ' + r1.status + '): Name falsch oder Token hat keinen Zugriff.'
+    : out.archiviert ? 'Repository ist archiviert (nur lesbar).'
+    : r3.status === 201 ? 'Alles in Ordnung: Lesen und Schreiben in ' + repo + ' funktionieren.'
+    : r3.status === 403 ? 'Schreiben in ' + repo + ' wird verweigert. Dieses Token hat dort keine Schreibrechte: Prüfe, ob STUDIO_BUILD_REPO das richtige Repository nennt und ob das Token genau dieses Repository auswählt (Contents: Read and write).'
+    : 'Schreibprobe fehlgeschlagen (Status ' + r3.status + ').';
+  return res.status(200).json(out);
+}
+
 /* ------------------------------------------------------------------
    Verteiler: prüft zuerst den App-Code (wie bisher in jeder der vier Dateien) und ruft dann die passende Funktion auf
    ------------------------------------------------------------------ */
-const ACTIONS = { geocode, reverse, route, overpass, holidays, places, streetview, shopping, studio_suche, studio_seite, studio_bau, studio_status };
+const ACTIONS = { geocode, reverse, route, overpass, holidays, places, streetview, shopping, studio_suche, studio_seite, studio_bau, studio_status, studio_diagnose };
 
 export default async function handler(req, res) {
   const expected = process.env.APP_SECRET;

@@ -38,6 +38,7 @@ function welt(opt) {
         let m;
         if ((m = /action=studio_suche&q=(.*)$/.exec(url))) { const r = await ctl.suche(decodeURIComponent(m[1])); return antwort(r.status || 200, r.json || r); }
         if ((m = /action=studio_seite&url=(.*)$/.exec(url))) { const r = await ctl.seite(decodeURIComponent(m[1])); return antwort(r.status, r.json); }
+        if (/action=studio_diagnose/.test(url)) return antwort(200, ctl.diagnose ? ctl.diagnose() : { urteil: 'Alles in Ordnung: Lesen und Schreiben in schroeterdino-jpg/jarvis-studio-builds funktionieren.', repo: 'schroeterdino-jpg/jarvis-studio-builds', tokenAblauf: '2027-01-01 00:00:00 UTC' });
         if (/action=studio_bau/.test(url)) { const r = await ctl.bau(JSON.parse(o.body)); return antwort(r.status, r.json); }
         if ((m = /action=studio_status&branch=(.*)$/.exec(url))) { const r = await ctl.status(decodeURIComponent(m[1])); return antwort(r.status, r.json); }
         return antwort(404, { error: 'unbekannt' });
@@ -225,6 +226,9 @@ async function auftrag(w, satz) { const r = w.c.jvStudioAuftrag.behandle(satz); 
     /* ---------- 6 Web-App Ende-zu-Ende, Projektgedächtnis, Änderung ---------- */
     let wApp = null;
     {
+        const wd = welt({}); const dr = wd.c.jvStudioAuftrag.behandle('Jarvis, Studio Diagnose'); await new Promise(r => setTimeout(r, 30));
+        check('6a0 „Studio Diagnose“: wird erkannt, ruft die Server-Diagnose, Jarvis sagt Urteil, Repository und Ablaufdatum des Tokens', dr === true && wd.aufrufe.some(x => /action=studio_diagnose/.test(x.url)) && wd.gesprochen.some(t => /Alles in Ordnung/.test(t) && /jarvis-studio-builds/.test(t) && /2027-01-01/.test(t)), [dr, wd.gesprochen]);
+        const wd2 = welt({}); check('6a0b „prüfe die APK Verbindung“ wird ebenfalls erkannt', wd2.c.jvStudioAuftrag.behandle('prüfe die APK Verbindung') === true);
         /* Wie Groq wirklich reagiert: Code im JSON-Modus -> 400 "json_validate_failed"; ohne JSON-Modus kommt freier Text */
         const FALSCH = { status: 400, json: { error: { message: "Failed to generate JSON. Please adjust your prompt. See 'failed_generation' for more details.", type: 'invalid_request_error', code: 'json_validate_failed', failed_generation: '<html>GEHEIME-ROHANTWORT' } } };
         const alsText = d => d.map(f => '<<<DATEI ' + f.pfad + '>>>\n' + f.inhalt + '\n<<<ENDE>>>').join('\n');

@@ -66,7 +66,7 @@ function check(n, b, info) { if (b) { ok++; return; } fehler++; console.log('✗
     check('4a nur POST', (await ruf('studio_bau', {}, { method: 'GET' })).status === 405);
     r = await ruf('studio_bau', {}, { method: 'POST', body: gut });
     check('4b ohne Token: 501 und die Meldung nennt die fehlende Variable genau', r.status === 501 && r.payload.fehlt === 'STUDIO_GITHUB_TOKEN' && /STUDIO_GITHUB_TOKEN/.test(r.payload.error), r);
-    process.env.STUDIO_GITHUB_TOKEN = 'ghp_TESTTOKEN';
+    process.env.STUDIO_GITHUB_TOKEN = 'ghp_TESTTOKEN'; process.env.STUDIO_BUILD_REPO = 'schroeterdino-jpg/jarvis-studio-builds';
     netz = []; check('4c ohne ausdrückliche Freigabe: 400, kein GitHub-Aufruf', (r = await ruf('studio_bau', {}, { method: 'POST', body: Object.assign({}, gut, { freigabe: false }) })).status === 400 && netz.length === 0, r);
     check('4c2 „freigabe“ als Text "true" zählt nicht', (await ruf('studio_bau', {}, { method: 'POST', body: Object.assign({}, gut, { freigabe: 'true' }) })).status === 400);
     const schlecht = [
@@ -90,8 +90,8 @@ function check(n, b, info) { if (b) { ok++; return; } fehler++; console.log('✗
         return { status: 404, body: { message: 'nein' } };
     };
     r = await ruf('studio_bau', {}, { method: 'POST', body: gut });
-    check('4e Erfolg: Branch studio/p…, Commit, Repository', r.status === 200 && /^studio\/p[a-z0-9]{6,20}$/.test(r.payload.branch) && r.payload.commit === 'NEUCOMMIT' && r.payload.repo === 'schroeterdino-jpg/Wo-ist-was-test', r);
-    check('4f 6 GitHub-Aufrufe in der richtigen Reihenfolge, nur api.github.com', netz.length === 6 && netz.every(n => n.url.startsWith('https://api.github.com/repos/schroeterdino-jpg/Wo-ist-was-test/')) && /studio-apk\.yml\/runs/.test(netz[0].url) && /git\/ref\/heads\/main$/.test(netz[1].url) && /git\/trees$/.test(netz[3].url) && /git\/refs$/.test(netz[5].url), netz.map(n => n.url));
+    check('4e Erfolg: Branch studio/p…, Commit, Repository', r.status === 200 && /^studio\/p[a-z0-9]{6,20}$/.test(r.payload.branch) && r.payload.commit === 'NEUCOMMIT' && r.payload.repo === 'schroeterdino-jpg/jarvis-studio-builds', r);
+    check('4f 6 GitHub-Aufrufe in der richtigen Reihenfolge, nur api.github.com', netz.length === 6 && netz.every(n => n.url.startsWith('https://api.github.com/repos/schroeterdino-jpg/jarvis-studio-builds/')) && /studio-apk\.yml\/runs/.test(netz[0].url) && /git\/ref\/heads\/main$/.test(netz[1].url) && /git\/trees$/.test(netz[3].url) && /git\/refs$/.test(netz[5].url), netz.map(n => n.url));
     const baum = JSON.parse(netz[3].o.body), ref = JSON.parse(netz[5].o.body);
     check('4g Dateien landen NUR unter studio-projekt/www/ (+meta.json); Basis-Baum und Eltern-Commit stimmen', baum.base_tree === 'BASISTREE' && baum.tree.every(t => /^studio-projekt\/(www\/[a-z0-9._\/-]+|meta\.json)$/.test(t.path) && t.mode === '100644' && t.type === 'blob') && baum.tree.length === 3 && JSON.parse(netz[4].o.body).parents[0] === 'BASIS' && /^refs\/heads\/studio\/p/.test(ref.ref) && ref.sha === 'NEUCOMMIT', baum);
     check('4h Token nur im Authorization-Kopf, nie in Antwort oder Anfrage-Inhalt', netz.every(n => n.o.headers.Authorization === 'Bearer ghp_TESTTOKEN' && !/ghp_TESTTOKEN/.test(String(n.o.body || ''))) && !/ghp_TESTTOKEN/.test(JSON.stringify(r)));
@@ -124,10 +124,33 @@ function check(n, b, info) { if (b) { ok++; return; } fehler++; console.log('✗
     skript = (u) => /studio-apk\.yml\/runs/.test(u) ? { status: 200, body: { workflow_runs: [] } } : /git\/ref\/heads/.test(u) ? { status: 401, body: { message: 'Bad credentials' } } : { status: 404, body: {} };
     r = await ruf('studio_bau', {}, { method: 'POST', body: gut }); check('4i GitHub lehnt ab → 502 mit Grund, ohne Token im Text', r.status === 502 && /401/.test(r.payload.error) && !/ghp_/.test(r.payload.error), r);
     skript = (u) => /studio-apk\.yml\/runs/.test(u) ? { status: 200, body: { workflow_runs: [] } } : { status: 200, body: { object: { sha: 'B' }, tree: { sha: 'T' }, sha: 'N' } };
+    const skriptVorher = skript;
+    skript = (u) => /studio-apk\.yml\/runs/.test(u) ? { status: 200, body: { workflow_runs: [] } } : /git\/ref\/heads\/main$/.test(u) ? { status: 200, body: { object: { sha: 'B' } } } : /git\/commits\/B$/.test(u) ? { status: 200, body: { tree: { sha: 'T' } } } : /git\/trees$/.test(u) ? { status: 403, headers: { 'X-Accepted-GitHub-Permissions': 'contents=write' }, body: { message: 'Resource not accessible by personal access token' } } : { status: 404, body: {} };
+    r = await ruf('studio_bau', {}, { method: 'POST', body: gut });
+    check('4k3 403 beim Tree nennt das benutzte Repository (damit eine falsche Variable sofort auffällt)', r.status === 502 && /im Repository schroeterdino-jpg\/jarvis-studio-builds/.test(r.payload.error) && /contents=write/.test(r.payload.error), r);
+    skript = skriptVorher;
     let letzter = 0; for (let i = 0; i < 6; i++) letzter = (await ruf('studio_bau', {}, { method: 'POST', body: gut })).status;
     check('4j Grenze: höchstens 5 Builds pro Stunde (weitere → 429)', letzter === 429);
     process.env.STUDIO_BUILD_REPO = 'böse/../repo'; check('4k ungültiger Repo-Name wird nicht benutzt (nicht eingerichtet statt Fremdziel)', (await ruf('studio_bau', {}, { method: 'POST', body: gut })).status === 501);
-    delete process.env.STUDIO_BUILD_REPO;
+    delete process.env.STUDIO_BUILD_REPO; netz = [];
+    r = await ruf('studio_bau', {}, { method: 'POST', body: gut });
+    check('4k2 ohne STUDIO_BUILD_REPO: 501 „fehlt STUDIO_BUILD_REPO“ und KEIN GitHub-Aufruf (früher stiller Standard = Jarvis-Repository)', r.status === 501 && r.payload.fehlt === 'STUDIO_BUILD_REPO' && netz.length === 0, [r, netz.length]);
+    process.env.STUDIO_BUILD_REPO = 'schroeterdino-jpg/jarvis-studio-builds';
+    /* Diagnose */
+    const dia = (repoStatus, blobStatus, extra) => (u, o) => /\/git\/blobs$/.test(u) ? { status: blobStatus, headers: blobStatus === 403 ? { 'X-Accepted-GitHub-Permissions': 'contents=write' } : {}, body: blobStatus === 201 ? { sha: 'x' } : { message: 'Resource not accessible by personal access token' } } : /git\/ref\//.test(u) ? { status: 200, body: { object: { sha: 'B' } } } : /\/repos\/[^/]+\/[^/]+$/.test(u) ? { status: repoStatus, headers: { 'github-authentication-token-expiration': '2027-01-01 00:00:00 UTC' }, body: Object.assign({ full_name: 'schroeterdino-jpg/jarvis-studio-builds', private: false, archived: false, default_branch: 'main' }, extra || {}) } : { status: 404, body: {} };
+    skript = dia(200, 201); netz = []; r = await ruf('studio_diagnose', {});
+    check('4l1 Diagnose in Ordnung: Lesen und Schreiben, Repository, Ablaufdatum; nur EINE Schreibprobe (unverknüpfter Blob), kein Branch/Commit/Build', r.status === 200 && /Alles in Ordnung/.test(r.payload.urteil) && r.payload.schreibprobe === 201 && r.payload.repo === 'schroeterdino-jpg/jarvis-studio-builds' && /2027/.test(r.payload.tokenAblauf) && netz.filter(n => n.o.method === 'POST').length === 1 && /git\/blobs$/.test(netz.filter(n => n.o.method === 'POST')[0].url), r);
+    skript = dia(200, 403); r = await ruf('studio_diagnose', {});
+    check('4l2 Diagnose: Lesen ok, Schreiben 403 -> klares Urteil (Repository-Variable/Token-Auswahl prüfen) mit nötiger Berechtigung', r.status === 200 && r.payload.schreibprobe === 403 && /Schreiben in schroeterdino-jpg\/jarvis-studio-builds wird verweigert/.test(r.payload.urteil) && /contents=write/.test(r.payload.schreibprobeMeldung), r);
+    skript = dia(404, 403); r = await ruf('studio_diagnose', {});
+    check('4l3 Diagnose: Repository nicht lesbar -> Urteil nennt Name/Zugriff', /nicht lesbar/.test(r.payload.urteil), r);
+    skript = dia(200, 403, { archived: true }); r = await ruf('studio_diagnose', {});
+    check('4l4 Diagnose: archiviertes Repository wird erkannt', /archiviert/.test(r.payload.urteil), r);
+    check('4l5 Diagnose-Antwort enthält nie Token oder Rohantwort', !/ghp_TESTTOKEN|Bearer/.test(JSON.stringify(r)));
+    delete process.env.STUDIO_BUILD_REPO; r = await ruf('studio_diagnose', {});
+    check('4l6 Diagnose ohne STUDIO_BUILD_REPO: sagt es klar, kein GitHub-Aufruf', r.payload.repoVariable === 'fehlt' && /STUDIO_BUILD_REPO/.test(r.payload.urteil) && (netz = [], true));
+    check('4l7 Diagnose braucht den App-Code (401 ohne)', (await ruf('studio_diagnose', {}, { ohneSchluessel: true })).status === 401);
+    process.env.STUDIO_BUILD_REPO = 'schroeterdino-jpg/jarvis-studio-builds';
 
     /* studio_status */
     process.env.STUDIO_GITHUB_TOKEN = 'ghp_TESTTOKEN';

@@ -327,7 +327,7 @@
           s: [] },
         { g: "Besonderes", i: "🛠️", t: "Jarvis arbeitet für dich", h: "studio",
           d: "Sag einfach, was du brauchst: eine App, eine Webseite, eine Recherche, ein Dokument oder eine Präsentation. Jarvis plant die Schritte selbst, arbeitet sie nacheinander ab und sagt dir in der Kugel und per Stimme, was er gerade wirklich tut. Das Ergebnis siehst du direkt als Karte mit Vorschau und Download. Eine APK baut er nur nach deiner ausdrücklichen Freigabe. Gespeicherte Projekte findest du wieder: „Ändere die App von gestern“.",
-          s: ["Bau mir eine App für meine Einkaufsliste", "Recherchiere die besten Wallboxen", "Ändere die App von gestern", "Wie weit ist die Mission?"] },
+          s: ["Bau mir eine App für meine Einkaufsliste", "Recherchiere die besten Wallboxen", "Ändere die App von gestern", "Wie weit ist die Mission?", "Studio Diagnose"] },
         { g: "Besonderes", i: "❓", t: "Hilfe jederzeit", h: "einstellungen",
           d: "Zu jedem Thema gibt es Beispielsätze. Und wenn du diese Tour noch einmal sehen willst, sag „Tour“.",
           s: ["Hilfe", "Hilfe Fahrten", "Was kannst du alles?", "Tour"] }
