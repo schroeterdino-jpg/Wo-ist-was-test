@@ -62,6 +62,7 @@ jobs:
           node tests/chef_b2a.js
           node tests/chef_mehrteilig.js
           node tests/chef_b2b.js
+          node tests/chef_b2b2.js
           node tests/chef_paket.js
           node tests/schreibkern.js
           node tests/dirigent_fragen.js

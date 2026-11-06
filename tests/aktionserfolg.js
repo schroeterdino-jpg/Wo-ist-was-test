@@ -65,7 +65,8 @@ const ant = d => ({ ok: true, status: 200, json: async () => d });
         A.lese('calendarEntries').push({ id: 'local_1', text: 'Zahnarzt', date: 'x', isoDate: '2026-10-29T08:00:00.000Z', location: '' });
         const ctx5 = neuerCtx();
         const r5 = await aktion(A, { type: 'calendar_update', calendar_query: 'zahnarzt', calendar_time: MORGEN_10 }, 'Ändere meinen Zahnarzttermin auf 16 Uhr', ctx5);
-        check('Kalender ändern mit Treffer: nichts-getan nicht gesetzt', !r5.fehl && nichtsListe(ctx5).length === 0, JSON.stringify(nichtsListe(ctx5)));
+        // B2b-2: Mit Treffer wird erst gefragt (nennt den Termin), geändert wird noch nichts
+        check('Kalender ändern mit Treffer: Rückfrage statt stiller Änderung, Termin unverändert', !!r5.fehl && /Zahnarzt/.test(String(r5.fehl.userMessage || r5.fehl.message || r5.fehl)) && A.lese('calendarEntries')[0].isoDate === '2026-10-29T08:00:00.000Z', JSON.stringify([nichtsListe(ctx5), String(r5.fehl && (r5.fehl.userMessage || r5.fehl.message))]));
         // 2f Löschen ohne Eintrag
         const B = kopf(); const ctx6 = neuerCtx();
         await aktion(B, { type: 'calendar_delete', calendar_query: 'zahnarzt' }, 'Lösche den Zahnarzt', ctx6);
@@ -102,7 +103,9 @@ const ant = d => ({ ok: true, status: 200, json: async () => d });
     check('3-2 Einkauf vorhanden: "Milch steht bereits ...", nicht "hinzugefügt"', !r.haengt && r.gesagt.includes('Milch steht bereits auf deiner Einkaufsliste.') && !/ist auf der Einkaufsliste\./.test(r.gesagt.replace('steht bereits auf deiner Einkaufsliste.', '')) && !/ergänzt|hinzugefügt/.test(r.gesagt), r.gesagt);
     const zahn = { id: 'local_9', text: 'Zahnarzt', date: 'x', isoDate: '2026-10-29T08:00:00.000Z', location: '' };
     r = await lauf('Ändere meinen Zahnarzttermin auf 16 Uhr', [{ type: 'calendar_update', calendar_query: 'zahnarzt', calendar_time: '2026-10-29T16:00:00+01:00' }], 'Termin geändert.', { termine: [zahn] });
-    check('3-3 Kalender ändern erfolgreich: Antwort wie bisher, kein "nichts geändert"', !r.haengt && /Termin geändert\./.test(r.gesagt) && !/nichts geändert/.test(r.gesagt), r.gesagt);
+    check('3-3 Kalender ändern (B2b-2): erst Rückfrage mit Termin, kein "Termin geändert."', !r.haengt && /Soll ich „Zahnarzt“/.test(r.gesagt) && !/Termin geändert\./.test(r.gesagt) && r.A.lese('calendarEntries')[0].isoDate === '2026-10-29T08:00:00.000Z', r.gesagt);
+    r = await lauf('Ändere meinen Zahnarzttermin auf 16 Uhr', [{ type: 'calendar_update', calendar_query: 'zahnarzt', calendar_time: '2026-10-29T16:00:00+01:00', _bestaetigt: true }], 'Termin geändert.', { termine: [zahn] });
+    check('3-3b KI darf die Bestätigung nicht selbst setzen (_bestaetigt wird ignoriert): Rückfrage, Termin unverändert', !r.haengt && /Soll ich „Zahnarzt“/.test(r.gesagt) && r.A.lese('calendarEntries')[0].isoDate === '2026-10-29T08:00:00.000Z', r.gesagt);
     r = await lauf('Ändere meinen Zahnarzttermin auf 16 Uhr', [{ type: 'calendar_update', calendar_query: 'zahnarzt', calendar_time: '2026-10-29T16:00:00+01:00' }], 'Termin geändert.');
     check('3-4 Kalender ändern ohne Treffer: genau ein ehrlicher Satz, nie "Termin geändert."', !r.haengt && r.gesagt.includes('Ich habe keinen passenden Termin gefunden, deshalb wurde nichts geändert.') && !/Termin geändert\./.test(r.gesagt) && r.gesagt.split('nichts geändert').length === 2, r.gesagt);
     r = await lauf('Merk dir was und mach was Kaputtes', [{ type: 'reminder', reminder_text: 'x', reminder_time: 'kaputt' }], 'Alles erledigt!', {

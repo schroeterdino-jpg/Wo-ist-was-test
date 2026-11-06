@@ -645,79 +645,12 @@
     {
      "aktion": "{\"type\":\"calendar_update\",\"calendar_query\":\"zahnarzt\",\"calendar_time\":\"2026-10-29T16:00:00+01:00\"}",
      "text": "Verschiebe den Zahnarzt auf 16 Uhr",
-     "fehler": null,
-     "rueckgabe": "undefined",
-     "ctxVorher": "{\"counter\":0,\"cards\":[],\"notes\":[],\"panel\":null}",
-     "ctx": {
-      "counter": 0,
-      "karten": [],
-      "notizen": [
-       "Dieser Termin liegt nur in der App. Die Änderung gilt nur in der App."
-      ],
-      "fenster": "null"
+     "fehler": {
+      "name": "Error",
+      "text": "Soll ich „Zahnarzt“ (morgen um 14 Uhr) auf morgen um 16 Uhr verschieben?",
+      "userMessage": true,
+      "auth": false
      },
-     "gesagt": [],
-     "speicher": {
-      "helfer_calendar_entries": "[{\"id\":\"local_1793178000000\",\"text\":\"Zahnarzt\",\"date\":\"29.10.2026, 16:00\",\"isoDate\":\"2026-10-29T15:00:00.000Z\",\"location\":\"\"}]"
-     },
-     "netz": [],
-     "bruecke": [],
-     "zeitgeber": [
-      {
-       "art": "setTimeout",
-       "ms": 4000,
-       "fn": "() => send(false)"
-      }
-     ],
-     "open": [],
-     "spione": [
-      {
-       "f": "updateGoogleCalendarEvent",
-       "a": [
-        "\"local_1793178000000\"",
-        "undefined",
-        "\"2026-10-29T16:00:00+01:00\"",
-        "undefined"
-       ],
-       "r": "false"
-      },
-      {
-       "f": "googleNotSynced",
-       "a": [
-        "{\"counter\":0,\"cards\":[],\"notes\":[],\"panel\":null}",
-        "\"Die Änderung gilt nur in der App\""
-       ],
-       "r": "undefined"
-      }
-     ],
-     "frageOffen": false,
-     "uhr": "2026-10-28T09:00:00.000Z"
-    }
-   ],
-   "ende": {
-    "ctx": {
-     "counter": 0,
-     "karten": 0,
-     "notizen": 1
-    },
-    "merkmale": [
-     "_gedaechtnis",
-     "_loeschFrage",
-     "function",
-     "AsyncFunction"
-    ],
-    "speicherGesamt": [
-     "helfer_calendar_entries"
-    ],
-    "offeneFrage": false
-   }
-  },
-  "basis calendar_update Google": {
-   "schritte": [
-    {
-     "aktion": "{\"type\":\"calendar_update\",\"calendar_query\":\"zahnarzt\",\"calendar_text\":\"Zahnarzt Dr. Weiß\",\"calendar_time\":\"2026-10-29T16:00:00+01:00\",\"calendar_location\":\"Hauptstraße 1\"}",
-     "text": "Zahnarzt neuer Name",
-     "fehler": null,
      "rueckgabe": "undefined",
      "ctx": {
       "counter": 0,
@@ -726,58 +659,19 @@
       "fenster": "null"
      },
      "gesagt": [],
-     "speicher": {
-      "helfer_calendar_entries": "[{\"id\":\"g1\",\"text\":\"Zahnarzt Dr. Weiß\",\"date\":\"29.10.2026, 16:00\",\"isoDate\":\"2026-10-29T15:00:00.000Z\",\"eventType\":\"default\",\"recurring\":false,\"location\":\"Hauptstraße 1\"}]",
-      "jv_routinen": "{\"log\":[{\"k\":\"termin\",\"d\":\"2026-10-28\",\"w\":3,\"m\":600}],\"routines\":[],\"state\":{}}",
-      "jv_heute": "{\"d\":\"2026-10-28\",\"z\":[{\"h\":\"10:00\",\"t\":\"Termin eingetragen: Zahnarzt Dr. Weiß\"}]}"
-     },
-     "netz": [
-      {
-       "m": "PATCH",
-       "u": "https://www.googleapis.com/calendar/v3/calendars/primary/events/g1",
-       "body": "{\"start\":{\"dateTime\":\"2026-10-29T15:00:00.000Z\"},\"end\":{\"dateTime\":\"2026-10-29T16:00:00.000Z\"},\"summary\":\"Zahnarzt Dr. Weiß\",\"location\":\"Hauptstraße 1\"}"
-      },
-      {
-       "m": "GET",
-       "u": "https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=2026-10-28T09:00:0#fb1d99cae604"
-      }
-     ],
+     "speicher": {},
+     "netz": [],
      "bruecke": [],
      "zeitgeber": [
       {
        "art": "setTimeout",
-       "ms": 4000,
-       "fn": "() => send(false)"
-      },
-      {
-       "art": "setTimeout",
-       "ms": 4000,
-       "fn": "() => send(false)"
+       "ms": 120000,
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
-     "open": [
-      "https://calendar.google.com/calendar/u/0/r/day/2026/10/29 | _blank | noopener"
-     ],
-     "spione": [
-      {
-       "f": "updateGoogleCalendarEvent",
-       "a": [
-        "\"g1\"",
-        "\"Zahnarzt Dr. Weiß\"",
-        "\"2026-10-29T16:00:00+01:00\"",
-        "\"Hauptstraße 1\""
-       ],
-       "r": "true"
-      },
-      {
-       "f": "openGoogleCalendarApp",
-       "a": [
-        "\"2026-10-29T16:00:00+01:00\""
-       ],
-       "r": "undefined"
-      }
-     ],
-     "frageOffen": false,
+     "open": [],
+     "spione": [],
+     "frageOffen": true,
      "uhr": "2026-10-28T09:00:00.000Z"
     }
    ],
@@ -793,12 +687,59 @@
      "function",
      "AsyncFunction"
     ],
-    "speicherGesamt": [
-     "helfer_calendar_entries",
-     "jv_heute",
-     "jv_routinen"
+    "speicherGesamt": [],
+    "offeneFrage": true
+   }
+  },
+  "basis calendar_update Google": {
+   "schritte": [
+    {
+     "aktion": "{\"type\":\"calendar_update\",\"calendar_query\":\"zahnarzt\",\"calendar_text\":\"Zahnarzt Dr. Weiß\",\"calendar_time\":\"2026-10-29T16:00:00+01:00\",\"calendar_location\":\"Hauptstraße 1\"}",
+     "text": "Zahnarzt neuer Name",
+     "fehler": {
+      "name": "Error",
+      "text": "Soll ich „Zahnarzt“ (morgen um 14 Uhr) auf morgen um 16 Uhr verschieben, in „Zahnarzt Dr. Weiß“ umbenennen und den Ort „Hauptstraße 1“ eintragen?",
+      "userMessage": true,
+      "auth": false
+     },
+     "rueckgabe": "undefined",
+     "ctx": {
+      "counter": 0,
+      "karten": [],
+      "notizen": [],
+      "fenster": "null"
+     },
+     "gesagt": [],
+     "speicher": {},
+     "netz": [],
+     "bruecke": [],
+     "zeitgeber": [
+      {
+       "art": "setTimeout",
+       "ms": 120000,
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
+      }
+     ],
+     "open": [],
+     "spione": [],
+     "frageOffen": true,
+     "uhr": "2026-10-28T09:00:00.000Z"
+    }
+   ],
+   "ende": {
+    "ctx": {
+     "counter": 0,
+     "karten": 0,
+     "notizen": 0
+    },
+    "merkmale": [
+     "_gedaechtnis",
+     "_loeschFrage",
+     "function",
+     "AsyncFunction"
     ],
-    "offeneFrage": false
+    "speicherGesamt": [],
+    "offeneFrage": true
    }
   },
   "basis calendar_update nichts gefunden": {
@@ -3652,7 +3593,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -3848,7 +3789,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -3956,7 +3897,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -4078,7 +4019,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -4199,7 +4140,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -4320,7 +4261,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -4421,7 +4362,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -4503,7 +4444,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -4611,7 +4552,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -4710,7 +4651,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -4742,7 +4683,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -4774,7 +4715,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -4919,7 +4860,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -5028,7 +4969,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -5137,7 +5078,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -5248,7 +5189,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -6723,121 +6664,35 @@
     {
      "aktion": "{\"type\":\"calendar_update\",\"calendar_query\":\"zahnarzt\",\"calendar_time\":\"2026-10-29T16:00:00+01:00\"}",
      "text": "Verschiebe den Zahnarzt auf 16 Uhr",
-     "fehler": null,
+     "fehler": {
+      "name": "Error",
+      "text": "Soll ich „Zahnarzt“ (morgen um 14 Uhr) auf morgen um 16 Uhr verschieben?",
+      "userMessage": true,
+      "auth": false
+     },
      "rueckgabe": "undefined",
-     "ctxVorher": "{\"counter\":0,\"cards\":[],\"notes\":[\"Wie viele Stunden vorher soll ich dich per Push erinnern?\"],\"panel\":null}",
      "ctx": {
       "counter": 0,
       "karten": [],
       "notizen": [
-       "Wie viele Stunden vorher soll ich dich per Push erinnern?",
-       "Die Erinnerung ist mitgewandert: morgen um 14 Uhr."
+       "Wie viele Stunden vorher soll ich dich per Push erinnern?"
       ],
       "fenster": "null"
      },
      "gesagt": [],
-     "speicher": {
-      "helfer_calendar_entries": "[{\"id\":\"g1\",\"text\":\"Zahnarzt\",\"date\":\"29.10.2026, 16:00\",\"isoDate\":\"2026-10-29T15:00:00.000Z\",\"eventType\":\"default\",\"recurring\":false,\"location\":\"\"}]",
-      "helfer_reminders": "[{\"id\":1793178000000,\"googleId\":\"g3\",\"text\":\"Zahnarzt um 16 Uhr\",\"time\":\"2026-10-29T13:00:00.000Z\",\"triggered\":false,\"seriesId\":null,\"important\":false,\"nagCount\":0,\"nextNagAt\":null,\"done\":false}]",
-      "jv_termin_links": "[{\"titel\":\"Zahnarzt\",\"start\":\"2026-10-29T15:00:00.000Z\",\"stunden\":2,\"reminderId\":1793178000000}]"
-     },
-     "netz": [
-      {
-       "m": "PATCH",
-       "u": "https://www.googleapis.com/calendar/v3/calendars/primary/events/g1",
-       "body": "{\"start\":{\"dateTime\":\"2026-10-29T15:00:00.000Z\"},\"end\":{\"dateTime\":\"2026-10-29T16:00:00.000Z\"}}"
-      },
-      {
-       "m": "GET",
-       "u": "https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=2026-10-28T09:00:0#fb1d99cae604"
-      },
-      {
-       "m": "DELETE",
-       "u": "https://www.googleapis.com/calendar/v3/calendars/primary/events/g2"
-      },
-      {
-       "m": "POST",
-       "u": "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-       "body": "{\"summary\":\"🔔 Zahnarzt um 16 Uhr\",\"start\":{\"dateTime\":\"2026-10-29T13:00:00.000Z\"},\"end\":{\"dateTime\":\"2026-10-29T13:30:00.000Z\"},\"reminders\":{\"useDefault\":false,\"overrides\":[]}}"
-      },
-      {
-       "m": "GET",
-       "u": "https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=2026-10-28T09:00:0#fb1d99cae604"
-      }
-     ],
+     "speicher": {},
+     "netz": [],
      "bruecke": [],
      "zeitgeber": [
       {
        "art": "setTimeout",
-       "ms": 4000,
-       "fn": "() => send(false)"
-      },
-      {
-       "art": "setTimeout",
-       "ms": 4000,
-       "fn": "() => send(false)"
-      },
-      {
-       "art": "setTimeout",
-       "ms": 4000,
-       "fn": "() => send(false)"
-      },
-      {
-       "art": "setTimeout",
-       "ms": 4000,
-       "fn": "() => send(false)"
-      },
-      {
-       "art": "setTimeout",
-       "ms": 4000,
-       "fn": "() => send(false)"
-      },
-      {
-       "art": "setTimeout",
-       "ms": 4000,
-       "fn": "() => send(false)"
+       "ms": 120000,
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
-     "open": [
-      "https://calendar.google.com/calendar/u/0/r/day/2026/10/29 | _blank | noopener"
-     ],
-     "spione": [
-      {
-       "f": "updateGoogleCalendarEvent",
-       "a": [
-        "\"g1\"",
-        "undefined",
-        "\"2026-10-29T16:00:00+01:00\"",
-        "undefined"
-       ],
-       "r": "true"
-      },
-      {
-       "f": "openGoogleCalendarApp",
-       "a": [
-        "\"2026-10-29T16:00:00+01:00\""
-       ],
-       "r": "undefined"
-      },
-      {
-       "f": "deleteReminderEntry",
-       "a": [
-        "1793178000000"
-       ],
-       "r": "true"
-      },
-      {
-       "f": "addGoogleCalendarReminder",
-       "a": [
-        "\"Zahnarzt um 16 Uhr\"",
-        "\"2026-10-29T13:00:00.000Z\"",
-        "null",
-        "false"
-       ],
-       "r": "{\"synced\":true,\"errorDetail\":null,\"problem\":null}"
-      }
-     ],
-     "frageOffen": false,
+     "open": [],
+     "spione": [],
+     "frageOffen": true,
      "uhr": "2026-10-28T09:00:00.000Z"
     }
    ],
@@ -6845,7 +6700,7 @@
     "ctx": {
      "counter": 0,
      "karten": 0,
-     "notizen": 2
+     "notizen": 1
     },
     "merkmale": [
      "_gedaechtnis",
@@ -6862,7 +6717,7 @@
      "jv_routinen",
      "jv_termin_links"
     ],
-    "offeneFrage": false
+    "offeneFrage": true
    }
   },
   "erinnern calendar_delete löscht Zusatz-Erinnerung (nach Ja)": {
@@ -7062,7 +6917,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -8528,7 +8383,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -9521,7 +9376,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
@@ -9718,7 +9573,7 @@
       {
        "art": "setTimeout",
        "ms": 120000,
-       "fn": "function verwirf() { if (pending && pending.timer) clearTimeout(pendin"
+       "fn": "function verfall() { if (pending && pending.update) abgelaufenUpdate ="
       }
      ],
      "open": [],
