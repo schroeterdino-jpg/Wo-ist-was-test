@@ -297,6 +297,8 @@
         }
         if (!pending) return false;
         if (Date.now() - pending.at > PENDING_MS) { pending = null; return false; }
+        /* Bugfix Termin verschieben: Hat die Chef-KI danach selbst eine Frage gestellt (zum Beispiel "Auf wann soll ich den Termin verschieben?") und ist die die jüngste, gehört die Antwort ("Auf Freitag um 15 Uhr", "eine Stunde später") ihr, nicht der alten Frage "Wie viele Stunden vorher?". Die alte Frage bleibt offen. */
+        try { if (window.jvChef && typeof window.jvChef.pauseOffen === 'function' && window.jvChef.pauseOffen() && window.jvFrage && window.jvFrage.aktuell() === 'chef') return false; } catch (e) { }
         if (NEIN.test(t)) { pending = null; say('Gut, dann erinnere ich dich nicht.'); return true; }
         if (JA.test(t)) { anlegen(3); return true; }
         if (t.length <= 40) {

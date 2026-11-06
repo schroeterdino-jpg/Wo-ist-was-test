@@ -550,7 +550,7 @@
     }
     function nurKeys(ks, erlaubt) { return ks.every(function (k) { return erlaubt.indexOf(k) >= 0; }); }
     function b2aParamsOk(name, p, ks) {   // Paket B2a: strenge Prüfung der Angaben je Fähigkeit (Wiederholungen, Verschieben usw. gibt es hier nicht)
-        if (name === 'termin_verschieben') return nurKeys(ks, ['suche', 'tag']) && (p.suche === undefined || textOk(p.suche, 60)) && (p.tag === undefined || ['heute', 'morgen', 'uebermorgen', 'übermorgen'].indexOf(String(p.tag).toLowerCase()) >= 0 || /^\d{4}-\d{2}-\d{2}$/.test(String(p.tag)));   // die neue Zeit liest die Chef-KI selbst aus dem Satz (nie vom Planer)
+        if (name === 'termin_verschieben') return nurKeys(ks, ['suche', 'tag']) && (p.suche === undefined || textOk(p.suche, 60)) && (p.tag === undefined || textOk(p.tag, 40));   // Bugfix Termin verschieben: ein ungewöhnlicher Tag ("Freitag") macht den Plan nicht mehr ungültig, er wird unten bereinigt. Die neue Zeit liest die Chef-KI selbst aus dem Satz (nie vom Planer)
         if (name === 'aufgaben_lesen') return ks.length === 0;
         if (name === 'termine_lesen') return nurKeys(ks, ['tag']) && (p.tag === undefined || ['heute', 'morgen', 'uebermorgen', 'übermorgen'].indexOf(String(p.tag).toLowerCase()) >= 0 || /^\d{4}-\d{2}-\d{2}$/.test(String(p.tag)));
         if (name === 'aufgabe_erstellen') return nurKeys(ks, ['text']) && textOk(p.text);
@@ -687,7 +687,7 @@
     }
     /* Findet den EINEN Termin und rechnet die neue Zeit aus. Ergebnis: { art:'frage', was, frage } | { art:'fehler', nachricht } | { art:'bestaetigen', params, vorher, titel } */
     function saubereSuche(v) {   // "Meinen Termin beim Zahnarzt" -> "zahnarzt"; nur "Termin" -> '' (dann wird gefragt, nie geraten)
-        var w = nz(v).replace(/[.]+$/, '').split(' ').filter(function (x) { return x && !/^(mein\w*|dein\w*|unser\w*|der|die|das|den|dem|des|ein\w*|beim|bei|vom|von|zum|zur|zu|am|im|um|wegen|termin\w*|gern\w*|bitte)$/.test(x); }).map(function (x) { return x.replace(/termine?$/, ''); }).filter(function (x) { return x.length >= 2; });
+        var w = nz(v).replace(/[.]+$/, '').split(' ').filter(function (x) { return x && !/^(mein\w*|dein\w*|unser\w*|der|die|das|den|dem|des|ein\w*|beim|bei|vom|von|zum|zur|zu|am|im|um|wegen|termin\w*|gern\w*|bitte|dann|doch|ich|also|aeh|aehm|naja)$/.test(x); }).map(function (x) { return x.replace(/termine?$/, ''); }).filter(function (x) { return x.length >= 2; });
         return w.join(' ');
     }
     function klausel(text) {   // bei mehreren Wünschen in einem Satz zählt nur der Teil mit dem Verschieben ("... und erinnere mich eine Stunde vorher" gehört nicht dazu)
@@ -704,14 +704,16 @@
         var tag = (s.params && s.params.tag) || zus.tag || altTag(text);
         if (tag) p0.tag = tag;
         var k = sk.kandidatenTermine(p0);
-        if (!k.length) return { art: 'frage', was: 'suche', frage: 'Ich habe keinen passenden Termin gefunden. Wie heißt der Termin genau?', zus: { tag: tag || '' } };
+        /* Bugfix: Der Tag vom Planer ist nur ein Hinweis (die KI setzt gern "heute"). Findet sich damit nichts, wird ohne Tag gesucht, und ein falscher Tag wird NIE in die Rückfrage mitgenommen (sonst läuft sie endlos im Kreis). */
+        if (!k.length && p0.tag) { var p1 = { suche: p0.suche }; var k1 = sk.kandidatenTermine(p1); if (k1.length) { k = k1; tag = ''; delete p0.tag; } }
+        if (!k.length) return { art: 'frage', was: 'suche', frage: 'Ich habe keinen passenden Termin gefunden. Wie heißt der Termin genau?', zus: { tag: '' } };
         if (k.length > 5) return { art: 'frage', was: 'suche', frage: 'Ich finde mehr als fünf passende Termine. Nenne mir bitte den genauen Namen des Termins.', zus: { tag: tag || '' } };
         var zusNeu = { suche: p0.suche, tag: tag || '' };
         if (k.length > 1) {
             var nr = zus.nummer != null ? zus.nummer : ordinalAus(n, false), idx = nr === -1 ? k.length - 1 : nr - 1;
             if (!nr) return { art: 'frage', was: 'wahl', frage: 'Ich finde mehrere passende Termine. ' + k.map(function (e, i) { return (i + 1) + ': ' + e.text + ', ' + terminText(e); }).join('. ') + '. Welchen meinst du?', zus: zusNeu };
             if (idx < 0 || idx >= k.length) return { art: 'frage', was: 'wahl', frage: 'Die Nummer ' + nr + ' gibt es nicht. ' + k.map(function (e, i) { return (i + 1) + ': ' + e.text + ', ' + terminText(e); }).join('. ') + '. Welchen meinst du?', zus: zusNeu };
-            k = [k[idx]];
+            k = [k[idx]]; zusNeu.nummer = nr;   // Bugfix: die getroffene Wahl bleibt bei der nächsten Rückfrage (Zeit) erhalten, sonst wird nach der Zeit noch einmal "welchen meinst du?" gefragt
         }
         var e = k[0], ganz = /^\d{4}-\d{2}-\d{2}$/.test(String(e.isoDate));
         var spec = zus.ziel || leseZiel(text, false);
@@ -957,7 +959,7 @@
             try { clearTimeout(timer); } catch (e) { }
             if (gen !== kiGen) { protokolliere('ki_ueberholt', [], 'VERWORFEN'); vermerke(eingang, 'ki_ueberholt'); return; }
             if (ortBezug && pr && pr.ok && pr.plan) ortEinsetzen(pr.plan, ortBezug);
-            if (pr && pr.ok && pr.plan) pr.plan.schritte.forEach(function (x) { if (x.faehigkeit === 'termin_verschieben' && x.params) { var np = {}; ['suche', 'tag'].forEach(function (k) { if (x.params[k] !== undefined) np[k] = x.params[k]; }); x.params = np; } });   // die neue Zeit kommt nie vom Planer
+            if (pr && pr.ok && pr.plan) pr.plan.schritte.forEach(function (x) { if (x.faehigkeit === 'termin_verschieben' && x.params) { var np = {}; ['suche', 'tag'].forEach(function (k) { if (x.params[k] !== undefined) np[k] = x.params[k]; }); if (np.tag !== undefined && !/^(?:heute|morgen|uebermorgen|übermorgen|\d{4}-\d{2}-\d{2})$/i.test(String(np.tag).trim())) delete np.tag; x.params = np; } });   // die neue Zeit kommt nie vom Planer
             var hatV = !!(pr && pr.ok && pr.plan && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'termin_verschieben'; }));
             if (hatV) keinRueck = true;
             if (versch && !hatV && !(pr && pr.ok && pr.plan && pr.plan.schritte.length > 0)) {   // Wunsch klar, Planer hat aber nichts geliefert: gezielt nach dem Termin fragen (nichts wird geraten oder geändert)
