@@ -633,6 +633,12 @@ async function auftrag(w, satz) { const r = w.c.jvStudioAuftrag.behandle(satz); 
         const wE = welt(appPlan({ code: () => new Error('Netz weg') })); laufPruefOk(wE);
         const mE = (await auftrag(wE, 'Jarvis, bau mir eine Zähler App')).m; await missionFertig(wE, mE.id);
         check('16m Fehler im Code-Schritt: Mission „fehlgeschlagen“, keine Erfolgsmeldung gesprochen, Zusatzwunsch danach nicht mehr möglich', wE.c.jvMission.hole(mE.id).status === 'fehlgeschlagen' && !wE.gesprochen.some(t => /ist fertig|abgeschlossen|gespeichert/.test(t)) && D(wE).klassifiziere('Füge noch einen Knopf zur App hinzu').art !== 'zusatzwunsch', wE.gesprochen);
+        /* 17 Blob-Worker des Endlosschleifen-Tests: typischer App-Code darf mit den Attrappen NICHT abbrechen (Rückmeldung „entries.sort is not a function“ / „shifts.filter is not a function“) */
+        const vor = wA.c.jvStudioWerkzeuge._workerVor, vmw = require('vm');
+        const imWorker = code => { const g = { postMessage() { }, Proxy, Symbol, JSON, Function, Object, Array }; g.self = g; const c = vmw.createContext(g); try { vmw.runInContext(vor + code, c); return 'ok'; } catch (e) { return e.message; } };
+        check('17a Worker-Attrappen: JSON.parse(localStorage.getItem(..)||"[]") ergibt ein ECHTES Array (entries.sort / shifts.filter laufen)', imWorker('var entries=JSON.parse(localStorage.getItem("e")||"[]");entries.sort(function(a,b){return a-b});var shifts=JSON.parse(localStorage.getItem("s")||"[]");shifts.filter(function(x){return x});') === 'ok');
+        check('17b ohne gespeicherte Daten: getItem liefert null wie ein leerer echter Speicher; JSON.parse(null) und Standardwerte funktionieren', imWorker('if(localStorage.getItem("x")!==null)throw new Error("nicht null");var d=JSON.parse(localStorage.getItem("x"));if(d!==null)throw new Error("x");localStorage.setItem("a","b");') === 'ok');
+        check('17c Worker meldet seine Fehler nicht mehr als „Uncaught …“ nach oben (preventDefault im onerror)', /w\.onerror = function \(ev\) \{ try \{ ev\.preventDefault\(\); \} catch \(e\) \{ \} ende\(false\)/.test(QUELLEN['js/studio_werkzeuge.js']));
         check('16n bestehende Sprachbefehle und die APK-Technik unangetastet: Server-Aufrufe und Freigabe-Pflicht wie vorher', /freigabe:true|freigabe: true/.test(QUELLEN['js/studio_werkzeuge.js']) && !/dirigent/i.test(QUELLEN['js/studio_werkzeuge.js']));
     }
     console.log('STUDIO: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');
