@@ -15,18 +15,18 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 344,
-  "produktJs": 176,
-  "jsZeilen": 45906,
-  "jsBytes": 3304787,
-  "jsGzip": 984929,
-  "scriptTags": 182,
-  "eigeneScripts": 176,
+  "repoDateien": 347,
+  "produktJs": 178,
+  "jsZeilen": 46569,
+  "jsBytes": 3352980,
+  "jsGzip": 997938,
+  "scriptTags": 184,
+  "eigeneScripts": 178,
   "drittScripts": 2,
   "inlineScripts": 4,
   "api": 11,
-  "testsGesamt": 107,
-  "testsJs": 74,
+  "testsGesamt": 108,
+  "testsJs": 75,
   "testsMd": 14,
   "testsJson": 19,
   "workflows": 3,
@@ -154,6 +154,8 @@
   "mehrfach.js": "A",
   "meldungen.js": "A",
   "meldungs_regeln.js": "A",
+  "mission_ansicht.js": "A",
+  "mission_kern.js": "A",
   "mitdenken.js": "A",
   "mitnehmen.js": "B",
   "name.js": "A",
@@ -237,7 +239,7 @@
   "zuvorkommend.js": "A"
  },
  "klassenZahl": {
-  "A": 151,
+  "A": 153,
   "B": 17,
   "C": 8,
   "D": 0,
@@ -334,16 +336,16 @@
     "fassungen": 13
    },
    "lsGet": {
-    "kopien": 28,
+    "kopien": 29,
     "fassungen": 2
    },
    "lsSet": {
-    "kopien": 28,
-    "fassungen": 4
+    "kopien": 29,
+    "fassungen": 5
    },
    "esc": {
-    "kopien": 15,
-    "fassungen": 15
+    "kopien": 16,
+    "fassungen": 16
    },
    "befehl": {
     "kopien": 34,
@@ -443,16 +445,16 @@
   },
   "ladefehler": []
  },
- "capabilityNichtReferenziert": 135,
+ "capabilityNichtReferenziert": 137,
  "tests": {
   "unklassifiziert": [],
   "klasseOhneDatei": [],
   "workflowOhneDatei": [],
   "workflowDoppelt": [],
   "regressionNichtImWorkflow": [],
-  "imWorkflow": 55,
+  "imWorkflow": 56,
   "jeKlasse": {
-   "regression": 43,
+   "regression": 44,
    "goldenMaster": 8,
    "inventar": 3,
    "historischEingefroren": 1,
@@ -468,7 +470,7 @@
  },
  "ci": {
   "nodeVersion": "20",
-  "schritte": 55,
+  "schritte": 56,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
   "zeitzonenVertragZentral": true,
@@ -525,8 +527,8 @@
  },
  "dokuAbweichungen": {
   "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 166 Produkt-JS-Dateie",
-  "architekturSkriptzahl": "176",
-  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 176 Produktdateien in `js/`). G",
+  "architekturSkriptzahl": "178",
+  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 178 Produktdateien in `js/`). G",
   "architekturProjektstandAbschnitt": "## 8. Projektstand und nächste Schritte (Stand 24.10.2026, historisch)"
  }
 }

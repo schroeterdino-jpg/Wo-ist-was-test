@@ -729,6 +729,20 @@
    "nativ": false
   },
   {
+   "id": "mission_ansicht.js#1",
+   "art": "intervall",
+   "ms": 1000,
+   "klasse": "bedingt",
+   "anfang": "von außen/Ereignis",
+   "start": "funktion",
+   "guard": "keiner",
+   "stop": "clearInterval",
+   "begrenzt": false,
+   "doppel": "keiner (mehrfacher Aufruf der Funktion möglich)",
+   "netz": false,
+   "nativ": false
+  },
+  {
    "id": "mitnehmen.js#1",
    "art": "selbstansetzend",
    "ms": 500,
