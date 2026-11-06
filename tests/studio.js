@@ -584,6 +584,57 @@ async function auftrag(w, satz) { const r = w.c.jvStudioAuftrag.behandle(satz); 
         check('15l Hilfe und Tour kennen die neue Funktion', /key: 'studio'/.test(hilfe) && /h: "studio"/.test(tour) && /App von gestern/.test(hilfe));
     }
 
+
+    /* ---------- 16. Dirigent: Sprechen während laufender Aufträge ---------- */
+    {
+        const D = w => w.c.jvStudioAuftrag;
+        const tor = () => { let auf; const p = new Promise(r => { auf = r; }); return { p, auf }; };
+        /* 16a Zwischenfrage (Wetter) während des Auftrags: geht an Jarvis (false), Auftrag läuft unverändert weiter und wird fertig */
+        const g1 = tor(); const wA = welt(appPlan({ code: async () => { await g1.p; return { dateien: APP_DATEIEN }; } })); laufPruefOk(wA);
+        const mA = (await auftrag(wA, 'Jarvis, erstelle mir eine App zur Arbeitszeiterfassung')).m; await warteBis(() => wA.c.jvMission.hole(mA.id).schritte.some(x => x.werkzeug === 'st_code' && x.status === 'laeuft'), 4000);
+        const stA = D(wA).dirigent();
+        check('16a Dirigent kennt den laufenden Auftrag eindeutig (Id, Titel, aktueller Schritt)', stA.mission && stA.mission.id === mA.id && /Arbeitszeiterfassung/.test(stA.mission.titel) && stA.mission.schritt === 'Code schreiben' && stA.anzahlAktiv === 1, stA);
+        const sprechenVorher = wA.gesprochen.length;
+        check('16b „Wie wird morgen das Wetter?“ während der Arbeit: Studio übernimmt NICHT (false → normale Jarvis-Antwort), Auftrag läuft weiter', D(wA).behandle('Wie wird morgen das Wetter?') === false && wA.c.jvMission.hole(mA.id).status === 'laeuft' && D(wA).klassifiziere('Wie wird morgen das Wetter?').art === 'zwischenfrage' && wA.gesprochen.length === sprechenVorher);
+        check('16c „Wetter morgen“ (ohne Fragewort), „Stell einen Wecker“, „Danke“ sind Fremdes: nichts am Auftrag ändert sich', ['Wetter morgen in Hamburg', 'Stell einen Wecker auf 7 Uhr', 'Danke Jarvis', 'Setz noch Milch auf die Einkaufsliste', 'Schreib auch einen Termin für morgen in den Kalender', 'Mach das Licht aus'].every(t => D(wA).behandle(t) === false) && wA.c.jvMission.hole(mA.id).status === 'laeuft' && !(wA.c.jvStudioProjekte.arbeit.hole(mA.id).zusaetze || []).length);
+        check('16c2 „Bau noch eine neue App für den Einkauf“ ist ein NEUER Auftrag (kein Zusatzwunsch) und wird wegen des laufenden Auftrags nicht still gestartet', D(wA).klassifiziere('Bau noch eine neue App für den Einkauf').art === 'neuerAuftrag' && D(wA).aktive().length === 1);
+        /* 16d Zusatzwunsch: Code-Schritt läuft schon -> vorgemerkt, nicht stillschweigend eingebaut */
+        check('16d Zusatzwunsch während der Code-Schritt schon läuft: wird erkannt, ehrlich VORGEMERKT (nicht eingebaut)', D(wA).behandle('Füge noch Urlaubstage und Überstunden zur App hinzu') === true && (wA.c.jvStudioProjekte.arbeit.hole(mA.id).nachtraege || []).length === 1 && !(wA.c.jvStudioProjekte.arbeit.hole(mA.id).zusaetze || []).length && wA.gesprochen.some(t => /Ich merke mir/.test(t)), wA.gesprochen.slice(-2));
+        g1.auf(); await missionFertig(wA, mA.id);
+        const fA = wA.c.jvMission.hole(mA.id);
+        check('16e Auftrag danach regulär abgeschlossen; Rückfrage nach den vorgemerkten Wünschen steht in der Abschlussmeldung und ist offen', fA.status === 'abgeschlossen' && D(wA).offeneFrage() && D(wA).offeneFrage().art === 'nachtrag', [fA.status, D(wA).offeneFrage()]);
+        const qd = wA.c.jvStudioRegie._queue().concat(wA.gesprochen.map(t => ({ text: t }))).filter(q => /Du hattest noch gewünscht/.test(q.text));
+        check('16f die Nachfrage wird genau EINMAL gesprochen/eingereiht (keine doppelte Sprachausgabe)', qd.length === 1, qd.map(q => q.text));
+        check('16g „Ja“ ändert die App mit genau diesem Wunsch (neue Änderungs-Mission), kein zweiter Auftrag nebenbei', (D(wA).behandle('Ja') === true) && D(wA).aktive().length === 1 && /Änderung/.test(D(wA).aktive()[0].titel) && /Urlaubstage/.test(D(wA).aktive()[0].auftrag), D(wA).aktive().map(x => x.titel));
+        /* 16h Zusatzwunsch VOR dem Code-Schritt: fließt in den Code-Auftrag an die KI ein */
+        let nutzerCode = ''; const g2 = tor();
+        const wB = welt(appPlan({ spec: undefined, code: (sys, nutzer) => { nutzerCode = nutzer; return { dateien: APP_DATEIEN }; } })); laufPruefOk(wB);
+        wB.c.jvStudioWerkzeuge.einstellungen.pollMs = 1;
+        const mB = (await auftrag(wB, 'Jarvis, erstelle mir eine App zur Arbeitszeiterfassung')).m;
+        const zr = D(wB).behandle('Baue noch Urlaubstage dazu in die App');
+        await missionFertig(wB, mB.id);
+        check('16h Zusatzwunsch vor dem Code-Schritt wird eingearbeitet („Habe ich ergänzt“) und landet im Auftrag an die KI', zr === true && /Urlaubstage/.test(nutzerCode) && wB.gesprochen.some(t => /Habe ich ergänzt/.test(t)) && wB.c.jvMission.hole(mB.id).status === 'abgeschlossen', [zr, nutzerCode.slice(0, 200), wB.gesprochen.slice(-3)]);
+        /* 16i nacktes Ja mit ZWEI offenen Fragen löst nichts aus */
+        const wC = welt(appPlan({ code: () => ({ dateien: APP_DATEIEN }) })); laufPruefOk(wC);
+        const rC = await auftrag(wC, 'Jarvis, mach eine APK aus meiner Zähler App'); await pause(5);
+        D(wC)._setzeOffen({ art: 'projektwahl', erkannt: { art: 'zeigen' }, kand: [], bis: Date.now() + 60000 });
+        const mC = D(wC).aktive()[0];
+        if (mC && mC.status === 'wartet_freigabe') { const apk0 = wC.aufrufe.filter(a => /studio_bau/.test(a.url)).length; const jr = D(wC).behandle('Ja'); await pause(10);
+            check('16i zwei offene Fragen (Freigabe + Projektwahl): ein nacktes „Ja“ baut NICHTS und fragt nach', jr === true && wC.aufrufe.filter(a => /studio_bau/.test(a.url)).length === apk0 && wC.c.jvMission.hole(mC.id).status === 'wartet_freigabe' && wC.gesprochen.some(t => /zwei offene Fragen/.test(t)), wC.gesprochen.slice(-2)); }
+        else check('16i (Vorbedingung: Freigabe offen) ', true);
+        /* 16j Zwischenfrage löscht eine offene Rückfrage NICHT */
+        const wD = welt(appPlan()); laufPruefOk(wD); D(wD).behandle('Jarvis, bau mir eine App');
+        const hatFrage = D(wD).offeneFrage() && D(wD).offeneFrage().art === 'thema';
+        const zf = D(wD).behandle('Wie wird morgen das Wetter?');
+        check('16j Rückfrage „Was soll die App können?“ offen → Wetterfrage geht durch (false), die Rückfrage bleibt offen', hatFrage && zf === false && D(wD).offeneFrage() && D(wD).offeneFrage().art === 'thema', [hatFrage, zf, D(wD).offeneFrage()]);
+        check('16k danach beantwortet der Nutzer die Rückfrage: Auftrag startet mit diesem Thema', D(wD).behandle('Eine Arbeitszeiterfassung mit Urlaubstagen') === true && D(wD).aktive().length === 1 && /Arbeitszeiterfassung/.test(D(wD).aktive()[0].titel), D(wD).aktive().map(x => x.titel));
+        /* 16l Abbruch und Fehler bleiben ehrlich */
+        D(wD).behandle('Jarvis, Mission abbrechen'); check('16l „Mission abbrechen“ bricht kontrolliert ab; Status abgebrochen, nicht abgeschlossen', D(wD).aktive().length === 0 && D(wD).letzte().status === 'abgebrochen', D(wD).letzte().status);
+        const wE = welt(appPlan({ code: () => new Error('Netz weg') })); laufPruefOk(wE);
+        const mE = (await auftrag(wE, 'Jarvis, bau mir eine Zähler App')).m; await missionFertig(wE, mE.id);
+        check('16m Fehler im Code-Schritt: Mission „fehlgeschlagen“, keine Erfolgsmeldung gesprochen, Zusatzwunsch danach nicht mehr möglich', wE.c.jvMission.hole(mE.id).status === 'fehlgeschlagen' && !wE.gesprochen.some(t => /ist fertig|abgeschlossen|gespeichert/.test(t)) && D(wE).klassifiziere('Füge noch einen Knopf zur App hinzu').art !== 'zusatzwunsch', wE.gesprochen);
+        check('16n bestehende Sprachbefehle und die APK-Technik unangetastet: Server-Aufrufe und Freigabe-Pflicht wie vorher', /freigabe:true|freigabe: true/.test(QUELLEN['js/studio_werkzeuge.js']) && !/dirigent/i.test(QUELLEN['js/studio_werkzeuge.js']));
+    }
     console.log('STUDIO: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('✗ Test abgestürzt: ' + (e && e.stack || e)); process.exit(1); });
