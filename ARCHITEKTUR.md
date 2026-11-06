@@ -685,7 +685,7 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 - **Bestehende Tests angepasst (bewusst):** `registry.js` (11 statt 6 Fähigkeiten; 41i/42f: schon vorhandener Eintrag ist jetzt SUCCESS "schon vorhanden" statt TOOL_FAILED), `schatten.js` (neue Namen in der Ausnahmeliste), `chef.js` (SCHREIB-Liste), `gespraech_ort.js` (Schreibkern hängt sich an `merke`), `landkarte` und `LANDKARTE.md`, Golden Master `inventar8a`.
 
 ## Jarvis Studio M1: Missions-Kern (`js/mission_kern.js`, Test `tests/mission_kern.js`) und M2: Missionszentrale (`js/mission_ansicht.js`, Test `tests/mission_zentrale.js`)
-Fundament für lange, mehrstufige Aufträge. M1 führt selbst **keine** KI-Aufträge aus, ruft keinen Server auf, führt keinen fremden Code aus und ändert keinen Sprachbefehl (Zugang nur über Menü ☰ „Missionszentrale“). Die Chef-KI bleibt die einzige zentrale Entscheiderin.
+Fundament für lange, mehrstufige Aufträge. M1 führt selbst **keine** KI-Aufträge aus, ruft keinen Server auf, führt keinen fremden Code aus und ändert keinen Sprachbefehl (Der frühere Zugang über Menü ☰ „Missionszentrale“ ist seit der Kurskorrektur ausgeblendet, siehe unten). Die Chef-KI bleibt die einzige zentrale Entscheiderin.
 - **Zustände:** geplant, laeuft, wartet_freigabe, pausiert, abgeschlossen, fehlgeschlagen, abgebrochen (letzte drei endgültig). Übergänge stehen in `jvMission.UEBERGAENGE`; alles andere wird abgelehnt.
 - **Zeit:** echte Zeitstempel. Getrennt: aktive Zeit, Wartezeit (auf Freigabe), Pause, Unterbrechung (App war zu). Rückwärts gestellte Uhr zählt nie negativ.
 - **Neustart:** eine laufende Mission wird beim Laden **pausiert** (Markierung „unterbrochen“), ihr laufender Schritt wird „unterbrochen“. Aktive Zeit zählt nur bis zum letzten Lebenszeichen (alle ≤10 s gespeichert, solange die Ansicht offen ist), der Rest ist „Unterbrechung“. Nichts läuft von selbst weiter, kein Schritt doppelt.
@@ -708,3 +708,17 @@ Bedienoberfläche auf `window.jvMission` (keine zweite Missionsverwaltung, kein 
 - Es gibt keine CORS-Freigabe (fremde Webseiten im Browser sind ausgesperrt), aber **kein** Geheimnis pro Gerät, **keine** Ratenbegrenzung, **keinen** zeitkonstanten Vergleich.
 - **Risiko:** Wer das Geheimnis bekommt (Schadcode auf der Seite/XSS, Zugriff aufs Gerät, Weitergabe), hat vollen Zugriff und kann KI-Kosten verursachen. Das Repository ist öffentlich, ein Fund dort ist aber nur möglich, falls das Geheimnis versehentlich eingecheckt würde (nicht der Fall).
 - **Für später (Jarvis Studio, vor erzeugtem Code):** erzeugten Code nur in abgeschotteten iframes (ohne Zugriff auf die Seite) ausführen; serverseitige Budget- und Ratengrenzen; Freigabe je Mission. Keine Migration in M1.
+
+### Kurskorrektur nach M2: Missionszentrale ausgeblendet, Bedienung nur über die Jarvis-Sprachoberfläche
+Entscheidung des Nutzers: keine separate Missionszentrale bedienen (keine Formulare, keine manuelle Schritt-Eingabe). Einzige Bedienoberfläche bleibt die normale Jarvis-Sprachoberfläche mit der vorhandenen Kugel.
+- **Umgesetzt (klein):** In `js/mission_ansicht.js` steuert die Konstante `MENUE_SICHTBAR = false` den Menüeintrag. Ohne Schalter hängt sich nichts in `buildMenuPanel`. `window.missionMenu` und `jvMissionAnsicht` bleiben als Entwickler-Zugang. Die Tour-Seite und das Hilfe-Thema „Missionszentrale“ wurden entfernt, weil sie auf einen unerreichbaren Menüpunkt zeigten. Nichts gelöscht: M1 (`mission_kern.js`), M2-Code und gespeicherte Missionen (`jv_missionen_v1`) bleiben unverändert. Rückbau: Schalter auf `true`, Tour-/Hilfe-Einträge aus der Git-Historie holen.
+- **M1 bleibt Hintergrundtechnik.** Die Live-Regie wird **nicht** an die M2-Oberfläche gekoppelt, sondern hört auf `jvMission.an` und steuert die vorhandene Jarvis-Kugel (`sphere.js`).
+- **Neue Reihenfolge der nächsten Pakete (Plan, noch nichts gebaut):**
+  1. Sprachaufträge natürlich verstehen (Chef-KI/Registry, Bestätigung vor dem Anlegen; kein neuer `jvCommands`-Eintrag, die 92 Befehle und ihre Reihenfolge bleiben).
+  2. Missionen automatisch planen und anlegen (Schritte kommen aus der Planung, nicht aus Formularen).
+  3. Echte Arbeitsschritte über Fish Audio kommentieren (Ansage-Dirigent: nur über `window.speak`, keine zweite Sprachausgabe; Unterbrechen, Stumm, Ruhezeit, Zusammenfassen, Zeichenbudget).
+  4. Animationen an der bestehenden Kugel (Impulse aus echten Missionsereignissen; keine neue Dauerschleife, Pause bei unsichtbarer App, Bewegung reduzieren).
+  5. Sichere Entwicklungswerkstatt für Webseiten und Apps (erzeugter Code nur in abgeschotteten iframes).
+  6. APK-Erstellung über externe Builds (eigene Sicherheitsanalyse; keine neue Vercel-Function, 11 von 12 belegt).
+- **Festlegungen:** Standard-Ansagestufe „Wichtige“. Anrede „Chef“, solange keine andere Anrede (`charakter.js`) eingestellt ist. Fish-Audio-Tempo und -Kosten werden erst bei der Sprachanbindung gemessen (Paket 3), nicht vorher geschätzt.
+- **Live-Zeitleiste:** Ob und wo sie sichtbar wird (z. B. als Karte an der Kugel statt in der Zentrale), wird in Paket 3/4 entschieden und vorher als Bild gezeigt.

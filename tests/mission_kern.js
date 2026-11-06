@@ -23,11 +23,12 @@ function speicher(opt) {
     };
 }
 const uhr = { t: Date.UTC(2026, 10, 6, 10, 0, 0) };
-function lade(ls, dateien) {   // frisches Laden = Neustart der App
+function lade(ls, dateien, extra) {   // frisches Laden = Neustart der App; extra = zusätzliche Weltobjekte (z. B. jvChain)
     const win = {};
     const FalschDate = function () { return new Date(uhr.t); }; FalschDate.now = () => uhr.t;
     const ctx = { window: win, localStorage: ls, Date: FalschDate, JSON, Math, Object, Array, String, Number, Promise, isFinite, console, setTimeout, clearTimeout, setInterval: () => 1, clearInterval: () => { },
         document: { getElementById: () => null, createElement: () => ({}), body: { appendChild() { } }, querySelectorAll: () => [] } };
+    Object.assign(ctx, extra || {});
     ctx.window = ctx; vm.createContext(ctx);
     (dateien || [KERN]).forEach(src => vm.runInContext(src, ctx));
     return ctx.jvMission || ctx.window.jvMission ? ctx : ctx;
@@ -328,7 +329,16 @@ const beleg = { art: 'test', text: 'Test-Beleg ok' };
         check('11b Ansicht schützt Texte (kein HTML aus Missionsdaten)', a._esc('<img src=x onerror=alert(1)>"\'&') === '&lt;img src=x onerror=alert(1)&gt;&quot;&#39;&amp;');
         check('11c Dauer wird lesbar angezeigt', a._dauer(0) === '0:00' && a._dauer(61 * S) === '1:01' && a._dauer(3725 * S) === '1:02:05' && a._hms(3725 * S) === '01:02:05');
         check('11d kein Sprachbefehl registriert, Befehlsreihenfolge unberührt', !/jvCommands/.test(ANSICHT) && !/jvCommands/.test(KERN));
-        check('11e Menüeintrag über jvChain "buildMenuPanel"', /jvChain\.use\('buildMenuPanel', 'mission'/.test(ANSICHT) && /<b class="block text-\[#49d7ff\] text-sm">Missionszentrale<\/b>/.test(ANSICHT));
+        check('11e Menüpunkt „Missionszentrale“ ist ausgeblendet (Kurskorrektur): Schalter MENUE_SICHTBAR = false, Code bleibt', /const MENUE_SICHTBAR = false;/.test(ANSICHT) && /MENUE_SICHTBAR && window\.jvChain/.test(ANSICHT) && /jvChain\.use\('buildMenuPanel', 'mission'/.test(ANSICHT));
+        {
+            const eintraege = []; const kette = { use: (hook, name) => eintraege.push(hook + ':' + name) };
+            lade(neuLs(), [KERN, ANSICHT], { jvChain: kette });
+            check('11e2 Verhalten: ohne Schalter wird kein Menüeintrag in die Kette gehängt', eintraege.length === 0, eintraege.join(','));
+            const an = []; const kette2 = { use: (hook, name, fn) => an.push({ hook, name, fn }) };
+            const c2 = lade(neuLs(), [KERN, ANSICHT.replace('const MENUE_SICHTBAR = false;', 'const MENUE_SICHTBAR = true;')], { jvChain: kette2 });
+            check('11e3 Gegenprobe: Schalter true bringt den Eintrag zurück (Rückbau jederzeit möglich)', an.length === 1 && an[0].hook === 'buildMenuPanel' && an[0].name === 'mission');
+            check('11e4 window.missionMenu bleibt als Entwickler-Zugang erhalten', typeof c2.window.missionMenu === 'function' && typeof c2.jvMissionAnsicht.oeffnen === 'function');
+        }
         check('11f die Ansicht schreibt Missionsdaten nur escaped (Titel, Auftrag, Beleg, Schritt, Grund)', /esc\(m\.titel\)/.test(ANSICHT) && /esc\(m\.auftrag\)/.test(ANSICHT) && /esc\(s\.beleg\.text\)/.test(ANSICHT) && /esc\(s\.titel\)/.test(ANSICHT));
     }
 
