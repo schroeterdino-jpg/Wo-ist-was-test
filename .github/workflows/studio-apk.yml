@@ -21,6 +21,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Die Android-Vorlage kommt aus dem (öffentlichen) Jarvis-Repository. Dadurch braucht das Build-Repository nur diese eine Datei.
+      # Es wird nur gelesen, nie beschrieben; der Projektinhalt aus studio-projekt/ bleibt reine Daten.
+      - uses: actions/checkout@v4
+        with:
+          repository: schroeterdino-jpg/Wo-ist-was-test
+          ref: main
+          path: vorlage
+          sparse-checkout: studio-build
+          persist-credentials: false
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -44,7 +54,7 @@ jobs:
           ok_pfad = re.compile(r'[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)*')
           ok_endung = {'html', 'css', 'js', 'json', 'svg', 'txt', 'md'}
           quelle = 'studio-projekt/www'
-          ziel = 'studio-build/android/app/src/main/assets/www'
+          ziel = 'vorlage/studio-build/android/app/src/main/assets/www'
           os.makedirs(ziel, exist_ok=True)
           n = 0; summe = 0
           for wurzel, _, dateien in os.walk(quelle):
@@ -60,7 +70,7 @@ jobs:
                   shutil.copyfile(voll, os.path.join(ziel, rel))
           if not os.path.isfile(os.path.join(ziel, 'index.html')):
               sys.exit('index.html fehlt')
-          a = 'studio-build/android/app/'
+          a = 'vorlage/studio-build/android/app/'
           gradle_text = open(a + 'build.gradle', encoding='utf-8').read().replace('__PAKET__', paket)
           open(a + 'build.gradle', 'w', encoding='utf-8').write(gradle_text)
           os.makedirs(a + 'src/main/res/values', exist_ok=True)
@@ -71,7 +81,7 @@ jobs:
 
       - name: APK bauen
         run: |
-          cd studio-build/android
+          cd vorlage/studio-build/android
           gradle assembleDebug --no-daemon --console=plain > build.log 2>&1 || {
             grep -E "error:|What went wrong" -A4 build.log | head -60
             exit 1
@@ -81,5 +91,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp studio-build/android/app/build/outputs/apk/debug/app-debug.apk "Jarvis-Studio-${STUDIO_ID}.apk"
+          cp vorlage/studio-build/android/app/build/outputs/apk/debug/app-debug.apk "Jarvis-Studio-${STUDIO_ID}.apk"
           gh release create "studio-${STUDIO_ID}" "Jarvis-Studio-${STUDIO_ID}.apk" --repo "${{ github.repository }}" --prerelease --title "Jarvis Studio ${STUDIO_ID}" --notes "Debug-APK einer von Jarvis erzeugten Web-App (${STUDIO_NAME})."
