@@ -670,7 +670,10 @@ function studioPrivat(ip) {
   if (a.includes(':')) {
     if (a === '::1' || a === '::' || /^f[cd]/.test(a) || /^fe[89ab]/.test(a)) return true;
     const m = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(a);
-    return m ? studioPrivat(m[1]) : false;
+    if (m) return studioPrivat(m[1]);
+    const h = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(a);   // Node schreibt IPv4-in-IPv6 hexadezimal (::ffff:7f00:1)
+    if (h) { const hi = parseInt(h[1], 16), lo = parseInt(h[2], 16); return studioPrivat([hi >> 8, hi & 255, lo >> 8, lo & 255].join('.')); }
+    return false;
   }
   const t = a.split('.').map(Number);
   if (t.length !== 4 || t.some(n => !(n >= 0 && n <= 255))) return true;
