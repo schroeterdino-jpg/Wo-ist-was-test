@@ -182,9 +182,10 @@
                 var m = M().hole(mid); if (!m || m.status !== 'laeuft') break;
                 var s = m.schritte.filter(function (x) { return x.status === 'offen' || x.status === 'unterbrochen'; })[0];
                 if (!s) {
-                    if (R()) R().abschlussText(mid, abschlussSatz(mid));
+                    var asatz = abschlussSatz(mid), nachfrage = nachtragFrageVorbereiten(mid);
+                    if (R()) R().abschlussText(mid, asatz + nachfrage);
                     var ab = M().abschliessen(mid);
-                    if (ab.ok) abraeumen(mid);
+                    if (ab.ok) { abraeumen(mid); if (nachfrage) nachtragFrageSetzen(mid); } else if (nachfrage) offen = null;
                     break;
                 }
                 var arb = P().arbeit.hole(mid) || {};
@@ -244,6 +245,66 @@
         return txt;
     }
 
+
+    /* ---------- DIRIGENT: ordnet jeden Satz ein, solange ein Auftrag läuft oder eine Rückfrage offen ist ----------
+       Arten: antwort (auf offene Rückfrage/Freigabe, weiter oben), zusatzwunsch (gehört zum laufenden App-Auftrag), zwischenfrage/fremd (geht unverändert an Jarvis,
+       Auftrag und offene Rückfrage bleiben unberührt), neuer Auftrag, Steuerung (pausieren, fortsetzen, abbrechen, Status). Nichts davon markiert einen Auftrag als erledigt. */
+    var RX_FRAGEWORT = /^(?:wie|was|wann|wo|wer|wem|wen|wessen|warum|wieso|weshalb|welche[rsnm]?|wieviel\w*|wie viel\w*|gibt es|ist|sind|kann|kannst|hast|hat|habe ich|muss ich|brauche ich|soll ich|darf|wird|werden|wurde|woher|wohin|wofuer)\b/;
+    var RX_ZUSATZ_VERB = /\b(fueg\w*|ergaenz\w*|bau\w*|nimm|nehm\w*|mach\w*|erweiter\w*|aender\w*|bring\w*|pack\w*|setz\w*|bitte)\b/;
+    var RX_ZUSATZ_MARKE = /\b(hinzu|dazu|noch|auch|zusaetzlich|ausserdem|einbau\w*|einbaue\w*)\b/;
+    var RX_NEUE_APP = /\b(neue|neues|neuen|andere|anderes|zweite|zweites|weitere|weiteres)\s+(app|webapp|web app|webseite|website|spiel|programm|tool)\b|\bnoch (?:eine?n?|ne) (?:neue\w* )?(app|webapp|web app|webseite|website|spiel|programm|tool|recherche|praesentation|dokument)\b/;
+    var RX_ZUSATZ_BEZUG = /\b(app|funktion|funktionen|knopf|knoepfe|button|feld|felder|anzeige|design|farbe|farben|seite|ansicht|menue|tabelle|diagramm|export|speicher\w*)\b/;
+    function istFrage(roh) { var n = norm(roh); return /\?\s*$/.test(String(roh || '')) || RX_FRAGEWORT.test(n.replace(RX_ANREDE, '')); }
+    function laufendeApp() {   // der Auftrag, dem ein Zusatzwunsch gehören kann: genau EINE laufende oder pausierte Web-App-/Änderungs-Mission
+        var l = aktive().filter(function (m) { var a = P().arbeit.hole(m.id) || {}; return (m.status === 'laeuft' || m.status === 'pausiert') && (a.art === 'webapp' || a.art === 'aendern'); });
+        return l.length === 1 ? l[0] : null;
+    }
+    function klassifiziere(text) {
+        var roh = String(text || ''), n = norm(roh).replace(RX_ANREDE, '');
+        var akt = aktive();
+        if (!akt.length && !offen && !freigabeOffen) return { art: 'frei' };
+        var e = erkenne(roh), app = laufendeApp();
+        var zusatzForm = app && RX_ZUSATZ_VERB.test(n) && RX_ZUSATZ_MARKE.test(n) && RX_ZUSATZ_BEZUG.test(n) && n.length >= 8 && !RX_NEUE_APP.test(n) && !RX_AUSSCHLUSS.test(n) && !(e && ['steuer', 'ansagen', 'stumm', 'spar', 'studio_schalter', 'diagnose', 'zeigen'].indexOf(e.art) >= 0);
+        if (zusatzForm) return { art: 'zusatzwunsch', mission: app };   // vor „neuer Auftrag“: „Baue noch Urlaubstage dazu in die App“ ist KEIN neuer Auftrag
+        if (e) return { art: (e.art === 'steuer' || e.art === 'ansagen' || e.art === 'stumm' || e.art === 'spar' || e.art === 'studio_schalter' || e.art === 'diagnose' || e.art === 'zeigen') ? 'steuerung' : 'neuerAuftrag', erkannt: e };
+        if (istFrage(roh)) return { art: 'zwischenfrage' };
+        return { art: 'fremd' };
+    }
+    /* Zusatzwunsch einarbeiten, aber NUR solange der Arbeitsschritt es sicher zulässt: der Code-Schritt hat noch nicht begonnen. Sonst wird der Wunsch vorgemerkt und
+       nach der Fertigstellung als Rückfrage angeboten (kein stilles Umbauen eines schon geschriebenen Projekts). */
+    function ergaenze(mid, text) {
+        var m = M().hole(mid), arb = P().arbeit.hole(mid) || {};
+        var wunsch = themaAus(text).replace(/[.!?]+$/, '').slice(0, 200);
+        var codeSchritt = (m && m.schritte || []).filter(function (x) { return x.werkzeug === 'st_code' || x.werkzeug === 'st_aendern'; })[0];
+        if (!m || !codeSchritt) return { ok: false, text: 'Bei diesem Auftrag kann ich nichts mehr ergänzen.' };
+        if (codeSchritt.status === 'offen' || codeSchritt.status === 'unterbrochen') {
+            arb.thema = String(arb.thema || '') + ' – Zusatzwunsch: ' + wunsch;
+            (arb.zusaetze = arb.zusaetze || []).push(wunsch); P().arbeit.setze(mid, arb);
+            merkeProtokoll('zusatz_eingearbeitet', { mission: mid });
+            return { ok: true, art: 'eingearbeitet', text: 'Habe ich ergänzt: ' + wunsch + '. Ich arbeite weiter.' };
+        }
+        if (codeSchritt.status === 'laeuft' || codeSchritt.status === 'erledigt') {
+            (arb.nachtraege = arb.nachtraege || []).push(wunsch); P().arbeit.setze(mid, arb);
+            merkeProtokoll('zusatz_vorgemerkt', { mission: mid });
+            return { ok: true, art: 'vorgemerkt', text: 'Der Code ist schon in Arbeit. Ich merke mir „' + wunsch + '“ und frage dich nach der Fertigstellung, ob ich die App danach so ändern soll.' };
+        }
+        return { ok: false, text: 'Dazu ist der Auftrag nicht mehr in einem Zustand, in dem ich etwas ergänzen kann.' };
+    }
+    function nachtragFrageVorbereiten(mid) {   // Text der Rückfrage (nur wenn Wünsche vorgemerkt sind und ein Projekt existiert)
+        var arb = P().arbeit.hole(mid) || {};
+        if (!arb.nachtraege || !arb.nachtraege.length || !arb.projektId) return '';
+        return ' Du hattest noch gewünscht: ' + arb.nachtraege.join('; ') + '. Soll ich die App jetzt so ändern?';
+    }
+    function nachtragFrageSetzen(mid) {   // erst NACH erfolgreichem Abschluss: die Frage gilt jetzt (Ja/Nein gehört dem Studio)
+        var arb = P().arbeit.hole(mid) || {};
+        offen = { art: 'nachtrag', mid: mid, projektId: arb.projektId, wuensche: (arb.nachtraege || []).slice(), bis: jetzt() + 10 * 60000 };
+        frageAnmelden();
+    }
+    function dirigent() {   // eindeutiger Stand: welcher Auftrag läuft, was wartet
+        var a = aktive()[0] || null, lf = a && a.schritte.filter(function (x) { return x.status === 'laeuft'; })[0];
+        return { mission: a ? { id: a.id, titel: a.titel, status: a.status, schritt: lf ? lf.titel : '' } : null, anzahlAktiv: aktive().length, freigabeOffen: freigabeOffen, offeneFrage: offen ? offen.art : null };
+    }
+
     /* ---------- Projekt finden (Projektgedächtnis) ---------- */
     async function mitProjekt(e) {
         var f = P().finde(e.bezug || e.roh || e.thema);
@@ -265,12 +326,23 @@
         try {
             var n = norm(text);
             /* Antworten auf eine offene Rückfrage oder Freigabe */
+            var BARE_JA = /^(?:ja|jawohl|gerne|ok|okay|klar|ja bitte|ja gerne|ja klar|ja mach das|mach das|genau|richtig)$/;
+            if (freigabeOffen && offen && jetzt() <= offen.bis && frageGehoertUns() && BARE_JA.test(n)) {   // zwei offene Fragen gleichzeitig: ein nacktes Ja löst NICHTS aus
+                merkeProtokoll('ja_mehrdeutig');
+                sag('Ich habe gerade zwei offene Fragen. Sag „APK freigeben“ für den Bau, oder beantworte zuerst die andere Frage mit dem Namen.'); return true;
+            }
             if (freigabeOffen && frageGehoertUns()) {
-                if (/^(?:ja|jawohl|gerne|ok|okay|klar|freigeben|freigabe erteilt|bau es|mach es|mach das|ja bitte|ja gerne|ja klar|ja mach das)$/.test(n)) { var j = freigeben(freigabeOffen, true); sag(j.text); return true; }
+                if (/^(?:ja|jawohl|gerne|ok|okay|klar|freigeben|freigabe erteilt|apk freigeben|bau es|mach es|mach das|ja bitte|ja gerne|ja klar|ja mach das)$/.test(n) && !(offen && jetzt() <= offen.bis && !/freigeb|bau es|apk/.test(n))) { var j = freigeben(freigabeOffen, true); sag(j.text); return true; }
                 if (/^(?:nein|nee|nicht|lieber nicht|nein danke|abbrechen|stopp|nicht bauen)$/.test(n)) { var nn = freigeben(freigabeOffen, false); sag(nn.text); return true; }
             }
+            if (offen && jetzt() <= offen.bis && (offen.art === 'thema' || offen.art === 'projektwahl') && istFrage(text) && !RX_ZUSATZ_BEZUG.test(n) && !erkenne(text)) { merkeProtokoll('zwischenfrage'); return false; }   // Zwischenfrage (z. B. Wetter): die Rückfrage bleibt offen
             if (offen && jetzt() <= offen.bis && frageGehoertUns()) {
                 var o = offen; offen = null;
+                if (o.art === 'nachtrag') {
+                    if (/^(?:ja|jawohl|gerne|ok|okay|klar|ja bitte|ja gerne|ja klar|ja mach das|mach das|aendere es|aender die app)$/.test(n)) { var pn = P().hole(o.projektId); if (!pn) { sag('Das Projekt finde ich nicht mehr.'); return true; } return starteMitProjekt({ art: 'aendern', thema: o.wuensche.join('; '), roh: 'Ändere die App: ' + o.wuensche.join('; '), bezug: pn.name }, pn); }
+                    if (/^(?:nein|nee|nicht|lieber nicht|nein danke|spaeter|egal)$/.test(n)) { sag('Alles klar, die App bleibt so.'); return true; }
+                    offen = o; return false;   // etwas anderes gesagt: Frage bleibt bis zum Ablauf offen
+                }
                 if (/^(?:nein|nee|abbrechen|vergiss es|lass es|egal|stopp)\b/.test(n)) { sag('Alles klar, ich lasse es.'); return true; }
                 if (o.art === 'thema') { var e2 = Object.assign({}, o.erkannt); e2.thema = themaAus(text); e2.roh = (o.erkannt.roh || '') + ' – ' + text; var r2 = starteAuftrag(e2, null); if (!r2.ok) sag(r2.fehler); return true; }
                 if (o.art === 'projektwahl') {
@@ -285,8 +357,11 @@
                     return starteMitProjekt(o.erkannt, wahl);
                 }
             }
-            offen = null;
-            var e = erkenne(text); if (!e) return false;
+            var kl = klassifiziere(text);
+            if (kl.art === 'zusatzwunsch' && istAn()) { var zr = ergaenze(kl.mission.id, text); sag(zr.text); return true; }
+            if (kl.art === 'zwischenfrage' || kl.art === 'fremd') { merkeProtokoll(kl.art); return false; }   // geht unverändert an Jarvis; Auftrag und offene Rückfrage bleiben unberührt
+            if (offen && offen.art !== 'nachtrag') offen = null; else if (offen && kl.art === 'neuerAuftrag') offen = null;
+            var e = kl.erkannt || erkenne(text); if (!e) return false;
             if (e.art !== 'studio_schalter' && !istAn()) return false;
             merkeProtokoll('erkannt', { art: e.art });
             if (e.art === 'studio_schalter') { lsSet(K_AN, e.an ? '1' : '0'); sag(e.an ? 'Das Studio ist an.' : 'Das Studio ist aus. Aufträge zum Bauen und Recherchieren nehme ich nicht mehr an.'); return true; }
@@ -320,7 +395,7 @@
     window.jvStudioAuftrag = {
         behandle: behandle, erkenne: erkenne, planeSchritte: planeSchritte, starteAuftrag: starteAuftrag, laufen: laufen, freigeben: freigeben,
         steuere: steuere, aktive: aktive, letzte: letzte, istAn: istAn, statusSatz: statusSatz, protokoll: function () { return protokoll.slice(); },
-        offeneFreigabe: function () { return freigabeOffen; }, offeneFrage: function () { return offen ? { art: offen.art } : null; },
+        offeneFreigabe: function () { return freigabeOffen; }, klassifiziere: klassifiziere, ergaenze: ergaenze, dirigent: dirigent, offeneFrage: function () { return offen ? { art: offen.art } : null; },
         _setzeOffen: function (o) { offen = o; }
     };
 })();
