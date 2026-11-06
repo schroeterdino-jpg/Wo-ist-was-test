@@ -22,7 +22,7 @@
     function sichtbar() { try { return document.hidden !== true; } catch (e) { return true; } }
     function httpsLink(u) { return /^https:\/\/[^\s"'<>]+$/.test(String(u || '')) ? u : ''; }
 
-    var STIL = '<style>#studioKarte{margin:8px 0}#studioKarte .sk{box-sizing:border-box;width:100%;max-width:100%;overflow-wrap:anywhere;background:rgba(10,22,33,.92);border:1px solid rgba(73,215,255,.45);border-radius:14px;padding:12px;font-family:ui-monospace,monospace;color:#e2e8f0}' +
+    var STIL = '<style>#studioKarte{margin:8px 0;align-self:stretch;width:100%;min-width:0;max-width:100%;box-sizing:border-box}#studioKarte *{min-width:0;box-sizing:border-box}#studioKarte .skUnten{position:sticky;bottom:6px;z-index:3;background:rgba(10,22,33,.98);box-shadow:0 0 0 6px rgba(10,22,33,.98);border-radius:10px;margin-top:8px}#studioKarte .skUnten .skFrage{margin-top:0}#studioKarte .sk{box-sizing:border-box;width:100%;max-width:100%;overflow-wrap:anywhere;background:rgba(10,22,33,.92);border:1px solid rgba(73,215,255,.45);border-radius:14px;padding:12px;font-family:ui-monospace,monospace;color:#e2e8f0}' +
         '#studioKarte .skK{display:flex;align-items:center;gap:8px}#studioKarte h3{margin:0;font-size:14px;color:#49d7ff;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
         '#studioKarte .skChip{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}#studioKarte .skUhr{font-size:20px;color:#fff;margin:6px 0 2px}' +
         '#studioKarte .skKlein{font-size:12px;color:#94a3b8}#studioKarte ol,#studioKarte ul{list-style:none;margin:6px 0;padding:0}#studioKarte li{font-size:13px;padding:2px 0;display:flex;gap:6px}' +
@@ -36,8 +36,10 @@
 
     /* ---------- Vollbild-Arbeitsmodus: solange ein Studio-Auftrag arbeitet, verschwindet das normale Dashboard; die Kugel und die Studio-Karte bleiben ---------- */
     var ARBEIT_CSS = 'html.jvStudioArbeit #overviewLine,html.jvStudioArbeit #uebRaster,html.jvStudioArbeit #uebGrussBox,html.jvStudioArbeit #uebUhrBox,html.jvStudioArbeit #uebEq,html.jvStudioArbeit #quickAccessList{display:none!important}' +
-        'html.jvStudioArbeit #studioKarte{width:100%;margin:4px 0 12px;max-height:calc(100vh - 330px);max-height:calc(100dvh - 330px);min-height:140px;overflow-y:auto;-webkit-overflow-scrolling:touch}' +
-        'html.jvStudioArbeit #sec-speak{justify-content:flex-start}';
+        'html.jvStudioArbeit #uebKopf{display:flex;justify-content:center}' +
+        'html.jvStudioArbeit #studioKarte{margin:4px 0 12px}' +   // keine eigene Scroll-Box: die Seite scrollt, so bleiben Knöpfe und Text immer erreichbar
+        'html.jvStudioArbeit #sec-speak{justify-content:flex-start;align-items:stretch}' +
+        'html.jvStudioArbeit #uebersicht{margin-top:0;margin-bottom:0}';
     var arbeitModus = false;
     function arbeitAktiv() { var m = zeigt && zeigt.art === 'mission' && M() && M().hole(zeigt.id); return !!(m && ['geplant', 'laeuft', 'wartet_freigabe', 'pausiert'].indexOf(m.status) >= 0); }
     function arbeitModusSetzen(an) {
@@ -85,7 +87,8 @@
         if (pg) h += '<div class="skKlein">' + (pg.moeglich ? 'Schätzung: ' + esc(pg.satz) + ' Grundlage: ' + esc(pg.basis) + '.' : 'Zeitprognose noch nicht möglich: ' + esc(pg.grund || '')) + '</div>';
         var zl = R() ? R().zeitleiste(m.id).slice(-6) : [], t0 = m.gestartet || m.erstellt;
         if (zl.length) h += '<ul aria-label="Live-Zeitleiste">' + zl.map(function (e) { return '<li class="skZ"><time>+' + hms(e.zeit - t0) + '</time><span>' + esc(e.text) + '</span></li>'; }).join('') + '</ul>';
-        if (m.status === 'wartet_freigabe') h += '<div class="skFrage"><b>Freigabe nötig:</b> ' + esc(m.freigabeFuer || '') + '<div class="skReihe"><button type="button" class="skGruen" onclick="jvStudioAnsicht.aktion(\'freigeben\')">Ja, freigeben</button><button type="button" class="skRot" onclick="jvStudioAnsicht.aktion(\'ablehnen\')">Nein</button></div></div>';
+        var unten = '';
+        if (m.status === 'wartet_freigabe') unten += '<div class="skFrage"><b>Freigabe nötig:</b> ' + esc(m.freigabeFuer || '') + '<div class="skReihe"><button type="button" class="skGruen" onclick="jvStudioAnsicht.aktion(\'freigeben\')">Ja, freigeben</button><button type="button" class="skRot" onclick="jvStudioAnsicht.aktion(\'ablehnen\')">Nein</button></div></div>';
         if (m.status === 'fehlgeschlagen') h += '<div class="skFehler"><b>Fehler:</b> ' + esc(m.fehlergrund || 'Unbekannt') + '</div>';
         if (m.status === 'abgebrochen' && m.abbruchgrund) h += '<div class="skKlein">Grund: ' + esc(m.abbruchgrund) + '</div>';
         if (m.status === 'pausiert' && m.unterbrochen) h += '<div class="skKlein">Die App war zwischendurch zu. Nichts läuft von selbst weiter.</div>';
@@ -94,7 +97,8 @@
         if (m.status === 'laeuft') reihe = '<button type="button" onclick="jvStudioAnsicht.aktion(\'pause\')">⏸ Pause</button>';
         if (m.status === 'pausiert') reihe = '<button type="button" class="skGruen" onclick="jvStudioAnsicht.aktion(\'weiter\')">▶ Fortsetzen</button>';
         if (['laeuft', 'pausiert', 'wartet_freigabe', 'geplant'].indexOf(m.status) >= 0) reihe += '<button type="button" class="skRot" onclick="jvStudioAnsicht.aktion(\'abbruch\')">' + (bestaetige === 'abbruch' ? 'Wirklich abbrechen?' : 'Abbrechen') + '</button>';
-        if (reihe) h += '<div class="skReihe">' + reihe + '</div>';
+        if (reihe) unten += '<div class="skReihe">' + reihe + '</div>';
+        if (unten) h += '<div class="skUnten">' + unten + '</div>';
         return h + '</div>';
     }
     function container() {
