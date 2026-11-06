@@ -663,6 +663,7 @@ async function shopping(req, res) {
    ------------------------------------------------------------------ */
 const STUDIO_ERLAUBT = ['html', 'css', 'js', 'json', 'svg', 'txt', 'md'];
 const STUDIO_PFAD_RX = /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)*$/;
+let studioBauLaeuft = false;   // verhindert gleichzeitige Anfragen innerhalb einer Instanz
 const studioBauZeiten = [];   // nur Arbeitsspeicher dieser Instanz: weiche Grenze gegen Dauerbau (5 pro Stunde)
 
 function studioPrivat(ip) {
@@ -778,6 +779,19 @@ async function studio_bau(req, res) {
   if (probleme.length) return res.status(400).json({ error: 'Projekt abgelehnt: ' + probleme.slice(0, 3).join('; ') });
   const jetzt = Date.now(); while (studioBauZeiten.length && jetzt - studioBauZeiten[0] > 3600000) studioBauZeiten.shift();
   if (studioBauZeiten.length >= 5) return res.status(429).json({ error: 'Höchstens 5 Builds pro Stunde.' });
+  if (studioBauLaeuft) return res.status(429).json({ error: 'Es wird gerade ein Bau vorbereitet. Bitte kurz warten.' });
+  studioBauLaeuft = true;
+  try {
+  /* Dauerhafte Grenzen aus GitHub selbst (gelten über alle Server-Instanzen): höchstens 1 offener Bau, höchstens 5 Läufe pro Stunde; prüft zugleich, ob der Workflow auf dem Standard-Branch liegt */
+  try {
+    const wl = await studioGh('/repos/' + repo + '/actions/workflows/studio-apk.yml/runs?per_page=30', token);
+    const laeufe = wl.workflow_runs || [], t0 = Date.now();
+    if (laeufe.some(x => x.status !== 'completed')) return res.status(429).json({ error: 'Es läuft oder wartet bereits ein Bau. Erst danach kann der nächste starten.' });
+    if (laeufe.filter(x => t0 - Date.parse(x.created_at) < 3600000).length >= 5) return res.status(429).json({ error: 'Höchstens 5 Builds pro Stunde.' });
+  } catch (e) {
+    if (e && e.status === 404) return res.status(409).json({ error: 'Der Bau-Workflow studio-apk.yml liegt noch nicht auf dem Standard-Branch des Bau-Repositories (nach dem Merge vorhanden).' });
+    return res.status(502).json({ error: String(e && e.message || 'GitHub nicht erreichbar').slice(0, 200) });
+  }
   const name = String(b.name || 'Jarvis App').replace(/[^A-Za-z0-9ÄÖÜäöüß .-]/g, '').trim().slice(0, 30) || 'Jarvis App';
   const id = 'p' + jetzt.toString(36) + Math.floor(Math.random() * 1296).toString(36).padStart(2, '0');
   const basis = /^[\w./-]{1,60}$/.test(String(process.env.STUDIO_BASE_REF || 'main')) ? String(process.env.STUDIO_BASE_REF || 'main') : 'main';
@@ -792,6 +806,7 @@ async function studio_bau(req, res) {
     studioBauZeiten.push(jetzt);
     return res.status(200).json({ branch: 'studio/' + id, id, commit: commit.sha, repo, basis });
   } catch (e) { return res.status(502).json({ error: String(e && e.message || 'GitHub nicht erreichbar').slice(0, 200) }); }
+  } finally { studioBauLaeuft = false; }
 }
 async function studio_status(req, res) {
   const token = process.env.STUDIO_GITHUB_TOKEN, repo = studioRepo();

@@ -81,6 +81,7 @@ function check(n, b, info) { if (b) { ok++; return; } fehler++; console.log('✗
     for (const [b, n] of schlecht) { netz = []; const x = await ruf('studio_bau', {}, { method: 'POST', body: Object.assign({ freigabe: true, name: 'X' }, b) }); check('4d abgelehnt: ' + n, x.status === 400 && netz.length === 0, x); }
     /* Erfolgreicher Bau: genau die erwarteten GitHub-Aufrufe */
     netz = []; skript = (u, o) => {
+        if (/actions\/workflows\/studio-apk\.yml\/runs/.test(u)) return { status: 200, body: { workflow_runs: [] } };
         if (/git\/ref\/heads\/main$/.test(u)) return { status: 200, body: { object: { sha: 'BASIS' } } };
         if (/git\/commits\/BASIS$/.test(u)) return { status: 200, body: { tree: { sha: 'BASISTREE' } } };
         if (/git\/trees$/.test(u)) return { status: 201, body: { sha: 'NEUTREE' } };
@@ -90,14 +91,28 @@ function check(n, b, info) { if (b) { ok++; return; } fehler++; console.log('✗
     };
     r = await ruf('studio_bau', {}, { method: 'POST', body: gut });
     check('4e Erfolg: Branch studio/p…, Commit, Repository', r.status === 200 && /^studio\/p[a-z0-9]{6,20}$/.test(r.payload.branch) && r.payload.commit === 'NEUCOMMIT' && r.payload.repo === 'schroeterdino-jpg/Wo-ist-was-test', r);
-    check('4f 5 GitHub-Aufrufe in der richtigen Reihenfolge, nur api.github.com', netz.length === 5 && netz.every(n => n.url.startsWith('https://api.github.com/repos/schroeterdino-jpg/Wo-ist-was-test/')) && /git\/ref\/heads\/main$/.test(netz[0].url) && /git\/trees$/.test(netz[2].url) && /git\/refs$/.test(netz[4].url), netz.map(n => n.url));
-    const baum = JSON.parse(netz[2].o.body), ref = JSON.parse(netz[4].o.body);
-    check('4g Dateien landen NUR unter studio-projekt/www/ (+meta.json); Basis-Baum und Eltern-Commit stimmen', baum.base_tree === 'BASISTREE' && baum.tree.every(t => /^studio-projekt\/(www\/[a-z0-9._\/-]+|meta\.json)$/.test(t.path) && t.mode === '100644' && t.type === 'blob') && baum.tree.length === 3 && JSON.parse(netz[3].o.body).parents[0] === 'BASIS' && /^refs\/heads\/studio\/p/.test(ref.ref) && ref.sha === 'NEUCOMMIT', baum);
+    check('4f 6 GitHub-Aufrufe in der richtigen Reihenfolge, nur api.github.com', netz.length === 6 && netz.every(n => n.url.startsWith('https://api.github.com/repos/schroeterdino-jpg/Wo-ist-was-test/')) && /studio-apk\.yml\/runs/.test(netz[0].url) && /git\/ref\/heads\/main$/.test(netz[1].url) && /git\/trees$/.test(netz[3].url) && /git\/refs$/.test(netz[5].url), netz.map(n => n.url));
+    const baum = JSON.parse(netz[3].o.body), ref = JSON.parse(netz[5].o.body);
+    check('4g Dateien landen NUR unter studio-projekt/www/ (+meta.json); Basis-Baum und Eltern-Commit stimmen', baum.base_tree === 'BASISTREE' && baum.tree.every(t => /^studio-projekt\/(www\/[a-z0-9._\/-]+|meta\.json)$/.test(t.path) && t.mode === '100644' && t.type === 'blob') && baum.tree.length === 3 && JSON.parse(netz[4].o.body).parents[0] === 'BASIS' && /^refs\/heads\/studio\/p/.test(ref.ref) && ref.sha === 'NEUCOMMIT', baum);
     check('4h Token nur im Authorization-Kopf, nie in Antwort oder Anfrage-Inhalt', netz.every(n => n.o.headers.Authorization === 'Bearer ghp_TESTTOKEN' && !/ghp_TESTTOKEN/.test(String(n.o.body || ''))) && !/ghp_TESTTOKEN/.test(JSON.stringify(r)));
+    /* Dauerhafte Grenzen aus GitHub */
+    const mitLaeufen = (laeufe) => (u) => /actions\/workflows\/studio-apk\.yml\/runs/.test(u) ? { status: 200, body: { workflow_runs: laeufe } } : { status: 404, body: {} };
+    netz = []; skript = mitLaeufen([{ status: 'in_progress', created_at: new Date().toISOString() }]);
+    r = await ruf('studio_bau', {}, { method: 'POST', body: gut }); check('4i1 offener Bau auf GitHub → 429, nichts angelegt (gilt über alle Server-Instanzen)', r.status === 429 && netz.length === 1, [r, netz.length]);
+    skript = mitLaeufen(Array.from({ length: 5 }, () => ({ status: 'completed', created_at: new Date(Date.now() - 600000).toISOString() })));
+    r = await ruf('studio_bau', {}, { method: 'POST', body: gut }); check('4i2 5 Läufe in der letzten Stunde → 429', r.status === 429 && /5 Builds/.test(r.payload.error), r);
+    skript = mitLaeufen(Array.from({ length: 5 }, () => ({ status: 'completed', created_at: new Date(Date.now() - 7200000).toISOString() })));
+    skript = ((alt) => (u) => /studio-apk\.yml\/runs/.test(u) ? alt(u) : { status: 404, body: {} })(skript);
+    r = await ruf('studio_bau', {}, { method: 'POST', body: gut }); check('4i3 alte Läufe (älter als 1 Stunde) zählen nicht (hier scheitert erst der Folgeschritt, nicht die Grenze)', r.status === 502, r);
+    skript = () => ({ status: 404, body: { message: 'Not Found' } });
+    r = await ruf('studio_bau', {}, { method: 'POST', body: gut }); check('4i4 Workflow liegt nicht auf dem Standard-Branch → 409 mit klarer Meldung, nichts angelegt', r.status === 409 && /studio-apk\.yml/.test(r.payload.error), r);
+    let parallel = [], blocker; skript = async (u) => { if (/studio-apk\.yml\/runs/.test(u)) { await new Promise(x => setTimeout(x, 30)); return { status: 200, body: { workflow_runs: [{ status: 'completed', created_at: '2020-01-01T00:00:00Z' }] } }; } return { status: 404, body: {} }; };
+    parallel = await Promise.all([ruf('studio_bau', {}, { method: 'POST', body: gut }), ruf('studio_bau', {}, { method: 'POST', body: gut })]);
+    check('4i5 zwei gleichzeitige Anfragen: die zweite wird abgewiesen (429)', parallel.some(x => x.status === 429 && /vorbereitet/.test(x.payload.error)), parallel.map(x => x.status));
     /* Fehler und Grenzen */
-    skript = (u) => /git\/ref\/heads/.test(u) ? { status: 401, body: { message: 'Bad credentials' } } : { status: 404, body: {} };
+    skript = (u) => /studio-apk\.yml\/runs/.test(u) ? { status: 200, body: { workflow_runs: [] } } : /git\/ref\/heads/.test(u) ? { status: 401, body: { message: 'Bad credentials' } } : { status: 404, body: {} };
     r = await ruf('studio_bau', {}, { method: 'POST', body: gut }); check('4i GitHub lehnt ab → 502 mit Grund, ohne Token im Text', r.status === 502 && /401/.test(r.payload.error) && !/ghp_/.test(r.payload.error), r);
-    skript = () => ({ status: 200, body: { object: { sha: 'B' }, tree: { sha: 'T' }, sha: 'N' } });
+    skript = (u) => /studio-apk\.yml\/runs/.test(u) ? { status: 200, body: { workflow_runs: [] } } : { status: 200, body: { object: { sha: 'B' }, tree: { sha: 'T' }, sha: 'N' } };
     let letzter = 0; for (let i = 0; i < 6; i++) letzter = (await ruf('studio_bau', {}, { method: 'POST', body: gut })).status;
     check('4j Grenze: höchstens 5 Builds pro Stunde (weitere → 429)', letzter === 429);
     process.env.STUDIO_BUILD_REPO = 'böse/../repo'; check('4k ungültiger Repo-Name wird nicht benutzt (nicht eingerichtet statt Fremdziel)', (await ruf('studio_bau', {}, { method: 'POST', body: gut })).status === 501);
