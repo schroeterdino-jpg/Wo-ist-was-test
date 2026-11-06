@@ -27,13 +27,14 @@ function welt(opt) {
     const ctl = {   // Drehbuch der Attrappen; Tests setzen, was die "KI" und das "Netz" liefern
         ki: opt.ki || (() => ({})), suche: opt.suche || (() => ({ treffer: [] })), seite: opt.seite || (() => ({ status: 404, json: { error: 'nicht gefunden' } })),
         bau: opt.bau || (() => ({ status: 200, json: { branch: 'studio/pTEST0001', commit: 'abc123', id: 'pTEST0001' } })), status: opt.status || (() => ({ status: 200, json: { zustand: 'laeuft' } })),
-        spricht: false, aufnahme: false, ruhe: false, nacht: false
+        spricht: false, aufnahme: false, ruhe: false, nacht: false, anbieter: opt.anbieter || null
     };
     const FalschDate = function (...a) { return a.length ? new Date(...a) : new Date(uhr.t); }; FalschDate.now = () => uhr.t; FalschDate.UTC = Date.UTC; FalschDate.parse = Date.parse;
     function antwort(status, json) { return { ok: status >= 200 && status < 300, status, json: async () => json, text: async () => JSON.stringify(json) }; }
     const apiFetch = async function (url, o) {
         o = o || {}; aufrufe.push({ url, methode: o.method || 'GET', body: o.body ? JSON.parse(o.body) : null });
-        if (url === '/api/groq') { const b = JSON.parse(o.body), sys = b.messages[0].content, nutzer = b.messages[1].content; const r = await ctl.ki(sys, nutzer, b); if (r instanceof Error) throw r; if (r && r.__status) return antwort(r.__status, {}); return antwort(200, { choices: [{ message: { content: typeof r === 'string' ? r : JSON.stringify(r) }, finish_reason: r && r.__abgeschnitten ? 'length' : 'stop' }] }); }
+        if (url === '/api/groq') { const b = JSON.parse(o.body), sys = b.messages[0].content, nutzer = b.messages[1].content;
+            if (ctl.anbieter && /Du schreibst kleine|Du änderst eine bestehende/.test(sys)) { const x = ctl.anbieter(b); if (x) return antwort(x.status, x.json); } const r = await ctl.ki(sys, nutzer, b); if (r instanceof Error) throw r; if (r && r.__status) return antwort(r.__status, {}); return antwort(200, { choices: [{ message: { content: typeof r === 'string' ? r : JSON.stringify(r) }, finish_reason: r && r.__abgeschnitten ? 'length' : 'stop' }] }); }
         let m;
         if ((m = /action=studio_suche&q=(.*)$/.exec(url))) { const r = await ctl.suche(decodeURIComponent(m[1])); return antwort(r.status || 200, r.json || r); }
         if ((m = /action=studio_seite&url=(.*)$/.exec(url))) { const r = await ctl.seite(decodeURIComponent(m[1])); return antwort(r.status, r.json); }
@@ -224,6 +225,22 @@ async function auftrag(w, satz) { const r = w.c.jvStudioAuftrag.behandle(satz); 
     /* ---------- 6 Web-App Ende-zu-Ende, Projektgedächtnis, Änderung ---------- */
     let wApp = null;
     {
+        /* Wie Groq wirklich reagiert: Code im JSON-Modus -> 400 "json_validate_failed"; ohne JSON-Modus kommt freier Text */
+        const FALSCH = { status: 400, json: { error: { message: "Failed to generate JSON. Please adjust your prompt. See 'failed_generation' for more details.", type: 'invalid_request_error', code: 'json_validate_failed', failed_generation: '<html>GEHEIME-ROHANTWORT' } } };
+        const alsText = d => d.map(f => '<<<DATEI ' + f.pfad + '>>>\n' + f.inhalt + '\n<<<ENDE>>>').join('\n');
+        const strikt = welt(Object.assign(appPlan({ code: () => alsText(APP_DATEIEN) }), { anbieter: b => b.response_format ? FALSCH : null })); laufPruefOk(strikt);
+        const sm = (await auftrag(strikt, 'Jarvis, bau mir eine Zähler App mit Plus, Minus und Reset')).m; await missionFertig(strikt, sm.id);
+        const sf = strikt.c.jvMission.hole(sm.id), sk = strikt.aufrufe.filter(x => x.url === '/api/groq' && /Du schreibst kleine/.test(x.body.messages[0].content));
+        check('6a1 strenger Anbieter (JSON-Modus für Code = 400): Zähler-App wird trotzdem gebaut, Code geht OHNE JSON-Modus an die KI', sf.status === 'abgeschlossen' && sk.length >= 1 && sk.every(x => !x.body.response_format) && strikt.c.jvStudioProjekte.liste()[0].dateien.length === 3, [sf.status, sf.fehlergrund, sk.length]);
+        const alt400 = welt(Object.assign(appPlan({ code: () => alsText(APP_DATEIEN) }), { anbieter: b => b.response_format ? null : FALSCH })); laufPruefOk(alt400);
+        const am = (await auftrag(alt400, 'Jarvis, bau mir eine Zähler App')).m; await missionFertig(alt400, am.id);
+        const af = alt400.c.jvMission.hole(am.id);
+        check('6a2 Anbieter liefert dauerhaft 400: Mission scheitert mit der echten Ursache (Code json_validate_failed + Meldung), nie mit der Rohantwort', af.status === 'fehlgeschlagen' && /Status 400/.test(af.fehlergrund) && /json_validate_failed/.test(af.fehlergrund) && /Failed to generate JSON/.test(af.fehlergrund) && !/GEHEIME-ROHANTWORT|failed_generation:/.test(JSON.stringify(af)), af.fehlergrund);
+        let n400 = 0; const einmal = welt(Object.assign(appPlan({ code: () => alsText(APP_DATEIEN) }), { anbieter: () => (++n400 === 1 ? FALSCH : null) })); laufPruefOk(einmal);
+        const em = (await auftrag(einmal, 'Jarvis, bau mir eine Zähler App')).m; await missionFertig(einmal, em.id);
+        check('6a3 einmaliger 400 beim Code: ein zweiter Versuch genügt, Mission abgeschlossen', einmal.c.jvMission.hole(em.id).status === 'abgeschlossen' && n400 >= 2, [einmal.c.jvMission.hole(em.id).status, n400]);
+        const dt = strikt.c.jvStudioWerkzeuge._dateienAusText ? strikt.c.jvStudioWerkzeuge._dateienAusText('Hier:\n<<<DATEI index.html>>>\n```html\n<p class="a">"Hi" \\n `x`</p>\n```\n<<<ENDE>>>\n<<<DATEI app.js>>>\nvar s="a\\nb";\n<<<ENDE>>>') : [];
+        check('6a4 Textformat: Anführungszeichen, Backslashes, Backticks und Markdown-Zaun im Code bleiben unverändert', dt.length === 2 && dt[0].pfad === 'index.html' && dt[0].inhalt === '<p class="a">"Hi" \\n `x`</p>' && dt[1].inhalt === 'var s="a\\nb";', dt);
         const w = welt(appPlan()); laufPruefOk(w);
         const { m } = await auftrag(w, 'Jarvis, bau mir eine Zähler App'); await missionFertig(w, m.id);
         const f = w.c.jvMission.hole(m.id);
