@@ -12,7 +12,7 @@ Schreibweise: `jv…` = Globals im Browser, `[APK]` = `weckruf-src/`. Zeilennumm
 
 | Problem/Funktion | Zuerst zuständige Datei(en) | Wichtige abhängige |
 |---|---|---|
-| Missionen (Jarvis Studio M1) | mission_kern.js (`jvMission`: Zustände, Zeit, Kosten, Speicher) | mission_ansicht.js (Testansicht, Menüeintrag), tests/mission_kern.js |
+| Missionen (Jarvis Studio M1) | mission_kern.js (`jvMission`: Zustände, Zeit, Kosten, Speicher) | mission_ansicht.js (Missionszentrale, Menüeintrag), tests/mission_kern.js, tests/mission_zentrale.js |
 | Kalender lesen | calendar.js (`fetchGoogleCalendarEvents`, `calendarEntries`) | was_steht_an.js (Auskunft), assistant.js (Kontext), api: Google direkt per `fetch` |
 | Kalender schreiben | calendar.js (`addGoogleCalendarEvent`), actions.js (`calendar`) | langzeit_erinnern.js (Aktion + Rückfrage), geburtstag_ganztag.js, mitdenken.js (Prüfung vorher), terminfinder.js |
 | Kalender löschen | actions.js (`calendar_delete`) | **loeschen_fragen.js** (Rückfrage, Rang 10), loesch_notiz.js, calendar.js |
