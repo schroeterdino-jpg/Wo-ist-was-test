@@ -57,7 +57,8 @@ jobs:
           if not os.path.isfile(os.path.join(ziel, 'index.html')):
               sys.exit('index.html fehlt')
           a = 'studio-build/android/app/'
-          open(a + 'build.gradle', 'w').write(open(a + 'build.gradle').read().replace('__PAKET__', paket))
+          gradle_text = open(a + 'build.gradle', encoding='utf-8').read().replace('__PAKET__', paket)
+          open(a + 'build.gradle', 'w', encoding='utf-8').write(gradle_text)
           os.makedirs(a + 'src/main/res/values', exist_ok=True)
           open(a + 'src/main/res/values/strings.xml', 'w', encoding='utf-8').write('<?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">' + escape(name) + '</string></resources>')
           open(os.environ['GITHUB_ENV'], 'a').write('STUDIO_ID=' + pid + '\nSTUDIO_NAME=' + name.replace(' ', '_') + '\n')
