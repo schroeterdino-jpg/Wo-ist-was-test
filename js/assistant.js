@@ -324,6 +324,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
         window.jvMdAusfall = [];           // B3: mitdenken.js trägt hier Zusatzprüfungen ein, die gestartet wurden und ausgefallen sind
         if (verworfeneTexte > 0 && window.jvSicher) { window.jvSicher.merke('unvollstaendig', 'Text statt Objekt'); errors.push(window.jvSicher.texte.unvollstaendig); }
         for (const action of actions) {
+            if (action && typeof action === 'object') delete action._bestaetigt;   // B2b-2: die Bestätigungsmarke setzt nur die App selbst, nie die KI-Antwort
             if (action.type === 'calendar_search' || action.type === 'web_lookup' || action.type === 'email_check' || action.type === 'email_read' || action.type === 'travel_time' || action.type === 'nearby_places' || action.type === 'fuel_route' || action.type === 'bahn') continue; // kommen gleich
             const sichArt = window.jvSicher ? window.jvSicher.pruefe(action) : null;   // Phase 1: erfundener Typ ('fehlt') oder Schreib-Angaben ohne gültigen Typ / Pflichtangabe ('unvollstaendig'): kein Erfolg, ehrliche Meldung
             if (sichArt) { window.jvSicher.merke(sichArt, action.type); if (errors.indexOf(window.jvSicher.texte[sichArt]) < 0) errors.push(window.jvSicher.texte[sichArt]); continue; }

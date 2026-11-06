@@ -107,6 +107,46 @@ async function sag(A, t) { const r = await A.satz(t); return r; }
         const j = await sag(A, 'Ja');
         check('12 danach bestätigt ein Ja nichts mehr', zeit(A) === ALT);
     }
+
+    /* ---------- Verknüpfte Erinnerung (Abschlussprüfung PR #350) ---------- */
+    async function mitErinnerung() {
+        const A = starte({ jetzt: JETZT, festerZufall: true, fetch: async u => { throw new Error('offline ' + u); } });
+        const T15 = '2026-10-29T15:00:00+01:00', R14 = '2026-10-29T14:00:00+01:00';
+        A.lese('calendarEntries').push({ id: 'local_1', text: 'Zahnarzt', date: 'x', isoDate: T15, location: '' });
+        await A.lassLaufen(() => A.sb.executeAction({ type: 'reminder', reminder_text: 'Zahnarzt um 15 Uhr', reminder_time: R14 }, 'Erinnere mich an den Zahnarzt', ctxNeu()));
+        await A.lassLaufen(() => A.sb.executeAction({ type: 'reminder', reminder_text: 'Blumen gießen', reminder_time: '2026-10-29T09:00:00+01:00' }, 'Erinnere mich an Blumen', ctxNeu()));
+        A.lese('reminderEntries').find(r => /blumen/i.test(r.text)).id = 42;   // feste Uhr im Test: sonst gleiche Kennung (echt sind es Zeitstempel in Millisekunden)
+        const rem = A.lese('reminderEntries').find(r => /zahnarzt/i.test(r.text));
+        A.sb.localStorage.setItem('jv_termin_links', JSON.stringify([{ titel: 'Zahnarzt', start: new Date(T15).toISOString(), stunden: 1, reminderId: rem.id }]));
+        return A;
+    }
+    const remZeit = A => { const r = A.lese('reminderEntries').filter(x => /zahnarzt/i.test(x.text)); return r.map(x => new Date(x.isoDate || x.time || x.date).getTime()); };
+    const BL = A => A.lese('reminderEntries').filter(x => /blumen/i.test(x.text)).map(x => JSON.stringify([x.id, x.isoDate || x.time])).join();
+    {
+        const A = await mitErinnerung(); const blumen0 = BL(A);
+        check('13 Vorbereitung: Erinnerung 14 Uhr da', remZeit(A).length === 1 && remZeit(A)[0] === new Date('2026-10-29T14:00:00+01:00').getTime(), JSON.stringify(remZeit(A)));
+        const r = await ki(A, { type: 'calendar_update', calendar_query: 'zahnarzt', calendar_time: '2026-10-29T16:00:00+01:00' });
+        check('13 Frage kommt, bis zum Ja bleibt alles unverändert', !!r.frage && zeit(A) === '2026-10-29T15:00:00+01:00' && remZeit(A)[0] === new Date('2026-10-29T14:00:00+01:00').getTime());
+        await sag(A, 'Ja');
+        check('13 Termin 16 Uhr', new Date(zeit(A)).getTime() === new Date('2026-10-29T16:00:00+01:00').getTime(), zeit(A));
+        check('13 Erinnerung 15 Uhr (Abstand bleibt), genau eine', remZeit(A).length === 1 && remZeit(A)[0] === new Date('2026-10-29T15:00:00+01:00').getTime(), JSON.stringify(remZeit(A)));
+        check('13 unabhängige Erinnerung unverändert', BL(A) === blumen0 && BL(A) !== '', BL(A) + ' / ' + blumen0);
+    }
+    {
+        const A = await mitErinnerung(); const blumen0 = BL(A);
+        await ki(A, { type: 'calendar_update', calendar_query: 'zahnarzt', calendar_time: '2026-10-29T16:00:00+01:00' }); await sag(A, 'Nein');
+        check('14 Nein: Termin und Erinnerung unverändert', zeit(A) === '2026-10-29T15:00:00+01:00' && remZeit(A).length === 1 && remZeit(A)[0] === new Date('2026-10-29T14:00:00+01:00').getTime() && BL(A) === blumen0);
+        await ki(A, { type: 'calendar_update', calendar_query: 'zahnarzt', calendar_time: '2026-10-29T16:00:00+01:00' }); await A.vorspulen(121000); await sag(A, 'Ja');
+        check('14 abgelaufen: Termin und Erinnerung unverändert', zeit(A) === '2026-10-29T15:00:00+01:00' && remZeit(A).length === 1 && remZeit(A)[0] === new Date('2026-10-29T14:00:00+01:00').getTime());
+    }
+    {   // 15 ganzer Tag weiter ("einen Tag nach hinten")
+        const A = await mitErinnerung(); const blumen0 = BL(A);
+        const r = await ki(A, { type: 'calendar_update', calendar_query: 'zahnarzt', calendar_time: '2026-10-29T15:00:00+01:00' }, 'Verschieb den Zahnarzt einen Tag nach hinten');
+        check('15 Frage nennt den neuen Tag (Freitag/übermorgen) um 15 Uhr', /15 Uhr/.test(String(r.frage)) && !/morgen um 15 Uhr verschieben/.test(String(r.frage).replace('übermorgen', '')), String(r.frage));
+        await sag(A, 'Ja');
+        check('15 Termin einen Tag später, gleiche Uhrzeit', new Date(zeit(A)).getTime() === new Date('2026-10-30T15:00:00+01:00').getTime(), zeit(A));
+        check('15 Erinnerung wandert mit (30.10. 14 Uhr), genau eine, Blumen unverändert', remZeit(A).length === 1 && remZeit(A)[0] === new Date('2026-10-30T14:00:00+01:00').getTime() && BL(A) === blumen0, JSON.stringify(remZeit(A)));
+    }
     console.log('CHEF B2b-2: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })();
