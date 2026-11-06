@@ -404,7 +404,7 @@ function inZustand(K, z) {
         check('16c keine eigene Missionsverwaltung: kein Zugriff auf localStorage in der Oberfläche', !/localStorage|sessionStorage|getPersistentData|setPersistentData/.test(ANSICHT));
         check('16d keine neue API-Datei, keine APK-Dateien erwähnt', fs.readdirSync(path.join(ROOT, 'api')).filter(f => /\.js$/.test(f)).length === 11);
         check('16e keine externen Schriften, Bilder oder Dienste', !/https?:\/\//.test(ANSICHT.replace(/^[\s\S]*?\*\//, '')) );
-        check('16f Menüeintrag heißt „Missionszentrale“ (ohne Test-Zusatz)', /Missionszentrale<\/b>/.test(ANSICHT) && !/Test M1/.test(ANSICHT));
+        check('16f Menüeintrag (nur bei MENUE_SICHTBAR = true) heißt „Missionszentrale“ (ohne Test-Zusatz)', /Missionszentrale<\/b>/.test(ANSICHT) && !/Test M1/.test(ANSICHT));
         const w = welt(speicher()); const mm = w.A.html();
         check('16g Schriftgrößen: Fließtext mindestens 13 px, Knöpfe mindestens 44 px hoch (Stil)', (() => { const stil = vm.runInNewContext(ANSICHT.slice(ANSICHT.indexOf('const STIL = ') + 13, ANSICHT.indexOf(";\n\n    /* ---------- Zeichnen"))); const kl = [...stil.matchAll(/font-size:(\d+)px/g)].map(x => +x[1]); return Math.min.apply(null, kl) >= 11 && /\.mzKlein\{min-height:44px/.test(stil) && /\.mzGross\{flex:1;min-height:58px/.test(stil); })() && typeof mm === 'string');
     }

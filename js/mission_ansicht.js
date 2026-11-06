@@ -420,8 +420,12 @@
         ui.sheet = null; ui.akt = false;
     }
     window.missionMenu = oeffnen;
+    /* Kurskorrektur nach M2: Die Bedienung läuft allein über die Jarvis-Sprachoberfläche mit der Kugel. Der Menüpunkt
+       „Missionszentrale“ ist deshalb ausgeblendet. Der Code bleibt (nichts gelöscht, Missionsdaten unberührt); mit
+       MENUE_SICHTBAR = true erscheint der Punkt wieder. window.missionMenu() bleibt als Entwickler-Zugang erhalten. */
+    const MENUE_SICHTBAR = false;
     try {
-        if (window.jvChain) window.jvChain.use('buildMenuPanel', 'mission', function (next) {
+        if (MENUE_SICHTBAR && window.jvChain) window.jvChain.use('buildMenuPanel', 'mission', function (next) {
             const r = next();
             try {
                 if (r && typeof r.html === 'string' && r.html.indexOf('missionMenu') < 0) {
