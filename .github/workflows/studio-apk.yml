@@ -1,0 +1,80 @@
+name: Studio APK
+
+# Baut aus einem von Jarvis Studio angelegten Projekt (Branch studio/<id>) eine Debug-APK.
+# Das Projekt wird nur als DATEN kopiert (assets/www), es wird nie ausgeführt. Die App hat keine Berechtigungen, auch kein Internet.
+on:
+  push:
+    branches:
+      - 'studio/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Projekt prüfen und Android-Projekt anlegen
+        run: |
+          python3 - <<'PY'
+          import json, os, re, shutil, sys
+          from xml.sax.saxutils import escape
+          meta = json.load(open('studio-projekt/meta.json', encoding='utf-8'))
+          pid = str(meta.get('id', ''))
+          if not re.fullmatch(r'p[a-z0-9]{6,20}', pid):
+              sys.exit('Ungueltige Projekt-ID')
+          name = re.sub(r'[^A-Za-z0-9ÄÖÜäöüß .-]', '', str(meta.get('name', ''))).strip()[:30] or 'Jarvis App'
+          paket = 'de.dino.studio.' + pid
+          ok_pfad = re.compile(r'[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)*')
+          ok_endung = {'html', 'css', 'js', 'json', 'svg', 'txt', 'md'}
+          quelle = 'studio-projekt/www'
+          ziel = 'studio-build/android/app/src/main/assets/www'
+          os.makedirs(ziel, exist_ok=True)
+          n = 0; summe = 0
+          for wurzel, _, dateien in os.walk(quelle):
+              for d in dateien:
+                  voll = os.path.join(wurzel, d)
+                  rel = os.path.relpath(voll, quelle).replace(os.sep, '/')
+                  if os.path.islink(voll) or not ok_pfad.fullmatch(rel) or rel.rsplit('.', 1)[-1] not in ok_endung:
+                      sys.exit('Datei nicht erlaubt: ' + rel)
+                  g = os.path.getsize(voll); summe += g; n += 1
+                  if g > 400000 or n > 40 or summe > 1200000:
+                      sys.exit('Projekt zu gross')
+                  os.makedirs(os.path.dirname(os.path.join(ziel, rel)) or ziel, exist_ok=True)
+                  shutil.copyfile(voll, os.path.join(ziel, rel))
+          if not os.path.isfile(os.path.join(ziel, 'index.html')):
+              sys.exit('index.html fehlt')
+          a = 'studio-build/android/app/'
+          open(a + 'build.gradle', 'w').write(open(a + 'build.gradle').read().replace('__PAKET__', paket))
+          os.makedirs(a + 'src/main/res/values', exist_ok=True)
+          open(a + 'src/main/res/values/strings.xml', 'w', encoding='utf-8').write('<?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">' + escape(name) + '</string></resources>')
+          open(os.environ['GITHUB_ENV'], 'a').write('STUDIO_ID=' + pid + '\nSTUDIO_NAME=' + name.replace(' ', '_') + '\n')
+          print('Projekt', pid, 'mit', n, 'Dateien, Paket', paket)
+          PY
+
+      - name: APK bauen
+        run: |
+          cd studio-build/android
+          gradle assembleDebug --no-daemon --console=plain > build.log 2>&1 || {
+            grep -E "error:|What went wrong" -A4 build.log | head -60
+            exit 1
+          }
+
+      - name: APK als Download bereitstellen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp studio-build/android/app/build/outputs/apk/debug/app-debug.apk "Jarvis-Studio-${STUDIO_ID}.apk"
+          gh release create "studio-${STUDIO_ID}" "Jarvis-Studio-${STUDIO_ID}.apk" --repo "${{ github.repository }}" --prerelease --title "Jarvis Studio ${STUDIO_ID}" --notes "Debug-APK einer von Jarvis erzeugten Web-App (${STUDIO_NAME})."
