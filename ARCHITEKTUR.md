@@ -345,6 +345,13 @@ Die sechs dauerhaften Umhüllungen von `speak()` melden sich bei `window.jvSpeak
 - **Bekannte Lücke:** „Ist morgen Frühschicht und gibt es Regen?“ – der frühe Schicht-Befehl nimmt den ganzen Satz, der Regen-Teil fehlt (die Einzelfrage „Ist morgen Frühschicht?“ ist keine sichere Einzelauskunft).
 - Unverändert: Groq-Aufruf, Chef-KI (aus), alle Vercel-Functions, alle Befehle (96 Einträge), alle Schreibwege.
 
+## Ausflug: ausdrücklich genannter Zielort
+
+- **Ursache des Fehlers (nachgewiesen):** `ausflug.js` las den Zielort ("nach Lübeck") nur für die gesprochene Antwort. `wartet`, `planen` und `planenAgent` kannten kein Ziel, sondern nahmen immer `wetterPosition()` (eigener Standort) für Ortssuche (`/api/maps`), Wetter und Fahrzeit. Bei "Können wir Sonntag etwas in Lübeck unternehmen?" erkannte `FRAGE` den Satz gar nicht.
+- **Korrektur:** `zielOrt(raw)` nimmt ein groß geschriebenes Wort nach nach/in/bei (keine Ortsliste; Tage, "Nähe", "Umgebung" u. a. und alles, was `wxCleanPlace` verwirft, zählen nicht). Das Ziel wird in `wartet` (Phasen wer/tag) und in `req.ziel` mitgeführt. `suchMitte(ziel)` löst es mit `wxGeocode` auf: Suche und Wetter richten sich nach dem Ziel, Entfernung und Fahrzeit nach dem eigenen Standort (`abEigen`, `fahrtMinuten(mitte.von)`). Wird der Ort nicht gefunden, sagt Jarvis das ehrlich; es wird NICHT still um den Standort gesucht. Ohne Zielort ändert sich nichts.
+- `fetchWeatherForecast(posOpt)` (briefing.js) nimmt optional eine Position; ohne Angabe wie bisher.
+- Test: `tests/ausflug_zielort.js`.
+
 ## C1a: Meldungs-Beobachter (`js/meldungen.js`, nur Beobachtung)
 - `window.jvMeldungen.beobachte({quelle, kanal[], grund, ausloeser, ereignis, bezug, text})` zählt nur mit, wann sich Jarvis von selbst meldet. Er ändert **nichts**: keine Texte, Zeiten, Ruhezeiten, Mindestabstände, Einmal-Regeln; nichts wird blockiert, verzögert oder zusammengefasst.
 - Nur Arbeitsspeicher, Ringpuffer 300. Kein localStorage/sessionStorage, kein Netz, kein Server, **nicht** der Schlüssel `jv_meldungen` (der gehört plan_ansagen.js). Fehlt die Datei oder wirft sie, laufen alle Stellen wie vorher (jeder Aufruf steht in `try/catch`).
