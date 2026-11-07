@@ -105,7 +105,6 @@
    "ortsuche.js -> handleLocalCommand",
    "gedaechtnis_zeit.js -> setPersistentData",
    "kontext_lokal.js -> speak",
-   "studio_regie.js -> interruptSpeaking",
    "langzeit.js -> isPanelOpen",
    "langzeit.js -> closePanel",
    "langzeit.js -> executeAction",

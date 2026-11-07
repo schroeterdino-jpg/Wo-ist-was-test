@@ -18,7 +18,7 @@ let ok = 0, fehler = 0;
 function check(n, c, extra) { if (c) ok++; else { fehler++; console.log('FEHLER: ' + n + (extra !== undefined ? '  -> ' + JSON.stringify(extra).slice(0, 300) : '')); } }
 
 /* Nur diese Pfade dürfen ausgeschlossen werden (Entwicklung, nicht Laufzeit). */
-const ERLAUBT = ['/tests/', '/tools/', '/weckruf-src/', '/weckruf-test/', '/.github/', '/ARCHITEKTUR.md', '/LANDKARTE.md', '/CLAUDE.md', '/studio-build/', '/studio-projekt/'];
+const ERLAUBT = ['/tests/', '/tools/', '/weckruf-src/', '/weckruf-test/', '/.github/', '/ARCHITEKTUR.md', '/LANDKARTE.md', '/CLAUDE.md'];
 
 function regeln(text) { return text.split(/\r?\n/).map(z => z.trim()).filter(z => z && !z.startsWith('#')); }
 function formOk(r) { return /^\/[A-Za-z0-9_.\-]+(\/)?$/.test(r); }   // nur /name oder /name/ , nichts anderes
