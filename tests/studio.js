@@ -868,6 +868,25 @@ async function auftrag(w, satz) { const r = w.c.jvStudioAuftrag.behandle(satz); 
         /* 19Q APK-Freigabe unverändert: Plan-Ja ist keine APK-Freigabe; der Bau-Aufruf bleibt hinter der eigenen Freigabe */
         { const W = w19(); await zumPlan(W, 'Jarvis, bau mir eine Website für einen Autohändler und mach eine APK daraus'); const m = await bauen(W);
           check('19Q Mission mit APK-Wunsch: nach Plan-Ja wartet sie auf die APK-Freigabe, kein Bau-Aufruf, Schritt st_apk_bau steht NACH dem Abgleich', m && m.status === 'wartet_freigabe' && W.w.aufrufe.filter(a => /studio_bau/.test(a.url)).length === 0 && m.schritte.map(x => x.werkzeug).join() === 'st_anforderungen,st_code,st_abgleich,st_pruefen,st_speichern,st_apk_bau', m && m.schritte.map(x => x.werkzeug).join()); }
+        /* 19T „Studio aus“ verwirft einen offenen Plan; ein späteres Ja (Sprache oder Knopf) startet NIE einen Bau */
+        for (const phase of ['frage', 'bestaetigung']) {
+            const W = w19(); D(W.w).behandle(AUTO); await bis(W, 'frage'); if (phase === 'bestaetigung') { D(W.w).behandle('Ja'); await bis(W, 'bestaetigung'); }
+            const An = W.w.c.jvStudioAnsicht; D(W.w).behandle('Studio aus');
+            check('19T [' + phase + '] „Studio aus“ verwirft den offenen Plan (Plan weg, Speicher leer, Studio aus)', D(W.w).plan() === null && !W.w.ls.getItem('jv_studio_plan_v1') && W.w.ls.getItem('jv_studio') === '0');
+            for (const satz of ['Ja', 'Mach es', 'Ja, bau los', 'Plan bauen']) D(W.w).behandle(satz);
+            An.aktion('planJa'); await pause(60);
+            check('19U [' + phase + '] danach startet weder ein „Ja“ noch „Plan bauen“ noch der Knopf einen Bau', D(W.w).letzte() === null && W.w.aufrufe.filter(a => /studio_bau/.test(a.url)).length === 0 && W.c.code === 0, [D(W.w).letzte() && D(W.w).letzte().status]);
+        }
+        /* 19V Absicherung: selbst wenn ein Plan bei ausgeschaltetem Studio noch da wäre (Neustart-Wiederherstellung), baut der Knopf nichts */
+        { const W = w19(); await zumPlan(W); W.w.ls.setItem('jv_studio', '0'); const r = W.w.c.jvStudioAnsicht.aktion('planJa'); await pause(60);
+          check('19V Studio ausgeschaltet, Plan noch offen: Knopf „Ja, bauen“ baut nichts und verwirft den Plan ehrlich', D(W.w).letzte() === null && D(W.w).plan() === null && sagt(W, /Das Studio ist aus, deshalb baue ich nichts/), [r]); }
+        /* 19W „Studio an“ und die übrigen Planungswege bleiben intakt */
+        { const W = w19(); await zumPlan(W); D(W.w).behandle('Studio aus'); D(W.w).behandle('Studio an');
+          check('19W „Studio an“ schaltet wieder ein; der verworfene Plan kommt nicht zurück', W.w.ls.getItem('jv_studio') === '1' && D(W.w).plan() === null && D(W.w).letzte() === null);
+          D(W.w).behandle(AUTO); await bis(W, 'frage'); D(W.w).behandle('Ja'); await bis(W, 'bestaetigung'); D(W.w).behandle('Ja bau los'); await warteBis(() => D(W.w).letzte(), 3000);
+          check('19X nach „Studio an“ läuft der ganze Dialog wieder normal bis zur Mission', !!D(W.w).letzte() && D(W.w).plan() === null);
+          const W2 = w19(); await zumPlan(W2); D(W2.w).behandle('Studio an'); check('19Y „Studio an“ bei bereits eingeschaltetem Studio lässt einen offenen Plan in Ruhe', !!D(W2.w).plan() && D(W2.w).plan().phase === 'bestaetigung');
+          const W3 = w19(); await zumPlan(W3); D(W3.w).behandle('Planung aus'); check('19Z „Planung aus“ verwirft einen offenen Plan nicht (unverändertes Verhalten)', !!D(W3.w).plan()); }
         /* 19R direkte Abgleich-Funktion: 3-stellige Hex-Farben, Wortstämme */
         { const W = w19(); const Wk = W.w.c.jvStudioWerkzeuge;
           const r1 = await Wk.abgleichen({ funktionen: [], farbcodes: ['#ffffff', '#222222'], stichworte: ['Fahrzeugsuche'] }, [{ pfad: 'index.html', inhalt: '<p>Fahrzeuge</p><style>a{color:#fff;background:#222}</style>' }]);

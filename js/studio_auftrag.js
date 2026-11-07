@@ -417,6 +417,7 @@
     }
     function planStarten() {   // erst nach eindeutigem Ja (Sprache oder Knopf): die bestehende Studio-Mission
         var p = plan; if (!p || p.phase !== 'bestaetigung') return false;
+        if (!istAn()) { planWeg(); sag('Das Studio ist aus, deshalb baue ich nichts. Der Plan ist verworfen.'); return true; }   // auch der Knopf „Ja, bauen“ startet bei ausgeschaltetem Studio nichts
         if (aktive().some(function (m) { return m.status === 'laeuft'; })) { sag('Es läuft schon eine Mission. Sag „Mission abbrechen“ oder warte, bis sie fertig ist. Der Plan bleibt erhalten.'); return true; }
         var e2 = Object.assign({}, p.e), kb = konzeptFuerBau(p); if (kb) e2.konzept = kb;
         planWeg();
@@ -538,7 +539,7 @@
             var e = kl.erkannt || erkenne(text); if (!e) return false;
             if (e.art !== 'studio_schalter' && !istAn()) return false;
             merkeProtokoll('erkannt', { art: e.art });
-            if (e.art === 'studio_schalter') { lsSet(K_AN, e.an ? '1' : '0'); sag(e.an ? 'Das Studio ist an.' : 'Das Studio ist aus. Aufträge zum Bauen und Recherchieren nehme ich nicht mehr an.'); return true; }
+            if (e.art === 'studio_schalter') { lsSet(K_AN, e.an ? '1' : '0'); if (!e.an && plan) planWeg(); sag(e.an ? 'Das Studio ist an.' : 'Das Studio ist aus. Aufträge zum Bauen und Recherchieren nehme ich nicht mehr an.'); return true; }
             if (e.art === 'planung') { lsSet(K_PLANUNG, e.an ? '1' : '0'); sag(e.an ? 'Die Planung vor dem Bauen ist an.' : 'Die Planung ist aus. Ich baue neue Apps wieder sofort, ohne vorher ein Konzept zu zeigen.'); return true; }
             if (e.art === 'plan_zeigen') { if (planGueltig() && plan.phase === 'verloren') sag('Mein Konzept für „' + (plan.e.thema || 'deinen Auftrag') + '“ ging beim Neustart verloren. Sag Ja, dann überlege ich es mir neu.'); else if (planGueltig() && plan.phase !== 'denkt') sag(plan.konzept ? konzeptSprache(plan.konzept) + (plan.phase === 'frage' ? ' Offen ist meine Frage: ' + plan.frage : ' Soll ich das so bauen?') : 'Offen ist der Auftrag ohne Konzept. Soll ich trotzdem direkt bauen?'); else sag(plan ? 'Ich überlege noch am Konzept.' : 'Es ist gerade kein Plan offen.'); return true; }
             if (e.art === 'diagnose') {   // sichere Diagnose der APK-Verbindung: der Server prüft Repository und Schreibrecht (keine Geheimnisse in der Antwort)
