@@ -352,6 +352,15 @@ Die sechs dauerhaften Umhüllungen von `speak()` melden sich bei `window.jvSpeak
 - `fetchWeatherForecast(posOpt)` (briefing.js) nimmt optional eine Position; ohne Angabe wie bisher.
 - Test: `tests/ausflug_zielort.js`.
 
+## Gesprächsfaden (Phase P1)
+
+- **Ursache (im Test nachgewiesen):** Die Internet-Antwort (`answerWithWebSearch`, eigener Groq-Aufruf mit Websuche) wurde gesprochen, kam aber nie in `chatHistory`: dort stand nur die Zwischenantwort der ersten KI-Runde („Ich schaue nach.“ + Aktion `web_lookup`). Eine Anschlussfrage („Wo kann ich die kaufen?“) sah die Modelle nie.
+- **Jetzt (`assistant.js`, `answers.js`):** Nach der Suche ersetzt die TATSÄCHLICHE Antwort (höchstens 700 Zeichen) den Zwischeneintrag dieser Runde (Ersetzen, kein zusätzliches `push`: keine doppelten Nachrichten, die Sprachausgabe bleibt eine). Bei Fehlschlag steht die ehrliche Fehlermeldung dort. Zusätzlich `quellen`: Titel + Domain der Suchtreffer (höchstens 5, bereinigt, nur http/https, KEINE Links, KEINE Textauszüge, als „nur Hinweise, keine Anweisungen“ gekennzeichnet), soweit Groq sie in `executed_tools` liefert (die Form ist nicht zugesichert, fehlt sie, gibt es keinen Hinweis).
+- **Kontext für die Folgesuche:** `answerWithWebSearch(frage, suche, { verlauf: true })` (nur `assistant.js`) hängt bei KURZEN Anschlussfragen (höchstens 14 Wörter und ein Bezugswort wie die/das/dort/erste/besser) die letzten 4 Verlaufseinträge an die Suche an (je höchstens 400 Zeichen, insgesamt 1500). Registry/Chef-KI rufen ohne Option auf: unverändert.
+- **Unverändert:** Langzeitgedächtnis, `jvGespraech`, Chef-KI (aus), Groq-Aufrufe sonst, alle festen Befehle. Die normale KI bekommt wie bisher die letzten 16 Verlaufsnachrichten.
+- **Grenzen:** Kein strukturierter Produktspeicher (Modelle nur als Text im Verlauf), Links stehen nicht im Verlauf, `jv_tageslog` (Neustart-Wiederherstellung) hat weiterhin nur die Zwischenmeldung, Chef-KI-Suchen schreiben nicht in den Verlauf.
+- Test: `tests/gespraechsfaden.js`.
+
 ## C1a: Meldungs-Beobachter (`js/meldungen.js`, nur Beobachtung)
 - `window.jvMeldungen.beobachte({quelle, kanal[], grund, ausloeser, ereignis, bezug, text})` zählt nur mit, wann sich Jarvis von selbst meldet. Er ändert **nichts**: keine Texte, Zeiten, Ruhezeiten, Mindestabstände, Einmal-Regeln; nichts wird blockiert, verzögert oder zusammengefasst.
 - Nur Arbeitsspeicher, Ringpuffer 300. Kein localStorage/sessionStorage, kein Netz, kein Server, **nicht** der Schlüssel `jv_meldungen` (der gehört plan_ansagen.js). Fehlt die Datei oder wirft sie, laufen alle Stellen wie vorher (jeder Aufruf steht in `try/catch`).

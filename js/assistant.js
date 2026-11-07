@@ -551,8 +551,21 @@ async function sendToGroqSmartCore(text, opts = {}) {
         if (webAction && !searchReply) {
             typeWriterStatus("Durchsuche das Internet...");
             updateTerminalStream("API_FETCH: WEB_SEARCH", "FETCHING");
-            webReply = await answerWithWebSearch(text, webAction.web_query || '');
+            webReply = await answerWithWebSearch(text, webAction.web_query || '', { verlauf: true });
             if (!webReply) { webReply = "Die Suche im Internet hat gerade nicht geklappt. Versuch es bitte gleich noch einmal."; sonderFehler.web = true; }
+            // Gesprächsfaden (P1): die TATSÄCHLICHE Antwort (nicht "Ich schaue nach.") ersetzt den Zwischeneintrag der Runde - kein zusätzlicher Eintrag, keine zweite Sprachausgabe
+            try {
+                for (let i = chatHistory.length - 1; i >= 0; i--) {
+                    const m = chatHistory[i];
+                    if (m && m.role === 'assistant' && typeof m.content === 'string' && m.content.indexOf('"web_lookup"') >= 0) {
+                        const eintrag = { reply: webEintragText(webReply), actions: [] };
+                        const q = sonderFehler.web ? '' : webQuellenText();
+                        if (q) eintrag.quellen = q;
+                        chatHistory[i] = { role: "assistant", content: JSON.stringify(eintrag) };
+                        break;
+                    }
+                }
+            } catch (e) { }
         }
 
         let replyText = searchReply || webReply || emailReply || travelReply || nearbyReply || fuelReply || nearbyFuelReply || bahnReply || ai.reply;
