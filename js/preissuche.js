@@ -469,7 +469,10 @@
             const teilWoerter = s[1].replace(/\s+(?:raus|heraus)\b.*$/, '').replace(/\s+(?:dafür|dafuer|dazu)\s*$/i, '').replace(/\s+(?:haben|kaufen)\s*$/, '');
             const produkte = teile(teilWoerter);
             if (!produkte.length) continue;
-            if (produkte.every(p => /^(?:dieses|diese|diesen|das|dies|produkt|produkte|ding|dinge|artikel|teil|sache|sachen|etwas|was)$/i.test(p))) { try { window.jvFrage && window.jvFrage.neu('preissuche'); } catch (e) { } sagen('Welches Produkt soll ich suchen? Nenn mir den Namen, am besten mit Marke und Modell.'); return true; }
+            if (produkte.every(p => /^(?:dieses|diese|diesen|das|dies|produkt|produkte|ding|dinge|artikel|teil|sache|sachen|etwas|was|die|der|den|dem|sie|ihn|es|beide|beiden)$/i.test(p))) {
+                /* nur ein Bezugswort ("Wo bekomme ich die am günstigsten?"): gibt es eine frische letzte Antwort, löst die KI den Bezug auf (js/gespraech_antwort.js), sonst Rückfrage */
+                try { if (window.jvAnschlussAntwort && window.jvAnschlussAntwort.hatBezug()) return next(text); } catch (e) { }
+                try { window.jvFrage && window.jvFrage.neu('preissuche'); } catch (e) { } sagen('Welches Produkt soll ich suchen? Nenn mir den Namen, am besten mit Marke und Modell.'); return true; }
             suchen(produkte.map(p => p.charAt(0).toUpperCase() + p.slice(1)));
             return true;
         }

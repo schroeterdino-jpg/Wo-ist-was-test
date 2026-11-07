@@ -192,7 +192,8 @@ async function sendToGroqSmartCore(text, opts = {}) {
         schicht: (typeof window.jvSchichtWissen === 'function' ? window.jvSchichtWissen() : null)
     };
 
-    const systemPrompt = buildSystemPrompt(text, contextData, nowGermanIso);
+    let systemPrompt = buildSystemPrompt(text, contextData, nowGermanIso);
+    try { if (window.jvAnschlussAntwort) systemPrompt += window.jvAnschlussAntwort.block(text); } catch (e) { }   // Anschlussfrage: die letzte Antwort mit Namen (js/gespraech_antwort.js)
     try { if (typeof diagPromptSize === 'function') diagPromptSize(systemPrompt); } catch (e) {}
 
     // Der Chat-Verlauf behält den ORIGINALtext; die KI bekommt (falls ein Normalisierer etwas korrigiert hat) die Kopie, auch bei späteren Anfragen im Verlauf.
@@ -221,10 +222,26 @@ async function sendToGroqSmartCore(text, opts = {}) {
 
         const data = await res.json();
         try { if (typeof diagApi === 'function') diagApi(res, data); } catch (e) {}
-        const ai = JSON.parse(data.choices[0].message.content);
+        let ai = JSON.parse(data.choices[0].message.content);
+        // Anschlussfrage (js/gespraech_antwort.js): fragt die KI trotz bekannter letzter Antwort nach ("Welches Produkt meinst du?"), bekommt sie den Bezug ausdrücklich und antwortet ein zweites Mal (nur in diesem Fall)
+        try {
+            const zusatz = (window.jvAnschlussAntwort && typeof window.jvAnschlussAntwort.nachfrageErsatz === 'function') ? window.jvAnschlussAntwort.nachfrageErsatz(text, ai) : '';
+            if (zusatz) {
+                const res2 = await apiFetch('/api/groq', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: "openai/gpt-oss-120b", reasoning_effort: "low", response_format: { type: "json_object" },
+                        messages: [...messagesPayload, { role: "assistant", content: JSON.stringify(ai) }, { role: "user", content: zusatz }] })
+                });
+                const d2 = await res2.json();
+                const ai2 = JSON.parse(d2.choices[0].message.content);
+                if (ai2 && typeof ai2.reply === 'string' && ai2.reply.trim()) ai = ai2;
+            }
+        } catch (e) { }
         try { if (typeof diagShow === 'function') diagShow(text, ai); } catch (e) {}
 
         chatHistory.push({ role: "assistant", content: JSON.stringify(ai) });
+        const rundeEintrag = chatHistory[chatHistory.length - 1];   // Gesprächsfaden: der Eintrag dieser Runde, damit die echte Antwort ihn später ersetzen kann
 
         // Neues Format: ai.actions ist eine Liste. Altes Format (type auf oberster Ebene) geht weiterhin.
         const actions = Array.isArray(ai.actions)
@@ -247,6 +264,17 @@ async function sendToGroqSmartCore(text, opts = {}) {
             ai.reply = 'Ich schaue nach.';
             chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: ai.reply, actions }) };
         }
+
+        // Anschlussfrage "Wo kann ich die kaufen?" / "Was kosten die?" mit reinem Bezugswort: Händler und Preise kommen NUR aus der Internetsuche (nie aus dem Wissen der KI), mit den zuletzt genannten Namen
+        try {
+            const ws = (window.jvAnschlussAntwort && typeof window.jvAnschlussAntwort.websuche === 'function') ? window.jvAnschlussAntwort.websuche(text, ai, actions) : '';
+            if (ws && !actions.some(a => a.type === 'web_lookup')) {
+                actions.length = 0;
+                actions.push({ type: 'web_lookup', web_query: ws });
+                ai.reply = 'Ich schaue nach.';
+                chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: ai.reply, actions }) };
+            }
+        } catch (e) { }
 
         // Fragen nach Restaurants/Lokalen in der Nähe werden IMMER als "nearby_places" behandelt, auch wenn die KI stattdessen einfach etwas erfindet
         if (NEARBY_TRIGGER.test(text) && !actions.some(a => a.type === 'nearby_places') &&
@@ -624,6 +652,17 @@ async function sendToGroqSmartCore(text, opts = {}) {
             stopThinkingSound();
             return;
         }
+        // Gesprächsfaden: die TATSÄCHLICHE Antwort (Fahrzeit, Nähe, Tanken, Bahn) ersetzt den Zwischeneintrag "Ich schaue nach." dieser Runde (kein zusätzlicher Eintrag); jede echte Antwort wird als "letzte Antwort" gemerkt
+        try {
+            const sonderArt = webReply ? 'internet' : travelReply ? 'fahrzeit' : (nearbyReply || nearbyFuelReply) ? 'umgebung' : fuelReply ? 'tanken' : bahnReply ? 'bahn' : (!searchReply && !emailReply) ? 'antwort' : '';
+            const sonderText = travelReply || nearbyReply || nearbyFuelReply || fuelReply || bahnReply;
+            const fehler = sonderFehler.web || sonderFehler.travel || sonderFehler.nearby || sonderFehler.fuel || sonderFehler.nearbyFuel || sonderFehler.bahn || errors.length > 0;
+            if (sonderText && !webReply && !fehler) {
+                const i = chatHistory.lastIndexOf(rundeEintrag);
+                if (i >= 0) chatHistory[i] = { role: "assistant", content: JSON.stringify({ reply: webEintragText(sonderText), actions: [] }) };
+            }
+            if (sonderArt && !fehler && window.jvAnschlussAntwort) window.jvAnschlussAntwort.merke(sonderArt, text, webReply || sonderText || replyText, webReply ? webQuellenText() : '');
+        } catch (e) { }
         showActionCards(ctx.cards);
         if (ctx.panel) openPanel(ctx.panel.name, ctx.panel);
         else if (ctx.cards.length > 0) closePanel();   // Karten (Anruf, Route ...) sollen nicht hinter einem Fenster stecken

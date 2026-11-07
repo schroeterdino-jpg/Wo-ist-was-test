@@ -92,7 +92,7 @@ const HELP_TOPICS = [
     { key: 'person', icon: '👧', title: 'Aussehen merken (Personen)', words: /aussehen|julia|tochter|person|gesicht/, examples: [
         'Das ist meine Tochter Julia (nach einem Foto)', 'Merk dir, wie Julia aussieht', 'Vergiss, wie Julia aussieht', '(Zane beschreibt nur das äußere Aussehen und fragt vorher, ob er es merken soll. Das Foto selbst wird nicht gespeichert, ein Gesicht erkennt er später nicht wieder.)'] },
     { key: 'internet', icon: '🌐', title: 'Aus dem Internet', words: /internet|fernseh|paket|öffnungszeit|oeffnungszeit/, examples: [
-        'Was läuft heute Abend im Fernsehen?', 'Wo ist mein Paket?', 'Wann hat der Baumarkt heute auf?', 'Was läuft heute Abend im Kino in Hamburg?'] },
+        'Was läuft heute Abend im Fernsehen?', 'Wo ist mein Paket?', 'Wann hat der Baumarkt heute auf?', 'Was läuft heute Abend im Kino in Hamburg?', 'Hast du zwei Wasserhähne-Empfehlungen für mich fürs Badezimmer? / Wo kann ich die kaufen? (Jarvis weiß, welche er gerade genannt hat; Händler und Preise sucht er im Internet, nichts ist erfunden)'] },
     { key: 'assistent', icon: '🎙', title: 'Jarvis per Google öffnen', words: /hey google|bixby|akku|strom|sprachtaste/, examples: [
         'Sag "Hey Google, öffne Jarvis" (oder "Hey Bixby"): Jarvis öffnet sich, sagt "Ja?" und hört zu. So kannst du das Weckwort in den Jarvis-Einstellungen ausschalten und Akku sparen (nur Handy-App)'] },
     { key: 'seite2', icon: '📱', title: 'Zweite Startseite', words: /seite 2|zweite seite|wischen|knöpfe|foto.*startseite/, examples: [

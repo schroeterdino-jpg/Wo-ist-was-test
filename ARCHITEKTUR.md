@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (177 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (178 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -360,6 +360,17 @@ Die sechs dauerhaften Umhüllungen von `speak()` melden sich bei `window.jvSpeak
 - **Unverändert:** Langzeitgedächtnis, `jvGespraech`, Chef-KI (aus), Groq-Aufrufe sonst, alle festen Befehle. Die normale KI bekommt wie bisher die letzten 16 Verlaufsnachrichten.
 - **Grenzen:** Kein strukturierter Produktspeicher (Modelle nur als Text im Verlauf), Links stehen nicht im Verlauf, `jv_tageslog` (Neustart-Wiederherstellung) hat weiterhin nur die Zwischenmeldung, Chef-KI-Suchen schreiben nicht in den Verlauf.
 - Test: `tests/gespraechsfaden.js`.
+
+### P1-Nachbesserung: Anschlussfragen (`js/gespraech_antwort.js`)
+
+- **Handytest-Befund:** „Hast du zwei Wasserhähne-Empfehlungen …?“ → „Wo kann ich die kaufen?“ ergab „Welches Produkt meinst du?“. Die Namen standen im Verlauf; das Sprachmodell hat sie nicht genutzt (der Satz existiert nirgends im Code). Zusätzlich fing die Preissuche „Wo bekomme ich die am günstigsten?“ ab und suchte nach „Die“.
+- **Merker, keine zweite Architektur:** `jvGespraech` (gespraech.js) bekommt einen eigenen Platz `.antwort(art, frage, text, hinweis)` / `.antworten()`: Jarvis' letzte echte Antworten (Internet, Fahrzeit, Nähe, Tanken, Bahn, KI-Antwort, feste Auskunft), höchstens 3 à 700 Zeichen, 10 Minuten, nur Arbeitsspeicher. Ergebnislisten, Auswahl und Rückfragen der Ortssuche bleiben unberührt. Gemerkt wird nur ab 25 Zeichen und keine kurze Rückfrage.
+- **Drei Schichten (`assistant.js`):** (1) Kette `buildSystemPrompt` (Rang 460): bei kurzen Sätzen mit Bezugswort (die/das/das zweite/welches/besser …) steht die letzte Antwort samt Namen in der Systemanweisung (Regel: nicht zurückfragen, nichts erfinden). (2) Fragt die KI trotzdem nach (Fragezeichen/„meinst du“/„gemeint“), gibt es EINEN zweiten Versuch mit Systemhinweis. (3) „Wo kaufen / was kostet / Test …“ mit reinem Bezugswort am Satzende („Wo kann ich die kaufen?“, nicht „Was kostet das Brot?“) geht immer in die Internetsuche mit den genannten Namen (nie in eine KI-Schätzung: keine erfundenen Händler/Preise).
+- **Themenwechsel/Mehrdeutigkeit:** Eine neue Antwort wird zur jüngsten. Antworten auf Anschlussfragen zählen zum Thema davor. Gibt es zwei verschiedene frische Themen, wird weder erzwungen noch nachgehakt; beide stehen im Zusatz, die KI fragt kurz nach. Nach 10 Minuten oder ohne Gemerktes passiert nichts Neues.
+- **Verlauf (Punkt 6):** Fahrzeit, Nähe, Tanken und Bahn ersetzen den Zwischeneintrag „Ich schaue nach.“ der Runde durch die echte Antwort (Ersetzen, kein zusätzliches `push`). Feste Befehle melden ihre Antwort über `kontext_lokal.js`.
+- `preissuche.js`: besteht das Produkt nur aus einem Bezugswort (die/den/sie …) und gibt es einen frischen Bezug, läuft der Satz weiter zur KI statt „Preise für Die“ zu suchen; ohne Bezug fragt sie wie vorher „Welches Produkt soll ich suchen?“.
+- **Grenzen:** Namen werden nicht einzeln herausgezogen (die ganze Antwort steht im Merker); Produktkarten/Bilder gehören zu P6; Chef-KI-Suchen schreiben weiter nichts in den Verlauf; die Wiederherstellung nach Neustart (`jv_tageslog`) kennt den Merker nicht.
+- Test: `tests/anschlussfragen.js`.
 
 ## C1a: Meldungs-Beobachter (`js/meldungen.js`, nur Beobachtung)
 - `window.jvMeldungen.beobachte({quelle, kanal[], grund, ausloeser, ereignis, bezug, text})` zählt nur mit, wann sich Jarvis von selbst meldet. Er ändert **nichts**: keine Texte, Zeiten, Ruhezeiten, Mindestabstände, Einmal-Regeln; nichts wird blockiert, verzögert oder zusammengefasst.
