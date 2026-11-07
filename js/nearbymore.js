@@ -67,7 +67,7 @@ function parsePlacesRequest(text) {
     const after = hit ? t.slice(hit.index + hit[0].length) : '';
     const pm = after.match(/(?:^|\s)(?:in|bei|um|nahe|rund um)\s+([a-zäöüß][a-zäöüß .'-]{1,30})$/);
     if (pm) {
-        const cand = pm[1].replace(/\s+(?:offen|geöffnet|noch|jetzt|bitte)$/, '').trim();
+        const cand = pm[1].replace(/(?:\s+(?:auf|offen|geöffnet|noch|jetzt|bitte))+$/, '').trim();
         place = (typeof wxCleanPlace === 'function') ? wxCleanPlace(cand) : '';
         if (/^(?:der\s+)?(?:nähe|umgebung|stadt|gegend)$/i.test(cand)) place = '';
         if (place && PLACE_CATEGORIES.some(c => c.words.test(cand))) place = '';   // "in der Bank" ist kein Ort
@@ -78,6 +78,7 @@ function parsePlacesRequest(text) {
         const bm = before.match(/(?:^|\s)in\s+([a-zäöüß][a-zäöüß .'-]{1,30})\s*$/);
         if (bm) {
             let cand = bm[1].replace(/^(?:der|die|das|den|dem|des)\s+/, '').trim();
+            cand = cand.replace(/(?:\s+(?:ein|eine|einen|einem|noch|mal))+$/, '').trim();
             cand = cand.replace(/^(?:ich\s+suche|suche|finde|zeig\s+mir|gibt\s+es|wo\s+sind|wo\s+gibt\s+es)\s+/i, '').trim();
             place = (typeof wxCleanPlace === 'function') ? wxCleanPlace(cand) : '';
             if (/^(?:der\s+)?(?:nähe|umgebung|stadt|gegend)$/i.test(cand)) place = '';

@@ -88,8 +88,13 @@
        nicht bei wenn/falls/sobald/Protokoll. Ein normales "und" in einer einzelnen Frage trennt nicht.
        ============================================================ */
     const FW = '(?:wann|wie|was|wo|wer|wem|wen|welche|welcher|welches|welchen|welchem|woher|wohin|warum|wieso|weshalb|wieviel|wieviele)';
-    const FRAGE_TRENNER = new RegExp('\\s*(?:\\?\\s*|,?\\s+und\\s+)(?=' + FW + '\\b)', 'i');
-    const FRAGE_START = new RegExp('^' + FW + '\\b', 'i');
+    /* Ja/Nein-Fragen und Fragen mit vorangestelltem Verb ("Gibt es morgen Regen", "brauche ich dann eine Jacke") zählen als eigene Frage, wenn sie
+       mit einem Frageverb beginnen. Eine zweite Frage mit "und" davor wird nur so erkannt; ohne eine sichere lokale Auskunft im Satz bleibt alles wie bisher. */
+    const VW = '(?:gibt|ist|sind|wird|werden|habe|hab|haben|brauche|brauchen|muss|musst|soll|sollte|kann|darf|lohnt|regnet|schneit|scheint|beginnt|faengt|fängt|endet|reicht)';
+    const FRAGE_ANF = '(?:' + FW + '|' + VW + ')';
+    const FRAGE_TRENNER = new RegExp('\\s*(?:\\?\\s*|,?\\s+und\\s+)(?=' + FRAGE_ANF + '\\b)', 'i');
+    const FRAGE_START = new RegExp('^' + FRAGE_ANF + '\\b', 'i');
+    const FW_START = new RegExp('^' + FW + '\\b', 'i');
     const BEZUG = /\b(?:danach|dort|dann|dabei|damit|davor|dazu)\b/i;
     const MAX_FRAGEN = 3, KI_GRENZE_MS = 45000;
     let sperre = false;   // Schutz gegen erneutes Durchlaufen desselben Handlers (Bypass-Flag)
@@ -102,7 +107,8 @@
         const p = t.split(FRAGE_TRENNER).map(x => x.replace(/^[\s,;.]+|[\s,;.]+$/g, '')).filter(Boolean);
         if (p.length < 2 || p.length > MAX_FRAGEN) return null;
         if (p.some(x => x.split(/\s+/).length < 3 || !FRAGE_START.test(x))) return null;
-        return { teile: p.map(x => x.charAt(0).toUpperCase() + x.slice(1) + '?'), abhaengig: BEZUG.test(t) };
+        // neu = mindestens eine Frage beginnt mit einem Verb (nicht mit einem Fragewort)
+        return { teile: p.map(x => x.charAt(0).toUpperCase() + x.slice(1) + '?'), abhaengig: BEZUG.test(t), neu: p.some(x => !FW_START.test(x)) };
     }
     function sichereNamen() {
         try { const F = window.jvFaehigkeiten; return F && typeof F.reineAuskuenfte === 'function' ? F.reineAuskuenfte() : []; } catch (e) { return []; }
@@ -122,7 +128,7 @@
     }
     function mitTimeout(p, ms) { return Promise.race([p, new Promise(res => setTimeout(() => res({ zeit: true }), ms))]); }
 
-    async function frageAusfuehren(a, erg) {
+    async function frageAusfuehren(a, erg, hinweis) {
         const plaetze = [], kiTeile = [];
         let kiPlatz = -1;
         a.teile.forEach((t, i) => {
@@ -133,7 +139,7 @@
         if (kiTeile.length) {
             let antwort = '', fehler = false, fertig = false;
             try {
-                const r = await mitTimeout(Promise.resolve(window.sendToGroqSmart(kiTeile.map((x, i) => (i ? x.charAt(0).toLowerCase() + x.slice(1) : x).replace(/\?$/, '')).join(' und ') + '?', { nurLesen: true, collect: (r, c, meta) => { fertig = true; antwort = String(r || ''); karten = c || []; if (meta && meta.fehler) fehler = true; } })), KI_GRENZE_MS);
+                const r = await mitTimeout(Promise.resolve(window.sendToGroqSmart(kiTeile.map((x, i) => (i ? x.charAt(0).toLowerCase() + x.slice(1) : x).replace(/\?$/, '')).join(' und ') + '?' + (hinweis ? ' (Hinweis zum Bezug: ' + hinweis + ')' : ''), { nurLesen: true, collect: (r, c, meta) => { fertig = true; antwort = String(r || ''); karten = c || []; if (meta && meta.fehler) fehler = true; } })), KI_GRENZE_MS);
                 if (r && r.zeit) fehler = true;
             } catch (e) { fehler = true; }
             if (!fertig || !antwort.trim()) fehler = true;
@@ -156,6 +162,12 @@
         if (!namen.length || !window.jvCommands || typeof window.jvCommands.nur !== 'function') return next(text);
         const erg = a.teile.map(t => sichererTeil(t, namen));
         if (!erg.some(Boolean)) return next(text);   // keine sichere lokale Auskunft dabei: alles wie bisher
+        if (a.abhaengig && a.neu) {   // abhängige Frage mit sicherer lokaler Auskunft: lokale Antwort geht der KI als Hinweis mit, beide Teile bleiben erhalten
+            const hinweis = erg.filter(x => x && x.text).map(x => x.text).join(' ');
+            const a2 = { teile: a.teile, abhaengig: false, neu: true };
+            frageAusfuehren(a2, erg, hinweis).catch(e => { console.error('Mehrfachfrage', e && e.message); try { window.speak('Das hat gerade nicht geklappt. Bitte frag noch einmal.', typeof window.continueConversation === 'function' ? window.continueConversation : undefined); } catch (x) { } });
+            return true;
+        }
         if (a.abhaengig) {   // Teile hängen voneinander ab: nicht zerlegen, ganzer Satz direkt an die KI (lokale Einzelbefehle übersprungen)
             sperre = true;
             try { anKI(String(text)); } finally { sperre = false; }
