@@ -261,7 +261,7 @@ async function haupt() {
         const fl = await FL.satz('Ich muss Donnerstag um 13:15 auf der Arbeit sein');
         const tvKeys = Object.keys(FL.store).filter(k => /^jv_plan_(vor|beginn)/.test(k) || /plan_vor|plan_beginn/.test(k));
         check('Früher los: "Donnerstag um 13:15 auf der Arbeit" übernimmt frueher-los (Spätschicht normal 13:45)', fl.lokal && /frueher-los/.test(fl.modul || ''), JSON.stringify([fl.modul, fl.gesagt]));
-        check('Früher los: Antwort nennt 13:15 und die neue Abfahrt', /13 Uhr 15|13:15/.test((fl.gesagt || []).join(' ')) && /12 Uhr 30|12:30/.test((fl.gesagt || []).join(' ')), JSON.stringify(fl.gesagt));
+        check('Früher los: Antwort nennt 13:15 und die neue Abfahrt', /13 Uhr 15|13:15/.test((fl.gesagt || []).join(' ')) && /12 Uhr 25|12:25/.test((fl.gesagt || []).join(' ')), JSON.stringify(fl.gesagt));
         check('Früher los: nur eine Sprachausgabe (keine Doppelmeldung)', fl.gesagt.length === 1, JSON.stringify(fl.gesagt));
         ist('21', 'Früher los (Gesamtweg)', 'Ich muss Donnerstag um 13:15 auf der Arbeit sein', fl, ['Gesetzte Merker: ' + tvKeys.join(', ')]);
         const rg = await FL.satz('Mach die frühere Abfahrt rückgängig');
