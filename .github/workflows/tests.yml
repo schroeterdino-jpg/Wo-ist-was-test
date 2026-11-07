@@ -49,6 +49,7 @@ jobs:
           node tests/anschlussfragen.js
           node tests/produktkarten.js
           node tests/haendlerlinks.js
+          node tests/chef_kette.js
           node tests/mitnehmen_briefing.js
           node tests/schicht_freier_tag.js
           node tests/schicht_zeiten.js

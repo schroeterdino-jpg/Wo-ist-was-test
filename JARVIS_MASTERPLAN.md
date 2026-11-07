@@ -28,7 +28,7 @@ Status: Geplant, In Arbeit, Fertig, Blockiert. „Bestehendes nutzen“ heißt: 
 | Priorität | Funktion | Status | PR | Nächster Schritt |
 |---|---|---|---|---|
 | P1 | Zentrale Werkzeugverwaltung (Internet, Produkt/Preis, Wetter, Kalender, Erinnerungen/Aufgaben, Navigation/Verkehr, Gedächtnis, Foto, Dokumente/Rechnungen, Kontakte, Berechnungen, weitere) | Geplant | – | Bestand der Register (`registry*.js`, `faehigkeiten.js`) mit den tatsächlich vorhandenen Werkzeugen abgleichen; Lücken schließen, keine zweite Implementierung |
-| P1 | Intelligenter KI-Dirigent (natürliche Sprache, Werkzeugwahl, Mehrfachaufgaben, Kombination, Selbstbezüge, gezielte Rückfragen, Fehlerbehandlung, Ergebnisprüfung, nichts erfinden) | Geplant | – | Entwurf auf Basis von `chef.js` (Standard AUS), `mehrfach.js`, `assistant.js`; Beispiel „kannst du selbst herausfinden, wie wir dich schlauer machen können?“ als Test |
+| P1 | Intelligenter KI-Dirigent (natürliche Sprache, Werkzeugwahl, Mehrfachaufgaben, Kombination, Selbstbezüge, gezielte Rückfragen, Fehlerbehandlung, Ergebnisprüfung, nichts erfinden) | In Arbeit | Phase 2 (PR siehe Abschnitt 7) | Schritt 1 erledigt: Kette (Ergebnis eines lesenden Schritts an den nächsten), Erfolgsprüfung, Websuche als Ausweg – nur im Chef-KI-Weg (Standard AUS). Offen: Chef-KI als Standard-Dirigent (Entscheidung Dino), Foto-Anbindung, `produktsuche` als Werkzeug, Selbstbezug „du = Jarvis“ |
 | P1 | Automatische Internetrecherche ohne „Such im Internet“ | Geplant | – | Entscheidungsregel im Dirigenten (Teil des Dirigenten-Entwurfs) |
 | P1 | Intelligente Kamera (erkennt, was fotografiert wurde, bereitet Aktionen vor) | Geplant | – | An Werkzeugzentrale/Dirigent anbinden; Rechnung, Produkt/Ersatzteil, Visitenkarte, Gerät/Fehlercode, Text/Dokument; vorhandene `foto_*`-Dateien nutzen, **keine isolierte Zusatzfunktion**; verbindliche Aktionen nur mit Dinos Freigabe |
 | P1 | Natürliches Gespräch und Gedächtnis (Anschlussfragen, Kontext, Mehrdeutigkeit, Selbstbezüge „du/dich/deine Funktionen“, keine erfundenen Erinnerungen) | In Arbeit | #369, #370, #371, #372, #373 | Produktbereich fertig; Selbstbezüge und allgemeine Themen über den Dirigenten |
@@ -72,6 +72,7 @@ Status: Geplant, In Arbeit, Fertig, Blockiert. „Bestehendes nutzen“ heißt: 
 | #373 | Händlerlinks ehrlich (Idealo nur als Vergleich) + kombinierte Produktfragen ohne Ortsrückfrage | gemergt |
 | #374 | Gezielte Händlersuche je Händler, Diagnose | gemergt |
 | #375 | Händlerlinks für tatsächlich angezeigte Angebote | gemergt |
+| Phase 2 (`chef-ablauf`) | Chef-KI: lesende Ketten (`aus`), `pruefeErfolg` wirksam, Websuche-Ausweg für Wetter/Ortssuche; Standard weiter AUS | PR offen, nicht gemergt |
 | #365 | Schichtzeiten (`jarvis-schichten`) | offen, nicht anfassen |
 | dieser PR | Masterplan + Regel in `CLAUDE.md` (nur Dokumentation) | siehe Abschnitt 8 |
 
