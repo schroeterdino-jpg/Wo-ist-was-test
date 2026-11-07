@@ -103,10 +103,21 @@
             });
             gut.sort(function (x, y) { return x.preis - y.preis; });
             vgl.sort(function (x, y) { return x.preis - y.preis; });
-            item.angebote = gut.slice(0, MAX_ANGEBOTE).map(function (a) {
+            var wahl = gut.slice(0, MAX_ANGEBOTE);
+            if (!wahl.some(function (a) { return direktLink(a.link); })) {   // die günstigsten haben keinen Link: das günstigste Angebot MIT Händlerlink kommt dazu (nichts Günstigeres wird weggelassen)
+                var mitL = gut.filter(function (a) { return direktLink(a.link); })[0];
+                if (mitL) wahl.push(mitL);
+            }
+            item.angebote = wahl.map(function (a) {
                 var l = direktLink(a.link);   // Händlername, Preis und Link gehören zum selben Angebot; ein Vergleichs-/Suchmaschinenlink wird nie als Händlerlink genommen
                 return { shop: String(a.shop || ''), preis: a.preis, preisText: String(a.preisText || eur(a.preis)), link: l, linkArt: l ? (a.linkArt === 'haendlerseite' || a.linkArt === 'kategorie' ? a.linkArt : 'direkt') : '' };
             });
+            try {
+                if (typeof diagAdd === 'function') {
+                    var hd2 = roh && roh.diag && roh.diag.h;
+                    diagAdd('Angebote ' + p.name.slice(0, 24) + ': vom Server ' + (Array.isArray(roh) ? roh.length : 0) + (hd2 ? ' (davon ' + hd2.mitLink + ' mit Händlerlink)' : '') + ', passend ' + gut.length + ', angezeigt ' + item.angebote.length + ' (davon ' + item.angebote.filter(function (a) { return a.link; }).length + ' mit Händlerlink)');
+                }
+            } catch (e) { }
             item.vergleich = vgl.slice(0, 1).map(function (a) { return { shop: String(a.shop || 'Preisvergleich'), preis: a.preis, preisText: String(a.preisText || eur(a.preis)), link: /^https:\/\//i.test(String(a.link || '')) ? String(a.link) : '' }; });
             var mitBild = gut.filter(function (a) { return typeof a.bild === 'string' && /^https:\/\//i.test(a.bild); })[0];
             if (mitBild) item.bild = mitBild.bild;

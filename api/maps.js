@@ -596,9 +596,9 @@ async function haendlerLinks(q, need, key) {
     } catch (e) { diag.fehler.push(String(e && e.name || 'Fehler').slice(0, 30)); return []; }
   };
   const shops = []; need.forEach(x => { const k = shopKern(x.shop); if (k && shops.every(y => shopKern(y.shop) !== k)) shops.push(x); });
-  const jobs = [frage(q + ' kaufen')].concat(shops.slice(0, 4).map(x => frage(q + ' ' + x.shop)));
+  const jobs = [frage(q + ' kaufen')].concat(shops.slice(0, 5).map(x => frage(q + ' ' + x.shop)));
   const res = await Promise.all(jobs), allg = res[0], je = {};
-  shops.slice(0, 4).forEach((x, i) => { je[shopKern(x.shop)] = res[i + 1]; });
+  shops.slice(0, 5).forEach((x, i) => { je[shopKern(x.shop)] = res[i + 1]; });
   need.forEach(x => {
     const k = shopKern(x.shop), eigene = je[k] || [];
     haendlerWaehle(q, x, eigene.concat(allg), diag);
@@ -673,18 +673,20 @@ async function shopping(req, res) {
     }
     // Google-Links führen auf eine Einwilligungs-/Anmeldeseite von Google: nur direkte Shop-Links durchreichen, sonst leer (die App nimmt dann eine Preisvergleichs-Suche)
     l.forEach(x => { try { if (/(^|\.)google\./i.test(new URL(x.link).hostname)) x.link = ''; } catch (e) { x.link = ''; } });
-    let hdiag = null;
-    if (String(req.query.haendler || '') === '1') {   // Produktkarten: fehlende Händlerlinks über eine normale Websuche ergänzen (nur echte Händlerseiten, die zum Händler UND zum Produkt passen)
-      try {
-        const need = l.filter(x => !x.link && !x.vergleich && !MARKTPLATZ_RX.test(x.shop)).slice(0, 5);
-        if (need.length) {
-          hdiag = await haendlerLinks(q, need.sort((a, b) => a.preis - b.preis), key);
-        }
-      } catch (e) { hdiag = { anfragen: 0, treffer: 0, ergaenzt: 0, abgelehnt: { host: 0, titel: 0, name: 0 }, fehler: ['Abbruch'] }; }
-    }
-    l.forEach(x => { if (x.link && !x.linkArt && !x.vergleich) x.linkArt = 'direkt'; });
     l.forEach(x => { if (MARKTPLATZ_RX.test(x.shop + ' ' + x.link)) x.markt = true; });
     l.sort((a, b) => (a.markt ? 1 : 0) - (b.markt ? 1 : 0) || a.preis - b.preis);   // Marktplätze nie vor normalen Shops
+    let hdiag = null;
+    const ausgabe = () => (l.some(x => !x.markt) ? l.slice(0, 5) : []);   // genau die Angebote, die die App bekommt (günstigste zuerst)
+    if (String(req.query.haendler || '') === '1') {   // Produktkarten: fehlende Händlerlinks über gezielte Websuchen ergänzen (nur echte Händlerseiten, die zum Händler UND zum Produkt passen)
+      try {
+        /* Wichtig: nur für die Angebote suchen, die wirklich ausgegeben werden (nach Preis sortiert, höchstens 5). Vorher wurden die ersten fünf in Google-Reihenfolge bedient - die günstigen, angezeigten blieben ohne Link. */
+        const need = ausgabe().filter(x => !x.link && !x.vergleich && !MARKTPLATZ_RX.test(x.shop));
+        if (need.length) hdiag = await haendlerLinks(q, need, key);
+      } catch (e) { hdiag = { anfragen: 0, treffer: 0, ergaenzt: 0, abgelehnt: { host: 0, titel: 0, name: 0 }, fehler: ['Abbruch'] }; }
+      if (!hdiag) hdiag = { anfragen: 0, treffer: 0, ergaenzt: 0, abgelehnt: { host: 0, titel: 0, name: 0 }, fehler: [] };
+    }
+    l.forEach(x => { if (x.link && !x.linkArt && !x.vergleich) x.linkArt = 'direkt'; });
+    if (hdiag) { const ag = ausgabe(); hdiag.ausgegeben = ag.length; hdiag.mitLink = ag.filter(x => x.link && !x.vergleich).length; }
     const normal = l.filter(x => !x.markt), markt = l.filter(x => x.markt);
     const out = { angebote: normal.length ? l.slice(0, 5) : [] };   // nur Marktplätze (OnBuy, easyShop ...): kein "ab"-Preis, sie kommen klein getrennt
     if (!normal.length && markt.length) out.marktplatz = markt.slice(0, 2).map(x => ({ shop: x.shop, preisText: x.preisText, preis: x.preis, titel: x.titel }));
