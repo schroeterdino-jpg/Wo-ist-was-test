@@ -1,6 +1,6 @@
 # Jarvis: Architektur-Überblick
 
-Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 181 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
+Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 182 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
 Wo suche ich zuerst? → `LANDKARTE.md` (Problem → Datei → Abhängigkeiten, plus Zuordnung aller Skripte). Reihenfolge-Sicherheitsnetz: `tests/reihenfolge.js`; Timer-Register: `tests/timer.js` + `tests/timer_inventar.js`.
 Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (181 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (182 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -766,3 +766,6 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 
 ## Intelligenter Dirigent (Phase 5, `js/chef.js`, Test `tests/chef_dirigent.js`)
 Keine zweite Architektur: die Chef-KI (Testschalter „Intelligenten Dirigenten einschalten“, Standard AUS, `jv_chef`) wurde klüger gemacht. Der Planer entscheidet nach festen Regeln: Wissens-/Rechenfragen → keine Werkzeuge (alter Weg antwortet); Aktuelles → `websuche` auch ohne „Internet“; Fragen nach Jarvis selbst → Werkzeug `jarvis_info` (liest die echte Fähigkeitenliste aus `jvRegistry.beschreibe()`), danach bei Bedarf Recherche; mehrteilig → der Reihe nach. Schreibschutz: enthält der Satz keinen ausdrücklichen Schreibwunsch (`RX_B2A`), wird ein Plan mit Schreib-Werkzeug verworfen (`ki_nicht_erlaubt`) und der alte Weg übernimmt genau einmal. Fehler/Zeitlimit → alter Weg genau einmal. Festbefehle (z. B. Ausflug, Foto-Hilfe) greifen weiterhin VOR dem Dirigenten. `jarvis_info` steht in `OHNE_ERKENNUNG` (schatten.js).
+
+## Antworten als Text (`js/antwort_text.js`, Test `tests/antwort_text.js`)
+Reine Anzeige: `voice.js` ruft in `speak()` (Antwort) und `handleRecognizedText()` (Frage) je einmal `jvAntwortText.antwort/frage` in einem try/catch auf. So erscheint alles, was über die zentrale Sprachausgabe läuft (auch Chef-KI und lokale Befehle), als Karte unten mit „Kopieren“ und „Verlauf“ (15 Einträge, nur Arbeitsspeicher). Passwörter, Schlüssel und lange Tokens werden vor dem Merken durch „[verborgen]“ ersetzt. Schalter in den Einstellungen („Antworten als Text anzeigen“, `jv_antwort_text`, Standard AN); AUS = nichts wird gemerkt oder angezeigt. Keine KI-Anfrage, kein Netzwerk, keine Vercel-Funktion. Nicht erfasst: `speakAck` (Zwischenansagen wie „Einen Moment“) und Antworten, die nicht über `speak()` laufen.

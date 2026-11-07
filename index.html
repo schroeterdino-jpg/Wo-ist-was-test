@@ -673,6 +673,21 @@
                     </div>
                 </details>
 
+                <details id="antwortTextBox" class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
+                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
+                        <span>💬 Antworten als Text</span>
+                    </summary>
+                    <div class="p-4 space-y-3">
+                        <p class="text-xs text-[#5d7e91] font-mono">Alles, was Jarvis sagt, steht zusätzlich als Text in einer kleinen Karte unten (scrollbar, mit „Kopieren“). Es wird nur im Arbeitsspeicher gemerkt, nichts verschickt; Passwörter und Schlüssel werden ausgeblendet. Sprache und Bedienung bleiben gleich.</p>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="antwortTextSchalter" class="w-5 h-5" checked>
+                            <span class="text-sm text-slate-200">Antworten als Text anzeigen</span>
+                        </label>
+                        <button type="button" id="antwortTextVerlauf" class="w-full p-2.5 rounded-lg border border-[rgba(93,209,255,.4)] text-[#49d7ff] text-sm font-bold">Gesprächsverlauf ansehen</button>
+                        <button type="button" id="antwortTextLeeren" class="w-full p-2.5 rounded-lg border border-[rgba(93,209,255,.4)] text-[#49d7ff] text-sm font-bold">Verlauf löschen</button>
+                    </div>
+                </details>
+
                 <details id="chefBox" class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
                     <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
                         <span>🧭 Chef-KI (Test)</span>
@@ -836,7 +851,7 @@
     <script src="./js/smarttips.js?v=62f682b7"></script>
     <script src="./js/sync.js?v=4d78f542"></script>
     <script src="./js/native_speech.js?v=f4eaf0ed"></script>
-    <script src="./js/voice.js?v=27069aac"></script>
+    <script src="./js/voice.js?v=652a02bf"></script>
     <script src="./js/speak_kette.js?v=85f40eea"></script>
     <script src="./js/pronunciation.js?v=b6885a42"></script>
     <script src="./js/voicefix.js?v=c30ad8ee"></script>
@@ -863,7 +878,7 @@
     <script src="./js/formulierungen.js?v=9aa570ff"></script>
     <script src="./js/mailwatch.js?v=fc2e22c2"></script>
     <script src="./js/fristen.js?v=ad058c36"></script>
-    <script src="./js/help.js?v=9f10e378"></script>
+    <script src="./js/help.js?v=038d2de0"></script>
     <script src="./js/birthdays.js?v=0473aaee"></script>
     <script src="./js/weathermap.js?v=402d88c0"></script>
     <script src="./js/waehrung.js?v=05b5da25"></script>
@@ -887,6 +902,7 @@
     <script src="./js/stadtverkehr.js?v=84dec10b"></script>
     <script src="./js/lagebild.js?v=60e90ce7"></script>
     <script src="./js/uebersicht.js?v=f13afa5a"></script>
+    <script src="./js/antwort_text.js?v=bdf2328c"></script>
     <script src="./js/startseite_anpassen.js?v=56f1061a"></script>
     <script src="./js/systemcheck_voll.js?v=30aee3b3"></script>
     <script src="./js/jvfenster.js?v=b75b585c"></script>
@@ -896,7 +912,7 @@
     <script src="./js/mitnehmen.js?v=594e9461"></script>
     <script src="./js/einfuehrung.js?v=41b018c9"></script>
     <script src="./js/alleinstellung.js?v=45a23283"></script>
-    <script src="./js/anleitung.js?v=16a5ebc1"></script>
+    <script src="./js/anleitung.js?v=d132196e"></script>
     <script src="./js/festnamen.js?v=e8a9a06a"></script>
     <script src="./js/konto.js?v=18f7a8b5"></script>
     <script src="./js/haushalt.js?v=fcd85b53"></script>
