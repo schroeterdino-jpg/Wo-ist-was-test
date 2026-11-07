@@ -57,6 +57,28 @@ async function serverTests() {
     const id = (v.angebote || []).filter(x => /idealo/i.test(x.shop));
     check('S8 Idealo-Treffer sind ausdrücklich als Vergleich markiert (vergleich:true)', id.length >= 1 && id.every(x => x.vergleich === true), JSON.stringify(v.angebote));
 
+    /* ---- Handytest 07.11. (2): Links landeten bei Angeboten, die nicht ausgegeben/angezeigt wurden ---- */
+    {
+        const namen = ['Teuer1', 'Teuer2', 'Teuer3', 'Teuer4', 'Teuer5', 'Billig1', 'Billig2', 'Billig3'];
+        const preise = [49, 48, 47, 46, 45, 30, 31, 32];   // die günstigsten stehen in der Google-Reihenfolge HINTEN
+        const sh = namen.map((n, i) => ({ title: 'Grohe BauEdge Waschtischarmatur', source: n, price: preise[i] + ',00 €', link: 'https://www.google.com/aclk?a=' + i }));
+        const anf = [];
+        const fk = async (url, o) => {
+            if (/shopping/.test(url)) return antwort({ shopping: sh });
+            const qq = String((JSON.parse(String(o && o.body || '{}'))).q || '');
+            if (!qq || /site:idealo|idealo Preisvergleich/.test(qq)) return antwort({ organic: [] });
+            anf.push(qq);
+            const n = namen.find(x => qq.endsWith(' ' + x));
+            return antwort({ organic: n ? [{ title: 'Grohe BauEdge Waschtischarmatur | ' + n, link: 'https://www.' + n.toLowerCase() + '.de/grohe-bauedge' }] : [] });
+        };
+        const r = await lade(fk)({ action: 'shopping', q: 'Grohe BauEdge', haendler: '1' });
+        const shown = r.angebote || [];
+        check('S17 ausgegeben werden die 5 günstigsten (30, 31, 32, 45, 46) - keine Preise verschwiegen', shown.map(x => x.preis).join() === '30,31,32,45,46', shown.map(x => x.preis).join());
+        check('S18 ALLE ausgegebenen Angebote haben einen Händlerlink (die Suche gilt den ausgegebenen, nicht den ersten fünf der Google-Reihenfolge)', shown.every(x => x.link && x.linkArt === 'haendlerseite'), JSON.stringify(shown.map(x => [x.shop, x.link])));
+        check('S19 Preis und Händler gehören zum selben Angebot wie der Link (Billig1 = 30 € = billig1.de)', shown[0].shop === 'Billig1' && shown[0].preis === 30 && /billig1\.de/.test(shown[0].link));
+        check('S20 Diagnose: ausgegeben 5, davon 5 mit Händlerlink; höchstens 6 Anfragen', r.diag.h.ausgegeben === 5 && r.diag.h.mitLink === 5 && anf.length === 6 && r.diag.h.anfragen === 6, JSON.stringify(r.diag.h) + ' ' + anf.length);
+    }
+
     /* ---- Handytest 07.11.: kleine Shops stehen nicht in der allgemeinen Suche -> gezielte Suche je Händler ---- */
     {
         const sh = [
@@ -86,13 +108,13 @@ async function serverTests() {
         const g = n => (r.angebote || []).find(x => x.shop === n);
         check('S9 kleine Shops: gezielte Suche je Händler findet die Produktseite (OBI, onlinebaufuchs)', g('OBI') && g('OBI').link === 'https://www.obi.de/p/schuette-athos-plus' && g('OBI').linkArt === 'haendlerseite' && g('onlinebaufuchs') && g('onlinebaufuchs').link === 'https://www.onlinebaufuchs.de/schuette-athos-plus', JSON.stringify(r.angebote));
         check('S10 nur Händlerseite zum Thema (Kategorie) wird als „kategorie“ gekennzeichnet, nie als Produktseite', g('MDM Tools') && g('MDM Tools').linkArt === 'kategorie' && /mdm-tools\.de/.test(g('MDM Tools').link), JSON.stringify(g('MDM Tools')));
-        check('S11 nichts gefunden (BAU99; Sanitino ist der 5. Händler und wird nicht mehr gesucht): kein Link, kein erfundener', !g('BAU99').link && !g('Sanitino').link && !g('BAU99').linkArt);
+        check('S11 nichts gefunden (BAU99, Sanitino): kein Link, kein erfundener', !g('BAU99').link && !g('Sanitino').link && !g('BAU99').linkArt);
         check('S12 Vergleichsseiten (Idealo, „preisvergleich“) werden nie als Händlerlink genommen', (r.angebote || []).every(x => !/idealo|preisvergleich/i.test(x.link)));
-        check('S13 wenige Anfragen: 1 allgemeine + höchstens 4 gezielte', anfragen.length === 5 && r.diag.h.anfragen === 5, String(anfragen.length));
+        check('S13 wenige Anfragen: 1 allgemeine + höchstens 5 gezielte (je ausgegebenem Händler eine)', anfragen.length === 6 && r.diag.h.anfragen === 6, String(anfragen.length));
         check('S14 Diagnose: Anfragen, Treffer, ergänzt und Ablehnungsgründe, ohne Schlüssel', r.diag.h.ergaenzt === 3 && r.diag.h.abgelehnt.host === 2 && r.diag.h.treffer >= 5 && r.diag.h.fehler.length === 0 && !/"x"|X-API/.test(JSON.stringify(r.diag)), JSON.stringify(r.diag.h));
         sanitinoFehler = true; anfragen.length = 0;
         const r2 = await rufe2({ action: 'shopping', q: 'Schütte Athos Plus', haendler: '1' });
-        check('S15 Suchfehler eines Händlers wird in der Diagnose gemeldet, die anderen Links bleiben', r2.diag.h.fehler.join() === 'HTTP 500' && r2.angebote.find(x => x.shop === 'OBI').link, JSON.stringify(r2.diag.h));
+        check('S15 Suchfehler eines Händlers wird in der Diagnose gemeldet, die anderen Links bleiben', r2.diag.h.fehler.join() === 'HTTP 500,HTTP 500' && r2.angebote.find(x => x.shop === 'OBI').link, JSON.stringify(r2.diag.h));
         anfragen.length = 0;
         const r3 = await rufe2({ action: 'shopping', q: 'Schütte Athos Plus' });
         check('S16 ohne Händler-Wunsch keine zusätzlichen Anfragen und keine Händler-Diagnose', anfragen.length === 0 && !r3.diag.h, String(anfragen.length));
@@ -208,6 +230,14 @@ const TAB_OHNE = {
         const r = await runde(app, 'Ich suche zwei schöne Wasserhähne für mein Badezimmer.'), h = html(r.sichtbar);
         check('B7 nur eine Händlerseite (Kategorie): Link vorhanden, aber ausdrücklich „nicht sicher genau dieses Produkt“', /href="https:\/\/mdm\.example\/armaturen"[^>]*>MDM Tools · 39,90 € \(Händlerseite, nicht sicher genau dieses Produkt\)/.test(h), h.slice(0, 300));
         check('B8 Diagnosezeile zu den Händlerlinks erscheint nicht ohne Diagnose-Modus und stört nicht', r.sichtbar.length === 2);
+    }
+
+    {
+        const tab = { 'Grohe Eurosmart': [ang('Grohe Eurosmart Armatur', 'A-Shop', 40, ''), ang('Grohe Eurosmart Armatur', 'B-Shop', 41, ''), ang('Grohe Eurosmart Armatur', 'C-Shop', 42, ''), ang('Grohe Eurosmart Armatur', 'D-Shop', 50, 'https://d-shop.example/e', { linkArt: 'haendlerseite' })], 'Hansgrohe Talis S': [] };
+        const app = neu(Object.assign({ angebote: tab }, HAHN));
+        const r = await runde(app, 'Ich suche zwei schöne Wasserhähne für mein Badezimmer.'), h = html(r.sichtbar);
+        check('B9 die 3 günstigsten bleiben sichtbar (auch ohne Link) und das günstigste Angebot MIT Händlerlink kommt dazu', /A-Shop · 40,00/.test(h) && /B-Shop · 41,00/.test(h) && /C-Shop · 42,00/.test(h) && /href="https:\/\/d-shop\.example\/e"[^>]*>D-Shop · 50,00/.test(h), h.slice(0, 500));
+        check('B10 der dazugekommene Link gehört zum richtigen Angebot (D-Shop 50 €), die anderen bleiben ehrlich ohne Link', (h.match(/kein direkter Link gefunden/g) || []).length === 3);
     }
 
     /* ---- C. die Originalfrage und andere kombinierte Sätze ---- */
