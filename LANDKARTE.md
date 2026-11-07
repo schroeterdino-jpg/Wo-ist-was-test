@@ -1,7 +1,7 @@
 # LANDKARTE: wo suche ich zuerst?
 
 Rein technische Dokumentation für Entwickler und KI-Einstieg. Sie erzeugt keine Produktlogik und wird von keinem Skript der App gelesen.
-Stand: 29.10.2026 (Phase 8B, 184 Produktdateien in `js/`). Gehört zu `ARCHITEKTUR.md` (Überblick) und ist von `faehigkeiten.js` (Produktfunktion Hilfe/Mehrfachfragen) bewusst getrennt.
+Stand: 29.10.2026 (Phase 8B, 185 Produktdateien in `js/`). Gehört zu `ARCHITEKTUR.md` (Überblick) und ist von `faehigkeiten.js` (Produktfunktion Hilfe/Mehrfachfragen) bewusst getrennt.
 Von einer Fähigkeit (`faehigkeiten.js`) zu den Dateien: die Fähigkeit nennt nur ihre Kerndateien; die übrigen Dateien des Bereichs stehen in der Tabelle unten (Spalte „Abhängigkeiten“) und in der Bereichsliste (Teil 4). Das Fähigkeiten-Verzeichnis ist keine vollständige Funktionsliste und keine Liste aller Produktdateien (Einzelheiten: `ARCHITEKTUR.md`, Abschnitt „Fähigkeiten-Verzeichnis (B1)“). Offene technische Punkte: `ARCHITEKTUR.md`, Abschnitt „Bekannte offene technische Punkte“.
 Ergänzt durch die Fresh-AI-Nachbesserung: Anleitungen zum Erweitern (neuer Sprachbefehl, neue speak-Stufe), Java→JS-Rückrufe der APK, bekannte Gleichrang-Gruppen und die Test-Übersicht (Bereich → Tests): `ARCHITEKTUR.md`, Abschnitte „Rezepte und Nachschlagen für neue Entwickler“.
 Ein Test (`tests/landkarte.js`) prüft, dass jede Datei in `js/` genau einem Bereich zugeordnet ist und alle hier genannten Dateien existieren.
@@ -29,7 +29,7 @@ Schreibweise: `jv…` = Globals im Browser, `[APK]` = `weckruf-src/`. Zeilennumm
 | Spracheingabe | voice.js (Browser), native_speech.js (APK/Vosk) | wake_start.js, hoeren.js, hoerkorrektur.js, festnamen.js, [APK] WakeService, OwwEngine/OwwSpeech/OwwVad |
 | WhatsApp | [APK] NachrichtenService.java, ZaneBridge.java; Web: fahr_whatsapp.js, schlaf_antwort.js | zuvorkommend.js (Glückwunsch), teilen.js, KontaktWahl.java, Prefs.java |
 | Vertretung | **[APK] NachrichtenService.java** (Timer „Ich warte N Minuten“), VertretungReceiver.java | Prefs.java, ZaneBridge (`vertretungSetzen/Minuten`), schlaf_antwort.js (Schlafmodus-Text/KI) |
-| Schicht | schicht.js, schichtauskunft.js | plan_ansagen.js, frueher_los.js, urlaub.js, vorbereitung.js, api/sync.js (Push) |
+| Schicht | schicht.js, schichtauskunft.js, schicht_einstellungen.js | plan_ansagen.js, frueher_los.js, urlaub.js, vorbereitung.js, api/sync.js (Push) |
 | Ausflüge | ausflug.js | places.js/ortsuche.js (Orte), wetter, calendar.js |
 | Fotos | **foto_kette.js** (`jvFotoKette`, zuerst hier schauen), photo.js, foto_erkennen.js | foto_* (9 Erweiterungen, Rang statt Ladereihenfolge), fotosenden.js, lagebild.js, wunschliste.js |
 | Proaktive Meldungen | wachter.js, proaktiv.js, dirigent.js, zane_redet.js, kennenlernen.js, vorbereitung.js, routinen.js | api/sync.js (Push), auftraege.js (Abholen), meldungen.js |
@@ -79,7 +79,7 @@ Jede Datei in `js/` steht genau einmal (Name ohne `js/` und `.js`).
 - **Orte/Navigation/Fahrzeit** (16): `autoansicht`, `fahrtcheck`, `karte_zu`, `karten_weg`, `lagebild`, `nearby`, `nearbymore`, `orte`, `ortsuche`, `parkplatz_auto`, `places`, `sonnemond`, `stadtverkehr`, `streetview`, `travel`, `weltzeit`
 - **Mail/Geld** (12): `fristen`, `haushalt`, `konto`, `mail`, `mail_nacht`, `mailaktionen`, `mailpush`, `mailwatch`, `pakete`, `postfach`, `preissuche`, `waehrung`
 - **Sprache (TTS/STT/Wake)** (12): `audio`, `fish`, `hoeren`, `native_speech`, `pronunciation`, `speak_kette`, `speechrate`, `tempo`, `toene`, `voice`, `voicefix`, `wake_start`
-- **Schicht/Arbeit** (10): `frueher_los`, `mitnehmen`, `plan_ansagen`, `routinen`, `schicht`, `schichtauskunft`, `schlaf_antwort`, `urlaub`, `vorbereitung`, `zuvorkommend`
+- **Schicht/Arbeit** (11): `frueher_los`, `mitnehmen`, `plan_ansagen`, `routinen`, `schicht`, `schicht_einstellungen`, `schichtauskunft`, `schlaf_antwort`, `urlaub`, `vorbereitung`, `zuvorkommend`
 - **Kalender** (6): `birthdays`, `calendar`, `feiertage`, `ferien`, `geburtstag_ganztag`, `terminfinder`
 - **Proaktivität** (6): `briefing`, `dirigent`, `proaktiv`, `smarttips`, `tagesueberblick`, `wachter`
 - **Push/Sync** (4): `auftraege`, `push`, `pushsync`, `sync`

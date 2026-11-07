@@ -1,6 +1,6 @@
 # Jarvis: Architektur-Überblick
 
-Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 166 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
+Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 185 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
 Wo suche ich zuerst? → `LANDKARTE.md` (Problem → Datei → Abhängigkeiten, plus Zuordnung aller Skripte). Reihenfolge-Sicherheitsnetz: `tests/reihenfolge.js`; Timer-Register: `tests/timer.js` + `tests/timer_inventar.js`.
 Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (184 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (185 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -761,3 +761,12 @@ Jarvis nimmt Arbeitsaufträge per Sprache an („Bau mir eine App“, „Recherc
 - Ursache lag in Jarvis, nicht im erzeugten App-Code: Der Endlosschleifen-Test (`haengtBeimLaden`, studio_werkzeuge.js) führt den App-Code in einem Worker aus einer Blob-URL aus. Dessen Attrappen ließen `localStorage.getItem(..)` einen Proxy liefern; `JSON.parse(proxy)` ergibt über `Symbol.toPrimitive` die Zahl 0, also war `entries` keine Liste. Der Fehler im Worker wurde nicht abgefangen und erschien als „Uncaught TypeError“ in der roten Fehleranzeige von Jarvis (Blob-URL = der Worker; zwei Blob-URLs = zwei Testläufe). Die fertige App (APK) war nie betroffen.
 - Lösung: Speicher-Attrappe verhält sich wie ein leerer echter Speicher (`getItem` → null), `onerror` ruft `preventDefault()`. Nachweis: `tools/studio_browser_check.js` (echtes Chromium) reproduziert die Meldung mit dem alten Stand, der neue Stand ist fehlerfrei; `tests/studio.js` 17a–17c.
 - Zusammenhang mit PR #361: keiner (Worker stammt aus dem Studio-Bau davor).
+
+## Schichtzeiten und Meldungsarten (zentral in `js/plan_ansagen.js`)
+- **Eine Quelle:** Beginn/Ende je Schicht (`jv_plan_beginn`, `jv_plan_ende`; Früh 5:10-14:37, Spät 13:50-22:12), gewünschte Ankunft vor Beginn (`jv_plan_vorher`, Standard 20 Min.), Stauwarnungen (`jv_plan_stau_aus`). Oberfläche: `js/schicht_einstellungen.js` (Einstellungen > Schichtzeiten). Andere Module (schichtauskunft, schicht, KI-Kontext) fragen `window.jvPlan`, keine eigenen Standardwerte.
+- **Abfahrt** = Ankunft minus gemessene Fahrzeit; nur eine ausdrücklich genannte feste Abfahrt (`jv_plan_abfahrt`) gilt stattdessen. Ohne Messung: genannte Abfahrt 4:30/13:00.
+- **Einmalige Änderungen** (nur ein Tag, überschreiben nie die dauerhaften Zeiten): `jv_plan_beginn_tag_<ymd>`, `jv_plan_ende_tag_<ymd>`, `jv_plan_vorher_tag_<ymd>`, `jv_plan_vorher`-Tagesvorzug (`tagVor`).
+- **Ende nach Mitternacht:** Ende kleiner/gleich Beginn wird als Folgetag gespeichert (Minuten >= 1440).
+- **Meldungsarten:** Hinfahrt = `stau|` + `aufbruch|`; Heimfahrt = `heim|` (Ende + 3 Min.); Schicht-Erinnerung = `wecker|` (20:30 am Vorabend einer Frühschicht); Briefing = `brief|`. Keine pauschale 16-Uhr-Meldung.
+- **Veraltete Meldungen:** `schicht.js save()` und `urlaub.js` rufen `jvSchichtNeuPlanen` (-> `planSenden(true)`). `quietNow()` gilt nur vor einem echten Frühschicht-Arbeitstag (Wochenende/Urlaub/Sonntag-Montag über `jvPlan.schichtAm`).
+- **Offen (braucht neue APK):** `AnsageReceiver.java` prüft beim Feuern nicht, ob eine Meldung noch gilt, und weckt den Bildschirm beim Stau-Check auch ohne Meldung.

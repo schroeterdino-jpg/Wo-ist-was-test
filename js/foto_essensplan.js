@@ -251,8 +251,12 @@
             const teile = TAGE.filter(d => p.tage[d]).map(d => d + '.\n' + getrennt(p.tage[d]));
             sagen('Der Essensplan.\n\n' + teile.join('\n\n') + altHinweis(p)); return true;
         }
-        const frage = /^(?:was|welche[sn]?|gibt)\b/.test(t) && /\b(?:gibt|gibts|essen|kantine|mittag\w*|gericht\w*|kochen|kocht|zu essen)\b/.test(t) || WORT.test(t);
-        if (!frage || /\b(?:fernsehen|tv|kino|neu\w*|nachricht\w*|wetter|film\w*|programm|termin\w*|arbeit|schicht\w*|tank\w*|sprit|diesel|zuhause|abend\w*|fruehstueck|frühstück)\b/.test(t)) return next(text);
+        /* "Gibt es morgen Regen?" ist eine Wetterfrage, keine Essensfrage: nur "was gibt es ..." oder "gibt es" MIT Essenswort zählt */
+        const essenWort = /\b(?:essen|kantine|mittag\w*|gericht\w*|kochen|kocht|zu essen|veggie|vegetarisch\w*|fleisch)\b/.test(t);
+        const frage = (/^(?:was|welche[sn]?)\b/.test(t) && /\b(?:gibt|gibts)\b/.test(t)) || (/^(?:was|welche[sn]?|gibt)\b/.test(t) && essenWort) || WORT.test(t);
+        /* Wetterwörter sperren nur, wenn die Frage nicht eindeutig nach dem Essen fragt ("Was gibt es morgen bei Regen zu essen?" bleibt Essensplan) */
+        const wetterSperre = /\b(?:regen\w*|schnee\w*|gewitter\w*|sonne|sonnig\w*|wind\w*|sturm|glatt\w*|eis|frost|temperatur\w*|grad|warm|kalt|wolken|nebel|hagel|unwetter|wetter)\b/.test(t) && !/\b(?:zu essen|zum essen|kantine|mittag\w*|gericht\w*|essens?\s?plan|speise\s?plan)\b/.test(t);
+        if (!frage || wetterSperre || /\b(?:fernsehen|tv|kino|neu\w*|nachricht\w*|wetter|film\w*|programm|termin\w*|arbeit|schicht\w*|tank\w*|sprit|diesel|zuhause|abend\w*|fruehstueck|frühstück)\b/.test(t)) return next(text);
         const off = offsetAusSatz(t);
         if (off == null) return next(text);
         sagen(antwortTag(off, p)); return true;

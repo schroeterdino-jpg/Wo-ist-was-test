@@ -32,7 +32,7 @@
           s: ["Merk dir meine Arbeitsadresse: Musterstraße 5, Musterstadt", "Anleitung"] },
         { g: "Los geht’s", i: "🕒", t: "Schicht und Abfahrt", h: "schicht",
           d: "Sag Jarvis, ob du Früh- oder Spätschicht hast. Er wechselt jeden Montag von selbst und rechnet daraus Aufstehzeit, Abfahrt und Briefing. Beginn, Ende und Abfahrt kannst du ändern. Musst du an einem Tag früher anfangen, sag zum Beispiel „Ich muss Donnerstag um 13:15 auf der Arbeit sein“: Jarvis zieht die Abfahrt an dem Tag vor und meldet sich vorher mit der Verkehrslage.",
-          s: ["Diese Woche Frühschicht", "Welche Schicht habe ich?", "Meine Frühschicht beginnt um 5 Uhr 30", "Wann stehe ich auf?", "Ich muss Donnerstag um 13:15 auf der Arbeit sein"] },
+          s: ["Diese Woche Frühschicht", "Welche Schicht habe ich?", "Meine Frühschicht beginnt um 5 Uhr 30", "Wann stehe ich auf?", "Ich muss Donnerstag um 13:15 auf der Arbeit sein", "Wann habe ich morgen Feierabend?", "Morgen fange ich erst um 6 Uhr an", "Morgen habe ich um 15 Uhr Feierabend", "Morgen möchte ich 30 Minuten früher auf der Arbeit sein"] },
         { g: "Los geht’s", i: "🌴", t: "Urlaub", n: "Während des Urlaubs meldet Jarvis nichts zum Arbeitsweg",
           d: "Trage deinen Urlaub ein, dann sind Arbeitsweg, Abfahrt und Schichtmeldungen in dieser Zeit still.",
           s: ["Ich habe Urlaub vom 20. Oktober bis 3. November", "Habe ich Urlaub eingetragen?", "Urlaub beenden"] },

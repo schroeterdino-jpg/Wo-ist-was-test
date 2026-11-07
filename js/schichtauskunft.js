@@ -2,14 +2,13 @@
    SCHICHTAUSKUNFT: Jarvis beantwortet Fragen zu deinen Schichtzeiten selbst, ohne dass du sie ins Gedächtnis sprechen musst.
    - Feste Fragen (ohne KI): "Wann beginnt meine Spätschicht?", "Wann fange ich an?", "Schichtbeginn", "Wann stehe ich auf?"
    - Die KI bekommt bei jeder Frage die Schichtdaten mit (window.jvSchichtWissen): Schicht diese und nächste Woche, Beginn, Aufstehzeit, Urlaub.
-   Quellen: schicht.js (Wochenwechsel, Aufstehzeit Früh, Briefing-Zeit Spät), plan_ansagen.js (Beginn Früh 5:10, Spät 13:45, änderbar), urlaub.js.
+   Quellen: schicht.js (Wochenwechsel, Aufstehzeit Früh, Briefing-Zeit Spät), plan_ansagen.js (zentrale Schichtzeiten: Beginn, Ende, Ankunft; änderbar), urlaub.js.
    Muss nach schicht.js, urlaub.js und commands.js geladen werden.
    ============================================================ */
 (function () {
     'use strict';
     if (window.jvSchichtWissen) return;
     const NAME = { frueh: 'Frühschicht', spaet: 'Spätschicht' };
-    const BEGINN_STD = { frueh: 5 * 60 + 10, spaet: 13 * 60 + 45 };
     function T() { const t = window._schichtTest; return t && typeof t.load === 'function' && typeof t.shiftOfWeek === 'function' ? t : null; }
     function norm(t) {
         return String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
@@ -17,12 +16,13 @@
     }
     function uhr(min) { const h = Math.floor(min / 60), m = min % 60; return m ? h + ' Uhr ' + m : h + ' Uhr'; }
     function beginn(sh) {
+        try { if (window.jvPlan && typeof window.jvPlan.beginn === 'function') return window.jvPlan.beginn(sh); } catch (e) { }
         try {
             const raw = typeof getPersistentData === 'function' ? getPersistentData('jv_plan_beginn', '') : '';
             const o = JSON.parse(raw || 'null');
             if (o && Number.isFinite(o[sh])) return o[sh];
         } catch (e) { }
-        return BEGINN_STD[sh];
+        return null;   // keine eigene Standardzeit: die zentralen Zeiten stehen in plan_ansagen.js
     }
     function schichtWoche(plus) {   // 0 = diese Woche, 1 = nächste Woche
         const t = T(), st = t && t.load();
@@ -32,6 +32,17 @@
     function aufstehen() { const t = T(), st = t && t.load(); return st && st.times ? st.times.frueh : 210; }
     function briefingSpaet() { const t = T(), st = t && t.load(); return st && st.times ? st.times.spaet : 720; }
 
+    function zeitenFuer(art) {   // { 'Frühschicht': '14 Uhr 37', ... } nur mit bekannten Zeiten
+        const P = window.jvPlan, o = {};
+        if (!P) return undefined;
+        ['frueh', 'spaet'].forEach(sh => {
+            try {
+                let v = art === 'ende' ? P.ende(sh) : art === 'ankunft' ? P.ankunft(sh) : P.abfahrtMin(sh);
+                if (Number.isFinite(v)) o[NAME[sh]] = uhr(((v % 1440) + 1440) % 1440) + (v >= 1440 ? ' (nach Mitternacht)' : '');
+            } catch (e) { }
+        });
+        return Object.keys(o).length ? o : undefined;
+    }
     /* Für die KI */
     window.jvSchichtWissen = function () {
         try {
@@ -40,6 +51,7 @@
             const o = {
                 schicht_diese_woche: NAME[a], schicht_naechste_woche: NAME[b],
                 schichtbeginn: { 'Frühschicht': uhr(beginn('frueh')), 'Spätschicht': uhr(beginn('spaet')) },
+                schichtende: zeitenFuer('ende'), gewuenschte_ankunft: zeitenFuer('ankunft'), abfahrt_zur_arbeit: zeitenFuer('abfahrt'),
                 aufstehen_in_der_fruehschicht: uhr(aufstehen()),
                 briefing_in_der_spaetschicht_ab: uhr(briefingSpaet()),
                 hinweis: 'Der Schichtwechsel ist immer montags, Früh und Spät wechseln sich wöchentlich ab. Arbeit nur Montag bis Freitag.'
@@ -52,6 +64,7 @@
     function sag(t) { try { speak(t, false); } catch (e) { } return true; }
 
     function befehl(text, next) {
+        try { if (window.jvPlan && typeof window.jvPlan.auskunftSatz === 'function' && window.jvPlan.auskunftSatz(text)) return true; } catch (e) { }   // Beginn/Ende/Abfahrt für einen Tag
         const t = norm(text);
         if (!t || t.split(' ').length > 14) return next(text);
         const nenntFrueh = /\bfrueh\s?schicht\b|\bfruehschicht\b/.test(t), nenntSpaet = /\bspaet\s?schicht\b|\bspaetschicht\b/.test(t);

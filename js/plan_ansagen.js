@@ -22,7 +22,7 @@
     'use strict';
     if (window.jvPlan) return;
 
-    const BEGINN_STD = { frueh: 5 * 60 + 10, spaet: 13 * 60 + 45 };
+    const BEGINN_STD = { frueh: 5 * 60 + 10, spaet: 13 * 60 + 50 };   // vom Nutzer genannt: Früh 5:10, Spät 13:50
     const PUFFER_ARBEIT = 10;        // Minuten zwischen Ankunft und Schichtbeginn
     const STAU_VOR = 20;             // Stau-Check so viele Minuten vor der Aufbruchs-Ansage
     const VOR_ABFAHRT = 10;          // so viele Minuten vor der Abfahrt kommt die Ansage
@@ -159,14 +159,32 @@
         o[sh] = min; sd(K_BEGINN, JSON.stringify(o));
     }
     const ENDE_STD = { frueh: 14 * 60 + 37, spaet: 22 * 60 + 12 };
-    function ende(sh) {
+    /* Ende in Minuten seit Mitternacht des Arbeitstags; 1440 oder mehr = nach Mitternacht (Folgetag), z. B. 0:30 Uhr = 1470 */
+    const K_ETAG = 'jv_plan_ende_tag_';   // einmalige Ausnahme für einen Tag ("Morgen habe ich um 15 Uhr Feierabend")
+    function endeTag(ymd) { const v = Number(lsGet(K_ETAG + ymd)); return ymd && lsGet(K_ETAG + ymd) && Number.isFinite(v) && v > 0 && v < 2880 ? Math.round(v) : 0; }
+    function endeNormal(sh, beginnMin) { return function (min) { return min <= beginnMin ? min + 1440 : min; }; }
+    function setEndeTag(ymd, min, sh) {
+        if (min > 0) lsSet(K_ETAG + ymd, String(Math.round(endeNormal(sh, beginn(sh, ymd))(min)))); else { try { localStorage.removeItem(K_ETAG + ymd); } catch (e) { } }
+    }
+    function ende(sh, ymd) {
+        const ex = ymd ? endeTag(ymd) : 0; if (ex) return ex;
         try { const o = JSON.parse(pd(K_ENDE, '') || 'null'); if (o && Number.isFinite(o[sh])) return o[sh]; } catch (e) { }
         return ENDE_STD[sh];
     }
     function setEnde(sh, min) {
         let o = {}; try { o = JSON.parse(pd(K_ENDE, '') || '{}') || {}; } catch (e) { }
-        o[sh] = min; sd(K_ENDE, JSON.stringify(o));
+        o[sh] = endeNormal(sh, beginn(sh))(min); sd(K_ENDE, JSON.stringify(o));
     }
+    /* Gewünschte Ankunft vor Arbeitsbeginn (Standard 20 Minuten) und einmalige Ausnahme pro Tag */
+    const K_VORHER = 'jv_plan_vorher', K_VTAG = 'jv_plan_vorher_tag_', K_STAUAUS = 'jv_plan_stau_aus';
+    function vorherStd() { const v = Number(pd(K_VORHER, '')); return pd(K_VORHER, '') !== '' && Number.isFinite(v) && v >= 0 && v <= 90 ? Math.round(v) : 20; }
+    function setVorher(min) { sd(K_VORHER, String(Math.max(0, Math.min(90, Math.round(min))))); }
+    function vorherTag(ymd) { const raw = ymd && lsGet(K_VTAG + ymd), v = Number(raw); return raw && Number.isFinite(v) && v >= 0 && v <= 120 ? Math.round(v) : null; }
+    function setVorherTag(ymd, min) { if (min == null) { try { localStorage.removeItem(K_VTAG + ymd); } catch (e) { } } else lsSet(K_VTAG + ymd, String(Math.max(0, Math.min(120, Math.round(min))))); }
+    function vorher(ymd) { const t = vorherTag(ymd); return t == null ? vorherStd() : t; }
+    function stauAn() { return pd(K_STAUAUS, '') !== '1'; }
+    function setStauAn(an) { sd(K_STAUAUS, an ? '' : '1'); }
+    function ankunft(sh, ymd) { return beginn(sh, ymd) - vorher(ymd); }
     function weckzeit() { const T = S(), st = T && T.load(); return st && st.times && Number.isFinite(st.times.frueh) ? st.times.frueh : 210; }
     const NAME = { frueh: 'Frühschicht', spaet: 'Spätschicht' };
 
@@ -174,10 +192,21 @@
        Feste Zeit pro Schicht (Früh 4:30, Spät 13:00; änderbar per Sprache). Nur wenn die Fahrt heute deutlich länger dauert als sonst
        (10 Minuten oder mehr), wird entsprechend früher losgefahren. */
     const ABF_STD = { frueh: 4 * 60 + 30, spaet: 13 * 60 };
-    function abfFix(sh) {
-        try { const o = JSON.parse(pd(K_ABF, '') || 'null'); if (o && Number.isFinite(o[sh])) return o[sh]; } catch (e) { }
-        return ABF_STD[sh];
+    /* Abfahrt = gewünschte Ankunft minus normale Fahrzeit (gemessen). Nur wenn der Nutzer eine feste Abfahrt genannt hat, gilt diese.
+       Ohne Messung gelten die vom Nutzer genannten Abfahrtszeiten (Früh 4:30, Spät 13:00). Einmalige Ausnahmen pro Tag:
+       späterer Beginn schiebt die Abfahrt nach hinten (früherer Beginn: tagVor), mehr Vorlauf zieht sie vor. */
+    function abfFix(sh, ymd) {
+        let basis = null;
+        try { const o = JSON.parse(pd(K_ABF, '') || 'null'); if (o && Number.isFinite(o[sh])) basis = o[sh]; } catch (e) { }
+        if (basis == null) basis = messungen().length ? BEGINN_STD_NUTZ(sh) - vorherStd() - letzteFahrt() : ABF_STD[sh];
+        if (ymd) {
+            const bt = beginnTag(ymd), b0 = beginn(sh);
+            if (bt && bt > b0) basis += bt - b0;
+            const vt = vorherTag(ymd); if (vt != null) basis -= vt - vorherStd();
+        }
+        return basis;
     }
+    function BEGINN_STD_NUTZ(sh) { return beginn(sh); }
     function setAbf(sh, min) {
         let o = {}; try { o = JSON.parse(pd(K_ABF, '') || '{}') || {}; } catch (e) { }
         o[sh] = min; sd(K_ABF, JSON.stringify(o));
@@ -185,7 +214,7 @@
     /* Tages-Vorzug: Jarvis zieht die Abfahrt (und die Wecker-Zeit) an einem bestimmten Tag um N Minuten vor, zum Beispiel bei Frost (zuvorkommend.js). Rückgängig: auf 0 setzen. */
     function tagVor(ymd) { const v = Number(lsGet(K_VOR + ymd)); return Number.isFinite(v) && v > 0 && v <= 60 ? Math.round(v) : 0; }
     function setTagVor(ymd, min) { if (min > 0) lsSet(K_VOR + ymd, String(Math.round(min))); else { try { localStorage.removeItem(K_VOR + ymd); } catch (e) { } } }
-    function abfahrtFuer(sh, min, normal, ymd) { const mehr = (min || 0) - (normal || 0); return abfFix(sh) - (ymd ? tagVor(ymd) : 0) - (mehr >= 10 ? mehr : 0); }
+    function abfahrtFuer(sh, min, normal, ymd) { const mehr = (min || 0) - (normal || 0); return abfFix(sh, ymd) - (ymd ? tagVor(ymd) : 0) - (mehr >= 10 ? mehr : 0); }
 
     /* ---------- Fahrzeit zur Arbeit ---------- */
     /* "Normale" Fahrzeit = Mittelwert (Median) der letzten Messungen; einzelne Staus verfälschen sie kaum */
@@ -459,7 +488,7 @@
     /* Arbeitszeit an einem Tag: Abfahrt bis Schichtende (Minuten seit Mitternacht); null ohne Schicht (Wochenende, Urlaub) */
     function arbeitsFenster(ymd) {
         const sh = schichtAm(ymd);
-        return sh ? { sh, von: abfFix(sh), ende: ende(sh) } : null;
+        return sh ? { sh, von: abfFix(sh, ymd), ende: ende(sh, ymd) } : null;
     }
     /* Ein Termin ({ ymd, zeit, text }) gegen die Arbeit: { art: 'drin' | 'knapp', sh, ende, luft } oder null */
     function konfliktMit(ev) {
@@ -515,10 +544,10 @@
                     if (bt && Number.isFinite(bt[sh])) out.push({ id: 'brief|' + ymd, at: berlinMs(ymd, bt[sh] - briefingVor(ymd)), text: 'Dein Briefing ist bereit. Tippe, dann erzähle ich es dir.' });
                 } catch (e) { }
                 const start = beginn(sh, ymd), fahrt = letzteFahrt();
-                const abfahrt = abfFix(sh) - tagVor(ymd), ansage = abfahrt - VOR_ABFAHRT;
+                const abfahrt = abfFix(sh, ymd) - tagVor(ymd), ansage = abfahrt - VOR_ABFAHRT;
                 const staumin = Math.max(ansage - STAU_VOR, sh === 'frueh' ? weckzeit() + 10 : 0);
-                if (ansage >= 0 && staumin <= ansage - 5) out.push({ id: 'stau|' + ymd, at: berlinMs(ymd, staumin), text: 'Ich prüfe kurz die Verkehrslage auf deinem Arbeitsweg. Ist alles frei, sage ich nichts.' });
-                out.push({ id: 'heim|' + ymd, at: berlinMs(ymd, ende(sh) + HEIM_NACH), text: 'Feierabend.' + (heimNormal() ? ' Der Heimweg dauert normalerweise rund ' + heimNormal() + ' Minuten.' : '') + (heuteAufgabenText() ? ' ' + heuteAufgabenText() : '') + ' Tippe für Einzelheiten.' });
+                if (stauAn() && ansage >= 0 && staumin <= ansage - 5) out.push({ id: 'stau|' + ymd, at: berlinMs(ymd, staumin), text: 'Ich prüfe kurz die Verkehrslage auf deinem Arbeitsweg. Ist alles frei, sage ich nichts.' });
+                out.push({ id: 'heim|' + ymd, at: berlinMs(ymd, ende(sh, ymd) + HEIM_NACH), text: 'Feierabend.' + (heimNormal() ? ' Der Heimweg dauert normalerweise rund ' + heimNormal() + ' Minuten.' : '') + (heuteAufgabenText() ? ' ' + heuteAufgabenText() : '') + ' Tippe für Einzelheiten.' });
                 if (ansage >= 0) out.push({ id: 'aufbruch|' + ymd, at: berlinMs(ymd, ansage), text: 'Abfahrt gegen ' + uhrHM(abfahrt) + ' Uhr (' + NAME[sh] + ' ab ' + uhrHM(start) + ', Fahrt rund ' + fahrt + ' Minuten). Tippe, dann sage ich dir die aktuelle Lage.' });
             }
             const morgen = ymdPlus(ymd, 1);
@@ -588,7 +617,7 @@
             if (art === 'wochen' && nu.ymd !== ymd) return false;
             if (art === 'aufbruch' && (nu.ymd !== ymd || nu.min >= beginn(schichtAm(ymd) || 'frueh', ymd))) return false;
             if (art === 'wecker' && (nu.ymd !== ymd || nu.min > 23 * 60)) return false;
-            if (art === 'heim') { const sh0 = schichtAm(ymd); if (nu.ymd !== ymd || !sh0 || nu.min < ende(sh0) || nu.min > ende(sh0) + 120) return false; }
+            if (art === 'heim') { const sh0 = schichtAm(ymd); const em = sh0 ? berlinMs(ymd, ende(sh0, ymd)) : 0; if (!sh0 || Date.now() < em || Date.now() > em + 120 * 60000) return false; }   // auch für Ende nach Mitternacht
             if (art === 'stau' && (nu.ymd !== ymd || !schichtAm(ymd) || nu.min >= beginn(schichtAm(ymd), ymd) - 30)) return false;
         }
         if (art === 'brief') {   // Schicht-Briefing, einmal pro Tag (nicht doppelt, wenn schicht.js es schon gesagt hat)
@@ -644,6 +673,7 @@
     /* Früher Stau-Check: spricht nur, wenn die Fahrt heute deutlich länger dauert als sonst oder Meldungen auf der Strecke liegen */
     async function stauCheck(ymd, immer) {
         const sh = schichtAm(ymd); if (!sh) return false;
+        if (!immer && !stauAn()) return false;   // Stauwarnungen in den Einstellungen aus
         const normal = letzteFahrt();
         const f = await fahrtFrisch();
         const min = f.min || normal;
@@ -798,9 +828,109 @@
     }
 
     /* ---------- Sprachbefehle ---------- */
+
+    /* ---------- Auskunft und einmalige Änderungen per Sprache ---------- */
+    const WTAG = { montag: 0, dienstag: 1, mittwoch: 2, donnerstag: 3, freitag: 4, samstag: 5, sonntag: 6 };
+    function tagAusSatz(t) {   // ymd oder null, wenn kein Tag genannt ist
+        const h = jetzt().ymd;
+        if (/\buebermorgen\b/.test(t)) return ymdPlus(h, 2);
+        if (/\bmorgen\b/.test(t)) return ymdPlus(h, 1);
+        if (/\bheute\b/.test(t)) return h;
+        const m = t.match(/\b(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/);
+        if (m) { const d = (WTAG[m[1]] - dow(h) + 7) % 7; return ymdPlus(h, d === 0 ? 7 : d); }
+        return null;
+    }
+    function keineSchichtGrund(ymd) {
+        if (urlaubAm(ymd) && schichtOhneUrlaub(ymd) && dow(ymd) <= 4) return 'Urlaub';
+        if (dow(ymd) > 4) return 'Wochenende';
+        return null;
+    }
+    function nichtArbeitAntwort(ymd) {
+        if (!S() || !S().load()) return 'Deine Schicht ist noch nicht eingestellt. Sag zum Beispiel: Diese Woche Frühschicht.';
+        const g = keineSchichtGrund(ymd);
+        return tagWann(ymd) + ' hast du keine Schicht' + (g === 'Urlaub' ? ', du hast Urlaub.' : g === 'Wochenende' ? ', es ist Wochenende.' : '.');
+    }
+    function zeitText(min) { return uhr(min % 1440) + (min >= 1440 ? ' (nach Mitternacht)' : ''); }
+    function naechsterArbeitstag(ab) { for (let i = 0; i <= 7; i++) { const y = ymdPlus(ab, i); if (schichtAm(y)) return y; } return null; }
+    /* Gilt ein Tag nur wegen einer einmaligen Änderung anders? */
+    function ausnahmeHinweis(sh, ymd, art) {
+        if (art === 'beginn' && beginnTag(ymd)) return ' Das ist eine einmalige Änderung.';
+        if (art === 'ende' && endeTag(ymd)) return ' Das ist eine einmalige Änderung.';
+        return '';
+    }
+    function auskunftSatz(text) {
+        const t = norm(text);
+        if (!t || t.split(' ').length > 14 || /\b(setz|stell|aender\w*|merk\w*|speicher\w*|trag\w*)\b/.test(t)) return false;
+        if (!/^(wann|um wie viel uhr|um wieviel uhr|wie lange|bis wann)\b/.test(t)) return false;
+        const tag = tagAusSatz(t);
+        const nenntSh = /fruehschicht/.test(t) ? 'frueh' : /spaetschicht/.test(t) ? 'spaet' : null;
+        const frageEnde = /\b(feierabend|schluss|schichtende|arbeitsende|dienstende)\b/.test(t) || /\b(endet|ende)\b/.test(t) || /\b(nach hause|heim)\b/.test(t) && /\b(fahre|fahr|gehe|geh|komme|kann)\b/.test(t);
+        const frageBeginn = /\b(muss ich)\b.*\b(arbeiten|arbeit)\b/.test(t) && !/\b(los|losfahren|fahren|abfahren)\b/.test(t) || /\b(beginnt|beginn|faengt|fange|fangen|starte|startet|anfang|schichtbeginn|arbeitsbeginn)\b/.test(t);
+        if (!frageEnde && !frageBeginn) return false;
+        if (!nenntSh && !/\b(ich|mein\w*|mir)\b/.test(t)) return false;   // Fragen über andere Personen ("Wann hat Anna Feierabend") gehören nicht hierher
+        if (!S() || !S().load()) { sagen('Deine Schicht ist noch nicht eingestellt. Sag zum Beispiel: Diese Woche Frühschicht.', false); return true; }
+        let ymd = tag, sh = null;
+        if (nenntSh && !tag) {   // "Wann beginnt meine Spätschicht?" - normale Zeit der Schicht, ohne Tag
+            const z = frageEnde && !frageBeginn ? ende(nenntSh) : beginn(nenntSh);
+            sagen('Deine ' + NAME[nenntSh] + (frageEnde && !frageBeginn ? ' endet um ' : ' beginnt um ') + zeitText(z) + '.', false);
+            return true;
+        }
+        if (!ymd) { const h = jetzt(); ymd = (schichtAm(h.ymd) && h.min < ende(schichtAm(h.ymd), h.ymd)) ? h.ymd : naechsterArbeitstag(ymdPlus(h.ymd, schichtAm(h.ymd) ? 1 : 0)); }
+        if (!ymd) { sagen('Ich finde keinen Arbeitstag in den nächsten Tagen. Ist deine Schicht eingestellt?', false); return true; }
+        sh = schichtAm(ymd);
+        if (!sh) { sagen(nichtArbeitAntwort(ymd), false); return true; }
+        if (frageEnde) {
+            const e = ende(sh, ymd), heim = /\b(nach hause|heim)\b/.test(t);
+            sagen(tagWann(ymd) + ' hast du in der ' + NAME[sh] + ' um ' + zeitText(e) + ' Feierabend' + (heim ? ', dann kannst du nach Hause fahren.' : '.') + ausnahmeHinweis(sh, ymd, 'ende'), false);
+        } else {
+            sagen(tagWann(ymd) + ' hast du ' + NAME[sh] + ', Beginn um ' + uhr(beginn(sh, ymd)) + '. Du willst um ' + uhr(ankunft(sh, ymd)) + ' da sein, also fährst du gegen ' + uhr(abfFix(sh, ymd) - tagVor(ymd)) + ' los.' + ausnahmeHinweis(sh, ymd, 'beginn'), false);
+        }
+        return true;
+    }
+    /* Einmalige Änderungen für einen Tag: überschreiben nie die dauerhaften Zeiten. Unklar -> nachfragen. */
+    function einmaligSatz(text) {
+        const t = norm(text);
+        if (!t || t.split(' ').length > 16 || /^(wann|um wie viel|wie lange)\b/.test(t) || /\b(fruehschicht|spaetschicht)\b/.test(t)) return false;
+        const ymd = tagAusSatz(t);
+        if (!ymd) return false;
+        const beginnSatz = /\b(fange|beginne|starte)\b.*\ban\b/.test(t) || /\b(arbeitsbeginn|schichtbeginn)\b/.test(t);
+        const endeSatz = /\b(feierabend|schluss|arbeitsende|schichtende)\b/.test(t) || /\b(hoere|hoer)\b.*\bauf\b/.test(t) && /\b(arbeit|arbeiten)\b/.test(t);
+        const frueherSatz = /\bfrueher\b/.test(t) && /\b(arbeit|dort|da|ankommen)\b/.test(t) && /\bminuten\b|\bviertelstunde\b|\bstunde\b/.test(t);
+        if (!beginnSatz && !endeSatz && !frueherSatz) return false;
+        if (!S() || !S().load()) { sagen('Deine Schicht ist noch nicht eingestellt. Sag zum Beispiel: Diese Woche Frühschicht.', false); return true; }
+        const sh = schichtAm(ymd);
+        if (!sh) { sagen(nichtArbeitAntwort(ymd) + ' Dafür gibt es nichts zu ändern.', false); return true; }
+        const z = parseZeit(t);
+        const wie = tagWann(ymd);
+        if (frueherSatz) {
+            const n = /\bviertelstunde\b/.test(t) ? 15 : /\bhalbe stunde\b|\bhalbstunde\b/.test(t) ? 30 : /\bstunde\b/.test(t) && !/\bminuten\b/.test(t) ? 60 : null;
+            const m = zahlenWorte(t).match(/\b(\d{1,3}) minuten\b/);
+            const min = m ? +m[1] : n;
+            if (!(min > 0 && min <= 90)) { sagen('Wie viele Minuten früher möchtest du da sein? Sag zum Beispiel: ' + wie + ' möchte ich 30 Minuten früher auf der Arbeit sein.', false); return true; }
+            setVorherTag(ymd, vorherStd() + min); planSenden(true);
+            sagen('Verstanden. ' + wie + ' bist du ' + (vorherStd() + min) + ' Minuten vor Beginn da, also um ' + uhr(ankunft(sh, ymd)) + '. Deine Abfahrt ist dann gegen ' + uhr(abfFix(sh, ymd) - tagVor(ymd)) + '. Die normale Einstellung bleibt.', false);
+            return true;
+        }
+        if (!z || z.h == null || z.h > 23 || z.m > 59) {
+            sagen('Um wie viel Uhr genau? Sag zum Beispiel: ' + (beginnSatz ? wie + ' fange ich um 6 Uhr an.' : wie + ' habe ich um 15 Uhr Feierabend.'), false); return true;
+        }
+        const min = z.h * 60 + z.m;
+        if (beginnSatz) {
+            const b0 = beginn(sh);
+            setBeginnTag(ymd, min);
+            if (min < b0) setTagVor(ymd, Math.min(60, b0 - min)); else setTagVor(ymd, 0);
+            planSenden(true);
+            sagen('Verstanden. ' + wie + ' beginnst du um ' + uhr(min) + ' statt um ' + uhr(b0) + '. Ankunft ' + uhr(ankunft(sh, ymd)) + ', Abfahrt gegen ' + uhr(abfFix(sh, ymd) - tagVor(ymd)) + '. Deine normale ' + NAME[sh] + ' bleibt unverändert.', false);
+        } else {
+            setEndeTag(ymd, min, sh); planSenden(true);
+            sagen('Verstanden. ' + wie + ' hast du um ' + zeitText(ende(sh, ymd)) + ' Feierabend statt um ' + zeitText(ende(sh)) + '. Die Heimweg-Meldung kommt entsprechend. Deine normale ' + NAME[sh] + ' bleibt unverändert.', false);
+        }
+        return true;
+    }
     function befehl(text, next) {
         const t = norm(text);
         if (!t || t.split(' ').length > 14) return next(text);
+        if (einmaligSatz(text) || auskunftSatz(text)) return true;
         // Schichtbeginn ändern
         let m = t.match(/\b(fruehschicht|spaetschicht)\b.*\b(beginnt|faengt an|startet|anfang)\b/) || t.match(/\b(beginn|anfang)\b.*\b(fruehschicht|spaetschicht)\b/);
         if (m && /\b(meine|mein|die|der)\b/.test(t)) {
@@ -928,7 +1058,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { terminText, weckerStand, beginn, setBeginnTag, beginnTag, briefingVor, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { terminText, weckerStand, beginn, setBeginnTag, beginnTag, briefingVor, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, ankunft, vorher, vorherStd, setVorher, vorherTag, setVorherTag, stauAn, setStauAn, setBeginn, setEnde, endeTag, setEndeTag, auskunftSatz, einmaligSatz, schichtOhneUrlaub, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);
