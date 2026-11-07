@@ -15,24 +15,24 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 366,
-  "produktJs": 184,
-  "jsZeilen": 49071,
-  "jsBytes": 3600750,
-  "jsGzip": 1071287,
-  "scriptTags": 190,
-  "eigeneScripts": 184,
+  "repoDateien": 369,
+  "produktJs": 185,
+  "jsZeilen": 49510,
+  "jsBytes": 3636704,
+  "jsGzip": 1081825,
+  "scriptTags": 191,
+  "eigeneScripts": 185,
   "drittScripts": 2,
   "inlineScripts": 4,
   "api": 11,
-  "testsGesamt": 111,
-  "testsJs": 78,
+  "testsGesamt": 112,
+  "testsJs": 79,
   "testsMd": 14,
   "testsJson": 19,
   "workflows": 4,
   "weckrufSrc": 26,
   "weckrufTest": 6,
-  "tools": 4,
+  "tools": 5,
   "models": 1,
   "assets": 5
  },
@@ -209,6 +209,7 @@
   "streetview.js": "A",
   "studio_ansicht.js": "A",
   "studio_auftrag.js": "A",
+  "studio_bilder.js": "A",
   "studio_dateien.js": "A",
   "studio_projekte.js": "A",
   "studio_regie.js": "A",
@@ -245,7 +246,7 @@
   "zuvorkommend.js": "A"
  },
  "klassenZahl": {
-  "A": 159,
+  "A": 160,
   "B": 17,
   "C": 8,
   "D": 0,
@@ -451,16 +452,16 @@
   },
   "ladefehler": []
  },
- "capabilityNichtReferenziert": 143,
+ "capabilityNichtReferenziert": 144,
  "tests": {
   "unklassifiziert": [],
   "klasseOhneDatei": [],
   "workflowOhneDatei": [],
   "workflowDoppelt": [],
   "regressionNichtImWorkflow": [],
-  "imWorkflow": 59,
+  "imWorkflow": 60,
   "jeKlasse": {
-   "regression": 47,
+   "regression": 48,
    "goldenMaster": 8,
    "inventar": 3,
    "historischEingefroren": 1,
@@ -476,7 +477,7 @@
  },
  "ci": {
   "nodeVersion": "20",
-  "schritte": 59,
+  "schritte": 60,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
   "zeitzonenVertragZentral": true,
@@ -534,8 +535,8 @@
  },
  "dokuAbweichungen": {
   "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 166 Produkt-JS-Dateie",
-  "architekturSkriptzahl": "184",
-  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 184 Produktdateien in `js/`). G",
+  "architekturSkriptzahl": "185",
+  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 185 Produktdateien in `js/`). G",
   "architekturProjektstandAbschnitt": "## 8. Projektstand und nächste Schritte (Stand 24.10.2026, historisch)"
  }
 }
