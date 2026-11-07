@@ -45,7 +45,7 @@
     var GESAMT_MS = 20000, THEMA_MS = 10 * 60000;                                            // Gesamtzeitbudget je Eingabe im Sprachweg; wie lange ein Thema für Anschlussfragen gilt
     var KI_FAEHIGKEITEN = Object.freeze(['ortssuche', 'websuche', 'wetter']);                 // das darf der KI-Entscheider planen
     var PLAN_KEYS = ['absicht', 'schritte', 'frage', 'hinweis', 'benoetigt'];
-    var SCHRITT_KEYS = ['faehigkeit', 'params'];
+    var SCHRITT_KEYS = ['faehigkeit', 'params', 'aus'];
     var NAME_RX = /^[a-z][a-z0-9_]*$/;
 
     var istAn = false, nr = 0, protokollListe = [], offen = null, letzteAusfuehrung = {};
@@ -71,6 +71,61 @@
         if (typeof v === 'boolean') return v;
         return undefined;
     }
+    /* ---------- Kette (Phase 2): Ergebnisse eines lesenden Schrittes an einen späteren weitergeben ----------
+       Ein Schritt darf "aus":{"ort":{"schritt":1,"feld":"orte"}} tragen: der Wert kommt NICHT vom Modell, sondern aus dem tatsächlichen, geprüften Ergebnis (daten) von Schritt 1.
+       Erlaubt nur: lesende Schritte, Ziel-Angaben ort | suchbegriff | frage, Quellschritt davor, Feld aus der Rückgabe-Beschreibung der Registry. Der übernommene Wert wird wie jede Angabe geprüft (saubererBegriff / frageSauber). */
+    var AUS_ZIELE = Object.freeze(['ort', 'suchbegriff', 'frage']);
+    var LESEND = Object.freeze(['ortssuche', 'websuche', 'wetter']);
+    function ausPruefen(aus, index, schritte) {   // undefined = keine; false = ungültig; sonst bereinigte Kopie
+        if (aus === undefined) return undefined;
+        if (!aus || typeof aus !== 'object' || Array.isArray(aus)) return false;
+        var ks = Object.keys(aus), out = {}, reg = R();
+        if (!ks.length || ks.length > 2 || index < 1) return false;
+        var selbst = schritte[index] && schritte[index].faehigkeit;
+        if (LESEND.indexOf(selbst) < 0) return false;
+        for (var i = 0; i < ks.length; i++) {
+            var k = ks[i], q = aus[k];
+            if (AUS_ZIELE.indexOf(k) < 0 || !q || typeof q !== 'object' || Array.isArray(q)) return false;
+            if (!(typeof q.schritt === 'number' && q.schritt >= 1 && q.schritt <= index && Math.floor(q.schritt) === q.schritt)) return false;
+            var quelle = schritte[q.schritt - 1], qn = quelle && quelle.faehigkeit;
+            if (LESEND.indexOf(qn) < 0 || typeof q.feld !== 'string') return false;
+            var d = reg && reg.hole(qn), felder = d && d.rueckgabe && d.rueckgabe.felder;
+            if (!Array.isArray(felder) || felder.indexOf(q.feld) < 0) return false;
+            out[k] = { schritt: q.schritt, feld: q.feld };
+        }
+        return out;
+    }
+    function ausWert(v) {   // erster brauchbarer Text aus einem Ergebnisfeld (Text, Liste von Texten oder Objekten mit name/titel)
+        if (Array.isArray(v)) v = v[0];
+        if (v && typeof v === 'object') v = v.name != null ? v.name : v.titel;
+        return typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '';
+    }
+    function loeseAus(schritt, ergebnisse) {   // -> { params } | { fehler }
+        var pa = {}, k;
+        for (k in schritt.params) pa[k] = schritt.params[k];
+        var ks = Object.keys(schritt.aus || {});
+        for (var i = 0; i < ks.length; i++) {
+            var q = schritt.aus[ks[i]], quelle = ergebnisse[q.schritt - 1];
+            if (!quelle || quelle.status !== 'SUCCESS' || !quelle.ausgefuehrt || !quelle.daten) return { fehler: 'Quelle ohne geprüftes Ergebnis' };
+            var w = ausWert(quelle.daten[q.feld]);
+            if (ks[i] === 'frage') { w = w.slice(0, 200); if (!frageSauber(w)) return { fehler: 'Wert nicht brauchbar' }; }
+            else if (!saubererBegriff(w)) return { fehler: 'Wert nicht brauchbar' };
+            pa[ks[i]] = w;
+        }
+        return { params: pa };
+    }
+    /* Fallback nur für lesende Schritte und nur auf eine lesende, freigegebene Fähigkeit aus der Registry-Beschreibung (fallbacks). Die Angaben kommen aus dem Wortlaut des Nutzers. */
+    function fallbackFuer(name, text, schonDa) {
+        var reg = R(), d = reg && reg.hole(name);
+        if (!d || LESEND.indexOf(name) < 0 || !Array.isArray(d.fallbacks)) return null;
+        for (var i = 0; i < d.fallbacks.length; i++) {
+            var f = d.fallbacks[i];
+            if (f === 'websuche' && LESEND.indexOf(f) >= 0 && FREIGEGEBEN.indexOf(f) >= 0 && schonDa.indexOf(f) < 0 && frageSauber(String(text || '').slice(0, 200)))
+                return { faehigkeit: 'websuche', params: { frage: String(text).slice(0, 200) } };
+        }
+        return null;
+    }
+
     function pruefePlan(roh) {
         var probleme = [], plan = { absicht: '', schritte: [], frage: '', hinweis: '', benoetigt: [] }, fehlendeF = [];
         var p = roh;
@@ -105,7 +160,11 @@
                 if (v === undefined) probleme.push('Schritt ' + (i + 1) + ': Angabe "' + k + '" verworfen (nur Text, Zahl, Ja/Nein)'); else if (v !== '') pa[k] = v;
             });
             if (!reg || !reg.hole(s.faehigkeit)) { if (fehlendeF.indexOf(s.faehigkeit) < 0) fehlendeF.push(s.faehigkeit); }
-            plan.schritte.push({ faehigkeit: s.faehigkeit, params: pa });
+            var st2 = { faehigkeit: s.faehigkeit, params: pa };
+            var aus = ausPruefen(s.aus, i, p.schritte);   // Kette: Angaben aus einem früheren (lesenden) Schritt übernehmen; ungültig = der ganze Plan ist ungültig
+            if (aus === false) { probleme.push('Schritt ' + (i + 1) + ': ungültige Übernahme (aus)'); return { ok: false, plan: null, probleme: probleme, fehlendeFaehigkeiten: fehlendeF }; }
+            if (aus) st2.aus = aus;
+            plan.schritte.push(st2);
         }
         return { ok: true, plan: plan, probleme: probleme, fehlendeFaehigkeiten: fehlendeF };
     }
@@ -198,7 +257,7 @@
             var reg = R();
             var faehig = reg ? reg.beschreibe().filter(function (d) { return !Array.isArray(nur) || nur.indexOf(d.name) >= 0; }).map(function (d) { return { name: d.name, beschreibung: d.beschreibung, pflicht: d.pflicht.map(function (x) { return x.name; }), optional: d.optional.map(function (x) { return x.name; }) }; }) : [];
             var nachrichten = [
-                { role: 'system', content: 'Du planst für einen Sprachassistenten. Antworte NUR mit JSON: {"absicht":"...","schritte":[{"faehigkeit":"name","params":{}}],"frage":"...","hinweis":"...","benoetigt":["name"]}. Nutze nur diese Fähigkeiten: ' + JSON.stringify(faehig) + '. Regeln: höchstens 3 Schritte, davon höchstens 1 websuche, 2 ortssuche und 1 wetter. wetter gilt für den Standort des Nutzers (params.tag: heute, morgen oder uebermorgen); wird ein bestimmter Ort genannt, setze params.ort auf den Ortsnamen (nur der Name). Mit "dort", "da" oder "in dieser Stadt" ist nur dann ein Ort gemeint, wenn er im Kontext steht; steht dort keiner, setze nur "frage" ("Welchen Ort meinst du?") und keine Schritte. websuche nur für aktuelle Auskünfte aus dem Internet (Nachrichten, Ergebnisse, Fernsehprogramm, Öffnungszeiten, Preise) mit der Frage des Nutzers im Wortlaut als params.frage. ortssuche für Orte, Läden und Lokale in der Nähe oder in einem genannten Ort. Sind mehrere Wünsche in einem Satz, plane sie der Reihe nach. Ist der Wunsch zu unklar, setze nur "frage" (eine kurze Rückfrage) und keine Schritte. Reines Gespräch, Smalltalk, Wissensfragen und alles andere: antworte {"schritte":[]}. Erfinde keine Preise, Öffnungszeiten, Verfügbarkeiten oder Fahrzeiten.' + b2aRegeln(faehig) }
+                { role: 'system', content: 'Du planst für einen Sprachassistenten. Antworte NUR mit JSON: {"absicht":"...","schritte":[{"faehigkeit":"name","params":{}}],"frage":"...","hinweis":"...","benoetigt":["name"]}. Nutze nur diese Fähigkeiten: ' + JSON.stringify(faehig) + '. Regeln: höchstens 3 Schritte, davon höchstens 1 websuche, 2 ortssuche und 1 wetter. wetter gilt für den Standort des Nutzers (params.tag: heute, morgen oder uebermorgen); wird ein bestimmter Ort genannt, setze params.ort auf den Ortsnamen (nur der Name). Mit "dort", "da" oder "in dieser Stadt" ist nur dann ein Ort gemeint, wenn er im Kontext steht; steht dort keiner, setze nur "frage" ("Welchen Ort meinst du?") und keine Schritte. websuche nur für aktuelle Auskünfte aus dem Internet (Nachrichten, Ergebnisse, Fernsehprogramm, Öffnungszeiten, Preise) mit der Frage des Nutzers im Wortlaut als params.frage. ortssuche für Orte, Läden und Lokale in der Nähe oder in einem genannten Ort. Sind mehrere Wünsche in einem Satz, plane sie der Reihe nach. Ein späterer lesender Schritt darf Angaben aus einem früheren übernehmen: "aus":{"ort":{"schritt":1,"feld":"orte"}} (nur ort, suchbegriff oder frage; Felder: orte, antwort, nachricht). Ist der Wunsch zu unklar, setze nur "frage" (eine kurze Rückfrage) und keine Schritte. Reines Gespräch, Smalltalk, Wissensfragen und alles andere: antworte {"schritte":[]}. Erfinde keine Preise, Öffnungszeiten, Verfügbarkeiten oder Fahrzeiten.' + b2aRegeln(faehig) }
             ];
             if (typeof kontext === 'string' && kontext) nachrichten.push({ role: 'system', content: kontext });
             nachrichten.push({ role: 'user', content: String(text) });
@@ -566,9 +625,11 @@
         if (n === 0) return !ohneFrage && frageSauber(plan.frage);   // nach einer Antwort auf eine Rückfrage gibt es keine zweite Rückfrage (keine Fragekette)
         if (n > MAX_SCHRITTE || plan.frage) return false;
         var zaehl = { ortssuche: 0, websuche: 0, wetter: 0 };
+        if (plan.schritte.some(function (v) { return v.aus !== undefined; }) && plan.schritte.some(function (v) { return B2A_NEU.indexOf(v.faehigkeit) >= 0 || B2B_NAMEN.indexOf(v.faehigkeit) >= 0; })) return false;   // Kette nur mit rein lesenden Plänen
         for (var i = 0; i < n; i++) {
             var st = plan.schritte[i], p = st.params || {}, ks = Object.keys(p);
             if (KI_PLAN.indexOf(st.faehigkeit) < 0) return false;
+            if (st.aus !== undefined && (LESEND.indexOf(st.faehigkeit) < 0 || ausPruefen(st.aus, i, plan.schritte) === false)) return false;
             if (B2A_NEU.indexOf(st.faehigkeit) >= 0 || B2B_NAMEN.indexOf(st.faehigkeit) >= 0) { if (!b2aParamsOk(st.faehigkeit, p, ks)) return false; if (plan.schritte.slice(0, i).some(function (v) { return v.faehigkeit === st.faehigkeit && JSON.stringify(v.params || {}) === JSON.stringify(p); })) return false; continue; }
             zaehl[st.faehigkeit]++;
             if (st.faehigkeit === 'ortssuche') {
@@ -832,15 +893,30 @@
         for (var i = 0; i < plan.schritte.length; i++) {
             var s = plan.schritte[i];
             if (s.faehigkeit === 'websuche') { kiZaehler.websuchen++; ki++; } else if (s.faehigkeit === 'wetter') kiZaehler.wetter++; else kiZaehler.ortssuchen++;
-            var e = await mitRest(fuehreSchrittAus(s, text, {}), ende);
+            var sa = s;
+            if (s.aus) {   // Kette: Angaben aus dem geprüften Ergebnis eines früheren Schritts
+                var la = loeseAus(s, schritte);
+                if (la.fehler) { var ea = { faehigkeit: s.faehigkeit, status: 'TOOL_FAILED', ausgefuehrt: false, trocken: false, nachricht: '', fehlend: [], nurGeplant: false, grund: 'uebernahme' }; schritte.push(ea); fehl.push(s.faehigkeit); continue; }
+                sa = { faehigkeit: s.faehigkeit, params: la.params };
+            }
+            var e = await mitRest(fuehreSchrittAus(sa, text, {}), ende);
             if (e && e.zeit) return { art: 'zeit', ki: ki };
+            if (e && (e.status === 'TOOL_FAILED' || e.status === 'CAPABILITY_MISSING') && e.grund !== 'doppelt') {   // sicherer, lesender Fallback aus der Registry (höchstens einer je Schritt)
+                var fb = fallbackFuer(s.faehigkeit, text, plan.schritte.map(function (x) { return x.faehigkeit; }));
+                if (fb) {
+                    kiZaehler.websuchen++; ki++;
+                    var e2 = await mitRest(fuehreSchrittAus(fb, text, {}), ende);
+                    if (e2 && e2.zeit) return { art: 'zeit', ki: ki };
+                    if (e2 && e2.status === 'SUCCESS' && e2.ausgefuehrt && e2.nachricht) { e2.fallbackVon = s.faehigkeit; e = e2; }
+                }
+            }
             schritte.push(e);
             if (e.grund === 'doppelt') { doppelt++; continue; }
             if (e.status === 'NEEDS_INFORMATION' && einzel) { frage = plan.frage || e.nachricht; frageCode = 'rueckfrage'; offenNeu = { schritt: i, parameter: e.fehlend[0], plan: plan, text: text }; break; }
             if (e.status === 'NO_RESULTS' && einzel && s.faehigkeit === 'ortssuche') { frage = 'Dazu habe ich nichts gefunden. In welchem Ort soll ich suchen?'; frageCode = 'keine_treffer'; offenNeu = { schritt: i, parameter: 'ort', plan: plan, text: text }; break; }
             if (e.status === 'NO_RESULTS') { leer++; teile.push(e.nachricht || 'Dazu habe ich nichts gefunden.'); continue; }
             if (e.status === 'SUCCESS' && e.ausgefuehrt && e.nachricht) {
-                erfolge.push(s.faehigkeit); teile.push(e.nachricht);
+                erfolge.push(e.fallbackVon ? e.faehigkeit : s.faehigkeit); teile.push(e.nachricht);
                 if (e.daten && Array.isArray(e.daten.cards)) kartenListe = kartenListe.concat(e.daten.cards);
                 continue;
             }

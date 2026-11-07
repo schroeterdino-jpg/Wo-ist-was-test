@@ -123,16 +123,16 @@ const SWK = 'Wie wird das Wetter morgen und schau mal nach was heute im Kino lä
     /* ---------- Teilfehler und Rückfälle ---------- */
     A = umgebung(); A.st.plan = plan(W('morgen'), O('Restaurant')); A.st.wetter = 'fehler';
     g = await tippen(A, SK);
-    check('7 Wetter fällt aus, Ortssuche klappt: Treffer UND ehrlicher Hinweis in EINER Antwort, nichts verschluckt', g.length === 1 && /Trattoria|Fischerhaus/.test(g[0]) && /Wetterdaten/.test(g[0]) && /schritt_fehler/.test(codes(A)), JSON.stringify({ g, c: codes(A) }));
+    check('7 Wetter fällt aus, Ortssuche klappt: Treffer UND Ersatz-Antwort der Websuche in EINER Antwort, nichts verschluckt', g.length === 1 && /Trattoria|Fischerhaus/.test(g[0]) && /Hamburg ist es ruhig/.test(g[0]) && /websuche_ausgefuehrt/.test(codes(A)), JSON.stringify({ g, c: codes(A) }));
     A = umgebung(); A.st.plan = plan(W('heute')); A.st.wetter = 'fehler';
     g = await tippen(A, SW);
-    check('7b nur Wetter, Wetterdaten fehlen: GENAU EINMAL der bisherige Ablauf, keine Stille', A.st.groq === 1 && A.st.normaleSaetze[0].includes('Regenschirm') && codes(A) === 'ki_aufgerufen>schritt_fehler>rueckfall' && A.sb.jvChef.kiZaehler().zurueck === 1, JSON.stringify({ groq: A.st.groq, c: codes(A) }));
+    check('7b nur Wetter, Wetterdaten fehlen: Ausweg über die Websuche (einmal), keine Stille', codes(A) === 'ki_aufgerufen>websuche_ausgefuehrt' && A.st.groq === 0, JSON.stringify({ groq: A.st.groq, c: codes(A) }));
     A = umgebung(); A.st.plan = plan(WEB(SWEB)); A.st.web = 'fehler';
     g = await tippen(A, SWEB);
     check('7c nur Internetsuche, ohne Ergebnis: einmal der bisherige Ablauf', A.st.groq === 1 && codes(A) === 'ki_aufgerufen>schritt_fehler>rueckfall', codes(A));
     A = umgebung(); A.st.plan = plan(O('Restaurant')); A.st.places = 'fehler';
     g = await tippen(A, SO);
-    check('7d Ortssuche-Fehler: verständliche Meldung wie bisher, KEIN zweiter Weg', g.length === 1 && A.st.groq === 0 && /fehler_suche/.test(codes(A)), JSON.stringify({ g, c: codes(A), groq: A.st.groq }));
+    check('7d Ortssuche-Fehler: Ausweg über die Websuche, genau eine Antwort', g.length === 1 && A.st.groq === 0 && /websuche_ausgefuehrt/.test(codes(A)), JSON.stringify({ g, c: codes(A), groq: A.st.groq }));
 
     /* ---------- Unterhaltung / Wissensfragen ---------- */
     A = umgebung(); A.st.plan = plan();

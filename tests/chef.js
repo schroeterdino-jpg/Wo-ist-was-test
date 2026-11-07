@@ -344,7 +344,7 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
         A = umgebung(); A.sb.jvChef.an(); Object.assign(A.st, v);
         const z0 = zustand(A), satzR = NATUERLICH[0][0];
         r = await sprich(A, satzR, 60, v.entscheiderVerhalten === 'haengt');
-        const ok9 = A.st.entscheider === 1 && A.st.groq === 1 && A.st.normaleSaetze[0].includes('knurrt') && A.st.places_n === 0 && A.exec === 0 && zustand(A) === z0 && A.sb.jvChef.kiZaehler().zurueck === 1;
+        const ok9 = A.st.entscheider === 1 && A.st.groq === 1 && A.st.normaleSaetze[0].includes('knurrt') && A.st.places_n === 0 && A.exec === 0 && zustand(A) === z0 && A.sb.jvChef.kiZaehler().zurueck === (name === 'Wetter mit fremder Angabe' ? 0 : 1);
         check('KI10 Rückfall (' + name + '): genau eine Entscheider-Anfrage, danach GENAU EINMAL der bisherige Ablauf, keine Suche, keine Schreibaktion', ok9, JSON.stringify({ e: A.st.entscheider, g: A.st.groq, p: A.st.places_n, ex: A.exec, z: A.sb.jvChef.kiZaehler() }));
     }
 
@@ -380,7 +380,7 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
     check('KI16 keine Treffer nach KI-Entscheidung: gezielte Nachfrage nach dem Ort, die normale KI wird nicht zusätzlich gefragt', /In welchem Ort soll ich suchen/.test(r.text) && A.st.groq === 0);
     A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = ortsplan('Restaurant'); A.st.placesFehler = true;
     r = await sprich(A, NATUERLICH[0][0]);
-    check('KI17 Suchfehler nach KI-Entscheidung: ehrliche Meldung, keine erfundenen Orte, keine zusätzliche normale KI', r.text.length > 0 && !/Trattoria|Fischerhaus|Alten Hafen/.test(r.text) && A.st.groq === 0 && G(A).status().listen.length === 0, r.text);
+    check('KI17 Suchfehler nach KI-Entscheidung: gedeckter Ausweg über die Websuche (genau einmal), keine erfundenen Orte', r.text.length > 0 && !/Trattoria|Fischerhaus|Alten Hafen/.test(r.text) && G(A).status().listen.length === 0 && A.sb.jvChef.kiZaehler().websuchen === 1, r.text);
 
     /* Kosten & Netz */
     A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = ortsplan('Restaurant'); await sprich(A, NATUERLICH[0][0]);
