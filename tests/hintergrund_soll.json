@@ -729,20 +729,6 @@
    "nativ": false
   },
   {
-   "id": "mission_ansicht.js#1",
-   "art": "intervall",
-   "ms": 1000,
-   "klasse": "bedingt",
-   "anfang": "von außen/Ereignis",
-   "start": "funktion",
-   "guard": "keiner",
-   "stop": "clearInterval",
-   "begrenzt": false,
-   "doppel": "keiner (mehrfacher Aufruf der Funktion möglich)",
-   "netz": false,
-   "nativ": false
-  },
-  {
    "id": "mitnehmen.js#1",
    "art": "selbstansetzend",
    "ms": 500,
@@ -1062,20 +1048,6 @@
    "begrenzt": false,
    "doppel": "Flag/Kennung geprüft",
    "netz": true,
-   "nativ": false
-  },
-  {
-   "id": "studio_ansicht.js#1",
-   "art": "intervall",
-   "ms": 1000,
-   "klasse": "bedingt",
-   "anfang": "von außen/Ereignis",
-   "start": "funktion",
-   "guard": "indirekt",
-   "stop": "clearInterval",
-   "begrenzt": false,
-   "doppel": "keiner (mehrfacher Aufruf der Funktion möglich)",
-   "netz": false,
    "nativ": false
   },
   {
@@ -1459,22 +1431,6 @@
  ],
  "raf": [
   {
-   "id": "mission_ansicht.js#r1",
-   "funktion": "kugelSchritt",
-   "schleife": true,
-   "start": "funktion",
-   "guard": true,
-   "cancel": true
-  },
-  {
-   "id": "mission_ansicht.js#r2",
-   "funktion": "kugelStart",
-   "schleife": false,
-   "start": "funktion",
-   "guard": true,
-   "cancel": true
-  },
-  {
    "id": "sphere.js#r1",
    "funktion": "start",
    "schleife": false,
@@ -1712,7 +1668,6 @@
   "mail_nacht.js",
   "mailwatch.js",
   "meldungs_regeln.js",
-  "mission_ansicht.js",
   "orte.js",
   "pakete.js",
   "parkplatz_auto.js",
