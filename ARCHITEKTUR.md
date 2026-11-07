@@ -1,6 +1,6 @@
 # Jarvis: Architektur-Überblick
 
-Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 185 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
+Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 180 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
 Wo suche ich zuerst? → `LANDKARTE.md` (Problem → Datei → Abhängigkeiten, plus Zuordnung aller Skripte). Reihenfolge-Sicherheitsnetz: `tests/reihenfolge.js`; Timer-Register: `tests/timer.js` + `tests/timer_inventar.js`.
 Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (179 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (180 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -751,3 +751,9 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 - `pruefeErfolg` der Registry entscheidet über Erfolg: ohne belegtes Ergebnis wird nichts übernommen.
 - Ausweg: fällt Wetter oder Ortssuche aus, läuft einmal die Websuche (Registry-`fallbacks`, nur lesend, höchstens ein Versuch, im 20-s-Zeitbudget). Danach bei Misserfolg der alte Weg genau einmal.
 - Schreibaktionen: weiter nur mit Bestätigung. Chef-KI bleibt Standard AUS; der normale Weg ist unverändert. Verhaltensänderung: Tests chef.js KI10/KI17 und chef_paket.js 7/7b/7d erwarten jetzt den Websuche-Ausweg.
+
+## Produktsuche als Werkzeug (Phase 3, `js/registry_produkt.js`, Test `tests/chef_produkt.js`)
+- Registry-Fähigkeit `produktsuche` (lesend, keine Bestätigung, **keine Fallbacks**). Sie ruft `window.jvProdukte.chefSuche` (`js/produktkarten.js`) auf, und das nutzt die vorhandene Preissuche (`jvPreisAngebote` → `/api/maps?action=shopping&haendler=1`). Keine zweite Suche, keine neue Vercel-Function, keine Groq-Anfrage durch das Werkzeug.
+- Rückgabe `daten.produkte[] = {name, angebote[{shop, preis, preisText, link, linkArt}], vergleich, bild}`, dazu `nachricht` (gesprochen) und `cards`. Ein Angebot zählt nur mit passendem Titel; Idealo & Co. sind nie Händler; Händler, Preis und Link bleiben im selben Angebot. `pruefeErfolg` prüft, dass der gesprochene Preis zum genannten Händler gehört.
+- Chef-KI: darf `produktsuche` planen (höchstens 2 je Plan, nur `suchbegriff`, nur Namen, die der Nutzer nennt). Ein späterer lesender Schritt kann per `aus` den geprüften Produktnamen (`feld: produkte`) übernehmen. Die Ergebnisse werden für Anschlussfragen gemerkt (`jvGespraech`, Art `produkte`).
+- Ausfall der Preissuche: kein Ersatz über die freie Websuche (Preise wären nicht an Händler und Link gebunden), sondern der bisherige Jarvis-Weg genau einmal. Chef-KI bleibt Standard AUS. Der Vorfilter der Chef-KI kennt jetzt auch Wörter wie kostet, Preis, kaufen, vergleichen, Händler.

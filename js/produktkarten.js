@@ -174,6 +174,15 @@
         return lauf;
     }
 
+    /* ---- Für das Registry-Werkzeug "produktsuche" (js/registry_produkt.js): dieselbe Suche, nur mit vorgegebenen Namen statt Auslese; zeigt NICHTS selbst ---- */
+    async function chefSuche(namen, frage) {
+        var liste = (Array.isArray(namen) ? namen : []).map(function (n) { return String(n || '').replace(/\s+/g, ' ').trim(); }).filter(function (n) { return n.length >= 2; }).slice(0, MAX_PRODUKTE);
+        if (!liste.length || typeof window.jvPreisAngebote !== 'function') return { items: [], karten: [] };
+        var items = await Promise.all(liste.map(function (n) { return sucheEins({ name: n, hersteller: '' }); }));
+        try { var g = G(); if (g && items.some(function (i) { return i.angebote.length; })) { g.ergebnisse('produkte', items, 'produktkarten'); letzte = { frage: norm(frage || '') }; } } catch (e) { }   // Anschlussfragen ("Wo kann ich die beiden kaufen?") greifen wie bei den normalen Karten
+        return { items: items, karten: items.map(karte) };
+    }
+
     /* ---- Anschlussfragen ---- */
     var RX_KAUF = /\b(?:kauf\w*|bekomm\w*|krieg\w*|bestell\w*|gibt|erh[aä]lt\w*|h[aä]ndler\w*|shop\w*|angebot\w*|kost\w*|preis\w*|teuer\w*|bezahl\w*)\b/i;
     var RX_VGL = /\b(?:g[uü]nstiger|billiger|preiswerter|g[uü]nstigste\w*|billigste\w*|teurer|teuerste\w*)\b/i;
@@ -262,5 +271,5 @@
         } catch (e) { return null; }
     }
 
-    window.jvProdukte = { wunsch: wunsch, produktsuche: produktsuche, nachAntwort: nachAntwort, istFolgefrage: istFolgefrage, folgefrage: folgefrage, karte: karte, auslesen: auslesen, lauf: function () { return lauf; } };
+    window.jvProdukte = { chefSuche: chefSuche, wunsch: wunsch, produktsuche: produktsuche, nachAntwort: nachAntwort, istFolgefrage: istFolgefrage, folgefrage: folgefrage, karte: karte, auslesen: auslesen, lauf: function () { return lauf; } };
 })();

@@ -33,17 +33,17 @@
     'use strict';
     if (window.jvChef) return;
 
-    var FREIGEGEBEN = Object.freeze(['ortssuche', 'websuche', 'wetter']);                      // echte Ausführung nur hier (alles lesend)
+    var FREIGEGEBEN = Object.freeze(['ortssuche', 'websuche', 'wetter', 'produktsuche']);                      // echte Ausführung nur hier (alles lesend)
     var SCHREIB = Object.freeze(['erinnerung_erstellen', 'termin_erstellen', 'gedaechtnis_speichern', 'aufgabe_erstellen', 'termin_verschieben', 'kontakt_speichern']);   // nur Testmodus
     /* Paket B2a: nur im echten Sprachweg (KI-Weg, Chef-KI EIN) darf die Chef-KI diese Fähigkeiten wirklich ausführen. Verschieben, Löschen und alles, was eine Bestätigung braucht, bleibt gesperrt (kommt erst in B2b). */
     var B2A_NEU = Object.freeze(['termine_lesen', 'aufgaben_lesen', 'aufgabe_erstellen', 'erinnerung_erstellen', 'termin_erstellen', 'kontakt_speichern', 'gedaechtnis_speichern']);
     var B2A_SCHREIBT = Object.freeze(['aufgabe_erstellen', 'erinnerung_erstellen', 'termin_erstellen', 'kontakt_speichern', 'gedaechtnis_speichern']);
     var B2B_NAMEN = Object.freeze(['termin_verschieben']);   // Paket B2b-1: Verschieben nur nach ausdrücklicher Bestätigung (nie Löschen)
-    var KI_PLAN = Object.freeze(['ortssuche', 'websuche', 'wetter'].concat(B2A_NEU, B2B_NAMEN));        // das darf der KI-Entscheider im Sprachweg planen
+    var KI_PLAN = Object.freeze(['ortssuche', 'websuche', 'wetter', 'produktsuche'].concat(B2A_NEU, B2B_NAMEN));        // das darf der KI-Entscheider im Sprachweg planen
     var LESBAR = { termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', aufgabe_erstellen: 'Aufgabe anlegen', erinnerung_erstellen: 'Erinnerung anlegen', termin_erstellen: 'Termin eintragen', kontakt_speichern: 'Kontakt speichern', gedaechtnis_speichern: 'Merken', termin_verschieben: 'Termin verschieben', ortssuche: 'Ortssuche', websuche: 'Internetsuche', wetter: 'Wetter' };
     var MAX_SCHRITTE = 3, MAX_PROTOKOLL = 20, FRAGE_MS = 2 * 60000, DOPPELT_MS = 4000, PAUSE_MS = 2 * 60000;
     var GESAMT_MS = 20000, THEMA_MS = 10 * 60000;                                            // Gesamtzeitbudget je Eingabe im Sprachweg; wie lange ein Thema für Anschlussfragen gilt
-    var KI_FAEHIGKEITEN = Object.freeze(['ortssuche', 'websuche', 'wetter']);                 // das darf der KI-Entscheider planen
+    var KI_FAEHIGKEITEN = Object.freeze(['ortssuche', 'websuche', 'wetter', 'produktsuche']);                 // das darf der KI-Entscheider planen
     var PLAN_KEYS = ['absicht', 'schritte', 'frage', 'hinweis', 'benoetigt'];
     var SCHRITT_KEYS = ['faehigkeit', 'params', 'aus'];
     var NAME_RX = /^[a-z][a-z0-9_]*$/;
@@ -75,7 +75,7 @@
        Ein Schritt darf "aus":{"ort":{"schritt":1,"feld":"orte"}} tragen: der Wert kommt NICHT vom Modell, sondern aus dem tatsächlichen, geprüften Ergebnis (daten) von Schritt 1.
        Erlaubt nur: lesende Schritte, Ziel-Angaben ort | suchbegriff | frage, Quellschritt davor, Feld aus der Rückgabe-Beschreibung der Registry. Der übernommene Wert wird wie jede Angabe geprüft (saubererBegriff / frageSauber). */
     var AUS_ZIELE = Object.freeze(['ort', 'suchbegriff', 'frage']);
-    var LESEND = Object.freeze(['ortssuche', 'websuche', 'wetter']);
+    var LESEND = Object.freeze(['ortssuche', 'websuche', 'wetter', 'produktsuche']);
     function ausPruefen(aus, index, schritte) {   // undefined = keine; false = ungültig; sonst bereinigte Kopie
         if (aus === undefined) return undefined;
         if (!aus || typeof aus !== 'object' || Array.isArray(aus)) return false;
@@ -257,7 +257,7 @@
             var reg = R();
             var faehig = reg ? reg.beschreibe().filter(function (d) { return !Array.isArray(nur) || nur.indexOf(d.name) >= 0; }).map(function (d) { return { name: d.name, beschreibung: d.beschreibung, pflicht: d.pflicht.map(function (x) { return x.name; }), optional: d.optional.map(function (x) { return x.name; }) }; }) : [];
             var nachrichten = [
-                { role: 'system', content: 'Du planst für einen Sprachassistenten. Antworte NUR mit JSON: {"absicht":"...","schritte":[{"faehigkeit":"name","params":{}}],"frage":"...","hinweis":"...","benoetigt":["name"]}. Nutze nur diese Fähigkeiten: ' + JSON.stringify(faehig) + '. Regeln: höchstens 3 Schritte, davon höchstens 1 websuche, 2 ortssuche und 1 wetter. wetter gilt für den Standort des Nutzers (params.tag: heute, morgen oder uebermorgen); wird ein bestimmter Ort genannt, setze params.ort auf den Ortsnamen (nur der Name). Mit "dort", "da" oder "in dieser Stadt" ist nur dann ein Ort gemeint, wenn er im Kontext steht; steht dort keiner, setze nur "frage" ("Welchen Ort meinst du?") und keine Schritte. websuche nur für aktuelle Auskünfte aus dem Internet (Nachrichten, Ergebnisse, Fernsehprogramm, Öffnungszeiten, Preise) mit der Frage des Nutzers im Wortlaut als params.frage. ortssuche für Orte, Läden und Lokale in der Nähe oder in einem genannten Ort. Sind mehrere Wünsche in einem Satz, plane sie der Reihe nach. Ein späterer lesender Schritt darf Angaben aus einem früheren übernehmen: "aus":{"ort":{"schritt":1,"feld":"orte"}} (nur ort, suchbegriff oder frage; Felder: orte, antwort, nachricht). Ist der Wunsch zu unklar, setze nur "frage" (eine kurze Rückfrage) und keine Schritte. Reines Gespräch, Smalltalk, Wissensfragen und alles andere: antworte {"schritte":[]}. Erfinde keine Preise, Öffnungszeiten, Verfügbarkeiten oder Fahrzeiten.' + b2aRegeln(faehig) }
+                { role: 'system', content: 'Du planst für einen Sprachassistenten. Antworte NUR mit JSON: {"absicht":"...","schritte":[{"faehigkeit":"name","params":{}}],"frage":"...","hinweis":"...","benoetigt":["name"]}. Nutze nur diese Fähigkeiten: ' + JSON.stringify(faehig) + '. Regeln: höchstens 3 Schritte, davon höchstens 1 websuche, 2 ortssuche, 1 wetter und 2 produktsuche. wetter gilt für den Standort des Nutzers (params.tag: heute, morgen oder uebermorgen); wird ein bestimmter Ort genannt, setze params.ort auf den Ortsnamen (nur der Name). Mit "dort", "da" oder "in dieser Stadt" ist nur dann ein Ort gemeint, wenn er im Kontext steht; steht dort keiner, setze nur "frage" ("Welchen Ort meinst du?") und keine Schritte. websuche nur für aktuelle Auskünfte aus dem Internet (Nachrichten, Ergebnisse, Fernsehprogramm, Öffnungszeiten, Preise) mit der Frage des Nutzers im Wortlaut als params.frage. ortssuche für Orte, Läden und Lokale in der Nähe oder in einem genannten Ort. produktsuche für Preise, Händler und Kauflinks zu einem Produkt im Internet (je Produkt ein Schritt, höchstens 2; params.suchbegriff nur mit Namen, die der Nutzer genannt hat; fehlt der Produktname, setze nur "frage"). Bei Produkten nie selbst Preise oder Händler nennen. Sind mehrere Wünsche in einem Satz, plane sie der Reihe nach. Ein späterer lesender Schritt darf Angaben aus einem früheren übernehmen: "aus":{"ort":{"schritt":1,"feld":"orte"}} (nur ort, suchbegriff oder frage; Felder: orte, antwort, nachricht, produkte). Ist der Wunsch zu unklar, setze nur "frage" (eine kurze Rückfrage) und keine Schritte. Reines Gespräch, Smalltalk, Wissensfragen und alles andere: antworte {"schritte":[]}. Erfinde keine Preise, Öffnungszeiten, Verfügbarkeiten oder Fahrzeiten.' + b2aRegeln(faehig) }
             ];
             if (typeof kontext === 'string' && kontext) nachrichten.push({ role: 'system', content: kontext });
             nachrichten.push({ role: 'user', content: String(text) });
@@ -292,6 +292,7 @@
         ki_ueberholt: 'Durch einen neueren Satz überholt',
         ausgeschaltet: 'Chef-KI inzwischen ausgeschaltet',
         ortssuche_ausgefuehrt: 'Gültige Ortssuche ausgeführt',
+        produktsuche_ausgefuehrt: 'Gültige Produktsuche ausgeführt',
         keine_treffer: 'Ortssuche ohne Treffer (Nachfrage nach dem Ort)',
         rueckfrage: 'Rückfrage gestellt (Angabe fehlt)',
         fehler_suche: 'Fehler bei der Ortssuche',
@@ -412,7 +413,7 @@
             var e = await fuehreSchrittAus(s, text, opts);
             res.schritte.push(e);
             if (e.status === 'NEEDS_INFORMATION') { res.status = 'NEEDS_INFORMATION'; res.frage = plan.frage || e.nachricht; res.offen = { schritt: i, parameter: e.fehlend[0], plan: plan, text: text }; break; }
-            if (e.status === 'NO_RESULTS') { res.status = 'NO_RESULTS'; res.frage = 'Dazu habe ich nichts gefunden. In welchem Ort soll ich suchen?'; res.offen = { schritt: i, parameter: 'ort', plan: plan, text: text }; break; }
+            if (e.status === 'NO_RESULTS' && e.faehigkeit === 'ortssuche') { res.status = 'NO_RESULTS'; res.frage = 'Dazu habe ich nichts gefunden. In welchem Ort soll ich suchen?'; res.offen = { schritt: i, parameter: 'ort', plan: plan, text: text }; break; }
             if (e.status === 'CAPABILITY_MISSING') { res.status = 'CAPABILITY_MISSING'; res.gesagt = e.nachricht; break; }
             if (e.status !== 'SUCCESS') { res.status = e.status; res.gesagt = e.grund === 'doppelt' ? '' : (e.nachricht || 'Dabei ist technisch etwas schiefgelaufen.'); break; }
             if (e.nurGeplant) { res.status = 'NUR_GEPLANT'; continue; }
@@ -522,7 +523,7 @@
     }
 
     /* ---------- KI-Weg im echten Sprachweg (voice.js) ---------- */
-    var KI_ZEITLIMIT_MS = 7000, kiGen = 0, kiLetzter = { text: '', at: 0 }, kiZaehler = { anfragen: 0, ortssuchen: 0, zurueck: 0, websuchen: 0, wetter: 0 }, sendeFunktion = null;
+    var KI_ZEITLIMIT_MS = 7000, kiGen = 0, kiLetzter = { text: '', at: 0 }, kiZaehler = { anfragen: 0, ortssuchen: 0, zurueck: 0, websuchen: 0, wetter: 0, produktsuchen: 0 }, sendeFunktion = null;
     /* Gesprächsort: der zuletzt EINDEUTIG genannte Ort (nur der Name, nur Arbeitsspeicher, 10 Minuten). Er wird nur für "dort", "da", "in dieser Stadt" gebraucht.
        Gemerkt wird nur bei eingeschalteter Chef-KI; ein Satz mit mehreren Orten löscht ihn (nie raten). Vor der Benutzung wird er einmal beim Kartendienst geprüft (Ort, nicht irgendein Hauptwort). */
     var ORT_MS = 10 * 60000, ortMerker = null, ortPruefer = null;
@@ -583,7 +584,7 @@
     }
     var thema = null, offenKi = null;   // Thema der letzten Antwort (nur Art/Tag/Stichwort, 10 Minuten) und eine offene Rückfrage des KI-Weges (2 Minuten); nur Arbeitsspeicher
     /* Vorfilter NUR zur Kostenbegrenzung: reines Geplauder ("Wie geht's dir?") kostet keine zusätzliche KI-Anfrage. Entschieden wird NICHT hier, sondern von der KI. */
-    var RX_KI_VORFILTER = /\b(wo|wohin|hier|in der n[äa]he|umgebung|gegend|ecke|unterwegs|auswärts|ausw[äa]rts|ausgehen|essen|speisen|trinken|hunger|durst|magen|lust auf|empfiehl\w*|tipp|find\w*|such\w*|gibt es|gibts|kennst du|abend|mittag|fr[üu]hst[üu]ck\w*|snack|happen|bissen|gemütlich|gem[üu]tlich|romantisch|date|feiern|laden|lokal|schmaus\w*|wetter|regen\w*|schirm|jacke|temperatur|grad|sonnig|schnee|gewitter|sturm|nachrichten|neuigkeiten|aktuell\w*|fernseh\w*|kino|programm|öffnungszeit\w*|ergebnis\w*|spielstand|tabelle|internet|google|recherchier\w*|nachschlagen|nachsehen)\b/i;
+    var RX_KI_VORFILTER = /\b(wo|wohin|hier|in der n[äa]he|umgebung|gegend|ecke|unterwegs|auswärts|ausw[äa]rts|ausgehen|essen|speisen|trinken|hunger|durst|magen|lust auf|empfiehl\w*|tipp|find\w*|such\w*|gibt es|gibts|kennst du|abend|mittag|fr[üu]hst[üu]ck\w*|snack|happen|bissen|gemütlich|gem[üu]tlich|romantisch|date|feiern|laden|lokal|schmaus\w*|wetter|regen\w*|schirm|jacke|temperatur|grad|sonnig|schnee|gewitter|sturm|nachrichten|neuigkeiten|aktuell\w*|fernseh\w*|kino|programm|öffnungszeit\w*|ergebnis\w*|spielstand|tabelle|internet|google|recherchier\w*|nachschlagen|nachsehen|kost\w*|preis\w*|kaufen|vergleich\w*|h[aä]ndler\w*)\b/i;
     var RX_FOLGE = /^(?:und|aber|dann|auch|noch|wie (?:sieht|ist) es|was ist (?:denn )?mit)\b|\b(?:morgen|übermorgen|uebermorgen|dort|dann)\b/i;   // kurze Anschlussfrage zum letzten Thema ("und morgen?")
 
     function sendeStandard(nachrichten, signal) {   // bestehende KI-Anbindung (apiFetch -> /api/groq), kein neuer Server
@@ -624,7 +625,7 @@
         var n = plan.schritte.length;
         if (n === 0) return !ohneFrage && frageSauber(plan.frage);   // nach einer Antwort auf eine Rückfrage gibt es keine zweite Rückfrage (keine Fragekette)
         if (n > MAX_SCHRITTE || plan.frage) return false;
-        var zaehl = { ortssuche: 0, websuche: 0, wetter: 0 };
+        var zaehl = { ortssuche: 0, websuche: 0, wetter: 0, produktsuche: 0 };
         if (plan.schritte.some(function (v) { return v.aus !== undefined; }) && plan.schritte.some(function (v) { return B2A_NEU.indexOf(v.faehigkeit) >= 0 || B2B_NAMEN.indexOf(v.faehigkeit) >= 0; })) return false;   // Kette nur mit rein lesenden Plänen
         for (var i = 0; i < n; i++) {
             var st = plan.schritte[i], p = st.params || {}, ks = Object.keys(p);
@@ -636,6 +637,8 @@
                 if (!saubererBegriff(p.suchbegriff)) return false;
                 if (p.ort !== undefined && !saubererBegriff(p.ort)) return false;
                 if (!ks.every(function (k) { return k === 'suchbegriff' || k === 'ort'; })) return false;
+            } else if (st.faehigkeit === 'produktsuche') {
+                if (!saubererBegriff(p.suchbegriff) || !ks.every(function (k) { return k === 'suchbegriff'; })) return false;
             } else if (st.faehigkeit === 'websuche') {
                 if (typeof p.frage !== 'string' || p.frage.trim().length < 3) return false;
                 if (p.suchbegriff !== undefined && (typeof p.suchbegriff !== 'string' || p.suchbegriff.length > 100)) return false;
@@ -646,7 +649,7 @@
                 if (!ks.every(function (k) { return k === 'tag' || k === 'ort'; })) return false;
             }
         }
-        return zaehl.ortssuche <= 2 && zaehl.websuche <= 1 && zaehl.wetter <= 1;
+        return zaehl.ortssuche <= 2 && zaehl.websuche <= 1 && zaehl.wetter <= 1 && zaehl.produktsuche <= 2;
     }
 
     /* Kontext für kurze Anschlussfragen: nur Art des letzten Themas (und Tag/Stichwort), nie ein Satz. */
@@ -655,7 +658,7 @@
         if (!themaFrisch()) return '';
         return 'Nur zur Einordnung kurzer Anschlussfragen: das letzte Thema war ' + (thema.art === 'wetter' ? 'das Wetter (Tag: ' + (thema.tag || 'heute') + (thema.ort ? ', Ort: ' + thema.ort : '') + ')' : thema.art === 'orte' ? 'eine Ortssuche' + (thema.begriff ? ' (' + thema.begriff + ')' : '') : 'eine Internetauskunft') + '.';
     }
-    function notiz(name) { return name === 'websuche' ? 'Bei der Internetsuche hat es leider nicht geklappt.' : name === 'wetter' ? 'Die Wetterdaten waren gerade nicht erreichbar.' : 'Bei der Ortssuche hat es leider nicht geklappt.'; }
+    function notiz(name) { return name === 'produktsuche' ? 'Bei der Produktsuche hat es leider nicht geklappt.' : name === 'websuche' ? 'Bei der Internetsuche hat es leider nicht geklappt.' : name === 'wetter' ? 'Die Wetterdaten waren gerade nicht erreichbar.' : 'Bei der Ortssuche hat es leider nicht geklappt.'; }
     function mitRest(p, ende) {
         var rest = ende - jetzt();
         if (rest <= 0) return Promise.resolve({ zeit: true });
@@ -825,7 +828,7 @@
             var istFort = fort.ab !== undefined && i === fort.ab, ja = istFort && fort.bestaetigt === true;
             if (gen !== kiGen) { if (st.begonnen && erledigt.length) { stopp = { art: 'ueberholt' }; break; } return { art: 'ueberholt', geschrieben: st.begonnen }; }   // schon Geschriebenes wird trotzdem ehrlich genannt
             if (jetzt() > ende) { stopp = { art: 'zeit' }; break; }
-            if (name === 'websuche') kiZaehler.websuchen++; else if (name === 'wetter') kiZaehler.wetter++; else if (name === 'ortssuche') kiZaehler.ortssuchen++;
+            if (name === 'websuche') kiZaehler.websuchen++; else if (name === 'wetter') kiZaehler.wetter++; else if (name === 'ortssuche') kiZaehler.ortssuchen++; else if (name === 'produktsuche') kiZaehler.produktsuchen++;
             var e;
             if (name === 'termin_verschieben') {
                 var lv = ja && fort.resolved ? pruefeAktuell(fort.resolved) : loeseVerschiebung(s, text, istFort ? fort.zusatz : null);
@@ -855,6 +858,7 @@
             if (e.status === 'SUCCESS' && e.ausgefuehrt) {
                 erledigt.push(e.nachricht || ('Erledigt: ' + LESBAR[name] + '.'));
                 if (name === 'ortssuche') { if (e.daten && Array.isArray(e.daten.cards)) kartenListe = kartenListe.concat(e.daten.cards); gespraechMerken({ schritte: [e] }); }   // sofort merken: ein späterer Schritt (Kontakt speichern) braucht den gefundenen Ort
+                if (name === 'produktsuche' && e.daten && Array.isArray(e.daten.cards)) kartenListe = kartenListe.concat(e.daten.cards);
                 continue;
             }
             if (e.status === 'NEEDS_INFORMATION') { stopp = { art: 'info', name: name, frage: e.nachricht || frageNach((e.fehlend || [])[0]) }; break; }
@@ -892,7 +896,7 @@
         var einzel = plan.schritte.length === 1, teile = [], kartenListe = [], erfolge = [], fehl = [], schritte = [], ki = 0, frage = '', frageCode = '', offenNeu = null, ortsFehler = '', leer = 0, doppelt = 0;
         for (var i = 0; i < plan.schritte.length; i++) {
             var s = plan.schritte[i];
-            if (s.faehigkeit === 'websuche') { kiZaehler.websuchen++; ki++; } else if (s.faehigkeit === 'wetter') kiZaehler.wetter++; else kiZaehler.ortssuchen++;
+            if (s.faehigkeit === 'websuche') { kiZaehler.websuchen++; ki++; } else if (s.faehigkeit === 'wetter') kiZaehler.wetter++; else if (s.faehigkeit === 'produktsuche') kiZaehler.produktsuchen++; else kiZaehler.ortssuchen++;
             var sa = s;
             if (s.aus) {   // Kette: Angaben aus dem geprüften Ergebnis eines früheren Schritts
                 var la = loeseAus(s, schritte);
@@ -1081,6 +1085,7 @@
             var letzter = r.erfolge.length ? r.erfolge[r.erfolge.length - 1] : '';
             if (letzter === 'wetter') { var ws = plan.schritte.filter(function (x) { return x.faehigkeit === 'wetter'; })[0]; thema = { art: 'wetter', tag: String((ws.params && ws.params.tag) || 'heute').toLowerCase().replace('ü', 'ue'), ort: String((ws.params && ws.params.ort) || '').slice(0, 40), at: jetzt() }; if (ws.params && ws.params.ort) ortMerken(String(ws.params.ort), true); }
             else if (letzter === 'websuche') thema = { art: 'web', at: jetzt() };
+            else if (letzter === 'produktsuche') thema = { art: 'web', at: jetzt() };
             else if (letzter === 'ortssuche') { var os = plan.schritte.filter(function (x) { return x.faehigkeit === 'ortssuche'; })[0]; thema = { art: 'orte', begriff: String(os.params.suchbegriff).slice(0, 40), at: jetzt() }; if (os.params.ort) ortMerken(String(os.params.ort), true); }
             if (r.karten && r.karten.length) karten(r.karten);
             say(r.text);                                                  // EINE zusammenhängende Antwort
@@ -1197,7 +1202,7 @@
         an: function () { return schalten(true); }, aus: function () { return schalten(false); }, istAn: function () { return istAn; },
         behandle: behandle, kiWeg: kiWeg, mehrteilig: mehrteilig, befehlVorrang: befehlVorrang, uebergabeAlteSuche: uebergabeAlteSuche, eingaenge: eingaengeKopie, grundText: function (c) { return GRUND[c] || ''; }, GRUENDE: GRUND, plane: plane, verarbeite: verarbeite, pruefePlan: pruefePlan, kiEntscheider: kiEntscheider,
         protokoll: function () { return protokollListe.map(function (e) { return { nr: e.nr, zeit: e.zeit, weg: e.weg, faehigkeiten: e.faehigkeiten.slice(), status: e.status }; }); },
-        vergiss: vergiss, kiZaehler: function () { return { anfragen: kiZaehler.anfragen, ortssuchen: kiZaehler.ortssuchen, zurueck: kiZaehler.zurueck, websuchen: kiZaehler.websuchen, wetter: kiZaehler.wetter }; }, GESAMT_MS: GESAMT_MS, thema: function () { return themaFrisch() ? { art: thema.art, tag: thema.tag || '', begriff: thema.begriff || '' } : null; }, planErlaubt: planErlaubt, FREIGEGEBEN: FREIGEGEBEN, SCHREIB: SCHREIB, B2A_NEU: B2A_NEU, B2A_SCHREIBT: B2A_SCHREIBT, B2B_NAMEN: B2B_NAMEN, relativeNeueZeit: relativeNeueZeit, pauseOffen: function () { return pause ? { art: pause.art, was: pause.was, naechsterSchritt: pause.index } : null; }, PAUSE_MS: PAUSE_MS,
+        vergiss: vergiss, kiZaehler: function () { return { anfragen: kiZaehler.anfragen, ortssuchen: kiZaehler.ortssuchen, zurueck: kiZaehler.zurueck, websuchen: kiZaehler.websuchen, wetter: kiZaehler.wetter, produktsuchen: kiZaehler.produktsuchen }; }, GESAMT_MS: GESAMT_MS, thema: function () { return themaFrisch() ? { art: thema.art, tag: thema.tag || '', begriff: thema.begriff || '' } : null; }, planErlaubt: planErlaubt, FREIGEGEBEN: FREIGEGEBEN, SCHREIB: SCHREIB, B2A_NEU: B2A_NEU, B2A_SCHREIBT: B2A_SCHREIBT, B2B_NAMEN: B2B_NAMEN, relativeNeueZeit: relativeNeueZeit, pauseOffen: function () { return pause ? { art: pause.art, was: pause.was, naechsterSchritt: pause.index } : null; }, PAUSE_MS: PAUSE_MS,
         ortMerken: ortMerken, ort: function () { return ortFrisch() ? ortMerker.name : null; }, _setzeOrtPruefer: function (f) { ortPruefer = typeof f === 'function' ? f : null; }, ORT_MS: ORT_MS,
         _lokal: lokalEntscheiden, _setzeSende: function (f) { sendeFunktion = typeof f === 'function' ? f : null; }, _setzeZeitlimit: function (ms) { KI_ZEITLIMIT_MS = ms > 0 ? ms : 7000; }, _setzeEntscheider: function (f) { entscheider = typeof f === 'function' ? f : function (t) { return lokalEntscheiden(t); }; }
     };
