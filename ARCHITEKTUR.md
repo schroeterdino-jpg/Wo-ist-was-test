@@ -1,6 +1,6 @@
 # Jarvis: Architektur-Überblick
 
-Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 180 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
+Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 181 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
 Wo suche ich zuerst? → `LANDKARTE.md` (Problem → Datei → Abhängigkeiten, plus Zuordnung aller Skripte). Reihenfolge-Sicherheitsnetz: `tests/reihenfolge.js`; Timer-Register: `tests/timer.js` + `tests/timer_inventar.js`.
 Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (180 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (181 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -757,3 +757,8 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 - Rückgabe `daten.produkte[] = {name, angebote[{shop, preis, preisText, link, linkArt}], vergleich, bild}`, dazu `nachricht` (gesprochen) und `cards`. Ein Angebot zählt nur mit passendem Titel; Idealo & Co. sind nie Händler; Händler, Preis und Link bleiben im selben Angebot. `pruefeErfolg` prüft, dass der gesprochene Preis zum genannten Händler gehört.
 - Chef-KI: darf `produktsuche` planen (höchstens 2 je Plan, nur `suchbegriff`, nur Namen, die der Nutzer nennt). Ein späterer lesender Schritt kann per `aus` den geprüften Produktnamen (`feld: produkte`) übernehmen. Die Ergebnisse werden für Anschlussfragen gemerkt (`jvGespraech`, Art `produkte`).
 - Ausfall der Preissuche: kein Ersatz über die freie Websuche (Preise wären nicht an Händler und Link gebunden), sondern der bisherige Jarvis-Weg genau einmal. Chef-KI bleibt Standard AUS. Der Vorfilter der Chef-KI kennt jetzt auch Wörter wie kostet, Preis, kaufen, vergleichen, Händler.
+
+## Intelligente Kamera (Phase 4, `js/foto_werkzeuge.js`, Test `tests/foto_werkzeuge.js`)
+- `foto_erkennen.js` ordnet ein Foto weiter mit EINER Bild-Anfrage ein (neu: Arten `geraet`, `text`, Felder `geraet`, `code`) und ruft danach den Haken `jvFotoWerkzeuge.nachErkennung`. Der entscheidet nur, welches vorhandene lesende Werkzeug läuft: sicheres Produkt → Registry `produktsuche`; Gerät mit lesbarem Code → Registry `websuche` (ohne Code: Rückfrage); Text → Angebot (vorlesen/übersetzen/erklären/zusammenfassen, "Erkläre das" / "Fasse das zusammen" nutzen `runLastPhotoTask('describe')`). Rechnung, Visitenkarte, Zettel usw. bleiben bei den vorhandenen Foto-Funktionen und fragen selbst vor dem Speichern.
+- Unsicher, unbekannt oder Werkzeug ohne Ergebnis: wie bisher "Was soll ich damit tun?". Nichts wird gespeichert, gelöscht oder gesendet; keine zusätzliche KI-Anfrage außer der Bild-Anfrage (und bei ausdrücklichem Wunsch der Auswertung).
+- Anschlussfragen: Auswertung als Antwort (`jvAnschlussAntwort`, Art `foto`), Produkte als Produktliste. Chef-KI (Standard AUS) hat die lesende Fähigkeit `foto_info` und kann per `aus` das Produkt an `produktsuche` weitergeben.

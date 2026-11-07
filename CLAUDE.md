@@ -24,3 +24,12 @@ Nach abgeschlossenen Änderungen:
 2. Status und PR-Nummer ergänzen.
 3. Neue wichtige Entscheidungen oder offene Probleme dokumentieren.
 4. Unbeteiligte Einträge unverändert lassen.
+
+## Arbeitsgeschwindigkeit (verbindlich, seit 07.11.2026)
+1. Masterplan und vorhandene Architekturinformationen (`ARCHITEKTUR.md`, `LANDKARTE.md`) nutzen, statt Zusammenhänge neu zu untersuchen.
+2. Nur unmittelbar relevante Dateien und Abhängigkeiten lesen; keine vollständigen Repository-Analysen ohne konkreten Anlass.
+3. Kleinste sichere Änderung zuerst; keine zusätzlichen Funktionen, keine ungefragten Umbauten.
+4. Lokal nur die betroffenen Tests ausführen; die vollständige Prüfung übernimmt GitHub (CI). Tests nicht ohne neue Änderung oder konkreten Fehler wiederholen.
+5. Dokumentation gezielt und knapp aktualisieren; Abschlussberichte kurz.
+6. Sicherheitsprüfungen, Bestätigungspflichten und wichtige Regressionstests nie aus Zeitgründen überspringen.
+7. Im Bericht kurz nennen, welche Arbeitsschritte die meiste Zeit gekostet haben (Zeitfresser erkennen).

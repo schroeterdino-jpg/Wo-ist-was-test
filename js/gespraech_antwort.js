@@ -33,7 +33,7 @@
     var RX_REIN = new RegExp('^' + BEZUG + '$', 'i');
     var RX_KAUFEN = /\b(?:gibt|find\w*|kauf\w*|bestell\w*|bekomm\w*|krieg\w*|kost\w*|preis\w*|teuer\w*|billig\w*|günstig\w*|guenstig\w*|angebot\w*|h[aä]ndler\w*|shop\w*|lieferbar\w*|verf[uü]gbar\w*|test\w*|bewertung\w*|erfahrung\w*|vergleich\w*)\b/i;
     var RX_NACHFRAGE = /\?|\bmeinst du\b|\bgemeint\b|\bbezieht sich\b|\bwelche[sn]?\s+(?:produkt|modell|ding|artikel|sache|ort|lokal|restaurant|meinst)|\bkannst du (?:mir )?(?:das |es )?(?:näher|naeher|genauer|präzisier|praezisier)/i;
-    var HINWEIS_NAME = { internet: 'Internet-Auskunft', antwort: 'deine Antwort', fahrzeit: 'Fahrzeit', umgebung: 'Suche in der Nähe', tanken: 'Tankstellen', bahn: 'Bahn-Auskunft', lokal: 'feste Auskunft' };
+    var HINWEIS_NAME = { internet: 'Internet-Auskunft', antwort: 'deine Antwort', fahrzeit: 'Fahrzeit', umgebung: 'Suche in der Nähe', tanken: 'Tankstellen', bahn: 'Bahn-Auskunft', foto: 'Foto-Auswertung', lokal: 'feste Auskunft' };
 
     function woerter(t) { return String(t == null ? '' : t).toLowerCase().replace(/[?.!,;:"„“]+/g, ' ').split(/\s+/).filter(Boolean); }
 
