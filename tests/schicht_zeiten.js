@@ -175,17 +175,48 @@ const ids = (plan, art) => plan.filter(e => e.id.split('|')[0] === art);
         await A.vorspulen(2000);
         check('Schichtwechsel: neuer Plan wurde sofort gesendet', A.cap.length > m, m + ' -> ' + A.cap.length);
     }
-    /* --- 12. Wetterfrage ist keine Essensplan-Frage --- */
+    /* --- 12. Wetterfragen gehen an den Wetterweg (KI mit Vorhersage), Essensfragen bleiben beim Essensplan --- */
     {
-        const A = neu('2026-11-06T10:00:00+01:00', { essen: true });   // Freitag, morgen = Samstag (der gemeldete Fehler)
-        for (const f of ['Gibt es morgen Regen?', 'Gibt es morgen Schnee?', 'Wird es morgen windig', 'Gibt es heute Gewitter?']) {
-            const g0 = A.gesagt.length; await A.satz(f);
-            check('Wetterfrage nicht als Essensplan: ' + f, !A.gesagt.slice(g0).some(t => /Essensplan/.test(t)), A.gesagt.slice(g0).join('|'));
+        const ant = d => ({ ok: true, status: 200, json: async () => d });
+        const tage = ['2026-11-06', '2026-11-07', '2026-11-08', '2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12'];
+        const fc = { daily: { time: tage, weather_code: [3, 63, 3, 3, 3, 3, 3], temperature_2m_max: [10, 12, 9, 9, 9, 9, 9], temperature_2m_min: [5, 8, 4, 4, 4, 4, 4], precipitation_sum: [0, 6.2, 0, 0, 0, 0, 0], precipitation_probability_max: [10, 90, 10, 10, 10, 10, 10], wind_gusts_10m_max: [20, 40, 10, 10, 10, 10, 10], wind_speed_10m_max: [12, 25, 8, 8, 8, 8, 8], sunrise: tage.map(d => d + 'T07:20'), sunset: tage.map(d => d + 'T16:30') } };
+        const essen = { gespeichert: '2026-11-02', tage: { Montag: { veg: 'Nudeln', fleisch: 'Gulasch' }, Freitag: { veg: 'Fisch', fleisch: 'Fisch' } } };
+        async function frage(jetzt, f) {   // Freitag 06.11.: morgen ist Samstag (der gemeldete Fehler)
+            let req = null;
+            const A = starte({ jetzt, festerZufall: true, fetch: async (u, o) => {
+                if (/\/api\/groq/.test(u)) { req = o && o.body; return ant({ choices: [{ message: { content: JSON.stringify({ reply: 'Morgen regnet es, etwa 6 Millimeter.', actions: [] }) } }] }); }
+                if (/open-meteo/.test(u)) return ant(fc);
+                throw new Error('offline ' + u);
+            } });
+            A.setze('wxGeocode', async () => ({ lat: 53.5, lon: 10 }));
+            A.store['jv_essensplan'] = JSON.stringify(essen);
+            A.store['jv_wetter_pos'] = JSON.stringify({ lat: 53.5, lon: 10, at: Date.now() });   // im Test gibt es kein GPS: gemerkter Standort
+            const l = await A.satz(f);
+            let ki = null;
+            if (!l.lokal) { const g1 = A.gesagt.length; await A.lassLaufen(() => A.sb.sendToGroqSmart(f)); await new Promise(r => setImmediate(r)); ki = A.gesagt.slice(g1).join(' | '); }
+            return { l, ki, req };
         }
-        const g1 = A.gesagt.length; await A.satz('Was gibt es heute zu essen?');
-        check('Essensfrage bleibt beantwortet', A.gesagt.slice(g1).some(t => /Fisch/.test(t)), A.gesagt.slice(g1).join('|'));
-        const g2 = A.gesagt.length; await A.satz('Was gibt es morgen?');
-        check('"Was gibt es morgen?" bleibt Essensplan (Wochenende: kein Plan)', A.gesagt.slice(g2).some(t => /keinen Essensplan/.test(t)), A.gesagt.slice(g2).join('|'));
+        for (const f of ['Gibt es morgen Regen?', 'Wird es morgen regnen?', 'Regnet es morgen?', 'Wie wird das Wetter morgen?', 'Gibt es heute Regen?', 'Gibt es morgen Schnee?', 'Gibt es heute Gewitter?']) {
+            const r = await frage('2026-11-06T10:00:00+01:00', f);
+            check('Wetterfrage geht nicht an den Essensplan: ' + f, !r.l.lokal && r.l.modul !== 'essensplan' && !r.l.gesagt.some(t => /Essensplan/.test(t)), r.l.modul + ' ' + r.l.gesagt.join('|'));
+            let msgs = []; try { msgs = JSON.parse(r.req).messages; } catch (e) { }
+            const sys = msgs.map(m => m.content).join('\n'), usr = msgs.length ? msgs[msgs.length - 1].content : '';
+            check('Wetterfrage erreicht die KI als Frage des Nutzers: ' + f, usr === f, usr);
+            check('KI-Anfrage enthält die echte Vorhersage (nicht nur den Prompt-Text, kein Fehlerfeld): ' + f, /"wettervorhersage":\s*\{\s*"tage"/.test(sys) && /"wettervorhersage":\s*\{[\s\S]*?"niederschlag_mm":\s*6\.2/.test(sys) && !/"wettervorhersage":\s*\{"fehler"/.test(sys), (sys.match(/"wettervorhersage":.{0,160}/) || [''])[0]);
+            check('Wetterfrage bekommt die Wetterantwort: ' + f, r.ki && /regnet es/.test(r.ki), r.ki);
+        }
+        const fr = [['Gibt es morgen etwas zu essen?', 'Freitag-Plan: morgen ist Samstag -> kein Plan, Montag genannt'], ['Was gibt es morgen zu essen?'], ['Gibt es morgen einen Essensplan?'], ['Was gibt es morgen?']];
+        for (const [f] of fr) {
+            const r = await frage('2026-11-06T10:00:00+01:00', f);
+            check('Essensfrage bleibt beim Essensplan (Samstag): ' + f, r.l.lokal && r.l.modul === 'essensplan' && r.l.gesagt.some(t => /keinen Essensplan/.test(t) && /Gulasch/.test(t)), r.l.modul + ' ' + r.l.gesagt.join('|'));
+            check('Essensfrage geht nicht an die KI: ' + f, r.req == null);
+        }
+        const heut = await frage('2026-11-06T10:00:00+01:00', 'Was gibt es heute zu essen?');
+        check('Essensfrage heute nennt das Gericht', heut.l.modul === 'essensplan' && heut.l.gesagt.some(t => /Fisch/.test(t)), heut.l.gesagt.join('|'));
+        const mix = await frage('2026-11-06T10:00:00+01:00', 'Was gibt es heute bei Regen zu essen?');
+        check('Mischfall "bei Regen zu essen" bleibt Essensplan', mix.l.modul === 'essensplan' && mix.l.gesagt.some(t => /Fisch/.test(t)), mix.l.modul + ' ' + mix.l.gesagt.join('|'));
+        const mix2 = await frage('2026-11-06T10:00:00+01:00', 'Was gibt es morgen bei Regen zu essen?');
+        check('Mischfall morgen (Samstag) bleibt Essensplan', mix2.l.modul === 'essensplan' && mix2.l.gesagt.some(t => /keinen Essensplan/.test(t)), mix2.l.modul + ' ' + mix2.l.gesagt.join('|'));
     }
     console.log(fehler ? 'FEHLER: ' + fehler + ' (ok ' + ok + ')' : 'alles ok (' + ok + ' Prüfungen)');
     process.exit(fehler ? 1 : 0);
