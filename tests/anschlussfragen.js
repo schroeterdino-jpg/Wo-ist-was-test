@@ -135,8 +135,8 @@ const spricht = (r, rx) => r.gesagt.some(x => rx.test(String(x)));
         await runde(app, 'Wie funktioniert ein Kühlschrank?');
         const r = await runde(app, Q2);
         check('5.2 zwei verschiedene Themen: keine geratene Suche', !r.aufrufe.some(a => a.web), JSON.stringify(r.aufrufe.map(a => a.web)));
-        const ki = r.aufrufe.filter(a => !a.web);
-        check('5.3 beide Antworten stehen im Bezug, die KI darf nachfragen (kein zweiter Versuch)', ki.length === 1 && /1\)[\s\S]*2\)/.test(ki[0].system) && spricht(r, /Welches Produkt meinst du/), JSON.stringify(r.gesagt));
+        check('5.3 Jarvis fragt selbst nach, auf welche Frage sich „die“ bezieht (kein erfundenes Produkt, kein KI-Aufruf)', r.aufrufe.length === 0 && r.gesagt.length === 1 && /Worauf bezieht sich das/.test(r.gesagt[0]) && /Wasserhähne/.test(r.gesagt[0]) && /Kühlschrank/.test(r.gesagt[0]), JSON.stringify(r.gesagt));
+        check('5.3b die Rückfrage ersetzt keine gemerkte Antwort', app.sb.jvGespraech.antworten().length === 2);
     }
     {
         const app = neu({ modus: 'fragt' });
@@ -179,6 +179,82 @@ const spricht = (r, rx) => r.gesagt.some(x => rx.test(String(x)));
         check('7.4 Nähe: eine Sprachausgabe', r2.gesagt.length === 1, JSON.stringify(r2.gesagt));
         const r3 = await runde(app, 'Wo kann ich die kaufen?');
         check('7.5 Nähe ist kein Produkt: „kaufen“ startet dort keine Internetsuche', !r3.aufrufe.some(a => a.web));
+    }
+
+    /* ---- 9. die drei belegten Fehlerfälle (Handytest vom 07.11., PR #370) als Dauertest ---- */
+    const einkauf = app => app.lese('shoppingEntries').length;
+    const SHOP = l => /Wo kann ich die kaufen/.test(l.split('\n')[0]) ? { reply: 'Welches Produkt willst du kaufen?', aktionen: [{ type: 'shopping', shopping_item: 'Produkt' }] } : null;
+    {   // B: das Modell würde bei Frage 2 eine Einkaufslisten-Aktion anlegen und nachfragen
+        const app = neu({ modus: 'fragt', skript: SHOP });
+        await runde(app, Q1);
+        const e0 = einkauf(app);
+        const r = await runde(app, Q2);
+        check('9.B1 Frage 2 geht direkt in die Internetsuche, das Modell wird gar nicht gefragt', r.aufrufe.filter(a => !a.web).length === 0 && r.aufrufe.filter(a => a.web).length === 1, JSON.stringify(r.aufrufe.map(a => a.web)));
+        check('9.B2 gesprochen wird die Suchantwort, nicht „Welches Produkt willst du kaufen?“, genau einmal', r.gesagt.length === 1 && /Baumarkt/.test(r.gesagt[0]) && !/Welches Produkt/.test(r.gesagt[0]), JSON.stringify(r.gesagt));
+        const wb = r.aufrufe.find(a => a.web);
+        check('9.B3 die Suche enthält die zuvor genannten Modelle, nicht nur „die“', !!wb && /Grohe Eurosmart/.test(wb.letzte) && /Hansgrohe Talis S/.test(wb.letzte));
+        check('9.B4 kein Eintrag auf der Einkaufsliste', einkauf(app) === e0, e0 + ' → ' + einkauf(app));
+    }
+    {   // B': ohne Bezug (kein Merker) legt eine Händlerfrage trotzdem nie einen Einkaufslisten-Eintrag an
+        const app = neu({ modus: 'fragt', skript: SHOP });
+        const e0 = einkauf(app);
+        const r = await runde(app, Q2);
+        check('9.B5 ohne Merker: Modell fragt wie bisher nach, aber die Einkaufslisten-Aktion wird verworfen', einkauf(app) === e0 && spricht(r, /Welches Produkt willst du kaufen/), e0 + ' → ' + einkauf(app) + ' ' + JSON.stringify(r.gesagt));
+        const app2 = neu({ modus: 'fragt', skript: l => /Wo kann ich Milch kaufen/.test(l.split('\n')[0]) ? { reply: 'Das bekommst du in jedem Supermarkt.', aktionen: [{ type: 'shopping', shopping_item: 'Milch' }] } : null });
+        await runde(app2, 'Wo kann ich Milch kaufen?');
+        check('9.B6 „Wo kann ich Milch kaufen?“ (Frage) legt keine Milch auf die Liste', einkauf(app2) === 0, String(einkauf(app2)));
+        const app3 = neu({ modus: 'fragt', skript: l => /Setz Milch auf die Einkaufsliste/.test(l.split('\n')[0]) ? { reply: 'Erledigt.', aktionen: [{ type: 'shopping', shopping_item: 'Milch' }] } : null });
+        await runde(app3, 'Setz Milch auf die Einkaufsliste');
+        check('9.B7 ein echter Auftrag („Setz Milch auf die Einkaufsliste“) funktioniert weiter', einkauf(app3) === 1, String(einkauf(app3)));
+    }
+    {   // D: die Antwort auf Frage 1 endet mit einer Rückfrage
+        const app = neu({ modus: 'fragt', skript: l => /Wasserhähne/.test(l) ? { reply: 'Ich empfehle den Grohe Eurosmart und den Hansgrohe Talis S, beide sind im Bad bewährt. Soll ich dir Preise raussuchen?' } : null });
+        await runde(app, Q1);
+        check('9.D1 die Antwort mit Schlussfrage steht im Merker', app.sb.jvGespraech.antworten().length === 1 && /Talis S/.test(app.sb.jvGespraech.antworten()[0].text));
+        const r = await runde(app, Q2);
+        check('9.D2 Frage 2 führt zur Internetsuche mit den Modellen', r.aufrufe.filter(a => a.web).length === 1 && /Grohe Eurosmart/.test((r.aufrufe.find(a => a.web) || {}).letzte || '') && !spricht(r, /Welches Produkt/), JSON.stringify(r.gesagt));
+        const app2 = neu({ modus: 'fragt', skript: l => /Wasserhähne/.test(l) ? { reply: 'Welches Produkt meinst du?' } : null });
+        await runde(app2, Q1);
+        check('9.D3 eine reine Rückfrage wird weiterhin NICHT gemerkt', app2.sb.jvGespraech.antworten().length === 0);
+    }
+    {   // E: dieselbe Frage 1 noch einmal innerhalb von 10 Minuten
+        const app = neu({ modus: 'fragt' });
+        await runde(app, Q1); await runde(app, Q2); await runde(app, Q1);
+        const r = await runde(app, Q2);
+        check('9.E1 wiederholte Frage 1 erzeugt keine Mehrdeutigkeit (ein Thema)', app.sb.jvGespraech.antworten().filter(a => a.frage === Q1).length === 1);
+        check('9.E2 Frage 2 geht wieder direkt zur Suche', r.aufrufe.filter(a => a.web).length === 1 && !spricht(r, /Worauf bezieht|Welches Produkt/), JSON.stringify(r.gesagt));
+        const r3 = await runde(app, Q2);
+        check('9.E3 auch ein drittes Mal', r3.aufrufe.filter(a => a.web).length === 1 && !spricht(r3, /Worauf bezieht|Welches Produkt/));
+    }
+    {   // Mehrdeutig: wirklich zwei Themen -> Jarvis fragt selbst
+        const app = neu({ modus: 'fragt', skript: l => /Kühlschrank/.test(l) ? { reply: 'Ein Kühlschrank pumpt Wärme aus dem Innenraum nach außen und gibt sie am Gitter wieder ab.' } : null });
+        await runde(app, Q1); await runde(app, 'Wie funktioniert ein Kühlschrank?');
+        const e0 = einkauf(app);
+        const r = await runde(app, Q2);
+        check('9.M1 echte Mehrdeutigkeit: Jarvis fragt nach, keine Suche, kein erfundenes Produkt, keine Liste', !r.aufrufe.some(a => a.web) && spricht(r, /Worauf bezieht sich das/) && einkauf(app) === e0, JSON.stringify(r.gesagt));
+        const r2 = await runde(app, 'Die Wasserhähne');
+        check('9.M2 Antwort auf die Nachfrage wird nicht als Produkt „Die Wasserhähne“ auf die Liste gelegt', einkauf(app) === e0);
+    }
+    {   // zweiter KI-Versuch: die verworfene erste Antwort führt keine Aktion aus
+        const app = neu({ modus: 'fragt1', skript: (l, k) => (/Welches ist besser/.test(l.split('\n')[0]) && !k.hinweis) ? { reply: 'Welches Produkt meinst du?', aktionen: [{ type: 'shopping', shopping_item: 'Wasserhahn' }] } : null });
+        await runde(app, Q1);
+        const e0 = einkauf(app);
+        const r = await runde(app, 'Welches ist besser?');
+        check('9.Z1 zweiter Versuch liefert die Antwort', r.aufrufe.filter(a => !a.web).length === 2 && spricht(r, /Talis S ist etwas hochwertiger/), JSON.stringify(r.gesagt));
+        check('9.Z2 die Einkaufslisten-Aktion des verworfenen ersten Versuchs wurde NICHT ausgeführt', einkauf(app) === e0, e0 + ' → ' + einkauf(app));
+        const app2 = neu({ modus: 'fragt', skript: (l, k) => /Welches ist besser/.test(l.split('\n')[0]) ? { reply: 'Welches Produkt meinst du?', aktionen: [{ type: 'shopping', shopping_item: 'Wasserhahn' }] } : null });
+        await runde(app2, Q1);
+        await runde(app2, 'Welches ist besser?');
+        check('9.Z3 fragt das Modell auch beim zweiten Mal nach, bleibt die Liste ebenfalls unberührt', einkauf(app2) === 0, String(einkauf(app2)));
+    }
+    {   // Diagnose
+        const app = neu({ modus: 'fragt' });
+        app.sb.setPersistentData('helfer_diag', '1');
+        await runde(app, Q1);
+        await runde(app, Q2);
+        const zeilen = (app.lese('diagLines') || []).join('\n');
+        check('9.G1 Diagnose zeigt Dateiversion, Bezug und Pfad', /Anschluss: Datei \S+ \| Bezug: 1 Antwort\(en\), 1 Thema\/Themen, jüngste: antwort, vor \d+ s \| Pfad: direkt/.test(zeilen), zeilen.slice(-400));
+        check('9.G2 Diagnose enthält keine Antwortinhalte der Empfehlung und keine Schlüssel', !/Hansgrohe/.test(zeilen.split('\n').filter(z => /^Anschluss:/.test(z)).join('\n')) && !/gsk_|APP_SECRET|x-app-key/i.test(zeilen));
     }
 
     /* ---- 8. Grenzen, Langzeitgedächtnis unberührt ---- */

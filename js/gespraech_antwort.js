@@ -13,7 +13,9 @@
    .hatBezug()            true: es gibt genau ein frisches Thema, auf das sich ein Bezugswort beziehen kann (preissuche.js lässt dann die KI den Bezug auflösen)
    .block(text)           Abschnitt für die Systemanweisung (leer, wenn keine Anschlussfrage oder nichts Frisches gemerkt)
    .nachfrageErsatz(text, ai)   falls die KI trotz Bezug zurückfragt: der Zusatz für einen zweiten Versuch, sonst ''
-   .websuche(text, ai, actions) falls "wo kaufen / was kostet / Test" mit reinem Bezugswort ("die") gefragt wurde: die Suchanfrage für die Internetsuche, sonst ''
+   .route(text)           Weg dieses Satzes VOR dem ersten KI-Aufruf: { pfad: 'direkt' (Internetsuche mit den zuletzt genannten Dingen) | 'nachfrage' (zwei Themen: Jarvis fragt selbst) | 'modell', query, text, ... }
+   .haendlerFrage(text) / .ohneListenAktionen(text, actions)   eine Händler-/Preisfrage legt nie einen Einkaufslisten-/Aufgaben-Eintrag an (Aktionen werden entfernt)
+   .diagnose(pfad)        eine Diagnose-Zeile (Dateiversion, Zahl der gemerkten Antworten, Pfad; keine Inhalte)
    Themenwechsel: eine neue Antwort wird zur jüngsten; ein Satz mit eigenem Gegenstand ("Wie wird das Wetter?") ist keine Anschlussfrage und bekommt keinen Zusatz.
    Mehrdeutig (zwei verschiedene frische Antworten): beide stehen im Zusatz, das Modell soll im Zweifel kurz nachfragen (nicht raten).
    ============================================================ */
@@ -22,6 +24,8 @@
     if (window.jvAnschlussAntwort) return;
 
     function G() { return window.jvGespraech || null; }
+    var VERSION = 'unbekannt';   // Stempel aus dem Script-Tag (?v=...), nur für die Diagnose
+    try { var q = document.currentScript && document.currentScript.src && /[?&]v=([\w.-]+)/.exec(document.currentScript.src); if (q) VERSION = q[1]; } catch (e) { }
 
     var BEZUG = '(?:die|der|das|den|dem|dessen|sie|ihn|ihnen|dort|dahin|dorthin|davon|dafür|dazu|damit|diese[nrms]?|jene[nrms]?|welche[nrms]?|erste[nrms]?|zweite[nrms]?|dritte[nrms]?|vierte[nrms]?|letzte[nrms]?|beide[nrn]?|günstiger|besser|billiger|teurer|schöner|stärker)';
     var RX_BEZUG = new RegExp('(?:^|[^A-Za-zÄÖÜäöüß])' + BEZUG + '(?![A-Za-zÄÖÜäöüß])', 'i');
@@ -49,14 +53,24 @@
     function frisch() { try { var g = G(); return g && typeof g.antworten === 'function' ? g.antworten() : []; } catch (e) { return []; } }
 
     /* Zahl der verschiedenen Themen unter den frischen Antworten: eine Antwort auf eine Anschlussfrage gehört zum Thema davor und zählt nicht extra */
-    function themen() { var n = 0; frisch().forEach(function (a) { if (!anschluss(a.frage)) n++; }); return n; }
+    function themenListe() {
+        var gesehen = {}, liste = [];
+        frisch().forEach(function (a) {
+            if (anschluss(a.frage)) return;
+            var k = woerter(a.frage).join(' ');
+            if (gesehen[k]) return; gesehen[k] = 1; liste.push(a);
+        });
+        return liste;
+    }
+    function themen() { return themenListe().length; }
 
     function merke(art, frage, text, hinweis) {
         try {
             var g = G(); if (!g || typeof g.antwort !== 'function') return false;
             var t = String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
             if (t.length < 25) return false;                                            // Zwischensätze und Kurzsätze ("Ich schaue nach.", "Okay.") sind kein Ergebnis
-            if (RX_NACHFRAGE.test(t) && t.length < 160 && /\?\s*$/.test(t)) return false;   // eine kurze Rückfrage ersetzt keine gute Antwort
+            /* nur eine reine Rückfrage ("Welches Produkt meinst du?") wird nicht gemerkt; eine Antwort, die mit einer Frage endet ("… Soll ich Preise raussuchen?"), schon */
+            if (/\?\s*$/.test(t) && t.replace(/[^.!?]*\?\s*$/, '').trim().length < 25) return false;
             return g.antwort(art, frage, t, hinweis);
         } catch (e) { return false; }
     }
@@ -82,28 +96,77 @@
     }
 
     function istNachfrage(reply) { return typeof reply === 'string' && RX_NACHFRAGE.test(reply); }
+    /* Aktionen, die eine Rückfrage der KI nicht "mitgebracht" haben darf (Einkaufsliste, Aufgabe, Gedächtnis ...): bei einem zweiten Versuch werden sie NICHT ausgeführt */
+    var ZWEITVERSUCH_OK = { chat: 1, memory_search: 1, shopping: 1, todo: 1, memory_store: 1, list_edit: 1, web_lookup: 1 };
+    function zweitversuchMoeglich(actions) { return !Array.isArray(actions) || actions.every(function (a) { return !a || !a.type || ZWEITVERSUCH_OK[a.type]; }); }
     function nurChat(actions) { return Array.isArray(actions) && actions.every(function (a) { return !a || !a.type || a.type === 'chat' || a.type === 'memory_search'; }); }
 
     function nachfrageErsatz(text, ai) {
         try {
-            if (!ai || !istNachfrage(ai.reply) || !anschluss(text) || !nurChat(ai.actions)) return '';
+            if (!ai || !istNachfrage(ai.reply) || !anschluss(text) || !zweitversuchMoeglich(ai.actions)) return '';
             var l = frisch(); if (!l.length || themen() > 1) return '';   // zwei verschiedene Themen: die Rückfrage der KI ist richtig
             return 'Systemhinweis: Deine Rückfrage ist nicht nötig. Der Nutzer meint mit „' + String(text).slice(0, 120) + '“ deine letzte Antwort: „' + l[0].text + '“. ' +
-                'Beantworte seine Frage jetzt direkt mit den dort genannten Namen. Für Händler, Preise oder Verfügbarkeit nutze „web_lookup“ mit den Namen in „web_query“. Erfinde keine Namen, Händler oder Preise. Antworte wieder im JSON-Format.';
+                'Beantworte seine Frage jetzt direkt mit den dort genannten Namen. Lege dabei KEINE Einträge auf Listen an. Für Händler, Preise oder Verfügbarkeit nutze „web_lookup“ mit den Namen in „web_query“. Erfinde keine Namen, Händler oder Preise. Antworte wieder im JSON-Format.';
         } catch (e) { return ''; }
     }
 
-    function websuche(text, ai, actions) {
+    /* ---- Händler-/Preisfrage ("Wo kann ich die kaufen?", "Wo gibt es Wasserhähne?", "Was kostet das?"): eine FRAGE, kein Auftrag für die Einkaufsliste ---- */
+    var RX_FRAGE = /^\s*(?:jarvis[ ,]+)?(?:und |sag mal,? |kannst du mir sagen,? |weißt du,? |wei[sß]t du,? )?(?:wo|wie viel|wieviel|was|wer|bei wem|wann|wie teuer|wie kann ich|kann man|gibt es)\b/i;
+    var RX_LISTENWORT = /\b(?:einkaufsliste|einkaufszettel|liste|setz\w*|pack\w*|f[uü]g\w*|schreib\w*|notier\w*|merk\w*|hinzu\w*|erinner\w*|aufgabe\w*|todo)\b/i;
+    function haendlerFrage(text) {
+        var t = String(text == null ? '' : text);
+        return RX_FRAGE.test(t) && RX_KAUFEN.test(t) && !RX_LISTENWORT.test(t);
+    }
+    /* entfernt Einkaufslisten-/Aufgaben-Aktionen aus einer Antwort auf eine Händlerfrage; gibt die Zahl der entfernten Aktionen zurück */
+    function ohneListenAktionen(text, actions) {
         try {
-            if (!reinerBezug(text) || !RX_KAUFEN.test(String(text))) return '';
-            var l = frisch(); if (!l.length || themen() > 1) return '';   // mehrdeutig: nicht raten, die KI fragt nach
+            if (!Array.isArray(actions) || !haendlerFrage(text)) return 0;
+            var vorher = actions.length, behalten = actions.filter(function (a) {
+                if (!a || typeof a !== 'object') return true;
+                if (a.type === 'shopping' || a.type === 'todo') return false;
+                if (a.type === 'list_edit' && /einkauf|aufgabe|todo/i.test(String(a.list_name || ''))) return false;
+                return true;
+            });
+            actions.length = 0; behalten.forEach(function (a) { actions.push(a); });
+            return vorher - actions.length;
+        } catch (e) { return 0; }
+    }
+
+    function kurz(f) { return String(f || '').replace(/[?!.]+\s*$/, '').replace(/\s+/g, ' ').trim().slice(0, 70); }
+
+    /* ROUTING (vor dem ersten KI-Aufruf): wohin geht dieser Satz?
+         'direkt'    Händler-/Preisfrage mit reinem Bezugswort ("Wo kann ich die kaufen?") und genau EINEM frischen Thema (Empfehlung/Auskunft): sofort Internetsuche mit den zuletzt genannten Dingen;
+                     die KI entscheidet hier nichts (sie könnte eine Einkaufslisten-Aktion daraus machen oder nach "welches Produkt" fragen)
+         'nachfrage' dieselbe Frage, aber zwei verschiedene frische Themen: Jarvis fragt selbst nach, statt zu raten
+         'modell'    alles andere: ganz normal zur KI (mit dem Bezug in der Anweisung) */
+    function route(text) {
+        var r = { pfad: 'modell', query: '', text: '', bezug: 0, themen: 0, art: '' };
+        try {
+            var l = frisch(); r.bezug = l.length; r.themen = themen(); r.art = l.length ? l[0].art : '';
+            if (!l.length || !reinerBezug(text) || !haendlerFrage(text)) return r;
+            if (r.themen > 1) {
+                var t = themenListe();
+                r.pfad = 'nachfrage';
+                r.text = 'Worauf bezieht sich das? Auf deine Frage „' + kurz(t[0].frage) + '“ oder auf „' + kurz(t[1].frage) + '“?';
+                return r;
+            }
             var a = l[0];
-            if (a.art !== 'internet' && a.art !== 'antwort') return '';               // Händler/Preise nur zu Empfehlungen und Auskünften, nicht zu Fahrzeit, Bahn, Tanken
-            if (!nurChat(actions)) return '';
-            return String(text).trim() + ' (gemeint sind die zuletzt genannten Dinge: ' + a.text.slice(0, 400) + ')';
-        } catch (e) { return ''; }
+            if (a.art !== 'internet' && a.art !== 'antwort') return r;   // Händler/Preise nur zu Empfehlungen und Auskünften, nicht zu Fahrzeit, Bahn, Tanken
+            r.pfad = 'direkt';
+            r.query = String(text).trim() + ' (gemeint sind die zuletzt genannten Dinge, nicht das Wort im Satz: ' + a.text.slice(0, 400) + ')';
+            return r;
+        } catch (e) { return { pfad: 'modell', query: '', text: '', bezug: 0, themen: 0, art: '' }; }
+    }
+
+    /* Diagnose-Zeile (nur Zähler und Wörter, keine Inhalte, keine Schlüssel) */
+    function diagnose(pfad, extra) {
+        try {
+            var b = frisch(), th = themen();
+            return 'Anschluss: Datei ' + VERSION + ' | Bezug: ' + (b.length ? b.length + ' Antwort(en), ' + th + ' Thema/Themen, jüngste: ' + b[0].art + ', vor ' + Math.round(b[0].alterMs / 1000) + ' s' : 'keiner') + ' | Pfad: ' + pfad + (extra ? ' | ' + extra : '');
+        } catch (e) { return 'Anschluss: Diagnose nicht verfügbar'; }
     }
 
     /* Die Systemanweisung bekommt block(text) direkt in assistant.js (keine neue Kette: die Reihenfolge der jvChain-Einträge bleibt unverändert) */
-    window.jvAnschlussAntwort = { merke: merke, anschluss: anschluss, reinerBezug: reinerBezug, hatBezug: hatBezug, block: block, nachfrageErsatz: nachfrageErsatz, websuche: websuche };
+    window.jvAnschlussAntwort = { merke: merke, anschluss: anschluss, reinerBezug: reinerBezug, hatBezug: hatBezug, block: block, nachfrageErsatz: nachfrageErsatz, istNachfrage: istNachfrage,
+        haendlerFrage: haendlerFrage, ohneListenAktionen: ohneListenAktionen, route: route, diagnose: diagnose, version: VERSION };
 })();

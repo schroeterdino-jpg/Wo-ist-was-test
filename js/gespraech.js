@@ -117,6 +117,8 @@
             aufraeumen();
             var t = String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
             if (!t) return false;
+            var fn = ohneUmlaut(String(frage == null ? '' : frage)).replace(/[^a-z0-9]+/g, ' ').trim();
+            if (fn) s.antworten = s.antworten.filter(function (a) { return ohneUmlaut(a.frage).replace(/[^a-z0-9]+/g, ' ').trim() !== fn; });   // dieselbe Frage noch einmal: die neue Antwort ersetzt die alte (keine künstliche Mehrdeutigkeit)
             s.antworten.unshift({ art: String(art || 'antwort').slice(0, 20), frage: String(frage == null ? '' : frage).replace(/\s+/g, ' ').trim().slice(0, 200), text: t.slice(0, 700), hinweis: String(hinweis == null ? '' : hinweis).replace(/\s+/g, ' ').trim().slice(0, 450), zeit: jetzt() });
             while (s.antworten.length > Z.maxAntworten) s.antworten.pop();
             beruehre();
