@@ -48,6 +48,7 @@
         if (mitGebraucht) out.gebraucht = (Array.isArray(d.gebraucht) ? d.gebraucht : []).filter(a => a && a.preis > 0);
         return out;
     }
+    window.jvPreisAngebote = angebote;   // die Produktkarten (js/produktkarten.js) nutzen dieselbe Suche, keine zweite
     function bereinigen(s) {
         return String(s || '').replace(/\b(?:bitte|mal|doch|haben|kaufen|raus|heraus)\b/gi, ' ').replace(/^\s*(?:ein|eine|einen|einem|den|die|das|dieses|diese|diesen|mir)\s+/i, '').replace(/\s+/g, ' ').trim().slice(0, 120);
     }

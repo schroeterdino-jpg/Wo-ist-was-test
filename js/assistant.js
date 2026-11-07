@@ -212,11 +212,21 @@ async function sendToGroqSmartCore(text, opts = {}) {
     let anschlussRoute = { pfad: 'modell' };
     try { if (window.jvAnschlussAntwort) anschlussRoute = window.jvAnschlussAntwort.route(text); } catch (e) { }
     let anschlussPfad = anschlussRoute.pfad;
+    let anschlussKarten = null;   // Karten aus den gespeicherten Produkten (Pfad 'produkte')
 
     typeWriterStatus("Formuliere die Antwort...");
     try {
         let ai;
-        if (anschlussRoute.pfad === 'direkt') {
+        if (anschlussRoute.pfad === 'produkte') {
+            // Produktkarten (js/produktkarten.js): "Wo kann ich sie kaufen?" / "Was kosten die?" / "Welches ist günstiger?" / "Zeig mir das zweite" werden aus den gespeicherten Produkten beantwortet, ohne Sprachmodell
+            try {
+                const pr = await window.jvProdukte.folgefrage(text);
+                if (pr && pr.reply) { ai = { reply: pr.reply, actions: [] }; anschlussKarten = pr.karten || []; }
+            } catch (e) { }
+            if (!ai) { anschlussRoute = { pfad: 'modell' }; anschlussPfad = 'modell'; }
+        }
+        if (ai) {
+        } else if (anschlussRoute.pfad === 'direkt') {
             ai = { reply: 'Ich schaue nach.', actions: [{ type: 'web_lookup', web_query: anschlussRoute.query }] };
         } else if (anschlussRoute.pfad === 'nachfrage') {
             ai = { reply: anschlussRoute.text, actions: [] };
@@ -355,6 +365,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
         try { if (window.jvSchatten && window.jvSchatten.ki) window.jvSchatten.ki(actions, text, !!opts.nurLesen); } catch (e) { }
         // Alle Aktionen nacheinander ausführen; eine kaputte Aktion stoppt die anderen nicht
         const ctx = { counter: 0, cards: [], notes: [], panel: null };
+        if (anschlussKarten && anschlussKarten.length) anschlussKarten.forEach(k => ctx.cards.push(k));
         if (calendarLookup && calendarLookup.verbindung === 'getrennt') ctx.cards.push(googleReconnectCard());
         let okCount = 0;
         const errors = [];
@@ -687,6 +698,12 @@ async function sendToGroqSmartCore(text, opts = {}) {
         try { if (typeof window.jvFristHinweis === 'function') replyText = window.jvFristHinweis(replyText, text) || replyText; } catch (e) {}   // nahende Frist beiläufig anhängen (js/langzeit.js)
         try { if (window.jvFrage) window.jvFrage.kiFrage(jvFrageVorher, replyText); } catch (e) {}   // freie Frage der KI: jüngste Frage (überholt ältere Modul-Fragen)
         speak(replyText, continueConversation);
+        // Produktkarten: hat Jarvis auf einen Produktwunsch konkrete Produkte genannt, werden sie nach der Antwort ausgelesen, gesucht und als Karten gezeigt (kein zweites Sprechen)
+        try {
+            if (window.jvProdukte && !anschlussKarten && ctx.cards.length === 0 && !ctx.panel && (webReply || (!searchReply && !emailReply && !travelReply && !nearbyReply && !nearbyFuelReply && !fuelReply && !bahnReply)) && !errors.length) {
+                window.jvProdukte.nachAntwort(text, webReply || replyText);
+            }
+        } catch (e) { }
     } catch (e) {
         renderAllLists();
         stopThinkingSound();
