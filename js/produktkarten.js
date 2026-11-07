@@ -34,17 +34,40 @@
     function tokens(name) { return woerter(name).filter(function (w) { return w.length >= 3 || /\d/.test(w); }); }
     function imText(name, text) { var t = ' ' + norm(text) + ' ', tk = tokens(name); return tk.length > 0 && tk.every(function (w) { return t.indexOf(w) >= 0; }); }
     function passt(name, titel) { var t = ' ' + norm(titel) + ' ', tk = tokens(name); if (!tk.length) return false; var n = tk.filter(function (w) { return t.indexOf(w) >= 0; }).length; return n / tk.length >= 0.6 && n >= 1; }
+    var RX_VERGLEICH = /(^|\.)(google|idealo|billiger|check24|geizhals|preisvergleich|guenstiger|pricerunner|shopping)\./i;
+    var RX_VERGLEICH_NAME = /^(idealo|billiger\.?de|check24|geizhals|google|preisvergleich|pricerunner)/i;
+    function direktLink(l) {   // nur https-Links echter Händler; Vergleichsseiten und Suchmaschinen sind es nie
+        try { var u = new URL(String(l || '')); return (u.protocol === 'https:' && !RX_VERGLEICH.test(u.hostname)) ? u.href : ''; } catch (e) { return ''; }
+    }
+    function istVergleich(a) {
+        if (a && a.vergleich === true) return true;
+        if (RX_VERGLEICH_NAME.test(String((a && a.shop) || '').trim())) return true;
+        try { return RX_VERGLEICH.test(new URL(String((a && a.link) || '')).hostname); } catch (e) { return false; }
+    }
     function vergleichsLink(q) { return 'https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q=' + encodeURIComponent(String(q || '').slice(0, 120)); }
     function eur(p) { return (Math.round(p * 100) / 100).toFixed(2).replace('.', ',') + ' €'; }
 
     /* ---- Vorauswahl: klingt der Satz nach einem Produktwunsch? ---- */
     var RX_WUNSCH = /\b(?:empfehl\w*|empfiehl\w*|vorschl\w*|such\w*|brauch\w*|zeig\w*|tipp\w*|kaufen|kauf|welche\w*|beste\w*|gute\w*|sch[oö]ne\w*|g[uü]nstige\w*)\b/i;
-    var RX_ANDERES = /\b(?:einkaufsliste|liste|termin\w*|erinner\w*|wetter|fahrzeit|route|navigier\w*|anruf\w*|mail\w*|nachricht\w*|kalender|fernseh\w*|kino|film\w*|restaurant\w*|apotheke|tankstelle|bahn|zug|schl[uü]ssel|handy suchen)\b/i;
+    var RX_ANDERES = /\b(?:einkaufsliste|liste|termin\w*|erinner\w*|wetter|fahrzeit|route|navigier\w*|anruf\w*|mail\w*|nachricht\w*|kalender|fernsehprogramm|fernsehen|im fernseher|kino|film\w*|restaurant\w*|apotheke|tankstelle|bahn|zug|schl[uü]ssel|handy suchen)\b/i;
     function wunsch(text) {
         var t = String(text == null ? '' : text).trim();
         if (!t || woerter(t).length < 3) return false;
         if (!RX_WUNSCH.test(t) || RX_ANDERES.test(t)) return false;
-        try { if (A() && A().reinerBezug(t)) return false; } catch (e) { }   // "Wo kann ich sie kaufen?" ist eine Anschlussfrage, kein neuer Wunsch
+        try { if (A() && A().reinerBezug(t) && !/\b(?:such\w*|brauch\w*|zeig\w*|empfehl\w*|empfiehl\w*|vorschl\w*)\b/i.test(t)) return false; } catch (e) { }   // "Wo kann ich sie kaufen?" ist eine Anschlussfrage, kein neuer Wunsch; "Ich brauche ein Handy. Wo bekomme ich das?" schon
+        return true;
+    }
+
+    /* Kombinierter Produktwunsch in einem Atemzug ("Ich suche X. Hast du was? Und wo kann ich das kaufen? Und sag mir den Preis." / "Zeig mir drei gute Fernseher mit Bildern und Preisen." / "Ich brauche ein günstiges Handy. Wo bekomme ich das?"):
+       Produktwunsch + Frage nach Kauf/Preis/Händler/Bildern, ohne Listenwort und ohne Wunsch nach einem Geschäft vor Ort. Dann ist kein Ort nötig: Internetsuche, Preise, Händler, Karten. */
+    var RX_KAUFFRAGE = /\b(?:kaufen|kauf|bekomm\w*|krieg\w*|preis\w*|kost\w*|h[aä]ndler\w*|bestell\w*|angebot\w*|bild\w*|fotos?)\b/i;
+    var RX_LOKAL = /\b(?:in der n[äa]he|nähe|naehe|hier|bei mir|vor ort|in meiner|um die ecke|umgebung|gesch[äa]ft\w*|laden|l[äa]den|baumarkt|fachhandel|filiale\w*|ge[öo]ffnet|[öo]ffnungszeit\w*|ladenlokal|abholen|heute noch|sofort|in [A-ZÄÖÜ][\wäöüß-]+)\b/;
+    var RX_LISTE = /\b(?:einkaufsliste|einkaufszettel|liste|wunschliste|setz\w*|pack\w*|f[uü]g\w*|notier\w*|merk\w*|hinzu\w*|erinner\w*|aufgabe\w*|todo)\b/i;
+    function produktsuche(text) {
+        var t = String(text == null ? '' : text).trim();
+        if (!wunsch(t) || !RX_KAUFFRAGE.test(t) || RX_LISTE.test(t)) return false;
+        if (!/\b(?:such\w*|brauch\w*|zeig\w*|empfehl\w*|empfiehl\w*|vorschl\w*|tipp\w*|welche\w*|beste\w*|gute\w*|sch[oö]ne\w*|g[uü]nstige\w*)\b/i.test(t)) return false;   // nur "Wo kann ich X kaufen?" ist noch kein Produktwunsch
+        if (RX_LOKAL.test(t) && !/\b(?:online|im internet|im netz)\b/i.test(t)) return false;   // Geschäft vor Ort -> bisherige Ortssuche
         return true;
     }
 
@@ -71,13 +94,19 @@
     async function sucheEins(p) {
         var item = { name: p.name, hersteller: p.hersteller || '', beschreibung: p.hersteller || '', angebote: [], bild: '', suchfehler: false };
         try {
-            var roh = await window.jvPreisAngebote(p.name), gut = [];
+            var roh = await window.jvPreisAngebote(p.name, false, { haendler: true }), gut = [], vgl = [];
             (Array.isArray(roh) ? roh : []).forEach(function (a) {
                 if (!a || !(a.preis > 0) || a.markt || !passt(p.name, a.titel)) return;
+                if (istVergleich(a)) { vgl.push(a); return; }   // Preisvergleich (Idealo u. a.) ist kein Händler
                 gut.push(a);
             });
             gut.sort(function (x, y) { return x.preis - y.preis; });
-            item.angebote = gut.slice(0, MAX_ANGEBOTE).map(function (a) { return { shop: String(a.shop || ''), preis: a.preis, preisText: String(a.preisText || eur(a.preis)), link: /^https?:\/\//i.test(String(a.link || '')) ? String(a.link) : '' }; });
+            vgl.sort(function (x, y) { return x.preis - y.preis; });
+            item.angebote = gut.slice(0, MAX_ANGEBOTE).map(function (a) {
+                var l = direktLink(a.link);   // Händlername, Preis und Link gehören zum selben Angebot; ein Vergleichs-/Suchmaschinenlink wird nie als Händlerlink genommen
+                return { shop: String(a.shop || ''), preis: a.preis, preisText: String(a.preisText || eur(a.preis)), link: l, linkArt: l ? (a.linkArt === 'haendlerseite' ? 'haendlerseite' : 'direkt') : '' };
+            });
+            item.vergleich = vgl.slice(0, 1).map(function (a) { return { shop: String(a.shop || 'Preisvergleich'), preis: a.preis, preisText: String(a.preisText || eur(a.preis)), link: /^https:\/\//i.test(String(a.link || '')) ? String(a.link) : '' }; });
             var mitBild = gut.filter(function (a) { return typeof a.bild === 'string' && /^https:\/\//i.test(a.bild); })[0];
             if (mitBild) item.bild = mitBild.bild;
         } catch (e) { item.suchfehler = true; }
@@ -88,15 +117,23 @@
     /* ---- Karte ---- */
     function karte(it) {
         var bild = it.bild ? '<img src="' + esc(it.bild) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'" style="width:76px;height:76px;object-fit:contain;background:#fff;border-radius:8px;flex:none">' : '';
-        var zeilen = '';
+        var zeilen = '', ohneLink = false, stil = 'display:block;color:#7dff9b;font-weight:700;text-decoration:none;margin-top:3px';
         if (it.angebote && it.angebote.length) {
             zeilen = it.angebote.map(function (a) {
-                var href = a.link || vergleichsLink(it.name);
-                return '<a href="' + esc(href) + '" target="_blank" rel="noopener" style="display:block;color:#7dff9b;font-weight:700;text-decoration:none;margin-top:3px">' + esc(a.shop || 'Händler') + ' · ' + esc(a.preisText || eur(a.preis)) + (a.link ? '' : ' (Preisvergleich)') + ' ›</a>';
+                var text = esc(a.shop || 'Händler') + ' · ' + esc(a.preisText || eur(a.preis));
+                if (a.link) return '<a href="' + esc(a.link) + '" target="_blank" rel="noopener" style="' + stil + '">' + text + (a.linkArt === 'haendlerseite' ? ' (Produktseite, Preis kann abweichen)' : '') + ' ›</a>';
+                ohneLink = true;
+                return '<span style="display:block;color:#e2e8f0;margin-top:3px">' + text + ' <i style="color:#fbbf24;font-size:11px">(kein direkter Link gefunden)</i></span>';
             }).join('');
         } else {
-            zeilen = '<span style="display:block;color:#fbbf24;font-size:12px;margin-top:3px">' + (it.suchfehler ? 'Die Preissuche hat nicht geklappt.' : 'Kein verlässliches Angebot gefunden.') + '</span>' +
-                '<a href="' + esc(vergleichsLink(it.name)) + '" target="_blank" rel="noopener" style="display:block;color:#7dff9b;font-weight:700;text-decoration:none;margin-top:3px">Preise vergleichen ›</a>';
+            ohneLink = true;
+            zeilen = '<span style="display:block;color:#fbbf24;font-size:12px;margin-top:3px">' + (it.suchfehler ? 'Die Preissuche hat nicht geklappt.' : 'Kein verlässliches Angebot gefunden.') + '</span>';
+        }
+        if (ohneLink) {   // getrennt und eindeutig beschriftet: kein Händlerlink
+            var v = it.vergleich && it.vergleich[0];
+            var vh = v && v.link ? v.link : vergleichsLink(it.name);
+            zeilen += '<span style="display:block;color:#94a3b8;font-size:11px;margin-top:5px">Preisvergleich (kein Händlerlink):</span>' +
+                '<a href="' + esc(vh) + '" target="_blank" rel="noopener" style="display:block;color:#8fb9c9;text-decoration:none;margin-top:1px">' + (v && v.link ? esc(v.shop || 'Idealo') + ' · ' + esc(v.preisText || eur(v.preis)) : 'Bei Idealo suchen') + ' ›</a>';
         }
         var hinweis = it.bild ? '' : '<span style="display:block;color:#94a3b8;font-size:11px;margin-top:3px">Kein Produktbild gefunden.</span>';
         return { html: '<div style="display:flex;gap:10px;align-items:flex-start">' + bild + '<div style="min-width:0;flex:1"><b style="display:block;color:#49d7ff;font-size:14px">' + esc(it.name) + '</b>' + zeilen + hinweis + '</div></div>', rand: 'rgba(125,255,155,.35)', produkt: it.name };
@@ -139,8 +176,8 @@
             var l = g.liste(); if (!l || l.art !== 'produkte' || l.veraltet || !l.items.length) return null;
             var ant = g.antworten();
             for (var i = 0; i < ant.length; i++) {
-                if (ant[i].alterMs < l.alterMs) {   // jünger als die Produkte
-                    if (A() && A().anschluss(ant[i].frage)) continue;       // Antwort auf eine Anschlussfrage: gleiches Thema
+                if (ant[i].alterMs <= l.alterMs) {   // jünger als die Produkte (oder gleich alt: dann gilt im Zweifel das andere Thema)
+                    if (absicht(ant[i].frage) !== '' && hatBezug(ant[i].frage, l.items)) continue;   // Antwort auf eine Anschlussfrage zu den Produkten: gleiches Thema (nicht jedes "das" zählt)
                     if (norm(ant[i].frage) === letzte.frage) continue;
                     return null;                                            // ein anderes Thema ist jünger
                 }
@@ -160,6 +197,7 @@
     function hatBezug(text, items) {
         if (RX_NR.test(text) || RX_ALLE.test(text)) return true;
         try { if (A() && A().reinerBezug(text)) return true; } catch (e) { }
+        if (/\b(?:vorgeschlagen|genannt|empfohlen|gezeigt|gefunden|erw[äa]hnt)\w*\b/i.test(text)) return true;   // "Welcher der vorgeschlagenen Wasserhähne ist am günstigsten?"
         return items.some(function (it) { return tokens(it.name).some(function (w) { return w.length >= 4 && (' ' + norm(text) + ' ').indexOf(' ' + w + ' ') >= 0; }); });
     }
     function istFolgefrage(text) {
@@ -212,5 +250,5 @@
         } catch (e) { return null; }
     }
 
-    window.jvProdukte = { wunsch: wunsch, nachAntwort: nachAntwort, istFolgefrage: istFolgefrage, folgefrage: folgefrage, karte: karte, auslesen: auslesen, lauf: function () { return lauf; } };
+    window.jvProdukte = { wunsch: wunsch, produktsuche: produktsuche, nachAntwort: nachAntwort, istFolgefrage: istFolgefrage, folgefrage: folgefrage, karte: karte, auslesen: auslesen, lauf: function () { return lauf; } };
 })();

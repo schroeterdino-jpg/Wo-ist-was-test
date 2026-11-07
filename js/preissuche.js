@@ -36,8 +36,8 @@
     function gebrauchtAn() { try { return localStorage.getItem(GEBR_KEY) !== '0'; } catch (e) { return true; } }
     function gebrauchtSetzen(an) { try { localStorage.setItem(GEBR_KEY, an ? '1' : '0'); } catch (e) { } }
     function kleinanzeigenLink(q) { return 'https://www.kleinanzeigen.de/s-' + encodeURIComponent(String(q).toLowerCase().replace(/[^a-z0-9äöüß]+/g, '-').replace(/^-+|-+$/g, '')) + '/k0'; }
-    async function angebote(q, mitGebraucht) {
-        const r = await apiFetch('/api/maps?action=shopping&q=' + encodeURIComponent(q) + (mitGebraucht ? '&gebraucht=1' : ''));
+    async function angebote(q, mitGebraucht, opt) {
+        const r = await apiFetch('/api/maps?action=shopping&q=' + encodeURIComponent(q) + (mitGebraucht ? '&gebraucht=1' : '') + (opt && opt.haendler ? '&haendler=1' : ''));
         const d = await r.json().catch(() => ({}));
         if (!r.ok) { const e = new Error(d && d.error || 'Fehler'); e.kein = /SERPER_API_KEY/.test(String(d && d.error)); throw e; }
         const out = (Array.isArray(d.angebote) ? d.angebote : []).filter(a => a && a.preis > 0);
@@ -391,6 +391,8 @@
         const lc = raw.toLowerCase(), t = norm(raw);
         const M = rx => raw.match(new RegExp(rx.source, 'i'));   // Treffer behalten Groß-/Kleinschreibung des Produktnamens
         if (/wunsch(?:liste|zettel)|\b(?:diesel|benzin|super|sprit|tank\w*|e10)\b/.test(t)) return next(text);
+        /* Mehrere Sätze/Fragen in einem Atemzug ("Ich suche X. Hast du was? Und wo kann ich das kaufen? Und sag mir den Preis."): die Preissuche würde den ganzen Wortlaut als Produktnamen nehmen -> an die KI/Internetsuche weitergeben, dort entstehen die Produktkarten */
+        if ((raw.match(/[.?!]\s+\S/g) || []).length >= 2 || ((raw.match(/\?/g) || []).length >= 1 && /[.!]\s+\S/.test(raw) && raw.split(/\s+/).length > 12)) return next(text);
 
         /* Wächter beenden */
         let m = M(/^(?:jarvis\s+)?(?:beende|stopp?e?|loesche|lösche|entferne|vergiss)\w*\s+(?:die\s+|den\s+)?(?:beobachtung|preiswächter|preiswaechter|preisbeobachtung)\s+(?:von|für|fuer|zu|bei)\s+(.+)$/) ||
