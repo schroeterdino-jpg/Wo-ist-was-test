@@ -11,3 +11,16 @@ Wichtig:
 - Änderungen unter `weckruf-src/` lösen einen neuen APK-Bau aus; der Nutzer muss die neue APK installieren.
 - Der Nutzer arbeitet am Handy, Antworten auf Deutsch, kurz und ohne Fachjargon.
 - Neue Funktion für den Nutzer: auch einen Schritt in `js/anleitung.js` (geführte Tour) und ein Beispiel in `js/help.js` ergänzen, sonst fehlt sie in der Tour.
+
+## Masterplan (verbindlich)
+Vor Entwicklungsaufgaben:
+1. `JARVIS_MASTERPLAN.md` lesen bzw. die relevanten Abschnitte berücksichtigen.
+2. Aktuelle Prioritäten und offene Aufgaben beachten.
+3. Bestehende Architektur und Funktionen schützen.
+4. Nur die tatsächlich relevanten Dateien untersuchen.
+
+Nach abgeschlossenen Änderungen:
+1. Betroffene Roadmap-Einträge aktualisieren.
+2. Status und PR-Nummer ergänzen.
+3. Neue wichtige Entscheidungen oder offene Probleme dokumentieren.
+4. Unbeteiligte Einträge unverändert lassen.
