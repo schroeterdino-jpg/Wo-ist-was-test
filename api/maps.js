@@ -564,20 +564,46 @@ function kernOk(comps, titel) {
   comps.forEach(c => { if (tt.includes(c) || tt.includes(c.replace(/e$/, ''))) n++; });
   return n >= Math.ceil(comps.length * 0.5);
 }
-/* Händlerseiten zu Angeboten ohne Link: ein Treffer der Websuche zählt nur, wenn (1) seine Domain zum Händlernamen des Angebots passt, (2) der Titel zum gesuchten Produkt passt und (3) es keine Vergleichs-/Suchmaschinen-/Marktplatzseite ist.
-   Der Preis steht weiter nur aus der Preissuche; die Seite kann einen anderen Preis zeigen (linkArt "haendlerseite", nicht "direkt"). Nichts passt = kein Link. */
+/* Händlerseiten zu Angeboten ohne Link. Die allgemeine Suche „<Produkt> kaufen“ enthält fast nie kleine Shops (MDM Tools, BAU99 ...) -> zusätzlich je fehlendem Händler EINE gezielte Suche „<Produkt> <Händler>“.
+   Alle Anfragen laufen gleichzeitig (höchstens 1 + 4, je 5 s). Ein Treffer zählt nur, wenn seine Domain zum Händlernamen passt (nie Vergleichs-/Suchmaschinen-/Marktplatzseiten):
+   - Titel passt gut zum Produkt        -> linkArt "haendlerseite" (Produktseite des Händlers, separat recherchiert: Preis kann abweichen)
+   - Titel passt nur teilweise          -> linkArt "kategorie"     (Seite des Händlers, nicht sicher genau dieses Produkt; die App kennzeichnet das)
+   - sonst kein Link. Diagnose in diag (nur Zähler und Gründe, nie der API-Schlüssel). */
 const VERGLEICH_HOST_RX = /(^|\.)(google|idealo|billiger|check24|geizhals|preisvergleich|guenstiger|kleinanzeigen|ebay|pricerunner|shopping|testberichte|test|bing|duckduckgo|youtube|pinterest|facebook|instagram|wikipedia)\./i;
 function domainKern(h) { return norm(String(h || '').replace(/^www\./i, '').replace(/\.(co\.uk|com|de|net|org|eu|at|ch|shop|store)$/i, '')).replace(/[^a-z0-9]+/g, ''); }
-function haendlerLinks(q, need, organic) {
-  const org = (Array.isArray(organic) ? organic : []).map(o => { try { const u = new URL(String(o && o.link || '')); return u.protocol === 'https:' && !VERGLEICH_HOST_RX.test(u.hostname) ? { href: u.href, kern: domainKern(u.hostname), titel: String(o.title || '') } : null; } catch (e) { return null; } }).filter(Boolean);
-  if (!org.length) return;
-  const gew = gewichte(q, org.map(o => o.titel));
+function shopKern(shop) { return norm(String(shop || '').replace(/\.(com|de|net|org|eu|at|ch)\b/gi, '')).replace(/[^a-z0-9]+/g, ''); }
+function haendlerWaehle(q, x, organic, diag) {
+  const sk = shopKern(x.shop);
+  if (sk.length < 3) { diag.abgelehnt.name++; return false; }
+  const org = (Array.isArray(organic) ? organic : []).map(o => { try { const u = new URL(String(o && o.link || '')); return u.protocol === 'https:' && !VERGLEICH_HOST_RX.test(u.hostname) ? { href: u.href, kern: domainKern(u.hostname), titel: String(o.title || '') + ' ' + decodeURIComponent(u.pathname).replace(/[-_/]+/g, ' ') } : null; } catch (e) { return null; } }).filter(Boolean);
+  const gleich = org.filter(o => o.kern.length >= 3 && (o.kern.includes(sk) || sk.includes(o.kern)));
+  if (!gleich.length) { diag.abgelehnt.host++; return false; }
+  const gew = gewichte(q, gleich.map(o => o.titel));
+  let best = null, bs = -1;
+  gleich.forEach(o => { const sc = passung(q, o.titel, gew); if (sc > bs) { bs = sc; best = o; } });
+  if (bs >= 0.5) { x.link = best.href; x.linkArt = 'haendlerseite'; diag.ergaenzt++; return true; }
+  if (bs >= 0.1) { x.link = best.href; x.linkArt = 'kategorie'; diag.ergaenzt++; return true; }
+  diag.abgelehnt.titel++; return false;
+}
+async function haendlerLinks(q, need, key) {
+  const diag = { anfragen: 0, treffer: 0, ergaenzt: 0, abgelehnt: { host: 0, titel: 0, name: 0 }, fehler: [] };
+  const frage = async qq => {
+    diag.anfragen++;
+    try {
+      const r = await fetch('https://google.serper.dev/search', { method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ q: qq, gl: 'de', hl: 'de', num: 10 }), signal: AbortSignal.timeout(5000) });
+      if (!r.ok) { diag.fehler.push('HTTP ' + r.status); return []; }
+      const o = (await r.json()).organic; const arr = Array.isArray(o) ? o : []; diag.treffer += arr.length; return arr;
+    } catch (e) { diag.fehler.push(String(e && e.name || 'Fehler').slice(0, 30)); return []; }
+  };
+  const shops = []; need.forEach(x => { const k = shopKern(x.shop); if (k && shops.every(y => shopKern(y.shop) !== k)) shops.push(x); });
+  const jobs = [frage(q + ' kaufen')].concat(shops.slice(0, 4).map(x => frage(q + ' ' + x.shop)));
+  const res = await Promise.all(jobs), allg = res[0], je = {};
+  shops.slice(0, 4).forEach((x, i) => { je[shopKern(x.shop)] = res[i + 1]; });
   need.forEach(x => {
-    const sk = norm(String(x.shop || '').replace(/\.(com|de|net|org|eu|at|ch)\b/gi, '')).replace(/[^a-z0-9]+/g, '');
-    if (sk.length < 4) return;
-    const t = org.find(o => o.kern.length >= 4 && (o.kern.includes(sk) || sk.includes(o.kern)) && passung(q, o.titel, gew) >= 0.5);
-    if (t) { x.link = t.href; x.linkArt = 'haendlerseite'; }
+    const k = shopKern(x.shop), eigene = je[k] || [];
+    haendlerWaehle(q, x, eigene.concat(allg), diag);
   });
+  return diag;
 }
 async function shopping(req, res) {
   const q = String(req.query.q || '').trim().slice(0, 120);
@@ -647,14 +673,14 @@ async function shopping(req, res) {
     }
     // Google-Links führen auf eine Einwilligungs-/Anmeldeseite von Google: nur direkte Shop-Links durchreichen, sonst leer (die App nimmt dann eine Preisvergleichs-Suche)
     l.forEach(x => { try { if (/(^|\.)google\./i.test(new URL(x.link).hostname)) x.link = ''; } catch (e) { x.link = ''; } });
+    let hdiag = null;
     if (String(req.query.haendler || '') === '1') {   // Produktkarten: fehlende Händlerlinks über eine normale Websuche ergänzen (nur echte Händlerseiten, die zum Händler UND zum Produkt passen)
       try {
         const need = l.filter(x => !x.link && !x.vergleich && !MARKTPLATZ_RX.test(x.shop)).slice(0, 5);
         if (need.length) {
-          const r4 = await fetch('https://google.serper.dev/search', { method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ q: q + ' kaufen', gl: 'de', hl: 'de', num: 20 }), signal: AbortSignal.timeout(7000) });
-          if (r4.ok) haendlerLinks(q, need, (await r4.json()).organic);
+          hdiag = await haendlerLinks(q, need.sort((a, b) => a.preis - b.preis), key);
         }
-      } catch (e) { }
+      } catch (e) { hdiag = { anfragen: 0, treffer: 0, ergaenzt: 0, abgelehnt: { host: 0, titel: 0, name: 0 }, fehler: ['Abbruch'] }; }
     }
     l.forEach(x => { if (x.link && !x.linkArt && !x.vergleich) x.linkArt = 'direkt'; });
     l.forEach(x => { if (MARKTPLATZ_RX.test(x.shop + ' ' + x.link)) x.markt = true; });
@@ -663,7 +689,7 @@ async function shopping(req, res) {
     const out = { angebote: normal.length ? l.slice(0, 5) : [] };   // nur Marktplätze (OnBuy, easyShop ...): kein "ab"-Preis, sie kommen klein getrennt
     if (!normal.length && markt.length) out.marktplatz = markt.slice(0, 2).map(x => ({ shop: x.shop, preisText: x.preisText, preis: x.preis, titel: x.titel }));
     if (ungenau) out.ungenau = true;
-    out.diag = { g: d.shopping.length, k: kern || '', ir: diagI.roh, is: diagI.seiten, ip: idl.length, p: l.length, ih: diagI.seite || '', in: idl.map(x => String(x.titel).slice(0, 45) + ' ' + x.preis) };
+    out.diag = { h: hdiag, g: d.shopping.length, k: kern || '', ir: diagI.roh, is: diagI.seiten, ip: idl.length, p: l.length, ih: diagI.seite || '', in: idl.map(x => String(x.titel).slice(0, 45) + ' ' + x.preis) };
     if (ungenau || !normal.length) { const vs = idl.filter(x => !l.some(y => y.link === x.link)); if (vs.length) out.vorschlaege = vs.slice(0, 2).map(x => ({ shop: 'Idealo', titel: x.titel, preis: x.preis, link: x.link })); }
     if (String(req.query.gebraucht || '') === '1') {   // Gebrauchtes getrennt von den Neupreisen (zählt nie für Summe oder Preisalarm)
       const med = l.length ? l.map(x => x.preis).sort((a, b) => a - b)[Math.floor(l.length / 2)] : 0;

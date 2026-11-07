@@ -95,6 +95,7 @@
         var item = { name: p.name, hersteller: p.hersteller || '', beschreibung: p.hersteller || '', angebote: [], bild: '', suchfehler: false };
         try {
             var roh = await window.jvPreisAngebote(p.name, false, { haendler: true }), gut = [], vgl = [];
+            try { var hd = roh && roh.diag && roh.diag.h; if (hd && typeof diagAdd === 'function') diagAdd('Händlerlinks ' + p.name.slice(0, 24) + ': Anfragen ' + hd.anfragen + ', Treffer ' + hd.treffer + ', ergänzt ' + hd.ergaenzt + ', abgelehnt (Domain ' + hd.abgelehnt.host + ', Titel ' + hd.abgelehnt.titel + ', Name ' + hd.abgelehnt.name + ')' + (hd.fehler.length ? ', Fehler ' + hd.fehler.join('/') : '')); } catch (e) { }
             (Array.isArray(roh) ? roh : []).forEach(function (a) {
                 if (!a || !(a.preis > 0) || a.markt || !passt(p.name, a.titel)) return;
                 if (istVergleich(a)) { vgl.push(a); return; }   // Preisvergleich (Idealo u. a.) ist kein Händler
@@ -104,7 +105,7 @@
             vgl.sort(function (x, y) { return x.preis - y.preis; });
             item.angebote = gut.slice(0, MAX_ANGEBOTE).map(function (a) {
                 var l = direktLink(a.link);   // Händlername, Preis und Link gehören zum selben Angebot; ein Vergleichs-/Suchmaschinenlink wird nie als Händlerlink genommen
-                return { shop: String(a.shop || ''), preis: a.preis, preisText: String(a.preisText || eur(a.preis)), link: l, linkArt: l ? (a.linkArt === 'haendlerseite' ? 'haendlerseite' : 'direkt') : '' };
+                return { shop: String(a.shop || ''), preis: a.preis, preisText: String(a.preisText || eur(a.preis)), link: l, linkArt: l ? (a.linkArt === 'haendlerseite' || a.linkArt === 'kategorie' ? a.linkArt : 'direkt') : '' };
             });
             item.vergleich = vgl.slice(0, 1).map(function (a) { return { shop: String(a.shop || 'Preisvergleich'), preis: a.preis, preisText: String(a.preisText || eur(a.preis)), link: /^https:\/\//i.test(String(a.link || '')) ? String(a.link) : '' }; });
             var mitBild = gut.filter(function (a) { return typeof a.bild === 'string' && /^https:\/\//i.test(a.bild); })[0];
@@ -121,7 +122,7 @@
         if (it.angebote && it.angebote.length) {
             zeilen = it.angebote.map(function (a) {
                 var text = esc(a.shop || 'Händler') + ' · ' + esc(a.preisText || eur(a.preis));
-                if (a.link) return '<a href="' + esc(a.link) + '" target="_blank" rel="noopener" style="' + stil + '">' + text + (a.linkArt === 'haendlerseite' ? ' (Produktseite, Preis kann abweichen)' : '') + ' ›</a>';
+                if (a.link) return '<a href="' + esc(a.link) + '" target="_blank" rel="noopener" style="' + stil + '">' + text + (a.linkArt === 'haendlerseite' ? ' (Link separat gesucht, Preis kann abweichen)' : a.linkArt === 'kategorie' ? ' (Händlerseite, nicht sicher genau dieses Produkt)' : '') + ' ›</a>';
                 ohneLink = true;
                 return '<span style="display:block;color:#e2e8f0;margin-top:3px">' + text + ' <i style="color:#fbbf24;font-size:11px">(kein direkter Link gefunden)</i></span>';
             }).join('');
