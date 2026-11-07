@@ -894,6 +894,64 @@ async function auftrag(w, satz) { const r = w.c.jvStudioAuftrag.behandle(satz); 
           const r2 = await Wk.abgleichen({ funktionen: [], farbcodes: ['#ff0000', '#00ff00', '#0000ff'], stichworte: [] }, [{ pfad: 'index.html', inhalt: '<style>a{color:#ff0000}</style>' }]);
           check('19S zu wenig Farbcodes werden als „Farben“-Mangel (leicht) gemeldet', r2.mangel.length === 1 && /^Farben/.test(r2.mangel[0]) && !r2.schwer, r2); }
     }
+    /* ---------- 20 Verweise: Bilder, Links, Ressourcen (Live-Test PR #363) ---------- */
+    {
+        const w = welt(), D = w.c.jvStudioDateien;
+        const SEITE = '<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"></head><body><nav><a href="#angebote">Angebote</a><a href="#kontakt">Kontakt</a></nav><section id="angebote"><img src="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\'%3E%3C/svg%3E" alt="ok"></section><section id="kontakt"></section><script src="app.js"></script></body></html>';
+        const gut = [{ pfad: 'index.html', inhalt: SEITE }, { pfad: 'style.css', inhalt: 'body{background:url("data:image/svg+xml,%3Csvg%3E")}' }, { pfad: 'app.js', inhalt: 'var x=1' }];
+        check('20a saubere Seite (Anker mit Ziel, data:-Bild, vorhandene Dateien): keine Verweisfehler', D.pruefeVerweise(gut).ok, D.pruefeVerweise(gut));
+        const bild = (src) => [{ pfad: 'index.html', inhalt: '<img src="' + src + '" alt="x">' }];
+        check('20b externes Bild (https) ist ein Fehler', !D.pruefeVerweise(bild('https://upload.example/ferrari.jpg')).ok);
+        check('20c Bild mit //-Adresse ist ein Fehler', !D.pruefeVerweise(bild('//cdn.example/x.png')).ok);
+        check('20d Bild auf fehlende Projektdatei ist ein Fehler', /nicht gibt/.test(D.pruefeVerweise(bild('images/lambo.jpg')).fehler[0]));
+        check('20e vorhandene SVG-Datei als Bild ist erlaubt, vorhandene JPG-artige Datei nicht', D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<img src="logo.svg">' }, { pfad: 'logo.svg', inhalt: '<svg xmlns="http://www.w3.org/2000/svg"></svg>' }]).ok);
+        check('20f data:-Bild (auch mit Anführungszeichen \' im Inhalt) ist erlaubt', D.pruefeVerweise(bild('data:image/png;base64,AAAA')).ok);
+        const link = (h, extra) => [{ pfad: 'index.html', inhalt: '<a href="' + h + '">l</a>' + (extra || '') }];
+        check('20g toter Anker (#kontakt ohne id) ist ein Fehler, mit id nicht', !D.pruefeVerweise(link('#kontakt')).ok && D.pruefeVerweise(link('#kontakt', '<div id="kontakt"></div>')).ok);
+        check('20h Link auf andere Seite, die es nicht gibt, und externer Link sind Fehler', !D.pruefeVerweise(link('angebote.html')).ok && !D.pruefeVerweise(link('https://example.com')).ok);
+        check('20i Link auf index.html, „/“, „#“, mailto: und tel: sind erlaubt', ['index.html', '/', '#', 'mailto:a@b.de', 'tel:+4912345'].every(h => D.pruefeVerweise(link(h)).ok));
+        check('20j CSS: url() mit fremder Adresse oder Datei und @import sind Fehler, url(data:) nicht', !D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<div style="background:url(https://x.de/a.png)"></div>' }]).ok && !D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<link rel=stylesheet href=s.css>' }, { pfad: 's.css', inhalt: '@import "a.css";' }]).ok && D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<style>a{background:url(data:image/png;base64,AA)}</style>' }]).ok);
+        check('20k fehlendes Skript/Stylesheet und externes Skript sind Fehler', !D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<script src="app.js"></script>' }]).ok && !D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<script src="https://cdn.x/y.js"></script>' }]).ok);
+        check('20l pruefeProjekt selbst bleibt unverändert (Verweise nur als Warnung, ok=true) – die APK-Prüfung ändert sich nicht', D.pruefeProjekt(bild('https://x/y.jpg')).ok === true && D.pruefeProjekt(bild('https://x/y.jpg')).warnungen.length > 0);
+        const kaputt = [{ pfad: 'index.html', inhalt: '<img class="auto" src="https://u/ferrari.jpg" alt="Ferrari 488"><img src="images/lambo.jpg" alt="Lamborghini"><img src="data:image/png;base64,AAAA" alt="bleibt">' }];
+        const rs = D.ersetzeBilder(kaputt);
+        check('20m Ersatz: kaputte Bilder → Inline-SVG mit Beschriftung und Klasse, data:-Bild bleibt, danach keine Verweisfehler', rs.anzahl === 2 && /<svg[^>]*aria-label="Ferrari 488"[^>]*class="auto"/.test(rs.dateien[0].inhalt) && />Lamborghini</.test(rs.dateien[0].inhalt) && /src="data:image\/png/.test(rs.dateien[0].inhalt) && D.pruefeVerweise(rs.dateien).ok, rs.dateien[0].inhalt.slice(0, 300));
+        check('20n Ersatz verändert saubere Seiten nicht', D.ersetzeBilder(gut).anzahl === 0 && D.ersetzeBilder(gut).dateien[0] === gut[0]);
+        check('20o Alt-Text mit Sonderzeichen wird maskiert (kein Einschleusen von Markup)', (() => { const r = D.ersetzeBilder([{ pfad: 'index.html', inhalt: '<img src="x.jpg" alt="&quot;&gt;&lt;script&gt;a">' }]); return !/<script/i.test(r.dateien[0].inhalt); })());
+        { const navi = (js) => D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<p>x</p><script src="app.js"></script>' }, { pfad: 'app.js', inhalt: js }]);
+          check('20x Seitenwechsel per Skript (location.href=, assign, replace) ist ein Fehler; location.hash, location.reload() und Vergleiche nicht', ['location.href="index.html"', 'window.location = "/x"', 'location.assign("a")', 'document.location.replace("b")'].every(j => !navi(j).ok) && ['location.hash="#a"', 'location.reload()', 'if(location.href==="x"){}', 'var h=location.href;'].every(j => navi(j).ok), navi('location.hash="#a"')); }
+        /* Vorschau-HTML: Link-Abfang und SVG-Einbettung */
+        const vh = D.vorschauHtml([{ pfad: 'index.html', inhalt: '<html><head></head><body><img src="logo.svg" alt="l"></body></html>' }, { pfad: 'logo.svg', inhalt: '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>' }]);
+        check('20p Vorschau: Link-Abfang-Skript steht direkt nach der Content-Security-Policy, eigene SVG-Datei ist als data:-Bild eingebettet', vh.indexOf('Content-Security-Policy') < vh.indexOf('"click"') && /src="data:image\/svg\+xml;charset=utf-8,%3Csvg/.test(vh) && !/src="logo\.svg"/.test(vh));
+        check('20q Sandbox unverändert: Vorschau-Rahmen ohne allow-same-origin, CSP unverändert streng', (() => { const src = require('fs').readFileSync(__dirname + '/../js/studio_ansicht.js', 'utf8') + require('fs').readFileSync(__dirname + '/../js/studio_werkzeuge.js', 'utf8'); return !/allow-same-origin['"]/.test(src.replace(/bewusst OHNE allow-same-origin/g, '')) && D.CSP.indexOf("default-src 'none'") === 0 && D.CSP.indexOf('img-src data: blob:') > 0 && /form-action 'none'/.test(D.CSP); })());
+        /* Werkzeuge: Korrekturversuch, Rückfall, ehrliches Scheitern */
+        const SCHLECHT = [{ pfad: 'index.html', inhalt: '<html><body><a href="#angebote">A</a><section id="angebote"><img src="https://u/ferrari.jpg" alt="Ferrari"><img src="bilder/lambo.jpg" alt="Lambo"></section></body></html>' }];
+        const GUT2 = [{ pfad: 'index.html', inhalt: '<html><body><a href="#angebote">A</a><section id="angebote"><svg role="img" aria-label="Ferrari"></svg></section></body></html>' }];
+        const w1 = welt(appPlan({ code: (s, n) => /abgelehnt/.test(n) ? { dateien: GUT2 } : { dateien: SCHLECHT } })); laufPruefOk(w1);
+        const r1 = await auftrag(w1, 'Bau mir eine Zähler App'); await missionFertig(w1, r1.m.id);
+        const aufr = w1.aufrufe.filter(a => a.url === '/api/groq' && /Du schreibst kleine/.test(a.body.messages[0].content));
+        check('20r kaputte Bilder im ersten Code → genau ein Korrekturversuch mit den echten Verweisfehlern, danach Erfolg', aufr.length === 2 && /fremder Adresse|nicht gibt/.test(aufr[1].body.messages[1].content) && w1.c.jvMission.hole(r1.m.id).status === 'abgeschlossen', w1.c.jvMission.hole(r1.m.id).fehlergrund);
+        const w2 = welt(appPlan({ code: () => ({ dateien: SCHLECHT }) })); laufPruefOk(w2);
+        const r2 = await auftrag(w2, 'Bau mir eine Zähler App'); await missionFertig(w2, r2.m.id);
+        const m2 = w2.c.jvMission.hole(r2.m.id), pj = w2.c.jvStudioProjekte.liste();
+        check('20s bleiben kaputte Bilder auch nach der Korrektur, ersetzt Studio sie durch Inline-SVG, sagt das offen im Beleg und das Projekt hat keine Verweisfehler', m2.status === 'abgeschlossen' && /durch eine Grafik-Fläche ersetzt/.test(m2.schritte[1].beleg.text) && pj.length === 1 && w2.c.jvStudioDateien.pruefeVerweise(w2.c.jvStudioProjekte.hole(pj[0].id).dateien).ok, m2.fehlergrund);
+        const LINKKAPUTT = [{ pfad: 'index.html', inhalt: '<html><body><a href="angebote.html">Angebote</a><a href="https://example.com">x</a></body></html>' }];
+        const w3 = welt(appPlan({ code: () => ({ dateien: LINKKAPUTT }) })); laufPruefOk(w3);
+        const r3 = await auftrag(w3, 'Bau mir eine Zähler App'); await missionFertig(w3, r3.m.id);
+        const m3 = w3.c.jvMission.hole(r3.m.id);
+        check('20t kaputte Links bleiben nach der einen Korrektur bestehen → Studio meldet FEHLGESCHLAGEN, speichert nichts, nennt den Grund', m3.status === 'fehlgeschlagen' && /Link/.test(m3.fehlergrund) && /nichts gespeichert/.test(m3.fehlergrund) && w3.c.jvStudioProjekte.liste().length === 0 && w3.aufrufe.filter(a => a.url === '/api/groq' && /Du schreibst kleine/.test(a.body.messages[0].content)).length === 2, m3.fehlergrund);
+        /* Laufzeitprüfung: Rückmeldung kaputter Bilder lässt den Prüfschritt scheitern */
+        const w4 = welt(appPlan()); w4.c.jvStudioWerkzeuge._laufPruefung = async () => ({ moeglich: true, geladen: true, fehler: ['Bild lädt nicht: Ferrari'] });
+        const r4 = await auftrag(w4, 'Bau mir eine Zähler App'); await missionFertig(w4, r4.m.id);
+        check('20u Laufzeit-Meldung „Bild lädt nicht“ → Prüfschritt scheitert, nichts gespeichert', w4.c.jvMission.hole(r4.m.id).status === 'fehlgeschlagen' && /Bild lädt nicht/.test(w4.c.jvMission.hole(r4.m.id).fehlergrund) && w4.c.jvStudioProjekte.liste().length === 0);
+        check('20v Prüf-Rahmen meldet kaputte Bilder und blockierte Bild-Adressen (Quelltext des Berichters)', (() => { const src = require('fs').readFileSync(__dirname + '/../js/studio_werkzeuge.js', 'utf8'); return /Bild lädt nicht/.test(src) && /securitypolicyviolation/.test(src) && /naturalWidth/.test(src); })());
+        /* Änderungen: nur NEUE Verweisfehler lehnen ab */
+        const ALT = [{ pfad: 'index.html', inhalt: '<html><body><a href="alt.html">alt</a><p>a</p></body></html>' }];
+        const w5 = welt(appPlan({ aendern: () => ({ dateien: [{ pfad: 'index.html', inhalt: ALT[0].inhalt.replace('<p>a</p>', '<p>b</p>') }] }) })); laufPruefOk(w5);
+        const n5 = w5.c.jvStudioProjekte.neu({ name: 'Alt', art: 'app', auftrag: 'x', dateien: ALT, missionId: 'm_x' });
+        const r5 = await auftrag(w5, 'Ändere die App Alt'); await missionFertig(w5, r5.m.id);
+        check('20w Änderung an einem Projekt mit alter Link-Altlast wird nicht wegen der Altlast abgelehnt', w5.c.jvMission.hole(r5.m.id).status === 'abgeschlossen', w5.c.jvMission.hole(r5.m.id).fehlergrund);
+    }
     console.log('STUDIO: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('✗ Test abgestürzt: ' + (e && e.stack || e)); process.exit(1); });

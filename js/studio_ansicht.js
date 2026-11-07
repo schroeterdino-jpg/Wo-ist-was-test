@@ -11,7 +11,7 @@
 
     var STATUS = { geplant: ['Bereit', '#49d7ff'], laeuft: ['Läuft', '#ff9a44'], wartet_freigabe: ['Wartet auf Freigabe', '#ffbe50'], pausiert: ['Pausiert', '#9aa7b5'], abgeschlossen: ['Fertig', '#57e0a1'], fehlgeschlagen: ['Fehlgeschlagen', '#ff5c3c'], abgebrochen: ['Abgebrochen', '#9aa7b5'] };
     var zeigt = null;        // { art:'mission', id } | { art:'projekt', id }
-    var el = null, takt = null, letztesHtml = '', hoerer = null, bestaetige = null, bestaetigeTimer = 0, vorschauEl = null;
+    var el = null, takt = null, letztesHtml = '', hoerer = null, bestaetige = null, bestaetigeTimer = 0, vorschauEl = null, vorschauNachricht = null;
 
     function M() { return window.jvMission; }
     function P() { return window.jvStudioProjekte; }
@@ -176,10 +176,25 @@
         fr.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals');   // bewusst OHNE allow-same-origin
         fr.setAttribute('referrerpolicy', 'no-referrer'); fr.setAttribute('title', 'Vorschau ' + pr.name);
         fr.srcdoc = htm;
-        vorschauEl.appendChild(fr); document.body.appendChild(vorschauEl);
+        /* Zweite Sicherung: Navigiert die Seite trotz Link-Abfang doch weg (z. B. per Skript), meldet sie das beim Verlassen (pagehide) oder lädt der Rahmen ein zweites Mal.
+           Dann wird er sofort auf die Vorschau zurückgesetzt, höchstens 3-mal; danach hält die Vorschau mit einem Hinweistext an. */
+        var ladungen = 0, zurueck = 0, hin = document.createElement('div');
+        hin.setAttribute('role', 'status'); hin.style.cssText = 'display:none;padding:10px 14px;background:#111;color:#fff;font-size:15px;text-align:center';
+        function ruecksetzen() {
+            ladungen = 0;
+            if (zurueck >= 3) { try { fr.srcdoc = '<!doctype html><meta charset="utf-8"><body style="font:16px system-ui;padding:20px">Die Seite wollte die Vorschau verlassen. Die Vorschau wurde angehalten.</body>'; } catch (e) { } zurueck = 99; return; }
+            zurueck++;
+            hin.textContent = 'Die Seite wollte die Vorschau verlassen. Ich habe sie zurückgesetzt.'; hin.style.display = 'block';
+            setTimeout(function () { hin.style.display = 'none'; }, 4500);
+            fr.srcdoc = htm;
+        }
+        fr.addEventListener('load', function () { ladungen++; if (ladungen > 1 && zurueck < 99) ruecksetzen(); });
+        vorschauNachricht = function (ev) { if (ev && ev.source === fr.contentWindow && ev.data && ev.data.jvVorschauWeg && zurueck < 99) ruecksetzen(); };
+        window.addEventListener('message', vorschauNachricht);
+        vorschauEl.appendChild(hin); vorschauEl.appendChild(fr); document.body.appendChild(vorschauEl);
         return true;
     }
-    function schliesseVorschau() { if (vorschauEl) { try { vorschauEl.remove(); } catch (e) { } vorschauEl = null; } }
+    function schliesseVorschau() { if (vorschauNachricht) { window.removeEventListener('message', vorschauNachricht); vorschauNachricht = null; } if (vorschauEl) { try { vorschauEl.remove(); } catch (e) { } vorschauEl = null; } }
 
     /* ---------- Bedienung ---------- */
     function aktion(name, arg) {

@@ -15,11 +15,11 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 365,
+  "repoDateien": 366,
   "produktJs": 184,
-  "jsZeilen": 48894,
-  "jsBytes": 3582993,
-  "jsGzip": 1065230,
+  "jsZeilen": 49071,
+  "jsBytes": 3600750,
+  "jsGzip": 1071287,
   "scriptTags": 190,
   "eigeneScripts": 184,
   "drittScripts": 2,
@@ -32,7 +32,7 @@
   "workflows": 4,
   "weckrufSrc": 26,
   "weckrufTest": 6,
-  "tools": 3,
+  "tools": 4,
   "models": 1,
   "assets": 5
  },

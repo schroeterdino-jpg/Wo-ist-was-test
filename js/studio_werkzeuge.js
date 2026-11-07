@@ -241,7 +241,7 @@
         merke(a, { spec: spec });
         return ok('ergebnis', 'Anforderungen für „' + name + '“ (' + spec.art + '): ' + fkt.length + ' Funktionen: ' + fkt.join('; '));
     }
-    var CODE_REGELN = 'Regeln: Reines HTML, CSS und JavaScript ohne Bibliotheken, ohne Netzwerkzugriff (kein fetch, kein XMLHttpRequest, keine fremden Adressen, keine externen Schriften oder Bilder). Erlaubt und erwünscht: Inline-SVG im HTML, SVG als data:-Adresse, CSS-Verläufe, CSS-Animationen und Übergänge (mit @media (prefers-reduced-motion: reduce) abschaltbar), Systemschriften. Pflichtdatei index.html; weitere Dateien nur style.css und app.js (per <link> und <script src> eingebunden). Für Smartphones gemacht (viewport-Meta, große Bedienelemente, mindestens 16 px Schrift), deutsche Oberfläche. Gestaltung: Gibt es ein freigegebenes Konzept, gelten dessen Farben, Stil und Layout (hell oder dunkel, wie dort beschrieben); ohne Konzept ein ruhiges, gut lesbares Design mit ausreichend Kontrast. Speichern nur mit localStorage in try/catch. Antworte NUR in diesem Format, ohne Erklärung und ohne Markdown-Zäune: Für jede Datei eine Zeile <<<DATEI pfad>>>, danach der komplette Inhalt, dann eine Zeile <<<ENDE>>>. Beispiel: <<<DATEI index.html>>> (Inhalt) <<<ENDE>>> <<<DATEI app.js>>> (Inhalt) <<<ENDE>>>. Dateinamen nur Kleinbuchstaben, Ziffern, Punkt, Minus.';
+    var CODE_REGELN = 'Regeln: Reines HTML, CSS und JavaScript ohne Bibliotheken, ohne Netzwerkzugriff (kein fetch, kein XMLHttpRequest, keine fremden Adressen, keine externen Schriften oder Bilder). Alles liegt auf EINER Seite (index.html): Links nur als #anker auf eine vorhandene id (z. B. href="#angebote" mit id="angebote"), niemals auf andere Seiten, index.html oder Internet-Adressen. KEIN <img> mit Dateiname oder Internet-Adresse (die Datei gibt es nicht, das Bild bliebe kaputt): Fahrzeuge, Produkte, Fotos und Logos als eigene Inline-SVG-Zeichnung, als CSS-Fläche mit Verlauf und Beschriftung oder als data:-Adresse darstellen; auch in CSS kein url() außer data:. Erlaubt und erwünscht: Inline-SVG im HTML, SVG als data:-Adresse, CSS-Verläufe, CSS-Animationen und Übergänge (mit @media (prefers-reduced-motion: reduce) abschaltbar), Systemschriften. Pflichtdatei index.html; weitere Dateien nur style.css und app.js (per <link> und <script src> eingebunden). Für Smartphones gemacht (viewport-Meta, große Bedienelemente, mindestens 16 px Schrift), deutsche Oberfläche. Gestaltung: Gibt es ein freigegebenes Konzept, gelten dessen Farben, Stil und Layout (hell oder dunkel, wie dort beschrieben); ohne Konzept ein ruhiges, gut lesbares Design mit ausreichend Kontrast. Speichern nur mit localStorage in try/catch. Antworte NUR in diesem Format, ohne Erklärung und ohne Markdown-Zäune: Für jede Datei eine Zeile <<<DATEI pfad>>>, danach der komplette Inhalt, dann eine Zeile <<<ENDE>>>. Beispiel: <<<DATEI index.html>>> (Inhalt) <<<ENDE>>> <<<DATEI app.js>>> (Inhalt) <<<ENDE>>>. Dateinamen nur Kleinbuchstaben, Ziffern, Punkt, Minus.';
     /* Dateiliste aus der Textantwort (<<<DATEI pfad>>> ... <<<ENDE>>>); zur Sicherheit wird auch die alte JSON-Form {"dateien":[...]} verstanden */
     function dateienAusText(txt) {
         txt = String(txt || ''); var aus = [], re = /<<<DATEI\s+([^>\n]+?)\s*>>>\r?\n?([\s\S]*?)\r?\n?<<<ENDE>>>/g, m;
@@ -258,20 +258,36 @@
         return dateienAusText(await kiRoh(system, nutzer + '\nWichtig: Halte dich genau an das Format <<<DATEI pfad>>> Inhalt <<<ENDE>>>.', { max: 9000, text: true }));
     }
     function dateienAusKi(j) { return (Array.isArray(j && j.dateien) ? j.dateien : []).map(function (f) { return { pfad: kurz(f && f.pfad, 80), inhalt: typeof (f && f.inhalt) === 'string' ? f.inhalt : '' }; }); }
+    /* Dateiprüfung + Verweisprüfung (fremde Adressen, fehlende Dateien, tote Anker) in einem Ergebnis; nur für neu erzeugten Code (die APK-Prüfung bleibt unverändert) */
+    function pruefeAlles(dateien) {
+        var pr = D().pruefeProjekt(dateien);
+        if (!pr.ok || !D().pruefeVerweise) return pr;
+        var v = D().pruefeVerweise(dateien);
+        if (v.ok) return pr;
+        return { ok: false, fehler: v.fehler, warnungen: pr.warnungen, bytes: pr.bytes, verweise: true };
+    }
+    /* letzte Rückfalllösung: kaputte Bilder durch Inline-SVG-Flächen ersetzen, dann neu prüfen */
+    function bilderRetten(dateien, pr) {
+        if (pr.ok || !pr.verweise || !D().ersetzeBilder) return { dateien: dateien, pr: pr, ersetzt: 0 };
+        var r = D().ersetzeBilder(dateien);
+        if (!r.anzahl) return { dateien: dateien, pr: pr, ersetzt: 0 };
+        return { dateien: r.dateien, pr: pruefeAlles(r.dateien), ersetzt: r.anzahl };
+    }
     async function t_code(a) {
         var arb = arbeit(a), spec = arb.spec;
         if (!spec) return fehl('Es gibt keine Anforderungen.');
         rg(a.mission.id, 'start', 'Ich schreibe jetzt den Code.');
         var nutzer = 'Baue „' + spec.name + '“. Auftrag des Nutzers: ' + kurz(arb.thema, 600) + '\nFunktionen: ' + spec.funktionen.join('; ') + '\nDesign: ' + spec.design + (arb.konzept ? '\nVom Nutzer freigegebenes Konzept (VERBINDLICH: Stil, Farben, Layout, Aufbau und Funktionen genau so umsetzen, nichts weglassen):\n' + konzeptText(arb.konzept) : '');
-        var dateien = await codeVonKi('Du schreibst kleine, saubere Web-Apps. ' + CODE_REGELN, nutzer), pr = D().pruefeProjekt(dateien), versuch = 1;
+        var dateien = await codeVonKi('Du schreibst kleine, saubere Web-Apps. ' + CODE_REGELN, nutzer), pr = pruefeAlles(dateien), versuch = 1, ersetzt = 0;
         if (!pr.ok) {   // ein einziger, sichtbarer Korrekturversuch mit den echten Prüffehlern
             rg(a.mission.id, 'info', 'Die Prüfung fand Fehler, ich korrigiere einmal: ' + pr.fehler[0]);
-            dateien = await codeVonKi('Du schreibst kleine, saubere Web-Apps. ' + CODE_REGELN, nutzer + '\nDein letzter Versuch wurde abgelehnt: ' + pr.fehler.join('; ') + '. Liefere die komplette korrigierte Dateiliste.');
-            pr = D().pruefeProjekt(dateien); versuch = 2;
+            dateien = await codeVonKi('Du schreibst kleine, saubere Web-Apps. ' + CODE_REGELN, nutzer + '\nDein letzter Versuch wurde abgelehnt: ' + pr.fehler.join('; ') + '. Liefere die komplette korrigierte Dateiliste. Bilder als Inline-SVG oder CSS-Fläche, Links nur als #anker auf vorhandene ids.');
+            pr = pruefeAlles(dateien); versuch = 2;
         }
-        if (!pr.ok) return fehl('Der erzeugte Code wurde abgelehnt: ' + pr.fehler.slice(0, 3).join('; '));
+        if (!pr.ok) { var rt = bilderRetten(dateien, pr); if (rt.ersetzt) { dateien = rt.dateien; pr = rt.pr; ersetzt = rt.ersetzt; rg(a.mission.id, 'info', ersetzt + ' kaputte(s) Bild(er) habe ich durch eine eigene Grafik-Fläche ersetzt.'); } }
+        if (!pr.ok) return fehl('Der erzeugte Code wurde abgelehnt, es ist nichts gespeichert: ' + pr.fehler.slice(0, 3).join('; ') + (pr.fehler.length > 3 ? ' (und weitere)' : ''));
         merke(a, { dateien: dateien });
-        return ok('ergebnis', dateien.length + ' Dateien geschrieben (' + Math.round(pr.bytes / 100) / 10 + ' KB): ' + dateien.map(function (f) { return f.pfad; }).join(', ') + (versuch === 2 ? ' (nach einer Korrektur)' : '') + (pr.warnungen.length ? '. Hinweise: ' + pr.warnungen.slice(0, 2).join(' ') : ''));
+        return ok('ergebnis', dateien.length + ' Dateien geschrieben (' + Math.round(pr.bytes / 100) / 10 + ' KB): ' + dateien.map(function (f) { return f.pfad; }).join(', ') + (versuch === 2 ? ' (nach einer Korrektur)' : '') + (ersetzt ? '. Hinweis: ' + ersetzt + ' Bild(er) gab es nicht und wurde(n) durch eine Grafik-Fläche ersetzt' : '') + (pr.warnungen.length ? '. Hinweise: ' + pr.warnungen.slice(0, 2).join(' ') : ''));
     }
     async function t_aendern(a) {
         var arb = arbeit(a), pr0 = arb.projektId ? P().hole(arb.projektId) : null;
@@ -280,7 +296,13 @@
         if (gesamt > 30000) return fehl('Das Projekt ist mit ' + Math.round(gesamt / 1000) + ' KB zu groß für eine automatische Änderung. Es bleibt unverändert.');
         rg(a.mission.id, 'start', 'Ich ändere ' + pr0.name + '.');
         var neu = await codeVonKi('Du änderst eine bestehende kleine Web-App nach Wunsch. Behalte alles, was nicht geändert werden soll, unverändert. Liefere die KOMPLETTE Dateiliste (alle Dateien, auch unveränderte). ' + CODE_REGELN, 'Änderungswunsch: ' + kurz(arb.thema, 600) + '\nAktuelle Dateien (JSON): ' + JSON.stringify(pr0.dateien));
-        var pr = D().pruefeProjekt(neu);
+        var pr = D().pruefeProjekt(neu), altV = {};
+        if (pr.ok && D().pruefeVerweise) {   // nur NEUE Verweisfehler lehnen die Änderung ab (Altlasten des Projekts blockieren sie nicht)
+            D().pruefeVerweise(pr0.dateien).fehler.forEach(function (x) { altV[x] = true; });
+            var nv = D().pruefeVerweise(neu).fehler.filter(function (x) { return !altV[x]; });
+            if (nv.length) { var rt2 = D().ersetzeBilder ? D().ersetzeBilder(neu) : null; if (rt2 && rt2.anzahl) { neu = rt2.dateien; nv = D().pruefeVerweise(neu).fehler.filter(function (x) { return !altV[x]; }); } }
+            if (nv.length) pr = { ok: false, fehler: nv };
+        }
         if (!pr.ok) return fehl('Die geänderte Fassung wurde abgelehnt: ' + pr.fehler.slice(0, 3).join('; '));
         var alt = {}; pr0.dateien.forEach(function (f) { alt[f.pfad] = f.inhalt; });
         var geaendert = neu.filter(function (f) { return alt[f.pfad] !== f.inhalt; }).map(function (f) { return f.pfad; });
@@ -289,7 +311,7 @@
         merke(a, { dateien: neu, geaendert: geaendert });
         return ok('ergebnis', 'Neue Fassung: geändert oder neu: ' + (geaendert.join(', ') || 'keine') + (weg.length ? '; entfernt: ' + weg.join(', ') : '') + '.');
     }
-    var REPORTER = function (tok) { return '<script>(function(){var t="' + tok + '";function s(m){try{parent.postMessage({jvStudio:t,fehler:String(m).slice(0,200)},"*")}catch(e){}}window.addEventListener("error",function(e){s((e.message||"Fehler")+(e.lineno?" (Zeile "+e.lineno+")":""))});window.addEventListener("unhandledrejection",function(e){s("Unbehandelte Zusage: "+(e.reason&&e.reason.message||e.reason))});window.addEventListener("load",function(){setTimeout(function(){try{parent.postMessage({jvStudio:t,fertig:1},"*")}catch(e){}},500)});})()</script>'; };
+    var REPORTER = function (tok) { return '<script>(function(){var t="' + tok + '";function s(m){try{parent.postMessage({jvStudio:t,fehler:String(m).slice(0,200)},"*")}catch(e){}}window.addEventListener("error",function(e){s((e.message||"Fehler")+(e.lineno?" (Zeile "+e.lineno+")":""))});window.addEventListener("unhandledrejection",function(e){s("Unbehandelte Zusage: "+(e.reason&&e.reason.message||e.reason))});window.addEventListener("error",function(e){var n=e.target;if(n&&n.tagName==="IMG")s("Bild lädt nicht: "+String(n.getAttribute("alt")||n.getAttribute("src")||"").slice(0,60))},true);document.addEventListener("securitypolicyviolation",function(e){if(/^(img|media|font|frame|object)-src/.test(e.effectiveDirective||""))s("Blockiert ("+e.effectiveDirective+"): "+String(e.blockedURI||"").slice(0,60))});window.addEventListener("load",function(){setTimeout(function(){try{var im=document.images;for(var i=0;i<im.length;i++){if(im[i].complete&&im[i].naturalWidth===0&&!/^data:/i.test(im[i].currentSrc||im[i].src||"")&&im[i].getAttribute("src"))s("Bild lädt nicht: "+String(im[i].getAttribute("alt")||im[i].getAttribute("src")).slice(0,60))}}catch(e){}try{parent.postMessage({jvStudio:t,fertig:1},"*")}catch(e){}},500)});})()</script>'; };
     /* Endlosschleifen beim Laden: Ein iframe teilt sich den Rechenfaden mit der App und könnte sie einfrieren. Darum läuft der Code VORHER in einem Worker
        (eigener Faden, ohne Seite, nur mit Platzhalter-Objekten) und wird nach 1,5 Sekunden hart beendet. Schleifen in Klick-Handlern erkennt das nicht. */
     /* Attrappen im Worker des Endlosschleifen-Tests. Der Speicher verhält sich wie ein LEERER echter Speicher (getItem liefert null): eine Proxy-Attrappe würde über
@@ -333,7 +355,7 @@
             var timer;
             function h(ev) {
                 if (!ev || ev.source !== fr.contentWindow || !ev.data || ev.data.jvStudio !== tok) return;
-                if (ev.data.fehler) fehler.push(String(ev.data.fehler));
+                if (ev.data.fehler && fehler.indexOf(String(ev.data.fehler)) < 0) fehler.push(String(ev.data.fehler));
                 if (ev.data.fertig) schluss(true);
             }
             function schluss(geladen) {
@@ -398,7 +420,8 @@
                     'Konzept (verbindlich):\n' + konzeptText(k) + '\nAbweichungen, die behoben werden müssen:\n- ' + p1.mangel.join('\n- ') + '\nAktuelle Dateien (JSON): ' + json);
             } catch (e) { grund = 'Die Korrektur konnte nicht erzeugt werden (' + kurz(e && e.message, 100) + ').'; }
         }
-        var pr = neu && D().pruefeProjekt(neu);
+        var pr = neu && pruefeAlles(neu);
+        if (neu && !pr.ok) { var rt3 = bilderRetten(neu, pr); neu = rt3.dateien; pr = rt3.pr; }
         if (neu && !pr.ok) { grund = 'Die korrigierte Fassung wurde abgelehnt (' + pr.fehler.slice(0, 2).join('; ') + '); die erste Fassung bleibt.'; neu = null; }
         var p2 = p1, korrigiert = false;
         if (neu) { p2 = await abgleichen(k, neu); korrigiert = true; if (p2.mangel.length <= p1.mangel.length) merke(a, { dateien: neu }); else { p2 = p1; korrigiert = false; grund = 'Die Korrektur war schlechter als die erste Fassung; die erste bleibt.'; } }
@@ -411,7 +434,12 @@
         var arb = arbeit(a), dateien = arb.dateien;
         if (!dateien && arb.projektId) { var p = P().hole(arb.projektId); dateien = p && p.dateien; }
         if (!dateien) return fehl('Es gibt keine Dateien zum Prüfen.');
-        var pr = D().pruefeProjekt(dateien);
+        var pr = pruefeAlles(dateien);
+        if (!pr.ok && pr.verweise && arb.dateien && arb.projektId && P().hole(arb.projektId) && P().hole(arb.projektId).dateien && D().pruefeVerweise) {   // geänderte Fassung: Altlasten des bestehenden Projekts zählen nicht, nur NEUE Verweisfehler
+            var bekannt = {}; D().pruefeVerweise(P().hole(arb.projektId).dateien).fehler.forEach(function (x) { bekannt[x] = true; });
+            var neuF = D().pruefeVerweise(dateien).fehler.filter(function (x) { return !bekannt[x]; });
+            if (!neuF.length) pr = { ok: true, fehler: [], warnungen: pr.warnungen.concat(['Alte Link-/Bildfehler des Projekts bestehen weiter (nicht durch diese Änderung).']), bytes: pr.bytes };
+        }
         if (!pr.ok) return fehl('Prüfung fehlgeschlagen: ' + pr.fehler.slice(0, 3).join('; '));
         rg(a.mission.id, 'info', 'Ich teste die Seite in einer abgeschotteten Umgebung.');
         var lauf = await (window.jvStudioWerkzeuge._laufPruefung || laufPruefung)(dateien);

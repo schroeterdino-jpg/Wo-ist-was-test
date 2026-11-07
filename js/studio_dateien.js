@@ -5,6 +5,8 @@
      docx(doc)                 -> Uint8Array   echtes Word-Dokument.  doc = { titel, untertitel?, abschnitte:[{ ueberschrift?, absaetze?:[text], liste?:[text], tabelle?:{ kopf:[..], zeilen:[[..]] } }], quellen?:[{ titel, url }] }
      pptx(deck)                -> Uint8Array   echte PowerPoint-Datei. deck = { titel, untertitel?, folien:[{ titel, punkte?:[text], notiz? }] }
      pruefeProjekt(dateien)    -> { ok, fehler:[..], warnungen:[..], bytes }   Grenzen und Namen für Web-Projekte (nur Textdateien)
+     pruefeVerweise(dateien)   -> { ok, fehler:[..] }   Bilder/Skripte/Stile/Links: fremde Adressen, fehlende Dateien, tote Anker
+     ersetzeBilder(dateien)    -> { dateien, anzahl }  kaputte <img> durch Inline-SVG-Fläche ersetzen (letzte Rückfalllösung)
      vorschauHtml(dateien)     -> string       ein einzelnes HTML (CSS/JS eingebettet) mit strenger Content-Security-Policy (kein Netz) für ein abgeschottetes iframe
      esc(text)                 HTML maskieren
    Sicherheit: erzeugter Code wird hier NIE ausgeführt. Die Vorschau gehört in ein iframe mit sandbox="allow-scripts" (ohne allow-same-origin).
@@ -198,8 +200,135 @@
         return { ok: fehler.length === 0, fehler: fehler, warnungen: warnungen, bytes: bytes };
     }
 
+
+    /* ---------- Verweisprüfung: Bilder, Skripte, Stile und Links müssen in Vorschau und APK wirklich funktionieren ----------
+       Erlaubt: data:/blob:-Adressen, #anker auf vorhandene Ziele, Dateien, die im Projekt existieren (svg-Bilder, html-Seiten, css/js), mailto:/tel:/javascript:-Links.
+       Fehler: fremde Adressen (http, https, //, andere Schemata), Verweise auf Dateien, die es im Projekt nicht gibt, Anker ohne Ziel, CSS-url() ohne data:. */
+    function pfadAufloesen(von, ref) {
+        ref = String(ref).replace(/[?#].*$/, '').trim();
+        if (ref === '' || ref === '/' || ref === './') return 'index.html';
+        var teile = ref.charAt(0) === '/' ? [] : String(von).split('/').slice(0, -1);
+        ref.replace(/^\/+/, '').split('/').forEach(function (t) { if (t === '' || t === '.') return; if (t === '..') teile.pop(); else teile.push(t); });
+        return teile.join('/');
+    }
+    var TAG_RX = /<(img|source|video|audio|track|embed|object|iframe|script|link|a|area|image|use|input)\b([^>]*)>/gi;
+    var ATTR_RX = /(?:^|[\s"'\/])(src|href|xlink:href|poster|data|srcset)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+    function verweisArt(tag, attr, attrs) {
+        if (tag === 'a' || tag === 'area') return 'Link';
+        if (tag === 'script') return 'Skript';
+        if (tag === 'link') return /rel\s*=\s*["']?\s*stylesheet/i.test(attrs) ? 'Stil' : 'Ressource';
+        if (tag === 'use') return 'Grafik';
+        if (tag === 'input') return /type\s*=\s*["']?image/i.test(attrs) ? 'Bild' : '';
+        return 'Bild';
+    }
+    function verweisProblem(von, art, url, karte, ids, jsText) {
+        url = String(url).trim();
+        if (!url || /\$\{|\{\{|["'`]\s*\+|\+\s*["'`]/.test(url)) return '';
+        if (/^(data|blob):/i.test(url)) return '';
+        if (art === 'Link') {
+            if (/^(mailto|tel|sms|javascript):/i.test(url)) return '';
+            if (url.charAt(0) === '#') {
+                var id = url.slice(1); try { id = decodeURIComponent(id); } catch (e) { }
+                if (id === '' || id === 'top' || ids[id] || jsText.indexOf(id) >= 0) return '';
+                return 'Der Link ' + url.slice(0, 40) + ' zeigt auf ein Ziel, das es auf der Seite nicht gibt';
+            }
+        } else if (url.charAt(0) === '#') return '';
+        if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(url)) return art + ' mit fremder Adresse (' + url.slice(0, 50) + '), dort gibt es kein Netz';
+        var ziel = pfadAufloesen(von, url);
+        if (karte[ziel] === undefined) return art + ' zeigt auf eine Datei, die es im Projekt nicht gibt (' + url.slice(0, 50) + ')';
+        if (art === 'Bild' && endung(ziel) !== 'svg') return 'Bild ' + url.slice(0, 50) + ' ist kein SVG; Bilder nur als SVG oder data:-Adresse';
+        return '';
+    }
+    /* Alle Bild-/Skript-/Stil-/Link-Verweise einer Datei: [{art, url, tag}] mit Problemtext (leer = in Ordnung) */
+    function verweiseDerDatei(p, inh, karte, ids, jsText) {
+        var aus = [], e = endung(p), m, a, tags;
+        if (e === 'html' || e === 'svg' || e === 'js') {
+            TAG_RX.lastIndex = 0;
+            while ((m = TAG_RX.exec(inh))) {
+                tags = m[2]; ATTR_RX.lastIndex = 0;
+                while ((a = ATTR_RX.exec(tags))) {
+                    var attr = a[1].toLowerCase(), wert = a[2] !== undefined ? a[2] : a[3], art = verweisArt(m[1].toLowerCase(), attr, tags);
+                    if (!art) continue;
+                    if (attr === 'srcset') { wert.split(',').forEach(function (x) { var u = x.trim().split(/\s+/)[0]; if (u) aus.push({ tag: m[0], art: art, url: u, von: e === 'js' ? 'index.html' : p }); }); continue; }
+                    aus.push({ tag: m[0], art: art, url: wert, von: e === 'js' ? 'index.html' : p });
+                }
+            }
+        }
+        var css = e === 'css' ? inh : (e === 'html' ? (inh.match(/<style\b[^>]*>[\s\S]*?<\/style>/gi) || []).join('\n') + '\n' + (inh.match(/\sstyle\s*=\s*"[^"]*"/gi) || []).join('\n') : '');
+        if (css) {
+            var u, rx = /url\(\s*(["']?)([^)"']+)\1\s*\)/gi;
+            while ((u = rx.exec(css))) { var w = u[2].trim(); if (!/^(data|blob):/i.test(w) && w.charAt(0) !== '#') aus.push({ art: 'CSS', url: w, von: p, css: true }); }
+            if (/@import\b/i.test(css)) aus.push({ art: 'CSS', url: '@import', von: p, css: true });
+        }
+        return aus.map(function (v) {
+            v.problem = v.css ? 'CSS lädt ' + v.url.slice(0, 50) + ' (nur data:-Adressen sind erlaubt)' : verweisProblem(v.von, v.art, v.url, karte, ids, jsText);
+            return v;
+        });
+    }
+    function verweisKontext(dateien) {
+        var karte = {}, ids = {}, js = '';
+        (dateien || []).forEach(function (f) { if (f && typeof f.pfad === 'string') karte[f.pfad] = String(f.inhalt == null ? '' : f.inhalt); });
+        Object.keys(karte).forEach(function (p) {
+            var e = endung(p), rx = /\b(?:id|name)\s*=\s*["']([^"']+)["']/gi, m;
+            if (e === 'html' || e === 'svg') while ((m = rx.exec(karte[p]))) ids[m[1]] = true;
+            if (e === 'js') js += '\n' + karte[p];
+            if (e === 'html') (karte[p].match(/<script\b[^>]*>[\s\S]*?<\/script>/gi) || []).forEach(function (s) { js += '\n' + s; });
+        });
+        return { karte: karte, ids: ids, js: js };
+    }
+    function pruefeVerweise(dateien) {
+        var k = verweisKontext(dateien), fehler = [], gesehen = {};
+        Object.keys(k.karte).forEach(function (p) {
+            if (['html', 'css', 'js', 'svg'].indexOf(endung(p)) < 0) return;
+            verweiseDerDatei(p, k.karte[p], k.karte, k.ids, k.js).forEach(function (v) {
+                if (!v.problem) return;
+                var t = p + ': ' + v.problem; if (gesehen[t]) return; gesehen[t] = true; fehler.push(t);
+            });
+        });
+        var navi = /(?:\b(?:window|document|top|parent|self)\.)?\blocation\s*(?:\.\s*(?:href|pathname)\s*=(?!=)|\.\s*(?:assign|replace)\s*\(|=(?!=)\s*["'`])/;
+        Object.keys(k.karte).forEach(function (p) {
+            var e = endung(p), code = e === 'js' ? k.karte[p] : e === 'html' ? (k.karte[p].match(/<script\b[^>]*>[\s\S]*?<\/script>/gi) || []).join('\n') : '';
+            if (code && navi.test(code)) { var t = p + ': Seitenwechsel per Skript (location.href/assign/replace); alles liegt auf einer Seite, nutze #anker'; if (!gesehen[t]) { gesehen[t] = true; fehler.push(t); } }
+        });
+        return { ok: fehler.length === 0, fehler: fehler.slice(0, 8), anzahl: fehler.length };
+    }
+    /* Kaputte <img> (fremde Adresse, fehlende Datei, kein SVG) durch eine eigene Inline-SVG-Fläche mit der Beschriftung ersetzen. Passiert nur als letzte Rückfalllösung, nachdem die KI es einmal selbst versuchen durfte. */
+    function ersetzeBilder(dateien) {
+        var k = verweisKontext(dateien), anzahl = 0;
+        var neu = (dateien || []).map(function (f) {
+            if (!f || endung(f.pfad) !== 'html') return f;
+            var inh = String(f.inhalt || '').replace(/<img\b[^>]*>/gi, function (tag) {
+                var sm = /(?:^|[\s"'\/])src\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag), src = sm ? (sm[1] !== undefined ? sm[1] : sm[2]) : '';
+                if (!sm || !verweisProblem(f.pfad, 'Bild', src, k.karte, k.ids, k.js)) return tag;
+                var altM = /\balt\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag), alt = (altM ? (altM[1] !== undefined ? altM[1] : altM[2]) : '').replace(/<[^>]*>/g, '').trim().slice(0, 60);
+                var klasse = /\bclass\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag), idm = /\bid\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag), stil = /\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag);
+                anzahl++;
+                var at = function (m) { return m ? (m[1] !== undefined ? m[1] : m[2]) : ''; };
+                return '<svg role="img" aria-label="' + esc(alt || 'Bild') + '" viewBox="0 0 400 240" preserveAspectRatio="xMidYMid slice"' +
+                    (klasse ? ' class="' + esc(at(klasse)) + '"' : '') + (idm ? ' id="' + esc(at(idm)) + '"' : '') +
+                    ' style="display:block;width:100%;height:auto;' + (stil ? esc(at(stil)).replace(/"/g, '') : '') + '">' +
+                    '<rect width="400" height="240" fill="currentColor" fill-opacity=".12"/><rect x="1" y="1" width="398" height="238" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="2"/>' +
+                    '<path d="M60 170 L140 100 L200 150 L250 115 L340 170 Z" fill="currentColor" fill-opacity=".22"/><circle cx="300" cy="70" r="20" fill="currentColor" fill-opacity=".22"/>' +
+                    (alt ? '<text x="200" y="210" text-anchor="middle" fill="currentColor" font-family="system-ui,sans-serif" font-size="18">' + esc(alt) + '</text>' : '') + '</svg>';
+            });
+            return inh === f.inhalt ? f : { pfad: f.pfad, inhalt: inh };
+        });
+        return { dateien: neu, anzahl: anzahl };
+    }
+
     /* ---------- Vorschau (eine Seite, streng) ---------- */
     var CSP = "default-src 'none'; img-src data: blob:; media-src data: blob:; font-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'";
+    /* Links in der Vorschau: Die Vorschau hat keine eigene Adresse, ein normaler Link würde die echte Jarvis-Seite in den Rahmen laden. Darum werden alle Links abgefangen:
+       #anker scrollen auf der Seite, Verweise auf die Startseite scrollen nach oben, alles andere wird mit einem Hinweis gesperrt. Formulare werden nicht abgeschickt. */
+    var LINKS = '<script>(function(){var tm;function hin(t){try{var d=document.getElementById("jvHinweis");if(!d){d=document.createElement("div");d.id="jvHinweis";d.setAttribute("role","status");d.style.cssText="position:fixed;left:12px;right:12px;bottom:12px;z-index:2147483647;background:#111;color:#fff;border:1px solid #888;border-radius:10px;padding:12px 14px;font:16px/1.4 system-ui,sans-serif;text-align:center";(document.body||document.documentElement).appendChild(d)}d.textContent=t;d.style.display="block";clearTimeout(tm);tm=setTimeout(function(){d.style.display="none"},4500)}catch(e){}}' +
+        'function ruhig(){try{return matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){return false}}' +
+        'window.addEventListener("click",function(e){var n=e.target,a=n&&n.closest?n.closest("a[href],area[href]"):null;if(!a)return;var h=a.getAttribute("href")||"";if(/^javascript:/i.test(h))return;e.preventDefault();' +
+        'var i=h.indexOf("#"),pf=(i<0?h:h.slice(0,i)).replace(/[?].*$/,""),an=i<0?"":h.slice(i+1);' +
+        'if(pf===""||pf==="/"||pf==="./"||pf==="index.html"||pf==="/index.html"){if(an===""||an==="top"){scrollTo(0,0);return}try{an=decodeURIComponent(an)}catch(x){}var z=document.getElementById(an)||document.getElementsByName(an)[0];if(z&&z.scrollIntoView){z.scrollIntoView({behavior:ruhig()?"auto":"smooth",block:"start"})}else hin("Dieses Ziel gibt es auf der Seite nicht.");return}' +
+        'if(/^(mailto|tel|sms):/i.test(h)){hin("E-Mail- und Telefon-Links sind in der Vorschau gesperrt.");return}' +
+        'hin("Dieser Link führt aus der Vorschau hinaus und ist gesperrt. Die Vorschau zeigt nur diese eine Seite.")},true);' +
+        'window.addEventListener("pagehide",function(){try{parent.postMessage({jvVorschauWeg:1},"*")}catch(e){}});' +
+        'document.addEventListener("submit",function(e){if(!e.defaultPrevented){e.preventDefault();hin("Formulare werden in der Vorschau nicht abgeschickt.")}});})()</script>';
     function vorschauHtml(dateien) {
         var karte = {}; (dateien || []).forEach(function (f) { karte[f.pfad] = f.inhalt; });
         var h = String(karte['index.html'] || '');
@@ -212,11 +341,16 @@
             var pfad = norm(src);
             return karte[pfad] !== undefined ? '<script>' + String(karte[pfad]).replace(/<\/script/gi, '<\\/script') + '</script>' : '';
         });
-        var meta = '<meta http-equiv="Content-Security-Policy" content="' + CSP + '">';
+        /* eigene SVG-Dateien des Projekts als data:-Adresse einbetten (die Vorschau lädt keine Dateien nach) */
+        h = h.replace(/(<img\b[^>]*?\bsrc\s*=\s*)(["'])([^"']+)\2/gi, function (all, vor, q, src) {
+            var pfad = norm(src); if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(src) || endung(pfad) !== 'svg' || karte[pfad] === undefined) return all;
+            return vor + q + 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(String(karte[pfad])) + q;
+        });
+        var meta = '<meta http-equiv="Content-Security-Policy" content="' + CSP + '">' + LINKS;
         if (/<head\b[^>]*>/i.test(h)) h = h.replace(/<head\b[^>]*>/i, function (m) { return m + meta; });
         else h = '<!doctype html><html><head><meta charset="utf-8">' + meta + '</head><body>' + h + '</body></html>';
         return h;
     }
 
-    window.jvStudioDateien = { GRENZEN: GRENZEN, ERLAUBT: ERLAUBT, CSP: CSP, zip: zip, crc32: crc32, docx: docx, pptx: pptx, pruefeProjekt: pruefeProjekt, vorschauHtml: vorschauHtml, esc: esc, utf8: utf8 };
+    window.jvStudioDateien = { GRENZEN: GRENZEN, ERLAUBT: ERLAUBT, CSP: CSP, zip: zip, crc32: crc32, docx: docx, pptx: pptx, pruefeProjekt: pruefeProjekt, pruefeVerweise: pruefeVerweise, ersetzeBilder: ersetzeBilder, LINKS: LINKS, vorschauHtml: vorschauHtml, esc: esc, utf8: utf8 };
 })();
