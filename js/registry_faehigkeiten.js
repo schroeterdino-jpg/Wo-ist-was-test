@@ -163,7 +163,7 @@
     });
 
     /* ---------------- 2a. Jarvis über sich selbst (lesend, ohne KI-Kosten) ---------------- */
-    var SELBST_NAMEN = { ortssuche: 'Orte und Restaurants suchen', websuche: 'Internetsuche', wetter: 'Wetter', produktsuche: 'Preise und Händler zu Produkten', foto_info: 'Fotos erkennen und auswerten',
+    var SELBST_NAMEN = { ortssuche: 'Orte und Restaurants suchen', websuche: 'Internetsuche', wetter: 'Wetter', fahrzeit: 'Fahrzeit und Verkehr mit dem Auto', produktsuche: 'Preise und Händler zu Produkten', foto_info: 'Fotos erkennen und auswerten',
         termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
         termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken' };
     R.registriere({
@@ -237,6 +237,58 @@
                 satz = 'Das Wetter ' + (tag === 'morgen' ? 'morgen' : 'übermorgen') + ': ' + t.wetter + ', zwischen ' + g(t.tiefstwert_grad) + ' und ' + g(t.hoechstwert_grad) + ' Grad. Die Regenwahrscheinlichkeit liegt bei ' + g(t.regenwahrscheinlichkeit_prozent) + ' Prozent. ' + t.regenschirm_empfehlung + '. ' + t.jacken_empfehlung + '.';
             }
             return { nachricht: satz };
+        }
+    });
+
+    /* ---------------- 2c. Fahrzeit mit dem Auto (nur lesend; baut auf travel.js / stadtverkehr.js auf, keine zweite Routenberechnung) ---------------- */
+    R.registriere({
+        name: 'fahrzeit',
+        beschreibung: 'Berechnet Fahrzeit und Entfernung mit dem Auto zu einem genannten Ziel (vom Standort oder von einem genannten Startort) und sagt ausdrücklich, ob aktuelle Verkehrsdaten eingerechnet sind. Staumeldungen nennt sie nur, wenn sie wirklich abgefragt wurden; geschätzt oder erfunden wird nichts.',
+        pflicht: [{ name: 'ziel', typ: 'text', beschreibung: 'Das genaue Ziel wie genannt, zum Beispiel Hamburger Hauptbahnhof (nicht nur Hamburg).' }],
+        optional: [{ name: 'von', typ: 'text', beschreibung: 'Startort, nur wenn der Nutzer einen anderen Startort nennt als seinen Standort.' }],
+        rueckgabe: { beschreibung: 'Ein Satz mit Fahrzeit, Entfernung und der Angabe, ob aktuelle Verkehrsdaten eingerechnet sind (verkehrsdaten: live oder ohne).', felder: ['nachricht', 'minuten', 'km', 'ziel', 'verkehrsdaten'] },
+        fehler: [
+            { status: 'TOOL_FAILED', wann: 'Standort, Ziel oder Route nicht verfügbar; dann gibt es keine Zahl.' },
+            { status: 'CAPABILITY_MISSING', wann: 'Die Routenberechnung ist in dieser Umgebung nicht geladen.' }
+        ],
+        fallbacks: [],   // bewusst keiner: eine Websuche würde nur eine Schätzung liefern
+        bestaetigung: { noetig: false, grund: 'Reine Auskunft ohne Änderung von Daten.' },
+        pruefeErfolg: function (d) { return !!d && typeof d.nachricht === 'string' && !!d.nachricht.trim() && typeof d.minuten === 'number' && d.minuten > 0 && (d.verkehrsdaten === 'live' || d.verkehrsdaten === 'ohne'); },
+        verbindung: { datei: 'js/travel.js', funktion: 'routeDurationSeconds' },
+        verfuegbar: function () { return typeof geocodeDestination === 'function' && typeof routeDurationSeconds === 'function' && typeof describeAutobahnStau === 'function' && typeof fetchFreshTravelLocation === 'function'; },
+        ausfuehren: async function (p) {
+            function fehlschlag(m) { var e = new Error(m); e.userMessage = m; throw e; }
+            var ziel = String(p.ziel || '').trim(), von = typeof p.von === 'string' ? p.von.trim() : '';
+            var start;
+            if (von) {
+                var vg = await geocodeDestination(von, '');
+                if (!vg) fehlschlag('Den Startort ' + von + ' habe ich nicht gefunden. Eine Fahrzeit nenne ich deshalb nicht.');
+                start = { lat: vg.lat, lon: vg.lon };
+            } else {
+                var loc = await fetchFreshTravelLocation();
+                if (!loc || loc.fehler || loc.latitude === undefined) fehlschlag('Deinen Standort konnte ich gerade nicht ermitteln, deshalb nenne ich keine Fahrzeit. Ist der Standortzugriff erlaubt?');
+                start = { lat: loc.latitude, lon: loc.longitude };
+            }
+            var dest = await geocodeDestination(ziel, '');   // zuerst genau das genannte Ziel (nie nur der Ortsname)
+            if (!dest) {
+                var adr = (typeof findContactAddressFor === 'function' && findContactAddressFor(ziel)) || (typeof findMemoryAddressFor === 'function' && findMemoryAddressFor(ziel)) || '';
+                if (adr) dest = await geocodeDestination(adr, '');
+            }
+            if (!dest) fehlschlag('Das Ziel ' + ziel + ' habe ich nicht gefunden. Eine Fahrzeit nenne ich deshalb nicht.');
+            var route = await routeDurationSeconds(start.lat, start.lon, dest.lat, dest.lon);
+            if (!route || !isFinite(route.seconds) || route.seconds <= 0) fehlschlag('Die Fahrzeit konnte ich gerade nicht berechnen. Ich schätze sie nicht, versuch es bitte gleich noch einmal.');
+            var min = Math.max(1, Math.round(route.seconds / 60)), km = (route.meters || 0) / 1000;
+            if (min > 600) fehlschlag('Das Ziel ' + ziel + ' liegt ungewöhnlich weit entfernt (' + Math.round(km) + ' Kilometer). Meinst du den richtigen Ort? Eine Fahrzeit nenne ich deshalb nicht.');
+            var kmText = km >= 10 ? Math.round(km) + ' Kilometer' : km.toFixed(1).replace('.', ',') + ' Kilometer';
+            var stau = '';
+            try { stau = await describeAutobahnStau(route.autobahnen, start.lat, start.lon, dest.lat, dest.lon, route.coords) || ''; } catch (e) { if (e && e.auth) throw e; stau = ''; }
+            var live = route.quelle === 'google';   // nur die Google-Route enthält den aktuellen Verkehr (stadtverkehr.js); OSRM rechnet ohne
+            var stauMin = live ? 0 : Math.max(0, Math.round(Number(window.jvStauMin) || 0));
+            var davor = von ? 'Von ' + von + ' bis ' + ziel : 'Bis ' + ziel;
+            var satz = live
+                ? davor + ' brauchst du jetzt etwa ' + min + ' Minuten (' + kmText + '), berechnet mit dem aktuellen Verkehr.'
+                : davor + ' sind es nach der berechneten Route etwa ' + min + ' Minuten (' + kmText + '). Aktuelle Verkehrsdaten sind darin nicht eingerechnet, das ist also keine Live-Auskunft zur Verkehrslage.' + (stauMin ? ' Gemeldete Verzögerungen auf der Strecke: etwa ' + stauMin + ' Minuten zusätzlich.' : '');
+            return { nachricht: satz + stau, minuten: min, km: Math.round(km * 10) / 10, ziel: ziel, verkehrsdaten: live ? 'live' : 'ohne' };
         }
     });
 
