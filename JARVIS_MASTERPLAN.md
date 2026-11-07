@@ -28,7 +28,7 @@ Status: Geplant, In Arbeit, Fertig, Blockiert. „Bestehendes nutzen“ heißt: 
 | Priorität | Funktion | Status | PR | Nächster Schritt |
 |---|---|---|---|---|
 | P1 | Zentrale Werkzeugverwaltung (Internet, Produkt/Preis, Wetter, Kalender, Erinnerungen/Aufgaben, Navigation/Verkehr, Gedächtnis, Foto, Dokumente/Rechnungen, Kontakte, Berechnungen, weitere) | Geplant | – | Bestand der Register (`registry*.js`, `faehigkeiten.js`) mit den tatsächlich vorhandenen Werkzeugen abgleichen; Lücken schließen, keine zweite Implementierung |
-| P1 | Intelligenter KI-Dirigent (natürliche Sprache, Werkzeugwahl, Mehrfachaufgaben, Kombination, Selbstbezüge, gezielte Rückfragen, Fehlerbehandlung, Ergebnisprüfung, nichts erfinden) | In Arbeit | #377, Phase 3 (PR siehe Abschnitt 7) | Schritt 1 erledigt: Kette (Ergebnis eines lesenden Schritts an den nächsten), Erfolgsprüfung, Websuche als Ausweg – nur im Chef-KI-Weg (Standard AUS). Schritt 2 (Phase 3): Werkzeug `produktsuche` (nutzt die vorhandene Preissuche, Händler/Preis/Link zusammen, Ergebnis für Folgeschritte nutzbar). Offen: Chef-KI als Standard-Dirigent (Entscheidung Dino), Foto-Anbindung, Selbstbezug „du = Jarvis“ |
+| P1 | Intelligenter KI-Dirigent (natürliche Sprache, Werkzeugwahl, Mehrfachaufgaben, Kombination, Selbstbezüge, gezielte Rückfragen, Fehlerbehandlung, Ergebnisprüfung, nichts erfinden) | In Arbeit | #377, #378 | Schritt 1 erledigt: Kette (Ergebnis eines lesenden Schritts an den nächsten), Erfolgsprüfung, Websuche als Ausweg – nur im Chef-KI-Weg (Standard AUS). Schritt 2 (Phase 3): Werkzeug `produktsuche` (nutzt die vorhandene Preissuche, Händler/Preis/Link zusammen, Ergebnis für Folgeschritte nutzbar). Offen: Chef-KI als Standard-Dirigent (Entscheidung Dino), Foto-Anbindung, Selbstbezug „du = Jarvis“ |
 | P1 | Automatische Internetrecherche ohne „Such im Internet“ | Geplant | – | Entscheidungsregel im Dirigenten (Teil des Dirigenten-Entwurfs) |
 | P1 | Intelligente Kamera (erkennt, was fotografiert wurde, bereitet Aktionen vor) | Geplant | – | An Werkzeugzentrale/Dirigent anbinden; Rechnung, Produkt/Ersatzteil, Visitenkarte, Gerät/Fehlercode, Text/Dokument; vorhandene `foto_*`-Dateien nutzen, **keine isolierte Zusatzfunktion**; verbindliche Aktionen nur mit Dinos Freigabe |
 | P1 | Natürliches Gespräch und Gedächtnis (Anschlussfragen, Kontext, Mehrdeutigkeit, Selbstbezüge „du/dich/deine Funktionen“, keine erfundenen Erinnerungen) | In Arbeit | #369, #370, #371, #372, #373 | Produktbereich fertig; Selbstbezüge und allgemeine Themen über den Dirigenten |
@@ -73,7 +73,7 @@ Status: Geplant, In Arbeit, Fertig, Blockiert. „Bestehendes nutzen“ heißt: 
 | #374 | Gezielte Händlersuche je Händler, Diagnose | gemergt |
 | #375 | Händlerlinks für tatsächlich angezeigte Angebote | gemergt |
 | #377 | Chef-KI Phase 2: lesende Ketten (`aus`), `pruefeErfolg` wirksam, Websuche-Ausweg für Wetter/Ortssuche; Standard weiter AUS | gemergt |
-| Phase 3 (`chef-produktsuche`) | Registry-Werkzeug `produktsuche` (`js/registry_produkt.js`) über die vorhandene Preissuche; Chef-KI darf es planen (höchstens 2 je Plan), kein Fallback auf freie Websuche | PR offen, nicht gemergt |
+| #378 | Registry-Werkzeug `produktsuche` (`js/registry_produkt.js`) über die vorhandene Preissuche; Chef-KI darf es planen (höchstens 2 je Plan), kein Fallback auf freie Websuche | PR offen, nicht gemergt |
 | #365 | Schichtzeiten (`jarvis-schichten`) | offen, nicht anfassen |
 | dieser PR | Masterplan + Regel in `CLAUDE.md` (nur Dokumentation) | siehe Abschnitt 8 |
 
