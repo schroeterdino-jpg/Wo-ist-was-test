@@ -23,6 +23,7 @@ function textVon(s) { return String(s); }
 function welt(opt) {
     opt = opt || {};
     const ls = opt.ls || speicher();
+    if (!opt.planung && ls.getItem('jv_studio_planung') == null) ls.setItem('jv_studio_planung', '0');   // alte Tests: Aufträge starten direkt wie vorher; die Planung testet Abschnitt 18
     const gesprochen = [], aufrufe = [], timers = [];
     const ctl = {   // Drehbuch der Attrappen; Tests setzen, was die "KI" und das "Netz" liefern
         ki: opt.ki || (() => ({})), suche: opt.suche || (() => ({ treffer: [] })), seite: opt.seite || (() => ({ status: 404, json: { error: 'nicht gefunden' } })),
@@ -143,7 +144,7 @@ async function auftrag(w, satz) { const r = w.c.jvStudioAuftrag.behandle(satz); 
         check('2g alle Schritte sind nacheinander abhängig', A.planeSchritte({ art: 'webapp' }).every((s, i) => i === 0 ? s.abhaengigVon.length === 0 : s.abhaengigVon[0] === 's' + i));
         const alleWerkzeuge = w.c.jvMission.werkzeuge.liste().map(x => x.name);
         check('2h jedes geplante Werkzeug ist im Missions-Kern registriert', ['recherche', 'webapp', 'dokument', 'aendern', 'apk'].every(a => A.planeSchritte({ art: a, ausgabe: 'dokument', mitApk: true }).every(s => alleWerkzeuge.indexOf(s.werkzeug) >= 0)), alleWerkzeuge);
-        check('2i 13 Werkzeuge registriert', alleWerkzeuge.filter(n => /^st_/.test(n)).length === 13, alleWerkzeuge.length);
+        check('2i 14 Werkzeuge registriert (13 bisherige + st_abgleich)', alleWerkzeuge.filter(n => /^st_/.test(n)).length === 14, alleWerkzeuge.length);
     }
 
     /* ---------- 3 Rückfragen statt Raten ---------- */
@@ -640,6 +641,316 @@ async function auftrag(w, satz) { const r = w.c.jvStudioAuftrag.behandle(satz); 
         check('17b ohne gespeicherte Daten: getItem liefert null wie ein leerer echter Speicher; JSON.parse(null) und Standardwerte funktionieren', imWorker('if(localStorage.getItem("x")!==null)throw new Error("nicht null");var d=JSON.parse(localStorage.getItem("x"));if(d!==null)throw new Error("x");localStorage.setItem("a","b");') === 'ok');
         check('17c Worker meldet seine Fehler nicht mehr als „Uncaught …“ nach oben (preventDefault im onerror)', /w\.onerror = function \(ev\) \{ try \{ ev\.preventDefault\(\); \} catch \(e\) \{ \} ende\(false\)/.test(QUELLEN['js/studio_werkzeuge.js']));
         check('16n bestehende Sprachbefehle und die APK-Technik unangetastet: Server-Aufrufe und Freigabe-Pflicht wie vorher', /freigabe:true|freigabe: true/.test(QUELLEN['js/studio_werkzeuge.js']) && !/dirigent/i.test(QUELLEN['js/studio_werkzeuge.js']));
+    }
+
+    /* ---------- 18. Planungsdialog: erst Konzept, Rückfrage, Bestätigung – gebaut wird nur nach eindeutigem Ja ---------- */
+    {
+        const D = w => w.c.jvStudioAuftrag;
+        const KONZEPT = { name: 'Autohaus Schwarzgold', stil: 'Edel und ruhig, große Fahrzeugbilder im Vordergrund.', farben: 'Schwarz, Anthrazit und Gold: wirkt hochwertig.', aufbau: ['Start mit Hauptbild', 'Fahrzeugsuche', 'Fahrzeugliste', 'Kontakt'], funktionen: ['Fahrzeugsuche mit Filtern', 'Große Bildgalerie', 'Anfrageformular', 'Telefon-Knopf'], nutzbarkeit: 'Große Knöpfe, Suche oben.', begruendung: 'Dunkle Flächen lassen Lack und Chrom glänzen.', frage: 'Sollen Kunden Fahrzeuge direkt anfragen können?', bemerkung: 'Ein Autohändler ohne Glanz wäre wie ein Auto ohne Räder.' };
+        const planKi = (zaehler, gesehen) => (sys, nutzer, b) => {
+            if (/Du bist Jarvis, ein kreativer/.test(sys)) { zaehler.n++; gesehen.push({ sys, nutzer }); if (zaehler.fehler) return new Error('Netz weg'); return Object.assign({}, KONZEPT, /Blau/i.test(nutzer) && /Änderungswunsch/.test(nutzer) ? { farben: 'Tiefblau mit Silber.' } : {}); }
+            return appPlan({ code: (s2, n2) => { gesehen.push({ code: n2 }); return { dateien: APP_DATEIEN }; } }).ki(sys, nutzer);
+        };
+        const neuePlanWelt = (extra) => { const z = { n: 0, fehler: false }, g = []; const w = welt(Object.assign({ planung: true, ki: planKi(z, g) }, extra || {})); laufPruefOk(w); return { w, z, g }; };
+        const AUTO = 'Jarvis, bau mir eine Website für einen Autohändler';
+        const baus = w => w.aufrufe.filter(a => /studio_bau/.test(a.url)).length;
+        const gesagt = (w, rx) => w.gesprochen.some(t => rx.test(t));
+
+        /* 18a einfache App: Planung stuft auf „direkt“, KEIN Konzeptaufruf */
+        { const { w, z } = neuePlanWelt(); const a = await auftrag(w, 'Jarvis, bau mir eine Zähler App');
+          check('18a einfache App (Zähler): startet direkt wie bisher, ohne Konzept-Aufruf', a.r === true && D(w).aktive().length === 1 && z.n === 0 && D(w).plan() === null, [z.n]); }
+        /* 18b komplexe Website: Konzept + genau EINE Frage, nichts gebaut */
+        const { w, z, g } = neuePlanWelt();
+        const r1 = D(w).behandle(AUTO); await warteBis(() => D(w).plan() && D(w).plan().phase === 'frage', 3000);
+        check('18b Website: Jarvis denkt erst nach, stellt eine Frage und startet KEINE Mission', r1 === true && D(w).plan().phase === 'frage' && D(w).aktive().length === 0 && D(w).planStufe(D(w).plan().e) === 'ausfuehrlich' && gesagt(w, /Eine Frage: Sollen Kunden Fahrzeuge direkt anfragen/) && gesagt(w, /Schwarz, Anthrazit und Gold/), w.gesprochen);
+        check('18c der Plan ist gespeichert (jv_studio_plan_v1), Studio ist die Fragen-Besitzerin', !!w.ls.getItem('jv_studio_plan_v1') && (!w.c.jvFrage || w.c.jvFrage.aktuell() === 'studio'));
+        /* 18d Zwischenfrage mitten im Plan */
+        check('18d Zwischenfrage „Wie wird morgen das Wetter?“ geht an normales Jarvis (false), der Plan bleibt offen', D(w).behandle('Wie wird morgen das Wetter?') === false && D(w).plan().phase === 'frage');
+        /* 18e Antwort → endgültiger Plan, nur EINE Frage */
+        const n0 = z.n; D(w).behandle('Ja, direkt anfragen'); await warteBis(() => D(w).plan() && D(w).plan().phase === 'bestaetigung', 3000);
+        check('18e Antwort eingearbeitet: neuer Plan, „Soll ich das so bauen?“, keine zweite Frage, noch keine Mission', z.n === n0 + 1 && /Antworten des Nutzers auf deine Frage: .*direkt anfragen/.test(g[g.length - 1].nutzer) && gesagt(w, /Soll ich das so bauen\?/) && w.gesprochen.filter(t => /Eine Frage:/.test(t)).length === 1 && D(w).aktive().length === 0 && D(w).plan().phase === 'bestaetigung', [z.n - n0, g[g.length - 1].nutzer, w.gesprochen.slice(-3)]);
+        check('18f trockener Humor höchstens einmal im Plan', w.gesprochen.filter(t => /ohne Räder/.test(t)).length === 1);
+        /* 18g Änderungswunsch: Plan überarbeiten, NICHT bauen */
+        const sp = w.gesprochen.length; D(w).behandle('Mach die Farben lieber Blau'); await warteBis(() => D(w).plan() && D(w).plan().phase === 'bestaetigung' && D(w).plan().konzept.farben === 'Tiefblau mit Silber.', 3000);
+        check('18g Änderungswunsch ändert nur den Plan (Farben blau), Mission startet nicht, Humor wird nicht wiederholt', D(w).aktive().length === 0 && D(w).plan().konzept.farben === 'Tiefblau mit Silber.' && gesagt(w, /Angepasst\./) && !w.gesprochen.slice(sp).some(t => /ohne Räder/.test(t)) && baus(w) === 0);
+        /* 18h Nein fragt nach, Plan bleibt */
+        D(w).behandle('Nein'); check('18h „Nein“ im Plan: Jarvis fragt, was zu ändern ist; Plan bleibt, nichts gebaut', D(w).plan() && D(w).aktive().length === 0 && gesagt(w, /Was soll ich ändern/));
+        /* 18i zwei offene Fragen: Ja startet nichts */
+        D(w)._setzeOffen({ art: 'projektwahl', erkannt: { art: 'zeigen' }, kand: [], bis: uhr.t + 60000 });
+        D(w).behandle('Ja'); await pause(10);
+        check('18i Plan + zweite offene Frage: ein nacktes „Ja“ führt NICHTS aus', D(w).aktive().length === 0 && D(w).plan() && gesagt(w, /mehrere offene Fragen/), [D(w).aktive().length, D(w).plan() && D(w).plan().phase, w.gesprochen.slice(-2)]);
+        D(w)._setzeOffen(null);
+        /* 18j Neustart: Plan wird wiederhergestellt; erstes Ja nennt den Plan nur noch einmal */
+        const w2 = welt({ planung: true, ls: w.ls, ki: planKi(z, g) }); laufPruefOk(w2);
+        check('18j Neustart: Plan ist wiederhergestellt (Phase Bestätigung, blaue Farben)', D(w2).plan() && D(w2).plan().phase === 'bestaetigung' && D(w2).plan().konzept.farben === 'Tiefblau mit Silber.');
+        D(w2).behandle('Ja'); await pause(10);
+        check('18k nach Neustart startet das erste „Ja“ NICHT, Jarvis nennt den Plan und bittet um ein zweites Ja', D(w2).aktive().length === 0 && w2.gesprochen.some(t => /Sag noch einmal Ja/.test(t)));
+        /* 18l Ja baut: Mission mit freigegebenem Konzept */
+        D(w2).behandle('Ja'); await warteBis(() => D(w2).aktive().length === 1, 3000); const ml = D(w2).aktive()[0]; await missionFertig(w2, ml.id);
+        const arb = w2.c.jvStudioProjekte.arbeit.hole(ml.id) || {};
+        check('18l eindeutiges Ja startet die bestehende Studio-Mission; das Konzept (blau, Antwort) geht verbindlich an die Werkzeuge', !!ml && /Tiefblau/.test(JSON.stringify(arb.konzept || '')) && /Ja, direkt anfragen/.test(JSON.stringify(arb.konzept || '')) && g.some(x => x.code && /Vom Nutzer freigegebenes Konzept/.test(x.code)) && D(w2).plan() === null && !w2.ls.getItem('jv_studio_plan_v1'), [arb.konzept]);
+        /* 18m Abbruch */
+        { const { w: wa, z: za } = neuePlanWelt(); D(wa).behandle(AUTO); await warteBis(() => D(wa).plan() && D(wa).plan().phase === 'frage', 3000);
+          D(wa).behandle('Abbrechen'); check('18m Abbrechen verwirft den Plan: nichts gebaut, nichts gespeichert', D(wa).plan() === null && D(wa).aktive().length === 0 && !wa.ls.getItem('jv_studio_plan_v1') && gesagt(wa, /verwerfe den Plan/)); }
+        /* 18n Zeitablauf */
+        { const { w: wb } = neuePlanWelt(); D(wb).behandle(AUTO); await warteBis(() => D(wb).plan() && D(wb).plan().phase === 'frage', 3000);
+          uhr.t += 21 * 60000; D(wb).behandle('Ja'); await pause(10); uhr.t -= 21 * 60000;
+          check('18n 20 Minuten ohne Antwort: Plan verfällt, ein spätes „Ja“ baut nichts und Jarvis sagt es ehrlich', D(wb).plan() === null && D(wb).aktive().length === 0 && gesagt(wb, /Plan ist abgelaufen/)); }
+        /* 18o KI fällt aus: ehrlich melden, nicht heimlich bauen, mit Ja trotzdem direkt */
+        { const { w: wc, z: zc } = neuePlanWelt(); zc.fehler = true; D(wc).behandle(AUTO); await warteBis(() => D(wc).plan() && D(wc).plan().phase === 'bestaetigung', 3000);
+          check('18o KI-Fehler: Jarvis sagt es, fragt „trotzdem direkt bauen?“ und startet nichts von selbst', D(wc).aktive().length === 0 && D(wc).plan().konzept === null && gesagt(wc, /nicht entwickeln.*trotzdem direkt bauen/));
+          zc.fehler = false; D(wc).behandle('Ja'); await warteBis(() => D(wc).aktive().length === 1, 3000);
+          check('18p erst das ausdrückliche Ja startet dann direkt', D(wc).aktive().length === 1 && !(wc.c.jvStudioProjekte.arbeit.hole(D(wc).aktive()[0].id) || {}).konzept); }
+        /* 18q APK: das Ja zum Plan ist KEINE APK-Freigabe */
+        { const { w: wd } = neuePlanWelt(); D(wd).behandle('Jarvis, bau mir eine Website für einen Autohändler und mach eine APK daraus'); await warteBis(() => D(wd).plan() && D(wd).plan().phase !== 'denkt', 3000);
+          if (D(wd).plan() && D(wd).plan().phase === 'frage') { D(wd).behandle('Ja'); await warteBis(() => D(wd).plan() && D(wd).plan().phase === 'bestaetigung', 3000); }
+          D(wd).behandle('Ja'); await warteBis(() => D(wd).aktive().length === 1, 3000); const mq = D(wd).aktive()[0]; await missionFertig(wd, mq && mq.id);
+          check('18q Plan-Ja ≠ APK-Freigabe: die Mission wartet auf die eigene APK-Freigabe, kein Bau-Aufruf', !!mq && wd.c.jvMission.hole(mq.id).status === 'wartet_freigabe' && baus(wd) === 0, [mq && wd.c.jvMission.hole(mq.id).status, baus(wd)]); }
+        /* 18r Schalter und Nachfrage per Sprache */
+        { const { w: we } = neuePlanWelt(); check('18r „Wie war der Plan?“ ohne offenen Plan: ehrliche Antwort', D(we).behandle('Wie war der Plan?') === true && gesagt(we, /kein Plan offen/));
+          D(we).behandle('Planung aus'); check('18s „Planung aus“ schaltet auf direktes Bauen: Website startet sofort', we.ls.getItem('jv_studio_planung') === '0' && (D(we).behandle(AUTO), D(we).aktive().length === 1 && D(we).plan() === null)); }
+        /* 18t neuer, anderer Auftrag ersetzt einen offenen Plan nicht stillschweigend: Plan weg, neuer Auftrag läuft */
+        { const { w: wf } = neuePlanWelt(); D(wf).behandle(AUTO); await warteBis(() => D(wf).plan() && D(wf).plan().phase === 'frage', 3000);
+          D(wf).behandle('Jarvis, recherchiere die Preise für Wallboxen'); check('18t ein anderer Auftrag (Recherche) ersetzt den offenen Plan; es läuft genau eine Mission', D(wf).plan() === null && D(wf).aktive().length === 1 && wf.c.jvStudioProjekte.arbeit.hole(D(wf).aktive()[0].id).art === 'recherche'); }
+        /* 18v Plan-Karte: zeigt Konzept, Knopf „Ja, bauen“ startet; vorher nichts */
+        { const { w: wg } = neuePlanWelt(); D(wg).behandle(AUTO); await warteBis(() => D(wg).plan() && D(wg).plan().phase === 'frage', 3000);
+          const An = wg.c.jvStudioAnsicht, h1 = An.html();
+          check('18v Plan-Karte in der Frage-Phase: Konzept sichtbar, noch KEIN „Ja, bauen“-Knopf', /Autohaus Schwarzgold/.test(h1) && /Sollen Kunden Fahrzeuge/.test(h1) && !/planJa/.test(h1));
+          D(wg).behandle('Ja'); await warteBis(() => D(wg).plan() && D(wg).plan().phase === 'bestaetigung', 3000);
+          check('18w Plan-Karte in der Bestätigung: Knöpfe „Ja, bauen“ und „Abbrechen“, noch keine Mission', /planJa/.test(An.html()) && /planAbbruch/.test(An.html()) && D(wg).aktive().length === 0);
+          An.aktion('planJa'); await warteBis(() => D(wg).aktive().length === 1, 3000);
+          check('18x Knopf „Ja, bauen“ startet die Mission und der Plan ist weg', D(wg).aktive().length === 1 && D(wg).plan() === null); }
+        /* 18u APK-Technik und Server unverändert */
+        check('18u APK-Bau unangetastet: Freigabe-Pflicht im Werkzeug, Plan setzt nie freigabe', /freigabe:true|freigabe: true/.test(QUELLEN['js/studio_werkzeuge.js']) && !/freigeben\(/.test(QUELLEN['js/studio_auftrag.js'].split('PLANUNGSDIALOG')[1].split('Projekt finden')[0]));
+    }
+
+    /* ---------- 19. Überarbeitung nach Prüfbericht: Sprachverständnis, zwei Richtungen, verbindliche Übergabe, Abgleich Ergebnis ↔ Plan, verlorener Plan ---------- */
+    {
+        const D = w => w.c.jvStudioAuftrag;
+        const K2 = { name: 'Autohaus Schwarzgold', richtung: 'Edel und dunkel', stil: 'Edel und ruhig, große Flächen.', farben: 'Schwarz, Anthrazit und Gold: wirkt hochwertig.', farbcodes: ['#0b0b0c', '#2b2d31', '#c9a24b'], layout: 'Raster mit großen Karten.', animationen: 'Sanftes Einblenden der Karten.', grafik: 'SVG-Fahrzeugsilhouetten.', aufbau: ['Start', 'Fahrzeugsuche', 'Fahrzeugliste', 'Kontakt'], funktionen: ['Fahrzeugsuche mit Filtern', 'Bildgalerie aus Grafiken', 'Anfrageformular', 'Telefon-Knopf'], stichworte: ['Fahrzeug', 'Anfrage', 'Händler'], nutzbarkeit: 'Große Knöpfe, Suche oben.', begruendung: 'Dunkle Flächen lassen Lack glänzen.', frage: 'Sollen Kunden Fahrzeuge direkt anfragen können?', bemerkung: '',
+            alternative: { richtung: 'Hell und frisch', stil: 'Hell und freundlich, viel Weiß.', farben: 'Weiß mit frischem Grün.', farbcodes: ['#ffffff', '#2e7d32'], layout: 'Große Bildflächen.', animationen: 'keine', begruendung: 'Wirkt offen und einladend.' } };
+        const GUT = [
+            { pfad: 'index.html', inhalt: '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="style.css"><title>Autohaus</title></head><body><h1>Händler: Fahrzeug Suche</h1><svg width="40" height="20"><rect width="40" height="20"/></svg><form><button>Anfrage senden</button></form><script src="app.js"></script></body></html>' },
+            { pfad: 'style.css', inhalt: ':root{--a:#0b0b0c;--b:#2b2d31;--c:#c9a24b}body{background:var(--a);color:#fff;font-size:18px;animation:ein .6s}@keyframes ein{from{opacity:0}to{opacity:1}}@media (prefers-reduced-motion:reduce){body{animation:none}}' },
+            { pfad: 'app.js', inhalt: 'document.querySelector("button").onclick=function(e){e.preventDefault()}' }
+        ];
+        const w19 = (opt) => {
+            opt = opt || {}; const c = { plan: 0, code: 0, korr: 0, pruef: 0, anf: 0, codeNutzer: [], codeSys: [], planSys: [], planNutzer: [] };
+            const ki = (sys, nutzer) => {
+                if (/Du bist Jarvis, ein kreativer/.test(sys)) { c.plan++; c.planSys.push(sys); c.planNutzer.push(nutzer); if (opt.planFehler) return new Error('Netz weg'); const k = JSON.parse(JSON.stringify(opt.konzept || K2)); if (/Änderungswunsch/.test(nutzer) && /Blau/i.test(nutzer)) k.farben = 'Tiefblau'; return k; }
+                if (/Du prüfst, ob fertiger Code/.test(sys)) { c.pruef++; if (opt.pruefKi) return opt.pruefKi(nutzer, c); return { funktionen: [true, true, true, true], aufbau_passt: true, farben_passen: true, fehler: [] }; }
+                if (/Du korrigierst eine kleine Web-App/.test(sys)) { c.korr++; c.codeNutzer.push(nutzer); return opt.korrektur ? opt.korrektur(c) : { dateien: GUT }; }
+                if (/Du schreibst kleine, saubere Web-Apps/.test(sys)) { c.code++; c.codeSys.push(sys); c.codeNutzer.push(nutzer); return opt.code ? opt.code(c) : { dateien: GUT }; }
+                if (/Du bist Produktplaner/.test(sys)) { c.anf++; return { name: 'X', art: 'app', funktionen: ['a'], design: 'd' }; }
+                return {};
+            };
+            const w = welt({ planung: true, ki, ls: opt.ls }); laufPruefOk(w); return { w, c };
+        };
+        const AUTO = 'Jarvis, bau mir eine Website für einen Autohändler';
+        const bis = (W, ph) => warteBis(() => D(W.w).plan() && D(W.w).plan().phase === ph, 3000);
+        const zumPlan = async (W, text) => { D(W.w).behandle(text || AUTO); await bis(W, 'frage'); D(W.w).behandle('Ja'); await bis(W, 'bestaetigung'); };
+        const bauen = async (W, satz) => { D(W.w).behandle(satz || 'Ja'); await warteBis(() => D(W.w).letzte(), 3000); const m = D(W.w).letzte(); if (m) await missionFertig(W.w, m.id, 8000); return m ? W.w.c.jvMission.hole(m.id) : null; };
+        const sagt = (W, rx) => W.w.gesprochen.some(t => rx.test(t));
+
+        /* 19a Zustimmung in natürlicher Sprache */
+        for (const satz of ['Ja, bau los', 'Mach es', 'Ja bitte, bau es jetzt', 'Los', 'Bau es', 'Ja bitte bau es jetzt los', 'Okay mach es', 'Jarvis, ja bau los', 'Leg los', 'Ja, bau die Website']) {
+            const W = w19(); await zumPlan(W); D(W.w).behandle(satz); await warteBis(() => D(W.w).aktive().length === 1, 2000);
+            check('19a „' + satz + '“ ist eine eindeutige Zustimmung: Mission startet', D(W.w).aktive().length === 1 && D(W.w).plan() === null, [satz, W.w.gesprochen.slice(-1)]);
+        }
+        /* 19b Floskeln ändern den Plan nicht */
+        for (const satz of ['Danke', 'Moment', 'Hm', 'Warte kurz', 'Okay danke Jarvis', 'Noch nicht', 'Ich denke nach']) {
+            const W = w19(); await zumPlan(W); const n0 = W.c.plan; D(W.w).behandle(satz); await pause(20);
+            check('19b „' + satz + '“ löst KEINE Planänderung und keinen Bau aus', W.c.plan === n0 && D(W.w).aktive().length === 0 && D(W.w).plan() && D(W.w).plan().phase === 'bestaetigung' && D(W.w).plan().aenderungenText.length === 0 && sagt(W, /Kein Stress/), [satz, W.c.plan - n0]);
+        }
+        /* 19c mehrdeutige Antworten */
+        for (const satz of ['Ja oder nein', 'Ja aber', 'Vielleicht', 'Ja nein', 'Weiß nicht']) {
+            const W = w19(); await zumPlan(W); const n0 = W.c.plan; D(W.w).behandle(satz); await pause(20);
+            check('19c „' + satz + '“ ist mehrdeutig: nichts gebaut, kein neuer Plan, Jarvis fragt nach', W.c.plan === n0 && D(W.w).aktive().length === 0 && D(W.w).plan().phase === 'bestaetigung' && sagt(W, /nicht eindeutig verstanden/), [satz, W.w.gesprochen.slice(-1)]);
+        }
+        /* 19d konkrete Änderung bleibt eine Änderung */
+        { const W = w19(); await zumPlan(W); const n0 = W.c.plan; D(W.w).behandle('Ja aber mit blauen Farben'); await bis(W, 'bestaetigung'); await pause(10);
+          check('19d „Ja aber mit blauen Farben“ überarbeitet den Plan (neue KI-Runde, Farben blau), baut nicht', W.c.plan === n0 + 1 && D(W.w).plan().konzept.farben === 'Tiefblau' && D(W.w).aktive().length === 0); }
+        /* 19e Frage-Phase: Floskel erinnert an die Frage, „Mach es“ gilt als Ja-Antwort */
+        { const W = w19(); D(W.w).behandle(AUTO); await bis(W, 'frage'); D(W.w).behandle('Moment'); await pause(10);
+          check('19e Frage-Phase: „Moment“ wiederholt die Frage, Plan bleibt in der Frage-Phase', D(W.w).plan().phase === 'frage' && sagt(W, /Meine Frage war: Sollen Kunden/));
+          D(W.w).behandle('Mach es'); await bis(W, 'bestaetigung');
+          check('19f Frage-Phase: „Mach es“ ist die Antwort Ja; danach Bestätigung, noch keine Mission', D(W.w).plan().phase === 'bestaetigung' && D(W.w).plan().antworten[0] === 'Ja' && D(W.w).aktive().length === 0); }
+        /* 19g Sicherheitsregel bei mehreren offenen Rückfragen gilt auch für die neuen Zustimmungswörter */
+        for (const satz of ['Mach es', 'Ja, bau los', 'Nein']) {
+            const W = w19(); await zumPlan(W); D(W.w)._setzeOffen({ art: 'projektwahl', erkannt: { art: 'zeigen' }, kand: [], bis: uhr.t + 60000 }); D(W.w).behandle(satz); await pause(10);
+            check('19g zwei offene Fragen: „' + satz + '“ führt nichts aus', D(W.w).aktive().length === 0 && D(W.w).plan() && sagt(W, /mehrere offene Fragen/));
+        }
+        /* 19h zwei Gestaltungsrichtungen bei Websites */
+        { const W = w19(); await zumPlan(W); const k = D(W.w).plan().konzept;
+          check('19h Website: Konzept hat zwei deutlich verschiedene Richtungen, Jarvis nennt die zweite', !!k.alternative && k.alternative.farben !== k.farben && sagt(W, /zweite Richtung: Hell und frisch/) && /„alternative“|"alternative"/.test(W.c.planSys[0]));
+          const n0 = W.c.plan; D(W.w).behandle('Richtung B'); await pause(10);
+          check('19i „Richtung B“ wechselt ohne neue KI-Anfrage und ohne Bau; Konzept zeigt Grün/Weiß', W.c.plan === n0 && D(W.w).plan().konzept.farben === 'Weiß mit frischem Grün.' && D(W.w).plan().konzept.farbcodes.indexOf('#2e7d32') >= 0 && D(W.w).aktive().length === 0 && D(W.w).plan().konzept.alternative.richtung === 'Edel und dunkel');
+          D(W.w).behandle('Richtung B'); check('19j nochmal „Richtung B“: Hinweis „schon die aktuelle“, kein Wechsel', sagt(W, /schon die aktuelle Richtung/) && D(W.w).plan().konzept.richtung === 'Hell und frisch');
+          D(W.w).behandle('Nimm Richtung A'); check('19k „Nimm Richtung A“ wechselt zurück', D(W.w).plan().konzept.richtung === 'Edel und dunkel' && D(W.w).plan().konzept.farbcodes[0] === '#0b0b0c');
+          D(W.w).behandle('Richtung B'); const m = await bauen(W, 'Ja bau los'); const arb = W.w.c.jvStudioProjekte.arbeit.hole(m.id) || {};
+          check('19l die gewählte Richtung B geht an den Bau (Farbcodes der Richtung B im Code-Auftrag)', /#2e7d32/.test(W.c.codeNutzer[0]) && !/#c9a24b/.test(W.c.codeNutzer[0].split('Antworten des Nutzers')[0]) );
+          const wk = w19(); D(wk.w).behandle('Jarvis, bau mir eine App für meine Einkaufsliste'); await bis(wk, 'frage'); D(wk.w).behandle('Ja'); await bis(wk, 'bestaetigung');
+          check('19m kompakte App: keine zweite Richtung angefordert', !/"alternative"/.test(wk.c.planSys[0]) && !wk.c.planNutzer[0].includes('zweite')); }
+        /* 19n Konzept wird VOLLSTÄNDIG und strukturiert übergeben (keine Kürzung auf 900 Zeichen) */
+        { const lang = JSON.parse(JSON.stringify(K2)); lang.funktionen = Array.from({ length: 8 }, (_, i) => 'Funktion Nummer ' + i + ' mit längerer Beschreibung für den Test der Übergabe ohne Kürzung hier'); lang.aufbau = ['Bereich eins mit Text', 'Bereich zwei mit Text', 'Bereich drei', 'Bereich vier', 'Bereich fünf', 'Bereich sechs'];
+          const W = w19({ konzept: lang }); await zumPlan(W); D(W.w).behandle('Mach die Farben blau'); await bis(W, 'bestaetigung'); await pause(10);
+          const m = await bauen(W, 'Ja'); const nutzer = W.c.codeNutzer[0] || '';
+          check('19n Code-Auftrag enthält ALLE 8 Funktionen, alle Bereiche, Farbcodes, Antwort und Änderungswunsch (Konzeptblock > 900 Zeichen)', lang.funktionen.every(f => nutzer.indexOf(f) >= 0) && lang.aufbau.every(f => nutzer.indexOf(f) >= 0) && /#0b0b0c/.test(nutzer) && /Antworten des Nutzers: Ja/.test(nutzer) && /Änderungswünsche des Nutzers.*blau/i.test(nutzer) && nutzer.split('VERBINDLICH')[1].length > 900, nutzer.length);
+          const arb = W.w.c.jvStudioProjekte.arbeit.hole(m.id) || {};
+          check('19o Anforderungen kommen aus dem Konzept (kein Produktplaner-Aufruf): Funktionen identisch', W.c.anf === 0 && arb.spec && arb.spec.funktionen.join('|') === lang.funktionen.join('|') && arb.spec.art === 'webseite' && typeof arb.konzept === 'object', [W.c.anf, arb.spec]);
+          check('19p Mission hat bei Konzept 5 Schritte mit st_abgleich nach st_code; ohne Konzept (Planung aus) 4 wie bisher', m.schritte.map(x => x.werkzeug).join() === 'st_anforderungen,st_code,st_abgleich,st_pruefen,st_speichern' && (() => { const wp = welt(appPlan()); laufPruefOk(wp); wp.c.jvStudioAuftrag.behandle('Jarvis, bau mir eine Zähler App'); return wp.c.jvStudioAuftrag.letzte().schritte.map(x => x.werkzeug).join() === 'st_anforderungen,st_code,st_pruefen,st_speichern'; })()); }
+        /* 19q Abgleich bestanden */
+        { const W = w19(); await zumPlan(W); const m = await bauen(W); const abg = m.schritte.find(x => x.werkzeug === 'st_abgleich');
+          check('19q passendes Ergebnis: Abgleich bestanden, KEIN Korrekturversuch, Mission abgeschlossen', m.status === 'abgeschlossen' && W.c.korr === 0 && W.c.pruef === 1 && /Abgleich bestanden/.test(JSON.stringify(abg)), [m.status, W.c.korr, abg && abg.status]);
+          check('19r Abschlussmeldung ohne Vorbehalt', /ist fertig, geprüft und gespeichert/.test(D(W.w).abschlussSatz(m.id)) && !/weicht aber/.test(D(W.w).abschlussSatz(m.id))); }
+        /* 19s VÖLLIG falsches Ergebnis (Zähler statt Autohaus) wird erkannt: ein Korrekturversuch, dann ehrlich fehlgeschlagen, nichts gespeichert */
+        { const W = w19({ code: () => ({ dateien: APP_DATEIEN }), korrektur: () => ({ dateien: APP_DATEIEN }) }); await zumPlan(W); const m = await bauen(W);
+          check('19s falsches Ergebnis: genau EIN Korrekturversuch, Mission „fehlgeschlagen“ mit klarer Begründung', m.status === 'fehlgeschlagen' && W.c.korr === 1 && /passt nicht zum freigegebenen Plan/.test(JSON.stringify(m)) && /Begriffe aus dem Konzept fehlen/.test(JSON.stringify(m)), [m.status, W.c.korr]);
+          check('19t falsches Ergebnis: nichts gespeichert, Mission nicht abgeschlossen, keine Erfolgsmeldung gesprochen', W.w.c.jvStudioProjekte.liste().length === 0 && m.status !== 'abgeschlossen' && !sagt(W, /ist fertig, geprüft|gespeichert und läuft/), W.w.gesprochen.slice(-2)); }
+        /* 19u Korrektur rettet das Ergebnis */
+        { const W = w19({ code: () => ({ dateien: APP_DATEIEN }), korrektur: () => ({ dateien: GUT }) }); await zumPlan(W); const m = await bauen(W); const abg = m.schritte.find(x => x.werkzeug === 'st_abgleich');
+          const pr = W.w.c.jvStudioProjekte.liste()[0];
+          check('19u falscher erster Entwurf, Korrektur trifft: Mission abgeschlossen, Beleg „nach einer Korrektur“, gespeichert sind die KORRIGIERTEN Dateien', m.status === 'abgeschlossen' && W.c.korr === 1 && /nach einer Korrektur bestanden/.test(JSON.stringify(abg)) && pr && pr.dateien.some(f => /Händler/.test(f.inhalt)), [m.status, W.c.korr]);
+          check('19v der Korrektur-Auftrag nennt die Abweichungen und das Konzept', /Abweichungen, die behoben werden müssen/.test(W.c.codeNutzer[1]) && /Begriffe aus dem Konzept fehlen/.test(W.c.codeNutzer[1]) && /#c9a24b/.test(W.c.codeNutzer[1])); }
+        /* 19w leichte Abweichung bleibt ehrlich sichtbar: Funktion fehlt, Mission abgeschlossen, Meldung mit Vorbehalt */
+        { const W = w19({ pruefKi: () => ({ funktionen: [true, true, false, true], aufbau_passt: true, farben_passen: true, fehler: [] }) }); await zumPlan(W); const m = await bauen(W); const arb = W.w.c.jvStudioProjekte.arbeit.hole(m.id) || {};
+          check('19w eine Funktion fehlt auch nach der Korrektur: Mission läuft zu Ende, Abweichung benannt und gespeichert', m.status === 'abgeschlossen' && W.c.korr === 1 && (arb.abweichungen || []).some(x => /Anfrageformular/.test(x)), [m.status, arb.abweichungen]);
+          check('19x Abschlussmeldung behauptet KEINEN reinen Erfolg, sondern nennt die Abweichung', /weicht aber vom freigegebenen Plan ab: .*Anfrageformular/.test(D(W.w).abschlussSatz(m.id)) && !/ist fertig, geprüft und gespeichert/.test(D(W.w).abschlussSatz(m.id)), D(W.w).abschlussSatz(m.id)); }
+        /* 19y KI-Gegenprüfung fällt aus: feste Prüfungen gelten, Hinweis, kein Absturz */
+        { const W = w19({ pruefKi: () => new Error('Netz weg') }); await zumPlan(W); const m = await bauen(W); const abg = m.schritte.find(x => x.werkzeug === 'st_abgleich');
+          check('19y KI-Gegenprüfung nicht möglich, Ergebnis aber passend: bestanden mit ehrlichem Hinweis', m.status === 'abgeschlossen' && /zweite KI-Prüfung war nicht möglich/.test(JSON.stringify(abg)));
+          const W2 = w19({ pruefKi: () => new Error('Netz weg'), code: () => ({ dateien: APP_DATEIEN }), korrektur: () => ({ dateien: APP_DATEIEN }) }); await zumPlan(W2); const m2 = await bauen(W2);
+          check('19z ohne KI-Gegenprüfung wird ein völlig falsches Ergebnis trotzdem durch die festen Prüfungen erkannt', m2.status === 'fehlgeschlagen'); }
+        /* 19A unbrauchbare Korrektur (ohne index.html) wird abgelehnt, die erste Fassung bleibt, ehrlich fehlgeschlagen */
+        { const W = w19({ code: () => ({ dateien: APP_DATEIEN }), korrektur: () => ({ dateien: [{ pfad: 'app.js', inhalt: 'x' }] }) }); await zumPlan(W); const m = await bauen(W);
+          check('19A abgelehnte Korrektur: erste Fassung bleibt, Mission fehlgeschlagen, Grund genannt', m.status === 'fehlgeschlagen' && /abgelehnt/.test(JSON.stringify(m)) && W.w.c.jvStudioProjekte.liste().length === 0); }
+        /* 19B Stufen: Kleinstwerkzeug-Erkennung */
+        { const W = w19(); const st = t => { const e = D(W.w).erkenne(t); return e && e.art === 'webapp' ? D(W.w).planStufe(e) : 'kein-auftrag'; };
+          const soll = { 'Bau mir eine Zähler App': 'direkt', 'Bau mir einen Taschenrechner': 'direkt', 'Bau mir eine Timer App': 'direkt', 'Bau mir einen Rechner für meine Spritkosten': 'direkt', 'Bau mir einen Rechner für Spritkosten mit Verlauf und Export': 'kompakt', 'Bau mir einen Rechner mit Tilgungsplan und Diagramm': 'kompakt', 'Bau mir eine App für meine Einkaufsliste': 'kompakt', 'Bau mir eine Website für einen Autohändler': 'ausfuehrlich', 'Erstelle eine Webseite für meinen Garten': 'ausfuehrlich' };
+          const ist = {}; Object.keys(soll).forEach(t => { ist[t] = st(t); });
+          check('19B Stufen: kleine Werkzeuge direkt, Rechner mit Verlauf/Export/Diagramm geplant, Websites ausführlich', Object.keys(soll).every(t => ist[t] === soll[t]), ist); }
+        /* 19C verlorener Plan nach Neustart während des Denkens */
+        { let frei; const c = { n: 0 }; const hang = (sys) => { if (/Du bist Jarvis, ein kreativer/.test(sys)) { c.n++; if (c.n === 1) return new Promise(r => { frei = () => r(K2); }); return K2; } return {}; };
+          const w1 = welt({ planung: true, ki: hang }); D(w1).behandle(AUTO); await pause(20);
+          check('19C Plan im Zustand „denkt“ ist gespeichert', !!w1.ls.getItem('jv_studio_plan_v1') && D(w1).plan().phase === 'denkt');
+          const w2 = welt({ planung: true, ls: w1.ls, ki: hang }); laufPruefOk(w2);
+          check('19D nach Neustart: Plan ist „verloren“, die Karte zeigt die Meldung mit Knopf, es wird nichts gebaut und nicht gesprochen', D(w2).plan() && D(w2).plan().phase === 'verloren' && /Plan verloren/.test(w2.c.jvStudioAnsicht.html()) && /planJa/.test(w2.c.jvStudioAnsicht.html()) && D(w2).aktive().length === 0 && w2.gesprochen.length === 0);
+          D(w2).behandle('Danke'); check('19E sobald der Nutzer etwas sagt, erklärt Jarvis es verständlich', w2.gesprochen.some(t => /ging beim Neustart verloren/.test(t)) && c.n === 1 && D(w2).aktive().length === 0);
+          D(w2).behandle('Wie war der Plan?'); check('19F „Wie war der Plan?“ nennt den Verlust', w2.gesprochen.filter(t => /ging beim Neustart verloren/.test(t)).length >= 2);
+          D(w2).behandle('Ja'); await warteBis(() => D(w2).plan() && D(w2).plan().phase === 'frage', 3000);
+          check('19G ein Ja startet nur das NEUE Nachdenken (KI-Aufruf), die Mission startet nicht', c.n === 2 && D(w2).aktive().length === 0 && D(w2).plan().phase === 'frage');
+          frei && frei(); }
+        /* 19H verlorener Plan: Abbrechen verwirft, Knopf „Ja, neu überlegen“ */
+        { let c = 0; const ki2 = (sys) => /Du bist Jarvis, ein kreativer/.test(sys) ? (c++ === 0 ? new Promise(() => { }) : K2) : {};
+          const w1 = welt({ planung: true, ki: ki2 }); D(w1).behandle(AUTO); await pause(20); const w2 = welt({ planung: true, ls: w1.ls, ki: ki2 }); laufPruefOk(w2);
+          w2.c.jvStudioAnsicht.aktion('planJa'); await warteBis(() => D(w2).plan() && D(w2).plan().phase === 'frage', 3000);
+          check('19H Knopf „Ja, neu überlegen“ denkt neu nach, baut nichts', D(w2).plan() && D(w2).plan().phase === 'frage' && D(w2).aktive().length === 0);
+          const w3 = welt({ planung: true, ls: w1.ls, ki: ki2 }); D(w3).behandle('Abbrechen'); check('19I verlorener Plan: „Abbrechen“ räumt auf (Plan weg, nichts gespeichert, nichts gebaut)', D(w3).plan() === null && !w3.ls.getItem('jv_studio_plan_v1') && D(w3).aktive().length === 0); }
+        /* 19J Zwei-Ja-Sicherung nach Neustart bleibt */
+        { const W = w19(); await zumPlan(W); const w2 = welt({ planung: true, ls: W.w.ls, ki: () => ({}) }); laufPruefOk(w2); D(w2).behandle('Mach es'); await pause(10);
+          check('19J nach Neustart reicht auch „Mach es“ nicht für den Bau (Zwei-Ja-Sicherung)', D(w2).aktive().length === 0 && w2.gesprochen.some(t => /Sag noch einmal Ja/.test(t))); }
+        /* 19K Kreativität: Prompt verbietet Einheitslook, nennt Machbares, Anstoß wechselt, Farbcodes werden gefiltert */
+        { const W = w19(); const sysP = (async () => { })(); const gesehen = new Set(); let letzterSys = '';
+          const wk = welt({ planung: true, ki: (sys, nutzer) => { if (/Du bist Jarvis, ein kreativer/.test(sys)) { letzterSys = sys; const m = /Gestaltungsanstoß[^:]*: ([^\n]+)/.exec(nutzer); if (m) gesehen.add(m[1]); return Object.assign({}, K2, { farbcodes: ['#abc', 'rot', '#12345', '#A1B2C3', 'javascript:x'] }); } return {}; } });
+          let k; for (let i = 0; i < 40; i++) k = await wk.c.jvStudioWerkzeuge.planeKonzept({ thema: 'Test', stufe: 'kompakt' });
+          check('19K der Gestaltungsanstoß wechselt (mindestens 5 verschiedene in 40 Aufrufen) — kein starres Muster', gesehen.size >= 5, gesehen.size);
+          check('19L Farbcodes werden geprüft: nur gültige Hex-Werte kommen durch', J(k.farbcodes) === J(['#abc', '#a1b2c3']), k.farbcodes);
+          check('19M KI-Auftrag: kein „alles dunkel“, Machbares (Inline-SVG, Animationen) und Nicht-Machbares (Fotos) benannt, Humor nur optional', /Vermeide die Standardkombination/.test(letzterSys) && /Inline-SVG/.test(letzterSys) && /NICHT umsetzbar: Fotos/.test(letzterSys) && /im Zweifel leer/.test(letzterSys));
+          const k2 = await wk.c.jvStudioWerkzeuge.planeKonzept({ thema: 'Test', stufe: 'kompakt', altKonzept: K2, aenderung: 'blau' });
+          let nu = ''; const wn = welt({ planung: true, ki: (sys, nutzer) => { nu = nutzer; return K2; } }); await wn.c.jvStudioWerkzeuge.planeKonzept({ thema: 'Test', stufe: 'kompakt', altKonzept: K2, aenderung: 'blau' });
+          check('19N in Änderungsrunden gibt es keinen neuen Zufallsanstoß, aber das bisherige Konzept und den Wunsch', !/Gestaltungsanstoß/.test(nu) && /Bisheriges Konzept/.test(nu) && /Änderungswunsch/.test(nu)); }
+        /* 19O feste Designregeln entfernt, SVG und Animation erlaubt (Sicherheitsgrenzen bleiben) */
+        { const W = w19(); await zumPlan(W); await bauen(W); const sysC = W.c.codeSys[0] || '';
+          check('19O Code-Regeln: kein festes „dunkles, ruhiges Design“ mehr; Inline-SVG, Animationen, prefers-reduced-motion genannt; Netz/Fremdadressen bleiben verboten', !/dunkles, ruhiges Design/.test(sysC) && /Inline-SVG/.test(sysC) && /prefers-reduced-motion/.test(sysC) && /kein fetch/.test(sysC) && /keine externen Schriften oder Bilder/.test(sysC));
+          const D2 = welt().c.jvStudioDateien; const svgSeite = [{ pfad: 'index.html', inhalt: '<html><body><svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg><style>@keyframes a{to{opacity:.5}}</style></body></html>' }];
+          const ext = [{ pfad: 'index.html', inhalt: '<html><body><img src="https://fremd.example/x.png"></body></html>' }];
+          check('19P Dateiprüfung: Inline-SVG und Animation ohne Warnung; Fremdadresse bleibt eine Warnung (CSP blockt sie ohnehin)', D2.pruefeProjekt(svgSeite).ok && D2.pruefeProjekt(svgSeite).warnungen.length === 0 && D2.pruefeProjekt(ext).warnungen.length === 1 && /default-src 'none'/.test(D2.CSP) && /img-src data: blob:/.test(D2.CSP)); }
+        /* 19Q APK-Freigabe unverändert: Plan-Ja ist keine APK-Freigabe; der Bau-Aufruf bleibt hinter der eigenen Freigabe */
+        { const W = w19(); await zumPlan(W, 'Jarvis, bau mir eine Website für einen Autohändler und mach eine APK daraus'); const m = await bauen(W);
+          check('19Q Mission mit APK-Wunsch: nach Plan-Ja wartet sie auf die APK-Freigabe, kein Bau-Aufruf, Schritt st_apk_bau steht NACH dem Abgleich', m && m.status === 'wartet_freigabe' && W.w.aufrufe.filter(a => /studio_bau/.test(a.url)).length === 0 && m.schritte.map(x => x.werkzeug).join() === 'st_anforderungen,st_code,st_abgleich,st_pruefen,st_speichern,st_apk_bau', m && m.schritte.map(x => x.werkzeug).join()); }
+        /* 19T „Studio aus“ verwirft einen offenen Plan; ein späteres Ja (Sprache oder Knopf) startet NIE einen Bau */
+        for (const phase of ['frage', 'bestaetigung']) {
+            const W = w19(); D(W.w).behandle(AUTO); await bis(W, 'frage'); if (phase === 'bestaetigung') { D(W.w).behandle('Ja'); await bis(W, 'bestaetigung'); }
+            const An = W.w.c.jvStudioAnsicht; D(W.w).behandle('Studio aus');
+            check('19T [' + phase + '] „Studio aus“ verwirft den offenen Plan (Plan weg, Speicher leer, Studio aus)', D(W.w).plan() === null && !W.w.ls.getItem('jv_studio_plan_v1') && W.w.ls.getItem('jv_studio') === '0');
+            for (const satz of ['Ja', 'Mach es', 'Ja, bau los', 'Plan bauen']) D(W.w).behandle(satz);
+            An.aktion('planJa'); await pause(60);
+            check('19U [' + phase + '] danach startet weder ein „Ja“ noch „Plan bauen“ noch der Knopf einen Bau', D(W.w).letzte() === null && W.w.aufrufe.filter(a => /studio_bau/.test(a.url)).length === 0 && W.c.code === 0, [D(W.w).letzte() && D(W.w).letzte().status]);
+        }
+        /* 19V Absicherung: selbst wenn ein Plan bei ausgeschaltetem Studio noch da wäre (Neustart-Wiederherstellung), baut der Knopf nichts */
+        { const W = w19(); await zumPlan(W); W.w.ls.setItem('jv_studio', '0'); const r = W.w.c.jvStudioAnsicht.aktion('planJa'); await pause(60);
+          check('19V Studio ausgeschaltet, Plan noch offen: Knopf „Ja, bauen“ baut nichts und verwirft den Plan ehrlich', D(W.w).letzte() === null && D(W.w).plan() === null && sagt(W, /Das Studio ist aus, deshalb baue ich nichts/), [r]); }
+        /* 19W „Studio an“ und die übrigen Planungswege bleiben intakt */
+        { const W = w19(); await zumPlan(W); D(W.w).behandle('Studio aus'); D(W.w).behandle('Studio an');
+          check('19W „Studio an“ schaltet wieder ein; der verworfene Plan kommt nicht zurück', W.w.ls.getItem('jv_studio') === '1' && D(W.w).plan() === null && D(W.w).letzte() === null);
+          D(W.w).behandle(AUTO); await bis(W, 'frage'); D(W.w).behandle('Ja'); await bis(W, 'bestaetigung'); D(W.w).behandle('Ja bau los'); await warteBis(() => D(W.w).letzte(), 3000);
+          check('19X nach „Studio an“ läuft der ganze Dialog wieder normal bis zur Mission', !!D(W.w).letzte() && D(W.w).plan() === null);
+          const W2 = w19(); await zumPlan(W2); D(W2.w).behandle('Studio an'); check('19Y „Studio an“ bei bereits eingeschaltetem Studio lässt einen offenen Plan in Ruhe', !!D(W2.w).plan() && D(W2.w).plan().phase === 'bestaetigung');
+          const W3 = w19(); await zumPlan(W3); D(W3.w).behandle('Planung aus'); check('19Z „Planung aus“ verwirft einen offenen Plan nicht (unverändertes Verhalten)', !!D(W3.w).plan()); }
+        /* 19R direkte Abgleich-Funktion: 3-stellige Hex-Farben, Wortstämme */
+        { const W = w19(); const Wk = W.w.c.jvStudioWerkzeuge;
+          const r1 = await Wk.abgleichen({ funktionen: [], farbcodes: ['#ffffff', '#222222'], stichworte: ['Fahrzeugsuche'] }, [{ pfad: 'index.html', inhalt: '<p>Fahrzeuge</p><style>a{color:#fff;background:#222}</style>' }]);
+          check('19R #fff = #ffffff, Wortstamm „Fahrzeug“ passt auf „Fahrzeugsuche“: kein Mangel', r1.mangel.length === 0, r1.mangel);
+          const r2 = await Wk.abgleichen({ funktionen: [], farbcodes: ['#ff0000', '#00ff00', '#0000ff'], stichworte: [] }, [{ pfad: 'index.html', inhalt: '<style>a{color:#ff0000}</style>' }]);
+          check('19S zu wenig Farbcodes werden als „Farben“-Mangel (leicht) gemeldet', r2.mangel.length === 1 && /^Farben/.test(r2.mangel[0]) && !r2.schwer, r2); }
+    }
+    /* ---------- 20 Verweise: Bilder, Links, Ressourcen (Live-Test PR #363) ---------- */
+    {
+        const w = welt(), D = w.c.jvStudioDateien;
+        const SEITE = '<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"></head><body><nav><a href="#angebote">Angebote</a><a href="#kontakt">Kontakt</a></nav><section id="angebote"><img src="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\'%3E%3C/svg%3E" alt="ok"></section><section id="kontakt"></section><script src="app.js"></script></body></html>';
+        const gut = [{ pfad: 'index.html', inhalt: SEITE }, { pfad: 'style.css', inhalt: 'body{background:url("data:image/svg+xml,%3Csvg%3E")}' }, { pfad: 'app.js', inhalt: 'var x=1' }];
+        check('20a saubere Seite (Anker mit Ziel, data:-Bild, vorhandene Dateien): keine Verweisfehler', D.pruefeVerweise(gut).ok, D.pruefeVerweise(gut));
+        const bild = (src) => [{ pfad: 'index.html', inhalt: '<img src="' + src + '" alt="x">' }];
+        check('20b externes Bild (https) ist ein Fehler', !D.pruefeVerweise(bild('https://upload.example/ferrari.jpg')).ok);
+        check('20c Bild mit //-Adresse ist ein Fehler', !D.pruefeVerweise(bild('//cdn.example/x.png')).ok);
+        check('20d Bild auf fehlende Projektdatei ist ein Fehler', /nicht gibt/.test(D.pruefeVerweise(bild('images/lambo.jpg')).fehler[0]));
+        check('20e vorhandene SVG-Datei als Bild ist erlaubt, vorhandene JPG-artige Datei nicht', D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<img src="logo.svg">' }, { pfad: 'logo.svg', inhalt: '<svg xmlns="http://www.w3.org/2000/svg"></svg>' }]).ok);
+        check('20f data:-Bild (auch mit Anführungszeichen \' im Inhalt) ist erlaubt', D.pruefeVerweise(bild('data:image/png;base64,AAAA')).ok);
+        const link = (h, extra) => [{ pfad: 'index.html', inhalt: '<a href="' + h + '">l</a>' + (extra || '') }];
+        check('20g toter Anker (#kontakt ohne id) ist ein Fehler, mit id nicht', !D.pruefeVerweise(link('#kontakt')).ok && D.pruefeVerweise(link('#kontakt', '<div id="kontakt"></div>')).ok);
+        check('20h Link auf andere Seite, die es nicht gibt, und externer Link sind Fehler', !D.pruefeVerweise(link('angebote.html')).ok && !D.pruefeVerweise(link('https://example.com')).ok);
+        check('20i Link auf index.html, „/“, „#“, mailto: und tel: sind erlaubt', ['index.html', '/', '#', 'mailto:a@b.de', 'tel:+4912345'].every(h => D.pruefeVerweise(link(h)).ok));
+        check('20j CSS: url() mit fremder Adresse oder Datei und @import sind Fehler, url(data:) nicht', !D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<div style="background:url(https://x.de/a.png)"></div>' }]).ok && !D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<link rel=stylesheet href=s.css>' }, { pfad: 's.css', inhalt: '@import "a.css";' }]).ok && D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<style>a{background:url(data:image/png;base64,AA)}</style>' }]).ok);
+        check('20k fehlendes Skript/Stylesheet und externes Skript sind Fehler', !D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<script src="app.js"></script>' }]).ok && !D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<script src="https://cdn.x/y.js"></script>' }]).ok);
+        check('20l pruefeProjekt selbst bleibt unverändert (Verweise nur als Warnung, ok=true) – die APK-Prüfung ändert sich nicht', D.pruefeProjekt(bild('https://x/y.jpg')).ok === true && D.pruefeProjekt(bild('https://x/y.jpg')).warnungen.length > 0);
+        const kaputt = [{ pfad: 'index.html', inhalt: '<img class="auto" src="https://u/ferrari.jpg" alt="Ferrari 488"><img src="images/lambo.jpg" alt="Lamborghini"><img src="data:image/png;base64,AAAA" alt="bleibt">' }];
+        const rs = D.ersetzeBilder(kaputt);
+        check('20m Ersatz: kaputte Bilder → Inline-SVG mit Beschriftung und Klasse, data:-Bild bleibt, danach keine Verweisfehler', rs.anzahl === 2 && /<svg[^>]*aria-label="Ferrari 488"[^>]*class="auto"/.test(rs.dateien[0].inhalt) && />Lamborghini</.test(rs.dateien[0].inhalt) && /src="data:image\/png/.test(rs.dateien[0].inhalt) && D.pruefeVerweise(rs.dateien).ok, rs.dateien[0].inhalt.slice(0, 300));
+        check('20n Ersatz verändert saubere Seiten nicht', D.ersetzeBilder(gut).anzahl === 0 && D.ersetzeBilder(gut).dateien[0] === gut[0]);
+        check('20o Alt-Text mit Sonderzeichen wird maskiert (kein Einschleusen von Markup)', (() => { const r = D.ersetzeBilder([{ pfad: 'index.html', inhalt: '<img src="x.jpg" alt="&quot;&gt;&lt;script&gt;a">' }]); return !/<script/i.test(r.dateien[0].inhalt); })());
+        { const navi = (js) => D.pruefeVerweise([{ pfad: 'index.html', inhalt: '<p>x</p><script src="app.js"></script>' }, { pfad: 'app.js', inhalt: js }]);
+          check('20x Seitenwechsel per Skript (location.href=, assign, replace) ist ein Fehler; location.hash, location.reload() und Vergleiche nicht', ['location.href="index.html"', 'window.location = "/x"', 'location.assign("a")', 'document.location.replace("b")'].every(j => !navi(j).ok) && ['location.hash="#a"', 'location.reload()', 'if(location.href==="x"){}', 'var h=location.href;'].every(j => navi(j).ok), navi('location.hash="#a"')); }
+        /* Vorschau-HTML: Link-Abfang und SVG-Einbettung */
+        const vh = D.vorschauHtml([{ pfad: 'index.html', inhalt: '<html><head></head><body><img src="logo.svg" alt="l"></body></html>' }, { pfad: 'logo.svg', inhalt: '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>' }]);
+        check('20p Vorschau: Link-Abfang-Skript steht direkt nach der Content-Security-Policy, eigene SVG-Datei ist als data:-Bild eingebettet', vh.indexOf('Content-Security-Policy') < vh.indexOf('"click"') && /src="data:image\/svg\+xml;charset=utf-8,%3Csvg/.test(vh) && !/src="logo\.svg"/.test(vh));
+        check('20q Sandbox unverändert: Vorschau-Rahmen ohne allow-same-origin, CSP unverändert streng', (() => { const src = require('fs').readFileSync(__dirname + '/../js/studio_ansicht.js', 'utf8') + require('fs').readFileSync(__dirname + '/../js/studio_werkzeuge.js', 'utf8'); return !/allow-same-origin['"]/.test(src.replace(/bewusst OHNE allow-same-origin/g, '')) && D.CSP.indexOf("default-src 'none'") === 0 && D.CSP.indexOf('img-src data: blob:') > 0 && /form-action 'none'/.test(D.CSP); })());
+        /* Werkzeuge: Korrekturversuch, Rückfall, ehrliches Scheitern */
+        const SCHLECHT = [{ pfad: 'index.html', inhalt: '<html><body><a href="#angebote">A</a><section id="angebote"><img src="https://u/ferrari.jpg" alt="Ferrari"><img src="bilder/lambo.jpg" alt="Lambo"></section></body></html>' }];
+        const GUT2 = [{ pfad: 'index.html', inhalt: '<html><body><a href="#angebote">A</a><section id="angebote"><svg role="img" aria-label="Ferrari"></svg></section></body></html>' }];
+        const w1 = welt(appPlan({ code: (s, n) => /abgelehnt/.test(n) ? { dateien: GUT2 } : { dateien: SCHLECHT } })); laufPruefOk(w1);
+        const r1 = await auftrag(w1, 'Bau mir eine Zähler App'); await missionFertig(w1, r1.m.id);
+        const aufr = w1.aufrufe.filter(a => a.url === '/api/groq' && /Du schreibst kleine/.test(a.body.messages[0].content));
+        check('20r kaputte Bilder im ersten Code → genau ein Korrekturversuch mit den echten Verweisfehlern, danach Erfolg', aufr.length === 2 && /fremder Adresse|nicht gibt/.test(aufr[1].body.messages[1].content) && w1.c.jvMission.hole(r1.m.id).status === 'abgeschlossen', w1.c.jvMission.hole(r1.m.id).fehlergrund);
+        const w2 = welt(appPlan({ code: () => ({ dateien: SCHLECHT }) })); laufPruefOk(w2);
+        const r2 = await auftrag(w2, 'Bau mir eine Zähler App'); await missionFertig(w2, r2.m.id);
+        const m2 = w2.c.jvMission.hole(r2.m.id), pj = w2.c.jvStudioProjekte.liste();
+        check('20s bleiben kaputte Bilder auch nach der Korrektur, ersetzt Studio sie durch Inline-SVG, sagt das offen im Beleg und das Projekt hat keine Verweisfehler', m2.status === 'abgeschlossen' && /durch eine Grafik-Fläche ersetzt/.test(m2.schritte[1].beleg.text) && pj.length === 1 && w2.c.jvStudioDateien.pruefeVerweise(w2.c.jvStudioProjekte.hole(pj[0].id).dateien).ok, m2.fehlergrund);
+        const LINKKAPUTT = [{ pfad: 'index.html', inhalt: '<html><body><a href="angebote.html">Angebote</a><a href="https://example.com">x</a></body></html>' }];
+        const w3 = welt(appPlan({ code: () => ({ dateien: LINKKAPUTT }) })); laufPruefOk(w3);
+        const r3 = await auftrag(w3, 'Bau mir eine Zähler App'); await missionFertig(w3, r3.m.id);
+        const m3 = w3.c.jvMission.hole(r3.m.id);
+        check('20t kaputte Links bleiben nach der einen Korrektur bestehen → Studio meldet FEHLGESCHLAGEN, speichert nichts, nennt den Grund', m3.status === 'fehlgeschlagen' && /Link/.test(m3.fehlergrund) && /nichts gespeichert/.test(m3.fehlergrund) && w3.c.jvStudioProjekte.liste().length === 0 && w3.aufrufe.filter(a => a.url === '/api/groq' && /Du schreibst kleine/.test(a.body.messages[0].content)).length === 2, m3.fehlergrund);
+        /* Laufzeitprüfung: Rückmeldung kaputter Bilder lässt den Prüfschritt scheitern */
+        const w4 = welt(appPlan()); w4.c.jvStudioWerkzeuge._laufPruefung = async () => ({ moeglich: true, geladen: true, fehler: ['Bild lädt nicht: Ferrari'] });
+        const r4 = await auftrag(w4, 'Bau mir eine Zähler App'); await missionFertig(w4, r4.m.id);
+        check('20u Laufzeit-Meldung „Bild lädt nicht“ → Prüfschritt scheitert, nichts gespeichert', w4.c.jvMission.hole(r4.m.id).status === 'fehlgeschlagen' && /Bild lädt nicht/.test(w4.c.jvMission.hole(r4.m.id).fehlergrund) && w4.c.jvStudioProjekte.liste().length === 0);
+        check('20v Prüf-Rahmen meldet kaputte Bilder und blockierte Bild-Adressen (Quelltext des Berichters)', (() => { const src = require('fs').readFileSync(__dirname + '/../js/studio_werkzeuge.js', 'utf8'); return /Bild lädt nicht/.test(src) && /securitypolicyviolation/.test(src) && /naturalWidth/.test(src); })());
+        /* Änderungen: nur NEUE Verweisfehler lehnen ab */
+        const ALT = [{ pfad: 'index.html', inhalt: '<html><body><a href="alt.html">alt</a><p>a</p></body></html>' }];
+        const w5 = welt(appPlan({ aendern: () => ({ dateien: [{ pfad: 'index.html', inhalt: ALT[0].inhalt.replace('<p>a</p>', '<p>b</p>') }] }) })); laufPruefOk(w5);
+        const n5 = w5.c.jvStudioProjekte.neu({ name: 'Alt', art: 'app', auftrag: 'x', dateien: ALT, missionId: 'm_x' });
+        const r5 = await auftrag(w5, 'Ändere die App Alt'); await missionFertig(w5, r5.m.id);
+        check('20w Änderung an einem Projekt mit alter Link-Altlast wird nicht wegen der Altlast abgelehnt', w5.c.jvMission.hole(r5.m.id).status === 'abgeschlossen', w5.c.jvMission.hole(r5.m.id).fehlergrund);
     }
     console.log('STUDIO: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
