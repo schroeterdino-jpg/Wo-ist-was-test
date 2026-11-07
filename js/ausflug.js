@@ -115,10 +115,10 @@
     }
 
     /* ---------- Wetter ---------- */
-    async function wetter(iso) {
+    async function wetter(iso, pos) {
         try {
             if (typeof fetchWeatherForecast !== 'function') return null;
-            const f = await fetchWeatherForecast();
+            const f = await fetchWeatherForecast(pos || undefined);
             const t = f && f.tage ? f.tage.find(x => x.datum === iso) : null;
             if (!t) return null;
             const regen = (t.regenwahrscheinlichkeit_prozent || 0) >= 50 || (t.niederschlag_mm || 0) >= 3;
@@ -175,17 +175,43 @@
     let letzte = { at: 0, items: [], mit: '' };
     let wartet = null;   // {phase:'wer'|'name'|'wahl', ...}
 
+    /* ---------- Ausdrücklich genannter Zielort ("Ausflug nach Lübeck", "in Schwerin unternehmen") ----------
+       Er hat Vorrang vor dem eigenen Standort: Die Suche (und das Wetter) richten sich nach dem Ziel, die Entfernung und Fahrzeit nach dem eigenen Standort.
+       Keine feste Ortsliste: Ein Wort nach nach/in/bei zählt als Ort, wenn es groß geschrieben ist, kein Tag/Zeitwort ist und die gemeinsame Ortsbereinigung (wxCleanPlace) es nicht verwirft. */
+    function zielOrt(raw) {
+        const m = String(raw || '').match(/\b(?:nach|in|bei)\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+(?:\s+(?:an\s+der\s+|am\s+|bei\s+)?[A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)?)/);
+        if (!m) return '';
+        let kand = m[1].trim();
+        if (/^(?:Der|Die|Das|Den|Dem|Deutschland|Urlaub|Ausflug|Ausflüge|Freizeit|Nähe|Umgebung|Ordnung|Betracht|Ruhe|Frage)\b/.test(kand)) return '';
+        if (TAG_WORT.test(norm(kand).split(' ')[0]) || /^(?:Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|Wochenende|Woche|Heute|Morgen|Übermorgen)\b/i.test(kand)) return '';
+        try { if (typeof wxCleanPlace === 'function' && !wxCleanPlace(kand)) return ''; } catch (e) { }
+        return kand;
+    }
+    /* Suchmitte und eigener Standort. { pos, von, ort } ; pos = null: Ort nicht gefunden (ort steht drin) */
+    async function suchMitte(ziel) {
+        const eigen = (typeof wetterPosition === 'function') ? await wetterPosition().catch(() => null) : null;
+        if (!ziel) return { pos: eigen, von: eigen, ort: '' };
+        const geo = (typeof wxGeocode === 'function') ? await wxGeocode(ziel) : null;
+        if (!geo) return { pos: null, von: eigen, ort: ziel, nichtGefunden: true };
+        return { pos: { lat: geo.lat, lon: geo.lon }, von: eigen, ort: geo.short || ziel };
+    }
+    /* Entfernung für die Anzeige vom eigenen Standort aus (die Auswahl selbst richtet sich nach dem Ziel) */
+    function abEigen(top, mitte) { if (mitte.ort && mitte.von) top.forEach(p => { p.dist = haversine(mitte.von.lat, mitte.von.lon, +p.lat, +p.lon); }); }
+
     async function planen(req) {
         const h = req.iso === heute();
         try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Plane den Ausflug...'); } catch (e) { }
-        const [w, pos] = await Promise.all([wetter(req.iso), (typeof wetterPosition === 'function' ? wetterPosition() : Promise.resolve(null))]);
+        const mitte = await suchMitte(req.ziel), pos = mitte.pos;
+        if (mitte.nichtGefunden) { sagen('Den Ort ' + mitte.ort + ' habe ich nicht gefunden. Sag den Ort bitte noch einmal.'); return; }
         if (!pos) { sagen('Ich kenne deinen Standort gerade nicht. Schalte die Ortung ein und frag mich noch einmal.'); return; }
+        const w = await wetter(req.iso, mitte.ort ? pos : null);
         const regen = w ? w.regen : false;
         const gruppen = await sucheZiele(pos, anfragen(req.art, regen), h);
         if (!gruppen) { sagen('Die Suche nach Ausflugszielen geht gerade nicht. Versuch es gleich noch einmal.'); return; }
         const top = waehle(gruppen);
-        const kopf = tagWort(req.iso) + ': ' + (w ? w.text + '. ' : 'eine Vorhersage habe ich dafür noch nicht. ') + kalenderText(req.iso);
-        if (!top.length) { sagen(kopf + ' In 25 Kilometern habe ich nichts Passendes gefunden.'); return; }
+        const kopf = tagWort(req.iso) + (mitte.ort ? ' in ' + mitte.ort : '') + ': ' + (w ? w.text + '. ' : 'eine Vorhersage habe ich dafür noch nicht. ') + kalenderText(req.iso);
+        if (!top.length) { sagen(kopf + ' In 25 Kilometern ' + (mitte.ort ? 'um ' + mitte.ort + ' ' : '') + 'habe ich nichts Passendes gefunden.'); return; }
+        abEigen(top, mitte);
         letzte = { at: Date.now(), items: top, mit: req.mit };
         try {
             if (typeof clearActionCards === 'function') clearActionCards();
@@ -273,20 +299,23 @@
         const fenster = freiesFenster(req.iso);
         if (fenster.voll) {   // ganzer Tag belegt: nichts vorschlagen, anderen Tag anbieten (keine Kalenderänderung)
             const nx = plusTage(req.iso, 1);   // Samstag -> Sonntag, sonst der Folgetag
-            wartet = { phase: 'tag', at: Date.now(), iso: nx, art: req.art, mit: req.mit, wuensche: wu };
+            wartet = { phase: 'tag', at: Date.now(), iso: nx, art: req.art, mit: req.mit, wuensche: wu, ziel: req.ziel };
             try { window.jvFrage && window.jvFrage.neu('ausflug'); } catch (e) { }
             sagen(tagWort(req.iso) + ' ist bei dir schon ziemlich voll. Soll ich stattdessen ' + tagWort(nx) + ' prüfen?');
             return;
         }
-        const [w, pos] = await Promise.all([wetter(req.iso), (typeof wetterPosition === 'function' ? wetterPosition() : Promise.resolve(null))]);
+        const mitte = await suchMitte(req.ziel), pos = mitte.pos;
+        if (mitte.nichtGefunden) { sagen('Den Ort ' + mitte.ort + ' habe ich nicht gefunden. Sag den Ort bitte noch einmal.'); return; }
         if (!pos) { sagen('Ich kenne deinen Standort gerade nicht. Schalte die Ortung ein und frag mich noch einmal.'); return; }
+        const w = await wetter(req.iso, mitte.ort ? pos : null);
         const drinnen = wu.indoor ? true : wu.outdoor ? false : (w ? w.regen : false);
         const gruppen = await sucheZiele(pos, anfragen(req.art, drinnen), h);
         if (!gruppen) { sagen('Die Suche nach Ausflugszielen geht gerade nicht. Versuch es gleich noch einmal.'); return; }
         const top = waehle(gruppen);
-        const wetterSatz = w ? tagWort(req.iso) + ': ' + w.text + '.' : tagWort(req.iso) + ': Das Wetter konnte ich nicht berücksichtigen.';
-        if (!top.length) { sagen(wetterSatz + ' In 25 Kilometern habe ich nichts Passendes gefunden.'); return; }
-        const fahrten = await Promise.all(top.map(p => fahrtMinuten(pos, p)));   // fällt eine Route aus, gilt die Schätzung (ehrlich gesagt), die Planung läuft weiter
+        const wetterSatz = w ? tagWort(req.iso) + (mitte.ort ? ' in ' + mitte.ort : '') + ': ' + w.text + '.' : tagWort(req.iso) + ': Das Wetter konnte ich nicht berücksichtigen.';
+        if (!top.length) { sagen(wetterSatz + ' In 25 Kilometern ' + (mitte.ort ? 'um ' + mitte.ort + ' ' : '') + 'habe ich nichts Passendes gefunden.'); return; }
+        abEigen(top, mitte);
+        const fahrten = await Promise.all(top.map(p => fahrtMinuten(mitte.von || pos, p)));   // fällt eine Route aus, gilt die Schätzung (ehrlich gesagt), die Planung läuft weiter
         top.forEach((p, i) => { p.fahrt = fahrten[i] || minuten(p.dist); p.fahrtEcht = !!fahrten[i]; });
         const passt = p => 2 * p.fahrt + 90 <= fenster.minuten;
         top.sort((a, b) => (passt(b) ? 1 : 0) - (passt(a) ? 1 : 0));   // stabil: erst was ins Zeitfenster passt
@@ -354,7 +383,9 @@
         /\b(?:ausflug|ausfluege|ausflugsziel\w*|ausflugstipp\w*|ausflugsidee\w*)\b/,
         /\b(?:idee|ideen|tipp|tipps|vorschlag|vorschlaege)\b.*\b(?:wochenende|samstag|sonntag|ausflug|kinder\w*|unternehmung\w*)\b/,
         /\bwas\s+(?:ist|gibt es|gibts)\b.*\b(?:heute|morgen|am wochenende)\b.*\bin der naehe\b.*\blos\b|\bwas ist .*in der naehe los\b/,
-        /\bunternehmung\w*\b/
+        /\bunternehmung\w*\b/,
+        /\b(?:koennen|wollen|sollen|moechten)\s+wir\b(?=.*\b(?:etwas|was|irgendwas|irgendetwas)\b)(?=.*\bunternehmen\b)/,   // "Können wir Sonntag etwas in Lübeck unternehmen?"
+        /\b(?:koennen|wollen|sollen|moechten)\s+wir\b(?=.*\b(?:etwas|was|irgendwas|irgendetwas)\b)(?=.*\bmachen\b)(?=.*\b(?:wochenende|samstag|sonntag|kinder\w*|enkel\w*)\b)/
     ];
     function istFrage(t) {
         if (!t || t.split(' ').length > 22) return false;
@@ -556,7 +587,7 @@
         if (!frei.length) { sagen(wort + ' ist in deinem Kalender kein Tag mit genug freier Zeit für einen Ausflug' + ziel + '.'); return; }
         const namen = frei.map(d => cap(wochentag(d)));
         const liste = namen.length > 1 ? namen.slice(0, -1).join(', ') + ' und ' + namen[namen.length - 1] : namen[0];
-        wartet = { phase: 'wer', at: Date.now(), iso: frei[0], agent: false, wuensche: wuenscheAus(t) };
+        wartet = { phase: 'wer', at: Date.now(), iso: frei[0], agent: false, wuensche: wuenscheAus(t), ziel: zielOrt(raw) };
         try { window.jvFrage && window.jvFrage.neu('ausflug'); } catch (e) { }
         sagen(wort + ' hast du Zeit für einen Ausflug' + ziel + ': ' + liste + '. Soll ich für ' + namen[0] + ' Ideen suchen? Dann sag, wer mitkommt: die Kinder, Finja oder nur wir.');
     }
@@ -573,11 +604,11 @@
                 // eine ganz andere Frage ("Wann hat die Apotheke auf?") ist keine Antwort auf "Wer kommt mit?" und wird nicht als Ausflugsplan gedeutet
                 if (!personen(t) && /^(?:wann|wie|was|wo|wer|wem|wen|welche\w*|woher|wohin|warum|wieso|weshalb|gibt|ist|sind|wird|brauche|muss|soll|kann|darf|habe|hab)\b/.test(t)) return next(text);
                 const p = personen(t) || { art: 'erwachsene', mit: '' };
-                (w.agent ? planenAgent({ iso: w.iso, art: p.art, mit: p.mit, wuensche: w.wuensche }) : planen({ iso: w.iso, art: p.art, mit: p.mit })).catch(e => { console.error('Ausflug', e); sagen('Beim Planen ist etwas schiefgegangen.'); });
+                (w.agent ? planenAgent({ iso: w.iso, art: p.art, mit: p.mit, wuensche: w.wuensche, ziel: w.ziel }) : planen({ iso: w.iso, art: p.art, mit: p.mit, ziel: w.ziel })).catch(e => { console.error('Ausflug', e); sagen('Beim Planen ist etwas schiefgegangen.'); });
                 return true;
             }
             if (w.phase === 'tag') {   // "Soll ich stattdessen Sonntag prüfen?"
-                if (JA.test(t)) { wartet = null; planenAgent({ iso: w.iso, art: w.art, mit: w.mit, wuensche: w.wuensche }).catch(e => { console.error('Ausflug', e); sagen('Beim Planen ist etwas schiefgegangen.'); }); return true; }
+                if (JA.test(t)) { wartet = null; planenAgent({ iso: w.iso, art: w.art, mit: w.mit, wuensche: w.wuensche, ziel: w.ziel }).catch(e => { console.error('Ausflug', e); sagen('Beim Planen ist etwas schiefgegangen.'); }); return true; }
                 wartet = null; return next(text);
             }
             if (w.phase === 'folge') {   // "Soll ich X für Samstag um 13:30 Uhr in deinen Kalender eintragen?" - geschrieben wird nur nach einem Ja
@@ -627,12 +658,12 @@
         if (agent || istFrage(t)) {
             const iso = tagAus(t), p = personen(t), wuensche = wuenscheAus(t);
             if (!p) {
-                wartet = { phase: 'wer', at: Date.now(), iso, agent, wuensche };
+                wartet = { phase: 'wer', at: Date.now(), iso, agent, wuensche, ziel: zielOrt(raw) };
                 try { window.jvFrage && window.jvFrage.neu('ausflug'); } catch (e) { }
                 sagen('Gern. Wer kommt mit? Sag zum Beispiel: die Kinder, Finja oder nur wir.');
                 return true;
             }
-            (agent ? planenAgent({ iso, art: p.art, mit: p.mit, wuensche }) : planen({ iso, art: p.art, mit: p.mit })).catch(e => { console.error('Ausflug', e); sagen('Beim Planen ist etwas schiefgegangen.'); });
+            (agent ? planenAgent({ iso, art: p.art, mit: p.mit, wuensche, ziel: zielOrt(raw) }) : planen({ iso, art: p.art, mit: p.mit, ziel: zielOrt(raw) })).catch(e => { console.error('Ausflug', e); sagen('Beim Planen ist etwas schiefgegangen.'); });
             return true;
         }
         return next(text);

@@ -177,9 +177,9 @@ function getDailyAdvice(day) {
     };
 }
 
-async function fetchWeatherForecast() {
+async function fetchWeatherForecast(posOpt) {   // posOpt: Vorhersage für einen anderen Ort (z. B. Ausflugsziel); ohne Angabe wie bisher der Standort
     try {
-        const pos = await wetterPosition();
+        const pos = (posOpt && isFinite(posOpt.lat) && isFinite(posOpt.lon)) ? posOpt : await wetterPosition();
         if (!pos) return { fehler: 'Der Standort für die Vorhersage ist nicht verfügbar.' };
         const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pos.lat}&longitude=${pos.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max&timezone=Europe%2FBerlin&forecast_days=7`);
         const data = await res.json();
