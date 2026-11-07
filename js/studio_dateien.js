@@ -8,6 +8,7 @@
      pruefeVerweise(dateien)   -> { ok, fehler:[..] }   Bilder/Skripte/Stile/Links: fremde Adressen, fehlende Dateien, tote Anker
      ersetzeBilder(dateien)    -> { dateien, anzahl }  kaputte <img> durch Inline-SVG-Fläche ersetzen (letzte Rückfalllösung)
      vorschauHtml(dateien)     -> string       ein einzelnes HTML (CSS/JS eingebettet) mit strenger Content-Security-Policy (kein Netz) für ein abgeschottetes iframe
+     ohneBilder / bilderListe / platzhalter / istBild   Foto-Verweise (Phase 1): Einträge { pfad:'bilder/x.jpg', inhalt:'', bildId, mime, bytes, w, h, quelle }; die Bytes liegen in IndexedDB (jvStudioBilder)
      esc(text)                 HTML maskieren
    Sicherheit: erzeugter Code wird hier NIE ausgeführt. Die Vorschau gehört in ein iframe mit sandbox="allow-scripts" (ohne allow-same-origin).
    ============================================================ */
@@ -17,6 +18,9 @@
 
     var GRENZEN = { maxDateien: 40, maxDateiByte: 400000, maxGesamtByte: 1200000 };
     var ERLAUBT = ['html', 'css', 'js', 'json', 'svg', 'txt', 'md'];
+    var BILD_ENDUNGEN = ['jpg', 'png', 'webp'], BILD_MAX = 12, BILDID_RX = /^b[a-z0-9]{6,24}$/;
+    /* Ein Foto im Projekt ist ein Verweis ohne Text: die Bytes liegen in IndexedDB, nicht in localStorage */
+    function istBild(f) { return !!f && typeof f === 'object' && typeof f.bildId === 'string'; }
     var PFAD_RX = /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)*$/;
 
     var enc = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
@@ -176,7 +180,7 @@
     /* ---------- Projektprüfung ---------- */
     function endung(p) { var m = /\.([a-z0-9]+)$/.exec(p); return m ? m[1] : ''; }
     function pruefeProjekt(dateien) {
-        var fehler = [], warnungen = [], bytes = 0, namen = {};
+        var fehler = [], warnungen = [], bytes = 0, namen = {}, bilder = 0;
         if (!Array.isArray(dateien) || !dateien.length) return { ok: false, fehler: ['Das Projekt hat keine Dateien.'], warnungen: [], bytes: 0 };
         if (dateien.length > GRENZEN.maxDateien) fehler.push('Zu viele Dateien (höchstens ' + GRENZEN.maxDateien + ').');
         dateien.forEach(function (f) {
@@ -184,6 +188,11 @@
             if (!PFAD_RX.test(p) || p.length > 80 || p.indexOf('..') >= 0) { fehler.push('Ungültiger Dateiname: ' + String(p).slice(0, 40)); return; }
             if (namen[p]) { fehler.push('Doppelte Datei: ' + p); return; }
             namen[p] = true;
+            if (istBild(f)) {
+                if (!BILDID_RX.test(f.bildId) || p.indexOf('bilder/') !== 0 || BILD_ENDUNGEN.indexOf(endung(p)) < 0 || inh !== '') { fehler.push('Ungültiges Foto: ' + p); return; }
+                if (++bilder > BILD_MAX) fehler.push('Zu viele Fotos (höchstens ' + BILD_MAX + ').');
+                return;
+            }
             if (ERLAUBT.indexOf(endung(p)) < 0) { fehler.push('Dateityp nicht erlaubt: ' + p); return; }
             if (typeof inh !== 'string') { fehler.push('Inhalt fehlt: ' + p); return; }
             var n = utf8(inh).length; bytes += n;
@@ -221,7 +230,7 @@
         if (tag === 'input') return /type\s*=\s*["']?image/i.test(attrs) ? 'Bild' : '';
         return 'Bild';
     }
-    function verweisProblem(von, art, url, karte, ids, jsText) {
+    function verweisProblem(von, art, url, karte, ids, jsText, bilder) {
         url = String(url).trim();
         if (!url || /\$\{|\{\{|["'`]\s*\+|\+\s*["'`]/.test(url)) return '';
         if (/^(data|blob):/i.test(url)) return '';
@@ -236,11 +245,12 @@
         if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(url)) return art + ' mit fremder Adresse (' + url.slice(0, 50) + '), dort gibt es kein Netz';
         var ziel = pfadAufloesen(von, url);
         if (karte[ziel] === undefined) return art + ' zeigt auf eine Datei, die es im Projekt nicht gibt (' + url.slice(0, 50) + ')';
+        if (art === 'Bild' && bilder && bilder[ziel]) return '';
         if (art === 'Bild' && endung(ziel) !== 'svg') return 'Bild ' + url.slice(0, 50) + ' ist kein SVG; Bilder nur als SVG oder data:-Adresse';
         return '';
     }
     /* Alle Bild-/Skript-/Stil-/Link-Verweise einer Datei: [{art, url, tag}] mit Problemtext (leer = in Ordnung) */
-    function verweiseDerDatei(p, inh, karte, ids, jsText) {
+    function verweiseDerDatei(p, inh, karte, ids, jsText, bilder) {
         var aus = [], e = endung(p), m, a, tags;
         if (e === 'html' || e === 'svg' || e === 'js') {
             TAG_RX.lastIndex = 0;
@@ -261,26 +271,26 @@
             if (/@import\b/i.test(css)) aus.push({ art: 'CSS', url: '@import', von: p, css: true });
         }
         return aus.map(function (v) {
-            v.problem = v.css ? 'CSS lädt ' + v.url.slice(0, 50) + ' (nur data:-Adressen sind erlaubt)' : verweisProblem(v.von, v.art, v.url, karte, ids, jsText);
+            v.problem = v.css ? (bilder && v.url !== '@import' && !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(v.url) && bilder[pfadAufloesen(v.von, v.url)] ? '' : 'CSS lädt ' + v.url.slice(0, 50) + ' (nur data:-Adressen und eigene Fotos sind erlaubt)') : verweisProblem(v.von, v.art, v.url, karte, ids, jsText, bilder);
             return v;
         });
     }
     function verweisKontext(dateien) {
-        var karte = {}, ids = {}, js = '';
-        (dateien || []).forEach(function (f) { if (f && typeof f.pfad === 'string') karte[f.pfad] = String(f.inhalt == null ? '' : f.inhalt); });
+        var karte = {}, ids = {}, js = '', bilder = {};
+        (dateien || []).forEach(function (f) { if (f && typeof f.pfad === 'string') { karte[f.pfad] = String(f.inhalt == null ? '' : f.inhalt); if (istBild(f)) bilder[f.pfad] = true; } });
         Object.keys(karte).forEach(function (p) {
             var e = endung(p), rx = /\b(?:id|name)\s*=\s*["']([^"']+)["']/gi, m;
             if (e === 'html' || e === 'svg') while ((m = rx.exec(karte[p]))) ids[m[1]] = true;
             if (e === 'js') js += '\n' + karte[p];
             if (e === 'html') (karte[p].match(/<script\b[^>]*>[\s\S]*?<\/script>/gi) || []).forEach(function (s) { js += '\n' + s; });
         });
-        return { karte: karte, ids: ids, js: js };
+        return { karte: karte, ids: ids, js: js, bilder: bilder };
     }
     function pruefeVerweise(dateien) {
         var k = verweisKontext(dateien), fehler = [], gesehen = {};
         Object.keys(k.karte).forEach(function (p) {
             if (['html', 'css', 'js', 'svg'].indexOf(endung(p)) < 0) return;
-            verweiseDerDatei(p, k.karte[p], k.karte, k.ids, k.js).forEach(function (v) {
+            verweiseDerDatei(p, k.karte[p], k.karte, k.ids, k.js, k.bilder).forEach(function (v) {
                 if (!v.problem) return;
                 var t = p + ': ' + v.problem; if (gesehen[t]) return; gesehen[t] = true; fehler.push(t);
             });
@@ -296,10 +306,10 @@
     function ersetzeBilder(dateien) {
         var k = verweisKontext(dateien), anzahl = 0;
         var neu = (dateien || []).map(function (f) {
-            if (!f || endung(f.pfad) !== 'html') return f;
+            if (!f || istBild(f) || endung(f.pfad) !== 'html') return f;
             var inh = String(f.inhalt || '').replace(/<img\b[^>]*>/gi, function (tag) {
                 var sm = /(?:^|[\s"'\/])src\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag), src = sm ? (sm[1] !== undefined ? sm[1] : sm[2]) : '';
-                if (!sm || !verweisProblem(f.pfad, 'Bild', src, k.karte, k.ids, k.js)) return tag;
+                if (!sm || !verweisProblem(f.pfad, 'Bild', src, k.karte, k.ids, k.js, k.bilder)) return tag;
                 var altM = /\balt\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag), alt = (altM ? (altM[1] !== undefined ? altM[1] : altM[2]) : '').replace(/<[^>]*>/g, '').trim().slice(0, 60);
                 var klasse = /\bclass\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag), idm = /\bid\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag), stil = /\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag);
                 anzahl++;
@@ -329,28 +339,68 @@
         'hin("Dieser Link führt aus der Vorschau hinaus und ist gesperrt. Die Vorschau zeigt nur diese eine Seite.")},true);' +
         'window.addEventListener("pagehide",function(){try{parent.postMessage({jvVorschauWeg:1},"*")}catch(e){}});' +
         'document.addEventListener("submit",function(e){if(!e.defaultPrevented){e.preventDefault();hin("Formulare werden in der Vorschau nicht abgeschickt.")}});})()</script>';
-    function vorschauHtml(dateien) {
+    /* url(...) in CSS auf eigene Fotos: durch data:-Adressen ersetzen (bilder = { pfad: dataUrl }); von = Pfad der Datei, in der die Adresse steht */
+    function cssBilder(css, von, bilder) {
+        return String(css).replace(/url\(\s*(["']?)([^)"']+)\1\s*\)/gi, function (all, q, u) {
+            if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(u.trim())) return all;
+            var d = bilder[pfadAufloesen(von, u)]; return d ? 'url("' + d + '")' : all;
+        });
+    }
+    function vorschauHtml(dateien, bilder) {
+        bilder = bilder || {};
         var karte = {}; (dateien || []).forEach(function (f) { karte[f.pfad] = f.inhalt; });
         var h = String(karte['index.html'] || '');
         var norm = function (u) { return String(u).replace(/^\.\//, '').replace(/[?#].*$/, ''); };
         h = h.replace(/<link\b[^>]*rel\s*=\s*["']stylesheet["'][^>]*>/gi, function (tag) {
             var m = /href\s*=\s*["']([^"']+)["']/i.exec(tag); var pfad = m && norm(m[1]);
-            return pfad && karte[pfad] !== undefined ? '<style>' + String(karte[pfad]).replace(/<\/style/gi, '<\\/style') + '</style>' : '';
+            return pfad && karte[pfad] !== undefined ? '<style>' + cssBilder(karte[pfad], pfad, bilder).replace(/<\/style/gi, '<\\/style') + '</style>' : '';
         });
         h = h.replace(/<script\b([^>]*)\bsrc\s*=\s*["']([^"']+)["']([^>]*)>\s*<\/script>/gi, function (tag, a, src) {
             var pfad = norm(src);
             return karte[pfad] !== undefined ? '<script>' + String(karte[pfad]).replace(/<\/script/gi, '<\\/script') + '</script>' : '';
         });
         /* eigene SVG-Dateien des Projekts als data:-Adresse einbetten (die Vorschau lädt keine Dateien nach) */
-        h = h.replace(/(<img\b[^>]*?\bsrc\s*=\s*)(["'])([^"']+)\2/gi, function (all, vor, q, src) {
+        h = h.replace(/(<(?:img|source)\b[^>]*?\b(?:src|srcset)\s*=\s*)(["'])([^"']+)\2/gi, function (all, vor, q, src) {
+            var bd = !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(src) && bilder[pfadAufloesen('index.html', src)];
+            if (bd) return vor + q + bd + q;
             var pfad = norm(src); if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(src) || endung(pfad) !== 'svg' || karte[pfad] === undefined) return all;
             return vor + q + 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(String(karte[pfad])) + q;
         });
+        h = cssBilder(h, 'index.html', bilder);
         var meta = '<meta http-equiv="Content-Security-Policy" content="' + CSP + '">' + LINKS;
         if (/<head\b[^>]*>/i.test(h)) h = h.replace(/<head\b[^>]*>/i, function (m) { return m + meta; });
         else h = '<!doctype html><html><head><meta charset="utf-8">' + meta + '</head><body>' + h + '</body></html>';
         return h;
     }
 
-    window.jvStudioDateien = { GRENZEN: GRENZEN, ERLAUBT: ERLAUBT, CSP: CSP, zip: zip, crc32: crc32, docx: docx, pptx: pptx, pruefeProjekt: pruefeProjekt, pruefeVerweise: pruefeVerweise, ersetzeBilder: ersetzeBilder, LINKS: LINKS, vorschauHtml: vorschauHtml, esc: esc, utf8: utf8 };
+    /* ---------- Fotos im Projekt ---------- */
+    var PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAMzMzAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
+    function bilderListe(dateien) { return (dateien || []).filter(istBild); }
+    function ohneBilder(dateien) { return (dateien || []).filter(function (f) { return !istBild(f); }); }
+    /* graue Platzhalter für alle Fotos (Laufprüfung ohne IndexedDB) */
+    function platzhalter(dateien) { var m = {}; bilderListe(dateien).forEach(function (f) { m[f.pfad] = PIXEL; }); return m; }
+    function rxEsc(t) { return String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+    /* Foto in index.html einfügen: als <figure> vor </main>, sonst vor </body>, sonst am Ende. Reine Funktion, gibt eine neue Liste zurück. */
+    function fotoEinfuegen(dateien, eintrag, alt) {
+        var tag = '<figure class="jv-foto" style="margin:16px 0"><img src="' + esc(eintrag.pfad) + '" alt="' + esc(String(alt || 'Foto').slice(0, 120)) + '" width="' + (eintrag.w | 0) + '" height="' + (eintrag.h | 0) + '" decoding="async" style="display:block;max-width:100%;height:auto"></figure>\n';
+        var hatIndex = false;
+        var neu = (dateien || []).map(function (f) {
+            if (!f || f.pfad !== 'index.html' || istBild(f)) return f;
+            hatIndex = true; var h = String(f.inhalt || ''), i = h.search(/<\/main\s*>/i); if (i < 0) i = h.search(/<\/body\s*>/i);
+            h = i < 0 ? h + '\n' + tag : h.slice(0, i) + tag + h.slice(i);
+            return { pfad: f.pfad, inhalt: h };
+        });
+        return { dateien: neu.concat([eintrag]), eingefuegt: hatIndex };
+    }
+    /* Foto entfernen samt seiner <img>-Stellen und <figure>-Rahmen; CSS-Verweise bleiben stehen (die Prüfung meldet sie dann) */
+    function fotoEntfernen(dateien, pfad) {
+        var rx = new RegExp('<img\\b[^>]*\\bsrc\\s*=\\s*["\']' + rxEsc(pfad) + '["\'][^>]*>', 'gi');
+        return (dateien || []).filter(function (f) { return !(istBild(f) && f.pfad === pfad); }).map(function (f) {
+            if (!f || istBild(f) || endung(f.pfad) !== 'html') return f;
+            var h = String(f.inhalt || '').replace(/<figure\b[^>]*>\s*(<img\b[^>]*>)\s*<\/figure>\s*/gi, function (all, im) { rx.lastIndex = 0; return rx.test(im) ? '' : all; });
+            rx.lastIndex = 0; h = h.replace(rx, '');
+            return h === f.inhalt ? f : { pfad: f.pfad, inhalt: h };
+        });
+    }
+    window.jvStudioDateien = { fotoEinfuegen: fotoEinfuegen, fotoEntfernen: fotoEntfernen, BILD_ENDUNGEN: BILD_ENDUNGEN, BILD_MAX: BILD_MAX, istBild: istBild, bilderListe: bilderListe, ohneBilder: ohneBilder, platzhalter: platzhalter, PIXEL: PIXEL, GRENZEN: GRENZEN, ERLAUBT: ERLAUBT, CSP: CSP, zip: zip, crc32: crc32, docx: docx, pptx: pptx, pruefeProjekt: pruefeProjekt, pruefeVerweise: pruefeVerweise, ersetzeBilder: ersetzeBilder, LINKS: LINKS, vorschauHtml: vorschauHtml, esc: esc, utf8: utf8 };
 })();

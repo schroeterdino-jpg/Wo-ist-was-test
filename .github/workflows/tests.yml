@@ -66,6 +66,7 @@ jobs:
           node tests/termin_verschieben_fix.js
           node tests/mission_kern.js
           node tests/studio.js
+          node tests/studio_bilder.js
           node tests/studio_server.js
           node tests/mission_zentrale.js
           node tests/chef_paket.js

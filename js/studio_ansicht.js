@@ -10,6 +10,7 @@
     if (window.jvStudioAnsicht) return;
 
     var STATUS = { geplant: ['Bereit', '#49d7ff'], laeuft: ['Läuft', '#ff9a44'], wartet_freigabe: ['Wartet auf Freigabe', '#ffbe50'], pausiert: ['Pausiert', '#9aa7b5'], abgeschlossen: ['Fertig', '#57e0a1'], fehlgeschlagen: ['Fehlgeschlagen', '#ff5c3c'], abgebrochen: ['Abgebrochen', '#9aa7b5'] };
+    var fotoMeldung = null;   // { id, text } Rückmeldung zu Foto-Aktionen
     var zeigt = null;        // { art:'mission', id } | { art:'projekt', id }
     var el = null, takt = null, letztesHtml = '', hoerer = null, bestaetige = null, bestaetigeTimer = 0, vorschauEl = null, vorschauNachricht = null;
 
@@ -70,7 +71,13 @@
         if (pr.datei) h += '<button type="button" onclick="jvStudioAnsicht.aktion(\'datei\',\'' + esc(pr.id) + '\')">⬇ ' + esc(pr.datei.name) + '</button>';
         if (pr.apk && httpsLink(pr.apk.url)) h += '<a class="skB" href="' + esc(pr.apk.url) + '" target="_blank" rel="noopener noreferrer">⬇ APK (' + kb(pr.apk.bytes || 0) + ')</a>';
         else if (pr.dateien) h += '<button type="button" onclick="jvStudioAnsicht.aktion(\'apk\',\'' + esc(pr.id) + '\')">📦 APK bauen</button>';
+        if (pr.dateien && window.jvStudioBilder && window.jvStudioBilder.verfuegbar()) {
+            h += '<label class="skB" style="cursor:pointer">📷 Foto hinzufügen<input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0" aria-label="Foto vom Handy wählen" onchange="jvStudioAnsicht.fotoWahl(\'' + esc(pr.id) + '\',this)"></label>';
+        }
         h += '</div>';
+        var fotos = window.jvStudioDateien && pr.dateien ? window.jvStudioDateien.bilderListe(pr.dateien) : [];
+        if (fotos.length) h += '<div class="skKlein" style="margin-top:6px">Fotos (' + fotos.length + '): ' + fotos.map(function (f) { return esc(f.pfad.replace(/^bilder\//, '')) + ' (' + kb(f.bytes || 0) + ') <button type="button" aria-label="Foto ' + esc(f.pfad) + ' entfernen" onclick="jvStudioAnsicht.aktion(\'fotoWeg\',\'' + esc(pr.id) + '|' + esc(f.pfad) + '\')">✕</button>'; }).join(' · ') + '</div>';
+        if (fotoMeldung && fotoMeldung.id === pr.id) h += '<div class="skKlein" role="status" style="margin-top:6px">' + esc(fotoMeldung.text) + '</div>';
         if (pr.apk) h += '<div class="skKlein">Debug-APK: ohne Berechtigungen, auch ohne Internet. Zum Installieren erlaubt Android einmalig „Unbekannte Apps“ für deinen Browser.</div>';
         return h + '</div>';
     }
@@ -169,7 +176,19 @@
     function vorschau(pid) {
         var pr = P().hole(pid); if (!pr || !pr.dateien || !window.jvStudioDateien) return false;
         schliesseVorschau();
-        var htm = window.jvStudioDateien.vorschauHtml(pr.dateien);
+        var B = window.jvStudioBilder;
+        if (B && window.jvStudioDateien.bilderListe(pr.dateien).length) {   // Fotos liegen in IndexedDB: erst laden, dann einbetten (die Vorschau selbst hat keinen Zugriff darauf)
+            var token = vorschauToken = {};
+            B.fuerVorschau(pr.dateien).then(function (r) {
+                if (vorschauToken !== token) return;
+                zeigeVorschau(pr, window.jvStudioDateien.vorschauHtml(pr.dateien, r.karte), r.fehlend);
+            }, function () { if (vorschauToken === token) zeigeVorschau(pr, window.jvStudioDateien.vorschauHtml(pr.dateien, window.jvStudioDateien.platzhalter(pr.dateien)), ['alle']); });
+            return true;
+        }
+        return zeigeVorschau(pr, window.jvStudioDateien.vorschauHtml(pr.dateien), []);
+    }
+    var vorschauToken = null;
+    function zeigeVorschau(pr, htm, fehlend) {
         vorschauEl = document.createElement('div'); vorschauEl.id = 'studioVorschau';
         vorschauEl.innerHTML = '<header><b style="flex:1">' + esc(pr.name) + ' – Vorschau (abgeschottet, ohne Netz)</b><button type="button" onclick="jvStudioAnsicht.aktion(\'vorschauZu\')">Schließen</button></header>';
         var fr = document.createElement('iframe');
@@ -192,9 +211,38 @@
         vorschauNachricht = function (ev) { if (ev && ev.source === fr.contentWindow && ev.data && ev.data.jvVorschauWeg && zurueck < 99) ruecksetzen(); };
         window.addEventListener('message', vorschauNachricht);
         vorschauEl.appendChild(hin); vorschauEl.appendChild(fr); document.body.appendChild(vorschauEl);
+        if (fehlend && fehlend.length) { hin.textContent = 'Foto nicht gefunden: ' + fehlend.slice(0, 3).join(', ') + '. Der Browser hat es evtl. gelöscht. Füge es neu hinzu.'; hin.style.display = 'block'; }
         return true;
     }
-    function schliesseVorschau() { if (vorschauNachricht) { window.removeEventListener('message', vorschauNachricht); vorschauNachricht = null; } if (vorschauEl) { try { vorschauEl.remove(); } catch (e) { } vorschauEl = null; } }
+    function schliesseVorschau() { vorschauToken = null; if (vorschauNachricht) { window.removeEventListener('message', vorschauNachricht); vorschauNachricht = null; } if (vorschauEl) { try { vorschauEl.remove(); } catch (e) { } vorschauEl = null; } }
+
+    /* ---------- Fotos ---------- */
+    function meldeFoto(id, text) { fotoMeldung = { id: id, text: text }; letztesHtml = ''; zeichne(); }
+    async function fotoWahl(pid, eingabe) {
+        var B = window.jvStudioBilder, D = window.jvStudioDateien, dateien = eingabe && eingabe.files ? Array.prototype.slice.call(eingabe.files) : [];
+        try { eingabe.value = ''; } catch (e) { }
+        if (!B || !D || !dateien.length) return false;
+        var ok = 0, meld = [];
+        for (var i = 0; i < dateien.length; i++) {
+            var pr = P().hole(pid); if (!pr || !pr.dateien) { meld.push('Das Projekt gibt es nicht mehr.'); break; }
+            var r = await B.hinzufuegen(pid, dateien[i], { vorhanden: pr.dateien });
+            if (!r.ok) { meld.push((dateien.length > 1 ? (i + 1) + '. Foto: ' : '') + r.fehler); continue; }
+            var neu = D.fotoEinfuegen(pr.dateien, r.eintrag, 'Foto');
+            var u = P().aktualisiere(pid, { dateien: neu.dateien });
+            if (!u.ok) { await B.entferne(r.eintrag.bildId); meld.push(u.fehler); break; }
+            ok++;
+        }
+        var p2 = P().hole(pid); if (p2) { try { await B.raeumeAuf(pid, [p2.dateien, p2.vorher && p2.vorher.dateien]); } catch (e) { } }
+        meldeFoto(pid, (ok ? ok + ' Foto' + (ok > 1 ? 's' : '') + ' hinzugefügt, ich habe es verkleinert und am Seitenende eingefügt. Sag mir, wo es hin soll, z. B. „Nimm das Foto als Titelbild“. ' : '') + meld.join(' '));
+        return ok > 0;
+    }
+    function fotoWeg(pid, pfad) {
+        var B = window.jvStudioBilder, D = window.jvStudioDateien, pr = P().hole(pid); if (!pr || !pr.dateien || !D) return false;
+        var u = P().aktualisiere(pid, { dateien: D.fotoEntfernen(pr.dateien, pfad) });
+        if (!u.ok) { meldeFoto(pid, u.fehler); return false; }
+        if (B) B.raeumeAuf(pid, [u.projekt.dateien, u.projekt.vorher && u.projekt.vorher.dateien]).catch(function () { });
+        meldeFoto(pid, 'Foto entfernt. Die Fassung davor bleibt erhalten.'); return true;
+    }
 
     /* ---------- Bedienung ---------- */
     function aktion(name, arg) {
@@ -204,6 +252,15 @@
         if (name === 'planAbbruch') return !!(A && A.planAbbrechen && A.planAbbrechen());
         if (name === 'vorschau') return vorschau(arg);
         if (name === 'vorschauZu') { schliesseVorschau(); return true; }
+        if (name === 'fotoWeg') { return fotoWeg(String(arg).split('|')[0], String(arg).split('|')[1]); }
+        if (name === 'zip' && window.jvStudioBilder && P().hole(arg) && P().hole(arg).dateien && window.jvStudioDateien.bilderListe(P().hole(arg).dateien).length) {
+            var prz = P().hole(arg);
+            window.jvStudioBilder.fuerZip(prz.dateien).then(function (z) {
+                if (z.fehlend.length) { meldeFoto(prz.id, 'ZIP nicht erstellt: Foto nicht gefunden (' + z.fehlend.slice(0, 3).join(', ') + '). Der Browser hat es evtl. gelöscht. Füge es neu hinzu oder entferne es.'); return; }
+                laden(window.jvStudioWerkzeuge.dateiname(prz.name, 'zip'), 'application/zip', window.jvStudioDateien.zip(z.dateien));
+            });
+            return true;
+        }
         if (name === 'zip') { var pr = P().hole(arg); if (!pr || !pr.dateien) return false; return laden(window.jvStudioWerkzeuge.dateiname(pr.name, 'zip'), 'application/zip', window.jvStudioDateien.zip(pr.dateien)); }
         if (name === 'datei') { var p2 = P().hole(arg); if (!p2 || !p2.datei) return false; return laden(p2.datei.name, p2.datei.mime, window.jvStudioWerkzeuge.ausB64(p2.datei.b64)); }
         if (name === 'apk') { if (A) A.behandle('Mach eine APK aus ' + (P().hole(arg) ? P().hole(arg).name : 'dem Projekt')); return true; }
@@ -220,5 +277,5 @@
         return !!(r && r.ok !== false);
     }
 
-    window.jvStudioAnsicht = { zeige: zeige, zeigeProjekt: zeigeProjekt, neuZeichnen: neuZeichnen, planNeuZeichnen: planNeuZeichnen, aktion: aktion, html: html, schliesseVorschau: schliesseVorschau, _zustand: function () { return { zeigt: zeigt, takt: !!takt, bestaetige: bestaetige }; }, arbeitModus: function () { return arbeitModus; }, _esc: esc, _hms: hms };
+    window.jvStudioAnsicht = { zeige: zeige, zeigeProjekt: zeigeProjekt, neuZeichnen: neuZeichnen, planNeuZeichnen: planNeuZeichnen, aktion: aktion, fotoWahl: fotoWahl, html: html, schliesseVorschau: schliesseVorschau, _zustand: function () { return { zeigt: zeigt, takt: !!takt, bestaetige: bestaetige }; }, arbeitModus: function () { return arbeitModus; }, _esc: esc, _hms: hms };
 })();

@@ -292,10 +292,14 @@
     async function t_aendern(a) {
         var arb = arbeit(a), pr0 = arb.projektId ? P().hole(arb.projektId) : null;
         if (!pr0 || !pr0.dateien) return fehl('Das Projekt wurde nicht gefunden.');
-        var gesamt = pr0.dateien.reduce(function (s, f) { return s + f.inhalt.length; }, 0);
+        var gesamt = pr0.dateien.reduce(function (s, f) { return s + (f.inhalt || '').length; }, 0);
         if (gesamt > 30000) return fehl('Das Projekt ist mit ' + Math.round(gesamt / 1000) + ' KB zu groß für eine automatische Änderung. Es bleibt unverändert.');
         rg(a.mission.id, 'start', 'Ich ändere ' + pr0.name + '.');
-        var neu = await codeVonKi('Du änderst eine bestehende kleine Web-App nach Wunsch. Behalte alles, was nicht geändert werden soll, unverändert. Liefere die KOMPLETTE Dateiliste (alle Dateien, auch unveränderte). ' + CODE_REGELN, 'Änderungswunsch: ' + kurz(arb.thema, 600) + '\nAktuelle Dateien (JSON): ' + JSON.stringify(pr0.dateien));
+        /* Fotos des Nutzers liegen nicht im Text: die KI bekommt nur Dateinamen und Maße, gibt sie nie aus; sie werden danach unverändert wieder angefügt */
+        var fotos = D().bilderListe ? D().bilderListe(pr0.dateien) : [], textDateien = D().ohneBilder ? D().ohneBilder(pr0.dateien) : pr0.dateien;
+        var fotoRegel = fotos.length ? ' AUSNAHME zu "kein <img> mit Dateiname": Der Nutzer hat eigene Fotos im Projekt. Nur diese Dateien dürfen mit <img src="bilder/…"> (mit alt-Text, width, height, max-width:100%) oder CSS url() verwendet werden; erfinde keine anderen Dateinamen. Gib die Fotos NICHT in der Dateiliste aus. Fotos: ' + fotos.map(function (f) { return f.pfad + ' (' + f.w + 'x' + f.h + ' Pixel)'; }).join(', ') + '.' : '';
+        var neu = await codeVonKi('Du änderst eine bestehende kleine Web-App nach Wunsch. Behalte alles, was nicht geändert werden soll, unverändert. Liefere die KOMPLETTE Dateiliste (alle Dateien, auch unveränderte). ' + CODE_REGELN + fotoRegel, 'Änderungswunsch: ' + kurz(arb.thema, 600) + '\nAktuelle Dateien (JSON): ' + JSON.stringify(textDateien));
+        if (fotos.length) neu = (D().ohneBilder ? D().ohneBilder(neu) : neu).filter(function (f) { return f.pfad.indexOf('bilder/') !== 0; }).concat(fotos);
         var pr = D().pruefeProjekt(neu), altV = {};
         if (pr.ok && D().pruefeVerweise) {   // nur NEUE Verweisfehler lehnen die Änderung ab (Altlasten des Projekts blockieren sie nicht)
             D().pruefeVerweise(pr0.dateien).fehler.forEach(function (x) { altV[x] = true; });
@@ -350,7 +354,7 @@
             fr.setAttribute('sandbox', 'allow-scripts');
             fr.setAttribute('aria-hidden', 'true'); fr.tabIndex = -1;
             fr.style.cssText = 'position:fixed;left:-9999px;top:0;width:360px;height:640px;border:0;visibility:hidden';
-            var html = D().vorschauHtml(dateien), cspEnde = html.indexOf('>', html.indexOf('Content-Security-Policy')) + 1;
+            var html = D().vorschauHtml(dateien, D().platzhalter ? D().platzhalter(dateien) : undefined), cspEnde = html.indexOf('>', html.indexOf('Content-Security-Policy')) + 1;
             fr.srcdoc = html.slice(0, cspEnde) + REPORTER(tok) + html.slice(cspEnde);
             var timer;
             function h(ev) {
@@ -453,6 +457,7 @@
         if (!dateien) return fehl('Es gibt nichts zu speichern.');
         if (arb.projektId && P().hole(arb.projektId)) {
             var u = P().aktualisiere(arb.projektId, { dateien: dateien }); if (!u.ok) return fehl(u.fehler);
+            try { if (window.jvStudioBilder && D().bilderListe && (D().bilderListe(dateien).length || (u.projekt.vorher && D().bilderListe(u.projekt.vorher.dateien).length))) window.jvStudioBilder.raeumeAuf(arb.projektId, [u.projekt.dateien, u.projekt.vorher && u.projekt.vorher.dateien]).catch(function () { }); } catch (e) { }
             return ok('datei', 'Neue Fassung (Version ' + u.projekt.version + ') von „' + u.projekt.name + '“ gespeichert, ' + dateien.length + ' Dateien; die Fassung davor bleibt erhalten.', { projektId: u.projekt.id });
         }
         var spec = arb.spec || { name: 'Web-Projekt', art: 'app' };
@@ -514,6 +519,7 @@
     async function t_apk(a) {
         var mid = a.mission.id, arb = arbeit(a), pr = arb.projektId ? P().hole(arb.projektId) : null;
         if (!pr || !pr.dateien) return fehl('Das Projekt wurde nicht gefunden.');
+        if (D().bilderListe && D().bilderListe(pr.dateien).length) return fehl('Dieses Projekt enthält eigene Fotos. Die APK kann sie noch nicht aufnehmen (der Build-Server nimmt nur Textdateien). Die Vorschau und das ZIP enthalten die Fotos. Für die APK müsste der Server erweitert werden; das mache ich nur nach deiner Freigabe.');
         var check = D().pruefeProjekt(pr.dateien); if (!check.ok) return fehl('Das Projekt ist für den Bau nicht zulässig: ' + check.fehler[0]);
         var start = Date.now(), bau = arb.bau;
         if (!bau || !bau.branch) {

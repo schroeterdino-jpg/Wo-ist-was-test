@@ -79,7 +79,7 @@
         if (bytes() > MAX_BYTES || !speichern()) { Object.keys(p).forEach(function (k) { delete p[k]; }); Object.assign(p, alt); return { ok: false, fehler: 'Speicher voll: die neue Fassung konnte nicht gespeichert werden. Die alte bleibt unverändert.', voll: true }; }
         return { ok: true, projekt: kopie(p) };
     }
-    function entferne(id) { var n = zustand.projekte.length; zustand.projekte = zustand.projekte.filter(function (p) { return p.id !== id; }); if (zustand.projekte.length === n) return { ok: false, fehler: 'Dieses Projekt gibt es nicht.' }; speichern(); return { ok: true }; }
+    function entferne(id) { var n = zustand.projekte.length; zustand.projekte = zustand.projekte.filter(function (p) { return p.id !== id; }); if (zustand.projekte.length === n) return { ok: false, fehler: 'Dieses Projekt gibt es nicht.' }; speichern(); try { if (window.jvStudioBilder && window.jvStudioBilder.loescheProjekt) window.jvStudioBilder.loescheProjekt(id).catch(function () { }); } catch (e) { } return { ok: true }; }
     function hole(id) { var p = suche(id); return p ? kopie(p) : null; }
     function liste() { return zustand.projekte.map(kopie); }
 
