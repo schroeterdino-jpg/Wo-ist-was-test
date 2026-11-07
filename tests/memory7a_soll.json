@@ -26,12 +26,13 @@
    "storage.js",
    "sync.js"
   ],
-  "schluesselAnzahl": 172,
+  "schluesselAnzahl": 173,
   "jvNova": [
    "jv_aa_kopf",
    "jv_ansage_zuletzt",
    "jv_ansagen",
    "jv_antrag_profil",
+   "jv_antwort_text",
    "jv_anzeige_layout",
    "jv_anzeige_rand",
    "jv_anzeige_zoom",
