@@ -564,6 +564,21 @@ function kernOk(comps, titel) {
   comps.forEach(c => { if (tt.includes(c) || tt.includes(c.replace(/e$/, ''))) n++; });
   return n >= Math.ceil(comps.length * 0.5);
 }
+/* Händlerseiten zu Angeboten ohne Link: ein Treffer der Websuche zählt nur, wenn (1) seine Domain zum Händlernamen des Angebots passt, (2) der Titel zum gesuchten Produkt passt und (3) es keine Vergleichs-/Suchmaschinen-/Marktplatzseite ist.
+   Der Preis steht weiter nur aus der Preissuche; die Seite kann einen anderen Preis zeigen (linkArt "haendlerseite", nicht "direkt"). Nichts passt = kein Link. */
+const VERGLEICH_HOST_RX = /(^|\.)(google|idealo|billiger|check24|geizhals|preisvergleich|guenstiger|kleinanzeigen|ebay|pricerunner|shopping|testberichte|test|bing|duckduckgo|youtube|pinterest|facebook|instagram|wikipedia)\./i;
+function domainKern(h) { return norm(String(h || '').replace(/^www\./i, '').replace(/\.(co\.uk|com|de|net|org|eu|at|ch|shop|store)$/i, '')).replace(/[^a-z0-9]+/g, ''); }
+function haendlerLinks(q, need, organic) {
+  const org = (Array.isArray(organic) ? organic : []).map(o => { try { const u = new URL(String(o && o.link || '')); return u.protocol === 'https:' && !VERGLEICH_HOST_RX.test(u.hostname) ? { href: u.href, kern: domainKern(u.hostname), titel: String(o.title || '') } : null; } catch (e) { return null; } }).filter(Boolean);
+  if (!org.length) return;
+  const gew = gewichte(q, org.map(o => o.titel));
+  need.forEach(x => {
+    const sk = norm(String(x.shop || '').replace(/\.(com|de|net|org|eu|at|ch)\b/gi, '')).replace(/[^a-z0-9]+/g, '');
+    if (sk.length < 4) return;
+    const t = org.find(o => o.kern.length >= 4 && (o.kern.includes(sk) || sk.includes(o.kern)) && passung(q, o.titel, gew) >= 0.5);
+    if (t) { x.link = t.href; x.linkArt = 'haendlerseite'; }
+  });
+}
 async function shopping(req, res) {
   const q = String(req.query.q || '').trim().slice(0, 120);
   if (!q) return res.status(400).json({ error: 'Kein Suchbegriff angegeben' });
@@ -614,6 +629,7 @@ async function shopping(req, res) {
         else { const eg = idealoSeite(await rs.text()); diagI.seite = eg.length + ' Treffer'; const bekannt = new Set(idl.map(x => x.link)); idl = eg.filter(x => !bekannt.has(x.link)).concat(idl).slice(0, 4); }
       } catch (e) { diagI.seite = 'Fehler'; }
     }
+    idl.forEach(x => { x.vergleich = true; });   // Idealo ist ein Preisvergleich, kein Händler: die App zeigt es getrennt
     let l = alle.filter(x => !GEBRAUCHT_RX.test(x.shop + ' ' + x.link));
     l = l.concat(idl);   // Gebrauchtes zeigt keine Neupreise und sein Link startet in der APK Jarvis neu
     let ungenau = false;
@@ -631,6 +647,16 @@ async function shopping(req, res) {
     }
     // Google-Links führen auf eine Einwilligungs-/Anmeldeseite von Google: nur direkte Shop-Links durchreichen, sonst leer (die App nimmt dann eine Preisvergleichs-Suche)
     l.forEach(x => { try { if (/(^|\.)google\./i.test(new URL(x.link).hostname)) x.link = ''; } catch (e) { x.link = ''; } });
+    if (String(req.query.haendler || '') === '1') {   // Produktkarten: fehlende Händlerlinks über eine normale Websuche ergänzen (nur echte Händlerseiten, die zum Händler UND zum Produkt passen)
+      try {
+        const need = l.filter(x => !x.link && !x.vergleich && !MARKTPLATZ_RX.test(x.shop)).slice(0, 5);
+        if (need.length) {
+          const r4 = await fetch('https://google.serper.dev/search', { method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ q: q + ' kaufen', gl: 'de', hl: 'de', num: 20 }), signal: AbortSignal.timeout(7000) });
+          if (r4.ok) haendlerLinks(q, need, (await r4.json()).organic);
+        }
+      } catch (e) { }
+    }
+    l.forEach(x => { if (x.link && !x.linkArt && !x.vergleich) x.linkArt = 'direkt'; });
     l.forEach(x => { if (MARKTPLATZ_RX.test(x.shop + ' ' + x.link)) x.markt = true; });
     l.sort((a, b) => (a.markt ? 1 : 0) - (b.markt ? 1 : 0) || a.preis - b.preis);   // Marktplätze nie vor normalen Shops
     const normal = l.filter(x => !x.markt), markt = l.filter(x => x.markt);

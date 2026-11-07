@@ -144,6 +144,7 @@
         try {
             var l = frisch(); r.bezug = l.length; r.themen = themen(); r.art = l.length ? l[0].art : '';
             if (window.jvProdukte && window.jvProdukte.istFolgefrage(text)) { r.pfad = 'produkte'; return r; }   // Anschlussfrage zu den gezeigten Produktkarten: aus den gespeicherten Daten (js/produktkarten.js)
+            if (window.jvProdukte && window.jvProdukte.produktsuche(text)) { r.pfad = 'produktsuche'; r.query = String(text).trim().slice(0, 400); return r; }   // Produktwunsch + Kauf-/Preisfrage in einem Satz: direkt Internetsuche, nie Ortsrückfrage oder Einkaufsliste
             if (!l.length || !reinerBezug(text) || !haendlerFrage(text)) return r;
             if (r.themen > 1) {
                 var t = themenListe();

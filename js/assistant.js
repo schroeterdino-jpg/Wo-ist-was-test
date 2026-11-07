@@ -226,7 +226,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
             if (!ai) { anschlussRoute = { pfad: 'modell' }; anschlussPfad = 'modell'; }
         }
         if (ai) {
-        } else if (anschlussRoute.pfad === 'direkt') {
+        } else if (anschlussRoute.pfad === 'direkt' || anschlussRoute.pfad === 'produktsuche') {
             ai = { reply: 'Ich schaue nach.', actions: [{ type: 'web_lookup', web_query: anschlussRoute.query }] };
         } else if (anschlussRoute.pfad === 'nachfrage') {
             ai = { reply: anschlussRoute.text, actions: [] };

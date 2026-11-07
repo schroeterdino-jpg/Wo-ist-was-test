@@ -158,7 +158,7 @@
         return m ? m[1] : '';
     }
     function begriffAus(text) { for (var i = 0; i < ESSEN.length; i++) if (ESSEN[i][0].test(text)) return ESSEN[i][1]; return ''; }
-    function hatGemerkt() { try { var g = window.jvGespraech; return !!g && g.status().listen.length > 0; } catch (e) { return false; } }
+    function hatGemerkt() { try { var g = window.jvGespraech; return !!g && g.status().listen.some(function (x) { return x && x.art !== 'produkte'; }); } catch (e) { return false; } }   // Produktlisten (Produktkarten) sind keine Orte: Preisfragen dazu beantwortet js/produktkarten.js
 
     function lokalEntscheiden(text) {
         var t = String(text == null ? '' : text);
@@ -467,7 +467,7 @@
     /* Gesprächsort: der zuletzt EINDEUTIG genannte Ort (nur der Name, nur Arbeitsspeicher, 10 Minuten). Er wird nur für "dort", "da", "in dieser Stadt" gebraucht.
        Gemerkt wird nur bei eingeschalteter Chef-KI; ein Satz mit mehreren Orten löscht ihn (nie raten). Vor der Benutzung wird er einmal beim Kartendienst geprüft (Ort, nicht irgendein Hauptwort). */
     var ORT_MS = 10 * 60000, ortMerker = null, ortPruefer = null;
-    var RX_ORTSBEZUG = /(?<![\wäöüß])(?:dort|dorthin|dortige[nrms]?|in dieser stadt|in diesem ort|in dieser gegend|in diesem dorf|in dieser region|da(?!\s+(?:es|ich|du|wir|ihr|man|er|sie)(?![\wäöüß])))(?![\wäöüß])/i;
+    var RX_ORTSBEZUG = /(?<![\wäöüß])(?:dort|dorthin|dortige[nrms]?|in dieser stadt|in diesem ort|in dieser gegend|in diesem dorf|in dieser region|da(?!\s+(?:es|ich|du|wir|ihr|man|er|sie|vielleicht|eigentlich|mal|noch|auch|schon|wohl|denn|doch|gerade|zufällig|zufaellig|irgendwas|irgendwelche\w*|etwas|was|so)(?![\wäöüß])))(?![\wäöüß])/i;
     var RX_ORTSBEZUG_G = new RegExp(RX_ORTSBEZUG.source, 'gi');
     var ORT_KEIN = /^(?:Urlaub|Betrieb|Arbeit|Ordnung|Ruhe|Eile|Bezug|Zukunft|Gefahr|Betracht|Frage|Not|Kürze|Vergangenheit|Wahrheit|Hause|Haus|Mitte|Zeit|Folge|Wahl|Anfang|Ende|Fall|Sicht|Ordnung)$/;
     function ortFrisch() { return !!ortMerker && jetzt() - ortMerker.at <= ORT_MS; }
@@ -1052,6 +1052,7 @@
                 kiEntscheideImSprachweg(t, genV, eingV, kontextText(), kopf === 'nachfrage_antwort', '', mehr === true, true).catch(function () { });
                 return true;
             }
+            if (window.jvProdukte && (window.jvProdukte.produktsuche(t) || window.jvProdukte.istFolgefrage(t))) { neuerEingang('produktsuche'); return false; }   // Produktwunsch mit Kauf-/Preisfrage: kein Ortsplan, die Internetsuche mit Produktkarten übernimmt
             var anschluss = !kopf && themaFrisch() && woerter >= 1 && woerter <= 8 && RX_FOLGE.test(t) && !RX_SCHREIB.test(t);
             if (anschluss) kopf = 'anschluss';
             if (!kopf && (woerter < 3 || woerter > 30 || t.length > 240)) { neuerEingang('vorfilter_laenge'); return false; }
