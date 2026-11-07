@@ -109,7 +109,7 @@
                 if (typeof o.shop === 'string') r.shop = o.shop.slice(0, 60);
                 if (typeof o.hersteller === 'string') r.hersteller = o.hersteller.slice(0, 60);
                 if (Array.isArray(o.angebote)) r.angebote = o.angebote.slice(0, 3).map(function (x) {
-                    return { shop: String((x && x.shop) || '').slice(0, 60), preis: (x && typeof x.preis === 'number' && isFinite(x.preis)) ? x.preis : 0, preisText: String((x && x.preisText) || '').slice(0, 30), link: (x && typeof x.link === 'string' && /^https?:\/\//i.test(x.link)) ? x.link.slice(0, 400) : '', linkArt: (x && (x.linkArt === 'direkt' || x.linkArt === 'haendlerseite')) ? x.linkArt : '' };
+                    return { shop: String((x && x.shop) || '').slice(0, 60), preis: (x && typeof x.preis === 'number' && isFinite(x.preis)) ? x.preis : 0, preisText: String((x && x.preisText) || '').slice(0, 30), link: (x && typeof x.link === 'string' && /^https?:\/\//i.test(x.link)) ? x.link.slice(0, 400) : '', linkArt: (x && (x.linkArt === 'direkt' || x.linkArt === 'haendlerseite' || x.linkArt === 'kategorie')) ? x.linkArt : '' };
                 });
                 if (Array.isArray(o.vergleich)) r.vergleich = o.vergleich.slice(0, 2).map(function (x) {
                     return { shop: String((x && x.shop) || '').slice(0, 60), preis: (x && typeof x.preis === 'number' && isFinite(x.preis)) ? x.preis : 0, preisText: String((x && x.preisText) || '').slice(0, 30), link: (x && typeof x.link === 'string' && /^https?:\/\//i.test(x.link)) ? x.link.slice(0, 400) : '' };

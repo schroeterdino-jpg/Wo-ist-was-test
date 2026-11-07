@@ -56,6 +56,48 @@ async function serverTests() {
     const v = await lade(fake2)({ action: 'shopping', q: 'Grohe Eurosmart Waschtischarmatur' });
     const id = (v.angebote || []).filter(x => /idealo/i.test(x.shop));
     check('S8 Idealo-Treffer sind ausdrücklich als Vergleich markiert (vergleich:true)', id.length >= 1 && id.every(x => x.vergleich === true), JSON.stringify(v.angebote));
+
+    /* ---- Handytest 07.11.: kleine Shops stehen nicht in der allgemeinen Suche -> gezielte Suche je Händler ---- */
+    {
+        const sh = [
+            { title: 'Schütte Athos Plus Waschtischarmatur', source: 'OBI', price: '17,99 €', link: 'https://www.google.com/search?ibp=oshop&q=1' },
+            { title: 'Schütte Athos Plus Waschtischarmatur chrom', source: 'onlinebaufuchs', price: '22,39 €', link: 'https://www.google.com/aclk?a=2' },
+            { title: 'Schütte Athos Plus Armatur', source: 'MDM Tools', price: '23,00 €', link: 'https://www.google.com/aclk?a=3' },
+            { title: 'Schütte Athos Plus Armatur', source: 'BAU99', price: '24,00 €', link: 'https://www.google.com/aclk?a=4' },
+            { title: 'Schütte Athos Plus Armatur', source: 'Sanitino', price: '25,00 €', link: 'https://www.google.com/aclk?a=5' }
+        ];
+        const anfragen = [];
+        let sanitinoFehler = false;
+        const fk = async (url, o) => {
+            if (/shopping/.test(url)) return antwort({ shopping: sh });
+            const body = JSON.parse(String(o && o.body || '{}')), qq = String(body.q || '');
+            if (/site:idealo|idealo Preisvergleich/.test(qq)) return antwort({ organic: [] });
+            if (qq) anfragen.push(qq);
+            if (/ kaufen$/.test(qq)) return antwort({ organic: [{ title: 'Schütte Athos Plus Armatur | Hornbach', link: 'https://www.hornbach.de/p/athos' }, { title: 'Schütte Athos Plus Preisvergleich', link: 'https://www.idealo.de/preisvergleich/OffersOfProduct/7.html' }] });
+            if (/OBI$/.test(qq)) return antwort({ organic: [{ title: 'SCHÜTTE Waschtischarmatur Athos Plus | OBI', link: 'https://www.obi.de/p/schuette-athos-plus' }] });
+            if (/onlinebaufuchs$/.test(qq)) return antwort({ organic: [{ title: 'Schütte Athos Plus Einhebelmischer günstig kaufen', link: 'https://www.onlinebaufuchs.de/schuette-athos-plus' }] });
+            if (/MDM Tools$/.test(qq)) return antwort({ organic: [{ title: 'Schütte Armaturen & Mischer - Sanitär | MDM Tools', link: 'https://www.mdm-tools.de/sanitaer/armaturen' }, { title: 'Schütte Athos Plus Preisvergleich', link: 'https://www.preisvergleich.example/x' }] });
+            if (/BAU99$/.test(qq) && sanitinoFehler) return antwort({}, { ok: false, status: 500 });
+            if (/Sanitino$/.test(qq)) return sanitinoFehler ? antwort({}, { ok: false, status: 500 }) : antwort({ organic: [] });
+            return antwort({ organic: [] });   // BAU99: nichts
+        };
+        const rufe2 = lade(fk);
+        const r = await rufe2({ action: 'shopping', q: 'Schütte Athos Plus', haendler: '1' });
+        const g = n => (r.angebote || []).find(x => x.shop === n);
+        check('S9 kleine Shops: gezielte Suche je Händler findet die Produktseite (OBI, onlinebaufuchs)', g('OBI') && g('OBI').link === 'https://www.obi.de/p/schuette-athos-plus' && g('OBI').linkArt === 'haendlerseite' && g('onlinebaufuchs') && g('onlinebaufuchs').link === 'https://www.onlinebaufuchs.de/schuette-athos-plus', JSON.stringify(r.angebote));
+        check('S10 nur Händlerseite zum Thema (Kategorie) wird als „kategorie“ gekennzeichnet, nie als Produktseite', g('MDM Tools') && g('MDM Tools').linkArt === 'kategorie' && /mdm-tools\.de/.test(g('MDM Tools').link), JSON.stringify(g('MDM Tools')));
+        check('S11 nichts gefunden (BAU99; Sanitino ist der 5. Händler und wird nicht mehr gesucht): kein Link, kein erfundener', !g('BAU99').link && !g('Sanitino').link && !g('BAU99').linkArt);
+        check('S12 Vergleichsseiten (Idealo, „preisvergleich“) werden nie als Händlerlink genommen', (r.angebote || []).every(x => !/idealo|preisvergleich/i.test(x.link)));
+        check('S13 wenige Anfragen: 1 allgemeine + höchstens 4 gezielte', anfragen.length === 5 && r.diag.h.anfragen === 5, String(anfragen.length));
+        check('S14 Diagnose: Anfragen, Treffer, ergänzt und Ablehnungsgründe, ohne Schlüssel', r.diag.h.ergaenzt === 3 && r.diag.h.abgelehnt.host === 2 && r.diag.h.treffer >= 5 && r.diag.h.fehler.length === 0 && !/"x"|X-API/.test(JSON.stringify(r.diag)), JSON.stringify(r.diag.h));
+        sanitinoFehler = true; anfragen.length = 0;
+        const r2 = await rufe2({ action: 'shopping', q: 'Schütte Athos Plus', haendler: '1' });
+        check('S15 Suchfehler eines Händlers wird in der Diagnose gemeldet, die anderen Links bleiben', r2.diag.h.fehler.join() === 'HTTP 500' && r2.angebote.find(x => x.shop === 'OBI').link, JSON.stringify(r2.diag.h));
+        anfragen.length = 0;
+        const r3 = await rufe2({ action: 'shopping', q: 'Schütte Athos Plus' });
+        check('S16 ohne Händler-Wunsch keine zusätzlichen Anfragen und keine Händler-Diagnose', anfragen.length === 0 && !r3.diag.h, String(anfragen.length));
+    }
+
 }
 
 /* ---------- Teil 2: App ---------- */
@@ -134,7 +176,7 @@ const TAB_OHNE = {
         check('A3 die Preissuche wird mit Händler-Wunsch aufgerufen', app.log.haendlerFlag === 2, String(app.log.haendlerFlag));
         const gm = app.sb.jvGespraech.liste().items[0];
         check('A4 im Gedächtnis: Art des Links gespeichert, Idealo nur unter „vergleich“', gm.angebote.every(a => !/idealo/i.test(a.link) && !/idealo/i.test(a.shop)) && gm.vergleich && gm.vergleich[0] && /idealo/.test(gm.vergleich[0].link) && gm.angebote[0].linkArt === 'direkt' && gm.angebote[1].linkArt === 'haendlerseite', JSON.stringify(gm));
-        check('A5 Produktseite eines Händlers ist als solche gekennzeichnet (Preis kann abweichen)', /Sanitär-Direkt · 69,50 €[^<]*\(Produktseite, Preis kann abweichen\)/.test(h));
+        check('A5 Produktseite eines Händlers ist als solche gekennzeichnet (Preis kann abweichen)', /Sanitär-Direkt · 69,50 €[^<]*\(Link separat gesucht, Preis kann abweichen\)/.test(h));
         const r2 = await runde(app, 'Wo kann ich die beiden kaufen?');
         check('A6 „Wo kann ich die beiden kaufen?“: lokal aus den Produkten, ohne Modell, ohne Einkaufsliste', r2.modell === 0 && einkauf(app) === 0 && /Grohe Eurosmart gibt es bei Baumarkt24 für 64,90 €/.test(r2.gesagt[0]) && /Talis S gibt es bei Bad-Welt für 129,00 €/.test(r2.gesagt[0]), JSON.stringify(r2.gesagt));
         check('A7 die Kaufkarten haben dieselben echten Händlerlinks', hrefs(html(r2.sichtbar)).includes('https://baumarkt24.example/eurosmart') && hrefs(html(r2.sichtbar)).includes('https://bad-welt.example/talis'));
@@ -159,6 +201,13 @@ const TAB_OHNE = {
         check('B5 liefert die Suche nur Idealo, gibt es KEIN Händlerangebot; Idealo steht getrennt als Vergleich', /Kein verlässliches Angebot gefunden/.test(h) && /Preisvergleich \(kein Händlerlink\)/.test(h) && !/Idealo · 59,99 €[^<]*<\/a>\s*<span style="display:block;color:#94a3b8/.test('x'), h.slice(0, 300));
         const r2 = await runde(app, 'Wo kann ich die beiden kaufen?');
         check('B6 und die Antwort behauptet keinen Händler', !/gibt es bei Idealo/.test(r2.gesagt[0]), JSON.stringify(r2.gesagt));
+    }
+    {
+        const tab = { 'Grohe Eurosmart': [ang('GROHE Eurosmart Waschtischarmatur', 'MDM Tools', 39.9, 'https://mdm.example/armaturen', { linkArt: 'kategorie' })], 'Hansgrohe Talis S': [] };
+        const app = neu(Object.assign({ angebote: tab }, HAHN));
+        const r = await runde(app, 'Ich suche zwei schöne Wasserhähne für mein Badezimmer.'), h = html(r.sichtbar);
+        check('B7 nur eine Händlerseite (Kategorie): Link vorhanden, aber ausdrücklich „nicht sicher genau dieses Produkt“', /href="https:\/\/mdm\.example\/armaturen"[^>]*>MDM Tools · 39,90 € \(Händlerseite, nicht sicher genau dieses Produkt\)/.test(h), h.slice(0, 300));
+        check('B8 Diagnosezeile zu den Händlerlinks erscheint nicht ohne Diagnose-Modus und stört nicht', r.sichtbar.length === 2);
     }
 
     /* ---- C. die Originalfrage und andere kombinierte Sätze ---- */
