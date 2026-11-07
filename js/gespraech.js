@@ -1,7 +1,7 @@
 /* ============================================================
    GESPRÄCHSGEDÄCHTNIS (Phase 4): merkt sich, worüber gerade gesprochen wird, damit Folgefragen verstanden werden können.
      "Suche drei Restaurants in Hamburg" -> Ergebnisse   |   "Das zweite gefällt mir" -> Auswahl   |   "Wie komme ich dahin?" -> das ausgewählte Restaurant
-   Seit Phase 5 benutzt NUR js/gespraech_ort.js es (Ortssuche: Ergebnisse merken, Folgefragen beantworten). Sonst benutzt es keine App-Datei.
+   Seit Phase 5 benutzt js/gespraech_ort.js es (Orte), js/gespraech_antwort.js die letzten Antworten (Anschlussfragen) (Ortssuche: Ergebnisse merken, Folgefragen beantworten). Sonst benutzt es keine App-Datei.
    Es ist etwas ANDERES als das Langzeitgedächtnis (Langzeit-Speicher, "Merk dir ..."): kein Zugriff darauf, kein localStorage, kein Netz, keine Zeitgeber.
    Alles liegt nur im Arbeitsspeicher und verfällt (siehe STANDARD). Gespeichert werden Ergebnisse (Name, Beschreibung, Link) und Jarvis' eigene Rückfragen,
    NIE die Sätze des Nutzers.
@@ -24,13 +24,16 @@
    .frage({ text, optionen?, thema?, art? })   eigene offene Rückfrage anlegen (art: 'auswahl' | 'ja_nein'); .offeneFragen(); .beantworte(text); .schliesse(id)
    .fehlgeschlagen()                     eine Suche ist gescheitert: bisherige Ergebnisse und Auswahl verwerfen (kein alter Ort darf als neuer gelten)
    Ergebnisse dürfen zusätzlich lat, lon (Koordinaten), adresse und distanzKm tragen (nur gültige Zahlen/Texte werden übernommen).
+   .antwort(art, frage, text, hinweis?)  Jarvis' letzte ECHTE Antwort merken (Internet, Fahrzeit, Umgebung, Tanken, Bahn, KI-Antwort), max. 3, je 700 Zeichen; getrennt von den Ergebnislisten
+                                         (eine Antwort ersetzt weder Treffer noch Auswahl). Nur Arbeitsspeicher, verfällt nach ergebnisMs (10 Min.). Genutzt von js/gespraech_antwort.js
+   .antworten()                          die frischen Antworten, jüngste zuerst: [{ art, frage, text, hinweis, alterMs }]
    .status()   Überblick ohne Inhalte (Anzahl, Alter, veraltet)   .vergiss()   alles löschen
    ============================================================ */
 (function () {
     'use strict';
     if (window.jvGespraech) return;
 
-    var STANDARD = { ergebnisMs: 10 * 60000, auswahlMs: 15 * 60000, frageMs: 2 * 60000, ruheMs: 30 * 60000, maxErgebnisse: 10, maxListen: 3, maxFragen: 3 };
+    var STANDARD = { ergebnisMs: 10 * 60000, auswahlMs: 15 * 60000, frageMs: 2 * 60000, ruheMs: 30 * 60000, maxErgebnisse: 10, maxListen: 3, maxFragen: 3, maxAntworten: 3 };
 
     var W = '[A-Za-zÄÖÜäöüß]';
     var NR = { erste: 1, zweite: 2, dritte: 3, vierte: 4, fünfte: 5, fuenfte: 5, sechste: 6, siebte: 7, siebente: 7, achte: 8, neunte: 9, zehnte: 10 };
@@ -64,7 +67,7 @@
         var jetzt = typeof opt.jetzt === 'function' ? opt.jetzt : function () { return Date.now(); };
         var Z = {}; Object.keys(STANDARD).forEach(function (k) { Z[k] = (opt.zeiten && typeof opt.zeiten[k] === 'number') ? opt.zeiten[k] : STANDARD[k]; });
         var s, idZaehler = 0;
-        function leer() { s = { absicht: null, listen: [], auswahl: null, fragen: [], zuletzt: jetzt() }; }
+        function leer() { s = { absicht: null, listen: [], auswahl: null, fragen: [], antworten: [], zuletzt: jetzt() }; }
         leer();
 
         /* Verfall, immer beim Zugriff (kein Zeitgeber): lange Ruhe -> alles weg; Listen nach ruheMs weg; Auswahl und Fragen nach ihrer Frist weg. */
@@ -75,6 +78,7 @@
             if (s.auswahl && t - s.auswahl.zeit > Z.auswahlMs) s.auswahl = null;
             s.fragen = s.fragen.filter(function (f) { return t - f.zeit <= Z.frageMs; });
             if (s.absicht && t - s.absicht.zeit > Z.ruheMs) s.absicht = null;
+            s.antworten = s.antworten.filter(function (a) { return t - a.zeit <= Z.ergebnisMs; });
         }
         function beruehre() { s.zuletzt = jetzt(); }
         function veraltet(l) { return jetzt() - l.zeit > Z.ergebnisMs; }
@@ -109,6 +113,16 @@
             beruehre();
             return items.length;
         }
+        function antwort(art, frage, text, hinweis) {
+            aufraeumen();
+            var t = String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
+            if (!t) return false;
+            s.antworten.unshift({ art: String(art || 'antwort').slice(0, 20), frage: String(frage == null ? '' : frage).replace(/\s+/g, ' ').trim().slice(0, 200), text: t.slice(0, 700), hinweis: String(hinweis == null ? '' : hinweis).replace(/\s+/g, ' ').trim().slice(0, 450), zeit: jetzt() });
+            while (s.antworten.length > Z.maxAntworten) s.antworten.pop();
+            beruehre();
+            return true;
+        }
+        function antworten() { aufraeumen(); return s.antworten.map(function (a) { return { art: a.art, frage: a.frage, text: a.text, hinweis: a.hinweis, alterMs: jetzt() - a.zeit }; }); }
         function fehlgeschlagen() { aufraeumen(); s.listen = []; s.auswahl = null; s.fragen = []; beruehre(); return true; }
         function verarbeite(r) {
             aufraeumen();
@@ -283,12 +297,12 @@
         function status() {
             aufraeumen();
             return { absicht: s.absicht ? s.absicht.name : null, listen: s.listen.map(function (l) { return { art: l.art, anzahl: l.items.length, alterMs: jetzt() - l.zeit, veraltet: veraltet(l) }; }),
-                     auswahl: s.auswahl ? { alterMs: jetzt() - s.auswahl.zeit } : null, offeneFragen: s.fragen.length };
+                     auswahl: s.auswahl ? { alterMs: jetzt() - s.auswahl.zeit } : null, offeneFragen: s.fragen.length, antworten: s.antworten.length };
         }
         function vergiss() { leer(); return true; }
 
         return { absicht: absicht, ergebnisse: ergebnisse, verarbeite: verarbeite, waehle: waehle, ausgewaehlt: ausgewaehlt, aufloesen: aufloesen, frage: frageAnlegen, offeneFragen: offeneFragen,
-                 beantworte: beantworte, schliesse: schliesse, status: status, vergiss: vergiss, fehlgeschlagen: fehlgeschlagen, erzeuge: erzeuge, ZEITEN: Object.freeze(Object.assign({}, Z)) };
+                 beantworte: beantworte, schliesse: schliesse, status: status, vergiss: vergiss, fehlgeschlagen: fehlgeschlagen, antwort: antwort, antworten: antworten, erzeuge: erzeuge, ZEITEN: Object.freeze(Object.assign({}, Z)) };
     }
 
     window.jvGespraech = erzeuge();

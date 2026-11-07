@@ -21,6 +21,7 @@
             if (typeof chatHistory === 'undefined' || !Array.isArray(chatHistory)) return;
             chatHistory.push({ role: 'user', content: String(userText) });
             chatHistory.push({ role: 'assistant', content: JSON.stringify({ reply: String(spoken), actions: [] }) });
+            if (window.jvAnschlussAntwort) window.jvAnschlussAntwort.merke('lokal', String(userText), String(spoken), '');   // Anschlussfragen (js/gespraech_antwort.js)
         } catch (e) {}
     }
 

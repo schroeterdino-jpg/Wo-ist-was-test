@@ -175,7 +175,7 @@ const MIN = 60000;
     const code = quelle.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     check('10a Datei: kein Netz, kein Speichern, keine Sprache, keine Zeitgeber, keine Aktionen, kein DOM, kein Langzeitgedächtnis', !/fetch\(|apiFetch|XMLHttpRequest|localStorage|sessionStorage|setPersistentData|setItem|speak\(|speakAck|setTimeout|setInterval|executeAction|sendToGroqSmart|document\.|memoryItems|searchMemory|addMemory|jvRegistry|handleLocalCommand/.test(code), (code.match(/fetch\(|localStorage|setItem|speak\(|setTimeout|setInterval|executeAction|document\.|memoryItems|searchMemory|jvRegistry|handleLocalCommand/) || [])[0]);
     const nutzer = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && f !== 'gespraech.js').filter(f => /jvGespraech\b/.test(lies('js/' + f)));
-    check('10b nur gespraech_ort.js (Phase 5, Ortssuche) und chef.js (Phase 6, Chef-KI) benutzen das Gesprächsgedächtnis, sonst keine App-Datei', nutzer.join() === 'chef.js,gespraech_ort.js', nutzer.join());
+    check('10b nur gespraech_ort.js (Phase 5, Ortssuche), gespraech_antwort.js (P1-Nachbesserung, letzte Antworten) und chef.js (Phase 6, Chef-KI) benutzen das Gesprächsgedächtnis, sonst keine App-Datei', nutzer.join() === 'chef.js,gespraech_antwort.js,gespraech_ort.js', nutzer.join());
     const C = starte({ jetzt: '2026-11-05T10:00:00+01:00', festerZufall: true, fetch: async () => { throw new Error('offline'); } });
     const vorher = JSON.stringify(C.store) + JSON.stringify(C.lese('memoryItems')) + C.aufrufe.length + C.gesagt.length;
     const gg = C.sb.jvGespraech; gg.ergebnisse('o', RESTS); gg.aufloesen('Das zweite gefällt mir'); gg.aufloesen('Wie komme ich dahin?'); gg.frage({ text: 'x', art: 'ja_nein' }); gg.absicht('o');
