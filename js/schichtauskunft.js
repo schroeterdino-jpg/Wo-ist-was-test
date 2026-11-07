@@ -43,6 +43,7 @@
         });
         return Object.keys(o).length ? o : undefined;
     }
+    function lage() { try { return window.jvPlan && window.jvPlan.arbeitsLage ? window.jvPlan.arbeitsLage() : undefined; } catch (e) { return undefined; } }
     /* Für die KI */
     window.jvSchichtWissen = function () {
         try {
@@ -54,6 +55,7 @@
                 schichtende: zeitenFuer('ende'), gewuenschte_ankunft: zeitenFuer('ankunft'), abfahrt_zur_arbeit: zeitenFuer('abfahrt'),
                 aufstehen_in_der_fruehschicht: uhr(aufstehen()),
                 briefing_in_der_spaetschicht_ab: uhr(briefingSpaet()),
+                heute_und_naechster_arbeitstag: lage(),
                 hinweis: 'Der Schichtwechsel ist immer montags, Früh und Spät wechseln sich wöchentlich ab. Arbeit nur Montag bis Freitag.'
             };
             try { const u = window.jvUrlaub && window.jvUrlaub.get && window.jvUrlaub.get(); if (u && u.von && u.bis) o.urlaub = { von: u.von, bis: u.bis }; } catch (e) { }

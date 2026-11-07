@@ -218,6 +218,46 @@ const ids = (plan, art) => plan.filter(e => e.id.split('|')[0] === art);
         const mix2 = await frage('2026-11-06T10:00:00+01:00', 'Was gibt es morgen bei Regen zu essen?');
         check('Mischfall morgen (Samstag) bleibt Essensplan', mix2.l.modul === 'essensplan' && mix2.l.gesagt.some(t => /keinen Essensplan/.test(t)), mix2.l.modul + ' ' + mix2.l.gesagt.join('|'));
     }
+    /* --- 13. Heute/morgen arbeiten? Wochenende darf nie als "morgen geht es los" enden --- */
+    {
+        async function frage(jetzt, f, o) { const A = neu(jetzt, o); const r = await A.satz(f); return { A, r, t: r.gesagt.join(' | ') }; }
+        const montagSpaet = /Montag, Spätschicht von 13 Uhr 50 bis 22 Uhr 12/;
+        let x = await frage('2026-11-07T12:00:00+01:00', 'Muss ich heute Abend arbeiten?');   // der gemeldete Fall: Samstag
+        check('Samstag: "Muss ich heute Abend arbeiten?" wird lokal beantwortet', x.r.lokal, x.t);
+        check('Samstag: keine Schicht, Wochenende, nächster Arbeitstag Montag (nicht morgen)', /keine Schicht/.test(x.t) && /Wochenende/.test(x.t) && montagSpaet.test(x.t) && !/morgen/i.test(x.t), x.t);
+        for (const f of ['Arbeite ich morgen?', 'Muss ich morgen arbeiten?', 'Habe ich morgen Schicht?', 'Habe ich morgen frei?']) {   // morgen = Sonntag
+            x = await frage('2026-11-07T12:00:00+01:00', f);
+            check('Samstag: ' + f + ' -> Sonntag frei, nächster Arbeitstag Montag', x.r.lokal && /Morgen hast du keine Schicht/.test(x.t) && montagSpaet.test(x.t), x.t);
+        }
+        x = await frage('2026-11-07T12:00:00+01:00', 'Habe ich heute Schicht?');
+        check('Samstag: "Habe ich heute Schicht?" nennt heute, nicht nur die Wochenschicht', /Heute hast du keine Schicht/.test(x.t) && !/Diese Woche hast du/.test(x.t), x.t);
+        x = await frage('2026-11-08T12:00:00+01:00', 'Muss ich heute arbeiten?');
+        check('Sonntag: keine Schicht, morgen (Montag) Spätschicht', /Heute hast du keine Schicht/.test(x.t) && /morgen, Montag, Spätschicht von 13 Uhr 50 bis 22 Uhr 12/.test(x.t), x.t);
+        x = await frage('2026-11-06T20:00:00+01:00', 'Muss ich heute noch arbeiten?');
+        check('Freitagabend (Früh): Schicht schon vorbei, nächster Arbeitstag Montag', /schon vorbei/.test(x.t) && /Montag, Spätschicht/.test(x.t), x.t);
+        x = await frage('2026-11-06T20:00:00+01:00', 'Arbeite ich morgen?');
+        check('Freitagabend: morgen Samstag frei', /Morgen hast du keine Schicht/.test(x.t), x.t);
+        x = await frage('2026-11-04T10:00:00+01:00', 'Muss ich heute Abend arbeiten?');
+        check('Früh-Arbeitstag: heute Abend nicht mehr, Schichtzeit genannt', /Abend musst du nicht mehr arbeiten/.test(x.t) && /5 Uhr 10 bis 14 Uhr 37/.test(x.t), x.t);
+        x = await frage('2026-11-04T10:00:00+01:00', 'Muss ich morgen arbeiten?');
+        check('Früh-Arbeitstag: morgen Frühschicht', /Morgen hast du Frühschicht von 5 Uhr 10 bis 14 Uhr 37/.test(x.t), x.t);
+        x = await frage('2026-11-09T10:00:00+01:00', 'Muss ich heute Abend arbeiten?');
+        check('Spät-Arbeitstag: heute Abend Spätschicht bis 22:12', /Spätschicht von 13 Uhr 50 bis 22 Uhr 12/.test(x.t) && !/nicht mehr/.test(x.t), x.t);
+        x = await frage('2026-11-03T10:00:00+01:00', 'Muss ich morgen arbeiten?', { urlaub: { von: '2026-11-04', bis: '2026-11-05' } });
+        check('Urlaub: morgen frei wegen Urlaub, nächster Arbeitstag Freitag', /Morgen hast du keine Schicht, du hast Urlaub/.test(x.t) && /Freitag, Frühschicht/.test(x.t), x.t);
+        x = await frage('2026-11-07T12:00:00+01:00', 'Welche Schicht habe ich?');
+        check('Bestehende Schichtfrage bleibt: Welche Schicht habe ich?', /Diese Woche hast du Frühschicht/.test(x.t), x.t);
+        x = await frage('2026-11-07T12:00:00+01:00', 'Habe ich nächste Woche Frühschicht?');
+        check('Frage nach der Woche geht weiter an den alten Schichtbefehl', !/keine Schicht/.test(x.t), x.t);
+        const A = neu('2026-11-07T12:00:00+01:00'), w = A.sb.jvSchichtWissen();
+        const l = w && w.heute_und_naechster_arbeitstag;
+        check('KI-Kontext: heute ist Samstag, arbeitet nicht (Wochenende)', l && l.heute.wochentag === 'Samstag' && l.heute.arbeitet === false && l.heute.grund === 'Wochenende', JSON.stringify(l));
+        check('KI-Kontext: nächster Arbeitstag Montag 09.11., Spätschicht 13 Uhr 50', l && l.naechster_arbeitstag.wochentag === 'Montag' && l.naechster_arbeitstag.datum === '2026-11-09' && l.naechster_arbeitstag.schicht === 'Spätschicht' && l.naechster_arbeitstag.beginn === '13 Uhr 50', JSON.stringify(l));
+        const B = neu('2026-11-04T10:00:00+01:00'), l2 = B.sb.jvSchichtWissen().heute_und_naechster_arbeitstag;
+        check('KI-Kontext an einem Früh-Arbeitstag um 10 Uhr: Schicht läuft gerade, nächster Arbeitstag ist heute', l2.heute.arbeitet === true && l2.heute.schicht === 'Frühschicht' && l2.heute.status === 'läuft gerade' && l2.naechster_arbeitstag.datum === '2026-11-04' && l2.naechster_arbeitstag.ist_heute === true, JSON.stringify(l2));
+        const prompt = require('fs').readFileSync(__dirname + '/../js/prompt.js', 'utf8');
+        check('Prompt verweist auf heute_und_naechster_arbeitstag', /heute_und_naechster_arbeitstag/.test(prompt));
+    }
     console.log(fehler ? 'FEHLER: ' + fehler + ' (ok ' + ok + ')' : 'alles ok (' + ok + ' Prüfungen)');
     process.exit(fehler ? 1 : 0);
 })();
