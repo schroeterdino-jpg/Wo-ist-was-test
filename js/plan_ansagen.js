@@ -887,6 +887,52 @@
         }
         return true;
     }
+
+    /* Wie ist die Lage heute und der nächste Arbeitstag? (für die KI und für Fragen wie "Muss ich heute Abend arbeiten?") */
+    function arbeitstagInfo(ymd) {
+        const sh = schichtAm(ymd);
+        return sh ? { ymd, wochentag: TAGE[dow(ymd)], schicht: NAME[sh], beginn: uhr(beginn(sh, ymd)), ende: zeitText(ende(sh, ymd)), sh } : null;
+    }
+    function arbeitsLage() {
+        const nu = jetzt(), heute = nu.ymd, sh = schichtAm(heute);
+        const l = { heute: { ymd: heute, wochentag: TAGE[dow(heute)], arbeitet: !!sh } };
+        if (sh) {
+            const e = ende(sh, heute);
+            l.heute.schicht = NAME[sh]; l.heute.beginn = uhr(beginn(sh, heute)); l.heute.ende = zeitText(e);
+            l.heute.status = nu.min >= e ? 'schon vorbei' : nu.min >= beginn(sh, heute) ? 'läuft gerade' : 'beginnt noch';
+        } else {
+            l.heute.grund = keineSchichtGrund(heute) || 'keine Schicht eingetragen';
+        }
+        let n = null;
+        for (let i = (sh && nu.min < ende(sh, heute)) ? 0 : 1; i <= 14 && !n; i++) n = arbeitstagInfo(ymdPlus(heute, i));
+        if (n) { l.naechster_arbeitstag = { datum: n.ymd, wochentag: n.wochentag, schicht: n.schicht, beginn: n.beginn, ende: n.ende, ist_heute: n.ymd === heute }; }
+        return l;
+    }
+    function nachTag(ymd) { const t = tagName(ymd); return t === 'morgen' ? 'morgen, ' + TAGE[dow(ymd)] : t === 'heute' ? 'heute' : t; }
+    function naechsterNach(ymd) { for (let i = 1; i <= 14; i++) { const n = arbeitstagInfo(ymdPlus(ymd, i)); if (n) return n; } return null; }
+    function arbeitFrage(text) {
+        const t = norm(text);
+        if (!t || t.split(' ').length > 12 || /^(wann|um wie viel|wie lange|welche|was fuer)\b/.test(t)) return false;
+        if (!/\b(ich)\b/.test(t) || !/\b(muss|arbeite|habe|hab|bin)\b/.test(t) || !/\b(arbeiten|arbeit|arbeite|schicht|dienst|frei|fruehschicht|spaetschicht)\b/.test(t)) return false;
+        if (/\b(woche|naechste|kommende|letzte|urlaub|gestern|war|hatte|einmal|noch nie)\b/.test(t) && !/\bnoch\b/.test(t)) return false;
+        let ymd = tagAusSatz(t);
+        if (!ymd && /\bnoch\b/.test(t)) ymd = jetzt().ymd;
+        if (!ymd) return false;
+        if (!S() || !S().load()) { sagen('Deine Schicht ist noch nicht eingestellt. Sag zum Beispiel: Diese Woche Frühschicht.', false); return true; }
+        const nu = jetzt(), sh = schichtAm(ymd), wann = tagWann(ymd), abend = /\babend\w*\b/.test(t);
+        let a;
+        if (!sh) {
+            const g = keineSchichtGrund(ymd), n = naechsterNach(ymd);
+            a = wann + ' hast du keine Schicht' + (g === 'Wochenende' ? ', es ist Wochenende' : g === 'Urlaub' ? ', du hast Urlaub' : '') + '.' + (n ? ' Dein nächster Arbeitstag ist ' + nachTag(n.ymd) + ', ' + n.schicht + ' von ' + n.beginn + ' bis ' + n.ende + '.' : '');
+        } else {
+            const e = ende(sh, ymd), b = beginn(sh, ymd), n = naechsterNach(ymd);
+            if (ymd === nu.ymd && nu.min >= e) a = 'Heute ist deine ' + NAME[sh] + ' schon vorbei, sie ging bis ' + zeitText(e) + '.' + (n ? ' Dein nächster Arbeitstag ist ' + nachTag(n.ymd) + ', ' + n.schicht + ' ab ' + n.beginn + '.' : '');
+            else if (abend && e % 1440 < 17 * 60 && e < 1440) a = wann + ' Abend musst du nicht mehr arbeiten: Deine ' + NAME[sh] + ' geht von ' + uhr(b) + ' bis ' + zeitText(e) + '.';
+            else a = wann + ' hast du ' + NAME[sh] + ' von ' + uhr(b) + ' bis ' + zeitText(e) + '.';
+        }
+        sagen(a, false);
+        return true;
+    }
     /* Einmalige Änderungen für einen Tag: überschreiben nie die dauerhaften Zeiten. Unklar -> nachfragen. */
     function einmaligSatz(text) {
         const t = norm(text);
@@ -930,7 +976,7 @@
     function befehl(text, next) {
         const t = norm(text);
         if (!t || t.split(' ').length > 14) return next(text);
-        if (einmaligSatz(text) || auskunftSatz(text)) return true;
+        if (einmaligSatz(text) || auskunftSatz(text) || arbeitFrage(text)) return true;
         // Schichtbeginn ändern
         let m = t.match(/\b(fruehschicht|spaetschicht)\b.*\b(beginnt|faengt an|startet|anfang)\b/) || t.match(/\b(beginn|anfang)\b.*\b(fruehschicht|spaetschicht)\b/);
         if (m && /\b(meine|mein|die|der)\b/.test(t)) {
@@ -1058,7 +1104,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { terminText, weckerStand, beginn, setBeginnTag, beginnTag, briefingVor, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, ankunft, vorher, vorherStd, setVorher, vorherTag, setVorherTag, stauAn, setStauAn, setBeginn, setEnde, endeTag, setEndeTag, auskunftSatz, einmaligSatz, schichtOhneUrlaub, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { terminText, weckerStand, beginn, setBeginnTag, beginnTag, briefingVor, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, ankunft, vorher, vorherStd, setVorher, vorherTag, setVorherTag, stauAn, setStauAn, setBeginn, setEnde, endeTag, setEndeTag, auskunftSatz: function (t) { return auskunftSatz(t) || arbeitFrage(t); }, arbeitsLage, arbeitFrage, einmaligSatz, schichtOhneUrlaub, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);

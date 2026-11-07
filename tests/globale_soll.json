@@ -143,8 +143,8 @@
  "messung": {
   "prompt": {
    "e0": {
-    "len": 64069,
-    "sha": "cf3829b571",
+    "len": 64357,
+    "sha": "5605149cc7",
     "kopfAnzahl": 4,
     "kopfSha": "ee7d6c5c14",
     "kontextPlus": 1,
@@ -156,36 +156,36 @@
     ]
    },
    "e1": {
-    "len": 64960,
-    "sha": "57108cc9ec",
+    "len": 65248,
+    "sha": "d158877110",
     "kopfAnzahl": 5,
     "kopfSha": "99dbec8721",
     "kontextPlus": 1
    },
    "e2": {
-    "len": 64217,
-    "sha": "7bdcdafd50",
+    "len": 64505,
+    "sha": "5f927b967a",
     "kopfAnzahl": 5,
     "kopfSha": "1877892aac",
     "kontextPlus": 1
    },
    "e3": {
-    "len": 64239,
-    "sha": "6c23d1fc1f",
+    "len": 64527,
+    "sha": "90e95e507a",
     "kopfAnzahl": 5,
     "kopfSha": "1877892aac",
     "kontextPlus": 1
    },
    "e4": {
-    "len": 64460,
-    "sha": "22193dcaa8",
+    "len": 64748,
+    "sha": "eafb45ac35",
     "kopfAnzahl": 5,
     "kopfSha": "1051cd29c1",
     "kontextPlus": 1
    },
    "e5": {
-    "len": 64069,
-    "sha": "cf3829b571",
+    "len": 64357,
+    "sha": "5605149cc7",
     "kopfAnzahl": 4,
     "kopfSha": "ee7d6c5c14",
     "kontextPlus": 1
@@ -234,8 +234,8 @@
  },
  "promptFrueh": {
   "e0": {
-   "len": 64069,
-   "sha": "cf3829b571",
+   "len": 64357,
+   "sha": "5605149cc7",
    "kopfAnzahl": 4,
    "kopfSha": "ee7d6c5c14",
    "kontextPlus": 1,
@@ -247,36 +247,36 @@
    ]
   },
   "e1": {
-   "len": 64960,
-   "sha": "57108cc9ec",
+   "len": 65248,
+   "sha": "d158877110",
    "kopfAnzahl": 5,
    "kopfSha": "99dbec8721",
    "kontextPlus": 1
   },
   "e2": {
-   "len": 64217,
-   "sha": "7bdcdafd50",
+   "len": 64505,
+   "sha": "5f927b967a",
    "kopfAnzahl": 5,
    "kopfSha": "1877892aac",
    "kontextPlus": 1
   },
   "e3": {
-   "len": 64239,
-   "sha": "6c23d1fc1f",
+   "len": 64527,
+   "sha": "90e95e507a",
    "kopfAnzahl": 5,
    "kopfSha": "1877892aac",
    "kontextPlus": 1
   },
   "e4": {
-   "len": 64460,
-   "sha": "22193dcaa8",
+   "len": 64748,
+   "sha": "eafb45ac35",
    "kopfAnzahl": 5,
    "kopfSha": "1051cd29c1",
    "kontextPlus": 1
   },
   "e5": {
-   "len": 64069,
-   "sha": "cf3829b571",
+   "len": 64357,
+   "sha": "5605149cc7",
    "kopfAnzahl": 4,
    "kopfSha": "ee7d6c5c14",
    "kontextPlus": 1
@@ -331,8 +331,8 @@
  "promptZustaende": {
   "normal": [
    {
-    "sha": "cf3829b571",
-    "len": 64069,
+    "sha": "5605149cc7",
+    "len": 64357,
     "bloecke": {
      "kontextplus": 1,
      "fish": 1,
@@ -344,8 +344,8 @@
     }
    },
    {
-    "sha": "57108cc9ec",
-    "len": 64960,
+    "sha": "d158877110",
+    "len": 65248,
     "bloecke": {
      "kontextplus": 1,
      "fish": 1,
@@ -357,8 +357,8 @@
     }
    },
    {
-    "sha": "22193dcaa8",
-    "len": 64460,
+    "sha": "eafb45ac35",
+    "len": 64748,
     "bloecke": {
      "kontextplus": 1,
      "fish": 1,
@@ -372,8 +372,8 @@
   ],
   "lachen": [
    {
-    "sha": "f6eb8b0cf0",
-    "len": 64457,
+    "sha": "1efef6ae8e",
+    "len": 64745,
     "bloecke": {
      "kontextplus": 1,
      "fish": 1,
@@ -385,8 +385,8 @@
     }
    },
    {
-    "sha": "839ad09a65",
-    "len": 65348,
+    "sha": "c9f93772ae",
+    "len": 65636,
     "bloecke": {
      "kontextplus": 1,
      "fish": 1,
@@ -398,8 +398,8 @@
     }
    },
    {
-    "sha": "f71ee31c61",
-    "len": 64848,
+    "sha": "c12ba7eadc",
+    "len": 65136,
     "bloecke": {
      "kontextplus": 1,
      "fish": 1,
@@ -413,8 +413,8 @@
   ],
   "aus": [
    {
-    "sha": "e4157d4ca6",
-    "len": 63771,
+    "sha": "d2a9693167",
+    "len": 64059,
     "bloecke": {
      "kontextplus": 1,
      "fish": 0,
@@ -426,8 +426,8 @@
     }
    },
    {
-    "sha": "3bb5d6f129",
-    "len": 64662,
+    "sha": "84b43e9671",
+    "len": 64950,
     "bloecke": {
      "kontextplus": 1,
      "fish": 0,
@@ -439,8 +439,8 @@
     }
    },
    {
-    "sha": "2f01929b74",
-    "len": 64162,
+    "sha": "495abafea2",
+    "len": 64450,
     "bloecke": {
      "kontextplus": 1,
      "fish": 0,
