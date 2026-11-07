@@ -418,6 +418,26 @@
 
                 <div class="set-gruppe">TAGESABLAUF</div>
 
+                <details id="schichtzeitenDetails" class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
+                    <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
+                        <span>🕒 Schichtzeiten</span>
+                    </summary>
+                    <div class="p-4 space-y-3">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Früh Beginn</label><input type="time" id="szFruehBeginn"  class="p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff] w-full"></div><div><label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Früh Ende</label><input type="time" id="szFruehEnde"  class="p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff] w-full"></div>
+                            <div><label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Spät Beginn</label><input type="time" id="szSpaetBeginn"  class="p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff] w-full"></div><div><label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Spät Ende</label><input type="time" id="szSpaetEnde"  class="p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff] w-full"></div>
+                        </div>
+                        <div><label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Ankunft: Minuten vor Beginn</label><input type="number" id="szVorher" min="0" max="90" inputmode="numeric" class="p-2.5 bg-black border border-[rgba(93,209,255,.2)] rounded-lg text-sm text-slate-100 focus:outline-none focus:border-[#49d7ff] w-full"></div>
+                        <label class="flex items-center gap-3 text-sm text-slate-200 cursor-pointer pt-1">
+                            <input type="checkbox" id="szStau" class="w-5 h-5 accent-[#49d7ff]" checked>
+                            <span>Stauwarnungen auf dem Arbeitsweg</span>
+                        </label>
+                        <p class="text-xs text-[#5d7e91] font-mono">Gilt dauerhaft. Die Abfahrt rechnet Jarvis aus Ankunft und Fahrzeit. Einmalige Änderungen per Sprache: „Morgen fange ich um 6 Uhr an", „Morgen habe ich um 15 Uhr Feierabend", „Morgen möchte ich 30 Minuten früher auf der Arbeit sein". Ende nach Mitternacht ist möglich (0:30).</p>
+                        <button type="button" id="szSpeichern" class="w-full bg-[#49d7ff]/20 text-[#49d7ff] border border-[#49d7ff] py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider font-mono">Schichtzeiten speichern</button>
+                        <p id="szMeldung" class="text-xs text-[#4cffb0] font-mono"></p>
+                    </div>
+                </details>
+
                 <details class="bg-[#0a1621] rounded-xl shadow-md border border-[rgba(93,209,255,.18)] overflow-hidden">
                     <summary class="p-4 font-bold text-slate-200 cursor-pointer bg-black/40 flex justify-between items-center border-b border-[rgba(93,209,255,.18)]">
                         <span>🌅 Morgen-Überblick</span>
@@ -828,7 +848,7 @@
     <script src="./js/aktionen_kette.js?v=04d51d70"></script>
     <script src="./js/reminders.js?v=1307f6ac"></script>
     <script src="./js/persona.js?v=229e5190"></script>
-    <script src="./js/prompt.js?v=9a6c650e"></script>
+    <script src="./js/prompt.js?v=d519ef7f"></script>
     <script src="./js/routing.js?v=72d3505c"></script>
     <script src="./js/adress_normal.js?v=ba143bff"></script>
     <script src="./js/localcommands.js?v=f7dfd0b4"></script>
@@ -843,7 +863,7 @@
     <script src="./js/formulierungen.js?v=9aa570ff"></script>
     <script src="./js/mailwatch.js?v=fc2e22c2"></script>
     <script src="./js/fristen.js?v=ad058c36"></script>
-    <script src="./js/help.js?v=8e793496"></script>
+    <script src="./js/help.js?v=bac61993"></script>
     <script src="./js/birthdays.js?v=0473aaee"></script>
     <script src="./js/weathermap.js?v=a193419d"></script>
     <script src="./js/waehrung.js?v=05b5da25"></script>
@@ -854,7 +874,7 @@
     <!-- JARVIS proaktiv: HUD, Rechnungen, Schicht, Routinen, frühe Terminhinweise, Fahrt-Check, Lagebild -->
     <script src="./js/hud_fenster.js?v=1e3416c8"></script>
     <script src="./js/rechnungen.js?v=3277257b"></script>
-    <script src="./js/schicht.js?v=f3ea52a9"></script>
+    <script src="./js/schicht.js?v=cdadd897"></script>
     <script src="./js/jarvis.js?v=492617fa"></script>
     <script src="./js/kacheln.js?v=6f17c49e"></script>
     <script src="./js/synapsen.js?v=bc68d8d8"></script>
@@ -876,14 +896,14 @@
     <script src="./js/mitnehmen.js?v=594e9461"></script>
     <script src="./js/einfuehrung.js?v=41b018c9"></script>
     <script src="./js/alleinstellung.js?v=45a23283"></script>
-    <script src="./js/anleitung.js?v=e5f2f967"></script>
+    <script src="./js/anleitung.js?v=0074490a"></script>
     <script src="./js/festnamen.js?v=e8a9a06a"></script>
     <script src="./js/konto.js?v=18f7a8b5"></script>
     <script src="./js/haushalt.js?v=fcd85b53"></script>
     <script src="./js/hoerkorrektur.js?v=e3229393"></script>
     <script src="./js/hoeren.js?v=14f045be"></script>
     <script src="./js/wake_start.js?v=d2b854bd"></script>
-    <script src="./js/urlaub.js?v=79ab6ec8"></script>
+    <script src="./js/urlaub.js?v=dfa91e69"></script>
     <!-- JARVIS Push: geschlossene App, Termin-/Wetter-/Mail-Synchronisierung -->
     <script src="./js/push.js?v=2512dc7b"></script>
     <script src="./js/pushsync.js?v=35fd65ac"></script>
@@ -899,7 +919,7 @@
     <script src="./js/foto_brief.js?v=391ba017"></script>
     <script src="./js/foto_abtippen.js?v=52898111"></script>
     <script src="./js/foto_stundenplan.js?v=b1c32b29"></script>
-    <script src="./js/foto_essensplan.js?v=35f682ba"></script>
+    <script src="./js/foto_essensplan.js?v=b8dad2ea"></script>
     <script src="./js/foto_urlaubsplan.js?v=55f3026c"></script>
     <script src="./js/wunschliste.js?v=36c63646"></script>
     <script src="./js/preissuche.js?v=d5adeca1"></script>
@@ -929,7 +949,7 @@
     <script src="./js/adresse_speichern.js?v=6272d82e"></script>
     <script src="./js/ausflug.js?v=7e3b06c1"></script>
     <script src="./js/terminfinder.js?v=306967b6"></script>
-    <script src="./js/dirigent.js?v=c145a6b1"></script>
+    <script src="./js/dirigent.js?v=2cc08084"></script>
     <script src="./js/gedaechtnis_zeit.js?v=06d0e0aa"></script>
     <script src="./js/weltuhr.js?v=1bb648b7"></script>
     <script src="./js/kontext_lokal.js?v=821e250b"></script>
@@ -969,7 +989,7 @@
     <script src="./js/loesch_notiz.js?v=1e59e48b"></script>
     <script src="./js/teilen.js?v=0416af26"></script>
     <script src="./js/fotosenden.js?v=e8829a6f"></script>
-    <script src="./js/plan_ansagen.js?v=18eac61d"></script>
+    <script src="./js/plan_ansagen.js?v=2ef70e19"></script>
     <script src="./js/mehrfach.js?v=5a2ddf40"></script>
     <script src="./js/zuvorkommend.js?v=4045c369"></script>
     <script src="./js/frueher_los.js?v=80ee048f"></script>
@@ -983,7 +1003,8 @@
     <script src="./js/spotify.js?v=b106db10"></script>
     <script src="./js/pakete.js?v=a40ba2a6"></script>
     <script src="./js/blick.js?v=a66ab718"></script>
-    <script src="./js/schichtauskunft.js?v=c8388055"></script>
+    <script src="./js/schichtauskunft.js?v=277625c4"></script>
+    <script src="./js/schicht_einstellungen.js?v=e69beb29"></script>
     <script src="./js/vorbereitung.js?v=a6c26bf6"></script>
     <script src="./js/orte.js?v=f8589384"></script>
     <script src="./js/karten_weg.js?v=da43f3bb"></script>

@@ -62,7 +62,10 @@
             return o;
         } catch (e) { return null; }
     }
-    function save(o) { try { setPersistentData(KEY, JSON.stringify(o)); } catch (e) {} }
+    function save(o) { try { setPersistentData(KEY, JSON.stringify(o)); } catch (e) {} neuPlanen(); }
+    /* Schicht oder Urlaub geändert: geplante Android-Meldungen sofort neu berechnen (sonst laufen alte weiter) */
+    function neuPlanen() { try { setTimeout(function () { if (window.jvPlan && window.jvPlan.planSenden) window.jvPlan.planSenden(true); }, 300); } catch (e) {} }
+    window.jvSchichtNeuPlanen = neuPlanen;
 
     /* Schicht in der Woche mit der Nummer w */
     function shiftOfWeek(st, w) { return (((w - st.base) % 2) + 2) % 2 === 0 ? st.shift : (st.shift === 'frueh' ? 'spaet' : 'frueh'); }
@@ -75,6 +78,17 @@
         const st = load();
         if (!st) return undefined;
         const b = berlin();
+        /* Ruhe gilt nur vor einem echten Frühschicht-Arbeitstag: abends, wenn MORGEN Frühschicht ist, und morgens, wenn HEUTE Frühschicht ist.
+           Wochenende, Urlaub und der Wechsel Sonntag auf Montag werden über jvPlan.schichtAm beachtet. */
+        const P = window.jvPlan;
+        if (P && typeof P.schichtAm === 'function' && typeof P.ymdPlus === 'function') {
+            try {
+                const heute = P.jetzt().ymd;
+                if (b.min >= QUIET_FROM_FRUEH) return P.schichtAm(P.ymdPlus(heute, 1)) === 'frueh' ? true : undefined;
+                if (b.min < st.times.frueh) return P.schichtAm(heute) === 'frueh' ? true : undefined;
+                return P.schichtAm(heute) === 'frueh' ? false : undefined;   // Frühschicht-Arbeitstag: ab Briefing-Zeit nicht mehr still; sonst gilt die normale Ruhezeit 22 bis 7 Uhr
+            } catch (e) { }
+        }
         if (shiftOfWeek(st, weekNo(b)) !== 'frueh') return undefined;
         return b.min >= QUIET_FROM_FRUEH || b.min < st.times.frueh;
     }

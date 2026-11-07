@@ -73,7 +73,7 @@
         if (!gueltig || (ausListe && (c.von !== n.von || c.bis !== n.bis))) set({ von: n.von, bis: n.bis });
     }
     function setListe(a) {
-        try { setPersistentData(LKEY, a && a.length ? JSON.stringify(a) : ''); } catch (e) {}
+        try { setPersistentData(LKEY, a && a.length ? JSON.stringify(a) : ''); } catch (e) {} try { if (window.jvSchichtNeuPlanen) window.jvSchichtNeuPlanen(); } catch (e) {}
         rolle();
     }
     function get() {
@@ -84,7 +84,7 @@
         } catch (e) {}
         return null;
     }
-    function set(u) { try { setPersistentData(KEY, u ? JSON.stringify(u) : ''); } catch (e) {} }
+    function set(u) { try { setPersistentData(KEY, u ? JSON.stringify(u) : ''); } catch (e) {} try { if (window.jvSchichtNeuPlanen) window.jvSchichtNeuPlanen(); } catch (e) {} }
     function say(txt) { try { speak(txt, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} }
 
     const WORD = /\burlaub\b/;

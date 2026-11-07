@@ -5268,9 +5268,9 @@
        "m": "POST",
        "u": "/api/groq",
        "body": {
-        "laenge": 5243,
+        "laenge": 5313,
         "anfang": "{\"model\":\"openai/gpt-oss-120b\",\"response_format\":{\"type\":\"json_object\"},\"messages\":[{\"role\":\"system\",\"content\":\"WICHTIG: Dino hat gerade die App geöffnet. Begrüße ihn mit ein bis zwei kurzen, lockeren",
-        "sha": "fcc4ee20988a"
+        "sha": "dee7d7858be1"
        }
       },
       {
