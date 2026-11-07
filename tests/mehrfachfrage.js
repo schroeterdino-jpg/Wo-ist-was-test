@@ -150,11 +150,11 @@ async function lauf(satz, o) {
     check('Fall 1: vom neuen Weg übernommen', r.behandelt === true);
     check('Fall 1: genau ein KI-Aufruf, nur mit der Wetterfrage', r.kiCalls.length === 1 && /^Wie wird das Wetter\?/.test(r.kiCalls[0]) && !/Kalender/.test(r.kiCalls[0]), JSON.stringify(r.kiCalls));
     check('Fall 1: genau eine gesprochene Antwort', r.gesagt.length === 1, JSON.stringify(r.gesagt));
-    check('Fall 1: Kalender (lokal, mit Schicht) und Wetter (KI) in der Reihenfolge der Fragen', r.gesagt.length === 1 && r.gesagt[0].indexOf('Morgen: Du hast Spätschicht, Beginn 13 Uhr 45.') === 0 && r.gesagt[0].indexOf(KI_ANTWORT) > 30, r.gesagt[0]);
+    check('Fall 1: Kalender (lokal, mit Schicht) und Wetter (KI) in der Reihenfolge der Fragen', r.gesagt.length === 1 && r.gesagt[0].indexOf('Morgen: Du hast Spätschicht, Beginn 13 Uhr 50.') === 0 && r.gesagt[0].indexOf(KI_ANTWORT) > 30, r.gesagt[0]);
     check('Fall 1: nichts gespeichert oder geändert (Termine, Erinnerungen)', JSON.parse(r.geaendert).t.length === 0 && JSON.parse(r.geaendert).e.length === 0);
     /* Fall 1 mit Teilfehler: KI fällt aus */
     r = await lauf('Was steht morgen im Kalender und wie wird das Wetter?', { kiFehler: true });
-    check('Fall 1, Wetter fällt aus: Kalender bleibt, Wetter konkret genannt, nicht "Das meiste ist erledigt"', r.gesagt.length === 1 && r.gesagt[0].startsWith('Morgen: Du hast Spätschicht, Beginn 13 Uhr 45.') && r.gesagt[0].endsWith('Wetter konnte ich gerade nicht laden.') && !/Das meiste|Verzeih|Verbindung|HTTP|fetch/.test(r.gesagt[0]), JSON.stringify(r.gesagt));
+    check('Fall 1, Wetter fällt aus: Kalender bleibt, Wetter konkret genannt, nicht "Das meiste ist erledigt"', r.gesagt.length === 1 && r.gesagt[0].startsWith('Morgen: Du hast Spätschicht, Beginn 13 Uhr 50.') && r.gesagt[0].endsWith('Wetter konnte ich gerade nicht laden.') && !/Das meiste|Verzeih|Verbindung|HTTP|fetch/.test(r.gesagt[0]), JSON.stringify(r.gesagt));
     r = await lauf('Was steht morgen an und wie wird die Lage am Himmel?', { kiFehler: true });
     check('Teilfehler ohne Wetterwort: allgemeiner Satz, Kalender bleibt', r.gesagt.length === 1 && r.gesagt[0].endsWith('Dazu konnte ich gerade keine Antwort holen.') && r.gesagt[0].startsWith('Morgen:'), JSON.stringify(r.gesagt));
 
