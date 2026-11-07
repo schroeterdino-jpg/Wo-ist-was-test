@@ -254,8 +254,7 @@ async function fetchCloudSpeechBlob(text, voice) {
    die verspätete Zwischenansage gar nicht erst abgespielt, statt zwei Stimmen gleichzeitig zu hören. */
 let speechGeneration = 0;
 
-function speak(text, onComplete, langCode) {
-    try { if (window.jvAntwortText) window.jvAntwortText.antwort(text); } catch (e) { }   // Antworten als Text (js/antwort_text.js): nur Anzeige, ändert nichts an der Sprachausgabe
+function speak(text, onComplete, langCode) { try { if (window.jvAntwortText) window.jvAntwortText.antwort(text); } catch (e) { }   // Antworten als Text (js/antwort_text.js): nur Anzeige
     speechGeneration++;
     stopThinkingSound();
 
@@ -821,8 +820,7 @@ if (SpeechRecognition) {
         return String(text || '').replace(/\b(Alicia|Alissa|Alisha)\b/gi, 'Alyssa').replace(/\b(Zain|Zayn|Zein|Zeyn|Sane|Jarvis|Jarwis|Jarvas|Nowa|Noba)\b/gi, 'Zane').replace(/^((?:hey|hallo|hi)[ ,]+)(?:sein|sain|zehn|seyn)\b/i, '$1Zane');
     }
 
-    function handleRecognizedText(text) {
-        try { if (window.jvAntwortText) window.jvAntwortText.frage(text); } catch (e) { }   // Antworten als Text: die Frage zur Antwort merken
+    function handleRecognizedText(text) { try { if (window.jvAntwortText) window.jvAntwortText.frage(text); } catch (e) { }   // Antworten als Text: Frage merken
         try { if (window.jvRegeln && typeof window.jvRegeln.nutzerAktiv === 'function') window.jvRegeln.nutzerAktiv(); } catch (e) { }   // C1 Stufe 1: ein gesprochener Nutzersatz zählt wie Tippen (nur Zeitstempel)
         text = fixKnownMishearings(text);
         if (typeof window.__jvAbfangen === 'function') { try { if (window.__jvAbfangen(text)) { isFollowUp = false; clearFollowUpTimer(); setIdleUi(); return; } } catch (e) {} }
