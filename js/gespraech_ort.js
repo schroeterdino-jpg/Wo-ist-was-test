@@ -118,6 +118,7 @@
         var g = G(); if (!g || typeof text !== 'string') return false;
         var st = g.status();
         if (!st.listen.length && !st.offeneFragen) return false;                         // nichts gemerkt: alles wie bisher
+        if (st.listen.length && st.listen[0].art !== 'ortssuche') return false;           // die jüngste Liste sind keine Orte (zum Beispiel Produkte, js/produktkarten.js): kein Ortsbezug, keine Route zu einem Shop-Link
         var kurz = kurzeAntwort(text), eigeneFrage = g.offeneFragen().length > 0;
         if (kurz && fremdJuenger()) return false;                                        // ein anderes Modul hat nach uns gefragt: kurze Antworten gehören ihm
         if (kurz && !eigeneFrage && RX_KURZ.test(text) && speichernOffen() && !g.ausgewaehlt()) {           // "das zweite" bei offener Frage "Adresse speichern?" und noch keiner Auswahl: Lokal wählen oder Adresse speichern? Nicht raten.

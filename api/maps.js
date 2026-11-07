@@ -457,7 +457,7 @@ async function streetview(req, res) {
 
 /* ------------------------------------------------------------------
    shopping: Preise zu einem Suchbegriff (Google Shopping über serper.dev), z. B. für die Wunschliste.
-   ?action=shopping&q=Lightning McQueen Spielzeug  ->  { angebote: [{ titel, shop, preis, preisText, link }] } (günstigste zuerst); mit &gebraucht=1 zusätzlich { gebraucht: [...] } (Kleinanzeigen/eBay u. a., getrennt von den Neupreisen)
+   ?action=shopping&q=Lightning McQueen Spielzeug  ->  { angebote: [{ titel, shop, preis, preisText, link, bild }] } (günstigste zuerst); mit &gebraucht=1 zusätzlich { gebraucht: [...] } (Kleinanzeigen/eBay u. a., getrennt von den Neupreisen)
    Braucht die Variable SERPER_API_KEY in Vercel. Zu billige Ausreißer (Zubehör, Aufkleber) werden anhand des mittleren Preises entfernt.
    ------------------------------------------------------------------ */
 function preisZahl(t) {
@@ -595,7 +595,8 @@ async function shopping(req, res) {
     }
     const alle = (Array.isArray(d.shopping) ? d.shopping : []).map(x => ({
       titel: String(x.title || '').slice(0, 120), shop: String(x.source || ''), preisText: String(x.price || ''),
-      preis: preisZahl(x.price), link: String(x.link || '')
+      preis: preisZahl(x.price), link: String(x.link || ''),
+      bild: /^https:\/\//i.test(String(x.imageUrl || '')) ? String(x.imageUrl).slice(0, 400) : ''   // Produktbild des Angebots (nur https), für die Produktkarten
     })).filter(x => x.preis && x.preis > 0 && !AUSSCHLUSS_RX.test(x.shop + ' ' + x.link));
     let idl = [], diagI = { roh: 0, seiten: 0 };
     if (woerter(q).length >= 2) {   // Idealo kennt oft genau das Produkt, das Google Shopping nicht liefert

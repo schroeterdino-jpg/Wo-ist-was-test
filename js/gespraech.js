@@ -11,6 +11,7 @@
    .ergebnisse(art, liste, quelle?)      letzte Ergebnisse merken (löscht die bisherige Auswahl), max. 10 je Liste, die letzten 3 Listen
    .verarbeite(registryErgebnis)         nimmt ein Ergebnis von der Registry (fuehreAus) (Fähigkeit ortssuche: Karten werden zu Ergebnissen), sonst nur die Absicht
    .waehle(bezug)                        Zahl (1 = erstes) oder Text ("das zweite", "Roma", "das letzte") -> Auswahl oder Rückfrage
+   .liste()                              die jüngste Ergebnisliste { art, quelle, alterMs, veraltet, items } (Kopie), ohne etwas auszulösen; null, wenn keine da ist
    .ausgewaehlt()                        das gewählte Ergebnis (Kopie) oder null (auch null, wenn die Auswahl verfallen ist)
    .aufloesen(text)                      Folgesatz verstehen -> { art, ziel, thema, frage, optionen, grund, frageId }, art:
         auswahl        "Das zweite gefällt mir"      ziel = gewähltes Ergebnis (wird als Auswahl gemerkt)
@@ -100,6 +101,16 @@
                 if (o.lat != null && o.lon != null && o.lat !== '' && o.lon !== '' && isFinite(la) && isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && !(la === 0 && lo === 0)) { r.lat = la; r.lon = lo; }
                 if (typeof o.adresse === 'string' && o.adresse.trim()) r.adresse = o.adresse.trim().slice(0, 200);
                 if (typeof o.distanzKm === 'number' && isFinite(o.distanzKm) && o.distanzKm >= 0) r.distanzKm = o.distanzKm;
+                /* Produkte (js/produktkarten.js): Bild, Link, Preis und bis zu 3 Angebote; nur geprüfte Formen werden übernommen */
+                if (typeof o.bild === 'string' && /^https:\/\//i.test(o.bild)) r.bild = o.bild.slice(0, 400);
+                if (typeof o.link === 'string' && /^https?:\/\//i.test(o.link)) r.link = o.link.slice(0, 400);
+                if (typeof o.preis === 'number' && isFinite(o.preis) && o.preis > 0) r.preis = o.preis;
+                if (typeof o.preisText === 'string') r.preisText = o.preisText.slice(0, 30);
+                if (typeof o.shop === 'string') r.shop = o.shop.slice(0, 60);
+                if (typeof o.hersteller === 'string') r.hersteller = o.hersteller.slice(0, 60);
+                if (Array.isArray(o.angebote)) r.angebote = o.angebote.slice(0, 3).map(function (x) {
+                    return { shop: String((x && x.shop) || '').slice(0, 60), preis: (x && typeof x.preis === 'number' && isFinite(x.preis)) ? x.preis : 0, preisText: String((x && x.preisText) || '').slice(0, 30), link: (x && typeof x.link === 'string' && /^https?:\/\//i.test(x.link)) ? x.link.slice(0, 400) : '' };
+                });
                 return r;
             }).filter(function (e) { return e.name; }).map(function (e, i) { e.nr = i + 1; return e; });
         }
@@ -295,6 +306,8 @@
             return abschluss(l, { mehrdeutig: null }, th || 'info', 'auswahl');
         }
 
+        /* die jüngste Ergebnisliste (Kopie) samt Alter, ohne Auswahl oder Rückfrage auszulösen; null, wenn keine da ist */
+        function liste() { aufraeumen(); var l = neueste(); return l ? { art: l.art, quelle: l.quelle, alterMs: jetzt() - l.zeit, veraltet: veraltet(l), items: kopie(l.items) } : null; }
         function ausgewaehlt() { aufraeumen(); return s.auswahl ? kopie(s.auswahl.item) : null; }
         function status() {
             aufraeumen();
@@ -303,7 +316,7 @@
         }
         function vergiss() { leer(); return true; }
 
-        return { absicht: absicht, ergebnisse: ergebnisse, verarbeite: verarbeite, waehle: waehle, ausgewaehlt: ausgewaehlt, aufloesen: aufloesen, frage: frageAnlegen, offeneFragen: offeneFragen,
+        return { absicht: absicht, ergebnisse: ergebnisse, verarbeite: verarbeite, waehle: waehle, ausgewaehlt: ausgewaehlt, liste: liste, aufloesen: aufloesen, frage: frageAnlegen, offeneFragen: offeneFragen,
                  beantworte: beantworte, schliesse: schliesse, status: status, vergiss: vergiss, fehlgeschlagen: fehlgeschlagen, antwort: antwort, antworten: antworten, erzeuge: erzeuge, ZEITEN: Object.freeze(Object.assign({}, Z)) };
     }
 

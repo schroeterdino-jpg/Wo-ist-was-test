@@ -143,6 +143,7 @@
         var r = { pfad: 'modell', query: '', text: '', bezug: 0, themen: 0, art: '' };
         try {
             var l = frisch(); r.bezug = l.length; r.themen = themen(); r.art = l.length ? l[0].art : '';
+            if (window.jvProdukte && window.jvProdukte.istFolgefrage(text)) { r.pfad = 'produkte'; return r; }   // Anschlussfrage zu den gezeigten Produktkarten: aus den gespeicherten Daten (js/produktkarten.js)
             if (!l.length || !reinerBezug(text) || !haendlerFrage(text)) return r;
             if (r.themen > 1) {
                 var t = themenListe();
@@ -162,7 +163,8 @@
     function diagnose(pfad, extra) {
         try {
             var b = frisch(), th = themen();
-            return 'Anschluss: Datei ' + VERSION + ' | Bezug: ' + (b.length ? b.length + ' Antwort(en), ' + th + ' Thema/Themen, jüngste: ' + b[0].art + ', vor ' + Math.round(b[0].alterMs / 1000) + ' s' : 'keiner') + ' | Pfad: ' + pfad + (extra ? ' | ' + extra : '');
+            var pl = null; try { pl = G().liste(); } catch (e2) { }
+            return 'Anschluss: Datei ' + VERSION + ' | Bezug: ' + (b.length ? b.length + ' Antwort(en), ' + th + ' Thema/Themen, jüngste: ' + b[0].art + ', vor ' + Math.round(b[0].alterMs / 1000) + ' s' : 'keiner') + ' | Pfad: ' + pfad + ' | Produkte: ' + (pl && pl.art === 'produkte' ? pl.items.length + ' gemerkt (' + pl.items.filter(function (i) { return i.angebote && i.angebote.length; }).length + ' mit Angebot, ' + pl.items.filter(function (i) { return i.bild; }).length + ' mit Bild)' : 'keine') + (extra ? ' | ' + extra : '');
         } catch (e) { return 'Anschluss: Diagnose nicht verfügbar'; }
     }
 

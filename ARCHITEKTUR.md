@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (178 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (179 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -731,3 +731,9 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 - **Meldungsarten:** Hinfahrt = `stau|` + `aufbruch|`; Heimfahrt = `heim|` (Ende + 3 Min.); Schicht-Erinnerung = `wecker|` (20:30 am Vorabend einer Frühschicht); Briefing = `brief|`. Keine pauschale 16-Uhr-Meldung.
 - **Veraltete Meldungen:** `schicht.js save()` und `urlaub.js` rufen `jvSchichtNeuPlanen` (-> `planSenden(true)`). `quietNow()` gilt nur vor einem echten Frühschicht-Arbeitstag (Wochenende/Urlaub/Sonntag-Montag über `jvPlan.schichtAm`).
 - **Offen (braucht neue APK):** `AnsageReceiver.java` prüft beim Feuern nicht, ob eine Meldung noch gilt, und weckt den Bildschirm beim Stau-Check auch ohne Meldung.
+
+### Produktkarten (Einkaufserfahrung, `js/produktkarten.js`)
+- **Ablauf:** Antwort mit konkreten Produkten (Kaufwunsch erkannt durch `jvProdukte.wunsch`) → kleine Groq-Auslese „Produkt-Auslese“ (Name/Hersteller; jeder Name wird gegen den Antworttext geprüft, Erfundenes fällt weg) → je Produkt eine Preissuche über die vorhandene `jvPreisAngebote` (`preissuche.js` → `/api/maps?action=shopping`, jetzt mit `bild`) → nur passende Angebote (Titel-Abgleich, Preis > 0, keine Marktplätze), die drei günstigsten → Ablage strukturiert in `jvGespraech.ergebnisse('produkte', …)` (Name, Hersteller, Bild, Angebote mit Shop/Preis/Link) → Karten über `showActionCards` (Bild, Name, Angebote als Links, ausdrückliche Hinweise bei fehlendem Bild/Angebot/Preisdienst).
+- **Anschlussfragen** („Wo kann ich die kaufen?“, „Was kosten die?“, „Welches ist günstiger?“, „Zeig mir das zweite“): `jvAnschlussAntwort.route` liefert Pfad `produkte`, wenn die frischen, jüngsten Themen die Produktliste sind. `assistant.js` beantwortet dann lokal aus den gespeicherten Daten (`jvProdukte.folgefrage`), ohne Sprachmodell, ohne Einkaufslisten-Aktion. Themenwechsel → bisherige Rückfrage „Worauf bezieht sich das?“. Speicher: 10 Minuten, nur im Arbeitsspeicher.
+- **Grenzen:** Bilder nur, wenn der Preisdienst (serper.dev) eine `imageUrl` liefert; Google-Links werden serverseitig entfernt, dann steht ein Preisvergleichs-Link („Preisvergleich“). Karten erscheinen nach der gesprochenen Antwort (asynchron).
+- Test: `tests/produktkarten.js` (ganze Kette mit echter App, Attrappen für Netz/Groq/Preisdienst).
