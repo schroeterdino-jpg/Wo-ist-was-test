@@ -537,6 +537,29 @@
     }
 
     /* ---------- Befehl ---------- */
+    /* "Habe ich nächste Woche Zeit für einen Ausflug nach Lübeck?" ist erst eine Kalenderfrage (wann bin ich frei?), dann die Ausflugsabsicht.
+       Es wird nichts geschrieben; danach wird nur gefragt, ob Ideen für den ersten freien Tag gesucht werden sollen. */
+    function zeitFrage(t) {
+        return /\b(?:habe|hab|haben|haette|haetten)\s+(?:ich|wir)\b/.test(t) && /\bzeit\b/.test(t) && /\bausflug\w*\b/.test(t) && t.split(' ').length <= 22;
+    }
+    function zeitFrageBehandeln(t, raw) {
+        const h = heute(), jetzt = new Date(h + 'T12:00:00').getDay();
+        let tage = [];
+        if (/\bnaechst\w*\s+woche\b/.test(t)) { const bisMo = ((8 - jetzt) % 7) || 7; for (let i = 0; i < 7; i++) tage.push(plusTage(h, bisMo + i)); }
+        else if (/\bdiese\s+woche\b/.test(t)) { for (let i = 0; i <= ((7 - jetzt) % 7); i++) tage.push(plusTage(h, i)); }
+        else if (/\bwochenende\b/.test(t)) { const d = tagAus(t); tage = jetzt === 0 ? [d] : (jetzt === 6 ? [d, plusTage(d, 1)] : [d, plusTage(d, 1)]); }
+        else tage = [tagAus(t)];
+        const zielM = String(raw || '').match(/\bnach\s+([A-ZÄÖÜ][\wäöüß-]+)/);
+        const ziel = zielM ? ' nach ' + zielM[1] : '';
+        const frei = tage.filter(d => !freiesFenster(d).voll);
+        const wort = /\bnaechst\w*\s+woche\b/.test(t) ? 'Nächste Woche' : (/\bdiese\s+woche\b/.test(t) ? 'Diese Woche' : (tage.length > 1 ? 'Am Wochenende' : tagWort(tage[0])));
+        if (!frei.length) { sagen(wort + ' ist in deinem Kalender kein Tag mit genug freier Zeit für einen Ausflug' + ziel + '.'); return; }
+        const namen = frei.map(d => cap(wochentag(d)));
+        const liste = namen.length > 1 ? namen.slice(0, -1).join(', ') + ' und ' + namen[namen.length - 1] : namen[0];
+        wartet = { phase: 'wer', at: Date.now(), iso: frei[0], agent: false, wuensche: wuenscheAus(t) };
+        try { window.jvFrage && window.jvFrage.neu('ausflug'); } catch (e) { }
+        sagen(wort + ' hast du Zeit für einen Ausflug' + ziel + ': ' + liste + '. Soll ich für ' + namen[0] + ' Ideen suchen? Dann sag, wer mitkommt: die Kinder, Finja oder nur wir.');
+    }
     function befehl(text, next) {
         const raw = String(text || '').trim(), t = norm(raw);
         if (!t) return next(text);
@@ -547,6 +570,8 @@
             if (w.phase !== 'wer' && (istFrage(t) || /\bwaren\s+wir\b|\bwir\s+waren\b/.test(t))) { wartet = null; return befehl(text, next); }
             if (w.phase === 'wer') {
                 wartet = null;
+                // eine ganz andere Frage ("Wann hat die Apotheke auf?") ist keine Antwort auf "Wer kommt mit?" und wird nicht als Ausflugsplan gedeutet
+                if (!personen(t) && /^(?:wann|wie|was|wo|wer|wem|wen|welche\w*|woher|wohin|warum|wieso|weshalb|gibt|ist|sind|wird|brauche|muss|soll|kann|darf|habe|hab)\b/.test(t)) return next(text);
                 const p = personen(t) || { art: 'erwachsene', mit: '' };
                 (w.agent ? planenAgent({ iso: w.iso, art: p.art, mit: p.mit, wuensche: w.wuensche }) : planen({ iso: w.iso, art: p.art, mit: p.mit })).catch(e => { console.error('Ausflug', e); sagen('Beim Planen ist etwas schiefgegangen.'); });
                 return true;
@@ -576,6 +601,7 @@
             }
         }
         if (erlebnisFrage(raw, t)) return true;
+        if (zeitFrage(t)) { zeitFrageBehandeln(t, raw); return true; }
         if (/\bwo\s+waren\s+wir\b.*\bschon\b|\bwelche\s+ausfluege\b|\bunsere\s+ausfluege\b|\bausflugsliste\b.*\b(?:zeig\w*|vorles\w*)|\b(?:zeig\w*|lies)\b.*\bausfluege\b/.test(t)) {
             const l = laden();
             if (!l.length) { sagen('Ich habe noch keinen Ausflug gemerkt. Sag nach einem Ausflug zum Beispiel: Wir waren im Tierpark Hagenbeck, das war super.'); return true; }

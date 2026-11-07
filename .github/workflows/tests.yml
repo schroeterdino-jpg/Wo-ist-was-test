@@ -77,6 +77,7 @@ jobs:
           node tests/landkarte.js
           node tests/lauf.js
           node tests/mehrfachfrage.js
+          node tests/fragen_weg.js
           node tests/pending_reihenfolge.js
           node tests/pending_zweite_stufe.js
           node tests/reihenfolge.js

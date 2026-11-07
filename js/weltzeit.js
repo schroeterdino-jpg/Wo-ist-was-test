@@ -128,6 +128,17 @@
         const wantsTime = /\b(wie spät|wie viel uhr|wieviel uhr|wie viele uhr|uhrzeit|zeitunterschied|zeitverschiebung|zeitdifferenz)\b/.test(t);
         if (!wantsTime) return false;
         if (/\b(termin|erinner|wecker|timer|alarm)\b/.test(t)) return false;
+        // Zwei Zeitfragen in einem Satz ("Wie spät ist es in Tokio und wie spät ist es in New York?"): jede Teilfrage einzeln beantworten, EINE gesprochene Antwort
+        const teile = t.split(/\s+und\s+(?=wie spät|wie viel uhr|wieviel uhr|wie viele uhr)/);
+        if (teile.length > 1 && !handleWeltzeitCommand.innen) {
+            const fang = [], orig = window.speak;
+            handleWeltzeitCommand.innen = true;
+            window.speak = function (x) { fang.push(String(x == null ? '' : x)); };
+            let alle = true;
+            try { alle = teile.every(x => handleWeltzeitCommand(x)); } finally { window.speak = orig; handleWeltzeitCommand.innen = false; }
+            if (alle && fang.length) { say(fang.join(' ')); return true; }
+            return false;   // eine Teilfrage nicht verstanden: nichts halb beantworten, der Satz läuft weiter zur KI
+        }
         const hit = findPlace(t);
         if (!hit) return false;
         const now = new Date();

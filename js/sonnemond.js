@@ -331,6 +331,7 @@
             return true;
         }
         if (/\b(mond|mondaufgang|monduntergang|mondphase)\b/.test(t)) {
+            if (/^wer\b|\b(?:mensch\w*|astronaut\w*|landung|gelandet|entfernt|entfernung|durchmesser|gewicht|schwerkraft)\b/.test(t)) return false;   // Wissensfragen über den Mond sind keine Mondzeiten
             const rise = /(mondaufgang|\bauf\b|aufgehen|geht .*auf)/.test(t), set = /(monduntergang|\bunter\b|untergehen|geht .*unter)/.test(t);
             if (rise || set) { answerMoonTimes(rise, set); return true; }
             if (/(phase|wie ist der mond|wie sieht der mond|mond heute|mond gerade|mond aus|zunehmend|abnehmend|halbmond|sichel)/.test(t)) { answerMoonToday(); return true; }

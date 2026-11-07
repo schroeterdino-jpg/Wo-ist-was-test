@@ -53,7 +53,7 @@ const WX_TIME_WORD = /\b(minuten?|stunden?|tagen?|tage|wochen?|monat\w*|jahr\w*|
 function wxCleanPlace(raw) {
     let p = String(raw || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
     p = p.replace(/^(?:der|die|das|den|dem|des)\s+/, '');
-    for (let i = 0; i < 4; i++) p = p.replace(/\s+(?:heute|morgen|übermorgen|jetzt|gerade|bitte|mal|eigentlich|denn|nochmal|noch einmal|an|aus|auch)$/, '').trim();
+    for (let i = 0; i < 4; i++) p = p.replace(/\s+(?:heute|morgen|übermorgen|jetzt|gerade|bitte|mal|eigentlich|denn|nochmal|noch einmal|an|aus|auch|am wochenende|am (?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)|(?:diese|nächste|naechste) woche)$/, '').trim();
     if (!p || p.length > 40 || p.split(' ').length > 4) return '';
     if (WX_NOT_A_PLACE.test(p) || /\d/.test(p)) return '';
     // "Wetter in zwei Stunden", "Wetter in der Nacht" ... sind Zeitangaben, kein Ort
