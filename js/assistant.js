@@ -207,8 +207,20 @@ async function sendToGroqSmartCore(text, opts = {}) {
         ...chatHistory.slice(-16).map(m => (m && typeof m.jvKi === 'string') ? { role: m.role, content: m.jvKi } : m)
     ];
 
+    // Anschlussfrage (js/gespraech_antwort.js): "Wo kann ich die kaufen?" nach einer Empfehlung geht DIREKT in die Internetsuche (die KI entscheidet hier nichts: sie könnte eine Einkaufslisten-Aktion daraus machen oder nach dem Produkt fragen);
+    // bei zwei verschiedenen frischen Themen fragt Jarvis selbst nach
+    let anschlussRoute = { pfad: 'modell' };
+    try { if (window.jvAnschlussAntwort) anschlussRoute = window.jvAnschlussAntwort.route(text); } catch (e) { }
+    let anschlussPfad = anschlussRoute.pfad;
+
     typeWriterStatus("Formuliere die Antwort...");
     try {
+        let ai;
+        if (anschlussRoute.pfad === 'direkt') {
+            ai = { reply: 'Ich schaue nach.', actions: [{ type: 'web_lookup', web_query: anschlussRoute.query }] };
+        } else if (anschlussRoute.pfad === 'nachfrage') {
+            ai = { reply: anschlussRoute.text, actions: [] };
+        } else {
         const res = await apiFetch('/api/groq', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -222,7 +234,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
 
         const data = await res.json();
         try { if (typeof diagApi === 'function') diagApi(res, data); } catch (e) {}
-        let ai = JSON.parse(data.choices[0].message.content);
+        ai = JSON.parse(data.choices[0].message.content);
         // Anschlussfrage (js/gespraech_antwort.js): fragt die KI trotz bekannter letzter Antwort nach ("Welches Produkt meinst du?"), bekommt sie den Bezug ausdrücklich und antwortet ein zweites Mal (nur in diesem Fall)
         try {
             const zusatz = (window.jvAnschlussAntwort && typeof window.jvAnschlussAntwort.nachfrageErsatz === 'function') ? window.jvAnschlussAntwort.nachfrageErsatz(text, ai) : '';
@@ -236,8 +248,20 @@ async function sendToGroqSmartCore(text, opts = {}) {
                 const d2 = await res2.json();
                 const ai2 = JSON.parse(d2.choices[0].message.content);
                 if (ai2 && typeof ai2.reply === 'string' && ai2.reply.trim()) ai = ai2;
+                anschlussPfad = 'modell, zweiter Versuch';
+            }
+            // die verworfene erste Antwort (und eine Rückfrage, die nicht beantwortet wurde) führt KEINE Aktionen aus
+            if (zusatz && window.jvAnschlussAntwort.istNachfrage(ai.reply)) ai.actions = [];
+        } catch (e) { }
+        }
+        // eine Händler-/Preisfrage legt nie einen Eintrag auf der Einkaufsliste oder Aufgabenliste an
+        try {
+            if (window.jvAnschlussAntwort && Array.isArray(ai.actions)) {
+                const weg = window.jvAnschlussAntwort.ohneListenAktionen(text, ai.actions);
+                if (weg) anschlussPfad += ', ' + weg + ' Listen-Aktion(en) verworfen';
             }
         } catch (e) { }
+        try { if (typeof diagAdd === 'function' && window.jvAnschlussAntwort && anschlussPfad !== 'modell') diagAdd(window.jvAnschlussAntwort.diagnose(anschlussPfad)); else if (typeof diagAdd === 'function' && window.jvAnschlussAntwort && window.jvAnschlussAntwort.anschluss(text)) diagAdd(window.jvAnschlussAntwort.diagnose('modell')); } catch (e) { }
         try { if (typeof diagShow === 'function') diagShow(text, ai); } catch (e) {}
 
         chatHistory.push({ role: "assistant", content: JSON.stringify(ai) });
@@ -264,17 +288,6 @@ async function sendToGroqSmartCore(text, opts = {}) {
             ai.reply = 'Ich schaue nach.';
             chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: ai.reply, actions }) };
         }
-
-        // Anschlussfrage "Wo kann ich die kaufen?" / "Was kosten die?" mit reinem Bezugswort: Händler und Preise kommen NUR aus der Internetsuche (nie aus dem Wissen der KI), mit den zuletzt genannten Namen
-        try {
-            const ws = (window.jvAnschlussAntwort && typeof window.jvAnschlussAntwort.websuche === 'function') ? window.jvAnschlussAntwort.websuche(text, ai, actions) : '';
-            if (ws && !actions.some(a => a.type === 'web_lookup')) {
-                actions.length = 0;
-                actions.push({ type: 'web_lookup', web_query: ws });
-                ai.reply = 'Ich schaue nach.';
-                chatHistory[chatHistory.length - 1] = { role: "assistant", content: JSON.stringify({ reply: ai.reply, actions }) };
-            }
-        } catch (e) { }
 
         // Fragen nach Restaurants/Lokalen in der Nähe werden IMMER als "nearby_places" behandelt, auch wenn die KI stattdessen einfach etwas erfindet
         if (NEARBY_TRIGGER.test(text) && !actions.some(a => a.type === 'nearby_places') &&
