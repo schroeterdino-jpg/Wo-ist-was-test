@@ -26,7 +26,7 @@
    "storage.js",
    "sync.js"
   ],
-  "schluesselAnzahl": 178,
+  "schluesselAnzahl": 182,
   "jvNova": [
    "jv_aa_kopf",
    "jv_ansage_zuletzt",
@@ -102,10 +102,14 @@
    "jv_plan_beginn",
    "jv_plan_beginn_tag_",
    "jv_plan_ende",
+   "jv_plan_ende_tag_",
    "jv_plan_fahrt",
    "jv_plan_gesagt",
    "jv_plan_heim",
+   "jv_plan_stau_aus",
    "jv_plan_vor_",
+   "jv_plan_vorher",
+   "jv_plan_vorher_tag_",
    "jv_plan_wecker_",
    "jv_plan_wzeit_",
    "jv_plauder_bis",
