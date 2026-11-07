@@ -39,7 +39,7 @@
 
     function prompt() {
         return 'Du erkennst, was auf einem Foto zu sehen ist, damit eine Assistenz-App die passende Funktion starten kann. Antworte NUR mit JSON: ' +
-            '{"art":"einkaufsliste|brief|stundenplan|essensplan|termin|visitenkarte|tabelle|parkschild|warnleuchte|rezept|urlaubsplan|wunschliste|sonstiges","sicher":true oder false,"beschreibung":"ein kurzer deutscher Satz, was zu sehen ist, zum Beispiel: ein Ausmalbild mit einem Bären","produkt":"Name oder Marke und Art, wenn ein einzelner kaufbarer Gegenstand im Mittelpunkt steht und du ihn sicher erkennst, zum Beispiel: Chanel Bleu Parfüm; sonst leer","laden":"Ladenart, in der man diesen Gegenstand kauft, genau eine aus: Parfümerie, Drogerie, Supermarkt, Apotheke, Baumarkt, Elektromarkt, Handyladen, Schuhgeschäft, Bekleidungsgeschäft, Buchhandlung, Spielwarengeschäft, Möbelhaus, Fahrradladen, Zoohandlung; sonst leer"}. ' +
+            '{"art":"einkaufsliste|brief|stundenplan|essensplan|termin|visitenkarte|tabelle|parkschild|warnleuchte|rezept|urlaubsplan|wunschliste|geraet|text|sonstiges","sicher":true oder false,"beschreibung":"ein kurzer deutscher Satz, was zu sehen ist, zum Beispiel: ein Ausmalbild mit einem Bären","produkt":"Name oder Marke und Art, wenn ein einzelner kaufbarer Gegenstand im Mittelpunkt steht und du ihn sicher erkennst, zum Beispiel: Chanel Bleu Parfüm; sonst leer","laden":"Ladenart, in der man diesen Gegenstand kauft, genau eine aus: Parfümerie, Drogerie, Supermarkt, Apotheke, Baumarkt, Elektromarkt, Handyladen, Schuhgeschäft, Bekleidungsgeschäft, Buchhandlung, Spielwarengeschäft, Möbelhaus, Fahrradladen, Zoohandlung; sonst leer","geraet":"Marke und Modell eines Haushalts- oder Elektrogeräts mit Anzeige oder Fehlermeldung, wenn lesbar; sonst leer","code":"der Fehlercode auf der Anzeige, genau so wie angezeigt, nur wenn er gut lesbar ist; sonst leer"}. ' +
             'Bedeutung: einkaufsliste = handgeschriebener oder gedruckter Einkaufszettel mit Artikeln; ' +
             'brief = Brief, Rechnung, Mahnung, Bescheid, Vertragsschreiben, Behördenpost, Kontoauszug; ' +
             'stundenplan = Schulstundenplan mit Wochentagen und Fächern; ' +
@@ -51,6 +51,8 @@
             'rezept = Kochrezept oder Backrezept mit Zutaten und/oder Zubereitungsschritten (Kochbuchseite, Zettel, Zeitschrift, Bildschirmfoto); ' +
             'urlaubsplan = Urlaubsplanung oder Urlaubsantrag: Formular mit Name und mehreren Zeiträumen von-bis für Jahresurlaub (handgeschrieben oder gedruckt); ' +
             'wunschliste = Wunschzettel oder Wunschliste (Weihnachten, Geburtstag), meist von einem Kind, mit mehreren Wünschen untereinander; ' +
+            'geraet = Gerät (Waschmaschine, Heizung, Drucker, Router, Spülmaschine ...) mit Display, Fehlermeldung oder Fehlercode (keine Autowarnleuchte); ' +
+            'text = Foto, das vor allem aus fortlaufendem Text besteht (Schild, Etikett, Anleitung, Zeitungsartikel, Seite), aber kein Brief, keine Rechnung und kein Plan; ' +
             'sonstiges = alles andere (Landschaft, Personen, Gegenstände, Tiere, Essen, einfache Textseiten). ' +
             '"sicher" ist false, wenn du dir nicht ziemlich sicher bist.';
     }
@@ -136,6 +138,11 @@
         const a = AUFGABE[art];
         const beschr = String(o.beschreibung || '').trim();
         merkeProdukt(foto, o, !a || !sicher);
+        if (window.jvFotoWerkzeuge && typeof window.jvFotoWerkzeuge.nachErkennung === 'function') {   // Phase 4: Produkt -> Produktsuche, Gerät/Code -> Recherche, Text -> Angebot (nur lesende Werkzeuge)
+            let behandelt = false;
+            try { behandelt = await window.jvFotoWerkzeuge.nachErkennung({ o, art, sicher, beschr, gueltig: () => my === seq && userStarted !== my && typeof lastPhoto !== 'undefined' && lastPhoto === foto }); } catch (e) { console.error('Foto-Werkzeuge', e && e.message); }
+            if (behandelt) return;
+        }
         if (!a || !sicher) return fallback(my, beschr);
         try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Erkannt: ' + a.text); } catch (e) {}
         mine = true;
@@ -147,6 +154,7 @@
     /* ---------- Sprachbefehl: aus / an ---------- */
     function handle(text) {
         if (nahe(text)) return true;
+        try { if (window.jvFotoWerkzeuge && window.jvFotoWerkzeuge.handle(text)) return true; } catch (e) { console.error('Foto-Werkzeuge', e && e.message); }   // Phase 4: Fehlercode nennen, "Erkläre das", "Fasse das zusammen"
         const t = String(text || '').toLowerCase().replace(/[.,!?;:\-]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 60 || !/foto\s*erkennung|foto\s*automatik|bilder?\s*erkennung/.test(t)) return false;
         const say = m => speak(m, typeof continueConversation === 'function' ? continueConversation : undefined);

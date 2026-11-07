@@ -227,7 +227,7 @@ const FELDER = 'alternativen,ausgefuehrt,daten,faehigkeit,fehlend,grund,nachrich
     let A = umgebung();
     check('20a keine Ladefehler', A.ladefehler.length === 0, A.ladefehler.join('; '));
     const FUENF = ['ortssuche', 'websuche', 'erinnerung_erstellen', 'termin_erstellen', 'gedaechtnis_speichern'];
-    check('20b die fünf Fähigkeiten sind in dieser Reihenfolge angemeldet, dazu "wetter" (Chef-KI-Paket) und die fünf des Schreibkerns (B1)', A.sb.jvRegistry.namen().slice(0, 2).join() === 'ortssuche,websuche' && FUENF.every(n => A.sb.jvRegistry.namen().includes(n)) && A.sb.jvRegistry.namen().length === 12 && A.sb.jvRegistry.namen().includes('wetter') && A.sb.jvRegistry.namen().includes('produktsuche') && ['aufgabe_erstellen', 'aufgaben_lesen', 'termine_lesen', 'termin_verschieben', 'kontakt_speichern'].every(n => A.sb.jvRegistry.namen().includes(n)), A.sb.jvRegistry.namen().join());
+    check('20b die fünf Fähigkeiten sind in dieser Reihenfolge angemeldet, dazu "wetter" (Chef-KI-Paket) und die fünf des Schreibkerns (B1)', A.sb.jvRegistry.namen().slice(0, 2).join() === 'ortssuche,websuche' && FUENF.every(n => A.sb.jvRegistry.namen().includes(n)) && A.sb.jvRegistry.namen().length === 13 && A.sb.jvRegistry.namen().includes('wetter') && A.sb.jvRegistry.namen().includes('produktsuche') && ['aufgabe_erstellen', 'aufgaben_lesen', 'termine_lesen', 'termin_verschieben', 'kontakt_speichern'].every(n => A.sb.jvRegistry.namen().includes(n)), A.sb.jvRegistry.namen().join());
     check('20c alle Fallbacks sind angemeldet', A.sb.jvRegistry.pruefeVerweise().length === 0);
     const bekannteAktionen = new Set(A.sb.jvSicher._bekannteTypen());
     for (const n of FUENF) {
@@ -240,7 +240,7 @@ const FELDER = 'alternativen,ausgefuehrt,daten,faehigkeit,fehlend,grund,nachrich
     check('21e Pflicht/optional der fünf', JSON.stringify(FUENF.map(n => A.sb.jvRegistry.beschreibe(n).pflicht.map(p => p.name))) === JSON.stringify([['suchbegriff'], ['frage'], ['text'], ['text', 'zeit'], ['schluessel']]));
 
     /* --- nicht produktiv --- */
-    const andere = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && !/^(registry(_faehigkeiten|_schreibkern|_produkt)?|schatten|chef)\.js$/.test(f)).filter(f => /jvRegistry/.test(lies('js/' + f)));
+    const andere = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && !/^(registry(_faehigkeiten|_schreibkern|_produkt)?|foto_werkzeuge|schatten|chef)\.js$/.test(f)).filter(f => /jvRegistry/.test(lies('js/' + f)));
     check('22a keine andere App-Datei benutzt die Registry (außer dem Schattenbetrieb, der sie nur liest, und der Chef-KI aus Phase 6, die sie aufruft)', andere.length === 0, andere.join(', '));
     check('22b keine Datei außer index.html bindet die beiden Registry-Skripte ein / ruft sie auf (Service Worker, Hüllen)', ['sw.js', 'manifest.json'].filter(f => fs.existsSync(path.join(ROOT, f)) && /jvRegistry/.test(lies(f))).length === 0);
     check('22c die Registry-Skripte stehen in index.html hinter sicherheit.js', (() => { const h = lies('index.html'); const i = h.indexOf('js/sicherheit.js'), j = h.indexOf('js/registry.js'), k = h.indexOf('js/registry_faehigkeiten.js'); return i > 0 && j > i && k > j; })());
@@ -379,7 +379,7 @@ const FELDER = 'alternativen,ausgefuehrt,daten,faehigkeit,fehlend,grund,nachrich
         const F = umgebung();
         const reg = F.sb.jvRegistry.registriere(frisch({ name: 'neue_faehigkeit', fallbacks: ['websuche'], ausfuehren: async () => ({ wert: 1 }) }));
         r = await ruf(F, 'neue_faehigkeit', { text: 'a' });
-        check('30a eine weitere Fähigkeit läuft neben den angemeldeten (fünf + wetter + Schreibkern), Fallback auf eine bestehende wird erkannt', reg.ok && r.status === 'SUCCESS' && F.sb.jvRegistry.namen().length === 13 && F.sb.jvRegistry.pruefeVerweise().length === 0);
+        check('30a eine weitere Fähigkeit läuft neben den angemeldeten (fünf + wetter + Schreibkern), Fallback auf eine bestehende wird erkannt', reg.ok && r.status === 'SUCCESS' && F.sb.jvRegistry.namen().length === 14 && F.sb.jvRegistry.pruefeVerweise().length === 0);
         check('30b die fünf Namen lassen sich nicht überschreiben', F.sb.jvRegistry.registriere(frisch({ name: 'ortssuche' })).ok === false && F.sb.jvRegistry.hole('ortssuche').verbindung.funktion === 'findNearbyRestaurants');
     }
 
