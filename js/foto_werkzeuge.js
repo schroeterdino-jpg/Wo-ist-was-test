@@ -47,6 +47,9 @@
             ausfuehren: async function () {
                 if (!frisch()) return { leer: true, art: '', produkt: '', geraet: '', code: '', beschreibung: '', nachricht: 'Ich habe gerade kein erkanntes Foto.', reply: 'Ich habe gerade kein erkanntes Foto.' };
                 var s = stand, n = 'Auf dem Foto: ' + (s.beschreibung || s.art) + '.' + (s.produkt ? ' Produkt: ' + s.produkt + '.' : '') + (s.geraet ? ' Gerät: ' + s.geraet + '.' : '') + (s.code ? ' Code: ' + s.code + '.' : '');
+                var kann = s.produkt ? 'Ich kann Preise und Händler dazu suchen.' : s.art === 'geraet' ? 'Ich kann im Internet nachsehen, was der Fehlercode bedeutet.' : s.art === 'text' ? 'Ich kann den Text vorlesen, übersetzen, erklären oder zusammenfassen.'
+                    : s.art === 'brief' ? 'Ich kann den Brief oder die Rechnung auswerten und dich auf Wunsch an die Frist erinnern.' : s.art === 'visitenkarte' ? 'Ich kann daraus auf Wunsch einen Kontakt anlegen.' : 'Sag mir, was ich damit tun soll.';
+                n += ' ' + kann;   // nur Möglichkeiten, die es wirklich gibt; ausgeführt wird erst auf Wunsch
                 return { art: s.art, produkt: s.produkt, geraet: s.geraet, code: s.code, beschreibung: s.beschreibung, nachricht: n };
             }
         });

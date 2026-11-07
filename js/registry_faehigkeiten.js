@@ -162,6 +162,31 @@
         }
     });
 
+    /* ---------------- 2a. Jarvis über sich selbst (lesend, ohne KI-Kosten) ---------------- */
+    var SELBST_NAMEN = { ortssuche: 'Orte und Restaurants suchen', websuche: 'Internetsuche', wetter: 'Wetter', produktsuche: 'Preise und Händler zu Produkten', foto_info: 'Fotos erkennen und auswerten',
+        termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
+        termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken' };
+    R.registriere({
+        name: 'jarvis_info',
+        beschreibung: 'Zählt auf, welche Werkzeuge und Fähigkeiten Jarvis selbst hat. Nur nutzen, wenn der Nutzer Jarvis selbst meint ("du", "dich", "deine Funktionen", "wie könntest du dich verbessern").',
+        pflicht: [], optional: [],
+        rueckgabe: { beschreibung: 'Liste der vorhandenen Fähigkeiten in einem gesprochenen Satz.', felder: ['werkzeuge', 'nachricht'] },
+        fehler: [
+            { status: 'TOOL_FAILED', wann: 'Die Registry kann die Fähigkeiten nicht aufzählen.' },
+            { status: 'CAPABILITY_MISSING', wann: 'Die Registry ist in dieser Umgebung nicht geladen.' }
+        ],
+        fallbacks: [],
+        bestaetigung: { noetig: false, grund: 'Reine Auskunft aus der Registry, ändert nichts.' },
+        pruefeErfolg: function (d) { return !!d && Array.isArray(d.werkzeuge) && d.werkzeuge.length > 0 && typeof d.nachricht === 'string' && d.nachricht.trim() !== ''; },
+        verbindung: { datei: 'js/registry.js', funktion: 'beschreibe' },
+        verfuegbar: function () { return typeof R.beschreibe === 'function'; },
+        ausfuehren: async function () {
+            var namen = R.beschreibe().map(function (d) { return d.name; }).filter(function (n) { return n !== 'jarvis_info'; });
+            var texte = namen.map(function (n) { return SELBST_NAMEN[n] || n.replace(/_/g, ' '); });
+            return { werkzeuge: namen, nachricht: 'Das kann ich zurzeit: ' + texte.join(', ') + '.' };
+        }
+    });
+
     /* ---------------- 2b. Wetter (lesend, ohne KI-Kosten) ---------------- */
     R.registriere({
         name: 'wetter',
