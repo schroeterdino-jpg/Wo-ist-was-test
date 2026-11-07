@@ -48,7 +48,13 @@ function umgebung(opt) {
             st.groq++; (st.normaleM = st.normaleM || []).push(JSON.stringify(m)); st.normaleSaetze.push(String((m[m.length - 1] || {}).content || ''));
             return ant({ choices: [{ message: { content: JSON.stringify({ reply: 'Okay.', actions: [] }) } }] });
         }
-        if (/api\/geocode/.test(u)) { st.geoN = (st.geoN || 0) + 1; const q = decodeURIComponent((u.match(/q=([^&]*)/) || [])[1] || ''); st.geoQ = (st.geoQ || []).concat(q); if (st.geo === 'leer') return ant([]); return ant([{ lat: /schwarzenbek/i.test(q) ? '53.50' : '53.55', lon: /schwarzenbek/i.test(q) ? '10.48' : '10.0', display_name: q + ', Deutschland', class: st.geoKlasse || 'boundary', type: 'administrative' }]); }
+        if (/api\/geocode/.test(u)) { st.geoN = (st.geoN || 0) + 1; const q = decodeURIComponent((u.match(/q=([^&]*)/) || [])[1] || ''); st.geoQ = (st.geoQ || []).concat(q); if (st.geo === 'leer') return ant([]);
+            let ort = { lat: '53.55', lon: '10.0', name: q + ', Hamburg, Deutschland' };
+            if (/schwarzenbek/i.test(q)) ort = { lat: '53.50', lon: '10.48', name: 'Schwarzenbek, Kreis Herzogtum Lauenburg, Schleswig-Holstein, Deutschland' };
+            else if (/hauptbahnhof/i.test(q) && /hamburg/i.test(q)) ort = { lat: '53.5528', lon: '10.0067', name: 'Hamburg Hauptbahnhof, Hachmannplatz, St. Georg, Hamburg-Mitte, Hamburg, 20099, Deutschland' };
+            else if (/berlin/i.test(q)) ort = { lat: '52.52', lon: '13.40', name: 'Berlin, Deutschland' };
+            if (st.geoName) { const x = st.geoName(q); if (x) ort = Object.assign(ort, x); }
+            return ant([{ lat: ort.lat, lon: ort.lon, display_name: ort.name, class: st.geoKlasse || 'boundary', type: 'administrative' }]); }
         if (/open-meteo/.test(u)) { (st.wetterUrls = st.wetterUrls || []).push(u); st.wetterN++; if (st.wetter === 'fehler') throw new Error('offline'); return ant(/daily=/.test(u) && /current=/.test(u) ? Object.assign({}, WETTER_JETZT, WETTER_TAGE) : /daily=/.test(u) ? WETTER_TAGE : WETTER_JETZT); }
         if (/action=places/.test(u)) { st.placesN++; if (st.places === 'fehler') return { ok: false, status: 500, json: async () => ({}) }; return ant({ places: st.places === 'leer' ? [] : PL }); }
         if (/api\/maps\?action=shopping/.test(u)) {
@@ -62,18 +68,18 @@ function umgebung(opt) {
             if (st.route === 'haengt') return new Promise(() => { });
             if (st.route === 'fehler') return { ok: false, status: 500, json: async () => ({ error: 'kaputt' }) };
             const google = /google=1/.test(u);
-            if (google && st.route === 'google') return ant({ code: 'Ok', quelle: 'google', routes: [{ duration: st.dauer || 2400, distance: st.meter || 41000, legs: [{ steps: [{ ref: 'A24', name: '' }] }] }] });
+            if (google && st.route === 'google') return ant({ code: 'Ok', quelle: 'google', routes: [{ duration: st.dauer || 2400, distance: st.meter || 41000, legs: [{ steps: [{ ref: 'A24', name: '' }] }], geometry: st.linie ? { type: 'LineString', coordinates: st.linie } : undefined }] });
             if (google && st.route === 'osrm') return { ok: false, status: 503, json: async () => ({}) };   // Google nicht verfügbar (Schlüssel/Limit): der Server fällt auf OSRM zurück
-            return ant({ code: 'Ok', routes: [{ duration: st.dauerOsrm || 2100, distance: st.meter || 41000, legs: [{ steps: [{ ref: 'A24', name: '' }] }] }] });
+            return ant({ code: 'Ok', routes: [{ duration: st.dauerOsrm || 2100, distance: st.meterOsrm || st.meter || 41000, legs: [{ steps: [{ ref: 'A24', name: '' }] }], geometry: st.linie ? { type: 'LineString', coordinates: st.linie } : undefined }] });
         }
-        if (/api\/stau/.test(u)) { st.stauN = (st.stauN || 0) + 1; return ant(/traffic=1/.test(u) ? { incidents: [] } : { warning: [], webcam: [] }); }
+        if (/api\/stau/.test(u)) { st.stauN = (st.stauN || 0) + 1; return ant(/traffic=1/.test(u) ? { incidents: st.tomtom || [] } : { warning: st.autobahn || [], webcam: [] }); }
         if (/api\/memory/.test(u)) return ant({});
         throw new Error('offline (Attrappe) ' + u);
     } });
     A.st = st;
     A.sb.answerWithWebSearch = async (f, s) => { st.webN++; (st.webArgs = st.webArgs || []).push(f); if (st.web === 'haengt') return new Promise(res => { st.webHaengt = res; }); return st.web === 'fehler' ? null : 'Die Nachrichten: in Hamburg ist es ruhig.'; };
-    A.sb.fetchUserLocationData = async () => ({ latitude: 53.5, longitude: 10.1 });
-    A.sb.navigator.geolocation.getCurrentPosition = (okf, err) => okf({ coords: { latitude: 53.5, longitude: 10.1 } });
+    A.sb.fetchUserLocationData = async () => ({ latitude: 53.5, longitude: 10.48 });
+    A.sb.navigator.geolocation.getCurrentPosition = (okf, err) => okf({ coords: { latitude: 53.5, longitude: 10.48 } });
     A.karten = []; A.sb.showActionCards = c => { A.karten.push(c); };
         if (!opt.chefAus) A.sb.jvChef.an();
     A.vision = []; A.sb.__vision = async (system, user, dataUrl, json) => { A.vision.push({ system: String(system), user: String(user) }); if (A.st.visionFehler) throw new Error('Bild-KI weg'); return typeof A.st.erkennung === 'string' ? A.st.erkennung : JSON.stringify(A.st.erkennung); };
@@ -126,7 +132,7 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         check('1.4 die Zahl stammt aus der Route (2400 s = 40 Minuten, 41 Kilometer), nicht aus einer Schätzung', /41 Kilometer/.test(t), t);
         const B = umgebung(); B.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
         const t2 = await frage(B, 'Wie lange brauche ich jetzt mit dem Auto zum Hamburger Hauptbahnhof?');
-        check('1.5 ohne Startort: vom Standort aus, gleiche Aussage', /^Bis Hamburger Hauptbahnhof brauchst du jetzt etwa 40 Minuten/.test(t2) && (B.st.geoQ || []).indexOf('Schwarzenbek') < 0, t2);
+        check('1.5 ohne Startort: vom Standort aus, gleiche Aussage', /^Von deinem aktuellen Standort bis Hamburger Hauptbahnhof brauchst du jetzt etwa 40 Minuten/.test(t2) && (B.st.geoQ || []).indexOf('Schwarzenbek') < 0, t2);
     }
     /* 2 Route ohne aktuelle Verkehrsdaten */
     {
@@ -135,11 +141,6 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         check('2.1 ohne Live-Verkehr: berechnete Route (35 Minuten) und ausdrücklich "keine Live-Auskunft"', /nach der berechneten Route etwa 35 Minuten/.test(t) && /Aktuelle Verkehrsdaten sind darin nicht eingerechnet/.test(t) && /keine Live-Auskunft/.test(t) && !/aktuellen Verkehr\./.test(t), t);
         check('2.2 keine Websuche, keine erfundene zweite Zahl', A.st.webN === 0 && A.st.groq === 0 && !/38|40 Minuten/.test(t), t);
         check('2.3 gemeldete Verzögerung (Stau auf der Strecke) wird nur genannt, wenn sie wirklich gemeldet ist', !/Verzögerung/.test(t));
-        const B = umgebung(); B.st.route = 'osrm'; B.sb.jvStauMin = 0; B.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
-        const orig = B.sb.describeAutobahnStau;
-        B.sb.describeAutobahnStau = async function () { B.sb.jvStauMin = 12; return ' Achtung, auf der Strecke aktuell gemeldet: A24: Hamburg-Billstedt (Stau).'; };
-        const t2 = await frage(B, 'Wie lange brauche ich mit dem Auto zum Hamburger Hauptbahnhof?');
-        check('2.4 Staumeldung aus der echten Abfrage wird übernommen, Verzögerung ausgewiesen', /etwa 12 Minuten zusätzlich/.test(t2) && /A24: Hamburg-Billstedt \(Stau\)/.test(t2) && /keine Live-Auskunft/.test(t2), t2);
     }
     /* 3 die Ursache: Websuche statt Route (der Fehler vom Handytest) */
     {
@@ -167,13 +168,66 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         check('4.3 Ziel nicht gefunden: sagt das, nennt keine Fahrzeit', /habe ich nicht gefunden/.test(t2) && /nenne ich deshalb nicht/.test(t2) && !/\d+ Minuten/.test(t2) && B.st.webN === 0 && B.st.groq === 0, t2);
         const C = umgebung(); C.st.dauer = 700 * 60; C.st.dauerOsrm = 700 * 60; C.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
         const t3 = await frage(C, 'Wie lange brauche ich mit dem Auto zum Hamburger Hauptbahnhof?');
-        check('4.4 unglaubwürdig weites Ziel: nachfragen statt eine Zahl zu nennen', /ungewöhnlich weit entfernt/.test(t3) && /nenne ich deshalb nicht/.test(t3), t3);
+        check('4.4 unglaubwürdige Route (700 Minuten für 41 km): keine Zahl, ehrlich nachfragen', /passt nicht zu Start und Ziel/.test(t3) && /nenne ich deshalb nicht/.test(t3), t3);
         const D = umgebung(); D.st.route = 'fehler'; D.st.plan = { schritte: [W('heute'), FZ('Hamburger Hauptbahnhof')] };
         const t4 = await frage(D, 'Wie ist das Wetter und wie lange brauche ich mit dem Auto zum Hamburger Hauptbahnhof?');
         check('4.5 Wetter klappt, Fahrzeit nicht: Wetter wird gesagt, die Fahrzeit ehrlich als nicht berechnet', /Grad|Wetter/.test(t4) && /Die Fahrzeit konnte ich gerade nicht berechnen, und ich schätze sie nicht/.test(t4) && !/\d+ Minuten/.test(t4), t4);
         const E = umgebung(); E.st.route = 'haengt'; E.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
         await tippen(E, 'Wie lange brauche ich mit dem Auto zum Hamburger Hauptbahnhof?', 25000);
         check('4.6 Route antwortet nicht (Zeitlimit): bisheriger Weg genau einmal, keine Zahl von der Chef-KI', E.st.groq === 1 && E.st.webN === 0, JSON.stringify({ g: E.st.groq, w: E.st.webN, c: codes(E) }));
+    }
+    /* 8 nur Meldungen, die wirklich auf der Route liegen */
+    {
+        const LINIE = [[10.48, 53.50], [10.0, 53.5528]];   // [Länge, Breite] wie bei der Routen-Antwort
+        const AB = [
+            { title: 'A24 | Reinbek - Hamburg-Billstedt', coordinate: { lat: '53.5264', long: '10.24' }, description: ['Stau 3 km'], icon: '102' },
+            { title: 'A24 | Wentorf - Aumühle', coordinate: { lat: '53.5324', long: '10.24' }, description: ['Sperrung'], icon: '250' },
+            { title: 'A24 | Hamburg-Norderelbbrücke', coordinate: { lat: '54.5', long: '10.9' }, description: ['Sperrung'], icon: '250' }
+        ];
+        const TT = [
+            { lat: 53.5088, lon: 10.40, kategorie: 6, stufe: 3, verzoegerung_s: 600, von: 'Schwarzenbek-Nord', nach: 'Talkau', art: 'Stau', strassen: ['A24'], text: '' },
+            { lat: 53.60, lon: 10.30, kategorie: 8, stufe: 4, verzoegerung_s: 0, von: 'Fremdstraße', nach: 'Woanders', art: 'Sperrung', strassen: ['B5'], text: '' },
+            { lat: 53.5148, lon: 10.40, kategorie: 6, stufe: 3, verzoegerung_s: 900, von: 'Nebenstraße', nach: 'Daneben', art: 'Stau', strassen: ['L1'], text: '' }
+        ];
+        const A = umgebung(); A.st.linie = LINIE; A.st.autobahn = AB; A.st.tomtom = TT; A.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
+        const t = await frage(A, SATZ);
+        check('8.1 Meldung AUF der Route (autobahn.de und TomTom) wird genannt', /Auf der Strecke gemeldet:/.test(t) && /Reinbek - Hamburg-Billstedt/.test(t) && /Stau auf der A24 zwischen Schwarzenbek-Nord und Talkau/.test(t), t);
+        check('8.2 Sperrungen/Meldungen NAHE der Route, daneben oder weit weg werden NICHT genannt', !/Wentorf|Aumühle|Norderelbbrücke|Fremdstraße|Woanders|Nebenstraße|Daneben/.test(t) && !/nahe deiner Route|nahe der Route/.test(t), t);
+        const B = umgebung(); B.st.autobahn = AB; B.st.tomtom = TT; B.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };   // ohne Linienverlauf der Route
+        const t2 = await frage(B, SATZ);
+        check('8.3 ohne echten Linienverlauf wird keine Meldung als "auf der Strecke" behauptet', !/gemeldet|Sperrung|Stau auf/.test(t2) && /brauchst du jetzt etwa 40 Minuten/.test(t2), t2);
+        const C = umgebung(); C.st.route = 'osrm'; C.st.linie = LINIE; C.st.autobahn = AB; C.st.tomtom = TT; C.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
+        const t3 = await frage(C, SATZ);
+        check('8.4 auch ohne Live-Verkehr nur Meldungen auf der Route; die Zeit bleibt als keine Live-Auskunft gekennzeichnet', /keine Live-Auskunft/.test(t3) && !/Wentorf|Fremdstraße|Nebenstraße/.test(t3) && /Reinbek - Hamburg-Billstedt/.test(t3), t3);
+    }
+    /* 9 Plausibilität: Schwarzenbek -> Hamburger Hauptbahnhof, falsche Route, Fernfahrten */
+    {
+        const A = umgebung(); A.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
+        await frage(A, SATZ);
+        const u = (A.st.routeUrls || [])[0] || '';
+        check('9.1 Start und Ziel in der richtigen Reihenfolge, Breite und Länge nicht vertauscht (Start Schwarzenbek, Ziel Hauptbahnhof)', /fromLat=53\.5&fromLon=10\.48&toLat=53\.5528&toLon=10\.0067/.test(u), u);
+        check('9.2 die Geocoder-Anfragen sind genau "Schwarzenbek" und "Hamburger Hauptbahnhof"', JSON.stringify(A.st.geoQ) === JSON.stringify(['Schwarzenbek', 'Hamburger Hauptbahnhof']), JSON.stringify(A.st.geoQ));
+        check('9.3 Luftlinie etwa 33 km, Route 41 km: plausibel, Diagnose-Werte stehen bereit', A.sb.jvFahrzeitLetzte && A.sb.jvFahrzeitLetzte.luftKm > 30 && A.sb.jvFahrzeitLetzte.luftKm < 36 && A.sb.jvFahrzeitLetzte.routeKm === 41 && A.sb.jvFahrzeitLetzte.startQuelle === 'genannt', JSON.stringify(A.sb.jvFahrzeitLetzte));
+        /* die fehlerhafte Route vom Handytest: 314 km / 190 Minuten bei 33 km Luftlinie */
+        const B = umgebung(); B.st.meter = 314000; B.st.dauer = 190 * 60; B.st.meterOsrm = 41000; B.st.dauerOsrm = 2100; B.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
+        const t = await frage(B, SATZ);
+        check('9.4 Google-Route 314 km / 190 Min bei 33 km Luftlinie: NICHT als Fahrzeit gesagt; gezielt neu gerechnet (zweite Anfrage ohne Google)', !/brauchst du jetzt etwa 190/.test(t) && (B.st.routeUrls || []).length === 2 && /google=1/.test(B.st.routeUrls[0]) && !/google=1/.test(B.st.routeUrls[1]), JSON.stringify({ t, r: B.st.routeUrls }));
+        check('9.5 die neu gerechnete Route (35 Minuten, 41 km) wird genannt, ausdrücklich ohne Live-Verkehr, mit Hinweis auf die verworfene erste Rechnung', /etwa 35 Minuten \(41 Kilometer\)/.test(t) && /keine Live-Auskunft/.test(t) && /passte nicht zu Start und Ziel/.test(t) && !/berechnet mit dem aktuellen Verkehr/.test(t), t);
+        const C = umgebung(); C.st.meter = 314000; C.st.dauer = 190 * 60; C.st.meterOsrm = 314000; C.st.dauerOsrm = 190 * 60; C.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
+        const t2 = await frage(C, SATZ);
+        check('9.6 auch die neue Route ist unplausibel: keine Fahrzeit, ehrliche Nachfrage, keine Websuche, keine normale KI', /passt nicht zu Start und Ziel/.test(t2) && /nenne ich deshalb nicht/.test(t2) && !/brauchst du|sind es nach der berechneten Route/.test(t2) && C.st.webN === 0 && C.st.groq === 0, t2);
+        const D = umgebung(); D.st.meter = 300000; D.st.dauer = 190 * 60; D.st.plan = { schritte: [FZ('Berlin')] };
+        const t3 = await frage(D, 'Wie lange brauche ich jetzt mit dem Auto nach Berlin?');
+        check('9.7 Fernfahrt (Luftlinie über 200 km) bleibt möglich: keine feste Entfernungsgrenze', /Von deinem aktuellen Standort bis Berlin brauchst du jetzt etwa 190 Minuten \(300 Kilometer\)/.test(t3), t3);
+        const E = umgebung(); E.st.geoName = q => /hauptbahnhof/i.test(q) ? { lat: '52.376', lon: '9.741', name: 'Hauptbahnhof, Hannover, Niedersachsen, Deutschland' } : null; E.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
+        const t4 = await frage(E, SATZ);
+        check('9.8 Geocoder liefert einen Ort, dessen Name nicht zum Ziel passt (Hannover statt Hamburg): keine Route, ehrliche Nachfrage mit dem gefundenen Ort', (E.st.routeUrls || []).length === 0 && /nur einen Ort gefunden, der nicht passt \(Hauptbahnhof, Hannover\)/.test(t4) && /nenne ich deshalb nicht/.test(t4), t4);
+        const F = umgebung(); F.st.plan = { schritte: [{ faehigkeit: 'fahrzeit', params: { ziel: 'Hamburger Hauptbahnhof' } }] };
+        const t5 = await frage(F, 'Wie lange brauche ich von Schwarzenbek zum Hamburger Hauptbahnhof?');
+        check('9.9 nennt der Nutzer einen Startort, den der Planer weggelassen hat, wird er aus dem Satz übernommen (nicht der Standort benutzt)', /^Von Schwarzenbek bis Hamburger Hauptbahnhof/.test(t5) && (F.st.geoQ || []).indexOf('Schwarzenbek') >= 0, t5);
+        const G = umgebung(); G.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
+        const t6 = await frage(G, 'Wie lange brauche ich jetzt mit dem Auto zum Hamburger Hauptbahnhof?');
+        check('9.10 ohne Startort sagt die Antwort ausdrücklich "von deinem aktuellen Standort"', /^Von deinem aktuellen Standort bis/.test(t6) && G.sb.jvFahrzeitLetzte.startQuelle === 'standort', t6);
     }
     /* 5 Plan-Prüfung und Rückfragen */
     {
