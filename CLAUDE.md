@@ -25,6 +25,12 @@ Nach abgeschlossenen Änderungen:
 3. Neue wichtige Entscheidungen oder offene Probleme dokumentieren.
 4. Unbeteiligte Einträge unverändert lassen.
 
+## Ablauf je Entwicklungsschritt (verbindlich, seit 08.11.2026)
+1. Masterplan lesen, Code und vorhandene Funktionen untersuchen, nur einen klar abgegrenzten Schritt bearbeiten; Vorhandenes wiederverwenden, keine parallelen Systeme.
+2. Regressionstests, PR, alle CI-Prüfungen abwarten. Nur nach Dinos ausdrücklichem „Ja“ mergen.
+3. Dino testet danach auf seinem Android-Handy. Ein grüner automatischer Test ersetzt keinen Handytest. Bei Fehlern zuerst nachbessern und erneut testen.
+4. Erst nach erfolgreichem Handytest gilt ein Schritt als abgeschlossen: Masterplan aktualisieren (Änderung, PR, Tests, Handytest, offene Probleme, nächster Schritt), dann die nächste Aufgabe.
+
 ## Arbeitsgeschwindigkeit (verbindlich, seit 07.11.2026)
 1. Masterplan und vorhandene Architekturinformationen (`ARCHITEKTUR.md`, `LANDKARTE.md`) nutzen, statt Zusammenhänge neu zu untersuchen.
 2. Nur unmittelbar relevante Dateien und Abhängigkeiten lesen; keine vollständigen Repository-Analysen ohne konkreten Anlass.
