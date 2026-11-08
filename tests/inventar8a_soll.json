@@ -17,9 +17,9 @@
  "zahlen": {
   "repoDateien": 365,
   "produktJs": 182,
-  "jsZeilen": 47877,
-  "jsBytes": 3495769,
-  "jsGzip": 1040272,
+  "jsZeilen": 47884,
+  "jsBytes": 3496425,
+  "jsGzip": 1040529,
   "scriptTags": 188,
   "eigeneScripts": 182,
   "drittScripts": 2,
@@ -329,8 +329,8 @@
   "gleichnamigeGlobale": [],
   "lokaleHilfen": {
    "norm": {
-    "kopien": 47,
-    "fassungen": 22
+    "kopien": 48,
+    "fassungen": 23
    },
    "sagen": {
     "kopien": 29,
