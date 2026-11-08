@@ -556,7 +556,16 @@
                 /* nur Meldungen, deren Lage zum echten Linienverlauf der Route passt (Klasse "auf"); "nahe der Route", "im Gebiet" und fremde Meldungen werden nicht genannt */
                 var echt = Array.isArray(route.coords) && route.coords.length > 1;
                 var auf = echt && typeof lastStauWarnings !== 'undefined' ? lastStauWarnings.filter(function (x) { return x && x.klasse === 'auf' && x.title; }) : [];
-                if (auf.length) meldungen = ' Auf der Strecke gemeldet: ' + auf.slice(0, 3).map(function (x) { return x.title; }).join('; ') + '. Hinweis: Die Nähe zur Routenlinie bestätigt nicht, dass deine Fahrtrichtung betroffen ist.';
+                if (auf.length) {
+                    meldungen = ' Auf der Strecke gemeldet: ' + auf.slice(0, 3).map(function (x) {
+                        var titel = String(x.title || '').trim();
+                        var details = String(x.text || '').trim();
+                        // Nur bestätigte Zusatzangaben der bestehenden Verkehrsquelle, keine erfundenen Verzögerungen.
+                        return titel + (details && titel.toLowerCase().indexOf(details.toLowerCase()) < 0 ? ' (' + details + ')' : '');
+                    }).join('; ') + '. Hinweis: Die Nähe zur Routenlinie bestätigt nicht, dass deine Fahrtrichtung betroffen ist.';
+                } else if (echt) {
+                    meldungen = ' Für den ermittelten Routenverlauf liegen mir keine bestätigten Störungsmeldungen vor. Das ist keine Garantie für freie Fahrt; die Meldungsdienste können unvollständig oder nicht erreichbar sein.';
+                }
             } catch (e) { if (e && e.auth) throw e; meldungen = ''; }
             var live = route.quelle === 'google';   // nur die Google-Route enthält den aktuellen Verkehr (stadtverkehr.js); OSRM rechnet ohne
             var stauMin = live || !meldungen ? 0 : Math.max(0, Math.round(Number(window.jvStauMin) || 0));
