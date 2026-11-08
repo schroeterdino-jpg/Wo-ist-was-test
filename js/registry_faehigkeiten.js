@@ -575,7 +575,7 @@
                         return titel + (details && titel.toLowerCase().indexOf(details.toLowerCase()) < 0 ? ' (' + details + ')' : '');
                     }).join('; ') + '. Hinweis: Die Nähe zur Routenlinie bestätigt nicht, dass deine Fahrtrichtung betroffen ist.';
                 } else if (echt) {
-                    meldungen = ' Auf dieser Strecke sind mir derzeit keine konkreten Störungen bekannt. Die Meldungsdienste können allerdings unvollständig oder nicht erreichbar sein.';
+                    meldungen = ' Auf dieser Strecke sind mir derzeit keine konkreten Störungen bekannt.';
                 }
             } catch (e) { if (e && e.auth) throw e; meldungen = ''; }
             var live = route.quelle === 'google';   // nur die Google-Route enthält den aktuellen Verkehr (stadtverkehr.js); OSRM rechnet ohne
