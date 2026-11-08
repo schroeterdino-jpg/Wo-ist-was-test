@@ -778,6 +778,18 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
             quelltext.includes('Bei Fragen nach dem Losfahren ZUR ARBEIT kommt die geplante Abfahrtszeit aus schicht'));
 
     }
+    {
+        const quelltext = require('fs').readFileSync(require('path').join(__dirname, '../js/chef.js'), 'utf8');
+        check('26.1 Schichtwissen wird vor dem allgemeinen KI-Planer bereitgestellt',
+            quelltext.includes('function schichtFakten()') &&
+            quelltext.includes('P.schichtAm(tag)') &&
+            quelltext.includes('P.abfahrtMin(sh, tag)') &&
+            quelltext.includes('var gespeicherteSchichten = schichtFakten()') &&
+            quelltext.indexOf('var gespeicherteSchichten = schichtFakten()') <
+            quelltext.indexOf('var pr = await Promise.race([plane(text, { entscheider: entsch })'));
+        check('26.2 ohne eingerichtete Schicht keine erfundene Schichtzeit',
+            quelltext.includes("!T.load()") && quelltext.includes("schicht: 'frei'"));
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });
