@@ -254,7 +254,14 @@
         return alle.filter(function (c) { var w = String(c.name).trim().split(/\s+/); return w.length > 1 && typeof plainKey === 'function' && plainKey(w[0]) === k; });
     }
     function sieht_aus_wie_adresse(t) { return typeof t === 'string' && /\d/.test(t) && t.trim().length >= 6; }
-    function persoenlicheAdresse(name) {   // -> null | { mehrdeutig:[Namen] } | { name, adresse, quelle:'kontakt'|'gedaechtnis', ohneAdresse? }
+    function persoenlicheAdresse(name) {   // -> null | { mehrdeutig:[Namen] } | { name, adresse, quelle:'kontakt'|'gedaechtnis'|'gespeichert', ohneAdresse?, hinweis? }
+        /* Arbeit und Zuhause: die gespeicherten Adressen der App (resolvePersonalPlace, routing.js), nie die Ortssuche; fehlt die Adresse, sagt die App das selbst */
+        try {
+            if (typeof resolvePersonalPlace === 'function') {
+                var rp = resolvePersonalPlace(String(name || '').trim());
+                if (rp && rp !== String(name || '').trim()) return { name: /arbeit|firma|buro|buero/i.test(name) ? 'Arbeit' : 'Zuhause', adresse: String(rp), quelle: 'gespeichert' };
+            }
+        } catch (e) { return { name: String(name), adresse: '', quelle: 'gespeichert', ohneAdresse: true, hinweis: (e && e.userMessage) || 'Dazu ist keine Adresse gespeichert.' }; }
         var tr = kontaktNamen(name), mit = tr.filter(function (c) { return c.address; });
         if (mit.length > 1) { var namen = []; mit.forEach(function (c) { if (namen.indexOf(c.name) < 0) namen.push(c.name); }); if (namen.length > 1) return { mehrdeutig: namen }; }
         if (mit.length) return { name: mit[0].name, adresse: String(mit[0].address), quelle: 'kontakt' };
@@ -296,7 +303,7 @@
         ausfuehren: async function (p) {
             var n = String(p.name || '').trim(), r = persoenlicheAdresse(n);
             if (!r) return { leer: true, reply: 'Zu ' + n + ' habe ich keinen Kontakt und keinen Gedächtniseintrag mit Adresse gefunden.' };
-            if (r.ohneAdresse) return { leer: true, reply: 'Bei ' + r.name + ' ist keine Adresse gespeichert.' };
+            if (r.ohneAdresse) return { leer: true, reply: r.hinweis || ('Bei ' + r.name + ' ist keine Adresse gespeichert.') };
             return { name: r.name, adresse: r.adresse, quelle: r.quelle, nachricht: 'Die gespeicherte Adresse von ' + r.name + ' ist ' + r.adresse + '.' };
         }
     });
@@ -380,7 +387,7 @@
         ausfuehren: async function (p) {
             function fehlschlag(m) { var e = new Error(m); e.userMessage = m; throw e; }
             var ziel = String(p.ziel).trim(), z = ankunftAus(p), pz = persoenlicheAdresse(ziel);
-            if (pz && pz.ohneAdresse) return { leer: true, reply: 'Bei ' + pz.name + ' ist keine Adresse gespeichert, deshalb nenne ich keine Abfahrtszeit.' };
+            if (pz && pz.ohneAdresse) return { leer: true, reply: (pz.hinweis || ('Bei ' + pz.name + ' ist keine Adresse gespeichert')) + ' Deshalb nenne ich keine Abfahrtszeit.' };
             var dest = (pz && pz.adresse) ? mitRegion(pz.adresse) : ziel;
             var loc = await fetchFreshTravelLocation();
             if (!loc || loc.fehler || loc.latitude === undefined) fehlschlag('Deinen Standort konnte ich gerade nicht ermitteln, deshalb nenne ich keine Abfahrtszeit. Ist der Standortzugriff erlaubt?');
@@ -441,6 +448,7 @@
                 start = { lat: loc.latitude, lon: loc.longitude }; startText = 'deinem aktuellen Standort';
             }
             var pz = persoenlicheAdresse(ziel);   // Kontakt (dann Gedächtnis) hat Vorrang vor der allgemeinen Ortssuche
+            if (pz && pz.ohneAdresse && pz.hinweis) fehlschlag(pz.hinweis + ' Eine Fahrzeit nenne ich deshalb nicht.');
             if (pz && pz.mehrdeutig) fehlschlag('Meinst du ' + pz.mehrdeutig.join(' oder ') + '? Eine Fahrzeit nenne ich erst, wenn das Ziel klar ist.');
             var dest = (pz && pz.adresse) ? await geocodeDestination(mitRegion(pz.adresse), '') : await ortsTreffer(ziel);
             if (pz && pz.adresse && !dest) fehlschlag('Die gespeicherte Adresse von ' + ziel + ' konnte ich nicht auf der Karte finden. Eine Fahrzeit nenne ich deshalb nicht.');   // zuerst genau das genannte Ziel (nie nur der Ortsname)

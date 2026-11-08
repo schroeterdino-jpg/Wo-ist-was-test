@@ -425,6 +425,15 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const N = mit({ chefAus: true }); N.st.normal = { reply: 'Ich schaue nach, Sir.', actions: [{ type: 'travel_time', travel_destination: 'Hamburger Hauptbahnhof' }] }; N.st.geoName = q => /hauptbahnhof/i.test(q) ? MS2 : null;
         const t11 = await frage(N, 'Ich muss heute um 18 Uhr am Hamburger Hauptbahnhof sein.');
         check('16.16 alter Abfahrtsweg: Stadt nicht bestätigbar -> Nachfrage, keine Route, keine Abfahrtszeit', /nur einen Ort gefunden, der nicht passt/.test(t11) && !(N.st.routeUrls || []).length && !/spätestens/.test(t11), t11);
+        const W1 = mit({}, KONT); W1.setze('workAddress', 'Werkstraße 5, 12345 Beispielstadt'); W1.st.plan = { schritte: [AB('Arbeit', '12:13', 'morgen')] };
+        const t12 = await frage(W1, 'Wann muss ich morgen losfahren, um um 12 Uhr 13 auf der Arbeit zu sein?');
+        check('16.17 Ziel Arbeit (Chef-KI EIN): gespeicherte Arbeitsadresse wird genutzt, keine Ortssuche nach "Arbeit", keine Rückfrage', (W1.st.geoQ || []).some(q => /Werkstraße 5/.test(q)) && !(W1.st.geoQ || []).some(q => /^Arbeit$/i.test(q.trim())) && /spätestens/.test(t12) && !/Wohin/.test(t12) && W1.lese('workAddress') === 'Werkstraße 5, 12345 Beispielstadt', t12);
+        const W2 = mit({}, KONT); W2.st.plan = { schritte: [AB('Arbeit', '12:13', 'morgen')] };
+        const t13 = await frage(W2, 'Wann muss ich morgen losfahren, um um 12 Uhr 13 auf der Arbeit zu sein?');
+        check('16.18 Ziel Arbeit ohne gespeicherte Adresse: ehrliche Meldung mit Hinweis, keine Route, keine Abfahrtszeit', /Arbeitsadresse kenne ich noch nicht/.test(t13) && !/spätestens/.test(t13) && !(W2.st.routeUrls || []).length, t13);
+        const W3 = mit({ chefAus: true }, KONT); W3.setze('workAddress', 'Werkstraße 5, 12345 Beispielstadt'); W3.st.plan = { schritte: [AB('Arbeit', '12:13', 'morgen')] };
+        await frage(W3, 'Wann muss ich morgen losfahren, um um 12 Uhr 13 auf der Arbeit zu sein?');
+        check('16.19 Chef-KI AUS: Arbeitsadresse bleibt unverändert, kein Planer', W3.st.ent === 0 && W3.lese('workAddress') === 'Werkstraße 5, 12345 Beispielstadt');
         const L = mit({}); const sh = L.sb.jvSchatten;
         check('16.14 Schattenbetrieb: abfahrt hat keine Erkennung und löst nichts aus (nur Ausnahmeliste)', sh._ohneErkennung().includes('abfahrt') && sh.erkenne('Ich muss morgen um 13 Uhr bei meiner Mutter sein. Wann muss ich losfahren?').join() === '' && stand(L) === L.z0);
     }
