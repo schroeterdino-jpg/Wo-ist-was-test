@@ -772,10 +772,11 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
     }
     {
         const quelltext = require('fs').readFileSync(require('path').join(__dirname, '../js/chef.js'), 'utf8');
-        check('25.3 Morgen-Kombifrage nutzt Schichtplan direkt statt Ankunfts-Rückfrage',
-            quelltext.includes("absicht: 'arbeitsweg_morgen'") &&
-            quelltext.includes("faehigkeit: 'schicht', params: { tag: 'morgen' }") &&
-            quelltext.includes("faehigkeit: 'wetter', params: { tag: 'morgen', ort: arbeitsziel }"));
+        check('25.3 Morgen-Kombifrage bleibt beim allgemeinen KI-Planer',
+            quelltext.includes('var pr = await Promise.race([plane(text, { entscheider: entsch })') &&
+            !quelltext.includes("absicht: 'arbeitsweg_morgen'") &&
+            quelltext.includes('Bei Fragen nach dem Losfahren ZUR ARBEIT kommt die geplante Abfahrtszeit aus schicht'));
+
     }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
