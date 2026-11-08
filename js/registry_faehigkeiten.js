@@ -564,7 +564,7 @@
                         return titel + (details && titel.toLowerCase().indexOf(details.toLowerCase()) < 0 ? ' (' + details + ')' : '');
                     }).join('; ') + '. Die Nähe zur Routenlinie bestätigt noch nicht die betroffene Fahrtrichtung.';
                 } else if (echt) {
-                    meldungen = ' Auf dem ermittelten Routenverlauf liegen derzeit keine bestätigten Störungsmeldungen vor. Das bedeutet nicht, dass die Strecke garantiert frei ist.';
+                    meldungen = ' Für den ermittelten Routenverlauf liegen mir keine bestätigten Störungsmeldungen vor. Das ist keine Garantie für freie Fahrt; die Meldungsdienste können unvollständig oder nicht erreichbar sein.';
                 }
             } catch (e) { if (e && e.auth) throw e; meldungen = ''; }
             var live = route.quelle === 'google';   // nur die Google-Route enthält den aktuellen Verkehr (stadtverkehr.js); OSRM rechnet ohne
