@@ -320,23 +320,20 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const t5 = await frage(E, 'Wie lange brauche ich von Schwarzenbek zum Berliner Hauptbahnhof?');
         check('13.5 Berliner Platz in Bonn ist kein Berlin', !/Bonn/.test(t5) || /nicht passt|nicht gefunden/.test(t5), t5);
     }
-    /* 14 Abfahrtsfragen ("Wann muss ich losfahren?") gehören dem vorhandenen Abfahrtsweg, nicht dem Fahrdauer-Werkzeug */
+    /* 14 Abfahrtsfragen: nur das Werkzeug abfahrt (mit Ankunftszeit) darf sie beantworten, ein Plan nur mit der Fahrdauer wird verworfen */
     {
         const ABF = ['Ich muss heute um 13 Uhr bei meiner Mutter sein. Wann muss ich losfahren?', 'Wann muss ich losfahren, um um 15 Uhr in Hamburg zu sein?', 'Wann sollte ich abfahren, damit ich um 9 Uhr am Hamburger Hauptbahnhof bin?'];
         for (const satz of ABF) {
             const A = umgebung(); A.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
             await frage(A, satz);
-            check('14.1 Chef-KI EIN, Abfahrtsfrage: kein Planer, kein Fahrzeit-Werkzeug, der bisherige Weg genau einmal – ' + satz.slice(0, 40), A.st.ent === 0 && A.st.groq === 1 && !(A.st.routeUrls || []).length && codes(A).includes('abfahrtsfrage'), JSON.stringify({ e: A.st.ent, g: A.st.groq, c: codes(A) }));
+            check('14.1 Chef-KI EIN: Plan nur mit Fahrdauer für eine Abfahrtsfrage wird verworfen, der bisherige Weg antwortet genau einmal – ' + satz.slice(0, 40), A.st.ent === 1 && A.st.groq === 1 && !(A.st.routeUrls || []).length && codes(A).includes('abfahrt_alter_weg'), JSON.stringify({ e: A.st.ent, g: A.st.groq, c: codes(A) }));
             const B = umgebung({ chefAus: true }); B.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
             await frage(B, satz);
             check('14.2 Chef-KI AUS, gleiche Frage: wie bisher (ein normaler KI-Aufruf, kein Planer)', B.st.ent === 0 && B.st.groq === 1);
         }
-        const C = umgebung(); C.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
-        await frage(C, 'Ich habe morgen um 15 Uhr einen Termin beim Zahnarzt in Hamburg. Wann muss ich losfahren?');
-        check('14.3 Satz mit Termin (Planer wird gefragt) plant nur die Fahrdauer: Plan verworfen, bisheriger Weg, keine Route berechnet', C.st.ent === 1 && C.st.groq === 1 && !(C.st.routeUrls || []).length && codes(C).includes('abfahrt_alter_weg'), JSON.stringify({ e: C.st.ent, g: C.st.groq, c: codes(C) }));
         const D = umgebung(); D.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
         await frage(D, SATZ);
-        check('14.4 reine Fahrdauer-Frage bleibt beim Werkzeug (nicht verdrängt)', D.st.ent === 1 && D.st.groq === 0 && (D.st.routeUrls || []).length > 0);
+        check('14.4 reine Fahrdauer-Frage bleibt beim Werkzeug fahrzeit (nicht verdrängt)', D.st.ent === 1 && D.st.groq === 0 && (D.st.routeUrls || []).length > 0);
         const E = umgebung(); E.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
         await frage(E, 'Wie lange brauche ich mit dem Auto zum Hamburger Hauptbahnhof?');
         check('14.5 "Wie lange brauche ich" ist keine Abfahrtsfrage', E.st.ent === 1 && E.st.groq === 0);
@@ -380,6 +377,65 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         await frage(K, 'Wo wohnt meine Mutter?');
         check('15.11 unbekannte Parameter im Plan: verworfen (nichts ausgeführt, bisheriger Weg)', K.st.groq === 1, JSON.stringify(codes(K)));
         check('15.12 Quelltext: die Lese-Werkzeuge nennen kein Schreib-Wort (executeAction, savedContacts =, setPersistentData)', !/executeAction|savedContacts\s*=|setPersistentData|memoryItems\s*\[/.test((lies('js/registry_faehigkeiten.js').match(/name: 'kontakte_lesen'[\s\S]*?(?=\/\* -{10,} 2c\.)/) || [''])[0]));
+    }
+    /* 16 Werkzeug abfahrt (Phase 5.1, Schritt 3): Ankunftszeit -> späteste Abfahrt, künstliche Kontakte */
+    {
+        const KONT = { mama: { originalName: 'Mama', address: 'Musterweg 1, 12345 Beispielstadt' }, zahnarzt: { originalName: 'Zahnarzt Dr. Test', address: 'Testallee 9, 12345 Beispielstadt' } };
+        const mit = (opt, kontakte) => { const A = umgebung(opt); if (kontakte) A.setze('savedContacts', kontakte); A.z0 = stand(A); return A; };
+        const AB = (ziel, ankunft, tag) => ({ faehigkeit: 'abfahrt', params: tag ? { ziel, ankunft, tag } : { ziel, ankunft } });
+        const A = mit({}, KONT); A.st.plan = { schritte: [AB('meiner Mutter', '13:00', 'morgen')] };
+        const t = await frage(A, 'Ich muss morgen um 13 Uhr bei meiner Mutter sein. Wann muss ich losfahren?');
+        check('16.1 Mutter morgen 13 Uhr: Kontaktadresse, Fahrzeit, Puffer, späteste Abfahrt; keine normale KI, nichts geschrieben', (A.st.geoQ || []).some(q => /Musterweg 1/.test(q)) && !(A.st.geoQ || []).some(q => /Mutter/i.test(q)) && /Mama/.test(t) && /spätestens um/.test(t) && /12 Uhr 10/.test(t) && A.st.groq === 0 && A.st.webN === 0 && stand(A) === A.z0, t);
+        check('16.2 Prognose ehrlich: für morgen nur die Verkehrslage von jetzt, keine erfundene Prognose', /Prognose für später habe ich nicht/.test(t));
+        const B = mit({}, KONT); B.st.plan = { schritte: [AB('meinem Zahnarzt', '15:00')] };
+        const t2 = await frage(B, 'Wann muss ich losfahren, wenn ich um 15 Uhr beim Zahnarzt sein muss?');
+        check('16.3 Zahnarzt heute 15 Uhr: Adresse aus dem Kontakt "Zahnarzt Dr. Test"', (B.st.geoQ || []).some(q => /Testallee 9/.test(q)) && /spätestens um/.test(t2), t2);
+        const C = mit({}); C.st.plan = { schritte: [AB('Hamburger Hauptbahnhof', '18:00')] };
+        const t3 = await frage(C, 'Ich muss heute um 18 Uhr am Hamburger Hauptbahnhof sein.');
+        check('16.4 "Ich muss heute um 18 Uhr am Hamburger Hauptbahnhof sein." (ohne "Wann"): erreicht den Planer und das Werkzeug', C.st.ent === 1 && C.st.groq === 0 && /Hamburger Hauptbahnhof/.test(t3) && /spätestens um/.test(t3), t3);
+        const D = mit({}, { mama: { originalName: 'Mama' } }); D.st.plan = { schritte: [AB('Mama', '13:00', 'morgen')] };
+        const t4 = await frage(D, 'Ich muss morgen um 13 Uhr bei Mama sein. Wann muss ich losfahren?');
+        check('16.5 Kontakt ohne Adresse: ehrlich gesagt, keine Abfahrtszeit, keine Route', /keine Adresse gespeichert/.test(t4) && !/spätestens/.test(t4) && !(D.st.routeUrls || []).length, t4);
+        const E = mit({}, { 'anna muster': { originalName: 'Anna Muster', address: 'Erste Gasse 1, 11111 Ort' }, 'anna beispiel': { originalName: 'Anna Beispiel', address: 'Zweite Gasse 2, 22222 Ort' } }); E.st.plan = { schritte: [AB('Anna', '13:00', 'morgen')] };
+        const t5 = await frage(E, 'Ich muss morgen um 13 Uhr bei Anna sein. Wann muss ich losfahren?');
+        check('16.6 mehrdeutiger Kontakt: Nachfrage, keine Route', /Meinst du Anna Muster oder Anna Beispiel/.test(t5) && !(E.st.routeUrls || []).length, t5);
+        const F = mit({}, KONT); F.st.plan = { schritte: [{ faehigkeit: 'abfahrt', params: { ziel: 'meiner Mutter', ankunft: 'mittags' } }] };
+        const t6 = await frage(F, 'Ich muss um 13 Uhr bei meiner Mutter sein. Wann muss ich losfahren?');
+        check('16.7 Uhrzeit unklar (Plan ungültig): bisheriger Weg statt geraten, keine Abfahrtszeit vom Werkzeug', F.st.groq === 1 && !(F.st.routeUrls || []).length, JSON.stringify({ g: F.st.groq, e: F.st.ent, c: codes(F), r: F.st.routeUrls, t: t6 }));
+        const G = mit({}, KONT); G.st.plan = { schritte: [], frage: 'Um wie viel Uhr musst du da sein?' };
+        const t7 = await frage(G, 'Wann muss ich losfahren, um bei meiner Mutter zu sein?');
+        check('16.8 fehlende Ankunftszeit: Rückfrage nach der Uhrzeit, keine Route', G.st.groq === 0 && /Um wie viel Uhr/.test(t7) && !(G.st.routeUrls || []).length, t7);
+        const H = mit({}, KONT); H.st.plan = { schritte: [AB('meiner Mutter', '08:00')] };
+        const t8 = await frage(H, 'Ich muss heute um 8 Uhr bei meiner Mutter sein. Wann muss ich losfahren?');
+        check('16.9 vergangene Ankunftszeit (heute 8 Uhr, jetzt 10 Uhr): Nachfrage nach dem Tag, nicht stillschweigend morgen', /schon vorbei/.test(t8) && !(H.st.routeUrls || []).length, t8);
+        const I = mit({}); I.st.geoName = q => /^Hamburger Hauptbahnhof$/.test(q.trim()) ? { lat: '51.96', lon: '7.64', name: 'Münster (Westf) Hauptbahnhof, Hamburger Straße, Hafen, Münster, Nordrhein-Westfalen, 48149, Deutschland', adr: { city: 'Münster', road: 'Hamburger Straße' } } : (/^Hauptbahnhof, Hamburg$/.test(q.trim()) ? null : null); I.st.plan = { schritte: [AB('Hamburger Hauptbahnhof', '18:00')] };
+        const t9 = await frage(I, 'Ich muss heute um 18 Uhr am Hamburger Hauptbahnhof sein.');
+        check('16.10 falsche Zielstadt im alten Abfahrtsweg (Treffer Münster): gezielte zweite Suche mit Stadt, sonst Nachfrage; nie eine Route nach Münster', !(I.st.routeUrls || []).some(u => /toLat=51\.96/.test(u)) && ((I.st.geoQ || []).some(q => /^Hauptbahnhof, Hamburg$/.test(q))), JSON.stringify(I.st.geoQ) + ' ' + t9);
+        const J = mit({ chefAus: true }, KONT); J.st.plan = { schritte: [AB('meiner Mutter', '13:00', 'morgen')] };
+        await frage(J, 'Ich muss morgen um 13 Uhr bei meiner Mutter sein. Wann muss ich losfahren?');
+        check('16.11 Chef-KI AUS: kein Planer, der bisherige Weg (1 normale KI-Anfrage), keine doppelte Berechnung', J.st.ent === 0 && J.st.groq === 1 && !(J.st.routeUrls || []).length);
+        const K = mit({}, KONT); K.st.plan = { schritte: [AB('meiner Mutter', '13:00', 'morgen')] };
+        await frage(K, 'Ich muss morgen um 13 Uhr bei meiner Mutter sein. Wann muss ich losfahren?');
+        check('16.12 genau eine Antwort und eine Routenberechnung (keine doppelte)', K.gesagt.length === 1 && (K.st.routeUrls || []).length === 1, JSON.stringify({ g: K.gesagt.length, r: (K.st.routeUrls || []).length }));
+        check('16.13 Quelltext abfahrt: ruft die bestehende computeDepartureAdvice, schreibt nichts', /computeDepartureAdvice\(\{ destination: dest/.test(lies('js/registry_faehigkeiten.js')) && !/executeAction|setPersistentData/.test((lies('js/registry_faehigkeiten.js').match(/name: 'abfahrt'[\s\S]*?(?=\/\* -{10,} 2c\.)/) || [''])[0]));
+        const MS2 = { lat: '51.96', lon: '7.64', name: 'Münster (Westf) Hauptbahnhof, Hamburger Straße, Hafen, Münster, Nordrhein-Westfalen, 48149, Deutschland', adr: { city: 'Münster', road: 'Hamburger Straße' } };
+        const M = mit({ chefAus: true }); M.st.normal = { reply: 'Ich schaue nach, Sir.', actions: [{ type: 'travel_time', travel_destination: 'Hamburger Hauptbahnhof' }] }; M.st.geoName = q => /^Hamburger Hauptbahnhof$/.test(q.trim()) ? MS2 : null;
+        const t10 = await frage(M, 'Ich muss heute um 18 Uhr am Hamburger Hauptbahnhof sein.');
+        check('16.15 alter Abfahrtsweg (Chef-KI AUS, travel_time): Treffer Münster wird verworfen, zweite Suche findet Hamburg, Route nach Hamburg', (M.st.routeUrls || []).length >= 1 && !(M.st.routeUrls || []).some(u => /toLat=51\.96/.test(u)) && /spätestens/.test(t10), JSON.stringify(M.st.routeUrls) + ' ' + t10);
+        const N = mit({ chefAus: true }); N.st.normal = { reply: 'Ich schaue nach, Sir.', actions: [{ type: 'travel_time', travel_destination: 'Hamburger Hauptbahnhof' }] }; N.st.geoName = q => /hauptbahnhof/i.test(q) ? MS2 : null;
+        const t11 = await frage(N, 'Ich muss heute um 18 Uhr am Hamburger Hauptbahnhof sein.');
+        check('16.16 alter Abfahrtsweg: Stadt nicht bestätigbar -> Nachfrage, keine Route, keine Abfahrtszeit', /nur einen Ort gefunden, der nicht passt/.test(t11) && !(N.st.routeUrls || []).length && !/spätestens/.test(t11), t11);
+        const W1 = mit({}, KONT); W1.setze('workAddress', 'Werkstraße 5, 12345 Beispielstadt'); W1.st.plan = { schritte: [AB('Arbeit', '12:13', 'morgen')] };
+        const t12 = await frage(W1, 'Wann muss ich morgen losfahren, um um 12 Uhr 13 auf der Arbeit zu sein?');
+        check('16.17 Ziel Arbeit (Chef-KI EIN): gespeicherte Arbeitsadresse wird genutzt, keine Ortssuche nach "Arbeit", keine Rückfrage', (W1.st.geoQ || []).some(q => /Werkstraße 5/.test(q)) && !(W1.st.geoQ || []).some(q => /^Arbeit$/i.test(q.trim())) && /spätestens/.test(t12) && !/Wohin/.test(t12) && W1.lese('workAddress') === 'Werkstraße 5, 12345 Beispielstadt', t12);
+        const W2 = mit({}, KONT); W2.st.plan = { schritte: [AB('Arbeit', '12:13', 'morgen')] };
+        const t13 = await frage(W2, 'Wann muss ich morgen losfahren, um um 12 Uhr 13 auf der Arbeit zu sein?');
+        check('16.18 Ziel Arbeit ohne gespeicherte Adresse: ehrliche Meldung mit Hinweis, keine Route, keine Abfahrtszeit', /Arbeitsadresse kenne ich noch nicht/.test(t13) && !/spätestens/.test(t13) && !(W2.st.routeUrls || []).length, t13);
+        const W3 = mit({ chefAus: true }, KONT); W3.setze('workAddress', 'Werkstraße 5, 12345 Beispielstadt'); W3.st.plan = { schritte: [AB('Arbeit', '12:13', 'morgen')] };
+        await frage(W3, 'Wann muss ich morgen losfahren, um um 12 Uhr 13 auf der Arbeit zu sein?');
+        check('16.19 Chef-KI AUS: Arbeitsadresse bleibt unverändert, kein Planer', W3.st.ent === 0 && W3.lese('workAddress') === 'Werkstraße 5, 12345 Beispielstadt');
+        const L = mit({}); const sh = L.sb.jvSchatten;
+        check('16.14 Schattenbetrieb: abfahrt hat keine Erkennung und löst nichts aus (nur Ausnahmeliste)', sh._ohneErkennung().includes('abfahrt') && sh.erkenne('Ich muss morgen um 13 Uhr bei meiner Mutter sein. Wann muss ich losfahren?').join() === '' && stand(L) === L.z0);
     }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);

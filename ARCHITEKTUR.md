@@ -781,3 +781,11 @@ Fahrzeit-Plausibilität (PR #383): Nach der Route prüft `fahrzeit` Luftlinie ge
 - `fahrzeit` nutzt dieselbe Auflösung für Ziel und Start (Vorrang vor der Ortssuche, keine Namensprüfung für gespeicherte Adressen, Plausibilitätsprüfung bleibt).
 - Vorfilter der Chef-KI um „wie weit / entfernt / Entfernung“ erweitert.
 - Offen (Schritt 3): Zielstadt-Prüfung im alten Abfahrtsweg, Abfahrts-Werkzeug.
+
+## Phase 5.1, Schritt 3: Abfahrtsplanung als Werkzeug (`abfahrt`)
+- Registry-Werkzeug `abfahrt` (`js/registry_faehigkeiten.js`, nur lesend; Parameter `ziel`, `ankunft` als HH:MM, optional `tag`): löst Personen/Stellen über `persoenlicheAdresse` auf, holt den frischen Standort und ruft die BESTEHENDE `computeDepartureAdvice` (Fahrzeit, Staumeldungen, Zeitpuffer `TRAVEL_BUFFER_MINUTES`). Keine zweite Abfahrtslogik.
+- Rückfragen statt Raten: Ziel fehlt, Uhrzeit fehlt/ungültig, Uhrzeit heute schon vorbei (fragt nach dem Tag, rollt nicht still auf morgen), mehrere Kontakte passen. Kontakt ohne Adresse: ehrliche Meldung, keine Route.
+- Verkehr: Für eine Ankunft in mehr als 90 Minuten sagt die Antwort ausdrücklich, dass die Verkehrslage die von jetzt ist (eine echte Prognose gibt es nicht).
+- Zielstadt-Prüfung (PR #387) liegt jetzt in `js/travel.js` (`ortStimmt`, `geocodeDestinationPruefen`) und wird vom Werkzeug `fahrzeit`, vom Werkzeug `abfahrt` (über `computeDepartureAdvice`) und vom alten Weg genutzt, dort nur für ausdrücklich genannte Ziele der Form „Stadtadjektiv + Name“ („Hamburger Hauptbahnhof“). Adressen mit Hausnummer/Straßenwort werden nicht geprüft.
+- Chef-KI: `RX_ANKUNFT` („Ich muss um 18 Uhr … sein“) und `RX_ABFAHRT` erreichen den Planer; ein Plan nur mit `fahrzeit` für eine Abfahrtsfrage wird verworfen (alter Weg). Ist das Werkzeug `abfahrt` nicht geladen, bleibt die Vorfilter-Umgehung aus #388. Chef-KI AUS: alter Weg unverändert.
+- Offen: Startort „von X“ für `abfahrt` (der alte Weg kennt nur den Standort), Verkehrsprognose.

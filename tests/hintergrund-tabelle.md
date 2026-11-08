@@ -82,7 +82,7 @@
 | synapsen.js#1 | synapsen.js:163 | 200 ms | ab Laden (in taktSteuern) | clearInterval(taktId) | pausiert | D | C | GRÜN |
 | synapsen.js#2 | synapsen.js:183 | 250 ms | ab Laden | clearInterval(iv) | Wächter keiner (nicht gemessen) |  | E | GRÜN |
 | sync.js#1 | sync.js:229 | 3 min | ab Laden | nie gestoppt | Wächter direkt (nicht gemessen) | N S D | D | GELB |
-| travel.js#1 | travel.js:1110 | 1 min | ab Laden | nie gestoppt | Wächter keiner (nicht gemessen) | N V | D | GELB |
+| travel.js#1 | travel.js:1151 | 1 min | ab Laden | nie gestoppt | Wächter keiner (nicht gemessen) | N V | D | GELB |
 | ui.js#1 (type) | ui.js:56 | 25 ms | von außen/Ereignis (Schleife type) | Bedingung im Körper | Wächter keiner (nicht gemessen) | D | C | GRÜN |
 | ui.js#2 (tick) | ui.js:112 | dynamisch | bei Bedarf (Schleife tick) | Bedingung im Körper | Wächter keiner (nicht gemessen) | D | C | GRÜN |
 | ui.js#3 (type) | ui.js:134 | 20 ms | bei Bedarf (Schleife type) | Bedingung im Körper | Wächter keiner (nicht gemessen) | D | C | GRÜN |
