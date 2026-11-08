@@ -384,6 +384,40 @@ const ids = (plan, art) => plan.filter(e => e.id.split('|')[0] === art);
             }
         }
     }
+    /* --- 12. Kombinationen: eine zweite Frage nach "und" geht nicht verloren; Tagesfrage + "wann muss ich losfahren" kommt aus dem Plan --- */
+    {
+        async function lauf(satz, o) {
+            o = o || {}; let groq = 0; const kiFragen = [];
+            const native = { planAnsagen: () => true, holeAnsage: () => '', naechsterWecker: () => 0 };
+            const A = starte({ jetzt: '2026-11-08T09:16:00+01:00', native, festerZufall: true, sprechenBeendet: true, fetch: async (u, init) => { if (/api\/groq/.test(String(u))) { groq++; try { const m = JSON.parse(init.body).messages; kiFragen.push(String((m[m.length - 1] || {}).content || '')); } catch (e) { } return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify({ reply: 'KI-ANTWORT', actions: [] }) } }] }) }; } throw new Error('offline ' + u); } });
+            const T = A.sb._schichtTest, wn = T.weekNo({ y: 2026, m: 11, d: 2 });
+            A.sb.setPersistentData('jv_schicht', JSON.stringify({ base: wn, shift: 'frueh', times: { frueh: 225, spaet: 720 }, auto: true }));
+            A.store['jv_plan_fahrt'] = JSON.stringify([{ min: 22, at: Date.now() }]);
+            A.P = A.sb.jvPlan; A.P.setBeginn('spaet', 13 * 60 + 45);
+            A.P.setBeginnTag('2026-11-09', 12 * 60 + 33); A.P.setTagVor('2026-11-09', 72);
+            A.setze('workAddress', 'Werkstraße 5, 12345 Beispielstadt');
+            if (o.chef) A.sb.jvChef.an(); else A.sb.jvChef.aus();
+            const g0 = A.gesagt.length;
+            A.sb.jvTippen(satz); await pause(300);
+            if (o.vor) { await A.vorspulen(2500); await pause(50); await A.vorspulen(1500); await pause(50); } else { for (let i = 0; i < 20; i++) { A.lassLaufen && await A.lassLaufen(100); await pause(20); } }   // Sprechen dauert 2 s: danach geht die zweite Frage weiter
+            return { t: A.gesagt.slice(g0).join(' | '), groq, kiFragen };
+        }
+        for (const chef of [false, true]) {
+            const L = 'Chef-KI ' + (chef ? 'EIN' : 'AUS');
+            let r = await lauf('Wann muss ich morgen zur Arbeit losfahren und wie wird das Wetter?', { chef, vor: true });
+            check('12.1 (' + L + ') Abfahrt UND Wetterfrage: beide beantwortet (Abfahrt 11 Uhr 51 mit Ausnahme, Wetterfrage geht weiter)', /11 Uhr 51/.test(r.t) && r.groq >= 1 && r.kiFragen.some(f => /wetter/i.test(f)) && r.t.indexOf('11 Uhr 51') < r.t.indexOf('KI-ANTWORT'), r.t + ' KI: ' + JSON.stringify(r.kiFragen));
+            r = await lauf('Wann muss ich übermorgen zur Arbeit losfahren und wie lange brauche ich dahin?', { chef, vor: true });
+            check('12.2 (' + L + ') zweite Frage zur Fahrzeit geht weiter, die Abfahrt gilt für den genannten Tag (Di 13:45, nicht die Ausnahme von Montag)', /13 Uhr 45/.test(r.t) && !/12 Uhr 33|11 Uhr 51/.test(r.t) && r.kiFragen.some(f => /brauche ich/i.test(f)), r.t + ' KI: ' + JSON.stringify(r.kiFragen));
+            r = await lauf('Wann muss ich morgen zur Arbeit losfahren?', { chef });
+            check('12.3 (' + L + ') Einzelfrage unverändert: Abfahrt, keine KI', /11 Uhr 51/.test(r.t) && r.groq === 0, r.t);
+            r = await lauf('Muss ich morgen arbeiten und wann muss ich losfahren?', { chef });
+            check('12.4 (' + L + ') Tagesfrage + "wann muss ich losfahren": aus dem Plan (Ausnahme 12:33, Abfahrt 11 Uhr 51), keine KI', /^Ja/.test(r.t) && /12 Uhr 33/.test(r.t) && /Fahr gegen 11 Uhr 51 los/.test(r.t) && r.groq === 0, r.t);
+            r = await lauf('Muss ich am Samstag arbeiten und wann muss ich losfahren?', { chef });
+            check('12.5 (' + L + ') Samstag: Nein, keine erfundene Abfahrtszeit, keine KI', /^Nein/.test(r.t) && !/Fahr gegen/.test(r.t) && r.groq === 0, r.t);
+            r = await lauf('Habe ich am Dienstag frei und wann muss ich losfahren?', { chef });
+            check('12.6 (' + L + ') Dienstag (Spätschicht, normal): Abfahrt 13 Uhr 3 ohne Ausnahme', /^Nein/.test(r.t) && /Fahr gegen 13 Uhr 3 los/.test(r.t) && r.groq === 0, r.t);
+        }
+    }
     console.log(fehler ? 'FEHLER: ' + fehler + ' (ok ' + ok + ')' : 'alles ok (' + ok + ' Prüfungen)');
     process.exit(fehler ? 1 : 0);
 })();

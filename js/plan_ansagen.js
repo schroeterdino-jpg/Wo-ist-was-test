@@ -889,7 +889,9 @@
     }
     /* Tagesfragen ohne "wann": "Habe ich am Samstag frei?", "Muss ich morgen arbeiten?", "Habe ich morgen Frühschicht?", "Welche Schicht habe ich am Dienstag?" - nur aus dem Schichtplan (Urlaub, Wochenende, Ausnahmen), nie von der KI geraten */
     function tagesFrage(text) {
-        const t = norm(text);
+        let t = norm(text);
+        const mitAbfahrt = /\bund wann (?:muss|soll|sollte) ich (?:dann )?(?:los ?fahren|losfahren|abfahren|aufbrechen)$/.test(t);   // "Muss ich morgen arbeiten und wann muss ich losfahren?"
+        if (mitAbfahrt) t = t.replace(/ und wann (?:muss|soll|sollte) ich (?:dann )?(?:los ?fahren|losfahren|abfahren|aufbrechen)$/, '');
         if (!t || t.split(' ').length > 12 || /\b(setz|stell|aender\w*|merk\w*|speicher\w*|trag\w*|und|oder)\b/.test(t) || /^(wann|wie|wo|wer|warum|wieso|um wie)\b/.test(t) || /\bwoche\b/.test(t)) return false;
         const ymd = tagAusSatz(t); if (!ymd) return false;
         const nenntSh = /fruehschicht/.test(t) ? 'frueh' : /spaetschicht/.test(t) ? 'spaet' : null;
@@ -911,7 +913,7 @@
         else if (nenntSh && !welche) { a = nenntSh === sh ? 'Ja, ' + wl + ' hast du ' + NAME[sh] + ', Beginn um ' + b + '.' : 'Nein, ' + wl + ' hast du ' + NAME[sh] + ', nicht ' + NAME[nenntSh] + '.'; if (nenntSh !== sh) hinweis0 = ''; }
         else if (welche) a = w + ' hast du ' + NAME[sh] + ', Beginn um ' + b + '.';
         else a = 'Ja, ' + wl + ' hast du ' + NAME[sh] + ', Beginn um ' + b + ' und Feierabend um ' + zeitText(ende(sh, ymd)) + '.';
-        sagen(a + hinweis0, false);
+        sagen(a + hinweis0 + (mitAbfahrt ? ' Fahr gegen ' + uhr(abfFix(sh, ymd) - tagVor(ymd)) + ' los.' : ''), false);
         return true;
     }
     /* Einmalige Änderungen für einen Tag: überschreiben nie die dauerhaften Zeiten. Unklar -> nachfragen. */
@@ -1049,10 +1051,12 @@
             }
             return true;
         }
-        // Aufbruchszeit jederzeit
-        if (/\baufbruchszeit\b/.test(t) || /\bwann\b.*\b(zur arbeit|zum arbeitsplatz|auf die arbeit)\b.*\b(los|fahren|losfahren|aufbrechen|abfahren)\b/.test(t) || /\bwann (muss|soll|sollte) ich\b.*\b(los|losfahren|aufbrechen)\b.*\barbeit\b/.test(t)) {
+        // Aufbruchszeit jederzeit; eine zweite Frage nach "und" ("... losfahren und wie wird das Wetter?") geht nach der Abfahrtsantwort normal weiter und geht nicht verloren
+        const zweite = /^(.*?\b(?:los\s?fahren|aufbrechen|abfahren|aufbruchszeit)\b[^?]*?)\s+und\s+((?:wie|was|wann|wo|wer|welch\w*|wieviel\w*|gibt|ist|sind|hat|hab\w*|muss\w*|kann\w*|soll\w*|brauch\w*|bin|regn\w*)\b.*)$/i.exec(String(text || '').replace(/\s+/g, ' ').trim());
+        const tA = zweite ? norm(zweite[1]) : t, rest = zweite ? zweite[2].replace(/[.!?\s]+$/, '') : '';
+        if (/\baufbruchszeit\b/.test(tA) || /\bwann\b.*\b(zur arbeit|zum arbeitsplatz|auf die arbeit)\b.*\b(los|fahren|losfahren|aufbrechen|abfahren)\b/.test(tA) || /\bwann (muss|soll|sollte) ich\b.*\b(los|losfahren|aufbrechen)\b.*\barbeit\b/.test(tA)) {
             (async () => {
-                const heute = jetzt().ymd, genannt = tagAusSatz(t);   // genannter Tag ("übermorgen", "am Dienstag") gilt; sonst heute oder der nächste Arbeitstag
+                const heute = jetzt().ymd, genannt = tagAusSatz(tA);   // genannter Tag ("übermorgen", "am Dienstag") gilt; sonst heute oder der nächste Arbeitstag
                 let ymd = genannt || heute;
                 if (genannt && !schichtAm(genannt)) { sagen(nichtArbeitAntwort(genannt), false); return; }
                 if (!genannt && (!schichtAm(ymd) || jetzt().min >= beginn(schichtAm(ymd), ymd))) {   // heute nichts mehr: nächster Arbeitstag
@@ -1061,7 +1065,8 @@
                 }
                 if (!ymd) { sagen('Ich finde keinen Arbeitstag in den nächsten Tagen. Ist deine Schicht eingestellt?', false); return; }
                 const r = await aufbruchText(ymd, ymd === heute);
-                if (r.text) sagenMeldung('🚗 Aufbruchszeit', r.text); else sagen('Dafür brauche ich deine Schicht. Sag zum Beispiel: Diese Woche Frühschicht.', false);
+                const weiter = rest ? () => { try { window.jvTippen(rest.charAt(0).toUpperCase() + rest.slice(1) + '?'); } catch (e) { } } : undefined;
+                if (r.text) { merkeMeldung('🚗 Aufbruchszeit', r.text); zeigeMeldung('🚗 Aufbruchszeit', r.text); try { speak(r.text, weiter); } catch (e) { } } else { sagen('Dafür brauche ich deine Schicht. Sag zum Beispiel: Diese Woche Frühschicht.', false); if (weiter) weiter(); }
             })();
             return true;
         }

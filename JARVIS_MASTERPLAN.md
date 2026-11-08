@@ -1,7 +1,7 @@
 # JARVIS – Masterplan (dauerhaftes Projektgedächtnis)
 
 Gemeinsame Projektübersicht für Dino, Claude, ChatGPT und andere Entwickler. Sie **ersetzt nicht die Prüfung des aktuellen Codes**: Aufbau und Dateien stehen in `ARCHITEKTUR.md` und `LANDKARTE.md`, dieser Plan sagt, **was beschlossen, im Bau und offen ist**.
-Pflege: siehe Abschnitt 8. Stand: 08.11.2026, nach PR #399 (Schichtfragen am Handy bestätigt); Werkzeug `schicht` im Bau.
+Pflege: siehe Abschnitt 8. Stand: 08.11.2026, nach PR #400 (Werkzeug `schicht` am Handy bestätigt).
 
 ## 1. Projektziel
 Jarvis (intern noch „Zane“) ist Dinos persönlicher Sprachassistent als Web-App (PWA auf Vercel) plus Weckruf-APK für Android. Er arbeitet nur am Handy (Samsung), spricht Deutsch, antwortet kurz und ohne Fachjargon. Ziel der nächsten Phase: ein Jarvis, den Dino anderen Menschen **zuverlässig vorführen** kann – er versteht natürliche Sprache, wählt seine Werkzeuge selbst, prüft Ergebnisse und erfindet nichts.
@@ -21,7 +21,8 @@ Quelle der Wahrheit: `ARCHITEKTUR.md` (Überblick, Stolperfallen), `LANDKARTE.md
 - PR #376–#389 (Masterplan, Chef-KI Phasen 2–5: lesende Ketten, Produktsuche, Kamera, Dirigent, Antworten als Text, Fahrzeit-Werkzeug samt Plausibilitätsprüfung, Startort, Zielstadt, Kontakte/Gedächtnis lesend), #390 (Werkzeug `abfahrt`), #391 (Schicht-Ausnahme bis 180 Minuten), #392 (keine Rückfrage „Wohin?“ bei Schichtfragen), #393 (mehrteilige Abfahrtsfrage), #394 (Kontaktauflösung abgesichert), #395 (Navigation mit Kontakten verbunden), #396 und #397 (Adress-Dialog): **alle gemergt**.
 - **Adress-Dialog („Navigiere mich zu Oma“) am Handy bestätigt (08.11.2026):** Adresse nennen → Speicherfrage → Ja → „Soll ich jetzt die Navigation starten?“ → Ja → Start. Der erste Handytest von #396 war fehlgeschlagen; #397 hat die Ursache behoben, der erneute Handytest verlief vollständig erfolgreich.
 - **Schichtfragen (PR #398 Doku, PR #399) am Handy bestätigt (08.11.2026, Chef-KI EIN und AUS):** „Bin ich nächste Woche in Spätschicht?“ ändert den Plan nicht, „Habe ich am Samstag frei?“, „Wann muss ich übermorgen zur Arbeit losfahren?“ und „Ich muss morgen 30 Minuten früher anfangen“ funktionieren.
-- **Aktuelle Aufgabe:** Schichtplanung und Chef-KI zuverlässig verbinden – nächster Schritt: lesendes Registry-Werkzeug `schicht` (PR offen, Handytest folgt).
+- **Werkzeug `schicht` (PR #400) am Handy bestätigt (08.11.2026):** „Habe ich Samstag frei und wie wird morgen das Wetter?“ und „Wann muss ich übermorgen arbeiten und wie wird das Wetter?“ (Chef-KI EIN) sowie eine einfache Schichtfrage (Chef-KI AUS) funktionieren.
+- **Aktuelle Aufgabe:** Kombinationen Schicht + Abfahrt/Fahrzeit (PR offen, Handytest folgt).
 - Händlerlink-Korrektur umgesetzt; **tatsächlicher Erfolg auf dem Handy noch nicht abschließend bestätigt**. Bei Bedarf später mit der Diagnose („Diagnose an“, Zeilen „Händlerlinks …“ / „Angebote …“) erneut prüfen – jetzt keine weitere Reparaturrunde.
 - **PR #365** (Schichtzeiten, Branch `jarvis-schichten`) bleibt offen und **unangetastet**. PR #363 / Branch `studio-bilder` sind obsolet (Rückfrage an Dino offen).
 - **Nächste Phase:** Werkzeugzentrale, KI-Dirigent, intelligente Kamera.
@@ -44,7 +45,7 @@ Status: Geplant, In Arbeit, Fertig, Blockiert. „Bestehendes nutzen“ heißt: 
 | P1 | Schichtfrage ohne Rückfrage „Wohin soll es genau gehen?“; mehrteilige Abfahrtsfrage („da sein“ + Ziel) | Fertig | #392, #393 | Arbeitsadresse und 20-Minuten-Puffer unverändert |
 | P1 | Kontaktauflösung (Mama/Oma ohne Kontakt nie als Ortsname), Navigation mit Kontakten | Fertig | #394, #395 | – |
 | P1 | Adress-Dialog bei fehlender Kontaktadresse (Adresse → Speichern? → Navigation starten? → Start; auch Fahrzeit/Abfahrt) | Fertig, am Handy bestätigt | #396, #397 | Optional: Schritt in `js/anleitung.js` (Tour), Fall „unbekannter Name: Person oder Ort?“ – beides ohne Entscheidung von Dino |
-| P1 | Schichtplanung und Chef-KI verbinden (natürliche Schichtfragen, Ausnahmen, Abfahrt/Fahrzeit gemeinsam; nichts erfinden) | In Arbeit | #398, #399 (fertig, Handytest ok); Werkzeug `schicht` (PR offen) | Schritt 1 fertig: Fragen schreiben nie in den Plan, genannter Tag gilt, Tagesfragen lokal, „früher anfangen“. Schritt 2: Werkzeug `schicht` für die Chef-KI (Kombinationen mit Wetter u. a.); danach Kombination Schicht + `abfahrt`/`fahrzeit` prüfen |
+| P1 | Schichtplanung und Chef-KI verbinden (natürliche Schichtfragen, Ausnahmen, Abfahrt/Fahrzeit gemeinsam; nichts erfinden) | In Arbeit | #398, #399, #400 (fertig, Handytest ok); Kombinationen (PR offen) | Schritt 1 (#399): Fragen schreiben nie in den Plan, genannter Tag gilt, Tagesfragen lokal, „früher anfangen“. Schritt 2 (#400): Werkzeug `schicht` für die Chef-KI. Schritt 3 (PR offen): Kombinationen – zweite Frage nach „und“ geht nach der Abfahrtsantwort nicht verloren, „Muss ich morgen arbeiten und wann muss ich losfahren?“ aus dem Plan. Danach: Verkehr/Lagebild mit der Chef-KI |
 | P1 | Automatische Internetrecherche ohne „Such im Internet“ | In Arbeit | #380 | Planer-Regel + Vorfilter (nur im Testmodus); Echtprüfung am Handy offen |
 | P1 | Antworten als Text sichtbar (zum Testen der Chef-KI am Handy) | Fertig | #381 | Schalter „Antworten als Text anzeigen“ (Standard AN); am Handy prüfen, ob Karte und Kopieren gut bedienbar sind |
 | P1 | Intelligente Kamera (erkennt, was fotografiert wurde, bereitet Aktionen vor) | In Arbeit | #379 | Schritt 1 erledigt: Produktfoto → `produktsuche`, Gerät/Fehlercode → Websuche, Textfoto → Angebot (erklären/zusammenfassen), Chef-KI-Werkzeug `foto_info`, Merken für Anschlussfragen; Rechnung/Visitenkarte weiter über `foto_brief`/`contact` mit eigener Bestätigung. Offen: Ersatzteil, Dokumente ablegen, Chef-KI als Standard-Dirigent |
@@ -109,7 +110,8 @@ Status: Geplant, In Arbeit, Fertig, Blockiert. „Bestehendes nutzen“ heißt: 
 | #397 | Folge-Fix zu #396: Navigation zu Person ohne Adresse vor der KI abfangen; Handytest erfolgreich (08.11.2026), Merge-Commit `90ba421` | gemergt |
 | #398 | Masterplan nachgeführt, Ablauf je Schritt in `CLAUDE.md` | gemergt |
 | #399 | Schichtfragen: Fragen ändern nie den Plan, genannter Tag bei Abfahrt, Tagesfragen aus dem Plan, „früher anfangen“; Handytest erfolgreich (08.11.2026) | gemergt |
-| Werkzeug `schicht` | Lesendes Registry-Werkzeug für die Chef-KI, Tests `tests/chef_fahrzeit.js` Abschnitt 22 | PR offen, Handytest folgt |
+| #400 | Werkzeug `schicht`: lesendes Registry-Werkzeug für die Chef-KI, Tests `tests/chef_fahrzeit.js` Abschnitt 22; Handytest erfolgreich (08.11.2026) | gemergt |
+| Kombinationen | Abfahrt + zweite Frage (Wetter/Fahrzeit) ohne Verlust, Tagesfrage + „wann muss ich losfahren“; Tests `tests/schicht_zeiten.js` Abschnitt 12 | PR offen, Handytest folgt |
 | #365 | Schichtzeiten (`jarvis-schichten`) | offen, nicht anfassen |
 | #363 | Studio 2.0 Phase 2 (`studio-bilder`) | offen, obsolet (Rückfrage an Dino unbeantwortet) |
 
