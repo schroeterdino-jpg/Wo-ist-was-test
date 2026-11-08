@@ -562,7 +562,7 @@
                         var details = String(x.text || '').trim();
                         // Nur bestätigte Zusatzangaben der bestehenden Verkehrsquelle, keine erfundenen Verzögerungen.
                         return titel + (details && titel.toLowerCase().indexOf(details.toLowerCase()) < 0 ? ' (' + details + ')' : '');
-                    }).join('; ') + '. Die Nähe zur Routenlinie bestätigt noch nicht die betroffene Fahrtrichtung.';
+                    }).join('; ') + '. Hinweis: Die Nähe zur Routenlinie bestätigt nicht, dass deine Fahrtrichtung betroffen ist.';
                 } else if (echt) {
                     meldungen = ' Für den ermittelten Routenverlauf liegen mir keine bestätigten Störungsmeldungen vor. Das ist keine Garantie für freie Fahrt; die Meldungsdienste können unvollständig oder nicht erreichbar sein.';
                 }
