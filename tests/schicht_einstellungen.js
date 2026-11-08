@@ -29,6 +29,16 @@ function check(name, b, info) { if (b) { ok++; return; } fehler++; console.log('
     check('6 leeres Feld speichert nichts und lässt die alte Zeit stehen', P.beginn('spaet') === 13 * 60 + 45 && /Bitte alle Zeiten/.test(el.szMeldung.textContent), String(P.beginn('spaet')));
     el.szSpaetBeginn.value = '13:50'; el.szSpeichern.l.click.forEach(f => f());
     check('7 der Speichern-Knopf funktioniert weiter', P.beginn('spaet') === 13 * 60 + 50, String(P.beginn('spaet')));
+    for (const [eing, soll] of [['1345', 13 * 60 + 45], ['13.45', 13 * 60 + 45], ['13 45', 13 * 60 + 45], ['945', 9 * 60 + 45], ['14', 14 * 60]]) {
+        el.szSpaetBeginn.value = eing; (el.szSpaetBeginn.l.change || []).forEach(f => f());
+        check('8 Eingabe "' + eing + '" wird verstanden und gespeichert', P.beginn('spaet') === soll && /^\d\d:\d\d$/.test(el.szSpaetBeginn.value), String(P.beginn('spaet')) + ' ' + el.szSpaetBeginn.value);
+    }
+    el.szSpaetBeginn.value = '14:00'; (el.szSpaetBeginn.l.change || []).forEach(f => f());
+    for (const eing of ['25:99', 'abc', '1399']) {
+        el.szSpaetBeginn.value = eing; (el.szSpaetBeginn.l.change || []).forEach(f => f());
+        check('9 ungültige Eingabe "' + eing + '" ändert nichts (Meldung)', P.beginn('spaet') === 14 * 60 && /Bitte alle Zeiten/.test(el.szMeldung.textContent), String(P.beginn('spaet')));
+    }
+    check('10 Zeitfelder sind Textfelder (kein Handy-Zeitwähler ohne OK-Taste)', !/type="time"/.test(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8').match(/id="szSpaetBeginn"[^>]*>|<input[^>]*id="szSpaetBeginn"[^>]*>/)[0]));
     console.log(fehler ? 'FEHLER: ' + fehler + ' (ok ' + ok + ')' : 'alles ok (' + ok + ' Prüfungen)');
     process.exit(fehler ? 1 : 0);
 })();
