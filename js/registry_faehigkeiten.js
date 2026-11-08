@@ -263,7 +263,14 @@
         while (w.length > 1 && /^(?:zu|zur|zum|nach|bei|von|vom|meiner|meinem|meinen|meine|mein|der|dem|die|den)$/i.test(w[0])) w.shift();
         var n = w.join(' '); return n.charAt(0).toUpperCase() + n.slice(1);
     }
-    function keineAdresseText(r) { return r.hinweis || ('Ich habe keine Adresse von ' + r.name + ' gespeichert. Möchtest du mir die Adresse nennen?'); }
+    function keineAdresseText(r) { return r.hinweis || ('Ich habe keine Adresse von ' + r.name + ' gespeichert. Wie lautet sie?'); }
+    /* Wie keineAdresseText, aber als offene Rückfrage (rueckfrage.js): die nächste Aussage kann die Adresse sein; danach Speichern (nur mit Zustimmung) und die ursprüngliche Aufgabe */
+    function frageAdresse(r, art, p) {
+        if (r.hinweis || !window.jvRueckfrage || typeof window.jvRueckfrage.adresseFehlt !== 'function') return keineAdresseText(r);
+        var info = { name: r.name, art: art || 'navigate' };
+        if (art === 'abfahrt' && p) { var m = /^(\d{1,2})(?::(\d{2}))?$/.exec(String(p.ankunft || '').trim()); if (m) info.ankunft = ('0' + m[1]).slice(-2) + ':' + (m[2] || '00'); info.tag = String(p.tag || ''); if (!info.ankunft) return keineAdresseText(r); }
+        return window.jvRueckfrage.adresseFehlt(info);
+    }
     function persoenlicheAdresse(name) {   // -> null | { mehrdeutig:[Namen] } | { name, adresse, quelle:'kontakt'|'gedaechtnis'|'gespeichert', ohneAdresse?, hinweis? }
         /* Arbeit und Zuhause: die gespeicherten Adressen der App (resolvePersonalPlace, routing.js), nie die Ortssuche; fehlt die Adresse, sagt die App das selbst */
         try {
@@ -285,7 +292,7 @@
         if (tr.length) return { name: tr[0].name, adresse: '', quelle: 'kontakt', ohneAdresse: true };
         var pw = personenwort(name); return pw ? { name: pw, adresse: '', quelle: 'kontakt', ohneAdresse: true } : null;
     }
-    try { window.jvPersoenlicheAdresse = { finde: persoenlicheAdresse, text: keineAdresseText }; } catch (e) { }   // dieselbe Auflösung für die Navigation (routing.js resolveContactsInActions)
+    try { window.jvPersoenlicheAdresse = { finde: persoenlicheAdresse, text: function (r) { return frageAdresse(r, 'navigate'); } }; } catch (e) { }   // dieselbe Auflösung für die Navigation (routing.js resolveContactsInActions)
     function mitRegion(a) { try { return typeof withDefaultRegion === 'function' ? withDefaultRegion(a) : a; } catch (e) { return a; } }
 
     R.registriere({
@@ -399,7 +406,7 @@
         ausfuehren: async function (p) {
             function fehlschlag(m) { var e = new Error(m); e.userMessage = m; throw e; }
             var ziel = String(p.ziel).trim(), z = ankunftAus(p), pz = persoenlicheAdresse(ziel);
-            if (pz && pz.ohneAdresse) return { leer: true, reply: pz.hinweis ? pz.hinweis + ' Deshalb nenne ich keine Abfahrtszeit.' : keineAdresseText(pz) };
+            if (pz && pz.ohneAdresse) return { leer: true, reply: pz.hinweis ? pz.hinweis + ' Deshalb nenne ich keine Abfahrtszeit.' : frageAdresse(pz, 'abfahrt', p) };
             var dest = (pz && pz.adresse) ? mitRegion(pz.adresse) : ziel;
             var loc = await fetchFreshTravelLocation();
             if (!loc || loc.fehler || loc.latitude === undefined) fehlschlag('Deinen Standort konnte ich gerade nicht ermitteln, deshalb nenne ich keine Abfahrtszeit. Ist der Standortzugriff erlaubt?');
@@ -461,7 +468,7 @@
                 start = { lat: loc.latitude, lon: loc.longitude }; startText = 'deinem aktuellen Standort';
             }
             var pz = persoenlicheAdresse(ziel);   // Kontakt (dann Gedächtnis) hat Vorrang vor der allgemeinen Ortssuche
-            if (pz && pz.ohneAdresse) fehlschlag(pz.hinweis ? pz.hinweis + ' Eine Fahrzeit nenne ich deshalb nicht.' : keineAdresseText(pz));
+            if (pz && pz.ohneAdresse) fehlschlag(pz.hinweis ? pz.hinweis + ' Eine Fahrzeit nenne ich deshalb nicht.' : frageAdresse(pz, 'fahrzeit', p));
             if (pz && pz.mehrdeutig) fehlschlag('Meinst du ' + pz.mehrdeutig.join(' oder ') + '? Eine Fahrzeit nenne ich erst, wenn das Ziel klar ist.');
             var dest = (pz && pz.adresse) ? await geocodeDestination(mitRegion(pz.adresse), '') : await ortsTreffer(ziel);
             if (pz && pz.adresse && !dest) fehlschlag('Die gespeicherte Adresse von ' + ziel + ' konnte ich nicht auf der Karte finden. Eine Fahrzeit nenne ich deshalb nicht.');   // zuerst genau das genannte Ziel (nie nur der Ortsname)

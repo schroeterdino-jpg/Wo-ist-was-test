@@ -46,7 +46,7 @@ function umgebung(opt) {
                 return ant({ choices: [{ message: { content: typeof a === 'string' ? a : JSON.stringify(a) } }] });
             }
             st.groq++; (st.normaleM = st.normaleM || []).push(JSON.stringify(m)); st.normaleSaetze.push(String((m[m.length - 1] || {}).content || ''));
-            return ant({ choices: [{ message: { content: JSON.stringify(st.normal || { reply: 'Okay.', actions: [] }) } }] });
+            return ant({ choices: [{ message: { content: JSON.stringify((typeof st.normal === 'function' ? st.normal(m) : st.normal) || { reply: 'Okay.', actions: [] }) } }] });
         }
         if (/api\/geocode/.test(u)) { st.geoN = (st.geoN || 0) + 1; const q = decodeURIComponent((u.match(/q=([^&]*)/) || [])[1] || ''); st.geoQ = (st.geoQ || []).concat(q); if (st.geo === 'leer') return ant([]);
             let ort = { lat: '53.55', lon: '10.0', name: q + ', Hamburg, Deutschland' };
@@ -395,7 +395,7 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         check('16.4 "Ich muss heute um 18 Uhr am Hamburger Hauptbahnhof sein." (ohne "Wann"): erreicht den Planer und das Werkzeug', C.st.ent === 1 && C.st.groq === 0 && /Hamburger Hauptbahnhof/.test(t3) && /spätestens um/.test(t3), t3);
         const D = mit({}, { mama: { originalName: 'Mama' } }); D.st.plan = { schritte: [AB('Mama', '13:00', 'morgen')] };
         const t4 = await frage(D, 'Ich muss morgen um 13 Uhr bei Mama sein. Wann muss ich losfahren?');
-        check('16.5 Kontakt ohne Adresse: ehrlich gesagt, keine Abfahrtszeit, keine Route', /keine Adresse von Mama gespeichert\. Möchtest du mir die Adresse nennen\?/.test(t4) && !/spätestens/.test(t4) && !(D.st.routeUrls || []).length, t4);
+        check('16.5 Kontakt ohne Adresse: ehrlich gesagt, keine Abfahrtszeit, keine Route', /keine Adresse von Mama gespeichert\. Wie lautet sie\?/.test(t4) && !/spätestens/.test(t4) && !(D.st.routeUrls || []).length, t4);
         const E = mit({}, { 'anna muster': { originalName: 'Anna Muster', address: 'Erste Gasse 1, 11111 Ort' }, 'anna beispiel': { originalName: 'Anna Beispiel', address: 'Zweite Gasse 2, 22222 Ort' } }); E.st.plan = { schritte: [AB('Anna', '13:00', 'morgen')] };
         const t5 = await frage(E, 'Ich muss morgen um 13 Uhr bei Anna sein. Wann muss ich losfahren?');
         check('16.6 mehrdeutiger Kontakt: Nachfrage, keine Route', /Meinst du Anna Muster oder Anna Beispiel/.test(t5) && !(E.st.routeUrls || []).length, t5);
@@ -462,7 +462,7 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const S1 = 'Ich muss nachher zu meiner Mutter fahren. Ich muss um 14:33 Uhr da sein. Wann muss ich losfahren?';
         const A = mit({}, { mama: { originalName: 'Mama' } }); A.st.plan = { schritte: [AB('meiner Mutter', '14:33', 'heute')] };
         const t1 = await frage(A, S1);
-        check('17.4 Mutter ohne gespeicherte Adresse: ehrlich gesagt, keine Abfahrtszeit, keine Route, eine Antwort', /keine Adresse von Mama gespeichert\. Möchtest du mir die Adresse nennen\?/.test(t1) && !/spätestens/.test(t1) && !(A.st.routeUrls || []).length && A.gesagt.length === 1, t1);
+        check('17.4 Mutter ohne gespeicherte Adresse: ehrlich gesagt, keine Abfahrtszeit, keine Route, eine Antwort', /keine Adresse von Mama gespeichert\. Wie lautet sie\?/.test(t1) && !/spätestens/.test(t1) && !(A.st.routeUrls || []).length && A.gesagt.length === 1, t1);
         const B = mit({}, { 'mama muster': { originalName: 'Mama Muster', address: 'Erste Gasse 1, 11111 Ort' }, 'mama beispiel': { originalName: 'Mama Beispiel', address: 'Zweite Gasse 2, 22222 Ort' } }); B.st.plan = { schritte: [AB('Mama', '14:33', 'heute')] };
         const t2 = await frage(B, 'Ich muss heute zu Mama. Um 14:33 Uhr muss ich dort sein. Wann fahre ich los?');
         check('17.5 zwei passende Kontakte: gezielte Nachfrage mit beiden Namen, keine Route, nichts geraten', /Mama Muster oder Mama Beispiel/.test(t2) && !(B.st.routeUrls || []).length && B.gesagt.length === 1, t2);
@@ -491,10 +491,10 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
             if (chefAus) { const A = mit(E, {}); A.st.normal = { reply: 'Okay.', actions: [] }; await frage(A, 'Wie lange brauche ich zu Oma?'); check('18.0 Chef-KI AUS: alter Weg unverändert (eine normale KI-Anfrage, nichts berechnet)', A.st.groq === 1 && A.st.ent === 0 && !(A.st.routeUrls || []).length); continue; }
             const A = mit(E, {}); A.st.plan = { schritte: [FZ2('Oma')] };
             const t = await frage(A, 'Wie lange brauche ich zu Oma?');
-            check('18.1 Fahrzeit zu Oma ohne Kontakt (E35): ehrliche Frage nach der Adresse, "Oma" nie als Ort gesucht, keine Route', /Ich habe keine Adresse von Oma gespeichert\. Möchtest du mir die Adresse nennen\?/.test(t) && keinOrt(A) && A.gesagt.length === 1, JSON.stringify({ t, g: A.st.geoQ, r: A.st.routeUrls }));
+            check('18.1 Fahrzeit zu Oma ohne Kontakt (E35): ehrliche Frage nach der Adresse, "Oma" nie als Ort gesucht, keine Route', /Ich habe keine Adresse von Oma gespeichert\. Wie lautet sie\?/.test(t) && keinOrt(A) && A.gesagt.length === 1, JSON.stringify({ t, g: A.st.geoQ, r: A.st.routeUrls }));
             const B = mit(E, {}); B.st.plan = { schritte: [AB('Mama', '14:33', 'heute')] };
             const t2 = await frage(B, 'Wann muss ich heute losfahren, um um 14:33 Uhr bei Mama zu sein?');
-            check('18.2 Abfahrt zu Mama ohne Kontakt (E23): ehrliche Frage, keine Ortssuche, keine Abfahrtszeit', /Ich habe keine Adresse von Mama gespeichert\. Möchtest du mir die Adresse nennen\?/.test(t2) && keinOrt(B) && !/spätestens/.test(t2), JSON.stringify({ t2, g: B.st.geoQ }));
+            check('18.2 Abfahrt zu Mama ohne Kontakt (E23): ehrliche Frage, keine Ortssuche, keine Abfahrtszeit', /Ich habe keine Adresse von Mama gespeichert\. Wie lautet sie\?/.test(t2) && keinOrt(B) && !/spätestens/.test(t2), JSON.stringify({ t2, g: B.st.geoQ }));
             const C = mit(E, { mama: { originalName: 'Mama' } }); C.st.plan = { schritte: [FZ2('meiner Mutter')] };
             const t3 = await frage(C, 'Wie lange brauche ich zu meiner Mutter?');
             check('18.3 Kontakt Mama OHNE Adresse (Fahrzeit): ehrlich, nicht als Ort gesucht (vorher wurde "Mama" geocodiert)', /keine Adresse von Mama gespeichert/.test(t3) && keinOrt(C), JSON.stringify({ t3, g: C.st.geoQ }));
@@ -544,7 +544,7 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
             A = mit(E, KONT); r = await lauf19(A, 'Mutter', 'Navigiere zu meiner Mutter');
             check('19.2 (' + L + ') Alias Mutter -> Mama: gespeicherte Adresse', /Musterweg 1/.test(r.h), JSON.stringify(r));
             A = mit(E, KONT); r = await lauf19(A, 'Oma', 'Navigiere zu Oma');
-            check('19.3 (' + L + ') Oma ohne Kontakt: keine Route nach "Oma", ehrliche Frage nach der Adresse', !/destination=Oma|Route nach Oma/.test(r.h) && /keine Adresse von Oma gespeichert\. Möchtest du mir die Adresse nennen\?/.test(r.t) && A.navs().length === 0, JSON.stringify(r));
+            check('19.3 (' + L + ') Oma ohne Kontakt: keine Route nach "Oma", ehrliche Frage nach der Adresse', !/destination=Oma|Route nach Oma/.test(r.h) && /keine Adresse von Oma gespeichert\. Wie lautet sie\?/.test(r.t) && A.navs().length === 0, JSON.stringify(r));
             A = mit(E, { 'mama muster': { originalName: 'Mama Muster', address: 'Erste Gasse 1' }, 'mama beispiel': { originalName: 'Mama Beispiel', address: 'Zweite Gasse 2' } }); r = await lauf19(A, 'Mama', 'Navigiere zu Mama');
             check('19.4 (' + L + ') zwei gleichnamige Kontakte: Nachfrage, keine Navigation', /Mama Muster oder Mama Beispiel/.test(r.t) && !/Gasse/.test(r.h) && A.navs().length === 0, JSON.stringify(r));
             A = mit(E, KONT, { arbeit: 1 }); r = await lauf19(A, 'Arbeit', 'Navigiere zur Arbeit');
@@ -557,6 +557,98 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
             check('19.7 (' + L + ') Hamburg: unverändert normale Route', /destination=Hamburg|Hamburg/.test(r.h) && r.n === 1 && A.navs().length === 1, JSON.stringify(r));
             A = mit(E, KONT); r = await lauf19(A, 'Hauptstraße 5, Hamburg', 'Navigiere zur Hauptstraße 5 in Hamburg');
             check('19.8 (' + L + ') Straßenadresse: unverändert', /Hauptstraße 5/.test(r.h), JSON.stringify(r));
+        }
+    }
+    /* --- 20. Fehlende Adresse im Gespräch ergänzen und die ursprüngliche Aufgabe fortsetzen --- */
+    {
+        const AB = (ziel, ankunft, tag) => ({ faehigkeit: 'abfahrt', params: tag ? { ziel, ankunft, tag } : { ziel, ankunft } });
+        const FZ2 = ziel => ({ faehigkeit: 'fahrzeit', params: { ziel } });
+        const ADR = 'Musterstraße 12 in Hamburg';
+        const letzte = m => { const u = (m || []).filter(x => x && x.role === 'user'); return String((u[u.length - 1] || {}).content || ''); };
+        const navStub = name => m => { const u = letzte(m); if (!/navigier/i.test(u)) return { reply: 'Okay.', actions: [] }; const a = /Musterstraße 12 in Hamburg/.exec(u); return { reply: 'Ich starte die Navigation.', actions: [{ type: 'navigate', nav_to: a ? a[0] : name }] }; };
+        const mit = (opt, kontakte) => { const A = umgebung(opt); A.setze('savedContacts', kontakte || {}); A.vm.runInContext("window.__nav = []; (function () { var o = buildMapsLink; buildMapsLink = function (t) { window.__nav.push(String(t)); return o.apply(this, arguments); }; })();", A.sb); A.navs = () => A.vm.runInContext('window.__nav.slice()', A.sb); A.st.normal = navStub('Oma'); A.z0 = stand(A); return A; };
+        const sag = async (A, t) => (await tippen(A, t, 200)).join(' | ');
+        const kontakte = A => A.lese('savedContacts') || {};
+        const anzahl = A => Object.keys(kontakte(A)).length;
+        for (const chefAus of [false, true]) {
+            const L = chefAus ? 'AUS' : 'EIN', E = chefAus ? { chefAus: true } : {};
+            let A = mit(E);
+            let t1 = await sag(A, 'Navigiere mich zu Oma');
+            check('20.1 (' + L + ') Oma ohne Adresse: Rückfrage "Wie lautet sie?", keine Navigation', /Ich habe keine Adresse von Oma gespeichert\. Wie lautet sie\?/.test(t1) && A.navs().length === 0, t1);
+            let t2 = await sag(A, ADR);
+            check('20.2 (' + L + ') Adresse genannt: Frage nach der Speicherung, noch nichts gespeichert, keine Navigation', /Soll ich diese Adresse bei Oma in deinen Kontakten speichern\?/.test(t2) && anzahl(A) === 0 && A.navs().length === 0, t2);
+            let t3 = await sag(A, 'Ja');
+            const k = kontakte(A);
+            check('20.3 (' + L + ') Ja: genau ein Kontakt Oma mit der Adresse gespeichert (Erfolg geprüft), erst DANN die Frage nach der Navigation', anzahl(A) === 1 && Object.values(k).some(c => /Musterstraße 12/.test(c.address) && /Oma/i.test(c.originalName)) && /Die Adresse wurde gespeichert\. Soll ich jetzt die Navigation zu Oma starten\?/.test(t3) && A.navs().length === 0, JSON.stringify({ t3, k }));
+            let t4 = await sag(A, 'Ja');
+            check('20.4 (' + L + ') Ja: genau eine Navigation zur bestätigten Adresse', A.navs().length === 1 && /Musterstraße 12/.test(A.navs()[0]), JSON.stringify({ t4, n: A.navs() }));
+            await sag(A, 'Ja');
+            check('20.5 (' + L + ') ein weiteres Ja löst nichts mehr aus (keine zweite Navigation, kein zweiter Kontakt)', A.navs().length === 1 && anzahl(A) === 1);
+
+            A = mit(E); await sag(A, 'Navigiere mich zu Oma'); await sag(A, ADR);
+            let t6 = await sag(A, 'Nein, nur diesmal verwenden');
+            check('20.6 (' + L + ') "Nein, nur diesmal": nichts gespeichert, Nachfrage zur einmaligen Navigation', anzahl(A) === 0 && /ich speichere nichts\. Soll ich die Navigation zu Oma starten/.test(t6) && A.navs().length === 0, t6);
+            await sag(A, 'Ja');
+            check('20.7 (' + L + ') danach Ja: Navigation zur genannten Adresse, Kontakte weiter unverändert', A.navs().length === 1 && /Musterstraße 12/.test(A.navs()[0]) && anzahl(A) === 0, JSON.stringify(A.navs()));
+
+            A = mit(E, { mama: { originalName: 'Mama' } }); A.st.normal = navStub('Mutter');
+            await sag(A, 'Navigiere mich zu meiner Mutter'); await sag(A, ADR); await sag(A, 'Ja');
+            check('20.8 (' + L + ') Kontakt Mama vorhanden, aber ohne Adresse (Alias Mutter): Adresse wird ergänzt, kein zweiter Kontakt', anzahl(A) === 1 && /Musterstraße 12/.test((kontakte(A).mama || {}).address || ''), JSON.stringify(kontakte(A)));
+
+            A = mit(E); await sag(A, 'Navigiere mich zu Oma');
+            let t9 = await sag(A, 'Hamburg');
+            check('20.9 (' + L + ') unvollständige Adresse ("Hamburg"): ehrliche Nachfrage, nichts gespeichert', /nicht nach einer vollständigen Adresse/.test(t9) && anzahl(A) === 0, t9);
+            let t9b = await sag(A, 'Hamburg');
+            check('20.10 (' + L + ') zweiter Fehlversuch: Abbruch, nichts gespeichert, keine Navigation', /keine vollständige Adresse\. Ich lasse es dabei/.test(t9b) && anzahl(A) === 0 && A.navs().length === 0, t9b);
+
+            for (const [stufe, abbruchWort] of [[0, 'Abbrechen'], [1, 'Nein'], [2, 'Nein']]) {
+                A = mit(E); await sag(A, 'Navigiere mich zu Oma');
+                if (stufe >= 1) await sag(A, ADR);
+                if (stufe >= 2) await sag(A, 'Ja');
+                const tx = await sag(A, abbruchWort);
+                if (stufe === 1) await sag(A, 'Nein');   // "Nein" bei der Speicherfrage fragt nach der einmaligen Nutzung; das zweite Nein beendet
+                check('20.11 (' + L + ') "' + abbruchWort + '" auf Stufe ' + stufe + ': keine Navigation' + (stufe === 2 ? ', Kontakt bleibt gespeichert' : ', nichts gespeichert'), A.navs().length === 0 && anzahl(A) === (stufe === 2 ? 1 : 0), JSON.stringify({ tx, n: A.navs(), k: kontakte(A) }));
+            }
+
+            A = mit(E); await sag(A, 'Navigiere mich zu Oma');
+            await sag(A, 'Wie spät ist es');
+            await sag(A, ADR); await sag(A, 'Ja'); await sag(A, 'Ja');
+            check('20.12 (' + L + ') Themenwechsel: die Rückfrage verfällt, späteres Adresse/Ja löst weder Speichern noch Navigation aus', A.navs().length === 0 && anzahl(A) === 0, JSON.stringify({ n: A.navs(), k: kontakte(A) }));
+
+            A = mit(E); A.st.normal = navStub('Mama');
+            A.setze('savedContacts', { 'mama muster': { originalName: 'Mama Muster', address: 'Erste Gasse 1' }, 'mama beispiel': { originalName: 'Mama Beispiel', address: 'Zweite Gasse 2' } });
+            let t13 = await sag(A, 'Navigiere mich zu Mama');
+            check('20.13 (' + L + ') mehrdeutige Kontakte: bestehende Auswahlfrage, kein Adressdialog, keine Navigation', /Mama Muster, Mama Beispiel|Mama Muster oder Mama Beispiel/.test(t13) && A.navs().length === 0, t13);
+            await sag(A, 'die zweite');
+            check('20.14 (' + L + ') Auswahl "die zweite" führt zur Navigation zu Mama Beispiel (bestehendes Verhalten)', A.navs().length === 1 && /Zweite Gasse 2/.test(A.navs()[0]), JSON.stringify(A.navs()));
+
+            A = mit(E, { oma: { originalName: 'Oma', address: 'Altweg 3, 22222 Altstadt' } });
+            await sag(A, 'Navigiere mich zu Oma');
+            check('20.15 (' + L + ') Oma mit gespeicherter Adresse: sofort Navigation, kein Dialog', A.navs().length === 1 && /Altweg 3/.test(A.navs()[0]) && !(A.sb.jvRueckfrage.adresseOffen && A.sb.jvRueckfrage.adresseOffen()), JSON.stringify(A.navs()));
+        }
+        /* Fahrzeit und Abfahrt (über Planer und Registry, Chef-KI EIN) */
+        {
+            const planer = m => { const u = letzte(m); return { schritte: [/Musterstra/.test(u) ? FZ2('Musterstraße 12 in Hamburg') : FZ2('Oma')] }; };
+            let A = mit({}); A.st.plan = planer;
+            let t1 = await sag(A, 'Wie lange brauche ich zu Oma?');
+            check('20.16 Fahrzeit zu Oma ohne Adresse: Rückfrage, keine Route', /keine Adresse von Oma gespeichert\. Wie lautet sie\?/.test(t1) && !(A.st.routeUrls || []).length, t1);
+            await sag(A, ADR); await sag(A, 'Nein, nur diesmal');
+            const t3 = await sag(A, 'Ja');
+            check('20.17 Fahrzeit: nach Adresse + "nur diesmal" + Ja wird die Fahrzeit zur genannten Adresse berechnet, nichts gespeichert', (A.st.geoQ || []).some(q => /Musterstraße 12/.test(q)) && (A.st.routeUrls || []).length === 1 && /Minuten/.test(t3) && anzahl(A) === 0, JSON.stringify({ t3, g: A.st.geoQ }));
+            A = mit({}); A.st.plan = m => { const u = letzte(m); return { schritte: [AB(/Musterstra/.test(u) ? 'Musterstraße 12 in Hamburg' : 'Oma', '15:00', 'heute')] }; };
+            let t4 = await sag(A, 'Wann muss ich zu Oma losfahren, um 15 Uhr dort zu sein?');
+            check('20.18 Abfahrt zu Oma ohne Adresse: Rückfrage, keine Abfahrtszeit', /keine Adresse von Oma gespeichert\. Wie lautet sie\?/.test(t4) && !/spätestens/.test(t4), t4);
+            await sag(A, ADR); await sag(A, 'Ja'); const t6 = await sag(A, 'Ja');
+            check('20.19 Abfahrt: Speichern bestätigt, danach Berechnung zur Adresse mit 15 Uhr und heute', anzahl(A) === 1 && /spätestens um/.test(t6) && (A.st.geoQ || []).some(q => /Musterstraße 12/.test(q)), JSON.stringify({ t6, k: kontakte(A) }));
+        }
+        /* Bestehende Navigation unverändert */
+        for (const chefAus of [false, true]) {
+            const E = chefAus ? { chefAus: true } : {}; const L = chefAus ? 'AUS' : 'EIN';
+            for (const [ziel, satz, erwartet, setup] of [['Hamburg', 'Navigiere nach Hamburg', /Hamburg/, null], ['Arbeit', 'Navigiere zur Arbeit', /Werkstraße 5/, A => A.setze('workAddress', 'Werkstraße 5, 12345 Beispielstadt')], ['Zuhause', 'Navigiere nach Hause', /Verbrüderungsring 13/, A => A.setze('homeAddress', 'Verbrüderungsring 13, 21493 Schwarzenbek')]]) {
+                const A = mit(E); A.st.normal = { reply: 'ok', actions: [{ type: 'navigate', nav_to: ziel }] }; if (setup) setup(A);
+                await sag(A, satz);
+                check('20.20 (' + L + ') bestehende Navigation ' + ziel + ' unverändert, genau eine, kein Dialog', A.navs().length === 1 && erwartet.test(A.navs()[0]) && !A.sb.jvRueckfrage.adresseOffen(), JSON.stringify(A.navs()));
+            }
         }
     }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
