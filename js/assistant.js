@@ -493,6 +493,17 @@ async function sendToGroqSmartCore(text, opts = {}) {
             typeWriterStatus("Berechne Fahrzeit...");
             updateTerminalStream("API_FETCH: ROUTE", "FETCHING");
             try {
+                /* Nennt der Satz einen Startort ("von Schwarzenbek zum ...") ohne Ankunftszeit, rechnet das Fahrzeit-Werkzeug mit Plausibilitätsprüfung (der alte Weg kennt nur den GPS-Standort) */
+                let fzVon = null;
+                try {
+                    const mv = String(text).match(/\bvon\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]*(?:\s+[A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]*){0,2})\s+(?:zum|zur|nach|bis|zu|ins|an|in)\b/);
+                    const ziel = String(travelAction.travel_destination || '').trim();
+                    if (mv && ziel && !arrivalFromUserText(text) && window.jvRegistry && window.jvRegistry.hole && window.jvRegistry.hole('fahrzeit')) {
+                        const r = await window.jvRegistry.fuehreAus('fahrzeit', { ziel: ziel, von: mv[1].trim() }, {});
+                        if (r && r.nachricht) fzVon = r.nachricht;
+                    }
+                } catch (e) { fzVon = null; }
+                if (fzVon) { travelReply = fzVon; } else {
                 const res = await computeDepartureAdvice({
                     query: travelAction.travel_query || '',
                     destination: resolveTravelDestination(text, travelAction.travel_destination || ''),
@@ -509,6 +520,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
                 (res.webcamCards || []).forEach(c => ctx.cards.push(c));
                 // Bei Stau-Fragen öffnet sich zusätzlich die HUD-Karte mit Route und Meldungen
                 if (!opts.collect && res.map && res.map.coords && STAU_TRIGGER.test(text)) ctx.panel = { name: 'karte', mapData: res.map };
+                }
             } catch (e) {
                 travelReply = e.userMessage || 'Die Fahrzeit konnte gerade nicht berechnet werden.';
                 sonderFehler.travel = true;
