@@ -1112,7 +1112,13 @@
                 pr.plan.schritte.some(function (x) { return x.faehigkeit === 'wetter' && x.params && x.params.tag === 'morgen'; }));
             var abfahrtMitFahrzeit = !!(pr && pr.ok && pr.plan && (RX_ABFAHRT.test(text) || RX_ANKUNFT.test(text)) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'fahrzeit'; }) &&
                 !(arbeitsMorgenKombi && arbeitsPlanVollstaendig));   // ein Plan, der eine Abfahrtsfrage nur mit der Fahrdauer beantworten würde
-            if (!pr || !pr.ok || schreibOhneWunsch || fahrtOhneWerkzeug || abfahrtMitFahrzeit || !arbeitsPlanVollstaendig || !planErlaubt(pr.plan, ohneFrage)) {
+            if (!arbeitsPlanVollstaendig) {
+                vermerke(eingang, 'auftrag_unvollstaendig');
+                protokolliere('ki_gestoppt', [], 'UNVOLLSTAENDIG');
+                say('Ich konnte deine morgige Schichtabfahrt, das Wetter und den Verkehr nicht zusammen sicher prüfen. Ich nenne dir deshalb keine Abfahrtszeit für heute als Antwort auf morgen.');
+                return;
+            }
+            if (!pr || !pr.ok || schreibOhneWunsch || fahrtOhneWerkzeug || abfahrtMitFahrzeit || !planErlaubt(pr.plan, ohneFrage)) {
                 vermerke(eingang, !pr ? 'ki_fehler' : (pr.zeitlimit || pr.grund === 'Zeitlimit') ? 'ki_zeitlimit' : pr.fehler ? 'ki_fehler' : !pr.ok ? 'ki_ungueltig'
                     : (pr.plan.schritte.length === 0 && !pr.plan.frage) ? 'ki_kein_ortswunsch' : abfahrtMitFahrzeit ? 'abfahrt_alter_weg' : 'ki_nicht_erlaubt');
                 protokolliere('ki_zurueck', [], pr && pr.zeitlimit ? 'ZEITLIMIT' : (pr && pr.ok ? 'KEIN_ORTSWUNSCH' : 'UNGUELTIG')); zurueckInsNormale(); return; }
