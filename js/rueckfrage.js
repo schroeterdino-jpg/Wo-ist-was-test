@@ -143,9 +143,9 @@
         /* Navigation zu einer Person ohne Adresse schon VOR der KI abfangen: sonst stellt die KI die Adressfrage selbst, es gibt keinen offenen Dialog (adr) und die genannte Adresse startet sofort die Navigation */
         try {
             const pa = window.jvPersoenlicheAdresse;
-            const m = pa && t.split(' ').length <= 9 && /\b(?:navigier\w*|fahr\w*|bring\w*|route|weg)\b/.test(t) && /\b(?:zu|zur|zum|nach|bei)\s+(?:meiner\s+|meinem\s+|meinen\s+|meine\s+|mein\s+)?([a-z]+)$/.exec(t);
+            const m = pa && t.split(' ').length <= 9 && !/^(?:wann|wie|wo|was|wer|warum|wieso|welche\w*)\b/.test(t) && /\b(?:navigier\w*|fahr\w*|bring\w*|route|weg)\b/.test(t) && /\b(?:zu|zur|zum|nach|bei)\s+(?:meiner\s+|meinem\s+|meinen\s+|meine\s+|mein\s+)?([a-z]+)$/.exec(t);
             const r = m && pa.finde(m[1]);
-            if (r && r.ohneAdresse) { sagen(pa.text(r), true); return true; }
+            if (r && r.ohneAdresse && r.quelle === 'kontakt') { sagen(pa.text(r), true); return true; }   // nur Personen (Oma, Mama ...); Zuhause/Arbeit und Fragen ("Wann fahre ich ...") bleiben beim bisherigen Weg
         } catch (e) { }
         const o = nimmOffen();
         if (!o || !t || t.split(' ').length > 8) return next(text);

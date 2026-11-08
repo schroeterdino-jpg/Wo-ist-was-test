@@ -680,6 +680,9 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
                 const B = mit({}); kiFragt(B); B.st.normal = { reply: 'ok', actions: [{ type: 'navigate', nav_to: 'Hamburg' }] };
                 await sag(B, 'Navigiere mich nach Hamburg');
                 check('21.7 normaler Ort ohne Person: unverändert genau eine Navigation, kein Dialog', B.navs().length === 1 && !B.sb.jvRueckfrage.adresseOffen(), JSON.stringify(B.navs()));
+                const C = mit({}); kiFragt(C);
+                await sag(C, 'Wann fahre ich heute nach Hause?');
+                check('21.8 Frage "Wann fahre ich heute nach Hause?" wird nicht vom Adress-Dialog abgefangen', !C.sb.jvRueckfrage.adresseOffen());
             }
         }
     }
