@@ -181,6 +181,37 @@ const ids = (plan, art) => plan.filter(e => e.id.split('|')[0] === art);
         const t = A.gesagt.slice(g0).join('|');
         check('8c Chef-KI ' + (an ? 'EIN' : 'AUS') + ': Antwort nennt Abfahrt 11 Uhr 51, keine Rückfrage nach dem Arbeitsort', /11 Uhr 51/.test(t) && !/Wohin|Arbeitsort|Adresse/.test(t), t);
     }
+    /* --- 8d. Zusammengesetzte Frage "Wann muss ich morgen zur Arbeit und wann muss ich losfahren?": nur eine Antwort, keine Rückfrage "Wohin soll es genau gehen?" --- */
+    {
+        async function zusammen(satz, o) {
+            o = o || {}; let groq = 0;
+            const native = { planAnsagen: () => true, holeAnsage: () => '', naechsterWecker: () => 0 };
+            const A = starte({ jetzt: '2026-11-08T09:16:00+01:00', native, festerZufall: true, fetch: async (u) => { if (/api\/groq/.test(String(u))) { groq++; return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify({ reply: 'Wohin soll es genau gehen, Sir?', actions: [] }) } }] }) }; } throw new Error('offline ' + u); } });
+            const T = A.sb._schichtTest, wn = T.weekNo({ y: 2026, m: 11, d: 2 });
+            A.sb.setPersistentData('jv_schicht', JSON.stringify({ base: wn, shift: 'frueh', times: { frueh: 225, spaet: 720 }, auto: true }));
+            A.store['jv_plan_fahrt'] = JSON.stringify([{ min: 22, at: Date.now() }]);
+            A.P = A.sb.jvPlan; A.P.setBeginn('spaet', 13 * 60 + 45);
+            if (o.ausnahme) { A.P.setBeginnTag('2026-11-09', 12 * 60 + 33); A.P.setTagVor('2026-11-09', 72); }
+            if (o.adresse) A.setze('workAddress', 'Werkstraße 5, 12345 Beispielstadt');
+            if (o.chef) A.sb.jvChef.an(); else A.sb.jvChef.aus();
+            const g0 = A.gesagt.length;
+            A.sb.jvTippen(satz); await pause(300); for (let i = 0; i < 20; i++) { A.lassLaufen && await A.lassLaufen(100); await pause(20); }
+            return { t: A.gesagt.slice(g0).join(' | '), groq, A };
+        }
+        const S = 'Wann muss ich morgen zur Arbeit und wann muss ich losfahren?';
+        for (const chef of [true, false]) for (const adresse of [true, false]) {
+            const r = await zusammen(S, { ausnahme: true, adresse, chef });
+            const lbl = 'Chef-KI ' + (chef ? 'EIN' : 'AUS') + ', Arbeitsadresse ' + (adresse ? 'da' : 'fehlt');
+            check('8d.1 Ausnahme 12:33 (' + lbl + '): 12:13 da sein, Abfahrt 11 Uhr 51, keine Rückfrage, keine KI', /12 Uhr 33/.test(r.t) && /12 Uhr 13/.test(r.t) && /11 Uhr 51/.test(r.t) && !/Wohin/.test(r.t) && r.groq === 0, r.t + ' groq ' + r.groq);
+            check('8d.2 Arbeitsadresse unverändert (' + lbl + ')', adresse ? r.A.lese('workAddress') === 'Werkstraße 5, 12345 Beispielstadt' : !r.A.lese('workAddress'));
+        }
+        const n = await zusammen(S, { chef: true });
+        check('8d.3 normale Spätschicht (kein Ausnahmetag): Beginn 13 Uhr 45, Abfahrt 13 Uhr 3, keine Rückfrage', /13 Uhr 45/.test(n.t) && /gegen 13 Uhr 3 los/.test(n.t) && !/Wohin/.test(n.t) && n.groq === 0, n.t);
+        const e = await zusammen('Wann muss ich losfahren?', { chef: false });
+        check('8d.4 allein "Wann muss ich losfahren?" geht unverändert den bisherigen Weg (KI)', e.groq === 1, e.t + ' groq ' + e.groq);
+        const w = await zusammen('Wann muss ich morgen zur Arbeit und wie wird das Wetter?', { ausnahme: true });
+        check('8d.5 echte Zweitfrage (Wetter) geht weiter an die KI, Schichtteil bleibt lokal', w.groq === 1 && /12 Uhr 33/.test(w.t), w.t + ' groq ' + w.groq);
+    }
     /* --- 9. Auskunft --- */
     {
         const A = neu('2026-11-02T12:00:00+01:00');

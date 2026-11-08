@@ -154,6 +154,7 @@
         try { window.speak(text, typeof window.continueConversation === 'function' ? window.continueConversation : undefined); } catch (e) { }
     }
 
+    const ABFAHRT_FOLGE = /^(?:und\s+)?wann\s+(?:muss|soll|sollte)\s+ich(?:\s+(?:dann|morgen|heute|\u00fcbermorgen))*\s+(?:los\s?fahren|los\s?gehen|abfahren|aufbrechen|los)$/i;
     function frageBefehl(text, next) {
         if (sperre || (window.jvMehrfachfrage && window.jvMehrfachfrage.umgehen === true)) return next(text);
         const a = frageAnalyse(text);
@@ -162,6 +163,17 @@
         if (!namen.length || !window.jvCommands || typeof window.jvCommands.nur !== 'function') return next(text);
         const erg = a.teile.map(t => sichererTeil(t, namen));
         if (!erg.some(Boolean)) return next(text);   // keine sichere lokale Auskunft dabei: alles wie bisher
+        /* Schicht-Auskunft nennt die Abfahrt schon ("... also fährst du gegen 11 Uhr 51 los"): ein reiner Folgeteil "Und wann muss ich losfahren?" ohne Ziel
+           ist damit beantwortet und geht nicht noch einmal an die KI (die sonst "Wohin soll es genau gehen?" fragte) */
+        if (a.teile.length > 1 && erg.some(x => x && /\b(?:f(?:ä|ae)hrst du gegen|fahr gegen)\b/i.test(x.text || ''))) {
+            const rest = a.teile.filter((t, i) => !erg[i] && !ABFAHRT_FOLGE.test(t.replace(/[?!.\s]+$/, '')));
+            if (rest.length === 0) {
+                const keep = a.teile.map((t, i) => i).filter(i => erg[i]);
+                const a3 = { teile: keep.map(i => a.teile[i]), abhaengig: false, neu: a.neu };
+                frageAusfuehren(a3, keep.map(i => erg[i])).catch(e => { console.error('Mehrfachfrage', e && e.message); });
+                return true;
+            }
+        }
         if (a.abhaengig && a.neu) {   // abhängige Frage mit sicherer lokaler Auskunft: lokale Antwort geht der KI als Hinweis mit, beide Teile bleiben erhalten
             const hinweis = erg.filter(x => x && x.text).map(x => x.text).join(' ');
             const a2 = { teile: a.teile, abhaengig: false, neu: true };
