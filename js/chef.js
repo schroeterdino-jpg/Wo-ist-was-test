@@ -1072,6 +1072,12 @@
                 var arbeitsziel = (typeof workAddress === 'string' ? workAddress : '').trim();
                 if (arbeitsziel) kontext = (kontext ? kontext + ' ' : '') + 'Für diese Verkehrsfrage ist das gespeicherte Ziel Arbeit: ' + JSON.stringify(arbeitsziel) + '. Nutze fahrzeit mit params.ziel gleich dieser Adresse; frage nicht erneut nach dem Ziel.';
             }
+            if (/\\bmorgen\\b/i.test(text) && /\\b(?:arbeitsweg|zur\\s+arbeit)\\b/i.test(text) &&
+                /\\b(?:losfahren|abfahrt)\\b/i.test(text) && /\\b(?:wetter|regen|temperatur)\\b/i.test(text) &&
+                /\\b(?:stau\\w*|verkehr\\w*)\\b/i.test(text)) {
+                kontext = (kontext ? kontext + ' ' : '') +
+                    'WICHTIG: Bei dieser dreiteiligen Frage nach MORGEN plane genau drei Schritte: zuerst schicht mit tag=morgen (liefert die geplante Abfahrt aus dem Schichtplan), dann wetter mit tag=morgen am Arbeitsort, dann fahrzeit zur gespeicherten Arbeitsadresse nur für AKTUELLE Störungen. Eine heutige Fahrzeit oder heutige Ankunft ist KEINE morgige Abfahrtszeit. Sage ausdrücklich, dass Staus morgen nicht sicher vorhergesagt werden können. Nutze nicht abfahrt ohne bekannte Schicht-Ankunftszeit.';
+            }
             var sende = sendeFunktion || sendeStandard;
             var entsch = kiEntscheider(function (m) { return Promise.race([Promise.resolve(sende(m, ctrl ? ctrl.signal : undefined)), limit]); }, KI_PLAN, kontext);
             var pr = await Promise.race([plane(text, { entscheider: entsch }), limit.catch(function () { return { ok: false, zeitlimit: true }; })]);
@@ -1092,8 +1098,21 @@
             });
             var schreibOhneWunsch = !!(pr && pr.ok && pr.plan && !RX_B2A.test(text) && pr.plan.schritte.some(function (x) { return B2A_SCHREIBT.indexOf(x.faehigkeit) >= 0; }));   // Phase 5: schreiben nur, wenn der Nutzer es ausdrücklich verlangt hat (Erinnerung, Termin, Aufgabe, Kontakt, Merken); sonst übernimmt der bisherige Weg
             var fahrtOhneWerkzeug = !!(pr && pr.ok && pr.plan && RX_FAHRT.test(text) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'websuche'; }) && !pr.plan.schritte.some(function (x) { return x.faehigkeit === 'fahrzeit'; }));   // Fahrzeit/Verkehr nie per Websuche (das wäre nur eine Schätzung): der bisherige Weg hat die echte Routenberechnung
-            var abfahrtMitFahrzeit = !!(pr && pr.ok && pr.plan && (RX_ABFAHRT.test(text) || RX_ANKUNFT.test(text)) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'fahrzeit'; }));   // ein Plan, der eine Abfahrtsfrage nur mit der Fahrdauer beantworten würde
-            if (!pr || !pr.ok || schreibOhneWunsch || fahrtOhneWerkzeug || abfahrtMitFahrzeit || !planErlaubt(pr.plan, ohneFrage)) {
+            // Bei einer Frage nach der morgigen Schicht-Abfahrt ist fahrzeit nur die
+            // ergänzende aktuelle Verkehrsauskunft. Die Abfahrt liefert schicht.
+            var arbeitsMorgenKombi = /\\bmorgen\\b/i.test(text) &&
+                /\\b(?:zur\\s+arbeit|arbeitsweg|weg\\s+zur\\s+arbeit)\\b/i.test(text) &&
+                /\\b(?:losfahren|los\\s*fahren|abfahrt|los\\s*muss|los\\s*müssen)\\b/i.test(text) &&
+                /\\b(?:wetter|regen|temperatur)\\b/i.test(text) &&
+                /\\b(?:stau\\w*|verkehr\\w*|sperrung\\w*)\\b/i.test(text);
+            var arbeitsPlanVollstaendig = !arbeitsMorgenKombi || (pr && pr.ok && pr.plan &&
+                ['schicht', 'wetter', 'fahrzeit'].every(function (name) {
+                    return pr.plan.schritte.some(function (x) { return x.faehigkeit === name; });
+                }) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'schicht' && x.params && x.params.tag === 'morgen'; }) &&
+                pr.plan.schritte.some(function (x) { return x.faehigkeit === 'wetter' && x.params && x.params.tag === 'morgen'; }));
+            var abfahrtMitFahrzeit = !!(pr && pr.ok && pr.plan && (RX_ABFAHRT.test(text) || RX_ANKUNFT.test(text)) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'fahrzeit'; }) &&
+                !(arbeitsMorgenKombi && arbeitsPlanVollstaendig));   // ein Plan, der eine Abfahrtsfrage nur mit der Fahrdauer beantworten würde
+            if (!pr || !pr.ok || schreibOhneWunsch || fahrtOhneWerkzeug || abfahrtMitFahrzeit || !arbeitsPlanVollstaendig || !planErlaubt(pr.plan, ohneFrage)) {
                 vermerke(eingang, !pr ? 'ki_fehler' : (pr.zeitlimit || pr.grund === 'Zeitlimit') ? 'ki_zeitlimit' : pr.fehler ? 'ki_fehler' : !pr.ok ? 'ki_ungueltig'
                     : (pr.plan.schritte.length === 0 && !pr.plan.frage) ? 'ki_kein_ortswunsch' : abfahrtMitFahrzeit ? 'abfahrt_alter_weg' : 'ki_nicht_erlaubt');
                 protokolliere('ki_zurueck', [], pr && pr.zeitlimit ? 'ZEITLIMIT' : (pr && pr.ok ? 'KEIN_ORTSWUNSCH' : 'UNGUELTIG')); zurueckInsNormale(); return; }
