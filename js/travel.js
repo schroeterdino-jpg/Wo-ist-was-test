@@ -24,7 +24,7 @@ async function geocodeAddress(address) {
         if (!res.ok) return null;
         const data = await res.json();
         if (!data || !data[0]) return null;
-        const found = { lat: Number(data[0].lat), lon: Number(data[0].lon) };
+        const found = { lat: Number(data[0].lat), lon: Number(data[0].lon), name: String(data[0].display_name || '') };   // name: nur zur Plausibilitätsprüfung (Fahrzeit-Werkzeug)
         if (cacheKey && isFinite(found.lat) && isFinite(found.lon)) geocodeCache[cacheKey] = found;
         return found;
     } catch (e) {

@@ -259,36 +259,72 @@
         ausfuehren: async function (p) {
             function fehlschlag(m) { var e = new Error(m); e.userMessage = m; throw e; }
             var ziel = String(p.ziel || '').trim(), von = typeof p.von === 'string' ? p.von.trim() : '';
-            var start;
+            function norm(t) { return String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss'); }
+            /* Passt der gefundene Ort zum genannten Namen? Das erste längere Wort (ohne Endung "-er") muss im gefundenen Namen vorkommen ("Hamburger" -> "hamburg"). Fehlt der Name der Antwort, wird nichts behauptet. */
+            function nameOk(gefragt, gefunden) {
+                if (!gefunden) return true;
+                var w = norm(gefragt).split(/[^a-z0-9]+/).filter(function (x) { return x.length >= 5; })[0];
+                if (!w) return true;
+                return norm(gefunden).indexOf(w.length > 6 ? w.slice(0, w.length - 2) : w) >= 0;
+            }
+            /* Plausibilität: Route gegen Luftlinie. Eine Straße kann nicht (nennenswert) kürzer sein als die Luftlinie und ist selten mehr als 2,5-mal so lang (großzügiger Umwegfaktor, dazu 10 km Spielraum für kurze Wege); die Durchschnittsgeschwindigkeit muss möglich sein. Keine feste Entfernungsgrenze: Fernfahrten bleiben möglich. */
+            function plausibel(luft, km, min) {
+                if (!(km > 0) || !(min > 0)) return false;
+                if (km < luft * 0.9 - 0.5) return false;
+                if (km > luft * 2.5 + 10) return false;
+                var v = km / (min / 60);
+                return km < 5 || (v >= 8 && v <= 160);
+            }
+            var start, startText;
             if (von) {
                 var vg = await geocodeDestination(von, '');
                 if (!vg) fehlschlag('Den Startort ' + von + ' habe ich nicht gefunden. Eine Fahrzeit nenne ich deshalb nicht.');
-                start = { lat: vg.lat, lon: vg.lon };
+                if (!nameOk(von, vg.name)) fehlschlag('Für den Startort ' + von + ' habe ich nur einen Ort gefunden, der nicht passt (' + String(vg.name).split(',').slice(0, 2).join(',').trim() + '). Eine Fahrzeit nenne ich deshalb nicht. Wie genau heißt der Startort?');
+                start = { lat: vg.lat, lon: vg.lon }; startText = von;
             } else {
                 var loc = await fetchFreshTravelLocation();
                 if (!loc || loc.fehler || loc.latitude === undefined) fehlschlag('Deinen Standort konnte ich gerade nicht ermitteln, deshalb nenne ich keine Fahrzeit. Ist der Standortzugriff erlaubt?');
-                start = { lat: loc.latitude, lon: loc.longitude };
+                start = { lat: loc.latitude, lon: loc.longitude }; startText = 'deinem aktuellen Standort';
             }
             var dest = await geocodeDestination(ziel, '');   // zuerst genau das genannte Ziel (nie nur der Ortsname)
+            if (dest && !nameOk(ziel, dest.name)) fehlschlag('Für ' + ziel + ' habe ich nur einen Ort gefunden, der nicht passt (' + String(dest.name).split(',').slice(0, 2).join(',').trim() + '). Eine Fahrzeit nenne ich deshalb nicht. Wie genau heißt das Ziel?');
             if (!dest) {
                 var adr = (typeof findContactAddressFor === 'function' && findContactAddressFor(ziel)) || (typeof findMemoryAddressFor === 'function' && findMemoryAddressFor(ziel)) || '';
                 if (adr) dest = await geocodeDestination(adr, '');
             }
             if (!dest) fehlschlag('Das Ziel ' + ziel + ' habe ich nicht gefunden. Eine Fahrzeit nenne ich deshalb nicht.');
-            var route = await routeDurationSeconds(start.lat, start.lon, dest.lat, dest.lon);
-            if (!route || !isFinite(route.seconds) || route.seconds <= 0) fehlschlag('Die Fahrzeit konnte ich gerade nicht berechnen. Ich schätze sie nicht, versuch es bitte gleich noch einmal.');
-            var min = Math.max(1, Math.round(route.seconds / 60)), km = (route.meters || 0) / 1000;
-            if (min > 600) fehlschlag('Das Ziel ' + ziel + ' liegt ungewöhnlich weit entfernt (' + Math.round(km) + ' Kilometer). Meinst du den richtigen Ort? Eine Fahrzeit nenne ich deshalb nicht.');
+            var luft = typeof haversineKm === 'function' ? haversineKm(start.lat, start.lon, dest.lat, dest.lon) : 0;
+            var route = await routeDurationSeconds(start.lat, start.lon, dest.lat, dest.lon), hinweis = '';
+            function werte(r) { return r && isFinite(r.seconds) && r.seconds > 0 ? { min: Math.max(1, Math.round(r.seconds / 60)), km: (r.meters || 0) / 1000 } : null; }
+            var w = werte(route);
+            if (!w) fehlschlag('Die Fahrzeit konnte ich gerade nicht berechnen. Ich schätze sie nicht, versuch es bitte gleich noch einmal.');
+            if (!plausibel(luft, w.km, w.min)) {   // Route passt nicht zu Start und Ziel: einmal gezielt neu rechnen (ohne Google, nur die normale Route), sonst ehrlich nachfragen
+                var erste = Math.round(w.km) + ' Kilometer in ' + w.min + ' Minuten';
+                var altAus = window.__jvGoogleAus, zweite = null;
+                try { window.__jvGoogleAus = true; zweite = await routeDurationSeconds(start.lat, start.lon, dest.lat, dest.lon); } finally { window.__jvGoogleAus = altAus; }
+                var w2 = werte(zweite);
+                if (w2 && plausibel(luft, w2.km, w2.min)) { route = zweite; w = w2; hinweis = ' Die erste Routenberechnung passte nicht zu Start und Ziel (' + erste + '), darum habe ich neu gerechnet.'; }
+                else fehlschlag('Die berechnete Route passt nicht zu Start und Ziel: von ' + startText + ' bis ' + ziel + ' sind es Luftlinie nur etwa ' + Math.round(luft) + ' Kilometer, die Route wäre aber ' + Math.round((w2 || w).km) + ' Kilometer lang. Eine Fahrzeit nenne ich deshalb nicht. Meinst du den richtigen Start und das richtige Ziel?');
+            }
+            var min = w.min, km = w.km;
+            if (min > 600 && luft < 150) fehlschlag('Das Ziel ' + ziel + ' liegt ungewöhnlich weit entfernt (' + Math.round(km) + ' Kilometer). Meinst du den richtigen Ort? Eine Fahrzeit nenne ich deshalb nicht.');
             var kmText = km >= 10 ? Math.round(km) + ' Kilometer' : km.toFixed(1).replace('.', ',') + ' Kilometer';
-            var stau = '';
-            try { stau = await describeAutobahnStau(route.autobahnen, start.lat, start.lon, dest.lat, dest.lon, route.coords) || ''; } catch (e) { if (e && e.auth) throw e; stau = ''; }
+            var meldungen = '';
+            try {
+                await describeAutobahnStau(route.autobahnen, start.lat, start.lon, dest.lat, dest.lon, route.coords);
+                /* nur Meldungen, deren Lage zum echten Linienverlauf der Route passt (Klasse "auf"); "nahe der Route", "im Gebiet" und fremde Meldungen werden nicht genannt */
+                var echt = Array.isArray(route.coords) && route.coords.length > 1;
+                var auf = echt && typeof lastStauWarnings !== 'undefined' ? lastStauWarnings.filter(function (x) { return x && x.klasse === 'auf' && x.title; }) : [];
+                if (auf.length) meldungen = ' Auf der Strecke gemeldet: ' + auf.slice(0, 3).map(function (x) { return x.title; }).join('; ') + '.';
+            } catch (e) { if (e && e.auth) throw e; meldungen = ''; }
             var live = route.quelle === 'google';   // nur die Google-Route enthält den aktuellen Verkehr (stadtverkehr.js); OSRM rechnet ohne
-            var stauMin = live ? 0 : Math.max(0, Math.round(Number(window.jvStauMin) || 0));
-            var davor = von ? 'Von ' + von + ' bis ' + ziel : 'Bis ' + ziel;
+            var stauMin = live || !meldungen ? 0 : Math.max(0, Math.round(Number(window.jvStauMin) || 0));
+            var davor = 'Von ' + startText + ' bis ' + ziel;
             var satz = live
                 ? davor + ' brauchst du jetzt etwa ' + min + ' Minuten (' + kmText + '), berechnet mit dem aktuellen Verkehr.'
                 : davor + ' sind es nach der berechneten Route etwa ' + min + ' Minuten (' + kmText + '). Aktuelle Verkehrsdaten sind darin nicht eingerechnet, das ist also keine Live-Auskunft zur Verkehrslage.' + (stauMin ? ' Gemeldete Verzögerungen auf der Strecke: etwa ' + stauMin + ' Minuten zusätzlich.' : '');
-            return { nachricht: satz + stau, minuten: min, km: Math.round(km * 10) / 10, ziel: ziel, verkehrsdaten: live ? 'live' : 'ohne' };
+            try { window.jvFahrzeitLetzte = { start: start, ziel: dest, luftKm: Math.round(luft * 10) / 10, routeKm: Math.round(km * 10) / 10, minuten: min, verkehrsdaten: live ? 'live' : 'ohne', startQuelle: von ? 'genannt' : 'standort' }; } catch (e) { }   // nur zum Nachprüfen (keine Texte, kein Netzwerk)
+            return { nachricht: satz + hinweis + meldungen, minuten: min, km: Math.round(km * 10) / 10, ziel: ziel, verkehrsdaten: live ? 'live' : 'ohne' };
         }
     });
 
