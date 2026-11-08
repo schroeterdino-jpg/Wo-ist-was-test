@@ -287,6 +287,17 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         await frage(C, 'Wie lange brauche ich von hier zum Hamburger Hauptbahnhof?');
         check('11.3 "von hier" ist kein Startort: bisheriger GPS-Weg, kein Werkzeug', !(C.st.geoQ || []).some(q => /^hier$/i.test(q.trim())));
     }
+    /* 12 Diagnosefenster (vorhandenes diagAdd) zeigt den gewählten Weg */
+    {
+        const A = umgebung({ chefAus: true }); A.st.normal = { reply: 'Ich schaue nach, Sir.', actions: [{ type: 'travel_time', travel_destination: 'Hamburger Hauptbahnhof' }] };
+        const zeilen = []; A.sb.diagAdd = function (z) { zeilen.push(String(z)); };
+        await frage(A, SATZ);
+        check('12.1 Diagnose nennt Werkzeug, Start, Ziel und Kilometer', zeilen.some(z => /^FAHRZEIT: WERKZEUG SUCCESS von=Schwarzenbek/.test(z) && /Luftlinie=.*Route=/.test(z)), zeilen.join(' // '));
+        const B = umgebung({ chefAus: true }); B.st.normal = { reply: 'Ich schaue nach, Sir.', actions: [{ type: 'travel_time', travel_destination: 'Hamburger Hauptbahnhof' }] };
+        const z2 = []; B.sb.diagAdd = function (z) { z2.push(String(z)); };
+        await frage(B, 'Wie lange brauche ich zum Hamburger Hauptbahnhof?');
+        check('12.2 ohne Startort: Diagnose nennt "ALTER WEG" mit Grund', z2.some(z => /ALTER WEG, Grund: kein Startort im Satz/.test(z)), z2.join(' // '));
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });

@@ -494,6 +494,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
             updateTerminalStream("API_FETCH: ROUTE", "FETCHING");
             try {
                 /* Nennt der Satz einen Startort ("von Schwarzenbek zum ...") ohne Ankunftszeit, rechnet das Fahrzeit-Werkzeug mit Plausibilitätsprüfung (der alte Weg kennt nur den GPS-Standort) */
+                const fzDiag = function (z) { try { if (typeof diagAdd === 'function') diagAdd('FAHRZEIT: ' + z); } catch (e) { } };   // vorhandenes Diagnosefenster (Sprachbefehl "Diagnose an")
                 let fzVon = null;
                 try {
                     const mv = String(text).match(/\bvon\s+([A-ZÄÖÜa-zäöüß][A-Za-zÄÖÜäöüß.-]*(?:\s+[A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]*){0,2})\s+(?:zum|zur|nach|bis|zu|ins|an|in)\b/i);
@@ -504,8 +505,10 @@ async function sendToGroqSmartCore(text, opts = {}) {
                         const r = await window.jvRegistry.fuehreAus('fahrzeit', { ziel: resolveTravelDestination(text, ziel), von: mv[1].trim() }, {});
                         if (r && r.nachricht) fzVon = r.nachricht;
                         updateTerminalStream('FAHRZEIT: WERKZEUG ' + (r && r.status || '?') + ' VON ' + mv[1].trim(), 'FETCHING');
-                    } else { updateTerminalStream('FAHRZEIT: ALTER WEG (' + (!mv ? 'kein Startort im Satz' : !startOk ? 'Start unbrauchbar' : !ziel ? 'kein Ziel' : 'Ankunftszeit/Werkzeug fehlt') + ')', 'FETCHING'); }
-                } catch (e) { fzVon = null; try { updateTerminalStream('FAHRZEIT: WERKZEUG-FEHLER ' + String(e && e.message || e).slice(0, 60), 'FETCHING'); } catch (e2) { } }
+                        const L = window.jvFahrzeitLetzte;
+                        fzDiag('WERKZEUG ' + (r && r.status || '?') + ' von=' + mv[1].trim() + ' ziel=' + ziel + (L ? ' | start=' + (L.start ? Number(L.start.lat).toFixed(2) + ',' + Number(L.start.lon).toFixed(2) : '?') + ' ziel=' + (L.ziel ? Number(L.ziel.lat).toFixed(2) + ',' + Number(L.ziel.lon).toFixed(2) + ' ' + String(L.ziel.name || '').slice(0, 40) : '?') + ' Luftlinie=' + L.luftKm + 'km Route=' + L.routeKm + 'km ' + L.minuten + 'min' : '') + ' | ' + String(r && r.nachricht || '').slice(0, 90));
+                    } else { fzDiag('ALTER WEG, Grund: ' + (!mv ? 'kein Startort im Satz' : !startOk ? 'Start unbrauchbar' : !ziel ? 'kein Ziel' : 'Ankunftszeit oder Werkzeug fehlt') + ' | Ziel der KI=' + (travelAction.travel_destination || '(leer)')); updateTerminalStream('FAHRZEIT: ALTER WEG (' + (!mv ? 'kein Startort im Satz' : !startOk ? 'Start unbrauchbar' : !ziel ? 'kein Ziel' : 'Ankunftszeit/Werkzeug fehlt') + ')', 'FETCHING'); }
+                } catch (e) { fzVon = null; fzDiag('WERKZEUG-FEHLER ' + String(e && e.message || e).slice(0, 80)); try { updateTerminalStream('FAHRZEIT: WERKZEUG-FEHLER ' + String(e && e.message || e).slice(0, 60), 'FETCHING'); } catch (e2) { } }
                 if (fzVon) { travelReply = fzVon; } else {
                 const res = await computeDepartureAdvice({
                     query: travelAction.travel_query || '',
@@ -514,6 +517,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
                     wantFuel: true
                 });
                 travelReply = res.reply;
+                fzDiag('alter Weg Antwort: ' + String(res.reply || '').slice(0, 110));
                 if (res.sprit) {
                     const s = res.sprit;
                     travelReply += ` Übrigens, der günstigste Diesel auf der Strecke kostet gerade ${s.preis.toFixed(3).replace('.', ',')} Euro bei ${s.name || 'einer Tankstelle unterwegs'}.`;
