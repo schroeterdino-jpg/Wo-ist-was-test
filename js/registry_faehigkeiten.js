@@ -285,6 +285,7 @@
         if (tr.length) return { name: tr[0].name, adresse: '', quelle: 'kontakt', ohneAdresse: true };
         var pw = personenwort(name); return pw ? { name: pw, adresse: '', quelle: 'kontakt', ohneAdresse: true } : null;
     }
+    try { window.jvPersoenlicheAdresse = { finde: persoenlicheAdresse, text: keineAdresseText }; } catch (e) { }   // dieselbe Auflösung für die Navigation (routing.js resolveContactsInActions)
     function mitRegion(a) { try { return typeof withDefaultRegion === 'function' ? withDefaultRegion(a) : a; } catch (e) { return a; } }
 
     R.registriere({

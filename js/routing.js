@@ -279,6 +279,16 @@ function resolveContactsInActions(actions, text) {
         });
     });
 
+    /* Navigation zu einer Person/Arbeit/Zuhause ohne gespeicherte Adresse: nie als Ortsname an die Karte (gleiche Auflösung wie Fahrzeit/Abfahrt, registry_faehigkeiten.js) */
+    try {
+        const pa = window.jvPersoenlicheAdresse;
+        const nav = pa && actions.find(a => a.type === 'navigate' && a.nav_to);
+        if (nav) {
+            const r = pa.finde(String(nav.nav_to));
+            if (r && r.ohneAdresse) { actions._rueckfrage = pa.text(r); contactAsk = null; return actions; }
+            if (r && r.adresse && r.quelle !== 'kontakt' && !/^(?:zuhause|nachhause|heim|heimat)/.test(normalizeKey(nav.nav_to))) nav.nav_to = r.adresse;   // Arbeit / Gedächtnis-Adresse
+        }
+    } catch (e) { }
     if (contactAsk && window.jvRueckfrage) {   // mehrere Kontakte passen: nichts ausführen, stattdessen nachfragen
         actions._rueckfrage = window.jvRueckfrage.vorbereiten(contactAsk.dest, contactAsk.namen, text, true);
         contactAsk = null;
