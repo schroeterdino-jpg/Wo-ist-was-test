@@ -193,6 +193,9 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const t = await frage(A, SATZ);
         check('8.1 Meldung AUF der Route (autobahn.de und TomTom) wird genannt', /Auf der Strecke gemeldet:/.test(t) && /Fahrtrichtung betroffen ist/.test(t) && /Reinbek - Hamburg-Billstedt/.test(t) && /Stau auf der A24 zwischen Schwarzenbek-Nord und Talkau/.test(t), t);
         check('8.2 Sperrungen/Meldungen NAHE der Route, daneben oder weit weg werden NICHT genannt', !/Wentorf|Aumühle|Norderelbbrücke|Fremdstraße|Woanders|Nebenstraße|Daneben/.test(t) && !/nahe deiner Route|nahe der Route/.test(t), t);
+        const Ohne = umgebung(); Ohne.st.linie = LINIE; Ohne.st.autobahn = []; Ohne.st.tomtom = []; Ohne.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
+        const ohneText = await frage(Ohne, SATZ);
+        check('8.5 ohne konkrete Störung keine technischen Meldungsdienste-Hinweise', /keine konkreten Störungen bekannt/.test(ohneText) && !/Meldungsdienste/.test(ohneText), ohneText);
         const B = umgebung(); B.st.autobahn = AB; B.st.tomtom = TT; B.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };   // ohne Linienverlauf der Route
         const t2 = await frage(B, SATZ);
         check('8.3 ohne echten Linienverlauf wird keine Meldung als "auf der Strecke" behauptet', !/gemeldet|Sperrung|Stau auf/.test(t2) && /brauchst du jetzt etwa 40 Minuten/.test(t2), t2);
