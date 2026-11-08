@@ -493,6 +493,7 @@
   "testsMitGit": [],
   "workflows": [
    "oww-test.yml",
+   "pr-vorbereitung.yml",
    "tests.yml",
    "zane-weckruf.yml"
   ]
