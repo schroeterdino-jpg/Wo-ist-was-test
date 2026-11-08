@@ -224,9 +224,9 @@
         if (!t.trim()) return { absicht: 'nichts', schritte: [] };
         // Arbeitsweg ist ein bekanntes Ziel: bei reinen Verkehrsfragen nicht erneut nachfragen.
         // Die vorhandene Fahrzeit-Fähigkeit prüft Route und Verkehr; kein neues Verkehrssystem.
-        if (/\\b(?:verkehr\\w*|stau\\w*|sperrung\\w*)\\b/i.test(t) &&
-            /\\b(?:weg\\s+zur\\s+arbeit|arbeitsweg|fahrt\\s+zur\\s+arbeit|zur\\s+arbeit)\\b/i.test(t) &&
-            !/\\b(?:und|außerdem|ausserdem)\\b/i.test(t)) {
+        if (/\b(?:verkehr\w*|stau\w*|sperrung\w*)\b/i.test(t) &&
+            /\b(?:weg\s+zur\s+arbeit|arbeitsweg|fahrt\s+zur\s+arbeit|zur\s+arbeit)\b/i.test(t) &&
+            !/\b(?:und|außerdem|ausserdem)\b/i.test(t)) {
             var arbeit = typeof workAddress === 'string' ? workAddress.trim() : '';
             if (arbeit) return { absicht: 'verkehr_arbeitsweg', schritte: [{ faehigkeit: 'fahrzeit', params: { ziel: arbeit } }] };
         }
