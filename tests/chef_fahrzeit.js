@@ -275,6 +275,18 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const t2 = await frage(B, SATZ);
         check('10.2 Chef-KI aus + falsche 314-km-Route: keine 190 Minuten', !/190 Minuten|brauche/.test(t2) && /passt nicht zu Start und Ziel|nenne ich deshalb nicht/.test(t2), t2);
     }
+    /* 11 die KI liefert travel_time OHNE Ziel (Handy-Diagnose): Ziel und Start kommen aus dem Satz */
+    {
+        const A = umgebung({ chefAus: true }); A.st.normal = { reply: 'Ich schaue nach, Sir.', actions: [{ type: 'travel_time' }] };
+        const t = await frage(A, SATZ);
+        check('11.1 travel_time ohne Ziel: trotzdem Fahrzeit-Werkzeug, Start Schwarzenbek, Ziel Hauptbahnhof', /Schwarzenbek/.test(t) && /Hauptbahnhof/.test(t) && /40 Minuten/.test(t), t);
+        const B = umgebung({ chefAus: true }); B.st.normal = { reply: 'Ich schaue nach, Sir.', actions: [{ type: 'travel_time', travel_destination: 'Hamburger Hauptbahnhof' }] };
+        const t2 = await frage(B, SATZ.toLowerCase());
+        check('11.2 kleingeschriebener Satz (Spracherkennung): Start wird trotzdem erkannt', /40 Minuten/.test(t2) && /chwarzenbek/i.test(t2), t2);
+        const C = umgebung({ chefAus: true }); C.st.normal = { reply: 'Ich schaue nach, Sir.', actions: [{ type: 'travel_time', travel_destination: 'Hamburger Hauptbahnhof' }] };
+        await frage(C, 'Wie lange brauche ich von hier zum Hamburger Hauptbahnhof?');
+        check('11.3 "von hier" ist kein Startort: bisheriger GPS-Weg, kein Werkzeug', !(C.st.geoQ || []).some(q => /^hier$/i.test(q.trim())));
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });
