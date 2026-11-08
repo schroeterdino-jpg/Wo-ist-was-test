@@ -1,7 +1,7 @@
 # JARVIS – Masterplan (dauerhaftes Projektgedächtnis)
 
 Gemeinsame Projektübersicht für Dino, Claude, ChatGPT und andere Entwickler. Sie **ersetzt nicht die Prüfung des aktuellen Codes**: Aufbau und Dateien stehen in `ARCHITEKTUR.md` und `LANDKARTE.md`, dieser Plan sagt, **was beschlossen, im Bau und offen ist**.
-Pflege: siehe Abschnitt 8. Stand: 08.11.2026, nach PR #400 (Werkzeug `schicht` am Handy bestätigt).
+Pflege: siehe Abschnitt 8. Stand: 08.11.2026, nach PR #404 (Schichtzeiten-Eingabe am Handy bestätigt).
 
 ## 1. Projektziel
 Jarvis (intern noch „Zane“) ist Dinos persönlicher Sprachassistent als Web-App (PWA auf Vercel) plus Weckruf-APK für Android. Er arbeitet nur am Handy (Samsung), spricht Deutsch, antwortet kurz und ohne Fachjargon. Ziel der nächsten Phase: ein Jarvis, den Dino anderen Menschen **zuverlässig vorführen** kann – er versteht natürliche Sprache, wählt seine Werkzeuge selbst, prüft Ergebnisse und erfindet nichts.
@@ -22,7 +22,8 @@ Quelle der Wahrheit: `ARCHITEKTUR.md` (Überblick, Stolperfallen), `LANDKARTE.md
 - **Adress-Dialog („Navigiere mich zu Oma“) am Handy bestätigt (08.11.2026):** Adresse nennen → Speicherfrage → Ja → „Soll ich jetzt die Navigation starten?“ → Ja → Start. Der erste Handytest von #396 war fehlgeschlagen; #397 hat die Ursache behoben, der erneute Handytest verlief vollständig erfolgreich.
 - **Schichtfragen (PR #398 Doku, PR #399) am Handy bestätigt (08.11.2026, Chef-KI EIN und AUS):** „Bin ich nächste Woche in Spätschicht?“ ändert den Plan nicht, „Habe ich am Samstag frei?“, „Wann muss ich übermorgen zur Arbeit losfahren?“ und „Ich muss morgen 30 Minuten früher anfangen“ funktionieren.
 - **Werkzeug `schicht` (PR #400) am Handy bestätigt (08.11.2026):** „Habe ich Samstag frei und wie wird morgen das Wetter?“ und „Wann muss ich übermorgen arbeiten und wie wird das Wetter?“ (Chef-KI EIN) sowie eine einfache Schichtfrage (Chef-KI AUS) funktionieren.
-- **Aktuelle Aufgabe:** Kombinationen Schicht + Abfahrt/Fahrzeit (PR offen, Handytest folgt).
+- **Handytest 08.11.2026 (#401–#404):** Der Test der Kombinationen (#401) fand zwei Fehler: „13 Uhr 33“ verlor die Minuten und „Montag beginnt meine Schicht um 13.33“ ging an die KI (#402 behoben). Danach ließ sich der feste Spät-Beginn in den Einstellungen nicht ändern: Der Samsung-Zeitwähler zeigte keine OK-Taste (Screenshots). #403 (automatisch speichern) half deshalb nicht, #404 (Zahlenfelder statt Zeitwähler) funktioniert am Handy. Alte Tagesausnahmen aus früheren Tests (Beginn 12:33, „30 Minuten früher“) erklärten die falschen Zeiten; „Mach die frühere Abfahrt rückgängig“ löscht sie. Offen: Kombination Abfahrt + Wetter am Handy erneut prüfen; Rückfrage „Welchen Ort meinst du?“ beim Wetterteil (nur bei „dort/da“ im Satz) – genauer Satz fehlt.
+- **Aktuelle Aufgabe:** Handytest Kombinationen (Abfahrt + Wetter, „Muss ich morgen arbeiten und wann muss ich losfahren?“) nach #402; danach Verkehr und Lagebild mit der Chef-KI.
 - Händlerlink-Korrektur umgesetzt; **tatsächlicher Erfolg auf dem Handy noch nicht abschließend bestätigt**. Bei Bedarf später mit der Diagnose („Diagnose an“, Zeilen „Händlerlinks …“ / „Angebote …“) erneut prüfen – jetzt keine weitere Reparaturrunde.
 - **PR #365** (Schichtzeiten, Branch `jarvis-schichten`) bleibt offen und **unangetastet**. PR #363 / Branch `studio-bilder` sind obsolet (Rückfrage an Dino offen).
 - **Nächste Phase:** Werkzeugzentrale, KI-Dirigent, intelligente Kamera.
@@ -111,7 +112,9 @@ Status: Geplant, In Arbeit, Fertig, Blockiert. „Bestehendes nutzen“ heißt: 
 | #398 | Masterplan nachgeführt, Ablauf je Schritt in `CLAUDE.md` | gemergt |
 | #399 | Schichtfragen: Fragen ändern nie den Plan, genannter Tag bei Abfahrt, Tagesfragen aus dem Plan, „früher anfangen“; Handytest erfolgreich (08.11.2026) | gemergt |
 | #400 | Werkzeug `schicht`: lesendes Registry-Werkzeug für die Chef-KI, Tests `tests/chef_fahrzeit.js` Abschnitt 22; Handytest erfolgreich (08.11.2026) | gemergt |
-| Kombinationen | Abfahrt + zweite Frage (Wetter/Fahrzeit) ohne Verlust, Tagesfrage + „wann muss ich losfahren“; Tests `tests/schicht_zeiten.js` Abschnitt 12 | PR offen, Handytest folgt |
+| #402 | Tagesausnahme: „13 Uhr 33“ behält Minuten; „Montag beginnt meine Schicht um 13.33“ ist Tagesausnahme; Tests `tests/schicht_zeiten.js` Abschnitt 13 | gemergt, Handytest der Sätze offen |
+| #403/#404 | Schichtzeiten in den Einstellungen: Zahlenfelder statt Zeitwähler (ohne OK-Taste), Speichern bei Verlassen/Enter; Test `tests/schicht_einstellungen.js`; #404 am Handy bestätigt (08.11.2026) | gemergt |
+| #401 | Abfahrt + zweite Frage (Wetter/Fahrzeit) ohne Verlust, Tagesfrage + „wann muss ich losfahren“; Tests `tests/schicht_zeiten.js` Abschnitt 12 | gemergt, Handytest teilweise (Wetterteil offen) |
 | #365 | Schichtzeiten (`jarvis-schichten`) | offen, nicht anfassen |
 | #363 | Studio 2.0 Phase 2 (`studio-bilder`) | offen, obsolet (Rückfrage an Dino unbeantwortet) |
 
