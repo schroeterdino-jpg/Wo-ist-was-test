@@ -236,7 +236,7 @@
     const SHIFT_RX = /(?<![a-zäöüß])(frühschicht|spätschicht)(?![a-zäöüß])/;
     const THIS_WEEK = /(?<![a-zäöüß])(?:diese|dieser|aktuelle|laufende)\s+woche(?![a-zäöüß])/;
     const NEXT_WEEK = /(?<![a-zäöüß])(?:nächste|kommende|folgende)\s+woche(?![a-zäöüß])/;
-    const QUERY_RX = /(?:welche[rn]?|was für (?:eine|ne))\s+schicht|schicht\b.*\b(?:habe|hab) ich\b|^(?:habe|hab) ich\b.*schicht|in welcher schicht|schichtplan|meine schichten|^(?:ist|sind)\b.*schicht\b|wechsel(?:t)? (?:die |meine )?schicht/;
+    const QUERY_RX = /(?:welche[rn]?|was für (?:eine|ne))\s+schicht|schicht\b.*\b(?:habe|hab) ich\b|^(?:habe|hab) ich\b.*schicht|in welcher schicht|schichtplan|meine schichten|^(?:ist|sind)\b.*schicht\b|^(?:bin|muss|arbeite|werde|bleibe) ich\b.*schicht\b|wechsel(?:t)? (?:die |meine )?schicht/;   const FRAGE_ANFANG = /^(?:(?:bin|habe|hab|muss|arbeite|werde|bleibe|hast|musst|arbeitest) (?:ich|du)|ist|sind|hat|wird|werden)\b/;   // Fragesatz mit vorangestelltem Verb: schreibt nie in den Schichtplan
     const WHEN_RX = /wann (?:kommt|ist|gibt es|sagst du)\b.*\bbriefing|wann\b.*\bmein briefing|um wie viel uhr.*briefing/;
     const AUTO_RX = /^(?:das |mein |automatische[sn]? )?(?:schicht[- ]?briefing|automatisches briefing)\s+(aus|ausschalten|an|ein|einschalten)$/;
 
@@ -327,7 +327,7 @@
         }
 
         // Schicht festlegen: "Diese Woche Frühschicht", "Nächste Woche habe ich Spätschicht"
-        if (hasShift && (THIS_WEEK.test(t) || NEXT_WEEK.test(t)) && !/^(?:wie|wann|wo|was|wer|warum|wieso|kann|kannst|soll)\b/.test(t) && !/briefing/.test(t)) {
+        if (hasShift && (THIS_WEEK.test(t) || NEXT_WEEK.test(t)) && !/^(?:wie|wann|wo|was|wer|warum|wieso|kann|kannst|soll)\b/.test(t) && !FRAGE_ANFANG.test(t) && !/\?\s*$/.test(raw) && !/briefing/.test(t)) {
             const key = hasShift[1] === 'frühschicht' ? 'frueh' : 'spaet';
             const nextWeek = NEXT_WEEK.test(t) && !THIS_WEEK.test(t);
             const s = st || { times: Object.assign({}, DEFAULT_TIMES), auto: true };

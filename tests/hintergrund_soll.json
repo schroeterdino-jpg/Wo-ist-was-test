@@ -1555,7 +1555,7 @@
    "mail_nacht.js:218 @1800000",
    "mail_nacht.js:219 @15000",
    "parkplatz_auto.js:50 @60000",
-   "plan_ansagen.js:1064 @600000",
+   "plan_ansagen.js:1100 @600000",
    "pushsync.js:201 @120000",
    "pushsync.js:202 @600000",
    "routinen.js:224 @60000",

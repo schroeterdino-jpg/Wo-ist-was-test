@@ -88,7 +88,7 @@ const TABELLE = [
     {k:'form', s:"Wann muss ich morgen zur Arbeit?", w:'lokal', m:"schicht_auskunft", sagt:/keine schicht/},
     {k:'form', s:"Welche Schicht habe ich diese Woche?", w:'lokal', m:"schicht", sagt:/spätschicht/},
     {k:'form', s:"Welche Schicht habe ich übernächste Woche?", w:'lokal', m:"schicht"},
-    {k:'form', s:"Habe ich morgen Frühschicht?", w:'lokal', m:"schicht"},
+    {k:'form', s:"Habe ich morgen Frühschicht?", w:'lokal', m:"plan_ansagen"},
     {k:'form', s:"Muss ich morgen früh raus?", w:'ki'},
     {k:'form', s:"Wann ist meine Schicht zu Ende?", w:'lokal', m:"schicht_auskunft", sagt:/feierabend/},
     {k:'form', s:"Wann habe ich Feierabend?", w:'lokal', m:"schicht_auskunft"},
