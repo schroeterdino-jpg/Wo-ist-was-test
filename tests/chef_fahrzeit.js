@@ -733,7 +733,7 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
     // Regression: Arbeitsweg-Verkehr darf bei gespeicherter Adresse nicht nach dem Ziel fragen.
     {
         const X = umgebung();
-        X.sb.workAddress = 'Beispielstraße 1, Hamburg';
+        X.setze('workAddress', 'Beispielstraße 1, Hamburg');
         const p = X.sb.jvChef._lokal('Wie ist die Verkehrslage auf meinem Weg zur Arbeit?');
         check('23.1 Arbeitsweg-Verkehr nutzt gespeicherte Arbeitsadresse', p.schritte.length === 1 && p.schritte[0].faehigkeit === 'fahrzeit' && p.schritte[0].params.ziel === 'Beispielstraße 1, Hamburg');
         const q = X.sb.jvChef._lokal('Wie ist die Verkehrslage nach Berlin?');
