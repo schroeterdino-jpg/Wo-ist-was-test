@@ -46,7 +46,7 @@ function umgebung(opt) {
                 return ant({ choices: [{ message: { content: typeof a === 'string' ? a : JSON.stringify(a) } }] });
             }
             st.groq++; (st.normaleM = st.normaleM || []).push(JSON.stringify(m)); st.normaleSaetze.push(String((m[m.length - 1] || {}).content || ''));
-            return ant({ choices: [{ message: { content: JSON.stringify({ reply: 'Okay.', actions: [] }) } }] });
+            return ant({ choices: [{ message: { content: JSON.stringify(st.normal || { reply: 'Okay.', actions: [] }) } }] });
         }
         if (/api\/geocode/.test(u)) { st.geoN = (st.geoN || 0) + 1; const q = decodeURIComponent((u.match(/q=([^&]*)/) || [])[1] || ''); st.geoQ = (st.geoQ || []).concat(q); if (st.geo === 'leer') return ant([]);
             let ort = { lat: '53.55', lon: '10.0', name: q + ', Hamburg, Deutschland' };
@@ -264,6 +264,16 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         check('7.2 frisch gestartet ist die Chef-KI AUS', F.sb.jvChef.istAn() === false);
         const src = lies('js/travel.js') + lies('js/stadtverkehr.js') + lies('js/fahrtcheck.js');
         check('7.3 die bestehende Fahrzeit-Logik (travel.js, stadtverkehr.js, fahrtcheck.js) ist unverändert', !/jarvis_info|fahrzeit\b.*registry/i.test(src));
+    }
+    /* 10 Chef-KI aus: der alte Weg (Groq travel_time) darf "von X" nicht mehr ignorieren */
+    {
+        const A = umgebung({ chefAus: true }); A.st.normal = { reply: 'Ich rechne.', actions: [{ type: 'travel_time', travel_destination: 'Hamburger Hauptbahnhof' }] };
+        const t = await frage(A, SATZ);
+        check('10.1 Chef-KI aus + alter Weg: Startort aus dem Satz, Fahrzeit mit Plausibilitätsprüfung, keine GPS-Route', /Schwarzenbek/.test(t) && /40 Minuten/.test(t) && A.st.ent === 0, t);
+        const B = umgebung({ chefAus: true }); B.st.normal = { reply: 'Ich rechne.', actions: [{ type: 'travel_time', travel_destination: 'Hamburger Hauptbahnhof' }] };
+        B.st.meter = 314000; B.st.dauer = 190 * 60; B.st.meterOsrm = 314000; B.st.dauerOsrm = 190 * 60;
+        const t2 = await frage(B, SATZ);
+        check('10.2 Chef-KI aus + falsche 314-km-Route: keine 190 Minuten', !/190 Minuten|brauche/.test(t2) && /passt nicht zu Start und Ziel|nenne ich deshalb nicht/.test(t2), t2);
     }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
