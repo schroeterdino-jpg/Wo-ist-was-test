@@ -416,6 +416,14 @@ const ids = (plan, art) => plan.filter(e => e.id.split('|')[0] === art);
             check('12.5 (' + L + ') Samstag: Nein, keine erfundene Abfahrtszeit, keine KI', /^Nein/.test(r.t) && !/Fahr gegen/.test(r.t) && r.groq === 0, r.t);
             r = await lauf('Habe ich am Dienstag frei und wann muss ich losfahren?', { chef });
             check('12.6 (' + L + ') Dienstag (Spätschicht, normal): Abfahrt 13 Uhr 3 ohne Ausnahme', /^Nein/.test(r.t) && /Fahr gegen 13 Uhr 3 los/.test(r.t) && r.groq === 0, r.t);
+            r = await lauf('Wann muss ich morgen zur Arbeit losfahren und wie wird das Wetter?', { chef, vor: true });
+            check('12.7 (' + L + ') Wetterteil bekommt den Tag der Abfahrt mit (sonst fragt die KI nach Ort und Tag)', r.kiFragen.some(f => /wie wird das wetter morgen/i.test(f)), JSON.stringify(r.kiFragen));
+            r = await lauf('Wann muss ich übermorgen zur Arbeit losfahren und wie wird das Wetter?', { chef, vor: true });
+            check('12.8 (' + L + ') übermorgen: Wetterteil mit "übermorgen"', r.kiFragen.some(f => /wetter übermorgen/i.test(f)), JSON.stringify(r.kiFragen));
+            r = await lauf('Wann muss ich zur Arbeit losfahren und wie wird das Wetter?', { chef, vor: true });
+            check('12.9 (' + L + ') ohne genannten Tag: nächster Arbeitstag (morgen) gilt auch für das Wetter', r.kiFragen.some(f => /wetter morgen/i.test(f)), JSON.stringify(r.kiFragen));
+            r = await lauf('Wann muss ich morgen zur Arbeit losfahren und wie wird das Wetter in Hamburg?', { chef, vor: true });
+            check('12.10 (' + L + ') Wetterteil mit eigenem Ort (Hamburg) geht weiter an den Ortsweg, keine Rückfrage nach dem Ort', /Hamburg/.test(r.t) && !/Welchen Ort|welchen Ort/.test(r.t), r.t);
         }
     }
     /* --- 13. Einmalige Ausnahme "Montag 13:33": "13 Uhr 33" behält die Minuten, "Montag beginnt meine Schicht um 13.33" ist eine Ausnahme (nicht KI, nicht die feste Zeit) --- */
