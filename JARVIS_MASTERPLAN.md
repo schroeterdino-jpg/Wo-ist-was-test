@@ -1,7 +1,7 @@
 # JARVIS – Masterplan (dauerhaftes Projektgedächtnis)
 
 Gemeinsame Projektübersicht für Dino, Claude, ChatGPT und andere Entwickler. Sie **ersetzt nicht die Prüfung des aktuellen Codes**: Aufbau und Dateien stehen in `ARCHITEKTUR.md` und `LANDKARTE.md`, dieser Plan sagt, **was beschlossen, im Bau und offen ist**.
-Pflege: siehe Abschnitt 8. Stand: 07.11.2026, nach PR #375.
+Pflege: siehe Abschnitt 8. Stand: 08.11.2026, nach PR #396 (Handytest fehlgeschlagen, Folge-Fix offen).
 
 ## 1. Projektziel
 Jarvis (intern noch „Zane“) ist Dinos persönlicher Sprachassistent als Web-App (PWA auf Vercel) plus Weckruf-APK für Android. Er arbeitet nur am Handy (Samsung), spricht Deutsch, antwortet kurz und ohne Fachjargon. Ziel der nächsten Phase: ein Jarvis, den Dino anderen Menschen **zuverlässig vorführen** kann – er versteht natürliche Sprache, wählt seine Werkzeuge selbst, prüft Ergebnisse und erfindet nichts.
@@ -57,6 +57,7 @@ Status: Geplant, In Arbeit, Fertig, Blockiert. „Bestehendes nutzen“ heißt: 
 - **Händlerlinks:** Erfolg am Handy offen. Links kommen aus einer zusätzlichen Websuche (höchstens 1 + 5 Anfragen), nicht live gegen den Suchdienst getestet; kleine Shops können ohne Link bleiben (Karte sagt es). Preis und separat gesuchter Link sind **nicht** als identisches Live-Angebot zu verstehen.
 - **Produktbilder** nur, wenn der Preisdienst (serper.dev) eine Bild-Adresse liefert.
 - **Produktgedächtnis:** 10 Minuten, nur im Arbeitsspeicher (nach App-Neustart leer); „Welches ist besser?“ (Qualität) läuft weiter über die KI.
+- **Adress-Dialog bei „Navigiere mich zu Oma“ (PR #396): Handytest FEHLGESCHLAGEN (08.11.2026).** Ablauf am Handy: „Navigiere mich zu Oma.“ → Jarvis fragt nach der genauen Adresse → „Frankfurter Straße 21 in Schwarzenbek.“ → Navigation startete sofort, ohne Speicherfrage. Nachgewiesene Ursache: Die Rückfrage kam von der KI selbst (Antwort ohne Aktion), nicht von Jarvis; dadurch wurde der offene Dialog (`adr` in `rueckfrage.js`) nie angelegt, die Adresse ging als normaler Satz an die KI, die sofort navigierte. Die Tests von #396 hatten nur den Weg „KI liefert navigate“ abgedeckt. Folge-Fix: „Navigiere/Fahr/Bring mich zu <Person>“ wird vor der KI abgefangen (`rueckfrage.js`, Rang 0.4); Tests 21.x in `tests/chef_fahrzeit.js`. **Gilt erst nach erfolgreichem erneuten Handytest als behoben.**
 - **Chef-KI** (`chef.js`) ist standardmäßig AUS (Schalter in den Einstellungen / `jv_chef`); nicht ungefragt einschalten.
 - Weitere dokumentierte, bewusst offene Punkte: `ARCHITEKTUR.md`, Abschnitt „Bekannte offene technische Punkte“.
 - Änderungen unter `weckruf-src/` lösen einen APK-Bau aus; Dino muss die neue APK installieren.

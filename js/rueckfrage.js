@@ -140,6 +140,13 @@
         const t = plain(text).replace(/^(?:hey |hallo |ok |okay )?(?:jarvis|zane|nova) /, '');
         if (/\b(?:vergiss|loesche|lösche)\b.*\bgemerkten\b.*\brueckfragen?\b|\bfrag wieder nach\b.*\b(?:namen|kontakten)\b/.test(t)) { lsSet(K_MERK, '{}'); sagen('Gut, ich habe mir die Auswahl nicht gemerkt und frage wieder nach.', false); return true; }
         if (nimmAdr() && t) { if (adresseAntwort(text, t)) return true; return next(text); }
+        /* Navigation zu einer Person ohne Adresse schon VOR der KI abfangen: sonst stellt die KI die Adressfrage selbst, es gibt keinen offenen Dialog (adr) und die genannte Adresse startet sofort die Navigation */
+        try {
+            const pa = window.jvPersoenlicheAdresse;
+            const m = pa && t.split(' ').length <= 9 && /\b(?:navigier\w*|fahr\w*|bring\w*|route|weg)\b/.test(t) && /\b(?:zu|zur|zum|nach|bei)\s+(?:meiner\s+|meinem\s+|meinen\s+|meine\s+|mein\s+)?([a-z]+)$/.exec(t);
+            const r = m && pa.finde(m[1]);
+            if (r && r.ohneAdresse) { sagen(pa.text(r), true); return true; }
+        } catch (e) { }
         const o = nimmOffen();
         if (!o || !t || t.split(' ').length > 8) return next(text);
         if (/^(vergiss es|vergiss das|abbrechen|abbruch|egal|lass gut sein|lass es|nichts|stopp|stop|nein danke|keinen)\b/.test(t)) { offen = null; sagen('In Ordnung, dann lassen wir es.', false); return true; }

@@ -650,6 +650,38 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
                 check('20.20 (' + L + ') bestehende Navigation ' + ziel + ' unverändert, genau eine, kein Dialog', A.navs().length === 1 && erwartet.test(A.navs()[0]) && !A.sb.jvRueckfrage.adresseOffen(), JSON.stringify(A.navs()));
             }
         }
+        /* --- 21. Handytest PR #396: die KI stellt die Adressfrage selbst (keine Aktion) -> Jarvis muss den Dialog trotzdem führen --- */
+        {
+            const HADR = 'Frankfurter Straße 21 in Schwarzenbek';
+            const kiFragt = A => { A.st.kiSaetze = []; A.st.normal = m => { const u = letzte(m); A.st.kiSaetze.push(u); const a = /Frankfurter[^?]*/.exec(u); return a ? { reply: 'Ich starte die Navigation.', actions: [{ type: 'navigate', nav_to: a[0] }] } : { reply: 'Wie lautet die genaue Adresse von Oma, Sir?', actions: [] }; }; };
+            for (const chefAus of [false, true]) for (const weg of ['tippen', 'mikro']) for (const punkt of ['.', '']) {
+                const L = (chefAus ? 'AUS' : 'EIN') + '/' + weg + (punkt ? '/Punkt' : '');
+                const A = mit(chefAus ? { chefAus: true } : {}); kiFragt(A);
+                const f = weg === 'tippen' ? tippen : mikro;
+                const sagW = async t => (await f(A, t, 200)).join(' | ');
+                const a1 = await sagW('Navigiere mich zu Oma.');
+                check('21.1 (' + L + ') Oma ohne Adresse: Jarvis fragt selbst, die KI wird nicht gefragt, keine Navigation', /keine Adresse von Oma gespeichert\. Wie lautet sie\?/.test(a1) && A.st.kiSaetze.length === 0 && A.navs().length === 0 && !!A.sb.jvRueckfrage.adresseOffen(), a1);
+                const a2 = await sagW(HADR + punkt);
+                check('21.2 (' + L + ') gesprochene Adresse: erst die Speicherfrage, keine Navigation, nichts gespeichert, KI nicht gefragt', /Soll ich diese Adresse bei Oma in deinen Kontakten speichern\?/.test(a2) && A.navs().length === 0 && anzahl(A) === 0 && A.st.kiSaetze.length === 0, a2);
+                const a3 = await sagW('Ja');
+                check('21.3 (' + L + ') Ja: gespeichert, dann erst die Frage nach der Navigation, noch keine Navigation', anzahl(A) === 1 && /Soll ich jetzt die Navigation zu Oma starten\?/.test(a3) && A.navs().length === 0, a3);
+                await sagW('Ja');
+                check('21.4 (' + L + ') zweites Ja: genau eine Navigation zur Adresse', A.navs().length === 1 && /Frankfurter Straße 21/.test(A.navs()[0]), JSON.stringify(A.navs()));
+            }
+            for (const satz of ['Fahr mich zu Oma', 'Bring mich zu meiner Oma', 'Route zu Oma']) {
+                const A = mit({}); kiFragt(A);
+                const t = await sag(A, satz);
+                check('21.5 Variante "' + satz + '": Jarvis-Rückfrage statt KI', /keine Adresse von Oma gespeichert/.test(t) && A.st.kiSaetze.length === 0 && A.navs().length === 0, t);
+            }
+            {   // Oma mit Adresse und Orte: unverändert, kein Dialog
+                const A = mit({}, { oma: { originalName: 'Oma', address: 'Altweg 3, 22222 Altstadt' } }); kiFragt(A);
+                await sag(A, 'Navigiere mich zu Oma');
+                check('21.6 Oma mit Adresse: Weg über die bisherige Navigation, kein Dialog', !A.sb.jvRueckfrage.adresseOffen(), JSON.stringify(A.navs()));
+                const B = mit({}); kiFragt(B); B.st.normal = { reply: 'ok', actions: [{ type: 'navigate', nav_to: 'Hamburg' }] };
+                await sag(B, 'Navigiere mich nach Hamburg');
+                check('21.7 normaler Ort ohne Person: unverändert genau eine Navigation, kein Dialog', B.navs().length === 1 && !B.sb.jvRueckfrage.adresseOffen(), JSON.stringify(B.navs()));
+            }
+        }
     }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
