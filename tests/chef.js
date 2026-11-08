@@ -72,7 +72,7 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
     check('0b Standard: AUS', A.sb.jvChef.istAn() === false);
     const befehle0 = A.sb.jvCommands.list().map(c => c.name || c).join('|'), anzahl0 = A.sb.jvCommands.list().length;
     check('0c Befehlsliste vorhanden (Anzahl wird unten vor/nach Chef-KI verglichen; die Zahl 94 sichern tests/reihenfolge.js und tests/globale.js)', A.sb.jvCommands.list().length >= 90);
-    check('0d die Chef-KI führt nur lesende Fähigkeiten aus (ortssuche, websuche, wetter); Schreib-Fähigkeiten sind gesperrt', A.sb.jvChef.FREIGEGEBEN.join() === 'ortssuche,websuche,wetter,produktsuche,foto_info,jarvis_info,fahrzeit' && A.sb.jvChef.SCHREIB.join() === 'erinnerung_erstellen,termin_erstellen,gedaechtnis_speichern,aufgabe_erstellen,termin_verschieben,kontakt_speichern' && Object.isFrozen(A.sb.jvChef.FREIGEGEBEN));
+    check('0d die Chef-KI führt nur lesende Fähigkeiten aus (ortssuche, websuche, wetter); Schreib-Fähigkeiten sind gesperrt', A.sb.jvChef.FREIGEGEBEN.join() === 'ortssuche,websuche,wetter,produktsuche,foto_info,jarvis_info,fahrzeit,kontakte_lesen,gedaechtnis_lesen' && A.sb.jvChef.SCHREIB.join() === 'erinnerung_erstellen,termin_erstellen,gedaechtnis_speichern,aufgabe_erstellen,termin_verschieben,kontakt_speichern' && Object.isFrozen(A.sb.jvChef.FREIGEGEBEN));
 
     /* ---------- 10. AUS: bisheriges Verhalten unverändert ---------- */
     const satz = 'Ich habe Hunger, was gibt es hier in der Nähe?';

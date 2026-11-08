@@ -341,6 +341,46 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         await frage(E, 'Wie lange brauche ich mit dem Auto zum Hamburger Hauptbahnhof?');
         check('14.5 "Wie lange brauche ich" ist keine Abfahrtsfrage', E.st.ent === 1 && E.st.groq === 0);
     }
+    /* 15 Kontakte und Gedächtnis lesen (künstliche Beispieldaten), persönliche Ziele mit Vorrang vor der Ortssuche */
+    {
+        const KONT = { mama: { originalName: 'Mama', address: 'Musterweg 1, 12345 Beispielstadt' }, zahnarzt: { originalName: 'Zahnarzt Dr. Test', address: 'Testallee 9, 12345 Beispielstadt' } };
+        const mit = (opt, kontakte, gedaechtnis) => { const A = umgebung(opt); if (kontakte) A.setze('savedContacts', kontakte); if (gedaechtnis) A.setze('memoryItems', gedaechtnis); A.z0 = stand(A); return A; };
+        const LES = (name) => ({ faehigkeit: 'kontakte_lesen', params: { name } });
+        const A = mit({}, KONT); A.st.plan = { schritte: [LES('meiner Mutter')] };
+        const t = await frage(A, 'Wo wohnt meine Mutter?');
+        check('15.1 "Wo wohnt meine Mutter?": gespeicherte Adresse genannt, keine normale KI, keine Websuche, nichts geschrieben', /Musterweg 1, 12345 Beispielstadt/.test(t) && A.st.groq === 0 && A.st.webN === 0 && stand(A) === A.z0, t);
+        const B = mit({}, KONT); B.st.plan = { schritte: [LES('meinem Bruder')] };
+        const t2 = await frage(B, 'Wo wohnt mein Bruder?');
+        check('15.2 kein Kontakt: ehrlich "nicht gefunden", keine erfundene Adresse', /keinen Kontakt/.test(t2) && !/Musterweg|Testallee/.test(t2) && B.st.webN === 0, t2);
+        const C = mit({}, { 'anna muster': { originalName: 'Anna Muster', address: 'Erste Gasse 1, 11111 Ort' }, 'anna beispiel': { originalName: 'Anna Beispiel', address: 'Zweite Gasse 2, 22222 Ort' } }); C.st.plan = { schritte: [LES('Anna')] };
+        const t3 = await frage(C, 'Wo wohnt Anna?');
+        check('15.3 mehrdeutig (zwei Annas): Nachfrage mit beiden Namen, keine Adresse genannt', /Meinst du Anna Muster oder Anna Beispiel/.test(t3) && !/Gasse/.test(t3), t3);
+        const D = mit({}, null, { 'mama wohnort': 'Gedaechtnisweg 7, 33333 Testdorf' }); D.st.plan = { schritte: [LES('Mama')] };
+        const t4 = await frage(D, 'Wo wohnt meine Mama?');
+        check('15.4 kein Kontakt, aber Gedächtniseintrag mit Adresse: Fallback', /Gedaechtnisweg 7/.test(t4), t4);
+        const E = mit({}, KONT); E.st.plan = { schritte: [FZ('meiner Mutter')] };
+        const t5 = await frage(E, 'Wie lange brauche ich zu meiner Mutter?');
+        check('15.5 Fahrzeit zur Mutter: Kontaktadresse wird gesucht (nicht "meiner Mutter" bei der Ortssuche), echte Route', (E.st.geoQ || []).some(q => /Musterweg 1/.test(q)) && !(E.st.geoQ || []).some(q => /Mutter/i.test(q)) && /\d+ Minuten/.test(t5) && E.st.webN === 0 && E.st.groq === 0, JSON.stringify(E.st.geoQ) + ' ' + t5);
+        const F = mit({}, KONT); F.st.plan = { schritte: [FZ('meinem Zahnarzt')] };
+        const t6 = await frage(F, 'Wie weit ist es zu meinem Zahnarzt?');
+        check('15.6 Zahnarzt: Adresse aus dem Kontakt "Zahnarzt Dr. Test", Entfernung berechnet', (F.st.geoQ || []).some(q => /Testallee 9/.test(q)) && /Kilometer/.test(t6), JSON.stringify(F.st.geoQ) + ' ' + t6);
+        const G = mit({}, { 'anna muster': { originalName: 'Anna Muster', address: 'Erste Gasse 1, 11111 Ort' }, 'anna beispiel': { originalName: 'Anna Beispiel', address: 'Zweite Gasse 2, 22222 Ort' } }); G.st.plan = { schritte: [FZ('Anna')] };
+        const t7 = await frage(G, 'Wie lange brauche ich zu Anna?');
+        check('15.7 Fahrzeit zu mehrdeutigem Kontakt: Nachfrage, keine Route, keine Minuten', /Meinst du Anna Muster oder Anna Beispiel/.test(t7) && !/\d+ Minuten/.test(t7) && !(G.st.routeUrls || []).length, t7);
+        const H = mit({}, KONT); H.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
+        const t8 = await frage(H, SATZ);
+        check('15.8 normale Ortssuche ohne Personenbezug bleibt unverändert (Kontakte werden nicht eingemischt)', /40 Minuten/.test(t8) && !(H.st.geoQ || []).some(q => /Musterweg|Testallee/.test(q)), t8);
+        const I = mit({ chefAus: true }, KONT); I.st.plan = { schritte: [LES('meiner Mutter')] };
+        await frage(I, 'Wo wohnt meine Mutter?');
+        check('15.9 Chef-KI AUS: kein Planer, der bisherige Weg (1 normale KI-Anfrage)', I.st.ent === 0 && I.st.groq === 1);
+        const J = mit({}, null, { 'schlüssel': 'im Auto' }); J.st.plan = { schritte: [{ faehigkeit: 'gedaechtnis_lesen', params: { suche: 'schlüssel' } }] };
+        const t9 = await frage(J, 'Wo habe ich meinen Schlüssel hingelegt, was habe ich mir gemerkt?');
+        check('15.10 gedaechtnis_lesen: nennt den gemerkten Wert, schreibt nichts', /im Auto/.test(t9) && stand(J) === J.z0, t9);
+        const K = mit({}, KONT); K.st.plan = { schritte: [{ faehigkeit: 'kontakte_lesen', params: { name: 'Mutter', adresse: 'Fremdweg 1' } }] };
+        await frage(K, 'Wo wohnt meine Mutter?');
+        check('15.11 unbekannte Parameter im Plan: verworfen (nichts ausgeführt, bisheriger Weg)', K.st.groq === 1, JSON.stringify(codes(K)));
+        check('15.12 Quelltext: die Lese-Werkzeuge nennen kein Schreib-Wort (executeAction, savedContacts =, setPersistentData)', !/executeAction|savedContacts\s*=|setPersistentData|memoryItems\s*\[/.test((lies('js/registry_faehigkeiten.js').match(/name: 'kontakte_lesen'[\s\S]*?(?=\/\* -{10,} 2c\.)/) || [''])[0]));
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });
