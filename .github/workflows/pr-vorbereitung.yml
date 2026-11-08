@@ -1,8 +1,11 @@
 name: PR vorbereiten (Stempel + Golden Master)
 
-# Bewusst manuell: vor dem PR-Test auf dem Arbeitsbranch starten.
+# Automatisch bei jedem PR-Update; manuell weiterhin möglich.
+# Verhindert dauerhaft veraltete Cache-Stempel und Golden-Master-Werte.
 # Aktualisiert nur Index-Stempel und die gemessene Bestandsaufnahme.
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -10,12 +13,13 @@ permissions:
 
 jobs:
   vorbereiten:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Arbeitsbranch auschecken
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           persist-credentials: true
       - uses: actions/setup-node@v4
         with:
@@ -38,4 +42,4 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore: Cache-Stempel und Golden Master automatisch aktualisieren"
-          git push origin "HEAD:${{ github.ref_name }}"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}"
