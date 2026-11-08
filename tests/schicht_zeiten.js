@@ -295,6 +295,95 @@ const ids = (plan, art) => plan.filter(e => e.id.split('|')[0] === art);
         const mix2 = await frage('2026-11-06T10:00:00+01:00', 'Was gibt es morgen bei Regen zu essen?');
         check('Mischfall morgen (Samstag) bleibt Essensplan', mix2.l.modul === 'essensplan' && mix2.l.gesagt.some(t => /keinen Essensplan/.test(t)), mix2.l.modul + ' ' + mix2.l.gesagt.join('|'));
     }
+    /* --- 11. Natürliche Schichtfragen: Fragen schreiben nie in den Plan, der genannte Tag gilt, Tagesfragen kommen aus dem Plan (nie von der KI), "früher anfangen" --- */
+    {
+        /* heute So 08.11.2026 09:16: diese Woche Früh, ab Mo 09.11. Spät; Mo 09.11. optional Ausnahme 12:33; Urlaub optional Mi 11.11. */
+        async function lauf(satz, o) {
+            o = o || {}; let groq = 0;
+            const native = { planAnsagen: () => true, holeAnsage: () => '', naechsterWecker: () => 0 };
+            const A = starte({ jetzt: '2026-11-08T09:16:00+01:00', native, festerZufall: true, fetch: async (u) => { if (/api\/groq/.test(String(u))) { groq++; return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify({ reply: 'KI-ANTWORT', actions: [] }) } }] }) }; } throw new Error('offline ' + u); } });
+            const T = A.sb._schichtTest, wn = T.weekNo({ y: 2026, m: 11, d: 2 });
+            A.sb.setPersistentData('jv_schicht', JSON.stringify({ base: wn, shift: 'frueh', times: { frueh: 225, spaet: 720 }, auto: true }));
+            if (o.urlaub) A.store['jv_urlaub'] = JSON.stringify(o.urlaub);
+            A.store['jv_plan_fahrt'] = JSON.stringify([{ min: 22, at: Date.now() }]);
+            A.P = A.sb.jvPlan; A.P.setBeginn('spaet', 13 * 60 + 45);
+            if (o.ausnahme) { A.P.setBeginnTag('2026-11-09', 12 * 60 + 33); A.P.setTagVor('2026-11-09', 72); }
+            if (o.adresse !== false) A.setze('workAddress', 'Werkstraße 5, 12345 Beispielstadt');
+            if (o.chef) A.sb.jvChef.an(); else A.sb.jvChef.aus();
+            const vorher = A.sb.getPersistentData('jv_schicht', '');
+            const g0 = A.gesagt.length;
+            A.sb.jvTippen(satz); await pause(300); for (let i = 0; i < 20; i++) { A.lassLaufen && await A.lassLaufen(100); await pause(20); }
+            return { t: A.gesagt.slice(g0).join(' | '), groq, A, planGleich: vorher === A.sb.getPersistentData('jv_schicht', ''), btag: ymd => A.P.beginnTag(ymd) };
+        }
+        for (const chef of [false, true]) {
+            const L = 'Chef-KI ' + (chef ? 'EIN' : 'AUS');
+            /* 11.1 Fragen ändern den Schichtplan nie (Fehler: "Bin ich nächste Woche in Frühschicht?" hat den Plan überschrieben) */
+            for (const q of ['Bin ich nächste Woche in Frühschicht?', 'Bin ich diese Woche in Spätschicht?', 'Habe ich diese Woche Spätschicht?', 'Ist nächste Woche Frühschicht?', 'Muss ich nächste Woche Frühschicht arbeiten?']) {
+                const r = await lauf(q, { chef });
+                check('11.1 (' + L + ') Frage ändert den Schichtplan nicht: ' + q, r.planGleich && !/Verstanden/.test(r.t), r.t);
+            }
+            {   // echte Einstellung funktioniert weiter
+                const r = await lauf('Nächste Woche Frühschicht', { chef });
+                check('11.2 (' + L + ') echte Einstellung "Nächste Woche Frühschicht" ändert weiter den Plan', !r.planGleich && /Verstanden/.test(r.t), r.t);
+                const r2 = await lauf('Diese Woche habe ich Spätschicht', { chef });
+                check('11.2b (' + L + ') "Diese Woche habe ich Spätschicht" ändert weiter den Plan', !r2.planGleich && /Verstanden/.test(r2.t), r2.t);
+            }
+            /* 11.3 Abfahrt für den genannten Tag, Ausnahme nur an ihrem Tag (Mo 09.11. = 12:33, Di 10.11. normal 13:45) */
+            {
+                const r = await lauf('Wann muss ich übermorgen zur Arbeit losfahren?', { chef, ausnahme: true });
+                check('11.3 (' + L + ') "übermorgen" (Di): Beginn 13 Uhr 45, nicht die Ausnahme von Montag', /Am Dienstag/.test(r.t) && /13 Uhr 45/.test(r.t) && !/12 Uhr 33|11 Uhr 51/.test(r.t) && r.groq === 0, r.t);
+                const r2 = await lauf('Wann muss ich am Dienstag zur Arbeit losfahren?', { chef, ausnahme: true });
+                check('11.3b (' + L + ') "am Dienstag": Beginn 13 Uhr 45, Abfahrt 13 Uhr 3', /13 Uhr 45/.test(r2.t) && /13 Uhr 3 los/.test(r2.t) && r2.groq === 0, r2.t);
+                const r3 = await lauf('Wann muss ich morgen zur Arbeit losfahren?', { chef, ausnahme: true });
+                check('11.3c (' + L + ') "morgen" (Mo): weiter Ausnahme 12:33 → Abfahrt 11 Uhr 51', /12 Uhr 33/.test(r3.t) && /11 Uhr 51/.test(r3.t) && r3.groq === 0, r3.t);
+                const r4 = await lauf('Wann muss ich am Samstag zur Arbeit losfahren?', { chef });
+                check('11.3d (' + L + ') Samstag: keine Abfahrtszeit, ehrlich keine Schicht', /keine Schicht/.test(r4.t) && /Wochenende/.test(r4.t) && !/los/.test(r4.t) && r4.groq === 0, r4.t);
+            }
+            /* 11.4 Tagesfragen aus dem Plan */
+            {
+                const q = async (s, o) => lauf(s, Object.assign({ chef }, o || {}));
+                let r = await q('Habe ich am Samstag frei?');
+                check('11.4 (' + L + ') "Habe ich am Samstag frei?": frei, Wochenende, keine KI', /Am Samstag hast du frei/.test(r.t) && /Wochenende/.test(r.t) && r.groq === 0, r.t);
+                r = await q('Muss ich am Samstag arbeiten?');
+                check('11.4b (' + L + ') "Muss ich am Samstag arbeiten?": Nein, keine KI', /^Nein/.test(r.t) && /Wochenende/.test(r.t) && r.groq === 0, r.t);
+                r = await q('Habe ich heute frei?');
+                check('11.4c (' + L + ') "Habe ich heute frei?" (Sonntag): frei, keine KI', /Heute hast du frei/.test(r.t) && r.groq === 0, r.t);
+                r = await q('Habe ich am Dienstag frei?');
+                check('11.4d (' + L + ') Dienstag Spätschicht: Nein, Spätschicht, Beginn 13 Uhr 45, keine KI', /^Nein/.test(r.t) && /Spätschicht/.test(r.t) && /13 Uhr 45/.test(r.t) && r.groq === 0, r.t);
+                r = await q('Habe ich morgen Frühschicht?', { ausnahme: true });
+                check('11.4e (' + L + ') "Habe ich morgen Frühschicht?": Nein, Spätschicht (nicht die Wochenübersicht), keine KI', /^Nein/.test(r.t) && /Spätschicht, nicht Frühschicht/.test(r.t) && r.groq === 0, r.t);
+                r = await q('Habe ich morgen Spätschicht?', { ausnahme: true });
+                check('11.4f (' + L + ') "Habe ich morgen Spätschicht?": Ja, Beginn 12 Uhr 33 (Ausnahme), einmalige Änderung', /^Ja/.test(r.t) && /12 Uhr 33/.test(r.t) && /einmalige Änderung/.test(r.t) && r.groq === 0, r.t);
+                r = await q('Welche Schicht habe ich am Dienstag?');
+                check('11.4g (' + L + ') "Welche Schicht habe ich am Dienstag?"', /Am Dienstag hast du Spätschicht/.test(r.t) && /13 Uhr 45/.test(r.t) && r.groq === 0, r.t);
+                r = await q('Muss ich am Dienstag arbeiten?');
+                check('11.4h (' + L + ') "Muss ich am Dienstag arbeiten?": Ja mit Beginn und Feierabend', /^Ja/.test(r.t) && /13 Uhr 45/.test(r.t) && /22 Uhr 12/.test(r.t) && r.groq === 0, r.t);
+                r = await q('Habe ich am Mittwoch frei?', { urlaub: { von: '2026-11-11', bis: '2026-11-11' } });
+                check('11.4i (' + L + ') Urlaubstag: frei wegen Urlaub', /hast du frei/.test(r.t) && /Urlaub/.test(r.t) && r.groq === 0, r.t);
+                r = await q('Habe ich Samstag frei und wie wird das Wetter?');
+                check('11.4j (' + L + ') Mehrfachfrage bleibt auf dem bisherigen Weg (nicht von der Tagesfrage geschluckt)', !/^Am Samstag hast du frei, es ist Wochenende\.$/.test(r.t), r.t);
+            }
+            /* 11.5 "früher anfangen": nichts raten, einmalige Änderung, Normalplan unverändert */
+            {
+                let r = await lauf('Ich muss morgen früher anfangen.', { chef });
+                check('11.5 (' + L + ') ohne Angabe: Nachfrage, keine KI, nichts gespeichert', /Wie viele Minuten früher oder um wie viel Uhr/.test(r.t) && r.groq === 0 && !r.btag('2026-11-09'), r.t);
+                r = await lauf('Ich muss morgen 30 Minuten früher anfangen. Wann muss ich losfahren?', { chef });
+                check('11.5b (' + L + ') 30 Minuten früher: Beginn 13:15 nur morgen, Abfahrt genannt, keine KI, Normalbeginn unverändert', /13 Uhr 15 statt um 13 Uhr 45/.test(r.t) && /Abfahrt gegen 12 Uhr 33/.test(r.t) && r.groq === 0 && r.btag('2026-11-09') === 13 * 60 + 15 && r.A.P.beginn('spaet') === 13 * 60 + 45 && !r.btag('2026-11-10'), r.t + ' | ' + r.btag('2026-11-09'));
+                r = await lauf('Ich muss morgen um 12:33 anfangen. Wann muss ich losfahren?', { chef });
+                check('11.5c (' + L + ') mit Uhrzeit weiter wie bisher: 12:33 → Abfahrt 11 Uhr 51', /12 Uhr 33/.test(r.t) && /11 Uhr 51/.test(r.t) && r.groq === 0, r.t);
+                r = await lauf('Ich muss morgen 5 Stunden früher anfangen', { chef });
+                check('11.5d (' + L + ') unsinnige Menge (über 180 Minuten): Nachfrage statt Speichern', /Wie viele Minuten früher oder um wie viel Uhr/.test(r.t) && !r.btag('2026-11-09'), r.t);
+            }
+        }
+        /* 11.6 bisherige Auskünfte unverändert (Beispielfragen aus dem Auftrag) */
+        for (const chef of [false, true]) {
+            const L = 'Chef-KI ' + (chef ? 'EIN' : 'AUS');
+            for (const [f, re] of [['Wann muss ich morgen arbeiten?', /Morgen hast du Spätschicht, Beginn um 12 Uhr 33/], ['Welche Schicht habe ich nächste Woche?', /Nächste Woche hast du Spätschicht/], ['Wann habe ich Feierabend?', /22 Uhr 12 Feierabend/], ['Wann muss ich morgen zur Arbeit losfahren?', /11 Uhr 51/]]) {
+                const r = await lauf(f, { chef, ausnahme: true });
+                check('11.6 (' + L + ') unverändert: ' + f, re.test(r.t) && r.groq === 0, r.t);
+            }
+        }
+    }
     console.log(fehler ? 'FEHLER: ' + fehler + ' (ok ' + ok + ')' : 'alles ok (' + ok + ' Prüfungen)');
     process.exit(fehler ? 1 : 0);
 })();

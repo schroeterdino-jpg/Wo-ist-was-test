@@ -887,15 +887,43 @@
         }
         return true;
     }
+    /* Tagesfragen ohne "wann": "Habe ich am Samstag frei?", "Muss ich morgen arbeiten?", "Habe ich morgen Frühschicht?", "Welche Schicht habe ich am Dienstag?" - nur aus dem Schichtplan (Urlaub, Wochenende, Ausnahmen), nie von der KI geraten */
+    function tagesFrage(text) {
+        const t = norm(text);
+        if (!t || t.split(' ').length > 12 || /\b(setz|stell|aender\w*|merk\w*|speicher\w*|trag\w*|und|oder)\b/.test(t) || /^(wann|wie|wo|wer|warum|wieso|um wie)\b/.test(t) || /\bwoche\b/.test(t)) return false;
+        const ymd = tagAusSatz(t); if (!ymd) return false;
+        const nenntSh = /fruehschicht/.test(t) ? 'frueh' : /spaetschicht/.test(t) ? 'spaet' : null;
+        const welche = /\bwelche schicht\b/.test(t);
+        const fFrei = /\b(habe|hab|bin) ich\b.*\bfrei\b/.test(t);
+        const fArbeit = /\b(muss|arbeite) ich\b.*\b(arbeiten|arbeit)?\b/.test(t) && /\b(arbeiten|arbeite ich|zur arbeit|auf die arbeit)\b/.test(t);
+        const fSchicht = welche || /\b(habe|hab|bin|arbeite) ich\b.*\b(fruehschicht|spaetschicht|schicht|dienst)\b/.test(t);
+        if (!fFrei && !fArbeit && !fSchicht) return false;
+        if (!S() || !S().load()) { sagen('Deine Schicht ist noch nicht eingestellt. Sag zum Beispiel: Diese Woche Frühschicht.', false); return true; }
+        const sh = schichtAm(ymd), w = tagWann(ymd), wl = w.charAt(0).toLowerCase() + w.slice(1);
+        if (!sh) {
+            const g = keineSchichtGrund(ymd), grund = g === 'Urlaub' ? ', du hast Urlaub.' : g === 'Wochenende' ? ', es ist Wochenende.' : '.';
+            sagen(fFrei ? w + ' hast du frei' + grund : fArbeit && !fSchicht ? 'Nein, ' + wl + ' musst du nicht arbeiten' + grund : nichtArbeitAntwort(ymd), false);
+            return true;
+        }
+        const b = uhr(beginn(sh, ymd)), hinweis = ausnahmeHinweis(sh, ymd, 'beginn');
+        let a, hinweis0 = hinweis;
+        if (fFrei) a = 'Nein, ' + wl + ' hast du ' + NAME[sh] + ', Beginn um ' + b + '.';
+        else if (nenntSh && !welche) { a = nenntSh === sh ? 'Ja, ' + wl + ' hast du ' + NAME[sh] + ', Beginn um ' + b + '.' : 'Nein, ' + wl + ' hast du ' + NAME[sh] + ', nicht ' + NAME[nenntSh] + '.'; if (nenntSh !== sh) hinweis0 = ''; }
+        else if (welche) a = w + ' hast du ' + NAME[sh] + ', Beginn um ' + b + '.';
+        else a = 'Ja, ' + wl + ' hast du ' + NAME[sh] + ', Beginn um ' + b + ' und Feierabend um ' + zeitText(ende(sh, ymd)) + '.';
+        sagen(a + hinweis0, false);
+        return true;
+    }
     /* Einmalige Änderungen für einen Tag: überschreiben nie die dauerhaften Zeiten. Unklar -> nachfragen. */
     function einmaligSatz(text) {
         const t = norm(text);
         if (!t || t.split(' ').length > 16 || /^(wann|um wie viel|wie lange)\b/.test(t) || /\b(fruehschicht|spaetschicht)\b/.test(t)) return false;
         const ymd = tagAusSatz(t);
         if (!ymd) return false;
-        const beginnSatz = /\b(fange|beginne|starte)\b.*\ban\b/.test(t) || /\b(arbeitsbeginn|schichtbeginn)\b/.test(t);
+        const anfangFrueher = /\bfrueher\b/.test(t) && /\b(anfangen|beginnen|anfang|beginn|starten)\b/.test(t);   // "Ich muss morgen (30 Minuten) früher anfangen"
+        const beginnSatz = /\b(fange|beginne|starte)\b.*\ban\b/.test(t) || /\b(arbeitsbeginn|schichtbeginn)\b/.test(t) || anfangFrueher;
         const endeSatz = /\b(feierabend|schluss|arbeitsende|schichtende)\b/.test(t) || /\b(hoere|hoer)\b.*\bauf\b/.test(t) && /\b(arbeit|arbeiten)\b/.test(t);
-        const frueherSatz = /\bfrueher\b/.test(t) && /\b(arbeit|dort|da|ankommen)\b/.test(t) && /\bminuten\b|\bviertelstunde\b|\bstunde\b/.test(t);
+        const frueherSatz = !anfangFrueher && /\bfrueher\b/.test(t) && /\b(arbeit|dort|da|ankommen)\b/.test(t) && /\bminuten\b|\bviertelstunde\b|\bstunde\b/.test(t);
         if (!beginnSatz && !endeSatz && !frueherSatz) return false;
         if (!S() || !S().load()) { sagen('Deine Schicht ist noch nicht eingestellt. Sag zum Beispiel: Diese Woche Frühschicht.', false); return true; }
         const sh = schichtAm(ymd);
@@ -911,10 +939,17 @@
             sagen('Verstanden. ' + wie + ' bist du ' + (vorherStd() + min) + ' Minuten vor Beginn da, also um ' + uhr(ankunft(sh, ymd)) + '. Deine Abfahrt ist dann gegen ' + uhr(abfFix(sh, ymd) - tagVor(ymd)) + '. Die normale Einstellung bleibt.', false);
             return true;
         }
-        if (!z || z.h == null || z.h > 23 || z.m > 59) {
+        let zMin = null;
+        if (anfangFrueher) {   // Menge statt Uhrzeit: "30 Minuten früher anfangen" = normaler Beginn minus 30; ganz ohne Angabe wird nachgefragt, nichts geraten
+            const m2 = zahlenWorte(t).match(/\b(\d{1,3}) minuten\b/);
+            const n2 = m2 ? +m2[1] : /\bviertelstunde\b/.test(t) ? 15 : /\bhalbe stunde\b|\bhalbstunde\b/.test(t) ? 30 : /\bstunde\b/.test(t) && !/\bminuten\b/.test(t) ? 60 : null;
+            if (n2 && n2 > 0 && n2 <= TAG_VOR_MAX) zMin = beginn(sh) - n2;
+            else if (!(z && z.h != null && z.h <= 23 && z.m <= 59)) { sagen('Wie viele Minuten früher oder um wie viel Uhr fängst du an? Sag zum Beispiel: ' + wie + ' fange ich um 6 Uhr an.', false); return true; }
+        }
+        if (zMin == null && (!z || z.h == null || z.h > 23 || z.m > 59)) {
             sagen('Um wie viel Uhr genau? Sag zum Beispiel: ' + (beginnSatz ? wie + ' fange ich um 6 Uhr an.' : wie + ' habe ich um 15 Uhr Feierabend.'), false); return true;
         }
-        const min = z.h * 60 + z.m;
+        const min = zMin != null ? zMin : z.h * 60 + z.m;
         if (beginnSatz) {
             const b0 = beginn(sh);
             setBeginnTag(ymd, min);
@@ -930,7 +965,7 @@
     function befehl(text, next) {
         const t = norm(text);
         if (!t || t.split(' ').length > 14) return next(text);
-        if (einmaligSatz(text) || auskunftSatz(text)) return true;
+        if (einmaligSatz(text) || auskunftSatz(text) || tagesFrage(text)) return true;
         // Schichtbeginn ändern
         let m = t.match(/\b(fruehschicht|spaetschicht)\b.*\b(beginnt|faengt an|startet|anfang)\b/) || t.match(/\b(beginn|anfang)\b.*\b(fruehschicht|spaetschicht)\b/);
         if (m && /\b(meine|mein|die|der)\b/.test(t)) {
@@ -1017,9 +1052,10 @@
         // Aufbruchszeit jederzeit
         if (/\baufbruchszeit\b/.test(t) || /\bwann\b.*\b(zur arbeit|zum arbeitsplatz|auf die arbeit)\b.*\b(los|fahren|losfahren|aufbrechen|abfahren)\b/.test(t) || /\bwann (muss|soll|sollte) ich\b.*\b(los|losfahren|aufbrechen)\b.*\barbeit\b/.test(t)) {
             (async () => {
-                const heute = jetzt().ymd;
-                let ymd = heute;
-                if (!schichtAm(ymd) || jetzt().min >= beginn(schichtAm(ymd), ymd)) {   // heute nichts mehr: nächster Arbeitstag
+                const heute = jetzt().ymd, genannt = tagAusSatz(t);   // genannter Tag ("übermorgen", "am Dienstag") gilt; sonst heute oder der nächste Arbeitstag
+                let ymd = genannt || heute;
+                if (genannt && !schichtAm(genannt)) { sagen(nichtArbeitAntwort(genannt), false); return; }
+                if (!genannt && (!schichtAm(ymd) || jetzt().min >= beginn(schichtAm(ymd), ymd))) {   // heute nichts mehr: nächster Arbeitstag
                     ymd = null;
                     for (let i = 1; i <= 7; i++) { const y = ymdPlus(heute, i); if (schichtAm(y)) { ymd = y; break; } }
                 }
