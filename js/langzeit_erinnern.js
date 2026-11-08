@@ -47,7 +47,7 @@
     const WTAGE = { sonntag: 0, montag: 1, dienstag: 2, mittwoch: 3, donnerstag: 4, freitag: 5, samstag: 6 };
     function ausText(text) {
         const t = String(text || '').toLowerCase(); if (!t) return null;
-        const um = t.match(/\b(\d{1,2}):(\d{2})\b/) || t.match(/\b(\d{1,2})\.(\d{2})\s*uhr\b/) || t.match(/\bum\s+(\d{1,2})\.(\d{2})\b(?!\.)/) || t.match(/\b(\d{1,2})\s*uhr\b/);
+        const um = t.match(/\b(\d{1,2}):(\d{2})\b/) || t.match(/\b(\d{1,2})\.(\d{2})\s*uhr\b/) || t.match(/\bum\s+(\d{1,2})\.(\d{2})\b(?!\.)/) || t.match(/\b(\d{1,2})\s*uhr\s+(\d{1,2})\b(?!\.)/) || t.match(/\b(\d{1,2})\s*uhr\b/);
         if (!um) return null;
         const uhr = um[1] + ':' + (um[2] || '00'); if (!parseUhr(uhr)) return null;
         const heute = new Date(todayIso() + 'T00:00:00'); let ziel = null;

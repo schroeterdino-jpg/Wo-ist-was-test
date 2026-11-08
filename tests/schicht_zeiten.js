@@ -418,6 +418,36 @@ const ids = (plan, art) => plan.filter(e => e.id.split('|')[0] === art);
             check('12.6 (' + L + ') Dienstag (Spätschicht, normal): Abfahrt 13 Uhr 3 ohne Ausnahme', /^Nein/.test(r.t) && /Fahr gegen 13 Uhr 3 los/.test(r.t) && r.groq === 0, r.t);
         }
     }
+    /* --- 13. Einmalige Ausnahme "Montag 13:33": "13 Uhr 33" behält die Minuten, "Montag beginnt meine Schicht um 13.33" ist eine Ausnahme (nicht KI, nicht die feste Zeit) --- */
+    {
+        for (const chef of [false, true]) {
+            const L = 'Chef-KI ' + (chef ? 'EIN' : 'AUS');
+            for (const [satz, soll] of [['Ich muss Montag um 13 Uhr 33 auf der Arbeit sein', 813], ['Montag fange ich um 13 Uhr 33 an', 813], ['Montag beginnt meine Schicht um 13.33', 813], ['Meine Schicht beginnt am Montag um 13.33 Uhr', 813], ['Ich muss morgen um 13:33 auf der Arbeit sein', 813]]) {
+                let groq = 0;
+                const native = { planAnsagen: () => true, holeAnsage: () => '', naechsterWecker: () => 0 };
+                const A = starte({ jetzt: '2026-11-08T15:20:00+01:00', native, festerZufall: true, sprechenBeendet: true, fetch: async u => { if (/api\/groq/.test(String(u))) { groq++; return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify({ reply: 'KI', actions: [] }) } }] }) }; } throw new Error('offline ' + u); } });
+                const T = A.sb._schichtTest, wn = T.weekNo({ y: 2026, m: 11, d: 2 });
+                A.sb.setPersistentData('jv_schicht', JSON.stringify({ base: wn, shift: 'frueh', times: { frueh: 225, spaet: 720 }, auto: true }));
+                A.P = A.sb.jvPlan; A.P.setBeginn('spaet', 13 * 60 + 45);
+                if (chef) A.sb.jvChef.an(); else A.sb.jvChef.aus();
+                const g0 = A.gesagt.length;
+                A.sb.jvTippen(satz); await pause(300);
+                for (let i = 0; i < 10; i++) { A.lassLaufen && await A.lassLaufen(100); await pause(20); }
+                const t = A.gesagt.slice(g0).join(' | ');
+                check('13.1 (' + L + ') ' + satz + ': Beginn Montag 13:33 gemerkt, nicht an die KI', A.P.beginnTag('2026-11-09') === soll && /13 Uhr 33/.test(t) && groq === 0, t + ' Tag ' + A.P.beginnTag('2026-11-09') + ' groq ' + groq);
+            }
+            for (const satz of ['Meine Spätschicht beginnt um 13 Uhr 40', 'Ab Montag beginnt meine Spätschicht um 13 Uhr 40']) {
+                const native = { planAnsagen: () => true, holeAnsage: () => '', naechsterWecker: () => 0 };
+                const A = starte({ jetzt: '2026-11-08T15:20:00+01:00', native, festerZufall: true, sprechenBeendet: true, fetch: async u => { if (/api\/groq/.test(String(u))) return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify({ reply: 'KI', actions: [] }) } }] }) }; throw new Error('offline ' + u); } });
+                A.sb.setPersistentData('jv_schicht', JSON.stringify({ base: A.sb._schichtTest.weekNo({ y: 2026, m: 11, d: 2 }), shift: 'frueh', times: { frueh: 225, spaet: 720 }, auto: true }));
+                A.P = A.sb.jvPlan; A.P.setBeginn('spaet', 13 * 60 + 45);
+                if (chef) A.sb.jvChef.an(); else A.sb.jvChef.aus();
+                A.sb.jvTippen(satz); await pause(300);
+                for (let i = 0; i < 10; i++) { A.lassLaufen && await A.lassLaufen(100); await pause(20); }
+                check('13.2 (' + L + ') ' + satz + ': keine Tagesausnahme (feste Zeit bzw. KI)', A.P.beginnTag('2026-11-09') === 0, 'Tag ' + A.P.beginnTag('2026-11-09'));
+            }
+        }
+    }
     console.log(fehler ? 'FEHLER: ' + fehler + ' (ok ' + ok + ')' : 'alles ok (' + ok + ' Prüfungen)');
     process.exit(fehler ? 1 : 0);
 })();

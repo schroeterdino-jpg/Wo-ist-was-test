@@ -25,7 +25,8 @@
             p.setTagVor(y, 0); try { if (p.setBeginnTag) p.setBeginnTag(y, 0); } catch (e) { } try { p.planSenden(true); } catch (e) { } lsSet(K_LETZT, '');
             sagen('Erledigt. Die Abfahrt ist an dem Tag wieder wie sonst.'); return true;
         }
-        const arbeit = /\b(?:muss|soll|sollte)\b.*\b(?:arbeit|betrieb|anfangen|anfang|da sein|dort sein|los)\b/.test(t) || /\bfange\b.*\ban\b/.test(t);
+        const arbeit = /\b(?:muss|soll|sollte)\b.*\b(?:arbeit|betrieb|anfangen|anfang|da sein|dort sein|los)\b/.test(t) || /\bfange\b.*\ban\b/.test(t)
+            || ((/\b(?:schicht|arbeit)\w*\b.*\b(?:beginnt|f(?:ä|ae)ngt an|startet)\b/.test(t) || /\b(?:beginnt|f(?:ä|ae)ngt an|startet)\b.*\b(?:schicht|arbeit)\w*\b/.test(t)) && !/\b(?:ab|immer|jede\w*|dauerhaft|k(?:ü|ue)nftig|sofort|normal\w*|standard\w*)\b/.test(t));   // \"Montag beginnt meine Schicht um 13.33\" (mit genanntem Tag; ohne Tag oder mit \"ab/immer\" bleibt es die feste Zeit)
         if (!arbeit || /\b(?:war|waren|gestern|vorhin|letzte\w*)\b/.test(t)) return next(text);
         const T = window.jvTerminErinnern; if (!p || !T || typeof T.ausText !== 'function') return next(text);
         const s = T.ausText(raw); if (!s) return next(text);
