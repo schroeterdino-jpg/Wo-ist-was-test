@@ -284,6 +284,8 @@
         vorfilter_stichwort: 'Vorfilter: übersprungen (kein Hinweis auf einen Ortswunsch)',
         vorfilter_doppelt: 'Vorfilter: übersprungen (derselbe Satz eben schon)',
         ki_aufgerufen: 'KI-Entscheider aufgerufen',
+        abfahrtsfrage: 'Abfahrtsfrage: der vorhandene Abfahrtsweg antwortet (Chef-KI rechnet keine Abfahrtszeit)',
+        abfahrt_alter_weg: 'Abfahrtsfrage: Plan nur mit Fahrdauer verworfen, vorhandener Abfahrtsweg',
         ki_kein_ortswunsch: 'KI: nichts zu koordinieren (normaler Ablauf)',
         ki_nicht_erlaubt: 'KI-Plan nicht erlaubt (nur Orte, Internet und Wetter, mit Obergrenzen)',
         ki_ungueltig: 'KI-Antwort ungültig',
@@ -586,6 +588,8 @@
     var thema = null, offenKi = null;   // Thema der letzten Antwort (nur Art/Tag/Stichwort, 10 Minuten) und eine offene Rückfrage des KI-Weges (2 Minuten); nur Arbeitsspeicher
     /* Vorfilter NUR zur Kostenbegrenzung: reines Geplauder ("Wie geht's dir?") kostet keine zusätzliche KI-Anfrage. Entschieden wird NICHT hier, sondern von der KI. */
     var RX_VON = /\bvon\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]*(?:\s+[A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]*){0,2})\s+(?:zum|zur|nach|bis|zu|ins|an|in)\b/;
+    /* Abfahrtsfragen ("Wann muss ich losfahren?", "Wann muss ich bei Mutter los, um 13 Uhr da zu sein?"): die Chef-KI rechnet keine Abfahrtszeit (das Werkzeug fahrzeit kennt keine Ankunftszeit und keinen Puffer). Sie bleiben beim vorhandenen Abfahrtsweg (travel_time, computeDepartureAdvice). */
+    var RX_ABFAHRT = /\b(?:wann|wie\s+(?:fr(?:ü|ue)h|sp(?:ä|ae)t))\b[^?.!]*\b(?:los\s*fahren|losfahren|los\s*m(?:ü|ue)ss\w*|losmuss\w*|los\s*muss\w*|abfahren|aufbrechen|losgehen|loskomm\w*|starten|fahren)\b|\babfahr\w*|\bmuss\s+ich\s+(?:\w+\s+){0,4}(?:los|weg)\b/i;
     var RX_FAHRT = /\b(fahrzeit|fahrt|fahre|fahren|fahr|brauche ich|dauert|route|verkehr\w*|stau\w*|autobahn|entfernung|kilometer|anfahrt|hinkomm\w*|hinfahr\w*)\b/i;
     var RX_KI_VORFILTER = /\b(wo|wohin|hier|in der n[äa]he|umgebung|gegend|ecke|unterwegs|auswärts|ausw[äa]rts|ausgehen|essen|speisen|trinken|hunger|durst|magen|lust auf|empfiehl\w*|tipp|find\w*|such\w*|gibt es|gibts|kennst du|abend|mittag|fr[üu]hst[üu]ck\w*|snack|happen|bissen|gemütlich|gem[üu]tlich|romantisch|date|feiern|laden|lokal|schmaus\w*|wetter|regen\w*|schirm|jacke|temperatur|grad|sonnig|schnee|gewitter|sturm|nachrichten|neuigkeiten|aktuell\w*|fernseh\w*|kino|programm|öffnungszeit\w*|ergebnis\w*|spielstand|tabelle|internet|google|recherchier\w*|nachschlagen|nachsehen|kost\w*|preis\w*|kaufen|vergleich\w*|h[aä]ndler\w*|foto\w*|selbst|verbesser\w*|unternehm\w*|anstell\w*|kinder|fahrzeit|fahr\w*|route|stau\w*|verkehr\w*|autobahn|dauert|brauche ich|wie lange|mit dem auto|jarvis|neues|neuigkeit\w*)\b/i;
     var RX_FOLGE = /^(?:und|aber|dann|auch|noch|wie (?:sieht|ist) es|was ist (?:denn )?mit)\b|\b(?:morgen|übermorgen|uebermorgen|dort|dann)\b/i;   // kurze Anschlussfrage zum letzten Thema ("und morgen?")
@@ -1062,9 +1066,10 @@
             });
             var schreibOhneWunsch = !!(pr && pr.ok && pr.plan && !RX_B2A.test(text) && pr.plan.schritte.some(function (x) { return B2A_SCHREIBT.indexOf(x.faehigkeit) >= 0; }));   // Phase 5: schreiben nur, wenn der Nutzer es ausdrücklich verlangt hat (Erinnerung, Termin, Aufgabe, Kontakt, Merken); sonst übernimmt der bisherige Weg
             var fahrtOhneWerkzeug = !!(pr && pr.ok && pr.plan && RX_FAHRT.test(text) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'websuche'; }) && !pr.plan.schritte.some(function (x) { return x.faehigkeit === 'fahrzeit'; }));   // Fahrzeit/Verkehr nie per Websuche (das wäre nur eine Schätzung): der bisherige Weg hat die echte Routenberechnung
-            if (!pr || !pr.ok || schreibOhneWunsch || fahrtOhneWerkzeug || !planErlaubt(pr.plan, ohneFrage)) {
+            var abfahrtMitFahrzeit = !!(pr && pr.ok && pr.plan && RX_ABFAHRT.test(text) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'fahrzeit'; }));   // ein Plan, der eine Abfahrtsfrage nur mit der Fahrdauer beantworten würde
+            if (!pr || !pr.ok || schreibOhneWunsch || fahrtOhneWerkzeug || abfahrtMitFahrzeit || !planErlaubt(pr.plan, ohneFrage)) {
                 vermerke(eingang, !pr ? 'ki_fehler' : (pr.zeitlimit || pr.grund === 'Zeitlimit') ? 'ki_zeitlimit' : pr.fehler ? 'ki_fehler' : !pr.ok ? 'ki_ungueltig'
-                    : (pr.plan.schritte.length === 0 && !pr.plan.frage) ? 'ki_kein_ortswunsch' : 'ki_nicht_erlaubt');
+                    : (pr.plan.schritte.length === 0 && !pr.plan.frage) ? 'ki_kein_ortswunsch' : abfahrtMitFahrzeit ? 'abfahrt_alter_weg' : 'ki_nicht_erlaubt');
                 protokolliere('ki_zurueck', [], pr && pr.zeitlimit ? 'ZEITLIMIT' : (pr && pr.ok ? 'KEIN_ORTSWUNSCH' : 'UNGUELTIG')); zurueckInsNormale(); return; }
             if (mehr && pr.plan.schritte.length) {   // der Planer muss ALLE ausdrücklich verlangten Aktionen erkannt haben, sonst wird VOR dem Schreiben angehalten und erklärt (nichts halb erledigt)
                 var fehlt = mehrGruppen(text).filter(function (gi) { return !pr.plan.schritte.some(function (x) { return MEHR_FAEHIG[gi].indexOf(x.faehigkeit) >= 0; }); });
@@ -1150,6 +1155,7 @@
             if (window.jvProdukte && (window.jvProdukte.produktsuche(t) || window.jvProdukte.istFolgefrage(t))) { neuerEingang('produktsuche'); return false; }   // Produktwunsch mit Kauf-/Preisfrage: kein Ortsplan, die Internetsuche mit Produktkarten übernimmt
             var anschluss = !kopf && themaFrisch() && woerter >= 1 && woerter <= 8 && RX_FOLGE.test(t) && !RX_SCHREIB.test(t);
             if (anschluss) kopf = 'anschluss';
+            if (kopf !== 'nachfrage_antwort' && RX_ABFAHRT.test(t) && !RX_B2A.test(t)) { neuerEingang('abfahrtsfrage'); return false; }   // kein Planer-Aufruf, der bisherige Abfahrtsweg antwortet
             if (!kopf && (woerter < 3 || woerter > 30 || t.length > 240)) { neuerEingang('vorfilter_laenge'); return false; }
             if (!kopf && !RX_B2A.test(t) && !RX_KI_VORFILTER.test(t)) { neuerEingang('vorfilter_stichwort'); return false; }
             if (!R() || !R().hole('ortssuche')) { neuerEingang('faehigkeit_fehlt'); return false; }
