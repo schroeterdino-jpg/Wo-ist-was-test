@@ -240,6 +240,100 @@
         }
     });
 
+    /* ---------------- 2b+. Persönliche Ziele: Kontakte und Gedächtnis (nur lesend, bestehende Funktionen) ----------------
+       Wiederverwendet: contactList/contactKey (routing.js), findMemoryAddressFor (travel.js), searchMemory (lists.js). Es wird immer nur der eine passende Eintrag gelesen, nie eine Liste.
+       Reihenfolge: gespeicherter Kontakt MIT Adresse, dann Gedächtniseintrag, der wie eine Adresse aussieht. Mehrere Kontakte passen -> mehrdeutig (nachfragen). */
+    function kontaktListe() { try { return (typeof contactList === 'function' && typeof contactKey === 'function') ? contactList() : []; } catch (e) { return []; } }
+    function kontaktSchluessel(n) { try { return contactKey(n); } catch (e) { return ''; } }
+    function kontaktNamen(name) {   // Kontakte, die zum genannten Namen passen (ganzer Name gleich, sonst Vorname gleich); ohne Teilstring-Treffer
+        var k = kontaktSchluessel(name), out = [];
+        if (!k) return out;
+        var alle = kontaktListe().filter(function (c) { return c && c.name && kontaktSchluessel(c.name); });
+        var genau = alle.filter(function (c) { return kontaktSchluessel(c.name) === k; });
+        if (genau.length) return genau;
+        return alle.filter(function (c) { var w = String(c.name).trim().split(/\s+/); return w.length > 1 && typeof plainKey === 'function' && plainKey(w[0]) === k; });
+    }
+    function sieht_aus_wie_adresse(t) { return typeof t === 'string' && /\d/.test(t) && t.trim().length >= 6; }
+    function persoenlicheAdresse(name) {   // -> null | { mehrdeutig:[Namen] } | { name, adresse, quelle:'kontakt'|'gedaechtnis', ohneAdresse? }
+        var tr = kontaktNamen(name), mit = tr.filter(function (c) { return c.address; });
+        if (mit.length > 1) { var namen = []; mit.forEach(function (c) { if (namen.indexOf(c.name) < 0) namen.push(c.name); }); if (namen.length > 1) return { mehrdeutig: namen }; }
+        if (mit.length) return { name: mit[0].name, adresse: String(mit[0].address), quelle: 'kontakt' };
+        try {
+            if (typeof findMemoryAddressFor === 'function') {
+                var k = String(name || '').toLowerCase().replace(/^(?:zu|zur|zum|nach|bei|von|vom|meiner|meinem|meinen|meine|mein|der|dem|die|den)\s+/g, '').trim();
+                var g = (k && !/\s/.test(k)) ? findMemoryAddressFor(k) : null;   // nur einzelne Wörter ("mutter", "zahnarzt"): mehrteilige Ortsnamen wie "Hamburger Hauptbahnhof" nie mit dem Gedächtnis verwechseln
+                if (sieht_aus_wie_adresse(g)) return { name: String(name), adresse: g, quelle: 'gedaechtnis' };
+            }
+        } catch (e) { }
+        return tr.length ? { name: tr[0].name, adresse: '', quelle: 'kontakt', ohneAdresse: true } : null;
+    }
+    function mitRegion(a) { try { return typeof withDefaultRegion === 'function' ? withDefaultRegion(a) : a; } catch (e) { return a; } }
+
+    R.registriere({
+        name: 'kontakte_lesen',
+        beschreibung: 'Nennt die gespeicherte Adresse einer Person oder Stelle aus den Kontakten (zum Beispiel "Wo wohnt meine Mutter?", Zahnarzt), ersatzweise aus einem Gedächtniseintrag. Nur lesend; nennt nur diesen einen Eintrag.',
+        pflicht: [{ name: 'name', typ: 'text', beschreibung: 'Name oder Bezeichnung wie genannt, zum Beispiel Mutter, Matze oder Zahnarzt.' }],
+        optional: [],
+        rueckgabe: { beschreibung: 'Name, Adresse und woher sie stammt (kontakt oder gedaechtnis).', felder: ['name', 'adresse', 'quelle', 'nachricht'] },
+        fehler: [
+            { status: 'NEEDS_INFORMATION', wann: 'Mehrere Kontakte passen oder kein Name genannt.' },
+            { status: 'NO_RESULTS', wann: 'Kein Kontakt und kein Gedächtniseintrag mit Adresse gefunden.' },
+            { status: 'CAPABILITY_MISSING', wann: 'Die Kontakte sind nicht geladen.' }
+        ],
+        fallbacks: [],
+        bestaetigung: { noetig: false, grund: 'Nur lesend.' },
+        leer: function (d) { return !!d && d.leer === true; },
+        pruefeErfolg: function (d) { return !!d && typeof d.adresse === 'string' && d.adresse.length > 0 && typeof d.nachricht === 'string' && d.nachricht.length > 0; },
+        verbindung: { datei: 'js/routing.js', funktion: 'contactList', aktion: 'lesen' },
+        verfuegbar: function () { return typeof contactList === 'function' && typeof contactKey === 'function'; },
+        vorpruefung: function (p) {
+            var n = String((p && p.name) || '').trim();
+            if (!n) return { status: 'NEEDS_INFORMATION', nachricht: 'Wessen Adresse soll ich nachsehen?', fehlend: ['name'] };
+            var r = persoenlicheAdresse(n);
+            if (r && r.mehrdeutig) return { status: 'NEEDS_INFORMATION', nachricht: 'Meinst du ' + r.mehrdeutig.join(' oder ') + '?', fehlend: ['name'] };
+            return null;
+        },
+        ausfuehren: async function (p) {
+            var n = String(p.name || '').trim(), r = persoenlicheAdresse(n);
+            if (!r) return { leer: true, reply: 'Zu ' + n + ' habe ich keinen Kontakt und keinen Gedächtniseintrag mit Adresse gefunden.' };
+            if (r.ohneAdresse) return { leer: true, reply: 'Bei ' + r.name + ' ist keine Adresse gespeichert.' };
+            return { name: r.name, adresse: r.adresse, quelle: r.quelle, nachricht: 'Die gespeicherte Adresse von ' + r.name + ' ist ' + r.adresse + '.' };
+        }
+    });
+
+    R.registriere({
+        name: 'gedaechtnis_lesen',
+        beschreibung: 'Liest, was sich Jarvis unter einem Stichwort gemerkt hat (zum Beispiel "Wo steht mein Auto?", "Was habe ich mir zu Schlüssel gemerkt?"). Nur lesend; nennt nur den passenden Eintrag.',
+        pflicht: [{ name: 'suche', typ: 'text', beschreibung: 'Stichwort wie genannt, zum Beispiel schlüssel.' }],
+        optional: [],
+        rueckgabe: { beschreibung: 'Stichwort und der gemerkte Wert (höchstens 200 Zeichen).', felder: ['stichwort', 'wert', 'nachricht'] },
+        fehler: [
+            { status: 'NEEDS_INFORMATION', wann: 'Mehrere Einträge passen oder kein Stichwort genannt.' },
+            { status: 'NO_RESULTS', wann: 'Dazu ist nichts gemerkt.' },
+            { status: 'CAPABILITY_MISSING', wann: 'Das Gedächtnis ist nicht geladen.' }
+        ],
+        fallbacks: [],
+        bestaetigung: { noetig: false, grund: 'Nur lesend.' },
+        leer: function (d) { return !!d && d.leer === true; },
+        pruefeErfolg: function (d) { return !!d && typeof d.wert === 'string' && d.wert.length > 0 && typeof d.nachricht === 'string' && d.nachricht.length > 0; },
+        verbindung: { datei: 'js/lists.js', funktion: 'searchMemory', aktion: 'lesen' },
+        verfuegbar: function () { return typeof searchMemory === 'function'; },
+        vorpruefung: function (p) {
+            var n = String((p && p.suche) || '').trim();
+            if (!n) return { status: 'NEEDS_INFORMATION', nachricht: 'Woran soll ich mich erinnern?', fehlend: ['suche'] };
+            var t = (searchMemory(n) || []).filter(function (x) { return x && !x.unscharf; });
+            if (t.length > 1 && !t.some(function (x) { return String(x.key).toLowerCase() === n.toLowerCase(); })) return { status: 'NEEDS_INFORMATION', nachricht: 'Meinst du ' + t.slice(0, 3).map(function (x) { return x.key; }).join(' oder ') + '?', fehlend: ['suche'] };
+            return null;
+        },
+        ausfuehren: async function (p) {
+            var n = String(p.suche || '').trim(), t = (searchMemory(n) || []).filter(function (x) { return x && !x.unscharf; });
+            var e = t.filter(function (x) { return String(x.key).toLowerCase() === n.toLowerCase(); })[0] || t[0];
+            if (!e || typeof e.value !== 'string' || !e.value.trim()) return { leer: true, reply: 'Dazu habe ich mir nichts gemerkt.' };
+            var w = e.value.trim().slice(0, 200);
+            return { stichwort: String(e.key), wert: w, nachricht: 'Zu ' + e.key + ' habe ich mir gemerkt: ' + w + '.' };
+        }
+    });
+
     /* ---------------- 2c. Fahrzeit mit dem Auto (nur lesend; baut auf travel.js / stadtverkehr.js auf, keine zweite Routenberechnung) ---------------- */
     R.registriere({
         name: 'fahrzeit',
@@ -299,17 +393,23 @@
             }
             var start, startText;
             if (von) {
-                var vg = await ortsTreffer(von);
+                var pv = persoenlicheAdresse(von);
+                if (pv && pv.mehrdeutig) fehlschlag('Meinst du als Startort ' + pv.mehrdeutig.join(' oder ') + '? Eine Fahrzeit nenne ich erst, wenn der Start klar ist.');
+                var vg = (pv && pv.adresse) ? await geocodeDestination(mitRegion(pv.adresse), '') : await ortsTreffer(von);
+                if (pv && pv.adresse && !vg) fehlschlag('Die gespeicherte Adresse von ' + von + ' konnte ich nicht auf der Karte finden. Eine Fahrzeit nenne ich deshalb nicht.');
                 if (!vg) fehlschlag('Den Startort ' + von + ' habe ich nicht gefunden. Eine Fahrzeit nenne ich deshalb nicht.');
-                if (!nameOk(von, vg.name, vg.adr)) fehlschlag('Für den Startort ' + von + ' habe ich nur einen Ort gefunden, der nicht passt (' + String(vg.name).split(',').slice(0, 2).join(',').trim() + '). Eine Fahrzeit nenne ich deshalb nicht. Wie genau heißt der Startort?');
+                if (!(pv && pv.adresse) && !nameOk(von, vg.name, vg.adr)) fehlschlag('Für den Startort ' + von + ' habe ich nur einen Ort gefunden, der nicht passt (' + String(vg.name).split(',').slice(0, 2).join(',').trim() + '). Eine Fahrzeit nenne ich deshalb nicht. Wie genau heißt der Startort?');
                 start = { lat: vg.lat, lon: vg.lon }; startText = von;
             } else {
                 var loc = await fetchFreshTravelLocation();
                 if (!loc || loc.fehler || loc.latitude === undefined) fehlschlag('Deinen Standort konnte ich gerade nicht ermitteln, deshalb nenne ich keine Fahrzeit. Ist der Standortzugriff erlaubt?');
                 start = { lat: loc.latitude, lon: loc.longitude }; startText = 'deinem aktuellen Standort';
             }
-            var dest = await ortsTreffer(ziel);   // zuerst genau das genannte Ziel (nie nur der Ortsname)
-            if (dest && !nameOk(ziel, dest.name, dest.adr)) fehlschlag('Für ' + ziel + ' habe ich nur einen Ort gefunden, der nicht passt (' + String(dest.name).split(',').slice(0, 2).join(',').trim() + '). Eine Fahrzeit nenne ich deshalb nicht. Wie genau heißt das Ziel?');
+            var pz = persoenlicheAdresse(ziel);   // Kontakt (dann Gedächtnis) hat Vorrang vor der allgemeinen Ortssuche
+            if (pz && pz.mehrdeutig) fehlschlag('Meinst du ' + pz.mehrdeutig.join(' oder ') + '? Eine Fahrzeit nenne ich erst, wenn das Ziel klar ist.');
+            var dest = (pz && pz.adresse) ? await geocodeDestination(mitRegion(pz.adresse), '') : await ortsTreffer(ziel);
+            if (pz && pz.adresse && !dest) fehlschlag('Die gespeicherte Adresse von ' + ziel + ' konnte ich nicht auf der Karte finden. Eine Fahrzeit nenne ich deshalb nicht.');   // zuerst genau das genannte Ziel (nie nur der Ortsname)
+            if (dest && !(pz && pz.adresse) && !nameOk(ziel, dest.name, dest.adr)) fehlschlag('Für ' + ziel + ' habe ich nur einen Ort gefunden, der nicht passt (' + String(dest.name).split(',').slice(0, 2).join(',').trim() + '). Eine Fahrzeit nenne ich deshalb nicht. Wie genau heißt das Ziel?');
             if (!dest) {
                 var adr = (typeof findContactAddressFor === 'function' && findContactAddressFor(ziel)) || (typeof findMemoryAddressFor === 'function' && findMemoryAddressFor(ziel)) || '';
                 if (adr) dest = await geocodeDestination(adr, '');
