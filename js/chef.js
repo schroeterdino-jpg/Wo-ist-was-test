@@ -530,6 +530,7 @@
     /* Gesprächsort: der zuletzt EINDEUTIG genannte Ort (nur der Name, nur Arbeitsspeicher, 10 Minuten). Er wird nur für "dort", "da", "in dieser Stadt" gebraucht.
        Gemerkt wird nur bei eingeschalteter Chef-KI; ein Satz mit mehreren Orten löscht ihn (nie raten). Vor der Benutzung wird er einmal beim Kartendienst geprüft (Ort, nicht irgendein Hauptwort). */
     var ORT_MS = 10 * 60000, ortMerker = null, ortPruefer = null;
+    var RX_DA_SEIN = /(?<![\wäöüß])(?:da|dort)\s+(?:sein|ankommen|stehen)(?![\wäöüß])/i, RX_ZIEL_IM_SATZ = /(?<![\wäöüß])(?:zu|zum|zur|bei|beim|nach)\s+(?:meiner?|meinem|meinen|dem|der|den)?\s*[A-Za-zÄÖÜäöüß]{3,}/i;   // Ziel im selben Satz: zu/zum/zur/bei/nach + Name
     var RX_ORTSBEZUG = /(?<![\wäöüß])(?:dort|dorthin|dortige[nrms]?|in dieser stadt|in diesem ort|in dieser gegend|in diesem dorf|in dieser region|da(?!\s+(?:es|ich|du|wir|ihr|man|er|sie|vielleicht|eigentlich|mal|noch|auch|schon|wohl|denn|doch|gerade|zufällig|zufaellig|irgendwas|irgendwelche\w*|etwas|was|so)(?![\wäöüß])))(?![\wäöüß])/i;
     var RX_ORTSBEZUG_G = new RegExp(RX_ORTSBEZUG.source, 'gi');
     var ORT_KEIN = /^(?:Urlaub|Betrieb|Arbeit|Ordnung|Ruhe|Eile|Bezug|Zukunft|Gefahr|Betracht|Frage|Not|Kürze|Vergangenheit|Wahrheit|Hause|Haus|Mitte|Zeit|Folge|Wahl|Anfang|Ende|Fall|Sicht|Ordnung)$/;
@@ -1170,7 +1171,7 @@
             /* "dort"/"da"/"in dieser Stadt" ohne genannten Ort im Satz: gemerkten Ort nehmen, sonst FRAGEN (nie still den eigenen Standort) */
             var ortBezug = ortNeu;   // Antwort auf "Welchen Ort meinst du?": der genannte Ort wird (nach Prüfung) fest in den Plan eingesetzt
             if (kopf !== 'nachfrage_antwort' && ks.length === 0) {
-                if (RX_ORTSBEZUG.test(t)) {
+                if (RX_ORTSBEZUG.test(t) && !(RX_DA_SEIN.test(t) && RX_ZIEL_IM_SATZ.test(t) && (RX_ABFAHRT.test(t) || RX_ANKUNFT.test(t)) && R() && R().hole('abfahrt'))) {   // "Ich muss zu meiner Mutter. Um 14:33 Uhr da sein. Wann losfahren?": "da" ist das genannte Ziel, keine Ortsrückfrage
                     if (ortFrisch()) ortBezug = ortMerker.name;
                     else {
                         neuerEingang('ort_unklar'); frageAnmelden();

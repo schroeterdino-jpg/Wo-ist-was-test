@@ -437,6 +437,48 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const L = mit({}); const sh = L.sb.jvSchatten;
         check('16.14 Schattenbetrieb: abfahrt hat keine Erkennung und löst nichts aus (nur Ausnahmeliste)', sh._ohneErkennung().includes('abfahrt') && sh.erkenne('Ich muss morgen um 13 Uhr bei meiner Mutter sein. Wann muss ich losfahren?').join() === '' && stand(L) === L.z0);
     }
+    /* --- 17. Mehrteilige Abfahrtsfragen: Ziel, Ankunftszeit und Frage gehören zu EINEM Auftrag --- */
+    {
+        const KONT = { mama: { originalName: 'Mama', address: 'Musterweg 1, 12345 Beispielstadt' }, zahnarzt: { originalName: 'Zahnarzt Dr. Test', address: 'Testallee 9, 12345 Beispielstadt' } };
+        const mit = (opt, kontakte) => { const A = umgebung(opt); if (kontakte) A.setze('savedContacts', kontakte); A.z0 = stand(A); return A; };
+        const AB = (ziel, ankunft, tag) => ({ faehigkeit: 'abfahrt', params: tag ? { ziel, ankunft, tag } : { ziel, ankunft } });
+        const F = [
+            ['17.1', 'Ich muss nachher zu meiner Mutter fahren. Ich muss um 14:33 Uhr da sein. Wann muss ich losfahren?', AB('meiner Mutter', '14:33', 'heute'), /Musterweg 1/],
+            ['17.2', 'Ich muss heute zu Mama. Um 14:33 Uhr muss ich dort sein. Wann fahre ich los?', AB('Mama', '14:33', 'heute'), /Musterweg 1/],
+            ['17.3', 'Morgen muss ich zum Zahnarzt. Um 15 Uhr muss ich da sein. Wann sollte ich losfahren?', AB('Zahnarzt', '15:00', 'morgen'), /Testallee 9/]
+        ];
+        for (const chefAus of [false, true]) for (const [id, satz, schritt, adr] of F) {
+            const A = mit(chefAus ? { chefAus: true } : {}, KONT); A.st.plan = { schritte: [schritt] };
+            const t = await frage(A, satz);
+            const n = A.gesagt.length;
+            if (!chefAus) check(id + ' (Chef-KI EIN) ' + satz.slice(0, 40) + '…: eine Antwort mit Abfahrtszeit, Ziel aus dem Kontakt, keine Ortsrückfrage, keine normale KI', n === 1 && /spätestens um/.test(t) && !/Welchen Ort/.test(t) && (A.st.geoQ || []).some(q => adr.test(q)) && A.st.groq === 0, JSON.stringify({ n, t, c: codes(A), g: A.st.geoQ }));
+            else check(id + ' (Chef-KI AUS) ' + satz.slice(0, 40) + '…: höchstens eine Antwort, kein Absturz, nichts geschrieben', n <= 2 && stand(A) === A.z0, JSON.stringify({ n, t }));
+        }
+    }
+    {
+        const KONT = { mama: { originalName: 'Mama', address: 'Musterweg 1, 12345 Beispielstadt' } };
+        const mit = (opt, kontakte) => { const A = umgebung(opt); if (kontakte) A.setze('savedContacts', kontakte); A.z0 = stand(A); return A; };
+        const AB = (ziel, ankunft, tag) => ({ faehigkeit: 'abfahrt', params: tag ? { ziel, ankunft, tag } : { ziel, ankunft } });
+        const S1 = 'Ich muss nachher zu meiner Mutter fahren. Ich muss um 14:33 Uhr da sein. Wann muss ich losfahren?';
+        const A = mit({}, { mama: { originalName: 'Mama' } }); A.st.plan = { schritte: [AB('meiner Mutter', '14:33', 'heute')] };
+        const t1 = await frage(A, S1);
+        check('17.4 Mutter ohne gespeicherte Adresse: ehrlich gesagt, keine Abfahrtszeit, keine Route, eine Antwort', /keine Adresse gespeichert/.test(t1) && !/spätestens/.test(t1) && !(A.st.routeUrls || []).length && A.gesagt.length === 1, t1);
+        const B = mit({}, { 'mama muster': { originalName: 'Mama Muster', address: 'Erste Gasse 1, 11111 Ort' }, 'mama beispiel': { originalName: 'Mama Beispiel', address: 'Zweite Gasse 2, 22222 Ort' } }); B.st.plan = { schritte: [AB('Mama', '14:33', 'heute')] };
+        const t2 = await frage(B, 'Ich muss heute zu Mama. Um 14:33 Uhr muss ich dort sein. Wann fahre ich los?');
+        check('17.5 zwei passende Kontakte: gezielte Nachfrage mit beiden Namen, keine Route, nichts geraten', /Mama Muster oder Mama Beispiel/.test(t2) && !(B.st.routeUrls || []).length && B.gesagt.length === 1, t2);
+        const C = mit({}, KONT); C.st.plan = { schritte: [AB('Mama', '14:33', 'heute')] };
+        const t3 = await frage(C, 'Wann muss ich heute losfahren, um um 14:33 Uhr bei Mama zu sein?');
+        check('17.6 bisheriger Einzelsatz (Test C) unverändert: eine Antwort mit Abfahrtszeit', C.gesagt.length === 1 && /spätestens um/.test(t3) && !/Welchen Ort/.test(t3), t3);
+        const D = mit({}, KONT);
+        const t4 = await frage(D, 'Ich muss um 14:33 Uhr da sein. Wann muss ich losfahren?');
+        check('17.7 "da sein" OHNE Ziel im Satz: weiter die Nachfrage nach dem Ort (nichts geraten)', /Welchen Ort meinst du/.test(t4) && !(D.st.routeUrls || []).length, t4);
+        const E = mit({}, KONT); E.st.plan = { schritte: [AB('meiner Mutter', '14:33', 'heute')] };
+        const t5 = await frage(E, S1);
+        check('17.8 genau eine Antwort, genau eine Routenberechnung, Datum bleibt heute (keine stille Änderung)', E.gesagt.length === 1 && (E.st.routeUrls || []).length === 1 && !/morgen/i.test(t5), JSON.stringify({ g: E.gesagt.length, r: (E.st.routeUrls || []).length, t5 }));
+        const G = mit({}, KONT); G.st.plan = { schritte: [{ faehigkeit: 'wetter', params: { tag: 'morgen' } }] };
+        const t6 = await frage(G, 'Wie wird das Wetter morgen? Ich muss um 14:33 Uhr da sein.');
+        check('17.9 unabhängige Aussagen ohne Abfahrtsfrage werden nicht zum Abfahrtsauftrag', !/spätestens/.test(t6) && !(G.st.routeUrls || []).length, t6);
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });
