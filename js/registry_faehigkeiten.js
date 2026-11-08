@@ -420,6 +420,62 @@
         }
     });
 
+    /* ---------------- 2e. Schicht (nur lesend; liest den vorhandenen Schichtplan aus plan_ansagen.js / schicht.js, keine zweite Logik, nichts wird geraten) ---------------- */
+    var SCHICHT_WOCHENTAGE = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+    function schichtWochentag(ymd) { var q = ymd.split('-').map(Number); return (new Date(Date.UTC(q[0], q[1] - 1, q[2])).getUTCDay() + 6) % 7; }   // Montag = 0
+    function schichtTagAus(p) {   // -> ymd oder '' (unklar)
+        var P = window.jvPlan, h = P.jetzt().ymd, t = String((p && p.tag) || 'heute').toLowerCase().replace('ü', 'ue').trim();
+        if (t === 'heute') return h;
+        if (t === 'morgen') return P.ymdPlus(h, 1);
+        if (t === 'uebermorgen') return P.ymdPlus(h, 2);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return isNaN(new Date(t + 'T12:00:00Z').getTime()) ? '' : t;
+        var i = SCHICHT_WOCHENTAGE.map(function (x) { return x.toLowerCase(); }).indexOf(t);
+        if (i < 0) return '';
+        var d = (i - schichtWochentag(h) + 7) % 7;
+        return P.ymdPlus(h, d === 0 ? 7 : d);   // derselbe Wochentag wie heute heißt nächste Woche (wie im Sprachbefehl)
+    }
+    function schichtTagWort(ymd) {
+        var P = window.jvPlan, h = P.jetzt().ymd;
+        if (ymd === h) return 'Heute'; if (ymd === P.ymdPlus(h, 1)) return 'Morgen'; if (ymd === P.ymdPlus(h, 2)) return 'Übermorgen';
+        return 'Am ' + SCHICHT_WOCHENTAGE[schichtWochentag(ymd)] + (ymd > P.ymdPlus(h, 6) ? ', den ' + ymd.slice(8) + '.' + ymd.slice(5, 7) + '.' : '');
+    }
+    function schichtUhr(min) { return window.jvPlan.uhr(((min % 1440) + 1440) % 1440) + (min >= 1440 ? ' (nach Mitternacht)' : ''); }
+    R.registriere({
+        name: 'schicht',
+        beschreibung: 'Sagt aus dem gespeicherten Schichtplan, ob der Nutzer an einem Tag arbeitet oder frei hat, welche Schicht (Früh oder Spät) und wann Beginn, Feierabend und die geplante Abfahrt zur Arbeit sind, einschließlich Urlaub und einmaliger Änderungen. Nur lesend; nennt nur Zeiten, die im Plan stehen.',
+        pflicht: [],
+        optional: [{ name: 'tag', typ: 'text', beschreibung: 'heute (Standard), morgen, uebermorgen, ein Wochentag wie samstag oder ein Datum wie 2026-11-14.' }],
+        rueckgabe: { beschreibung: 'Datum, Schicht (Frühschicht, Spätschicht oder keine mit Grund) und die Zeiten für Beginn, Feierabend und geplante Abfahrt als gesprochener Satz.', felder: ['datum', 'schicht', 'grund', 'beginn', 'ende', 'abfahrt', 'einmalig', 'nachricht'] },
+        fehler: [
+            { status: 'NEEDS_INFORMATION', wann: 'Der Tag ist unklar (kein heute, morgen, Wochentag oder Datum).' },
+            { status: 'NO_RESULTS', wann: 'Es ist noch keine Schicht eingestellt.' },
+            { status: 'CAPABILITY_MISSING', wann: 'Der Schichtplan ist nicht geladen.' }
+        ],
+        fallbacks: [],
+        bestaetigung: { noetig: false, grund: 'Nur lesend.' },
+        leer: function (d) { return !!d && d.leer === true; },
+        pruefeErfolg: function (d) { return !!d && typeof d.nachricht === 'string' && !!d.nachricht.trim() && /^\d{4}-\d{2}-\d{2}$/.test(String(d.datum || '')) && typeof d.schicht === 'string' && (d.schicht === 'keine' || (typeof d.beginn === 'string' && typeof d.ende === 'string')); },
+        verbindung: { datei: 'js/plan_ansagen.js', funktion: 'schichtAm', aktion: 'lesen' },
+        verfuegbar: function () { var P = window.jvPlan, T = window._schichtTest; return !!P && typeof P.schichtAm === 'function' && typeof P.beginn === 'function' && typeof P.ende === 'function' && typeof P.abfahrtMin === 'function' && !!T && typeof T.load === 'function'; },
+        vorpruefung: function (p) {
+            if (p && p.tag !== undefined && !schichtTagAus(p)) return { status: 'NEEDS_INFORMATION', nachricht: 'Für welchen Tag meinst du das, zum Beispiel morgen oder Samstag?', fehlend: ['tag'] };
+            return null;
+        },
+        ausfuehren: async function (p) {
+            var P = window.jvPlan, T = window._schichtTest;
+            if (!T.load()) return { leer: true, reply: 'Deine Schicht ist noch nicht eingestellt. Sag zum Beispiel: Diese Woche Frühschicht.' };
+            var ymd = schichtTagAus(p), sh = P.schichtAm(ymd), w = schichtTagWort(ymd);
+            if (!sh) {
+                var grund = schichtWochentag(ymd) > 4 ? 'Wochenende' : P.schichtOhneUrlaub(ymd) ? 'Urlaub' : 'keine Schicht';
+                return { datum: ymd, schicht: 'keine', grund: grund, nachricht: w + ' hast du keine Schicht' + (grund === 'Wochenende' ? ', es ist Wochenende.' : grund === 'Urlaub' ? ', du hast Urlaub.' : '.') };
+            }
+            var name = sh === 'frueh' ? 'Frühschicht' : 'Spätschicht', b = P.beginn(sh, ymd), e = P.ende(sh, ymd), ab = P.abfahrtMin(sh, ymd) - (P.tagVor(ymd) || 0);
+            var einmalig = !!(P.beginnTag(ymd) || P.endeTag(ymd) || P.tagVor(ymd));
+            return { datum: ymd, schicht: name, grund: '', beginn: schichtUhr(b), ende: schichtUhr(e), abfahrt: schichtUhr(ab), einmalig: einmalig,
+                nachricht: w + ' hast du ' + name + ': Beginn um ' + schichtUhr(b) + ', Feierabend um ' + schichtUhr(e) + ', geplante Abfahrt gegen ' + schichtUhr(ab) + '.' + (einmalig ? ' Das ist eine einmalige Änderung.' : '') };
+        }
+    });
+
     /* ---------------- 2c. Fahrzeit mit dem Auto (nur lesend; baut auf travel.js / stadtverkehr.js auf, keine zweite Routenberechnung) ---------------- */
     R.registriere({
         name: 'fahrzeit',

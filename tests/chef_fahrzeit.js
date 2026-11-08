@@ -686,6 +686,50 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
             }
         }
     }
+    /* --- 22. Werkzeug schicht (lesend): Schichtplan für die Chef-KI, nichts erfunden --- */
+    {
+        const mit = (opt, o) => { o = o || {}; const A = umgebung(opt || {}); const T = A.sb._schichtTest, wn = T.weekNo({ y: 2026, m: 11, d: 2 });
+            if (!o.ohnePlan) A.sb.setPersistentData('jv_schicht', JSON.stringify({ base: wn, shift: 'frueh', times: { frueh: 225, spaet: 720 }, auto: true }));
+            if (o.urlaub) A.store['jv_urlaub'] = JSON.stringify(o.urlaub);
+            if (o.ausnahme) { A.sb.jvPlan.setBeginnTag('2026-11-09', 12 * 60 + 33); A.sb.jvPlan.setTagVor('2026-11-09', 72); }
+            A.z0 = stand(A); return A; };   // heute Do 05.11.2026: diese Woche Früh, ab Mo 09.11. Spät
+        const tool = (A, p) => A.sb.jvRegistry.fuehreAus('schicht', p, {});
+        const A = mit();
+        let r = await tool(A, {});
+        check('22.1 heute (Do, Frühschicht): Beginn 5 Uhr 10, Feierabend 14 Uhr 37, geplante Abfahrt 4 Uhr 30', r.status === 'SUCCESS' && /Heute hast du Frühschicht/.test(r.nachricht) && /5 Uhr 10/.test(r.nachricht) && /14 Uhr 37/.test(r.nachricht) && /4 Uhr 30/.test(r.nachricht), JSON.stringify(r));
+        r = await tool(A, { tag: 'samstag' });
+        check('22.2 Samstag: keine Schicht, Wochenende, keine Zeiten', r.status === 'SUCCESS' && /keine Schicht, es ist Wochenende/.test(r.nachricht) && !/Uhr/.test(r.nachricht), JSON.stringify(r));
+        r = await tool(A, { tag: 'montag' });
+        check('22.3 Montag (Spätschicht): Beginn 13 Uhr 50, Feierabend 22 Uhr 12, Abfahrt 13 Uhr', /Spätschicht/.test(r.nachricht) && /13 Uhr 50/.test(r.nachricht) && /22 Uhr 12/.test(r.nachricht) && /gegen 13 Uhr\./.test(r.nachricht), JSON.stringify(r));
+        r = await tool(A, { tag: '2026-11-12' });
+        check('22.4 Datum: Donnerstag 12.11. Spätschicht, Datum ohne Jahr und ohne Doppelpunkt', /Am Donnerstag, den 12\.11\. hast du Spätschicht/.test(r.nachricht), r.nachricht);
+        r = await tool(A, { tag: 'quatsch' });
+        check('22.5 unklarer Tag: Nachfrage, keine Zeit', r.status === 'NEEDS_INFORMATION' && !/Uhr/.test(r.nachricht), JSON.stringify(r));
+        const E = mit({}, { ausnahme: true });
+        r = await tool(E, { tag: 'montag' });
+        check('22.6 einmalige Änderung (Mo 12:33): Beginn 12 Uhr 33, Abfahrt 11 Uhr 48 (Standard 13:00 minus 72 Minuten), als einmalig benannt; Normalplan unverändert', /12 Uhr 33/.test(r.nachricht) && /11 Uhr 48/.test(r.nachricht) && /einmalige Änderung/.test(r.nachricht) && E.sb.jvPlan.beginn('spaet') === 13 * 60 + 50, r.nachricht);
+        r = await tool(E, { tag: '2026-11-10' });
+        check('22.7 der Tag danach (Di) bleibt normal, ohne Hinweis auf die Ausnahme', /13 Uhr 50/.test(r.nachricht) && !/einmalige/.test(r.nachricht), r.nachricht);
+        const U = mit({}, { urlaub: { von: '2026-11-10', bis: '2026-11-10' } });
+        r = await tool(U, { tag: '2026-11-10' });
+        check('22.8 Urlaubstag: keine Schicht wegen Urlaub', /du hast Urlaub/.test(r.nachricht) && !/Uhr/.test(r.nachricht), r.nachricht);
+        const O = mit({}, { ohnePlan: true });
+        r = await tool(O, { tag: 'morgen' });
+        check('22.9 ohne eingestellten Plan: ehrlich "noch nicht eingestellt", keine erfundene Zeit', !/Uhr \d|Beginn um/.test(r.nachricht || '') && /noch nicht eingestellt/.test(r.nachricht || ''), JSON.stringify(r));
+        check('22.10 Freigabe: lesend, in der Chef-KI-Liste, nicht bei den Schreibenden; Registry meldet keine Bestätigung', A.sb.jvChef.FREIGEGEBEN.includes('schicht') && !A.sb.jvChef.SCHREIB.includes('schicht') && A.sb.jvRegistry.hole('schicht').bestaetigung.noetig === false);
+        const quelle = require('fs').readFileSync(__dirname + '/../js/registry_faehigkeiten.js', 'utf8'), teil = quelle.slice(quelle.indexOf("name: 'schicht'"), quelle.indexOf('2c. Fahrzeit mit dem Auto'));
+        check('22.11 Quelltext des Werkzeugs: kein Schreibzugriff (set*, save, localStorage, executeAction)', teil.length > 500 && !/executeAction|localStorage|setPersistentData|\.set[A-Z]\w*\(|save\(|savedContacts\s*=/.test(teil.replace(/\/\*[\s\S]*?\*\//g, '')));
+        /* Planer-Prüfung und Kombination mit Wetter über den echten Sprachweg (Chef-KI EIN) */
+        const SATZ2 = 'Habe ich Samstag frei und wie wird morgen das Wetter?';
+        const K = mit(); K.st.plan = { schritte: [{ faehigkeit: 'schicht', params: { tag: 'samstag' } }, { faehigkeit: 'wetter', params: { tag: 'morgen' } }] };
+        const g = (await tippen(K, SATZ2, 300)).join(' | ');
+        check('22.12 Kombination Schicht + Wetter: beide Auskünfte, ein Plan, keine normale KI', /Übermorgen hast du keine Schicht, es ist Wochenende/.test(g) && /Wetter morgen/.test(g) && K.st.ent === 1 && K.st.groq === 0, g + ' ent ' + K.st.ent + ' groq ' + K.st.groq);
+        for (const [name, schritte] of [['zwei Schicht-Schritte', [{ faehigkeit: 'schicht', params: { tag: 'samstag' } }, { faehigkeit: 'schicht', params: { tag: 'sonntag' } }]], ['unbekannter Parameter', [{ faehigkeit: 'schicht', params: { tag: 'samstag', schichtzeit: '5 Uhr' } }]], ['ungültiger Tag', [{ faehigkeit: 'schicht', params: { tag: 'irgendwann' } }]]]) {
+            const X = mit(); X.st.plan = { schritte: schritte.concat([{ faehigkeit: 'wetter', params: { tag: 'morgen' } }]) };
+            const gx = (await tippen(X, SATZ2, 300)).join(' | ');
+            check('22.13 ungültiger Plan (' + name + ') wird verworfen: keine Schicht-Auskunft aus dem Plan, normaler Weg übernimmt', !/keine Schicht, es ist Wochenende/.test(gx) && X.st.groq >= 1, gx + ' groq ' + X.st.groq);
+        }
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });
