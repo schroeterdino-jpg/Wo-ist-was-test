@@ -114,7 +114,7 @@
         const mitKlasse = d.incidents.filter(i => ![4, 10].includes(i.kategorie) && (i.stufe >= 2 || i.verzoegerung_s >= 120 || [1, 8].includes(i.kategorie)))
             .map(i => { const r = routenRelevanz(i.lat, i.lon, pts); return { i, ok: r.km <= ([7, 8].includes(i.kategorie) ? ROUTE_AUF_KM : ROUTE_NAHE_KM), klasse: echt ? r.klasse : 'gebiet' }; })   // Sperrungen nur, wenn sie wirklich auf der Strecke liegen (Google fährt um sie herum)
             .filter(x => x.ok && !doppelt(x.i)).map(x => Object.assign({}, x.i, { klasse: x.klasse }));
-        return { auf: ordnen(mitKlasse.filter(i => i.klasse !== 'nahe')).slice(0, 3), neben: ordnen(mitKlasse.filter(i => i.klasse === 'nahe')).slice(0, 2) };
+        return { auf: ordnen(mitKlasse.filter(i => i.klasse === 'auf')).slice(0, 3), neben: ordnen(mitKlasse.filter(i => i.klasse === 'nahe')).slice(0, 2) };
     }
 
     if (window.jvCommands) {
@@ -148,7 +148,7 @@
                 window.jvStauMin = Math.min(60, w.reduce((s, i) => s + (i.verzoegerung_s >= 120 ? Math.round(i.verzoegerung_s / 60) : 0), 0));   // nur Meldungen auf der Route verlängern die Fahrt
                 // TomTom nennt bei Autobahn-Ausfahrten oft nur "Abfahrt [8a]" ohne Straße: dann die Autobahn der Route nehmen (wenn es nur eine gibt) und die eckigen Klammern weglassen
                 const sauber = s => String(s || '').replace(/\[([^\]]+)\]/g, '$1').trim();
-                const strasse = i => (i.strassen && i.strassen[0]) || ((/^(?:abfahrt|ausfahrt|auffahrt|anschlussstelle|as)\b/i.test(sauber(i.von)) && Array.isArray(autobahnen) && autobahnen.length === 1) ? autobahnen[0] : '');
+                const strasse = i => (Array.isArray(i.strassen) && i.strassen[0]) || '';
                 const teilText = i => {
                     const von = sauber(i.von), nach = sauber(i.nach);
                     const wo = von && nach && von !== nach ? ' zwischen ' + von + ' und ' + nach : (von ? ' bei ' + von : '');
