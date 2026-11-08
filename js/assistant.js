@@ -496,13 +496,16 @@ async function sendToGroqSmartCore(text, opts = {}) {
                 /* Nennt der Satz einen Startort ("von Schwarzenbek zum ...") ohne Ankunftszeit, rechnet das Fahrzeit-Werkzeug mit Plausibilitätsprüfung (der alte Weg kennt nur den GPS-Standort) */
                 let fzVon = null;
                 try {
-                    const mv = String(text).match(/\bvon\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]*(?:\s+[A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]*){0,2})\s+(?:zum|zur|nach|bis|zu|ins|an|in)\b/);
-                    const ziel = String(travelAction.travel_destination || '').trim();
-                    if (mv && ziel && !arrivalFromUserText(text) && window.jvRegistry && window.jvRegistry.hole && window.jvRegistry.hole('fahrzeit')) {
-                        const r = await window.jvRegistry.fuehreAus('fahrzeit', { ziel: ziel, von: mv[1].trim() }, {});
+                    const mv = String(text).match(/\bvon\s+([A-ZÄÖÜa-zäöüß][A-Za-zÄÖÜäöüß.-]*(?:\s+[A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]*){0,2})\s+(?:zum|zur|nach|bis|zu|ins|an|in)\b/i);
+                    const startOk = mv && !/^(hier|dort|mir|uns|hause|zuhause|da|jetzt|heute|morgen|meinem|meiner|meinen|mein|meine)$/i.test(mv[1].trim());
+                    let ziel = String(travelAction.travel_destination || '').trim();
+                    if (startOk && !ziel) { const mz = String(text).slice(mv.index + mv[0].length - 0).match(/^\s*(?:(?:dem|der|den)\s+)?(.+?)\s*(?:[?.!,]|\bund\b|\bberücksichtige\b|$)/i); ziel = mz ? mz[1].trim() : ''; }
+                    if (startOk && ziel && !arrivalFromUserText(text) && window.jvRegistry && window.jvRegistry.hole && window.jvRegistry.hole('fahrzeit')) {
+                        const r = await window.jvRegistry.fuehreAus('fahrzeit', { ziel: resolveTravelDestination(text, ziel), von: mv[1].trim() }, {});
                         if (r && r.nachricht) fzVon = r.nachricht;
-                    }
-                } catch (e) { fzVon = null; }
+                        updateTerminalStream('FAHRZEIT: WERKZEUG ' + (r && r.status || '?') + ' VON ' + mv[1].trim(), 'FETCHING');
+                    } else { updateTerminalStream('FAHRZEIT: ALTER WEG (' + (!mv ? 'kein Startort im Satz' : !startOk ? 'Start unbrauchbar' : !ziel ? 'kein Ziel' : 'Ankunftszeit/Werkzeug fehlt') + ')', 'FETCHING'); }
+                } catch (e) { fzVon = null; try { updateTerminalStream('FAHRZEIT: WERKZEUG-FEHLER ' + String(e && e.message || e).slice(0, 60), 'FETCHING'); } catch (e2) { } }
                 if (fzVon) { travelReply = fzVon; } else {
                 const res = await computeDepartureAdvice({
                     query: travelAction.travel_query || '',
