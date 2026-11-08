@@ -1,0 +1,41 @@
+name: PR vorbereiten (Stempel + Golden Master)
+
+# Bewusst manuell: vor dem PR-Test auf dem Arbeitsbranch starten.
+# Aktualisiert nur Index-Stempel und die gemessene Bestandsaufnahme.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  vorbereiten:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Arbeitsbranch auschecken
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Cache-Stempel aktualisieren
+        run: node tools/stempel.js
+      - name: Golden Master zuletzt neu messen
+        run: node tests/inventar8a.js --schreiben
+      - name: Inventar und Cache-Stempel kontrollieren
+        run: |
+          node tools/stempel.js --pruefen
+          node tests/inventar8a.js
+      - name: Nur die beiden generierten Dateien committen
+        run: |
+          git add -- index.html tests/inventar8a_soll.json
+          if git diff --cached --quiet; then
+            echo "Stempel und Golden Master bereits aktuell."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: Cache-Stempel und Golden Master automatisch aktualisieren"
+          git push origin "HEAD:${{ github.ref_name }}"
