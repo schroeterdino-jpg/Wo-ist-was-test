@@ -742,6 +742,18 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const q = X.sb.jvChef._lokal('Wie ist die Verkehrslage nach Berlin?');
         check('23.2 andere Verkehrsziele werden nicht zur Arbeit umgelenkt', q.schritte.length === 0);
     }
+    // Regression: Wetter „dort“ in einer Arbeitsweg-Mehrfachfrage bezieht sich auf die gespeicherte Arbeitsadresse.
+    {
+        const X = umgebung();
+        X.setze('workAddress', 'Neu-Galliner-Ring 6, Gallin');
+        X.st.plan = { schritte: [{ faehigkeit: 'wetter', params: { tag: 'morgen' } }] };
+        const antworten = (await tippen(X, 'Wann muss ich morgen zur Arbeit losfahren, wie wird das Wetter dort und gibt es Staus auf meinem Arbeitsweg?')).join(' | ');
+        check('24.1 Arbeitsweg mit Wetter dort fragt nicht nach einem unbekannten Ort', !/Welchen Ort meinst du/.test(antworten), antworten);
+        check('24.2 Arbeitsweg-Mehrfachfrage erreicht den Chef-Planer', X.st.ent > 0, JSON.stringify({ ent: X.st.ent, antworten }));
+        const Y = umgebung();
+        const unklar = (await tippen(Y, 'Wie wird das Wetter dort morgen?')).join(' | ');
+        check('24.3 ohne bekannten Ort bleibt die Rückfrage erhalten', /Welchen Ort meinst du/.test(unklar), unklar);
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });

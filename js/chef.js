@@ -1054,7 +1054,7 @@
             try { ctrl = (typeof AbortController === 'function') ? new AbortController() : null; } catch (e) { ctrl = null; }
             var limit = new Promise(function (_, reject) { timer = setTimeout(function () { try { if (ctrl) ctrl.abort(); } catch (e) { } reject(new Error('Zeitlimit')); }, KI_ZEITLIMIT_MS); });
             if (ortBezug) {   // "dort"/"da": erst prüfen, ob der gemerkte Name wirklich ein Ort ist; sonst fragen, nie den eigenen Standort einsetzen
-                var ortOk = (ortMerker && ortMerker.name === ortBezug && ortMerker.geprueft === true) ? true : await ortPruefen(ortBezug);
+                var ortOk = (/\b(?:arbeitsweg|weg\s+zur\s+arbeit|zur\s+arbeit)\b/i.test(text) && (typeof workAddress === 'string' ? workAddress : '').trim() === ortBezug) || ((ortMerker && ortMerker.name === ortBezug && ortMerker.geprueft === true) ? true : await ortPruefen(ortBezug));
                 if (gen !== kiGen) { try { clearTimeout(timer); } catch (e) { } protokolliere('ki_ueberholt', [], 'VERWORFEN'); vermerke(eingang, 'ki_ueberholt'); return; }
                 if (!ortOk) {
                     try { clearTimeout(timer); } catch (e) { }
@@ -1189,7 +1189,13 @@
             var ortBezug = ortNeu;   // Antwort auf "Welchen Ort meinst du?": der genannte Ort wird (nach Prüfung) fest in den Plan eingesetzt
             if (kopf !== 'nachfrage_antwort' && ks.length === 0) {
                 if (RX_ORTSBEZUG.test(t) && !(RX_DA_SEIN.test(t) && RX_ZIEL_IM_SATZ.test(t) && (RX_ABFAHRT.test(t) || RX_ANKUNFT.test(t)) && R() && R().hole('abfahrt'))) {   // "Ich muss zu meiner Mutter. Um 14:33 Uhr da sein. Wann losfahren?": "da" ist das genannte Ziel, keine Ortsrückfrage
-                    if (ortFrisch()) ortBezug = ortMerker.name;
+                    // Ein ausdrücklicher Arbeitsweg im selben Satz macht „dort“ eindeutig.
+                    // Die gespeicherte Arbeitsadresse ist kein allgemeiner Gesprächsort.
+                    var arbeitsBezug = /\b(?:arbeitsweg|weg\s+zur\s+arbeit|zur\s+arbeit)\b/i.test(t) &&
+                        /\b(?:wetter|regen|temperatur)\b/i.test(t) &&
+                        (typeof workAddress === 'string' ? workAddress : '').trim();
+                    if (arbeitsBezug) ortBezug = arbeitsBezug;
+                    else if (ortFrisch()) ortBezug = ortMerker.name;
                     else {
                         neuerEingang('ort_unklar'); frageAnmelden();
                         offenKi = { at: jetzt(), text: t, frage: 'Welchen Ort meinst du?', bezug: true };
