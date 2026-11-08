@@ -684,6 +684,30 @@
 
     /* Kontext für kurze Anschlussfragen: nur Art des letzten Themas (und Tag/Stichwort), nie ein Satz. */
     function themaFrisch() { return !!thema && jetzt() - thema.at <= THEMA_MS; }
+    // Vorhandene Schichtdaten werden dem allgemeinen KI-Planer als Fakten gegeben.
+    // Keine Satzmuster: Die KI entscheidet selbst, ob diese Daten zur Frage gehören.
+    function schichtFakten() {
+        try {
+            var P = window.jvPlan, T = window._schichtTest;
+            if (!P || !T || typeof T.load !== 'function' || !T.load() ||
+                typeof P.jetzt !== 'function' || typeof P.schichtAm !== 'function' ||
+                typeof P.ymdPlus !== 'function') return '';
+            var heute = P.jetzt().ymd;
+            var daten = [0, 1, 2].map(function (tage) {
+                var tag = P.ymdPlus(heute, tage), sh = P.schichtAm(tag);
+                if (!sh) return { tag: tag, schicht: 'frei' };
+                if (typeof P.beginn !== 'function' || typeof P.abfahrtMin !== 'function' ||
+                    typeof P.uhr !== 'function') return { tag: tag, schicht: sh };
+                var beginn = P.beginn(sh, tag), abfahrt = P.abfahrtMin(sh, tag) -
+                    (typeof P.tagVor === 'function' ? (P.tagVor(tag) || 0) : 0);
+                return { tag: tag, schicht: sh, beginn: P.uhr(((beginn % 1440) + 1440) % 1440),
+                    abfahrt: P.uhr(((abfahrt % 1440) + 1440) % 1440) };
+            });
+            return 'Gespeicherter Schichtplan (heute, morgen, übermorgen; nur Fakten): ' +
+                JSON.stringify(daten) + '. Bei Arbeitsfragen diese Fakten nutzen und keine bekannte Ankunftszeit erfragen. ' +
+                'Bei frei keine Arbeitsabfahrt behaupten. Bei Verkehrsfragen aktuelle Verkehrsdaten getrennt prüfen.';
+        } catch (e) { return ''; }
+    }
     function kontextText() {
         if (!themaFrisch()) return '';
         return 'Nur zur Einordnung kurzer Anschlussfragen: das letzte Thema war ' + (thema.art === 'wetter' ? 'das Wetter (Tag: ' + (thema.tag || 'heute') + (thema.ort ? ', Ort: ' + thema.ort : '') + ')' : thema.art === 'orte' ? 'eine Ortssuche' + (thema.begriff ? ' (' + thema.begriff + ')' : '') : 'eine Internetauskunft') + '.';
@@ -1065,6 +1089,8 @@
                 vermerke(eingang, 'ort_bezug');
                 kontext = (kontext ? kontext + ' ' : '') + 'Mit „dort“, „da“ oder „in dieser Stadt“ ist ' + ortBezug + ' gemeint (params.ort = "' + ortBezug + '").';
             }
+            var gespeicherteSchichten = schichtFakten();
+            if (gespeicherteSchichten) kontext = (kontext ? kontext + ' ' : '') + gespeicherteSchichten;
             // Der KI-Planer muss den gespeicherten Arbeitsort ebenfalls kennen.
             // Nur bei einer ausdrücklichen Verkehrsfrage zum Arbeitsweg, niemals als allgemeines Reiseziel.
             if (/\b(?:verkehr\w*|stau\w*|sperrung\w*)\b/i.test(text) &&
