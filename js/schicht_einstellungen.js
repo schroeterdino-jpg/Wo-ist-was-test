@@ -32,6 +32,7 @@
     function start() {
         const b = $('szSpeichern'); if (!b) return;
         b.addEventListener('click', speichern);
+        ['szFruehBeginn', 'szFruehEnde', 'szSpaetBeginn', 'szSpaetEnde', 'szVorher', 'szStau'].forEach(function (id) { const el = $(id); if (el) el.addEventListener('change', speichern); });   // der Handy-Zeitwähler hat keine OK-Taste: jede Änderung wird sofort gespeichert
         const d = $('schichtzeitenDetails'); if (d) d.addEventListener('toggle', function () { if (d.open) fuellen(); });
         fuellen();
     }
