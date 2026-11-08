@@ -227,7 +227,7 @@
         if (/\b(?:verkehr\w*|stau\w*|sperrung\w*)\b/i.test(t) &&
             /\b(?:weg\s+zur\s+arbeit|arbeitsweg|fahrt\s+zur\s+arbeit|zur\s+arbeit)\b/i.test(t) &&
             !/\b(?:und|außerdem|ausserdem)\b/i.test(t)) {
-            var arbeit = (window.localStorage && window.localStorage.getItem('workAddress') || '').trim();
+            var arbeit = (typeof workAddress === 'string' ? workAddress : '').trim();
             if (arbeit) return { absicht: 'verkehr_arbeitsweg', schritte: [{ faehigkeit: 'fahrzeit', params: { ziel: arbeit } }] };
         }
         if (RX_SCHREIB.test(t)) return { absicht: 'schreiben', schritte: [] };   // Erinnerung/Termin/Gedächtnis: bleibt beim bisherigen Weg
@@ -1069,7 +1069,7 @@
             // Nur bei einer ausdrücklichen Verkehrsfrage zum Arbeitsweg, niemals als allgemeines Reiseziel.
             if (/\b(?:verkehr\w*|stau\w*|sperrung\w*)\b/i.test(text) &&
                 /\b(?:weg\s+zur\s+arbeit|arbeitsweg|fahrt\s+zur\s+arbeit|zur\s+arbeit)\b/i.test(text)) {
-                var arbeitsziel = (window.localStorage && window.localStorage.getItem('workAddress') || '').trim();
+                var arbeitsziel = (typeof workAddress === 'string' ? workAddress : '').trim();
                 if (arbeitsziel) kontext = (kontext ? kontext + ' ' : '') + 'Für diese Verkehrsfrage ist das gespeicherte Ziel Arbeit: ' + JSON.stringify(arbeitsziel) + '. Nutze fahrzeit mit params.ziel gleich dieser Adresse; frage nicht erneut nach dem Ziel.';
             }
             var sende = sendeFunktion || sendeStandard;
