@@ -54,7 +54,7 @@ function umgebung(opt) {
             else if (/hauptbahnhof/i.test(q) && /hamburg/i.test(q)) ort = { lat: '53.5528', lon: '10.0067', name: 'Hamburg Hauptbahnhof, Hachmannplatz, St. Georg, Hamburg-Mitte, Hamburg, 20099, Deutschland' };
             else if (/berlin/i.test(q)) ort = { lat: '52.52', lon: '13.40', name: 'Berlin, Deutschland' };
             if (st.geoName) { const x = st.geoName(q); if (x) ort = Object.assign(ort, x); }
-            return ant([{ lat: ort.lat, lon: ort.lon, display_name: ort.name, class: st.geoKlasse || 'boundary', type: 'administrative' }]); }
+            return ant([{ lat: ort.lat, lon: ort.lon, display_name: ort.name, address: ort.adr, class: st.geoKlasse || 'boundary', type: 'administrative' }]); }
         if (/open-meteo/.test(u)) { (st.wetterUrls = st.wetterUrls || []).push(u); st.wetterN++; if (st.wetter === 'fehler') throw new Error('offline'); return ant(/daily=/.test(u) && /current=/.test(u) ? Object.assign({}, WETTER_JETZT, WETTER_TAGE) : /daily=/.test(u) ? WETTER_TAGE : WETTER_JETZT); }
         if (/action=places/.test(u)) { st.placesN++; if (st.places === 'fehler') return { ok: false, status: 500, json: async () => ({}) }; return ant({ places: st.places === 'leer' ? [] : PL }); }
         if (/api\/maps\?action=shopping/.test(u)) {
@@ -297,6 +297,28 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const z2 = []; B.sb.diagAdd = function (z) { z2.push(String(z)); };
         await frage(B, 'Wie lange brauche ich zum Hamburger Hauptbahnhof?');
         check('12.2 ohne Startort: Diagnose nennt "ALTER WEG" mit Grund', z2.some(z => /ALTER WEG, Grund: kein Startort im Satz/.test(z)), z2.join(' // '));
+    }
+    /* 13 Geocoding-Treffer in der falschen Stadt (Handy-Beweis: "Hamburger Hauptbahnhof" -> Münster, weil dort eine Hamburger Straße liegt) */
+    {
+        const MS = { lat: '51.96', lon: '7.64', name: 'Münster (Westf) Hauptbahnhof, Hamburger Straße, Hafen, Münster, Nordrhein-Westfalen, 48149, Deutschland' };
+        const falsch = (mit) => q => (q.trim() === 'Hamburger Hauptbahnhof') ? Object.assign({}, MS, mit ? { adr: { city: 'Münster', road: 'Hamburger Straße', state: 'Nordrhein-Westfalen' } } : {}) : null;
+        const A = umgebung(); A.st.geoName = falsch(true); A.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
+        const t = await frage(A, SATZ);
+        check('13.1 Treffer in Münster (Straße "Hamburger Straße") wird verworfen, neu gesucht mit Stadt: Fahrzeit nach Hamburg', /Hamburger Hauptbahnhof/.test(t) && /40 Minuten/.test(t) && (A.st.geoQ || []).some(q => /^Hauptbahnhof, Hamburg$/.test(q)) && !/Münster/.test(t), t);
+        const B = umgebung(); B.st.geoName = falsch(false); B.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
+        const t2 = await frage(B, SATZ);
+        check('13.2 auch ohne strukturierte Ortsangaben: Straße zählt nicht als Stadt', /40 Minuten/.test(t2) && !/Münster/.test(t2), t2);
+        const C = umgebung(); C.st.geoName = q => /hauptbahnhof/i.test(q) ? MS : null; C.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
+        const t3 = await frage(C, SATZ);
+        check('13.3 Stadt nicht bestätigt (auch die zweite Suche liefert Münster): Nachfrage statt falscher Route, keine Minuten', /nur einen Ort gefunden, der nicht passt/.test(t3) && !/\d+ Minuten/.test(t3) && C.st.webN === 0 && C.st.groq === 0, t3);
+        for (const [fr, name, adr] of [['Berliner Hauptbahnhof', 'Berlin Hauptbahnhof, Europaplatz, Moabit, Mitte, Berlin, 10557, Deutschland', { city: 'Berlin' }], ['Münchner Hauptbahnhof', 'München Hauptbahnhof, Bayerstraße, Ludwigsvorstadt, München, Bayern, 80335, Deutschland', { city: 'München' }], ['Kölner Hauptbahnhof', 'Köln Hauptbahnhof, Trankgasse, Altstadt-Nord, Köln, Nordrhein-Westfalen, 50667, Deutschland', { city: 'Köln' }]]) {
+            const D = umgebung(); D.st.geoName = q => q.trim() === fr ? { lat: '52.5', lon: '13.4', name, adr } : null; D.st.plan = { schritte: [FZ(fr, 'Schwarzenbek')] };
+            const t4 = await frage(D, 'Wie lange brauche ich von Schwarzenbek zum ' + fr + '?');
+            check('13.4 ' + fr + ': richtige Stadt wird akzeptiert (keine Ortsablehnung)', !/nur einen Ort gefunden/.test(t4), t4);
+        }
+        const E = umgebung(); E.st.geoName = q => q.trim() === 'Berliner Hauptbahnhof' ? { lat: '50.7', lon: '7.1', name: 'Bonn Hauptbahnhof, Berliner Platz, Bonn, Nordrhein-Westfalen, Deutschland', adr: { city: 'Bonn', road: 'Berliner Platz' } } : null; E.st.plan = { schritte: [FZ('Berliner Hauptbahnhof', 'Schwarzenbek')] };
+        const t5 = await frage(E, 'Wie lange brauche ich von Schwarzenbek zum Berliner Hauptbahnhof?');
+        check('13.5 Berliner Platz in Bonn ist kein Berlin', !/Bonn/.test(t5) || /nicht passt|nicht gefunden/.test(t5), t5);
     }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
