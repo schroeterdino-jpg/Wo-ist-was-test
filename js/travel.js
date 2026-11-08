@@ -56,6 +56,42 @@ async function geocodeDestination(text, userPlace) {
     return null;
 }
 
+/* ZIELSTADT-PRÜFUNG (aus dem Fahrzeit-Werkzeug, PR #387): "Hamburger Hauptbahnhof" darf nicht bei einem Treffer in Münster landen, nur weil dort eine "Hamburger Straße" liegt.
+   Das erste längere Wort ("Hamburger" -> Stamm "hambur", "Münchner" -> "muench") muss im ORT des Treffers vorkommen, nicht in einer Straße. Genauste Quelle: die strukturierten
+   Ortsangaben des Geocoders (adr); fehlen sie, zählen nur die Namensteile ohne Straßenwörter. Adressen mit Hausnummer oder Straßenwort werden nicht geprüft. Fehlt der Name, wird nichts behauptet. */
+const ORT_FELDER_PRUEFUNG = ['city', 'town', 'village', 'municipality', 'city_district', 'borough', 'suburb', 'county', 'state_district', 'state'];
+const ORT_STRASSE_RX = /(stra(ss|ß)e|str\.|weg\b|platz\b|allee|ring\b|damm\b|ufer\b|gasse|chaussee|pfad\b)/i;
+function ortNorm(t) { return String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss'); }
+function ortStamm(gefragt) {
+    const w = ortNorm(gefragt).split(/[^a-z0-9]+/).filter(x => x.length >= 5)[0];
+    return w ? (w.length > 6 ? w.slice(0, Math.min(6, w.length - 2)) : w) : '';
+}
+function ortStimmt(gefragt, gefunden, adr) {
+    if (!gefunden) return true;
+    if (/\d/.test(String(gefragt || '')) || ORT_STRASSE_RX.test(String(gefragt || ''))) return true;   // eine Adresse, kein Ortsname mit Stadt-Wort
+    const w = ortStamm(gefragt);
+    if (!w) return true;
+    if (adr && typeof adr === 'object') {
+        const orte = ORT_FELDER_PRUEFUNG.map(k => adr[k]).filter(Boolean);
+        if (orte.length) return orte.some(o => ortNorm(o).indexOf(w) >= 0);
+    }
+    const teile = String(gefunden).split(',').filter(t => !ORT_STRASSE_RX.test(t));
+    return ortNorm(teile.join(',')).indexOf(w) >= 0;
+}
+/* Sucht das Ziel; passt die Stadt nicht, noch einmal gezielt mit der Stadt aus dem Wort ("Hauptbahnhof, Hamburg"; Berliner/Kölner/Münchner analog). Gibt den besten Treffer zurück
+   (der Aufrufer prüft mit ortStimmt, ob er passt). */
+async function geocodeDestinationPruefen(text) {
+    const d = await geocodeDestination(text, '');
+    if (!d || ortStimmt(text, d.name, d.adr)) return d;
+    const m = String(text).trim().match(/^(\S{5,}?)er\s+(.+)$/i);
+    if (m) {
+        const stadt = m[1].replace(/chn$/i, 'chen');
+        const d2 = await geocodeDestination(m[2].trim() + ', ' + stadt, '');
+        if (d2 && ortStimmt(text, d2.name, d2.adr)) return d2;
+    }
+    return d;
+}
+
 async function routeDurationSeconds(fromLat, fromLon, toLat, toLon) {
     try {
         const res = await apiFetch(`/api/route?fromLat=${fromLat}&fromLon=${fromLon}&toLat=${toLat}&toLon=${toLon}&geometry=1`);
@@ -446,7 +482,12 @@ async function computeDepartureAdvice(opts) {
        Deshalb zuerst das vom User JETZT genannte Ziel selbst geocodieren.
        Nur wenn das nicht gefunden wird, dürfen Kontakt/Gedächtnis als persönliche
        Adressauflösung einspringen. */
-    let dest = await geocodeDestination(target.ort, '');
+    /* Zielstadt-Prüfung (PR #387) nur für ausdrücklich genannte Ziele der Form "Hamburger Hauptbahnhof" (Stadtadjektiv + Name); Termin-Orte und Adressen bleiben wie bisher */
+    const stadtPruefen = !!opts.destination && /^[A-ZÄÖÜ][a-zäöüß]{3,}er\s+\S/.test(String(target.ort || '').trim());
+    let dest = stadtPruefen ? await geocodeDestinationPruefen(target.ort) : await geocodeDestination(target.ort, '');
+    if (stadtPruefen && dest && !ortStimmt(target.ort, dest.name, dest.adr)) {
+        throw userError(`Für "${target.ort}" habe ich nur einen Ort gefunden, der nicht passt (${String(dest.name).split(',').slice(0, 2).join(',').trim()}). Wie genau heißt das Ziel, oder in welcher Stadt liegt es? Eine Abfahrtszeit nenne ich deshalb nicht.`);
+    }
     let usedStoredAddress = false;
     if (!dest && memAddr) {
         dest = await geocodeDestination(memAddr, loc.ort);

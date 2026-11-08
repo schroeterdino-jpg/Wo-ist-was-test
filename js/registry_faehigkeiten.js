@@ -334,6 +334,66 @@
         }
     });
 
+    /* ---------------- 2d. Abfahrtszeit für eine gewünschte Ankunft (nur lesend; ruft die bestehende Abfahrtsplanung computeDepartureAdvice auf, keine zweite Logik) ---------------- */
+    function ankunftAus(p) {   // -> { iso, ms, tag } | { fehler: 'zeit' | 'vorbei' }
+        var m = String((p && p.ankunft) || '').trim().match(/^(\d{1,2})(?::(\d{2}))?$/);
+        if (!m || +m[1] > 23 || (m[2] !== undefined && +m[2] > 59)) return { fehler: 'zeit' };
+        var t = String((p && p.tag) || 'heute').toLowerCase().replace('ü', 'ue'), d = new Date();
+        if (t === 'morgen') d.setDate(d.getDate() + 1); else if (t === 'uebermorgen') d.setDate(d.getDate() + 2);
+        else if (/^\d{4}-\d{2}-\d{2}$/.test(t)) { var x = new Date(t + 'T12:00:00'); if (isNaN(x.getTime())) return { fehler: 'zeit' }; d = x; }
+        else if (t !== 'heute') return { fehler: 'zeit' };
+        d.setHours(+m[1], m[2] === undefined ? 0 : +m[2], 0, 0);
+        if (d.getTime() <= Date.now()) return { fehler: 'vorbei' };
+        var z = function (n) { return String(n).padStart(2, '0'); };
+        return { iso: d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()) + ':00', ms: d.getTime(), tag: t };
+    }
+    R.registriere({
+        name: 'abfahrt',
+        beschreibung: 'Berechnet, wann der Nutzer losfahren muss, um zu einer bestimmten Uhrzeit an einem Ziel zu sein (Fahrzeit mit dem Auto vom Standort, gemeldete Staus und der übliche Zeitpuffer). Gespeicherte Personen und Stellen (Mutter, Zahnarzt) werden über die Kontakte aufgelöst. Nur lesend.',
+        pflicht: [
+            { name: 'ziel', typ: 'text', beschreibung: 'Das genaue Ziel wie genannt, zum Beispiel meiner Mutter, Zahnarzt oder Hamburger Hauptbahnhof (nicht nur Hamburg).' },
+            { name: 'ankunft', typ: 'text', beschreibung: 'Uhrzeit der gewünschten Ankunft als HH:MM, zum Beispiel 13:00.' }
+        ],
+        optional: [{ name: 'tag', typ: 'text', beschreibung: 'heute (Standard), morgen, uebermorgen oder ein Datum wie 2026-11-09.' }],
+        rueckgabe: { beschreibung: 'Ein Satz mit Fahrzeit, Entfernung und der spätestens empfohlenen Abfahrtszeit inklusive Puffer; sagt ausdrücklich, wenn die Verkehrslage nur die von jetzt ist.', felder: ['nachricht', 'minuten', 'km', 'ankunft', 'verkehrsdaten'] },
+        fehler: [
+            { status: 'NEEDS_INFORMATION', wann: 'Ziel oder Uhrzeit fehlt oder ist unklar, die Uhrzeit ist schon vorbei, oder mehrere Kontakte passen.' },
+            { status: 'TOOL_FAILED', wann: 'Standort, Ziel oder Route nicht verfügbar, oder das Ziel liegt in einer anderen Stadt als genannt. Dann nennt die Fähigkeit keine Abfahrtszeit.' },
+            { status: 'CAPABILITY_MISSING', wann: 'Die Abfahrtsplanung ist nicht geladen.' }
+        ],
+        fallbacks: [],
+        bestaetigung: { noetig: false, grund: 'Reine Auskunft ohne Änderung von Daten.' },
+        leer: function (d) { return !!d && d.leer === true; },
+        pruefeErfolg: function (d) { return !!d && typeof d.nachricht === 'string' && !!d.nachricht.trim() && typeof d.minuten === 'number' && d.minuten > 0 && typeof d.ankunft === 'string' && (d.verkehrsdaten === 'jetzt' || d.verkehrsdaten === 'ohne'); },
+        verbindung: { datei: 'js/travel.js', funktion: 'computeDepartureAdvice', aktion: 'lesen' },
+        verfuegbar: function () { return typeof computeDepartureAdvice === 'function' && typeof fetchFreshTravelLocation === 'function'; },
+        vorpruefung: function (p) {
+            var ziel = String((p && p.ziel) || '').trim();
+            if (!ziel) return { status: 'NEEDS_INFORMATION', nachricht: 'Wohin musst du?', fehlend: ['ziel'] };
+            var z = ankunftAus(p);
+            if (z.fehler === 'zeit') return { status: 'NEEDS_INFORMATION', nachricht: 'Um wie viel Uhr musst du da sein?', fehlend: ['ankunft'] };
+            if (z.fehler === 'vorbei') return { status: 'NEEDS_INFORMATION', nachricht: 'Diese Uhrzeit ist schon vorbei. Für welchen Tag meinst du es, zum Beispiel morgen?', fehlend: ['tag'] };
+            var pz = persoenlicheAdresse(ziel);
+            if (pz && pz.mehrdeutig) return { status: 'NEEDS_INFORMATION', nachricht: 'Meinst du ' + pz.mehrdeutig.join(' oder ') + '?', fehlend: ['ziel'] };
+            return null;
+        },
+        ausfuehren: async function (p) {
+            function fehlschlag(m) { var e = new Error(m); e.userMessage = m; throw e; }
+            var ziel = String(p.ziel).trim(), z = ankunftAus(p), pz = persoenlicheAdresse(ziel);
+            if (pz && pz.ohneAdresse) return { leer: true, reply: 'Bei ' + pz.name + ' ist keine Adresse gespeichert, deshalb nenne ich keine Abfahrtszeit.' };
+            var dest = (pz && pz.adresse) ? mitRegion(pz.adresse) : ziel;
+            var loc = await fetchFreshTravelLocation();
+            if (!loc || loc.fehler || loc.latitude === undefined) fehlschlag('Deinen Standort konnte ich gerade nicht ermitteln, deshalb nenne ich keine Abfahrtszeit. Ist der Standortzugriff erlaubt?');
+            var res = await computeDepartureAdvice({ destination: dest, arrivalTime: z.iso, wantFuel: false, loc: loc });   // wirft verständliche Fehler (Ort nicht gefunden, falsche Stadt ...)
+            var text = String(res.reply || '');
+            if (pz && pz.adresse) text = text.split(dest).join(String(pz.name));   // gesprochen wird der Name, nicht die Adresse
+            var jetzt = /mit aktuellem Verkehr/.test(text), spaeter = z.ms - Date.now() > 90 * 60000;
+            if (spaeter) text += jetzt ? ' Das ist die Fahrzeit nach der Verkehrslage von jetzt; eine Prognose für später habe ich nicht.' : ' Aktuelle Verkehrsdaten sind darin nicht eingerechnet.';
+            var mp = res.map || {};
+            return { nachricht: text, minuten: Number(mp.fahrtMin) || 0, km: Math.round((Number(mp.km) || 0) * 10) / 10, ankunft: z.iso, verkehrsdaten: jetzt ? 'jetzt' : 'ohne', cards: [res.card].concat(res.stauCards || [], res.webcamCards || []).filter(Boolean) };
+        }
+    });
+
     /* ---------------- 2c. Fahrzeit mit dem Auto (nur lesend; baut auf travel.js / stadtverkehr.js auf, keine zweite Routenberechnung) ---------------- */
     R.registriere({
         name: 'fahrzeit',
@@ -355,34 +415,9 @@
             var ziel = String(p.ziel || '').trim(), von = typeof p.von === 'string' ? p.von.trim() : '';
             function norm(t) { return String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss'); }
             /* Passt der gefundene Ort zum genannten Namen? Das erste längere Wort ("Hamburger" -> Stamm "hamburg", "Münchner" -> "muench") muss im ORT des Treffers vorkommen, nicht in einer Straße ("Münster ... Hamburger Straße" ist kein Treffer für Hamburg). Genauste Quelle: die strukturierten Ortsangaben des Geocoders (adr); fehlen sie, zählen nur die Teile des Namens, die keine Straße sind. Fehlt der Name der Antwort, wird nichts behauptet. */
-            var ORT_FELDER = ['city', 'town', 'village', 'municipality', 'city_district', 'borough', 'suburb', 'county', 'state_district', 'state'];
-            function stamm(gefragt) {
-                var w = norm(gefragt).split(/[^a-z0-9]+/).filter(function (x) { return x.length >= 5; })[0];
-                return w ? (w.length > 6 ? w.slice(0, Math.min(6, w.length - 2)) : w) : '';
-            }
-            function nameOk(gefragt, gefunden, adr) {
-                if (!gefunden) return true;
-                var w = stamm(gefragt);
-                if (!w) return true;
-                if (adr && typeof adr === 'object') {
-                    var orte = ORT_FELDER.map(function (k) { return adr[k]; }).filter(Boolean);
-                    if (orte.length) return orte.some(function (o) { return norm(o).indexOf(w) >= 0; });
-                }
-                var teile = String(gefunden).split(',').filter(function (t) { return !/(stra(ss|ß)e|str\.|weg\b|platz\b|allee|ring\b|damm\b|ufer\b|gasse|chaussee|pfad\b)/i.test(t); });
-                return norm(teile.join(',')).indexOf(w) >= 0;
-            }
-            /* "Hamburger Hauptbahnhof" fand Münster: noch einmal gezielt mit der Stadt aus dem Wort suchen ("Hauptbahnhof, Hamburg"); passt auch das nicht, fragt die Fähigkeit nach */
-            async function ortsTreffer(text) {
-                var d = await geocodeDestination(text, '');
-                if (!d || nameOk(text, d.name, d.adr)) return d;
-                var m = String(text).trim().match(/^(\S{5,}?)er\s+(.+)$/i);
-                if (m) {
-                    var stadt = m[1].replace(/chn$/i, 'chen');
-                    var d2 = await geocodeDestination(m[2].trim() + ', ' + stadt, '');
-                    if (d2 && nameOk(text, d2.name, d2.adr)) return d2;
-                }
-                return d;
-            }
+            /* Zielstadt-Prüfung: gemeinsam mit dem alten Abfahrtsweg in travel.js (ortStimmt, geocodeDestinationPruefen; PR #387) */
+            function nameOk(gefragt, gefunden, adr) { return typeof ortStimmt === 'function' ? ortStimmt(gefragt, gefunden, adr) : true; }
+            async function ortsTreffer(text) { return typeof geocodeDestinationPruefen === 'function' ? geocodeDestinationPruefen(text) : geocodeDestination(text, ''); }
             /* Plausibilität: Route gegen Luftlinie. Eine Straße kann nicht (nennenswert) kürzer sein als die Luftlinie und ist selten mehr als 2,5-mal so lang (großzügiger Umwegfaktor, dazu 10 km Spielraum für kurze Wege); die Durchschnittsgeschwindigkeit muss möglich sein. Keine feste Entfernungsgrenze: Fernfahrten bleiben möglich. */
             function plausibel(luft, km, min) {
                 if (!(km > 0) || !(min > 0)) return false;
