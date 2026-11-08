@@ -1072,15 +1072,23 @@
                 var arbeitsziel = (typeof workAddress === 'string' ? workAddress : '').trim();
                 if (arbeitsziel) kontext = (kontext ? kontext + ' ' : '') + 'Für diese Verkehrsfrage ist das gespeicherte Ziel Arbeit: ' + JSON.stringify(arbeitsziel) + '. Nutze fahrzeit mit params.ziel gleich dieser Adresse; frage nicht erneut nach dem Ziel.';
             }
-            if (/\\bmorgen\\b/i.test(text) && /\\b(?:arbeitsweg|zur\\s+arbeit)\\b/i.test(text) &&
-                /\\b(?:losfahren|abfahrt)\\b/i.test(text) && /\\b(?:wetter|regen|temperatur)\\b/i.test(text) &&
-                /\\b(?:stau\\w*|verkehr\\w*)\\b/i.test(text)) {
-                kontext = (kontext ? kontext + ' ' : '') +
-                    'WICHTIG: Bei dieser dreiteiligen Frage nach MORGEN plane genau drei Schritte: zuerst schicht mit tag=morgen (liefert die geplante Abfahrt aus dem Schichtplan), dann wetter mit tag=morgen am Arbeitsort, dann fahrzeit zur gespeicherten Arbeitsadresse nur für AKTUELLE Störungen. Eine heutige Fahrzeit oder heutige Ankunft ist KEINE morgige Abfahrtszeit. Sage ausdrücklich, dass Staus morgen nicht sicher vorhergesagt werden können. Nutze nicht abfahrt ohne bekannte Schicht-Ankunftszeit.';
-            }
+            // Die morgige Arbeitszeit steht bereits im Schichtplan. Bei dieser
+            // klaren Dreifachfrage nicht die KI nach einer Ankunftszeit fragen lassen.
+            var arbeitsMorgenKombi = /\bmorgen\b/i.test(text) &&
+                /\b(?:zur\s+arbeit|arbeitsweg|weg\s+zur\s+arbeit)\b/i.test(text) &&
+                /\b(?:losfahren|los\s*fahren|abfahrt|los\s*muss|los\s*müssen)\b/i.test(text) &&
+                /\b(?:wetter|regen|temperatur)\b/i.test(text) &&
+                /\b(?:stau\w*|verkehr\w*|sperrung\w*)\b/i.test(text);
+            var arbeitsziel = (typeof workAddress === 'string' ? workAddress : '').trim();
             var sende = sendeFunktion || sendeStandard;
             var entsch = kiEntscheider(function (m) { return Promise.race([Promise.resolve(sende(m, ctrl ? ctrl.signal : undefined)), limit]); }, KI_PLAN, kontext);
-            var pr = await Promise.race([plane(text, { entscheider: entsch }), limit.catch(function () { return { ok: false, zeitlimit: true }; })]);
+            var pr = arbeitsMorgenKombi && arbeitsziel && R() && R().hole('schicht') && R().hole('wetter') && R().hole('fahrzeit')
+                ? pruefePlan({ absicht: 'arbeitsweg_morgen', schritte: [
+                    { faehigkeit: 'schicht', params: { tag: 'morgen' } },
+                    { faehigkeit: 'wetter', params: { tag: 'morgen', ort: arbeitsziel } },
+                    { faehigkeit: 'fahrzeit', params: { ziel: arbeitsziel } }
+                ] })
+                : await Promise.race([plane(text, { entscheider: entsch }), limit.catch(function () { return { ok: false, zeitlimit: true }; })]);
             try { clearTimeout(timer); } catch (e) { }
             if (gen !== kiGen) { protokolliere('ki_ueberholt', [], 'VERWORFEN'); vermerke(eingang, 'ki_ueberholt'); return; }
             if (ortBezug && pr && pr.ok && pr.plan) ortEinsetzen(pr.plan, ortBezug);
@@ -1100,11 +1108,6 @@
             var fahrtOhneWerkzeug = !!(pr && pr.ok && pr.plan && RX_FAHRT.test(text) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'websuche'; }) && !pr.plan.schritte.some(function (x) { return x.faehigkeit === 'fahrzeit'; }));   // Fahrzeit/Verkehr nie per Websuche (das wäre nur eine Schätzung): der bisherige Weg hat die echte Routenberechnung
             // Bei einer Frage nach der morgigen Schicht-Abfahrt ist fahrzeit nur die
             // ergänzende aktuelle Verkehrsauskunft. Die Abfahrt liefert schicht.
-            var arbeitsMorgenKombi = /\\bmorgen\\b/i.test(text) &&
-                /\\b(?:zur\\s+arbeit|arbeitsweg|weg\\s+zur\\s+arbeit)\\b/i.test(text) &&
-                /\\b(?:losfahren|los\\s*fahren|abfahrt|los\\s*muss|los\\s*müssen)\\b/i.test(text) &&
-                /\\b(?:wetter|regen|temperatur)\\b/i.test(text) &&
-                /\\b(?:stau\\w*|verkehr\\w*|sperrung\\w*)\\b/i.test(text);
             var arbeitsPlanVollstaendig = !arbeitsMorgenKombi || (pr && pr.ok && pr.plan &&
                 ['schicht', 'wetter', 'fahrzeit'].every(function (name) {
                     return pr.plan.schritte.some(function (x) { return x.faehigkeit === name; });
