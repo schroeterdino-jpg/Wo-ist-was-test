@@ -348,7 +348,7 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         check('15.1 "Wo wohnt meine Mutter?": gespeicherte Adresse genannt, keine normale KI, keine Websuche, nichts geschrieben', /Musterweg 1, 12345 Beispielstadt/.test(t) && A.st.groq === 0 && A.st.webN === 0 && stand(A) === A.z0, t);
         const B = mit({}, KONT); B.st.plan = { schritte: [LES('meinem Bruder')] };
         const t2 = await frage(B, 'Wo wohnt mein Bruder?');
-        check('15.2 kein Kontakt: ehrlich "nicht gefunden", keine erfundene Adresse', /keinen Kontakt/.test(t2) && !/Musterweg|Testallee/.test(t2) && B.st.webN === 0, t2);
+        check('15.2 kein Kontakt: ehrlich "keine Adresse", keine erfundene Adresse', /keine Adresse von Bruder gespeichert/.test(t2) && !/Musterweg|Testallee/.test(t2) && B.st.webN === 0, t2);
         const C = mit({}, { 'anna muster': { originalName: 'Anna Muster', address: 'Erste Gasse 1, 11111 Ort' }, 'anna beispiel': { originalName: 'Anna Beispiel', address: 'Zweite Gasse 2, 22222 Ort' } }); C.st.plan = { schritte: [LES('Anna')] };
         const t3 = await frage(C, 'Wo wohnt Anna?');
         check('15.3 mehrdeutig (zwei Annas): Nachfrage mit beiden Namen, keine Adresse genannt', /Meinst du Anna Muster oder Anna Beispiel/.test(t3) && !/Gasse/.test(t3), t3);
@@ -395,7 +395,7 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         check('16.4 "Ich muss heute um 18 Uhr am Hamburger Hauptbahnhof sein." (ohne "Wann"): erreicht den Planer und das Werkzeug', C.st.ent === 1 && C.st.groq === 0 && /Hamburger Hauptbahnhof/.test(t3) && /spätestens um/.test(t3), t3);
         const D = mit({}, { mama: { originalName: 'Mama' } }); D.st.plan = { schritte: [AB('Mama', '13:00', 'morgen')] };
         const t4 = await frage(D, 'Ich muss morgen um 13 Uhr bei Mama sein. Wann muss ich losfahren?');
-        check('16.5 Kontakt ohne Adresse: ehrlich gesagt, keine Abfahrtszeit, keine Route', /keine Adresse gespeichert/.test(t4) && !/spätestens/.test(t4) && !(D.st.routeUrls || []).length, t4);
+        check('16.5 Kontakt ohne Adresse: ehrlich gesagt, keine Abfahrtszeit, keine Route', /keine Adresse von Mama gespeichert\. Möchtest du mir die Adresse nennen\?/.test(t4) && !/spätestens/.test(t4) && !(D.st.routeUrls || []).length, t4);
         const E = mit({}, { 'anna muster': { originalName: 'Anna Muster', address: 'Erste Gasse 1, 11111 Ort' }, 'anna beispiel': { originalName: 'Anna Beispiel', address: 'Zweite Gasse 2, 22222 Ort' } }); E.st.plan = { schritte: [AB('Anna', '13:00', 'morgen')] };
         const t5 = await frage(E, 'Ich muss morgen um 13 Uhr bei Anna sein. Wann muss ich losfahren?');
         check('16.6 mehrdeutiger Kontakt: Nachfrage, keine Route', /Meinst du Anna Muster oder Anna Beispiel/.test(t5) && !(E.st.routeUrls || []).length, t5);
@@ -462,7 +462,7 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const S1 = 'Ich muss nachher zu meiner Mutter fahren. Ich muss um 14:33 Uhr da sein. Wann muss ich losfahren?';
         const A = mit({}, { mama: { originalName: 'Mama' } }); A.st.plan = { schritte: [AB('meiner Mutter', '14:33', 'heute')] };
         const t1 = await frage(A, S1);
-        check('17.4 Mutter ohne gespeicherte Adresse: ehrlich gesagt, keine Abfahrtszeit, keine Route, eine Antwort', /keine Adresse gespeichert/.test(t1) && !/spätestens/.test(t1) && !(A.st.routeUrls || []).length && A.gesagt.length === 1, t1);
+        check('17.4 Mutter ohne gespeicherte Adresse: ehrlich gesagt, keine Abfahrtszeit, keine Route, eine Antwort', /keine Adresse von Mama gespeichert\. Möchtest du mir die Adresse nennen\?/.test(t1) && !/spätestens/.test(t1) && !(A.st.routeUrls || []).length && A.gesagt.length === 1, t1);
         const B = mit({}, { 'mama muster': { originalName: 'Mama Muster', address: 'Erste Gasse 1, 11111 Ort' }, 'mama beispiel': { originalName: 'Mama Beispiel', address: 'Zweite Gasse 2, 22222 Ort' } }); B.st.plan = { schritte: [AB('Mama', '14:33', 'heute')] };
         const t2 = await frage(B, 'Ich muss heute zu Mama. Um 14:33 Uhr muss ich dort sein. Wann fahre ich los?');
         check('17.5 zwei passende Kontakte: gezielte Nachfrage mit beiden Namen, keine Route, nichts geraten', /Mama Muster oder Mama Beispiel/.test(t2) && !(B.st.routeUrls || []).length && B.gesagt.length === 1, t2);
@@ -478,6 +478,57 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const G = mit({}, KONT); G.st.plan = { schritte: [{ faehigkeit: 'wetter', params: { tag: 'morgen' } }] };
         const t6 = await frage(G, 'Wie wird das Wetter morgen? Ich muss um 14:33 Uhr da sein.');
         check('17.9 unabhängige Aussagen ohne Abfahrtsfrage werden nicht zum Abfahrtsauftrag', !/spätestens/.test(t6) && !(G.st.routeUrls || []).length, t6);
+    }
+    /* --- 18. Kontaktauflösung absichern (E23/E35): Personenwörter ohne Kontakt werden nie als Ortsname gesucht --- */
+    {
+        const KONT = { mama: { originalName: 'Mama', address: 'Musterweg 1, 12345 Beispielstadt' } };
+        const mit = (opt, kontakte, gedaechtnis) => { const A = umgebung(opt); A.setze('savedContacts', kontakte || {}); if (gedaechtnis) A.setze('memoryItems', gedaechtnis); A.z0 = stand(A); return A; };
+        const AB = (ziel, ankunft, tag) => ({ faehigkeit: 'abfahrt', params: tag ? { ziel, ankunft, tag } : { ziel, ankunft } });
+        const FZ2 = (ziel, von) => ({ faehigkeit: 'fahrzeit', params: von ? { ziel, von } : { ziel } });
+        const keinOrt = A => !(A.st.geoQ || []).some(q => /^(?:Oma|Mama|Mutter|Opa|Papa)(?:,|$)/i.test(q.trim())) && !(A.st.routeUrls || []).length;
+        for (const chefAus of [false, true]) {
+            const E = chefAus ? { chefAus: true } : {};
+            if (chefAus) { const A = mit(E, {}); A.st.normal = { reply: 'Okay.', actions: [] }; await frage(A, 'Wie lange brauche ich zu Oma?'); check('18.0 Chef-KI AUS: alter Weg unverändert (eine normale KI-Anfrage, nichts berechnet)', A.st.groq === 1 && A.st.ent === 0 && !(A.st.routeUrls || []).length); continue; }
+            const A = mit(E, {}); A.st.plan = { schritte: [FZ2('Oma')] };
+            const t = await frage(A, 'Wie lange brauche ich zu Oma?');
+            check('18.1 Fahrzeit zu Oma ohne Kontakt (E35): ehrliche Frage nach der Adresse, "Oma" nie als Ort gesucht, keine Route', /Ich habe keine Adresse von Oma gespeichert\. Möchtest du mir die Adresse nennen\?/.test(t) && keinOrt(A) && A.gesagt.length === 1, JSON.stringify({ t, g: A.st.geoQ, r: A.st.routeUrls }));
+            const B = mit(E, {}); B.st.plan = { schritte: [AB('Mama', '14:33', 'heute')] };
+            const t2 = await frage(B, 'Wann muss ich heute losfahren, um um 14:33 Uhr bei Mama zu sein?');
+            check('18.2 Abfahrt zu Mama ohne Kontakt (E23): ehrliche Frage, keine Ortssuche, keine Abfahrtszeit', /Ich habe keine Adresse von Mama gespeichert\. Möchtest du mir die Adresse nennen\?/.test(t2) && keinOrt(B) && !/spätestens/.test(t2), JSON.stringify({ t2, g: B.st.geoQ }));
+            const C = mit(E, { mama: { originalName: 'Mama' } }); C.st.plan = { schritte: [FZ2('meiner Mutter')] };
+            const t3 = await frage(C, 'Wie lange brauche ich zu meiner Mutter?');
+            check('18.3 Kontakt Mama OHNE Adresse (Fahrzeit): ehrlich, nicht als Ort gesucht (vorher wurde "Mama" geocodiert)', /keine Adresse von Mama gespeichert/.test(t3) && keinOrt(C), JSON.stringify({ t3, g: C.st.geoQ }));
+            const D = mit(E, KONT); D.st.plan = { schritte: [AB('meiner Mutter', '14:33', 'heute')] };
+            const t4 = await frage(D, 'Wann muss ich heute losfahren, um um 14:33 Uhr bei meiner Mutter zu sein?');
+            check('18.4 Alias Mutter -> Kontakt Mama: Adresse gefunden, Abfahrtszeit genannt (unverändert)', (D.st.geoQ || []).some(q => /Musterweg 1/.test(q)) && /spätestens um 13 Uhr 43/.test(t4), t4);
+            const F = mit(E, KONT); F.st.plan = { schritte: [AB('Mama', '14:33', 'heute')] };
+            const t5 = await frage(F, 'Wann muss ich zu Mama losfahren, um 14:33 Uhr da zu sein?');
+            check('18.5 Fall A: Mama vorhanden -> gespeicherte Adresse, richtige Abfahrt, eine Antwort', (F.st.geoQ || []).some(q => /Musterweg 1/.test(q)) && /spätestens um 13 Uhr 43/.test(t5) && F.gesagt.length === 1, t5);
+            const G = mit(E, { 'mama muster': { originalName: 'Mama Muster', address: 'Erste Gasse 1' }, 'mama beispiel': { originalName: 'Mama Beispiel', address: 'Zweite Gasse 2' } }); G.st.plan = { schritte: [FZ2('Mama')] };
+            const t6 = await frage(G, 'Wie lange brauche ich zu Mama?');
+            check('18.6 Fall C: zwei Kontakte -> gezielte Nachfrage, keine Route', /Mama Muster oder Mama Beispiel/.test(t6) && !(G.st.routeUrls || []).length, t6);
+            const H = mit(E, KONT); H.st.plan = { schritte: [FZ2('Hamburg')] };
+            const t7 = await frage(H, 'Wie lange brauche ich nach Hamburg?');
+            check('18.7 Fall D: normale Stadt Hamburg wird wie bisher gesucht und berechnet', (H.st.geoQ || []).some(q => /^Hamburg/.test(q)) && (H.st.routeUrls || []).length === 1 && /Minuten/.test(t7), t7);
+            const I = mit(E, KONT); I.st.plan = { schritte: [FZ2('Omaha')] };
+            const t8 = await frage(I, 'Wie lange brauche ich nach Omaha?');
+            check('18.8 Ortsname, der mit einem Personenwort beginnt (Omaha): wird als Ort gesucht, nicht als "Oma" behandelt', (I.st.geoQ || []).some(q => /^Omaha/.test(q)) && !/keine Adresse von Oma/.test(t8), JSON.stringify({ t8, g: I.st.geoQ }));
+            const J = mit(E, { 'anna muster': { originalName: 'Anna Muster', address: 'Erste Gasse 1' } }); J.st.plan = { schritte: [FZ2('Annaberg')] };
+            const t9 = await frage(J, 'Wie lange brauche ich nach Annaberg?');
+            check('18.9 Fall E: unbekannter Name (Annaberg) wird nicht als Kontakt Anna behauptet, sondern als Ort gesucht', (J.st.geoQ || []).some(q => /^Annaberg/.test(q)) && !/Anna Muster/.test(t9), JSON.stringify({ t9, g: J.st.geoQ }));
+            const K = mit(E, {}, { 'oma wohnort': 'Gedaechtnisweg 7, 33333 Testdorf' }); K.st.plan = { schritte: [FZ2('Oma')] };
+            await frage(K, 'Wie lange brauche ich zu Oma?');
+            check('18.10 Oma nur im Gedächtnis mit Adresse: wird verwendet (bestehende Auflösung bleibt)', (K.st.geoQ || []).some(q => /Gedaechtnisweg 7/.test(q)), JSON.stringify(K.st.geoQ));
+            const L = mit(E, {}); L.st.plan = { schritte: [FZ2('Oma')] };
+            await frage(L, 'Wie lange brauche ich zu Oma?');
+            check('18.11 gespeicherte Kontakte bleiben unverändert (nichts geschrieben)', stand(L) === L.z0 && stand(A) === A.z0);
+            const M = mit(E, {}); M.st.plan = { schritte: [AB('meiner Mutter', '14:33', 'heute')] };
+            const t10 = await frage(M, 'Ich muss nachher zu meiner Mutter fahren. Ich muss um 14:33 Uhr da sein. Wann muss ich losfahren?');
+            check('18.12 mehrteilige Abfahrtsfrage (PR #393) ohne Kontakt: eine ehrliche Antwort, keine Ortsrückfrage, keine Ortssuche', /Ich habe keine Adresse von Mutter gespeichert/.test(t10) && !/Welchen Ort/.test(t10) && M.gesagt.length === 1 && keinOrt(M), t10);
+            const N = mit(E, KONT); N.st.plan = { schritte: [FZ2('Hamburger Hauptbahnhof', 'Oma')] };
+            const t11 = await frage(N, 'Wie lange brauche ich von Oma zum Hamburger Hauptbahnhof?');
+            check('18.13 Startort Oma ohne Kontakt: ehrlich, nicht als Ort gesucht', /keine Adresse von Oma gespeichert/.test(t11) && keinOrt(N), JSON.stringify({ t11, g: N.st.geoQ }));
+        }
     }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);

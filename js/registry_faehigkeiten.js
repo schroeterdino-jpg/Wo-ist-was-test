@@ -254,6 +254,16 @@
         return alle.filter(function (c) { var w = String(c.name).trim().split(/\s+/); return w.length > 1 && typeof plainKey === 'function' && plainKey(w[0]) === k; });
     }
     function sieht_aus_wie_adresse(t) { return typeof t === 'string' && /\d/.test(t) && t.trim().length >= 6; }
+    /* Wörter, die eindeutig eine Person aus dem Umfeld meinen (keinen Ort): ohne Kontakt und ohne Gedächtnis-Adresse wird NICHT als Ortsname gesucht, sondern ehrlich gesagt, dass die Adresse fehlt */
+    var PERSONENWOERTER = ['mama', 'papa', 'oma', 'opa', 'bruder', 'schwester', 'tochter', 'sohn', 'tante', 'onkel', 'enkel', 'enkelin', 'freund', 'freundin', 'ehefrau', 'ehemann'];
+    function personenwort(name) {   // -> null | Anzeigename ("Oma", "Mutter") wenn der Name nur ein solches Wort ist
+        var k = kontaktSchluessel(name);
+        if (!k || PERSONENWOERTER.indexOf(k) < 0) return null;
+        var w = String(name).trim().split(/\s+/).filter(Boolean);
+        while (w.length > 1 && /^(?:zu|zur|zum|nach|bei|von|vom|meiner|meinem|meinen|meine|mein|der|dem|die|den)$/i.test(w[0])) w.shift();
+        var n = w.join(' '); return n.charAt(0).toUpperCase() + n.slice(1);
+    }
+    function keineAdresseText(r) { return r.hinweis || ('Ich habe keine Adresse von ' + r.name + ' gespeichert. Möchtest du mir die Adresse nennen?'); }
     function persoenlicheAdresse(name) {   // -> null | { mehrdeutig:[Namen] } | { name, adresse, quelle:'kontakt'|'gedaechtnis'|'gespeichert', ohneAdresse?, hinweis? }
         /* Arbeit und Zuhause: die gespeicherten Adressen der App (resolvePersonalPlace, routing.js), nie die Ortssuche; fehlt die Adresse, sagt die App das selbst */
         try {
@@ -272,7 +282,8 @@
                 if (sieht_aus_wie_adresse(g)) return { name: String(name), adresse: g, quelle: 'gedaechtnis' };
             }
         } catch (e) { }
-        return tr.length ? { name: tr[0].name, adresse: '', quelle: 'kontakt', ohneAdresse: true } : null;
+        if (tr.length) return { name: tr[0].name, adresse: '', quelle: 'kontakt', ohneAdresse: true };
+        var pw = personenwort(name); return pw ? { name: pw, adresse: '', quelle: 'kontakt', ohneAdresse: true } : null;
     }
     function mitRegion(a) { try { return typeof withDefaultRegion === 'function' ? withDefaultRegion(a) : a; } catch (e) { return a; } }
 
@@ -303,7 +314,7 @@
         ausfuehren: async function (p) {
             var n = String(p.name || '').trim(), r = persoenlicheAdresse(n);
             if (!r) return { leer: true, reply: 'Zu ' + n + ' habe ich keinen Kontakt und keinen Gedächtniseintrag mit Adresse gefunden.' };
-            if (r.ohneAdresse) return { leer: true, reply: r.hinweis || ('Bei ' + r.name + ' ist keine Adresse gespeichert.') };
+            if (r.ohneAdresse) return { leer: true, reply: keineAdresseText(r) };
             return { name: r.name, adresse: r.adresse, quelle: r.quelle, nachricht: 'Die gespeicherte Adresse von ' + r.name + ' ist ' + r.adresse + '.' };
         }
     });
@@ -387,7 +398,7 @@
         ausfuehren: async function (p) {
             function fehlschlag(m) { var e = new Error(m); e.userMessage = m; throw e; }
             var ziel = String(p.ziel).trim(), z = ankunftAus(p), pz = persoenlicheAdresse(ziel);
-            if (pz && pz.ohneAdresse) return { leer: true, reply: (pz.hinweis || ('Bei ' + pz.name + ' ist keine Adresse gespeichert')) + ' Deshalb nenne ich keine Abfahrtszeit.' };
+            if (pz && pz.ohneAdresse) return { leer: true, reply: pz.hinweis ? pz.hinweis + ' Deshalb nenne ich keine Abfahrtszeit.' : keineAdresseText(pz) };
             var dest = (pz && pz.adresse) ? mitRegion(pz.adresse) : ziel;
             var loc = await fetchFreshTravelLocation();
             if (!loc || loc.fehler || loc.latitude === undefined) fehlschlag('Deinen Standort konnte ich gerade nicht ermitteln, deshalb nenne ich keine Abfahrtszeit. Ist der Standortzugriff erlaubt?');
@@ -436,6 +447,7 @@
             var start, startText;
             if (von) {
                 var pv = persoenlicheAdresse(von);
+                if (pv && pv.ohneAdresse) fehlschlag(pv.hinweis ? pv.hinweis + ' Eine Fahrzeit nenne ich deshalb nicht.' : keineAdresseText(pv));
                 if (pv && pv.mehrdeutig) fehlschlag('Meinst du als Startort ' + pv.mehrdeutig.join(' oder ') + '? Eine Fahrzeit nenne ich erst, wenn der Start klar ist.');
                 var vg = (pv && pv.adresse) ? await geocodeDestination(mitRegion(pv.adresse), '') : await ortsTreffer(von);
                 if (pv && pv.adresse && !vg) fehlschlag('Die gespeicherte Adresse von ' + von + ' konnte ich nicht auf der Karte finden. Eine Fahrzeit nenne ich deshalb nicht.');
@@ -448,7 +460,7 @@
                 start = { lat: loc.latitude, lon: loc.longitude }; startText = 'deinem aktuellen Standort';
             }
             var pz = persoenlicheAdresse(ziel);   // Kontakt (dann Gedächtnis) hat Vorrang vor der allgemeinen Ortssuche
-            if (pz && pz.ohneAdresse && pz.hinweis) fehlschlag(pz.hinweis + ' Eine Fahrzeit nenne ich deshalb nicht.');
+            if (pz && pz.ohneAdresse) fehlschlag(pz.hinweis ? pz.hinweis + ' Eine Fahrzeit nenne ich deshalb nicht.' : keineAdresseText(pz));
             if (pz && pz.mehrdeutig) fehlschlag('Meinst du ' + pz.mehrdeutig.join(' oder ') + '? Eine Fahrzeit nenne ich erst, wenn das Ziel klar ist.');
             var dest = (pz && pz.adresse) ? await geocodeDestination(mitRegion(pz.adresse), '') : await ortsTreffer(ziel);
             if (pz && pz.adresse && !dest) fehlschlag('Die gespeicherte Adresse von ' + ziel + ' konnte ich nicht auf der Karte finden. Eine Fahrzeit nenne ich deshalb nicht.');   // zuerst genau das genannte Ziel (nie nur der Ortsname)
