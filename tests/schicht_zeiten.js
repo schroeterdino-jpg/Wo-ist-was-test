@@ -135,6 +135,52 @@ const ids = (plan, art) => plan.filter(e => e.id.split('|')[0] === art);
         check('Unklare Angabe: Jarvis fragt nach', A.gesagt.slice(g0).some(t => /Um wie viel Uhr/.test(t)), A.gesagt.slice(g0).join('|'));
         check('Unklare Angabe ändert nichts', P.beginn('frueh', '2026-11-03') === 360);
     }
+    /* --- 8b. Einmalige Änderung weit vor dem Normalbeginn (gemeldeter Fehler: 13:45 -> 12:33 ergab 12:03 statt 11:51 wegen 60-Minuten-Grenze) --- */
+    {
+        const mk = () => { const A = neu('2026-11-08T12:00:00+01:00', { fahrt: 22 }); A.P.setBeginn('spaet', 13 * 60 + 45); return A; };   // Sonntag; Montag 09.11. = Spätschicht
+        const A = mk(), P = A.P, MO = '2026-11-09';
+        check('8b.0 Ausgangslage: Spät normal 13:45, Ankunft 13:25, Abfahrt 13:03', P.beginn('spaet') === 825 && P.ankunft('spaet') === 805 && P.abfahrtMin('spaet') === 783, [P.beginn('spaet'), P.ankunft('spaet'), P.abfahrtMin('spaet')].join(','));
+        await A.satz('Morgen fange ich um 12:33 an');
+        const abf = P.abfahrtMin('spaet', MO) - P.tagVor(MO);
+        check('8b.1 Montag 12:33: Beginn 12:33, Ankunft 12:13 (20 Minuten Puffer)', P.beginn('spaet', MO) === 753 && P.ankunft('spaet', MO) === 733, [P.beginn('spaet', MO), P.ankunft('spaet', MO)].join(','));
+        check('8b.2 Abfahrt 11:51 (nicht 12:03): 72 Minuten vorgezogen', P.tagVor(MO) === 72 && abf === 11 * 60 + 51, 'tagVor ' + P.tagVor(MO) + ' abf ' + abf);
+        check('8b.3 gesprochene Antwort nennt 11 Uhr 51', A.gesagt.some(t => /auf 11 Uhr 51|Abfahrt gegen 11 Uhr 51/.test(t)), A.gesagt.join('|'));
+        check('8b.4 normaler Plan unverändert (13:45 / 13:03), Folgetag ohne Ausnahme', P.beginn('spaet') === 825 && P.abfahrtMin('spaet') === 783 && P.beginn('spaet', '2026-11-10') === 825 && P.tagVor('2026-11-10') === 0 && P.abfahrtMin('spaet', '2026-11-10') === 783 && String(A.store['jv_plan_beginn']) === '{"spaet":825}', JSON.stringify([P.beginn('spaet'), P.abfahrtMin('spaet'), P.beginn('spaet','2026-11-10'), P.tagVor('2026-11-10'), P.abfahrtMin('spaet','2026-11-10'), A.store['jv_plan_beginn']]));
+        const a2 = await (async () => { const g0 = A.gesagt.length; await A.satz('Wann muss ich morgen auf der Arbeit sein?'); return A.gesagt.slice(g0).join('|'); })();
+        check('8b.5 Auskunft am Vortag nennt Beginn 12:33, Ankunft 12:13, Abfahrt 11:51', /12 Uhr 33/.test(a2) && /12 Uhr 13/.test(a2) && /11 Uhr 51/.test(a2), a2);
+        check('8b.6 Plan: Abfahrts-Meldung Montag um 11:41 (10 Minuten vorher)', ids(A.plan(), 'aufbruch').some(e => e.id === 'aufbruch|' + MO && uhrBerlin(e.at) === '11:41'), ids(A.plan(), 'aufbruch').map(e => e.id + ' ' + hm(e.at)).join(';'));
+        /* Grenzen */
+        const B = mk(); await B.satz('Morgen fange ich um 10:45 an');   // genau 180 Minuten früher
+        check('8b.7 genau 180 Minuten früher: voll übernommen (Abfahrt 10:03)', B.P.tagVor(MO) === 180 && B.P.abfahrtMin('spaet', MO) - B.P.tagVor(MO) === 10 * 60 + 3, String(B.P.tagVor(MO)));
+        const C = mk(); await C.satz('Morgen fange ich um 8 Uhr an');   // 345 Minuten früher: gedeckelt
+        check('8b.8 Mehr als 180 Minuten früher: gedeckelt auf 180, Beginn selbst bleibt 8:00, kein Absturz', C.P.tagVor(MO) === 180 && C.P.beginn('spaet', MO) === 480 && C.P.abfahrtMin('spaet', MO) - C.P.tagVor(MO) > 0, String(C.P.tagVor(MO)));
+        const D = mk(); await D.satz('Morgen fange ich um 13:30 an');   // 15 Minuten früher (kleine Abweichung wie bisher)
+        check('8b.9 kleine Abweichung wie bisher: 15 Minuten früher -> Abfahrt 12:48', D.P.tagVor(MO) === 15 && D.P.abfahrtMin('spaet', MO) - D.P.tagVor(MO) === 12 * 60 + 48, String(D.P.tagVor(MO)));
+        const E = mk(); await E.satz('Morgen fange ich um 15 Uhr an');   // später: schiebt nach hinten, kein tagVor
+        check('8b.10 späterer Beginn (15:00): Abfahrt 75 Minuten später, kein Vorzug', E.P.tagVor(MO) === 0 && E.P.abfahrtMin('spaet', MO) === 783 + 75, String(E.P.abfahrtMin('spaet', MO)));
+        /* gespeicherter Wert aus der alten Version (<= 60) und Müllwerte */
+        const F = mk(); F.store['jv_plan_vor_' + MO] = '45'; F.store['jv_plan_vor_2026-11-10'] = '500'; F.store['jv_plan_vor_2026-11-11'] = '-5';
+        check('8b.11 alte gespeicherte Werte bleiben gültig (45), Unsinn (500, -5) wird ignoriert', F.P.tagVor(MO) === 45 && F.P.tagVor('2026-11-10') === 0 && F.P.tagVor('2026-11-11') === 0, [F.P.tagVor(MO), F.P.tagVor('2026-11-10'), F.P.tagVor('2026-11-11')].join(','));
+        /* Tageswechsel: Frühschicht-Ausnahme am Folgetag beeinflusst Spät nicht, Ausnahme vom Vortag verfällt */
+        const G = mk(); await G.satz('Morgen fange ich um 12:33 an');
+        check('8b.12 Tageswechsel: Dienstag wieder normal, Montag-Ausnahme bleibt nur Montag', G.P.tagVor('2026-11-10') === 0 && G.P.beginn('spaet', '2026-11-10') === 825 && G.P.tagVor(MO) === 72);
+        /* Frühschicht (Woche 02.11.): weit früherer Beginn */
+        const H = neu('2026-11-02T12:00:00+01:00', { fahrt: 25 }); await H.satz('Morgen fange ich um 3:30 an');
+        const T3 = '2026-11-03';
+        check('8b.13 Frühschicht 5:10 -> 3:30: 100 Minuten, Abfahrt 2:55 - Wecker/Plan bleibt stimmig', H.P.tagVor(T3) === 100 && H.P.abfahrtMin('frueh', T3) - H.P.tagVor(T3) === 3 * 60 + 30 - 20 - 25, [H.P.tagVor(T3), H.P.abfahrtMin('frueh', T3)].join(','));
+        /* "Früher los" (frueher_los.js) nutzt dieselbe Grenze */
+        const K = mk(); const g0 = K.gesagt.length; await K.satz('Ich muss Montag um 12:33 auf der Arbeit sein');
+        check('8b.14 Früher los: Montag 12:33 -> 72 Minuten vorgezogen (nicht 60),', K.P.tagVor(MO) === 72, K.gesagt.slice(g0).join('|') + ' ' + K.P.tagVor(MO));
+    }
+    /* --- 8c. Chef-KI EIN und AUS: die Schicht-Ausnahme wird in beiden Fällen gleich beantwortet (feste Befehle kommen vor der Chef-KI) --- */
+    for (const an of [true, false]) {
+        const A = neu('2026-11-08T12:00:00+01:00', { fahrt: 22 }); A.P.setBeginn('spaet', 13 * 60 + 45);
+        if (an) A.sb.jvChef.an(); else A.sb.jvChef.aus();
+        await A.satz('Morgen fange ich um 12:33 an');
+        const g0 = A.gesagt.length; await A.satz('Wann muss ich morgen zur Arbeit losfahren?');
+        const t = A.gesagt.slice(g0).join('|');
+        check('8c Chef-KI ' + (an ? 'EIN' : 'AUS') + ': Antwort nennt Abfahrt 11 Uhr 51, keine Rückfrage nach dem Arbeitsort', /11 Uhr 51/.test(t) && !/Wohin|Arbeitsort|Adresse/.test(t), t);
+    }
     /* --- 9. Auskunft --- */
     {
         const A = neu('2026-11-02T12:00:00+01:00');

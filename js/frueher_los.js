@@ -1,6 +1,6 @@
 /* ============================================================
    FRÜHER LOS (Mitdenken): "Ich muss Donnerstag um 13:15 auf der Arbeit sein" - beginnt die Arbeit an dem Tag früher als sonst (Schicht + Beginn kennt Jarvis),
-   zieht Jarvis die Abfahrt an diesem Tag um die Differenz vor (plan_ansagen.js: setTagVor, höchstens 60 Minuten), sagt es und meldet sich dann
+   zieht Jarvis die Abfahrt an diesem Tag um die Differenz vor (plan_ansagen.js: setTagVor, höchstens 180 Minuten), sagt es und meldet sich dann
    wie jeden Tag kurz vor der Abfahrt mit der Verkehrslage (Plan-Einträge stau| und aufbruch|, danach planSenden). Der Beginn des Tages wird als Ausnahme gemerkt (jvPlan.setBeginnTag), damit Ansagen und Blick-Karte 13:15 statt 13:45 nennen.
    Erkannt: "muss/soll ... <Tag> ... <Uhrzeit> ... Arbeit/anfangen/da sein" oder "<Tag> fange ich um 13:15 an". Tag: heute, morgen, übermorgen, Wochentag, Datum.
    Gilt nur, wenn an dem Tag eine Schicht eingetragen ist und der Beginn früher liegt; sonst läuft der Satz normal weiter (KI, Termin-Rückfrage).
@@ -32,7 +32,7 @@
         const ymd = s.start.getFullYear() + '-' + pad(s.start.getMonth() + 1) + '-' + pad(s.start.getDate());
         let sh = null; try { sh = p.schichtAm(ymd); } catch (e) { }
         if (!sh) return next(text);
-        const normal = p.beginn(sh), neu = s.h * 60 + s.mi, diff = Math.min(60, normal - neu);
+        const normal = p.beginn(sh), neu = s.h * 60 + s.mi, diff = Math.min(180, normal - neu);
         if (!(diff > 0)) return next(text);
         try { p.setTagVor(ymd, diff); if (p.setBeginnTag) p.setBeginnTag(ymd, neu); p.planSenden(true); } catch (e) { return next(text); }
         lsSet(K_LETZT, ymd);

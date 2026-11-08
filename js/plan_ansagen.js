@@ -212,7 +212,7 @@
         o[sh] = min; sd(K_ABF, JSON.stringify(o));
     }
     /* Tages-Vorzug: Jarvis zieht die Abfahrt (und die Wecker-Zeit) an einem bestimmten Tag um N Minuten vor, zum Beispiel bei Frost (zuvorkommend.js). Rückgängig: auf 0 setzen. */
-    function tagVor(ymd) { const v = Number(lsGet(K_VOR + ymd)); return Number.isFinite(v) && v > 0 && v <= 60 ? Math.round(v) : 0; }
+    const TAG_VOR_MAX = 180; function tagVor(ymd) { const v = Number(lsGet(K_VOR + ymd)); return Number.isFinite(v) && v > 0 && v <= TAG_VOR_MAX ? Math.round(v) : 0; }
     function setTagVor(ymd, min) { if (min > 0) lsSet(K_VOR + ymd, String(Math.round(min))); else { try { localStorage.removeItem(K_VOR + ymd); } catch (e) { } } }
     function abfahrtFuer(sh, min, normal, ymd) { const mehr = (min || 0) - (normal || 0); return abfFix(sh, ymd) - (ymd ? tagVor(ymd) : 0) - (mehr >= 10 ? mehr : 0); }
 
@@ -918,7 +918,7 @@
         if (beginnSatz) {
             const b0 = beginn(sh);
             setBeginnTag(ymd, min);
-            if (min < b0) setTagVor(ymd, Math.min(60, b0 - min)); else setTagVor(ymd, 0);
+            if (min < b0) setTagVor(ymd, Math.min(TAG_VOR_MAX, b0 - min)); else setTagVor(ymd, 0);
             planSenden(true);
             sagen('Verstanden. ' + wie + ' beginnst du um ' + uhr(min) + ' statt um ' + uhr(b0) + '. Ankunft ' + uhr(ankunft(sh, ymd)) + ', Abfahrt gegen ' + uhr(abfFix(sh, ymd) - tagVor(ymd)) + '. Deine normale ' + NAME[sh] + ' bleibt unverändert.', false);
         } else {
