@@ -30,7 +30,7 @@ Nach abgeschlossenen Änderungen:
 - Nach Änderungen, die Inventarwerte beeinflussen, IMMER `node tests/inventar8a.js --schreiben` ausführen. Reihenfolge: zuerst Stempel, dann Golden Master.
 - Beide generierten Dateien `index.html` und `tests/inventar8a_soll.json` im PR mit committen; anschließend `node tools/stempel.js --pruefen` und `node tests/inventar8a.js` prüfen.
 - `.github/workflows/pr-vorbereitung.yml` erledigt diese Vorbereitung zusätzlich automatisch bei PR-Änderungen; trotzdem alle fünf GitHub-Testgruppen auf dem neuesten Commit prüfen. Bei rot keine Freigabe melden.
-- GitHub-Actions-Bot-Commits können `action_required` statt neuer Testläufe auslösen. Dann eine sachliche Dokumentationskorrektur durch den Bearbeiter auf dem PR-Branch committen, damit die fünf Prüfgruppen regulär neu starten; niemals allein wegen `action_required` mergen.
+- Bei der PR-Vorbereitung erst den automatischen Commit abwarten; für den neuesten Bot-Commit anschließend eine reguläre CI-Ausführung anstoßen. GitHub-Actions-Bot-Commits können `action_required` statt neuer Testläufe auslösen. Dann eine sachliche Dokumentationskorrektur durch den Bearbeiter auf dem PR-Branch committen, damit die fünf Prüfgruppen regulär neu starten; niemals allein wegen `action_required` mergen.
 
 ## Ablauf je Entwicklungsschritt (verbindlich, seit 08.11.2026)
 1. Masterplan lesen, Code und vorhandene Funktionen untersuchen, nur einen klar abgegrenzten Schritt bearbeiten; Vorhandenes wiederverwenden, keine parallelen Systeme.
