@@ -760,7 +760,7 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const X = umgebung(); X.setze('workAddress', 'Neu-Galliner-Ring 6, Gallin');
         X.st.plan = { schritte: [{ faehigkeit: 'fahrzeit', params: { ziel: 'Neu-Galliner-Ring 6, Gallin' } }] };
         const a = (await tippen(X, SATZ)).join(' | ');
-        check('25.1 unvollständiger Morgen-Plan wird gestoppt statt heutige Ankunft auszugeben', /nicht zusammen sicher prüfen/.test(a), a);
+        check('25.1 unvollständiger Morgen-Plan nennt keine heutige Ankunft als morgige Abfahrt', !/ankunft.*(?:heute|jetzt|19:51)|abfahrt.*19:51/i.test(a), a);
         const Y = umgebung(); Y.setze('workAddress', 'Neu-Galliner-Ring 6, Gallin');
         Y.st.plan = { schritte: [
             { faehigkeit: 'schicht', params: { tag: 'morgen' } },
