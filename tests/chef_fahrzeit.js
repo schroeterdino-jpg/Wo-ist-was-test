@@ -754,6 +754,22 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const unklar = (await tippen(Y, 'Wie wird das Wetter dort morgen?')).join(' | ');
         check('24.3 ohne bekannten Ort bleibt die Rückfrage erhalten', /Welchen Ort meinst du/.test(unklar), unklar);
     }
+    // Morgen-Arbeitsweg: keine heutige Ankunft als Antwort auf die morgige Schichtabfahrt.
+    {
+        const SATZ = 'Wann muss ich morgen zur Arbeit losfahren, wie wird das Wetter dort und gibt es Staus auf meinem Arbeitsweg?';
+        const X = umgebung(); X.setze('workAddress', 'Neu-Galliner-Ring 6, Gallin');
+        X.st.plan = { schritte: [{ faehigkeit: 'fahrzeit', params: { ziel: 'Neu-Galliner-Ring 6, Gallin' } }] };
+        const a = (await tippen(X, SATZ)).join(' | ');
+        check('25.1 unvollständiger Morgen-Plan wird gestoppt statt heutige Ankunft auszugeben', /nicht zusammen sicher prüfen/.test(a), a);
+        const Y = umgebung(); Y.setze('workAddress', 'Neu-Galliner-Ring 6, Gallin');
+        Y.st.plan = { schritte: [
+            { faehigkeit: 'schicht', params: { tag: 'morgen' } },
+            { faehigkeit: 'wetter', params: { tag: 'morgen' } },
+            { faehigkeit: 'fahrzeit', params: { ziel: 'Neu-Galliner-Ring 6, Gallin' } }
+        ] };
+        const b = (await tippen(Y, SATZ)).join(' | ');
+        check('25.2 vollständiger Morgen-Plan wird nicht als reine Fahrzeit abgelehnt', !/nicht zusammen sicher prüfen/.test(b) && Y.st.ent > 0, b);
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });
