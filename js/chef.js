@@ -222,6 +222,14 @@
     function lokalEntscheiden(text) {
         var t = String(text == null ? '' : text);
         if (!t.trim()) return { absicht: 'nichts', schritte: [] };
+        // Arbeitsweg ist ein bekanntes Ziel: bei reinen Verkehrsfragen nicht erneut nachfragen.
+        // Die vorhandene Fahrzeit-Fähigkeit prüft Route und Verkehr; kein neues Verkehrssystem.
+        if (/\b(?:verkehr\w*|stau\w*|sperrung\w*)\b/i.test(t) &&
+            /\b(?:weg\s+zur\s+arbeit|arbeitsweg|fahrt\s+zur\s+arbeit|zur\s+arbeit)\b/i.test(t) &&
+            !/\b(?:und|außerdem|ausserdem)\b/i.test(t)) {
+            var arbeit = (typeof workAddress === 'string' ? workAddress : '').trim();
+            if (arbeit) return { absicht: 'verkehr_arbeitsweg', schritte: [{ faehigkeit: 'fahrzeit', params: { ziel: arbeit } }] };
+        }
         if (RX_SCHREIB.test(t)) return { absicht: 'schreiben', schritte: [] };   // Erinnerung/Termin/Gedächtnis: bleibt beim bisherigen Weg
         if (RX_PREIS.test(t) && hatGemerkt()) return { absicht: 'preisfrage', schritte: [], hinweis: 'Preise kenne ich nicht, deshalb kann ich die Treffer nicht nach Preis ordnen. Ich kann stattdessen nach etwas anderem suchen, zum Beispiel einem Imbiss oder einer Bäckerei. Sag einfach, wonach.' };
         if (RX_UNTERNEHMEN.test(t) && RX_WOCHENTAG.test(t)) {
@@ -1056,6 +1064,13 @@
                 if (ortMerker && ortMerker.name === ortBezug) ortMerker.geprueft = true;
                 vermerke(eingang, 'ort_bezug');
                 kontext = (kontext ? kontext + ' ' : '') + 'Mit „dort“, „da“ oder „in dieser Stadt“ ist ' + ortBezug + ' gemeint (params.ort = "' + ortBezug + '").';
+            }
+            // Der KI-Planer muss den gespeicherten Arbeitsort ebenfalls kennen.
+            // Nur bei einer ausdrücklichen Verkehrsfrage zum Arbeitsweg, niemals als allgemeines Reiseziel.
+            if (/\b(?:verkehr\w*|stau\w*|sperrung\w*)\b/i.test(text) &&
+                /\b(?:weg\s+zur\s+arbeit|arbeitsweg|fahrt\s+zur\s+arbeit|zur\s+arbeit)\b/i.test(text)) {
+                var arbeitsziel = (typeof workAddress === 'string' ? workAddress : '').trim();
+                if (arbeitsziel) kontext = (kontext ? kontext + ' ' : '') + 'Für diese Verkehrsfrage ist das gespeicherte Ziel Arbeit: ' + JSON.stringify(arbeitsziel) + '. Nutze fahrzeit mit params.ziel gleich dieser Adresse; frage nicht erneut nach dem Ziel.';
             }
             var sende = sendeFunktion || sendeStandard;
             var entsch = kiEntscheider(function (m) { return Promise.race([Promise.resolve(sende(m, ctrl ? ctrl.signal : undefined)), limit]); }, KI_PLAN, kontext);

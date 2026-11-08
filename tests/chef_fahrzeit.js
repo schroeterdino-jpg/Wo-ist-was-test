@@ -730,6 +730,15 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
             check('22.13 ungültiger Plan (' + name + ') wird verworfen: keine Schicht-Auskunft aus dem Plan, normaler Weg übernimmt', !/keine Schicht, es ist Wochenende/.test(gx) && X.st.groq >= 1, gx + ' groq ' + X.st.groq);
         }
     }
+    // Regression: Arbeitsweg-Verkehr darf bei gespeicherter Adresse nicht nach dem Ziel fragen.
+    {
+        const X = umgebung();
+        X.setze('workAddress', 'Beispielstraße 1, Hamburg');
+        const p = X.sb.jvChef._lokal('Wie ist die Verkehrslage auf meinem Weg zur Arbeit?');
+        check('23.1 Arbeitsweg-Verkehr nutzt gespeicherte Arbeitsadresse', p.schritte.length === 1 && p.schritte[0].faehigkeit === 'fahrzeit' && p.schritte[0].params.ziel === 'Beispielstraße 1, Hamburg');
+        const q = X.sb.jvChef._lokal('Wie ist die Verkehrslage nach Berlin?');
+        check('23.2 andere Verkehrsziele werden nicht zur Arbeit umgelenkt', q.schritte.length === 0);
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });
