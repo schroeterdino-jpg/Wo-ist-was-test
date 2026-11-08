@@ -320,6 +320,27 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const t5 = await frage(E, 'Wie lange brauche ich von Schwarzenbek zum Berliner Hauptbahnhof?');
         check('13.5 Berliner Platz in Bonn ist kein Berlin', !/Bonn/.test(t5) || /nicht passt|nicht gefunden/.test(t5), t5);
     }
+    /* 14 Abfahrtsfragen ("Wann muss ich losfahren?") gehören dem vorhandenen Abfahrtsweg, nicht dem Fahrdauer-Werkzeug */
+    {
+        const ABF = ['Ich muss heute um 13 Uhr bei meiner Mutter sein. Wann muss ich losfahren?', 'Wann muss ich losfahren, um um 15 Uhr in Hamburg zu sein?', 'Wann sollte ich abfahren, damit ich um 9 Uhr am Hamburger Hauptbahnhof bin?'];
+        for (const satz of ABF) {
+            const A = umgebung(); A.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
+            await frage(A, satz);
+            check('14.1 Chef-KI EIN, Abfahrtsfrage: kein Planer, kein Fahrzeit-Werkzeug, der bisherige Weg genau einmal – ' + satz.slice(0, 40), A.st.ent === 0 && A.st.groq === 1 && !(A.st.routeUrls || []).length && codes(A).includes('abfahrtsfrage'), JSON.stringify({ e: A.st.ent, g: A.st.groq, c: codes(A) }));
+            const B = umgebung({ chefAus: true }); B.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
+            await frage(B, satz);
+            check('14.2 Chef-KI AUS, gleiche Frage: wie bisher (ein normaler KI-Aufruf, kein Planer)', B.st.ent === 0 && B.st.groq === 1);
+        }
+        const C = umgebung(); C.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
+        await frage(C, 'Ich habe morgen um 15 Uhr einen Termin beim Zahnarzt in Hamburg. Wann muss ich losfahren?');
+        check('14.3 Satz mit Termin (Planer wird gefragt) plant nur die Fahrdauer: Plan verworfen, bisheriger Weg, keine Route berechnet', C.st.ent === 1 && C.st.groq === 1 && !(C.st.routeUrls || []).length && codes(C).includes('abfahrt_alter_weg'), JSON.stringify({ e: C.st.ent, g: C.st.groq, c: codes(C) }));
+        const D = umgebung(); D.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
+        await frage(D, SATZ);
+        check('14.4 reine Fahrdauer-Frage bleibt beim Werkzeug (nicht verdrängt)', D.st.ent === 1 && D.st.groq === 0 && (D.st.routeUrls || []).length > 0);
+        const E = umgebung(); E.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
+        await frage(E, 'Wie lange brauche ich mit dem Auto zum Hamburger Hauptbahnhof?');
+        check('14.5 "Wie lange brauche ich" ist keine Abfahrtsfrage', E.st.ent === 1 && E.st.groq === 0);
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });
