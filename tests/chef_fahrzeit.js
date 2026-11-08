@@ -191,7 +191,7 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         ];
         const A = umgebung(); A.st.linie = LINIE; A.st.autobahn = AB; A.st.tomtom = TT; A.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };
         const t = await frage(A, SATZ);
-        check('8.1 Meldung AUF der Route (autobahn.de und TomTom) wird genannt', /Auf der Strecke gemeldet:/.test(t) && /Reinbek - Hamburg-Billstedt/.test(t) && /Stau auf der A24 zwischen Schwarzenbek-Nord und Talkau/.test(t), t);
+        check('8.1 Meldung AUF der Route (autobahn.de und TomTom) wird genannt', /Auf der Strecke gemeldet:/.test(t) && /Fahrtrichtung betroffen ist/.test(t) && /Reinbek - Hamburg-Billstedt/.test(t) && /Stau auf der A24 zwischen Schwarzenbek-Nord und Talkau/.test(t), t);
         check('8.2 Sperrungen/Meldungen NAHE der Route, daneben oder weit weg werden NICHT genannt', !/Wentorf|Aumühle|Norderelbbrücke|Fremdstraße|Woanders|Nebenstraße|Daneben/.test(t) && !/nahe deiner Route|nahe der Route/.test(t), t);
         const B = umgebung(); B.st.autobahn = AB; B.st.tomtom = TT; B.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof', 'Schwarzenbek')] };   // ohne Linienverlauf der Route
         const t2 = await frage(B, SATZ);
