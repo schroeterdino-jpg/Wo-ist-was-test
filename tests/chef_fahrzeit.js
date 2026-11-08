@@ -530,6 +530,35 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
             check('18.13 Startort Oma ohne Kontakt: ehrlich, nicht als Ort gesucht', /keine Adresse von Oma gespeichert/.test(t11) && keinOrt(N), JSON.stringify({ t11, g: N.st.geoQ }));
         }
     }
+    /* --- 19. Navigation (alte Aktion navigate) mit Kontakten, Arbeit und Zuhause --- */
+    {
+        const KONT = { mama: { originalName: 'Mama', address: 'Musterweg 1, 12345 Beispielstadt' } };
+        const mit = (opt, kontakte, o) => { const A = umgebung(opt); A.setze('savedContacts', kontakte || {}); if (o && o.arbeit) A.setze('workAddress', 'Werkstraße 5, 12345 Beispielstadt'); if (o && o.heim) A.setze('homeAddress', 'Verbrüderungsring 13, 21493 Schwarzenbek'); A.opens = []; A.vm.runInContext("window.__nav = []; (function () { var o = buildMapsLink; buildMapsLink = function (t) { window.__nav.push(String(t)); return o.apply(this, arguments); }; })();", A.sb); A.navs = () => A.vm.runInContext('window.__nav.slice()', A.sb); A.z0 = stand(A); return A; };
+        const NAV = to => ({ reply: 'Ich starte die Navigation.', actions: [{ type: 'navigate', nav_to: to }] });
+        const href = A => A.navs().join(' ; ');
+        const lauf19 = async (A, to, satz) => { A.st.normal = NAV(to); const t = await frage(A, satz); return { t, h: href(A), n: A.gesagt.length }; };
+        for (const chefAus of [false, true]) {
+            const E = chefAus ? { chefAus: true } : {}; const L = chefAus ? 'AUS' : 'EIN';
+            let A = mit(E, KONT); let r = await lauf19(A, 'Mama', 'Navigiere zu Mama');
+            check('19.1 (' + L + ') Mama mit Adresse: Navigation zur gespeicherten Adresse, einmal', /Musterweg 1/.test(r.h) && r.n === 1 && (r.h.match(/Musterweg 1/g) || []).length >= 1 && A.navs().length === 1, JSON.stringify(r));
+            A = mit(E, KONT); r = await lauf19(A, 'Mutter', 'Navigiere zu meiner Mutter');
+            check('19.2 (' + L + ') Alias Mutter -> Mama: gespeicherte Adresse', /Musterweg 1/.test(r.h), JSON.stringify(r));
+            A = mit(E, KONT); r = await lauf19(A, 'Oma', 'Navigiere zu Oma');
+            check('19.3 (' + L + ') Oma ohne Kontakt: keine Route nach "Oma", ehrliche Frage nach der Adresse', !/destination=Oma|Route nach Oma/.test(r.h) && /keine Adresse von Oma gespeichert\. Möchtest du mir die Adresse nennen\?/.test(r.t) && A.navs().length === 0, JSON.stringify(r));
+            A = mit(E, { 'mama muster': { originalName: 'Mama Muster', address: 'Erste Gasse 1' }, 'mama beispiel': { originalName: 'Mama Beispiel', address: 'Zweite Gasse 2' } }); r = await lauf19(A, 'Mama', 'Navigiere zu Mama');
+            check('19.4 (' + L + ') zwei gleichnamige Kontakte: Nachfrage, keine Navigation', /Mama Muster oder Mama Beispiel/.test(r.t) && !/Gasse/.test(r.h) && A.navs().length === 0, JSON.stringify(r));
+            A = mit(E, KONT, { arbeit: 1 }); r = await lauf19(A, 'Arbeit', 'Navigiere zur Arbeit');
+            check('19.5 (' + L + ') Arbeit: gespeicherte Arbeitsadresse', /Werkstraße 5/.test(r.h), JSON.stringify(r));
+            A = mit(E, KONT); r = await lauf19(A, 'Arbeit', 'Navigiere zur Arbeit');
+            check('19.5b (' + L + ') Arbeit ohne Adresse: ehrliche Meldung, keine Route nach "Arbeit"', /Arbeitsadresse kenne ich noch nicht/.test(r.t) && A.navs().length === 0 && !/destination=Arbeit/.test(r.h), JSON.stringify(r));
+            A = mit(E, KONT, { heim: 1 }); r = await lauf19(A, 'Zuhause', 'Navigiere nach Hause');
+            check('19.6 (' + L + ') Zuhause: gespeicherte Heimatadresse', /Verbrüderungsring 13/.test(r.h), JSON.stringify(r));
+            A = mit(E, KONT); r = await lauf19(A, 'Hamburg', 'Navigiere nach Hamburg');
+            check('19.7 (' + L + ') Hamburg: unverändert normale Route', /destination=Hamburg|Hamburg/.test(r.h) && r.n === 1 && A.navs().length === 1, JSON.stringify(r));
+            A = mit(E, KONT); r = await lauf19(A, 'Hauptstraße 5, Hamburg', 'Navigiere zur Hauptstraße 5 in Hamburg');
+            check('19.8 (' + L + ') Straßenadresse: unverändert', /Hauptstraße 5/.test(r.h), JSON.stringify(r));
+        }
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });
