@@ -1065,7 +1065,13 @@
                 }
                 if (!ymd) { sagen('Ich finde keinen Arbeitstag in den nächsten Tagen. Ist deine Schicht eingestellt?', false); return; }
                 const r = await aufbruchText(ymd, ymd === heute);
-                const weiter = rest ? () => { try { window.jvTippen(rest.charAt(0).toUpperCase() + rest.slice(1) + '?'); } catch (e) { } } : undefined;
+                let rest2 = rest;
+                if (rest2 && /\bwetter\b/i.test(rest2) && !/\b(?:heute|morgen|übermorgen|uebermorgen|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|dort|da)\b/i.test(rest2)) {   // "… losfahren und wie wird das Wetter?": das Wetter gilt für den Tag der Abfahrt (sonst fragt die KI nach Ort und Tag)
+                    const dt = Math.round((new Date(ymd + 'T12:00:00') - new Date(heute + 'T12:00:00')) / 86400000);
+                    const tw = dt === 0 ? 'heute' : dt === 1 ? 'morgen' : dt === 2 ? 'übermorgen' : '';
+                    if (tw) rest2 = rest2 + ' ' + tw;
+                }
+                const weiter = rest2 ? () => { try { window.jvTippen(rest2.charAt(0).toUpperCase() + rest2.slice(1) + '?'); } catch (e) { } } : undefined;
                 if (r.text) { merkeMeldung('🚗 Aufbruchszeit', r.text); zeigeMeldung('🚗 Aufbruchszeit', r.text); try { speak(r.text, weiter); } catch (e) { } } else { sagen('Dafür brauche ich deine Schicht. Sag zum Beispiel: Diese Woche Frühschicht.', false); if (weiter) weiter(); }
             })();
             return true;
