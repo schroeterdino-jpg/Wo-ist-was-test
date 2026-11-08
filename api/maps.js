@@ -14,7 +14,7 @@ async function geocode(req, res) {
   if (!q) return res.status(400).json({ error: 'Kein Suchbegriff angegeben' });
 
   try {
-    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q=' + encodeURIComponent(q);
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'MeinAlltagsHelfer/1.0 (privates Projekt, kein kommerzieller Einsatz)',

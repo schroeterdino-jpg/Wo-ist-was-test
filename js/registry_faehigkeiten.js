@@ -260,12 +260,34 @@
             function fehlschlag(m) { var e = new Error(m); e.userMessage = m; throw e; }
             var ziel = String(p.ziel || '').trim(), von = typeof p.von === 'string' ? p.von.trim() : '';
             function norm(t) { return String(t || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss'); }
-            /* Passt der gefundene Ort zum genannten Namen? Das erste längere Wort (ohne Endung "-er") muss im gefundenen Namen vorkommen ("Hamburger" -> "hamburg"). Fehlt der Name der Antwort, wird nichts behauptet. */
-            function nameOk(gefragt, gefunden) {
-                if (!gefunden) return true;
+            /* Passt der gefundene Ort zum genannten Namen? Das erste längere Wort ("Hamburger" -> Stamm "hamburg", "Münchner" -> "muench") muss im ORT des Treffers vorkommen, nicht in einer Straße ("Münster ... Hamburger Straße" ist kein Treffer für Hamburg). Genauste Quelle: die strukturierten Ortsangaben des Geocoders (adr); fehlen sie, zählen nur die Teile des Namens, die keine Straße sind. Fehlt der Name der Antwort, wird nichts behauptet. */
+            var ORT_FELDER = ['city', 'town', 'village', 'municipality', 'city_district', 'borough', 'suburb', 'county', 'state_district', 'state'];
+            function stamm(gefragt) {
                 var w = norm(gefragt).split(/[^a-z0-9]+/).filter(function (x) { return x.length >= 5; })[0];
+                return w ? (w.length > 6 ? w.slice(0, Math.min(6, w.length - 2)) : w) : '';
+            }
+            function nameOk(gefragt, gefunden, adr) {
+                if (!gefunden) return true;
+                var w = stamm(gefragt);
                 if (!w) return true;
-                return norm(gefunden).indexOf(w.length > 6 ? w.slice(0, w.length - 2) : w) >= 0;
+                if (adr && typeof adr === 'object') {
+                    var orte = ORT_FELDER.map(function (k) { return adr[k]; }).filter(Boolean);
+                    if (orte.length) return orte.some(function (o) { return norm(o).indexOf(w) >= 0; });
+                }
+                var teile = String(gefunden).split(',').filter(function (t) { return !/(stra(ss|ß)e|str\.|weg\b|platz\b|allee|ring\b|damm\b|ufer\b|gasse|chaussee|pfad\b)/i.test(t); });
+                return norm(teile.join(',')).indexOf(w) >= 0;
+            }
+            /* "Hamburger Hauptbahnhof" fand Münster: noch einmal gezielt mit der Stadt aus dem Wort suchen ("Hauptbahnhof, Hamburg"); passt auch das nicht, fragt die Fähigkeit nach */
+            async function ortsTreffer(text) {
+                var d = await geocodeDestination(text, '');
+                if (!d || nameOk(text, d.name, d.adr)) return d;
+                var m = String(text).trim().match(/^(\S{5,}?)er\s+(.+)$/i);
+                if (m) {
+                    var stadt = m[1].replace(/chn$/i, 'chen');
+                    var d2 = await geocodeDestination(m[2].trim() + ', ' + stadt, '');
+                    if (d2 && nameOk(text, d2.name, d2.adr)) return d2;
+                }
+                return d;
             }
             /* Plausibilität: Route gegen Luftlinie. Eine Straße kann nicht (nennenswert) kürzer sein als die Luftlinie und ist selten mehr als 2,5-mal so lang (großzügiger Umwegfaktor, dazu 10 km Spielraum für kurze Wege); die Durchschnittsgeschwindigkeit muss möglich sein. Keine feste Entfernungsgrenze: Fernfahrten bleiben möglich. */
             function plausibel(luft, km, min) {
@@ -277,17 +299,17 @@
             }
             var start, startText;
             if (von) {
-                var vg = await geocodeDestination(von, '');
+                var vg = await ortsTreffer(von);
                 if (!vg) fehlschlag('Den Startort ' + von + ' habe ich nicht gefunden. Eine Fahrzeit nenne ich deshalb nicht.');
-                if (!nameOk(von, vg.name)) fehlschlag('Für den Startort ' + von + ' habe ich nur einen Ort gefunden, der nicht passt (' + String(vg.name).split(',').slice(0, 2).join(',').trim() + '). Eine Fahrzeit nenne ich deshalb nicht. Wie genau heißt der Startort?');
+                if (!nameOk(von, vg.name, vg.adr)) fehlschlag('Für den Startort ' + von + ' habe ich nur einen Ort gefunden, der nicht passt (' + String(vg.name).split(',').slice(0, 2).join(',').trim() + '). Eine Fahrzeit nenne ich deshalb nicht. Wie genau heißt der Startort?');
                 start = { lat: vg.lat, lon: vg.lon }; startText = von;
             } else {
                 var loc = await fetchFreshTravelLocation();
                 if (!loc || loc.fehler || loc.latitude === undefined) fehlschlag('Deinen Standort konnte ich gerade nicht ermitteln, deshalb nenne ich keine Fahrzeit. Ist der Standortzugriff erlaubt?');
                 start = { lat: loc.latitude, lon: loc.longitude }; startText = 'deinem aktuellen Standort';
             }
-            var dest = await geocodeDestination(ziel, '');   // zuerst genau das genannte Ziel (nie nur der Ortsname)
-            if (dest && !nameOk(ziel, dest.name)) fehlschlag('Für ' + ziel + ' habe ich nur einen Ort gefunden, der nicht passt (' + String(dest.name).split(',').slice(0, 2).join(',').trim() + '). Eine Fahrzeit nenne ich deshalb nicht. Wie genau heißt das Ziel?');
+            var dest = await ortsTreffer(ziel);   // zuerst genau das genannte Ziel (nie nur der Ortsname)
+            if (dest && !nameOk(ziel, dest.name, dest.adr)) fehlschlag('Für ' + ziel + ' habe ich nur einen Ort gefunden, der nicht passt (' + String(dest.name).split(',').slice(0, 2).join(',').trim() + '). Eine Fahrzeit nenne ich deshalb nicht. Wie genau heißt das Ziel?');
             if (!dest) {
                 var adr = (typeof findContactAddressFor === 'function' && findContactAddressFor(ziel)) || (typeof findMemoryAddressFor === 'function' && findMemoryAddressFor(ziel)) || '';
                 if (adr) dest = await geocodeDestination(adr, '');
