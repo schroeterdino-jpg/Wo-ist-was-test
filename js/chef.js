@@ -718,6 +718,28 @@
                 'Bei frei keine Arbeitsabfahrt behaupten. Bei Verkehrsfragen aktuelle Verkehrsdaten getrennt prüfen.';
         } catch (e) { return ''; }
     }
+    // Sichere Teilantwort aus dem gespeicherten Plan, unabhängig vom KI-Entscheider.
+    // Niemals aktuelle Live-Fahrzeit als morgige Fahrzeit ausgeben.
+    function morgenSchichtTeilantwort(text) {
+        try {
+            var P = window.jvPlan, T = window._schichtTest;
+            if (!P || !T || typeof T.load !== 'function' || !T.load() ||
+                typeof P.jetzt !== 'function' || typeof P.ymdPlus !== 'function' ||
+                typeof P.schichtAm !== 'function') return '';
+            var tage = /\b(?:übermorgen|uebermorgen)\b/i.test(text) ? 2 : 1;
+            var tag = P.ymdPlus(P.jetzt().ymd, tage), sh = P.schichtAm(tag);
+            var wann = tage === 2 ? 'Übermorgen' : 'Morgen';
+            if (!sh) return wann + ' hast du laut gespeichertem Schichtplan frei. Wetter und Verkehr konnte ich gerade nicht zuverlässig prüfen.';
+            if (typeof P.abfahrtMin !== 'function' || typeof P.uhr !== 'function') return '';
+            var abfahrt = P.abfahrtMin(sh, tag) - (typeof P.tagVor === 'function' ? (P.tagVor(tag) || 0) : 0);
+            if (!Number.isFinite(abfahrt)) return '';
+            var uhr = P.uhr(((abfahrt % 1440) + 1440) % 1440);
+            if (!/^\d{1,2}:\d{2}$/.test(String(uhr))) return '';
+            return wann + ' hast du laut gespeichertem Schichtplan ' + String(sh) +
+                'schicht. Deine geplante Abfahrt ist um ' + uhr +
+                ' Uhr. Das ist deine gespeicherte Planung, keine live berechnete Fahrzeit. Wetter und Verkehr für die morgige Fahrt konnte ich gerade nicht zuverlässig prüfen.';
+        } catch (e) { return ''; }
+    }
     function kontextText() {
         if (!themaFrisch()) return '';
         return 'Nur zur Einordnung kurzer Anschlussfragen: das letzte Thema war ' + (thema.art === 'wetter' ? 'das Wetter (Tag: ' + (thema.tag || 'heute') + (thema.ort ? ', Ort: ' + thema.ort : '') + ')' : thema.art === 'orte' ? 'eine Ortssuche' + (thema.begriff ? ' (' + thema.begriff + ')' : '') : 'eine Internetauskunft') + '.';
@@ -1079,7 +1101,7 @@
             if (zurueck) return;                      // nur einmal
             if (st.begonnen) return;                  // B2a: nach einer Schreibaktion NIE zurück zum alten KI-Weg (er könnte dasselbe noch einmal schreiben)
             if (gen !== kiGen) { vermerke(eingang, 'ki_ueberholt'); return; }   // und nur, wenn der Satz nicht überholt wurde
-            if (morgenArbeitsweg) { zurueck = true; vermerke(eingang, 'morgen_kein_jetzt_rueckfall'); say('Die morgige Schichtfahrt konnte ich gerade nicht vollständig prüfen. Ich zeige dir deshalb keine Route für eine Abfahrt jetzt.'); return; }
+            if (morgenArbeitsweg) { zurueck = true; vermerke(eingang, 'morgen_kein_jetzt_rueckfall'); say(morgenSchichtTeilantwort(text) || 'Die morgige Schichtfahrt konnte ich gerade nicht vollständig prüfen. Ich zeige dir deshalb keine Route für eine Abfahrt jetzt.'); return; }
             if (keinRueck) { zurueck = true; vermerke(eingang, 'verschieben_unklar'); say(st.begonnen ? 'Dabei ist etwas schiefgelaufen. Ich habe nichts wiederholt.' : TEXT_VERSCHIEBEN); return; }
             zurueck = true; kiZaehler.zurueck++; kiN++; vermerke(eingang, 'rueckfall');
             if (mehr) {   // mehrteiliger Satz, nichts geschrieben: erst darf der feste Befehl, den wir vorgezogen haben, wie bisher antworten
@@ -1149,7 +1171,7 @@
             if (!arbeitsPlanVollstaendig) {
                 vermerke(eingang, 'auftrag_unvollstaendig');
                 protokolliere('ki_gestoppt', [], 'UNVOLLSTAENDIG');
-                say('Ich konnte deine morgige Schichtabfahrt, das Wetter und den Verkehr nicht zusammen sicher prüfen. Ich nenne dir deshalb keine Abfahrtszeit für heute als Antwort auf morgen.');
+                say(morgenSchichtTeilantwort(text) || 'Ich konnte deine morgige Schichtabfahrt, das Wetter und den Verkehr nicht zusammen sicher prüfen. Ich nenne dir deshalb keine Abfahrtszeit für heute als Antwort auf morgen.');
                 return;
             }
             if (!pr || !pr.ok || schreibOhneWunsch || fahrtOhneWerkzeug || abfahrtMitFahrzeit || !planErlaubt(pr.plan, ohneFrage)) {
