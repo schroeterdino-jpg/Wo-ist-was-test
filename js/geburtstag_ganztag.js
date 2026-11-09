@@ -52,7 +52,9 @@
                                 return;
                             }
                             const rrule = fest && typeof buildRecurrenceRule === 'function' ? buildRecurrenceRule('JAHR', 1) : (typeof buildRecurrenceRule === 'function' ? buildRecurrenceRule(action.calendar_recurrence_unit, action.calendar_recurrence_interval) : null);
-                            const done = await addGoogleCalendarEvent(titel, tag + 'T12:00:00', '', rrule, true);
+                            const ende = String(action.calendar_end_date || action.calendar_end || '').slice(0, 10);
+                            const endTag = !fest && /^\d{4}-\d{2}-\d{2}$/.test(ende) && ende >= tag ? ende : undefined;
+                            const done = await addGoogleCalendarEvent(titel, tag + 'T12:00:00', '', rrule, true, endTag);
                             if (done === false && typeof googleNotSynced === 'function') googleNotSynced(ctx, 'Der Eintrag ist nur in der App gespeichert, das Handy klingelt dazu nicht');
                             // wie bei normalen Terminen: den echten Google Kalender als sichtbare Bestätigung öffnen
                             if (done !== false) { try { if (typeof openGoogleCalendarApp === 'function') openGoogleCalendarApp(tag + 'T12:00:00'); } catch (e) { } }
@@ -73,7 +75,7 @@
 
     if (window.jvChain) {
         window.jvChain.use('buildSystemPrompt', 'geburtstag-ganztag', function (next) {
-            return next() + '\n\nAUSNAHME bei neuen Terminen: Geburtstage, Jahrestage, Hochzeitstage und Namenstage brauchen KEINE Uhrzeit. Frage dafür NIE nach einer Uhrzeit. Lege sofort die Aktion "calendar" an mit "calendar_text" = z.B. "Alyssas Geburtstag" (Name im Genitiv, das Wort Geburtstag bleibt im Titel), "calendar_time" = der Tag als YYYY-MM-DDT12:00:00 (das nächste Vorkommen dieses Datums ab heute) und "calendar_allday" = true. Die Wiederholung jedes Jahr und die Ganztägigkeit setzt die App selbst. Sagt der User ausdrücklich "ganztägig" oder "den ganzen Tag" (Urlaub, Feiertag, Ausflug), setze ebenfalls "calendar_allday" = true und frage nicht nach einer Uhrzeit.';
+            return next() + '\n\nAUSNAHME bei neuen Terminen: Geburtstage, Jahrestage, Hochzeitstage und Namenstage brauchen KEINE Uhrzeit. Frage dafür NIE nach einer Uhrzeit. Lege sofort die Aktion "calendar" an mit "calendar_text" = z.B. "Alyssas Geburtstag" (Name im Genitiv, das Wort Geburtstag bleibt im Titel), "calendar_time" = der Tag als YYYY-MM-DDT12:00:00 (das nächste Vorkommen dieses Datums ab heute) und "calendar_allday" = true. Die Wiederholung jedes Jahr und die Ganztägigkeit setzt die App selbst. Sagt der User ausdrücklich "ganztägig" oder "den ganzen Tag" (Urlaub, Feiertag, Ausflug), setze ebenfalls "calendar_allday" = true und frage nicht nach einer Uhrzeit. Bei Zeiträumen wie „Training vom 23.11.2026 bis 18.12.2026“ merke beide Daten auch über Rückfragen hinweg. Setze calendar_time auf den Starttag, calendar_end_date auf den letzten eingeschlossenen Tag als YYYY-MM-DD und bei ganztägig calendar_allday=true. Bei fehlender Uhrzeit frage nach ganztägig oder Uhrzeit, aber verliere das Enddatum nicht. Ein durchgehender Zeitraum umfasst auch Wochenenden; nur bei ausdrücklich genannten Wochentagen ist eine Wiederholungsregel nötig. Bestätige Start- und Enddatum vor dem Speichern.';
         }, 216);
     }
     window.jvGeburtstagGanztag = { FEST };
