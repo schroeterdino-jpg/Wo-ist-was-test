@@ -21,6 +21,7 @@
         '.jvP .bar{height:2px;background:rgba(94,231,255,.2);margin-top:8px}.jvP .bar i{display:block;height:100%;background:#5ee7ff;animation:jvPb linear forwards}' +
         '.jvP.aus{animation:jvPout .5s ease-in forwards}' +
         '#jvPan:has(.jvP.news){width:min(318px,86vw)}' +
+        '.jvP.diagnose{max-height:min(48vh,360px);overflow-y:auto;overflow-x:hidden;overflow-wrap:anywhere;font-size:12px;line-height:1.4}.jvP.diagnose .k{letter-spacing:.5px;gap:8px;flex-wrap:wrap}.jvP.diagnose .k span{min-width:0;overflow-wrap:anywhere}.jvP.diagnose .z>div{margin-top:5px}' +
         '.jvP .c{display:flex;gap:9px;margin-top:8px;color:#d8f6ff;text-decoration:none;align-items:flex-start}' +
         '.jvP .c .im{flex:0 0 78px;height:58px;border-radius:4px;border:1px solid rgba(94,231,255,.5);background:linear-gradient(135deg,#0b2336,#12384f);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px}' +
         '.jvP .c .im img{width:100%;height:100%;object-fit:cover;display:block}' +
@@ -29,7 +30,7 @@
     document.head.appendChild(st);
     const box = document.createElement('div'); box.id = 'jvPan'; (document.body || document.documentElement).appendChild(box);
     function zeigen(o) {
-        const s = (o.sek || 7) * 1000, p = document.createElement('div'); p.className = 'jvP';
+        const s = (o.sek || 7) * 1000, p = document.createElement('div'); p.className = 'jvP' + (o.kompakt ? ' diagnose' : '');
         p.innerHTML = '<div class="k"><span></span><span>' + (o.zeit || '') + '</span></div><div class="g"></div><div class="s"></div><div class="z"></div><div class="bar"><i style="animation-duration:' + s + 'ms"></i></div>';
         p.querySelector('.k span').textContent = o.titel || ''; p.querySelector('.g').textContent = o.gross || ''; p.querySelector('.s').textContent = o.text || '';
         if (!o.gross) p.querySelector('.g').remove();
