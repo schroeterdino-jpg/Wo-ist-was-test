@@ -436,6 +436,7 @@
         if (!t || t.length > 60) return false;
         return /\b(systemcheck|systemprüfung|systemtest|selbsttest|selbstdiagnose)\b/.test(t)
             || /\bdiagnostizier\w*\s+(?:dich\s+)?selbst\b/.test(t)
+            || /\b(?:dich\s+)?selbst\s+diagnostizier\w*\b/.test(t)
             || /\b(?:prüf\w*|überprüf\w*)\s+(?:mal\s+)?(?:bitte\s+)?(?:deine\s+)?fähigkeiten\b/.test(t)
             || /\bprüf\w*\s+(?:mal\s+)?(?:bitte\s+)?(?:alle\s+|alles\b|die\s+)?(?:verbindungen|schnittstellen|systeme)\b/.test(t)
             || /\balles prüfen\b/.test(t);
