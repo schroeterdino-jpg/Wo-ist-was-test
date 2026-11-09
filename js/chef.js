@@ -1161,11 +1161,23 @@
             var fahrtOhneWerkzeug = !!(pr && pr.ok && pr.plan && RX_FAHRT.test(text) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'websuche'; }) && !pr.plan.schritte.some(function (x) { return x.faehigkeit === 'fahrzeit'; }));   // Fahrzeit/Verkehr nie per Websuche (das wäre nur eine Schätzung): der bisherige Weg hat die echte Routenberechnung
             // Bei einer Frage nach der morgigen Schicht-Abfahrt ist fahrzeit nur die
             // ergänzende aktuelle Verkehrsauskunft. Die Abfahrt liefert schicht.
+            // Bei einer gültigen, aber unvollständigen KI-Auswahl die drei ausdrücklich
+            // verlangten LESENDEN Fähigkeiten aus bekannten Fakten ergänzen.
+            // Nur dieser Arbeitsweg-Sonderfall; keine Schreibaktionen, keine geratenen Ziele.
+            if (arbeitsMorgenKombi && pr && pr.ok && pr.plan && arbeitsziel &&
+                !pr.plan.schritte.some(function (x) { return B2A_SCHREIBT.indexOf(x.faehigkeit) >= 0; })) {
+                var zielTag = /\\b(?:übermorgen|uebermorgen)\\b/i.test(text) ? 'übermorgen' : 'morgen';
+                var gewuenscht = [{ faehigkeit: 'schicht', params: { tag: zielTag } }];
+                if (arbeitsWetterGefragt) gewuenscht.push({ faehigkeit: 'wetter', params: { tag: zielTag, ort: arbeitsziel } });
+                if (arbeitsVerkehrGefragt) gewuenscht.push({ faehigkeit: 'fahrzeit', params: { ziel: arbeitsziel } });
+                var kandidat = pruefePlan({ absicht: 'arbeitsweg_auskunft', schritte: gewuenscht });
+                if (kandidat.ok && kandidat.plan && kandidat.plan.schritte.length === gewuenscht.length) pr = kandidat;
+            }
             var arbeitsPlanVollstaendig = !arbeitsMorgenKombi || (pr && pr.ok && pr.plan &&
                 ['schicht'].concat(arbeitsWetterGefragt ? ['wetter'] : [], arbeitsVerkehrGefragt ? ['fahrzeit'] : []).every(function (name) {
                     return pr.plan.schritte.some(function (x) { return x.faehigkeit === name; });
-                }) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'schicht' && x.params && x.params.tag === 'morgen'; }) &&
-                (!arbeitsWetterGefragt || pr.plan.schritte.some(function (x) { return x.faehigkeit === 'wetter' && x.params && x.params.tag === 'morgen'; })));
+                }) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'schicht' && x.params && (x.params.tag === 'morgen' || x.params.tag === 'übermorgen'); }) &&
+                (!arbeitsWetterGefragt || pr.plan.schritte.some(function (x) { return x.faehigkeit === 'wetter' && x.params && (x.params.tag === 'morgen' || x.params.tag === 'übermorgen'); })));
             var abfahrtMitFahrzeit = !!(pr && pr.ok && pr.plan && (RX_ABFAHRT.test(text) || RX_ANKUNFT.test(text)) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'fahrzeit'; }) &&
                 !(arbeitsMorgenKombi && arbeitsPlanVollstaendig));   // ein Plan, der eine Abfahrtsfrage nur mit der Fahrdauer beantworten würde
             if (!arbeitsPlanVollstaendig) {
@@ -1214,6 +1226,7 @@
             else if (letzter === 'produktsuche') thema = { art: 'web', at: jetzt() };
             else if (letzter === 'ortssuche') { var os = plan.schritte.filter(function (x) { return x.faehigkeit === 'ortssuche'; })[0]; thema = { art: 'orte', begriff: String(os.params.suchbegriff).slice(0, 40), at: jetzt() }; if (os.params.ort) ortMerken(String(os.params.ort), true); }
             if (r.karten && r.karten.length) karten(r.karten);
+            if (arbeitsMorgenKombi) r.text += ' Hinweis: Die Verkehrsabfrage zeigt nur die aktuelle Lage, keine verlässliche Stauprognose für morgen.';
             say(r.text);                                                  // EINE zusammenhängende Antwort
             protokolliere('ki', plan.schritte.map(function (x) { return x.faehigkeit; }), 'SUCCESS');
         } catch (e) {
