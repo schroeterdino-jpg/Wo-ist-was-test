@@ -818,8 +818,10 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
             else X.st.verhalten = 'fehler';
             const antwort = (await mikro(X, s, 150)).join(' | ');
             check('28.' + (art === 'ungueltig' ? '1' : '2') + ' Mikrofon-Morgenfrage erreicht den Chef-Planer', X.st.ent > 0, JSON.stringify({ art, ent: X.st.ent, antwort, codes: codes(X) }));
-            check('28.' + (art === 'ungueltig' ? '3' : '4') + ' kein Jetzt-Lagebild oder normaler Rückfall bei Morgenfrage',
-                X.st.groq === 0 && !(X.st.routeUrls || []).length && /morgig|morgen|Schichtfahrt/i.test(antwort),
+            check('28.' + (art === 'ungueltig' ? '3' : '4') + ' Morgenfrage: aktuelle Verkehrslage klar gekennzeichnet, kein normaler Rückfall',
+                X.st.groq === 0 && /morgig|morgen|Schichtfahrt/i.test(antwort) &&
+                (!(X.st.routeUrls || []).length || /jetzt|aktuelle Lage/i.test(antwort)) &&
+                !/morgen[^.]*\\b(?:brauchst du jetzt|Ankunft jetzt)\\b/i.test(antwort),
                 JSON.stringify({ art, groq: X.st.groq, route: X.st.routeUrls, antwort }));
         }
     }
@@ -839,12 +841,33 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
             else X.st.verhalten = 'fehler';
             const antwort = (await mikro(X, SATZ, 150)).join(' | ');
             check('29.' + (art === 'ungueltig' ? '1' : '2') + ' echte Mikrofonfrage liefert morgige gespeicherte Abfahrt auch bei Planfehler',
-                /Morgen hast du laut gespeichertem Schichtplan spaetschicht/i.test(antwort) &&
-                /geplante Abfahrt ist um \d{1,2}:\d{2} Uhr/.test(antwort) &&
+                /Morgen hast du (?:laut gespeichertem Schichtplan )?(?:Spät|spaet)schicht/i.test(antwort) &&
+                /geplante Abfahrt (?:ist um \d{1,2}:\d{2} Uhr|gegen \d{1,2} Uhr)/.test(antwort) &&
                 !/Die morgige Schichtfahrt konnte ich gerade nicht vollständig prüfen/.test(antwort) &&
-                X.st.groq === 0 && !(X.st.routeUrls || []).length,
+                X.st.groq === 0 &&
+                (!(X.st.routeUrls || []).length || /aktuelle Lage|jetzt/i.test(antwort)),
                 JSON.stringify({ art, antwort, groq: X.st.groq, route: X.st.routeUrls }));
         }
+    }
+    // Regression #422: Bei unvollständiger, aber gültiger KI-Auswahl werden
+    // die drei bestehenden Lese-Werkzeuge für die Morgen-Kombifrage ausgeführt.
+    {
+        const SATZ = 'Wann muss ich morgen zur Arbeit losfahren, wie wird das Wetter dort und gibt es Staus auf meinem Arbeitsweg?';
+        const X = umgebung();
+        X.setze('workAddress', 'Neu-Galliner-Ring 6, Gallin');
+        const T = X.sb._schichtTest;
+        X.sb.setPersistentData('jv_schicht', JSON.stringify({
+            base: T.weekNo({ y: 2026, m: 11, d: 5 }), shift: 'spaet',
+            times: { frueh: 225, spaet: 720 }, auto: true
+        }));
+        X.st.plan = { schritte: [{ faehigkeit: 'wetter', params: { tag: 'morgen' } }] };
+        const antwort = (await mikro(X, SATZ, 300)).join(' | ');
+        check('30.1 unvollständiger KI-Plan liefert Schicht und Wetter statt nur Teilantwort',
+            /Spätschicht/i.test(antwort) && X.st.wetterN > 0,
+            JSON.stringify({ antwort, wetterN: X.st.wetterN }));
+        check('30.2 aktuelle Verkehrslage wird abgefragt und nicht als morgige Prognose ausgegeben',
+            (X.st.routeUrls || []).length > 0 && /aktuelle Lage, keine verlässliche Stauprognose/i.test(antwort),
+            JSON.stringify({ antwort, route: X.st.routeUrls }));
     }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
