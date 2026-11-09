@@ -823,6 +823,29 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
                 JSON.stringify({ art, groq: X.st.groq, route: X.st.routeUrls, antwort }));
         }
     }
+    // Regression #421: Die echte Plan-Uhr() liefert „13 Uhr 3“, nicht „13:03“.
+    // Der Morgen-Fallback muss uhrHM verwenden und bei vorhandenem Schichtplan antworten.
+    {
+        const SATZ = 'Wann muss ich morgen zur Arbeit losfahren, wie wird das Wetter dort und gibt es Staus auf meinem Arbeitsweg?';
+        for (const art of ['ungueltig', 'fehler']) {
+            const X = umgebung();
+            X.setze('workAddress', 'Neu-Galliner-Ring 6, Gallin');
+            const T = X.sb._schichtTest;
+            X.sb.setPersistentData('jv_schicht', JSON.stringify({
+                base: T.weekNo({ y: 2026, m: 11, d: 5 }),
+                shift: 'spaet', times: { frueh: 225, spaet: 720 }, auto: true
+            }));
+            if (art === 'ungueltig') X.st.plan = { schritte: [] };
+            else X.st.verhalten = 'fehler';
+            const antwort = (await mikro(X, SATZ, 150)).join(' | ');
+            check('29.' + (art === 'ungueltig' ? '1' : '2') + ' echte Mikrofonfrage liefert morgige gespeicherte Abfahrt auch bei Planfehler',
+                /Morgen hast du laut gespeichertem Schichtplan spaetschicht/i.test(antwort) &&
+                /geplante Abfahrt ist um \d{1,2}:\d{2} Uhr/.test(antwort) &&
+                !/Die morgige Schichtfahrt konnte ich gerade nicht vollständig prüfen/.test(antwort) &&
+                X.st.groq === 0 && !(X.st.routeUrls || []).length,
+                JSON.stringify({ art, antwort, groq: X.st.groq, route: X.st.routeUrls }));
+        }
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });
