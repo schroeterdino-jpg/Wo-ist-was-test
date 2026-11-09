@@ -194,6 +194,9 @@ public class MainActivity extends Activity {
         WebSettings st = w.getSettings();
         st.setJavaScriptEnabled(true);
         st.setDomStorageEnabled(true);
+        // Beim Start die aktuelle Webseite und Skripte vom Server prüfen;
+        // Cookies, localStorage und andere gespeicherte App-Daten bleiben erhalten.
+        st.setCacheMode(WebSettings.LOAD_NO_CACHE);
         st.setDatabaseEnabled(true);
         st.setMediaPlaybackRequiresUserGesture(false);
         st.setGeolocationEnabled(true);
