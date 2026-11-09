@@ -790,6 +790,24 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         check('26.2 ohne eingerichtete Schicht keine erfundene Schichtzeit',
             quelltext.includes("!T.load()") && quelltext.includes("schicht: 'frei'"));
     }
+    // Regression #418: Der echte Sprachweg darf eine kombinierte Arbeitswegfrage
+    // nicht durch einen lokalen Einzelbefehl (Lagebild/Route) verschlucken.
+    {
+        const saetze = [
+            'Wann muss ich morgen zur Arbeit losfahren, wie wird das Wetter dort und gibt es Staus auf meinem Arbeitsweg?',
+            'Wie sieht es morgen mit meiner Schicht aus und gibt es Verkehr auf der Strecke?',
+            'Ich fahre morgen zur Arbeit: Ist die Route frei und wie wird das Wetter?'
+        ];
+        for (let i = 0; i < saetze.length; i++) {
+            const X = umgebung();
+            X.setze('workAddress', 'Neu-Galliner-Ring 6, Gallin');
+            check('27.' + (i + 1) + ' kombinierte Arbeitswegfrage erhält Chef-Vorrang',
+                X.sb.jvChef.mehrteilig(saetze[i]) === true, saetze[i]);
+        }
+        const X = umgebung();
+        check('27.4 reine Routenfrage bleibt beim bisherigen Weg',
+            X.sb.jvChef.mehrteilig('Zeig mir die Route zur Arbeit') === false);
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });
