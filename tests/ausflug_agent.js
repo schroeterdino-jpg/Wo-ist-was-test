@@ -199,6 +199,25 @@ const AGENT = 'Plane Samstag einen Ausflug mit den Kindern und kümmer dich daru
         check('18 deterministisch: zweiter Start liefert dieselbe Reihenfolge und dieselbe Anzahl', JSON.stringify(l) === JSON.stringify(l2) && l.length === l2.length);
     }
 
+    /* 19 Einfacher Ausflugsweg: ausdrückliche Wünsche schlagen trockenes Wetter. */
+    {
+        const app = neu({ regen: false });
+        await satz(app, 'Ich möchte morgen einen Ausflug mit den Kindern machen, möglichst drinnen.');
+        check('19 morgen und möglichst drinnen: Indoor-Suche trotz trockener Vorhersage',
+            app.suchen.length > 0 && app.suchen.every(q => /Indoor|Hallenbad|Museum|Bowling/.test(q)),
+            JSON.stringify(app.suchen));
+        check('19 morgen: Antwort bezieht sich auf morgen, keine Tierpark-Empfehlung',
+            /Morgen/.test(letztes(app)) && !/Wildpark Schwarze Berge|Tierpark/.test(letztes(app)),
+            letztes(app));
+    }
+    {
+        const app = neu({ regen: true });
+        await satz(app, 'Ich möchte morgen einen Ausflug mit den Kindern machen, möglichst draußen.');
+        check('19 ausdrücklich draußen: Outdoor-Suche trotz Regen',
+            app.suchen.length > 0 && app.suchen.every(q => /Tierpark|Freizeitpark|Minigolf|Abenteuerspielplatz/.test(q)),
+            JSON.stringify(app.suchen));
+    }
+
     console.log(`AUSFLUG-AGENT: ${ok} Prüfungen in Ordnung, ${fehler} Fehler`);
     process.exit(fehler ? 1 : 0);
 })();
