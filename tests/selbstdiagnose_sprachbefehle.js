@@ -50,3 +50,15 @@ assert.ok(rot[0].vorschlaege.includes('neu verbinden'));
 assert.ok(rot[0].vorschlaege.includes('Bekannte Einschränkung'));
 assert.equal(rot[1].status, 'nicht_geprueft');
 console.log('Fähigkeitsdiagnose Phase 2: OK');
+
+
+/* Regression: mehrtägige Ganztagstermine und normale Einzeltermine. */
+const kalenderActions = fs.readFileSync('js/actions.js', 'utf8');
+const kalenderGanztag = fs.readFileSync('js/geburtstag_ganztag.js', 'utf8');
+const kalenderCore = fs.readFileSync('js/calendar.js', 'utf8');
+assert.match(kalenderActions, /action\.calendar_end_date/);
+assert.match(kalenderActions, /ganztag && gueltigesEnde/);
+assert.match(kalenderGanztag, /true, endTag\)/);
+assert.match(kalenderGanztag, /action\.calendar_end_date/);
+assert.match(kalenderCore, /d1\.setDate\(d1\.getDate\(\) \+ 1\)/);
+console.log('Mehrtägige Kalendertermine: Weitergabe und exklusives Google-Enddatum geprüft');
