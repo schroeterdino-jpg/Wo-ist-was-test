@@ -1111,6 +1111,8 @@
             // Der Planer bekommt vorhandenes Wissen statt eines fest verdrahteten Satzplans.
             // Die konkrete Absicht und die Kombination der Werkzeuge bestimmt die KI.
             var arbeitsMorgenKombi = arbeitswegMehrfachfrage(text) && /\b(?:morgen|übermorgen|uebermorgen)\b/i.test(text);
+            var arbeitsWetterGefragt = /\b(?:wetter|regen\w*|temperatur\w*|trocken|schnee\w*|gewitter\w*)\b/i.test(text);
+            var arbeitsVerkehrGefragt = /\b(?:stau\w*|verkehr\w*|sperrung\w*|strecke|fahrzeit|route)\b/i.test(text);
             var arbeitsziel = (typeof workAddress === 'string' ? workAddress : '').trim();
             var sende = sendeFunktion || sendeStandard;
             var entsch = kiEntscheider(function (m) { return Promise.race([Promise.resolve(sende(m, ctrl ? ctrl.signal : undefined)), limit]); }, KI_PLAN, kontext);
@@ -1135,10 +1137,10 @@
             // Bei einer Frage nach der morgigen Schicht-Abfahrt ist fahrzeit nur die
             // ergänzende aktuelle Verkehrsauskunft. Die Abfahrt liefert schicht.
             var arbeitsPlanVollstaendig = !arbeitsMorgenKombi || (pr && pr.ok && pr.plan &&
-                ['schicht', 'wetter', 'fahrzeit'].every(function (name) {
+                ['schicht'].concat(arbeitsWetterGefragt ? ['wetter'] : [], arbeitsVerkehrGefragt ? ['fahrzeit'] : []).every(function (name) {
                     return pr.plan.schritte.some(function (x) { return x.faehigkeit === name; });
                 }) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'schicht' && x.params && x.params.tag === 'morgen'; }) &&
-                pr.plan.schritte.some(function (x) { return x.faehigkeit === 'wetter' && x.params && x.params.tag === 'morgen'; }));
+                (!arbeitsWetterGefragt || pr.plan.schritte.some(function (x) { return x.faehigkeit === 'wetter' && x.params && x.params.tag === 'morgen'; })));
             var abfahrtMitFahrzeit = !!(pr && pr.ok && pr.plan && (RX_ABFAHRT.test(text) || RX_ANKUNFT.test(text)) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'fahrzeit'; }) &&
                 !(arbeitsMorgenKombi && arbeitsPlanVollstaendig));   // ein Plan, der eine Abfahrtsfrage nur mit der Fahrdauer beantworten würde
             if (!arbeitsPlanVollstaendig) {
