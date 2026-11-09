@@ -316,7 +316,7 @@ async function executeAction(action, text, ctx) {
         const endTag = String(action.calendar_end_date || action.calendar_end || '').slice(0, 10);
         const gueltigesEnde = /^\\d{4}-\\d{2}-\\d{2}$/.test(endTag) && !isNaN(Date.parse(endTag)) ? endTag : undefined;
         const ganztag = action.calendar_allday === true || action.calendar_allday === 'true';
-        const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort, rrule, ganztag || !!gueltigesEnde, gueltigesEnde, action.calendar_duration > 0 ? +action.calendar_duration : undefined);
+        const addDone = await addGoogleCalendarEvent(action.calendar_text || text, action.calendar_time, ort, rrule, ganztag, ganztag ? gueltigesEnde : undefined, action.calendar_duration > 0 ? +action.calendar_duration : undefined);
         thoughts.forEach(n => ctx.notes.push(n));
         if (addDone === true && window.jvLetzterGoogleTermin && window.jvLetzterGoogleTermin.id) ctx[Symbol.for('jv.googleTerminId')] = window.jvLetzterGoogleTermin.id;   // echte Google-ID, nur intern (wird nicht vorgelesen)
         if (addDone === false) googleNotSynced(ctx, 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht');
