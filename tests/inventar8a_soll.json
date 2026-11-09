@@ -475,7 +475,7 @@
  },
  "ci": {
   "nodeVersion": "20",
-  "schritte": 69,
+  "schritte": 71,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
   "zeitzonenVertragZentral": true,
@@ -489,7 +489,7 @@
    "tests/umgebung.js": true
   },
   "npmInstall": false,
-  "vollerGitVerlauf": true,
+  "vollerGitVerlauf": false,
   "testsMitGit": [],
   "workflows": [
    "oww-test.yml",
