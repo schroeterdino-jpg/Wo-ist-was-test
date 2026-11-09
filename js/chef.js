@@ -730,10 +730,10 @@
             var tag = P.ymdPlus(P.jetzt().ymd, tage), sh = P.schichtAm(tag);
             var wann = tage === 2 ? 'Übermorgen' : 'Morgen';
             if (!sh) return wann + ' hast du laut gespeichertem Schichtplan frei. Wetter und Verkehr konnte ich gerade nicht zuverlässig prüfen.';
-            if (typeof P.abfahrtMin !== 'function' || typeof P.uhr !== 'function') return '';
+            if (typeof P.abfahrtMin !== 'function' || typeof P.uhrHM !== 'function') return '';
             var abfahrt = P.abfahrtMin(sh, tag) - (typeof P.tagVor === 'function' ? (P.tagVor(tag) || 0) : 0);
             if (!Number.isFinite(abfahrt)) return '';
-            var uhr = P.uhr(((abfahrt % 1440) + 1440) % 1440);
+            var uhr = P.uhrHM(((abfahrt % 1440) + 1440) % 1440);
             if (!/^\d{1,2}:\d{2}$/.test(String(uhr))) return '';
             return wann + ' hast du laut gespeichertem Schichtplan ' + String(sh) +
                 'schicht. Deine geplante Abfahrt ist um ' + uhr +
