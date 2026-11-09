@@ -184,6 +184,27 @@ async function handlePush(action, req, res, redis) {
   try {
     const pub = process.env.VAPID_PUBLIC_KEY, priv = process.env.VAPID_PRIVATE_KEY;
     if (!pub || !priv) return res.status(500).json({ error: 'Server: VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY fehlen' });
+    // Lesende Zustell-Diagnose fuer die APK: keine Erinnerung ausloesen, abholen oder loeschen.
+    // APP_SECRET wird bereits vor handlePush geprueft. Keine Nachrichtentexte/Schluessel ausgeben.
+    if (action === 'push_diagnose') {
+      const now = Date.now();
+      const st = await loadItems(redis);
+      const q = await natLoad(redis);
+      const reminders = st.items.filter(i => i.k === 'r');
+      const upcoming = reminders.filter(i => i.at >= now - REMINDER_GRACE_MIN * 60000)
+        .sort((a, b) => a.at - b.at)[0];
+      return res.status(200).json({
+        ok: true, serverZeit: now,
+        webPushKonfiguriert: !!(pub && priv),
+        nativeLetzterAbrufVorMin: q.ts ? Math.round((now - q.ts) / 60000) : null,
+        nativeAktiv: !!q.ts && now - q.ts < NATIVE_AKTIV_MS,
+        nativeWarteschlange: q.msgs.length,
+        erinnerungenAufServer: reminders.length,
+        naechsteErinnerungInMin: upcoming ? Math.round((upcoming.at - now) / 60000) : null,
+        naechsteErinnerungBereitsGesendet: upcoming ? !!st.sent[upcoming.id] : null,
+        appLebenszeichenVorMin: st.alive ? Math.round((now - st.alive) / 60000) : null
+      });
+    }
     if (action === 'push_key') return res.status(200).json({ publicKey: pub });
     if (action === 'push_mail_status') return handleMailStatus(req, res, redis);
     if (action === 'push_mail_connect') { if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' }); return handleMailConnect(req, res, redis); }
