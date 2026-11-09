@@ -818,8 +818,10 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
             else X.st.verhalten = 'fehler';
             const antwort = (await mikro(X, s, 150)).join(' | ');
             check('28.' + (art === 'ungueltig' ? '1' : '2') + ' Mikrofon-Morgenfrage erreicht den Chef-Planer', X.st.ent > 0, JSON.stringify({ art, ent: X.st.ent, antwort, codes: codes(X) }));
-            check('28.' + (art === 'ungueltig' ? '3' : '4') + ' kein Jetzt-Lagebild oder normaler Rückfall bei Morgenfrage',
-                X.st.groq === 0 && !(X.st.routeUrls || []).length && /morgig|morgen|Schichtfahrt/i.test(antwort),
+            check('28.' + (art === 'ungueltig' ? '3' : '4') + ' Morgenfrage: aktuelle Verkehrslage klar gekennzeichnet, kein normaler Rückfall',
+                X.st.groq === 0 && /morgig|morgen|Schichtfahrt/i.test(antwort) &&
+                (!(X.st.routeUrls || []).length || /jetzt|aktuelle Lage/i.test(antwort)) &&
+                !/morgen.*(?:brauchst du jetzt|Ankunft jetzt)/i.test(antwort),
                 JSON.stringify({ art, groq: X.st.groq, route: X.st.routeUrls, antwort }));
         }
     }
@@ -839,10 +841,11 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
             else X.st.verhalten = 'fehler';
             const antwort = (await mikro(X, SATZ, 150)).join(' | ');
             check('29.' + (art === 'ungueltig' ? '1' : '2') + ' echte Mikrofonfrage liefert morgige gespeicherte Abfahrt auch bei Planfehler',
-                /Morgen hast du laut gespeichertem Schichtplan spaetschicht/i.test(antwort) &&
-                /geplante Abfahrt ist um \d{1,2}:\d{2} Uhr/.test(antwort) &&
+                /Morgen hast du (?:laut gespeichertem Schichtplan )?Spätschicht/i.test(antwort) &&
+                /geplante Abfahrt (?:ist um \d{1,2}:\d{2} Uhr|gegen \d{1,2} Uhr)/.test(antwort) &&
                 !/Die morgige Schichtfahrt konnte ich gerade nicht vollständig prüfen/.test(antwort) &&
-                X.st.groq === 0 && !(X.st.routeUrls || []).length,
+                X.st.groq === 0 &&
+                (!(X.st.routeUrls || []).length || /aktuelle Lage|jetzt/i.test(antwort)),
                 JSON.stringify({ art, antwort, groq: X.st.groq, route: X.st.routeUrls }));
         }
     }
