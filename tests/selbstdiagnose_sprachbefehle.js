@@ -57,7 +57,7 @@ const kalenderActions = fs.readFileSync('js/actions.js', 'utf8');
 const kalenderGanztag = fs.readFileSync('js/geburtstag_ganztag.js', 'utf8');
 const kalenderCore = fs.readFileSync('js/calendar.js', 'utf8');
 assert.match(kalenderActions, /action\.calendar_end_date/);
-assert.match(kalenderActions, /ganztag \? gueltigesEnde : undefined/);
+assert.match(kalenderActions, /ganztag && gueltigesEnde/);
 assert.match(kalenderGanztag, /true, endTag\)/);
 assert.match(kalenderGanztag, /calendar_end_date auf den letzten eingeschlossenen Tag/);
 assert.match(kalenderCore, /d1\.setDate\(d1\.getDate\(\) \+ 1\)/);
