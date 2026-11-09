@@ -508,20 +508,24 @@
             if (selbstdiagnose && typeof window.jvFaehigkeitsDiagnose === 'function') {
                 const faehigkeiten = window.jvFaehigkeitsDiagnose(res);
                 const auffaellig = faehigkeiten.filter(f => f.status === 'problem');
-                const uebersicht = auffaellig.length
-                    ? auffaellig.map(f => f.name + ': ' + f.probleme.join('; ')).slice(0, 5).join('. ')
-                    : 'Keine technischen Probleme in den zugeordneten Prüfungen erkannt.';
-                const hinweis = 'Das ist nur eine technische Teilprüfung. Ob alle Fähigkeiten tatsächlich funktionieren, wurde nicht getestet.';
+                const geprueft = faehigkeiten.filter(f => f.teilchecksOk > 0).length;
+                const hinweise = faehigkeiten.filter(f => f.hinweise.length > 0);
+                const detail = auffaellig.slice(0, 3).map(f => ({ ok: false,
+                    text: f.name + ': ' + f.probleme.slice(0, 2).join('; ') +
+                        (f.vorschlaege.length ? ' → ' + f.vorschlaege[0] : '') }));
+                if (!detail.length && hinweise.length) detail.push(...hinweise.slice(0, 2).map(f => ({ ok: null,
+                    text: f.name + ': ' + f.hinweise[0] })));
+                if (!detail.length) detail.push({ ok: null, text: 'Keine Fehler in den zugeordneten Teilchecks erkannt.' });
+                detail.push({ ok: null, text: geprueft + ' von ' + faehigkeiten.length + ' Fähigkeiten mit positiven Teilchecks; kein vollständiger Funktionstest.' });
                 if (window.jvPanel) window.jvPanel.zeigen({
-                    titel: 'SELBSTDIAGNOSE',
-                    zeit: auffaellig.length ? auffaellig.length + ' AUFFÄLLIG' : 'TEILPRÜFUNG',
-                    text: hinweis,
-                    zeilen: auffaellig.length
-                        ? auffaellig.slice(0, 5).map(f => ({ ok: false, text: f.name + ': ' + f.probleme.join('; ') }))
-                        : [{ ok: null, text: faehigkeiten.length + ' Fähigkeiten erfasst, keine davon vollständig getestet' }],
-                    sek: 30
+                    titel: 'SELBSTDIAGNOSE', zeit: auffaellig.length ? auffaellig.length + ' PROBLEME' : 'TEILCHECK',
+                    kompakt: true, zeilen: detail, sek: 35
                 });
-                if (typeof speak === 'function') speak('Selbstdiagnose abgeschlossen. ' + uebersicht + ' ' + hinweis,
+                const ansage = auffaellig.length
+                    ? 'Selbstdiagnose: ' + auffaellig.length + ' Fähigkeiten mit technischen Problemen. ' +
+                        auffaellig.slice(0, 2).map(f => f.name).join(', ') + '. Details stehen im Fenster.'
+                    : 'Selbstdiagnose: Keine technischen Fehler in den zugeordneten Prüfungen erkannt.';
+                if (typeof speak === 'function') speak(ansage + ' Die vollständige Funktion wurde nicht getestet.',
                     typeof continueConversation === 'function' ? continueConversation : undefined);
                 return;
             }
