@@ -206,7 +206,17 @@
         var g = []; MEHR_GRUPPEN.forEach(function (rx, i) { if (rx.test(i === 0 ? t0 : t)) g.push(i); });
         return g.length >= 2 ? g : [];
     }
-    function mehrteilig(text) { return istAn && mehrGruppen(text).length >= 2; }
+    function arbeitswegMehrfachfrage(text) {
+        // Breite Themen-Erkennung nur für die Priorität vor lokalen Einzelbefehlen.
+        // Die eigentliche Absicht und Werkzeugauswahl bleiben beim KI-Planer.
+        var t = String(text || '').toLowerCase();
+        var arbeit = /\\b(?:arbeit\\w*|schicht\\w*|dienst\\w*|betrieb\\w*)\\b/.test(t);
+        var zeit = /\\b(?:morgen|übermorgen|uebermorgen|heute|wann|abfahrt\\w*|losfahr\\w*|aufbrech\\w*|beginn\\w*)\\b/.test(t);
+        var wetter = /\\b(?:wetter|regen\\w*|temperatur\\w*|trocken|schnee\\w*|gewitter\\w*)\\b/.test(t);
+        var verkehr = /\\b(?:stau\\w*|verkehr\\w*|sperrung\\w*|strecke|fahrzeit|route)\\b/.test(t);
+        return arbeit && zeit && (wetter || verkehr) && (wetter && verkehr || /\\b(?:und|außerdem|ausserdem|wie)\\b/.test(t));
+    }
+    function mehrteilig(text) { return istAn && (mehrGruppen(text).length >= 2 || arbeitswegMehrfachfrage(text)); }
     var RX_B2A = /\b(erinner\w*|termin\w*|merk(?:e)? dir|speicher\w*|trag(?:e)? \w+ ein|aufgabe\w*|to-?do\w*|kontakt\w*|notier\w*|adresse\w*|kalender)\b/i;   // B2a: Wünsche, die die Chef-KI jetzt selbst ausführen darf
     var RX_SCHREIB = /\b(erinner\w*|termin\w*|merk(?:e)? dir|speicher\w*|trag(?:e)? \w+ ein)\b/i;
 
@@ -1100,11 +1110,7 @@
             }
             // Der Planer bekommt vorhandenes Wissen statt eines fest verdrahteten Satzplans.
             // Die konkrete Absicht und die Kombination der Werkzeuge bestimmt die KI.
-            var arbeitsMorgenKombi = /\\bmorgen\\b/i.test(text) &&
-                /\\b(?:zur\\s+arbeit|arbeitsweg|weg\\s+zur\\s+arbeit)\\b/i.test(text) &&
-                /\\b(?:losfahren|los\\s*fahren|abfahrt|los\\s*muss|los\\s*müssen)\\b/i.test(text) &&
-                /\\b(?:wetter|regen|temperatur)\\b/i.test(text) &&
-                /\\b(?:stau\\w*|verkehr\\w*|sperrung\\w*)\\b/i.test(text);
+            var arbeitsMorgenKombi = arbeitswegMehrfachfrage(text) && /\\b(?:morgen|übermorgen|uebermorgen)\\b/i.test(text);
             var arbeitsziel = (typeof workAddress === 'string' ? workAddress : '').trim();
             var sende = sendeFunktion || sendeStandard;
             var entsch = kiEntscheider(function (m) { return Promise.race([Promise.resolve(sende(m, ctrl ? ctrl.signal : undefined)), limit]); }, KI_PLAN, kontext);
