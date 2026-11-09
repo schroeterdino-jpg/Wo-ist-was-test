@@ -1110,7 +1110,7 @@
             }
             // Der Planer bekommt vorhandenes Wissen statt eines fest verdrahteten Satzplans.
             // Die konkrete Absicht und die Kombination der Werkzeuge bestimmt die KI.
-            var arbeitsMorgenKombi = arbeitswegMehrfachfrage(text) && /\b(?:morgen|übermorgen|uebermorgen)\b/i.test(text);
+            var arbeitsMorgenKombi = arbeitswegMehrfachfrage(text) && /\b(?:morgen|übermorgen|uebermorgen)\b/i.test(text) && /\b(?:stau\w*|verkehr\w*|sperrung\w*|strecke|fahrzeit|route)\b/i.test(text);
             var arbeitsWetterGefragt = /\b(?:wetter|regen\w*|temperatur\w*|trocken|schnee\w*|gewitter\w*)\b/i.test(text);
             var arbeitsVerkehrGefragt = /\b(?:stau\w*|verkehr\w*|sperrung\w*|strecke|fahrzeit|route)\b/i.test(text);
             var arbeitsziel = (typeof workAddress === 'string' ? workAddress : '').trim();
