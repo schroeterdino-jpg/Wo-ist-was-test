@@ -808,6 +808,21 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         check('27.4 reine Routenfrage bleibt beim bisherigen Weg',
             X.sb.jvChef.mehrteilig('Zeig mir die Route zur Arbeit') === false);
     }
+    // Regression #419: vollständiger Sprachweg, nicht nur jvChef.mehrteilig().
+    // Bei kaputtem oder unvollständigem Plan niemals das Jetzt-Lagebild öffnen.
+    {
+        const s = 'Wann muss ich morgen zur Arbeit losfahren, wie wird das Wetter dort und gibt es Staus auf meinem Arbeitsweg?';
+        for (const art of ['ungueltig', 'fehler']) {
+            const X = umgebung(); X.setze('workAddress', 'Neu-Galliner-Ring 6, Gallin');
+            if (art === 'ungueltig') X.st.plan = { schritte: [] };
+            else X.st.verhalten = 'fehler';
+            const antwort = (await mikro(X, s, 150)).join(' | ');
+            check('28.' + (art === 'ungueltig' ? '1' : '2') + ' Mikrofon-Morgenfrage erreicht den Chef-Planer', X.st.ent > 0, JSON.stringify({ art, ent: X.st.ent, antwort, codes: codes(X) }));
+            check('28.' + (art === 'ungueltig' ? '3' : '4') + ' kein Jetzt-Lagebild oder normaler Rückfall bei Morgenfrage',
+                X.st.groq === 0 && !(X.st.routeUrls || []).length && /morgig|morgen|Schichtfahrt/i.test(antwort),
+                JSON.stringify({ art, groq: X.st.groq, route: X.st.routeUrls, antwort }));
+        }
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });
