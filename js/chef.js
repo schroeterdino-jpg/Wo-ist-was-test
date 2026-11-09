@@ -1072,11 +1072,14 @@
     }
 
     async function kiEntscheideImSprachweg(text, gen, eingang, kontext, ohneFrage, ortBezug, mehr, versch) {
-        var zurueck = false, ctrl = null, timer = null, t0 = jetzt(), kiN = 1, st = { begonnen: false }, keinRueck = versch === true;   // 1 = die Entscheider-Anfrage selbst; st.begonnen = es wurde schon geschrieben; keinRueck = Verschieben: nie zurück zum alten KI-Weg (er würde ohne Bestätigung verschieben)
+        var zurueck = false, ctrl = null, timer = null, t0 = jetzt(), kiN = 1, st = { begonnen: false }, keinRueck = versch === true;
+        // Morgen-Arbeitsweg darf bei KI-Fehlern niemals in eine Jetzt-Route/Lagebild zurückfallen.
+        var morgenArbeitsweg = mehr === true && arbeitswegMehrfachfrage(text) && /\b(?:morgen|übermorgen|uebermorgen)\b/i.test(text) && /\b(?:stau\w*|verkehr\w*|sperrung\w*|strecke|fahrzeit|route)\b/i.test(text);   // 1 = die Entscheider-Anfrage selbst; st.begonnen = es wurde schon geschrieben; keinRueck = Verschieben: nie zurück zum alten KI-Weg (er würde ohne Bestätigung verschieben)
         function zurueckInsNormale() {
             if (zurueck) return;                      // nur einmal
             if (st.begonnen) return;                  // B2a: nach einer Schreibaktion NIE zurück zum alten KI-Weg (er könnte dasselbe noch einmal schreiben)
             if (gen !== kiGen) { vermerke(eingang, 'ki_ueberholt'); return; }   // und nur, wenn der Satz nicht überholt wurde
+            if (morgenArbeitsweg) { zurueck = true; vermerke(eingang, 'morgen_kein_jetzt_rueckfall'); say('Die morgige Schichtfahrt konnte ich gerade nicht vollständig prüfen. Ich zeige dir deshalb keine Route für eine Abfahrt jetzt.'); return; }
             if (keinRueck) { zurueck = true; vermerke(eingang, 'verschieben_unklar'); say(st.begonnen ? 'Dabei ist etwas schiefgelaufen. Ich habe nichts wiederholt.' : TEXT_VERSCHIEBEN); return; }
             zurueck = true; kiZaehler.zurueck++; kiN++; vermerke(eingang, 'rueckfall');
             if (mehr) {   // mehrteiliger Satz, nichts geschrieben: erst darf der feste Befehl, den wir vorgezogen haben, wie bisher antworten
@@ -1237,7 +1240,7 @@
             if (window.jvProdukte && (window.jvProdukte.produktsuche(t) || window.jvProdukte.istFolgefrage(t))) { neuerEingang('produktsuche'); return false; }   // Produktwunsch mit Kauf-/Preisfrage: kein Ortsplan, die Internetsuche mit Produktkarten übernimmt
             var anschluss = !kopf && themaFrisch() && woerter >= 1 && woerter <= 8 && RX_FOLGE.test(t) && !RX_SCHREIB.test(t);
             if (anschluss) kopf = 'anschluss';
-            if (kopf !== 'nachfrage_antwort' && RX_ABFAHRT.test(t) && !RX_B2A.test(t) && !(R() && R().hole('abfahrt'))) { neuerEingang('abfahrtsfrage'); return false; }   // ohne das Werkzeug abfahrt: kein Planer-Aufruf, der bisherige Abfahrtsweg antwortet
+            if (kopf !== 'nachfrage_antwort' && RX_ABFAHRT.test(t) && !RX_B2A.test(t) && !(mehr === true && arbeitswegMehrfachfrage(t)) && !(R() && R().hole('abfahrt'))) { neuerEingang('abfahrtsfrage'); return false; }   // ohne das Werkzeug abfahrt: kein Planer-Aufruf, der bisherige Abfahrtsweg antwortet
             if (!kopf && (woerter < 3 || woerter > 30 || t.length > 240)) { neuerEingang('vorfilter_laenge'); return false; }
             if (!kopf && !RX_B2A.test(t) && !RX_KI_VORFILTER.test(t) && !RX_ABFAHRT.test(t) && !RX_ANKUNFT.test(t)) { neuerEingang('vorfilter_stichwort'); return false; }
             if (!R() || !R().hole('ortssuche')) { neuerEingang('faehigkeit_fehlt'); return false; }
