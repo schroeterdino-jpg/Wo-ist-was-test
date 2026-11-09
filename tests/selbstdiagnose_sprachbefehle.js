@@ -59,6 +59,6 @@ const kalenderCore = fs.readFileSync('js/calendar.js', 'utf8');
 assert.match(kalenderActions, /action\.calendar_end_date/);
 assert.match(kalenderActions, /ganztag && gueltigesEnde/);
 assert.match(kalenderGanztag, /true, endTag\)/);
-assert.match(kalenderGanztag, /calendar_end_date auf den letzten eingeschlossenen Tag/);
+assert.match(kalenderGanztag, /action\.calendar_end_date/);
 assert.match(kalenderCore, /d1\.setDate\(d1\.getDate\(\) \+ 1\)/);
 console.log('Mehrtägige Kalendertermine: Weitergabe und exklusives Google-Enddatum geprüft');
