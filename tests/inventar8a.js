@@ -170,7 +170,10 @@ const DOKU_KLASSE = {
 function testbestand(L) {
     const t = dateien(L, 'tests', /\.js$/).map(f => f.slice(0, -3)), wf = L.lies('.github/workflows/tests.yml');
     const klasse = {}; for (const [k, a] of Object.entries(TEST_KLASSE)) a.forEach(n => { klasse[n] = k; });
-    const imWorkflow = Array.from(wf.matchAll(/node tests\/([a-z0-9_]+)\.js/g)).map(m => m[1]);
+    // Nur Testaufrufe der Testgruppen zählen: die CI-Vorstufe führt inventar8a
+    // zum Schreiben und Prüfen des Golden Masters zusätzlich aus.
+    const gruppenTeil = wf.includes('\n  gruppe:') ? wf.split('\n  gruppe:')[1].split('\n  tests:')[0] : wf;
+    const imWorkflow = Array.from(gruppenTeil.matchAll(/node tests\/([a-z0-9_]+)\.js/g)).map(m => m[1]);
     return {
         unklassifiziert: t.filter(n => !klasse[n]), klasseOhneDatei: Object.keys(klasse).filter(n => !t.includes(n)),
         workflowOhneDatei: imWorkflow.filter(n => !t.includes(n)), workflowDoppelt: imWorkflow.filter((n, i) => imWorkflow.indexOf(n) !== i),
