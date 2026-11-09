@@ -428,6 +428,41 @@
     }
     window.__jvCheckText = alsText;
 
+    /* Phase 2: vorhandene Prüfergebnisse den dokumentierten Fähigkeiten zuordnen.
+       Keine neuen Netzaufrufe, keine Behauptung eines End-to-End-Tests. */
+    const FAehIGKEITS_CHECKS = {
+        kalender: ['Google Kalender', 'Funktionen', 'Programmfehler'],
+        wetter: ['Wetter', 'Programmfehler'],
+        fahrzeit_navigation: ['Google-Route', 'Karten', 'Verkehr', 'Programmfehler'],
+        erinnerungen: ['Benachrichtigungen', 'Push-Server', 'Programmfehler'],
+        gedaechtnis: ['Langzeitgedächtnis', 'Speicher', 'Programmfehler'],
+        schicht: ['Programmfehler'],
+        ausfluege: ['Wetter', 'Karten', 'Programmfehler']
+    };
+    window.jvFaehigkeitsDiagnose = function (pruefungen) {
+        const registry = window.jvFaehigkeiten;
+        const liste = registry && Array.isArray(registry.liste) ? registry.liste : [];
+        const resultate = Array.isArray(pruefungen) ? pruefungen : [];
+        return liste.map(function (f) {
+            const namen = FAehIGKEITS_CHECKS[f.id] || ['Programmfehler'];
+            const relevant = resultate.filter(function (r) { return namen.indexOf(r.name) >= 0; });
+            const probleme = relevant.filter(function (r) { return r.ok === false; });
+            const hinweise = relevant.filter(function (r) { return r.ok === null; });
+            const fehlen = namen.filter(function (n) { return !relevant.some(function (r) { return r.name === n; }); });
+            const status = probleme.length ? 'problem' : 'nicht_geprueft';
+            // Technische Teilchecks allein beweisen niemals, dass eine ganze Fähigkeit funktioniert.
+            return {
+                id: f.id, name: f.name, status: status,
+                teilchecksOk: relevant.filter(function (r) { return r.ok === true; }).length,
+                nichtGeprueft: fehlen, hinweise: hinweise.map(function (r) { return r.name + ': ' + r.text; }),
+                probleme: probleme.map(function (r) { return r.name + ': ' + r.text; }),
+                vorschlaege: probleme.map(function (r) { return r.fix || (r.name + ' gezielt prüfen'); })
+                    .concat(Array.isArray(f.bekannteGrenzen) ? f.bekannteGrenzen : [])
+            };
+        });
+    };
+
+
 
     /* Namen, die andere Dateien noch benutzen (localcommands.js ruft isSystemCheckCommand) */
     window.checkWithTimeout = (p, ms) => mit(p, ms, 'Zeitüberschreitung');

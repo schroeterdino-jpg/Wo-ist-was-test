@@ -25,3 +25,28 @@ for (const text of ['Stell mir einen Wecker', 'Was gibt es heute zu essen?']) {
     assert.equal(erkennt(text), false, text);
 }
 console.log('Selbstdiagnose-Sprachbefehle: OK');
+
+
+/* Phase 2: nur technische Teilchecks, niemals ungeprüfte Funktionen als OK ausgeben. */
+const phase2 = fs.readFileSync('js/systemcheck_voll.js', 'utf8');
+const a = phase2.indexOf('    const FAehIGKEITS_CHECKS = ');
+const b = phase2.indexOf('\n    /* Namen, die andere Dateien', a);
+assert.ok(a > 0 && b > a, 'Fähigkeitsdiagnose eingebunden');
+const ctx = { window: { jvFaehigkeiten: { liste: [
+    { id: 'kalender', name: 'Kalender', bekannteGrenzen: ['Bekannte Einschränkung'] },
+    { id: 'wetter', name: 'Wetter', bekannteGrenzen: [] }
+] } } };
+vm.runInNewContext(phase2.slice(a, b), ctx);
+const diagnose = ctx.window.jvFaehigkeitsDiagnose;
+assert.equal(typeof diagnose, 'function');
+const leer = diagnose([]);
+assert.equal(leer[0].status, 'nicht_geprueft');
+const gruen = diagnose([{ name: 'Google Kalender', ok: true }, { name: 'Funktionen', ok: true }, { name: 'Programmfehler', ok: true }]);
+assert.equal(gruen[0].status, 'nicht_geprueft', 'grüne Teilchecks beweisen keine komplette Fähigkeit');
+assert.equal(gruen[0].teilchecksOk, 3);
+const rot = diagnose([{ name: 'Google Kalender', ok: false, text: 'abgelaufen', fix: 'neu verbinden' }]);
+assert.equal(rot[0].status, 'problem');
+assert.ok(rot[0].vorschlaege.includes('neu verbinden'));
+assert.ok(rot[0].vorschlaege.includes('Bekannte Einschränkung'));
+assert.equal(rot[1].status, 'nicht_geprueft');
+console.log('Fähigkeitsdiagnose Phase 2: OK');
