@@ -846,6 +846,26 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
                 JSON.stringify({ art, antwort, groq: X.st.groq, route: X.st.routeUrls }));
         }
     }
+    // Regression #422: Bei unvollständiger, aber gültiger KI-Auswahl werden
+    // die drei bestehenden Lese-Werkzeuge für die Morgen-Kombifrage ausgeführt.
+    {
+        const SATZ = 'Wann muss ich morgen zur Arbeit losfahren, wie wird das Wetter dort und gibt es Staus auf meinem Arbeitsweg?';
+        const X = umgebung();
+        X.setze('workAddress', 'Neu-Galliner-Ring 6, Gallin');
+        const T = X.sb._schichtTest;
+        X.sb.setPersistentData('jv_schicht', JSON.stringify({
+            base: T.weekNo({ y: 2026, m: 11, d: 5 }), shift: 'spaet',
+            times: { frueh: 225, spaet: 720 }, auto: true
+        }));
+        X.st.plan = { schritte: [{ faehigkeit: 'wetter', params: { tag: 'morgen' } }] };
+        const antwort = (await mikro(X, SATZ, 300)).join(' | ');
+        check('30.1 unvollständiger KI-Plan liefert Schicht und Wetter statt nur Teilantwort',
+            /Spätschicht/i.test(antwort) && X.st.wetterN > 0,
+            JSON.stringify({ antwort, wetterN: X.st.wetterN }));
+        check('30.2 aktuelle Verkehrslage wird abgefragt und nicht als morgige Prognose ausgegeben',
+            (X.st.routeUrls || []).length > 0 && /aktuelle Lage, keine verlässliche Stauprognose/i.test(antwort),
+            JSON.stringify({ antwort, route: X.st.routeUrls }));
+    }
     console.log('Chef-Fahrzeit: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })().catch(e => { console.log('ABBRUCH', e && e.stack || e); process.exit(2); });
