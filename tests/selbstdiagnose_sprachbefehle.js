@@ -50,3 +50,22 @@ assert.ok(rot[0].vorschlaege.includes('neu verbinden'));
 assert.ok(rot[0].vorschlaege.includes('Bekannte Einschränkung'));
 assert.equal(rot[1].status, 'nicht_geprueft');
 console.log('Fähigkeitsdiagnose Phase 2: OK');
+
+
+/* Verständliche Diagnose mit Problemen, Hinweisen und ehrlicher Grenze. */
+const erklärStart = phase2.indexOf('    window.jvDiagnoseErklaeren = ');
+const erklärEnd = phase2.indexOf('    /* Namen, die andere Dateien', erklärStart);
+assert.ok(erklärStart > 0 && erklärEnd > erklärStart);
+const sprache = { window: { jvFaehigkeitsDiagnose: () => [], jvFaehigkeiten: { nach: () => null } } };
+vm.runInNewContext(phase2.slice(erklärStart, erklärEnd), sprache);
+const erkläre = sprache.window.jvDiagnoseErklaeren;
+const ergebnis = erkläre([{ name: 'Kalender', ok: false, text: 'Verbindung abgelaufen', fix: 'Google neu verbinden' }, { name: 'Push', ok: null, text: 'nicht angemeldet' }]);
+assert.equal(ergebnis.probleme, 1);
+assert.equal(ergebnis.hinweise, 1);
+assert.match(ergebnis.text, /Google neu verbinden/);
+assert.match(ergebnis.text, /kein vollständiger Praxistest/);
+const ohneFehler = erkläre([{ name: 'Wetter', ok: true, text: 'Daten kommen an' }]);
+assert.match(ohneFehler.text, /kein Fehler erkannt/);
+assert.doesNotMatch(ohneFehler.text, /alle Fähigkeiten funktionieren/);
+assert.ok(phase2.includes('const sag = window.jvDiagnoseErklaeren(res).text;'), 'Sprachausgabe benutzt Erklärung');
+console.log('Verständliche Selbstdiagnose: OK');
