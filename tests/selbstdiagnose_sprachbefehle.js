@@ -56,7 +56,7 @@ const local = fs.readFileSync('js/localcommands.js', 'utf8');
 assert.ok(local.includes('runSystemCheckSpoken(text)'), 'Originalbefehl wird weitergereicht');
 assert.ok(phase2.includes('const selbstdiagnose = /selbstdiagnose|diagnostizier|fähigkeiten/i.test'), 'Selbstdiagnose separat erkannt');
 assert.ok(phase2.includes('window.jvFaehigkeitsDiagnose(res)'), 'Vorhandene Prüfergebnisse werden wiederverwendet');
-assert.ok(phase2.includes('Ob alle Fähigkeiten tatsächlich funktionieren, wurde nicht getestet.'), 'Keine unbelegten Funktionsbehauptungen');
+assert.ok(phase2.includes('Die vollständige Funktion wurde nicht getestet.'), 'Keine unbelegten Funktionsbehauptungen');
 console.log('Selbstdiagnose Phase 3: Anbindung OK');
 
 /* Phase 4: Diagnose zeigt belegte Teilcheck-Informationen in kompakter Karte. */
