@@ -58,3 +58,13 @@ assert.ok(phase2.includes('const selbstdiagnose = /selbstdiagnose|diagnostizier|
 assert.ok(phase2.includes('window.jvFaehigkeitsDiagnose(res)'), 'Vorhandene Prüfergebnisse werden wiederverwendet');
 assert.ok(phase2.includes('Ob alle Fähigkeiten tatsächlich funktionieren, wurde nicht getestet.'), 'Keine unbelegten Funktionsbehauptungen');
 console.log('Selbstdiagnose Phase 3: Anbindung OK');
+
+/* Phase 4: Diagnose zeigt belegte Teilcheck-Informationen in kompakter Karte. */
+assert.ok(phase2.includes('kompakt: true'), 'kompakte Diagnosekarte aktiviert');
+assert.ok(phase2.includes('f.teilchecksOk > 0'), 'Teilchecks werden ausgewertet');
+assert.ok(phase2.includes('f.vorschlaege[0]'), 'konkrete Reparaturhinweise werden angezeigt');
+assert.ok(!phase2.includes("8 Fähigkeiten erfasst, keine davon vollständig getestet"), 'alte pauschale Meldung entfernt');
+const hud = fs.readFileSync('js/hud_fenster.js', 'utf8');
+assert.ok(hud.includes('max-height:min(48vh,360px)'), 'Diagnosehöhe begrenzt');
+assert.ok(hud.includes('overflow-y:auto'), 'Diagnose scrollbar');
+console.log('Selbstdiagnose Phase 4: Anzeige OK');
