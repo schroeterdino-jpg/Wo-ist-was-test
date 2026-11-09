@@ -333,7 +333,7 @@ function handleLocalCommandInner(text) {
     if (typeof handleFerienCommand === 'function' && handleFerienCommand(text)) return true;
     if (typeof handlePlacesCommand === 'function' && handlePlacesCommand(text)) return true;
     if (typeof handlePronunciationCommand === 'function' && handlePronunciationCommand(text)) return true;
-    if (isSystemCheckCommand(text)) { runSystemCheckSpoken(); return true; }
+    if (isSystemCheckCommand(text)) { runSystemCheckSpoken(text); return true; }
     // Wichtige Erinnerungen: "erledigt" beendet das Nachfassen, "in zehn Minuten nochmal" verschiebt sie
     if (handleAcknowledgeCommand(text)) return true;
     if (handleSnoozeCommand(text)) return true;

@@ -498,12 +498,33 @@
     };
 
     /* Per Sprache und als Fenster */
-    window.runSystemCheckSpoken = async function () {
+    window.runSystemCheckSpoken = async function (befehl) {
+        const selbstdiagnose = /selbstdiagnose|diagnostizier|fähigkeiten/i.test(String(befehl || ''));
         try { if (typeof speakAck === 'function') speakAck('Ich prüfe alles. Das dauert einen Moment.'); } catch (e) {}
         try {
             const res = await sammeln(false);
             window.__jvLetzterCheck = res;
             const bad = res.filter(r => r.ok === false), hin = res.filter(r => r.ok === null);
+            if (selbstdiagnose && typeof window.jvFaehigkeitsDiagnose === 'function') {
+                const faehigkeiten = window.jvFaehigkeitsDiagnose(res);
+                const auffaellig = faehigkeiten.filter(f => f.status === 'problem');
+                const uebersicht = auffaellig.length
+                    ? auffaellig.map(f => f.name + ': ' + f.probleme.join('; ')).slice(0, 5).join('. ')
+                    : 'Keine technischen Probleme in den zugeordneten Prüfungen erkannt.';
+                const hinweis = 'Das ist nur eine technische Teilprüfung. Ob alle Fähigkeiten tatsächlich funktionieren, wurde nicht getestet.';
+                if (window.jvPanel) window.jvPanel.zeigen({
+                    titel: 'SELBSTDIAGNOSE',
+                    zeit: auffaellig.length ? auffaellig.length + ' AUFFÄLLIG' : 'TEILPRÜFUNG',
+                    text: hinweis,
+                    zeilen: auffaellig.length
+                        ? auffaellig.slice(0, 5).map(f => ({ ok: false, text: f.name + ': ' + f.probleme.join('; ') }))
+                        : [{ ok: null, text: faehigkeiten.length + ' Fähigkeiten erfasst, keine davon vollständig getestet' }],
+                    sek: 30
+                });
+                if (typeof speak === 'function') speak('Selbstdiagnose abgeschlossen. ' + uebersicht + ' ' + hinweis,
+                    typeof continueConversation === 'function' ? continueConversation : undefined);
+                return;
+            }
             if (typeof clearActionCards === 'function') clearActionCards();
             if (window.jvPanel) {
                 window.jvPanel.zeigen({

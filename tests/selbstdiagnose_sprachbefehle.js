@@ -50,3 +50,11 @@ assert.ok(rot[0].vorschlaege.includes('neu verbinden'));
 assert.ok(rot[0].vorschlaege.includes('Bekannte Einschränkung'));
 assert.equal(rot[1].status, 'nicht_geprueft');
 console.log('Fähigkeitsdiagnose Phase 2: OK');
+
+/* Phase 3: Selbstdiagnose wird separat ausgegeben; Systemcheck bleibt erhalten. */
+const local = fs.readFileSync('js/localcommands.js', 'utf8');
+assert.ok(local.includes('runSystemCheckSpoken(text)'), 'Originalbefehl wird weitergereicht');
+assert.ok(phase2.includes('const selbstdiagnose = /selbstdiagnose|diagnostizier|fähigkeiten/i.test'), 'Selbstdiagnose separat erkannt');
+assert.ok(phase2.includes('window.jvFaehigkeitsDiagnose(res)'), 'Vorhandene Prüfergebnisse werden wiederverwendet');
+assert.ok(phase2.includes('Ob alle Fähigkeiten tatsächlich funktionieren, wurde nicht getestet.'), 'Keine unbelegten Funktionsbehauptungen');
+console.log('Selbstdiagnose Phase 3: Anbindung OK');
