@@ -1,11 +1,9 @@
 name: PR vorbereiten (Stempel + Golden Master)
 
-# Automatisch bei jedem PR-Update; manuell weiterhin möglich.
-# Verhindert dauerhaft veraltete Cache-Stempel und Golden-Master-Werte.
-# Aktualisiert nur Index-Stempel und die gemessene Bestandsaufnahme.
+# Die automatische Vorbereitung ist jetzt die erste Stufe von tests.yml.
+# Dieser separate Workflow bleibt nur als manuelles Reparaturwerkzeug erhalten,
+# damit keine zwei parallelen Jobs dieselben generierten Dateien pushen.
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
