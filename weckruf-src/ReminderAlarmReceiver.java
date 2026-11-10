@@ -19,6 +19,8 @@ public class ReminderAlarmReceiver extends BroadcastReceiver {
     private static final String PREF = "jarvis_native_reminders";
     private static final String KEY = "entries";
     private static final String CHANNEL = "jarvis_reminder_alarm";
+    // Neue Kanal-ID: Android behaelt alte Kanal-Einstellungen auch nach App-Updates.
+    private static final String VISIBLE_CHANNEL = "jarvis_reminder_lockscreen_v2";
 
     private static PendingIntent intent(Context c, String id) {
         Intent i = new Intent(c, ReminderAlarmReceiver.class).setAction(FIRE).putExtra("id", id);
@@ -102,19 +104,29 @@ public class ReminderAlarmReceiver extends BroadcastReceiver {
             try {
                 NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
                 if (nm == null) return;
-                if (Build.VERSION.SDK_INT >= 26)
-                    nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Jarvis Erinnerungen", NotificationManager.IMPORTANCE_HIGH));
+                if (Build.VERSION.SDK_INT >= 26) {
+                    NotificationChannel channel = new NotificationChannel(
+                            VISIBLE_CHANNEL, "Jarvis Erinnerungen (Sperrbildschirm)",
+                            NotificationManager.IMPORTANCE_HIGH);
+                    channel.setDescription("Zeitgesteuerte Erinnerungen auf dem Sperrbildschirm anzeigen");
+                    channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+                    channel.enableVibration(true);
+                    nm.createNotificationChannel(channel);
+                }
                 Intent open = new Intent(c, MainActivity.class);
                 open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                 PendingIntent pi = PendingIntent.getActivity(c, 23, open,
                         PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
                 Notification.Builder b = Build.VERSION.SDK_INT >= 26
-                        ? new Notification.Builder(c, CHANNEL) : new Notification.Builder(c);
+                        ? new Notification.Builder(c, VISIBLE_CHANNEL) : new Notification.Builder(c);
                 b.setSmallIcon(android.R.drawable.ic_dialog_info)
                  .setContentTitle("Jarvis Erinnerung")
                  .setContentText(text)
                  .setStyle(new Notification.BigTextStyle().bigText(text))
                  .setCategory(Notification.CATEGORY_REMINDER)
+                 .setVisibility(Notification.VISIBILITY_PUBLIC)
+                 .setPriority(Notification.PRIORITY_HIGH)
+                 .setDefaults(Notification.DEFAULT_ALL)
                  .setAutoCancel(true).setContentIntent(pi);
                 nm.notify(id.hashCode(), b.build());
             } catch (Throwable ignored) {}
