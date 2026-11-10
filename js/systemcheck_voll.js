@@ -59,7 +59,12 @@
     }
     async function pruefPush() {
         const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'nicht unterstützt';
-        if (perm === 'nicht unterstützt') return IN_APP() ? hinweis('in der App nicht verfügbar', 'Erinnerungen laufen in der App über die Weckruf-Funktion') : schlecht('nicht unterstützt', 'Chrome benutzen');
+        if (perm === 'nicht unterstützt') return IN_APP()
+            ? hinweis(typeof window.ZaneNative.planErinnerungen === 'function'
+                ? 'Browser-Push nicht verfügbar; native Android-Alarmplanung vorhanden, Zustellung nicht automatisch geprüft'
+                : 'Browser-Push nicht verfügbar; native Alarmplanung in dieser APK nicht nachgewiesen',
+                'Eine Test-Erinnerung bei gesperrtem Handy auslösen; Android-Benachrichtigungsberechtigung kontrollieren')
+            : schlecht('nicht unterstützt', 'Chrome benutzen');
         if (perm === 'denied') return schlecht('blockiert', 'Chrome-Seiteneinstellungen oder Android: Benachrichtigungen für ' + (IN_APP() ? 'Jarvis' : 'Chrome') + ' erlauben');
         if (perm !== 'granted') return hinweis('noch nicht erlaubt', 'in den Einstellungen "Push" einschalten');
         let sub = null, swok = false;
@@ -464,6 +469,33 @@
 
 
 
+    /* Phase 5: belegbarer Diagnosebericht und sichere Reparaturplanung.
+       Nur lesen: keine Daten, Termine oder Einstellungen verändern. */
+    window.jvSelbstdiagnoseBericht = function (pruefungen) {
+        const alle = Array.isArray(pruefungen) ? pruefungen : [];
+        const zaehler = {
+            bestanden: alle.filter(r => r.ok === true).length,
+            probleme: alle.filter(r => r.ok === false).length,
+            hinweise: alle.filter(r => r.ok === null).length,
+            gesamt: alle.length
+        };
+        const bereiche = GRUPPEN.map(name => {
+            const checks = alle.filter(r => r.gruppe === name);
+            return { name, gesamt: checks.length,
+                bestanden: checks.filter(r => r.ok === true).length,
+                probleme: checks.filter(r => r.ok === false).length,
+                hinweise: checks.filter(r => r.ok === null).length };
+        }).filter(g => g.gesamt > 0);
+        const aufgaben = alle.filter(r => r.ok !== true).map(r => ({
+            bereich: r.gruppe, pruefung: r.name,
+            prioritaet: r.ok === false ? 'Fehler' : 'Ungeprüft/Hinweis',
+            beobachtung: r.text, naechsterSchritt: r.fix || 'Gezielten Funktionstest durchführen',
+            automatischRepariert: false
+        }));
+        return { zaehler, bereiche, aufgaben, vollstaendigerFunktionstest: false,
+            automatischRepariert: false };
+    };
+
     /* Namen, die andere Dateien noch benutzen (localcommands.js ruft isSystemCheckCommand) */
     window.checkWithTimeout = (p, ms) => mit(p, ms, 'Zeitüberschreitung');
     window.isSystemCheckCommand = function (text) {
@@ -510,21 +542,36 @@
                 const auffaellig = faehigkeiten.filter(f => f.status === 'problem');
                 const geprueft = faehigkeiten.filter(f => f.teilchecksOk > 0).length;
                 const hinweise = faehigkeiten.filter(f => f.hinweise.length > 0);
-                const detail = auffaellig.slice(0, 3).map(f => ({ ok: false,
-                    text: f.name + ': ' + f.probleme.slice(0, 2).join('; ') +
-                        (f.vorschlaege.length ? ' → ' + f.vorschlaege[0] : '') }));
-                if (!detail.length && hinweise.length) detail.push(...hinweise.slice(0, 2).map(f => ({ ok: null,
-                    text: f.name + ': ' + f.hinweise[0] })));
-                if (!detail.length) detail.push({ ok: null, text: 'Keine Fehler in den zugeordneten Teilchecks erkannt.' });
-                detail.push({ ok: null, text: geprueft + ' von ' + faehigkeiten.length + ' Fähigkeiten mit positiven Teilchecks; kein vollständiger Funktionstest.' });
+                const bericht = window.jvSelbstdiagnoseBericht(res);
+                window.__jvLetzteSelbstdiagnose = bericht;
+                const detail = [
+                    { ok: null, text: 'TECHNISCHE PRÜFUNGEN: ' + bericht.zaehler.gesamt +
+                        ' insgesamt, ' + bericht.zaehler.bestanden + ' bestanden, ' +
+                        bericht.zaehler.probleme + ' Fehler, ' + bericht.zaehler.hinweise + ' Hinweise.' }
+                ];
+                bericht.bereiche.forEach(g => detail.push({
+                    ok: g.probleme ? false : (g.hinweise ? null : true),
+                    text: g.name + ': ' + g.bestanden + '/' + g.gesamt +
+                        ' bestanden' + (g.probleme ? ', ' + g.probleme + ' Fehler' : '') +
+                        (g.hinweise ? ', ' + g.hinweise + ' Hinweise' : '')
+                }));
+                bericht.aufgaben.slice(0, 8).forEach(a => detail.push({
+                    ok: a.prioritaet === 'Fehler' ? false : null,
+                    text: a.pruefung + ': ' + a.beobachtung + ' → ' + a.naechsterSchritt
+                }));
+                if (bericht.aufgaben.length > 8) detail.push({ ok: null,
+                    text: 'Weitere ' + (bericht.aufgaben.length - 8) + ' Auffälligkeiten im vollständigen Systemcheck.' });
+                detail.push({ ok: null, text: geprueft + ' von ' + faehigkeiten.length +
+                    ' Fähigkeiten mit positiven Teilchecks. Kein vollständiger Funktionstest und keine automatische Reparatur.' });
                 if (window.jvPanel) window.jvPanel.zeigen({
-                    titel: 'SELBSTDIAGNOSE', zeit: auffaellig.length ? auffaellig.length + ' PROBLEME' : 'TEILCHECK',
-                    kompakt: true, zeilen: detail, sek: 35
+                    titel: 'SELBSTDIAGNOSE',
+                    zeit: bericht.zaehler.probleme ? bericht.zaehler.probleme + ' FEHLER' : 'TEILCHECK',
+                    kompakt: true, zeilen: detail, sek: 60
                 });
-                const ansage = auffaellig.length
-                    ? 'Selbstdiagnose: ' + auffaellig.length + ' Fähigkeiten mit technischen Problemen. ' +
-                        auffaellig.slice(0, 2).map(f => f.name).join(', ') + '. Details stehen im Fenster.'
-                    : 'Selbstdiagnose: Keine technischen Fehler in den zugeordneten Prüfungen erkannt.';
+                const ansage = 'Selbstdiagnose: ' + bericht.zaehler.gesamt +
+                    ' technische Prüfungen, ' + bericht.zaehler.bestanden + ' bestanden, ' +
+                    bericht.zaehler.probleme + ' Fehler und ' + bericht.zaehler.hinweise +
+                    ' Hinweise. Die Einzelheiten und nächsten Schritte stehen im Fenster.';
                 if (typeof speak === 'function') speak(ansage + ' Die vollständige Funktion wurde nicht getestet.',
                     typeof continueConversation === 'function' ? continueConversation : undefined);
                 return;

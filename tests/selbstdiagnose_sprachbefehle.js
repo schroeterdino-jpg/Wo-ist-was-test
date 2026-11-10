@@ -36,6 +36,7 @@ const ctx = { window: { jvFaehigkeiten: { liste: [
     { id: 'kalender', name: 'Kalender', bekannteGrenzen: ['Bekannte Einschränkung'] },
     { id: 'wetter', name: 'Wetter', bekannteGrenzen: [] }
 ] } } };
+ctx.GRUPPEN = ['Handy', 'Programm', 'Google', 'Dienste', 'Server', 'Daten', 'Weckruf-App'];
 vm.runInNewContext(phase2.slice(a, b), ctx);
 const diagnose = ctx.window.jvFaehigkeitsDiagnose;
 assert.equal(typeof diagnose, 'function');
@@ -62,9 +63,26 @@ console.log('Selbstdiagnose Phase 3: Anbindung OK');
 /* Phase 4: Diagnose zeigt belegte Teilcheck-Informationen in kompakter Karte. */
 assert.ok(phase2.includes('kompakt: true'), 'kompakte Diagnosekarte aktiviert');
 assert.ok(phase2.includes('f.teilchecksOk > 0'), 'Teilchecks werden ausgewertet');
-assert.ok(phase2.includes('f.vorschlaege[0]'), 'konkrete Reparaturhinweise werden angezeigt');
+assert.ok(phase2.includes('a.naechsterSchritt'), 'konkrete Reparaturhinweise werden angezeigt');
 assert.ok(!phase2.includes("8 Fähigkeiten erfasst, keine davon vollständig getestet"), 'alte pauschale Meldung entfernt');
 const hud = fs.readFileSync('js/hud_fenster.js', 'utf8');
 assert.ok(hud.includes('max-height:min(48vh,360px)'), 'Diagnosehöhe begrenzt');
 assert.ok(hud.includes('overflow-y:auto'), 'Diagnose scrollbar');
 console.log('Selbstdiagnose Phase 4: Anzeige OK');
+
+/* Phase 5: Vollständiger technischer Bericht ohne erfundene Funktionstests oder Reparaturen. */
+const report = ctx.window.jvSelbstdiagnoseBericht([
+    { gruppe: 'Handy', name: 'Benachrichtigungen', ok: null, text: 'nicht nachgewiesen', fix: 'Testalarm auslösen' },
+    { gruppe: 'Programm', name: 'Programmfehler', ok: false, text: '1 Fehler', fix: 'Fehlerprotokoll prüfen' },
+    { gruppe: 'Programm', name: 'Bausteine', ok: true, text: 'geladen' }
+]);
+assert.equal(report.zaehler.gesamt, 3);
+assert.equal(report.zaehler.bestanden, 1);
+assert.equal(report.zaehler.probleme, 1);
+assert.equal(report.zaehler.hinweise, 1);
+assert.equal(report.aufgaben.length, 2);
+assert.equal(report.aufgaben[0].naechsterSchritt, 'Testalarm auslösen');
+assert.equal(report.vollstaendigerFunktionstest, false);
+assert.equal(report.automatischRepariert, false);
+assert.ok(phase2.includes('native Android-Alarmplanung vorhanden'), 'APK-Erinnerung nicht mit Browser-Push verwechseln');
+console.log('Selbstdiagnose Phase 5: Detailbericht und sichere Reparaturplanung OK');
