@@ -6,10 +6,10 @@
      C  Schalter an: Wach-Sperre wird nicht gehalten (freigegeben)
      D  an -> aus: Sperre wird sofort wieder geholt (ohne Neustart des Dienstes)
      E  Nachtruhe unverändert, Testschalter kann sie nicht umgehen
-     F  Mikrofon-/Filter-Pipeline unverändert (Rate, Format, Puffer, Schwellen, Entscheidungen)
+     F  Mikrofon-/Filter-Pipeline unverändert; Meldungsabfrage über unabhängigen Worker
      G  Messzähler beeinflussen keine Entscheidung
      H  keine Netzwerkübertragung der Messdaten
-     I  kein neuer Timer / keine neue Schleife nur für die Statistik
+     I  kein neuer Timer für die Statistik; Meldungs-Worker sauber beendet
    Es werden keine Dateien verändert. Mit ROOT=<Ordner> lässt sich ein anderer Stand prüfen (Negativbeweis gegen main).
    ============================================================ */
 'use strict';
@@ -48,7 +48,7 @@ check('F: Puffer mindestens 3 s, Block 1280 (80 ms)', /Math\.max\(min, RATE \* 2
 check('F: Schwellen und Nachlaufzeiten unverändert', /VORLAUF = 16;/.test(oww) && /NACHLAUF = 19;/.test(oww) && /DAUERLAERM = 600;/.test(oww) && /SPRACHE = 0\.35f;/.test(oww) && /SPRACH_HALT = 12;/.test(oww) && /VAD_AUS = 12;/.test(oww));
 check('F: Entscheidungen unverändert (Lautstärke-Schranke, Dauerlärm, Filter, Treffer)', /boolean laut = rms > boden \* 2\.2 \+ 60;/.test(oww) && /boolean energie = laut \|\| boden > DAUERLAERM;/.test(oww) && /aktiv = sprachHalt > 0;/.test(oww) && /else if \(score >= threshold\)/.test(oww) && /if \(energie\) vadStill = 0; else if \(vadStill < VAD_AUS\) vadStill\+\+;/.test(oww));
 check('F: Foreground-Dienst unverändert (START_STICKY, microphone)', /return START_STICKY;/.test(wake) && /FOREGROUND_SERVICE_TYPE_MICROPHONE/.test(wake));
-check('F: Server-Abfrage unverändert (jede Minute)', /if \(alive\) main\.postDelayed\(this, 60000\);/.test(wake) && /AuftragReceiver\.abfragenAsync\(WakeService\.this\)/.test(wake));
+check('F: Server-Abfrage im separaten Worker jede Minute', /newSingleThreadScheduledExecutor\(\)/.test(wake) && /meldungenExecutor\.scheduleWithFixedDelay\(/.test(wake) && /}, 5, 60, java\.util\.concurrent\.TimeUnit\.SECONDS\)/.test(wake) && /AuftragReceiver\.abfragenDirekt\(WakeService\.this\)/.test(wake));
 
 /* G */
 const zaehler = ['blocksAll', 'vadWin', 'vadPosWin', 'vadAll', 'vadPosAll', 'trefferAll'];
@@ -71,7 +71,7 @@ check('H: die Messdaten gehen nur lokal über Prefs.setStat', zaehle(oww, /Prefs
 /* I */
 check('I: OwwSpeech: keine neuen Timer (kein postDelayed/Timer/Executor), nur der eine Audio-Thread und der eine Handler', zaehle(oww, /postDelayed|java\.util\.Timer|ScheduledExecutor|Executors\./g) === 0 && zaehle(oww, /new Thread\(/g) === 1 && zaehle(oww, /new Handler\(/g) === 1);
 check('I: Messwerte werden weiter nur alle 10 s im vorhandenen Fenster geschrieben (keine zweite Stelle)', zaehle(oww, /10_000_000_000L/g) === 1);
-check('I: WakeService: unverändert drei Dauer-Takte (Wächter 15 s, Telefonat 2 s, Meldungen 60 s)', /main\.postDelayed\(watchdog, 15000\)/.test(wake) && /main\.postDelayed\(gespraechPruefen, 2000\)/.test(wake) && /postDelayed\(this, 60000\)/.test(wake));
+check('I: WakeService: zwei Hauptthread-Takte und ein separater Meldungs-Scheduler mit Shutdown', /main\.postDelayed\(watchdog, 15000\)/.test(wake) && /main\.postDelayed\(gespraechPruefen, 2000\)/.test(wake) && /meldungenExecutor\.scheduleWithFixedDelay\(/.test(wake) && /meldungenExecutor\.shutdownNow\(\)/.test(wake) && !/main\.postDelayed\(meldungenRun/.test(wake));
 
 console.log((fehler ? 'FEHLGESCHLAGEN' : 'OK') + ': ' + ok + ' Prüfungen bestanden, ' + fehler + ' Fehler');
 process.exit(fehler ? 1 : 0);
