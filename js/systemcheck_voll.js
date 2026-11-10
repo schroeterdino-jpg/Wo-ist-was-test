@@ -599,6 +599,20 @@
                 ];
                 if (!d.nativeAktiv) lines.push('Hinweis: Die APK hat den Server zuletzt nicht regelmäßig abgefragt.');
                 else if (d.nativeWarteschlange > 0) lines.push('Hinweis: Meldungen warten auf die Abholung durch Android.');
+                try {
+                    if (window.ZaneNative && typeof window.ZaneNative.pushDiagnose === 'function') {
+                        const n = JSON.parse(window.ZaneNative.pushDiagnose());
+                        const zeit = t => t ? new Date(t).toLocaleString('de-DE') : 'noch nie';
+                        lines.push('--- APK-Diagnose ---');
+                        lines.push('App-Schlüssel in APK: ' + (n.keyPresent ? 'vorhanden' : 'fehlt'));
+                        lines.push('Letzter Abrufversuch: ' + zeit(n.lastAttempt));
+                        lines.push('Letzter erfolgreicher Abruf: ' + zeit(n.lastSuccess));
+                        lines.push('Letzter HTTP-Status: ' + (n.lastHttp || 'unbekannt'));
+                        lines.push('Letzter Netzwerkfehler: ' + (n.lastError || 'keiner protokolliert'));
+                    } else {
+                        lines.push('APK-Diagnose: erst nach Installation der neuen APK verfügbar');
+                    }
+                } catch (e) { lines.push('APK-Diagnose konnte nicht gelesen werden'); }
                 out.textContent = lines.join('\n');
             } catch (e) {
                 out.textContent = 'Diagnose fehlgeschlagen: ' + (e && e.message ? e.message : 'Verbindungsfehler') + '\nApp-Code und Serververbindung prüfen.';

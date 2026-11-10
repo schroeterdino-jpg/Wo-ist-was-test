@@ -17,9 +17,9 @@
  "zahlen": {
   "repoDateien": 367,
   "produktJs": 182,
-  "jsZeilen": 48119,
-  "jsBytes": 3516258,
-  "jsGzip": 1045764,
+  "jsZeilen": 48133,
+  "jsBytes": 3517333,
+  "jsGzip": 1046051,
   "scriptTags": 188,
   "eigeneScripts": 182,
   "drittScripts": 2,
@@ -510,7 +510,7 @@
   "iconsVorhanden": true
  },
  "android": {
-  "nativeMethoden": 56,
+  "nativeMethoden": 57,
   "ungenutzteNative": [],
   "jsRuftFehlendeNative": [],
   "webRueckrufe": [
