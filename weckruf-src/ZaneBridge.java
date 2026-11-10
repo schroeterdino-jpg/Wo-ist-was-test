@@ -43,6 +43,10 @@ class ZaneBridge {
     @JavascriptInterface
     public boolean lensSuchen(String dataUrl) { return act.lensSuchen(dataUrl); }
 
+    /** Vollstaendige lokale Erinnerungen-Liste fuer Android-Alarme. */
+    @JavascriptInterface
+    public boolean planErinnerungen(String json) { return ReminderAlarmReceiver.setzen(act, json); }
+
     /** Geplante Ansagen (JSON-Liste mit id, at in Millisekunden, text) an die App übergeben. */
     @JavascriptInterface
     public boolean planAnsagen(String json) { return AnsageReceiver.setzen(act, json); }
