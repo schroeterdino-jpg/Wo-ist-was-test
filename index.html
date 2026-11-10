@@ -751,6 +751,10 @@
                         <div class="pt-2 border-t border-[rgba(93,209,255,.18)]">
                             <button onclick="playUiBeep(); document.getElementById('diagToolsBox').classList.toggle('hidden')" class="w-full bg-slate-900 hover:bg-slate-800 text-[#5d7e91] py-2 rounded-lg text-xs font-bold border border-slate-700 uppercase tracking-wide">🔧 Diagnose-Werkzeuge (nur bei Problemen)</button>
                         </div>
+                        <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
+                            <button type="button" onclick="runPushDeliveryDiagnosis()" class="w-full bg-slate-800 hover:bg-slate-700 text-[#49d7ff] py-2.5 rounded-lg text-sm font-bold border border-[#49d7ff]/40">🔔 Erinnerungs-Zustellung prüfen</button>
+                            <pre id="pushDeliveryDiagOutput" role="status" aria-live="polite" class="hidden text-xs text-[#9fd8ee] bg-black/60 border border-[rgba(93,209,255,.18)] rounded-lg p-2.5 whitespace-pre-wrap break-words"></pre>
+                        </div>
                         <div id="diagToolsBox" class="hidden space-y-3">
                             <div class="pt-2 border-t border-[rgba(93,209,255,.18)] space-y-2">
                                 <label class="block text-xs font-bold text-[#49d7ff] mb-1 uppercase">Kalender-Suche testen (Suchbegriff):</label>
@@ -904,7 +908,7 @@
     <script src="./js/uebersicht.js?v=f13afa5a"></script>
     <script src="./js/antwort_text.js?v=bdf2328c"></script>
     <script src="./js/startseite_anpassen.js?v=56f1061a"></script>
-    <script src="./js/systemcheck_voll.js?v=a2e9fe7c"></script>
+    <script src="./js/systemcheck_voll.js?v=948bba0f"></script>
     <script src="./js/jvfenster.js?v=b75b585c"></script>
     <script src="./js/laune.js?v=a50b95f5"></script>
     <script src="./js/ergebnisse.js?v=d88b99f7"></script>

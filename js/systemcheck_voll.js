@@ -575,3 +575,33 @@
         }, 150);
     }
 })();
+
+// Read-only reminder delivery diagnosis; loaded from the system-check module.
+        // Nur lesende Zustell-Diagnose. Kein Abruf von Nachrichten und kein Loeschen.
+        window.runPushDeliveryDiagnosis = async function () {
+            const out = document.getElementById('pushDeliveryDiagOutput');
+            if (!out) return;
+            out.classList.remove('hidden');
+            out.textContent = 'Prüfe Server und Android-Zustellung …';
+            try {
+                const r = await apiFetch('/api/sync?action=push_diagnose', { method: 'POST' });
+                const d = await r.json();
+                if (!r.ok || !d.ok) throw new Error((d && d.error) || ('Serverstatus ' + r.status));
+                const age = d.nativeLetzterAbrufVorMin;
+                const lines = [
+                    'Server-Erinnerungen: ' + d.erinnerungenAufServer,
+                    'Android-Abfrage: ' + (age == null ? 'noch nie erkannt' : 'vor ' + age + ' Minuten'),
+                    'Android-Verbindung: ' + (d.nativeAktiv ? 'aktiv' : 'nicht aktiv'),
+                    'Wartende Android-Meldungen: ' + d.nativeWarteschlange,
+                    'Nächste Erinnerung: ' + (d.naechsteErinnerungInMin == null ? 'keine im Prüfzeitraum' : (d.naechsteErinnerungInMin + ' Minuten')),
+                    'Nächste bereits gesendet: ' + (d.naechsteErinnerungBereitsGesendet == null ? 'unbekannt' : (d.naechsteErinnerungBereitsGesendet ? 'ja' : 'nein')),
+                    'App-Lebenszeichen: ' + (d.appLebenszeichenVorMin == null ? 'keines' : 'vor ' + d.appLebenszeichenVorMin + ' Minuten')
+                ];
+                if (!d.nativeAktiv) lines.push('Hinweis: Die APK hat den Server zuletzt nicht regelmäßig abgefragt.');
+                else if (d.nativeWarteschlange > 0) lines.push('Hinweis: Meldungen warten auf die Abholung durch Android.');
+                out.textContent = lines.join('\n');
+            } catch (e) {
+                out.textContent = 'Diagnose fehlgeschlagen: ' + (e && e.message ? e.message : 'Verbindungsfehler') + '\nApp-Code und Serververbindung prüfen.';
+            }
+        };
+
