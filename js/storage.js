@@ -12,8 +12,26 @@ function getPersistentData(key, defaultValue) {
 function setPersistentData(key, value) {
     try { localStorage.setItem(key, value); } catch (e) {}
     try { sessionStorage.setItem(key, value); } catch (e) {}
+    // Native Android-Alarme bei jeder Aenderung der Erinnerungs-Liste aktualisieren.
+    if (key === 'helfer_reminders') {
+        try { jvNativeErinnerungenSync(value); } catch (e) {}
+    }
     // Für die Synchronisierung (sync.js): merkt sich, dass sich dieser Wert lokal geändert hat
     if (typeof onLocalDataChanged === 'function') onLocalDataChanged(key);
+}
+
+/* Nur zukunftige, noch nicht ausgeloeste Erinnerungen in Android anmelden.
+   Die native Seite speichert sie selbst und plant nach einem Neustart erneut. */
+function jvNativeErinnerungenSync(raw) {
+    const native = window.ZaneNative;
+    if (!native || typeof native.planErinnerungen !== 'function') return;
+    const entries = JSON.parse(raw || '[]');
+    if (!Array.isArray(entries)) return;
+    const now = Date.now();
+    const plan = entries.filter(r => r && !r.triggered && !r.done && Number.isFinite(Date.parse(r.time)) && Date.parse(r.time) > now)
+        .map(r => ({ id: String(r.id), text: String(r.text || ''), at: Date.parse(r.time) }))
+        .filter(r => r.id && r.text);
+    native.planErinnerungen(JSON.stringify(plan));
 }
 
 /* Alle Aufrufe an die eigenen Schnittstellen (/api/...) laufen hierüber.
@@ -84,6 +102,8 @@ if (googleClientIdInput) {
 let calendarEntries = JSON.parse(getPersistentData('helfer_calendar_entries', '[]')) || [];
 let todoEntries = JSON.parse(getPersistentData('helfer_todo_entries', '[]')) || [];
 let reminderEntries = JSON.parse(getPersistentData('helfer_reminders', '[]')) || [];
+// Bestehende Erinnerungen beim Oeffnen in den nativen AlarmManager uebernehmen.
+try { jvNativeErinnerungenSync(JSON.stringify(reminderEntries)); } catch (e) {}
 let shoppingEntries = JSON.parse(getPersistentData('helfer_shopping', '[]')) || [];
 let memoryItems = (() => { try { return JSON.parse(getPersistentData('helfer_memory', '{}')) || {}; } catch (e) { console.warn('helfer_memory ist kein gültiges JSON: Gedächtnis startet leer, der gespeicherte Wert bleibt unverändert.'); return {}; } })();   // Lesefehler nur hier abfangen, damit Kontakte, Tageslog usw. weiterladen (nichts wird überschrieben)
 let savedContacts = JSON.parse(getPersistentData('helfer_contacts', '{}')) || {};
