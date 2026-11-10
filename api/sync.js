@@ -199,6 +199,10 @@ async function handlePush(action, req, res, redis) {
         nativeLetzterAbrufVorMin: q.ts ? Math.round((now - q.ts) / 60000) : null,
         nativeAktiv: !!q.ts && now - q.ts < NATIVE_AKTIV_MS,
         nativeWarteschlange: q.msgs.length,
+        nativeLetzteEinreihung: q.lastQueuedAt || null,
+        nativeLetzteAbholung: q.lastFetchAt || null,
+        nativeZuletztAbgeholt: q.lastFetchCount == null ? null : q.lastFetchCount,
+        letzteErinnerungsEntscheidung: st.lastReminderDecision || null,
         erinnerungenAufServer: reminders.length,
         naechsteErinnerungInMin: upcoming ? Math.round((upcoming.at - now) / 60000) : null,
         naechsteErinnerungBereitsGesendet: upcoming ? !!st.sent[upcoming.id] : null,
@@ -347,6 +351,8 @@ async function handlePush(action, req, res, redis) {
       const q = await natLoad(redis);
       q.ts = Date.now();
       const msgs = q.msgs.splice(0, 10);
+      q.lastFetchAt = q.ts;
+      q.lastFetchCount = msgs.length;
       await redis('SET', NATQ_KEY, JSON.stringify(q));
       const st = await loadItems(redis);
       return res.status(200).json({ ok: true, msgs: msgs.filter(m => m.speak), meldungen: msgs.filter(m => !m.speak), n: st.watch.length });
@@ -427,6 +433,7 @@ async function natPush(redis, payloadObj) {
   const m = { id: String(payloadObj.tag || 'm') + '-' + Date.now().toString(36), ts: Date.now(), title: String(payloadObj.title || 'Jarvis').slice(0, 120), body: String(payloadObj.body || '').slice(0, 400), tag: String(payloadObj.tag || ''), speak: !!payloadObj.speak };
   if (payloadObj.doneUrl) m.doneUrl = String(payloadObj.doneUrl).slice(0, 300);
   q.msgs.push(m);
+  q.lastQueuedAt = m.ts;
   q.msgs = q.msgs.slice(-20);
   await redis('SET', NATQ_KEY, JSON.stringify(q));
 }
@@ -1523,9 +1530,13 @@ async function handleDue(req, res, redis) {
     for (const it of due) {
       if (it.k === 'e' && !genericDue(st, it, now)) continue;
       st.sent[it.id] = now;
+      if (it.k === 'r') st.lastReminderDecision = { scheduledAt: it.at, processedAt: now, result: appOpen ? 'app_open' : 'processing' };
       if (appOpen) { skippedApp++; continue; }                    // die offene App spricht selbst
       if (it.k === 'e' && quiet) { skippedQuiet++; continue; }    // Vorwarnungen schweigen nachts; eigene Erinnerungen immer
-      if (!data.subs.length) continue;
+      if (!data.subs.length) {
+        if (it.k === 'r') st.lastReminderDecision.result = 'no_subscriber';
+        continue;
+      }
       const mins = Math.max(1, Math.round((it.at - now) / 60000));
       let payload;
       if (it.k === 'r') {
@@ -1533,6 +1544,7 @@ async function handleDue(req, res, redis) {
         if (it.i === 1) { Object.assign(payload, doneBtn(it)); st.nag[it.id] = { n: 0, next: now + NAG_INTERVAL_MS }; }
       } else payload = { title: 'Termin in ' + mins + ' Minuten', body: it.x + ' um ' + berlinClock(it.at) + ' Uhr', tag: 'e-' + it.id, url: './' };
       const r = await sendToAll(redis, data, payload);
+      if (it.k === 'r') st.lastReminderDecision.result = r.sent > 0 ? 'submitted' : 'not_submitted';
       if (r.sent > 0) sent++;
     }
 
