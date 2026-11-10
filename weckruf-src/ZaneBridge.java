@@ -183,6 +183,9 @@ class ZaneBridge {
 
     /** Beobachtungsaufträge: App-Code und Anzahl der Aufträge melden; die App fragt dann regelmäßig beim Server nach (0 = aus). */
     @JavascriptInterface
+    public String pushDiagnose() { return AuftragReceiver.diagnose(act); }
+
+    @JavascriptInterface
     public boolean auftraege(String schluessel, int anzahl) { return AuftragReceiver.setzen(act, schluessel, anzahl); }
 
     @JavascriptInterface
