@@ -312,7 +312,13 @@ public class WakeService extends Service implements RecognitionListener {
         alive = true;
         if (!watchdogOn) { watchdogOn = true; main.postDelayed(watchdog, 15000); }
         if (!gespraechOn) { gespraechOn = true; main.postDelayed(gespraechPruefen, 2000); }   // Telefonat erkennen: Mikrofon freigeben
-        if (!meldungenOn) { meldungenOn = true; main.postDelayed(meldungenRun, 20000); }   // jede Minute nach Meldungen vom Server fragen (statt Web-Push)
+        if (meldungenExecutor == null || meldungenExecutor.isShutdown()) {
+            meldungenExecutor = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+            meldungenExecutor.scheduleWithFixedDelay(() -> {
+                if (!alive) return;
+                try { AuftragReceiver.abfragenDirekt(WakeService.this); } catch (Throwable ignored) { }
+            }, 5, 60, java.util.concurrent.TimeUnit.SECONDS);
+        }   // unabhängiger Hintergrund-Thread statt Android-Hauptthread
         wakeLockAnpassen();
         if (!ready()) {
             stopSpeech();   // z. B. nach Wechsel der Erkennung: die alte hört nicht weiter zu, bis die neue geladen ist
@@ -326,14 +332,9 @@ public class WakeService extends Service implements RecognitionListener {
 
     // Meldungen vom Server (Erinnerungen, Abfahrt, Diesel, Aufträge ...): im WebView der App gibt es kein Web-Push, darum fragt der Dienst
     // jede Minute nach (eine kleine Abfrage; AuftragReceiver macht daraus Meldungen). Nur wenn die Seite der App den App-Code übergeben hat.
-    private boolean meldungenOn = false;
-    private final Runnable meldungenRun = new Runnable() {
-        @Override public void run() {
-            try { AuftragReceiver.abfragenAsync(WakeService.this); } catch (Throwable ignored) { }
-            if (alive) main.postDelayed(this, 60000);
-            else meldungenOn = false;
-        }
-    };
+    // Der Hauptthread kann durch Sprachmodell, UI oder andere Handler verzögert werden.
+    // Ein einzelner Scheduler hält die Abfrage davon unabhängig und verhindert parallele Polls.
+    private java.util.concurrent.ScheduledExecutorService meldungenExecutor;
 
     private boolean useOww() { return Prefs.engine(this) == 1; }
 
@@ -681,7 +682,7 @@ public class WakeService extends Service implements RecognitionListener {
     @Override
     public void onDestroy() {
         alive = false;
-        meldungenOn = false;
+        if (meldungenExecutor != null) { meldungenExecutor.shutdownNow(); meldungenExecutor = null; }
         inst = null;
         if (car != null) { car.beenden(); car = null; }
         audioNichtMehr();

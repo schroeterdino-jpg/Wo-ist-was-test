@@ -106,6 +106,9 @@ public class AuftragReceiver extends BroadcastReceiver {
         } catch (Throwable ignored) { }
     }
 
+    /** Vom dedizierten Scheduler des Weckwort-Dienstes; Netzwerk bleibt außerhalb des UI-Threads. */
+    static void abfragenDirekt(Context c) throws Exception { abfragen(c); }
+
     /** Vom Weckwort-Dienst: im Hintergrund nachfragen. */
     static void abfragenAsync(final Context c) {
         new Thread(() -> { try { abfragen(c); } catch (Throwable ignored) { } }).start();
