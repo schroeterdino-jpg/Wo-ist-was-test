@@ -1,6 +1,7 @@
 package de.dino.zaneweckruf;
 
 import android.app.AlarmManager;
+import android.app.KeyguardManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -10,6 +11,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.os.PowerManager;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -128,6 +130,22 @@ public class ReminderAlarmReceiver extends BroadcastReceiver {
                  .setPriority(Notification.PRIORITY_HIGH)
                  .setDefaults(Notification.DEFAULT_ALL)
                  .setAutoCancel(true).setContentIntent(pi);
+                // Weckt nur das Display fuer die Sperrbildschirm-Benachrichtigung.
+                // Kein automatisches Entsperren und kein erzwungener Start der WebView.
+                // Der bestehende AlarmManager und der Benachrichtigungston bleiben unveraendert.
+                try {
+                    PowerManager pm = (PowerManager) c.getSystemService(Context.POWER_SERVICE);
+                    KeyguardManager km = (KeyguardManager) c.getSystemService(Context.KEYGUARD_SERVICE);
+                    boolean displayAus = pm != null && !pm.isInteractive();
+                    if (displayAus) {
+                        @SuppressWarnings("deprecation")
+                        PowerManager.WakeLock wake = pm.newWakeLock(
+                                PowerManager.SCREEN_BRIGHT_WAKE_LOCK |
+                                PowerManager.ACQUIRE_CAUSES_WAKEUP |
+                                PowerManager.ON_AFTER_RELEASE, "jarvis:reminder-screen");
+                        wake.acquire(5000);
+                    }
+                } catch (Throwable ignored) { }
                 nm.notify(id.hashCode(), b.build());
             } catch (Throwable ignored) {}
         }
