@@ -1,7 +1,6 @@
 package de.dino.zaneweckruf;
 
 import android.app.AlarmManager;
-import android.app.KeyguardManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -135,7 +134,6 @@ public class ReminderAlarmReceiver extends BroadcastReceiver {
                 // Der bestehende AlarmManager und der Benachrichtigungston bleiben unveraendert.
                 try {
                     PowerManager pm = (PowerManager) c.getSystemService(Context.POWER_SERVICE);
-                    KeyguardManager km = (KeyguardManager) c.getSystemService(Context.KEYGUARD_SERVICE);
                     boolean displayAus = pm != null && !pm.isInteractive();
                     if (displayAus) {
                         @SuppressWarnings("deprecation")
