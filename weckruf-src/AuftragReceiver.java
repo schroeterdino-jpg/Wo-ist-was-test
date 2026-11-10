@@ -67,6 +67,22 @@ public class AuftragReceiver extends BroadcastReceiver {
         return PendingIntent.getBroadcast(c, 77, i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
+    /** Nur Diagnose-Metadaten; niemals App-Schluessel oder Meldungstexte ausgeben. */
+    static String diagnose(Context c) {
+        SharedPreferences p = sp(c);
+        JSONObject j = new JSONObject();
+        try {
+            j.put("keyPresent", !p.getString("key", "").isEmpty());
+            j.put("lastAttempt", p.getLong("diag_attempt", 0));
+            j.put("lastSuccess", p.getLong("diag_success", 0));
+            j.put("lastHttp", p.getInt("diag_http", 0));
+            j.put("lastError", p.getString("diag_error", ""));
+            j.put("alarmAllowed", android.os.Build.VERSION.SDK_INT < 31 ||
+                    ((AlarmManager) c.getSystemService(Context.ALARM_SERVICE)).canScheduleExactAlarms());
+        } catch (Throwable ignored) { }
+        return j.toString();
+    }
+
     /** Von der Seite: App-Code merken (die Anzahl der Aufträge spielt keine Rolle mehr). */
     static boolean setzen(Context c, String schluessel, int anzahl) {
         try {
@@ -103,6 +119,7 @@ public class AuftragReceiver extends BroadcastReceiver {
             if (jetzt - letzte < 20000) return;
             letzte = jetzt;
         }
+        sp(c).edit().putLong("diag_attempt", System.currentTimeMillis()).putString("diag_error", "").apply();
         HttpURLConnection h = (HttpURLConnection) new URL(MainActivity.ZANE_URL + "api/sync?action=push_native").openConnection();
         try {
             h.setRequestMethod("POST");
@@ -112,7 +129,9 @@ public class AuftragReceiver extends BroadcastReceiver {
             h.setRequestProperty("x-app-key", key);
             h.setRequestProperty("Content-Type", "application/json");
             try (OutputStream o = h.getOutputStream()) { o.write("{}".getBytes("UTF-8")); }
-            if (h.getResponseCode() != 200) return;
+            int status = h.getResponseCode();
+            sp(c).edit().putInt("diag_http", status).apply();
+            if (status != 200) return;
             StringBuilder sb = new StringBuilder();
             try (InputStream in = h.getInputStream()) {
                 byte[] buf = new byte[4096];
@@ -120,6 +139,7 @@ public class AuftragReceiver extends BroadcastReceiver {
                 while ((n = in.read(buf)) > 0) sb.append(new String(buf, 0, n, "UTF-8"));
             }
             JSONObject j = new JSONObject(sb.toString());
+            sp(c).edit().putLong("diag_success", System.currentTimeMillis()).apply();
             JSONArray sprechen = j.optJSONArray("msgs");   // erfüllte Aufträge: Jarvis spricht sie
             if (sprechen != null) {
                 for (int k = 0; k < sprechen.length(); k++) {
@@ -138,6 +158,9 @@ public class AuftragReceiver extends BroadcastReceiver {
                     if (m != null) zeigen(c, m);
                 }
             }
+        } catch (Exception e) {
+            sp(c).edit().putString("diag_error", e.getClass().getSimpleName()).apply();
+            throw e;
         } finally {
             h.disconnect();
         }
