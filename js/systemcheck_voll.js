@@ -597,6 +597,17 @@
                     'Nächste bereits gesendet: ' + (d.naechsteErinnerungBereitsGesendet == null ? 'unbekannt' : (d.naechsteErinnerungBereitsGesendet ? 'ja' : 'nein')),
                     'App-Lebenszeichen: ' + (d.appLebenszeichenVorMin == null ? 'keines' : 'vor ' + d.appLebenszeichenVorMin + ' Minuten')
                 ];
+                const diagZeit = v => v ? new Date(v).toLocaleString('de-DE') : 'noch nicht erfasst';
+                lines.push('--- Zustell-Zeitachse (Server) ---');
+                const rd = d.letzteErinnerungsEntscheidung;
+                if (rd) {
+                    lines.push('Letzte Erinnerung geplant: ' + diagZeit(rd.scheduledAt));
+                    lines.push('Vom Server bearbeitet: ' + diagZeit(rd.processedAt));
+                    lines.push('Server-Ergebnis: ' + ({ app_open: 'App galt als offen', no_subscriber: 'kein Empfänger', submitted: 'an Zustellung übergeben', not_submitted: 'nicht übergeben', processing: 'in Bearbeitung' }[rd.result] || rd.result));
+                } else lines.push('Letzte Erinnerungsentscheidung: noch nicht erfasst');
+                lines.push('Letzte Android-Einreihung: ' + diagZeit(d.nativeLetzteEinreihung));
+                lines.push('Letzte Android-Abholung: ' + diagZeit(d.nativeLetzteAbholung));
+                lines.push('Dabei abgeholte Meldungen: ' + (d.nativeZuletztAbgeholt == null ? 'noch nicht erfasst' : d.nativeZuletztAbgeholt));
                 if (!d.nativeAktiv) lines.push('Hinweis: Die APK hat den Server zuletzt nicht regelmäßig abgefragt.');
                 else if (d.nativeWarteschlange > 0) lines.push('Hinweis: Meldungen warten auf die Abholung durch Android.');
                 try {
