@@ -77,6 +77,8 @@ public class AuftragReceiver extends BroadcastReceiver {
             j.put("lastSuccess", p.getLong("diag_success", 0));
             j.put("lastHttp", p.getInt("diag_http", 0));
             j.put("lastError", p.getString("diag_error", ""));
+            j.put("alarmState", p.getString("diag_alarm", "Noch nicht geplant"));
+            j.put("alarmAt", p.getLong("diag_alarm_at", 0));
             j.put("alarmAllowed", android.os.Build.VERSION.SDK_INT < 31 ||
                     ((AlarmManager) c.getSystemService(Context.ALARM_SERVICE)).canScheduleExactAlarms());
         } catch (Throwable ignored) { }
@@ -96,14 +98,33 @@ public class AuftragReceiver extends BroadcastReceiver {
 
     /** Nächste Abfrage über den Wecker des Handys einplanen (nur mit App-Code). */
     static void planen(Context c) {
+        SharedPreferences prefs = sp(c);
         try {
             AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
             PendingIntent p = pi(c);
-            am.cancel(p);
-            if (!sp(c).getString("key", "").isEmpty()) {
-                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + INTERVALL_MS, p);
+            if (am == null) {
+                prefs.edit().putString("diag_alarm", "AlarmManager fehlt").apply();
+                return;
             }
-        } catch (Throwable ignored) { }
+            am.cancel(p);
+            if (prefs.getString("key", "").isEmpty()) {
+                prefs.edit().putString("diag_alarm", "Kein App-Schluessel").apply();
+                return;
+            }
+            long wann = System.currentTimeMillis() + INTERVALL_MS;
+            try {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, wann, p);
+                prefs.edit().putString("diag_alarm", "Geplant (Android kann verzoegern)")
+                        .putLong("diag_alarm_at", wann).apply();
+            } catch (SecurityException e) {
+                // Ohne Erlaubnis fuer exakte Alarme zumindest einen ungenauen Wecker setzen.
+                am.set(AlarmManager.RTC_WAKEUP, wann, p);
+                prefs.edit().putString("diag_alarm", "Ungenauer Ersatzwecker")
+                        .putLong("diag_alarm_at", wann).apply();
+            }
+        } catch (Throwable e) {
+            prefs.edit().putString("diag_alarm", e.getClass().getSimpleName()).apply();
+        }
     }
 
     /** Vom Weckwort-Dienst: im Hintergrund nachfragen. */
