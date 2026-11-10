@@ -36,6 +36,7 @@ const ctx = { window: { jvFaehigkeiten: { liste: [
     { id: 'kalender', name: 'Kalender', bekannteGrenzen: ['Bekannte Einschränkung'] },
     { id: 'wetter', name: 'Wetter', bekannteGrenzen: [] }
 ] } } };
+ctx.GRUPPEN = ['Handy', 'Programm', 'Google', 'Dienste', 'Server', 'Daten', 'Weckruf-App'];
 vm.runInNewContext(phase2.slice(a, b), ctx);
 const diagnose = ctx.window.jvFaehigkeitsDiagnose;
 assert.equal(typeof diagnose, 'function');
