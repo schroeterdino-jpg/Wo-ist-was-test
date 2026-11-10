@@ -706,6 +706,9 @@ public class MainActivity extends Activity {
         try { if (web != null) { web.resumeTimers(); web.onResume(); } } catch (Throwable ignored) { }   // nie eingefroren starten
         freezeHandler.removeCallbacks(freezeRun);
         WakeService.setActivityResumed(true);
+        // Android-Meldungen auch beim Oeffnen abholen, unabhaengig vom Weckwort-Dienst.
+        // AuftragReceiver begrenzt parallele Abrufe auf mindestens 20 Sekunden Abstand.
+        AuftragReceiver.abfragenAsync(this);
         meldungAnstossen();
         try {
             ((android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE)).cancel(2);   // "Hey Zane erkannt"-Meldung wegräumen
