@@ -165,7 +165,7 @@
 
     /* ---------------- 2a. Jarvis über sich selbst (lesend, ohne KI-Kosten) ---------------- */
     var SELBST_NAMEN = { ortssuche: 'Orte und Restaurants suchen', websuche: 'Internetsuche', wetter: 'Wetter', fahrzeit: 'Fahrzeit und Verkehr mit dem Auto', produktsuche: 'Preise und Händler zu Produkten', foto_info: 'Fotos erkennen und auswerten',
-        termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', essensplan: 'Essensplan der Kantine', erinnerungen_lesen: 'Erinnerungen ansehen', einkauf_lesen: 'Einkaufsliste ansehen', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
+        termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', essensplan: 'Essensplan der Kantine', erinnerungen_lesen: 'Erinnerungen ansehen', einkauf_lesen: 'Einkaufsliste ansehen', urlaub_lesen: 'Urlaub ansehen', rechnungen_lesen: 'offene Rechnungen ansehen', vollmond: 'Vollmond', wunschliste_lesen: 'Wunschlisten ansehen', pakete_lesen: 'Pakete ansehen', uhrzeit_anderswo: 'Uhrzeit in anderen Städten', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
         termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken' };
     R.registriere({
         name: 'jarvis_info',
@@ -564,6 +564,80 @@
             var nachricht = !l.length ? 'Die Einkaufsliste ist leer.'
                 : 'Auf der Einkaufsliste ' + (l.length === 1 ? 'steht: ' : 'stehen ' + l.length + ' Dinge: ') + l.slice(0, 10).join(', ') + (l.length > 10 ? ' und ' + (l.length - 10) + ' weitere' : '') + '.';
             return { anzahl: l.length, eintraege: l, nachricht: nachricht };
+        }
+    });
+
+    /* ---------------- 2b3. Paket 2 "Chef-KI mit Werkzeugen": Urlaub, Rechnungen, Vollmond, Uhrzeit anderswo, Wunschliste, Pakete (alle nur lesend, ohne zweite Logik) ---------------- */
+    function lesWerkzeug(name, beschreibung, rueckFelder, datei, funktion, verfuegbar, ausfuehren, extra) {
+        var def = {
+            name: name,
+            beschreibung: beschreibung,
+            pflicht: [], optional: [],
+            rueckgabe: { beschreibung: 'Ein gesprochener Satz mit der Auskunft.', felder: rueckFelder },
+            fehler: [
+                { status: 'CAPABILITY_MISSING', wann: 'Die Quelle ist in dieser Umgebung nicht geladen.' },
+                { status: 'TOOL_FAILED', wann: 'Ein technischer Fehler trat auf.' }
+            ],
+            fallbacks: [],
+            bestaetigung: { noetig: false, grund: 'Nur lesend.' },
+            pruefeErfolg: function (d) { return !!d && typeof d.nachricht === 'string' && !!d.nachricht.trim(); },
+            verbindung: { datei: datei, funktion: funktion, aktion: 'lesen' },
+            verfuegbar: verfuegbar,
+            ausfuehren: ausfuehren
+        };
+        if (extra) Object.keys(extra).forEach(function (k) { def[k] = extra[k]; });
+        R.registriere(def);
+    }
+    lesWerkzeug('urlaub_lesen', 'Sagt, ob und wann der Nutzer Urlaub eingetragen hat (nur lesend, ändert nichts). Für Fragen wie "Habe ich Urlaub eingetragen?", "Wann ist mein nächster Urlaub?" oder "Wie lange habe ich noch Urlaub?".',
+        ['nachricht', 'von', 'bis'], 'js/urlaub.js', 'get', function () { return !!window.jvUrlaub && typeof window.jvUrlaub.get === 'function'; },
+        async function () {
+            var u = window.jvUrlaub.get();
+            function lesbar(s) { try { return new Date(s + 'T12:00:00').toLocaleDateString('de-DE', { day: 'numeric', month: 'long' }); } catch (e) { return s; } }
+            if (!u) return { von: '', bis: '', nachricht: 'Du hast keinen Urlaub eingetragen.' };
+            return { von: u.von, bis: u.bis, nachricht: u.von <= berlinHeute() ? 'Dein Urlaub läuft noch bis zum ' + lesbar(u.bis) + '.' : 'Du hast vom ' + lesbar(u.von) + ' bis zum ' + lesbar(u.bis) + ' Urlaub eingetragen.' };
+        });
+    lesWerkzeug('rechnungen_lesen', 'Nennt die offenen Rechnungen des Nutzers (Anzahl, Summe, nächste Fälligkeit, Überfälliges; nur lesend). Für Fragen wie "Welche Rechnungen sind offen?", "Was muss ich noch zahlen?" oder "Läuft bald eine Frist ab?".',
+        ['nachricht', 'anzahl'], 'js/rechnungen.js', 'uebersicht', function () { return !!window.jvRechnungen && typeof window.jvRechnungen.uebersicht === 'function'; },
+        async function () { var u = window.jvRechnungen.uebersicht(); return { anzahl: u.anzahl, nachricht: u.text }; });
+    lesWerkzeug('vollmond', 'Nennt den nächsten Vollmond (nur lesend, öffnet kein Fenster). Für Fragen wie "Wann ist der nächste Vollmond?".',
+        ['nachricht'], 'js/sonnemond.js', 'vollmondText', function () { return !!window.jvMond && typeof window.jvMond.vollmondText === 'function'; },
+        async function () { return { nachricht: String(window.jvMond.vollmondText() || '') }; });
+    lesWerkzeug('wunschliste_lesen', 'Liest die Wunschlisten des Nutzers vor (nur lesend, keine Preissuche). Für Fragen wie "Was steht auf meiner Wunschliste?".',
+        ['nachricht', 'anzahl'], 'js/wunschliste.js', 'laden', function () { return !!window.jvWunschliste && typeof window.jvWunschliste.laden === 'function'; },
+        async function () {
+            var l = window.jvWunschliste.laden();
+            if (!l.length) return { anzahl: 0, nachricht: 'Du hast noch keine Wunschliste.' };
+            var teile = l.map(function (w) {
+                var offen = w.items.filter(function (i) { return i && !i.done && String(i.t || '').trim(); }).map(function (i) { return String(i.t).trim(); });
+                return 'Auf der Wunschliste ' + w.name + ' ' + (offen.length ? (offen.length === 1 ? 'steht: ' : 'stehen ' + offen.length + ' Dinge: ') + offen.slice(0, 8).join(', ') + (offen.length > 8 ? ' und ' + (offen.length - 8) + ' weitere' : '') : 'steht nichts') + '.';
+            });
+            return { anzahl: l.length, nachricht: teile.join(' ') };
+        });
+    lesWerkzeug('pakete_lesen', 'Nennt den zuletzt gespeicherten Stand der verfolgten Pakete (nur lesend, ohne neue Abfrage bei DHL). Für Fragen wie "Wo ist mein Paket?" oder "Kommt heute ein Paket?".',
+        ['nachricht', 'anzahl'], 'js/pakete.js', 'lesen', function () { return !!window.jvPakete && typeof window.jvPakete.lesen === 'function'; },
+        async function () {
+            var s = window.jvPakete.lesen();
+            return s.length ? { anzahl: s.length, nachricht: s.join(' ') + ' (Stand der letzten Abfrage.)' } : { anzahl: 0, nachricht: 'Du hast noch kein Paket eingetragen.' };
+        });
+    R.registriere({
+        name: 'uhrzeit_anderswo',
+        beschreibung: 'Nennt die aktuelle Uhrzeit in einer bekannten Stadt oder einem Land (Weltuhr, nur lesend). Für Fragen wie "Wie spät ist es in New York?" oder "Was für eine Uhrzeit haben die in Japan?".',
+        pflicht: [{ name: 'ort', typ: 'text', beschreibung: 'Stadt oder Land wie genannt, zum Beispiel New York oder Japan.' }],
+        optional: [],
+        rueckgabe: { beschreibung: 'Ein Satz mit der Uhrzeit dort und bei uns.', felder: ['nachricht', 'ort', 'uhrzeit', 'unterschied'] },
+        fehler: [
+            { status: 'NO_RESULTS', wann: 'Der Ort ist der Weltuhr nicht bekannt.' },
+            { status: 'CAPABILITY_MISSING', wann: 'Die Weltuhr ist nicht geladen.' }
+        ],
+        fallbacks: [],
+        bestaetigung: { noetig: false, grund: 'Nur lesend.' },
+        leer: function (d) { return !!d && d.leer === true; },
+        pruefeErfolg: function (d) { return !!d && typeof d.nachricht === 'string' && !!d.nachricht.trim() && !!d.ort; },
+        verbindung: { datei: 'js/weltuhr.js', funktion: 'zeitIn', aktion: 'lesen' },
+        verfuegbar: function () { return !!window.jvWeltuhr && typeof window.jvWeltuhr.zeitIn === 'function'; },
+        ausfuehren: async function (p) {
+            var r = window.jvWeltuhr.zeitIn(String(p.ort || ''));
+            return r || { leer: true, reply: 'Die Uhrzeit dort kenne ich nicht. Ich kenne zum Beispiel Istanbul, London, New York, Tokio, Dubai und Sydney.' };
         }
     });
 

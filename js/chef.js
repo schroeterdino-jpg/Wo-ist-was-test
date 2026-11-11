@@ -33,17 +33,17 @@
     'use strict';
     if (window.jvChef) return;
 
-    var FREIGEGEBEN = Object.freeze(['ortssuche', 'websuche', 'wetter', 'produktsuche', 'foto_info', 'jarvis_info', 'fahrzeit', 'kontakte_lesen', 'gedaechtnis_lesen', 'abfahrt', 'schicht', 'essensplan', 'erinnerungen_lesen', 'einkauf_lesen']);                      // echte Ausführung nur hier (alles lesend)
+    var FREIGEGEBEN = Object.freeze(['ortssuche', 'websuche', 'wetter', 'produktsuche', 'foto_info', 'jarvis_info', 'fahrzeit', 'kontakte_lesen', 'gedaechtnis_lesen', 'abfahrt', 'schicht', 'essensplan', 'erinnerungen_lesen', 'einkauf_lesen', 'urlaub_lesen', 'rechnungen_lesen', 'vollmond', 'wunschliste_lesen', 'pakete_lesen', 'uhrzeit_anderswo']);                      // echte Ausführung nur hier (alles lesend)
     var SCHREIB = Object.freeze(['erinnerung_erstellen', 'termin_erstellen', 'gedaechtnis_speichern', 'aufgabe_erstellen', 'termin_verschieben', 'kontakt_speichern']);   // nur Testmodus
     /* Paket B2a: nur im echten Sprachweg (KI-Weg, Chef-KI EIN) darf die Chef-KI diese Fähigkeiten wirklich ausführen. Verschieben, Löschen und alles, was eine Bestätigung braucht, bleibt gesperrt (kommt erst in B2b). */
     var B2A_NEU = Object.freeze(['termine_lesen', 'aufgaben_lesen', 'aufgabe_erstellen', 'erinnerung_erstellen', 'termin_erstellen', 'kontakt_speichern', 'gedaechtnis_speichern']);
     var B2A_SCHREIBT = Object.freeze(['aufgabe_erstellen', 'erinnerung_erstellen', 'termin_erstellen', 'kontakt_speichern', 'gedaechtnis_speichern']);
     var B2B_NAMEN = Object.freeze(['termin_verschieben']);   // Paket B2b-1: Verschieben nur nach ausdrücklicher Bestätigung (nie Löschen)
-    var KI_PLAN = Object.freeze(['ortssuche', 'websuche', 'wetter', 'produktsuche', 'foto_info', 'jarvis_info', 'fahrzeit', 'kontakte_lesen', 'gedaechtnis_lesen', 'abfahrt', 'schicht', 'essensplan', 'erinnerungen_lesen', 'einkauf_lesen'].concat(B2A_NEU, B2B_NAMEN));        // das darf der KI-Entscheider im Sprachweg planen
-    var LESBAR = { essensplan: 'Essensplan', erinnerungen_lesen: 'Erinnerungen ansehen', einkauf_lesen: 'Einkaufsliste ansehen', termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', aufgabe_erstellen: 'Aufgabe anlegen', erinnerung_erstellen: 'Erinnerung anlegen', termin_erstellen: 'Termin eintragen', kontakt_speichern: 'Kontakt speichern', gedaechtnis_speichern: 'Merken', termin_verschieben: 'Termin verschieben', ortssuche: 'Ortssuche', websuche: 'Internetsuche', wetter: 'Wetter' };
+    var KI_PLAN = Object.freeze(['ortssuche', 'websuche', 'wetter', 'produktsuche', 'foto_info', 'jarvis_info', 'fahrzeit', 'kontakte_lesen', 'gedaechtnis_lesen', 'abfahrt', 'schicht', 'essensplan', 'erinnerungen_lesen', 'einkauf_lesen', 'urlaub_lesen', 'rechnungen_lesen', 'vollmond', 'wunschliste_lesen', 'pakete_lesen', 'uhrzeit_anderswo'].concat(B2A_NEU, B2B_NAMEN));        // das darf der KI-Entscheider im Sprachweg planen
+    var LESBAR = { essensplan: 'Essensplan', erinnerungen_lesen: 'Erinnerungen ansehen', einkauf_lesen: 'Einkaufsliste ansehen', urlaub_lesen: 'Urlaub ansehen', rechnungen_lesen: 'Rechnungen ansehen', vollmond: 'Vollmond', wunschliste_lesen: 'Wunschlisten ansehen', pakete_lesen: 'Pakete ansehen', uhrzeit_anderswo: 'Uhrzeit in anderen Städten', termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', aufgabe_erstellen: 'Aufgabe anlegen', erinnerung_erstellen: 'Erinnerung anlegen', termin_erstellen: 'Termin eintragen', kontakt_speichern: 'Kontakt speichern', gedaechtnis_speichern: 'Merken', termin_verschieben: 'Termin verschieben', ortssuche: 'Ortssuche', websuche: 'Internetsuche', wetter: 'Wetter' };
     var MAX_SCHRITTE = 3, MAX_PROTOKOLL = 20, FRAGE_MS = 2 * 60000, DOPPELT_MS = 4000, PAUSE_MS = 2 * 60000;
     var GESAMT_MS = 20000, THEMA_MS = 10 * 60000;                                            // Gesamtzeitbudget je Eingabe im Sprachweg; wie lange ein Thema für Anschlussfragen gilt
-    var KI_FAEHIGKEITEN = Object.freeze(['ortssuche', 'websuche', 'wetter', 'produktsuche', 'foto_info', 'jarvis_info', 'fahrzeit', 'kontakte_lesen', 'gedaechtnis_lesen', 'abfahrt', 'schicht', 'essensplan', 'erinnerungen_lesen', 'einkauf_lesen']);                 // das darf der KI-Entscheider planen
+    var KI_FAEHIGKEITEN = Object.freeze(['ortssuche', 'websuche', 'wetter', 'produktsuche', 'foto_info', 'jarvis_info', 'fahrzeit', 'kontakte_lesen', 'gedaechtnis_lesen', 'abfahrt', 'schicht', 'essensplan', 'erinnerungen_lesen', 'einkauf_lesen', 'urlaub_lesen', 'rechnungen_lesen', 'vollmond', 'wunschliste_lesen', 'pakete_lesen', 'uhrzeit_anderswo']);                 // das darf der KI-Entscheider planen
     var PLAN_KEYS = ['absicht', 'schritte', 'frage', 'hinweis', 'benoetigt'];
     var SCHRITT_KEYS = ['faehigkeit', 'params', 'aus'];
     var NAME_RX = /^[a-z][a-z0-9_]*$/;
@@ -75,7 +75,7 @@
        Ein Schritt darf "aus":{"ort":{"schritt":1,"feld":"orte"}} tragen: der Wert kommt NICHT vom Modell, sondern aus dem tatsächlichen, geprüften Ergebnis (daten) von Schritt 1.
        Erlaubt nur: lesende Schritte, Ziel-Angaben ort | suchbegriff | frage, Quellschritt davor, Feld aus der Rückgabe-Beschreibung der Registry. Der übernommene Wert wird wie jede Angabe geprüft (saubererBegriff / frageSauber). */
     var AUS_ZIELE = Object.freeze(['ort', 'suchbegriff', 'frage']);
-    var LESEND = Object.freeze(['ortssuche', 'websuche', 'wetter', 'produktsuche', 'foto_info', 'jarvis_info', 'fahrzeit', 'kontakte_lesen', 'gedaechtnis_lesen', 'abfahrt', 'schicht', 'essensplan', 'erinnerungen_lesen', 'einkauf_lesen']);
+    var LESEND = Object.freeze(['ortssuche', 'websuche', 'wetter', 'produktsuche', 'foto_info', 'jarvis_info', 'fahrzeit', 'kontakte_lesen', 'gedaechtnis_lesen', 'abfahrt', 'schicht', 'essensplan', 'erinnerungen_lesen', 'einkauf_lesen', 'urlaub_lesen', 'rechnungen_lesen', 'vollmond', 'wunschliste_lesen', 'pakete_lesen', 'uhrzeit_anderswo']);
     function ausPruefen(aus, index, schritte) {   // undefined = keine; false = ungültig; sonst bereinigte Kopie
         if (aus === undefined) return undefined;
         if (!aus || typeof aus !== 'object' || Array.isArray(aus)) return false;
@@ -655,7 +655,7 @@
         var n = plan.schritte.length;
         if (n === 0) return !ohneFrage && frageSauber(plan.frage);   // nach einer Antwort auf eine Rückfrage gibt es keine zweite Rückfrage (keine Fragekette)
         if (n > MAX_SCHRITTE || plan.frage) return false;
-        var zaehl = { ortssuche: 0, websuche: 0, wetter: 0, produktsuche: 0, foto_info: 0, jarvis_info: 0, fahrzeit: 0, kontakte_lesen: 0, gedaechtnis_lesen: 0, abfahrt: 0, schicht: 0, essensplan: 0, erinnerungen_lesen: 0, einkauf_lesen: 0 };
+        var zaehl = { ortssuche: 0, websuche: 0, wetter: 0, produktsuche: 0, foto_info: 0, jarvis_info: 0, fahrzeit: 0, kontakte_lesen: 0, gedaechtnis_lesen: 0, abfahrt: 0, schicht: 0, essensplan: 0, erinnerungen_lesen: 0, einkauf_lesen: 0, urlaub_lesen: 0, rechnungen_lesen: 0, vollmond: 0, wunschliste_lesen: 0, pakete_lesen: 0, uhrzeit_anderswo: 0 };
         if (plan.schritte.some(function (v) { return v.aus !== undefined; }) && plan.schritte.some(function (v) { return B2A_NEU.indexOf(v.faehigkeit) >= 0 || B2B_NAMEN.indexOf(v.faehigkeit) >= 0; })) return false;   // Kette nur mit rein lesenden Plänen
         for (var i = 0; i < n; i++) {
             var st = plan.schritte[i], p = st.params || {}, ks = Object.keys(p);
@@ -667,8 +667,10 @@
                 if (!saubererBegriff(p.suchbegriff)) return false;
                 if (p.ort !== undefined && !saubererBegriff(p.ort)) return false;
                 if (!ks.every(function (k) { return k === 'suchbegriff' || k === 'ort'; })) return false;
-            } else if (st.faehigkeit === 'foto_info' || st.faehigkeit === 'jarvis_info' || st.faehigkeit === 'erinnerungen_lesen' || st.faehigkeit === 'einkauf_lesen') {
+            } else if (st.faehigkeit === 'foto_info' || st.faehigkeit === 'jarvis_info' || st.faehigkeit === 'erinnerungen_lesen' || st.faehigkeit === 'einkauf_lesen' || st.faehigkeit === 'urlaub_lesen' || st.faehigkeit === 'rechnungen_lesen' || st.faehigkeit === 'vollmond' || st.faehigkeit === 'wunschliste_lesen' || st.faehigkeit === 'pakete_lesen') {
                 if (ks.length) return false;
+            } else if (st.faehigkeit === 'uhrzeit_anderswo') {
+                if (!saubererBegriff(p.ort) || !ks.every(function (k) { return k === 'ort'; })) return false;
             } else if (st.faehigkeit === 'fahrzeit') {
                 if (!saubererBegriff(p.ziel) || (p.von !== undefined && !saubererBegriff(p.von)) || !ks.every(function (k) { return k === 'ziel' || k === 'von'; })) return false;
             } else if (st.faehigkeit === 'abfahrt') {
@@ -691,7 +693,7 @@
                 if (!ks.every(function (k) { return k === 'tag' || k === 'ort'; })) return false;
             }
         }
-        return zaehl.ortssuche <= 2 && zaehl.websuche <= 1 && zaehl.wetter <= 1 && zaehl.produktsuche <= 2 && zaehl.foto_info <= 1 && zaehl.jarvis_info <= 1 && zaehl.fahrzeit <= 1 && zaehl.kontakte_lesen <= 1 && zaehl.gedaechtnis_lesen <= 1 && zaehl.abfahrt <= 1 && zaehl.schicht <= 1 && zaehl.essensplan <= 1 && zaehl.erinnerungen_lesen <= 1 && zaehl.einkauf_lesen <= 1;
+        return zaehl.ortssuche <= 2 && zaehl.websuche <= 1 && zaehl.wetter <= 1 && zaehl.produktsuche <= 2 && zaehl.foto_info <= 1 && zaehl.jarvis_info <= 1 && zaehl.fahrzeit <= 1 && zaehl.kontakte_lesen <= 1 && zaehl.gedaechtnis_lesen <= 1 && zaehl.abfahrt <= 1 && zaehl.schicht <= 1 && zaehl.essensplan <= 1 && zaehl.erinnerungen_lesen <= 1 && zaehl.einkauf_lesen <= 1 && zaehl.urlaub_lesen <= 1 && zaehl.rechnungen_lesen <= 1 && zaehl.vollmond <= 1 && zaehl.wunschliste_lesen <= 1 && zaehl.pakete_lesen <= 1 && zaehl.uhrzeit_anderswo <= 1;
     }
 
     /* Kontext für kurze Anschlussfragen: nur Art des letzten Themas (und Tag/Stichwort), nie ein Satz. */
