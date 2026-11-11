@@ -139,7 +139,7 @@ const SWK = 'Wie wird das Wetter morgen und schau mal nach was heute im Kino lä
     g = await tippen(A, 'Ich finde Regen im Herbst eigentlich ganz gemütlich');
     check('8 Wetterwort, aber Gespräch: der Entscheider plant nichts -> normaler Ablauf (eine Anfrage mehr, einmal)', A.st.ent === 1 && A.st.groq === 1 && codes(A) === 'ki_aufgerufen>ki_kein_ortswunsch>rueckfall', codes(A));
     g = await tippen(A, 'Wie geht es dir heute so');
-    check('8b reiner Smalltalk: KEINE zusätzliche Entscheider-Anfrage, nur der normale Ablauf', A.st.ent === 1 && A.st.groq === 2 && /vorfilter_stichwort/.test(codes(A)), JSON.stringify({ ent: A.st.ent, groq: A.st.groq, c: codes(A) }));
+    check('8b reiner Smalltalk: der Entscheider plant nichts, dann nur der normale Ablauf', A.st.ent === 2 && A.st.groq === 2 && /rueckfall/.test(codes(A)), JSON.stringify({ ent: A.st.ent, groq: A.st.groq, c: codes(A) }));
 
     /* ---------- Rückfrage ---------- */
     A = umgebung(); A.st.plan = m => /Antwort|Wetter/.test(String(m[m.length - 1].content)) && /Verkehr oder Wetter/.test(String(m[m.length - 1].content)) ? plan(W('heute')) : { schritte: [], frage: 'Meinst du das Wetter oder den Verkehr?' };

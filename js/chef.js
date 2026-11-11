@@ -612,6 +612,8 @@
     /* "Ich muss um 18 Uhr am Hamburger Hauptbahnhof sein." (ohne "Wann ...?"): ebenfalls eine Abfahrtsfrage für das Werkzeug abfahrt */
     var RX_ANKUNFT = /\b(?:muss|soll|will|m(?:ö|oe)chte)\b[^?.!]*\b(?:um|gegen|bis)\s+\d{1,2}(?::\d{2})?\s*(?:uhr)?(?=\s|[.!?,]|$)[^?.!]*\b(?:sein|ankommen)\b/i;
     var RX_FAHRT = /\b(fahrzeit|fahrt|fahre|fahren|fahr|brauche ich|dauert|route|verkehr\w*|stau\w*|autobahn|entfernung|kilometer|anfahrt|hinkomm\w*|hinfahr\w*)\b/i;
+    /* Stichwort-Vorfilter: false = bei eingeschalteter Chef-KI sieht der Entscheider JEDEN Satz, den kein fester Befehl beantwortet (Dino: Jarvis soll verstehen, egal wie es formuliert ist). true = wie früher nur Sätze mit Stichwort. Die Längenprüfung (3 bis 30 Wörter) bleibt. */
+    var STICHWORT_FILTER = false;
     var RX_KI_VORFILTER = /\b(wo|wohin|hier|in der n[äa]he|umgebung|gegend|ecke|unterwegs|auswärts|ausw[äa]rts|ausgehen|essen|speisen|trinken|hunger|durst|magen|lust auf|empfiehl\w*|tipp|find\w*|such\w*|gibt es|gibts|kennst du|abend|mittag|fr[üu]hst[üu]ck\w*|snack|happen|bissen|gemütlich|gem[üu]tlich|romantisch|date|feiern|laden|lokal|schmaus\w*|wetter|regen\w*|schirm|jacke|temperatur|grad|sonnig|schnee|gewitter|sturm|nachrichten|neuigkeiten|aktuell\w*|fernseh\w*|kino|programm|öffnungszeit\w*|ergebnis\w*|spielstand|tabelle|internet|google|recherchier\w*|nachschlagen|nachsehen|kost\w*|preis\w*|kaufen|vergleich\w*|h[aä]ndler\w*|foto\w*|selbst|verbesser\w*|unternehm\w*|anstell\w*|kinder|fahrzeit|fahr\w*|route|stau\w*|verkehr\w*|autobahn|dauert|brauche ich|wie lange|wie weit|entfernt|entfernung|mit dem auto|jarvis|neues|neuigkeit\w*|einkauf\w*|besorg\w*|liste\w*|kantine|woran|vergess\w*|denken)\b/i;
     var RX_FOLGE = /^(?:und|aber|dann|auch|noch|wie (?:sieht|ist) es|was ist (?:denn )?mit)\b|\b(?:morgen|übermorgen|uebermorgen|dort|dann)\b/i;   // kurze Anschlussfrage zum letzten Thema ("und morgen?")
 
@@ -1277,7 +1279,7 @@
             if (anschluss) kopf = 'anschluss';
             if (kopf !== 'nachfrage_antwort' && RX_ABFAHRT.test(t) && !RX_B2A.test(t) && !(mehr === true && arbeitswegMehrfachfrage(t)) && !(R() && R().hole('abfahrt'))) { neuerEingang('abfahrtsfrage'); return false; }   // ohne das Werkzeug abfahrt: kein Planer-Aufruf, der bisherige Abfahrtsweg antwortet
             if (!kopf && (woerter < 3 || woerter > 30 || t.length > 240)) { neuerEingang('vorfilter_laenge'); return false; }
-            if (!kopf && !RX_B2A.test(t) && !RX_KI_VORFILTER.test(t) && !RX_ABFAHRT.test(t) && !RX_ANKUNFT.test(t)) { neuerEingang('vorfilter_stichwort'); return false; }
+            if (STICHWORT_FILTER && !kopf && !RX_B2A.test(t) && !RX_KI_VORFILTER.test(t) && !RX_ABFAHRT.test(t) && !RX_ANKUNFT.test(t)) { neuerEingang('vorfilter_stichwort'); return false; }
             if (!R() || !R().hole('ortssuche')) { neuerEingang('faehigkeit_fehlt'); return false; }
             /* "dort"/"da"/"in dieser Stadt" ohne genannten Ort im Satz: gemerkten Ort nehmen, sonst FRAGEN (nie still den eigenen Standort) */
             var ortBezug = ortNeu;   // Antwort auf "Welchen Ort meinst du?": der genannte Ort wird (nach Prüfung) fest in den Plan eingesetzt
