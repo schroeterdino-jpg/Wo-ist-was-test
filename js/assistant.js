@@ -642,6 +642,8 @@ async function sendToGroqSmartCore(text, opts = {}) {
         let replyText = searchReply || webReply || emailReply || travelReply || nearbyReply || fuelReply || nearbyFuelReply || bahnReply || ai.reply;
         // 3D-Kopf: Gesichtsausdruck pro Satz, den die KI selbst gewählt hat (nur wenn genau ihre Antwort gesprochen wird)
         try { window.__jvMimikKI = (replyText === ai.reply && Array.isArray(ai.mimik) && ai.mimik.length) ? { reply: String(ai.reply), list: ai.mimik.map(String), at: Date.now() } : null; } catch (e) { }
+        // Lückenbuch: sagt die KI selbst, dass sie etwas nicht kann (Feld kann_nicht), merkt sich das js/luecken.js - unabhängig von der Wortwahl
+        try { if (window.jvLuecken && window.jvLuecken.markiere) window.jvLuecken.markiere((ai.kann_nicht === true || ai.kann_nicht === 'true') && replyText === ai.reply); } catch (e) { }
         if (typeof replyText !== 'string') replyText = (typeof replyText === 'number') ? String(replyText) : '';
         if (!replyText.trim()) replyText = '';   // Phase 1: nur Leerzeichen zählt als leer
         if (!replyText) {

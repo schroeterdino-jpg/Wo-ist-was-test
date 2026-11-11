@@ -14,7 +14,7 @@ function neu(antwort) {
     const st = { reply: antwort || 'KI-ANTWORT' };
     const gespr = [];
     const A = starte({ jetzt: '2026-11-11T10:00:00+01:00', festerZufall: true, echtesSpeak: true, spracherkennung: true, nachSkript: (f, sb) => { if (f === 'voice.js') sb.speak = function (t) { gespr.push(String(t == null ? '' : t)); }; }, fetch: async (u, o) => {
-        if (/api\/groq/.test(String(u))) return ant({ choices: [{ message: { content: JSON.stringify({ reply: st.reply, actions: [] }) } }] });
+        if (/api\/groq/.test(String(u))) return ant({ choices: [{ message: { content: JSON.stringify({ reply: st.reply, actions: [], kann_nicht: st.kann || undefined }) } }] });
         throw new Error('offline ' + u);
     } });
     A.st = st; A.gespr = gespr; A.sb.jvChef.aus();
@@ -52,6 +52,20 @@ function neu(antwort) {
         await B.frag('Wie wird das Wetter morgen im Garten');
         check('3b keine Zusatzsätze bei normalen Antworten', B.gespr.every(t => !/Ausbau/.test(t)) && B.gespr.length >= 1, JSON.stringify(B.gespr));
         check('3a eine normale Antwort schreibt nichts auf', B.sb.jvLuecken.laden().length === 0);
+    }
+    {   /* KI meldet selbst "kann_nicht": gilt unabhängig von der Wortwahl */
+        const C = neu('Da bin ich leider ratlos, das übersteigt meine Fähigkeiten.');
+        C.st.kann = true;
+        await C.frag('Wie viel Strom verbraucht meine Waschmaschine gerade');
+        check('4a kann_nicht=true: aufgeschrieben, obwohl der Satz kein bekanntes Muster hat', C.sb.jvLuecken.laden().length === 1 && /Waschmaschine/.test(C.sb.jvLuecken.laden()[0].f), JSON.stringify(C.sb.jvLuecken.laden()));
+        check('4b Jarvis sagt dazu, dass er es aufgeschrieben hat', C.gespr.some(t => /aufgeschrieben/.test(t)), JSON.stringify(C.gespr));
+        const D = neu('Da bin ich leider ratlos, das übersteigt meine Fähigkeiten.');
+        await D.frag('Wie viel Strom verbraucht meine Waschmaschine gerade');
+        check('4c ohne kann_nicht und ohne bekanntes Muster: nichts aufgeschrieben', D.sb.jvLuecken.laden().length === 0);
+        const E = neu('Morgen wird es sonnig.');
+        E.st.kann = 'true';
+        await E.frag('Wie wird das Wetter morgen im Garten');
+        check('4d kann_nicht="true" (Text) zählt ebenfalls', E.sb.jvLuecken.laden().length === 1);
     }
     console.log(fehler ? '✗ ' + fehler + ' Fehler (' + ok + ' ok)' : '✓ alle ' + ok + ' Prüfungen bestanden');
     process.exit(fehler ? 1 : 0);
