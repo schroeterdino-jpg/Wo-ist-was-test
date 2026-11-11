@@ -307,6 +307,32 @@ async function executeAction(action, text, ctx) {
     } else if (action.type === 'calendar' || action.calendar_text) {
         const ort = action.calendar_location || extractLocationFallback(text);
         const rrule = weekdayRuleFromText(text) || buildRecurrenceRule(action.calendar_recurrence_unit, action.calendar_recurrence_interval) || recurrenceFromText(text);
+        // Langzeittermin ("Schulung vom 23. November bis 12. Dezember, jeden Werktag"): ganztägige Blöcke, ohne Wochenende pro Woche ein Block (Mo-Fr)
+        try {
+            if (typeof langterminAusSatz === 'function') {
+                const startTag = String(action.calendar_time || '').slice(0, 10);
+                const endeKI = String(action.calendar_end_date || action.calendar_end || '').slice(0, 10);
+                let zeitraum = /^\d{4}-\d{2}-\d{2}$/.test(startTag) && /^\d{4}-\d{2}-\d{2}$/.test(endeKI) && endeKI > startTag ? { start: startTag, ende: endeKI } : null;
+                if (!zeitraum) zeitraum = langterminAusSatz(text, new Date());
+                if (zeitraum && zeitraum.ende > zeitraum.start) {
+                    const nurWt = action.calendar_weekdays_only === true || action.calendar_weekdays_only === 'true' || langterminNurWerktage(text);
+                    const bloecke = langterminBloecke(zeitraum.start, zeitraum.ende, nurWt);
+                    if (bloecke.length) {
+                        const titel = action.calendar_text || 'Termin';
+                        let alleOk = true;
+                        for (const b of bloecke) {
+                            const ok = await addGoogleCalendarEvent(titel, b.start + 'T12:00:00', ort, null, true, b.ende);
+                            if (ok === false) alleOk = false;
+                        }
+                        if (alleOk === false) googleNotSynced(ctx, 'Der Termin ist nur in der App gespeichert, das Handy klingelt dazu nicht');
+                        ctx.notes.push((bloecke.length === 1 ? 'Ich habe ' + titel + ' ganztägig eingetragen: ' : 'Ich habe ' + titel + ' in ' + bloecke.length + ' Blöcken ganztägig eingetragen' + (nurWt ? ', ohne Wochenenden' : '') + ': ') + langterminSprechen(bloecke) + '.');
+                        if (alleOk !== false) openGoogleCalendarApp(bloecke[0].start + 'T12:00:00');
+                        updateTerminalStream("CALENDAR: EVENT_RANGE_ADDED");
+                        return;
+                    }
+                }
+            }
+        } catch (e) { console.error('Langzeittermin', e); }
         // Mitdenken: vor dem Eintragen prüfen (Überschneidung, Feiertag, Wetter, Fahrzeit ...); die Hinweise hängen an der gesprochenen Antwort
         let thoughts = [];
         try { if (typeof thoughtsForNewEvent === 'function' && !rrule) thoughts = await thoughtsForNewEvent(action.calendar_text || text, action.calendar_time, ort); } catch (e) { thoughts = []; }
