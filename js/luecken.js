@@ -44,10 +44,14 @@
     const EIGENE = /l[üu]ckenbuch|l[üu]ckenliste|was kannst du noch nicht|was fehlt dir/i;
 
     /* Aufruf aus der Sprech-Kette: Frage des Nutzers + erste Antwort. Gibt den Zusatz für die Sprache zurück ('' wenn nichts aufgeschrieben wurde). */
+    /* Die KI hat selbst gemeldet "kann ich nicht" (Feld kann_nicht, gesetzt in assistant.js oder chef.js): gilt für die nächste Antwort, einmalig */
+    let markiert = 0;
+    function markiere(an) { markiert = an ? Date.now() : 0; }
     function pruefe(frage, antwort) {
         try {
             const f = String(frage || '').trim();
-            if (!f || f.length < 4 || EIGENE.test(f) || !luecke(antwort)) return '';
+            const selbst = markiert && Date.now() - markiert < 60000; markiert = 0;
+            if (!f || f.length < 4 || EIGENE.test(f) || !(selbst || luecke(antwort))) return '';
             const l = laden(), k = norm(f);
             if (l.some(x => norm(x.f) === k)) return ' Das hatte ich mir schon aufgeschrieben.';
             l.push({ f: f.slice(0, 200), a: String(antwort).trim().slice(0, 240), am: heute() });
@@ -93,7 +97,7 @@
         if (LIST.some(r => r.test(t) || r.test(n))) { zeigen(); return true; }
         return false;
     }
-    window.jvLuecken = { pruefe, laden, luecke, kopierText, handle };
+    window.jvLuecken = { pruefe, markiere, laden, luecke, kopierText, handle };
     if (window.jvCommands) {
         window.jvCommands.use('luecken', function (text, next) {
             try { if (handle(text)) return true; } catch (e) { console.error('Lückenbuch', e); }
