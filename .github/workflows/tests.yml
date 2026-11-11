@@ -41,7 +41,20 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'chore: Cache-Stempel und Golden Master vor Tests aktualisieren'
-          git push origin "HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}"
+          # Parallele PR-Commits können zwischen Checkout und Push eintreffen.
+          # In diesem Fall den neuesten Branch integrieren und erneut versuchen.
+          for versuch in 1 2 3 4 5; do
+            git fetch origin "${{ github.event.pull_request.head.ref || github.ref_name }}"
+            git rebase FETCH_HEAD
+            if git push origin "HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}"; then
+              break
+            fi
+            if [ "$versuch" -eq 5 ]; then
+              echo "Push nach 5 Versuchen fehlgeschlagen" >&2
+              exit 1
+            fi
+            sleep 2
+          done
           echo 'aktualisiert=true' >> "$GITHUB_OUTPUT"
       - name: Neuen Bot-Commit durch regulären Testlauf prüfen
         if: steps.commit.outputs.aktualisiert == 'true'
