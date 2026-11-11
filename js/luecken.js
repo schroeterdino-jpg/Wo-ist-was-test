@@ -26,15 +26,20 @@
         /\bkann ich (?:dir |Ihnen )?(?:dabei |dazu )?(?:leider |noch )*nicht (?:helfen|sagen|beantworten|tun|machen|erledigen)\b/i,
         /\b(?:habe|hab) ich (?:leider )?(?:keinen|keine|kein) (?:Zugriff|Zugang|Informationen?|Daten|Möglichkeit|Funktion)\b/i,
         /\b(?:ist|wäre|waere) (?:mir |bei mir )?(?:leider )?nicht möglich\b/i,
-        /\b(?:das|so etwas|sowas) (?:kann|konnte) ich (?:leider |noch )+nicht\b/i
+        /\b(?:das|so etwas|sowas) (?:kann|konnte) ich (?:leider |noch )+nicht\b/i,
+        /\b(?:leider )?kann ich (?:dir |Ihnen |dazu |dabei |das )?(?:leider |noch |derzeit |aktuell )*(?:keine|keinen|keinem|kein|nicht)\b/i,
+        /\b(?:leider )?ich kann (?:dir |Ihnen |dazu |dabei )?(?:leider |noch |derzeit |aktuell )*(?:keine|keinen|keinem|kein|nicht)\b/i,
+        /\bnicht in der Lage\b|\bhabe ich (?:leider )?(?:keine|nicht die) Möglichkeit\b/i
     ];
     /* technische Aussetzer sind keine Lücke im Können */
     const AUSSETZER = /\bgerade nicht\b|\bVerbindung\b|\bans Internet\b|\bkein Netz\b|\bnoch einmal\b|\bspäter\b|\bversuch es\b|\bnicht eindeutig verstanden\b/i;
 
     function luecke(antwort) {
         const a = String(antwort || '').trim();
-        if (!a || a.length > 240 || AUSSETZER.test(a)) return false;
-        return LUECKE.some(rx => rx.test(a));
+        /* Nur der Anfang zählt: sagt Jarvis gleich zu Beginn "kann ich nicht", ist es eine Lücke, auch wenn danach noch eine Alternative folgt. */
+        const kopf = a.slice(0, 140);
+        if (!a || AUSSETZER.test(kopf)) return false;
+        return LUECKE.some(rx => rx.test(kopf));
     }
     const EIGENE = /l[üu]ckenbuch|l[üu]ckenliste|was kannst du noch nicht|was fehlt dir/i;
 
