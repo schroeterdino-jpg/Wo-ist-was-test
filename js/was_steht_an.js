@@ -111,7 +111,9 @@
     function befehl(txt, next) {
         const t = norm(txt).replace(/^(?:hey |hallo |ok |okay )?(?:jarvis|zane|nova) /, '').replace(/^bitte /, '');
         if (!passt(t)) return next(txt);
-        sagen(text(tagVon(t)));
+        const tag = tagVon(t), antwort = text(tag);
+        sagen(antwort);
+        try { if (window.jvKontext) window.jvKontext.merke(txt, antwort, { name: 'tag', daten: {} }); } catch (e) { }   // Gesprächsfaden (js/kontext_lokal.js)
         return true;
     }
     function cmd() {

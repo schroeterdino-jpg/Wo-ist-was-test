@@ -38,7 +38,18 @@
     function pd(k, d) { try { return typeof getPersistentData === 'function' ? getPersistentData(k, d) : (lsGet(k) ?? d); } catch (e) { return d; } }
     function sd(k, v) { try { if (typeof setPersistentData === 'function') setPersistentData(k, v); else lsSet(k, v); } catch (e) { } }
     function N() { return window.ZaneNative || null; }
+    /* Gesprächsfaden (js/kontext_lokal.js, window.jvKontext): Was ein Planer-Befehl auf eine Nutzerfrage hin sagt, wird als Thema "arbeit" in den vorhandenen Verlauf eingetragen. Nur während der Befehl läuft (fang), nie bei Meldungen von selbst. */
+    let fang = null;
+    function kontextMerken(frage, antwort, daten) { try { if (window.jvKontext && antwort) window.jvKontext.merke(frage, antwort, { name: 'arbeit', daten: daten || {} }); } catch (e) { } }
+    function mitFang(text, fn) {
+        if (fang) return fn();   // läuft schon in einem fangenden Befehl
+        fang = [];
+        let r = false;
+        try { r = fn(); } finally { const f = fang; fang = null; if (r === true && f && f.length) kontextMerken(text, f.join(' ')); }
+        return r;
+    }
     function sagen(t, weiter) {
+        if (fang) fang.push(String(t));
         try { speak(t, weiter && typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) { }
     }
     /* ---------- Meldungen zum Nachlesen ---------- */
@@ -964,7 +975,8 @@
         }
         return true;
     }
-    function befehl(text, next) {
+    function befehl(text, next) { return mitFang(text, () => befehlRoh(text, next)); }
+    function befehlRoh(text, next) {
         const t = norm(text);
         if (!t || t.split(' ').length > 14) return next(text);
         if (einmaligSatz(text) || auskunftSatz(text) || tagesFrage(text)) return true;
@@ -1072,7 +1084,7 @@
                     if (tw) rest2 = rest2 + ' ' + tw;
                 }
                 const weiter = rest2 ? () => { try { window.jvTippen(rest2.charAt(0).toUpperCase() + rest2.slice(1) + '?'); } catch (e) { } } : undefined;
-                if (r.text) { merkeMeldung('🚗 Aufbruchszeit', r.text); zeigeMeldung('🚗 Aufbruchszeit', r.text); try { speak(r.text, weiter); } catch (e) { } } else { sagen('Dafür brauche ich deine Schicht. Sag zum Beispiel: Diese Woche Frühschicht.', false); if (weiter) weiter(); }
+                if (r.text) { merkeMeldung('🚗 Aufbruchszeit', r.text); zeigeMeldung('🚗 Aufbruchszeit', r.text); try { speak(r.text, weiter); } catch (e) { } kontextMerken(text, r.text, { tag: ymd }); } else { sagen('Dafür brauche ich deine Schicht. Sag zum Beispiel: Diese Woche Frühschicht.', false); if (weiter) weiter(); }
             })();
             return true;
         }
@@ -1105,7 +1117,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { terminText, weckerStand, beginn, setBeginnTag, beginnTag, briefingVor, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, ankunft, vorher, vorherStd, setVorher, vorherTag, setVorherTag, stauAn, setStauAn, setBeginn, setEnde, endeTag, setEndeTag, auskunftSatz, einmaligSatz, schichtOhneUrlaub, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { terminText, weckerStand, beginn, setBeginnTag, beginnTag, briefingVor, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, ankunft, vorher, vorherStd, setVorher, vorherTag, setVorherTag, stauAn, setStauAn, setBeginn, setEnde, endeTag, setEndeTag, auskunftSatz: (text) => mitFang(text, () => auskunftSatz(text)), einmaligSatz, schichtOhneUrlaub, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);

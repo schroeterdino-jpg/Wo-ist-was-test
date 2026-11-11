@@ -65,8 +65,8 @@
 | panels.js#2 | panels.js:1333 | 400 ms | von außen/Ereignis (in initWelt) | clearInterval(weltMicTimer) | Wächter keiner (nicht gemessen) | D | B | GELB |
 | panels.js#3 | panels.js:1595 | 5 s | von außen/Ereignis (in weltShowIss) | clearInterval(timer) | Wächter keiner (nicht gemessen) | N D | D | GELB |
 | parkplatz_auto.js#1 | parkplatz_auto.js:50 | 1 min | ab Laden | nie gestoppt | Wächter direkt (nicht gemessen) | A D V | B | GELB |
-| plan_ansagen.js#1 (schau) | plan_ansagen.js:577 | 700 ms | von außen/Ereignis (Schleife schau) | Bedingung im Körper | Wächter keiner (nicht gemessen) | D V | E | GRÜN |
-| plan_ansagen.js#2 | plan_ansagen.js:970 | 10 min | ab Laden | nie gestoppt | Wächter keiner (nicht gemessen) | n? A | A | ROT |
+| plan_ansagen.js#1 (schau) | plan_ansagen.js:588 | 700 ms | von außen/Ereignis (Schleife schau) | Bedingung im Körper | Wächter keiner (nicht gemessen) | D V | E | GRÜN |
+| plan_ansagen.js#2 | plan_ansagen.js:982 | 10 min | ab Laden | nie gestoppt | Wächter keiner (nicht gemessen) | n? A | A | ROT |
 | proaktiv.js#1 | proaktiv.js:218 | 1 min | bei Bedarf (in Rückruf setTimeout) | nie gestoppt | Wächter direkt (nicht gemessen) | n? S D V | B | GELB |
 | pushsync.js#1 | pushsync.js:201 | 2 min | ab Laden | nie gestoppt | Wächter indirekt (nicht gemessen) | N D | A | ROT |
 | pushsync.js#2 | pushsync.js:202 | 10 min | ab Laden | nie gestoppt | Wächter keiner (nicht gemessen) | N | A | ROT |
@@ -98,7 +98,7 @@
 | vorbereitung.js#1 | vorbereitung.js:140 | dynamisch | ab Laden | nie gestoppt | Wächter indirekt (nicht gemessen) | n? S D V | B | GELB |
 | wachter.js#1 | wachter.js:231 | 1 min | bei Bedarf (in Rückruf setTimeout) | nie gestoppt | Wächter indirekt (nicht gemessen) | N S D V | A | ROT |
 | wake_start.js#1 (warten) | wake_start.js:28 | 300 ms | ab Laden (Schleife warten) | Bedingung im Körper | Wächter keiner (nicht gemessen) | V | E | GRÜN |
-| was_steht_an.js#1 | was_steht_an.js:122 | 250 ms | ab Laden | clearInterval(iv) | Wächter keiner (nicht gemessen) |  | E | GRÜN |
+| was_steht_an.js#1 | was_steht_an.js:124 | 250 ms | ab Laden | clearInterval(iv) | Wächter keiner (nicht gemessen) |  | E | GRÜN |
 | weltuhr.js#1 | weltuhr.js:160 | 1 s | bei Bedarf (in open) | clearInterval(timer) | Wächter keiner (nicht gemessen) | D | B | GELB |
 | wetterfx.js#1 | wetterfx.js:140 | 5 min | ab Laden (in start) | nie gestoppt | Wächter keiner (nicht gemessen) | N D | C | GRÜN |
 | zane_redet.js#1 | zane_redet.js:201 | 30 s | ab Laden | nie gestoppt | seltener Takt (Fenster zu kurz für den Vergleich) | N D V | D | GELB |
