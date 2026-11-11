@@ -69,6 +69,7 @@ function wachterIdle() {
     if (typeof isSpeaking === 'function' && isSpeaking()) return false;
     if (typeof window.jvRuhe === 'function' && window.jvRuhe()) return false;   // Briefing läuft oder gerade gesprochen (ruhe.js)
     if (typeof interpreter !== 'undefined' && interpreter) return false;
+    try { if (window.jvKontext && window.jvKontext.aktiv && window.jvKontext.aktiv()) return false; } catch (e) { }   // du sprichst gerade mit Jarvis (letzter Satz vor weniger als 90 Sekunden): nichts von selbst dazwischen (kontext_lokal.js)
     if (typeof isRecording !== 'undefined' && isRecording && !(typeof wakeWordListening !== 'undefined' && wakeWordListening)) return false;   // du sprichst gerade
     return true;
 }

@@ -10,10 +10,10 @@ let ok = 0, fehler = 0;
 function check(name, b, info) { if (b) { ok++; return; } fehler++; console.log('FEHLER: ' + name + (info ? '  → ' + info : '')); }
 const pause = ms => new Promise(r => setTimeout(r, ms));
 
-function neu(chef) {
+function neu(chef, jetzt) {
     const groq = [];   // alle Nachrichtenlisten, die an die KI gingen
     const A = starte({
-        jetzt: '2026-11-11T09:30:00+01:00', native: { planAnsagen: () => true, holeAnsage: () => '', naechsterWecker: () => 0 }, festerZufall: true, sprechenBeendet: true,
+        jetzt: jetzt || '2026-11-11T09:30:00+01:00', native: { planAnsagen: () => true, holeAnsage: () => '', naechsterWecker: () => 0 }, festerZufall: true, sprechenBeendet: true,
         fetch: async (u, init) => {
             if (/api\/groq/.test(String(u))) {
                 let m = []; try { m = JSON.parse(init.body).messages; } catch (e) { }
@@ -102,6 +102,24 @@ const text = v => v.map(x => String(x.content)).join('\n');
         const n0 = A.verlauf().length;
         await A.sage('Erzähl mir einen Witz über Katzen');
         check('6 Frage ohne lokalen Treffer: KI-Weg unverändert (kein Thema arbeit)', A.sb.jvKontext.thema() === null && A.verlauf().length >= n0 + 2, String(A.verlauf().length - n0));
+    }
+    {   // 7. Ansagen von selbst (Briefing, Wächter, Aufbruchszeit) warten, solange du mit Jarvis sprichst
+        const A = neu(false, '2026-11-11T11:59:20+01:00');
+        let briefings = 0;
+        A.sb.triggerDailyBriefing = function () { briefings++; };
+        const K = A.sb.jvKontext;
+        check('7a ohne Gespräch ist niemand "aktiv"', K.aktiv() === false);
+        await A.sage('Welche Schicht habe ich morgen?');
+        check('7b direkt nach einem Satz ist das Gespräch aktiv', K.aktiv() === true);
+        check('7c Wächter und Planer gelten dann nicht als frei (wachterIdle)', A.sb.wachterIdle() === false);
+        await A.vorspulen(60000);   // 12:00:xx: Briefing-Zeit der Spätschicht, aber der letzte Satz ist erst rund eine Minute her
+        check('7d um 12:00 kommt das Briefing nicht mitten ins Gespräch', briefings === 0, String(briefings));
+        await A.vorspulen(150000);
+        check('7e danach kommt es nach (nicht verloren), genau einmal', briefings === 1 && K.aktiv() === false, String(briefings));
+        const B = neu(false, '2026-11-11T11:59:20+01:00');
+        let b2 = 0; B.sb.triggerDailyBriefing = function () { b2++; };
+        await B.vorspulen(70000);
+        check('7f ohne Gespräch kommt das Briefing wie bisher pünktlich', b2 === 1, String(b2));
     }
     console.log(fehler ? 'FEHLER: ' + fehler + ' (ok ' + ok + ')' : 'alles ok (' + ok + ' Prüfungen)');
     process.exit(fehler ? 1 : 0);
