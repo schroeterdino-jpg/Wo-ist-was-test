@@ -67,7 +67,7 @@
     function befehl(text, next) {
         letzte = null;
         const r = befehlRoh(text, next);
-        try { if (r === true && letzte && window.jvKontext) window.jvKontext.merke(text, letzte, { name: 'arbeit', daten: {} }); } catch (e) { }
+        try { if (r === true && letzte && window.jvKontext) { const tg = window.jvPlan && window.jvPlan.tagAusFrage ? window.jvPlan.tagAusFrage(text) : null; window.jvKontext.merke(text, letzte, { name: 'arbeit', daten: tg ? { tag: tg } : {} }); } } catch (e) { }
         letzte = null;
         return r;
     }

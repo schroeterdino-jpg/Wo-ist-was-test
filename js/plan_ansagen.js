@@ -40,12 +40,48 @@
     function N() { return window.ZaneNative || null; }
     /* Gesprächsfaden (js/kontext_lokal.js, window.jvKontext): Was ein Planer-Befehl auf eine Nutzerfrage hin sagt, wird als Thema "arbeit" in den vorhandenen Verlauf eingetragen. Nur während der Befehl läuft (fang), nie bei Meldungen von selbst. */
     let fang = null;
-    function kontextMerken(frage, antwort, daten) { try { if (window.jvKontext && antwort) window.jvKontext.merke(frage, antwort, { name: 'arbeit', daten: daten || {} }); } catch (e) { } }
+    function kontextMerken(frage, antwort, daten) { try { if (window.jvKontext && antwort) { const d = {}; Object.keys(daten || {}).forEach(k => { if (daten[k] != null) d[k] = daten[k]; }); window.jvKontext.merke(frage, antwort, { name: 'arbeit', daten: d }); } } catch (e) { } }
+    function kontextThema() { try { return window.jvKontext ? window.jvKontext.thema() : null; } catch (e) { return null; } }
+    /* Kurze Abfahrtsfrage ohne Ziel: "Wann sollte ich losfahren?", "Und wann muss ich dann los?", "Wann fahre ich los?" */
+    const KURZ_LOS = /^(?:und )?(?:wann|um wie viel uhr|um wieviel uhr) (?:(?:sollte|soll|muss|muesste|kann|darf) ich|fahre ich|breche ich) (?:dann |da |also |jetzt )?(?:(?:heute|morgen|uebermorgen) )?(?:los ?fahren|los|aufbrechen|abfahren|losgehen|auf)$/;
+    /* Nächster Termin mit Uhrzeit an dem Tag (ymd); heute nur noch einer, der nicht vorbei ist */
+    function naechsterTermin(ymd) {
+        try {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd || '')) || typeof calendarEntries === 'undefined' || !Array.isArray(calendarEntries)) return null;
+            const jetztMs = Date.now(), liste = [];
+            calendarEntries.forEach(e => {
+                if (!e || !e.isoDate || /^\d{4}-\d{2}-\d{2}$/.test(String(e.isoDate))) return;   // nur Termine mit Uhrzeit
+                const d = new Date(e.isoDate); if (isNaN(d.getTime())) return;
+                if (d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }) !== ymd) return;
+                if (d.getTime() < jetztMs) return;
+                try { if (typeof isBirthdayEntry === 'function' && isBirthdayEntry(e)) return; } catch (x) { }
+                liste.push({ ms: d.getTime(), text: String(e.text || '').trim(), ort: String(e.location || '').trim(), hm: d.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }) });
+            });
+            liste.sort((a, b) => a.ms - b.ms);
+            return liste[0] || null;
+        } catch (e) { return null; }
+    }
+    /* Abfahrt zu einem Termin über die vorhandene Fähigkeit "abfahrt" (Fahrzeit, Verkehr, Puffer); Ziel = Ort des Termins, sonst sein Name (z. B. Zahnarzt) */
+    async function terminAbfahrt(text, t) {
+        const dazu = t.text ? ' (' + t.text + ')' : '';
+        try {
+            const R = window.jvRegistry;
+            if (!R || typeof R.fuehreAus !== 'function') { sagen('Die Abfahrtsplanung ist gerade nicht verfügbar.', false); return; }
+            const ziel = t.ort || t.text;
+            if (!ziel) { sagen('Wohin musst du zu dem Termin um ' + t.hm + ' Uhr?', true); return; }
+            const r = await R.fuehreAus('abfahrt', { ziel, ankunft: t.hm, tag: new Date(t.ms).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }) });
+            const antwort = String((r && r.nachricht) || '').trim();
+            if (!antwort) { sagen('Die Abfahrt zu deinem Termin' + dazu + ' konnte ich gerade nicht berechnen.', false); return; }
+            const frage = r.status === 'NEEDS_INFORMATION';
+            sagen(antwort, frage);
+            if (r.status === 'SUCCESS') kontextMerken(text, antwort, { tag: new Date(t.ms).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }) });
+        } catch (e) { sagen('Die Abfahrt zu deinem Termin konnte ich gerade nicht berechnen.', false); }
+    }
     function mitFang(text, fn) {
         if (fang) return fn();   // läuft schon in einem fangenden Befehl
         fang = [];
         let r = false;
-        try { r = fn(); } finally { const f = fang; fang = null; if (r === true && f && f.length) kontextMerken(text, f.join(' ')); }
+        try { r = fn(); } finally { const f = fang; fang = null; if (r === true && f && f.length) kontextMerken(text, f.join(' '), { tag: (() => { try { return tagAusSatz(norm(text)) || undefined; } catch (e) { return undefined; } })() }); }
         return r;
     }
     function sagen(t, weiter) {
@@ -1063,12 +1099,21 @@
             }
             return true;
         }
+        // Kurze Abfahrtsfrage ohne Ziel: gilt für das Thema der Antwort davor (Arbeit -> Aufbruchszeit, Termin -> Abfahrt zum Termin, sonst unverändert weiter)
+        let kurzArbeit = false, kurzTag = null;
+        if (KURZ_LOS.test(t)) {
+            const th = kontextThema(), tg = th && th.daten && /^\d{4}-\d{2}-\d{2}$/.test(String(th.daten.tag || '')) ? th.daten.tag : null;
+            if (th && th.name === 'tag') { const e = naechsterTermin(tg); if (e) { terminAbfahrt(text, e); return true; } }
+            if (th && th.name === 'arbeit') { kurzArbeit = true; kurzTag = tg; }
+            else if (th && th.name === 'tag' && tg && schichtAm(tg)) { kurzArbeit = true; kurzTag = tg; }
+            if (!kurzArbeit) return next(text);   // kein frisches Thema: unverändert der bisherige Weg (KI mit dem Verlauf, sie fragt selbst nach Ziel und Uhrzeit)
+        }
         // Aufbruchszeit jederzeit; eine zweite Frage nach "und" ("... losfahren und wie wird das Wetter?") geht nach der Abfahrtsantwort normal weiter und geht nicht verloren
         const zweite = /^(.*?\b(?:los\s?fahren|aufbrechen|abfahren|aufbruchszeit)\b[^?]*?)\s+und\s+((?:wie|was|wann|wo|wer|welch\w*|wieviel\w*|gibt|ist|sind|hat|hab\w*|muss\w*|kann\w*|soll\w*|brauch\w*|bin|regn\w*)\b.*)$/i.exec(String(text || '').replace(/\s+/g, ' ').trim());
         const tA = zweite ? norm(zweite[1]) : t, rest = zweite ? zweite[2].replace(/[.!?\s]+$/, '') : '';
-        if (/\baufbruchszeit\b/.test(tA) || /\bwann\b.*\b(zur arbeit|zum arbeitsplatz|auf die arbeit)\b.*\b(los|fahren|losfahren|aufbrechen|abfahren)\b/.test(tA) || /\bwann (muss|soll|sollte) ich\b.*\b(los|losfahren|aufbrechen)\b.*\barbeit\b/.test(tA)) {
+        if (kurzArbeit || /\baufbruchszeit\b/.test(tA) || /\bwann\b.*\b(zur arbeit|zum arbeitsplatz|auf die arbeit)\b.*\b(los|fahren|losfahren|aufbrechen|abfahren)\b/.test(tA) || /\bwann (muss|soll|sollte) ich\b.*\b(los|losfahren|aufbrechen)\b.*\barbeit\b/.test(tA)) {
             (async () => {
-                const heute = jetzt().ymd, genannt = tagAusSatz(tA);   // genannter Tag ("übermorgen", "am Dienstag") gilt; sonst heute oder der nächste Arbeitstag
+                const heute = jetzt().ymd, genannt = tagAusSatz(tA) || kurzTag;   // genannter Tag ("übermorgen", "am Dienstag") gilt; sonst heute oder der nächste Arbeitstag
                 let ymd = genannt || heute;
                 if (genannt && !schichtAm(genannt)) { sagen(nichtArbeitAntwort(genannt), false); return; }
                 if (!genannt && (!schichtAm(ymd) || jetzt().min >= beginn(schichtAm(ymd), ymd))) {   // heute nichts mehr: nächster Arbeitstag
@@ -1117,7 +1162,7 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { terminText, weckerStand, beginn, setBeginnTag, beginnTag, briefingVor, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, ankunft, vorher, vorherStd, setVorher, vorherTag, setVorherTag, stauAn, setStauAn, setBeginn, setEnde, endeTag, setEndeTag, auskunftSatz: (text) => mitFang(text, () => auskunftSatz(text)), einmaligSatz, schichtOhneUrlaub, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { terminText, weckerStand, beginn, setBeginnTag, beginnTag, briefingVor, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, ankunft, vorher, vorherStd, setVorher, vorherTag, setVorherTag, stauAn, setStauAn, setBeginn, setEnde, endeTag, setEndeTag, auskunftSatz: (text) => mitFang(text, () => auskunftSatz(text)), tagAusFrage: (text) => tagAusSatz(norm(text)), einmaligSatz, schichtOhneUrlaub, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);
