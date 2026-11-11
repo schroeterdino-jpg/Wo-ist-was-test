@@ -217,6 +217,11 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
     A = umgebung(); A.sb.jvChef.an();
     r = await chef(A, 'Ich möchte Samstag mit meiner Frau etwas unternehmen');
     check('P1 Planungsablauf: nennt ehrlich die fehlenden Fähigkeiten (Kalender, Wetter, Ausflug), fragt gezielt, sucht noch nichts', /fehlen mir noch Fähigkeiten/.test(r.text) && /kalender lesen/.test(r.text) && /wetter lesen/.test(r.text) && /Wonach soll ich/.test(r.text) && A.st.places_n === 0 && A.exec === 0 && r.aus.fehlendeFaehigkeiten.join() === 'kalender_lesen,wetter_lesen,ausflug_vorschlagen', r.text);
+    {   /* Schreibwunsch + fehlende Chef-Fähigkeit: Satz geht an den alten KI-Weg, kein "fehlt mir" */
+        const B = umgebung(); B.sb.jvChef.an(); const alt = []; B.sb.sendToGroqSmart = t => { alt.push(t); };
+        const rb = await chef(B, 'Trag bitte Samstag mit meiner Frau etwas unternehmen ein');
+        check('P1b Schreibwunsch ohne passende Chef-Fähigkeit: Satz geht an den alten KI-Weg, es kommt kein "fehlen mir Fähigkeiten"', alt.length === 1 && !/fehlen mir noch Fähigkeiten/.test(rb.text), JSON.stringify([alt, rb.text]));
+    }
     r = await chef(A, 'Restaurant');
     check('P2 nach der Antwort läuft die Ortssuche (der einzige sichere Schritt), danach sind Folgefragen möglich', A.st.places_n === 1 && G(A).status().listen.length === 1);
     r = await sag(A, 'Das erste gefällt mir');
