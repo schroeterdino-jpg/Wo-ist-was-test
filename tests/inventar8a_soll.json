@@ -15,11 +15,11 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 375,
+  "repoDateien": 376,
   "produktJs": 182,
-  "jsZeilen": 48548,
-  "jsBytes": 3555210,
-  "jsGzip": 1055776,
+  "jsZeilen": 48551,
+  "jsBytes": 3555579,
+  "jsGzip": 1055867,
   "scriptTags": 188,
   "eigeneScripts": 182,
   "drittScripts": 2,
