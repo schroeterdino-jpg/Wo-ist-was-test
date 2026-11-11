@@ -115,7 +115,7 @@ function matchWorldCommand(text) {
     // "Zeig mir auf der Weltkugel, wo ich bin" / "Weltkugel, wo befinde ich mich" / "Mein Standort auf der Welt"
     if (/\b(welt|weltkugel|globus|kugel)\b/.test(low) && /\b(wo (bin ich|befinde ich mich)|mein(en|e|er)? standort|meine position)\b/.test(low)) return { place: '', mode: 'mystandort' };
     if (/\b(weltkugel|globus)\b/.test(low) || /(auf|in) der welt\b|weltweit|zeig\w*\s+(mir\s+)?(bitte\s+)?die welt\b/.test(low)) return { place: '' };
-    if (!/(\blos\b|passiert|geschieht|nachrichten|\bnews\b|neuigkeiten|\bneues\b|\blage\b|sieht es .* aus|was läuft|was geht)/.test(low)) return null;
+    if (!/(\bwas\b.*\blos\b|passiert|geschieht|nachrichten|\bnews\b|neuigkeiten|\bneues\b|\blage\b|sieht es .* aus|was läuft|was geht)/.test(low)) return null;   // "los" zählt nur in "Was ist ... los", nicht in "Wann fahre ich los"
     if (/\b(wetter|regen|regenschirm|temperatur|grad|sprit|benzin|diesel|preise?|fahrzeit|fahrt|stau|restaurants?|essen|hotels?|termine?|kalender|listen?|einkaufsliste|gedächtnis|erinnerung(?:en)?|paket|mails?|briefing|parkplatz)\b/.test(low)) return null;
     const m = t.match(/(?:^|\s)(?:in|aus|von|über|mit|um)\s+(?:(?:der|dem|den|die|das)\s+)?(.+?)(?:\s+(?:gerade|aktuell|jetzt|heute|los|neu|neues|passiert|geschieht|aus|denn|eigentlich))*$/i);
     if (!m) return null;

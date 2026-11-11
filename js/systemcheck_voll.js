@@ -496,6 +496,32 @@
             automatischRepariert: false };
     };
 
+    /* Verständliche Erklärung ohne KI-Kosten und ohne falsche Erfolgsmeldung. */
+    window.jvDiagnoseErklaeren = function (pruefungen) {
+        const res = Array.isArray(pruefungen) ? pruefungen : [];
+        const fehler = res.filter(function (r) { return r.ok === false; });
+        const hinweise = res.filter(function (r) { return r.ok === null; });
+        const faehigkeiten = window.jvFaehigkeitsDiagnose(res);
+        const betroffen = faehigkeiten.filter(function (f) { return f.status === 'problem'; });
+        const grenzen = faehigkeiten.filter(function (f) {
+            const daten = window.jvFaehigkeiten && window.jvFaehigkeiten.nach && window.jvFaehigkeiten.nach(f.id);
+            return daten && Array.isArray(daten.bekannteGrenzen) && daten.bekannteGrenzen.length;
+        });
+        const saetze = ['Ich habe ' + res.length + ' technische Prüfungen ausgewertet.'];
+        if (fehler.length) {
+            saetze.push('Dabei habe ich ' + fehler.length + (fehler.length === 1 ? ' Problem gefunden.' : ' Probleme gefunden.'));
+            fehler.slice(0, 3).forEach(function (r) {
+                saetze.push('Bei ' + r.name + ': ' + r.text + '.' + (r.fix ? ' Vorschlag: ' + r.fix + '.' : ''));
+            });
+            if (fehler.length > 3) saetze.push('Weitere Probleme findest du im vollständigen Systemcheck.');
+        } else saetze.push('Bei den durchgeführten technischen Prüfungen wurde kein Fehler erkannt.');
+        if (hinweise.length) saetze.push('Dazu gibt es ' + hinweise.length + (hinweise.length === 1 ? ' Hinweis.' : ' Hinweise.'));
+        if (betroffen.length) saetze.push('Betroffene Fähigkeiten sind zum Beispiel: ' + betroffen.slice(0, 3).map(function (f) { return f.name; }).join(', ') + '.');
+        if (grenzen.length) saetze.push('Für ' + grenzen.length + (grenzen.length === 1 ? ' Fähigkeit ist' : ' Fähigkeiten sind') + ' außerdem eine oder mehrere bekannte Einschränkungen dokumentiert.');
+        saetze.push('Das ist kein vollständiger Praxistest aller Fähigkeiten.');
+        return { text: saetze.join(' '), probleme: fehler.length, hinweise: hinweise.length, betroffen: betroffen.map(function (f) { return f.name; }) };
+    };
+
     /* Namen, die andere Dateien noch benutzen (localcommands.js ruft isSystemCheckCommand) */
     window.checkWithTimeout = (p, ms) => mit(p, ms, 'Zeitüberschreitung');
     window.isSystemCheckCommand = function (text) {
@@ -585,9 +611,7 @@
                 });
             }
             if (bad.length && typeof showActionCards === 'function') showActionCards(bad.slice(0, 6).map(r => ({ icon: '❌', title: r.name, subtitle: r.text + (r.fix ? ' → ' + r.fix : '') })));
-            const sag = bad.length === 0
-                ? 'Systemcheck abgeschlossen. Alle ' + res.length + ' Prüfungen sind in Ordnung.' + (hin.length ? ' ' + (hin.length === 1 ? 'Ein Hinweis' : hin.length + ' Hinweise') + ' stehen im Menü.' : '')
-                : 'Systemcheck abgeschlossen. ' + (bad.length === 1 ? 'Ein Problem' : bad.length + ' Probleme') + ': ' + bad.map(r => r.name).join(', ') + '. Die Lösungen stehen unten.';
+            const sag = window.jvDiagnoseErklaeren(res).text;
             if (typeof speak === 'function') speak(sag, typeof continueConversation === 'function' ? continueConversation : undefined);
         } catch (e) { try { speak('Der Systemcheck ist leider fehlgeschlagen.'); } catch (x) {} }
     };
@@ -667,6 +691,9 @@
                         lines.push('Letzter erfolgreicher Abruf: ' + zeit(n.lastSuccess));
                         lines.push('Letzter HTTP-Status: ' + (n.lastHttp || 'unbekannt'));
                         lines.push('Letzter Netzwerkfehler: ' + (n.lastError || 'keiner protokolliert'));
+                        lines.push('Exakte Android-Alarme erlaubt: ' + (n.alarmAllowed === true ? 'ja' : n.alarmAllowed === false ? 'nein' : 'unbekannt'));
+                        lines.push('Android-Wecker: ' + (n.alarmState || 'Status erst mit neuer APK sichtbar'));
+                        if (n.alarmAt) lines.push('Naechster geplanter Abruf: ' + zeit(n.alarmAt));
                     } else {
                         lines.push('APK-Diagnose: erst nach Installation der neuen APK verfügbar');
                     }

@@ -52,7 +52,11 @@
                                 return;
                             }
                             const rrule = fest && typeof buildRecurrenceRule === 'function' ? buildRecurrenceRule('JAHR', 1) : (typeof buildRecurrenceRule === 'function' ? buildRecurrenceRule(action.calendar_recurrence_unit, action.calendar_recurrence_interval) : null);
-                            const done = await addGoogleCalendarEvent(titel, tag + 'T12:00:00', '', rrule, true);
+                            const ende = String(action.calendar_end_date || action.calendar_end || '').slice(0, 10);
+                            const endTag = !fest && /^\d{4}-\d{2}-\d{2}$/.test(ende) && ende >= tag ? ende : undefined;
+                            const done = endTag
+                                ? await addGoogleCalendarEvent(titel, tag + 'T12:00:00', '', rrule, true, endTag)
+                                : await addGoogleCalendarEvent(titel, tag + 'T12:00:00', '', rrule, true);
                             if (done === false && typeof googleNotSynced === 'function') googleNotSynced(ctx, 'Der Eintrag ist nur in der App gespeichert, das Handy klingelt dazu nicht');
                             // wie bei normalen Terminen: den echten Google Kalender als sichtbare Bestätigung öffnen
                             if (done !== false) { try { if (typeof openGoogleCalendarApp === 'function') openGoogleCalendarApp(tag + 'T12:00:00'); } catch (e) { } }

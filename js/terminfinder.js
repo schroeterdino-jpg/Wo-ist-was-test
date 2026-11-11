@@ -43,7 +43,8 @@
     function verstehen(raw) {
         const t = norm(raw);
         if (!t || t.split(' ').length > 28) return null;
-        if (/^(?:wann|was|wie|wo|wer|warum|wieso|welche\w*)\b/.test(t) && !/\bwann\s+(?:habe|hab|kann|koennte|hat|haben)\s+(?:ich|wir)\s+(?:mal\s+)?zeit\b/.test(t)) return null;
+        const frage = t.replace(/^(?:(?:hey )?(?:jarvis|zane) )?(?:bitte )?(?:(?:sag mal|kannst du mir sagen|koenntest du mir sagen|ich wollte mal wissen|ich moechte mal wissen|ich moechte wissen|ich wollte wissen|ich wollte fragen|weisst du)\s+)?/, '');   // Einleitungen wie "Ich wollte mal wissen:" machen aus einer Frage keinen Wunsch
+        if (/^(?:wann|was|wie|wo|wer|warum|wieso|welche\w*|gibt es|gibt|ist|sind)\b/.test(frage) && !/\bwann\s+(?:habe|hab|kann|koennte|hat|haben)\s+(?:ich|wir)\s+(?:mal\s+)?zeit\b/.test(t)) return null;
         if (ZEIT_FIX.test(t)) return null;
         if (/\b(?:erinner\w*|anruf\w*|anrufen|ruf\w*\s+\w+\s+an|schreib\w*|nachricht\w*|whatsapp|termin\s+eintrag\w*|trag\w*\s+(?:mir\s+)?(?:den\s+)?termin|hinzufueg\w*)\b/.test(t)) return null;
         const wunsch = /\b(?:muesste|muess\w*|muss|sollte|will|moechte|moechten|wollte|wollen|wuerde|haette\s+lust|waere\s+gut|waere\s+mal|sollen)\b/.test(t) || /\bwann\s+(?:habe|hab|kann|koennte)\s+ich\s+(?:mal\s+)?zeit\b/.test(t) || /\b(?:finde|such)\w*\s+(?:mir\s+)?(?:eine?\s+)?(?:zeit|termin)\b/.test(t);
