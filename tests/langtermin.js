@@ -55,6 +55,15 @@ function neu(aktion) {
         await A.frag('Trag Zahnarzt morgen um neun ein');
         check('6a Einzeltermin: genau ein Eintrag, nicht ganztägig', A.eintraege.length === 1 && A.eintraege[0][4] !== true, JSON.stringify(A.eintraege));
     }
+    {   /* Chef-KI AN: der Satz aus dem Handy-Test darf nicht als Ausflug-/Wetterfrage übernommen werden */
+        const A = neu({ type: 'calendar', calendar_text: 'Schulung', calendar_time: '2026-11-23T09:00:00', calendar_end_date: '2026-12-12', calendar_weekdays_only: true });
+        A.sb.jvChef.an();
+        const uebernommen = A.sb.jvChef.kiWeg('trag bitte ein vom 23. November bis 12. Dezember Schulung außer Wochenende');
+        check('7a Chef-KI an: Satz mit Zeitraum geht an den Kalender-Weg (kiWeg gibt false)', uebernommen === false, String(uebernommen));
+        A.sb.jvChef.aus(); A.sb.jvChef.an();
+        await A.frag('trag bitte ein vom 23. November bis 12. Dezember Schulung außer Wochenende');
+        check('7b Chef-KI an, ganzer Weg: drei Blöcke, keine Antwort "fehlen mir Fähigkeiten"', A.eintraege.length === 3 && A.gespr.every(t => !/Fähigkeiten/.test(t)), JSON.stringify([A.eintraege.length, A.gespr]));
+    }
     console.log(fehler ? '✗ ' + fehler + ' Fehler (' + ok + ' ok)' : '✓ alle ' + ok + ' Prüfungen bestanden');
     process.exit(fehler ? 1 : 0);
 })();
