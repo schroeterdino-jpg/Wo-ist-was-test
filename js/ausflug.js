@@ -205,7 +205,8 @@
         if (mitte.nichtGefunden) { sagen('Den Ort ' + mitte.ort + ' habe ich nicht gefunden. Sag den Ort bitte noch einmal.'); return; }
         if (!pos) { sagen('Ich kenne deinen Standort gerade nicht. Schalte die Ortung ein und frag mich noch einmal.'); return; }
         const w = await wetter(req.iso, mitte.ort ? pos : null);
-        const regen = w ? w.regen : false;
+        const wu = req.wuensche || {};
+        const regen = wu.indoor ? true : wu.outdoor ? false : (w ? w.regen : false);
         const gruppen = await sucheZiele(pos, anfragen(req.art, regen), h);
         if (!gruppen) { sagen('Die Suche nach Ausflugszielen geht gerade nicht. Versuch es gleich noch einmal.'); return; }
         const top = waehle(gruppen);
@@ -663,7 +664,7 @@
                 sagen('Gern. Wer kommt mit? Sag zum Beispiel: die Kinder, Finja oder nur wir.');
                 return true;
             }
-            (agent ? planenAgent({ iso, art: p.art, mit: p.mit, wuensche, ziel: zielOrt(raw) }) : planen({ iso, art: p.art, mit: p.mit, ziel: zielOrt(raw) })).catch(e => { console.error('Ausflug', e); sagen('Beim Planen ist etwas schiefgegangen.'); });
+            (agent ? planenAgent({ iso, art: p.art, mit: p.mit, wuensche, ziel: zielOrt(raw) }) : planen({ iso, art: p.art, mit: p.mit, wuensche, ziel: zielOrt(raw) })).catch(e => { console.error('Ausflug', e); sagen('Beim Planen ist etwas schiefgegangen.'); });
             return true;
         }
         return next(text);
