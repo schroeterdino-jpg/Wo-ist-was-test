@@ -15,7 +15,7 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 372,
+  "repoDateien": 373,
   "produktJs": 182,
   "jsZeilen": 48544,
   "jsBytes": 3554237,
@@ -29,7 +29,7 @@
   "testsJs": 93,
   "testsMd": 14,
   "testsJson": 19,
-  "workflows": 4,
+  "workflows": 5,
   "weckrufSrc": 27,
   "weckrufTest": 6,
   "tools": 1,
@@ -491,6 +491,7 @@
   "vollerGitVerlauf": false,
   "testsMitGit": [],
   "workflows": [
+   "aufraeumen.yml",
    "oww-test.yml",
    "pr-vorbereitung.yml",
    "tests.yml",
