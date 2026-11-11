@@ -88,6 +88,7 @@ assert.ok(phase2.includes('native Android-Alarmplanung vorhanden'), 'APK-Erinner
 console.log('Selbstdiagnose Phase 5: Detailbericht und sichere Reparaturplanung OK');
 
 
+<<<<<<< HEAD
 /* Verständliche Diagnose mit Problemen, Hinweisen und ehrlicher Grenze. */
 const erklärStart = phase2.indexOf('    window.jvDiagnoseErklaeren = ');
 const erklärEnd = phase2.indexOf('    /* Namen, die andere Dateien', erklärStart);
@@ -105,3 +106,15 @@ assert.match(ohneFehler.text, /kein Fehler erkannt/);
 assert.doesNotMatch(ohneFehler.text, /alle Fähigkeiten funktionieren/);
 assert.ok(phase2.includes('const sag = window.jvDiagnoseErklaeren(res).text;'), 'Sprachausgabe benutzt Erklärung');
 console.log('Verständliche Selbstdiagnose: OK');
+=======
+/* Regression: mehrtägige Ganztagstermine und normale Einzeltermine. */
+const kalenderActions = fs.readFileSync('js/actions.js', 'utf8');
+const kalenderGanztag = fs.readFileSync('js/geburtstag_ganztag.js', 'utf8');
+const kalenderCore = fs.readFileSync('js/calendar.js', 'utf8');
+assert.match(kalenderActions, /action\.calendar_end_date/);
+assert.match(kalenderActions, /ganztag && gueltigesEnde/);
+assert.match(kalenderGanztag, /true, endTag\)/);
+assert.match(kalenderGanztag, /action\.calendar_end_date/);
+assert.match(kalenderCore, /d1\.setDate\(d1\.getDate\(\) \+ 1\)/);
+console.log('Mehrtägige Kalendertermine: Weitergabe und exklusives Google-Enddatum geprüft');
+>>>>>>> origin/main
