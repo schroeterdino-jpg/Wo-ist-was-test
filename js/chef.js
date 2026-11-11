@@ -513,6 +513,12 @@
         if (res.fehlendeFaehigkeiten) aus.fehlendeFaehigkeiten = res.fehlendeFaehigkeiten;
         gespraechMerken(res);
         var vorher = res.frage;
+        /* Der Satz verlangt etwas Schreibendes (eintragen, anlegen, notieren ...), und der Chef-Plan kennt dafür keine Fähigkeit: der alte KI-Weg kann Termine, Listen und mehr. Dorthin geben, statt "fehlt mir" zu sagen. */
+        if (res.status === 'NEEDS_INFORMATION' && res.fehlendeFaehigkeiten && res.fehlendeFaehigkeiten.length && (RX_SCHREIB.test(String(text)) || /\b(?:eintrag\w*|anleg\w*|trag\w*|schreib\w*|notier\w*)\b/i.test(String(text)))) {
+            vermerke(o.eingang, 'rueckfall'); protokolliere(aus.weg, [], 'RUECKFALL_ALTER_WEG'); aus.status = 'RUECKFALL';
+            try { if (typeof window.sendToGroqSmart === 'function') window.sendToGroqSmart(text); } catch (e) { }
+            return aus;
+        }
         if (res.status === 'NEEDS_INFORMATION' && res.fehlendeFaehigkeiten && res.fehlendeFaehigkeiten.length) {
             say('Dafür fehlen mir noch Fähigkeiten: ' + res.fehlendeFaehigkeiten.map(function (n) { return n.replace(/_/g, ' '); }).join(', ') + '. Ich kann aber schon in der Nähe etwas für dich suchen. ' + (res.frage || ''));
             frageAnmelden(); offen = { at: jetzt(), parameter: res.offen.parameter, plan: res.offen.plan, text: res.offen.text };
