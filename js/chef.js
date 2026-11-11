@@ -744,9 +744,15 @@
                 ' Uhr. Das ist deine gespeicherte Planung, keine live berechnete Fahrzeit. Wetter und Verkehr für die morgige Fahrt konnte ich gerade nicht zuverlässig prüfen.';
         } catch (e) { return ''; }
     }
+    function letzterAustausch() {   // die letzte Frage und Antwort (aus dem gemeinsamen Gesprächsmerker), damit kurze Anschlussfragen verstanden werden
+        try {
+            var x = window.jvKontext && window.jvKontext.letzter ? window.jvKontext.letzter() : null;
+            return x ? ' Letzte Frage des Nutzers: "' + x.frage + '". Deine letzte Antwort: "' + x.antwort + '". Eine kurze Anschlussfrage ("und wie viele Tage noch?", "und morgen?") bezieht sich darauf: wähle dafür das passende Werkzeug, frag nicht nach.' : '';
+        } catch (e) { return ''; }
+    }
     function kontextText() {
-        if (!themaFrisch()) return '';
-        return 'Nur zur Einordnung kurzer Anschlussfragen: das letzte Thema war ' + (thema.art === 'wetter' ? 'das Wetter (Tag: ' + (thema.tag || 'heute') + (thema.ort ? ', Ort: ' + thema.ort : '') + ')' : thema.art === 'orte' ? 'eine Ortssuche' + (thema.begriff ? ' (' + thema.begriff + ')' : '') : 'eine Internetauskunft') + '.';
+        if (!themaFrisch()) return letzterAustausch().trim();
+        return letzterAustausch().trim() + ' Nur zur Einordnung kurzer Anschlussfragen: das letzte Thema war ' + (thema.art === 'wetter' ? 'das Wetter (Tag: ' + (thema.tag || 'heute') + (thema.ort ? ', Ort: ' + thema.ort : '') + ')' : thema.art === 'orte' ? 'eine Ortssuche' + (thema.begriff ? ' (' + thema.begriff + ')' : '') : 'eine Internetauskunft') + '.';
     }
     function notiz(name) { return name === 'fahrzeit' ? 'Die Fahrzeit konnte ich gerade nicht berechnen, und ich schätze sie nicht.' : name === 'abfahrt' ? 'Die Abfahrtszeit konnte ich gerade nicht berechnen, und ich schätze sie nicht.' : name === 'schicht' ? 'Im Schichtplan konnte ich gerade nichts nachsehen, und ich rate keine Zeiten.' : name === 'kontakte_lesen' ? 'Die Adresse konnte ich gerade nicht nachsehen.' : name === 'gedaechtnis_lesen' ? 'Im Gedächtnis konnte ich gerade nichts nachsehen.' : name === 'jarvis_info' ? 'Zu meinen eigenen Fähigkeiten konnte ich nichts sagen.' : name === 'foto_info' ? 'Zum Foto konnte ich nichts sagen.' : name === 'produktsuche' ? 'Bei der Produktsuche hat es leider nicht geklappt.' : name === 'websuche' ? 'Bei der Internetsuche hat es leider nicht geklappt.' : name === 'wetter' ? 'Die Wetterdaten waren gerade nicht erreichbar.' : 'Bei der Ortssuche hat es leider nicht geklappt.'; }
     function mitRest(p, ende) {
@@ -1232,6 +1238,7 @@
             if (r.karten && r.karten.length) karten(r.karten);
             if (arbeitsMorgenKombi) r.text += ' Hinweis: Die Verkehrsabfrage zeigt nur die aktuelle Lage, keine verlässliche Stauprognose für morgen.';
             say(r.text);                                                  // EINE zusammenhängende Antwort
+            try { if (window.jvKontext && window.jvKontext.notiere) window.jvKontext.notiere(text, r.text); } catch (e) { }
             protokolliere('ki', plan.schritte.map(function (x) { return x.faehigkeit; }), 'SUCCESS');
         } catch (e) {
             try { clearTimeout(timer); } catch (x) { }

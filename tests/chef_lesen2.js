@@ -10,13 +10,13 @@ function check(name, b, info) { if (b) { ok++; return; } fehler++; console.log('
 const ant = d => ({ ok: true, status: 200, json: async () => d });
 const warte = async n => { for (let i = 0; i < (n || 40); i++) await new Promise(r => setImmediate(r)); };
 
-function neu(chef) {
-    const st = { plan: { schritte: [] }, ent: 0 };
-    const A = starte({ jetzt: '2026-11-11T10:00:00+01:00', festerZufall: true, spracherkennung: true, fetch: async (u, o) => {
+function neu(chef, echt) {
+    const st = { plan: { schritte: [] }, ent: 0, prompts: [] };
+    const A = starte({ jetzt: '2026-11-11T10:00:00+01:00', festerZufall: true, echtesSpeak: !!echt, spracherkennung: true, fetch: async (u, o) => {
         u = String(u);
         if (/api\/groq/.test(u)) {
             let m = []; try { m = JSON.parse(o.body).messages || []; } catch (e) { }
-            if (m[0] && /Du planst für einen Sprachassistenten/.test(String(m[0].content))) { st.ent++; return ant({ choices: [{ message: { content: JSON.stringify(st.plan) } }] }); }
+            if (m[0] && /Du planst für einen Sprachassistenten/.test(String(m[0].content))) { st.ent++; st.prompts.push(m.map(x => String(x.content)).join('\n')); return ant({ choices: [{ message: { content: JSON.stringify(st.plan) } }] }); }
             return ant({ choices: [{ message: { content: JSON.stringify({ reply: 'KI-ANTWORT', actions: [] }) } }] });
         }
         throw new Error('offline ' + u);
@@ -82,6 +82,20 @@ const schritt = (f, params) => ({ schritte: [{ faehigkeit: f, params: params || 
         const C = neu(true);
         const s3 = await C.sage('Wann ist denn der nächste Vollmond', schritt('vollmond'));
         check('9c Vollmond: Antwort kommt (lokaler Befehl oder Werkzeug)', /Vollmond/.test(s3), s3);
+    }
+    {   /* Anschlussfrage: die letzte Frage und Antwort gehen an den Entscheider (echte Sprech-Kette, dort merkt sich die Gesprächshilfe die Antwort) */
+        const A = neu(true, true);
+        const lauf = async (satz, plan) => { if (plan) A.st.plan = plan; await A.lassLaufen(async () => { A.sb.jvTippen(satz); await warte(80); }); await A.lassLaufen(async () => { await warte(60); }); return A.sb.jvKontext.letzter(); };
+        const l1 = await lauf('Wann ist der nächste Vollmond');
+        check('10a die Antwort auf die Vollmond-Frage wird als letzte Antwort gemerkt', !!l1 && /Vollmond/.test(l1.antwort) && /Vollmond/.test(l1.frage), JSON.stringify(l1));
+        const n0 = A.st.prompts.length;
+        const l2 = await lauf('Und wie viele Tage sind es noch', schritt('vollmond'));
+        const p = A.st.prompts.slice(n0).join('\n');
+        check('10b der Entscheider bekommt Frage und Antwort der letzten Runde mit', /Letzte Frage des Nutzers: "Wann ist der nächste Vollmond"/.test(p) && /Deine letzte Antwort: "[^"]*Vollmond/.test(p), p.slice(-300));
+        check('10c die Anschlussfrage wird mit dem Werkzeug beantwortet, keine Rückfrage', !!l2 && /Und wie viele Tage/.test(l2.frage) && /Vollmond/.test(l2.antwort) && !/beziehst/.test(l2.antwort), JSON.stringify(l2));
+        const B = neu(true, true);
+        await B.lassLaufen(async () => { B.sb.jvTippen('Und wie viele Tage sind es noch'); await warte(80); });
+        check('10d ohne vorherige Runde steht kein altes Gespräch im Auftrag', B.st.prompts.length >= 1 && !/Letzte Frage des Nutzers/.test(B.st.prompts.join('\n')), String(B.st.prompts.length));
     }
     console.log(fehler ? '✗ ' + fehler + ' Fehler (' + ok + ' ok)' : '✓ alle ' + ok + ' Prüfungen bestanden');
     process.exit(fehler ? 1 : 0);
