@@ -667,6 +667,9 @@
                         lines.push('Letzter erfolgreicher Abruf: ' + zeit(n.lastSuccess));
                         lines.push('Letzter HTTP-Status: ' + (n.lastHttp || 'unbekannt'));
                         lines.push('Letzter Netzwerkfehler: ' + (n.lastError || 'keiner protokolliert'));
+                        lines.push('Exakte Android-Alarme erlaubt: ' + (n.alarmAllowed === true ? 'ja' : n.alarmAllowed === false ? 'nein' : 'unbekannt'));
+                        lines.push('Android-Wecker: ' + (n.alarmState || 'Status erst mit neuer APK sichtbar'));
+                        if (n.alarmAt) lines.push('Naechster geplanter Abruf: ' + zeit(n.alarmAt));
                     } else {
                         lines.push('APK-Diagnose: erst nach Installation der neuen APK verfügbar');
                     }
