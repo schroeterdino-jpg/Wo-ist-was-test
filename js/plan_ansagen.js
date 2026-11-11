@@ -644,6 +644,7 @@
             if (typeof isProcessing !== 'undefined' && isProcessing) return false;
             if (typeof isSpeaking === 'function' && isSpeaking()) return false;
             if (document.getElementById('jvBoot')) return false;   // Startanimation läuft noch: erst danach sprechen
+            if (window.jvKontext && window.jvKontext.aktiv && window.jvKontext.aktiv()) return false;   // du sprichst gerade mit Jarvis: Ansage wartet (kontext_lokal.js)
             return true;
         } catch (e) { return true; }
     }
@@ -659,7 +660,7 @@
         id = String(id || ''); if (!id) return false;
         if (!erzwingen && !angetippt && gesagt().includes(id)) return false;
         const art = id.split('|')[0], ymd = id.split('|')[1] || jetzt().ymd, nu = jetzt();
-        if (!(await warteBereit(30000))) return false;
+        if (!(await warteBereit(100000))) return false;   // bis zu 100 Sekunden: so lange kann ein Gespräch die Ansage zurückhalten
         if (!erzwingen) {   // abgelaufene Ansage (zum Beispiel alte Meldung angetippt): nichts sagen
             if (art === 'wochen' && nu.ymd !== ymd) return false;
             if (art === 'aufbruch' && (nu.ymd !== ymd || nu.min >= beginn(schichtAm(ymd) || 'frueh', ymd))) return false;

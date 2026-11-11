@@ -8,6 +8,7 @@
       Sie tragen ihre fertige Antwort deshalb selbst ein: jvKontext.merke(frage, antwort, { name: 'arbeit' | 'tag' | ..., daten: {...} }).
       Es wird nur eingetragen, was ein Befehl ausdrücklich meldet (keine Mails, Bankdaten oder andere private Antworten) und nie eine Rückfrage (Antwort endet mit "?").
       Eingetragen wird in den vorhandenen Verlauf (chatHistory) und als Gesprächsabsicht in jvGespraech; keine neue Ablage.
+      jvKontext.aktiv(ms) sagt, ob gerade ein Gespräch läuft (Ansagen von selbst warten dann).
       jvKontext.thema(maxMs) liefert das Thema nur für den unmittelbar nächsten Satz (voice.js meldet jeden Nutzersatz mit jvKontext.eingang()) und nur, wenn seitdem nichts anderes in den Verlauf kam.
    Braucht: voice.js (speak), localcommands.js (handleLocalCommand), assistant.js (chatHistory). Muss ganz am Ende der Skripte geladen werden.
    ============================================================ */
@@ -46,8 +47,11 @@
     }
     function remember(userText, spoken) { eintragen(userText, spoken, null, true); }
 
+    let letzterEingangMs = 0;         // Zeit des letzten Nutzersatzes
     window.jvKontext = {
-        eingang: function () { eingangNr++; },
+        eingang: function () { eingangNr++; letzterEingangMs = Date.now(); },
+        /* Läuft gerade ein Gespräch? (letzter Nutzersatz vor weniger als ms, Standard 90 Sekunden). Ansagen von selbst (Briefing, Aufbruchszeit, Wächter) warten dann. */
+        aktiv: function (ms) { return letzterEingangMs > 0 && Date.now() - letzterEingangMs < (ms > 0 ? ms : 90000); },
         merke: function (frage, antwort, thema) {
             const a = String(antwort == null ? '' : antwort).trim();
             if (!a || /\?\s*$/.test(a)) return false;   // keine Rückfragen: die verwaltet der jeweilige Befehl selbst
