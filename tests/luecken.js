@@ -26,7 +26,9 @@ function neu(antwort) {
     check('1a Erkennung: "Das weiß ich nicht" und "Das kann ich leider nicht" sind Lücken', L.luecke('Das weiß ich leider nicht.') && L.luecke('Das kann ich leider noch nicht.') && L.luecke('Dazu habe ich keine Informationen.'));
     check('1b normale Antworten sind keine Lücke', !L.luecke('Morgen wird es sonnig bei 8 Grad.') && !L.luecke('Der nächste Vollmond ist am 24. November.'));
     check('1c technische Aussetzer sind keine Lücke', !L.luecke('Die Fahrzeit konnte ich gerade nicht berechnen.') && !L.luecke('Ich komme gerade nicht ans Internet, das weiß ich nicht.'));
-    check('1d lange Antworten sind keine Lücke', !L.luecke('Das weiß ich nicht. ' + 'x'.repeat(260)));
+    check('1d lange Antworten: nur der Anfang zählt, spätes "kann ich nicht" mitten in einer Auskunft ist keine Lücke', !L.luecke('Der Vollmond ist am 24. November und dauert etwa eine Nacht. ' + 'x'.repeat(200) + ' Das weiß ich nicht genau.'));
+    check('1e Pizza-Fall: "Leider kann ich keine Bestellung ausführen, aber ..." ist eine Lücke, auch lang', L.luecke('Leider kann ich keine Bestellung für dich ausführen, aber ich kann dir schnell ein paar gute Pizzerien in deiner Nähe heraussuchen oder die Telefonnummern bereitstellen, damit du gleich anrufen kannst.') && L.luecke('Ich kann leider nicht telefonieren.') && L.luecke('Dafür bin ich nicht in der Lage.'));
+    check('1f normale Sätze mit "kann ich" bleiben ohne Eintrag', !L.luecke('Gern, das kann ich für dich tun.') && !L.luecke('Klar, ich kann dir den Weg zeigen.'));
     {   /* über den echten Sprachweg */
         const A = neu('Das weiß ich leider nicht.');
         await A.frag('Wie viele Sterne hat der Himmel über Schwarzenbek');
