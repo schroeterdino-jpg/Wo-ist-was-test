@@ -86,3 +86,22 @@ assert.equal(report.vollstaendigerFunktionstest, false);
 assert.equal(report.automatischRepariert, false);
 assert.ok(phase2.includes('native Android-Alarmplanung vorhanden'), 'APK-Erinnerung nicht mit Browser-Push verwechseln');
 console.log('Selbstdiagnose Phase 5: Detailbericht und sichere Reparaturplanung OK');
+
+
+/* Verständliche Diagnose mit Problemen, Hinweisen und ehrlicher Grenze. */
+const erklärStart = phase2.indexOf('    window.jvDiagnoseErklaeren = ');
+const erklärEnd = phase2.indexOf('    /* Namen, die andere Dateien', erklärStart);
+assert.ok(erklärStart > 0 && erklärEnd > erklärStart);
+const sprache = { window: { jvFaehigkeitsDiagnose: () => [], jvFaehigkeiten: { nach: () => null } } };
+vm.runInNewContext(phase2.slice(erklärStart, erklärEnd), sprache);
+const erkläre = sprache.window.jvDiagnoseErklaeren;
+const ergebnis = erkläre([{ name: 'Kalender', ok: false, text: 'Verbindung abgelaufen', fix: 'Google neu verbinden' }, { name: 'Push', ok: null, text: 'nicht angemeldet' }]);
+assert.equal(ergebnis.probleme, 1);
+assert.equal(ergebnis.hinweise, 1);
+assert.match(ergebnis.text, /Google neu verbinden/);
+assert.match(ergebnis.text, /kein vollständiger Praxistest/);
+const ohneFehler = erkläre([{ name: 'Wetter', ok: true, text: 'Daten kommen an' }]);
+assert.match(ohneFehler.text, /kein Fehler erkannt/);
+assert.doesNotMatch(ohneFehler.text, /alle Fähigkeiten funktionieren/);
+assert.ok(phase2.includes('const sag = window.jvDiagnoseErklaeren(res).text;'), 'Sprachausgabe benutzt Erklärung');
+console.log('Verständliche Selbstdiagnose: OK');
