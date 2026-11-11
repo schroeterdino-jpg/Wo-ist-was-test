@@ -15,6 +15,53 @@ function buildRecurrenceRule(unit, interval) {
     return `RRULE:FREQ=${freq}${n > 1 ? ';INTERVAL=' + n : ''}`;
 }
 
+/* ============ Langzeittermine: "Schulung vom 23. November bis 12. Dezember, jeden Werktag" ============
+   langterminAusSatz(text, ref): erkennt "vom <Tag>. [<Monat>] bis <Tag>. <Monat>" im Satz (Rückfall, falls die KI kein Enddatum liefert).
+   langterminBloecke(startTag, endTag, nurWerktage): zerlegt den Zeitraum in ganztägige Blöcke; ohne Wochenende (Sa/So) wird pro Woche ein Block (Mo-Fr).
+   Alle Tage sind Datumstexte JJJJ-MM-TT, gerechnet in UTC, damit keine Zeitumstellung stört. */
+const LANGTERMIN_MONATE = { januar: 1, februar: 2, märz: 3, maerz: 3, april: 4, mai: 5, juni: 6, juli: 7, august: 8, september: 9, oktober: 10, november: 11, dezember: 12 };
+function langterminTag(j, m, d) { return j + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
+function langterminAusSatz(text, ref) {
+    const t = String(text || '');
+    const mon = 'januar|februar|märz|maerz|april|mai|juni|juli|august|september|oktober|november|dezember';
+    const D = '(\\d{1,2})\\.\\s*(?:(' + mon + ')|(\\d{1,2})\\.?)?';
+    const m = t.match(new RegExp('\\b(?:vom|von)\\s+' + D + '\\s*(?:bis|-)\\s*(?:zum\\s+|einschließlich\\s+)?' + D, 'i'));
+    if (!m) return null;
+    const r = ref instanceof Date ? ref : new Date();
+    const heute = langterminTag(r.getFullYear(), r.getMonth() + 1, r.getDate());
+    const mon2 = m[5] ? LANGTERMIN_MONATE[m[5].toLowerCase()] : (m[6] ? +m[6] : 0);
+    const mon1 = m[2] ? LANGTERMIN_MONATE[m[2].toLowerCase()] : (m[3] ? +m[3] : mon2);
+    const d1 = +m[1], d2 = +m[4];
+    if (!mon1 || !mon2 || d1 < 1 || d1 > 31 || d2 < 1 || d2 > 31 || mon1 > 12 || mon2 > 12) return null;
+    let jahr = r.getFullYear();
+    let start = langterminTag(jahr, mon1, d1);
+    if (start < heute) { jahr += 1; start = langterminTag(jahr, mon1, d1); }
+    let ende = langterminTag(mon2 < mon1 ? jahr + 1 : jahr, mon2, d2);
+    if (ende < start) return null;
+    return { start: start, ende: ende };
+}
+function langterminBloecke(startTag, endTag, nurWerktage) {
+    const tag = s => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+    const text = ms => { const d = new Date(ms); return langterminTag(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate()); };
+    const bloecke = [];
+    let aktuell = null;
+    for (let ms = tag(startTag); ms <= tag(endTag); ms += 86400000) {
+        const wt = new Date(ms).getUTCDay();   // 0 = Sonntag, 6 = Samstag
+        const frei = nurWerktage && (wt === 0 || wt === 6);
+        if (frei) { aktuell = null; continue; }
+        if (!aktuell) { aktuell = { start: text(ms), ende: text(ms) }; bloecke.push(aktuell); } else aktuell.ende = text(ms);
+    }
+    return bloecke;
+}
+function langterminNurWerktage(text) {
+    return /au(?:ß|ss)er\s+(?:am\s+|an\s+den\s+)?wochenend|ohne\s+(?:das\s+)?wochenende|werktag|montags?\s+bis\s+freitags?|von\s+montag\s+bis\s+freitag|wochentags|nur\s+(?:an\s+)?(?:den\s+)?arbeitstag/i.test(String(text || ''));
+}
+function langterminSprechen(bloecke) {
+    const M = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    const t = s => +s.slice(8, 10) + '. ' + M[+s.slice(5, 7) - 1];
+    return bloecke.map(b => b.start === b.ende ? t(b.start) : (b.start.slice(5, 7) === b.ende.slice(5, 7) ? (+b.start.slice(8, 10)) + '. bis ' + t(b.ende) : t(b.start) + ' bis ' + t(b.ende))).join(', ');
+}
+
 /* Feste Rückfall-Erkennung für Wiederholungen direkt im gesagten Satz ("alle zwei Wochen", "jede Woche",
    "jeden Monat" ...), falls die KI die Wiederholungs-Felder mal nicht ausfüllt. Gibt eine RRULE oder null zurück. */
 function recurrenceFromText(text) {
