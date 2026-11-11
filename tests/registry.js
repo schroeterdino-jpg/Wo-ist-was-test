@@ -240,8 +240,8 @@ const FELDER = 'alternativen,ausgefuehrt,daten,faehigkeit,fehlend,grund,nachrich
     check('21e Pflicht/optional der fünf', JSON.stringify(FUENF.map(n => A.sb.jvRegistry.beschreibe(n).pflicht.map(p => p.name))) === JSON.stringify([['suchbegriff'], ['frage'], ['text'], ['text', 'zeit'], ['schluessel']]));
 
     /* --- nicht produktiv --- */
-    const andere = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && !/^(registry(_faehigkeiten|_schreibkern|_produkt)?|foto_werkzeuge|schatten|chef|assistant|rueckfrage)\.js$/.test(f)).filter(f => /jvRegistry/.test(lies('js/' + f)));
-    check('22a keine andere App-Datei benutzt die Registry (außer dem Schattenbetrieb, der sie nur liest, der Chef-KI aus Phase 6 und dem Fahrzeit-Aufruf in assistant.js und der Adress-Rückfrage in rueckfrage.js, die sie aufrufen)', andere.length === 0, andere.join(', '));
+    const andere = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && !/^(registry(_faehigkeiten|_schreibkern|_produkt)?|foto_werkzeuge|schatten|chef|assistant|rueckfrage|plan_ansagen)\.js$/.test(f)).filter(f => /jvRegistry/.test(lies('js/' + f)));
+    check('22a keine andere App-Datei benutzt die Registry (außer dem Schattenbetrieb, der sie nur liest, der Chef-KI aus Phase 6 und dem Fahrzeit-Aufruf in assistant.js der Adress-Rückfrage in rueckfrage.js und der kurzen Abfahrtsfrage zu einem Termin in plan_ansagen.js (B2, ruft die Fähigkeit abfahrt auf), die sie aufrufen)', andere.length === 0, andere.join(', '));
     check('22b keine Datei außer index.html bindet die beiden Registry-Skripte ein / ruft sie auf (Service Worker, Hüllen)', ['sw.js', 'manifest.json'].filter(f => fs.existsSync(path.join(ROOT, f)) && /jvRegistry/.test(lies(f))).length === 0);
     check('22c die Registry-Skripte stehen in index.html hinter sicherheit.js', (() => { const h = lies('index.html'); const i = h.indexOf('js/sicherheit.js'), j = h.indexOf('js/registry.js'), k = h.indexOf('js/registry_faehigkeiten.js'); return i > 0 && j > i && k > j; })());
     {
