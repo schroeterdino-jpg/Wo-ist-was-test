@@ -104,6 +104,7 @@ jobs:
           node tests/schicht_zeiten.js
           node tests/schicht_einstellungen.js
           node tests/gespraech_lokal.js
+          node tests/chef_lesen.js
           node tests/abfahrt_kurz.js
           node tests/mail_loeschen.js
           node tests/foto_produkt.js

@@ -5344,9 +5344,9 @@
        "m": "POST",
        "u": "/api/groq",
        "body": {
-        "laenge": 2002,
+        "laenge": 2160,
         "anfang": "{\"model\":\"openai/gpt-oss-120b\",\"response_format\":{\"type\":\"json_object\"},\"messages\":[{\"role\":\"system\",\"content\":\"Du bist Zane, der freche, schlagfertige, warmherzige persönliche Assistent von Dino. Du ",
-        "sha": "76b5151fda55"
+        "sha": "73c7974dd31d"
        }
       }
      ],

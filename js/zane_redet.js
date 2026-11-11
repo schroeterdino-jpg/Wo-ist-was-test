@@ -97,6 +97,7 @@
         '(d) frag ihn, wie sein Tag läuft. Sei abwechslungsreich: keine Floskeln wie "Kann ich helfen?", keine Wiederholung der Sätze aus "schon_gesagt". Erfinde keine Fakten, nutze nur die Daten. ' +
         'WICHTIG: Ist "hat_urlaub_heute" true, hat er Urlaub: kein Wort über Arbeit, Schicht, Dienst, Kollegen oder Feierabend, stattdessen Urlaub, Freizeit, Pläne. ' +
         'Frage NIE nach etwas, das schon in den Daten steht (zum Beispiel Urlaubsdaten, Termine, Einkaufsliste). ' +
+        'Frag NIE nach seinem Essen (Mittag, was er gegessen hat oder wie es geschmeckt hat): du weißt nicht, wann und wo er isst, und ob er schon auf der Arbeit ist. '+
         'Behaupte NIE etwas über Vergangenes (letzte Nacht, gestern, die Schicht), das nicht ausdrücklich in den Daten steht; du weißt nicht, was er getan hat. Frag stattdessen offen, z. B. wie sein Tag war oder was heute noch ansteht. Nachts nichts Aufregendes. ' +
         'Antworte nur mit JSON: {"text":"...","frage":true|false} (frage = true, wenn dein Satz eine Frage an ihn ist, auf die er antworten kann).';
 

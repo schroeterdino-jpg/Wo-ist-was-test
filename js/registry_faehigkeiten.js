@@ -19,6 +19,7 @@
         try {
             if (name === 'reminderEntries') return typeof reminderEntries !== 'undefined' && Array.isArray(reminderEntries) ? reminderEntries : null;
             if (name === 'calendarEntries') return typeof calendarEntries !== 'undefined' && Array.isArray(calendarEntries) ? calendarEntries : null;
+            if (name === 'shoppingEntries') return typeof shoppingEntries !== 'undefined' && Array.isArray(shoppingEntries) ? shoppingEntries : null;
         } catch (e) { }
         return null;
     }
@@ -164,7 +165,7 @@
 
     /* ---------------- 2a. Jarvis über sich selbst (lesend, ohne KI-Kosten) ---------------- */
     var SELBST_NAMEN = { ortssuche: 'Orte und Restaurants suchen', websuche: 'Internetsuche', wetter: 'Wetter', fahrzeit: 'Fahrzeit und Verkehr mit dem Auto', produktsuche: 'Preise und Händler zu Produkten', foto_info: 'Fotos erkennen und auswerten',
-        termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
+        termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', essensplan: 'Essensplan der Kantine', erinnerungen_lesen: 'Erinnerungen ansehen', einkauf_lesen: 'Einkaufsliste ansehen', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
         termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken' };
     R.registriere({
         name: 'jarvis_info',
@@ -473,6 +474,96 @@
             var einmalig = !!(P.beginnTag(ymd) || P.endeTag(ymd) || P.tagVor(ymd));
             return { datum: ymd, schicht: name, grund: '', beginn: schichtUhr(b), ende: schichtUhr(e), abfahrt: schichtUhr(ab), einmalig: einmalig,
                 nachricht: w + ' hast du ' + name + ': Beginn um ' + schichtUhr(b) + ', Feierabend um ' + schichtUhr(e) + ', geplante Abfahrt gegen ' + schichtUhr(ab) + '.' + (einmalig ? ' Das ist eine einmalige Änderung.' : '') };
+        }
+    });
+
+    /* ---------------- 2b2. Essensplan, Erinnerungen und Einkaufsliste lesen (Paket 1 "Chef-KI mit Werkzeugen"; nur lesend, keine zweite Logik: der Essensplan kommt aus foto_essensplan.js) ---------------- */
+    function berlinHeute() { return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }); }
+    function tagOffsetAus(p) {   // Tage ab heute (0 und mehr) oder -1, wenn der Tag unklar ist; derselbe Wochentag wie heute heißt heute (wie im Sprachbefehl)
+        var t = String((p && p.tag) || 'heute').toLowerCase().replace('ü', 'ue').trim(), h = berlinHeute();
+        if (t === 'heute') return 0; if (t === 'morgen') return 1; if (t === 'uebermorgen') return 2;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(t)) { var d = Math.round((new Date(t + 'T12:00:00Z') - new Date(h + 'T12:00:00Z')) / 86400000); return d >= 0 && d <= 60 ? d : -1; }
+        var i = SCHICHT_WOCHENTAGE.map(function (x) { return x.toLowerCase(); }).indexOf(t);
+        return i < 0 ? -1 : (i - schichtWochentag(h) + 7) % 7;
+    }
+    R.registriere({
+        name: 'essensplan',
+        beschreibung: 'Sagt aus dem gespeicherten Essensplan der Kantine (vom Nutzer fotografiert), was es an einem Tag zu essen gibt (vegetarisch und mit Fleisch). Für Fragen wie "Was gibt es auf der Arbeit zu essen?", "Was gibt es in der Kantine?" oder "Was gibt es morgen zu essen?". Nur lesend; ohne gespeicherten Plan sagt sie das ehrlich.',
+        pflicht: [],
+        optional: [{ name: 'tag', typ: 'text', beschreibung: 'heute (Standard), morgen, uebermorgen, ein Wochentag wie mittwoch oder ein Datum wie 2026-11-14.' }],
+        rueckgabe: { beschreibung: 'Der Tag und ein gesprochener Satz mit den Gerichten.', felder: ['tag', 'nachricht'] },
+        fehler: [
+            { status: 'NEEDS_INFORMATION', wann: 'Der Tag ist unklar.' },
+            { status: 'NO_RESULTS', wann: 'Es ist noch kein Essensplan gespeichert.' },
+            { status: 'CAPABILITY_MISSING', wann: 'Der Essensplan ist nicht geladen.' }
+        ],
+        fallbacks: [],
+        bestaetigung: { noetig: false, grund: 'Nur lesend.' },
+        leer: function (d) { return !!d && d.leer === true; },
+        pruefeErfolg: function (d) { return !!d && typeof d.nachricht === 'string' && !!d.nachricht.trim() && /^\d{4}-\d{2}-\d{2}$/.test(String(d.tag || '')); },
+        verbindung: { datei: 'js/foto_essensplan.js', funktion: 'antwortTag', aktion: 'lesen' },
+        verfuegbar: function () { var E = window.jvEssensplan; return !!E && typeof E.antwortTag === 'function' && typeof E.laden === 'function'; },
+        vorpruefung: function (p) {
+            if (p && p.tag !== undefined && tagOffsetAus(p) < 0) return { status: 'NEEDS_INFORMATION', nachricht: 'Für welchen Tag meinst du das, zum Beispiel heute, morgen oder Mittwoch?', fehlend: ['tag'] };
+            return null;
+        },
+        ausfuehren: async function (p) {
+            var E = window.jvEssensplan, plan = E.laden();
+            if (!plan) return { leer: true, reply: 'Es ist noch kein Essensplan gespeichert. Fotografiere den Plan der Kantine, dann merke ich ihn mir.' };
+            var off = tagOffsetAus(p), h = berlinHeute(), d = new Date(new Date(h + 'T12:00:00Z').getTime() + off * 86400000);
+            return { tag: d.toISOString().slice(0, 10), nachricht: String(E.antwortTag(off, plan) || '') };
+        }
+    });
+    function berlinZeitWort(ms) {   // "heute um 14:30 Uhr", "morgen um 9:00 Uhr", sonst "am 14. November um ..."
+        var d = new Date(ms), tag = d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }), h = berlinHeute(), m = new Date(new Date(h + 'T12:00:00Z').getTime() + 86400000);
+        var uhr = d.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: 'numeric', minute: '2-digit' }) + ' Uhr';
+        var wann = tag === h ? 'heute' : tag === m.toISOString().slice(0, 10) ? 'morgen' : tag < h ? 'überfällig' : 'am ' + d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric', month: 'long' });
+        return wann === 'überfällig' ? 'überfällig seit ' + d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric', month: 'long' }) : wann + ' um ' + uhr;
+    }
+    R.registriere({
+        name: 'erinnerungen_lesen',
+        beschreibung: 'Nennt die offenen Erinnerungen des Nutzers mit ihrer Zeit, die nächsten zuerst (nur lesend, ändert nichts). Für Fragen wie "Woran wollte ich mich erinnern lassen?" oder "Welche Erinnerungen habe ich?".',
+        pflicht: [],
+        optional: [],
+        rueckgabe: { beschreibung: 'Anzahl und die Erinnerungen (Text, Zeit) in zeitlicher Reihenfolge.', felder: ['anzahl', 'erinnerungen', 'nachricht'] },
+        fehler: [
+            { status: 'CAPABILITY_MISSING', wann: 'Die Erinnerungsliste ist nicht geladen.' },
+            { status: 'TOOL_FAILED', wann: 'Ein technischer Fehler trat auf.' }
+        ],
+        fallbacks: [],
+        bestaetigung: { noetig: false, grund: 'Nur lesend.' },
+        pruefeErfolg: function (d) { return !!d && Array.isArray(d.erinnerungen) && d.anzahl === d.erinnerungen.length && typeof d.nachricht === 'string' && !!d.nachricht.trim(); },
+        verbindung: { datei: 'js/storage.js', funktion: 'reminderEntries', aktion: 'lesen' },
+        verfuegbar: function () { return !!liste('reminderEntries'); },
+        ausfuehren: async function () {
+            var l = (liste('reminderEntries') || []).filter(function (r) { return r && r.time && !r.triggered && !isNaN(new Date(r.time).getTime()) && String(r.text || '').trim(); })
+                .sort(function (a, b) { return new Date(a.time) - new Date(b.time); })
+                .map(function (r) { return { text: String(r.text).trim(), zeit: berlinZeitWort(new Date(r.time).getTime()) }; });
+            var nachricht = !l.length ? 'Du hast keine offene Erinnerung.'
+                : (l.length === 1 ? 'Du hast eine offene Erinnerung: ' : 'Du hast ' + l.length + ' offene Erinnerungen: ') + l.slice(0, 6).map(function (x) { return x.text + ', ' + x.zeit; }).join('; ') + (l.length > 6 ? ' und ' + (l.length - 6) + ' weitere' : '') + '.';
+            return { anzahl: l.length, erinnerungen: l, nachricht: nachricht };
+        }
+    });
+    R.registriere({
+        name: 'einkauf_lesen',
+        beschreibung: 'Liest die Einkaufsliste vor (nur lesend, ändert nichts). Für Fragen wie "Was muss ich einkaufen?" oder "Was steht auf der Einkaufsliste?".',
+        pflicht: [],
+        optional: [],
+        rueckgabe: { beschreibung: 'Anzahl und die Einträge der Einkaufsliste.', felder: ['anzahl', 'eintraege', 'nachricht'] },
+        fehler: [
+            { status: 'CAPABILITY_MISSING', wann: 'Die Einkaufsliste ist nicht geladen.' },
+            { status: 'TOOL_FAILED', wann: 'Ein technischer Fehler trat auf.' }
+        ],
+        fallbacks: [],
+        bestaetigung: { noetig: false, grund: 'Nur lesend.' },
+        pruefeErfolg: function (d) { return !!d && Array.isArray(d.eintraege) && d.anzahl === d.eintraege.length && typeof d.nachricht === 'string' && !!d.nachricht.trim(); },
+        verbindung: { datei: 'js/storage.js', funktion: 'shoppingEntries', aktion: 'lesen' },
+        verfuegbar: function () { return !!liste('shoppingEntries'); },
+        ausfuehren: async function () {
+            var l = (liste('shoppingEntries') || []).filter(function (e) { return e && !e.done && String(e.text || '').trim(); }).map(function (e) { return String(e.text).trim(); });
+            var nachricht = !l.length ? 'Die Einkaufsliste ist leer.'
+                : 'Auf der Einkaufsliste ' + (l.length === 1 ? 'steht: ' : 'stehen ' + l.length + ' Dinge: ') + l.slice(0, 10).join(', ') + (l.length > 10 ? ' und ' + (l.length - 10) + ' weitere' : '') + '.';
+            return { anzahl: l.length, eintraege: l, nachricht: nachricht };
         }
     });
 
