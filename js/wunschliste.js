@@ -206,7 +206,7 @@
     }
 
     /* ---------- Foto ---------- */
-    const ACT = /\b(?:merk\w*|speicher\w*|fotografier\w*|abfotografier\w*|einles\w*|les\w*|ablegen|leg\w*|aufnehm\w*|hinterleg\w*|einscann\w*|scann\w*|abspeicher\w*|eintrag\w*|trag\w*|uebernehm\w*|übernehm\w*)\b/;
+    const ACT = /\b(?:merk\w*|speicher\w*|fotografier\w*|abfotografier\w*|einles\w*|les\w*|ablegen|leg(?:e|st|t|en)?|aufnehm\w*|hinterleg\w*|einscann\w*|scann\w*|abspeicher\w*|eintrag\w*|trag\w*|uebernehm\w*|übernehm\w*)\b/;
     function nameAusSatz(text) { const m = String(text || '').match(/\b(?:von|für|fuer)\s+([A-Za-zÄÖÜäöüß]{2,20})\b/i); return m && !/^(?:die|der|das|dem|den|meinem|meiner|meine|einem|einer)$/i.test(m[1]) ? cap(m[1]) : ''; }
     function istFoto(text) {
         const t = norm(text);

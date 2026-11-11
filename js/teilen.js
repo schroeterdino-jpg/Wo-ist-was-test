@@ -57,7 +57,9 @@
         if (!t || t.split(' ').length > 14) return next(text);
         const whats = /\bwhats ?app\b|\bwhatsapp\b/.test(t);
         const verb = /\b(schick\w*|send\w*|verschick\w*|teil\w*|weiterleit\w*|leite\w*)\b/.test(t);
-        if (!(whats && verb) && !/\bper whats ?app\b/.test(t)) return next(text);
+        const perOnly = /\bper whats ?app\b/.test(t) && /\b(das|es|dies\w*|antwort|liste)\b/.test(t);   // "Sag Isabel per WhatsApp gute Nacht" ist eine Nachricht, kein Weiterleiten
+        if (!(whats && verb) && !perOnly) return next(text);
+        if (/^(?:bitte )?(?:sag\w*|schreib\w*)\b/.test(t) || (/\bnachricht\b/.test(t) && !/\b(das|es|dies\w*|antwort|liste)\b/.test(t))) return next(text);
 
         // Rezepte haben ihren eigenen Weg
         try { if (/\brezept\w*\b/.test(t) || (window.jvRezept && typeof window.jvRezept.hatEntwurf === 'function' && window.jvRezept.hatEntwurf())) return next(text); } catch (e) { }

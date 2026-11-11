@@ -80,11 +80,12 @@
     function befehl(text, next) {
         const t = norm(text);
         if (!t || /\b(?:lies|lese|vorlesen|loesch\w*|antwort\w*|schreib\w*|schick\w*|sende\w*|entwurf|entwuerfe|autopilot|vorbereitet|push|meldung|einrichten|status|werbe\w*|papierkorb)\b/.test(t)) return next(text);
-        const MAIL = '(?:e-?mails?|mails?|post|nachrichten)';
-        const frage = new RegExp('^(?:jarvis\\s+)?(?:habe ich|hab ich|gibt es|gibts|sind da|liegen|kam)\\s+(?:\\w+\\s+){0,2}?' + MAIL + '\\b').test(t) ||
+        const MAIL = '(?:e-?mails?|mails?|post)';   // "Nachrichten" allein heißt auch "News" ("Was sind die Nachrichten von heute"): nur zusammen mit neue/ungelesene/habe ich gilt es als Post
+        const MAIL2 = '(?:e-?mails?|mails?|post|nachrichten)';
+        const frage = new RegExp('^(?:jarvis\\s+)?(?:habe ich|hab ich|gibt es|gibts|sind da|liegen|kam)\\s+(?:\\w+\\s+){0,2}?' + MAIL2 + '\\b').test(t) ||
             new RegExp('^(?:jarvis\\s+)?(?:was|welche)\\s+(?:ist|sind|gibt es|steht|liegt)\\s+(?:\\w+\\s+){0,4}?(?:im\\s+)?(?:postfach|posteingang|' + MAIL + ')\\b').test(t) ||
             /\b(?:postfach|posteingang)\b/.test(t) && t.split(' ').length <= 7 ||
-            new RegExp('\\b(?:wichtige|ungelesene|neue)\\s+' + MAIL + '\\b').test(t) && t.split(' ').length <= 8;
+            new RegExp('\\b(?:wichtige|ungelesene|neue)\\s+' + MAIL2 + '\\b').test(t) && t.split(' ').length <= 8;
         if (!frage) return next(text);
         ueberblick();
         return true;
