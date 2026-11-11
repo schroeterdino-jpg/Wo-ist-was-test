@@ -290,6 +290,14 @@ const ids = (plan, art) => plan.filter(e => e.id.split('|')[0] === art);
         }
         const heut = await frage('2026-11-06T10:00:00+01:00', 'Was gibt es heute zu essen?');
         check('Essensfrage heute nennt das Gericht', heut.l.modul === 'essensplan' && heut.l.gesagt.some(t => /Fisch/.test(t)), heut.l.gesagt.join('|'));
+        for (const f of ['Was gibt es auf der Arbeit zu essen?', 'Was gibt es heute auf der Arbeit zu essen?', 'Was gibt es in der Schicht zu essen?']) {   // "Arbeit" im Satz darf die Essensfrage nicht mehr an die KI schicken
+            const r = await frage('2026-11-06T10:00:00+01:00', f);
+            check('Essensfrage mit "Arbeit" bleibt beim Essensplan: ' + f, r.l.lokal && r.l.modul === 'essensplan' && r.l.gesagt.some(t => /Fisch/.test(t)) && r.req == null, r.l.modul + ' ' + r.l.gesagt.join('|'));
+        }
+        for (const f of ['Was gibt es auf der Arbeit Neues?', 'Wann habe ich auf der Arbeit Pause?']) {   // ohne Essen bleibt es beim bisherigen Weg
+            const r = await frage('2026-11-06T10:00:00+01:00', f);
+            check('Frage zur Arbeit ohne Essen bleibt kein Essensplan: ' + f, r.l.modul !== 'essensplan', r.l.modul + ' ' + r.l.gesagt.join('|'));
+        }
         const mix = await frage('2026-11-06T10:00:00+01:00', 'Was gibt es heute bei Regen zu essen?');
         check('Mischfall "bei Regen zu essen" bleibt Essensplan', mix.l.modul === 'essensplan' && mix.l.gesagt.some(t => /Fisch/.test(t)), mix.l.modul + ' ' + mix.l.gesagt.join('|'));
         const mix2 = await frage('2026-11-06T10:00:00+01:00', 'Was gibt es morgen bei Regen zu essen?');

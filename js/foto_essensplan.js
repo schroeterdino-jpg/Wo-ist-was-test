@@ -256,8 +256,9 @@
         const frage = (/^(?:was|welche[sn]?)\b/.test(t) && /\b(?:gibt|gibts)\b/.test(t)) || (/^(?:was|welche[sn]?|gibt)\b/.test(t) && essenWort) || WORT.test(t);
         /* Wetterwörter sperren nur, wenn die Frage nicht eindeutig nach dem Essen fragt ("Was gibt es morgen bei Regen zu essen?" bleibt Essensplan) */
         const wetterSperre = /\b(?:regen\w*|schnee\w*|gewitter\w*|sonne|sonnig\w*|wind\w*|sturm|glatt\w*|eis|frost|temperatur\w*|grad|warm|kalt|wolken|nebel|hagel|unwetter|wetter)\b/.test(t) && !/\b(?:zu essen|zum essen|kantine|mittag\w*|gericht\w*|essens?\s?plan|speise\s?plan)\b/.test(t);
-        if (!frage || wetterSperre || /\b(?:fernsehen|tv|kino|neu\w*|nachricht\w*|wetter|film\w*|programm|termin\w*|arbeit|schicht\w*|tank\w*|sprit|diesel|zuhause|abend\w*|fruehstueck|frühstück)\b/.test(t)) return next(text);
-        const off = offsetAusSatz(t);
+        if (!frage || wetterSperre || (!essenWort && /\b(?:arbeit|schicht\w*)\b/.test(t)) || /\b(?:fernsehen|tv|kino|neu\w*|nachricht\w*|wetter|film\w*|programm|termin\w*|tank\w*|sprit|diesel|zuhause|abend\w*|fruehstueck|frühstück)\b/.test(t)) return next(text);
+        let off = offsetAusSatz(t);
+        if (off == null && /\b(?:arbeit|schicht\w*|kantine|mittag\w*)\b/.test(t)) off = 0;   // ohne Tag, aber klar die Kantine/Arbeit gemeint: heute ("Was gibt es auf der Arbeit zu essen?"); "Gibt es hier was zu essen?" bleibt beim bisherigen Weg
         if (off == null) return next(text);
         sagen(antwortTag(off, p)); return true;
     }
