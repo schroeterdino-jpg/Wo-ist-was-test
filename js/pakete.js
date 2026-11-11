@@ -199,5 +199,11 @@
     }
     document.addEventListener('visibilitychange', function () { setTimeout(nachsehen, 1500); });
     setTimeout(nachsehen, 9000);
-    window.jvPakete = { oeffnen: fenster, schliessen: fensterZu };
+    /* Nur lesend und ohne Netz: der zuletzt gespeicherte Stand der Pakete (für das Chef-KI-Werkzeug 'pakete_lesen'). */
+    function lesen() {
+        const a = aufraeumen(laden());
+        const aktiv = a.filter(function (p) { return !(p.code === 'delivered' && Date.now() - (p.zugestellt || 0) > 2 * 86400000); });
+        return (aktiv.length ? aktiv : a.slice(-1)).map(function (p) { return satz(p); });
+    }
+    window.jvPakete = { oeffnen: fenster, schliessen: fensterZu, lesen: lesen };
 })();

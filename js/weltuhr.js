@@ -208,6 +208,14 @@
         return false;
     }
 
+    /* Reine Auskunft für das Chef-KI-Werkzeug 'uhrzeit_anderswo': Uhrzeit in einer bekannten Stadt oder einem Land, ohne Fenster. */
+    function zeitIn(ort) {
+        const c = findCity(ort);
+        if (!c) return null;
+        const d = new Date(), w = dayWord(c.tz, d);
+        return { ort: c.name, uhrzeit: spoken(c.tz, d), unterschied: diffText(c.tz, d), nachricht: `In ${c.name} ist es ${spoken(c.tz, d)}${w && w !== 'heute' ? ' (' + w + ')' : ''}. Bei uns ist es ${spoken(HOME.tz, d)}.` };
+    }
+    window.jvWeltuhr = { zeitIn };
     window.openWeltuhr = open;
     window.closeWeltuhr = close;
     window.handleWeltuhrCommand = handle;

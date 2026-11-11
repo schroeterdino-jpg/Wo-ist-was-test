@@ -364,5 +364,6 @@
     if (window.jvCommands && typeof window.jvCommands.use === 'function') window.jvCommands.use('vollmond_auskunft', vollmondAuskunft, 1190);
 
     window.handleSonneMondCommand = handleSonneMondCommand;
+    window.jvMond = { vollmondText: vollmondText };   // reine Textauskunft für das Chef-KI-Werkzeug 'vollmond'
     window._sonneMondTest = { sunTimes, moonTimes, moonIllumination, nextPhase, phaseName, moonSvg, vollmondText, vollmondFrage };   // nur zum Testen
 })();

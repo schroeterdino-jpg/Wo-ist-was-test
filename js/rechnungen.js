@@ -58,7 +58,7 @@
         const r = bezahlt(id);
         if (r) { sagen('Gut, die Rechnung von ' + r.absender + ' ist abgehakt.'); try { zeigen(false); } catch (e) {} }
     };
-    window.jvRechnungen = { merken, offen, bezahlt };
+    window.jvRechnungen = { merken, offen, bezahlt, uebersicht };
 
     /* ---------- Anzeigen und Vorlesen ---------- */
     function wannText(r) {
@@ -68,6 +68,17 @@
         if (d === 0) return 'heute fällig';
         if (d === 1) return 'morgen fällig';
         return 'fällig am ' + tagText(r.ziel) + ', in ' + d + ' Tagen';
+    }
+    function uebersicht() {   // reiner Satz über die offenen Rechnungen (auch für das Chef-KI-Werkzeug 'rechnungen_lesen')
+        const l = offen();
+        if (!l.length) return { anzahl: 0, text: 'Ich habe keine offenen Rechnungen vermerkt. Fotografieren Sie eine Rechnung, dann merke ich sie mir.' };
+        const summe = l.reduce((s, r) => s + (r.betrag || 0), 0);
+        const ueber = l.filter(r => r.ziel && tage(r.ziel) < 0).length;
+        const n = l[0];
+        let s = 'Sie haben ' + l.length + (l.length === 1 ? ' offene Rechnung' : ' offene Rechnungen') + (summe ? ' über zusammen ' + euro(summe) : '') + '.';
+        s += ' Als Nächstes: ' + n.absender + (n.betrag ? ' über ' + euro(n.betrag) : '') + ', ' + wannText(n) + '.';
+        if (ueber && !(n.ziel && tage(n.ziel) < 0 && ueber === 1)) s += ' ' + ueber + (ueber === 1 ? ' ist' : ' sind') + ' überfällig.';
+        return { anzahl: l.length, summe: summe, ueberfaellig: ueber, text: s };
     }
     function zeigen(vorlesen) {
         const l = offen();
