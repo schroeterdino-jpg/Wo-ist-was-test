@@ -29,6 +29,7 @@
         /\b(?:das|so etwas|sowas) (?:kann|konnte) ich (?:leider |noch )+nicht\b/i,
         /\b(?:leider )?kann ich (?:dir |Ihnen |dazu |dabei |das )?(?:leider |noch |derzeit |aktuell )*(?:keine|keinen|keinem|kein|nicht)\b/i,
         /\b(?:leider )?ich kann (?:dir |Ihnen |dazu |dabei )?(?:leider |noch |derzeit |aktuell )*(?:keine|keinen|keinem|kein|nicht)\b/i,
+        /\b(?:ich )?(?:habe|hab) (?:ich )?(?:leider |derzeit |aktuell |dazu |darauf |dafür |hierfür )*(?:keinen|keine|kein) (?:\w+ )?(?:Zugriff|Zugang|Informationen?|Daten|Möglichkeit|Funktion|Kenntnis)\b/i,
         /\bnicht in der Lage\b|\bhabe ich (?:leider )?(?:keine|nicht die) Möglichkeit\b/i
     ];
     /* technische Aussetzer sind keine Lücke im Können */
