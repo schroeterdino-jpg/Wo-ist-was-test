@@ -51,6 +51,7 @@
     function remember(userText, spoken) { eintragen(userText, spoken, null, true); }
 
     let letzterEingangMs = 0;         // Zeit des letzten Nutzersatzes
+    let zusatzLuecke = '';
     let eingangText = '', notiertNr = 0;   // Wortlaut des letzten Nutzersatzes; für welchen Satz schon eine Antwort notiert ist
     window.jvKontext = {
         eingang: function (text) { eingangNr++; letzterEingangMs = Date.now(); eingangText = String(text || ''); },
@@ -94,7 +95,12 @@
                 if (eingangText && notiertNr !== eingangNr && typeof text === 'string' && text.trim() && Date.now() - letzterEingangMs < REPLY_WAIT_MS) {
                     notiertNr = eingangNr;
                     if (!/\?\s*$/.test(text.trim())) notieren(eingangText, text);
+                    if (window.jvLuecken) zusatzLuecke = window.jvLuecken.pruefe(eingangText, text);
                 }
+            } catch (e) {}
+            /* Lückenbuch (js/luecken.js): sagt Jarvis "das weiß/kann ich nicht", schreibt er die Frage auf und sagt es dazu */
+            try {
+                if (zusatzLuecke && typeof text === 'string') { const z = zusatzLuecke; zusatzLuecke = ''; const args = Array.prototype.slice.call(arguments); args[0] = text.replace(/\s+$/, '') + z; return prevSpeak.apply(this, args); }
             } catch (e) {}
             return prevSpeak.apply(this, arguments);
         };

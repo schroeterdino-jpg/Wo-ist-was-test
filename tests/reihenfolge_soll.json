@@ -744,6 +744,7 @@
    "155 lokalnews",
    "160 ansagen",
    "160 jvfenster",
+   "160 luecken",
    "160 zane_redet",
    "165 fahrtcheck",
    "166 vorbereitung",
@@ -776,7 +777,7 @@
    "98: mail_nacht > antrag",
    "120: urlaub > mailaktionen",
    "150: rechnungen > autocheck",
-   "160: ansagen > jvfenster > zane_redet",
+   "160: ansagen > jvfenster > luecken > zane_redet",
    "0.3: postfach > autoansicht",
    "0.35: preissuche > ausflug > was_steht_an",
    "0.36: wunschliste > schlaf_antwort"

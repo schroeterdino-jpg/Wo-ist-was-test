@@ -58,6 +58,9 @@ const HELP_TOPICS = [
         'Gibt es Unwetterwarnungen? (amtliche Warnungen des Deutschen Wetterdienstes; bei Warnungen meldet sich Zane auch von selbst)'] },
     { key: 'sonnemond', icon: '🌙', title: 'Sonne & Mond', words: /sonne|sonnen|mond|vollmond|neumond|dämmerung|daemmerung/, examples: [
         'Wann geht die Sonne unter?', 'Wann geht die Sonne auf?', 'Wie lange ist es noch hell?', 'Wann geht der Mond auf?', 'Wann ist Vollmond? (öffnet ein Fenster mit Mondbild)', 'Wann ist Neumond?', 'Wie ist der Mond heute?', 'Schließen (macht das Fenster zu)'] },
+    { key: 'luecken', icon: '📝', title: 'Lückenbuch (was Jarvis noch nicht kann)', words: /lückenbuch|lueckenbuch|lückenliste|noch nicht können|aufgeschrieben/, examples: [
+        'Was kannst du noch nicht? (liest vor, was er sich aufgeschrieben hat)', 'Was fehlt dir noch?', 'Lückenbuch (zeigt die Liste mit der Taste „Alles kopieren“)', 'Lückenbuch leeren',
+        'Sagt Jarvis „das weiß ich nicht“ oder „das kann ich nicht“, schreibt er die Frage von selbst auf'] },
     { key: 'feiertage', icon: '🎉', title: 'Feiertage & Brückentage', words: /feiertag|brückentag|brueckentag|ostern|weihnacht|pfingst/, examples: [
         'Öffne Feiertage (Fenster mit Feiertagen und Brückentagen)', 'Wann ist der nächste Feiertag?', 'Ist morgen Feiertag?', 'Welche Brückentage gibt es?', 'Welche Feiertage gibt es noch dieses Jahr?', 'Wann ist Ostern?', 'Wann ist Muttertag?',
         'Gerechnet wird für dein Bundesland; es wird mit „Mein Bundesland ist ...“ eingestellt (gilt auch für die Ferien)'] },
