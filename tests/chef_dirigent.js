@@ -120,7 +120,7 @@ async function frage(A, s, ms) { return (await tippen(A, s, ms)).join(' | '); }
     {
         const A = umgebung(); A.st.plan = { schritte: [] };
         const t = await frage(A, S.himmel);
-        check('1.1 "Warum ist der Himmel blau?": keine Zusatz-KI, keine Werkzeuge, die normale KI antwortet einmal', A.st.ent === 0 && A.st.groq === 1 && A.st.webN === 0 && A.st.wetterN === 0 && A.st.shopQ === undefined, JSON.stringify({ e: A.st.ent, g: A.st.groq, w: A.st.webN }));
+        check('1.1 "Warum ist der Himmel blau?": der Entscheider plant nichts, keine Werkzeuge, die normale KI antwortet einmal', A.st.ent === 1 && A.st.groq === 1 && A.st.webN === 0 && A.st.wetterN === 0 && A.st.shopQ === undefined, JSON.stringify({ e: A.st.ent, g: A.st.groq, w: A.st.webN }));
         const B = umgebung(); B.st.plan = { schritte: [] };
         await frage(B, 'Warum ist Wasser eigentlich nass');
         check('1.2 Planer liefert keine Schritte: genau einmal der bisherige Weg', B.st.groq === 1 && B.st.webN === 0, JSON.stringify({ e: B.st.ent, g: B.st.groq }));

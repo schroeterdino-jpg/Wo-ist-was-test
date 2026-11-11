@@ -103,8 +103,9 @@ const ortsplan = (b, o) => ({ schritte: [{ faehigkeit: 'ortssuche', params: o ? 
     A = umgebung(); A.sb.jvChef.an();
     await mikro(A, 'hallo du');
     check('4a zu kurz -> "Vorfilter: übersprungen (zu kurz oder zu lang)"', codes(A) === 'vorfilter_laenge', codes(A));
+    A.st.antwort = { schritte: [] };
     await tippen(A, 'erzähl mir bitte etwas über die geschichte von rom');
-    check('4b kein Ortsstichwort -> Vorfilter übersprungen, der bisherige Ablauf (normale KI) lief, kein Entscheider-Aufruf', codes(A) === 'vorfilter_stichwort' && A.st.ent === 0 && A.st.groq === 2, codes(A) + ' groq ' + A.st.groq);
+    check('4b kein Ortsstichwort -> der Entscheider wird trotzdem gefragt (ohne Stichwort-Filter), plant nichts, der bisherige Ablauf (normale KI) lief', /ki_aufgerufen/.test(codes(A)) && !/ortssuche_ausgefuehrt/.test(codes(A)) && A.st.ent === 1 && A.st.groq === 2, codes(A) + ' groq ' + A.st.groq);
     check('4c Schreibwunsch (B2a): kein Vorfilter mehr, die Chef-KI prüft den Satz (ein Entscheider-Aufruf)', A.sb.jvChef.kiWeg('erinnere mich heute abend zu essen in der nähe') === true && /ki_aufgerufen/.test(codes(A)), codes(A));
     check('4d zu lang -> Vorfilter', A.sb.jvChef.kiWeg(Array(40).fill('hier').join(' ')) === false && codes(A) === 'vorfilter_laenge');
     A.st.antwort = ortsplan('Restaurant');
@@ -194,7 +195,7 @@ const ortsplan = (b, o) => ({ schritte: [{ faehigkeit: 'ortssuche', params: o ? 
     A = umgebung(); A.sb.jvChef.an(); A.st.antwort = { schritte: [] };
     for (const s of ['was kannst du', 'hallo du', NAT, 'erzähl mir bitte etwas über die geschichte von rom', 'ich habe hunger was gibt es hier in der nähe']) { await mikro(A, s); A.uhr.ms += 6000; }
     const z = A.sb.jvChef.kiZaehler();
-    check('10a die Diagnose löst keine KI-Anfrage aus: Entscheider-Anfragen = KI-Weg-Anfragen, jede Eingabe höchstens eine', A.st.ent === z.anfragen && A.st.ent === 1, JSON.stringify({ ent: A.st.ent, z }));
+    check('10a die Diagnose löst keine KI-Anfrage aus: Entscheider-Anfragen = KI-Weg-Anfragen, jede Eingabe höchstens eine', A.st.ent === z.anfragen && A.st.ent === 2, JSON.stringify({ ent: A.st.ent, z }));
     check('10b die Befehlsliste bleibt unverändert (Anzahl und Reihenfolge)', A.sb.jvCommands.list().map(c => c.name || c).join('|') === befehle0);
     check('10c Netzaufrufe nur /api/groq und Ortssuche', A.st.urls.every(u => /api\/groq|api\/maps|api\/geocode|api\/memory|places/.test(u)), JSON.stringify([...new Set(A.st.urls)]));
     A = umgebung(); const s0 = A.sb.jvSchatten.istAn(); A.sb.jvChef.an(); await mikro(A, 'was kannst du'); A.sb.jvChef.aus();

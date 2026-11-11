@@ -78,6 +78,19 @@ const schritt = (f, params) => ({ schritte: [{ faehigkeit: f, params: params || 
         const s3 = await C.sage('Woran muss ich denken', schritt('erinnerungen_lesen'));
         check('4c Chef-KI EIN: Erinnerungsfrage in freier Form wird mit dem Werkzeug beantwortet', /Paket abholen/.test(s3), s3);
     }
+    /* ---- 4d ohne Stichwort-Filter: auch Sätze ohne bekanntes Stichwort erreichen die Chef-KI ---- */
+    {
+        const A = neu(true);
+        A.lese('shoppingEntries').push({ id: 1, text: 'Milch' });
+        const s = await A.sage('Fehlt bei uns eigentlich noch etwas im Haus', schritt('einkauf_lesen'));
+        check('4d Satz ohne bekanntes Stichwort erreicht die Chef-KI und wird mit dem Werkzeug beantwortet', /Milch/.test(s) && A.st.ent >= 1, s + ' ent=' + A.st.ent);
+        const B = neu(true);
+        const s2 = await B.sage('Hallo wie geht es dir heute so', { schritte: [] });
+        check('4e reines Plaudern: der Entscheider findet nichts, der normale Weg antwortet wie bisher', B.st.ent >= 1 && B.st.groq >= 1 && /KI-ANTWORT/.test(s2), s2 + ' ent=' + B.st.ent + ' groq=' + B.st.groq);
+        const C = neu(false);
+        await C.sage('Fehlt bei uns eigentlich noch etwas im Haus');
+        check('4f Chef-KI AUS: unverändert, der Entscheider wird nicht gefragt', C.st.ent === 0);
+    }
     /* ---- 5 Schutz: Pläne mit Zusatzangaben werden abgelehnt, Werkzeuge schreiben nichts ---- */
     {
         const A = neu(true);

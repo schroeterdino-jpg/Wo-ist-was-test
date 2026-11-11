@@ -364,10 +364,13 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
     await sprich(A, NATUERLICH[2][0]); await pA;
     check('KI13 ein neuer Satz überholt einen hängenden: der alte wird verworfen (keine doppelte Antwort), der neue läuft', A.st.places_n === 1 && A.st.groq === 0, JSON.stringify({ p: A.st.places_n, g: A.st.groq, e: A.st.entscheider }));
 
-    /* Vorfilter: kein zusätzlicher Aufruf bei Geplauder, Kürze oder Schreibwünschen */
+    /* Vorfilter: zu kurze Sätze lösen keinen Aufruf aus; seit "Chef-KI ohne Stichwort-Filter" sieht der Entscheider auch Geplauder (er plant dort nichts, der normale Weg antwortet) */
     A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = ortsplan('Restaurant');
-    for (const f of ['Wie geht es dir heute so?', 'Erzähl mir etwas Lustiges', 'Hunger', 'Wie spät ist es eigentlich']) await sprich(A, f);
-    check('KI14 Geplauder und zu kurze Sätze lösen keinen Entscheider-Aufruf aus', A.st.entscheider === 0 && A.st.places_n === 0 && A.sb.jvChef.kiZaehler().anfragen === 0, String(A.st.entscheider));
+    for (const f of ['Hunger', 'Hallo du']) await sprich(A, f);
+    check('KI14 zu kurze Sätze lösen keinen Entscheider-Aufruf aus', A.st.entscheider === 0 && A.st.places_n === 0 && A.sb.jvChef.kiZaehler().anfragen === 0, String(A.st.entscheider));
+    A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = { schritte: [] };
+    for (const f of ['Wie geht es dir heute so?', 'Erzähl mir etwas Lustiges', 'Wie spät ist es eigentlich']) await sprich(A, f);
+    check('KI14b Geplauder erreicht den Entscheider (ohne Stichwort-Filter), er plant nichts, keine Suche, der normale Weg antwortet', A.st.entscheider === 3 && A.st.places_n === 0, JSON.stringify({ e: A.st.entscheider, p: A.st.places_n }));
 
     /* Ausschalten während die KI noch denkt */
     A = umgebung(); A.sb.jvChef.an(); A.st.entscheiderAntwort = () => { A.sb.jvChef.aus(); return ortsplan('Restaurant'); };
