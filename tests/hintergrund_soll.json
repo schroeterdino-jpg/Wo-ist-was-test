@@ -1575,7 +1575,7 @@
    "voice.js:972 @20000",
    "vorbereitung.js:140 @60000",
    "wetterfx.js:140 @300000",
-   "zane_redet.js:201 @30000",
+   "zane_redet.js:202 @30000",
    "zuvorkommend.js:311 @10800000"
   ],
   "startAktivIntervalle": 38,

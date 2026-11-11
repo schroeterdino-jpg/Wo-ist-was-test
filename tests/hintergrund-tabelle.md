@@ -101,6 +101,6 @@
 | was_steht_an.js#1 | was_steht_an.js:124 | 250 ms | ab Laden | clearInterval(iv) | Wächter keiner (nicht gemessen) |  | E | GRÜN |
 | weltuhr.js#1 | weltuhr.js:160 | 1 s | bei Bedarf (in open) | clearInterval(timer) | Wächter keiner (nicht gemessen) | D | B | GELB |
 | wetterfx.js#1 | wetterfx.js:140 | 5 min | ab Laden (in start) | nie gestoppt | Wächter keiner (nicht gemessen) | N D | C | GRÜN |
-| zane_redet.js#1 | zane_redet.js:201 | 30 s | ab Laden | nie gestoppt | seltener Takt (Fenster zu kurz für den Vergleich) | N D V | D | GELB |
+| zane_redet.js#1 | zane_redet.js:202 | 30 s | ab Laden | nie gestoppt | seltener Takt (Fenster zu kurz für den Vergleich) | N D V | D | GELB |
 | zuvorkommend.js#1 | zuvorkommend.js:305 | 250 ms | ab Laden | clearInterval(iv) | Wächter keiner (nicht gemessen) |  | E | GRÜN |
 | zuvorkommend.js#2 | zuvorkommend.js:309 | 3 h | ab Laden | nie gestoppt | Wächter keiner (nicht gemessen) | n? S | B | GELB |
