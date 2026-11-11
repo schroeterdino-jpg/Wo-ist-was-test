@@ -299,6 +299,7 @@
         lokal_uebernommen: 'Chef-KI hat übernommen (lokales Muster)',
         rueckfrage_antwort: 'Antwort auf eine Rückfrage der Chef-KI',
         vorfilter_laenge: 'Vorfilter: übersprungen (Satz zu kurz oder zu lang)',
+        langtermin: 'Zeitraum vom ... bis ...: Kalender-Weg, nicht die Chef-KI',
         vorfilter_schreiben: 'Vorfilter: übersprungen (Schreibwunsch wie Erinnerung oder Termin)',
         vorfilter_stichwort: 'Vorfilter: übersprungen (kein Hinweis auf einen Ortswunsch)',
         vorfilter_doppelt: 'Vorfilter: übersprungen (derselbe Satz eben schon)',
@@ -1288,6 +1289,7 @@
             var anschluss = !kopf && themaFrisch() && woerter >= 1 && woerter <= 8 && RX_FOLGE.test(t) && !RX_SCHREIB.test(t);
             if (anschluss) kopf = 'anschluss';
             if (kopf !== 'nachfrage_antwort' && RX_ABFAHRT.test(t) && !RX_B2A.test(t) && !(mehr === true && arbeitswegMehrfachfrage(t)) && !(R() && R().hole('abfahrt'))) { neuerEingang('abfahrtsfrage'); return false; }   // ohne das Werkzeug abfahrt: kein Planer-Aufruf, der bisherige Abfahrtsweg antwortet
+            if (!kopf && typeof langterminAusSatz === 'function' && langterminAusSatz(t, new Date())) { neuerEingang('langtermin'); return false; }   // "Schulung vom 23. November bis 12. Dezember, außer Wochenende" ist ein Termin (Kalender-Weg), keine Ausflug-/Wetterfrage
             if (!kopf && (woerter < 3 || woerter > 30 || t.length > 240)) { neuerEingang('vorfilter_laenge'); return false; }
             if (STICHWORT_FILTER && !kopf && !RX_B2A.test(t) && !RX_KI_VORFILTER.test(t) && !RX_ABFAHRT.test(t) && !RX_ANKUNFT.test(t)) { neuerEingang('vorfilter_stichwort'); return false; }
             if (!R() || !R().hole('ortssuche')) { neuerEingang('faehigkeit_fehlt'); return false; }
