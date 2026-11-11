@@ -28,6 +28,7 @@ function neu(antwort) {
     check('1c technische Aussetzer sind keine Lücke', !L.luecke('Die Fahrzeit konnte ich gerade nicht berechnen.') && !L.luecke('Ich komme gerade nicht ans Internet, das weiß ich nicht.'));
     check('1d lange Antworten: nur der Anfang zählt, spätes "kann ich nicht" mitten in einer Auskunft ist keine Lücke', !L.luecke('Der Vollmond ist am 24. November und dauert etwa eine Nacht. ' + 'x'.repeat(200) + ' Das weiß ich nicht genau.'));
     check('1e Pizza-Fall: "Leider kann ich keine Bestellung ausführen, aber ..." ist eine Lücke, auch lang', L.luecke('Leider kann ich keine Bestellung für dich ausführen, aber ich kann dir schnell ein paar gute Pizzerien in deiner Nähe heraussuchen oder die Telefonnummern bereitstellen, damit du gleich anrufen kannst.') && L.luecke('Ich kann leider nicht telefonieren.') && L.luecke('Dafür bin ich nicht in der Lage.'));
+    check('1e2 Waschmaschinen-Fall: "Ich habe keinen Zugriff auf aktuelle Stromdaten deiner Waschmaschine." ist eine Lücke', L.luecke('Ich habe keinen Zugriff auf aktuelle Stromdaten deiner Waschmaschine.') && L.luecke('Dazu habe ich leider keine Informationen.') && L.luecke('Ich habe darauf keinen Zugriff.'));
     check('1f normale Sätze mit "kann ich" bleiben ohne Eintrag', !L.luecke('Gern, das kann ich für dich tun.') && !L.luecke('Klar, ich kann dir den Weg zeigen.'));
     {   /* über den echten Sprachweg */
         const A = neu('Das weiß ich leider nicht.');
