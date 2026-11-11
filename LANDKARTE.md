@@ -1,7 +1,7 @@
 # LANDKARTE: wo suche ich zuerst?
 
 Rein technische Dokumentation für Entwickler und KI-Einstieg. Sie erzeugt keine Produktlogik und wird von keinem Skript der App gelesen.
-Stand: 29.10.2026 (Phase 8B, 183 Produktdateien in `js/`). Gehört zu `ARCHITEKTUR.md` (Überblick) und ist von `faehigkeiten.js` (Produktfunktion Hilfe/Mehrfachfragen) bewusst getrennt.
+Stand: 29.10.2026 (Phase 8B, 184 Produktdateien in `js/`). Gehört zu `ARCHITEKTUR.md` (Überblick) und ist von `faehigkeiten.js` (Produktfunktion Hilfe/Mehrfachfragen) bewusst getrennt.
 Von einer Fähigkeit (`faehigkeiten.js`) zu den Dateien: die Fähigkeit nennt nur ihre Kerndateien; die übrigen Dateien des Bereichs stehen in der Tabelle unten (Spalte „Abhängigkeiten“) und in der Bereichsliste (Teil 4). Das Fähigkeiten-Verzeichnis ist keine vollständige Funktionsliste und keine Liste aller Produktdateien (Einzelheiten: `ARCHITEKTUR.md`, Abschnitt „Fähigkeiten-Verzeichnis (B1)“). Offene technische Punkte: `ARCHITEKTUR.md`, Abschnitt „Bekannte offene technische Punkte“.
 Ergänzt durch die Fresh-AI-Nachbesserung: Anleitungen zum Erweitern (neuer Sprachbefehl, neue speak-Stufe), Java→JS-Rückrufe der APK, bekannte Gleichrang-Gruppen und die Test-Übersicht (Bereich → Tests): `ARCHITEKTUR.md`, Abschnitte „Rezepte und Nachschlagen für neue Entwickler“.
 Ein Test (`tests/landkarte.js`) prüft, dass jede Datei in `js/` genau einem Bereich zugeordnet ist und alle hier genannten Dateien existieren.
@@ -84,7 +84,7 @@ Jede Datei in `js/` steht genau einmal (Name ohne `js/` und `.js`).
 - **Push/Sync** (4): `auftraege`, `push`, `pushsync`, `sync`
 - **Medien** (4): `bundesliga`, `ergebnisse`, `filme`, `spotify`
 - **Infrastruktur/Diagnose** (3): `diagnose`, `satztest`, `systemcheck_voll`
-- **Gedächtnis** (4): `gedaechtnis`, `gedaechtnis_zeit`, `langzeit`, `luecken`
+- **Gedächtnis** (5): `gedaechtnis`, `gedaechtnis_zeit`, `korrektur`, `langzeit`, `luecken`
 - **Meldungen/C1** (3): `meldungen`, `meldungs_regeln`, `ruhe`
 - **Erinnerungen/Aufgaben** (2): `alarm`, `langzeit_erinnern`
 - **UI/Panels** (2): `panels`, `teilen`

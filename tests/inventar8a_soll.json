@@ -15,18 +15,18 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 379,
-  "produktJs": 183,
-  "jsZeilen": 48789,
-  "jsBytes": 3575958,
-  "jsGzip": 1061856,
-  "scriptTags": 189,
-  "eigeneScripts": 183,
+  "repoDateien": 381,
+  "produktJs": 184,
+  "jsZeilen": 48900,
+  "jsBytes": 3584861,
+  "jsGzip": 1065434,
+  "scriptTags": 190,
+  "eigeneScripts": 184,
   "drittScripts": 2,
   "inlineScripts": 4,
   "api": 11,
-  "testsGesamt": 129,
-  "testsJs": 96,
+  "testsGesamt": 130,
+  "testsJs": 97,
   "testsMd": 14,
   "testsJson": 19,
   "workflows": 5,
@@ -139,6 +139,7 @@
   "ki_mitdenken.js": "A",
   "kontext_lokal.js": "A",
   "konto.js": "A",
+  "korrektur.js": "A",
   "kuendigung.js": "A",
   "lagebild.js": "C",
   "langzeit.js": "C",
@@ -244,7 +245,7 @@
   "zuvorkommend.js": "A"
  },
  "klassenZahl": {
-  "A": 157,
+  "A": 158,
   "B": 18,
   "C": 8,
   "D": 0,
@@ -321,7 +322,7 @@
  },
  "duplikate": {
   "identischeGruppen": 21,
-  "identischeStellen": 70,
+  "identischeStellen": 71,
   "grosseGruppen": [
    "kennenlernen.js:ruhig = zane_redet.js:ruhig",
    "mail_nacht.js:rohMail = mailaktionen.js:rohMail"
@@ -329,11 +330,11 @@
   "gleichnamigeGlobale": [],
   "lokaleHilfen": {
    "norm": {
-    "kopien": 48,
-    "fassungen": 23
+    "kopien": 49,
+    "fassungen": 24
    },
    "sagen": {
-    "kopien": 30,
+    "kopien": 31,
     "fassungen": 11
    },
    "say": {
@@ -376,7 +377,7 @@
    "vollstaendig": true
   },
   "commands": {
-   "eintraege": 93,
+   "eintraege": 94,
    "gleicherRangMehrfach": 22
   },
   "chain": {
@@ -450,16 +451,16 @@
   },
   "ladefehler": []
  },
- "capabilityNichtReferenziert": 142,
+ "capabilityNichtReferenziert": 143,
  "tests": {
   "unklassifiziert": [],
   "klasseOhneDatei": [],
   "workflowOhneDatei": [],
   "workflowDoppelt": [],
   "regressionNichtImWorkflow": [],
-  "imWorkflow": 77,
+  "imWorkflow": 78,
   "jeKlasse": {
-   "regression": 65,
+   "regression": 66,
    "goldenMaster": 8,
    "inventar": 3,
    "historischEingefroren": 1,
@@ -475,7 +476,7 @@
  },
  "ci": {
   "nodeVersion": "20",
-  "schritte": 79,
+  "schritte": 80,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
   "zeitzonenVertragZentral": true,
@@ -533,9 +534,9 @@
   "ohneClient": []
  },
  "dokuAbweichungen": {
-  "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 183 Produkt-JS-Dateie",
-  "architekturSkriptzahl": "183",
-  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 183 Produktdateien in `js/`). G",
+  "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 184 Produkt-JS-Dateie",
+  "architekturSkriptzahl": "184",
+  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 184 Produktdateien in `js/`). G",
   "architekturProjektstandAbschnitt": "## 8. Projektstand und nächste Schritte (Stand 24.10.2026, historisch)"
  }
 }
