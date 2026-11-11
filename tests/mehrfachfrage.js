@@ -67,6 +67,8 @@ async function lauf(satz, o) {
     for (const f of F.liste) for (const it of f.intents) if (it.reineAuskunft) for (const b of it.beispiele || []) if (b.weg === 'lokal' && b.modul === it.bezug && !SAETZE[it.bezug].includes(b.satz)) SAETZE[it.bezug].push(b.satz);
 
     /* Beweis: zwei gleiche Apps; in der einen läuft der Befehl (mit abgefangener Sprache), in der Kontrolle nicht. Danach muss alles gleich sein. */
+    /* Zustand ohne das Gesprächsprotokoll (jv_tageslog): Seit B1 (Natürliche Gespräche 2.0) tragen Schicht-/Was-steht-an-Antworten Frage und Antwort in den Gesprächsverlauf ein; langzeit.js protokolliert den Verlauf im Tageslog. Das ist gewollt und keine Änderung an Terminen, Erinnerungen, Gedächtnis oder Einstellungen. */
+    function zst(A) { const z = A.zustand(); const sp = Object.assign({}, z.speicher); delete sp.jv_tageslog; z.speicher = sp; return JSON.stringify(z); }
     async function beweisLauf(name, satz, mitBefehl) {
         const { A } = await neueApp();
         const sb = A.sb, zaehl = { executeAction: 0, openPanel: 0, cards: 0, open: 0 };
@@ -77,15 +79,15 @@ async function lauf(satz, o) {
         sb.open = function () { zaehl.open++; return null; };
         const href0 = String(sb.location && sb.location.href);
         const fang = []; let ergebnis = null, wirft = null, direkt = 0, unmittelbar = null;
-        const z0 = JSON.stringify(A.zustand()), netz0 = A.aufrufe.length, ev0 = A.ereignisse.length, g0 = A.gesagt.length;
+        const z0 = zst(A), netz0 = A.aufrufe.length, ev0 = A.ereignisse.length, g0 = A.gesagt.length;
         if (mitBefehl) {
             const orig = sb.speak; sb.speak = function (t) { fang.push(String(t)); };
             try { ergebnis = !!sb.jvCommands.nur([name], satz); } catch (e) { wirft = e; }
             direkt = fang.length; sb.speak = orig;
-            unmittelbar = { zustand: JSON.stringify(A.zustand()) === z0, netz: A.aufrufe.length === netz0, ereignisse: A.ereignisse.slice(ev0).filter(e => e.art !== 'sprechen').length, gesagt: A.gesagt.length === g0 };
+            unmittelbar = { zustand: zst(A) === z0, netz: A.aufrufe.length === netz0, ereignisse: A.ereignisse.slice(ev0).filter(e => e.art !== 'sprechen').length, gesagt: A.gesagt.length === g0 };
         }
         await A.vorspulen(10000); await tick(20);
-        return { zaehl, fang, ergebnis, wirft, direkt, unmittelbar, href0, href1: String(sb.location && sb.location.href), spaeter: { zustand: JSON.stringify(A.zustand()), netz: A.aufrufe.slice(), ereignisse: A.ereignisse.slice(ev0).filter(e => e.art !== 'sprechen').map(e => e.art + e.text), gesagt: A.gesagt.slice(g0) } };
+        return { zaehl, fang, ergebnis, wirft, direkt, unmittelbar, href0, href1: String(sb.location && sb.location.href), spaeter: { zustand: zst(A), netz: A.aufrufe.slice(), ereignisse: A.ereignisse.slice(ev0).filter(e => e.art !== 'sprechen').map(e => e.art + e.text), gesagt: A.gesagt.slice(g0) } };
     }
     async function beweis(name, satz) {   // gibt die Liste der verletzten Eigenschaften zurück
         const t = await beweisLauf(name, satz, true), k = await beweisLauf(name, satz, false), v = [];

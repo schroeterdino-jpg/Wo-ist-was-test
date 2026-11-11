@@ -137,7 +137,10 @@ async function sprechweg(w, e) {
     };
     const erwKi = (e, v) => EINGABE_KI[e[1]] || (v.kiNachrichten.length ? [e[2]].concat(v.kiNachrichten.slice(1)) : []);
     const ORIGINAL_FELDER = ['roh', 'nachVoice', 'weg', 'historyUser', 'letzterText', 'aktionen', 'gespeichert', 'aenderungen'];
-    const originalVerletzt = (r, v) => ORIGINAL_FELDER.filter(k => JS(r[k]) !== JS(v[k]));   // [] = alle Originale unverändert gegenüber dem Zustand vor dem Umbau
+    /* B1 (Natürliche Gespräche 2.0): Die lokal beantwortete erste Teilfrage steht jetzt als eigener Eintrag im Verlauf (fertige Antwort auf eine Nutzerfrage). Das ist gewollt und zählt nicht als Veränderung des Originaltexts. */
+    const B1_ZUSATZ = { 'Was habe ich heute vor und wie kalt ist es in Schwarzenbeck': ['Was habe ich heute vor?'] };
+    const ohneB1 = r => { const z = (B1_ZUSATZ[r.roh] || []).slice(); return r.historyUser.filter(h => { const i = z.indexOf(h); if (i >= 0) { z.splice(i, 1); return false; } return true; }); };
+    const originalVerletzt = (r, v) => ORIGINAL_FELDER.filter(k => JS(k === 'historyUser' ? ohneB1(r) : r[k]) !== JS(v[k]));   // [] = alle Originale unverändert gegenüber dem Zustand vor dem Umbau
     const kiAbweichung = (e, r, v, nurErste) => { const a = nurErste ? r.kiNachrichten.slice(0, 1) : r.kiNachrichten, b = nurErste ? erwKi(e, v).slice(0, 1) : erwKi(e, v); return JS(a) === JS(b) ? '' : 'KI-Nachricht ' + JS(a) + ' statt ' + JS(b); };   // nurErste: frische Zusatzwelten rufen die KI intern nicht immer ein zweites Mal
     const urteilFuer = (e, r, v) => {
         if (originalVerletzt(r, v).length || kiAbweichung(e, r, v)) return 'problematisch';
@@ -150,6 +153,7 @@ async function sprechweg(w, e) {
         check('Eingabe ' + (i + 1) + ' (' + e[0] + '): "' + e[1] + '" – Referenz stimmt (gleiche Eingabe wie im Golden Master)', v && v.roh === e[1]);
         const ov = originalVerletzt(r, v);
         check('Eingabe ' + (i + 1) + ' (' + e[0] + '): "' + e[1] + '" – Originaltext überall unverändert (Weg, Chat-Verlauf, jvLetzterText, Aktionen, Gedächtnis, Kalender, Erinnerungen)', ov.length === 0, JS(ov));
+        if (B1_ZUSATZ[e[1]]) check('Eingabe ' + (i + 1) + ': B1 – die lokal beantwortete Teilfrage steht im Verlauf (genau einmal)', B1_ZUSATZ[e[1]].every(z => r.historyUser.filter(h => h === z).length === 1), JS(r.historyUser));
         const ka = kiAbweichung(e, r, v);
         check('Eingabe ' + (i + 1) + ' (' + e[0] + '): "' + e[1] + '" – KI bekommt die erwartete Kopie', ka === '', ka);
         const u = urteilFuer(e, r, v);

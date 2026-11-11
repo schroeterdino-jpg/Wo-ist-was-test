@@ -61,9 +61,17 @@
         } catch (e) { return null; }
     }
 
-    function sag(t) { try { speak(t, false); } catch (e) { } return true; }
+    let letzte = null;   // letzte Antwort des laufenden Befehls (für den Gesprächsfaden, js/kontext_lokal.js)
+    function sag(t) { letzte = String(t); try { speak(t, false); } catch (e) { } return true; }
 
     function befehl(text, next) {
+        letzte = null;
+        const r = befehlRoh(text, next);
+        try { if (r === true && letzte && window.jvKontext) window.jvKontext.merke(text, letzte, { name: 'arbeit', daten: {} }); } catch (e) { }
+        letzte = null;
+        return r;
+    }
+    function befehlRoh(text, next) {
         try { if (window.jvPlan && typeof window.jvPlan.auskunftSatz === 'function' && window.jvPlan.auskunftSatz(text)) return true; } catch (e) { }   // Beginn/Ende/Abfahrt für einen Tag
         const t = norm(text);
         if (!t || t.split(' ').length > 14) return next(text);
