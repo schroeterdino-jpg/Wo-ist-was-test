@@ -26,8 +26,11 @@
     const THEMA_MS = 10 * 60000;      // so lange gilt ein Gesprächsthema höchstens für eine Anschlussfrage
 
     /* Frage + Antwort in den vorhandenen Verlauf und das Thema ins Gesprächsgedächtnis (jvGespraech). Gibt true zurück, wenn eingetragen wurde. */
+    let letztes = null;               // letzte Frage + Antwort für die Chef-KI: { f, a, eingang, at }
+    function notieren(f, a) { f = String(f || '').trim(); a = String(a || '').trim(); if (f && a) letztes = { f: f.slice(0, 200), a: a.slice(0, 300), eingang: eingangNr, at: Date.now() }; }
     function eintragen(userText, spoken, thema, mitAnschluss) {
         try {
+            notieren(userText, spoken);
             if (typeof chatHistory === 'undefined' || !Array.isArray(chatHistory)) return false;
             const f = String(userText || '').trim(), a = String(spoken || '').trim().slice(0, 700);
             if (!f || !a) return false;
@@ -48,10 +51,17 @@
     function remember(userText, spoken) { eintragen(userText, spoken, null, true); }
 
     let letzterEingangMs = 0;         // Zeit des letzten Nutzersatzes
+    let eingangText = '', notiertNr = 0;   // Wortlaut des letzten Nutzersatzes; für welchen Satz schon eine Antwort notiert ist
     window.jvKontext = {
-        eingang: function () { eingangNr++; letzterEingangMs = Date.now(); },
+        eingang: function (text) { eingangNr++; letzterEingangMs = Date.now(); eingangText = String(text || ''); },
         /* Läuft gerade ein Gespräch? (letzter Nutzersatz vor weniger als ms, Standard 90 Sekunden). Ansagen von selbst (Briefing, Aufbruchszeit, Wächter) warten dann. */
         aktiv: function (ms) { return letzterEingangMs > 0 && Date.now() - letzterEingangMs < (ms > 0 ? ms : 90000); },
+        notiere: notieren,   // nur für die Chef-KI: Frage und Antwort merken, ohne Verlauf und Thema anzufassen
+        /* Letzte Frage und Antwort, solange sie frisch sind (höchstens 10 Minuten, höchstens ein Nutzersatz dazwischen). */
+        letzter: function (maxMs) {
+            if (!letztes || Date.now() - letztes.at > (maxMs > 0 ? maxMs : THEMA_MS) || eingangNr - letztes.eingang > 1) return null;
+            return { frage: letztes.f, antwort: letztes.a };
+        },
         merke: function (frage, antwort, thema) {
             const a = String(antwort == null ? '' : antwort).trim();
             if (!a || /\?\s*$/.test(a)) return false;   // keine Rückfragen: die verwaltet der jeweilige Befehl selbst
@@ -79,6 +89,11 @@
                 if (pending && Date.now() - pending.at < REPLY_WAIT_MS && typeof text === 'string' && text.trim()) {
                     remember(pending.text, text);
                     pending = null;
+                }
+                /* Jede erste gesprochene Antwort auf einen Nutzersatz (auch von Befehlen, die nicht über diese Kette laufen, etwa Vollmond) merkt sich die Chef-KI für Anschlussfragen. */
+                if (eingangText && notiertNr !== eingangNr && typeof text === 'string' && text.trim() && Date.now() - letzterEingangMs < REPLY_WAIT_MS) {
+                    notiertNr = eingangNr;
+                    if (!/\?\s*$/.test(text.trim())) notieren(eingangText, text);
                 }
             } catch (e) {}
             return prevSpeak.apply(this, arguments);
