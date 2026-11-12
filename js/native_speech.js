@@ -71,8 +71,7 @@
                 (typeof isProcessing !== 'undefined' && isProcessing) ||
                 (typeof ackActive !== 'undefined' && ackActive) ||
                 window.__zaneAckBusy === true;
-            window.ZaneNative.setBusy(!!busy);
-            try { if (window.jvStopp) window.jvStopp.tick(); } catch (e) { }   // Stopp-Hören (Test): nur wenn eingeschaltet und Jarvis spricht
+            window.ZaneNative.setBusy(!!busy); try { if (window.jvStopp) window.jvStopp.tick(); } catch (e) { }   // Stopp-Hören (Test): nur wenn eingeschaltet und Jarvis spricht
             // Spricht Jarvis gerade? Nur dann darf die App beim Weckwort unterbrechen (Einstellung "Unterbrechen"); ältere Apps kennen das nicht
             if (typeof window.ZaneNative.setSprechen === 'function') {
                 const spricht = (typeof isSpeaking === 'function' && isSpeaking()) || window.__zaneAckBusy === true;
