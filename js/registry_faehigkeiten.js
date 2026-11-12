@@ -166,7 +166,7 @@
     /* ---------------- 2a. Jarvis über sich selbst (lesend, ohne KI-Kosten) ---------------- */
     var SELBST_NAMEN = { ortssuche: 'Orte und Restaurants suchen', websuche: 'Internetsuche', wetter: 'Wetter', fahrzeit: 'Fahrzeit und Verkehr mit dem Auto', produktsuche: 'Preise und Händler zu Produkten', foto_info: 'Fotos erkennen und auswerten',
         termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', essensplan: 'Essensplan der Kantine', erinnerungen_lesen: 'Erinnerungen ansehen', einkauf_lesen: 'Einkaufsliste ansehen', urlaub_lesen: 'Urlaub ansehen', rechnungen_lesen: 'offene Rechnungen ansehen', vollmond: 'Vollmond', wunschliste_lesen: 'Wunschlisten ansehen', pakete_lesen: 'Pakete ansehen', parkplatz_lesen: 'Parkplatz ansehen', wecker_stellen: 'Wecker stellen', uhrzeit_anderswo: 'Uhrzeit in anderen Städten', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
-        termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken' };
+        termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken', einkauf_hinzufuegen: 'Einkaufsliste ergänzen' };
     R.registriere({
         name: 'jarvis_info',
         beschreibung: 'Zählt auf, welche Werkzeuge und Fähigkeiten Jarvis selbst hat. Nur nutzen, wenn der Nutzer Jarvis selbst meint ("du", "dich", "deine Funktionen", "wie könntest du dich verbessern").',
@@ -897,6 +897,54 @@
             var gespeichert = gemerkt(key);
             return { schluessel: key, vorher: vorher, erwartet: erwarteterWert(a), gespeichert: gespeichert, ueberschrieben: vorher !== '' && vorher !== gespeichert, unveraendert: vorher !== '' && vorher === gespeichert,
                      hinweise: ctx.notes.slice(), nichtsGetan: nichts, nachricht: nichts[0] || ctx.notes.join(' ') };
+        }
+    });
+
+    /* ---------------- Einkauf hinzufügen (Schiene B2a, Umbau Bereich Einkauf/Aufgaben/Erinnerungen) ---------------- */
+    function einkaufStuecke(v) {   // "Milch, Eier und Brot" -> ['Milch','Eier','Brot'] (höchstens 10, je unter 40 Zeichen, wie die bestehende Aktion 'shopping')
+        return String(v == null ? '' : v).split(/\s*,\s*|\s+und\s+/i).map(function (s) { return s.trim(); }).filter(function (s) { return s.length >= 2 && s.length < 40; }).slice(0, 10);
+    }
+    function einkaufAktion(p) { return { type: 'shopping', shopping_items: einkaufStuecke(p.artikel) }; }
+    R.registriere({
+        name: 'einkauf_hinzufuegen',
+        beschreibung: 'Setzt einen oder mehrere Artikel auf die Einkaufsliste. Was schon draufsteht, wird nicht doppelt angelegt.',
+        pflicht: [{ name: 'artikel', typ: 'text', beschreibung: 'Was gekauft werden soll, zum Beispiel "Milch" oder "Milch, Eier und Brot".' }],
+        optional: [],
+        rueckgabe: { beschreibung: 'Welche Artikel neu auf die Liste kamen und welche schon draufstanden.', felder: ['erwartet', 'hinzugefuegt', 'schonDa', 'vorher', 'nachher', 'hinweise', 'nichtsGetan', 'nachricht'] },
+        fehler: [
+            { status: 'NEEDS_INFORMATION', wann: 'Kein Artikel angegeben.' },
+            { status: 'TOOL_FAILED', wann: 'Ein Artikel steht nach dem Anlegen nicht auf der Liste, oder ein technischer Fehler trat auf.' },
+            { status: 'CAPABILITY_MISSING', wann: 'Die Aktionsausführung oder die Einkaufsliste ist nicht geladen.' }
+        ],
+        fallbacks: [],
+        bestaetigung: { noetig: false, grund: 'Ein Artikel auf der Einkaufsliste ist harmlos und lässt sich wieder entfernen.' },
+        pruefeErfolg: function (d) { return !!d && Array.isArray(d.erwartet) && d.erwartet.length > 0 && d.hinzugefuegt.length + d.schonDa.length === d.erwartet.length; },
+        verbindung: { datei: 'js/actions.js', funktion: 'executeAction', aktion: 'shopping' },
+        verfuegbar: function () { return actionsDa() && !!liste('shoppingEntries'); },
+        vorpruefung: function (p) {
+            if (!einkaufStuecke(p.artikel).length) return { status: 'NEEDS_INFORMATION', nachricht: 'Was soll ich auf die Einkaufsliste setzen?', fehlend: ['artikel'] };
+            return sicherheit(einkaufAktion(p));
+        },
+        ausfuehren: async function (p) {
+            var a = einkaufAktion(p), ctx = ctxNeu(null), SYM_N = Symbol.for('jv.nichtsGetan');
+            var vorher = (liste('shoppingEntries') || []).slice();
+            var texte = function (l) { return l.map(function (e) { return String(e && e.text || '').toLowerCase(); }); };
+            var vorherTexte = texte(vorher);
+            // eigener Satz mit eindeutigem "Hinzufügen"-Wunsch, damit die bestehende Aktion es nie für eine Frage nach der Liste hält
+            await executeAction(a, 'Füge ' + a.shopping_items.join(', ') + ' zur Einkaufsliste hinzu', ctx);
+            var nachher = liste('shoppingEntries') || [], nachherTexte = texte(nachher);
+            var hinzu = [], schon = [];
+            a.shopping_items.forEach(function (it) {
+                var k = it.toLowerCase();
+                if (vorherTexte.indexOf(k) >= 0) schon.push(it);
+                else if (nachherTexte.indexOf(k) >= 0) hinzu.push(it);
+            });
+            var nichts = (ctx[SYM_N] || []).slice();
+            var teile = [];
+            if (hinzu.length) teile.push(hinzu.join(', ') + (hinzu.length === 1 ? ' steht' : ' stehen') + ' jetzt auf deiner Einkaufsliste');
+            if (schon.length) teile.push(schon.join(', ') + (schon.length === 1 ? ' stand' : ' standen') + ' schon drauf');
+            return { erwartet: a.shopping_items, hinzugefuegt: hinzu, schonDa: schon, vorher: vorher.length, nachher: nachher.length, hinweise: ctx.notes.slice(), nichtsGetan: nichts,
+                     nachricht: teile.length ? teile.join('; ') + '.' : (nichts[0] || 'Es wurde nichts auf die Einkaufsliste gesetzt.') };
         }
     });
 

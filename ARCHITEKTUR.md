@@ -806,5 +806,6 @@ Fahrzeit-Plausibilität (PR #383): Nach der Route prüft `fahrzeit` Luftlinie ge
 ## Umbau Chef-KI zuerst, Schritt 1: neue Werkzeuge (Test `tests/chef_parkplatz.js`, `tests/chef_wecker.js`)
 - `parkplatz_lesen` (nur lesend, liest `describeParking()`): die KI beantwortet „Wo steht mein Auto?“ in jeder Formulierung, ohne Gedächtnis-Rückfrage.
 - `wecker_stellen` (schreibend, Schiene B2a, `params.zeit` = „HH:MM“): ruft `jvPlan.weckerFuerKI` in `plan_ansagen.js` auf, also dieselbe Wecker-Logik wie der Sprachbefehl (`weckerSetzen`), nur mit Rückgabe statt Sprechen. Gestellt nur bei Weck-Wunsch im Satz (`RX_B2A`); die festen Muster (`weckerBefehl`) bleiben davor und als Rückfall. Erfolg nur, wenn die Uhr-App den Wecker annimmt.
+- `einkauf_hinzufuegen` (schreibend, Schiene B2a, Test `tests/chef_einkauf.js`, `params.artikel` = „Milch, Eier und Brot“): ruft die bestehende Aktion `shopping` auf, prüft danach die Liste (neu / stand schon drauf / nichts doppelt). Lockeres Schreib-Gate nur für diesen Schritt: `RX_EINKAUF` in `js/chef.js` („Wir brauchen Milch“ genügt); alle anderen Schreibwerkzeuge brauchen weiter `RX_B2A`.
 - Navigation braucht kein Werkzeug: sie läuft schon über die normale KI (Aktionen route/travel_time).
 - Achtung `MEHR_FAEHIG` ist nach `MEHR_GRUPPEN` indiziert: nie mitten in die Liste einfügen.
