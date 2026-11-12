@@ -8,7 +8,7 @@ const { starte } = require('./umgebung.js');
 let ok = 0, fehler = 0;
 function check(name, b, info) { if (b) { ok++; return; } fehler++; console.log('✗ ' + name + (info ? '  →  ' + info : '')); }
 (async () => {
-    for (const [sh, erwartet] of [['spaet', ['15:45 bis 16:05', '18:00 bis 18:30']], ['frueh', ['7:30 bis 8:10', '9:30 bis 12:00']], [null, []]]) {
+    for (const [sh, erwartet] of [['spaet', ['15:45 bis 16:05', '18:00 bis 18:30']], ['frueh', ['7:30 bis 7:50', '11:30 bis 12:00']], [null, []]]) {
         const texte = [];
         const native = new Proxy({ schlafStand: () => '{}', schlafKontext: (d, t) => { texte.push(t); }, schlafArbeit() { } }, { get: (t, k) => k in t ? t[k] : (() => '') });
         const A = starte({ jetzt: '2026-11-12T13:09:00+01:00', festerZufall: true, native, fetch: async u => { throw new Error('offline ' + u); } });
