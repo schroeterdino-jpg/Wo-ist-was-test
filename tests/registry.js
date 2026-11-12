@@ -227,7 +227,7 @@ const FELDER = 'alternativen,ausgefuehrt,daten,faehigkeit,fehlend,grund,nachrich
     let A = umgebung();
     check('20a keine Ladefehler', A.ladefehler.length === 0, A.ladefehler.join('; '));
     const FUENF = ['ortssuche', 'websuche', 'erinnerung_erstellen', 'termin_erstellen', 'gedaechtnis_speichern'];
-    check('20b die fünf Fähigkeiten sind in dieser Reihenfolge angemeldet, dazu "wetter" (Chef-KI-Paket) und die fünf des Schreibkerns (B1)', A.sb.jvRegistry.namen().slice(0, 2).join() === 'ortssuche,websuche' && FUENF.every(n => A.sb.jvRegistry.namen().includes(n)) && A.sb.jvRegistry.namen().length === 30 && A.sb.jvRegistry.namen().includes('wetter') && A.sb.jvRegistry.namen().includes('produktsuche') && ['aufgabe_erstellen', 'aufgaben_lesen', 'termine_lesen', 'termin_verschieben', 'kontakt_speichern'].every(n => A.sb.jvRegistry.namen().includes(n)), A.sb.jvRegistry.namen().join());
+    check('20b die fünf Fähigkeiten sind in dieser Reihenfolge angemeldet, dazu "wetter" (Chef-KI-Paket) und die fünf des Schreibkerns (B1)', A.sb.jvRegistry.namen().slice(0, 2).join() === 'ortssuche,websuche' && FUENF.every(n => A.sb.jvRegistry.namen().includes(n)) && A.sb.jvRegistry.namen().length === 31 && A.sb.jvRegistry.namen().includes('wetter') && A.sb.jvRegistry.namen().includes('produktsuche') && ['aufgabe_erstellen', 'aufgaben_lesen', 'termine_lesen', 'termin_verschieben', 'kontakt_speichern'].every(n => A.sb.jvRegistry.namen().includes(n)), A.sb.jvRegistry.namen().join());
     check('20c alle Fallbacks sind angemeldet', A.sb.jvRegistry.pruefeVerweise().length === 0);
     const bekannteAktionen = new Set(A.sb.jvSicher._bekannteTypen());
     for (const n of FUENF) {
@@ -379,7 +379,7 @@ const FELDER = 'alternativen,ausgefuehrt,daten,faehigkeit,fehlend,grund,nachrich
         const F = umgebung();
         const reg = F.sb.jvRegistry.registriere(frisch({ name: 'neue_faehigkeit', fallbacks: ['websuche'], ausfuehren: async () => ({ wert: 1 }) }));
         r = await ruf(F, 'neue_faehigkeit', { text: 'a' });
-        check('30a eine weitere Fähigkeit läuft neben den angemeldeten (fünf + wetter + Schreibkern), Fallback auf eine bestehende wird erkannt', reg.ok && r.status === 'SUCCESS' && F.sb.jvRegistry.namen().length === 31 && F.sb.jvRegistry.pruefeVerweise().length === 0);
+        check('30a eine weitere Fähigkeit läuft neben den angemeldeten (fünf + wetter + Schreibkern), Fallback auf eine bestehende wird erkannt', reg.ok && r.status === 'SUCCESS' && F.sb.jvRegistry.namen().length === 32 && F.sb.jvRegistry.pruefeVerweise().length === 0);
         check('30b die fünf Namen lassen sich nicht überschreiben', F.sb.jvRegistry.registriere(frisch({ name: 'ortssuche' })).ok === false && F.sb.jvRegistry.hole('ortssuche').verbindung.funktion === 'findNearbyRestaurants');
     }
 
