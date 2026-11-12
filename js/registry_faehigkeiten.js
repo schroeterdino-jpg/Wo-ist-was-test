@@ -165,7 +165,7 @@
 
     /* ---------------- 2a. Jarvis über sich selbst (lesend, ohne KI-Kosten) ---------------- */
     var SELBST_NAMEN = { ortssuche: 'Orte und Restaurants suchen', websuche: 'Internetsuche', wetter: 'Wetter', fahrzeit: 'Fahrzeit und Verkehr mit dem Auto', produktsuche: 'Preise und Händler zu Produkten', foto_info: 'Fotos erkennen und auswerten',
-        termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', essensplan: 'Essensplan der Kantine', erinnerungen_lesen: 'Erinnerungen ansehen', einkauf_lesen: 'Einkaufsliste ansehen', urlaub_lesen: 'Urlaub ansehen', rechnungen_lesen: 'offene Rechnungen ansehen', vollmond: 'Vollmond', wunschliste_lesen: 'Wunschlisten ansehen', pakete_lesen: 'Pakete ansehen', uhrzeit_anderswo: 'Uhrzeit in anderen Städten', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
+        termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', essensplan: 'Essensplan der Kantine', erinnerungen_lesen: 'Erinnerungen ansehen', einkauf_lesen: 'Einkaufsliste ansehen', urlaub_lesen: 'Urlaub ansehen', rechnungen_lesen: 'offene Rechnungen ansehen', vollmond: 'Vollmond', wunschliste_lesen: 'Wunschlisten ansehen', pakete_lesen: 'Pakete ansehen', parkplatz_lesen: 'Parkplatz ansehen', uhrzeit_anderswo: 'Uhrzeit in anderen Städten', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
         termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken' };
     R.registriere({
         name: 'jarvis_info',
@@ -618,6 +618,13 @@
         async function () {
             var s = window.jvPakete.lesen();
             return s.length ? { anzahl: s.length, nachricht: s.join(' ') + ' (Stand der letzten Abfrage.)' } : { anzahl: 0, nachricht: 'Du hast noch kein Paket eingetragen.' };
+        });
+    lesWerkzeug('parkplatz_lesen', 'Sagt, wo das Auto des Nutzers geparkt ist (gespeicherter Parkplatz mit Adresse und Zeit; nur lesend). Für Fragen wie "Wo steht mein Auto?", "Wo ist mein Auto?", "Wo habe ich geparkt?" oder "Wo parkt mein Wagen?". Das sind KEINE Gedächtnisfragen.',
+        ['nachricht', 'adresse'], 'js/places.js', 'describeParking', function () { return typeof describeParking === 'function'; },
+        async function () {
+            var d = describeParking();
+            if (!d) return { adresse: '', nachricht: 'Ich habe keinen gespeicherten Parkplatz. Sag „Merk dir, wo ich geparkt habe“, dann speichere ich ihn.' };
+            return { adresse: String(d.adresse || ''), nachricht: 'Dein Auto steht bei ' + String(d.adresse || 'dem gespeicherten Ort') + ', gespeichert ' + d.gespeichert_vor + '.' + (d.notiz ? ' Notiz: ' + d.notiz + '.' : '') };
         });
     R.registriere({
         name: 'uhrzeit_anderswo',
