@@ -42,7 +42,7 @@ function parsePhotoRequest(text) {
     // Visitenkarte -> Kontakt anlegen
     if (/\b(visitenkarte|kontaktkarte)\b/.test(t) || (/\bkontakt\w*\b/.test(t) && photoWord && /(anleg|erstell|speicher|übernehm|trag|eintrag|neu)/.test(t))) return { task: 'contact', question: t };
     // Einkaufszettel -> Einkaufsliste
-    if (/\b(einkaufszettel|einkaufsliste|zettel|handgeschrieben\w*)\b/.test(t) && (photoWord || /zettel/.test(t)) && /(setz|trag|schreib|übernehm|übernimm|füg|hinzu|abschreib|auf die liste|in die liste|einkaufsliste)/.test(t)) return { task: 'shopping', question: t };
+    if (/\b(einkaufszettel|einkaufsliste|zettel|handgeschrieben\w*)\b/.test(t) && (photoWord || /\b(?:abschreib\w*|übernehm\w*|übernimm\w*|lies|les\w*|erkenn\w*)\b/.test(t)) && /(setz|trag|schreib|übernehm|übernimm|füg|hinzu|abschreib|auf die liste|in die liste|einkaufsliste)/.test(t)) return { task: 'shopping', question: t };
     // Parkschild
     if (/\b(darf|kann|muss)\s+ich\s+hier\s+(parken|stehen|halten)\b/.test(t) || /\b(parkschild|parkverbot|halteverbot|parkscheibe|parkregelung|parkordnung)\b/.test(t)) return { task: 'parking', question: t };
     // Zutaten -> Rezept
