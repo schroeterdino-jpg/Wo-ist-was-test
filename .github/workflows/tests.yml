@@ -123,6 +123,7 @@ jobs:
           node tests/luecken.js
           node tests/einkaufszettel.js
           node tests/mitlauf.js
+          node tests/stopp_hoeren.js
           node tests/langtermin.js
           node tests/korrektur.js
           node tests/abfahrt_kurz.js
