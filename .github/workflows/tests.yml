@@ -157,6 +157,7 @@ jobs:
           node tests/handyapp.js
           node tests/jarvis_pruefstrecke.js
           node tests/kitext.js
+          node tests/prompt_wissen.js
           node tests/kontakte_xss.js
           node tests/landkarte.js
           node tests/lauf.js
