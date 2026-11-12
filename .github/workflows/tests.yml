@@ -163,6 +163,7 @@ jobs:
           node tests/chef_einkauf.js
           node tests/weltuhr_reine_frage.js
           node tests/doppelsatz.js
+          node tests/preis_tausender.js
           node tests/kontakte_xss.js
           node tests/landkarte.js
           node tests/lauf.js
