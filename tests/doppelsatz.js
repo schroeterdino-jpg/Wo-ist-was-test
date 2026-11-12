@@ -1,0 +1,55 @@
+/* ============================================================
+   TEST: Doppelsätze mit lesenden Auskünften (Umbau): ein fester Befehl darf bei "A und B" nicht allein antworten und B verschlucken.
+   Bei eingeschalteter Chef-KI gehen solche Sätze zuerst an die Chef-KI (MEHR_GRUPPEN 6 bis 12 in js/chef.js). Einzelfragen bleiben bei den festen Befehlen.
+   Start: node tests/doppelsatz.js
+   ============================================================ */
+'use strict';
+process.env.TZ = 'Europe/Berlin';
+const { starte } = require('./umgebung.js');
+let ok = 0, fehler = 0;
+function check(name, b, info) { if (b) { ok++; return; } fehler++; console.log('✗ ' + name + (info ? '  →  ' + info : '')); }
+const ant = d => ({ ok: true, status: 200, json: async () => d });
+const warte = async n => { for (let i = 0; i < (n || 40); i++) await new Promise(r => setImmediate(r)); };
+const WS = { faehigkeit: 'websuche', params: { frage: 'Frage' } }, PS = { faehigkeit: 'produktsuche', params: { suchbegriff: 'Fernseher' } }, WE = { faehigkeit: 'wetter', params: { tag: 'morgen' } };
+const FAELLE = [
+    ['Wie viel sind 50 Dollar in Euro und was kostet ein Fernseher', [WS, PS]],
+    ['Wann sind die nächsten Ferien und wie wird das Wetter morgen', [WS, WE]],
+    ['Wann geht die Sonne unter und was kostet ein Fernseher', [WS, PS]],
+    ['Welche Schicht habe ich morgen und wie wird das Wetter morgen', [{ faehigkeit: 'schicht', params: { tag: 'morgen' } }, WE]],
+    ['Welche Rechnungen sind offen und wie wird das Wetter morgen', [{ faehigkeit: 'rechnungen_lesen', params: {} }, WE]],
+    ['Habe ich Urlaub und wie wird das Wetter morgen', [{ faehigkeit: 'urlaub_lesen', params: {} }, WE]]
+];
+(async () => {
+    const gespr = [], st = { planer: 0, normal: 0 };
+    let plan = null;
+    const A = starte({ jetzt: '2026-11-12T11:13:00+01:00', festerZufall: true, echtesSpeak: true, spracherkennung: true,
+        nachSkript: (f, sb) => { if (f === 'voice.js') sb.speak = function (t) { gespr.push(String(t)); return Promise.resolve(); }; },
+        fetch: async (u, o) => {
+            if (/api\/groq/.test(String(u))) {
+                const b = JSON.parse(o.body), sys = (b.messages || []).filter(m => m.role === 'system').map(m => m.content).join('\n');
+                if (/Du planst für einen Sprachassistenten/.test(sys)) { st.planer++; return ant({ choices: [{ message: { content: JSON.stringify({ absicht: 'x', schritte: plan }) } }] }); }
+                st.normal++; return ant({ choices: [{ message: { content: JSON.stringify({ reply: 'Normale KI.', actions: [] }) } }] });
+            }
+            throw new Error('offline ' + u);
+        } });
+    A.vorspulen(2000);
+    const C = A.sb.jvChef;
+    // Chef-KI AUS: alles wie bisher
+    for (const [satz] of FAELLE) check('1 Chef-KI aus: nicht mehrteilig (' + satz.slice(0, 30) + ')', C.mehrteilig(satz) === false);
+    C.an();
+    for (const [satz, pl] of FAELLE) {
+        check('2a mehrteilig erkannt: ' + satz, C.mehrteilig(satz) === true);
+        plan = pl; st.planer = 0; gespr.length = 0;
+        await A.lassLaufen(async () => { A.sb.jvTippen(satz); await warte(120); });
+        await A.lassLaufen(async () => { await warte(120); });
+        check('2b Chef-KI wird zuerst gefragt, kein fester Befehl allein: ' + satz, st.planer >= 1, JSON.stringify({ st, gespr }));
+    }
+    // Einzelfragen bleiben bei den festen Befehlen
+    for (const satz of ['Wann geht die Sonne unter', 'Habe ich Urlaub', 'Welche Rechnungen sind offen', 'Wie viel sind 50 Dollar in Euro', 'Was kostet ein Fernseher und ein Toaster']) {
+        check('3a Einzelfrage ist nicht mehrteilig: ' + satz, C.mehrteilig(satz) === false);
+    }
+    // Schreibwünsche mit Urlaub/Rechnung zählen nicht als lesende Gruppe
+    check('3b "Urlaub eintragen und Wetter" ist keine Urlaub-Leseabfrage', C.mehrteilig('Trag meinen Urlaub ein und sag mir das Wetter') === false);
+    console.log(fehler ? '✗ ' + fehler + ' Fehler' : '✓ alle ' + ok + ' Prüfungen bestanden');
+    process.exit(fehler ? 1 : 0);
+})();
