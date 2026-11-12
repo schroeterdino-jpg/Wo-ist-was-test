@@ -16,7 +16,7 @@
     const W = 512, H = 768;
     const BOX = [440, 262];                         // Ecke der Mund-Bilder in 1024er Koordinaten
     const AUGEN = [[462, 204], [582, 201]], REAKTOR = [517, 686];
-    const st = { aktiv: false, ctx: null, canvas: null, img: null, m1: null, m2: null, a1: 0, a2: 0, zaehler: 0, vorher: null };
+    const st = { aktiv: false, ctx: null, canvas: null, img: null, m1: null, m2: null, a1: 0, a2: 0, zaehler: 0, vorher: null, teile: [] };
 
     function laden(src) { return new Promise((ok, fehl) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => fehl(new Error('Bild fehlt: ' + src)); i.src = src; }); }
     function merkerKugel() { try { return window.localStorage && window.localStorage.getItem('jv_avatar') === 'kugel'; } catch (e) { return false; } }
@@ -46,7 +46,7 @@
         if (!st.aktiv || !st.ctx) return;
         const sprechen = modus === 'speaking';
         st.zaehler++;
-        if (st.zaehler % (sprechen ? 2 : 6) !== 0 && !(st.a1 > 0.02 || st.a2 > 0.02)) return;   // Ruhe: nur alle 6 Bilder; Mund noch offen: sofort zu Ende zeichnen
+        if (st.zaehler % (sprechen ? 2 : 3) !== 0 && !(st.a1 > 0.02 || st.a2 > 0.02)) return;   // Ruhe: nur alle 3 Bilder; Mund noch offen: sofort zu Ende zeichnen
         let p = pegel;
         if (typeof p === 'number') { const v = st.vorher; st.vorher = p; p = p + 2.2 * (p - (typeof v === 'number' ? v : p)); }   // der Pegel ist geglättet und läuft der Stimme nach: Anstieg verstärken, damit der Mund nicht hinterherhinkt
         const o = oeffnung(modus, p, t || st.zaehler);
@@ -56,8 +56,9 @@
         if (!sprechen && st.a1 < 0.03) st.a1 = 0; if (!sprechen && st.a2 < 0.03) st.a2 = 0;
         const ctx = st.ctx, tt = st.zaehler;
         ctx.clearRect(0, 0, W, H);
-        const atem = Math.sin(tt * 0.02) * (sprechen ? 1.2 : 0.8);               // Atmen: sehr kleine Hebung
-        ctx.save(); ctx.translate(0, atem);
+        const schweben = Math.sin(tt * 0.022) * 9 + Math.sin(tt * 0.0137) * 4;       // sanftes Schweben (Bildpunkte, ca. 3 px auf dem Handy), dazu ganz leichtes Wiegen
+        const wiegen = Math.sin(tt * 0.011) * 0.012;
+        ctx.save(); ctx.translate(W / 2, H * 0.45 + schweben); ctx.rotate(wiegen); ctx.translate(-W / 2, -H * 0.45);
         ctx.drawImage(st.img, 0, 0, W, H);
         if (st.a1 > 0.01) { ctx.globalAlpha = st.a1; ctx.drawImage(st.m1, BOX[0] * S, BOX[1] * S); }
         if (st.a2 > 0.01) { ctx.globalAlpha = st.a2; ctx.drawImage(st.m2, BOX[0] * S, BOX[1] * S); }
@@ -69,6 +70,28 @@
         glow(ctx, REAKTOR[0] * S, REAKTOR[1] * S, 70 * S + 24 * puls, puls * 0.8, '70,160,255');
         ctx.globalCompositeOperation = 'source-over';
         ctx.restore();
+        funken(ctx, tt, sprechen);
+    }
+    /* Leuchtpunkte unten am Schweif: steigen langsam auf, werden kleiner und verlöschen; beim Sprechen etwas lebhafter */
+    function funken(ctx, tt, sprechen) {
+        const T = st.teile, ZIEL = 34;
+        while (T.length < ZIEL) T.push(neuerFunke(true));
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < T.length; i++) {
+            const f = T[i];
+            f.y -= f.v * (sprechen ? 1.5 : 1) * 3;                 // ein Schritt pro gezeichnetem Bild
+            f.x += Math.sin(tt * 0.03 + f.ph) * 0.35;
+            f.l += 1;
+            if (f.l >= f.max || f.y < 520) { T[i] = neuerFunke(false); continue; }
+            const k = f.l / f.max, a = Math.sin(Math.PI * k) * (sprechen ? 0.95 : 0.75);
+            glow(ctx, f.x, f.y, f.r * (1.2 - 0.5 * k), a, f.farbe);
+        }
+        ctx.globalCompositeOperation = 'source-over';
+    }
+    function neuerFunke(zufaelligAlt) {
+        const max = 50 + Math.random() * 60, f = { x: W / 2 + (Math.random() - 0.5) * 110, y: 745 - Math.random() * 40, v: 0.45 + Math.random() * 0.6, r: 3.5 + Math.random() * 4.5, ph: Math.random() * 6.28, l: 0, max: max, farbe: Math.random() < 0.7 ? '110,190,255' : '180,230,255' };
+        if (zufaelligAlt) { f.l = Math.floor(Math.random() * max); f.y -= f.v * 3 * f.l; if (f.y < 540) f.y = 540 + Math.random() * 180; }
+        return f;
     }
     function einschalten() {
         st.aktiv = true;

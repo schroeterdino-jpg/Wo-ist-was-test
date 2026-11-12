@@ -33,7 +33,7 @@ const warte = () => new Promise(r => setTimeout(r, 20));
     R.frame('idle', 0, 21);
     check('Nach dem Sprechen/Unterbrechen sofort zu', R._st.a1 === 0 && R._st.a2 === 0, JSON.stringify([R._st.a1, R._st.a2]));
     let n = 0; for (let i = 0; i < 60; i++) { const v = W.zeichnet.bilder; R.frame('idle', 0, i); if (W.zeichnet.bilder > v) n++; }
-    check('Ruhe zeichnet nur selten (gedrosselt)', n <= 12 && n >= 1, String(n));
+    check('Ruhe zeichnet nur selten (gedrosselt)', n <= 24 && n >= 1, String(n));
     let fehlerGeworfen = false; try { R.frame('speaking', undefined, 5); R.frame('speaking', null, 6); } catch (e) { fehlerGeworfen = true; }
     check('Ohne Pegel kein Fehler (Sprechmuster)', !fehlerGeworfen);
     R.aktiv = false;

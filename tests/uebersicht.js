@@ -63,10 +63,10 @@ check('Felder in der vereinbarten Reihenfolge (Arbeitsweg, Regen, Diesel, Schich
     const IDS = ['uebArbeit', 'uebRegen', 'uebDiesel', 'uebSchicht', 'uebTermine', 'uebErinnerung', 'uebEinkauf', 'uebWetter'];
     const els = {}; IDS.forEach(id => { els[id] = { style: {}, set: new Set(), classList: { toggle(c, on) { if (on) els[id].set.add(c); else els[id].set.delete(c); }, remove(c) { els[id].set.delete(c); } } }; });
     const store = {};
-    const sb = { window: {}, document: { readyState: 'complete', getElementById: id => els[id] || null, body: { classList: { add() {}, remove() {} } } }, localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } }, console };
+    const sb = { window: {}, document: { readyState: 'complete', getElementById: id => els[id] || null, body: { classList: { add() {}, remove() {} } } }, localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } }, console };
     vm.runInNewContext(anp, sb);
     const A = sb.window.jvStartAnpassen;
-    check('Anpassen: Standard = Reihenfolge der Seite, nichts ausgeblendet', IDS.every((id, i) => els[id].style.order === String(i) && !els[id].set.has('ueb-aus')));
+    check('Anpassen: Standard = Reihenfolge der Seite, nur Arbeitsweg und Diesel ausgeblendet', IDS.every((id, i) => els[id].style.order === String(i) && els[id].set.has('ueb-aus') === (id === 'uebArbeit' || id === 'uebDiesel')));
     store.jv_ueb_felder = JSON.stringify({ reihenfolge: ['uebSchicht', 'uebDiesel', 'gibtsnicht', 'uebSchicht'], aus: ['uebDiesel', 'unbekannt'] });
     A.anwenden();
     check('Anpassen: Reihenfolge übernommen, fehlende Felder hinten, Unbekanntes und Doppeltes ignoriert', els.uebSchicht.style.order === '0' && els.uebDiesel.style.order === '1' && els.uebArbeit.style.order === '2' && els.uebWetter.style.order === '7', IDS.map(id => els[id].style.order));
@@ -76,7 +76,7 @@ check('Felder in der vereinbarten Reihenfolge (Arbeitsweg, Regen, Diesel, Schich
     check('Anpassen: kaputte Einstellung ergibt wieder den Standard (kein Absturz)', IDS.every((id, i) => els[id].style.order === String(i) && !els[id].set.has('ueb-aus')));
     store.jv_ueb_felder = JSON.stringify({ reihenfolge: IDS.slice().reverse(), aus: ['uebRegen'] });
     A.anwenden(); A.zuruecksetzen();
-    check('Anpassen: Zurücksetzen stellt alles wie vorher (keine Reihenfolge, nichts ausgeblendet)', IDS.every(id => els[id].style.order === '' && !els[id].set.has('ueb-aus')) && store.jv_ueb_felder === '{}');
+    check('Anpassen: Zurücksetzen stellt den Standard her (Reihenfolge der Seite, nur Arbeitsweg und Diesel aus, Speicher leer)', IDS.every((id, i) => els[id].style.order === String(i) && els[id].set.has('ueb-aus') === (id === 'uebArbeit' || id === 'uebDiesel')) && !('jv_ueb_felder' in store));
 }
 for (const id of ['recordBtn', 'jarvisSphere', 'uebEq', 'uebGruss', 'uebUhr', 'uebHinweis', 'hudSubtitleBox']) check('Element vorhanden: #' + id, idx.indexOf('id="' + id + '"') > 0);
 check('Kugel liegt vor den Feldern (oben links)', idx.indexOf('id="jarvisSphere"') < idx.indexOf('id="uebArbeit"'));
