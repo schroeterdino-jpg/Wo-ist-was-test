@@ -4,9 +4,9 @@
    - Ändert NICHTS am Verhalten: weder Antwort noch Ablauf. Die Chef-KI führt nichts aus (nur planen, kein Sprechen, keine Aktion).
    - Standard AUS. Schalter: "Mitlaufen an" / "Mitlaufen aus" (Merker jv_mitlauf). Läuft nicht, wenn die Chef-KI selbst an ist.
    - Kostenbremse: erst 3 s nach dem eigentlichen Ablauf, höchstens eine Beobachtung gleichzeitig, mindestens 6 s Abstand, höchstens 60 am Tag, nur Sätze mit 3 bis 30 Wörtern.
-   - Aufgeschrieben wird (jv_mitlauf_log, höchstens 80, neueste zuletzt): Satz, Weg des alten Ablaufs (lokal = fester Befehl, ki = normale KI), Fähigkeiten, die die Chef-KI gewählt hätte, "kann nicht", Rückfrage.
+   - Aufgeschrieben wird (jv_mitlauf_log, höchstens 80, neueste zuletzt): Satz, Weg des alten Ablaufs (heute nur ki = normale KI), Fähigkeiten, die die Chef-KI gewählt hätte, "kann nicht", Rückfrage.
    - Sprache: "Mitlauf-Bericht" liest die Auswertung vor und bietet "Alles kopieren" an; "Mitlauf-Bericht leeren" löscht das Protokoll.
-   Haken: voice.js ruft jvMitlauf.beobachte(text, 'lokal'|'ki') NACH der Entscheidung (abgesichert, kann nie stören).
+   Haken: voice.js ruft jvMitlauf.beobachte(text, 'ki') NACH der Entscheidung (abgesichert, kann nie stören).
    ============================================================ */
 (function () {
     'use strict';

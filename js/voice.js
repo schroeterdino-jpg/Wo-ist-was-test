@@ -847,11 +847,10 @@ if (SpeechRecognition) {
             return;
         }
         let chefZuerst = false; try { chefZuerst = !!(window.jvChef && typeof window.jvChef.mehrteilig === 'function' && window.jvChef.mehrteilig(text)); } catch (e) { } if (chefZuerst) { try { if (window.jvChef.kiWeg(text, true) === true) return; } catch (e) { console.error('Chef-KI', e); } }   // Feste Sprachbefehle (Karte, Arbeitsadresse, Protokolle) ohne Umweg über die KI. B2a: ausdrücklich mehrteilige Sätze (zwei verschiedene Aktionen mit "und") gehen bei EINGESCHALTETER Chef-KI zuerst an die Chef-KI, sonst erledigt ein fester Befehl nur einen Teil; AUS oder einfacher Satz: unverändert.
-        if (typeof handleLocalCommand === 'function' && handleLocalCommand(text)) { try { if (window.jvChef) window.jvChef.befehlVorrang(); } catch (e) { } try { if (window.jvMitlauf) window.jvMitlauf.beobachte(text, 'lokal'); } catch (e) { } return; }
+        if (typeof handleLocalCommand === 'function' && handleLocalCommand(text)) { try { if (window.jvChef) window.jvChef.befehlVorrang(); } catch (e) { } return; }
         // Phase 6: Chef-KI-Testfreigabe (Standard AUS -> sofort false, kein Netz). EIN: KI-Entscheider nur für Ortswünsche, sonst läuft unten genau einmal der bisherige Ablauf.
         try { if (!chefZuerst && window.jvChef && window.jvChef.kiWeg(text) === true) return; } catch (e) { console.error('Chef-KI', e); }
-        try { if (window.jvMitlauf) window.jvMitlauf.beobachte(text, 'ki'); } catch (e) { }   // Mitlaufen (nur Protokoll, ändert nichts)
-        sendToGroqSmart(text);
+        try { if (window.jvMitlauf) window.jvMitlauf.beobachte(text, 'ki'); } catch (e) { } sendToGroqSmart(text);   // Mitlaufen (nur Protokoll, ändert nichts)
     }
     recognition.onerror = (event) => {
         const wasFollowUp = isFollowUp;
