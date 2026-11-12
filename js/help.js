@@ -61,6 +61,8 @@ const HELP_TOPICS = [
     { key: 'korrektur', icon: '✏️', title: 'Jarvis verbessern (Korrekturen)', words: /korrektur|das ist falsch|stimmt nicht|verbessern/, examples: [
         'Das ist falsch, der Termin ist um 10 Uhr', 'Das stimmt nicht, mein Schichtbeginn ist um 13:45', 'Korrektur: ... (er merkt sich, was richtig ist, und beachtet es ab dann)', 'Sagst du nur „Das ist falsch“, fragt er: Was ist richtig?',
         'Welche Korrekturen hast du?', 'Vergiss die letzte Korrektur', 'Lösche alle Korrekturen'] },
+    { key: 'mitlauf', icon: '🔎', title: 'Mitlaufen (Chef-KI beobachtet im Hintergrund)', words: /mitlauf|beobacht/, examples: [
+        'Mitlaufen an (die Chef-KI plant im Hintergrund mit, an den Antworten ändert sich nichts)', 'Mitlauf-Bericht (liest vor, wo die Chef-KI besser wäre; mit „Alles kopieren“)', 'Mitlauf-Bericht leeren', 'Mitlaufen aus'] },
     { key: 'luecken', icon: '📝', title: 'Lückenbuch (was Jarvis noch nicht kann)', words: /lückenbuch|lueckenbuch|lückenliste|noch nicht können|aufgeschrieben/, examples: [
         'Was kannst du noch nicht? (liest vor, was er sich aufgeschrieben hat)', 'Was fehlt dir noch?', 'Lückenbuch (zeigt die Liste mit der Taste „Alles kopieren“)', 'Lückenbuch leeren',
         'Sagt Jarvis „das weiß ich nicht“ oder „das kann ich nicht“, schreibt er die Frage von selbst auf'] },

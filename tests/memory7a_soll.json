@@ -26,7 +26,7 @@
    "storage.js",
    "sync.js"
   ],
-  "schluesselAnzahl": 175,
+  "schluesselAnzahl": 178,
   "jvNova": [
    "jv_aa_kopf",
    "jv_ansage_zuletzt",
@@ -85,6 +85,9 @@
    "jv_mailwatch_on",
    "jv_mailwatch_seen",
    "jv_meldungen",
+   "jv_mitlauf",
+   "jv_mitlauf_log",
+   "jv_mitlauf_tag",
    "jv_mitnehmen",
    "jv_mn_an",
    "jv_mn_done",
