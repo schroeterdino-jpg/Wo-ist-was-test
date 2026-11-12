@@ -198,7 +198,9 @@
     /* Entfernung für die Anzeige vom eigenen Standort aus (die Auswahl selbst richtet sich nach dem Ziel) */
     function abEigen(top, mitte) { if (mitte.ort && mitte.von) top.forEach(p => { p.dist = haversine(mitte.von.lat, mitte.von.lon, +p.lat, +p.lon); }); }
 
+    let anfrage = null;   // die letzte Ausflugsanfrage (15 Minuten): "nee, such was für drin" ändert nur den Wunsch und plant neu
     async function planen(req) {
+        anfrage = { at: Date.now(), req: req, agent: false };
         const h = req.iso === heute();
         try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Plane den Ausflug...'); } catch (e) { }
         const mitte = await suchMitte(req.ziel), pos = mitte.pos;
@@ -233,8 +235,8 @@
     function jetztMin() { const p = new Date().toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).split(':'); return +p[0] * 60 + +p[1]; }
     function wuenscheAus(t) {
         return {
-            indoor: /\b(?:indoor|drinnen|in der halle|ueberdacht\w*)\b/.test(t),
-            outdoor: /\b(?:draussen|outdoor|an der frischen luft)\b/.test(t),
+            indoor: /\b(?:indoor|drinnen|drin|in der halle|im haus|im trockenen|im warmen|ueberdacht\w*)\b/.test(t),
+            outdoor: /\b(?:draussen|outdoor|an der frischen luft|im freien)\b/.test(t),
             guenstig: /\b(?:nicht so teuer|guenstig\w*|billig\w*|kostenlos|umsonst|wenig kosten\w*)\b/.test(t)
         };
     }
@@ -295,6 +297,7 @@
     function folgeFrage(pl) { return 'Soll ich ' + pl.p.name + ' für ' + tagWort(pl.iso) + ' um ' + hmText(pl.von) + ' Uhr in deinen Kalender eintragen?'; }
 
     async function planenAgent(req) {
+        anfrage = { at: Date.now(), req: req, agent: true };
         const h = req.iso === heute(), wu = req.wuensche || {};
         try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Plane den Ausflug...'); } catch (e) { }
         const fenster = freiesFenster(req.iso);
@@ -595,6 +598,17 @@
     function befehl(text, next) {
         const raw = String(text || '').trim(), t = norm(raw);
         if (!t) return next(text);
+        /* Anschluss an einen Ausflugsvorschlag: "Nee, ich suche was für drin" / "lieber draußen" ändert nur den Wunsch (Tag, Personen, Ort bleiben) und plant neu. Hat Vorrang vor einer offenen Frage. */
+        if (anfrage && Date.now() - anfrage.at < 15 * 60000 && t.split(' ').length <= 12 && !TAG_WORT.test(t) && !/\b(?:waren|war)\s+wir\b|\bwir\s+waren\b|\b(?:loesch\w*|entfern\w*|vergiss\w*)\b/.test(t)) {
+            const wn = wuenscheAus(t);
+            if (wn.indoor !== wn.outdoor && (/\b(?:such\w*|lieber|eher|wollen|will|moechte|brauche|nur|nee|nein|ne|dann|aber|doch|bitte|was|etwas)\b/.test(t))) {
+                wartet = null;
+                const q = Object.assign({}, anfrage.req, { wuensche: Object.assign({}, anfrage.req.wuensche || {}, { indoor: wn.indoor, outdoor: wn.outdoor }) });
+                try { window.jvFrage && window.jvFrage.neu('ausflug'); } catch (e) { }
+                (anfrage.agent ? planenAgent(q) : planen(q)).catch(e => { console.error('Ausflug', e); sagen('Beim Planen ist etwas schiefgegangen.'); });
+                return true;
+            }
+        }
         if (wartet && Date.now() - wartet.at > (wartet.phase === 'folge' || wartet.phase === 'tag' ? 600000 : 90000)) wartet = null;   // eine Bestätigungsfrage bleibt 10 Minuten offen, die übrigen 90 Sekunden
         if (wartet) {
             const w = wartet;
