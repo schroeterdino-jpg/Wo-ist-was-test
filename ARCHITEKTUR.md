@@ -1,6 +1,6 @@
 # Jarvis: Architektur-Überblick
 
-Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 184 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
+Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 185 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
 Wo suche ich zuerst? → `LANDKARTE.md` (Problem → Datei → Abhängigkeiten, plus Zuordnung aller Skripte). Reihenfolge-Sicherheitsnetz: `tests/reihenfolge.js`; Timer-Register: `tests/timer.js` + `tests/timer_inventar.js`.
 Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (184 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (185 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -794,3 +794,10 @@ Fahrzeit-Plausibilität (PR #383): Nach der Route prüft `fahrzeit` Luftlinie ge
 - **Lokale Schichtfragen (PR #399):** Fragesätze („Bin ich nächste Woche in Frühschicht?“) schreiben nie in den Schichtplan (`schicht.js`, `FRAGE_ANFANG`; echte Einstellungen wie „Nächste Woche Frühschicht“ bleiben). „Aufbruchszeit“ in `plan_ansagen.js` nutzt den genannten Tag (`tagAusSatz`); an Wochenende/Urlaub sagt Jarvis ehrlich „keine Schicht“. Tagesfragen ohne „wann“ (`tagesFrage`: „Habe ich am Samstag frei?“, „Muss ich am Dienstag arbeiten?“, „Habe ich morgen Frühschicht?“, „Welche Schicht habe ich am Mittwoch?“) kommen aus Plan, Urlaub und einmaligen Änderungen, nie von der KI. „Ich muss morgen (30 Minuten) früher anfangen“ ist eine einmalige Änderung (`einmaligSatz`, Menge = normaler Beginn minus Minuten, höchstens 180); ohne Angabe wird nachgefragt. Befehlsreihenfolge unverändert (`schicht_auskunft` 2, `plan_ansagen` 4, `schicht` 450). Tests: `tests/schicht_zeiten.js` Abschnitt 11.
 - **Werkzeug `schicht`** (`js/registry_faehigkeiten.js`, nur lesend; optional `tag`: heute, morgen, uebermorgen, Wochentag oder JJJJ-MM-TT): liest `jvPlan.schichtAm/beginn/ende/abfahrtMin/tagVor` (keine zweite Logik) und nennt Schicht, Beginn, Feierabend und geplante Abfahrt, Wochenende/Urlaub, einmalige Änderungen. Ohne eingestellten Plan sagt es das ehrlich und nennt keine Zeit. In `FREIGEGEBEN`/`LESEND`/`KI_PLAN`/`KI_FAEHIGKEITEN` der Chef-KI, höchstens ein Schritt je Plan, Parameter nur `tag` (strenge Prüfung, sonst Plan verworfen). Planer-Regel: Schichtzeiten nie selbst nennen oder schätzen. Nützlich für Kombinationen („Habe ich Samstag frei und wie wird morgen das Wetter?“). Die lokalen Befehle laufen weiterhin vor der Chef-KI. Tests: `tests/chef_fahrzeit.js` Abschnitt 22.
 - **Kombinationen (Abschnitt 12 in `tests/schicht_zeiten.js`):** Der Befehl „Aufbruchszeit“ (`plan_ansagen.js`) nimmt bei „… losfahren und <zweite Frage>“ nur den ersten Teil (genannter Tag gilt); nach der Abfahrtsantwort (Fertig-Rückmeldung von `speak`) geht der Rest („wie wird das Wetter?“) über `jvTippen` normal weiter, damit keine Teilfrage verloren geht (Ursache: der Befehl ist keine „reine Auskunft“, `mehrfachfrage` zerlegte den Satz nicht). `tagesFrage` versteht den Zusatz „und wann muss ich losfahren“ und nennt die Abfahrt aus dem Plan (nur an Schichttagen, nie erfunden).
+
+## Mitlaufen (Stufe 1 vom Umbau "Chef-KI zuerst", `js/mitlauf.js`, Test `tests/mitlauf.js`)
+- **Ziel:** erst messen, dann umbauen. Bei jedem Satz fragt Jarvis im Hintergrund die Chef-KI (nur planen, `jvChef.plane` mit `kiEntscheider`), was sie tun würde, und schreibt den Vergleich zum alten Weg auf. Ändert nichts an Antworten oder Abläufen.
+- **Standard AUS.** Schalter per Sprache „Mitlaufen an/aus“ (Merker `jv_mitlauf`, nicht umbenennen). Läuft nicht, wenn die Chef-KI selbst an ist. Anders als `schatten.js` (feste Muster, keine KI) plant hier die echte Chef-KI.
+- **Haken:** `voice.js` ruft `jvMitlauf.beobachte(text, 'lokal'|'ki')` NACH der Entscheidung (abgesichert). Kostenbremse: 3 s Verzögerung, eine Beobachtung gleichzeitig, 6 s Abstand, höchstens 60 pro Tag, nur 3 bis 30 Wörter.
+- **Protokoll** `jv_mitlauf_log` (höchstens 80): Satz, alter Weg, gewählte Fähigkeiten, kann_nicht, Rückfrage. „Mitlauf-Bericht“ liest die Auswertung vor und bietet „Alles kopieren“ an; „Mitlauf-Bericht leeren“ löscht.
+- **Nächste Stufen:** 2 = Chef-KI übernimmt die Sätze, bei denen sie nachweislich besser ist; 3 = Aktionswerkzeuge (Wecker, Navigation, Anrufen, WhatsApp, Einkauf) mit Bestätigung.
