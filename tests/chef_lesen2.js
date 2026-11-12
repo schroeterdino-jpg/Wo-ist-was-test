@@ -30,7 +30,7 @@ const R = A => A.sb.jvRegistry;
 const schritt = (f, params) => ({ schritte: [{ faehigkeit: f, params: params || {} }] });
 
 (async () => {
-    const NEU = ['urlaub_lesen', 'rechnungen_lesen', 'vollmond', 'wunschliste_lesen', 'pakete_lesen', 'uhrzeit_anderswo'];
+    const NEU = ['urlaub_lesen', 'rechnungen_lesen', 'vollmond', 'wunschliste_lesen', 'pakete_lesen', 'parkplatz_lesen', 'uhrzeit_anderswo'];
     {
         const A = neu(false);
         check('1a alle sechs Werkzeuge sind registriert', NEU.every(n => R(A).namen().indexOf(n) >= 0), JSON.stringify(R(A).namen()));
