@@ -93,11 +93,12 @@
 
     function handle(text) {
         const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
-        if (!t || t.length > 80 || !/mitlauf/.test(t)) return false;
-        if (/mitlauf\s*(?:bericht|protokoll)?\s+(?:l[oö]schen|leeren)|(?:l[oö]sch|leer)\w*\s+(?:den\s+|das\s+|dein\w*\s+)?mitlauf/.test(t)) { leeren(); return true; }
-        if (/\bmitlaufen?\s+(?:an|ein|einschalten|starten)\b|(?:schalte?|mach)\s+(?:das\s+)?mitlaufen\s+(?:an|ein)\b/.test(t)) { schalten(true); return true; }
-        if (/\bmitlaufen?\s+(?:aus|ausschalten|beenden|stoppen)\b|(?:schalte?|mach)\s+(?:das\s+)?mitlaufen\s+aus\b/.test(t)) { schalten(false); return true; }
-        if (/mitlauf\s*(?:bericht|protokoll)/.test(t)) { bericht(); return true; }
+        const t0 = t.replace(/\bmit\s+lauf/g, 'mitlauf').replace(/^(?:(?:hey |hallo )?(?:jarvis|zane) )?lauf mit$/, 'mitlaufen an');   // Spracherkennung: "mit laufen", "lauf mit"
+        if (!t || t.length > 80 || !/mitlauf/.test(t0)) return false;
+        if (/mitlauf\s*(?:bericht|protokoll)?\s+(?:l[oö]schen|leeren)|(?:l[oö]sch|leer)\w*\s+(?:den\s+|das\s+|dein\w*\s+)?mitlauf/.test(t0)) { leeren(); return true; }
+        if (/\bmitlauf(?:en)?\s+(?:an|ein|einschalten|anschalten|anmachen|starten)\b|(?:schalte?|mach)\s+(?:das\s+)?mitlauf(?:en)?\s+(?:an|ein)\b/.test(t0)) { schalten(true); return true; }
+        if (/\bmitlauf(?:en)?\s+(?:aus|ausschalten|ausmachen|beenden|stoppen)\b|(?:schalte?|mach)\s+(?:das\s+)?mitlauf(?:en)?\s+aus\b/.test(t0)) { schalten(false); return true; }
+        if (/mitlauf\s*(?:bericht|protokoll)/.test(t0)) { bericht(); return true; }
         return false;
     }
     window.jvMitlauf = { beobachte, handle, istAn, laden, auswertung, kopierText, _zeiten: function (v, a) { VERZOEGERUNG = v; } };
