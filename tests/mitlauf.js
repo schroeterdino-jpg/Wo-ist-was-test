@@ -35,6 +35,14 @@ function neu(plan) {
         check('1a aus: Chef-KI wird nicht gefragt', A.st.planer === 0, String(A.st.planer));
         check('1b aus: normale KI antwortet wie immer', A.st.normal === 1 && A.gespr.some(t => /Adenauer/.test(t)), JSON.stringify(A.gespr));
     }
+    {   /* Spracherkennung schreibt oft getrennt oder anders */
+        const A = neu();
+        const h = A.sb.jvMitlauf.handle;
+        check('7a „Mit laufen an“ (getrennt) schaltet ein', h('Mit laufen an') === true && A.sb.jvMitlauf.istAn());
+        check('7b „Mitlauf an“, „Mitlaufen anschalten“, „Lauf mit“', h('Mitlauf an') === true && h('Mitlaufen anschalten') === true && h('Lauf mit') === true);
+        check('7c „Mit laufen aus“ schaltet aus', h('Mit laufen aus') === true && !A.sb.jvMitlauf.istAn());
+        check('7d Alltagssätze bleiben unberührt', h('Lauf mit mir zum Bäcker') === false && h('Ich gehe heute mit Max laufen') === false);
+    }
     {   /* EIN: Befehl schaltet ein, KI-Satz wird im Hintergrund mitgeplant, Antwort unverändert, nichts ausgeführt */
         const A = neu();
         A.sb.jvMitlauf._zeiten(10);
