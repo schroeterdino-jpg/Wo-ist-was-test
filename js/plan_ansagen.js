@@ -851,7 +851,7 @@
             if (/^(nein|nee|ne|nicht|lass|laesst|brauche ich nicht|kein wecker|nein danke)\b/.test(t)) { weckerNein(); return true; }
             if (/^(ja|jawohl|jep|jo|joa|klar|gerne|gern|okay|ok|bitte|mach|stell|mach das|genau|gut)\b/.test(t)) { weckerJa(); return true; }
         }
-        if (!/\bwecker\b|\bweck mich\b|\bwecke mich\b|\bweck\b/.test(t)) return next(text);
+        if (!/\bwecker\b|\b(auf)?weck(en|e|st|t)?\b/.test(t)) return next(text);   // auch "kannst du mich um 12 Uhr wecken", "weckst du mich um 6"
         if (/\b(loesch\w*|aus|ausschalten|ausmachen|abschalten|abbrechen|entfern\w*|deaktivier\w*)\b/.test(t)) {
             // "Wecker aus" / "Lösche den Wecker": in der Jarvis-App die Uhr bitten, den nächsten Wecker zu löschen, und danach nachsehen, ob er wirklich weg ist
             const n = N();
