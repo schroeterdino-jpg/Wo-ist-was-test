@@ -844,16 +844,6 @@
             else sagen('Der Wecker um ' + um + ' ist noch an. Die Uhr hat es nicht angenommen oder er kommt von einer anderen App. Schalte ihn bitte selbst aus.', false);
         }, 2500);
     }
-    /* Für die Chef-KI (Werkzeug wecker_stellen): dieselbe Wecker-Logik wie der Sprachbefehl, aber mit Rückgabe statt Sprechen. z = "HH:MM". */
-    function weckerFuerKI(z) {
-        const mm = /^(\d{1,2}):(\d{2})$/.exec(String(z || '').trim());
-        if (!mm) return { gestellt: false, nachricht: 'Zu welcher Uhrzeit soll ich den Wecker stellen?' };
-        const h = +mm[1], m = +mm[2];
-        if (h > 23 || m > 59) return { gestellt: false, nachricht: 'Diese Uhrzeit verstehe ich nicht.' };
-        const r = weckerSetzen(h, m, 'Jarvis');
-        if (r === 'ok') { const nu = jetzt(); merkeWecker(h * 60 + m > nu.min ? nu.ymd : ymdPlus(nu.ymd, 1), h * 60 + m); }
-        return { gestellt: r === 'ok', stunde: h, minute: m, nachricht: weckerAntwort(r, h, m), ergebnis: r };
-    }
     function weckerBefehl(text, next) {
         const t = norm(text);
         if (!t || t.split(' ').length > 16) return next(text);
@@ -1180,4 +1170,14 @@
     try {
         document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(() => { planSenden(false); pruefe(); }, 1500); });
     } catch (e) { }
+    /* Für die Chef-KI (Werkzeug wecker_stellen): dieselbe Wecker-Logik wie der Sprachbefehl, aber mit Rückgabe statt Sprechen. z = "HH:MM". */
+    function weckerFuerKI(z) {
+        const mm = /^(\d{1,2}):(\d{2})$/.exec(String(z || '').trim());
+        if (!mm) return { gestellt: false, nachricht: 'Zu welcher Uhrzeit soll ich den Wecker stellen?' };
+        const h = +mm[1], m = +mm[2];
+        if (h > 23 || m > 59) return { gestellt: false, nachricht: 'Diese Uhrzeit verstehe ich nicht.' };
+        const r = weckerSetzen(h, m, 'Jarvis');
+        if (r === 'ok') { const nu = jetzt(); merkeWecker(h * 60 + m > nu.min ? nu.ymd : ymdPlus(nu.ymd, 1), h * 60 + m); }
+        return { gestellt: r === 'ok', stunde: h, minute: m, nachricht: weckerAntwort(r, h, m), ergebnis: r };
+    }
 })();
