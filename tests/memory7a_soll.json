@@ -26,7 +26,7 @@
    "storage.js",
    "sync.js"
   ],
-  "schluesselAnzahl": 179,
+  "schluesselAnzahl": 178,
   "jvNova": [
    "jv_aa_kopf",
    "jv_ansage_zuletzt",
@@ -143,7 +143,6 @@
    "jv_spotify_gefragt",
    "jv_spotify_pending",
    "jv_spotify_pkce",
-   "jv_stopp_hoeren",
    "jv_stundenplan_name",
    "jv_tageslog",
    "jv_termin_erinnern",
