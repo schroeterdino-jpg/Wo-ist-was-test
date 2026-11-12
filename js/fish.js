@@ -70,7 +70,25 @@
 
     // Beträge so sprechen, wie man sie sagt: "2,18 Euro" -> "zwei Euro achtzehn", "12,50 Euro" -> "zwölf Euro fünfzig", "0,99 Euro" -> "neunundneunzig Cent".
     // Nur für die Stimme: auf dem Bildschirm bleibt "2,18 Euro" stehen. Ohne diese Umschreibung spricht die Stimme das Komma mit ("zwei Komma achtzehn").
+    // Beträge ab 1.000 Euro ("1.500,00 €", "1500 Euro"): ohne Umschreibung liest die Stimme "1.500" als "eins 500". Nur für die Stimme.
+    function tausenderToWords(n) {   // 1000 bis 999999
+        const th = Math.floor(n / 1000), r = n % 1000;
+        return (th === 1 ? 'eintausend' : germanNumber(th, true) + 'tausend') + (r ? germanNumber(r, false) : '');
+    }
+    function grosseBetraege(t) {
+        const EU = '\\s*(?:Euro|€|EUR)(?![\\wäöüß])';
+        return String(t)
+            .replace(new RegExp('(?<![\\d,.])(\\d{1,3}(?:\\.\\d{3})+|\\d{4,6}),(\\d{2})(?!\\d)' + EU, 'g'), (m, e, c) => {
+                const n = +e.replace(/\./g, ''); if (n < 1000 || n > 999999) return m;
+                return tausenderToWords(n) + ' Euro' + (+c ? ' ' + below100(+c, false) : '');
+            })
+            .replace(new RegExp('(?<![\\d,.])(\\d{1,3}(?:\\.\\d{3})+|\\d{4,6})(?![\\d]|,\\d)' + EU, 'g'), (m, e) => {
+                const n = +e.replace(/\./g, ''); if (n < 1000 || n > 999999) return m;
+                return tausenderToWords(n) + ' Euro';
+            });
+    }
     function pricesToWords(t) {
+        t = grosseBetraege(t);
         return String(t).replace(/(?<![\d,.])(\d{1,3}),(\d{2})(?!\d)\s*(?:Euro|€|EUR)(?![\wäöüß])/g, (m, e, c) => {
             const eu = +e, ce = +c;
             if (eu === 0) return ce ? germanNumber(ce, false) + ' Cent' : 'null Euro';
