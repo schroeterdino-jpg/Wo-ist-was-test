@@ -128,6 +128,8 @@
         const wantsTime = /\b(wie spät|wie viel uhr|wieviel uhr|wie viele uhr|uhrzeit|zeitunterschied|zeitverschiebung|zeitdifferenz)\b/.test(t);
         if (!wantsTime) return false;
         if (/\b(termin|erinner|wecker|timer|alarm)\b/.test(t)) return false;
+        // Steht nach einem "und" etwas anderes als eine Zeitfrage ("... und was kostet ein Fernseher"), ist es keine reine Uhrzeitfrage: weiter an die KI, damit kein Satzteil verloren geht
+        if (t.split(/\s+(?:und|sowie|außerdem|ausserdem|aber)\s+/).slice(1).some(x => !/\b(wie spät|wie viel uhr|wieviel uhr|wie viele uhr|uhrzeit|zeitunterschied|zeitverschiebung|zeitdifferenz)\b/.test(x))) return false;
         // Zwei Zeitfragen in einem Satz ("Wie spät ist es in Tokio und wie spät ist es in New York?"): jede Teilfrage einzeln beantworten, EINE gesprochene Antwort
         const teile = t.split(/\s+und\s+(?=wie spät|wie viel uhr|wieviel uhr|wie viele uhr)/);
         if (teile.length > 1 && !handleWeltzeitCommand.innen) {
