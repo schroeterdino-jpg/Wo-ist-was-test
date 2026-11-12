@@ -1133,7 +1133,8 @@
             if (morgenArbeitsweg) { zurueck = true; vermerke(eingang, 'morgen_kein_jetzt_rueckfall'); say(morgenSchichtTeilantwort(text) || 'Die morgige Schichtfahrt konnte ich gerade nicht vollständig prüfen. Ich zeige dir deshalb keine Route für eine Abfahrt jetzt.'); return; }
             if (keinRueck) { zurueck = true; vermerke(eingang, 'verschieben_unklar'); say(st.begonnen ? 'Dabei ist etwas schiefgelaufen. Ich habe nichts wiederholt.' : TEXT_VERSCHIEBEN); return; }
             zurueck = true; kiZaehler.zurueck++; kiN++; vermerke(eingang, 'rueckfall');
-            if (mehr) {   // mehrteiliger Satz, nichts geschrieben: erst darf der feste Befehl, den wir vorgezogen haben, wie bisher antworten
+            var nurLesendeGruppen = mehrGruppen(text).length > 0 && mehrGruppen(text).every(function (gi) { return gi >= 6 && gi !== 9; });   // (9 = Schicht/Abfahrt bleibt beim festen Befehl: der gibt die zweite Frage selbst weiter, Test schicht_zeiten 12.x) Doppelsatz nur aus lesenden Auskünften (Wetter, Ferien, Preise ...): ein fester Befehl würde nur EINEN Teil beantworten, deshalb bekommt die normale KI den ganzen Satz
+            if (mehr && !nurLesendeGruppen) {   // mehrteiliger Satz, nichts geschrieben: erst darf der feste Befehl, den wir vorgezogen haben, wie bisher antworten
                 try { if (typeof handleLocalCommand === 'function' && handleLocalCommand(text)) { vermerke(eingang, 'befehl_vorrang'); return; } } catch (e) { }
             }
             try { if (typeof window.sendToGroqSmart === 'function') window.sendToGroqSmart(text); } catch (e) { }

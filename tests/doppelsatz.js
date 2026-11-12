@@ -44,6 +44,14 @@ const FAELLE = [
         await A.lassLaufen(async () => { await warte(120); });
         check('2b Chef-KI wird zuerst gefragt, kein fester Befehl allein: ' + satz, st.planer >= 1, JSON.stringify({ st, gespr }));
     }
+    // Rückfall: plant die Chef-KI nichts Brauchbares, beantwortet NICHT der feste Befehl allein den ersten Teil, sondern die normale KI bekommt den ganzen Satz
+    plan = [{ faehigkeit: 'gibt_es_nicht', params: {} }]; st.planer = 0; st.normal = 0; gespr.length = 0;
+    await A.lassLaufen(async () => { A.sb.jvTippen('Wann sind die nächsten Ferien und wie wird das Wetter morgen'); await warte(120); });
+    await A.lassLaufen(async () => { await warte(120); });
+    check('2c Rückfall: Chef-KI gefragt, dann die normale KI mit dem ganzen Satz', st.planer >= 1 && st.normal >= 1, JSON.stringify(st));
+    check('2d Rückfall: der Ferien-Befehl hat nicht allein geantwortet', !gespr.some(t => /Ferientermine|Ferien/.test(t) && !/Normale KI/.test(t)), JSON.stringify(gespr));
+    // Mehrteilig mit Schreibgruppe: der feste Befehl darf weiter vorrangig antworten (unverändertes Verhalten)
+    check('2e Gruppen 0 bis 5 behalten den alten Rückfall', A.sb.jvChef.mehrteilig('Erinnere mich morgen an den Arzt und trag einen Termin ein') === true);
     // Einzelfragen bleiben bei den festen Befehlen
     for (const satz of ['Wann geht die Sonne unter', 'Habe ich Urlaub', 'Welche Rechnungen sind offen', 'Wie viel sind 50 Dollar in Euro', 'Was kostet ein Fernseher und ein Toaster']) {
         check('3a Einzelfrage ist nicht mehrteilig: ' + satz, C.mehrteilig(satz) === false);
