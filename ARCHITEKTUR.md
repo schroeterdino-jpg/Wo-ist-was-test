@@ -1,6 +1,6 @@
 # Jarvis: Architektur-Überblick
 
-Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 186 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
+Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 185 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
 Wo suche ich zuerst? → `LANDKARTE.md` (Problem → Datei → Abhängigkeiten, plus Zuordnung aller Skripte). Reihenfolge-Sicherheitsnetz: `tests/reihenfolge.js`; Timer-Register: `tests/timer.js` + `tests/timer_inventar.js`.
 Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (186 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (185 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -801,9 +801,3 @@ Fahrzeit-Plausibilität (PR #383): Nach der Route prüft `fahrzeit` Luftlinie ge
 - **Haken:** `voice.js` ruft `jvMitlauf.beobachte(text, 'lokal'|'ki')` NACH der Entscheidung (abgesichert). Kostenbremse: 3 s Verzögerung, eine Beobachtung gleichzeitig, 6 s Abstand, höchstens 60 pro Tag, nur 3 bis 30 Wörter.
 - **Protokoll** `jv_mitlauf_log` (höchstens 80): Satz, alter Weg, gewählte Fähigkeiten, kann_nicht, Rückfrage. „Mitlauf-Bericht“ liest die Auswertung vor und bietet „Alles kopieren“ an; „Mitlauf-Bericht leeren“ löscht.
 - **Nächste Stufen:** 2 = Chef-KI übernimmt die Sätze, bei denen sie nachweislich besser ist; 3 = Aktionswerkzeuge (Wecker, Navigation, Anrufen, WhatsApp, Einkauf) mit Bestätigung.
-
-## Stopp-Hören (Test, nur Handy-App, `js/stopp_hoeren.js`, Test `tests/stopp_hoeren.js`)
-- **Ziel:** Jarvis ohne „Hey Jarvis“ unterbrechen („Stopp“, „Warte mal kurz“, „Moment“, „Hör auf“), ohne Dauer-Lauschen (Akku). Das Weckwort-Lauschen der APK kann nur das englische „Hey Jarvis“, deshalb nutzt das Stopp-Hören die deutsche Android-Spracherkennung (`ZaneNative.recStart`) und läuft NUR, solange Jarvis spricht.
-- **Standard AUS.** Schalter per Sprache „Stopp-Hören an/aus“ (Merker `jv_stopp_hoeren`). Kein eigener Zeitgeber: der 300-ms-Takt in `native_speech.js` ruft `jvStopp.tick()` auf. Start erst nach 1,2 s Sprechen, höchstens 40 Durchgänge je Sprechen.
-- **Treffer nur bei ganzer Äußerung = Stoppwort** (höchstens 6 Wörter), damit Jarvis' eigene Stimme nichts auslöst. Treffer: `interruptSpeaking()`, dann `startListening(false)`.
-- **Sicherheit:** Ergebnisse der eigenen Erkennung gehen nie an die normale (`window.__zaneRec` wird umhüllt); `startListening` beendet zuerst die eigene Erkennung. **Nicht auf dem Gerät getestet** (Echo der eigenen Stimme, Musik-Pause durch den Hörfokus der App): erst Probelauf von Dino.
