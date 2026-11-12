@@ -7,7 +7,7 @@
 
 const HELP_TOPICS = [
     { key: 'termine', icon: '📅', title: 'Termine & Kalender', words: /termin|kalender|geburtstag/, examples: [
-        'Startseite „Übersicht“: oben links die kleine Kugel (grüner Glow beim Sprechen), darunter Arbeitsweg, Regen, Diesel, Schicht, die nächsten Termine mit Fahrzeit, Erinnerungen, Einkauf und Wetter morgen. Feld antippen öffnet die Details.',
+        'Startseite „Übersicht“: oben links der kleine Roboter (Mund bewegt sich beim Sprechen), darunter Arbeitsweg, Regen, Diesel, Schicht, die nächsten Termine mit Fahrzeit, Erinnerungen, Einkauf und Wetter morgen. Feld antippen öffnet die Details.',
         'Was ich besser kann: Frag "Was unterscheidet dich von anderen KI-Assistenten?", "Was kannst du besser als ChatGPT?" oder "Warum bist du besser?" - Jarvis erzählt, was er für dich kann.',
         'Tagesmeldungen: Was hast du für mich? / Warum hast du dich gemeldet? / Das interessiert mich nicht / Keine Tagesmeldungen mehr / Tagesmeldungen an (Jarvis schaut morgens und abends auf deinen Tag und meldet sich höchstens einmal am Tag; neu: auch bei Paketen, fälligen Rechnungen, Feiertagen und Unwetterwarnungen)',
         'Zeit finden: Ich müsste mal zu meiner Mutter fahren / Ich muss demnächst zum Friseur / Wann habe ich Zeit, Anna zu besuchen? (ohne Tag und Uhrzeit; Jarvis prüft Kalender, Schicht und Urlaub, rechnet die Fahrzeit zu Kontakten mit Adresse mit und schlägt drei freie Zeiten vor; dann: eins, zwei, drei, andere oder nein)',

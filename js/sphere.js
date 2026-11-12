@@ -213,86 +213,89 @@
             const liveLevel = liveVoiceLevel();
             const mode = colorKey === 'speaking' ? 'speaking' : (colorKey === 'recording' && window.jvUserSpeaking === true) ? 'hearing' : colorKey === 'alert' ? 'alert' : 'none';
             const breathe = currentBreathe(time, mode, liveLevel);
+            const roboter = !!(window.jvRoboter && window.jvRoboter.aktiv);   // Roboter-Avatar (js/avatar_roboter.js) aktiv: er nutzt diese eine Schleife, die Kugel wird dann nicht gezeichnet
+            if (roboter) { try { window.jvRoboter.frame(mode, liveLevel, time); } catch (e) { window.jvRoboter.aktiv = false; } }
 
-            const target = COLORS[colorKey];
-            for (let c = 0; c < 3; c++) colorCur[c] += (target[c] - colorCur[c]) * COLOR_BLEND;
-            const rgb = `${Math.round(colorCur[0])},${Math.round(colorCur[1])},${Math.round(colorCur[2])}`;
+            if (!roboter) {
+                const target = COLORS[colorKey];
+                for (let c = 0; c < 3; c++) colorCur[c] += (target[c] - colorCur[c]) * COLOR_BLEND;
+                const rgb = `${Math.round(colorCur[0])},${Math.round(colorCur[1])},${Math.round(colorCur[2])}`;
 
-            const projected = points.map(p => {
-                const total = breathe * pointPulse(p, time, mode, liveLevel);
-                const bx = p.x * total, by = p.y * total, bz = p.z * total;
-                const x = bx * cosA - bz * sinA;
-                const z = bx * sinA + bz * cosA;
-                const scale = FOCAL / (FOCAL + z + SPHERE_RADIUS);
-                return { sx: SIZE / 2 + x * scale, sy: SIZE / 2 + by * scale, z, scale };
-            });
+                const projected = points.map(p => {
+                    const total = breathe * pointPulse(p, time, mode, liveLevel);
+                    const bx = p.x * total, by = p.y * total, bz = p.z * total;
+                    const x = bx * cosA - bz * sinA;
+                    const z = bx * sinA + bz * cosA;
+                    const scale = FOCAL / (FOCAL + z + SPHERE_RADIUS);
+                    return { sx: SIZE / 2 + x * scale, sy: SIZE / 2 + by * scale, z, scale };
+                });
 
-            const safeLive = liveLevel === null ? 0 : liveLevel;
-            const sprechGlow = colorKey === 'speaking' ? 0.25 + 0.25 * Math.min(1, safeLive * 1.4) : 0;
-            canvas.style.filter = `drop-shadow(0 0 6px rgba(${rgb},${(0.9 * lvl).toFixed(2)})) drop-shadow(0 0 16px rgba(${rgb},${(0.7 * lvl).toFixed(2)})) drop-shadow(0 0 34px rgba(${rgb},${(0.4 * lvl).toFixed(2)}))` + (sprechGlow ? ` drop-shadow(0 0 ${Math.round(9 + 10 * sprechGlow)}px rgba(87,224,161,${sprechGlow.toFixed(2)}))` : '');
+                const safeLive = liveLevel === null ? 0 : liveLevel;
+                const sprechGlow = colorKey === 'speaking' ? 0.25 + 0.25 * Math.min(1, safeLive * 1.4) : 0;
+                canvas.style.filter = `drop-shadow(0 0 6px rgba(${rgb},${(0.9 * lvl).toFixed(2)})) drop-shadow(0 0 16px rgba(${rgb},${(0.7 * lvl).toFixed(2)})) drop-shadow(0 0 34px rgba(${rgb},${(0.4 * lvl).toFixed(2)}))` + (sprechGlow ? ` drop-shadow(0 0 ${Math.round(9 + 10 * sprechGlow)}px rgba(87,224,161,${sprechGlow.toFixed(2)}))` : '');
 
-            ctx.globalAlpha = 1;
-            ctx.clearRect(0, 0, SIZE, SIZE);
-            ctx.globalAlpha = lvl;
+                ctx.globalAlpha = 1;
+                ctx.clearRect(0, 0, SIZE, SIZE);
+                ctx.globalAlpha = lvl;
 
-            const coreRadius = SPHERE_RADIUS * breathe * (FOCAL / (FOCAL + SPHERE_RADIUS));
-            const coreGrad = ctx.createRadialGradient(SIZE / 2, SIZE / 2, 0, SIZE / 2, SIZE / 2, coreRadius * 1.15);
-            coreGrad.addColorStop(0, `rgba(${rgb},.32)`);
-            coreGrad.addColorStop(0.4, `rgba(${rgb},.16)`);
-            coreGrad.addColorStop(1, `rgba(${rgb},0)`);
-            ctx.fillStyle = coreGrad;
-            ctx.beginPath();
-            ctx.arc(SIZE / 2, SIZE / 2, coreRadius * 1.15, 0, Math.PI * 2);
-            ctx.fill();
-
-            const dustAngle = angle * 0.6;
-            const dCosA = Math.cos(dustAngle), dSinA = Math.sin(dustAngle);
-            dust.forEach(p => {
-                const x = p.x * dCosA - p.z * dSinA;
-                const z = p.x * dSinA + p.z * dCosA;
-                const scale = FOCAL / (FOCAL + z + SPHERE_RADIUS);
-                const sx = SIZE / 2 + x * scale, sy = SIZE / 2 + p.y * scale;
-                const twinkle = 0.5 + 0.5 * Math.sin(time * p.twinkleSpeed + p.twinklePhase);
-                const op = Math.min(1, scale * twinkle * 0.8);
-                const rad = p.size * scale * K;
-                const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, rad * 2);
-                grad.addColorStop(0, `rgba(${GOLD},${op.toFixed(3)})`);
-                grad.addColorStop(1, `rgba(${GOLD},0)`);
-                ctx.fillStyle = grad;
+                const coreRadius = SPHERE_RADIUS * breathe * (FOCAL / (FOCAL + SPHERE_RADIUS));
+                const coreGrad = ctx.createRadialGradient(SIZE / 2, SIZE / 2, 0, SIZE / 2, SIZE / 2, coreRadius * 1.15);
+                coreGrad.addColorStop(0, `rgba(${rgb},.32)`);
+                coreGrad.addColorStop(0.4, `rgba(${rgb},.16)`);
+                coreGrad.addColorStop(1, `rgba(${rgb},0)`);
+                ctx.fillStyle = coreGrad;
                 ctx.beginPath();
-                ctx.arc(sx, sy, rad * 2, 0, Math.PI * 2);
+                ctx.arc(SIZE / 2, SIZE / 2, coreRadius * 1.15, 0, Math.PI * 2);
                 ctx.fill();
-            });
 
-            ctx.lineWidth = 1;
-            for (let k = 0; k < links.length; k++) {
-                const [i, j, closeness] = links[k];
-                const a = projected[i], b = projected[j];
-                const opacity = closeness * 0.5 * ((a.scale + b.scale) / 2);
-                ctx.strokeStyle = `rgba(${rgb},${opacity.toFixed(3)})`;
-                ctx.beginPath();
-                ctx.moveTo(a.sx, a.sy);
-                ctx.lineTo(b.sx, b.sy);
-                ctx.stroke();
+                const dustAngle = angle * 0.6;
+                const dCosA = Math.cos(dustAngle), dSinA = Math.sin(dustAngle);
+                dust.forEach(p => {
+                    const x = p.x * dCosA - p.z * dSinA;
+                    const z = p.x * dSinA + p.z * dCosA;
+                    const scale = FOCAL / (FOCAL + z + SPHERE_RADIUS);
+                    const sx = SIZE / 2 + x * scale, sy = SIZE / 2 + p.y * scale;
+                    const twinkle = 0.5 + 0.5 * Math.sin(time * p.twinkleSpeed + p.twinklePhase);
+                    const op = Math.min(1, scale * twinkle * 0.8);
+                    const rad = p.size * scale * K;
+                    const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, rad * 2);
+                    grad.addColorStop(0, `rgba(${GOLD},${op.toFixed(3)})`);
+                    grad.addColorStop(1, `rgba(${GOLD},0)`);
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, rad * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                ctx.lineWidth = 1;
+                for (let k = 0; k < links.length; k++) {
+                    const [i, j, closeness] = links[k];
+                    const a = projected[i], b = projected[j];
+                    const opacity = closeness * 0.5 * ((a.scale + b.scale) / 2);
+                    ctx.strokeStyle = `rgba(${rgb},${opacity.toFixed(3)})`;
+                    ctx.beginPath();
+                    ctx.moveTo(a.sx, a.sy);
+                    ctx.lineTo(b.sx, b.sy);
+                    ctx.stroke();
+                }
+
+                projected.forEach(p => {
+                    const rad = Math.max(0.6, (1.3 * p.scale + 0.4) * K);
+                    const op = Math.min(1, p.scale * 0.95);
+                    const grad = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, rad * 2.2);
+                    grad.addColorStop(0, `rgba(${rgb},${op.toFixed(3)})`);
+                    grad.addColorStop(0.5, `rgba(${rgb},${(op * 0.4).toFixed(3)})`);
+                    grad.addColorStop(1, `rgba(${rgb},0)`);
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(p.sx, p.sy, rad * 2.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = `rgba(255,255,255,${(op * 0.55).toFixed(3)})`;
+                    ctx.beginPath();
+                    ctx.arc(p.sx, p.sy, rad * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+                });
             }
-
-            projected.forEach(p => {
-                const rad = Math.max(0.6, (1.3 * p.scale + 0.4) * K);
-                const op = Math.min(1, p.scale * 0.95);
-                const grad = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, rad * 2.2);
-                grad.addColorStop(0, `rgba(${rgb},${op.toFixed(3)})`);
-                grad.addColorStop(0.5, `rgba(${rgb},${(op * 0.4).toFixed(3)})`);
-                grad.addColorStop(1, `rgba(${rgb},0)`);
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.arc(p.sx, p.sy, rad * 2.2, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = `rgba(255,255,255,${(op * 0.55).toFixed(3)})`;
-                ctx.beginPath();
-                ctx.arc(p.sx, p.sy, rad * 0.4, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
             requestAnimationFrame(frame);
         }
 

@@ -26,7 +26,7 @@
    "storage.js",
    "sync.js"
   ],
-  "schluesselAnzahl": 178,
+  "schluesselAnzahl": 179,
   "jvNova": [
    "jv_aa_kopf",
    "jv_ansage_zuletzt",
@@ -40,6 +40,7 @@
    "jv_ausfluege",
    "jv_autocheck",
    "jv_autocheck_tag",
+   "jv_avatar",
    "jv_chef",
    "jv_dirig_aus",
    "jv_dirig_gruss",

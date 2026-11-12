@@ -1,7 +1,7 @@
 # LANDKARTE: wo suche ich zuerst?
 
 Rein technische Dokumentation für Entwickler und KI-Einstieg. Sie erzeugt keine Produktlogik und wird von keinem Skript der App gelesen.
-Stand: 29.10.2026 (Phase 8B, 185 Produktdateien in `js/`). Gehört zu `ARCHITEKTUR.md` (Überblick) und ist von `faehigkeiten.js` (Produktfunktion Hilfe/Mehrfachfragen) bewusst getrennt.
+Stand: 29.10.2026 (Phase 8B, 186 Produktdateien in `js/`). Gehört zu `ARCHITEKTUR.md` (Überblick) und ist von `faehigkeiten.js` (Produktfunktion Hilfe/Mehrfachfragen) bewusst getrennt.
 Von einer Fähigkeit (`faehigkeiten.js`) zu den Dateien: die Fähigkeit nennt nur ihre Kerndateien; die übrigen Dateien des Bereichs stehen in der Tabelle unten (Spalte „Abhängigkeiten“) und in der Bereichsliste (Teil 4). Das Fähigkeiten-Verzeichnis ist keine vollständige Funktionsliste und keine Liste aller Produktdateien (Einzelheiten: `ARCHITEKTUR.md`, Abschnitt „Fähigkeiten-Verzeichnis (B1)“). Offene technische Punkte: `ARCHITEKTUR.md`, Abschnitt „Bekannte offene technische Punkte“.
 Ergänzt durch die Fresh-AI-Nachbesserung: Anleitungen zum Erweitern (neuer Sprachbefehl, neue speak-Stufe), Java→JS-Rückrufe der APK, bekannte Gleichrang-Gruppen und die Test-Übersicht (Bereich → Tests): `ARCHITEKTUR.md`, Abschnitte „Rezepte und Nachschlagen für neue Entwickler“.
 Ein Test (`tests/landkarte.js`) prüft, dass jede Datei in `js/` genau einem Bereich zugeordnet ist und alle hier genannten Dateien existieren.
@@ -22,7 +22,7 @@ Schreibweise: `jv…` = Globals im Browser, `[APK]` = `weckruf-src/`. Zeilennumm
 | Ortssuche | ortsuche.js, nearby.js, nearbymore.js, orte.js | places.js, routing.js, api/maps.js (Overpass), streetview.js |
 | Gedächtnis speichern | actions.js (`memory_store`) → gedaechtnis.js (lokal), langzeit.js (`episode_store`) | gedaechtnis_zeit.js, langzeit_erinnern.js, api/memory.js |
 | Gedächtnis lesen | assistant.js (`searchSemanticMemory`, Besitzer), gedaechtnis.js, langzeit.js (Zusatzquelle) | assistant.js (Kontext), kontext_lokal.js, prompt.js |
-| Startseite | uebersicht.js (`jvUebersicht`) | sphere.js, lagebild.js (`jvLage.daten`) |
+| Startseite | uebersicht.js (`jvUebersicht`) | sphere.js, avatar_roboter.js, lagebild.js (`jvLage.daten`) |
 | Antworten als Text (Karte, Verlauf, Kopieren) | antwort_text.js (`jvAntwortText`), Aufrufe in voice.js (`speak`, `handleRecognizedText`) | speak_kette.js (nur Lesen, keine Stufe) |
 | Sprache/TTS | voice.js (`speak`), **speak_kette.js** (`jvSpeakKette`, Reihenfolge der 6 `speak`-Hüllen), fish.js (Hauptstimme) | audio.js, toene.js, speechrate.js, tempo.js, voicefix.js, pronunciation.js, sprueche.js, teilen.js, kontext_lokal.js, **api/stau.js** (Fish-Weiterleitung), [APK] AnsageReceiver |
 | Spracheingabe | voice.js (Browser), native_speech.js (APK/Vosk) | wake_start.js, hoeren.js, hoerkorrektur.js, festnamen.js, [APK] WakeService, OwwEngine/OwwSpeech/OwwVad |
@@ -73,7 +73,7 @@ Jede Datei in `js/` steht genau einmal (Name ohne `js/` und `.js`).
 
 - **Kern/Commands** (27): `adress_normal`, `aktionen_kette`, `alleinstellung`, `anleitung`, `answers`, `boot`, `commands`, `einfuehrung`, `erweiterungen`, `festnamen`, `fragen_reihenfolge`, `help`, `hoerkorrektur`, `lists`, `localcommands`, `loesch_notiz`, `loeschen_fragen`, `mehrfach`, `name`, `reminders`, `render`, `rueckfrage`, `schliessen`, `storage`, `ui`, `was_steht_an`, `worldqueryfix`
 - **KI/Prompt/Actions** (32): `actions`, `antwort_bau`, `assistant`, `charakter`, `chef`, `contextplus`, `faehigkeiten`, `fehlerort`, `formulierungen`, `gespraech`, `gespraech_antwort`, `gespraech_ort`, `jarvis`, `kennenlernen`, `ki_mitdenken`, `kontext_lokal`, `laune`, `mitdenken`, `mitlauf`, `persona`, `produktkarten`, `prompt`, `registry`, `registry_faehigkeiten`, `registry_produkt`, `registry_schreibkern`, `routing`, `schatten`, `schatten_ansicht`, `sicherheit`, `sprueche`, `zane_redet`
-- **Startseite/Optik** (16): `antwort_text`, `anzeige`, `blick`, `extrafenster`, `hud_fenster`, `jvfenster`, `kacheln`, `lebendig`, `sphere`, `startseite_anpassen`, `uebersicht`, `synapsen`, `vibration`, `welt_anflug`, `weltuhr`, `wetterfx`
+- **Startseite/Optik** (17): `antwort_text`, `anzeige`, `avatar_roboter`, `blick`, `extrafenster`, `hud_fenster`, `jvfenster`, `kacheln`, `lebendig`, `sphere`, `startseite_anpassen`, `uebersicht`, `synapsen`, `vibration`, `welt_anflug`, `weltuhr`, `wetterfx`
 - **Fotos/Dokumente** (19): `antrag`, `antrag_pdf`, `behoerdenbrief`, `foto_abtippen`, `foto_adresse`, `foto_brief`, `foto_erkennen`, `foto_werkzeuge`, `foto_essensplan`, `foto_kette`, `foto_person`, `foto_rezept`, `foto_stundenplan`, `foto_urlaubsplan`, `fotosenden`, `kuendigung`, `photo`, `rechnungen`, `wunschliste`
 - **Orte/Navigation/Fahrzeit** (16): `autoansicht`, `fahrtcheck`, `karte_zu`, `karten_weg`, `lagebild`, `nearby`, `nearbymore`, `orte`, `ortsuche`, `parkplatz_auto`, `places`, `sonnemond`, `stadtverkehr`, `streetview`, `travel`, `weltzeit`
 - **Mail/Geld** (12): `fristen`, `haushalt`, `konto`, `mail`, `mail_nacht`, `mailaktionen`, `mailpush`, `mailwatch`, `pakete`, `postfach`, `preissuche`, `waehrung`
