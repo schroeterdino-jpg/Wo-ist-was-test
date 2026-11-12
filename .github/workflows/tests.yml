@@ -123,6 +123,7 @@ jobs:
           node tests/luecken.js
           node tests/ausflug_folge.js
           node tests/einkaufszettel.js
+          node tests/avatar_roboter.js
           node tests/mitlauf.js
           node tests/langtermin.js
           node tests/korrektur.js

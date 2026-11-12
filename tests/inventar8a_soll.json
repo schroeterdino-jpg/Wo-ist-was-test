@@ -15,25 +15,25 @@
   "weckrufSrc": 26
  },
  "zahlen": {
-  "repoDateien": 385,
-  "produktJs": 185,
-  "jsZeilen": 49035,
-  "jsBytes": 3596677,
-  "jsGzip": 1068887,
-  "scriptTags": 191,
-  "eigeneScripts": 185,
+  "repoDateien": 390,
+  "produktJs": 186,
+  "jsZeilen": 49127,
+  "jsBytes": 3604035,
+  "jsGzip": 1071476,
+  "scriptTags": 192,
+  "eigeneScripts": 186,
   "drittScripts": 2,
   "inlineScripts": 4,
   "api": 11,
-  "testsGesamt": 133,
-  "testsJs": 100,
+  "testsGesamt": 134,
+  "testsJs": 101,
   "testsMd": 14,
   "testsJson": 19,
   "workflows": 5,
   "weckrufSrc": 27,
   "weckrufTest": 6,
   "tools": 3,
-  "models": 1,
+  "models": 4,
   "assets": 5
  },
  "index": {
@@ -46,14 +46,14 @@
    "https://cdn.tailwindcss.com"
   ],
   "positionen": {
-   "actions.js": 27,
-   "aktionen_kette.js": 28,
-   "places.js": 8,
-   "foto_kette.js": 9,
-   "voice.js": 19,
-   "speak_kette.js": 20,
-   "commands.js": 35,
-   "storage.js": 5
+   "actions.js": 28,
+   "aktionen_kette.js": 29,
+   "places.js": 9,
+   "foto_kette.js": 10,
+   "voice.js": 20,
+   "speak_kette.js": 21,
+   "commands.js": 36,
+   "storage.js": 6
   }
  },
  "konsistenz": [],
@@ -77,6 +77,7 @@
   "auftraege.js": "A",
   "ausflug.js": "A",
   "autoansicht.js": "A",
+  "avatar_roboter.js": "A",
   "behoerdenbrief.js": "A",
   "birthdays.js": "A",
   "blick.js": "A",
@@ -246,7 +247,7 @@
   "zuvorkommend.js": "A"
  },
  "klassenZahl": {
-  "A": 159,
+  "A": 160,
   "B": 18,
   "C": 8,
   "D": 0,
@@ -452,16 +453,16 @@
   },
   "ladefehler": []
  },
- "capabilityNichtReferenziert": 144,
+ "capabilityNichtReferenziert": 145,
  "tests": {
   "unklassifiziert": [],
   "klasseOhneDatei": [],
   "workflowOhneDatei": [],
   "workflowDoppelt": [],
   "regressionNichtImWorkflow": [],
-  "imWorkflow": 81,
+  "imWorkflow": 82,
   "jeKlasse": {
-   "regression": 69,
+   "regression": 70,
    "goldenMaster": 8,
    "inventar": 3,
    "historischEingefroren": 1,
@@ -477,7 +478,7 @@
  },
  "ci": {
   "nodeVersion": "20",
-  "schritte": 83,
+  "schritte": 84,
   "fehlendeDatei": [],
   "zeitzoneImWorkflow": false,
   "zeitzonenVertragZentral": true,
@@ -535,9 +536,9 @@
   "ohneClient": []
  },
  "dokuAbweichungen": {
-  "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 185 Produkt-JS-Dateie",
-  "architekturSkriptzahl": "185",
-  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 185 Produktdateien in `js/`). G",
+  "architekturStandZeile": "Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 186 Produkt-JS-Dateie",
+  "architekturSkriptzahl": "186",
+  "landkarteStandZeile": "Stand: 29.10.2026 (Phase 8B, 186 Produktdateien in `js/`). G",
   "architekturProjektstandAbschnitt": "## 8. Projektstand und nächste Schritte (Stand 24.10.2026, historisch)"
  }
 }
