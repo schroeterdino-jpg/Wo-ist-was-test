@@ -1163,11 +1163,21 @@
     }
 
     /* ---------- Start ---------- */
-    window.jvPlan = { terminText, weckerStand, beginn, setBeginnTag, beginnTag, briefingVor, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, ankunft, vorher, vorherStd, setVorher, vorherTag, setVorherTag, stauAn, setStauAn, setBeginn, setEnde, endeTag, setEndeTag, auskunftSatz: (text) => mitFang(text, () => auskunftSatz(text)), tagAusFrage: (text) => tagAusSatz(norm(text)), einmaligSatz, schichtOhneUrlaub, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit };
+    window.jvPlan = { terminText, weckerStand, beginn, setBeginnTag, beginnTag, briefingVor, heimFrisch, tagVor, setTagVor, berlinMs, jetzt, ymdPlus, uhr, uhrHM, sagenMeldung, heimAdresse, weckzeit, schichtAm, arbeitsFenster, konfliktMit, terminKonflikte, heimText, heimTank, ende, abfahrtMin: abfFix, ankunft, vorher, vorherStd, setVorher, vorherTag, setVorherTag, stauAn, setStauAn, setBeginn, setEnde, endeTag, setEndeTag, auskunftSatz: (text) => mitFang(text, () => auskunftSatz(text)), tagAusFrage: (text) => tagAusSatz(norm(text)), einmaligSatz, schichtOhneUrlaub, pushPlan, verlaufFenster, stauCheck, pruefe, ansage, bauePlan, planSenden, wochenText, aufbruchText, weckerJa, weckerNein, weckerIntent, weckerFrage, parseZeit, weckerFuerKI };
     setTimeout(() => { planSenden(true); pruefe(); }, 5000);
     setTimeout(pruefe, 12000);   // Jarvis war beim Start noch nicht fertig: Ansage später noch einmal abholen
     setInterval(() => planSenden(false), 10 * 60000);
     try {
         document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(() => { planSenden(false); pruefe(); }, 1500); });
     } catch (e) { }
+    /* Für die Chef-KI (Werkzeug wecker_stellen): dieselbe Wecker-Logik wie der Sprachbefehl, aber mit Rückgabe statt Sprechen. z = "HH:MM". */
+    function weckerFuerKI(z) {
+        const mm = /^(\d{1,2}):(\d{2})$/.exec(String(z || '').trim());
+        if (!mm) return { gestellt: false, nachricht: 'Zu welcher Uhrzeit soll ich den Wecker stellen?' };
+        const h = +mm[1], m = +mm[2];
+        if (h > 23 || m > 59) return { gestellt: false, nachricht: 'Diese Uhrzeit verstehe ich nicht.' };
+        const r = weckerSetzen(h, m, 'Jarvis');
+        if (r === 'ok') { const nu = jetzt(); merkeWecker(h * 60 + m > nu.min ? nu.ymd : ymdPlus(nu.ymd, 1), h * 60 + m); }
+        return { gestellt: r === 'ok', stunde: h, minute: m, nachricht: weckerAntwort(r, h, m), ergebnis: r };
+    }
 })();

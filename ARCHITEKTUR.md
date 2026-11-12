@@ -802,3 +802,9 @@ Fahrzeit-Plausibilität (PR #383): Nach der Route prüft `fahrzeit` Luftlinie ge
 - **Haken:** `voice.js` ruft `jvMitlauf.beobachte(text, 'lokal'|'ki')` NACH der Entscheidung (abgesichert). Kostenbremse: 3 s Verzögerung, eine Beobachtung gleichzeitig, 6 s Abstand, höchstens 60 pro Tag, nur 3 bis 30 Wörter.
 - **Protokoll** `jv_mitlauf_log` (höchstens 80): Satz, alter Weg, gewählte Fähigkeiten, kann_nicht, Rückfrage. „Mitlauf-Bericht“ liest die Auswertung vor und bietet „Alles kopieren“ an; „Mitlauf-Bericht leeren“ löscht.
 - **Nächste Stufen:** 2 = Chef-KI übernimmt die Sätze, bei denen sie nachweislich besser ist; 3 = Aktionswerkzeuge (Wecker, Navigation, Anrufen, WhatsApp, Einkauf) mit Bestätigung.
+
+## Umbau Chef-KI zuerst, Schritt 1: neue Werkzeuge (Test `tests/chef_parkplatz.js`, `tests/chef_wecker.js`)
+- `parkplatz_lesen` (nur lesend, liest `describeParking()`): die KI beantwortet „Wo steht mein Auto?“ in jeder Formulierung, ohne Gedächtnis-Rückfrage.
+- `wecker_stellen` (schreibend, Schiene B2a, `params.zeit` = „HH:MM“): ruft `jvPlan.weckerFuerKI` in `plan_ansagen.js` auf, also dieselbe Wecker-Logik wie der Sprachbefehl (`weckerSetzen`), nur mit Rückgabe statt Sprechen. Gestellt nur bei Weck-Wunsch im Satz (`RX_B2A`); die festen Muster (`weckerBefehl`) bleiben davor und als Rückfall. Erfolg nur, wenn die Uhr-App den Wecker annimmt.
+- Navigation braucht kein Werkzeug: sie läuft schon über die normale KI (Aktionen route/travel_time).
+- Achtung `MEHR_FAEHIG` ist nach `MEHR_GRUPPEN` indiziert: nie mitten in die Liste einfügen.

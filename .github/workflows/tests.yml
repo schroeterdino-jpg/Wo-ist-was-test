@@ -159,6 +159,7 @@ jobs:
           node tests/kitext.js
           node tests/prompt_wissen.js
           node tests/chef_parkplatz.js
+          node tests/chef_wecker.js
           node tests/kontakte_xss.js
           node tests/landkarte.js
           node tests/lauf.js
