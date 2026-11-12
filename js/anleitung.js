@@ -199,7 +199,7 @@
           d: "Wenn du schlafen gehst, antwortet Jarvis erlaubten Kontakten auf WhatsApp, kurz und vorsichtig, höchstens dreimal pro Person. Bei Notfallwörtern weckt er dich laut.",
           s: ["Ich gehe schlafen", "Ich bin wach"] },
         { g: "Kommunikation", i: "🤝", t: "Vertretung", h: "auto", n: "Nur in der Handy-App",
-          d: "Antwortest du einem erlaubten Kontakt 10 Minuten lang nicht, springt Jarvis ein: Er beantwortet, was er sicher weiß, und leitet alles Persönliche an dich weiter. Entwürfe musst du mit Senden bestätigen.",
+          d: "Antwortest du einem erlaubten Kontakt 10 Minuten lang nicht, springt Jarvis ein: Er beantwortet, was er sicher weiß, und leitet alles Persönliche an dich weiter. Bei der Arbeit sagt er, dass du arbeitest und dich in deinen Pausen meldest. Entwürfe musst du mit Senden bestätigen.",
           s: ["Vertretung an", "Vertretung nach 15 Minuten", "Vertretung aus", "Was habe ich verpasst?"] },
         { g: "Kommunikation", i: "🗂️", t: "Postfach nach Wichtigkeit", h: "mail",
           d: "Statt nur zu sagen, wie viele Mails du hast, sortiert Jarvis das Postfach: Er nennt, was wichtig ist (Rechnungen, Fristen, Termine, Mails mit Frage), legt für Antworten Entwürfe in Gmail an und sagt, wie viel Werbung er überspringt. Verschickt wird nie etwas.",

@@ -22,7 +22,8 @@
             const n = N(); const P = window.jvPlan;
             if (!n || typeof n.schlafKontext !== 'function' || !P || typeof P.schichtAm !== 'function') return;
             const ymd = P.jetzt().ymd, sh = P.schichtAm(ymd);
-            const text = sh ? 'Dino arbeitet heute ' + (sh === 'frueh' ? 'Frühschicht' : 'Spätschicht') + ' bis ' + P.uhrHM(P.ende(sh)) + ' Uhr.' : 'Dino hat heute keine Schicht.';
+            const PAUSEN = { frueh: '7:30 bis 8:10 Uhr und 9:30 bis 12:00 Uhr', spaet: '15:45 bis 16:05 Uhr und 18:00 bis 18:30 Uhr' };   // Pausen vom Nutzer genannt; die KI sagt damit, wann er sich meldet
+            const text = sh ? 'Dino arbeitet heute ' + (sh === 'frueh' ? 'Frühschicht' : 'Spätschicht') + ' bis ' + P.uhrHM(P.ende(sh)) + ' Uhr. Während der Arbeit ist er nicht am Handy und meldet sich in seinen Pausen: ' + (PAUSEN[sh] || '') + '.' : 'Dino hat heute keine Schicht.';
             n.schlafKontext(ymd, text);
             if (typeof n.schlafArbeit === 'function') {
                 const w = P.arbeitsFenster ? P.arbeitsFenster(ymd) : null;

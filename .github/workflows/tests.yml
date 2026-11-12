@@ -125,6 +125,7 @@ jobs:
           node tests/einkaufszettel.js
           node tests/avatar_roboter.js
           node tests/wecken_woerter.js
+          node tests/vertretung_pausen.js
           node tests/mitlauf.js
           node tests/langtermin.js
           node tests/korrektur.js
