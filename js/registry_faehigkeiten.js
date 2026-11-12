@@ -166,7 +166,7 @@
     /* ---------------- 2a. Jarvis über sich selbst (lesend, ohne KI-Kosten) ---------------- */
     var SELBST_NAMEN = { ortssuche: 'Orte und Restaurants suchen', websuche: 'Internetsuche', wetter: 'Wetter', fahrzeit: 'Fahrzeit und Verkehr mit dem Auto', produktsuche: 'Preise und Händler zu Produkten', foto_info: 'Fotos erkennen und auswerten',
         termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', essensplan: 'Essensplan der Kantine', erinnerungen_lesen: 'Erinnerungen ansehen', einkauf_lesen: 'Einkaufsliste ansehen', urlaub_lesen: 'Urlaub ansehen', rechnungen_lesen: 'offene Rechnungen ansehen', vollmond: 'Vollmond', wunschliste_lesen: 'Wunschlisten ansehen', pakete_lesen: 'Pakete ansehen', parkplatz_lesen: 'Parkplatz ansehen', wecker_stellen: 'Wecker stellen', uhrzeit_anderswo: 'Uhrzeit in anderen Städten', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
-        termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken', einkauf_hinzufuegen: 'Einkaufsliste ergänzen' };
+        termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken', einkauf_hinzufuegen: 'Einkaufsliste ergänzen', erinnerung_erledigt: 'Wichtige Erinnerungen abhaken' };
     R.registriere({
         name: 'jarvis_info',
         beschreibung: 'Zählt auf, welche Werkzeuge und Fähigkeiten Jarvis selbst hat. Nur nutzen, wenn der Nutzer Jarvis selbst meint ("du", "dich", "deine Funktionen", "wie könntest du dich verbessern").',
@@ -945,6 +945,38 @@
             if (schon.length) teile.push(schon.join(', ') + (schon.length === 1 ? ' stand' : ' standen') + ' schon drauf');
             return { erwartet: a.shopping_items, hinzugefuegt: hinzu, schonDa: schon, vorher: vorher.length, nachher: nachher.length, hinweise: ctx.notes.slice(), nichtsGetan: nichts,
                      nachricht: teile.length ? teile.join('; ') + '.' : (nichts[0] || 'Es wurde nichts auf die Einkaufsliste gesetzt.') };
+        }
+    });
+
+    /* ---------------- Erinnerung erledigt (Schiene B2a): beendet das Nachhaken einer WICHTIGEN Erinnerung ---------------- */
+    function nachhakende() { return (liste('reminderEntries') || []).filter(function (r) { return r && r.important && r.triggered && !r.done; }); }
+    R.registriere({
+        name: 'erinnerung_erledigt',
+        beschreibung: 'Hakt eine wichtige Erinnerung ab, die gerade nachfragt ("Hab die Tablette genommen", "ist erledigt", "habe ich gemacht"). Danach fragt Jarvis nicht mehr nach.',
+        pflicht: [],
+        optional: [{ name: 'suche', typ: 'text', beschreibung: 'Stichwort der Erinnerung, zum Beispiel "Tablette". Ohne Angabe werden alle nachfragenden Erinnerungen abgehakt.' }],
+        rueckgabe: { beschreibung: 'Welche Erinnerungen abgehakt wurden.', felder: ['erledigt', 'nachricht'] },
+        fehler: [
+            { status: 'CAPABILITY_MISSING', wann: 'Die Erinnerungsliste ist nicht geladen.' },
+            { status: 'TOOL_FAILED', wann: 'Eine Erinnerung ist nach dem Abhaken nicht als erledigt markiert, oder ein technischer Fehler trat auf.' }
+        ],
+        fallbacks: [],
+        bestaetigung: { noetig: false, grund: 'Abhaken beendet nur das Nachfragen; die Erinnerung bleibt in der Liste.' },
+        pruefeErfolg: function (d) { return !!d && Array.isArray(d.erledigt) && typeof d.nachricht === 'string' && !!d.nachricht.trim(); },
+        verbindung: { datei: 'js/reminders.js', funktion: 'handleAcknowledgeCommand', aktion: 'erledigt' },
+        verfuegbar: function () { return !!liste('reminderEntries') && typeof setPersistentData === 'function'; },
+        ausfuehren: async function (p) {
+            var aktiv = nachhakende();
+            if (!aktiv.length) return { erledigt: [], nachricht: 'Gerade fragt keine wichtige Erinnerung nach, ich habe nichts abgehakt.' };
+            var w = String(p && p.suche || '').toLowerCase().split(/[^a-zäöüß0-9]+/).filter(function (x) { return x.length >= 4; });
+            var ziele = w.length ? aktiv.filter(function (r) { return w.some(function (x) { return String(r.text || '').toLowerCase().indexOf(x) >= 0; }); }) : [];
+            if (!ziele.length) ziele = aktiv;
+            ziele.forEach(function (r) { r.done = true; });
+            setPersistentData('helfer_reminders', JSON.stringify(liste('reminderEntries')));
+            try { if (typeof renderAllLists === 'function') renderAllLists(); } catch (e) { }
+            if (ziele.some(function (r) { return !r.done; })) { var e = new Error('Abhaken nicht gespeichert'); e.userMessage = 'Das Abhaken hat nicht geklappt.'; throw e; }
+            var namen = ziele.map(function (r) { return String(r.text || '').trim(); });
+            return { erledigt: namen, nachricht: 'Okay, ' + namen.join(' und ') + ' ist abgehakt. Ich frage nicht mehr nach.' };
         }
     });
 
