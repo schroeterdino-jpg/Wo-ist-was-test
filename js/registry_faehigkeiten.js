@@ -952,7 +952,7 @@
     function nachhakende() { return (liste('reminderEntries') || []).filter(function (r) { return r && r.important && r.triggered && !r.done; }); }
     R.registriere({
         name: 'erinnerung_erledigt',
-        beschreibung: 'Hakt eine wichtige Erinnerung ab, die gerade nachfragt ("Hab die Tablette genommen", "ist erledigt", "habe ich gemacht"). Danach fragt Jarvis nicht mehr nach.',
+        beschreibung: 'Hakt eine wichtige Erinnerung ab, die gerade nachfragt oder heute noch kommt und schon erledigt ist ("Hab die Tablette genommen", "ist erledigt", "habe ich gemacht"). Danach fragt Jarvis nicht mehr nach.',
         pflicht: [],
         optional: [{ name: 'suche', typ: 'text', beschreibung: 'Stichwort der Erinnerung, zum Beispiel "Tablette". Ohne Angabe werden alle nachfragenden Erinnerungen abgehakt.' }],
         rueckgabe: { beschreibung: 'Welche Erinnerungen abgehakt wurden.', felder: ['erledigt', 'nachricht'] },
@@ -966,17 +966,24 @@
         verbindung: { datei: 'js/reminders.js', funktion: 'handleAcknowledgeCommand', aktion: 'erledigt' },
         verfuegbar: function () { return !!liste('reminderEntries') && typeof setPersistentData === 'function'; },
         ausfuehren: async function (p) {
+            var alle = liste('reminderEntries') || [];
             var aktiv = nachhakende();
-            if (!aktiv.length) return { erledigt: [], nachricht: 'Gerade fragt keine wichtige Erinnerung nach, ich habe nichts abgehakt.' };
             var w = String(p && p.suche || '').toLowerCase().split(/[^a-zäöüß0-9]+/).filter(function (x) { return x.length >= 4; });
-            var ziele = w.length ? aktiv.filter(function (r) { return w.some(function (x) { return String(r.text || '').toLowerCase().indexOf(x) >= 0; }); }) : [];
-            if (!ziele.length) ziele = aktiv;
-            ziele.forEach(function (r) { r.done = true; });
+            var passt = function (r) { return w.some(function (x) { return String(r.text || '').toLowerCase().indexOf(x) >= 0; }); };
+            var jetzt = new Date(), tagEnde = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate() + 1).getTime();
+            var bald = alle.filter(function (r) { var t = new Date(r.time).getTime(); return r && !r.triggered && !r.done && t > jetzt.getTime() && t < tagEnde; });   // heute noch fällig, hat noch nicht geklingelt
+            var vorab = w.length ? bald.filter(passt) : (aktiv.length ? [] : bald.filter(function (r) { return r.important; }));
+            if (!w.length && vorab.length > 1) vorab = [];   // ohne Stichwort nie raten, welche gemeint ist
+            var ziele = [], vorabMeldung = false;
+            if (aktiv.length && (!w.length || aktiv.some(passt) || !vorab.length)) { ziele = w.length ? aktiv.filter(passt) : []; if (!ziele.length) ziele = aktiv; }
+            else if (vorab.length) { ziele = vorab; vorabMeldung = true; }
+            if (!ziele.length) return { erledigt: [], nachricht: 'Gerade fragt keine wichtige Erinnerung nach und heute steht keine passende an, ich habe nichts abgehakt.' };
+            ziele.forEach(function (r) { if (vorabMeldung) r.triggered = true; r.done = true; });
             setPersistentData('helfer_reminders', JSON.stringify(liste('reminderEntries')));
             try { if (typeof renderAllLists === 'function') renderAllLists(); } catch (e) { }
             if (ziele.some(function (r) { return !r.done; })) { var e = new Error('Abhaken nicht gespeichert'); e.userMessage = 'Das Abhaken hat nicht geklappt.'; throw e; }
             var namen = ziele.map(function (r) { return String(r.text || '').trim(); });
-            return { erledigt: namen, nachricht: 'Okay, ' + namen.join(' und ') + ' ist abgehakt. Ich frage nicht mehr nach.' };
+            return { erledigt: namen, nachricht: vorabMeldung ? 'Okay, ' + namen.join(' und ') + ' ist heute schon erledigt, ich erinnere nicht mehr daran.' : 'Okay, ' + namen.join(' und ') + ' ist abgehakt. Ich frage nicht mehr nach.' };
         }
     });
 
