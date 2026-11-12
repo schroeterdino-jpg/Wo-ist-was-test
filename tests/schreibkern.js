@@ -208,7 +208,7 @@ const ORTE = [{ name: 'Rosen-Apotheke', adresse: 'Marktstr. 2', lat: 53.5, lon: 
     /* ============ Bestehendes bleibt ============ */
     A = umgebung();
     const befehle = A.sb.jvCommands.list().map(c => c.name || c);
-    check('9a Befehlsliste unverändert (jvCommands.list() zählt 93 Einträge wie auf main; Reihenfolge prüfen tests/reihenfolge.js und tests/globale.js)', befehle.length === 93, String(befehle.length));
+    check('9a Befehlsliste unverändert (jvCommands.list() zählt 94 Einträge wie auf main; Reihenfolge prüfen tests/reihenfolge.js und tests/globale.js)', befehle.length === 94, String(befehle.length));
     check('9b Chef-KI bleibt AUS, auch nach dem Laden des Schreibkerns', A.sb.jvChef.istAn() === false && A.ladefehler.length === 0);
     check('9c keine neue Serverfunktion', fs.readdirSync(path.join(ROOT, 'api')).filter(f => f.endsWith('.js') && !f.startsWith('_')).length <= 12);
 

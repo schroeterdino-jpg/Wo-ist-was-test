@@ -105,7 +105,7 @@ function messeZustaende(w) {   // Zustand der Einstellungen ändert, welche Blö
 }
 const kette = w => { const f = w.sb.buildSystemPrompt; return { liste: w.sb.jvChain.list('buildSystemPrompt'), dispatcher: f._jvChain === true, schluessel: Object.keys(f) }; };
 const KETTE_NEU = ['10 name', '20 gedaechtnis', '30 worldqueryfix', '40 fish', '50 contextplus'];
-const KETTE_ALT = ['100 formulierungen', '200 langzeit', '210 rechnungen', '210 stundenplan', '212 foto-person', '215 termin-erinnern', '216 geburtstag-ganztag', '230 ki-mitdenken', '400 sprueche', '500 charakter'];
+const KETTE_ALT = ['100 formulierungen', '200 langzeit', '210 rechnungen', '210 stundenplan', '212 foto-person', '214 korrektur', '215 termin-erinnern', '216 geburtstag-ganztag', '230 ki-mitdenken', '400 sprueche', '500 charakter'];
 const FUENF = ['contextplus.js', 'fish.js', 'worldqueryfix.js', 'gedaechtnis.js', 'name.js'];
 const permutiere = neu => l => { const plaetze = FUENF.map(f => l.indexOf(f)).sort((a, b) => a - b); neu.forEach((f, i) => { l[plaetze[i]] = f; }); return l; };
 function mitFehlerLog() { const log = []; return { log, nachSkript: (f, sb) => { try { sb.console.error = function () { log.push(Array.prototype.slice.call(arguments).map(a => String(a && a.message || a)).join(' ')); }; } catch (e) { } } }; }
@@ -395,7 +395,7 @@ function erstesDiff(ist, soll) {   // kurze Beschreibung des ersten Unterschieds
         for (const d of FUENF) {
             const n = d.replace('.js', '');
             const r = await mess({ quelleAendern: (f, q) => f === d ? q.split("window.jvChain.use('buildSystemPrompt'").join("(function(){})('buildSystemPrompt'") .split("window.jvChain.use('buildSystemPrompt',").join("(function(){})('buildSystemPrompt',") : q });
-            check('Gegenprobe A (' + n + '): Registrierung entfernt -> Kette und/oder KI-Anweisung weichen ab (Sicherheitsnetz rot)', !gleich(r) && r.k.liste.length === 14, r.k.liste.length + ' Einträge');
+            check('Gegenprobe A (' + n + '): Registrierung entfernt -> Kette und/oder KI-Anweisung weichen ab (Sicherheitsnetz rot)', !gleich(r) && r.k.liste.length === 15, r.k.liste.length + ' Einträge');
         }
         {   // B: zwei Ränge vertauschen
             const r = await mess({ quelleAendern: (f, q) => f === 'contextplus.js' ? q.replace(/\},50\);/, '},15);') : f === 'gedaechtnis.js' ? q.replace(/\}, 20\);/, '}, 55);') : q });
@@ -409,7 +409,7 @@ function erstesDiff(ist, soll) {   // kurze Beschreibung des ersten Unterschieds
             const r = await mess({ skriptReihenfolge: l => { const i = l.indexOf('contextplus.js'); l.splice(i + 1, 0, 'contextplus.js'); const j = l.indexOf('fish.js'); l.splice(j + 1, 0, 'fish.js'); const k = l.indexOf('name.js'); l.splice(k + 1, 0, 'name.js'); return l; } });
             check('Gegenprobe D: dieselbe Registrierung doppelt ausgeführt -> kein Doppelblock, identisch (gleicher Name ersetzt den Eintrag)', gleich(r) && r.p.e0.kontextPlus === 1, kurz(JS(r.k.liste), 150));
             const r2 = await mess({ quelleAendern: (f, q) => f === 'contextplus.js' ? q.replace(/\},50\);\s*$/m, "},50);\nif(window.jvChain) window.jvChain.use('buildSystemPrompt','contextplus-zweiter',function(next,args){ return next()+extraRules(args[0]); },51);") : q });
-            check('Gegenprobe D2: unter zweitem Namen registriert -> Doppelblock wird vom Sicherheitsnetz erkannt', r2.p.e0.kontextPlus === 2 && !gleich(r2) && r2.k.liste.length === 16, r2.p.e0.kontextPlus + ' / ' + r2.k.liste.length);
+            check('Gegenprobe D2: unter zweitem Namen registriert -> Doppelblock wird vom Sicherheitsnetz erkannt', r2.p.e0.kontextPlus === 2 && !gleich(r2) && r2.k.liste.length === 17, r2.p.e0.kontextPlus + ' / ' + r2.k.liste.length);
         }
         {   // E: umgekehrt, F: gemischt -> siehe E4 oben (positive Proben); hier die Gegenseite: ohne Rang-Schutz würde die Datei-Reihenfolge wirken
             const r = await mess({ skriptReihenfolge: permutiere(reihen['umgekehrt']), quelleAendern: (f, q) => f === 'fish.js' ? q.replace(/\}, 40\);/, '}, 500);') : q });

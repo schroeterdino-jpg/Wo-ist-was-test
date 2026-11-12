@@ -670,6 +670,7 @@
  "befehle": {
   "liste": [
    "0 karten-weg",
+   "0.01 korrektur",
    "0.05 mehrfachfrage",
    "0.1 fahr_whatsapp",
    "0.2 spotify-auto",
