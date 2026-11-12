@@ -17,6 +17,17 @@
     function schoen(n) { return String(n || '').replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }); }
     function nachrichten(loeschen) { try { return JSON.parse(N().schlafNachrichten(!!loeschen) || '[]'); } catch (e) { return []; } }
 
+    /* Pausen: stehen als eine eigene Zeile im Wissensblatt (das NachrichtenService.wissenText() der KI mitgibt), jeden Tag passend zur Schicht neu gesetzt; ohne Schicht wird die Zeile entfernt. Eigene Zeilen des Nutzers bleiben unberührt. */
+    const PAUSEN = { frueh: '7:30 bis 7:50 Uhr und 11:30 bis 12:00 Uhr', spaet: '15:45 bis 16:05 Uhr und 18:00 bis 18:30 Uhr' };   // vom Nutzer genannt
+    const PAUSEN_KOPF = 'Pausen bei der Arbeit:';
+    function pausenZeile(sh) {
+        try {
+            const n = N(); if (!n || typeof n.wissenListe !== 'function' || typeof n.wissenSetzen !== 'function') return;
+            const alt = wissen(), rest = alt.filter(function (x) { return x.indexOf(PAUSEN_KOPF) !== 0; });
+            if (sh && PAUSEN[sh]) rest.push(PAUSEN_KOPF + ' Dino ist dann nicht am Handy und meldet sich in seinen Pausen: ' + PAUSEN[sh] + '.');
+            if (rest.join('\n') !== alt.join('\n')) n.wissenSetzen(rest.join('\n'));
+        } catch (e) { }
+    }
     function kontextSenden() {
         try {
             const n = N(); const P = window.jvPlan;
@@ -24,6 +35,7 @@
             const ymd = P.jetzt().ymd, sh = P.schichtAm(ymd);
             const text = sh ? 'Dino arbeitet heute ' + (sh === 'frueh' ? 'Frühschicht' : 'Spätschicht') + ' bis ' + P.uhrHM(P.ende(sh)) + ' Uhr.' : 'Dino hat heute keine Schicht.';
             n.schlafKontext(ymd, text);
+            pausenZeile(sh);
             if (typeof n.schlafArbeit === 'function') {
                 const w = P.arbeitsFenster ? P.arbeitsFenster(ymd) : null;
                 if (w) n.schlafArbeit(P.berlinMs(ymd, w.von), w.ende && w.ende > 1440 ? P.berlinMs(ymd, 0) + w.ende * 60000 : P.berlinMs(ymd, w.ende)); else n.schlafArbeit(0, 0);
