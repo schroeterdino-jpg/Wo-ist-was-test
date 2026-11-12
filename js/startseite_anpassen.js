@@ -1,6 +1,6 @@
 /* ============================================================
    STARTSEITE ANPASSEN: Welche Felder die Startseite (js/uebersicht.js) zeigt und in welcher Reihenfolge, stellst du selbst ein.
-   Bedienung nur per Tippen: ☰-Menü > "Startseite anpassen": je Feld ein Schalter (an/aus) und die Pfeile ▲ ▼. "Zurücksetzen" stellt alles wie vorher.
+   Bedienung nur per Tippen: ☰-Menü > "Startseite anpassen": je Feld ein Schalter (an/aus) und die Pfeile ▲ ▼. "Zurücksetzen" stellt den Standard her (Arbeitsweg und Diesel aus, Rest an).
    Gespeichert nur auf diesem Handy (localStorage, Schlüssel jv_ueb_felder, kein Abgleich, kein Server): { "reihenfolge": [Feld-Ids], "aus": [Feld-Ids] }.
    Technik: ändert nur die Anzeige der vorhandenen Felder (CSS-Eigenschaft order und die Klasse ueb-aus); uebersicht.js füllt sie unverändert weiter.
    Zugriff: window.jvStartAnpassen = { oeffnen(), anwenden(), zuruecksetzen(), felder }. Fehlt ein Feld auf der Seite, wird es übersprungen.
@@ -19,13 +19,16 @@
         { id: 'uebWetter', name: 'Wetter morgen' }
     ];
     const IDS = FELDER.map(f => f.id);
+    const STANDARD_AUS = ['uebArbeit', 'uebDiesel'];
 
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
     /* Gespeicherte Auswahl lesen und prüfen: unbekannte Ids fliegen raus, fehlende werden hinten angehängt */
     function laden() {
         let o = {};
-        try { o = JSON.parse(lsGet(KEY) || '{}') || {}; } catch (e) { o = {}; }
+        const roh = lsGet(KEY);
+        if (roh === null) o = { aus: STANDARD_AUS.slice() };   // noch nie eingestellt: Arbeitsweg und Diesel sind aus (kommen auf Anfrage per Sprache)
+        else try { o = JSON.parse(roh || '{}') || {}; } catch (e) { o = {}; }
         const reihe = Array.isArray(o.reihenfolge) ? o.reihenfolge.filter(id => IDS.indexOf(id) >= 0) : [];
         IDS.forEach(id => { if (reihe.indexOf(id) < 0) reihe.push(id); });
         const aus = Array.isArray(o.aus) ? o.aus.filter(id => IDS.indexOf(id) >= 0) : [];
@@ -42,7 +45,7 @@
             el.classList.toggle('ueb-aus', o.aus.indexOf(id) >= 0);
         });
     }
-    function zuruecksetzen() { lsSet(KEY, '{}'); anwenden(); IDS.forEach(id => { const el = document.getElementById(id); if (el) { el.style.order = ''; el.classList.remove('ueb-aus'); } }); }
+    function zuruecksetzen() { try { localStorage.removeItem(KEY); } catch (e) { } IDS.forEach(id => { const el = document.getElementById(id); if (el) { el.style.order = ''; el.classList.remove('ueb-aus'); } }); anwenden(); }
 
     /* ---------- Fenster ---------- */
     let win = null;

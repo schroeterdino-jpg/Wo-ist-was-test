@@ -74,7 +74,7 @@
     }
     /* Leuchtpunkte unten am Schweif: steigen langsam auf, werden kleiner und verlöschen; beim Sprechen etwas lebhafter */
     function funken(ctx, tt, sprechen) {
-        const T = st.teile, ZIEL = 26;
+        const T = st.teile, ZIEL = 34;
         while (T.length < ZIEL) T.push(neuerFunke(true));
         ctx.globalCompositeOperation = 'lighter';
         for (let i = 0; i < T.length; i++) {
@@ -89,7 +89,7 @@
         ctx.globalCompositeOperation = 'source-over';
     }
     function neuerFunke(zufaelligAlt) {
-        const max = 50 + Math.random() * 60, f = { x: W / 2 + (Math.random() - 0.5) * 110, y: 745 - Math.random() * 40, v: 0.45 + Math.random() * 0.6, r: 3 + Math.random() * 4, ph: Math.random() * 6.28, l: 0, max: max, farbe: Math.random() < 0.7 ? '110,190,255' : '180,230,255' };
+        const max = 50 + Math.random() * 60, f = { x: W / 2 + (Math.random() - 0.5) * 110, y: 745 - Math.random() * 40, v: 0.45 + Math.random() * 0.6, r: 3.5 + Math.random() * 4.5, ph: Math.random() * 6.28, l: 0, max: max, farbe: Math.random() < 0.7 ? '110,190,255' : '180,230,255' };
         if (zufaelligAlt) { f.l = Math.floor(Math.random() * max); f.y -= f.v * 3 * f.l; if (f.y < 540) f.y = 540 + Math.random() * 180; }
         return f;
     }
