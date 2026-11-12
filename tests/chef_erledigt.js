@@ -33,7 +33,7 @@ const warte = async n => { for (let i = 0; i < (n || 40); i++) await new Promise
     check('1b in den Schreib-Listen der Chef-KI (B2a)', C.B2A_NEU.includes('erinnerung_erledigt') && C.B2A_SCHREIBT.includes('erinnerung_erledigt') && !C.FREIGEGEBEN.includes('erinnerung_erledigt'));
     // Registry direkt
     let r = await R.fuehreAus('erinnerung_erledigt', {}, {});
-    check('2a nichts nachfragend: ehrliche Antwort, nichts geändert', r.status === 'SUCCESS' && /keine wichtige Erinnerung/.test(r.daten && r.daten.nachricht || ''), JSON.stringify(r).slice(0, 250));
+    check('2a nichts nachfragend: ehrliche Antwort, nichts geändert', r.status === 'SUCCESS' && /nichts abgehakt/.test(r.daten && r.daten.nachricht || ''), JSON.stringify(r).slice(0, 250));
     neu(901, 'Tablette nehmen'); neu(902, 'Müll rausbringen'); neu(903, 'Alte Sache', { done: true }); neu(904, 'Nicht wichtig', { important: false });
     r = await R.fuehreAus('erinnerung_erledigt', { suche: 'Tablette' }, {});
     check('2b Stichwort: nur die passende wird abgehakt', r.status === 'SUCCESS' && dran().length === 1 && dran()[0] === 'Müll rausbringen' && /Tablette/.test(r.daten.nachricht), JSON.stringify([r, dran()]).slice(0, 300));
@@ -41,6 +41,23 @@ const warte = async n => { for (let i = 0; i < (n || 40); i++) await new Promise
     neu(905, 'Medikament einnehmen');
     r = await R.fuehreAus('erinnerung_erledigt', { suche: 'Zahnarzt' }, {});
     check('2d unbekanntes Stichwort: alle nachfragenden werden abgehakt', r.status === 'SUCCESS' && dran().length === 0, JSON.stringify(dran()));
+    // Vorab erledigt: heute noch fällig, noch nicht geklingelt
+    const inMin = m => new Date(new A.sb.Date().getTime() + m * 60000).toISOString();
+    rem.push({ id: 921, text: 'Blutdruck messen', time: inMin(30), important: true, triggered: false, done: false });
+    rem.push({ id: 922, text: 'Zeitung holen', time: inMin(40), important: false, triggered: false, done: false });
+    rem.push({ id: 923, text: 'Morgen Arzt', time: inMin(60 * 30), important: true, triggered: false, done: false });
+    r = await R.fuehreAus('erinnerung_erledigt', {}, {});
+    check('2e ohne Stichwort, genau eine wichtige steht heute an: vorab abgehakt', r.status === 'SUCCESS' && rem.find(x => x.id === 921).done === true && rem.find(x => x.id === 921).triggered === true && /heute schon erledigt/.test(r.daten.nachricht), JSON.stringify(r).slice(0, 300));
+    check('2f unwichtige und morgige Erinnerungen bleiben unberührt', rem.find(x => x.id === 922).done === false && rem.find(x => x.id === 923).done === false);
+    r = await R.fuehreAus('erinnerung_erledigt', { suche: 'Zeitung' }, {});
+    check('2g mit Stichwort auch unwichtige, nur passende', r.status === 'SUCCESS' && rem.find(x => x.id === 922).done === true && rem.find(x => x.id === 923).done === false, JSON.stringify(r).slice(0, 300));
+    r = await R.fuehreAus('erinnerung_erledigt', { suche: 'Arzt' }, {});
+    check('2h Erinnerung für morgen wird nicht angefasst, ehrliche Antwort', r.status === 'SUCCESS' && rem.find(x => x.id === 923).done === false && /nichts abgehakt/.test(r.daten.nachricht), JSON.stringify(r).slice(0, 300));
+    rem.push({ id: 924, text: 'Insulin spritzen', time: inMin(20), important: true, triggered: false, done: false });
+    rem.push({ id: 925, text: 'Vitamine nehmen', time: inMin(25), important: true, triggered: false, done: false });
+    r = await R.fuehreAus('erinnerung_erledigt', {}, {});
+    check('2i ohne Stichwort und zwei Kandidaten: nicht raten, nichts abgehakt', rem.find(x => x.id === 924).done === false && rem.find(x => x.id === 925).done === false, JSON.stringify(r).slice(0, 300));
+    rem.splice(rem.findIndex(x => x.id === 924), 2);
     // Planprüfung
     const ok1 = z => C.planErlaubt({ schritte: [{ faehigkeit: 'erinnerung_erledigt', params: z }] });
     check('3a Plan ohne und mit Stichwort erlaubt', ok1({}) === true && ok1({ suche: 'Tablette' }) === true);
