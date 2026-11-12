@@ -38,7 +38,8 @@
     var HINWEISE = {
         ortssuche: [/\b(restaurant|restaurants|pizzeria|lokal|lokale|imbiss|cafe|café|bar|kneipe|döner|sushi|essen gehen|zum essen)\b/i, /\bin der nähe\b/i],
         websuche: [/\b(fernsehprogramm|tv-programm|was läuft|läuft heute|nachrichten|aktuell(e|en|er)?|öffnungszeiten|im internet|google|recherchier\w*|such(e)? (mir )?(im )?(internet|netz))\b/i],
-        erinnerung_erstellen: [/\berinner(e|n|ung)?\b/i, /\bweck(e|st)? mich\b/i],
+        erinnerung_erstellen: [/\berinner(e|n|ung)?\b/i],
+        wecker_stellen: [/\bwecker\b/i, /\bweck(e|st|en)?\b/i],
         termin_erstellen: [/\btermin\b/i, /\b(trag|trage|leg)\b.*\b(ein|an)\b.*\b(kalender|termin)\b/i, /\bkalender\b.*\b(ein|eintragen)\b/i],
         gedaechtnis_speichern: [/\bmerk(e)? (dir|dir bitte)\b/i, /\bspeicher(e|n)?\b.*\b(ab|dir)\b/i, /\bvergiss nicht\b/i]
     };

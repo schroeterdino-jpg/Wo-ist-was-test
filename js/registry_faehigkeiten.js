@@ -165,7 +165,7 @@
 
     /* ---------------- 2a. Jarvis über sich selbst (lesend, ohne KI-Kosten) ---------------- */
     var SELBST_NAMEN = { ortssuche: 'Orte und Restaurants suchen', websuche: 'Internetsuche', wetter: 'Wetter', fahrzeit: 'Fahrzeit und Verkehr mit dem Auto', produktsuche: 'Preise und Händler zu Produkten', foto_info: 'Fotos erkennen und auswerten',
-        termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', essensplan: 'Essensplan der Kantine', erinnerungen_lesen: 'Erinnerungen ansehen', einkauf_lesen: 'Einkaufsliste ansehen', urlaub_lesen: 'Urlaub ansehen', rechnungen_lesen: 'offene Rechnungen ansehen', vollmond: 'Vollmond', wunschliste_lesen: 'Wunschlisten ansehen', pakete_lesen: 'Pakete ansehen', parkplatz_lesen: 'Parkplatz ansehen', uhrzeit_anderswo: 'Uhrzeit in anderen Städten', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
+        termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', essensplan: 'Essensplan der Kantine', erinnerungen_lesen: 'Erinnerungen ansehen', einkauf_lesen: 'Einkaufsliste ansehen', urlaub_lesen: 'Urlaub ansehen', rechnungen_lesen: 'offene Rechnungen ansehen', vollmond: 'Vollmond', wunschliste_lesen: 'Wunschlisten ansehen', pakete_lesen: 'Pakete ansehen', parkplatz_lesen: 'Parkplatz ansehen', wecker_stellen: 'Wecker stellen', uhrzeit_anderswo: 'Uhrzeit in anderen Städten', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
         termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken' };
     R.registriere({
         name: 'jarvis_info',
@@ -626,6 +626,30 @@
             if (!d) return { adresse: '', nachricht: 'Ich habe keinen gespeicherten Parkplatz. Sag „Merk dir, wo ich geparkt habe“, dann speichere ich ihn.' };
             return { adresse: String(d.adresse || ''), nachricht: 'Dein Auto steht bei ' + String(d.adresse || 'dem gespeicherten Ort') + ', gespeichert ' + d.gespeichert_vor + '.' + (d.notiz ? ' Notiz: ' + d.notiz + '.' : '') };
         });
+    /* ---------------- Wecker stellen (Chef-KI, schreibend: nutzt dieselbe Wecker-Logik wie der Sprachbefehl) ---------------- */
+    R.registriere({
+        name: 'wecker_stellen',
+        beschreibung: 'Stellt einen Wecker in der Uhr-App des Handys auf eine Uhrzeit. Für Wünsche wie "Weck mich um 6", "Stell mir einen Wecker auf 12 Uhr", "Kannst du mich um 12 Uhr wecken?". Das ist KEINE Erinnerung. params.zeit ist die Uhrzeit als HH:MM in 24 Stunden (zum Beispiel "06:30", "12:00", "18:15"); der Wecker klingelt das nächste Mal, wenn diese Uhrzeit erreicht ist.',
+        pflicht: [{ name: 'zeit', typ: 'text', beschreibung: 'Uhrzeit als HH:MM (24 Stunden), zum Beispiel 06:30.' }],
+        optional: [],
+        rueckgabe: { beschreibung: 'Ob der Wecker gestellt wurde, auf welche Uhrzeit, und der gesprochene Satz.', felder: ['gestellt', 'stunde', 'minute', 'nachricht', 'ergebnis'] },
+        fehler: [
+            { status: 'NEEDS_INFORMATION', wann: 'Keine gültige Uhrzeit angegeben.' },
+            { status: 'TOOL_FAILED', wann: 'Die Uhr-App hat den Wecker nicht angenommen.' },
+            { status: 'CAPABILITY_MISSING', wann: 'Die Wecker-Funktion ist nicht geladen.' }
+        ],
+        fallbacks: ['erinnerung_erstellen'],
+        bestaetigung: { noetig: false, grund: 'Ein Wecker ist harmlos und lässt sich mit "Wecker aus" wieder löschen.' },
+        pruefeErfolg: function (d) { return !!d && d.gestellt === true; },
+        verbindung: { datei: 'js/plan_ansagen.js', funktion: 'weckerFuerKI', aktion: 'wecker' },
+        verfuegbar: function () { return !!window.jvPlan && typeof window.jvPlan.weckerFuerKI === 'function'; },
+        vorpruefung: function (p) {
+            var m = /^(\d{1,2}):(\d{2})$/.exec(String(p && p.zeit == null ? '' : p.zeit).trim());
+            if (!m || +m[1] > 23 || +m[2] > 59) return { status: 'NEEDS_INFORMATION', nachricht: 'Zu welcher Uhrzeit soll ich den Wecker stellen?', fehlend: ['zeit'] };
+            return null;
+        },
+        ausfuehren: async function (p) { return window.jvPlan.weckerFuerKI(p.zeit); }
+    });
     R.registriere({
         name: 'uhrzeit_anderswo',
         beschreibung: 'Nennt die aktuelle Uhrzeit in einer bekannten Stadt oder einem Land (Weltuhr, nur lesend). Für Fragen wie "Wie spät ist es in New York?" oder "Was für eine Uhrzeit haben die in Japan?".',

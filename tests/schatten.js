@@ -76,7 +76,7 @@ const zustand = A => JSON.stringify({ s: A.store, m: A.lese('memoryItems'), r: A
     const E = [
         ['Gibt es ein Restaurant in der Nähe', 'ortssuche'], ['Ich suche eine Pizzeria in Reinbek', 'ortssuche'], ['Wo kann ich Sushi essen gehen', 'ortssuche'],
         ['Was läuft heute im Fernsehen', 'websuche'], ['Was sind die aktuellen Nachrichten', 'websuche'], ['Such mir das im Internet', 'websuche'],
-        ['Erinner mich morgen an Kaffee', 'erinnerung_erstellen'], ['Weck mich um sieben', 'erinnerung_erstellen'], ['Setz eine Erinnerung für Freitag', 'erinnerung_erstellen'],
+        ['Erinner mich morgen an Kaffee', 'erinnerung_erstellen'], ['Weck mich um sieben', 'wecker_stellen'], ['Setz eine Erinnerung für Freitag', 'erinnerung_erstellen'],
         ['Trag morgen einen Termin beim Zahnarzt ein', 'termin_erstellen'], ['Leg einen Termin an', 'termin_erstellen'],
         ['Merk dir, dass der Schlüssel im Auto liegt', 'gedaechtnis_speichern'], ['Vergiss nicht, dass Mama Geburtstag hat', 'gedaechtnis_speichern'],
         ['Wie geht es dir', ''], ['Erzähl mir einen Witz', ''], ['Wie spät ist es', ''], ['Hallo', ''], ['', ''], ['   ', '']
