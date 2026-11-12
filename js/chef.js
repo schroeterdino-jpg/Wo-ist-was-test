@@ -194,11 +194,19 @@
         /\baufgabe\w*|\bto-?do\w*|\baufgabenliste\w*/,                                                                           // Aufgabe
         /\bkontakt\w*|\badresse\b.*\bspeicher\w*|\bspeicher\w*.*\badresse\b/,                                                       // Kontakt / Adresse speichern
         /\bmerk(?:e)?\s+dir\b/,                                                                                                  // Gedächtnis
-        /\b(?:was|welche)\b.*\b(?:steht|stehen|habe ich|hab ich)\b.*\b(?:kalender|termine?|aufgaben)\b|\b(?:sag|zeig|lies)\w*\b.*\b(?:kalender|termine|aufgaben)\b|\bvorles\w*/   // Kalender/Aufgaben vorlesen
+        /\b(?:was|welche)\b.*\b(?:steht|stehen|habe ich|hab ich)\b.*\b(?:kalender|termine?|aufgaben)\b|\b(?:sag|zeig|lies)\w*\b.*\b(?:kalender|termine|aufgaben)\b|\bvorles\w*/,   // Kalender/Aufgaben vorlesen
+        // Ab hier nur lesende Auskünfte (Umbau Doppelsätze): ein fester Befehl darf bei "A und B" nicht allein antworten und B verschlucken. NUR HIER ANHÄNGEN (MEHR_NAMEN/MEHR_FAEHIG sind nach dieser Liste indiziert).
+        /\bwetter\b|\bregen\w*|\btemperatur\w*|\bregenschirm\b/,                                                         // 6 Wetter
+        /\bkostet\b|\bkosten\b|\bpreis\w*|\bteuer\w*/,                                                                   // 7 Preise
+        /\bwie sp(?:ä|ae)t\b.*\b(?:in|auf)\b|\buhrzeit\b.*\b(?:in|auf)\b/,                                                // 8 Uhrzeit anderswo
+        /\bschicht\w*|\blosfahr\w*|\babfahr\w*|\bzur arbeit\b/,                                                          // 9 Schicht / Abfahrt
+        /^(?!.*\b(?:eintrag\w*|setz\w*|trag\w*|buch\w*|beantrag\w*)\b).*\burlaub\w*/,                                    // 10 Urlaub (nur ansehen)
+        /^(?!.*\b(?:eintrag\w*|setz\w*|trag\w*|bezahl\w*)\b).*\brechnung\w*/,                                            // 11 Rechnungen (nur ansehen)
+        /\b(?:dollar|euro|pfund|franken|kurs)\b.*\b(?:in|zu)\b|\bwechselkurs\w*|\bferien\b|\bsonnenuntergang\b|\bsonne\b.*\b(?:unter|auf)\b|\bsonnenaufgang\b/   // 12 Kurs / Ferien / Sonne (per Websuche)
     ];
     var RX_VERBINDER = /\b(?:und|dann|danach|außerdem|ausserdem|sowie|gleichzeitig|zusätzlich|zusaetzlich)\b/;
-    var MEHR_NAMEN = ['Termin', 'Erinnerung', 'Aufgabe', 'Kontakt oder Adresse', 'Merken', 'Vorlesen'];
-    var MEHR_FAEHIG = [['termin_erstellen', 'termine_lesen', 'termin_verschieben'], ['erinnerung_erstellen'], ['aufgabe_erstellen', 'aufgaben_lesen'], ['kontakt_speichern'], ['gedaechtnis_speichern'], ['termine_lesen', 'aufgaben_lesen']];   // welche Schritte eine verlangte Aktion erfüllen
+    var MEHR_NAMEN = ['Termin', 'Erinnerung', 'Aufgabe', 'Kontakt oder Adresse', 'Merken', 'Vorlesen', 'Wetter', 'Preise', 'Uhrzeit', 'Schicht oder Abfahrt', 'Urlaub', 'Rechnungen', 'Kurs, Ferien oder Sonne'];
+    var MEHR_FAEHIG = [['termin_erstellen', 'termine_lesen', 'termin_verschieben'], ['erinnerung_erstellen'], ['aufgabe_erstellen', 'aufgaben_lesen'], ['kontakt_speichern'], ['gedaechtnis_speichern'], ['termine_lesen', 'aufgaben_lesen'], ['wetter', 'websuche'], ['produktsuche', 'websuche'], ['uhrzeit_anderswo', 'websuche'], ['schicht', 'abfahrt', 'fahrzeit'], ['urlaub_lesen'], ['rechnungen_lesen'], ['websuche']];   // welche Schritte eine verlangte Aktion erfüllen
     function mehrGruppen(text) {   // Nummern der ausdrücklich verlangten, verschiedenen Aktionen (leer = nicht mehrteilig)
         if (typeof text !== 'string') return [];
         var t = text.toLowerCase().replace(/[?!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim();
