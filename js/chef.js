@@ -775,6 +775,25 @@
             return x ? ' Letzte Frage des Nutzers: "' + x.frage + '". Deine letzte Antwort: "' + x.antwort + '". Eine kurze Anschlussfrage ("und wie viele Tage noch?", "und morgen?") bezieht sich darauf: wähle dafür das passende Werkzeug, frag nicht nach.' : '';
         } catch (e) { return ''; }
     }
+    /* B3: Korrekturen im Gespräch ("Nein, ich meinte morgen", "nicht heute, sondern übermorgen", "doch lieber mit dem Auto").
+       Der Planer bekommt den letzten Plan (Werkzeug + Angaben) und soll bei einer kurzen Korrektur dieselben Schritte mit der geänderten Angabe liefern.
+       Nach einer SCHREIBENDEN Aktion wird nie wiederholt (sonst entstünde alles doppelt): dann nur nachfragen. */
+    var KORREKTUR_MS = 10 * 60 * 1000, letzterPlan = null;
+    function planMerken(text, plan) {
+        try {
+            letzterPlan = { text: String(text).slice(0, 160), at: jetzt(), schritte: plan.schritte.map(function (x) { return { faehigkeit: x.faehigkeit, params: x.params || {} }; }) };
+        } catch (e) { letzterPlan = null; }
+    }
+    function korrekturHinweis(text) {
+        try {
+            if (!letzterPlan || jetzt() - letzterPlan.at > KORREKTUR_MS) return '';
+            if (String(text).trim().split(/\s+/).length > 12) return '';   // nur kurze Sätze können eine Korrektur sein
+            var liste = letzterPlan.schritte.map(function (x) { return x.faehigkeit + ' ' + JSON.stringify(x.params); }).join('; ');
+            var schreibt = letzterPlan.schritte.some(function (x) { return LESEND.indexOf(x.faehigkeit) < 0; });
+            if (schreibt) return ' Dein letzter Plan zu "' + letzterPlan.text + '" hat etwas gespeichert oder geändert (' + liste + '). Korrigiert der Nutzer das jetzt mit einem kurzen Satz ("nein, ich meinte morgen", "doch lieber um 9"), lege NICHTS neu an und wiederhole keine Schritte: lass schritte leer und frage kurz in "frage", was geändert werden soll. Ist der Satz etwas ganz Neues, ignoriere diesen Hinweis.';
+            return ' Dein letzter Plan zu "' + letzterPlan.text + '" war: ' + liste + '. Sagt der Nutzer jetzt einen kurzen Satz wie "nein, ich meinte morgen", "nicht heute, sondern übermorgen", "doch lieber mit dem Auto" oder "ich meinte Hamburg", ist das eine KORREKTUR: liefere dieselben Schritte noch einmal und ändere NUR die korrigierte Angabe, alles andere bleibt gleich. Ist der Satz etwas ganz Neues, ignoriere diesen Hinweis.';
+        } catch (e) { return ''; }
+    }
     function kontextText() {
         if (!themaFrisch()) return letzterAustausch().trim();
         return letzterAustausch().trim() + ' Nur zur Einordnung kurzer Anschlussfragen: das letzte Thema war ' + (thema.art === 'wetter' ? 'das Wetter (Tag: ' + (thema.tag || 'heute') + (thema.ort ? ', Ort: ' + thema.ort : '') + ')' : thema.art === 'orte' ? 'eine Ortssuche' + (thema.begriff ? ' (' + thema.begriff + ')' : '') : 'eine Internetauskunft') + '.';
@@ -1160,6 +1179,8 @@
                 vermerke(eingang, 'ort_bezug');
                 kontext = (kontext ? kontext + ' ' : '') + 'Mit „dort“, „da“ oder „in dieser Stadt“ ist ' + ortBezug + ' gemeint (params.ort = "' + ortBezug + '").';
             }
+            var korrHinweis = korrekturHinweis(text);
+            if (korrHinweis) kontext = (kontext ? kontext + ' ' : '') + korrHinweis.trim();
             var gespeicherteSchichten = schichtFakten();
             if (gespeicherteSchichten) kontext = (kontext ? kontext + ' ' : '') + gespeicherteSchichten;
             // Der KI-Planer muss den gespeicherten Arbeitsort ebenfalls kennen.
@@ -1241,6 +1262,7 @@
                 vermerke(eingang, 'ki_nachfrage'); protokolliere('ki_nachfrage', [], 'FRAGE');
                 frageAnmelden(); offenKi = { at: jetzt(), text: text, frage: plan.frage }; say(plan.frage); return;
             }
+            planMerken(text, plan);
             var r = await ausfuehrenKI(plan, text, gen, t0 + GESAMT_MS, st);
             kiN += r.ki || 0;
             if (r.art === 'ueberholt') { protokolliere('ki_ueberholt', [], r.geschrieben ? 'VERWORFEN_NACH_SCHREIBEN' : 'VERWORFEN'); vermerke(eingang, 'ki_ueberholt'); return; }

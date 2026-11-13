@@ -17,7 +17,7 @@
           s: ["Wie wird das Wetter morgen?", "Erinnere mich morgen um 8 Uhr an den Arzt", "Hilfe"] },
         { g: "Los geht’s", i: "🧩", t: "Mehrere Wünsche in einem Satz",
           d: "Du kannst mehrere Dinge auf einmal sagen. Jarvis erledigt sie nacheinander. Auch mehrere Fragen in einem Satz gehen: Jarvis beantwortet jede und fasst alles in einer Antwort zusammen.",
-          s: ["Stell den Wecker auf 4 Uhr und setz Milch auf die Liste", "Wann ist Vollmond und brauche ich dann eine Jacke?", "Gibt es morgen Regen und wann fängt meine Schicht an?"] },
+          s: ["Stell den Wecker auf 4 Uhr und setz Milch auf die Liste", "Wann ist Vollmond und brauche ich dann eine Jacke?", "Gibt es morgen Regen und wann fängt meine Schicht an?", "Nein, ich meinte morgen (Korrektur der letzten Frage)"] },
         { g: "Los geht’s", i: "☰", t: "Das Menü oben links", n: "Das ⚙️ oben rechts öffnet die Einstellungen",
           d: "Hinter dem Menü liegen die großen Bereiche zum Antippen: Termine, Erinnerungen, Listen (Einkauf und Aufgaben), Gedächtnis, Karte, Welt, Protokolle, Adressen, Dashboard und Planer. Alles geht auch per Sprache.",
           s: ["Zeig mir das Dashboard", "Zeig meine Termine", "Zeig mir die Karte"] },
