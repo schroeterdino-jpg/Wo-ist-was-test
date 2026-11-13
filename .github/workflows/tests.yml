@@ -163,6 +163,7 @@ jobs:
           node tests/chef_einkauf.js
           node tests/chef_erledigt.js
           node tests/chef_verschieben.js
+          node tests/gespraech_korrektur.js
           node tests/weltuhr_reine_frage.js
           node tests/doppelsatz.js
           node tests/preis_tausender.js
