@@ -12,6 +12,7 @@ function extraRules(text){
    r+='\nANTWORTTIEFE: Der User will diese Antwort besonders kurz. Antworte mit genau einem knappen Satz, außer eine Sicherheitsinformation erfordert mehr.\n';
  if(/\b(genauer|ausführlich|ausfuehrlich|mehr details|detailliert|erklär.*mehr|erklaer.*mehr|erklär.*genau|erklaer.*genau)\b/.test(t))
    r+='\nANTWORTTIEFE: Der User verlangt diesmal mehr Details. Du darfst deutlich ausführlicher als die normale 1-2-Satz-Regel antworten, aber bleibe relevant und gut sprechbar.\n';
+ try{ if(typeof window.jvSelbstWissen==='function') r+=window.jvSelbstWissen(text); }catch(e){}   // Selbstwissen (help.js): nur bei "stell dich vor / was kannst du"
  return r;
 }
 /* Einmal in die Ergänzungs-Liste der KI-Anweisung (commands.js, jvChain) eintragen. Rang 50 = innerster der fünf späten Zusätze (kommt zuerst ans Ende).

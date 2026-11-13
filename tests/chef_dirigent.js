@@ -148,6 +148,8 @@ async function frage(A, s, ms) { return (await tippen(A, s, ms)).join(' | '); }
         check('3.4 jarvis_info mit Zusatzangaben wird abgelehnt: bisheriger Weg einmal', B.st.groq === 1);
         check('3.5 der Planer bekommt die Regel "du/dich = Jarvis" und die Werkzeugliste mit jarvis_info', (A.st.entNachrichten[0] || []).some(m => /fragt der Nutzer nach dir selbst/i.test(m.content) && /jarvis_info/.test(m.content)));
         check('3.6 der Planer bekommt die Ausnahme: sich vorstellen/Hallo sagen ist KEIN jarvis_info (leerer Plan), und die Fähigkeitenliste nennt nur lesbare Namen', (A.st.entNachrichten[0] || []).some(m => /stell dich vor/i.test(m.content || '') && /kein Werkzeug/i.test(m.content || '')) && !/gedaechtnis|kontakte_lesen/.test((r.daten && r.daten.nachricht) || ''), '');
+        const pv = String(A.sb.buildSystemPrompt('Stell dich bitte vor und zeig, was du alles kannst', {}, '') || ''), pw = String(A.sb.buildSystemPrompt('Wie wird das Wetter morgen', {}, '') || '');
+        check('3.7 Selbstwissen: bei "stell dich vor / zeig was du kannst" bekommt die KI die Themen der Hilfe, bei anderen Fragen bleibt die Anweisung unverändert', /WISSEN ÜBER DICH SELBST/.test(pv) && /Termine & Kalender/.test(pv) && !/WISSEN ÜBER DICH SELBST/.test(pw) && !/WISSEN ÜBER DICH SELBST/.test(String(A.sb.buildSystemPrompt() || '')), pv.length + '/' + pw.length);
     }
     /* 4 mehrteilig: Wetter + Kalender */
     {

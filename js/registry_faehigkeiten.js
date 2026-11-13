@@ -169,7 +169,7 @@
         termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken', einkauf_hinzufuegen: 'Einkaufsliste ergänzen', erinnerung_erledigt: 'Wichtige Erinnerungen abhaken', erinnerung_verschieben: 'Erinnerung verschieben', haushaltsbuch_lesen: 'Haushaltsbuch ansehen', karte_zeigen: 'Karte anzeigen' };
     R.registriere({
         name: 'jarvis_info',
-        beschreibung: 'Zählt auf, welche Werkzeuge und Fähigkeiten Jarvis selbst hat. Nur nutzen, wenn der Nutzer nach den Fähigkeiten oder Funktionen von Jarvis fragt ("was kannst du", "deine Funktionen", "wie könntest du dich verbessern"). NICHT bei "stell dich vor", Begrüßungen oder Smalltalk über Jarvis.',
+        beschreibung: 'Zählt auf, welche Werkzeuge und Fähigkeiten Jarvis selbst hat. Nur nutzen, wenn der Nutzer wissen will, wie Jarvis sich verbessern könnte ("wie könntest du dich verbessern"). NICHT bei "stell dich vor", "was kannst du", Begrüßungen oder Smalltalk über Jarvis (das beantwortet die KI selbst).',
         pflicht: [], optional: [],
         rueckgabe: { beschreibung: 'Liste der vorhandenen Fähigkeiten in einem gesprochenen Satz.', felder: ['werkzeuge', 'nachricht'] },
         fehler: [
