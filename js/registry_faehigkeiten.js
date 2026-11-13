@@ -166,7 +166,7 @@
     /* ---------------- 2a. Jarvis über sich selbst (lesend, ohne KI-Kosten) ---------------- */
     var SELBST_NAMEN = { ortssuche: 'Orte und Restaurants suchen', websuche: 'Internetsuche', wetter: 'Wetter', fahrzeit: 'Fahrzeit und Verkehr mit dem Auto', produktsuche: 'Preise und Händler zu Produkten', foto_info: 'Fotos erkennen und auswerten',
         termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', essensplan: 'Essensplan der Kantine', erinnerungen_lesen: 'Erinnerungen ansehen', einkauf_lesen: 'Einkaufsliste ansehen', urlaub_lesen: 'Urlaub ansehen', rechnungen_lesen: 'offene Rechnungen ansehen', vollmond: 'Vollmond', wunschliste_lesen: 'Wunschlisten ansehen', pakete_lesen: 'Pakete ansehen', parkplatz_lesen: 'Parkplatz ansehen', wecker_stellen: 'Wecker stellen', uhrzeit_anderswo: 'Uhrzeit in anderen Städten', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
-        termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken', einkauf_hinzufuegen: 'Einkaufsliste ergänzen', erinnerung_erledigt: 'Wichtige Erinnerungen abhaken', erinnerung_verschieben: 'Erinnerung verschieben' };
+        termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken', einkauf_hinzufuegen: 'Einkaufsliste ergänzen', erinnerung_erledigt: 'Wichtige Erinnerungen abhaken', erinnerung_verschieben: 'Erinnerung verschieben', haushaltsbuch_lesen: 'Haushaltsbuch ansehen', karte_zeigen: 'Karte anzeigen' };
     R.registriere({
         name: 'jarvis_info',
         beschreibung: 'Zählt auf, welche Werkzeuge und Fähigkeiten Jarvis selbst hat. Nur nutzen, wenn der Nutzer Jarvis selbst meint ("du", "dich", "deine Funktionen", "wie könntest du dich verbessern").',
@@ -1050,6 +1050,13 @@
             return { verschoben: text, zeit: p.zeit, nachricht: 'Okay, ' + text + ' kommt jetzt ' + (heute ? 'heute um ' : morgen ? 'morgen um ' : 'am ' + d.getDate() + '.' + (d.getMonth() + 1) + '. um ') + hh + ' Uhr.' };
         }
     });
+
+    lesWerkzeug('haushaltsbuch_lesen', 'Nennt die Monatsbilanz aus dem Haushaltsbuch (Einnahmen, Ausgaben, größte Posten; nur lesend). Für Fragen wie "Wie war mein Monat?", "Wie viel habe ich ausgegeben?" oder "Zeig mir das Haushaltsbuch".',
+        ['nachricht'], 'js/haushalt.js', 'bilanzText', function () { return !!window.jvHaushalt && typeof window.jvHaushalt.bilanzText === 'function'; },
+        async function () { return { nachricht: String(window.jvHaushalt.bilanzText(0) || '').trim() || 'Ich habe im Haushaltsbuch noch nichts.' }; });
+    lesWerkzeug('karte_zeigen', 'Legt die Karte auf den Bildschirm (Standort, Route zur Arbeit, Stau). Ändert keine Daten. Für Wünsche wie "Zeig mir die Karte" oder "Öffne die Karte".',
+        ['nachricht'], 'js/panels.js', 'openPanel', function () { return typeof openPanel === 'function'; },
+        async function () { openPanel('karte', {}); return { nachricht: 'Ich lege die Karte auf.' }; });
 
     var lose = R.pruefeVerweise();
     if (lose.length) { try { console.warn('Jarvis-Registry: Fallback nicht angemeldet', JSON.stringify(lose)); } catch (e) { } }
