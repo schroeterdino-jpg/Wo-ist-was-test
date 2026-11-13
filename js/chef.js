@@ -782,6 +782,7 @@
     function planMerken(text, plan) {
         try {
             letzterPlan = { text: String(text).slice(0, 160), at: jetzt(), schritte: plan.schritte.map(function (x) { return { faehigkeit: x.faehigkeit, params: x.params || {} }; }) };
+            if (plan.schritte.some(function (x) { return LESEND.indexOf(x.faehigkeit) < 0; })) thema = null;   // nach einer Schreibaktion gilt das Thema davor (Wetter, Orte) nicht mehr: "ich meinte 9 Uhr" gehört zur Erinnerung, nicht zum Wetter
         } catch (e) { letzterPlan = null; }
     }
     function korrekturHinweis(text) {

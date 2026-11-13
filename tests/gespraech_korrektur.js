@@ -24,6 +24,7 @@ const warte = async n => { for (let i = 0; i < (n || 40); i++) await new Promise
             throw new Error('offline ' + u);
         } });
     A.vorspulen(2000);
+    A.sb.answerWithWebSearch = async () => 'Der Eiffelturm ist 330 Meter hoch.';
     A.sb.jvChef.an();
     const sag = async satz => { sys.length = 0; await A.lassLaufen(async () => { A.sb.jvTippen(satz); await warte(120); }); await A.lassLaufen(async () => { await warte(120); }); return sys[sys.length - 1] || ''; };
     const WET = t => ({ absicht: 'wetter', schritte: [{ faehigkeit: 'wetter', params: { tag: t } }] });
@@ -44,6 +45,13 @@ const warte = async n => { for (let i = 0; i < (n || 40); i++) await new Promise
     await A.vorspulen(11 * 60 * 1000);
     s = await sag('Nein, ich meinte morgen');
     check('4 nach mehr als 10 Minuten kein Korrektur-Hinweis mehr', s && !/Dein letzter Plan/.test(s), s.slice(-200));
+    // Thema vor einer Schreibaktion (Handytest 13.11.: "ich meinte 9 Uhr" nach Wetter + Erinnerung wurde als Wetter von 9 Uhr gedeutet)
+    plan = { absicht: 'web', schritte: [{ faehigkeit: 'websuche', params: { frage: 'Wie hoch ist der Eiffelturm' } }] };
+    await sag('Wie hoch ist der Eiffelturm');
+    check('4b Vorbereitung: nach der Suche gilt ein frisches Thema', !!A.sb.jvChef.thema(), JSON.stringify(A.sb.jvChef.thema()));
+    plan = { absicht: 'erinnerung', schritte: [{ faehigkeit: 'erinnerung_erstellen', params: { text: 'Milch holen', zeit: '2026-11-13T09:00:00' } }] };
+    await sag('Erinnere mich morgen um 9 Uhr Milch zu holen');
+    check('4c nach einer Schreibaktion gilt das Thema davor nicht mehr', A.sb.jvChef.thema() === null, JSON.stringify(A.sb.jvChef.thema()));
     // Schreibaktion: nie wiederholen
     plan = { absicht: 'erinnerung', schritte: [{ faehigkeit: 'erinnerung_erstellen', params: { text: 'Brot kaufen', zeit: '2026-11-13T08:00:00' } }] };
     await sag('Erinnere mich morgen um 8 Uhr an Brot kaufen');
