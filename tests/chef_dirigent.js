@@ -147,6 +147,7 @@ async function frage(A, s, ms) { return (await tippen(A, s, ms)).join(' | '); }
         await frage(B, S.selbst);
         check('3.4 jarvis_info mit Zusatzangaben wird abgelehnt: bisheriger Weg einmal', B.st.groq === 1);
         check('3.5 der Planer bekommt die Regel "du/dich = Jarvis" und die Werkzeugliste mit jarvis_info', (A.st.entNachrichten[0] || []).some(m => /fragt der Nutzer nach dir selbst/i.test(m.content) && /jarvis_info/.test(m.content)));
+        check('3.6 der Planer bekommt die Ausnahme: sich vorstellen/Hallo sagen ist KEIN jarvis_info (leerer Plan), und die Fähigkeitenliste nennt nur lesbare Namen', (A.st.entNachrichten[0] || []).some(m => /stell dich vor/i.test(m.content || '') && /kein Werkzeug/i.test(m.content || '')) && !/gedaechtnis|kontakte_lesen/.test((r.daten && r.daten.nachricht) || ''), '');
     }
     /* 4 mehrteilig: Wetter + Kalender */
     {
