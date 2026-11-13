@@ -272,7 +272,7 @@ const alles = A => A.gesagt.join(' | ');
     check('11b Quelltext: kein calendar_delete / reminder_delete / episode_forget in der Chef-KI; bestaetigt:true nur an einer Stelle', !/calendar_delete|reminder_delete|episode_forget|termin_loeschen/.test(cj) && (cj.match(/bestaetigt\s*:\s*true/g) || []).length === 1);
     A = umgebung(); termine(A, ZAHN()); A.sb.jvChef.aus(); const g0 = A.st.groq; await tippen(A, SV);
     check('11c Chef-KI AUS: unverändert, der Satz geht an den alten Weg (keine Planer-Anfrage, keine Bestätigung der Chef-KI)', A.st.ent === 0 && A.st.groq === g0 + 1 && A.sb.jvChef.pauseOffen() === null);
-    check('11d Chef-KI standardmäßig AUS', (() => { const B = starte({ jetzt: '2026-11-05T10:00:00+01:00', spracherkennung: true, fetch: async () => { throw new Error('offline'); } }); return B.ladefehler.length === 0 && B.sb.jvChef.istAn() === false; })());
+    check('11d Chef-KI standardmäßig EIN', (() => { const B = starte({ jetzt: '2026-11-05T10:00:00+01:00', chefStandard: true, spracherkennung: true, fetch: async () => { throw new Error('offline'); } }); return B.ladefehler.length === 0 && B.sb.jvChef.istAn() === true; })());
     A = umgebung(); termine(A, ZAHN('local_z1', '2026-11-07T10:00:00+01:00')); zaehleUpdates(A);
     A.st.plan = plan(V('Zahnarzt')); await mikro(A, SV); await mikro(A, 'ja');
     check('11e über das Mikrofon (echter Sprachweg): Frage, dann „Ja“ verschiebt genau einmal', A.upd === 1 && zeitVon(A) === '2026-11-06 15:00');

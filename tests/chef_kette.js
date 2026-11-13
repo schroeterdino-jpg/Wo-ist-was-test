@@ -184,8 +184,8 @@ const SKETTE = 'Mir knurrt der Magen wo gibt es hier was Warmes und wie wird das
         A2.st.plan = 'das ist kein json';
         const g2 = await tippen(A2, SKETTE);
         check('7.2 ungültiger Plan: bisheriger Weg genau einmal', A2.st.groq === 1);
-        const fresh = starte({ jetzt: '2026-11-05T10:00:00+01:00', festerZufall: true, fetch: async () => { throw new Error('offline'); } });
-        check('7.3 frisch gestartet ist die Chef-KI AUS (keine automatische Aktivierung)', fresh.sb.jvChef.istAn() === false);
+        const fresh = starte({ jetzt: '2026-11-05T10:00:00+01:00', chefStandard: true, festerZufall: true, fetch: async () => { throw new Error('offline'); } });
+        check('7.3 frisch gestartet ist die Chef-KI EIN (keine automatische Aktivierung)', fresh.sb.jvChef.istAn() === true);
     }
     console.log('Chef-Kette: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);

@@ -22,7 +22,7 @@ const PL = [
 function umgebung(opt) {
     opt = opt || {};
     const st = { places: opt.places || PL, placesFehler: false, placesLeer: false, groq: 0, entscheider: 0, entscheiderNachrichten: [], normaleSaetze: [], entscheiderVerhalten: '', entscheiderAntwort: '{"schritte":[]}', places_n: 0, urls: [], geocode: null };
-    const A = starte({ jetzt: '2026-11-05T10:00:00+01:00', festerZufall: true, speicher: opt.speicher, spracherkennung: true, fetch: async (u, o) => {
+    const A = starte({ jetzt: '2026-11-05T10:00:00+01:00', festerZufall: true, speicher: opt.speicher, chefStandard: opt.chefStandard, spracherkennung: true, fetch: async (u, o) => {
         st.urls.push(String(u).replace(/\?.*$/, ''));
         if (/\/api\/groq/.test(u)) {
             let msgs = []; try { msgs = JSON.parse(o.body).messages || []; } catch (e) { }
@@ -69,7 +69,7 @@ const kiStub = antwort => async () => (typeof antwort === 'function' ? antwort()
     /* ---------- 0. Grundlage ---------- */
     let A = umgebung();
     check('0a Chef-KI ist geladen, keine Ladefehler', A.ladefehler.length === 0 && typeof A.sb.jvChef === 'object' && typeof A.sb.jvChef.behandle === 'function', A.ladefehler.join(';'));
-    check('0b Standard: AUS', A.sb.jvChef.istAn() === false);
+    check('0b Standard: EIN (seit 13.11.2026; ausdrückliches Ausschalten bleibt AUS)', umgebung({ chefStandard: true }).sb.jvChef.istAn() === true && umgebung({ speicher: { jv_chef: '0' }, chefStandard: true }).sb.jvChef.istAn() === false);
     const befehle0 = A.sb.jvCommands.list().map(c => c.name || c).join('|'), anzahl0 = A.sb.jvCommands.list().length;
     check('0c Befehlsliste vorhanden (Anzahl wird unten vor/nach Chef-KI verglichen; die Zahl 94 sichern tests/reihenfolge.js und tests/globale.js)', A.sb.jvCommands.list().length >= 90);
     check('0d die Chef-KI führt nur lesende Fähigkeiten aus (ortssuche, websuche, wetter); Schreib-Fähigkeiten sind gesperrt', A.sb.jvChef.FREIGEGEBEN.join() === 'ortssuche,websuche,wetter,produktsuche,foto_info,jarvis_info,fahrzeit,kontakte_lesen,gedaechtnis_lesen,abfahrt,schicht,essensplan,erinnerungen_lesen,einkauf_lesen,urlaub_lesen,rechnungen_lesen,haushaltsbuch_lesen,karte_zeigen,vollmond,wunschliste_lesen,pakete_lesen,parkplatz_lesen,uhrzeit_anderswo' && A.sb.jvChef.SCHREIB.join() === 'erinnerung_erstellen,termin_erstellen,gedaechtnis_speichern,aufgabe_erstellen,termin_verschieben,kontakt_speichern' && Object.isFrozen(A.sb.jvChef.FREIGEGEBEN));

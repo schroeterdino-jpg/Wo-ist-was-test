@@ -212,8 +212,8 @@ async function frage(A, s, ms) { return (await tippen(A, s, ms)).join(' | '); }
         const B = umgebung({ chefAus: true }); B.st.plan = { schritte: [WEB('x y z')] };
         await tippen(B, S.samsung);
         check('9.2 Dirigent aus: kein Planer, keine Werkzeuge, der bisherige Weg', B.st.ent === 0 && B.st.groq === 1);
-        const fresh = starte({ jetzt: '2026-11-05T10:00:00+01:00', festerZufall: true, fetch: async () => { throw new Error('offline'); } });
-        check('9.3 frisch gestartet ist der Dirigent AUS (keine pauschale Aktivierung)', fresh.sb.jvChef.istAn() === false);
+        const fresh = starte({ jetzt: '2026-11-05T10:00:00+01:00', chefStandard: true, festerZufall: true, fetch: async () => { throw new Error('offline'); } });
+        check('9.3 frisch gestartet ist der Dirigent EIN (keine pauschale Aktivierung)', fresh.sb.jvChef.istAn() === true);
         const C = umgebung({ chefAus: true }); C.sb.jvChef.an(); const an1 = C.sb.jvChef.istAn(); C.sb.jvChef.aus();
         check('9.4 Ein- und Ausschalten funktioniert', an1 === true && C.sb.jvChef.istAn() === false);
     }
