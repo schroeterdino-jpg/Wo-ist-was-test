@@ -15,7 +15,7 @@
    Gesprächskontext kommt aus window.jvGespraech (über jvOrtGespraech, Phase 5); es gibt keine zweite Speicherung. Gemerkt wird hier nur: der Schalter, die letzten 20 Entscheidungen ohne Sätze (nur Arbeitsspeicher)
    und eine offene Rückfrage der Chef-KI (2 Minuten, ohne Satzinhalt außer den schon gewählten Parametern).
 
-   window.jvChef.an() / aus() / istAn()            Schalter (nur diese Sitzung; Einstellungen > "Chef-KI"; der Merker localStorage jv_chef="1" schaltet beim Start ein)
+   window.jvChef.an() / aus() / istAn()            Schalter (Einstellungen > "Chef-KI"; Standard EIN; der Merker localStorage jv_chef="0" hält sie beim Start aus)
    window.jvChef.behandle(text)                     Haken im Sprachweg (ortsuche.js, NACH allen festen Befehlen): true = übernommen. AUS -> false.
    window.jvChef.plane(text, opts)                  async: Plan erstellen und prüfen (führt nichts aus)
    window.jvChef.verarbeite(text, opts)             async: Plan, Prüfung, Ausführung (opts.entscheider, opts.trocken)
@@ -1383,7 +1383,7 @@
         } catch (e) { return false; }
     }
 
-    function schalten(an) { istAn = !!an; if (!istAn) { pause = null; offen = null; offenKi = null; thema = null; ortMerker = null; } try { if (window.localStorage) { if (istAn) window.localStorage.setItem('jv_chef', '1'); else window.localStorage.removeItem('jv_chef'); } } catch (e) { } zeichne(); return istAn; }
+    function schalten(an) { istAn = !!an; if (!istAn) { pause = null; offen = null; offenKi = null; thema = null; ortMerker = null; } try { if (window.localStorage) { window.localStorage.setItem('jv_chef', istAn ? '1' : '0'); } } catch (e) { } zeichne(); return istAn; }
     function vergiss() { protokollListe = []; eingaenge = []; pause = null; offen = null; offenKi = null; thema = null; ortMerker = null; letzteAusfuehrung = {}; nr = 0; kiLetzter = { text: '', at: 0 }; zeichne(); return true; }
 
     /* ---------- Einstellungen: Schalter ---------- */
@@ -1405,7 +1405,7 @@
     }
     function start() {
         try {
-            if (window.localStorage && window.localStorage.getItem('jv_chef') === '1') istAn = true;
+            istAn = !(window.localStorage && window.localStorage.getItem('jv_chef') === '0');   /* Standard EIN (seit 13.11.2026); nur ein ausdrückliches Ausschalten (jv_chef="0") hält sie aus */
         } catch (e) { }
         try {
             var sw = el('chefSchalter'), del = el('chefLoeschen'), box = el('chefBox');

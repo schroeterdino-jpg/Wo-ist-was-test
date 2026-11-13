@@ -263,8 +263,8 @@ const stand = A => JSON.stringify({ t: A.lese('todoEntries'), r: A.lese('reminde
         const A = umgebung({ chefAus: true }); A.st.plan = { schritte: [FZ('Hamburger Hauptbahnhof')] };
         await frage(A, SATZ);
         check('7.1 Chef-KI aus: kein Planer, keine Chef-Route, der bisherige Weg läuft wie vorher', A.st.ent === 0 && A.st.groq === 1);
-        const F = starte({ jetzt: '2026-11-05T10:00:00+01:00', festerZufall: true, fetch: async () => { throw new Error('offline'); } });
-        check('7.2 frisch gestartet ist die Chef-KI AUS', F.sb.jvChef.istAn() === false);
+        const F = starte({ jetzt: '2026-11-05T10:00:00+01:00', chefStandard: true, festerZufall: true, fetch: async () => { throw new Error('offline'); } });
+        check('7.2 frisch gestartet ist die Chef-KI EIN', F.sb.jvChef.istAn() === true);
         const src = lies('js/travel.js') + lies('js/stadtverkehr.js') + lies('js/fahrtcheck.js');
         check('7.3 die bestehende Fahrzeit-Logik (travel.js, stadtverkehr.js, fahrtcheck.js) ist unverändert', !/jarvis_info|fahrzeit\b.*registry/i.test(src));
     }

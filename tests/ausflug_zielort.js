@@ -111,7 +111,7 @@ const letztes = app => app.gesagt[app.gesagt.length - 1] || '';
         const app = neu(); const vor = JSON.stringify(app.lese('calendarEntries'));
         await sag(app, 'Habe ich nächste Woche Zeit für einen Ausflug nach Lübeck?'); await sag(app, 'die Kinder');
         check('Kalender bleibt unverändert', JSON.stringify(app.lese('calendarEntries')) === vor);
-        check('Chef-KI bleibt aus', !app.store['jv_chef'] && !app.sb.jvChef.istAn());
+        check('Chef-KI bleibt aus', app.store['jv_chef'] !== '1' && !app.sb.jvChef.istAn());
     }
     console.log('Ausflug-Zielort: ' + ok + ' Prüfungen in Ordnung, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
