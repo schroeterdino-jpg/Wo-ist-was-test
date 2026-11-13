@@ -1,6 +1,6 @@
 /* ============================================================
    STARTSEITE ANPASSEN: Welche Felder die Startseite (js/uebersicht.js) zeigt und in welcher Reihenfolge, stellst du selbst ein.
-   Bedienung nur per Tippen: ☰-Menü > "Startseite anpassen": je Feld ein Schalter (an/aus) und die Pfeile ▲ ▼. "Zurücksetzen" stellt den Standard her (Arbeitsweg und Diesel aus, Rest an).
+   Bedienung nur per Tippen: ☰-Menü > "Startseite anpassen": je Feld ein Schalter (an/aus) und die Pfeile ▲ ▼. "Zurücksetzen" stellt den Standard her (Arbeitsweg, Regen, Diesel, Parkplatz und Termine an, der Rest aus).
    Gespeichert nur auf diesem Handy (localStorage, Schlüssel jv_ueb_felder, kein Abgleich, kein Server): { "reihenfolge": [Feld-Ids], "aus": [Feld-Ids] }.
    Technik: ändert nur die Anzeige der vorhandenen Felder (CSS-Eigenschaft order und die Klasse ueb-aus); uebersicht.js füllt sie unverändert weiter.
    Zugriff: window.jvStartAnpassen = { oeffnen(), anwenden(), zuruecksetzen(), felder }. Fehlt ein Feld auf der Seite, wird es übersprungen.
@@ -12,21 +12,24 @@
         { id: 'uebArbeit', name: 'Arbeitsweg' },
         { id: 'uebRegen', name: 'Regen' },
         { id: 'uebDiesel', name: 'Diesel' },
-        { id: 'uebSchicht', name: 'Schicht' },
+        { id: 'uebParkplatz', name: 'Parkplatz' },
         { id: 'uebTermine', name: 'Nächste Termine' },
+        { id: 'uebSchicht', name: 'Schicht' },
         { id: 'uebErinnerung', name: 'Erinnern' },
         { id: 'uebEinkauf', name: 'Einkauf' },
         { id: 'uebWetter', name: 'Wetter morgen' }
     ];
     const IDS = FELDER.map(f => f.id);
-    const STANDARD_AUS = ['uebArbeit', 'uebDiesel'];
+    const STANDARD_AUS = ['uebSchicht', 'uebErinnerung', 'uebEinkauf', 'uebWetter'];   // Startseite ohne Scrollen: Arbeitsweg, Regen, Diesel, Parkplatz, Termine (Schicht steht schon im Kopf)
+    const FLAG = 'jv_ueb_felder_v2';   // einmalig: die neue Standard-Auswahl ersetzt die alte gespeicherte (13.11.2026)
 
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
     /* Gespeicherte Auswahl lesen und prüfen: unbekannte Ids fliegen raus, fehlende werden hinten angehängt */
     function laden() {
         let o = {};
-        const roh = lsGet(KEY);
+        let roh = lsGet(KEY);
+        if (lsGet(FLAG) === null) { lsSet(FLAG, '1'); try { localStorage.removeItem(KEY); } catch (e) { } roh = null; }
         if (roh === null) o = { aus: STANDARD_AUS.slice() };   // noch nie eingestellt: Arbeitsweg und Diesel sind aus (kommen auf Anfrage per Sprache)
         else try { o = JSON.parse(roh || '{}') || {}; } catch (e) { o = {}; }
         const reihe = Array.isArray(o.reihenfolge) ? o.reihenfolge.filter(id => IDS.indexOf(id) >= 0) : [];

@@ -26,7 +26,7 @@
    "storage.js",
    "sync.js"
   ],
-  "schluesselAnzahl": 179,
+  "schluesselAnzahl": 180,
   "jvNova": [
    "jv_aa_kopf",
    "jv_ansage_zuletzt",
@@ -150,6 +150,7 @@
    "jv_termin_links",
    "jv_tour_pos",
    "jv_ueb_felder",
+   "jv_ueb_felder_v2",
    "jv_urlaub",
    "jv_urlaub_liste",
    "jv_urlaub_meta",

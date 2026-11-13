@@ -142,6 +142,7 @@
         setze('uebArbeit', arbeitsweg(l)); { const ka = $('uebArbeit'); if (ka) ka.classList.toggle('heim', !!(l && l.heimweg && l.arbeit)); }   // Beschriftung "Heimweg" statt "Arbeitsweg"
         setze('uebRegen', regen(l));
         setze('uebDiesel', diesel(l));
+        setze('uebParkplatz', '<div class="ueb-gross ueb-klein">Auto finden</div><div class="ueb-sub">antippen</div>');
         setze('uebSchicht', schicht());
         setze('uebTermine', termine(l));
         setze('uebErinnerung', erinnerungen());
@@ -206,6 +207,7 @@
         tippe('uebArbeit', () => { if (window.jvLage && window.jvLage.open) window.jvLage.open(); });
         tippe('uebRegen', () => { if (window.jvWetterkarte) window.jvWetterkarte.oeffnen('rain'); else if (window.jvLage && window.jvLage.open) window.jvLage.open(); });
         tippe('uebDiesel', () => { if (window.jvLage && window.jvLage.open) window.jvLage.open(false, 'diesel'); });
+        tippe('uebParkplatz', () => { if (typeof parkButtonTap === 'function') parkButtonTap(); });
         tippe('uebTermine', panel('termine'));
         tippe('uebErinnerung', panel('erinnerungen'));
         tippe('uebEinkauf', panel('einkauf'));
