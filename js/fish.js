@@ -168,8 +168,7 @@
 
     // ---------- Menschliche Laute (nur Fish Audio) ----------
     // Fish Audio versteht Anweisungen in eckigen Klammern. Hier werden sie vor dem Senden in den Text gesetzt, nie in der Anzeige und nie bei anderen Stimmen:
-    //  [sigh] Seufzen: bei Stau und Unangenehmem (Stau, lange Fahrt, Sprit, Bahn) und manchmal bei "Einen Moment ...", dazu mal ein "Hmm."
-    //  [clearing throat] Räuspern nach längerer Pause (KEIN [inhale]: hörbares Einatmen am Satzanfang wurde bewusst entfernt)
+    //  KEIN Seufzen, Räuspern oder Einatmen (bewusst entfernt, 13.11.2026); bei "Einen Moment ..." manchmal ein "Hmm."
     //  vor dem Spruch (sprueche.js setzt dort ein unsichtbares Zeichen): [laughing] / [chuckle] Lachen, oder [short pause] Pause vor der Pointe
     // Nie bei ernsten Themen (Warnungen, Fehler, Erinnerungen, Gesundheit, E-Mails, Geld ...) und höchstens je ein Laut am Anfang und einer vor dem Spruch.
     // Stufe: aus / dezent (halb so oft) / mittel (Standard). Einstellungen > Stimme, oder per Sprache "Menschliche Laute aus / dezent / an".
@@ -202,7 +201,6 @@
 
     let lastFishAt = 0;
     const THINKING = /^(?:einen moment|moment|ich schaue|ich sehe|ich prüfe|ich suche|ich frage|sofort|gleich|mal sehen|ich rechne|ich lade)/i;
-    const SIGH_CATS = { stau_viel: 0.6, stau_lang: 0.7, fahrt_lang: 0.3, sprit: 0.3, bahn: 0.2 };
 
     // "Haha", "Hehe", "Hihi" im Text (die KI schreibt sie bei einem Lach-Wunsch) werden bei Fish Audio zu einem echten Lachen: "[laughing] Haha"
     function laughWords(t) {
@@ -240,16 +238,13 @@
         const quip = idx === -1 ? '' : strip(String(text).slice(idx + 1));
         const serious = typeof window.jvIsSerious === 'function' && window.jvIsSerious(pre + ' ' + quip);
         const now = Date.now();
-        const idle = lastFishAt && now - lastFishAt > 15 * 60000;
         lastFishAt = now;
         let start = '';
-        let out = strip(pre).replace(/\[inhale\]\s*/gi, '');   // nie hörbar einatmen (auch wenn die KI es selbst schreibt)
+        let out = strip(pre).replace(/\[(?:inhale|sigh|clearing throat|exhale|breath|breathing)\]\s*/gi, '');   // nie hörbar atmen, seufzen oder räuspern (auch wenn die KI es selbst schreibt)
         if (!serious) {
-            const cat = typeof window.jvClassify === 'function' ? (window.jvClassify(pre) || {}).cat : null;
             const plainLen = out.replace(/\s+/g, ' ').length;
-            if (idle && roll(0.6)) start = '[clearing throat] ';
-            else if (cat && SIGH_CATS[cat] && roll(SIGH_CATS[cat])) start = '[sigh] ';
-            else if (plainLen <= 70 && THINKING.test(out.trim())) { if (roll(0.3)) start = '[sigh] '; else if (roll(0.2)) start = 'Hmm. '; }
+            /* Kein Seufzen, kein Räuspern, kein Einatmen mehr (Dino 13.11.2026: klingt gruselig/unpassend). Nur Lachen bleibt. */
+            if (plainLen <= 70 && THINKING.test(out.trim()) && roll(0.2)) start = 'Hmm. ';
         }
         const boost = laughWish();                                       // "öfter lachen" ist gewünscht
         let mid = '';
@@ -539,7 +534,7 @@
         }
     };
 
-    // Test: ein Satz mit sicherem Seufzer und Lachen (ohne Zufall)
+    // Test: ein Satz mit sicherem Lachen (ohne Zufall)
     window.testChuckle = function () {
         window.__jvForceHuman = true;
         speak('Auf deiner Strecke gibt es einen Stau, mit etwa zwanzig Minuten Verzögerung. ' + MARK + 'Da würde ich nicht hinfahren.');

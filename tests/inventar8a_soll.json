@@ -17,9 +17,9 @@
  "zahlen": {
   "repoDateien": 402,
   "produktJs": 186,
-  "jsZeilen": 49445,
-  "jsBytes": 3641507,
-  "jsGzip": 1081884,
+  "jsZeilen": 49440,
+  "jsBytes": 3641034,
+  "jsGzip": 1081709,
   "scriptTags": 192,
   "eigeneScripts": 186,
   "drittScripts": 2,
