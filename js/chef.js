@@ -785,13 +785,20 @@
             if (plan.schritte.some(function (x) { return LESEND.indexOf(x.faehigkeit) < 0; })) thema = null;   // nach einer Schreibaktion gilt das Thema davor (Wetter, Orte) nicht mehr: "ich meinte 9 Uhr" gehört zur Erinnerung, nicht zum Wetter
         } catch (e) { letzterPlan = null; }
     }
+    function korrekturKontextAktiv(text) {   // frischer letzter Plan und ein kurzer Satz: dann kann der Satz eine Korrektur dazu sein
+        return !!letzterPlan && jetzt() - letzterPlan.at <= KORREKTUR_MS && String(text).trim().split(/\s+/).length <= 12;
+    }
     function korrekturHinweis(text) {
         try {
             if (!letzterPlan || jetzt() - letzterPlan.at > KORREKTUR_MS) return '';
             if (String(text).trim().split(/\s+/).length > 12) return '';   // nur kurze Sätze können eine Korrektur sein
             var liste = letzterPlan.schritte.map(function (x) { return x.faehigkeit + ' ' + JSON.stringify(x.params); }).join('; ');
             var schreibt = letzterPlan.schritte.some(function (x) { return LESEND.indexOf(x.faehigkeit) < 0; });
-            if (schreibt) return ' Dein letzter Plan zu "' + letzterPlan.text + '" hat etwas gespeichert oder geändert (' + liste + '). Korrigiert der Nutzer das jetzt mit einem kurzen Satz ("nein, ich meinte morgen", "doch lieber um 9"), lege NICHTS neu an und wiederhole keine Schritte: lass schritte leer und frage kurz in "frage", was geändert werden soll. Ist der Satz etwas ganz Neues, ignoriere diesen Hinweis.';
+            if (schreibt) {
+                var erinnert = letzterPlan.schritte.filter(function (x) { return x.faehigkeit === 'erinnerung_erstellen'; })[0];
+                if (erinnert) return ' Dein letzter Plan zu "' + letzterPlan.text + '" hat eine Erinnerung angelegt (' + liste + '). Korrigiert der Nutzer jetzt die Zeit mit einem kurzen Satz ("nein, ich meinte 10 Uhr", "doch lieber um 9", "eigentlich übermorgen"), lege KEINE neue Erinnerung an: nutze erinnerung_verschieben mit params.zeit (die neue Zeit als ISO-Zeit) und params.suche (ein Stichwort aus dem Erinnerungstext, zum Beispiel "' + String((erinnert.params && erinnert.params.text) || '').split(/\s+/).filter(function (w) { return w.length >= 4; })[0] + '"). Ist der Satz etwas ganz Neues, ignoriere diesen Hinweis.';
+                return ' Dein letzter Plan zu "' + letzterPlan.text + '" hat etwas gespeichert oder geändert (' + liste + '). Korrigiert der Nutzer das jetzt mit einem kurzen Satz ("nein, ich meinte morgen", "doch lieber um 9"), lege NICHTS neu an und wiederhole keine Schritte: lass schritte leer und frage kurz in "frage", was geändert werden soll. Ist der Satz etwas ganz Neues, ignoriere diesen Hinweis.';
+            }
             return ' Dein letzter Plan zu "' + letzterPlan.text + '" war: ' + liste + '. Sagt der Nutzer jetzt einen kurzen Satz wie "nein, ich meinte morgen", "nicht heute, sondern übermorgen", "doch lieber mit dem Auto" oder "ich meinte Hamburg", ist das eine KORREKTUR: liefere dieselben Schritte noch einmal und ändere NUR die korrigierte Angabe, alles andere bleibt gleich. Ist der Satz etwas ganz Neues, ignoriere diesen Hinweis.';
         } catch (e) { return ''; }
     }
@@ -1216,7 +1223,7 @@
                 if (x.faehigkeit === 'fahrzeit' && x.params && x.params.von === undefined) { var mv = String(text).match(RX_VON); if (mv && saubererBegriff(mv[1].trim())) x.params.von = mv[1].trim(); }
             });
             var schreibSchritte = (pr && pr.ok && pr.plan) ? pr.plan.schritte.filter(function (x) { return B2A_SCHREIBT.indexOf(x.faehigkeit) >= 0; }) : [];
-            var nurEinkaufWunsch = schreibSchritte.length > 0 && schreibSchritte.every(function (x) { return (x.faehigkeit === 'einkauf_hinzufuegen' && RX_EINKAUF.test(text)) || (x.faehigkeit === 'erinnerung_erledigt' && RX_ERLEDIGT.test(text)) || (x.faehigkeit === 'erinnerung_verschieben' && RX_VERSCHIEB.test(text)); });   // "Wir brauchen Milch", "Eier sind alle": nur für die Einkaufsliste genügt ein lockerer Wunsch
+            var nurEinkaufWunsch = schreibSchritte.length > 0 && schreibSchritte.every(function (x) { return (x.faehigkeit === 'einkauf_hinzufuegen' && RX_EINKAUF.test(text)) || (x.faehigkeit === 'erinnerung_erledigt' && RX_ERLEDIGT.test(text)) || (x.faehigkeit === 'erinnerung_verschieben' && (RX_VERSCHIEB.test(text) || korrekturKontextAktiv(text))); });   // "Wir brauchen Milch", "Eier sind alle": nur für die Einkaufsliste genügt ein lockerer Wunsch
             var schreibOhneWunsch = !!(pr && pr.ok && pr.plan && !RX_B2A.test(text) && !nurEinkaufWunsch && schreibSchritte.length > 0);   // Phase 5: schreiben nur, wenn der Nutzer es ausdrücklich verlangt hat (Erinnerung, Termin, Aufgabe, Kontakt, Merken); sonst übernimmt der bisherige Weg
             var fahrtOhneWerkzeug = !!(pr && pr.ok && pr.plan && RX_FAHRT.test(text) && pr.plan.schritte.some(function (x) { return x.faehigkeit === 'websuche'; }) && !pr.plan.schritte.some(function (x) { return x.faehigkeit === 'fahrzeit'; }));   // Fahrzeit/Verkehr nie per Websuche (das wäre nur eine Schätzung): der bisherige Weg hat die echte Routenberechnung
             // Bei einer Frage nach der morgigen Schicht-Abfahrt ist fahrzeit nur die
