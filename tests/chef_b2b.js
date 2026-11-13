@@ -321,6 +321,12 @@ const alles = A => A.gesagt.join(' | ');
     check('13m Planer erkennt keine Absicht (Satz ohne „verschieb…“): wie bisher normaler Ablauf, die Chef-KI ändert nichts', A.upd === 0 && A.sb.jvChef.pauseOffen() === null);
     A = umgebung(); A.sb.jvChef.aus(); zaehleUpdates(A); termine(A, ZAHN('local_z1', '2026-11-07T10:00:00+01:00')); await tippen(A, 'Mein Termin passt mir nicht mehr.');
     check('13n Chef-KI AUS: die natürlichen Sätze laufen wie bisher (keine Planer-Anfrage, keine Chef-Bestätigung)', A.st.ent === 0 && A.sb.jvChef.pauseOffen() === null);
+    A = SAMSTAG(); zaehleUpdates(A); r = await mit(A, 'Mein Termin passt mir nicht mehr.', plan(V('Termin')));
+    A.st.plan = plan(); r = await tippen(A, 'Wie wird das Wetter am Wochenende');
+    check('13o Fremde Frage mitten in „Welchen Termin?“ wird NICHT als Terminname verschluckt: Rückfrage beendet, kein „keinen passenden Termin“', A.sb.jvChef.pauseOffen() === null && !/keinen passenden Termin/.test(r.join(' ')) && A.upd === 0, JSON.stringify(r));
+    A = SAMSTAG(); zaehleUpdates(A); r = await mit(A, 'Mein Termin passt mir nicht mehr.', plan(V('Termin')));
+    A.st.plan = plan(); r = await tippen(A, 'Ruf Matze an');
+    check('13p Auch ein Befehl („Ruf Matze an“) beendet die Rückfrage, statt als Terminname zu gelten', A.sb.jvChef.pauseOffen() === null && !/keinen passenden Termin/.test(r.join(' ')), JSON.stringify(r));
 
     console.log(fehler ? '✗ ' + fehler + ' Fehler (' + ok + ' ok)' : '✓ CHEF-KI B2b-1: alle ' + ok + ' Prüfungen bestanden');
     process.exit(fehler ? 1 : 0);

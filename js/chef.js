@@ -1127,6 +1127,8 @@
         say('Alles klar, ich habe nichts ' + was + '.' + (p.erledigt.length ? ' Schon erledigt war: ' + p.erledigt.join(' ') : '') + (rest > 0 ? ' Die weiteren Schritte habe ich nicht ausgeführt.' : ''));
         vermerke(neuerEingang('rueckfrage_antwort'), code);
     }
+    /* Fragen und Befehle ("Wie wird das Wetter", "Ruf Matze an") sind nie der Name eines Termins: sie beenden die Rückfrage und laufen normal weiter (sonst fängt die Rückfrage "Welchen Termin?" jeden kurzen Satz ab) */
+    var RX_FREMDSATZ = /^(?:wie|was|wann|wo|wer|wem|wen|wohin|woher|warum|wieso|weshalb|welche[nrms]?|gibt|ist|sind|hab|habe|haben|hat|brauch\w*|wird|werden|kann|kannst|muss|musst|soll|sollst|darf|ruf|schick\w*|navig\w*|fuehr\w*|stell\w*|setz\w*|erinner\w*|weck\w*|zeig\w*|oeffne|trag\w*|loesch\w*|streich\w*|merk\w*|erzaehl\w*|sag|sage|such\w*|danke|stopp|stop)(?: |$)/;
     /* true = die Antwort gehörte zur offenen Rückfrage und ist erledigt; false = nicht unsere Sache (die Rückfrage ist dann beendet) */
     function pauseAntwort(text) {
         var p = pause; if (!p) return false;
@@ -1149,8 +1151,9 @@
         var zus = null;
         if (p.was === 'zeit') { var z = leseZiel(text, true); if (z) zus = { ziel: z }; }
         else if (p.was === 'wahl') { var o = ordinalAus(nz(text), true); if (o) zus = { nummer: o }; }
-        else if (p.was === 'suche') { var sn = String(text).trim().replace(/[.!?]+$/, ''); if (sn && sn.split(/\s+/).length <= 6 && !RX_VERSCHIEBEN.test(sn) && antwort !== 'ja' && saubereSuche(sn)) zus = { suche: sn }; }
+        else if (p.was === 'suche') { var sn = String(text).trim().replace(/[.!?]+$/, ''); if (sn && sn.split(/\s+/).length <= 6 && !RX_VERSCHIEBEN.test(sn) && !RX_FREMDSATZ.test(nz(sn)) && antwort !== 'ja' && saubereSuche(sn)) zus = { suche: sn }; }
         if (zus) { pause = null; var g2 = ++kiGen, e2 = neuerEingang('rueckfrage_antwort'); pauseFortsetzen(p, zus, g2, e2); return true; }
+        if (p.was === 'suche' && RX_FREMDSATZ.test(nz(text))) { pause = null; vermerke(neuerEingang('bestaetigung_ersetzt'), 'bestaetigung_ersetzt'); return false; }
         if (antwort === 'unklar' || antwort === 'ja') return nochmal();
         pause = null; vermerke(neuerEingang('bestaetigung_ersetzt'), 'bestaetigung_ersetzt'); return false;
     }
