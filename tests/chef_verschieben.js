@@ -25,7 +25,7 @@ const warte = async n => { for (let i = 0; i < (n || 40); i++) await new Promise
         } });
     A.vorspulen(2000);
     const R = A.sb.jvRegistry, C = A.sb.jvChef;
-    const rem = A.lese('reminderEntries');
+    const rem = { get length() { return A.lese('reminderEntries').length; }, push: x => A.lese('reminderEntries').push(x), find: f => A.lese('reminderEntries').find(f), filter: f => A.lese('reminderEntries').filter(f), findIndex: f => A.lese('reminderEntries').findIndex(f), splice: (a, b) => A.lese('reminderEntries').splice(a, b) };   // die Liste wird beim Löschen neu gebildet: immer frisch lesen
     const jetzt = () => new A.sb.Date().getTime();
     const inMin = m => new Date(jetzt() + m * 60000).toISOString();
     const neu = (id, text, extra) => rem.push(Object.assign({ id, text, important: true, triggered: true, done: false, time: inMin(-1) }, extra || {}));
@@ -54,7 +54,7 @@ const warte = async n => { for (let i = 0; i < (n || 40); i++) await new Promise
     // noch nicht geklingelte Erinnerung mit Stichwort verschieben
     rem.push({ id: 931, text: 'Blumen gießen', time: inMin(30), important: false, triggered: false, done: false });
     r = await R.fuehreAus('erinnerung_verschieben', { zeit: inMin(300), suche: 'Blumen' }, {});
-    check('2h kommende Erinnerung mit Stichwort verschiebbar', r.status === 'SUCCESS' && rem.find(x => x.id === 931).done === true && offen('Blumen gießen').length === 1 && new A.sb.Date(offen('Blumen gießen')[0].time).getTime() > jetzt() + 200 * 60000, JSON.stringify(r).slice(0, 300));
+    check('2h kommende Erinnerung mit Stichwort verschiebbar: die alte ist ganz weg, genau eine neue', r.status === 'SUCCESS' && !rem.find(x => x.id === 931) && offen('Blumen gießen').length === 1 && rem.filter(x => x.text === 'Blumen gießen').length === 1 && new A.sb.Date(offen('Blumen gießen')[0].time).getTime() > jetzt() + 200 * 60000, JSON.stringify(r).slice(0, 300));
     // Planprüfung
     const ok1 = z => C.planErlaubt({ schritte: [{ faehigkeit: 'erinnerung_verschieben', params: z }] });
     check('3a Plan mit Zeit (und Stichwort) erlaubt', ok1({ zeit: '2026-11-12T19:00:00' }) === true && ok1({ zeit: '2026-11-12T19:00:00', suche: 'Tablette' }) === true);

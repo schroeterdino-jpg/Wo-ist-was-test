@@ -52,14 +52,23 @@ const warte = async n => { for (let i = 0; i < (n || 40); i++) await new Promise
     plan = { absicht: 'erinnerung', schritte: [{ faehigkeit: 'erinnerung_erstellen', params: { text: 'Milch holen', zeit: '2026-11-13T09:00:00' } }] };
     await sag('Erinnere mich morgen um 9 Uhr Milch zu holen');
     check('4c nach einer Schreibaktion gilt das Thema davor nicht mehr', A.sb.jvChef.thema() === null, JSON.stringify(A.sb.jvChef.thema()));
-    // Schreibaktion: nie wiederholen
-    plan = { absicht: 'erinnerung', schritte: [{ faehigkeit: 'erinnerung_erstellen', params: { text: 'Brot kaufen', zeit: '2026-11-13T08:00:00' } }] };
-    await sag('Erinnere mich morgen um 8 Uhr an Brot kaufen');
-    const n0 = A.lese('reminderEntries').length;
+    // Korrektur nach einer Erinnerung: die vorhandene wird verschoben, nichts doppelt angelegt (Handytest 13.11.: "ich meinte 10 Uhr" legte eine zweite an)
+    const liste = () => A.lese('reminderEntries').filter(r => /Brot/.test(r.text));
+    plan = { absicht: 'erinnerung', schritte: [{ faehigkeit: 'erinnerung_erstellen', params: { text: 'Brot kaufen', zeit: '2026-11-13T09:00:00' } }] };
+    await sag('Erinnere mich morgen um 9 Uhr an Brot kaufen');
+    check('5a Vorbereitung: genau eine Erinnerung "Brot" um 9 Uhr', liste().length === 1 && new A.sb.Date(liste()[0].time).getHours() === 9, JSON.stringify(liste()));
+    plan = { absicht: 'verschieben', schritte: [{ faehigkeit: 'erinnerung_verschieben', params: { zeit: '2026-11-13T10:00:00', suche: 'Brot' } }] };
+    s = await sag('Nein, ich meinte 10 Uhr');
+    check('5b Planer bekommt den Hinweis: erinnerung_verschieben nutzen, keine neue anlegen', /erinnerung_verschieben/.test(s) && /KEINE neue Erinnerung/.test(s) && /"Brot"/.test(s), s.slice(-500));
+    check('5c danach genau EINE Erinnerung "Brot", jetzt um 10 Uhr (nicht doppelt, alte weg)', liste().length === 1 && new A.sb.Date(liste()[0].time).getHours() === 10, JSON.stringify(liste()));
+    // andere Schreibaktion (Aufgabe): nichts neu anlegen, nachfragen
+    plan = { absicht: 'aufgabe', schritte: [{ faehigkeit: 'aufgabe_erstellen', params: { text: 'Auto waschen' } }] };
+    await sag('Aufgabe Auto waschen');
+    const n0 = A.lese('todoEntries').length;
     plan = { absicht: 'frage', schritte: [], frage: 'Was soll ich ändern?' };
-    s = await sag('Nein, ich meinte um 9');
-    check('5a nach einer Schreibaktion: Hinweis "nichts neu anlegen, nachfragen"', /lege NICHTS neu an/.test(s) && /erinnerung_erstellen/.test(s), s.slice(-400));
-    check('5b es wurde nichts doppelt angelegt', A.lese('reminderEntries').length === n0, String(A.lese('reminderEntries').length) + ' vs ' + n0);
+    s = await sag('Nein, ich meinte Fenster putzen');
+    check('6a nach einer anderen Schreibaktion: Hinweis "nichts neu anlegen, nachfragen"', /lege NICHTS neu an/.test(s) && /aufgabe_erstellen/.test(s), s.slice(-400));
+    check('6b es wurde keine zweite Aufgabe angelegt', A.lese('todoEntries').length === n0, String(A.lese('todoEntries').length) + ' vs ' + n0);
     console.log(fehler ? '✗ ' + fehler + ' Fehler' : '✓ alle ' + ok + ' Prüfungen bestanden');
     process.exit(fehler ? 1 : 0);
 })();

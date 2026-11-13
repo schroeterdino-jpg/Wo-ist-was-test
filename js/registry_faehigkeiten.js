@@ -1044,6 +1044,8 @@
             if (!neu) { alt.done = vorDone; alt.triggered = vorTrig; var e2 = new Error('Neue Erinnerung fehlt'); e2.userMessage = 'Das Verschieben hat nicht geklappt, die alte Erinnerung bleibt.'; throw e2; }
             setPersistentData('helfer_reminders', JSON.stringify(liste('reminderEntries')));
             try { if (typeof renderAllLists === 'function') renderAllLists(); } catch (e) { }
+            // Noch nicht geklingelt und keine Serie: die alte Erinnerung verschwindet ganz (auch bei Google), sonst klingelt sie zur alten Zeit trotzdem
+            if (!vorTrig && !alt.seriesId && !alt.recurrence && typeof deleteReminderEntry === 'function') { try { await deleteReminderEntry(alt.id); } catch (e) { } }
             var d = new Date(p.zeit), hh = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
             var heute = d.toDateString() === new Date().toDateString();
             var morgen = new Date(Date.now() + 86400000).toDateString() === d.toDateString();
