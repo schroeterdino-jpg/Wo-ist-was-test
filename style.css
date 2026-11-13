@@ -589,16 +589,17 @@ body.panel-open .hud-decor { opacity: 0; transition: opacity .2s ease; }
 
 /* ============ Startseite "Übersicht" (js/uebersicht.js) ============ */
 #uebersicht { max-width: 440px; margin: 0 auto; font-family: var(--font-ui, "Rajdhani", system-ui, sans-serif); }
-#uebKopf { display: grid; grid-template-columns: auto 1fr; column-gap: 6px; align-items: center; margin-bottom: 2px; }
-#uebKopf #recordBtn { grid-row: 1 / span 2; }
-#uebGrussBox { grid-column: 2; grid-row: 1; }
-#uebUhrBox { grid-column: 2; grid-row: 2; }
+/* Startseite 1 (13.11.2026): Roboter mittig und größer, darunter Gruß und Uhr mittig; die Felder darunter, ohne Scrollen */
+#uebKopf { display: grid; grid-template-columns: 1fr; justify-items: center; text-align: center; margin-bottom: 2px; }
+#uebKopf #recordBtn { grid-row: 1; }
+#uebGrussBox { grid-column: 1; grid-row: 2; align-items: center; }
+#uebUhrBox { grid-column: 1; grid-row: 3; justify-content: center; }
 #uebKopf #recordBtn { padding: 0; flex: none; }
 #uebKopf #reactor-wrap { padding: 0; }
-#uebKopf .holo-container { width: 130px; height: 130px; position: relative; }
-#uebKopf #jarvisSphere { position: absolute; left: 50%; top: 50%; width: 200px !important; height: 200px !important; max-width: none !important; margin: -100px 0 0 -100px; }
-#uebKopf.ueb-roboter .holo-container { width: 150px; height: 225px; }
-#uebKopf #jarvisRoboter { position: absolute; left: 50%; top: 50%; width: 150px; height: 225px; margin: -112px 0 0 -75px; pointer-events: none; }   /* Roboter-Avatar (js/avatar_roboter.js): das Bild hat einen echten Alpha-Kanal, kein schwarzer Kasten */
+#uebKopf .holo-container { width: 170px; height: 170px; position: relative; }
+#uebKopf #jarvisSphere { position: absolute; left: 50%; top: 50%; width: 250px !important; height: 250px !important; max-width: none !important; margin: -125px 0 0 -125px; }
+#uebKopf.ueb-roboter .holo-container { width: 190px; height: 285px; }
+#uebKopf #jarvisRoboter { position: absolute; left: 50%; top: 50%; width: 190px; height: 285px; margin: -142px 0 0 -95px; pointer-events: none; }   /* Roboter-Avatar (js/avatar_roboter.js): das Bild hat einen echten Alpha-Kanal, kein schwarzer Kasten */
 #uebGrussBox { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 #uebGruss { font-size: 17px; letter-spacing: .06em; color: var(--cyan); text-transform: uppercase; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #uebSchichtZeile, #uebHinweis { font-size: 12px; color: var(--muted, #6f90a3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -619,7 +620,8 @@ body.panel-open .hud-decor { opacity: 0; transition: opacity .2s ease; }
 #uebArbeit { --t: "Arbeitsweg"; } #uebArbeit.heim { --t: "Heimweg"; } #uebRegen { --t: "Regen"; } #uebDiesel { --t: "Diesel"; } #uebSchicht { --t: "Schicht"; }
 #uebTermine { --t: "Nächste Termine"; } #uebErinnerung { --t: "Erinnern"; } #uebEinkauf { --t: "Einkauf"; } #uebWetter { --t: "Morgen"; }
 .ueb-karte::before { content: var(--t); }
-#uebArbeit, #uebRegen, #uebDiesel, #uebTermine, #uebErinnerung, #uebEinkauf { cursor: pointer; }
+#uebParkplatz { --t: "Parkplatz"; }
+#uebArbeit, #uebRegen, #uebDiesel, #uebParkplatz, #uebTermine, #uebErinnerung, #uebEinkauf { cursor: pointer; }
 .ueb-gross { font-size: 24px; font-weight: 600; line-height: 1.05; color: #d9e9f2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ueb-gross small { font-size: 12px; color: var(--muted, #6f90a3); font-weight: 500; margin: 0 3px; }
 .ueb-gross.ueb-klein { font-size: 16px; padding-top: 5px; }

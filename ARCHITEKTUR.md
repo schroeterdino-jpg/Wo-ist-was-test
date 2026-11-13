@@ -623,7 +623,7 @@ Das sind bewusst offene, dokumentierte Beobachtungen (GELB), **keine automatisch
 - `kacheln.js` ist jetzt standardmäßig AUS (doppelte Anzeige und eigene Abrufe); "Kacheln an" schaltet sie wieder ein. Schlüssel `nova_kopf` und `jv_mund_delay` bleiben bestehen (Sync bzw. Hörverzögerung in `voice.js`).
 
 ## Startseite anpassen (`js/startseite_anpassen.js`)
-- ☰-Menü > „Startseite anpassen“ (Eintrag in `buildMenuPanel`, `panels.js`): Fenster mit den 8 Feldern der Startseite; je Feld Schalter An/Aus und ▲ ▼. Bedienung nur per Tippen. Nur lokal (`jv_ueb_felder`, kein Abgleich, kein Server).
+- ☰-Menü > „Startseite anpassen“ (Eintrag in `buildMenuPanel`, `panels.js`): Fenster mit den 9 Feldern der Startseite (seit 13.11.2026 inkl. Parkplatz; Standard: Arbeitsweg, Regen, Diesel, Parkplatz, Termine an, Rest aus; einmalige Umstellung über `jv_ueb_felder_v2`; Roboter mittig/größer in `style.css`, `#uebKopf`); je Feld Schalter An/Aus und ▲ ▼. Bedienung nur per Tippen. Nur lokal (`jv_ueb_felder`, kein Abgleich, kein Server).
 - Technik: ändert nur die Anzeige (CSS `order` am Feld und Klasse `ueb-aus`); `uebersicht.js` füllt die Felder unverändert weiter. `window.jvStartAnpassen = { oeffnen, anwenden, zuruecksetzen, felder }`.
 
 ## Phase 1 Sicherheit (`js/sicherheit.js`, Test `tests/sicherheit.js`)
