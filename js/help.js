@@ -271,7 +271,7 @@ function handleHelpCommand(text) {
         const faeh = (window.jvFaehigkeiten && window.jvFaehigkeiten.liste || []).map(f => f.name + ' (' + (f.kurz || '') + ')');
         return '\n\nWISSEN ÜBER DICH SELBST: Der Nutzer fragt nach dir (vorstellen oder was du kannst). Du bist Jarvis, der Sprachassistent von Dino. Das kannst du: ' + themen.join(', ') +
             '. Genauer: ' + faeh.join('; ') + '. Stell dich in eigenen Worten vor, kurz (drei bis vier Sätze, gesprochen), im gewohnten Jarvis-Stil mit Witz, und nenne nur Fähigkeiten aus dieser Liste, erfinde nichts. ' +
-            'Ist eine andere Person dabei (zum Beispiel ein Kollege), sprich sie mit Namen direkt an. Keine Aufzählung mit Doppelpunkten, keine internen Namen.';
+            'Ist eine andere Person dabei (zum Beispiel ein Kollege Pavel), sprich sie mit Namen direkt an und sage \"Ich bin Jarvis, Dinos Assistent\" (NIEMALS \"dein Assistent\", denn du gehörst Dino, nicht dieser Person). Keine Aufzählung mit Doppelpunkten, keine internen Namen.';
     }
     /* Eingehängt wird es über contextplus.js (extraRules), damit die Kette der KI-Anweisung unverändert bleibt (tests/globale.js) */
     window.jvSelbstWissen = function (text) { try { return FRAGT_NACH_MIR.test(String(text || '')) ? selbstWissen() : ''; } catch (e) { return ''; } };
