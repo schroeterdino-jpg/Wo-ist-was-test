@@ -52,7 +52,7 @@
           s: ["Trag morgen um 15 Uhr Zahnarzt in Hamburg ein", "Verschieb den Zahnarzt auf Freitag", "Zeig meine Termine der nächsten Woche", "Wann hat Schatz Geburtstag?"] },
         { g: "Alltag", i: "⏰", t: "Erinnerungen", h: "erinnerungen",
           d: "Einmalig oder wiederkehrend. Wichtige Erinnerungen kommen alle 10 Minuten wieder, bis du „Erledigt“ sagst oder tippst.",
-          s: ["Erinnere mich morgen um 8 Uhr an den Arzt", "Erinnere mich alle zwei Wochen an die Wäsche", "Wichtige Erinnerung: Paket abholen", "In zehn Minuten nochmal"] },
+          s: ["Erinnere mich morgen um 8 Uhr an den Arzt", "Erinnere mich alle zwei Wochen an die Wäsche", "Wichtige Erinnerung: Paket abholen", "Heute Abend nochmal", "Die Tablette hab ich schon genommen"] },
         { g: "Alltag", i: "📝", t: "Listen und Notizen", h: "listen",
           d: "Einkaufsliste, Aufgaben und Notizen. Aufgaben mit „heute“ liest Jarvis dir am Tag zuerst vor. Du kannst Listen auch per WhatsApp verschicken.",
           s: ["Setz Milch auf die Einkaufsliste", "Was steht auf meiner Einkaufsliste?", "Notiere, dass ich noch Kabelschuhe brauche", "Lösche Milch von der Liste", "Schick die Einkaufsliste per WhatsApp an Schatz"] },

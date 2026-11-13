@@ -166,7 +166,7 @@
     /* ---------------- 2a. Jarvis über sich selbst (lesend, ohne KI-Kosten) ---------------- */
     var SELBST_NAMEN = { ortssuche: 'Orte und Restaurants suchen', websuche: 'Internetsuche', wetter: 'Wetter', fahrzeit: 'Fahrzeit und Verkehr mit dem Auto', produktsuche: 'Preise und Händler zu Produkten', foto_info: 'Fotos erkennen und auswerten',
         termine_lesen: 'Termine ansehen', aufgaben_lesen: 'Aufgaben ansehen', essensplan: 'Essensplan der Kantine', erinnerungen_lesen: 'Erinnerungen ansehen', einkauf_lesen: 'Einkaufsliste ansehen', urlaub_lesen: 'Urlaub ansehen', rechnungen_lesen: 'offene Rechnungen ansehen', vollmond: 'Vollmond', wunschliste_lesen: 'Wunschlisten ansehen', pakete_lesen: 'Pakete ansehen', parkplatz_lesen: 'Parkplatz ansehen', wecker_stellen: 'Wecker stellen', uhrzeit_anderswo: 'Uhrzeit in anderen Städten', aufgabe_erstellen: 'Aufgaben anlegen', erinnerung_erstellen: 'Erinnerungen anlegen', termin_erstellen: 'Termine eintragen',
-        termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken', einkauf_hinzufuegen: 'Einkaufsliste ergänzen', erinnerung_erledigt: 'Wichtige Erinnerungen abhaken' };
+        termin_verschieben: 'Termine verschieben', kontakt_speichern: 'Kontakte speichern', gedaechtnis_speichern: 'Dinge merken', einkauf_hinzufuegen: 'Einkaufsliste ergänzen', erinnerung_erledigt: 'Wichtige Erinnerungen abhaken', erinnerung_verschieben: 'Erinnerung verschieben' };
     R.registriere({
         name: 'jarvis_info',
         beschreibung: 'Zählt auf, welche Werkzeuge und Fähigkeiten Jarvis selbst hat. Nur nutzen, wenn der Nutzer Jarvis selbst meint ("du", "dich", "deine Funktionen", "wie könntest du dich verbessern").',
@@ -984,6 +984,70 @@
             if (ziele.some(function (r) { return !r.done; })) { var e = new Error('Abhaken nicht gespeichert'); e.userMessage = 'Das Abhaken hat nicht geklappt.'; throw e; }
             var namen = ziele.map(function (r) { return String(r.text || '').trim(); });
             return { erledigt: namen, nachricht: vorabMeldung ? 'Okay, ' + namen.join(' und ') + ' ist heute schon erledigt, ich erinnere nicht mehr daran.' : 'Okay, ' + namen.join(' und ') + ' ist abgehakt. Ich frage nicht mehr nach.' };
+        }
+    });
+
+    /* ---------------- Erinnerung verschieben (Schiene B2a): "gleich nochmal", "heute Abend nochmal", "schieb das auf morgen" ---------------- */
+    function verschiebeZiel(p) {
+        var alle = liste('reminderEntries') || [], aktiv = nachhakende();
+        var w = String(p && p.suche || '').toLowerCase().split(/[^a-zäöüß0-9]+/).filter(function (x) { return x.length >= 4; });
+        var passt = function (r) { return w.some(function (x) { return String(r.text || '').toLowerCase().indexOf(x) >= 0; }); };
+        var offen = alle.filter(function (r) { return r && !r.done; });
+        var kand;
+        if (w.length) { kand = offen.filter(passt); if (!kand.length) return { fehlt: 'Ich finde keine Erinnerung zu "' + String(p.suche).trim() + '".' }; }
+        else if (aktiv.length) kand = aktiv;
+        else {
+            var zuletzt = (typeof lastFiredReminder !== 'undefined' && lastFiredReminder && typeof lastFiredReminderAt !== 'undefined' && Date.now() - lastFiredReminderAt < 2 * 3600000) ? lastFiredReminder : null;
+            if (!zuletzt) return { fehlt: 'Gerade hat keine Erinnerung geklingelt. Welche soll ich verschieben?' };
+            kand = [zuletzt];
+        }
+        if (kand.length > 1) return { fehlt: 'Welche Erinnerung meinst du: ' + kand.map(function (r) { return String(r.text || '').trim(); }).join(' oder ') + '?' };
+        return { ziel: kand[0] };
+    }
+    function verschiebeZeitOk(z) { var t = new Date(z).getTime(); return isFinite(t) && t > Date.now() + 20000 && t < Date.now() + 366 * 86400000; }
+    R.registriere({
+        name: 'erinnerung_verschieben',
+        beschreibung: 'Verschiebt eine Erinnerung auf eine neue Zeit: die, die gerade klingelt oder nachfragt, oder die mit dem genannten Stichwort ("gleich nochmal", "in einer Viertelstunde nochmal", "heute Abend nochmal", "schieb die Tablette auf morgen früh").',
+        pflicht: [{ name: 'zeit', typ: 'zeit', beschreibung: 'Neuer Zeitpunkt als ISO-Zeit in der Zukunft, zum Beispiel 2026-11-13T20:00:00.' }],
+        optional: [{ name: 'suche', typ: 'text', beschreibung: 'Stichwort der Erinnerung, zum Beispiel "Tablette". Ohne Angabe gilt die, die gerade klingelt oder nachfragt.' }],
+        rueckgabe: { beschreibung: 'Welche Erinnerung auf wann verschoben wurde.', felder: ['verschoben', 'zeit', 'nachricht'] },
+        fehler: [
+            { status: 'NEEDS_INFORMATION', wann: 'Zeit fehlt oder liegt nicht in der Zukunft, es ist unklar welche Erinnerung gemeint ist, oder keine passt.' },
+            { status: 'TOOL_FAILED', wann: 'Die neue Erinnerung steht nach dem Verschieben nicht in der Liste, oder ein technischer Fehler trat auf.' },
+            { status: 'CAPABILITY_MISSING', wann: 'Die Aktionsausführung ist in dieser Umgebung nicht geladen.' }
+        ],
+        fallbacks: [],
+        bestaetigung: { noetig: false, grund: 'Die alte Erinnerung wird nur abgehakt, die neue steht in der Liste; nichts geht verloren.' },
+        pruefeErfolg: function (d) { return !!d && !!d.verschoben && typeof d.nachricht === 'string' && !!d.nachricht.trim(); },
+        verbindung: { datei: 'js/reminders.js', funktion: 'handleSnoozeCommand', aktion: 'verschieben' },
+        verfuegbar: function () { return actionsDa() && !!liste('reminderEntries'); },
+        vorpruefung: function (p) {
+            if (!verschiebeZeitOk(p && p.zeit)) return { status: 'NEEDS_INFORMATION', nachricht: 'Auf wann soll ich die Erinnerung verschieben?', fehlend: ['zeit'] };
+            var z = verschiebeZiel(p);
+            if (z.fehlt) return { status: 'NEEDS_INFORMATION', nachricht: z.fehlt, fehlend: ['suche'] };
+            return null;
+        },
+        ausfuehren: async function (p) {
+            var z = verschiebeZiel(p);
+            if (z.fehlt) return { verschoben: '', zeit: '', nachricht: z.fehlt };
+            var alt = z.ziel, text = String(alt.text || '').trim(), wichtig = !!alt.important;
+            var vorDone = alt.done, vorTrig = alt.triggered;
+            alt.done = true; alt.triggered = true;
+            var a = { type: 'reminder', reminder_text: text, reminder_time: p.zeit, reminder_important: wichtig };
+            var s2 = sicherheit(a);
+            if (s2) { alt.done = vorDone; alt.triggered = vorTrig; return { verschoben: '', zeit: '', nachricht: s2.nachricht || 'Das Verschieben ist nicht erlaubt.' }; }
+            var ctx = ctxNeu(null);
+            try { await executeAction(a, 'Erinnere mich ' + text, ctx); }
+            catch (e) { alt.done = vorDone; alt.triggered = vorTrig; throw e; }
+            var ziel = new Date(p.zeit).getTime();
+            var neu = (liste('reminderEntries') || []).some(function (r) { return r !== alt && !r.done && String(r.text || '').trim() === text && Math.abs(new Date(r.time).getTime() - ziel) < 90000; });
+            if (!neu) { alt.done = vorDone; alt.triggered = vorTrig; var e2 = new Error('Neue Erinnerung fehlt'); e2.userMessage = 'Das Verschieben hat nicht geklappt, die alte Erinnerung bleibt.'; throw e2; }
+            setPersistentData('helfer_reminders', JSON.stringify(liste('reminderEntries')));
+            try { if (typeof renderAllLists === 'function') renderAllLists(); } catch (e) { }
+            var d = new Date(p.zeit), hh = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+            var heute = d.toDateString() === new Date().toDateString();
+            var morgen = new Date(Date.now() + 86400000).toDateString() === d.toDateString();
+            return { verschoben: text, zeit: p.zeit, nachricht: 'Okay, ' + text + ' kommt jetzt ' + (heute ? 'heute um ' : morgen ? 'morgen um ' : 'am ' + d.getDate() + '.' + (d.getMonth() + 1) + '. um ') + hh + ' Uhr.' };
         }
     });
 
