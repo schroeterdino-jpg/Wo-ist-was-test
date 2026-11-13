@@ -181,7 +181,7 @@ const MIN = 60000;
     const gg = C.sb.jvGespraech; gg.ergebnisse('o', RESTS); gg.aufloesen('Das zweite gefällt mir'); gg.aufloesen('Wie komme ich dahin?'); gg.frage({ text: 'x', art: 'ja_nein' }); gg.absicht('o');
     check('10c Benutzung ändert nichts: Speicher, Langzeitgedächtnis, Netz, Sprache unverändert', vorher === JSON.stringify(C.store) + JSON.stringify(C.lese('memoryItems')) + C.aufrufe.length + C.gesagt.length);
     gg.vergiss();
-    check('10d kein Einfluss auf Phase 1/2: Sicherheit und Registry unverändert vorhanden', typeof C.sb.jvSicher === 'object' && typeof C.sb.jvRegistry.fuehreAus === 'function' && C.sb.jvRegistry.namen().length === 33);   // fünf + wetter (Chef-KI-Paket) + fünf des Schreibkerns (B1) + produktsuche (Phase 3)
+    check('10d kein Einfluss auf Phase 1/2: Sicherheit und Registry unverändert vorhanden', typeof C.sb.jvSicher === 'object' && typeof C.sb.jvRegistry.fuehreAus === 'function' && C.sb.jvRegistry.namen().length === 35);   // fünf + wetter (Chef-KI-Paket) + fünf des Schreibkerns (B1) + produktsuche (Phase 3)
     const arch = lies('ARCHITEKTUR.md');
     check('10e Doku nennt das Gesprächsgedächtnis und die Datei', /Gesprächsgedächtnis/.test(arch) && /js\/gespraech\.js/.test(arch));
 

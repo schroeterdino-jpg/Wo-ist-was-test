@@ -98,9 +98,9 @@
     }
     function wenigDaten() { const n = laden().length; return n < 3 ? 'Ich habe erst ' + (n === 0 ? 'keine' : n) + ' Buchungen gesehen. Sag „Haushaltsbuch einlesen“, dann hole ich die letzten Bank-Mails nach.' : ''; }
 
-    function bilanz(offset) {
+    function bilanzText(offset) {   // reiner Satz (auch für das Chef-KI-Werkzeug 'haushaltsbuch_lesen')
         const d = monat(offset), ein = summe(d.liste, 'ein'), aus = summe(d.liste, 'aus');
-        if (!d.liste.length) { sagen('Im ' + d.name + ' habe ich noch keine Buchungen. ' + (laden().length ? '' : 'Sag „Haushaltsbuch einlesen“, dann hole ich die letzten Bank-Mails nach.')); return; }
+        if (!d.liste.length) return 'Im ' + d.name + ' habe ich noch keine Buchungen. ' + (laden().length ? '' : 'Sag „Haushaltsbuch einlesen“, dann hole ich die letzten Bank-Mails nach.');
         const teile = [(offset ? 'Im ' + d.name + ' sind ' : 'Im ' + d.name + ' sind bisher ') + eur(ein) + ' eingegangen und ' + eur(aus) + ' ausgegeben worden.'];
         const diff = ein - aus;
         teile.push(diff >= 0 ? 'Es bleiben ' + eur(diff) + ' übrig.' : 'Das sind ' + eur(-diff) + ' mehr raus als rein.');
@@ -108,8 +108,9 @@
         if (top.length) teile.push('Am meisten ging für ' + top.map(t => t[0] + ' (' + eur(t[1]) + ')').join(', ') + ' raus.');
         teile.push('Das stammt nur aus den Mails deiner Bank.');
         const w = wenigDaten(); if (w) teile.push(w);
-        sagen(teile.join(' '));
+        return teile.join(' ');
     }
+    function bilanz(offset) { sagen(bilanzText(offset)); }
     function aboAnsage() {
         const a = abos();
         if (!a.length) { sagen('Ich habe noch keine regelmäßigen Abbuchungen erkannt. Dafür muss dieselbe Zahlung in zwei verschiedenen Monaten vorkommen. ' + (wenigDaten() || '')); return; }
@@ -237,5 +238,5 @@
         return next(text);
     }
     if (window.jvCommands && typeof window.jvCommands.use === 'function') window.jvCommands.use('haushalt', befehl, 0.25);
-    window.jvHaushalt = { erfassen, einlesen, bilanz, abos, sparen, fenster, laden };
+    window.jvHaushalt = { erfassen, einlesen, bilanz, bilanzText, abos, sparen, fenster, laden };
 })();
