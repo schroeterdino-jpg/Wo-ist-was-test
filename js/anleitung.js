@@ -35,7 +35,7 @@
           s: ["Diese Woche Frühschicht", "Welche Schicht habe ich?", "Meine Frühschicht beginnt um 5 Uhr 30", "Wann stehe ich auf?", "Ich muss Donnerstag um 13:15 auf der Arbeit sein", "Wann habe ich morgen Feierabend?", "Morgen fange ich erst um 6 Uhr an", "Morgen habe ich um 15 Uhr Feierabend", "Morgen möchte ich 30 Minuten früher auf der Arbeit sein", "Habe ich am Samstag frei?", "Ich muss morgen 30 Minuten früher anfangen"] },
         { g: "Los geht’s", i: "🌴", t: "Urlaub", n: "Während des Urlaubs meldet Jarvis nichts zum Arbeitsweg",
           d: "Trage deinen Urlaub ein, dann sind Arbeitsweg, Abfahrt und Schichtmeldungen in dieser Zeit still.",
-          s: ["Ich habe Urlaub vom 20. Oktober bis 3. November", "Habe ich Urlaub eingetragen?", "Urlaub beenden"] },
+          s: ["Ich habe Urlaub vom 20. Oktober bis 3. November", "Ich habe nächste Woche Urlaub", "Urlaub von Montag bis Freitag", "Habe ich Urlaub eingetragen?", "Urlaub beenden"] },
         { g: "Los geht’s", i: "🎩", t: "Anrede und Ton", h: "charakter",
           d: "Jarvis kann dich nennen, wie du willst, und antworten, wie du es magst: frech, höflich oder mit „Sir“. Er hat jeden Tag eine eigene Laune.",
           s: ["Nenn mich Boss", "Sei frecher", "Sei höflicher", "Keine Sprüche mehr", "Wie ist deine Laune?"] },

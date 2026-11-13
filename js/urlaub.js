@@ -2,7 +2,7 @@
    URLAUB: "Ich habe Urlaub vom 20. Oktober bis 3. November" – in dieser Zeit meldet Zane nichts mehr zum Arbeitsweg
    (kein Wetter für die Fahrt zur Arbeit, kein Regen auf dem Arbeitsweg, kein Schicht-Briefing, kein "Zeit ins Bett" vor der Frühschicht).
    Sprache:  "Ich habe Urlaub vom 20. Oktober bis 3. November" / "Urlaub vom 20.10. bis 3.11." / "Ich habe ab morgen zwei Wochen Urlaub"
-             "Urlaub bis Freitag" geht nicht, bitte Datum nennen ("Urlaub bis 24. Oktober").
+             Auch: "nächste Woche Urlaub", "übernächste Woche", "von Montag bis Freitag", "bis Freitag", "ab nächster Woche zwei Wochen" (Wochen = Mo–Fr).
              "Urlaub beenden" / "Ich habe keinen Urlaub mehr" / "Habe ich Urlaub eingetragen?"
    Speicher: Schlüssel jv_urlaub = {von:'JJJJ-MM-TT', bis:'JJJJ-MM-TT'}. Die Datei js/pushsync.js meldet ihn dem Server (api/sync.js),
              der in dieser Zeit die Arbeitsweg-Meldungen auslässt. Nach dem letzten Urlaubstag gilt automatisch wieder alles normal.
@@ -60,6 +60,34 @@
     /* Urlaubsliste (Jahresplan vom Foto, js/foto_urlaubsplan.js): [{von,bis,tage,kal}]. Gespeichert und benutzt wird immer nur EIN Urlaub
        (jv_urlaub, den der Server kennt): der laufende oder der nächste aus der Liste. Ist er vorbei, rückt der nächste nach. */
     const LKEY = 'jv_urlaub_liste';
+
+    /* Wochen und Wochentage in echte Daten umwandeln ("nächste Woche", "von Montag bis Freitag", "bis Freitag", "ab nächster Woche zwei Wochen"),
+       damit die Datum-Logik unten sie wie "20.10.2026" behandelt. Heute = Europa/Berlin. */
+    const WT = { sonntag: 0, montag: 1, dienstag: 2, mittwoch: 3, donnerstag: 4, freitag: 5, samstag: 6, sonnabend: 6 };
+    function wochentag(isoStr) { return new Date(isoStr + 'T12:00:00').getDay(); }
+    function deDatum(isoStr) { const a = isoStr.split('-'); return +a[2] + '.' + +a[1] + '.' + a[0]; }
+    function montagDerWoche(off) { return addDays(today(), -((wochentag(today()) + 6) % 7) + 7 * off); }
+    function relativ(t) {
+        let r = t;
+        /* 1) Wochen: diese / nächste / kommende / übernächste Woche */
+        r = r.replace(/(^|\s)(übernächst|uebernaechst|nächst|naechst|kommend|dies)(?:e|er|en|es)?\s+woche\b/g, function (all, pre, w, off, str) {
+            const o = /^(?:übernächst|uebernaechst)$/.test(w) ? 2 : /^dies$/.test(w) ? 0 : 1;
+            const von = o === 0 ? today() : montagDerWoche(o); let bis = addDays(montagDerWoche(o), 4); if (bis < von) bis = von;
+            const davor = str.slice(0, off);
+            if (/(?:^|\s)ab(?:\s+der)?\s*$/.test(davor)) return pre + deDatum(von);
+            return pre + 'vom ' + deDatum(von) + ' bis ' + deDatum(bis);
+        });
+        r = r.replace(/\b(vom|von)\s+vom\b/g, '$1');
+        /* 2) Wochentage, von links nach rechts: "nächsten Montag" liegt nach heute, sonst gilt der nächste passende Tag ab heute */
+        let ref = today();
+        r = r.replace(/(^|\s)(nächst\w*|naechst\w*|kommend\w*)?\s*(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag)(?=\s|$)/g, function (all, pre, nx, tag) {
+            let n = (WT[tag] - wochentag(ref) + 7) % 7;
+            if (nx && n === 0 && ref === today()) n = 7;
+            ref = addDays(ref, n);
+            return pre + deDatum(ref);
+        });
+        return r;
+    }
     function liste() {
         try { const a = JSON.parse(getPersistentData(LKEY, '') || 'null'); return Array.isArray(a) ? a.filter(x => x && x.von && x.bis) : []; } catch (e) { return []; }
     }
@@ -107,7 +135,10 @@
             else say('Du hast vom ' + lesbar(u.von) + ' bis zum ' + lesbar(u.bis) + ' Urlaub eingetragen.');
             return true;
         }
-        if (/\b(habe|hab|nehme|nehm|trag|trage|tragen|mach|ab|vom|von|bis|hatte)\b/.test(t) && !/\bwann\b|\bwie\b/.test(t)) {
+        const trel = relativ(t);
+        const GRUND = /\b(habe|hab|nehme|nehm|trag|trage|tragen|mach|ab|vom|von|bis|hatte)\b/, ERWEITERT = /\b(bin|ist|sind|fahre|fliege|gehe|geh|möchte|moechte|will|brauche|beantragt|genehmigt|gönne|goenne|mache|machen|nehmen)\b/;
+        if ((GRUND.test(trel) || (ERWEITERT.test(trel) && findDates(trel).length > 0)) && !/\bwann\b|\bwie\b/.test(trel)) {
+            const t = trel;
             const ds = findDates(t);
             let von = null, bis = null;
             if (ds.length >= 2) {
