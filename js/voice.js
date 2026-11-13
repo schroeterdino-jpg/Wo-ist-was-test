@@ -497,6 +497,7 @@ function parseInterpreterCommand(text) {
         const recentPhoto = (typeof lastPhoto !== 'undefined' && lastPhoto && Date.now() - lastPhoto.at < 600000) || (typeof photoIntent !== 'undefined' && photoIntent && Date.now() - photoIntent.at < 180000);
         if (photoNoun.test(low) && /\b(?:dies\w*|das|den|die|diese[nrs]?)\b/.test(low)) return null;
         if (recentPhoto && /^(?:bitte\s+)?übersetz\w*\s+(?:mir\s+)?(?:bitte\s+)?(?:das|dies\w*|es)\s+(?:bitte\s+)?(?:ins|auf|in|nach)\b/.test(low)) return null;
+        if (recentPhoto && /^(?:bitte\s+)?(?:übersetz\w*\s+(?:mir\s+)?(?:bitte\s+)?(?:ins|auf|in|nach)\s+\S+|(?:ins|auf|in|nach)\s+\S+\s+übersetz\w*(?:\s+bitte)?)$/.test(low)) return null;   // nach einem Foto meint "Übersetze ins Rumänische" das Foto (sonst käme der Dolmetscher-Modus)
     }
     const once = t.match(INTERP_ONCE_RE);
     if (once && !/^(für mich|mir|das|alles|bitte|für uns)$/i.test(once[1].trim())) {

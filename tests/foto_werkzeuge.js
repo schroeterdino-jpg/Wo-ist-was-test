@@ -157,6 +157,27 @@ async function foto(erk, opt) {
         check('4.2 "Erkläre das" wertet das Foto mit dieser Aufgabe aus (zweite Bild-Anfrage)', A.vision.length === 2 && /Erkläre mir den Text/.test(A.vision[1].user), JSON.stringify(A.vision.map(v => v.user)));
         await A.sag('Fasse das zusammen');
         check('4.3 "Fasse das zusammen" ebenso', A.vision.length === 3 && /Fasse den Text/.test(A.vision[2].user), JSON.stringify(A.vision.map(v => v.user)));
+        /* Kurzantworten auf die Frage "vorlesen, übersetzen, erklären oder zusammenfassen?" (Fund 13.11.2026: "übersetzen" allein fragte "Was soll ich übersetzen?") */
+        const K = await foto(TEXT); const n0 = K.vision.length;
+        await K.sag('Übersetzen');
+        check('4.4 Kurzantwort "Übersetzen" nach dem Textfoto: Jarvis fragt, in welche Sprache (keine Gegenfrage "Was soll ich übersetzen")', K.vision.length === n0 && /In welche Sprache/.test(K.gesagt.join(' ')) && !/Was soll ich übersetzen/.test(K.gesagt.join(' ')), JSON.stringify(K.gesagt));
+        await K.sag('Rumänisch');
+        check('4.4b Antwort "Rumänisch" übersetzt das Foto ins Rumänische', K.vision.length === n0 + 1 && /Rum(?:ä|ae)nisch/.test(JSON.stringify(K.vision[n0])), JSON.stringify(K.vision[n0]));
+        const n1 = K.vision.length;
+        await K.sag('Erklären');
+        check('4.5 Kurzantwort "Erklären" wertet das Foto aus', K.vision.length === n1 + 1 && /Erkläre mir den Text/.test(K.vision[n1].user), JSON.stringify(K.vision.map(v => v.user)));
+        await K.sag('Zusammenfassen');
+        check('4.6 Kurzantwort "Zusammenfassen" wertet das Foto aus', K.vision.length === n1 + 2 && /Fasse den Text/.test(K.vision[n1 + 1].user));
+        await K.sag('Vorlesen');
+        check('4.7 Kurzantwort "Vorlesen" wertet das Foto aus', K.vision.length === n1 + 3, 'v=' + K.vision.length);
+        const R = await foto(TEXT); const r0 = R.vision.length;
+        await R.sag('Übersetze das ins Rumänische');
+        check('4.8 "Übersetze das ins Rumänische" nach dem Textfoto übersetzt ins Rumänische', R.vision.length === r0 + 1 && /Rum(?:ä|ae)nisch/.test(R.vision[r0].system || R.vision[r0].user || JSON.stringify(R.vision[r0])), JSON.stringify(R.vision[r0]));
+        for (const v of ['Übersetze ins Rumänische', 'Übersetze den Text ins Rumänische', 'Ins Rumänische übersetzen']) {
+            const R2 = await foto(TEXT); const q0 = R2.vision.length;
+            await R2.sag(v);
+            check('4.9 "' + v + '" nach dem Textfoto übersetzt ins Rumänische', R2.vision.length === q0 + 1 && /Rum(?:ä|ae)nisch/.test(JSON.stringify(R2.vision[q0])), JSON.stringify(R2.gesagt) + ' v=' + R2.vision.length + '/' + q0);
+        }
         const B = umgebung(); B.st.erkennung = TEXT;
         const g = await lauf(B, async () => { B.sb.jvTippen('Erkläre das'); }, 150);
         check('4.4 ohne Foto wird "Erkläre das" nicht abgefangen (normaler Weg)', B.vision.length === 0, JSON.stringify(g));

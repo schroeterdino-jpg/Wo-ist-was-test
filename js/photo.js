@@ -634,6 +634,9 @@ function parseFollowupTask(text) {
     if (/\b(?:darf|kann)\s+ich\s+hier\s+(?:parken|stehen|halten)\b/.test(t)) return { task: 'parking' };
     if (/\bwas kann ich\s+(?:damit|daraus|hieraus|davon)\s+(?:kochen|machen|zubereiten)\b/.test(t)) return { task: 'cook' };
     if (/(?<![\wäöüß])übersetz\w*\s+(?:mir\s+)?(?:das|dies\w*|es)\b/.test(t)) return { task: 'translate' };
+    /* Kurzantwort auf "Soll ich vorlesen, übersetzen ...?": nur "übersetzen" / "ins Rumänische übersetzen" / "vorlesen" */
+    if (/^(?:bitte\s+)?(?:(?:ins|in|auf|nach)\s+(?:das\s+)?[a-zäöüß]+\s+übersetz\w*(?:\s+(?:mir|bitte|den text|ihn|noch|mal))*|übersetz\w*(?:\s+(?:mir|bitte|den text|ihn|noch|mal))*\s+(?:ins|in|auf|nach)\s+(?:das\s+)?[a-zäöüß]+)$/.test(t)) return { task: 'translate' };   // nur mit genannter Sprache; das nackte "übersetzen" fragt foto_werkzeuge.js nach der Sprache
+    if (/^(?:bitte\s+)?(?:vorlesen(?:\s+bitte)?|(?:lies|lese)(?:\s+(?:es|das|mir|bitte|den text))*\s+vor)$/.test(t)) return { task: 'read' };
     if (/\b(?:lies|les|lese)\s+(?:mir\s+)?(?:das|dies\w*|es)\b.*\bvor\b|\b(?:das|dies\w*)\s+(?:bitte\s+)?vorlesen\b/.test(t)) return { task: 'read' };
     if (/\b(?:beschreib\w*)\s+(?:mir\s+)?(?:das|dies\w*|es)\b|\bwas ist (?:das|darauf zu sehen)\b|\bwas steht (?:da|darauf)\b|\bwas siehst du\b/.test(t)) return { task: 'describe' };
     return null;
