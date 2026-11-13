@@ -93,7 +93,7 @@
 | urlaub.js#1 | urlaub.js:152 | 1 h | ab Laden | nie gestoppt | Wächter keiner (nicht gemessen) |  | B | GELB |
 | voice.js#1 | voice.js:346 | 50 ms | bei Bedarf (in whenVoicesReady) | clearInterval(iv) | kurzlebig/ereignisgesteuert (kein Dauertakt) | D V | E | GRÜN |
 | voice.js#2 (startWakeWordListening) | voice.js:950 | 1.2 s | bei Bedarf (Schleife startWakeWordListening) | Bedingung im Körper | Wächter direkt (nicht gemessen) | D | A | ROT |
-| voice.js#3 | voice.js:972 | 20 s | ab Laden | nie gestoppt | seltener Takt (Fenster zu kurz für den Vergleich) | D | A | ROT |
+| voice.js#3 | voice.js:973 | 20 s | ab Laden | nie gestoppt | seltener Takt (Fenster zu kurz für den Vergleich) | D | A | ROT |
 | voicefix.js#1 (check) | voicefix.js:45 | 60 ms | bei Bedarf (Schleife check) | Bedingung im Körper | Wächter keiner (nicht gemessen) | V | E | GRÜN |
 | vorbereitung.js#1 | vorbereitung.js:140 | dynamisch | ab Laden | nie gestoppt | Wächter indirekt (nicht gemessen) | n? S D V | B | GELB |
 | wachter.js#1 | wachter.js:232 | 1 min | bei Bedarf (in Rückruf setTimeout) | nie gestoppt | Wächter indirekt (nicht gemessen) | N S D V | A | ROT |

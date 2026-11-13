@@ -121,9 +121,21 @@
             var cd = m ? codeOk(m[1].toUpperCase()) : '';
             if (cd) { stand.wartetCode = false; stand.code = cd; recherche(stand.geraet, cd).catch(function () { }); return true; }
         }
+        if (stand && stand.wartetSprache && Date.now() - stand.at < CODE_MS && fotoDa() && typeof window.runLastPhotoTask === 'function' && typeof window.photoTargetLang === 'function') {
+            var wl = window.photoTargetLang('ins ' + t);
+            stand.wartetSprache = false;
+            if (wl) { window.runLastPhotoTask('translate', 'Übersetze das ins ' + wl.name).catch(function () { sag('Die Auswertung hat gerade nicht geklappt.'); }); return true; }
+            if (/^(?:deutsch\w*|auf deutsch)$/.test(t)) { window.runLastPhotoTask('translate', 'Übersetze das').catch(function () { sag('Die Auswertung hat gerade nicht geklappt.'); }); return true; }
+        }
+        /* Kurzantwort "übersetzen" auf die Frage nach dem Text: erst fragen, in welche Sprache (sonst wird ins Deutsche übersetzt, auch wenn der Text deutsch ist) */
+        if (fotoDa() && stand && stand.art === 'text' && Date.now() - stand.at < CODE_MS && /^(?:bitte\s+)?übersetz\w*(?:\s+(?:mir|bitte|das|es|den text|ihn|mal))*$/.test(t)) {
+            stand.wartetSprache = true; stand.at = Date.now(); frageNeu();
+            sag('In welche Sprache soll ich den Text übersetzen?');
+            return true;
+        }
         if (!fotoDa() || typeof window.runLastPhotoTask !== 'function') return false;
-        var erkl = /^(?:bitte\s+)?erkl[aä]r\w*\s+(?:mir\s+)?(?:das|dies\w*|es|den text)(?:\s+(?:bitte|kurz|einfach|mal))*$/.test(t);
-        var zus = /^(?:bitte\s+)?fass\w*\s+(?:mir\s+)?(?:das|dies\w*|es|den text)\s+(?:(?:bitte|kurz|mal)\s+)*zusammen$/.test(t);
+        var erkl = /^(?:bitte\s+)?erkl[aä]r\w*(?:\s+(?:mir|das|dies\w*|es|den text))*(?:\s+(?:bitte|kurz|einfach|mal))*$/.test(t);
+        var zus = /^(?:bitte\s+)?(?:fass\w*\s+(?:mir\s+)?(?:das|dies\w*|es|den text)\s+(?:(?:bitte|kurz|mal)\s+)*zusammen|zusammenfassen(?:\s+bitte)?)$/.test(t);
         if (!erkl && !zus) return false;
         window.runLastPhotoTask('describe', erkl ? 'Erkläre mir den Text auf dem Foto in einfachen, kurzen Worten.' : 'Fasse den Text auf dem Foto in zwei bis drei Sätzen zusammen.').catch(function () { sag('Die Auswertung hat gerade nicht geklappt.'); });
         return true;
