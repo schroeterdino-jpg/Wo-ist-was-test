@@ -26,7 +26,7 @@
    "storage.js",
    "sync.js"
   ],
-  "schluesselAnzahl": 180,
+  "schluesselAnzahl": 181,
   "jvNova": [
    "jv_aa_kopf",
    "jv_ansage_zuletzt",
@@ -152,6 +152,7 @@
    "jv_ueb_felder",
    "jv_ueb_felder_v2",
    "jv_urlaub",
+   "jv_urlaub_kal",
    "jv_urlaub_liste",
    "jv_urlaub_meta",
    "jv_vorb_aus",
