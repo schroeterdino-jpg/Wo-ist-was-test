@@ -83,6 +83,24 @@ const FAELLE = [
         const a = await K.sag('Lösch alle Urlaube');
         check('Mehrere 7: "alle Urlaube löschen" leert alles', !K.A.store['jv_urlaub_liste'] && !K.A.store['jv_urlaub'] && /alle|Okay/.test(a), a);
     }
+    {   // Kontrollfenster: Termin bei Google nachlesen und kurz anzeigen
+        const K = await kal({});
+        const geladen = [], elemente = [];
+        K.A.vm.runInContext("isGoogleAuthorized = function () { return true; }; accessToken = 'tok';", K.A.sb);
+        K.A.sb.__fetch = geladen; K.A.sb.__el = elemente;
+        K.A.vm.runInContext("fetch = async function (u, o) { __fetch.push(String(u)); return { ok: true, json: async () => ({ id: 'g1', status: 'confirmed', summary: 'Urlaub', start: { date: '2027-01-04' }, end: { date: '2027-01-09' } }) }; }; document.createElement = function () { const x = { style: {}, remove() { x.weg = true; }, querySelector() { return null; } }; __el.push(x); return x; }; document.body = { appendChild() { } }; document.getElementById = () => null;", K.A.sb);
+        const t = await K.sag('Ich habe Urlaub vom 4. Januar bis 8. Januar');
+        await pause(80);
+        const w = elemente[0];
+        check('Fenster 1: Jarvis liest den Termin bei Google nach (g1)', geladen.some(u => /events\/g1$/.test(u)), geladen.join());
+        check('Fenster 2: es zeigt Haken, Zeitraum 4.–8. Januar und Google als Quelle', !!w && /steht bei Google/.test(w.innerHTML) && /4\. Januar bis 8\. Januar/.test(w.innerHTML) && /gerade abgefragt/.test(w.innerHTML), w && w.innerHTML.slice(0, 200));
+        check('Fenster 3: Tippen schließt es, danach ist es weg', typeof w.onclick === 'function' && (w.onclick(), w.weg === true));
+        K.A.vm.runInContext("fetch = async function () { return { ok: false, status: 404, json: async () => ({}) }; };", K.A.sb);
+        elemente.length = 0;
+        await K.sag('Ich habe Urlaub vom 11. Januar bis 15. Januar');
+        await pause(80);
+        check('Fenster 4: findet Google den Termin nicht, steht rot "Nur in Jarvis"', !!elemente[0] && /Nur in Jarvis/.test(elemente[0].innerHTML) && !/steht bei Google/.test(elemente[0].innerHTML), elemente[0] && elemente[0].innerHTML.slice(0, 200));
+    }
     {   // früher gesetzter einzelner Urlaub (nur jv_urlaub) wird in die Liste übernommen
         const K = await kal({});
         K.A.store['jv_urlaub'] = JSON.stringify({ von: '2026-12-01', bis: '2026-12-05' });
