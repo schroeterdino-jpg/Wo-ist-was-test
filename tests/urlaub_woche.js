@@ -39,6 +39,39 @@ const FAELLE = [
     check('Satz ohne Datum wird nicht als Urlaub eingetragen', !k.u, JSON.stringify(k));
     const f = await sage('Wann habe ich Urlaub', false);
     check('Frage ändert nichts', !f.u, JSON.stringify(f));
+    /* ---------- Kalender: Eintrag anlegen, merken, wieder löschen ---------- */
+    const pause = ms => new Promise(r => setTimeout(r, ms));
+    async function kal(sc) {
+        const A = starte({ jetzt: JETZT, festerZufall: true, chefStandard: true, fetch: async u => { throw new Error('offline ' + u); } });
+        const neu = [], weg = []; let n = 0;
+        A.sb.__neu = neu; A.sb.__weg = weg; A.sb.__sc = sc;
+        A.vm.runInContext("addGoogleCalendarEvent = async function () { __neu.push(Array.from(arguments)); if (__sc.google === false) return false; window.jvLetzterGoogleTermin = { id: 'g' + __neu.length, text: arguments[0] }; return true; }; deleteCalendarEntry = async function (id) { __weg.push(id); return __sc.loeschOk !== false; };", A.sb);
+        const sag = async t => { const g0 = A.gesagt.length; await A.lassLaufen(() => A.sb.handleLocalCommand(t)); await pause(80); return A.gesagt.slice(g0).join(' | '); };
+        return { A, neu, weg, sag };
+    }
+    {
+        const K = await kal({});
+        const t1 = await K.sag('Ich habe nächste Woche Urlaub');
+        check('Kalender 1: ganztägiger Termin Urlaub 🌴 vom 16. bis 20.11.', K.neu.length === 1 && K.neu[0][0] === 'Urlaub 🌴' && /^2026-11-16/.test(K.neu[0][1]) && K.neu[0][4] === true && K.neu[0][5] === '2026-11-20', JSON.stringify(K.neu));
+        check('Kalender 2: Antwort nennt den Kalender, ID gemerkt', /Kalender/.test(t1) && /g1/.test(K.A.store['jv_urlaub_kal'] || ''), t1 + ' / ' + K.A.store['jv_urlaub_kal']);
+        await K.sag('Ich habe übernächste Woche Urlaub');
+        check('Kalender 3: neuer Urlaub löscht zuerst den alten Eintrag, gemerkt wird der neue', K.weg.join() === 'g1' && /g2/.test(K.A.store['jv_urlaub_kal'] || ''), K.weg.join() + ' / ' + K.A.store['jv_urlaub_kal']);
+        const t2 = await K.sag('Urlaub beenden');
+        check('Kalender 4: Urlaub beenden löscht genau den gemerkten Eintrag und sagt es', K.weg.join() === 'g1,g2' && !K.A.store['jv_urlaub_kal'] && /Kalender/.test(t2) && !K.A.store['jv_urlaub'], K.weg.join() + ' / ' + t2);
+        const t3 = await K.sag('Urlaub beenden');
+        check('Kalender 5: nochmal beenden löscht nichts mehr', K.weg.length === 2 && /kein Urlaub/.test(t3), t3);
+    }
+    {
+        const K = await kal({ google: false });
+        const t = await K.sag('Ich habe nächste Woche Urlaub');
+        check('Kalender 6: Google nicht erreichbar: Urlaub gilt trotzdem, Antwort sagt ehrlich "nur in Jarvis", keine ID gemerkt', /nur in Jarvis/.test(t) && !K.A.store['jv_urlaub_kal'] && !!K.A.store['jv_urlaub'], t);
+    }
+    {
+        const K = await kal({ loeschOk: false });
+        await K.sag('Ich habe nächste Woche Urlaub');
+        const t = await K.sag('Urlaub beenden');
+        check('Kalender 7: Löschen bei Google scheitert: Urlaub in Jarvis weg, Antwort sagt, dass der Kalendereintrag selbst gelöscht werden muss', !K.A.store['jv_urlaub'] && /selbst entfernen/.test(t) && !!K.A.store['jv_urlaub_kal'], t);
+    }
     console.log('Urlaub Woche: ' + ok + ' OK, ' + fehler + ' Fehler');
     process.exit(fehler ? 1 : 0);
 })();
