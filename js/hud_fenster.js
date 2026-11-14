@@ -195,7 +195,7 @@
     if (window.jvCommands) {
         window.jvCommands.use('lokalnews', function (text, next) {
             const t = String(text || '').toLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
-            if (t.length < 60 && /^(?:(?:jarvis|zane) )?(?:(?:zeig(?:e)?(?: mir)?|gib mir|was gibt(?:'?s| es)) )?(?:die )?(?:lokale[nr]? nachrichten|nachrichten (?:für|aus|von) (?:schwarzenbek|hamburg)(?: und (?:schwarzenbek|hamburg))?|(?:schwarzenbek|hamburg) (?:und )?(?:schwarzenbek |hamburg )?nachrichten|neues aus schwarzenbek(?: und hamburg)?)(?: bitte)?(?: neues)?$/.test(t)) {
+            if (t.length < 60 && /^(?:(?:jarvis|zane) )?(?:(?:zeig(?:e)?(?: mir)?|gib mir|was gibt(?:'?s| es)) )?(?:die )?(?:lokale[nr]? nachrichten|(?:neues )?(?:(?:bei|in) den )?nachrichten|neuigkeiten|nachrichten (?:für|aus|von) (?:schwarzenbek|hamburg)(?: und (?:schwarzenbek|hamburg))?|(?:schwarzenbek|hamburg) (?:und )?(?:schwarzenbek |hamburg )?nachrichten|neues aus schwarzenbek(?: und hamburg)?)(?: bitte)?(?: neues)?$/.test(t)) {
                 nachrichten(true); return true;
             }
             return next(text);

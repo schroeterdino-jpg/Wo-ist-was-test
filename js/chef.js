@@ -1380,7 +1380,8 @@
             var eingang = neuerEingang(kopf || 'ki_aufgerufen');
             if (kopf) vermerke(eingang, 'ki_aufgerufen');
             try { if (typeof typeWriterStatus === 'function') typeWriterStatus('Verarbeite Anweisung...'); } catch (e) { }
-            kiEntscheideImSprachweg(t, gen, eingang, kontextText(), kopf === 'nachfrage_antwort', ortBezug, mehr === true).catch(function () { });
+            var arbeit = kiEntscheideImSprachweg(t, gen, eingang, kontextText(), kopf === 'nachfrage_antwort', ortBezug, mehr === true).catch(function () { });
+            try { if (window.jvEffekt) window.jvEffekt.arbeit(arbeit); } catch (er) { }   // Kino-Effekt läuft, solange die Chef-KI arbeitet (js/effekte.js)
             return true;
         } catch (e) { return false; }
     }

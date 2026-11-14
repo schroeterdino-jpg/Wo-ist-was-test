@@ -267,7 +267,7 @@
             if (/^(?:ja|jo|jawohl|gerne|gern|ja bitte|mach das|ja mach das|ok mach das|okay mach das|bitte|klar)$/.test(t)) return ja();
             if (/^(?:nein|nee|nicht jetzt|spaeter|lieber nicht|danke nein)$/.test(t)) { offen = null; try { if (typeof clearActionCards === 'function') clearActionCards(); } catch (e) { } sagen('Okay.'); return true; }
         }
-        if (/^(?:was hast du (?:heute )?fuer mich|was gibt es neues|was gibts neues|was gibt s neues|hast du etwas fuer mich|was liegt an heute|schau mal auf meinen tag)\b/.test(t)) {
+        if (!/nachricht|neuigkeit|schlagzeile|zeitung/.test(t) && /^(?:was hast du (?:heute )?fuer mich|was gibt es neues|was gibts neues|was gibt s neues|hast du etwas fuer mich|was liegt an heute|schau mal auf meinen tag)\b/.test(t)) {
             const p = P(); if (!p) return next(text);
             sagen('Einen Moment, ich schaue auf deinen Tag.');
             ansage('dirig|' + p.jetzt().ymd + '|' + (p.jetzt().min >= 17 * 60 ? 'a' : 'm'), true);
