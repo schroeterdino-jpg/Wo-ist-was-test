@@ -11,7 +11,7 @@
 (function () {
     'use strict';
     if (window.jvEffekt) return;
-    var W = 680, H = 560, CX = 340, CY = 270, VERZOEGERUNG = 2200, HINWEIS_MS = 25000, ENDE_MS = 1200, NEWS_LESEN_MS = 6500;
+    var W = 680, H = 560, CX = 340, CY = 270, VERZOEGERUNG = 1200, HINWEIS_MS = 25000, ENDE_MS = 1200, NEWS_LESEN_MS = 6500;
     var CY1 = '#49d7ff', GR = '#4cffb0', DIM = '#12384a', TXT = '#9fd8ea';
     var PAL = ['73,215,255', '255,90,200', '160,110,255', '255,200,70', '76,255,176', '255,120,80'];
     var cv = null, x = null, box = null, raf = 0, an = true;
@@ -321,6 +321,15 @@
         } catch (e) { }
         return p;
     }
+    function arbeit(p) {   // allgemeine Arbeit (z. B. Chef-KI): Effekt läuft, bis sie fertig ist; die Art bestimmen Hinweise, sonst Neuronen-Netz
+        try {
+            if (!p || typeof p.then !== 'function') return p;
+            z.begleit++;
+            var fertig = function () { z.begleit = Math.max(0, z.begleit - 1); if (!z.begleit) { z.begleitArt = null; z.begleitSeit = 0; } };
+            p.then(fertig, fertig);
+        } catch (e) { }
+        return p;
+    }
     function busy() { try { return typeof isProcessing !== 'undefined' && !!isProcessing; } catch (e) { return false; } }
     function pruefe(nun) {
         try {
@@ -349,7 +358,7 @@
     function sage(txt) { try { speak(txt, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) { } }
 
     window.jvEffekt = {
-        hinweis: hinweis, werkzeug: werkzeug, begleite: begleite, zeige: zeige, ende: ende, pruefe: pruefe,
+        hinweis: hinweis, werkzeug: werkzeug, begleite: begleite, arbeit: arbeit, zeige: zeige, ende: ende, pruefe: pruefe,
         an: function () { return schalten(true); }, aus: function () { return schalten(false); }, istAn: function () { return an; },
         zustand: function () { return { laufend: z.laufend, art: z.art, sichtbar: z.sichtbar, ok: z.ok, endeAt: z.endeAt, busySince: z.busySince, nutzerWeg: z.nutzerWeg, news: z.news ? z.news.length : 0 }; },
         ARTEN: ARTEN, WERKZEUG: WERK
