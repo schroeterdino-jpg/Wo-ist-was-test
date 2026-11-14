@@ -4,7 +4,7 @@
    Sprache:  "Ich habe Urlaub vom 20. Oktober bis 3. November" / "Urlaub vom 20.10. bis 3.11." / "Ich habe ab morgen zwei Wochen Urlaub"
              Auch: "nächste Woche Urlaub", "übernächste Woche", "von Montag bis Freitag", "bis Freitag", "ab nächster Woche zwei Wochen" (Wochen = Mo–Fr).
              "Urlaub beenden" / "Ich habe keinen Urlaub mehr" / "Habe ich Urlaub eingetragen?"
-   Kalender: Der Urlaub kommt als ganztägiger Termin "Urlaub 🌴" in den Google Kalender (ID in jv_urlaub_kal); "Urlaub beenden" und ein neuer Urlaub löschen genau diesen Eintrag.
+   Kalender: Der Urlaub kommt als ganztägiger Termin "Urlaub 🌴" in den Google Kalender (ID "kid" beim Urlaub in jv_urlaub_liste). Mehrere Urlaube möglich; jv_urlaub bleibt der laufende oder nächste (für den Server). Löschen: ohne Angabe der laufende/nächste, sonst "im Januar", "vom 5. Januar", "alle". Überschneidende Urlaube werden ersetzt.
    Speicher: Schlüssel jv_urlaub = {von:'JJJJ-MM-TT', bis:'JJJJ-MM-TT'}. Die Datei js/pushsync.js meldet ihn dem Server (api/sync.js),
              der in dieser Zeit die Arbeitsweg-Meldungen auslässt. Nach dem letzten Urlaubstag gilt automatisch wieder alles normal.
    Braucht: storage.js, commands.js, pushsync.js. Muss nach commands.js geladen werden.
@@ -102,7 +102,10 @@
         if (!gueltig || (ausListe && (c.von !== n.von || c.bis !== n.bis))) set({ von: n.von, bis: n.bis });
     }
     function setListe(a) {
-        try { setPersistentData(LKEY, a && a.length ? JSON.stringify(a) : ''); } catch (e) {} try { if (window.jvSchichtNeuPlanen) window.jvSchichtNeuPlanen(); } catch (e) {}
+        const alt = liste();
+        a = (a || []).map(e => { const o = alt.find(x => x.von === e.von && x.bis === e.bis); return o && o.kid ? Object.assign({}, e, { kid: o.kid }) : e; });
+        alt.forEach(o => { if (o.s === 1 && !a.some(e => e.von === o.von && e.bis === o.bis)) a.push(o); });   // per Sprache eingetragene Urlaube bleiben beim Urlaubszettel erhalten
+        try { setPersistentData(LKEY, a.length ? JSON.stringify(a) : ''); } catch (e) {} try { if (window.jvSchichtNeuPlanen) window.jvSchichtNeuPlanen(); } catch (e) {}
         rolle();
     }
     function get() {
@@ -116,50 +119,90 @@
     function set(u) { try { setPersistentData(KEY, u ? JSON.stringify(u) : ''); } catch (e) {} try { if (window.jvSchichtNeuPlanen) window.jvSchichtNeuPlanen(); } catch (e) {} }
     function say(txt) { try { speak(txt, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) {} }
 
-    const WORD = /\burlaub\b/;
+    const WORD = /\burlaub(?:e|en)?\b/;
+    const LOESCH = /\b(?:lösch\w*|loesch\w*|beend\w*|entfern\w*|streich\w*|storni\w*|absag\w*|abgesagt|abbrech\w*)\b/;
     const ENDE = /(urlaub\s+(?:beenden|löschen|entfernen|abbrechen|ist\s+(?:vorbei|zu\s+ende|aus))|(?:kein(?:en)?|nicht\s+mehr)\s+urlaub|urlaub\s+(?:fällt|f[aä]llt)\s+aus|urlaub\s+abgesagt)/;
     const FRAGE = /\b(?:habe|hab|hatte|hast)\s+(?:ich|ich\s+noch|ich\s+gerade)\s+(?:einen\s+)?urlaub|urlaub\s+eingetragen|wann\s+(?:ist|habe\s+ich|hab\s+ich)\s+(?:mein\s+)?urlaub|wie\s+lange\s+(?:habe|hab)\s+ich\s+(?:noch\s+)?urlaub/;
 
 
-    /* Kalender: Der Urlaub aus dem Satz kommt zusätzlich als ganztägiger Termin "Urlaub 🌴" in den Google Kalender. Die Termin-ID wird gemerkt,
-       damit "Urlaub beenden" oder ein neuer Urlaub genau diesen Eintrag wieder entfernt (nie fremde Termine). */
-    const KALKEY = 'jv_urlaub_kal';
-    function kalMerk() { try { return JSON.parse(getPersistentData(KALKEY, '') || 'null'); } catch (e) { return null; } }
-    async function kalenderLoeschen() {   // null: nichts zu löschen, true: weg, false: Eintrag bleibt bei Google stehen
-        const k = kalMerk();
-        if (!k || !k.id) return null;
-        try {
-            const ok = typeof deleteCalendarEntry === 'function' ? await deleteCalendarEntry(k.id) : false;
-            if (ok !== false) { try { setPersistentData(KALKEY, ''); } catch (e) {} return true; }
-        } catch (e) {}
-        return false;
+    /* Kalender: Jeder per Sprache eingetragene Urlaub kommt zusätzlich als ganztägiger Termin "Urlaub 🌴" in den Google Kalender. Die Termin-ID (kid)
+       steht beim Urlaub in der Liste, damit Löschen oder Ersetzen genau diesen Eintrag entfernt (nie fremde Termine). */
+    const KALKEY = 'jv_urlaub_kal';   // alt (ein einzelner Urlaub bis 14.11.2026): wird beim ersten Mal in die Liste übernommen
+    function speichereListe(a) { try { setPersistentData(LKEY, a && a.length ? JSON.stringify(a) : ''); } catch (e) {} try { if (window.jvSchichtNeuPlanen) window.jvSchichtNeuPlanen(); } catch (e) {} }
+    function uebernehmeAlt() {   // ein früher gesetzter einzelner Urlaub (nur jv_urlaub) gehört in die Liste
+        const c = einzeln();
+        if (!(c && c.von && c.bis && c.bis >= today())) return;
+        const l = liste();
+        if (l.some(x => x.von === c.von && x.bis === c.bis)) return;
+        let kid = '';
+        try { const k = JSON.parse(getPersistentData(KALKEY, '') || 'null'); if (k && k.id && k.von === c.von && k.bis === c.bis) kid = k.id; } catch (e) {}
+        const e = { von: c.von, bis: c.bis, s: 1 }; if (kid) e.kid = kid;
+        l.push(e); speichereListe(l);
     }
-    async function kalenderNeu(von, bis) {   // null: nicht möglich, 'ok': steht im Kalender, 'fehler': nur in der App
+    function sortiert() { return liste().filter(x => x.bis >= today()).sort((a, b) => a.von < b.von ? -1 : a.von > b.von ? 1 : 0); }
+    async function kalenderLoeschen(kid) {   // null: kein Kalendereintrag bekannt, true: weg, false: bleibt bei Google stehen
+        if (!kid) return null;
+        try { const ok = typeof deleteCalendarEntry === 'function' ? await deleteCalendarEntry(kid) : false; return ok !== false; } catch (e) { return false; }
+    }
+    async function kalenderNeu(von, bis) {   // { r: null (nicht möglich) | 'ok' | 'fehler', kid }
         try {
-            if (typeof addGoogleCalendarEvent !== 'function') return null;
-            await kalenderLoeschen();
+            if (typeof addGoogleCalendarEvent !== 'function') return { r: null, kid: '' };
             window.jvLetzterGoogleTermin = null;
             const ok = await addGoogleCalendarEvent('Urlaub 🌴', von + 'T12:00:00', '', null, true, bis);
             const t = window.jvLetzterGoogleTermin;
-            if (ok && t && t.id) { try { setPersistentData(KALKEY, JSON.stringify({ id: t.id, von, bis })); } catch (e) {} return 'ok'; }
-            return ok ? 'ok' : 'fehler';
-        } catch (e) { return 'fehler'; }
+            return { r: ok ? 'ok' : 'fehler', kid: ok && t && t.id ? t.id : '' };
+        } catch (e) { return { r: 'fehler', kid: '' }; }
+    }
+    function kurz(e) { return 'vom ' + lesbar(e.von) + ' bis zum ' + lesbar(e.bis); }
+    function monatsTreffer(mo) {   // Urlaube, die den Monat (in irgendeinem Jahr ihres Zeitraums) berühren
+        return sortiert().filter(x => {
+            for (let y = +x.von.slice(0, 4); y <= +x.bis.slice(0, 4); y++) {
+                const a = iso(y, mo, 1), b = iso(y, mo, new Date(y, mo, 0).getDate());
+                if (a && b && x.von <= b && x.bis >= a) return true;
+            }
+            return false;
+        });
+    }
+    /* Urlaub löschen: ohne Angabe der laufende oder nächste; sonst nach Monat ("im Januar"), Datum ("vom 5. Januar") oder "alle" */
+    function loeschen(t) {
+        uebernehmeAlt();
+        const l = sortiert();
+        if (!l.length) { say('Es war kein Urlaub eingetragen.'); return true; }
+        let ziel = null;
+        if (/\b(?:alle|sämtliche\w*|saemtliche\w*)\b/.test(t)) ziel = l;
+        else {
+            const ds = findDates(t).filter(d => !/heute|morgen/.test(t.slice(d.i, d.i + 8)));
+            const mm = t.match(new RegExp('\\b' + MON_RX + '\\w*'));
+            if (ds.length) ziel = l.filter(x => ds.some(d => x.von <= d.iso && x.bis >= d.iso));
+            else if (mm) ziel = monatsTreffer(monthIdx(mm[1]));
+            else { const c = get(); ziel = c ? l.filter(x => x.von === c.von && x.bis === c.bis) : [l[0]]; if (!ziel.length) ziel = [l[0]]; }
+            if (!ziel.length) { say('Dazu habe ich keinen Urlaub gefunden. Du hast ' + (l.length === 1 ? 'einen Urlaub ' + kurz(l[0]) : l.length + ' Urlaube: ' + l.slice(0, 4).map(kurz).join(', ')) + '.'); return true; }
+            if (ziel.length > 1) { say('Da habe ich ' + ziel.length + ' Urlaube: ' + ziel.slice(0, 4).map(kurz).join(', ') + '. Sag mir, welchen du meinst, zum Beispiel: Lösch den Urlaub vom ' + lesbar(ziel[0].von) + '.'); return true; }
+        }
+        const weg = ziel.slice();
+        const rest = liste().filter(x => !weg.some(w => w.von === x.von && w.bis === x.bis));
+        const c0 = einzeln();
+        speichereListe(rest);
+        if (c0 && weg.some(w => w.von === c0.von && w.bis === c0.bis)) set(null);
+        rolle();
+        const msg = (weg.length === 1 ? 'Okay, der Urlaub ' + kurz(weg[0]) + ' ist gelöscht.' : 'Okay, alle ' + weg.length + ' Urlaube sind gelöscht.')
+            + (get() ? ' Dein nächster Urlaub ist ' + kurz(get()) + '.' : ' Ab jetzt melde ich mich wieder wie gewohnt zum Arbeitsweg.');
+        Promise.all(weg.map(w => kalenderLoeschen(w.kid))).then(rs => {
+            const mitKid = rs.filter(r => r !== null);
+            say(msg + (!mitKid.length ? '' : mitKid.every(r => r === true) ? ' Der Eintrag im Kalender ist auch weg.' : ' Im Google Kalender konnte ich nicht alles löschen, den Rest musst du dort selbst entfernen.'));
+        }).catch(() => say(msg));
+        return true;
     }
     function handle(text) {
         const t = String(text || '').toLowerCase().replace(/[,!?;]+/g, ' ').replace(/\s+/g, ' ').trim();
         if (!t || t.length > 140 || !WORD.test(t)) return false;
-        if (ENDE.test(t)) {
-            const cur = get(), had = !!cur; set(null);
-            if (cur) { const rest = liste().filter(x => !(x.von === cur.von && x.bis === cur.bis)); try { setPersistentData(LKEY, rest.length ? JSON.stringify(rest) : ''); } catch (e) {} }
-            const msg = had ? 'Okay, der Urlaub ist gelöscht. Ab jetzt melde ich mich wieder wie gewohnt zum Arbeitsweg.' : 'Es war kein Urlaub eingetragen.';
-            kalenderLoeschen().then(r => say(msg + (r === true ? ' Der Eintrag im Kalender ist auch weg.' : r === false ? ' Den Eintrag im Google Kalender konnte ich nicht löschen, den musst du dort selbst entfernen.' : ''))).catch(() => say(msg));
-            return true;
-        }
-        if (FRAGE.test(t)) {
-            const u = get();
-            if (!u) say('Du hast keinen Urlaub eingetragen.');
-            else if (u.von <= today()) say('Dein Urlaub läuft noch bis zum ' + lesbar(u.bis) + '. Danach melde ich mich wieder zum Arbeitsweg.');
-            else say('Du hast vom ' + lesbar(u.von) + ' bis zum ' + lesbar(u.bis) + ' Urlaub eingetragen.');
+        if (!FRAGE.test(t) && (ENDE.test(t) || LOESCH.test(t))) return loeschen(t);
+        if (FRAGE.test(t) || /\b(?:welche|meine)\s+urlaube\b|\burlaube\s+eingetragen\b/.test(t)) {
+            uebernehmeAlt();
+            const l = sortiert();
+            if (!l.length) say('Du hast keinen Urlaub eingetragen.');
+            else if (l.length === 1) { const u = l[0]; say(u.von <= today() ? 'Dein Urlaub läuft noch bis zum ' + lesbar(u.bis) + '. Danach melde ich mich wieder zum Arbeitsweg.' : 'Du hast ' + kurz(u) + ' Urlaub eingetragen.'); }
+            else say('Du hast ' + l.length + ' Urlaube eingetragen: ' + l.slice(0, 5).map(kurz).join(', ') + '.');
             return true;
         }
         const trel = relativ(t);
@@ -196,9 +239,16 @@
             if (von && bis) {
                 if (bis < von) { const x = von; von = bis; bis = x; }
                 if (bis < today()) { say('Dieses Datum liegt schon in der Vergangenheit. Nenne mir bitte Anfang und Ende noch einmal.'); return true; }
-                set({ von, bis });
-                const basis = 'Alles klar, Urlaub vom ' + lesbar(von) + ' bis zum ' + lesbar(bis) + ' ist eingetragen. In dieser Zeit melde ich nichts mehr zum Arbeitsweg.';
-                kalenderNeu(von, bis).then(r => say(basis + (r === 'ok' ? ' Er steht auch im Kalender.' : r === 'fehler' ? ' Im Google Kalender konnte ich ihn nicht eintragen, er steht nur in Jarvis.' : ''))).catch(() => say(basis));
+                uebernehmeAlt();
+                const l0 = liste(), ersetzt = l0.filter(x => x.von <= bis && x.bis >= von);   // überschneidet sich ein Urlaub, wird er ersetzt (sein Kalendereintrag auch)
+                const l1 = l0.filter(x => x.bis >= today() && !ersetzt.includes(x)); l1.push({ von, bis, s: 1 });
+                speichereListe(l1); set(null); rolle();
+                const basis = 'Alles klar, Urlaub vom ' + lesbar(von) + ' bis zum ' + lesbar(bis) + ' ist eingetragen. In dieser Zeit melde ich nichts mehr zum Arbeitsweg.'
+                    + (ersetzt.length ? ' Den überschneidenden Urlaub ' + kurz(ersetzt[0]) + ' habe ich dafür ersetzt.' : '') + (l1.length > 1 ? ' Du hast jetzt ' + l1.length + ' Urlaube eingetragen.' : '');
+                Promise.all(ersetzt.map(x => kalenderLoeschen(x.kid))).then(() => kalenderNeu(von, bis)).then(k => {
+                    if (k.kid) { const l2 = liste(); const e = l2.find(x => x.von === von && x.bis === bis); if (e) { e.kid = k.kid; speichereListe(l2); } }
+                    say(basis + (k.r === 'ok' ? ' Er steht auch im Kalender.' : k.r === 'fehler' ? ' Im Google Kalender konnte ich ihn nicht eintragen, er steht nur in Jarvis.' : ''));
+                }).catch(() => say(basis));
                 return true;
             }
             say('Von wann bis wann hast du Urlaub? Sag zum Beispiel: Ich habe Urlaub vom 20. Oktober bis 3. November.');
