@@ -267,6 +267,20 @@
    "nativ": false
   },
   {
+   "id": "effekte.js#1",
+   "art": "intervall",
+   "ms": 250,
+   "klasse": "dauerlauf",
+   "anfang": "ab Laden",
+   "start": "funktion",
+   "guard": "keiner",
+   "stop": "nie gestoppt",
+   "begrenzt": false,
+   "doppel": "keiner (mehrfacher Aufruf der Funktion möglich)",
+   "netz": false,
+   "nativ": false
+  },
+  {
    "id": "einfuehrung.js#1",
    "art": "selbstansetzend",
    "ms": 500,
@@ -1430,6 +1444,38 @@
   }
  ],
  "raf": [
+  {
+   "id": "effekte.js#r1",
+   "funktion": "bild",
+   "schleife": true,
+   "start": "funktion",
+   "guard": true,
+   "cancel": false
+  },
+  {
+   "id": "effekte.js#r2",
+   "funktion": "bild",
+   "schleife": true,
+   "start": "funktion",
+   "guard": true,
+   "cancel": false
+  },
+  {
+   "id": "effekte.js#r3",
+   "funktion": "zeige",
+   "schleife": false,
+   "start": "funktion",
+   "guard": true,
+   "cancel": false
+  },
+  {
+   "id": "effekte.js#r4",
+   "funktion": "ende",
+   "schleife": false,
+   "start": "funktion",
+   "guard": true,
+   "cancel": false
+  },
   {
    "id": "sphere.js#r1",
    "funktion": "start",

@@ -158,7 +158,7 @@ const kont = A => Object.keys(A.lese('savedContacts') || {}).length;
     check('5b Plan mit Verschieben: nichts ausgeführt, kein Rückfall', n(A, 'todoEntries') === 0 && A.st.groq === 0);
     A = umgebung(); await tippen(A, 'Verschiebe den Zahnarzttermin auf Freitag und erinnere mich eine Stunde vorher');
     check('5c Verschieben in mehrteiligem Satz: angehalten, nichts geändert, kein alter Weg', A.st.groq === 0 && geschrieben(A) === 0 && /Welchen Termin|nichts geändert/.test(A.gesagt.join(' ')), JSON.stringify(A.gesagt));
-    check('5d keine neue Befehlsreihenfolge: 95 Befehle, Anfang unverändert', A.sb.jvCommands.list().length === 95 && /^0 karten-weg/.test(A.sb.jvCommands.list()[0]));
+    check('5d keine neue Befehlsreihenfolge: 96 Befehle, Anfang unverändert', A.sb.jvCommands.list().length === 96 && /^0 karten-weg/.test(A.sb.jvCommands.list()[0]));
 
     console.log(fehler ? '✗ ' + fehler + ' Fehler (' + ok + ' ok)' : '✓ MEHRTEILIGE BEFEHLE: alle ' + ok + ' Prüfungen bestanden');
     process.exit(fehler ? 1 : 0);

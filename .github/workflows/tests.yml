@@ -108,6 +108,7 @@ jobs:
           node tests/haendlerlinks.js
           node tests/chef_kette.js
           node tests/urlaub_woche.js
+          node tests/effekte.js
           node tests/chef_produkt.js
           node tests/foto_werkzeuge.js
           node tests/chef_fahrzeit.js
