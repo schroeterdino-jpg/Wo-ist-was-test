@@ -502,6 +502,7 @@ async function sendToGroqSmartCore(text, opts = {}) {
                     let ziel = String(travelAction.travel_destination || '').trim();
                     if (startOk && !ziel) { const mz = String(text).slice(mv.index + mv[0].length - 0).match(/^\s*(?:(?:dem|der|den)\s+)?(.+?)\s*(?:[?.!,]|\bund\b|\bberücksichtige\b|$)/i); ziel = mz ? mz[1].trim() : ''; }
                     if (startOk && ziel && !arrivalFromUserText(text) && window.jvRegistry && window.jvRegistry.hole && window.jvRegistry.hole('fahrzeit')) {
+                        try { if (window.jvEffekt) window.jvEffekt.werkzeug('fahrzeit'); } catch (er) { }
                         const r = await window.jvRegistry.fuehreAus('fahrzeit', { ziel: resolveTravelDestination(text, ziel), von: mv[1].trim() }, {});
                         if (r && r.nachricht) fzVon = r.nachricht;
                         updateTerminalStream('FAHRZEIT: WERKZEUG ' + (r && r.status || '?') + ' VON ' + mv[1].trim(), 'FETCHING');

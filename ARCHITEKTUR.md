@@ -1,6 +1,6 @@
 # Jarvis: Architektur-Überblick
 
-Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 186 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
+Stand: 29.10.2026 (Phase 8B; main nach Phase 8A = 2fdebc1; 187 Produkt-JS-Dateien). Zweck: schnell wieder einsteigen, ohne alles neu zu lesen.
 Wo suche ich zuerst? → `LANDKARTE.md` (Problem → Datei → Abhängigkeiten, plus Zuordnung aller Skripte). Reihenfolge-Sicherheitsnetz: `tests/reihenfolge.js`; Timer-Register: `tests/timer.js` + `tests/timer_inventar.js`.
 Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen), nach außen überall "Jarvis" (`js/name.js`).
 
@@ -13,7 +13,7 @@ Intern heißt der Assistent noch "Zane" (Befehle, gespeicherte Daten, Dateinamen
 
 | Teil | Wo | Läuft auf |
 |---|---|---|
-| Web-App | `index.html`, `style.css`, `js/` (186 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
+| Web-App | `index.html`, `style.css`, `js/` (187 Skripte), `sw.js`, `manifest.json` | Vercel (Region fra1), im Browser oder im WebView der APK |
 | Server | `api/` (11 Dateien) | Vercel Serverless Functions |
 | Weckruf-APK "Jarvis" | `weckruf-src/` | Android (Galaxy S25), Bau über GitHub Actions |
 
@@ -814,3 +814,4 @@ Fahrzeit-Plausibilität (PR #383): Nach der Route prüft `fahrzeit` Luftlinie ge
 - **Korrekturen im Gespräch (B3, Test `tests/gespraech_korrektur.js`):** `planMerken` (js/chef.js) merkt sich vor der Ausführung den letzten Plan (Werkzeug + Angaben, 10 Minuten gültig); `korrekturHinweis` hängt ihn bei kurzen Sätzen (höchstens 12 Wörter) in den Planer-Kontext: bei „Nein, ich meinte morgen“ liefert der Planer dieselben Schritte mit der geänderten Angabe. Nach einer SCHREIBENDEN Aktion lautet der Hinweis „nichts neu anlegen, nachfragen“ (nie doppelt schreiben). Reine Prompt-Hilfe: keine feste Satzerkennung; „Nein, das zweite“ (Auswahl unter Treffern) macht weiter `jvOrtGespraech`. Korrigiert der Nutzer die Zeit einer eben angelegten Erinnerung („Nein, ich meinte 10 Uhr“), lautet der Hinweis: `erinnerung_verschieben` mit `zeit` und Stichwort `suche`; das lockere Schreib-Tor (`korrekturKontextAktiv`) lässt diesen Schritt auch ohne „erinnere“ im Satz zu (sonst fiel der Satz an die normale KI zurück, die eine ZWEITE Erinnerung anlegte, Handytest 13.11.). `erinnerung_verschieben` löscht eine noch nicht geklingelte, nicht wiederkehrende Erinnerung ganz (`deleteReminderEntry`, auch bei Google), sonst wird sie nur abgehakt. Nach einer SCHREIBENDEN Aktion wird das Gesprächsthema (`thema`, z. B. Wetter) gelöscht, sonst deutete der Anschluss-Weg „ich meinte 9 Uhr“ als Wetter von 9 Uhr (Handytest 13.11.).
 - Navigation braucht kein Werkzeug: sie läuft schon über die normale KI (Aktionen route/travel_time).
 - Achtung `MEHR_FAEHIG` ist nach `MEHR_GRUPPEN` indiziert: nie mitten in die Liste einfügen.
+- Kino-Effekte: `js/effekte.js` (`jvEffekt`) liest `isProcessing` (alle 250 ms) und Hinweise `werkzeug(name)` aus `chef.js`/`assistant.js`; `begleite(art, promise)` für eigene Abläufe (Nachrichten). Zeigt nie Inhalte, ändert keine Abläufe; Schalter `jv_effekte`.

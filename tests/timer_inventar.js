@@ -90,6 +90,7 @@ module.exports = [
     {"id":"spotify.js#2","datei":"spotify.js","art":"intervall","ausdruck":"5000","klasse":"bedingt","netz":"ja","native":"nein","ui":"ja","zweck":"Spotify-Minileiste: aktualisiert alle 5 s"},
     {"id":"synapsen.js#1","datei":"synapsen.js","art":"intervall","ausdruck":"200","klasse":"dauerlauf","netz":"nein","native":"nein","ui":"ja","zweck":"Synapsen-Animation: prüft alle 0,2 s, ob Jarvis denkt"},
     {"id":"synapsen.js#2","datei":"synapsen.js","art":"intervall","ausdruck":"250","klasse":"warte-poller","netz":"nein","native":"nein","ui":"nein","zweck":"wartet auf jvCommands, trägt Synapsen-Befehl ein"},
+    {"id":"effekte.js#1","datei":"effekte.js","art":"intervall","ausdruck":"250","klasse":"dauerlauf","netz":"nein","native":"nein","ui":"ja","zweck":"Kino-Effekte: prüft alle 0,25 s, ob Jarvis länger arbeitet (zeigt dann den Effekt)"},
     {"id":"sync.js#1","datei":"sync.js","art":"intervall","ausdruck":"180000","klasse":"dauerlauf","netz":"ja","native":"nein","ui":"ja","zweck":"Gerätesync: alle 3 min (wenn sichtbar)"},
     {"id":"travel.js#1","datei":"travel.js","art":"intervall","ausdruck":"60000","klasse":"dauerlauf","netz":"ja","native":"nein","ui":"ja","zweck":"Reise: Abfahrts-Warnung jede Minute"},
     {"id":"ui.js#1","datei":"ui.js","art":"selbstansetzend","ausdruck":"25","klasse":"animation","netz":"nein","native":"nein","ui":"ja","zweck":"Schreibmaschinen-Effekt der Untertitel (25 ms je Zeichen, endet am Textende)"},
