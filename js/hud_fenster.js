@@ -140,7 +140,7 @@
         } catch (e) { return []; }
     }
     async function nachrichten(spreche) {
-        const res = await (window.jvEffekt ? window.jvEffekt.begleite('news', Promise.all(ORTE.map(holeNews))) : Promise.all(ORTE.map(holeNews)));
+        const res = await (window.jvEffekt ? window.jvEffekt.begleite('news', Promise.all(ORTE.map(holeNews)), ORTE) : Promise.all(ORTE.map(holeNews)));
         const saetze = [];
         ORTE.forEach((ort, i) => {
             const a = res[i];

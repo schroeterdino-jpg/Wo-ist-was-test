@@ -63,9 +63,16 @@ function neu(chef) {
         const A = neu(false), J = A.sb.jvEffekt, t0 = 3000000;
         let fertig; const p = new Promise(r => { fertig = r; });
         J.begleite('news', p); J.pruefe(t0); J.pruefe(t0 + 2500);
-        check('11 begleitete Aufgabe (Nachrichten) zeigt den Nachrichten-Effekt auch ohne isProcessing', J.zustand().laufend && J.zustand().art === 'news', JSON.stringify(J.zustand()));
+        check('11 begleitete Aufgabe (Nachrichten) zeigt beim Laden den Globus, auch ohne isProcessing', J.zustand().laufend && J.zustand().art === 'globus', JSON.stringify(J.zustand()));
         fertig(1); await warte(5); J.pruefe(t0 + 4000);
         check('12 Aufgabe fertig: Effekt endet', J.zustand().laufend === false && J.zustand().endeAt > 0);
+        const B = neu(false), K = B.sb.jvEffekt, t1 = 4000000;
+        let f2; const p2 = new Promise(r => { f2 = r; });
+        K.begleite('news', p2, ['Schwarzenbek', 'Hamburg']); K.pruefe(t1); K.pruefe(t1 + 2500);
+        f2([[{ title: 'Neuer Radweg eröffnet' }, { title: 'Sperrung der B207' }], [{ title: 'Hafen meldet Rekord' }]]); await warte(5);
+        check('12b Nachrichten da: echte Schlagzeilen fliegen ein (3 Kacheln, Effekt Nachrichten)', K.zustand().art === 'news' && K.zustand().news === 3 && K.zustand().laufend, JSON.stringify(K.zustand()));
+        K.pruefe(t1 + 3000);
+        check('12c der Effekt bleibt zum Lesen stehen, auch wenn die Aufgabe fertig ist', K.zustand().laufend === true);
     }
     {
         const A = neu(false), J = A.sb.jvEffekt, t0 = 4000000;
