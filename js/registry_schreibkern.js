@@ -202,11 +202,22 @@
         if (/^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s + 'T12:00:00').getTime())) return s;
         return '';
     }
+    function zeitraumAusParam(z) {   // 'diese_woche' | 'naechste_woche' | 'naechste_7_tage' -> { von, bis, name } (YYYY-MM-DD) oder null
+        var s = norm(z || '').replace(/[\s-]+/g, '_');
+        if (s === 'nächste_woche') s = 'naechste_woche';
+        if (s !== 'diese_woche' && s !== 'naechste_woche' && s !== 'naechste_7_tage') return null;
+        var jetzt = new Date(), wt = new Date(jetzt.toLocaleDateString('sv-SE', { timeZone: BERLIN }) + 'T12:00:00'), tag = (wt.getDay() + 6) % 7;   // 0 = Montag
+        var plus = function (n) { return tagVon(new Date(wt.getTime() + n * 86400000)); };
+        if (s === 'diese_woche') return { von: plus(0), bis: plus(6 - tag), name: 'diese Woche' };
+        if (s === 'naechste_woche') return { von: plus(7 - tag), bis: plus(13 - tag), name: 'nächste Woche' };
+        return { von: plus(0), bis: plus(6), name: 'die nächsten sieben Tage' };
+    }
+    function wochentagKurz(tag) { return new Date(tag + 'T12:00:00').toLocaleDateString('de-DE', { timeZone: BERLIN, weekday: 'long' }); }
     R.registriere({
         name: 'termine_lesen',
-        beschreibung: 'Nennt die Termine eines Tages aus dem Kalender der App (nur lesend, ändert nichts).',
+        beschreibung: 'Nennt die Termine eines Tages oder einer Woche aus dem Kalender der App (nur lesend, ändert nichts).',
         pflicht: [],
-        optional: [{ name: 'tag', typ: 'text', beschreibung: 'heute (Standard), morgen, uebermorgen oder ein Datum wie 2026-11-06.' }],
+        optional: [{ name: 'tag', typ: 'text', beschreibung: 'heute (Standard), morgen, uebermorgen oder ein Datum wie 2026-11-06.' }, { name: 'zeitraum', typ: 'text', beschreibung: 'Für mehrere Tage statt tag: diese_woche (heute bis Sonntag), naechste_woche (Montag bis Sonntag) oder naechste_7_tage.' }],
         rueckgabe: { beschreibung: 'Tag, Anzahl und die Termine (Titel, Zeit, Ort) in zeitlicher Reihenfolge.', felder: ['tag', 'anzahl', 'termine', 'nachricht'] },
         fehler: [
             { status: 'NEEDS_INFORMATION', wann: 'Der Tag ist nicht verständlich.' },
@@ -219,10 +230,23 @@
         verbindung: { datei: 'js/calendar.js', funktion: 'calendarEntries', aktion: 'lesen' },
         verfuegbar: function () { return !!listeTermine(); },
         vorpruefung: function (p) {
+            if (p.zeitraum) { if (!zeitraumAusParam(p.zeitraum)) return { status: 'NEEDS_INFORMATION', nachricht: 'Für welchen Zeitraum soll ich in den Kalender schauen?', fehlend: ['zeitraum'] }; return null; }
             if (!tagAusParam(p.tag)) return { status: 'NEEDS_INFORMATION', nachricht: 'Für welchen Tag soll ich in den Kalender schauen?', fehlend: ['tag'] };
             return null;
         },
         ausfuehren: async function (p) {
+            var zr = p.zeitraum ? zeitraumAusParam(p.zeitraum) : null;
+            if (zr) {
+                var lw = (listeTermine() || []).filter(function (e) { var t = e && tagVonEintrag(e); return t && t >= zr.von && t <= zr.bis; }).sort(function (a, b) { return String(a.isoDate) < String(b.isoDate) ? -1 : 1; });
+                var tw = lw.map(function (e) {
+                    var ganz = /^\d{4}-\d{2}-\d{2}$/.test(String(e.isoDate));
+                    return { id: e.id, tag: tagVonEintrag(e), text: String(e.text || ''), zeit: ganz ? 'ganztägig' : uhrzeitText(new Date(e.isoDate)), ort: String(e.location || '') };
+                });
+                var nw = !tw.length ? 'Für ' + zr.name + ' steht kein Termin in deinem Kalender.'
+                    : (tw.length === 1 ? 'Für ' + zr.name + ' steht ein Termin an: ' : 'Für ' + zr.name + ' stehen ' + tw.length + ' Termine an: ') +
+                      tw.map(function (t) { return wochentagKurz(t.tag) + (t.zeit === 'ganztägig' ? ' ganztägig ' : ' um ' + t.zeit + ' ') + t.text + (t.ort ? ' in ' + t.ort : ''); }).join(', ') + '.';
+                return { tag: '', zeitraum: p.zeitraum, von: zr.von, bis: zr.bis, anzahl: tw.length, termine: tw, nachricht: nw };
+            }
             var tag = tagAusParam(p.tag);
             var l = (listeTermine() || []).filter(function (e) { return e && tagVonEintrag(e) === tag; }).sort(function (a, b) { return String(a.isoDate) < String(b.isoDate) ? -1 : 1; });
             var termine = l.map(function (e) {
