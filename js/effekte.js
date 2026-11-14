@@ -243,7 +243,7 @@
         } catch (e) { box = null; return false; }
     }
     function verbergen() {
-        z.laufend = false; z.sichtbar = false; z.news = null;
+        z.laufend = false; z.sichtbar = false; z.news = null; warterFrei();
         try { if (box) { box.style.opacity = '0'; setTimeout(function () { if (!z.sichtbar && box) box.style.display = 'none'; }, 380); } } catch (e) { }
     }
     function rahmen(t, fin) {
@@ -330,6 +330,17 @@
         } catch (e) { }
         return p;
     }
+    var warter = [];
+    function warteBisFertig(maxMs) {   // Nachrichten-Karten warten, bis der Effekt zu Ende ist (nichts überlagert sich)
+        return new Promise(function (res) {
+            try {
+                if (!(z.laufend && z.art === 'news')) { res(false); return; }
+                var einmal = function () { var k = warter.indexOf(einmal); if (k >= 0) warter.splice(k, 1); res(true); };
+                warter.push(einmal); setTimeout(einmal, maxMs || 12000);   // Sicherheit: nie ewig warten
+            } catch (e) { res(false); }
+        });
+    }
+    function warterFrei() { var a = warter.slice(); warter = []; a.forEach(function (f) { try { f(); } catch (e) { } }); }
     function busy() { try { return typeof isProcessing !== 'undefined' && !!isProcessing; } catch (e) { return false; } }
     function pruefe(nun) {
         try {
@@ -358,7 +369,7 @@
     function sage(txt) { try { speak(txt, typeof continueConversation === 'function' ? continueConversation : undefined); } catch (e) { } }
 
     window.jvEffekt = {
-        hinweis: hinweis, werkzeug: werkzeug, begleite: begleite, arbeit: arbeit, zeige: zeige, ende: ende, pruefe: pruefe,
+        hinweis: hinweis, werkzeug: werkzeug, begleite: begleite, arbeit: arbeit, warteBisFertig: warteBisFertig, zeige: zeige, ende: ende, pruefe: pruefe,
         an: function () { return schalten(true); }, aus: function () { return schalten(false); }, istAn: function () { return an; },
         zustand: function () { return { laufend: z.laufend, art: z.art, sichtbar: z.sichtbar, ok: z.ok, endeAt: z.endeAt, busySince: z.busySince, nutzerWeg: z.nutzerWeg, news: z.news ? z.news.length : 0 }; },
         ARTEN: ARTEN, WERKZEUG: WERK

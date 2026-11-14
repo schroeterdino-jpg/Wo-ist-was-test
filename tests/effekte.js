@@ -73,6 +73,12 @@ function neu(chef) {
         check('12b Nachrichten da: echte Schlagzeilen fliegen ein (3 Kacheln, Effekt Nachrichten)', K.zustand().art === 'news' && K.zustand().news === 3 && K.zustand().laufend, JSON.stringify(K.zustand()));
         K.pruefe(t1 + 3000);
         check('12c der Effekt bleibt zum Lesen stehen, auch wenn die Aufgabe fertig ist', K.zustand().laufend === true);
+        let frei = false; K.warteBisFertig(5000).then(() => { frei = true; }); await warte(5);
+        check('12d die Karten warten, solange der Effekt noch zu sehen ist', frei === false);
+        K.aus(); await warte(5);
+        check('12d2 ist der Effekt weg (hier: ausgeschaltet), laufen die Karten sofort los', frei === true);
+        const C0 = neu(false); let sofort = null; await C0.sb.jvEffekt.warteBisFertig().then(v => { sofort = v; });
+        check('12e ohne Nachrichten-Effekt warten die Karten nicht', sofort === false);
     }
     {
         const A = neu(false), J = A.sb.jvEffekt, t0 = 4000000;
