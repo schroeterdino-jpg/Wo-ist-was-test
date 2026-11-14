@@ -11,11 +11,11 @@
 (function () {
     'use strict';
     if (window.jvEffekt) return;
-    var W = 680, H = 560, CX = 340, CY = 270, VERZOEGERUNG = 2200, HINWEIS_MS = 25000, ENDE_MS = 1200;
+    var W = 680, H = 560, CX = 340, CY = 270, VERZOEGERUNG = 2200, HINWEIS_MS = 25000, ENDE_MS = 1200, NEWS_LESEN_MS = 6500;
     var CY1 = '#49d7ff', GR = '#4cffb0', DIM = '#12384a', TXT = '#9fd8ea';
     var PAL = ['73,215,255', '255,90,200', '160,110,255', '255,200,70', '76,255,176', '255,120,80'];
     var cv = null, x = null, box = null, raf = 0, an = true;
-    var z = { laufend: false, art: null, t0: 0, ok: true, endeAt: 0, busySince: 0, nutzerWeg: false, hint: null, hintAt: 0, begleit: 0, begleitArt: null, begleitSeit: 0, sichtbar: false };
+    var z = { laufend: false, art: null, t0: 0, ok: true, endeAt: 0, busySince: 0, nutzerWeg: false, hint: null, hintAt: 0, begleit: 0, news: null, begleitArt: null, begleitSeit: 0, sichtbar: false };
     var seed = 7;
     function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
     function jetzt() { return Date.now(); }
@@ -180,9 +180,11 @@
     /* ---------- Effekt: Nachrichten (Tafeln fliegen heran) ---------- */
     var KAT = [['WELT', '73,215,255'], ['SPORT', '76,255,176'], ['WIRTSCHAFT', '255,200,70'], ['TECHNIK', '160,110,255'], ['WETTER', '255,120,80'], ['REGION', '255,90,200']];
     var NTX = [-190, 0, 190, -190, 0, 190], NTY = [-95, -95, -95, 60, 60, 60], cards = [], stars = [];
+    function umbruch(t, n) { var w = String(t || '').replace(/\s+/g, ' ').trim().slice(0, 110).split(' '), z2 = [], l = ''; w.forEach(function (a) { if ((l + ' ' + a).trim().length > n && l) { z2.push(l); l = a; } else l = (l + ' ' + a).trim(); }); if (l) z2.push(l); return z2.slice(0, 6); }
     function newsInit() {
         seed = 9;
-        cards = KAT.map(function (k, i) { return { n: k[0], c: k[1], tx: NTX[i], ty: NTY[i], sx: (rnd() - 0.5) * 900, sy: (rnd() - 0.5) * 700, sz: 1500 + rnd() * 500, rot: (rnd() < 0.5 ? -1 : 1) * (1.3 + rnd() * 0.6), d: i * 0.38, ln: [0.9, 0.7, 0.5].map(function (a) { return a * (0.7 + rnd() * 0.3); }), img: rnd() }; });
+        var echt = z.news && z.news.length ? z.news.slice(0, 6) : null;
+        cards = (echt || KAT).map(function (k, i) { var c = echt ? '73,215,255' : k[1]; if (echt) c = ['73,215,255', '255,200,70', '76,255,176', '255,90,200', '160,110,255', '255,120,80'][i % 6]; return { n: echt ? k.ort : k[0], c: c, lines: echt ? umbruch(k.titel, 24) : null, tx: NTX[i], ty: NTY[i], sx: (rnd() - 0.5) * 900, sy: (rnd() - 0.5) * 700, sz: 1500 + rnd() * 500, rot: (rnd() < 0.5 ? -1 : 1) * (1.3 + rnd() * 0.6), d: i * 0.38, ln: [0.9, 0.7, 0.5].map(function (a) { return a * (0.7 + rnd() * 0.3); }), img: rnd() }; });
         stars = []; for (var i = 0; i < 90; i++) stars.push({ a: rnd() * 6.28, r: rnd(), v: 0.4 + rnd() * 0.9 });
     }
     function news(t, fin) {
@@ -199,9 +201,12 @@
             var w = 176, h = 116;
             x.fillStyle = 'rgba(8,24,34,.88)'; x.fillRect(-w / 2, -h / 2, w, h); x.strokeStyle = 'rgba(' + cd.c + ',1)'; x.lineWidth = 2.5 / f; x.strokeRect(-w / 2, -h / 2, w, h);
             x.fillStyle = 'rgba(' + cd.c + ',.9)'; x.fillRect(-w / 2, -h / 2, w, 22); x.fillStyle = '#04121a'; x.font = '500 14px monospace'; x.fillText(cd.n, -w / 2 + 8, -h / 2 + 16);
-            x.fillStyle = 'rgba(' + cd.c + ',.25)'; x.fillRect(-w / 2 + 8, -h / 2 + 30, 52, 40); x.fillStyle = 'rgba(' + cd.c + ',.6)'; x.fillRect(-w / 2 + 8, -h / 2 + 30 + 40 * (1 - cd.img * 0.6), 52, 40 * cd.img * 0.6);
             var show = Math.min(1, Math.max(0, (ph - cd.d - 1.2) / 1.2));
+            if (cd.lines) { x.fillStyle = 'rgba(191,239,255,.95)'; x.font = '11px monospace'; cd.lines.forEach(function (ln, k) { if (show * 6 > k) x.fillText(ln, -w / 2 + 8, -h / 2 + 40 + k * 14); }); }
+            else {
+            x.fillStyle = 'rgba(' + cd.c + ',.25)'; x.fillRect(-w / 2 + 8, -h / 2 + 30, 52, 40); x.fillStyle = 'rgba(' + cd.c + ',.6)'; x.fillRect(-w / 2 + 8, -h / 2 + 30 + 40 * (1 - cd.img * 0.6), 52, 40 * cd.img * 0.6);
             for (var l = 0; l < 3; l++) { var lw = (l === 0 ? (w - 84) : (w - 20)) * cd.ln[l] * Math.min(1, Math.max(0, show * 3 - l)); x.fillStyle = 'rgba(191,239,255,.8)'; x.fillRect(l === 0 ? -w / 2 + 68 : -w / 2 + 8, -h / 2 + (l === 0 ? 34 : 80) + (l > 0 ? (l - 1) * 14 : 0), lw, 6); }
+            }
             if (q >= 1 && !out) { var sc = ((t * 0.8 + i * 0.4) % 1.6); if (sc < 1) { x.fillStyle = 'rgba(' + cd.c + ',.22)'; x.fillRect(-w / 2, -h / 2 + sc * h, w, 10); } }
             x.restore();
         });
@@ -218,7 +223,7 @@
         kalender: { titel: 'TERMIN WIRD GEPLANT', zeile: '> Kalender wird abgeglichen …', fertig: '> Termin eingerastet', schaetz: 8, init: function () { }, draw: kalender },
         kette: { titel: 'SCHRITTE WERDEN ERLEDIGT', zeile: '> Aufgaben laufen nacheinander …', fertig: '> Alle Schritte erledigt', schaetz: 10, init: function () { }, draw: kette },
         neuro: { titel: 'JARVIS DENKT NACH', zeile: '> Informationen werden verknüpft …', fertig: '> Antwort bereit', schaetz: 12, init: neuroInit, draw: neuro },
-        news: { titel: 'NACHRICHTEN WERDEN GELADEN', zeile: '> Schlagzeilen werden abgerufen …', fertig: '> Schlagzeilen bereit', schaetz: 8, init: newsInit, draw: news }
+        news: { titel: 'SCHLAGZEILEN EMPFANGEN', zeile: '> Nachrichten für dich …', fertig: '> Schlagzeilen bereit', schaetz: 8, init: newsInit, draw: news }
     };
     var ARTEN = Object.keys(E);
     var WERK = { ortssuche: 'radar', adresse: 'radar', fahrzeit: 'route', abfahrt: 'route', ankunft: 'route', dauer_minuten: 'route', websuche: 'globus', produktsuche: 'globus', uhrzeit_anderswo: 'globus', wetter: 'regen', termin_erstellen: 'kalender', termine_lesen: 'kalender', termin_verschieben: 'kalender', schicht: 'kalender', __kette: 'kette' };
@@ -238,7 +243,7 @@
         } catch (e) { box = null; return false; }
     }
     function verbergen() {
-        z.laufend = false; z.sichtbar = false;
+        z.laufend = false; z.sichtbar = false; z.news = null;
         try { if (box) { box.style.opacity = '0'; setTimeout(function () { if (!z.sichtbar && box) box.style.display = 'none'; }, 380); } } catch (e) { }
     }
     function rahmen(t, fin) {
@@ -297,12 +302,22 @@
     function werkzeug(name) {
         var a = WERK[name]; if (a) hinweis(a);
     }
-    function begleite(art, p) {
+    function begleite(art, p, orte) {
         try {
             if (!p || typeof p.then !== 'function' || !E[art]) return p;
-            z.begleit++; z.begleitArt = art; if (!z.begleitSeit) z.begleitSeit = jetzt();
+            var anz = art === 'news' ? 'globus' : art;   // Nachrichten: erst Globus beim Laden, dann fliegen die echten Schlagzeilen ein
+            z.begleit++; z.begleitArt = anz; if (!z.begleitSeit) z.begleitSeit = jetzt();
             var fertig = function () { z.begleit = Math.max(0, z.begleit - 1); if (!z.begleit) { z.begleitArt = null; z.begleitSeit = 0; } };
-            p.then(fertig, fertig);
+            p.then(function (res) {
+                try {
+                    if (art === 'news' && z.laufend && res && res.length) {
+                        var t = [];
+                        res.forEach(function (a, i) { (a || []).forEach(function (n) { if (n && n.title) t.push({ ort: String((orte && orte[i]) || 'NEWS').toUpperCase(), titel: String(n.title) }); }); });
+                        if (t.length) { z.news = t.slice(0, 6); z.t0 = jetzt(); z.art = 'news'; z.begleitArt = 'news'; E.news.init(); setTimeout(fertig, NEWS_LESEN_MS); return; }
+                    }
+                } catch (e) { }
+                fertig();
+            }, fertig);
         } catch (e) { }
         return p;
     }
@@ -336,7 +351,7 @@
     window.jvEffekt = {
         hinweis: hinweis, werkzeug: werkzeug, begleite: begleite, zeige: zeige, ende: ende, pruefe: pruefe,
         an: function () { return schalten(true); }, aus: function () { return schalten(false); }, istAn: function () { return an; },
-        zustand: function () { return { laufend: z.laufend, art: z.art, sichtbar: z.sichtbar, ok: z.ok, endeAt: z.endeAt, busySince: z.busySince, nutzerWeg: z.nutzerWeg }; },
+        zustand: function () { return { laufend: z.laufend, art: z.art, sichtbar: z.sichtbar, ok: z.ok, endeAt: z.endeAt, busySince: z.busySince, nutzerWeg: z.nutzerWeg, news: z.news ? z.news.length : 0 }; },
         ARTEN: ARTEN, WERKZEUG: WERK
     };
 
