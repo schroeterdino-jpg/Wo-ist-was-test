@@ -153,6 +153,59 @@
             return { r: ok ? 'ok' : 'fehler', kid: ok && t && t.id ? t.id : '' };
         } catch (e) { return { r: 'fehler', kid: '' }; }
     }
+
+    /* Kontrolle nach dem Eintragen: Jarvis liest den Termin direkt bei Google nach und zeigt ihn ein paar Sekunden in einem kleinen Kalender
+       (Haken = steht wirklich bei Google; sonst rot "nur in Jarvis"). Danach schließt sich das Fenster und die Übersicht ist wieder da. */
+    async function kalenderPruefen(kid) {   // Termin von Google oder null
+        try {
+            if (!kid || typeof isGoogleAuthorized !== 'function' || !isGoogleAuthorized() || typeof fetch !== 'function') return null;
+            const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/' + encodeURIComponent(kid), { headers: { 'Authorization': 'Bearer ' + accessToken } });
+            if (!res || !res.ok) return null;
+            const d = await res.json();
+            return d && d.status !== 'cancelled' && d.start && d.start.date ? d : null;
+        } catch (e) { return null; }
+    }
+    function kontrolleHtml(von, bis, ok) {
+        const y = +von.slice(0, 4), m = +von.slice(5, 7), tage = new Date(y, m, 0).getDate();
+        const vor = (new Date(y, m - 1, 1, 12).getDay() + 6) % 7;
+        const farbe = ok ? '#4cffb0' : '#ff8a6b', tint = ok ? 'rgba(76,255,176,.22)' : 'rgba(255,138,107,.22)';
+        let zellen = '';
+        for (let i = 0; i < vor; i++) zellen += '<span></span>';
+        for (let d = 1; d <= tage; d++) {
+            const iso = y + '-' + ('0' + m).slice(-2) + '-' + ('0' + d).slice(-2), drin = iso >= von && iso <= bis;
+            zellen += '<span style="padding:5px 0;border-radius:6px;' + (drin ? 'background:' + tint + ';color:' + farbe + ';font-weight:700;' : 'color:#9fb6c6;') + '">' + d + '</span>';
+        }
+        const kopf = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(t => '<span style="color:#5d7e91;font-size:11px;">' + t + '</span>').join('');
+        const monat = new Date(y, m - 1, 1, 12).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+        return '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;"><b>📅 Google Kalender</b><span style="color:#5d7e91;">' + (ok ? 'gerade abgefragt' : 'nicht gefunden') + '</span></div>'
+            + '<div style="font-size:13px;color:#9fb6c6;margin-bottom:6px;">' + monat + '</div>'
+            + '<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;text-align:center;font-size:13px;">' + kopf + zellen + '</div>'
+            + '<div style="margin-top:10px;padding:9px 11px;border-radius:8px;border:1px solid ' + farbe + ';color:' + farbe + ';font-size:13px;"><b>' + (ok ? '✓ Urlaub 🌴 steht bei Google' : '✗ Nur in Jarvis, bei Google nicht gefunden') + '</b><br><span style="color:#9fb6c6;">' + lesbar(von) + ' bis ' + lesbar(bis) + (ok ? ', ganztägig' : '') + '</span></div>'
+            + '<div style="margin-top:10px;height:3px;background:rgba(255,255,255,.12);border-radius:2px;"><div id="jvUrlaubBalken" style="width:100%;height:3px;background:' + farbe + ';border-radius:2px;transition:width 6s linear;"></div></div>';
+    }
+    async function zeigeKontrolle(von, bis, kid) {
+        try {
+            const d = await kalenderPruefen(kid);
+            let v = von, b = bis;
+            if (d) { v = d.start.date; b = d.end && d.end.date ? addDays(d.end.date, -1) : d.start.date; }   // so, wie es bei Google steht
+            const wrap = document.createElement('div'); wrap.id = 'jvUrlaubKontrolle';
+            wrap.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(3,10,16,.72);display:flex;align-items:center;justify-content:center;';
+            wrap.innerHTML = '<div style="background:#0a1621;border:1px solid rgba(93,209,255,.4);border-radius:14px;width:min(92vw,360px);padding:14px;color:#e2e8f0;font-family:ui-monospace,monospace;">' + kontrolleHtml(v, b, !!d) + '</div>';
+            const alt = document.getElementById && document.getElementById('jvUrlaubKontrolle'); if (alt && alt.remove) alt.remove();
+            let zu = false;
+            const schliessen = function () {
+                if (zu) return; zu = true;
+                try { wrap.remove(); } catch (e) {}
+                try { if (typeof closePanel === 'function') closePanel(); } catch (e) {}
+                try { if (window.jvUebersicht && window.jvUebersicht.auffrischen) window.jvUebersicht.auffrischen(); } catch (e) {}
+            };
+            wrap.onclick = schliessen;
+            document.body.appendChild(wrap);
+            setTimeout(function () { try { const bl = wrap.querySelector && wrap.querySelector('#jvUrlaubBalken'); if (bl) bl.style.width = '0%'; } catch (e) {} }, 40);
+            setTimeout(schliessen, d ? 6000 : 9000);
+            return { ok: !!d, von: v, bis: b };
+        } catch (e) { return { ok: false }; }
+    }
     function kurz(e) { return 'vom ' + lesbar(e.von) + ' bis zum ' + lesbar(e.bis); }
     function monatsTreffer(mo) {   // Urlaube, die den Monat (in irgendeinem Jahr ihres Zeitraums) berühren
         return sortiert().filter(x => {
@@ -248,6 +301,7 @@
                 Promise.all(ersetzt.map(x => kalenderLoeschen(x.kid))).then(() => kalenderNeu(von, bis)).then(k => {
                     if (k.kid) { const l2 = liste(); const e = l2.find(x => x.von === von && x.bis === bis); if (e) { e.kid = k.kid; speichereListe(l2); } }
                     say(basis + (k.r === 'ok' ? ' Er steht auch im Kalender.' : k.r === 'fehler' ? ' Im Google Kalender konnte ich ihn nicht eintragen, er steht nur in Jarvis.' : ''));
+                    return zeigeKontrolle(von, bis, k.kid);
                 }).catch(() => say(basis));
                 return true;
             }
@@ -257,7 +311,7 @@
         return false;
     }
 
-    window.jvUrlaub = { get, handle, liste, setListe };
+    window.jvUrlaub = { get, handle, liste, setListe, kontrolle: zeigeKontrolle };
     try { setTimeout(rolle, 3000); setInterval(rolle, 3600000); } catch (e) {}
     if (window.jvCommands) {
         window.jvCommands.use('urlaub', function (text, next) {
