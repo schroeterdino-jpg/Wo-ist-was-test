@@ -77,6 +77,21 @@ const ORTE = [{ name: 'Rosen-Apotheke', adresse: 'Marktstr. 2', lat: 53.5, lon: 
     r = await ruf(A, 'termine_lesen', { tag: 'irgendwann' });
     check('3d unverständlicher Tag -> NEEDS_INFORMATION (Rückfrage), nichts gelesen', r.status === 'NEEDS_INFORMATION' && /welchen Tag/i.test(r.nachricht) || /Für welchen Tag/.test(r.nachricht), JSON.stringify(r));
     check('3e Lesen verändert nichts', alles(A) === z0 && A.zaehler.exec === 0);
+    /* Wochenbereich (Handytest 14.11.: "Wie sehen meine Termine nächste Woche aus?" las nur heute) */
+    A = umgebung();
+    A.lese('calendarEntries').push(T('w1', 'KJP', '2026-11-09T14:00:00+01:00'), T('w2', 'Zahnarzt', '2026-11-10T14:00:00+01:00', { location: 'Praxis' }), T('w3', 'Tabelle', '2026-11-11'), T('w4', 'Werkstatt', SAMSTAG10), T('w5', 'Später', '2026-11-17T09:00:00+01:00'));
+    z0 = alles(A);
+    r = await ruf(A, 'termine_lesen', { zeitraum: 'naechste_woche' });
+    check('3f nächste Woche (Mo 9. bis So 15.11.): drei Termine, Wochentag in der Antwort, kein Termin von Samstag/übernächster Woche', r.status === 'SUCCESS' && r.daten.anzahl === 3 && r.daten.termine.map(t => t.text).join() === 'KJP,Zahnarzt,Tabelle' && /Montag um 14:00 Uhr KJP/.test(r.nachricht) && /nächste Woche stehen 3 Termine/.test(r.nachricht), JSON.stringify(r));
+    r = await ruf(A, 'termine_lesen', { zeitraum: 'diese_woche' });
+    check('3g diese Woche (heute bis Sonntag): nur Werkstatt am Samstag', r.status === 'SUCCESS' && r.daten.anzahl === 1 && r.daten.termine[0].text === 'Werkstatt', JSON.stringify(r));
+    r = await ruf(A, 'termine_lesen', { zeitraum: 'naechste_7_tage' });
+    check('3h nächste sieben Tage: bis einschließlich 12.11. nur Termine ab heute', r.status === 'SUCCESS' && r.daten.termine.every(t => t.tag >= r.daten.von && t.tag <= r.daten.bis), JSON.stringify(r));
+    r = await ruf(A, 'termine_lesen', { zeitraum: 'irgendwann' });
+    check('3i unverständlicher Zeitraum -> Rückfrage', r.status === 'NEEDS_INFORMATION' && /Zeitraum/.test(r.nachricht), JSON.stringify(r));
+    A = umgebung(); r = await ruf(A, 'termine_lesen', { zeitraum: 'naechste_woche' });
+    check('3j leere Woche: ehrliche Antwort "kein Termin"', r.status === 'SUCCESS' && r.daten.anzahl === 0 && /nächste Woche steht kein Termin/.test(r.nachricht), JSON.stringify(r));
+    check('3k Chef-KI-Prüfung erlaubt zeitraum, aber nicht zeitraum zusammen mit tag', A.sb.jvChef.planErlaubt({ schritte: [{ faehigkeit: 'termine_lesen', params: { zeitraum: 'naechste_woche' } }] }) && !A.sb.jvChef.planErlaubt({ schritte: [{ faehigkeit: 'termine_lesen', params: { zeitraum: 'naechste_woche', tag: 'heute' } }] }) && !A.sb.jvChef.planErlaubt({ schritte: [{ faehigkeit: 'termine_lesen', params: { zeitraum: 'jahr' } }] }));
 
     /* ============ termin_verschieben ============ */
     const VP = { suche: 'Zahnarzt', neue_zeit: FREITAG14 };
