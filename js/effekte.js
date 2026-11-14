@@ -11,11 +11,11 @@
 (function () {
     'use strict';
     if (window.jvEffekt) return;
-    var W = 680, H = 560, CX = 340, CY = 270, VERZOEGERUNG = 1200, HINWEIS_MS = 25000, ENDE_MS = 1200, NEWS_LESEN_MS = 6500;
+    var W = 680, H = 560, CX = 340, CY = 270, VERZOEGERUNG = 500, MINDEST_MS = 2800, HINWEIS_MS = 25000, ENDE_MS = 1200, NEWS_LESEN_MS = 6500;
     var CY1 = '#49d7ff', GR = '#4cffb0', DIM = '#12384a', TXT = '#9fd8ea';
     var PAL = ['73,215,255', '255,90,200', '160,110,255', '255,200,70', '76,255,176', '255,120,80'];
     var cv = null, x = null, box = null, raf = 0, an = true;
-    var z = { laufend: false, art: null, t0: 0, ok: true, endeAt: 0, busySince: 0, nutzerWeg: false, hint: null, hintAt: 0, begleit: 0, news: null, begleitArt: null, begleitSeit: 0, sichtbar: false };
+    var z = { laufend: false, art: null, t0: 0, ok: true, endeAt: 0, busySince: 0, nutzerWeg: false, hint: null, hintParams: null, startNun: 0, hintAt: 0, begleit: 0, news: null, begleitArt: null, begleitSeit: 0, sichtbar: false };
     var seed = 7;
     function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
     function jetzt() { return Date.now(); }
@@ -55,32 +55,6 @@
     }
 
     /* ---------- Effekt: Globus (Internet, Preise, Weltzeit) ---------- */
-    var sp = [];
-    function globusInit() { seed = 5; sp = []; for (var i = 0; i < 46; i++) { var la = Math.asin(rnd() * 2 - 1), lo = rnd() * 6.28; sp.push([la, lo]); } }
-    function pr(la, lo, r, rot) { var X = Math.cos(la) * Math.sin(lo + rot), Y = Math.sin(la), Zz = Math.cos(la) * Math.cos(lo + rot); return [CX + X * r, CY - Y * r, Zz]; }
-    function globus(t, fin) {
-        var R = 150, rot = t * 0.6; ring(R, '#1d4458', 2);
-        for (var la = -60; la <= 60; la += 30) {
-            x.strokeStyle = '#1d4458'; x.lineWidth = 1.5; x.beginPath(); var st = false;
-            for (var lo = 0; lo <= 6.3; lo += 0.1) { var q = pr(la * 0.01745, lo, R, rot); if (q[2] > 0) { if (!st) { x.moveTo(q[0], q[1]); st = true; } else x.lineTo(q[0], q[1]); } else st = false; }
-            x.stroke();
-        }
-        for (var m = 0; m < 12; m++) {
-            x.strokeStyle = '#1d4458'; x.lineWidth = 1.5; x.beginPath(); var st2 = false;
-            for (var la2 = -1.57; la2 <= 1.57; la2 += 0.1) { var q2 = pr(la2, m * 0.5236, R, rot); if (q2[2] > 0) { if (!st2) { x.moveTo(q2[0], q2[1]); st2 = true; } else x.lineTo(q2[0], q2[1]); } else st2 = false; }
-            x.stroke();
-        }
-        sp.forEach(function (s, i) { var q = pr(s[0], s[1], R, rot); if (q[2] > 0) { x.fillStyle = (i % 3 === 0 || fin > 0) ? GR : CY1; x.beginPath(); x.arc(q[0], q[1], 3 + Math.sin(t * 5 + i) * 1.5, 0, 6.28); x.fill(); } });
-        for (var a = 0; a < 4; a++) {
-            var A = sp[a * 5], B = sp[a * 5 + 9], ptt = ((t * 0.5 + a * 0.25) % 1);
-            x.strokeStyle = 'rgba(73,215,255,.55)'; x.lineWidth = 2; x.beginPath(); var go = false;
-            for (var s = 0; s <= 1.001; s += 0.05) { var la3 = A[0] + (B[0] - A[0]) * s, lo3 = A[1] + (B[1] - A[1]) * s, rr = R * (1 + 0.35 * Math.sin(Math.PI * s)), q3 = pr(la3, lo3, rr, rot); if (q3[2] > -0.2) { if (!go) { x.moveTo(q3[0], q3[1]); go = true; } else x.lineTo(q3[0], q3[1]); } }
-            x.stroke();
-            var la4 = A[0] + (B[0] - A[0]) * ptt, lo4 = A[1] + (B[1] - A[1]) * ptt, q4 = pr(la4, lo4, R * (1 + 0.35 * Math.sin(Math.PI * ptt)), rot);
-            x.fillStyle = '#fff'; x.beginPath(); x.arc(q4[0], q4[1], 4, 0, 6.28); x.fill();
-        }
-    }
-
     /* ---------- Effekt: Regen (Wetter) ---------- */
     var rain = [];
     function regenInit() { seed = 9; rain = []; for (var i = 0; i < 160; i++) rain.push({ x: rnd() * W, y: rnd() * H, l: 10 + rnd() * 22, v: 6 + rnd() * 9 }); }
@@ -93,32 +67,162 @@
         x.fillStyle = '#e6f9ff'; x.font = '500 64px monospace'; x.textAlign = 'center'; x.fillText('☁', CX, CY + 10); x.textAlign = 'left';
     }
 
-    /* ---------- Effekt: Kalender (Termine, Planen) ---------- */
-    var DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr'], GX = 110, GY = 150, CW = 96, CH = 40, ROWS = 7;
-    var BLOCKS = [[0, 1, 2], [1, 0, 1], [2, 3, 2], [3, 5, 1], [4, 2, 2], [1, 4, 2], [0, 5, 1]];
-    function kalender(t, fin) {
-        var p = fin > 0 ? 0.95 + Math.min(fin, 1) * 0.05 : (t * 0.28) % 0.95;
-        for (var d = 0; d < 5; d++) {
-            x.fillStyle = TXT; x.font = '16px monospace'; x.fillText(DAYS[d], GX + d * CW + 36, GY - 14);
-            for (var r = 0; r < ROWS; r++) { var w = (d * 0.6 + r * 0.5) / 6.5, on = p > w * 0.5, al = on ? 0.9 : 0.15; x.strokeStyle = 'rgba(73,215,255,' + al + ')'; x.lineWidth = on ? 2 : 1; x.strokeRect(GX + d * CW + 3, GY + r * CH + 3, CW - 6, CH - 6); }
-        }
-        BLOCKS.forEach(function (b, i) {
-            var q = Math.min(1, Math.max(0, p * 2.2 - 0.15 * i)), e = ease(q), bx = GX + b[0] * CW + 3 - (1 - e) * 200, by = GY + b[1] * CH + 3;
-            x.globalAlpha = e; x.fillStyle = 'rgba(73,215,255,.28)'; x.fillRect(bx, by, CW - 6, b[2] * CH - 6); x.strokeStyle = CY1; x.lineWidth = 2; x.strokeRect(bx, by, CW - 6, b[2] * CH - 6); x.globalAlpha = 1;
+    /* ---------- Hologramm-Bühne: alle Zeichnungen unten laufen in einem Raum von 380 x 460, hier in die Mitte der Zeichenfläche gelegt ---------- */
+    var K_ = 0.98, OX_ = 154, OY_ = 62;
+    function buehne(fn) { return function (t, fin) { x.save(); x.translate(OX_, OY_); x.scale(K_, K_); try { fn(t, fin); } finally { x.restore(); } }; }
+    function hcl(v) { return Math.max(0, Math.min(1, v)); }
+    function heo(v) { v = hcl(v); return 1 - Math.pow(1 - v, 3); }
+    function hob(v) { v = hcl(v); return 1 + 2.7 * Math.pow(v - 1, 3) + 1.7 * Math.pow(v - 1, 2); }
+    function hG(col, b) { x.shadowColor = 'rgba(' + col + ',.9)'; x.shadowBlur = b || 12; }
+    function hNG() { x.shadowBlur = 0; x.shadowColor = 'transparent'; }
+    function hlife(t, fin, ems) { return fin > 0 ? 1 - heo((fin - (ems / 1000 - 0.9)) / 0.9) : heo(t / 1.3); }
+    var hParts = [], hSterne = [];
+    function holoInit() { seed = 7; hParts = []; for (var i = 0; i < 46; i++) hParts.push({ a: rnd() * 6.283, r: 60 + rnd() * 120, s: 0.6 + rnd() * 0.8, o: rnd() }); }
+
+    /* ---------- Effekt: Hologramm-Kalender (Termine lesen, Termin anlegen) ---------- */
+    var TAGE_K = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'], KAL = { jahr: 0, monat: 0, offset: 0, tage: 30, heute: 0, ev: {}, neu: 0, neuTitel: '', anzahl: 0 }, TL_, TR_, BR_, BL_;
+    var FARBEN_K = ['176,130,255', '255,205,90', '90,255,185', '255,120,170', '90,200,255'];
+    function kalInit(neu) {
+        holoInit();
+        var n = new Date(jetzt()), pr = z.hintParams || {}, ziel = null;
+        try { var m = /(\d{4})-(\d{2})-(\d{2})/.exec(String(pr.zeit || pr.neue_zeit || pr.tag || '')); if (neu && m) ziel = { j: +m[1], m: +m[2] - 1, d: +m[3] }; } catch (e) { }
+        var jahr = ziel ? ziel.j : n.getFullYear(), monat = ziel ? ziel.m : n.getMonth(), erster = new Date(jahr, monat, 1);
+        KAL.jahr = jahr; KAL.monat = monat; KAL.offset = (erster.getDay() + 6) % 7; KAL.tage = new Date(jahr, monat + 1, 0).getDate();
+        KAL.heute = (n.getFullYear() === jahr && n.getMonth() === monat) ? n.getDate() : 0; KAL.ev = {}; KAL.anzahl = 0;
+        try {
+            var liste = typeof calendarEntries !== 'undefined' && Array.isArray(calendarEntries) ? calendarEntries : [];
+            liste.forEach(function (e) {
+                var d = e && e.isoDate ? new Date(String(e.isoDate).length === 10 ? e.isoDate + 'T12:00:00' : e.isoDate) : null;
+                if (!d || isNaN(d.getTime()) || d.getFullYear() !== jahr || d.getMonth() !== monat) return;
+                KAL.anzahl++; var dd = d.getDate(); if (!KAL.ev[dd]) KAL.ev[dd] = String(e.text || '').replace(/\s+/g, ' ').trim().slice(0, 5);
+            });
+        } catch (e) { }
+        KAL.neu = neu ? (ziel ? ziel.d : Math.min(KAL.tage, (KAL.heute || 1) + 1)) : 0;
+        KAL.neuTitel = neu ? String(pr.text || 'Neu').slice(0, 5) : '';
+    }
+    function hP(u, v) { var a = [TL_[0] + (TR_[0] - TL_[0]) * u, TL_[1] + (TR_[1] - TL_[1]) * u], b = [BL_[0] + (BR_[0] - BL_[0]) * u, BL_[1] + (BR_[1] - BL_[1]) * u]; return [a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v]; }
+    function hquad(u0, v0, u1, v1) { var a = hP(u0, v0), b = hP(u1, v0), c = hP(u1, v1), e = hP(u0, v1); x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); x.lineTo(c[0], c[1]); x.lineTo(e[0], e[1]); x.closePath(); }
+    function holoBoden(t, life) {
+        var cx = 190, cy = 410; x.save(); x.globalAlpha = Math.max(0.2, life);
+        var f = x.createRadialGradient(cx, cy, 0, cx, cy, 150); f.addColorStop(0, 'rgba(140,170,255,.35)'); f.addColorStop(1, 'rgba(140,170,255,0)'); x.fillStyle = f; x.beginPath(); x.ellipse(cx, cy, 170, 34, 0, 0, 6.283); x.fill();
+        hG('150,190,255', 10);
+        for (var i = 0; i < 3; i++) { var rr = (34 + i * 24 + ((t * 14) % 24)) % 90 + 20, al = 1 - rr / 115; x.strokeStyle = 'rgba(160,200,255,' + Math.max(0, al) + ')'; x.lineWidth = 1.5; x.beginPath(); x.ellipse(cx, cy, rr * 1.7, rr * 0.3, 0, 0, 6.283); x.stroke(); }
+        x.fillStyle = '#e6f0ff'; x.beginPath(); x.ellipse(cx, cy, 16, 4.5, 0, 0, 6.283); x.fill(); hNG();
+        var bm = x.createLinearGradient(0, cy, 0, 300); bm.addColorStop(0, 'rgba(150,190,255,.5)'); bm.addColorStop(1, 'rgba(150,190,255,0)');
+        x.fillStyle = bm; x.beginPath(); x.moveTo(cx - 20, cy); x.lineTo(cx + 20, cy); x.lineTo(300, 312); x.lineTo(80, 312); x.closePath(); x.fill();
+        hParts.forEach(function (p) { var yy = cy - ((t * 30 * p.s + p.o * 100) % (cy - 312)), k = (cy - yy) / (cy - 312), xx = cx + Math.sin(p.o * 20 + t * p.s) * (20 + k * 110); x.fillStyle = 'rgba(225,238,255,' + (0.8 * (1 - k)) + ')'; x.fillRect(xx, yy, 1.8, 1.8); });
+        x.restore();
+    }
+    function holoKarte(xx, yy, w, h, col, bg, sym, titel, zeile, a, t) {
+        x.save(); x.globalAlpha = Math.min(1, a); hG(col, 16); x.fillStyle = bg; x.fillRect(xx, yy, w, h); x.strokeStyle = 'rgba(' + col + ',1)'; x.lineWidth = 1.6; x.strokeRect(xx, yy, w, h); hNG();
+        x.strokeStyle = 'rgb(' + col + ')'; x.lineWidth = 2.6;
+        if (sym === 'dreh') { x.save(); x.translate(xx + w / 2, yy + 34); x.rotate(t * 2); x.beginPath(); x.arc(0, 0, 13, 0.5, 5.3); x.stroke(); x.restore(); }
+        else { x.beginPath(); x.arc(xx + w / 2, yy + 34, 15, 0, 6.283); x.stroke(); x.beginPath(); x.moveTo(xx + w / 2 - 7, yy + 35); x.lineTo(xx + w / 2 - 1, yy + 41); x.lineTo(xx + w / 2 + 8, yy + 28); x.stroke(); }
+        x.fillStyle = '#f2ecff'; x.font = '500 12px monospace'; x.fillText(titel, xx + 8, yy + 80); x.fillStyle = 'rgba(215,215,255,.92)'; x.font = '11px monospace'; x.fillText(zeile, xx + 8, yy + 98); x.restore();
+    }
+    function holoKalender(neu) {
+        return buehne(function (t, fin) {
+            var sw = Math.sin(t * 0.7) * 7, sw2 = Math.cos(t * 0.5) * 4, ems = E[z.art].ende || ENDE_MS;
+            TL_ = [40, 100 + sw2]; TR_ = [340, 84 - sw + sw2]; BR_ = [344, 312 - sw]; BL_ = [36, 328 + sw2];
+            var life = hlife(t, fin, ems);
+            holoBoden(t, life);
+            if (life <= 0.01) return;
+            var rv = heo(t / 1.5); x.save(); x.beginPath(); x.rect(-40, 0, 460, TL_[1] - 20 + (BL_[1] - TL_[1] + 40) * rv); x.clip(); x.globalAlpha = life;
+            hquad(0, 0, 1, 1); var gf = x.createLinearGradient(0, TL_[1], 0, BL_[1]); gf.addColorStop(0, 'rgba(90,80,210,.5)'); gf.addColorStop(1, 'rgba(50,70,190,.35)'); x.fillStyle = gf; x.fill();
+            x.save(); hquad(0, 0, 1, 1); x.clip();
+            if (t > 2.4) { var sh = (t * 0.28) % 1.6 - 0.3, sx = TL_[0] + sh * (TR_[0] - TL_[0]), g2 = x.createLinearGradient(sx - 50, 0, sx + 50, 0); g2.addColorStop(0, 'rgba(255,255,255,0)'); g2.addColorStop(0.5, 'rgba(255,255,255,.14)'); g2.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g2; x.fillRect(sx - 50, TL_[1] - 20, 100, BL_[1] - TL_[1] + 60); }
+            x.restore();
+            hG('185,150,255', 16); x.strokeStyle = 'rgba(200,170,255,.95)'; x.lineWidth = 2.2; hquad(0, 0, 1, 1); x.stroke(); hNG();
+            x.setLineDash([40, 300]); x.lineDashOffset = -t * 160; hG('255,255,255', 10); x.strokeStyle = 'rgba(255,255,255,.95)'; x.lineWidth = 2.6; hquad(0, 0, 1, 1); x.stroke(); x.setLineDash([]); hNG();
+            var MON = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'], tp = hP(0.04, 0.085);
+            hG('200,180,255', 6); x.fillStyle = '#efe8ff'; x.font = '500 14px monospace'; x.fillText(MON[KAL.monat] + ' ' + KAL.jahr, tp[0], tp[1]); hNG();
+            var line = hcl((t - 0.5) / 1.2); x.strokeStyle = 'rgba(160,170,255,.32)'; x.lineWidth = 1;
+            for (var i = 0; i <= 7; i++) { var a = hP(i / 7, 0.14), b = hP(i / 7, 0.14 + 0.86 * line); x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); x.stroke(); }
+            for (var j = 0; j <= 6; j++) { var vv = 0.14 + j * (0.86 / 6), a2 = hP(0, vv), b2 = hP(line, vv); x.beginPath(); x.moveTo(a2[0], a2[1]); x.lineTo(b2[0], b2[1]); x.stroke(); }
+            x.font = '11px monospace';
+            for (var c = 0; c < 7; c++) { var p = hP((c + 0.5) / 7, 0.135); x.fillStyle = 'rgba(190,200,255,' + hcl((t - 1 - c * 0.1) / 0.4) + ')'; x.fillText(TAGE_K[c], p[0] - 7, p[1] - 5); }
+            var farbe = 0;
+            for (var dd = 1; dd <= KAL.tage; dd++) {
+                var idx = dd - 1 + KAL.offset, cc = idx % 7, rr = Math.floor(idx / 7), p2 = hP((cc + 0.5) / 7, 0.14 + (rr + 0.42) * (0.86 / 6)), al = hcl((t - 1.2 - dd * 0.03) / 0.35); if (al <= 0) continue;
+                x.globalAlpha = life * al; x.fillStyle = dd === KAL.heute ? '#ffffff' : 'rgba(220,225,255,.92)'; x.font = (dd === KAL.heute ? '500 ' : '') + '11px monospace'; x.fillText(String(dd), p2[0] - 6, p2[1] - 4); x.globalAlpha = life;
+                if (KAL.ev[dd] && dd !== KAL.neu) {
+                    var col = FARBEN_K[(farbe++) % FARBEN_K.length], pop = hob((t - 1.8 - farbe * 0.18) / 0.5); if (pop > 0) {
+                        var pc = hP((cc + 0.5) / 7, 0.14 + (rr + 0.75) * (0.86 / 6)), w = 36 * pop, h = 12 * pop; hG(col, 10); x.fillStyle = 'rgba(' + col + ',.28)'; x.fillRect(pc[0] - w / 2, pc[1] - h / 2, w, h); x.strokeStyle = 'rgba(' + col + ',.95)'; x.lineWidth = 1.2; x.strokeRect(pc[0] - w / 2, pc[1] - h / 2, w, h); hNG();
+                        if (pop > 0.8) { x.fillStyle = '#fff'; x.font = '10px monospace'; x.fillText(KAL.ev[dd], pc[0] - w / 2 + 4, pc[1] + 3.5); }
+                    }
+                }
+            }
+            var np = null;
+            if (neu && KAL.neu) {
+                var n = KAL.neu, ni = n - 1 + KAL.offset, nc = ni % 7, nr = Math.floor(ni / 7), nm = fin > 0 ? 1 : hcl((t - 1.6) / 1.2);
+                np = hP((nc + 0.5) / 7, 0.14 + (nr + 0.5) * (0.86 / 6));
+                if (nm > 0 && nm < 1) hParts.forEach(function (p) { var k = heo(nm * 1.15 - p.o * 0.15), sx = np[0] + Math.cos(p.a) * p.r * (1 - k), sy = np[1] + Math.sin(p.a) * p.r * 0.7 * (1 - k); hG('130,200,255', 8); x.fillStyle = 'rgba(150,215,255,' + (0.4 + 0.6 * k) + ')'; x.fillRect(sx - 1.5, sy - 1.5, 3, 3); });
+                hNG();
+                if (nm > 0.55) {
+                    var f = hcl((nm - 0.55) / 0.45), fl = nm < 1 ? (Math.sin(t * 45) > -0.3 ? 1 : 0.4) : 1; x.globalAlpha = life * f * fl;
+                    hquad(nc / 7, 0.14 + nr * (0.86 / 6), (nc + 1) / 7, 0.14 + (nr + 1) * (0.86 / 6)); hG('100,180,255', 20); x.fillStyle = 'rgba(60,140,255,.5)'; x.fill(); x.strokeStyle = 'rgba(150,215,255,1)'; x.lineWidth = 2; x.stroke(); hNG();
+                    x.fillStyle = '#fff'; x.font = '500 11px monospace'; x.fillText(String(n), np[0] - 6, np[1] - 6); x.font = '10px monospace'; x.fillStyle = '#d6ecff'; x.fillText(KAL.neuTitel, np[0] - 13, np[1] + 9); x.globalAlpha = life;
+                }
+                if (fin > 0 && fin < 2.2) {
+                    var p3 = hcl(fin / 2.0);
+                    for (var r = 0; r < 3; r++) { var q = hcl(p3 - r * 0.12); if (q <= 0) continue; hG('130,255,200', 14); x.strokeStyle = 'rgba(130,255,200,' + (0.9 * (1 - q)) + ')'; x.lineWidth = 3 - r; x.beginPath(); x.ellipse(np[0], np[1], 10 + q * 230, (10 + q * 230) * 0.55, 0, 0, 6.283); x.stroke(); }
+                    hNG();
+                    for (var s = 0; s < 12; s++) { var an = s / 12 * 6.283, r2 = 10 + p3 * 60; x.fillStyle = 'rgba(200,255,230,' + (1 - p3) + ')'; x.fillRect(np[0] + Math.cos(an) * r2, np[1] + Math.sin(an) * r2 * 0.6, 2.4, 2.4); }
+                }
+            }
+            x.restore();
+            var lk = hob((t - 1.3) / 0.8) * life, rk = fin > 0 ? hob((fin - 0.3) / 0.8) * life : 0;
+            if (lk > 0.02) holoKarte(-10 - (1 - Math.min(1, lk)) * 100, 170 + Math.sin(t * 1.2) * 3, 98, 112, '190,160,255', 'rgba(34,28,96,.92)', 'dreh', 'Termine', KAL.anzahl + ' im Monat', lk, t);
+            if (rk > 0.02) holoKarte(380 - 96 + (1 - Math.min(1, rk)) * 100, 150 + Math.sin(t * 1.1 + 1) * 3, 98, 112, '130,255,205', 'rgba(16,56,70,.92)', 'haken', neu ? 'Gespeichert' : 'Gelesen', neu && KAL.neu ? KAL.neu + '. ' + (KAL.monat + 1) + '.' : 'Fertig', rk, t);
         });
-        if (p > 0.55 && fin <= 0) {
-            var blk = Math.sin(t * 9) > 0;
-            if (blk) for (var d2 = 0; d2 < 5; d2++) for (var r2 = 0; r2 < ROWS; r2++) {
-                var occ = BLOCKS.some(function (b) { return b[0] === d2 && r2 >= b[1] && r2 < b[1] + b[2]; });
-                if (!occ && (d2 + r2) % 3 === 0) { x.fillStyle = 'rgba(76,255,176,.22)'; x.fillRect(GX + d2 * CW + 3, GY + r2 * CH + 3, CW - 6, CH - 6); }
+    }
+
+    /* ---------- Effekt: Hologramm-Globus (Internet, Preise) ---------- */
+    var hSp = [];
+    function globusInit() { holoInit(); seed = 5; hSp = []; for (var i = 0; i < 40; i++) hSp.push([Math.asin(rnd() * 2 - 1), rnd() * 6.283]); }
+    function hp(la, lo, rot, r, cx, cy) { var X = Math.cos(la) * Math.sin(lo + rot), Y = Math.sin(la), Zz = Math.cos(la) * Math.cos(lo + rot); return { x: cx + X * r, y: cy - Y * r, z: Zz }; }
+    var globus = buehne(function (t, fin) {
+        var ems = E.globus.ende, life = hlife(t, fin, ems), cx = 190, cy = 150, r = 76 * heo(t / 1.5), rot = t * 0.6, FARB = ['255,200,70', '76,255,176', '255,90,200', '73,215,255', '255,120,80', '160,110,255'];
+        hParts.forEach(function (p) { var yy = 440 - ((t * 24 * p.s + p.o * 300) % 440); x.fillStyle = 'rgba(160,200,255,' + (0.35 * p.s) + ')'; x.fillRect(p.o * 380, yy, 1.6, 1.6); });
+        if (r > 1) {
+            x.globalAlpha = Math.max(0.3, life); x.lineWidth = 1; hG('73,215,255', 6);
+            for (var la = -60; la <= 60; la += 30) { x.strokeStyle = 'rgba(73,215,255,.5)'; x.beginPath(); var st = false; for (var lo = 0; lo <= 6.3; lo += 0.14) { var q = hp(la * 0.01745, lo, rot, r, cx, cy); if (q.z < 0) { st = false; continue; } if (!st) { x.moveTo(q.x, q.y); st = true; } else x.lineTo(q.x, q.y); } x.stroke(); }
+            for (var m = 0; m < 12; m++) { x.strokeStyle = 'rgba(73,215,255,.5)'; x.beginPath(); var s2 = false; for (var l2 = -1.57; l2 <= 1.58; l2 += 0.14) { var q2 = hp(l2, m * 0.5236, rot, r, cx, cy); if (q2.z < 0) { s2 = false; continue; } if (!s2) { x.moveTo(q2.x, q2.y); s2 = true; } else x.lineTo(q2.x, q2.y); } x.stroke(); }
+            hG('160,110,255', 14); x.strokeStyle = 'rgba(160,110,255,.85)'; x.lineWidth = 1.6; x.beginPath(); x.arc(cx, cy, r, 0, 6.283); x.stroke(); hNG();
+            hSp.forEach(function (s, i) { var q3 = hp(s[0], s[1], rot, r, cx, cy); if (q3.z > 0) { var pu = 0.5 + 0.5 * Math.sin(t * 4 + i), col = FARB[i % 6]; hG(col, 8); x.fillStyle = 'rgba(' + col + ',' + (0.4 + 0.5 * pu) + ')'; x.beginPath(); x.arc(q3.x, q3.y, 2.2 + 1.8 * pu, 0, 6.283); x.fill(); } });
+            hNG();
+            for (var a = 0; a < 4; a++) {
+                var A = hSp[a * 5], B = hSp[a * 5 + 9], pt = (t * 0.5 + a * 0.25) % 1; x.strokeStyle = 'rgba(120,220,255,.4)'; x.lineWidth = 1.5; x.beginPath(); var go = false;
+                for (var s3 = 0; s3 <= 1.001; s3 += 0.05) { var qq = hp(A[0] + (B[0] - A[0]) * s3, A[1] + (B[1] - A[1]) * s3, rot, r * (1 + 0.3 * Math.sin(Math.PI * s3)), cx, cy); if (qq.z > -0.2) { if (!go) { x.moveTo(qq.x, qq.y); go = true; } else x.lineTo(qq.x, qq.y); } else go = false; }
+                x.stroke();
+                var q4 = hp(A[0] + (B[0] - A[0]) * pt, A[1] + (B[1] - A[1]) * pt, rot, r * (1 + 0.3 * Math.sin(Math.PI * pt)), cx, cy); hG('255,255,255', 10); x.fillStyle = '#fff'; x.beginPath(); x.arc(q4.x, q4.y, 2.4, 0, 6.283); x.fill(); hNG();
+            }
+            x.globalAlpha = 1;
+        }
+        var win = (heo((t - 1.2) / 1) * (fin > 0 ? 1 - heo((fin - 1.4) / 1) : 1)) * (life > 0 ? 1 : 0);
+        if (win > 0.01) {
+            var namen = ['QUELLE 1', 'QUELLE 2', 'QUELLE 3', 'QUELLE 4'];
+            for (var i = 0; i < 4; i++) {
+                var left = i % 2 === 0, w = 104, h = 52, yy = 60 + Math.floor(i / 2) * 108 + (i % 2) * 28, off = (1 - win) * 140, xx = left ? 4 - off : 380 - w - 4 + off;
+                hG('73,215,255', 12); x.fillStyle = 'rgba(8,24,34,.9)'; x.fillRect(xx, yy, w, h); x.strokeStyle = 'rgba(73,215,255,.9)'; x.lineWidth = 1.5; x.strokeRect(xx, yy, w, h); hNG();
+                x.fillStyle = 'rgba(73,215,255,.9)'; x.fillRect(xx, yy, w, 15); x.fillStyle = '#04121a'; x.font = '500 11px monospace'; x.fillText(namen[i], xx + 6, yy + 11);
+                for (var l = 0; l < 3; l++) { var lw = (w - 14) * (0.45 + 0.5 * Math.abs(Math.sin(t * 1.3 + i + l))) * (fin > 0 ? 1 : 1); x.fillStyle = 'rgba(191,239,255,' + (0.8 - l * 0.2) + ')'; x.fillRect(xx + 7, yy + 24 + l * 8, lw, 3); }
+                var gx = left ? xx + w : xx, gx2 = left ? cx - r * 0.85 : cx + r * 0.85; x.strokeStyle = 'rgba(73,215,255,.35)'; x.lineWidth = 1; x.setLineDash([3, 4]); x.beginPath(); x.moveTo(gx, yy + h / 2); x.lineTo(gx2, cy + (i - 1.5) * 16); x.stroke(); x.setLineDash([]);
+                if (!left) continue;
             }
         }
         if (fin > 0) {
-            var q2 = Math.min(1, fin * 3), fx = GX + 3 * CW + 3, fy = GY + 3 * CH + 3;
-            x.fillStyle = 'rgba(76,255,176,' + (0.25 + q2 * 0.35) + ')'; x.fillRect(fx, fy, CW - 6, CH - 6);
-            x.strokeStyle = GR; x.lineWidth = 4; x.strokeRect(fx - 4 * (1 - q2), fy - 4 * (1 - q2), CW - 6 + 8 * (1 - q2), CH - 6 + 8 * (1 - q2));
+            var Ck = [['ERGEBNIS 1', '73,215,255'], ['ERGEBNIS 2', '76,255,176'], ['ERGEBNIS 3', '255,200,70']];
+            for (var c = 0; c < 3; c++) {
+                var e = hob((fin - 0.1 - c * 0.25) / 0.6) * (1 - heo((fin - (ems / 1000 - 0.8)) / 0.8)); if (e <= 0.02) continue;
+                var cw = 112, ch = 86, cx2 = 8 + c * (cw + 10), cy2 = 288 + (1 - Math.min(1, e)) * 50; x.save(); x.globalAlpha = Math.min(1, e);
+                hG(Ck[c][1], 14); x.fillStyle = 'rgba(8,24,34,.92)'; x.fillRect(cx2, cy2, cw, ch); x.strokeStyle = 'rgba(' + Ck[c][1] + ',.95)'; x.lineWidth = 1.6; x.strokeRect(cx2, cy2, cw, ch); hNG();
+                x.fillStyle = 'rgba(' + Ck[c][1] + ',.9)'; x.fillRect(cx2, cy2, cw, 18); x.fillStyle = '#04121a'; x.font = '500 11px monospace'; x.fillText(Ck[c][0], cx2 + 6, cy2 + 13);
+                x.fillStyle = '#bfefff'; x.font = '11px monospace'; x.fillText('Quelle geprüft', cx2 + 6, cy2 + 40); x.fillText('Treffer gefunden', cx2 + 6, cy2 + 58);
+                x.strokeStyle = '#7dffc8'; x.lineWidth = 2; x.beginPath(); x.moveTo(cx2 + cw - 24, cy2 + 66); x.lineTo(cx2 + cw - 18, cy2 + 72); x.lineTo(cx2 + cw - 9, cy2 + 60); x.stroke(); x.restore();
+            }
         }
-    }
+    });
 
     /* ---------- Effekt: Schritt-Kette (mehrere Schritte nacheinander) ---------- */
     var ST = [[110, 420, 'Schritt 1'], [270, 300, 'Schritt 2'], [430, 380, 'Schritt 3'], [570, 230, 'Schritt 4']];
@@ -218,15 +322,16 @@
     var E = {
         radar: { titel: 'ORTE WERDEN GESCANNT', zeile: '> Umgebung wird abgesucht …', fertig: '> Treffer gefunden', schaetz: 8, init: radarInit, draw: radar },
         route: { titel: 'ROUTE WIRD BERECHNET', zeile: '> Strecke und Verkehr werden geprüft …', fertig: '> Route steht', schaetz: 8, init: function () { }, draw: route },
-        globus: { titel: 'INTERNET WIRD DURCHSUCHT', zeile: '> Quellen werden verglichen …', fertig: '> Quellen ausgewertet', schaetz: 12, init: globusInit, draw: globus },
+        globus: { titel: 'INTERNET WIRD DURCHSUCHT', zeile: '> Quellen werden verglichen …', fertig: '> Quellen ausgewertet', schaetz: 12, init: globusInit, draw: globus, klar: true, ohneHaken: true, ende: 2800 },
         regen: { titel: 'WETTER WIRD ABGERUFEN', zeile: '> Vorhersage wird geladen …', fertig: '> Vorhersage da', schaetz: 6, init: regenInit, draw: regen },
-        kalender: { titel: 'TERMIN WIRD GEPLANT', zeile: '> Kalender wird abgeglichen …', fertig: '> Termin eingerastet', schaetz: 8, init: function () { }, draw: kalender },
+        kalender: { titel: 'KALENDER WIRD GELESEN', zeile: '> Termine werden abgeglichen …', fertig: '> Kalender gelesen', schaetz: 6, init: function () { kalInit(false); }, draw: holoKalender(false), klar: true, ohneHaken: true, ende: 2000 },
+        kalender_neu: { titel: 'TERMIN WIRD ANGELEGT', zeile: '> Neuer Termin entsteht …', fertig: '> Termin gespeichert', schaetz: 6, init: function () { kalInit(true); }, draw: holoKalender(true), klar: true, ohneHaken: true, ende: 3000 },
         kette: { titel: 'SCHRITTE WERDEN ERLEDIGT', zeile: '> Aufgaben laufen nacheinander …', fertig: '> Alle Schritte erledigt', schaetz: 10, init: function () { }, draw: kette },
         neuro: { titel: 'JARVIS DENKT NACH', zeile: '> Informationen werden verknüpft …', fertig: '> Antwort bereit', schaetz: 12, init: neuroInit, draw: neuro },
         news: { titel: 'SCHLAGZEILEN EMPFANGEN', zeile: '> Nachrichten für dich …', fertig: '> Schlagzeilen bereit', schaetz: 8, init: newsInit, draw: news }
     };
     var ARTEN = Object.keys(E);
-    var WERK = { ortssuche: 'radar', adresse: 'radar', fahrzeit: 'route', abfahrt: 'route', ankunft: 'route', dauer_minuten: 'route', websuche: 'globus', produktsuche: 'globus', uhrzeit_anderswo: 'globus', wetter: 'regen', termin_erstellen: 'kalender', termine_lesen: 'kalender', termin_verschieben: 'kalender', schicht: 'kalender', __kette: 'kette' };
+    var WERK = { ortssuche: 'radar', adresse: 'radar', fahrzeit: 'route', abfahrt: 'route', ankunft: 'route', dauer_minuten: 'route', websuche: 'globus', produktsuche: 'globus', uhrzeit_anderswo: 'globus', wetter: 'regen', termin_erstellen: 'kalender_neu', termine_lesen: 'kalender', termin_verschieben: 'kalender_neu', schicht: 'kalender', __kette: 'kette' };
 
     /* ---------- Anzeige ---------- */
     function bauen() {
@@ -256,7 +361,7 @@
         var s = fin > 0 ? def.fertig : def.zeile, vis = Math.min(s.length, Math.floor((fin > 0 ? 99 : (t % 6)) * 18));
         x.fillStyle = TXT; x.font = '17px monospace'; x.fillText(s.slice(0, vis) + ((t * 2) % 1 < 0.5 ? '_' : ''), L, H - L - 14);
         x.fillStyle = 'rgba(73,215,255,.1)'; x.fillRect(0, (t * 140) % H, W, 3);
-        if (fin > 0) {
+        if (fin > 0 && !def.ohneHaken) {
             var c = z.ok ? '76,255,176' : '255,138,107';
             x.strokeStyle = 'rgba(' + c + ',' + Math.max(0, 1 - fin / 1.2) + ')'; x.lineWidth = 5; x.beginPath(); x.arc(CX, CY, Math.min(1, fin) * 320, 0, 6.28); x.stroke();
             x.fillStyle = 'rgba(' + c + ',' + Math.min(1, fin * 3) + ')'; x.font = '500 110px monospace'; x.textAlign = 'center'; x.fillText(z.ok ? '✓' : '✗', CX, CY + 36); x.textAlign = 'left';
@@ -267,9 +372,9 @@
         if (!z.laufend && !z.endeAt) return;
         try {
             var t = (jetzt() - z.t0) / 1000, fin = z.endeAt ? (jetzt() - z.endeAt) / 1000 : 0;
-            if (z.endeAt && jetzt() - z.endeAt > ENDE_MS) { z.endeAt = 0; verbergen(); return; }
+            if (z.endeAt && jetzt() - z.endeAt > (E[z.art].ende || ENDE_MS)) { z.endeAt = 0; verbergen(); return; }
             if (typeof document !== 'undefined' && document.hidden) { raf = requestAnimationFrame(bild); return; }
-            x.fillStyle = 'rgba(5,13,20,.34)'; x.fillRect(0, 0, W, H);
+            x.fillStyle = E[z.art].klar ? '#050d14' : 'rgba(5,13,20,.34)'; x.fillRect(0, 0, W, H);
             E[z.art].draw(t, fin); rahmen(t, fin);
             raf = requestAnimationFrame(bild);
         } catch (e) { verbergen(); }
@@ -279,7 +384,7 @@
             if (!an || z.nutzerWeg) return false;
             art = E[art] ? art : 'neuro';
             if (!bauen()) return false;
-            z.art = art; z.t0 = jetzt(); z.endeAt = 0; z.ok = true; z.laufend = true; z.sichtbar = true;
+            z.art = art; z.t0 = jetzt(); z.endeAt = 0; z.ok = true; z.laufend = true; z.sichtbar = true; z.startNun = 0;
             E[art].init();
             box.style.display = 'flex'; box.style.opacity = '1';
             x.fillStyle = '#050d14'; x.fillRect(0, 0, W, H);
@@ -299,8 +404,8 @@
     /* ---------- Steuerung: Hinweise und Takt ---------- */
     function hinweis(art) { try { if (E[art]) { z.hint = art; z.hintAt = jetzt(); if (z.laufend && z.art !== art && !z.begleitArt) wechsle(art); } } catch (e) { } }
     function wechsle(art) { try { if (z.laufend && E[art] && z.art !== art) { z.art = art; z.t0 = jetzt(); E[art].init(); } } catch (e) { } }
-    function werkzeug(name) {
-        var a = WERK[name]; if (a) hinweis(a);
+    function werkzeug(name, params) {
+        var a = WERK[name]; if (a) { z.hintParams = params && typeof params === 'object' ? params : null; hinweis(a); }
     }
     function begleite(art, p, orte) {
         try {
@@ -350,11 +455,11 @@
                 if (!z.busySince) z.busySince = nun;
                 if (!z.laufend && !z.endeAt && an && !z.nutzerWeg && nun - z.busySince >= VERZOEGERUNG) {
                     var art = z.begleitArt || (z.hint && nun - z.hintAt < HINWEIS_MS ? z.hint : 'neuro');
-                    zeige(art);
+                    if (zeige(art)) z.startNun = nun;
                 } else if (z.laufend && !z.begleitArt && z.hint && nun - z.hintAt < HINWEIS_MS && z.hint !== z.art) wechsle(z.hint);
             } else {
                 z.busySince = 0; z.nutzerWeg = false;
-                if (z.laufend) ende(true);
+                if (z.laufend && !(z.startNun && nun - z.startNun < MINDEST_MS)) ende(true);
             }
         } catch (e) { }
     }

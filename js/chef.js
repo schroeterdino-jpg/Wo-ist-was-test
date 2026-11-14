@@ -444,7 +444,7 @@
             var reg = R(), fehlt = plan.benoetigt.filter(function (n) { return !reg || !reg.hole(n); });
             if (fehlt.length) res.fehlendeFaehigkeiten = fehlt;
         }
-        try { if (window.jvEffekt && plan.schritte.length) window.jvEffekt.werkzeug(plan.schritte.length > 1 ? '__kette' : plan.schritte[0].faehigkeit); } catch (er) { }   // Kino-Effekt passend zur Aufgabe (js/effekte.js), ändert nichts am Ablauf
+        try { if (window.jvEffekt && plan.schritte.length) window.jvEffekt.werkzeug(plan.schritte.length > 1 ? '__kette' : plan.schritte[0].faehigkeit, plan.schritte.length > 1 ? null : plan.schritte[0].params); } catch (er) { }   // Kino-Effekt passend zur Aufgabe (js/effekte.js), ändert nichts am Ablauf
         for (var i = 0; i < plan.schritte.length; i++) {
             var s = plan.schritte[i];
             var e = await fuehreSchrittAus(s, text, opts);
@@ -1042,7 +1042,7 @@
     }
 
     async function ausfuehrenKI(plan, text, gen, ende, st) {
-        try { if (window.jvEffekt && plan.schritte.length) window.jvEffekt.werkzeug(plan.schritte.length > 1 ? '__kette' : plan.schritte[0].faehigkeit); } catch (er) { }   // Kino-Effekt passend zur Aufgabe (js/effekte.js)
+        try { if (window.jvEffekt && plan.schritte.length) window.jvEffekt.werkzeug(plan.schritte.length > 1 ? '__kette' : plan.schritte[0].faehigkeit, plan.schritte.length > 1 ? null : plan.schritte[0].params); } catch (er) { }   // Kino-Effekt passend zur Aufgabe (js/effekte.js)
         if (plan.schritte.some(function (x) { return B2A_NEU.indexOf(x.faehigkeit) >= 0 || B2B_NAMEN.indexOf(x.faehigkeit) >= 0; })) return ausfuehrenSchreibend(plan, text, gen, ende, st || { begonnen: false });
         var einzel = plan.schritte.length === 1, teile = [], kartenListe = [], erfolge = [], fehl = [], schritte = [], ki = 0, frage = '', frageCode = '', offenNeu = null, ortsFehler = '', leer = 0, doppelt = 0, fahrFehler = '';
         for (var i = 0; i < plan.schritte.length; i++) {

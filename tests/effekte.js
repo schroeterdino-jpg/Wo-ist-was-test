@@ -35,23 +35,29 @@ function neu(chef) {
 (async () => {
     {
         const A = neu(false), J = A.sb.jvEffekt;
-        check('1 jvEffekt ist da, acht Effekte, Standard an', !!J && J.ARTEN.length === 8 && J.istAn() === true && ['radar', 'route', 'globus', 'regen', 'kalender', 'kette', 'neuro', 'news'].every(a => J.ARTEN.indexOf(a) >= 0), J && J.ARTEN.join());
+        check('1 jvEffekt ist da, neun Effekte, Standard an', !!J && J.ARTEN.length === 9 && J.istAn() === true && ['radar', 'route', 'globus', 'regen', 'kalender', 'kette', 'neuro', 'news', 'kalender_neu'].every(a => J.ARTEN.indexOf(a) >= 0), J && J.ARTEN.join());
         const m = J.WERKZEUG;
         check('2 Zuordnung Aufgabe → Effekt', m.ortssuche === 'radar' && m.fahrzeit === 'route' && m.websuche === 'globus' && m.produktsuche === 'globus' && m.wetter === 'regen' && m.termine_lesen === 'kalender' && m.__kette === 'kette', JSON.stringify(m));
+        check('2b neuer Termin → Hologramm-Kalender mit neuem Termin', m.termin_erstellen === 'kalender_neu', String(m.termin_erstellen));
+        const A2 = neu(false), J2 = A2.sb.jvEffekt;
+        J2.werkzeug('termin_erstellen', { text: 'Zahnarzt', zeit: '2026-11-20T10:00' }); A2.busy(true); J2.pruefe(100); J2.pruefe(700);
+        check('2c Hinweis termin_erstellen startet kalender_neu mit Parametern', J2.zustand().art === 'kalender_neu', JSON.stringify(J2.zustand()));
         const t0 = 1000000;
-        A.busy(true); J.pruefe(t0); J.pruefe(t0 + 500); J.pruefe(t0 + 1000);
-        check('3 vor 1,2 Sekunden Arbeit: kein Effekt', J.zustand().laufend === false);
-        J.werkzeug('wetter'); J.pruefe(t0 + 1300);
-        check('4 nach 1,2 Sekunden: Effekt läuft, passend zum Hinweis (Regen)', J.zustand().laufend === true && J.zustand().art === 'regen', JSON.stringify(J.zustand()));
-        J.werkzeug('ortssuche'); J.pruefe(t0 + 1600);
+        A.busy(true); J.pruefe(t0); J.pruefe(t0 + 200); J.pruefe(t0 + 400);
+        check('3 vor 0,5 Sekunden Arbeit: kein Effekt', J.zustand().laufend === false);
+        J.werkzeug('wetter'); J.pruefe(t0 + 600);
+        check('4 nach 0,5 Sekunden: Effekt läuft, passend zum Hinweis (Regen)', J.zustand().laufend === true && J.zustand().art === 'regen', JSON.stringify(J.zustand()));
+        J.werkzeug('ortssuche'); J.pruefe(t0 + 900);
         check('5 neuer Hinweis wechselt den Effekt mitten in der Aufgabe (Radar)', J.zustand().art === 'radar', JSON.stringify(J.zustand()));
-        A.busy(false); J.pruefe(t0 + 2000);
-        check('6 Aufgabe fertig: Effekt endet mit Haken (nicht mehr laufend, Ende gemerkt, ok)', J.zustand().laufend === false && J.zustand().endeAt > 0 && J.zustand().ok === true, JSON.stringify(J.zustand()));
+        A.busy(false); J.pruefe(t0 + 1000);
+        check('6a Aufgabe schnell fertig: Effekt bleibt mindestens ca. 3 Sekunden sichtbar', J.zustand().laufend === true);
+        J.pruefe(t0 + 3800);
+        check('6 danach endet der Effekt mit Haken (nicht mehr laufend, Ende gemerkt, ok)', J.zustand().laufend === false && J.zustand().endeAt > 0 && J.zustand().ok === true, JSON.stringify(J.zustand()));
     }
     {
         const A = neu(false), J = A.sb.jvEffekt, t0 = 2000000;
-        A.busy(true); J.pruefe(t0); J.pruefe(t0 + 800); A.busy(false); J.pruefe(t0 + 1000);
-        check('7 kurze Aufgabe (unter 1,2 s): nie ein Effekt', J.zustand().laufend === false && J.zustand().endeAt === 0 && !A.sb.__els.some(e => e.tag === 'canvas'));
+        A.busy(true); J.pruefe(t0); J.pruefe(t0 + 300); A.busy(false); J.pruefe(t0 + 400);
+        check('7 kurze Aufgabe (unter 0,5 s): nie ein Effekt', J.zustand().laufend === false && J.zustand().endeAt === 0 && !A.sb.__els.some(e => e.tag === 'canvas'));
         A.busy(true); J.pruefe(t0 + 5000); J.pruefe(t0 + 7500);
         check('8 lange Aufgabe ohne Hinweis: Neuronen-Netz', J.zustand().laufend && J.zustand().art === 'neuro', JSON.stringify(J.zustand()));
         const box = A.sb.__els.find(e => e.id === 'jvEffekt');
@@ -64,7 +70,7 @@ function neu(chef) {
         let fertig; const p = new Promise(r => { fertig = r; });
         J.begleite('news', p); J.pruefe(t0); J.pruefe(t0 + 2500);
         check('11 begleitete Aufgabe (Nachrichten) zeigt beim Laden den Globus, auch ohne isProcessing', J.zustand().laufend && J.zustand().art === 'globus', JSON.stringify(J.zustand()));
-        fertig(1); await warte(5); J.pruefe(t0 + 4000);
+        fertig(1); await warte(5); J.pruefe(t0 + 7000);
         check('12 Aufgabe fertig: Effekt endet', J.zustand().laufend === false && J.zustand().endeAt > 0);
         const B = neu(false), K = B.sb.jvEffekt, t1 = 4000000;
         let f2; const p2 = new Promise(r => { f2 = r; });
