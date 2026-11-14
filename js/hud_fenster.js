@@ -141,6 +141,7 @@
     }
     async function nachrichten(spreche) {
         const res = await (window.jvEffekt ? window.jvEffekt.begleite('news', Promise.all(ORTE.map(holeNews)), ORTE) : Promise.all(ORTE.map(holeNews)));
+        try { if (window.jvEffekt) await window.jvEffekt.warteBisFertig(); } catch (e) { }   // erst Effekt zu Ende, dann die Karten (nichts überlagert sich)
         const saetze = [];
         ORTE.forEach((ort, i) => {
             const a = res[i];
